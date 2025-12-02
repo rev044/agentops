@@ -4,7 +4,12 @@
   "current_state": {
     "working_on": null,
     "blockers": [],
-    "next_steps": []
+    "next_steps": [
+      "Implement learning-system-plan-2025-12-02.md (create .agents/learnings/ infrastructure)",
+      "Create first pattern from recent plugin work",
+      "Document pattern extraction workflow"
+    ],
+    "resume_summary": "Learning system plan ready: create .agents/learnings/ with INDEX.md, patterns/, and retros/ directories. This enables compounding learning via pattern extraction."
   },
   "sessions": [
     {

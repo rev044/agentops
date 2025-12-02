@@ -36,11 +36,11 @@
 
 ### Constitution (Foundation)
 
-**The rules that govern all agent operations.**
+**Guidelines that shape agent behavior.**
 
-- **Nine Laws of an Agent** - Extract learnings, improve systems, document context
-- **40% Rule** - Never exceed 40% token budget
-- **Git Discipline** - Semantic commits, Knowledge OS patterns
+- **Nine Laws** - Learn, document, validate, guide, measure, protect
+- **40% Rule** - Keep context lean for better quality
+- **Git Discipline** - Semantic commits, clean workspaces
 
 ```bash
 /plugin install constitution@agentops
