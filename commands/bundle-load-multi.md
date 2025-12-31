@@ -1,3 +1,7 @@
+---
+description: Load 2-5 bundles simultaneously for cross-flavor work with token budget management
+---
+
 # /bundle-load-multi - Load Multiple Bundles Simultaneously
 
 **Purpose:** Load 2-5 bundles at once for cross-flavor work with token budget management

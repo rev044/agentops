@@ -1,3 +1,7 @@
+---
+description: Semantic search for context bundles using Memory MCP
+---
+
 # /bundle-search - Semantic Search for Context Bundles
 
 **Purpose:** Find relevant bundles using Memory MCP semantic search
