@@ -1,19 +1,19 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentops-marketplace",
-  "version": "4.0.0",
+  "version": "1.0.0",
   "description": "AgentOps Marketplace - 12 domain skills and 28 commands for AI-assisted development based on Vibe Coding ecosystem",
   "owner": {
-    "name": "Brandon Fuller",
+    "name": "Boden Fuller",
     "email": "fullerbt@users.noreply.github.com"
   },
   "plugins": [
     {
       "name": "agentops",
       "description": "Complete AgentOps toolkit: 12 domain skills, 28 workflow commands, 7 base skills",
-      "version": "4.0.0",
+      "version": "1.0.0",
       "author": {
-        "name": "Brandon Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./",

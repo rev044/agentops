@@ -17,7 +17,7 @@ Claude Code plugin marketplace implementing the Vibe Coding ecosystem by Gene Ki
 | **Plugin development** | [plugins/core-workflow/README.md] | Base workflow patterns |
 | **Marketplace structure** | [.claude-plugin/marketplace.json] | Plugin registry |
 | **Coding standards** | [docs/standards/README.md] | All standards |
-| **Agent catalog** | [agents/catalog.yaml] | Available agents |
+| **Skills directory** | [skills/README.md] | 12 domain skills |
 
 ---
 
@@ -75,7 +75,7 @@ agentops/
 ├── .beads/                  # Git-based issue tracking
 ├── .claude-plugin/
 │   └── marketplace.json     # Marketplace definition
-├── agents/                  # Agent definitions
+├── skills/                  # 12 domain skills (consolidated from 55 agents)
 ├── docs/standards/          # Coding standards
 └── plugins/
     ├── core-workflow/       # Base workflow (research → plan → implement → learn)
@@ -242,4 +242,4 @@ For real work, use these comprehensive catalogs:
 
 ## Last Updated
 
-December 30, 2025
+December 31, 2025
