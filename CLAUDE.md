@@ -1,8 +1,61 @@
 # AgentOps Marketplace — Repository Kernel
 
+Use sub-agents where possible to preserve your main context window.
+
 ## Purpose
 
 Claude Code plugin marketplace implementing the Vibe Coding ecosystem by Gene Kim & Steve Yegge. Educational repository with production-ready patterns for AI-assisted development.
+
+---
+
+## JIT Context Loading
+
+**Load documentation just-in-time based on your task:**
+
+| What You Need | Load This | Key Content |
+|---------------|-----------|-------------|
+| **Plugin development** | [plugins/core-workflow/README.md] | Base workflow patterns |
+| **Marketplace structure** | [.claude-plugin/marketplace.json] | Plugin registry |
+| **Coding standards** | [docs/standards/README.md] | All standards |
+| **Agent catalog** | [agents/catalog.yaml] | Available agents |
+
+---
+
+## Issue Tracking with Beads
+
+**REQUIRED:** This repo uses Beads for git-based issue tracking.
+
+### Essential Commands
+```bash
+bd ready                    # Show unblocked issues
+bd list --status open       # All open issues
+bd show <id>                # View details
+bd update <id> --status in_progress
+bd close <id> --reason "Done"
+bd sync                     # Sync at session end
+```
+
+### Session Close Protocol
+```bash
+git status && git add <files> && bd sync && git commit -m "..." && bd sync && git push
+```
+
+---
+
+## Slash Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/research <topic>` | Deep exploration -> `.agents/research/` |
+| `/plan <goal>` | Decompose -> `.agents/plans/` + beads issues |
+| `/implement [id]` | Execute one issue, commit, close |
+| `/implement-wave` | Parallel execution of independent issues |
+| `/retro [topic]` | Extract learnings -> `.agents/learnings/` |
+
+### Workflow
+```
+/research -> /plan -> bd ready -> /implement (loop) -> /retro
+```
 
 ---
 
@@ -10,14 +63,25 @@ Claude Code plugin marketplace implementing the Vibe Coding ecosystem by Gene Ki
 
 ```
 agentops/
+├── .agents/                 # AI memory system
+│   ├── research/            # Deep exploration documents
+│   ├── plans/               # Implementation roadmaps
+│   ├── patterns/            # Reusable solutions
+│   ├── learnings/           # Session insights
+│   ├── retros/              # Session retrospectives
+│   ├── blackboard/          # Multi-session state
+│   ├── reports/             # Validation outputs
+│   └── bundles/             # Context bundles
+├── .beads/                  # Git-based issue tracking
 ├── .claude-plugin/
 │   └── marketplace.json     # Marketplace definition
-├── plugins/
-│   ├── core-workflow/       # Base workflow (research → plan → implement → learn)
-│   ├── vibe-coding/         # Vibe Coding framework (5 metrics, 6 levels)
-│   ├── devops-operations/   # Kubernetes, Helm, CI/CD patterns
-│   └── software-development/ # Python, JS, Go development
-└── README.md
+├── agents/                  # Agent definitions
+├── docs/standards/          # Coding standards
+└── plugins/
+    ├── core-workflow/       # Base workflow (research → plan → implement → learn)
+    ├── vibe-coding/         # Vibe Coding framework (5 metrics, 6 levels)
+    ├── devops-operations/   # Kubernetes, Helm, CI/CD patterns
+    └── software-development/ # Python, JS, Go development
 ```
 
 ---
@@ -93,21 +157,6 @@ plugins/your-plugin/
     "skills": ["skills/your-skill"]
   }
 }
-```
-
----
-
-## Commands
-
-```bash
-# Test plugins locally
-/plugin install core-workflow --source ./plugins/core-workflow
-
-# Validate marketplace structure
-cat .claude-plugin/marketplace.json | jq .
-
-# Check plugin dependencies
-grep -r "dependencies" plugins/*/. claude-plugin/plugin.json
 ```
 
 ---
@@ -193,4 +242,4 @@ For real work, use these comprehensive catalogs:
 
 ## Last Updated
 
-December 7, 2025
+December 30, 2025
