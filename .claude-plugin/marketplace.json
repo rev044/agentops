@@ -1,254 +1,86 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentops-marketplace",
-  "version": "2.0.0",
-  "description": "AgentOps Marketplace - Vibe Coding ecosystem plugins for Claude Code with modular architecture",
+  "version": "3.0.0",
+  "description": "AgentOps Marketplace - 55 specialized agents and 29 commands for AI-assisted development based on Vibe Coding ecosystem",
   "owner": {
     "name": "Brandon Fuller",
     "email": "fullerbt@users.noreply.github.com"
   },
   "plugins": [
     {
-      "name": "foundation-core",
-      "description": "Core RPI workflow (Research/Plan/Implement), session management, and vibe-coding metrics",
-      "version": "2.0.0",
+      "name": "agentops",
+      "description": "Complete AgentOps toolkit: 55 agents across 12 domains, 29 workflow commands",
+      "version": "3.0.0",
       "author": {
         "name": "Brandon Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./",
-      "category": "productivity"
-    },
-    {
-      "name": "foundation-bundles",
-      "description": "Context persistence and bundle management for multi-session work",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "productivity"
-    },
-    {
-      "name": "foundation-quality",
-      "description": "Code review, testing, and architecture analysis",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "productivity"
-    },
-    {
-      "name": "foundation-learning",
-      "description": "Pattern extraction, retrospectives, and knowledge maintenance",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "learning"
-    },
-    {
-      "name": "foundation-meta",
-      "description": "Multi-agent orchestration, context management, and AI engineering",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "foundation-skills",
-      "description": "Domain knowledge packs for GitOps, infrastructure, security, and platform engineering",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "domain-software-engineer",
-      "description": "Full-stack development: frontend, backend, APIs, UI/UX",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "domain-devops",
-      "description": "CI/CD, containers, deployments, pipelines, networking",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "domain-platform",
-      "description": "GitOps, Crossplane, Kyverno, databases, monitoring, platform services",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "domain-data",
-      "description": "Data engineering, analytics, machine learning, and MLOps",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "domain-security",
-      "description": "Security scanning, penetration testing, incident response",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "security"
-    },
-    {
-      "name": "domain-documentation",
-      "description": "Documentation creation, optimization, diagrams, Diataxis compliance",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "productivity"
-    },
-    {
-      "name": "domain-mobile",
-      "description": "iOS, Android, and cross-platform mobile development",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "domain-innovation",
-      "description": "Architecture review, automation discovery, brainstorming, capability exploration",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-golang",
-      "description": "Idiomatic Go: goroutines, channels, interfaces, error handling",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-python",
-      "description": "Advanced Python: decorators, generators, async, testing",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-typescript",
-      "description": "Advanced TypeScript: type system, generics, strict typing",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-shell",
-      "description": "Shell scripting: POSIX compliance, automation, system integration",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-rust",
-      "description": "Rust systems programming: ownership, lifetimes, async, performance",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-java",
-      "description": "Java/Spring development: Spring Boot, JVM, enterprise patterns",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-performance",
-      "description": "Performance testing, profiling, and optimization",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
-    },
-    {
-      "name": "specialist-accessibility",
-      "description": "Web accessibility, WCAG compliance, and inclusive design",
-      "version": "2.0.0",
-      "author": {
-        "name": "Brandon Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./",
-      "category": "development"
+      "category": "productivity",
+      "keywords": [
+        "agents",
+        "workflow",
+        "vibe-coding",
+        "research",
+        "planning",
+        "implementation"
+      ]
     }
-  ]
+  ],
+  "categories": {
+    "languages": {
+      "description": "Language-specific expertise",
+      "agents": ["python-pro", "golang-pro", "rust-pro", "java-pro", "typescript-pro", "shell-scripting-pro"]
+    },
+    "development": {
+      "description": "Software development roles",
+      "agents": ["backend-architect", "frontend-developer", "fullstack-developer", "mobile-developer", "ios-developer", "deployment-engineer", "ai-engineer", "prompt-engineer"]
+    },
+    "documentation": {
+      "description": "Documentation creation and optimization",
+      "agents": ["documentation-create-docs", "documentation-optimize-docs", "documentation-diataxis-auditor", "api-documenter"]
+    },
+    "code_quality": {
+      "description": "Code review and testing",
+      "agents": ["code-reviewer", "code-review-improve", "test-generator"]
+    },
+    "research": {
+      "description": "Codebase exploration and analysis",
+      "agents": ["code-explorer", "doc-explorer", "history-explorer", "archive-researcher", "document-structure-analyzer", "spec-architect"]
+    },
+    "validation": {
+      "description": "Testing and validation workflows",
+      "agents": ["assumption-validator", "continuous-validator", "validation-planner", "tracer-bullet-deployer"]
+    },
+    "operations": {
+      "description": "Production operations and incidents",
+      "agents": ["incident-responder", "incidents-response", "incidents-postmortems", "error-detective"]
+    },
+    "monitoring": {
+      "description": "Observability and performance",
+      "agents": ["monitoring-alerts-runbooks", "performance-engineer"]
+    },
+    "security": {
+      "description": "Security testing and network",
+      "agents": ["penetration-tester", "network-engineer"]
+    },
+    "data": {
+      "description": "Data engineering and ML",
+      "agents": ["data-engineer", "data-scientist", "ml-engineer", "mlops-engineer"]
+    },
+    "meta": {
+      "description": "Workflow orchestration and context management",
+      "agents": ["context-manager", "change-executor", "autonomous-worker", "meta-observer", "meta-memory-manager", "meta-retro-analyzer"]
+    },
+    "specialized": {
+      "description": "Domain-specific specialists",
+      "agents": ["accessibility-specialist", "customer-support", "connection-agent", "ui-ux-designer", "task-decomposition-expert", "risk-assessor"]
+    }
+  },
+  "stats": {
+    "total_agents": 55,
+    "total_commands": 29,
+    "domains": 12
+  }
 }

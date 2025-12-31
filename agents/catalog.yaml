@@ -1,181 +1,216 @@
 # Agent Catalog Registry
-# Auto-generated from agent definitions
-# Purpose: Enable discovery, routing, and orchestration of specialized agents
-#
-# Aligned with HumanLayer Factor 1 (Natural Language → Tool Calls)
-# See: docs/improvement-plan/humanlayer-pattern-adoption.md
+# Rebuilt from actual agent files (55 agents)
+# Date: 2025-12-30
 
-version: 1.2
-last_updated: 2025-11-13
-total_agents: 53
-
-# Agent Tiers
-# Tier 1: Foundational (specification compliant, 90%+ success rate, universal patterns)
-# Tier 2: Specialized (specification compliant, domain-specific patterns, 90%+ success)
-# Tier 3: Production ready (not yet specified, proven patterns)
-# Tier 4: Experimental (evolving, validation in progress)
-tiers:
-  tier1: 5  # Foundational + specification compliant
-  tier2: 7  # Specialized + specification compliant (4 + 3 new)
-  tier3: 44 # Production ready (37 + 7 now with specs)
-  tier4: 7  # Experimental
+version: 2.0
+last_updated: 2025-12-30
+total_agents: 55
 
 # Domain Organization
 domains:
-  applications: 6
+  languages: 6
+  development: 8
   documentation: 4
-  operations: 3
-  sites: 2
-  containers: 1
-  deployments: 2
-  innovation: 4
-  incidents: 2
+  code_quality: 3
+  research: 6
+  validation: 4
+  operations: 4
   monitoring: 2
-  pipelines: 2
-  playbooks: 5
-  code_review: 1
-  security: 1
-  services: 3
-  testing: 2
-  q1_initiative: 3
+  security: 2
+  data: 4
   meta: 6
-  personal: 1
+  specialized: 6
 
 # Agent Definitions
 agents:
-  # ========================================
-  # APPLICATIONS (6 agents)
-  # ========================================
 
-  applications-create-app:
-    domain: applications
-    tier: 1  # Tier 1: Specification compliant
-    specification: .claude/specs/applications/create-app.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide creation of new GitOps applications using 7-pattern catalog with Context7 integration
+  # ════════════════════════════════════════════════════════════════
+  # LANGUAGES (6 agents)
+  # Language-specific expertise
+  # ════════════════════════════════════════════════════════════════
+
+  python-pro:
+    domain: languages
+    description: Write idiomatic Python code with advanced features like decorators, generators, and async/await
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - pattern-selection
-      - helm-chart-creation
-      - values-generation
-      - validation
-    inputs:
-      required: [app_name, pattern_type]
-      optional: [namespace, resources, replicas]
-    outputs: [values.yaml, kustomization.yaml]
-    error_recovery: retry-with-context
-    stateless: false
-    avg_duration: 90s  # From spec: 20x faster (30 min → 90 sec)
-    success_rate: 0.95
-    time_savings: 20x
+      - advanced-python-features
+      - async-programming
+      - performance-optimization
+      - design-patterns
+      - testing-pytest
+    proactive: true
 
-  applications-create-app-context7:
-    domain: applications
-    description: Create GitOps applications with latest technology patterns using Context7 integration
+  golang-pro:
+    domain: languages
+    description: Write idiomatic Go code with goroutines, channels, and interfaces
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob, Task]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - context7-integration
-      - latest-patterns
-      - technology-research
-    stateless: false
+      - concurrency-patterns
+      - goroutines-channels
+      - interface-design
+      - error-handling
+    proactive: true
 
-  applications-create-app-jren:
-    domain: applications
-    description: Add new application to jren-cm using golden patterns
+  rust-pro:
+    domain: languages
+    description: Master Rust 1.75+ with modern async patterns and advanced type system features
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, mcp__context7__resolve-library-id, mcp__context7__get-library-docs]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - jren-specific-patterns
-      - config-env-integration
-    stateless: false
+      - ownership-lifetimes
+      - async-tokio
+      - systems-programming
+      - performance
+    proactive: true
 
-  applications-modify-app:
-    domain: applications
-    tier: 1  # Tier 1: Specification compliant
-    specification: .claude/specs/applications/modify-app.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide safe modification of existing GitOps applications
+  java-pro:
+    domain: languages
+    description: Master Java 21+ with virtual threads, pattern matching, and Spring Boot 3.x
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - safe-modification
-      - backward-compatibility
-      - rollback-support
-    stateless: false
-    avg_duration: 2m  # From spec: 10x faster (20 min → 2 min)
-    success_rate: 0.90
-    time_savings: 10x
+      - modern-java-features
+      - spring-boot
+      - microservices
+      - graalvm
+    proactive: true
 
-  applications-modify-app-jren:
-    domain: applications
-    description: Safely modify existing applications in jren-cm
+  typescript-pro:
+    domain: languages
+    description: Write idiomatic TypeScript with advanced type system features and strict typing
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, mcp__context7__resolve-library-id, mcp__context7__get-library-docs]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - jren-modification
-      - config-env-updates
-    stateless: false
+      - advanced-types
+      - generic-constraints
+      - conditional-types
+      - type-inference
+    proactive: true
 
-  applications-debug-sync:
-    domain: applications
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/applications/debug-sync.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Debug ArgoCD synchronization failures with systematic diagnostics
+  shell-scripting-pro:
+    domain: languages
+    description: Write robust shell scripts with proper error handling and POSIX compliance
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - argocd-debugging
-      - log-analysis
-      - drift-detection
-      - hierarchical-troubleshooting
-    inputs:
-      required: [app_name]
-      optional: [namespace, cluster]
-    outputs: [diagnosis, fix_recommendations]
-    error_recovery: escalate-with-context
-    stateless: true
-    avg_duration: 180s  # From spec: 8x faster (20-30 min → 2-3 min)
-    success_rate: 0.92
-    time_savings: 8x
+      - bash-scripting
+      - posix-compliance
+      - automation
+      - process-management
+    proactive: true
 
-  applications-paas-audit:
-    domain: applications
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/applications/paas-audit.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Audit jren-cm applications for multi-tenant OpenShift PaaS best practices
+  # ════════════════════════════════════════════════════════════════
+  # DEVELOPMENT (8 agents)
+  # Software development roles
+  # ════════════════════════════════════════════════════════════════
+
+  backend-architect:
+    domain: development
+    description: Backend system architecture and API design specialist
     model: sonnet
-    tools: [Read, Bash, Grep, Glob, Write]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - multi-tenant-audit
-      - resource-management-validation
-      - security-assessment
-      - observability-check
-      - gitops-pattern-compliance
-      - openshift-validation
-    stateless: true
-    avg_duration: 4m  # From spec: 4-5 min per audit
-    success_rate: 0.90
-    time_savings: 15x
+      - api-design
+      - microservices
+      - database-schema
+      - scalability
+    proactive: true
 
-  # ========================================
+  frontend-developer:
+    domain: development
+    description: Frontend development specialist for React applications and responsive design
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - react-development
+      - state-management
+      - performance
+      - accessibility
+    proactive: true
+
+  fullstack-developer:
+    domain: development
+    description: Full-stack development covering frontend, backend, and database technologies
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - end-to-end-development
+      - api-integration
+      - database-design
+      - feature-implementation
+    proactive: true
+
+  mobile-developer:
+    domain: development
+    description: React Native, Flutter, or native mobile apps with modern architecture
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - cross-platform
+      - native-integrations
+      - offline-sync
+      - app-store-optimization
+    proactive: true
+
+  ios-developer:
+    domain: development
+    description: Native iOS applications with Swift/SwiftUI, iOS 18 features
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - swiftui
+      - uikit
+      - core-data
+      - app-store-optimization
+    proactive: true
+
+  deployment-engineer:
+    domain: development
+    description: CI/CD and deployment automation specialist
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, AskUserQuestion]
+    capabilities:
+      - pipeline-configuration
+      - docker-containers
+      - kubernetes
+      - github-actions
+    proactive: true
+
+  ai-engineer:
+    domain: development
+    description: LLM application and RAG system specialist
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - llm-integrations
+      - rag-systems
+      - prompt-pipelines
+      - vector-search
+      - agent-orchestration
+    proactive: true
+
+  prompt-engineer:
+    domain: development
+    description: Expert prompt optimization for LLMs and AI systems
+    model: sonnet
+    tools: [Read, Write, Edit]
+    capabilities:
+      - prompt-patterns
+      - system-prompts
+      - agent-performance
+    proactive: true
+
+  # ════════════════════════════════════════════════════════════════
   # DOCUMENTATION (4 agents)
-  # ========================================
+  # Documentation creation and optimization
+  # ════════════════════════════════════════════════════════════════
 
   documentation-create-docs:
     domain: documentation
-    tier: 1  # Tier 1: Specification compliant
-    specification: .claude/specs/documentation/create-docs.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide creation of clear and maintainable documentation
+    description: Guide creation of clear and maintainable documentation using 7-pattern stack
     model: sonnet
     tools: [Read, Write, Edit, Bash, Grep, Glob]
     capabilities:
@@ -183,9 +218,6 @@ agents:
       - markdown-generation
       - structure-planning
     stateless: true
-    avg_duration: 10m  # From spec: 50%+ faster with structure
-    success_rate: 0.85
-    time_savings: 2x
 
   documentation-optimize-docs:
     domain: documentation
@@ -198,484 +230,46 @@ agents:
       - structure-optimization
     stateless: true
 
-  documentation-search-docs:
-    domain: documentation
-    description: Fast documentation search using parallel strategies
-    model: haiku
-    tools: [Read, Grep, Glob]
-    capabilities:
-      - parallel-search
-      - fast-retrieval
-    stateless: true
-    avg_duration: 30s
-
   documentation-diataxis-auditor:
     domain: documentation
     description: Audit documentation for Diátaxis compliance and prevent misplaced files
     model: sonnet
-    tools: [Bash]
+    tools: [Read, Grep, Glob, Write, Edit, Bash]
     capabilities:
       - diataxis-compliance
       - file-placement-validation
     stateless: true
 
-  # ========================================
-  # OPERATIONS (3 agents)
-  # ========================================
-
-  operations-gitops-operations:
-    domain: operations
-    tier: 1  # Tier 1: Specification compliant
-    specification: .claude/specs/operations/gitops-operations.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide day-2 GitOps operations for JREN platform
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
+  api-documenter:
+    domain: documentation
+    description: Create OpenAPI/Swagger specs, generate SDKs, and write developer documentation
+    model: haiku
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - day2-operations
-      - bootstrap-procedures
-      - deployment-workflows
-      - troubleshooting-patterns
-      - disaster-recovery
-    stateless: false
-    avg_duration: 15m  # From spec: 80%+ incident time reduction
-    success_rate: 0.90
-    time_savings: 5x
+      - openapi-specs
+      - sdk-generation
+      - versioning
+      - interactive-docs
+    proactive: true
 
-  operations-organize-repo:
-    domain: operations
-    description: Systematic repository cleanup, organization, and structure optimization
+  # ════════════════════════════════════════════════════════════════
+  # CODE QUALITY (3 agents)
+  # Code review and testing
+  # ════════════════════════════════════════════════════════════════
+
+  code-reviewer:
+    domain: code_quality
+    description: Expert code review for quality, security, and maintainability
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    tools: [Read, Write, Edit, Bash, Grep]
     capabilities:
-      - repository-cleanup
-      - structure-optimization
-      - file-organization
-    stateless: false
-
-  operations-drift-detection:
-    domain: operations
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/operations/drift-detection.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide drift detection comparing cluster state vs GitOps desired state
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - cluster-drift-detection
-      - state-comparison
-      - reconciliation
-    stateless: true
-    avg_duration: 5m
-    success_rate: 0.90
-    time_savings: 12x
-
-  # ========================================
-  # SITES (2 agents)
-  # ========================================
-
-  sites-site-config:
-    domain: sites
-    description: Guide safe addition or modification of site configuration in config.env
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - config-env-editing
-      - site-configuration
-      - validation
-    stateless: false
-
-  sites-harmonize:
-    domain: sites
-    tier: 1  # Tier 1: Specification compliant
-    specification: .claude/specs/sites/harmonize.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide safe execution of harmonize workflow to render site configurations
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - harmonize-workflow
-      - config-rendering
-      - values-generation
-    stateless: true
-    avg_duration: 3m  # From spec: 10x faster (30 min → 3 min)
-    success_rate: 0.95
-    time_savings: 10x
-
-  # ========================================
-  # DEPLOYMENTS (2 agents)
-  # ========================================
-
-  deployments-progressive-delivery:
-    domain: deployments
-    description: Guide implementation of progressive delivery patterns (canary, blue-green)
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - canary-deployments
-      - blue-green-deployment
-      - traffic-management
-    stateless: false
-
-  deployments-rollback-automation:
-    domain: deployments
-    description: Guide implementation of automated rollback mechanisms triggered by metrics
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - automated-rollback
-      - metric-triggers
-      - safety-gates
-    stateless: false
-
-  # ========================================
-  # MONITORING (2 agents)
-  # ========================================
-
-  monitoring-alerts-runbooks:
-    domain: monitoring
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/monitoring/alerts-runbooks.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide creation of actionable alerts with linked runbooks
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - alert-creation
-      - runbook-linking
-      - actionable-monitoring
-    stateless: false
-    avg_duration: 40m
-    success_rate: 0.93
-    time_savings: 12x
-
-  monitoring-slo-dashboards:
-    domain: monitoring
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/monitoring/slo-dashboards.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide creation and maintenance of Service Level Objective (SLO) dashboards
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - golden-signals-monitoring
-      - slo-definition
-      - error-budget-calculation
-      - burn-rate-alerts
-      - dashboard-creation
-      - runbook-integration
-    stateless: false
-    avg_duration: 6m  # From spec: 6-10 min per service
-    success_rate: 0.90
-    time_savings: 10x
-
-  # ========================================
-  # INCIDENTS (2 agents)
-  # ========================================
-
-  incidents-response:
-    domain: incidents
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/incidents/response.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide incident triage and response following structured procedures
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - incident-triage
-      - response-procedures
-      - escalation-management
-    stateless: false
-    avg_duration: 45m
-    success_rate: 0.95
-    time_savings: 2.7x
-    avg_duration: 20m
-
-  incidents-postmortems:
-    domain: incidents
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/incidents/postmortems.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Create blameless postmortems with root cause analysis and actionable prevention
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - postmortem-creation
-      - root-cause-analysis
-      - prevention-planning
-    stateless: false
-    avg_duration: 105m
-    success_rate: 0.90
-    time_savings: 2.3x
-    avg_duration: 30m
-
-  # ========================================
-  # INNOVATION (4 agents)
-  # ========================================
-
-  innovation-architecture-review:
-    domain: innovation
-    description: Review JREN platform architecture to identify improvement opportunities
-    model: sonnet
-    tools: [Read, Grep, Glob, Write, Edit, Bash]
-    capabilities:
-      - architecture-review
-      - improvement-identification
-      - technical-assessment
-    stateless: true
-    avg_duration: 25m
-
-  innovation-capability-explorer:
-    domain: innovation
-    description: Explore untapped capabilities of JREN platform tools to identify underutilized features
-    model: sonnet
-    tools: [Read, Grep, Glob, Write, Edit, Bash]
-    capabilities:
-      - capability-exploration
-      - feature-discovery
-      - utilization-analysis
-    stateless: true
-
-  innovation-automation-opportunities:
-    domain: innovation
-    description: Analyze workflows to identify automation opportunities and reduce operational toil
-    model: sonnet
-    tools: [Read, Grep, Glob, Write, Edit, Bash]
-    capabilities:
-      - workflow-analysis
-      - automation-identification
-      - toil-reduction
-    stateless: true
-
-  innovation-brainstorm-solutions:
-    domain: innovation
-    description: Facilitate open-ended innovation brainstorming for JREN platform improvements
-    model: sonnet
-    tools: [Read, Write, Edit, Grep, Glob]
-    capabilities:
-      - brainstorming
-      - solution-ideation
-      - innovation-facilitation
-    stateless: true
-
-  # ========================================
-  # SERVICES (3 agents)
-  # ========================================
-
-  services-crossplane-dev:
-    domain: services
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/services/crossplane-dev.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide development and extension of Crossplane-based infrastructure
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - crossplane-development
-      - infrastructure-provisioning
-      - custom-resources
-    stateless: false
-    avg_duration: 13m
-    success_rate: 0.88
-    time_savings: 5x
-
-  services-edb-databases:
-    domain: services
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/services/edb-databases.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide creation, configuration, and troubleshooting of EDB Postgres databases
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - postgres-configuration
-      - database-troubleshooting
-      - edb-operator
-      - cloudnative-pg
-      - backup-and-recovery
-    stateless: false
-    avg_duration: 480s  # From spec: 8m provision, 3m troubleshoot
-    success_rate: 0.95
-    time_savings: 7.5x
-
-  services-kyverno-policies:
-    domain: services
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/services/kyverno-policies.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide creation, validation, and debugging of Kyverno policies for JREN platform
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - policy-creation
-      - kyverno-validation
-      - compliance-enforcement
-      - audit-before-enforce
-    stateless: false
-    avg_duration: 180s  # From spec: 20x faster (60 min → 3 min)
-    success_rate: 0.95
-    time_savings: 20x
-
-  # ========================================
-  # TESTING (2 agents)
-  # ========================================
-
-  testing-integration-e2e:
-    domain: testing
-    description: Guide creation of integration and end-to-end tests
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - e2e-testing
-      - integration-tests
-      - test-automation
-    stateless: false
-
-  testing-onboarding-audit:
-    domain: testing
-    description: Continuously audit new developer onboarding experience
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob, Write]
-    capabilities:
-      - onboarding-audit
-      - experience-assessment
-      - improvement-recommendations
-    stateless: true
-
-  # ========================================
-  # PIPELINES (2 agents)
-  # ========================================
-
-  pipelines-gitlab-ci:
-    domain: pipelines
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/pipelines/gitlab-ci.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide safe modification of GitLab CI/CD pipelines following best practices
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - gitlab-ci-configuration
-      - pipeline-optimization
-      - best-practices
-    stateless: false
-    avg_duration: 3m
-    success_rate: 0.90
-    time_savings: 8x
-
-  pipelines-troubleshooting:
-    domain: pipelines
-    description: Diagnose and resolve pipeline failures in release-engineering workflow
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - pipeline-debugging
-      - failure-analysis
-      - resolution-guidance
-    stateless: true
-
-  # ========================================
-  # PLAYBOOKS (5 agents)
-  # ========================================
-
-  playbooks-keycloak-sso:
-    domain: playbooks
-    description: Guide Keycloak SSO deployment and configuration for JREN platform
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - keycloak-deployment
-      - sso-configuration
-      - integration-guidance
-    stateless: false
-
-  playbooks-harmonize-workflow:
-    domain: playbooks
-    description: Guide execution of JREN harmonize workflow rendering config.env to values.yaml
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - harmonize-execution
-      - config-rendering
-      - validation
-    stateless: true
-
-  playbooks-gitops-operations:
-    domain: playbooks
-    description: Guide day-2 GitOps operations for JREN platform
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - day2-operations
-      - gitops-maintenance
-      - operational-guidance
-    stateless: false
-
-  playbooks-storagegrid-onboarding:
-    domain: playbooks
-    description: Guide StorageGrid S3 onboarding for JREN sites including bucket provisioning
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - s3-onboarding
-      - bucket-provisioning
-      - storagegrid-integration
-    stateless: false
-
-  playbooks-platform-upgrades:
-    domain: playbooks
-    description: Guide JREN platform version upgrades with pre-upgrade checks and validation
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - platform-upgrades
-      - pre-upgrade-validation
-      - rollout-management
-    stateless: false
-
-  # ========================================
-  # CONTAINERS (1 agent)
-  # ========================================
-
-  containers-build-modify:
-    domain: containers
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/containers/build-modify.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide building and modification of container images
-    model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
-    capabilities:
-      - container-building
-      - dockerfile-optimization
-      - image-modification
-    stateless: false
-    avg_duration: 7m
-    success_rate: 0.92
-    time_savings: 6x
-
-  # ========================================
-  # CODE REVIEW (1 agent)
-  # ========================================
+      - code-review
+      - security-analysis
+      - quality-assessment
+    proactive: true
 
   code-review-improve:
-    domain: code_review
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/code-review/improve.spec.md
-    version: 1.0.0
-    compliance: compliant
+    domain: code_quality
     description: Systematic code review focusing on correctness, maintainability, security
     model: sonnet
     tools: [Read, Write, Edit, Bash, Grep, Glob]
@@ -684,292 +278,483 @@ agents:
       - security-analysis
       - maintainability-assessment
       - performance-analysis
-      - security-first-pattern
     stateless: true
-    avg_duration: 120s  # From spec: 15x faster (30 min → 2 min)
-    success_rate: 0.95
-    time_savings: 15x
 
-  # ========================================
-  # SECURITY (1 agent)
-  # ========================================
+  test-generator:
+    domain: code_quality
+    description: Generate comprehensive test cases and test code
+    model: sonnet
+    tools: [Read, Write, Bash, Grep]
+    capabilities:
+      - test-generation
+      - edge-case-coverage
+      - test-automation
+    stateless: false
 
-  security-scanning:
+  # ════════════════════════════════════════════════════════════════
+  # RESEARCH & ANALYSIS (6 agents)
+  # Codebase exploration and analysis
+  # ════════════════════════════════════════════════════════════════
+
+  code-explorer:
+    domain: research
+    description: Systematically explore code structure, dependencies, and patterns
+    model: sonnet
+    tools: [Read, Grep, Glob, Bash]
+    capabilities:
+      - code-analysis
+      - dependency-mapping
+      - pattern-detection
+    stateless: true
+
+  doc-explorer:
+    domain: research
+    description: Find and synthesize documentation, guides, and knowledge
+    model: sonnet
+    tools: [Read, Grep, Glob, WebFetch]
+    capabilities:
+      - documentation-search
+      - knowledge-synthesis
+    stateless: true
+
+  history-explorer:
+    domain: research
+    description: Mine git history for patterns, decisions, and institutional memory
+    model: sonnet
+    tools: [Bash, Grep, Read]
+    capabilities:
+      - git-history-analysis
+      - decision-archaeology
+      - pattern-mining
+    stateless: true
+
+  archive-researcher:
+    domain: research
+    description: Repository archival analysis and duplication detection
+    model: sonnet
+    tools: [Read, Grep, Glob]
+    capabilities:
+      - archival-analysis
+      - duplication-detection
+    stateless: true
+
+  document-structure-analyzer:
+    domain: research
+    description: Document structure analysis for layouts and content hierarchy
+    model: sonnet
+    tools: [Read, Write]
+    capabilities:
+      - layout-analysis
+      - hierarchy-mapping
+      - semantic-structure
+    proactive: true
+
+  spec-architect:
+    domain: research
+    description: Design detailed specifications with file:line precision
+    model: sonnet
+    tools: [Read, Grep, Glob]
+    capabilities:
+      - specification-design
+      - file-line-precision
+      - requirement-mapping
+    stateless: true
+
+  # ════════════════════════════════════════════════════════════════
+  # VALIDATION (4 agents)
+  # Testing and validation workflows
+  # ════════════════════════════════════════════════════════════════
+
+  assumption-validator:
+    domain: validation
+    description: Validate research assumptions against target environment reality
+    model: sonnet
+    tools: [Bash, Read, Grep, Glob]
+    capabilities:
+      - assumption-testing
+      - environment-validation
+    stateless: true
+
+  continuous-validator:
+    domain: validation
+    description: Continuously validate throughout development lifecycle
+    model: sonnet
+    tools: [Bash, Read, Grep]
+    capabilities:
+      - continuous-validation
+      - lifecycle-testing
+    stateless: false
+
+  validation-planner:
+    domain: validation
+    description: Design comprehensive validation and test strategies
+    model: sonnet
+    tools: [Read, Bash, Grep]
+    capabilities:
+      - test-strategy
+      - validation-planning
+    stateless: true
+
+  tracer-bullet-deployer:
+    domain: validation
+    description: Deploy minimal test resources to validate critical assumptions
+    model: sonnet
+    tools: [Bash, Read, Write, Grep]
+    capabilities:
+      - tracer-bullet-deployment
+      - assumption-validation
+      - minimal-viable-test
+    stateless: false
+
+  # ════════════════════════════════════════════════════════════════
+  # OPERATIONS & INCIDENTS (4 agents)
+  # Production operations and incident handling
+  # ════════════════════════════════════════════════════════════════
+
+  incident-responder:
+    domain: operations
+    description: Handles production incidents with urgency and precision
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - incident-response
+      - debugging
+      - post-mortems
+    proactive: true
+
+  incidents-response:
+    domain: operations
+    description: Guide incident triage and response following structured procedures
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    capabilities:
+      - incident-triage
+      - response-procedures
+      - escalation-management
+    stateless: false
+
+  incidents-postmortems:
+    domain: operations
+    description: Create blameless postmortems with root cause analysis
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    capabilities:
+      - postmortem-creation
+      - root-cause-analysis
+      - prevention-planning
+    stateless: false
+
+  error-detective:
+    domain: operations
+    description: Log analysis and error pattern detection
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep]
+    capabilities:
+      - log-analysis
+      - error-detection
+      - anomaly-identification
+    proactive: true
+
+  # ════════════════════════════════════════════════════════════════
+  # MONITORING (2 agents)
+  # Observability and performance
+  # ════════════════════════════════════════════════════════════════
+
+  monitoring-alerts-runbooks:
+    domain: monitoring
+    description: Create actionable alerts paired with comprehensive runbooks
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    capabilities:
+      - alert-creation
+      - runbook-linking
+      - actionable-monitoring
+    stateless: false
+
+  performance-engineer:
+    domain: monitoring
+    description: Expert performance engineer for observability and optimization
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - opentelemetry
+      - distributed-tracing
+      - load-testing
+      - core-web-vitals
+    proactive: true
+
+  # ════════════════════════════════════════════════════════════════
+  # SECURITY (2 agents)
+  # Security testing and network
+  # ════════════════════════════════════════════════════════════════
+
+  penetration-tester:
     domain: security
-    tier: 2  # Tier 2: Specialized + Specification compliant
-    specification: .claude/specs/security/scanning.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Guide integration of security scanning (SAST, DAST, dependency scanning)
+    description: Penetration testing and ethical hacking specialist
     model: sonnet
-    tools: [Read, Bash, Grep, Glob]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - security-scanning
-      - vulnerability-detection
-      - compliance-checking
-    stateless: true
-    avg_duration: 4m
-    success_rate: 0.90
-    time_savings: 30x
+      - security-assessments
+      - vulnerability-exploitation
+      - network-penetration
+    proactive: true
 
-  # ========================================
-  # Q1 INITIATIVE (3 agents)
-  # ========================================
-
-  q1-install-config:
-    domain: q1_initiative
-    description: Guide design and implementation of install-config pipeline for reproducible setup
+  network-engineer:
+    domain: security
+    description: Network connectivity and infrastructure specialist
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - install-config-design
-      - pipeline-implementation
-      - reproducibility
+      - load-balancer-config
+      - dns-resolution
+      - ssl-tls
+      - cdn-optimization
+    proactive: true
+
+  # ════════════════════════════════════════════════════════════════
+  # DATA (4 agents)
+  # Data engineering and ML
+  # ════════════════════════════════════════════════════════════════
+
+  data-engineer:
+    domain: data
+    description: Build scalable data pipelines, warehouses, and streaming architectures
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - data-pipelines
+      - spark
+      - dbt
+      - airflow
+    proactive: true
+
+  data-scientist:
+    domain: data
+    description: Advanced analytics, machine learning, and statistical modeling
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - data-analysis
+      - ml-modeling
+      - statistical-analysis
+    proactive: true
+
+  ml-engineer:
+    domain: data
+    description: Build production ML systems with PyTorch, TensorFlow
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - model-serving
+      - feature-engineering
+      - ab-testing
+    proactive: true
+
+  mlops-engineer:
+    domain: data
+    description: ML pipelines, experiment tracking, and model registries
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - mlflow
+      - kubeflow
+      - pipeline-automation
+    proactive: true
+
+  # ════════════════════════════════════════════════════════════════
+  # META (6 agents)
+  # Workflow orchestration and context management
+  # ════════════════════════════════════════════════════════════════
+
+  context-manager:
+    domain: meta
+    description: Context management for multi-agent workflows and long-running tasks
+    model: sonnet
+    tools: [Read, Write, Edit, TodoWrite]
+    capabilities:
+      - context-preservation
+      - session-coordination
+      - multi-agent-workflows
+    proactive: true
+
+  change-executor:
+    domain: meta
+    description: Execute planned changes mechanically with validation
+    model: sonnet
+    tools: [Read, Write, Edit, Bash]
+    capabilities:
+      - change-execution
+      - validation
+      - mechanical-implementation
     stateless: false
 
-  q1-devworkspace:
-    domain: q1_initiative
-    description: Guide Phase 1 PoC for in-cluster DevWorkspace replacing jumpbox workflow
+  autonomous-worker:
+    domain: meta
+    description: Execute domain-specific work independently using stigmergy
     model: sonnet
-    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - devworkspace-poc
-      - jumpbox-replacement
-      - in-cluster-development
+      - stigmergy-coordination
+      - autonomous-execution
+      - multi-session
     stateless: false
 
-  q1-architectural-mentor:
-    domain: q1_initiative
-    description: Act as Codex-aware Architectural Mentor for Q1 deliverables scaffolding
+  meta-observer:
+    domain: meta
+    description: Monitor, synthesize, and document N autonomous worker sessions
     model: sonnet
-    tools: [Read, Grep, Glob]
+    tools: [Read, Write, Grep, Glob]
     capabilities:
-      - architectural-mentoring
-      - codex-integration
-      - q1-guidance
+      - session-monitoring
+      - synthesis
+      - stigmergy-coordination
     stateless: true
 
-  # ========================================
-  # META-AGENTS (6 agents)
-  # ========================================
-
-  meta-pitch-generator:
+  meta-memory-manager:
     domain: meta
-    description: Generate comprehensive pitch for Universal Mind Optimization vision
+    description: Manage persistent memory across sessions
     model: sonnet
-    tools: [Read, Grep, Glob]
+    tools: [Read, Write, Edit]
     capabilities:
-      - pitch-generation
-      - vision-articulation
-    stateless: true
-
-  meta-ipc-auditor:
-    domain: meta
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/meta/ipc-auditor.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Audit IPC database integrity for data consistency and schema compliance
-    model: sonnet
-    tools: [Read, Bash, Grep, Glob]
-    capabilities:
-      - ipc-auditing
-      - data-integrity
-      - schema-validation
-    stateless: true
-    avg_duration: 3m
-    success_rate: 0.95
-    time_savings: 20x
-
-  meta-workflow-auditor:
-    domain: meta
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/meta/workflow-auditor.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Audit multi-agent workflow outputs to identify constraint violations
-    model: sonnet
-    tools: [Read, Grep, Bash]
-    capabilities:
-      - workflow-auditing
-      - constraint-validation
-      - decision-analysis
-    stateless: true
-    avg_duration: 4m
-    success_rate: 0.92
-    time_savings: 15x
-
-  meta-implement-agent:
-    domain: meta
-    description: Execute approved plan exactly with validation at each step
-    model: sonnet
-    tools: [Read, Edit, Write, Bash]
-    capabilities:
-      - plan-execution
-      - step-validation
-      - implementation
+      - memory-management
+      - persistence
+      - context-retrieval
     stateless: false
 
   meta-retro-analyzer:
     domain: meta
-    description: Deep retrospective analysis of sessions to extract patterns and insights
+    description: Extract patterns, insights, and learnings from past work sessions
     model: sonnet
-    tools: [Read, Grep, Glob]
+    tools: [Read, Grep, Glob, Write, Edit]
     capabilities:
       - retrospective-analysis
       - pattern-extraction
       - insight-generation
     stateless: true
-    avg_duration: 30m
 
-  meta-todo-planner:
-    domain: meta
-    description: Multi-agent todo plan generation using parallel sub-agent analysis
+  # ════════════════════════════════════════════════════════════════
+  # SPECIALIZED (6 agents)
+  # Domain-specific specialists
+  # ════════════════════════════════════════════════════════════════
+
+  accessibility-specialist:
+    domain: specialized
+    description: Web accessibility, WCAG compliance, and inclusive design
     model: sonnet
-    tools: [Read, Grep, Glob, TodoWrite]
+    tools: [Read, Write, Edit, Bash]
     capabilities:
-      - todo-planning
-      - multi-agent-coordination
-      - task-breakdown
-    stateless: true
+      - wcag-compliance
+      - aria-patterns
+      - assistive-technology
+    proactive: true
 
-  meta-research-context7:
-    domain: meta
-    description: Specialized research agent that optimizes Context7 library documentation
+  customer-support:
+    domain: specialized
+    description: Customer support and documentation specialist
     model: sonnet
-    tools: [Read, Grep]
+    tools: [Read, Write, Edit]
     capabilities:
-      - context7-research
-      - library-optimization
-    stateless: true
+      - support-tickets
+      - faq-creation
+      - troubleshooting-guides
+    proactive: true
 
-  # ========================================
-  # PERSONAL (1 agent)
-  # ========================================
-
-  personal-12factor-audit:
-    domain: personal
-    description: Audit projects for 12-factor compliance, generate remediation plans
+  connection-agent:
+    domain: specialized
+    description: Obsidian vault connection specialist for knowledge graphs
     model: sonnet
-    tools: [Bash, Read, Grep, Glob]
+    tools: [Read, Grep, Bash, Write, Glob]
     capabilities:
-      - 12factor-audit
-      - compliance-assessment
-      - remediation-planning
-    stateless: true
-    avg_duration: 4m  # From spec: 4-5 min per audit
-    success_rate: 0.90
-    time_savings: 15x
+      - link-analysis
+      - orphan-detection
+      - knowledge-graph
+    proactive: true
 
-  # ========================================
-  # ARGOCD DEBUGGING (1 agent)
-  # ========================================
-
-  argocd-debug-sync:
-    domain: applications
-    description: Debug Argo CD application sync failures
+  ui-ux-designer:
+    domain: specialized
+    description: UI/UX design for user-centered design and interface systems
     model: sonnet
-    tools: [Bash, Read, Grep, mcp__context7__resolve-library-id, mcp__context7__get-library-docs, mcp__podman__container_list, mcp__podman__container_logs, mcp__podman__container_inspect]
+    tools: [Read, Write, Edit]
     capabilities:
-      - argocd-debugging
-      - sync-failure-analysis
-      - container-inspection
-    stateless: true
-    avg_duration: 15m
+      - user-research
+      - wireframes
+      - design-systems
+      - prototyping
+    proactive: true
 
-  # ========================================
-  # GITOPS SPECIALIST GENERATOR (1 agent)
-  # ========================================
-
-  gitops-specialist-generator:
-    domain: meta
-    tier: 3  # Tier 3: Production ready + Specification compliant
-    specification: .claude/specs/meta/specialist-generator.spec.md
-    version: 1.0.0
-    compliance: compliant
-    description: Analyze GitOps Knowledge OS repository to identify agent coverage gaps
-    model: sonnet  # Complex reasoning for gap analysis and spec generation
-    tools: [Read, Grep, Bash, Write]
-    capabilities:
-      - agent-inventory
-      - workflow-analysis
-      - gap-identification
-      - agent-spec-generation
-      - priority-calculation
-      - impact-estimation
-    stateless: true
-    avg_duration: 30m  # From spec: 30 min for quarterly review
-    success_rate: 0.85
-    time_savings: 20x
-
-  # ========================================
-  # HARMONIZE GUIDE (1 agent)
-  # ========================================
-
-  harmonize-guide:
-    domain: playbooks
-    description: Orchestrate harmonize workflow (config.env → values.yaml)
+  task-decomposition-expert:
+    domain: specialized
+    description: Complex goal breakdown and workflow architecture
     model: sonnet
-    tools: [Read, Edit, Bash, mcp__context7__resolve-library-id, mcp__context7__get-library-docs]
+    tools: [Read, Write]
     capabilities:
-      - harmonize-orchestration
-      - config-rendering
-      - workflow-execution
+      - goal-decomposition
+      - workflow-architecture
+      - tool-selection
+    proactive: true
+
+  risk-assessor:
+    domain: specialized
+    description: Identify risks, edge cases, and failure modes
+    model: sonnet
+    tools: [Read, Grep, Bash]
+    capabilities:
+      - risk-identification
+      - edge-case-analysis
+      - failure-mode-detection
     stateless: true
-    avg_duration: 5m
 
 # Usage Patterns
 usage_patterns:
   high_frequency:
-    - applications-create-app
-    - applications-debug-sync
-    - sites-harmonize
+    - python-pro
+    - code-reviewer
+    - backend-architect
     - documentation-create-docs
 
-  specialized:
-    - services-crossplane-dev
-    - services-kyverno-policies
-    - services-edb-databases
+  proactive_agents:
+    - python-pro
+    - golang-pro
+    - rust-pro
+    - typescript-pro
+    - java-pro
+    - backend-architect
+    - frontend-developer
+    - fullstack-developer
+    - code-reviewer
+    - incident-responder
+    - deployment-engineer
+    - ai-engineer
 
-  meta_operations:
+  stateless_agents:
+    - code-review-improve
+    - documentation-create-docs
+    - documentation-optimize-docs
+    - documentation-diataxis-auditor
+    - code-explorer
+    - doc-explorer
+    - history-explorer
+    - spec-architect
+    - assumption-validator
+    - validation-planner
+    - meta-observer
     - meta-retro-analyzer
-    - meta-workflow-auditor
-    - meta-ipc-auditor
+    - risk-assessor
 
-# Discovery Metadata
+# Discovery Keywords
 keywords:
-  create: [applications-create-app, applications-create-app-jren, documentation-create-docs, monitoring-slo-dashboards, services-kyverno-policies]
-  debug: [applications-debug-sync, argocd-debug-sync, pipelines-troubleshooting, services-edb-databases]
-  modify: [applications-modify-app, applications-modify-app-jren, sites-site-config, pipelines-gitlab-ci]
-  review: [code-review-improve, innovation-architecture-review, documentation-diataxis-auditor]
-  deploy: [deployments-progressive-delivery, playbooks-platform-upgrades, playbooks-keycloak-sso]
-  monitor: [monitoring-alerts-runbooks, monitoring-slo-dashboards]
-  incident: [incidents-response, incidents-postmortems]
-
-# Metrics (From Recent Sessions)
-metrics:
-  total_sessions: 204
-  total_commits: 538
-  success_rate: 0.95
-  context_collapse_rate: 0.00
-  avg_speedup: 24
-  pattern_framework:
-    total_patterns: 59
-    categories: 10
-    universal_patterns: 4
-    universal_adoption: 100%
-    average_adoption: 89%
-    highest_roi_pattern: "Index-First Search"
-    highest_roi_multiplier: "40x"
-  rebuild_metrics:
-    agents_rebuilt: 53
-    coverage: "100%"
-    net_growth: "+48,925 lines"
-    growth_multiplier: "3.6x average"
-    pattern_implementations: "400+"
-    success_rate: "95%+"
-    time_invested: "5 days"
-    velocity: "10x vs sequential"
-
-# Next: Natural Language Router
-# See: docs/improvement-plan/humanlayer-pattern-adoption.md#1-context-metrics-dashboard
+  python: [python-pro]
+  go: [golang-pro]
+  rust: [rust-pro]
+  java: [java-pro]
+  typescript: [typescript-pro]
+  shell: [shell-scripting-pro]
+  review: [code-reviewer, code-review-improve]
+  test: [test-generator, validation-planner, tracer-bullet-deployer]
+  docs: [documentation-create-docs, documentation-optimize-docs, api-documenter]
+  incident: [incident-responder, incidents-response, incidents-postmortems]
+  ml: [ml-engineer, mlops-engineer, data-scientist]
+  security: [penetration-tester, network-engineer]
+  frontend: [frontend-developer, ui-ux-designer]
+  backend: [backend-architect, fullstack-developer]
+  mobile: [mobile-developer, ios-developer]
