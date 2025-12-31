@@ -2,82 +2,33 @@
 # Full-stack development, backend, frontend, APIs, applications
 
 name: software-dev
-version: 3.0.0
+version: 4.0.0
 description: |
   Software development across the stack. Build applications (backend APIs, frontends,
   full-stack features), write code in Python, Go, Rust, TypeScript, Java, review code,
   generate tests, and deploy with CI/CD pipelines.
 
-token_budget: 25000
-load_priority: 1
+# Skills from skills/ directory
+skills:
+  - path: skills/languages/SKILL.md
+    description: Python, Go, Rust, Java, TypeScript, Shell patterns
+    knowledge_areas: 6
 
-# Agents from agents/ directory (26 agents)
-agents:
+  - path: skills/development/SKILL.md
+    description: Backend, frontend, fullstack, mobile, deployment, AI
+    knowledge_areas: 8
 
-  # Languages (6)
-  languages:
-    - path: agents/python-pro.md
-      description: Python with decorators, generators, async/await
-    - path: agents/golang-pro.md
-      description: Go with goroutines, channels, interfaces
-    - path: agents/rust-pro.md
-      description: Rust with ownership, async, systems programming
-    - path: agents/java-pro.md
-      description: Java 21+ with virtual threads, Spring Boot
-    - path: agents/typescript-pro.md
-      description: TypeScript with advanced types, strict mode
-    - path: agents/shell-scripting-pro.md
-      description: Shell scripts with POSIX compliance
+  - path: skills/code-quality/SKILL.md
+    description: Code review, improvement, test generation
+    knowledge_areas: 3
 
-  # Development (8)
-  development:
-    - path: agents/backend-architect.md
-      description: API design, microservices, database schema
-    - path: agents/frontend-developer.md
-      description: React, state management, accessibility
-    - path: agents/fullstack-developer.md
-      description: End-to-end application development
-    - path: agents/mobile-developer.md
-      description: React Native, Flutter, cross-platform
-    - path: agents/ios-developer.md
-      description: Swift/SwiftUI, iOS 18 features
-    - path: agents/deployment-engineer.md
-      description: CI/CD, Docker, Kubernetes, GitHub Actions
-    - path: agents/ai-engineer.md
-      description: LLM applications, RAG systems, vector search
-    - path: agents/prompt-engineer.md
-      description: Prompt optimization, system prompts
+  - path: skills/validation/SKILL.md
+    description: Assumption validation, test strategies
+    knowledge_areas: 4
 
-  # Code Quality (3)
-  code_quality:
-    - path: agents/code-reviewer.md
-      description: Code review for quality, security, maintainability
-    - path: agents/code-review-improve.md
-      description: Systematic review with performance analysis
-    - path: agents/test-generator.md
-      description: Test case and test code generation
-
-  # Validation (4)
-  validation:
-    - path: agents/assumption-validator.md
-      description: Validate assumptions against environment
-    - path: agents/continuous-validator.md
-      description: Continuous validation through lifecycle
-    - path: agents/validation-planner.md
-      description: Design validation and test strategies
-    - path: agents/tracer-bullet-deployer.md
-      description: Deploy minimal resources to validate assumptions
-
-  # Data (4)
-  data:
-    - path: agents/data-engineer.md
-      description: Data pipelines, Spark, dbt, Airflow
-    - path: agents/data-scientist.md
-      description: Analytics, ML, statistical modeling
-    - path: agents/ml-engineer.md
-      description: Production ML with PyTorch, TensorFlow
-    - path: agents/mlops-engineer.md
-      description: ML pipelines, MLflow, Kubeflow
+  - path: skills/data/SKILL.md
+    description: Data engineering, ML, MLOps
+    knowledge_areas: 4
 
 # Commands commonly used with this profile
 commands:

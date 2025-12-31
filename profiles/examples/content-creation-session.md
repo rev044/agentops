@@ -14,7 +14,7 @@
 User: /research "authentication patterns in our codebase"
 ```
 
-**Claude loads**: code-explorer, history-explorer, doc-explorer
+**Skills loaded**: research
 
 **Actions**:
 - Scan codebase for auth implementations
@@ -36,7 +36,7 @@ User: /research "authentication patterns in our codebase"
 User: Extract the JWT auth pattern
 ```
 
-**Claude loads**: meta-retro-analyzer, spec-architect
+**Skills loaded**: research, meta
 
 **Actions**:
 - Identify core components
@@ -54,7 +54,7 @@ User: Extract the JWT auth pattern
 User: Create documentation for this pattern
 ```
 
-**Claude loads**: documentation-create-docs, api-documenter
+**Skills loaded**: documentation
 
 **Actions**:
 - Write pattern overview
@@ -75,7 +75,7 @@ User: Create documentation for this pattern
 User: Review docs for Diátaxis compliance
 ```
 
-**Claude loads**: documentation-diataxis-auditor
+**Skills loaded**: documentation
 
 **Actions**:
 - Check document placement
@@ -93,7 +93,7 @@ User: Review docs for Diátaxis compliance
 User: /retro "pattern extraction session"
 ```
 
-**Claude loads**: meta-retro-analyzer
+**Skills loaded**: meta
 
 **Actions**:
 - Capture what worked
@@ -105,18 +105,13 @@ User: /retro "pattern extraction session"
 
 ---
 
-## Agents Used Summary
+## Skills Used Summary
 
-| Agent | When | Purpose |
+| Skill | When | Purpose |
 |-------|------|---------|
-| code-explorer | Research | Find implementations |
-| history-explorer | Research | Trace evolution |
-| doc-explorer | Research | Find existing docs |
-| meta-retro-analyzer | Extract | Pattern synthesis |
-| spec-architect | Extract | Specification |
-| documentation-create-docs | Write | Create docs |
-| api-documenter | Write | API reference |
-| documentation-diataxis-auditor | Review | Compliance check |
+| research | Research, Extract | Find and analyze code |
+| meta | Extract, Retro | Pattern synthesis, learning |
+| documentation | Write, Review | Create and audit docs |
 
 ---
 

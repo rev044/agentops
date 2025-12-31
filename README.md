@@ -1,6 +1,6 @@
 # AgentOps - Claude Code Plugin Marketplace
 
-Production-ready patterns for AI-assisted development. The Research → Plan → Implement workflow, session persistence, and 55 specialized agents organized into 12 domains.
+Production-ready patterns for AI-assisted development. The Research → Plan → Implement workflow, session persistence, and 12 domain skills consolidating 55 knowledge areas.
 
 **[See it in action →](https://www.bodenfuller.com/workflow)**
 
@@ -18,9 +18,8 @@ git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| **Agents** | 55 | Specialized agents across 12 domains |
+| **Skills** | 12 | Domain knowledge packs (55 areas consolidated) |
 | **Commands** | 28 | RPI workflow, sessions, bundles, quality, docs |
-| **Skills** | 7 | Domain knowledge packs |
 | **Profiles** | 3 | Role-based configurations |
 
 ## Core Workflow
@@ -48,65 +47,34 @@ git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
 /bundle-load       # Resume from saved context
 ```
 
-## Agent Domains (12)
+## Skills (12 Domains)
 
-| Domain | Count | Examples |
-|--------|-------|----------|
-| **languages** | 6 | python-pro, golang-pro, rust-pro, java-pro, typescript-pro |
-| **development** | 8 | backend-architect, frontend-developer, ai-engineer, fullstack-developer |
-| **documentation** | 4 | documentation-create-docs, api-documenter, documentation-diataxis-auditor |
-| **code_quality** | 3 | code-reviewer, code-review-improve, test-generator |
-| **research** | 6 | code-explorer, history-explorer, spec-architect, doc-explorer |
-| **validation** | 4 | assumption-validator, tracer-bullet-deployer, validation-planner |
-| **operations** | 4 | incident-responder, error-detective, incidents-postmortems |
-| **monitoring** | 2 | performance-engineer, monitoring-alerts-runbooks |
-| **security** | 2 | penetration-tester, network-engineer |
-| **data** | 4 | data-engineer, ml-engineer, mlops-engineer, data-scientist |
-| **meta** | 6 | context-manager, meta-retro-analyzer, autonomous-worker |
-| **specialized** | 6 | accessibility-specialist, ui-ux-designer, customer-support |
+Skills are knowledge modules that load into main context with full tool access—no sub-agent limitations.
 
-### All Agents
+| Skill | Triggers | Knowledge Areas |
+|-------|----------|-----------------|
+| **[languages](skills/languages/)** | Python, Go, Rust, Java, TypeScript, shell | 6 |
+| **[development](skills/development/)** | API, backend, frontend, mobile, deploy, LLM | 8 |
+| **[documentation](skills/documentation/)** | docs, README, OpenAPI, Diátaxis | 4 |
+| **[code-quality](skills/code-quality/)** | review, test, coverage, quality | 3 |
+| **[research](skills/research/)** | explore, find, analyze, git history | 6 |
+| **[validation](skills/validation/)** | validate, verify, assumption, tracer bullet | 4 |
+| **[operations](skills/operations/)** | incident, outage, debug, logs, postmortem | 4 |
+| **[monitoring](skills/monitoring/)** | metrics, alerts, SLO, OpenTelemetry | 2 |
+| **[security](skills/security/)** | pentest, SSL, TLS, firewall, secrets | 2 |
+| **[data](skills/data/)** | pipeline, ETL, Spark, ML, MLOps | 4 |
+| **[meta](skills/meta/)** | context, session, memory, retro, workflow | 6 |
+| **[specialized](skills/specialized/)** | accessibility, WCAG, UX, Obsidian, risk | 6 |
 
-<details>
-<summary>55 agents (click to expand)</summary>
+### Skills vs Agents
 
-**Languages (6)**
-- golang-pro, java-pro, python-pro, rust-pro, shell-scripting-pro, typescript-pro
-
-**Development (8)**
-- ai-engineer, backend-architect, deployment-engineer, frontend-developer, fullstack-developer, ios-developer, mobile-developer, prompt-engineer
-
-**Documentation (4)**
-- api-documenter, documentation-create-docs, documentation-diataxis-auditor, documentation-optimize-docs
-
-**Code Quality (3)**
-- code-review-improve, code-reviewer, test-generator
-
-**Research (6)**
-- archive-researcher, code-explorer, doc-explorer, document-structure-analyzer, history-explorer, spec-architect
-
-**Validation (4)**
-- assumption-validator, continuous-validator, tracer-bullet-deployer, validation-planner
-
-**Operations (4)**
-- error-detective, incident-responder, incidents-postmortems, incidents-response
-
-**Monitoring (2)**
-- monitoring-alerts-runbooks, performance-engineer
-
-**Security (2)**
-- network-engineer, penetration-tester
-
-**Data (4)**
-- data-engineer, data-scientist, ml-engineer, mlops-engineer
-
-**Meta (6)**
-- autonomous-worker, change-executor, context-manager, meta-memory-manager, meta-observer, meta-retro-analyzer
-
-**Specialized (6)**
-- accessibility-specialist, connection-agent, customer-support, risk-assessor, task-decomposition-expert, ui-ux-designer
-
-</details>
+| Aspect | Skills | Agents (Legacy) |
+|--------|--------|-----------------|
+| Execution | Main context | Sub-process |
+| Tools | Full access | Limited |
+| Context | Preserved | Isolated |
+| MCP | Available | Unavailable |
+| Chaining | Yes | No |
 
 ## Commands (28)
 
@@ -122,18 +90,6 @@ git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
 | **Documentation** | update-docs, create-architecture-documentation, create-onboarding-guide |
 | **Utilities** | ultra-think, maintain, containerize-application |
 | **Multi-Agent** | research-multi |
-
-## Skills
-
-| Skill | Purpose |
-|-------|---------|
-| **base** | Foundation patterns (7 audit/cleanup utilities) |
-| **brand-guidelines** | Consistent documentation styling |
-| **doc-curator** | Documentation quality management |
-| **git-workflow** | Git best practices and automation |
-| **skill-creator** | Create new skills from patterns |
-| **test-gap-scanner** | Identify missing test coverage |
-| **testing** | Test patterns and frameworks |
 
 ## Vibe Coding Framework
 
@@ -176,17 +132,27 @@ agentops/
 │   ├── research/         # Deep exploration docs
 │   ├── plans/            # Implementation roadmaps
 │   ├── patterns/         # Reusable solutions
-│   ├── learnings/        # Session insights
-│   └── bundles/          # Context bundles
+│   └── learnings/        # Session insights
 ├── .beads/               # Git-based issue tracking
 ├── .claude-plugin/       # Plugin manifest
-├── agents/               # 55 agent definitions
-│   └── catalog.yaml      # Agent registry
 ├── commands/             # 28 slash commands
 │   └── INDEX.md          # Command catalog
 ├── docs/standards/       # Coding standards
 ├── profiles/             # Role configurations
-└── skills/               # Knowledge packs
+├── skills/               # 12 domain skills
+│   ├── languages/        # Python, Go, Rust, Java, TS, Shell
+│   ├── development/      # Backend, frontend, mobile, AI
+│   ├── documentation/    # Diátaxis, OpenAPI
+│   ├── code-quality/     # Review, testing
+│   ├── research/         # Exploration, analysis
+│   ├── validation/       # Verification patterns
+│   ├── operations/       # Incidents, debugging
+│   ├── monitoring/       # Observability
+│   ├── security/         # Pentest, network
+│   ├── data/             # ETL, ML, MLOps
+│   ├── meta/             # Workflow coordination
+│   └── specialized/      # Accessibility, UX, risk
+└── agents-archived/      # Legacy agent definitions
 ```
 
 ## Related

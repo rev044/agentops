@@ -1,128 +1,117 @@
 # Example Session: Platform Operations
 
 **Profile**: platform-ops
-**Scenario**: P1 Incident - API latency spike
-**Duration**: ~45 minutes
+**Scenario**: Respond to production incident
+**Duration**: ~45 min
 
 ---
 
 ## Session Flow
 
-### 1. Triage Phase (5 min)
+### 1. Incident Detection (5 min)
 
 ```
-Alert: API p99 latency > 2s (threshold: 500ms)
-User: Help me investigate this latency spike
+User: Alert: High error rate on order-service
 ```
 
-**Claude loads**: incident-responder
+**Skills loaded**: operations
 
-**Actions**:
-- Acknowledge incident
-- Check affected services
-- Identify scope (all users vs subset)
+**Immediate Actions**:
+- Assess severity (P1 - major functionality)
+- Check user impact (orders failing)
 - Start incident timeline
 
 ---
 
-### 2. Investigation Phase (15 min)
+### 2. Investigation (15 min)
 
 ```
-User: Analyze logs for the affected service
+User: Investigate the error spike
 ```
 
-**Claude loads**: error-detective, performance-engineer
+**Skills loaded**: operations, monitoring
 
 **Actions**:
-- Query application logs for errors
-- Check database connection pool metrics
-- Analyze request traces
-- Identify bottleneck
+- Check error logs for patterns
+- Review recent deployments
+- Analyze metrics dashboards
+- Identify root cause hypothesis
 
-**Finding**: Database connection pool exhausted
+**Findings**:
+- Database connection pool exhausted
+- Started after 10am traffic spike
+- Pool sized for normal load, not peak
 
 ---
 
-### 3. Mitigation Phase (10 min)
+### 3. Mitigation (10 min)
 
 ```
-User: Apply temporary fix
+User: Fix the connection pool issue
 ```
 
-**Claude loads**: change-executor
+**Skills loaded**: operations, validation
 
 **Actions**:
 - Increase connection pool size
-- Restart affected pods
-- Verify latency returning to normal
-- Monitor for regression
+- Deploy configuration change
+- Monitor recovery
+- Validate tracer request succeeds
 
-**Result**: Latency back to normal
+**Result**: Error rate back to normal
 
 ---
 
-### 4. Root Cause Analysis (10 min)
+### 4. Documentation (10 min)
 
 ```
-User: What caused the connection pool exhaustion?
+User: Document this incident
 ```
 
-**Claude loads**: code-explorer, error-detective
+**Skills loaded**: meta
 
 **Actions**:
-- Trace back to recent deployment
-- Find unclosed database connections in new code
-- Identify missing connection cleanup
+- Create incident timeline
+- Document root cause
+- Write action items
+- Update runbook
 
-**Root cause**: New feature missing `defer conn.Close()`
+**Output**: Incident postmortem in `.agents/retros/`
 
 ---
 
-### 5. Postmortem Phase (5 min)
+### 5. Prevention (5 min)
 
 ```
-User: Create postmortem
+User: Add alerting for this
 ```
 
-**Claude loads**: incidents-postmortems
+**Skills loaded**: monitoring
 
 **Actions**:
-- Document timeline
-- Capture root cause
-- Define action items
-- Schedule follow-up review
-
-**Output**: Blameless postmortem document
+- Add connection pool utilization alert
+- Link to new runbook
+- Set appropriate threshold
 
 ---
 
-## Agents Used Summary
+## Skills Used Summary
 
-| Agent | When | Purpose |
+| Skill | When | Purpose |
 |-------|------|---------|
-| incident-responder | Triage | Initial response |
-| error-detective | Investigate | Log analysis |
-| performance-engineer | Investigate | Metrics analysis |
-| change-executor | Mitigate | Apply fix |
-| code-explorer | RCA | Find code issue |
-| incidents-postmortems | Postmortem | Document learnings |
+| operations | Detection, Investigation | Incident response |
+| monitoring | Investigation, Prevention | Metrics and alerts |
+| validation | Mitigation | Verify fix works |
+| meta | Documentation | Postmortem capture |
 
 ---
 
 ## Session Outcome
 
-- ✅ Incident resolved in 30 min
+- ✅ Incident mitigated
 - ✅ Root cause identified
-- ✅ Postmortem completed
-- ✅ Action items created
+- ✅ Postmortem documented
+- ✅ Runbook updated
+- ✅ Alert added
 
-**MTTR**: 30 minutes (vs ~2 hours without structured approach)
-
----
-
-## Follow-up Actions
-
-1. [ ] Fix connection leak in code
-2. [ ] Add connection pool monitoring alert
-3. [ ] Review other services for similar patterns
-4. [ ] Add runbook for connection pool issues
+**Time**: ~45 min (MTTR)

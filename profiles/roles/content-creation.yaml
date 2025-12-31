@@ -2,63 +2,29 @@
 # Documentation, writing, research, pattern extraction, tutorials
 
 name: content-creation
-version: 3.0.0
+version: 4.0.0
 description: |
   Content creation, research, and knowledge synthesis. Write documentation (technical
   and non-technical), extract patterns from completed work, conduct research and
   analysis, create tutorials and examples, synthesize learnings.
 
-token_budget: 22000
-load_priority: 2
+# Skills from skills/ directory
+skills:
+  - path: skills/documentation/SKILL.md
+    description: Create, optimize, Diátaxis audit, API documentation
+    knowledge_areas: 4
 
-# Agents from agents/ directory (17 agents)
-agents:
+  - path: skills/research/SKILL.md
+    description: Code, docs, history, archive, structure, specifications
+    knowledge_areas: 6
 
-  # Documentation (4)
-  documentation:
-    - path: agents/documentation-create-docs.md
-      description: Create documentation using 7-pattern stack
-    - path: agents/documentation-optimize-docs.md
-      description: Optimize docs to Knowledge OS standards
-    - path: agents/documentation-diataxis-auditor.md
-      description: Audit for Diátaxis compliance
-    - path: agents/api-documenter.md
-      description: OpenAPI specs, SDKs, developer docs
+  - path: skills/meta/SKILL.md
+    description: Context, observer, memory, retrospective analysis
+    knowledge_areas: 6
 
-  # Research (6)
-  research:
-    - path: agents/code-explorer.md
-      description: Explore code structure, dependencies, patterns
-    - path: agents/doc-explorer.md
-      description: Find and synthesize documentation
-    - path: agents/history-explorer.md
-      description: Mine git history for patterns and decisions
-    - path: agents/archive-researcher.md
-      description: Archival analysis and duplication detection
-    - path: agents/document-structure-analyzer.md
-      description: Document layout and hierarchy analysis
-    - path: agents/spec-architect.md
-      description: Design specifications with file:line precision
-
-  # Meta (4)
-  meta:
-    - path: agents/context-manager.md
-      description: Context for multi-agent workflows
-    - path: agents/meta-observer.md
-      description: Monitor and synthesize worker sessions
-    - path: agents/meta-memory-manager.md
-      description: Manage persistent memory across sessions
-    - path: agents/meta-retro-analyzer.md
-      description: Extract patterns and insights from past work
-
-  # Specialized (3)
-  specialized:
-    - path: agents/accessibility-specialist.md
-      description: WCAG compliance, inclusive design
-    - path: agents/customer-support.md
-      description: Support tickets, FAQs, troubleshooting guides
-    - path: agents/ui-ux-designer.md
-      description: User research, wireframes, design systems
+  - path: skills/specialized/SKILL.md
+    description: Accessibility, customer support, UI/UX
+    knowledge_areas: 6
 
 # Commands commonly used with this profile
 commands:

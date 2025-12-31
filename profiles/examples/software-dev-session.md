@@ -14,7 +14,7 @@
 User: /research "REST API authentication patterns"
 ```
 
-**Claude loads**: code-explorer, doc-explorer
+**Skills loaded**: research, languages
 
 **Actions**:
 - Explore existing auth patterns in codebase
@@ -31,7 +31,7 @@ User: /research "REST API authentication patterns"
 User: /plan "implement JWT auth endpoint"
 ```
 
-**Claude loads**: backend-architect, spec-architect
+**Skills loaded**: development, validation
 
 **Actions**:
 - Design API endpoint structure
@@ -49,7 +49,7 @@ User: /plan "implement JWT auth endpoint"
 User: /implement
 ```
 
-**Claude loads**: python-pro (or language-specific agent)
+**Skills loaded**: languages, development
 
 **Actions**:
 - Create auth middleware
@@ -57,10 +57,10 @@ User: /implement
 - Add route handlers
 - Write error handling
 
-**Agents used**:
-1. `python-pro` - Core implementation
-2. `backend-architect` - API design decisions
-3. `deployment-engineer` - Docker/CI updates
+**Skills used**:
+1. `languages` - Python patterns
+2. `development` - API architecture
+3. `validation` - Tracer bullet deployment
 
 ---
 
@@ -70,7 +70,7 @@ User: /implement
 User: Run code review and generate tests
 ```
 
-**Claude loads**: code-reviewer, test-generator
+**Skills loaded**: code-quality
 
 **Actions**:
 - Review implementation for security
@@ -95,17 +95,15 @@ User: Commit these changes
 
 ---
 
-## Agents Used Summary
+## Skills Used Summary
 
-| Agent | When | Purpose |
+| Skill | When | Purpose |
 |-------|------|---------|
-| code-explorer | Research | Understand existing patterns |
-| doc-explorer | Research | Find documentation |
-| backend-architect | Plan | API design |
-| spec-architect | Plan | File:line specifications |
-| python-pro | Implement | Write Python code |
-| code-reviewer | Quality | Review for issues |
-| test-generator | Quality | Create tests |
+| research | Research | Understand existing patterns |
+| languages | Plan, Implement | Python code patterns |
+| development | Plan, Implement | API architecture |
+| validation | Plan | Tracer bullet validation |
+| code-quality | Quality | Review and testing |
 
 ---
 
@@ -117,4 +115,4 @@ User: Commit these changes
 - ✅ Code reviewed
 - ✅ Committed with semantic message
 
-**Time**: ~2 hours (vs ~6 hours without AI assistance)
+**Time**: ~2 hours

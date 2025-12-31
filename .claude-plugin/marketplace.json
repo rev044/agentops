@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentops-marketplace",
-  "version": "3.0.0",
-  "description": "AgentOps Marketplace - 55 specialized agents and 29 commands for AI-assisted development based on Vibe Coding ecosystem",
+  "version": "4.0.0",
+  "description": "AgentOps Marketplace - 12 domain skills and 28 commands for AI-assisted development based on Vibe Coding ecosystem",
   "owner": {
     "name": "Brandon Fuller",
     "email": "fullerbt@users.noreply.github.com"
@@ -10,8 +10,8 @@
   "plugins": [
     {
       "name": "agentops",
-      "description": "Complete AgentOps toolkit: 55 agents across 12 domains, 29 workflow commands",
-      "version": "3.0.0",
+      "description": "Complete AgentOps toolkit: 12 domain skills, 28 workflow commands, 7 base skills",
+      "version": "4.0.0",
       "author": {
         "name": "Brandon Fuller",
         "email": "fullerbt@users.noreply.github.com"
@@ -19,7 +19,7 @@
       "source": "./",
       "category": "productivity",
       "keywords": [
-        "agents",
+        "skills",
         "workflow",
         "vibe-coding",
         "research",
@@ -28,59 +28,72 @@
       ]
     }
   ],
-  "categories": {
+  "skills": {
     "languages": {
-      "description": "Language-specific expertise",
-      "agents": ["python-pro", "golang-pro", "rust-pro", "java-pro", "typescript-pro", "shell-scripting-pro"]
+      "path": "skills/languages/SKILL.md",
+      "description": "Python, Go, Rust, Java, TypeScript, Shell patterns",
+      "triggers": ["Python", "Go", "Rust", "Java", "TypeScript", "shell", "async", "goroutines"]
     },
     "development": {
-      "description": "Software development roles",
-      "agents": ["backend-architect", "frontend-developer", "fullstack-developer", "mobile-developer", "ios-developer", "deployment-engineer", "ai-engineer", "prompt-engineer"]
+      "path": "skills/development/SKILL.md",
+      "description": "Backend, frontend, mobile, deployment, AI engineering",
+      "triggers": ["API", "backend", "frontend", "mobile", "deploy", "LLM", "RAG"]
     },
     "documentation": {
-      "description": "Documentation creation and optimization",
-      "agents": ["documentation-create-docs", "documentation-optimize-docs", "documentation-diataxis-auditor", "api-documenter"]
+      "path": "skills/documentation/SKILL.md",
+      "description": "Documentation creation with Diátaxis framework",
+      "triggers": ["docs", "README", "OpenAPI", "Swagger", "Diátaxis", "tutorial"]
     },
-    "code_quality": {
-      "description": "Code review and testing",
-      "agents": ["code-reviewer", "code-review-improve", "test-generator"]
+    "code-quality": {
+      "path": "skills/code-quality/SKILL.md",
+      "description": "Code review and test generation",
+      "triggers": ["review", "test", "coverage", "quality", "security review"]
     },
     "research": {
+      "path": "skills/research/SKILL.md",
       "description": "Codebase exploration and analysis",
-      "agents": ["code-explorer", "doc-explorer", "history-explorer", "archive-researcher", "document-structure-analyzer", "spec-architect"]
+      "triggers": ["explore", "find", "analyze", "git history", "pattern", "specification"]
     },
     "validation": {
-      "description": "Testing and validation workflows",
-      "agents": ["assumption-validator", "continuous-validator", "validation-planner", "tracer-bullet-deployer"]
+      "path": "skills/validation/SKILL.md",
+      "description": "Assumption validation and test strategy",
+      "triggers": ["validate", "verify", "assumption", "tracer bullet", "smoke test"]
     },
     "operations": {
-      "description": "Production operations and incidents",
-      "agents": ["incident-responder", "incidents-response", "incidents-postmortems", "error-detective"]
+      "path": "skills/operations/SKILL.md",
+      "description": "Incident response and debugging",
+      "triggers": ["incident", "outage", "debug", "logs", "postmortem", "P0", "P1"]
     },
     "monitoring": {
+      "path": "skills/monitoring/SKILL.md",
       "description": "Observability and performance",
-      "agents": ["monitoring-alerts-runbooks", "performance-engineer"]
+      "triggers": ["monitoring", "metrics", "alerts", "SLO", "OpenTelemetry", "performance"]
     },
     "security": {
-      "description": "Security testing and network",
-      "agents": ["penetration-tester", "network-engineer"]
+      "path": "skills/security/SKILL.md",
+      "description": "Security testing and network infrastructure",
+      "triggers": ["security", "pentest", "SSL", "TLS", "firewall", "secrets"]
     },
     "data": {
-      "description": "Data engineering and ML",
-      "agents": ["data-engineer", "data-scientist", "ml-engineer", "mlops-engineer"]
+      "path": "skills/data/SKILL.md",
+      "description": "Data engineering and ML pipelines",
+      "triggers": ["pipeline", "ETL", "Spark", "ML", "MLOps", "data warehouse"]
     },
     "meta": {
-      "description": "Workflow orchestration and context management",
-      "agents": ["context-manager", "change-executor", "autonomous-worker", "meta-observer", "meta-memory-manager", "meta-retro-analyzer"]
+      "path": "skills/meta/SKILL.md",
+      "description": "Workflow coordination and memory",
+      "triggers": ["context", "session", "memory", "retro", "workflow", "stigmergy"]
     },
     "specialized": {
-      "description": "Domain-specific specialists",
-      "agents": ["accessibility-specialist", "customer-support", "connection-agent", "ui-ux-designer", "task-decomposition-expert", "risk-assessor"]
+      "path": "skills/specialized/SKILL.md",
+      "description": "Accessibility, UX, knowledge graphs, risk",
+      "triggers": ["accessibility", "WCAG", "UX", "Obsidian", "risk", "edge cases"]
     }
   },
   "stats": {
-    "total_agents": 55,
-    "total_commands": 29,
-    "domains": 12
+    "total_skills": 12,
+    "total_commands": 28,
+    "domains": 12,
+    "knowledge_areas": 55
   }
 }

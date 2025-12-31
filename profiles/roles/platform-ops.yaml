@@ -2,56 +2,33 @@
 # SRE, DevOps, infrastructure, monitoring, incidents, reliability
 
 name: platform-ops
-version: 3.0.0
+version: 4.0.0
 description: |
   Platform operations and site reliability engineering. Respond to production incidents,
   monitor system health and performance, debug errors, analyze logs, manage security
   and network infrastructure.
 
-token_budget: 20000
-load_priority: 1
+# Skills from skills/ directory
+skills:
+  - path: skills/operations/SKILL.md
+    description: Incident response, triage, postmortems, error detection
+    knowledge_areas: 4
 
-# Agents from agents/ directory (12 agents)
-agents:
+  - path: skills/monitoring/SKILL.md
+    description: Alerts, runbooks, performance engineering
+    knowledge_areas: 2
 
-  # Operations (4)
-  operations:
-    - path: agents/incident-responder.md
-      description: Production incidents with urgency and precision
-    - path: agents/incidents-response.md
-      description: Incident triage and structured procedures
-    - path: agents/incidents-postmortems.md
-      description: Blameless postmortems with root cause analysis
-    - path: agents/error-detective.md
-      description: Log analysis and error pattern detection
+  - path: skills/security/SKILL.md
+    description: Penetration testing, network engineering
+    knowledge_areas: 2
 
-  # Monitoring (2)
-  monitoring:
-    - path: agents/performance-engineer.md
-      description: OpenTelemetry, tracing, load testing, Core Web Vitals
-    - path: agents/monitoring-alerts-runbooks.md
-      description: Actionable alerts paired with runbooks
+  - path: skills/validation/SKILL.md
+    description: Assumption validation, tracer bullets
+    knowledge_areas: 4
 
-  # Security (2)
-  security:
-    - path: agents/penetration-tester.md
-      description: Security assessments, vulnerability exploitation
-    - path: agents/network-engineer.md
-      description: Load balancers, DNS, SSL/TLS, CDN
-
-  # Validation (2)
-  validation:
-    - path: agents/assumption-validator.md
-      description: Validate assumptions against environment
-    - path: agents/tracer-bullet-deployer.md
-      description: Deploy minimal resources to validate
-
-  # Meta (2)
-  meta:
-    - path: agents/change-executor.md
-      description: Execute planned changes with validation
-    - path: agents/autonomous-worker.md
-      description: Independent work using stigmergy
+  - path: skills/meta/SKILL.md
+    description: Context, execution, autonomous work
+    knowledge_areas: 6
 
 # Commands commonly used with this profile
 commands:
