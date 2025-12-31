@@ -1,22 +1,18 @@
-# Role-Based Taxonomy for .claude/ Artifacts
+# Role-Based Profiles
 
-**Purpose**: Organize 100+ .claude/ artifacts (commands, agents, skills, workflows) into 3 discoverable profiles
+**Purpose**: Organize 55 agents into 3 discoverable profiles for different work contexts.
 
-**Created**: 2025-11-09
-**Version**: 2.0.0 (Consolidated from 5 roles → 3 profiles)
-**Status**: Production-ready, 3 profiles defined, example sessions included
+**Version**: 3.0.0 (Updated for AgentOps marketplace agents)
 
 ---
 
 ## Quick Start
 
-**"What am I working on?"**
-
-| You're doing... | Load this profile | Token Budget |
-|-----------------|-------------------|--------------|
-| Building apps (backend, frontend, full-stack) | **software-dev** | ~25k (12.5%) |
-| Operations (monitoring, incidents, deployments) | **platform-ops** | ~28k (14%) |
-| Writing (docs, tutorials, research, patterns) | **content-creation** | ~22k (11%) |
+| You're doing... | Load this profile | Key Agents |
+|-----------------|-------------------|------------|
+| Building apps (APIs, frontends, features) | **software-dev** | backend-architect, python-pro, code-reviewer |
+| Operations (incidents, monitoring, deploys) | **platform-ops** | incident-responder, performance-engineer, error-detective |
+| Writing (docs, research, patterns) | **content-creation** | documentation-create-docs, meta-retro-analyzer, doc-explorer |
 
 ---
 
@@ -26,26 +22,28 @@
 
 **What you do**:
 - Build applications (backend APIs, frontends, full-stack)
-- Work with React, Next.js, Node.js, Go, Python
-- Manage Kubernetes/Helm deployments
-- Create CI/CD pipelines
-- Implement features end-to-end
+- Write code in Python, Go, Rust, TypeScript, Java
+- Review code and generate tests
+- Deploy with CI/CD pipelines
 
-**Token budget**: ~25k tokens (12.5% of context window)
+**Agents included** (26 agents):
 
-**Key artifacts** (from 100+ total):
-- Backend: `applications-create-app`, `services-crossplane-dev`, `services-edb-databases`
-- Frontend: `documentation-create-docs`, React component patterns
-- Pipelines: `pipelines-gitlab-ci`, `pipelines-troubleshooting`
-- Testing: `testing-integration-e2e`
-- Skills: `test.sh`, `rendering.sh`, `audit.sh`
+| Domain | Agents |
+|--------|--------|
+| **Languages** | python-pro, golang-pro, rust-pro, java-pro, typescript-pro, shell-scripting-pro |
+| **Development** | backend-architect, frontend-developer, fullstack-developer, mobile-developer, ios-developer, deployment-engineer, ai-engineer, prompt-engineer |
+| **Code Quality** | code-reviewer, code-review-improve, test-generator |
+| **Validation** | assumption-validator, continuous-validator, validation-planner, tracer-bullet-deployer |
+| **Data** | data-engineer, data-scientist, ml-engineer, mlops-engineer |
 
-**Tools**: kubectl, helm, docker, podman, node, npm, Context7 MCP (API docs)
-
-**Example session**: See [software-dev-session.md](examples/software-dev-session.md)
-- **Scenario**: Build REST API + React UI feature
-- **Time**: ~2.3 hours
-- **Outcome**: Feature deployed to production with full tests
+**Example workflow**:
+```
+1. /research "API design for user auth"
+2. Load backend-architect for architecture
+3. Load python-pro for implementation
+4. Load code-reviewer before commit
+5. Load test-generator for coverage
+```
 
 ---
 
@@ -53,171 +51,100 @@
 
 **What you do**:
 - Respond to production incidents
-- Monitor system health and SLOs
-- Deploy applications safely (blue-green, canary)
-- Harmonize site configurations
-- Debug ArgoCD sync issues
-- Maintain 99.9%+ uptime
+- Monitor system health and performance
+- Debug errors and analyze logs
+- Manage security and network
 
-**Token budget**: ~28k tokens (14% of context window)
+**Agents included** (12 agents):
 
-**Key artifacts**:
-- Monitoring: `monitoring-alerts-runbooks`, `monitoring-slo-dashboards`
-- Incidents: `incidents-response`, `incidents-postmortems`
-- Deployment: `deployments-progressive-delivery`, `argocd-debug-sync`
-- Infrastructure: `sites-harmonize`, `harmonize-guide`
-- Operations: `playbooks-gitops-operations`, `playbooks-platform-upgrades`
-- Skills: `validate.sh`, `sync.sh`, `harmonize.sh`
+| Domain | Agents |
+|--------|--------|
+| **Operations** | incident-responder, incidents-response, incidents-postmortems, error-detective |
+| **Monitoring** | performance-engineer, monitoring-alerts-runbooks |
+| **Security** | penetration-tester, network-engineer |
+| **Validation** | assumption-validator, tracer-bullet-deployer |
+| **Meta** | change-executor, autonomous-worker |
 
-**Tools**: kubectl, helm, argocd, prometheus, grafana, yamllint
-
-**Example session**: See [platform-ops-session.md](examples/platform-ops-session.md)
-- **Scenario**: P1 incident - Redis OOM causing API timeouts
-- **Time**: ~45 minutes
-- **Outcome**: Incident resolved, postmortem completed, permanent fix deployed
+**Example workflow**:
+```
+1. Alert fires → Load incident-responder
+2. Analyze logs → Load error-detective
+3. Fix applied → Load incidents-postmortems
+4. Improve monitoring → Load monitoring-alerts-runbooks
+```
 
 ---
 
 ### 3. Content Creation (`content-creation`)
 
 **What you do**:
-- Write documentation (technical and non-technical)
-- Extract patterns from production work
-- Conduct meta-analysis and research
-- Create tutorials and examples
-- Develop frameworks
-- Synthesize learnings into reusable knowledge
+- Write documentation and tutorials
+- Extract patterns from completed work
+- Conduct research and analysis
+- Synthesize learnings
 
-**Token budget**: ~22k tokens (11% of context window)
+**Agents included** (17 agents):
 
-**Key artifacts**:
-- Meta: `meta-retro-analyzer`, `meta-workflow-auditor`, `meta-memory-integration`
-- Documentation: `documentation-create-docs`, `documentation-optimize-docs`, `documentation-diataxis-auditor`
-- Innovation: `innovation-architecture-review`, `innovation-capability-explorer`
-- Research: `/research`, `/research-multi`, `/learn`, `/ultra-think`
-- Skills: `agent-refactoring.sh`, compliance auditing
+| Domain | Agents |
+|--------|--------|
+| **Documentation** | documentation-create-docs, documentation-optimize-docs, documentation-diataxis-auditor, api-documenter |
+| **Research** | code-explorer, doc-explorer, history-explorer, archive-researcher, document-structure-analyzer, spec-architect |
+| **Meta** | context-manager, meta-observer, meta-memory-manager, meta-retro-analyzer |
+| **Specialized** | accessibility-specialist, customer-support, ui-ux-designer |
 
-**Tools**: git (history analysis), grep, find, Context7 MCP (research), Memory MCP
-
-**Example session**: See [content-creation-session.md](examples/content-creation-session.md)
-- **Scenario**: Extract context bundle pattern, write docs + tutorial + blog post
-- **Time**: ~3.25 hours
-- **Outcome**: Pattern documented, tutorial created, blog post drafted
+**Example workflow**:
+```
+1. /research "existing auth patterns"
+2. Load code-explorer for codebase analysis
+3. Load documentation-create-docs for writing
+4. Load meta-retro-analyzer for insights
+```
 
 ---
 
-## The Taxonomy Structure
+## Profile Structure
 
 ```
-.claude/profiles/
-├── README.md                          ← This file
-├── COMPARISON.md                      ← Comparison with 12-factor-agentops examples
-├── META_PATTERNS.md                   ← 15 extracted meta-patterns
-│
+profiles/
+├── README.md                 ← This file
+├── COMPARISON.md             ← Profile comparison
+├── META_PATTERNS.md          ← Extracted patterns
 ├── schema/
-│   └── role-profile.yaml              ← Profile schema definition
-│
-├── shared/                            ← Common across all profiles
-│   ├── foundational.yaml              ← Laws, standards, git hooks (3k tokens)
-│   ├── orchestration.yaml             ← Workflow commands (6k tokens, JIT)
-│   └── context.yaml                   ← Bundles, memory (4k tokens, on-demand)
-│
-├── roles/                             ← 3 profile definitions
-│   ├── software-dev.yaml              ← Development (25k tokens)
-│   ├── platform-ops.yaml              ← Operations (28k tokens)
-│   └── content-creation.yaml          ← Writing/research (22k tokens)
-│
-└── examples/                          ← Example sessions
-    ├── software-dev-session.md        ← 2.3 hour feature development
-    ├── platform-ops-session.md        ← 45 min incident response
-    └── content-creation-session.md    ← 3.25 hour pattern documentation
+│   └── role-profile.yaml     ← Profile schema
+├── shared/
+│   ├── foundational.yaml     ← Core standards
+│   ├── orchestration.yaml    ← Workflow commands
+│   └── context.yaml          ← Bundle/memory
+├── roles/
+│   ├── software-dev.yaml     ← Development (26 agents)
+│   ├── platform-ops.yaml     ← Operations (12 agents)
+│   └── content-creation.yaml ← Writing (17 agents)
+└── examples/
+    ├── software-dev-session.md
+    ├── platform-ops-session.md
+    └── content-creation-session.md
 ```
 
 ---
 
-## Shared Infrastructure
+## Agent Domain Reference
 
-All 3 profiles inherit these shared components:
+All 55 agents organized by domain:
 
-### Foundational (3k tokens) - Always Loaded
-
-**What it is**: Constitutional baseline (Laws, standards, git hooks)
-
-**Artifacts**:
-- `work/gitops/.claude/CONSTITUTION.md` - AgentOps Laws (5 laws)
-- `.claude/AGENT_INTERACTION_STANDARDS.md` - Consistent prompting
-- Git hooks (pre-commit, prepare-commit-msg, commit-msg, post-commit)
-- `tools/scripts/post-push-law4-check.sh` - Hook loop prevention
-
-**Why it matters**: Ensures all profiles follow same Laws, commit format, standards
-
----
-
-### Orchestration (6k tokens) - Loaded JIT
-
-**What it is**: Workflow coordination (loaded when invoked)
-
-**Artifacts**:
-- Commands: `Read CLAUDE.md`, `Read CLAUDE.md-task`, `Read CLAUDE.md-task`, `Read CLAUDE.md`
-- Phase commands: `/research`, `/plan`, `/implement`, `/validate`, `/learn`
-- Workflows: `complete-cycle.md`, `debug-cycle.md`, `quick-fix.md`
-
-**When loaded**: User invokes orchestration command (e.g., `Read CLAUDE.md`, `/research`)
-
----
-
-### Context (4k tokens) - Loaded On-Demand
-
-**What it is**: Knowledge management (bundles, memory, continuity)
-
-**Artifacts**:
-- Bundle commands: `/bundle-load`, `/bundle-save`, `/bundle-list`, `/bundle-search`
-- Memory: `/memory-prune`, MCP memory tools
-- System docs: `COMMAND_HIERARCHY.md` (3-level command system)
-
-**When loaded**: User invokes context command or loads bundle
-
----
-
-## Token Budget Design
-
-**Philosophy**: Designed for single or multi-profile loading while staying under 40% rule.
-
-### Single Profile Example
-
-```
-Foundational (always):              3k
-Orchestration (if needed):         +6k
-Profile (software-dev):           +25k
-──────────────────────────────────────
-Total:                             34k (17% of 200k window) ✅
-```
-
-### Two Profile Composition
-
-```
-Foundational:                       3k
-Orchestration:                     +6k
-Profile 1 (software-dev):         +25k
-Profile 2 (platform-ops):         +20k (partial load)
-──────────────────────────────────────
-Total:                             54k (27% of 200k window) ✅
-```
-
-### Maximum Safe (All 3 Profiles)
-
-```
-Foundational:                       3k
-Orchestration:                     +6k
-Context:                           +4k
-software-dev:                     +25k
-platform-ops:                     +28k
-content-creation:                 +22k
-──────────────────────────────────────
-Total:                             88k (44% of 200k window) ⚠️ Over 40%
-```
-
-**Design Principle**: Can load 1-2 profiles comfortably. Loading all 3 exceeds 40% rule → Forces intentional profile selection.
+| Domain | Count | Agents |
+|--------|-------|--------|
+| **languages** | 6 | python-pro, golang-pro, rust-pro, java-pro, typescript-pro, shell-scripting-pro |
+| **development** | 8 | backend-architect, frontend-developer, fullstack-developer, mobile-developer, ios-developer, deployment-engineer, ai-engineer, prompt-engineer |
+| **documentation** | 4 | documentation-create-docs, documentation-optimize-docs, documentation-diataxis-auditor, api-documenter |
+| **code_quality** | 3 | code-reviewer, code-review-improve, test-generator |
+| **research** | 6 | code-explorer, doc-explorer, history-explorer, archive-researcher, document-structure-analyzer, spec-architect |
+| **validation** | 4 | assumption-validator, continuous-validator, validation-planner, tracer-bullet-deployer |
+| **operations** | 4 | incident-responder, incidents-response, incidents-postmortems, error-detective |
+| **monitoring** | 2 | performance-engineer, monitoring-alerts-runbooks |
+| **security** | 2 | penetration-tester, network-engineer |
+| **data** | 4 | data-engineer, data-scientist, ml-engineer, mlops-engineer |
+| **meta** | 6 | context-manager, change-executor, autonomous-worker, meta-observer, meta-memory-manager, meta-retro-analyzer |
+| **specialized** | 6 | accessibility-specialist, customer-support, connection-agent, ui-ux-designer, task-decomposition-expert, risk-assessor |
 
 ---
 
@@ -227,293 +154,53 @@ Total:                             88k (44% of 200k window) ⚠️ Over 40%
 
 | Keywords | Profile |
 |----------|---------|
-| "build", "implement", "feature", "api", "frontend" | software-dev |
-| "incident", "outage", "deploy", "monitor", "slo" | platform-ops |
+| "build", "implement", "feature", "api", "code" | software-dev |
+| "incident", "outage", "monitor", "debug", "logs" | platform-ops |
 | "document", "write", "research", "pattern", "tutorial" | content-creation |
 
-### By File Patterns
+### By Agent Need
 
-| File Pattern | Profile |
-|--------------|---------|
-| `*.tsx`, `*.jsx`, `*.go`, `*.py`, `apps/*/` | software-dev |
-| `*.yaml`, `config.env`, `prometheus/`, `grafana/` | platform-ops |
-| `docs/**/*.md`, `README.md`, `patterns/`, `*.bib` | content-creation |
-
-### By Git Patterns
-
-| Commit Prefix | Profile |
-|---------------|---------|
-| `feat(api):`, `feat(ui):`, `feat(backend):` | software-dev |
-| `fix(ops):`, `fix(monitoring):`, `feat(deploy):` | platform-ops |
-| `docs(explanation):`, `docs(tutorial):`, `feat(pattern):` | content-creation |
+| You need... | Profile |
+|-------------|---------|
+| Language experts (python-pro, rust-pro) | software-dev |
+| Code review and testing | software-dev |
+| Incident response | platform-ops |
+| Performance analysis | platform-ops |
+| Documentation writing | content-creation |
+| Pattern extraction | content-creation |
 
 ---
 
-## Real-World Use Cases
+## Integration with Commands
 
-### Use Case 1: Full-Stack Feature
+Profiles work with the core RPI workflow:
 
-**Scenario**: Build new API endpoint with React UI
-
-**Profiles**: software-dev (primary)
-
-**Loading**:
 ```
-Foundational:                3k
-software-dev:              +25k
-──────────────────────────────
-Total:                      28k (14%)
+/research → Explore before planning (any profile)
+/plan     → Create implementation spec (any profile)
+/implement → Execute with validation (software-dev)
+/retro    → Extract learnings (content-creation)
 ```
 
-**Time**: ~2-3 hours
-**Outcome**: Feature deployed with tests
-
----
-
-### Use Case 2: Production Incident
-
-**Scenario**: Redis OOM causing service degradation
-
-**Profiles**: platform-ops (primary)
-
-**Loading**:
+**Session management**:
 ```
-Foundational:                3k
-Orchestration (Read CLAUDE.md): 2k
-platform-ops:               +8k (incident agents only)
-──────────────────────────────
-Total:                      13k (6.5%)
+/session-start → Initialize with profile context
+/session-end   → Save progress
+/bundle-save   → Persist for multi-session work
 ```
-
-**Time**: ~45 minutes
-**Outcome**: Incident resolved, postmortem done
-
----
-
-### Use Case 3: Framework Documentation
-
-**Scenario**: Extract pattern from production, document + tutorial
-
-**Profiles**: content-creation (primary)
-
-**Loading**:
-```
-Foundational:                3k
-content-creation:          +22k
-──────────────────────────────
-Total:                      25k (12.5%)
-```
-
-**Time**: ~3-4 hours
-**Outcome**: Pattern doc + tutorial + blog post
-
----
-
-### Use Case 4: Platform Feature (Multi-Profile)
-
-**Scenario**: Build monitoring dashboard (code + deploy + document)
-
-**Profiles**: software-dev + platform-ops + content-creation (partial)
-
-**Loading**:
-```
-Foundational:                3k
-software-dev:              +15k (frontend only)
-platform-ops:              +10k (monitoring only)
-content-creation:           +8k (docs only)
-──────────────────────────────
-Total:                      36k (18%)
-```
-
-**Time**: ~4-5 hours
-**Outcome**: Dashboard deployed + monitored + documented
-
----
-
-## What Changed from v1.0.0
-
-### Consolidation Rationale
-
-**v1.0.0** (5 roles):
-- sre-devops (30k)
-- platform-engineer (20k)
-- web-developer (15k)
-- researcher (25k)
-- personal (10k)
-
-**v2.0.0** (3 profiles):
-- **software-dev** (25k) = platform-engineer + web-developer
-- **platform-ops** (28k) = sre-devops (streamlined)
-- **content-creation** (22k) = researcher + documentation aspects
-
-**Why consolidate?**
-1. ✅ **Natural groupings**: Developers do both backend AND frontend in real work
-2. ✅ **Reduced cognitive load**: 3 choices vs 5
-3. ✅ **Better composition**: Clearer when to load multiple profiles
-4. ✅ **Removed workspace-specific**: "personal" role was too specific to this workspace
-5. ✅ **More generalizable**: 3 profiles apply to most software work
-
-**What was removed**:
-- ❌ `personal.yaml` - Too workspace-specific (career planning, philosophy)
-- ❌ Split between backend/frontend - Merged into `software-dev`
-- ❌ Split between SRE/DevOps - Combined in `platform-ops`
-
----
-
-## Meta-Patterns (Extracted)
-
-**See**: `META_PATTERNS.md` for complete analysis (15 patterns)
-
-**Highlights**:
-
-1. **Profile Archetypes**: Software-dev=Creator, Platform-ops=Guardian, Content-creation=Synthesizer
-2. **Token Budgets Reveal Complexity**: Ops (28k) > Dev (25k) > Content (22k)
-3. **Shared Foundation Enforces Consistency**: All profiles follow same Laws
-4. **Multi-Profile Composition**: Real work often requires 2 profiles (~35k tokens)
-5. **JIT Loading**: Load agents only when needed (not all at once)
-
-**For full meta-patterns**: Read `META_PATTERNS.md`
-
----
-
-## Integration with 12-Factor AgentOps
-
-**See**: `COMPARISON.md` for complete comparison
-
-**Key insight**: This workspace taxonomy and 12-factor-agentops examples are complementary:
-
-- **12-factor examples**: Educational templates (learn patterns)
-- **Workspace profiles**: Production inventory (organize reality)
-
-**Together**: Learn → Apply → Extract → Improve (knowledge compounds)
-
-**Cross-references**:
-- Workspace → Framework: "Learn patterns from [12-factor-agentops/examples/](../../personal/12-factor-agentops/examples/)"
-- Framework → Workspace: "See production validation in workspace profiles"
-
----
-
-## How to Use This Taxonomy
-
-### For Navigation
-
-**Before**: "Where's the monitoring agent?"
-**After**: "I'm doing ops work" → Load `platform-ops` → See all monitoring agents
-
-### For Learning
-
-**Before**: Overwhelmed by 100+ artifacts
-**After**: "I'm a developer" → Focus on `software-dev` profile (25k tokens), progressive learning
-
-### For Composition
-
-**Before**: Manually search agents across repos
-**After**: Load `software-dev + platform-ops` → Get both profiles (53k tokens = 26.5%)
-
----
-
-## Future Evolution
-
-### Potential Additions
-
-**New profiles** (if patterns emerge):
-- `data-engineering` - ML pipelines, data processing, analytics
-- `security-ops` - Pen testing, compliance, vulnerability management
-
-**Refinements**:
-- More granular sub-profiles (e.g., `software-dev/frontend` vs `software-dev/backend`)
-- Domain-specific overlays (healthcare, finance, government)
-
-### Promotion Criteria (Artifact → Shared)
-
-An artifact should move to shared when:
-- ✅ Used by 2+ profiles
-- ✅ No profile-specific dependencies
-- ✅ Proven in production (10+ uses)
-- ✅ Well-documented
-
-**Example**: `validate.sh` started in platform-ops, now used by all profiles → Could move to shared
-
----
-
-## Maintenance
-
-### Adding New Artifacts
-
-**To add a command, agent, skill, or workflow**:
-
-1. Determine which profile it belongs to (use trigger patterns)
-2. Update appropriate profile YAML file
-3. Update token budget
-4. Test loading (stays under 40%?)
-5. Document in profile
-
-**Example**:
-```yaml
-# In roles/platform-ops.yaml
-new_agent:
-  - path: work/gitops/.claude/agents/kubernetes-upgrade.md
-    description: Automated Kubernetes version upgrades
-    token_cost: 2200
-    category: operations
-```
-
-### Quarterly Review
-
-**Check**:
-- Are profiles still balanced? (token budgets reasonable)
-- New patterns emerging? (need new profile?)
-- Artifacts in wrong profile? (move to correct one)
-- Usage metrics? (which profiles most used)
-
----
-
-## Example Sessions
-
-**Included**: 3 complete example sessions showing realistic usage
-
-1. **software-dev-session.md** - Build REST API + React UI (~2.3 hours)
-2. **platform-ops-session.md** - P1 incident response (~45 minutes)
-3. **content-creation-session.md** - Pattern extraction + docs (~3.25 hours)
-
-**Each shows**:
-- Context loading (token budgets)
-- Agent usage (which agents loaded when)
-- Time breakdown (phase by phase)
-- Outcomes (what was accomplished)
-- Comparison (with vs without profile)
-
----
-
-## References
-
-- **Schema**: `schema/role-profile.yaml` - Profile structure definition
-- **Meta-Patterns**: `META_PATTERNS.md` - 15 extracted patterns
-- **Comparison**: `COMPARISON.md` - Workspace vs 12-factor-agentops
-- **Command Hierarchy**: `../.claude/COMMAND_HIERARCHY.md` - 3-level command system
-- **Workspace Kernel**: `../../CLAUDE.md` - Workspace orchestration
-- **AgentOps Laws**: `../../work/gitops/.claude/CONSTITUTION.md` - Constitutional baseline
 
 ---
 
 ## Version History
 
+**v3.0.0 (2025-12-30)**:
+- Updated for AgentOps marketplace (55 agents, 12 domains)
+- Removed references to external workspace agents
+- Simplified to 3 core profiles
+- Added agent domain reference table
+
 **v2.0.0 (2025-11-09)**:
 - Consolidated from 5 roles → 3 profiles
-- Added example sessions for each profile
-- Removed workspace-specific "personal" role
-- Merged platform-engineer + web-developer → software-dev
-- Streamlined sre-devops → platform-ops
-- Combined researcher + docs → content-creation
-- Updated all documentation
 
 **v1.0.0 (2025-11-09)**:
 - Initial taxonomy creation
-- 5 roles defined
-- 3 shared profiles
-- 100+ artifacts categorized
-- 15 meta-patterns extracted
-
----
-
-**The taxonomy is production-ready. Use it to discover artifacts, compose profiles, and build faster.**
