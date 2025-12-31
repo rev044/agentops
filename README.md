@@ -1,6 +1,6 @@
 # AgentOps - Claude Code Plugin Marketplace
 
-Production-ready patterns for AI-assisted development. The Research → Plan → Implement workflow, session persistence, and 12 domain skills consolidating 55 knowledge areas.
+Learn AI-assisted development through progressive levels. Start with 50-line commands that just work, advance to full automation when ready.
 
 **[See it in action →](https://www.bodenfuller.com/workflow)**
 
@@ -14,111 +14,104 @@ git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
 /plugin marketplace add boshu2/agentops
 ```
 
-## What's Included
+## Getting Started
 
-| Category | Count | Description |
-|----------|-------|-------------|
-| **Skills** | 12 | Domain knowledge packs (55 areas consolidated) |
-| **Commands** | 28 | RPI workflow, sessions, bundles, quality, docs |
-| **Profiles** | 3 | Role-based configurations |
+Start at **Level 1**. Each level adds ONE concept:
+
+| Level | What You Learn | Commands |
+|-------|----------------|----------|
+| **[L1-basics](levels/L1-basics/)** | Run commands, see results | `/research`, `/implement` |
+| **[L2-persistence](levels/L2-persistence/)** | Save findings to `.agents/` | + `/retro` |
+| **[L3-state-management](levels/L3-state-management/)** | Track work with issues | + `/plan`, beads |
+| **[L4-parallelization](levels/L4-parallelization/)** | Execute waves in parallel | + `/implement-wave` |
+| **[L5-orchestration](levels/L5-orchestration/)** | Full automation | + `/autopilot` |
+
+```bash
+# Your first command (L1)
+/research "how does authentication work"
+
+# Progress when ready
+/implement  # Make changes based on research
+```
+
+Each level has **demo transcripts** showing real sessions. See `levels/L1-basics/demo/`.
 
 ## Core Workflow
 
 ```
 /research → /plan → /implement → /retro
     ↓         ↓          ↓          ↓
- explore   specify    execute    learn
+ explore   decompose   execute    learn
 ```
 
-### Essential Commands
+### By Level
 
-```bash
-# RPI Workflow
-/research          # Deep exploration before planning
-/plan              # Create implementation plan with file:line specs
-/implement         # Execute approved plan with validation
+| Level | Workflow |
+|-------|----------|
+| L1 | `/research` → `/implement` (single session) |
+| L2 | `/research` → `/implement` → `/retro` (with persistence) |
+| L3 | `/research` → `/plan` → `/implement <id>` → `/retro` (with issues) |
+| L4 | `/research` → `/plan` → `/implement-wave` → `/retro` (parallel) |
+| L5 | `/autopilot <epic>` (hands-off) |
 
-# Session Management
-/session-start     # Initialize session with context
-/session-end       # Save progress and summarize
+## What's Included
 
-# Context Persistence
-/bundle-save       # Save context for multi-session work
-/bundle-load       # Resume from saved context
-```
+| Category | Count | Description |
+|----------|-------|-------------|
+| **[Levels](levels/)** | 5 | Progressive learning L1-L5 |
+| **[Reference](reference/)** | 3 | PDC, FAAFO, Failure Patterns |
+| **[Skills](skills/)** | 12 | Domain knowledge (55 areas consolidated) |
+| **[Commands](commands/)** | 28 | Full reference versions |
+| **[Profiles](profiles/)** | 3 | Role-based configurations |
+
+## Reference Documents
+
+Deep framework content, consulted when needed:
+
+| Document | Content |
+|----------|---------|
+| **[PDC Framework](reference/pdc-framework.md)** | Prevent, Detect, Correct methodology |
+| **[FAAFO Alignment](reference/faafo-alignment.md)** | Fast, Ambitious, Autonomous, Fun, Optionality |
+| **[Failure Patterns](reference/failure-patterns.md)** | 12 ways AI-assisted development goes wrong |
 
 ## Skills (12 Domains)
 
-Skills are knowledge modules that load into main context with full tool access—no sub-agent limitations.
+Skills load into main context with full tool access—no sub-agent limitations.
 
-| Skill | Triggers | Knowledge Areas |
-|-------|----------|-----------------|
-| **[languages](skills/languages/)** | Python, Go, Rust, Java, TypeScript, shell | 6 |
-| **[development](skills/development/)** | API, backend, frontend, mobile, deploy, LLM | 8 |
+| Skill | Triggers | Areas |
+|-------|----------|-------|
+| **[languages](skills/languages/)** | Python, Go, Rust, Java, TypeScript | 6 |
+| **[development](skills/development/)** | API, backend, frontend, mobile, LLM | 8 |
 | **[documentation](skills/documentation/)** | docs, README, OpenAPI, Diátaxis | 4 |
-| **[code-quality](skills/code-quality/)** | review, test, coverage, quality | 3 |
-| **[research](skills/research/)** | explore, find, analyze, git history | 6 |
-| **[validation](skills/validation/)** | validate, verify, assumption, tracer bullet | 4 |
-| **[operations](skills/operations/)** | incident, outage, debug, logs, postmortem | 4 |
-| **[monitoring](skills/monitoring/)** | metrics, alerts, SLO, OpenTelemetry | 2 |
-| **[security](skills/security/)** | pentest, SSL, TLS, firewall, secrets | 2 |
-| **[data](skills/data/)** | pipeline, ETL, Spark, ML, MLOps | 4 |
-| **[meta](skills/meta/)** | context, session, memory, retro, workflow | 6 |
-| **[specialized](skills/specialized/)** | accessibility, WCAG, UX, Obsidian, risk | 6 |
-
-### Skills vs Agents
-
-| Aspect | Skills | Agents (Legacy) |
-|--------|--------|-----------------|
-| Execution | Main context | Sub-process |
-| Tools | Full access | Limited |
-| Context | Preserved | Isolated |
-| MCP | Available | Unavailable |
-| Chaining | Yes | No |
-
-## Commands (28)
-
-| Category | Commands |
-|----------|----------|
-| **RPI Workflow** | research, plan, implement |
-| **Bundles** | bundle-save, bundle-load, bundle-search, bundle-list, bundle-prune, bundle-load-multi |
-| **Sessions** | session-start, session-end, session-resume |
-| **Metrics** | vibe-check, vibe-level |
-| **Learning** | learn, retro |
-| **Project** | project-init, progress-update |
-| **Quality** | code-review, architecture-review, generate-tests |
-| **Documentation** | update-docs, create-architecture-documentation, create-onboarding-guide |
-| **Utilities** | ultra-think, maintain, containerize-application |
-| **Multi-Agent** | research-multi |
+| **[code-quality](skills/code-quality/)** | review, test, coverage | 3 |
+| **[research](skills/research/)** | explore, find, analyze | 6 |
+| **[validation](skills/validation/)** | validate, verify, tracer bullet | 4 |
+| **[operations](skills/operations/)** | incident, debug, postmortem | 4 |
+| **[monitoring](skills/monitoring/)** | metrics, alerts, SLO | 2 |
+| **[security](skills/security/)** | pentest, SSL, secrets | 2 |
+| **[data](skills/data/)** | ETL, Spark, ML, MLOps | 4 |
+| **[meta](skills/meta/)** | context, session, workflow | 6 |
+| **[specialized](skills/specialized/)** | accessibility, UX, risk | 6 |
 
 ## Vibe Coding Framework
 
 Based on [Vibe Coding](https://itrevolution.com/product/vibe-coding-book/) by Gene Kim & Steve Yegge.
 
-### Trust Levels (L0-L5)
+### Trust Levels
 
-| Level | Trust | Verification | Use For |
-|-------|-------|--------------|---------|
-| **L5** | 95% | Final only | Formatting, linting |
-| **L4** | 80% | Spot check | Boilerplate, config |
-| **L3** | 60% | Key outputs | Standard features |
-| **L2** | 40% | Every change | New features |
-| **L1** | 20% | Every line | Architecture, security |
-| **L0** | 0% | Research only | Novel exploration |
+| Level | Trust | Use For |
+|-------|-------|---------|
+| **L5** | 95% | Formatting, linting |
+| **L4** | 80% | Boilerplate, config |
+| **L3** | 60% | Standard features |
+| **L2** | 40% | New features |
+| **L1** | 20% | Architecture, security |
+| **L0** | 0% | Novel exploration |
 
 ### The 40% Rule
 
-Context utilization matters:
-- **Below 40%** → 98% success rate
-- **Above 60%** → 24% success rate
-
-### Three Feedback Loops
-
-| Loop | Timeframe | Focus |
-|------|-----------|-------|
-| **Inner** | Seconds | Individual prompts |
-| **Middle** | Hours | Work sessions |
-| **Outer** | Days-weeks | Architecture |
+- **Below 40% context** → 98% success rate
+- **Above 60% context** → 24% success rate
 
 ### FAAFO Promise
 
@@ -128,31 +121,26 @@ Context utilization matters:
 
 ```
 agentops/
+├── levels/               # 🎯 START HERE - Progressive learning
+│   ├── L1-basics/        # Single-session, no state
+│   ├── L2-persistence/   # Add .agents/ output
+│   ├── L3-state-management/  # Add issue tracking
+│   ├── L4-parallelization/   # Add wave execution
+│   └── L5-orchestration/     # Full autopilot
+├── reference/            # Framework documentation
+│   ├── pdc-framework.md
+│   ├── faafo-alignment.md
+│   └── failure-patterns.md
 ├── .agents/              # AI memory system
 │   ├── research/         # Deep exploration docs
 │   ├── plans/            # Implementation roadmaps
 │   ├── patterns/         # Reusable solutions
-│   └── learnings/        # Session insights
-├── .beads/               # Git-based issue tracking
-├── .claude-plugin/       # Plugin manifest
-├── commands/             # 28 slash commands
-│   └── INDEX.md          # Command catalog
-├── docs/standards/       # Coding standards
-├── profiles/             # Role configurations
-├── skills/               # 12 domain skills
-│   ├── languages/        # Python, Go, Rust, Java, TS, Shell
-│   ├── development/      # Backend, frontend, mobile, AI
-│   ├── documentation/    # Diátaxis, OpenAPI
-│   ├── code-quality/     # Review, testing
-│   ├── research/         # Exploration, analysis
-│   ├── validation/       # Verification patterns
-│   ├── operations/       # Incidents, debugging
-│   ├── monitoring/       # Observability
-│   ├── security/         # Pentest, network
-│   ├── data/             # ETL, ML, MLOps
-│   ├── meta/             # Workflow coordination
-│   └── specialized/      # Accessibility, UX, risk
-└── agents-archived/      # Legacy agent definitions
+│   ├── learnings/        # Session insights
+│   └── retros/           # Retrospectives
+├── commands/             # Full reference commands (28)
+├── skills/               # Domain knowledge (12)
+├── profiles/             # Role configurations (3)
+└── .beads/               # Git-based issue tracking
 ```
 
 ## Related
@@ -160,7 +148,7 @@ agentops/
 - [Vibe Coding Book](https://itrevolution.com/product/vibe-coding-book/) - Gene Kim & Steve Yegge
 - [Vibe Ecosystem](https://www.bodenfuller.com/builds/vibe-ecosystem) - Full documentation
 - [vibe-check](https://www.npmjs.com/package/@boshu2/vibe-check) - Metrics CLI tool
-- [bodenfuller.com/workflow](https://bodenfuller.com/workflow) - Video demos
+- [Kubernetes the Hard Way](https://github.com/kelseyhightower/kubernetes-the-hard-way) - Inspiration for progressive levels
 
 ## License
 
