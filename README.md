@@ -145,8 +145,15 @@ agentops/
 
 ## Related
 
+### Ecosystem
+
+- **[12-Factor AgentOps](https://github.com/boshu2/12-factor-agentops)** - The methodology behind this marketplace
+- **[12factoragentops.com](https://12factoragentops.com)** - Interactive documentation and examples
+- **[vibe-kit](./plugins/vibe-kit/)** - Recommended starter plugin (lean, production-ready)
+
+### Inspiration
+
 - [Vibe Coding Book](https://itrevolution.com/product/vibe-coding-book/) - Gene Kim & Steve Yegge
-- [Vibe Ecosystem](https://www.bodenfuller.com/builds/vibe-ecosystem) - Full documentation
 - [vibe-check](https://www.npmjs.com/package/@boshu2/vibe-check) - Metrics CLI tool
 - [Kubernetes the Hard Way](https://github.com/kelseyhightower/kubernetes-the-hard-way) - Inspiration for progressive levels
 

@@ -1,0 +1,62 @@
+{
+  "name": "vibe-kit",
+  "version": "1.0.0",
+  "description": "Lean, production-ready Claude Code setup built on the 40% rule",
+  "author": "Bo Fuller",
+  "license": "MIT",
+  "repository": "https://github.com/boshu2/agentops",
+  "homepage": "https://12factoragentops.com",
+  "commands": [
+    "commands/research.md",
+    "commands/crank.md",
+    "commands/implement.md",
+    "commands/retro.md",
+    "commands/plan.md",
+    "commands/formulate.md",
+    "commands/doc.md",
+    "commands/vibe.md",
+    "commands/status.md"
+  ],
+  "skills": [
+    "skills/beads/",
+    "skills/sk-research/",
+    "skills/sk-implement/",
+    "skills/sk-crank/",
+    "skills/sk-retro/",
+    "skills/sk-plan/",
+    "skills/sk-formulate/",
+    "skills/sk-vibe/",
+    "skills/sk-dispatch/",
+    "skills/sk-handoff/",
+    "skills/sk-roles/",
+    "skills/sk-mail/",
+    "skills/sk-validation-chain/",
+    "skills/sk-bug-hunt/",
+    "skills/sk-product/"
+  ],
+  "agents": [
+    "agents/security-expert.md",
+    "agents/architecture-expert.md",
+    "agents/code-quality-expert.md",
+    "agents/ux-expert.md"
+  ],
+  "templates": [
+    "CLAUDE.md.template"
+  ],
+  "philosophy": {
+    "core_rule": "Stay under 40% context utilization",
+    "principles": [
+      "Simple beats clever",
+      "Skills replaced most agents",
+      "Auto-trigger beats explicit invocation",
+      "Complexity is where tokens go to die"
+    ]
+  },
+  "tags": [
+    "vibe-coding",
+    "context-engineering",
+    "40-percent-rule",
+    "lean",
+    "production-ready"
+  ]
+}
