@@ -93,7 +93,7 @@ Copy `CLAUDE.md.template` to `~/.claude/CLAUDE.md` and adapt it:
 cp ~/.claude/plugins/agentops/plugins/vibe-kit/CLAUDE.md.template ~/.claude/CLAUDE.md
 ```
 
-Keep it under 500 lines. Anything longer and you're wasting context.
+Keep it under 200 lines. Anything longer and you're wasting context.
 
 ## Related
 
