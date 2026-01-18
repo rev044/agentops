@@ -5,6 +5,10 @@ description: >
   gt hook (attach work), gt convoy (batch tracking), and the Propulsion Principle.
   This is THE skill for understanding how to dispatch work to agents.
 version: 1.0.0
+context-budget:
+  skill-md: 7KB
+  references-total: 20KB
+  typical-session: 10KB
 triggers:
   - "dispatch work"
   - "sling"

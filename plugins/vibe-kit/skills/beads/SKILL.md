@@ -8,6 +8,10 @@ description: >
   or needs guidance on git-based issue tracking with the bd CLI.
 allowed-tools: "Read,Bash(bd:*)"
 version: 0.34.1
+context-budget:
+  skill-md: 6KB
+  references-total: 146KB
+  typical-session: 20KB
 author: "Steve Yegge <https://github.com/steveyegge>"
 license: "MIT"
 hooks:

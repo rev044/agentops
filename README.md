@@ -74,10 +74,25 @@ Each level has **demo transcripts** showing real sessions. See `levels/L1-basics
 
 Bundled skill packs for specific workflows. Install what you need.
 
-| Plugin | Description | Install |
-|--------|-------------|---------|
-| **[vibe-kit](plugins/vibe-kit/)** | Lean starter - core commands, 40% rule | `/plugin install vibe-kit@boshu2-agentops` |
-| **[gastown](plugins/gastown/)** | Gas Town contribution workflow, PR skills, beads | `/plugin install gastown@boshu2-agentops` |
+| Plugin | Skills | Description | Install |
+|--------|--------|-------------|---------|
+| **[vibe-kit](plugins/vibe-kit/)** | 23 | Lean starter - core workflow, validation, docs | `/plugin install vibe-kit@boshu2-agentops` |
+| **[gastown](plugins/gastown/)** | 18 | Gas Town orchestration, PR workflow, beads | `/plugin install gastown@boshu2-agentops` |
+
+### vibe-kit plugin (Recommended)
+
+**Production-ready starter** - everything you need for AI-assisted development.
+
+```bash
+/plugin install vibe-kit@boshu2-agentops
+```
+
+Includes 23 skills:
+- **Core workflow**: `/research`, `/plan`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro`
+- **Validation**: `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity`
+- **Documentation**: `/doc`, `/oss-docs`
+- **Orchestration**: `/dispatch`, `/handoff`, `/roles`, `/mail`, `/status`
+- **Infrastructure**: `/beads`, `/product`, `/golden-init`, `/molecules`
 
 ### gastown plugin
 

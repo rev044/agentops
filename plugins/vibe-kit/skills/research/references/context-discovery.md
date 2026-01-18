@@ -129,12 +129,62 @@ LSP → "lsp"
 
 ---
 
+## Failure Pattern Prevention
+
+Each tier helps prevent specific failure patterns from the Vibe-Coding methodology:
+
+| Tier | Prevents Pattern | How |
+|------|------------------|-----|
+| 1 (Code-Map) | #9 Cargo Cult | Authoritative docs explain WHY patterns exist |
+| 2 (Semantic) | #7 Zombie Resurrection | Finds prior art you might miss |
+| 3 (Scoped Search) | #3 Context Amnesia | Scoping prevents context overload |
+| 4 (Source Code) | #2 Confident Hallucination | Verify claims against actual code |
+| 5 (Prior Knowledge) | #7 Zombie Resurrection | Don't re-solve solved problems |
+| 6 (External) | #11 Security Theater | External standards for security |
+
+### The 40% Context Rule
+
+**Critical:** Never exceed 40% context utilization during discovery.
+
+| Zone | Percentage | Action |
+|------|-----------|--------|
+| GREEN | <35% | Continue exploration |
+| YELLOW | 35-40% | Summarize, prepare to output |
+| RED | >40% | STOP. Write findings. Reset. |
+
+**Why:** Above 40%, Pattern #3 (Context Amnesia) kicks in. Quality degrades exponentially.
+
+### Defensive Epistemology
+
+For each tier exploration, apply explicit reasoning:
+
+```text
+DOING: [search/read action]
+EXPECT: [what I expect to find]
+IF WRONG: [what I'll conclude]
+```
+
+After:
+
+```text
+RESULT: [what happened]
+MATCHES: [yes/no]
+THEREFORE: [conclusion]
+```
+
+This prevents Pattern #2 (Confident Hallucination) by forcing verification.
+
+---
+
 ## Anti-Patterns
 
-| DON'T | DO INSTEAD |
-|-------|------------|
-| Start with Grep on full repo | Start with code-map |
-| Read source before knowing where | Find signposts first |
-| Trust .agents/ without verifying | Cross-check against source |
-| Web search for internal code | Use Tiers 1-4 |
-| Unscoped Glob/Grep | Always specify path |
+| DON'T | DO INSTEAD | Prevents Pattern |
+|-------|------------|------------------|
+| Start with Grep on full repo | Start with code-map | #3 Amnesia |
+| Read source before knowing where | Find signposts first | #3 Amnesia |
+| Trust .agents/ without verifying | Cross-check against source | #12 Doc Mirage |
+| Web search for internal code | Use Tiers 1-4 | #9 Cargo Cult |
+| Unscoped Glob/Grep | Always specify path | #3 Amnesia |
+| "This API should work..." | Verify against actual docs | #2 Hallucination |
+| "This code looks unused..." | Trace refs, check history | #6 Silent Deletion |
+| Read entire large file | Targeted offset/limit | #3 Amnesia |

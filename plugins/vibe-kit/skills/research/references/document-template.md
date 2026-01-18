@@ -113,7 +113,49 @@ Track which sources provided key insights (enables flywheel optimization).
 - `0.70` - Reasonable match, verify
 - < 0.70 - Use sparingly, needs verification
 
-### 9. Next Steps
+### 9. Failure Pattern Risks
+
+Identify which of the 12 failure patterns are risks for this work. This proactive assessment helps downstream implementation avoid known pitfalls.
+
+**Required table:**
+```markdown
+## Failure Pattern Risks
+
+| Pattern | Risk Level | Mitigation |
+|---------|------------|------------|
+| #N Pattern Name | HIGH/MEDIUM/LOW | Specific mitigation strategy |
+```
+
+**Pattern quick reference:**
+
+| # | Pattern | Common Research Triggers |
+|---|---------|-------------------------|
+| 1 | Fix Spiral | Complex debugging, unclear root cause |
+| 2 | Confident Hallucination | External APIs, unfamiliar libraries |
+| 3 | Context Amnesia | Large codebase, many files to read |
+| 4 | Tests Passing Lie | Weak test coverage, mocked dependencies |
+| 5 | Eldritch Horror | Complex existing code, deep nesting |
+| 6 | Silent Deletion | "Unused" code, cleanup opportunities |
+| 7 | Zombie Resurrection | Prior failed attempts, known bugs |
+| 8 | Gold Plating | Feature creep opportunities |
+| 9 | Cargo Cult | New patterns, external examples |
+| 10 | Premature Abstraction | Generic solutions proposed |
+| 11 | Security Theater | Auth, crypto, access control |
+| 12 | Documentation Mirage | Outdated docs, missing comments |
+
+**Example:**
+```markdown
+## Failure Pattern Risks
+
+| Pattern | Risk Level | Mitigation |
+|---------|------------|------------|
+| #2 Confident Hallucination | HIGH | External OAuth API - verify all claims against official docs |
+| #5 Eldritch Horror | MEDIUM | Auth middleware is 400+ lines - document boundaries before changes |
+| #9 Cargo Cult | MEDIUM | Using external OAuth example - understand why each step exists |
+| #11 Security Theater | HIGH | Auth changes - use established patterns, get security review |
+```
+
+### 10. Next Steps
 
 Point to `/plan` for implementation.
 

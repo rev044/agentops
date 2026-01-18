@@ -4,6 +4,7 @@ description: >
   Investigate suspected bugs with git archaeology and root cause analysis.
   Triggers: "bug", "broken", "doesn't work", "failing", "investigate bug".
 version: 1.0.0
+context: fork
 author: "boshu2"
 license: "MIT"
 allowed-tools: "Read,Write,Bash,Grep,Glob,Task,WebFetch"

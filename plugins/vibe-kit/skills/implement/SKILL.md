@@ -4,12 +4,12 @@ description: >
   Execute a single beads issue with full lifecycle. Triggers: "implement",
   "work on task", "fix bug", "start feature", "pick up next issue".
 version: 2.1.0
+context: fork
 author: "AI Platform Team"
 license: "MIT"
 allowed-tools: "Read,Write,Edit,Bash,Grep,Glob,Task"
 skills:
   - beads
-  - pattern-matcher
 ---
 
 # Implement Skill

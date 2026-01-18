@@ -1,15 +1,28 @@
 # Commands Index
 
+> **⚠️ DEPRECATED**: Commands are being replaced by **skills**. Skills are directly invokable with `/skill-name` and provide better context loading. See [plugins/vibe-kit/skills/](../plugins/vibe-kit/skills/) for the modern approach.
+>
+> **Migration guide:**
+> - `/research` → Use skill: `/research` (in vibe-kit plugin)
+> - `/plan` → Use skill: `/plan` or `/formulate`
+> - `/implement` → Use skill: `/implement`
+> - `/retro` → Use skill: `/retro`
+>
+> Commands here are maintained for legacy compatibility only.
+
 ## By Category
 
 ### RPI Workflow (Core)
-| Command | Description |
-|---------|-------------|
-| [research](research.md) | Phase 1 - Deep exploration before planning |
-| [plan](plan.md) | Phase 2 - Specify exact changes with file:line |
-| [implement](implement.md) | Phase 3 - Execute approved plan with validation |
+| Command | Description | Skill Replacement |
+|---------|-------------|-------------------|
+| [research](research.md) | Phase 1 - Deep exploration before planning | `research` |
+| [plan](plan.md) | Phase 2 - Specify exact changes with file:line | `plan`, `formulate` |
+| [implement](implement.md) | Phase 3 - Execute approved plan with validation | `implement` |
 
 ### Bundles (Context Persistence)
+
+> **Note:** Bundle commands are legacy. Consider using `.agents/` directory structure instead.
+
 | Command | Description |
 |---------|-------------|
 | [bundle-save](bundle-save.md) | Save compressed context to filesystem |
@@ -27,16 +40,16 @@
 | [session-resume](session-resume.md) | Single-command resume with auto-detection |
 
 ### Metrics & Calibration
-| Command | Description |
-|---------|-------------|
-| [vibe-check](vibe-check.md) | Analyze git history for session metrics |
-| [vibe-level](vibe-level.md) | Classify task trust level (0-5) |
+| Command | Description | Skill Replacement |
+|---------|-------------|-------------------|
+| [vibe-check](vibe-check.md) | Analyze git history for session metrics | `vibe` |
+| [vibe-level](vibe-level.md) | Classify task trust level (0-5) | `vibe` |
 
 ### Learning & Improvement
-| Command | Description |
-|---------|-------------|
-| [learn](learn.md) | Extract patterns from completed work |
-| [retro](retro.md) | Post-work retrospective with analysis |
+| Command | Description | Skill Replacement |
+|---------|-------------|-------------------|
+| [learn](learn.md) | Extract patterns from completed work | `retro` |
+| [retro](retro.md) | Post-work retrospective with analysis | `retro` |
 
 ### Project Management
 | Command | Description |
@@ -45,18 +58,18 @@
 | [progress-update](progress-update.md) | Update progress files interactively |
 
 ### Quality & Review
-| Command | Description |
-|---------|-------------|
-| [code-review](code-review.md) | Comprehensive code quality review |
-| [architecture-review](architecture-review.md) | Architecture analysis and recommendations |
-| [generate-tests](generate-tests.md) | Generate comprehensive test suites |
+| Command | Description | Skill Replacement |
+|---------|-------------|-------------------|
+| [code-review](code-review.md) | Comprehensive code quality review | `vibe` |
+| [architecture-review](architecture-review.md) | Architecture analysis and recommendations | `vibe` |
+| [generate-tests](generate-tests.md) | Generate comprehensive test suites | - |
 
 ### Documentation
-| Command | Description |
-|---------|-------------|
-| [update-docs](update-docs.md) | Systematically update project documentation |
-| [create-architecture-documentation](create-architecture-documentation.md) | Generate architecture docs with diagrams |
-| [create-onboarding-guide](create-onboarding-guide.md) | Create developer onboarding guides |
+| Command | Description | Skill Replacement |
+|---------|-------------|-------------------|
+| [update-docs](update-docs.md) | Systematically update project documentation | `doc` |
+| [create-architecture-documentation](create-architecture-documentation.md) | Generate architecture docs with diagrams | `doc` |
+| [create-onboarding-guide](create-onboarding-guide.md) | Create developer onboarding guides | `doc` |
 
 ### Utilities
 | Command | Description |
@@ -66,16 +79,16 @@
 | [containerize-application](containerize-application.md) | Containerize with optimized Docker config |
 
 ### Multi-Agent
-| Command | Description |
-|---------|-------------|
-| [research-multi](research-multi.md) | Launch 3 parallel agents for 3x faster research |
+| Command | Description | Skill Replacement |
+|---------|-------------|-------------------|
+| [research-multi](research-multi.md) | Launch 3 parallel agents for 3x faster research | `implement-wave` |
 
-## Installation
+## Installation (Legacy)
 
 ```bash
-# Install all commands
-cp *.md /path/to/project/.claude/commands/
+# Prefer installing plugins instead:
+/plugin install vibe-kit@boshu2-agentops
 
-# Install specific commands
-cp research.md plan.md implement.md /path/to/project/.claude/commands/
+# Legacy command installation (deprecated):
+cp *.md /path/to/project/.claude/commands/
 ```

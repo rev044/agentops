@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **vibe-kit v1.1.0** - New skills added:
+  - `implement-wave` - Parallel execution of multiple issues
+  - `complexity` - Code complexity analysis using radon/gocyclo
+  - `doc` - Documentation generation and validation
+  - `oss-docs` - OSS documentation scaffolding (README, CONTRIBUTING, SECURITY)
+  - `golden-init` - Repository initialization with Golden Template
+  - `molecules` - Workflow templates and formula TOML patterns
+- **Skills sync** - All skills updated to match latest local versions:
+  - beads, bug-hunt, dispatch, implement, research, vibe, vibe-docs (vibe-kit)
+  - All 18 gastown plugin skills updated
+
+### Changed
+- **Commands deprecated** - Commands directory marked as deprecated in favor of skills
+  - Added deprecation notice to commands/INDEX.md
+  - Added migration guide pointing to skill equivalents
+  - Commands maintained for legacy compatibility only
+- **vibe-kit plugin.json** updated to version 1.1.0 with new skills
+
+### Previous Unreleased
+
 - **vibe-check Integration** in session-management plugin
   - `/session-start` now captures baseline metrics via `vibe-check session start`
   - `/session-end` now captures session metrics and failure patterns via `vibe-check session end`
