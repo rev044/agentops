@@ -8,10 +8,11 @@ A lean, production-ready Claude Code setup built on the 40% rule.
 
 | Component | Count | Description |
 |-----------|-------|-------------|
-| Commands | 9 | Core workflows: `/research`, `/crank`, `/implement`, `/retro` |
-| Skills | 15 | Auto-triggered context: beads, research, validation |
+| Skills | 15 | General workflow + utilities |
 | Agents | 4 | Parallel specialist review: security, architecture, quality, UX |
 | Template | 1 | CLAUDE.md starter template |
+
+**Note:** For Gas Town orchestration skills (beads, dispatch, vibe, etc.), install the [gastown plugin](../gastown/).
 
 ## Quick Start
 
@@ -44,33 +45,34 @@ Above 40%, the model doesn't degrade. It lies.
 3. Compact frequently—write summaries to files, start fresh sessions
 4. Kill agents that return too much context
 
-## Commands
-
-| Command | Purpose |
-|---------|---------|
-| `/research` | Deep codebase exploration |
-| `/crank` | Autonomous epic execution |
-| `/implement` | Single issue work |
-| `/retro` | Extract learnings |
-| `/plan` | Create implementation plan |
-| `/formulate` | Create reusable formula template |
-| `/doc` | Generate documentation |
-| `/vibe` | Semantic validation |
-| `/status` | Quick status check |
-
 ## Skills
 
-Skills auto-trigger on phrases. You don't invoke them—they fire for you.
+Skills auto-trigger on phrases or can be invoked directly with `/skill-name`.
 
-| Skill | Triggers |
-|-------|----------|
-| `beads` | "what's ready", "create task", "show blockers" |
-| `sk-research` | "research this", "explore the codebase" |
-| `sk-implement` | "implement this", "work on task" |
-| `sk-crank` | "execute this", "run crank" |
-| `sk-vibe` | "validate code", "run vibe" |
-| `sk-product` | "product brief", "who is this for" |
-| ... | 9 more specialized skills |
+### Core Workflow
+
+| Skill | Invoke | Triggers |
+|-------|--------|----------|
+| `research` | `/research` | "research this", "explore the codebase" |
+| `implement` | `/implement` | "implement this", "work on task" |
+| `implement-wave` | `/implement-wave` | "run a wave", "parallel implementation" |
+| `crank` | `/crank` | "execute this", "run crank", "autonomous execution" |
+| `retro` | `/retro` | "run retrospective", "extract learnings" |
+| `plan` | `/plan` | "create a plan", "plan implementation" |
+| `formulate` | `/formulate` | "create a formula", "formulate this" |
+| `product` | `/product` | "product brief", "who is this for", "PR/FAQ" |
+
+### Utilities
+
+| Skill | Invoke | Triggers |
+|-------|--------|----------|
+| `bug-hunt` | `/bug-hunt` | "investigate bug", "find root cause" |
+| `validation-chain` | `/validation-chain` | "validate changes", "run validation gate" |
+| `doc` | `/doc` | "generate docs", "create documentation" |
+| `oss-docs` | `/oss-docs` | "add OSS docs", "create README" |
+| `complexity` | `/complexity` | "analyze complexity", "find refactor targets" |
+| `golden-init` | `/golden-init` | "initialize repo", "golden template" |
+| `molecules` | `/molecules` | "workflow template", "formula" |
 
 ## Agents
 
