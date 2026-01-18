@@ -1,107 +1,88 @@
-# vibe-kit
+# Vibe Kit
 
-A lean, production-ready Claude Code setup built on the 40% rule.
+Validation and quality assurance. 5 skills for vibe checks, bug hunting, and complexity analysis.
 
-**Philosophy:** Simple beats clever. Skills replaced most agents. Complexity is where tokens go to die.
-
-## What's Included
-
-| Component | Count | Description |
-|-----------|-------|-------------|
-| Skills | 15 | General workflow + utilities |
-| Agents | 4 | Parallel specialist review: security, architecture, quality, UX |
-| Template | 1 | CLAUDE.md starter template |
-
-**Note:** For Gas Town orchestration skills (beads, dispatch, vibe, etc.), install the [gastown plugin](../gastown/).
-
-## Quick Start
+## Install
 
 ```bash
-# Clone to your plugins directory
-git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
+/plugin install vibe-kit@boshu2-agentops
+```
 
-# Copy vibe-kit to your .claude/
-cp -r ~/.claude/plugins/agentops/plugins/vibe-kit/* ~/.claude/
+## Skills
 
-# Or symlink for updates
-ln -s ~/.claude/plugins/agentops/plugins/vibe-kit/commands/* ~/.claude/commands/
-ln -s ~/.claude/plugins/agentops/plugins/vibe-kit/skills/* ~/.claude/skills/
-ln -s ~/.claude/plugins/agentops/plugins/vibe-kit/agents/* ~/.claude/agents/
+| Skill | Invoke | Purpose |
+|-------|--------|---------|
+| `/vibe` | `/vibe [target]` | Comprehensive code validation |
+| `/vibe-docs` | `/vibe-docs` | Validate documentation claims |
+| `/validation-chain` | `/validation-chain` | Multi-stage validation pipeline |
+| `/bug-hunt` | `/bug-hunt` | Git archaeology for root cause |
+| `/complexity` | `/complexity` | Identify refactoring targets |
+
+## When to Use Which
+
+| Scenario | Skill | Why |
+|----------|-------|-----|
+| Before merging | `/vibe` | Catches issues early |
+| After docs update | `/vibe-docs` | Ensures docs match reality |
+| Security-critical code | `/validation-chain` | Full pipeline validation |
+| Mysterious bug | `/bug-hunt` | Git history reveals cause |
+| Before refactoring | `/complexity` | Find highest-impact targets |
+
+## Expert Agents
+
+This kit includes 4 expert agents for specialized validation:
+
+| Agent | Focus |
+|-------|-------|
+| `security-expert` | OWASP Top 10, vulnerability assessment |
+| `architecture-expert` | System design, cross-cutting concerns |
+| `code-quality-expert` | Complexity, patterns, maintainability |
+| `ux-expert` | Accessibility, UX, user-facing |
+
+These agents are invoked automatically by `/vibe` when relevant.
+
+## Examples
+
+### Pre-merge validation
+
+```bash
+/vibe src/auth/
+# Runs security, code quality, and architecture checks
+```
+
+### Bug investigation
+
+```bash
+/bug-hunt "login fails intermittently"
+# Uses git blame, bisect, and log analysis to find root cause
+```
+
+### Find refactoring opportunities
+
+```bash
+/complexity
+# Reports cyclomatic complexity, suggests refactor targets
 ```
 
 ## The 40% Rule
 
-The most important thing in this plugin:
+The most important principle:
 
 - **Below 40% context** → 98% success rate
 - **Above 60% context** → 24% success rate
 
-Above 40%, the model doesn't degrade. It lies.
+Stay under 40% for reliable validation results.
 
-### How to stay under 40%
+## Philosophy
 
-1. Don't load everything at startup
-2. Use skills with JIT (just-in-time) loading
-3. Compact frequently—write summaries to files, start fresh sessions
-4. Kill agents that return too much context
+- **Validate before shipping** - catch issues early
+- **Bug hunting with git archaeology** - history tells the story
+- **Complexity analysis guides refactoring** - data-driven decisions
 
-## Skills
+## Related Kits
 
-Skills auto-trigger on phrases or can be invoked directly with `/skill-name`.
-
-### Core Workflow
-
-| Skill | Invoke | Triggers |
-|-------|--------|----------|
-| `research` | `/research` | "research this", "explore the codebase" |
-| `implement` | `/implement` | "implement this", "work on task" |
-| `implement-wave` | `/implement-wave` | "run a wave", "parallel implementation" |
-| `crank` | `/crank` | "execute this", "run crank", "autonomous execution" |
-| `retro` | `/retro` | "run retrospective", "extract learnings" |
-| `plan` | `/plan` | "create a plan", "plan implementation" |
-| `formulate` | `/formulate` | "create a formula", "formulate this" |
-| `product` | `/product` | "product brief", "who is this for", "PR/FAQ" |
-
-### Utilities
-
-| Skill | Invoke | Triggers |
-|-------|--------|----------|
-| `bug-hunt` | `/bug-hunt` | "investigate bug", "find root cause" |
-| `validation-chain` | `/validation-chain` | "validate changes", "run validation gate" |
-| `doc` | `/doc` | "generate docs", "create documentation" |
-| `oss-docs` | `/oss-docs` | "add OSS docs", "create README" |
-| `complexity` | `/complexity` | "analyze complexity", "find refactor targets" |
-| `golden-init` | `/golden-init` | "initialize repo", "golden template" |
-| `molecules` | `/molecules` | "workflow template", "formula" |
-
-## Agents
-
-Four domain experts for parallel review:
-
-| Agent | Focus |
-|-------|-------|
-| `security-expert` | OWASP Top 10, vulnerabilities |
-| `architecture-expert` | System design, cross-cutting concerns |
-| `code-quality-expert` | Complexity, patterns |
-| `ux-expert` | Accessibility, user-facing |
-
-**When to use agents:** Only for parallel specialist review before merge. If you're not doing parallel review, you probably don't need custom agents.
-
-## CLAUDE.md Template
-
-Copy `CLAUDE.md.template` to `~/.claude/CLAUDE.md` and adapt it:
-
-```bash
-cp ~/.claude/plugins/agentops/plugins/vibe-kit/CLAUDE.md.template ~/.claude/CLAUDE.md
-```
-
-Keep it under 200 lines. Anything longer and you're wasting context.
-
-## Related
-
-- **[12-Factor AgentOps](https://12factoragentops.com)** - The methodology
-- **[AgentOps Marketplace](https://github.com/boshu2/agentops)** - More plugins
-- **[Devlog](https://bodenfuller.com)** - How this evolved
+- **core-kit** - Research and implementation
+- **docs-kit** - Generate the docs that vibe-docs validates
 
 ---
 

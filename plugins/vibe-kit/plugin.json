@@ -1,27 +1,17 @@
 {
   "name": "vibe-kit",
-  "version": "1.1.0",
-  "description": "Lean, production-ready Claude Code setup built on the 40% rule",
+  "version": "2.0.0",
+  "description": "Validation and quality assurance - vibe checks, bug hunting, complexity analysis",
   "author": "Bo Fuller",
   "license": "MIT",
   "repository": "https://github.com/boshu2/agentops",
   "homepage": "https://12factoragentops.com",
   "skills": [
-    "skills/research/",
-    "skills/implement/",
-    "skills/implement-wave/",
-    "skills/crank/",
-    "skills/retro/",
-    "skills/plan/",
-    "skills/formulate/",
-    "skills/product/",
-    "skills/bug-hunt/",
+    "skills/vibe/",
+    "skills/vibe-docs/",
     "skills/validation-chain/",
-    "skills/doc/",
-    "skills/oss-docs/",
-    "skills/complexity/",
-    "skills/golden-init/",
-    "skills/molecules/"
+    "skills/bug-hunt/",
+    "skills/complexity/"
   ],
   "agents": [
     "agents/security-expert.md",
@@ -29,23 +19,19 @@
     "agents/code-quality-expert.md",
     "agents/ux-expert.md"
   ],
-  "templates": [
-    "CLAUDE.md.template"
-  ],
+  "templates": [],
   "philosophy": {
-    "core_rule": "Stay under 40% context utilization",
+    "core_rule": "Validate before shipping",
     "principles": [
-      "Simple beats clever",
-      "Skills are directly invokable with /skill-name",
-      "Auto-trigger beats explicit invocation",
-      "Complexity is where tokens go to die"
+      "Vibe checks catch issues early",
+      "Bug hunting with git archaeology",
+      "Complexity analysis guides refactoring"
     ]
   },
   "tags": [
+    "validation",
+    "quality",
     "vibe-coding",
-    "context-engineering",
-    "40-percent-rule",
-    "lean",
-    "production-ready"
+    "bug-hunting"
   ]
 }

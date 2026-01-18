@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unix Philosophy Restructure** - Plugins reorganized into 8 focused kits:
+  - **core-kit v1.0.0** - Workflow: research, plan, formulate, product, implement, implement-wave, crank, retro
+  - **vibe-kit v2.0.0** - Validation only: vibe, vibe-docs, validation-chain, bug-hunt, complexity (+ 4 expert agents)
+  - **docs-kit v1.0.0** - Documentation: doc, oss-docs, golden-init
+  - **beads-kit v1.0.0** - Issue tracking: beads, status, molecules
+  - **dispatch-kit v1.0.0** - Orchestration: dispatch, handoff, roles, mail
+  - **pr-kit v1.0.0** - OSS contribution: pr-research, pr-plan, pr-implement, pr-validate, pr-prep, pr-retro
+  - **gastown-kit v1.0.0** - Gas Town: crew, polecat-lifecycle, gastown, bd-routing
+  - **domain-kit v1.0.0** - Reference knowledge: 18 domain skills (languages, development, security, etc.)
+
+### Changed
+- **vibe-kit** - Slimmed down from 23 skills to 5 focused validation skills
+- **gastown plugin** - Replaced by gastown-kit (Gas Town specific) + pr-kit (contribution workflow)
+- **Main README** - Updated with Unix philosophy structure, recommended combinations, clearer skill guidance
+- **Core kit README** - Added decision trees for implement vs crank vs implement-wave
+
+### Removed
+- **gastown plugin** - Split into gastown-kit and pr-kit for better modularity
+
+---
+
+### Previous Unreleased
+
+#### Added
 - **vibe-kit v1.1.0** - New skills added:
   - `implement-wave` - Parallel execution of multiple issues
   - `complexity` - Code complexity analysis using radon/gocyclo

@@ -1,0 +1,29 @@
+{
+  "name": "beads-kit",
+  "version": "1.0.0",
+  "description": "Git-based issue tracking with beads",
+  "author": "Bo Fuller",
+  "license": "MIT",
+  "repository": "https://github.com/boshu2/agentops",
+  "homepage": "https://github.com/steveyegge/beads",
+  "skills": [
+    "skills/beads/",
+    "skills/status/",
+    "skills/molecules/"
+  ],
+  "agents": [],
+  "templates": [],
+  "philosophy": {
+    "core_rule": "Issues in git, not in the cloud",
+    "principles": [
+      "Version controlled issues",
+      "Agent-friendly workflows",
+      "Molecule-based task composition"
+    ]
+  },
+  "tags": [
+    "beads",
+    "issue-tracking",
+    "molecules"
+  ]
+}

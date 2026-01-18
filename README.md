@@ -10,9 +10,9 @@ Learn AI-assisted development through progressive levels. Start with 50-line com
 # Add marketplace (inside Claude Code)
 /plugin marketplace add boshu2/agentops
 
-# Install a plugin
-/plugin install vibe-kit@boshu2-agentops     # Lean starter
-/plugin install gastown@boshu2-agentops      # Multi-agent orchestration
+# Install kits you need (Unix philosophy: small, focused tools)
+/plugin install core-kit@boshu2-agentops     # Workflow essentials
+/plugin install vibe-kit@boshu2-agentops     # Validation
 
 # Or clone directly
 git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
@@ -28,7 +28,7 @@ Start at **Level 1**. Each level adds ONE concept:
 | **[L2-persistence](levels/L2-persistence/)** | Save findings to `.agents/` | + `/retro` |
 | **[L3-state-management](levels/L3-state-management/)** | Track work with issues | + `/plan`, beads |
 | **[L4-parallelization](levels/L4-parallelization/)** | Execute waves in parallel | + `/implement-wave` |
-| **[L5-orchestration](levels/L5-orchestration/)** | Full automation | + `/autopilot` |
+| **[L5-orchestration](levels/L5-orchestration/)** | Full automation | + `/crank` |
 
 ```bash
 # Your first command (L1)
@@ -56,61 +56,76 @@ Each level has **demo transcripts** showing real sessions. See `levels/L1-basics
 | L2 | `/research` → `/implement` → `/retro` (with persistence) |
 | L3 | `/research` → `/plan` → `/implement <id>` → `/retro` (with issues) |
 | L4 | `/research` → `/plan` → `/implement-wave` → `/retro` (parallel) |
-| L5 | `/autopilot <epic>` (hands-off) |
+| L5 | `/crank` (fully autonomous) |
 
-## What's Included
+## Plugins (Unix Philosophy)
 
-| Category | Count | Description |
-|----------|-------|-------------|
-| **[Plugins](plugins/)** | 2 | Bundled skill packs (vibe-kit, gastown) |
-| **[Levels](levels/)** | 5 | Progressive learning L1-L5 |
-| **[Reference](reference/)** | 3 | PDC, FAAFO, Failure Patterns |
-| **[Skills](skills/)** | 12 | Domain knowledge (55 areas consolidated) |
-| **[Profiles](profiles/)** | 3 | Role-based configurations |
+**Small, focused kits that do one thing well.** Install only what you need.
 
-**Note:** Skills are directly invokable with `/skill-name` - no command wrappers needed.
+| Kit | Skills | Purpose | Install |
+|-----|--------|---------|---------|
+| **[core-kit](plugins/core-kit/)** | 8 | Workflow: research, plan, implement, crank | `/plugin install core-kit@boshu2-agentops` |
+| **[vibe-kit](plugins/vibe-kit/)** | 5 | Validation: vibe, bug-hunt, complexity | `/plugin install vibe-kit@boshu2-agentops` |
+| **[docs-kit](plugins/docs-kit/)** | 3 | Documentation: doc, oss-docs, golden-init | `/plugin install docs-kit@boshu2-agentops` |
+| **[beads-kit](plugins/beads-kit/)** | 3 | Issue tracking: beads, status, molecules | `/plugin install beads-kit@boshu2-agentops` |
+| **[dispatch-kit](plugins/dispatch-kit/)** | 4 | Orchestration: dispatch, handoff, roles, mail | `/plugin install dispatch-kit@boshu2-agentops` |
+| **[pr-kit](plugins/pr-kit/)** | 6 | OSS contribution: pr-research through pr-retro | `/plugin install pr-kit@boshu2-agentops` |
+| **[gastown-kit](plugins/gastown-kit/)** | 4 | Gas Town: crew, polecat, gastown, bd-routing | `/plugin install gastown-kit@boshu2-agentops` |
+| **[domain-kit](plugins/domain-kit/)** | 18 | Reference knowledge: languages, ops, security | `/plugin install domain-kit@boshu2-agentops` |
 
-## Plugins
+### Recommended Combinations
 
-Bundled skill packs for specific workflows. Install what you need.
+| Use Case | Install |
+|----------|---------|
+| **Getting started** | `core-kit` + `vibe-kit` |
+| **Full development** | `core-kit` + `vibe-kit` + `beads-kit` + `docs-kit` |
+| **Multi-agent orchestration** | Add `dispatch-kit` + `gastown-kit` |
+| **OSS contributions** | Add `pr-kit` |
+| **Domain expertise** | Add `domain-kit` |
 
-| Plugin | Skills | Description | Install |
-|--------|--------|-------------|---------|
-| **[vibe-kit](plugins/vibe-kit/)** | 23 | Lean starter - core workflow, validation, docs | `/plugin install vibe-kit@boshu2-agentops` |
-| **[gastown](plugins/gastown/)** | 18 | Gas Town orchestration, PR workflow, beads | `/plugin install gastown@boshu2-agentops` |
+### Kit Details
 
-### vibe-kit plugin (Recommended)
+#### core-kit (Recommended Start)
 
-**Production-ready starter** - everything you need for AI-assisted development.
+The complete workflow from exploration to execution.
+
+```bash
+/plugin install core-kit@boshu2-agentops
+```
+
+Skills: `/research`, `/plan`, `/formulate`, `/product`, `/implement`, `/implement-wave`, `/crank`, `/retro`
+
+**When to use which:**
+
+| Skill | Use When |
+|-------|----------|
+| `/implement` | Single issue, want to review each step |
+| `/implement-wave` | Multiple independent issues, parallel execution |
+| `/crank` | Full epic, trust the plan, run to completion |
+| `/plan` | One-off decomposition into beads issues |
+| `/formulate` | Repeatable pattern, creates reusable `.formula.toml` |
+
+#### vibe-kit
+
+Validation and quality assurance.
 
 ```bash
 /plugin install vibe-kit@boshu2-agentops
 ```
 
-Includes 23 skills:
-- **Core workflow**: `/research`, `/plan`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro`
-- **Validation**: `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity`
-- **Documentation**: `/doc`, `/oss-docs`
-- **Orchestration**: `/dispatch`, `/handoff`, `/roles`, `/mail`, `/status`
-- **Infrastructure**: `/beads`, `/product`, `/golden-init`, `/molecules`
+Skills: `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity`
 
-### gastown plugin
+Includes 4 expert agents: security, architecture, code-quality, UX.
 
-**CONTRIBUTING.md for agents** - executable contribution workflows.
+#### pr-kit
+
+Open source contribution workflow with Phase -1 prior work check.
 
 ```bash
-# Via Claude Code plugin system
-/plugin marketplace add boshu2/agentops
-/plugin install gastown@boshu2-agentops
+/plugin install pr-kit@boshu2-agentops
 ```
 
-Includes 18 skills:
-- **PR workflow**: `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-prep`, `/pr-retro`
-- **Gas Town**: `/beads`, `/dispatch`, `/roles`, `/mail`, `/handoff`, `/crew`, `/polecat-lifecycle`, `/gastown`, `/bd-routing`, `/status`
-- **Vibe validation**: `/vibe`, `/vibe-docs`
-- **Phase -1**: Prior work check is BLOCKING - searches for existing issues/PRs before starting
-
-For [steveyegge/gastown](https://github.com/steveyegge/gastown) contributors.
+Skills: `/pr-research` → `/pr-plan` → `/pr-implement` → `/pr-validate` → `/pr-prep` → `/pr-retro`
 
 ## Reference Documents
 
@@ -122,28 +137,14 @@ Deep framework content, consulted when needed:
 | **[FAAFO Alignment](reference/faafo-alignment.md)** | Fast, Ambitious, Autonomous, Fun, Optionality |
 | **[Failure Patterns](reference/failure-patterns.md)** | 12 ways AI-assisted development goes wrong |
 
-## Skills (12 Domains)
-
-Skills load into main context with full tool access—no sub-agent limitations.
-
-| Skill | Triggers | Areas |
-|-------|----------|-------|
-| **[languages](skills/languages/)** | Python, Go, Rust, Java, TypeScript | 6 |
-| **[development](skills/development/)** | API, backend, frontend, mobile, LLM | 8 |
-| **[documentation](skills/documentation/)** | docs, README, OpenAPI, Diátaxis | 4 |
-| **[code-quality](skills/code-quality/)** | review, test, coverage | 3 |
-| **[research](skills/research/)** | explore, find, analyze | 6 |
-| **[validation](skills/validation/)** | validate, verify, tracer bullet | 4 |
-| **[operations](skills/operations/)** | incident, debug, postmortem | 4 |
-| **[monitoring](skills/monitoring/)** | metrics, alerts, SLO | 2 |
-| **[security](skills/security/)** | pentest, SSL, secrets | 2 |
-| **[data](skills/data/)** | ETL, Spark, ML, MLOps | 4 |
-| **[meta](skills/meta/)** | context, session, workflow | 6 |
-| **[specialized](skills/specialized/)** | accessibility, UX, risk | 6 |
-
 ## Vibe Coding Framework
 
 Based on [Vibe Coding](https://itrevolution.com/product/vibe-coding-book/) by Gene Kim & Steve Yegge.
+
+### The 40% Rule
+
+- **Below 40% context** → 98% success rate
+- **Above 60% context** → 24% success rate
 
 ### Trust Levels
 
@@ -156,11 +157,6 @@ Based on [Vibe Coding](https://itrevolution.com/product/vibe-coding-book/) by Ge
 | **L1** | 20% | Architecture, security |
 | **L0** | 0% | Novel exploration |
 
-### The 40% Rule
-
-- **Below 40% context** → 98% success rate
-- **Above 60% context** → 24% success rate
-
 ### FAAFO Promise
 
 **F**ast (10-16x) · **A**mbitious (solo feasible) · **A**utonomous (team output) · **F**un (50% flow) · **O**ptionality (120x options)
@@ -169,27 +165,24 @@ Based on [Vibe Coding](https://itrevolution.com/product/vibe-coding-book/) by Ge
 
 ```
 agentops/
-├── plugins/              # 📦 Bundled skill packs
-│   ├── vibe-kit/         # Lean starter (core skills, 40% rule)
-│   └── gastown/          # Gas Town contribution workflow
+├── plugins/              # 📦 Unix-style kits (8 focused plugins)
+│   ├── core-kit/         # Workflow: research, plan, implement
+│   ├── vibe-kit/         # Validation: vibe, bug-hunt, complexity
+│   ├── docs-kit/         # Documentation generation
+│   ├── beads-kit/        # Issue tracking
+│   ├── dispatch-kit/     # Work assignment
+│   ├── pr-kit/           # OSS contribution
+│   ├── gastown-kit/      # Multi-agent orchestration
+│   └── domain-kit/       # Reference knowledge (18 domains)
 ├── levels/               # 🎯 START HERE - Progressive learning
 │   ├── L1-basics/        # Single-session, no state
 │   ├── L2-persistence/   # Add .agents/ output
 │   ├── L3-state-management/  # Add issue tracking
 │   ├── L4-parallelization/   # Add wave execution
-│   └── L5-orchestration/     # Full autopilot
+│   └── L5-orchestration/     # Full automation
 ├── reference/            # Framework documentation
-│   ├── pdc-framework.md
-│   ├── faafo-alignment.md
-│   └── failure-patterns.md
-├── .agents/              # AI memory system
-│   ├── research/         # Deep exploration docs
-│   ├── plans/            # Implementation roadmaps
-│   ├── patterns/         # Reusable solutions
-│   ├── learnings/        # Session insights
-│   └── retros/           # Retrospectives
-├── skills/               # Domain knowledge (12 domains)
-├── profiles/             # Role configurations (3)
+├── skills/               # Domain knowledge (reference)
+├── profiles/             # Role configurations
 └── .beads/               # Git-based issue tracking
 ```
 
@@ -199,8 +192,6 @@ agentops/
 
 - **[12-Factor AgentOps](https://github.com/boshu2/12-factor-agentops)** - The methodology behind this marketplace
 - **[12factoragentops.com](https://12factoragentops.com)** - Interactive documentation and examples
-- **[vibe-kit](./plugins/vibe-kit/)** - Recommended starter plugin (lean, production-ready)
-- **[gastown](./plugins/gastown/)** - Gas Town contribution workflow for [steveyegge/gastown](https://github.com/steveyegge/gastown)
 
 ### Inspiration
 
