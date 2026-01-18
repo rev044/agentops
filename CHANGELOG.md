@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - beads, bug-hunt, dispatch, implement, research, vibe, vibe-docs (vibe-kit)
   - All 18 gastown plugin skills updated
 
+### Fixed
+- **Painted doors removed** - Cleaned up non-functional references:
+  - Removed empty `references/` directories (bug-hunt, implement, pr-research, pr-retro)
+  - Fixed pr-research template reference to point to inline section
+
 ### Changed
 - **Commands deprecated** - Commands directory marked as deprecated in favor of skills
   - Added deprecation notice to commands/INDEX.md
