@@ -9,7 +9,12 @@
   "commands": [
     "commands/gastown.md",
     "commands/beads-validate.md",
-    "commands/status.md"
+    "commands/status.md",
+    "commands/vibe.md",
+    "commands/vibe-docs.md",
+    "commands/vibe-plugin.md",
+    "commands/vibe-prescan.md",
+    "commands/vibe-semantic.md"
   ],
   "skills": [
     "skills/beads/",
@@ -26,7 +31,9 @@
     "skills/crew/",
     "skills/polecat-lifecycle/",
     "skills/gastown/",
-    "skills/bd-routing/"
+    "skills/bd-routing/",
+    "skills/vibe/",
+    "skills/vibe-docs/"
   ],
   "agents": [],
   "templates": [],

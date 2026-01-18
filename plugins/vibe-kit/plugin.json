@@ -15,6 +15,10 @@
     "commands/formulate.md",
     "commands/doc.md",
     "commands/vibe.md",
+    "commands/vibe-docs.md",
+    "commands/vibe-plugin.md",
+    "commands/vibe-prescan.md",
+    "commands/vibe-semantic.md",
     "commands/status.md"
   ],
   "skills": [
@@ -26,6 +30,7 @@
     "skills/sk-plan/",
     "skills/sk-formulate/",
     "skills/sk-vibe/",
+    "skills/vibe-docs/",
     "skills/sk-dispatch/",
     "skills/sk-handoff/",
     "skills/sk-roles/",

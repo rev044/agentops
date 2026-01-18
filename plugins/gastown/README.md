@@ -22,8 +22,8 @@ ln -s ~/.claude/plugins/agentops/plugins/gastown/skills/* ~/.claude/skills/
 
 | Component | Count | Description |
 |-----------|-------|-------------|
-| **Commands** | 3 | Orchestrators only (skills handle the rest) |
-| **Skills** | 15 | Contribution workflow, beads, orchestration |
+| **Commands** | 8 | Orchestrators + vibe validation |
+| **Skills** | 17 | Contribution workflow, beads, orchestration, vibe |
 
 ## Core Workflow: PR Contribution
 
@@ -55,6 +55,11 @@ gh pr list -R <owner/repo> --state merged --search "<topic>"
 | `/gastown` | Gas Town status and orchestration |
 | `/beads-validate` | Validate beads state |
 | `/status` | Quick status check |
+| `/vibe` | Semantic validation of code behavior |
+| `/vibe-docs` | Validate docs match deployment reality |
+| `/vibe-plugin` | Validate plugins with L13 semantic verification |
+| `/vibe-prescan` | Fast static scan for 6 failure patterns |
+| `/vibe-semantic` | Orchestrate semantic faithfulness analyses |
 
 Skills auto-trigger for PR workflow - no explicit commands needed.
 
@@ -64,26 +69,33 @@ Skills auto-trigger for PR workflow - no explicit commands needed.
 
 | Skill | Triggers |
 |-------|----------|
-| `sk-pr-research` | "pr research", "upstream research", "contribution research" |
-| `sk-pr-plan` | "pr plan", "contribution plan" |
-| `sk-pr-implement` | "implement PR", "pr implement" |
-| `sk-pr-validate` | "validate PR", "scope creep", "isolation check" |
-| `sk-pr-prep` | "prepare PR", "submit PR", "create PR" |
-| `sk-pr-retro` | "pr retro", "learn from PR", "PR outcome" |
+| `pr-research` | "pr research", "upstream research", "contribution research" |
+| `pr-plan` | "pr plan", "contribution plan" |
+| `pr-implement` | "implement PR", "pr implement" |
+| `pr-validate` | "validate PR", "scope creep", "isolation check" |
+| `pr-prep` | "prepare PR", "submit PR", "create PR" |
+| `pr-retro` | "pr retro", "learn from PR", "PR outcome" |
 
 ### Gas Town Orchestration
 
 | Skill | Triggers |
 |-------|----------|
 | `beads` | "track issues", "create beads issue", "show blockers" |
-| `sk-dispatch` | "gt sling", "gt hook", "gt convoy" |
-| `sk-roles` | "Mayor", "Crew", "Polecat", "Witness", "Refinery" |
-| `sk-mail` | "gt mail", "send mail", "check inbox" |
-| `sk-handoff` | "hand off", "gt handoff", "context cycling" |
-| `sk-crew` | "crew workspace", "persistent workspace" |
-| `sk-polecat-lifecycle` | "spawn polecat", "nuke polecat", "reset polecat" |
-| `sk-gastown` | "Gas Town", "gt status", "rig list" |
-| `sk-bd-routing` | "beads routing", "prefix routing", "BEADS_DIR" |
+| `dispatch` | "gt sling", "gt hook", "gt convoy" |
+| `roles` | "Mayor", "Crew", "Polecat", "Witness", "Refinery" |
+| `mail` | "gt mail", "send mail", "check inbox" |
+| `handoff` | "hand off", "gt handoff", "context cycling" |
+| `crew` | "crew workspace", "persistent workspace" |
+| `polecat-lifecycle` | "spawn polecat", "nuke polecat", "reset polecat" |
+| `gastown` | "Gas Town", "gt status", "rig list" |
+| `bd-routing` | "beads routing", "prefix routing", "BEADS_DIR" |
+
+### Vibe Validation
+
+| Skill | Triggers |
+|-------|----------|
+| `vibe` | "validate code", "check semantic faithfulness", "run vibe" |
+| `vibe-docs` | "verify docs", "doc audit", "check doc claims" |
 
 ## Philosophy
 
