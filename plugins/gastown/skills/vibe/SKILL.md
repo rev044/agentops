@@ -1,153 +1,224 @@
 ---
 name: vibe
 description: >
-  This skill should be used when the user asks to "validate code",
-  "check semantic faithfulness", "run vibe", "prescan for patterns",
-  "validate plugins", or needs L13 semantic verification of code behavior.
-allowed-tools: "Read,Bash,Glob,Grep,Write,TodoWrite,Skill"
-version: 2.1.0
+  Talos-class comprehensive code validation. Use for "validate code",
+  "run vibe", "check quality", "security review", "architecture review",
+  "accessibility audit", "complexity check", or any validation need.
+  One skill to validate them all.
+allowed-tools: "Read,Bash,Glob,Grep,Write,TodoWrite,Task"
+version: 3.0.0
 author: "AI Platform Team"
 license: "MIT"
 context: fork
-agent: code-quality-expert
+context-budget:
+  skill-md: 10KB
+  references-total: 12KB
+  typical-session: 15KB
 skills:
   - beads
-  - complexity
 ---
 
-# Vibe - Semantic Code Validation
+# Vibe - Talos Comprehensive Validation
 
-L13 semantic verification: validates that code does what it claims.
+**One skill to validate them all.**
 
-## Overview
+Vibe is a Talos-class validator that combines fast static analysis with deep
+semantic verification across all quality dimensions: code quality, security,
+architecture, accessibility, complexity, and more.
 
-**Vibe** combines fast static analysis with deep semantic verification.
+## Philosophy
 
+> **Mono over Micro**: Instead of chaining small skills, Vibe provides comprehensive
+> validation in one invocation. Trade-off: larger context, but simpler mental model
+> and guaranteed coverage.
+
+## Quick Start
+
+```bash
+/vibe recent              # Full validation of recent changes
+/vibe services/           # Validate a directory
+/vibe --fast recent       # Prescan only (no LLM, CI-friendly)
+/vibe --security recent   # Security-focused deep dive
+/vibe --all-aspects all   # Nuclear option: everything on everything
 ```
-vibe-check    -> Did the AI DEVELOP well? (git history, L9)
-vibe-validate -> Did the AI PRODUCE good code? (semantic analysis, L13)
+
+---
+
+## Aspects
+
+Vibe validates across 8 aspects. By default, all aspects run.
+
+| Aspect | Prefix | Focus | Agent |
+|--------|--------|-------|-------|
+| **Quality** | QUAL-xxx | Code smells, patterns, maintainability | code-quality-expert |
+| **Security** | SEC-xxx | OWASP, injection, auth, crypto | security-expert |
+| **Architecture** | ARCH-xxx | Boundaries, coupling, scalability | architecture-expert |
+| **Accessibility** | A11Y-xxx | WCAG, keyboard, screen reader | ux-expert |
+| **Complexity** | CMPLX-xxx | Cyclomatic, cognitive, function size | code-quality-expert |
+| **Semantic** | SEM-xxx | Docstrings, names, claims vs reality | code-quality-expert |
+| **Performance** | PERF-xxx | N+1, unbounded loops, resource leaks | architecture-expert |
+| **Slop** | SLOP-xxx | AI artifacts, hallucinations, cargo cult | code-quality-expert |
+
+### Aspect Selection
+
+```bash
+/vibe recent                          # All aspects (default)
+/vibe recent --only security          # Security only
+/vibe recent --only security,arch     # Security + Architecture
+/vibe recent --exclude slop,a11y      # Skip slop and accessibility
+/vibe recent --fast                   # Prescan only (no LLM aspects)
 ```
+
+---
 
 ## Modes
 
-| Mode | Command | Purpose |
-|------|---------|---------|
-| **Standard** | `/vibe <target>` | Full validation (prescan + semantic) |
-| **Prescan** | `/vibe-prescan <target>` | Fast static checks only |
-| **Semantic** | `/vibe-semantic <target>` | Deep semantic analysis |
-| **Plugin** | `/vibe-plugin <target>` | Plugin validation |
-
-## Arguments
-
-| Argument | Purpose | Examples |
-|----------|---------|----------|
-| `recent` | Files from last commit | Default for CI |
-| `all` | Full codebase (sampled) | Deep audit |
-| `<path>` | Specific directory or file | Targeted check |
+| Mode | Flag | LLM | Speed | Use Case |
+|------|------|-----|-------|----------|
+| **Full** | (default) | Yes | Slow | PR review, pre-merge |
+| **Fast** | `--fast` | No | Fast | CI, quick check |
+| **Deep** | `--deep` | Yes | Slowest | Audit, new codebase |
+| **Security** | `--security` | Yes | Medium | Security-focused |
+| **Arch** | `--arch` | Yes | Medium | Architecture review |
 
 ---
 
-## Mode 1: Standard Vibe (`/vibe`)
+## Execution Flow
 
-Full orchestrated validation.
+### Phase 1: Prescan (Static, No LLM)
 
-### Execution Flow
-
-```
-TodoWrite([
-  "Run pre-scan (fast static checks)",
-  "Run semantic analysis",
-  "Generate validation report",
-  "Create beads issues for findings"
-])
-```
-
-**Phase 1: Pre-Scan**
-```bash
-~/.claude/skills/vibe/scripts/prescan.sh "$TARGET"
-```
-
-Detects 6 patterns: P1, P4, P5, P8, P9, P12 (see `references/patterns.md`).
-
-**Phase 2: Semantic Analysis**
-
-For each file, analyze across 5 dimensions:
-- **Docstrings**: Do docstrings match implementation?
-- **Names**: Do function names match behavior?
-- **Security**: Is there security theater?
-- **Pragmatic**: Does code follow pragmatic principles?
-- **Slop**: Is there AI-generated slop?
-
-**Phase 3: Generate Report**
-
-Output to (see `references/report-format.md`):
-- `reports/vibe-report.json`
-- `reports/vibe-junit.xml`
-- `.agents/assessments/{date}-vibe-validate-{target}.md`
-
-**Phase 4: Create Issues**
-
-For CRITICAL/HIGH findings, create beads issues when `VIBE_VALIDATE_CREATE_ISSUES=true`.
-
----
-
-## Mode 2: Prescan Only (`/vibe-prescan`)
-
-Fast static detection - no LLM required.
+Fast pattern detection using static analysis tools.
 
 ```bash
 ~/.claude/skills/vibe/scripts/prescan.sh "$TARGET"
 ```
 
-| Pattern | Severity | What |
-|---------|----------|------|
-| P1 | CRITICAL | Phantom modifications |
-| P4 | HIGH | TODO/FIXME, commented code |
-| P5 | HIGH | CC > 15, functions > 50 lines |
-| P8 | HIGH | except: pass, bare except |
-| P9 | MEDIUM | Docstring claims vs reality |
-| P12 | MEDIUM | Unused functions, unreachable |
+**Patterns Detected:**
 
-Full details: `references/patterns.md`
+| ID | Pattern | Severity | Tool |
+|----|---------|----------|------|
+| P1 | Phantom modifications | CRITICAL | git diff |
+| P2 | Hardcoded secrets | CRITICAL | gitleaks/grep |
+| P3 | SQL injection patterns | CRITICAL | regex |
+| P4 | TODO/FIXME/commented code | HIGH | grep |
+| P5 | Cyclomatic complexity >15 | HIGH | radon/gocyclo |
+| P6 | Functions >50 lines | HIGH | wc/ast |
+| P7 | Bare except/empty catch | HIGH | ast/shellcheck |
+| P8 | Unused imports/functions | MEDIUM | ast |
+| P9 | Docstring mismatches | MEDIUM | ast |
+| P10 | Missing error handling | MEDIUM | ast |
 
----
+**Exit Codes:** 0=clean, 2=CRITICAL, 3=HIGH
 
-## Mode 3: Semantic Only (`/vibe-semantic`)
+### Phase 2: Semantic Analysis (LLM-Powered)
 
-Deep LLM-powered analysis.
+Deep analysis requiring semantic understanding.
 
-| Analysis | Prefix | Focus |
-|----------|--------|-------|
-| Docstrings | FAITH-xxx | Param mismatches, return lies |
-| Names | NAME-xxx | validate_*, auth_*, encrypt_* |
-| Security | SEC-xxx | Injection, auth bypass, crypto |
-| Pragmatic | PRAG-xxx | DRY, orthogonality |
-| Slop | SLOP-xxx | Hallucinations, cargo cult |
+**Quality (QUAL-xxx):**
+- QUAL-001: Dead code paths
+- QUAL-002: Inconsistent naming
+- QUAL-003: Magic numbers/strings
+- QUAL-004: Missing tests for complexity
+- QUAL-005: Copy-paste with slight changes
 
-### Process
+**Security (SEC-xxx):**
+- SEC-001: Injection vulnerabilities (SQL, command, XSS)
+- SEC-002: Authentication bypass potential
+- SEC-003: Authorization missing/weak
+- SEC-004: Cryptographic weaknesses
+- SEC-005: Sensitive data exposure
+- SEC-006: Security theater (looks secure, isn't)
 
-1. Read target files
-2. For each function, check name/docstring vs implementation
-3. Flag mismatches with severity
-4. Generate findings report
+**Architecture (ARCH-xxx):**
+- ARCH-001: Layer boundary violations
+- ARCH-002: Circular dependencies
+- ARCH-003: God classes/functions
+- ARCH-004: Missing abstraction
+- ARCH-005: Inappropriate coupling
+- ARCH-006: Scalability concerns
 
----
+**Accessibility (A11Y-xxx):**
+- A11Y-001: Missing ARIA labels
+- A11Y-002: Keyboard navigation broken
+- A11Y-003: Color contrast insufficient
+- A11Y-004: Missing alt text
+- A11Y-005: Focus management issues
 
-## Mode 4: Plugin Validation (`/vibe-plugin`)
+**Complexity (CMPLX-xxx):**
+- CMPLX-001: Cyclomatic complexity >10
+- CMPLX-002: Cognitive complexity high
+- CMPLX-003: Nesting depth >4
+- CMPLX-004: Parameter count >5
+- CMPLX-005: File too long (>500 lines)
 
-Validate Claude Code plugins (commands, skills, agents).
+**Semantic (SEM-xxx):**
+- SEM-001: Docstring lies (claims vs implementation)
+- SEM-002: Misleading function names
+- SEM-003: Misleading variable names
+- SEM-004: Comment rot (outdated comments)
+- SEM-005: API contract violations
 
-```bash
-~/.claude/scripts/validate-plugin.sh "$TARGET"
+**Performance (PERF-xxx):**
+- PERF-001: N+1 query patterns
+- PERF-002: Unbounded loops/recursion
+- PERF-003: Missing pagination
+- PERF-004: Resource leaks (unclosed handles)
+- PERF-005: Blocking in async context
+
+**Slop (SLOP-xxx):**
+- SLOP-001: Hallucinated imports/APIs
+- SLOP-002: Cargo cult patterns
+- SLOP-003: Excessive boilerplate
+- SLOP-004: AI conversation artifacts
+- SLOP-005: Over-engineering for simple tasks
+
+### Phase 3: Expert Routing
+
+For CRITICAL/HIGH findings, optionally spawn expert agents:
+
+```markdown
+# Security findings → security-expert
+Task(subagent_type="security-expert", prompt="Deep dive on SEC-xxx findings...")
+
+# Architecture findings → architecture-expert
+Task(subagent_type="architecture-expert", prompt="Validate ARCH-xxx concerns...")
+
+# Accessibility findings → ux-expert
+Task(subagent_type="ux-expert", prompt="Audit A11Y-xxx issues...")
 ```
 
-### Semantic Checks
+Enable with `--expert-routing` flag.
 
-1. **Description Truthfulness**: Does description match body?
-2. **Trigger Accuracy** (skills): Do triggers match capabilities?
-3. **Argument Consistency** (commands): Are declared args used?
-4. **Progressive Disclosure** (skills): Is content properly layered?
-5. **Painted Doors**: Documented features that don't exist?
+### Phase 4: Report Generation
+
+Output to multiple formats:
+
+| Format | Path | Use |
+|--------|------|-----|
+| Markdown | `.agents/assessments/{date}-vibe-{target}.md` | Human review |
+| JSON | `reports/vibe-report.json` | Tooling/CI |
+| JUnit XML | `reports/vibe-junit.xml` | CI integration |
+| SARIF | `reports/vibe.sarif` | Security tools |
+
+### Phase 5: Issue Creation
+
+When `--create-issues` is set, create beads issues for findings:
+
+```bash
+/vibe recent --create-issues   # Create issues for CRITICAL/HIGH
+/vibe recent --create-issues --threshold medium  # Include MEDIUM
+```
+
+---
+
+## Severity Matrix
+
+| Level | Definition | Action | Exit Code |
+|-------|------------|--------|-----------|
+| **CRITICAL** | Security vuln, data loss, broken build | Block merge | 2 |
+| **HIGH** | Significant quality/security gap | Fix before merge | 3 |
+| **MEDIUM** | Technical debt, minor issues | Follow-up issue | 0 |
+| **LOW** | Nitpicks, style preferences | Optional | 0 |
 
 ---
 
@@ -155,37 +226,124 @@ Validate Claude Code plugins (commands, skills, agents).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VIBE_VALIDATE_CREATE_ISSUES` | `false` | Auto-create beads issues |
-| `VIBE_VALIDATE_FAIL_ON` | `critical` | Exit non-zero threshold |
-
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Usage error |
-| 2 | CRITICAL findings |
-| 3 | HIGH findings |
+| `VIBE_CREATE_ISSUES` | `false` | Auto-create beads issues |
+| `VIBE_FAIL_THRESHOLD` | `critical` | Exit non-zero threshold |
+| `VIBE_EXPERT_ROUTING` | `false` | Spawn expert agents for deep dive |
+| `VIBE_OUTPUT_FORMAT` | `markdown` | Report format (markdown/json/junit/sarif) |
+| `VIBE_SKIP_PRESCAN` | `false` | Skip static analysis phase |
+| `VIBE_SKIP_SEMANTIC` | `false` | Skip LLM analysis phase |
 
 ---
 
 ## Examples
 
 ```bash
-# Full validation of recent changes
+# Standard full validation
 /vibe recent
 
-# Fast prescan only
-/vibe-prescan services/etl/
+# CI pipeline (fast, fail on critical)
+/vibe --fast recent
 
-# Deep semantic analysis
-/vibe-semantic services/gateway --only security,names
+# Security audit
+/vibe --security services/auth/
 
-# Plugin validation
-/vibe-plugin ~/.claude/skills/beads
+# Architecture review before major change
+/vibe --arch services/ --expert-routing
 
-# CI usage
-VIBE_VALIDATE_CREATE_ISSUES=true /vibe recent
+# Accessibility audit for frontend
+/vibe --only a11y frontend/src/components/
+
+# New codebase deep audit
+/vibe --deep all --create-issues
+
+# Pre-commit hook style
+VIBE_FAIL_THRESHOLD=high /vibe recent
+
+# Specific aspects
+/vibe recent --only security,complexity,semantic
+
+# Exclude noisy aspects
+/vibe recent --exclude slop
+```
+
+---
+
+## Plugin Validation Mode
+
+Validate Claude Code plugins (commands, skills, agents):
+
+```bash
+/vibe --plugin ~/.claude/skills/my-skill
+```
+
+**Plugin Checks:**
+- Description matches implementation
+- Triggers are accurate (skills)
+- Arguments are used (commands)
+- Tools declared are used
+- No painted doors (documented but missing features)
+
+---
+
+## Integration with Workflow
+
+### Pre-commit
+```bash
+# .git/hooks/pre-commit
+/vibe --fast staged || exit 1
+```
+
+### CI Pipeline
+```yaml
+- name: Vibe Validation
+  run: |
+    VIBE_FAIL_THRESHOLD=high /vibe recent
+```
+
+### PR Review
+```bash
+# Full review with issue creation
+/vibe recent --create-issues --expert-routing
+```
+
+### Crank Integration
+```bash
+# In /crank workflow, vibe runs automatically after implementation
+/implement <issue> && /vibe recent --create-issues
+```
+
+---
+
+## Output Format
+
+```markdown
+## Vibe Validation Report
+
+**Target:** services/gateway/
+**Date:** 2026-01-18
+**Mode:** Full (all aspects)
+
+### Summary
+| Aspect | Critical | High | Medium | Low |
+|--------|----------|------|--------|-----|
+| Security | 1 | 2 | 0 | 0 |
+| Quality | 0 | 3 | 5 | 2 |
+| Architecture | 0 | 1 | 2 | 0 |
+| Complexity | 0 | 2 | 3 | 0 |
+| ... | ... | ... | ... | ... |
+
+### Critical Findings (Block Merge)
+- **SEC-001** `auth/handler.go:42` - SQL injection in user lookup
+  - Fix: Use parameterized query
+
+### High Priority (Fix Before Merge)
+- **CMPLX-001** `services/processor.py:89` - CC=23
+  - Fix: Extract validation logic to separate function
+...
+
+### Beads Issues Created
+- sec-0001: Fix SQL injection in auth handler
+- cmplx-0002: Refactor processor.py complexity
 ```
 
 ---
@@ -195,3 +353,4 @@ VIBE_VALIDATE_CREATE_ISSUES=true /vibe recent
 - **Pattern Details**: `references/patterns.md`
 - **Report Formats**: `references/report-format.md`
 - **Prescan Script**: `scripts/prescan.sh`
+- **Expert Agents**: `~/.claude/agents/`

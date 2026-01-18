@@ -4,6 +4,11 @@ description: >
   Gas Town status and utility operations. Check convoy progress, peek into polecats,
   nudge stuck workers, cleanup completed work. For autonomous execution, use /crank.
 version: 2.0.0
+context: fork
+context-budget:
+  skill-md: 5KB
+  references-total: 34KB
+  typical-session: 15KB
 triggers:
   - "gastown status"
   - "what polecats are running"
