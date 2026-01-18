@@ -1,5 +1,5 @@
 ---
-name: sk-dispatch
+name: dispatch
 description: >
   Unified dispatch for Gas Town work assignment. Covers gt sling (assign work),
   gt hook (attach work), gt convoy (batch tracking), and the Propulsion Principle.

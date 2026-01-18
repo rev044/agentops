@@ -1,5 +1,5 @@
 ---
-name: sk-pr-plan
+name: pr-plan
 description: >
   Strategic contribution planning for open source PRs. Takes pr-research output
   and produces plan artifact with scope, acceptance criteria, and risk assessment.

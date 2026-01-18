@@ -1,5 +1,5 @@
 ---
-name: sk-pr-research
+name: pr-research
 description: >
   Systematic upstream codebase exploration for open source contribution.
   Outputs research artifact with contribution guidelines, PR patterns,

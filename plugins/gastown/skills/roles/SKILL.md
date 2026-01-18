@@ -1,5 +1,5 @@
 ---
-name: sk-roles
+name: roles
 description: >
   Understanding Gas Town role responsibilities. Clarifies when Claude should
   behave as Mayor, Crew, Polecat, Witness, or Refinery.

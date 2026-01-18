@@ -1,5 +1,5 @@
 ---
-name: sk-handoff
+name: handoff
 description: >
   Cross-session continuity patterns. Hand off to fresh agent sessions,
   preserve context via hooks and mail, and resume work reliably.

@@ -1,5 +1,5 @@
 ---
-name: sk-pr-prep
+name: pr-prep
 description: >
   PR preparation workflow with git archaeology, test validation, and structured
   PR body generation. INCLUDES MANDATORY USER REVIEW GATE before submission.

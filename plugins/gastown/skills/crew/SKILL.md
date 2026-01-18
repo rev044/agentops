@@ -1,5 +1,5 @@
 ---
-name: sk-crew
+name: crew
 description: >
   Crew workspace management. Understanding and managing persistent human-guided
   workspaces in Gas Town. Covers lifecycle, workspace operations, and when to use

@@ -1,5 +1,5 @@
 ---
-name: sk-pr-implement
+name: pr-implement
 description: >
   Fork-based implementation with isolation check. Runs isolation check from sk-pr-prep
   Phase 0 before starting work. Triggers: "implement PR", "implement contribution",

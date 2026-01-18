@@ -1,5 +1,5 @@
 ---
-name: sk-mail
+name: mail
 description: >
   Agent communication patterns. Send mail, check inbox, broadcast to workers,
   nudge stuck polecats, and escalate to humans when needed.

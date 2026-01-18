@@ -1,5 +1,5 @@
 ---
-name: sk-polecat-lifecycle
+name: polecat-lifecycle
 description: >
   Polecat worker lifecycle management. Covers spawning polecats (gt sling),
   resetting them for reuse, nuking completed workers, and garbage collecting

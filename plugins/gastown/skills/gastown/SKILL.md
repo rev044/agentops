@@ -1,5 +1,5 @@
 ---
-name: sk-gastown
+name: gastown
 description: >
   Gas Town status and utility operations. Check convoy progress, peek into polecats,
   nudge stuck workers, cleanup completed work. For autonomous execution, use /crank.

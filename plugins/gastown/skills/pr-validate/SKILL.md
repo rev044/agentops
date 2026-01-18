@@ -1,5 +1,5 @@
 ---
-name: sk-pr-validate
+name: pr-validate
 description: >
   PR-specific validation: isolation, upstream alignment, quality, scope creep detection.
   Reuses sk-pr-prep Phase 0. Triggers: "validate PR", "pr validation", "check PR",

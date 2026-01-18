@@ -1,5 +1,5 @@
 ---
-name: sk-pr-retro
+name: pr-retro
 description: >
   Learn from PR outcomes. Analyzes accept/reject patterns and updates sk-pr-prep lessons.
   Triggers: "pr retro", "learn from PR", "PR outcome", "why was PR rejected",

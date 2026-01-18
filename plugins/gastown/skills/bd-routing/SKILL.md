@@ -1,5 +1,5 @@
 ---
-name: sk-bd-routing
+name: bd-routing
 description: >
   Two-level beads architecture and routing. Understanding where beads live,
   how prefix routing works, and when to use BEADS_DIR. Critical for Mayor
