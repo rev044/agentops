@@ -58,11 +58,41 @@ Each level has **demo transcripts** showing real sessions. See `levels/L1-basics
 
 | Category | Count | Description |
 |----------|-------|-------------|
+| **[Plugins](plugins/)** | 2 | Bundled skill packs (vibe-kit, gastown) |
 | **[Levels](levels/)** | 5 | Progressive learning L1-L5 |
 | **[Reference](reference/)** | 3 | PDC, FAAFO, Failure Patterns |
 | **[Skills](skills/)** | 12 | Domain knowledge (55 areas consolidated) |
 | **[Commands](commands/)** | 28 | Full reference versions |
 | **[Profiles](profiles/)** | 3 | Role-based configurations |
+
+## Plugins
+
+Bundled skill packs for specific workflows. Install what you need.
+
+| Plugin | Description | Install |
+|--------|-------------|---------|
+| **[vibe-kit](plugins/vibe-kit/)** | Lean starter - core commands, 40% rule | `cp -r plugins/vibe-kit/* ~/.claude/` |
+| **[gastown](plugins/gastown/)** | Gas Town contribution workflow, PR skills, beads | `cp -r plugins/gastown/* ~/.claude/` |
+
+### gastown plugin
+
+**CONTRIBUTING.md for agents** - executable contribution workflows.
+
+```bash
+# Install gastown plugin
+cp -r ~/.claude/plugins/agentops/plugins/gastown/* ~/.claude/
+
+# Or symlink for updates
+ln -s ~/.claude/plugins/agentops/plugins/gastown/skills/* ~/.claude/skills/
+ln -s ~/.claude/plugins/agentops/plugins/gastown/commands/* ~/.claude/commands/
+```
+
+Includes:
+- **PR workflow skills**: `pr-research`, `pr-plan`, `pr-implement`, `pr-validate`, `pr-prep`, `pr-retro`
+- **Gas Town skills**: `beads`, `dispatch`, `roles`, `mail`, `handoff`, `crew`, `polecat-lifecycle`
+- **Phase -1**: Prior work check is BLOCKING - searches for existing issues/PRs before starting
+
+For [steveyegge/gastown](https://github.com/steveyegge/gastown) contributors.
 
 ## Reference Documents
 
@@ -121,6 +151,9 @@ Based on [Vibe Coding](https://itrevolution.com/product/vibe-coding-book/) by Ge
 
 ```
 agentops/
+├── plugins/              # 📦 Bundled skill packs
+│   ├── vibe-kit/         # Lean starter (core commands, 40% rule)
+│   └── gastown/          # Gas Town contribution workflow
 ├── levels/               # 🎯 START HERE - Progressive learning
 │   ├── L1-basics/        # Single-session, no state
 │   ├── L2-persistence/   # Add .agents/ output
@@ -150,6 +183,7 @@ agentops/
 - **[12-Factor AgentOps](https://github.com/boshu2/12-factor-agentops)** - The methodology behind this marketplace
 - **[12factoragentops.com](https://12factoragentops.com)** - Interactive documentation and examples
 - **[vibe-kit](./plugins/vibe-kit/)** - Recommended starter plugin (lean, production-ready)
+- **[gastown](./plugins/gastown/)** - Gas Town contribution workflow for [steveyegge/gastown](https://github.com/steveyegge/gastown)
 
 ### Inspiration
 
