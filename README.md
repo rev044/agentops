@@ -7,11 +7,15 @@ Learn AI-assisted development through progressive levels. Start with 50-line com
 ## Quick Install
 
 ```bash
-# Clone to your plugins directory
-git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
-
-# Or add as marketplace
+# Add marketplace (inside Claude Code)
 /plugin marketplace add boshu2/agentops
+
+# Install a plugin
+/plugin install vibe-kit@boshu2-agentops     # Lean starter
+/plugin install gastown@boshu2-agentops      # Multi-agent orchestration
+
+# Or clone directly
+git clone https://github.com/boshu2/agentops.git ~/.claude/plugins/agentops
 ```
 
 ## Getting Started
@@ -71,15 +75,19 @@ Bundled skill packs for specific workflows. Install what you need.
 
 | Plugin | Description | Install |
 |--------|-------------|---------|
-| **[vibe-kit](plugins/vibe-kit/)** | Lean starter - core commands, 40% rule | `cp -r plugins/vibe-kit/* ~/.claude/` |
-| **[gastown](plugins/gastown/)** | Gas Town contribution workflow, PR skills, beads | `cp -r plugins/gastown/* ~/.claude/` |
+| **[vibe-kit](plugins/vibe-kit/)** | Lean starter - core commands, 40% rule | `/plugin install vibe-kit@boshu2-agentops` |
+| **[gastown](plugins/gastown/)** | Gas Town contribution workflow, PR skills, beads | `/plugin install gastown@boshu2-agentops` |
 
 ### gastown plugin
 
 **CONTRIBUTING.md for agents** - executable contribution workflows.
 
 ```bash
-# Install gastown plugin
+# Via Claude Code plugin system (recommended)
+/plugin marketplace add boshu2/agentops
+/plugin install gastown@boshu2-agentops
+
+# Or manual install (if cloned locally)
 cp -r ~/.claude/plugins/agentops/plugins/gastown/* ~/.claude/
 
 # Or symlink for updates
