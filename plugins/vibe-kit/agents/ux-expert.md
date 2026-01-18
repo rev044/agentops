@@ -1,7 +1,7 @@
 ---
 name: ux-expert
 description: UX expert agent for accessibility validation and design review in wave parallelization
-model: sonnet
+model: opus
 color: purple
 tools:
   - Read

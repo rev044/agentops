@@ -5,6 +5,8 @@ description: >
   "analytics", "machine learning", "ML", "model", "PyTorch", "TensorFlow",
   "MLOps", "MLflow", "Kubeflow", "feature engineering", "A/B testing".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Data Skill

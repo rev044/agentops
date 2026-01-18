@@ -38,7 +38,7 @@ Technology stack decisions require balancing performance, maintainability, and t
 </commentary>
 </example>
 
-model: sonnet
+model: opus
 color: blue
 tools:
   - Read

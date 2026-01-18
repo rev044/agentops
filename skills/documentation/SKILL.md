@@ -5,6 +5,8 @@ description: >
   "tutorial", "how-to", "reference", "explanation", "SDK", "developer docs",
   "knowledge OS", "7-pattern stack".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Documentation Skill

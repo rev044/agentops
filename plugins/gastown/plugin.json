@@ -1,6 +1,6 @@
 {
   "name": "gastown",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Gas Town multi-agent orchestration - contribution workflow, PR skills, beads issue tracking",
   "author": "Bo Fuller",
   "license": "MIT",

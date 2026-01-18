@@ -2,6 +2,9 @@
 name: testing
 description: Execute testing workflows including unit tests, manifest validation, security scanning, and integration tests with proper reporting
 tags: [testing, validation, ci/cd, quality]
+version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Testing Skill

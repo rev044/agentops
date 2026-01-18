@@ -1,7 +1,7 @@
 ---
 name: security-expert
 description: Security expert agent for vulnerability assessment and security validation in wave parallelization
-model: sonnet
+model: opus
 color: red
 tools:
   - Read

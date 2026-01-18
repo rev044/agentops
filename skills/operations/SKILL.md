@@ -5,6 +5,8 @@ description: >
   "postmortem", "root cause", "triage", "escalation", "P0", "P1", "on-call",
   "mitigation", "rollback".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Operations Skill

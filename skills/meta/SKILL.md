@@ -5,6 +5,8 @@ description: >
   "retrospective", "retro", "patterns", "learnings", "stigmergy", "autonomous",
   "coordination", "observer", "blackboard".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Meta Skill

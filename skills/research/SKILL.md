@@ -5,6 +5,8 @@ description: >
   "pattern", "dependency", "documentation search", "specification", "file:line",
   "archive", "duplication detection", "structure analysis".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Research Skill

@@ -5,6 +5,8 @@ description: >
   "UI", "UX", "design system", "wireframe", "Obsidian", "knowledge graph", "links",
   "task decomposition", "workflow", "risk assessment", "edge cases", "failure modes".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Specialized Skill

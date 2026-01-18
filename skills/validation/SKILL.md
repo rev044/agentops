@@ -5,6 +5,8 @@ description: >
   "smoke test", "continuous validation", "environment check", "reality check",
   "deployment validation", "pre-flight".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Validation Skill

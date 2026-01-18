@@ -1,6 +1,9 @@
 ---
 name: doc-curator
 description: Single entry point for all documentation operations. Routes to 8 make targets for detection/validation and provides LLM-powered generation/improvement. Triggers on "check doc health", "fix links", "generate README", "find orphans", "suggest cross-links", "improve docs".
+version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Documentation Curator

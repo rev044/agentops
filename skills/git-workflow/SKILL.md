@@ -2,6 +2,9 @@
 name: git-workflow
 description: Execute safe, reproducible Git workflows with MANDATORY semantic commits (feat/fix/docs), auto-injected templates, and git hooks integration
 tags: [git, workflow, semantic-commits, hooks, automation]
+version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Git Workflow Skill

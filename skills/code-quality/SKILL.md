@@ -5,6 +5,8 @@ description: >
   "integration test", "test generation", "coverage", "quality", "maintainability",
   "security review", "edge cases".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Code Quality Skill

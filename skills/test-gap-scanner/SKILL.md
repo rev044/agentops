@@ -1,6 +1,9 @@
 ---
 name: test-gap-scanner
 description: Scan Python codebases to identify modules without corresponding test files. This skill should be used when enforcing Law 7 (TDD), auditing test coverage gaps, or before starting new development to understand testing debt. Outputs a report of untested modules with recommendations.
+version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Test Gap Scanner

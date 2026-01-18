@@ -5,6 +5,8 @@ description: >
   "alerts", "runbooks", "SLO", "SLI", "dashboards", "Prometheus", "Grafana",
   "performance", "latency", "throughput", "Core Web Vitals", "load testing".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Monitoring Skill

@@ -1,7 +1,7 @@
 ---
 name: code-quality-expert
 description: Code quality expert agent for code review and complexity analysis in wave parallelization
-model: sonnet
+model: opus
 color: green
 tools:
   - Read

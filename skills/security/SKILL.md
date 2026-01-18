@@ -5,6 +5,8 @@ description: >
   "network", "firewall", "SSL", "TLS", "DNS", "load balancer", "CDN", "encryption",
   "authentication", "authorization", "secrets".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Security Skill

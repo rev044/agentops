@@ -5,6 +5,8 @@ description: >
   "bash", "async/await", "goroutines", "ownership", "virtual threads", "type system",
   "decorators", "generators", "channels", "interfaces", "Spring Boot", "POSIX".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Languages Skill

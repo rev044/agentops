@@ -5,6 +5,8 @@ description: >
   "Flutter", "deploy", "CI/CD", "Docker", "Kubernetes", "GitHub Actions", "LLM",
   "RAG", "prompt engineering", "microservices", "database schema", "SwiftUI".
 version: 1.0.0
+author: "AgentOps Team"
+license: "MIT"
 ---
 
 # Development Skill
