@@ -22,7 +22,7 @@ triggers:
 allowed-tools: Bash, Read, Glob, Grep
 ---
 
-# sk-gastown - Gas Town Status & Utility Skill
+# gastown - Gas Town Status & Utility Skill
 
 Monitor and manage Gas Town polecats and convoys.
 

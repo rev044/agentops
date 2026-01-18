@@ -221,7 +221,7 @@ doc-audit:
 
 ## References
 
-- **Validation Rules**: `~/.claude/skills/sk-doc/references/validation-rules.md`
+- **Validation Rules**: `~/.claude/skills/doc/references/validation-rules.md`
 - **Code-Map Standard**: `~/.claude/skills/code-map-standard/SKILL.md`
 - **Learning**: `.agents/learnings/2026-01-04-doc-audit-gap.md`
 
@@ -231,6 +231,6 @@ doc-audit:
 
 | Skill | Purpose |
 |-------|---------|
-| `sk-doc` | Structural validation |
+| `doc` | Structural validation |
 | `code-map-standard` | Doc format standard |
-| `sk-vibe` | Code semantic validation |
+| `vibe` | Code semantic validation |

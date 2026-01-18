@@ -2,7 +2,7 @@
 name: pr-validate
 description: >
   PR-specific validation: isolation, upstream alignment, quality, scope creep detection.
-  Reuses sk-pr-prep Phase 0. Triggers: "validate PR", "pr validation", "check PR",
+  Reuses pr-prep Phase 0. Triggers: "validate PR", "pr validation", "check PR",
   "scope creep", "isolation check".
 version: 1.0.0
 author: "AI Platform Team"
@@ -10,7 +10,7 @@ license: "MIT"
 context: fork
 allowed-tools: "Read,Bash,Grep,Glob"
 skills:
-  - sk-pr-prep
+  - pr-prep
 ---
 
 # PR Validate Skill
@@ -45,7 +45,7 @@ scope containment, and basic quality gates.
 1b. PR Status Check      -> If PR exists, check draft status (WARNING)
 2.  Upstream Alignment   -> FIRST: Check rebase status (BLOCKING)
 3.  CONTRIBUTING.md      -> Verify compliance with contribution guidelines (BLOCKING)
-4.  Isolation Check      -> Single type, thematic files (Phase 0 from sk-pr-prep)
+4.  Isolation Check      -> Single type, thematic files (Phase 0 from pr-prep)
 5.  Scope Check          -> Verify changes match intended scope
 6.  Quality Gate         -> Tests, linting (non-blocking)
 7.  Report Generation    -> Summary with pass/fail and resolutions
@@ -219,7 +219,7 @@ fi
 
 ## Phase 4: Isolation Check (BLOCKING)
 
-**After CONTRIBUTING.md check passes. Reuses sk-pr-prep Phase 0. Ensures single concern per PR.**
+**After CONTRIBUTING.md check passes. Reuses pr-prep Phase 0. Ensures single concern per PR.**
 
 ### 4.1 Commit Type Analysis
 
@@ -595,7 +595,7 @@ PR Validation: WARN
 
 ### With /pr-implement
 
-The sk-pr-implement skill runs isolation checks as Phase 3 (pre) and Phase 5 (post).
+The pr-implement skill runs isolation checks as Phase 3 (pre) and Phase 5 (post).
 This skill provides the same checks as a standalone command for manual use.
 
 ### Automated Gate
@@ -668,6 +668,6 @@ We validate. Maintainers approve.
 ## References
 
 - **Command**: `~/.claude/commands/pr-validate.md`
-- **Isolation Source**: sk-pr-prep Phase 0
-- **Implementation**: sk-pr-implement (includes validation)
-- **Full Validation**: sk-validation-chain (internal projects)
+- **Isolation Source**: pr-prep Phase 0
+- **Implementation**: pr-implement (includes validation)
+- **Full Validation**: validation-chain (internal projects)

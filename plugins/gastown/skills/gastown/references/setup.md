@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks through setting up Gas Town for use with sk-gastown.
+This guide walks through setting up Gas Town for use with gastown.
 
 ## Prerequisites Check
 

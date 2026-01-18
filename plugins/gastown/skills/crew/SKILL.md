@@ -21,7 +21,7 @@ triggers:
 allowed-tools: Bash, Read
 ---
 
-# sk-crew - Crew Workspace Management
+# crew - Crew Workspace Management
 
 Manage persistent, human-guided workspaces in Gas Town.
 
@@ -153,9 +153,9 @@ gt crew pristine dave
 
 ## See Also
 
-- `sk-roles` - Role responsibilities (Crew vs Mayor vs Polecat)
-- `sk-gastown` - Gas Town status and utility operations
-- `sk-dispatch` - Work dispatch patterns
+- `roles` - Role responsibilities (Crew vs Mayor vs Polecat)
+- `gastown` - Gas Town status and utility operations
+- `dispatch` - Work dispatch patterns
 
 ### References
 

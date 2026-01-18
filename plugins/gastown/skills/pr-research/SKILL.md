@@ -495,5 +495,5 @@ Next: /pr-plan ~/gt/.agents/<rig>/research/YYYY-MM-DD-pr-{repo}.md
 
 ## References
 
-- **PR Preparation**: `~/.claude/skills/sk-pr-prep/SKILL.md`
+- **PR Preparation**: `~/.claude/skills/pr-prep/SKILL.md`
 - **Research Template**: `references/pr-research-template.md`

@@ -1,7 +1,7 @@
 ---
 name: pr-implement
 description: >
-  Fork-based implementation with isolation check. Runs isolation check from sk-pr-prep
+  Fork-based implementation with isolation check. Runs isolation check from pr-prep
   Phase 0 before starting work. Triggers: "implement PR", "implement contribution",
   "pr implement", "fork implementation".
 version: 1.0.0
@@ -10,8 +10,8 @@ license: "MIT"
 context: fork
 allowed-tools: "Read,Write,Edit,Bash,Grep,Glob,Task"
 skills:
-  - sk-pr-plan
-  - sk-pr-prep
+  - pr-plan
+  - pr-prep
 ---
 
 # PR Implement Skill
@@ -219,7 +219,7 @@ cd ~/gt/.forks/<repo>-<feature>
 
 **CRITICAL: Run isolation check BEFORE starting implementation.**
 
-This is Phase 0 from sk-pr-prep, run proactively.
+This is Phase 0 from pr-prep, run proactively.
 
 ### 3.1 Commit Type Analysis
 
@@ -554,7 +554,7 @@ git push -u origin refactor/suggest-validation
 
 ## References
 
-- **PR Plan**: `~/.claude/skills/sk-pr-plan/SKILL.md`
-- **PR Prep**: `~/.claude/skills/sk-pr-prep/SKILL.md`
-- **Isolation Check**: sk-pr-prep Phase 0
-- **Internal Implementation**: `~/.claude/skills/sk-implement/SKILL.md`
+- **PR Plan**: `~/.claude/skills/pr-plan/SKILL.md`
+- **PR Prep**: `~/.claude/skills/pr-prep/SKILL.md`
+- **Isolation Check**: pr-prep Phase 0
+- **Internal Implementation**: `~/.claude/skills/implement/SKILL.md`

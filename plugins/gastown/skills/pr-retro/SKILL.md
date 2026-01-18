@@ -1,7 +1,7 @@
 ---
 name: pr-retro
 description: >
-  Learn from PR outcomes. Analyzes accept/reject patterns and updates sk-pr-prep lessons.
+  Learn from PR outcomes. Analyzes accept/reject patterns and updates pr-prep lessons.
   Triggers: "pr retro", "learn from PR", "PR outcome", "why was PR rejected",
   "analyze PR feedback", "update pr lessons".
 version: 1.0.0
@@ -20,7 +20,7 @@ Learn from PR outcomes to improve future contribution success rates.
 ## Overview
 
 Analyzes PR outcomes (merged, closed, feedback received) and extracts actionable
-patterns. Updates the sk-pr-prep skill's Lessons Learned section to improve
+patterns. Updates the pr-prep skill's Lessons Learned section to improve
 future PRs.
 
 **When to Use**:
@@ -42,7 +42,7 @@ future PRs.
 2. Outcome Analysis    -> Fetch PR state, reviews, comments
 3. Feedback Extraction -> Extract maintainer expectations
 4. Pattern Classification -> Categorize success/failure patterns
-5. Lessons Update      -> Update sk-pr-prep/SKILL.md
+5. Lessons Update      -> Update pr-prep/SKILL.md
 6. Retro Artifact      -> Write to .agents/retros/
 ```
 
@@ -220,7 +220,7 @@ Extract what caused rejection:
 ### 5.1 Target File
 
 Update the "Lessons Learned" section in:
-`~/.claude/skills/sk-pr-prep/SKILL.md`
+`~/.claude/skills/pr-prep/SKILL.md`
 
 ### 5.2 Update Rules
 
@@ -246,7 +246,7 @@ For rejected PRs:
 
 ```bash
 # Read current lessons
-SKILL_FILE="$HOME/.claude/skills/sk-pr-prep/SKILL.md"
+SKILL_FILE="$HOME/.claude/skills/pr-prep/SKILL.md"
 
 # Find the correct section based on outcome
 if [ "$OUTCOME" = "MERGED" ]; then
@@ -336,7 +336,7 @@ date: {YYYY-MM-DD}
 
 ## Updates Made
 
-- [ ] sk-pr-prep/SKILL.md updated
+- [ ] pr-prep/SKILL.md updated
 - [ ] Pattern documented: {pattern-name}
 
 ## Related
@@ -385,9 +385,9 @@ From analysis of real PR feedback:
 
 When a retro reveals new patterns, update:
 
-1. `sk-pr-prep/SKILL.md` - Lessons Learned tables
-2. `sk-pr-validate/SKILL.md` - Validation checks
-3. `sk-pr-plan/lessons/` - Create dated lesson file
+1. `pr-prep/SKILL.md` - Lessons Learned tables
+2. `pr-validate/SKILL.md` - Validation checks
+3. `pr-plan/lessons/` - Create dated lesson file
 
 **Lesson file format**: `YYYY-MM-DD-{topic}.md`
 
@@ -406,7 +406,7 @@ When a retro reveals new patterns, update:
 
 ---
 
-## Integration with sk-pr-prep
+## Integration with pr-prep
 
 The lessons captured here feed directly into `/pr-prep`:
 
@@ -419,7 +419,7 @@ The lessons captured here feed directly into `/pr-prep`:
 ```
 /pr-research → implement → /pr-prep → submit → outcome → /pr-retro
                                                               ↓
-                                                    sk-pr-prep updated
+                                                    pr-prep updated
                                                               ↓
                                                     Next /pr-prep improved
 ```
@@ -428,7 +428,7 @@ The lessons captured here feed directly into `/pr-prep`:
 
 ## References
 
-- **PR Prep Skill**: `~/.claude/skills/sk-pr-prep/SKILL.md`
-- **PR Research Skill**: `~/.claude/skills/sk-pr-research/SKILL.md`
-- **Retro Skill**: `~/.claude/skills/sk-retro/SKILL.md`
+- **PR Prep Skill**: `~/.claude/skills/pr-prep/SKILL.md`
+- **PR Research Skill**: `~/.claude/skills/pr-research/SKILL.md`
+- **Retro Skill**: `~/.claude/skills/retro/SKILL.md`
 - **GitHub CLI**: https://cli.github.com/manual/gh_pr_view

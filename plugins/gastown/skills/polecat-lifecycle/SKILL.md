@@ -22,7 +22,7 @@ triggers:
 allowed-tools: Bash, Read
 ---
 
-# sk-polecat-lifecycle - Polecat Worker Lifecycle
+# polecat-lifecycle - Polecat Worker Lifecycle
 
 Manage the full lifecycle of polecat worker agents in Gas Town.
 
@@ -309,7 +309,7 @@ Load JIT when needed:
 
 ## See Also
 
-- `/sk-dispatch` - Work assignment (sling, hook, convoy)
-- `/sk-roles` - Understanding polecat vs other roles
-- `/sk-gastown` - Overall Gas Town operations
+- `/dispatch` - Work assignment (sling, hook, convoy)
+- `/roles` - Understanding polecat vs other roles
+- `/gastown` - Overall Gas Town operations
 - `gt polecat --help` - Command reference

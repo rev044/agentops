@@ -10,7 +10,7 @@ license: "MIT"
 context: fork
 allowed-tools: "Read,Write,Bash,Grep,Glob,Task"
 skills:
-  - sk-pr-research
+  - pr-research
 ---
 
 # PR Plan Skill
@@ -504,7 +504,7 @@ This addresses [problem] with [approach].
 **Merge order**: After #N because [reason].
 ```
 
-See: `~/.claude/skills/sk-pr-plan/lessons/2026-01-16-maintainer-perspective.md`
+See: `~/.claude/skills/pr-plan/lessons/2026-01-16-maintainer-perspective.md`
 
 ---
 
@@ -578,6 +578,6 @@ mkdir -p ~/gt/.agents/$RIG/plans/
 
 ## References
 
-- **PR Research**: `~/.claude/skills/sk-pr-research/SKILL.md`
-- **PR Preparation**: `~/.claude/skills/sk-pr-prep/SKILL.md`
-- **Internal Planning**: `~/.claude/skills/sk-plan/SKILL.md`
+- **PR Research**: `~/.claude/skills/pr-research/SKILL.md`
+- **PR Preparation**: `~/.claude/skills/pr-prep/SKILL.md`
+- **Internal Planning**: `~/.claude/skills/plan/SKILL.md`

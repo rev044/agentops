@@ -21,7 +21,7 @@ triggers:
 allowed-tools: Bash, Read, Glob, Grep
 ---
 
-# sk-bd-routing - Two-Level Beads Routing
+# bd-routing - Two-Level Beads Routing
 
 Understanding where beads live and how to route commands to the right database.
 
@@ -167,5 +167,5 @@ Load JIT when needed:
 ## See Also
 
 - `/beads` - General beads workflow
-- `/sk-dispatch` - Work dispatch (uses routing)
-- `/sk-gastown` - Gas Town status and management
+- `/dispatch` - Work dispatch (uses routing)
+- `/gastown` - Gas Town status and management

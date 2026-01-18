@@ -6,16 +6,6 @@
   "license": "MIT",
   "repository": "https://github.com/boshu2/agentops",
   "homepage": "https://github.com/steveyegge/gastown",
-  "commands": [
-    "commands/gastown.md",
-    "commands/beads-validate.md",
-    "commands/status.md",
-    "commands/vibe.md",
-    "commands/vibe-docs.md",
-    "commands/vibe-plugin.md",
-    "commands/vibe-prescan.md",
-    "commands/vibe-semantic.md"
-  ],
   "skills": [
     "skills/beads/",
     "skills/pr-research/",
@@ -33,7 +23,8 @@
     "skills/gastown/",
     "skills/bd-routing/",
     "skills/vibe/",
-    "skills/vibe-docs/"
+    "skills/vibe-docs/",
+    "skills/status/"
   ],
   "agents": [],
   "templates": [],

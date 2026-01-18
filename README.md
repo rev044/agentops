@@ -66,8 +66,9 @@ Each level has **demo transcripts** showing real sessions. See `levels/L1-basics
 | **[Levels](levels/)** | 5 | Progressive learning L1-L5 |
 | **[Reference](reference/)** | 3 | PDC, FAAFO, Failure Patterns |
 | **[Skills](skills/)** | 12 | Domain knowledge (55 areas consolidated) |
-| **[Commands](commands/)** | 28 | Full reference versions |
 | **[Profiles](profiles/)** | 3 | Role-based configurations |
+
+**Note:** Skills are directly invokable with `/skill-name` - no command wrappers needed.
 
 ## Plugins
 
@@ -83,21 +84,15 @@ Bundled skill packs for specific workflows. Install what you need.
 **CONTRIBUTING.md for agents** - executable contribution workflows.
 
 ```bash
-# Via Claude Code plugin system (recommended)
+# Via Claude Code plugin system
 /plugin marketplace add boshu2/agentops
 /plugin install gastown@boshu2-agentops
-
-# Or manual install (if cloned locally)
-cp -r ~/.claude/plugins/agentops/plugins/gastown/* ~/.claude/
-
-# Or symlink for updates
-ln -s ~/.claude/plugins/agentops/plugins/gastown/skills/* ~/.claude/skills/
-ln -s ~/.claude/plugins/agentops/plugins/gastown/commands/* ~/.claude/commands/
 ```
 
-Includes:
-- **PR workflow skills**: `pr-research`, `pr-plan`, `pr-implement`, `pr-validate`, `pr-prep`, `pr-retro`
-- **Gas Town skills**: `beads`, `dispatch`, `roles`, `mail`, `handoff`, `crew`, `polecat-lifecycle`
+Includes 18 skills:
+- **PR workflow**: `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-prep`, `/pr-retro`
+- **Gas Town**: `/beads`, `/dispatch`, `/roles`, `/mail`, `/handoff`, `/crew`, `/polecat-lifecycle`, `/gastown`, `/bd-routing`, `/status`
+- **Vibe validation**: `/vibe`, `/vibe-docs`
 - **Phase -1**: Prior work check is BLOCKING - searches for existing issues/PRs before starting
 
 For [steveyegge/gastown](https://github.com/steveyegge/gastown) contributors.
@@ -160,7 +155,7 @@ Based on [Vibe Coding](https://itrevolution.com/product/vibe-coding-book/) by Ge
 ```
 agentops/
 ├── plugins/              # 📦 Bundled skill packs
-│   ├── vibe-kit/         # Lean starter (core commands, 40% rule)
+│   ├── vibe-kit/         # Lean starter (core skills, 40% rule)
 │   └── gastown/          # Gas Town contribution workflow
 ├── levels/               # 🎯 START HERE - Progressive learning
 │   ├── L1-basics/        # Single-session, no state
@@ -178,8 +173,7 @@ agentops/
 │   ├── patterns/         # Reusable solutions
 │   ├── learnings/        # Session insights
 │   └── retros/           # Retrospectives
-├── commands/             # Full reference commands (28)
-├── skills/               # Domain knowledge (12)
+├── skills/               # Domain knowledge (12 domains)
 ├── profiles/             # Role configurations (3)
 └── .beads/               # Git-based issue tracking
 ```
