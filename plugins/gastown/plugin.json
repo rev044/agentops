@@ -1,0 +1,51 @@
+{
+  "name": "gastown",
+  "version": "0.1.0",
+  "description": "Gas Town multi-agent orchestration - contribution workflow, PR skills, beads issue tracking",
+  "author": "Bo Fuller",
+  "license": "MIT",
+  "repository": "https://github.com/boshu2/agentops",
+  "homepage": "https://github.com/steveyegge/gastown",
+  "commands": [
+    "commands/gastown.md",
+    "commands/beads-validate.md",
+    "commands/status.md"
+  ],
+  "skills": [
+    "skills/beads/",
+    "skills/sk-pr-research/",
+    "skills/sk-pr-plan/",
+    "skills/sk-pr-implement/",
+    "skills/sk-pr-validate/",
+    "skills/sk-pr-prep/",
+    "skills/sk-pr-retro/",
+    "skills/sk-dispatch/",
+    "skills/sk-roles/",
+    "skills/sk-mail/",
+    "skills/sk-handoff/",
+    "skills/sk-crew/",
+    "skills/sk-polecat-lifecycle/",
+    "skills/sk-gastown/",
+    "skills/sk-bd-routing/"
+  ],
+  "agents": [],
+  "templates": [],
+  "philosophy": {
+    "core_rule": "Check for existing work before starting",
+    "principles": [
+      "Phase -1: Prior work check is BLOCKING",
+      "Skills encode contribution workflow as executable knowledge",
+      "CONTRIBUTING.md for agents, not just humans",
+      "Version controlled, community maintained"
+    ]
+  },
+  "tags": [
+    "gastown",
+    "multi-agent",
+    "contribution-workflow",
+    "pr-workflow",
+    "beads",
+    "orchestration"
+  ],
+  "upstream": "https://github.com/steveyegge/gastown"
+}
