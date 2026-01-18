@@ -27,6 +27,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - **gastown plugin** - Split into gastown-kit and pr-kit for better modularity
 
+### Fixed
+- **vibe-kit missing skills** - Restored vibe and vibe-docs skills that were lost during restructure
+
+### Consolidated
+- **domain-kit v1.1.0** - Consolidated from 18 to 17 skills:
+  - Removed `doc-curator` (redundant with docs-kit/doc)
+  - Consolidated 7 `base/` utilities (audit-diataxis, audit-onboarding, audit-workflow, cleanup-deprecated, cleanup-docs, cleanup-plans, cleanup-repo) into single `maintenance` skill
+
+### Skill Counts (Final)
+| Kit | Skills |
+|-----|--------|
+| core-kit | 8 |
+| vibe-kit | 5 |
+| docs-kit | 3 |
+| beads-kit | 3 |
+| dispatch-kit | 4 |
+| pr-kit | 6 |
+| gastown-kit | 4 |
+| domain-kit | 17 |
+| **Total** | **50** |
+
 ---
 
 ### Previous Unreleased
