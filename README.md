@@ -1,4 +1,4 @@
-# AgentOps 🤖
+# AgentOps
 
 [![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -10,7 +10,7 @@ Claude Code plugins for AI-assisted development workflows.
 
 Built on [beads](https://github.com/steveyegge/beads) (git-native issue tracking) and [gastown](https://github.com/steveyegge/gastown) (multi-agent orchestration).
 
-## 📦 Install
+## Install
 
 ```bash
 # Add marketplace
@@ -21,47 +21,49 @@ claude plugin install core-kit@agentops-marketplace
 claude plugin install vibe-kit@agentops-marketplace
 ```
 
-## 🧩 Plugins
+## Plugins
 
-| Plugin | What it does |
-|--------|--------------|
-| 🔧 **core-kit** | `/research`, `/formulate`, `/implement`, `/crank` - the main workflow |
-| ✅ **vibe-kit** | `/vibe`, `/bug-hunt`, `/complexity` - validation and quality |
-| 🔀 **pr-kit** | `/pr-research` → `/pr-retro` - open source contribution flow |
-| 📋 **beads-kit** | `/beads`, `/status` - git-based issue tracking |
-| 📝 **docs-kit** | `/doc`, `/oss-docs` - documentation generation |
-| 📬 **dispatch-kit** | `/handoff`, `/mail` - multi-agent orchestration |
-| 🏭 **gastown-kit** | `/gastown`, `/crew` - Gas Town worker management |
-| 🌐 **domain-kit** | Reference knowledge across 17 domains |
+| Plugin | Skills | Purpose |
+|--------|--------|---------|
+| **core-kit** | `/research`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | The main workflow |
+| **vibe-kit** | `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity` | Validation and quality |
+| **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-prep`, `/pr-retro` | Open source contribution |
+| **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking |
+| **docs-kit** | `/doc`, `/oss-docs`, `/golden-init` | Documentation generation |
+| **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent orchestration |
+| **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Gas Town worker management |
+| **domain-kit** | 18 domain skills | Reference knowledge (auto-loaded) |
 
-### 💡 Recommended
+**Expert Agents** (vibe-kit): `security-expert`, `architecture-expert`, `code-quality-expert`, `ux-expert`
+
+### Recommended
 
 **Getting started:** `core-kit` + `vibe-kit`
 
 **Full setup:** Add `beads-kit` for issue tracking, `docs-kit` for documentation
 
-## 🔄 Basic Workflow
+## Basic Workflow
 
 ```
-/research → /formulate → /implement → /vibe → /retro
+/research -> /formulate -> /implement -> /vibe -> /retro
 ```
 
 | Command | Purpose |
 |---------|---------|
-| 🔍 `/research` | Explore codebase, understand the problem |
-| 📐 `/formulate` | Break down into trackable beads issues |
-| ⚡ `/implement` | Execute a **single** beads issue |
-| ✅ `/vibe` | Validate changes (security, quality, architecture) |
-| 🎓 `/retro` | Extract learnings (includes `/rename` for session continuity) |
+| `/research` | Explore codebase, understand the problem |
+| `/formulate` | Break down into trackable beads issues |
+| `/implement` | Execute a single beads issue |
+| `/vibe` | Validate changes (security, quality, architecture) |
+| `/retro` | Extract learnings |
 
-### 📐 Two Types of Planning
+### Two Types of Planning
 
 | Type | When to Use |
 |------|-------------|
 | **Native plan mode** | Single-task implementation. Claude auto-enters, you review and approve, then Claude implements. |
 | **/formulate** | Epic decomposition into beads issues with dependencies. For multi-issue work that `/crank` executes. |
 
-### 🚀 Autonomous Execution
+### Autonomous Execution
 
 `/crank` is the autonomous implementation loop. It runs until an entire epic (and all child issues) are closed:
 
@@ -72,14 +74,14 @@ claude plugin install vibe-kit@agentops-marketplace
 - **Crew mode**: Executes issues sequentially via `/implement`
 - **Mayor mode**: Dispatches to parallel workers via gastown
 
-## 📚 Learn More
+## Learn More
 
 | Resource | Description |
 |----------|-------------|
-| 📖 [levels/](levels/) | Progressive tutorials from basics to full automation |
-| 📋 [reference/](reference/) | Framework docs (PDC, FAAFO, failure patterns) |
-| 🌐 [12factoragentops.com](https://12factoragentops.com) | Interactive examples |
+| [levels/](levels/) | Progressive tutorials from basics to full automation |
+| [reference/](reference/) | Framework docs (PDC, FAAFO, failure patterns) |
+| [12factoragentops.com](https://12factoragentops.com) | Interactive examples |
 
-## 📄 License
+## License
 
 MIT
