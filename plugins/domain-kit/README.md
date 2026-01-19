@@ -22,6 +22,7 @@ Reference knowledge across 21 domains. Loaded on-demand for specialized tasks.
 | **monitoring** | metrics, alerts, SLO |
 | **security** | pentest, SSL, secrets |
 | **data** | ETL, Spark, ML, MLOps |
+| **maintenance** | audits, cleanup, deprecation |
 | **meta** | context, session, workflow |
 | **specialized** | accessibility, UX, risk |
 | **testing** | unit, integration, e2e |

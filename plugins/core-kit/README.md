@@ -1,6 +1,6 @@
 # Core Kit
 
-The complete workflow from exploration to execution. 9 skills covering research, planning, and implementation.
+The complete workflow from exploration to execution. 8 skills covering research, planning, and implementation.
 
 ## Install
 
