@@ -15,7 +15,7 @@ discover_coding() {
     first=true
 
     # Python services
-    for dir in $(find "$REPO_ROOT/services" -maxdepth 1 -type d 2>/dev/null | tail -n +2); do
+    while IFS= read -r dir; do
         name=$(basename "$dir")
         score=0
         sources=()
@@ -28,7 +28,7 @@ discover_coding() {
         # Check for API endpoints
         if grep -rq "@app\.\(get\|post\|put\|delete\)\|@router\." "$dir" 2>/dev/null; then
             score=$((score + 2))
-            endpoints=($(grep -rh "@app\.\(get\|post\|put\|delete\)\|@router\." "$dir" 2>/dev/null | head -5 | sed 's/.*"\([^"]*\)".*/\1/' || true))
+            mapfile -t endpoints < <(grep -rh "@app\.\(get\|post\|put\|delete\)\|@router\." "$dir" 2>/dev/null | head -5 | sed 's/.*"\([^"]*\)".*/\1/' || true)
         fi
 
         # Check for Prometheus metrics
@@ -58,7 +58,7 @@ discover_coding() {
   }
 EOF
         fi
-    done
+    done < <(find "$REPO_ROOT/services" -maxdepth 1 -type d 2>/dev/null | tail -n +2)
 
     echo "]"
 }
@@ -68,7 +68,7 @@ discover_informational() {
     echo "["
     first=true
 
-    for dir in $(find "$REPO_ROOT/docs" -maxdepth 2 -type d 2>/dev/null); do
+    while IFS= read -r dir; do
         name=$(basename "$dir")
         [[ "$name" == "docs" ]] && continue
 
@@ -89,7 +89,7 @@ discover_informational() {
   }
 EOF
         fi
-    done
+    done < <(find "$REPO_ROOT/docs" -maxdepth 2 -type d 2>/dev/null)
 
     echo "]"
 }
@@ -100,7 +100,8 @@ discover_ops() {
     first=true
 
     # Helm charts
-    for chart in $(find "$REPO_ROOT" -name "Chart.yaml" -type f 2>/dev/null); do
+    while IFS= read -r chart; do
+        [[ -z "$chart" ]] && continue
         dir=$(dirname "$chart")
         name=$(basename "$dir")
 
@@ -119,7 +120,7 @@ discover_ops() {
     "path": "${dir#$REPO_ROOT/}"
   }
 EOF
-    done
+    done < <(find "$REPO_ROOT" -name "Chart.yaml" -type f 2>/dev/null)
 
     echo "]"
 }

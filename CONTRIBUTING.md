@@ -544,7 +544,7 @@ Violations may result in:
 2. Temporary ban from contributing
 3. Permanent ban from project
 
-Report issues to: [your-email]@example.com
+Report issues to: fullerbt@users.noreply.github.com
 
 ## Getting Help
 
@@ -554,7 +554,7 @@ Report issues to: [your-email]@example.com
 - **Examples:** Browse `plugins/core-workflow/` for reference
 - **GitHub Issues:** Search existing issues or create new one
 - **GitHub Discussions:** Ask questions, share ideas
-- **Email:** [your-email]@example.com
+- **Email:** fullerbt@users.noreply.github.com
 
 ### Useful Resources
 
@@ -605,4 +605,4 @@ By contributing to this project, you agree that your contributions will be licen
 
 **Thank you for contributing to AgentOps marketplace! 🚀**
 
-**Questions?** Open an issue or email [your-email]@example.com
+**Questions?** Open an issue or email fullerbt@users.noreply.github.com

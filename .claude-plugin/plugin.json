@@ -24,6 +24,5 @@
     "devops"
   ],
   "commands": "./commands/",
-  "skills": "./skills/",
   "strict": false
 }
