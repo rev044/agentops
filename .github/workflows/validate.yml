@@ -7,80 +7,170 @@ on:
     branches: [main]
 
 jobs:
-  validate:
+  smoke-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate JSON
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run smoke tests
         run: |
-          echo "=== Validating JSON ==="
-          python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
-          echo "✅ marketplace.json"
+          chmod +x tests/smoke-test.sh
+          ./tests/smoke-test.sh --verbose
 
-          for f in plugins/*/.claude-plugin/plugin.json; do
-            python3 -m json.tool "$f" > /dev/null
-            echo "✅ $f"
-          done
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Validate structure
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck
         run: |
-          echo "=== Validating structure ==="
+          echo "=== Running ShellCheck ==="
+          find . -name "*.sh" -type f \
+            -not -path "./.git/*" \
+            -print0 | xargs -0 -r shellcheck --severity=error || {
+              echo "ShellCheck found errors"
+              exit 1
+            }
+          echo "✅ ShellCheck passed"
 
-          # Check marketplace plugins exist
-          python3 << 'EOF'
-          import json
-          import os
-          import sys
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-          with open('.claude-plugin/marketplace.json') as f:
-              mp = json.load(f)
-
-          errors = []
-          for p in mp.get('plugins', []):
-              name = p['name']
-              source = p['source'].lstrip('./')
-              if source == '':
-                  source = '.'
-
-              if not os.path.isdir(source):
-                  errors.append(f"{name}: directory {source} not found")
-                  continue
-
-              # Check plugin.json exists
-              if source == '.':
-                  pj = '.claude-plugin/plugin.json'
-              else:
-                  pj = f'{source}/.claude-plugin/plugin.json'
-
-              if not os.path.isfile(pj):
-                  errors.append(f"{name}: missing {pj}")
-                  continue
-
-              # Check has skills
-              skills_dir = f'{source}/skills' if source != '.' else 'skills'
-              if os.path.isdir(skills_dir):
-                  skills = [d for d in os.listdir(skills_dir) if os.path.isdir(f'{skills_dir}/{d}')]
-                  print(f"✅ {name}: {len(skills)} skills")
-              else:
-                  print(f"✅ {name}: no skills dir (ok for some plugins)")
-
-          if errors:
-              print("\n❌ Errors:")
-              for e in errors:
-                  print(f"  {e}")
-              sys.exit(1)
-          EOF
-
-      - name: Check for secrets
+      - name: Scan for secrets
         run: |
           echo "=== Scanning for secrets ==="
-          if grep -r -i -E "(password|api_key|secret|token).*=.*['\"][^'\"]+['\"]" \
-              --exclude-dir=.git \
-              --exclude=*.md \
-              --exclude=validate.yml \
-              . 2>/dev/null; then
+          # Common secret patterns
+          patterns=(
+            "password.*=.*['\"][^'\"]{8,}['\"]"
+            "api[_-]?key.*=.*['\"][^'\"]{16,}['\"]"
+            "secret.*=.*['\"][^'\"]{8,}['\"]"
+            "token.*=.*['\"][^'\"]{16,}['\"]"
+            "AWS[_A-Z]*=.*['\"][A-Z0-9]{16,}['\"]"
+          )
+
+          found=0
+          for pattern in "${patterns[@]}"; do
+            if grep -r -i -E "$pattern" \
+                --exclude-dir=.git \
+                --exclude="*.md" \
+                --exclude="validate.yml" \
+                --exclude="smoke-test.sh" \
+                . 2>/dev/null; then
+              found=1
+            fi
+          done
+
+          if [[ $found -eq 1 ]]; then
             echo "⚠️ Potential secrets found - review above"
             exit 1
           fi
           echo "✅ No secrets detected"
+
+      - name: Check for dangerous patterns
+        run: |
+          echo "=== Checking for dangerous patterns ==="
+          # Patterns that could be dangerous in scripts
+          dangerous=(
+            "rm -rf /"
+            "curl.*\| *sh"
+            "curl.*\| *bash"
+            "wget.*\| *sh"
+            "eval.*\$"
+          )
+
+          found=0
+          for pattern in "${dangerous[@]}"; do
+            if grep -r -E "$pattern" \
+                --include="*.sh" \
+                --exclude-dir=.git \
+                . 2>/dev/null; then
+              echo "Found: $pattern"
+              found=1
+            fi
+          done
+
+          if [[ $found -eq 1 ]]; then
+            echo "⚠️ Dangerous patterns found"
+            exit 1
+          fi
+          echo "✅ No dangerous patterns"
+
+  plugin-load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test plugin directory structure
+        run: |
+          echo "=== Testing plugin load compatibility ==="
+
+          # Simulate what claude --plugin-dir does
+          for plugin in plugins/*/; do
+            name=$(basename "$plugin")
+            echo "Testing $name..."
+
+            # Check .claude-plugin/plugin.json
+            if [[ ! -f "${plugin}.claude-plugin/plugin.json" ]]; then
+              echo "❌ $name: missing .claude-plugin/plugin.json"
+              exit 1
+            fi
+
+            # Check skills directory if referenced
+            if jq -e '.skills' "${plugin}.claude-plugin/plugin.json" > /dev/null 2>&1; then
+              skills_ref=$(jq -r '.skills' "${plugin}.claude-plugin/plugin.json")
+              skills_path="${plugin}${skills_ref#./}"
+              if [[ ! -d "$skills_path" ]]; then
+                echo "❌ $name: skills directory '$skills_ref' not found"
+                exit 1
+              fi
+
+              # Check each skill has SKILL.md
+              for skill in "$skills_path"/*/; do
+                [[ ! -d "$skill" ]] && continue
+                if [[ ! -f "${skill}SKILL.md" ]]; then
+                  echo "❌ $name: $(basename "$skill") missing SKILL.md"
+                  exit 1
+                fi
+              done
+            fi
+
+            echo "✅ $name"
+          done
+
+          echo ""
+          echo "✅ All plugins have valid structure"
+
+  summary:
+    needs: [smoke-test, shellcheck, security-scan, plugin-load-test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "=== CI Summary ==="
+          echo "smoke-test: ${{ needs.smoke-test.result }}"
+          echo "shellcheck: ${{ needs.shellcheck.result }}"
+          echo "security-scan: ${{ needs.security-scan.result }}"
+          echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
+
+          if [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
+             [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
+             [[ "${{ needs.security-scan.result }}" != "success" ]] || \
+             [[ "${{ needs.plugin-load-test.result }}" != "success" ]]; then
+            echo ""
+            echo "❌ Some checks failed"
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All checks passed"
