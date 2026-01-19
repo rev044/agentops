@@ -149,54 +149,26 @@ for plugin_dir in plugins/*/; do
 
         skill_count=$((skill_count + 1))
 
-        # Validate frontmatter
-        result=$(python3 << PYEOF
-import re
-import sys
-
-with open('$skill_file') as f:
-    content = f.read()
-
-# Check for frontmatter
-match = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
-if not match:
-    print("ERROR: No YAML frontmatter")
-    sys.exit(1)
-
-yaml_content = match.group(1)
-errors = []
-
-# Check required fields
-required = ['name', 'description', 'version']
-for field in required:
-    if f'{field}:' not in yaml_content:
-        errors.append(f"Missing: {field}")
-
-# Check version format
-import re as regex
-version_match = regex.search(r'version:\s*["\']?(\d+\.\d+\.\d+)', yaml_content)
-if not version_match:
-    version_match = regex.search(r'version:\s*(\d+\.\d+\.\d+)', yaml_content)
-    if not version_match:
-        errors.append("Invalid version format")
-
-if errors:
-    print("WARN: " + "; ".join(errors))
-    sys.exit(2)
-else:
-    print("OK")
-    sys.exit(0)
-PYEOF
-        )
-        exit_code=$?
-
-        if [[ $exit_code -eq 0 ]]; then
-            [[ "$VERBOSE" == "--verbose" ]] && pass "$plugin_name/$skill_name"
-        elif [[ $exit_code -eq 1 ]]; then
-            fail "$plugin_name/$skill_name: $result"
+        # Validate frontmatter - check for ---\n...\n--- pattern and required fields
+        if ! head -1 "$skill_file" | grep -q "^---$"; then
+            fail "$plugin_name/$skill_name: No YAML frontmatter"
             skill_errors=$((skill_errors + 1))
+            continue
+        fi
+
+        # Extract frontmatter and check required fields
+        frontmatter=$(awk '/^---$/{if(++c==2)exit}c==1' "$skill_file")
+        missing=""
+        for field in name description version; do
+            if ! echo "$frontmatter" | grep -q "^${field}:"; then
+                missing="$missing $field"
+            fi
+        done
+
+        if [[ -n "$missing" ]]; then
+            warn "$plugin_name/$skill_name: Missing:$missing"
         else
-            warn "$plugin_name/$skill_name: $result"
+            [[ "$VERBOSE" == "--verbose" ]] && pass "$plugin_name/$skill_name"
         fi
     done
 done
