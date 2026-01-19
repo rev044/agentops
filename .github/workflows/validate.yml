@@ -62,9 +62,9 @@ jobs:
           for pattern in "${patterns[@]}"; do
             if grep -r -i -E "$pattern" \
                 --exclude-dir=.git \
+                --exclude-dir=tests \
                 --exclude="*.md" \
                 --exclude="validate.yml" \
-                --exclude="smoke-test.sh" \
                 . 2>/dev/null; then
               found=1
             fi
