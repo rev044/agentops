@@ -1,5 +1,8 @@
 # AgentOps
 
+[![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Claude Code plugins for AI-assisted development workflows.
 
 ## Install
