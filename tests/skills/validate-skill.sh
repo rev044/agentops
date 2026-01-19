@@ -178,15 +178,17 @@ validate_skill() {
         done <<< "$deps"
     fi
 
-    # Test 4: Check references directory if mentioned in SKILL.md
-    if grep -q "references/" "$skill_dir/SKILL.md" 2>/dev/null; then
+    # Test 4: Check references directory if local references are mentioned in SKILL.md
+    # Only check for LOCAL references (references/foo.md), not cross-skill refs (kit/skills/x/references/)
+    # Local refs start with backtick or quote followed by "references/"
+    if grep -qE '[\`\"\047]references/' "$skill_dir/SKILL.md" 2>/dev/null; then
         if [ -d "$skill_dir/references" ]; then
             echo -e "  ${GREEN}✓${NC} References directory exists"
             local_checks=$((local_checks + 1))
 
-            # Check specific referenced files
+            # Check specific referenced files (only local refs without path prefix)
             local refs
-            refs=$(grep -oE 'references/[a-zA-Z0-9_-]+\.md' "$skill_dir/SKILL.md" | sort -u)
+            refs=$(grep -oE '[\`\"\047]references/[a-zA-Z0-9_-]+\.md' "$skill_dir/SKILL.md" | sed 's/^[\`\"\047]//' | sort -u)
             if [ -n "$refs" ]; then
                 while IFS= read -r ref; do
                     if [ -f "$skill_dir/$ref" ]; then
