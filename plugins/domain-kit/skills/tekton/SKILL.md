@@ -67,7 +67,7 @@ tkn pipeline start jren-standard-build \
 
 ### "repository not found" / 404
 
-Git URL is wrong. Use `fullerbt/ai-platform`, not `openshift/admin/ai-platform`.
+Git URL is wrong. Use the correct org/repo format (e.g., `<org>/ai-platform`), not admin paths like `openshift/admin/ai-platform`.
 
 ### "permission denied" cleaning workspace
 
@@ -118,7 +118,7 @@ variables:
 
 **Mirror missing images:**
 ```bash
-cd ~/gt/release_engineering/crew/boden
+cd ~/gt/release_engineering/crew/<user>
 ./scripts/mirror-ci-images.sh --check   # See what's missing
 ./scripts/mirror-ci-images.sh           # Mirror all
 ```

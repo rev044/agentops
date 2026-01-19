@@ -241,7 +241,7 @@ variables:
 
 **Mirror missing images:**
 ```bash
-cd ~/gt/release_engineering/crew/boden
+cd ~/gt/release_engineering/crew/<user>
 ./scripts/mirror-ci-images.sh --check
 ./scripts/mirror-ci-images.sh
 ```

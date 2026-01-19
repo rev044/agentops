@@ -2,8 +2,5 @@
   "name": "dispatch-kit",
   "version": "0.1.0",
   "description": "Work assignment and orchestration primitives",
-  "author": {
-    "name": "Bo Fuller",
-    "email": "fullerbt@users.noreply.github.com"
-  }
+  "author": "boshu2"
 }

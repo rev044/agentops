@@ -110,8 +110,8 @@ grep -l "<goal keywords>" ~/gt/.agents/$RIG/formulas/*.toml 2>/dev/null | head -
 grep -l "<goal keywords>" ~/gt/.agents/_cross-rig/formulas/*.toml 2>/dev/null | head -5
 
 # Crew workspace formulas (implementation work - may have older artifacts)
-grep -l "<goal keywords>" ~/gt/$RIG/crew/boden/.agents/formulas/*.toml 2>/dev/null | head -5
-grep -l "<goal keywords>" ~/gt/$RIG/crew/boden/.beads/formulas/*.toml 2>/dev/null | head -5
+grep -l "<goal keywords>" ~/gt/$RIG/crew/<user>/.agents/formulas/*.toml 2>/dev/null | head -5
+grep -l "<goal keywords>" ~/gt/$RIG/crew/<user>/.beads/formulas/*.toml 2>/dev/null | head -5
 
 # Existing beads epics
 bd list --type=epic | grep -i "<goal keywords>"
@@ -119,7 +119,7 @@ bd list --type=epic | grep -i "<goal keywords>"
 
 **Note**: Prior formulas may exist in either location:
 - **Town-level** (`~/gt/.agents/<rig>/formulas/`) - Mayor/orchestration formulas
-- **Crew workspace** (`~/gt/<rig>/crew/boden/.agents/formulas/`) - Implementation formulas
+- **Crew workspace** (`~/gt/<rig>/crew/<user>/.agents/formulas/`) - Implementation formulas
 
 | Prior Formula Status | Action |
 |----------------------|--------|

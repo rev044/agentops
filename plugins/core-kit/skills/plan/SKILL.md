@@ -87,7 +87,7 @@ grep -l "<goal keywords>" ~/gt/.agents/$RIG/plans/*.md 2>/dev/null | head -5
 grep -l "<goal keywords>" ~/gt/.agents/_cross-rig/plans/*.md 2>/dev/null | head -5
 
 # Crew workspace plans (implementation work - may have older artifacts)
-grep -l "<goal keywords>" ~/gt/$RIG/crew/boden/.agents/plans/*.md 2>/dev/null | head -5
+grep -l "<goal keywords>" ~/gt/$RIG/crew/<user>/.agents/plans/*.md 2>/dev/null | head -5
 
 # Existing beads epics
 bd list --type=epic | grep -i "<goal keywords>"
@@ -95,7 +95,7 @@ bd list --type=epic | grep -i "<goal keywords>"
 
 **Note**: Prior plans may exist in either location:
 - **Town-level** (`~/gt/.agents/<rig>/plans/`) - Mayor/orchestration plans
-- **Crew workspace** (`~/gt/<rig>/crew/boden/.agents/plans/`) - Implementation plans
+- **Crew workspace** (`~/gt/<rig>/crew/<user>/.agents/plans/`) - Implementation plans
 
 | Prior Plan Status | Action |
 |-------------------|--------|

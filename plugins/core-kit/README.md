@@ -201,7 +201,7 @@ This makes plans versioned with your repo instead of global storage.
 
 **Gas Town pattern:**
 ```json
-// ~/gt/<rig>/crew/boden/.claude/settings.json
+// ~/gt/<rig>/crew/<user>/.claude/settings.json
 {
   "plansDirectory": "../../../.agents/{rig}/plans"
 }

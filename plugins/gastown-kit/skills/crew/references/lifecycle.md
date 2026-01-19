@@ -155,11 +155,11 @@ git -C <rig>/crew/dave status
 
 ```bash
 # Create workspace for a rig you'll work on regularly
-gt crew add boden --rig ai-platform
+gt crew add alice --rig ai-platform
 
 # Start and begin working
-gt crew start ai-platform boden
-gt crew at boden
+gt crew start ai-platform alice
+gt crew at alice
 ```
 
 ### Daily Workflow

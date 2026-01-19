@@ -59,7 +59,7 @@ When you create a bead, the prefix is determined by which database you're in:
 cd ~/gt
 bd create --title="Task"        # Creates hq-xxxxx
 
-cd ~/gt/daedalus/crew/boden
+cd ~/gt/daedalus/crew/<user>
 bd create --title="Task"        # Creates gt-xxxxx
 ```
 

@@ -11,7 +11,7 @@ Rig-level beads use a dedicated `beads-sync` branch to coordinate changes across
 ### The Problem
 
 Multiple agents work in different worktrees:
-- `gastown/crew/boden/.beads/`
+- `gastown/crew/alice/.beads/`
 - `gastown/polecats/toast/.beads/`
 - `gastown/polecats/waffle/.beads/`
 
@@ -22,7 +22,7 @@ Without coordination, beads changes would conflict.
 All worktrees sync beads through the `beads-sync` branch:
 
 ```
-[polecat/toast] --push--> [beads-sync] <--pull-- [crew/boden]
+[polecat/toast] --push--> [beads-sync] <--pull-- [crew/alice]
                               ^
                               |
 [polecat/waffle] --push-------+

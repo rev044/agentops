@@ -513,12 +513,12 @@ echo "Ready to submit? Run: /pr-prep"
 
 ```bash
 # Phase 0: Input Discovery
-cat ~/gt/.agents/_oss/plans/2026-01-12-pr-plan-gastown.md | head -30
-# Found: Plan for gastown suggest validation
+cat ~/gt/.agents/_oss/plans/2026-01-12-pr-plan-<project>.md | head -30
+# Found: Plan for <project> suggest validation
 
 # Phase 1: Fork Setup
-gh repo view fullerbt/gastown --json name  # Fork exists
-cd ~/projects/gastown-fork
+gh repo view <username>/<fork-repo> --json name  # Fork exists
+cd ~/projects/<project>-fork
 git fetch upstream
 
 # Phase 2: Worktree Creation

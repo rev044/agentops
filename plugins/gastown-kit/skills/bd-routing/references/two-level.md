@@ -15,7 +15,7 @@ Gas Town operates with two distinct beads databases:
 ├── daedalus/                ← RIG
 │   ├── .beads/              ← IGNORED (runtime state only)
 │   ├── mayor/rig/.beads/    ← Canonical rig beads (gt-* prefix)
-│   ├── crew/boden/.beads/   ← Worktree beads (synced via beads-sync)
+│   ├── crew/<user>/.beads/  ← Worktree beads (synced via beads-sync)
 │   └── polecats/*/.beads/   ← Worktree beads (synced via beads-sync)
 │
 └── athena/                  ← RIG
