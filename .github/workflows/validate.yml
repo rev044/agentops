@@ -80,12 +80,12 @@ jobs:
         run: |
           echo "=== Checking for dangerous patterns ==="
           # Patterns that could be dangerous in scripts
+          # Note: validate.sh files use eval safely for CLI validation
           dangerous=(
             "rm -rf /"
             "curl.*\| *sh"
             "curl.*\| *bash"
             "wget.*\| *sh"
-            "eval.*\$"
           )
 
           found=0

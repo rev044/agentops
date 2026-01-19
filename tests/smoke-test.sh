@@ -87,10 +87,10 @@ for plugin_dir in plugins/*/; do
     for skill_dir in "$skills_dir"/*/; do
         [[ ! -d "$skill_dir" ]] && continue
         if [[ -f "${skill_dir}SKILL.md" ]]; then
-            ((skill_count++))
+            skill_count=$((skill_count + 1))
         else
             fail "$(basename "$plugin_dir")/skills/$(basename "$skill_dir")/SKILL.md missing"
-            ((skill_errors++))
+            skill_errors=$((skill_errors + 1))
         fi
     done
 done
