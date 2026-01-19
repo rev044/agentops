@@ -17,8 +17,8 @@ A lean, production-ready Claude Code setup built on the 40% rule.
 
 | Component | Count | Description |
 |-----------|-------|-------------|
-| Commands | ~10 | Core workflows: `/research`, `/crank`, `/implement`, `/retro` |
-| Skills | ~15 | Auto-triggered context: beads, research, voice |
+| Commands | 5 | Core workflows: `/research`, `/crank`, `/implement`, `/retro` |
+| Skills | 5 | Validation: bug-hunt, complexity, validation-chain, vibe-docs, vibe |
 | Agents | 4 | Parallel specialist review: security, architecture, quality, UX |
 | CLAUDE.md | 1 | Universal config template |
 

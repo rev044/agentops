@@ -197,7 +197,7 @@ if [[ -n "$AGENTS" ]] || $INSTALL_FULL; then
     fi
 
     if $INSTALL_FULL; then
-        AGENT_LIST=$(ls "$SCRIPT_DIR/agents/"*.md 2>/dev/null | xargs -n1 basename | sed 's/.md$//')
+        AGENT_LIST=$(find "$SCRIPT_DIR/agents/" -maxdepth 1 -name "*.md" -exec basename {} .md \; 2>/dev/null)
     else
         AGENT_LIST=$(echo "$AGENTS" | tr ',' ' ')
     fi
@@ -225,7 +225,7 @@ if [[ -n "$SKILLS" ]] || $INSTALL_FULL; then
     fi
 
     if $INSTALL_FULL; then
-        SKILL_LIST=$(ls -d "$SCRIPT_DIR/skills/"*/ 2>/dev/null | xargs -n1 basename)
+        SKILL_LIST=$(find "$SCRIPT_DIR/skills/" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; 2>/dev/null)
     else
         SKILL_LIST=$(echo "$SKILLS" | tr ',' ' ')
     fi
