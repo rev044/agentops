@@ -14,6 +14,8 @@ triggers:
   - "cyclomatic complexity"
 allowed-tools: Bash, Read, Grep, Glob
 agent: code-quality-expert
+skills:
+  - standards
 ---
 
 # Complexity Analysis Skill
@@ -157,7 +159,7 @@ For each function Grade C or worse, provide:
 - Multiple loop levels
 - Mixed concerns
 
-**Recommended Patterns:** (from `docs/standards/python-style-guide.md`)
+**Recommended Patterns:** (from `domain-kit/skills/standards/references/python.md`)
 
 | Pattern | When to Use |
 |---------|-------------|
@@ -260,8 +262,8 @@ bd create "Refactor <function_name> to reduce complexity" --type task --priority
 
 ## Related Documentation
 
-- **Refactoring Patterns:** `docs/standards/python-style-guide.md#production-proven-refactoring-patterns`
-- **Complexity Grades:** `docs/standards/python-style-guide.md#complexity-grades`
+- **Python Standards:** `domain-kit/skills/standards/references/python.md`
+- **Go Standards:** `domain-kit/skills/standards/references/go.md`
 - **CI Integration:** Complexity checks run in GitLab CI via `xenon`
 
 ---

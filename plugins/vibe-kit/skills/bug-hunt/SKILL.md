@@ -8,6 +8,8 @@ context: fork
 author: "boshu2"
 license: "MIT"
 allowed-tools: "Read,Write,Bash,Grep,Glob,Task,WebFetch"
+skills:
+  - standards
 ---
 
 # Bug Hunt Skill
@@ -272,3 +274,16 @@ See: `.agents/research/2026-01-06-cross-rig-sling-fix-workflow.md`
 ```
 
 For simple bugs, skip `/plan` and implement directly after `/bug-hunt`.
+
+---
+
+## Standards Loading
+
+When designing fixes (Phase 4), load relevant standards for consistent code:
+
+| File Pattern | Load Reference |
+|--------------|----------------|
+| `*.py` | `domain-kit/skills/standards/references/python.md` |
+| `*.go` | `domain-kit/skills/standards/references/go.md` |
+| `*.ts`, `*.tsx` | `domain-kit/skills/standards/references/typescript.md` |
+| `*.sh` | `domain-kit/skills/standards/references/shell.md` |
