@@ -24,24 +24,30 @@ for parallel execution.
 
 ## Overview
 
-**Core Purpose**: Transform a goal into a reusable formula template (.formula.toml) that
-captures the pattern for creating beads issues with dependency ordering and wave-based
-parallelization for `/crank` and `/implement-wave`.
+**Core Purpose**: Transform a goal into trackable beads issues with dependency ordering and
+wave-based parallelization for `/crank` and `/implement-wave`.
+
+**Typical Flow**:
+1. `/research` - Deep exploration
+2. **Native plan mode** (`Shift+Tab` x2) - Approach decisions, creates `plan.md`
+3. Context clears on plan acceptance
+4. **`/formulate`** - Creates beads issues from the plan
+5. `/implement`, `/implement-wave`, or `/crank` - Execute
 
 **Key Capabilities**:
 - 6-tier context discovery hierarchy
 - Prior formula discovery to prevent duplicates
 - Feature decomposition with dependency modeling
-- Formula template creation with proper TOML structure
+- Formula template creation with proper TOML structure (optional)
 - Auto-instantiation via `bd cook`
 - Beads issue creation with epic-child relationships
 - Wave computation for parallel execution
 
-**Formulas vs Plans**:
+**Formulas vs Direct Issues**:
 - **Formula**: Reusable template (.formula.toml) - can be instantiated multiple times
-- **Plan**: One-time execution plan - specific to a single goal
+- **Direct (--immediate)**: One-time beads creation - specific to current goal
 
-**When to Use**: Work needs 2+ discrete issues with dependencies, or a reusable pattern is desired.
+**When to Use**: After native plan mode clears context, or any time work needs 2+ discrete issues.
 **When NOT to Use**: Single task (use `/implement`), exploratory (use `/research`).
 
 ### Flags

@@ -20,9 +20,9 @@ Execute a SINGLE beads issue from `open` to `closed`.
 
 Take a beads issue through: context → implement → test → close → commit.
 
-**When to Use**: Any beads issue needs execution.
+**When to Use**: Any beads issue needs execution. Best for learning, complex bugs, unfamiliar code.
 
-**When NOT to Use**: Creating issues (`/plan`), research (`/research`), bulk (`/implement-wave`).
+**When NOT to Use**: Creating issues (`/formulate`), research (`/research`), bulk (`/implement-wave`).
 
 ---
 
@@ -59,7 +59,7 @@ bd show $ARGUMENTS
 bd ready  # Pick highest priority (P0 > P1 > P2 > P3)
 ```
 
-**STOP if no issues**: Inform user to run `/plan`.
+**STOP if no issues**: Inform user to run `/formulate` to create issues.
 
 ---
 
@@ -142,5 +142,6 @@ bd ready
 ## References
 
 - **beads skill**: Full CLI reference
-- `/plan`: Create issues
-- `/implement-wave`: Bulk execution
+- `/formulate`: Create issues from a goal
+- `/implement-wave`: Bulk execution (parallel via Task() subagents)
+- `/crank`: Full autonomous epic execution

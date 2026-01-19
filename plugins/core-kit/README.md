@@ -86,16 +86,65 @@ Is this a single issue or quick fix?
 ## Standard Workflow
 
 ```
-/research → /product → /formulate → /crank → /retro
-    ↓          ↓           ↓          ↓        ↓
- explore    clarify     template   execute   learn
+/research → plan mode → /formulate → execute → /retro
+    ↓           ↓            ↓           ↓         ↓
+ explore   approach      beads      run it     learn
 ```
+
+### The Planning Bridge (Native Plan Mode)
+
+Claude Code's built-in plan mode (`Shift+Tab` x2) handles approach decisions:
+
+1. Enter plan mode after `/research`
+2. Claude explores, asks clarifying questions
+3. Creates `plan.md` with approach decisions
+4. On acceptance: **context clears**, execution begins with just the plan
+5. Previous session accessible via `/resume`
+
+**Key benefit:** Fresh context for execution, but full research accessible if needed.
+
+### From Plan to Beads
+
+After plan acceptance, create trackable issues:
+
+```bash
+/formulate <goal>           # Creates beads issues from plan
+bd ready                    # See what's ready to work
+```
+
+### Execution Tiers
+
+| Skill | Scope | Parallelism | When to Use |
+|-------|-------|-------------|-------------|
+| `/implement` | Single issue | None | Learning, complex bugs, unfamiliar code |
+| `/implement-wave` | Wave of issues | Task() subagents | Independent features, batch work |
+| `/crank` | Entire epic | Auto-detects mode | Well-planned epics, overnight runs |
+
+**Trust escalation:**
+```
+/implement → /implement-wave → /crank
+   ↑              ↑              ↑
+ learning    comfortable    confident
+```
+
+### Session Continuity
+
+Claude Code's native session features:
+
+| Command | Purpose |
+|---------|---------|
+| `/rename <name>` | Name session for later reference |
+| `/resume` | Pick from recent sessions (same repo) |
+| `--continue` | Continue most recent session |
+
+**Pattern:** Name sessions after phase: `research-oauth`, `implement-wave1-auth`
 
 **Shortcuts:**
 
 - Simple feature: `/formulate → /implement`
 - Quick fix: `/implement` directly
 - Repeatable work: `/formulate` once, reuse template
+- Full auto: `/formulate → /crank`
 
 ## Examples
 
@@ -130,6 +179,29 @@ Is this a single issue or quick fix?
 - **Research before coding** - understand the codebase
 - **Plan before implementing** - break work into manageable pieces
 - **Iterate and learn** - capture insights for continuous improvement
+
+## Configuration
+
+### plansDirectory (Optional)
+
+Store native plan mode outputs in your project:
+
+```json
+// .claude/settings.json
+{
+  "plansDirectory": ".claude/plans"
+}
+```
+
+This makes plans versioned with your repo instead of global storage.
+
+**Gas Town pattern:**
+```json
+// ~/gt/<rig>/crew/boden/.claude/settings.json
+{
+  "plansDirectory": "../../../.agents/{rig}/plans"
+}
+```
 
 ## Related Kits
 
