@@ -170,19 +170,36 @@ Flag this as HIGH RISK in research output.
 
 ## Phase 1: Repository Setup
 
-**Determine the upstream repository**:
+**PREREQUISITE**: You must be working from a fork, synced with upstream.
+
+### 1.1 Verify Fork Setup (REQUIRED)
 
 ```bash
-# If in a fork, find upstream
-git remote -v | grep upstream
-git remote -v | grep origin
-
-# If cloning fresh
-git clone <upstream-url>
-cd <repo>
+# Confirm you're in a fork with upstream configured
+git remote -v
+# Should show:
+#   origin    git@github.com:YOUR-USERNAME/repo.git (your fork)
+#   upstream  git@github.com:OWNER/repo.git (upstream)
 ```
 
-**Identify rig for output**:
+If no `upstream` remote:
+```bash
+git remote add upstream https://github.com/OWNER/repo.git
+```
+
+### 1.2 Sync Fork with Upstream (REQUIRED)
+
+```bash
+git fetch upstream
+git checkout main
+git merge upstream/main
+git push origin main
+```
+
+**You are contributing via PR. You do not have push access to upstream.**
+
+### 1.3 Identify Output Location
+
 - If contributing FROM a rig's context, use that rig
 - If general OSS work, use `_oss` subfolder
 - Create directory: `mkdir -p ~/gt/.agents/<rig>/research/`
@@ -482,38 +499,7 @@ Next: /pr-plan ~/gt/.agents/<rig>/research/YYYY-MM-DD-pr-{repo}.md
 | Start with large PRs | Begin with small, focused changes |
 | Assume conventions | Check commit message style |
 | Ignore issue labels | Look for "good first issue" |
-| **Assume push access** | **Always verify with `gh repo view --json viewerPermission`** |
-
----
-
-## Push Access Verification
-
-**CRITICAL**: Never assume the user has push access to external repositories.
-
-### Check Access Level
-
-```bash
-# Verify actual permissions
-gh repo view <owner/repo> --json viewerPermission --jq '.viewerPermission'
-```
-
-| Permission | Meaning | Workflow |
-|------------|---------|----------|
-| `ADMIN` | Owner/admin | Can push directly |
-| `WRITE` | Collaborator | Can push directly |
-| `READ` | Read-only | **Must fork and PR** |
-| `NONE` | No access | **Must fork and PR** |
-
-### Default Assumption
-
-**Unless `viewerPermission` is `ADMIN` or `WRITE`, assume fork-based workflow is required.**
-
-Do NOT tell users they have push access based on:
-- Being "crew" or having a local clone
-- The repo being in their workspace
-- Any assumption about their role
-
-**Always verify programmatically.**
+| Assume push access | Work from a fork - you're contributing via PR |
 
 ---
 
