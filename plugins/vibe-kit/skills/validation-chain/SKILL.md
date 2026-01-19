@@ -166,12 +166,12 @@ bd create --title "[Quality] $FINDING_TITLE" --type task --priority 1
 
 ---
 
-## Integration with /autopilot
+## Integration with /crank
 
 When `--validate` flag is used:
 
 ```markdown
-/autopilot <epic> --validate
+/crank <epic> --validate
 ```
 
 The validation chain runs after each wave completes, before proceeding to next wave.

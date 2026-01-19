@@ -199,7 +199,7 @@ def gastown_full_safe(goal: str, rig: str):
     try:
         # Check prerequisites
         if not gas_town_available():
-            print("Gas Town not available. Use /autopilot instead.")
+            print("Gas Town not available. Use /crank instead.")
             return
 
         gastown_full(goal, rig)

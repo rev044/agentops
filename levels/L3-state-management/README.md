@@ -44,7 +44,7 @@ bd sync                     # Sync at session end
 ## What's NOT at This Level
 
 - No parallel execution
-- No autopilot
+- No `/crank` (autonomous execution)
 
 ## Next Level
 

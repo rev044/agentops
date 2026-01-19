@@ -74,17 +74,17 @@ Wave 2 (Depends on Wave 1):
 [Key decisions, patterns to follow, risks identified]
 
 ## External Requirements
-[Any prerequisites for autopilot: Langfuse enabled, secrets configured, migrations run, etc.]
+[Any prerequisites for crank: Langfuse enabled, secrets configured, migrations run, etc.]
 
 ## Next Steps
-Run `/autopilot <epic-id> --dry-run` to validate, then `/autopilot <epic-id>` to execute.
+Run `/crank <epic-id> --dry-run` to validate, then `/crank <epic-id>` to execute.
 ```
 
 ---
 
 ## Plan Summary Template (Autopilot Handoff)
 
-Output this after creating issues. This is the **handoff to autopilot**.
+Output this after creating issues. This is the **handoff to crank**.
 
 ```markdown
 ---
@@ -132,7 +132,7 @@ Wave 3 (Depends on Wave 2):
 
 ---
 
-## Ready for Autopilot
+## Ready for Crank
 
 ### Pre-Flight Checklist
 
@@ -145,10 +145,10 @@ Wave 3 (Depends on Wave 2):
 
 ```bash
 # Validate structure first
-/autopilot bd-epic-id --dry-run
+/crank bd-epic-id --dry-run
 
 # Full execution
-/autopilot bd-epic-id
+/crank bd-epic-id
 ```
 
 ### Alternative: Manual Execution

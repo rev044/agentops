@@ -14,11 +14,11 @@ Each level builds on the previous. Master L1 before attempting L2. The levels ar
 
 | Level | Name | Core Concept | New Capability |
 |-------|------|--------------|----------------|
-| L1 | Basics | Single-session work | `/research`, `/implement` |
+| L1 | Basics | Single-session work | `/research`, `/implement` (single issue) |
 | L2 | Persistence | `.agents/` output | State survives sessions |
 | L3 | State Management | Issue tracking | `/plan`, beads integration |
 | L4 | Parallelization | Wave execution | `/implement-wave` |
-| L5 | Orchestration | Full autopilot | `/autopilot`, reconciliation loops |
+| L5 | Orchestration | Full autonomy | `/crank`, gastown multi-agent |
 
 ## Progression Path
 
@@ -49,7 +49,7 @@ Add issue tracking with beads. `/plan` creates structured work items. Track prog
 Execute independent work in parallel. `/implement-wave` runs multiple issues concurrently. Speed through unblocked work.
 
 ### L5 — Orchestration
-Full autonomous operation. `/autopilot` handles epic-to-completion with validation gates and human checkpoints.
+Full autonomous operation. `/crank` handles epic-to-completion via the ODMCR reconciliation loop. Integrates with gastown for multi-agent parallelization.
 
 ## Getting Started
 

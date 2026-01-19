@@ -349,6 +349,5 @@ bd list --parent=<epic> --status=closed       # What completed
 
 - [odmcr.md](odmcr.md) - Detailed ODMCR loop specification
 - [failure-taxonomy.md](failure-taxonomy.md) - Failure types and handling
-- `/autopilot` - Supervised execution with validation gates
 - `/implement` - Single issue execution (used by crew mode)
-- `/implement-wave` - Single wave execution
+- `/implement-wave` - Single wave execution with validation

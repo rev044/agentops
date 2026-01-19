@@ -26,7 +26,7 @@ for parallel execution.
 
 **Core Purpose**: Transform a goal into a reusable formula template (.formula.toml) that
 captures the pattern for creating beads issues with dependency ordering and wave-based
-parallelization for `/autopilot` and `/implement-wave`.
+parallelization for `/crank` and `/implement-wave`.
 
 **Key Capabilities**:
 - 6-tier context discovery hierarchy
@@ -405,7 +405,7 @@ Create a companion markdown file at `~/gt/.agents/$RIG/formulas/{topic-slug}.md`
 - Features table with dependencies
 - Wave execution order table
 - Dependency graph (ASCII)
-- Autopilot handoff section
+- Crank handoff section
 
 See `references/templates.md` for full template.
 
@@ -413,7 +413,7 @@ See `references/templates.md` for full template.
 
 ### Phase 8: Output Summary
 
-Output structured summary with autopilot handoff:
+Output structured summary with crank handoff:
 
 ```markdown
 # Formula Complete: [Goal]
@@ -431,8 +431,8 @@ Output structured summary with autopilot handoff:
 
 ## Ready for Autopilot
 ```bash
-/autopilot ai-platform-xxx --dry-run
-/autopilot ai-platform-xxx
+/crank ai-platform-xxx --dry-run
+/crank ai-platform-xxx
 ```
 ```
 
@@ -481,7 +481,7 @@ Output structured summary with autopilot handoff:
   - [ ] `[[steps]]` with id, title, description, needs
 - [ ] Ran `bd cook` or instantiated manually (Phase 5.5/6)
 - [ ] Wrote companion .md documentation (Phase 7)
-- [ ] Output summary with autopilot handoff (Phase 8)
+- [ ] Output summary with crank handoff (Phase 8)
 - [ ] Synced with `bd sync`
 
 ### Immediate Flow (--immediate flag)
@@ -493,7 +493,7 @@ Output structured summary with autopilot handoff:
 - [ ] Added file annotations with `bd comment`
 - [ ] Added Children comment to epic
 - [ ] Started epic with `bd update <epic> --status in_progress`
-- [ ] Output summary with autopilot handoff
+- [ ] Output summary with crank handoff
 - [ ] Synced with `bd sync`
 
 ---

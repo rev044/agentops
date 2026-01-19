@@ -42,7 +42,7 @@ Add the `.agents/` directory for cross-session memory.
 
 - No issue tracking
 - No parallelization
-- No autopilot
+- No `/crank` (autonomous execution)
 
 ## Next Level
 

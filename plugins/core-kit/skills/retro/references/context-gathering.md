@@ -56,7 +56,7 @@ python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
 
 1. **Environment variable**: `$CLAUDE_SESSION_ID` (set by Claude Code)
 2. **Recent session detection**: Find most recent `.jsonl` in `~/.claude/projects/`
-3. **Beads comment**: Sessions may be recorded in autopilot state
+3. **Beads comment**: Sessions may be recorded in crank state
 
 ### When No Session Available
 
@@ -91,7 +91,7 @@ bd show <child-id>
 
 ```bash
 ls .agents/blackboard/
-cat .agents/blackboard/autopilot-state.json 2>/dev/null
+cat .agents/blackboard/crank-state.json 2>/dev/null
 ```
 
 ---

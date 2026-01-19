@@ -1,25 +1,25 @@
 # L5 — Orchestration
 
-Full autonomous operation with autopilot.
+Full autonomous operation with `/crank`.
 
 ## What You'll Learn
 
-- Using `/autopilot` for epic-to-completion
-- Reconciliation loops
-- Validation gates
-- Human checkpoint patterns
+- Using `/crank` for epic-to-completion
+- The ODMCR reconciliation loop
+- Mayor vs Crew execution modes
+- Integration with gastown for parallel workers
 
 ## Prerequisites
 
 - Completed L4-parallelization
 - Comfortable with wave execution
-- Understanding of validation patterns
+- Understanding of beads issue tracking
 
 ## Available Commands
 
 | Command | Purpose |
 |---------|---------|
-| `/autopilot` | Epic-to-completion with validation gates |
+| `/crank` | Autonomous epic-to-completion |
 | `/implement-wave` | Same as L4 |
 | `/plan <goal>` | Same as L3 |
 | `/research <topic>` | Same as L2 |
@@ -28,36 +28,36 @@ Full autonomous operation with autopilot.
 
 ## Key Concepts
 
-- **Autopilot**: Autonomous epic execution
-- **Reconciliation loop**: Continuous state checking
-- **Validation gates**: Quality checks between phases
-- **Human checkpoints**: Pause points for review
+- **Crank**: Autonomous epic execution - runs until ALL children are CLOSED
+- **ODMCR loop**: Observe → Dispatch → Monitor → Collect → Retry
+- **Mayor mode**: Dispatches to parallel polecats via gastown
+- **Crew mode**: Executes sequentially via `/implement`
 
-## Autopilot Flow
+## Crank Flow
 
 ```
-/autopilot <epic>
+/crank <epic>
     ↓
-Plan decomposition
+Observe (bd show, bd ready)
     ↓
-Wave execution (loop)
+Dispatch (gt sling or /implement)
     ↓
-Validation gate
+Monitor (convoy status)
     ↓
-Human checkpoint (if configured)
+Collect (close completed)
     ↓
-Continue or adjust
+Retry (handle failures)
     ↓
-Epic complete
+Loop until epic CLOSED
 ```
 
-## Safety Mechanisms
+## Execution Modes
 
-- Validation gates catch drift
-- Human checkpoints for critical decisions
-- Reconciliation detects state mismatches
-- Graceful degradation on failures
+| Mode | When | How |
+|------|------|-----|
+| **Crew** | Default, single-agent | Sequential `/implement` calls |
+| **Mayor** | In ~/gt or mayor/ directory | Parallel dispatch via `gt sling` |
 
 ## Mastery
 
-At L5, you can hand off entire epics to the agent system and trust the outcome.
+At L5, you can hand off entire epics to `/crank` and trust autonomous completion.

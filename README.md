@@ -2,8 +2,11 @@
 
 [![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
 
 Claude Code plugins for AI-assisted development workflows.
+
+Built on [beads](https://github.com/boshu2/beads) (git-native issue tracking) and [gastown](https://github.com/boshu2/gastown) (multi-agent orchestration).
 
 ## Install
 
@@ -42,11 +45,20 @@ claude plugin install vibe-kit@agentops-marketplace
 ```
 
 - `/research` - Explore codebase, understand the problem
-- `/plan` - Break down into trackable issues
-- `/implement` - Execute with validation
+- `/plan` - Break down into trackable beads issues
+- `/implement` - Execute a **single** beads issue
 - `/retro` - Extract learnings
 
-For autonomous execution: `/crank` runs the full cycle unattended.
+### Autonomous Execution
+
+`/crank` is the autonomous implementation loop. It runs until an entire epic (and all child issues) are closed:
+
+```
+/crank <epic-id>   # Runs until ALL children are CLOSED
+```
+
+- **Crew mode**: Executes issues sequentially via `/implement`
+- **Mayor mode**: Dispatches to parallel workers via gastown
 
 ## Learn More
 

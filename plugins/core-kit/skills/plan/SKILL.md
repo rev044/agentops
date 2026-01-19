@@ -23,7 +23,7 @@ Produces beads issues with proper dependencies and wave computation for parallel
 ## Overview
 
 **Core Purpose**: Transform a goal into an executable plan with discrete beads issues,
-dependency ordering, and wave-based parallelization for `/autopilot` and `/implement-wave`.
+dependency ordering, and wave-based parallelization for `/crank` and `/implement-wave`.
 
 **Key Capabilities**:
 - 6-tier context discovery hierarchy
@@ -206,13 +206,13 @@ See `references/templates.md` for full template. Key elements:
 - Features table with dependencies
 - Wave execution order table
 - Dependency graph (ASCII)
-- Autopilot handoff section
+- Crank handoff section
 
 ---
 
 ### Phase 6: Output Summary
 
-Output structured summary with autopilot handoff:
+Output structured summary with crank handoff:
 
 ```markdown
 # Plan Complete: [Goal]
@@ -229,8 +229,8 @@ Output structured summary with autopilot handoff:
 
 ## Ready for Autopilot
 ```bash
-/autopilot ai-platform-xxx --dry-run
-/autopilot ai-platform-xxx
+/crank ai-platform-xxx --dry-run
+/crank ai-platform-xxx
 ```
 ```
 
@@ -275,7 +275,7 @@ Output structured summary with autopilot handoff:
 - [ ] Started epic with `bd update <epic> --status in_progress`
 - [ ] Verified with `bd show <epic-id>`
 - [ ] Synced with `bd sync`
-- [ ] Output summary with autopilot handoff
+- [ ] Output summary with crank handoff
 - [ ] Wrote plan to `~/gt/.agents/$RIG/plans/`
 
 ---
@@ -330,7 +330,7 @@ bd update ai-platform-200 --status in_progress
 
 # Phase 5: Write plan to ~/gt/.agents/athena/plans/2026-01-03-rate-limiting.md
 
-# Phase 5: Output summary with autopilot handoff
+# Phase 5: Output summary with crank handoff
 ```
 
 **Result**: 3 features, Wave 1 (201, 202 parallel), Wave 2 (203).

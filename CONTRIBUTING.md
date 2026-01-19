@@ -570,7 +570,6 @@ Report issues to: fullerbt@users.noreply.github.com
 
 **12-Factor AgentOps:**
 - [Framework](https://github.com/boshu2/12-factor-agentops)
-- [Showcase](https://agentops-showcase.com)
 
 ## Maintainer Guidelines
 

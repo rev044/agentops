@@ -44,7 +44,7 @@ Next wave begins
 
 ## What's NOT at This Level
 
-- No full autopilot
+- No `/crank` (full autonomous execution)
 - Human triggers each wave
 
 ## Next Level

@@ -296,14 +296,14 @@ bd mol pour {topic-slug} --var service_name=rate-limiter
 ```
 
 ## Next Steps
-Run `/autopilot <epic-id> --dry-run` to validate, then `/autopilot <epic-id>` to execute.
+Run `/crank <epic-id> --dry-run` to validate, then `/crank <epic-id>` to execute.
 ```
 
 ---
 
 ## Formula Summary Template (Autopilot Handoff)
 
-Output this after cooking/pouring a formula. This is the **handoff to autopilot**.
+Output this after cooking/pouring a formula. This is the **handoff to crank**.
 
 ```markdown
 ---
@@ -348,7 +348,7 @@ Wave 2 (depends on Wave 1):
 
 ---
 
-## Ready for Autopilot
+## Ready for Crank
 
 ### Pre-Flight Checklist
 
@@ -361,10 +361,10 @@ Wave 2 (depends on Wave 1):
 
 ```bash
 # Validate structure first
-/autopilot xxx --dry-run
+/crank xxx --dry-run
 
 # Full execution
-/autopilot xxx
+/crank xxx
 ```
 
 ### Alternative: Manual Execution
