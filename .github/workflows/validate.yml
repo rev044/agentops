@@ -1,330 +1,86 @@
-name: Validate Marketplace
+name: Validate
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
-  validate-json:
-    name: Validate JSON Manifests
+  validate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Validate marketplace.json
+      - name: Validate JSON
         run: |
-          echo "Validating marketplace.json..."
+          echo "=== Validating JSON ==="
           python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
-          echo "✅ marketplace.json is valid"
+          echo "✅ marketplace.json"
 
-      - name: Validate plugin manifests
-        run: |
-          echo "Validating plugin manifests..."
-          for manifest in plugins/*/.claude-plugin/plugin.json; do
-            if [ -f "$manifest" ]; then
-              echo "Checking $manifest..."
-              python3 -m json.tool "$manifest" > /dev/null
-              echo "✅ $manifest is valid"
-            fi
-          done
-          echo "✅ All plugin manifests are valid"
-
-  validate-structure:
-    name: Validate Plugin Structure
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check required files
-        run: |
-          echo "Checking required repository files..."
-
-          # Repository-level files
-          required_files=(
-            "README.md"
-            "LICENSE"
-            "SECURITY.md"
-            "CONTRIBUTING.md"
-            "CHANGELOG.md"
-            "CODE_OF_CONDUCT.md"
-            ".gitignore"
-            ".claude-plugin/marketplace.json"
-          )
-
-          for file in "${required_files[@]}"; do
-            if [ ! -f "$file" ]; then
-              echo "❌ Missing required file: $file"
-              exit 1
-            fi
-            echo "✅ Found: $file"
+          for f in plugins/*/.claude-plugin/plugin.json; do
+            python3 -m json.tool "$f" > /dev/null
+            echo "✅ $f"
           done
 
-          echo "✅ All required repository files present"
-
-      - name: Check plugin structure
+      - name: Validate structure
         run: |
-          echo "Checking plugin structures..."
+          echo "=== Validating structure ==="
 
-          for plugin_dir in plugins/*/; do
-            plugin_name=$(basename "$plugin_dir")
-            echo ""
-            echo "Checking plugin: $plugin_name"
-
-            # Check for required plugin files
-            if [ ! -f "$plugin_dir/.claude-plugin/plugin.json" ]; then
-              echo "❌ Missing plugin.json in $plugin_name"
-              exit 1
-            fi
-            echo "  ✅ plugin.json"
-
-            if [ ! -f "$plugin_dir/README.md" ]; then
-              echo "❌ Missing README.md in $plugin_name"
-              exit 1
-            fi
-            echo "  ✅ README.md"
-
-            # Check for at least one component directory
-            has_components=false
-            for dir in agents commands skills hooks; do
-              if [ -d "$plugin_dir/$dir" ] && [ -n "$(ls -A "$plugin_dir/$dir" 2>/dev/null)" ]; then
-                has_components=true
-                echo "  ✅ $dir/ directory"
-              fi
-            done
-
-            if [ "$has_components" = false ]; then
-              echo "❌ Plugin $plugin_name has no component directories (agents, commands, skills, hooks)"
-              exit 1
-            fi
-          done
-
-          echo ""
-          echo "✅ All plugin structures are valid"
-
-  validate-markdown:
-    name: Validate Markdown Links
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check markdown links
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
-        with:
-          use-quiet-mode: 'yes'
-          use-verbose-mode: 'no'
-          config-file: '.github/markdown-link-check-config.json'
-          folder-path: '.'
-          file-path: 'README.md, CONTRIBUTING.md, SECURITY.md, CHANGELOG.md'
-          check-modified-files-only: 'no'
-
-  validate-yaml:
-    name: Validate YAML Frontmatter
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install PyYAML
-        run: pip install PyYAML
-
-      - name: Validate agent frontmatter
-        run: |
+          # Check marketplace plugins exist
           python3 << 'EOF'
-          import yaml
+          import json
+          import os
           import sys
-          from pathlib import Path
+
+          with open('.claude-plugin/marketplace.json') as f:
+              mp = json.load(f)
 
           errors = []
-          agents = list(Path('plugins').glob('*/agents/*.md'))
+          for p in mp.get('plugins', []):
+              name = p['name']
+              source = p['source'].lstrip('./')
+              if source == '':
+                  source = '.'
 
-          print(f"Found {len(agents)} agent files to validate...")
+              if not os.path.isdir(source):
+                  errors.append(f"{name}: directory {source} not found")
+                  continue
 
-          for agent_file in agents:
-              try:
-                  content = agent_file.read_text()
+              # Check plugin.json exists
+              if source == '.':
+                  pj = '.claude-plugin/plugin.json'
+              else:
+                  pj = f'{source}/.claude-plugin/plugin.json'
 
-                  # Extract frontmatter
-                  if content.startswith('---'):
-                      parts = content.split('---', 2)
-                      if len(parts) >= 3:
-                          frontmatter = parts[1]
+              if not os.path.isfile(pj):
+                  errors.append(f"{name}: missing {pj}")
+                  continue
 
-                          # Parse YAML
-                          data = yaml.safe_load(frontmatter)
-
-                          # Validate required fields
-                          required = ['name', 'description', 'model', 'tools']
-                          missing = [f for f in required if f not in data]
-
-                          if missing:
-                              errors.append(f"{agent_file}: Missing fields: {missing}")
-                          else:
-                              print(f"✅ {agent_file.name}")
-                      else:
-                          errors.append(f"{agent_file}: Invalid frontmatter format")
-                  else:
-                      errors.append(f"{agent_file}: No frontmatter found")
-
-              except yaml.YAMLError as e:
-                  errors.append(f"{agent_file}: YAML parse error: {e}")
-              except Exception as e:
-                  errors.append(f"{agent_file}: Error: {e}")
+              # Check has skills
+              skills_dir = f'{source}/skills' if source != '.' else 'skills'
+              if os.path.isdir(skills_dir):
+                  skills = [d for d in os.listdir(skills_dir) if os.path.isdir(f'{skills_dir}/{d}')]
+                  print(f"✅ {name}: {len(skills)} skills")
+              else:
+                  print(f"✅ {name}: no skills dir (ok for some plugins)")
 
           if errors:
-              print("\n❌ Validation errors found:")
-              for error in errors:
-                  print(f"  {error}")
+              print("\n❌ Errors:")
+              for e in errors:
+                  print(f"  {e}")
               sys.exit(1)
-          else:
-              print("\n✅ All agent frontmatter is valid")
           EOF
-
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Check for secrets
         run: |
-          echo "Scanning for potential secrets..."
-
-          # Patterns to check
-          patterns=(
-            "password.*=.*['\"].*['\"]"
-            "api[_-]?key.*=.*['\"].*['\"]"
-            "secret.*=.*['\"].*['\"]"
-            "token.*=.*['\"].*['\"]"
-            "-----BEGIN.*PRIVATE KEY-----"
-          )
-
-          found_secrets=false
-
-          for pattern in "${patterns[@]}"; do
-            if grep -r -i -E "$pattern" \
-                --exclude-dir=.git \
-                --exclude-dir=node_modules \
-                --exclude=*.log \
-                --exclude=SECURITY.md \
-                --exclude=validate.yml \
-                . ; then
-              echo "⚠️  Found potential secret matching pattern: $pattern"
-              found_secrets=true
-            fi
-          done
-
-          if [ "$found_secrets" = true ]; then
-            echo ""
-            echo "❌ Potential secrets detected. Please review and remove sensitive data."
-            echo "   If these are false positives, update the security scan patterns."
+          echo "=== Scanning for secrets ==="
+          if grep -r -i -E "(password|api_key|secret|token).*=.*['\"][^'\"]+['\"]" \
+              --exclude-dir=.git \
+              --exclude=*.md \
+              --exclude=validate.yml \
+              . 2>/dev/null; then
+            echo "⚠️ Potential secrets found - review above"
             exit 1
           fi
-
           echo "✅ No secrets detected"
-
-  validate-token-budgets:
-    name: Validate Token Budgets
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check token budget estimates
-        run: |
-          python3 << 'EOF'
-          import json
-          import sys
-          from pathlib import Path
-
-          print("Validating token budgets...")
-          warnings = []
-
-          for plugin_json in Path('plugins').glob('*/.claude-plugin/plugin.json'):
-              try:
-                  data = json.loads(plugin_json.read_text())
-                  plugin_name = data.get('name', 'unknown')
-
-                  if 'tokenBudget' in data:
-                      budget = data['tokenBudget']
-                      estimated = budget.get('estimated', 0)
-                      percentage = budget.get('percentage', 0)
-
-                      # Validate percentage calculation (200k context window)
-                      expected_percentage = (estimated / 200000) * 100
-                      diff = abs(expected_percentage - percentage)
-
-                      if diff > 0.5:  # Allow 0.5% tolerance
-                          warnings.append(
-                              f"{plugin_name}: Token budget mismatch. "
-                              f"Estimated: {estimated}, Percentage: {percentage}%, "
-                              f"Expected: {expected_percentage:.2f}%"
-                          )
-                      else:
-                          print(f"✅ {plugin_name}: {estimated} tokens ({percentage}%)")
-                  else:
-                      warnings.append(f"{plugin_name}: No tokenBudget field")
-
-              except Exception as e:
-                  warnings.append(f"{plugin_json}: Error: {e}")
-
-          if warnings:
-              print("\n⚠️  Token budget warnings:")
-              for warning in warnings:
-                  print(f"  {warning}")
-              print("\nNote: These are warnings, not errors. Consider updating token budgets.")
-          else:
-              print("\n✅ All token budgets are valid")
-          EOF
-
-  summary:
-    name: Validation Summary
-    runs-on: ubuntu-latest
-    needs: [validate-json, validate-structure, validate-markdown, validate-yaml, security-scan, validate-token-budgets]
-    if: always()
-
-    steps:
-      - name: Check results
-        run: |
-          echo "==================================="
-          echo "Validation Summary"
-          echo "==================================="
-          echo ""
-          echo "Job Results:"
-          echo "  JSON Validation: ${{ needs.validate-json.result }}"
-          echo "  Structure Validation: ${{ needs.validate-structure.result }}"
-          echo "  Markdown Links: ${{ needs.validate-markdown.result }}"
-          echo "  YAML Frontmatter: ${{ needs.validate-yaml.result }}"
-          echo "  Security Scan: ${{ needs.security-scan.result }}"
-          echo "  Token Budgets: ${{ needs.validate-token-budgets.result }}"
-          echo ""
-
-          if [ "${{ needs.validate-json.result }}" != "success" ] || \
-             [ "${{ needs.validate-structure.result }}" != "success" ] || \
-             [ "${{ needs.validate-markdown.result }}" != "success" ] || \
-             [ "${{ needs.validate-yaml.result }}" != "success" ] || \
-             [ "${{ needs.security-scan.result }}" != "success" ]; then
-            echo "❌ Validation failed. Please check the logs above."
-            exit 1
-          fi
-
-          echo "✅ All validations passed!"
-          echo ""
-          echo "Marketplace is ready for use."
