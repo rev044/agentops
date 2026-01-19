@@ -1,0 +1,266 @@
+#!/bin/bash
+# Generic skill validation framework
+# Usage: validate-skill.sh <skill-name>
+#
+# Validates:
+# 1. SKILL.md exists and has valid frontmatter
+# 2. All declared dependencies (skills:) exist
+# 3. All referenced files exist
+# 4. Runs skill-specific validate.sh if present
+
+set -uo pipefail
+
+SKILL="${1:-}"
+SKILLS_DIR="${HOME}/.claude/skills"
+ERRORS=0
+CHECKS=0
+WARNINGS=0
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+usage() {
+    echo "Usage: $0 <skill-name>"
+    echo "       $0 --all"
+    echo ""
+    echo "Options:"
+    echo "  <skill-name>  Validate a single skill"
+    echo "  --all         Validate all skills"
+    exit 1
+}
+
+check() {
+    local desc="$1"
+    local result="$2"  # 0 = pass, non-zero = fail
+
+    CHECKS=$((CHECKS + 1))
+    if [ "$result" -eq 0 ]; then
+        echo -e "  ${GREEN}✓${NC} $desc"
+        return 0
+    else
+        echo -e "  ${RED}✗${NC} $desc"
+        ERRORS=$((ERRORS + 1))
+        return 1
+    fi
+}
+
+warn() {
+    local desc="$1"
+    echo -e "  ${YELLOW}⚠${NC} $desc"
+    WARNINGS=$((WARNINGS + 1))
+}
+
+# Extract frontmatter field from SKILL.md
+# Usage: get_frontmatter "field" "skill-dir"
+get_frontmatter() {
+    local field="$1"
+    local skill_dir="$2"
+    local skill_md="$skill_dir/SKILL.md"
+
+    if [ ! -f "$skill_md" ]; then
+        return 1
+    fi
+
+    # Extract YAML frontmatter between --- markers
+    # Then extract the field value
+    sed -n '/^---$/,/^---$/p' "$skill_md" | \
+        grep "^${field}:" | \
+        sed "s/^${field}:[[:space:]]*//" | \
+        tr -d '"' | tr -d "'"
+}
+
+# Extract skills array from frontmatter
+# Returns newline-separated list of skill names
+get_skill_dependencies() {
+    local skill_dir="$1"
+    local skill_md="$skill_dir/SKILL.md"
+
+    if [ ! -f "$skill_md" ]; then
+        return 1
+    fi
+
+    # Extract YAML frontmatter and find skills: section
+    # Handle both inline array and multi-line list formats
+    sed -n '/^---$/,/^---$/p' "$skill_md" | \
+        awk '/^skills:/{found=1; next} found && /^[^ -]/{exit} found && /^  - /{print substr($0, 5)}' | \
+        tr -d ' '
+}
+
+# Validate a single skill
+validate_skill() {
+    local skill_name="$1"
+    local skill_dir="$SKILLS_DIR/$skill_name"
+    local local_errors=0
+    local local_checks=0
+
+    echo "━━━ Validating: $skill_name ━━━"
+
+    # Test 1: SKILL.md exists
+    if [ -f "$skill_dir/SKILL.md" ]; then
+        echo -e "  ${GREEN}✓${NC} SKILL.md exists"
+        local_checks=$((local_checks + 1))
+    else
+        echo -e "  ${RED}✗${NC} SKILL.md exists"
+        local_errors=$((local_errors + 1))
+        local_checks=$((local_checks + 1))
+        echo ""
+        echo "  Result: FAIL ($local_errors errors)"
+        ERRORS=$((ERRORS + local_errors))
+        CHECKS=$((CHECKS + local_checks))
+        return 1
+    fi
+
+    # Test 2: Frontmatter has required fields
+    local name
+    name=$(get_frontmatter "name" "$skill_dir")
+    if [ -n "$name" ]; then
+        echo -e "  ${GREEN}✓${NC} Frontmatter: name field present ($name)"
+        local_checks=$((local_checks + 1))
+    else
+        echo -e "  ${RED}✗${NC} Frontmatter: name field present"
+        local_errors=$((local_errors + 1))
+        local_checks=$((local_checks + 1))
+    fi
+
+    local description
+    description=$(get_frontmatter "description" "$skill_dir")
+    if [ -n "$description" ]; then
+        echo -e "  ${GREEN}✓${NC} Frontmatter: description field present"
+        local_checks=$((local_checks + 1))
+    else
+        echo -e "  ${YELLOW}⚠${NC} Frontmatter: description field missing"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+
+    # Test 3: Check declared skill dependencies exist
+    local deps
+    deps=$(get_skill_dependencies "$skill_dir")
+    if [ -n "$deps" ]; then
+        while IFS= read -r dep; do
+            if [ -d "$SKILLS_DIR/$dep" ]; then
+                echo -e "  ${GREEN}✓${NC} Dependency: $dep exists"
+                local_checks=$((local_checks + 1))
+            else
+                echo -e "  ${RED}✗${NC} Dependency: $dep exists"
+                local_errors=$((local_errors + 1))
+                local_checks=$((local_checks + 1))
+            fi
+        done <<< "$deps"
+    fi
+
+    # Test 4: Check references directory if mentioned in SKILL.md
+    if grep -q "references/" "$skill_dir/SKILL.md" 2>/dev/null; then
+        if [ -d "$skill_dir/references" ]; then
+            echo -e "  ${GREEN}✓${NC} References directory exists"
+            local_checks=$((local_checks + 1))
+
+            # Check specific referenced files
+            local refs
+            refs=$(grep -oE 'references/[a-zA-Z0-9_-]+\.md' "$skill_dir/SKILL.md" | sort -u)
+            if [ -n "$refs" ]; then
+                while IFS= read -r ref; do
+                    if [ -f "$skill_dir/$ref" ]; then
+                        echo -e "  ${GREEN}✓${NC} Reference: $ref exists"
+                        local_checks=$((local_checks + 1))
+                    else
+                        echo -e "  ${RED}✗${NC} Reference: $ref exists"
+                        local_errors=$((local_errors + 1))
+                        local_checks=$((local_checks + 1))
+                    fi
+                done <<< "$refs"
+            fi
+        else
+            echo -e "  ${RED}✗${NC} References directory exists (referenced in SKILL.md)"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+    fi
+
+    # Test 5: Run skill-specific validate.sh if present
+    local validate_script="$skill_dir/scripts/validate.sh"
+    if [ -f "$validate_script" ]; then
+        echo ""
+        echo "  Running skill-specific tests..."
+        chmod +x "$validate_script"
+        if "$validate_script"; then
+            echo -e "  ${GREEN}✓${NC} Skill-specific validation passed"
+            local_checks=$((local_checks + 1))
+        else
+            echo -e "  ${RED}✗${NC} Skill-specific validation failed"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+    fi
+
+    echo ""
+    if [ $local_errors -gt 0 ]; then
+        echo -e "  Result: ${RED}FAIL${NC} ($local_errors errors, $local_checks checks)"
+    else
+        echo -e "  Result: ${GREEN}PASS${NC} ($local_checks checks)"
+    fi
+
+    ERRORS=$((ERRORS + local_errors))
+    CHECKS=$((CHECKS + local_checks))
+
+    return $local_errors
+}
+
+# Main
+if [ -z "$SKILL" ]; then
+    usage
+fi
+
+if [ "$SKILL" = "--all" ]; then
+    echo "╔════════════════════════════════════════════╗"
+    echo "║   Generic Skill Validation Framework       ║"
+    echo "╚════════════════════════════════════════════╝"
+    echo ""
+
+    PASSED=0
+    FAILED=0
+
+    for skill_dir in "$SKILLS_DIR"/*/; do
+        skill_name=$(basename "$skill_dir")
+        if validate_skill "$skill_name"; then
+            PASSED=$((PASSED + 1))
+        else
+            FAILED=$((FAILED + 1))
+        fi
+        echo ""
+    done
+
+    echo "╔════════════════════════════════════════════╗"
+    echo "║               SUMMARY                      ║"
+    echo "╠════════════════════════════════════════════╣"
+    printf "║  Skills Passed:  %-24s ║\n" "$PASSED"
+    printf "║  Skills Failed:  %-24s ║\n" "$FAILED"
+    printf "║  Total Checks:   %-24s ║\n" "$CHECKS"
+    printf "║  Total Errors:   %-24s ║\n" "$ERRORS"
+    printf "║  Warnings:       %-24s ║\n" "$WARNINGS"
+    echo "╚════════════════════════════════════════════╝"
+
+    if [ $FAILED -gt 0 ]; then
+        echo ""
+        echo "OVERALL: FAIL"
+        exit 1
+    else
+        echo ""
+        echo "OVERALL: PASS"
+        exit 0
+    fi
+else
+    # Validate single skill
+    if [ ! -d "$SKILLS_DIR/$SKILL" ]; then
+        echo "Error: Skill '$SKILL' not found in $SKILLS_DIR"
+        exit 1
+    fi
+
+    if validate_skill "$SKILL"; then
+        exit 0
+    else
+        exit 1
+    fi
+fi
