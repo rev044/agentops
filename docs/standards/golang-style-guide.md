@@ -435,6 +435,125 @@ func (c *Config) validate() error {
 
 ---
 
+## Code Complexity
+
+### Complexity Measurement
+
+Use `gocyclo` or `gocognit` to measure function complexity:
+
+```bash
+# Install
+go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+
+# Check complexity (threshold 10)
+gocyclo -over 10 ./...
+
+# Show all functions sorted by complexity
+gocyclo -top 20 ./...
+```
+
+### Complexity Grades
+
+| Grade | CC Range | Action |
+|-------|----------|--------|
+| A | 1-5 | Ideal |
+| B | 6-10 | Acceptable |
+| C | 11-15 | Refactor when touching |
+| D | 16-20 | Must refactor |
+| F | 21+ | Block merge |
+
+### Reducing Complexity in Go
+
+**Pattern 1: Early Returns**
+```go
+// Bad - nested conditionals (CC=6)
+func process(item *Item) error {
+    if item != nil {
+        if item.Valid {
+            if item.Ready {
+                return doWork(item)
+            }
+        }
+    }
+    return errors.New("invalid")
+}
+
+// Good - guard clauses (CC=3)
+func process(item *Item) error {
+    if item == nil {
+        return errors.New("nil item")
+    }
+    if !item.Valid {
+        return errors.New("invalid item")
+    }
+    if !item.Ready {
+        return errors.New("not ready")
+    }
+    return doWork(item)
+}
+```
+
+**Pattern 2: Strategy Maps**
+```go
+// Bad - switch statement (CC grows with cases)
+func handle(cmd string) error {
+    switch cmd {
+    case "create":
+        return handleCreate()
+    case "update":
+        return handleUpdate()
+    case "delete":
+        return handleDelete()
+    // ... more cases
+    }
+    return errors.New("unknown command")
+}
+
+// Good - handler map (CC=2)
+var handlers = map[string]func() error{
+    "create": handleCreate,
+    "update": handleUpdate,
+    "delete": handleDelete,
+}
+
+func handle(cmd string) error {
+    h, ok := handlers[cmd]
+    if !ok {
+        return errors.New("unknown command")
+    }
+    return h()
+}
+```
+
+---
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `undefined: X` | Missing import or typo | Check imports, spelling |
+| `cannot use X as Y` | Type mismatch | Check interface compliance |
+| `nil pointer dereference` | Uninitialized pointer | Add nil check before use |
+| `deadlock` | Goroutine waiting forever | Check channel/mutex usage |
+| `race detected` | Data race | Use mutex or channels |
+| `context canceled` | Parent context done | Handle `ctx.Err()` |
+| `go.mod outdated` | Dependency drift | Run `go mod tidy` |
+
+---
+
+## Anti-Patterns
+
+| Name | Pattern | Why Bad | Instead |
+|------|---------|---------|---------|
+| Naked Returns | `return` without values | Unclear what's returned | Explicit: `return result, nil` |
+| Init Abuse | Heavy logic in `init()` | Hidden side effects, test issues | Explicit initialization |
+| Interface Pollution | Interfaces with 10+ methods | Hard to implement/mock | Small interfaces, compose |
+| Error Strings | `errors.New("User not found")` | Can't check programmatically | Sentinel errors or types |
+| Ignoring Errors | `result, _ := fn()` | Silent failures | Handle or document why ignored |
+| Premature Channel | Channels for simple sync | Overhead, complexity | Use mutex for simple cases |
+
+---
+
 ## Summary Checklist
 
 | Category | Requirement |
@@ -442,6 +561,7 @@ func (c *Config) validate() error {
 | **Tooling** | Go 1.24+, `gofmt`, `golangci-lint` |
 | **Formatting** | All code passes `gofmt -l .` |
 | **Linting** | All code passes `golangci-lint run` |
+| **Complexity** | CC ≤ 10 per function (`gocyclo -over 10`) |
 | **Errors** | Wrap with context using `fmt.Errorf("...: %w", err)` |
 | **Errors** | Use `errors.Is`/`errors.As` for comparison |
 | **Errors** | No `panic` in library code |
