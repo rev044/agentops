@@ -6,7 +6,7 @@
 
 Claude Code plugins for AI-assisted development workflows.
 
-Built on [beads](https://github.com/boshu2/beads) (git-native issue tracking) and [gastown](https://github.com/boshu2/gastown) (multi-agent orchestration).
+Built on [beads](https://github.com/steveyegge/beads) (git-native issue tracking) and [gastown](https://github.com/steveyegge/gastown) (multi-agent orchestration).
 
 ## Install
 
