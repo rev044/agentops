@@ -1,6 +1,6 @@
 {
   "name": "gastown-kit",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Gas Town multi-agent orchestration - crew, polecats, and routing",
   "author": {
     "name": "Bo Fuller",
