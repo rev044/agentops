@@ -2,6 +2,10 @@
 # Validate retro skill
 set -euo pipefail
 
+# Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ERRORS=0
 CHECKS=0
 
@@ -58,7 +62,6 @@ check "bd binary exists" "which bd" "bd"
 check_exists "Beads skill exists" "$HOME/.claude/skills/beads/SKILL.md"
 
 # Verify skill references exist
-SKILL_DIR="$HOME/.claude/skills/retro"
 check_exists "References directory exists" "$SKILL_DIR/references"
 
 # Verify retro workflow patterns in SKILL.md

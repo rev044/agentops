@@ -2,6 +2,10 @@
 # Validate pr-research skill
 set -euo pipefail
 
+# Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ERRORS=0
 CHECKS=0
 
@@ -51,7 +55,6 @@ check_exists() {
 echo "=== PR Research Skill Validation ==="
 echo ""
 
-SKILL_DIR="$HOME/.claude/skills/pr-research"
 
 # Verify git is available
 check "git binary exists" "which git" "git"

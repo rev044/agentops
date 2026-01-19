@@ -2,6 +2,10 @@
 # Validate research skill
 set -euo pipefail
 
+# Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ERRORS=0
 CHECKS=0
 
@@ -58,7 +62,6 @@ check "bd binary exists" "which bd" "bd"
 check_exists "Agent artifacts base dir" "$HOME/gt/.agents"
 
 # Verify skill references exist
-SKILL_DIR="$HOME/.claude/skills/research"
 check_exists "Context discovery reference" "$SKILL_DIR/references/context-discovery.md"
 check_exists "Document template reference" "$SKILL_DIR/references/document-template.md"
 check_exists "Failure patterns reference" "$SKILL_DIR/references/failure-patterns.md"

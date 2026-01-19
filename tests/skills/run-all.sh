@@ -68,7 +68,8 @@ for plugin_dir in "$PLUGINS_DIR"/*-kit; do
             fi
         elif [ -f "$TESTS_DIR/validate-skill.sh" ]; then
             # No skill-specific tests, run generic validation only
-            if "$TESTS_DIR/validate-skill.sh" "$skill_name" > /dev/null 2>&1; then
+            # Pass full skill directory path for agentops plugin structure
+            if "$TESTS_DIR/validate-skill.sh" "$skill_dir" > /dev/null 2>&1; then
                 echo -e "  ${YELLOW}○ $skill_name (generic only)${NC}"
                 PASSED=$((PASSED + 1))
             else

@@ -2,6 +2,10 @@
 # Validate crank skill
 set -euo pipefail
 
+# Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ERRORS=0
 CHECKS=0
 
@@ -67,7 +71,6 @@ check_exists "Gastown skill exists" "$HOME/.claude/skills/gastown/SKILL.md"
 check_exists "Implement skill exists" "$HOME/.claude/skills/implement/SKILL.md"
 
 # Verify crank workflow patterns in SKILL.md
-SKILL_DIR="$HOME/.claude/skills/crank"
 check_pattern "SKILL.md has ODMCR loop" "$SKILL_DIR/SKILL.md" "ODMCR"
 check_pattern "SKILL.md has role detection" "$SKILL_DIR/SKILL.md" "Role Detection|ROLE="
 check_pattern "SKILL.md documents Mayor mode" "$SKILL_DIR/SKILL.md" "Mayor"

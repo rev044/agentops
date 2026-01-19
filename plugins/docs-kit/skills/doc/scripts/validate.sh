@@ -2,6 +2,10 @@
 # Validate doc skill
 set -euo pipefail
 
+# Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ERRORS=0
 CHECKS=0
 
@@ -35,7 +39,6 @@ check_exists() {
 echo "=== Doc Skill Validation ==="
 echo ""
 
-SKILL_DIR="$HOME/.claude/skills/doc"
 
 # Verify dependent skill exists
 check_exists "Standards skill exists" "$HOME/.claude/skills/standards/SKILL.md"

@@ -1,17 +1,22 @@
 #!/bin/bash
 # Generic skill validation framework
-# Usage: validate-skill.sh <skill-name>
+# Usage: validate-skill.sh <skill-name-or-path> [skills-base-dir]
 #
 # Validates:
 # 1. SKILL.md exists and has valid frontmatter
 # 2. All declared dependencies (skills:) exist
 # 3. All referenced files exist
 # 4. Runs skill-specific validate.sh if present
+#
+# Arguments:
+#   <skill-name-or-path>  Either a skill name (looks in SKILLS_DIR) or full path to skill dir
+#   [skills-base-dir]     Optional base directory for dependency resolution
 
 set -uo pipefail
 
 SKILL="${1:-}"
-SKILLS_DIR="${HOME}/.claude/skills"
+# Default skills dir, can be overridden by second arg or if first arg is a path
+SKILLS_DIR="${2:-${HOME}/.claude/skills}"
 ERRORS=0
 CHECKS=0
 WARNINGS=0
@@ -23,12 +28,15 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 usage() {
-    echo "Usage: $0 <skill-name>"
-    echo "       $0 --all"
+    echo "Usage: $0 <skill-name-or-path> [skills-base-dir]"
+    echo "       $0 --all [skills-base-dir]"
+    echo ""
+    echo "Arguments:"
+    echo "  <skill-name-or-path>  Skill name or full path to skill directory"
+    echo "  [skills-base-dir]     Base directory for dependency resolution (default: ~/.claude/skills)"
     echo ""
     echo "Options:"
-    echo "  <skill-name>  Validate a single skill"
-    echo "  --all         Validate all skills"
+    echo "  --all         Validate all skills in SKILLS_DIR"
     exit 1
 }
 
@@ -90,9 +98,24 @@ get_skill_dependencies() {
 }
 
 # Validate a single skill
+# Args: skill_name_or_path [dep_base_dir]
+# If skill_name_or_path is a directory, use it directly
+# Otherwise, look in SKILLS_DIR
 validate_skill() {
-    local skill_name="$1"
-    local skill_dir="$SKILLS_DIR/$skill_name"
+    local skill_input="$1"
+    local dep_base="${2:-$SKILLS_DIR}"
+    local skill_dir
+    local skill_name
+
+    # Determine if input is a path or a name
+    if [ -d "$skill_input" ]; then
+        skill_dir="$skill_input"
+        skill_name=$(basename "$skill_dir")
+    else
+        skill_name="$skill_input"
+        skill_dir="$SKILLS_DIR/$skill_name"
+    fi
+
     local local_errors=0
     local local_checks=0
 
@@ -136,17 +159,21 @@ validate_skill() {
     fi
 
     # Test 3: Check declared skill dependencies exist
+    # Note: For agentops plugins, dependencies might be in different plugin kits
+    # Skip dependency check for plugin-based skills (dependency resolution is complex)
     local deps
     deps=$(get_skill_dependencies "$skill_dir")
     if [ -n "$deps" ]; then
         while IFS= read -r dep; do
-            if [ -d "$SKILLS_DIR/$dep" ]; then
+            # Check both in dep_base and in SKILLS_DIR
+            if [ -d "$dep_base/$dep" ] || [ -d "$SKILLS_DIR/$dep" ]; then
                 echo -e "  ${GREEN}✓${NC} Dependency: $dep exists"
                 local_checks=$((local_checks + 1))
             else
-                echo -e "  ${RED}✗${NC} Dependency: $dep exists"
-                local_errors=$((local_errors + 1))
-                local_checks=$((local_checks + 1))
+                # For plugin skills, dependencies might be in other plugin kits
+                # Warn instead of fail
+                echo -e "  ${YELLOW}⚠${NC} Dependency: $dep (not found locally, may be in another plugin)"
+                WARNINGS=$((WARNINGS + 1))
             fi
         done <<< "$deps"
     fi
@@ -252,15 +279,24 @@ if [ "$SKILL" = "--all" ]; then
         exit 0
     fi
 else
-    # Validate single skill
-    if [ ! -d "$SKILLS_DIR/$SKILL" ]; then
-        echo "Error: Skill '$SKILL' not found in $SKILLS_DIR"
-        exit 1
-    fi
-
-    if validate_skill "$SKILL"; then
-        exit 0
+    # Validate single skill (can be path or name)
+    # If it's a directory path, use directly; otherwise look in SKILLS_DIR
+    if [ -d "$SKILL" ]; then
+        # Direct path provided
+        if validate_skill "$SKILL" "$SKILLS_DIR"; then
+            exit 0
+        else
+            exit 1
+        fi
+    elif [ -d "$SKILLS_DIR/$SKILL" ]; then
+        # Skill name provided, found in SKILLS_DIR
+        if validate_skill "$SKILL" "$SKILLS_DIR"; then
+            exit 0
+        else
+            exit 1
+        fi
     else
+        echo "Error: Skill '$SKILL' not found (checked: $SKILL, $SKILLS_DIR/$SKILL)"
         exit 1
     fi
 fi

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Validate product skill
+# Validate skill-creator skill
 set -euo pipefail
 
 # Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
@@ -36,18 +36,19 @@ check_exists() {
     fi
 }
 
-echo "=== Product Skill Validation ==="
+echo "=== Skill-Creator Skill Validation ==="
 echo ""
 
 
-# Verify dependent skill exists
-check_exists "Research skill exists" "$HOME/.claude/skills/research/SKILL.md"
+# Check SKILL.md exists
+check_exists "SKILL.md exists" "$SKILL_DIR/SKILL.md"
 
-# Verify product workflow patterns in SKILL.md
-check_pattern "SKILL.md has customer-first approach" "$SKILL_DIR/SKILL.md" "[Cc]ustomer"
-check_pattern "SKILL.md has PR/FAQ documentation" "$SKILL_DIR/SKILL.md" "PR/FAQ|[Pp]ress [Rr]elease"
-check_pattern "SKILL.md has success criteria" "$SKILL_DIR/SKILL.md" "[Ss]uccess.*[Cc]riteria"
-check_pattern "SKILL.md has scope documentation" "$SKILL_DIR/SKILL.md" "[Ss]cope"
+# Check comprehensive-skill-pattern reference (the only real reference)
+check_exists "Comprehensive skill pattern reference" "$SKILL_DIR/references/comprehensive-skill-pattern.md"
+
+# Check for key patterns in SKILL.md
+check_pattern "SKILL.md has skill creation workflow" "$SKILL_DIR/SKILL.md" "[Ss]kill.*[Cc]reat|[Cc]reat.*[Ss]kill"
+check_pattern "SKILL.md has domain skill guidance" "$SKILL_DIR/SKILL.md" "[Dd]omain|[Rr]eference"
 
 echo ""
 echo "=== Results ==="
@@ -56,10 +57,10 @@ echo "Errors: $ERRORS"
 
 if [ $ERRORS -gt 0 ]; then
     echo ""
-    echo "FAIL: Product skill validation failed"
+    echo "FAIL: Skill-creator skill validation failed"
     exit 1
 else
     echo ""
-    echo "PASS: Product skill validation passed"
+    echo "PASS: Skill-creator skill validation passed"
     exit 0
 fi

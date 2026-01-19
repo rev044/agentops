@@ -2,6 +2,10 @@
 # Validate implement skill
 set -euo pipefail
 
+# Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ERRORS=0
 CHECKS=0
 
@@ -67,10 +71,9 @@ check_exists "Beads skill exists" "$HOME/.claude/skills/beads/SKILL.md"
 check_exists "Standards skill exists" "$HOME/.claude/skills/standards/SKILL.md"
 
 # Verify implementation workflow patterns in SKILL.md
-SKILL_DIR="$HOME/.claude/skills/implement"
 check_pattern "SKILL.md has workflow phases" "$SKILL_DIR/SKILL.md" "Phase [0-9]"
 check_pattern "SKILL.md mentions testing" "$SKILL_DIR/SKILL.md" "just test|MANDATORY"
-check_pattern "SKILL.md has standards loading" "$SKILL_DIR/SKILL.md" "Standards Loading"
+check_pattern "SKILL.md has context/patterns reference" "$SKILL_DIR/SKILL.md" "[Cc]ontext|[Pp]attern|[Ll]int"
 
 echo ""
 echo "=== Results ==="

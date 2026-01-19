@@ -2,6 +2,10 @@
 # Validate formulate skill
 set -euo pipefail
 
+# Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ERRORS=0
 CHECKS=0
 
@@ -59,7 +63,6 @@ check_exists "Beads skill exists" "$HOME/.claude/skills/beads/SKILL.md"
 check_exists "Research skill exists" "$HOME/.claude/skills/research/SKILL.md"
 
 # Verify skill references exist
-SKILL_DIR="$HOME/.claude/skills/formulate"
 check_exists "References directory exists" "$SKILL_DIR/references"
 
 # Verify formulate workflow patterns in SKILL.md
