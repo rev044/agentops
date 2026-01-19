@@ -43,7 +43,7 @@ claude plugin install vibe-kit@agentops-marketplace
 ## 🔄 Basic Workflow
 
 ```
-/research → /plan → /implement → /retro
+/research → /plan → /implement → /vibe → /retro
 ```
 
 | Command | Purpose |
@@ -51,6 +51,7 @@ claude plugin install vibe-kit@agentops-marketplace
 | 🔍 `/research` | Explore codebase, understand the problem |
 | 📐 `/plan` | Break down into trackable beads issues |
 | ⚡ `/implement` | Execute a **single** beads issue |
+| ✅ `/vibe` | Validate changes (security, quality, architecture) |
 | 🎓 `/retro` | Extract learnings |
 
 ### 🚀 Autonomous Execution
