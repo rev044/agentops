@@ -1,8 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentops-marketplace",
-  "version": "1.0.0",
-  "description": "AgentOps Marketplace - 12 domain skills and 28 commands for AI-assisted development based on Vibe Coding ecosystem",
+  "description": "AgentOps plugins for AI-assisted development workflows",
   "owner": {
     "name": "Boden Fuller",
     "email": "fullerbt@users.noreply.github.com"
@@ -10,225 +9,102 @@
   "plugins": [
     {
       "name": "agentops",
-      "description": "Complete AgentOps toolkit: 12 domain skills, 28 workflow commands, 7 base skills",
-      "version": "1.0.0",
+      "description": "Complete AgentOps toolkit with domain skills for languages, development, operations, and more",
       "author": {
         "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./",
       "category": "productivity",
-      "keywords": [
-        "skills",
-        "workflow",
-        "vibe-coding",
-        "research",
-        "planning",
-        "implementation"
-      ]
+      "homepage": "https://github.com/boshu2/agentops"
     },
     {
       "name": "vibe-kit",
-      "description": "Lean starter - core commands, 40% rule, production-ready setup",
-      "version": "1.0.0",
+      "description": "Validation and quality assurance - vibe checks, bug hunting, complexity analysis",
       "author": {
         "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/vibe-kit",
       "category": "productivity",
-      "keywords": [
-        "vibe-coding",
-        "40-percent-rule",
-        "lean",
-        "starter"
-      ]
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/vibe-kit"
     },
     {
       "name": "pr-kit",
-      "description": "Open source contribution workflow - from research to retro",
-      "version": "1.0.0",
+      "description": "Open source contribution workflow - research, plan, implement, validate, and learn from PRs",
       "author": {
-        "name": "Bo Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/pr-kit",
       "category": "productivity",
-      "keywords": [
-        "pr-workflow",
-        "open-source",
-        "contribution"
-      ]
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/pr-kit"
     },
     {
       "name": "beads-kit",
-      "description": "Git-based issue tracking with beads",
-      "version": "1.0.0",
+      "description": "Git-based issue tracking with beads CLI - create, track, and manage issues",
       "author": {
-        "name": "Bo Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/beads-kit",
       "category": "productivity",
-      "keywords": [
-        "beads",
-        "issue-tracking",
-        "molecules"
-      ]
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/beads-kit"
     },
     {
       "name": "core-kit",
-      "description": "Core workflow skills - research, plan, implement, and iterate",
-      "version": "1.0.0",
+      "description": "Core workflow skills - research, plan, implement, crank, and iterate",
       "author": {
-        "name": "Bo Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/core-kit",
-      "category": "productivity",
-      "keywords": [
-        "workflow",
-        "research",
-        "implementation",
-        "planning"
-      ]
+      "category": "development",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/core-kit"
     },
     {
       "name": "dispatch-kit",
-      "description": "Work assignment and orchestration primitives",
-      "version": "1.0.0",
+      "description": "Work assignment and orchestration - handoff, mail, roles, and crew management",
       "author": {
-        "name": "Bo Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/dispatch-kit",
-      "category": "orchestration",
-      "keywords": [
-        "dispatch",
-        "orchestration",
-        "handoff",
-        "multi-agent"
-      ]
+      "category": "productivity",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/dispatch-kit"
     },
     {
       "name": "docs-kit",
-      "description": "Documentation generation and scaffolding skills",
-      "version": "1.0.0",
+      "description": "Documentation generation and scaffolding - code-map, OSS docs, doc creator",
       "author": {
-        "name": "Bo Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/docs-kit",
       "category": "productivity",
-      "keywords": [
-        "documentation",
-        "oss",
-        "templates"
-      ]
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/docs-kit"
     },
     {
       "name": "domain-kit",
-      "description": "Reference knowledge across 16 domains - languages, development, operations, and more",
-      "version": "1.1.0",
+      "description": "Reference knowledge across domains - languages, development, operations, security, and more",
       "author": {
-        "name": "Bo Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/domain-kit",
-      "category": "productivity",
-      "keywords": [
-        "reference",
-        "knowledge",
-        "domain",
-        "languages",
-        "operations"
-      ]
+      "category": "development",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/domain-kit"
     },
     {
       "name": "gastown-kit",
-      "description": "Gas Town multi-agent orchestration - crew, polecats, and routing",
-      "version": "1.0.0",
+      "description": "Gas Town multi-agent orchestration - crew, polecats, routing, and polecat lifecycle",
       "author": {
-        "name": "Bo Fuller",
+        "name": "Boden Fuller",
         "email": "fullerbt@users.noreply.github.com"
       },
       "source": "./plugins/gastown-kit",
-      "category": "orchestration",
-      "keywords": [
-        "gastown",
-        "multi-agent",
-        "orchestration",
-        "crew",
-        "polecat"
-      ]
+      "category": "productivity",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/gastown-kit"
     }
-  ],
-  "skills": {
-    "languages": {
-      "path": "skills/languages/SKILL.md",
-      "description": "Python, Go, Rust, Java, TypeScript, Shell patterns",
-      "triggers": ["Python", "Go", "Rust", "Java", "TypeScript", "shell", "async", "goroutines"]
-    },
-    "development": {
-      "path": "skills/development/SKILL.md",
-      "description": "Backend, frontend, mobile, deployment, AI engineering",
-      "triggers": ["API", "backend", "frontend", "mobile", "deploy", "LLM", "RAG"]
-    },
-    "documentation": {
-      "path": "skills/documentation/SKILL.md",
-      "description": "Documentation creation with Diátaxis framework",
-      "triggers": ["docs", "README", "OpenAPI", "Swagger", "Diátaxis", "tutorial"]
-    },
-    "code-quality": {
-      "path": "skills/code-quality/SKILL.md",
-      "description": "Code review and test generation",
-      "triggers": ["review", "test", "coverage", "quality", "security review"]
-    },
-    "research": {
-      "path": "skills/research/SKILL.md",
-      "description": "Codebase exploration and analysis",
-      "triggers": ["explore", "find", "analyze", "git history", "pattern", "specification"]
-    },
-    "validation": {
-      "path": "skills/validation/SKILL.md",
-      "description": "Assumption validation and test strategy",
-      "triggers": ["validate", "verify", "assumption", "tracer bullet", "smoke test"]
-    },
-    "operations": {
-      "path": "skills/operations/SKILL.md",
-      "description": "Incident response and debugging",
-      "triggers": ["incident", "outage", "debug", "logs", "postmortem", "P0", "P1"]
-    },
-    "monitoring": {
-      "path": "skills/monitoring/SKILL.md",
-      "description": "Observability and performance",
-      "triggers": ["monitoring", "metrics", "alerts", "SLO", "OpenTelemetry", "performance"]
-    },
-    "security": {
-      "path": "skills/security/SKILL.md",
-      "description": "Security testing and network infrastructure",
-      "triggers": ["security", "pentest", "SSL", "TLS", "firewall", "secrets"]
-    },
-    "data": {
-      "path": "skills/data/SKILL.md",
-      "description": "Data engineering and ML pipelines",
-      "triggers": ["pipeline", "ETL", "Spark", "ML", "MLOps", "data warehouse"]
-    },
-    "meta": {
-      "path": "skills/meta/SKILL.md",
-      "description": "Workflow coordination and memory",
-      "triggers": ["context", "session", "memory", "retro", "workflow", "stigmergy"]
-    },
-    "specialized": {
-      "path": "skills/specialized/SKILL.md",
-      "description": "Accessibility, UX, knowledge graphs, risk",
-      "triggers": ["accessibility", "WCAG", "UX", "Obsidian", "risk", "edge cases"]
-    }
-  },
-  "stats": {
-    "total_skills": 12,
-    "total_commands": 28,
-    "domains": 12,
-    "knowledge_areas": 55
-  }
+  ]
 }
