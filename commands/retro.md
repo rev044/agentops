@@ -362,13 +362,38 @@ For Cline workflows, add this section:
 
 ---
 
+## Session Naming (Optional)
+
+Name the session for future reference:
+
+```bash
+/rename "retro-{topic}-$(date +%Y-%m-%d)"
+```
+
+**Naming Convention:**
+- `retro-oauth-2026-01-19` - For feature retros
+- `retro-debug-mem-leak-2026-01-19` - For debugging retros
+- `retro-epic-ap-123-2026-01-19` - For epic completion retros
+
+**Future Access:**
+- `/resume` - Browse recent sessions from same repo
+- `--continue` - Continue most recent session
+
+**When to Name:**
+- Significant debugging sessions
+- Epic completions
+- Discovery of reusable patterns
+
+---
+
 ## Integration with Other Commands
 
 **After /retro:**
 
-1. **Extract learnings:** `/learn [topic]`
-2. **Save retrospective:** `/bundle-save retro-[topic]-[date]`
-3. **Create improvements:** Implement identified skills/workflows/agents
+1. **Name the session:** `/rename retro-[topic]-[date]` (for future `/resume`)
+2. **Extract learnings:** `/learn [topic]`
+3. **Save retrospective:** `/bundle-save retro-[topic]-[date]`
+4. **Create improvements:** Implement identified skills/workflows/agents
 
 **Retro should trigger:**
 - Pattern extraction via `/learn`

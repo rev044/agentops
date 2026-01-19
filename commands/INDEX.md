@@ -16,7 +16,7 @@
 | Command | Description | Skill Replacement |
 |---------|-------------|-------------------|
 | [research](research.md) | Phase 1 - Deep exploration before planning | `research` |
-| [plan](plan.md) | Phase 2 - Specify exact changes with file:line | `formulate` |
+| ~~plan~~ | **REMOVED** - Use Claude's native plan mode or `/formulate` | Native plan mode |
 | [implement](implement.md) | Phase 3 - Execute approved plan with validation | `implement` |
 
 ### Bundles (Context Persistence)

@@ -52,7 +52,14 @@ claude plugin install vibe-kit@agentops-marketplace
 | 📐 `/formulate` | Break down into trackable beads issues |
 | ⚡ `/implement` | Execute a **single** beads issue |
 | ✅ `/vibe` | Validate changes (security, quality, architecture) |
-| 🎓 `/retro` | Extract learnings |
+| 🎓 `/retro` | Extract learnings (includes `/rename` for session continuity) |
+
+### 📐 Two Types of Planning
+
+| Type | When to Use |
+|------|-------------|
+| **Native plan mode** | Single-task implementation. Claude auto-enters, you review and approve, then Claude implements. |
+| **/formulate** | Epic decomposition into beads issues with dependencies. For multi-issue work that `/crank` executes. |
 
 ### 🚀 Autonomous Execution
 
