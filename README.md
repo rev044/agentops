@@ -1,10 +1,13 @@
 # AgentOps
 
+[![Version](https://img.shields.io/badge/version-0.1.0-orange)](https://github.com/boshu2/agentops/releases/tag/v0.1.0)
 [![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
 [![Plugins](https://img.shields.io/badge/plugins-8-blue)](plugins/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+> **v0.1.0** - Pre-release for testing. Feedback welcome!
 
 Claude Code plugins for AI-assisted development workflows.
 
