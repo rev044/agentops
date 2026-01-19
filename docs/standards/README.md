@@ -9,6 +9,26 @@
 
 ---
 
+## Skills Integration
+
+These standards are also available as a **library skill** in domain-kit:
+
+```
+plugins/domain-kit/skills/standards/references/
+├── python.md
+├── go.md
+├── typescript.md
+├── shell.md
+├── yaml.md
+├── json.md
+├── markdown.md
+└── openai.md (+ related OpenAI references)
+```
+
+Skills like `/bug-hunt` and `/complexity` depend on the standards library for consistent language-specific guidance.
+
+---
+
 ## Standards Index
 
 | Language/Format | Document | Gate | Pre-commit | AI-Friendly |

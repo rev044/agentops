@@ -12,6 +12,7 @@ Reference knowledge across 18 domains. Loaded on-demand for specialized tasks.
 
 | Domain | Areas |
 |--------|-------|
+| **standards** | Python, Go, TypeScript, Shell, YAML, JSON, Markdown, OpenAI |
 | **languages** | Python, Go, Rust, Java, TypeScript, JavaScript |
 | **development** | API, backend, frontend, mobile, LLM, microservices |
 | **documentation** | docs, README, OpenAPI, Diátaxis |
@@ -25,11 +26,31 @@ Reference knowledge across 18 domains. Loaded on-demand for specialized tasks.
 | **specialized** | accessibility, UX, risk |
 | **testing** | unit, integration, e2e |
 | **git-workflow** | commit conventions, hooks |
-| **base** | cleanup, auditing utilities |
 | **brand-guidelines** | style, voice, assets |
-| **doc-curator** | document management |
 | **skill-creator** | creating new skills |
 | **test-gap-scanner** | finding untested code |
+
+### Standards Library
+
+The **standards** skill is a library providing language-specific coding standards with AI-optimized structure:
+
+| Reference | Use When |
+|-----------|----------|
+| `python.md` | `.py` files |
+| `go.md` | `.go` files |
+| `typescript.md` | `.ts`, `.tsx` files |
+| `shell.md` | `.sh`, `.bash` files |
+| `yaml.md` | `.yaml`, `.yml` files |
+| `json.md` | `.json`, `.jsonl` files |
+| `markdown.md` | `.md` files |
+| `openai.md` | OpenAI API integration |
+
+Each reference includes:
+- **Common Errors** - symptom → cause → fix tables
+- **Anti-Patterns** - named patterns to avoid
+- **AI Agent Guidelines** - ALWAYS/NEVER rules
+
+Other skills (like `bug-hunt` and `complexity` in vibe-kit) depend on standards for consistent code guidance.
 
 ## Usage
 

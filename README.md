@@ -35,7 +35,7 @@ claude plugin install vibe-kit@agentops-marketplace
 | **docs-kit** | `/doc`, `/oss-docs`, `/golden-init` | Documentation generation |
 | **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent orchestration |
 | **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Gas Town worker management |
-| **domain-kit** | 18 domain skills | Reference knowledge (auto-loaded) |
+| **domain-kit** | 18 domain skills + `standards` library | Reference knowledge (auto-loaded) |
 
 **Expert Agents** (vibe-kit): `security-expert`, `architecture-expert`, `code-quality-expert`, `ux-expert`
 

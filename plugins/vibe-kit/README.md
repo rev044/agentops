@@ -73,16 +73,31 @@ The most important principle:
 
 Stay under 40% for reliable validation results.
 
+## Standards Integration
+
+`/bug-hunt` and `/complexity` depend on the **standards** library skill (from domain-kit) for language-specific guidance:
+
+| File Type | Standards Loaded |
+|-----------|------------------|
+| `*.py` | `domain-kit/skills/standards/references/python.md` |
+| `*.go` | `domain-kit/skills/standards/references/go.md` |
+| `*.ts` | `domain-kit/skills/standards/references/typescript.md` |
+| `*.sh` | `domain-kit/skills/standards/references/shell.md` |
+
+This ensures fixes and refactoring recommendations follow consistent coding standards.
+
 ## Philosophy
 
 - **Validate before shipping** - catch issues early
 - **Bug hunting with git archaeology** - history tells the story
 - **Complexity analysis guides refactoring** - data-driven decisions
+- **Standards-based recommendations** - consistent guidance across languages
 
 ## Related Kits
 
 - **core-kit** - Research and implementation
 - **docs-kit** - Generate the docs that vibe-docs validates
+- **domain-kit** - Standards library used by bug-hunt and complexity
 
 ---
 
