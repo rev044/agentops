@@ -1,6 +1,6 @@
 # Domain Kit
 
-Reference knowledge across 18 domains. Loaded on-demand for specialized tasks.
+Reference knowledge across 21 domains. Loaded on-demand for specialized tasks.
 
 ## Install
 
@@ -29,6 +29,9 @@ Reference knowledge across 18 domains. Loaded on-demand for specialized tasks.
 | **brand-guidelines** | style, voice, assets |
 | **skill-creator** | creating new skills |
 | **test-gap-scanner** | finding untested code |
+| **tekton** | Tekton pipeline builds, troubleshooting |
+| **tekton-go-operator** | Go operator CI setup with Tekton |
+| **container-build** | OpenShift container images, arbitrary UIDs |
 
 ### Standards Library
 
@@ -65,7 +68,7 @@ Domain skills are auto-triggered based on context. Examples:
 ## Philosophy
 
 - **Load knowledge when needed** - JIT, not upfront
-- **18 domains covering full development lifecycle**
+- **21 domains covering full development lifecycle**
 - **Reference-style documentation** - consult, don't memorize
 
 ## Related Kits

@@ -1,6 +1,6 @@
 # Docs Kit
 
-Documentation generation and scaffolding. 3 skills for creating and maintaining docs.
+Documentation generation and scaffolding. 5 skills for creating and maintaining docs.
 
 ## Install
 
@@ -13,6 +13,8 @@ Documentation generation and scaffolding. 3 skills for creating and maintaining 
 | Skill | Invoke | Purpose |
 |-------|--------|---------|
 | `/doc` | `/doc` | Generate documentation from code |
+| `/doc-creator` | `/doc-creator` | Create corpus or standards documentation |
+| `/code-map-standard` | `/code-map-standard` | Generate code-map feature docs |
 | `/oss-docs` | `/oss-docs` | Scaffold OSS documentation |
 | `/golden-init` | `/golden-init` | Initialize with golden template |
 
@@ -21,6 +23,8 @@ Documentation generation and scaffolding. 3 skills for creating and maintaining 
 | Scenario | Skill |
 |----------|-------|
 | Generate API docs | `/doc` |
+| Create corpus/training docs | `/doc-creator` |
+| Document features (code-map) | `/code-map-standard` |
 | Prepare for open source | `/oss-docs` |
 | Start new project | `/golden-init` |
 

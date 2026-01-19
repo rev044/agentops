@@ -28,14 +28,14 @@ claude plugin install vibe-kit@agentops-marketplace
 
 | Plugin | Skills | Purpose |
 |--------|--------|---------|
-| **core-kit** | `/research`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | The main workflow |
+| **core-kit** | `/research`, `/plan`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | The main workflow |
 | **vibe-kit** | `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity` | Validation and quality |
 | **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-prep`, `/pr-retro` | Open source contribution |
 | **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking |
-| **docs-kit** | `/doc`, `/oss-docs`, `/golden-init` | Documentation generation |
+| **docs-kit** | `/doc`, `/doc-creator`, `/code-map-standard`, `/oss-docs`, `/golden-init` | Documentation generation |
 | **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent orchestration |
 | **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Gas Town worker management |
-| **domain-kit** | 18 domain skills + `standards` library | Reference knowledge (auto-loaded) |
+| **domain-kit** | 21 domain skills + `standards` library | Reference knowledge (auto-loaded) |
 
 **Expert Agents** (vibe-kit): `security-expert`, `architecture-expert`, `code-quality-expert`, `ux-expert`
 

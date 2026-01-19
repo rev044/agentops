@@ -4,9 +4,11 @@ description: >
   Use when: "Python", "Go", "Golang", "Rust", "Java", "TypeScript", "shell script",
   "bash", "async/await", "goroutines", "ownership", "virtual threads", "type system",
   "decorators", "generators", "channels", "interfaces", "Spring Boot", "POSIX".
-version: 1.0.0
+version: 1.1.0
 author: "AgentOps Team"
 license: "MIT"
+skills:
+  - standards
 ---
 
 # Languages Skill
@@ -210,3 +212,21 @@ Production patterns for Python, Go, Rust, Java, TypeScript, and Shell scripting.
 | Java | virtual threads, CompletableFuture |
 | TypeScript | Promise, async/await |
 | Shell | background jobs (&), wait |
+
+---
+
+## Detailed Standards
+
+For comprehensive coding standards with **Common Errors**, **Anti-Patterns**, and **AI Agent Guidelines**, see the standards library:
+
+| Language | Detailed Reference |
+|----------|-------------------|
+| **Python** | `domain-kit/skills/standards/references/python.md` |
+| **Go** | `domain-kit/skills/standards/references/go.md` |
+| **TypeScript** | `domain-kit/skills/standards/references/typescript.md` |
+| **Shell** | `domain-kit/skills/standards/references/shell.md` |
+| **YAML** | `domain-kit/skills/standards/references/yaml.md` |
+| **JSON** | `domain-kit/skills/standards/references/json.md` |
+| **Markdown** | `domain-kit/skills/standards/references/markdown.md` |
+
+Load the relevant standard when implementing or reviewing code in that language.

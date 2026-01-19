@@ -1,6 +1,6 @@
 # Core Kit
 
-The complete workflow from exploration to execution. 8 skills covering research, planning, and implementation.
+The complete workflow from exploration to execution. 9 skills covering research, planning, and implementation.
 
 ## Install
 
@@ -13,6 +13,7 @@ The complete workflow from exploration to execution. 8 skills covering research,
 | Skill | Invoke | Purpose |
 |-------|--------|---------|
 | `/research` | `/research <topic>` | Deep codebase exploration |
+| `/plan` | `/plan <goal>` | Create beads issues with dependencies and waves |
 | `/formulate` | `/formulate <goal>` | Create beads issues (and optional `.formula.toml` templates) |
 | `/product` | `/product <goal>` | Customer-first PR/FAQ brief |
 | `/implement` | `/implement <issue>` | Execute a single beads issue |
@@ -22,19 +23,22 @@ The complete workflow from exploration to execution. 8 skills covering research,
 
 ## When to Use Which
 
-### Planning Skills (formulate vs product)
+### Planning Skills (plan vs formulate vs product)
 
 | Skill | Use When | Output | Reusable? |
 |-------|----------|--------|-----------|
 | **`/product`** | Multi-day work, user-facing impact, unclear "why" | PR/FAQ brief in `.agents/products/` | No |
-| **`/formulate`** | Break work into beads issues | Beads issues (+ optional `.formula.toml` template) | Optional |
+| **`/plan`** | Multi-issue epic with dependencies | Beads issues with epic-child structure, waves | No |
+| **`/formulate`** | Break work into beads issues (with template option) | Beads issues (+ optional `.formula.toml` template) | Optional |
 
 **Decision tree:**
 
 ```
 Is the "why" unclear or user-facing?
-├─ Yes → /product first, then /formulate
-└─ No → /formulate directly
+├─ Yes → /product first, then /plan or /formulate
+└─ No → Need dependency modeling and waves?
+       ├─ Yes → /plan (creates epic + children + dependencies)
+       └─ No → /formulate directly
 ```
 
 **Note:** For planning approach decisions, use Claude's built-in plan mode (`EnterPlanMode`).
