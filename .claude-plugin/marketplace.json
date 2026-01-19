@@ -45,24 +45,6 @@
       ]
     },
     {
-      "name": "gastown",
-      "description": "Gas Town multi-agent orchestration - PR workflow, beads issue tracking",
-      "version": "0.1.0",
-      "author": {
-        "name": "Boden Fuller",
-        "email": "fullerbt@users.noreply.github.com"
-      },
-      "source": "./plugins/gastown",
-      "category": "orchestration",
-      "keywords": [
-        "gastown",
-        "multi-agent",
-        "pr-workflow",
-        "beads",
-        "contribution"
-      ]
-    },
-    {
       "name": "pr-kit",
       "description": "Open source contribution workflow - from research to retro",
       "version": "1.0.0",
