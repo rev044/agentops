@@ -25,7 +25,7 @@ claude plugin install vibe-kit@agentops-marketplace
 
 | Plugin | What it does |
 |--------|--------------|
-| 🔧 **core-kit** | `/research`, `/plan`, `/implement`, `/crank` - the main workflow |
+| 🔧 **core-kit** | `/research`, `/formulate`, `/implement`, `/crank` - the main workflow |
 | ✅ **vibe-kit** | `/vibe`, `/bug-hunt`, `/complexity` - validation and quality |
 | 🔀 **pr-kit** | `/pr-research` → `/pr-retro` - open source contribution flow |
 | 📋 **beads-kit** | `/beads`, `/status` - git-based issue tracking |
@@ -43,13 +43,13 @@ claude plugin install vibe-kit@agentops-marketplace
 ## 🔄 Basic Workflow
 
 ```
-/research → /plan → /implement → /vibe → /retro
+/research → /formulate → /implement → /vibe → /retro
 ```
 
 | Command | Purpose |
 |---------|---------|
 | 🔍 `/research` | Explore codebase, understand the problem |
-| 📐 `/plan` | Break down into trackable beads issues |
+| 📐 `/formulate` | Break down into trackable beads issues |
 | ⚡ `/implement` | Execute a **single** beads issue |
 | ✅ `/vibe` | Validate changes (security, quality, architecture) |
 | 🎓 `/retro` | Extract learnings |

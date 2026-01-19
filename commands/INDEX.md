@@ -3,8 +3,8 @@
 > **⚠️ DEPRECATED**: Commands are being replaced by **skills**. Skills are directly invokable with `/skill-name` and provide better context loading. See [plugins/vibe-kit/skills/](../plugins/vibe-kit/skills/) for the modern approach.
 >
 > **Migration guide:**
-> - `/research` → Use skill: `/research` (in vibe-kit plugin)
-> - `/plan` → Use skill: `/plan` or `/formulate`
+> - `/research` → Use skill: `/research`
+> - `/plan` → Use skill: `/formulate` (or Claude's built-in plan mode)
 > - `/implement` → Use skill: `/implement`
 > - `/retro` → Use skill: `/retro`
 >
@@ -16,7 +16,7 @@
 | Command | Description | Skill Replacement |
 |---------|-------------|-------------------|
 | [research](research.md) | Phase 1 - Deep exploration before planning | `research` |
-| [plan](plan.md) | Phase 2 - Specify exact changes with file:line | `plan`, `formulate` |
+| [plan](plan.md) | Phase 2 - Specify exact changes with file:line | `formulate` |
 | [implement](implement.md) | Phase 3 - Execute approved plan with validation | `implement` |
 
 ### Bundles (Context Persistence)
