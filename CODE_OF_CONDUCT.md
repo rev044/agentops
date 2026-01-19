@@ -72,7 +72,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at:
 
-**Email:** [your-email]@example.com
+**GitHub Issues:** https://github.com/boshu2/agentops/issues
 
 All complaints will be reviewed and investigated promptly and fairly.
 
@@ -210,7 +210,7 @@ Maintainers are expected to:
 
 If you have questions about this Code of Conduct:
 
-- **Email:** [your-email]@example.com
+- **GitHub Issues:** https://github.com/boshu2/agentops/issues
 - **GitHub Discussions:** Ask in the community forum
 - **Reference:** See [Contributor Covenant FAQ](https://www.contributor-covenant.org/faq)
 

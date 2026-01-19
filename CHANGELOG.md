@@ -227,7 +227,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
 - **Documentation**: Check README.md and plugin docs
 - **Issues**: [GitHub Issues](https://github.com/boshu2/agentops/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/boshu2/agentops/discussions)
-- **Email**: [your-email]@example.com
 
 ---
 
