@@ -148,7 +148,7 @@ Community leaders will follow these Community Impact Guidelines in determining t
 
 If you believe you have been unfairly accused of violating this Code of Conduct, you may appeal by:
 
-1. **Contacting community leaders** at [your-email]@example.com
+1. **Opening a GitHub issue** at https://github.com/boshu2/agentops/issues
 2. **Providing your side** of the story with any relevant context
 3. **Remaining respectful** during the appeal process
 
