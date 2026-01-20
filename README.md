@@ -48,7 +48,7 @@ The recommended meta for complex work:
 │  1. PLAN SESSION                    2. CRANK SESSION                        │
 │  ┌─────────────────────┐            ┌─────────────────────┐                │
 │  │                     │            │                     │                │
-│  │  "plan this out"    │  handoff   │  /crank <epic>      │                │
+│  │  Shift+Tab (plan)   │  handoff   │  /crank <epic>      │                │
 │  │        ↓            │ ────────►  │        ↓            │                │
 │  │  /formulate         │  (fresh    │  wave 1: issues     │                │
 │  │        ↓            │  context)  │  wave 2: issues     │                │
@@ -63,26 +63,37 @@ The recommended meta for complex work:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### The Steps
+
+1. **Shift+Tab** to enter Claude's native plan mode
+2. **`/formulate`** to invoke the skill (slash commands guarantee activation)
+3. Claude explores, creates beads issues, organizes into dependency waves
+4. **Handoff** clears context and starts fresh crank session
+5. **`/crank <epic>`** executes all waves until done
+
 ### Why This Works
 
-1. **Plan session** explores the codebase, creates issues, organizes into waves
-2. **Handoff** clears context (Claude's native `/clear`) and starts fresh
-3. **Crank session** gets: the plan, the beads, and a pointer to the old conversation JSONL if needed
-4. **Fresh context** means crank can run longer without hitting limits
+- **Plan mode + /formulate** gives you review gates before execution
+- **Explicit `/slash` commands** guarantee the skill triggers (natural language works but isn't 100%)
+- **Handoff clears context** - planning burns tokens exploring, crank needs room to execute
+- **Crank session gets**: the plan artifact, the beads, and a pointer to the old conversation JSONL if needed
 
-This is how we run everything. The planning session burns context exploring - then we hand off to a fresh session that just executes.
+This is how we run everything. Plan in one session, crank in a fresh one.
 
 ### Example
 
 ```
-You: "I want to add OAuth support to the API"
+You: [Shift+Tab to enter plan mode]
+You: /formulate "add OAuth support to the API"
 
 Claude: [explores codebase, understands patterns]
         [creates epic with 12 child issues]
         [organizes into 4 waves by dependency]
+        [presents plan for review]
 
-        Ready to crank. Starting fresh session...
+You: [approve plan]
 
+Claude: Ready to crank. Starting fresh session...
         [clears context, hands off plan]
 
 --- new session ---
