@@ -18,11 +18,87 @@
 
 > **v0.1.0** - Pre-release for testing. Feedback welcome!
 
-Claude Code plugins for AI-assisted development workflows. Research, plan, implement, validate, learn.
+Claude Code plugins for AI-assisted development workflows. Just describe what you want - skills trigger automatically.
 
 ---
 
-## The Workflow
+## Just Talk Naturally
+
+Skills trigger from natural language. No slash commands required:
+
+| You Say | Triggers |
+|---------|----------|
+| "I need to understand how auth works" | `/research` |
+| "Let's plan out this feature" | `/formulate` |
+| "Validate my changes" | `/vibe` |
+| "Check for security issues" | `/vibe --security` |
+| "What did we learn?" | `/retro` |
+
+The skills detect intent and activate. Slash commands work too if you prefer them.
+
+---
+
+## The Killer Workflow: Plan → Crank
+
+The recommended meta for complex work:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  1. PLAN SESSION                    2. CRANK SESSION                        │
+│  ┌─────────────────────┐            ┌─────────────────────┐                │
+│  │                     │            │                     │                │
+│  │  "plan this out"    │  handoff   │  /crank <epic>      │                │
+│  │        ↓            │ ────────►  │        ↓            │                │
+│  │  /formulate         │  (fresh    │  wave 1: issues     │                │
+│  │        ↓            │  context)  │  wave 2: issues     │                │
+│  │  creates beads      │            │  wave 3: issues     │                │
+│  │  organizes waves    │            │        ↓            │                │
+│  │                     │            │  ALL CLOSED         │                │
+│  └─────────────────────┘            └─────────────────────┘                │
+│                                                                             │
+│  Planning uses context.             Execution gets fresh context +          │
+│  When done, clear it.               plan artifact + pointer to old convo.   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Why This Works
+
+1. **Plan session** explores the codebase, creates issues, organizes into waves
+2. **Handoff** clears context (Claude's native `/clear`) and starts fresh
+3. **Crank session** gets: the plan, the beads, and a pointer to the old conversation JSONL if needed
+4. **Fresh context** means crank can run longer without hitting limits
+
+This is how we run everything. The planning session burns context exploring - then we hand off to a fresh session that just executes.
+
+### Example
+
+```
+You: "I want to add OAuth support to the API"
+
+Claude: [explores codebase, understands patterns]
+        [creates epic with 12 child issues]
+        [organizes into 4 waves by dependency]
+
+        Ready to crank. Starting fresh session...
+
+        [clears context, hands off plan]
+
+--- new session ---
+
+Claude: [receives plan artifact]
+        [cranks wave 1: 3 issues in parallel]
+        [cranks wave 2: 4 issues in parallel]
+        [cranks wave 3: 3 issues in parallel]
+        [cranks wave 4: 2 issues in parallel]
+
+        Epic complete. 12/12 issues closed.
+```
+
+---
+
+## The Full Workflow
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -37,13 +113,11 @@ Claude Code plugins for AI-assisted development workflows. Research, plan, imple
 
 | Stage | Command | What It Does |
 |-------|---------|--------------|
-| **Research** | `/research` | Deep codebase exploration, understand the problem |
-| **Plan** | `/formulate` | Break down into trackable issues with dependencies |
-| **Execute** | `/implement` | Execute a single issue end-to-end |
-| **Validate** | `/vibe` | Check security, quality, architecture, accessibility |
-| **Learn** | `/retro` | Extract and preserve learnings |
-
-**Autonomous mode**: `/crank <epic>` runs the full loop until all issues are closed.
+| **Research** | `/research` | Deep codebase exploration |
+| **Plan** | `/formulate` | Create issues with dependencies, organize waves |
+| **Execute** | `/crank` | Run all waves until epic is closed |
+| **Validate** | `/vibe` | Check security, quality, architecture |
+| **Learn** | `/retro` | Extract learnings for future sessions |
 
 ---
 
@@ -101,14 +175,14 @@ claude plugin install general-kit@agentops-marketplace
 ```
 Research, validation, documentation, expert agents - no external tools needed.
 
-**Want structured workflows?**
+**Want the full plan→crank workflow?**
 ```bash
 brew install beads
 claude plugin install core-kit@agentops-marketplace
 claude plugin install beads-kit@agentops-marketplace
 ```
 
-**Full multi-agent setup?**
+**Multi-agent parallel execution?**
 ```bash
 brew install beads gastown
 claude plugin install gastown-kit@agentops-marketplace
@@ -127,15 +201,6 @@ opencode translate ./plugins/general-kit --format opencode
 ```
 
 The skill format is designed to be portable across AI coding assistants.
-
----
-
-## Two Types of Planning
-
-| Type | When to Use |
-|------|-------------|
-| **Native plan mode** | Single task. Claude auto-enters plan mode, you review, Claude implements. |
-| **/formulate** | Epic decomposition. Creates beads issues with dependencies for `/crank` to execute. |
 
 ---
 
