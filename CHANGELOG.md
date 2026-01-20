@@ -16,25 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Tier 3**: Team workflows (beads-kit, pr-kit, dispatch-kit)
   - **Tier 4**: Multi-agent orchestration (crank-kit, gastown-kit)
 
-- **solo-kit v1.0.0** - Foundation for any developer:
+- **solo-kit v0.1.2** - Foundation for any developer:
   - 7 skills: `/research`, `/vibe`, `/bug-hunt`, `/complexity`, `/doc`, `/oss-docs`, `/golden-init`
   - 2 agents: `code-reviewer`, `security-reviewer` (read-only review specialists)
   - Hooks: auto-format on save, console.log/debug warnings, git push review, debug audit on session end
   - Zero external dependencies - works with any project
 
-- **python-kit v1.0.0** - Python language support:
+- **python-kit v0.1.2** - Python language support:
   - Standards skill with `references/python.md`
   - Hooks: ruff format, ruff check, mypy type checking
 
-- **go-kit v1.0.0** - Go language support:
+- **go-kit v0.1.2** - Go language support:
   - Standards skill with `references/go.md`
   - Hooks: gofmt, golangci-lint, P13/P14 error handling checks
 
-- **typescript-kit v1.0.0** - TypeScript/JavaScript support:
+- **typescript-kit v0.1.2** - TypeScript/JavaScript support:
   - Standards skill with `references/typescript.md`
   - Hooks: prettier, tsc type checking, `any` type warnings
 
-- **shell-kit v1.0.0** - Shell scripting support:
+- **shell-kit v0.1.2** - Shell scripting support:
   - Standards skill with `references/shell.md`
   - Hooks: shellcheck, `set -euo pipefail` enforcement
 

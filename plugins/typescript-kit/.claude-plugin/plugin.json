@@ -1,6 +1,6 @@
 {
   "name": "typescript-kit",
-  "version": "1.0.0",
+  "version": "0.1.2",
   "description": "TypeScript development: standards, linting hooks, testing patterns.",
   "author": "AgentOps Team",
   "license": "MIT",
