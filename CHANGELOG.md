@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-01-20
+
+### Added
+- **general-kit v1.0.0** - Standalone plugin with zero dependencies:
+  - `/research`, `/vibe`, `/vibe-docs`, `/bug-hunt`, `/complexity`, `/validation-chain`
+  - `/doc`, `/oss-docs`, `/golden-init`
+  - 4 expert agents: security-expert, architecture-expert, code-quality-expert, ux-expert
+- **standards library skill** (domain-kit) - Language-specific validation rules:
+  - Python, Go, TypeScript, Shell, YAML, Markdown, JSON references
+  - OpenAI platform standards (prompts, functions, responses, reasoning, GPT-OSS)
+- **Context inference** for vibe and crank skills - Auto-detect targets from conversation
+- **Natural language triggers** - Skills activate from intent, not just slash commands
+
+### Changed
+- **README overhaul**:
+  - Added ASCII art logo and workflow diagrams
+  - "Just Talk Naturally" section showing intent-based triggering
+  - "The Killer Workflow: Plan → Crank" section with Shift+Tab + /formulate pattern
+  - Clarified this provides plugins FOR beads/gastown, not built on them
+  - Added OpenCode compatibility section
+- **vibe skill** - Now references standards library for language-specific validation
+- **validation-chain skill** - Added standards dependency
+- **vibe-docs skill** - Added standards dependency
+
+### Fixed
+- **Standards dependencies** - Added missing `standards` skill dependency to:
+  - vibe (vibe-kit, general-kit)
+  - validation-chain (vibe-kit, general-kit)
+  - vibe-docs (vibe-kit, general-kit)
+- **Vibe findings** - Addressed quality findings across all plugins
+- **Cross-skill references** - Test validator now handles relative paths correctly
+- **Personal identifiers** - Removed from public plugin files
+
+---
+
+## [0.1.0] - 2026-01-19
+
 ### Added
 - **Unix Philosophy Restructure** - Plugins reorganized into 8 focused kits:
   - **core-kit v1.0.0** - Workflow: research, plan, formulate, product, implement, implement-wave, crank, retro
