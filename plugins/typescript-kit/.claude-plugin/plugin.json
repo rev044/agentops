@@ -1,0 +1,11 @@
+{
+  "name": "typescript-kit",
+  "version": "1.0.0",
+  "description": "TypeScript development: standards, linting hooks, testing patterns.",
+  "author": "AgentOps Team",
+  "license": "MIT",
+  "keywords": ["typescript", "javascript", "prettier", "eslint", "jest", "vitest"],
+  "dependencies": ["solo-kit"],
+  "tier": 2,
+  "tier_description": "Language Kit - adds TypeScript-specific standards and tooling"
+}

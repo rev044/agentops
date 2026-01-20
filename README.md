@@ -164,43 +164,90 @@ Claude: [receives plan artifact]
 # Add marketplace
 claude plugin marketplace add boshu2/agentops
 
-# Start with general-kit (no dependencies)
-claude plugin install general-kit@agentops-marketplace
+# Start with solo-kit (any language, any project)
+/plugin install solo-kit@agentops
 
-# Add more as needed
-claude plugin install core-kit@agentops-marketplace
-claude plugin install vibe-kit@agentops-marketplace
+# Add language-specific support
+/plugin install python-kit@agentops    # if Python
+/plugin install go-kit@agentops        # if Go
+/plugin install typescript-kit@agentops # if TypeScript
+/plugin install shell-kit@agentops     # if Shell/Bash
 ```
 
 ---
 
-## Plugins
+## Tiered Architecture
 
-### Dependency Tiers
+AgentOps scales from solo developer to multi-agent orchestration.
 
-| Tier | Plugins | Requirements |
-|------|---------|--------------|
-| **Standalone** | `general-kit`, `domain-kit` | None - works everywhere |
-| **Beads** | `core-kit`, `vibe-kit`, `beads-kit`, `pr-kit`, `docs-kit` | [beads](https://github.com/steveyegge/beads) CLI |
-| **Gas Town** | `gastown-kit`, `dispatch-kit` | [gastown](https://github.com/steveyegge/gastown) CLI |
-
-> **Note**: This repo provides plugins FOR beads and gastown - it's not built on them. Start with `general-kit` which has no dependencies.
-
-### All Plugins
+### Tier 1: Solo Developer (Any Project)
 
 | Plugin | Skills | Purpose |
 |--------|--------|---------|
-| **general-kit** | `/research`, `/vibe`, `/vibe-docs`, `/bug-hunt`, `/complexity`, `/validation-chain`, `/doc`, `/oss-docs`, `/golden-init` | **Start here** - no dependencies |
-| **core-kit** | `/plan`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | Structured workflow |
-| **vibe-kit** | `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity` | Validation and quality |
-| **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-prep`, `/pr-retro` | Open source contribution |
-| **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking |
-| **docs-kit** | `/doc`, `/doc-creator`, `/code-map-standard`, `/oss-docs`, `/golden-init` | Documentation generation |
-| **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent communication |
-| **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Parallel worker orchestration |
-| **domain-kit** | 21 domain skills + `standards` library | Reference knowledge (auto-loaded) |
+| **solo-kit** | `/research`, `/vibe`, `/bug-hunt`, `/complexity`, `/doc`, `/oss-docs`, `/golden-init` | **Start here** - essential validation and exploration |
 
-**Expert Agents** (general-kit, vibe-kit): `security-expert`, `architecture-expert`, `code-quality-expert`, `ux-expert`
+**Agents:** `code-reviewer`, `security-reviewer`
+**Hooks:** Auto-format, debug statement warnings, git push review
+
+```bash
+/plugin install solo-kit@agentops
+```
+
+### Tier 2: Language Kits (Plug-in Based on Project)
+
+| Plugin | Standards | Hooks | Purpose |
+|--------|-----------|-------|---------|
+| **python-kit** | `python.md` | ruff, mypy | Python development |
+| **go-kit** | `go.md` | gofmt, golangci-lint | Go development |
+| **typescript-kit** | `typescript.md` | prettier, tsc | TypeScript/JavaScript |
+| **shell-kit** | `shell.md` | shellcheck | Shell scripting |
+
+Each adds language-specific standards, linting hooks, and patterns.
+
+### Tier 3: Team Workflows
+
+| Plugin | Skills | Purpose | Requires |
+|--------|--------|---------|----------|
+| **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking | [beads](https://github.com/steveyegge/beads) |
+| **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate` | PR workflows | beads |
+| **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent coordination | beads |
+
+### Tier 4: Multi-Agent Orchestration
+
+| Plugin | Skills | Purpose | Requires |
+|--------|--------|---------|----------|
+| **crank-kit** | `/plan`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | Autonomous execution | beads |
+| **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Parallel workers | beads + [gastown](https://github.com/steveyegge/gastown) |
+
+---
+
+## Upgrade Path
+
+```
+solo-kit              ← Any developer starts here
+    ↓
++ language-kit        ← Add your language(s)
+    ↓
++ beads-kit           ← Track work across sessions
+    ↓
++ crank-kit           ← Autonomous execution
+    ↓
++ gastown-kit         ← Multi-agent orchestration
+```
+
+---
+
+## Legacy Plugins
+
+These plugins are being refactored into the tiered structure:
+
+| Legacy | Migrates To |
+|--------|-------------|
+| `general-kit` | `solo-kit` |
+| `core-kit` | `solo-kit` + `crank-kit` |
+| `vibe-kit` | `solo-kit` |
+| `domain-kit` | Language kits |
+| `docs-kit` | `solo-kit`
 
 ---
 

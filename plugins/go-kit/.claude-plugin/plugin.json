@@ -1,0 +1,11 @@
+{
+  "name": "go-kit",
+  "version": "1.0.0",
+  "description": "Go development: standards, linting hooks, testing patterns.",
+  "author": "AgentOps Team",
+  "license": "MIT",
+  "keywords": ["go", "golang", "golangci-lint", "gofmt", "table-driven-tests"],
+  "dependencies": ["solo-kit"],
+  "tier": 2,
+  "tier_description": "Language Kit - adds Go-specific standards and tooling"
+}

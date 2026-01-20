@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "description": "Go-specific hooks: gofmt, golangci-lint, error handling checks",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.go$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\nfile_path=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"')\n\nif [ -n \"$file_path\" ] && [ -f \"$file_path\" ]; then\n  # Auto-format with gofmt\n  if command -v gofmt >/dev/null 2>&1; then\n    gofmt -w \"$file_path\" 2>/dev/null || true\n  fi\n  \n  # Check for undocumented error ignores (P13)\n  undoc_ignores=$(grep -n '_ =' \"$file_path\" 2>/dev/null | grep -v 'nolint:errcheck' || true)\n  if [ -n \"$undoc_ignores\" ]; then\n    echo \"[Hook] Undocumented error ignores in $file_path:\" >&2\n    echo \"$undoc_ignores\" | head -3 >&2\n    echo \"[Hook] Add '// nolint:errcheck' comment if intentional\" >&2\n  fi\n  \n  # Check for %v in error wrapping (P14)\n  bad_wrap=$(grep -n 'fmt.Errorf.*%v' \"$file_path\" 2>/dev/null || true)\n  if [ -n \"$bad_wrap\" ]; then\n    echo \"[Hook] Error wrapping with %v (use %w to preserve chain):\" >&2\n    echo \"$bad_wrap\" | head -3 >&2\n  fi\n  \n  # Run golangci-lint if available\n  if command -v golangci-lint >/dev/null 2>&1; then\n    dir=$(dirname \"$file_path\")\n    issues=$(cd \"$dir\" && golangci-lint run --fast \"$(basename \"$file_path\")\" 2>/dev/null | head -5 || true)\n    if [ -n \"$issues\" ]; then\n      echo \"[Hook] golangci-lint issues:\" >&2\n      echo \"$issues\" >&2\n    fi\n  fi\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Auto-format with gofmt, check error handling, lint with golangci-lint"
+      }
+    ]
+  }
+}

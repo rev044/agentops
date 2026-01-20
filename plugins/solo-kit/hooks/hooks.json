@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "description": "Code quality hooks for solo developers. Language-agnostic essentials.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "tool == \"Bash\" && tool_input.command matches \"git push\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\necho '[Hook] Review changes before push...' >&2\ngit diff --stat HEAD~1 2>/dev/null || git diff --stat --cached 2>/dev/null\necho '[Hook] Press Enter to continue or Ctrl+C to abort' >&2\nread -r"
+          }
+        ],
+        "description": "Pause before git push to review changes"
+      },
+      {
+        "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(md|txt)$\" && !(tool_input.file_path matches \"README|CLAUDE|AGENTS|CONTRIBUTING|CHANGELOG|LICENSE\")",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\nfile_path=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"')\necho \"[Hook] NOTE: Creating documentation file: $file_path\" >&2\necho \"[Hook] Consider consolidating into README.md if this is project docs\" >&2\necho \"$input\""
+          }
+        ],
+        "description": "Warn about documentation file proliferation"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(ts|tsx|js|jsx)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\nfile_path=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"')\n\nif [ -n \"$file_path\" ] && [ -f \"$file_path\" ]; then\n  # Check for console.log\n  console_logs=$(grep -n \"console\\.log\" \"$file_path\" 2>/dev/null || true)\n  if [ -n \"$console_logs\" ]; then\n    echo \"[Hook] WARNING: console.log found in $file_path\" >&2\n    echo \"$console_logs\" | head -3 >&2\n    echo \"[Hook] Remove before committing\" >&2\n  fi\n  \n  # Auto-format with prettier if available\n  if command -v prettier >/dev/null 2>&1; then\n    prettier --write \"$file_path\" 2>/dev/null || true\n  fi\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Console.log warning + auto-format for JS/TS"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(py)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\nfile_path=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"')\n\nif [ -n \"$file_path\" ] && [ -f \"$file_path\" ]; then\n  # Check for print statements (debugging)\n  prints=$(grep -n \"^\\s*print(\" \"$file_path\" 2>/dev/null || true)\n  if [ -n \"$prints\" ]; then\n    echo \"[Hook] NOTE: print() statements found in $file_path\" >&2\n    echo \"$prints\" | head -3 >&2\n    echo \"[Hook] Consider using logging instead\" >&2\n  fi\n  \n  # Auto-format with ruff if available\n  if command -v ruff >/dev/null 2>&1; then\n    ruff format \"$file_path\" 2>/dev/null || true\n  fi\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Print statement warning + auto-format for Python"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(go)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\nfile_path=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"')\n\nif [ -n \"$file_path\" ] && [ -f \"$file_path\" ]; then\n  # Check for fmt.Println (debugging)\n  prints=$(grep -n \"fmt\\.Print\" \"$file_path\" 2>/dev/null || true)\n  if [ -n \"$prints\" ]; then\n    echo \"[Hook] NOTE: fmt.Print* found in $file_path\" >&2\n    echo \"$prints\" | head -3 >&2\n  fi\n  \n  # Auto-format with gofmt\n  if command -v gofmt >/dev/null 2>&1; then\n    gofmt -w \"$file_path\" 2>/dev/null || true\n  fi\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Print statement note + auto-format for Go"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(sh|bash)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\nfile_path=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"')\n\nif [ -n \"$file_path\" ] && [ -f \"$file_path\" ]; then\n  # Run shellcheck if available\n  if command -v shellcheck >/dev/null 2>&1; then\n    issues=$(shellcheck -f gcc \"$file_path\" 2>/dev/null | head -5 || true)\n    if [ -n \"$issues\" ]; then\n      echo \"[Hook] Shellcheck issues in $file_path:\" >&2\n      echo \"$issues\" >&2\n    fi\n  fi\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Shellcheck validation for shell scripts"
+      },
+      {
+        "matcher": "tool == \"Bash\" && tool_input.command matches \"gh pr create\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\noutput=$(echo \"$input\" | jq -r '.tool_output.output // \"\"')\npr_url=$(echo \"$output\" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' | head -1)\n\nif [ -n \"$pr_url\" ]; then\n  echo \"[Hook] PR created: $pr_url\" >&2\n  echo \"[Hook] Check status: gh pr checks\" >&2\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Log PR URL after creation"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\n\nif git rev-parse --git-dir > /dev/null 2>&1; then\n  modified=$(git diff --name-only HEAD 2>/dev/null | grep -E '\\.(ts|tsx|js|jsx|py|go)$' || true)\n  \n  if [ -n \"$modified\" ]; then\n    has_debug=false\n    while IFS= read -r file; do\n      if [ -f \"$file\" ]; then\n        if grep -qE '(console\\.log|^\\s*print\\(|fmt\\.Print)' \"$file\" 2>/dev/null; then\n          echo \"[Hook] Debug statement in: $file\" >&2\n          has_debug=true\n        fi\n      fi\n    done <<< \"$modified\"\n    \n    if [ \"$has_debug\" = true ]; then\n      echo \"[Hook] Remove debug statements before committing\" >&2\n    fi\n  fi\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Final audit for debug statements before session ends"
+      }
+    ]
+  }
+}

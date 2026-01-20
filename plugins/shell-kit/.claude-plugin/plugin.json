@@ -1,0 +1,11 @@
+{
+  "name": "shell-kit",
+  "version": "1.0.0",
+  "description": "Shell scripting: standards, shellcheck hooks, POSIX patterns.",
+  "author": "AgentOps Team",
+  "license": "MIT",
+  "keywords": ["bash", "shell", "shellcheck", "posix", "scripting"],
+  "dependencies": ["solo-kit"],
+  "tier": 2,
+  "tier_description": "Language Kit - adds Shell-specific standards and tooling"
+}

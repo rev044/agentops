@@ -1,0 +1,30 @@
+{
+  "name": "solo-kit",
+  "version": "1.0.0",
+  "description": "Essential skills for any developer, any project. Language-agnostic foundations.",
+  "author": "AgentOps Team",
+  "license": "MIT",
+  "keywords": ["developer", "validation", "research", "documentation", "quality"],
+  "homepage": "https://github.com/boshu2/agentops",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/boshu2/agentops.git"
+  },
+  "skills": [
+    "research",
+    "vibe",
+    "bug-hunt",
+    "complexity",
+    "doc",
+    "oss-docs",
+    "golden-init"
+  ],
+  "agents": [
+    "code-reviewer",
+    "security-reviewer"
+  ],
+  "hooks": true,
+  "dependencies": [],
+  "tier": 1,
+  "tier_description": "Solo Developer - works for any project, any language"
+}

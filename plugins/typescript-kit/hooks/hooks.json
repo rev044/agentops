@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "description": "TypeScript-specific hooks: prettier, tsc, eslint",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(ts|tsx)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\ninput=$(cat)\nfile_path=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"')\n\nif [ -n \"$file_path\" ] && [ -f \"$file_path\" ]; then\n  # Auto-format with prettier\n  if command -v prettier >/dev/null 2>&1; then\n    prettier --write \"$file_path\" 2>/dev/null || true\n  fi\n  \n  # Type check with tsc\n  dir=$(dirname \"$file_path\")\n  project_root=\"$dir\"\n  while [ \"$project_root\" != \"/\" ] && [ ! -f \"$project_root/tsconfig.json\" ]; do\n    project_root=$(dirname \"$project_root\")\n  done\n  \n  if [ -f \"$project_root/tsconfig.json\" ]; then\n    type_errors=$(cd \"$project_root\" && npx tsc --noEmit --pretty false 2>&1 | grep \"$file_path\" | head -5 || true)\n    if [ -n \"$type_errors\" ]; then\n      echo \"[Hook] TypeScript errors in $file_path:\" >&2\n      echo \"$type_errors\" >&2\n    fi\n  fi\n  \n  # Check for 'any' usage\n  any_usage=$(grep -n ': any' \"$file_path\" 2>/dev/null | head -3 || true)\n  if [ -n \"$any_usage\" ]; then\n    echo \"[Hook] 'any' type usage (consider 'unknown'):\" >&2\n    echo \"$any_usage\" >&2\n  fi\nfi\n\necho \"$input\""
+          }
+        ],
+        "description": "Auto-format with prettier, type check with tsc, warn about 'any'"
+      }
+    ]
+  }
+}

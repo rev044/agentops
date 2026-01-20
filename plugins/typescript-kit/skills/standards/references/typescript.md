@@ -1,0 +1,1 @@
+../../../../domain-kit/skills/standards/references/typescript.md

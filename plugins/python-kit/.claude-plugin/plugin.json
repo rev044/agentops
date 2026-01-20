@@ -1,0 +1,11 @@
+{
+  "name": "python-kit",
+  "version": "1.0.0",
+  "description": "Python development: standards, linting hooks, testing patterns.",
+  "author": "AgentOps Team",
+  "license": "MIT",
+  "keywords": ["python", "pytest", "ruff", "mypy", "typing"],
+  "dependencies": ["solo-kit"],
+  "tier": 2,
+  "tier_description": "Language Kit - adds Python-specific standards and tooling"
+}
