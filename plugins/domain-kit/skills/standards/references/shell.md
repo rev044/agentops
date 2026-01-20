@@ -506,6 +506,7 @@ For complex scripts, use BATS for automated testing:
 
 ## Anti-Patterns
 
+<!-- vibe:ignore - table shows anti-patterns with example bad code -->
 | Name | Pattern | Why Bad | Instead |
 |------|---------|---------|---------|
 | Parsing ls Output | `for f in $(ls)` | Breaks on spaces, special chars | `for f in *` or `find` |

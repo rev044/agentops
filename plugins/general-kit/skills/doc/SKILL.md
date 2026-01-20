@@ -15,6 +15,9 @@ allowed-tools: "Read,Write,Edit,Glob,Grep,Bash,Task,mcp__smart-connections-work_
 
 # Doc Skill
 
+> **Portability Note:** This skill is standalone with no external dependencies.
+> For beads integration, see `vibe-kit` which includes `doc` with issue tracking.
+
 Universal documentation generation and validation for any project structure.
 
 ## Overview

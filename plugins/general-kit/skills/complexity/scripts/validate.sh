@@ -1,5 +1,6 @@
 #!/bin/bash
 # Validate complexity skill
+# shellcheck disable=SC2329  # Helper functions may be unused in simpler validations
 set -euo pipefail
 
 # Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)

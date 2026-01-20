@@ -37,3 +37,6 @@ coverage.xml
 
 # Generated reports
 reports/
+
+# Runtime state
+state.json

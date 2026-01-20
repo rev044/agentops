@@ -20,6 +20,9 @@ skills:
 
 # Vibe - Talos Comprehensive Validation
 
+> **Portability Note:** This skill is standalone with no external dependencies.
+> For beads integration (issue creation from findings), see `vibe-kit`.
+
 **One skill to validate them all.**
 
 Vibe is a Talos-class validator that combines fast static analysis with deep
@@ -174,18 +177,21 @@ Deep analysis requiring semantic understanding.
 
 ### Phase 3: Expert Routing
 
-For CRITICAL/HIGH findings, optionally spawn expert agents:
+For CRITICAL/HIGH findings, optionally invoke expert agents via explicit request:
 
 ```markdown
 # Security findings → security-expert
-Task(subagent_type="security-expert", prompt="Deep dive on SEC-xxx findings...")
+"Use the security-expert agent to deep dive on SEC-xxx findings..."
 
 # Architecture findings → architecture-expert
-Task(subagent_type="architecture-expert", prompt="Validate ARCH-xxx concerns...")
+"Use the architecture-expert agent to validate ARCH-xxx concerns..."
 
 # Accessibility findings → ux-expert
-Task(subagent_type="ux-expert", prompt="Audit A11Y-xxx issues...")
+"Use the ux-expert agent to audit A11Y-xxx issues..."
 ```
+
+> **Note:** Custom agents are invoked via explicit request, not Task().
+> Task() only supports built-in subagent_types (Explore, Plan, etc.).
 
 Enable with `--expert-routing` flag.
 

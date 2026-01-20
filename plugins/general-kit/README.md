@@ -85,3 +85,15 @@ general-kit is intentionally minimal. For advanced workflows:
 - **Standard git repos** - No special tooling required
 - **Self-contained** - All skills work independently
 - **Foundation** - Start here, add specialized kits as needed
+
+## Cross-Kit Relationships
+
+Some skills exist in both `general-kit` and `vibe-kit`:
+
+| Skill | general-kit | vibe-kit |
+|-------|-------------|----------|
+| `/vibe` | Standalone validation | + beads issue creation |
+| `/doc` | Standalone docs | + beads integration |
+| `/research` | Standalone research | + linked artifacts |
+
+`general-kit` versions have no external dependencies. Install `vibe-kit` for beads integration.

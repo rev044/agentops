@@ -14,6 +14,9 @@ skills:
 
 # Research Skill
 
+> **Portability Note:** This skill is standalone with no external dependencies.
+> For beads integration (linked artifacts), see `vibe-kit`.
+
 Deep codebase exploration → `~/gt/.agents/<rig>/research/`
 
 ## Quick Start

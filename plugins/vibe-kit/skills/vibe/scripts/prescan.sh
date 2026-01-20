@@ -179,6 +179,9 @@ except: pass
 done
 
 # Go: Function length > 50 lines (simple heuristic)
+# Limitation: This awk-based parser only detects `func ` at line start and `}` alone on a line.
+# Multi-line signatures, nested braces, or unusual formatting may cause false positives/negatives.
+# For production Go codebases, consider using gocyclo or go/ast for accurate metrics.
 for file in $GO_FILES; do
   [ -f "$file" ] || continue
   awk '
