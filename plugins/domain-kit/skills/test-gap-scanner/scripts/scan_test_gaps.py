@@ -454,8 +454,8 @@ def print_multi_repo_report(result: MultiRepoResult, threshold: int = 80) -> Non
     print()
 
 
-def main() -> int:
-    """CLI entry point."""
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="Scan Python codebases for test gaps (Law 7 enforcement)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -510,8 +510,12 @@ Examples:
         dest="all_repos",
         help="Scan all git repositories under directory",
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
+
+def main() -> int:
+    """CLI entry point."""
+    args = parse_args()
 
     if not args.directory.exists():
         print(f"Error: Directory not found: {args.directory}", file=sys.stderr)

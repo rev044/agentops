@@ -4,12 +4,12 @@ Quick validation script for skills - minimal version
 """
 
 import sys
-import os
 import re
 from pathlib import Path
 
-def validate_skill(skill_path):
-    """Basic validation of a skill"""
+
+def validate_skill(skill_path: Path | str) -> tuple[bool, str]:
+    """Basic validation of a skill."""
     skill_path = Path(skill_path)
     
     # Check SKILL.md exists
