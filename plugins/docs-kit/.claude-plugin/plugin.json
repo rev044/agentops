@@ -2,5 +2,8 @@
   "name": "docs-kit",
   "version": "0.1.0",
   "description": "Documentation generation and scaffolding skills",
-  "author": "boshu2"
+  "author": {
+    "name": "AgentOps Team",
+    "email": "fullerbt@users.noreply.github.com"
+  }
 }

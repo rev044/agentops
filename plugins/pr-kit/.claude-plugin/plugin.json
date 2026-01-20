@@ -2,5 +2,8 @@
   "name": "pr-kit",
   "version": "0.1.0",
   "description": "Open source contribution workflow - from research to retro",
-  "author": "boshu2"
+  "author": {
+    "name": "AgentOps Team",
+    "email": "fullerbt@users.noreply.github.com"
+  }
 }

@@ -2,5 +2,8 @@
   "name": "domain-kit",
   "version": "0.1.0",
   "description": "Reference knowledge across 17 domains - languages, development, operations, and more",
-  "author": "boshu2"
+  "author": {
+    "name": "AgentOps Team",
+    "email": "fullerbt@users.noreply.github.com"
+  }
 }

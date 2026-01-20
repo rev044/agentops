@@ -8,6 +8,61 @@
   },
   "plugins": [
     {
+      "name": "solo-kit",
+      "description": "Essential skills for any developer, any project. Language-agnostic foundations with research, validation, documentation.",
+      "author": {
+        "name": "Boden Fuller",
+        "email": "fullerbt@users.noreply.github.com"
+      },
+      "source": "./plugins/solo-kit",
+      "category": "productivity",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/solo-kit"
+    },
+    {
+      "name": "python-kit",
+      "description": "Python development: standards, ruff/mypy hooks, testing patterns.",
+      "author": {
+        "name": "Boden Fuller",
+        "email": "fullerbt@users.noreply.github.com"
+      },
+      "source": "./plugins/python-kit",
+      "category": "development",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/python-kit"
+    },
+    {
+      "name": "go-kit",
+      "description": "Go development: standards, gofmt/golangci-lint hooks, testing patterns.",
+      "author": {
+        "name": "Boden Fuller",
+        "email": "fullerbt@users.noreply.github.com"
+      },
+      "source": "./plugins/go-kit",
+      "category": "development",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/go-kit"
+    },
+    {
+      "name": "typescript-kit",
+      "description": "TypeScript development: standards, prettier/tsc hooks, testing patterns.",
+      "author": {
+        "name": "Boden Fuller",
+        "email": "fullerbt@users.noreply.github.com"
+      },
+      "source": "./plugins/typescript-kit",
+      "category": "development",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/typescript-kit"
+    },
+    {
+      "name": "shell-kit",
+      "description": "Shell scripting: standards, shellcheck hooks, POSIX patterns.",
+      "author": {
+        "name": "Boden Fuller",
+        "email": "fullerbt@users.noreply.github.com"
+      },
+      "source": "./plugins/shell-kit",
+      "category": "development",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/shell-kit"
+    },
+    {
       "name": "general-kit",
       "description": "Portable Claude Code skills - no external dependencies. Research, validation, documentation, and expert agents.",
       "author": {
