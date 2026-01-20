@@ -200,4 +200,4 @@ When cooking, bd searches for formulas in order:
 
 - **Cooking**: See `cooking.md` for `bd cook` usage
 - **Lifecycle**: See `mol-lifecycle.md` for full molecule workflow
-- **Skill**: See `~/.claude/skills/formulate/` for formula creation
+- **Skill**: See `formulate/` for formula creation

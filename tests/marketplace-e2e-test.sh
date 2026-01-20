@@ -3,6 +3,7 @@
 # Tests: plugin structure, skill validation, cross-references, commands
 # Usage: ./tests/marketplace-e2e-test.sh [--verbose]
 
+# shellcheck disable=SC2015  # pass/fail functions are simple echos that won't fail
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -43,7 +43,7 @@ Take a beads issue through: context → implement → test → close → commit.
 
 ## Phase 0: Context Discovery
 
-See `~/.claude/skills/research/references/context-discovery.md` for full 6-tier hierarchy.
+See `research/references/context-discovery.md` for full 6-tier hierarchy.
 
 **Quick version**: Code-Map → Semantic Search → Scoped Grep → Source → .agents/ → External
 

@@ -554,7 +554,7 @@ git push -u origin refactor/suggest-validation
 
 ## References
 
-- **PR Plan**: `~/.claude/skills/pr-plan/SKILL.md`
-- **PR Prep**: `~/.claude/skills/pr-prep/SKILL.md`
+- **PR Plan**: `pr-plan/SKILL.md`
+- **PR Prep**: `pr-prep/SKILL.md`
 - **Isolation Check**: pr-prep Phase 0
-- **Internal Implementation**: `~/.claude/skills/implement/SKILL.md`
+- **Internal Implementation**: `implement/SKILL.md`

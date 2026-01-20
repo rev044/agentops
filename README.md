@@ -4,7 +4,7 @@
 [![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
-[![Plugins](https://img.shields.io/badge/plugins-8-blue)](plugins/)
+[![Plugins](https://img.shields.io/badge/plugins-9-blue)](plugins/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 > **v0.1.0** - Pre-release for testing. Feedback welcome!
@@ -26,9 +26,22 @@ claude plugin install vibe-kit@agentops-marketplace
 
 ## Plugins
 
+### Dependency Tiers
+
+| Tier | Plugins | Requirements |
+|------|---------|--------------|
+| **Standalone** | `general-kit`, `domain-kit` | None - works out of the box |
+| **Beads** | `core-kit`, `beads-kit`, `pr-kit` | [beads](https://github.com/steveyegge/beads) CLI |
+| **Gas Town** | `gastown-kit`, `dispatch-kit` | [gastown](https://github.com/steveyegge/gastown) CLI |
+
+> **Architecture Note:** `general-kit` intentionally duplicates skills from `vibe-kit` and `docs-kit` to provide a self-contained, zero-dependency experience. Users who install specialized kits get the same skills with additional beads integration.
+
+### All Plugins
+
 | Plugin | Skills | Purpose |
 |--------|--------|---------|
-| **core-kit** | `/research`, `/plan`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | The main workflow |
+| **general-kit** | `/research`, `/vibe`, `/vibe-docs`, `/bug-hunt`, `/complexity`, `/validation-chain`, `/doc`, `/oss-docs`, `/golden-init` | **Portable** - no dependencies |
+| **core-kit** | `/plan`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | Main workflow (requires beads) |
 | **vibe-kit** | `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity` | Validation and quality |
 | **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-prep`, `/pr-retro` | Open source contribution |
 | **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking |
@@ -37,13 +50,15 @@ claude plugin install vibe-kit@agentops-marketplace
 | **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Gas Town worker management |
 | **domain-kit** | 21 domain skills + `standards` library | Reference knowledge (auto-loaded) |
 
-**Expert Agents** (vibe-kit): `security-expert`, `architecture-expert`, `code-quality-expert`, `ux-expert`
+**Expert Agents** (general-kit, vibe-kit): `security-expert`, `architecture-expert`, `code-quality-expert`, `ux-expert`
 
 ### Recommended
 
-**Getting started:** `core-kit` + `vibe-kit`
+**No dependencies:** `general-kit` - research, validation, documentation, expert agents
 
-**Full setup:** Add `beads-kit` for issue tracking, `docs-kit` for documentation
+**With beads:** Add `core-kit` for structured workflows, `beads-kit` for issue tracking
+
+**Full setup:** Add `gastown-kit` + `dispatch-kit` for multi-agent orchestration
 
 ## Basic Workflow
 

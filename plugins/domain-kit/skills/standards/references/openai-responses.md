@@ -1,6 +1,5 @@
 # OpenAI Responses API Standards
 
-<!-- Canonical source: ~/.claude/skills/standards/references/openai-responses.md -->
 <!-- Last synced: 2026-01-19 -->
 
 > **Purpose:** Production patterns for the Responses API, OpenAI's recommended interface for building agents.

@@ -8,6 +8,17 @@
   },
   "plugins": [
     {
+      "name": "general-kit",
+      "description": "Portable Claude Code skills - no external dependencies. Research, validation, documentation, and expert agents.",
+      "author": {
+        "name": "Boden Fuller",
+        "email": "fullerbt@users.noreply.github.com"
+      },
+      "source": "./plugins/general-kit",
+      "category": "productivity",
+      "homepage": "https://github.com/boshu2/agentops/tree/main/plugins/general-kit"
+    },
+    {
       "name": "agentops",
       "description": "Complete AgentOps toolkit with domain skills for languages, development, operations, and more",
       "author": {

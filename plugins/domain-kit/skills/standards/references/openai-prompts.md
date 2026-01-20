@@ -1,6 +1,5 @@
 # OpenAI Prompt Engineering Standards
 
-<!-- Canonical source: ~/.claude/skills/standards/references/openai-prompts.md -->
 <!-- Last synced: 2026-01-19 -->
 
 > **Purpose:** Comprehensive prompt engineering techniques for OpenAI models, optimized for agent development.

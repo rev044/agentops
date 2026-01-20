@@ -504,7 +504,7 @@ This addresses [problem] with [approach].
 **Merge order**: After #N because [reason].
 ```
 
-See: `~/.claude/skills/pr-plan/lessons/2026-01-16-maintainer-perspective.md`
+See: `pr-plan/lessons/`
 
 ---
 
@@ -578,6 +578,6 @@ mkdir -p ~/gt/.agents/$RIG/plans/
 
 ## References
 
-- **PR Research**: `~/.claude/skills/pr-research/SKILL.md`
-- **PR Preparation**: `~/.claude/skills/pr-prep/SKILL.md`
-- **Internal Planning**: `~/.claude/skills/plan/SKILL.md`
+- **PR Research**: `pr-research/SKILL.md`
+- **PR Preparation**: `pr-prep/SKILL.md`
+- **Internal Planning**: `plan/SKILL.md`

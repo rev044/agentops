@@ -4,6 +4,7 @@ set -euo pipefail
 
 # Determine SKILL_DIR relative to this script (works in plugins or ~/.claude)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC2034  # Reserved for future use
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 ERRORS=0

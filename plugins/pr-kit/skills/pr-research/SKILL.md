@@ -513,5 +513,5 @@ Next: /pr-plan ~/gt/.agents/<rig>/research/YYYY-MM-DD-pr-{repo}.md
 
 ## References
 
-- **PR Preparation**: `~/.claude/skills/pr-prep/SKILL.md`
+- **PR Preparation**: `pr-prep/SKILL.md`
 - **Output Template**: See "Output Template" section above (lines 359-457)

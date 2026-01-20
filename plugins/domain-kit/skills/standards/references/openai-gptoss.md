@@ -1,6 +1,5 @@
 # OpenAI GPT-OSS Standards
 
-<!-- Canonical source: ~/.claude/skills/standards/references/openai-gptoss.md -->
 <!-- Last synced: 2026-01-19 -->
 
 > **Purpose:** GPT-OSS-specific patterns. For tool calling, reasoning effort, and agent loops, see [Reasoning Models](./openai-reasoning.md).

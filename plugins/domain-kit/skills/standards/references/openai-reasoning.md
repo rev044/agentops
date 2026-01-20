@@ -1,6 +1,5 @@
 # OpenAI Reasoning Models Standards
 
-<!-- Canonical source: ~/.claude/skills/standards/references/openai-reasoning.md -->
 <!-- Last synced: 2026-01-19 -->
 
 > **Purpose:** Production patterns for o3 and o4-mini reasoning models with native tool calling.

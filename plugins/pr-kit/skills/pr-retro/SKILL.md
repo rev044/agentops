@@ -220,7 +220,7 @@ Extract what caused rejection:
 ### 5.1 Target File
 
 Update the "Lessons Learned" section in:
-`~/.claude/skills/pr-prep/SKILL.md`
+`pr-prep/SKILL.md`
 
 ### 5.2 Update Rules
 
@@ -428,7 +428,7 @@ The lessons captured here feed directly into `/pr-prep`:
 
 ## References
 
-- **PR Prep Skill**: `~/.claude/skills/pr-prep/SKILL.md`
-- **PR Research Skill**: `~/.claude/skills/pr-research/SKILL.md`
-- **Retro Skill**: `~/.claude/skills/retro/SKILL.md`
+- **PR Prep Skill**: `pr-prep/SKILL.md`
+- **PR Research Skill**: `pr-research/SKILL.md`
+- **Retro Skill**: `retro/SKILL.md`
 - **GitHub CLI**: https://cli.github.com/manual/gh_pr_view

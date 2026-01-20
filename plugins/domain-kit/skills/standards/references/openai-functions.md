@@ -1,6 +1,5 @@
 # OpenAI Function Calling Standards
 
-<!-- Canonical source: ~/.claude/skills/standards/references/openai-functions.md -->
 <!-- Last synced: 2026-01-19 -->
 
 > **Purpose:** Comprehensive function calling and tool definition standards for OpenAI API integrations.

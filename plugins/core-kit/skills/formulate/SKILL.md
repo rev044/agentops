@@ -88,7 +88,7 @@ mkdir -p ~/gt/.agents/$RIG/formulas/
 
 ### Phase 1: Context Discovery
 
-See `~/.claude/skills/research/references/context-discovery.md` for full 6-tier hierarchy.
+See `research/references/context-discovery.md` for full 6-tier hierarchy.
 
 **Quick version**: Code-Map -> Semantic Search -> Scoped Grep -> Source -> .agents/ -> External
 
@@ -525,7 +525,7 @@ See `references/examples.md` for detailed walkthroughs including:
 | Full templates | `references/templates.md` |
 | Detailed examples | `references/examples.md` |
 | Phase naming | `.claude/includes/phase-naming.md` |
-| Beads workflows | `~/.claude/skills/beads/SKILL.md` |
+| Beads workflows | `beads/SKILL.md` |
 | Decomposition patterns | `~/.claude/patterns/commands/plan/decomposition.md` |
 
 ### Essential Commands

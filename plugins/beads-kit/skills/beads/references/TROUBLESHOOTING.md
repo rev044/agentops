@@ -561,8 +561,8 @@ If the **bd-issue-tracking skill** provides incorrect guidance:
 
 1. **Check skill version:**
    ```bash
-   ls -la ~/.claude/skills/bd-issue-tracking/
-   head -20 ~/.claude/skills/bd-issue-tracking/SKILL.md
+   ls -la beads/
+   head -20 beads/SKILL.md
    ```
 
 2. **Report via Claude Code feedback** or user's GitHub

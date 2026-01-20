@@ -272,7 +272,7 @@ Check envtest binary download - may need to pre-cache in base image or allow net
 
 - [gastown-operator Tekton CI](https://github.com/olympus/gastown-operator/tree/main/deploy/tekton) - Working example
 - [Tekton Pre-build Artifact Pattern](~/.agents/patterns/tekton-prebuild-artifact.md) - Detailed pattern
-- [tekton](~/.claude/skills/tekton/) - General Tekton guidance
+- [tekton](tekton/) - General Tekton guidance
 - [go-operator-tekton-ci.formula.toml](~/.claude/molecules/) - Automated setup
 
 ---
@@ -283,5 +283,5 @@ When configuring Go operator CI, reference these standards:
 
 | File Type | Load Reference |
 |-----------|----------------|
-| `*.go` | `~/.claude/skills/standards/references/go.md` |
-| Pipeline YAML | `~/.claude/skills/standards/references/yaml.md` |
+| `*.go` | `standards/references/go.md` |
+| Pipeline YAML | `standards/references/yaml.md` |

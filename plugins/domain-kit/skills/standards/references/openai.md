@@ -1,6 +1,5 @@
 # OpenAI Standards & Style Guide
 
-<!-- Canonical source: ~/.claude/skills/standards/references/openai.md -->
 <!-- Last synced: 2026-01-19 -->
 
 > **Purpose:** Comprehensive OpenAI API standards for building production-grade AI applications and agents.
