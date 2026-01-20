@@ -68,15 +68,41 @@ The recommended meta for complex work:
 1. **Shift+Tab** to enter Claude's native plan mode
 2. **`/formulate`** to invoke the skill (slash commands guarantee activation)
 3. Claude explores, creates beads issues, organizes into dependency waves
-4. **Handoff** clears context and starts fresh crank session
-5. **`/crank <epic>`** executes all waves until done
+4. **Review the plan** - you can:
+   - Tweak it ("move issue X to wave 2")
+   - Reject it ("start over, different approach")
+   - Accept it ("looks good")
+   - **Accept and clear context** ← this is the handoff
+5. **Fresh session** receives the plan artifact and runs `/crank <epic>`
+
+### The Handoff
+
+When you accept the plan, Claude offers to clear context and hand off. This is key:
+
+```
+Claude: Plan ready. 12 issues across 4 waves.
+
+        Options:
+        - [Accept] Continue in this session
+        - [Accept + Clear] Start fresh crank session (recommended)
+        - [Revise] Make changes
+
+You: [Accept + Clear]
+
+Claude: Handing off to fresh session...
+        - Plan artifact saved
+        - Beads issues created
+        - Conversation JSONL path noted
+
+--- new session with fresh context ---
+```
 
 ### Why This Works
 
 - **Plan mode + /formulate** gives you review gates before execution
 - **Explicit `/slash` commands** guarantee the skill triggers (natural language works but isn't 100%)
-- **Handoff clears context** - planning burns tokens exploring, crank needs room to execute
-- **Crank session gets**: the plan artifact, the beads, and a pointer to the old conversation JSONL if needed
+- **"Accept + Clear" handoff** - planning burns tokens exploring, crank needs room to execute
+- **Fresh session gets**: the plan artifact, the beads, and a pointer to the old conversation JSONL if needed
 
 This is how we run everything. Plan in one session, crank in a fresh one.
 
