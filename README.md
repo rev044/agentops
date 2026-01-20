@@ -1,5 +1,14 @@
 # AgentOps
 
+```
+    ___                    __  ____
+   /   | ____ ____  ____  / /_/ __ \____  _____
+  / /| |/ __ `/ _ \/ __ \/ __/ / / / __ \/ ___/
+ / ___ / /_/ /  __/ / / / /_/ /_/ / /_/ (__  )
+/_/  |_\__, /\___/_/ /_/\__/\____/ .___/____/
+      /____/                    /_/
+```
+
 [![Version](https://img.shields.io/badge/version-0.1.0-orange)](https://github.com/boshu2/agentops/releases/tag/v0.1.0)
 [![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -9,9 +18,34 @@
 
 > **v0.1.0** - Pre-release for testing. Feedback welcome!
 
-Claude Code plugins for AI-assisted development workflows.
+Claude Code plugins for AI-assisted development workflows. Research, plan, implement, validate, learn.
 
-Built on [beads](https://github.com/steveyegge/beads) (git-native issue tracking) and [gastown](https://github.com/steveyegge/gastown) (multi-agent orchestration).
+---
+
+## The Workflow
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│   /research  ──►  /formulate  ──►  /implement  ──►  /vibe  ──►  /retro  │
+│                                                                          │
+│   understand      break down       execute          validate    extract  │
+│   the problem     into issues      the work         changes     lessons  │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+| Stage | Command | What It Does |
+|-------|---------|--------------|
+| **Research** | `/research` | Deep codebase exploration, understand the problem |
+| **Plan** | `/formulate` | Break down into trackable issues with dependencies |
+| **Execute** | `/implement` | Execute a single issue end-to-end |
+| **Validate** | `/vibe` | Check security, quality, architecture, accessibility |
+| **Learn** | `/retro` | Extract and preserve learnings |
+
+**Autonomous mode**: `/crank <epic>` runs the full loop until all issues are closed.
+
+---
 
 ## Install
 
@@ -19,10 +53,15 @@ Built on [beads](https://github.com/steveyegge/beads) (git-native issue tracking
 # Add marketplace
 claude plugin marketplace add boshu2/agentops
 
-# Install what you need
+# Start with general-kit (no dependencies)
+claude plugin install general-kit@agentops-marketplace
+
+# Add more as needed
 claude plugin install core-kit@agentops-marketplace
 claude plugin install vibe-kit@agentops-marketplace
 ```
+
+---
 
 ## Plugins
 
@@ -30,67 +69,75 @@ claude plugin install vibe-kit@agentops-marketplace
 
 | Tier | Plugins | Requirements |
 |------|---------|--------------|
-| **Standalone** | `general-kit`, `domain-kit` | None - works out of the box |
-| **Beads** | `core-kit`, `beads-kit`, `pr-kit` | [beads](https://github.com/steveyegge/beads) CLI |
+| **Standalone** | `general-kit`, `domain-kit` | None - works everywhere |
+| **Beads** | `core-kit`, `vibe-kit`, `beads-kit`, `pr-kit`, `docs-kit` | [beads](https://github.com/steveyegge/beads) CLI |
 | **Gas Town** | `gastown-kit`, `dispatch-kit` | [gastown](https://github.com/steveyegge/gastown) CLI |
 
-> **Architecture Note:** `general-kit` intentionally duplicates skills from `vibe-kit` and `docs-kit` to provide a self-contained, zero-dependency experience. Users who install specialized kits get the same skills with additional beads integration.
+> **Note**: This repo provides plugins FOR beads and gastown - it's not built on them. Start with `general-kit` which has no dependencies.
 
 ### All Plugins
 
 | Plugin | Skills | Purpose |
 |--------|--------|---------|
-| **general-kit** | `/research`, `/vibe`, `/vibe-docs`, `/bug-hunt`, `/complexity`, `/validation-chain`, `/doc`, `/oss-docs`, `/golden-init` | **Portable** - no dependencies |
-| **core-kit** | `/plan`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | Main workflow (requires beads) |
+| **general-kit** | `/research`, `/vibe`, `/vibe-docs`, `/bug-hunt`, `/complexity`, `/validation-chain`, `/doc`, `/oss-docs`, `/golden-init` | **Start here** - no dependencies |
+| **core-kit** | `/plan`, `/product`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | Structured workflow |
 | **vibe-kit** | `/vibe`, `/vibe-docs`, `/validation-chain`, `/bug-hunt`, `/complexity` | Validation and quality |
 | **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-prep`, `/pr-retro` | Open source contribution |
 | **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking |
 | **docs-kit** | `/doc`, `/doc-creator`, `/code-map-standard`, `/oss-docs`, `/golden-init` | Documentation generation |
-| **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent orchestration |
-| **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Gas Town worker management |
+| **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent communication |
+| **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Parallel worker orchestration |
 | **domain-kit** | 21 domain skills + `standards` library | Reference knowledge (auto-loaded) |
 
 **Expert Agents** (general-kit, vibe-kit): `security-expert`, `architecture-expert`, `code-quality-expert`, `ux-expert`
 
-### Recommended
+---
 
-**No dependencies:** `general-kit` - research, validation, documentation, expert agents
+## Recommended Setup
 
-**With beads:** Add `core-kit` for structured workflows, `beads-kit` for issue tracking
-
-**Full setup:** Add `gastown-kit` + `dispatch-kit` for multi-agent orchestration
-
-## Basic Workflow
-
+**Just exploring?**
+```bash
+claude plugin install general-kit@agentops-marketplace
 ```
-/research -> /formulate -> /implement -> /vibe -> /retro
+Research, validation, documentation, expert agents - no external tools needed.
+
+**Want structured workflows?**
+```bash
+brew install beads
+claude plugin install core-kit@agentops-marketplace
+claude plugin install beads-kit@agentops-marketplace
 ```
 
-| Command | Purpose |
-|---------|---------|
-| `/research` | Explore codebase, understand the problem |
-| `/formulate` | Break down into trackable beads issues |
-| `/implement` | Execute a single beads issue |
-| `/vibe` | Validate changes (security, quality, architecture) |
-| `/retro` | Extract learnings |
+**Full multi-agent setup?**
+```bash
+brew install beads gastown
+claude plugin install gastown-kit@agentops-marketplace
+claude plugin install dispatch-kit@agentops-marketplace
+```
 
-### Two Types of Planning
+---
+
+## OpenCode Compatibility
+
+These plugins can be translated to [opencode](https://github.com/opencode-ai/opencode) skills and commands:
+
+```bash
+# Use opencode's translation tool
+opencode translate ./plugins/general-kit --format opencode
+```
+
+The skill format is designed to be portable across AI coding assistants.
+
+---
+
+## Two Types of Planning
 
 | Type | When to Use |
 |------|-------------|
-| **Native plan mode** | Single-task implementation. Claude auto-enters, you review and approve, then Claude implements. |
-| **/formulate** | Epic decomposition into beads issues with dependencies. For multi-issue work that `/crank` executes. |
+| **Native plan mode** | Single task. Claude auto-enters plan mode, you review, Claude implements. |
+| **/formulate** | Epic decomposition. Creates beads issues with dependencies for `/crank` to execute. |
 
-### Autonomous Execution
-
-`/crank` is the autonomous implementation loop. It runs until an entire epic (and all child issues) are closed:
-
-```
-/crank <epic-id>   # Runs until ALL children are CLOSED
-```
-
-- **Crew mode**: Executes issues sequentially via `/implement`
-- **Mayor mode**: Dispatches to parallel workers via gastown
+---
 
 ## Learn More
 
@@ -98,7 +145,9 @@ claude plugin install vibe-kit@agentops-marketplace
 |----------|-------------|
 | [levels/](levels/) | Progressive tutorials from basics to full automation |
 | [reference/](reference/) | Framework docs (PDC, FAAFO, failure patterns) |
-| [12factoragentops.com](https://12factoragentops.com) | Interactive examples |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+
+---
 
 ## License
 
