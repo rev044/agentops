@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-01-21
+
+### Added
+- **Two-Tier Standards Architecture** - JIT loading strategy for language standards:
+  - **Tier 1** (slim refs, ~4-5KB): Always loaded via standards skill
+  - **Tier 2** (deep standards, ~15-25KB): Loaded with `--deep` flag
+  - Languages: Python, TypeScript, Shell, Go, YAML, JSON, Markdown
+
+- **domain-kit v0.1.1** - Tier 1 slim references:
+  - `standards/references/python.md` - Quick reference, common errors, prescan checks
+  - `standards/references/typescript.md` - Strict mode, ESLint, type patterns
+  - `standards/references/shell.md` - Required flags, shellcheck, error handling
+  - `standards/references/go.md` - Error patterns, interfaces, concurrency
+  - `standards/references/yaml.md` - yamllint, Helm/Kustomize patterns
+  - `standards/references/json.md` - Formatting, JSONL, schema validation
+  - `standards/references/markdown.md` - AI optimization, structure, tables
+
+- **vibe-kit v0.1.1** - Tier 2 deep standards:
+  - `vibe/references/python-standards.md` - Full complexity patterns, compliance grading
+  - `vibe/references/typescript-standards.md` - Discriminated unions, branded types
+  - `vibe/references/shell-standards.md` - ERR traps, security patterns
+  - `vibe/references/go-standards.md` - Custom errors, thread-safe patterns
+  - `vibe/references/yaml-standards.md` - Full Helm/Kustomize conventions
+  - `vibe/references/json-standards.md` - Configuration patterns, tooling
+  - `vibe/references/markdown-standards.md` - AI-agent optimization principles
+
+- **general-kit v0.1.1** - Tier 2 deep standards (zero-dependency version):
+  - Same 7 `*-standards.md` files as vibe-kit
+  - Standalone operation without beads integration
+
+### Changed
+- **vibe SKILL.md** (vibe-kit, general-kit) - Added "Two-Tier Standards Loading" documentation:
+  - Explains Tier 1 vs Tier 2 loading behavior
+  - Documents `--deep` flag for comprehensive audits
+  - Usage examples for different scenarios
+
+### Design Decisions
+- **Progressive disclosure**: Tier 1 gives quick answers, Tier 2 provides comprehensive audit capability
+- **Context efficiency**: Default validation stays under 40% context budget
+- **Portable**: general-kit has same deep standards for zero-dependency environments
+
 ## [0.1.2] - 2026-01-20
 
 ### Added
@@ -45,6 +86,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added tiered install instructions
   - Added upgrade path diagram (solo-kit → language-kit → beads-kit → crank-kit → gastown-kit)
   - Clarified legacy plugins and migration targets
+
+- **Argument Inference** - Enhanced `/crank` and `/vibe` to semantically infer targets:
+  - `/crank creating beads` now extracts "beads" keyword and searches for matching epic
+  - `/vibe the auth changes` now validates auth-related files from git diff
+  - Priority: conversational keywords > beads/git discovery > ask user
+  - Updated in: core-kit/crank, vibe-kit/vibe, general-kit/vibe
 
 ### Skill Counts
 | Kit | Skills | Agents | Tier |

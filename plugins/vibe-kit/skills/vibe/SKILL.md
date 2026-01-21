@@ -36,6 +36,7 @@ architecture, accessibility, complexity, and more.
 ## Quick Start
 
 ```bash
+/vibe                     # Auto-detect target (recent changes or staged files)
 /vibe recent              # Full validation of recent changes
 /vibe services/           # Validate a directory
 /vibe --fast recent       # Prescan only (no LLM, CI-friendly)
@@ -43,48 +44,62 @@ architecture, accessibility, complexity, and more.
 /vibe --all-aspects all   # Nuclear option: everything on everything
 ```
 
----
+## Argument Inference
 
-## Context Inference
+When invoked without an explicit target, infer from context:
 
-When `/vibe` is invoked without a target, check the preceding conversation for context:
+### Priority 1: Conversational Context
 
-### Priority Order
+If the user mentions a topic, file, or directory in the same message (e.g., "/vibe the auth changes"),
+use that as the target:
 
-1. **Explicit target** - If user provides a path/target, use it
-2. **Recent code changes in conversation** - If code was just written or edited, validate those files
-3. **Staged git changes** - If `git diff --cached` shows staged files, validate those
-4. **Unstaged changes** - If `git diff` shows modified files, validate those
-5. **Default to `recent`** - Fall back to recent git changes
-
-### Detection Logic
-
-```markdown
-## On Invocation Without Target
-
-1. Check if files were edited in this conversation:
-   - Look for recent Edit/Write tool calls
-   - Extract file paths from tool results
-   - If found: validate those specific files
-
-2. Check git state:
-   ```bash
-   git diff --cached --name-only  # Staged changes
-   git diff --name-only           # Unstaged changes
-   ```
-
-3. If nothing found, use `recent` (HEAD~1..HEAD)
+```bash
+# User said "/vibe the auth changes" -> validate auth-related files
+git diff --name-only | grep -i auth
+# Or search for auth directory
+find . -type d -name "*auth*" | head -1
 ```
 
-### Example
+**Extract keywords** from the user's message and match against changed files or directories.
 
-```
-User: [writes some code to services/auth/handler.py]
-User: /vibe
+### Priority 2: Git State Discovery
 
-→ Vibe infers target from conversation: services/auth/handler.py
-→ Validates that specific file instead of requiring explicit path
+```bash
+# 1. Check for staged changes
+STAGED=$(git diff --cached --name-only 2>/dev/null | head -20)
+if [[ -n "$STAGED" ]]; then
+    TARGET="staged"
+    echo "[VIBE] Auto-selected target: staged changes"
+    echo "$STAGED" | head -5
+    exit 0
+fi
+
+# 2. Check for unstaged changes
+UNSTAGED=$(git diff --name-only 2>/dev/null | head -20)
+if [[ -n "$UNSTAGED" ]]; then
+    TARGET="recent"
+    echo "[VIBE] Auto-selected target: recent changes (unstaged)"
+    echo "$UNSTAGED" | head -5
+    exit 0
+fi
+
+# 3. Check for recent commits (last 24h)
+RECENT_COMMITS=$(git log --since="24 hours ago" --oneline 2>/dev/null | head -5)
+if [[ -n "$RECENT_COMMITS" ]]; then
+    TARGET="recent"
+    echo "[VIBE] Auto-selected target: recent commits"
+    echo "$RECENT_COMMITS"
+    exit 0
+fi
+
+# 4. No changes found - ask user
+echo "[VIBE] No recent changes detected. Please specify a target:"
+echo "  /vibe services/        # Validate a directory"
+echo "  /vibe path/to/file.py  # Validate specific file"
+echo "  /vibe all              # Validate entire codebase"
 ```
+
+**Key**: Conversational keywords > staged > unstaged > recent commits > ask user.
 
 ---
 
@@ -124,6 +139,41 @@ Vibe validates across 8 aspects. By default, all aspects run.
 | **Deep** | `--deep` | Yes | Slowest | Audit, new codebase |
 | **Security** | `--security` | Yes | Medium | Security-focused |
 | **Arch** | `--arch` | Yes | Medium | Architecture review |
+
+### Two-Tier Standards Loading
+
+Vibe uses a two-tier JIT loading strategy for language standards:
+
+| Tier | Location | Size | Loaded When |
+|------|----------|------|-------------|
+| **Tier 1** | `standards/references/*.md` | ~4-5KB | Always (via standards skill) |
+| **Tier 2** | `vibe/references/*-standards.md` | ~15-25KB | With `--deep` flag |
+
+**Tier 1 (Quick Reference):** Slim refs (~150 lines) with:
+- Quick reference tables
+- Common errors and anti-patterns
+- Summary checklist
+- Prescan checks
+
+**Tier 2 (Deep Standards):** Comprehensive standards (~400-1000 lines) with:
+- Full table of contents
+- Detailed patterns and examples
+- Project structure guides
+- Compliance assessment with grading scale
+
+**Languages Covered:** Python, TypeScript, Shell, Go, YAML, JSON, Markdown
+
+```bash
+/vibe recent                  # Tier 1 only (default)
+/vibe --deep recent           # Tier 1 + Tier 2 (comprehensive audit)
+/vibe --deep all              # Full codebase audit with all standards
+```
+
+**When to use --deep:**
+- New codebase onboarding
+- Security/compliance audits
+- Architecture reviews
+- Training new team members
 
 ---
 
