@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Skill context mode** - Changed `context: fork` to `context: inline` for conversation-aware skills:
+  - `vibe` - Now has access to chat context for inferring validation targets
+  - `crank` - Now can identify epics mentioned in conversation
+  - `pre-mortem` - Now can analyze specs discussed in chat
+  - `post-mortem` - Now can identify completed epics from conversation
+  - Root cause: `context: fork` creates isolated execution without conversation history
+  - See `.agents/patches/2026-01-24-skill-context-inline.md` for details
+
 ## [0.1.3] - 2026-01-21
 
 ### Added
