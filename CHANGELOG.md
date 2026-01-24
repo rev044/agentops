@@ -7,17 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-01-24
+
+### Changed
+- **Standardized .agents/ paths** (core-kit v0.2.1, pr-kit v0.1.1) - All skills now use relative `.agents/` paths:
+  - Removed `~/gt/.agents/<rig>/` pattern in favor of portable `.agents/`
+  - Removed "Phase 0: Rig Detection" sections from all skills
+  - Skills affected: research, plan, formulate, product, pre-mortem, retro, post-mortem, implement
+  - PR skills affected: pr-research, pr-plan, pr-implement, pr-retro
+  - Gas Town-specific skills (gastown-kit, dispatch-kit) retain their specialized paths
+
+- **README mermaid diagrams** - Replaced ASCII art with GitHub-native mermaid:
+  - RPI Workflow diagram: `/research → /pre-mortem → /formulate → /crank → /post-mortem`
+  - Plan → Crank handoff diagram with pre-mortem and post-mortem
+  - Upgrade Path diagram
+
 ### Added
 - **RAG Formatting Standard** (domain-kit) - New reference for knowledge artifacts:
   - `standards/references/rag-formatting.md` - 200-400 char sections, frontmatter conventions
   - Knowledge Artifact Detection section in standards SKILL.md
   - No `confidence` column rule (query-time, not storage-time)
-
-### Changed
-- **README mermaid diagrams** - Replaced ASCII art with GitHub-native mermaid:
-  - RPI Workflow diagram with knowledge loop
-  - Plan → Crank handoff diagram
-  - Upgrade Path diagram
 
 - **RAG references added** (core-kit) - Knowledge-producing skills now reference RAG standard:
   - research, plan, formulate, pre-mortem, retro, post-mortem

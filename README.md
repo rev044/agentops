@@ -10,7 +10,7 @@
 </pre>
 
 <p align="center">
-  <a href="https://github.com/boshu2/agentops/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/version-0.3.0-orange" alt="Version"></a>
+  <a href="https://github.com/boshu2/agentops/releases/tag/v0.3.1"><img src="https://img.shields.io/badge/version-0.3.1-orange" alt="Version"></a>
   <a href="https://github.com/boshu2/agentops/actions/workflows/validate.yml"><img src="https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://docs.anthropic.com/en/docs/claude-code"><img src="https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet" alt="Claude Code"></a>
