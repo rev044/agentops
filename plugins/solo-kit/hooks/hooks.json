@@ -2,6 +2,18 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "description": "Code quality hooks for solo developers. Language-agnostic essentials.",
   "hooks": {
+    "Setup": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\n# Initialize .agents/ directory structure for knowledge artifacts\nmkdir -p .agents/{research,synthesis,plans,learnings,patterns,retros,specs,products,formulas} 2>/dev/null\necho '[Setup] Created .agents/ directories for knowledge artifacts' >&2\n\n# Check for CLAUDE.md\nif [ ! -f \"CLAUDE.md\" ]; then\n  echo '[Setup] NOTE: No CLAUDE.md found. Consider creating one for project-specific instructions.' >&2\nfi\n\n# Check for .gitignore entry\nif [ -f \".gitignore\" ]; then\n  if ! grep -q '.agents/' .gitignore 2>/dev/null; then\n    echo '[Setup] TIP: Consider adding .agents/ to .gitignore if artifacts should not be committed' >&2\n  fi\nfi"
+          }
+        ],
+        "description": "Initialize .agents/ directories on claude --init"
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "tool == \"Bash\" && tool_input.command matches \"git push\"",

@@ -141,6 +141,33 @@ flowchart LR
 /plugin install shell-kit@agentops     # if Shell/Bash
 ```
 
+**Initialize your repo** (creates `.agents/` directories):
+```bash
+claude --init
+```
+
+---
+
+## Claude Code 2.1+ Features Used
+
+These plugins leverage the latest Claude Code capabilities:
+
+| Feature | Version | How We Use It |
+|---------|---------|---------------|
+| **Setup hooks** | 2.1.10 | `claude --init` creates `.agents/` directories |
+| **Task dependencies** | 2.1.16 | `/crank` tracks wave dependencies |
+| **Explore agents** | 2.1.0 | `/research` dispatches Explore for discovery |
+| **MCP auto-mode** | 2.1.7 | Deferred tool discovery for context efficiency |
+| **Session ID** | 2.1.9 | `${CLAUDE_SESSION_ID}` for retro tracking |
+| **Plugin pinning** | 2.1.14 | Pin to specific commits for reproducibility |
+
+**Recommended settings** (add to your project's `settings.json`):
+```json
+{
+  "plansDirectory": ".agents/plans"
+}
+```
+
 ---
 
 ## Plugin Architecture
