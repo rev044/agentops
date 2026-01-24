@@ -6,7 +6,7 @@ Templates for extracting and documenting learnings during Phase 4.
 
 ## Learning Artifact Template
 
-Write to: `~/gt/.agents/<rig>/learnings/YYYY-MM-DD-{topic}.md`
+Write to: `.agents/learnings/YYYY-MM-DD-{topic}.md`
 
 ```markdown
 # Learning: [Concise Title]
@@ -79,7 +79,7 @@ How to apply this learning in the future:
 
 ## Pattern Artifact Template
 
-Write to: `~/gt/.agents/<rig>/patterns/{pattern-name}.md`
+Write to: `.agents/patterns/{pattern-name}.md`
 
 ```markdown
 # Pattern: [Pattern Name]
@@ -214,7 +214,7 @@ mcp__ai-platform__memory_store(
 
 ## Retro Summary Template
 
-Write to: `~/gt/.agents/<rig>/retros/YYYY-MM-DD-{epic}.md`
+Write to: `.agents/retros/YYYY-MM-DD-{epic}.md`
 
 ```markdown
 # Retro: [Epic Title]
@@ -339,7 +339,7 @@ bd list --parent=$EPIC | while read issue; do
 done
 
 # 3. Create artifacts
-mkdir -p ~/gt/.agents/$RIG/{learnings,patterns,retros}
+mkdir -p .agents/{learnings,patterns,retros}
 
 # 4. Store memories
 for learning in "${LEARNINGS[@]}"; do

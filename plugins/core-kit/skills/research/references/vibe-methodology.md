@@ -60,7 +60,7 @@ Don't write 500 lines then debug. Write 50, verify, continue.
 ```bash
 # Always check for prior art
 mcp__smart-connections-work__lookup --query="<topic>"
-ls ~/gt/.agents/$RIG/research/ | grep -i "<topic>"
+ls .agents/research/ | grep -i "<topic>"
 ```
 
 ---

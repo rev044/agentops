@@ -23,7 +23,7 @@ Product briefs force articulation of **why** before **how**. Based on Amazon's P
 and Google's Design Doc patterns, this skill ensures the customer problem is understood
 before decomposing into engineering tasks.
 
-**Output:** `~/gt/.agents/<rig>/products/YYYY-MM-DD-{topic-slug}.md`
+**Output:** `.agents/products/YYYY-MM-DD-{topic-slug}.md`
 
 **When to Use**:
 - Multi-day work (3+ days)
@@ -43,7 +43,7 @@ before decomposing into engineering tasks.
 
 ```
 0.  Rig Detection       -> Determine target rig
-0.5 Setup               -> mkdir -p ~/gt/.agents/<rig>/products/
+0.5 Setup               -> mkdir -p .agents/products/
 1.  Prior Art           -> Check for existing PRDs/product docs
 2.  Customer Discovery  -> Who, pain points, workarounds
 3.  Solution            -> Headline, problem mapping
@@ -55,26 +55,10 @@ before decomposing into engineering tasks.
 
 ---
 
-## Phase 0: Rig Detection
-
-**CRITICAL**: All `.agents/` artifacts go to `~/gt/.agents/<rig>/` based on the primary codebase.
-
-**Detection Logic**:
-1. Identify which rig's code is involved (e.g., files in `~/gt/ai-platform/` → `ai-platform`)
-2. If work spans multiple rigs, use `_cross-rig`
-3. If unknown/unclear, ask user
-
-| Files Being Read | Target Rig | Output Base |
-|------------------|------------|-------------|
-| `~/gt/athena/**` | `athena` | `~/gt/.agents/athena/` |
-| `~/gt/cyclopes/**` | `cyclopes` | `~/gt/.agents/cyclopes/` |
-| `~/gt/daedalus/**` | `daedalus` | `~/gt/.agents/daedalus/` |
-| Multiple rigs | `_cross-rig` | `~/gt/.agents/_cross-rig/` |
+## Setup
 
 ```bash
-# Set RIG variable for use in output paths
-RIG="athena"  # or cyclopes, daedalus, _cross-rig
-mkdir -p ~/gt/.agents/$RIG/products/
+mkdir -p .agents/products/
 ```
 
 ---
@@ -85,8 +69,8 @@ mkdir -p ~/gt/.agents/$RIG/products/
 
 ```bash
 # Existing product docs
-ls -la ~/gt/.agents/$RIG/products/ 2>/dev/null | grep -i "<keywords>"
-ls -la ~/gt/$RIG/docs/product/ 2>/dev/null
+ls -la .agents/products/ 2>/dev/null | grep -i "<keywords>"
+ls -la ./docs/product/ 2>/dev/null
 
 # Existing PRDs
 find ~/gt/$RIG -name "*PRD*" -o -name "*prd*" 2>/dev/null | head -5
@@ -125,7 +109,7 @@ mcp__smart-connections-work__lookup --query="$TOPIC product requirements custome
 
 ```bash
 # Check existing user feedback
-grep -ri "pain\|problem\|frustrat\|workaround" ~/gt/$RIG/docs/ 2>/dev/null | head -10
+grep -ri "pain\|problem\|frustrat\|workaround" ./docs/ 2>/dev/null | head -10
 
 # Check issue tracker for user complaints
 bd list --type=bug | head -10
@@ -202,7 +186,7 @@ This prevents scope creep and clarifies boundaries:
 
 ## Phase 6: Output
 
-Write to `~/gt/.agents/$RIG/products/YYYY-MM-DD-{topic-slug}.md`
+Write to `.agents/products/YYYY-MM-DD-{topic-slug}.md`
 
 Use template from `references/template.md`:
 
@@ -258,14 +242,14 @@ Use template from `references/template.md`:
 ## Phase 7: Confirm
 
 ```bash
-ls -la ~/gt/.agents/$RIG/products/
+ls -la .agents/products/
 ```
 
 Tell user:
 ```
-Product brief: ~/gt/.agents/$RIG/products/YYYY-MM-DD-topic.md
+Product brief: .agents/products/YYYY-MM-DD-topic.md
 
-Next: /formulate ~/gt/.agents/$RIG/products/YYYY-MM-DD-topic.md
+Next: /formulate .agents/products/YYYY-MM-DD-topic.md
 ```
 
 ---
@@ -319,10 +303,10 @@ This is a lightweight brief, not a full PRD. If it's taking longer:
 ```bash
 # Phase 0: Rig Detection
 RIG="athena"
-mkdir -p ~/gt/.agents/$RIG/products/
+mkdir -p .agents/products/
 
 # Phase 1: Prior Art
-ls ~/gt/.agents/$RIG/products/ | grep -i rate
+ls .agents/products/ | grep -i rate
 # None found
 
 # Phase 2: Customer Discovery
@@ -341,7 +325,7 @@ ls ~/gt/.agents/$RIG/products/ | grep -i rate
 # Non-goals: DDoS protection, enterprise tier, pricing changes
 
 # Phase 6: Output
-# Write ~/gt/.agents/athena/products/2026-01-11-api-rate-limiting.md
+# Write .agents/products/2026-01-11-api-rate-limiting.md
 
 # Phase 7: Confirm
 ```

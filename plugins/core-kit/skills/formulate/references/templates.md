@@ -6,7 +6,7 @@ Detailed templates for formula files and plan summaries.
 
 ## Formula File Template (.formula.toml)
 
-**Location:** `~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml`
+**Location:** `.agents/formulas/{topic-slug}.formula.toml`
 
 ### Structure Overview
 
@@ -186,13 +186,13 @@ needs = []
 
 ```bash
 # Preview what would be created
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --dry-run
+bd cook .agents/formulas/{topic-slug}.formula.toml --dry-run
 
 # Cook and save proto to database
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --persist
+bd cook .agents/formulas/{topic-slug}.formula.toml --persist
 
 # Cook with variable overrides
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --persist \
+bd cook .agents/formulas/{topic-slug}.formula.toml --persist \
   --var service_name=auth-middleware
 
 # Then pour to create actual issues
@@ -203,7 +203,7 @@ bd mol pour {topic-slug}
 
 ## Companion Plan Document Template
 
-**Location:** `~/gt/.agents/$RIG/formulas/{topic-slug}.md`
+**Location:** `.agents/formulas/{topic-slug}.md`
 
 ### Tag Vocabulary (REQUIRED)
 
@@ -283,10 +283,10 @@ Wave 2 (Depends on Wave 1):
 
 ```bash
 # Preview what would be created
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --dry-run
+bd cook .agents/formulas/{topic-slug}.formula.toml --dry-run
 
 # Cook proto to database
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --persist
+bd cook .agents/formulas/{topic-slug}.formula.toml --persist
 
 # Pour to create actual issues
 bd mol pour {topic-slug}
@@ -310,9 +310,9 @@ Output this after cooking/pouring a formula. This is the **handoff to crank**.
 
 # Formula Instantiated: [Goal Description]
 
-**Formula:** `~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml`
+**Formula:** `.agents/formulas/{topic-slug}.formula.toml`
 **Epic:** `<rig-prefix>-xxx`
-**Plan:** `~/gt/.agents/$RIG/formulas/{topic-slug}.md`
+**Plan:** `.agents/formulas/{topic-slug}.md`
 **Steps:** N steps across M waves
 
 ---

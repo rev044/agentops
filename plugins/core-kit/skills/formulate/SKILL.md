@@ -80,26 +80,10 @@ parallelization for `/crank` (autonomous) or `/implement-wave` (supervised).
 
 ## Instructions
 
-### Phase 0: Rig Detection
-
-**CRITICAL**: All `.agents/` artifacts go to `~/gt/.agents/<rig>/` based on the primary codebase being formulated.
-
-**Detection Logic**:
-1. Identify which rig's code is being formulated (e.g., files in `~/gt/ai-platform/` -> `ai-platform`)
-2. If formulating across multiple rigs, use `_cross-rig`
-3. If unknown/unclear, ask user
-
-| Files Being Read | Target Rig | Output Base |
-|------------------|------------|-------------|
-| `~/gt/athena/**` | `athena` | `~/gt/.agents/athena/` |
-| `~/gt/hephaestus/**` | `hephaestus` | `~/gt/.agents/hephaestus/` |
-| `~/gt/daedalus/**` | `daedalus` | `~/gt/.agents/daedalus/` |
-| Multiple rigs | `_cross-rig` | `~/gt/.agents/_cross-rig/` |
+### Setup
 
 ```bash
-# Set RIG variable for use in output paths
-RIG="athena"  # or hephaestus, daedalus, _cross-rig
-mkdir -p ~/gt/.agents/$RIG/formulas/
+mkdir -p .agents/formulas/
 ```
 
 ---
@@ -124,20 +108,20 @@ Before creating new formulas, check for existing work:
 
 ```bash
 # Town-level formulas (Mayor/orchestration work)
-grep -l "<goal keywords>" ~/gt/.agents/$RIG/formulas/*.toml 2>/dev/null | head -5
-grep -l "<goal keywords>" ~/gt/.agents/_cross-rig/formulas/*.toml 2>/dev/null | head -5
+grep -l "<goal keywords>" .agents/formulas/*.toml 2>/dev/null | head -5
+grep -l "<goal keywords>" .agents/formulas/*.toml 2>/dev/null | head -5
 
 # Crew workspace formulas (implementation work - may have older artifacts)
-grep -l "<goal keywords>" ~/gt/$RIG/crew/<user>/.agents/formulas/*.toml 2>/dev/null | head -5
-grep -l "<goal keywords>" ~/gt/$RIG/crew/<user>/.beads/formulas/*.toml 2>/dev/null | head -5
+grep -l "<goal keywords>" ./crew/<user>/.agents/formulas/*.toml 2>/dev/null | head -5
+grep -l "<goal keywords>" ./crew/<user>/.beads/formulas/*.toml 2>/dev/null | head -5
 
 # Existing beads epics
 bd list --type=epic | grep -i "<goal keywords>"
 ```
 
 **Note**: Prior formulas may exist in either location:
-- **Town-level** (`~/gt/.agents/<rig>/formulas/`) - Mayor/orchestration formulas
-- **Crew workspace** (`~/gt/<rig>/crew/<user>/.agents/formulas/`) - Implementation formulas
+- **Town-level** (`.agents/formulas/`) - Mayor/orchestration formulas
+- **Crew workspace** (`./crew/<user>/.agents/formulas/`) - Implementation formulas
 
 | Prior Formula Status | Action |
 |----------------------|--------|
@@ -233,7 +217,7 @@ Analyze the decomposed features and prepare the formula structure:
 
 ### Phase 5: Output Formula TOML File
 
-**CRITICAL**: Write the formula to `~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml`
+**CRITICAL**: Write the formula to `.agents/formulas/{topic-slug}.formula.toml`
 
 ```toml
 # Formula: {Goal Name}
@@ -338,13 +322,13 @@ After writing the formula file, use the two-step process to create beads:
 **Step 1: Cook** - Transform formula to proto (saves to database)
 ```bash
 # Preview what would be created (dry run)
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --dry-run
+bd cook .agents/formulas/{topic-slug}.formula.toml --dry-run
 
 # Cook and persist proto to database
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --persist
+bd cook .agents/formulas/{topic-slug}.formula.toml --persist
 
 # With variable substitution
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --persist \
+bd cook .agents/formulas/{topic-slug}.formula.toml --persist \
   --var service_name=rate-limiter
 ```
 
@@ -411,10 +395,10 @@ For formulas that need customization before instantiation:
 
 ```bash
 # Edit the formula file to adjust variables
-vim ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml
+vim .agents/formulas/{topic-slug}.formula.toml
 
 # Preview with cook (outputs JSON proto)
-bd cook ~/gt/.agents/$RIG/formulas/{topic-slug}.formula.toml --mode=runtime
+bd cook .agents/formulas/{topic-slug}.formula.toml --mode=runtime
 
 # Then pour to create beads
 bd mol pour {topic-slug} --var service_name=custom-name
@@ -424,7 +408,7 @@ bd mol pour {topic-slug} --var service_name=custom-name
 
 ### Phase 7: Write Companion Documentation
 
-Create a companion markdown file at `~/gt/.agents/$RIG/formulas/{topic-slug}.md` with:
+Create a companion markdown file at `.agents/formulas/{topic-slug}.md` with:
 - Frontmatter with date, goal, epic ID, tags
 - Features table with dependencies
 - Wave execution order table
@@ -442,9 +426,9 @@ Output structured summary with crank handoff:
 ```markdown
 # Formula Complete: [Goal]
 
-**Formula:** `~/gt/.agents/$RIG/formulas/{goal-slug}.formula.toml`
+**Formula:** `.agents/formulas/{goal-slug}.formula.toml`
 **Epic:** `ai-platform-xxx`
-**Plan:** `~/gt/.agents/$RIG/formulas/{goal-slug}.md`
+**Plan:** `.agents/formulas/{goal-slug}.md`
 **Issues:** N features across M waves
 
 ## Wave Execution Order
@@ -489,7 +473,7 @@ Output structured summary with crank handoff:
 | Create children depending on epic | Track via comment on epic |
 | Skip file annotations | Add "Files affected: ..." |
 | Create 10+ features at once | Group into 3-5 per wave |
-| Skip prior formula check | Search ~/gt/.agents/$RIG/formulas/ first |
+| Skip prior formula check | Search .agents/formulas/ first |
 | Grep source blindly | Use code-map signposts |
 | Forget to start epic | `bd update <epic> --status in_progress` |
 | Create one-off plans for repeatable patterns | Create a formula template |
@@ -591,7 +575,7 @@ When formulation is complete:
 ```
 
 This will:
-1. Save a checkpoint to `~/gt/.agents/$RIG/checkpoints/`
+1. Save a checkpoint to `.agents/checkpoints/`
 2. Remind you to start a fresh session
 3. Provide recovery commands for the next phase
 

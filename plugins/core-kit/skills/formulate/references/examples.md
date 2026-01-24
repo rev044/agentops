@@ -16,7 +16,7 @@ mcp__smart-connections-work__lookup --query="OAuth2 GitLab authentication" --lim
 cat docs/code-map/README.md | grep -i auth
 
 # Phase 0.5: Prior Formula Check
-ls ~/gt/.agents/ai-platform/formulas/*.formula.toml | xargs grep -l "OAuth\|GitLab"
+ls .agents/formulas/*.formula.toml | xargs grep -l "OAuth\|GitLab"
 bd list --type=epic | grep -i oauth
 
 # Phase 1: Research
@@ -33,7 +33,7 @@ bd list --type=epic | grep -i oauth
 # Phase 3: Create Formula Template
 ```
 
-**Formula output** (`~/gt/.agents/ai-platform/formulas/oauth-gitlab.formula.toml`):
+**Formula output** (`.agents/formulas/oauth-gitlab.formula.toml`):
 
 ```toml
 # Formula: OAuth2 GitLab Integration
@@ -105,7 +105,7 @@ needs = []
 
 ```bash
 # Phase 4: Cook and Pour
-bd cook ~/gt/.agents/ai-platform/formulas/oauth-gitlab.formula.toml --persist
+bd cook .agents/formulas/oauth-gitlab.formula.toml --persist
 # -> Cooked proto: oauth-gitlab
 
 bd mol pour oauth-gitlab
@@ -129,10 +129,10 @@ bd mol pour oauth-gitlab
 
 ```bash
 # Phase 0.5: Find existing formula
-ls ~/gt/.agents/ai-platform/formulas/*.formula.toml | xargs grep -l "oauth"
+ls .agents/formulas/*.formula.toml | xargs grep -l "oauth"
 # Found: oauth-gitlab.formula.toml
 
-cat ~/gt/.agents/ai-platform/formulas/oauth-gitlab.formula.toml
+cat .agents/formulas/oauth-gitlab.formula.toml
 # Formula is parameterized with {{provider}}
 ```
 
@@ -158,8 +158,8 @@ This will create the same 5-step structure but for GitHub instead of GitLab."
 
 ```bash
 # Find recent research
-ls -lt ~/gt/.agents/ai-platform/research/*.md | head -3
-cat ~/gt/.agents/ai-platform/research/2026-01-03-oauth-investigation.md
+ls -lt .agents/research/*.md | head -3
+cat .agents/research/2026-01-03-oauth-investigation.md
 
 # Research document contains:
 # ## Recommendations
@@ -168,7 +168,7 @@ cat ~/gt/.agents/ai-platform/research/2026-01-03-oauth-investigation.md
 # 3. Add audit logging (P2) - compliance requirement
 ```
 
-**Formula output** (`~/gt/.agents/ai-platform/formulas/oauth-hardening.formula.toml`):
+**Formula output** (`.agents/formulas/oauth-hardening.formula.toml`):
 
 ```toml
 # Formula: OAuth Hardening
@@ -223,7 +223,7 @@ needs = []
 
 **Scenario**: Feature with multiple parallel tracks that merge.
 
-**Formula output** (`~/gt/.agents/ai-platform/formulas/multi-tenant.formula.toml`):
+**Formula output** (`.agents/formulas/multi-tenant.formula.toml`):
 
 ```toml
 # Formula: Multi-tenant Support
@@ -304,7 +304,7 @@ needs = ["db-rls", "api-endpoints"]
 
 **Scenario**: Small goal, simple formula.
 
-**Formula output** (`~/gt/.agents/ai-platform/formulas/rate-limiting-quick.formula.toml`):
+**Formula output** (`.agents/formulas/rate-limiting-quick.formula.toml`):
 
 ```toml
 # Formula: Rate Limiting (Quick)
@@ -345,7 +345,7 @@ needs = []
 ```markdown
 # Formula Instantiated: Rate Limiting for Auth
 
-**Formula:** `~/gt/.agents/ai-platform/formulas/rate-limiting-quick.formula.toml`
+**Formula:** `.agents/formulas/rate-limiting-quick.formula.toml`
 **Steps:** 2 steps (Wave 1 only - all parallel)
 
 | ID | Step | Ready |

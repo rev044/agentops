@@ -225,7 +225,7 @@ When implementation of an epic or major milestone is complete:
 ```
 
 This will:
-1. Save a checkpoint to `~/gt/.agents/$RIG/checkpoints/`
+1. Save a checkpoint to `.agents/checkpoints/`
 2. Remind you to start a fresh session for the next epic
 3. Provide recovery commands
 

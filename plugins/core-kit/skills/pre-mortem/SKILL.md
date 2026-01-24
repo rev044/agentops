@@ -220,12 +220,12 @@ Apply lessons learned to create enhanced spec:
 
 ### Files to Create
 
-1. **Analysis Artifact**: `~/gt/.agents/<rig>/specs/YYYY-MM-DD-{spec-name}-analysis.md`
+1. **Analysis Artifact**: `.agents/specs/YYYY-MM-DD-{spec-name}-analysis.md`
    - All iterations with lessons
    - Categorized findings
    - Enhancement checklist
 
-2. **Enhanced Spec**: `~/gt/.agents/<rig>/specs/YYYY-MM-DD-{spec-name}-v2.md`
+2. **Enhanced Spec**: `.agents/specs/YYYY-MM-DD-{spec-name}-v2.md`
    - Original spec with all enhancements applied
    - Change log from v1
 

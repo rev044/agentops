@@ -70,10 +70,10 @@ gt sling <issue> <rig>
 tmux capture-pane -t gt-<rig>-<polecat> -p | grep -i "fail\|error"
 
 # Check validation artifacts
-ls ~/gt/<rig>/polecats/<polecat>/.agents/validations/
+ls ./polecats/<polecat>/.agents/validations/
 
 # Check CI if applicable
-git -C ~/gt/<rig>/polecats/<polecat> log -1 --format="%H" | xargs gh run list --commit
+git -C ./polecats/<polecat> log -1 --format="%H" | xargs gh run list --commit
 ```
 
 **Causes**:
@@ -169,10 +169,10 @@ tmux capture-pane -t gt-<rig>-<polecat> -p | grep -i "context\|token\|limit"
 
 ```bash
 # Step 1: Checkpoint current progress
-git -C ~/gt/<rig>/polecats/<polecat> stash  # If uncommitted work
+git -C ./polecats/<polecat> stash  # If uncommitted work
 
 # Step 2: Check what was accomplished
-git -C ~/gt/<rig>/polecats/<polecat> log --oneline -5
+git -C ./polecats/<polecat> log --oneline -5
 
 # Step 3: Update issue with progress
 bd comments add <issue> "Partial progress: <what was done>. Remaining: <what's left>"
@@ -198,7 +198,7 @@ gt sling <issue> <rig>
 **Detection**:
 
 ```bash
-git -C ~/gt/<rig>/polecats/<polecat> status | grep -i "conflict\|diverged"
+git -C ./polecats/<polecat> status | grep -i "conflict\|diverged"
 ```
 
 **Causes**:
@@ -210,21 +210,21 @@ git -C ~/gt/<rig>/polecats/<polecat> status | grep -i "conflict\|diverged"
 
 ```bash
 # For beads conflicts (most common)
-git -C ~/gt/<rig>/polecats/<polecat> checkout --theirs .beads/issues.jsonl
-git -C ~/gt/<rig>/polecats/<polecat> add .beads/issues.jsonl
-git -C ~/gt/<rig>/polecats/<polecat> commit -m "merge: resolve beads conflict"
+git -C ./polecats/<polecat> checkout --theirs .beads/issues.jsonl
+git -C ./polecats/<polecat> add .beads/issues.jsonl
+git -C ./polecats/<polecat> commit -m "merge: resolve beads conflict"
 
 # For code conflicts
 # Step 1: Check if conflict is trivial
-git -C ~/gt/<rig>/polecats/<polecat> diff --name-only --diff-filter=U
+git -C ./polecats/<polecat> diff --name-only --diff-filter=U
 
 # Step 2: If simple, nudge polecat to resolve
 tmux send-keys -t gt-<rig>-<polecat> "resolve the git conflicts and continue" Enter
 
 # Step 3: If complex, abort and re-sling with fresh base
-git -C ~/gt/<rig>/polecats/<polecat> merge --abort
-git -C ~/gt/<rig>/polecats/<polecat> fetch origin
-git -C ~/gt/<rig>/polecats/<polecat> reset --hard origin/main
+git -C ./polecats/<polecat> merge --abort
+git -C ./polecats/<polecat> fetch origin
+git -C ./polecats/<polecat> reset --hard origin/main
 gt sling <issue> <rig>
 ```
 

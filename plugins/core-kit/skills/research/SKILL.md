@@ -15,7 +15,7 @@ skills:
 
 # Research Skill
 
-Deep codebase exploration → `~/gt/.agents/<rig>/research/`
+Deep codebase exploration → `.agents/research/`
 
 ## Role in the Brownian Ratchet
 
@@ -37,7 +37,7 @@ and consolidates, creating a single source of truth.
 **Gate Criteria:**
 - [ ] Single canonical reference created
 - [ ] Conflicting findings resolved
-- [ ] Artifact written to `~/gt/.agents/$RIG/synthesis/`
+- [ ] Artifact written to `.agents/synthesis/`
 
 **Without synthesis, research is noise.**
 
@@ -54,22 +54,18 @@ and consolidates, creating a single source of truth.
 ## Workflow
 
 ```
-1. Rig Detection   -> Where does output go?
+1. Setup           -> Create .agents/ directories
 2. Prior Art       -> What already exists? (CRITICAL)
 3. Context Discovery -> 6-tier systematic exploration
 4. Synthesis       -> Analyze, identify patterns
 5. Output          -> Write research doc
 ```
 
-## Rig Detection
+## Setup
 
-Output goes to `~/gt/.agents/<rig>/research/` based on code being explored:
-
-| Code Location | Rig | Output |
-|---------------|-----|--------|
-| `~/gt/athena/**` | athena | `~/gt/.agents/athena/research/` |
-| `~/gt/daedalus/**` | daedalus | `~/gt/.agents/daedalus/research/` |
-| Multiple rigs | _cross-rig | `~/gt/.agents/_cross-rig/research/` |
+```bash
+mkdir -p .agents/{research,synthesis}/
+```
 
 ## Prior Art (Never Skip)
 
@@ -77,16 +73,16 @@ Output goes to `~/gt/.agents/<rig>/research/` based on code being explored:
 
 ```bash
 # 1. Prior research (fastest, most relevant)
-ls ~/gt/.agents/$RIG/research/ | grep -i "$TOPIC"
+ls .agents/research/ | grep -i "$TOPIC"
 
 # 2. Learnings from post-mortems (lessons already learned)
-ls ~/gt/.agents/$RIG/learnings/ 2>/dev/null | grep -i "$TOPIC"
+ls .agents/learnings/ 2>/dev/null | grep -i "$TOPIC"
 
 # 3. Retros from similar work (what went wrong/right before)
-ls ~/gt/.agents/$RIG/retros/ 2>/dev/null | grep -i "$TOPIC"
+ls .agents/retros/ 2>/dev/null | grep -i "$TOPIC"
 
 # 4. Patterns that might apply (reusable solutions)
-ls ~/gt/.agents/$RIG/patterns/ 2>/dev/null
+ls .agents/patterns/ 2>/dev/null
 
 # 5. MCP memory recall (stored insights across sessions)
 mcp__ai-platform__memory_recall(query="$TOPIC", limit=5)
@@ -122,7 +118,7 @@ If prior exists: **reference it**, don't duplicate.
 
 ## Output
 
-Write to `~/gt/.agents/$RIG/research/YYYY-MM-DD-{topic}.md`
+Write to `.agents/research/YYYY-MM-DD-{topic}.md`
 
 **Required sections:**
 - Executive Summary
@@ -161,7 +157,7 @@ When research is complete:
 ```
 
 This will:
-1. Save a checkpoint to `~/gt/.agents/$RIG/checkpoints/`
+1. Save a checkpoint to `.agents/checkpoints/`
 2. Remind you to start a fresh session
 3. Provide recovery commands for the next phase
 
@@ -202,7 +198,7 @@ Research (broad) -> Synthesis (consolidate) -> Plan (tasks) -> Implement (execut
 ```
 
 **Artifact:** After research, create:
-`~/gt/.agents/$RIG/synthesis/YYYY-MM-DD-{topic}.md`
+`.agents/synthesis/YYYY-MM-DD-{topic}.md`
 
 **See:** `~/.claude/CLAUDE.md` Post-Mortem Learnings (2026-01)
 

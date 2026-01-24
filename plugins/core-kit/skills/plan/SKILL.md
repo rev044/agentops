@@ -67,26 +67,10 @@ dependency ordering, and wave-based parallelization for `/crank` (autonomous) or
 
 ## Instructions
 
-### Phase 0: Rig Detection
-
-**CRITICAL**: All `.agents/` artifacts go to `~/gt/.agents/<rig>/` based on the primary codebase being planned.
-
-**Detection Logic**:
-1. Identify which rig's code you're planning (e.g., files in `~/gt/ai-platform/` → `ai-platform`)
-2. If planning across multiple rigs, use `_cross-rig`
-3. If unknown/unclear, ask user
-
-| Files Being Read | Target Rig | Output Base |
-|------------------|------------|-------------|
-| `~/gt/athena/**` | `athena` | `~/gt/.agents/athena/` |
-| `~/gt/hephaestus/**` | `hephaestus` | `~/gt/.agents/hephaestus/` |
-| `~/gt/daedalus/**` | `daedalus` | `~/gt/.agents/daedalus/` |
-| Multiple rigs | `_cross-rig` | `~/gt/.agents/_cross-rig/` |
+### Setup
 
 ```bash
-# Set RIG variable for use in output paths
-RIG="athena"  # or hephaestus, daedalus, _cross-rig
-mkdir -p ~/gt/.agents/$RIG/plans/
+mkdir -p .agents/plans/
 ```
 
 ---
@@ -111,19 +95,19 @@ Before creating new plans, check for existing work:
 
 ```bash
 # Town-level plans (Mayor/orchestration work)
-grep -l "<goal keywords>" ~/gt/.agents/$RIG/plans/*.md 2>/dev/null | head -5
-grep -l "<goal keywords>" ~/gt/.agents/_cross-rig/plans/*.md 2>/dev/null | head -5
+grep -l "<goal keywords>" .agents/plans/*.md 2>/dev/null | head -5
+grep -l "<goal keywords>" .agents/plans/*.md 2>/dev/null | head -5
 
 # Crew workspace plans (implementation work - may have older artifacts)
-grep -l "<goal keywords>" ~/gt/$RIG/crew/<user>/.agents/plans/*.md 2>/dev/null | head -5
+grep -l "<goal keywords>" ./crew/<user>/.agents/plans/*.md 2>/dev/null | head -5
 
 # Existing beads epics
 bd list --type=epic | grep -i "<goal keywords>"
 ```
 
 **Note**: Prior plans may exist in either location:
-- **Town-level** (`~/gt/.agents/<rig>/plans/`) - Mayor/orchestration plans
-- **Crew workspace** (`~/gt/<rig>/crew/<user>/.agents/plans/`) - Implementation plans
+- **Town-level** (`.agents/plans/`) - Mayor/orchestration plans
+- **Crew workspace** (`./crew/<user>/.agents/plans/`) - Implementation plans
 
 | Prior Plan Status | Action |
 |-------------------|--------|
@@ -227,7 +211,7 @@ bd comment <id> "Files affected: src/auth/middleware.py, tests/test_auth.py"
 
 ### Phase 5: Write Plan to Memory
 
-Write to `~/gt/.agents/$RIG/plans/YYYY-MM-DD-{goal-slug}.md`
+Write to `.agents/plans/YYYY-MM-DD-{goal-slug}.md`
 
 See `references/templates.md` for full template. Key elements:
 - Frontmatter with date, goal, epic ID, tags
@@ -246,7 +230,7 @@ Output structured summary with crank handoff:
 # Plan Complete: [Goal]
 
 **Epic:** `ai-platform-xxx`
-**Plan:** `~/gt/.agents/$RIG/plans/YYYY-MM-DD-goal-slug.md`
+**Plan:** `.agents/plans/YYYY-MM-DD-goal-slug.md`
 **Issues:** N features across M waves
 
 ## Wave Execution Order
@@ -291,7 +275,7 @@ Output structured summary with crank handoff:
 | Create children depending on epic | Track via comment on epic |
 | Skip file annotations | Add "Files affected: ..." |
 | Create 10+ features at once | Group into 3-5 per wave |
-| Skip prior plan check | Search ~/gt/.agents/$RIG/plans/ first |
+| Skip prior plan check | Search .agents/plans/ first |
 | Grep source blindly | Use code-map signposts |
 | Forget to start epic | `bd update <epic> --status in_progress` |
 
@@ -310,7 +294,7 @@ Output structured summary with crank handoff:
 - [ ] Verified with `bd show <epic-id>`
 - [ ] Synced with `bd sync`
 - [ ] Output summary with crank/implement-wave handoff
-- [ ] Wrote plan to `~/gt/.agents/$RIG/plans/`
+- [ ] Wrote plan to `.agents/plans/`
 
 ---
 
@@ -327,10 +311,10 @@ cat docs/code-map/README.md | grep -i "gateway\|rate"
 
 # Phase 0: Rig Detection (files in athena → RIG=athena)
 RIG="athena"
-mkdir -p ~/gt/.agents/$RIG/plans/
+mkdir -p .agents/plans/
 
 # Phase 1.5: Prior Plan Check
-grep -l "rate" ~/gt/.agents/$RIG/plans/*.md
+grep -l "rate" .agents/plans/*.md
 bd list --type=epic | grep -i rate
 # No existing work found
 
@@ -362,7 +346,7 @@ bd dep add ai-platform-203 ai-platform-201
 bd comments add ai-platform-200 "Children: ai-platform-201, ai-platform-202, ai-platform-203"
 bd update ai-platform-200 --status in_progress
 
-# Phase 5: Write plan to ~/gt/.agents/athena/plans/2026-01-03-rate-limiting.md
+# Phase 5: Write plan to .agents/plans/2026-01-03-rate-limiting.md
 
 # Phase 5: Output summary with crank handoff
 ```

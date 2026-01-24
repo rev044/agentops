@@ -355,7 +355,7 @@ Extract concrete learnings to artifacts:
 
 ```bash
 # Output location
-LEARNING_PATH="~/gt/.agents/$RIG/learnings/$(date +%Y-%m-%d)-$EPIC.md"
+LEARNING_PATH=".agents/learnings/$(date +%Y-%m-%d)-$EPIC.md"
 ```
 
 **Learning Template:**
@@ -390,7 +390,7 @@ How to use this knowledge in the future.
 If a reusable pattern was discovered:
 
 ```bash
-PATTERN_PATH="~/gt/.agents/$RIG/patterns/$PATTERN_NAME.md"
+PATTERN_PATH=".agents/patterns/$PATTERN_NAME.md"
 ```
 
 ### 4.3 Memories
@@ -416,7 +416,7 @@ If `--update-spec` is set and original spec exists:
 
 ```bash
 # Find original spec
-SPEC=$(grep -l "$EPIC" ~/gt/.agents/$RIG/specs/*.md | head -1)
+SPEC=$(grep -l "$EPIC" .agents/specs/*.md | head -1)
 
 if [[ -n "$SPEC" ]]; then
     # Append lessons learned section
@@ -492,7 +492,7 @@ fi
 - **Patterns:** 2 flagged for review
 
 ## Knowledge Extracted
-- **Learnings:** ~/gt/.agents/$RIG/learnings/YYYY-MM-DD-epic.md
+- **Learnings:** .agents/learnings/YYYY-MM-DD-epic.md
 - **Patterns:** 1 new pattern discovered
 - **Memories:** 3 stored in MCP
 
@@ -678,19 +678,19 @@ POST-MORTEM OUTPUTS              →    RESEARCH INPUTS
 
 1. RETROS (.agents/retros/)
    "What went wrong with auth?"
-                                 →    ls ~/gt/.agents/$RIG/retros/ | grep auth
+                                 →    ls .agents/retros/ | grep auth
                                       # Found: 2026-01-15-auth-migration-retro.md
                                       # Contains: "Token refresh race condition"
 
 2. LEARNINGS (.agents/learnings/)
    "Concrete insight about testing"
-                                 →    ls ~/gt/.agents/$RIG/learnings/ | grep test
+                                 →    ls .agents/learnings/ | grep test
                                       # Found: 2026-01-10-testing-learnings.md
                                       # Contains: "Mock external services, not internal"
 
 3. PATTERNS (.agents/patterns/)
    "Reusable solution to X"
-                                 →    ls ~/gt/.agents/$RIG/patterns/
+                                 →    ls .agents/patterns/
                                       # Found: retry-with-backoff.md
                                       # Applies to: network failures
 
@@ -706,7 +706,7 @@ POST-MORTEM OUTPUTS              →    RESEARCH INPUTS
 
 5. UPDATED SPECS
    Original spec + learnings
-                                 →    grep -l "$TOPIC" ~/gt/.agents/$RIG/specs/
+                                 →    grep -l "$TOPIC" .agents/specs/
                                       # Found spec with "Post-Implementation Learnings" section
 ```
 
@@ -718,19 +718,19 @@ For the loop to work, `/research` MUST check these sources:
 # Phase: Prior Art (Tier 5) - MUST include:
 
 # 1. Retros from similar work
-ls ~/gt/.agents/$RIG/retros/ 2>/dev/null | grep -i "$TOPIC" | head -5
+ls .agents/retros/ 2>/dev/null | grep -i "$TOPIC" | head -5
 
 # 2. Learnings from similar work
-ls ~/gt/.agents/$RIG/learnings/ 2>/dev/null | grep -i "$TOPIC" | head -5
+ls .agents/learnings/ 2>/dev/null | grep -i "$TOPIC" | head -5
 
 # 3. Patterns that might apply
-ls ~/gt/.agents/$RIG/patterns/ 2>/dev/null
+ls .agents/patterns/ 2>/dev/null
 
 # 4. MCP memory recall
 mcp__ai-platform__memory_recall(query="$TOPIC", limit=5)
 
 # 5. Prior research (already in /research)
-ls ~/gt/.agents/$RIG/research/ | grep -i "$TOPIC"
+ls .agents/research/ | grep -i "$TOPIC"
 ```
 
 ### Verification: Is the Loop Closed?
@@ -745,19 +745,19 @@ TOPIC="authentication"
 echo "=== Checking Knowledge Loop for: $TOPIC ==="
 
 echo -e "\n1. Retros:"
-ls ~/gt/.agents/$RIG/retros/*$TOPIC* 2>/dev/null || echo "   None"
+ls .agents/retros/*$TOPIC* 2>/dev/null || echo "   None"
 
 echo -e "\n2. Learnings:"
-ls ~/gt/.agents/$RIG/learnings/*$TOPIC* 2>/dev/null || echo "   None"
+ls .agents/learnings/*$TOPIC* 2>/dev/null || echo "   None"
 
 echo -e "\n3. Patterns:"
-grep -l "$TOPIC" ~/gt/.agents/$RIG/patterns/*.md 2>/dev/null || echo "   None"
+grep -l "$TOPIC" .agents/patterns/*.md 2>/dev/null || echo "   None"
 
 echo -e "\n4. MCP Memories:"
 # mcp__ai-platform__memory_recall(query="$TOPIC", limit=3)
 
 echo -e "\n5. Prior Research:"
-ls ~/gt/.agents/$RIG/research/*$TOPIC* 2>/dev/null || echo "   None"
+ls .agents/research/*$TOPIC* 2>/dev/null || echo "   None"
 ```
 
 ### Anti-Pattern: Broken Loop

@@ -20,9 +20,9 @@ Extract learnings, patterns, and insights from completed work.
 ## Overview
 
 Transform session knowledge into durable, searchable artifacts:
-- `~/gt/.agents/<rig>/retros/` - Session retrospective summaries
-- `~/gt/.agents/<rig>/learnings/` - Reusable knowledge extracted
-- `~/gt/.agents/<rig>/patterns/` - Reusable patterns discovered
+- `.agents/retros/` - Session retrospective summaries
+- `.agents/learnings/` - Reusable knowledge extracted
+- `.agents/patterns/` - Reusable patterns discovered
 
 **When to Use**:
 - After completing significant work (epic closed)
@@ -31,26 +31,10 @@ Transform session knowledge into durable, searchable artifacts:
 
 ---
 
-## Phase 0: Rig Detection
-
-**CRITICAL**: All `.agents/` artifacts go to `~/gt/.agents/<rig>/` based on the work being retrospected.
-
-**Detection Logic**:
-1. Identify which rig the completed work was in (from beads prefix or file paths)
-2. If retro covers multiple rigs, use `_cross-rig`
-3. If unknown/unclear, ask user
-
-| Work Context | Target Rig | Output Base |
-|--------------|------------|-------------|
-| `ap-*` issues | `ai-platform` | `~/gt/.agents/ai-platform/` |
-| `ka-*` issues | `kagent` | `~/gt/.agents/kagent/` |
-| `gt-*` issues | `gastown` | `~/gt/.agents/gastown/` |
-| Multiple rigs | `_cross-rig` | `~/gt/.agents/_cross-rig/` |
+## Setup
 
 ```bash
-# Set RIG variable for use in output paths
-RIG="ai-platform"  # or kagent, gastown, _cross-rig
-mkdir -p ~/gt/.agents/$RIG/{retros,learnings,patterns}/
+mkdir -p .agents/{retros,learnings,patterns}/
 ```
 
 ---
@@ -228,9 +212,9 @@ See `references/output-templates.md` for full templates.
 
 | Output | Location | First Tag |
 |--------|----------|-----------|
-| Retro | `~/gt/.agents/$RIG/retros/YYYY-MM-DD-{topic}.md` | `retro` |
-| Learning | `~/gt/.agents/$RIG/learnings/YYYY-MM-DD-{topic}.md` | `learning` |
-| Pattern | `~/gt/.agents/$RIG/patterns/{name}.md` | `pattern` |
+| Retro | `.agents/retros/YYYY-MM-DD-{topic}.md` | `retro` |
+| Learning | `.agents/learnings/YYYY-MM-DD-{topic}.md` | `learning` |
+| Pattern | `.agents/patterns/{name}.md` | `pattern` |
 
 ### Discovery Provenance in Learnings
 
