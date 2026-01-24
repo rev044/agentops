@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "solo-kit",
   "version": "0.1.2",
   "description": "Essential skills for any developer, any project. Language-agnostic foundations.",
@@ -7,7 +8,5 @@
     "email": "fullerbt@users.noreply.github.com"
   },
   "license": "MIT",
-  "keywords": ["developer", "validation", "research", "documentation", "quality"],
-  "homepage": "https://github.com/boshu2/agentops",
-  "repository": "https://github.com/boshu2/agentops.git"
+  "keywords": ["developer", "validation", "research", "documentation", "quality"]
 }

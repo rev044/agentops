@@ -1,9 +1,12 @@
 {
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "docs-kit",
   "version": "0.1.0",
   "description": "Documentation generation and scaffolding skills",
   "author": {
     "name": "AgentOps Team",
     "email": "fullerbt@users.noreply.github.com"
-  }
+  },
+  "license": "MIT",
+  "keywords": ["documentation", "readme", "contributing", "oss", "golden-init"]
 }

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-01-24
+
+### Fixed
+- **Plugin JSON uniformity** - Standardized all 14 plugin.json files:
+  - Added `$schema` to all plugins (was missing from all)
+  - Added `license: "MIT"` to 9 plugins that were missing it
+  - Added `keywords` array to all plugins for discoverability
+  - All plugins now have identical field structure
+
 ## [0.2.2] - 2026-01-24
 
 ### Added

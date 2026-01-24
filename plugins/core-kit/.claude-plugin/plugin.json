@@ -1,9 +1,12 @@
 {
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "core-kit",
   "version": "0.1.2",
   "description": "Core workflow skills - research, plan, implement, and iterate",
   "author": {
     "name": "AgentOps Team",
     "email": "fullerbt@users.noreply.github.com"
-  }
+  },
+  "license": "MIT",
+  "keywords": ["workflow", "research", "planning", "implementation", "crank"]
 }
