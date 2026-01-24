@@ -143,17 +143,19 @@ Track which sources led to these learnings (enables flywheel optimization).
 
 **Format**:
 ```markdown
-| Learning | Source Type | Source Detail | Confidence |
-|----------|-------------|---------------|------------|
-| [Learning 1] | [type] | [detail] | [0.0-1.0] |
-| [Learning 2] | [type] | [detail] | [0.0-1.0] |
+| Learning | Source Type | Source Detail |
+|----------|-------------|---------------|
+| [Learning 1] | [type] | [detail] |
+| [Learning 2] | [type] | [detail] |
 ```
+
+> **Note:** Do NOT include a "Confidence" column. Confidence/relevance are query-time metrics, not storage-time. See `domain-kit/skills/standards/references/rag-formatting.md`.
 
 **Example**:
 ```markdown
-| Middleware pattern works well | smart-connections | "request lifecycle" query | 0.95 |
-| Rate limit algorithm at L89 | grep | services/limits.py:89 | 1.0 |
-| Precedent from prior work | prior-research | 2026-01-01-limits.md | 0.85 |
+| Middleware pattern works well | smart-connections | "request lifecycle" query |
+| Rate limit algorithm at L89 | grep | services/limits.py:89 |
+| Precedent from prior work | prior-research | 2026-01-01-limits.md |
 ```
 
 **Source types by tier**:

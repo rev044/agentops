@@ -242,12 +242,14 @@ Include a `## Discovery Provenance` section in learning outputs to track which s
 ```markdown
 ## Discovery Provenance
 
-| Learning | Source Type | Source Detail | Confidence |
-|----------|-------------|---------------|------------|
-| MCP pattern in gateways | smart-connections | "gateway middleware patterns" | 0.95 |
-| Error handling precedent | grep | services/gateway/middleware.py:L45-60 | 1.0 |
-| Rate limit implementation | prior-research | 2025-12-15-ratelimit-pattern.md | 0.85 |
+| Learning | Source Type | Source Detail |
+|----------|-------------|---------------|
+| MCP pattern in gateways | smart-connections | "gateway middleware patterns" |
+| Error handling precedent | grep | services/gateway/middleware.py:L45-60 |
+| Rate limit implementation | prior-research | 2025-12-15-ratelimit-pattern.md |
 ```
+
+> **Note:** Do NOT include a "Confidence" column. Confidence/relevance are query-time metrics, not storage-time. See `domain-kit/skills/standards/references/rag-formatting.md`.
 
 **Source types by tier**:
 - **Tier 1**: `code-map` - Structured documentation (highest quality)
@@ -308,6 +310,7 @@ Name the session for future reference:
 - **Context Gathering**: `references/context-gathering.md`
 - **Output Templates**: `references/output-templates.md`
 - **Tag Vocabulary**: `.claude/includes/tag-vocabulary.md`
+- **RAG Formatting**: `domain-kit/skills/standards/references/rag-formatting.md`
 
 ## Related Skills
 

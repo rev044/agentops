@@ -32,6 +32,12 @@ Central repository of coding standards, style guides, and best practices that ot
 | **JSON/JSONL** | `references/json.md` | `.json`, `.jsonl` files |
 | **Tags** | `references/tags.md` | `.agents/` documents |
 
+### Knowledge Artifact Standards
+
+| Reference | Path | Use When |
+|-----------|------|----------|
+| **RAG Formatting** | `references/rag-formatting.md` | Research, learnings, retros, patterns |
+
 ### API & Platform Standards
 
 | Reference | Path | Use When |
@@ -91,6 +97,21 @@ Load `domain-kit/skills/standards/references/python.md` for:
 | Responses API usage | `domain-kit/skills/standards/references/openai-responses.md` |
 | o3/o4-mini models | `domain-kit/skills/standards/references/openai-reasoning.md` |
 | GPT-OSS-120B/20B models | `domain-kit/skills/standards/references/openai-gptoss.md` |
+
+## Knowledge Artifact Detection
+
+| Output Type | Load Reference | Apply To |
+|-------------|----------------|----------|
+| Research artifacts | `domain-kit/skills/standards/references/rag-formatting.md` | `.agents/research/` |
+| Learning artifacts | `domain-kit/skills/standards/references/rag-formatting.md` | `.agents/learnings/` |
+| Retro artifacts | `domain-kit/skills/standards/references/rag-formatting.md` | `.agents/retros/` |
+| Pattern artifacts | `domain-kit/skills/standards/references/rag-formatting.md` | `.agents/patterns/` |
+
+**Key requirements for knowledge artifacts:**
+- 200-400 chars per H2 section (embedding sweet spot)
+- Frontmatter with `type` and `tier` fields
+- NO `confidence` or `relevance` fields (query-time, not storage-time)
+- Action-oriented headings, front-loaded key terms
 ```
 
 ## Reference Structure

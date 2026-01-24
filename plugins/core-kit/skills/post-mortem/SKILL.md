@@ -626,6 +626,7 @@ gitleaks detect --source .
 | Learning templates | `references/learning-templates.md` |
 | Vibe integration | `~/.claude/skills/vibe/SKILL.md` |
 | Retro integration | `~/.claude/skills/retro/SKILL.md` |
+| RAG formatting | `domain-kit/skills/standards/references/rag-formatting.md` |
 
 ### Related Skills
 

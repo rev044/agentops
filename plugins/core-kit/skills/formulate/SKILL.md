@@ -551,6 +551,7 @@ See `references/examples.md` for detailed walkthroughs including:
 | Phase naming | `.claude/includes/phase-naming.md` |
 | Beads workflows | `~/.claude/skills/beads/SKILL.md` |
 | Decomposition patterns | `~/.claude/patterns/commands/plan/decomposition.md` |
+| RAG formatting | `domain-kit/skills/standards/references/rag-formatting.md` |
 
 ### Essential Commands
 

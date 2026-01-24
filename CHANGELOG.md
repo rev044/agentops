@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **RAG Formatting Standard** (domain-kit) - New reference for knowledge artifacts:
+  - `standards/references/rag-formatting.md` - 200-400 char sections, frontmatter conventions
+  - Knowledge Artifact Detection section in standards SKILL.md
+  - No `confidence` column rule (query-time, not storage-time)
+
+### Changed
+- **README mermaid diagrams** - Replaced ASCII art with GitHub-native mermaid:
+  - RPI Workflow diagram with knowledge loop
+  - Plan → Crank handoff diagram
+  - Upgrade Path diagram
+
+- **RAG references added** (core-kit) - Knowledge-producing skills now reference RAG standard:
+  - research, plan, formulate, pre-mortem, retro, post-mortem
+
+### Fixed
+- **retro skill** - Removed incorrect "Confidence" column from Discovery Provenance template:
+  - Confidence/relevance are query-time metrics, not storage-time
+  - Added reference to RAG formatting standard
+
 ## [0.2.3] - 2026-01-24
 
 ### Fixed

@@ -44,22 +44,25 @@ The skills detect intent and activate. Slash commands work too if you prefer the
 
 The complete Research → Plan → Implement workflow with validation gates:
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                                                                              │
-│  /research → /product → /pre-mortem → /formulate → /crank → /post-mortem     │
-│                                                                              │
-│  understand   define      simulate      break down    execute    validate    │
-│  problem      value       failures      into issues   waves      + learn     │
-│                              ↓                                      │        │
-│                         catches issues                              │        │
-│                         BEFORE you build                            ▼        │
-│                                                              ┌─────────────┐ │
-│                                                              │  KNOWLEDGE  │ │
-│         ◄─────────────────────────────────────────────────── │    LOOP     │ │
-│                    feeds back to next /research              └─────────────┘ │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    R["/research"] --> P["/product"]
+    P --> PM["/pre-mortem"]
+    PM --> F["/formulate"]
+    F --> C["/crank"]
+    C --> POST["/post-mortem"]
+    POST -.->|knowledge loop| R
+
+    subgraph chaos["CHAOS → FILTER → RATCHET"]
+        PM
+    end
+
+    style R fill:#4CAF50,color:#fff
+    style P fill:#2196F3,color:#fff
+    style PM fill:#FF9800,color:#fff
+    style F fill:#9C27B0,color:#fff
+    style C fill:#F44336,color:#fff
+    style POST fill:#00BCD4,color:#fff
 ```
 
 | Stage | Command | What It Does |
@@ -94,25 +97,26 @@ Post-mortem closes the knowledge loop:
 
 For complex work, use two sessions:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                                                             │
-│  1. PLAN SESSION                    2. CRANK SESSION                        │
-│  ┌─────────────────────┐            ┌─────────────────────┐                 │
-│  │                     │            │                     │                 │
-│  │  Shift+Tab (plan)   │  handoff   │  /crank <epic>      │                 │
-│  │        ↓            │ ────────►  │        ↓            │                 │
-│  │  /formulate         │  (fresh    │  wave 1: issues     │                 │
-│  │        ↓            │  context)  │  wave 2: issues     │                 │
-│  │  creates beads      │            │  wave 3: issues     │                 │
-│  │  organizes waves    │            │        ↓            │                 │
-│  │                     │            │  ALL CLOSED         │                 │
-│  └─────────────────────┘            └─────────────────────┘                 │
-│                                                                             │
-│  Planning uses context.             Execution gets fresh context +          │
-│  When done, clear it.               plan artifact + pointer to old convo.   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Plan["1. PLAN SESSION"]
+        A["Shift+Tab (plan)"] --> B["/formulate"]
+        B --> C["creates beads"]
+    end
+    subgraph Crank["2. CRANK SESSION"]
+        D["/crank epic"] --> E["wave 1"]
+        E --> F["wave 2"]
+        F --> G["ALL CLOSED"]
+    end
+    Plan -->|"handoff (fresh context)"| Crank
+
+    style A fill:#9C27B0,color:#fff
+    style B fill:#9C27B0,color:#fff
+    style C fill:#7B1FA2,color:#fff
+    style D fill:#F44336,color:#fff
+    style E fill:#EF5350,color:#fff
+    style F fill:#EF5350,color:#fff
+    style G fill:#4CAF50,color:#fff
 ```
 
 **Why this works:**
@@ -189,16 +193,18 @@ For complex work, use two sessions:
 
 ## Upgrade Path
 
-```
-solo-kit              ← Any developer starts here
-    ↓
-+ language-kit        ← Add your language(s)
-    ↓
-+ core-kit            ← Full RPI workflow with pre/post-mortem
-    ↓
-+ beads-kit           ← Track work across sessions
-    ↓
-+ gastown-kit         ← Multi-agent orchestration
+```mermaid
+flowchart TB
+    A["solo-kit"] --> B["+ language-kit"]
+    B --> C["+ core-kit"]
+    C --> D["+ beads-kit"]
+    D --> E["+ gastown-kit"]
+
+    style A fill:#4CAF50,color:#fff
+    style B fill:#8BC34A,color:#fff
+    style C fill:#FF9800,color:#fff
+    style D fill:#FF5722,color:#fff
+    style E fill:#F44336,color:#fff
 ```
 
 ---

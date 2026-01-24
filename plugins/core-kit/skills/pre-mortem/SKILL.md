@@ -336,6 +336,7 @@ Nice-to-have: Real-time updates, RAG testing
 | Failure patterns | `references/failure-taxonomy.md` |
 | Enhancement patterns | `references/enhancement-patterns.md` |
 | Simulation prompts | `references/simulation-prompts.md` |
+| RAG formatting | `domain-kit/skills/standards/references/rag-formatting.md` |
 
 ### Related Skills
 

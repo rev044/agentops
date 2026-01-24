@@ -150,6 +150,7 @@ Write to `~/gt/.agents/$RIG/research/YYYY-MM-DD-{topic}.md`
 - `references/document-template.md` - Output format
 - `references/failure-patterns.md` - 12 patterns to watch for
 - `references/vibe-methodology.md` - Core principles
+- `domain-kit/skills/standards/references/rag-formatting.md` - RAG-optimized knowledge formatting
 
 ## Phase Completion (RPI Workflow)
 
