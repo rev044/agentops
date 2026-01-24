@@ -62,20 +62,9 @@ flowchart LR
 | Stage | Command | What It Does |
 |-------|---------|--------------|
 | **Research** | `/research` | Deep codebase exploration, creates synthesis artifact |
-| **Product** | `/product` | Customer-first brief (PR/FAQ) - skip for small work |
-| **Pre-mortem** | `/pre-mortem` | Simulate N iterations to find failure modes BEFORE implementing |
 | **Plan** | `/formulate` | Create issues with dependencies, organize into waves |
 | **Execute** | `/crank` | Run all waves until epic is closed |
 | **Validate** | `/post-mortem` | Validate code + extract learnings + feed back into knowledge loop |
-
-### Why Pre-mortem?
-
-> "Simulate doing it 10 times and learn all the lessons so we don't have to."
-
-Pre-mortem catches issues BEFORE you hit them:
-- API mismatches discovered in simulation, not production
-- Missing dependencies identified upfront
-- Edge cases surfaced before coding starts
 
 ### Why Post-mortem?
 
