@@ -53,10 +53,6 @@ flowchart LR
     C --> POST["/post-mortem"]
     POST -.->|knowledge loop| R
 
-    subgraph chaos["CHAOS → FILTER → RATCHET"]
-        PM
-    end
-
     style R fill:#4CAF50,color:#fff
     style P fill:#2196F3,color:#fff
     style PM fill:#FF9800,color:#fff
