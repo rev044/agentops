@@ -1,20 +1,22 @@
-# AgentOps
+<h1 align="center">AgentOps</h1>
 
-```
+<pre align="center">
     ___                    __  ____
    /   | ____ ____  ____  / /_/ __ \____  _____
   / /| |/ __ `/ _ \/ __ \/ __/ / / / __ \/ ___/
  / ___ / /_/ /  __/ / / / /_/ /_/ / /_/ (__  )
 /_/  |_\__, /\___/_/ /_/\__/\____/ .___/____/
       /____/                    /_/
-```
+</pre>
 
-[![Version](https://img.shields.io/badge/version-0.3.0-orange)](https://github.com/boshu2/agentops/releases/tag/v0.3.0)
-[![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
-[![Plugins](https://img.shields.io/badge/plugins-14-blue)](plugins/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+<p align="center">
+  <a href="https://github.com/boshu2/agentops/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/version-0.3.0-orange" alt="Version"></a>
+  <a href="https://github.com/boshu2/agentops/actions/workflows/validate.yml"><img src="https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://docs.anthropic.com/en/docs/claude-code"><img src="https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet" alt="Claude Code"></a>
+  <a href="plugins/"><img src="https://img.shields.io/badge/plugins-14-blue" alt="Plugins"></a>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+</p>
 
 > **v0.3.0** - Added pre-mortem/post-mortem skills, synced RPI workflow, standardized plugin structure. All skills now see conversation context.
 
