@@ -9,14 +9,14 @@
       /____/                    /_/
 ```
 
-[![Version](https://img.shields.io/badge/version-0.1.1-orange)](https://github.com/boshu2/agentops/releases/tag/v0.1.1)
+[![Version](https://img.shields.io/badge/version-0.3.0-orange)](https://github.com/boshu2/agentops/releases/tag/v0.3.0)
 [![CI](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
-[![Plugins](https://img.shields.io/badge/plugins-9-blue)](plugins/)
+[![Plugins](https://img.shields.io/badge/plugins-14-blue)](plugins/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> **v0.1.1** - Added general-kit (zero dependencies), standards library, context inference. Feedback welcome!
+> **v0.3.0** - Added pre-mortem/post-mortem skills, synced RPI workflow, standardized plugin structure. All skills now see conversation context.
 
 Claude Code plugins for AI-assisted development workflows. Just describe what you want - skills trigger automatically.
 
@@ -30,17 +30,69 @@ Skills trigger from natural language. No slash commands required:
 |---------|----------|
 | "I need to understand how auth works" | `/research` |
 | "Let's plan out this feature" | `/formulate` |
+| "What could go wrong with this approach?" | `/pre-mortem` |
 | "Validate my changes" | `/vibe` |
 | "Check for security issues" | `/vibe --security` |
 | "What did we learn?" | `/retro` |
+| "Wrap up this epic" | `/post-mortem` |
 
 The skills detect intent and activate. Slash commands work too if you prefer them.
 
 ---
 
-## The Killer Workflow: Plan → Crank
+## The RPI Workflow
 
-The recommended meta for complex work:
+The complete Research → Plan → Implement workflow with validation gates:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│  /research → /product → /pre-mortem → /formulate → /crank → /post-mortem   │
+│                                                                              │
+│  understand   define      simulate      break down    execute    validate   │
+│  problem      value       failures      into issues   waves      + learn    │
+│                              ↓                                      │       │
+│                         catches issues                              │       │
+│                         BEFORE you build                            ▼       │
+│                                                              ┌─────────────┐│
+│                                                              │  KNOWLEDGE  ││
+│         ◄─────────────────────────────────────────────────── │    LOOP     ││
+│                    feeds back to next /research              └─────────────┘│
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Stage | Command | What It Does |
+|-------|---------|--------------|
+| **Research** | `/research` | Deep codebase exploration, creates synthesis artifact |
+| **Product** | `/product` | Customer-first brief (PR/FAQ) - skip for small work |
+| **Pre-mortem** | `/pre-mortem` | Simulate N iterations to find failure modes BEFORE implementing |
+| **Plan** | `/formulate` | Create issues with dependencies, organize into waves |
+| **Execute** | `/crank` | Run all waves until epic is closed |
+| **Validate** | `/post-mortem` | Validate code + extract learnings + feed back into knowledge loop |
+
+### Why Pre-mortem?
+
+> "Simulate doing it 10 times and learn all the lessons so we don't have to."
+
+Pre-mortem catches issues BEFORE you hit them:
+- API mismatches discovered in simulation, not production
+- Missing dependencies identified upfront
+- Edge cases surfaced before coding starts
+
+### Why Post-mortem?
+
+Post-mortem closes the knowledge loop:
+- Validates code quality (runs `/vibe`)
+- Extracts learnings to `.agents/learnings/`
+- Stores patterns in `.agents/patterns/`
+- Feeds knowledge back to future `/research`
+
+---
+
+## The Killer Meta: Plan → Crank
+
+For complex work, use two sessions:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -63,98 +115,10 @@ The recommended meta for complex work:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### The Steps
-
-1. **Shift+Tab** to enter Claude's native plan mode
-2. **`/formulate`** to invoke the skill (slash commands guarantee activation)
-3. Claude explores, creates beads issues, organizes into dependency waves
-4. **Review the plan** - you can:
-   - Tweak it ("move issue X to wave 2")
-   - Reject it ("start over, different approach")
-   - Accept it ("looks good")
-   - **Accept and clear context** ← this is the handoff
-5. **Fresh session** receives the plan artifact and runs `/crank <epic>`
-
-### The Handoff
-
-When you accept the plan, Claude offers to clear context and hand off. This is key:
-
-```
-Claude: Plan ready. 12 issues across 4 waves.
-
-        Options:
-        - [Accept] Continue in this session
-        - [Accept + Clear] Start fresh crank session (recommended)
-        - [Revise] Make changes
-
-You: [Accept + Clear]
-
-Claude: Handing off to fresh session...
-        - Plan artifact saved
-        - Beads issues created
-        - Conversation JSONL path noted
-
---- new session with fresh context ---
-```
-
-### Why This Works
-
+**Why this works:**
 - **Plan mode + /formulate** gives you review gates before execution
-- **Explicit `/slash` commands** guarantee the skill triggers (natural language works but isn't 100%)
-- **"Accept + Clear" handoff** - planning burns tokens exploring, crank needs room to execute
-- **Fresh session gets**: the plan artifact, the beads, and a pointer to the old conversation JSONL if needed
-
-This is how we run everything. Plan in one session, crank in a fresh one.
-
-### Example
-
-```
-You: [Shift+Tab to enter plan mode]
-You: /formulate "add OAuth support to the API"
-
-Claude: [explores codebase, understands patterns]
-        [creates epic with 12 child issues]
-        [organizes into 4 waves by dependency]
-        [presents plan for review]
-
-You: [approve plan]
-
-Claude: Ready to crank. Starting fresh session...
-        [clears context, hands off plan]
-
---- new session ---
-
-Claude: [receives plan artifact]
-        [cranks wave 1: 3 issues in parallel]
-        [cranks wave 2: 4 issues in parallel]
-        [cranks wave 3: 3 issues in parallel]
-        [cranks wave 4: 2 issues in parallel]
-
-        Epic complete. 12/12 issues closed.
-```
-
----
-
-## The Full Workflow
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                                                                          │
-│   /research  ──►  /formulate  ──►  /implement  ──►  /vibe  ──►  /retro  │
-│                                                                          │
-│   understand      break down       execute          validate    extract  │
-│   the problem     into issues      the work         changes     lessons  │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-| Stage | Command | What It Does |
-|-------|---------|--------------|
-| **Research** | `/research` | Deep codebase exploration |
-| **Plan** | `/formulate` | Create issues with dependencies, organize waves |
-| **Execute** | `/crank` | Run all waves until epic is closed |
-| **Validate** | `/vibe` | Check security, quality, architecture |
-| **Learn** | `/retro` | Extract learnings for future sessions |
+- **"Accept + Clear" handoff** - planning burns tokens, crank needs room
+- **Fresh session gets**: the plan artifact, the beads, and context pointer
 
 ---
 
@@ -162,7 +126,7 @@ Claude: [receives plan artifact]
 
 ```bash
 # Add marketplace
-claude plugin marketplace add boshu2/agentops
+/plugin marketplace add boshu2/agentops
 
 # Start with solo-kit (any language, any project)
 /plugin install solo-kit@agentops
@@ -176,24 +140,20 @@ claude plugin marketplace add boshu2/agentops
 
 ---
 
-## Tiered Architecture
-
-AgentOps scales from solo developer to multi-agent orchestration.
+## Plugin Architecture
 
 ### Tier 1: Solo Developer (Any Project)
 
 | Plugin | Skills | Purpose |
 |--------|--------|---------|
 | **solo-kit** | `/research`, `/vibe`, `/bug-hunt`, `/complexity`, `/doc`, `/oss-docs`, `/golden-init` | **Start here** - essential validation and exploration |
-
-**Agents:** `code-reviewer`, `security-reviewer`
-**Hooks:** Auto-format, debug statement warnings, git push review
+| **general-kit** | Same as solo-kit | Zero-dependency portable version |
 
 ```bash
 /plugin install solo-kit@agentops
 ```
 
-### Tier 2: Language Kits (Plug-in Based on Project)
+### Tier 2: Language Kits
 
 | Plugin | Standards | Hooks | Purpose |
 |--------|-----------|-------|---------|
@@ -202,22 +162,28 @@ AgentOps scales from solo developer to multi-agent orchestration.
 | **typescript-kit** | `typescript.md` | prettier, tsc | TypeScript/JavaScript |
 | **shell-kit** | `shell.md` | shellcheck | Shell scripting |
 
-Each adds language-specific standards, linting hooks, and patterns.
-
 ### Tier 3: Team Workflows
 
 | Plugin | Skills | Purpose | Requires |
 |--------|--------|---------|----------|
-| **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking | [beads](https://github.com/steveyegge/beads) |
-| **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate` | PR workflows | beads |
+| **core-kit** | `/research`, `/plan`, `/formulate`, `/implement`, `/crank`, `/retro`, `/pre-mortem`, `/post-mortem`, `/marketplace-release` | Full RPI workflow | [beads](https://github.com/steveyegge/beads) |
+| **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking | beads |
+| **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-retro` | PR workflows | beads |
 | **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent coordination | beads |
+| **docs-kit** | `/doc`, `/doc-creator`, `/vibe-docs`, `/golden-init`, `/oss-docs`, `/code-map-standard` | Documentation generation | - |
+| **vibe-kit** | `/vibe`, `/bug-hunt`, `/complexity` | Code validation with expert agents | - |
 
 ### Tier 4: Multi-Agent Orchestration
 
 | Plugin | Skills | Purpose | Requires |
 |--------|--------|---------|----------|
-| **crank-kit** | `/plan`, `/formulate`, `/implement`, `/implement-wave`, `/crank`, `/retro` | Autonomous execution | beads |
 | **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Parallel workers | beads + [gastown](https://github.com/steveyegge/gastown) |
+
+### Supporting Plugins
+
+| Plugin | Purpose |
+|--------|---------|
+| **domain-kit** | Reference standards across 17 domains |
 
 ---
 
@@ -228,26 +194,12 @@ solo-kit              ← Any developer starts here
     ↓
 + language-kit        ← Add your language(s)
     ↓
-+ beads-kit           ← Track work across sessions
++ core-kit            ← Full RPI workflow with pre/post-mortem
     ↓
-+ crank-kit           ← Autonomous execution
++ beads-kit           ← Track work across sessions
     ↓
 + gastown-kit         ← Multi-agent orchestration
 ```
-
----
-
-## Legacy Plugins
-
-These plugins are being refactored into the tiered structure:
-
-| Legacy | Migrates To |
-|--------|-------------|
-| `general-kit` | `solo-kit` |
-| `core-kit` | `solo-kit` + `crank-kit` |
-| `vibe-kit` | `solo-kit` |
-| `domain-kit` | Language kits |
-| `docs-kit` | `solo-kit`
 
 ---
 
@@ -255,36 +207,96 @@ These plugins are being refactored into the tiered structure:
 
 **Just exploring?**
 ```bash
-claude plugin install general-kit@agentops-marketplace
+/plugin marketplace add boshu2/agentops
+/plugin install general-kit@agentops
 ```
 Research, validation, documentation, expert agents - no external tools needed.
 
-**Want the full plan→crank workflow?**
+**Want the full RPI workflow?**
 ```bash
 brew install beads
-claude plugin install core-kit@agentops-marketplace
-claude plugin install beads-kit@agentops-marketplace
+/plugin install core-kit@agentops
+/plugin install beads-kit@agentops
 ```
 
 **Multi-agent parallel execution?**
 ```bash
 brew install beads gastown
-claude plugin install gastown-kit@agentops-marketplace
-claude plugin install dispatch-kit@agentops-marketplace
+/plugin install gastown-kit@agentops
+/plugin install dispatch-kit@agentops
 ```
 
 ---
 
-## OpenCode Compatibility
+## All Skills Reference
 
-These plugins can be translated to [opencode](https://github.com/opencode-ai/opencode) skills and commands:
+### Research & Planning
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/research` | core-kit | Deep codebase exploration |
+| `/product` | core-kit | Customer-first brief (PR/FAQ) |
+| `/pre-mortem` | core-kit | Simulate failures before implementing |
+| `/plan` | core-kit | Epic decomposition into beads issues |
+| `/formulate` | core-kit | Create reusable formula templates |
 
-```bash
-# Use opencode's translation tool
-opencode translate ./plugins/general-kit --format opencode
-```
+### Execution
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/implement` | core-kit | Execute single beads issue |
+| `/implement-wave` | core-kit | Parallel execution of multiple issues |
+| `/crank` | core-kit | Autonomous epic execution until done |
 
-The skill format is designed to be portable across AI coding assistants.
+### Validation
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/vibe` | vibe-kit | Comprehensive code validation (8 aspects) |
+| `/bug-hunt` | vibe-kit | Git archaeology + root cause analysis |
+| `/complexity` | vibe-kit | Cyclomatic complexity analysis |
+| `/vibe-docs` | docs-kit | Validate docs match deployment reality |
+
+### Knowledge
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/retro` | core-kit | Extract learnings from completed work |
+| `/post-mortem` | core-kit | Validate + learn + feed back into flywheel |
+
+### Documentation
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/doc` | docs-kit | Generate documentation |
+| `/doc-creator` | docs-kit | Create corpus/standards docs |
+| `/oss-docs` | docs-kit | Scaffold OSS documentation |
+| `/golden-init` | docs-kit | Initialize repo with golden template |
+| `/code-map-standard` | docs-kit | Generate code-map documentation |
+
+### Issue Tracking
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/beads` | beads-kit | Git-based issue tracking |
+| `/status` | beads-kit | Quick status check |
+| `/molecules` | beads-kit | Workflow templates |
+
+### PR Workflows
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/pr-research` | pr-kit | Upstream codebase exploration |
+| `/pr-plan` | pr-kit | Strategic contribution planning |
+| `/pr-implement` | pr-kit | Fork-based implementation |
+| `/pr-validate` | pr-kit | Isolation/scope validation |
+| `/pr-retro` | pr-kit | Learn from PR outcomes |
+
+### Multi-Agent
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/gastown` | gastown-kit | Gas Town status and utilities |
+| `/dispatch` | dispatch-kit | Work assignment |
+| `/handoff` | dispatch-kit | Cross-session continuity |
+| `/mail` | dispatch-kit | Agent communication |
+
+### Meta
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `/marketplace-release` | core-kit | Plugin release workflow |
 
 ---
 
@@ -295,6 +307,7 @@ The skill format is designed to be portable across AI coding assistants.
 | [levels/](levels/) | Progressive tutorials from basics to full automation |
 | [reference/](reference/) | Framework docs (PDC, FAAFO, failure patterns) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ---
 
