@@ -7,9 +7,10 @@ description: >
   "plan out the work", or needs to create reusable .formula.toml templates
   that convert goals into executable beads issues.
 version: 1.0.0
+tier: team
 author: "AI Platform Team"
 license: "MIT"
-context: fork
+context: inline
 allowed-tools: "Read,Write,Edit,Bash,Grep,Glob,Task"
 skills:
   - beads
@@ -22,32 +23,49 @@ Create reusable formula templates (.formula.toml) that define structured impleme
 patterns. Formulas produce beads issues with proper dependencies and wave computation
 for parallel execution.
 
+## Role in the Brownian Ratchet
+
+Formulas are **captured ratchet patterns** - proven solutions that can be reused:
+
+| Component | Formula's Role |
+|-----------|----------------|
+| **Chaos** | Formula development: multiple attempts to find right structure |
+| **Filter** | Successful patterns captured, failed patterns discarded |
+| **Ratchet** | `.formula.toml` locks the pattern for reuse |
+
+> **A formula is a ratcheted solution that prevents re-solving the same problem.**
+
+Once a formula works (validated by /crank execution), it becomes a reusable
+template. Future work with similar structure instantiates the formula instead
+of planning from scratch.
+
+**Formula Hierarchy:**
+```
+Research → Plan → Implement → Validate → FORMULA (captured pattern)
+                                              ↓
+                              Future work: cook → pour → execute
+```
+
 ## Overview
 
-**Core Purpose**: Transform a goal into trackable beads issues with dependency ordering and
-wave-based parallelization for `/crank` and `/implement-wave`.
-
-**Typical Flow**:
-1. `/research` - Deep exploration
-2. **Native plan mode** (`Shift+Tab` x2) - Approach decisions, creates `plan.md`
-3. Context clears on plan acceptance
-4. **`/formulate`** - Creates beads issues from the plan
-5. `/implement`, `/implement-wave`, or `/crank` - Execute
+**Core Purpose**: Transform a goal into a reusable formula template (.formula.toml) that
+captures the pattern for creating beads issues with dependency ordering and wave-based
+parallelization for `/crank` (autonomous) or `/implement-wave` (supervised).
 
 **Key Capabilities**:
 - 6-tier context discovery hierarchy
 - Prior formula discovery to prevent duplicates
 - Feature decomposition with dependency modeling
-- Formula template creation with proper TOML structure (optional)
+- Formula template creation with proper TOML structure
 - Auto-instantiation via `bd cook`
 - Beads issue creation with epic-child relationships
 - Wave computation for parallel execution
 
-**Formulas vs Direct Issues**:
+**Formulas vs Plans**:
 - **Formula**: Reusable template (.formula.toml) - can be instantiated multiple times
-- **Direct (--immediate)**: One-time beads creation - specific to current goal
+- **Plan**: One-time execution plan - specific to a single goal
 
-**When to Use**: After native plan mode clears context, or any time work needs 2+ discrete issues.
+**When to Use**: Work needs 2+ discrete issues with dependencies, or a reusable pattern is desired.
 **When NOT to Use**: Single task (use `/implement`), exploratory (use `/research`).
 
 ### Flags
@@ -88,7 +106,7 @@ mkdir -p ~/gt/.agents/$RIG/formulas/
 
 ### Phase 1: Context Discovery
 
-See `research/references/context-discovery.md` for full 6-tier hierarchy.
+See `~/.claude/skills/research/references/context-discovery.md` for full 6-tier hierarchy.
 
 **Quick version**: Code-Map -> Semantic Search -> Scoped Grep -> Source -> .agents/ -> External
 
@@ -435,10 +453,16 @@ Output structured summary with crank handoff:
 | 1 | ai-platform-102, ai-platform-106 | Yes |
 | 2 | ai-platform-103 | No |
 
-## Ready for Autopilot
+## Ready for Execution
+
+**Autonomous (overnight, parallel via polecats):**
 ```bash
-/crank ai-platform-xxx --dry-run
-/crank ai-platform-xxx
+/crank ai-platform-xxx              # Full auto until epic closed
+```
+
+**Supervised (sequential, same session):**
+```bash
+/implement-wave ai-platform-xxx     # One wave at a time
 ```
 ```
 
@@ -487,7 +511,7 @@ Output structured summary with crank handoff:
   - [ ] `[[steps]]` with id, title, description, needs
 - [ ] Ran `bd cook` or instantiated manually (Phase 5.5/6)
 - [ ] Wrote companion .md documentation (Phase 7)
-- [ ] Output summary with crank handoff (Phase 8)
+- [ ] Output summary with crank/implement-wave handoff (Phase 8)
 - [ ] Synced with `bd sync`
 
 ### Immediate Flow (--immediate flag)
@@ -499,7 +523,7 @@ Output structured summary with crank handoff:
 - [ ] Added file annotations with `bd comment`
 - [ ] Added Children comment to epic
 - [ ] Started epic with `bd update <epic> --status in_progress`
-- [ ] Output summary with crank handoff
+- [ ] Output summary with crank/implement-wave handoff
 - [ ] Synced with `bd sync`
 
 ---
@@ -525,7 +549,7 @@ See `references/examples.md` for detailed walkthroughs including:
 | Full templates | `references/templates.md` |
 | Detailed examples | `references/examples.md` |
 | Phase naming | `.claude/includes/phase-naming.md` |
-| Beads workflows | `beads/SKILL.md` |
+| Beads workflows | `~/.claude/skills/beads/SKILL.md` |
 | Decomposition patterns | `~/.claude/patterns/commands/plan/decomposition.md` |
 
 ### Essential Commands
@@ -554,3 +578,29 @@ See `references/examples.md` for detailed walkthroughs including:
 ---
 
 **Progressive Disclosure**: This skill provides core formulation workflows. For detailed templates see `references/templates.md`, for examples see `references/examples.md`.
+
+---
+
+## Phase Completion (RPI Workflow)
+
+When formulation is complete:
+
+```bash
+~/.claude/scripts/checkpoint.sh plan "Brief description of formula created"
+```
+
+This will:
+1. Save a checkpoint to `~/gt/.agents/$RIG/checkpoints/`
+2. Remind you to start a fresh session
+3. Provide recovery commands for the next phase
+
+**Why fresh session?** Planning context (decomposition decisions, patterns explored) can bias
+the implementation phase. The RPI workflow enforces clean boundaries between phases.
+
+## Next
+
+```
+/formulate -> /crank or /implement-wave or /implement
+```
+
+After checkpoint, start fresh session and run `/crank <epic>` or `/implement-wave <wave>`.

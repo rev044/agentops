@@ -775,7 +775,7 @@ result=$(echo $(date))
 
 ### JIT Loading
 
-**Tier 1 (Fast):** Load `standards/references/shell.md` (5KB)
+**Tier 1 (Fast):** Load `~/.claude/skills/standards/references/shell.md` (5KB)
 **Tier 2 (Deep):** Load this document (18KB) for comprehensive audit
 
 ---
@@ -786,3 +786,7 @@ result=$(echo $(date))
 - [ShellCheck Wiki](https://www.shellcheck.net/wiki/)
 - [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
 - [BATS Testing Framework](https://github.com/bats-core/bats-core)
+
+---
+
+**Related:** Quick reference in Tier 1 `shell.md`

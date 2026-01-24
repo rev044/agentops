@@ -318,4 +318,4 @@ Risk Levels:
 
 - `~/.claude/CLAUDE-base.md` - Core Vibe-Coding methodology
 - `~/.claude/plugins/marketplaces/agentops-marketplace/reference/failure-patterns.md` - Full pattern reference
-- `crank/SKILL.md (failure taxonomy section)` - Execution failure taxonomy
+- `~/.claude/skills/crank/failure-taxonomy.md` - Execution failure taxonomy

@@ -441,3 +441,7 @@ grep -r "password:\|secret:\|token:" --include='*.yaml' apps/
 - [Helm Documentation](https://helm.sh/docs/)
 - [Kustomize Documentation](https://kustomize.io/)
 - [yamllint Documentation](https://yamllint.readthedocs.io/)
+
+---
+
+**Related:** Quick reference in Tier 1 `yaml.md`

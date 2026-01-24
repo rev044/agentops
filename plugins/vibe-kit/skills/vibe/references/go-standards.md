@@ -1,7 +1,7 @@
 # Go Standards Catalog - Vibe Canonical Reference
 
 **Version:** 1.0.0
-**Last Updated:** 2026-01-21
+**Last Updated:** 2026-01-20
 **Purpose:** Canonical Go standards for vibe skill validation
 
 ---
@@ -21,7 +21,7 @@
 
 ## Error Handling Patterns
 
-### Custom Error Types
+### ✅ **Custom Error Types**
 
 Production-grade error types follow these patterns:
 
@@ -57,14 +57,14 @@ func (e *AppError) Is(target error) bool {
 ```
 
 **Requirements:**
-- Implements `error` interface
-- Implements `Unwrap()` for error chain inspection
-- Implements `Is()` for sentinel error comparison
-- Structured error codes enable programmatic handling
-- Preserves context with metadata
-- Proper nil-safety in `Unwrap()` and `Is()`
+- ✅ Implements `error` interface
+- ✅ Implements `Unwrap()` for error chain inspection
+- ✅ Implements `Is()` for sentinel error comparison
+- ✅ Structured error codes enable programmatic handling
+- ✅ Preserves context with metadata
+- ✅ Proper nil-safety in `Unwrap()` and `Is()`
 
-### Error Wrapping with %w
+### ✅ **Error Wrapping with %w**
 
 Use `fmt.Errorf` with `%w` verb for error wrapping:
 
@@ -86,7 +86,7 @@ if err != nil {
 - `%v` breaks the chain - root cause is lost
 - Error context adds debugging information
 
-### Intentional Error Ignores
+### ⚠️ **Intentional Error Ignores**
 
 Document why errors are intentionally ignored:
 
@@ -108,7 +108,7 @@ defer func() {
 
 ## Interface Design
 
-### Accept Interfaces, Return Structs
+### ✅ **Accept Interfaces, Return Structs**
 
 **Pattern:**
 ```go
@@ -140,7 +140,7 @@ func NewRegistry() *Registry {
 - Return type can add methods without breaking callers
 - Follows Go proverb: "Be conservative in what you send, liberal in what you accept"
 
-### Small, Focused Interfaces
+### ✅ **Small, Focused Interfaces**
 
 **Good Example:**
 ```go
@@ -176,7 +176,7 @@ type Agent interface {
 
 ## Concurrency Patterns
 
-### Context Propagation (Required)
+### ✅ **Context Propagation** (Required)
 
 Every I/O or long-running operation accepts `context.Context`:
 
@@ -196,7 +196,7 @@ func (c *Client) Invoke(ctx context.Context, req *Request) (*Response, error)
 - Cancellation support
 - Request-scoped values (tracing)
 
-### Proper WaitGroup Usage
+### ✅ **Proper WaitGroup Usage**
 
 ```go
 var wg sync.WaitGroup
@@ -221,12 +221,12 @@ wg.Wait()
 ```
 
 **Requirements:**
-- Variables captured before goroutine (avoids closure bug)
-- `defer wg.Done()` ensures decrement on panic
-- Mutex protects shared data structures
-- Context cancellation checked in each goroutine
+- ✅ Variables captured before goroutine (avoids closure bug)
+- ✅ `defer wg.Done()` ensures decrement on panic
+- ✅ Mutex protects shared data structures
+- ✅ Context cancellation checked in each goroutine
 
-### Thread-Safe Data Structures
+### ✅ **Thread-Safe Data Structures**
 
 ```go
 type Registry struct {
@@ -254,7 +254,7 @@ func (r *Registry) Set(key string, item Item) error {
 - Exclusive writes
 - Zero race conditions
 
-### Backpressure in Streaming
+### ✅ **Backpressure in Streaming**
 
 ```go
 select {
@@ -276,7 +276,7 @@ case <-ctx.Done():
 
 ## Security Practices
 
-### Constant-Time Comparison (Timing Attack Prevention)
+### ✅ **Constant-Time Comparison** (Timing Attack Prevention)
 
 ```go
 import "crypto/subtle"
@@ -299,7 +299,7 @@ if token == expectedToken {
 - `subtle.ConstantTimeCompare()` runs in constant time
 - Critical for API keys, tokens, passwords
 
-### HMAC Signature Validation
+### ✅ **HMAC Signature Validation**
 
 ```go
 import (
@@ -322,12 +322,12 @@ func validateHMAC(payload []byte, signature, secret string) bool {
 ```
 
 **Security Features:**
-- HMAC prevents payload tampering
-- Uses `hmac.Equal()` (constant-time)
-- Verifies signature format first
-- SHA-256 (secure hash function)
+- ✅ HMAC prevents payload tampering
+- ✅ Uses `hmac.Equal()` (constant-time)
+- ✅ Verifies signature format first
+- ✅ SHA-256 (secure hash function)
 
-### Replay Attack Prevention
+### ✅ **Replay Attack Prevention**
 
 ```go
 func validateTimestamp(timestamp string, maxAge time.Duration) error {
@@ -350,7 +350,7 @@ func validateTimestamp(timestamp string, maxAge time.Duration) error {
 - Clock skew (1 minute tolerance for future timestamps)
 - DoS via timestamp manipulation
 
-### TLS Configuration
+### ✅ **TLS Configuration**
 
 ```go
 tlsConfig := &tls.Config{
@@ -363,7 +363,7 @@ tlsConfig := &tls.Config{
 
 ## Package Organization
 
-### Layered Architecture
+### ✅ **Layered Architecture**
 
 ```
 project/
@@ -385,13 +385,13 @@ project/
 ```
 
 **Principles:**
-- `cmd/` for binaries (no importable code)
-- `internal/` prevents external imports
-- `pkg/` for public APIs
-- Domain-driven structure
-- Tests at package level, e2e/integration separate
+- ✅ `cmd/` for binaries (no importable code)
+- ✅ `internal/` prevents external imports
+- ✅ `pkg/` for public APIs
+- ✅ Domain-driven structure
+- ✅ Tests at package level, e2e/integration separate
 
-### Import Grouping (Go Convention)
+### ✅ **Import Grouping** (Go Convention)
 
 ```go
 import (
@@ -412,7 +412,7 @@ import (
 
 ## Testing Patterns
 
-### Table-Driven Tests
+### ✅ **Table-Driven Tests**
 
 ```go
 func TestValidateEmail(t *testing.T) {
@@ -444,7 +444,7 @@ func TestValidateEmail(t *testing.T) {
 - Clear test names with `t.Run()`
 - DRY (Don't Repeat Yourself)
 
-### Test Helpers with t.Helper()
+### ✅ **Test Helpers with t.Helper()**
 
 ```go
 func setupTestServer(t *testing.T) *httptest.Server {
@@ -472,7 +472,7 @@ func TestClient(t *testing.T) {
 - Makes test output more useful
 - Standard Go testing pattern
 
-### Mock Interfaces
+### ✅ **Mock Interfaces**
 
 ```go
 // Define mockable interface
@@ -516,9 +516,294 @@ func TestProcessor(t *testing.T) {
 
 ---
 
+## Structured Logging (slog)
+
+### ✅ **Use log/slog (Go 1.21+)**
+
+```go
+import "log/slog"
+
+func main() {
+    // Production: JSON handler for log aggregation
+    logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+        Level: slog.LevelInfo,
+    }))
+    slog.SetDefault(logger)
+
+    // Include correlation IDs for tracing
+    slog.Info("request processed",
+        "request_id", reqID,
+        "user_id", userID,
+        "duration_ms", duration.Milliseconds(),
+    )
+}
+```
+
+### Handler Selection
+
+| Environment | Handler | Use Case |
+|-------------|---------|----------|
+| Production | `slog.JSONHandler` | Elasticsearch, Loki, CloudWatch |
+| Development | `slog.TextHandler` | Human-readable console output |
+
+### ❌ **Logging Anti-Patterns**
+
+| Pattern | Problem | Instead |
+|---------|---------|---------|
+| `fmt.Println` in library | Not parseable, no levels | Use `slog.Info` |
+| `log.Printf` | No structure | Use `slog` with attributes |
+| Logging secrets | Security risk | Use `ReplaceAttr` to redact |
+| Missing correlation ID | Can't trace requests | Always include request_id |
+
+> **Talos check:** PRE-007 detects `fmt.Print*` debug statements in non-CLI code.
+
+---
+
+## Benchmarking and Profiling
+
+### ✅ **Writing Benchmarks**
+
+```go
+func BenchmarkProcess(b *testing.B) {
+    data := setupTestData()
+    b.ResetTimer() // Exclude setup from timing
+
+    for i := 0; i < b.N; i++ {
+        Process(data)
+    }
+}
+
+// Memory allocation benchmark
+func BenchmarkProcessAllocs(b *testing.B) {
+    data := setupTestData()
+    b.ResetTimer()
+    b.ReportAllocs()
+    for i := 0; i < b.N; i++ {
+        Process(data)
+    }
+}
+```
+
+### Running Benchmarks
+
+```bash
+# Run benchmarks
+go test -bench=. -benchmem ./...
+
+# Compare before/after
+go test -bench=. -count=10 > old.txt
+# make changes
+go test -bench=. -count=10 > new.txt
+benchstat old.txt new.txt
+```
+
+### ✅ **Profiling with pprof**
+
+```go
+import _ "net/http/pprof"
+
+// Profiles available at:
+// /debug/pprof/profile  - CPU profile
+// /debug/pprof/heap     - Memory profile
+// /debug/pprof/goroutine - Goroutine stacks
+```
+
+**Analyze Profiles:**
+```bash
+# CPU profile (30 seconds)
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+
+# Memory profile
+go tool pprof http://localhost:6060/debug/pprof/heap
+
+# Interactive commands
+(pprof) top10      # Top 10 functions
+(pprof) web        # Open flame graph in browser
+```
+
+---
+
+## Configuration Management
+
+### ✅ **Single Config Struct Pattern**
+
+```go
+type Config struct {
+    Server   ServerConfig   `yaml:"server"`
+    Database DatabaseConfig `yaml:"database"`
+    Log      LogConfig      `yaml:"log"`
+}
+
+type ServerConfig struct {
+    Port         int           `yaml:"port" env:"PORT"`
+    ReadTimeout  time.Duration `yaml:"read_timeout"`
+    WriteTimeout time.Duration `yaml:"write_timeout"`
+}
+
+// Load with precedence: flags > env > file > defaults
+func Load() (*Config, error) {
+    cfg := &Config{}
+    setDefaults(cfg)
+    if err := loadFromFile(cfg); err != nil {
+        return nil, fmt.Errorf("load config file: %w", err)
+    }
+    loadFromEnv(cfg)
+    if err := cfg.Validate(); err != nil {
+        return nil, fmt.Errorf("validate config: %w", err)
+    }
+    return cfg, nil
+}
+```
+
+### ❌ **Configuration Anti-Patterns**
+
+| Pattern | Problem | Instead |
+|---------|---------|---------|
+| Global config var | Hard to test | Pass as dependency |
+| Reading env in functions | Scattered config | Centralize in Load() |
+| No validation | Runtime errors | Validate at startup |
+| Secrets in config files | Security risk | Use env vars or vault |
+
+---
+
+## HTTP API Standards
+
+### ✅ **API Versioning**
+
+```go
+mux := http.NewServeMux()
+
+// Health endpoints (unversioned - K8s standard)
+mux.HandleFunc("/health", healthHandler)
+mux.HandleFunc("/healthz", healthHandler)   // K8s liveness
+mux.HandleFunc("/readyz", readyHandler)     // K8s readiness
+
+// API v1
+mux.HandleFunc("/v1/webhook/gitlab", handler.ServeHTTP)
+
+// API documentation
+mux.HandleFunc("/openapi.json", openAPIHandler)
+```
+
+### ✅ **Health Endpoints**
+
+```go
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(`{"status":"healthy"}`))
+}
+
+func readyHandler(w http.ResponseWriter, r *http.Request) {
+    if !dependenciesReady() {
+        w.WriteHeader(http.StatusServiceUnavailable)
+        w.Write([]byte(`{"status":"not ready"}`))
+        return
+    }
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(`{"status":"ready"}`))
+}
+```
+
+### ✅ **Server Configuration**
+
+```go
+server := &http.Server{
+    Addr:         ":" + port,
+    Handler:      loggingMiddleware(mux),
+    ReadTimeout:  15 * time.Second,
+    WriteTimeout: 15 * time.Second,
+    IdleTimeout:  60 * time.Second,
+}
+
+// Graceful shutdown
+quit := make(chan os.Signal, 1)
+signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+go func() {
+    if err := server.ListenAndServe(); err != http.ErrServerClosed {
+        log.Fatalf("Server failed: %v", err)
+    }
+}()
+
+<-quit
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+server.Shutdown(ctx)
+```
+
+### ❌ **HTTP API Anti-Patterns**
+
+| Pattern | Problem | Instead |
+|---------|---------|---------|
+| Unversioned API | Breaking changes affect all | `/v1/webhook/gitlab` |
+| No Health Endpoint | K8s can't probe | Add `/health`, `/readyz` |
+| No OpenAPI Spec | Undocumented API | Serve OpenAPI 3.0 |
+| No Timeout Config | Slow clients block | Set Read/Write timeouts |
+| No Graceful Shutdown | Dropped requests | Catch signals, drain |
+
+---
+
+## Kubernetes Operator Patterns
+
+### ✅ **Controller Reconciliation**
+
+```go
+func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+    var resource myv1.MyResource
+    if err := r.Get(ctx, req.NamespacedName, &resource); err != nil {
+        return ctrl.Result{}, client.IgnoreNotFound(err)
+    }
+
+    // Handle deletion with finalizer
+    if !resource.DeletionTimestamp.IsZero() {
+        return r.handleDeletion(ctx, &resource)
+    }
+
+    // Add finalizer if not present
+    if !controllerutil.ContainsFinalizer(&resource, myFinalizer) {
+        controllerutil.AddFinalizer(&resource, myFinalizer)
+        if err := r.Update(ctx, &resource); err != nil {
+            return ctrl.Result{}, err
+        }
+        return ctrl.Result{Requeue: true}, nil
+    }
+
+    // State machine based on desired state
+    switch resource.Spec.DesiredState {
+    case myv1.StateActive:
+        return r.ensureActive(ctx, &resource)
+    case myv1.StateIdle:
+        return r.ensureIdle(ctx, &resource)
+    }
+    return ctrl.Result{}, nil
+}
+```
+
+### Return Patterns
+
+| Result | Meaning |
+|--------|---------|
+| `ctrl.Result{}, nil` | Success, no requeue |
+| `ctrl.Result{Requeue: true}, nil` | Requeue immediately |
+| `ctrl.Result{RequeueAfter: time.Minute}, nil` | Requeue after duration |
+| `ctrl.Result{}, err` | Error, controller-runtime handles backoff |
+
+### ❌ **Operator Anti-Patterns**
+
+| Pattern | Problem | Instead |
+|---------|---------|---------|
+| Status as Spec | Status is observed, not desired | Use Spec for desired |
+| Missing Finalizer | Orphaned external resources | Add finalizer first |
+| No Context Timeout | Hung operations | `context.WithTimeout` |
+| Condition Storms | Triggers unnecessary watches | Update only on change |
+| Direct Status Update | Conflicts with spec updates | Use `r.Status().Update()` |
+
+---
+
 ## Code Quality Metrics
 
-### golangci-lint Configuration
+### ✅ **golangci-lint Configuration**
 
 Minimum recommended linters:
 
@@ -542,14 +827,14 @@ linters-settings:
     min-complexity: 10  # Cyclomatic complexity threshold
 ```
 
-### Complexity Thresholds
+### 📊 **Complexity Thresholds**
 
 | Complexity Range | Status | Action |
 |-----------------|--------|--------|
-| CC 1-5 (Simple) | Excellent | Maintain |
-| CC 6-10 (OK) | Acceptable | Monitor |
-| CC 11-15 (High) | Warning | Refactor recommended |
-| CC 16+ (Very High) | Critical | Refactor required |
+| CC 1-5 (Simple) | ✅ Excellent | Maintain |
+| CC 6-10 (OK) | ✅ Acceptable | Monitor |
+| CC 11-15 (High) | ⚠️ Warning | Refactor recommended |
+| CC 16+ (Very High) | ❌ Critical | Refactor required |
 
 **Refactoring Strategies:**
 - Strategy maps (replace switch statements)
@@ -561,7 +846,7 @@ linters-settings:
 
 ## Anti-Patterns Avoided
 
-### No Naked Returns
+### ❌ **No Naked Returns**
 ```go
 // BAD
 func bad() (err error) {
@@ -576,17 +861,17 @@ func good() error {
 }
 ```
 
-### No init() Abuse
+### ❌ **No init() Abuse**
 - No `init()` functions with side effects
 - Configuration via constructors
 - Explicit initialization with error handling
 
-### No Panics in Library Code
+### ❌ **No Panics in Library Code**
 - All errors returned via `error` interface
 - `panic` only used in tests for assertion failures
 - No `panic` in production paths
 
-### No Global Mutable State
+### ❌ **No Global Mutable State**
 ```go
 // BAD
 var globalRegistry *Registry
@@ -597,7 +882,7 @@ type Server struct {
 }
 ```
 
-### No Pointer to Interface
+### ❌ **No Pointer to Interface**
 ```go
 // BAD
 func bad(agent *Agent) // Interface is already a reference
@@ -606,7 +891,7 @@ func bad(agent *Agent) // Interface is already a reference
 func good(agent Agent)
 ```
 
-### No Goroutine Leaks
+### ❌ **No Goroutine Leaks**
 ```go
 // BAD - Goroutine never exits
 go func() {
@@ -689,7 +974,7 @@ Deep validation includes:
 
 ### JIT Loading
 
-**Tier 1 (Fast):** Load `standards/references/go.md` (5KB)
+**Tier 1 (Fast):** Load `~/.claude/skills/standards/references/go.md` (5KB)
 **Tier 2 (Deep):** Load this document (16KB) for comprehensive audit
 **Override:** Use `.agents/validation/GO_*.md` if project-specific standards exist
 
@@ -702,3 +987,7 @@ Deep validation includes:
 - [Go Proverbs](https://go-proverbs.github.io/)
 - [golangci-lint Linters](https://golangci-lint.run/usage/linters/)
 - [OWASP Go Secure Coding](https://owasp.org/www-project-go-secure-coding-practices-guide/)
+
+---
+
+**Related:** `go-patterns.md` for quick reference examples

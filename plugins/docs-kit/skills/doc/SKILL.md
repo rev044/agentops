@@ -7,10 +7,13 @@ description: >
   generation and validation for any repository type.
   Triggers: doc, documentation, code-map, doc coverage, validate docs.
 version: 2.0.0
-context: fork
+tier: solo
+context: inline
 author: "AI Platform Team"
 license: "MIT"
 allowed-tools: "Read,Write,Edit,Glob,Grep,Bash,Task,mcp__smart-connections-work__lookup"
+skills:
+  - standards
 ---
 
 # Doc Skill
@@ -40,7 +43,7 @@ Auto-detects project type (CODING, INFORMATIONAL, OPS), discovers documentable f
 Run detection script to establish context:
 
 ```bash
-./scripts/detect-project.sh
+~/.claude/skills/doc/scripts/detect-project.sh
 ```
 
 Returns JSON with type, confidence, and doc directories.
@@ -54,8 +57,8 @@ See `references/project-types.md` for signal weights and behaviors.
 Find documentable features based on project type.
 
 ```bash
-TYPE=$(./scripts/detect-project.sh | jq -r .type)
-./scripts/discover-features.sh "$TYPE"
+TYPE=$(~/.claude/skills/doc/scripts/detect-project.sh | jq -r .type)
+~/.claude/skills/doc/scripts/discover-features.sh "$TYPE"
 ```
 
 **CODING**: Finds services with endpoints, metrics, config vars (score >= 3)
@@ -110,7 +113,7 @@ Update all documentation or validate based on type.
 Validate documentation covers all actual features.
 
 ```bash
-./scripts/detect-project.sh  # Get type
+~/.claude/skills/doc/scripts/detect-project.sh  # Get type
 # Then validate per type
 ```
 
@@ -182,3 +185,17 @@ sync_items:
 - **Validation**: `references/validation-rules.md`
 - **Detection Script**: `scripts/detect-project.sh`
 - **Discovery Script**: `scripts/discover-features.sh`
+
+---
+
+## Standards Loading
+
+When generating documentation, load relevant language standards:
+
+| File Pattern | Load Reference |
+|--------------|----------------|
+| `*.py` | `~/.claude/skills/standards/references/python.md` |
+| `*.go` | `~/.claude/skills/standards/references/go.md` |
+| `*.ts`, `*.tsx` | `~/.claude/skills/standards/references/typescript.md` |
+| `*.md` | `~/.claude/skills/standards/references/markdown.md` |
+| `*.yaml`, `*.yml` | `~/.claude/skills/standards/references/yaml.md` |

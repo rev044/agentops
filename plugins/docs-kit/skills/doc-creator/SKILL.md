@@ -5,7 +5,8 @@ description: >
   "write a corpus document", "create a standard", "add corpus content",
   "write GraphRAG documentation", or mentions corpus/standards documentation.
 version: 2.0.0
-context: fork
+tier: solo
+context: inline
 allowed-tools: "Read,Write,Edit,Glob,Grep"
 skills:
   - standards
@@ -208,10 +209,10 @@ When creating documentation, reference the standards library for consistent form
 
 | Content Type | Reference |
 |--------------|-----------|
-| Markdown files | `domain-kit/skills/standards/references/markdown.md` |
-| Document tags | `domain-kit/skills/standards/references/tags.md` |
-| JSON/JSONL data | `domain-kit/skills/standards/references/json.md` |
-| YAML frontmatter | `domain-kit/skills/standards/references/yaml.md` |
+| Markdown files | `~/.claude/skills/standards/references/markdown.md` |
+| Document tags | `~/.claude/skills/standards/references/tags.md` |
+| JSON/JSONL data | `~/.claude/skills/standards/references/json.md` |
+| YAML frontmatter | `~/.claude/skills/standards/references/yaml.md` |
 
 ---
 

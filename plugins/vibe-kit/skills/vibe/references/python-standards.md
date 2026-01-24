@@ -967,7 +967,7 @@ if status == Status.PENDING:
 
 ### JIT Loading
 
-**Tier 1 (Fast):** Load `standards/references/python.md` (5KB)
+**Tier 1 (Fast):** Load `~/.claude/skills/standards/references/python.md` (5KB)
 **Tier 2 (Deep):** Load this document (20KB) for comprehensive audit
 
 ---
@@ -980,3 +980,7 @@ if status == Status.PENDING:
 - [radon Complexity](https://radon.readthedocs.io/)
 - [pytest Documentation](https://docs.pytest.org/)
 - [testcontainers-python](https://testcontainers-python.readthedocs.io/)
+
+---
+
+**Related:** `python-patterns.md` for quick reference examples (if needed)

@@ -680,7 +680,7 @@ type Color = typeof Color[keyof typeof Color];
 
 ### JIT Loading
 
-**Tier 1 (Fast):** Load `standards/references/typescript.md` (5KB)
+**Tier 1 (Fast):** Load `~/.claude/skills/standards/references/typescript.md` (5KB)
 **Tier 2 (Deep):** Load this document (18KB) for comprehensive audit
 
 ---
@@ -691,3 +691,7 @@ type Color = typeof Color[keyof typeof Color];
 - [typescript-eslint](https://typescript-eslint.io/)
 - [Total TypeScript](https://www.totaltypescript.com/)
 - [Type Challenges](https://github.com/type-challenges/type-challenges)
+
+---
+
+**Related:** Quick reference in Tier 1 `typescript.md`

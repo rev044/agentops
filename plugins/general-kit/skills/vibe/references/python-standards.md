@@ -107,6 +107,21 @@ pipx run cowsay "hello"
 | Install system tool | brew | `brew install shellcheck` |
 | Quick script run | uv | `uv run script.py` |
 
+### What NOT to Do
+
+```python
+# DON'T use pip globally
+pip install requests          # Pollutes system Python
+sudo pip install anything     # Even worse
+
+# DON'T mix package managers
+pip install requests          # Now you have pip AND uv deps
+uv add pyyaml                 # Conflicts likely
+
+# DON'T commit venv/
+git add .venv/                # Use .gitignore
+```
+
 ---
 
 ## Code Formatting
@@ -177,6 +192,13 @@ ruff format --check src/
 ## Reducing Complexity
 
 **Target:** Maximum cyclomatic complexity of 10 (Grade B) per function
+
+### Why Complexity Matters
+
+- CC = number of independent paths through code
+- CC > 10 means exponentially more test cases for coverage
+- High complexity correlates with defect density
+- Humans (and LLMs) struggle with deeply nested logic
 
 ### Pattern 1: Dispatch Pattern (Handler Registry)
 
@@ -266,6 +288,59 @@ def normalize_field(key: str, value: str) -> str:
     return normalizer(value) if normalizer else value
 ```
 
+### Pattern 4: Strategy Pattern (Class-Based)
+
+```python
+# Bad - Type checking with isinstance
+def process(item: Item) -> Result:
+    if isinstance(item, TypeA):
+        # TypeA logic
+    elif isinstance(item, TypeB):
+        # TypeB logic
+    elif isinstance(item, TypeC):
+        # TypeC logic
+    # ... many more types
+
+# Good - Strategy pattern
+from abc import ABC, abstractmethod
+
+class ItemProcessor(ABC):
+    @abstractmethod
+    def process(self, item: Item) -> Result:
+        pass
+
+class TypeAProcessor(ItemProcessor):
+    def process(self, item: Item) -> Result:
+        # TypeA logic
+
+class TypeBProcessor(ItemProcessor):
+    def process(self, item: Item) -> Result:
+        # TypeB logic
+
+# Registry
+PROCESSORS: dict[type, ItemProcessor] = {
+    TypeA: TypeAProcessor(),
+    TypeB: TypeBProcessor(),
+}
+
+def process(item: Item) -> Result:
+    processor = PROCESSORS.get(type(item))
+    if not processor:
+        raise ValueError(f"No processor for {type(item)}")
+    return processor.process(item)
+```
+
+### Helper Naming Convention
+
+| Prefix | Meaning | Example |
+|--------|---------|---------|
+| `_handle_` | Mode/dispatch handler | `_handle_patch_mode()` |
+| `_process_` | Processing helper | `_process_secret()` |
+| `_validate_` | Validation helper | `_validate_cert()` |
+| `_setup_` | Initialization helper | `_setup_mount_point()` |
+| `_normalize_` | Data normalization | `_normalize_cert_field()` |
+| `_build_` | Construction | `_build_audit_metadata()` |
+
 ### Measuring Complexity
 
 ```bash
@@ -314,6 +389,15 @@ def first(items: list[T]) -> T | None:
     return items[0] if items else None
 ```
 
+### Type Hint Anti-Patterns
+
+| Anti-Pattern | Problem | Better |
+|--------------|---------|--------|
+| `Any` everywhere | Defeats type checking | Use generics or specific types |
+| `# type: ignore` without comment | Hides real issues | Add explanation |
+| Old syntax `List[str]` | Deprecated | Use `list[str]` |
+| Missing return type | Incomplete signature | Always add return type |
+
 ---
 
 ## Docstrings
@@ -341,9 +425,24 @@ def verify_secret_after_write(
     Raises:
         hvac.exceptions.InvalidPath: If secret path is invalid.
         ConnectionError: If Vault connection fails.
+
+    Example:
+        >>> client = hvac.Client(url="http://localhost:8200")
+        >>> verify_secret_after_write(client, "secret", "mykey", {"foo": "bar"})
+        True
     """
     pass
 ```
+
+### When to Include Each Section
+
+| Section | When to Include |
+|---------|-----------------|
+| **Args** | Always if function has parameters |
+| **Returns** | Always if function returns non-None |
+| **Raises** | If function can raise exceptions |
+| **Example** | For complex or non-obvious usage |
+| **Note** | For important caveats or warnings |
 
 ---
 
@@ -358,11 +457,25 @@ try:
 except subprocess.CalledProcessError as exc:
     logging.warning("Certificate validation failed: %s", exc)
 
+# Good - Multiple specific types for format detection
+try:
+    decoded = base64.b64decode(data)
+except (UnicodeDecodeError, base64.binascii.Error, ValueError) as exc:
+    logging.debug("Not base64, assuming PEM format: %s", exc)
+    decoded = data
+
 # Good - Re-raise with context
 try:
     result = subprocess.run(cmd, check=True, capture_output=True)
 except subprocess.CalledProcessError as exc:
     raise RuntimeError(f"Command failed: {cmd}") from exc
+
+# Good - Custom exception with context
+class ConfigError(Exception):
+    """Configuration validation error."""
+    def __init__(self, key: str, message: str):
+        self.key = key
+        super().__init__(f"Config '{key}': {message}")
 ```
 
 ### Bad Patterns
@@ -374,11 +487,34 @@ try:
 except Exception:
     pass  # Silent failure!
 
+# Bad - Catching Exception without re-raising
+try:
+    process_data()
+except Exception as e:
+    logging.error("Error: %s", e)
+    return None  # Hides the problem
+
 # Bad - Too broad, catches KeyboardInterrupt
 try:
     long_running_task()
 except:  # noqa: E722
     pass
+```
+
+### Exception Hierarchy for Custom Errors
+
+```python
+class MyAppError(Exception):
+    """Base exception for application errors."""
+
+class ValidationError(MyAppError):
+    """Input validation failed."""
+
+class ConnectionError(MyAppError):
+    """External service connection failed."""
+
+class ConfigError(MyAppError):
+    """Configuration error."""
 ```
 
 ---
@@ -400,6 +536,16 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 ```
 
+### Log Levels
+
+| Level | When to Use |
+|-------|-------------|
+| `DEBUG` | Detailed diagnostic (development only) |
+| `INFO` | Key events, progress |
+| `WARNING` | Recoverable issues |
+| `ERROR` | Operation failed |
+| `CRITICAL` | Application cannot continue |
+
 ### Good Patterns
 
 ```python
@@ -407,8 +553,26 @@ log = logging.getLogger(__name__)
 logging.info("Processing secret: %s", secret_name)
 logging.warning("Retry %d of %d: %s", attempt, max_retries, error)
 
+# Good - Include context
+logging.info("Prepared %s: %s", secret_name, preview)
+logging.warning("Security policy check failed for %s: %s", key, exc)
+
+# Good - Structured for parsing
+logging.info("event=secret_prepared name=%s preview=%s", secret_name, preview)
+```
+
+### Bad Patterns
+
+```python
 # Bad - f-string (evaluated even if level disabled)
 logging.info(f"Processing {expensive_to_compute()}")
+
+# Bad - No context
+logging.info("Processing...")
+logging.error(str(e))
+
+# Bad - print() instead of logging
+print("DEBUG: value is", value)
 ```
 
 ---
@@ -427,6 +591,55 @@ tests/
     └── test_integration.py
 ```
 
+### Configuration
+
+```toml
+# pyproject.toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "e2e: marks tests as end-to-end (require Docker)",
+    "slow: marks tests as slow",
+]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+```
+
+### Testcontainers for E2E Tests
+
+Use testcontainers for tests that need real infrastructure.
+
+```python
+# tests/e2e/conftest.py
+import pytest
+from testcontainers.postgres import PostgresContainer
+
+@pytest.fixture(scope="session")
+def postgres_container():
+    """Spin up PostgreSQL for E2E tests."""
+    with PostgresContainer("postgres:16") as postgres:
+        yield postgres
+    # Container automatically cleaned up
+
+@pytest.fixture
+def db_connection(postgres_container):
+    """Get connection to test database."""
+    import psycopg
+    conn_str = postgres_container.get_connection_url()
+    with psycopg.connect(conn_str) as conn:
+        yield conn
+```
+
 ### Test Patterns
 
 ```python
@@ -441,6 +654,43 @@ import pytest
 ])
 def test_validate_email(input: str, expected: bool):
     assert validate_email(input) == expected
+
+# Fixtures for setup/teardown
+@pytest.fixture
+def temp_config(tmp_path):
+    """Create temporary config file."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("key: value")
+    return config_file
+
+def test_load_config(temp_config):
+    config = load_config(temp_config)
+    assert config["key"] == "value"
+
+# Mock external services
+from unittest.mock import patch, MagicMock
+
+def test_api_call():
+    with patch("mymodule.requests.get") as mock_get:
+        mock_get.return_value = MagicMock(status_code=200, json=lambda: {"data": "test"})
+        result = my_api_function()
+        assert result == {"data": "test"}
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=term-missing
+
+# Run only E2E tests
+pytest -m e2e
+
+# Run excluding slow tests
+pytest -m "not slow"
 ```
 
 ---
@@ -466,6 +716,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
@@ -479,10 +730,53 @@ def die(message: str) -> None:
     sys.exit(1)
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        type=Path,
+        help="Path to config file (default: config.yaml)",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply changes (default: dry-run)",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable debug logging",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
     """Main entry point."""
+    args = parse_args()
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    if not args.apply:
+        logging.info("Dry-run mode (use --apply to make changes)")
+
+    # Validate config exists
+    if not args.config.exists():
+        die(f"Config file not found: {args.config}")
+
     # Main logic here
-    return 0
+    try:
+        # ... implementation
+        logging.info("Processing complete")
+        return 0
+    except Exception as exc:
+        logging.error("Failed: %s", exc)
+        return 2
 
 
 if __name__ == "__main__":
@@ -508,15 +802,23 @@ if __name__ == "__main__":
 ```bash
 # Code quality + style
 ruff check src/ --statistics
+# Output: "10 errors, 5 warnings" → Count these
 
 # Complexity analysis
 radon cc src/ -s -a
+# Output includes per-function CC and average → Report both
 
 # Enforce complexity limit
 xenon src/ --max-absolute B
+# Fails if any function exceeds CC=10
 
 # Test coverage
 pytest --cov=src --cov-report=term-missing
+# Output: "87% line, 71% branch" → Report both
+
+# Docstring coverage
+interrogate src/
+# Output: "85% (45/53 functions)" → Report fraction + %
 ```
 
 ---
@@ -532,9 +834,14 @@ def process_all(data):
     pass
 
 # Good - Separated concerns
-def validate(data: Data) -> ValidationResult: ...
-def transform(data: Data) -> TransformedData: ...
-def save(data: TransformedData) -> None: ...
+def validate(data: Data) -> ValidationResult:
+    ...
+
+def transform(data: Data) -> TransformedData:
+    ...
+
+def save(data: TransformedData) -> None:
+    ...
 ```
 
 ### No Bare Except
@@ -559,6 +866,10 @@ except SpecificError as e:
 # Bad
 config = {}  # Module-level mutable
 
+def load_config(path):
+    global config
+    config = load_yaml(path)
+
 # Good
 @dataclass
 class Config:
@@ -570,11 +881,40 @@ def load_config(path: Path) -> Config:
     return Config(**data)
 ```
 
+### No Magic Strings
+
+```python
+# Bad
+if status == "pending":
+    ...
+elif status == "complete":
+    ...
+
+# Good
+class Status(str, Enum):
+    PENDING = "pending"
+    COMPLETE = "complete"
+
+if status == Status.PENDING:
+    ...
+```
+
 ---
 
 ## Compliance Assessment
 
 **Use letter grades + evidence, NOT numeric scores.**
+
+### Assessment Categories
+
+| Category | Evidence Required |
+|----------|------------------|
+| **Code Quality** | ruff violations count, auto-fixable count |
+| **Complexity** | radon cc output, functions >CC10 count |
+| **Type Safety** | % public functions with hints, missing count |
+| **Error Handling** | Bare except count, specific exception count |
+| **Testing** | pytest coverage (line/branch %), test count |
+| **Documentation** | Docstring coverage %, missing count |
 
 ### Grading Scale
 
@@ -589,6 +929,47 @@ def load_config(path: Path) -> Config:
 | D | Not production-ready |
 | F | Critical issues |
 
+### Example Assessment
+
+```markdown
+## Python Standards Compliance
+
+**Target:** src/
+**Date:** 2026-01-21
+
+| Category | Grade | Evidence |
+|----------|-------|----------|
+| Code Quality | A- | 8 ruff violations (6 fixable), 0 security |
+| Complexity | B+ | 12 functions >CC10, avg CC=6.8 (radon) |
+| Type Safety | A | 47/52 public functions typed (90%) |
+| Error Handling | A- | 0 bare except, 2 broad catches |
+| Testing | B | 73% line, 58% branch (pytest) |
+| Documentation | A | 48/52 documented (92%, interrogate) |
+| **OVERALL** | **A-** | **8 HIGH, 15 MEDIUM findings** |
+
+### High Priority Findings
+
+- **CMPLX-001** - `processor.py:89` CC=15 - Refactor dispatch
+- **TYPE-001** - `utils.py` - 5 functions missing hints
+```
+
+---
+
+## Vibe Integration
+
+### Prescan Patterns
+
+| Pattern | Severity | Detection |
+|---------|----------|-----------|
+| P04: Bare Except | HIGH | `except:` or `except Exception:` without re-raise |
+| P08: print() Debug | MEDIUM | `print(` in non-CLI modules |
+| P15: f-string Logging | LOW | `logging.*\(f"` pattern |
+
+### JIT Loading
+
+**Tier 1 (Fast):** Load `~/.claude/skills/standards/references/python.md` (5KB)
+**Tier 2 (Deep):** Load this document (20KB) for comprehensive audit
+
 ---
 
 ## Additional Resources
@@ -598,3 +979,8 @@ def load_config(path: Path) -> Config:
 - [ruff Documentation](https://docs.astral.sh/ruff/)
 - [radon Complexity](https://radon.readthedocs.io/)
 - [pytest Documentation](https://docs.pytest.org/)
+- [testcontainers-python](https://testcontainers-python.readthedocs.io/)
+
+---
+
+**Related:** `python-patterns.md` for quick reference examples (if needed)

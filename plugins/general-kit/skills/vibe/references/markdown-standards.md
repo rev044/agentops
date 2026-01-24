@@ -15,8 +15,9 @@
 5. [Tables](#tables)
 6. [Links](#links)
 7. [Lists](#lists)
-8. [Validation](#validation)
-9. [Compliance Assessment](#compliance-assessment)
+8. [Emphasis and Blockquotes](#emphasis-and-blockquotes)
+9. [Validation](#validation)
+10. [Compliance Assessment](#compliance-assessment)
 
 ---
 
@@ -62,6 +63,50 @@
 1. Step one
 2. Step two
 3. Step three
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Error message | Root cause | Solution |
+
+## References
+
+- [Reference 1](./references/detail1.md) - Load when needed
+- [Reference 2](./references/detail2.md) - Load when needed
+```
+
+### Reference Doc Template
+
+```markdown
+# Reference: Topic Name
+
+<!-- Load JIT when skill needs deep context -->
+
+## Context
+
+Brief overview of when this reference applies.
+
+## Details
+
+### Section 1
+
+...
+
+## Decision Tree
+
+```text
+Is X true?
+├─ Yes → Do A
+│   └─ Did A fail? → Try B
+└─ No → Do C
+```
+
+## Anti-Patterns
+
+| Name | Pattern | Why Bad | Instead |
+|------|---------|---------|---------|
+| ... | ... | ... | ... |
 ```
 
 ---
@@ -81,6 +126,18 @@
 - Skip heading levels (`#` → `###`)
 - Use bold text as fake headings
 - Start with `##` (missing `#` title)
+
+### Heading Text
+
+```markdown
+# Good - Title Case for Title
+## Good - Sentence case for sections
+### Good - Sentence case continues
+
+# Bad - all lowercase title
+## Bad - ALL CAPS SECTION
+### Bad - Using: Colons: Everywhere
+```
 
 ---
 
@@ -108,6 +165,17 @@ def hello():
 | `yaml` | ` ```yaml ` | YAML config |
 | `json` | ` ```json ` | JSON data |
 | `text` | ` ```text ` | Plain text, diagrams |
+| `diff` | ` ```diff ` | Code diffs |
+
+### Command Output
+
+```markdown
+```bash
+$ kubectl get pods
+NAME         READY   STATUS    RESTARTS   AGE
+my-pod       1/1     Running   0          5m
+```
+```
 
 ---
 
@@ -122,6 +190,7 @@ def hello():
 | Command reference | Yes | - |
 | Step-by-step | No | Numbered list |
 | Narrative | No | Paragraphs |
+| Two items only | No | Inline comparison |
 
 ### Table Formatting
 
@@ -130,7 +199,21 @@ def hello():
 | Column A | Column B | Column C |
 |----------|----------|----------|
 | Value 1  | Value 2  | Value 3  |
+
+# Bad - Misaligned
+|Column A|Column B|Column C|
+|-|-|-|
+|Value 1|Value 2|Value 3|
 ```
+
+### Table Cell Content
+
+| Content Type | Formatting |
+|--------------|------------|
+| Code/commands | Backticks: `` `cmd` `` |
+| Emphasis | Bold: `**required**` |
+| Links | Inline: `[text](url)` |
+| Long text | Under 50 chars |
 
 ---
 
@@ -149,6 +232,17 @@ def hello():
 [Guide](/Users/me/project/docs/guide.md)
 ```
 
+### Reference Links
+
+For repeated URLs:
+
+```markdown
+See the [official docs][k8s-docs] for more info.
+The [Kubernetes documentation][k8s-docs] covers this.
+
+[k8s-docs]: https://kubernetes.io/docs/
+```
+
 ---
 
 ## Lists
@@ -158,9 +252,15 @@ def hello():
 Use `-` consistently:
 
 ```markdown
+# Good
 - Item one
 - Item two
   - Nested item
+
+# Bad - Mixed markers
+* Item one
++ Item two
+- Item three
 ```
 
 ### Ordered Lists
@@ -168,9 +268,53 @@ Use `-` consistently:
 Use `1.` for all items:
 
 ```markdown
+# Good - All 1s
 1. First step
 1. Second step
 1. Third step
+
+# Acceptable - Explicit numbering
+1. First step
+2. Second step
+3. Third step
+```
+
+### Task Lists
+
+```markdown
+- [ ] Incomplete task
+- [x] Completed task
+- [ ] Another incomplete
+```
+
+---
+
+## Emphasis and Blockquotes
+
+### Emphasis
+
+| Purpose | Syntax | Example |
+|---------|--------|---------|
+| Important terms | `**bold**` | **required** |
+| File names, commands | `` `backticks` `` | `config.yaml` |
+| Titles, emphasis | `*italic*` | *optional* |
+| Keyboard keys | `<kbd>` | <kbd>Ctrl</kbd>+<kbd>C</kbd> |
+
+**NEVER use bold for:**
+- Entire paragraphs
+- Headings (use `#`)
+- Code (use backticks)
+
+### Callout Patterns
+
+```markdown
+> **Note:** Supplementary information.
+
+> **Warning:** Something that could cause issues.
+
+> **Important:** Critical information.
+
+> **Tip:** Helpful suggestion.
 ```
 
 ---
@@ -194,6 +338,8 @@ MD033:
     - br
     - details
     - summary
+
+MD034: false
 
 MD004:
   style: dash
@@ -221,6 +367,16 @@ npx prettier --write '**/*.md'
 
 **Use letter grades + evidence, NOT numeric scores.**
 
+### Assessment Categories
+
+| Category | Evidence Required |
+|----------|------------------|
+| **Structure** | Heading hierarchy, single H1 |
+| **Formatting** | markdownlint violations, code fence hints |
+| **Links** | Broken link count, relative paths |
+| **AI Optimization** | Table usage, explicit rules |
+| **Accessibility** | Alt text, semantic markup |
+
 ### Grading Scale
 
 | Grade | Criteria |
@@ -240,9 +396,28 @@ npx markdownlint '**/*.md' --ignore node_modules
 # Check heading hierarchy
 grep -r "^# " docs/*.md | wc -l
 ls docs/*.md | wc -l
+# Should match (1 H1 per file)
 
 # Code blocks without language
 grep -rP '```\s*$' docs/ | wc -l
+# Should be 0
+
+# Check links
+npx markdown-link-check docs/**/*.md
+```
+
+### Example Assessment
+
+```markdown
+## Markdown Standards Compliance
+
+| Category | Grade | Evidence |
+|----------|-------|----------|
+| Structure | A+ | 47/47 single H1, 0 skipped |
+| Formatting | A- | 18 warnings (MD013) |
+| Links | A | 0 broken, 93% relative |
+| AI Optimization | A | 85 tables, 23 decision trees |
+| **OVERALL** | **A** | **18 MEDIUM findings** |
 ```
 
 ---
@@ -252,3 +427,7 @@ grep -rP '```\s*$' docs/ | wc -l
 - [CommonMark Spec](https://spec.commonmark.org/)
 - [markdownlint Rules](https://github.com/DavidAnson/markdownlint)
 - [GitHub Flavored Markdown](https://github.github.com/gfm/)
+
+---
+
+**Related:** Quick reference in Tier 1 `markdown.md`

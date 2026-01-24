@@ -385,3 +385,7 @@ while IFS= read -r line; do echo "$line" | jq empty; done < data.jsonl
 - [JSON Lines](https://jsonlines.org/)
 - [JSON Schema](https://json-schema.org/)
 - [jq Manual](https://stedolan.github.io/jq/manual/)
+
+---
+
+**Related:** Quick reference in Tier 1 `json.md`

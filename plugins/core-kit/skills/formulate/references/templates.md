@@ -296,12 +296,12 @@ bd mol pour {topic-slug} --var service_name=rate-limiter
 ```
 
 ## Next Steps
-Run `/crank <epic-id> --dry-run` to validate, then `/crank <epic-id>` to execute.
+Run `/crank <epic-id>` for autonomous execution, or `/implement-wave <epic-id>` for supervised.
 ```
 
 ---
 
-## Formula Summary Template (Autopilot Handoff)
+## Formula Summary Template (Crank Handoff)
 
 Output this after cooking/pouring a formula. This is the **handoff to crank**.
 
@@ -348,7 +348,7 @@ Wave 2 (depends on Wave 1):
 
 ---
 
-## Ready for Crank
+## Ready for Execution
 
 ### Pre-Flight Checklist
 
@@ -359,12 +359,14 @@ Wave 2 (depends on Wave 1):
 
 ### Execute
 
+**Autonomous (overnight, parallel via polecats):**
 ```bash
-# Validate structure first
-/crank xxx --dry-run
+/crank xxx              # Full auto until epic closed
+```
 
-# Full execution
-/crank xxx
+**Supervised (sequential, same session):**
+```bash
+/implement-wave xxx     # One wave at a time
 ```
 
 ### Alternative: Manual Execution

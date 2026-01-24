@@ -5,6 +5,7 @@ description: >
   Auto-detects role: Mayor uses polecats for parallel execution,
   Crew executes sequentially via /implement. NO human prompts, NO stopping.
 version: 2.1.0
+tier: orchestration
 context: inline
 triggers:
   - "crank"
@@ -24,6 +25,27 @@ skills:
 # crank: Autonomous Epic Execution
 
 > **Runs until epic is CLOSED. Auto-adapts to Mayor (parallel) or Crew (sequential) mode.**
+
+## Philosophy: The Brownian Ratchet (FIRE Loop)
+
+Crank is the full implementation of the Brownian Ratchet pattern via the **FIRE loop**:
+
+| FIRE Phase | Ratchet Role | Description |
+|------------|--------------|-------------|
+| **FIND** | Read state | Identify ready work, burning work, reaped work |
+| **IGNITE** | **Chaos** | Spark parallel polecats (Mayor) or start work (Crew) |
+| **REAP** | **Filter + Ratchet** | Validate, merge (permanent), close issues |
+| **ESCALATE** | Recovery | Retry failures or escalate blockers to human |
+
+The FIRE loop IS the ratchet:
+```
+FIND → IGNITE (chaos) → REAP (filter + ratchet) → ESCALATE → loop
+```
+
+**Key insight:** Polecats can fail independently. Each successful merge ratchets forward.
+The system extracts progress from parallel attempts, filtering failures automatically.
+
+See [fire.md](fire.md) for full loop specification.
 
 ## Role Detection
 
@@ -49,7 +71,7 @@ fi
 # Auto-discover epic (finds open epic in current context)
 /crank
 
-# Explicit epic
+# Explicit epic - USE IT DIRECTLY, NO DISCOVERY
 /crank <epic-id>
 
 # Force a specific mode
@@ -57,50 +79,63 @@ fi
 /crank <epic-id> --mode=mayor    # Parallel via polecats
 ```
 
-## Argument Inference
+## CRITICAL: Argument Handling
 
-When invoked without an explicit epic ID, infer the target from context:
+**RULE: If an epic ID is provided, USE IT IMMEDIATELY. Do NOT run discovery.**
+
+```python
+def parse_args(args):
+    """Parse crank arguments."""
+    if args and args[0].startswith(('ol-', 'ap-', 'gt-', 'be-', 'he-', 'ho-')):
+        # Explicit epic ID provided - USE IT, NO QUESTIONS
+        return {'epic': args[0], 'mode': parse_mode(args)}
+
+    # Only run discovery if NO epic ID provided
+    return {'epic': discover_epic(), 'mode': parse_mode(args)}
+```
+
+**Anti-pattern (DO NOT DO):**
+```
+User: /crank ol-rg3p
+Claude: "I found multiple epics, which one?" <- WRONG! User said ol-rg3p!
+```
+
+**Correct behavior:**
+```
+User: /crank ol-rg3p
+Claude: [Immediately starts cranking ol-rg3p, no questions]
+```
+
+## Discovery (ONLY when no epic ID provided)
+
+When invoked with just `/crank` (no arguments), infer the target:
 
 ### Priority 1: Conversational Context
 
-If the user mentions an epic or topic in the same message (e.g., "/crank creating beads"),
-search for matching epics:
+If the user mentions a topic (e.g., "/crank flywheel"), search:
 
 ```bash
-# User said "/crank creating beads" -> search for epic with "beads" in title
-bd search "beads" --type epic --status open
+bd search "flywheel" --type epic --status open
 ```
-
-**Extract keywords** from the user's message and match against epic titles/descriptions.
 
 ### Priority 2: Beads Discovery
 
 ```bash
-# 1. Check if there's exactly one open epic
 EPICS=$(bd list --type epic --status open 2>/dev/null | head -5)
 EPIC_COUNT=$(echo "$EPICS" | grep -c '^' 2>/dev/null || echo 0)
 
 if [[ "$EPIC_COUNT" -eq 1 ]]; then
     EPIC_ID=$(echo "$EPICS" | awk '{print $1}')
-    echo "[CRANK] Auto-selected epic: $EPIC_ID"
+    # USE IT - one epic, no ambiguity
 elif [[ "$EPIC_COUNT" -gt 1 ]]; then
-    echo "[CRANK] Multiple open epics found. Please specify:"
-    echo "$EPICS"
-    # STOP - ask user which epic
-elif [[ "$EPIC_COUNT" -eq 0 ]]; then
-    # 2. Check for issues with children (implicit epics)
-    echo "[CRANK] No explicit epics. Checking for parent issues..."
-    bd list --has-children --status open | head -5
+    # ASK - multiple epics, need clarification
+    echo "[CRANK] Multiple open epics. Please specify: /crank <epic-id>"
 fi
 ```
 
 ### Priority 3: Recent Context
 
-Check for recently-viewed or recently-mentioned issue IDs in conversation history.
-
-**Key**: Conversational keywords > single epic > multiple (ask) > parent issues > ask user.
-
----
+Check conversation history for recently-mentioned epic IDs.
 
 ## The ODMCR Loop
 
@@ -218,14 +253,17 @@ When running as mayor (at town root or in mayor/), crank dispatches to polecats:
 
 ### Mayor DISPATCH
 ```bash
-# Parallel dispatch to polecats
+# Parallel dispatch to polecats (batch slinging)
 READY=$(bd ready --parent=<epic> | awk '{print $1}')
 IN_PROGRESS=$(bd list --parent=<epic> --status=in_progress | wc -l)
 SLOTS=$((MAX_POLECATS - IN_PROGRESS))
 
-echo "$READY" | head -$SLOTS | while read issue; do
-    gt sling "$issue" <rig>
-done
+# Batch sling - all issues in one command, each gets own polecat
+BATCH=$(echo "$READY" | head -$SLOTS | tr '\n' ' ')
+gt sling $BATCH <rig>
+
+# Or check for stranded convoys first
+gt convoy stranded  # Find convoys with ready work but no workers
 ```
 
 ### Mayor MONITOR
@@ -397,5 +435,6 @@ bd list --parent=<epic> --status=closed       # What completed
 
 - [odmcr.md](odmcr.md) - Detailed ODMCR loop specification
 - [failure-taxonomy.md](failure-taxonomy.md) - Failure types and handling
+- `/vibe` - Validation before merging
 - `/implement` - Single issue execution (used by crew mode)
-- `/implement-wave` - Single wave execution with validation
+- `/implement-wave` - Single wave execution

@@ -6,9 +6,10 @@ description: >
   "create beads issues from research", "what issues should we create",
   "plan out the work", or needs to convert a goal into executable beads issues.
 version: 1.1.0
+tier: team
 author: "AI Platform Team"
 license: "MIT"
-context: fork
+context: inline
 allowed-tools: "Read,Write,Edit,Bash,Grep,Glob,Task"
 skills:
   - beads
@@ -19,6 +20,33 @@ skills:
 
 Create structured implementation plans from goals, research, or feature requests.
 Produces beads issues with proper dependencies and wave computation for parallel execution.
+
+## Role in the Brownian Ratchet
+
+Planning implements the **structured chaos** phase of the ratchet:
+
+| Component | Plan's Role |
+|-----------|-------------|
+| **Chaos** | Waves enable parallel execution - multiple polecats work simultaneously |
+| **Filter** | Pre-mortem validates plan before locking, human approval gates |
+| **Ratchet** | Epic is locked with dependencies - wave structure is permanent |
+
+### Parallel Plan Exploration (Ambiguous Requirements)
+
+For ambiguous requirements, create multiple plans in parallel:
+
+1. **Chaos**: Spawn 3 polecats with different prompts/approaches
+2. **Filter**: Run pre-mortem on each plan
+3. **Ratchet**: Human selects winner, locks as epic
+
+| Scenario | Approach |
+|----------|----------|
+| Clear requirements | Single plan |
+| Multiple valid approaches | Parallel exploration |
+| High stakes (P0/P1) | Mandatory parallel + pre-mortem |
+
+> **Key insight:** The plan locks the work structure. Once ratcheted, dependencies
+> define execution order. Pre-mortem filters before the lock.
 
 ## Overview
 
@@ -65,7 +93,7 @@ mkdir -p ~/gt/.agents/$RIG/plans/
 
 ### Phase 1: Context Discovery
 
-See `core-kit/skills/research/references/context-discovery.md` for full 6-tier hierarchy.
+See `~/.claude/skills/research/references/context-discovery.md` for full 6-tier hierarchy.
 
 **Quick version**: Code-Map → Semantic Search → Scoped Grep → Source → .agents/ → External
 
@@ -354,8 +382,8 @@ For more examples, see `references/examples.md`.
 | Full templates | `references/templates.md` |
 | Detailed examples | `references/examples.md` |
 | Phase naming | `.claude/includes/phase-naming.md` |
-| Beads workflows | `beads-kit/skills/beads/SKILL.md` |
-| Decomposition patterns | `core-kit/skills/plan/references/decomposition.md` |
+| Beads workflows | `~/.claude/skills/beads/SKILL.md` |
+| Decomposition patterns | `~/.claude/patterns/commands/plan/decomposition.md` |
 
 ### Essential Commands
 

@@ -427,3 +427,7 @@ npx markdown-link-check docs/**/*.md
 - [CommonMark Spec](https://spec.commonmark.org/)
 - [markdownlint Rules](https://github.com/DavidAnson/markdownlint)
 - [GitHub Flavored Markdown](https://github.github.com/gfm/)
+
+---
+
+**Related:** Quick reference in Tier 1 `markdown.md`

@@ -15,7 +15,7 @@ discover_coding() {
     first=true
 
     # Python services
-    while IFS= read -r dir; do
+    for dir in $(find "$REPO_ROOT/services" -maxdepth 1 -type d 2>/dev/null | tail -n +2); do
         name=$(basename "$dir")
         score=0
         sources=()
@@ -28,7 +28,7 @@ discover_coding() {
         # Check for API endpoints
         if grep -rq "@app\.\(get\|post\|put\|delete\)\|@router\." "$dir" 2>/dev/null; then
             score=$((score + 2))
-            mapfile -t endpoints < <(grep -rh "@app\.\(get\|post\|put\|delete\)\|@router\." "$dir" 2>/dev/null | head -5 | sed 's/.*"\([^"]*\)".*/\1/' || true)
+            endpoints=($(grep -rh "@app\.\(get\|post\|put\|delete\)\|@router\." "$dir" 2>/dev/null | head -5 | sed 's/.*"\([^"]*\)".*/\1/' || true))
         fi
 
         # Check for Prometheus metrics
@@ -58,7 +58,7 @@ discover_coding() {
   }
 EOF
         fi
-    done < <(find "$REPO_ROOT/services" -maxdepth 1 -type d 2>/dev/null | tail -n +2)
+    done
 
     echo "]"
 }
@@ -68,7 +68,7 @@ discover_informational() {
     echo "["
     first=true
 
-    while IFS= read -r dir; do
+    for dir in $(find "$REPO_ROOT/docs" -maxdepth 2 -type d 2>/dev/null); do
         name=$(basename "$dir")
         [[ "$name" == "docs" ]] && continue
 
@@ -85,11 +85,11 @@ discover_informational() {
     "type": "section",
     "files": $md_count,
     "has_readme": $has_readme,
-    "path": "${dir#"$REPO_ROOT"/}"
+    "path": "${dir#$REPO_ROOT/}"
   }
 EOF
         fi
-    done < <(find "$REPO_ROOT/docs" -maxdepth 2 -type d 2>/dev/null)
+    done
 
     echo "]"
 }
@@ -100,8 +100,7 @@ discover_ops() {
     first=true
 
     # Helm charts
-    while IFS= read -r chart; do
-        [[ -z "$chart" ]] && continue
+    for chart in $(find "$REPO_ROOT" -name "Chart.yaml" -type f 2>/dev/null); do
         dir=$(dirname "$chart")
         name=$(basename "$dir")
 
@@ -117,10 +116,10 @@ discover_ops() {
     "type": "helm-chart",
     "values_files": $values_count,
     "has_runbook": $has_runbook,
-    "path": "${dir#"$REPO_ROOT"/}"
+    "path": "${dir#$REPO_ROOT/}"
   }
 EOF
-    done < <(find "$REPO_ROOT" -name "Chart.yaml" -type f 2>/dev/null)
+    done
 
     echo "]"
 }

@@ -4,9 +4,10 @@ description: >
   Extract learnings from completed work. Trigger phrases: "run a retrospective",
   "extract learnings", "what did we learn", "capture lessons", "create a retro".
 version: 2.1.0
+tier: solo
 author: "AI Platform Team"
 license: "MIT"
-context: fork
+context: inline
 allowed-tools: "Read,Write,Edit,Bash,Grep,Glob"
 skills:
   - beads
@@ -65,7 +66,8 @@ mkdir -p ~/gt/.agents/$RIG/{retros,learnings,patterns}/
 5. User Review         -> Present proposals for approval
 6. Apply Changes       -> Execute approved edits
 7-9. Write Outputs     -> Retro, learnings, patterns (include Source Performance)
-10-11. Finalize        -> Update blackboard, confirm
+10. Session Naming     -> /rename for future /resume (optional)
+11. Finalize           -> Update blackboard, confirm
 ```
 
 ---
@@ -263,6 +265,30 @@ Include a `## Discovery Provenance` section in learning outputs to track which s
 5. High-value sources get prioritized in future discovery hierarchies
 
 **Example analysis**: If learnings extracted from `smart-connections` have 10x higher citation counts than `web-search` learnings, smart-connections should be ranked higher in the discovery tier ordering.
+
+---
+
+## Phase 10: Session Naming (Optional)
+
+Name the session for future reference:
+
+```bash
+/rename "retro-{topic}-$(date +%Y-%m-%d)"
+```
+
+**Naming Convention:**
+- `retro-oauth-2026-01-19` - For feature retros
+- `retro-debug-mem-leak-2026-01-19` - For debugging retros
+- `retro-epic-ap-123-2026-01-19` - For epic completion retros
+
+**Future Access:**
+- `/resume` - Browse recent sessions from same repo
+- `--continue` - Continue most recent session
+
+**When to Name:**
+- Significant debugging sessions
+- Epic completions
+- Discovery of reusable patterns
 
 ---
 
