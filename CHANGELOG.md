@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-01-24
+
+### Fixed
+- **Marketplace plugin skills** - Applied `context: inline` fix to distributed plugins:
+  - `core-kit/crank` (v0.1.1) - Epic execution now sees conversation context
+  - `vibe-kit/vibe` (v0.1.2) - Validation now sees conversation context
+  - `general-kit/vibe` (v0.1.2) - Validation now sees conversation context
+  - Users who install from marketplace now get the fix
+
 ## [0.2.0] - 2026-01-24
 
 ### Fixed

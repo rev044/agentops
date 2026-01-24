@@ -5,7 +5,7 @@ description: >
   Auto-detects role: Mayor uses polecats for parallel execution,
   Crew executes sequentially via /implement. NO human prompts, NO stopping.
 version: 2.1.0
-context: fork
+context: inline
 triggers:
   - "crank"
   - "crank this epic"
@@ -46,7 +46,10 @@ fi
 ## Quick Start
 
 ```bash
-# From anywhere (auto-detects role)
+# Auto-discover epic (finds open epic in current context)
+/crank
+
+# Explicit epic
 /crank <epic-id>
 
 # Force a specific mode
@@ -54,54 +57,48 @@ fi
 /crank <epic-id> --mode=mayor    # Parallel via polecats
 ```
 
----
+## Argument Inference
 
-## Context Inference
+When invoked without an explicit epic ID, infer the target from context:
 
-When `/crank` is invoked without an epic-id, check the preceding conversation for context:
+### Priority 1: Conversational Context
 
-### Priority Order
+If the user mentions an epic or topic in the same message (e.g., "/crank creating beads"),
+search for matching epics:
 
-1. **Explicit epic-id** - If user provides an epic ID, use it
-2. **Recently discussed epic** - If an epic was mentioned in conversation, use it
-3. **Hooked work** - Check `gt hook` for assigned epic
-4. **In-progress epic** - Check `bd list --type=epic --status=in_progress`
-5. **Ask user** - If no context found, ask which epic to crank
-
-### Detection Logic
-
-```markdown
-## On Invocation Without Epic ID
-
-1. Scan conversation for epic references:
-   - Look for issue IDs with epic type (e.g., "ap-68ohb")
-   - Check for "epic", "parent issue" mentions
-   - Extract from recent bd commands in conversation
-
-2. Check Gas Town hook:
-   ```bash
-   gt hook  # Returns hooked work including parent epic
-   ```
-
-3. Check beads state:
-   ```bash
-   bd list --type=epic --status=in_progress | head -1
-   ```
-
-4. If nothing found, ask:
-   "Which epic should I crank? Run `bd list --type=epic` to see available epics."
+```bash
+# User said "/crank creating beads" -> search for epic with "beads" in title
+bd search "beads" --type epic --status open
 ```
 
-### Example
+**Extract keywords** from the user's message and match against epic titles/descriptions.
 
-```
-User: let's work on ap-68ohb - it has 27 children to implement
-User: [does some planning work]
-User: /crank
+### Priority 2: Beads Discovery
 
-→ Crank infers epic from conversation: ap-68ohb
-→ Starts autonomous execution without requiring re-specification
+```bash
+# 1. Check if there's exactly one open epic
+EPICS=$(bd list --type epic --status open 2>/dev/null | head -5)
+EPIC_COUNT=$(echo "$EPICS" | grep -c '^' 2>/dev/null || echo 0)
+
+if [[ "$EPIC_COUNT" -eq 1 ]]; then
+    EPIC_ID=$(echo "$EPICS" | awk '{print $1}')
+    echo "[CRANK] Auto-selected epic: $EPIC_ID"
+elif [[ "$EPIC_COUNT" -gt 1 ]]; then
+    echo "[CRANK] Multiple open epics found. Please specify:"
+    echo "$EPICS"
+    # STOP - ask user which epic
+elif [[ "$EPIC_COUNT" -eq 0 ]]; then
+    # 2. Check for issues with children (implicit epics)
+    echo "[CRANK] No explicit epics. Checking for parent issues..."
+    bd list --has-children --status open | head -5
+fi
 ```
+
+### Priority 3: Recent Context
+
+Check for recently-viewed or recently-mentioned issue IDs in conversation history.
+
+**Key**: Conversational keywords > single epic > multiple (ask) > parent issues > ask user.
 
 ---
 
@@ -297,7 +294,7 @@ def crank_mayor(epic_id, rig):
 
 | Arg | Purpose | Default |
 |-----|---------|---------|
-| `<epic-id>` | Epic to execute | Required |
+| `<epic-id>` | Epic to execute | Auto-discover (see above) |
 | `--mode` | Force `crew` or `mayor` | Auto-detect |
 | `--max` | Max concurrent polecats (mayor only) | 8 |
 | `--dry-run` | Preview waves without executing | false |

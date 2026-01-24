@@ -1,6 +1,6 @@
 # Gas Town Kit
 
-Gas Town multi-agent orchestration. 4 skills for crew, polecats, and routing.
+Gas Town multi-agent orchestration. 5 skills for crew, polecats, routing, and Kubernetes.
 
 ## Install
 
@@ -15,6 +15,7 @@ Gas Town multi-agent orchestration. 4 skills for crew, polecats, and routing.
 | `/crew` | auto-triggered | Crew workspace management |
 | `/polecat-lifecycle` | auto-triggered | Polecat spawn/nuke/gc |
 | `/gastown` | `/gastown` | Gas Town status and utilities |
+| `/gastown-operator` | auto-triggered | K8s operator for polecats as pods |
 | `/bd-routing` | auto-triggered | Beads prefix routing |
 
 ## Gas Town Architecture

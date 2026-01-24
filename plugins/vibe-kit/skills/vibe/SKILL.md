@@ -9,7 +9,7 @@ allowed-tools: "Read,Bash,Glob,Grep,Write,TodoWrite,Task"
 version: 3.0.0
 author: "AI Platform Team"
 license: "MIT"
-context: fork
+context: inline
 context-budget:
   skill-md: 10KB
   references-total: 12KB
