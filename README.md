@@ -47,17 +47,17 @@ The complete Research → Plan → Implement workflow with validation gates:
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                              │
-│  /research → /product → /pre-mortem → /formulate → /crank → /post-mortem   │
+│  /research → /product → /pre-mortem → /formulate → /crank → /post-mortem     │
 │                                                                              │
-│  understand   define      simulate      break down    execute    validate   │
-│  problem      value       failures      into issues   waves      + learn    │
-│                              ↓                                      │       │
-│                         catches issues                              │       │
-│                         BEFORE you build                            ▼       │
-│                                                              ┌─────────────┐│
-│                                                              │  KNOWLEDGE  ││
-│         ◄─────────────────────────────────────────────────── │    LOOP     ││
-│                    feeds back to next /research              └─────────────┘│
+│  understand   define      simulate      break down    execute    validate    │
+│  problem      value       failures      into issues   waves      + learn     │
+│                              ↓                                      │        │
+│                         catches issues                              │        │
+│                         BEFORE you build                            ▼        │
+│                                                              ┌─────────────┐ │
+│                                                              │  KNOWLEDGE  │ │
+│         ◄─────────────────────────────────────────────────── │    LOOP     │ │
+│                    feeds back to next /research              └─────────────┘ │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -98,16 +98,16 @@ For complex work, use two sessions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                                                             │
 │  1. PLAN SESSION                    2. CRANK SESSION                        │
-│  ┌─────────────────────┐            ┌─────────────────────┐                │
-│  │                     │            │                     │                │
-│  │  Shift+Tab (plan)   │  handoff   │  /crank <epic>      │                │
-│  │        ↓            │ ────────►  │        ↓            │                │
-│  │  /formulate         │  (fresh    │  wave 1: issues     │                │
-│  │        ↓            │  context)  │  wave 2: issues     │                │
-│  │  creates beads      │            │  wave 3: issues     │                │
-│  │  organizes waves    │            │        ↓            │                │
-│  │                     │            │  ALL CLOSED         │                │
-│  └─────────────────────┘            └─────────────────────┘                │
+│  ┌─────────────────────┐            ┌─────────────────────┐                 │
+│  │                     │            │                     │                 │
+│  │  Shift+Tab (plan)   │  handoff   │  /crank <epic>      │                 │
+│  │        ↓            │ ────────►  │        ↓            │                 │
+│  │  /formulate         │  (fresh    │  wave 1: issues     │                 │
+│  │        ↓            │  context)  │  wave 2: issues     │                 │
+│  │  creates beads      │            │  wave 3: issues     │                 │
+│  │  organizes waves    │            │        ↓            │                 │
+│  │                     │            │  ALL CLOSED         │                 │
+│  └─────────────────────┘            └─────────────────────┘                 │
 │                                                                             │
 │  Planning uses context.             Execution gets fresh context +          │
 │  When done, clear it.               plan artifact + pointer to old convo.   │
