@@ -48,17 +48,13 @@ The complete Research → Plan → Implement workflow with validation gates:
 
 ```mermaid
 flowchart LR
-    R["/research"] --> P["/product"]
-    P --> PM["/pre-mortem"]
-    PM --> F["/formulate"]
-    F --> C["/crank"]
+    R["/research"] --> PLAN["/formulate"]
+    PLAN --> C["/crank"]
     C --> POST["/post-mortem"]
     POST -.->|knowledge loop| R
 
     style R fill:#4CAF50,color:#fff
-    style P fill:#2196F3,color:#fff
-    style PM fill:#FF9800,color:#fff
-    style F fill:#9C27B0,color:#fff
+    style PLAN fill:#9C27B0,color:#fff
     style C fill:#F44336,color:#fff
     style POST fill:#00BCD4,color:#fff
 ```
