@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-24
+
 ### Fixed
 - **Skill context mode** - Changed `context: fork` to `context: inline` for conversation-aware skills:
   - `vibe` - Now has access to chat context for inferring validation targets
