@@ -4,7 +4,7 @@ description: >
   Gold standard for code-map feature documentation. Use when generating
   docs in docs/code-map/ or running /doc on CODING repositories.
 version: 2.0.0
-context: fork
+context: inline
 allowed-tools: "Read,Grep,Glob"
 skills:
   - standards

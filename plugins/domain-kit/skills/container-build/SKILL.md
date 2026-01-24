@@ -5,7 +5,7 @@ description: >
   This skill should be used when the user asks to "build container", "create Dockerfile",
   "configure podman", or needs guidance on OpenShift container images, arbitrary UIDs,
   or image tagging.
-context: fork
+context: inline
 allowed-tools: "Read,Bash,Grep,Glob"
 skills:
   - standards

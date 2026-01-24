@@ -6,7 +6,7 @@ description: >
   "add changelog", "missing SECURITY.md", "oss documentation",
   "prepare for open source", "github templates", "add AGENTS.md".
 version: 1.0.0
-context: fork
+context: inline
 author: "Gas Town"
 license: "MIT"
 allowed-tools: "Read,Write,Edit,Glob,Grep,Bash,Task"

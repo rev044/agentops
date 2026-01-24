@@ -7,7 +7,7 @@ description: >
   generation and validation for any repository type.
   Triggers: doc, documentation, code-map, doc coverage, validate docs.
 version: 2.0.0
-context: fork
+context: inline
 author: "AI Platform Team"
 license: "MIT"
 allowed-tools: "Read,Write,Edit,Glob,Grep,Bash,Task,mcp__smart-connections-work__lookup"

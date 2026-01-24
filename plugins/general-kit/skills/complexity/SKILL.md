@@ -2,7 +2,7 @@
 name: complexity
 description: Analyze code complexity and find refactor targets using radon/gocyclo
 version: 1.1.0
-context: fork
+context: inline
 triggers:
   - "analyze complexity"
   - "find complex functions"

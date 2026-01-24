@@ -7,7 +7,7 @@ description: >
 version: 1.4.0
 author: "AI Platform Team"
 license: "MIT"
-context: fork
+context: inline
 allowed-tools: "Read,Write,Bash,Grep,Glob,Task"
 skills:
   - beads

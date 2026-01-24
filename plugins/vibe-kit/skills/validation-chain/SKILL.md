@@ -5,7 +5,7 @@ description: >
   "run validation gate", "check before merge", "quality check",
   or needs comprehensive validation across security, quality, and architecture.
 version: 1.0.0
-context: fork
+context: inline
 allowed-tools: Read, Grep, Glob, Task, TodoWrite
 skills:
   - beads

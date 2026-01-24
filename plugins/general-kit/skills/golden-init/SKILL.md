@@ -2,7 +2,7 @@
 name: golden-init
 description: Detects when repos need Golden Template initialization and guides setup
 version: 2.0.0
-context: fork
+context: inline
 triggers:
   - "repo needs setup"
   - "missing CI"

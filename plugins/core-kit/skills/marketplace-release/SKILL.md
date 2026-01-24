@@ -270,13 +270,11 @@ When adding/modifying skills, understand `context` frontmatter:
 
 | Setting | Behavior | Use When |
 |---------|----------|----------|
-| `context: inline` | Skill sees conversation history | Skill needs chat context (vibe, crank) |
-| `context: fork` | Skill runs in isolation | Long autonomous tasks, no context needed |
+| `context: inline` | Skill sees conversation history | All skills (standard) |
 
-**Default:** If omitted, defaults to `inline`.
+**Default:** `inline` - skills see conversation context.
 
-**Common mistake:** Using `context: fork` for skills that should infer targets
-from conversation (e.g., "/vibe the auth code we discussed").
+**Note:** All skills should use `context: inline`. Use `Task(subagent_type="Explore")` for exploration work to keep context clean.
 
 ---
 

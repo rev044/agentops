@@ -7,7 +7,7 @@ description: >
   "docs match reality", "validate doc status".
 version: 1.0.0
 author: "AI Platform Team"
-context: fork
+context: inline
 allowed-tools: "Read,Glob,Grep,Bash,Task"
 skills:
   - standards

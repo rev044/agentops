@@ -7,7 +7,7 @@ description: >
 version: 1.0.0
 author: "AI Platform Team"
 license: "MIT"
-context: fork
+context: inline
 allowed-tools: "Bash,Read"
 ---
 

@@ -4,7 +4,7 @@ description: >
   Parallel execution of multiple issues. Triggers: "run a wave", "parallel
   implementation", "batch execute", "implement in parallel".
 version: 2.1.0
-context: fork
+context: inline
 author: "AI Platform Team"
 license: "MIT"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Task, TaskOutput, TodoWrite

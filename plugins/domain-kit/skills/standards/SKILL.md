@@ -5,7 +5,7 @@ version: 1.0.0
 triggers: []
 allowed-tools:
   - Read
-context: fork
+context: inline
 ---
 
 # Standards Library

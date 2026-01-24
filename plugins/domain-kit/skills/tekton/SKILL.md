@@ -1,7 +1,7 @@
 ---
 name: tekton
 version: 1.0.0
-context: fork
+context: inline
 description: >
   Tekton pipeline builds for ai-platform services. Triggers on "tekton",
   "pipeline build", "build image", "tkn pipeline", "pipelinerun".
