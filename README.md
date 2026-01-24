@@ -48,12 +48,14 @@ The complete Research → Plan → Implement workflow with validation gates:
 
 ```mermaid
 flowchart LR
-    R["/research"] --> PLAN["/formulate"]
+    R["/research"] --> PRE["/pre-mortem"]
+    PRE --> PLAN["/formulate"]
     PLAN --> C["/crank"]
     C --> POST["/post-mortem"]
     POST -.->|knowledge loop| R
 
     style R fill:#4CAF50,color:#fff
+    style PRE fill:#FF9800,color:#fff
     style PLAN fill:#9C27B0,color:#fff
     style C fill:#F44336,color:#fff
     style POST fill:#00BCD4,color:#fff
@@ -62,9 +64,19 @@ flowchart LR
 | Stage | Command | What It Does |
 |-------|---------|--------------|
 | **Research** | `/research` | Deep codebase exploration, creates synthesis artifact |
+| **Pre-mortem** | `/pre-mortem` | Simulate N iterations to find failure modes BEFORE implementing |
 | **Plan** | `/formulate` | Create issues with dependencies, organize into waves |
 | **Execute** | `/crank` | Run all waves until epic is closed |
 | **Validate** | `/post-mortem` | Validate code + extract learnings + feed back into knowledge loop |
+
+### Why Pre-mortem?
+
+> "Simulate doing it 10 times and learn all the lessons so we don't have to."
+
+Pre-mortem catches issues BEFORE you hit them:
+- API mismatches discovered in simulation, not production
+- Missing dependencies identified upfront
+- Edge cases surfaced before coding starts
 
 ### Why Post-mortem?
 
@@ -83,23 +95,27 @@ For complex work, use two sessions:
 ```mermaid
 flowchart LR
     subgraph Plan["1. PLAN SESSION"]
-        A["Shift+Tab (plan)"] --> B["/formulate"]
+        A["Shift+Tab (plan)"] --> PRE["/pre-mortem"]
+        PRE --> B["/formulate"]
         B --> C["creates beads"]
     end
     subgraph Crank["2. CRANK SESSION"]
         D["/crank epic"] --> E["wave 1"]
         E --> F["wave 2"]
         F --> G["ALL CLOSED"]
+        G --> POST["/post-mortem"]
     end
     Plan -->|"handoff (fresh context)"| Crank
 
     style A fill:#9C27B0,color:#fff
+    style PRE fill:#FF9800,color:#fff
     style B fill:#9C27B0,color:#fff
     style C fill:#7B1FA2,color:#fff
     style D fill:#F44336,color:#fff
     style E fill:#EF5350,color:#fff
     style F fill:#EF5350,color:#fff
     style G fill:#4CAF50,color:#fff
+    style POST fill:#00BCD4,color:#fff
 ```
 
 **Why this works:**
