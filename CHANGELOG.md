@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-01-24
+
+### Added
+- **marketplace-release skill** (core-kit v0.1.2) - New skill for releasing Claude Code plugins:
+  - Complete release workflow documentation
+  - Version bumping guidance
+  - Update propagation explanation
+  - Common pitfalls and anti-patterns
+  - Context mode reference (inline vs fork)
+
 ## [0.2.1] - 2026-01-24
 
 ### Fixed
