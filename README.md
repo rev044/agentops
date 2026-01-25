@@ -22,7 +22,7 @@ You've been there: You spend 45 minutes teaching Claude how to debug a specific 
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Install the Plugin
 Add the AgentOps toolset to your Claude Code configuration.
@@ -51,7 +51,7 @@ ao init
 
 ---
 
-## The Workflow: R.P.I.
+## 🔄 The Workflow: R.P.I.
 
 Stop "vibing" random code. Use the **RPI** loop to build software systematically.
 
@@ -65,9 +65,9 @@ Stop "vibing" random code. Use the **RPI** loop to build software systematically
 
 ---
 
-## Features
+## ✨ Features
 
-### Permanent Memory (.agents/)
+### 🧠 Permanent Memory (.agents/)
 
 Instead of ephemeral chat logs, we store knowledge in your repo.
 
@@ -75,7 +75,7 @@ Instead of ephemeral chat logs, we store knowledge in your repo.
 * **Patterns:** Reusable code snippets and architecture decisions.
 * **Searchable:** The `ao` CLI indexes this so Claude finds it instantly.
 
-### Powerful Skills
+### 🔌 Powerful Skills
 
 Your Claude instance gains specialized commands:
 
@@ -84,7 +84,7 @@ Your Claude instance gains specialized commands:
 * **`/bug-hunt`**: Specialized root-cause analysis workflow.
 * **`/forge`**: Mines old transcripts to extract gold nuggets of knowledge you missed.
 
-### The 'ao' CLI
+### 📊 The 'ao' CLI
 
 Manage your AI's brain from the terminal.
 
@@ -102,7 +102,7 @@ $ ao forge transcript ./session-logs/debug_session.txt
 
 ---
 
-## Comparison
+## ⚡ Comparison
 
 | Feature | Standard Claude Code | **With AgentOps** |
 | --- | --- | --- |
@@ -113,7 +113,7 @@ $ ao forge transcript ./session-logs/debug_session.txt
 
 ---
 
-## All Skills
+## 🛠️ All Skills
 
 | Skill | Purpose | Trigger Phrases |
 |-------|---------|-----------------|
@@ -135,7 +135,7 @@ $ ao forge transcript ./session-logs/debug_session.txt
 
 ---
 
-## Knowledge Storage
+## 📁 Knowledge Storage
 
 AgentOps stores knowledge in `.agents/`:
 
@@ -154,18 +154,18 @@ AgentOps stores knowledge in `.agents/`:
 
 ---
 
-## Requirements
+## 📋 Requirements
 
 - [Claude Code](https://github.com/anthropics/claude-code) v1.0+
 - Optional: [beads](https://github.com/beads-ai/beads) for issue tracking
 - Optional: Go 1.22+ (to build ao CLI from source)
 
-## Documentation
+## 📚 Documentation
 
 - [docs/brownian-ratchet.md](docs/brownian-ratchet.md) — Core philosophy
 - [docs/knowledge-flywheel.md](docs/knowledge-flywheel.md) — How compounding works
 
-## Contributing
+## 🤝 Contributing
 
 We are building the standard for AI-assisted development workflows.
 
