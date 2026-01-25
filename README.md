@@ -51,6 +51,82 @@ ao init
 
 ---
 
+## 🔄 What Happens Automatically
+
+**You don't have to do anything.** Once installed, the flywheel turns itself:
+
+### Every Session Start
+```
+┌─────────────────────────────────────────────────────────┐
+│  ao inject                                              │
+│  → Searches your .agents/ for relevant learnings        │
+│  → Loads patterns that match your current context       │
+│  → Claude starts with YOUR knowledge, not zero          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Every Session End
+```
+┌─────────────────────────────────────────────────────────┐
+│  ao forge transcript --last-session                     │
+│  → Mines your session for decisions & learnings         │
+│  → Extracts patterns worth remembering                  │
+│  → Stores to .agents/ (git-tracked, permanent)          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### The Flywheel Turns
+```
+You work normally
+       ↓
+Session ends → auto-capture (forge)
+       ↓
+Knowledge stored in .agents/
+       ↓
+Next session → auto-recall (inject)
+       ↓
+Claude uses past learnings
+       ↓
+Better work → better learnings → better recall
+       ↓
+   (compounds forever)
+```
+
+### Check Your Flywheel Health
+
+```bash
+$ ao badge
+
+╔═══════════════════════════════════════════╗
+║         🏛️  AGENTOPS KNOWLEDGE             ║
+╠═══════════════════════════════════════════╣
+║  Sessions Mined    │  47                  ║
+║  Learnings         │  156                 ║
+║  Patterns          │  23                  ║
+║  Citations         │  89                  ║
+╠═══════════════════════════════════════════╣
+║  Retrieval (σ)     │  0.72  ███████░░░   ║
+║  Citation Rate (ρ) │  0.34  ███░░░░░░░   ║
+║  Decay (δ)         │  0.17  █░░░░░░░░░   ║
+╠═══════════════════════════════════════════╣
+║  σ×ρ = 0.24 > δ    │  🚀 COMPOUNDING     ║
+╚═══════════════════════════════════════════╝
+```
+
+**What the numbers mean:**
+- **σ (sigma)** — Retrieval rate. When you need knowledge, how often does it get found?
+- **ρ (rho)** — Citation rate. When knowledge is found, how often is it used?
+- **δ (delta)** — Decay rate. Knowledge fades at ~17%/week without use.
+- **σ × ρ > δ** — **Escape velocity.** When retrieval × usage beats decay, knowledge compounds.
+
+| Status | What It Means |
+|--------|--------------|
+| 🌱 STARTING | Just installed. Keep using it. |
+| 📈 BUILDING | Flywheel turning. Approaching escape velocity. |
+| 🚀 COMPOUNDING | **You made it.** Knowledge grows faster than it decays. |
+
+---
+
 ## 🔄 The Workflow: R.P.I.
 
 Stop "vibing" random code. Use the **RPI** loop to build software systematically.
@@ -162,6 +238,7 @@ AgentOps stores knowledge in `.agents/`:
 
 ## 📚 Documentation
 
+- **[docs/the-science.md](docs/the-science.md)** — The research & math behind the flywheel
 - [docs/brownian-ratchet.md](docs/brownian-ratchet.md) — Core philosophy
 - [docs/knowledge-flywheel.md](docs/knowledge-flywheel.md) — How compounding works
 
