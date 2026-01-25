@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // ExtractionPattern defines a pattern for identifying knowledge types.

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/ratchet"
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/storage"
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/ratchet"
+	"github.com/boshu2/agentops/cli/internal/storage"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // TestKnowledgeLoopE2E tests the full knowledge loop:

@@ -3,7 +3,7 @@ package taxonomy
 import (
 	"testing"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 func TestAssignTier(t *testing.T) {

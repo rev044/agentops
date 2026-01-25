@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/ratchet"
+	"github.com/boshu2/agentops/cli/internal/ratchet"
 )
 
 var ratchetCmd = &cobra.Command{

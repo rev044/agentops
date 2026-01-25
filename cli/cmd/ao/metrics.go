@@ -13,9 +13,9 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/ratchet"
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/storage"
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/ratchet"
+	"github.com/boshu2/agentops/cli/internal/storage"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 var (

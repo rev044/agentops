@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 func TestComputePlanChecksum(t *testing.T) {

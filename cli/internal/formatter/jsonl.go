@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/storage"
+	"github.com/boshu2/agentops/cli/internal/storage"
 )
 
 // JSONLFormatter outputs sessions as JSON Lines format.

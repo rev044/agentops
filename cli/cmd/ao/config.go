@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/config"
+	"github.com/boshu2/agentops/cli/internal/config"
 )
 
 var (

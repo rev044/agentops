@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // DefaultMaxContentLength is the default truncation limit for content fields.

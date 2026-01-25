@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 func TestParser_Parse(t *testing.T) {

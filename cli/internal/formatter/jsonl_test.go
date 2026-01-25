@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/storage"
+	"github.com/boshu2/agentops/cli/internal/storage"
 )
 
 func TestNewJSONLFormatter(t *testing.T) {

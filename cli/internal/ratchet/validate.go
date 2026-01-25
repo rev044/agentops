@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // Validator performs quality validation on artifacts before locking.

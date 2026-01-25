@@ -27,7 +27,7 @@
 //   - Confidence (10%): Assertion strength
 package taxonomy
 
-import "github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+import "github.com/boshu2/agentops/cli/internal/types"
 
 // KnowledgeTypeInfo describes a knowledge type and its base scoring.
 type KnowledgeTypeInfo struct {
