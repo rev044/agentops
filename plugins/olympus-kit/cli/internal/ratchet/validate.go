@@ -474,21 +474,21 @@ func (v *Validator) countSessionRefs(artifactPath string) int {
 	var sessionsDirs []string
 
 	// Check current directory's sessions
-	localSessions := filepath.Join(v.locator.startDir, ".agents", "olympus", "sessions")
+	localSessions := filepath.Join(v.locator.startDir, ".agents", "ao", "sessions")
 	if _, err := os.Stat(localSessions); err == nil {
 		sessionsDirs = append(sessionsDirs, localSessions)
 	}
 
 	// Check rig root sessions (if different from local)
 	if rigDir := v.locator.findRigRoot(); rigDir != "" && rigDir != v.locator.startDir {
-		rigSessions := filepath.Join(rigDir, ".agents", "olympus", "sessions")
+		rigSessions := filepath.Join(rigDir, ".agents", "ao", "sessions")
 		if _, err := os.Stat(rigSessions); err == nil {
 			sessionsDirs = append(sessionsDirs, rigSessions)
 		}
 	}
 
 	// Check town-level sessions
-	townSessions := filepath.Join(v.locator.townDir, ".agents", "olympus", "sessions")
+	townSessions := filepath.Join(v.locator.townDir, ".agents", "ao", "sessions")
 	if _, err := os.Stat(townSessions); err == nil {
 		sessionsDirs = append(sessionsDirs, townSessions)
 	}

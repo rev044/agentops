@@ -165,7 +165,7 @@ func TestIntegrationFeedbackLoop(t *testing.T) {
 	}
 
 	// Create .agents/ao/ directory for citations
-	olympusDir := filepath.Join(tempDir, ".agents", "olympus")
+	olympusDir := filepath.Join(tempDir, ".agents", "ao")
 	if err := os.MkdirAll(olympusDir, 0755); err != nil {
 		t.Fatalf("create olympus dir: %v", err)
 	}

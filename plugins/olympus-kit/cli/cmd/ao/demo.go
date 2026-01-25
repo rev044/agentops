@@ -53,7 +53,7 @@ func runDemo(cmd *cobra.Command, args []string) error {
 func showConcepts() error {
 	fmt.Println(`
 ╔══════════════════════════════════════════════════════════════════╗
-║                    OLYMPUS CORE CONCEPTS                          ║
+║                    AGENTOPS CORE CONCEPTS                          ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -106,7 +106,7 @@ Next steps:
 func quickDemo() error {
 	fmt.Println(`
 ╔══════════════════════════════════════════════════════════════════╗
-║                    OLYMPUS QUICK DEMO (2 min)                     ║
+║                    AGENTOPS QUICK DEMO (2 min)                     ║
 ╚══════════════════════════════════════════════════════════════════╝`)
 
 	steps := []struct {
@@ -155,7 +155,7 @@ func quickDemo() error {
 THE DIFFERENCE:
 
   ┌────────────────────┬────────────────────┐
-  │   COMPETITORS      │     OLYMPUS        │
+  │   COMPETITORS      │     AGENTOPS              │
   ├────────────────────┼────────────────────┤
   │ Start fresh        │ Knowledge compounds │
   │ Need infrastructure│ Pure git           │
@@ -170,7 +170,7 @@ Next: ol quick-start`)
 func interactiveDemo() error {
 	fmt.Println(`
 ╔══════════════════════════════════════════════════════════════════╗
-║                OLYMPUS INTERACTIVE DEMO                           ║
+║                AGENTOPS INTERACTIVE DEMO                           ║
 ║           "Problem in. Value out. Intelligence compounds."        ║
 ╚══════════════════════════════════════════════════════════════════╝
 
@@ -186,7 +186,7 @@ Press Enter to continue...`)
 
 	// Create demo directories
 	homeDir, _ := os.UserHomeDir()
-	demoDir := filepath.Join(homeDir, ".olympus-demo")
+	demoDir := filepath.Join(homeDir, ".agentops-demo")
 
 	dirs := []string{
 		filepath.Join(demoDir, ".agents/research"),

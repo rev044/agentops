@@ -109,7 +109,7 @@ F6: Shows discrepancies without modifying anything:
   - Orphaned plans (in manifest but no beads ID)
   - Missing plans (beads epic references plan not in manifest)
 
-Use 'ol plans sync' to fix the drift.`,
+Use 'ao plans sync' to fix the drift.`,
 	RunE: runPlansDiff,
 }
 
@@ -259,7 +259,7 @@ func runPlansList(cmd *cobra.Command, args []string) error {
 	entries, err := loadManifest(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("No plans registered. Use 'ol plans register <path>' to add plans.")
+			fmt.Println("No plans registered. Use 'ao plans register <path>' to add plans.")
 			return nil
 		}
 		return fmt.Errorf("load manifest: %w", err)
@@ -601,7 +601,7 @@ func runPlansSync(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("✓ Sync complete: %d synced, %d drift\n", synced, drift)
 	if drift > 0 {
-		fmt.Printf("  Hint: Run 'ol plans list' to see entries without beads linkage\n")
+		fmt.Printf("  Hint: Run 'ao plans list' to see entries without beads linkage\n")
 	}
 
 	return nil
@@ -725,7 +725,7 @@ func runPlansDiff(cmd *cobra.Command, args []string) error {
 	entries, err := loadManifest(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("No manifest found. Run 'ol plans register' to create one.")
+			fmt.Println("No manifest found. Run 'ao plans register' to create one.")
 			return nil
 		}
 		return fmt.Errorf("load manifest: %w", err)
@@ -757,8 +757,8 @@ func runPlansDiff(cmd *cobra.Command, args []string) error {
 
 	printDrifts(drifts)
 
-	fmt.Printf("\nRun 'ol plans sync' to fix status mismatches.\n")
-	fmt.Printf("Run 'ol plans update <path> --beads-id <id>' to link orphaned plans.\n")
+	fmt.Printf("\nRun 'ao plans sync' to fix status mismatches.\n")
+	fmt.Printf("Run 'ao plans update <path> --beads-id <id>' to link orphaned plans.\n")
 
 	return nil
 }

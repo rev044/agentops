@@ -41,7 +41,7 @@ func LoadChain(startDir string) (*Chain, error) {
 	}
 
 	// Try new location first
-	chainPath := filepath.Join(agentsDir, "olympus", ChainFile)
+	chainPath := filepath.Join(agentsDir, "ao", ChainFile)
 	if chain, err := loadJSONLChain(chainPath); err == nil {
 		chain.path = chainPath
 		return chain, nil
@@ -374,7 +374,7 @@ func MigrateChain(startDir string) error {
 	}
 
 	legacyPath := filepath.Join(agentsDir, "provenance", LegacyChainFile)
-	newPath := filepath.Join(agentsDir, "olympus", ChainFile)
+	newPath := filepath.Join(agentsDir, "ao", ChainFile)
 
 	// Check if legacy exists
 	if _, err := os.Stat(legacyPath); os.IsNotExist(err) {

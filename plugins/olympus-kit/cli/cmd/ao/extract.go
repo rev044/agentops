@@ -36,7 +36,7 @@ var extractCmd = &cobra.Command{
 	Long: `Check for pending session extractions and output a prompt for Claude to process.
 
 This command is designed to be called from a SessionStart hook. If there are
-pending sessions (queued by 'ol forge --queue'), it outputs a structured prompt
+pending sessions (queued by 'ao forge --queue'), it outputs a structured prompt
 that asks Claude to extract learnings and write them to .agents/learnings/.
 
 The prompt includes:
@@ -66,7 +66,7 @@ func runExtract(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	pendingPath := filepath.Join(cwd, storage.DefaultBaseDir, "olympus", "pending.jsonl")
+	pendingPath := filepath.Join(cwd, storage.DefaultBaseDir, "pending.jsonl")
 
 	// Check if pending file exists
 	if _, err := os.Stat(pendingPath); os.IsNotExist(err) {

@@ -87,7 +87,7 @@ func printBadge(sessions int, m *FlywheelMetrics) {
 
 	fmt.Println()
 	fmt.Println("╔═══════════════════════════════════════════╗")
-	fmt.Println("║         🏛️  OLYMPUS KNOWLEDGE             ║")
+	fmt.Println("║         🏛️  AGENTOPS KNOWLEDGE             ║")
 	fmt.Println("╠═══════════════════════════════════════════╣")
 	fmt.Printf("║  Sessions Mined    │  %-19d ║\n", sessions)
 	fmt.Printf("║  Learnings         │  %-19d ║\n", learnings)

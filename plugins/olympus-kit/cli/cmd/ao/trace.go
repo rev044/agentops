@@ -59,7 +59,7 @@ func runTrace(cmd *cobra.Command, args []string) error {
 
 	if len(graph.Records) == 0 {
 		fmt.Println("No provenance records found.")
-		fmt.Println("Run 'ol forge transcript <path>' to generate provenance data.")
+		fmt.Println("Run 'ao forge transcript <path>' to generate provenance data.")
 		return nil
 	}
 

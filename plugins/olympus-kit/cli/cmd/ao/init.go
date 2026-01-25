@@ -12,7 +12,7 @@ import (
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize olympus storage structure",
+	Short: "Initialize AgentOps storage structure",
 	Long: `Create the .agents/ao directory structure for knowledge storage.
 
 This creates:
@@ -48,7 +48,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("initialize storage: %w", err)
 	}
 
-	fmt.Printf("✓ Initialized olympus storage at %s\n", baseDir)
+	fmt.Printf("✓ Initialized AgentOps storage at %s\n", baseDir)
 	fmt.Println()
 	fmt.Println("Created directories:")
 	fmt.Printf("  %s/sessions/    - Session files\n", storage.DefaultBaseDir)

@@ -52,7 +52,7 @@ func TestAnalyzeTranscript(t *testing.T) {
 			name: "session with beads close and ratchet",
 			content: `{"type": "user", "sessionId": "test-004", "message": {"content": "close issue"}}
 {"type": "tool_result", "content": "bd close ol-0001 succeeded\nissue ol-0001 closed"}
-{"type": "tool_result", "content": "ol ratchet record succeeded\nRatchet chain updated"}`,
+{"type": "tool_result", "content": "ao ratchet record succeeded\nRatchet chain updated"}`,
 			minReward: 0.2, // beads + ratchet
 			maxReward: 0.5,
 		},

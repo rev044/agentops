@@ -498,7 +498,7 @@ func countStaleArtifacts(baseDir string, citations []types.CitationEvent, staleD
 
 // saveBaseline saves metrics to a baseline file.
 func saveBaseline(baseDir string, metrics *types.FlywheelMetrics) (string, error) {
-	metricsDir := filepath.Join(baseDir, ".agents", "olympus", "metrics")
+	metricsDir := filepath.Join(baseDir, ".agents", "ao", "metrics")
 	if err := os.MkdirAll(metricsDir, 0755); err != nil {
 		return "", err
 	}

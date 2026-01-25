@@ -35,7 +35,7 @@ var (
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
 	Short: "Search knowledge base",
-	Long: `Search olympus knowledge using file-based search.
+	Long: `Search AgentOps knowledge using file-based search.
 
 By default, searches markdown and JSONL files in .agents/ao/sessions/.
 Optionally use Smart Connections for semantic search if Obsidian is running.
@@ -74,8 +74,8 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	// Check if sessions directory exists
 	if _, err := os.Stat(sessionsDir); os.IsNotExist(err) {
-		fmt.Println("No olympus data found.")
-		fmt.Println("Run 'ol init' and 'ol forge transcript <path>' first.")
+		fmt.Println("No AgentOps data found.")
+		fmt.Println("Run 'ao init' and 'ao forge transcript <path>' first.")
 		return nil
 	}
 

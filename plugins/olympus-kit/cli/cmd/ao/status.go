@@ -15,8 +15,8 @@ import (
 
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show olympus status",
-	Long: `Display the current state of olympus knowledge base.
+	Short: "Show AgentOps status",
+	Long: `Display the current state of AgentOps knowledge base.
 
 Shows:
   - Number of sessions indexed
@@ -130,7 +130,7 @@ func outputStatus(status *statusOutput) error {
 	if !status.Initialized {
 		fmt.Println("Status: Not initialized")
 		fmt.Println()
-		fmt.Println("Run 'ol init' to initialize olympus in this directory.")
+		fmt.Println("Run 'ao init' to initialize AgentOps in this directory.")
 		return nil
 	}
 

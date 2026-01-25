@@ -48,7 +48,7 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 
 	fmt.Println(`
 ╔══════════════════════════════════════════════════════════════════╗
-║                 OLYMPUS QUICK START                               ║
+║                 AGENTOPS QUICK START                               ║
 ║           Setting up your project for knowledge compounding       ║
 ╚══════════════════════════════════════════════════════════════════╝`)
 	fmt.Printf("Project: %s\n\n", cwd)

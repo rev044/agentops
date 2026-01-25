@@ -18,20 +18,20 @@ var (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration",
-	Long: `View and manage olympus configuration.
+	Long: `View and manage AgentOps configuration.
 
 Configuration priority (highest to lowest):
   1. Command-line flags
-  2. Environment variables (OLYMPUS_*)
-  3. Project config (.olympus/config.yaml)
-  4. Home config (~/.olympus/config.yaml)
+  2. Environment variables (AGENTOPS_*)
+  3. Project config (.agentops/config.yaml)
+  4. Home config (~/.agentops/config.yaml)
   5. Defaults
 
 Environment variables:
-  OLYMPUS_OUTPUT     - Default output format (table, json, yaml)
-  OLYMPUS_BASE_DIR   - Data directory path
-  OLYMPUS_VERBOSE    - Enable verbose output (true/1)
-  OLYMPUS_NO_SC      - Disable Smart Connections (true/1)
+  AGENTOPS_OUTPUT     - Default output format (table, json, yaml)
+  AGENTOPS_BASE_DIR   - Data directory path
+  AGENTOPS_VERBOSE    - Enable verbose output (true/1)
+  AGENTOPS_NO_SC      - Disable Smart Connections (true/1)
 
 Examples:
   ao config --show           # Show resolved configuration
@@ -65,7 +65,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	fmt.Println("Config files:")
-	homeConfig := filepath.Join(os.Getenv("HOME"), ".olympus", "config.yaml")
+	homeConfig := filepath.Join(os.Getenv("HOME"), ".agentops", "config.yaml")
 	if _, err := os.Stat(homeConfig); err == nil {
 		fmt.Printf("  ✓ Home:    %s\n", homeConfig)
 	} else {
@@ -73,7 +73,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	cwd, _ := os.Getwd()
-	projectConfig := filepath.Join(cwd, ".olympus", "config.yaml")
+	projectConfig := filepath.Join(cwd, ".agentops", "config.yaml")
 	if _, err := os.Stat(projectConfig); err == nil {
 		fmt.Printf("  ✓ Project: %s\n", projectConfig)
 	} else {
@@ -88,7 +88,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 	fmt.Println("Environment variables (if set):")
-	envVars := []string{"OLYMPUS_OUTPUT", "OLYMPUS_BASE_DIR", "OLYMPUS_VERBOSE", "OLYMPUS_NO_SC"}
+	envVars := []string{"AGENTOPS_OUTPUT", "AGENTOPS_BASE_DIR", "AGENTOPS_VERBOSE", "AGENTOPS_NO_SC"}
 	anySet := false
 	for _, env := range envVars {
 		if v := os.Getenv(env); v != "" {
