@@ -1,0 +1,556 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"time"
+
+	"github.com/spf13/cobra"
+
+	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/formatter"
+	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/parser"
+	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/storage"
+	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/types"
+)
+
+var (
+	forgeLastSession bool
+	forgeQuiet       bool
+)
+
+const (
+	// SnippetMaxLength is the maximum length for extracted text snippets.
+	SnippetMaxLength = 200
+
+	// SummaryMaxLength is the maximum length for session summaries.
+	SummaryMaxLength = 100
+
+	// CharsPerToken is the rough estimate of characters per token.
+	// Used for approximate token counting from file size.
+	CharsPerToken = 4
+)
+
+// issueIDPattern matches beads issue IDs like "ol-0001", "at-v123", "gt-abc-def".
+var issueIDPattern = regexp.MustCompile(`\b([a-z]{2,3})-([a-z0-9]{3,7}(?:-[a-z0-9]+)?)\b`)
+
+var forgeCmd = &cobra.Command{
+	Use:   "forge",
+	Short: "Extract knowledge from sources",
+	Long: `The forge command extracts knowledge candidates from various sources.
+
+Currently supported forges:
+  transcript    Extract from Claude Code JSONL transcripts
+
+Example:
+  ol forge transcript ~/.claude/projects/**/*.jsonl`,
+}
+
+var forgeTranscriptCmd = &cobra.Command{
+	Use:   "transcript <path-or-glob>",
+	Short: "Extract knowledge from Claude Code transcripts",
+	Long: `Parse Claude Code JSONL transcript files and extract knowledge candidates.
+
+The transcript forge identifies:
+  - Decisions: Architectural choices with rationale
+  - Solutions: Working fixes for problems
+  - Learnings: Insights gained from experience
+  - Failures: What didn't work and why
+  - References: Pointers to useful resources
+
+Examples:
+  ol forge transcript session.jsonl
+  ol forge transcript ~/.claude/projects/**/*.jsonl
+  ol forge transcript /path/to/*.jsonl --output candidates.json
+  ol forge transcript --last-session              # Process most recent transcript
+  ol forge transcript --last-session --quiet      # Silent mode for hooks`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		lastSession, _ := cmd.Flags().GetBool("last-session")
+		if !lastSession && len(args) < 1 {
+			return fmt.Errorf("requires at least 1 arg(s), only received %d (or use --last-session)", len(args))
+		}
+		return nil
+	},
+	RunE: runForgeTranscript,
+}
+
+func init() {
+	rootCmd.AddCommand(forgeCmd)
+	forgeCmd.AddCommand(forgeTranscriptCmd)
+
+	// Transcript flags
+	forgeTranscriptCmd.Flags().BoolVar(&forgeLastSession, "last-session", false, "Process only the most recent transcript")
+	forgeTranscriptCmd.Flags().BoolVar(&forgeQuiet, "quiet", false, "Suppress all output (for hooks)")
+}
+
+func runForgeTranscript(cmd *cobra.Command, args []string) error {
+	// Handle --last-session flag
+	var files []string
+	if forgeLastSession {
+		lastFile, err := findLastSession()
+		if err != nil {
+			if forgeQuiet {
+				return nil // Silent fail for hooks
+			}
+			return fmt.Errorf("find last session: %w", err)
+		}
+		files = []string{lastFile}
+	} else {
+		// Expand globs and collect files
+		for _, pattern := range args {
+			matches, err := filepath.Glob(pattern)
+			if err != nil {
+				return fmt.Errorf("invalid pattern %q: %w", pattern, err)
+			}
+			if len(matches) == 0 {
+				// Treat as literal path
+				if _, err := os.Stat(pattern); err == nil {
+					files = append(files, pattern)
+				}
+			} else {
+				files = append(files, matches...)
+			}
+		}
+	}
+
+	if GetDryRun() && !forgeQuiet {
+		fmt.Printf("[dry-run] Would process %d file(s)\n", len(files))
+		for _, path := range files {
+			fmt.Printf("  - %s\n", path)
+		}
+		return nil
+	}
+
+	if len(files) == 0 {
+		if forgeQuiet {
+			return nil // Silent fail for hooks
+		}
+		return fmt.Errorf("no files found matching patterns")
+	}
+
+	if !forgeQuiet {
+		VerbosePrintf("Processing %d transcript file(s)...\n", len(files))
+	}
+
+	// Initialize storage with formatters
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	baseDir := filepath.Join(cwd, storage.DefaultBaseDir)
+	fs := storage.NewFileStorage(
+		storage.WithBaseDir(baseDir),
+		storage.WithFormatters(
+			formatter.NewMarkdownFormatter(),
+			formatter.NewJSONLFormatter(),
+		),
+	)
+
+	// Ensure directories exist
+	if err := fs.Init(); err != nil {
+		return fmt.Errorf("initialize storage: %w", err)
+	}
+
+	// Create parser with no truncation for full content extraction
+	p := parser.NewParser()
+	p.MaxContentLength = 0 // No truncation
+
+	// Create extractor for knowledge identification
+	extractor := parser.NewExtractor()
+
+	// Process each file
+	totalSessions := 0
+	totalDecisions := 0
+	totalKnowledge := 0
+
+	for _, filePath := range files {
+		session, err := processTranscript(filePath, p, extractor, forgeQuiet)
+		if err != nil {
+			if !forgeQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to process %s: %v\n", filePath, err)
+			}
+			continue
+		}
+
+		// Write session
+		sessionPath, err := fs.WriteSession(session)
+		if err != nil {
+			if !forgeQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to write session for %s: %v\n", filePath, err)
+			}
+			continue
+		}
+
+		// Write to index
+		indexEntry := &storage.IndexEntry{
+			SessionID:   session.ID,
+			Date:        session.Date,
+			SessionPath: sessionPath,
+			Summary:     session.Summary,
+		}
+		if err := fs.WriteIndex(indexEntry); err != nil {
+			if !forgeQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to index session: %v\n", err)
+			}
+		}
+
+		// Write provenance
+		provRecord := &storage.ProvenanceRecord{
+			ID:           fmt.Sprintf("prov-%s", session.ID[:7]),
+			ArtifactPath: sessionPath,
+			ArtifactType: "session",
+			SourcePath:   filePath,
+			SourceType:   "transcript",
+			SessionID:    session.ID,
+			CreatedAt:    time.Now(),
+		}
+		if err := fs.WriteProvenance(provRecord); err != nil {
+			if !forgeQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to write provenance: %v\n", err)
+			}
+		}
+
+		totalSessions++
+		totalDecisions += len(session.Decisions)
+		totalKnowledge += len(session.Knowledge)
+
+		if !forgeQuiet {
+			VerbosePrintf("  ✓ %s → %s\n", filepath.Base(filePath), filepath.Base(sessionPath))
+		}
+	}
+
+	if !forgeQuiet {
+		fmt.Printf("\n✓ Processed %d session(s)\n", totalSessions)
+		fmt.Printf("  Decisions: %d\n", totalDecisions)
+		fmt.Printf("  Knowledge: %d\n", totalKnowledge)
+		fmt.Printf("  Output: %s\n", baseDir)
+	}
+
+	return nil
+}
+
+// processTranscript parses a transcript and extracts session data.
+func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extractor, quiet bool) (*storage.Session, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("stat file: %w", err)
+	}
+	fileSize := info.Size()
+	totalLines := countLines(filePath)
+
+	if _, err := f.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("seek file: %w", err)
+	}
+
+	msgCh, errCh := p.ParseChannel(f)
+	session := initSession(filePath)
+	state := &transcriptState{
+		seenFiles:  make(map[string]bool),
+		seenIssues: make(map[string]bool),
+	}
+
+	lineCount := 0
+	lastProgress := 0
+
+	for msg := range msgCh {
+		lineCount++
+
+		// Progress output every 1000 lines
+		if !quiet && lineCount-lastProgress >= 1000 {
+			pct := 0
+			if totalLines > 0 {
+				pct = lineCount * 100 / totalLines
+			}
+			fmt.Printf("\r[forge] Processing... %d/%d (%d%%)  ", lineCount, totalLines, pct)
+			lastProgress = lineCount
+		}
+
+		updateSessionMeta(session, msg)
+		extractMessageKnowledge(msg, extractor, state)
+		extractMessageRefs(msg, session, state)
+	}
+
+	if !quiet {
+		fmt.Printf("\r%s\r", "                                                    ")
+	}
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return nil, err
+		}
+	default:
+	}
+
+	session.Summary = generateSummary(state.decisions, state.knowledge, session.Date)
+	session.Decisions = dedup(state.decisions)
+	session.Knowledge = dedup(state.knowledge)
+	session.FilesChanged = state.filesChanged
+	session.Issues = state.issues
+	session.Tokens = storage.TokenUsage{
+		Total:     int(fileSize / CharsPerToken),
+		Estimated: true,
+	}
+
+	return session, nil
+}
+
+// transcriptState holds accumulated state during transcript processing.
+type transcriptState struct {
+	decisions    []string
+	knowledge    []string
+	filesChanged []string
+	issues       []string
+	seenFiles    map[string]bool
+	seenIssues   map[string]bool
+}
+
+// initSession creates a new session with default values.
+func initSession(filePath string) *storage.Session {
+	return &storage.Session{
+		TranscriptPath: filePath,
+		ToolCalls:      make(map[string]int),
+	}
+}
+
+// updateSessionMeta updates session ID and date from a message.
+func updateSessionMeta(session *storage.Session, msg types.TranscriptMessage) {
+	if session.ID == "" && msg.SessionID != "" {
+		session.ID = msg.SessionID
+	}
+	if session.Date.IsZero() || (!msg.Timestamp.IsZero() && msg.Timestamp.Before(session.Date)) {
+		session.Date = msg.Timestamp
+	}
+}
+
+// extractMessageKnowledge extracts decisions and knowledge from message content.
+func extractMessageKnowledge(msg types.TranscriptMessage, extractor *parser.Extractor, state *transcriptState) {
+	if msg.Content == "" {
+		return
+	}
+	results := extractor.Extract(msg)
+	for _, result := range results {
+		text := extractSnippet(msg.Content, result.StartIndex, SnippetMaxLength)
+		switch result.Type {
+		case types.KnowledgeTypeDecision:
+			state.decisions = append(state.decisions, text)
+		case types.KnowledgeTypeSolution, types.KnowledgeTypeLearning:
+			state.knowledge = append(state.knowledge, text)
+		}
+	}
+}
+
+// extractMessageRefs extracts file paths and issue IDs from a message.
+func extractMessageRefs(msg types.TranscriptMessage, session *storage.Session, state *transcriptState) {
+	extractToolRefs(msg.Tools, session, state)
+	extractIssueRefs(msg.Content, state)
+}
+
+// extractToolRefs extracts tool calls and file paths from tool invocations.
+func extractToolRefs(tools []types.ToolCall, session *storage.Session, state *transcriptState) {
+	for _, tool := range tools {
+		if tool.Name != "" && tool.Name != "tool_result" {
+			session.ToolCalls[tool.Name]++
+		}
+		extractFilePathsFromTool(tool, state)
+	}
+}
+
+// extractFilePathsFromTool extracts file paths from a tool's input parameters.
+func extractFilePathsFromTool(tool types.ToolCall, state *transcriptState) {
+	if tool.Input == nil {
+		return
+	}
+	if fp, ok := tool.Input["file_path"].(string); ok && !state.seenFiles[fp] {
+		state.filesChanged = append(state.filesChanged, fp)
+		state.seenFiles[fp] = true
+	}
+	if fp, ok := tool.Input["path"].(string); ok && !state.seenFiles[fp] {
+		state.filesChanged = append(state.filesChanged, fp)
+		state.seenFiles[fp] = true
+	}
+}
+
+// extractIssueRefs extracts issue IDs from message content.
+func extractIssueRefs(content string, state *transcriptState) {
+	ids := extractIssueIDs(content)
+	for _, id := range ids {
+		if !state.seenIssues[id] {
+			state.issues = append(state.issues, id)
+			state.seenIssues[id] = true
+		}
+	}
+}
+
+// generateSummary creates a session summary from extracted content.
+func generateSummary(decisions, knowledge []string, date time.Time) string {
+	if len(decisions) > 0 {
+		return truncateString(decisions[0], SummaryMaxLength)
+	}
+	if len(knowledge) > 0 {
+		return truncateString(knowledge[0], SummaryMaxLength)
+	}
+	return fmt.Sprintf("Session from %s", date.Format("2006-01-02"))
+}
+
+// countLines quickly counts lines in a file.
+func countLines(path string) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	buf := make([]byte, 64*1024)
+	count := 0
+
+	for {
+		n, err := f.Read(buf)
+		if n > 0 {
+			for _, b := range buf[:n] {
+				if b == '\n' {
+					count++
+				}
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+
+	return count
+}
+
+// extractSnippet extracts a text snippet around a match.
+func extractSnippet(content string, startIdx, maxLen int) string {
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	if startIdx >= len(content) {
+		return ""
+	}
+
+	end := startIdx + maxLen
+	if end > len(content) {
+		end = len(content)
+	}
+
+	snippet := content[startIdx:end]
+
+	// Trim to word boundary
+	if end < len(content) {
+		if idx := lastSpaceIndex(snippet); idx > maxLen/2 {
+			snippet = snippet[:idx]
+		}
+		snippet += "..."
+	}
+
+	return snippet
+}
+
+func lastSpaceIndex(s string) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == ' ' {
+			return i
+		}
+	}
+	return -1
+}
+
+// extractIssueIDs finds issue IDs like "ol-0001", "at-v123" in content.
+func extractIssueIDs(content string) []string {
+	matches := issueIDPattern.FindAllString(content, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	return matches
+}
+
+// truncateString limits a string to maxLen characters.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
+}
+
+// dedup removes duplicates from a string slice.
+func dedup(items []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+// findLastSession finds the most recently modified transcript file.
+func findLastSession() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("get home directory: %w", err)
+	}
+
+	projectsDir := filepath.Join(homeDir, ".claude", "projects")
+	if _, err := os.Stat(projectsDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("no Claude projects directory found at %s", projectsDir)
+	}
+
+	// Find all main session transcripts (exclude subagents)
+	type fileWithTime struct {
+		path    string
+		modTime time.Time
+	}
+	var candidates []fileWithTime
+
+	err = filepath.Walk(projectsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+
+		// Skip directories named "subagents"
+		if info.IsDir() && info.Name() == "subagents" {
+			return filepath.SkipDir
+		}
+
+		// Only consider .jsonl files at depth 2 (project/session.jsonl)
+		if !info.IsDir() && filepath.Ext(path) == ".jsonl" {
+			rel, _ := filepath.Rel(projectsDir, path)
+			depth := len(filepath.SplitList(rel))
+			// Accept files directly in project dirs (depth ~2)
+			if depth <= 3 && info.Size() > 100 { // Skip tiny files
+				candidates = append(candidates, fileWithTime{
+					path:    path,
+					modTime: info.ModTime(),
+				})
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("walk projects directory: %w", err)
+	}
+
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("no transcript files found in %s", projectsDir)
+	}
+
+	// Sort by modification time, most recent first
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].modTime.After(candidates[j].modTime)
+	})
+
+	return candidates[0].path, nil
+}

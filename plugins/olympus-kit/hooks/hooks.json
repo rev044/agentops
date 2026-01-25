@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "ol inject --format markdown --max-tokens 1000 2>/dev/null || true"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "ol forge transcript --last-session --quiet 2>/dev/null || true"
+      }
+    ]
+  }
+}

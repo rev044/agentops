@@ -1,0 +1,104 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
+
+	"github.com/boshu2/agentops/plugins/olympus-kit/cli/internal/config"
+)
+
+var (
+	configShow bool
+)
+
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Manage configuration",
+	Long: `View and manage olympus configuration.
+
+Configuration priority (highest to lowest):
+  1. Command-line flags
+  2. Environment variables (OLYMPUS_*)
+  3. Project config (.olympus/config.yaml)
+  4. Home config (~/.olympus/config.yaml)
+  5. Defaults
+
+Environment variables:
+  OLYMPUS_OUTPUT     - Default output format (table, json, yaml)
+  OLYMPUS_BASE_DIR   - Data directory path
+  OLYMPUS_VERBOSE    - Enable verbose output (true/1)
+  OLYMPUS_NO_SC      - Disable Smart Connections (true/1)
+
+Examples:
+  ol config --show           # Show resolved configuration
+  ol config --show -o json   # Output as JSON`,
+	RunE: runConfig,
+}
+
+func init() {
+	rootCmd.AddCommand(configCmd)
+	configCmd.Flags().BoolVar(&configShow, "show", false, "Show resolved configuration with sources")
+}
+
+func runConfig(cmd *cobra.Command, args []string) error {
+	if !configShow {
+		// Show help if no flags
+		return cmd.Help()
+	}
+
+	// Get resolved config with sources
+	resolved := config.Resolve(GetOutput(), "", GetVerbose())
+
+	if GetOutput() == "json" {
+		data, _ := json.MarshalIndent(resolved, "", "  ")
+		fmt.Println(string(data))
+		return nil
+	}
+
+	// Print table format
+	fmt.Println("Olympus Configuration")
+	fmt.Println("=====================")
+	fmt.Println()
+
+	fmt.Println("Config files:")
+	homeConfig := filepath.Join(os.Getenv("HOME"), ".olympus", "config.yaml")
+	if _, err := os.Stat(homeConfig); err == nil {
+		fmt.Printf("  ✓ Home:    %s\n", homeConfig)
+	} else {
+		fmt.Printf("  ✗ Home:    %s (not found)\n", homeConfig)
+	}
+
+	cwd, _ := os.Getwd()
+	projectConfig := filepath.Join(cwd, ".olympus", "config.yaml")
+	if _, err := os.Stat(projectConfig); err == nil {
+		fmt.Printf("  ✓ Project: %s\n", projectConfig)
+	} else {
+		fmt.Printf("  ✗ Project: %s (not found)\n", projectConfig)
+	}
+
+	fmt.Println()
+	fmt.Println("Resolved values:")
+	fmt.Printf("  output:   %v  (from %s)\n", resolved.Output.Value, resolved.Output.Source)
+	fmt.Printf("  base_dir: %v  (from %s)\n", resolved.BaseDir.Value, resolved.BaseDir.Source)
+	fmt.Printf("  verbose:  %v  (from %s)\n", resolved.Verbose.Value, resolved.Verbose.Source)
+
+	fmt.Println()
+	fmt.Println("Environment variables (if set):")
+	envVars := []string{"OLYMPUS_OUTPUT", "OLYMPUS_BASE_DIR", "OLYMPUS_VERBOSE", "OLYMPUS_NO_SC"}
+	anySet := false
+	for _, env := range envVars {
+		if v := os.Getenv(env); v != "" {
+			fmt.Printf("  %s=%s\n", env, v)
+			anySet = true
+		}
+	}
+	if !anySet {
+		fmt.Println("  (none set)")
+	}
+
+	return nil
+}
