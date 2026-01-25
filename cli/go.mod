@@ -1,4 +1,4 @@
-module github.com/boshu2/agentops/plugins/olympus-kit/cli
+module github.com/boshu2/agentops/cli
 
 go 1.22
 
