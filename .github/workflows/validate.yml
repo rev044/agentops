@@ -216,8 +216,26 @@ jobs:
           echo ""
           echo "✅ All plugins have valid structure"
 
+  e2e-install-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run E2E install test
+        run: |
+          chmod +x tests/e2e-install-test.sh
+          ./tests/e2e-install-test.sh
+
   summary:
-    needs: [smoke-test, shellcheck, security-scan, plugin-load-test]
+    needs: [smoke-test, shellcheck, security-scan, plugin-load-test, e2e-install-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -228,11 +246,13 @@ jobs:
           echo "shellcheck: ${{ needs.shellcheck.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
+          echo "e2e-install-test: ${{ needs.e2e-install-test.result }}"
 
           if [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
-             [[ "${{ needs.plugin-load-test.result }}" != "success" ]]; then
+             [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e-install-test.result }}" != "success" ]]; then
             echo ""
             echo "❌ Some checks failed"
             exit 1
