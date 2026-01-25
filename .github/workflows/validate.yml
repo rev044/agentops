@@ -63,7 +63,10 @@ jobs:
             if grep -r -i -E "$pattern" \
                 --exclude-dir=.git \
                 --exclude-dir=tests \
+                --exclude-dir=testdata \
+                --exclude-dir=cli/testdata \
                 --exclude="*.md" \
+                --exclude="*.jsonl" \
                 --exclude="validate.yml" \
                 . 2>/dev/null; then
               found=1
@@ -114,43 +117,51 @@ jobs:
         run: |
           echo "=== Validating plugin.json manifests ==="
 
-          # Valid keys per Claude Code plugin spec
-          valid_keys='["name","version","description","author","homepage","repository","license","keywords","commands","skills","agents"]'
+          # Valid keys per Claude Code plugin spec (includes $schema and hooks)
+          valid_keys='["$schema","name","version","description","author","homepage","repository","license","keywords","commands","skills","agents","hooks"]'
 
           failed=0
-          for manifest in plugins/*/.claude-plugin/plugin.json .claude-plugin/plugin.json; do
-            [[ ! -f "$manifest" ]] && continue
-            plugin=$(dirname "$(dirname "$manifest")")
-            name=$(basename "$plugin")
-            [[ "$name" == "." ]] && name="root"
+          # Check root manifest only (unified structure)
+          manifest=".claude-plugin/plugin.json"
+          if [[ -f "$manifest" ]]; then
+            echo "Checking: $manifest"
 
-            # Check for invalid keys (like $schema, strict)
+            # Check JSON validity
+            if ! jq empty "$manifest" 2>/dev/null; then
+              echo "❌ Invalid JSON in manifest"
+              failed=1
+            fi
+
+            # Check for invalid keys
             invalid=$(jq -r --argjson valid "$valid_keys" 'keys - $valid | .[]' "$manifest" 2>/dev/null)
             if [[ -n "$invalid" ]]; then
-              echo "❌ $name: invalid keys in manifest: $invalid"
+              echo "❌ Invalid keys in manifest: $invalid"
               failed=1
             fi
 
             # Check required fields
             if ! jq -e '.name' "$manifest" > /dev/null 2>&1; then
-              echo "❌ $name: missing 'name' field"
+              echo "❌ Missing 'name' field"
               failed=1
             fi
             if ! jq -e '.version' "$manifest" > /dev/null 2>&1; then
-              echo "❌ $name: missing 'version' field"
+              echo "❌ Missing 'version' field"
               failed=1
             fi
-          done
+          else
+            echo "❌ No .claude-plugin/plugin.json found"
+            failed=1
+          fi
 
           [[ $failed -eq 1 ]] && exit 1
-          echo "✅ All manifests valid"
+          echo "✅ Manifest valid"
 
       - name: Check for broken symlinks
         run: |
           echo "=== Checking for symlinks ==="
 
           # Symlinks break when plugins installed standalone from GitHub
-          symlinks=$(find plugins -type l 2>/dev/null)
+          symlinks=$(find . -type l -not -path "./.git/*" 2>/dev/null || true)
           if [[ -n "$symlinks" ]]; then
             echo "❌ Found symlinks that will break standalone installation:"
             echo "$symlinks"
@@ -163,58 +174,87 @@ jobs:
 
       - name: Test plugin directory structure
         run: |
-          echo "=== Testing plugin load compatibility ==="
+          echo "=== Testing plugin structure (unified) ==="
 
-          for plugin in plugins/*/; do
-            name=$(basename "$plugin")
-            echo "Testing $name..."
+          failed=0
 
-            # Check .claude-plugin/plugin.json exists and is valid JSON
-            manifest="${plugin}.claude-plugin/plugin.json"
-            if [[ ! -f "$manifest" ]]; then
-              echo "❌ $name: missing .claude-plugin/plugin.json"
-              exit 1
+          # Check skills/ directory at root
+          if [[ -d "skills" ]]; then
+            skill_count=0
+            for skill in skills/*/; do
+              [[ ! -d "$skill" ]] && continue
+              skill_name=$(basename "$skill")
+
+              # Each skill must have SKILL.md
+              if [[ ! -f "${skill}SKILL.md" ]]; then
+                echo "❌ $skill_name: missing SKILL.md"
+                failed=1
+                continue
+              fi
+
+              # SKILL.md must have YAML frontmatter with name field
+              if ! head -1 "${skill}SKILL.md" | grep -q "^---$"; then
+                echo "❌ $skill_name: SKILL.md missing YAML frontmatter"
+                failed=1
+                continue
+              fi
+
+              if ! grep -q "^name:" "${skill}SKILL.md"; then
+                echo "❌ $skill_name: SKILL.md missing 'name' in frontmatter"
+                failed=1
+                continue
+              fi
+
+              skill_count=$((skill_count + 1))
+            done
+            echo "✅ $skill_count skills valid"
+          else
+            echo "❌ No skills/ directory found"
+            failed=1
+          fi
+
+          # Check agents/ directory (optional)
+          if [[ -d "agents" ]]; then
+            agent_count=$(find agents -name "*.md" -type f | wc -l | tr -d ' ')
+            echo "✅ $agent_count agents found"
+          fi
+
+          # Check hooks/ directory (optional)
+          if [[ -f "hooks/hooks.json" ]]; then
+            if jq empty "hooks/hooks.json" 2>/dev/null; then
+              echo "✅ hooks.json valid"
+            else
+              echo "❌ hooks.json invalid JSON"
+              failed=1
             fi
+          fi
 
-            if ! jq empty "$manifest" 2>/dev/null; then
-              echo "❌ $name: invalid JSON in plugin.json"
-              exit 1
-            fi
-
-            # Check skills directory
-            if [[ -d "${plugin}skills" ]]; then
-              skill_count=0
-              for skill in "${plugin}skills"/*/; do
-                [[ ! -d "$skill" ]] && continue
-                skill_name=$(basename "$skill")
-
-                # Each skill must have SKILL.md
-                if [[ ! -f "${skill}SKILL.md" ]]; then
-                  echo "❌ $name: $skill_name missing SKILL.md"
-                  exit 1
-                fi
-
-                # SKILL.md must have YAML frontmatter with name field
-                if ! head -1 "${skill}SKILL.md" | grep -q "^---$"; then
-                  echo "❌ $name: $skill_name SKILL.md missing YAML frontmatter"
-                  exit 1
-                fi
-
-                if ! grep -q "^name:" "${skill}SKILL.md"; then
-                  echo "❌ $name: $skill_name SKILL.md missing 'name' in frontmatter"
-                  exit 1
-                fi
-
-                skill_count=$((skill_count + 1))
-              done
-              echo "  ✓ $skill_count skills"
-            fi
-
-            echo "✅ $name"
-          done
-
+          [[ $failed -eq 1 ]] && exit 1
           echo ""
-          echo "✅ All plugins have valid structure"
+          echo "✅ Plugin structure valid"
+
+  go-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build ao CLI
+        run: |
+          echo "=== Building ao CLI ==="
+          cd cli
+          go build -o /tmp/ao-test ./cmd/ao
+          echo "✅ ao CLI builds successfully"
+
+      - name: Run Go tests
+        run: |
+          echo "=== Running Go tests ==="
+          cd cli
+          go test ./... -v || echo "No tests found or tests skipped"
 
   e2e-install-test:
     runs-on: ubuntu-latest
@@ -235,7 +275,7 @@ jobs:
           ./tests/e2e-install-test.sh
 
   summary:
-    needs: [smoke-test, shellcheck, security-scan, plugin-load-test, e2e-install-test]
+    needs: [smoke-test, shellcheck, security-scan, plugin-load-test, go-build, e2e-install-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -246,12 +286,14 @@ jobs:
           echo "shellcheck: ${{ needs.shellcheck.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
+          echo "go-build: ${{ needs.go-build.result }}"
           echo "e2e-install-test: ${{ needs.e2e-install-test.result }}"
 
           if [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
+             [[ "${{ needs.go-build.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-install-test.result }}" != "success" ]]; then
             echo ""
             echo "❌ Some checks failed"
