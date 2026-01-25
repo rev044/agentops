@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,6 +20,7 @@ import (
 var (
 	forgeLastSession bool
 	forgeQuiet       bool
+	forgeQueue       bool
 )
 
 const (
@@ -83,6 +85,7 @@ func init() {
 	// Transcript flags
 	forgeTranscriptCmd.Flags().BoolVar(&forgeLastSession, "last-session", false, "Process only the most recent transcript")
 	forgeTranscriptCmd.Flags().BoolVar(&forgeQuiet, "quiet", false, "Suppress all output (for hooks)")
+	forgeTranscriptCmd.Flags().BoolVar(&forgeQueue, "queue", false, "Queue session for learning extraction at next session start")
 }
 
 func runForgeTranscript(cmd *cobra.Command, args []string) error {
@@ -219,6 +222,15 @@ func runForgeTranscript(cmd *cobra.Command, args []string) error {
 
 		if !forgeQuiet {
 			VerbosePrintf("  ✓ %s → %s\n", filepath.Base(filePath), filepath.Base(sessionPath))
+		}
+
+		// Queue for extraction if requested
+		if forgeQueue {
+			if err := queueForExtraction(session, sessionPath, filePath, cwd); err != nil {
+				if !forgeQuiet {
+					fmt.Fprintf(os.Stderr, "Warning: failed to queue for extraction: %v\n", err)
+				}
+			}
 		}
 	}
 
@@ -494,6 +506,52 @@ func dedup(items []string) []string {
 		}
 	}
 	return result
+}
+
+// queueForExtraction adds a session to the pending extraction queue.
+func queueForExtraction(session *storage.Session, sessionPath, transcriptPath, cwd string) error {
+	pendingDir := filepath.Join(cwd, storage.DefaultBaseDir, "olympus")
+	if err := os.MkdirAll(pendingDir, 0755); err != nil {
+		return fmt.Errorf("create pending dir: %w", err)
+	}
+
+	pendingPath := filepath.Join(pendingDir, "pending.jsonl")
+
+	// Create pending extraction record
+	pending := struct {
+		SessionID      string    `json:"session_id"`
+		SessionPath    string    `json:"session_path"`
+		TranscriptPath string    `json:"transcript_path"`
+		Summary        string    `json:"summary"`
+		Decisions      []string  `json:"decisions,omitempty"`
+		Knowledge      []string  `json:"knowledge,omitempty"`
+		QueuedAt       time.Time `json:"queued_at"`
+	}{
+		SessionID:      session.ID,
+		SessionPath:    sessionPath,
+		TranscriptPath: transcriptPath,
+		Summary:        session.Summary,
+		Decisions:      session.Decisions,
+		Knowledge:      session.Knowledge,
+		QueuedAt:       time.Now(),
+	}
+
+	data, err := json.Marshal(pending)
+	if err != nil {
+		return fmt.Errorf("marshal pending: %w", err)
+	}
+
+	f, err := os.OpenFile(pendingPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("open pending file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		return fmt.Errorf("write pending: %w", err)
+	}
+
+	return nil
 }
 
 // findLastSession finds the most recently modified transcript file.
