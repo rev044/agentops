@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# Master test runner for AgentOps plugin
+# Runs all test tiers based on flag
+#
+# Usage:
+#   ./tests/run-all.sh           # Run tier 1 (fast) only
+#   ./tests/run-all.sh --tier=2  # Run tier 1 + tier 2 (smoke tests)
+#   ./tests/run-all.sh --tier=3  # Run tier 1 + 2 + 3 (functional tests)
+#   ./tests/run-all.sh --all     # Run all tests
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+TIER="${1:-}"
+total_passed=0
+total_failed=0
+total_skipped=0
+
+log() { echo -e "${BLUE}[TEST]${NC} $1"; }
+pass() { echo -e "${GREEN}  ✓${NC} $1"; ((total_passed++)) || true; }
+fail() { echo -e "${RED}  ✗${NC} $1"; ((total_failed++)) || true; }
+skip() { echo -e "${YELLOW}  ⊘${NC} $1 (skipped)"; ((total_skipped++)) || true; }
+
+echo ""
+echo "═══════════════════════════════════════════"
+echo "AgentOps Plugin Test Suite"
+echo "═══════════════════════════════════════════"
+echo ""
+
+# =============================================================================
+# Tier 1: Static Validation (fast, no Claude CLI needed)
+# =============================================================================
+log "Tier 1: Static Validation"
+
+# Validate JSON files
+for jf in "$REPO_ROOT/.claude-plugin/plugin.json" "$REPO_ROOT/hooks/hooks.json"; do
+    if [[ ! -f "$jf" ]]; then
+        fail "$(basename "$jf") - not found"
+        continue
+    fi
+    if python3 -m json.tool "$jf" > /dev/null 2>&1; then
+        pass "$(basename "$jf") valid"
+    else
+        fail "$(basename "$jf") - invalid JSON"
+    fi
+done
+
+# Validate skill structure
+skill_errors=0
+skill_count=0
+for skill_dir in "$REPO_ROOT"/skills/*/; do
+    [[ ! -d "$skill_dir" ]] && continue
+    skill_name=$(basename "$skill_dir")
+    skill_md="${skill_dir}SKILL.md"
+
+    if [[ -f "$skill_md" ]]; then
+        if head -1 "$skill_md" | grep -q "^---$"; then
+            if grep -q "^name:" "$skill_md"; then
+                skill_count=$((skill_count + 1))
+            else
+                fail "$skill_name - missing 'name' in frontmatter"
+                skill_errors=$((skill_errors + 1))
+            fi
+        else
+            fail "$skill_name - no YAML frontmatter"
+            skill_errors=$((skill_errors + 1))
+        fi
+    else
+        fail "$skill_name/SKILL.md missing"
+        skill_errors=$((skill_errors + 1))
+    fi
+done
+
+if [[ $skill_errors -eq 0 ]] && [[ $skill_count -gt 0 ]]; then
+    pass "All $skill_count skills have valid SKILL.md"
+fi
+
+# Validate agents
+agent_count=0
+[[ -d "$REPO_ROOT/agents" ]] && agent_count=$(find "$REPO_ROOT/agents" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+if [[ $agent_count -gt 0 ]]; then
+    pass "Found $agent_count agents"
+else
+    skip "No agents found (optional)"
+fi
+
+echo ""
+
+# =============================================================================
+# Tier 2: Smoke Tests (needs Claude CLI, fast)
+# =============================================================================
+if [[ "$TIER" == "--tier=2" ]] || [[ "$TIER" == "--tier=3" ]] || [[ "$TIER" == "--all" ]]; then
+    log "Tier 2: Smoke Tests"
+
+    if ! command -v claude &>/dev/null; then
+        skip "Claude CLI not available"
+    else
+        # Test plugin loads
+        load_output=$(timeout 10 claude --plugin-dir "$REPO_ROOT" --help 2>&1) || true
+        if echo "$load_output" | grep -qiE "invalid manifest|validation error|failed to load"; then
+            fail "Claude CLI failed to load plugin"
+            echo "$load_output" | grep -iE "invalid|failed|error" | head -3 | sed 's/^/    /'
+        else
+            pass "Claude CLI loads plugin"
+        fi
+    fi
+
+    # Run smoke-test.sh if exists
+    if [[ -f "$SCRIPT_DIR/smoke-test.sh" ]]; then
+        if bash "$SCRIPT_DIR/smoke-test.sh" > /dev/null 2>&1; then
+            pass "smoke-test.sh passed"
+        else
+            fail "smoke-test.sh failed"
+        fi
+    fi
+
+    echo ""
+fi
+
+# =============================================================================
+# Tier 3: Functional Tests (needs Claude CLI, slower)
+# =============================================================================
+if [[ "$TIER" == "--tier=3" ]] || [[ "$TIER" == "--all" ]]; then
+    log "Tier 3: Functional Tests"
+
+    if ! command -v claude &>/dev/null; then
+        skip "Claude CLI not available - skipping functional tests"
+    else
+        # Run explicit skill request tests
+        if [[ -d "$SCRIPT_DIR/explicit-skill-requests" ]]; then
+            log "  Running explicit skill request tests..."
+            if bash "$SCRIPT_DIR/explicit-skill-requests/run-all.sh" > /tmp/explicit-tests.log 2>&1; then
+                pass "Explicit skill request tests"
+            else
+                fail "Explicit skill request tests"
+                tail -20 /tmp/explicit-tests.log | sed 's/^/    /'
+            fi
+        fi
+
+        # Run natural language triggering tests
+        if [[ -d "$SCRIPT_DIR/skill-triggering" ]]; then
+            log "  Running skill triggering tests..."
+            if bash "$SCRIPT_DIR/skill-triggering/run-all.sh" > /tmp/triggering-tests.log 2>&1; then
+                pass "Skill triggering tests"
+            else
+                fail "Skill triggering tests"
+                tail -20 /tmp/triggering-tests.log | sed 's/^/    /'
+            fi
+        fi
+
+        # Run claude-code unit tests
+        if [[ -d "$SCRIPT_DIR/claude-code" ]]; then
+            log "  Running Claude Code unit tests..."
+            if bash "$SCRIPT_DIR/claude-code/run-all.sh" > /tmp/unit-tests.log 2>&1; then
+                pass "Claude Code unit tests"
+            else
+                fail "Claude Code unit tests"
+                tail -20 /tmp/unit-tests.log | sed 's/^/    /'
+            fi
+        fi
+    fi
+
+    echo ""
+fi
+
+# =============================================================================
+# Summary
+# =============================================================================
+echo ""
+echo -e "${BLUE}═══════════════════════════════════════════${NC}"
+total=$((total_passed + total_failed + total_skipped))
+echo -e "Total: $total tests"
+echo -e "  ${GREEN}Passed:${NC}  $total_passed"
+echo -e "  ${RED}Failed:${NC}  $total_failed"
+echo -e "  ${YELLOW}Skipped:${NC} $total_skipped"
+echo -e "${BLUE}═══════════════════════════════════════════${NC}"
+
+if [[ $total_failed -gt 0 ]]; then
+    exit 1
+fi
+exit 0
