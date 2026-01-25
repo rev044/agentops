@@ -1,7 +1,6 @@
 {
-  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "agentops",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Complete Knowledge OS for Claude Code - Research/Plan/Implement workflow, session management, vibe-coding metrics, and 85+ specialized agents",
   "author": {
     "name": "Boden Fuller"
@@ -22,6 +21,5 @@
     "gitops",
     "devops"
   ],
-  "commands": "./commands/",
-  "strict": false
+  "commands": "./commands/"
 }

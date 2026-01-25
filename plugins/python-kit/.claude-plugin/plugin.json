@@ -1,5 +1,4 @@
 {
-  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "python-kit",
   "version": "0.1.2",
   "description": "Python development: standards, linting hooks, testing patterns.",

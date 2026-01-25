@@ -1,5 +1,4 @@
 {
-  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "general-kit",
   "version": "0.1.3",
   "description": "Portable Claude Code skills - no external dependencies required. Research, validation, documentation, and expert agents.",

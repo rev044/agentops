@@ -1,5 +1,4 @@
 {
-  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "solo-kit",
   "version": "0.1.2",
   "description": "Essential skills for any developer, any project. Language-agnostic foundations.",

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "go-kit",
   "version": "0.1.2",
   "description": "Go development: standards, linting hooks, testing patterns.",
