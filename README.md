@@ -314,6 +314,7 @@ Everyone has good AI. Nobody has the loop that makes it learn.
 
 ## Documentation
 
+- **[docs/the-science.md](docs/the-science.md)** — Full research citations & math explained
 - [docs/brownian-ratchet.md](docs/brownian-ratchet.md) — Core philosophy
 - [docs/knowledge-flywheel.md](docs/knowledge-flywheel.md) — How compounding works
 - [docs/ao-cli.md](docs/ao-cli.md) — CLI reference
