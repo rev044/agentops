@@ -1,0 +1,17 @@
+{
+  "name": "olympus-kit",
+  "version": "0.1.0",
+  "description": "Knowledge Forge - mine transcripts, track provenance, compound intelligence",
+  "author": {
+    "name": "AgentOps Team"
+  },
+  "license": "MIT",
+  "keywords": [
+    "knowledge",
+    "forge",
+    "transcripts",
+    "provenance",
+    "flywheel",
+    "ratchet"
+  ]
+}
