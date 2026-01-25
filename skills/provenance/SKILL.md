@@ -1,3 +1,16 @@
+---
+name: provenance
+description: >
+  Trace knowledge artifact lineage and sources. Find orphans, stale citations.
+  Triggers: "where did this come from", "trace this learning", "knowledge lineage".
+version: 1.0.0
+tier: solo
+author: "AI Platform Team"
+license: "MIT"
+context: inline
+allowed-tools: "Read,Bash,Grep,Glob"
+---
+
 # Skill: Provenance
 
 > Trace knowledge lineage. Every insight has a source.

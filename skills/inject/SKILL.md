@@ -1,3 +1,16 @@
+---
+name: inject
+description: >
+  Inject relevant knowledge into session context from .agents/ artifacts.
+  Triggers: "inject knowledge", "recall context", SessionStart hook.
+version: 1.0.0
+tier: solo
+author: "AI Platform Team"
+license: "MIT"
+context: inline
+allowed-tools: "Read,Bash,Grep,Glob"
+---
+
 # Inject Skill
 
 Inject relevant knowledge into the current session context.

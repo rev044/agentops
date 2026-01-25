@@ -1,3 +1,16 @@
+---
+name: extract
+description: >
+  Extract decisions and learnings from Claude session transcripts.
+  Triggers: "extract learnings", "process pending", SessionStart hook.
+version: 1.0.0
+tier: solo
+author: "AI Platform Team"
+license: "MIT"
+context: inline
+allowed-tools: "Read,Write,Bash"
+---
+
 # Extract Skill
 
 Process pending learning extractions from previous sessions.
