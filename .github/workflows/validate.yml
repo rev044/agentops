@@ -205,7 +205,7 @@ jobs:
                   exit 1
                 fi
 
-                ((skill_count++))
+                skill_count=$((skill_count + 1))
               done
               echo "  ✓ $skill_count skills"
             fi
