@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "agentops",
   "version": "1.0.0",
-  "description": "AI-assisted development workflow: Research → Plan → Implement with Knowledge Flywheel",
+  "description": "AI-assisted development workflow with 20 skills + ao CLI: Research → Plan → Implement with Knowledge Flywheel",
   "author": {
     "name": "Boden Fuller"
   },
@@ -17,7 +17,9 @@
     "implementation",
     "validation",
     "knowledge-flywheel",
-    "skills"
+    "skills",
+    "ao-cli",
+    "brownian-ratchet"
   ],
   "skills": "./skills/",
   "hooks": "./hooks/"

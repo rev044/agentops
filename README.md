@@ -24,7 +24,7 @@ Research → Plan → Implement → Validate
 
 Every time you complete work, learnings feed back into research. Your AI assistant gets smarter about YOUR codebase.
 
-## Skills
+## Skills (20)
 
 | Skill | What It Does |
 |-------|--------------|
@@ -35,12 +35,19 @@ Every time you complete work, learnings feed back into research. Your AI assista
 | `/vibe` | Code validation (security, quality, architecture) |
 | `/retro` | Extract learnings from completed work |
 | `/post-mortem` | Full validation + knowledge extraction |
+| `/pre-mortem` | Simulate failures before implementing |
 | `/beads` | Git-native issue tracking |
 | `/bug-hunt` | Root cause analysis |
 | `/knowledge` | Query knowledge artifacts |
 | `/complexity` | Code complexity analysis |
 | `/doc` | Documentation generation |
-| `/pre-mortem` | Simulate failures before implementing |
+| `/forge` | Knowledge forge operations |
+| `/extract` | Extract decisions/learnings from transcripts |
+| `/inject` | Inject knowledge into context |
+| `/ratchet` | Brownian ratchet progress gates |
+| `/flywheel` | Knowledge flywheel orchestration |
+| `/provenance` | Track artifact provenance |
+| `/using-agentops` | Usage guide |
 
 ## Natural Language
 
@@ -69,24 +76,42 @@ AgentOps stores knowledge in `.agents/`:
 
 Future `/research` commands discover these automatically.
 
-## ao CLI Integration
+## ao CLI
 
-For full workflow orchestration, install the [ao CLI](https://github.com/boshu2/ao):
+The ao CLI provides workflow orchestration outside Claude sessions.
 
+**Install:**
 ```bash
-brew install agentops
+brew install agentops      # From tap
+# or
+./scripts/install-ao.sh    # From source
 ```
 
-The ao CLI provides:
-- `ao forge search` - Semantic knowledge search
-- `ao forge index` - Index knowledge artifacts
-- `ao ratchet` - Track progress with the Brownian Ratchet pattern
+**Commands:**
+```bash
+# Knowledge Forge
+ao forge search <query>      # Semantic search across knowledge
+ao forge index <path>        # Index knowledge artifacts
+ao forge queue               # View pending extractions
+
+# Ratchet (Progress Gates)
+ao ratchet check <skill>     # Verify prerequisites
+ao ratchet record <type>     # Record progress event
+ao ratchet verify <epic>     # Verify epic completion
+
+# Context Management
+ao extract                   # Extract from last session
+ao inject                    # Inject knowledge into context
+ao status                    # Show session/knowledge status
+```
+
+See [docs/brownian-ratchet.md](docs/brownian-ratchet.md) for the philosophy.
 
 ## Requirements
 
 - [Claude Code](https://github.com/anthropics/claude-code) v1.0+
 - Optional: [beads](https://github.com/steveyegge/beads) for issue tracking
-- Optional: [ao CLI](https://github.com/boshu2/ao) for full workflow orchestration
+- Optional: Go 1.22+ (to build ao CLI from source)
 
 ## License
 
