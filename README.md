@@ -1,349 +1,92 @@
-<div align="center">
+# AgentOps
 
-```
-   █████╗  ██████╗ ███████╗███╗   ██╗████████╗ ██████╗ ██████╗ ███████╗
-  ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔═══██╗██╔══██╗██╔════╝
-  ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ██║   ██║██████╔╝███████╗
-  ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ██║   ██║██╔═══╝ ╚════██║
-  ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ╚██████╔╝██║     ███████║
-  ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚═╝     ╚══════╝
-```
+AI-assisted development workflows for Claude Code.
 
-</div>
+## The Problem
 
-<p align="center">
-  <a href="https://github.com/boshu2/agentops/releases/tag/v0.3.1"><img src="https://img.shields.io/badge/version-0.3.1-orange" alt="Version"></a>
-  <a href="https://github.com/boshu2/agentops/actions/workflows/validate.yml"><img src="https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://docs.anthropic.com/en/docs/claude-code"><img src="https://img.shields.io/badge/Claude_Code-2.1.12-blueviolet" alt="Claude Code"></a>
-  <a href="plugins/"><img src="https://img.shields.io/badge/plugins-14-blue" alt="Plugins"></a>
-  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
-</p>
+You're deep in a codebase, trying to add a feature. You've got 20 tabs open, grep results scattered across terminals, and you're losing context faster than you can build it.
 
-> **v0.3.0** - Added pre-mortem/post-mortem skills, synced RPI workflow, standardized plugin structure. All skills now see conversation context.
-
-Claude Code plugins for AI-assisted development workflows. Just describe what you want - skills trigger automatically.
-
----
-
-## Just Talk Naturally
-
-Skills trigger from natural language. No slash commands required:
-
-| You Say | Triggers |
-|---------|----------|
-| "I need to understand how auth works" | `/research` |
-| "Let's plan out this feature" | `/formulate` |
-| "What could go wrong with this approach?" | `/pre-mortem` |
-| "Validate my changes" | `/vibe` |
-| "Check for security issues" | `/vibe --security` |
-| "What did we learn?" | `/retro` |
-| "Wrap up this epic" | `/post-mortem` |
-
-The skills detect intent and activate. Slash commands work too if you prefer them.
-
----
-
-## The RPI Workflow
-
-The complete Research → Plan → Implement workflow with validation gates:
-
-```mermaid
-flowchart LR
-    R["/research"] --> PRE["/pre-mortem"]
-    PRE --> PLAN["/formulate"]
-    PLAN --> C["/crank"]
-    C --> POST["/post-mortem"]
-    POST -.->|knowledge loop| R
-
-    style R fill:#4CAF50,color:#fff
-    style PRE fill:#FF9800,color:#fff
-    style PLAN fill:#9C27B0,color:#fff
-    style C fill:#F44336,color:#fff
-    style POST fill:#00BCD4,color:#fff
-```
-
-| Stage | Command | What It Does |
-|-------|---------|--------------|
-| **Research** | `/research` | Deep codebase exploration, creates synthesis artifact |
-| **Pre-mortem** | `/pre-mortem` | Simulate N iterations to find failure modes BEFORE implementing |
-| **Plan** | `/formulate` | Create issues with dependencies, organize into waves |
-| **Execute** | `/crank` | Run all waves until epic is closed |
-| **Validate** | `/post-mortem` | Validate code + extract learnings + feed back into knowledge loop |
-
-### Why Pre-mortem?
-
-> "Simulate doing it 10 times and learn all the lessons so we don't have to."
-
-Pre-mortem catches issues BEFORE you hit them:
-- API mismatches discovered in simulation, not production
-- Missing dependencies identified upfront
-- Edge cases surfaced before coding starts
-
-### Why Post-mortem?
-
-Post-mortem closes the knowledge loop:
-- Validates code quality (runs `/vibe`)
-- Extracts learnings to `.agents/learnings/`
-- Stores patterns in `.agents/patterns/`
-- Feeds knowledge back to future `/research`
-
----
-
-## The Killer Meta: Plan → Crank
-
-For complex work, use two sessions:
-
-```mermaid
-flowchart LR
-    subgraph Plan["1. PLAN SESSION"]
-        A["Shift+Tab (plan)"] --> PRE["/pre-mortem"]
-        PRE --> B["/formulate"]
-        B --> C["creates beads"]
-    end
-    subgraph Crank["2. CRANK SESSION"]
-        D["/crank epic"] --> E["wave 1"]
-        E --> F["wave 2"]
-        F --> G["ALL CLOSED"]
-        G --> POST["/post-mortem"]
-    end
-    Plan -->|"handoff (fresh context)"| Crank
-
-    style A fill:#9C27B0,color:#fff
-    style PRE fill:#FF9800,color:#fff
-    style B fill:#9C27B0,color:#fff
-    style C fill:#7B1FA2,color:#fff
-    style D fill:#F44336,color:#fff
-    style E fill:#EF5350,color:#fff
-    style F fill:#EF5350,color:#fff
-    style G fill:#4CAF50,color:#fff
-    style POST fill:#00BCD4,color:#fff
-```
-
-**Why this works:**
-- **Plan mode + /formulate** gives you review gates before execution
-- **"Accept + Clear" handoff** - planning burns tokens, crank needs room
-- **Fresh session gets**: the plan artifact, the beads, and context pointer
-
----
+AgentOps changes this. It gives Claude a structured workflow that builds knowledge over time instead of losing it.
 
 ## Install
 
 ```bash
-# Add marketplace
-/plugin marketplace add boshu2/agentops
-
-# Start with solo-kit (any language, any project)
-/plugin install solo-kit@agentops
-
-# Add language-specific support
-/plugin install python-kit@agentops    # if Python
-/plugin install go-kit@agentops        # if Go
-/plugin install typescript-kit@agentops # if TypeScript
-/plugin install shell-kit@agentops     # if Shell/Bash
+claude /plugin add boshu2/agentops
 ```
 
-**Initialize your repo** (creates `.agents/` directories):
+## The RPI Workflow
+
+```
+Research → Plan → Implement → Validate
+    ↑                            │
+    └──── Knowledge Flywheel ────┘
+```
+
+Every time you complete work, learnings feed back into research. Your AI assistant gets smarter about YOUR codebase.
+
+## Skills
+
+| Skill | What It Does |
+|-------|--------------|
+| `/research` | Deep codebase exploration |
+| `/plan` | Decompose goals into trackable issues |
+| `/implement` | Execute a single issue |
+| `/crank` | Autonomous multi-issue execution |
+| `/vibe` | Code validation (security, quality, architecture) |
+| `/retro` | Extract learnings from completed work |
+| `/post-mortem` | Full validation + knowledge extraction |
+| `/beads` | Git-native issue tracking |
+| `/bug-hunt` | Root cause analysis |
+| `/knowledge` | Query knowledge artifacts |
+| `/complexity` | Code complexity analysis |
+| `/doc` | Documentation generation |
+| `/pre-mortem` | Simulate failures before implementing |
+
+## Natural Language
+
+Just describe what you want:
+
+> "I need to understand how auth works" → `/research`
+
+> "Check my code for issues" → `/vibe`
+
+> "What could go wrong with this design?" → `/pre-mortem`
+
+> "Execute this epic" → `/crank`
+
+## Knowledge Artifacts
+
+AgentOps stores knowledge in `.agents/`:
+
+```
+.agents/
+├── research/     # Exploration findings
+├── learnings/    # Extracted lessons
+├── patterns/     # Reusable patterns
+├── retros/       # Retrospective reports
+└── products/     # Product briefs
+```
+
+Future `/research` commands discover these automatically.
+
+## ao CLI Integration
+
+For full workflow orchestration, install the [ao CLI](https://github.com/boshu2/ao):
+
 ```bash
-claude --init
+brew install agentops
 ```
 
----
+The ao CLI provides:
+- `ao forge search` - Semantic knowledge search
+- `ao forge index` - Index knowledge artifacts
+- `ao ratchet` - Track progress with the Brownian Ratchet pattern
 
-## Claude Code 2.1+ Features Used
+## Requirements
 
-These plugins leverage the latest Claude Code capabilities:
-
-| Feature | Version | How We Use It |
-|---------|---------|---------------|
-| **Setup hooks** | 2.1.10 | `claude --init` creates `.agents/` directories |
-| **Task dependencies** | 2.1.16 | `/crank` tracks wave dependencies |
-| **Explore agents** | 2.1.0 | `/research` dispatches Explore for discovery |
-| **MCP auto-mode** | 2.1.7 | Deferred tool discovery for context efficiency |
-| **Session ID** | 2.1.9 | `${CLAUDE_SESSION_ID}` for retro tracking |
-| **Plugin pinning** | 2.1.14 | Pin to specific commits for reproducibility |
-
-**Recommended settings** (add to your project's `settings.json`):
-```json
-{
-  "plansDirectory": ".agents/plans"
-}
-```
-
----
-
-## Plugin Architecture
-
-### Tier 1: Solo Developer (Any Project)
-
-| Plugin | Skills | Purpose |
-|--------|--------|---------|
-| **solo-kit** | `/research`, `/vibe`, `/bug-hunt`, `/complexity`, `/doc`, `/oss-docs`, `/golden-init` | **Start here** - essential validation and exploration |
-| **general-kit** | Same as solo-kit | Zero-dependency portable version |
-
-```bash
-/plugin install solo-kit@agentops
-```
-
-### Tier 2: Language Kits
-
-| Plugin | Standards | Hooks | Purpose |
-|--------|-----------|-------|---------|
-| **python-kit** | `python.md` | ruff, mypy | Python development |
-| **go-kit** | `go.md` | gofmt, golangci-lint | Go development |
-| **typescript-kit** | `typescript.md` | prettier, tsc | TypeScript/JavaScript |
-| **shell-kit** | `shell.md` | shellcheck | Shell scripting |
-
-### Tier 3: Team Workflows
-
-| Plugin | Skills | Purpose | Requires |
-|--------|--------|---------|----------|
-| **core-kit** | `/research`, `/plan`, `/formulate`, `/implement`, `/crank`, `/retro`, `/pre-mortem`, `/post-mortem`, `/marketplace-release` | Full RPI workflow | [beads](https://github.com/steveyegge/beads) |
-| **beads-kit** | `/beads`, `/status`, `/molecules` | Git-based issue tracking | beads |
-| **pr-kit** | `/pr-research`, `/pr-plan`, `/pr-implement`, `/pr-validate`, `/pr-retro` | PR workflows | beads |
-| **dispatch-kit** | `/dispatch`, `/handoff`, `/mail`, `/roles` | Multi-agent coordination | beads |
-| **docs-kit** | `/doc`, `/doc-creator`, `/vibe-docs`, `/golden-init`, `/oss-docs`, `/code-map-standard` | Documentation generation | - |
-| **vibe-kit** | `/vibe`, `/bug-hunt`, `/complexity` | Code validation with expert agents | - |
-
-### Tier 4: Multi-Agent Orchestration
-
-| Plugin | Skills | Purpose | Requires |
-|--------|--------|---------|----------|
-| **gastown-kit** | `/gastown`, `/crew`, `/polecat-lifecycle`, `/bd-routing` | Parallel workers | beads + [gastown](https://github.com/steveyegge/gastown) |
-
-### Supporting Plugins
-
-| Plugin | Purpose |
-|--------|---------|
-| **domain-kit** | Reference standards across 17 domains |
-
----
-
-## Upgrade Path
-
-```mermaid
-flowchart TB
-    A["solo-kit"] --> B["+ language-kit"]
-    B --> C["+ core-kit"]
-    C --> D["+ beads-kit"]
-    D --> E["+ gastown-kit"]
-
-    style A fill:#4CAF50,color:#fff
-    style B fill:#8BC34A,color:#fff
-    style C fill:#FF9800,color:#fff
-    style D fill:#FF5722,color:#fff
-    style E fill:#F44336,color:#fff
-```
-
----
-
-## Recommended Setup
-
-**Just exploring?**
-```bash
-/plugin marketplace add boshu2/agentops
-/plugin install general-kit@agentops
-```
-Research, validation, documentation, expert agents - no external tools needed.
-
-**Want the full RPI workflow?**
-```bash
-brew install beads
-/plugin install core-kit@agentops
-/plugin install beads-kit@agentops
-```
-
-**Multi-agent parallel execution?**
-```bash
-brew install beads gastown
-/plugin install gastown-kit@agentops
-/plugin install dispatch-kit@agentops
-```
-
----
-
-## All Skills Reference
-
-### Research & Planning
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/research` | core-kit | Deep codebase exploration |
-| `/product` | core-kit | Customer-first brief (PR/FAQ) |
-| `/pre-mortem` | core-kit | Simulate failures before implementing |
-| `/plan` | core-kit | Epic decomposition into beads issues |
-| `/formulate` | core-kit | Create reusable formula templates |
-
-### Execution
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/implement` | core-kit | Execute single beads issue |
-| `/implement-wave` | core-kit | Parallel execution of multiple issues |
-| `/crank` | core-kit | Autonomous epic execution until done |
-
-### Validation
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/vibe` | vibe-kit | Comprehensive code validation (8 aspects) |
-| `/bug-hunt` | vibe-kit | Git archaeology + root cause analysis |
-| `/complexity` | vibe-kit | Cyclomatic complexity analysis |
-| `/vibe-docs` | docs-kit | Validate docs match deployment reality |
-
-### Knowledge
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/retro` | core-kit | Extract learnings from completed work |
-| `/post-mortem` | core-kit | Validate + learn + feed back into flywheel |
-
-### Documentation
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/doc` | docs-kit | Generate documentation |
-| `/doc-creator` | docs-kit | Create corpus/standards docs |
-| `/oss-docs` | docs-kit | Scaffold OSS documentation |
-| `/golden-init` | docs-kit | Initialize repo with golden template |
-| `/code-map-standard` | docs-kit | Generate code-map documentation |
-
-### Issue Tracking
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/beads` | beads-kit | Git-based issue tracking |
-| `/status` | beads-kit | Quick status check |
-| `/molecules` | beads-kit | Workflow templates |
-
-### PR Workflows
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/pr-research` | pr-kit | Upstream codebase exploration |
-| `/pr-plan` | pr-kit | Strategic contribution planning |
-| `/pr-implement` | pr-kit | Fork-based implementation |
-| `/pr-validate` | pr-kit | Isolation/scope validation |
-| `/pr-retro` | pr-kit | Learn from PR outcomes |
-
-### Multi-Agent
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/gastown` | gastown-kit | Gas Town status and utilities |
-| `/dispatch` | dispatch-kit | Work assignment |
-| `/handoff` | dispatch-kit | Cross-session continuity |
-| `/mail` | dispatch-kit | Agent communication |
-
-### Meta
-| Skill | Plugin | Purpose |
-|-------|--------|---------|
-| `/marketplace-release` | core-kit | Plugin release workflow |
-
----
-
-## Learn More
-
-| Resource | Description |
-|----------|-------------|
-| [levels/](levels/) | Progressive tutorials from basics to full automation |
-| [reference/](reference/) | Framework docs (PDC, FAAFO, failure patterns) |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
-
----
+- [Claude Code](https://github.com/anthropics/claude-code) v1.0+
+- Optional: [beads](https://github.com/steveyegge/beads) for issue tracking
+- Optional: [ao CLI](https://github.com/boshu2/ao) for full workflow orchestration
 
 ## License
 

@@ -1,7 +1,8 @@
 {
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "agentops",
-  "version": "0.3.1",
-  "description": "Complete Knowledge OS for Claude Code - Research/Plan/Implement workflow, session management, vibe-coding metrics, and 85+ specialized agents",
+  "version": "1.0.0",
+  "description": "AI-assisted development workflow: Research → Plan → Implement with Knowledge Flywheel",
   "author": {
     "name": "Boden Fuller"
   },
@@ -14,12 +15,10 @@
     "research",
     "planning",
     "implementation",
-    "session-management",
-    "vibe-coding",
-    "agents",
-    "skills",
-    "gitops",
-    "devops"
+    "validation",
+    "knowledge-flywheel",
+    "skills"
   ],
-  "commands": "./commands/"
+  "skills": "./skills/",
+  "hooks": "./hooks/"
 }
