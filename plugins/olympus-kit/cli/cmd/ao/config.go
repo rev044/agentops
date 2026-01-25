@@ -34,8 +34,8 @@ Environment variables:
   OLYMPUS_NO_SC      - Disable Smart Connections (true/1)
 
 Examples:
-  ol config --show           # Show resolved configuration
-  ol config --show -o json   # Output as JSON`,
+  ao config --show           # Show resolved configuration
+  ao config --show -o json   # Output as JSON`,
 	RunE: runConfig,
 }
 
@@ -60,7 +60,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	// Print table format
-	fmt.Println("Olympus Configuration")
+	fmt.Println("AgentOps Configuration")
 	fmt.Println("=====================")
 	fmt.Println()
 

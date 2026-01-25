@@ -8,11 +8,11 @@ This skill closes the knowledge loop by processing sessions queued for learning 
 
 ```
 Session N ends:
-  → ol forge --last-session --queue
-  → Session queued in .agents/olympus/pending.jsonl
+  → ao forge --last-session --queue
+  → Session queued in .agents/ao/pending.jsonl
 
 Session N+1 starts:
-  → ol extract (this skill)
+  → ao extract (this skill)
   → Outputs extraction prompt
   → Claude extracts learnings
   → Writes to .agents/learnings/
@@ -29,13 +29,13 @@ Session N+1 starts:
 
 ```bash
 # Check for pending extractions and output prompt
-ol extract
+ao extract
 
 # Clear pending queue without processing
-ol extract --clear
+ao extract --clear
 
 # Limit content size in prompt
-ol extract --max-content 4000
+ao extract --max-content 4000
 ```
 
 ## What It Outputs
@@ -68,21 +68,21 @@ Extract **1-3 actionable learnings** and write to:
 
 | Step | Command | Output |
 |------|---------|--------|
-| Session ends | `ol forge --queue` | Queues session |
-| Next session starts | `ol extract` | Outputs prompt |
+| Session ends | `ao forge --queue` | Queues session |
+| Next session starts | `ao extract` | Outputs prompt |
 | Claude processes | (automatic) | Writes learnings |
-| Knowledge injected | `ol inject` | Loads learnings |
+| Knowledge injected | `ao inject` | Loads learnings |
 
 ## Hook Configuration
 
 ```json
 {
   "SessionStart": [
-    {"command": "ol extract"},
-    {"command": "ol inject"}
+    {"command": "ao extract"},
+    {"command": "ao inject"}
   ],
   "SessionEnd": [
-    {"command": "ol forge transcript --last-session --queue --quiet"}
+    {"command": "ao forge transcript --last-session --queue --quiet"}
   ]
 }
 ```

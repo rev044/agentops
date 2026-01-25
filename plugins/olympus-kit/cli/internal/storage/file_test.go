@@ -10,7 +10,7 @@ import (
 
 func TestFileStorage_Init(t *testing.T) {
 	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".agents/olympus")
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
 
 	fs := NewFileStorage(WithBaseDir(baseDir))
 
@@ -33,7 +33,7 @@ func TestFileStorage_Init(t *testing.T) {
 
 func TestFileStorage_WriteIndex_Dedup(t *testing.T) {
 	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".agents/olympus")
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
 
 	fs := NewFileStorage(WithBaseDir(baseDir))
 	if err := fs.Init(); err != nil {
@@ -67,7 +67,7 @@ func TestFileStorage_WriteIndex_Dedup(t *testing.T) {
 
 func TestFileStorage_WriteProvenance(t *testing.T) {
 	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".agents/olympus")
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
 
 	fs := NewFileStorage(WithBaseDir(baseDir))
 	if err := fs.Init(); err != nil {
@@ -125,7 +125,7 @@ func TestGenerateSlug(t *testing.T) {
 
 func TestFileStorage_AtomicWrite(t *testing.T) {
 	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".agents/olympus")
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
 
 	fs := NewFileStorage(WithBaseDir(baseDir))
 	if err := fs.Init(); err != nil {
@@ -161,7 +161,7 @@ func TestFileStorage_AtomicWrite(t *testing.T) {
 
 func TestFileStorage_ListSessions_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
-	baseDir := filepath.Join(tmpDir, ".agents/olympus")
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
 
 	fs := NewFileStorage(WithBaseDir(baseDir))
 	if err := fs.Init(); err != nil {

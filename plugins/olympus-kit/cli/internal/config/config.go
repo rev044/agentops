@@ -1,9 +1,9 @@
-// Package config provides configuration management for olympus.
+// Package config provides configuration management for AgentOps.
 // Configuration is loaded from (highest to lowest priority):
 // 1. Command-line flags
-// 2. Environment variables (OLYMPUS_*)
-// 3. Project config (.olympus/config.yaml in cwd)
-// 4. Home config (~/.olympus/config.yaml)
+// 2. Environment variables (AGENTOPS_*)
+// 3. Project config (.agentops/config.yaml in cwd)
+// 4. Home config (~/.agentops/config.yaml)
 // 5. Defaults
 package config
 
@@ -14,12 +14,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds all olympus configuration.
+// Config holds all AgentOps configuration.
 type Config struct {
 	// Output controls the default output format (table, json, yaml).
 	Output string `yaml:"output" json:"output"`
 
-	// BaseDir is the olympus data directory (default: .agents/olympus).
+	// BaseDir is the AgentOps data directory (default: .agents/ao).
 	BaseDir string `yaml:"base_dir" json:"base_dir"`
 
 	// Verbose enables verbose output.
@@ -63,7 +63,7 @@ type PathsConfig struct {
 	ClaudePlansDir string `yaml:"claude_plans_dir" json:"claude_plans_dir"`
 
 	// CitationsFile is where citation events are stored.
-	// Default: .agents/olympus/citations.jsonl
+	// Default: .agents/ao/citations.jsonl
 	CitationsFile string `yaml:"citations_file" json:"citations_file"`
 
 	// TranscriptsDir is where Claude transcripts are located.
@@ -96,7 +96,7 @@ type SearchConfig struct {
 // Default config values (used in resolution and validation).
 const (
 	defaultOutput  = "table"
-	defaultBaseDir = ".agents/olympus"
+	defaultBaseDir = ".agents/ao"
 )
 
 // Default returns the default configuration.
@@ -121,7 +121,7 @@ func Default() *Config {
 			ResearchDir:    ".agents/research",
 			PlansDir:       ".agents/plans",
 			ClaudePlansDir: filepath.Join(homeDir, ".claude", "plans"),
-			CitationsFile:  ".agents/olympus/citations.jsonl",
+			CitationsFile:  ".agents/ao/citations.jsonl",
 			TranscriptsDir: filepath.Join(homeDir, ".claude", "projects"),
 		},
 	}
@@ -161,7 +161,7 @@ func homeConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".olympus", "config.yaml")
+	return filepath.Join(home, ".agentops", "config.yaml")
 }
 
 // projectConfigPath returns the project config path.
@@ -170,7 +170,7 @@ func projectConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(cwd, ".olympus", "config.yaml")
+	return filepath.Join(cwd, ".agentops", "config.yaml")
 }
 
 // loadFromPath loads config from a YAML file.
@@ -194,16 +194,16 @@ func loadFromPath(path string) (*Config, error) {
 
 // applyEnv applies environment variable overrides.
 func applyEnv(cfg *Config) *Config {
-	if v := os.Getenv("OLYMPUS_OUTPUT"); v != "" {
+	if v := os.Getenv("AGENTOPS_OUTPUT"); v != "" {
 		cfg.Output = v
 	}
-	if v := os.Getenv("OLYMPUS_BASE_DIR"); v != "" {
+	if v := os.Getenv("AGENTOPS_BASE_DIR"); v != "" {
 		cfg.BaseDir = v
 	}
-	if os.Getenv("OLYMPUS_VERBOSE") == "true" || os.Getenv("OLYMPUS_VERBOSE") == "1" {
+	if os.Getenv("AGENTOPS_VERBOSE") == "true" || os.Getenv("AGENTOPS_VERBOSE") == "1" {
 		cfg.Verbose = true
 	}
-	if v := os.Getenv("OLYMPUS_NO_SC"); v == "true" || v == "1" {
+	if v := os.Getenv("AGENTOPS_NO_SC"); v == "true" || v == "1" {
 		cfg.Search.UseSmartConnections = false
 		cfg.Search.UseSmartConnectionsSet = true
 	}
@@ -271,8 +271,8 @@ type Source string
 
 const (
 	SourceDefault Source = "default"
-	SourceHome    Source = "~/.olympus/config.yaml"
-	SourceProject Source = ".olympus/config.yaml"
+	SourceHome    Source = "~/.agentops/config.yaml"
+	SourceProject Source = ".agentops/config.yaml"
 	SourceEnv     Source = "environment"
 	SourceFlag    Source = "flag"
 )
@@ -358,9 +358,9 @@ func Resolve(flagOutput, flagBaseDir string, flagVerbose bool) *ResolvedConfig {
 	}
 
 	// Get environment values
-	envOutput, _ := getEnvString("OLYMPUS_OUTPUT")
-	envBaseDir, _ := getEnvString("OLYMPUS_BASE_DIR")
-	envVerbose, envVerboseSet := getEnvBool("OLYMPUS_VERBOSE")
+	envOutput, _ := getEnvString("AGENTOPS_OUTPUT")
+	envBaseDir, _ := getEnvString("AGENTOPS_BASE_DIR")
+	envVerbose, envVerboseSet := getEnvBool("AGENTOPS_VERBOSE")
 
 	// Resolve string fields through precedence chain
 	rc := &ResolvedConfig{

@@ -29,7 +29,7 @@ Status levels:
   🌱 STARTING         - σ×ρ ≤ δ×0.5 (early stage)
 
 Example:
-  ol badge`,
+  ao badge`,
 	RunE: runBadge,
 }
 

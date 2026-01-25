@@ -201,9 +201,9 @@ Penalties:
   - No commits (-0.10): session ended without git activity
 
 Examples:
-  ol session-outcome ~/.claude/projects/*/transcript.jsonl
-  ol session-outcome --session abc123
-  ol session-outcome --output json`,
+  ao session-outcome ~/.claude/projects/*/transcript.jsonl
+  ao session-outcome --session abc123
+  ao session-outcome --output json`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runSessionOutcome,
 }

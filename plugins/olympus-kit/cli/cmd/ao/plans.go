@@ -53,9 +53,9 @@ var plansRegisterCmd = &cobra.Command{
 Called automatically when Claude exits plan mode, or manually for existing plans.
 
 Examples:
-  ol plans register ~/.claude/plans/peaceful-stirring-tome.md
-  ol plans register ~/.claude/plans/my-plan.md --beads-id ol-a46.2
-  ol plans register ./docs/plan.md --project /path/to/project`,
+  ao plans register ~/.claude/plans/peaceful-stirring-tome.md
+  ao plans register ~/.claude/plans/my-plan.md --beads-id ol-a46.2
+  ao plans register ./docs/plan.md --project /path/to/project`,
 	Args: cobra.ExactArgs(1),
 	RunE: runPlansRegister,
 }

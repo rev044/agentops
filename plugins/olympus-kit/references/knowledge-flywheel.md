@@ -45,7 +45,7 @@ Mine transcripts → Extract knowledge → Index for recall → Apply to new wor
 | `.agents/learnings/` | Lessons learned | `/forge`, `/post-mortem` |
 | `.agents/patterns/` | Reusable patterns | `/forge`, `/retro` |
 | `.agents/retros/` | Retrospectives | `/retro`, `/post-mortem` |
-| `.agents/olympus/` | Session index, provenance | `ol forge` |
+| `.agents/ao/` | Session index, provenance | `ao forge` |
 
 ## The Compounding Effect
 

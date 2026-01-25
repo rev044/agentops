@@ -12,16 +12,16 @@ Every session makes the next one smarter. **Automatically.**
 Session N:
   work happens → session ends
                      ↓
-                 ol forge --queue
+                 ao forge --queue
                      ↓
               pending.jsonl (queued)
 
 Session N+1:
-  ol extract → outputs prompt → Claude extracts learnings
+  ao extract → outputs prompt → Claude extracts learnings
                                          ↓
                                 .agents/learnings/
                                          ↓
-  ol inject → loads learnings → work informed by past
+  ao inject → loads learnings → work informed by past
 ```
 
 **No manual steps.** The hooks handle everything.
@@ -33,7 +33,7 @@ Session N+1:
 cd plugins/olympus-kit && ./install.sh
 
 # Initialize in your project
-cd ~/your-project && ol init
+cd ~/your-project && ao init
 
 # The hooks do the rest:
 # - SessionEnd queues your session
@@ -58,9 +58,9 @@ WITH OLYMPUS:
 
 | Hook | Command | What Happens |
 |------|---------|--------------|
-| **SessionEnd** | `ol forge --queue` | Parses transcript, queues for extraction |
-| **SessionStart** | `ol extract` | Outputs prompt asking Claude to extract learnings |
-| **SessionStart** | `ol inject` | Loads learnings into session context |
+| **SessionEnd** | `ao forge --queue` | Parses transcript, queues for extraction |
+| **SessionStart** | `ao extract` | Outputs prompt asking Claude to extract learnings |
+| **SessionStart** | `ao inject` | Loads learnings into session context |
 
 The key insight: **Claude does the extraction** using its own context at session start. No API keys needed.
 
@@ -68,29 +68,29 @@ The key insight: **Claude does the extraction** using its own context at session
 
 | Skill | Command | Purpose |
 |-------|---------|---------|
-| `/forge` | `ol forge transcript` | Mine transcripts for knowledge |
-| `/extract` | `ol extract` | Process pending extractions |
-| `/inject` | `ol inject` | Load relevant knowledge |
-| `/ratchet` | `ol ratchet status` | Track RPI workflow |
-| `/flywheel` | `ol metrics` | Knowledge health metrics |
-| `/provenance` | `ol ratchet trace` | Trace knowledge lineage |
+| `/forge` | `ao forge transcript` | Mine transcripts for knowledge |
+| `/extract` | `ao extract` | Process pending extractions |
+| `/inject` | `ao inject` | Load relevant knowledge |
+| `/ratchet` | `ao ratchet status` | Track RPI workflow |
+| `/flywheel` | `ao metrics` | Knowledge health metrics |
+| `/provenance` | `ao ratchet trace` | Trace knowledge lineage |
 
 ## CLI Commands
 
 ```bash
 # Core loop
-ol forge transcript --last-session --queue  # Queue session for extraction
-ol extract                                   # Output extraction prompt
-ol inject                                    # Load knowledge
+ao forge transcript --last-session --queue  # Queue session for extraction
+ao extract                                   # Output extraction prompt
+ao inject                                    # Load knowledge
 
 # Search & status
-ol search "authentication"                   # Semantic search
-ol ratchet status                           # Workflow progress
-ol metrics                                  # Flywheel health
+ao search "authentication"                   # Semantic search
+ao ratchet status                           # Workflow progress
+ao metrics                                  # Flywheel health
 
 # Management
-ol extract --clear                          # Clear pending queue
-ol inject --context "auth" --max-tokens 2000
+ao extract --clear                          # Clear pending queue
+ao inject --context "auth" --max-tokens 2000
 ```
 
 ## Knowledge Stores
@@ -99,8 +99,8 @@ ol inject --context "auth" --max-tokens 2000
 |----------|---------|------------|
 | `.agents/learnings/` | Actionable learnings | Claude via `/extract` |
 | `.agents/patterns/` | Reusable patterns | `/retro`, manual |
-| `.agents/olympus/sessions/` | Session summaries | `ol forge` |
-| `.agents/olympus/pending.jsonl` | Extraction queue | `ol forge --queue` |
+| `.agents/ao/sessions/` | Session summaries | `ao forge` |
+| `.agents/ao/pending.jsonl` | Extraction queue | `ao forge --queue` |
 
 ## The Brownian Ratchet
 
@@ -124,11 +124,11 @@ Add to your Claude Code settings:
 {
   "hooks": {
     "SessionStart": [
-      {"type": "command", "command": "ol extract 2>/dev/null || true"},
-      {"type": "command", "command": "ol inject --format markdown --max-tokens 1000 2>/dev/null || true"}
+      {"type": "command", "command": "ao extract 2>/dev/null || true"},
+      {"type": "command", "command": "ao inject --format markdown --max-tokens 1000 2>/dev/null || true"}
     ],
     "SessionEnd": [
-      {"type": "command", "command": "ol forge transcript --last-session --queue --quiet 2>/dev/null || true"}
+      {"type": "command", "command": "ao forge transcript --last-session --queue --quiet 2>/dev/null || true"}
     ]
   }
 }

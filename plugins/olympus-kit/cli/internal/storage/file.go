@@ -13,7 +13,7 @@ import (
 
 const (
 	// DefaultBaseDir is the default storage directory.
-	DefaultBaseDir = ".agents/olympus"
+	DefaultBaseDir = ".agents/ao"
 
 	// SessionsDir holds session markdown/jsonl files.
 	SessionsDir = "sessions"
@@ -39,7 +39,7 @@ const (
 
 // FileStorage implements Storage using the local filesystem.
 type FileStorage struct {
-	// BaseDir is the root directory (e.g., .agents/olympus).
+	// BaseDir is the root directory (e.g., .agents/ao).
 	BaseDir string
 
 	// Formatters are the output formats to use.

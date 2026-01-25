@@ -14,7 +14,7 @@ import (
 
 const (
 	// ChainDir is the directory for ratchet chain files.
-	ChainDir = ".agents/olympus"
+	ChainDir = ".agents/ao"
 
 	// ChainFile is the JSONL file for chain entries.
 	ChainFile = "chain.jsonl"

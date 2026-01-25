@@ -12,8 +12,8 @@ func TestDefault(t *testing.T) {
 	if cfg.Output != "table" {
 		t.Errorf("Default Output = %q, want %q", cfg.Output, "table")
 	}
-	if cfg.BaseDir != ".agents/olympus" {
-		t.Errorf("Default BaseDir = %q, want %q", cfg.BaseDir, ".agents/olympus")
+	if cfg.BaseDir != ".agents/ao" {
+		t.Errorf("Default BaseDir = %q, want %q", cfg.BaseDir, ".agents/ao")
 	}
 	if cfg.Verbose {
 		t.Error("Default Verbose = true, want false")
@@ -88,18 +88,18 @@ func TestMerge_BooleanNotSet(t *testing.T) {
 
 func TestApplyEnv(t *testing.T) {
 	// Save and restore env
-	origOutput := os.Getenv("OLYMPUS_OUTPUT")
-	origVerbose := os.Getenv("OLYMPUS_VERBOSE")
-	origNoSC := os.Getenv("OLYMPUS_NO_SC")
+	origOutput := os.Getenv("AGENTOPS_OUTPUT")
+	origVerbose := os.Getenv("AGENTOPS_VERBOSE")
+	origNoSC := os.Getenv("AGENTOPS_NO_SC")
 	defer func() {
-		os.Setenv("OLYMPUS_OUTPUT", origOutput)
-		os.Setenv("OLYMPUS_VERBOSE", origVerbose)
-		os.Setenv("OLYMPUS_NO_SC", origNoSC)
+		os.Setenv("AGENTOPS_OUTPUT", origOutput)
+		os.Setenv("AGENTOPS_VERBOSE", origVerbose)
+		os.Setenv("AGENTOPS_NO_SC", origNoSC)
 	}()
 
-	os.Setenv("OLYMPUS_OUTPUT", "yaml")
-	os.Setenv("OLYMPUS_VERBOSE", "true")
-	os.Setenv("OLYMPUS_NO_SC", "1")
+	os.Setenv("AGENTOPS_OUTPUT", "yaml")
+	os.Setenv("AGENTOPS_VERBOSE", "true")
+	os.Setenv("AGENTOPS_NO_SC", "1")
 
 	cfg := Default()
 	cfg = applyEnv(cfg)
@@ -114,7 +114,7 @@ func TestApplyEnv(t *testing.T) {
 		t.Error("applyEnv UseSmartConnections = true, want false")
 	}
 	if !cfg.Search.UseSmartConnectionsSet {
-		t.Error("applyEnv should set UseSmartConnectionsSet when OLYMPUS_NO_SC is set")
+		t.Error("applyEnv should set UseSmartConnectionsSet when AGENTOPS_NO_SC is set")
 	}
 }
 

@@ -20,9 +20,9 @@ Bronze-tier candidates (score 0.50-0.69) require human review
 before promotion. The gate command provides the review interface.
 
 Examples:
-  ol gate pending
-  ol gate approve <candidate-id>
-  ol gate reject <candidate-id> --reason="Too vague"`,
+  ao gate pending
+  ao gate approve <candidate-id>
+  ao gate reject <candidate-id> --reason="Too vague"`,
 }
 
 var gatePendingCmd = &cobra.Command{
@@ -93,7 +93,7 @@ Silver candidates auto-promote after 24h if not rejected.
 This command accelerates the process for reviewed batches.
 
 Example:
-  ol gate bulk-approve --tier=silver --older-than=24h`,
+  ao gate bulk-approve --tier=silver --older-than=24h`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if GetDryRun() {
 			fmt.Println("[dry-run] Would bulk approve candidates")

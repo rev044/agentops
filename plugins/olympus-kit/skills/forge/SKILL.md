@@ -28,7 +28,7 @@
    - Failures (what went wrong)
    - Patterns (recurring solutions)
 3. **Score** - Apply taxonomy weights
-4. **Stage** - Write to quality pool (Tier 0)
+4. **Stage** - Write to quality poao (Tier 0)
 
 ## Extraction Taxonomy
 
@@ -62,9 +62,9 @@ Creates artifacts in `.agents/forge/`:
   - Confidence: 0.88
 ```
 
-## Quality Pool Integration
+## Quality Poao Integration
 
-Forged candidates enter the pool at Tier 0:
+Forged candidates enter the poao at Tier 0:
 
 ```
 Transcript → /forge → .agents/candidates/ (Tier 0)

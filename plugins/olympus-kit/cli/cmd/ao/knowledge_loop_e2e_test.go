@@ -23,8 +23,8 @@ func TestKnowledgeLoopE2E(t *testing.T) {
 
 	// Create directory structure
 	dirs := []string{
-		filepath.Join(tempDir, ".agents", "olympus", "sessions"),
-		filepath.Join(tempDir, ".agents", "olympus", "index"),
+		filepath.Join(tempDir, ".agents", "ao", "sessions"),
+		filepath.Join(tempDir, ".agents", "ao", "index"),
 		filepath.Join(tempDir, ".agents", "learnings"),
 		filepath.Join(tempDir, ".agents", "patterns"),
 	}
@@ -84,7 +84,7 @@ This ensures all goroutines clean up properly on shutdown.
 		}
 
 		// Write session JSONL
-		sessionPath := filepath.Join(tempDir, ".agents", "olympus", "sessions", sessionID+".jsonl")
+		sessionPath := filepath.Join(tempDir, ".agents", "ao", "sessions", sessionID+".jsonl")
 		sessionData, err := json.Marshal(session)
 		if err != nil {
 			t.Fatalf("marshal session: %v", err)
@@ -94,7 +94,7 @@ This ensures all goroutines clean up properly on shutdown.
 		}
 
 		// Update index
-		indexPath := filepath.Join(tempDir, ".agents", "olympus", "index", "sessions.jsonl")
+		indexPath := filepath.Join(tempDir, ".agents", "ao", "index", "sessions.jsonl")
 		indexEntry := map[string]interface{}{
 			"session_id": sessionID,
 			"date":       session.Date.Format(time.RFC3339),
@@ -167,7 +167,7 @@ This ensures all goroutines clean up properly on shutdown.
 		}
 
 		// Verify citation was recorded
-		citationsPath := filepath.Join(tempDir, ".agents", "olympus", "citations.jsonl")
+		citationsPath := filepath.Join(tempDir, ".agents", "ao", "citations.jsonl")
 		assertFileExists(t, citationsPath)
 
 		// Read and verify citation content
@@ -216,7 +216,7 @@ This ensures all goroutines clean up properly on shutdown.
 	// ========================================
 	t.Run("Metrics", func(t *testing.T) {
 		// Count sessions
-		sessionsDir := filepath.Join(tempDir, ".agents", "olympus", "sessions")
+		sessionsDir := filepath.Join(tempDir, ".agents", "ao", "sessions")
 		files, _ := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
 		sessionCount := len(files)
 
@@ -267,14 +267,14 @@ This ensures all goroutines clean up properly on shutdown.
 			},
 		}
 
-		session2Path := filepath.Join(tempDir, ".agents", "olympus", "sessions", "test-session-002.jsonl")
+		session2Path := filepath.Join(tempDir, ".agents", "ao", "sessions", "test-session-002.jsonl")
 		data, _ := json.Marshal(session2)
 		if err := os.WriteFile(session2Path, data, 0644); err != nil {
 			t.Fatalf("write session 2: %v", err)
 		}
 
 		// Verify sessions count increased
-		sessionsDir := filepath.Join(tempDir, ".agents", "olympus", "sessions")
+		sessionsDir := filepath.Join(tempDir, ".agents", "ao", "sessions")
 		files, _ := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
 
 		if len(files) != 2 {

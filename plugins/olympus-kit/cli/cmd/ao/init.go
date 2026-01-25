@@ -13,12 +13,12 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize olympus storage structure",
-	Long: `Create the .agents/olympus directory structure for knowledge storage.
+	Long: `Create the .agents/ao directory structure for knowledge storage.
 
 This creates:
-  .agents/olympus/sessions/    - Session markdown and JSONL files
-  .agents/olympus/index/       - Session index for quick lookup
-  .agents/olympus/provenance/  - Provenance tracking graph
+  .agents/ao/sessions/    - Session markdown and JSONL files
+  .agents/ao/index/       - Session index for quick lookup
+  .agents/ao/provenance/  - Provenance tracking graph
 
 Run this in your project root to enable knowledge compounding.`,
 	RunE: runInit,
@@ -56,7 +56,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  %s/provenance/  - Provenance graph\n", storage.DefaultBaseDir)
 	fmt.Println()
 	fmt.Println("Next steps:")
-	fmt.Println("  ol forge transcript <path.jsonl>  - Extract knowledge from transcript")
+	fmt.Println("  ao forge transcript <path.jsonl>  - Extract knowledge from transcript")
 
 	return nil
 }

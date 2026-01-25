@@ -17,15 +17,15 @@ var (
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
-	Use:   "ol",
-	Short: "Olympus Knowledge Compounding CLI",
-	Long: `ol is the CLI for Olympus, a knowledge compounding workflow system.
+	Use:   "ao",
+	Short: "AgentOps Knowledge Compounding CLI",
+	Long: `ao is the CLI for AgentOps, a knowledge compounding workflow system.
 
 "Problem in. Value out. Intelligence compounds."
 
 Get Started:
   demo         Interactive demo (see value in 5 minutes)
-  quick-start  Set up Olympus in your project
+  quick-start  Set up AgentOps in your project
 
 Core Commands:
   forge        Extract knowledge from transcripts
@@ -53,7 +53,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would happen without executing")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "table", "Output format (json, table, yaml)")
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.olympus/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.agentops/config.yaml)")
 }
 
 // GetDryRun returns the dry-run flag value for use by subcommands.

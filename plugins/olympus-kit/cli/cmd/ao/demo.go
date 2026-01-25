@@ -11,8 +11,8 @@ import (
 
 var demoCmd = &cobra.Command{
 	Use:   "demo",
-	Short: "Interactive demo showing Olympus value in 5 minutes",
-	Long: `Run an interactive demonstration of Olympus capabilities.
+	Short: "Interactive demo showing AgentOps value in 5 minutes",
+	Long: `Run an interactive demonstration of AgentOps capabilities.
 
 This command walks you through the core concepts:
   1. The Knowledge Flywheel (how sessions compound)
@@ -23,9 +23,9 @@ This command walks you through the core concepts:
 No setup required - just run and see the value.
 
 Examples:
-  ol demo              # Interactive walkthrough
-  ol demo --quick      # 2-minute overview
-  ol demo --concepts   # Just explain concepts`,
+  ao demo              # Interactive walkthrough
+  ao demo --quick      # 2-minute overview
+  ao demo --concepts   # Just explain concepts`,
 	RunE: runDemo,
 }
 
@@ -98,8 +98,8 @@ func showConcepts() error {
 └─────────────────────────────────────────────────────────────────┘
 
 Next steps:
-  ol demo --quick    # See it in action
-  ol quick-start     # Set up your first project`)
+  ao demo --quick    # See it in action
+  ao quick-start     # Set up your first project`)
 	return nil
 }
 
@@ -206,7 +206,7 @@ Press Enter to continue...`)
 	learningContent := `# Learning: Context Compounds
 
 **Date:** ` + time.Now().Format("2006-01-02") + `
-**Source:** Olympus Demo
+**Source:** AgentOps Demo
 **Tier:** 1 (Learning)
 
 ## Insight
@@ -295,7 +295,7 @@ gt sling <issue1> <issue2>  # Parallel dispatch
   └─────────────────────────────────────────────────────────────┘
 
   Others are O(1) per session.
-  Olympus is O(n) where n = historical sessions.
+  AgentOps is O(n) where n = historical sessions.
 `)
 
 	fmt.Printf("\n✓ Demo files created in: %s\n", demoDir)

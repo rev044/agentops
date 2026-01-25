@@ -465,7 +465,7 @@ func (v *Validator) countCitations(artifactPath string) int {
 }
 
 // countSessionRefs counts sessions that reference this artifact.
-// Searches .agents/olympus/sessions/ for JSONL and markdown files
+// Searches .agents/ao/sessions/ for JSONL and markdown files
 // that mention the artifact by name.
 func (v *Validator) countSessionRefs(artifactPath string) int {
 	baseName := filepath.Base(artifactPath)
@@ -786,7 +786,7 @@ func ValidateCloseReason(closeReason string) []string {
 // --- Citation Tracking (ol-a46 Phase 0) ---
 
 // CitationsFilePath is the relative path to the citations JSONL file.
-const CitationsFilePath = ".agents/olympus/citations.jsonl"
+const CitationsFilePath = ".agents/ao/citations.jsonl"
 
 // RecordCitation appends a citation event to the citations log.
 // Creates the file and parent directories if they don't exist.

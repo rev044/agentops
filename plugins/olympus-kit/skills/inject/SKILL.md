@@ -13,16 +13,16 @@ Inject relevant knowledge into the current session context.
 
 ```bash
 # Inject knowledge relevant to current directory
-ol inject
+ao inject
 
 # Inject with specific context filter
-ol inject --context "authentication"
+ao inject --context "authentication"
 
 # Inject in markdown format
-ol inject --format markdown --max-tokens 1000
+ao inject --format markdown --max-tokens 1000
 
 # Inject for specific session
-ol inject --session <session-id>
+ao inject --session <session-id>
 ```
 
 ## How It Works
@@ -30,7 +30,7 @@ ol inject --session <session-id>
 1. **Scans knowledge stores:**
    - `.agents/learnings/` - Lessons learned
    - `.agents/patterns/` - Reusable patterns
-   - `.agents/olympus/index/sessions.jsonl` - Session history
+   - `.agents/ao/index/sessions.jsonl` - Session history
 
 2. **Ranks by relevance:**
    - Directory context

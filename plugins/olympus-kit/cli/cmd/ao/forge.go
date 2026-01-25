@@ -47,7 +47,7 @@ Currently supported forges:
   transcript    Extract from Claude Code JSONL transcripts
 
 Example:
-  ol forge transcript ~/.claude/projects/**/*.jsonl`,
+  ao forge transcript ~/.claude/projects/**/*.jsonl`,
 }
 
 var forgeTranscriptCmd = &cobra.Command{
@@ -63,11 +63,11 @@ The transcript forge identifies:
   - References: Pointers to useful resources
 
 Examples:
-  ol forge transcript session.jsonl
-  ol forge transcript ~/.claude/projects/**/*.jsonl
-  ol forge transcript /path/to/*.jsonl --output candidates.json
-  ol forge transcript --last-session              # Process most recent transcript
-  ol forge transcript --last-session --quiet      # Silent mode for hooks`,
+  ao forge transcript session.jsonl
+  ao forge transcript ~/.claude/projects/**/*.jsonl
+  ao forge transcript /path/to/*.jsonl --output candidates.json
+  ao forge transcript --last-session              # Process most recent transcript
+  ao forge transcript --last-session --quiet      # Silent mode for hooks`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		lastSession, _ := cmd.Flags().GetBool("last-session")
 		if !lastSession && len(args) < 1 {

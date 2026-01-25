@@ -26,7 +26,7 @@ type FeedbackEvent struct {
 }
 
 // FeedbackFilePath is the relative path to the feedback log.
-const FeedbackFilePath = ".agents/olympus/feedback.jsonl"
+const FeedbackFilePath = ".agents/ao/feedback.jsonl"
 
 var feedbackLoopCmd = &cobra.Command{
 	Use:   "feedback-loop",
@@ -34,10 +34,10 @@ var feedbackLoopCmd = &cobra.Command{
 	Long: `Automatically close the MemRL feedback loop by updating utilities of cited learnings.
 
 This command:
-1. Reads citations for the session from .agents/olympus/citations.jsonl
+1. Reads citations for the session from .agents/ao/citations.jsonl
 2. Computes reward from session outcome (or uses --reward override)
 3. Updates utility of each cited learning via EMA rule
-4. Logs feedback events to .agents/olympus/feedback.jsonl
+4. Logs feedback events to .agents/ao/feedback.jsonl
 
 The feedback loop enables knowledge to compound:
 - High-utility learnings surface more often
@@ -45,9 +45,9 @@ The feedback loop enables knowledge to compound:
 - Learnings that don't help slowly decay
 
 Examples:
-  ol feedback-loop --session session-20260125-120000
-  ol feedback-loop --session abc123 --reward 0.85
-  ol feedback-loop --transcript ~/.claude/projects/*/abc.jsonl`,
+  ao feedback-loop --session session-20260125-120000
+  ao feedback-loop --session abc123 --reward 0.85
+  ao feedback-loop --transcript ~/.claude/projects/*/abc.jsonl`,
 	RunE: runFeedbackLoop,
 }
 
@@ -286,13 +286,13 @@ var batchFeedbackCmd = &cobra.Command{
 	Short: "Process feedback loop for all recent sessions",
 	Long: `Process feedback loop for all sessions that have citations but no feedback.
 
-Scans .agents/olympus/citations.jsonl for sessions without corresponding
-entries in .agents/olympus/feedback.jsonl and processes them.
+Scans .agents/ao/citations.jsonl for sessions without corresponding
+entries in .agents/ao/feedback.jsonl and processes them.
 
 Examples:
-  ol batch-feedback
-  ol batch-feedback --days 7
-  ol batch-feedback --dry-run`,
+  ao batch-feedback
+  ao batch-feedback --days 7
+  ao batch-feedback --dry-run`,
 	RunE: runBatchFeedback,
 }
 

@@ -48,9 +48,9 @@ The prompt includes:
 If no pending extractions exist, outputs nothing (silent).
 
 Examples:
-  ol extract                    # Check and output extraction prompt
-  ol extract --clear            # Clear pending queue without processing
-  ol extract --max-content 4000 # Limit content size`,
+  ao extract                    # Check and output extraction prompt
+  ao extract --clear            # Clear pending queue without processing
+  ao extract --max-content 4000 # Limit content size`,
 	RunE: runExtract,
 }
 

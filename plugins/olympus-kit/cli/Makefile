@@ -1,7 +1,7 @@
 .PHONY: build test lint clean install
 
 # Build variables
-BINARY_NAME=ol
+BINARY_NAME=ao
 BUILD_DIR=bin
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
@@ -12,7 +12,7 @@ all: build
 # Build the binary
 build:
 	@mkdir -p $(BUILD_DIR)
-	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/ol
+	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/ao
 
 # Run tests
 test:
@@ -34,7 +34,7 @@ clean:
 
 # Install to GOPATH/bin
 install:
-	go install $(LDFLAGS) ./cmd/ol
+	go install $(LDFLAGS) ./cmd/ao
 
 # Run the binary
 run: build

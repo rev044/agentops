@@ -480,10 +480,10 @@ The model is falsified if:
 
 ### Validation Artifacts
 
-- **Protocol:** `.agents/olympus/validation/flywheel-validation-protocol.md`
-- **Parameters:** `.agents/olympus/validation/parameter-definitions.md`
-- **Predictions:** `.agents/olympus/validation/predictions.md`
-- **Results:** `.agents/olympus/validation/results-YYYY-MM.md` (pending)
+- **Protocol:** `.agents/ao/validation/flywheel-validation-protocol.md`
+- **Parameters:** `.agents/ao/validation/parameter-definitions.md`
+- **Predictions:** `.agents/ao/validation/predictions.md`
+- **Results:** `.agents/ao/validation/results-YYYY-MM.md` (pending)
 
 **This is the Brownian Ratchet applied to itself.** We're running FIRE on our own philosophy.
 

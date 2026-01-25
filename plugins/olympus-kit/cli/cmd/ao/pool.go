@@ -23,10 +23,10 @@ Pools organize candidates by their processing status:
   rejected   Rejected during review
 
 Examples:
-  ol pool list --tier=gold
-  ol pool show <candidate-id>
-  ol pool stage <candidate-id>
-  ol pool promote <candidate-id>`,
+  ao pool list --tier=gold
+  ao pool show <candidate-id>
+  ao pool stage <candidate-id>
+  ao pool promote <candidate-id>`,
 }
 
 var poolListCmd = &cobra.Command{
@@ -35,10 +35,10 @@ var poolListCmd = &cobra.Command{
 	Long: `List knowledge candidates filtered by tier and/or status.
 
 Examples:
-  ol pool list
-  ol pool list --tier=gold
-  ol pool list --status=pending
-  ol pool list --tier=bronze --status=staged`,
+  ao pool list
+  ao pool list --tier=gold
+  ao pool list --status=pending
+  ao pool list --tier=bronze --status=staged`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if GetDryRun() {
 			fmt.Printf("[dry-run] Would list pool entries")

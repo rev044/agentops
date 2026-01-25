@@ -60,12 +60,12 @@ Records:
   - Current σ, ρ estimates
   - Escape velocity status
 
-Output is saved to .agents/olympus/metrics/baseline-YYYY-MM-DD.json
+Output is saved to .agents/ao/metrics/baseline-YYYY-MM-DD.json
 
 Examples:
-  ol metrics baseline
-  ol metrics baseline --days 7
-  ol metrics baseline -o json`,
+  ao metrics baseline
+  ao metrics baseline --days 7
+  ao metrics baseline -o json`,
 		RunE: runMetricsBaseline,
 	}
 	baselineCmd.Flags().IntVar(&metricsDays, "days", 7, "Period in days for metrics calculation")
@@ -85,9 +85,9 @@ Shows:
   - Trend indicators
 
 Examples:
-  ol metrics report
-  ol metrics report --days 30
-  ol metrics report -o json`,
+  ao metrics report
+  ao metrics report --days 30
+  ao metrics report -o json`,
 		RunE: runMetricsReport,
 	}
 	reportCmd.Flags().IntVar(&metricsDays, "days", 7, "Period in days for metrics calculation")
@@ -105,9 +105,9 @@ Citation events drive the knowledge flywheel:
   - Can trigger auto-promotion after threshold
 
 Examples:
-  ol metrics cite .agents/learnings/mutex-pattern.md
-  ol metrics cite .agents/patterns/error-handling.md --type applied
-  ol metrics cite .agents/research/oauth.md --session abc123`,
+  ao metrics cite .agents/learnings/mutex-pattern.md
+  ao metrics cite .agents/patterns/error-handling.md --type applied
+  ao metrics cite .agents/research/oauth.md --session abc123`,
 		Args: cobra.ExactArgs(1),
 		RunE: runMetricsCite,
 	}

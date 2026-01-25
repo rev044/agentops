@@ -34,7 +34,7 @@ Commands:
   promote    Record tier promotion
   migrate    Migrate legacy chain format
 
-The ratchet chain is stored in .agents/olympus/chain.jsonl`,
+The ratchet chain is stored in .agents/ao/chain.jsonl`,
 }
 
 // Ratchet command flags
@@ -82,9 +82,9 @@ func init() {
 Shows all steps and their status (pending, in_progress, locked, skipped).
 
 Examples:
-  ol ratchet status
-  ol ratchet status --epic ol-0001
-  ol ratchet status -o json`,
+  ao ratchet status
+  ao ratchet status --epic ol-0001
+  ao ratchet status -o json`,
 		RunE: runRatchetStatus,
 	}
 	statusSubCmd.Flags().StringVar(&ratchetEpicID, "epic", "", "Filter by epic ID")
@@ -103,9 +103,9 @@ Steps: research, pre-mortem, plan, formulate, implement, crank, vibe, post-morte
 Aliases: premortem, postmortem, autopilot, validate, review
 
 Examples:
-  ol ratchet check research
-  ol ratchet check plan
-  ol ratchet check implement || echo "Run /plan first"`,
+  ao ratchet check research
+  ao ratchet check plan
+  ao ratchet check implement || echo "Run /plan first"`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetCheck,
 	}
@@ -120,9 +120,9 @@ Examples:
 This locks progress - the ratchet engages.
 
 Examples:
-  ol ratchet record research --output .agents/research/topic.md
-  ol ratchet record plan --input .agents/specs/spec-v2.md --output epic:ol-0001
-  ol ratchet record implement --output issue:ol-0002 --tier 1`,
+  ao ratchet record research --output .agents/research/topic.md
+  ao ratchet record plan --input .agents/specs/spec-v2.md --output epic:ol-0001
+  ao ratchet record implement --output issue:ol-0002 --tier 1`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetRecord,
 	}
@@ -142,8 +142,8 @@ Examples:
 Use this for valid workflow variations (e.g., skipping pre-mortem for bug fixes).
 
 Examples:
-  ol ratchet skip pre-mortem --reason "Bug fix, no spec needed"
-  ol ratchet skip research --reason "Existing knowledge sufficient"`,
+  ao ratchet skip pre-mortem --reason "Bug fix, no spec needed"
+  ao ratchet skip research --reason "Existing knowledge sufficient"`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetSkip,
 	}
@@ -163,10 +163,10 @@ Legacy artifacts without schema_version can use --lenient mode (expires in 90 da
 Default mode is STRICT (requires explicit --lenient flag).
 
 Examples:
-  ol ratchet validate research --changes .agents/research/topic.md
-  ol ratchet validate plan --changes epic:ol-0001
-  ol ratchet validate research --changes old.md --lenient
-  ol ratchet validate research --changes old.md --lenient --lenient-expiry 180`,
+  ao ratchet validate research --changes .agents/research/topic.md
+  ao ratchet validate plan --changes epic:ol-0001
+  ao ratchet validate research --changes old.md --lenient
+  ao ratchet validate research --changes old.md --lenient --lenient-expiry 180`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetValidate,
 	}
@@ -184,8 +184,8 @@ Examples:
 Shows the provenance chain from output to input.
 
 Examples:
-  ol ratchet trace .agents/retros/2025-01-24-topic.md
-  ol ratchet trace epic:ol-0001`,
+  ao ratchet trace .agents/retros/2025-01-24-topic.md
+  ao ratchet trace epic:ol-0001`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetTrace,
 	}
@@ -200,7 +200,7 @@ Examples:
 Searches for specs in priority order: crew → rig → town.
 
 Examples:
-  ol ratchet spec
+  ao ratchet spec
   SPEC=$(ol ratchet spec) && echo $SPEC`,
 		RunE: runRatchetSpec,
 	}
@@ -216,9 +216,9 @@ Searches in order: crew → rig → town → plugins.
 Warns about duplicates found in multiple locations.
 
 Examples:
-  ol ratchet find "research/*.md"
-  ol ratchet find "specs/*-v2.md"
-  ol ratchet find "learnings/*.md" -o json`,
+  ao ratchet find "research/*.md"
+  ao ratchet find "specs/*-v2.md"
+  ao ratchet find "learnings/*.md" -o json`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetFind,
 	}
@@ -240,8 +240,8 @@ Tiers:
   4: Core (CLAUDE.md) - requires 10+ uses
 
 Examples:
-  ol ratchet promote .agents/candidates/insight.md --to 1
-  ol ratchet promote .agents/learnings/pattern.md --to 2`,
+  ao ratchet promote .agents/candidates/insight.md --to 1
+  ao ratchet promote .agents/learnings/pattern.md --to 2`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetPromote,
 	}
@@ -256,11 +256,11 @@ Examples:
 		Long: `Migrate chain from legacy YAML format to JSONL.
 
 Reads from .agents/provenance/chain.yaml
-Writes to .agents/olympus/chain.jsonl
+Writes to .agents/ao/chain.jsonl
 
 Examples:
-  ol ratchet migrate
-  ol ratchet migrate --dry-run`,
+  ao ratchet migrate
+  ao ratchet migrate --dry-run`,
 		RunE: runRatchetMigrate,
 	}
 	ratchetCmd.AddCommand(migrateSubCmd)
@@ -859,7 +859,7 @@ func runRatchetMigrate(cmd *cobra.Command, args []string) error {
 		fmt.Println("Would migrate chain from:")
 		fmt.Println("  .agents/provenance/chain.yaml")
 		fmt.Println("To:")
-		fmt.Println("  .agents/olympus/chain.jsonl")
+		fmt.Println("  .agents/ao/chain.jsonl")
 		return nil
 	}
 
@@ -882,9 +882,9 @@ Scans markdown files and adds **Schema Version:** 1 if missing.
 Non-destructive: only adds the field, doesn't modify existing content.
 
 Examples:
-  ol ratchet migrate-artifacts .agents/
-  ol ratchet migrate-artifacts .agents/learnings/
-  ol ratchet migrate-artifacts --dry-run`,
+  ao ratchet migrate-artifacts .agents/
+  ao ratchet migrate-artifacts .agents/learnings/
+  ao ratchet migrate-artifacts --dry-run`,
 		RunE: runMigrateArtifacts,
 	}
 	ratchetCmd.AddCommand(migrateArtifactsCmd)

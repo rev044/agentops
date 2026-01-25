@@ -25,9 +25,9 @@ Shows the lineage from the session file to the original JSONL transcript
 that was processed to create it.
 
 Examples:
-  ol trace .agents/olympus/sessions/2026-01-20-my-session.md
-  ol trace .agents/olympus/sessions/*.md --graph
-  ol trace session-abc123 -o json`,
+  ao trace .agents/ao/sessions/2026-01-20-my-session.md
+  ao trace .agents/ao/sessions/*.md --graph
+  ao trace session-abc123 -o json`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runTrace,
 }

@@ -27,32 +27,32 @@ Progress = Chaos × Filter → Ratchet
 
 ```bash
 # Check current ratchet chain status
-ol ratchet status
+ao ratchet status
 
 # Check if a step's gate is met
-ol ratchet check research
-ol ratchet check plan
-ol ratchet check implement
+ao ratchet check research
+ao ratchet check plan
+ao ratchet check implement
 
 # Record step completion
-ol ratchet record research --output ".agents/research/auth.md"
-ol ratchet record plan --output ".agents/plans/auth-plan.md"
-ol ratchet record implement --files "src/auth.ts,src/auth_test.ts"
+ao ratchet record research --output ".agents/research/auth.md"
+ao ratchet record plan --output ".agents/plans/auth-plan.md"
+ao ratchet record implement --files "src/auth.ts,src/auth_test.ts"
 
 # Skip a step intentionally
-ol ratchet skip pre-mortem --reason "Bug fix, no spec needed"
+ao ratchet skip pre-mortem --reason "Bug fix, no spec needed"
 
 # Validate step requirements
-ol ratchet validate plan --lenient
+ao ratchet validate plan --lenient
 
 # Trace provenance backward
-ol ratchet trace implement
+ao ratchet trace implement
 
 # Find artifacts
-ol ratchet find --epic-id at-1234
+ao ratchet find --epic-id at-1234
 
 # Record tier promotion
-ol ratchet promote --tier 2
+ao ratchet promote --tier 2
 ```
 
 ## Workflow Steps
@@ -69,7 +69,7 @@ ol ratchet promote --tier 2
 
 ## Chain Storage
 
-The ratchet chain is stored in `.agents/olympus/chain.jsonl`:
+The ratchet chain is stored in `.agents/ao/chain.jsonl`:
 
 ```json
 {"step":"research","status":"completed","output":".agents/research/auth.md","time":"2026-01-25T10:00:00Z"}

@@ -37,14 +37,14 @@ var searchCmd = &cobra.Command{
 	Short: "Search knowledge base",
 	Long: `Search olympus knowledge using file-based search.
 
-By default, searches markdown and JSONL files in .agents/olympus/sessions/.
+By default, searches markdown and JSONL files in .agents/ao/sessions/.
 Optionally use Smart Connections for semantic search if Obsidian is running.
 
 Examples:
-  ol search "mutex pattern"
-  ol search "authentication" --limit 20
-  ol search "database migration" --type decisions
-  ol search "config" --use-sc  # Enable Smart Connections semantic search`,
+  ao search "mutex pattern"
+  ao search "authentication" --limit 20
+  ao search "database migration" --type decisions
+  ao search "config" --use-sc  # Enable Smart Connections semantic search`,
 	Args: cobra.ExactArgs(1),
 	RunE: runSearch,
 }

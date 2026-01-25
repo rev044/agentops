@@ -12,7 +12,7 @@ var versionCmd = &cobra.Command{
 	Short: "Show version information",
 	Long:  `Display the version, build information, and runtime details.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("ol version %s\n", version)
+		fmt.Printf("ao version %s\n", version)
 		fmt.Printf("  Go version: %s\n", runtime.Version())
 		fmt.Printf("  Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 	},

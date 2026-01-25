@@ -25,8 +25,8 @@ Shows:
   - Storage locations
 
 Examples:
-  ol status
-  ol status -o json`,
+  ao status
+  ao status -o json`,
 	RunE: runStatus,
 }
 
@@ -123,7 +123,7 @@ func outputStatus(status *statusOutput) error {
 	}
 
 	// Table output
-	fmt.Println("Olympus Status")
+	fmt.Println("AgentOps Status")
 	fmt.Println("==============")
 	fmt.Println()
 
@@ -154,9 +154,9 @@ func outputStatus(status *statusOutput) error {
 	}
 
 	fmt.Println("\nCommands:")
-	fmt.Println("  ol forge transcript <path>  - Extract knowledge from transcript")
-	fmt.Println("  ol search <query>           - Search knowledge base")
-	fmt.Println("  ol trace <artifact>         - Trace provenance")
+	fmt.Println("  ao forge transcript <path>  - Extract knowledge from transcript")
+	fmt.Println("  ao search <query>           - Search knowledge base")
+	fmt.Println("  ao trace <artifact>         - Trace provenance")
 
 	return nil
 }

@@ -13,8 +13,8 @@ import (
 
 var quickstartCmd = &cobra.Command{
 	Use:   "quick-start",
-	Short: "Set up Olympus in your project (5 minutes)",
-	Long: `Initialize Olympus in your current project.
+	Short: "Set up AgentOps in your project (5 minutes)",
+	Long: `Initialize AgentOps in your current project.
 
 This command:
   1. Creates .agents/ directory structure
@@ -23,9 +23,9 @@ This command:
   4. Shows next steps
 
 Examples:
-  ol quick-start              # Full setup with beads
-  ol quick-start --no-beads   # Skip beads initialization
-  ol quick-start --minimal    # Just .agents/ structure`,
+  ao quick-start              # Full setup with beads
+  ao quick-start --no-beads   # Skip beads initialization
+  ao quick-start --minimal    # Just .agents/ structure`,
 	RunE: runQuickstart,
 }
 
@@ -123,7 +123,7 @@ func createStarterPack(cwd string) error {
 		".agents/patterns/context-boundaries.md": `# Pattern: Fresh Context Per Phase
 
 **Tier:** 2 (Pattern)
-**Source:** Olympus multi-epic post-mortem
+**Source:** AgentOps multi-epic post-mortem
 
 ## Problem
 
@@ -349,7 +349,7 @@ func showNextSteps(hasBeads bool) {
 
 ═══════════════════════════════════════════════════════════════════
 
-  "Others forget. Olympus learns. Zero infrastructure."
+  "Others forget. AgentOps learns. Zero infrastructure."
 
 ═══════════════════════════════════════════════════════════════════
 `)

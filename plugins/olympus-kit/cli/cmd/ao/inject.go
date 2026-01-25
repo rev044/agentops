@@ -85,16 +85,16 @@ inject prior learnings, patterns, and context into new sessions.
 Searches:
   1. Recent learnings (.agents/learnings/*.md)
   2. Active patterns (.agents/patterns/*.md)
-  3. Recent session summaries (.agents/olympus/sessions/)
+  3. Recent session summaries (.agents/ao/sessions/)
 
 Uses file-based search with Two-Phase retrieval (freshness + utility scoring).
 
 Examples:
-  ol inject                     # Inject general knowledge
-  ol inject "authentication"    # Inject knowledge about auth
-  ol inject --max-tokens 2000   # Larger budget
-  ol inject --format json       # JSON output
-  ol inject --no-cite           # Skip citation recording`,
+  ao inject                     # Inject general knowledge
+  ao inject "authentication"    # Inject knowledge about auth
+  ao inject --max-tokens 2000   # Larger budget
+  ao inject --format json       # JSON output
+  ao inject --no-cite           # Skip citation recording`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runInject,
 }

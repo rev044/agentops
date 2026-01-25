@@ -164,7 +164,7 @@ func TestIntegrationFeedbackLoop(t *testing.T) {
 		t.Fatalf("create learnings dir: %v", err)
 	}
 
-	// Create .agents/olympus/ directory for citations
+	// Create .agents/ao/ directory for citations
 	olympusDir := filepath.Join(tempDir, ".agents", "olympus")
 	if err := os.MkdirAll(olympusDir, 0755); err != nil {
 		t.Fatalf("create olympus dir: %v", err)
@@ -212,7 +212,7 @@ func TestIntegrationFeedbackLoop(t *testing.T) {
 
 func TestFeedbackFilePath(t *testing.T) {
 	// Verify the feedback file path is correct
-	expected := ".agents/olympus/feedback.jsonl"
+	expected := ".agents/ao/feedback.jsonl"
 	if FeedbackFilePath != expected {
 		t.Errorf("FeedbackFilePath = %q, want %q", FeedbackFilePath, expected)
 	}

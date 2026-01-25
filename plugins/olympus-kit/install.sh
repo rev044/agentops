@@ -4,11 +4,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/cli"
 
-echo "Building ol CLI..."
-go build -o ol ./cmd/ol
+echo "Building ao CLI..."
+go build -o ao ./cmd/ao
 
 mkdir -p ~/.local/bin
-mv ol ~/.local/bin/ol
+mv ao ~/.local/bin/ao
 
-echo "Installed ol to ~/.local/bin/ol"
+echo "Installed ao to ~/.local/bin/ao"
 echo "Make sure ~/.local/bin is in your PATH"

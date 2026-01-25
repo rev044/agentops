@@ -36,10 +36,10 @@ The utility value affects retrieval ranking in Two-Phase retrieval:
   Score = z_norm(freshness) + λ × z_norm(utility)
 
 Examples:
-  ol feedback L001 --reward 1.0     # Learning was helpful (success)
-  ol feedback L001 --reward 0.0     # Learning was not helpful (failure)
-  ol feedback L001 --reward 0.75    # Partial success
-  ol feedback L001 --reward 1.0 --alpha 0.2   # Faster learning rate`,
+  ao feedback L001 --reward 1.0     # Learning was helpful (success)
+  ao feedback L001 --reward 0.0     # Learning was not helpful (failure)
+  ao feedback L001 --reward 0.75    # Partial success
+  ao feedback L001 --reward 1.0 --alpha 0.2   # Faster learning rate`,
 	Args: cobra.ExactArgs(1),
 	RunE: runFeedback,
 }
@@ -350,8 +350,8 @@ Scans .agents/learnings/ and adds utility: 0.5 to entries without it.
 This prepares learnings for Two-Phase retrieval.
 
 Examples:
-  ol migrate memrl
-  ol migrate memrl --dry-run`,
+  ao migrate memrl
+  ao migrate memrl --dry-run`,
 	Args: cobra.ExactArgs(1),
 	RunE: runMigrate,
 }

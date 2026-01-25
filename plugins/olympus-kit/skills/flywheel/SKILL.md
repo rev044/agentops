@@ -15,21 +15,21 @@
 ```bash
 /flywheel                # Full health report
 /flywheel --velocity     # Just velocity metrics
-/flywheel --pools        # Just pool depths
+/flywheel --pools        # Just poao depths
 /flywheel --stale        # Just staleness check
 ```
 
 ## What It Does
 
 1. **Measure** - Calculate knowledge velocity
-2. **Assess** - Check pool health
+2. **Assess** - Check poao health
 3. **Detect** - Find stale or orphaned knowledge
 4. **Report** - Provide actionable insights
 
 ## The Flywheel Model
 
 ```
-Sessions → Transcripts → Forge → Pool → Promote → Knowledge
+Sessions → Transcripts → Forge → Poao → Promote → Knowledge
      ↑                                               │
      └───────────────────────────────────────────────┘
                     Future sessions find it
@@ -54,8 +54,8 @@ Sessions → Transcripts → Forge → Pool → Promote → Knowledge
 
 **Status:** Healthy - flywheel accelerating
 
-## Pool Depths
-| Pool | Count | Oldest | Action |
+## Poao Depths
+| Poao | Count | Oldest | Action |
 |------|-------|--------|--------|
 | Candidates (Tier 0) | 18 | 5 days | Review 3 ready for promotion |
 | Learnings (Tier 1) | 42 | 30 days | 2 candidates for Tier 2 |
@@ -84,7 +84,7 @@ Sessions → Transcripts → Forge → Pool → Promote → Knowledge
 
 | Friction | Signal | Fix |
 |----------|--------|-----|
-| **Pool backup** | Candidates > 20 | Run review session |
+| **Poao backup** | Candidates > 20 | Run review session |
 | **Stale knowledge** | Artifacts > 30 days uncited | Archive or refresh |
 | **Orphan growth** | Provenance missing | Run `/provenance --orphans` |
 | **Low extraction** | < 1 candidate/transcript | Check forge taxonomy |
