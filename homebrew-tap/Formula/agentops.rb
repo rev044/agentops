@@ -17,8 +17,10 @@ class Agentops < Formula
   depends_on "go" => :build
 
   def install
-    # Build ao CLI
-    system "go", "build", *std_go_args(ldflags: "-s -w -X main.version=#{version}"), "./cmd/ao"
+    # Build ao CLI from cli/ directory
+    cd "cli" do
+      system "go", "build", *std_go_args(ldflags: "-s -w -X main.version=#{version}"), "./cmd/ao"
+    end
   end
 
   def caveats
