@@ -1,11 +1,12 @@
 #!/bin/bash
-# Run all skill validation scripts for agentops plugins
-# Includes both generic dependency validation and skill-specific tests
+# Run all skill validation scripts for agentops
+# Updated for unified structure (skills/ at repo root)
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PLUGINS_DIR="$REPO_DIR/plugins"
-TESTS_DIR="$REPO_DIR/tests/skills"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SKILLS_DIR="$REPO_ROOT/skills"
+TESTS_DIR="$SCRIPT_DIR"
 PASSED=0
 FAILED=0
 SKIPPED=0
@@ -20,12 +21,12 @@ NC='\033[0m' # No Color
 echo "╔════════════════════════════════════════════════════════════╗"
 echo "║   AgentOps Skill Validation Test Suite                     ║"
 echo "╠════════════════════════════════════════════════════════════╣"
-echo "║  Tests: Dependency validation + skill-specific validation  ║"
+echo "║  Tests: SKILL.md + frontmatter + skill-specific validate   ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Infrastructure skills (library-style, auto-loaded via hooks)
-INFRA_SKILLS="bd-routing crew dispatch handoff mail molecules polecat-lifecycle roles"
+# Infrastructure/library skills (auto-loaded, not user-invoked)
+INFRA_SKILLS=""
 
 is_infra_skill() {
     local skill="$1"
@@ -37,53 +38,60 @@ is_infra_skill() {
     return 1
 }
 
-# Run validation for each skill in each plugin
-for plugin_dir in "$PLUGINS_DIR"/*-kit; do
-    plugin_name=$(basename "$plugin_dir")
-    echo -e "${BLUE}━━━ Plugin: $plugin_name ━━━${NC}"
-    echo ""
+echo -e "${BLUE}━━━ Skills Directory: $SKILLS_DIR ━━━${NC}"
+echo ""
 
-    for skill_dir in "$plugin_dir"/skills/*/; do
-        [ -d "$skill_dir" ] || continue
-        skill_name=$(basename "$skill_dir")
-        validate_script="$skill_dir/scripts/validate.sh"
+# Validate each skill in skills/
+for skill_dir in "$SKILLS_DIR"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    validate_script="$skill_dir/scripts/validate.sh"
 
-        # Check if it's an infrastructure skill (library)
-        if is_infra_skill "$skill_name"; then
-            echo -e "  ${BLUE}○ $skill_name (library skill)${NC}"
-            SKIPPED=$((SKIPPED + 1))
-            continue
-        fi
+    # Check if it's an infrastructure skill (library)
+    if is_infra_skill "$skill_name"; then
+        echo -e "  ${BLUE}○ $skill_name (library skill)${NC}"
+        SKIPPED=$((SKIPPED + 1))
+        continue
+    fi
 
-        if [ -f "$validate_script" ]; then
-            chmod +x "$validate_script"
+    # Check SKILL.md exists with frontmatter
+    skill_md="$skill_dir/SKILL.md"
+    if [[ ! -f "$skill_md" ]]; then
+        echo -e "  ${RED}✗ $skill_name (missing SKILL.md)${NC}"
+        FAILED=$((FAILED + 1))
+        continue
+    fi
 
-            # Run skill-specific validation
-            if "$validate_script" > /dev/null 2>&1; then
-                echo -e "  ${GREEN}✓ $skill_name${NC}"
-                PASSED=$((PASSED + 1))
-            else
-                echo -e "  ${RED}✗ $skill_name${NC}"
-                FAILED=$((FAILED + 1))
-            fi
-        elif [ -f "$TESTS_DIR/validate-skill.sh" ]; then
-            # No skill-specific tests, run generic validation only
-            # Pass full skill directory path for agentops plugin structure
-            if "$TESTS_DIR/validate-skill.sh" "$skill_dir" > /dev/null 2>&1; then
-                echo -e "  ${YELLOW}○ $skill_name (generic only)${NC}"
-                PASSED=$((PASSED + 1))
-            else
-                echo -e "  ${RED}✗ $skill_name (generic failed)${NC}"
-                FAILED=$((FAILED + 1))
-            fi
+    if ! head -1 "$skill_md" | grep -q "^---$"; then
+        echo -e "  ${RED}✗ $skill_name (no YAML frontmatter)${NC}"
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+
+    if ! grep -q "^name:" "$skill_md"; then
+        echo -e "  ${RED}✗ $skill_name (missing 'name' in frontmatter)${NC}"
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+
+    # Run skill-specific validation if present
+    if [ -f "$validate_script" ]; then
+        chmod +x "$validate_script"
+        if "$validate_script" > /dev/null 2>&1; then
+            echo -e "  ${GREEN}✓ $skill_name${NC}"
+            PASSED=$((PASSED + 1))
         else
-            echo -e "  ${YELLOW}○ $skill_name (no validation)${NC}"
-            SKIPPED=$((SKIPPED + 1))
+            echo -e "  ${RED}✗ $skill_name (validate.sh failed)${NC}"
+            FAILED=$((FAILED + 1))
         fi
-    done
-    echo ""
+    else
+        # No skill-specific tests, basic validation passed
+        echo -e "  ${GREEN}✓ $skill_name${NC} ${YELLOW}(no validate.sh)${NC}"
+        PASSED=$((PASSED + 1))
+    fi
 done
 
+echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
 echo "║                       RESULTS                              ║"
 echo "╠════════════════════════════════════════════════════════════╣"
