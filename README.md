@@ -10,28 +10,46 @@
 
 ---
 
-## The Problem Everyone Ignores
+## The Workflow: 5 Commands
 
-Your agent solves a bug today. Tomorrow? Same bug, starts from scratch.
+This is all you do. Everything else is automatic.
 
-You explain your architecture once. Next week? Explain it again.
+```
+/research → /pre-mortem → /crank → /vibe → /post-mortem
+```
 
-**Every session is day one.**
+| Step | Command | What Happens |
+|------|---------|--------------|
+| 1 | `/research` | Explore codebase, mine prior knowledge |
+| 2 | `/pre-mortem` | Simulate failures before you build |
+| 3 | `/crank` | Implement → validate → commit (loops until done) |
+| 4 | `/vibe` | Validate: security, quality, architecture |
+| 5 | `/post-mortem` | Extract learnings, update knowledge base |
 
-| Approach | Promise | Reality |
-|----------|---------|---------|
-| Spec-driven dev | "Perfect spec → perfect code" | Specs are discovered during implementation |
-| Better prompts | "Just prompt engineer harder" | Knowledge dies when the session ends |
-| RAG/embeddings | "Search your codebase" | No learning, just lookup |
-| Other workflows | "Follow these 12 steps" | Linear, no memory, no compounding |
+**That's the whole workflow.**
 
-**The dirty secret:** None of these remember what they learned.
+The knowledge flywheel, the math, the retrieval, the linking — all handled in the background. You just run 5 commands.
 
 ---
 
-## The Solution: Compounding Knowledge
+## The Problem
 
-AgentOps captures what your agent learns and feeds it back. Every session makes the next one smarter.
+Your agent solves a bug today. Tomorrow? Same bug, starts from scratch.
+
+**Every session is day one.**
+
+| Approach | Reality |
+|----------|---------|
+| Spec-driven dev | Specs are discovered during implementation |
+| Better prompts | Knowledge dies when the session ends |
+| RAG/embeddings | No learning, just lookup |
+| Other workflows | Linear, no memory, no compounding |
+
+---
+
+## The Solution
+
+AgentOps captures what your agent learns and feeds it back.
 
 ```
 Session 1        Session 10       Session 100
@@ -41,12 +59,9 @@ Session 1        Session 10       Session 100
 |  (2 hrs)  | -> |  this"    | -> |  instant  |
 |           |    |  (10 min) |    |  recall   |
 +-----------+    +-----------+    +-----------+
-
-    Same effort        10x faster       100x faster
 ```
 
-**The math:** Knowledge decays at ~17%/week without reinforcement.
-AgentOps retrieval × usage > decay rate = **compounding, not forgetting**.
+**The math:** Knowledge decays ~17%/week. AgentOps retrieval > decay = compounding.
 
 ---
 
@@ -65,64 +80,32 @@ claude plugin install agentops
 ao init && ao hooks install
 ```
 
-**That's it.** Hooks capture knowledge automatically. Every session feeds the next.
-
----
-
-## What's New in v1.0.0
-
-**The Knowledge Flywheel release.** Your agent now remembers and compounds knowledge.
-
-- **20 skills** organized into Core Workflow, Validation, Knowledge System, and Integration
-- **Brownian Ratchet** - Physics-inspired progress model: Chaos → Filter → Ratchet
-- **`ao` CLI** - Session management, knowledge forging, provenance tracking
-- **Auto-hooks** - SessionStart injects knowledge, SessionEnd extracts learnings
-
-See [RELEASE-NOTES.md](RELEASE-NOTES.md) for full history.
+**That's it.** Hooks handle knowledge capture automatically.
 
 ---
 
 ## How It Works
 
-### The Brownian Ratchet
-
-In physics, a Brownian ratchet extracts useful work from random motion. Molecules bounce chaotically, but the ratchet only allows forward movement.
-
-**AgentOps applies this to AI agents:**
-
 ```
-+------------------------------------------------------------------+
-|                    THE BROWNIAN RATCHET                          |
-|                                                                  |
-|   CHAOS              FILTER              RATCHET                 |
-|   (explore)          (validate)          (lock progress)         |
-|                                                                  |
-|   +---------+        +---------+        +---------+              |
-|   | Research| -----> |  Vibe   | -----> | Commit  |              |
-|   | & Try   |        |  Check  |        | & Learn |              |
-|   +---------+        +----+----+        +---------+              |
-|        ^                  |                  |                   |
-|        |                  | (fail)           |                   |
-|        +------------------+                  |                   |
-|                                              v                   |
-|                                       +-----------+              |
-|                                       | .agents/  |              |
-|                                       | (memory)  |              |
-|                                       +-----+-----+              |
-|                                             |                    |
-|                                             | (next session)     |
-|                                             v                    |
-|                                       [ao inject]                |
-+------------------------------------------------------------------+
+     CHAOS              FILTER              RATCHET
+   (explore)          (validate)        (lock progress)
+       │                  │                   │
+       ▼                  ▼                   ▼
+  ┌─────────┐        ┌─────────┐        ┌─────────┐
+  │/research│───────▶│  /vibe  │───────▶│  commit │
+  │/pre-mort│        │         │        │ /post-m │
+  │ /crank  │        └────┬────┘        └────┬────┘
+  └─────────┘             │                  │
+       ▲                  │ (fail)           │
+       └──────────────────┘                  │
+                                             ▼
+                                      ┌───────────┐
+                                      │ .agents/  │──▶ next session
+                                      │ (memory)  │
+                                      └───────────┘
 ```
 
-| Phase | What Happens | You Type |
-|-------|--------------|----------|
-| **Research** | Mine prior knowledge, explore codebase | `/research` |
-| **Plan** | Break into tracked issues | `/plan` |
-| **Pre-mortem** | Simulate failures before they happen | `/pre-mortem` |
-| **Crank** | Implement → validate → commit loop | `/crank` |
-| **Post-mortem** | Extract learnings, lock the ratchet | `/post-mortem` |
+**The Brownian Ratchet:** Chaos generates options. Validation filters. Ratchet locks progress. Knowledge compounds.
 
 ---
 
@@ -171,47 +154,17 @@ Session 1     Session 2     Session 3     Session 4
 
 ---
 
-## 20 Skills
+## All 20 Skills
 
-### Core Workflow
+**You only need the 5 core commands.** The rest run automatically or are power-user utilities.
 
-| Skill | What It Does |
-|-------|--------------|
-| `/research` | Deep codebase exploration with knowledge mining |
-| `/plan` | Convert goals into tracked issues with dependencies |
-| `/pre-mortem` | Simulate failures before implementation |
-| `/implement` | Execute a single issue with full lifecycle |
-| `/crank` | Autonomous implement → validate → commit loop |
-| `/retro` | Extract learnings from completed work |
-| `/post-mortem` | Comprehensive validation + knowledge extraction |
-
-### Validation
-
-| Skill | What It Does |
-|-------|--------------|
-| `/vibe` | Multi-aspect code validation (security, quality, a11y) |
-| `/bug-hunt` | Git archaeology and root cause analysis |
-| `/complexity` | Find refactor targets using radon/gocyclo |
-| `/doc` | Generate and validate documentation |
-
-### Knowledge System
-
-| Skill | What It Does |
-|-------|--------------|
-| `/forge` | Mine transcripts for decisions, learnings, patterns |
-| `/extract` | Extract decisions from session transcripts |
-| `/inject` | Inject relevant knowledge into session context |
-| `/knowledge` | Query artifacts across all locations |
-| `/provenance` | Trace knowledge artifact lineage and sources |
-| `/flywheel` | Monitor knowledge velocity, pool depths, staleness |
-| `/ratchet` | Brownian Ratchet progress gates for RPI workflow |
-
-### Integration
-
-| Skill | What It Does |
-|-------|--------------|
-| `/beads` | Git-based issue tracking with bd CLI |
-| `/using-agentops` | Meta skill explaining the workflow (auto-injected) |
+| Category | Skills | Notes |
+|----------|--------|-------|
+| **Core (you run these)** | `/research`, `/pre-mortem`, `/crank`, `/vibe`, `/post-mortem` | The main workflow |
+| **Supporting** | `/plan`, `/implement`, `/retro` | Called by /crank automatically |
+| **Validation** | `/bug-hunt`, `/complexity`, `/doc` | Optional deep-dives |
+| **Knowledge (automatic)** | `/forge`, `/extract`, `/inject`, `/knowledge`, `/provenance`, `/flywheel`, `/ratchet` | Runs in hooks |
+| **Integration** | `/beads`, `/using-agentops` | Issue tracking, onboarding |
 
 ---
 
