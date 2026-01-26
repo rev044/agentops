@@ -22,14 +22,29 @@ Each phase produces chaos, filters it for quality, then ratchets progress perman
 
 ```mermaid
 flowchart TB
-    %% Styles
-    classDef research fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
-    classDef plan fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
-    classDef implement fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100
-    classDef validate fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
-    classDef knowledge fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#880e4f
-    classDef auto fill:#eceff1,stroke:#546e7a,stroke-width:1px,stroke-dasharray: 5 5,color:#37474f
-    classDef decision fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#f57f17
+    %% Professional color palette based on split-complementary color theory
+    %% Using Tailwind CSS colors for proven accessibility and professionalism
+
+    %% Research: Slate Blue (information, discovery)
+    classDef research fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
+
+    %% Plan: Indigo (strategy, structure)
+    classDef plan fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,color:#3730a3
+
+    %% Pre-mortem/Validate: Amber (caution, analysis)
+    classDef caution fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#92400e
+
+    %% Implement: Slate (neutral, work)
+    classDef implement fill:#f8fafc,stroke:#475569,stroke-width:2px,color:#1e293b
+
+    %% Success/Done: Emerald (completion, success)
+    classDef success fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#065f46
+
+    %% Knowledge: Violet (insight, memory)
+    classDef knowledge fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
+
+    %% Decision: Rose (choice point)
+    classDef decision fill:#fff1f2,stroke:#e11d48,stroke-width:2px,color:#9f1239
 
     %% Main Workflow
     subgraph WORKFLOW["THE BROWNIAN RATCHET"]
@@ -97,10 +112,11 @@ flowchart TB
     %% Apply styles
     class R,R1,R2,R3 research
     class P,P1,P2,P3 plan
-    class PM,PM1,PM2,PM3 validate
-    class C,C1,C2,C3,C4,C5,DONE implement
-    class PO,PO1,PO2,PO3 validate
-    class GOAL,PO3,C3 decision
+    class PM,PM1,PM2,PM3 caution
+    class C,C1,C2,C4 implement
+    class C5,DONE success
+    class PO,PO1,PO2 caution
+    class C3,PO3,GOAL decision
     class LOCK,INDEX,STORE,INJECT knowledge
 ```
 
@@ -124,6 +140,13 @@ You don't manually run `ao` commands. Hooks do it for you.
 
 ```mermaid
 flowchart LR
+    %% Consistent palette with main diagram
+    classDef session fill:#f8fafc,stroke:#475569,stroke-width:2px,color:#1e293b
+    classDef inject fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#065f46
+    classDef extract fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#92400e
+    classDef index fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
+    classDef storage fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
+
     subgraph SESSION["CLAUDE CODE SESSION"]
         direction TB
         START[Session Start] --> WORK[Your Work]
@@ -145,9 +168,11 @@ flowchart LR
         S1 & S2 & S3 -.-> H1
     end
 
-    style H1 fill:#e8f5e9,stroke:#2e7d32
-    style H2 fill:#fff3e0,stroke:#ef6c00
-    style H3 fill:#e3f2fd,stroke:#1565c0
+    class START,WORK,END session
+    class H1 inject
+    class H2 extract
+    class H3 index
+    class S1,S2,S3 storage
 ```
 
 **SessionStart hook**: Injects relevant prior knowledge (weighted by freshness + utility)
@@ -162,6 +187,12 @@ Knowledge decays without reinforcement. But when retrieval × usage exceeds deca
 
 ```mermaid
 flowchart LR
+    %% Semantic colors: red for decay, green gradient for compounding
+    classDef decay fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
+    classDef compound1 fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
+    classDef compound2 fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d
+    classDef compound3 fill:#86efac,stroke:#059669,stroke-width:2px,color:#064e3b
+
     subgraph DECAY["WITHOUT AGENTOPS"]
         D1[Session 1: Debug bug] --> D2[Session 2: Same bug, start fresh]
         D2 --> D3[Session 3: Same bug, start fresh]
@@ -172,12 +203,10 @@ flowchart LR
         C2 --> C3[Session 3: Instant recall]
     end
 
-    style D1 fill:#ffcdd2
-    style D2 fill:#ffcdd2
-    style D3 fill:#ffcdd2
-    style C1 fill:#c8e6c9
-    style C2 fill:#a5d6a7
-    style C3 fill:#81c784
+    class D1,D2,D3 decay
+    class C1 compound1
+    class C2 compound2
+    class C3 compound3
 ```
 
 **The Math:**
