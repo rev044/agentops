@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentops-marketplace",
+  "description": "AgentOps plugin for AI-assisted development workflows",
+  "owner": {
+    "name": "Boden Fuller",
+    "email": "fullerbt@users.noreply.github.com"
+  },
+  "plugins": [
+    {
+      "name": "agentops",
+      "description": "AI-assisted development workflow with 20 skills + ao CLI: Research → Plan → Implement with Knowledge Flywheel",
+      "author": {
+        "name": "Boden Fuller",
+        "email": "fullerbt@users.noreply.github.com"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/boshu2/agentops"
+    }
+  ]
+}
