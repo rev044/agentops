@@ -119,50 +119,57 @@ In physics, a **Brownian ratchet** extracts useful work from random thermal moti
 
 ## Installation
 
-**Note:** Installation differs by platform. Claude Code has a built-in plugin system. Codex and OpenCode require manual setup.
+Two parts: the **CLI** (for knowledge operations) and the **plugin** (for Claude Code integration).
 
-### Claude Code (Recommended)
+### 1. Install the CLI
 
 ```bash
-# 1. Install the CLI
-brew install boshu2/agentops/agentops
+# Add the tap
+brew tap boshu2/agentops https://github.com/boshu2/agentops
 
-# 2. Initialize your repo
+# Install
+brew install agentops
+
+# Verify
+ao --version
+```
+
+### 2. Install the Plugin (Claude Code)
+
+```bash
+# Option A: Install from GitHub (recommended)
+claude mcp add-plugin https://github.com/boshu2/agentops
+
+# Option B: Install from local clone
+git clone https://github.com/boshu2/agentops.git
+claude mcp add-plugin ./agentops
+```
+
+### 3. Initialize Your Repo
+
+```bash
+cd your-project
+
+# Initialize AgentOps in this repo
 ao init
 
-# 3. Install hooks (this is where the magic happens)
+# Install hooks (this is where the magic happens)
 ao hooks install
 
-# 4. Verify
+# Verify everything works
 ao badge
 ```
 
-### Codex
+### Other Platforms
 
-Tell Codex:
-
+**Codex:** Tell Codex:
 ```
 Fetch and follow instructions from https://raw.githubusercontent.com/boshu2/agentops/refs/heads/main/.codex/setup.md
 ```
 
-### OpenCode
-
-Tell OpenCode:
-
+**OpenCode:** Tell OpenCode:
 ```
 Fetch and follow instructions from https://raw.githubusercontent.com/boshu2/agentops/refs/heads/main/.opencode/setup.md
-```
-
-### Verify Installation
-
-The hooks should fire automatically. Check that knowledge injection works:
-
-```bash
-# Start a Claude Code session - you should see injected context
-claude
-
-# Or manually test
-ao inject --dry-run
 ```
 
 ---
