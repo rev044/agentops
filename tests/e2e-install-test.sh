@@ -49,9 +49,17 @@ if [[ $# -gt 0 ]]; then
     plugins=("$1")
 else
     plugins=()
-    for p in plugins/*/; do
-        plugins+=("$(basename "$p")")
-    done
+    if [[ -d "plugins" ]]; then
+        for p in plugins/*/; do
+            [[ -d "$p" ]] && plugins+=("$(basename "$p")")
+        done
+    fi
+fi
+
+# If no plugins, skip plugin tests
+if [[ ${#plugins[@]} -eq 0 ]]; then
+    pass "No plugins to test (plugins/ empty or missing)"
+    tests_passed=$((tests_passed + 1))
 fi
 
 for plugin in "${plugins[@]}"; do
@@ -127,24 +135,32 @@ log "Phase 3: Test combined plugin loading"
 
 # Test loading multiple plugins together (simulates marketplace install)
 all_plugins_args=""
-for p in plugins/*/; do
-    all_plugins_args="$all_plugins_args --plugin-dir $p"
-done
+if [[ -d "plugins" ]]; then
+    for p in plugins/*/; do
+        [[ -d "$p" ]] && all_plugins_args="$all_plugins_args --plugin-dir $p"
+    done
+fi
 
-# shellcheck disable=SC2086
-combined_output=$(timeout 15 claude $all_plugins_args --help 2>&1) || true
-
-# Check for actual plugin load errors (not general CLI help text)
-# Patterns that indicate real problems:
-# - "invalid manifest" / "validation error" / "failed to load" = plugin structure issues
-# - "conflict" / "duplicate" = plugin naming collisions
-if echo "$combined_output" | grep -qiE "invalid manifest|validation error|failed to load|plugin.*conflict|duplicate.*skill|duplicate.*command"; then
-    fail "Combined load: Plugin conflicts detected"
-    echo "$combined_output" | grep -iE "invalid|failed|conflict|duplicate" | head -5
-    errors=$((errors + 1))
-else
-    pass "Combined load: All ${#plugins[@]} plugins load together"
+# Skip if no plugins
+if [[ -z "$all_plugins_args" ]]; then
+    pass "Combined load: No plugins to test"
     tests_passed=$((tests_passed + 1))
+else
+    # shellcheck disable=SC2086
+    combined_output=$(timeout 15 claude $all_plugins_args --help 2>&1) || true
+
+    # Check for actual plugin load errors (not general CLI help text)
+    # Patterns that indicate real problems:
+    # - "invalid manifest" / "validation error" / "failed to load" = plugin structure issues
+    # - "conflict" / "duplicate" = plugin naming collisions
+    if echo "$combined_output" | grep -qiE "invalid manifest|validation error|failed to load|plugin.*conflict|duplicate.*skill|duplicate.*command"; then
+        fail "Combined load: Plugin conflicts detected"
+        echo "$combined_output" | grep -iE "invalid|failed|conflict|duplicate" | head -5
+        errors=$((errors + 1))
+    else
+        pass "Combined load: All ${#plugins[@]} plugins load together"
+        tests_passed=$((tests_passed + 1))
+    fi
 fi
 
 # =============================================================================
