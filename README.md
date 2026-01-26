@@ -1,14 +1,25 @@
 # AgentOps
 
+```
+    _                    _    ___
+   / \   __ _  ___ _ __ | |_ / _ \ _ __  ___
+  / _ \ / _` |/ _ \ '_ \| __| | | | '_ \/ __|
+ / ___ \ (_| |  __/ | | | |_| |_| | |_) \__ \
+/_/   \_\__, |\___|_| |_|\__|\___/| .__/|___/
+        |___/                     |_|
+```
+
 **The Knowledge Engine for Claude Code**
 
-> Stop starting from zero. Your agent learns, remembers, and compounds knowledge across sessions.
+> *"The best time to plant a tree was 20 years ago. The second best time is now."*
+>
+> Your agent's memory works the same way. Start capturing knowledge today.
 
 ---
 
 ## The Problem
 
-AI coding agents are brilliant but amnesiac. They solve a bug today, forget it tomorrow. You explain your architecture once, explain it again next week. Every session starts cold.
+AI coding agents are **brilliant but amnesiac**. They solve a bug today, forget it tomorrow. You explain your architecture once, explain it again next week. Every session starts cold.
 
 **AgentOps fixes this.** It gives your agent a persistent, git-tracked memory that compounds over time.
 
@@ -16,7 +27,20 @@ AI coding agents are brilliant but amnesiac. They solve a bug today, forget it t
 
 ## How It Works
 
-**The Brownian Ratchet: Chaos + Filter + Ratchet = Progress**
+### The Physics: What's a Brownian Ratchet?
+
+In physics, a **Brownian ratchet** extracts useful work from random thermal motion. Molecules bounce around chaotically, but a clever mechanism (the ratchet) only allows movement in one direction. Random noise becomes forward progress.
+
+**AgentOps applies this to AI agents:**
+
+| Physics | AgentOps |
+|---------|----------|
+| Random molecular motion | Chaotic exploration, trial and error |
+| Ratchet mechanism | Validation gates (vibe checks) |
+| Forward-only movement | Knowledge that persists and compounds |
+| Thermal equilibrium | Session amnesia (what we're escaping) |
+
+**The formula:** `Chaos + Filter + Ratchet = Progress`
 
 ```
 +===========================================================================+
