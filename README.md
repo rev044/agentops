@@ -1,109 +1,121 @@
-# AgentOps for Claude Code
+# AgentOps
 
-[![Release](https://img.shields.io/github/v/release/boshu2/agentops?style=flat-square)](https://github.com/boshu2/agentops/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-purple?style=flat-square)](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code)
+AgentOps is a complete knowledge management system for your coding agents, built on top of composable "skills" and a memory layer that makes sure your AI actually learns from your codebase.
 
-### **The Missing Memory Layer for AI Development**
-**Your AI assistant shouldn't start from zero every session.**
+## How it works
 
----
+It starts the moment you fire up Claude Code. Before you even type anything, AgentOps has already searched your `.agents/` directory for relevant learnings from past sessions and injected them into context. That OAuth bug you debugged two weeks ago? Claude already knows about it.
 
-## **Why AgentOps?**
+As you work, the skills kick in automatically. When you're about to build something, `/research` activates and deep-scans your codebase first. When you need to break down a feature, `/plan` creates tracked issues. When you say "go", `/crank` takes over and autonomously works through your plan—implementing, validating, and committing each piece.
 
-You've been there: You spend 45 minutes teaching Claude how to debug a specific OAuth issue in your repo. Two weeks later, the issue returns. You open a new session, and **Claude has forgotten everything.** You pay the time (and token) cost all over again.
+At the end of your session, AgentOps extracts what you learned. That tricky edge case you discovered? That pattern that finally worked? It's captured in `.agents/learnings/` and will be there next time you need it. Git-tracked. Permanent. Searchable.
 
-**AgentOps fixes this.** It runs in the background to:
-1.  **Capture** successful patterns from your coding sessions.
-2.  **Store** them in your repo (`.agents/`) as permanent knowledge.
-3.  **Inject** that context automatically when you start a new task.
+The magic is the flywheel: **knowledge compounds**. Each session makes the next one smarter. After a few weeks, Claude knows your codebase like a senior engineer who's been on the team for months.
 
-**Result:** Your assistant gets smarter—effectively *compounding* knowledge instead of resetting it.
+And because the skills trigger automatically, you don't need to do anything special. Your coding agent just has a memory.
 
----
-
-## 🚀 Quick Start
-
-### 1. Install the Plugin
-Add the AgentOps toolset to your Claude Code configuration.
+## Installation
 
 ```bash
+# Install the CLI (manages your knowledge base)
+brew install boshu2/agentops/agentops
+
+# Add the plugin to Claude Code
 claude mcp add boshu2/agentops
-```
 
-### 2. Install the CLI
-
-The `ao` CLI manages your knowledge base and search index.
-
-```bash
-brew install agentops
-# Or build from source:
-# cd cli && go build -o ao ./cmd/ao
-```
-
-### 3. Start Your Flywheel
-
-Initialize the knowledge base in your repository.
-
-```bash
+# Initialize in your repo
 ao init
+
+# Set up auto-hooks (one time)
+ao hooks install
 ```
 
----
-
-## 🔄 What Happens Automatically
-
-**You don't have to do anything.** Once installed, the flywheel turns itself:
-
-### Every Session Start
-```
-┌─────────────────────────────────────────────────────────┐
-│  ao inject                                              │
-│  → Searches your .agents/ for relevant learnings        │
-│  → Loads patterns that match your current context       │
-│  → Claude starts with YOUR knowledge, not zero          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Every Session End
-```
-┌─────────────────────────────────────────────────────────┐
-│  ao forge transcript --last-session                     │
-│  → Mines your session for decisions & learnings         │
-│  → Extracts patterns worth remembering                  │
-│  → Stores to .agents/ (git-tracked, permanent)          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### The Flywheel Turns
-```
-You work normally
-       ↓
-Session ends → auto-capture (forge)
-       ↓
-Knowledge stored in .agents/
-       ↓
-Next session → auto-recall (inject)
-       ↓
-Claude uses past learnings
-       ↓
-Better work → better learnings → better recall
-       ↓
-   (compounds forever)
-```
-
-### Check Your Flywheel Health
+### Verify Installation
 
 ```bash
-$ ao badge
+ao badge
+```
 
+You should see a knowledge dashboard. If you're starting fresh, it'll show 🌱 STARTING. That's normal—the flywheel needs sessions to turn.
+
+## The Basic Workflow
+
+1. **Session starts** → AgentOps automatically injects relevant knowledge from past sessions. Claude already knows your patterns.
+
+2. **You describe what you want** → `/research` activates. Deep-scans your codebase, loads prior learnings, understands context before writing code.
+
+3. **You approve the approach** → `/plan` breaks work into bite-sized issues. Each one has clear acceptance criteria.
+
+4. **You say "go"** → `/crank` takes over. Implements each issue, validates with `/vibe`, commits, moves to the next. Hours of autonomous work.
+
+5. **Session ends** → AgentOps extracts learnings. Patterns discovered, decisions made, edge cases found—all saved to `.agents/`.
+
+6. **Next session** → Starts at step 1, but smarter. The flywheel turns.
+
+**The agent checks for relevant skills before any task.** Mandatory workflows, not suggestions.
+
+## What's Inside
+
+### Skills Library
+
+**Core Workflow**
+- **research** - Deep codebase exploration before writing code
+- **plan** - Decompose goals into tracked issues
+- **implement** - Execute a single issue with full lifecycle
+- **crank** - Autonomous multi-issue execution (the "ship it" button)
+- **vibe** - Validate code quality, security, architecture
+
+**Knowledge Management**
+- **forge** - Mine transcripts for knowledge
+- **inject** - Load relevant knowledge into session
+- **retro** - Extract learnings from completed work
+- **post-mortem** - Full validation + knowledge extraction
+- **knowledge** - Query knowledge artifacts
+
+**Risk & Quality**
+- **pre-mortem** - Simulate failures before building
+- **bug-hunt** - Systematic root cause analysis
+- **complexity** - Find refactor targets
+
+**Documentation**
+- **doc** - Generate documentation
+- **oss-docs** - Scaffold OSS documentation
+- **golden-init** - Initialize repos with best practices
+
+**Issue Tracking**
+- **beads** - Git-native issue tracking
+- **status** - Quick status check
+
+**Open Source Contribution**
+- **pr-research** - Upstream codebase exploration
+- **pr-prep** - Prepare PRs with proper context
+
+### Domain Expert Agents
+
+When you need specialized review, AgentOps has 6 domain experts:
+
+- **security-expert** - OWASP Top 10, vulnerability assessment
+- **architecture-expert** - System design, cross-cutting concerns
+- **code-quality-expert** - Complexity, patterns, maintainability
+- **ux-expert** - Accessibility, UX validation
+- **code-reviewer** - Code review analysis
+- **security-reviewer** - Security-focused review
+
+### The ao CLI
+
+```bash
+ao badge              # Knowledge flywheel health
+ao inject             # Manually inject knowledge
+ao search "oauth"     # Search your learnings
+ao forge transcript   # Extract from past sessions
+ao hooks install      # Set up auto-hooks
+```
+
+## The Knowledge Flywheel
+
+```
 ╔═══════════════════════════════════════════╗
 ║         🏛️  AGENTOPS KNOWLEDGE             ║
-╠═══════════════════════════════════════════╣
-║  Sessions Mined    │  47                  ║
-║  Learnings         │  156                 ║
-║  Patterns          │  23                  ║
-║  Citations         │  89                  ║
 ╠═══════════════════════════════════════════╣
 ║  Retrieval (σ)     │  0.72  ███████░░░   ║
 ║  Citation Rate (ρ) │  0.34  ███░░░░░░░   ║
@@ -113,144 +125,70 @@ $ ao badge
 ╚═══════════════════════════════════════════╝
 ```
 
-**What the numbers mean:**
-- **σ (sigma)** — Retrieval rate. When you need knowledge, how often does it get found?
-- **ρ (rho)** — Citation rate. When knowledge is found, how often is it used?
-- **δ (delta)** — Decay rate. Knowledge fades at ~17%/week without use.
-- **σ × ρ > δ** — **Escape velocity.** When retrieval × usage beats decay, knowledge compounds.
+- **σ (sigma)** — When you need knowledge, how often is it found?
+- **ρ (rho)** — When found, how often is it actually used?
+- **δ (delta)** — Knowledge fades at ~17%/week without use
 
-| Status | What It Means |
-|--------|--------------|
+**Escape velocity:** When `σ × ρ > δ`, knowledge compounds faster than it decays. That's the goal.
+
+| Status | Meaning |
+|--------|---------|
 | 🌱 STARTING | Just installed. Keep using it. |
 | 📈 BUILDING | Flywheel turning. Approaching escape velocity. |
-| 🚀 COMPOUNDING | **You made it.** Knowledge grows faster than it decays. |
+| 🚀 COMPOUNDING | Knowledge grows faster than it decays. |
 
----
+## Knowledge Storage
 
-## 🔄 The Workflow: R.P.I.
-
-Stop "vibing" random code. Use the **RPI** loop to build software systematically.
-
-| Phase | Command | What it does |
-| --- | --- | --- |
-| **1. Research** | `/research` | Deep scans your codebase & loads past learnings. |
-| **2. Plan** | `/plan` | Breaks your goal into tracked issues/steps. |
-| **3. Implement** | `/implement` | Executes the code. |
-| **4. Validate** | `/vibe` | Runs tests, linters, and checks quality. |
-| **5. Learn** | `/retro` | **Crucial:** Extracts what worked and saves it for next time. |
-
----
-
-## ✨ Features
-
-### 🧠 Permanent Memory (.agents/)
-
-Instead of ephemeral chat logs, we store knowledge in your repo.
-
-* **Learnings:** High-level takeaways (e.g., "The auth service requires a 2-second delay on retry").
-* **Patterns:** Reusable code snippets and architecture decisions.
-* **Searchable:** The `ao` CLI indexes this so Claude finds it instantly.
-
-### 🔌 Powerful Skills
-
-Your Claude instance gains specialized commands:
-
-* **`/crank`**: Autonomous execution. Give it a goal, and it loops through RPI until done.
-* **`/pre-mortem`**: Scans for risks *before* writing code.
-* **`/bug-hunt`**: Specialized root-cause analysis workflow.
-* **`/forge`**: Mines old transcripts to extract gold nuggets of knowledge you missed.
-
-### 📊 The 'ao' CLI
-
-Manage your AI's brain from the terminal.
-
-```bash
-# Check your knowledge health
-$ ao badge
-> COMPOUNDING (Retrieval Rate: 72%)
-
-# Search your team's collective learnings
-$ ao search "oauth retry"
-
-# Manually ingest a past session
-$ ao forge transcript ./session-logs/debug_session.txt
-```
-
----
-
-## ⚡ Comparison
-
-| Feature | Standard Claude Code | **With AgentOps** |
-| --- | --- | --- |
-| **Session Memory** | Gone when tab closes | **Persisted forever** |
-| **Context** | Generic training data | **Your specific codebase history** |
-| **Improvement** | Static (wait for model updates) | **Compounds daily** |
-| **Cost** | Re-explain everything ($) | **Recall instantly (¢)** |
-
----
-
-## 🛠️ All Skills
-
-| Skill | Purpose | Trigger Phrases |
-|-------|---------|-----------------|
-| `/research` | Deep codebase exploration | "understand", "explore", "investigate" |
-| `/plan` | Decompose goals into issues | "plan", "break down", "what issues" |
-| `/implement` | Execute a single issue | "implement", "work on", "fix" |
-| `/crank` | Autonomous multi-issue execution | "execute", "crank", "ship it" |
-| `/vibe` | Validate code quality | "validate", "check", "review" |
-| `/pre-mortem` | Simulate failures before building | "what could go wrong", "risks" |
-| `/retro` | Extract learnings | "retrospective", "what did we learn" |
-| `/post-mortem` | Full validation + extraction | "post-mortem", "wrap up" |
-| `/forge` | Mine transcripts for knowledge | "forge", "extract knowledge" |
-| `/inject` | Load relevant knowledge | "what do we know about" |
-| `/beads` | Issue tracking | "create issue", "what's ready" |
-| `/bug-hunt` | Root cause analysis | "investigate bug", "why is this broken" |
-| `/doc` | Generate documentation | "generate docs", "doc coverage" |
-| `/complexity` | Analyze code complexity | "complexity", "refactor targets" |
-| `/knowledge` | Query knowledge artifacts | "find learnings", "search patterns" |
-
----
-
-## 📁 Knowledge Storage
-
-AgentOps stores knowledge in `.agents/`:
+Everything lives in `.agents/` (git-tracked, permanent):
 
 ```
 .agents/
-├── learnings/    # Extracted lessons (what we learned)
-├── patterns/     # Reusable solutions (how we solved it)
-├── research/     # Exploration findings (what we found)
-├── retros/       # Retrospectives (what went wrong/right)
+├── learnings/    # What we learned
+├── patterns/     # How we solved it
+├── research/     # What we found
+├── retros/       # What went wrong/right
 └── ao/
     ├── sessions/ # Mined transcripts
     └── index/    # Search index
 ```
 
-**Dual format:** Every artifact has `.md` (human-readable) and `.jsonl` (machine-queryable).
+## Philosophy
 
----
+- **Memory over amnesia** - Your AI should remember what worked
+- **Compound over reset** - Each session builds on the last
+- **Automatic over manual** - The flywheel turns itself
+- **Git-tracked over ephemeral** - Knowledge survives sessions, machines, team changes
 
-## 📋 Requirements
+Read more: [The Science Behind the Flywheel](docs/the-science.md)
+
+## Requirements
 
 - [Claude Code](https://github.com/anthropics/claude-code) v1.0+
 - Optional: [beads](https://github.com/beads-ai/beads) for issue tracking
-- Optional: Go 1.22+ (to build ao CLI from source)
 
-## 📚 Documentation
+## Contributing
 
-- **[docs/the-science.md](docs/the-science.md)** — The research & math behind the flywheel
-- [docs/brownian-ratchet.md](docs/brownian-ratchet.md) — Core philosophy
-- [docs/knowledge-flywheel.md](docs/knowledge-flywheel.md) — How compounding works
+Skills live directly in this repository. To contribute:
 
-## 🤝 Contributing
+1. Fork the repository
+2. Create a branch for your skill
+3. Follow the skill template in `skills/`
+4. Submit a PR
 
-We are building the standard for AI-assisted development workflows.
+## Updating
 
-* **Issues:** [GitHub Issues](https://github.com/boshu2/agentops/issues)
+```bash
+brew upgrade agentops
+```
 
 ## License
 
-MIT
+MIT License - see LICENSE file for details
+
+## Support
+
+- **Issues**: https://github.com/boshu2/agentops/issues
+- **Releases**: https://github.com/boshu2/agentops/releases
 
 ---
 
