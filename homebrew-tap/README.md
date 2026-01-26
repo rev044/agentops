@@ -5,7 +5,7 @@ Install the ao CLI via Homebrew.
 ## Quick Install
 
 ```bash
-brew tap boshu2/agentops https://github.com/boshu2/agentops
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
 ```
 

@@ -54,7 +54,7 @@ AgentOps retrieval × usage > decay rate = **compounding, not forgetting**.
 
 ```bash
 # 1. Install CLI
-brew tap boshu2/agentops https://github.com/boshu2/agentops
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
 
 # 2. Install Plugin
