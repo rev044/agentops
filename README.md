@@ -16,19 +16,49 @@ AI coding agents are brilliant but amnesiac. They solve a bug today, forget it t
 
 ## How It Works
 
-It starts the moment you fire up your coding agent. Before you even ask a question, AgentOps quietly injects relevant knowledge from your past sessions—patterns you've discovered, bugs you've solved, architectural decisions you've made.
+```mermaid
+flowchart LR
+    classDef auto fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#166534
+    classDef skill fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
+    classDef store fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
 
-When you start working on something, your agent doesn't just dive in. It runs `/research` to mine your knowledge base first. Found a similar problem three weeks ago? It surfaces that solution. Discovered a gotcha in this codebase? It remembers.
+    subgraph AUTO["AUTOMATIC (hooks)"]
+        A1[Session Start]
+        A2[ao inject]
+        A1 --> A2
+    end
 
-Once you've got context, `/plan` breaks your work into tracked issues with dependencies. Then `/pre-mortem` simulates the implementation multiple times to find failure modes *before* you hit them. "What could go wrong?" becomes "Here's what will go wrong, and here's how we'll prevent it."
+    subgraph WORK["YOUR WORKFLOW"]
+        direction TB
+        W1[/research] --> W2[/plan]
+        W2 --> W3[/pre-mortem]
+        W3 --> W4[/crank]
+        W4 --> W5[/post-mortem]
+    end
 
-When you say "go", `/crank` takes over. It picks up issues, implements them, validates with `/vibe` (security, architecture, complexity, accessibility—9 aspects total), commits, and moves to the next. If something fails validation, it iterates until it passes. No human babysitting required.
+    subgraph STORE["KNOWLEDGE"]
+        S1[.agents/]
+    end
 
-After the work is done, `/post-mortem` extracts what you learned. Did it match the spec? Did it match what you actually wanted? Those learnings get indexed so your *next* research session finds them automatically.
+    A2 -->|prior knowledge| W1
+    W5 -->|learnings| S1
+    S1 -.->|feeds next session| A2
 
-That's the flywheel: **Research mines knowledge → Implementation creates knowledge → Post-mortem captures knowledge → Research mines it again.** Each cycle makes the next one faster.
+    class A1,A2 auto
+    class W1,W2,W3,W4,W5 skill
+    class S1 store
+```
 
-And because everything triggers through hooks, you don't need to do anything special. Your coding agent just has memory.
+| Step | What Happens |
+|------|--------------|
+| **Session Start** | Hooks inject relevant knowledge from past sessions |
+| **/research** | Mine your knowledge base before diving in |
+| **/plan** | Break work into tracked issues with dependencies |
+| **/pre-mortem** | Simulate failures *before* they happen |
+| **/crank** | Autonomous loop: implement → validate → commit → repeat |
+| **/post-mortem** | Extract learnings, index for future sessions |
+
+**The flywheel:** Each cycle feeds the next. Knowledge compounds.
 
 ---
 
