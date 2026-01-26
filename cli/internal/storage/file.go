@@ -88,7 +88,7 @@ func (fs *FileStorage) Init() error {
 	}
 
 	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0700); err != nil {
 			return fmt.Errorf("create directory %s: %w", dir, err)
 		}
 	}
@@ -244,7 +244,7 @@ func (fs *FileStorage) Close() error {
 // atomicWrite writes to a temp file and renames atomically.
 func (fs *FileStorage) atomicWrite(path string, writeFunc func(io.Writer) error) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
 
@@ -291,7 +291,7 @@ func (fs *FileStorage) atomicWrite(path string, writeFunc func(io.Writer) error)
 // appendJSONL appends a JSON line to a file atomically.
 func (fs *FileStorage) appendJSONL(path string, v interface{}) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
 
@@ -305,7 +305,7 @@ func (fs *FileStorage) appendJSONL(path string, v interface{}) error {
 		return fmt.Errorf("marshal json: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}

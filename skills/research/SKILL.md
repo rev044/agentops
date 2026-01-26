@@ -5,215 +5,186 @@ description: 'Deep codebase exploration. Triggers: research, explore, investigat
 
 # Research Skill
 
-Orchestrate Explore agents to systematically investigate a codebase.
+**YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-## How It Works
+## Execution Steps
 
-Research doesn't explore directly - it **dispatches Explore agents** that follow the 6-tier discovery hierarchy. This keeps context clean and uses the specialized exploration capabilities.
+Given `/research <topic>`:
 
-```
-/research <topic>
-    │
-    ├── Task(Explore) → Prior art check (.agents/, MCP)
-    ├── Task(Explore) → Code-map discovery
-    ├── Task(Explore) → Semantic search (MCP)
-    ├── Task(Explore) → Targeted code exploration
-    │
-    └── Synthesize findings → .agents/research/
-```
-
-## Quick Start
-
+### Step 1: Create Output Directory
 ```bash
-/research authentication flows in services/auth
+mkdir -p .agents/research
 ```
 
-## Workflow
+### Step 2: Check Prior Art
 
-### 1. Setup
-
+**First, inject existing knowledge (if ao available):**
 ```bash
-mkdir -p .agents/{research,synthesis}/
+ao inject <topic> 2>/dev/null
 ```
 
-### 2. Mine Prior Knowledge (MANDATORY)
-
-**Before dispatching Explore agents, query the knowledge flywheel:**
-
+Search for existing research on this topic:
 ```bash
-# Query CASS-indexed sessions for prior solutions
-ao forge search "$TOPIC" --cass --limit 10
-
-# Inject relevant learnings with decay applied
-ao inject "$TOPIC" --apply-decay --format markdown --max-tokens 500
+ls -la .agents/research/ 2>/dev/null | grep -i "<topic>" || echo "No prior research found"
 ```
 
-**If ao CLI unavailable, fall back to file search:**
+Also use Grep to search `.agents/` for related content. Check TEMPERED learnings:
 ```bash
-grep -r "$TOPIC" .agents/learnings/ .agents/patterns/ .agents/research/ 2>/dev/null | head -20
+ls -la .agents/learnings/ .agents/patterns/ 2>/dev/null | head -10
 ```
 
-**Output:** Display prior knowledge summary before proceeding. If high-relevance prior art exists, ask user whether to reference existing or start fresh.
+### Step 3: Launch Explore Agent
 
-### 3. Prior Art Check (Explore Agent)
-
-Launch an Explore agent to check existing knowledge:
+**YOU MUST USE THE TASK TOOL NOW.** Call it with these exact parameters:
 
 ```
-Task(
-  subagent_type="Explore",
-  prompt="Search for prior research on '$TOPIC':
-    1. Check .agents/research/ for existing docs
-    2. Check .agents/learnings/ and .agents/patterns/
-    3. Use mcp__smart-connections-work__lookup for semantic matches
-    4. Use mcp__ai-platform__memory_recall for stored insights
+Tool: Task
+Parameters:
+  subagent_type: "Explore"
+  description: "Research: <topic>"
+  prompt: |
+    Thoroughly investigate: <topic>
 
-    Report: What prior work exists? Can we reference instead of duplicate?",
-  description="Prior art check"
-)
+    Search strategy:
+    1. Glob for relevant files (*.md, *.py, *.ts, *.go, etc.)
+    2. Grep for keywords related to <topic>
+    3. Read key files and understand the architecture
+    4. Check docs/ and .agents/ for existing documentation
+
+    Return a detailed report with:
+    - Key files found (with paths)
+    - How the system works
+    - Important patterns or conventions
+    - Any issues or concerns
+
+    Cite specific file:line references for all claims.
 ```
 
-If prior art exists: **reference it**, don't duplicate.
+### Step 4: Dispatch Research Quality Swarm (Optional)
 
-### 4. Context Discovery (Explore Agents)
-
-Launch Explore agents for each tier as needed:
-
-**Tier 1-2: Structured Knowledge**
-```
-Task(
-  subagent_type="Explore",
-  prompt="For topic '$TOPIC':
-    1. Check docs/code-map/ for architecture docs
-    2. Run semantic search via MCP tools
-    3. Return: key files, entry points, patterns found",
-  description="Code-map + semantic search"
-)
-```
-
-**Tier 3-4: Code Exploration**
-```
-Task(
-  subagent_type="Explore",
-  prompt="For topic '$TOPIC' in path '$SCOPE':
-    1. Find relevant files (Glob with specific patterns)
-    2. Search for keywords (Grep with scope)
-    3. Read key files and trace relationships
-    4. Return: findings with file:line citations",
-  description="Targeted code exploration"
-)
-```
-
-### 5. Synthesize Findings
-
-After Explore agents return, synthesize into a research document:
-
-**Write to:** `.agents/research/YYYY-MM-DD-{topic}.md`
-
-**Required sections:**
-- Executive Summary (2-3 sentences)
-- Current State (key files table)
-- Findings (with `file:line` evidence)
-- Constraints & Risks
-- Recommendation
-- Next Steps
-
-### 6. Create Synthesis Artifact
-
-**MANDATORY:** Research is chaos. Synthesis is the ratchet.
+**For thorough research, launch parallel quality validation agents:**
 
 ```
-/research (chaos) → SYNTHESIS (ratchet) → /plan or /product
+Launch ALL FOUR agents in parallel (single message, 4 Task tool calls):
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:coverage-expert"
+  model: "haiku"
+  description: "Coverage validation"
+  prompt: |
+    Validate research breadth for: <topic>
+    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
+
+    Check: Did we look everywhere we should? Any unexplored areas?
+    Return: Coverage score and gaps found.
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:depth-expert"
+  model: "haiku"
+  description: "Depth validation"
+  prompt: |
+    Validate research depth for: <topic>
+    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
+
+    Check: Do we UNDERSTAND the critical parts? HOW and WHY, not just WHAT?
+    Return: Depth scores (0-4) for critical areas.
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:gap-identifier"
+  model: "haiku"
+  description: "Gap identification"
+  prompt: |
+    Find missing information for: <topic>
+    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
+
+    Check: What DON'T we know that we SHOULD know?
+    Return: Critical gaps that must be filled before proceeding.
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:assumption-challenger"
+  model: "haiku"
+  description: "Assumption challenge"
+  prompt: |
+    Challenge assumptions in research for: <topic>
+    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
+
+    Check: What assumptions are we building on? Are they verified?
+    Return: High-risk assumptions that need verification.
 ```
 
-**Write to:** `.agents/synthesis/YYYY-MM-DD-{topic}.md`
+**Wait for all 4 agents, then synthesize their findings.**
 
-Consolidate findings into a single canonical reference (~10-20K chars).
+### Step 5: Synthesize Findings
 
-### 7. Lock the Ratchet
+After the Explore agent and validation swarm return, write findings to:
+`.agents/research/YYYY-MM-DD-<topic-slug>.md`
 
-**Index and record for the flywheel:**
+Use this format:
+```markdown
+# Research: <Topic>
 
-```bash
-# Index research output so future sessions can find it
-ao forge index .agents/research/YYYY-MM-DD-$TOPIC.md
-ao forge index .agents/synthesis/YYYY-MM-DD-$TOPIC.md
+**Date:** YYYY-MM-DD
+**Scope:** <what was investigated>
 
-# Record provenance in the ratchet chain
-ao ratchet record research \
-  --input "$TOPIC" \
-  --output ".agents/research/YYYY-MM-DD-$TOPIC.md" \
-  --output ".agents/synthesis/YYYY-MM-DD-$TOPIC.md"
+## Summary
+<2-3 sentence overview>
+
+## Key Files
+| File | Purpose |
+|------|---------|
+| path/to/file.py | Description |
+
+## Findings
+<detailed findings with file:line citations>
+
+## Recommendations
+<next steps or actions>
 ```
 
-**The ratchet is now locked.** This research is discoverable by future `/research` calls via `ao forge search`.
+### Step 6: Request Human Approval (Gate 1)
 
-## 6-Tier Discovery Hierarchy
+**USE AskUserQuestion tool:**
 
-Explore agents follow this priority order:
+```
+Tool: AskUserQuestion
+Parameters:
+  questions:
+    - question: "Research complete. Approve to proceed to planning?"
+      header: "Gate 1"
+      options:
+        - label: "Approve"
+          description: "Research is sufficient, proceed to /plan"
+        - label: "Revise"
+          description: "Need deeper research on specific areas"
+        - label: "Abandon"
+          description: "Stop this line of investigation"
+      multiSelect: false
+```
 
-| Tier | Source | When to Use |
-|------|--------|-------------|
-| 1 | Code-map (`docs/code-map/`) | Always first - fastest, most authoritative |
-| 2 | Semantic search (MCP) | Conceptual matches, stored insights |
-| 3 | Scoped grep/glob | Specific keywords, file patterns |
-| 4 | Source code reading | Direct evidence from files |
-| 5 | Knowledge artifacts (`.agents/`) | Historical context |
-| 6 | External (web) | Last resort only |
+**Wait for approval before reporting completion.**
+
+### Step 7: Report to User
+
+Tell the user:
+1. What you found
+2. Where the research doc is saved
+3. Gate 1 approval status
+4. Next step: `/plan` to create implementation plan
 
 ## Key Rules
 
-| Rule | Why |
-|------|-----|
-| Use Explore agents | Keeps main context clean |
-| Check prior art first | Prevents re-solving |
-| Scope all searches | Context efficiency |
-| Always cite `file:line` | Verifiable claims |
-| Synthesize before planning | Single source of truth |
+- **Actually dispatch the Explore agent** - don't just describe doing it
+- **Scope searches** - use the topic to narrow file patterns
+- **Cite evidence** - every claim needs `file:line`
+- **Write output** - research must produce a `.agents/research/` artifact
 
-## Explore Agent Configuration
+## Thoroughness Levels
 
-When launching Explore agents, specify thoroughness:
-
-| Level | Use For |
-|-------|---------|
-| `"quick"` | Simple lookups, single-file questions |
-| `"medium"` | Feature exploration, moderate scope |
-| `"very thorough"` | Architecture research, cross-cutting concerns |
-
-Example:
-```
-Task(
-  subagent_type="Explore",
-  prompt="Very thorough exploration of authentication system...",
-  description="Auth system deep dive"
-)
-```
-
-## ao CLI Integration
-
-When ao CLI is available, use it for knowledge operations:
-
-```bash
-# Search existing knowledge before exploring
-ao forge search "<topic>" --limit 10
-
-# Index research output for future retrieval
-ao forge index .agents/research/<topic>.md
-
-# Record research completion for provenance
-ao ratchet record research --input "<topic>" --output ".agents/research/<topic>.md"
-```
-
-## References
-
-- `references/context-discovery.md` - 6-tier hierarchy details
-- `references/document-template.md` - Output format
-
-## Next
-
-```
-/research → SYNTHESIS → /plan or /product
-```
-
-After research, create synthesis doc, then run `/plan` or `/product`.
+Include in your Explore agent prompt:
+- "quick" - for simple questions
+- "medium" - for feature exploration
+- "very thorough" - for architecture/cross-cutting concerns

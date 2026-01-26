@@ -3,108 +3,288 @@ name: vibe
 description: 'Talos-class comprehensive code validation. Use for "validate code", "run vibe", "check quality", "security review", "architecture review", "accessibility audit", "complexity check", or any validation need. One skill to validate them all.'
 ---
 
-# Vibe - Talos Comprehensive Validation
+# Vibe Skill
 
-**One skill to validate them all.**
+**YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-Vibe is a Talos-class validator that combines fast static analysis with deep
-semantic verification across all quality dimensions: code quality, security,
-architecture, accessibility, complexity, and more.
+Comprehensive code validation across 8 quality aspects.
 
-## Role in the Brownian Ratchet
+## Execution Steps
 
-> **Vibe is THE filter.**
+Given `/vibe [target]`:
 
-In the Brownian Ratchet pipeline (chaos + filter + ratchet = progress), vibe serves as
-the primary validation gate that determines what can proceed:
+### Step 1: Load Vibe-Coding Science
 
-| Severity | Gate Decision | Ratchet Status |
-|----------|---------------|----------------|
-| 0 CRITICAL | **PASS** | Can ratchet forward (merge allowed) |
-| 1+ CRITICAL | **BLOCK** | Must fix before proceeding |
-| HIGH findings | **WARN** | Creates follow-up issues, can proceed |
-
-**Gate Mode** (CI/automation):
-```bash
-/vibe recent --gate      # Exit non-zero on CRITICAL findings
+**Read the vibe-coding reference:**
+```
+Tool: Read
+Parameters:
+  file_path: skills/vibe/references/vibe-coding.md
 ```
 
-Without the filter, chaos produces garbage. Vibe ensures only valid work ratchets.
+This gives you:
+- Vibe Levels (L0-L5 trust calibration)
+- 5 Core Metrics and thresholds
+- 12 Failure Patterns to detect
+- Grade mapping
 
-## Philosophy
+### Step 1a: Pre-flight Checks
 
-> **Mono over Micro**: Instead of chaining small skills, Vibe provides comprehensive
-> validation in one invocation. Trade-off: larger context, but simpler mental model
-> and guaranteed coverage.
-
-> **Evidence over Scores**: All claims must be verifiable with specific evidence.
-> Use letter grades + findings for quality assessments. Never use numeric scores
-> (X/100) for subjective qualities. No "100%" claims without specific context.
-
-## Quick Start
+**Before proceeding, verify we have work to validate:**
 
 ```bash
-/vibe                     # Auto-detect target (recent changes or staged files)
-/vibe recent              # Full validation of recent changes
-/vibe services/           # Validate a directory
-/vibe --fast recent       # Prescan only (no LLM, CI-friendly)
-/vibe --security recent   # Security-focused deep dive
-/vibe --all-aspects all   # Nuclear option: everything on everything
+# Check if in git repo
+git rev-parse --git-dir 2>/dev/null || echo "NOT_GIT"
 ```
 
-## Argument Inference
+If NOT_GIT and no explicit path provided, STOP with error:
+> "Not in a git repository. Provide explicit file path: `/vibe path/to/files`"
 
-When invoked without an explicit target, infer from context:
+### Step 2: Determine Target and Vibe Level
 
-### Priority 1: Conversational Context
+**If target provided:** Use it directly.
 
-If the user mentions a topic, file, or directory in the same message (e.g., "/vibe the auth changes"),
-use that as the target:
+**Classify the vibe level based on task type:**
+| Task Type | Vibe Level | Depth |
+|-----------|:----------:|-------|
+| Format, lint | L5 | Skip |
+| Boilerplate | L4 | Quick |
+| CRUD, tests | L3 | Quick |
+| Features | L2 | Deep |
+| Architecture, security | L1 | Deep |
+
+**If no target:** Auto-detect from git state:
+```bash
+# Check staged changes
+git diff --cached --name-only 2>/dev/null | head -10
+
+# Check unstaged changes
+git diff --name-only 2>/dev/null | head -10
+
+# Check recent commits
+git log --oneline -5 --since="24 hours ago" 2>/dev/null
+```
+
+Use the first non-empty result. If nothing found, ask user.
+
+### Step 2a: Pre-flight Check - Files Exist
+
+**If auto-detected 0 files to review:**
+```
+STOP and return:
+  Grade: PASS
+  Reason: "No changes detected to review"
+  Action: None required
+```
+
+Do NOT proceed with empty file list - this wastes context.
+
+### Step 3: Get Changed Files
 
 ```bash
-# User said "/vibe the auth changes" -> validate auth-related files
-git diff --name-only | grep -i auth
-# Or search for auth directory
-find . -type d -name "*auth*" | head -1
+# For "recent" target
+git diff --name-only HEAD~3 2>/dev/null | head -20
+
+# For specific path
+ls -la <path>
 ```
 
-**Extract keywords** from the user's message and match against changed files or directories.
+### Step 4: Read the Files
 
-### Priority 2: Git State Discovery
+Use the Read tool to read each changed file. Understand what the code does.
+
+### Step 5: Validate 8 Aspects
+
+For each file, check:
+
+| Aspect | What to Look For |
+|--------|------------------|
+| **Semantic** | Does code match docstrings? Misleading names? |
+| **Security** | SQL injection, XSS, hardcoded secrets, auth issues |
+| **Quality** | Dead code, copy-paste, magic numbers, code smells |
+| **Architecture** | Layer violations, circular deps, god classes |
+| **Complexity** | Deep nesting, long functions, too many params |
+| **Performance** | N+1 queries, unbounded loops, resource leaks |
+| **Slop** | AI hallucinations, cargo cult code, over-engineering |
+| **Accessibility** | Missing ARIA, keyboard nav issues, contrast |
+
+### Step 6: Dispatch Expert Agents (for deep validation)
+
+For comprehensive validation, dispatch 6 specialized agents **in parallel (single message, 6 Task tool calls)**:
+
+```
+Tool: Task (ALL 6 IN PARALLEL)
+Parameters:
+  subagent_type: "agentops:security-reviewer"
+  model: "haiku"
+  description: "Security review"
+  prompt: "Review these files for security issues: <file-list>"
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:code-reviewer"
+  model: "haiku"
+  description: "Code quality review"
+  prompt: "Review these files for quality issues: <file-list>"
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:architecture-expert"
+  model: "haiku"
+  description: "Architecture review"
+  prompt: "Review architecture and patterns in: <file-list>"
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:code-quality-expert"
+  model: "haiku"
+  description: "Complexity review"
+  prompt: "Check complexity and maintainability of: <file-list>"
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:security-expert"
+  model: "haiku"
+  description: "Security deep dive"
+  prompt: "Deep security analysis of: <file-list>"
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:ux-expert"
+  model: "haiku"
+  description: "UX/Accessibility review"
+  prompt: "Review UX and accessibility of: <file-list>"
+```
+
+**Timeout handling:** Per-agent timeout of 3 minutes (180000ms). If agent times out, continue with remaining results if quorum (80%) met. See `.agents/specs/conflict-resolution-algorithm.md` for synthesis rules.
+
+### Step 6a: Apply Conflict Resolution (for swarm results)
+
+**If multiple agents dispatched:**
+1. Check quorum (80% minimum must return)
+2. Apply severity escalation (if ANY agent reports CRITICAL → final is CRITICAL)
+3. Deduplicate findings by file:line (±5 lines tolerance)
+4. Track agreement per finding (e.g., "3/6 agents found this")
+5. Compute weighted grade
+
+**If quorum not met:** Report as INCOMPLETE, do not publish grade.
+
+See: `.agents/specs/conflict-resolution-algorithm.md`
+
+### Step 7: Check for Failure Patterns
+
+**Detect the 12 failure patterns from vibe-coding science:**
+
+| Pattern | Detection Method |
+|---------|------------------|
+| #1 Tests Lie | Compare test output to actual behavior |
+| #4 Debug Spiral | Count consecutive fix commits |
+| #5 Eldritch Horror | Functions >500 lines |
+| #6 Collision | Multiple recent editors on same file |
+
+### Step 8: Categorize Findings
+
+Group findings by severity:
+
+| Severity | Definition | Gate |
+|----------|------------|------|
+| **CRITICAL** | Security vulnerability, data loss risk | BLOCKS |
+| **HIGH** | Significant bug, performance issue | Should fix |
+| **MEDIUM** | Code smell, maintainability issue | Worth noting |
+| **LOW** | Style, minor improvement | Optional |
+
+### Step 9: Compute Grade
+
+Based on findings:
+- **A**: 0 critical, 0-2 high
+- **B**: 0 critical, 3-5 high
+- **C**: 0 critical, 6+ high OR 1 critical (fixed)
+- **D**: 1+ critical unfixed
+- **F**: Multiple critical, systemic issues
+
+### Step 10: Write Vibe Report
+
+**Write to:** `.agents/vibe/YYYY-MM-DD-<target>.md`
+
+```markdown
+# Vibe Report: <Target>
+
+**Date:** YYYY-MM-DD
+**Files Reviewed:** <count>
+**Grade:** <A-F>
+
+## Summary
+<Overall assessment in 2-3 sentences>
+
+## Gate Decision
+[ ] PASS - 0 critical findings
+[ ] BLOCK - <count> critical findings must be fixed
+
+## Findings
+
+### CRITICAL
+1. **<File:Line>** - <Issue>
+   - **Risk:** <what could happen>
+   - **Fix:** <how to fix>
+
+### HIGH
+1. **<File:Line>** - <Issue>
+   - **Fix:** <how to fix>
+
+### MEDIUM
+- <File:Line>: <brief issue>
+
+## Aspects Summary
+| Aspect | Status |
+|--------|--------|
+| Semantic | <OK/Issues> |
+| Security | <OK/Issues> |
+| Quality | <OK/Issues> |
+| Architecture | <OK/Issues> |
+| Complexity | <OK/Issues> |
+| Performance | <OK/Issues> |
+| Slop | <OK/Issues> |
+| Accessibility | <OK/N/A> |
+```
+
+### Step 11: Report to User
+
+Tell the user:
+1. Overall grade
+2. Gate decision (PASS/BLOCK)
+3. Critical and high findings (if any)
+4. Location of full report
+
+## Key Rules
+
+- **0 CRITICAL = PASS** - the gate rule
+- **Evidence for every finding** - cite file:line
+- **Actionable fixes** - tell them HOW to fix, not just what's wrong
+- **Grade reflects reality** - don't inflate or deflate
+- **Write the report** - always produce `.agents/vibe/` artifact
+
+## Quick vs Deep
+
+- **Quick** (`/vibe`): Read files, check obvious issues
+- **Deep** (`/vibe --deep`): Dispatch expert agents for thorough review
+
+## Prescan Script
+
+The vibe skill includes an automated prescan script at `scripts/prescan.sh`:
 
 ```bash
-# 1. Check for staged changes
-STAGED=$(git diff --cached --name-only 2>/dev/null | head -20)
-if [[ -n "$STAGED" ]]; then
-    TARGET="staged"
-    echo "[VIBE] Auto-selected target: staged changes"
-    echo "$STAGED" | head -5
-    exit 0
-fi
-
-# 2. Check for unstaged changes
-UNSTAGED=$(git diff --name-only 2>/dev/null | head -20)
-if [[ -n "$UNSTAGED" ]]; then
-    TARGET="recent"
-    echo "[VIBE] Auto-selected target: recent changes (unstaged)"
-    echo "$UNSTAGED" | head -5
-    exit 0
-fi
-
-# 3. Check for recent commits (last 24h)
-RECENT_COMMITS=$(git log --since="24 hours ago" --oneline 2>/dev/null | head -5)
-if [[ -n "$RECENT_COMMITS" ]]; then
-    TARGET="recent"
-    echo "[VIBE] Auto-selected target: recent commits"
-    echo "$RECENT_COMMITS"
-    exit 0
-fi
-
-# 4. No changes found - ask user
-echo "[VIBE] No recent changes detected. Please specify a target:"
-echo "  /vibe services/        # Validate a directory"
-echo "  /vibe path/to/file.py  # Validate specific file"
-echo "  /vibe all              # Validate entire codebase"
+# Run prescan for secret detection
+./scripts/prescan.sh <target-path>
 ```
 
-**Key**: Conversational keywords > staged > unstaged > recent commits > ask user.
+**What it checks:**
+- Hardcoded secrets (API keys, passwords, tokens)
+- AWS/GCP/Azure credentials
+- Private keys
+- Connection strings
+
+**Exit codes:**
+- `0`: No secrets found
+- `1`: Secrets detected (blocks gate)
+
+**Integration:** Run prescan before full vibe validation to catch secrets early.

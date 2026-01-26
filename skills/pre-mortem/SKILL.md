@@ -5,48 +5,192 @@ description: 'Pre-mortem simulation for specs and designs. Simulates N iteration
 
 # Pre-Mortem Skill
 
-Pre-mortem simulation: find what will go wrong BEFORE implementation.
+**YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-## Role in the Brownian Ratchet
+Simulate implementation failures BEFORE building to catch problems early.
 
-Pre-mortem is the **pre-implementation filter** - it catches failures before they happen:
+## Execution Steps
 
-| Component | Pre-Mortem's Role |
-|-----------|-------------------|
-| **Chaos** | Simulate N iterations with different failure modes |
-| **Filter** | Each iteration identifies problems before implementation |
-| **Ratchet** | Enhanced spec locks lessons learned |
+Given `/pre-mortem <spec-or-plan>`:
 
-> **Pre-mortem filters BEFORE the chaos of implementation starts.**
+### Step 1: Load the Spec/Plan
 
-Unlike /vibe which filters code after writing, pre-mortem filters specs
-before implementation begins. This prevents entire classes of failures
-from ever being attempted.
-
-**The Economics:**
-- Without pre-mortem: 10 implementation attempts × fix time = expensive
-- With pre-mortem: 10 mental simulations + 1 correct implementation = cheap
-
-## Quick Start
-
-```bash
-/pre-mortem .agents/specs/2026-01-22-feature-spec.md
+If a path is provided, read it:
+```
+Tool: Read
+Parameters:
+  file_path: <provided path>
 ```
 
-## Philosophy
+If no path, check for recent plans:
+```bash
+ls -lt .agents/plans/ .agents/specs/ 2>/dev/null | head -5
+```
 
-> "Simulate doing it 10 times and learn all the lessons so we don't have to."
+### Step 2: Understand What We're Building
 
-Instead of:
-1. Write spec
-2. Implement
-3. Hit problems
-4. Fix spec
-5. Repeat 10 times
+Read the spec/plan carefully. Identify:
+- **Goal**: What are we trying to build?
+- **Components**: What pieces need to be created?
+- **Integrations**: What does this connect to?
+- **Constraints**: What limitations exist?
 
-Do:
-1. Write spec v1
-2. **Simulate 10 iterations mentally**
-3. Extract ALL lessons upfront
-4. Write spec v2 (battle-hardened)
-5. Implement once, correctly
+### Step 3: Dispatch Failure Expert Swarm
+
+**Launch parallel failure simulations from different perspectives.**
+
+```
+Tool: Task
+Parameters:
+  subagent_type: "agentops:integration-failure-expert"
+  description: "Integration failure simulation"
+  prompt: |
+    Simulate integration failures for this spec/plan:
+    <spec-content>
+
+    Identify: API mismatches, protocol issues, system boundary problems.
+    Return findings with severity ratings.
+```
+
+```
+Tool: Task
+Parameters:
+  subagent_type: "agentops:ops-failure-expert"
+  description: "Operations failure simulation"
+  prompt: |
+    Simulate production operations failures for this spec/plan:
+    <spec-content>
+
+    Identify: Deployment risks, scaling issues, monitoring gaps, incident response holes.
+    Return findings with severity ratings.
+```
+
+```
+Tool: Task
+Parameters:
+  subagent_type: "agentops:data-failure-expert"
+  description: "Data failure simulation"
+  prompt: |
+    Simulate data failures for this spec/plan:
+    <spec-content>
+
+    Identify: Corruption risks, consistency issues, migration problems, state management gaps.
+    Return findings with severity ratings.
+```
+
+```
+Tool: Task
+Parameters:
+  subagent_type: "agentops:edge-case-hunter"
+  description: "Edge case hunting"
+  prompt: |
+    Hunt for unhandled edge cases in this spec/plan:
+    <spec-content>
+
+    Identify: Boundary conditions, unusual inputs, unexpected states, timing issues.
+    Return findings with severity ratings.
+```
+
+**Wait for all agents to return, then synthesize findings.**
+
+### Step 4: Categorize Findings
+
+Group findings by severity:
+
+| Severity | Definition | Action |
+|----------|------------|--------|
+| **CRITICAL** | Will definitely fail | Must fix in spec |
+| **HIGH** | Likely to cause problems | Should address |
+| **MEDIUM** | Could cause issues | Worth noting |
+| **LOW** | Minor concerns | Optional |
+
+### Step 5: Run Vibe on Spec (Optional)
+
+If the spec is substantial, validate it:
+```
+Tool: Skill
+Parameters:
+  skill: "agentops:vibe"
+  args: "<spec-path>"
+```
+
+### Step 6: Write Pre-Mortem Report
+
+**Write to:** `.agents/pre-mortems/YYYY-MM-DD-<topic>.md`
+
+```markdown
+# Pre-Mortem: <Topic>
+
+**Date:** YYYY-MM-DD
+**Spec:** <path to spec/plan>
+
+## Summary
+<What we're building and key risks>
+
+## Simulation Findings
+
+### CRITICAL (Must Fix)
+1. **<Issue>**: <Description>
+   - **Why it will fail:** <explanation>
+   - **Recommended fix:** <how to address>
+
+### HIGH (Should Fix)
+1. **<Issue>**: <Description>
+   - **Risk:** <what could happen>
+   - **Mitigation:** <how to reduce risk>
+
+### MEDIUM (Consider)
+- <issue and brief note>
+
+## Ambiguities Found
+- <unclear requirement 1>
+- <unclear requirement 2>
+
+## Spec Enhancement Recommendations
+1. Add: <what to add>
+2. Clarify: <what to clarify>
+3. Remove: <what to remove>
+
+## Verdict
+[ ] READY - Proceed to implementation
+[ ] NEEDS WORK - Address critical/high issues first
+```
+
+### Step 7: Request Human Approval (Gate 3)
+
+**USE AskUserQuestion tool:**
+
+```
+Tool: AskUserQuestion
+Parameters:
+  questions:
+    - question: "Pre-mortem found N critical, M high issues. Proceed to implementation?"
+      header: "Gate 3"
+      options:
+        - label: "Proceed"
+          description: "Accept risks, proceed to /crank"
+        - label: "Fix Plan"
+          description: "Address critical issues before implementing"
+        - label: "Back to Research"
+          description: "Need more research before proceeding"
+      multiSelect: false
+```
+
+**Wait for approval before proceeding to implementation.**
+
+### Step 8: Report to User
+
+Tell the user:
+1. Number of issues found by severity
+2. Whether spec is ready or needs work
+3. Top 3 most important fixes
+4. Location of pre-mortem report
+5. Gate 3 decision
+
+## Key Rules
+
+- **Simulate, don't just review** - mentally build it 10 times
+- **Be adversarial** - look for ways it will fail
+- **Categorize by severity** - not all issues are equal
+- **Write findings** - always produce `.agents/pre-mortems/` artifact
+- **Block on CRITICAL** - don't proceed with critical issues unresolved

@@ -490,12 +490,21 @@ json=$(jq -n \
 
 ### Polling with Timeout
 
+> **SECURITY WARNING:** The pattern below uses `eval` which can lead to command injection
+> if `condition_cmd` contains unsanitized user input. **Never pass untrusted input to this function.**
+> For safer alternatives, use bash functions instead of string evaluation:
+> ```bash
+> # SAFER: Pass a function name instead of a command string
+> wait_for_condition 300 10 check_pod_running
+> ```
+
 ```bash
 wait_for_condition() {
     local timeout=${1:-300}
     local interval=${2:-10}
     local condition_cmd="$3"
 
+    # WARNING: eval is dangerous with untrusted input - see security note above
     local elapsed=0
     while ! eval "$condition_cmd" &>/dev/null; do
         if [[ $elapsed -ge $timeout ]]; then

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 
 	"github.com/spf13/cobra"
 )
@@ -81,4 +82,13 @@ func VerbosePrintf(format string, args ...interface{}) {
 	if verbose {
 		fmt.Printf(format, args...)
 	}
+}
+
+// GetCurrentUser returns the current system username.
+// Uses os/user package for reliable identity, not spoofable via env vars.
+func GetCurrentUser() string {
+	if u, err := user.Current(); err == nil {
+		return u.Username
+	}
+	return "unknown"
 }

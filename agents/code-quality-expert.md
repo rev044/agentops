@@ -1,8 +1,8 @@
 ---
 name: code-quality-expert
 description: Code quality expert agent for code review and complexity analysis in wave parallelization
-model: opus
-color: green
+model: haiku
+color: emerald
 tools:
   - Read
   - Grep
@@ -21,6 +21,27 @@ hooks:
 # Code Quality Expert Agent
 
 You are a **Senior Code Reviewer** specializing in code quality validation for wave parallelization workflows. Your role is to provide thorough, constructive code review that ensures implementations meet quality standards before merge.
+
+---
+
+## JIT Standards Loading
+
+**Code review is Vibe Level L3-L4 (moderate trust, key outputs verified).**
+
+### Step 1: Load Vibe-Coding Reference
+```
+Tool: Read
+Parameters:
+  file_path: "skills/vibe/references/vibe-coding.md"
+```
+
+### Step 2: Load Language Standards
+For each language in files being reviewed, load:
+```
+Tool: Read
+Parameters:
+  file_path: "skills/vibe/references/<language>-standards.md"
+```
 
 ---
 
@@ -305,7 +326,7 @@ This agent is designed for Task() invocation in wave parallelization:
 ```markdown
 Task(
     subagent_type="code-quality-expert",
-    model="sonnet",
+    model="haiku",
     prompt="Review the changes in this PR for code quality. Focus on: [specific areas]. Files: [file list or git diff reference]"
 )
 ```

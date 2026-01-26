@@ -43,11 +43,13 @@ tmux send-keys -t gt-<rig>-<polecat> "continue with your assigned task" Enter
 tmux capture-pane -t gt-<rig>-<polecat> -p | grep -i "limit"
 
 # Step 4: If usage limit, nuke and re-sling after cooldown
+# WARNING: This destroys the polecat session. Ensure work is saved.
 gt polecat nuke <rig>/<name> --force
 # Wait for limit reset, then:
 gt sling <issue> <rig>
 
 # Step 5: If other cause, nuke and re-sling immediately
+# WARNING: This destroys the polecat session. Ensure work is saved.
 gt polecat nuke <rig>/<name> --force
 gt sling <issue> <rig>
 ```

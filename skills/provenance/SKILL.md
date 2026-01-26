@@ -3,35 +3,39 @@ name: provenance
 description: 'Trace knowledge artifact lineage and sources. Find orphans, stale citations. Triggers: "where did this come from", "trace this learning", "knowledge lineage".'
 ---
 
-# Skill: Provenance
+# Provenance Skill
 
-> Trace knowledge lineage. Every insight has a source.
+Trace knowledge artifact lineage to sources.
 
-## Triggers
+## Execution Steps
 
-- `/provenance <artifact>`
-- "where did this come from"
-- "trace this learning"
-- "show source for"
-- "knowledge lineage"
+Given `/provenance <artifact>`:
 
-## Synopsis
+### Step 1: Read the Artifact
 
-```bash
-/provenance <path>              # Trace single artifact
-/provenance --orphans           # Find knowledge without sources
-/provenance --stale             # Find outdated citations
-/provenance --graph <artifact>  # Show citation graph
+```
+Tool: Read
+Parameters:
+  file_path: <artifact-path>
 ```
 
-## What It Does
+Look for provenance metadata:
+- Source references
+- Session IDs
+- Dates
+- Related artifacts
 
-1. **Parse** - Read artifact's metadata
-2. **Resolve** - Find source transcript(s)
-3. **Trace** - Build lineage chain
-4. **Report** - Show provenance with context
+### Step 2: Trace Source Chain
 
-## Lineage Chain
+```bash
+# Check for source metadata in the file
+grep -i "source\|session\|from\|extracted" <artifact-path>
+
+# Search for related transcripts
+ao forge search "<artifact-name>" 2>/dev/null
+```
+
+### Step 3: Build Lineage Chain
 
 ```
 Transcript (source of truth)
@@ -45,62 +49,67 @@ Pattern recognition (tier-up)
 Skill creation (automation)
 ```
 
-## Output
+### Step 4: Write Provenance Report
 
 ```markdown
-# Provenance: always-push-before-done.md
+# Provenance: <artifact-name>
 
 ## Current State
-- **Tier:** 1 (Learning)
-- **Created:** 2026-01-15
-- **Citations:** 4
+- **Tier:** <0-3>
+- **Created:** <date>
+- **Citations:** <count>
 
 ## Source Chain
-1. **Origin:** transcript-xyz789.jsonl
-   - Line: 2341-2367
-   - Context: "Session ended without pushing, lost 2 hours of work"
-   - Extracted: 2026-01-15T14:23:00Z
+1. **Origin:** <transcript or session>
+   - Line/context: <where extracted>
+   - Extracted: <date>
 
-2. **Promoted:** Tier 0 → Tier 1
-   - Reason: 2 citations within 7 days
-   - Promoted: 2026-01-17T09:00:00Z
+2. **Promoted:** <tier change>
+   - Reason: <why promoted>
+   - Date: <when>
 
-## Citations
-- transcript-abc123.jsonl:891 (2026-01-16)
-- transcript-def456.jsonl:1234 (2026-01-17)
-- transcript-ghi789.jsonl:567 (2026-01-20)
-- transcript-jkl012.jsonl:2341 (2026-01-23)
-
-## Related
-- patterns/session-discipline.md (Tier 2)
-- skills/commit/SKILL.md (references this)
+## Related Artifacts
+- <related artifact 1>
+- <related artifact 2>
 ```
 
-## Orphan Detection
+### Step 5: Report to User
+
+Tell the user:
+1. Artifact lineage
+2. Original source
+3. Promotion history
+4. Related artifacts
+
+## Finding Orphans
 
 ```bash
 /provenance --orphans
-
-# Output:
-# Found 3 orphaned artifacts (no source transcript):
-# - .agents/learnings/legacy-pattern.md
-# - .agents/patterns/old-approach.md
-# - .agents/decisions/undocumented.md
 ```
 
-## Staleness Check
+Find artifacts without source tracking:
+```bash
+# Files without "Source:" or "Session:" metadata
+for f in .agents/learnings/*.md; do
+  grep -L "Source\|Session" "$f" 2>/dev/null
+done
+```
+
+## Finding Stale Artifacts
 
 ```bash
 /provenance --stale
-
-# Output:
-# Found 2 stale artifacts (source modified since extraction):
-# - .agents/learnings/api-design.md
-#   Source changed: 2026-01-22 (artifact: 2026-01-10)
 ```
 
-## Metadata Format
+Find artifacts where source may have changed:
+```bash
+# Artifacts older than their sources
+find .agents/ -name "*.md" -mtime +30 2>/dev/null
+```
 
-Each forged artifact includes:
+## Key Rules
 
-```yaml
+- **Every insight has a source** - trace it
+- **Track promotions** - know why tier changed
+- **Find orphans** - clean up untracked knowledge
+- **Maintain lineage** - provenance enables trust

@@ -3,112 +3,124 @@ name: flywheel
 description: 'Knowledge flywheel health monitoring. Checks velocity, pool depths, staleness. Triggers: "flywheel status", "knowledge health", "is knowledge compounding".'
 ---
 
-# Skill: Flywheel
+# Flywheel Skill
 
-> Monitor knowledge compounding. Is the flywheel spinning?
-
-## Triggers
-
-- `/flywheel`
-- "knowledge health"
-- "flywheel status"
-- "is knowledge compounding"
-- "check knowledge velocity"
-
-## Synopsis
-
-```bash
-/flywheel                # Full health report
-/flywheel --velocity     # Just velocity metrics
-/flywheel --pools        # Just poao depths
-/flywheel --stale        # Just staleness check
-```
-
-## What It Does
-
-1. **Measure** - Calculate knowledge velocity
-2. **Assess** - Check poao health
-3. **Detect** - Find stale or orphaned knowledge
-4. **Report** - Provide actionable insights
+Monitor the knowledge flywheel health.
 
 ## The Flywheel Model
 
 ```
-Sessions → Transcripts → Forge → Poao → Promote → Knowledge
+Sessions → Transcripts → Forge → Pool → Promote → Knowledge
      ↑                                               │
      └───────────────────────────────────────────────┘
                     Future sessions find it
 ```
 
-**Velocity** = Rate of knowledge flowing through the system
+**Velocity** = Rate of knowledge flowing through
 **Friction** = Bottlenecks slowing the flywheel
 
-## Health Report
+## Execution Steps
+
+Given `/flywheel`:
+
+### Step 1: Measure Knowledge Pools
+
+```bash
+# Count learnings
+LEARNINGS=$(ls .agents/learnings/ 2>/dev/null | wc -l)
+
+# Count patterns
+PATTERNS=$(ls .agents/patterns/ 2>/dev/null | wc -l)
+
+# Count research
+RESEARCH=$(ls .agents/research/ 2>/dev/null | wc -l)
+
+# Count retros
+RETROS=$(ls .agents/retros/ 2>/dev/null | wc -l)
+
+echo "Learnings: $LEARNINGS"
+echo "Patterns: $PATTERNS"
+echo "Research: $RESEARCH"
+echo "Retros: $RETROS"
+```
+
+### Step 2: Check Recent Activity
+
+```bash
+# Recent learnings (last 7 days)
+find .agents/learnings/ -mtime -7 2>/dev/null | wc -l
+
+# Recent research
+find .agents/research/ -mtime -7 2>/dev/null | wc -l
+```
+
+### Step 3: Detect Staleness
+
+```bash
+# Old artifacts (> 30 days without modification)
+find .agents/ -name "*.md" -mtime +30 2>/dev/null | wc -l
+```
+
+### Step 4: Check ao CLI Status
+
+```bash
+ao forge status 2>/dev/null || echo "ao CLI not available"
+```
+
+### Step 5: Write Health Report
+
+**Write to:** `.agents/flywheel-status.md`
 
 ```markdown
 # Knowledge Flywheel Health
 
+**Date:** YYYY-MM-DD
+
+## Pool Depths
+| Pool | Count | Recent (7d) |
+|------|-------|-------------|
+| Learnings | <count> | <count> |
+| Patterns | <count> | <count> |
+| Research | <count> | <count> |
+| Retros | <count> | <count> |
+
 ## Velocity (Last 7 Days)
-| Metric | Value | Trend |
-|--------|-------|-------|
-| Sessions | 12 | +20% |
-| Transcripts forged | 8 | +33% |
-| Candidates created | 24 | +15% |
-| Promotions (0→1) | 6 | +50% |
-| Patterns recognized | 2 | +100% |
+- Sessions with extractions: <count>
+- New learnings: <count>
+- New patterns: <count>
 
-**Status:** Healthy - flywheel accelerating
-
-## Poao Depths
-| Poao | Count | Oldest | Action |
-|------|-------|--------|--------|
-| Candidates (Tier 0) | 18 | 5 days | Review 3 ready for promotion |
-| Learnings (Tier 1) | 42 | 30 days | 2 candidates for Tier 2 |
-| Patterns (Tier 2) | 8 | 60 days | 1 ready for skill creation |
+## Health Status
+<Healthy/Warning/Critical>
 
 ## Friction Points
-- 5 candidates older than 7 days without review
-- 2 learnings never cited (consider archiving)
+- <issue 1>
+- <issue 2>
 
 ## Recommendations
-1. Review oldest 5 candidates
-2. Archive 2 uncited learnings
-3. Consider promoting "wave-execution" to skill
+1. <recommendation>
+2. <recommendation>
 ```
 
-## Velocity Metrics
+### Step 6: Report to User
 
-| Metric | Formula | Healthy Range |
-|--------|---------|---------------|
-| **Extraction rate** | candidates/transcript | 2-5 |
-| **Promotion rate** | promotions/week | 3-10 |
-| **Citation rate** | citations/learning | 1-3 within 14 days |
-| **Staleness** | % artifacts > 30 days without citation | < 20% |
+Tell the user:
+1. Overall flywheel health
+2. Knowledge pool depths
+3. Recent activity
+4. Any friction points
+5. Recommendations
 
-## Friction Detection
+## Health Indicators
 
-| Friction | Signal | Fix |
-|----------|--------|-----|
-| **Poao backup** | Candidates > 20 | Run review session |
-| **Stale knowledge** | Artifacts > 30 days uncited | Archive or refresh |
-| **Orphan growth** | Provenance missing | Run `/provenance --orphans` |
-| **Low extraction** | < 1 candidate/transcript | Check forge taxonomy |
+| Metric | Healthy | Warning | Critical |
+|--------|---------|---------|----------|
+| Learnings/week | 3+ | 1-2 | 0 |
+| Stale artifacts | <20% | 20-50% | >50% |
+| Research/plan ratio | >0.5 | 0.2-0.5 | <0.2 |
 
-## Integration with /post-mortem
+## Key Rules
 
-After `/post-mortem`:
-
-```bash
-/flywheel --since-postmortem
-
-# Shows:
-# - New candidates from retro
-# - Promotion candidates
-# - Flywheel impact
-```
-
-## See Also
-
-- `/forge` - Feed the flywheel
-- `/provenance` - Track lineage
-- `/post-mortem` - Standard extraction path
+- **Monitor regularly** - flywheel needs attention
+- **Address friction** - bottlenecks slow compounding
+- **Feed the flywheel** - run /retro and /post-mortem
+- **Prune stale knowledge** - archive old artifacts

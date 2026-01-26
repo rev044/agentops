@@ -2,7 +2,7 @@
 name: ux-expert
 description: UX expert agent for accessibility validation and design review in wave parallelization
 model: opus
-color: purple
+color: mint
 tools:
   - Read
   - Grep

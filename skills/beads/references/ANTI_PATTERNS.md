@@ -257,6 +257,12 @@ bd sync --import-only       # Import remote changes
 
 ### Nuclear Options
 
+> **WARNING: DESTRUCTIVE OPERATIONS BELOW**
+> These commands permanently delete data. Before running:
+> 1. Ensure you have a backup: `cp -r .beads/ .beads.backup/`
+> 2. Verify you're in the correct directory
+> 3. Understand that this cannot be undone
+
 ```bash
 # Full database rebuild (DESTRUCTIVE)
 rm -rf .beads/*.db

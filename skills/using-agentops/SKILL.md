@@ -52,6 +52,15 @@ Research → Plan → Implement → Validate
 
 **Output:** `.agents/learnings/`, `.agents/patterns/`
 
+## Phase-to-Skill Mapping
+
+| Phase | Primary Skill | Supporting Skills |
+|-------|---------------|-------------------|
+| **Research** | `/research` | `/knowledge`, `/inject` |
+| **Plan** | `/plan` | `/pre-mortem` |
+| **Implement** | `/implement` | `/crank` (orchestrated) |
+| **Validate** | `/vibe` | `/retro`, `/post-mortem` |
+
 ## Available Skills
 
 | Skill | Purpose |

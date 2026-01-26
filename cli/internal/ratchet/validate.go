@@ -449,7 +449,7 @@ func (v *Validator) countCitations(artifactPath string) int {
 	dir := filepath.Dir(artifactPath)
 
 	count := 0
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error { //nolint:errcheck
+	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || path == artifactPath {
 			return nil
 		}
@@ -459,7 +459,9 @@ func (v *Validator) countCitations(artifactPath string) int {
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", dir, err)
+	}
 
 	return count
 }
@@ -501,7 +503,7 @@ func (v *Validator) countSessionRefs(artifactPath string) int {
 	seen := make(map[string]bool) // Dedupe by session file
 
 	for _, sessionsDir := range sessionsDirs {
-		_ = filepath.Walk(sessionsDir, func(path string, info os.FileInfo, err error) error { //nolint:errcheck
+		if err := filepath.Walk(sessionsDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
 				return nil
 			}
@@ -522,7 +524,9 @@ func (v *Validator) countSessionRefs(artifactPath string) int {
 				count++
 			}
 			return nil
-		})
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", sessionsDir, err)
+		}
 	}
 
 	return count
@@ -800,12 +804,12 @@ func RecordCitation(baseDir string, event types.CitationEvent) error {
 	citationsPath := filepath.Join(baseDir, CitationsFilePath)
 
 	// Create parent directories
-	if err := os.MkdirAll(filepath.Dir(citationsPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(citationsPath), 0700); err != nil {
 		return fmt.Errorf("create citations directory: %w", err)
 	}
 
 	// Open file for append (create if doesn't exist)
-	f, err := os.OpenFile(citationsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(citationsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("open citations file: %w", err)
 	}

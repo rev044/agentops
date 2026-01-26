@@ -180,12 +180,12 @@ func (c *Chain) Save() error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(c.path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("create chain directory: %w", err)
 	}
 
 	// Open file with exclusive lock
-	f, err := os.OpenFile(c.path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(c.path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("open chain file: %w", err)
 	}
@@ -235,12 +235,12 @@ func (c *Chain) Append(entry ChainEntry) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(c.path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("create chain directory: %w", err)
 	}
 
 	// Open file for append with exclusive lock
-	f, err := os.OpenFile(c.path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile(c.path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
 		return fmt.Errorf("open chain file: %w", err)
 	}

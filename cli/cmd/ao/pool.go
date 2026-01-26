@@ -1,14 +1,23 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
+	"github.com/boshu2/agentops/cli/internal/pool"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 var (
 	poolTier   string
 	poolStatus string
+	poolLimit  int
+	poolReason string
 )
 
 var poolCmd = &cobra.Command{
@@ -52,10 +61,67 @@ Examples:
 			return nil
 		}
 
-		// TODO: Implement pool listing
-		fmt.Println("Pool list not yet implemented")
-		return nil
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+
+		p := pool.NewPool(cwd)
+
+		opts := pool.ListOptions{
+			Limit: poolLimit,
+		}
+
+		if poolTier != "" {
+			opts.Tier = types.Tier(poolTier)
+		}
+		if poolStatus != "" {
+			opts.Status = types.PoolStatus(poolStatus)
+		}
+
+		entries, err := p.List(opts)
+		if err != nil {
+			return fmt.Errorf("list pool: %w", err)
+		}
+
+		return outputPoolList(entries)
 	},
+}
+
+func outputPoolList(entries []pool.PoolEntry) error {
+	switch GetOutput() {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(entries)
+
+	case "yaml":
+		enc := yaml.NewEncoder(os.Stdout)
+		return enc.Encode(entries)
+
+	default: // table
+		if len(entries) == 0 {
+			fmt.Println("No pool entries found")
+			return nil
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "ID\tTIER\tSTATUS\tAGE\tUTILITY\tCONFIDENCE")
+		fmt.Fprintln(w, "--\t----\t------\t---\t-------\t----------")
+
+		for _, e := range entries {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.2f\t%.2f\n",
+				truncateID(e.Candidate.ID, 12),
+				e.Candidate.Tier,
+				e.Status,
+				e.AgeString,
+				e.Candidate.Utility,
+				e.Candidate.Confidence,
+			)
+		}
+
+		return w.Flush()
+	}
 }
 
 var poolShowCmd = &cobra.Command{
@@ -70,16 +136,96 @@ var poolShowCmd = &cobra.Command{
 			return nil
 		}
 
-		// TODO: Implement pool show
-		fmt.Printf("Pool show not yet implemented for %s\n", candidateID)
-		return nil
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+
+		p := pool.NewPool(cwd)
+
+		entry, err := p.Get(candidateID)
+		if err != nil {
+			return fmt.Errorf("get candidate: %w", err)
+		}
+
+		return outputPoolShow(entry)
 	},
+}
+
+func outputPoolShow(entry *pool.PoolEntry) error {
+	switch GetOutput() {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(entry)
+
+	case "yaml":
+		enc := yaml.NewEncoder(os.Stdout)
+		return enc.Encode(entry)
+
+	default: // detailed text
+		fmt.Printf("Candidate: %s\n", entry.Candidate.ID)
+		fmt.Printf("============%s\n", repeat("=", len(entry.Candidate.ID)))
+		fmt.Println()
+
+		fmt.Printf("Type:      %s\n", entry.Candidate.Type)
+		fmt.Printf("Tier:      %s\n", entry.Candidate.Tier)
+		fmt.Printf("Status:    %s\n", entry.Status)
+		fmt.Printf("Age:       %s\n", entry.AgeString)
+		fmt.Println()
+
+		fmt.Println("MemRL Metrics:")
+		fmt.Printf("  Utility:    %.3f\n", entry.Candidate.Utility)
+		fmt.Printf("  Confidence: %.3f\n", entry.Candidate.Confidence)
+		fmt.Printf("  Maturity:   %s\n", entry.Candidate.Maturity)
+		fmt.Printf("  Rewards:    %d\n", entry.Candidate.RewardCount)
+		fmt.Println()
+
+		fmt.Println("Scoring:")
+		fmt.Printf("  Raw Score:  %.3f\n", entry.ScoringResult.RawScore)
+		fmt.Printf("  Rubric:\n")
+		fmt.Printf("    Specificity:   %.2f\n", entry.ScoringResult.Rubric.Specificity)
+		fmt.Printf("    Actionability: %.2f\n", entry.ScoringResult.Rubric.Actionability)
+		fmt.Printf("    Novelty:       %.2f\n", entry.ScoringResult.Rubric.Novelty)
+		fmt.Printf("    Context:       %.2f\n", entry.ScoringResult.Rubric.Context)
+		fmt.Printf("    Confidence:    %.2f\n", entry.ScoringResult.Rubric.Confidence)
+		fmt.Println()
+
+		fmt.Println("Provenance:")
+		fmt.Printf("  Session:    %s\n", entry.Candidate.Source.SessionID)
+		fmt.Printf("  Transcript: %s\n", entry.Candidate.Source.TranscriptPath)
+		fmt.Printf("  Message:    %d\n", entry.Candidate.Source.MessageIndex)
+		fmt.Println()
+
+		fmt.Println("Content:")
+		fmt.Println("---")
+		fmt.Println(entry.Candidate.Content)
+		fmt.Println("---")
+
+		if entry.HumanReview != nil && entry.HumanReview.Reviewed {
+			fmt.Println()
+			fmt.Println("Human Review:")
+			fmt.Printf("  Approved:   %v\n", entry.HumanReview.Approved)
+			fmt.Printf("  Reviewer:   %s\n", entry.HumanReview.Reviewer)
+			fmt.Printf("  Notes:      %s\n", entry.HumanReview.Notes)
+		}
+
+		return nil
+	}
 }
 
 var poolStageCmd = &cobra.Command{
 	Use:   "stage <candidate-id>",
 	Short: "Stage candidate for promotion",
-	Args:  cobra.ExactArgs(1),
+	Long: `Move a candidate from pending to staged status.
+
+Validates that the candidate meets the minimum tier threshold (default: bronze).
+Staged candidates are ready for promotion to the knowledge base.
+
+Examples:
+  ao pool stage cand-abc123
+  ao pool stage cand-abc123 --min-tier=silver`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		candidateID := args[0]
 
@@ -88,16 +234,37 @@ var poolStageCmd = &cobra.Command{
 			return nil
 		}
 
-		// TODO: Implement pool stage
-		fmt.Printf("Pool stage not yet implemented for %s\n", candidateID)
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+
+		p := pool.NewPool(cwd)
+
+		minTier := types.TierBronze
+		if poolTier != "" {
+			minTier = types.Tier(poolTier)
+		}
+
+		if err := p.Stage(candidateID, minTier); err != nil {
+			return fmt.Errorf("stage candidate: %w", err)
+		}
+
+		fmt.Printf("Staged: %s\n", candidateID)
 		return nil
 	},
 }
 
 var poolPromoteCmd = &cobra.Command{
 	Use:   "promote <candidate-id>",
-	Short: "Promote candidate to Athena",
-	Args:  cobra.ExactArgs(1),
+	Short: "Promote candidate to knowledge base",
+	Long: `Move a staged candidate to the knowledge base (.agents/learnings/ or .agents/patterns/).
+
+Locks the artifact with the ratchet and records the promotion in chain.jsonl.
+
+Examples:
+  ao pool promote cand-abc123`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		candidateID := args[0]
 
@@ -106,8 +273,24 @@ var poolPromoteCmd = &cobra.Command{
 			return nil
 		}
 
-		// TODO: Implement pool promote
-		fmt.Printf("Pool promote not yet implemented for %s\n", candidateID)
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+
+		p := pool.NewPool(cwd)
+
+		artifactPath, err := p.Promote(candidateID)
+		if err != nil {
+			return fmt.Errorf("promote candidate: %w", err)
+		}
+
+		fmt.Printf("Promoted: %s\n", candidateID)
+		fmt.Printf("Artifact: %s\n", artifactPath)
+
+		// Optionally lock with ratchet
+		VerbosePrintf("Run 'ao ratchet record promotion --output %s' to lock\n", artifactPath)
+
 		return nil
 	},
 }
@@ -115,17 +298,42 @@ var poolPromoteCmd = &cobra.Command{
 var poolRejectCmd = &cobra.Command{
 	Use:   "reject <candidate-id>",
 	Short: "Reject candidate",
-	Args:  cobra.ExactArgs(1),
+	Long: `Mark a candidate as rejected and move to rejected directory.
+
+A reason must be provided for audit purposes.
+
+Examples:
+  ao pool reject cand-abc123 --reason="Too vague, lacks specificity"`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		candidateID := args[0]
 
+		if poolReason == "" {
+			return fmt.Errorf("--reason is required for rejection")
+		}
+
 		if GetDryRun() {
-			fmt.Printf("[dry-run] Would reject candidate %s\n", candidateID)
+			fmt.Printf("[dry-run] Would reject candidate %s with reason: %s\n", candidateID, poolReason)
 			return nil
 		}
 
-		// TODO: Implement pool reject
-		fmt.Printf("Pool reject not yet implemented for %s\n", candidateID)
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+
+		p := pool.NewPool(cwd)
+
+		// Get reviewer from system user (not spoofable via env)
+		reviewer := GetCurrentUser()
+
+		if err := p.Reject(candidateID, poolReason, reviewer); err != nil {
+			return fmt.Errorf("reject candidate: %w", err)
+		}
+
+		fmt.Printf("Rejected: %s\n", candidateID)
+		fmt.Printf("Reason: %s\n", poolReason)
+
 		return nil
 	},
 }
@@ -143,4 +351,29 @@ func init() {
 	// Add flags to list command
 	poolListCmd.Flags().StringVar(&poolTier, "tier", "", "Filter by tier (gold, silver, bronze)")
 	poolListCmd.Flags().StringVar(&poolStatus, "status", "", "Filter by status (pending, staged, promoted, rejected)")
+	poolListCmd.Flags().IntVar(&poolLimit, "limit", 0, "Limit number of results")
+
+	// Add flags to stage command
+	poolStageCmd.Flags().StringVar(&poolTier, "min-tier", "", "Minimum tier threshold (default: bronze)")
+
+	// Add flags to reject command
+	poolRejectCmd.Flags().StringVar(&poolReason, "reason", "", "Reason for rejection (required)")
+	_ = poolRejectCmd.MarkFlagRequired("reason") //nolint:errcheck
+}
+
+// truncateID shortens an ID for display.
+func truncateID(id string, max int) string {
+	if len(id) <= max {
+		return id
+	}
+	return id[:max-3] + "..."
+}
+
+// repeat returns a string repeated n times.
+func repeat(s string, n int) string {
+	result := ""
+	for i := 0; i < n; i++ {
+		result += s
+	}
+	return result
 }

@@ -2,7 +2,7 @@
 name: security-expert
 description: Security expert agent for vulnerability assessment and security validation in wave parallelization
 model: opus
-color: red
+color: crimson
 tools:
   - Read
   - Grep

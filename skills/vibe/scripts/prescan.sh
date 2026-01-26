@@ -4,7 +4,16 @@ set -euo pipefail
 # Vibe Prescan - Static pattern detection
 # Outputs findings to .agents/assessments/
 
+# Validate TARGET to prevent argument injection
 TARGET="${1:-.}"
+if [[ "$TARGET" =~ ^- ]]; then
+    echo "Error: TARGET cannot start with a dash (prevents argument injection)" >&2
+    exit 1
+fi
+if [[ ! -e "$TARGET" ]]; then
+    echo "Error: TARGET '$TARGET' does not exist" >&2
+    exit 1
+fi
 DATE=$(date +%Y-%m-%d)
 OUTPUT_DIR=".agents/assessments"
 OUTPUT_FILE="${OUTPUT_DIR}/${DATE}-vibe-prescan.md"
@@ -29,8 +38,9 @@ MEDIUM_COUNT=0
 # P2: Hardcoded secrets (CRITICAL)
 # Uses path-based filtering to exclude test directories (not line content)
 echo "### P2: Hardcoded Secrets" >> "$OUTPUT_FILE"
+# Use -- to separate options from path argument (prevents injection)
 SECRETS=$(grep -rn --include="*.py" --include="*.go" --include="*.ts" --include="*.js" \
-    -E "(password|secret|api_key|apikey|token)\s*=\s*['\"][^'\"]+['\"]" "$TARGET" 2>/dev/null | \
+    -E "(password|secret|api_key|apikey|token)\s*=\s*['\"][^'\"]+['\"]" -- "$TARGET" 2>/dev/null | \
     grep -v "/test/" | grep -v "/tests/" | grep -v "_test\." | \
     grep -v "/example/" | grep -v "/examples/" | \
     grep -v "\.example\." | head -20 || true)
@@ -49,7 +59,7 @@ echo "" >> "$OUTPUT_FILE"
 # P4: TODO/FIXME (HIGH)
 echo "### P4: TODO/FIXME Comments" >> "$OUTPUT_FILE"
 TODOS=$(grep -rn --include="*.py" --include="*.go" --include="*.ts" --include="*.js" --include="*.md" \
-    -E "(TODO|FIXME|XXX|HACK):" "$TARGET" 2>/dev/null | head -20 || true)
+    -E "(TODO|FIXME|XXX|HACK):" -- "$TARGET" 2>/dev/null | head -20 || true)
 
 if [[ -n "$TODOS" ]]; then
     echo "**Severity:** HIGH" >> "$OUTPUT_FILE"
@@ -83,7 +93,8 @@ echo "" >> "$OUTPUT_FILE"
 # P11: Shellcheck violations (HIGH)
 echo "### P11: Shellcheck Violations" >> "$OUTPUT_FILE"
 if command -v shellcheck &> /dev/null; then
-    SHELL_ISSUES=$(find "$TARGET" -name "*.sh" -exec shellcheck -f gcc {} \; 2>/dev/null | head -20 || true)
+    # Use -print0 and xargs -0 to safely handle filenames with special characters
+    SHELL_ISSUES=$(find "$TARGET" -name "*.sh" -print0 2>/dev/null | xargs -0 shellcheck -f gcc 2>/dev/null | head -20 || true)
     if [[ -n "$SHELL_ISSUES" ]]; then
         echo "**Severity:** HIGH" >> "$OUTPUT_FILE"
         echo '```' >> "$OUTPUT_FILE"

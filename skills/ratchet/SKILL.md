@@ -5,7 +5,7 @@ description: 'Brownian Ratchet progress gates for RPI workflow. Check, record, v
 
 # Ratchet Skill
 
-Track progress through the RPI (Research-Plan-Implement) workflow.
+Track progress through the RPI workflow with permanent gates.
 
 ## The Brownian Ratchet
 
@@ -15,49 +15,50 @@ Progress = Chaos × Filter → Ratchet
 
 | Phase | What Happens |
 |-------|--------------|
-| **Chaos** | Multiple parallel attempts (exploration, polecats) |
+| **Chaos** | Multiple attempts (exploration, implementation) |
 | **Filter** | Validation gates (tests, /vibe, review) |
 | **Ratchet** | Lock progress permanently (merged, closed, stored) |
 
-**Key insight:** You can always add more chaos, but you can't un-ratchet. Progress is permanent.
+**Key insight:** Progress is permanent. You can't un-ratchet.
 
-## Triggers
+## Execution Steps
 
-- "ratchet status"
-- "check gate"
-- "record step"
-- "validate ratchet"
+Given `/ratchet [command]`:
 
-## Usage
+### status - Check Current State
 
 ```bash
-# Check current ratchet chain status
-ao ratchet status
+ao ratchet status 2>/dev/null
+```
 
-# Check if a step's gate is met
-ao ratchet check research
-ao ratchet check plan
-ao ratchet check implement
+Or check the chain manually:
+```bash
+cat .agents/ao/chain.jsonl 2>/dev/null | tail -10
+```
 
-# Record step completion
-ao ratchet record research --output ".agents/research/auth.md"
-ao ratchet record plan --output ".agents/plans/auth-plan.md"
-ao ratchet record implement --files "src/auth.ts,src/auth_test.ts"
+### check [step] - Verify Gate
 
-# Skip a step intentionally
-ao ratchet skip pre-mortem --reason "Bug fix, no spec needed"
+```bash
+ao ratchet check <step> 2>/dev/null
+```
 
-# Validate step requirements
-ao ratchet validate plan --lenient
+Steps: `research`, `plan`, `implement`, `vibe`, `post-mortem`
 
-# Trace provenance backward
-ao ratchet trace implement
+### record [step] - Record Completion
 
-# Find artifacts
-ao ratchet find --epic-id at-1234
+```bash
+ao ratchet record <step> --output "<artifact-path>" 2>/dev/null
+```
 
-# Record tier promotion
-ao ratchet promote --tier 2
+Or record manually by writing to chain:
+```bash
+echo '{"step":"<step>","status":"completed","output":"<path>","time":"<ISO-timestamp>"}' >> .agents/ao/chain.jsonl
+```
+
+### skip [step] - Skip Intentionally
+
+```bash
+ao ratchet skip <step> --reason "<why>" 2>/dev/null
 ```
 
 ## Workflow Steps
@@ -65,32 +66,23 @@ ao ratchet promote --tier 2
 | Step | Gate | Output |
 |------|------|--------|
 | `research` | Research artifact exists | `.agents/research/*.md` |
-| `product` | Product brief exists | `.agents/products/*.md` |
-| `pre-mortem` | Pre-mortem complete | `.agents/pre-mortems/*.md` |
 | `plan` | Plan artifact exists | `.agents/plans/*.md` |
 | `implement` | Code + tests pass | Source files |
-| `validate` | /vibe passes | Validation report |
+| `vibe` | /vibe passes | `.agents/vibe/*.md` |
 | `post-mortem` | Learnings extracted | `.agents/retros/*.md` |
 
 ## Chain Storage
 
-The ratchet chain is stored in `.agents/ao/chain.jsonl`:
-
+Progress stored in `.agents/ao/chain.jsonl`:
 ```json
 {"step":"research","status":"completed","output":".agents/research/auth.md","time":"2026-01-25T10:00:00Z"}
 {"step":"plan","status":"completed","output":".agents/plans/auth-plan.md","time":"2026-01-25T11:00:00Z"}
 {"step":"implement","status":"in_progress","time":"2026-01-25T12:00:00Z"}
 ```
 
-## Integration with /crank
+## Key Rules
 
-The `/crank` skill uses ratchet to:
-1. Check which steps are complete
-2. Validate gates before proceeding
-3. Record progress after each step
-
-## See Also
-
-- `/forge` - Extract knowledge from transcripts
-- `/provenance` - Trace knowledge lineage
-- [Brownian Ratchet Philosophy](../references/brownian-ratchet.md)
+- **Progress is permanent** - can't un-ratchet
+- **Gates must pass** - validate before proceeding
+- **Record everything** - maintain the chain
+- **Skip explicitly** - document why if skipping a step

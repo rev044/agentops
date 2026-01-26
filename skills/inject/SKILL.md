@@ -5,76 +5,69 @@ description: 'Inject relevant knowledge into session context from .agents/ artif
 
 # Inject Skill
 
-Inject relevant knowledge into the current session context.
+**Typically runs automatically via SessionStart hook.**
 
-## Triggers
-
-- "inject knowledge"
-- "recall context"
-- "what do we know about"
-- SessionStart hook (automatic)
-
-## Usage
-
-```bash
-# Inject knowledge relevant to current directory
-ao inject
-
-# Inject with specific context filter
-ao inject --context "authentication"
-
-# Inject in markdown format
-ao inject --format markdown --max-tokens 1000
-
-# Inject for specific session
-ao inject --session <session-id>
-```
+Inject relevant prior knowledge into the current session.
 
 ## How It Works
 
-1. **Scans knowledge stores:**
-   - `.agents/learnings/` - Lessons learned
-   - `.agents/patterns/` - Reusable patterns
-   - `.agents/ao/index/sessions.jsonl` - Session history
-
-2. **Ranks by relevance:**
-   - Directory context
-   - Recency
-   - Category matching
-
-3. **Formats output:**
-   - Markdown (default for skills)
-   - JSONL (for programmatic use)
-
-## Output Formats
-
-### Markdown (--format markdown)
-```markdown
-## Recent Learnings
-
-### L1: DeepCopy required for K8s CRDs
-Every CRD type needs make generate after types.go changes...
-
-## Relevant Patterns
-
-### Wave-Based Parallel Execution
-When implementing parallel work...
+The SessionStart hook runs:
+```bash
+ao inject --apply-decay --format markdown --max-tokens 1000
 ```
 
-### JSONL (--format jsonl)
-```json
-{"type":"learning","id":"L1","title":"DeepCopy required","content":"..."}
-{"type":"pattern","id":"wave-parallel","title":"Wave-Based Parallel","content":"..."}
+This searches for relevant knowledge and injects it into context.
+
+## Manual Execution
+
+Given `/inject [topic]`:
+
+### Step 1: Search for Relevant Knowledge
+
+**With ao CLI:**
+```bash
+ao inject --context "<topic>" --format markdown --max-tokens 1000
 ```
 
-## Token Budget
+**Without ao CLI, search manually:**
+```bash
+# Recent learnings
+ls -lt .agents/learnings/ | head -5
 
-The `--max-tokens` flag controls output size:
-- Default: 1500 tokens (~6KB)
-- SessionStart hook uses 1000 tokens
-- Approximately 4 chars per token
+# Recent patterns
+ls -lt .agents/patterns/ | head -5
 
-## See Also
+# Recent research
+ls -lt .agents/research/ | head -5
+```
 
-- `/forge` - Extract knowledge from transcripts
-- `/provenance` - Trace knowledge lineage
+### Step 2: Read Relevant Files
+
+Use the Read tool to load the most relevant artifacts based on topic.
+
+### Step 3: Summarize for Context
+
+Present the injected knowledge:
+- Key learnings relevant to current work
+- Patterns that may apply
+- Recent research on related topics
+
+## Knowledge Sources
+
+| Source | Location | Priority |
+|--------|----------|----------|
+| Learnings | `.agents/learnings/` | High |
+| Patterns | `.agents/patterns/` | High |
+| Research | `.agents/research/` | Medium |
+| Retros | `.agents/retros/` | Medium |
+
+## Decay Model
+
+Knowledge relevance decays over time (~17%/week). More recent learnings are weighted higher.
+
+## Key Rules
+
+- **Runs automatically** - usually via hook
+- **Context-aware** - filters by current directory/topic
+- **Token-budgeted** - respects max-tokens limit
+- **Recency-weighted** - newer knowledge prioritized

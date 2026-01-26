@@ -5,104 +5,102 @@ description: 'Query knowledge artifacts across all locations. Triggers: "find le
 
 # Knowledge Skill
 
-Query and retrieve knowledge from artifacts across the codebase.
+**YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-## Quick Start
+Find and retrieve knowledge from past work.
+
+## Execution Steps
+
+Given `/knowledge <query>`:
+
+### Step 1: Search with ao CLI (if available)
 
 ```bash
-/knowledge patterns authentication
-/knowledge learnings kubernetes
-/knowledge "what do we know about rate limiting"
+ao forge search "<query>" --limit 10 2>/dev/null
 ```
+
+If results found, read the relevant files.
+
+### Step 2: Search .agents/ Directory
+
+```bash
+# Search learnings
+grep -r "<query>" .agents/learnings/ 2>/dev/null | head -10
+
+# Search patterns
+grep -r "<query>" .agents/patterns/ 2>/dev/null | head -10
+
+# Search research
+grep -r "<query>" .agents/research/ 2>/dev/null | head -10
+
+# Search retros
+grep -r "<query>" .agents/retros/ 2>/dev/null | head -10
+```
+
+### Step 3: Search Plans
+
+```bash
+# Local plans
+grep -r "<query>" .agents/plans/ 2>/dev/null | head -10
+
+# Global plans
+grep -r "<query>" ~/.claude/plans/ 2>/dev/null | head -10
+```
+
+### Step 4: Use Semantic Search (if MCP available)
+
+```
+Tool: mcp__smart-connections-work__lookup
+Parameters:
+  query: "<query>"
+  limit: 10
+```
+
+### Step 5: Read Relevant Files
+
+For each match found, use the Read tool to get full content.
+
+### Step 6: Synthesize Results
+
+Combine findings into a coherent response:
+- What do we know about this topic?
+- What learnings are relevant?
+- What patterns apply?
+- What past decisions were made?
+
+### Step 7: Report to User
+
+Present the knowledge found:
+1. Summary of findings
+2. Key learnings (with IDs)
+3. Relevant patterns
+4. Links to source files
+5. Confidence level (how much we know)
 
 ## Knowledge Locations
 
 | Type | Location | Format |
 |------|----------|--------|
-| Learnings | `.agents/learnings/` | JSONL or Markdown |
+| Learnings | `.agents/learnings/` | Markdown |
 | Patterns | `.agents/patterns/` | Markdown |
-| Retros | `.agents/retros/` | Markdown |
 | Research | `.agents/research/` | Markdown |
-| Plans | `~/.claude/plans/` | Markdown |
+| Retros | `.agents/retros/` | Markdown |
+| Plans | `.agents/plans/` | Markdown |
+| Global Plans | `~/.claude/plans/` | Markdown |
 
-## Query Methods
+## Key Rules
 
-### 1. Semantic Search (via ao CLI)
+- **Search multiple locations** - knowledge may be scattered
+- **Use ao CLI first** - semantic search is better
+- **Fall back to grep** - if ao not available
+- **Read full files** - don't just report matches
+- **Synthesize** - combine findings into useful answer
 
-```bash
-ao forge search "<query>"
-```
-
-### 2. File Pattern Search
-
-```bash
-# Find learnings about a topic
-grep -r "<topic>" .agents/learnings/ .agents/patterns/
-
-# Find plans for current project
-grep -l "$(pwd)" ~/.claude/plans/*.md
-```
-
-### 3. JSONL Queries
+## Example Queries
 
 ```bash
-# Query learnings JSONL
-jq -r 'select(.tags[] | contains("<topic>"))' .agents/learnings/*.jsonl
-
-# Count by category
-jq -r '.category' .agents/learnings/*.jsonl | sort | uniq -c
-```
-
-## Artifact Format
-
-### Learnings (JSONL)
-
-```json
-{
-  "id": "L-001",
-  "date": "2026-01-25",
-  "category": "kubernetes",
-  "learning": "DeepCopy required for CRD mutations",
-  "context": "Epic he-xyz",
-  "tags": ["kubernetes", "crd", "deepcopy"]
-}
-```
-
-### Patterns (Markdown)
-
-```markdown
-# Pattern: Wave-Based Parallel Execution
-
-## Problem
-Sequential execution too slow for large epics
-
-## Solution
-Group issues by dependencies, execute in parallel waves
-
-## When to Use
-- Epics with 5+ issues
-- Issues without circular dependencies
-```
-
-## Workflow
-
-1. **Parse query** - Extract topic and scope
-2. **Search locations** - Check all artifact directories
-3. **Rank results** - By relevance and recency
-4. **Synthesize** - Combine and summarize findings
-5. **Output** - Return formatted results
-
-## Integration with ao CLI
-
-When ao CLI is available:
-
-```bash
-# Search indexed knowledge
-ao forge search "<query>" --limit 10
-
-# Get provenance chain
-ao ratchet provenance <artifact-id>
-
-# Record new knowledge
-ao ratchet record --type learning --content "<content>"
+/knowledge authentication    # Find auth-related learnings
+/knowledge "rate limiting"   # Find rate limit patterns
+/knowledge kubernetes        # Find K8s knowledge
+/knowledge "what do we know about caching"
 ```
