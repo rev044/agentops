@@ -160,18 +160,6 @@ ao hooks install
 ao badge
 ```
 
-### Other Platforms
-
-**Codex:** Tell Codex:
-```
-Fetch and follow instructions from https://raw.githubusercontent.com/boshu2/agentops/refs/heads/main/.codex/setup.md
-```
-
-**OpenCode:** Tell OpenCode:
-```
-Fetch and follow instructions from https://raw.githubusercontent.com/boshu2/agentops/refs/heads/main/.opencode/setup.md
-```
-
 ---
 
 ## What Each Phase Does
