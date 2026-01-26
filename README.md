@@ -14,97 +14,183 @@ AI coding agents are brilliant but amnesiac. They solve a bug today, forget it t
 
 ---
 
-## Architecture
-
-```mermaid
-graph TB
-    subgraph "Knowledge Engine"
-        direction TB
-        A[Session Start] --> B[ao inject]
-        B --> C[Claude Code Session]
-        C --> D[Session End]
-        D --> E[ao forge transcript]
-        E --> F[ao forge index]
-        F --> G[.agents/ artifacts]
-        G --> B
-    end
-
-    subgraph "Storage Layer"
-        G --> H[learnings/]
-        G --> I[patterns/]
-        G --> J[research/]
-        G --> K[retros/]
-        G --> L[specs/]
-    end
-```
-
----
-
-## The Workflow: Brownian Ratchet
+## The Workflow
 
 **Chaos + Filter + Ratchet = Progress**
 
-Each stage has a ratchet - progress locks in, never goes backward.
+Each phase produces chaos, filters it for quality, then ratchets progress permanently. You can always add more chaos, but you can't un-ratchet.
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Research: ao forge search
-    Research --> PreMortem: Simulate failures
-    PreMortem --> Plan: Create issues
-    Plan --> Implement: /crank loop
-    Implement --> Vibe: Validate (8 aspects)
-    Vibe --> Compare: Matches spec?
-    Compare --> Lock: YES
-    Compare --> Implement: NO - iterate
-    Lock --> PostMortem: Extract learnings
-    PostMortem --> Index: ao forge index
-    Index --> Feedback: ao feedback
-    Feedback --> Research: Loop closed
+flowchart TB
+    %% Styles
+    classDef research fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
+    classDef plan fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef implement fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100
+    classDef validate fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+    classDef knowledge fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#880e4f
+    classDef auto fill:#eceff1,stroke:#546e7a,stroke-width:1px,stroke-dasharray: 5 5,color:#37474f
+    classDef decision fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#f57f17
+
+    %% Main Workflow
+    subgraph WORKFLOW["THE BROWNIAN RATCHET"]
+        direction TB
+
+        subgraph R["1. RESEARCH"]
+            R1[Mine prior knowledge]
+            R2[Explore codebase]
+            R3[Create synthesis doc]
+            R1 --> R2 --> R3
+        end
+
+        subgraph P["2. PLAN"]
+            P1[Define spec]
+            P2[Create beads issues]
+            P3[Set dependencies]
+            P1 --> P2 --> P3
+        end
+
+        subgraph PM["3. PRE-MORTEM"]
+            PM1[Simulate N iterations]
+            PM2[Find failure modes]
+            PM3[Update spec]
+            PM1 --> PM2 --> PM3
+        end
+
+        subgraph C["4. CRANK"]
+            C1[Pick issue] --> C2[Implement]
+            C2 --> C3{Vibe OK?}
+            C3 -->|No| C2
+            C3 -->|Yes| C4[Commit]
+            C4 --> C5{More issues?}
+            C5 -->|Yes| C1
+            C5 -->|No| DONE[Done]
+        end
+
+        subgraph PO["5. POST-MORTEM"]
+            PO1[Extract learnings]
+            PO2[Run full vibe]
+            PO3{Matches spec?}
+            PO1 --> PO2 --> PO3
+        end
+
+        R3 --> P1
+        P3 --> PM1
+        PM3 --> C1
+        DONE --> PO1
+    end
+
+    %% Validation Loop
+    PO3 -->|No| C1
+    PO3 -->|Yes| GOAL{Matches goal?}
+    GOAL -->|No| R1
+    GOAL -->|Yes| LOCK[RATCHET LOCKED]
+
+    %% Knowledge Flywheel
+    subgraph FLY["KNOWLEDGE FLYWHEEL"]
+        direction LR
+        LOCK --> INDEX[ao forge index]
+        INDEX --> STORE[.agents/]
+        STORE --> INJECT[ao inject]
+        INJECT -.-> R1
+    end
+
+    %% Apply styles
+    class R,R1,R2,R3 research
+    class P,P1,P2,P3 plan
+    class PM,PM1,PM2,PM3 validate
+    class C,C1,C2,C3,C4,C5,DONE implement
+    class PO,PO1,PO2,PO3 validate
+    class GOAL,PO3,C3 decision
+    class LOCK,INDEX,STORE,INJECT knowledge
 ```
 
 ---
 
-## Each Stage Explained
+## What Each Phase Does
 
-| Stage | Skill | What It Does | Output |
-|-------|-------|--------------|--------|
-| **Research** | `/research` | Mine prior knowledge, explore codebase, understand problem | `.agents/research/` |
-| **Pre-Mortem** | `/pre-mortem` | Simulate failures BEFORE implementation. Find spec gaps. | Updated spec |
-| **Plan** | `/plan` | Convert spec into tracked beads issues with dependencies | `.beads/` issues |
-| **Implement** | `/crank` | Autonomous loop: pick issue, code, validate, commit, repeat | Merged code |
-| **Vibe** | `/vibe` | Validate code quality (security, architecture, patterns, a11y, complexity, docs, tests, conventions) | Validation report |
-| **Compare** | Built into post-mortem | Check vibe results vs spec goals. If mismatch, iterate or update spec. | `.agents/deltas/` |
-| **Post-Mortem** | `/post-mortem` | Extract learnings, update specs, index to flywheel | `.agents/learnings/` |
+| Phase | Chaos | Filter | Ratchet |
+|-------|-------|--------|---------|
+| **Research** | Multiple exploration paths | Human synthesis decision | `.agents/research/` artifact |
+| **Plan** | Multiple plan attempts | Pre-mortem simulation | Beads issues with dependencies |
+| **Pre-Mortem** | Simulate N failure modes | Identify spec gaps | Updated spec |
+| **Crank** | Parallel polecats | Vibe validation (9 aspects) | Code merged to main |
+| **Post-Mortem** | Multi-aspect validation | Spec comparison | Knowledge locked in flywheel |
 
 ---
 
-## The Knowledge Flywheel
+## How It's Automated
 
-Knowledge flows in a loop. When retrieval times usage exceeds decay, knowledge compounds faster than it fades.
+You don't manually run `ao` commands. Hooks do it for you.
 
 ```mermaid
-graph TD
-    A[Capture] -->|Post-mortem extracts learnings| B[Index]
-    B -->|ao forge index makes searchable| C[Inject]
-    C -->|ao inject loads at session start| D[Apply]
-    D -->|Agent uses prior knowledge| E[Feedback]
-    E -->|ao feedback marks helpful/harmful| F[Compound]
-    F -->|High-utility rises, low-utility decays| A
+flowchart LR
+    subgraph SESSION["CLAUDE CODE SESSION"]
+        direction TB
+        START[Session Start] --> WORK[Your Work]
+        WORK --> END[Session End]
+    end
 
-    G[Escape Velocity] -.->|sigma x rho > delta| F
+    subgraph HOOKS["AUTOMATIC HOOKS"]
+        direction TB
+        H1[ao inject] -.->|Loads prior knowledge| START
+        END -.->|Extracts learnings| H2[ao forge transcript]
+        H2 --> H3[ao forge index]
+    end
+
+    subgraph STORAGE["YOUR REPO"]
+        direction TB
+        H3 --> S1[.agents/learnings/]
+        H3 --> S2[.agents/patterns/]
+        H3 --> S3[.agents/research/]
+        S1 & S2 & S3 -.-> H1
+    end
+
+    style H1 fill:#e8f5e9,stroke:#2e7d32
+    style H2 fill:#fff3e0,stroke:#ef6c00
+    style H3 fill:#e3f2fd,stroke:#1565c0
 ```
 
-**The Equation:**
+**SessionStart hook**: Injects relevant prior knowledge (weighted by freshness + utility)
+
+**SessionEnd hook**: Extracts learnings and indexes them for future sessions
+
+---
+
+## The Escape Velocity Equation
+
+Knowledge decays without reinforcement. But when retrieval × usage exceeds decay, knowledge compounds.
+
+```mermaid
+flowchart LR
+    subgraph DECAY["WITHOUT AGENTOPS"]
+        D1[Session 1: Debug bug] --> D2[Session 2: Same bug, start fresh]
+        D2 --> D3[Session 3: Same bug, start fresh]
+    end
+
+    subgraph COMPOUND["WITH AGENTOPS"]
+        C1[Session 1: Debug bug, capture pattern] --> C2[Session 2: Recall pattern, 3 min fix]
+        C2 --> C3[Session 3: Instant recall]
+    end
+
+    style D1 fill:#ffcdd2
+    style D2 fill:#ffcdd2
+    style D3 fill:#ffcdd2
+    style C1 fill:#c8e6c9
+    style C2 fill:#a5d6a7
+    style C3 fill:#81c784
+```
+
+**The Math:**
 
 ```
-dK/dt = I(t) - delta * K + sigma * rho * K
+dK/dt = I(t) - δK + σρK
 
 Where:
-  delta = 0.17/week (knowledge decay rate)
-  sigma = retrieval effectiveness
-  rho = citation rate (how often knowledge is used)
+  δ = 0.17/week    (knowledge decay rate)
+  σ = retrieval effectiveness
+  ρ = citation rate
 
-Goal: sigma x rho > delta = Knowledge compounds
+Goal: σ × ρ > δ → Knowledge compounds faster than it fades
 ```
 
 ---
@@ -125,8 +211,8 @@ Goal: sigma x rho > delta = Knowledge compounds
 | **/crank** | Implemented | `skills/crank/` |
 | **/vibe** | Implemented | `skills/vibe/` |
 | **/post-mortem** | Implemented | `skills/post-mortem/` |
-| **Spec validation loop** | Implemented | In post-mortem Phase 5.0 |
-| **Maturity tracking** | Partial | Schema designed, transitions WIP |
+| **Spec validation loop** | Implemented | In post-mortem |
+| **Maturity tracking** | Partial | Schema designed |
 | **Confidence decay** | Implemented | `ao inject --apply-decay` |
 
 ---
@@ -182,11 +268,11 @@ Built on peer-reviewed research, not vibes.
 
 Built on excellent open-source work:
 
-| Tool | Author | What We Use |
-|------|--------|-------------|
+| Tool | Author | What We Use | Link |
+|------|--------|-------------|------|
 | **beads** | Steve Yegge | Git-native issue tracking | [steveyegge/beads](https://github.com/steveyegge/beads) |
 | **CASS** | Dicklesworthstone | Session indexing and search | [coding_agent_session_search](https://github.com/Dicklesworthstone/coding_agent_session_search) |
-| **cass-memory** | Dicklesworthstone | Confidence decay, maturity tracking concepts | [cass_memory_system](https://github.com/Dicklesworthstone/cass_memory_system) |
+| **cass-memory** | Dicklesworthstone | Confidence decay, maturity tracking | [cass_memory_system](https://github.com/Dicklesworthstone/cass_memory_system) |
 | **multiclaude** | dlorenc | The "Brownian Ratchet" pattern | [dlorenc/multiclaude](https://github.com/dlorenc/multiclaude) |
 
 ---
