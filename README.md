@@ -30,14 +30,14 @@ flowchart LR
 
     subgraph WORK["YOUR WORKFLOW"]
         direction TB
-        W1[/research] --> W2[/plan]
-        W2 --> W3[/pre-mortem]
-        W3 --> W4[/crank]
-        W4 --> W5[/post-mortem]
+        W1["/research"] --> W2["/plan"]
+        W2 --> W3["/pre-mortem"]
+        W3 --> W4["/crank"]
+        W4 --> W5["/post-mortem"]
     end
 
     subgraph STORE["KNOWLEDGE"]
-        S1[.agents/]
+        S1[".agents/"]
     end
 
     A2 -->|prior knowledge| W1
@@ -184,7 +184,7 @@ flowchart TB
     subgraph FLY["KNOWLEDGE FLYWHEEL"]
         direction LR
         LOCK --> INDEX[ao forge index]
-        INDEX --> STORE[.agents/]
+        INDEX --> STORE[".agents/"]
         STORE --> INJECT[ao inject]
         INJECT -.-> R1
     end
@@ -240,9 +240,9 @@ flowchart LR
 
     subgraph STORAGE["YOUR REPO"]
         direction TB
-        H3 --> S1[.agents/learnings/]
-        H3 --> S2[.agents/patterns/]
-        H3 --> S3[.agents/research/]
+        H3 --> S1[".agents/learnings/"]
+        H3 --> S2[".agents/patterns/"]
+        H3 --> S3[".agents/research/"]
         S1 & S2 & S3 -.-> H1
     end
 
