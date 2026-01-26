@@ -49,7 +49,7 @@ When `/post-mortem` calls `/vibe`, it checks 8 aspects automatically:
 
 **The gate:** 0 CRITICAL = pass. 1+ CRITICAL = block until fixed.
 
-You don't run `/vibe` separately — `/post-mortem` runs it for you and creates follow-up issues for findings.
+Run `/vibe` anytime you want a quality check. It's also built into the workflow — `/post-mortem` calls it automatically and creates follow-up issues for findings.
 
 ---
 
