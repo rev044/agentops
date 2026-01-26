@@ -137,12 +137,9 @@ ao --version
 ### 2. Install the Plugin (Claude Code)
 
 ```bash
-# Option A: Install from GitHub (recommended)
-claude mcp add-plugin https://github.com/boshu2/agentops
-
-# Option B: Install from local clone
-git clone https://github.com/boshu2/agentops.git
-claude mcp add-plugin ./agentops
+# Add the marketplace and install
+claude plugin marketplace add boshu2/agentops
+claude plugin install agentops
 ```
 
 ### 3. Initialize Your Repo
