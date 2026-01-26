@@ -15,20 +15,20 @@
 This is all you do. Everything else is automatic.
 
 ```
-/research → /pre-mortem → /crank → /vibe → /post-mortem
+/research → /plan → /pre-mortem → /crank → /post-mortem
 ```
 
-| Step | Command | What Happens |
-|------|---------|--------------|
-| 1 | `/research` | Explore codebase, mine prior knowledge |
-| 2 | `/pre-mortem` | Simulate failures before you build |
-| 3 | `/crank` | Implement → validate → commit (loops until done) |
-| 4 | `/vibe` | Validate: security, quality, architecture |
-| 5 | `/post-mortem` | Extract learnings, update knowledge base |
+| Step | Command | What Happens | Calls Internally |
+|------|---------|--------------|------------------|
+| 1 | `/research` | Explore codebase, mine prior knowledge | — |
+| 2 | `/plan` | Break goal into tracked issues | `/beads` |
+| 3 | `/pre-mortem` | Simulate failures before you build | — |
+| 4 | `/crank` | Implement → validate → commit loop | `/implement` for each issue |
+| 5 | `/post-mortem` | Validate + extract learnings | `/vibe`, `/retro` |
 
 **That's the whole workflow.**
 
-The knowledge flywheel, the math, the retrieval, the linking — all handled in the background. You just run 5 commands.
+The skills call each other. `/crank` runs `/implement` on each issue. `/post-mortem` runs `/vibe` for validation and `/retro` for knowledge extraction. The flywheel, the math, the linking — all automatic.
 
 ---
 
@@ -156,15 +156,16 @@ Session 1     Session 2     Session 3     Session 4
 
 ## All 20 Skills
 
-**You only need the 5 core commands.** The rest run automatically or are power-user utilities.
+**You run 5 commands. The rest are called automatically.**
 
-| Category | Skills | Notes |
-|----------|--------|-------|
-| **Core (you run these)** | `/research`, `/pre-mortem`, `/crank`, `/vibe`, `/post-mortem` | The main workflow |
-| **Supporting** | `/plan`, `/implement`, `/retro` | Called by /crank automatically |
-| **Validation** | `/bug-hunt`, `/complexity`, `/doc` | Optional deep-dives |
-| **Knowledge (automatic)** | `/forge`, `/extract`, `/inject`, `/knowledge`, `/provenance`, `/flywheel`, `/ratchet` | Runs in hooks |
-| **Integration** | `/beads`, `/using-agentops` | Issue tracking, onboarding |
+| Category | Skills | How They Run |
+|----------|--------|--------------|
+| **You run these** | `/research`, `/plan`, `/pre-mortem`, `/crank`, `/post-mortem` | The main workflow |
+| **Called by /crank** | `/implement` | Runs for each issue |
+| **Called by /post-mortem** | `/vibe`, `/retro` | Validation + learnings |
+| **Called by /plan** | `/beads` | Issue tracking |
+| **Optional deep-dives** | `/bug-hunt`, `/complexity`, `/doc` | When you need them |
+| **Automatic (hooks)** | `/forge`, `/extract`, `/inject`, `/knowledge`, `/provenance`, `/flywheel`, `/ratchet`, `/using-agentops` | Background |
 
 ---
 
