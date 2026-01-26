@@ -14,6 +14,74 @@ AI coding agents are brilliant but amnesiac. They solve a bug today, forget it t
 
 ---
 
+## How It Works
+
+It starts the moment you fire up your coding agent. Before you even ask a question, AgentOps quietly injects relevant knowledge from your past sessions—patterns you've discovered, bugs you've solved, architectural decisions you've made.
+
+When you start working on something, your agent doesn't just dive in. It runs `/research` to mine your knowledge base first. Found a similar problem three weeks ago? It surfaces that solution. Discovered a gotcha in this codebase? It remembers.
+
+Once you've got context, `/plan` breaks your work into tracked issues with dependencies. Then `/pre-mortem` simulates the implementation multiple times to find failure modes *before* you hit them. "What could go wrong?" becomes "Here's what will go wrong, and here's how we'll prevent it."
+
+When you say "go", `/crank` takes over. It picks up issues, implements them, validates with `/vibe` (security, architecture, complexity, accessibility—9 aspects total), commits, and moves to the next. If something fails validation, it iterates until it passes. No human babysitting required.
+
+After the work is done, `/post-mortem` extracts what you learned. Did it match the spec? Did it match what you actually wanted? Those learnings get indexed so your *next* research session finds them automatically.
+
+That's the flywheel: **Research mines knowledge → Implementation creates knowledge → Post-mortem captures knowledge → Research mines it again.** Each cycle makes the next one faster.
+
+And because everything triggers through hooks, you don't need to do anything special. Your coding agent just has memory.
+
+---
+
+## Installation
+
+**Note:** Installation differs by platform. Claude Code has a built-in plugin system. Codex and OpenCode require manual setup.
+
+### Claude Code (Recommended)
+
+```bash
+# 1. Install the CLI
+brew install boshu2/agentops/agentops
+
+# 2. Initialize your repo
+ao init
+
+# 3. Install hooks (this is where the magic happens)
+ao hooks install
+
+# 4. Verify
+ao badge
+```
+
+### Codex
+
+Tell Codex:
+
+```
+Fetch and follow instructions from https://raw.githubusercontent.com/boshu2/agentops/refs/heads/main/.codex/setup.md
+```
+
+### OpenCode
+
+Tell OpenCode:
+
+```
+Fetch and follow instructions from https://raw.githubusercontent.com/boshu2/agentops/refs/heads/main/.opencode/setup.md
+```
+
+### Verify Installation
+
+The hooks should fire automatically. Check that knowledge injection works:
+
+```bash
+# Start a Claude Code session - you should see injected context
+claude
+
+# Or manually test
+ao inject --dry-run
+```
+
+---
+
 ## The Workflow
 
 **Chaos + Filter + Ratchet = Progress**
@@ -23,30 +91,14 @@ Each phase produces chaos, filters it for quality, then ratchets progress perman
 ```mermaid
 flowchart TB
     %% Professional color palette based on split-complementary color theory
-    %% Using Tailwind CSS colors for proven accessibility and professionalism
-
-    %% Research: Slate Blue (information, discovery)
     classDef research fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
-
-    %% Plan: Indigo (strategy, structure)
     classDef plan fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,color:#3730a3
-
-    %% Pre-mortem/Validate: Amber (caution, analysis)
     classDef caution fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#92400e
-
-    %% Implement: Slate (neutral, work)
     classDef implement fill:#f8fafc,stroke:#475569,stroke-width:2px,color:#1e293b
-
-    %% Success/Done: Emerald (completion, success)
     classDef success fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#065f46
-
-    %% Knowledge: Violet (insight, memory)
     classDef knowledge fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
-
-    %% Decision: Rose (choice point)
     classDef decision fill:#fff1f2,stroke:#e11d48,stroke-width:2px,color:#9f1239
 
-    %% Main Workflow
     subgraph WORKFLOW["THE BROWNIAN RATCHET"]
         direction TB
 
@@ -94,13 +146,11 @@ flowchart TB
         DONE --> PO1
     end
 
-    %% Validation Loop
     PO3 -->|No| C1
     PO3 -->|Yes| GOAL{Matches goal?}
     GOAL -->|No| R1
     GOAL -->|Yes| LOCK[RATCHET LOCKED]
 
-    %% Knowledge Flywheel
     subgraph FLY["KNOWLEDGE FLYWHEEL"]
         direction LR
         LOCK --> INDEX[ao forge index]
@@ -109,7 +159,6 @@ flowchart TB
         INJECT -.-> R1
     end
 
-    %% Apply styles
     class R,R1,R2,R3 research
     class P,P1,P2,P3 plan
     class PM,PM1,PM2,PM3 caution
@@ -124,13 +173,13 @@ flowchart TB
 
 ## What Each Phase Does
 
-| Phase | Chaos | Filter | Ratchet |
-|-------|-------|--------|---------|
-| **Research** | Multiple exploration paths | Human synthesis decision | `.agents/research/` artifact |
-| **Plan** | Multiple plan attempts | Pre-mortem simulation | Beads issues with dependencies |
-| **Pre-Mortem** | Simulate N failure modes | Identify spec gaps | Updated spec |
-| **Crank** | Parallel polecats | Vibe validation (9 aspects) | Code merged to main |
-| **Post-Mortem** | Multi-aspect validation | Spec comparison | Knowledge locked in flywheel |
+| Phase | What Happens | Output |
+|-------|--------------|--------|
+| **Research** | Mine prior knowledge, explore codebase, synthesize findings | `.agents/research/` |
+| **Plan** | Define spec, create tracked issues with dependencies | `.beads/` issues |
+| **Pre-Mortem** | Simulate failures before they happen, update spec | Hardened spec |
+| **Crank** | Autonomous loop: implement → validate → commit → repeat | Merged code |
+| **Post-Mortem** | Extract learnings, validate against spec and goal | `.agents/learnings/` |
 
 ---
 
@@ -140,7 +189,6 @@ You don't manually run `ao` commands. Hooks do it for you.
 
 ```mermaid
 flowchart LR
-    %% Consistent palette with main diagram
     classDef session fill:#f8fafc,stroke:#475569,stroke-width:2px,color:#1e293b
     classDef inject fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#065f46
     classDef extract fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#92400e
@@ -175,9 +223,9 @@ flowchart LR
     class S1,S2,S3 storage
 ```
 
-**SessionStart hook**: Injects relevant prior knowledge (weighted by freshness + utility)
+**SessionStart**: Injects relevant prior knowledge (weighted by freshness + utility)
 
-**SessionEnd hook**: Extracts learnings and indexes them for future sessions
+**SessionEnd**: Extracts learnings and indexes them for future sessions
 
 ---
 
@@ -187,7 +235,6 @@ Knowledge decays without reinforcement. But when retrieval × usage exceeds deca
 
 ```mermaid
 flowchart LR
-    %% Semantic colors: red for decay, green gradient for compounding
     classDef decay fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
     classDef compound1 fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
     classDef compound2 fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d
@@ -224,43 +271,30 @@ Goal: σ × ρ > δ → Knowledge compounds faster than it fades
 
 ---
 
-## Implementation Status
+## What's Inside
 
-| Component | Status | Location |
-|-----------|--------|----------|
-| **ao CLI** | Implemented | `cli/` |
-| **ao inject** | Implemented | Injects learnings at session start |
-| **ao forge search** | Implemented | Searches CASS-indexed sessions |
-| **ao forge index** | Implemented | Indexes artifacts for retrieval |
-| **ao feedback** | Implemented | Helpful/harmful feedback loop |
-| **ao ratchet** | Implemented | Provenance chain tracking |
-| **/research** | Implemented | `skills/research/` |
-| **/pre-mortem** | Implemented | `skills/pre-mortem/` |
-| **/plan** | Implemented | `skills/plan/` |
-| **/crank** | Implemented | `skills/crank/` |
-| **/vibe** | Implemented | `skills/vibe/` |
-| **/post-mortem** | Implemented | `skills/post-mortem/` |
-| **Spec validation loop** | Implemented | In post-mortem |
-| **Maturity tracking** | Partial | Schema designed |
-| **Confidence decay** | Implemented | `ao inject --apply-decay` |
+### Skills
 
----
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| `/research` | "research", "explore", "investigate" | Deep codebase exploration with knowledge mining |
+| `/plan` | "create a plan", "break down" | Convert goals into tracked beads issues |
+| `/pre-mortem` | "what could go wrong", "simulate" | Find failure modes before implementation |
+| `/crank` | "execute", "go", "ship it" | Autonomous implementation loop |
+| `/vibe` | "validate", "check quality" | 9-aspect code validation |
+| `/post-mortem` | "what did we learn", "wrap up" | Extract and index learnings |
 
-## Quick Start
+### CLI Commands
 
-```bash
-# 1. Install
-brew install boshu2/agentops/agentops
-
-# 2. Connect to Claude Code
-claude mcp add boshu2/agentops
-
-# 3. Initialize your repo
-ao init && ao hooks install
-
-# 4. Verify
-ao badge
-```
+| Command | Purpose |
+|---------|---------|
+| `ao inject` | Inject knowledge into current session |
+| `ao forge search` | Search CASS-indexed sessions |
+| `ao forge index` | Index artifacts for retrieval |
+| `ao forge transcript` | Extract learnings from transcripts |
+| `ao feedback` | Mark learnings as helpful/harmful |
+| `ao ratchet` | Track provenance chain |
+| `ao hooks install` | Install SessionStart/End hooks |
 
 ---
 
