@@ -167,6 +167,25 @@ Your knowledge base lives in your repo, not in the cloud. It is fully portable a
 
 ---
 
+## 🔧 Batteries Included
+
+AgentOps builds on top of excellent open-source tools. Here's what powers the system:
+
+| Tool | What It Does | Link |
+|------|-------------|------|
+| **Claude Code** | The AI coding agent that runs the skills | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
+| **beads** | Git-native issue tracking. Issues live in `.beads/`, tracked alongside code | [beads-ai/beads](https://github.com/beads-ai/beads) |
+| **Smart Connections** | Semantic search over your `.agents/` knowledge base | [brianpetro/smart-connections](https://github.com/brianpetro/smart-connections) |
+| **Homebrew** | Package manager for the `ao` CLI | [Homebrew/brew](https://github.com/Homebrew/brew) |
+
+### Why These?
+
+- **beads** — Issues should live with your code, not in a separate SaaS. Git-tracked = portable, auditable, survives vendor lock-in.
+- **Smart Connections** — Embedding-based search finds semantically relevant learnings, not just keyword matches.
+- **Claude Code** — Plugin system lets us inject skills and hooks without forking the agent.
+
+---
+
 ## 🤝 Contributing
 
 We are building the standard for stateful AI agents.
