@@ -1,14 +1,14 @@
 {
   "name": "agentops",
   "version": "1.0.0",
-  "description": "AI-assisted development workflow with 20 skills + ao CLI: Research → Plan → Implement with Knowledge Flywheel",
+  "description": "AI-assisted development workflow with 21 skills + ao CLI: Research → Plan → Implement with Knowledge Flywheel",
   "author": {
-    "name": "Boden Fuller"
+    "name": "Boden Fuller",
+    "email": "fullerbt@users.noreply.github.com"
   },
+  "homepage": "https://github.com/boshu2/agentops",
+  "repository": "https://github.com/boshu2/agentops",
   "license": "MIT",
-  "skills": "./skills",
-  "agents": "./agents",
-  "hooks": "./hooks/hooks.json",
   "keywords": [
     "workflow",
     "rpi",
