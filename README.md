@@ -34,16 +34,20 @@ The skills call each other. `/crank` runs `/implement` on each issue. `/post-mor
 
 ## What /vibe Validates
 
-When `/post-mortem` calls `/vibe`, it checks 8 aspects automatically:
+**The core question: Does the implementation match the spec?**
+
+`/vibe` is a semantic validator. After `/crank` builds something, `/vibe` checks if what was built actually matches what was planned. It compares the output against the spec and flags mismatches.
+
+Beyond spec validation, it also checks 8 quality aspects:
 
 | Aspect | What It Catches |
 |--------|-----------------|
+| **Semantic** | Does the code do what the spec says? Docstrings that lie, misleading names |
 | **Security** | SQL injection, auth bypass, hardcoded secrets, crypto issues |
 | **Quality** | Code smells, dead code, copy-paste, magic numbers |
 | **Architecture** | Layer violations, circular deps, god classes, coupling |
 | **Complexity** | CC > 10, deep nesting, long functions, too many params |
 | **Performance** | N+1 queries, unbounded loops, resource leaks |
-| **Semantic** | Docstrings that lie, misleading names, comment rot |
 | **Slop** | AI hallucinations, cargo cult code, over-engineering |
 | **Accessibility** | Missing ARIA, broken keyboard nav, contrast issues |
 
