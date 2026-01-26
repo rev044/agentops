@@ -27,10 +27,13 @@ HIGH_COUNT=0
 MEDIUM_COUNT=0
 
 # P2: Hardcoded secrets (CRITICAL)
+# Uses path-based filtering to exclude test directories (not line content)
 echo "### P2: Hardcoded Secrets" >> "$OUTPUT_FILE"
 SECRETS=$(grep -rn --include="*.py" --include="*.go" --include="*.ts" --include="*.js" \
     -E "(password|secret|api_key|apikey|token)\s*=\s*['\"][^'\"]+['\"]" "$TARGET" 2>/dev/null | \
-    grep -v "test" | grep -v "example" | head -10 || true)
+    grep -v "/test/" | grep -v "/tests/" | grep -v "_test\." | \
+    grep -v "/example/" | grep -v "/examples/" | \
+    grep -v "\.example\." | head -20 || true)
 
 if [[ -n "$SECRETS" ]]; then
     echo "**Severity:** CRITICAL" >> "$OUTPUT_FILE"

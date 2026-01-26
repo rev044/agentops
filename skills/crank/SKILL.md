@@ -376,6 +376,26 @@ gt rig list
 
 **For P0 and P1 priority work, pre-mortem is MANDATORY.**
 
+### Artifact Flow
+
+```
+/research → .agents/research/*.md
+     ↓
+/plan or /formulate → .agents/formulas/*.formula.toml
+     ↓                      OR
+/pre-mortem <spec> → .agents/specs/*-analysis.md (findings)
+                   → .agents/specs/*-v2.md (enhanced spec)
+     ↓
+/crank (gate check) → looks for *-analysis.md or *-v2.md
+```
+
+**Spec sources** (input to `/pre-mortem`):
+- `.agents/formulas/*.formula.toml` - Formula templates
+- `.agents/research/*.md` - Research documents
+- `.agents/specs/*.md` - Existing spec documents
+
+### Gate Check
+
 Before starting `/crank` on high-priority epics:
 
 ```bash
@@ -480,9 +500,22 @@ Each REAP phase locks progress: completed issues cannot regress.
 
 ---
 
-## Related
+## References
 
-- [fire.md](fire.md) - FIRE loop specification (FIND/IGNITE/REAP/ESCALATE)
-- [failure-taxonomy.md](failure-taxonomy.md) - Failure types and handling
-- `/vibe` - Validation before merging
-- `/implement` - Single issue execution (used by crew mode)
+### JIT-Loadable Documents
+
+| Document | When to Load |
+|----------|--------------|
+| [fire.md](fire.md) | Debugging FIRE loop issues, understanding phase transitions |
+| [failure-taxonomy.md](failure-taxonomy.md) | Handling failures, retry logic, escalation decisions |
+
+**Note:** These are NOT loaded by default. Load JIT when troubleshooting specific issues.
+
+### Related Skills
+
+| Skill | Relationship |
+|-------|--------------|
+| `/vibe` | Called after each issue for validation |
+| `/implement` | Called for each issue execution (crew mode) |
+| `/implement-wave` | Alternative: wave-based execution |
+| `/beads` | Issue tracking substrate |

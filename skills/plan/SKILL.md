@@ -106,13 +106,16 @@ See `~/.claude/skills/research/references/context-discovery.md` for full 6-tier 
 Before exploring from scratch, check if research already exists:
 
 ```bash
-# Check for existing research on this topic
-mcp__smart-connections-work__lookup(query="<goal>", limit=5)
-# Filter results to .agents/research/ paths
+# Priority 1: Query ao CLI (searches all indexed knowledge)
+ao forge search "<goal>" --limit 10
 
-# Fallback: glob search
-ls .agents/research/*.md 2>/dev/null | head -10
-grep -l "<goal keywords>" .agents/research/*.md 2>/dev/null
+# Priority 2: Semantic search via MCP (if ao unavailable)
+mcp__smart-connections-work__lookup(query="<goal>", limit=5)
+# Filter results to .agents/research/ and .agents/synthesis/ paths
+
+# Priority 3: File-based fallback (if both unavailable)
+ls .agents/research/*.md .agents/synthesis/*.md 2>/dev/null | head -10
+grep -l "<goal keywords>" .agents/research/*.md .agents/synthesis/*.md 2>/dev/null
 ```
 
 | Prior Research Status | Action |
@@ -122,6 +125,9 @@ grep -l "<goal keywords>" .agents/research/*.md 2>/dev/null
 | **NONE** | Full Phase 2 exploration |
 
 **Key insight**: If `/research` was already run, don't re-explore. Build on existing artifacts.
+
+**Unified approach**: Both `/research` and `/plan` use the same discovery priority:
+`ao forge search` → MCP semantic → grep fallback. This ensures consistent knowledge retrieval.
 
 ---
 
