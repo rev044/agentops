@@ -16,37 +16,35 @@ AI coding agents are brilliant but amnesiac. They solve a bug today, forget it t
 
 ## How It Works
 
-```mermaid
-flowchart LR
-    classDef auto fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#166534
-    classDef skill fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
-    classDef store fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
-
-    subgraph AUTO["AUTOMATIC (hooks)"]
-        A1[Session Start]
-        A2[ao inject]
-        A1 --> A2
-    end
-
-    subgraph WORK["YOUR WORKFLOW"]
-        direction TB
-        W1["/research"] --> W2["/plan"]
-        W2 --> W3["/pre-mortem"]
-        W3 --> W4["/crank"]
-        W4 --> W5["/post-mortem"]
-    end
-
-    subgraph STORE["KNOWLEDGE"]
-        S1[".agents/"]
-    end
-
-    A2 -->|prior knowledge| W1
-    W5 -->|learnings| S1
-    S1 -.->|feeds next session| A2
-
-    class A1,A2 auto
-    class W1,W2,W3,W4,W5 skill
-    class S1 store
+```
+    ╭─────────────────╮                                    ╭─────────────────╮
+    │  SESSION START  │                                    │    KNOWLEDGE    │
+    │    (hooks)      │                                    │    .agents/     │
+    ╰────────┬────────╯                                    ╰────────┬────────╯
+             │                                                      │
+             │  ao inject                                           │
+             │  (prior knowledge)                                   │
+             ▼                                                      │
+    ╭────────────────────────────────────────────────────╮         │
+    │                  YOUR WORKFLOW                      │         │
+    │                                                     │         │
+    │    /research ──▶ /plan ──▶ /pre-mortem             │         │
+    │                                 │                   │         │
+    │                                 ▼                   │         │
+    │                             /crank ◀───────────╮    │         │
+    │                                 │              │    │         │
+    │                                 ▼          (retry)  │         │
+    │                           /post-mortem ────────╯    │         │
+    │                                                     │         │
+    ╰─────────────────────────┬───────────────────────────╯         │
+                              │                                     │
+                              │  learnings                          │
+                              ╰─────────────────────────────────────╯
+                                          ▲
+                                          │
+                              ╭───────────┴───────────╮
+                              │   FEEDS NEXT SESSION  │
+                              ╰───────────────────────╯
 ```
 
 | Step | What Happens |
@@ -118,85 +116,67 @@ ao inject --dry-run
 
 Each phase produces chaos, filters it for quality, then ratchets progress permanently. You can always add more chaos, but you can't un-ratchet.
 
-```mermaid
-flowchart TB
-    %% Professional color palette based on split-complementary color theory
-    classDef research fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
-    classDef plan fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,color:#3730a3
-    classDef caution fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#92400e
-    classDef implement fill:#f8fafc,stroke:#475569,stroke-width:2px,color:#1e293b
-    classDef success fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#065f46
-    classDef knowledge fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
-    classDef decision fill:#fff1f2,stroke:#e11d48,stroke-width:2px,color:#9f1239
-
-    subgraph WORKFLOW["THE BROWNIAN RATCHET"]
-        direction TB
-
-        subgraph R["1. RESEARCH"]
-            R1[Mine prior knowledge]
-            R2[Explore codebase]
-            R3[Create synthesis doc]
-            R1 --> R2 --> R3
-        end
-
-        subgraph P["2. PLAN"]
-            P1[Define spec]
-            P2[Create beads issues]
-            P3[Set dependencies]
-            P1 --> P2 --> P3
-        end
-
-        subgraph PM["3. PRE-MORTEM"]
-            PM1[Simulate N iterations]
-            PM2[Find failure modes]
-            PM3[Update spec]
-            PM1 --> PM2 --> PM3
-        end
-
-        subgraph C["4. CRANK"]
-            C1[Pick issue] --> C2[Implement]
-            C2 --> C3{Vibe OK?}
-            C3 -->|No| C2
-            C3 -->|Yes| C4[Commit]
-            C4 --> C5{More issues?}
-            C5 -->|Yes| C1
-            C5 -->|No| DONE[Done]
-        end
-
-        subgraph PO["5. POST-MORTEM"]
-            PO1[Extract learnings]
-            PO2[Run full vibe]
-            PO3{Matches spec?}
-            PO1 --> PO2 --> PO3
-        end
-
-        R3 --> P1
-        P3 --> PM1
-        PM3 --> C1
-        DONE --> PO1
-    end
-
-    PO3 -->|No| C1
-    PO3 -->|Yes| GOAL{Matches goal?}
-    GOAL -->|No| R1
-    GOAL -->|Yes| LOCK[RATCHET LOCKED]
-
-    subgraph FLY["KNOWLEDGE FLYWHEEL"]
-        direction LR
-        LOCK --> INDEX[ao forge index]
-        INDEX --> STORE[".agents/"]
-        STORE --> INJECT[ao inject]
-        INJECT -.-> R1
-    end
-
-    class R,R1,R2,R3 research
-    class P,P1,P2,P3 plan
-    class PM,PM1,PM2,PM3 caution
-    class C,C1,C2,C4 implement
-    class C5,DONE success
-    class PO,PO1,PO2 caution
-    class C3,PO3,GOAL decision
-    class LOCK,INDEX,STORE,INJECT knowledge
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                           THE BROWNIAN RATCHET                                 ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐           ║
+║   │  1. RESEARCH    │    │    2. PLAN      │    │  3. PRE-MORTEM  │           ║
+║   │                 │    │                 │    │                 │           ║
+║   │  Mine prior     │───▶│  Define spec    │───▶│  Simulate N     │           ║
+║   │  knowledge      │    │       │         │    │  iterations     │           ║
+║   │       │         │    │       ▼         │    │       │         │           ║
+║   │       ▼         │    │  Create beads   │    │       ▼         │           ║
+║   │  Explore        │    │  issues         │    │  Find failure   │           ║
+║   │  codebase       │    │       │         │    │  modes          │           ║
+║   │       │         │    │       ▼         │    │       │         │           ║
+║   │       ▼         │    │  Set            │    │       ▼         │           ║
+║   │  Create         │    │  dependencies   │    │  Update spec    │           ║
+║   │  synthesis doc  │    │                 │    │                 │           ║
+║   └─────────────────┘    └─────────────────┘    └────────┬────────┘           ║
+║                                                          │                    ║
+║           ╭──────────────────────────────────────────────╯                    ║
+║           │                                                                   ║
+║           ▼                                                                   ║
+║   ┌───────────────────────────────────────────┐    ┌─────────────────┐       ║
+║   │              4. CRANK                      │    │  5. POST-MORTEM │       ║
+║   │                                            │    │                 │       ║
+║   │   ╭──────────────────────────────────╮    │    │  Extract        │       ║
+║   │   │                                  │    │    │  learnings      │       ║
+║   │   ▼                                  │    │    │       │         │       ║
+║   │  Pick issue ──▶ Implement ──▶ Vibe? ─┤    │───▶│       ▼         │       ║
+║   │   ▲                          │  │    │    │    │  Run full vibe  │       ║
+║   │   │                         Yes No   │    │    │       │         │       ║
+║   │   │                          │  │    │    │    │       ▼         │       ║
+║   │   │                          ▼  ╰────╯    │    │  Matches spec?  │       ║
+║   │   │                       Commit          │    │    │       │    │       ║
+║   │   │                          │            │    │   Yes      No   │       ║
+║   │   │                          ▼            │    │    │       │    │       ║
+║   │   │                    More issues? ──────╯    │    │       ╰────╋──╮    ║
+║   │   │                          │ No              │    │            │  │    ║
+║   │   │                          ▼                 │    ▼            │  │    ║
+║   │   │                        DONE ───────────────╯  Goal?          │  │    ║
+║   │   │                                                │    │        │  │    ║
+║   │   ╰────────────────────────────────────────────────╯   Yes       │  │    ║
+║   │                     (retry if no match goal)            │        │  │    ║
+║   └─────────────────────────────────────────────────────────┼────────╯  │    ║
+║                                                             │           │    ║
+╚═════════════════════════════════════════════════════════════╪═══════════╪════╝
+                                                              │           │
+                                                              ▼           │
+                                              ╔═══════════════════════════╧════╗
+                                              ║     🔒 RATCHET LOCKED          ║
+                                              ╠════════════════════════════════╣
+                                              ║                                ║
+                                              ║  ao forge index ──▶ .agents/   ║
+                                              ║         │                      ║
+                                              ║         ▼                      ║
+                                              ║     ao inject                  ║
+                                              ║         │                      ║
+                                              ║         ╰──▶ (next session)    ║
+                                              ║                                ║
+                                              ╚════════════════════════════════╝
 ```
 
 ---
@@ -217,40 +197,49 @@ flowchart TB
 
 You don't manually run `ao` commands. Hooks do it for you.
 
-```mermaid
-flowchart LR
-    classDef session fill:#f8fafc,stroke:#475569,stroke-width:2px,color:#1e293b
-    classDef inject fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#065f46
-    classDef extract fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#92400e
-    classDef index fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
-    classDef storage fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
-
-    subgraph SESSION["CLAUDE CODE SESSION"]
-        direction TB
-        START[Session Start] --> WORK[Your Work]
-        WORK --> END[Session End]
-    end
-
-    subgraph HOOKS["AUTOMATIC HOOKS"]
-        direction TB
-        H1[ao inject] -.->|Loads prior knowledge| START
-        END -.->|Extracts learnings| H2[ao forge transcript]
-        H2 --> H3[ao forge index]
-    end
-
-    subgraph STORAGE["YOUR REPO"]
-        direction TB
-        H3 --> S1[".agents/learnings/"]
-        H3 --> S2[".agents/patterns/"]
-        H3 --> S3[".agents/research/"]
-        S1 & S2 & S3 -.-> H1
-    end
-
-    class START,WORK,END session
-    class H1 inject
-    class H2 extract
-    class H3 index
-    class S1,S2,S3 storage
+```
+                         ┌─────────────────────────────────────┐
+                         │        CLAUDE CODE SESSION          │
+                         │                                     │
+   ╭───────────────╮     │  ┌─────────┐                       │
+   │   ao inject   │────▶│  │  START  │                       │
+   │               │     │  └────┬────┘                       │
+   │ (loads prior  │     │       │                            │
+   │  knowledge)   │     │       ▼                            │
+   ╰───────┬───────╯     │  ┌─────────┐                       │
+           │             │  │  YOUR   │                       │
+           │             │  │  WORK   │                       │
+           │             │  └────┬────┘                       │
+           │             │       │                            │
+           │             │       ▼                            │
+           │             │  ┌─────────┐     ╭─────────────────╯
+           │             │  │   END   │────▶│
+           │             └──┴─────────┴─────┤
+           │                                │
+           │                                ▼
+           │                     ╭─────────────────────╮
+           │                     │  ao forge transcript │
+           │                     │  (extracts learnings)│
+           │                     ╰──────────┬──────────╯
+           │                                │
+           │                                ▼
+           │                     ╭─────────────────────╮
+           │                     │   ao forge index    │
+           │                     ╰──────────┬──────────╯
+           │                                │
+           │    ┌───────────────────────────┼───────────────────────────┐
+           │    │          YOUR REPO        │                           │
+           │    │                           ▼                           │
+           │    │    ┌──────────────────────────────────────────┐      │
+           │    │    │              .agents/                     │      │
+           │    │    │  ┌────────────┐ ┌──────────┐ ┌─────────┐ │      │
+           │    │    │  │ learnings/ │ │patterns/ │ │research/│ │      │
+           │    │    │  └─────┬──────┘ └────┬─────┘ └────┬────┘ │      │
+           │    │    └────────┼─────────────┼────────────┼──────┘      │
+           │    └─────────────┼─────────────┼────────────┼─────────────┘
+           │                  │             │            │
+           ╰──────────────────┴─────────────┴────────────╯
+                              (feeds next session)
 ```
 
 **SessionStart**: Injects relevant prior knowledge (weighted by freshness + utility)
@@ -263,27 +252,30 @@ flowchart LR
 
 Knowledge decays without reinforcement. But when retrieval × usage exceeds decay, knowledge compounds.
 
-```mermaid
-flowchart LR
-    classDef decay fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
-    classDef compound1 fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
-    classDef compound2 fill:#bbf7d0,stroke:#15803d,stroke-width:2px,color:#14532d
-    classDef compound3 fill:#86efac,stroke:#059669,stroke-width:2px,color:#064e3b
+```
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                         WITHOUT AGENTOPS                                 │
+  │                                                                          │
+  │   Session 1          Session 2          Session 3                        │
+  │  ┌──────────┐       ┌──────────┐       ┌──────────┐                     │
+  │  │ Debug    │ ───▶  │ Same bug │ ───▶  │ Same bug │     😩 Groundhog    │
+  │  │ bug      │       │ start    │       │ start    │        Day          │
+  │  │          │       │ fresh    │       │ fresh    │                     │
+  │  └──────────┘       └──────────┘       └──────────┘                     │
+  │       ⏱️ 2hr             ⏱️ 2hr             ⏱️ 2hr                        │
+  └─────────────────────────────────────────────────────────────────────────┘
 
-    subgraph DECAY["WITHOUT AGENTOPS"]
-        D1[Session 1: Debug bug] --> D2[Session 2: Same bug, start fresh]
-        D2 --> D3[Session 3: Same bug, start fresh]
-    end
-
-    subgraph COMPOUND["WITH AGENTOPS"]
-        C1[Session 1: Debug bug, capture pattern] --> C2[Session 2: Recall pattern, 3 min fix]
-        C2 --> C3[Session 3: Instant recall]
-    end
-
-    class D1,D2,D3 decay
-    class C1 compound1
-    class C2 compound2
-    class C3 compound3
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                          WITH AGENTOPS                                   │
+  │                                                                          │
+  │   Session 1          Session 2          Session 3                        │
+  │  ┌──────────┐       ┌──────────┐       ┌──────────┐                     │
+  │  │ Debug    │ ───▶  │ Recall   │ ───▶  │ Instant  │     🚀 Compounding  │
+  │  │ bug +    │       │ pattern  │       │ recall   │        Knowledge    │
+  │  │ capture  │       │ 3 min    │       │          │                     │
+  │  └──────────┘       └──────────┘       └──────────┘                     │
+  │       ⏱️ 2hr             ⏱️ 3min            ⏱️ 30sec                      │
+  └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 **The Math:**
