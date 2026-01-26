@@ -32,6 +32,27 @@ The skills call each other. `/crank` runs `/implement` on each issue. `/post-mor
 
 ---
 
+## What /vibe Validates
+
+When `/post-mortem` calls `/vibe`, it checks 8 aspects automatically:
+
+| Aspect | What It Catches |
+|--------|-----------------|
+| **Security** | SQL injection, auth bypass, hardcoded secrets, crypto issues |
+| **Quality** | Code smells, dead code, copy-paste, magic numbers |
+| **Architecture** | Layer violations, circular deps, god classes, coupling |
+| **Complexity** | CC > 10, deep nesting, long functions, too many params |
+| **Performance** | N+1 queries, unbounded loops, resource leaks |
+| **Semantic** | Docstrings that lie, misleading names, comment rot |
+| **Slop** | AI hallucinations, cargo cult code, over-engineering |
+| **Accessibility** | Missing ARIA, broken keyboard nav, contrast issues |
+
+**The gate:** 0 CRITICAL = pass. 1+ CRITICAL = block until fixed.
+
+You don't run `/vibe` separately — `/post-mortem` runs it for you and creates follow-up issues for findings.
+
+---
+
 ## The Problem
 
 Your agent solves a bug today. Tomorrow? Same bug, starts from scratch.
