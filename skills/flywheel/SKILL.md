@@ -1,14 +1,6 @@
 ---
 name: flywheel
-description: >
-  Knowledge flywheel health monitoring. Checks velocity, pool depths, staleness.
-  Triggers: "flywheel status", "knowledge health", "is knowledge compounding".
-version: 1.0.0
-tier: solo
-author: "AI Platform Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read,Bash,Grep,Glob"
+description: 'Knowledge flywheel health monitoring. Checks velocity, pool depths, staleness. Triggers: "flywheel status", "knowledge health", "is knowledge compounding".'
 ---
 
 # Skill: Flywheel

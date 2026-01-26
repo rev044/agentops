@@ -1,14 +1,6 @@
 ---
 name: using-agentops
-tier: meta
-description: >
-  Meta skill explaining the AgentOps workflow. Auto-injected on session start.
-  Covers RPI workflow, Knowledge Flywheel, and skill catalog.
-version: 1.0.0
-author: "AgentOps Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read"
+description: 'Meta skill explaining the AgentOps workflow. Auto-injected on session start. Covers RPI workflow, Knowledge Flywheel, and skill catalog.'
 ---
 
 # AgentOps Workflow

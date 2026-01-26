@@ -1,14 +1,6 @@
 ---
 name: extract
-description: >
-  Extract decisions and learnings from Claude session transcripts.
-  Triggers: "extract learnings", "process pending", SessionStart hook.
-version: 1.0.0
-tier: solo
-author: "AI Platform Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read,Write,Bash"
+description: 'Extract decisions and learnings from Claude session transcripts. Triggers: "extract learnings", "process pending", SessionStart hook.'
 ---
 
 # Extract Skill
@@ -56,51 +48,3 @@ ao extract --max-content 4000
 When pending extractions exist, outputs a structured prompt:
 
 ```markdown
----
-# Knowledge Extraction Request
-
-A previous session has been queued for learning extraction.
-
-## Session Context
-- **Session ID**: abc123
-- **Summary**: Debugged OAuth token refresh issue
-
-## Key Decisions
-- Chose to use Redis for token storage
-- ...
-
-## Your Task
-Extract **1-3 actionable learnings** and write to:
-.agents/learnings/2026-01-25-abc123.md
-
-[Format instructions...]
----
-```
-
-## The Closed Loop
-
-| Step | Command | Output |
-|------|---------|--------|
-| Session ends | `ao forge --queue` | Queues session |
-| Next session starts | `ao extract` | Outputs prompt |
-| Claude processes | (automatic) | Writes learnings |
-| Knowledge injected | `ao inject` | Loads learnings |
-
-## Hook Configuration
-
-```json
-{
-  "SessionStart": [
-    {"command": "ao extract"},
-    {"command": "ao inject"}
-  ],
-  "SessionEnd": [
-    {"command": "ao forge transcript --last-session --queue --quiet"}
-  ]
-}
-```
-
-## See Also
-
-- `/forge` - Mine transcripts
-- `/inject` - Load knowledge

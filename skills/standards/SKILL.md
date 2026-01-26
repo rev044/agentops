@@ -1,15 +1,6 @@
 ---
 name: standards
-description: >
-  Language-specific coding standards and validation rules. Provides Python,
-  Go, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded
-  by /vibe, /implement, /doc, /bug-hunt, /complexity based on file types.
-version: 1.0.0
-tier: library
-context: inline
-author: "AI Platform Team"
-license: "MIT"
-allowed-tools: "Read"
+description: 'Language-specific coding standards and validation rules. Provides Python, Go, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded by /vibe, /implement, /doc, /bug-hunt, /complexity based on file types.'
 ---
 
 # Standards Skill

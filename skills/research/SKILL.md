@@ -1,14 +1,6 @@
 ---
 name: research
-description: >
-  Deep codebase exploration. Triggers: "research", "explore", "investigate",
-  "understand", "deep dive", "current state".
-version: 4.0.0
-tier: solo
-author: "AI Platform Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read,Write,Bash,Grep,Glob,Task"
+description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
 ---
 
 # Research Skill

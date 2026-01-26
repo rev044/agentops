@@ -1,14 +1,6 @@
 ---
 name: provenance
-description: >
-  Trace knowledge artifact lineage and sources. Find orphans, stale citations.
-  Triggers: "where did this come from", "trace this learning", "knowledge lineage".
-version: 1.0.0
-tier: solo
-author: "AI Platform Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read,Bash,Grep,Glob"
+description: 'Trace knowledge artifact lineage and sources. Find orphans, stale citations. Triggers: "where did this come from", "trace this learning", "knowledge lineage".'
 ---
 
 # Skill: Provenance
@@ -112,25 +104,3 @@ Skill creation (automation)
 Each forged artifact includes:
 
 ```yaml
----
-source:
-  transcript: transcript-abc123.jsonl
-  lines: [2341, 2367]
-  session_id: sess_abc123
-  extracted_at: 2026-01-15T14:23:00Z
-provenance:
-  - event: created
-    tier: 0
-    timestamp: 2026-01-15T14:23:00Z
-  - event: promoted
-    tier: 1
-    reason: "2 citations"
-    timestamp: 2026-01-17T09:00:00Z
-citations: 4
----
-```
-
-## See Also
-
-- `/forge` - Extract knowledge from transcripts
-- `/flywheel` - Monitor knowledge health

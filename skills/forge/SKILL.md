@@ -1,14 +1,6 @@
 ---
 name: forge
-description: >
-  Mine transcripts for knowledge - decisions, learnings, failures, patterns.
-  Triggers: "forge insights", "mine transcripts", "extract knowledge".
-version: 1.0.0
-tier: solo
-author: "AI Platform Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read,Write,Bash,Grep,Glob"
+description: 'Mine transcripts for knowledge - decisions, learnings, failures, patterns. Triggers: "forge insights", "mine transcripts", "extract knowledge".'
 ---
 
 # Skill: Forge

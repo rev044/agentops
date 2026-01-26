@@ -1,14 +1,6 @@
 ---
 name: ratchet
-description: >
-  Brownian Ratchet progress gates for RPI workflow. Check, record, verify.
-  Triggers: "check gate", "verify progress", "ratchet status".
-version: 1.0.0
-tier: solo
-author: "AI Platform Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read,Bash,Grep,Glob"
+description: 'Brownian Ratchet progress gates for RPI workflow. Check, record, verify. Triggers: "check gate", "verify progress", "ratchet status".'
 ---
 
 # Ratchet Skill

@@ -1,14 +1,6 @@
 ---
 name: knowledge
-tier: solo
-description: >
-  Query knowledge artifacts across all locations. Triggers: "find learnings",
-  "search patterns", "query knowledge", "what do we know about", "where is the plan".
-version: 1.0.0
-author: "AgentOps Team"
-license: "MIT"
-context: inline
-allowed-tools: "Read,Bash,Grep,Glob"
+description: 'Query knowledge artifacts across all locations. Triggers: "find learnings", "search patterns", "query knowledge", "what do we know about", "where is the plan".'
 ---
 
 # Knowledge Skill
