@@ -11,18 +11,28 @@
         ]
       },
       {
-        "type": "command",
-        "command": "ao extract 2>/dev/null || true"
-      },
-      {
-        "type": "command",
-        "command": "ao inject --apply-decay --format markdown --max-tokens 1000 2>/dev/null || true"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ao extract 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "ao inject --apply-decay --format markdown --max-tokens 1000 2>/dev/null || true"
+          }
+        ]
       }
     ],
     "SessionEnd": [
       {
-        "type": "command",
-        "command": "ao forge transcript --last-session --queue --quiet 2>/dev/null || true"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ao forge transcript --last-session --queue --quiet 2>/dev/null || true"
+          }
+        ]
       }
     ]
   }
