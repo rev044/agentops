@@ -14,7 +14,6 @@ const (
 	StepResearch   Step = "research"
 	StepPreMortem  Step = "pre-mortem"
 	StepPlan       Step = "plan"
-	StepFormulate  Step = "formulate"
 	StepImplement  Step = "implement"
 	StepCrank      Step = "crank"
 	StepVibe       Step = "vibe"
@@ -27,7 +26,6 @@ func AllSteps() []Step {
 		StepResearch,
 		StepPreMortem,
 		StepPlan,
-		StepFormulate,
 		StepImplement,
 		StepCrank,
 		StepVibe,
@@ -41,7 +39,6 @@ var stepAliases = map[string]Step{
 	"research":    StepResearch,
 	"pre-mortem":  StepPreMortem,
 	"plan":        StepPlan,
-	"formulate":   StepFormulate,
 	"implement":   StepImplement,
 	"crank":       StepCrank,
 	"vibe":        StepVibe,
@@ -56,6 +53,7 @@ var stepAliases = map[string]Step{
 	"post_mortem": StepPostMortem,
 
 	// Semantic aliases
+	"formulate": StepPlan, // Legacy alias - formulate is now plan
 	"autopilot": StepCrank,
 	"validate":  StepVibe,
 	"review":    StepPostMortem,

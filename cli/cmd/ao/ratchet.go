@@ -99,7 +99,7 @@ Examples:
 
 Returns exit code 0 if gate passes, 1 if not.
 
-Steps: research, pre-mortem, plan, formulate, implement, crank, vibe, post-mortem
+Steps: research, pre-mortem, plan, implement, crank, vibe, post-mortem
 Aliases: premortem, postmortem, autopilot, validate, review
 
 Examples:

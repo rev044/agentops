@@ -27,7 +27,7 @@ func (g *GateChecker) Check(step Step) (*GateResult, error) {
 		return g.checkResearchGate()
 	case StepPreMortem:
 		return g.checkPreMortemGate()
-	case StepPlan, StepFormulate:
+	case StepPlan:
 		return g.checkPlanGate()
 	case StepImplement, StepCrank:
 		return g.checkImplementGate()
@@ -132,7 +132,7 @@ func (g *GateChecker) checkImplementGate() (*GateResult, error) {
 	return &GateResult{
 		Step:    StepImplement,
 		Passed:  false,
-		Message: "No open epic found. Run /plan or /formulate first.",
+		Message: "No open epic found. Run /plan first.",
 	}, nil
 }
 
@@ -223,7 +223,7 @@ func GetRequiredInput(step Step) string {
 		return "" // No input required
 	case StepPreMortem:
 		return ".agents/research/*.md"
-	case StepPlan, StepFormulate:
+	case StepPlan:
 		return ".agents/specs/*-v2.md OR .agents/synthesis/*.md"
 	case StepImplement, StepCrank:
 		return "epic:<epic-id>"
@@ -243,7 +243,7 @@ func GetExpectedOutput(step Step) string {
 		return ".agents/research/<topic>.md"
 	case StepPreMortem:
 		return ".agents/specs/<topic>-v2.md"
-	case StepPlan, StepFormulate:
+	case StepPlan:
 		return "epic:<epic-id>"
 	case StepImplement, StepCrank:
 		return "issue:<issue-id> (closed)"

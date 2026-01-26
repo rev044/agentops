@@ -190,6 +190,31 @@ type Candidate struct {
 
 	// LastRewardAt is when the last reward was recorded.
 	LastRewardAt time.Time `json:"last_reward_at,omitempty"`
+
+	// --- CASS Maturity Fields (ol-cass) ---
+
+	// Maturity is the lifecycle stage of this learning.
+	// Values: "provisional" (new), "candidate" (promising), "established" (proven), "anti-pattern" (harmful)
+	Maturity Maturity `json:"maturity,omitempty"`
+
+	// Confidence is the certainty level in this learning's utility value.
+	// Range: [0, 1]. Increases with more feedback, decays over time.
+	// Formula: 1 - e^(-RewardCount/5) * decay_factor
+	Confidence float64 `json:"confidence,omitempty"`
+
+	// LastDecayAt is when confidence decay was last applied.
+	// Used to calculate time-based decay on next access.
+	LastDecayAt time.Time `json:"last_decay_at,omitempty"`
+
+	// DecayCount tracks how many decay operations have been applied.
+	// Used for diagnostics and to detect stale learnings.
+	DecayCount int `json:"decay_count,omitempty"`
+
+	// HelpfulCount tracks positive feedback events (helpful=true).
+	HelpfulCount int `json:"helpful_count,omitempty"`
+
+	// HarmfulCount tracks negative feedback events (harmful=true).
+	HarmfulCount int `json:"harmful_count,omitempty"`
 }
 
 // RubricScores contains individual scoring dimensions.
@@ -373,6 +398,53 @@ const (
 
 	// ExpiryStatusArchived indicates the learning has been archived.
 	ExpiryStatusArchived ExpiryStatus = "archived"
+)
+
+// --- CASS Maturity System (ol-cass) ---
+
+// Maturity represents the lifecycle stage of a learning in the CASS system.
+// Learnings progress through stages based on feedback and usage patterns.
+type Maturity string
+
+const (
+	// MaturityProvisional is the initial stage for newly extracted learnings.
+	// Learnings start here and need positive feedback to advance.
+	MaturityProvisional Maturity = "provisional"
+
+	// MaturityCandidate indicates a learning has received positive feedback
+	// and is being considered for promotion to established.
+	MaturityCandidate Maturity = "candidate"
+
+	// MaturityEstablished indicates a learning has proven value through
+	// consistent positive feedback and usage across multiple sessions.
+	MaturityEstablished Maturity = "established"
+
+	// MaturityAntiPattern indicates a learning that was consistently harmful
+	// and should be surfaced as what NOT to do.
+	MaturityAntiPattern Maturity = "anti-pattern"
+)
+
+// CASS maturity thresholds and parameters
+const (
+	// MaturityPromotionThreshold is the utility value needed to advance maturity.
+	MaturityPromotionThreshold = 0.7
+
+	// MaturityDemotionThreshold is the utility value below which demotion occurs.
+	MaturityDemotionThreshold = 0.3
+
+	// MaturityAntiPatternThreshold is when a learning becomes an anti-pattern.
+	// Learnings with utility below this after multiple feedbacks become anti-patterns.
+	MaturityAntiPatternThreshold = 0.2
+
+	// MinFeedbackForPromotion is the minimum feedback count to consider promotion.
+	MinFeedbackForPromotion = 3
+
+	// MinFeedbackForAntiPattern is the minimum feedback count to mark as anti-pattern.
+	MinFeedbackForAntiPattern = 5
+
+	// ConfidenceDecayRate is the weekly decay rate for confidence (0.1 = 10%/week).
+	// Lower than knowledge decay (0.17) because confidence decays slower.
+	ConfidenceDecayRate = 0.1
 )
 
 // IsExpired checks if the candidate's valid_until date has passed.

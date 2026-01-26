@@ -16,7 +16,7 @@
       },
       {
         "type": "command",
-        "command": "ao inject --format markdown --max-tokens 1000 2>/dev/null || true"
+        "command": "ao inject --apply-decay --format markdown --max-tokens 1000 2>/dev/null || true"
       }
     ],
     "SessionEnd": [

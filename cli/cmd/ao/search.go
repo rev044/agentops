@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -27,9 +28,10 @@ const (
 )
 
 var (
-	searchLimit int
-	searchType  string
-	searchUseSC bool
+	searchLimit   int
+	searchType    string
+	searchUseSC   bool
+	searchUseCASS bool
 )
 
 var searchCmd = &cobra.Command{
@@ -39,12 +41,15 @@ var searchCmd = &cobra.Command{
 
 By default, searches markdown and JSONL files in .agents/ao/sessions/.
 Optionally use Smart Connections for semantic search if Obsidian is running.
+Use --cass to enable CASS (Contextual Agent Session Search) which includes
+session context and maturity-weighted ranking.
 
 Examples:
   ao search "mutex pattern"
   ao search "authentication" --limit 20
   ao search "database migration" --type decisions
-  ao search "config" --use-sc  # Enable Smart Connections semantic search`,
+  ao search "config" --use-sc   # Enable Smart Connections semantic search
+  ao search "auth" --cass       # Enable CASS session-aware search`,
 	Args: cobra.ExactArgs(1),
 	RunE: runSearch,
 }
@@ -54,6 +59,7 @@ func init() {
 	searchCmd.Flags().IntVar(&searchLimit, "limit", 10, "Maximum results to return")
 	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: decisions, knowledge, sessions")
 	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Enable Smart Connections semantic search (requires Obsidian)")
+	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Enable CASS session-aware search with maturity weighting")
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
@@ -112,7 +118,14 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 // selectAndSearch chooses the search backend and executes the search.
 // Default: file-based search. Optional: Smart Connections with --use-sc flag.
+// CASS mode (--cass) adds session context and maturity-weighted ranking.
 func selectAndSearch(query, sessionsDir string, limit int) ([]searchResult, error) {
+	// CASS mode: search with session context and maturity weighting
+	if searchUseCASS {
+		VerbosePrintf("Using CASS session-aware search...\n")
+		return searchCASS(query, sessionsDir, limit)
+	}
+
 	// Only use Smart Connections if explicitly requested with --use-sc
 	if searchUseSC {
 		vaultPath := vault.DetectVault("")
@@ -443,6 +456,163 @@ func classifyResultType(path string) string {
 	}
 
 	return "knowledge"
+}
+
+// searchCASS performs CASS (Contextual Agent Session Search) with maturity weighting.
+// This searches learnings and patterns with awareness of:
+// 1. Session context (what was the session about)
+// 2. Maturity level (provisional vs established)
+// 3. Confidence decay (older untested learnings rank lower)
+func searchCASS(query, dir string, limit int) ([]searchResult, error) {
+	var results []searchResult
+
+	// Search learnings with maturity weighting
+	learningsDir := filepath.Join(filepath.Dir(dir), "learnings")
+	if _, err := os.Stat(learningsDir); err == nil {
+		learningResults, err := searchLearningsWithMaturity(query, learningsDir, limit)
+		if err != nil {
+			VerbosePrintf("CASS learnings search error: %v\n", err)
+		}
+		results = append(results, learningResults...)
+	}
+
+	// Search patterns (established knowledge)
+	patternsDir := filepath.Join(filepath.Dir(dir), "patterns")
+	if _, err := os.Stat(patternsDir); err == nil {
+		patternResults, err := grepFiles(query, patternsDir, "*.md", limit)
+		if err != nil {
+			VerbosePrintf("CASS patterns search error: %v\n", err)
+		}
+		// Mark patterns as established maturity
+		for i := range patternResults {
+			patternResults[i].Type = "pattern"
+		}
+		results = append(results, patternResults...)
+	}
+
+	// Also search sessions for context
+	sessionResults, err := searchFiles(query, dir, limit)
+	if err != nil {
+		VerbosePrintf("CASS sessions search error: %v\n", err)
+	}
+	results = append(results, sessionResults...)
+
+	// Sort by score (maturity-weighted)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	// Limit results
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	return results, nil
+}
+
+// searchLearningsWithMaturity searches learnings and weights by maturity and confidence.
+func searchLearningsWithMaturity(query, dir string, limit int) ([]searchResult, error) {
+	var results []searchResult
+
+	files, err := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	if err != nil {
+		return nil, err
+	}
+
+	// Also include markdown files
+	mdFiles, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+	files = append(files, mdFiles...)
+
+	queryLower := strings.ToLower(query)
+
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			continue
+		}
+
+		scanner := bufio.NewScanner(f)
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 1024*1024)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if !strings.Contains(strings.ToLower(line), queryLower) {
+				continue
+			}
+
+			// Parse JSONL to get maturity and utility
+			var data map[string]interface{}
+			if err := json.Unmarshal([]byte(line), &data); err != nil {
+				continue
+			}
+
+			// Calculate maturity-weighted score
+			score := calculateCASSScore(data)
+
+			context := ""
+			if summary, ok := data["summary"].(string); ok {
+				context = summary
+				if len(context) > ContextLineMaxLength {
+					context = context[:ContextLineMaxLength] + "..."
+				}
+			} else if content, ok := data["content"].(string); ok {
+				context = content
+				if len(context) > ContextLineMaxLength {
+					context = context[:ContextLineMaxLength] + "..."
+				}
+			}
+
+			maturityStr := "provisional"
+			if m, ok := data["maturity"].(string); ok {
+				maturityStr = m
+			}
+
+			results = append(results, searchResult{
+				Path:    file,
+				Score:   score,
+				Context: fmt.Sprintf("[%s] %s", maturityStr, context),
+				Type:    "learning",
+			})
+			break // One match per file
+		}
+		f.Close()
+	}
+
+	return results, nil
+}
+
+// calculateCASSScore computes a maturity-weighted score for CASS ranking.
+// Score = utility * maturityWeight * confidenceWeight
+func calculateCASSScore(data map[string]interface{}) float64 {
+	// Base utility (default 0.5)
+	utility := 0.5
+	if u, ok := data["utility"].(float64); ok && u > 0 {
+		utility = u
+	}
+
+	// Maturity weight
+	maturityWeight := 1.0
+	if maturity, ok := data["maturity"].(string); ok {
+		switch maturity {
+		case "established":
+			maturityWeight = 1.5
+		case "candidate":
+			maturityWeight = 1.2
+		case "provisional":
+			maturityWeight = 1.0
+		case "anti-pattern":
+			maturityWeight = 0.3 // Still surface but ranked lower
+		}
+	}
+
+	// Confidence weight (default 0.5 if not set)
+	confidenceWeight := 0.5
+	if c, ok := data["confidence"].(float64); ok && c > 0 {
+		confidenceWeight = c
+	}
+
+	return utility * maturityWeight * confidenceWeight
 }
 
 // filterByType filters results by knowledge type.

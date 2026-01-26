@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-25
+
+### Changed
+- **Repository restructure** - Professional polish for cleaner organization:
+  - Reduced root directories from 22 to 13
+  - Consolidated `levels/`, `profiles/`, `reference/`, `templates/`, `workflows/` into `docs/`
+  - Renamed `shared/` to `lib/`
+  - Deleted `mail/` (empty) and `agents-archived/` (56 obsolete agents)
+
+- **README rewrite** - Minimal and approachable (47 lines vs 350):
+  - One install command, 4 key skills, "want more?" section
+  - Moved all details to `docs/PLUGINS.md`
+  - Progressive disclosure: start simple, discover more as needed
+
+- **Plugin description** - Simplified from verbose to concise:
+  - Old: "Complete Knowledge OS for Claude Code - Research/Plan/Implement workflow..."
+  - New: "Plugin kits for Claude Code: RPI workflow, validation, multi-agent orchestration"
+
+### Added
+- **Thin commands** - 4 command files that delegate to skills:
+  - `commands/research.md` → `solo-kit:research`
+  - `commands/plan.md` → `core-kit:formulate`
+  - `commands/execute.md` → `core-kit:crank`
+  - `commands/validate.md` → `vibe-kit:vibe`
+
+- **Session hooks** - `hooks/` directory with:
+  - `hooks.json` - SessionStart hook configuration
+  - `session-start.sh` - Creates `.agents/` directories, outputs context
+
+- **Multi-platform support**:
+  - `.codex/setup.md` - Codex installation instructions
+  - `.opencode/setup.md` - OpenCode installation instructions
+
+- **RELEASE-NOTES.md** - User-friendly version highlights
+
+- **docs/PLUGINS.md** - Complete plugin catalog moved from README
+
+- **Marketplace cleanup** - Removed email from author fields, use GitHub username instead
+
 ## [0.3.1] - 2026-01-24
 
 ### Changed

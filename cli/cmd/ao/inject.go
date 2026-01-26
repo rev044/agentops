@@ -41,6 +41,7 @@ var (
 	injectFormat    string
 	injectSessionID string
 	injectNoCite    bool
+	injectApplyDecay bool
 )
 
 type injectedKnowledge struct {
@@ -88,13 +89,15 @@ Searches:
   3. Recent session summaries (.agents/ao/sessions/)
 
 Uses file-based search with Two-Phase retrieval (freshness + utility scoring).
+CASS integration adds maturity weighting and confidence decay.
 
 Examples:
   ao inject                     # Inject general knowledge
   ao inject "authentication"    # Inject knowledge about auth
   ao inject --max-tokens 2000   # Larger budget
   ao inject --format json       # JSON output
-  ao inject --no-cite           # Skip citation recording`,
+  ao inject --no-cite           # Skip citation recording
+  ao inject --apply-decay       # Apply confidence decay before ranking`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runInject,
 }
@@ -106,6 +109,7 @@ func init() {
 	injectCmd.Flags().StringVar(&injectFormat, "format", "markdown", "Output format: markdown, json")
 	injectCmd.Flags().StringVar(&injectSessionID, "session", "", "Session ID for citation tracking (auto-generated if empty)")
 	injectCmd.Flags().BoolVar(&injectNoCite, "no-cite", false, "Disable citation recording")
+	injectCmd.Flags().BoolVar(&injectApplyDecay, "apply-decay", false, "Apply confidence decay before ranking")
 }
 
 func runInject(cmd *cobra.Command, args []string) error {
@@ -194,6 +198,7 @@ func runInject(cmd *cobra.Command, args []string) error {
 
 // collectLearnings finds recent learnings from .agents/learnings/
 // Implements MemRL Two-Phase retrieval: Phase A (similarity/freshness) + Phase B (utility-weighted)
+// With CASS integration: applies confidence decay when --apply-decay is set
 func collectLearnings(cwd, query string, limit int) ([]learning, error) {
 	learningsDir := filepath.Join(cwd, ".agents", "learnings")
 	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
@@ -254,6 +259,11 @@ func collectLearnings(cwd, query string, limit int) ([]learning, error) {
 			l.Utility = types.InitialUtility
 		}
 
+		// Apply confidence decay if requested (CASS feature)
+		if injectApplyDecay {
+			l = applyConfidenceDecay(l, file, now)
+		}
+
 		learnings = append(learnings, l)
 	}
 
@@ -272,6 +282,68 @@ func collectLearnings(cwd, query string, limit int) ([]learning, error) {
 	}
 
 	return learnings, nil
+}
+
+// applyConfidenceDecay applies time-based confidence decay to a learning.
+// Confidence decays at 10%/week for learnings that haven't received recent feedback.
+// Formula: confidence *= exp(-weeks_since_last_feedback * ConfidenceDecayRate)
+func applyConfidenceDecay(l learning, filePath string, now time.Time) learning {
+	// Read the file to get last_decay_at and confidence
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return l
+	}
+
+	// Parse to extract CASS fields
+	if strings.HasSuffix(filePath, ".jsonl") {
+		lines := strings.Split(string(content), "\n")
+		if len(lines) == 0 {
+			return l
+		}
+
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
+			return l
+		}
+
+		// Get confidence (default to 0.5)
+		confidence := 0.5
+		if c, ok := data["confidence"].(float64); ok && c > 0 {
+			confidence = c
+		}
+
+		// Get last_decay_at or last_reward_at
+		var lastInteraction time.Time
+		if lda, ok := data["last_decay_at"].(string); ok && lda != "" {
+			lastInteraction, _ = time.Parse(time.RFC3339, lda)
+		} else if lra, ok := data["last_reward_at"].(string); ok && lra != "" {
+			lastInteraction, _ = time.Parse(time.RFC3339, lra)
+		}
+
+		// Calculate decay
+		if !lastInteraction.IsZero() {
+			weeksSinceInteraction := now.Sub(lastInteraction).Hours() / (24 * 7)
+			if weeksSinceInteraction > 0 {
+				// Apply decay: confidence *= exp(-weeks * decayRate)
+				decayFactor := math.Exp(-weeksSinceInteraction * types.ConfidenceDecayRate)
+				newConfidence := confidence * decayFactor
+
+				// Clamp to minimum of 0.1
+				if newConfidence < 0.1 {
+					newConfidence = 0.1
+				}
+
+				VerbosePrintf("Applied confidence decay to %s: %.3f -> %.3f (%.1f weeks)\n",
+					l.ID, confidence, newConfidence, weeksSinceInteraction)
+
+				// Update the learning's composite score weight
+				// (actual file update happens in separate decay command)
+				l.Utility = l.Utility * (newConfidence / confidence)
+			}
+		}
+	}
+
+	return l
 }
 
 // freshnessScore calculates decay-adjusted score: exp(-ageWeeks * decayRate)

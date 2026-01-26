@@ -173,7 +173,7 @@ func (v *Validator) validateStep(step Step, artifactPath string, result *Validat
 		v.validateResearch(artifactPath, result)
 	case StepPreMortem:
 		v.validatePreMortem(artifactPath, result)
-	case StepPlan, StepFormulate:
+	case StepPlan:
 		v.validatePlan(artifactPath, result)
 	case StepPostMortem:
 		v.validatePostMortem(artifactPath, result)

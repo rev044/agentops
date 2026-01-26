@@ -15,8 +15,10 @@ import (
 )
 
 var (
-	feedbackReward float64
-	feedbackAlpha  float64
+	feedbackReward  float64
+	feedbackAlpha   float64
+	feedbackHelpful bool
+	feedbackHarmful bool
 )
 
 var feedbackCmd = &cobra.Command{
@@ -35,7 +37,14 @@ Where:
 The utility value affects retrieval ranking in Two-Phase retrieval:
   Score = z_norm(freshness) + λ × z_norm(utility)
 
+CASS Integration:
+  - --helpful and --harmful are shortcuts for --reward 1.0 and --reward 0.0
+  - Tracks helpful_count and harmful_count for maturity transitions
+  - Repeated harmful feedback can promote to anti-pattern status
+
 Examples:
+  ao feedback L001 --helpful        # Learning was helpful (same as --reward 1.0)
+  ao feedback L001 --harmful        # Learning was harmful (same as --reward 0.0)
   ao feedback L001 --reward 1.0     # Learning was helpful (success)
   ao feedback L001 --reward 0.0     # Learning was not helpful (failure)
   ao feedback L001 --reward 0.75    # Partial success
@@ -46,16 +55,33 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(feedbackCmd)
-	feedbackCmd.Flags().Float64Var(&feedbackReward, "reward", -1, "Reward value (0.0 to 1.0, required)")
+	feedbackCmd.Flags().Float64Var(&feedbackReward, "reward", -1, "Reward value (0.0 to 1.0)")
 	feedbackCmd.Flags().Float64Var(&feedbackAlpha, "alpha", types.DefaultAlpha, "EMA learning rate")
-	_ = feedbackCmd.MarkFlagRequired("reward") //nolint:errcheck // panic on startup is acceptable
+	feedbackCmd.Flags().BoolVar(&feedbackHelpful, "helpful", false, "Mark as helpful (shortcut for --reward 1.0)")
+	feedbackCmd.Flags().BoolVar(&feedbackHarmful, "harmful", false, "Mark as harmful (shortcut for --reward 0.0)")
+	// Note: reward is no longer required since --helpful/--harmful can be used instead
 }
 
 func runFeedback(cmd *cobra.Command, args []string) error {
 	learningID := args[0]
 
+	// Handle --helpful and --harmful shortcuts
+	if feedbackHelpful && feedbackHarmful {
+		return fmt.Errorf("cannot use both --helpful and --harmful")
+	}
+	if feedbackHelpful {
+		feedbackReward = 1.0
+	} else if feedbackHarmful {
+		feedbackReward = 0.0
+	}
+
+	// Validate that some feedback was provided
+	if feedbackReward < 0 {
+		return fmt.Errorf("must provide --reward, --helpful, or --harmful")
+	}
+
 	// Validate reward range
-	if feedbackReward < 0 || feedbackReward > 1 {
+	if feedbackReward > 1 {
 		return fmt.Errorf("reward must be between 0.0 and 1.0, got: %f", feedbackReward)
 	}
 
@@ -88,16 +114,25 @@ func runFeedback(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("update utility: %w", err)
 	}
 
+	// Determine feedback type for display
+	feedbackType := "custom"
+	if feedbackHelpful {
+		feedbackType = "helpful"
+	} else if feedbackHarmful {
+		feedbackType = "harmful"
+	}
+
 	switch GetOutput() {
 	case "json":
 		result := map[string]interface{}{
-			"learning_id": learningID,
-			"path":        learningPath,
-			"old_utility": oldUtility,
-			"new_utility": newUtility,
-			"reward":      feedbackReward,
-			"alpha":       feedbackAlpha,
-			"updated_at":  time.Now().Format(time.RFC3339),
+			"learning_id":   learningID,
+			"path":          learningPath,
+			"old_utility":   oldUtility,
+			"new_utility":   newUtility,
+			"reward":        feedbackReward,
+			"feedback_type": feedbackType,
+			"alpha":         feedbackAlpha,
+			"updated_at":    time.Now().Format(time.RFC3339),
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -106,7 +141,7 @@ func runFeedback(cmd *cobra.Command, args []string) error {
 	default:
 		fmt.Printf("Updated utility for %s\n", learningID)
 		fmt.Printf("  Previous: %.3f\n", oldUtility)
-		fmt.Printf("  Reward:   %.2f\n", feedbackReward)
+		fmt.Printf("  Feedback: %s (reward=%.2f)\n", feedbackType, feedbackReward)
 		fmt.Printf("  New:      %.3f\n", newUtility)
 	}
 
@@ -173,6 +208,7 @@ func updateLearningUtility(path string, reward, alpha float64) (oldUtility, newU
 }
 
 // updateJSONLUtility updates utility in a JSONL file.
+// Also tracks helpful_count and harmful_count for CASS maturity transitions.
 func updateJSONLUtility(path string, reward, alpha float64) (oldUtility, newUtility float64, err error) {
 	// Read the file
 	content, err := os.ReadFile(path)
@@ -209,6 +245,28 @@ func updateJSONLUtility(path string, reward, alpha float64) (oldUtility, newUtil
 	}
 	data["reward_count"] = rewardCount + 1
 	data["last_reward_at"] = time.Now().Format(time.RFC3339)
+
+	// CASS: Track helpful_count and harmful_count
+	if feedbackHelpful {
+		helpfulCount := 0
+		if hc, ok := data["helpful_count"].(float64); ok {
+			helpfulCount = int(hc)
+		}
+		data["helpful_count"] = helpfulCount + 1
+	} else if feedbackHarmful {
+		harmfulCount := 0
+		if hc, ok := data["harmful_count"].(float64); ok {
+			harmfulCount = int(hc)
+		}
+		data["harmful_count"] = harmfulCount + 1
+	}
+
+	// Update confidence based on feedback count
+	// Confidence increases with more feedback: 1 - e^(-rewardCount/5)
+	newRewardCount := rewardCount + 1
+	confidence := 1.0 - (1.0 / (1.0 + float64(newRewardCount)/5.0))
+	data["confidence"] = confidence
+	data["last_decay_at"] = time.Now().Format(time.RFC3339)
 
 	// Write back
 	newJSON, err := json.Marshal(data)
