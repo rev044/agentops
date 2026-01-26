@@ -69,6 +69,19 @@ ao init && ao hooks install
 
 ---
 
+## What's New in v1.0.0
+
+**The Knowledge Flywheel release.** Your agent now remembers and compounds knowledge.
+
+- **20 skills** organized into Core Workflow, Validation, Knowledge System, and Integration
+- **Brownian Ratchet** - Physics-inspired progress model: Chaos → Filter → Ratchet
+- **`ao` CLI** - Session management, knowledge forging, provenance tracking
+- **Auto-hooks** - SessionStart injects knowledge, SessionEnd extracts learnings
+
+See [RELEASE-NOTES.md](RELEASE-NOTES.md) for full history.
+
+---
+
 ## How It Works
 
 ### The Brownian Ratchet
@@ -158,16 +171,47 @@ Session 1     Session 2     Session 3     Session 4
 
 ---
 
-## Skills Reference
+## 20 Skills
 
-| Skill | Trigger | What It Does |
-|-------|---------|--------------|
-| `/research` | "explore", "investigate" | Deep codebase exploration with knowledge mining |
-| `/plan` | "create a plan" | Convert goals into tracked issues |
-| `/pre-mortem` | "what could go wrong" | Find failure modes before implementation |
-| `/crank` | "ship it", "execute" | Autonomous implement → validate → commit loop |
-| `/vibe` | "validate", "check" | Multi-aspect code validation |
-| `/post-mortem` | "what did we learn" | Extract and index learnings |
+### Core Workflow
+
+| Skill | What It Does |
+|-------|--------------|
+| `/research` | Deep codebase exploration with knowledge mining |
+| `/plan` | Convert goals into tracked issues with dependencies |
+| `/pre-mortem` | Simulate failures before implementation |
+| `/implement` | Execute a single issue with full lifecycle |
+| `/crank` | Autonomous implement → validate → commit loop |
+| `/retro` | Extract learnings from completed work |
+| `/post-mortem` | Comprehensive validation + knowledge extraction |
+
+### Validation
+
+| Skill | What It Does |
+|-------|--------------|
+| `/vibe` | Multi-aspect code validation (security, quality, a11y) |
+| `/bug-hunt` | Git archaeology and root cause analysis |
+| `/complexity` | Find refactor targets using radon/gocyclo |
+| `/doc` | Generate and validate documentation |
+
+### Knowledge System
+
+| Skill | What It Does |
+|-------|--------------|
+| `/forge` | Mine transcripts for decisions, learnings, patterns |
+| `/extract` | Extract decisions from session transcripts |
+| `/inject` | Inject relevant knowledge into session context |
+| `/knowledge` | Query artifacts across all locations |
+| `/provenance` | Trace knowledge artifact lineage and sources |
+| `/flywheel` | Monitor knowledge velocity, pool depths, staleness |
+| `/ratchet` | Brownian Ratchet progress gates for RPI workflow |
+
+### Integration
+
+| Skill | What It Does |
+|-------|--------------|
+| `/beads` | Git-based issue tracking with bd CLI |
+| `/using-agentops` | Meta skill explaining the workflow (auto-injected) |
 
 ---
 
