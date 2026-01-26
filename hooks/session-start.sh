@@ -5,7 +5,8 @@
 set -euo pipefail
 
 # Get plugin directory (where this script lives)
-PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Create .agents directories if they don't exist
 AGENTS_DIRS=(".agents/research" ".agents/products" ".agents/retros" ".agents/learnings" ".agents/patterns")
@@ -17,23 +18,37 @@ for dir in "${AGENTS_DIRS[@]}"; do
 done
 
 # Read the using-agentops skill content
-SKILL_PATH="${PLUGIN_DIR}/skills/using-agentops/SKILL.md"
+using_agentops_content=$(cat "${PLUGIN_ROOT}/skills/using-agentops/SKILL.md" 2>&1 || echo "Error reading using-agentops skill")
 
-if [[ -f "$SKILL_PATH" ]]; then
-    # Extract content after frontmatter (skip YAML header)
-    SKILL_CONTENT=$(awk '/^---$/{p=!p;next}p==0{print}' "$SKILL_PATH" | tail -n +2)
+# Escape outputs for JSON using pure bash
+escape_for_json() {
+    local input="$1"
+    local output=""
+    local i char
+    for (( i=0; i<${#input}; i++ )); do
+        char="${input:$i:1}"
+        case "$char" in
+            $'\\') output+='\\' ;;
+            '"') output+='\"' ;;
+            $'\n') output+='\n' ;;
+            $'\r') output+='\r' ;;
+            $'\t') output+='\t' ;;
+            *) output+="$char" ;;
+        esac
+    done
+    printf '%s' "$output"
+}
 
-    # Output JSON with additionalContext (for Claude Code hook system)
-    cat << EOF
+using_agentops_escaped=$(escape_for_json "$using_agentops_content")
+
+# Output context injection as JSON
+cat <<EOF
 {
-  "additionalContext": $(echo "$SKILL_CONTENT" | jq -Rs .)
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "<EXTREMELY_IMPORTANT>\nYou have AgentOps superpowers.\n\n**Below is the full content of your 'agentops:using-agentops' skill - your introduction to using AgentOps skills. For all other skills, use the 'Skill' tool:**\n\n${using_agentops_escaped}\n</EXTREMELY_IMPORTANT>"
+  }
 }
 EOF
-else
-    # Fallback if skill file missing
-    cat << 'EOF'
-{
-  "additionalContext": "# AgentOps\n\nAvailable skills: /research, /plan, /implement, /crank, /vibe, /retro, /post-mortem, /beads, /bug-hunt, /knowledge, /complexity, /doc"
-}
-EOF
-fi
+
+exit 0
