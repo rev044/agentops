@@ -67,30 +67,39 @@ AgentOps isn't just a prompt library; it's a full-stack memory architecture.
 * **`ao forge`:** Mines chat transcripts to extract high-value patterns.
 * **`ao retro`:** A mandatory cleanup step that saves "what worked" and "what didn't" to Git.
 
-### ⚙️ The Execution Layer
+### ⚙️ The Execution Layer (Subagent-Driven Development)
 
 * **`/research`**: Deep-scans your codebase *and* your knowledge base to build a mental model before acting.
-* **`/plan`**: Converts vague requirements into tracked, bite-sized issues with acceptance criteria.
-* **`/crank`**: The autonomous loop. It picks up a planned issue, writes code, verifies it, and commits—repeat.
+* **`/plan`**: Converts vague requirements into tracked [beads](https://github.com/beads-ai/beads) issues with acceptance criteria.
+* **`/crank`**: The autonomous loop. It picks up a planned issue, writes code, validates, commits—repeat.
 
-### 🛡 The Quality Layer (Vibe Coding)
+**Subagent-Driven Development:** `/crank` dispatches fresh subagents per task. Each works in isolation, gets reviewed, and merges independently. Failures don't cascade.
 
-* **`/vibe`**: A sanity check command. It validates code against project conventions, security standards, and architectural fit.
-* **`/pre-mortem`**: Simulates failure scenarios before implementation begins.
+### 🛡 The Quality Layer (Ratchet Validation)
+
+Every stage has a gate. Progress locks in; failures don't propagate.
+
+* **`/vibe`**: Validates code against project conventions, security standards, and architectural fit.
+* **`/pre-mortem`**: Simulates failure scenarios *before* implementation begins.
 * **`/bug-hunt`**: Systematic root-cause analysis that refuses to guess.
+
+**The Brownian Ratchet:** Like a molecular ratchet that only moves forward, each validated commit is permanent progress. Subagents can fail independently—the system extracts success from parallel chaos.
 
 ---
 
 ## 🔄 The Workflow: A Day in the Life
 
-Unlike standard chat sessions, an AgentOps session follows a strict arc to ensure knowledge capture.
+Unlike standard chat sessions, AgentOps follows a strict arc with **ratchets at every stage**.
 
-| Phase | Action | What happens under the hood |
+| Phase | Action | Ratchet (What Locks In) |
 | --- | --- | --- |
-| **1. Init** | **Session Start** | AgentOps scans `.agents/` and injects your team's coding standards and past bug fixes into context. |
-| **2. Prep** | **`/research`** | The agent explores the code and cross-references it with the Knowledge Graph to identify risks. |
-| **3. Build** | **`/crank`** | The agent executes the plan autonomously. It writes tests, implements code, and runs `/vibe` checks. |
-| **4. Save** | **Session End** | The agent runs a generic retro. It distills the session into markdown artifacts stored in `.agents/learnings/`. |
+| **1. Init** | **Session Start** | Knowledge injected from `.agents/` ✓ |
+| **2. Research** | **`/research`** | Understanding documented in `.agents/research/` ✓ |
+| **3. Plan** | **`/plan`** | Issues created in beads (git-tracked) ✓ |
+| **4. Build** | **`/crank`** | Each issue: implement → `/vibe` → commit → close ✓ |
+| **5. Save** | **Session End** | Learnings extracted to `.agents/learnings/` ✓ |
+
+**Every stage produces an artifact.** Nothing is lost. Progress only moves forward.
 
 ---
 
