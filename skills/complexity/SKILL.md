@@ -1,5 +1,6 @@
 ---
 name: complexity
+tier: solo
 description: Analyze code complexity and find refactor targets using radon/gocyclo
 version: 1.1.0
 context: inline

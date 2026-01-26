@@ -9,8 +9,6 @@ author: "AI Platform Team"
 license: "MIT"
 context: inline
 allowed-tools: "Read,Write,Bash,Grep,Glob,Task"
-skills:
-  - beads
 ---
 
 # Research Skill

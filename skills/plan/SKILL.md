@@ -1,5 +1,6 @@
 ---
 name: plan
+tier: solo
 description: >
   Epic decomposition into trackable issues. Triggers: "create a plan",
   "plan implementation", "break down into tasks", "decompose into features",
@@ -97,6 +98,30 @@ See `~/.claude/skills/research/references/context-discovery.md` for full 6-tier 
 - [ ] Ran semantic search (if MCP available)
 - [ ] Followed signposts to source
 - [ ] Reviewed .agents/ patterns WITH verification
+
+---
+
+### Phase 1.3: Prior Research Discovery
+
+Before exploring from scratch, check if research already exists:
+
+```bash
+# Check for existing research on this topic
+mcp__smart-connections-work__lookup(query="<goal>", limit=5)
+# Filter results to .agents/research/ paths
+
+# Fallback: glob search
+ls .agents/research/*.md 2>/dev/null | head -10
+grep -l "<goal keywords>" .agents/research/*.md 2>/dev/null
+```
+
+| Prior Research Status | Action |
+|-----------------------|--------|
+| **EXISTS + RELEVANT** | Use as context, skip Phase 2 exploration |
+| **EXISTS + PARTIAL** | Build on it, targeted Phase 2 exploration |
+| **NONE** | Full Phase 2 exploration |
+
+**Key insight**: If `/research` was already run, don't re-explore. Build on existing artifacts.
 
 ---
 

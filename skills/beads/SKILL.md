@@ -1,5 +1,6 @@
 ---
 name: beads
+tier: library
 description: >
   This skill should be used when the user asks to "track issues",
   "create beads issue", "show blockers", "what's ready to work on",

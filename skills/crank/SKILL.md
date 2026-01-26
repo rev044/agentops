@@ -365,7 +365,34 @@ bd ready --parent=<epic>
 
 # 3. If mayor mode: rig exists
 gt rig list
+
+# 4. Pre-mortem check (P0/P1 only)
+# See Pre-Mortem Gate below
 ```
+
+---
+
+## Pre-Mortem Gate (P0/P1 Required)
+
+**For P0 and P1 priority work, pre-mortem is MANDATORY.**
+
+Before starting `/crank` on high-priority epics:
+
+```bash
+# Check if pre-mortem exists (writes to .agents/specs/)
+ls .agents/specs/*-analysis.md .agents/specs/*-v2.md 2>/dev/null
+
+# If missing AND priority is P0 or P1:
+/pre-mortem <spec-path>
+
+# Review findings with human before proceeding
+```
+
+**Skip pre-mortem ONLY for:**
+- P2/P3 work (lower risk tolerance)
+- Bug fixes (already understood failure)
+- Single-issue work (too small)
+- Explicit user override ("skip pre-mortem")
 
 ---
 
