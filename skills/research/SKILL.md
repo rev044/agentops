@@ -46,7 +46,26 @@ Research doesn't explore directly - it **dispatches Explore agents** that follow
 mkdir -p .agents/{research,synthesis}/
 ```
 
-### 2. Prior Art Check (Explore Agent)
+### 2. Mine Prior Knowledge (MANDATORY)
+
+**Before dispatching Explore agents, query the knowledge flywheel:**
+
+```bash
+# Query CASS-indexed sessions for prior solutions
+ao forge search "$TOPIC" --cass --limit 10
+
+# Inject relevant learnings with decay applied
+ao inject "$TOPIC" --apply-decay --format markdown --max-tokens 500
+```
+
+**If ao CLI unavailable, fall back to file search:**
+```bash
+grep -r "$TOPIC" .agents/learnings/ .agents/patterns/ .agents/research/ 2>/dev/null | head -20
+```
+
+**Output:** Display prior knowledge summary before proceeding. If high-relevance prior art exists, ask user whether to reference existing or start fresh.
+
+### 3. Prior Art Check (Explore Agent)
 
 Launch an Explore agent to check existing knowledge:
 
@@ -66,7 +85,7 @@ Task(
 
 If prior art exists: **reference it**, don't duplicate.
 
-### 3. Context Discovery (Explore Agents)
+### 4. Context Discovery (Explore Agents)
 
 Launch Explore agents for each tier as needed:
 
@@ -95,7 +114,7 @@ Task(
 )
 ```
 
-### 4. Synthesize Findings
+### 5. Synthesize Findings
 
 After Explore agents return, synthesize into a research document:
 
@@ -109,7 +128,7 @@ After Explore agents return, synthesize into a research document:
 - Recommendation
 - Next Steps
 
-### 5. Create Synthesis Artifact
+### 6. Create Synthesis Artifact
 
 **MANDATORY:** Research is chaos. Synthesis is the ratchet.
 
@@ -120,6 +139,24 @@ After Explore agents return, synthesize into a research document:
 **Write to:** `.agents/synthesis/YYYY-MM-DD-{topic}.md`
 
 Consolidate findings into a single canonical reference (~10-20K chars).
+
+### 7. Lock the Ratchet
+
+**Index and record for the flywheel:**
+
+```bash
+# Index research output so future sessions can find it
+ao forge index .agents/research/YYYY-MM-DD-$TOPIC.md
+ao forge index .agents/synthesis/YYYY-MM-DD-$TOPIC.md
+
+# Record provenance in the ratchet chain
+ao ratchet record research \
+  --input "$TOPIC" \
+  --output ".agents/research/YYYY-MM-DD-$TOPIC.md" \
+  --output ".agents/synthesis/YYYY-MM-DD-$TOPIC.md"
+```
+
+**The ratchet is now locked.** This research is discoverable by future `/research` calls via `ao forge search`.
 
 ## 6-Tier Discovery Hierarchy
 

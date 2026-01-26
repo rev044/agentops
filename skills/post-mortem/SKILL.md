@@ -406,9 +406,81 @@ mcp__ai-platform__memory_store(
 )
 ```
 
+### 4.4 Index to Flywheel (MANDATORY)
+
+**Wire learnings into the knowledge flywheel so future `/research` finds them:**
+
+```bash
+# Index all artifacts for CASS searchability
+ao forge index $LEARNING_PATH
+ao forge index $PATTERN_PATH 2>/dev/null || true
+
+# Index the retro document
+ao forge index .agents/retros/$(date +%Y-%m-%d)-$EPIC.md
+
+# Mark as indexed for provenance
+echo "indexed_at: $(date -Iseconds)" >> $LEARNING_PATH
+```
+
+**Why this matters:** Without indexing, learnings are written but not discoverable. The flywheel breaks - knowledge flows out but doesn't flow back in.
+
 ---
 
 ## Phase 5: Feed Back
+
+### 5.0 Spec Validation (MANDATORY)
+
+**Compare implementation results against spec goals. If mismatch, iterate.**
+
+```bash
+# Find original spec
+SPEC=$(grep -l "$EPIC" .agents/specs/*.md | head -1)
+
+if [[ -n "$SPEC" ]]; then
+    # Extract spec quality goals (e.g., "0 CRITICAL findings")
+    SPEC_GOAL=$(grep -i "quality.*goal\|acceptance.*criteria" $SPEC | head -3)
+
+    # Compare against vibe results
+    VIBE_CRITICAL=$(grep -c "CRITICAL" $VIBE_REPORT 2>/dev/null || echo "0")
+
+    if [[ "$VIBE_CRITICAL" -gt 0 ]]; then
+        echo "⚠️  SPEC MISMATCH: Found $VIBE_CRITICAL CRITICAL issues"
+        echo "Spec goal was: $SPEC_GOAL"
+        echo ""
+        echo "Options:"
+        echo "  1. Fix issues and re-run /vibe (iterate)"
+        echo "  2. Update spec with learned constraints (adjust goals)"
+        echo "  3. Accept delta and document (exception)"
+
+        # Create delta artifact
+        DELTA_PATH=".agents/deltas/$(date +%Y-%m-%d)-$EPIC.md"
+        mkdir -p .agents/deltas
+        cat > $DELTA_PATH << EOF
+# Spec-Reality Delta: $EPIC
+
+**Date:** $(date +%Y-%m-%d)
+**Spec:** $SPEC
+**Goal:** $SPEC_GOAL
+**Actual:** $VIBE_CRITICAL CRITICAL findings
+
+## Analysis
+[Why did we miss the spec goal?]
+
+## Feedback to Spec
+[What should the spec include next time?]
+EOF
+        echo "Delta recorded: $DELTA_PATH"
+    else
+        echo "✓ Spec goals met"
+    fi
+fi
+```
+
+**The Iteration Loop:** If spec-reality mismatch is unacceptable:
+1. Don't proceed to Phase 6
+2. Fix the issues
+3. Re-run `/vibe`
+4. Resume `/post-mortem` when clean
 
 ### 5.1 Spec Update (Optional)
 
@@ -514,6 +586,33 @@ fi
 
 ---
 
+## Phase 7: Lock the Ratchet
+
+**Final step: Record provenance and close the loop.**
+
+```bash
+# Record post-mortem completion in the ratchet chain
+ao ratchet record post-mortem \
+  --input "epic:$EPIC" \
+  --output ".agents/retros/$(date +%Y-%m-%d)-$EPIC.md" \
+  --output ".agents/learnings/$(date +%Y-%m-%d)-$EPIC.md"
+
+# Verify the complete chain
+ao ratchet verify --epic "$EPIC"
+
+# If verification passes, the chain is:
+# research → spec → plan → implement → vibe → post-mortem (LOCKED)
+```
+
+**The ratchet is now locked.** This epic's learnings are:
+- Indexed via `ao forge index` (searchable)
+- Recorded in the chain (traceable)
+- Available to future `/research` via `ao forge search`
+
+**The flywheel turns:** Next `/research` on a similar topic will find these learnings automatically.
+
+---
+
 ## Arguments
 
 | Arg | Purpose | Default |
@@ -554,8 +653,11 @@ fi
 - [ ] No secrets or vulnerabilities (Phase 3)
 - [ ] Extracted learnings to artifact (Phase 4)
 - [ ] Stored memories in MCP (Phase 4)
-- [ ] Updated spec if applicable (Phase 5)
+- [ ] **Indexed to flywheel via `ao forge index` (Phase 4.4)**
+- [ ] **Validated spec vs reality, recorded delta if mismatch (Phase 5.0)**
+- [ ] Updated spec if applicable (Phase 5.1)
 - [ ] Generated summary report with provenance (Phase 6)
+- [ ] **Locked ratchet via `ao ratchet record post-mortem` (Phase 7)**
 - [ ] Synced beads (`bd sync`)
 - [ ] Committed and pushed (`git push`)
 
