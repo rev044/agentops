@@ -240,7 +240,7 @@ End   │████████████████████│ High
 
 ## Part 5: MemRL (The Proof)
 
-**Citation:** Zhang, Y., et al. (2026). "MemRL: Memory-Augmented Reinforcement Learning for Adaptive Retrieval." *arXiv preprint*.
+**Citation:** Zhang, S., Wang, J., Zhou, R., et al. (2025). "MemRL: Self-Evolving Agents via Runtime Reinforcement Learning on Episodic Memory." *arXiv:2601.03192*. https://arxiv.org/abs/2601.03192
 
 ### The Problem MemRL Solves
 
@@ -487,7 +487,7 @@ Every feature, every skill, every CLI command serves this inequality:
 - Liu, N. F., et al. (2023). "Lost in the Middle: How Language Models Use Long Contexts." *arXiv:2307.03172*.
 
 ### Memory-Augmented Learning
-- Zhang, Y., et al. (2026). "MemRL: Memory-Augmented Reinforcement Learning for Adaptive Retrieval." *arXiv preprint*.
+- Zhang, S., Wang, J., Zhou, R., Liao, J., Feng, Y., Zhang, W., Wen, Y., Li, Z., Xiong, F., Qi, Y., Tang, B., & Wen, M. (2025). "MemRL: Self-Evolving Agents via Runtime Reinforcement Learning on Episodic Memory." *arXiv:2601.03192*. https://arxiv.org/abs/2601.03192
 
 ### DevOps
 - Kim, G., Humble, J., Debois, P., & Willis, J. (2016). *The DevOps Handbook*. IT Revolution Press.

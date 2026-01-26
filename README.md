@@ -107,6 +107,40 @@ When you hit this, your agent learns faster than your codebase changes. You will
 
 ---
 
+## 📚 The Science
+
+AgentOps isn't built on vibes. It's built on research.
+
+### The Equation
+
+```
+dK/dt = I(t) - δ·K + σ·ρ·K
+```
+
+This models knowledge as a dynamic system: input (`I`), decay (`δ`), and compounding (`σ·ρ`). When retrieval × usage exceeds decay, the system grows.
+
+### Key Research
+
+| Concept | Source | Finding |
+|---------|--------|---------|
+| **Knowledge Decay** | Darr, Argote & Epple (1995) | Organizational knowledge depreciates ~17%/week without reinforcement |
+| **Memory Reinforcement** | Ebbinghaus (1885) | Each retrieval strengthens memory and slows future decay |
+| **Cognitive Load** | Sweller (1988), Paas & van Merriënboer (2020) | Performance peaks at moderate load (~40%), collapses at overload |
+| **Lost in the Middle** | Liu et al. (2023) | LLMs lose information in crowded contexts; sparse is better |
+| **MemRL** | Zhang et al. (2025) | Two-phase retrieval (semantic + utility) enables self-evolving agents |
+
+### MemRL: The Memory Foundation
+
+Our retrieval system is based on [MemRL](https://arxiv.org/abs/2601.03192) (Zhang, Wang, Zhou, et al., 2025):
+
+> *"MemRL separates the stable reasoning of a frozen LLM from the plastic, evolving memory, allowing continuous runtime improvement through trial-and-error learning."*
+
+Key insight: **Two-Phase Retrieval** filters candidates by semantic relevance first, then ranks by learned utility (Q-values). This is why `ao feedback` matters—it trains the system to surface what actually helps.
+
+📖 **Deep Dive:** [docs/the-science.md](docs/the-science.md) — Full citations, equations, and the complete research stack.
+
+---
+
 ## 📂 Architecture
 
 Your knowledge base lives in your repo, not in the cloud. It is fully portable and version-controlled.
