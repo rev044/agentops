@@ -6,6 +6,9 @@
     "name": "Boden Fuller"
   },
   "license": "MIT",
+  "skills": "./skills",
+  "agents": "./agents",
+  "hooks": "./hooks/hooks.json",
   "keywords": [
     "workflow",
     "rpi",
