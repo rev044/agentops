@@ -1,6 +1,6 @@
 {
   "name": "agentops",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "AI-assisted development workflow with 21 skills + ao CLI: Research → Plan → Implement with Knowledge Flywheel",
   "author": {
     "name": "Boden Fuller",

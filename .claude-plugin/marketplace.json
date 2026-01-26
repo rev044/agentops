@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "AI-assisted development workflows with Knowledge Flywheel",
-    "version": "1.0.3"
+    "version": "1.0.4"
   },
   "plugins": [
     {
       "name": "agentops",
       "description": "AI-assisted development workflow with 21 skills + ao CLI: Research → Plan → Implement with Knowledge Flywheel",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "source": "./",
       "author": {
         "name": "Boden Fuller",
