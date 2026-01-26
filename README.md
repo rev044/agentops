@@ -179,16 +179,17 @@ Session 1     Session 2     Session 3     Session 4
 
 ---
 
-## All 20 Skills
+## All 21 Skills
 
 **You run 5 commands. The rest are called automatically.**
 
 | Category | Skills | How They Run |
 |----------|--------|--------------|
 | **You run these** | `/research`, `/plan`, `/pre-mortem`, `/crank`, `/post-mortem` | The main workflow |
-| **Called by /crank** | `/implement` | Runs for each issue |
-| **Called by /post-mortem** | `/vibe`, `/retro` | Validation + learnings |
-| **Called by /plan** | `/beads` | Issue tracking |
+| **Called by /crank** | `/implement`, `/vibe` | Issue execution + validation |
+| **Called by /pre-mortem** | `/vibe` | Spec validation gate |
+| **Called by /post-mortem** | `/vibe`, `/retro` | Code validation + learnings |
+| **Library (loaded by others)** | `/standards`, `/beads` | Language rules, issue tracking |
 | **Optional deep-dives** | `/bug-hunt`, `/complexity`, `/doc` | When you need them |
 | **Automatic (hooks)** | `/forge`, `/extract`, `/inject`, `/knowledge`, `/provenance`, `/flywheel`, `/ratchet`, `/using-agentops` | Background |
 

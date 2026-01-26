@@ -14,6 +14,7 @@ allowed-tools: "Read,Write,Bash,Grep,Glob,Task"
 skills:
   - research
   - plan
+  - vibe
 ---
 
 # Pre-Mortem Skill

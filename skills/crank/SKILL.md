@@ -2,9 +2,9 @@
 name: crank
 description: >
   Fully autonomous epic execution. Runs until ALL children are CLOSED.
-  Auto-detects role: Mayor uses polecats for parallel execution,
-  Crew executes sequentially via /implement. NO human prompts, NO stopping.
-version: 2.1.0
+  Loops through beads issues, runs /implement on each, validates with /vibe.
+  NO human prompts, NO stopping.
+version: 2.2.0
 tier: orchestration
 context: inline
 triggers:
@@ -18,8 +18,8 @@ triggers:
 allowed-tools: Bash, Read, Glob, Grep, TodoWrite, Task
 skills:
   - beads
-  - gastown
   - implement
+  - vibe
 ---
 
 # crank: Autonomous Epic Execution
