@@ -12,8 +12,6 @@ license: "MIT"
 context: inline
 allowed-tools: "Read,Write,Bash,Grep,Glob,Task"
 skills:
-  - research
-  - plan
   - vibe
 ---
 
