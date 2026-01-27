@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: tangerine
+color: red
 ---
 
 # Edge Case Hunter

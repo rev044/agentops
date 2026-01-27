@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: steel
+color: teal
 ---
 
 # Ratchet Validator

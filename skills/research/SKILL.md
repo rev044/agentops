@@ -5,6 +5,8 @@ description: 'Deep codebase exploration. Triggers: research, explore, investigat
 
 # Research Skill
 
+> **Quick Ref:** Deep codebase exploration with multi-angle analysis. Output: `.agents/research/*.md`
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 ## Execution Steps

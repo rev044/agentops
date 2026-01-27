@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: coral
+color: crimson
 ---
 
 # Data Failure Expert

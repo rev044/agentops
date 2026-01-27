@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: azure
+color: teal
 ---
 
 # Gap Identifier

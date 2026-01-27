@@ -5,24 +5,68 @@ description: 'Investigate suspected bugs with git archaeology and root cause ana
 
 # Bug Hunt Skill
 
+> **Quick Ref:** 4-phase investigation (Root Cause → Pattern → Hypothesis → Fix). Output: `.agents/research/YYYY-MM-DD-bug-*.md`
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Systematic investigation to find root cause and design a complete fix.
+
+**Requires:**
+- session-start.sh has executed (creates `.agents/` directories for output)
+- bd CLI (beads) for issue tracking if creating follow-up issues
+
+## The 4-Phase Structure
+
+| Phase | Focus | Output |
+|-------|-------|--------|
+| **1. Root Cause** | Find the actual bug location | file:line, commit |
+| **2. Pattern** | Compare against working examples | Differences identified |
+| **3. Hypothesis** | Form and test single hypothesis | Pass/fail for each |
+| **4. Implementation** | Fix at root, not symptoms | Verified fix |
+
+## Failure Tracking
+
+**Track failures by TYPE - not all failures are equal:**
+
+| Failure Type | Counts Toward Limit? | Action |
+|--------------|----------------------|--------|
+| `root_cause_not_found` | YES | Re-investigate from Phase 1 |
+| `fix_failed_tests` | YES | New hypothesis in Phase 3 |
+| `design_rejected` | YES | Rethink approach |
+| `execution_timeout` | NO (reset counter) | Retry same approach |
+| `external_dependency` | NO (escalate) | Report blocker |
+
+**The 3-Failure Rule:**
+- Count only `root_cause_not_found`, `fix_failed_tests`, `design_rejected`
+- After 3 such failures: **STOP and question architecture**
+- Output: "3+ fix attempts failed. Escalating to architecture review."
+- Do NOT count timeouts or external blockers toward limit
+
+**Track in issue notes:**
+```bash
+bd update <issue-id> --append-notes "FAILURE: <type> at $(date -Iseconds) - <reason>" 2>/dev/null
+```
 
 ## Execution Steps
 
 Given `/bug-hunt <symptom>`:
 
-### Step 1: Confirm the Bug
+---
+
+## Phase 1: Root Cause Investigation
+
+### Step 1.1: Confirm the Bug
 
 First, reproduce the issue:
 - What's the expected behavior?
 - What's the actual behavior?
 - Can you reproduce it consistently?
 
+**Read error messages carefully.** Do not skip or skim them.
+
 If the bug can't be reproduced, gather more information before proceeding.
 
-### Step 2: Locate the Symptom
+### Step 1.2: Locate the Symptom
 
 Find where the bug manifests:
 ```bash
@@ -33,7 +77,7 @@ grep -r "<error-text>" . --include="*.py" --include="*.ts" --include="*.go" 2>/d
 grep -r "<relevant-name>" . --include="*.py" --include="*.ts" --include="*.go" 2>/dev/null | head -10
 ```
 
-### Step 3: Git Archaeology
+### Step 1.3: Git Archaeology
 
 Find when/how the bug was introduced:
 
@@ -51,7 +95,7 @@ git blame <file> | grep -A2 -B2 "<suspicious-line>"
 git log --oneline --grep="<keyword>" | head -10
 ```
 
-### Step 4: Trace the Execution Path
+### Step 1.4: Trace the Execution Path
 
 **USE THE TASK TOOL** to explore the code:
 
@@ -74,7 +118,7 @@ Parameters:
     - Recent changes that might be responsible
 ```
 
-### Step 5: Identify Root Cause
+### Step 1.5: Identify Root Cause
 
 Based on tracing, identify:
 - **What** is wrong (the actual bug)
@@ -82,7 +126,61 @@ Based on tracing, identify:
 - **When** it was introduced (commit)
 - **Why** it happens (the logic error)
 
-### Step 6: Design the Fix
+---
+
+## Phase 2: Pattern Analysis
+
+### Step 2.1: Find Working Examples
+
+Search the codebase for similar functionality that WORKS:
+```bash
+# Find similar patterns
+grep -r "<working-pattern>" . --include="*.py" --include="*.ts" --include="*.go" 2>/dev/null | head -10
+```
+
+### Step 2.2: Compare Against Reference
+
+Identify ALL differences between:
+- The broken code
+- The working reference
+
+Document each difference.
+
+---
+
+## Phase 3: Hypothesis and Testing
+
+### Step 3.1: Form Single Hypothesis
+
+State your hypothesis clearly:
+> "I think X is wrong because Y"
+
+**One hypothesis at a time.** Do not combine multiple guesses.
+
+### Step 3.2: Test with Smallest Change
+
+Make the SMALLEST possible change to test the hypothesis:
+- If it works → proceed to Phase 4
+- If it fails → record failure, form NEW hypothesis
+
+### Step 3.3: Check Failure Counter
+
+```bash
+# Count failures (excluding timeouts and external blockers)
+failures=$(bd show <issue-id> --json 2>/dev/null | jq '[.notes[]? | select(startswith("FAILURE:")) | select(contains("root_cause") or contains("fix_failed") or contains("design_rejected"))] | length')
+
+if [[ "$failures" -ge 3 ]]; then
+    echo "3+ fix attempts failed. Escalating to architecture review."
+    bd update <issue-id> --append-notes "ESCALATION: Architecture review needed after 3 failures" 2>/dev/null
+    exit 1
+fi
+```
+
+---
+
+## Phase 4: Implementation
+
+### Step 4.1: Design the Fix
 
 Before writing code, design the fix:
 - What needs to change?
@@ -90,7 +188,21 @@ Before writing code, design the fix:
 - Will this fix break anything else?
 - Are there tests to update?
 
-### Step 7: Write Bug Report
+### Step 4.2: Create Failing Test (if possible)
+
+Write a test that demonstrates the bug BEFORE fixing it.
+
+### Step 4.3: Implement Single Fix
+
+Fix at the ROOT CAUSE, not at symptoms.
+
+### Step 4.4: Verify Fix
+
+Run the failing test - it should now pass.
+
+---
+
+## Step 5: Write Bug Report
 
 **Write to:** `.agents/research/YYYY-MM-DD-bug-<slug>.md`
 
@@ -143,14 +255,15 @@ Before writing code, design the fix:
 - <related issues or PRs>
 ```
 
-### Step 8: Report to User
+### Step 6: Report to User
 
 Tell the user:
 1. Root cause identified (or not yet)
 2. Location of the bug (file:line)
 3. Proposed fix
 4. Location of bug report
-5. Next step: implement fix or gather more info
+5. Failure count and types encountered
+6. Next step: implement fix or gather more info
 
 ## Key Rules
 

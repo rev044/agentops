@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: amber
+color: red
 ---
 
 # Operations Failure Expert

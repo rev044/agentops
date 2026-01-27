@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-01-26
+
+### Added
+- **Agent Farm** (`/farm` skill) - Parallel multi-agent execution:
+  - `ao farm validate` - Pre-flight checks with cycle detection
+  - `ao farm start --agents N` - Spawn N agents + witness in tmux sessions
+  - `ao farm status` - Check farm progress and agent states
+  - `ao farm stop` - Graceful shutdown with process cleanup
+  - `ao farm resume` - Resume incomplete farm from metadata
+- **Witness monitoring** - Background observer for agent farm:
+  - `ao witness start` - Start witness process
+  - `ao witness stop` - Stop witness
+  - `ao witness status` - Check witness state
+- **Agent messaging** - Communication between agents:
+  - `ao inbox` - View messages from agents
+  - `ao mail send --to <agent> --body <message>` - Send message to agent
+- **Serial agent spawn** with 30s stagger (rate limit protection)
+- **Circuit breaker** - Stops farm if >50% agents fail
+- `prompts/witness_prompt.txt` - Witness agent prompt template
+
+### Changed
+- Updated `using-agentops` skill documentation to include `/farm`
+- Bumped skill count to 22
+
 ## [0.4.0] - 2026-01-25
 
 ### Changed

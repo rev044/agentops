@@ -167,6 +167,17 @@ if [[ "$TIER" == "--tier=3" ]] || [[ "$TIER" == "--all" ]]; then
                 tail -20 /tmp/unit-tests.log | sed 's/^/    /'
             fi
         fi
+
+        # Run release smoke tests (agents + skills)
+        if [[ -f "$SCRIPT_DIR/release-smoke-test.sh" ]]; then
+            log "  Running release smoke tests (20 agents + 21 skills)..."
+            if bash "$SCRIPT_DIR/release-smoke-test.sh" > /tmp/release-tests.log 2>&1; then
+                pass "Release smoke tests (41 components)"
+            else
+                fail "Release smoke tests"
+                tail -30 /tmp/release-tests.log | sed 's/^/    /'
+            fi
+        fi
     fi
 
     echo ""

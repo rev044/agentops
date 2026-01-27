@@ -5,6 +5,8 @@ description: 'Talos-class comprehensive code validation. Use for "validate code"
 
 # Vibe Skill
 
+> **Quick Ref:** Validate code across 8 aspects (security, quality, architecture, etc). Output: `.agents/vibe/*.md` + grade A-F.
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Comprehensive code validation across 8 quality aspects.

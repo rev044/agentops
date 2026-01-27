@@ -5,9 +5,35 @@ description: 'Fully autonomous epic execution. Runs until ALL children are CLOSE
 
 # Crank Skill
 
+> **Quick Ref:** Autonomous epic execution. Loops `/implement` on all issues until DONE. Output: closed issues + final vibe.
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Autonomous execution: implement all issues until the epic is DONE.
+
+**Requires:** bd CLI (beads) for issue tracking, OR in-session TaskList for task-based tracking.
+
+## Global Iteration Limit
+
+**MAX_EPIC_ITERATIONS = 50** (hard limit across entire epic)
+
+This prevents infinite loops on circular dependencies or cascading failures.
+
+**Why 50?**
+- Typical epic: 5-10 issues
+- With retries: ~5 iterations per issue max
+- 50 = safe upper bound (10 issues × 5 retries)
+
+## Completion Enforcement (The Sisyphus Rule)
+
+**THE SISYPHUS RULE:** Not done until explicitly DONE.
+
+After each task, output completion marker:
+- `<promise>DONE</promise>` - Epic truly complete, all issues closed
+- `<promise>BLOCKED</promise>` - Cannot proceed (with reason)
+- `<promise>PARTIAL</promise>` - Incomplete (with remaining items)
+
+**Never claim completion without the marker.**
 
 ## Execution Steps
 
@@ -28,6 +54,15 @@ ls -lt .agents/plans/ 2>/dev/null | head -3
 ```
 
 If multiple epics found, ask user which one.
+
+### Step 1a: Initialize Iteration Counter
+
+```bash
+# Initialize crank tracking in epic notes
+bd update <epic-id> --append-notes "CRANK_START: iteration=0 at $(date -Iseconds)" 2>/dev/null
+```
+
+Track in memory: `iteration=0`
 
 ### Step 2: Get Epic Details
 
@@ -63,7 +98,22 @@ STOP and return error:
 
 Do NOT proceed with empty issue list - this produces false "epic complete" status.
 
-### Step 4: Execute Each Issue
+### Step 4: Execute Each Issue (with iteration tracking)
+
+**BEFORE each issue:**
+```bash
+# Increment and check iteration counter
+iteration=$((iteration + 1))
+bd update <epic-id> --append-notes "CRANK_ITERATION: $iteration at $(date -Iseconds)" 2>/dev/null
+
+# CHECK GLOBAL LIMIT
+if [[ $iteration -ge 50 ]]; then
+    echo "<promise>BLOCKED</promise>"
+    echo "Global iteration limit (50) reached. Remaining issues:"
+    bd children <epic-id> --status open 2>/dev/null
+    # STOP - do not continue
+fi
+```
 
 **FOR EACH ready issue, USE THE SKILL TOOL:**
 
@@ -75,6 +125,11 @@ Parameters:
 ```
 
 Wait for implement to complete before moving to next issue.
+
+**Check for BLOCKED/PARTIAL markers from implement:**
+- If `<promise>BLOCKED</promise>` returned → record blocker, try next issue
+- If `<promise>PARTIAL</promise>` returned → record remaining, try next issue
+- If `<promise>DONE</promise>` returned → continue normally
 
 ### Step 5: Track Progress (No Per-Issue Vibe)
 
@@ -125,8 +180,25 @@ Parameters:
 Tell the user:
 1. Epic ID and title
 2. Number of issues completed
-3. Final vibe results
-4. Suggest running `/post-mortem` to extract learnings
+3. Total iterations used (of 50 max)
+4. Final vibe results
+5. Suggest running `/post-mortem` to extract learnings
+
+**Output completion marker:**
+```
+<promise>DONE</promise>
+Epic: <epic-id>
+Issues completed: N
+Iterations: M/50
+```
+
+If stopped early:
+```
+<promise>BLOCKED</promise>
+Reason: <global limit reached | unresolvable blockers>
+Issues remaining: N
+Iterations: M/50
+```
 
 ## The FIRE Loop
 
@@ -149,6 +221,8 @@ Loop until all issues are CLOSED.
 - **Fix CRITICAL before completion** - address findings before reporting done
 - **Loop until done** - don't stop until all issues closed
 - **Autonomous execution** - minimize human prompts
+- **Respect iteration limit** - STOP at 50 iterations (hard limit)
+- **Output completion markers** - DONE, BLOCKED, or PARTIAL (required)
 
 ## Without Beads
 

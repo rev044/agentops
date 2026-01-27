@@ -5,6 +5,8 @@ description: 'Comprehensive post-implementation validation. Combines retro (lear
 
 # Post-Mortem Skill
 
+> **Quick Ref:** Full validation + knowledge extraction. Output: `.agents/retros/*.md` + `.agents/learnings/*.md` + Gate 4 decision.
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Validate, learn, and feed knowledge back into the flywheel.

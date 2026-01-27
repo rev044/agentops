@@ -5,6 +5,8 @@ description: 'Epic decomposition into trackable issues. Triggers: "create a plan
 
 # Plan Skill
 
+> **Quick Ref:** Decompose goal into trackable issues with waves. Output: `.agents/plans/*.md` + bd issues.
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 ## Execution Steps
@@ -121,10 +123,18 @@ Parameters:
   addBlockedBy: ["<dependency-task-id>"]
 ```
 
-**If bd CLI also available**, create persistent issues:
+**IMPORTANT: Create persistent issues for ratchet tracking:**
+
+If bd CLI available, create beads issues to enable progress tracking across sessions:
 ```bash
-which bd && bd create --title "<title>" --body "<description>" --label "planned"
+# Create epic first
+bd create --title "<goal>" --type epic --label "planned"
+
+# Create child issues
+bd create --title "<issue-title>" --body "<description>" --parent <epic-id> --label "planned"
 ```
+
+Without bd issues, the ratchet validator cannot track gate progress. This is required for `/crank` autonomous execution and `/post-mortem` validation.
 
 ### Step 8: Request Human Approval (Gate 2)
 

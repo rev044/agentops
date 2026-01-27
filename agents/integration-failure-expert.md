@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: orange
+color: crimson
 ---
 
 # Integration Failure Expert

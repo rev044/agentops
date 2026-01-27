@@ -37,7 +37,8 @@ Research → Plan → Implement → Validate
 
 ```bash
 /implement <issue>     # Single issue execution
-/crank <epic>          # Autonomous multi-issue execution
+/crank <epic>          # Autonomous single-agent execution
+/farm [--agents N]     # Parallel multi-agent execution
 ```
 
 **Output:** Code changes, tests, documentation
@@ -58,7 +59,7 @@ Research → Plan → Implement → Validate
 |-------|---------------|-------------------|
 | **Research** | `/research` | `/knowledge`, `/inject` |
 | **Plan** | `/plan` | `/pre-mortem` |
-| **Implement** | `/implement` | `/crank` (orchestrated) |
+| **Implement** | `/implement` | `/crank` (single-agent), `/farm` (multi-agent) |
 | **Validate** | `/vibe` | `/retro`, `/post-mortem` |
 
 ## Available Skills
@@ -69,7 +70,8 @@ Research → Plan → Implement → Validate
 | `/pre-mortem` | Failure simulation before implementing |
 | `/plan` | Epic decomposition into issues |
 | `/implement` | Execute single issue |
-| `/crank` | Autonomous epic execution |
+| `/crank` | Autonomous single-agent execution |
+| `/farm` | Parallel multi-agent execution (Agent Farm) |
 | `/vibe` | Code validation |
 | `/retro` | Extract learnings |
 | `/post-mortem` | Full validation + knowledge extraction |
@@ -97,6 +99,7 @@ Skills auto-trigger from conversation:
 | "Check my code for issues" | `/vibe` |
 | "What could go wrong with this?" | `/pre-mortem` |
 | "Let's execute this epic" | `/crank` |
+| "Spawn agents to work in parallel" | `/farm` |
 
 ## Issue Tracking
 

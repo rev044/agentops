@@ -9,11 +9,11 @@
           },
           {
             "type": "command",
-            "command": "ao extract 2>/dev/null || true"
+            "command": "command -v ao >/dev/null 2>&1 && ao extract 2>/dev/null || true"
           },
           {
             "type": "command",
-            "command": "ao inject --apply-decay --format markdown --max-tokens 1000 2>/dev/null || true"
+            "command": "command -v ao >/dev/null 2>&1 && ao inject --apply-decay --format markdown --max-tokens 1000 2>/dev/null || true"
           }
         ]
       }
@@ -23,7 +23,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ao forge transcript --last-session --queue --quiet 2>/dev/null || true"
+            "command": "command -v ao >/dev/null 2>&1 && ao forge transcript --last-session --queue --quiet 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "_comment": "5s timeout: sufficient for files up to 10MB on typical systems; grep+wc completes in <1s for most files",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/comment-checker.sh",
+            "timeout": 5
           }
         ]
       }

@@ -5,13 +5,40 @@ description: 'Execute a single beads issue with full lifecycle. Triggers: "imple
 
 # Implement Skill
 
+> **Quick Ref:** Execute single issue end-to-end. Output: code changes + commit + closed issue.
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Execute a single issue from start to finish.
 
+**Requires:** bd CLI (beads) for issue tracking. Falls back to plain descriptions if unavailable.
+
 ## Execution Steps
 
 Given `/implement <issue-id-or-description>`:
+
+### Step 0: Check Issue State (Resume Logic)
+
+Before starting implementation, check if resuming:
+
+1. **Check if issue is in_progress:**
+```bash
+bd show <issue-id> --json 2>/dev/null | jq -r '.status'
+```
+
+2. **If status = in_progress AND assigned to you:**
+   - Look for checkpoint in issue notes: `bd show <id> --json | jq -r '.notes'`
+   - Resume from last checkpoint step
+   - Announce: "Resuming issue from Step N"
+
+3. **If status = in_progress AND assigned to another agent:**
+   - Report: "Issue claimed by <agent> - use `bd update <id> --assignee self --force` to override"
+   - Do NOT proceed without explicit override
+
+4. **Store checkpoints after each major step:**
+```bash
+bd update <issue-id> --append-notes "CHECKPOINT: Step N completed at $(date -Iseconds)" 2>/dev/null
+```
 
 ### Step 1: Get Issue Details
 
@@ -68,6 +95,12 @@ Based on the context gathered:
 
 ### Step 5: Verify the Change
 
+**Success Criteria (all must pass):**
+- [ ] All existing tests pass (no new failures introduced)
+- [ ] New code compiles/parses without errors
+- [ ] No new linter warnings (if linter available)
+- [ ] Change achieves the stated goal
+
 Check for test files and run them:
 ```bash
 # Find tests
@@ -80,10 +113,47 @@ ls *test* tests/ test/ __tests__/ 2>/dev/null | head -5
 # Rust: cargo test
 ```
 
-If no tests, do basic verification:
-- Syntax check
-- Import check
-- Manual review of the change
+**If tests exist:** All tests must pass. Any failure = verification failed.
+
+**If no tests exist:** Manual verification required:
+- [ ] Syntax check passes (file compiles/parses)
+- [ ] Imports resolve correctly
+- [ ] Can reproduce expected behavior manually
+- [ ] Edge cases identified during implementation are handled
+
+**If verification fails:** Do NOT proceed to Step 5a. Fix the issue first.
+
+### Step 5a: Verification Gate (MANDATORY)
+
+**THE IRON LAW:** NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
+
+Before reporting success, you MUST:
+
+1. **IDENTIFY** - What command proves this claim works?
+2. **RUN** - Execute the FULL command (fresh, not cached output)
+3. **READ** - Check full output AND exit code
+4. **VERIFY** - Does output actually confirm the claim?
+5. **ONLY THEN** - Make the completion claim
+
+**Forbidden phrases without fresh verification evidence:**
+- "should work", "probably fixed", "seems to be working"
+- "Great!", "Perfect!", "Done!" (without output proof)
+- "I just ran it" (must run it AGAIN, fresh)
+
+#### Rationalization Table
+
+| Excuse | Reality |
+|--------|---------|
+| "Too simple to verify" | Simple code breaks. Verification takes 10 seconds. |
+| "I just ran it" | Run it AGAIN. Fresh output only. |
+| "Tests passed earlier" | Run them NOW. State changes. |
+| "It's obvious it works" | Nothing is obvious. Evidence or silence. |
+| "The edit looks correct" | Looking != working. Run the code. |
+
+**Store checkpoint:**
+```bash
+bd update <issue-id> --append-notes "CHECKPOINT: Step 5a verification passed at $(date -Iseconds)" 2>/dev/null
+```
 
 ### Step 6: Commit the Change
 
@@ -105,9 +175,25 @@ bd update <issue-id> --status closed 2>/dev/null
 
 Tell the user:
 1. What was changed (files modified)
-2. How it was verified
+2. How it was verified (with actual command output)
 3. Issue status (closed)
 4. Any follow-up needed
+
+**Output completion marker:**
+```
+<promise>DONE</promise>
+```
+
+If blocked or incomplete:
+```
+<promise>BLOCKED</promise>
+Reason: <why blocked>
+```
+
+```
+<promise>PARTIAL</promise>
+Remaining: <what's left>
+```
 
 ## Key Rules
 
