@@ -236,19 +236,29 @@ These are **Claude plugin commands** (run in Claude Code chat):
 
 ## Quick Start
 
+### 1. Install CLI
+
 ```bash
-# 1. Install CLI
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
+```
 
-# 2. Install plugin (in Claude Code)
+### 2. Install Plugin (in Claude Code)
+
+```bash
 claude plugin add boshu2/agentops
+```
 
-# 3. Initialize in your project
+### 3. Initialize in Your Project
+
+```bash
 cd your-project
 ao init && ao hooks install
+```
 
-# 4. Start working
+### 4. Start Working
+
+```bash
 /research "understand the auth system"
 ```
 
