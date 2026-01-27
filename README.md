@@ -237,30 +237,22 @@ These are **Claude plugin commands** (run in Claude Code chat):
 ## Quick Start
 
 ```bash
-# 1. Install plugin (in Claude Code)
-claude plugin add boshu2/agentops
-
-# 2. Start working
-/research "understand the auth system"
-```
-
-That's it. The plugin works standalone — no CLI required.
-
-> **Note:** There's a [known bug](https://github.com/anthropics/claude-code/issues/15178) where plugin skills don't appear when pressing `/`. Skills still work — just type them directly (e.g., `/research`) or ask Claude to use them.
-
-### Optional: Enable Knowledge Flywheel
-
-The `ao` CLI enables persistent learning across sessions:
-
-```bash
-# Install CLI
+# 1. Install CLI
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
 
-# Initialize in your project
+# 2. Install plugin (in Claude Code)
+claude plugin add boshu2/agentops
+
+# 3. Initialize in your project
 cd your-project
 ao init && ao hooks install
+
+# 4. Start working
+/research "understand the auth system"
 ```
+
+> **Note:** There's a [known bug](https://github.com/anthropics/claude-code/issues/15178) where plugin skills don't appear when pressing `/`. Skills still work — just type them directly (e.g., `/research`) or ask Claude to use them.
 
 ---
 
