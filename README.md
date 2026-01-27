@@ -252,9 +252,10 @@ claude plugin add boshu2/agentops
 ### 3. Initialize in Your Project
 
 ```bash
-cd your-project
 ao init && ao hooks install
 ```
+
+Or just ask Claude: *"initialize agentops"*
 
 ### 4. Start Working
 
