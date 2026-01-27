@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: indigo
+color: green
 ---
 
 # Depth Expert

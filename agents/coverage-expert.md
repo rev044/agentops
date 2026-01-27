@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: sky
+color: teal
 ---
 
 # Coverage Expert

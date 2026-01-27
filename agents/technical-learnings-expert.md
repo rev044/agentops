@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: lavender
+color: emerald
 ---
 
 # Technical Learnings Expert

@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
 model: haiku
-color: violet
+color: teal
 ---
 
 # Plan Compliance Expert

@@ -10,7 +10,7 @@ AgentOps is a single Claude Code plugin providing the RPI workflow with Knowledg
 .
 ├── .claude-plugin/
 │   └── plugin.json      # Plugin manifest
-├── skills/              # All 14 skills
+├── skills/              # All 21 skills
 │   ├── research/
 │   ├── plan/
 │   ├── implement/
@@ -25,13 +25,27 @@ AgentOps is a single Claude Code plugin providing the RPI workflow with Knowledg
 │   ├── doc/
 │   ├── pre-mortem/
 │   └── using-agentops/  # Meta skill (injected on session start)
-├── agents/              # Subagent definitions
-│   ├── code-reviewer.md
-│   ├── security-reviewer.md
-│   ├── architecture-expert.md
-│   ├── code-quality-expert.md
-│   ├── security-expert.md
-│   └── ux-expert.md
+├── agents/              # 20 Subagent definitions
+│   ├── code-reviewer.md           # Code quality review
+│   ├── security-reviewer.md       # Security vulnerabilities
+│   ├── security-expert.md         # Deep security analysis
+│   ├── architecture-expert.md     # System design
+│   ├── code-quality-expert.md     # Complexity, refactoring
+│   ├── ux-expert.md               # Accessibility, UX
+│   ├── plan-compliance-expert.md  # Plan vs implementation
+│   ├── goal-achievement-expert.md # Did we solve the problem?
+│   ├── ratchet-validator.md       # Gate validation
+│   ├── flywheel-feeder.md         # Knowledge extraction
+│   ├── technical-learnings-expert.md
+│   ├── process-learnings-expert.md
+│   ├── integration-failure-expert.md  # Pre-mortem
+│   ├── ops-failure-expert.md
+│   ├── data-failure-expert.md
+│   ├── edge-case-hunter.md
+│   ├── coverage-expert.md         # Research quality
+│   ├── depth-expert.md
+│   ├── gap-identifier.md
+│   └── assumption-challenger.md
 ├── hooks/               # Session hooks
 │   ├── hooks.json
 │   └── session-start.sh
@@ -120,30 +134,74 @@ The ao CLI provides:
 
 ## Subagents
 
-Located in `agents/`. Used by `/vibe` and other validation skills.
+Located in `agents/`. 20 specialized validators used by `/vibe`, `/pre-mortem`, `/post-mortem`, and `/research`.
+
+### Validation Agents (used by /vibe)
 
 | Agent | Focus |
 |-------|-------|
 | `code-reviewer` | Quality, patterns, maintainability |
 | `security-reviewer` | Vulnerabilities, OWASP |
+| `security-expert` | Deep security analysis |
 | `architecture-expert` | System design, cross-cutting |
 | `code-quality-expert` | Complexity, refactoring |
-| `security-expert` | Deep security analysis |
 | `ux-expert` | Accessibility, user experience |
+
+### Post-Mortem Agents (used by /post-mortem)
+
+| Agent | Focus |
+|-------|-------|
+| `plan-compliance-expert` | Compare implementation to plan |
+| `goal-achievement-expert` | Did we solve the problem? |
+| `ratchet-validator` | Verify gates are locked |
+| `flywheel-feeder` | Extract learnings with provenance |
+| `technical-learnings-expert` | Technical patterns |
+| `process-learnings-expert` | Process improvements |
+
+### Pre-Mortem Agents (used by /pre-mortem)
+
+| Agent | Focus |
+|-------|-------|
+| `integration-failure-expert` | Integration risks |
+| `ops-failure-expert` | Operational risks |
+| `data-failure-expert` | Data integrity risks |
+| `edge-case-hunter` | Edge cases and exceptions |
+
+### Research Agents (used by /research)
+
+| Agent | Focus |
+|-------|-------|
+| `coverage-expert` | Research completeness |
+| `depth-expert` | Depth of analysis |
+| `gap-identifier` | Missing areas |
+| `assumption-challenger` | Challenge assumptions |
 
 ---
 
 ## Knowledge Artifacts
 
-`.agents/` stores knowledge:
+`.agents/` stores knowledge (18 directories):
 
 ```
 .agents/
-├── research/     # Exploration findings
-├── learnings/    # Extracted lessons (JSONL or MD)
-├── patterns/     # Reusable patterns
-├── retros/       # Retrospective reports
-└── products/     # Product briefs
+├── research/      # Exploration findings
+├── plans/         # Implementation plans
+├── pre-mortems/   # Failure simulations
+├── specs/         # Validated specifications
+├── learnings/     # Extracted lessons
+├── patterns/      # Reusable patterns
+├── retros/        # Retrospective reports
+├── vibe/          # Validation reports
+├── complexity/    # Complexity analysis
+├── doc/           # Generated documentation
+├── assessments/   # Quality assessments
+├── reports/       # General reports
+├── products/      # Product briefs
+├── synthesis/     # Synthesized knowledge
+├── patches/       # Patch tracking
+├── bundles/       # Grouped artifacts
+├── docs/          # Documentation outputs
+└── ao/            # CLI state
 ```
 
 Future `/research` commands discover these automatically via:
