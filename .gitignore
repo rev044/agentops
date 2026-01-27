@@ -44,3 +44,10 @@ reports/
 # Runtime state
 state.json
 cli/ao
+
+# Agent Farm temp files
+.farm.meta
+.witness.pid
+.witness.heartbeat
+.witness/
+.agents/mail/

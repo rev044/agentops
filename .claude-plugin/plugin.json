@@ -1,7 +1,7 @@
 {
   "name": "agentops",
-  "version": "1.0.8",
-  "description": "AI-assisted development workflow with 21 skills + 20 agents: Brownian Ratchet gates with Knowledge Flywheel (Flattened)",
+  "version": "1.1.0",
+  "description": "AI-assisted development workflow with 22 skills + 20 agents + Agent Farm: Brownian Ratchet gates with Knowledge Flywheel",
   "author": {
     "name": "Boden Fuller",
     "email": "fullerbt@users.noreply.github.com"
@@ -19,6 +19,9 @@
     "knowledge-flywheel",
     "skills",
     "ao-cli",
-    "brownian-ratchet"
+    "brownian-ratchet",
+    "agent-farm",
+    "multi-agent",
+    "witness"
   ]
 }

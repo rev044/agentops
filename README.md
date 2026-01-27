@@ -395,13 +395,35 @@ You don't run `ao` commands manually. The flywheel turns itself.
 
 ---
 
-## All 21 Skills
+## Agent Farm
 
-**You run 5 commands. The rest fire automatically.**
+Spawn multiple agents to work on issues in parallel:
+
+```bash
+ao farm validate          # Pre-flight checks (cycles, bd availability)
+ao farm start --agents 3  # Spawn 3 agents + witness in tmux
+ao farm status            # Check progress
+ao inbox                  # View messages from agents
+ao farm stop              # Graceful shutdown
+```
+
+**How it works:**
+1. Validates issues have no cycles and bd CLI is available
+2. Spawns N Claude agents in tmux sessions (30s stagger for rate limits)
+3. Witness monitors progress, sends summaries to mayor
+4. Circuit breaker stops farm if >50% agents fail
+5. Use `ao farm resume` to continue after interruption
+
+---
+
+## All 22 Skills
+
+**You run 6 commands. The rest fire automatically.**
 
 | Category | Skills | How They Run |
 |----------|--------|--------------|
 | **Core workflow** | `/research`, `/plan`, `/pre-mortem`, `/crank`, `/post-mortem` | You invoke |
+| **Multi-agent** | `/farm` | You invoke |
 | **Called by /crank** | `/implement`, `/vibe` | Auto |
 | **Called by /post-mortem** | `/vibe`, `/retro` | Auto |
 | **Issue tracking** | `/beads` | Library |
@@ -421,7 +443,30 @@ ao forge search        # Search past sessions
 ao forge index         # Index artifacts
 ao feedback            # Mark learnings as helpful/harmful
 ao metrics             # View flywheel health
+
+# Agent Farm
+ao farm validate       # Pre-flight checks
+ao farm start --agents 3  # Spawn agents
+ao farm status         # Check progress
+ao farm stop           # Graceful shutdown
+ao inbox               # View agent messages
+ao mail send --to mayor --body "message"  # Send message
 ```
+
+---
+
+## Known Limitations (v1.1.0)
+
+Agent Farm is production-ready for supervised use (1-3 agents). Large/unattended farms have known edge cases:
+
+| Issue | Impact | Workaround |
+|-------|--------|------------|
+| **Race condition on issue claims** | Multiple agents may claim same issue | Use `--agents 3` or fewer for reliability |
+| **Witness crash not auto-detected** | Farm hangs if witness dies | Run `ao farm status` periodically to check |
+| **Graceful shutdown required** | Ctrl+C may leave orphaned sessions | Always use `ao farm stop` |
+| **Project name spaces** | tmux session names break with spaces | Avoid spaces in directory names |
+
+These will be addressed in the Mt-Olympus orchestrator project.
 
 ---
 
