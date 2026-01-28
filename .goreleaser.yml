@@ -5,7 +5,7 @@ builds:
   - id: ao
     dir: cli
     main: ./cmd/ao
-    binary: ao-{{ .Os }}-{{ .Arch }}
+    binary: ao
     goos:
       - darwin
       - linux
@@ -27,7 +27,7 @@ brews:
     description: Knowledge Flywheel CLI for AI-assisted development
     license: MIT
     install: |
-      bin.install "ao-{{ .Os }}-{{ .Arch }}" => "ao"
+      bin.install "ao"
     test: |
       system "#{bin}/ao version"
     repository:
