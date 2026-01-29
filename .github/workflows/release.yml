@@ -4,26 +4,169 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.12)'
+        required: true
+
+# Prevent concurrent releases from corrupting artifacts
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  # Stage 1: Build all binaries and generate artifacts
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
-      - name: Run GoReleaser
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version: $VERSION"
+
+      - name: Build with GoReleaser (skip publish)
         uses: goreleaser/goreleaser-action@v6
         with:
-          version: latest
-          args: release --clean
+          version: '~> v2'
+          args: release --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  # Stage 2: Validate the darwin-arm64 binary
+  validate:
+    needs: build
+    runs-on: macos-14  # Explicit arm64 runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: List artifacts
+        run: |
+          echo "=== Downloaded artifacts ==="
+          find dist -type f -name "*.tar.gz" -o -name "*.zip" | head -20
+          echo ""
+
+      - name: Extract darwin-arm64 binary
+        run: |
+          # Find the darwin-arm64 tarball
+          TARBALL=$(find dist -name "*darwin*arm64*.tar.gz" | head -1)
+          if [[ -z "$TARBALL" ]]; then
+            echo "ERROR: Could not find darwin-arm64 tarball"
+            find dist -type f
+            exit 1
+          fi
+          echo "Found tarball: $TARBALL"
+
+          # Extract to temp directory
+          mkdir -p /tmp/ao-validate
+          tar -xzf "$TARBALL" -C /tmp/ao-validate
+
+          # Find the binary
+          BINARY=$(find /tmp/ao-validate -name "ao" -type f | head -1)
+          if [[ -z "$BINARY" ]]; then
+            echo "ERROR: Could not find 'ao' binary in tarball"
+            find /tmp/ao-validate -type f
+            exit 1
+          fi
+
+          echo "Extracted binary: $BINARY"
+          mv "$BINARY" /tmp/ao-validate/ao
+          echo "AO_BINARY=/tmp/ao-validate/ao" >> "$GITHUB_ENV"
+
+      - name: Run validation script
+        run: |
+          chmod +x scripts/validate-release.sh
+          scripts/validate-release.sh "$AO_BINARY" "${{ needs.build.outputs.version }}"
+
+  # Stage 3: Publish release and update Homebrew tap
+  publish:
+    needs: [build, validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Verify tag still exists
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          git fetch --tags
+          if ! git rev-parse "$VERSION" > /dev/null 2>&1; then
+            echo "ERROR: Tag $VERSION no longer exists"
+            exit 1
+          fi
+          echo "Tag $VERSION verified"
+
+      - name: Validate Homebrew token
+        env:
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          if [[ -z "$HOMEBREW_TAP_GITHUB_TOKEN" ]]; then
+            echo "ERROR: HOMEBREW_TAP_GITHUB_TOKEN not set"
+            exit 1
+          fi
+
+          # Test token can access the tap repo
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token $HOMEBREW_TAP_GITHUB_TOKEN" \
+            "https://api.github.com/repos/boshu2/homebrew-agentops")
+
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "ERROR: Homebrew token invalid or expired (HTTP $HTTP_CODE)"
+            echo "       Please regenerate HOMEBREW_TAP_GITHUB_TOKEN secret"
+            exit 1
+          fi
+          echo "Homebrew token validated"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish with GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --clean --skip=build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
