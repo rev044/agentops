@@ -6,7 +6,28 @@ on:
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
-  e2e-test:
+  cli-tests:
+    name: Go CLI Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: cli/go.sum
+
+      - name: Run CLI tests
+        working-directory: cli
+        run: make test
+
+      - name: Test CLI builds
+        working-directory: cli
+        run: make build
+
+  static-validation:
+    name: Static Validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,14 +37,28 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run E2E marketplace test
+      - name: Run validation
         run: |
           chmod +x tests/marketplace-e2e-test.sh
           ./tests/marketplace-e2e-test.sh --verbose
 
+  summary:
+    name: Summary
+    needs: [cli-tests, static-validation]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
       - name: Summary
-        if: always()
         run: |
-          echo "## Nightly E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Nightly Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| CLI tests | ${{ needs.cli-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Static validation | ${{ needs.static-validation.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for failures
+        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure'
+        run: exit 1

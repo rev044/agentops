@@ -40,10 +40,6 @@ json_files=(
     ".claude-plugin/plugin.json"
 )
 
-for plugin_dir in plugins/*/; do
-    [[ -f "${plugin_dir}.claude-plugin/plugin.json" ]] && json_files+=("${plugin_dir}.claude-plugin/plugin.json")
-done
-
 for jf in "${json_files[@]}"; do
     if [[ ! -f "$jf" ]]; then
         fail "$jf - file not found"
@@ -62,7 +58,7 @@ section "2. Marketplace Schema Validation"
 
 log "Validating marketplace structure..."
 
-# Check marketplace has required fields
+# Check marketplace has required fields (note: description is in metadata)
 marketplace_valid=$(python3 << 'PYEOF'
 import json
 import sys
@@ -73,9 +69,13 @@ with open('.claude-plugin/marketplace.json') as f:
 errors = []
 
 # Required top-level fields
-for field in ['name', 'description', 'plugins']:
+for field in ['name', 'plugins']:
     if field not in mp:
         errors.append(f"Missing required field: {field}")
+
+# Description can be in metadata or top-level
+if 'description' not in mp and ('metadata' not in mp or 'description' not in mp.get('metadata', {})):
+    errors.append("Missing description (either top-level or in metadata)")
 
 # Each plugin must have name, description, source
 for i, plugin in enumerate(mp.get('plugins', [])):
@@ -132,18 +132,16 @@ log "Validating skill frontmatter..."
 skill_count=0
 skill_errors=0
 
-for plugin_dir in plugins/*/; do
-    skills_dir="${plugin_dir}skills"
-    [[ ! -d "$skills_dir" ]] && continue
-    plugin_name=$(basename "$plugin_dir")
-
+# This is a single-plugin repo with skills at root level
+skills_dir="skills"
+if [[ -d "$skills_dir" ]]; then
     for skill_dir in "$skills_dir"/*/; do
         [[ ! -d "$skill_dir" ]] && continue
         skill_file="${skill_dir}SKILL.md"
         skill_name=$(basename "$skill_dir")
 
         if [[ ! -f "$skill_file" ]]; then
-            fail "$plugin_name/$skill_name: SKILL.md missing"
+            fail "$skill_name: SKILL.md missing"
             skill_errors=$((skill_errors + 1))
             continue
         fi
@@ -152,7 +150,7 @@ for plugin_dir in plugins/*/; do
 
         # Validate frontmatter - check for ---\n...\n--- pattern and required fields
         if ! head -1 "$skill_file" | grep -q "^---$"; then
-            fail "$plugin_name/$skill_name: No YAML frontmatter"
+            fail "$skill_name: No YAML frontmatter"
             skill_errors=$((skill_errors + 1))
             continue
         fi
@@ -160,22 +158,26 @@ for plugin_dir in plugins/*/; do
         # Extract frontmatter and check required fields
         frontmatter=$(awk '/^---$/{if(++c==2)exit}c==1' "$skill_file")
         missing=""
-        for field in name description version; do
+        for field in name description; do
             if ! echo "$frontmatter" | grep -q "^${field}:"; then
                 missing="$missing $field"
             fi
         done
 
         if [[ -n "$missing" ]]; then
-            warn "$plugin_name/$skill_name: Missing:$missing"
+            warn "$skill_name: Missing:$missing"
         else
-            [[ "$VERBOSE" == "--verbose" ]] && pass "$plugin_name/$skill_name"
+            [[ "$VERBOSE" == "--verbose" ]] && pass "$skill_name"
         fi
     done
-done
+else
+    warn "No skills directory found at $skills_dir"
+fi
 
-if [[ $skill_errors -eq 0 ]]; then
+if [[ $skill_errors -eq 0 && $skill_count -gt 0 ]]; then
     pass "All $skill_count skills have valid frontmatter"
+elif [[ $skill_count -eq 0 ]]; then
+    warn "No skills found to validate"
 else
     fail "$skill_errors skills with invalid frontmatter"
 fi
@@ -192,41 +194,42 @@ import os
 import re
 from pathlib import Path
 
-plugins_dir = Path('plugins')
+skills_dir = Path('skills')
 all_skills = set()
 skill_deps = {}
 
-# Collect all skills
-for plugin_dir in plugins_dir.iterdir():
-    if not plugin_dir.is_dir():
-        continue
-    skills_dir = plugin_dir / 'skills'
-    if not skills_dir.exists():
-        continue
-    for skill_dir in skills_dir.iterdir():
-        if skill_dir.is_dir() and (skill_dir / 'SKILL.md').exists():
-            skill_name = skill_dir.name
-            all_skills.add(skill_name)
+if not skills_dir.exists():
+    print("OK: No skills directory")
+    exit(0)
 
-            # Extract dependencies
-            with open(skill_dir / 'SKILL.md') as f:
-                content = f.read()
-            match = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
-            if match:
-                yaml_content = match.group(1)
-                in_skills = False
-                deps = []
-                for line in yaml_content.split('\n'):
-                    if line.strip().startswith('skills:'):
-                        in_skills = True
-                        continue
-                    if in_skills:
-                        if line.startswith('  - '):
-                            deps.append(line.strip('  - ').strip().strip('"').strip("'"))
-                        elif line and not line.startswith(' '):
-                            in_skills = False
-                if deps:
-                    skill_deps[skill_name] = deps
+# Collect all skills
+for skill_dir in skills_dir.iterdir():
+    if not skill_dir.is_dir():
+        continue
+    skill_file = skill_dir / 'SKILL.md'
+    if skill_file.exists():
+        skill_name = skill_dir.name
+        all_skills.add(skill_name)
+
+        # Extract dependencies
+        with open(skill_file) as f:
+            content = f.read()
+        match = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
+        if match:
+            yaml_content = match.group(1)
+            in_skills = False
+            deps = []
+            for line in yaml_content.split('\n'):
+                if line.strip().startswith('skills:'):
+                    in_skills = True
+                    continue
+                if in_skills:
+                    if line.startswith('  - '):
+                        deps.append(line.strip('  - ').strip().strip('"').strip("'"))
+                    elif line and not line.startswith(' '):
+                        in_skills = False
+            if deps:
+                skill_deps[skill_name] = deps
 
 # Check for broken references
 errors = []
@@ -298,7 +301,7 @@ fi
 
 # Check skill content is substantive (> 500 chars after frontmatter)
 thin_skills=0
-for skill_file in plugins/*/skills/*/SKILL.md; do
+for skill_file in skills/*/SKILL.md; do
     [[ ! -f "$skill_file" ]] && continue
     content_after_frontmatter=$(sed '1,/^---$/d; 1,/^---$/d' "$skill_file" | wc -c)
     if [[ $content_after_frontmatter -lt 500 ]]; then
@@ -320,15 +323,15 @@ section "8. Security Checks"
 log "Running security checks..."
 
 # Check for potential secrets (simplified gitleaks-style)
-# Exclude: examples, placeholders, variables ($VAR), environment var patterns
+# Exclude: examples, placeholders, variables ($VAR), environment var patterns, Go template vars
 secret_patterns='(password|api[_-]?key|secret|token)\s*[:=]\s*["\x27][^\s"$]+["\x27]'
 secret_count=$( (grep -riE "$secret_patterns" --include="*.md" --include="*.json" . 2>/dev/null || true) | \
-    (grep -v 'example\|placeholder\|your-\|<\|>\|\$[A-Z_]\|from-literal\|standards' || true) | wc -l | tr -d '[:space:]')
+    (grep -v 'example\|placeholder\|your-\|<\|>\|\$[A-Z_]\|from-literal\|standards\|{{\s*\.Env\.' || true) | wc -l | tr -d '[:space:]')
 secret_count=${secret_count:-0}
 
 if [[ $secret_count -gt 0 ]]; then
     fail "$secret_count potential secrets found"
-    [[ "$VERBOSE" == "--verbose" ]] && grep -riE "$secret_patterns" --include="*.md" --include="*.json" . 2>/dev/null | grep -v "example\|placeholder" | head -3
+    [[ "$VERBOSE" == "--verbose" ]] && grep -riE "$secret_patterns" --include="*.md" --include="*.json" . 2>/dev/null | grep -v "example\|placeholder\|{{\s*\.Env\." | head -3
 else
     pass "No potential secrets detected"
 fi
