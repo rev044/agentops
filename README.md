@@ -16,20 +16,20 @@
 
 <!-- Accessibility: Comparison showing 4 sessions without AgentOps (repeating same questions) vs with AgentOps (progressive learning, knowledge compounds) -->
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│    WITHOUT AGENTOPS                    WITH AGENTOPS                    │
-│    ─────────────────                   ─────────────                    │
-│                                                                         │
-│    Session 1:  "How does auth work?"   Session 1:  "How does auth..."  │
-│    Session 2:  "How does auth work?"   Session 2:  "I remember this"   │
-│    Session 3:  "How does auth work?"   Session 3:  "Auth? Easy."       │
-│    Session 4:  "How does auth work?"   Session 4:  *instant recall*    │
-│                                                                         │
-│    ════════════════════════════════    ════════════════════════════    │
-│    Repeating                           Compounding                      │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+|                                                                         |
+|    WITHOUT AGENTOPS                    WITH AGENTOPS                    |
+|    -----------------                   -------------                    |
+|                                                                         |
+|    Session 1:  "How does auth work?"   Session 1:  "How does auth..."  |
+|    Session 2:  "How does auth work?"   Session 2:  "I remember this"   |
+|    Session 3:  "How does auth work?"   Session 3:  "Auth? Easy."       |
+|    Session 4:  "How does auth work?"   Session 4:  *instant recall*    |
+|                                                                         |
+|    ================================    ============================    |
+|    Repeating                           Compounding                      |
+|                                                                         |
++-------------------------------------------------------------------------+
 ```
 
 ---
@@ -52,32 +52,32 @@
 <!-- Accessibility: Flowchart showing Research → Plan → Pre-mortem → Crank → Post-mortem → Extract Learnings, which feeds back to Research. The cycle compounds knowledge over ~100 sessions. -->
 ```
                     THE KNOWLEDGE FLYWHEEL
-                    ──────────────────────
+                    ----------------------
 
-        ┌──────────┐                      ┌──────────┐
-        │ RESEARCH │                      │  LEARN   │
-        │  (Day 1) │                      │(Day 100) │
-        └────┬─────┘                      └────▲─────┘
-             │                                 │
-             │    ┌─────────────────────┐      │
-             │    │                     │      │
-             ▼    ▼                     │      │
-        ┌─────────────┐           ┌─────┴─────┐
-        │    PLAN     │           │  EXTRACT  │
-        │             │           │ LEARNINGS │
-        └──────┬──────┘           └─────▲─────┘
-               │                        │
-               ▼                        │
-        ┌─────────────┐           ┌─────┴─────┐
-        │ PRE-MORTEM  │           │   POST-   │
-        │(catch fails)│           │  MORTEM   │
-        └──────┬──────┘           └─────▲─────┘
-               │                        │
-               ▼                        │
-        ┌─────────────┐                 │
-        │    CRANK    │─────────────────┘
-        │ (implement) │
-        └─────────────┘
+        +----------+                      +----------+
+        | RESEARCH |                      |  LEARN   |
+        |  (Day 1) |                      |(Day 100) |
+        +----+-----+                      +----▲-----+
+             |                                 |
+             |    +---------------------+      |
+             |    |                     |      |
+             ▼    ▼                     |      |
+        +-------------+           +-----+-----+
+        |    PLAN     |           |  EXTRACT  |
+        |             |           | LEARNINGS |
+        +------+------+           +-----▲-----+
+               |                        |
+               ▼                        |
+        +-------------+           +-----+-----+
+        | PRE-MORTEM  |           |   POST-   |
+        |(catch fails)|           |  MORTEM   |
+        +------+------+           +-----▲-----+
+               |                        |
+               ▼                        |
+        +-------------+                 |
+        |    CRANK    |-----------------+
+        | (implement) |
+        +-------------+
 
         By Session 100: Domain Expert
 ```
@@ -88,128 +88,128 @@
 
 <!-- Accessibility: Comprehensive diagram showing full RPI workflow with all 20 agents, 5 gates, Brownian Ratchet pattern at each stage, and Knowledge Flywheel feedback loop -->
 ```
-═══════════════════════════════════════════════════════════════════════════════════
+===================================================================================
                            AGENTOPS: THE COMPLETE SYSTEM
-═══════════════════════════════════════════════════════════════════════════════════
+===================================================================================
 
-  ╔═══════════════════════════════════════════════════════════════════════════════╗
-  ║                           THE KNOWLEDGE FLYWHEEL                              ║
-  ║  SessionStart hook ──► injects prior learnings ──► you start smarter          ║
-  ╚═══════════════════════════════════════════════════════════════════════════════╝
-                                        │
+  +===============================================================================+
+  |                           THE KNOWLEDGE FLYWHEEL                              |
+  |  SessionStart hook --► injects prior learnings --► you start smarter          |
+  +===============================================================================+
+                                        |
                                         ▼
-  ┌───────────────────────────────────────────────────────────────────────────────┐
-  │ STAGE 1: RESEARCH                                                    GATE 1   │
-  │                                                                               │
-  │  /research ───► CHAOS: Explore agent deep-dives codebase                      │
-  │       │                                                                       │
-  │       ├───────► FILTER: 4 validators check research quality                   │
-  │       │         • coverage-expert    • depth-expert                           │
-  │       │         • gap-identifier     • assumption-challenger                  │
-  │       │                                                                       │
-  │       └───────► RATCHET: .agents/research/*.md (locked)     [USER APPROVAL]   │
-  └───────────────────────────────────────────────────────────────────────────────┘
-                                        │
+  +-------------------------------------------------------------------------------+
+  | STAGE 1: RESEARCH                                                    GATE 1   |
+  |                                                                               |
+  |  /research ---► CHAOS: Explore agent deep-dives codebase                      |
+  |       |                                                                       |
+  |       +-------► FILTER: 4 validators check research quality                   |
+  |       |         • coverage-expert    • depth-expert                           |
+  |       |         • gap-identifier     • assumption-challenger                  |
+  |       |                                                                       |
+  |       +-------► RATCHET: .agents/research/*.md (locked)     [USER APPROVAL]   |
+  +-------------------------------------------------------------------------------+
+                                        |
                                         ▼
-  ┌───────────────────────────────────────────────────────────────────────────────┐
-  │ STAGE 2: PLAN                                                        GATE 2   │
-  │                                                                               │
-  │  /plan ───────► CHAOS: Decompose goal into issues with dependencies           │
-  │       │                                                                       │
-  │       ├───────► FILTER: Dependency graph validates execution order            │
-  │       │                                                                       │
-  │       └───────► RATCHET: .agents/plans/*.md + bd issues     [USER APPROVAL]   │
-  └───────────────────────────────────────────────────────────────────────────────┘
-                                        │
+  +-------------------------------------------------------------------------------+
+  | STAGE 2: PLAN                                                        GATE 2   |
+  |                                                                               |
+  |  /plan -------► CHAOS: Decompose goal into issues with dependencies           |
+  |       |                                                                       |
+  |       +-------► FILTER: Dependency graph validates execution order            |
+  |       |                                                                       |
+  |       +-------► RATCHET: .agents/plans/*.md + bd issues     [USER APPROVAL]   |
+  +-------------------------------------------------------------------------------+
+                                        |
                                         ▼
-  ┌───────────────────────────────────────────────────────────────────────────────┐
-  │ STAGE 3: PRE-MORTEM (catch failures before building)                 GATE 3   │
-  │                                                                               │
-  │  /pre-mortem ─► CHAOS: 4 failure experts simulate disasters                   │
-  │       │         • integration-failure-expert  • ops-failure-expert            │
-  │       │         • data-failure-expert         • edge-case-hunter              │
-  │       │                                                                       │
-  │       ├───────► FILTER: Rank risks by severity, identify mitigations          │
-  │       │                                                                       │
-  │       └───────► RATCHET: .agents/pre-mortems/*.md           [USER APPROVAL]   │
-  └───────────────────────────────────────────────────────────────────────────────┘
-                                        │
+  +-------------------------------------------------------------------------------+
+  | STAGE 3: PRE-MORTEM (catch failures before building)                 GATE 3   |
+  |                                                                               |
+  |  /pre-mortem -► CHAOS: 4 failure experts simulate disasters                   |
+  |       |         • integration-failure-expert  • ops-failure-expert            |
+  |       |         • data-failure-expert         • edge-case-hunter              |
+  |       |                                                                       |
+  |       +-------► FILTER: Rank risks by severity, identify mitigations          |
+  |       |                                                                       |
+  |       +-------► RATCHET: .agents/pre-mortems/*.md           [USER APPROVAL]   |
+  +-------------------------------------------------------------------------------+
+                                        |
                                         ▼
-  ┌───────────────────────────────────────────────────────────────────────────────┐
-  │ STAGE 4: IMPLEMENT                                                            │
-  │                                                                               │
-  │  /crank ──────► CHAOS: Loop through issues, Explore agent per issue           │
-  │       │                                                                       │
-  │       │         ┌─────────────────────────────────────────────────────┐       │
-  │       │         │  FIRE LOOP (per issue):                             │       │
-  │       │         │  FIND ──► bd ready (get unblocked issues)           │       │
-  │       │         │  IGNITE ► /implement (Explore + code changes)       │       │
-  │       │         │  REAP ──► commit with issue reference               │       │
-  │       │         │  ESCALATE ► handle failures, retry or mail human    │       │
-  │       │         └─────────────────────────────────────────────────────┘       │
-  │       │                                                                       │
-  │       └───────► RATCHET: git commits (locked, can't regress)                  │
-  └───────────────────────────────────────────────────────────────────────────────┘
-                                        │
+  +-------------------------------------------------------------------------------+
+  | STAGE 4: IMPLEMENT                                                            |
+  |                                                                               |
+  |  /crank ------► CHAOS: Loop through issues, Explore agent per issue           |
+  |       |                                                                       |
+  |       |         +-----------------------------------------------------+       |
+  |       |         |  FIRE LOOP (per issue):                             |       |
+  |       |         |  FIND --► bd ready (get unblocked issues)           |       |
+  |       |         |  IGNITE ► /implement (Explore + code changes)       |       |
+  |       |         |  REAP --► commit with issue reference               |       |
+  |       |         |  ESCALATE ► handle failures, retry or mail human    |       |
+  |       |         +-----------------------------------------------------+       |
+  |       |                                                                       |
+  |       +-------► RATCHET: git commits (locked, can't regress)                  |
+  +-------------------------------------------------------------------------------+
+                                        |
                                         ▼
-  ┌───────────────────────────────────────────────────────────────────────────────┐
-  │ STAGE 5: VALIDATE                                                    GATE 4   │
-  │                                                                               │
-  │  /vibe ───────► CHAOS: 6 validation agents in parallel                        │
-  │       │         • security-reviewer     • code-reviewer                       │
-  │       │         • architecture-expert   • code-quality-expert                 │
-  │       │         • security-expert       • ux-expert                           │
-  │       │                                                                       │
-  │       ├───────► FILTER: 8-aspect validation (semantic, security, quality,     │
-  │       │                  architecture, complexity, performance, slop, a11y)   │
-  │       │                                                                       │
-  │       │         CRITICAL = 0 ──► PASS                                         │
-  │       │         CRITICAL > 0 ──► BLOCK (must fix before proceeding)           │
-  │       │                                                                       │
-  │       └───────► RATCHET: .agents/vibe/*.md                  [AUTO-GATE]       │
-  └───────────────────────────────────────────────────────────────────────────────┘
-                                        │
+  +-------------------------------------------------------------------------------+
+  | STAGE 5: VALIDATE                                                    GATE 4   |
+  |                                                                               |
+  |  /vibe -------► CHAOS: 6 validation agents in parallel                        |
+  |       |         • security-reviewer     • code-reviewer                       |
+  |       |         • architecture-expert   • code-quality-expert                 |
+  |       |         • security-expert       • ux-expert                           |
+  |       |                                                                       |
+  |       +-------► FILTER: 8-aspect validation (semantic, security, quality,     |
+  |       |                  architecture, complexity, performance, slop, a11y)   |
+  |       |                                                                       |
+  |       |         CRITICAL = 0 --► PASS                                         |
+  |       |         CRITICAL > 0 --► BLOCK (must fix before proceeding)           |
+  |       |                                                                       |
+  |       +-------► RATCHET: .agents/vibe/*.md                  [AUTO-GATE]       |
+  +-------------------------------------------------------------------------------+
+                                        |
                                         ▼
-  ┌───────────────────────────────────────────────────────────────────────────────┐
-  │ STAGE 6: POST-MORTEM (validate + extract learnings)                  GATE 5   │
-  │                                                                               │
-  │  /post-mortem ► CHAOS: 6 agents validate completion + extract knowledge       │
-  │       │         • plan-compliance-expert   • goal-achievement-expert          │
-  │       │         • ratchet-validator        • flywheel-feeder                  │
-  │       │         • security-expert          • code-quality-expert              │
-  │       │                                                                       │
-  │       ├───────► FILTER: Synthesize findings, resolve conflicts                │
-  │       │                                                                       │
-  │       └───────► RATCHET: .agents/retros/*.md + .agents/learnings/*.md         │
-  │                                                         [USER: TEMPER/ITERATE]│
-  └───────────────────────────────────────────────────────────────────────────────┘
-                                        │
+  +-------------------------------------------------------------------------------+
+  | STAGE 6: POST-MORTEM (validate + extract learnings)                  GATE 5   |
+  |                                                                               |
+  |  /post-mortem ► CHAOS: 6 agents validate completion + extract knowledge       |
+  |       |         • plan-compliance-expert   • goal-achievement-expert          |
+  |       |         • ratchet-validator        • flywheel-feeder                  |
+  |       |         • security-expert          • code-quality-expert              |
+  |       |                                                                       |
+  |       +-------► FILTER: Synthesize findings, resolve conflicts                |
+  |       |                                                                       |
+  |       +-------► RATCHET: .agents/retros/*.md + .agents/learnings/*.md         |
+  |                                                         [USER: TEMPER/ITERATE]|
+  +-------------------------------------------------------------------------------+
+                                        |
                                         ▼
-  ╔═══════════════════════════════════════════════════════════════════════════════╗
-  ║                           THE KNOWLEDGE FLYWHEEL                              ║
-  ║  SessionEnd hook ──► extracts learnings ──► indexes for next session          ║
-  ║                                                                               ║
-  ║     .agents/                                                                  ║
-  ║     ├── learnings/   "Auth bugs stem from token refresh timing"               ║
-  ║     ├── patterns/    "How we handle retries in this codebase"                 ║
-  ║     ├── research/    Deep exploration outputs                                 ║
-  ║     └── retros/      What worked, what didn't                                 ║
-  ║                                                                               ║
-  ║  NEXT SESSION: Hooks inject relevant knowledge ──► You start smarter          ║
-  ╚═══════════════════════════════════════════════════════════════════════════════╝
+  +===============================================================================+
+  |                           THE KNOWLEDGE FLYWHEEL                              |
+  |  SessionEnd hook --► extracts learnings --► indexes for next session          |
+  |                                                                               |
+  |     .agents/                                                                  |
+  |     +-- learnings/   "Auth bugs stem from token refresh timing"               |
+  |     +-- patterns/    "How we handle retries in this codebase"                 |
+  |     +-- research/    Deep exploration outputs                                 |
+  |     +-- retros/      What worked, what didn't                                 |
+  |                                                                               |
+  |  NEXT SESSION: Hooks inject relevant knowledge --► You start smarter          |
+  +===============================================================================+
 
-  ┌───────────────────────────────────────────────────────────────────────────────┐
-  │                              THE BROWNIAN RATCHET                             │
-  │                                                                               │
-  │   At every stage:  CHAOS (explore options) ──► FILTER (validate) ──► RATCHET  │
-  │                                                                     (lock)    │
-  │                                                                               │
-  │   Progress only moves forward. Knowledge compounds. You never go backward.    │
-  └───────────────────────────────────────────────────────────────────────────────┘
+  +-------------------------------------------------------------------------------+
+  |                              THE BROWNIAN RATCHET                             |
+  |                                                                               |
+  |   At every stage:  CHAOS (explore options) --► FILTER (validate) --► RATCHET  |
+  |                                                                     (lock)    |
+  |                                                                               |
+  |   Progress only moves forward. Knowledge compounds. You never go backward.    |
+  +-------------------------------------------------------------------------------+
 
-═══════════════════════════════════════════════════════════════════════════════════
-                    20 AGENTS │ 5 GATES │ 1 FLYWHEEL │ ZERO AMNESIA
-═══════════════════════════════════════════════════════════════════════════════════
+===================================================================================
+                    20 AGENTS | 5 GATES | 1 FLYWHEEL | ZERO AMNESIA
+===================================================================================
 ```
 
 ---
@@ -299,20 +299,20 @@ Not just "does it compile?" — **does it match the spec?**
 
 <!-- Accessibility: Table showing 8 validation aspects: Semantic, Security, Quality, Architecture, Complexity, Performance, Slop, Accessibility. Gate rule: 0 critical = pass, 1+ critical = blocked. -->
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    8-ASPECT SEMANTIC VALIDATION                 │
-├─────────────────────────────────────────────────────────────────┤
-│  ✓ Semantic      Does code do what spec says?                   │
-│  ✓ Security      SQL injection, auth bypass, hardcoded secrets  │
-│  ✓ Quality       Dead code, copy-paste, magic numbers           │
-│  ✓ Architecture  Layer violations, circular deps, god classes   │
-│  ✓ Complexity    CC > 10, deep nesting, parameter overload      │
-│  ✓ Performance   N+1 queries, unbounded loops, resource leaks   │
-│  ✓ Slop          AI hallucinations, cargo cult, over-engineering│
-│  ✓ Accessibility Missing ARIA, broken keyboard nav, contrast    │
-├─────────────────────────────────────────────────────────────────┤
-│  GATE: 0 CRITICAL = pass │ 1+ CRITICAL = blocked until fixed   │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                    8-ASPECT SEMANTIC VALIDATION                 |
++-----------------------------------------------------------------+
+|  ✓ Semantic      Does code do what spec says?                   |
+|  ✓ Security      SQL injection, auth bypass, hardcoded secrets  |
+|  ✓ Quality       Dead code, copy-paste, magic numbers           |
+|  ✓ Architecture  Layer violations, circular deps, god classes   |
+|  ✓ Complexity    CC > 10, deep nesting, parameter overload      |
+|  ✓ Performance   N+1 queries, unbounded loops, resource leaks   |
+|  ✓ Slop          AI hallucinations, cargo cult, over-engineering|
+|  ✓ Accessibility Missing ARIA, broken keyboard nav, contrast    |
++-----------------------------------------------------------------+
+|  GATE: 0 CRITICAL = pass | 1+ CRITICAL = blocked until fixed   |
++-----------------------------------------------------------------+
 ```
 
 ---
@@ -321,27 +321,27 @@ Not just "does it compile?" — **does it match the spec?**
 
 <!-- Accessibility: Diagram showing Brownian Ratchet pattern: Chaos (spawn agents) → Filter (validate, retry on fail) → Ratchet (commit, store in .agents/). Knowledge injects into next session. -->
 ```
-     ┌─────────────────────────────────────────────────────────────┐
-     │                                                             │
-     │   CHAOS              FILTER              RATCHET            │
-     │  (explore)          (validate)         (lock)              │
-     │                                                             │
-     │   ░░░░░░░░░          ┌─────┐           ══════════           │
-     │   ░ spawn ░    ───▶  │pass?│   ───▶    ║ COMMIT ║           │
-     │   ░ agents░          └──┬──┘           ══════════           │
-     │   ░░░░░░░░░             │                  │                │
-     │       ▲                 │ fail             │                │
-     │       └─────────────────┘                  │                │
-     │                                            ▼                │
-     │                                     ┌─────────────┐         │
-     │                                     │  .agents/   │◀─────┐  │
-     │                                     │  (memory)   │      │  │
-     │                                     └──────┬──────┘      │  │
-     │                                            │         inject │
-     │                                            └────────────────│
-     │                                            next session     │
-     │                                                             │
-     └─────────────────────────────────────────────────────────────┘
+     +-------------------------------------------------------------+
+     |                                                             |
+     |   CHAOS              FILTER              RATCHET            |
+     |  (explore)          (validate)         (lock)              |
+     |                                                             |
+     |   ░░░░░░░░░          +-----+           ==========           |
+     |   ░ spawn ░    ---▶  |pass?|   ---▶    | COMMIT |           |
+     |   ░ agents░          +--+--+           ==========           |
+     |   ░░░░░░░░░             |                  |                |
+     |       ▲                 | fail             |                |
+     |       +-----------------+                  |                |
+     |                                            ▼                |
+     |                                     +-------------+         |
+     |                                     |  .agents/   |◀-----+  |
+     |                                     |  (memory)   |      |  |
+     |                                     +------+------+      |  |
+     |                                            |         inject |
+     |                                            +----------------|
+     |                                            next session     |
+     |                                                             |
+     +-------------------------------------------------------------+
 
      Progress compounds. You never go backward.
 ```
@@ -354,16 +354,16 @@ Everything lives in `.agents/` — **git-tracked, portable, yours**.
 
 ```
 .agents/
-├── research/      # Deep exploration outputs
-├── plans/         # Implementation plans
-├── pre-mortems/   # Failure simulations
-├── specs/         # Validated specifications
-├── learnings/     # Extracted insights ("Auth bugs stem from token refresh")
-├── patterns/      # Reusable patterns ("How we handle retries")
-├── retros/        # Session retrospectives
-├── vibe/          # Validation reports
-├── complexity/    # Complexity analysis
-└── ...            # + other skill outputs (doc, assessments, etc.)
++-- research/      # Deep exploration outputs
++-- plans/         # Implementation plans
++-- pre-mortems/   # Failure simulations
++-- specs/         # Validated specifications
++-- learnings/     # Extracted insights ("Auth bugs stem from token refresh")
++-- patterns/      # Reusable patterns ("How we handle retries")
++-- retros/        # Session retrospectives
++-- vibe/          # Validation reports
++-- complexity/    # Complexity analysis
++-- ...            # + other skill outputs (doc, assessments, etc.)
 ```
 
 **Automatic hooks:**
@@ -378,25 +378,25 @@ You don't run `ao` commands manually. The flywheel turns itself.
 
 <!-- Accessibility: Comparison showing progression over 4 sessions. Without AgentOps: repeating. With AgentOps: compounding knowledge. -->
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                                                                      │
-│  WITHOUT AGENTOPS                                                    │
-│  ════════════════                                                    │
-│                                                                      │
-│  Session 1   Session 2   Session 3   Session 4                       │
-│  ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐                        │
-│  │repeat│ ─▶ │repeat│ ─▶ │repeat│ ─▶ │repeat│  Repeating             │
-│  └──────┘    └──────┘    └──────┘    └──────┘    (0 learning)        │
-│                                                                      │
-│  WITH AGENTOPS                                                       │
-│  ═════════════                                                       │
-│                                                                      │
-│  Session 1   Session 2   Session 3   Session 4                       │
-│  ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐                        │
-│  │learn │ ─▶ │recall│ ─▶ │refine│ ─▶ │expert│  Compounding           │
-│  └──────┘    └──────┘    └──────┘    └──────┘    (mastered)          │
-│                                                                      │
-└──────────────────────────────────────────────────────────────────────┘
++----------------------------------------------------------------------+
+|                                                                      |
+|  WITHOUT AGENTOPS                                                    |
+|  ================                                                    |
+|                                                                      |
+|  Session 1   Session 2   Session 3   Session 4                       |
+|  +------+    +------+    +------+    +------+                        |
+|  |repeat| -▶ |repeat| -▶ |repeat| -▶ |repeat|  Repeating             |
+|  +------+    +------+    +------+    +------+    (0 learning)        |
+|                                                                      |
+|  WITH AGENTOPS                                                       |
+|  =============                                                       |
+|                                                                      |
+|  Session 1   Session 2   Session 3   Session 4                       |
+|  +------+    +------+    +------+    +------+                        |
+|  |learn | -▶ |recall| -▶ |refine| -▶ |expert|  Compounding           |
+|  +------+    +------+    +------+    +------+    (mastered)          |
+|                                                                      |
++----------------------------------------------------------------------+
 ```
 
 **By session 100, your agent knows:**
