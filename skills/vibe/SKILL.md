@@ -5,11 +5,24 @@ description: 'Talos-class comprehensive code validation. Use for "validate code"
 
 # Vibe Skill
 
-> **Quick Ref:** Validate code across 8 aspects (security, quality, architecture, etc). Output: `.agents/vibe/*.md` + grade A-F.
-
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Comprehensive code validation across 8 quality aspects.
+
+---
+
+## ⚠️ Claude Validation Limitation Warning
+
+**Claude is weak at systematic verification.** This was proven when Claude scored docs 9/10 "Ready for Implementation" while Codex found critical bugs at 6/10 on the same prompt.
+
+**For SPEC/DOCUMENT validation:**
+- Claude skims instead of traces
+- Claude pattern-matches instead of reasons
+- Claude is biased toward "looks good"
+
+**Mitigation required:** See "Spec/Document Validation Mode" section below.
+
+---
 
 ## Execution Steps
 
@@ -264,6 +277,8 @@ Tell the user:
 - **Actionable fixes** - tell them HOW to fix, not just what's wrong
 - **Grade reflects reality** - don't inflate or deflate
 - **Write the report** - always produce `.agents/vibe/` artifact
+- **For specs: Build tables, don't trust impressions** - mechanical cross-referencing required
+- **Never claim "Ready for Implementation" on validation** - recommend external verification
 
 ## Quick vs Deep
 
@@ -290,3 +305,103 @@ The vibe skill includes an automated prescan script at `scripts/prescan.sh`:
 - `1`: Secrets detected (blocks gate)
 
 **Integration:** Run prescan before full vibe validation to catch secrets early.
+
+---
+
+## Spec/Document Validation Mode
+
+**When target is documentation or specs** (*.md files in docs/, specs/, or similar):
+
+### Why This Is Different
+
+Code validation: Look for bugs, security issues, complexity.
+Spec validation: Cross-reference consistency across multiple documents.
+
+**Claude fails at spec validation** because it:
+- Skims instead of mechanically tracing
+- Assumes similar terms are equivalent
+- Rationalizes differences instead of flagging conflicts
+
+### Mandatory Protocol for Spec Validation
+
+**Step S1: Generate Explicit Checklist BEFORE Reading**
+
+```
+Before reading any documents, generate a checklist:
+- List every entity that should be consistent (agents, states, message types, timeouts)
+- List every cross-reference to verify (A mentions B → B exists and matches)
+- List every enum/constant that appears in multiple places
+```
+
+**Step S2: Build Mechanical Cross-Reference Tables**
+
+For each entity type, build a table with tool calls:
+
+```markdown
+| Entity | Doc A (line) | Doc B (line) | Match? |
+|--------|--------------|--------------|--------|
+| HARVEST_REQUEST sender | auth matrix:152 "Moirai" | comm matrix:1123 "Athena" | ❌ CONFLICT |
+```
+
+**Step S3: Trace Relationships, Don't Pattern Match**
+
+For every relationship claim:
+1. Read the EXACT line in source doc
+2. Read the EXACT line in target doc
+3. Compare literally, not conceptually
+4. Flag ANY difference, even if it "seems equivalent"
+
+**Step S4: Bias Toward Finding Problems**
+
+- Assume bugs exist
+- Try to break the spec
+- Ask: "What would Codex catch that I'm missing?"
+
+**Step S5: Never Say "Ready for Implementation"**
+
+Final output must be:
+```
+## Findings
+[List what was found]
+
+## Verification Status
+⚠️ Claude-based validation has known limitations.
+Recommend external verification with Codex or mechanical diff tools.
+
+## Cross-Reference Tables
+[Show the tables built in Step S2]
+```
+
+### Dispatch Spec Validation Agents
+
+For spec validation, dispatch these agents **in parallel**:
+
+```
+Tool: Task (ALL IN PARALLEL)
+Parameters:
+  subagent_type: "agentops:plan-compliance-expert"
+  description: "Check spec compliance"
+  prompt: "Verify these specs are internally consistent: <file-list>"
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:gap-identifier"
+  description: "Find spec gaps"
+  prompt: "Find missing definitions or broken references in: <file-list>"
+
+Tool: Task
+Parameters:
+  subagent_type: "agentops:assumption-challenger"
+  description: "Challenge assumptions"
+  prompt: "Challenge assumptions and find conflicts in: <file-list>"
+```
+
+### Example: What Claude Missed
+
+| Issue Type | What Claude Did | What Claude Should Do |
+|------------|-----------------|----------------------|
+| Authorization Matrix wrong sender | Saw "HARVEST_REQUEST" in both tables, moved on | Build table: sender in Auth Matrix vs sender in Comm Matrix |
+| Bead status enum mismatch | Saw "pending/assigned" vs "open", assumed equivalent | Flag: "pending" ≠ "open" - which is canonical? |
+| Retry logic contradiction | Saw "retry" and "3" in multiple docs, assumed consistent | Trace: On rejection → does Demigod retry or Apollo escalate? |
+
+**The lesson:** Mechanical verification beats gestalt impression.
