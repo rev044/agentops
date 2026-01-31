@@ -39,6 +39,9 @@ ao ratchet status 2>/dev/null | head -3
 
 Use the most descriptive source as the topic slug.
 
+**Topic slug format:** 2-4 words, lowercase, hyphen-separated (e.g., `auth-refactor`, `api-validation`).
+**Fallback:** If no good topic found, use `session-$(date +%H%M)` (e.g., `session-1430`).
+
 ### Step 3: Gather Session Accomplishments
 
 **Review what was done this session:**
@@ -151,11 +154,10 @@ path/to/critical-file.py
 # Secondary files (for context)
 path/to/related-file.py
 ```
-```
 
 ### Step 7: Write Continuation Prompt
 
-**Write to:** `.agents/handoff/YYYY-MM-DD-continuation-prompt.md`
+**Write to:** `.agents/handoff/YYYY-MM-DD-<topic-slug>-prompt.md`
 
 ```markdown
 # Continuation Prompt for New Session
@@ -204,6 +206,7 @@ git log --oneline --since="2 hours ago" 2>/dev/null | wc -l
 ```
 
 **If ≥3 commits:** Suggest running `/retro` to extract learnings.
+**If <3 commits:** Handoff alone is sufficient; learnings are likely minimal.
 
 ### Step 9: Report to User
 
@@ -214,19 +217,32 @@ Tell the user:
 4. Suggestion: Copy the continuation prompt for next session
 5. If learnings detected, suggest `/retro`
 
+**Output completion marker:**
+```
+<promise>DONE</promise>
+```
+
+If no context to capture (no commits, no changes):
+```
+<promise>EMPTY</promise>
+Reason: No session activity found to hand off
+```
+
 ## Example Output
 
 ```
 Handoff created:
   .agents/handoff/2026-01-31-auth-refactor.md
-  .agents/handoff/2026-01-31-continuation-prompt.md
+  .agents/handoff/2026-01-31-auth-refactor-prompt.md
 
 Session captured:
 - 5 commits, 12 files changed
 - Paused: mid-implementation of OAuth flow
 - Next: Complete token refresh logic
 
-To continue: Copy the prompt from continuation-prompt.md
+To continue: Copy the prompt from auth-refactor-prompt.md
+
+<promise>DONE</promise>
 ```
 
 ## Key Rules
@@ -249,3 +265,11 @@ For a clean session end:
 ```
 
 Both should be run when ending a productive session.
+
+## Without ao CLI
+
+If ao CLI not available:
+1. Skip the `ao ratchet status` check in Step 2
+2. Step 8 retro suggestion still works (uses git commit count)
+3. All handoff documents are still written to `.agents/handoff/`
+4. Knowledge is captured for future sessions via handoff, just not indexed
