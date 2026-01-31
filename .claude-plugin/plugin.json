@@ -1,7 +1,8 @@
 {
   "name": "agentops",
   "version": "1.2.0",
-  "description": "AI-assisted development workflow with 23 skills + 20 agents + Agent Farm: Brownian Ratchet gates with Knowledge Flywheel",
+  "short_description": "DevOps for Vibe-Coding",
+  "description": "Shift-left validation for coding agents. Pre-mortem before you implement. Vibe check before you commit. Knowledge that compounds. The same operational discipline that made infrastructure reliable, applied to AI-assisted development.",
   "author": {
     "name": "Boden Fuller",
     "email": "fullerbt@users.noreply.github.com"
@@ -10,18 +11,16 @@
   "repository": "https://github.com/boshu2/agentops",
   "license": "Apache-2.0",
   "keywords": [
-    "workflow",
-    "rpi",
-    "research",
-    "planning",
-    "implementation",
+    "devops",
+    "vibe-coding",
+    "shift-left",
     "validation",
+    "coding-agents",
     "knowledge-flywheel",
+    "pre-mortem",
+    "vibe-check",
+    "workflow",
     "skills",
-    "ao-cli",
-    "brownian-ratchet",
-    "agent-farm",
-    "multi-agent",
-    "witness"
+    "ao-cli"
   ]
 }
