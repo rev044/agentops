@@ -1,6 +1,6 @@
 # DevOps for Vibe-Coding
 
-**Version:** 1.0
+**Version:** 1.2.0
 **Date:** 2026-01-31
 **Status:** Foundation document for strategic pivot
 

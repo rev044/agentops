@@ -186,35 +186,6 @@ The shift-left validation workflow:
 
 ---
 
-## The Core Workflow
-
-The shift-left validation workflow in practice:
-
-```bash
-/pre-mortem → /crank → /vibe → commit
-```
-
-### The 3 Core Skills
-
-| Skill | Timing | Purpose |
-|-------|--------|---------|
-| `/pre-mortem` | Before implementing | "What could go wrong?" — catches risks before code exists |
-| `/crank` | During implementation | Execute issues with validation gates, clean commits |
-| `/vibe` | Before every commit | "Does code match intent?" — 8-aspect semantic check |
-
-### Supporting Skills
-
-| Skill | When to Use |
-|-------|-------------|
-| `/research` | Deep-dive codebase before major work |
-| `/plan` | Break complex goals into trackable issues |
-| `/retro` | Extract learnings after completing work |
-| `/post-mortem` | Full validation + learning extraction for epics |
-
-**Everything else is automatic.** Skills call each other. Hooks capture knowledge. The flywheel turns itself.
-
----
-
 ## Quick Start
 
 ### 1. Install CLI
@@ -451,7 +422,7 @@ ao mail send --to mayor --body "message"  # Send message
 
 ---
 
-## Known Limitations (v1.1.0)
+## Known Limitations
 
 Agent Farm is production-ready for supervised use (1-3 agents). Large/unattended farms have known edge cases:
 
