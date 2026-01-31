@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-01-31
+
+### Parallel Wave Execution
+
+**The big idea:** When you have multiple issues that can run in parallel (no dependencies between them), why run them one at a time?
+
+Before v1.2.0, `/crank` executed issues sequentially - finish one, start the next. Fine for small epics, but painfully slow when you have 10 independent tasks that could run simultaneously.
+
+Now `/crank` detects **waves** - groups of issues with no blockers - and executes them in parallel using subagents. Each issue gets its own isolated agent. Results flow back to the main session.
+
+```
+Before (sequential):
+  issue-1 → done → issue-2 → done → issue-3 → done
+  Time: 3x
+
+After (parallel waves):
+  Wave 1: [issue-1, issue-2, issue-3] → 3 subagents in parallel → all done
+  Time: 1x
+```
+
+**Why max 3 agents per wave?** Context management. Each subagent returns results that accumulate in your session. We tested higher parallelism - context explodes on complex issues. 3 is the sweet spot: meaningful speedup without blowing your context budget.
+
+### How Waves Work
+
+Waves emerge naturally from beads dependencies:
+
+1. **`/plan`** creates issues with `blocks` dependencies
+2. Issues with NO blockers = Wave 1 (run in parallel)
+3. Issues blocked by Wave 1 = Wave 2 (run after Wave 1 completes)
+4. **`bd ready`** returns the current wave - all unblocked issues
+5. **`/crank`** takes the wave and dispatches up to 3 subagents
+
+The dependency graph IS your execution plan. No separate "wave configuration" needed.
+
+### Full Pipeline
+
+```
+/research → understand the problem
+     ↓
+/plan → decompose into issues with dependencies
+     ↓         (waves form automatically)
+/crank → execute waves in parallel
+     ↓         Wave 1: [a, b, c] → 3 agents
+     ↓         Wave 2: [d, e] → 2 agents
+     ↓         Wave 3: [f] → 1 agent
+     ↓
+/post-mortem → extract learnings
+```
+
+### What's Next: Olympus
+
+This parallel wave model is designed for **single-session work** - one Claude session spawning subagents. It's the foundation for something bigger.
+
+**Olympus** (coming soon) will handle true multi-session orchestration: separate Claude sessions, persistent workers, direct context management instead of subagent nesting. The beads dependency graph persists across sessions - that's the ratchet that survives context resets.
+
+### Changed
+
+- **`/crank` skill** - Parallel wave execution:
+  - Added `MAX_PARALLEL_AGENTS = 3` limit per wave
+  - Step 4 now dispatches subagents in parallel via Task tool
+  - FIRE loop updated to show wave model
+  - `bd ready` explicitly documented as "returns current wave"
+
+- **`/plan` skill** - Explicit wave formation:
+  - Step 7 now shows how to create `blocks` dependencies
+  - Added explanation of how waves form from dependencies
+  - Clarified that `bd ready` returns parallelizable work
+
+- **L4 implement-wave docs** - Updated max from 8 to 3 agents per wave
+
+### Technical Details
+
+The key instruction for `/crank`:
+
+> **All Task calls for a wave MUST be in a single message to enable parallel execution.**
+
+When Claude sends multiple Task tool calls in one message, they execute concurrently. Sequential messages = sequential execution. This is how we get parallelism without external orchestration.
+
 ## [1.1.0] - 2026-01-26
 
 ### Added

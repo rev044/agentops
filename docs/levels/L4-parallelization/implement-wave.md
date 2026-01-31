@@ -23,10 +23,12 @@ At L4, parallelization speeds execution:
 ## How It Works
 
 1. Claude runs `bd ready` to find unblocked issues
-2. Spawns sub-agent for each issue (max 8)
-3. Sub-agents work in parallel
+2. Spawns sub-agent for each issue (max 3 per wave)
+3. Sub-agents work in parallel via Task tool
 4. Results merged and validated
 5. Single commit closes all wave issues
+
+**Why max 3?** Each subagent returns results that accumulate in context. Capping at 3 prevents context overflow on complex issues while still providing meaningful parallelism.
 
 ## Output
 

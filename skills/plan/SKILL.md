@@ -130,9 +130,24 @@ If bd CLI available, create beads issues to enable progress tracking across sess
 # Create epic first
 bd create --title "<goal>" --type epic --label "planned"
 
-# Create child issues
-bd create --title "<issue-title>" --body "<description>" --parent <epic-id> --label "planned"
+# Create child issues (note the IDs returned)
+bd create --title "<wave-1-task>" --body "<description>" --parent <epic-id> --label "planned"
+# Returns: na-0001
+
+bd create --title "<wave-2-task-depends-on-wave-1>" --body "<description>" --parent <epic-id> --label "planned"
+# Returns: na-0002
+
+# Add blocking dependencies to form waves
+bd dep add na-0001 na-0002
+# Now na-0002 is blocked by na-0001 → Wave 2
 ```
+
+**Waves are formed by `blocks` dependencies:**
+- Issues with NO blockers → Wave 1 (appear in `bd ready` immediately)
+- Issues blocked by Wave 1 → Wave 2 (appear when Wave 1 closes)
+- Issues blocked by Wave 2 → Wave 3 (appear when Wave 2 closes)
+
+**`bd ready` returns the current wave** - all unblocked issues that can run in parallel.
 
 Without bd issues, the ratchet validator cannot track gate progress. This is required for `/crank` autonomous execution and `/post-mortem` validation.
 

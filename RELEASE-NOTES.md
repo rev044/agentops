@@ -2,6 +2,52 @@
 
 User-friendly highlights for each release. For full technical details, see [CHANGELOG.md](CHANGELOG.md).
 
+## v1.2.0 - Parallel Wave Execution
+
+**Released:** 2026-01-31
+
+Run multiple issues simultaneously. `/crank` just got 3x faster.
+
+### Highlights
+
+- **Parallel waves** - Issues with no dependencies run concurrently (up to 3 at a time)
+- **Automatic wave detection** - `bd ready` returns parallelizable work, `/crank` dispatches subagents
+- **Context-aware limits** - Capped at 3 agents per wave to prevent context overflow
+
+### The Model
+
+```
+/plan creates:     issue-1 (no deps)
+                   issue-2 (no deps)
+                   issue-3 (blocked by 1, 2)
+
+/crank executes:   Wave 1: [issue-1, issue-2] → parallel
+                   Wave 2: [issue-3] → after wave 1
+```
+
+Dependencies form waves. Waves run in parallel. Simple.
+
+### What's Coming
+
+This is single-session parallelism via subagents. **Olympus** will bring true multi-session orchestration with persistent workers and direct context management.
+
+---
+
+## v1.1.0 - Agent Farm
+
+**Released:** 2026-01-26
+
+Multi-agent execution arrives. Spawn a farm of Claude agents to parallelize work across your epic.
+
+### Highlights
+
+- **`/farm` skill** - Parallel multi-agent execution with `ao farm start --agents N`
+- **Witness monitoring** - Background observer tracks agent progress
+- **Agent messaging** - `ao inbox` and `ao mail send` for inter-agent communication
+- **Circuit breaker** - Auto-stops if >50% agents fail
+
+---
+
 ## v0.4.0 - Professional Polish
 
 **Released:** 2026-01-25
