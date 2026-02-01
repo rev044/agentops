@@ -2,6 +2,25 @@
 
 User-friendly highlights for each release. For full technical details, see [CHANGELOG.md](CHANGELOG.md).
 
+## v1.3.1 - Documentation Reality Check
+
+**Released:** 2026-02-01
+
+We ran the swarm, found gaps between docs and reality, then used the swarm to fix itself.
+
+### What Changed
+
+- Docs now show correct `TaskCreate` → `TaskUpdate(addBlockedBy)` flow
+- "Crank loops" → "atomic agents" (agents don't loop, Mayor does)
+- `<task-notification>` pattern replaces TaskOutput polling
+- Added Mayor reconciliation step
+
+### Meta-Learning
+
+6 doc fix tasks looked independent but all touched the same file. Consolidated to 2 truly parallel tasks. Task decomposition requires resource awareness.
+
+---
+
 ## v1.3.0 - Pure Claude-Native Swarm
 
 **Released:** 2026-02-01

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-02-01
+
+### Documentation Reality Check
+
+Swarm documentation updated to match tested behavior:
+
+- **TaskCreate API**: Removed invalid `blockedBy` parameter from examples. Dependencies require separate `TaskUpdate(addBlockedBy=[...])` call
+- **Terminology**: "crank loops" → "atomic agents" (agents don't loop internally)
+- **Monitoring**: Replaced `TaskOutput` polling with automatic `<task-notification>` pattern
+- **Agent isolation**: Documented that agents cannot access TaskList/TaskUpdate - Mayor must reconcile
+- **Mayor reconciliation**: Added explicit verify → update status → spawn next wave step
+- **Prompts**: Simplified from complex loop instructions to atomic task format
+
+Meta-learning: Task decomposition matters. 6 "independent" doc tasks weren't independent - they shared a file. Consolidated to 2 truly parallel tasks.
+
 ## [1.3.0] - 2026-02-01
 
 ### Pure Claude-Native Swarm
