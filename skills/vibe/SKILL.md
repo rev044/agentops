@@ -55,6 +55,31 @@ git rev-parse --git-dir 2>/dev/null || echo "NOT_GIT"
 If NOT_GIT and no explicit path provided, STOP with error:
 > "Not in a git repository. Provide explicit file path: `/vibe path/to/files`"
 
+### Step 1a.1: Load Prior Validation Knowledge (ao integration)
+
+**Search for relevant learnings before validation:**
+
+```bash
+# Check if ao CLI is available
+if command -v ao &> /dev/null; then
+  # Search for prior validation failures on similar code
+  ao search "validation failures" --limit 5 2>/dev/null || true
+
+  # Check for known anti-patterns from learnings
+  ao anti-patterns 2>/dev/null | head -20 || true
+else
+  # ao not available - skip knowledge injection
+  echo "Note: ao CLI not available, skipping knowledge injection"
+fi
+```
+
+**Use the results to:**
+- Inform validation focus areas based on past failures
+- Flag code patterns that previously caused issues
+- Apply extra scrutiny to areas with known anti-patterns
+
+If ao not available, skip this step and continue with validation.
+
 ### Step 1b: Run Toolchain Validation (MANDATORY)
 
 **Before ANY agent dispatch, run the toolchain:**
@@ -369,6 +394,38 @@ Tell the user:
 2. Gate decision (PASS/BLOCK)
 3. Critical and high findings (if any)
 4. Location of full report
+
+### Step 12: Record Validation Results (ao integration)
+
+**Store validation learnings for future sessions:**
+
+```bash
+# Check if ao CLI is available
+if command -v ao &> /dev/null; then
+  # If CRITICAL findings were discovered, record them as learnings
+  if [ "<grade>" = "D" ] || [ "<grade>" = "F" ]; then
+    ao memory_store \
+      --content "Validation found CRITICAL issues in <target>: <summary of critical findings>" \
+      --memory_type "episode" \
+      --tags '["validation", "critical", "<area>"]' \
+      --source "vibe skill" 2>/dev/null || true
+  fi
+
+  # Record any new anti-patterns discovered
+  # (Only if a pattern was found that wasn't already known)
+  # ao forge transcript <session-log> 2>/dev/null || true
+else
+  # ao not available - skip result recording
+  echo "Note: ao CLI not available, skipping result recording"
+fi
+```
+
+**What gets recorded:**
+- CRITICAL findings become episodes for future reference
+- Novel anti-patterns get extracted via forge
+- Validation outcomes help calibrate future assessments
+
+If ao not available, skip this step and continue.
 
 ## Key Rules
 

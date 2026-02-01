@@ -48,6 +48,26 @@ After each task, output completion marker:
 
 Given `/crank [epic-id]`:
 
+### Step 0: Load Knowledge Context (ao Integration)
+
+**Search for relevant learnings before starting the epic:**
+
+```bash
+# If ao CLI available, inject prior knowledge about epic execution
+if command -v ao &>/dev/null; then
+    # Search for relevant learnings
+    ao search "epic execution implementation patterns" 2>/dev/null | head -20
+
+    # Check flywheel status
+    ao flywheel status 2>/dev/null
+
+    # Get current ratchet state
+    ao ratchet status 2>/dev/null
+fi
+```
+
+If ao not available, skip this step and proceed. The knowledge flywheel enhances but is not required.
+
 ### Step 1: Identify the Epic
 
 **If epic ID provided:** Use it directly. Do NOT ask for confirmation.
@@ -204,6 +224,17 @@ Or use TaskUpdate to mark task completed.
 
 2. Track changed files in memory or use TaskCreate to note them.
 
+3. **Record ratchet progress (ao integration):**
+```bash
+# If ao CLI available, record implementation progress
+if command -v ao &>/dev/null; then
+    ao ratchet record implement 2>/dev/null
+    echo "Ratchet: recorded implementation of <issue-id>"
+fi
+```
+
+If ao not available, skip ratchet recording.
+
 **Note:** Skip per-issue vibe - validation is batched at the end to save context.
 
 ### Step 6: Check for More Work
@@ -236,14 +267,36 @@ Parameters:
 2. Re-run vibe on affected files
 3. Only proceed to completion when clean
 
-### Step 8: Report Completion
+### Step 8: Extract Learnings (ao Integration)
+
+**Before reporting completion, extract learnings from the session:**
+
+```bash
+# If ao CLI available, forge learnings from this epic execution
+if command -v ao &>/dev/null; then
+    # Extract learnings from recent session transcripts
+    ao forge transcript ~/.claude/projects/*/conversations/*.jsonl 2>/dev/null
+
+    # Show flywheel status post-execution
+    echo "=== Flywheel Status ==="
+    ao flywheel status 2>/dev/null
+
+    # Show pending learnings for review
+    ao pool list --tier=pending 2>/dev/null | head -10
+fi
+```
+
+If ao not available, skip learning extraction. Recommend user runs `/post-mortem` manually.
+
+### Step 9: Report Completion
 
 Tell the user:
 1. Epic ID and title
 2. Number of issues completed
 3. Total iterations used (of 50 max)
 4. Final vibe results
-5. Suggest running `/post-mortem` to extract learnings
+5. Flywheel status (if ao available)
+6. Suggest running `/post-mortem` to review and promote learnings
 
 **Output completion marker:**
 ```
@@ -251,6 +304,7 @@ Tell the user:
 Epic: <epic-id>
 Issues completed: N
 Iterations: M/50
+Flywheel: <status from ao flywheel status>
 ```
 
 If stopped early:
@@ -301,6 +355,7 @@ Loop until all issues are CLOSED.
 - **Autonomous execution** - minimize human prompts
 - **Respect iteration limit** - STOP at 50 iterations (hard limit)
 - **Output completion markers** - DONE, BLOCKED, or PARTIAL (required)
+- **Knowledge flywheel** - load learnings at start, forge at end (ao optional)
 
 ## Without Beads
 

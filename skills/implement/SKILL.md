@@ -40,6 +40,40 @@ bd show <issue-id> --json 2>/dev/null | jq -r '.status'
 bd update <issue-id> --append-notes "CHECKPOINT: Step N completed at $(date -Iseconds)" 2>/dev/null
 ```
 
+### Step 0a: Check Ratchet Status (RPI Workflow)
+
+**Before implementation, verify prior workflow gates passed:**
+
+```bash
+# Check if ao CLI is available
+if command -v ao &>/dev/null; then
+  # Check if research and plan phases completed
+  RATCHET_STATUS=$(ao ratchet status --json 2>/dev/null || echo '{}')
+  RESEARCH_DONE=$(echo "$RATCHET_STATUS" | jq -r '.research.completed // false')
+  PLAN_DONE=$(echo "$RATCHET_STATUS" | jq -r '.plan.completed // false')
+
+  if [ "$RESEARCH_DONE" = "true" ] && [ "$PLAN_DONE" = "true" ]; then
+    echo "Ratchet: Prior gates passed (research + plan complete)"
+  elif [ "$RESEARCH_DONE" = "false" ] || [ "$PLAN_DONE" = "false" ]; then
+    echo "WARNING: Prior gates not complete. Run /research and /plan first."
+    echo "  Research: $RESEARCH_DONE"
+    echo "  Plan: $PLAN_DONE"
+    echo ""
+    echo "Override with: ao ratchet skip <gate> --reason 'manual override'"
+  fi
+
+  # Get current spec path for reference
+  SPEC_PATH=$(ao ratchet spec 2>/dev/null || echo "")
+  if [ -n "$SPEC_PATH" ]; then
+    echo "Ratchet: Current spec at $SPEC_PATH"
+  fi
+else
+  echo "Ratchet: ao CLI not available - skipping gate check"
+fi
+```
+
+**Fallback:** If ao is not available, proceed without ratchet checks. The skill continues normally.
+
 ### Step 1: Get Issue Details
 
 **If beads issue ID provided** (e.g., `gt-123`):
@@ -171,6 +205,52 @@ Implements: <issue-id>"
 bd update <issue-id> --status closed 2>/dev/null
 ```
 
+### Step 7a: Record Implementation in Ratchet Chain
+
+**After successful issue closure, record in ratchet:**
+
+```bash
+# Check if ao CLI is available
+if command -v ao &>/dev/null; then
+  # Get the commit hash as output artifact
+  COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null || echo "")
+  CHANGED_FILES=$(git diff --name-only HEAD~1 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+
+  if [ -n "$COMMIT_HASH" ]; then
+    # Record successful implementation
+    ao ratchet record implement \
+      --output "$COMMIT_HASH" \
+      --files "$CHANGED_FILES" \
+      --issue "<issue-id>" \
+      2>&1 | tee -a .agents/ratchet.log
+
+    if [ $? -eq 0 ]; then
+      echo "Ratchet: Implementation recorded (commit: ${COMMIT_HASH:0:8})"
+    else
+      echo "Ratchet: Failed to record - chain.jsonl may need repair"
+    fi
+  else
+    echo "Ratchet: No commit found - skipping record"
+  fi
+else
+  echo "Ratchet: ao CLI not available - implementation NOT recorded"
+  echo "  Run manually: ao ratchet record implement --output <commit>"
+fi
+```
+
+**On failure/blocker:** Record the blocker in ratchet:
+
+```bash
+if command -v ao &>/dev/null; then
+  ao ratchet record implement \
+    --status blocked \
+    --reason "<blocker description>" \
+    2>/dev/null
+fi
+```
+
+**Fallback:** If ao is not available, the issue is still closed via bd but won't be tracked in the ratchet chain. The skill continues normally.
+
 ### Step 8: Report to User
 
 Tell the user:
@@ -178,6 +258,7 @@ Tell the user:
 2. How it was verified (with actual command output)
 3. Issue status (closed)
 4. Any follow-up needed
+5. **Ratchet status** (implementation recorded or skipped)
 
 **Output completion marker:**
 ```

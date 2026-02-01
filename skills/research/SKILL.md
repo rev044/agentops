@@ -20,12 +20,22 @@ mkdir -p .agents/research
 
 ### Step 2: Check Prior Art
 
-**First, inject existing knowledge (if ao available):**
+**First, search and inject existing knowledge (if ao available):**
+
 ```bash
-ao inject <topic> 2>/dev/null
+# Search knowledge base for relevant learnings, patterns, and prior research
+ao search "<topic>" 2>/dev/null || echo "ao not available, skipping knowledge search"
+
+# Inject relevant context into this session
+ao inject "<topic>" 2>/dev/null || echo "ao not available, skipping knowledge injection"
 ```
 
-Search for existing research on this topic:
+**Review ao search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
+- Prior research on this topic or related topics
+- Known patterns or anti-patterns
+- Lessons learned from similar investigations
+
+**Search local research artifacts:**
 ```bash
 ls -la .agents/research/ 2>/dev/null | grep -i "<topic>" || echo "No prior research found"
 ```

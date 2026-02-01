@@ -29,6 +29,26 @@ If no path, check for recent plans:
 ls -lt .agents/plans/ .agents/specs/ 2>/dev/null | head -5
 ```
 
+### Step 1a: Search for Prior Failure Learnings (if ao available)
+
+**Before generating the checklist, search for relevant past failures:**
+
+```bash
+# Search for prior failure patterns related to this topic
+ao search "failure <topic>" 2>/dev/null || echo "ao not available, skipping failure pattern search"
+
+# Also search for incidents and anti-patterns
+ao search "incident <topic>" 2>/dev/null
+ao anti-patterns 2>/dev/null | grep -i "<topic>" || true
+```
+
+**Review ao search results:** If ao returns relevant learnings, incorporate them:
+- **Prior incidents:** Add checks for conditions that caused past failures
+- **Known anti-patterns:** Add specific checklist items to verify they're avoided
+- **Lessons learned:** Use these to generate additional verification questions
+
+**Note:** This search runs BEFORE generating the checklist so prior knowledge can inform what to check.
+
 ### Step 2: Generate Explicit Checklist BEFORE Reading
 
 **Load the failure taxonomy FIRST:**

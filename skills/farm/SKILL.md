@@ -7,58 +7,65 @@ description: 'Spawn Agent Farm for parallel issue execution. Mayor orchestrates 
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-Spawn an Agent Farm to execute multiple issues in parallel with witness monitoring.
+Spawn an Agent Farm to execute multiple tasks in parallel with witness monitoring.
+
+## Work Source Priority
+
+Farm uses the first available work source:
+1. **Native Tasks** (TaskList) - Claude Code's built-in task management
+2. **Beads** (.beads/issues.jsonl) - Git-native issue tracking
+
+This allows farm to work without beads installed.
 
 ## Architecture
 
 ```
 Mayor (this session)
     |
-    +-> ao farm start --agents N
+    +-> Detect work source (tasks vs beads)
+    |
+    +-> Spawn agents in tmux (serial, 30s stagger)
     |       |
-    |       +-> Pre-flight validation
-    |       +-> Spawn agents in tmux (serial, 30s stagger)
-    |       +-> Spawn witness in separate tmux session
+    |       +-> Each agent: claim task → execute → mark complete
     |
-    +-> ao inbox (poll for updates)
+    +-> Spawn witness in separate tmux session
     |
-    +-> Witness sends "FARM COMPLETE" message
+    +-> Monitor via inbox/TaskList
+    |
+    +-> "FARM COMPLETE" when all done
     |
     +-> /post-mortem (extract learnings)
 ```
 
 ## Execution Steps
 
-Given `/farm [--agents N] [epic-id]`:
+Given `/farm [--agents N]`:
 
-### Step 1: Pre-Flight Validation
+### Step 1: Detect Work Source & Pre-Flight
 
-**Run pre-flight checks before spawning any agents:**
+**First, detect work source by checking for pending tasks:**
 
+Use the TaskList tool to check for pending tasks. If tasks exist with status "pending" and no blockedBy, use native tasks. Otherwise fall back to beads.
+
+**Work source detection:**
+- If TaskList returns pending tasks → use NATIVE TASKS
+- Else if `.beads/issues.jsonl` exists → use BEADS
+- Else STOP: "No work found. Create tasks or run /plan first."
+
+**For native tasks, count ready work:**
+- Ready = status "pending" AND blockedBy is empty or all blockedBy tasks completed
+
+**For beads, run pre-flight:**
 ```bash
 ao farm validate 2>/dev/null
 ```
 
-If not available, perform manual checks:
-
-1. **Verify beads exist:**
-```bash
-ls .beads/issues.jsonl 2>/dev/null || echo "ERROR: No beads found. Run /plan first."
-```
-
-2. **Check ready issues:**
+Or manual checks:
 ```bash
 bd ready 2>/dev/null | wc -l
 ```
-If 0 ready issues, STOP: "No ready issues. Check dependencies or run /plan."
 
-3. **Detect circular dependencies:**
-```bash
-bd validate --check-cycles 2>/dev/null
-```
-If cycle detected, STOP with error listing the cycle.
-
-4. **Verify disk space:**
+**Always check disk space:**
 ```bash
 df -h . | awk 'NR==2 {print $4}'
 ```
@@ -66,68 +73,98 @@ If < 5GB, warn user.
 
 ### Step 2: Determine Agent Count
 
-**Default:** `N = min(5, ready_issues)`
+**Default:** `N = min(5, ready_count)`
 
-**If --agents specified:** Use that value, but cap at ready_issues count.
+**If --agents specified:** Use that value, but cap at ready count.
 
+**For native tasks:**
+- Count pending tasks with no blockers from TaskList output
+- READY_COUNT = number of such tasks
+
+**For beads:**
 ```bash
 READY_COUNT=$(bd ready 2>/dev/null | wc -l | tr -d ' ')
-AGENTS=${N:-5}
-AGENTS=$((AGENTS < READY_COUNT ? AGENTS : READY_COUNT))
+```
+
+```
+AGENTS = min(N or 5, READY_COUNT)
 ```
 
 If AGENTS = 0, STOP: "No work available for agents."
 
 ### Step 3: Spawn Agent Farm
 
-**Start the farm with serial agent spawn (30s stagger):**
+**For native tasks, spawn agents via Task tool:**
 
+Use the Task tool to spawn parallel agents. Each agent gets instructions to:
+1. Check TaskList for pending tasks with no blockers
+2. Claim a task (TaskUpdate: status=in_progress, owner=agent-N)
+3. Execute the task (read description, do the work)
+4. Mark complete (TaskUpdate: status=completed)
+5. Repeat until no pending tasks remain
+
+**Spawn agents in parallel using Task tool:**
+```
+For each agent 1..N:
+  Task(subagent_type="general-purpose", prompt="
+    You are Agent-{N} in an agent farm.
+
+    Your job:
+    1. Use TaskList to find pending tasks
+    2. Pick the lowest ID task that has no blockedBy (or all blockedBy completed)
+    3. Use TaskUpdate to set status=in_progress and owner=agent-{N}
+    4. Use TaskGet to read full description
+    5. Execute the task (edit files, run commands as needed)
+    6. Use TaskUpdate to set status=completed
+    7. Repeat until TaskList shows no pending tasks
+
+    When done, output: AGENT-{N} COMPLETE
+  ")
+```
+
+**For beads, use ao farm:**
 ```bash
 ao farm start --agents $AGENTS --epic <epic-id> 2>&1
 ```
 
-This command:
-1. Creates tmux session `ao-farm-<project>`
-2. Spawns agents one at a time with 30s delay
-3. Spawns witness in separate session `ao-farm-witness-<project>`
-4. Writes `.farm.meta` with PIDs and state
-5. Returns immediately with status message
-
 **Expected output:**
 ```
-Farm started: 5 agents, 1 witness
-Session: ao-farm-nami
-Witness: ao-farm-witness-nami
-Check progress: ao inbox
-Stop: ao farm stop
+Farm started: N agents
+Work source: native tasks (or beads)
+Agents spawned in parallel via Task tool
 ```
 
-### Step 4: Monitor Progress (Loop)
+### Step 4: Monitor Progress
 
 **Tell the user farm is running, then monitor:**
 
+**For native tasks:**
+- Use TaskList periodically to check progress
+- Count: pending vs in_progress vs completed
+- Farm complete when all tasks are completed
+
+**For beads:**
 ```
-Farm running. Check /inbox periodically for progress updates.
-
-- Witness summarizes every 5 minutes
-- Agents send completion messages per issue
-- "FARM COMPLETE" signals all work done
-
 Commands:
   ao inbox              - Check messages
   ao farm status        - Show agent states
   ao farm stop          - Graceful shutdown
 ```
 
-**Optional: Periodically check inbox:**
-```bash
-ao inbox --since 5m 2>/dev/null
-```
+**Progress check (native tasks):**
+Use TaskList and report:
+- Pending: X tasks
+- In Progress: X tasks (owned by agent-N)
+- Completed: X tasks
 
 ### Step 5: Handle Completion
 
-When witness sends "FARM COMPLETE" message:
+**For native tasks:**
+1. All agents return "AGENT-N COMPLETE"
+2. Verify via TaskList: all tasks status=completed
+3. Report: "Farm complete. X tasks completed."
 
+**For beads:**
 1. Verify all issues closed:
 ```bash
 bd list --status open 2>/dev/null | wc -l
@@ -138,9 +175,9 @@ bd list --status open 2>/dev/null | wc -l
 ao farm stop 2>/dev/null
 ```
 
-3. Suggest next step:
+**Next step:**
 ```
-Farm complete. X issues closed in Y minutes.
+Farm complete. X tasks completed.
 Run /post-mortem to extract learnings.
 ```
 
@@ -208,13 +245,28 @@ bd list --type message --to mayor 2>/dev/null
 
 ## Agent Farm Behavior
 
-Each spawned agent:
+### Native Tasks Mode
+
+Each spawned agent (via Task tool):
+1. Checks TaskList for pending tasks with no blockers
+2. Claims task via TaskUpdate (status=in_progress, owner=agent-N)
+3. Reads full task via TaskGet
+4. Executes the work described in task description
+5. Marks complete via TaskUpdate (status=completed)
+6. Repeats until no pending tasks remain
+7. Returns "AGENT-N COMPLETE"
+
+Mayor monitors via TaskList - no witness needed since Task tool returns results.
+
+### Beads Mode
+
+Each spawned agent (via tmux):
 1. Runs `/implement` loop until no ready issues
 2. Claims issues atomically via `bd claim`
 3. Sends completion message via Agent Mail
 4. Exits when no more work
 
-Witness:
+Witness (beads mode only):
 1. Polls agent tmux panes every 60s
 2. Summarizes to mayor every 5m
 3. Escalates blockers immediately
@@ -223,8 +275,7 @@ Witness:
 ## Exit Conditions
 
 Farm exits when:
-- All issues closed (success)
-- Circuit breaker triggers (>50% fail)
-- Witness dies unexpectedly (error)
-- User runs `ao farm stop` (manual)
-- Mayor disconnects (orphaned - use resume)
+- All tasks/issues completed (success)
+- Circuit breaker triggers (>50% fail in beads mode)
+- All agents return COMPLETE (native tasks mode)
+- User cancels (manual)

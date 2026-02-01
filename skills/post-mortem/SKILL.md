@@ -282,7 +282,45 @@ Parameters:
 ## Follow-up Issues
 
 <Issues created from findings>
+
+## Knowledge Flywheel Status
+
+- **Learnings indexed:** <count from ao forge>
+- **Session provenance:** <session-id>
+- **ao forge status:** PASS/SKIP (not available)
 ```
+
+### Step 7a: Index Learnings via ao forge (Knowledge Flywheel)
+
+**If user approved TEMPER & STORE in Gate 4, index learnings into knowledge base:**
+
+```bash
+# Check if ao CLI is available
+if command -v ao &>/dev/null; then
+  # Index learnings from the retro/learnings directory
+  ao forge index .agents/learnings/ 2>&1 | tee -a .agents/tooling/ao-forge.log
+  AO_EXIT=$?
+
+  # Add provenance tracking - link learnings to this session
+  SESSION_ID=$(ao session id 2>/dev/null || echo "unknown")
+  echo "Provenance: session=$SESSION_ID, timestamp=$(date -Iseconds)" >> .agents/learnings/provenance.txt
+
+  # Check flywheel status
+  FLYWHEEL_STATUS=$(ao flywheel status --json 2>/dev/null || echo '{"indexed": 0}')
+  INDEXED_COUNT=$(echo "$FLYWHEEL_STATUS" | jq -r '.indexed // 0')
+
+  if [ $AO_EXIT -eq 0 ]; then
+    echo "Flywheel: Learnings indexed successfully"
+  else
+    echo "Flywheel: ao forge failed (exit $AO_EXIT) - learnings NOT indexed"
+  fi
+else
+  echo "Flywheel: ao CLI not available - learnings written but NOT indexed"
+  echo "  Install ao or run manually: ao forge index .agents/learnings/"
+fi
+```
+
+**Fallback:** If ao is not available, learnings are still written to `.agents/learnings/*.md` but won't be searchable via `ao search`. The skill continues normally.
 
 ### Step 8: Report to User
 
@@ -292,6 +330,7 @@ Tell the user:
 3. Key triaged findings
 4. Learnings extracted
 5. Gate 4 decision
+6. **Flywheel status** (learnings indexed count)
 
 ## Key Differences from Previous Version
 
