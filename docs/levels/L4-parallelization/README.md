@@ -51,12 +51,49 @@ Why this matters:
 ## Wave Workflow
 
 ```
-TaskList → identifies unblocked tasks
-/swarm → spawns background agents for wave
-Agents complete work (notifications arrive)
-Mayor updates task status
-Next wave begins
+1. TaskList → identifies unblocked tasks
+2. /swarm → spawns background agents for wave
+3. Agents complete work → <task-notification> arrives automatically
+4. Mayor reconciliation:
+   a. Verify work (check files/git)
+   b. TaskUpdate(status="completed") for each
+   c. TaskList to find newly unblocked tasks
+5. Next wave begins
 ```
+
+## Mayor Reconciliation Step
+
+After notifications arrive, Mayor must verify before marking complete:
+
+```
+# For each completed agent:
+1. Check the files created/modified
+2. Run tests (npm test, pytest, etc.)
+3. Run lint (npm run lint, etc.)
+4. If valid: TaskUpdate(taskId="N", status="completed")
+5. If invalid: Note issues, may need re-run
+
+# After all verified:
+TaskList() → shows newly unblocked tasks → ready for next wave
+```
+
+This prevents marking broken work as complete.
+
+## Agent Prompts (Atomic)
+
+Each spawned agent gets a simple, single-task prompt:
+
+```
+# Good (atomic):
+"Create users endpoint in src/routes/users.ts. Include GET /users,
+POST /users, GET /users/:id routes. Follow existing patterns."
+
+# Bad (complex loop):
+"Create users endpoint, then test it, then if tests fail fix them,
+then validate, then update status, then check for more work..."
+```
+
+Agents do ONE thing. Mayor handles orchestration.
 
 ## Example Session
 

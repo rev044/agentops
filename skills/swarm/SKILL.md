@@ -1,25 +1,25 @@
 ---
 name: swarm
-description: 'Spawn background crank loops for parallel task execution. Pure Claude-native using Task tool. Triggers: "swarm", "spawn agents", "parallel work", "crank in parallel".'
+description: 'Spawn isolated agents for parallel task execution. Pure Claude-native using Task tool. Triggers: "swarm", "spawn agents", "parallel work".'
 ---
 
 # Swarm Skill
 
-Spawn isolated crank loops as background agents to execute tasks in parallel.
+Spawn isolated agents to execute tasks in parallel.
 
 ## Architecture (Mayor-First)
 
 ```
 Mayor (this session)
     |
-    +-> Plan: TaskCreate with dependencies (blockedBy)
+    +-> Plan: TaskCreate with dependencies
     |
     +-> Identify wave: tasks with no blockers
     |
     +-> Spawn: Task tool (run_in_background=true) for each
-    |       Each agent runs crank loop on its task
+    |       Each agent completes its task atomically
     |
-    +-> Monitor: TaskOutput to check progress
+    +-> Wait: <task-notification> arrives
     |
     +-> Validate: Review changes when complete
     |
@@ -35,11 +35,8 @@ Given `/swarm`:
 Use TaskList to see current tasks. If none, create them:
 
 ```
-TaskCreate(
-  subject="Implement feature X",
-  description="Full details...",
-  blockedBy=[]  # or list of task IDs
-)
+TaskCreate(subject="Implement feature X", description="Full details...")
+TaskUpdate(taskId="2", addBlockedBy=["1"])  # Add dependencies after creation
 ```
 
 ### Step 2: Identify Wave
@@ -50,7 +47,7 @@ Find tasks that are:
 
 These can run in parallel.
 
-### Step 3: Spawn Crank Loops
+### Step 3: Spawn Agents
 
 For each ready task, spawn a background agent:
 
@@ -58,38 +55,25 @@ For each ready task, spawn a background agent:
 Task(
   subagent_type="general-purpose",
   run_in_background=true,
-  prompt="You are a crank loop agent.
+  prompt="Execute task #<id>: <subject>
 
-Your task ID: #<id>
-Subject: <subject>
-Description: <description>
+<description>
 
-CRANK LOOP:
-1. Read the task details
-2. Do the work (edit files, write code, run tests)
-3. Commit your changes with a clear message
-4. Signal completion
-
-Work in the directory: <cwd>
-
-Start now. Complete the task fully."
+Work autonomously. Create/edit files as needed. Verify your work."
 )
 ```
 
-The Task tool returns a `task_id` for monitoring.
+**Important:** Agents cannot access TaskList/TaskUpdate. Mayor must:
+1. Wait for `<task-notification>`
+2. Verify work was done
+3. Call `TaskUpdate(taskId, status="completed")`
 
-### Step 4: Monitor Progress
+### Step 4: Wait for Notifications
 
-Use TaskOutput to check on background agents:
-
-```
-TaskOutput(task_id="<agent-task-id>", block=false)
-```
-
-Or wait for completion:
-```
-TaskOutput(task_id="<agent-task-id>", block=true, timeout=300000)
-```
+Agents send `<task-notification>` automatically when complete:
+- No polling needed
+- Mayor receives notification with task result
+- Then Mayor updates TaskList and spawns next wave
 
 ### Step 5: Validate & Review
 
@@ -136,7 +120,7 @@ Mayor: "Let's build a user auth system"
 - **Background agents** - `run_in_background=true` for isolation
 - **Wave execution** - Only unblocked tasks spawn
 - **Mayor orchestrates** - You control the flow
-- **Crank loops** - Each agent works until task done
+- **Atomic execution** - Each agent works until task done
 
 ## Integration with AgentOps
 
@@ -150,27 +134,27 @@ This ties into the full workflow:
 /post-mortem → Extract learnings
 ```
 
-The knowledge flywheel captures learnings from each crank loop.
+The knowledge flywheel captures learnings from each agent.
 
-## Monitoring Commands
+## Task Management Commands
 
 ```
-# Check background agent
-TaskOutput(task_id="abc123", block=false)
-
-# Wait for agent to finish
-TaskOutput(task_id="abc123", block=true)
-
 # List all tasks
 TaskList()
+
+# Mark task complete after notification
+TaskUpdate(taskId="1", status="completed")
+
+# Add dependency between tasks
+TaskUpdate(taskId="2", addBlockedBy=["1"])
 ```
 
-## When to Use Swarm vs Crank
+## When to Use Swarm
 
 | Scenario | Use |
 |----------|-----|
 | Multiple independent tasks | `/swarm` (parallel) |
-| Sequential dependencies | `/crank` (serial) |
+| Sequential dependencies | `/swarm` with blockedBy |
 | Mix of both | `/swarm` spawns waves, each wave parallel |
 
 ## Why This Works: Ralph Wiggum Pattern

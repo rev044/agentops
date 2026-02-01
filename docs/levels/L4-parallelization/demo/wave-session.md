@@ -49,17 +49,28 @@ Task(subagent_type="general-purpose", run_in_background=true, ...)
 
 All Wave 1 agents complete!
 
-TaskUpdate(taskId="1", status="completed")
-TaskUpdate(taskId="2", status="completed")
-TaskUpdate(taskId="3", status="completed")
+[Mayor reconciliation step...]
 
-Validating combined changes...
+Verifying agent work before marking complete:
+
+$ git diff --stat
+ src/routes/users.ts    | 45 +++
+ src/routes/orders.ts   | 52 +++
+ src/routes/products.ts | 48 +++
 
 $ npm test
 12 passed
 
 $ npm run lint
 No issues
+
+All verifications passed. Updating task status:
+
+TaskUpdate(taskId="1", status="completed")
+TaskUpdate(taskId="2", status="completed")
+TaskUpdate(taskId="3", status="completed")
+
+Checking for newly unblocked tasks...
 
 Wave 1 complete!
 
@@ -97,6 +108,11 @@ Spawning background agents for #4 and #5...
 <task-notification> Agent for #4 completed
 <task-notification> Agent for #5 completed
 
+[Mayor reconciliation: verify, test, then update status]
+
+TaskUpdate(taskId="4", status="completed")
+TaskUpdate(taskId="5", status="completed")
+
 Wave 2 complete!
 
 TaskList() shows:
@@ -118,6 +134,10 @@ Spawning background agent for #6...
 
 <task-notification> Agent for #6 completed
 
+[Mayor reconciliation: verify integration tests pass]
+
+TaskUpdate(taskId="6", status="completed")
+
 All tasks complete!
 
 $ git status
@@ -132,6 +152,21 @@ $ git add -A && git commit -m "feat: complete REST API implementation"
 
 1. `/swarm` spawns background agents for all ready tasks
 2. Each agent has fresh context (Ralph Wiggum pattern)
-3. Mayor receives `<task-notification>` as agents complete
-4. Mayor updates TaskList and triggers next wave
-5. No context accumulation = stays effective at scale
+3. `<task-notification>` arrives automatically when agents complete
+4. Mayor reconciliation: verify work, then `TaskUpdate(status="completed")`
+5. `TaskList()` reveals newly unblocked tasks for next wave
+6. No context accumulation = stays effective at scale
+
+## Key Pattern: Agent Prompts Are Atomic
+
+Each agent gets a single, focused task:
+
+```
+# What the agent receives:
+"Create users endpoint in src/routes/users.ts.
+Include GET /users, POST /users, GET /users/:id routes.
+Follow existing patterns in the codebase."
+
+# Agent does just that one thing and exits.
+# Mayor handles orchestration, verification, and status updates.
+```
