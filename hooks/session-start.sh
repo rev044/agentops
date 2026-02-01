@@ -17,6 +17,21 @@ for dir in "${AGENTS_DIRS[@]}"; do
     fi
 done
 
+# Get flywheel status (brief one-liner for visibility)
+flywheel_status=""
+if command -v ao &>/dev/null; then
+    # Extract just the key metrics from flywheel status
+    flywheel_output=$(ao flywheel status 2>/dev/null || true)
+    if [[ -n "$flywheel_output" ]]; then
+        # Parse the status line and velocity (tr -d removes newlines)
+        status_line=$(echo "$flywheel_output" | grep -o '\[.*\]' | head -1 | tr -d '\n' || echo "[UNKNOWN]")
+        velocity=$(echo "$flywheel_output" | grep "velocity:" | grep -o '[+-][0-9.]*' | tr -d '\n' || echo "?")
+        sessions=$(ao status 2>/dev/null | grep "^Sessions:" | awk '{print $2}' | head -1 | tr -d '\n' || echo "?")
+        learnings_count=$(ls -1 .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
+        flywheel_status="**Flywheel:** ${status_line} | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
+    fi
+fi
+
 # Detect and read AGENTS.md if present (competitor adoption: AGENTS.md standard)
 agents_md_content=""
 if [[ -f "AGENTS.md" ]]; then
@@ -62,10 +77,23 @@ if [[ -n "$agents_md_content" ]]; then
     agents_md_section="\n\n## Project Agent Instructions (AGENTS.md)\n\n${agents_md_content}"
 fi
 
+# Build flywheel status section if available
+flywheel_section=""
+if [[ -n "$flywheel_status" ]]; then
+    flywheel_section="
+
+---
+${flywheel_status}
+
+**Quick commands:** \`ao search <query>\` | \`ao flywheel status\` | \`ao trace <artifact>\`
+---
+"
+fi
+
 # Combine all content for context injection
 full_content="<EXTREMELY_IMPORTANT>
 You have AgentOps superpowers.
-
+${flywheel_section}
 **Below is the full content of your 'agentops:using-agentops' skill - your introduction to using AgentOps skills. For all other skills, use the 'Skill' tool:**
 
 ${using_agentops_content}${agents_md_section}
