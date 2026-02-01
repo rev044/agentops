@@ -1,281 +1,280 @@
 ---
 name: farm
-description: 'Spawn Agent Farm for parallel issue execution. Mayor orchestrates crew via tmux + MCP Agent Mail. Replaces /crank for multi-agent work. Triggers: "farm", "spawn agents", "parallel work", "multi-agent".'
+description: 'Spawn Agent Farm for parallel issue execution. Mayor orchestrates demigods (independent Claude sessions) via tmux. Triggers: "farm", "spawn agents", "parallel work", "multi-agent".'
 ---
 
 # Farm Skill
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-Spawn an Agent Farm to execute multiple tasks in parallel with witness monitoring.
+Spawn an Agent Farm - independent Claude Code sessions (demigods) in tmux that work on issues in parallel.
 
-## Work Source Priority
+## Core Concept: Demigods
 
-Farm uses the first available work source:
-1. **Native Tasks** (TaskList) - Claude Code's built-in task management
-2. **Beads** (.beads/issues.jsonl) - Git-native issue tracking
+**Demigod** = Independent Claude Code session in its own tmux window
+- Fully isolated from Mayor
+- Survives Mayor disconnect
+- Runs `/implement` loop on assigned work
+- Signals completion via file or Agent Mail
 
-This allows farm to work without beads installed.
+**This is NOT subagents.** Subagents share context and die with the session. Demigods are independent processes.
 
 ## Architecture
 
 ```
 Mayor (this session)
     |
-    +-> Detect work source (tasks vs beads)
+    +-> Identify wave (ready issues with no blockers)
     |
-    +-> Spawn agents in tmux (serial, 30s stagger)
+    +-> For each issue in wave:
     |       |
-    |       +-> Each agent: claim task → execute → mark complete
+    |       +-> tmux new-session -d -s demigod-N
+    |       +-> claude --prompt "Run /implement on <issue-id>"
+    |       +-> (30s stagger between spawns)
     |
-    +-> Spawn witness in separate tmux session
+    +-> Monitor: check tmux sessions, .demigod-status files
     |
-    +-> Monitor via inbox/TaskList
-    |
-    +-> "FARM COMPLETE" when all done
-    |
-    +-> /post-mortem (extract learnings)
+    +-> When all demigods complete:
+    |       +-> Review changes
+    |       +-> Run /post-mortem
 ```
+
+## Work Source
+
+Farm uses the first available:
+1. **Beads** (.beads/issues.jsonl) - preferred, git-native
+2. **Native Tasks** (TaskList) - fallback, converted to temp beads
+
+If using native tasks, convert them to a temp beads file first so demigods can use `bd` commands.
 
 ## Execution Steps
 
 Given `/farm [--agents N]`:
 
-### Step 1: Detect Work Source & Pre-Flight
+### Step 1: Pre-Flight Validation
 
-**First, detect work source by checking for pending tasks:**
-
-Use the TaskList tool to check for pending tasks. If tasks exist with status "pending" and no blockedBy, use native tasks. Otherwise fall back to beads.
-
-**Work source detection:**
-- If TaskList returns pending tasks → use NATIVE TASKS
-- Else if `.beads/issues.jsonl` exists → use BEADS
-- Else STOP: "No work found. Create tasks or run /plan first."
-
-**For native tasks, count ready work:**
-- Ready = status "pending" AND blockedBy is empty or all blockedBy tasks completed
-
-**For beads, run pre-flight:**
 ```bash
-ao farm validate 2>/dev/null
+# Check beads exist
+if [[ -f .beads/issues.jsonl ]]; then
+    echo "Work source: beads"
+    WORK_SOURCE="beads"
+else
+    echo "Work source: native tasks (will convert)"
+    WORK_SOURCE="tasks"
+fi
+
+# Check ready issues
+bd ready 2>/dev/null | head -20
+
+# Check tmux available
+command -v tmux >/dev/null || { echo "ERROR: tmux required"; exit 1; }
+
+# Check claude available
+command -v claude >/dev/null || { echo "ERROR: claude CLI required"; exit 1; }
+
+# Check disk space
+df -h . | awk 'NR==2 {print "Disk available: " $4}'
 ```
 
-Or manual checks:
+### Step 2: Identify Wave
+
+A **wave** = set of ready issues that can run in parallel (no dependencies between them).
+
 ```bash
-bd ready 2>/dev/null | wc -l
+# Get ready issues (no blockers)
+WAVE=$(bd ready --ids-only 2>/dev/null | head -${N:-5})
+WAVE_SIZE=$(echo "$WAVE" | wc -l | tr -d ' ')
+
+echo "Wave: $WAVE_SIZE issues ready for parallel execution"
+echo "$WAVE"
 ```
 
-**Always check disk space:**
+If WAVE_SIZE = 0, STOP: "No ready issues. Check dependencies or run /plan."
+
+### Step 3: Spawn Demigods
+
+**For each issue in the wave, spawn a demigod:**
+
 ```bash
-df -h . | awk 'NR==2 {print $4}'
+PROJECT=$(basename $(pwd))
+WAVE_ID=$(date +%Y%m%d-%H%M%S)
+
+for ISSUE_ID in $WAVE; do
+    SESSION_NAME="demigod-${PROJECT}-${ISSUE_ID}"
+
+    # Create status file
+    echo "spawning" > ".demigod-${ISSUE_ID}.status"
+
+    # Spawn demigod in new tmux session
+    tmux new-session -d -s "$SESSION_NAME" \
+        "claude --prompt 'You are a demigod. Run /implement on issue ${ISSUE_ID}. When done, write COMPLETE to .demigod-${ISSUE_ID}.status and exit.' 2>&1 | tee .demigod-${ISSUE_ID}.log; echo \$? > .demigod-${ISSUE_ID}.exit"
+
+    echo "Spawned: $SESSION_NAME"
+
+    # Stagger spawns to avoid rate limits
+    sleep 30
+done
+
+echo ""
+echo "Farm running: $WAVE_SIZE demigods spawned"
+echo "Wave ID: $WAVE_ID"
 ```
-If < 5GB, warn user.
 
-### Step 2: Determine Agent Count
+### Step 4: Monitor Demigods
 
-**Default:** `N = min(5, ready_count)`
+**Check demigod status periodically:**
 
-**If --agents specified:** Use that value, but cap at ready count.
-
-**For native tasks:**
-- Count pending tasks with no blockers from TaskList output
-- READY_COUNT = number of such tasks
-
-**For beads:**
 ```bash
-READY_COUNT=$(bd ready 2>/dev/null | wc -l | tr -d ' ')
+# List active demigod sessions
+tmux list-sessions 2>/dev/null | grep "demigod-"
+
+# Check status files
+for f in .demigod-*.status; do
+    ISSUE=$(echo $f | sed 's/.*demigod-\(.*\)\.status/\1/')
+    STATUS=$(cat $f 2>/dev/null || echo "unknown")
+    echo "$ISSUE: $STATUS"
+done
+
+# Check for completions
+grep -l "COMPLETE" .demigod-*.status 2>/dev/null | wc -l
 ```
 
-```
-AGENTS = min(N or 5, READY_COUNT)
-```
-
-If AGENTS = 0, STOP: "No work available for agents."
-
-### Step 3: Spawn Agent Farm
-
-**For native tasks, spawn agents via Task tool:**
-
-Use the Task tool to spawn parallel agents. Each agent gets instructions to:
-1. Check TaskList for pending tasks with no blockers
-2. Claim a task (TaskUpdate: status=in_progress, owner=agent-N)
-3. Execute the task (read description, do the work)
-4. Mark complete (TaskUpdate: status=completed)
-5. Repeat until no pending tasks remain
-
-**Spawn agents in parallel using Task tool:**
-```
-For each agent 1..N:
-  Task(subagent_type="general-purpose", prompt="
-    You are Agent-{N} in an agent farm.
-
-    Your job:
-    1. Use TaskList to find pending tasks
-    2. Pick the lowest ID task that has no blockedBy (or all blockedBy completed)
-    3. Use TaskUpdate to set status=in_progress and owner=agent-{N}
-    4. Use TaskGet to read full description
-    5. Execute the task (edit files, run commands as needed)
-    6. Use TaskUpdate to set status=completed
-    7. Repeat until TaskList shows no pending tasks
-
-    When done, output: AGENT-{N} COMPLETE
-  ")
-```
-
-**For beads, use ao farm:**
+**Show live output from a demigod:**
 ```bash
-ao farm start --agents $AGENTS --epic <epic-id> 2>&1
+# Attach to view (Ctrl-B D to detach)
+tmux attach -t demigod-<project>-<issue-id>
+
+# Or tail the log
+tail -f .demigod-<issue-id>.log
 ```
-
-**Expected output:**
-```
-Farm started: N agents
-Work source: native tasks (or beads)
-Agents spawned in parallel via Task tool
-```
-
-### Step 4: Monitor Progress
-
-**Tell the user farm is running, then monitor:**
-
-**For native tasks:**
-- Use TaskList periodically to check progress
-- Count: pending vs in_progress vs completed
-- Farm complete when all tasks are completed
-
-**For beads:**
-```
-Commands:
-  ao inbox              - Check messages
-  ao farm status        - Show agent states
-  ao farm stop          - Graceful shutdown
-```
-
-**Progress check (native tasks):**
-Use TaskList and report:
-- Pending: X tasks
-- In Progress: X tasks (owned by agent-N)
-- Completed: X tasks
 
 ### Step 5: Handle Completion
 
-**For native tasks:**
-1. All agents return "AGENT-N COMPLETE"
-2. Verify via TaskList: all tasks status=completed
-3. Report: "Farm complete. X tasks completed."
+**When all demigods complete:**
 
-**For beads:**
-1. Verify all issues closed:
 ```bash
-bd list --status open 2>/dev/null | wc -l
-```
+# Check all status files show COMPLETE
+TOTAL=$(ls .demigod-*.status 2>/dev/null | wc -l)
+COMPLETE=$(grep -l "COMPLETE" .demigod-*.status 2>/dev/null | wc -l)
 
-2. Clean up farm resources:
-```bash
-ao farm stop 2>/dev/null
-```
+if [[ $COMPLETE -eq $TOTAL ]]; then
+    echo "Farm complete: $COMPLETE/$TOTAL demigods finished"
 
-**Next step:**
-```
-Farm complete. X tasks completed.
-Run /post-mortem to extract learnings.
-```
+    # Clean up tmux sessions
+    for s in $(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep "demigod-"); do
+        tmux kill-session -t "$s" 2>/dev/null
+    done
 
-## Error Handling
+    # Clean up status files
+    rm -f .demigod-*.status .demigod-*.log .demigod-*.exit
 
-### Circuit Breaker
-
-If >50% agents fail within 60 seconds:
-```bash
-ao farm stop --reason "circuit-breaker"
-```
-
-Tell user: "Circuit breaker triggered. >50% agents failed. Check logs."
-
-### Witness Death
-
-If witness process dies (detected via PID check):
-```bash
-if ! kill -0 $(cat .witness.pid 2>/dev/null) 2>/dev/null; then
-    echo "ERROR: Witness died. Stopping farm."
-    ao farm stop --reason "witness-died"
+    echo "Run /post-mortem to extract learnings"
+else
+    echo "In progress: $COMPLETE/$TOTAL complete"
 fi
 ```
 
-### Orphaned Issues
+### Step 6: Review Changes
 
-If issues stuck in_progress after farm stop:
+**After farm completes, Mayor reviews:**
+
 ```bash
-ao farm resume
+# See what changed
+git status
+git diff --stat
+
+# Review each demigod's work
+git log --oneline -10
+```
+
+**Then run /post-mortem to extract learnings.**
+
+## Demigod Behavior
+
+Each demigod (Claude session):
+1. Receives prompt: "Run /implement on issue <id>"
+2. Runs `/implement` skill which:
+   - Claims issue via `bd update --status in_progress`
+   - Does the work
+   - Commits changes
+   - Closes issue via `bd close`
+3. Writes "COMPLETE" to status file
+4. Exits
+
+Demigods are **fire-and-forget** - they run independently until done.
+
+## Error Handling
+
+### Check for Failed Demigods
+
+```bash
+# Check exit codes
+for f in .demigod-*.exit; do
+    CODE=$(cat $f 2>/dev/null)
+    if [[ "$CODE" != "0" ]]; then
+        ISSUE=$(echo $f | sed 's/.*demigod-\(.*\)\.exit/\1/')
+        echo "FAILED: $ISSUE (exit $CODE)"
+        echo "Check log: .demigod-${ISSUE}.log"
+    fi
+done
+```
+
+### Kill Stuck Demigods
+
+```bash
+# Kill specific demigod
+tmux kill-session -t demigod-<project>-<issue-id>
+
+# Kill all demigods
+for s in $(tmux list-sessions -F '#{session_name}' | grep "demigod-"); do
+    tmux kill-session -t "$s"
+done
+```
+
+### Resume After Disconnect
+
+If Mayor disconnects, demigods keep running. On reconnect:
+
+```bash
+# Check what's still running
+tmux list-sessions | grep "demigod-"
+
+# Check status files
+cat .demigod-*.status
 ```
 
 ## Key Rules
 
-- **Pre-flight first** - Never spawn without validation
-- **Serial spawn** - 30s stagger prevents rate limits
-- **Cap agents** - Never more agents than ready issues
-- **Monitor witness** - Check PID health every 30s
-- **Graceful stop** - Clean up all child processes
-- **Resume capability** - Recover from disconnects
+- **Demigods are independent** - Not subagents, real Claude sessions
+- **30s stagger** - Prevents API rate limits
+- **Status files** - Primary completion signal
+- **Fire and forget** - Demigods run to completion
+- **Mayor reviews** - Always review changes after farm
+- **Post-mortem** - Extract learnings from the work
 
-## Without ao CLI
+## Wave Sizing
 
-If `ao farm` commands not available:
+- **Default wave:** min(5, ready_issues)
+- **Max recommended:** 10 (API rate limits)
+- **Dependencies block:** Only ready (unblocked) issues in wave
 
-1. **Manual tmux spawn:**
+## Quick Reference
+
 ```bash
-# Create session
-tmux new-session -d -s ao-farm
+# Start farm with 3 demigods
+/farm --agents 3
 
-# For each agent
-tmux send-keys -t ao-farm "claude --prompt 'Run /implement on next ready issue'" Enter
-sleep 30  # Wait before next agent
+# Check farm status
+tmux list-sessions | grep demigod
+cat .demigod-*.status
+
+# View demigod output
+tail -f .demigod-<issue>.log
+
+# Kill all demigods
+tmux kill-session -t demigod-*
+
+# After completion
+git status
+/post-mortem
 ```
-
-2. **Manual witness:**
-```bash
-tmux new-session -d -s ao-farm-witness
-tmux send-keys -t ao-farm-witness "claude --prompt 'Monitor tmux session ao-farm, summarize every 5m'" Enter
-```
-
-3. **Manual inbox (beads messages):**
-```bash
-bd list --type message --to mayor 2>/dev/null
-```
-
-## Agent Farm Behavior
-
-### Native Tasks Mode
-
-Each spawned agent (via Task tool):
-1. Checks TaskList for pending tasks with no blockers
-2. Claims task via TaskUpdate (status=in_progress, owner=agent-N)
-3. Reads full task via TaskGet
-4. Executes the work described in task description
-5. Marks complete via TaskUpdate (status=completed)
-6. Repeats until no pending tasks remain
-7. Returns "AGENT-N COMPLETE"
-
-Mayor monitors via TaskList - no witness needed since Task tool returns results.
-
-### Beads Mode
-
-Each spawned agent (via tmux):
-1. Runs `/implement` loop until no ready issues
-2. Claims issues atomically via `bd claim`
-3. Sends completion message via Agent Mail
-4. Exits when no more work
-
-Witness (beads mode only):
-1. Polls agent tmux panes every 60s
-2. Summarizes to mayor every 5m
-3. Escalates blockers immediately
-4. Sends "FARM COMPLETE" when all agents idle and no ready issues
-
-## Exit Conditions
-
-Farm exits when:
-- All tasks/issues completed (success)
-- Circuit breaker triggers (>50% fail in beads mode)
-- All agents return COMPLETE (native tasks mode)
-- User cancels (manual)
