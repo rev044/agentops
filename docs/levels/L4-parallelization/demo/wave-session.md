@@ -1,54 +1,59 @@
-# Demo: /implement-wave Session
+# Demo: /swarm Session
 
-A session showing parallel execution of multiple issues.
+A session showing parallel execution of multiple tasks using the swarm pattern.
 
 ---
 
 ## Before
 
-Plan created with 6 issues for "Add REST API endpoints":
+Plan created with tasks for "Add REST API endpoints":
 
 ```
-$ bd list --status open
-1. [P1] agentops-a1: Create users endpoint      (ready)
-2. [P1] agentops-b2: Create orders endpoint     (ready)
-3. [P1] agentops-c3: Create products endpoint   (ready)
-4. [P2] agentops-d4: Add authentication         (blocked by a1)
-5. [P2] agentops-e5: Add order validation       (blocked by b2)
-6. [P3] agentops-f6: Add integration tests      (blocked by d4, e5)
+$ TaskList()
+
+#1 [pending] Create users endpoint
+#2 [pending] Create orders endpoint
+#3 [pending] Create products endpoint
+#4 [pending] Add authentication (blockedBy: #1)
+#5 [pending] Add order validation (blockedBy: #2)
+#6 [pending] Add integration tests (blockedBy: #4, #5)
 ```
 
-Wave 1: 3 issues ready (no dependencies)
+Wave 1: 3 tasks ready (no dependencies)
 
 ---
 
 ## Session
 
 ```
-You: /implement-wave
+You: /swarm
 
-Claude: Checking ready issues...
+Claude: Checking TaskList for ready tasks...
 
-$ bd ready
-1. [P1] agentops-a1: Create users endpoint
-2. [P1] agentops-b2: Create orders endpoint
-3. [P1] agentops-c3: Create products endpoint
+Ready for Wave 1:
+#1 [pending] Create users endpoint
+#2 [pending] Create orders endpoint
+#3 [pending] Create products endpoint
 
-**Wave 1: 3 issues**
+Spawning 3 background agents...
 
-Launching sub-agents in parallel...
+Task(subagent_type="general-purpose", run_in_background=true, ...)
+Task(subagent_type="general-purpose", run_in_background=true, ...)
+Task(subagent_type="general-purpose", run_in_background=true, ...)
 
-[Agent 1: agentops-a1] Creating src/routes/users.ts...
-[Agent 2: agentops-b2] Creating src/routes/orders.ts...
-[Agent 3: agentops-c3] Creating src/routes/products.ts...
+[Agents work in parallel, each with fresh context...]
 
-[Agents work simultaneously...]
+<task-notification> Agent for #1 completed
+<task-notification> Agent for #2 completed
+<task-notification> Agent for #3 completed
 
-**Agent 1 complete:** users endpoint with CRUD operations
-**Agent 2 complete:** orders endpoint with CRUD operations
-**Agent 3 complete:** products endpoint with CRUD operations
+All Wave 1 agents complete!
 
-**Validating combined changes:**
+TaskUpdate(taskId="1", status="completed")
+TaskUpdate(taskId="2", status="completed")
+TaskUpdate(taskId="3", status="completed")
+
+Validating combined changes...
 
 $ npm test
 12 passed
@@ -56,65 +61,77 @@ $ npm test
 $ npm run lint
 No issues
 
-**Committing wave:**
+Wave 1 complete!
 
-$ git add src/routes/
-$ git commit -m "feat: add REST API endpoints for users, orders, products
-
-- GET/POST/PUT/DELETE for each resource
-- Request validation with zod
-- Error handling middleware
-
-Closes: agentops-a1, agentops-b2, agentops-c3"
-
-$ bd close agentops-a1 agentops-b2 agentops-c3
-✓ Closed 3 issues
-
-**Wave 1 complete!**
-
-$ bd ready
-1. [P2] agentops-d4: Add authentication         (unblocked!)
-2. [P2] agentops-e5: Add order validation       (unblocked!)
-
-Wave 2 has 2 issues ready.
+TaskList() shows:
+#1 [completed] Create users endpoint
+#2 [completed] Create orders endpoint
+#3 [completed] Create products endpoint
+#4 [pending] Add authentication         ← now unblocked!
+#5 [pending] Add order validation       ← now unblocked!
+#6 [pending] Add integration tests (blockedBy: #4, #5)
 ```
 
 ---
 
 ## After Wave 1
 
-- 3 files created in parallel
-- 3 issues closed in single commit
-- 2 more issues now unblocked
+- 3 background agents ran in parallel
+- Each had fresh context (Ralph Wiggum pattern)
+- 3 tasks marked completed
+- 2 more tasks now unblocked
 
 ---
 
 ## Continuing with Wave 2
 
 ```
-You: /implement-wave
+You: /swarm
 
-Claude: Wave 2: 2 issues
+Claude: Wave 2: 2 tasks ready
 
-[2 agents work in parallel...]
+Spawning background agents for #4 and #5...
 
-$ git commit -m "feat: add auth and validation middleware"
-$ bd close agentops-d4 agentops-e5
+[2 agents work in parallel with fresh context...]
+
+<task-notification> Agent for #4 completed
+<task-notification> Agent for #5 completed
 
 Wave 2 complete!
 
-$ bd ready
-1. [P3] agentops-f6: Add integration tests
+TaskList() shows:
+#6 [pending] Add integration tests      ← now unblocked!
 
-Wave 3: 1 issue (final wave)
+Wave 3: 1 task (final wave)
+```
+
+---
+
+## Wave 3 (Final)
+
+```
+You: /swarm
+
+Claude: Wave 3: 1 task ready
+
+Spawning background agent for #6...
+
+<task-notification> Agent for #6 completed
+
+All tasks complete!
+
+$ git status
+3 new files, 2 modified
+
+$ git add -A && git commit -m "feat: complete REST API implementation"
 ```
 
 ---
 
 ## What You Learned
 
-1. Waves execute all ready issues in parallel
-2. Sub-agents are independent - no shared state
-3. Single commit captures entire wave
-4. Closing issues unblocks dependents for next wave
-5. ~3x faster than sequential `/implement`
+1. `/swarm` spawns background agents for all ready tasks
+2. Each agent has fresh context (Ralph Wiggum pattern)
+3. Mayor receives `<task-notification>` as agents complete
+4. Mayor updates TaskList and triggers next wave
+5. No context accumulation = stays effective at scale

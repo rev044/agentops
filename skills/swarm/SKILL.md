@@ -172,3 +172,36 @@ TaskList()
 | Multiple independent tasks | `/swarm` (parallel) |
 | Sequential dependencies | `/crank` (serial) |
 | Mix of both | `/swarm` spawns waves, each wave parallel |
+
+## Why This Works: Ralph Wiggum Pattern
+
+This architecture follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/) for autonomous agents.
+
+**Core Insight:** Each `Task(run_in_background=true)` spawn = fresh context.
+
+```
+Ralph's bash loop:          Our swarm:
+while :; do                 Mayor spawns Task → fresh context
+  cat PROMPT.md | claude    Mayor spawns Task → fresh context
+done                        Mayor spawns Task → fresh context
+```
+
+Both achieve the same thing: **fresh context per execution unit**.
+
+### Why Fresh Context Matters
+
+| Approach | Context | Problem |
+|----------|---------|---------|
+| Internal loop in agent | Accumulates | Degrades over iterations |
+| Mayor spawns agents | Fresh each time | Stays effective at scale |
+
+Making demigods loop internally would violate Ralph - context accumulates within the session. The loop belongs in Mayor (lightweight orchestration), fresh context belongs in demigods (heavyweight work).
+
+### Key Properties
+
+- **Mayor IS the loop** - Orchestration layer, manages state
+- **Demigods are atomic** - One task, one spawn, one result
+- **TaskList as memory** - State persists in task status, not context
+- **Filesystem for artifacts** - Files written, commits made
+
+This is **Ralph + parallelism**: the while loop is distributed across wave spawns, with multiple agents per wave.
