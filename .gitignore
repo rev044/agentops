@@ -48,7 +48,12 @@ reports/
 
 # Runtime state
 state.json
+
+# Go binaries (built locally)
 cli/ao
+cli/bin/ao
+cli/cmd/ao/ao
+cli/cmd/ao/ao-test-bin
 
 # Agent Farm temp files
 .farm.meta
