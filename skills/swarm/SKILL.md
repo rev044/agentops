@@ -1,155 +1,174 @@
 ---
 name: swarm
-description: 'Spawn parallel Claude sessions for task execution. Uses .tasks.json for shared state, tmux for isolation. Triggers: "swarm", "spawn agents", "parallel work".'
+description: 'Spawn background crank loops for parallel task execution. Pure Claude-native using Task tool. Triggers: "swarm", "spawn agents", "parallel work", "crank in parallel".'
 ---
 
 # Swarm Skill
 
-Spawn parallel Claude Code sessions (demigods) to work on tasks.
+Spawn isolated crank loops as background agents to execute tasks in parallel.
 
-## Beads Light
+## Architecture (Mayor-First)
 
-Swarm uses `.tasks.json` - a simple file-based task system that demigods can share:
-
-```json
-[
-  {"id": "1", "subject": "...", "description": "...", "status": "pending", "owner": null},
-  {"id": "2", "subject": "...", "description": "...", "status": "in_progress", "owner": "demigod-1"}
-]
 ```
-
-**Commands** (via `scripts/tasks-sync.sh`):
-- `./scripts/tasks-sync.sh list` - Show all tasks
-- `./scripts/tasks-sync.sh ready` - Show ready task IDs
-- `./scripts/tasks-sync.sh claim <id> <owner>` - Claim a task
-- `./scripts/tasks-sync.sh complete <id>` - Mark complete
-- `./scripts/tasks-sync.sh add "subject" "description"` - Add task
+Mayor (this session)
+    |
+    +-> Plan: TaskCreate with dependencies (blockedBy)
+    |
+    +-> Identify wave: tasks with no blockers
+    |
+    +-> Spawn: Task tool (run_in_background=true) for each
+    |       Each agent runs crank loop on its task
+    |
+    +-> Monitor: TaskOutput to check progress
+    |
+    +-> Validate: Review changes when complete
+    |
+    +-> Repeat: New plan if more work needed
+```
 
 ## Execution
 
-Given `/swarm [--agents N]`:
+Given `/swarm`:
 
-### Step 1: Export Tasks to File
+### Step 1: Ensure Tasks Exist
 
-First, export your TaskList to `.tasks.json`:
+Use TaskList to see current tasks. If none, create them:
 
-```bash
-# Create tasks array from current session tasks
-# (You'll need to manually build this from TaskList output)
+```
+TaskCreate(
+  subject="Implement feature X",
+  description="Full details...",
+  blockedBy=[]  # or list of task IDs
+)
 ```
 
-Or use the script to add tasks directly:
-```bash
-./scripts/tasks-sync.sh add "Implement feature X" "Full description here..."
-./scripts/tasks-sync.sh add "Fix bug Y" "Details about the bug..."
+### Step 2: Identify Wave
+
+Find tasks that are:
+- Status: `pending`
+- No blockedBy (or all blockers completed)
+
+These can run in parallel.
+
+### Step 3: Spawn Crank Loops
+
+For each ready task, spawn a background agent:
+
+```
+Task(
+  subagent_type="general-purpose",
+  run_in_background=true,
+  prompt="You are a crank loop agent.
+
+Your task ID: #<id>
+Subject: <subject>
+Description: <description>
+
+CRANK LOOP:
+1. Read the task details
+2. Do the work (edit files, write code, run tests)
+3. Commit your changes with a clear message
+4. Signal completion
+
+Work in the directory: <cwd>
+
+Start now. Complete the task fully."
+)
 ```
 
-### Step 2: Check Ready Tasks
+The Task tool returns a `task_id` for monitoring.
 
-```bash
-./scripts/tasks-sync.sh ready
-# Output: 1 2 3 (IDs of ready tasks)
+### Step 4: Monitor Progress
 
-READY_COUNT=$(./scripts/tasks-sync.sh ready | wc -w)
-echo "$READY_COUNT tasks ready"
+Use TaskOutput to check on background agents:
+
+```
+TaskOutput(task_id="<agent-task-id>", block=false)
 ```
 
-### Step 3: Spawn Demigods
-
-For each ready task, spawn a demigod:
-
-```bash
-PROJECT=$(basename $(pwd))
-SCRIPT_PATH="$(pwd)/scripts/tasks-sync.sh"
-
-for TASK_ID in $(./scripts/tasks-sync.sh ready | head -${N:-5}); do
-    # Get task details
-    TASK_JSON=$(./scripts/tasks-sync.sh show $TASK_ID)
-    SUBJECT=$(echo "$TASK_JSON" | jq -r '.subject')
-    DESCRIPTION=$(echo "$TASK_JSON" | jq -r '.description')
-
-    # Claim the task
-    ./scripts/tasks-sync.sh claim $TASK_ID "demigod-$TASK_ID"
-
-    # Spawn demigod
-    tmux new-session -d -s "demigod-${PROJECT}-${TASK_ID}" \
-        "cd $(pwd) && claude -p 'You are demigod-${TASK_ID}.
-
-Your task: ${SUBJECT}
-
-Details: ${DESCRIPTION}
-
-When complete, run: ./scripts/tasks-sync.sh complete ${TASK_ID}
-
-Do the work now.' 2>&1 | tee .demigod-${TASK_ID}.log"
-
-    echo "Spawned demigod for task #$TASK_ID: $SUBJECT"
-    sleep 30  # Stagger
-done
+Or wait for completion:
+```
+TaskOutput(task_id="<agent-task-id>", block=true, timeout=300000)
 ```
 
-### Step 4: Monitor
+### Step 5: Validate & Review
 
-```bash
-# Check tmux sessions
-tmux list-sessions | grep demigod
+When agents complete:
+1. Check git status for changes
+2. Review diffs
+3. Run tests/validation
+4. Commit combined work if needed
 
-# Check task status
-./scripts/tasks-sync.sh list
+### Step 6: Repeat if Needed
 
-# View demigod output
-tail -f .demigod-<id>.log
+If more tasks remain:
+1. Check TaskList for next wave
+2. Spawn new agents
+3. Continue until all done
+
+## Example Flow
+
 ```
+Mayor: "Let's build a user auth system"
 
-### Step 5: Review & Cleanup
+1. /plan → Creates tasks:
+   #1 [pending] Create User model
+   #2 [pending] Add password hashing (blockedBy: #1)
+   #3 [pending] Create login endpoint (blockedBy: #1)
+   #4 [pending] Add JWT tokens (blockedBy: #3)
+   #5 [pending] Write tests (blockedBy: #2, #3, #4)
 
-When all tasks show `completed`:
+2. /swarm → Spawns agent for #1 (only unblocked task)
 
-```bash
-git status
-git diff --stat
+3. Agent #1 completes → #1 now completed
+   → #2 and #3 become unblocked
 
-# Kill tmux sessions
-tmux kill-session -t demigod-*
+4. /swarm → Spawns agents for #2 and #3 in parallel
 
-# Clean up
-rm -f .demigod-*.log
-```
+5. Continue until #5 completes
 
-## Demigod Instructions
-
-Each demigod receives:
-1. Task subject and description in the prompt
-2. Command to run when complete: `./scripts/tasks-sync.sh complete <id>`
-
-Demigods work independently and signal completion via the shared `.tasks.json` file.
-
-## Quick Example
-
-```bash
-# Add some tasks
-./scripts/tasks-sync.sh add "Create user model" "Add User struct with name, email fields"
-./scripts/tasks-sync.sh add "Add validation" "Validate email format in User model"
-./scripts/tasks-sync.sh add "Write tests" "Unit tests for User model"
-
-# Check ready
-./scripts/tasks-sync.sh ready  # 1 2 3
-
-# Spawn swarm
-/swarm --agents 3
-
-# Monitor
-./scripts/tasks-sync.sh list
-tmux list-sessions | grep demigod
-
-# When done
-git add -A && git commit -m "User model with validation and tests"
+6. /vibe → Validate everything
 ```
 
 ## Key Points
 
-- **`.tasks.json` is the source of truth** - Shared across all demigods
-- **No external dependencies** - Just bash + jq
-- **File locking** - Simple lock prevents race conditions
-- **Claim before work** - Prevents duplicate work
-- **Complete when done** - Updates shared state
+- **Pure Claude-native** - No tmux, no external scripts
+- **Background agents** - `run_in_background=true` for isolation
+- **Wave execution** - Only unblocked tasks spawn
+- **Mayor orchestrates** - You control the flow
+- **Crank loops** - Each agent works until task done
+
+## Integration with AgentOps
+
+This ties into the full workflow:
+
+```
+/research → Understand the problem
+/plan → Decompose into tasks
+/swarm → Execute in parallel
+/vibe → Validate results
+/post-mortem → Extract learnings
+```
+
+The knowledge flywheel captures learnings from each crank loop.
+
+## Monitoring Commands
+
+```
+# Check background agent
+TaskOutput(task_id="abc123", block=false)
+
+# Wait for agent to finish
+TaskOutput(task_id="abc123", block=true)
+
+# List all tasks
+TaskList()
+```
+
+## When to Use Swarm vs Crank
+
+| Scenario | Use |
+|----------|-----|
+| Multiple independent tasks | `/swarm` (parallel) |
+| Sequential dependencies | `/crank` (serial) |
+| Mix of both | `/swarm` spawns waves, each wave parallel |
