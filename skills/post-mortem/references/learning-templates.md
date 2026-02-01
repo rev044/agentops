@@ -14,7 +14,6 @@ Write to: `.agents/learnings/YYYY-MM-DD-{topic}.md`
 **Date:** YYYY-MM-DD
 **Epic:** <epic-id>
 **Tags:** [learning, topic1, topic2]
-**Confidence:** high | medium | low
 
 ---
 
@@ -62,9 +61,9 @@ How to apply this learning in the future:
 
 ## Discovery Provenance
 
-| Insight | Source Type | Source Detail | Confidence |
-|---------|-------------|---------------|------------|
-| [Learning point] | [grep/code-map/etc] | [file:line or query] | [0.0-1.0] |
+| Insight | Source Type | Source Detail |
+|---------|-------------|---------------|
+| [Learning point] | [grep/code-map/etc] | [file:line or query] |
 
 ---
 
@@ -187,8 +186,8 @@ mcp__ai-platform__memory_store(
         "learning",
         "topic:specific-topic",
         "rig:rig-name"
-    ],
-    confidence=0.9  # 0.0-1.0
+    ]
+    # Note: No confidence scores. Use source citations only.
 )
 ```
 

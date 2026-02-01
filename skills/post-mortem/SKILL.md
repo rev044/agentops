@@ -1,21 +1,56 @@
 ---
 name: post-mortem
-description: 'Comprehensive post-implementation validation. Combines retro (learnings), vibe (code validation), security scanning (Talos), and knowledge extraction into a single unified workflow. Triggers: "post-mortem", "validate completion", "final check", "wrap up epic", "close out", "what did we learn".'
+description: 'Tools-first post-implementation validation. Runs toolchain (linters, tests, scanners), then dispatches agents to synthesize findings. Triggers: "post-mortem", "validate completion", "final check", "wrap up epic".'
 ---
 
 # Post-Mortem Skill
 
-> **Quick Ref:** Full validation + knowledge extraction. Output: `.agents/retros/*.md` + `.agents/learnings/*.md` + Gate 4 decision.
+> **Quick Ref:** Toolchain → Agent Synthesis → Knowledge Extraction. Output: `.agents/retros/*.md` + `.agents/learnings/*.md`
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-Validate, learn, and feed knowledge back into the flywheel.
+**Architecture:** Tools do 95% of validation. Agents synthesize the 5%.
 
 ## Execution Steps
 
 Given `/post-mortem [epic-id]`:
 
-### Step 1: Identify What Was Completed
+### Step 1: Run Toolchain Validation (MANDATORY FIRST)
+
+**Before anything else, run the toolchain:**
+
+```bash
+./scripts/toolchain-validate.sh --gate 2>&1 | tee .agents/tooling/run.log
+TOOL_EXIT=$?
+```
+
+**Check exit code:**
+- `0` = All tools pass → proceed
+- `2` = CRITICAL findings → STOP, report to user
+- `3` = HIGH findings only → proceed with warnings
+
+### Step 1a: Early Exit on CRITICAL Tool Failures
+
+**If TOOL_EXIT == 2:**
+
+```
+STOP IMMEDIATELY.
+
+Report to user:
+  "Toolchain validation found CRITICAL issues. Fix before post-mortem."
+
+  Tool outputs in .agents/tooling/:
+  - gitleaks.txt: <count> secret findings
+  - ruff.txt: <count> lint errors
+  - ...
+
+  Run: cat .agents/tooling/<tool>.txt
+  Fix the issues, then re-run /post-mortem
+```
+
+**DO NOT dispatch agents.** Tools found definitive problems.
+
+### Step 2: Identify What Was Completed
 
 **If epic ID provided:** Use it directly.
 
@@ -29,303 +64,221 @@ Or check recent git activity:
 git log --oneline --since="24 hours ago" | head -10
 ```
 
-### Step 1a: Pre-flight Check - Work Exists
+### Step 3: Build Mechanical Comparison Table
 
-**Verify there is work to post-mortem:**
+**Generate checklist from plan before reading code:**
 
-```bash
-# Count recent commits
-git log --oneline --since="7 days ago" 2>/dev/null | wc -l
+If plan exists (`.agents/plans/*.md`):
+```
+1. Extract all TODO/deliverable items from plan
+2. For each item:
+   - Expected file: <path>
+   - File exists: yes/no
+   - Implementation matches spec: yes/no (cite file:line)
 ```
 
-**If 0 commits found and no epic ID provided:**
-```
-STOP and return error:
-  "No work found to post-mortem. Either:
-   - Provide epic ID: /post-mortem <epic-id>
-   - Or complete some work first"
-```
+This creates ground truth for plan-compliance, not gestalt impression.
 
-Do NOT run post-mortem on empty work - this produces misleading "all clear" reports.
+Write comparison table to prompt text for plan-compliance-expert agent.
 
-### Step 2: Run Code Validation (Inline - No Nesting)
+### Step 4: Dispatch Synthesis Agents (with Tool Output)
 
-**Read changed files and validate directly:**
+**Before dispatching, substitute placeholders:**
+- `<epic-id>`: From Step 2
+- `<paste .agents/tooling/X.txt>`: Read and inline file contents
+- `<from Step 3>`: Use the comparison table built in Step 3
 
-```bash
-# Get recent changes
-git diff --name-only HEAD~5 2>/dev/null | head -20
-```
+**Now dispatch agents to TRIAGE tool findings, not to FIND issues.**
 
-Read each changed file with the Read tool, then apply the 8 vibe aspects:
-1. Semantic - code matches docs?
-2. Security - vulnerabilities?
-3. Quality - dead code, smells?
-4. Architecture - layer violations?
-5. Complexity - too complex?
-6. Performance - issues?
-7. Slop - AI hallucinations?
-8. Accessibility - issues?
-
-Record findings with file:line citations.
-
-### Step 2a: Early Exit on CRITICAL
-
-**If inline validation found CRITICAL issues:**
+Launch 4 agents in parallel (single message, 4 Task tool calls):
 
 ```
-STOP IMMEDIATELY. Do NOT dispatch the swarm.
+Tool: Task (ALL 4 IN PARALLEL)
+Parameters:
+  subagent_type: "agentops:security-reviewer"
+  model: "haiku"
+  description: "Triage security tool findings"
+  prompt: |
+    Tool output from gitleaks and other scanners:
+    <paste .agents/tooling/gitleaks.txt>
+    <paste .agents/tooling/semgrep.txt if exists>
 
-Report to user:
-  "CRITICAL issues found in inline validation. Fix before continuing post-mortem."
+    For each finding:
+    1. Read the cited file:line
+    2. Assess: true positive or false positive?
+    3. If true positive: severity (CRITICAL/HIGH/MEDIUM/LOW) and fix
 
-  Findings:
-  - <file:line> - <critical issue>
+    Output format:
+    | File:Line | Tool Finding | Verdict | Severity | Fix |
+    |-----------|--------------|---------|----------|-----|
 
-  Action: Fix these issues, then re-run /post-mortem
-```
+Tool: Task
+Parameters:
+  subagent_type: "agentops:code-reviewer"
+  model: "haiku"
+  description: "Triage code quality findings"
+  prompt: |
+    Tool output from linters:
+    <paste .agents/tooling/ruff.txt or golangci-lint.txt>
 
-**CRITICAL issues block Gate 4.** There's no point running a 6-agent swarm to extract learnings from broken code.
+    Complexity output:
+    <paste .agents/tooling/radon.txt if exists>
 
-### Step 3: Dispatch Post-Mortem Validation Swarm
+    For each finding:
+    1. Read the cited file:line
+    2. Assess: worth fixing now, tech debt, or noise?
+    3. If worth fixing: suggest specific change
 
-**Launch ALL SIX agents in parallel (single message, 6 Task tool calls):**
+    Output format:
+    | File:Line | Tool Finding | Priority | Suggested Fix |
+    |-----------|--------------|----------|---------------|
 
-```
-Tool: Task (ALL 6 IN PARALLEL)
+Tool: Task
 Parameters:
   subagent_type: "agentops:plan-compliance-expert"
   model: "haiku"
-  description: "Plan compliance check"
+  description: "Verify plan completion"
   prompt: |
-    Compare implementation to original plan for: <epic-id>
+    Plan file: <path to .agents/plans/*.md>
+    Mechanical comparison table: <from Step 3>
 
-    Files: .agents/plans/*.md, recent git commits
+    For each plan item marked "no" or "partial":
+    1. Is this a real gap or scope change?
+    2. Should it be tracked as follow-up issue?
 
-    Check: Did we build what we said we'd build?
-    Return: Deviation percentage and missed items.
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:goal-achievement-expert"
-  model: "haiku"
-  description: "Goal achievement check"
-  prompt: |
-    Validate user problem was solved for: <epic-id>
-
-    Check: Beyond plan compliance - did we actually solve the problem?
-    Return: Goal achievement assessment and value delivered.
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:ratchet-validator"
-  model: "haiku"
-  description: "Ratchet chain validation"
-  prompt: |
-    Verify ratchet gates are locked for: <epic-id>
-
-    Check all gates: Research → Pre-mortem → Plan → Implement → Vibe
-    Return: Gate status and any regression risks.
+    Output format:
+    | Plan Item | Status | Gap Type | Action |
+    |-----------|--------|----------|--------|
 
 Tool: Task
 Parameters:
   subagent_type: "agentops:flywheel-feeder"
   model: "haiku"
-  description: "Knowledge extraction (learnings + provenance)"
+  description: "Extract verified learnings"
   prompt: |
-    Extract ALL learnings from this completed work with full provenance.
+    Completed work: <epic-id or description>
+    Files changed: <git diff --name-only HEAD~N>
 
-    Files: .agents/research/*.md, .agents/plans/*.md, .agents/vibe/*.md, git log
-    Session ID: <current-session-id>
+    Extract learnings that are VERIFIED (appeared in multiple places or have source citation):
 
-    Extract:
-    - Technical patterns worth repeating
-    - Anti-patterns to avoid
-    - Process improvements
-    - Decisions and rationale
-    - Gotchas and edge cases
+    For each learning:
+    - ID: L-<date>-<N>
+    - Category: technical/process/architecture
+    - What: <1 sentence>
+    - Source: <file:line or commit hash>
+    - Verification: <how we know this is true>
 
-    Return structured learnings with:
-    - ID (L1, L2...)
-    - Category (technical, process, architecture)
-    - Confidence (high, medium, low)
-    - Source file:line citation
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:security-expert"
-  model: "haiku"
-  description: "Security validation"
-  prompt: |
-    Security review of completed work for: <epic-id>
-
-    Review recent commits for:
-    - Hardcoded secrets
-    - SQL injection
-    - XSS vulnerabilities
-    - Auth/authz issues
-    - OWASP Top 10
-
-    Return findings with severity and file:line.
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:code-quality-expert"
-  model: "haiku"
-  description: "Code quality check"
-  prompt: |
-    Code quality review for: <epic-id>
-
-    Check: Complexity, maintainability, test coverage, documentation.
-    Return: Quality assessment with specific issues.
+    DO NOT include confidence scores. Include source citations only.
 ```
 
-**Timeout:** 3 minutes per agent. If <80% return, report INCOMPLETE and do NOT proceed to synthesis.
+**Timeout:** 3 minutes per agent.
 
-### Step 3a: Apply Conflict Resolution
+**On timeout:**
+- Mark agent as timed-out
+- Note in report which agents timed out
+- If >2 agents timeout, stop and report INCOMPLETE
 
-**Wait for agents, then synthesize:**
-1. Check quorum (80% must return = 5/6 minimum)
-2. Apply severity escalation (if ANY agent reports CRITICAL → final is CRITICAL)
-3. Deduplicate findings by file:line (±5 lines tolerance)
-4. Compute weighted grade per `.agents/specs/conflict-resolution-algorithm.md` Step 4
-5. Track agreement per finding (e.g., "3/6 agents found this")
+### Step 5: Synthesize Results
 
-**Grade Computation:**
+Combine agent outputs:
+1. Deduplicate findings by file:line
+2. Sort by severity (CRITICAL → HIGH → MEDIUM → LOW)
+3. Count verified vs disputed findings
+
+**Compute grade based on TOOL findings, not agent opinions:**
+
 ```
-WEIGHTS = {CRITICAL: 10, HIGH: 5, MEDIUM: 2, LOW: 1}
-total_weight = sum(WEIGHTS[f.severity] for f in findings)
-
-Grade A: 0 critical, weight 0-5
-Grade B: 0 critical, weight 6-15
-Grade C: 0 critical, weight 16-30
-Grade D: 1+ critical OR weight 31+
-Grade F: Multiple critical, weight 50+
+Grade A: 0 critical tool findings
+Grade B: 0 critical, <5 high tool findings
+Grade C: 0 critical, 5-15 high tool findings
+Grade D: 1+ critical tool findings
+Grade F: Multiple critical, tests failing
 ```
 
-**If quorum not met:** Report as INCOMPLETE, do NOT proceed to Gate 4.
-
-### Step 4: Request Human Approval (Gate 4)
-
-**USE AskUserQuestion tool - The Key Decision:**
+### Step 6: Request Human Approval (Gate 4)
 
 ```
 Tool: AskUserQuestion
 Parameters:
   questions:
-    - question: "Post-mortem complete. Grade: <grade>. Is this output good enough to TEMPER?"
+    - question: "Post-mortem complete. Grade: <grade>. Tool findings triaged. Store learnings?"
       header: "Gate 4"
       options:
         - label: "TEMPER & STORE"
-          description: "Output is good - lock learnings and index for future"
+          description: "Learnings are good - lock and index"
         - label: "ITERATE"
-          description: "Not satisfied - back to the forge for another round"
+          description: "Need another round of fixes"
       multiSelect: false
 ```
 
-**If ITERATE:** Return control to user for another round of research/plan/implement.
-
-**If TEMPER & STORE:** Proceed to index the knowledge.
-
-### Step 5: Index Knowledge (if ao available)
-
-```bash
-# Forge learnings from this session
-ao forge transcript 2>/dev/null
-
-# Index all artifacts for future discovery
-ao pool add .agents/research/*.md .agents/learnings/*.md .agents/patterns/*.md 2>/dev/null
-
-# Mark artifacts as TEMPERED (validated, locked)
-ao ratchet lock .agents/retros/YYYY-MM-DD-post-mortem-*.md 2>/dev/null
-```
-
-If ao CLI not available, knowledge is still captured in `.agents/` files for manual discovery.
-
-### Step 6: Write Post-Mortem Report
+### Step 7: Write Post-Mortem Report
 
 **Write to:** `.agents/retros/YYYY-MM-DD-post-mortem-<topic>.md`
+
+**Merge agent outputs:**
+1. Collect tables from all 4 agents
+2. Deduplicate by file:line (within 5 lines tolerance)
+3. Sort by severity (CRITICAL -> HIGH -> MEDIUM -> LOW)
+4. List which agents agreed on each finding
 
 ```markdown
 # Post-Mortem: <Topic/Epic>
 
 **Date:** YYYY-MM-DD
 **Epic:** <epic-id or description>
-**Duration:** <how long the work took>
+**Duration:** <how long>
 
-## Summary
-<What was built and outcome>
+## Toolchain Results
 
-## Vibe Results
-**Grade:** <overall grade from vibe>
-**Findings:**
-- CRITICAL: <count>
-- HIGH: <count>
-- MEDIUM: <count>
+| Tool | Status | Findings |
+|------|--------|----------|
+| gitleaks | PASS/FAIL | <count> |
+| ruff | PASS/FAIL | <count> |
+| pytest | PASS/FAIL | <count> |
 
-<Key issues if any>
+**Gate Status:** <PASS/BLOCKED>
 
-## What Went Well
-- <thing 1>
-- <thing 2>
+## Triaged Findings
 
-## What Could Be Improved
-- <improvement 1>
-- <improvement 2>
+### True Positives (actionable)
+| File:Line | Issue | Severity | Status |
+|-----------|-------|----------|--------|
+
+### False Positives (dismissed)
+| File:Line | Tool Claimed | Why Dismissed |
+|-----------|--------------|---------------|
+
+## Plan Compliance
+
+<Mechanical comparison table from Step 3>
 
 ## Learnings Extracted
-<Link to learnings created by /retro>
+
+| ID | Category | Learning | Source |
+|----|----------|----------|--------|
+
+**Note:** No confidence scores. Source citations only.
 
 ## Follow-up Issues
-<Any issues created from vibe findings>
 
-## Recommendations for Next Time
-- <recommendation 1>
-- <recommendation 2>
-```
-
-### Step 7: Create Follow-up Issues (if needed)
-
-If vibe found HIGH or MEDIUM issues that weren't fixed:
-```bash
-bd create --title "Address <finding>" --body "<details>" --label "tech-debt"
+<Issues created from findings>
 ```
 
 ### Step 8: Report to User
 
 Tell the user:
-1. Post-mortem report location
-2. Vibe grade and key findings
-3. Learnings extracted
-4. Follow-up issues created (if any)
-5. Gate 4 decision (TEMPERED or ITERATE)
-6. The knowledge has been indexed for future sessions (if TEMPERED)
+1. Toolchain results (which tools ran, pass/fail)
+2. Grade (based on tool findings)
+3. Key triaged findings
+4. Learnings extracted
+5. Gate 4 decision
 
-## The Flywheel Effect
+## Key Differences from Previous Version
 
-Post-mortem closes the knowledge loop:
-
-```
-Implementation → POST-MORTEM → Knowledge → Next Research
-                    │
-                    ├── .agents/retros/     (locked)
-                    ├── .agents/learnings/  (locked)
-                    └── ao forge index      (searchable)
-```
-
-Future `/research` calls will find this knowledge automatically.
-
-## Key Rules
-
-- **Always run vibe** - validate the code quality
-- **Always run retro** - extract learnings
-- **Fix CRITICAL issues** - don't close with critical problems
-- **Index knowledge** - make it discoverable
-- **Write the report** - always produce `.agents/retros/` artifact
-
-## Without ao CLI
-
-If ao CLI not available:
-1. Skip the indexing step
-2. Knowledge is still captured in `.agents/` files
-3. Future sessions find it via file search
+| Before | After |
+|--------|-------|
+| Agents find issues | Tools find issues, agents triage |
+| Vague prompts | Checklist-driven prompts with tool output |
+| Fake confidence scores | Source citations only |
+| Always produces report | Gates on tool failures |
+| 6 agents | 4 agents (focused on synthesis) |
