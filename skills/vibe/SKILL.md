@@ -156,53 +156,120 @@ For each file, check:
 | **Slop** | AI hallucinations, cargo cult code, over-engineering |
 | **Accessibility** | Missing ARIA, keyboard nav issues, contrast |
 
-### Step 6: Dispatch Expert Agents (for deep validation)
+### Step 6: Dispatch Triage Agents (with Tool Output)
 
-For comprehensive validation, dispatch 6 specialized agents **in parallel (single message, 6 Task tool calls)**:
+**Agents TRIAGE tool findings. They do not "review for issues."**
+
+**Before dispatching, read tool outputs:**
+```bash
+cat .agents/tooling/semgrep.txt
+cat .agents/tooling/gitleaks.txt
+cat .agents/tooling/gosec.txt
+cat .agents/tooling/ruff.txt
+cat .agents/tooling/golangci-lint.txt
+cat .agents/tooling/shellcheck.txt
+cat .agents/tooling/radon.txt
+cat .agents/tooling/hadolint.txt
+```
+
+Launch 3 agents in parallel with SPECIFIC tool output:
 
 ```
-Tool: Task (ALL 6 IN PARALLEL)
+Tool: Task (ALL 3 IN PARALLEL)
 Parameters:
   subagent_type: "agentops:security-reviewer"
   model: "haiku"
-  description: "Security review"
-  prompt: "Review these files for security issues: <file-list>"
+  description: "Triage security tool findings"
+  prompt: |
+    TOOL FINDINGS TO TRIAGE:
+
+    ## Gitleaks Output:
+    <paste .agents/tooling/gitleaks.txt>
+
+    ## Semgrep Output:
+    <paste .agents/tooling/semgrep.txt>
+
+    ## Gosec Output:
+    <paste .agents/tooling/gosec.txt>
+
+    For EACH finding, determine verdict:
+
+    TRUE_POSITIVE if:
+    - File path exists (not in comments/examples)
+    - Not in test fixtures (*/test/*, */mock/*, *_test.go)
+    - Not already suppressed (.gitleaksignore, //nolint, # nosec)
+    - Pattern matches real credential (not placeholder like "xxx")
+
+    FALSE_POSITIVE if:
+    - In test fixtures or examples
+    - Already in ignore file
+    - Placeholder value (contains "example", "test", "xxx")
+    - Dead code path (function never called)
+
+    OUTPUT FORMAT:
+    | File:Line | Tool | Finding | Verdict | Reason | Fix (if TRUE_POS) |
+    |-----------|------|---------|---------|--------|-------------------|
 
 Tool: Task
 Parameters:
   subagent_type: "agentops:code-reviewer"
   model: "haiku"
-  description: "Code quality review"
-  prompt: "Review these files for quality issues: <file-list>"
+  description: "Triage linter findings"
+  prompt: |
+    LINTER FINDINGS TO TRIAGE:
+
+    ## Ruff/Golangci-lint Output:
+    <paste .agents/tooling/ruff.txt or golangci-lint.txt>
+
+    ## Shellcheck Output:
+    <paste .agents/tooling/shellcheck.txt>
+
+    For EACH finding, apply severity rules:
+
+    FIX_NOW if:
+    - Blocks functionality (import error, syntax error)
+    - Security implication (bare except, eval usage)
+    - Cyclomatic complexity >15 in changed code
+
+    TECH_DEBT if:
+    - Style only (line length 81-100)
+    - Complexity 10-15
+    - Has TODO with issue reference
+
+    NOISE if:
+    - Already passing CI
+    - No functional impact
+    - In generated code
+
+    OUTPUT FORMAT:
+    | File:Line | Finding | Priority | Reason |
+    |-----------|---------|----------|--------|
 
 Tool: Task
 Parameters:
   subagent_type: "agentops:architecture-expert"
   model: "haiku"
-  description: "Architecture review"
-  prompt: "Review architecture and patterns in: <file-list>"
+  description: "Triage complexity findings"
+  prompt: |
+    COMPLEXITY FINDINGS TO TRIAGE:
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:code-quality-expert"
-  model: "haiku"
-  description: "Complexity review"
-  prompt: "Check complexity and maintainability of: <file-list>"
+    ## Radon Output:
+    <paste .agents/tooling/radon.txt>
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:security-expert"
-  model: "haiku"
-  description: "Security deep dive"
-  prompt: "Deep security analysis of: <file-list>"
+    ## Hadolint Output:
+    <paste .agents/tooling/hadolint.txt>
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:ux-expert"
-  model: "haiku"
-  description: "UX/Accessibility review"
-  prompt: "Review UX and accessibility of: <file-list>"
+    For EACH high-complexity function:
+    - Is it in changed files? (only review what's new)
+    - Can it be split? (identify extraction points)
+    - Is complexity justified? (state machines, parsers OK)
+
+    OUTPUT FORMAT:
+    | File:Function | Complexity | In Changed? | Recommendation |
+    |---------------|------------|-------------|----------------|
 ```
+
+**Key change:** Agents now receive ACTUAL tool output and have EXPLICIT criteria for verdicts.
 
 **Timeout handling:** Per-agent timeout of 3 minutes (180000ms). If agent times out, continue with remaining results if quorum (80%) met. See `.agents/specs/conflict-resolution-algorithm.md` for synthesis rules.
 

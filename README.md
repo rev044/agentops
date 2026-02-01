@@ -223,6 +223,32 @@ This simulates failures BEFORE you write code. Then implement with `/crank`, val
 
 ---
 
+## Tool Dependencies
+
+The `/vibe` and `/post-mortem` skills run `toolchain-validate.sh`, which uses available linters and scanners. **All tools are optional** — missing ones are skipped gracefully.
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| **gitleaks** | Secret scanning | `brew install gitleaks` |
+| **semgrep** | SAST security patterns | `brew install semgrep` |
+| **trivy** | Dependency vulnerabilities | `brew install trivy` |
+| **gosec** | Go security | `go install github.com/securego/gosec/v2/cmd/gosec@latest` |
+| **hadolint** | Dockerfile linting | `brew install hadolint` |
+| **ruff** | Python linting | `pip install ruff` |
+| **radon** | Python complexity | `pip install radon` |
+| **golangci-lint** | Go linting | `brew install golangci-lint` |
+| **shellcheck** | Shell linting | `brew install shellcheck` |
+
+**Quick install (recommended):**
+```bash
+brew install gitleaks semgrep trivy hadolint shellcheck golangci-lint
+pip install ruff radon
+```
+
+More tools = more coverage. But even with zero tools installed, the workflow still runs.
+
+---
+
 ## How AgentOps Fits In
 
 **AgentOps is the validation layer.** Use it alongside your execution tools.

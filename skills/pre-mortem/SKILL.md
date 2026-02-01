@@ -54,16 +54,26 @@ Parameters:
 
 **Build the checklist BEFORE reading the spec.** This prevents pattern-matching bias.
 
-### Step 3: Run Available Tooling
+### Step 3: Run Mechanical Cross-Reference Check
+
+**Before dispatching agents, run automated cross-reference:**
+
+```bash
+./scripts/spec-cross-reference.sh <spec-file> | tee .agents/pre-mortems/cross-ref.md
+```
+
+This catches mechanically:
+- File paths that don't exist
+- Function/type references that aren't defined
+- Broken markdown links
+
+Include output in pre-mortem report under "## Cross-Reference Verification"
+
+### Step 3a: Run Available Tooling
 
 **If the spec references code that exists:**
 
 ```bash
-# Quick validation of referenced paths
-for path in $(grep -oE '\b[a-zA-Z_/]+\.(py|go|ts|js)\b' <spec-file>); do
-    [[ -f "$path" ]] && echo "EXISTS: $path" || echo "MISSING: $path"
-done
-
 # If code exists, run linting
 ./scripts/toolchain-validate.sh --quick 2>&1 | head -30
 ```

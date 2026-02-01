@@ -178,6 +178,26 @@ Parameters:
 - Note in report which agents timed out
 - If >2 agents timeout, stop and report INCOMPLETE
 
+### Step 5a: Log Triage Decisions
+
+**For each TRUE_POS or FALSE_POS verdict from agents, log it for accuracy tracking:**
+
+```bash
+# Log each triage decision
+./scripts/log-triage-decision.sh "src/auth.go:42" "semgrep" "TRUE_POS" "security-reviewer"
+./scripts/log-triage-decision.sh "tests/mock.py:15" "gitleaks" "FALSE_POS" "security-reviewer"
+```
+
+This enables accuracy tracking over time. Ground truth is added later when:
+- CI confirms (test pass/fail)
+- Production incident occurs
+- Human reviews the decision
+
+**View accuracy report:**
+```bash
+./scripts/compute-triage-accuracy.sh
+```
+
 ### Step 5: Synthesize Results
 
 Combine agent outputs:

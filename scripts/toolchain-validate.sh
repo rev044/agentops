@@ -325,6 +325,116 @@ run_gotest() {
 }
 
 # ============================================================================
+# TOOL: semgrep (SAST security patterns)
+# ============================================================================
+run_semgrep() {
+    local output_file="$OUTPUT_DIR/semgrep.txt"
+
+    if ! run_tool "semgrep" semgrep; then return 0; fi
+
+    if semgrep scan --config=auto "$REPO_ROOT" --json > "$output_file" 2>&1; then
+        TOOL_STATUS["semgrep"]="pass"
+    else
+        local critical high
+        critical=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' "$output_file" 2>/dev/null || echo 0)
+        high=$(jq '[.results[] | select(.extra.severity == "WARNING")] | length' "$output_file" 2>/dev/null || echo 0)
+        critical=${critical:-0}
+        high=${high:-0}
+        critical=$(echo "$critical" | tr -d '[:space:]')
+        high=$(echo "$high" | tr -d '[:space:]')
+        CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
+        HIGH_COUNT=$((HIGH_COUNT + high))
+        TOOL_STATUS["semgrep"]="findings"
+    fi
+}
+
+# ============================================================================
+# TOOL: trivy (dependency vulnerabilities)
+# ============================================================================
+run_trivy() {
+    local output_file="$OUTPUT_DIR/trivy.txt"
+
+    if ! run_tool "trivy" trivy; then return 0; fi
+
+    if trivy fs "$REPO_ROOT" --severity CRITICAL,HIGH --format json > "$output_file" 2>&1; then
+        local critical high
+        critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "$output_file" 2>/dev/null || echo 0)
+        high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "$output_file" 2>/dev/null || echo 0)
+        critical=${critical:-0}
+        high=${high:-0}
+        critical=$(echo "$critical" | tr -d '[:space:]')
+        high=$(echo "$high" | tr -d '[:space:]')
+        if [[ "$critical" -gt 0 ]] || [[ "$high" -gt 0 ]]; then
+            CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
+            HIGH_COUNT=$((HIGH_COUNT + high))
+            TOOL_STATUS["trivy"]="findings"
+        else
+            TOOL_STATUS["trivy"]="pass"
+        fi
+    else
+        TOOL_STATUS["trivy"]="error"
+    fi
+}
+
+# ============================================================================
+# TOOL: gosec (Go security)
+# ============================================================================
+run_gosec() {
+    local output_file="$OUTPUT_DIR/gosec.txt"
+
+    if ! run_tool "gosec" gosec; then return 0; fi
+
+    if ! find "$REPO_ROOT" -name "*.go" -type f | head -1 | grep -q .; then
+        echo "NO_GO_FILES" > "$output_file"
+        TOOL_STATUS["gosec"]="skipped"
+        return 0
+    fi
+
+    if gosec -fmt json "$REPO_ROOT/..." > "$output_file" 2>&1; then
+        TOOL_STATUS["gosec"]="pass"
+    else
+        local issues
+        issues=$(jq '.Issues | length' "$output_file" 2>/dev/null || echo 0)
+        issues=${issues:-0}
+        issues=$(echo "$issues" | tr -d '[:space:]')
+        HIGH_COUNT=$((HIGH_COUNT + issues))
+        TOOL_STATUS["gosec"]="findings"
+    fi
+}
+
+# ============================================================================
+# TOOL: hadolint (Dockerfile)
+# ============================================================================
+run_hadolint() {
+    local output_file="$OUTPUT_DIR/hadolint.txt"
+
+    if ! run_tool "hadolint" hadolint; then return 0; fi
+
+    local dockerfiles
+    dockerfiles=$(find "$REPO_ROOT" -name "Dockerfile*" -type f 2>/dev/null)
+    if [[ -z "$dockerfiles" ]]; then
+        echo "NO_DOCKERFILES" > "$output_file"
+        TOOL_STATUS["hadolint"]="skipped"
+        return 0
+    fi
+
+    if echo "$dockerfiles" | xargs hadolint --format json > "$output_file" 2>&1; then
+        TOOL_STATUS["hadolint"]="pass"
+    else
+        local errors warnings
+        errors=$(jq '[.[] | select(.level == "error")] | length' "$output_file" 2>/dev/null || echo 0)
+        warnings=$(jq '[.[] | select(.level == "warning")] | length' "$output_file" 2>/dev/null || echo 0)
+        errors=${errors:-0}
+        warnings=${warnings:-0}
+        errors=$(echo "$errors" | tr -d '[:space:]')
+        warnings=$(echo "$warnings" | tr -d '[:space:]')
+        HIGH_COUNT=$((HIGH_COUNT + errors))
+        MEDIUM_COUNT=$((MEDIUM_COUNT + warnings))
+        TOOL_STATUS["hadolint"]="findings"
+    fi
+}
+
+# ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 
@@ -342,6 +452,10 @@ run_golangci
 run_gitleaks
 run_shellcheck
 run_radon
+run_semgrep
+run_trivy
+run_gosec
+run_hadolint
 run_pytest
 run_gotest
 
@@ -359,7 +473,7 @@ fi
 # Build tools JSON object
 TOOLS_JSON="{"
 first=true
-for tool in ruff golangci-lint gitleaks shellcheck radon pytest go-test; do
+for tool in ruff golangci-lint gitleaks shellcheck radon semgrep trivy gosec hadolint pytest go-test; do
     status="${TOOL_STATUS[$tool]:-not_run}"
     if [[ "$first" == "true" ]]; then
         first=false
