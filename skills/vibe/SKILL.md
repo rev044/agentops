@@ -55,6 +55,39 @@ git rev-parse --git-dir 2>/dev/null || echo "NOT_GIT"
 If NOT_GIT and no explicit path provided, STOP with error:
 > "Not in a git repository. Provide explicit file path: `/vibe path/to/files`"
 
+### Step 1b: Run Toolchain Validation (MANDATORY)
+
+**Before ANY agent dispatch, run the toolchain:**
+
+```bash
+./scripts/toolchain-validate.sh --gate 2>&1 | tee .agents/tooling/vibe-run.log
+TOOL_EXIT=$?
+```
+
+**Interpret results:**
+
+| Exit Code | Meaning | Action |
+|-----------|---------|--------|
+| 0 | All tools pass | Proceed to agent dispatch |
+| 2 | CRITICAL findings | **STOP. Report tool findings. Do not dispatch agents.** |
+| 3 | HIGH findings only | Proceed, but note in report |
+
+**If TOOL_EXIT == 2:**
+
+```
+Report to user:
+
+  Grade: F (tools failed)
+
+  Toolchain found CRITICAL issues that must be fixed:
+  - See .agents/tooling/<tool>.txt for details
+
+  Fix these issues before re-running /vibe.
+  Do NOT generate a false "Grade: B" when tools are failing.
+```
+
+**DO NOT dispatch agents if tools found CRITICAL issues.** This prevents theater where agents ignore definitive tool failures and produce optimistic reports.
+
 ### Step 2: Determine Target and Vibe Level
 
 **If target provided:** Use it directly.
