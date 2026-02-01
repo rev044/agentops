@@ -1,124 +1,155 @@
 ---
 name: swarm
-description: 'Spawn parallel Claude sessions for task execution. Uses native TaskList for work, tmux for isolation. Triggers: "swarm", "spawn agents", "parallel work".'
+description: 'Spawn parallel Claude sessions for task execution. Uses .tasks.json for shared state, tmux for isolation. Triggers: "swarm", "spawn agents", "parallel work".'
 ---
 
 # Swarm Skill
 
-Spawn parallel Claude Code sessions (demigods) to execute tasks.
+Spawn parallel Claude Code sessions (demigods) to work on tasks.
 
-## How It Works
+## Beads Light
 
+Swarm uses `.tasks.json` - a simple file-based task system that demigods can share:
+
+```json
+[
+  {"id": "1", "subject": "...", "description": "...", "status": "pending", "owner": null},
+  {"id": "2", "subject": "...", "description": "...", "status": "in_progress", "owner": "demigod-1"}
+]
 ```
-Mayor (you)
-    |
-    +-> TaskList → find ready tasks (pending, no blockers)
-    |
-    +-> Group into wave (tasks that can run in parallel)
-    |
-    +-> For each task in wave:
-    |       tmux new-session → claude --prompt "Complete task #N"
-    |
-    +-> Monitor → check task status
-    |
-    +-> Review when complete
-```
+
+**Commands** (via `scripts/tasks-sync.sh`):
+- `./scripts/tasks-sync.sh list` - Show all tasks
+- `./scripts/tasks-sync.sh ready` - Show ready task IDs
+- `./scripts/tasks-sync.sh claim <id> <owner>` - Claim a task
+- `./scripts/tasks-sync.sh complete <id>` - Mark complete
+- `./scripts/tasks-sync.sh add "subject" "description"` - Add task
 
 ## Execution
 
 Given `/swarm [--agents N]`:
 
-### Step 1: Get Ready Tasks
+### Step 1: Export Tasks to File
 
-Use TaskList to find tasks that are:
-- Status: pending
-- No blockedBy (or all blockedBy tasks completed)
+First, export your TaskList to `.tasks.json`:
 
-```
-Ready tasks = pending tasks with no active blockers
-Wave size = min(N or 5, ready count)
+```bash
+# Create tasks array from current session tasks
+# (You'll need to manually build this from TaskList output)
 ```
 
-### Step 2: Spawn Demigods
+Or use the script to add tasks directly:
+```bash
+./scripts/tasks-sync.sh add "Implement feature X" "Full description here..."
+./scripts/tasks-sync.sh add "Fix bug Y" "Details about the bug..."
+```
 
-For each task in the wave, spawn a tmux session:
+### Step 2: Check Ready Tasks
+
+```bash
+./scripts/tasks-sync.sh ready
+# Output: 1 2 3 (IDs of ready tasks)
+
+READY_COUNT=$(./scripts/tasks-sync.sh ready | wc -w)
+echo "$READY_COUNT tasks ready"
+```
+
+### Step 3: Spawn Demigods
+
+For each ready task, spawn a demigod:
 
 ```bash
 PROJECT=$(basename $(pwd))
+SCRIPT_PATH="$(pwd)/scripts/tasks-sync.sh"
 
-# For each ready task ID:
-tmux new-session -d -s "demigod-${PROJECT}-${TASK_ID}" \
-    "claude --print --prompt 'Complete task #${TASK_ID}. Use TaskGet to read it, do the work, then TaskUpdate status=completed when done.'"
+for TASK_ID in $(./scripts/tasks-sync.sh ready | head -${N:-5}); do
+    # Get task details
+    TASK_JSON=$(./scripts/tasks-sync.sh show $TASK_ID)
+    SUBJECT=$(echo "$TASK_JSON" | jq -r '.subject')
+    DESCRIPTION=$(echo "$TASK_JSON" | jq -r '.description')
 
-echo "Spawned demigod for task #${TASK_ID}"
-sleep 30  # Stagger to avoid rate limits
+    # Claim the task
+    ./scripts/tasks-sync.sh claim $TASK_ID "demigod-$TASK_ID"
+
+    # Spawn demigod
+    tmux new-session -d -s "demigod-${PROJECT}-${TASK_ID}" \
+        "cd $(pwd) && claude -p 'You are demigod-${TASK_ID}.
+
+Your task: ${SUBJECT}
+
+Details: ${DESCRIPTION}
+
+When complete, run: ./scripts/tasks-sync.sh complete ${TASK_ID}
+
+Do the work now.' 2>&1 | tee .demigod-${TASK_ID}.log"
+
+    echo "Spawned demigod for task #$TASK_ID: $SUBJECT"
+    sleep 30  # Stagger
+done
 ```
 
-### Step 3: Monitor
+### Step 4: Monitor
 
-Check progress:
 ```bash
-# List active sessions
+# Check tmux sessions
 tmux list-sessions | grep demigod
 
 # Check task status
-# Use TaskList - look for completed vs in_progress
+./scripts/tasks-sync.sh list
+
+# View demigod output
+tail -f .demigod-<id>.log
 ```
 
-### Step 4: Review
+### Step 5: Review & Cleanup
 
-When all demigods complete:
+When all tasks show `completed`:
+
 ```bash
 git status
 git diff --stat
+
+# Kill tmux sessions
+tmux kill-session -t demigod-*
+
+# Clean up
+rm -f .demigod-*.log
 ```
 
-Then commit the combined work.
+## Demigod Instructions
 
-## Example
+Each demigod receives:
+1. Task subject and description in the prompt
+2. Command to run when complete: `./scripts/tasks-sync.sh complete <id>`
+
+Demigods work independently and signal completion via the shared `.tasks.json` file.
+
+## Quick Example
 
 ```bash
-# You have 6 tasks, 4 ready (no blockers)
-/swarm --agents 4
+# Add some tasks
+./scripts/tasks-sync.sh add "Create user model" "Add User struct with name, email fields"
+./scripts/tasks-sync.sh add "Add validation" "Validate email format in User model"
+./scripts/tasks-sync.sh add "Write tests" "Unit tests for User model"
 
-# Spawns:
-# demigod-myproject-1
-# demigod-myproject-2
-# demigod-myproject-3
-# demigod-myproject-4
+# Check ready
+./scripts/tasks-sync.sh ready  # 1 2 3
 
-# Each runs: claude --prompt "Complete task #N..."
+# Spawn swarm
+/swarm --agents 3
 
-# Monitor:
+# Monitor
+./scripts/tasks-sync.sh list
 tmux list-sessions | grep demigod
 
-# When done, review and commit
+# When done
+git add -A && git commit -m "User model with validation and tests"
 ```
 
 ## Key Points
 
-- **TaskList is the work source** - No external dependencies
-- **Waves from blockedBy** - Only ready tasks spawn
-- **tmux for isolation** - Each demigod is independent
-- **30s stagger** - Prevents API rate limits
-- **Mayor reviews** - Always review before committing
-
-## Killing Demigods
-
-```bash
-# Kill one
-tmux kill-session -t demigod-myproject-1
-
-# Kill all
-tmux kill-server
-```
-
-## Without tmux
-
-If you can't use tmux, use the Task tool to spawn subagents instead. Less isolation but works:
-
-```
-Task(subagent_type="general-purpose", prompt="Complete task #N...")
-```
-
-This is faster but subagents share context and die with your session.
+- **`.tasks.json` is the source of truth** - Shared across all demigods
+- **No external dependencies** - Just bash + jq
+- **File locking** - Simple lock prevents race conditions
+- **Claim before work** - Prevents duplicate work
+- **Complete when done** - Updates shared state
