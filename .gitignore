@@ -38,10 +38,13 @@ coverage.xml
 # Generated reports
 reports/
 
-# Claude session artifacts (keep specs and pre-mortems)
+# Claude session artifacts (keep specs, pre-mortems, tooling structure)
 .agents/*
 !.agents/specs/
 !.agents/pre-mortems/
+!.agents/tooling/
+.agents/tooling/*
+!.agents/tooling/.gitkeep
 
 # Runtime state
 state.json
