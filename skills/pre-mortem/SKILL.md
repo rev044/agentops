@@ -1,13 +1,15 @@
 ---
 name: pre-mortem
-description: 'Pre-mortem simulation for specs and designs. Simulates N iterations of implementation to identify failure modes before they happen. Triggers: "pre-mortem", "simulate spec", "stress test spec", "find spec gaps", "simulate implementation", "what could go wrong", "anticipate failures".'
+description: 'Checklist-driven spec validation. Generates explicit checklists from failure-taxonomy.md, runs available tooling, then dispatches agents to verify checklist items. Triggers: "pre-mortem", "validate spec", "what could go wrong".'
 ---
 
 # Pre-Mortem Skill
 
+> **Quick Ref:** Checklist generation -> Tooling -> Agent verification. Output: `.agents/pre-mortems/*.md`
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-Simulate implementation failures BEFORE building to catch problems early.
+**Architecture:** Generate explicit checklist from failure-taxonomy.md BEFORE reading spec. Tools verify what's verifiable. Agents check what requires judgment. Every finding must have location (line number) and specific fix.
 
 ## Execution Steps
 
@@ -27,92 +29,143 @@ If no path, check for recent plans:
 ls -lt .agents/plans/ .agents/specs/ 2>/dev/null | head -5
 ```
 
-### Step 2: Understand What We're Building
+### Step 2: Generate Explicit Checklist BEFORE Reading
 
-Read the spec/plan carefully. Identify:
-- **Goal**: What are we trying to build?
-- **Components**: What pieces need to be created?
-- **Integrations**: What does this connect to?
-- **Constraints**: What limitations exist?
+**Load the failure taxonomy FIRST:**
+```
+Tool: Read
+Parameters:
+  file_path: skills/pre-mortem/references/failure-taxonomy.md
+```
 
-### Step 3: Dispatch Failure Expert Swarm
+**For each category in the taxonomy, generate specific questions:**
 
-**Launch parallel failure simulations from different perspectives.**
+| Category | Checklist Item | Verification Method |
+|----------|----------------|---------------------|
+| Interface Mismatch | Does spec define API schema? | Search for `schema:` or `interface` |
+| Timing | Does spec define timeouts? | Search for `timeout:` |
+| Error Handling | Does spec define error states? | Search for `error:` or `failure:` |
+| Safety | Does spec require confirmation for destructive ops? | Search for `confirm` |
+| Integration | Does spec list dependencies? | Search for `depends:` or `requires:` |
+| Rollback | Does spec define rollback procedure? | Search for `rollback` or `revert` |
+| State | Does spec define state transitions? | Search for `state:` or `transition` |
+
+**The checklist above covers 7 essential items. For comprehensive validation, use all 10 categories from `references/failure-taxonomy.md`.**
+
+**Build the checklist BEFORE reading the spec.** This prevents pattern-matching bias.
+
+### Step 3: Run Available Tooling
+
+**If the spec references code that exists:**
+
+```bash
+# Quick validation of referenced paths
+for path in $(grep -oE '\b[a-zA-Z_/]+\.(py|go|ts|js)\b' <spec-file>); do
+    [[ -f "$path" ]] && echo "EXISTS: $path" || echo "MISSING: $path"
+done
+
+# If code exists, run linting
+./scripts/toolchain-validate.sh --quick 2>&1 | head -30
+```
+
+**If spec is for new code:** Skip to Step 4.
+
+### Step 4: Dispatch Verification Agents (with Checklist)
+
+**Agents VERIFY checklist items, not "simulate failures".**
+
+Launch 3 agents in parallel:
 
 ```
+Tool: Task (ALL 3 IN PARALLEL)
+Parameters:
+  subagent_type: "agentops:gap-identifier"
+  model: "haiku"
+  description: "Verify spec completeness against checklist"
+  prompt: |
+    Spec file: <spec content>
+
+    Checklist to verify (from failure-taxonomy.md):
+
+    For EACH item, read the spec and answer:
+    | Checklist Item | Present? | Location (line) | Complete? |
+    |----------------|----------|-----------------|-----------|
+    | API schema defined | yes/no | line N | yes/partial/no |
+    | Timeouts specified | yes/no | line N | yes/partial/no |
+    | Error states listed | yes/no | line N | yes/partial/no |
+    | Rollback procedure | yes/no | line N | yes/partial/no |
+    | Dependencies listed | yes/no | line N | yes/partial/no |
+    | State transitions | yes/no | line N | yes/partial/no |
+    | Confirmation for destructive ops | yes/no | line N | yes/partial/no |
+
+    For items marked "no" or "partial": flag as GAP with specific fix.
+
 Tool: Task
 Parameters:
-  subagent_type: "agentops:integration-failure-expert"
-  description: "Integration failure simulation"
+  subagent_type: "agentops:assumption-challenger"
+  model: "haiku"
+  description: "Find implicit assumptions"
   prompt: |
-    Simulate integration failures for this spec/plan:
-    <spec-content>
+    Spec file: <spec content>
 
-    Identify: API mismatches, protocol issues, system boundary problems.
-    Return findings with severity ratings.
-```
+    Find statements that assume something without stating it:
+    - "The user will..." -> What if they don't?
+    - "The API returns..." -> What if it errors?
+    - "This runs after..." -> What if order changes?
 
-```
-Tool: Task
-Parameters:
-  subagent_type: "agentops:ops-failure-expert"
-  description: "Operations failure simulation"
-  prompt: |
-    Simulate production operations failures for this spec/plan:
-    <spec-content>
+    For each assumption:
+    | Location (line) | Assumption | What If Wrong? | Specific Clarification Needed |
+    |-----------------|------------|----------------|-------------------------------|
 
-    Identify: Deployment risks, scaling issues, monitoring gaps, incident response holes.
-    Return findings with severity ratings.
-```
+    Every finding MUST have a line number and specific fix.
 
-```
-Tool: Task
-Parameters:
-  subagent_type: "agentops:data-failure-expert"
-  description: "Data failure simulation"
-  prompt: |
-    Simulate data failures for this spec/plan:
-    <spec-content>
-
-    Identify: Corruption risks, consistency issues, migration problems, state management gaps.
-    Return findings with severity ratings.
-```
-
-```
 Tool: Task
 Parameters:
   subagent_type: "agentops:edge-case-hunter"
-  description: "Edge case hunting"
+  model: "haiku"
+  description: "Find boundary conditions"
   prompt: |
-    Hunt for unhandled edge cases in this spec/plan:
-    <spec-content>
+    Spec file: <spec content>
 
-    Identify: Boundary conditions, unusual inputs, unexpected states, timing issues.
-    Return findings with severity ratings.
+    For each input/parameter in the spec:
+    | Location (line) | Input | Type | Min/Max Stated? | Empty Handling? | Invalid Handling? |
+    |-----------------|-------|------|-----------------|-----------------|-------------------|
+
+    Flag any inputs without explicit boundary handling.
+    Every finding MUST have a line number and specific fix.
 ```
 
-**Wait for all agents to return, then synthesize findings.**
+**Timeout:** 2 minutes per agent.
 
-### Step 4: Categorize Findings
+### Step 5: Categorize Findings
 
-Group findings by severity:
+Combine agent outputs and categorize:
 
 | Severity | Definition | Action |
 |----------|------------|--------|
-| **CRITICAL** | Will definitely fail | Must fix in spec |
-| **HIGH** | Likely to cause problems | Should address |
-| **MEDIUM** | Could cause issues | Worth noting |
-| **LOW** | Minor concerns | Optional |
+| **CRITICAL** | Spec has fundamental gap (no rollback, no error handling) | Must fix before implementation |
+| **HIGH** | Spec makes unstated assumptions | Should clarify |
+| **MEDIUM** | Spec could be clearer | Worth noting |
+| **LOW** | Minor improvements | Optional |
 
-### Step 5: Run Vibe on Spec (Optional)
+**Every finding must have:**
+1. Location (line number in spec)
+2. Description (what's missing or unclear)
+3. Specific fix (exact text to add/change)
 
-If the spec is substantial, validate it:
-```
-Tool: Skill
-Parameters:
-  skill: "agentops:vibe"
-  args: "<spec-path>"
-```
+### Apply Enhancement Patterns
+
+For each finding, identify the applicable pattern from `references/enhancement-patterns.md`:
+
+| Gap Type | Enhancement Pattern |
+|----------|---------------------|
+| Missing schema | "Schema from Code" - Extract schema from actual code |
+| Missing error handling | "Error Recovery Matrix" - Map all error types to actions |
+| Missing timeouts | "Per-Tool Timeout Configuration" - Add per-operation timeouts |
+| Missing safety info | "Mandatory Safety Display" - Add safety level classification |
+| Missing progress feedback | "Progress Feedback Specification" - Add update frequency |
+| Missing escalation | "Escalation Flow" - Define when/how to escalate |
+| Missing audit trail | "Audit Trail Requirements" - Add logging requirements |
 
 ### Step 6: Write Pre-Mortem Report
 
@@ -124,73 +177,87 @@ Parameters:
 **Date:** YYYY-MM-DD
 **Spec:** <path to spec/plan>
 
-## Summary
-<What we're building and key risks>
+## Checklist Verification
 
-## Simulation Findings
+| Category | Item | Present? | Location | Complete? |
+|----------|------|----------|----------|-----------|
+| Interface | API schema | yes/no | line N | yes/no |
+| Timing | Timeouts | yes/no | line N | yes/no |
+| Error | Error states | yes/no | line N | yes/no |
+| Safety | Confirmation | yes/no | line N | yes/no |
+| Rollback | Rollback procedure | yes/no | line N | yes/no |
+| Deps | Dependencies listed | yes/no | line N | yes/no |
+| State | State transitions | yes/no | line N | yes/no |
 
-### CRITICAL (Must Fix)
+## Findings
+
+### CRITICAL (Must Fix Before Implementation)
 1. **<Issue>**: <Description>
-   - **Why it will fail:** <explanation>
-   - **Recommended fix:** <how to address>
+   - **Location:** line N
+   - **Why Critical:** <explanation>
+   - **Specific Fix:** <exact text to add to spec>
 
-### HIGH (Should Fix)
+### HIGH (Should Clarify)
 1. **<Issue>**: <Description>
-   - **Risk:** <what could happen>
-   - **Mitigation:** <how to reduce risk>
+   - **Location:** line N
+   - **Assumption Made:** <what's assumed>
+   - **Specific Clarification:** <exact question to answer>
 
-### MEDIUM (Consider)
-- <issue and brief note>
+### MEDIUM
+- **<Issue>** (line N): <issue and specific fix>
 
-## Ambiguities Found
-- <unclear requirement 1>
-- <unclear requirement 2>
+## Implicit Assumptions Found
+| Location | Assumption | Risk | Clarification Needed |
+|----------|------------|------|---------------------|
 
-## Spec Enhancement Recommendations
-1. Add: <what to add>
-2. Clarify: <what to clarify>
-3. Remove: <what to remove>
+## Edge Cases Without Handling
+| Location | Input | Boundary Missing | Suggested Handling |
+|----------|-------|-----------------|-------------------|
 
 ## Verdict
-[ ] READY - Proceed to implementation
-[ ] NEEDS WORK - Address critical/high issues first
+
+[ ] READY - All checklist items present, no CRITICAL gaps
+[ ] NEEDS WORK - <count> CRITICAL gaps must be addressed
 ```
 
 ### Step 7: Request Human Approval (Gate 3)
 
-**USE AskUserQuestion tool:**
+**Gate Criteria:**
+- **READY**: 0 CRITICAL gaps, <=2 HIGH gaps
+- **NEEDS WORK**: 1+ CRITICAL or >2 HIGH gaps
 
 ```
 Tool: AskUserQuestion
 Parameters:
   questions:
-    - question: "Pre-mortem found N critical, M high issues. Proceed to implementation?"
+    - question: "Pre-mortem found <N> gaps. Proceed to implementation?"
       header: "Gate 3"
       options:
         - label: "Proceed"
-          description: "Accept risks, proceed to /crank"
-        - label: "Fix Plan"
-          description: "Address critical issues before implementing"
-        - label: "Back to Research"
-          description: "Need more research before proceeding"
+          description: "Gaps acceptable, start implementation"
+        - label: "Fix Spec"
+          description: "Address gaps before implementing"
+        - label: "More Research"
+          description: "Need more information"
       multiSelect: false
 ```
-
-**Wait for approval before proceeding to implementation.**
 
 ### Step 8: Report to User
 
 Tell the user:
-1. Number of issues found by severity
-2. Whether spec is ready or needs work
-3. Top 3 most important fixes
+1. Checklist verification results (table)
+2. Number of gaps by severity
+3. Top 3 items that need attention (with line numbers)
 4. Location of pre-mortem report
 5. Gate 3 decision
 
-## Key Rules
+## Key Differences from Previous Version
 
-- **Simulate, don't just review** - mentally build it 10 times
-- **Be adversarial** - look for ways it will fail
-- **Categorize by severity** - not all issues are equal
-- **Write findings** - always produce `.agents/pre-mortems/` artifact
-- **Block on CRITICAL** - don't proceed with critical issues unresolved
+| Before | After |
+|--------|-------|
+| "Simulate failures" (vague) | Verify checklist items (specific) |
+| 4 failure experts | 3 verification agents |
+| Gestalt impression | Explicit checklist + location (line number) |
+| No methodology | Uses failure-taxonomy.md |
+| Findings without location | Every finding has line number and specific fix |
+| Pattern matching | Mechanical verification |

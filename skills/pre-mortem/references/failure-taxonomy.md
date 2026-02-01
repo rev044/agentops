@@ -1,6 +1,25 @@
-# Failure Taxonomy for Spec Simulation
+# Failure Taxonomy for Spec Validation
 
-Comprehensive catalog of failure modes to check during simulation.
+Comprehensive catalog of failure modes to check during pre-mortem validation.
+
+---
+
+## How to Use This Taxonomy
+
+When running pre-mortem, use each category as a checklist item:
+
+1. For each category (Interface Mismatch, Timing, Error Handling, etc.)
+2. Ask the Detection Question against the spec
+3. If the answer is "no" or "unclear", that's a GAP
+4. Apply the Enhancement Pattern to fix it
+
+The taxonomy covers 10 categories. Minimum viable pre-mortem covers at least:
+- **Interface Mismatch** - API/schema defined?
+- **Error Handling** - Error states defined?
+- **Safety** - Rollback defined?
+- **Integration** - Dependencies defined?
+
+For comprehensive validation, walk through all 10 categories. See `enhancement-patterns.md` for how to fix gaps.
 
 ---
 
@@ -154,17 +173,15 @@ Comprehensive catalog of failure modes to check during simulation.
 
 ---
 
-## Using This Taxonomy
+## Quick Reference
 
-During simulation, walk through each category:
+During validation, for each category:
 
-```markdown
-## Iteration N: [Category Name]
-
-**Failure mode checked**: [Specific mode from table]
-**Question asked**: [Detection question]
-**Finding**: [What we discovered]
-**Enhancement**: [Concrete spec change]
-```
+| Step | Action |
+|------|--------|
+| 1 | Ask the Detection Question against the spec |
+| 2 | Answer: yes (present), no (missing), partial (incomplete) |
+| 3 | If missing/partial: log as GAP with line number |
+| 4 | Apply Enhancement Pattern from `enhancement-patterns.md` |
 
 Not every category will yield findings for every spec. Focus on categories relevant to your spec's domain.
