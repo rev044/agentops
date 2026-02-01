@@ -1,9 +1,9 @@
 ---
-name: farm
-description: 'Spawn parallel Claude sessions for task execution. Uses native TaskList for work, tmux for isolation. Triggers: "farm", "spawn agents", "parallel work".'
+name: swarm
+description: 'Spawn parallel Claude sessions for task execution. Uses native TaskList for work, tmux for isolation. Triggers: "swarm", "spawn agents", "parallel work".'
 ---
 
-# Farm Skill
+# Swarm Skill
 
 Spawn parallel Claude Code sessions (demigods) to execute tasks.
 
@@ -26,7 +26,7 @@ Mayor (you)
 
 ## Execution
 
-Given `/farm [--agents N]`:
+Given `/swarm [--agents N]`:
 
 ### Step 1: Get Ready Tasks
 
@@ -79,7 +79,7 @@ Then commit the combined work.
 
 ```bash
 # You have 6 tasks, 4 ready (no blockers)
-/farm --agents 4
+/swarm --agents 4
 
 # Spawns:
 # demigod-myproject-1
