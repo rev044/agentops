@@ -2,6 +2,53 @@
 
 User-friendly highlights for each release. For full technical details, see [CHANGELOG.md](CHANGELOG.md).
 
+## v1.3.0 - Pure Claude-Native Swarm
+
+**Released:** 2026-02-01
+
+Zero-dependency parallel agent execution. The `/swarm` skill now uses pure Claude Code primitives.
+
+### Highlights
+
+- **No external dependencies** - No tmux, no scripts, no beads required
+- **Task tool orchestration** - `Task(run_in_background=true)` for background agents
+- **Ralph Wiggum pattern** - Fresh context per agent spawn (no context accumulation)
+- **Wave-based execution** - Respects `blockedBy` dependencies automatically
+
+### The Architecture
+
+```
+Mayor (your session)
+    │
+    ├─> TaskCreate with dependencies
+    │
+    ├─> /swarm → spawns background agents for ready tasks
+    │       Task(run_in_background=true) × N
+    │
+    ├─> <task-notification> arrives as agents complete
+    │
+    ├─> Mayor updates TaskList, spawns next wave
+    │
+    └─> Repeat until all tasks complete
+```
+
+### Why Ralph Wiggum?
+
+Each agent spawn = fresh context. This follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/):
+
+| Approach | Context | Result |
+|----------|---------|--------|
+| Internal agent loop | Accumulates | Degrades over iterations |
+| Mayor spawns agents | Fresh each time | Stays effective at scale |
+
+The loop lives in Mayor (lightweight). Fresh context lives in demigods (heavyweight work).
+
+### What's Coming
+
+Olympus integration for persistent cross-session orchestration with the same pattern.
+
+---
+
 ## v1.2.0 - Parallel Wave Execution
 
 **Released:** 2026-01-31

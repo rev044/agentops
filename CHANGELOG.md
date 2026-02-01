@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-02-01
+
+### Pure Claude-Native Swarm
+
+**The big idea:** Why depend on tmux, external scripts, or complex tooling when Claude Code has everything we need built-in?
+
+The `/swarm` skill now uses pure Claude Code primitives:
+- `TaskCreate` / `TaskUpdate` / `TaskList` for state management
+- `Task(run_in_background=true)` for spawning background agents
+- `<task-notification>` for completion callbacks
+
+No tmux sessions. No external scripts. No beads dependency. Just Claude Code.
+
+### Ralph Wiggum Pattern
+
+This release documents WHY the architecture works, based on the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/):
+
+```
+Ralph's bash loop:          Our swarm:
+while :; do                 Mayor spawns Task → fresh context
+  cat PROMPT.md | claude    Mayor spawns Task → fresh context
+done                        Mayor spawns Task → fresh context
+```
+
+**Key insight:** Each `Task(run_in_background=true)` spawn creates a fresh process with clean context. Making demigods loop internally would cause context to accumulate and degrade - violating Ralph's core principle.
+
+The loop belongs in Mayor (orchestration). Fresh context belongs in demigods (work).
+
+### Changed
+
+- **`/swarm` skill** - Complete rewrite:
+  - Removed tmux dependency
+  - Removed external script requirements
+  - Pure Task tool orchestration
+  - Added Ralph Wiggum pattern documentation
+  - Wave execution via `blockedBy` dependencies
+
+- **L4-parallelization docs** - Modernized:
+  - Updated from `/implement-wave` to `/swarm`
+  - Added Ralph Wiggum pattern explanation
+  - Demo uses TaskList/TaskUpdate flow
+
+### Technical Details
+
+The swarm loop:
+
+1. Mayor calls `TaskList()` to find ready tasks (pending, no blockers)
+2. For each ready task, Mayor spawns: `Task(run_in_background=true, ...)`
+3. Claude sends `<task-notification>` when each agent completes
+4. Mayor calls `TaskUpdate(status="completed")` for finished tasks
+5. This unblocks dependent tasks → next wave becomes ready
+6. Repeat until all tasks complete
+
+Each demigod has fresh context. Mayor maintains state via TaskList. Files/commits persist work across spawns.
+
 ## [1.2.0] - 2026-01-31
 
 ### Parallel Wave Execution
