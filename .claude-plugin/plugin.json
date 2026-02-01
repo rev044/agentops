@@ -1,6 +1,6 @@
 {
   "name": "agentops",
-  "version": "1.2.0",
+  "version": "1.3.1",
   "description": "DevOps for Vibe-Coding. Shift-left validation for coding agents. Pre-mortem before you implement. Vibe check before you commit. Knowledge that compounds.",
   "author": {
     "name": "Boden Fuller",
