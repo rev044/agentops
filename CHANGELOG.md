@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Added official Skills installer instructions: `npx skills@latest add boshu2/agentops --all -g`
+- Clarified that session hooks are Claude Code plugin functionality (skills remain portable)
+
 ## [1.3.1] - 2026-02-01
 
 ### Documentation Reality Check

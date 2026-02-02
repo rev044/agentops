@@ -188,20 +188,40 @@ The shift-left validation workflow:
 
 ## Quick Start
 
-### 1. Install CLI
+### 1. Install Skills (Any Agent)
+
+AgentOps ships as portable skills. If your client supports the open Skills ecosystem, install with:
+
+```bash
+npx skills@latest add boshu2/agentops --all -g
+```
+
+Install to a specific agent only (example: Codex):
+
+```bash
+npx skills@latest add boshu2/agentops -g -a codex --all
+```
+
+Update later:
+
+```bash
+npx skills@latest update
+```
+
+### 2. Install CLI (Optional)
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
 ```
 
-### 2. Install Plugin (in Claude Code)
+### 3. Install Plugin (Claude Code Only)
 
 ```bash
 claude plugin add boshu2/agentops
 ```
 
-### 3. Initialize in Your Project
+### 4. Initialize in Your Project (Claude Code + CLI)
 
 ```bash
 ao init && ao hooks install
@@ -209,7 +229,7 @@ ao init && ao hooks install
 
 Or just ask Claude: *"initialize agentops"*
 
-### 4. Start With Validation
+### 5. Start With Validation
 
 Before implementing your next feature:
 
@@ -347,7 +367,7 @@ Everything lives in `.agents/` — **git-tracked, portable, yours**.
 +-- ...            # + other skill outputs (doc, assessments, etc.)
 ```
 
-**Automatic hooks:**
+**Automatic hooks (Claude Code plugin):**
 - **SessionStart** → Injects relevant prior knowledge (with decay applied)
 - **SessionEnd** → Extracts learnings, indexes for retrieval
 
