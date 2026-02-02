@@ -1,80 +1,98 @@
 ---
-description: Execute an epic to completion with automated reconciliation
+description: Execute an epic to completion using swarm for parallel wave execution
 ---
 
 # /crank
 
-Runs an entire epic through the ODMCR loop automatically until ALL children are CLOSED.
+Runs an entire epic through waves of parallel execution until ALL children are CLOSED.
 
 ## Usage
 
 ```
 /crank <epic-id>
-/crank agentops-xyz
-/crank agentops-xyz --mode=crew
+/crank ao-epic-123
 ```
 
-## What's Different from L4
+## Architecture
 
-At L5, full autonomy:
-- Executes issues without human prompts
-- Auto-detects Mayor vs Crew mode
-- Reconciles state after each cycle
-- NO stopping until epic is CLOSED
+Crank is the autonomous orchestrator that uses swarm for each wave:
+
+```
+Crank (orchestrator)           Swarm (executor)
+    |                              |
+    +-> bd ready (wave issues)     |
+    |                              |
+    +-> TaskCreate from beads  --->+-> Spawn agents (fresh context)
+    |                              |
+    +-> /swarm                 --->+-> Execute in parallel
+    |                              |
+    +-> Verify + bd update     <---+-> Results
+    |                              |
+    +-> Loop until epic DONE       |
+```
+
+**Separation of concerns:**
+- **Crank** = Beads-aware orchestration, epic lifecycle, knowledge flywheel
+- **Swarm** = Fresh-context parallel execution (Ralph Wiggum pattern)
 
 ## How It Works
 
-The ODMCR Loop:
+The FIRE Loop:
 
-1. **Observe**: `bd show <epic>`, `bd ready` - understand current state
-2. **Dispatch**: Execute ready issues (mode-dependent)
-3. **Monitor**: Track progress, check for completion
-4. **Collect**: Close completed issues, update status
-5. **Retry**: Handle failures, escalate blockers
-6. Loop until all children are CLOSED
-
-## Execution Modes
-
-| Mode | Detection | Dispatch Method |
-|------|-----------|-----------------|
-| **Crew** | Default | Sequential `/implement` |
-| **Mayor** | In `~/gt` or `*/mayor/*` | Parallel `gt sling` to polecats |
-
-Force a mode:
-```
-/crank <epic> --mode=crew     # Sequential
-/crank <epic> --mode=mayor    # Parallel via gastown
-```
+1. **FIND**: `bd ready` - get unblocked beads issues
+2. **IGNITE**: Create TaskList tasks, invoke `/swarm`
+3. **REAP**: Swarm collects results, crank syncs to beads
+4. **ESCALATE**: Fix blockers, retry failures
+5. Loop until all children are CLOSED
 
 ## Output
 
 ```
-/crank agentops-epic-123
+/crank ao-epic-123
 
 Epic: "Add user dashboard"
-Mode: crew (sequential)
 Total: 8 issues
 
-[OBSERVE] 3 issues ready, 5 blocked
-[DISPATCH] /implement agentops-a1
-[COLLECT] agentops-a1 CLOSED
-[OBSERVE] 2 issues ready, 4 blocked
-[DISPATCH] /implement agentops-b2
-...
-[COLLECT] agentops-h8 CLOSED
-[OBSERVE] 0 issues remaining
+[Wave 1] bd ready → [ao-1, ao-2, ao-3]
+         TaskCreate for each
+         /swarm → 3 agents spawned
+         ao-1 DONE, ao-2 DONE, ao-3 BLOCKED
 
-Epic CLOSED! 8/8 issues complete.
+[Wave 2] bd ready → [ao-4, ao-5, ao-3]
+         TaskCreate for each
+         /swarm → 3 agents spawned
+         ...
+
+[Final Vibe] Running /vibe on recent changes...
+             All checks passed.
+
+<promise>DONE</promise>
+Epic: ao-epic-123
+Issues completed: 8
+Waves: 4/50
 ```
+
+## Limits
+
+- **MAX_EPIC_WAVES = 50** - Prevents infinite loops
+- Swarm handles parallelism per wave (no max agent limit in swarm)
 
 ## Failure Handling
 
 Crank handles failures automatically:
-- Retry transient failures
-- Skip blocked issues (revisit next cycle)
-- Escalate persistent failures to human
+- Retry failed issues in next wave
+- Skip blocked issues (revisit when unblocked)
+- Escalate persistent failures after 3 retries
+
+## When to Use
+
+| Scenario | Skill |
+|----------|-------|
+| Execute entire epic autonomously | `/crank` |
+| Just parallel execution (no beads) | `/swarm` directly |
+| Single issue | `/implement` |
 
 ## Next
 
-- `/retro` - Extract learnings after epic completes
-- Review `.agents/retros/` for captured patterns
+- `/vibe` - Runs automatically at end
+- `/post-mortem` - Extract learnings after epic completes

@@ -7,309 +7,187 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-### DevOps for Vibe-Coding
+**Multi-agent orchestration with validation gates and memory that compounds.**
 
-**Shift-left validation for coding agents. Catch it before you ship it.**
+[Install](#install) · [Quick Start](#quick-start) · [How It Works](#how-it-works) · [Documentation](docs/)
 
 </div>
 
 ---
 
-## Start Here (2 minutes)
-
-AgentOps is three things that work together:
-
-1. **Skills** (portable slash commands like `/pre-mortem`, `/vibe`, `/crank`)
-2. **Claude Code plugin** (runs skills inside Claude Code)
-3. **`ao` CLI (optional)** (hooks + orchestration + knowledge flywheel tools)
-
-**Fastest path (works in most agents):**
+## Install
 
 ```bash
 npx skills@latest add boshu2/agentops --all -g
 ```
 
-Then in your agent:
+Or with Claude Code:
+```bash
+claude plugin add boshu2/agentops
+```
 
-```text
+---
+
+## Quick Start
+
+**Validate before you code:**
+```
 /pre-mortem "add OAuth integration"
 ```
 
-**If you use Claude Code:**
-
-- Install plugin (terminal): `claude plugin add boshu2/agentops`
-- Install plugin (in-chat): `/plugin add boshu2/agentops`
-- Auto hooks (optional): install `ao`, then `ao hooks install && ao hooks test`
-
-<!-- Accessibility: Comparison showing traditional workflow vs shift-left workflow -->
+**Execute with parallel agents:**
 ```
-+-----------------------------------------------------------------------+
-|                                                                       |
-|   TRADITIONAL WORKFLOW                SHIFT-LEFT WORKFLOW             |
-|   -------------------                 -------------------             |
-|                                                                       |
-|   Write code                          /pre-mortem                     |
-|      ↓                                   ↓                            |
-|   Ship to CI                          Implement                       |
-|      ↓                                   ↓                            |
-|   CI catches problems                 /vibe (validate)                |
-|      ↓                                   ↓                            |
-|   Fix & repeat                        Commit (clean)                  |
-|                                          ↓                            |
-|   ========================            Knowledge compounds             |
-|   Hope and pray                       ========================        |
-|                                       Catch it before you ship it     |
-|                                                                       |
-+-----------------------------------------------------------------------+
+/crank epic-123
+```
+
+**Check before you commit:**
+```
+/vibe
+```
+
+That's it. AgentOps catches problems before they ship and remembers solutions for next time.
+
+---
+
+## What It Does
+
+| Problem | AgentOps Solution |
+|---------|-------------------|
+| Agents make the same mistakes repeatedly | **Memory that compounds** — learnings persist across sessions |
+| Context degrades over long tasks | **Fresh context per agent** — each spawned agent starts clean |
+| Progress slips backward | **Validation gates** — can't commit until checks pass |
+| Parallel agents step on each other | **Orchestrated execution** — mayor coordinates, agents work atomically |
+
+---
+
+## Core Skills
+
+| Skill | What It Does |
+|-------|--------------|
+| `/pre-mortem` | Simulate failures BEFORE you write code |
+| `/crank` | Execute an epic autonomously with parallel agents |
+| `/swarm` | Spawn fresh-context agents for parallel work |
+| `/vibe` | 8-aspect validation gate before commit |
+| `/post-mortem` | Extract learnings to feed future sessions |
+
+**The workflow:**
+```
+/pre-mortem → /crank → /vibe → /post-mortem
+     ↓           ↓        ↓          ↓
+  Prevent    Execute   Validate   Remember
 ```
 
 ---
 
-## Why AgentOps?
+## How It Works
 
-AI-generated code is 80% valuable, 20% catastrophic. The difference is validation.
+AgentOps combines four patterns that solve autonomous agent failures:
 
-| Traditional | Shift-Left (AgentOps) |
-|-------------|----------------------|
-| Ship then validate | Validate then ship |
-| CI catches problems | /pre-mortem catches problems |
-| Hope the tests pass | /vibe confirms intent matches code |
-| Same bugs rediscovered | Knowledge compounds, bugs remembered |
+| Pattern | Problem | Solution |
+|---------|---------|----------|
+| **Fresh context per agent** | Context bloat degrades performance | Each spawned agent gets clean context |
+| **Validation gates** | Work regresses or breaks | Must pass `/vibe` to commit |
+| **Orchestrated execution** | Chaos with multiple agents | Mayor owns the loop, agents work atomically |
+| **Compounding memory** | Same bugs rediscovered | `/post-mortem` → `.agents/` → `/inject` |
 
-**The insight:** DevOps taught us to shift validation left for infrastructure. AgentOps applies that to coding agents.
-
----
-
-## The Core Workflow: 3 Skills
-
-The shift-left validation workflow:
-
-```
-                    THE SHIFT-LEFT WORKFLOW
-                    -----------------------
-
-    +-----------+         +-----------+         +-----------+
-    |/PRE-MORTEM| ------> |  /CRANK   | ------> |   /VIBE   |
-    | (before)  |         |(implement)|         | (before   |
-    |           |         |           |         |  commit)  |
-    +-----------+         +-----------+         +-----------+
-         |                                            |
-         |  "What could go wrong?"                    |  "Does code match intent?"
-         |                                            |
-         +--------------------------------------------+
-                           |
-                           v
-                    +-----------+
-                    | COMMIT    |
-                    | (clean)   |
-                    +-----------+
-
-    Validation happens BEFORE you ship, not after.
-```
-
-| Skill | When | What It Does |
-|-------|------|--------------|
-| `/pre-mortem` | Before implementing | Simulates failure modes, catches risks before code exists |
-| `/crank` | Implementation | Executes issues with validation gates at each step |
-| `/vibe` | Before every commit | 8-aspect semantic check—does code match intent? |
-
-**The insight:** CI catches problems after you ship. AgentOps catches them before.
-
----
-
-## The Complete System
-
-<!-- Accessibility: Comprehensive diagram showing validation-first workflow with 3 core skills, supporting skills, and knowledge flywheel -->
 <details>
-<summary>View the full system diagram</summary>
+<summary>View architecture diagram</summary>
 
 ```
-==============================================================================
-                    AGENTOPS: DEVOPS FOR VIBE-CODING
-==============================================================================
+MAYOR (orchestrator)              AGENTS (executors)
+--------------------              ------------------
 
-  THE SHIFT-LEFT VALIDATION WORKFLOW
-  ----------------------------------
+/crank epic-123
+     |
+     +-> Get ready issues ---------> /swarm spawns N agents
+     |                                    |
+     +-> Create tasks -------------->     +-> Fresh context each
+     |                                    |
+     +-> Wait for completion <------      +-> Execute atomically
+     |                                    |
+     +-> /vibe (validation gate)          +-> Return result
+     |      |
+     |      +-> PASS = progress locked
+     |      +-> FAIL = fix first
+     |
+     +-> Loop until DONE
+     |
+     +-> /post-mortem -----------------> .agents/learnings/
+                                              |
+NEXT SESSION                                  |
+------------                                  |
+SessionStart <---- /inject <------------------+
+     |
+     +-> Starts with prior knowledge
+```
 
-  +--------------------------------------------------------------------------+
-  | STAGE 1: UNDERSTAND (optional but recommended)                           |
-  |                                                                          |
-  |  /research --> Deep-dive codebase before acting                          |
-  |  /plan     --> Break goal into tracked issues                            |
-  +--------------------------------------------------------------------------+
-                                       |
-                                       v
-  +--------------------------------------------------------------------------+
-  | STAGE 2: PRE-MORTEM (core skill)                      VALIDATION GATE 1  |
-  |                                                                          |
-  |  /pre-mortem --> BEFORE implementing, simulate failures                  |
-  |       |                                                                  |
-  |       |     4 failure experts:                                           |
-  |       |     - integration-failure-expert  - ops-failure-expert           |
-  |       |     - data-failure-expert         - edge-case-hunter             |
-  |       |                                                                  |
-  |       +---> OUTPUT: Risks identified, mitigations planned                |
-  |                                                                          |
-  |  "What could go wrong?" -- answered before code exists                   |
-  +--------------------------------------------------------------------------+
-                                       |
-                                       v
-  +--------------------------------------------------------------------------+
-  | STAGE 3: CRANK (core skill)                           IMPLEMENTATION     |
-  |                                                                          |
-  |  /crank --> Execute issues with validation at each step                  |
-  |       |                                                                  |
-  |       |     FIRE LOOP (per issue):                                       |
-  |       |     FIND ----> Get next unblocked issue                          |
-  |       |     IGNITE --> Implement with validation                         |
-  |       |     REAP ----> Commit with issue reference                       |
-  |       |     ESCALATE > Handle failures, retry or escalate                |
-  |       |                                                                  |
-  |       +---> OUTPUT: Clean commits, issues closed                         |
-  +--------------------------------------------------------------------------+
-                                       |
-                                       v
-  +--------------------------------------------------------------------------+
-  | STAGE 4: VIBE (core skill)                            VALIDATION GATE 2  |
-  |                                                                          |
-  |  /vibe --> BEFORE committing, semantic validation                        |
-  |       |                                                                  |
-  |       |     8-aspect check:                                              |
-  |       |     - Semantic (does code match intent?)                         |
-  |       |     - Security (SQL injection, auth bypass, secrets)             |
-  |       |     - Quality (dead code, copy-paste, magic numbers)             |
-  |       |     - Architecture (layer violations, circular deps)             |
-  |       |     - Complexity (CC > 10, deep nesting)                         |
-  |       |     - Performance (N+1 queries, resource leaks)                  |
-  |       |     - Slop (AI hallucinations, cargo cult)                       |
-  |       |     - Accessibility (ARIA, keyboard nav, contrast)               |
-  |       |                                                                  |
-  |       |     CRITICAL = 0 --> PASS (commit allowed)                       |
-  |       |     CRITICAL > 0 --> BLOCK (fix before commit)                   |
-  |       |                                                                  |
-  |  "Does the code do what you intended?" -- answered before commit         |
-  +--------------------------------------------------------------------------+
-                                       |
-                                       v
-  +--------------------------------------------------------------------------+
-  | STAGE 5: LEARN (closes the loop)                                         |
-  |                                                                          |
-  |  /retro, /post-mortem --> Extract learnings, feed the flywheel           |
-  |                                                                          |
-  |  "What makes the next session better?" -- every session compounds        |
-  +--------------------------------------------------------------------------+
-                                       |
-                                       v
-  +==========================================================================+
-  |                        THE KNOWLEDGE FLYWHEEL                            |
-  |                                                                          |
-  |  SessionEnd --> Extract learnings --> Index for retrieval                |
-  |  SessionStart --> Inject relevant knowledge --> Start smarter            |
-  |                                                                          |
-  |  Every session makes the next one better. This is the moat.              |
-  +==========================================================================+
+</details>
 
-==============================================================================
-            3 CORE SKILLS | 2 VALIDATION GATES | KNOWLEDGE COMPOUNDS
-==============================================================================
+<details>
+<summary>View full workflow stages</summary>
+
+```
+STAGE 1: UNDERSTAND
+  /research → Deep-dive codebase
+  /plan     → Break into tracked issues
+
+STAGE 2: PRE-MORTEM [validation gate]
+  /pre-mortem → Simulate failures BEFORE implementing
+
+STAGE 3: EXECUTE [orchestrated + fresh context]
+  /crank → Autonomous loop
+    └── /swarm → Parallel agents (fresh context each)
+
+STAGE 4: VALIDATE [validation gate]
+  /vibe → 8-aspect check, must pass to commit
+
+STAGE 5: LEARN [compounding memory]
+  /post-mortem → Extract learnings for next session
 ```
 
 </details>
 
 ---
 
-## Quick Start
+## Installation Options
 
-Pick the smallest setup that fits:
-
-- **Skills only (any agent):** steps 1–2
-- **Claude Code plugin (Claude Code only):** steps 1–2 + 4
-- **Automatic hooks (Claude Code + `ao`):** steps 1–5
-
-### 1. Install Skills (Any Agent)
-
-AgentOps ships as portable skills. If your client supports the open Skills ecosystem, install with:
+<details>
+<summary>Install for specific agents</summary>
 
 ```bash
-npx skills@latest add boshu2/agentops --all -g
-```
-
-This works across multiple clients (e.g. **Codex**, **OpenCode**, **Claude Code**, **Cursor**, etc.) — the installer writes to the right place for each agent.
-
-Install to a specific client (examples):
-
-```bash
+# Codex
 npx skills@latest add boshu2/agentops -g -a codex -s '*' -y
+
+# OpenCode
 npx skills@latest add boshu2/agentops -g -a opencode -s '*' -y
-npx skills@latest add boshu2/agentops -g -a claude-code -s '*' -y
+
+# Cursor
 npx skills@latest add boshu2/agentops -g -a cursor -s '*' -y
-```
 
-Update later:
-
-```bash
+# Update all
 npx skills@latest update
 ```
 
-### 2. Use the Skills (Any Agent)
+</details>
 
-Once installed, invoke a skill in your client (slash-based UIs use `/skill-name`):
-
-```text
-/pre-mortem "add OAuth integration"
-/vibe
-```
-
-### 3. Install CLI (Optional)
+<details>
+<summary>Install CLI (optional, enables hooks)</summary>
 
 ```bash
+# macOS
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
-```
 
-Non-Homebrew (any OS with Go):
-
-```bash
+# Any OS with Go
 go install github.com/boshu2/agentops/cli/cmd/ao@latest
-```
 
-### 4. Install Plugin (Claude Code Only)
-
-```bash
-claude plugin add boshu2/agentops
-```
-
-Or from inside Claude Code:
-
-```text
-/plugin add boshu2/agentops
-```
-
-### 5. Initialize in Your Project (Claude Code + CLI)
-
-```bash
-ao quick-start --minimal
-```
-
-Then (optional, one-time, global) enable Claude Code hooks:
-
-```bash
+# Enable auto-hooks (Claude Code)
 ao hooks install && ao hooks test
 ```
 
-Or just ask Claude: *"initialize agentops"*.
+</details>
 
-### 6. Start With Validation
-
-Before implementing your next feature:
-
-```bash
-/pre-mortem "add OAuth integration"
-```
-
-This simulates failures BEFORE you write code. Then implement with `/crank`, validate with `/vibe` before each commit.
-
-> **Note:** There's a [known bug](https://github.com/anthropics/claude-code/issues/15178) where plugin skills don't appear when pressing `/`. Skills still work — just type them directly (e.g., `/pre-mortem`) or ask Claude to use them.
+> **Note:** There's a [known bug](https://github.com/anthropics/claude-code/issues/15178) where plugin skills don't appear when pressing `/`. Skills still work — just type them directly.
 
 ---
 
@@ -346,278 +224,100 @@ More tools = more coverage. But even with zero tools installed, the workflow sti
 
 ---
 
-## How AgentOps Fits In
-
-**AgentOps is the validation layer.** Use it alongside your execution tools.
-
-| Tool | What It Does | + AgentOps |
-|------|--------------|------------|
-| [Superpowers](https://github.com/obra/superpowers) | TDD, autonomous work | AgentOps adds shift-left validation |
-| [Claude-Flow](https://github.com/ruvnet/claude-flow) | Multi-agent orchestration | AgentOps validates before commit |
-| [cc-sdd](https://github.com/gotalab/cc-sdd) | Spec-driven development | AgentOps adds pre-mortem + vibe check |
-| [GSD](https://github.com/glittercowboy/get-shit-done) | Fast shipping | AgentOps adds "catch before ship" |
-
-*Feature comparisons as of February 2026. See [detailed comparisons](docs/comparisons/) for specifics.*
-
-**What AgentOps uniquely adds:**
-
-| Feature | Execution Tools | AgentOps |
-|---------|:---------------:|:--------:|
-| Pre-mortem failure simulation | ❌ | ✅ |
-| 8-aspect semantic validation | ❌ | ✅ |
-| Validation gates before commit | ❌ | ✅ |
-| Knowledge that compounds | ❌ | ✅ |
-
-> [Detailed comparisons →](docs/comparisons/)
-
----
-
 ## The `/vibe` Validator
 
 Not just "does it compile?" — **does it match the spec?**
 
-<!-- Accessibility: Table showing 8 validation aspects: Semantic, Security, Quality, Architecture, Complexity, Performance, Slop, Accessibility. Gate rule: 0 critical = pass, 1+ critical = blocked. -->
-```
-+------------------------------------------------------------------+
-|                   8-ASPECT SEMANTIC VALIDATION                   |
-+------------------------------------------------------------------+
-|  [x] Semantic      Does code do what spec says?                  |
-|  [x] Security      SQL injection, auth bypass, hardcoded secrets |
-|  [x] Quality       Dead code, copy-paste, magic numbers          |
-|  [x] Architecture  Layer violations, circular deps, god classes  |
-|  [x] Complexity    CC > 10, deep nesting, parameter overload     |
-|  [x] Performance   N+1 queries, unbounded loops, resource leaks  |
-|  [x] Slop          AI hallucinations, cargo cult, over-engineering|
-|  [x] Accessibility Missing ARIA, broken keyboard nav, contrast   |
-+------------------------------------------------------------------+
-|  GATE: 0 CRITICAL = pass  |  1+ CRITICAL = blocked until fixed   |
-+------------------------------------------------------------------+
-```
+| Aspect | What It Checks |
+|--------|----------------|
+| Semantic | Does code do what spec says? |
+| Security | SQL injection, auth bypass, hardcoded secrets |
+| Quality | Dead code, copy-paste, magic numbers |
+| Architecture | Layer violations, circular deps, god classes |
+| Complexity | Cyclomatic > 10, deep nesting |
+| Performance | N+1 queries, unbounded loops, resource leaks |
+| Slop | AI hallucinations, cargo cult, over-engineering |
+| Accessibility | Missing ARIA, broken keyboard nav, contrast |
 
----
-
-## The Validation Pattern
-
-At every step: explore, validate, lock progress.
-
-```
-     +-----------------------------------------------------------+
-     |                                                           |
-     |   EXPLORE           VALIDATE            COMMIT            |
-     |  (generate)        (check)             (lock)             |
-     |                                                           |
-     |  +---------+        +------+         +----------+         |
-     |  | code    |  --->  |/vibe |  --->   | COMMIT   |         |
-     |  +---------+        +--+---+         +----+-----+         |
-     |       ^                | fail             |               |
-     |       +----------------+                  v               |
-     |    (fix and retry)                 +-----------+          |
-     |                                    | .agents/  |          |
-     |                                    | (memory)  |          |
-     |                                    +-----+-----+          |
-     |                                          |                |
-     |                           inject learnings into           |
-     |                               next session                |
-     |                                                           |
-     +-----------------------------------------------------------+
-
-     Validation built in, not bolted on.
-```
+**Gate rule:** 0 critical = pass. 1+ critical = blocked until fixed.
 
 ---
 
 ## What Gets Captured
 
-Everything lives in `.agents/` — **git-tracked, portable, yours**.
+Everything lives in `.agents/` — git-tracked, portable, yours.
 
 ```
 .agents/
-+-- research/      # Deep exploration outputs
-+-- plans/         # Implementation plans
-+-- pre-mortems/   # Failure simulations
-+-- specs/         # Validated specifications
-+-- learnings/     # Extracted insights ("Auth bugs stem from token refresh")
-+-- patterns/      # Reusable patterns ("How we handle retries")
-+-- retros/        # Session retrospectives
-+-- vibe/          # Validation reports
-+-- complexity/    # Complexity analysis
-+-- ...            # + other skill outputs (doc, assessments, etc.)
+├── learnings/     # "Auth bugs stem from token refresh"
+├── patterns/      # "How we handle retries"
+├── pre-mortems/   # Failure simulations
+├── plans/         # Implementation plans
+├── vibe/          # Validation reports
+└── ...
 ```
 
-**Automatic hooks (Claude Code plugin):**
-- **SessionStart** → Injects relevant prior knowledge (with decay applied)
-- **SessionEnd** → Extracts learnings, indexes for retrieval
-
-You don't run `ao` commands manually. The flywheel turns itself.
-
----
-
-## The Compound Effect
-
-<!-- Accessibility: Comparison showing progression over 4 sessions. Without AgentOps: repeating. With AgentOps: compounding knowledge. -->
-```
-+--------------------------------------------------------------------+
-|                                                                    |
-|  WITHOUT AGENTOPS                                                  |
-|  ================                                                  |
-|                                                                    |
-|  Session 1   Session 2   Session 3   Session 4                     |
-|  +--------+  +--------+  +--------+  +--------+                    |
-|  | repeat |->| repeat |->| repeat |->| repeat |   Repeating        |
-|  +--------+  +--------+  +--------+  +--------+   (0 learning)     |
-|                                                                    |
-|  WITH AGENTOPS                                                     |
-|  =============                                                     |
-|                                                                    |
-|  Session 1   Session 2   Session 3   Session 4                     |
-|  +--------+  +--------+  +--------+  +--------+                    |
-|  | learn  |->| recall |->| refine |->| expert |   Compounding      |
-|  +--------+  +--------+  +--------+  +--------+   (mastered)       |
-|                                                                    |
-+--------------------------------------------------------------------+
-```
-
-**By session 100, your agent knows:**
-- Every bug you've ever fixed
-- Your architecture decisions and *why*
-- Your team's coding patterns
-- What approaches failed and why
-
----
-
-## Agent Farm
-
-Spawn multiple agents to work on issues in parallel:
-
-```bash
-ao farm validate          # Pre-flight checks (cycles, bd availability)
-ao farm start --agents 3  # Spawn 3 agents + witness in tmux
-ao farm status            # Check progress
-ao inbox                  # View messages from agents
-ao farm stop              # Graceful shutdown
-```
-
-**How it works:**
-1. Validates issues have no cycles and bd CLI is available
-2. Spawns N Claude agents in tmux sessions (30s stagger for rate limits)
-3. Witness monitors progress, sends summaries to mayor
-4. Circuit breaker stops farm if >50% agents fail
-5. Use `ao farm resume` to continue after interruption
+With hooks enabled, the flywheel turns automatically:
+- **SessionStart** → Injects relevant prior knowledge
+- **SessionEnd** → Extracts learnings for next time
 
 ---
 
 ## All Skills
 
-**Core workflow: 3 skills. The rest are supporting.**
+| Skill | Purpose |
+|-------|---------|
+| `/pre-mortem` | Simulate failures before coding |
+| `/crank` | Autonomous epic execution (uses swarm) |
+| `/swarm` | Parallel agents with fresh context |
+| `/vibe` | 8-aspect validation gate |
+| `/implement` | Single issue execution |
+| `/post-mortem` | Extract learnings |
+| `/research` | Deep codebase exploration |
+| `/plan` | Break goal into tracked issues |
+| `/beads` | Git-native issue tracking |
 
-| Category | Skills | Purpose |
-|----------|--------|---------|
-| **Core validation** | `/pre-mortem`, `/crank`, `/vibe` | The shift-left workflow |
-| **Supporting** | `/research`, `/plan`, `/retro`, `/post-mortem` | Context and learning |
-| **Multi-agent** | `/farm` | Spawn parallel agents |
-| **Called by /crank** | `/implement` | Single issue execution |
-| **Issue tracking** | `/beads` | Create and manage issues |
-| **Language rules** | `/standards` | Apply language-specific patterns |
-| **Deep dives** | `/bug-hunt`, `/complexity`, `/doc` | On-demand analysis |
-| **Background** | `/forge`, `/extract`, `/inject`, `/knowledge`, `/flywheel` | Hooks run these |
+<details>
+<summary>More skills</summary>
 
-## Which Loop Should I Use?
+| Skill | Purpose |
+|-------|---------|
+| `/ratchet` | Track RPI progress gates |
+| `/retro` | Quick retrospective |
+| `/inject` | Manually load prior knowledge |
+| `/knowledge` | Query knowledge base |
+| `/bug-hunt` | Root cause analysis |
+| `/complexity` | Code complexity metrics |
+| `/doc` | Documentation generation |
+| `/standards` | Language-specific rules |
 
-If you’re trying to “run the loop”:
-
-| You Want | Use | Why |
-|----------|-----|-----|
-| Fresh-context iteration (Ralph Wiggum pattern) | `/swarm` | Mayor owns the while-loop; each `Task(run_in_background=true)` spawn is fresh context |
-| Autonomous epic execution (issue loop) | `/crank` | Loops through tracked issues (often via `/implement`) until the epic is closed |
-| Progress gates through RPI | `/ratchet` | Records/validates Research → Plan → Implement checkpoints (doesn’t execute work by itself) |
+</details>
 
 ---
 
 ## CLI Reference
 
 ```bash
-ao quick-start --minimal  # Create .agents/ structure in this repo
-ao init                   # Create .agents/ao storage (optional)
-ao hooks install          # Install Claude Code hooks (global)
-ao hooks test             # Verify hooks work
-ao inject [topic]      # Manually inject knowledge
-ao forge search        # Search past sessions
-ao forge index         # Index artifacts
-ao feedback            # Mark learnings as helpful/harmful
-ao metrics             # View flywheel health
-
-# Agent Farm
-ao farm validate       # Pre-flight checks
-ao farm start --agents 3  # Spawn agents
-ao farm status         # Check progress
-ao farm stop           # Graceful shutdown
-ao inbox               # View agent messages
-ao mail send --to mayor --body "message"  # Send message
-```
-
----
-
-## Known Limitations
-
-Agent Farm is production-ready for supervised use (1-3 agents). Large/unattended farms have known edge cases:
-
-| Issue | Impact | Workaround |
-|-------|--------|------------|
-| **Race condition on issue claims** | Multiple agents may claim same issue | Use `--agents 3` or fewer for reliability |
-| **Witness crash not auto-detected** | Farm hangs if witness dies | Run `ao farm status` periodically to check |
-| **Graceful shutdown required** | Ctrl+C may leave orphaned sessions | Always use `ao farm stop` |
-| **Project name spaces** | tmux session names break with spaces | Avoid spaces in directory names |
-
-These will be addressed in the Mt-Olympus orchestrator project.
-
----
-
-## The Science
-
-Built on peer-reviewed research, not vibes.
-
-| Concept | Source | Finding |
-|---------|--------|---------|
-| Knowledge Decay | [Darr, Argote & Epple (1995)](https://pubsonline.informs.org/doi/abs/10.1287/mnsc.41.11.1750) | Org knowledge depreciates ~17%/week |
-| Memory Reinforcement | [Ebbinghaus (1885)](https://en.wikipedia.org/wiki/Forgetting_curve) | Retrieval strengthens memory, slows decay |
-| MemRL | [Zhang et al. (2025)](https://arxiv.org/abs/2502.06173) | Two-phase retrieval enables self-evolving agents |
-
-**The math:**
-```
-dK/dt = I(t) - δ·K + σ·ρ·K
-
-Where:
-  δ = 0.17/week (decay rate)
-  σ = retrieval effectiveness
-  ρ = usage rate
-
-Goal: σ·ρ > δ  →  Knowledge compounds instead of decays
+ao quick-start --minimal  # Create .agents/ structure
+ao hooks install          # Enable auto-hooks (Claude Code)
+ao inject [topic]         # Load prior knowledge
+ao search "query"         # Search knowledge base
+ao flywheel status        # Check flywheel health
 ```
 
 ---
 
 ## Built On
 
-| Tool | Author | What We Use |
-|------|--------|-------------|
-| [beads](https://github.com/steveyegge/beads) | Steve Yegge | Git-native issue tracking |
-| [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) | Dicklesworthstone | Session indexing |
-| [multiclaude](https://github.com/dlorenc/multiclaude) | dlorenc | Brownian Ratchet pattern |
+| Project | What We Use |
+|---------|-------------|
+| [Ralph Wiggum pattern](https://ghuntley.com/ralph/) | Fresh context per agent spawn |
+| [Brownian Ratchet](https://github.com/dlorenc/multiclaude) | Validation gates that lock progress |
+| [beads](https://github.com/steveyegge/beads) | Git-native issue tracking |
+| [MemRL](https://arxiv.org/abs/2502.06173) | Two-phase retrieval for memory |
 
 ---
 
 ## License
 
-Apache-2.0
-
----
-
-<div align="center">
-
-### Stop shipping and praying.
-
-**Validation built in, not bolted on. Knowledge that compounds.**
-
-[Get Started](#quick-start) · [Documentation](docs/) · [Comparisons](docs/comparisons/) · [Changelog](CHANGELOG.md)
-
-</div>
+Apache-2.0 · [Documentation](docs/) · [Changelog](CHANGELOG.md)

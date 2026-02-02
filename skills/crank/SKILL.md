@@ -1,47 +1,54 @@
 ---
 name: crank
-description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Loops through beads issues, runs /implement on each, validates with /vibe. NO human prompts, NO stopping.'
+description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Uses /swarm for parallel wave execution. NO human prompts, NO stopping.'
 ---
 
 # Crank Skill
 
-> **Quick Ref:** Autonomous epic execution. Loops `/implement` on all issues until DONE. Output: closed issues + final vibe.
+> **Quick Ref:** Autonomous epic execution. Uses `/swarm` for each wave until DONE. Output: closed issues + final vibe.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Autonomous execution: implement all issues until the epic is DONE.
 
-## Not the “Ralph Loop”
+## Architecture: Crank + Swarm
 
-If you’re specifically trying to get *fresh context per iteration* (Ralph Wiggum pattern), use `/swarm`. `/crank` is an **issue loop** (work through the epic) and may involve long-running context in the orchestrating session.
+```
+Crank (orchestrator)           Swarm (executor)
+    |                              |
+    +-> bd ready (wave issues)     |
+    |                              |
+    +-> TaskCreate from beads  --->+-> Spawn agents (fresh context)
+    |                              |
+    +-> /swarm                 --->+-> Execute in parallel
+    |                              |
+    +-> Verify + bd update     <---+-> Results
+    |                              |
+    +-> Loop until epic DONE       |
+```
 
-**Requires:** bd CLI (beads) for issue tracking, OR in-session TaskList for task-based tracking.
+**Separation of concerns:**
+- **Crank** = Beads-aware orchestration, epic lifecycle, knowledge flywheel
+- **Swarm** = Fresh-context parallel execution (Ralph Wiggum pattern)
+
+**Requires:** bd CLI (beads) for issue tracking.
 
 ## Global Limits
 
-**MAX_EPIC_ITERATIONS = 50** (hard limit across entire epic)
+**MAX_EPIC_WAVES = 50** (hard limit across entire epic)
 
 This prevents infinite loops on circular dependencies or cascading failures.
 
 **Why 50?**
 - Typical epic: 5-10 issues
-- With retries: ~5 iterations per issue max
-- 50 = safe upper bound (10 issues × 5 retries)
-
-**MAX_PARALLEL_AGENTS = 3** (hard limit per wave)
-
-When multiple issues are ready, execute them in parallel using subagents. Capped at 3 to prevent context explosion.
-
-**Why 3?**
-- Each subagent returns results that accumulate in context
-- 3 parallel agents = manageable context growth
-- Higher parallelism risks context overflow on complex issues
+- With retries: ~5 waves max
+- 50 = safe upper bound
 
 ## Completion Enforcement (The Sisyphus Rule)
 
 **THE SISYPHUS RULE:** Not done until explicitly DONE.
 
-After each task, output completion marker:
+After each wave, output completion marker:
 - `<promise>DONE</promise>` - Epic truly complete, all issues closed
 - `<promise>BLOCKED</promise>` - Cannot proceed (with reason)
 - `<promise>PARTIAL</promise>` - Incomplete (with remaining items)
@@ -81,29 +88,22 @@ If ao not available, skip this step and proceed. The knowledge flywheel enhances
 bd list --type epic --status open 2>/dev/null | head -5
 ```
 
-If bd not available, look for a plan:
-```bash
-ls -lt .agents/plans/ 2>/dev/null | head -3
-```
-
 If multiple epics found, ask user which one.
 
-### Step 1a: Initialize Iteration Counter
+### Step 1a: Initialize Wave Counter
 
 ```bash
 # Initialize crank tracking in epic notes
-bd update <epic-id> --append-notes "CRANK_START: iteration=0 at $(date -Iseconds)" 2>/dev/null
+bd update <epic-id> --append-notes "CRANK_START: wave=0 at $(date -Iseconds)" 2>/dev/null
 ```
 
-Track in memory: `iteration=0`
+Track in memory: `wave=0`
 
 ### Step 2: Get Epic Details
 
 ```bash
 bd show <epic-id> 2>/dev/null
 ```
-
-Or read the plan document if using file-based tracking.
 
 ### Step 3: List Ready Issues (Current Wave)
 
@@ -113,10 +113,6 @@ bd ready 2>/dev/null
 ```
 
 **`bd ready` returns the current wave** - all unblocked issues. These can be executed in parallel because they have no dependencies on each other.
-
-Or parse the plan document for Wave 1 issues.
-
-Or use TaskList tool if using in-session task tracking.
 
 ### Step 3a: Pre-flight Check - Issues Exist
 
@@ -133,121 +129,99 @@ STOP and return error:
 
 Do NOT proceed with empty issue list - this produces false "epic complete" status.
 
-### Step 4: Execute Wave (Parallel Subagents)
-
-Ready issues are executed in parallel waves. Each wave dispatches up to MAX_PARALLEL_AGENTS (3) subagents.
+### Step 4: Execute Wave via Swarm
 
 **BEFORE each wave:**
 ```bash
-# Increment iteration counter (count waves, not individual issues)
-iteration=$((iteration + 1))
-bd update <epic-id> --append-notes "CRANK_WAVE: $iteration at $(date -Iseconds)" 2>/dev/null
+# Increment wave counter
+wave=$((wave + 1))
+bd update <epic-id> --append-notes "CRANK_WAVE: $wave at $(date -Iseconds)" 2>/dev/null
 
 # CHECK GLOBAL LIMIT
-if [[ $iteration -ge 50 ]]; then
+if [[ $wave -ge 50 ]]; then
     echo "<promise>BLOCKED</promise>"
-    echo "Global iteration limit (50) reached. Remaining issues:"
+    echo "Global wave limit (50) reached. Remaining issues:"
     bd children <epic-id> --status open 2>/dev/null
     # STOP - do not continue
 fi
 ```
 
-**Wave Execution Logic:**
+**Wave Execution via Swarm:**
 
 1. **Get ready issues from Step 3**
-2. **Batch into wave** (max 3 issues per wave)
-3. **Dispatch subagents in parallel using Task tool**
+2. **Create TaskList tasks from beads issues:**
 
-**FOR EACH WAVE, USE THE TASK TOOL IN PARALLEL:**
-
-When you have N ready issues (where N ≤ 3), dispatch them in a SINGLE message with multiple Task tool calls:
-
+For each ready beads issue, create a corresponding TaskList task:
 ```
-# Example: 3 ready issues → 3 parallel Task calls in ONE message
+TaskCreate(
+  subject="<issue-id>: <issue-title>",
+  description="Implement beads issue <issue-id>.
 
-Tool: Task (call 1)
-Parameters:
-  subagent_type: "general-purpose"
-  description: "Implement <issue-id-1>"
-  prompt: |
-    Execute /implement <issue-id-1>
+Details from beads:
+<paste issue details from bd show>
 
-    Use the Skill tool to invoke the implement skill:
-    - skill: "agentops:implement"
-    - args: "<issue-id-1>"
-
-    Return the completion marker when done.
-
-Tool: Task (call 2)
-Parameters:
-  subagent_type: "general-purpose"
-  description: "Implement <issue-id-2>"
-  prompt: |
-    Execute /implement <issue-id-2>
-
-    Use the Skill tool to invoke the implement skill:
-    - skill: "agentops:implement"
-    - args: "<issue-id-2>"
-
-    Return the completion marker when done.
-
-Tool: Task (call 3)
-Parameters:
-  subagent_type: "general-purpose"
-  description: "Implement <issue-id-3>"
-  prompt: |
-    Execute /implement <issue-id-3>
-
-    Use the Skill tool to invoke the implement skill:
-    - skill: "agentops:implement"
-    - args: "<issue-id-3>"
-
-    Return the completion marker when done.
+Execute using /implement <issue-id>. Mark complete when done.",
+  activeForm="Implementing <issue-id>"
+)
 ```
 
-**CRITICAL: All Task calls for a wave MUST be in a single message to enable parallel execution.**
+3. **Add dependencies if issues have beads blockedBy:**
+```
+TaskUpdate(taskId="2", addBlockedBy=["1"])
+```
 
-**If more than 3 ready issues:** Process in batches of 3. Complete one wave before starting the next.
+4. **Invoke swarm to execute the wave:**
+```
+Tool: Skill
+Parameters:
+  skill: "agentops:swarm"
+```
 
-**Check results from each subagent:**
-- If `<promise>BLOCKED</promise>` returned → record blocker, continue with others
-- If `<promise>PARTIAL</promise>` returned → record remaining, continue with others
-- If `<promise>DONE</promise>` returned → issue complete
+Swarm will:
+- Find all unblocked TaskList tasks
+- Spawn background agents with fresh context (Ralph pattern)
+- Execute them in parallel
+- Wait for notifications
 
-**Wait for all subagents in the wave to complete before proceeding to Step 5.**
+5. **After swarm completes, verify beads status:**
+```bash
+# For each completed TaskList task, close the beads issue
+bd update <issue-id> --status closed 2>/dev/null
+```
 
-### Step 5: Track Progress (No Per-Issue Vibe)
+### Step 5: Track Progress
 
-After implement completes:
+After swarm completes the wave:
 
-1. Update issue status:
+1. Update beads issues based on TaskList results:
 ```bash
 bd update <issue-id> --status closed 2>/dev/null
 ```
-Or use TaskUpdate to mark task completed.
 
-2. Track changed files in memory or use TaskCreate to note them.
+2. Track changed files:
+```bash
+git diff --name-only HEAD~5 2>/dev/null | sort -u
+```
 
 3. **Record ratchet progress (ao integration):**
 ```bash
-# If ao CLI available, record implementation progress
+# If ao CLI available, record wave completion
 if command -v ao &>/dev/null; then
     ao ratchet record implement 2>/dev/null
-    echo "Ratchet: recorded implementation of <issue-id>"
+    echo "Ratchet: recorded wave $wave completion"
 fi
 ```
 
-If ao not available, skip ratchet recording.
-
-**Note:** Skip per-issue vibe - validation is batched at the end to save context.
+**Note:** Skip per-wave vibe - validation is batched at the end to save context.
 
 ### Step 6: Check for More Work
 
-After completing an issue:
-1. Check if new issues are now unblocked (use `bd ready` or TaskList)
-2. If yes, return to Step 4
-3. If no more issues after 3 retry attempts, proceed to Step 7
-4. **Max retries:** If issues remain blocked after 3 checks, escalate: "Epic blocked - cannot unblock remaining issues"
+After completing a wave:
+1. Clear completed tasks from TaskList
+2. Check if new beads issues are now unblocked: `bd ready`
+3. If yes, return to Step 4 (create new TaskList tasks, invoke swarm)
+4. If no more issues after 3 retry attempts, proceed to Step 7
+5. **Max retries:** If issues remain blocked after 3 checks, escalate: "Epic blocked - cannot unblock remaining issues"
 
 ### Step 7: Final Batched Validation
 
@@ -325,45 +299,48 @@ Crank follows FIRE for each wave:
 
 | Phase | Action |
 |-------|--------|
-| **FIND** | `bd ready` - get unblocked issues |
-| **IGNITE** | Dispatch up to 3 subagents in parallel (one per issue) |
-| **REAP** | Collect results from all subagents |
+| **FIND** | `bd ready` - get unblocked beads issues |
+| **IGNITE** | Create TaskList tasks, invoke `/swarm` |
+| **REAP** | Swarm collects results, crank syncs to beads |
 | **ESCALATE** | Fix blockers, retry failures |
 
-**Parallel Wave Model:**
+**Parallel Wave Model (via Swarm):**
 ```
-Wave 1: [issue-1, issue-2, issue-3] → 3 subagents in parallel
-         ↓         ↓         ↓
-      DONE      DONE      BLOCKED
-                            ↓
-                      (retry in next wave)
+Wave 1: bd ready → [issue-1, issue-2, issue-3]
+        ↓
+        TaskCreate for each issue
+        ↓
+        /swarm → spawns 3 fresh-context agents
+                  ↓         ↓         ↓
+               DONE      DONE      BLOCKED
+                                     ↓
+                               (retry in next wave)
+        ↓
+        bd update --status closed for completed
 
-Wave 2: [issue-4, issue-3-retry] → 2 subagents in parallel
-         ↓         ↓
-      DONE      DONE
+Wave 2: bd ready → [issue-4, issue-3-retry]
+        ↓
+        TaskCreate for each
+        ↓
+        /swarm → spawns 2 fresh-context agents
+        ↓
+        bd update for completed
 
 Final vibe on all changes → Epic DONE
 ```
 
-Loop until all issues are CLOSED.
+Loop until all beads issues are CLOSED.
 
 ## Key Rules
 
 - **If epic ID given, USE IT** - don't ask for confirmation
-- **Parallel waves** - execute up to 3 issues per wave using subagents
-- **One subagent per issue** - each issue gets its own isolated agent
-- **Max 3 subagents per wave** - prevents context explosion
+- **Swarm for each wave** - delegates parallel execution to swarm
+- **Fresh context per issue** - swarm provides Ralph pattern isolation
 - **Batch validation at end** - ONE vibe at the end saves context
 - **Fix CRITICAL before completion** - address findings before reporting done
 - **Loop until done** - don't stop until all issues closed
 - **Autonomous execution** - minimize human prompts
-- **Respect iteration limit** - STOP at 50 iterations (hard limit)
+- **Respect wave limit** - STOP at 50 waves (hard limit)
 - **Output completion markers** - DONE, BLOCKED, or PARTIAL (required)
 - **Knowledge flywheel** - load learnings at start, forge at end (ao optional)
-
-## Without Beads
-
-If bd CLI not available:
-1. Use the plan document as the source of truth
-2. Track completed issues by checking git commits
-3. Mark issues done by noting in the plan document
+- **Beads ↔ TaskList sync** - crank bridges beads issues to TaskList for swarm

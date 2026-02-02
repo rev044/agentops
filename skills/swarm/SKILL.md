@@ -5,7 +5,11 @@ description: 'Spawn isolated agents for parallel task execution. Pure Claude-nat
 
 # Swarm Skill
 
-Spawn isolated agents to execute tasks in parallel.
+Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ralph Wiggum pattern).
+
+**Two modes:**
+- **Direct** - Create TaskList tasks, invoke `/swarm`
+- **Via Crank** - `/crank` creates tasks from beads, invokes `/swarm` for each wave
 
 ## Architecture (Mayor-First)
 
@@ -128,10 +132,17 @@ This ties into the full workflow:
 
 ```
 /research → Understand the problem
-/plan → Decompose into tasks
-/swarm → Execute in parallel
+/plan → Decompose into beads issues
+/crank → Autonomous epic loop
+    └── /swarm → Execute each wave in parallel
 /vibe → Validate results
 /post-mortem → Extract learnings
+```
+
+**Direct use (no beads):**
+```
+TaskCreate → Define tasks
+/swarm → Execute in parallel
 ```
 
 The knowledge flywheel captures learnings from each agent.
@@ -190,10 +201,34 @@ Making demigods loop internally would violate Ralph - context accumulates within
 
 This is **Ralph + parallelism**: the while loop is distributed across wave spawns, with multiple agents per wave.
 
+## Integration with Crank
+
+When `/crank` invokes `/swarm`:
+
+1. **Crank** bridges beads issues to TaskList tasks
+2. **Swarm** executes the TaskList wave with fresh-context agents
+3. **Crank** syncs results back to beads
+
+```
+/crank epic-123
+  └── bd ready → [ao-1, ao-2, ao-3]
+      └── TaskCreate for each issue
+          └── /swarm
+              └── Spawn agents (fresh context each)
+                  └── Complete TaskList tasks
+      └── bd update --status closed
+  └── Loop until epic DONE
+```
+
+This gives you:
+- **Beads orchestration** (crank) - Epic lifecycle, issue tracking
+- **Fresh-context execution** (swarm) - Ralph pattern for each issue
+
 ## Distinctions (Common Confusion)
 
 | You Want | Use | Why |
 |----------|-----|-----|
-| Fresh-context loop (“Ralph”) | `/swarm` | Each spawned background agent is a clean slate |
-| Epic execution loop | `/crank` | Loops issues until epic closes (not fresh context per iteration) |
+| Fresh-context parallel execution | `/swarm` | Each spawned background agent is a clean slate |
+| Autonomous epic loop | `/crank` | Loops waves via swarm until epic closes |
+| Just swarm, no beads | `/swarm` directly | Use TaskList only, skip beads integration |
 | RPI progress gates | `/ratchet` | Tracks/locks progress; does not execute work by itself |

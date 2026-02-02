@@ -37,8 +37,8 @@ Research → Plan → Implement → Validate
 
 ```bash
 /implement <issue>     # Single issue execution
-/crank <epic>          # Epic execution loop (issue-driven)
-/swarm                 # Ralph loop (fresh context per task)
+/crank <epic>          # Autonomous epic loop (uses swarm for waves)
+/swarm                 # Parallel execution (fresh context per agent)
 ```
 
 **Output:** Code changes, tests, documentation
@@ -59,12 +59,13 @@ Research → Plan → Implement → Validate
 |-------|---------------|-------------------|
 | **Research** | `/research` | `/knowledge`, `/inject` |
 | **Plan** | `/plan` | `/pre-mortem` |
-| **Implement** | `/implement` | `/crank` (single-agent), `/swarm` (multi-agent) |
+| **Implement** | `/implement` | `/crank` (epic loop), `/swarm` (parallel execution) |
 | **Validate** | `/vibe` | `/retro`, `/post-mortem` |
 
-**Choosing the loop:**
-- Use `/swarm` when you want **fresh context per iteration** (Ralph Wiggum pattern).
-- Use `/crank` when you want to **execute an epic to completion** (issue loop).
+**Choosing the skill:**
+- Use `/implement` for **single issue** execution.
+- Use `/crank` for **autonomous epic execution** (loops waves via swarm until done).
+- Use `/swarm` directly for **parallel execution** without beads (TaskList only).
 - Use `/ratchet` to **gate/record progress** through RPI.
 
 ## Available Skills
@@ -75,8 +76,8 @@ Research → Plan → Implement → Validate
 | `/pre-mortem` | Failure simulation before implementing |
 | `/plan` | Epic decomposition into issues |
 | `/implement` | Execute single issue |
-| `/crank` | Autonomous single-agent execution |
-| `/swarm` | Parallel multi-agent execution (Agent Farm) |
+| `/crank` | Autonomous epic loop (uses swarm for each wave) |
+| `/swarm` | Fresh-context parallel execution (Ralph pattern) |
 | `/vibe` | Code validation |
 | `/retro` | Extract learnings |
 | `/post-mortem` | Full validation + knowledge extraction |
