@@ -197,6 +197,8 @@ AgentOps ships as portable skills. If your client supports the open Skills ecosy
 npx skills@latest add boshu2/agentops --all -g
 ```
 
+This works across multiple clients (e.g. **Codex**, **OpenCode**, **Claude Code**, **Cursor**, etc.) — the installer writes to the right place for each agent.
+
 Install to a specific agent only (example: Codex):
 
 ```bash
