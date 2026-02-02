@@ -223,7 +223,7 @@ On session start, `hooks/session-start.sh`:
 ## Installation
 
 ```bash
-claude /plugin add boshu2/agentops
+claude plugin add boshu2/agentops
 ```
 
 Optional:

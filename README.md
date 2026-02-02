@@ -15,6 +15,32 @@
 
 ---
 
+## Start Here (2 minutes)
+
+AgentOps is three things that work together:
+
+1. **Skills** (portable slash commands like `/pre-mortem`, `/vibe`, `/crank`)
+2. **Claude Code plugin** (runs skills inside Claude Code)
+3. **`ao` CLI (optional)** (hooks + orchestration + knowledge flywheel tools)
+
+**Fastest path (works in most agents):**
+
+```bash
+npx skills@latest add boshu2/agentops --all -g
+```
+
+Then in your agent:
+
+```text
+/pre-mortem "add OAuth integration"
+```
+
+**If you use Claude Code:**
+
+- Install plugin (terminal): `claude plugin add boshu2/agentops`
+- Install plugin (in-chat): `/plugin add boshu2/agentops`
+- Auto hooks (optional): install `ao`, then `ao hooks install && ao hooks test`
+
 <!-- Accessibility: Comparison showing traditional workflow vs shift-left workflow -->
 ```
 +-----------------------------------------------------------------------+
@@ -94,6 +120,9 @@ The shift-left validation workflow:
 ## The Complete System
 
 <!-- Accessibility: Comprehensive diagram showing validation-first workflow with 3 core skills, supporting skills, and knowledge flywheel -->
+<details>
+<summary>View the full system diagram</summary>
+
 ```
 ==============================================================================
                     AGENTOPS: DEVOPS FOR VIBE-CODING
@@ -185,9 +214,17 @@ The shift-left validation workflow:
 ==============================================================================
 ```
 
+</details>
+
 ---
 
 ## Quick Start
+
+Pick the smallest setup that fits:
+
+- **Skills only (any agent):** steps 1–2
+- **Claude Code plugin (Claude Code only):** steps 1–2 + 4
+- **Automatic hooks (Claude Code + `ao`):** steps 1–5
 
 ### 1. Install Skills (Any Agent)
 
@@ -230,19 +267,37 @@ brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
 ```
 
+Non-Homebrew (any OS with Go):
+
+```bash
+go install github.com/boshu2/agentops/cli/cmd/ao@latest
+```
+
 ### 4. Install Plugin (Claude Code Only)
 
 ```bash
 claude plugin add boshu2/agentops
 ```
 
+Or from inside Claude Code:
+
+```text
+/plugin add boshu2/agentops
+```
+
 ### 5. Initialize in Your Project (Claude Code + CLI)
 
 ```bash
-ao init && ao hooks install
+ao quick-start --minimal
 ```
 
-Or just ask Claude: *"initialize agentops"*
+Then (optional, one-time, global) enable Claude Code hooks:
+
+```bash
+ao hooks install && ao hooks test
+```
+
+Or just ask Claude: *"initialize agentops"*.
 
 ### 6. Start With Validation
 
@@ -260,7 +315,7 @@ This simulates failures BEFORE you write code. Then implement with `/crank`, val
 
 ## Tool Dependencies
 
-The `/vibe` and `/post-mortem` skills run `toolchain-validate.sh`, which uses available linters and scanners. **All tools are optional** — missing ones are skipped gracefully.
+The `/vibe` and `/post-mortem` skills run `scripts/toolchain-validate.sh`, which uses available linters and scanners. **All tools are optional** — missing ones are skipped gracefully.
 
 | Tool | Purpose | Install |
 |------|---------|---------|
@@ -284,6 +339,13 @@ More tools = more coverage. But even with zero tools installed, the workflow sti
 
 ---
 
+## Troubleshooting
+
+- Plugin skills don’t show up when you press `/` in Claude Code: type the skill directly (e.g. `/pre-mortem`). (See the Claude Code issue linked above.)
+- `ao` not found: ensure it’s on your `PATH` (`which ao`). For hook setup help, see `cli/docs/HOOKS.md`.
+
+---
+
 ## How AgentOps Fits In
 
 **AgentOps is the validation layer.** Use it alongside your execution tools.
@@ -295,7 +357,7 @@ More tools = more coverage. But even with zero tools installed, the workflow sti
 | [cc-sdd](https://github.com/gotalab/cc-sdd) | Spec-driven development | AgentOps adds pre-mortem + vibe check |
 | [GSD](https://github.com/glittercowboy/get-shit-done) | Fast shipping | AgentOps adds "catch before ship" |
 
-*Feature comparisons as of January 2026. See [detailed comparisons](docs/comparisons/) for specifics.*
+*Feature comparisons as of February 2026. See [detailed comparisons](docs/comparisons/) for specifics.*
 
 **What AgentOps uniquely adds:**
 
@@ -464,8 +526,10 @@ ao farm stop              # Graceful shutdown
 ## CLI Reference
 
 ```bash
-ao init                # Initialize AgentOps in repo
-ao hooks install       # Install session hooks
+ao quick-start --minimal  # Create .agents/ structure in this repo
+ao init                   # Create .agents/ao storage (optional)
+ao hooks install          # Install Claude Code hooks (global)
+ao hooks test             # Verify hooks work
 ao inject [topic]      # Manually inject knowledge
 ao forge search        # Search past sessions
 ao forge index         # Index artifacts

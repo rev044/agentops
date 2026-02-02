@@ -159,7 +159,7 @@ https://github.com/boshu2/homebrew-agentops
 Users install with:
 ```bash
 brew tap boshu2/agentops
-brew install ao
+brew install agentops
 ```
 
 ## Troubleshooting
