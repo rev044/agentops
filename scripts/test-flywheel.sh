@@ -4,9 +4,7 @@ set -euo pipefail
 # Flywheel Smoke Test
 # Verifies the knowledge flywheel (extract → forge → inject) works end-to-end
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
-TEST_DIR=$(mktemp -d)
+TEST_DIR="$(mktemp -d)"
 AGENTS_DIR="${TEST_DIR}/.agents"
 
 cleanup() {

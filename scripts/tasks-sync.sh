@@ -57,7 +57,8 @@ cmd_claim() {
     init_tasks
 
     # Update the task
-    local tmp=$(mktemp)
+    local tmp
+    tmp="$(mktemp)"
     cat "$TASKS_FILE" | jq "map(if .id == \"$task_id\" then .status = \"in_progress\" | .owner = \"$owner\" else . end)" > "$tmp"
     mv "$tmp" "$TASKS_FILE"
 
@@ -72,7 +73,8 @@ cmd_complete() {
     acquire_lock
     init_tasks
 
-    local tmp=$(mktemp)
+    local tmp
+    tmp="$(mktemp)"
     cat "$TASKS_FILE" | jq "map(if .id == \"$task_id\" then .status = \"completed\" else . end)" > "$tmp"
     mv "$tmp" "$TASKS_FILE"
 
@@ -89,10 +91,13 @@ cmd_add() {
     init_tasks
 
     # Generate ID
-    local max_id=$(cat "$TASKS_FILE" | jq -r '.[].id' | sort -n | tail -1)
-    local new_id=$((${max_id:-0} + 1))
+    local max_id
+    max_id="$(cat "$TASKS_FILE" | jq -r '.[].id' | sort -n | tail -1)"
+    local new_id
+    new_id="$((${max_id:-0} + 1))"
 
-    local tmp=$(mktemp)
+    local tmp
+    tmp="$(mktemp)"
     cat "$TASKS_FILE" | jq ". + [{\"id\": \"$new_id\", \"subject\": \"$subject\", \"description\": \"$description\", \"status\": \"pending\", \"owner\": null, \"blockedBy\": []}]" > "$tmp"
     mv "$tmp" "$TASKS_FILE"
 

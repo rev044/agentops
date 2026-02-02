@@ -27,7 +27,8 @@ mkdir -p "$LOG_DIR"
 run_claude() {
     local prompt="$1"
     local timeout="${2:-$DEFAULT_TIMEOUT}"
-    local output_file=$(mktemp)
+    local output_file
+    output_file="$(mktemp)"
 
     if timeout "$timeout" claude -p "$prompt" \
         --plugin-dir "$REPO_ROOT" \
@@ -51,7 +52,9 @@ run_claude() {
 run_claude_json() {
     local prompt="$1"
     local timeout="${2:-$DEFAULT_TIMEOUT}"
-    local log_file="$LOG_DIR/claude-$(date +%s)-$$.jsonl"
+    local ts
+    ts="$(date +%s)"
+    local log_file="$LOG_DIR/claude-${ts}-$$.jsonl"
 
     if timeout "$timeout" claude -p "$prompt" \
         --plugin-dir "$REPO_ROOT" \
@@ -110,7 +113,8 @@ assert_no_premature_tools() {
     fi
 
     # Find line number of Skill invocation
-    local skill_line=$(grep -n '"name":"Skill"' "$log_file" | head -1 | cut -d: -f1)
+    local skill_line
+    skill_line="$(grep -n '"name":"Skill"' "$log_file" | head -1 | cut -d: -f1)"
 
     if [[ -z "$skill_line" ]]; then
         echo -e "  ${YELLOW}[SKIP]${NC} $test_name: No Skill invocation found"
@@ -118,7 +122,8 @@ assert_no_premature_tools() {
     fi
 
     # Check for tool calls before Skill
-    local premature_tools=$(head -n "$skill_line" "$log_file" | grep -E '"name":"(Bash|Read|Write|Edit|Glob|Grep)"' | head -3)
+    local premature_tools
+    premature_tools="$(head -n "$skill_line" "$log_file" | grep -E '"name":"(Bash|Read|Write|Edit|Glob|Grep)"' | head -3)"
 
     if [[ -n "$premature_tools" ]]; then
         echo -e "  ${RED}[FAIL]${NC} $test_name: Tools called before Skill"
@@ -174,8 +179,10 @@ assert_order() {
     local pattern_b="$3"
     local test_name="${4:-test}"
 
-    local line_a=$(echo "$output" | grep -n -i "$pattern_a" | head -1 | cut -d: -f1)
-    local line_b=$(echo "$output" | grep -n -i "$pattern_b" | head -1 | cut -d: -f1)
+    local line_a
+    line_a="$(echo "$output" | grep -n -i "$pattern_a" | head -1 | cut -d: -f1)"
+    local line_b
+    line_b="$(echo "$output" | grep -n -i "$pattern_b" | head -1 | cut -d: -f1)"
 
     if [[ -z "$line_a" ]]; then
         echo -e "  ${RED}[FAIL]${NC} $test_name: pattern A not found: $pattern_a"
@@ -242,7 +249,8 @@ assert_tool_not_called() {
 # Create a temporary test project directory
 # Usage: test_project=$(create_test_project)
 create_test_project() {
-    local test_dir=$(mktemp -d)
+    local test_dir
+    test_dir="$(mktemp -d)"
     mkdir -p "$test_dir/.agents/learnings"
     mkdir -p "$test_dir/.agents/research"
     mkdir -p "$test_dir/.beads"
@@ -261,7 +269,8 @@ cleanup_test_project() {
 # Cleanup old log files (keep last 50)
 cleanup_logs() {
     if [[ -d "$LOG_DIR" ]]; then
-        local count=$(find "$LOG_DIR" -name "*.jsonl" -type f | wc -l | tr -d ' ')
+        local count
+        count="$(find "$LOG_DIR" -name "*.jsonl" -type f | wc -l | tr -d ' ')"
         if [[ "$count" -gt 50 ]]; then
             find "$LOG_DIR" -name "*.jsonl" -type f -printf '%T@ %p\n' | \
                 sort -n | head -n $((count - 50)) | cut -d' ' -f2- | xargs rm -f

@@ -74,8 +74,8 @@ if $FULL_TEST; then
         fi
     done
 
-    print_summary $passed $failed 0
-    exit $([[ $failed -gt 0 ]] && echo 1 || echo 0)
+    print_summary "$passed" "$failed" 0
+    exit $((failed > 0))
 fi
 
 # =============================================================================
@@ -153,7 +153,6 @@ else
 fi
 
 echo -e "${BLUE}───────────────────────────────────────────${NC}"
-total=$((passed + failed))
 echo -e "  Total:  ${GREEN}$passed passed${NC}, ${RED}$failed failed${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════${NC}"
 

@@ -7,7 +7,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../claude-code/test-helpers.sh"
 
-PARALLEL="${1:-}"
 passed=0
 failed=0
 skipped=0

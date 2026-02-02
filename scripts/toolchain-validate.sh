@@ -46,6 +46,73 @@ done
 # Initialize output directory
 mkdir -p "$OUTPUT_DIR"
 
+# Determine scope (for --gate, default to changed files only)
+TARGET_FILES=()
+
+in_git_repo() {
+    git rev-parse --git-dir >/dev/null 2>&1
+}
+
+collect_target_files() {
+    if ! in_git_repo; then
+        return 0
+    fi
+
+    local files=""
+
+    # Prefer staged changes (pre-commit gate)
+    files="$(git diff --name-only --cached 2>/dev/null || true)"
+    if [[ -n "$files" ]]; then
+        printf "%s\n" "$files"
+        return 0
+    fi
+
+    # Then unstaged changes
+    files="$(git diff --name-only 2>/dev/null || true)"
+    if [[ -n "$files" ]]; then
+        printf "%s\n" "$files"
+        return 0
+    fi
+
+    # Finally, most recent commit (post-commit gate)
+    files="$(git show --name-only --pretty=format: HEAD 2>/dev/null || true)"
+    if [[ -n "$files" ]]; then
+        printf "%s\n" "$files"
+        return 0
+    fi
+
+    return 0
+}
+
+if [[ "$GATE" == "true" ]]; then
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        TARGET_FILES+=("$REPO_ROOT/$f")
+    done < <(collect_target_files)
+fi
+
+target_has_ext() {
+    local ext="$1"
+    if [[ "${#TARGET_FILES[@]}" -eq 0 ]]; then
+        return 1
+    fi
+    local f
+    for f in "${TARGET_FILES[@]}"; do
+        [[ "$f" == *".$ext" ]] && return 0
+    done
+    return 1
+}
+
+target_has_any_ext() {
+    local ext
+    for ext in "$@"; do
+        if target_has_ext "$ext"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Counters
 CRITICAL_COUNT=0
 HIGH_COUNT=0
@@ -55,7 +122,6 @@ TOOLS_RUN=0
 TOOLS_SKIPPED=0
 
 # Tool output files and status
-declare -A TOOL_FILES
 declare -A TOOL_STATUS
 
 log() {
@@ -68,8 +134,6 @@ run_tool() {
     local name="$1"
     local output_file="$OUTPUT_DIR/${name}.txt"
     shift
-
-    TOOL_FILES["$name"]="$output_file"
 
     if ! command -v "$1" &>/dev/null; then
         log "  [SKIP] $name - not installed"
@@ -84,11 +148,61 @@ run_tool() {
     return 0
 }
 
+discover_go_modules() {
+    find "$REPO_ROOT" -name go.mod -type f -print0 2>/dev/null | xargs -0 -n1 dirname 2>/dev/null || true
+}
+
+ensure_json_or_error() {
+    local tool="$1"
+    local json_file="$2"
+    local stderr_file="$3"
+
+    if [[ -s "$stderr_file" ]] && [[ ! -s "$json_file" ]]; then
+        {
+            echo "ERROR"
+            echo ""
+            cat "$stderr_file"
+        } > "$json_file"
+        TOOL_STATUS["$tool"]="error"
+        return 1
+    fi
+
+    if [[ ! -s "$json_file" ]]; then
+        echo "ERROR: no output produced" > "$json_file"
+        TOOL_STATUS["$tool"]="error"
+        return 1
+    fi
+
+    if ! jq empty "$json_file" >/dev/null 2>&1; then
+        {
+            echo "ERROR: non-JSON output"
+            echo ""
+            cat "$json_file"
+            if [[ -s "$stderr_file" ]]; then
+                echo ""
+                echo "STDERR:"
+                cat "$stderr_file"
+            fi
+        } > "$json_file"
+        TOOL_STATUS["$tool"]="error"
+        return 1
+    fi
+
+    return 0
+}
+
 # ============================================================================
 # TOOL: ruff (Python linting)
 # ============================================================================
 run_ruff() {
     local output_file="$OUTPUT_DIR/ruff.txt"
+
+    if [[ "$GATE" == "true" ]] && ! target_has_ext "py"; then
+        echo "NO_PYTHON_FILES_IN_TARGET" > "$output_file"
+        TOOL_STATUS["ruff"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
 
     if ! run_tool "ruff" ruff; then return 0; fi
 
@@ -124,25 +238,53 @@ run_ruff() {
 run_golangci() {
     local output_file="$OUTPUT_DIR/golangci-lint.txt"
 
-    if ! run_tool "golangci-lint" golangci-lint; then return 0; fi
-
-    # Check if there are Go files
-    if ! find "$REPO_ROOT" -name "*.go" -type f | head -1 | grep -q .; then
-        echo "NO_GO_FILES" > "$output_file"
+    if [[ "$GATE" == "true" ]] && ! target_has_any_ext go mod sum; then
+        echo "NO_GO_CHANGES_IN_TARGET" > "$output_file"
         TOOL_STATUS["golangci-lint"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
         return 0
     fi
 
-    # Run golangci-lint (redirect all output to file)
-    if golangci-lint run "$REPO_ROOT/..." > "$output_file" 2>&1; then
+    if ! run_tool "golangci-lint" golangci-lint; then return 0; fi
+
+    local modules
+    modules="$(discover_go_modules)"
+    if [[ -z "$modules" ]]; then
+        echo "NO_GO_FILES" > "$output_file"
+        TOOL_STATUS["golangci-lint"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
+
+    local cache_dir="$OUTPUT_DIR/.golangci-cache"
+    local go_cache_dir="$OUTPUT_DIR/.go-cache"
+    mkdir -p "$cache_dir" "$go_cache_dir"
+
+    : > "$output_file"
+    local had_findings=false
+
+    while IFS= read -r module_dir; do
+        [[ -z "$module_dir" ]] && continue
+        {
+            echo "== golangci-lint: $module_dir =="
+        } >> "$output_file"
+
+        if (cd "$module_dir" && GOLANGCI_LINT_CACHE="$cache_dir" GOCACHE="$go_cache_dir" golangci-lint run ./...) >> "$output_file" 2>&1; then
+            echo "" >> "$output_file"
+        else
+            echo "" >> "$output_file"
+            had_findings=true
+        fi
+    done <<< "$modules"
+
+    local issues
+    issues=$(grep -cE "^[^:]+:[0-9]+:[0-9]+:" "$output_file" 2>/dev/null || true)
+    issues=${issues:-0}
+    issues=$(echo "$issues" | tr -d '[:space:]')
+    if [[ "$issues" -eq 0 ]] && [[ "$had_findings" == "false" ]]; then
         echo "CLEAN" > "$output_file"
         TOOL_STATUS["golangci-lint"]="pass"
     else
-        # Count issues by matching file:line:col: pattern (skip headers/footers)
-        local issues
-        issues=$(grep -cE "^[^:]+:[0-9]+:[0-9]+:" "$output_file" 2>/dev/null || true)
-        issues=${issues:-0}
-        issues=$(echo "$issues" | tr -d '[:space:]')
         HIGH_COUNT=$((HIGH_COUNT + issues))
         TOOL_STATUS["golangci-lint"]="findings"
     fi
@@ -177,20 +319,32 @@ run_gitleaks() {
 run_shellcheck() {
     local output_file="$OUTPUT_DIR/shellcheck.txt"
 
+    if [[ "$GATE" == "true" ]] && ! target_has_ext "sh"; then
+        echo "NO_SHELL_FILES_IN_TARGET" > "$output_file"
+        TOOL_STATUS["shellcheck"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
+
     if ! run_tool "shellcheck" shellcheck; then return 0; fi
 
     # Find all shell scripts
     local scripts
-    scripts=$(find "$REPO_ROOT" -name "*.sh" -type f ! -path "*/.git/*" 2>/dev/null || true)
+    if [[ "$GATE" == "true" ]] && [[ "${#TARGET_FILES[@]}" -gt 0 ]]; then
+        scripts="$(printf "%s\n" "${TARGET_FILES[@]}" | grep -E '\\.sh$' || true)"
+    else
+        scripts="$(find "$REPO_ROOT" -name "*.sh" -type f ! -path "*/.git/*" 2>/dev/null || true)"
+    fi
 
     if [[ -z "$scripts" ]]; then
-        echo "NO_SHELL_FILES" > "$output_file"
+        echo "NO_SHELL_FILES_IN_TARGET" > "$output_file"
         TOOL_STATUS["shellcheck"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
         return 0
     fi
 
     # Run shellcheck
-    echo "$scripts" | xargs shellcheck -f gcc 2>&1 > "$output_file" || true
+    echo "$scripts" | xargs shellcheck -x -f gcc > "$output_file" 2>&1 || true
 
     if [[ ! -s "$output_file" ]]; then
         echo "CLEAN" > "$output_file"
@@ -220,17 +374,25 @@ run_shellcheck() {
 run_radon() {
     local output_file="$OUTPUT_DIR/radon.txt"
 
+    if [[ "$GATE" == "true" ]] && ! target_has_ext "py"; then
+        echo "NO_PYTHON_FILES_IN_TARGET" > "$output_file"
+        TOOL_STATUS["radon"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
+
     if ! run_tool "radon" radon; then return 0; fi
 
     # Check if there are Python files
     if ! find "$REPO_ROOT" -name "*.py" -type f | head -1 | grep -q .; then
         echo "NO_PYTHON_FILES" > "$output_file"
         TOOL_STATUS["radon"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
         return 0
     fi
 
     # Run radon for cyclomatic complexity (min C = 11+)
-    radon cc "$REPO_ROOT" -a -s --min C 2>&1 > "$output_file" || true
+    radon cc "$REPO_ROOT" -a -s --min C > "$output_file" 2>&1 || true
 
     if [[ ! -s "$output_file" ]]; then
         echo "CLEAN" > "$output_file"
@@ -301,24 +463,53 @@ run_gotest() {
 
     local output_file="$OUTPUT_DIR/gotest.txt"
 
-    if ! run_tool "go-test" go; then return 0; fi
-
-    # Check if there are Go test files
-    if ! find "$REPO_ROOT" -name "*_test.go" -type f | head -1 | grep -q .; then
-        echo "NO_TEST_FILES" > "$output_file"
+    if [[ "$GATE" == "true" ]] && ! target_has_any_ext go mod sum; then
+        echo "NO_GO_CHANGES_IN_TARGET" > "$output_file"
         TOOL_STATUS["go-test"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
         return 0
     fi
 
-    # Run go test
-    if (cd "$REPO_ROOT" && go test ./... -short) > "$output_file" 2>&1; then
+    if ! run_tool "go-test" go; then return 0; fi
+
+    local modules
+    modules="$(discover_go_modules)"
+    if [[ -z "$modules" ]]; then
+        echo "NO_GO_MODULES" > "$output_file"
+        TOOL_STATUS["go-test"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
+
+    local go_cache_dir="$OUTPUT_DIR/.go-cache"
+    mkdir -p "$go_cache_dir"
+
+    : > "$output_file"
+    local had_failures=false
+    local failures=0
+
+    while IFS= read -r module_dir; do
+        [[ -z "$module_dir" ]] && continue
+
+        {
+            echo "== go test: $module_dir =="
+        } >> "$output_file"
+
+        if (cd "$module_dir" && GOCACHE="$go_cache_dir" go test ./... -short) >> "$output_file" 2>&1; then
+            echo "" >> "$output_file"
+        else
+            echo "" >> "$output_file"
+            had_failures=true
+        fi
+    done <<< "$modules"
+
+    failures=$(grep -c "^--- FAIL" "$output_file" 2>/dev/null || true)
+    failures=${failures:-0}
+    failures=$(echo "$failures" | tr -d '[:space:]')
+    if [[ "$failures" -eq 0 ]] && [[ "$had_failures" == "false" ]]; then
         echo "PASS" >> "$output_file"
         TOOL_STATUS["go-test"]="pass"
     else
-        local failures
-        failures=$(grep -c "^--- FAIL" "$output_file" 2>/dev/null || true)
-        failures=${failures:-0}
-        failures=$(echo "$failures" | tr -d '[:space:]')
         CRITICAL_COUNT=$((CRITICAL_COUNT + failures))
         TOOL_STATUS["go-test"]="findings"
     fi
@@ -329,23 +520,44 @@ run_gotest() {
 # ============================================================================
 run_semgrep() {
     local output_file="$OUTPUT_DIR/semgrep.txt"
+    local stderr_file="$OUTPUT_DIR/semgrep.stderr.txt"
+
+    if [[ "$GATE" == "true" ]] && ! target_has_any_ext go py js ts tsx jsx java rb php cs; then
+        echo "NO_CODE_FILES_IN_TARGET" > "$output_file"
+        TOOL_STATUS["semgrep"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
 
     if ! run_tool "semgrep" semgrep; then return 0; fi
 
-    if semgrep scan --config=auto "$REPO_ROOT" --json > "$output_file" 2>&1; then
-        TOOL_STATUS["semgrep"]="pass"
-    else
-        local critical high
-        critical=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' "$output_file" 2>/dev/null || echo 0)
-        high=$(jq '[.results[] | select(.extra.severity == "WARNING")] | length' "$output_file" 2>/dev/null || echo 0)
-        critical=${critical:-0}
-        high=${high:-0}
-        critical=$(echo "$critical" | tr -d '[:space:]')
-        high=$(echo "$high" | tr -d '[:space:]')
-        CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
-        HIGH_COUNT=$((HIGH_COUNT + high))
-        TOOL_STATUS["semgrep"]="findings"
+    : > "$stderr_file"
+
+    local ssl_cert_file=""
+    if command -v python3 >/dev/null 2>&1; then
+        ssl_cert_file="$(python3 -c 'import certifi; print(certifi.where())' 2>/dev/null || true)"
     fi
+
+    if [[ -n "$ssl_cert_file" ]]; then
+        SSL_CERT_FILE="$ssl_cert_file" semgrep scan --config=auto "$REPO_ROOT" --json --quiet > "$output_file" 2> "$stderr_file" || true
+    else
+        semgrep scan --config=auto "$REPO_ROOT" --json --quiet > "$output_file" 2> "$stderr_file" || true
+    fi
+
+    if ! ensure_json_or_error "semgrep" "$output_file" "$stderr_file"; then
+        return 0
+    fi
+
+    local critical high
+    critical=$(jq '[.results[]? | select(.extra.severity == "ERROR")] | length' "$output_file" 2>/dev/null || echo 0)
+    high=$(jq '[.results[]? | select(.extra.severity == "WARNING")] | length' "$output_file" 2>/dev/null || echo 0)
+    critical=${critical:-0}
+    high=${high:-0}
+    critical=$(echo "$critical" | tr -d '[:space:]')
+    high=$(echo "$high" | tr -d '[:space:]')
+    CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
+    HIGH_COUNT=$((HIGH_COUNT + high))
+    TOOL_STATUS["semgrep"]=$([[ "$critical" -gt 0 || "$high" -gt 0 ]] && echo "findings" || echo "pass")
 }
 
 # ============================================================================
@@ -353,26 +565,68 @@ run_semgrep() {
 # ============================================================================
 run_trivy() {
     local output_file="$OUTPUT_DIR/trivy.txt"
+    local stderr_file="$OUTPUT_DIR/trivy.stderr.txt"
+
+    if [[ "$GATE" == "true" ]] && ! target_has_any_ext go mod sum json lock yaml yml; then
+        echo "NO_DEPENDENCY_CHANGES_IN_TARGET" > "$output_file"
+        TOOL_STATUS["trivy"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
 
     if ! run_tool "trivy" trivy; then return 0; fi
 
-    if trivy fs "$REPO_ROOT" --severity CRITICAL,HIGH --format json > "$output_file" 2>&1; then
-        local critical high
-        critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "$output_file" 2>/dev/null || echo 0)
-        high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "$output_file" 2>/dev/null || echo 0)
-        critical=${critical:-0}
-        high=${high:-0}
-        critical=$(echo "$critical" | tr -d '[:space:]')
-        high=$(echo "$high" | tr -d '[:space:]')
-        if [[ "$critical" -gt 0 ]] || [[ "$high" -gt 0 ]]; then
-            CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
-            HIGH_COUNT=$((HIGH_COUNT + high))
-            TOOL_STATUS["trivy"]="findings"
-        else
-            TOOL_STATUS["trivy"]="pass"
-        fi
+    : > "$stderr_file"
+
+    local docker_cfg
+    docker_cfg="$(mktemp -d)"
+
+    local cache_dir="$OUTPUT_DIR/.trivy-cache"
+    mkdir -p "$cache_dir"
+
+    local db_repo="${TRIVY_DB_REPOSITORY:-ghcr.io/aquasecurity/trivy-db:2}"
+
+    local db_flag=()
+    if trivy fs --help 2>/dev/null | grep -q -- '--db-repository'; then
+        db_flag=(--db-repository "$db_repo")
+    fi
+
+    DOCKER_CONFIG="$docker_cfg" TRIVY_CACHE_DIR="$cache_dir" trivy fs "$REPO_ROOT" \
+        --severity CRITICAL,HIGH \
+        --format json \
+        "${db_flag[@]}" \
+        > "$output_file" 2> "$stderr_file" || true
+    rm -rf "$docker_cfg"
+
+    # In sandboxed / offline environments, allow trivy to be skipped gracefully.
+    if [[ -s "$stderr_file" ]] && grep -qiE 'no such host|dial tcp|lookup .*: no such host' "$stderr_file"; then
+        {
+            echo "SKIPPED: network unavailable"
+            echo ""
+            cat "$stderr_file"
+        } > "$output_file"
+        TOOL_STATUS["trivy"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
+
+    if ! ensure_json_or_error "trivy" "$output_file" "$stderr_file"; then
+        return 0
+    fi
+
+    local critical high
+    critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "$output_file" 2>/dev/null || echo 0)
+    high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "$output_file" 2>/dev/null || echo 0)
+    critical=${critical:-0}
+    high=${high:-0}
+    critical=$(echo "$critical" | tr -d '[:space:]')
+    high=$(echo "$high" | tr -d '[:space:]')
+    if [[ "$critical" -gt 0 ]] || [[ "$high" -gt 0 ]]; then
+        CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
+        HIGH_COUNT=$((HIGH_COUNT + high))
+        TOOL_STATUS["trivy"]="findings"
     else
-        TOOL_STATUS["trivy"]="error"
+        TOOL_STATUS["trivy"]="pass"
     fi
 }
 
@@ -381,24 +635,76 @@ run_trivy() {
 # ============================================================================
 run_gosec() {
     local output_file="$OUTPUT_DIR/gosec.txt"
+    local stderr_file="$OUTPUT_DIR/gosec.stderr.txt"
 
-    if ! run_tool "gosec" gosec; then return 0; fi
-
-    if ! find "$REPO_ROOT" -name "*.go" -type f | head -1 | grep -q .; then
-        echo "NO_GO_FILES" > "$output_file"
+    if [[ "$GATE" == "true" ]] && ! target_has_any_ext go mod sum; then
+        echo "NO_GO_CHANGES_IN_TARGET" > "$output_file"
         TOOL_STATUS["gosec"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
         return 0
     fi
 
-    if gosec -fmt json "$REPO_ROOT/..." > "$output_file" 2>&1; then
-        TOOL_STATUS["gosec"]="pass"
-    else
-        local issues
-        issues=$(jq '.Issues | length' "$output_file" 2>/dev/null || echo 0)
-        issues=${issues:-0}
-        issues=$(echo "$issues" | tr -d '[:space:]')
+    if ! run_tool "gosec" gosec; then return 0; fi
+
+    local modules
+    modules="$(discover_go_modules)"
+    if [[ -z "$modules" ]]; then
+        echo "NO_GO_MODULES" > "$output_file"
+        TOOL_STATUS["gosec"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
+
+    : > "$stderr_file"
+    : > "$output_file"
+
+    while IFS= read -r module_dir; do
+        [[ -z "$module_dir" ]] && continue
+
+        local module_json
+        module_json="$(mktemp)"
+        local module_stderr
+        module_stderr="$(mktemp)"
+
+        {
+            echo "== gosec: $module_dir =="
+        } >> "$output_file"
+
+        (cd "$module_dir" && gosec -quiet -fmt json ./... > "$module_json" 2> "$module_stderr") || true
+
+        if jq empty "$module_json" >/dev/null 2>&1; then
+            cat "$module_json" >> "$output_file"
+            echo "" >> "$output_file"
+        else
+            {
+                echo "ERROR: gosec produced non-JSON output"
+                if [[ -s "$module_stderr" ]]; then
+                    echo ""
+                    cat "$module_stderr"
+                fi
+            } >> "$stderr_file"
+        fi
+
+        rm -f "$module_json" "$module_stderr"
+    done <<< "$modules"
+
+    # If we have errors, keep tool status but don't treat as findings.
+    if [[ -s "$stderr_file" ]]; then
+        TOOL_STATUS["gosec"]="error"
+        cat "$stderr_file" >> "$output_file"
+        return 0
+    fi
+
+    # Count issues across combined JSON blocks (best-effort)
+    local issues
+    issues=$(grep -c '"severity":' "$output_file" 2>/dev/null || true)
+    issues=${issues:-0}
+    issues=$(echo "$issues" | tr -d '[:space:]')
+    if [[ "$issues" -gt 0 ]]; then
         HIGH_COUNT=$((HIGH_COUNT + issues))
         TOOL_STATUS["gosec"]="findings"
+    else
+        TOOL_STATUS["gosec"]="pass"
     fi
 }
 
@@ -443,6 +749,9 @@ log "Toolchain Validation"
 log "===================="
 log "Target: $REPO_ROOT"
 log "Output: $OUTPUT_DIR"
+if [[ "$GATE" == "true" ]] && [[ "${#TARGET_FILES[@]}" -gt 0 ]]; then
+    log "Scope: changed files only"
+fi
 log ""
 
 # Run all tools
@@ -524,9 +833,9 @@ else
     log ""
 
     if [[ "$GATE_STATUS" == "BLOCKED_CRITICAL" ]]; then
-        log "  Gate: BLOCKED (${CRITICAL_COUNT} critical findings)"
+        log "  Gate: BLOCKED - ${CRITICAL_COUNT} critical findings"
     elif [[ "$GATE_STATUS" == "BLOCKED_HIGH" ]]; then
-        log "  Gate: BLOCKED (${HIGH_COUNT} high findings)"
+        log "  Gate: BLOCKED - ${HIGH_COUNT} high findings"
     else
         log "  Gate: PASS"
     fi

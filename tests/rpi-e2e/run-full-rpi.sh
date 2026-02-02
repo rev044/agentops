@@ -124,7 +124,7 @@ test_metrics() {
 test_pool() {
     log "Test: ao pool commands..."
 
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || { log_fail "cd failed: $TEST_DIR"; return 1; }
 
     # Test pool list
     if ao pool list --output json > /dev/null 2>&1; then
@@ -138,7 +138,7 @@ test_pool() {
 test_orchestrate() {
     log "Test: ao orchestrate command..."
 
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || { log_fail "cd failed: $TEST_DIR"; return 1; }
 
     # Test orchestrate with dry-run
     if ao orchestrate --files "src/*.go" --dry-run --output json > /dev/null 2>&1; then
@@ -185,7 +185,7 @@ test_gate() {
 test_validation_chain() {
     log "Test: RPI validation chain..."
 
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || { log_fail "cd failed: $TEST_DIR"; return 1; }
 
     # Create a mock research artifact
     cat > "$TEST_DIR/.agents/research/test-research.md" << 'RESEARCH'
@@ -226,7 +226,7 @@ RESEARCH
 test_citations() {
     log "Test: Knowledge flywheel citations..."
 
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || { log_fail "cd failed: $TEST_DIR"; return 1; }
 
     # Create citations file
     mkdir -p "$TEST_DIR/.agents/ao"
@@ -253,7 +253,7 @@ CITATIONS
 test_pool_workflow() {
     log "Test: Pool workflow (add → stage → promote)..."
 
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || { log_fail "cd failed: $TEST_DIR"; return 1; }
 
     # Create a mock pool entry
     cat > "$TEST_DIR/.agents/pool/pending/test-candidate.json" << 'ENTRY'
@@ -304,7 +304,7 @@ ENTRY
 test_synthesize() {
     log "Test: ao synthesize command..."
 
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || { log_fail "cd failed: $TEST_DIR"; return 1; }
 
     # Create mock findings directory with plan
     local plan_id="test-synth-plan"
