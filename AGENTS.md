@@ -2,6 +2,23 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
+## Installing/Updating Skills
+
+Use the [skills.sh](https://skills.sh/) npm package to install AgentOps skills for any agent:
+
+```bash
+# Install for all supported agents
+npx skills@latest add boshu2/agentops --all -g
+
+# Install for specific agents
+npx skills@latest add boshu2/agentops -g -a codex -s '*' -y
+npx skills@latest add boshu2/agentops -g -a opencode -s '*' -y
+npx skills@latest add boshu2/agentops -g -a cursor -s '*' -y
+
+# Update all installed skills
+npx skills@latest update
+```
+
 ## Quick Reference
 
 ```bash
