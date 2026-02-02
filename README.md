@@ -3,6 +3,7 @@
 # AgentOps
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Skills](https://img.shields.io/badge/Skills-npx%20skills-7c3aed)](https://skills.sh/)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
@@ -199,7 +200,7 @@ npx skills@latest add boshu2/agentops --all -g
 Install to a specific agent only (example: Codex):
 
 ```bash
-npx skills@latest add boshu2/agentops -g -a codex --all
+npx skills@latest add boshu2/agentops -g -a codex -s '*' -y
 ```
 
 Update later:
