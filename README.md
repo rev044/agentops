@@ -199,10 +199,13 @@ npx skills@latest add boshu2/agentops --all -g
 
 This works across multiple clients (e.g. **Codex**, **OpenCode**, **Claude Code**, **Cursor**, etc.) — the installer writes to the right place for each agent.
 
-Install to a specific agent only (example: Codex):
+Install to a specific client (examples):
 
 ```bash
 npx skills@latest add boshu2/agentops -g -a codex -s '*' -y
+npx skills@latest add boshu2/agentops -g -a opencode -s '*' -y
+npx skills@latest add boshu2/agentops -g -a claude-code -s '*' -y
+npx skills@latest add boshu2/agentops -g -a cursor -s '*' -y
 ```
 
 Update later:
@@ -211,20 +214,29 @@ Update later:
 npx skills@latest update
 ```
 
-### 2. Install CLI (Optional)
+### 2. Use the Skills (Any Agent)
+
+Once installed, invoke a skill in your client (slash-based UIs use `/skill-name`):
+
+```text
+/pre-mortem "add OAuth integration"
+/vibe
+```
+
+### 3. Install CLI (Optional)
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
 ```
 
-### 3. Install Plugin (Claude Code Only)
+### 4. Install Plugin (Claude Code Only)
 
 ```bash
 claude plugin add boshu2/agentops
 ```
 
-### 4. Initialize in Your Project (Claude Code + CLI)
+### 5. Initialize in Your Project (Claude Code + CLI)
 
 ```bash
 ao init && ao hooks install
@@ -232,7 +244,7 @@ ao init && ao hooks install
 
 Or just ask Claude: *"initialize agentops"*
 
-### 5. Start With Validation
+### 6. Start With Validation
 
 Before implementing your next feature:
 
