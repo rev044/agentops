@@ -562,3 +562,260 @@ Parameters:
 | Retry logic contradiction | Saw "retry" and "3" in multiple docs, assumed consistent | Trace: On rejection → does Demigod retry or Apollo escalate? |
 
 **The lesson:** Mechanical verification beats gestalt impression.
+
+---
+
+## Remote Validation Mode
+
+**Use case:** Mayor validates Demigod work before accepting DONE message.
+
+### Invocation
+
+```bash
+/vibe --remote <session-name>
+```
+
+Where `<session-name>` is the tmux session name of the Demigod (e.g., `gt-athena-demigod-oauth-1`).
+
+### Why Remote Validation
+
+In the Olympus multi-agent architecture, Demigods work in isolated worktrees. Before accepting their OFFERING_READY or DONE message, the Mayor/Delphi can validate:
+
+1. **Is the work actually done?** (not stuck, not hallucinating success)
+2. **Does it pass local checks?** (tests, lint, build)
+3. **Is context saturation under control?** (not above 80%)
+
+Remote validation prevents accepting bad work and enables early intervention.
+
+### Remote Validation Steps
+
+#### Step R1: Capture Demigod Session Output
+
+```bash
+# Capture the last 100 lines from the demigod's tmux session
+tmux capture-pane -t <session-name> -p -S -100 > /tmp/demigod-capture.txt
+
+# Check if session exists
+if [ $? -ne 0 ]; then
+  echo "ERROR: Session <session-name> not found"
+  exit 1
+fi
+```
+
+**Parse the capture for:**
+- Last activity timestamp (look for tool calls, file edits)
+- Any error messages or stack traces
+- Context usage indicators (if available)
+- Completion signals (e.g., "DONE", "ready for review")
+
+#### Step R2: Identify Demigod Worktree
+
+```bash
+# Get the worktree path from the session or infer from session name
+# Pattern: gt-<rig>-demigod-<quest>-<n>
+WORKTREE=$(git worktree list | grep "<quest>" | awk '{print $1}')
+
+# If worktree not found, try extracting from session env
+# (Demigods have OL_WORKTREE_PATH set)
+```
+
+#### Step R3: Read Recent File Changes in Worktree
+
+```bash
+# Navigate to demigod's worktree
+cd $WORKTREE
+
+# Check for uncommitted changes
+git status --porcelain
+
+# Check recent commits (last 3)
+git log --oneline -3
+
+# Get list of changed files
+git diff --name-only HEAD~3 2>/dev/null || git diff --name-only
+```
+
+**Read the changed files using the Read tool.** This gives visibility into what the Demigod actually produced.
+
+#### Step R4: Run Local Validation Checks
+
+**In the Demigod's worktree, run:**
+
+```bash
+cd $WORKTREE
+
+# Check if tests pass (language-specific)
+# Go:
+go test ./... 2>&1 | tail -20
+
+# Python:
+pytest --tb=short 2>&1 | tail -20
+
+# Node:
+npm test 2>&1 | tail -20
+
+# Check lint status
+# Go:
+golangci-lint run --new 2>&1 | head -30
+
+# Python:
+ruff check . 2>&1 | head -30
+
+# Check build
+go build ./... 2>&1 || npm run build 2>&1 || echo "Build check skipped"
+```
+
+#### Step R5: Analyze Demigod Health
+
+From the captured output, assess:
+
+| Signal | Healthy | Warning | Critical |
+|--------|---------|---------|----------|
+| **Last activity** | <5 min ago | 5-15 min ago | >15 min ago |
+| **Error patterns** | None | Warnings | Stack traces |
+| **Context hints** | <60% | 60-80% | >80% |
+| **Completion signal** | Present | Absent | "STUCK" or "HELP" |
+
+#### Step R6: Compute Remote Vibe Grade
+
+Based on remote inspection:
+
+| Grade | Criteria |
+|-------|----------|
+| **PASS** | Tests pass + no critical errors + completion signal present |
+| **WARN** | Tests pass but warnings OR no recent activity |
+| **BLOCK** | Tests fail OR critical errors OR context >80% |
+| **STALE** | No activity >15 min, no completion signal |
+
+#### Step R7: Send Result via Agent Mail
+
+```bash
+# If using gt mail (Gas Town)
+gt mail send <demigod-address> -s "VIBE_RESULT: <grade>" -m "$(cat <<'EOF'
+Remote Validation Result
+========================
+Session: <session-name>
+Grade: <PASS|WARN|BLOCK|STALE>
+Worktree: $WORKTREE
+
+Findings:
+- <finding 1>
+- <finding 2>
+
+Recommendation: <ACCEPT|REWORK|INTERVENE|CHECKPOINT>
+EOF
+)"
+
+# If using Olympus Agent Mail
+# Send VALIDATION_RESULT message per agent-mail.md spec
+```
+
+#### Step R8: Write Remote Vibe Report
+
+**Write to:** `.agents/vibe/YYYY-MM-DD-remote-<session-name>.md`
+
+```markdown
+# Remote Vibe Report: <session-name>
+
+**Date:** YYYY-MM-DD HH:MM
+**Session:** <session-name>
+**Worktree:** <worktree-path>
+**Grade:** <PASS|WARN|BLOCK|STALE>
+
+## Session Health
+- Last Activity: <timestamp>
+- Context Usage: <if available>
+- Completion Signal: <yes/no>
+
+## Validation Results
+| Check | Result |
+|-------|--------|
+| Tests | PASS/FAIL |
+| Lint | PASS/FAIL |
+| Build | PASS/FAIL |
+
+## Changed Files
+<list of files with brief assessment>
+
+## Recommendation
+<ACCEPT|REWORK|INTERVENE|CHECKPOINT>
+
+## Action Taken
+<what message was sent>
+```
+
+### Remote Validation Integration with Olympus
+
+When running in `full` profile with Olympus agents:
+
+```yaml
+remote_vibe_integration:
+  trigger: OFFERING_READY received
+  validator: Chiron (Stage 1) or Athena (Stage 2)
+
+  workflow:
+    1: Receive OFFERING_READY from Demigod
+    2: Run /vibe --remote <demigod-session>
+    3: If PASS → send STAGE1_PASS (proceed to Athena)
+    4: If WARN → send STAGE1_PASS with notes
+    5: If BLOCK → send STAGE1_FAIL with actionable feedback
+    6: If STALE → send DEMIGOD_HEALTH_ALERT to Delphi
+
+  messages_sent:
+    - STAGE1_PASS (Chiron → Delphi, Demigod)
+    - STAGE1_FAIL (Chiron → Delphi, Demigod)
+    - DEMIGOD_HEALTH_ALERT (Chiron → Delphi)
+```
+
+### Example: Full Remote Validation Run
+
+```bash
+# 1. Capture session
+tmux capture-pane -t gt-athena-demigod-oauth-1 -p -S -100 > /tmp/capture.txt
+
+# 2. Find worktree
+WORKTREE=$(git worktree list | grep oauth | awk '{print $1}')
+# Output: /Users/fullerbt/gt/athena/.worktrees/oauth
+
+# 3. Check changes
+cd $WORKTREE
+git diff --name-only
+# Output:
+# internal/auth/oauth.go
+# internal/auth/oauth_test.go
+
+# 4. Read and assess files
+# (Use Read tool on each file)
+
+# 5. Run tests
+go test ./internal/auth/... 2>&1
+# Output: PASS
+
+# 6. Check lint
+golangci-lint run --new ./internal/auth/...
+# Output: No issues
+
+# 7. Grade: PASS
+# Recommendation: ACCEPT
+
+# 8. Send result
+gt mail send delphi-oauth@olympus -s "VIBE_RESULT: PASS" -m "..."
+```
+
+### Key Rules for Remote Validation
+
+1. **Non-invasive** - Only read, never modify Demigod's worktree
+2. **Fast** - Complete in <2 minutes (don't block the pipeline)
+3. **Actionable** - Always include specific feedback if BLOCK
+4. **Recorded** - Always write report to `.agents/vibe/`
+5. **Message result** - Always send result via Agent Mail (don't just print)
+
+### Troubleshooting Remote Validation
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Session not found | Demigod died or wrong name | Check `tmux list-sessions` |
+| Worktree not found | Quest name mismatch | Check `git worktree list` |
+| Tests timeout | Demigod left broken state | BLOCK with "tests hung" |
+| Empty capture | Session just started | Wait 30s and retry |
+| No completion signal | Work in progress | Grade as WARN, check again later |
