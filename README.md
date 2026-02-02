@@ -521,6 +521,16 @@ ao farm stop              # Graceful shutdown
 | **Deep dives** | `/bug-hunt`, `/complexity`, `/doc` | On-demand analysis |
 | **Background** | `/forge`, `/extract`, `/inject`, `/knowledge`, `/flywheel` | Hooks run these |
 
+## Which Loop Should I Use?
+
+If you’re trying to “run the loop”:
+
+| You Want | Use | Why |
+|----------|-----|-----|
+| Fresh-context iteration (Ralph Wiggum pattern) | `/swarm` | Mayor owns the while-loop; each `Task(run_in_background=true)` spawn is fresh context |
+| Autonomous epic execution (issue loop) | `/crank` | Loops through tracked issues (often via `/implement`) until the epic is closed |
+| Progress gates through RPI | `/ratchet` | Records/validates Research → Plan → Implement checkpoints (doesn’t execute work by itself) |
+
 ---
 
 ## CLI Reference

@@ -37,8 +37,8 @@ Research → Plan → Implement → Validate
 
 ```bash
 /implement <issue>     # Single issue execution
-/crank <epic>          # Autonomous single-agent execution
-/swarm [--agents N]     # Parallel multi-agent execution
+/crank <epic>          # Epic execution loop (issue-driven)
+/swarm                 # Ralph loop (fresh context per task)
 ```
 
 **Output:** Code changes, tests, documentation
@@ -61,6 +61,11 @@ Research → Plan → Implement → Validate
 | **Plan** | `/plan` | `/pre-mortem` |
 | **Implement** | `/implement` | `/crank` (single-agent), `/swarm` (multi-agent) |
 | **Validate** | `/vibe` | `/retro`, `/post-mortem` |
+
+**Choosing the loop:**
+- Use `/swarm` when you want **fresh context per iteration** (Ralph Wiggum pattern).
+- Use `/crank` when you want to **execute an epic to completion** (issue loop).
+- Use `/ratchet` to **gate/record progress** through RPI.
 
 ## Available Skills
 

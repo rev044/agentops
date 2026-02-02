@@ -11,6 +11,10 @@ description: 'Fully autonomous epic execution. Runs until ALL children are CLOSE
 
 Autonomous execution: implement all issues until the epic is DONE.
 
+## Not the “Ralph Loop”
+
+If you’re specifically trying to get *fresh context per iteration* (Ralph Wiggum pattern), use `/swarm`. `/crank` is an **issue loop** (work through the epic) and may involve long-running context in the orchestrating session.
+
 **Requires:** bd CLI (beads) for issue tracking, OR in-session TaskList for task-based tracking.
 
 ## Global Limits

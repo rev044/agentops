@@ -189,3 +189,11 @@ Making demigods loop internally would violate Ralph - context accumulates within
 - **Filesystem for artifacts** - Files written, commits made
 
 This is **Ralph + parallelism**: the while loop is distributed across wave spawns, with multiple agents per wave.
+
+## Distinctions (Common Confusion)
+
+| You Want | Use | Why |
+|----------|-----|-----|
+| Fresh-context loop (“Ralph”) | `/swarm` | Each spawned background agent is a clean slate |
+| Epic execution loop | `/crank` | Loops issues until epic closes (not fresh context per iteration) |
+| RPI progress gates | `/ratchet` | Tracks/locks progress; does not execute work by itself |

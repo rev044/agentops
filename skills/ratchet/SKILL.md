@@ -7,6 +7,8 @@ description: 'Brownian Ratchet progress gates for RPI workflow. Check, record, v
 
 Track progress through the RPI workflow with permanent gates.
 
+**Note:** `/ratchet` tracks and locks progress. It does not “run the loop” by itself—pair it with `/crank` (epic loop) or `/swarm` (Ralph loop) to actually execute work.
+
 ## The Brownian Ratchet
 
 ```
