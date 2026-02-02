@@ -31,11 +31,41 @@ Look for provenance metadata:
 # Check for source metadata in the file
 grep -i "source\|session\|from\|extracted" <artifact-path>
 
-# Search for related transcripts
+# Search for related transcripts using ao
 ao forge search "<artifact-name>" 2>/dev/null
 ```
 
-### Step 3: Build Lineage Chain
+### Step 3: Search Session Transcripts with CASS
+
+**Use CASS to find when this artifact was discussed:**
+
+```bash
+# Extract artifact name for search
+artifact_name=$(basename "<artifact-path>" .md)
+
+# Search session transcripts
+cass search "$artifact_name" --json --limit 5
+```
+
+**Parse CASS results to find:**
+- Sessions where artifact was created/discussed
+- Timeline of references
+- Related sessions by workspace
+
+**CASS JSON output fields:**
+```json
+{
+  "hits": [{
+    "title": "...",
+    "source_path": "/path/to/session.jsonl",
+    "created_at": 1766076237333,
+    "score": 18.5,
+    "agent": "claude_code"
+  }]
+}
+```
+
+### Step 4: Build Lineage Chain
 
 ```
 Transcript (source of truth)
@@ -49,7 +79,7 @@ Pattern recognition (tier-up)
 Skill creation (automation)
 ```
 
-### Step 4: Write Provenance Report
+### Step 5: Write Provenance Report
 
 ```markdown
 # Provenance: <artifact-name>
@@ -68,18 +98,24 @@ Skill creation (automation)
    - Reason: <why promoted>
    - Date: <when>
 
+## Session References (from CASS)
+| Date | Session | Agent | Score |
+|------|---------|-------|-------|
+| <date> | <session-id> | <agent> | <score> |
+
 ## Related Artifacts
 - <related artifact 1>
 - <related artifact 2>
 ```
 
-### Step 5: Report to User
+### Step 6: Report to User
 
 Tell the user:
 1. Artifact lineage
 2. Original source
 3. Promotion history
-4. Related artifacts
+4. Session references (from CASS)
+5. Related artifacts
 
 ## Finding Orphans
 
@@ -113,3 +149,4 @@ find .agents/ -name "*.md" -mtime +30 2>/dev/null
 - **Track promotions** - know why tier changed
 - **Find orphans** - clean up untracked knowledge
 - **Maintain lineage** - provenance enables trust
+- **Use CASS** - find when artifacts were discussed

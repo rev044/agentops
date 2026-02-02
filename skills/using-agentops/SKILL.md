@@ -86,6 +86,8 @@ Research → Plan → Implement → Validate
 | `/knowledge` | Query knowledge artifacts |
 | `/complexity` | Code complexity analysis |
 | `/doc` | Documentation generation |
+| `/provenance` | Trace artifact lineage to sources |
+| `/trace` | Trace design decisions through history |
 
 ## Knowledge Flywheel
 
@@ -106,6 +108,8 @@ Skills auto-trigger from conversation:
 | "What could go wrong with this?" | `/pre-mortem` |
 | "Let's execute this epic" | `/crank` |
 | "Spawn agents to work in parallel" | `/swarm` |
+| "How did we decide on this?" | `/trace` |
+| "Where did this learning come from?" | `/provenance` |
 
 ## Issue Tracking
 
