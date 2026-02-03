@@ -72,63 +72,33 @@ Parameters:
     Cite specific file:line references for all claims.
 ```
 
-### Step 4: Dispatch Research Quality Swarm (Optional)
+### Step 4: Validate Research Quality (Optional)
 
-**For thorough research, launch parallel quality validation agents:**
+**For thorough research, perform quality validation:**
 
-```
-Launch ALL FOUR agents in parallel (single message, 4 Task tool calls):
+#### 4a. Coverage Validation
+Check: Did we look everywhere we should? Any unexplored areas?
+- List directories/files explored
+- Identify gaps in coverage
+- Note areas that need deeper investigation
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:coverage-expert"
-  model: "haiku"
-  description: "Coverage validation"
-  prompt: |
-    Validate research breadth for: <topic>
-    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
+#### 4b. Depth Validation
+Check: Do we UNDERSTAND the critical parts? HOW and WHY, not just WHAT?
+- Rate depth (0-4) for each critical area
+- Flag areas with shallow understanding
+- Identify what needs more investigation
 
-    Check: Did we look everywhere we should? Any unexplored areas?
-    Return: Coverage score and gaps found.
+#### 4c. Gap Identification
+Check: What DON'T we know that we SHOULD know?
+- List critical gaps
+- Prioritize what must be filled before proceeding
+- Note what can be deferred
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:depth-expert"
-  model: "haiku"
-  description: "Depth validation"
-  prompt: |
-    Validate research depth for: <topic>
-    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
-
-    Check: Do we UNDERSTAND the critical parts? HOW and WHY, not just WHAT?
-    Return: Depth scores (0-4) for critical areas.
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:gap-identifier"
-  model: "haiku"
-  description: "Gap identification"
-  prompt: |
-    Find missing information for: <topic>
-    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
-
-    Check: What DON'T we know that we SHOULD know?
-    Return: Critical gaps that must be filled before proceeding.
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:assumption-challenger"
-  model: "haiku"
-  description: "Assumption challenge"
-  prompt: |
-    Challenge assumptions in research for: <topic>
-    Research artifact: .agents/research/YYYY-MM-DD-<topic-slug>.md
-
-    Check: What assumptions are we building on? Are they verified?
-    Return: High-risk assumptions that need verification.
-```
-
-**Wait for all 4 agents, then synthesize their findings.**
+#### 4d. Assumption Challenge
+Check: What assumptions are we building on? Are they verified?
+- List assumptions made
+- Flag high-risk unverified assumptions
+- Note what needs verification
 
 ### Step 5: Synthesize Findings
 

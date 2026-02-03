@@ -81,102 +81,67 @@ This creates ground truth for plan-compliance, not gestalt impression.
 
 Write comparison table to prompt text for plan-compliance-expert agent.
 
-### Step 4: Dispatch Synthesis Agents (with Tool Output)
+### Step 4: Triage Tool Findings and Synthesize
 
-**Before dispatching, substitute placeholders:**
-- `<epic-id>`: From Step 2
-- `<paste .agents/tooling/X.txt>`: Read and inline file contents
-- `<from Step 3>`: Use the comparison table built in Step 3
+**TRIAGE tool findings, not FIND issues. Tools already found issues.**
 
-**Now dispatch agents to TRIAGE tool findings, not to FIND issues.**
-
-Launch 4 agents in parallel (single message, 4 Task tool calls):
-
-```
-Tool: Task (ALL 4 IN PARALLEL)
-Parameters:
-  subagent_type: "agentops:security-reviewer"
-  model: "haiku"
-  description: "Triage security tool findings"
-  prompt: |
-    Tool output from gitleaks and other scanners:
-    <paste .agents/tooling/gitleaks.txt>
-    <paste .agents/tooling/semgrep.txt if exists>
-
-    For each finding:
-    1. Read the cited file:line
-    2. Assess: true positive or false positive?
-    3. If true positive: severity (CRITICAL/HIGH/MEDIUM/LOW) and fix
-
-    Output format:
-    | File:Line | Tool Finding | Verdict | Severity | Fix |
-    |-----------|--------------|---------|----------|-----|
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:code-reviewer"
-  model: "haiku"
-  description: "Triage code quality findings"
-  prompt: |
-    Tool output from linters:
-    <paste .agents/tooling/ruff.txt or golangci-lint.txt>
-
-    Complexity output:
-    <paste .agents/tooling/radon.txt if exists>
-
-    For each finding:
-    1. Read the cited file:line
-    2. Assess: worth fixing now, tech debt, or noise?
-    3. If worth fixing: suggest specific change
-
-    Output format:
-    | File:Line | Tool Finding | Priority | Suggested Fix |
-    |-----------|--------------|----------|---------------|
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:plan-compliance-expert"
-  model: "haiku"
-  description: "Verify plan completion"
-  prompt: |
-    Plan file: <path to .agents/plans/*.md>
-    Mechanical comparison table: <from Step 3>
-
-    For each plan item marked "no" or "partial":
-    1. Is this a real gap or scope change?
-    2. Should it be tracked as follow-up issue?
-
-    Output format:
-    | Plan Item | Status | Gap Type | Action |
-    |-----------|--------|----------|--------|
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:flywheel-feeder"
-  model: "haiku"
-  description: "Extract verified learnings"
-  prompt: |
-    Completed work: <epic-id or description>
-    Files changed: <git diff --name-only HEAD~N>
-
-    Extract learnings that are VERIFIED (appeared in multiple places or have source citation):
-
-    For each learning:
-    - ID: L-<date>-<N>
-    - Category: technical/process/architecture
-    - What: <1 sentence>
-    - Source: <file:line or commit hash>
-    - Verification: <how we know this is true>
-
-    DO NOT include confidence scores. Include source citations only.
+Read the tool outputs:
+```bash
+cat .agents/tooling/gitleaks.txt
+cat .agents/tooling/semgrep.txt
+cat .agents/tooling/ruff.txt
+cat .agents/tooling/golangci-lint.txt
+cat .agents/tooling/radon.txt
 ```
 
-**Timeout:** 3 minutes per agent.
+#### 4a. Triage Security Findings
 
-**On timeout:**
-- Mark agent as timed-out
-- Note in report which agents timed out
-- If >2 agents timeout, stop and report INCOMPLETE
+For each finding from gitleaks/semgrep:
+1. Read the cited file:line
+2. Assess: true positive or false positive?
+3. If true positive: severity (CRITICAL/HIGH/MEDIUM/LOW) and fix
+
+Record in table:
+| File:Line | Tool Finding | Verdict | Severity | Fix |
+|-----------|--------------|---------|----------|-----|
+
+#### 4b. Triage Code Quality Findings
+
+For each finding from linters:
+1. Read the cited file:line
+2. Assess: worth fixing now, tech debt, or noise?
+3. If worth fixing: suggest specific change
+
+Record in table:
+| File:Line | Tool Finding | Priority | Suggested Fix |
+|-----------|--------------|----------|---------------|
+
+#### 4c. Verify Plan Completion
+
+Using the mechanical comparison table from Step 3:
+
+For each plan item marked "no" or "partial":
+1. Is this a real gap or scope change?
+2. Should it be tracked as follow-up issue?
+
+Record in table:
+| Plan Item | Status | Gap Type | Action |
+|-----------|--------|----------|--------|
+
+#### 4d. Extract Verified Learnings
+
+From the completed work and changed files:
+
+Extract learnings that are VERIFIED (appeared in multiple places or have source citation):
+
+For each learning:
+- ID: L-<date>-<N>
+- Category: technical/process/architecture
+- What: <1 sentence>
+- Source: <file:line or commit hash>
+- Verification: <how we know this is true>
+
+DO NOT include confidence scores. Include source citations only.
 
 ### Step 5a: Log Triage Decisions
 

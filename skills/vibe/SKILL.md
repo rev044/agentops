@@ -181,11 +181,9 @@ For each file, check:
 | **Slop** | AI hallucinations, cargo cult code, over-engineering |
 | **Accessibility** | Missing ARIA, keyboard nav issues, contrast |
 
-### Step 6: Dispatch Triage Agents (with Tool Output)
+### Step 6: Triage Tool Findings
 
-**Agents TRIAGE tool findings. They do not "review for issues."**
-
-**Before dispatching, read tool outputs:**
+**Read tool outputs:**
 ```bash
 cat .agents/tooling/semgrep.txt
 cat .agents/tooling/gitleaks.txt
@@ -197,119 +195,61 @@ cat .agents/tooling/radon.txt
 cat .agents/tooling/hadolint.txt
 ```
 
-Launch 3 agents in parallel with SPECIFIC tool output:
+**Triage each finding category:**
 
-```
-Tool: Task (ALL 3 IN PARALLEL)
-Parameters:
-  subagent_type: "agentops:security-reviewer"
-  model: "haiku"
-  description: "Triage security tool findings"
-  prompt: |
-    TOOL FINDINGS TO TRIAGE:
+#### Security Findings (gitleaks, semgrep, gosec)
 
-    ## Gitleaks Output:
-    <paste .agents/tooling/gitleaks.txt>
+For EACH finding, determine verdict:
 
-    ## Semgrep Output:
-    <paste .agents/tooling/semgrep.txt>
+**TRUE_POSITIVE if:**
+- File path exists (not in comments/examples)
+- Not in test fixtures (*/test/*, */mock/*, *_test.go)
+- Not already suppressed (.gitleaksignore, //nolint, # nosec)
+- Pattern matches real credential (not placeholder like "xxx")
 
-    ## Gosec Output:
-    <paste .agents/tooling/gosec.txt>
+**FALSE_POSITIVE if:**
+- In test fixtures or examples
+- Already in ignore file
+- Placeholder value (contains "example", "test", "xxx")
+- Dead code path (function never called)
 
-    For EACH finding, determine verdict:
+Record in table:
+| File:Line | Tool | Finding | Verdict | Reason | Fix (if TRUE_POS) |
+|-----------|------|---------|---------|--------|-------------------|
 
-    TRUE_POSITIVE if:
-    - File path exists (not in comments/examples)
-    - Not in test fixtures (*/test/*, */mock/*, *_test.go)
-    - Not already suppressed (.gitleaksignore, //nolint, # nosec)
-    - Pattern matches real credential (not placeholder like "xxx")
+#### Linter Findings (ruff, golangci-lint, shellcheck)
 
-    FALSE_POSITIVE if:
-    - In test fixtures or examples
-    - Already in ignore file
-    - Placeholder value (contains "example", "test", "xxx")
-    - Dead code path (function never called)
+For EACH finding, apply severity rules:
 
-    OUTPUT FORMAT:
-    | File:Line | Tool | Finding | Verdict | Reason | Fix (if TRUE_POS) |
-    |-----------|------|---------|---------|--------|-------------------|
+**FIX_NOW if:**
+- Blocks functionality (import error, syntax error)
+- Security implication (bare except, eval usage)
+- Cyclomatic complexity >15 in changed code
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:code-reviewer"
-  model: "haiku"
-  description: "Triage linter findings"
-  prompt: |
-    LINTER FINDINGS TO TRIAGE:
+**TECH_DEBT if:**
+- Style only (line length 81-100)
+- Complexity 10-15
+- Has TODO with issue reference
 
-    ## Ruff/Golangci-lint Output:
-    <paste .agents/tooling/ruff.txt or golangci-lint.txt>
+**NOISE if:**
+- Already passing CI
+- No functional impact
+- In generated code
 
-    ## Shellcheck Output:
-    <paste .agents/tooling/shellcheck.txt>
+Record in table:
+| File:Line | Finding | Priority | Reason |
+|-----------|---------|----------|--------|
 
-    For EACH finding, apply severity rules:
+#### Complexity Findings (radon, hadolint)
 
-    FIX_NOW if:
-    - Blocks functionality (import error, syntax error)
-    - Security implication (bare except, eval usage)
-    - Cyclomatic complexity >15 in changed code
+For EACH high-complexity function:
+- Is it in changed files? (only review what's new)
+- Can it be split? (identify extraction points)
+- Is complexity justified? (state machines, parsers OK)
 
-    TECH_DEBT if:
-    - Style only (line length 81-100)
-    - Complexity 10-15
-    - Has TODO with issue reference
-
-    NOISE if:
-    - Already passing CI
-    - No functional impact
-    - In generated code
-
-    OUTPUT FORMAT:
-    | File:Line | Finding | Priority | Reason |
-    |-----------|---------|----------|--------|
-
-Tool: Task
-Parameters:
-  subagent_type: "agentops:architecture-expert"
-  model: "haiku"
-  description: "Triage complexity findings"
-  prompt: |
-    COMPLEXITY FINDINGS TO TRIAGE:
-
-    ## Radon Output:
-    <paste .agents/tooling/radon.txt>
-
-    ## Hadolint Output:
-    <paste .agents/tooling/hadolint.txt>
-
-    For EACH high-complexity function:
-    - Is it in changed files? (only review what's new)
-    - Can it be split? (identify extraction points)
-    - Is complexity justified? (state machines, parsers OK)
-
-    OUTPUT FORMAT:
-    | File:Function | Complexity | In Changed? | Recommendation |
-    |---------------|------------|-------------|----------------|
-```
-
-**Key change:** Agents now receive ACTUAL tool output and have EXPLICIT criteria for verdicts.
-
-**Timeout handling:** Per-agent timeout of 3 minutes (180000ms). If agent times out, continue with remaining results if quorum (80%) met. See `.agents/specs/conflict-resolution-algorithm.md` for synthesis rules.
-
-### Step 6a: Apply Conflict Resolution (for swarm results)
-
-**If multiple agents dispatched:**
-1. Check quorum (80% minimum must return)
-2. Apply severity escalation (if ANY agent reports CRITICAL → final is CRITICAL)
-3. Deduplicate findings by file:line (±5 lines tolerance)
-4. Track agreement per finding (e.g., "3/6 agents found this")
-5. Compute weighted grade
-
-**If quorum not met:** Report as INCOMPLETE, do not publish grade.
-
-See: `.agents/specs/conflict-resolution-algorithm.md`
+Record in table:
+| File:Function | Complexity | In Changed? | Recommendation |
+|---------------|------------|-------------|----------------|
 
 ### Step 7: Check for Failure Patterns
 
@@ -529,29 +469,24 @@ Recommend external verification with Codex or mechanical diff tools.
 [Show the tables built in Step S2]
 ```
 
-### Dispatch Spec Validation Agents
+### Validate Specs Systematically
 
-For spec validation, dispatch these agents **in parallel**:
+For spec validation, perform these checks sequentially:
 
-```
-Tool: Task (ALL IN PARALLEL)
-Parameters:
-  subagent_type: "agentops:plan-compliance-expert"
-  description: "Check spec compliance"
-  prompt: "Verify these specs are internally consistent: <file-list>"
+**1. Check Internal Consistency:**
+- Read all referenced specs
+- Build cross-reference table (entity → doc A line → doc B line → match?)
+- Flag any mismatches
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:gap-identifier"
-  description: "Find spec gaps"
-  prompt: "Find missing definitions or broken references in: <file-list>"
+**2. Find Gaps:**
+- Check for missing definitions
+- Verify all references resolve
+- Flag broken links
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:assumption-challenger"
-  description: "Challenge assumptions"
-  prompt: "Challenge assumptions and find conflicts in: <file-list>"
-```
+**3. Challenge Assumptions:**
+- List implicit assumptions
+- Flag unverified claims
+- Note potential conflicts
 
 ### Example: What Claude Missed
 

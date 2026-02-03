@@ -100,72 +100,47 @@ Include output in pre-mortem report under "## Cross-Reference Verification"
 
 **If spec is for new code:** Skip to Step 4.
 
-### Step 4: Dispatch Verification Agents (with Checklist)
+### Step 4: Verify Checklist Items
 
-**Agents VERIFY checklist items, not "simulate failures".**
+**Verify checklist items systematically. Do not "simulate failures" - check for specific gaps.**
 
-Launch 3 agents in parallel:
+#### 4a. Verify Spec Completeness
 
-```
-Tool: Task (ALL 3 IN PARALLEL)
-Parameters:
-  subagent_type: "agentops:gap-identifier"
-  model: "haiku"
-  description: "Verify spec completeness against checklist"
-  prompt: |
-    Spec file: <spec content>
+For EACH checklist item from failure-taxonomy.md, read the spec and answer:
 
-    Checklist to verify (from failure-taxonomy.md):
+| Checklist Item | Present? | Location (line) | Complete? |
+|----------------|----------|-----------------|-----------|
+| API schema defined | yes/no | line N | yes/partial/no |
+| Timeouts specified | yes/no | line N | yes/partial/no |
+| Error states listed | yes/no | line N | yes/partial/no |
+| Rollback procedure | yes/no | line N | yes/partial/no |
+| Dependencies listed | yes/no | line N | yes/partial/no |
+| State transitions | yes/no | line N | yes/partial/no |
+| Confirmation for destructive ops | yes/no | line N | yes/partial/no |
 
-    For EACH item, read the spec and answer:
-    | Checklist Item | Present? | Location (line) | Complete? |
-    |----------------|----------|-----------------|-----------|
-    | API schema defined | yes/no | line N | yes/partial/no |
-    | Timeouts specified | yes/no | line N | yes/partial/no |
-    | Error states listed | yes/no | line N | yes/partial/no |
-    | Rollback procedure | yes/no | line N | yes/partial/no |
-    | Dependencies listed | yes/no | line N | yes/partial/no |
-    | State transitions | yes/no | line N | yes/partial/no |
-    | Confirmation for destructive ops | yes/no | line N | yes/partial/no |
+For items marked "no" or "partial": flag as GAP with specific fix.
 
-    For items marked "no" or "partial": flag as GAP with specific fix.
+#### 4b. Find Implicit Assumptions
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:assumption-challenger"
-  model: "haiku"
-  description: "Find implicit assumptions"
-  prompt: |
-    Spec file: <spec content>
+Find statements that assume something without stating it:
+- "The user will..." -> What if they don't?
+- "The API returns..." -> What if it errors?
+- "This runs after..." -> What if order changes?
 
-    Find statements that assume something without stating it:
-    - "The user will..." -> What if they don't?
-    - "The API returns..." -> What if it errors?
-    - "This runs after..." -> What if order changes?
+Record assumptions:
+| Location (line) | Assumption | What If Wrong? | Specific Clarification Needed |
+|-----------------|------------|----------------|-------------------------------|
 
-    For each assumption:
-    | Location (line) | Assumption | What If Wrong? | Specific Clarification Needed |
-    |-----------------|------------|----------------|-------------------------------|
+Every finding MUST have a line number and specific fix.
 
-    Every finding MUST have a line number and specific fix.
+#### 4c. Find Boundary Conditions
 
-Tool: Task
-Parameters:
-  subagent_type: "agentops:edge-case-hunter"
-  model: "haiku"
-  description: "Find boundary conditions"
-  prompt: |
-    Spec file: <spec content>
+For each input/parameter in the spec:
+| Location (line) | Input | Type | Min/Max Stated? | Empty Handling? | Invalid Handling? |
+|-----------------|-------|------|-----------------|-----------------|-------------------|
 
-    For each input/parameter in the spec:
-    | Location (line) | Input | Type | Min/Max Stated? | Empty Handling? | Invalid Handling? |
-    |-----------------|-------|------|-----------------|-----------------|-------------------|
-
-    Flag any inputs without explicit boundary handling.
-    Every finding MUST have a line number and specific fix.
-```
-
-**Timeout:** 2 minutes per agent.
+Flag any inputs without explicit boundary handling.
+Every finding MUST have a line number and specific fix.
 
 ### Step 5: Categorize Findings
 
