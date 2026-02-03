@@ -1,11 +1,11 @@
 ---
 name: crank
-description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Level 1 uses /swarm (Task tool). Level 2 uses /spawn + Agent Mail for cross-session orchestration with Chiron help routing. NO human prompts, NO stopping.'
+description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm (Task tool). Distributed mode uses /spawn + Agent Mail for cross-session orchestration with Chiron help routing. NO human prompts, NO stopping.'
 ---
 
 # Crank Skill
 
-> **Quick Ref:** Autonomous epic execution. Level 1: `/swarm` for each wave. Level 2: `/spawn` via Agent Mail with Chiron pattern. Output: closed issues + final vibe.
+> **Quick Ref:** Autonomous epic execution. Local mode: `/swarm` for each wave. Distributed mode: `/spawn` via Agent Mail with Chiron pattern. Output: closed issues + final vibe.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -347,29 +347,29 @@ Loop until all beads issues are CLOSED.
 
 ---
 
-## Level 2 Mode: Agent Mail Orchestration
+## Distributed Mode: Agent Mail Orchestration
 
-> **When:** Agent Mail MCP tools are available AND `--level=2` flag is set
+> **When:** Agent Mail MCP tools are available AND `--mode=distributed` flag is set
 
-Level 2 mode transforms /crank from a TaskList-based orchestrator to an Agent Mail-based orchestrator. Instead of using the Task tool to spawn subagents, it uses `/spawn` to create demigods that communicate via Agent Mail.
+Distributed mode transforms /crank from a TaskList-based orchestrator to an Agent Mail-based orchestrator. Instead of using the Task tool to spawn subagents, it uses `/spawn` to create demigods that communicate via Agent Mail.
 
-### Why Level 2?
+### Why Distributed Mode?
 
-| Level 1 (Task Tool) | Level 2 (Agent Mail) |
-|---------------------|---------------------|
+| Local (Task Tool) | Distributed (Agent Mail) |
+|-------------------|--------------------------|
 | Subagents inside session | Independent Claude sessions |
 | TaskOutput for results | Agent Mail messages |
 | No help routing | Chiron pattern for HELP_REQUESTs |
 | Race conditions on files | File reservations |
 | In-process monitoring | Inbox-based monitoring |
 
-**Use Level 2 when:**
+**Use distributed mode when:**
 - Running long epics that may exceed session limits
 - Need coordination across multiple Claude sessions
 - Want Chiron (expert helper) to answer stuck demigods
 - Need advisory file locking between parallel workers
 
-### Level Detection
+### Mode Detection
 
 ```bash
 # Auto-detect Agent Mail availability
@@ -384,28 +384,28 @@ fi
 # (if mcp__mcp-agent-mail__* tools are available)
 
 # Explicit flag takes precedence
-# /crank epic-123 --level=2
+# /crank epic-123 --mode=distributed
 ```
 
-**Level selection:**
-| Condition | Level |
-|-----------|-------|
-| `--level=2` AND Agent Mail available | Level 2 |
-| `--level=2` AND Agent Mail unavailable | Error: "Agent Mail required for Level 2" |
-| No flag AND Agent Mail available | Level 1 (default) |
-| No flag AND Agent Mail unavailable | Level 1 |
+**Mode selection:**
+| Condition | Mode |
+|-----------|------|
+| `--mode=distributed` AND Agent Mail available | Distributed |
+| `--mode=distributed` AND Agent Mail unavailable | Error: "Agent Mail required for distributed mode" |
+| No flag AND Agent Mail available | Local (default) |
+| No flag AND Agent Mail unavailable | Local |
 
-### New Parameters
+### Parameters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--level=2` | Force Level 2 orchestration mode | `1` (Level 1) |
-| `--agent-mail` | Enable Agent Mail (same as `--level=2`) | `false` |
+| `--mode=distributed` | Force distributed orchestration mode | `local` |
+| `--agent-mail` | Enable Agent Mail (same as `--mode=distributed`) | `false` |
 | `--orchestrator-id` | Crank's identity in Agent Mail | `crank-<epic-id>` |
-| `--chiron` | Enable Chiron pattern for help requests | `true` in Level 2 |
+| `--chiron` | Enable Chiron pattern for help requests | `true` in distributed |
 | `--max-parallel` | Max concurrent demigods per wave | `5` |
 
-### Level 2 Architecture
+### Distributed Mode Architecture
 
 ```
 Crank (orchestrator)              Agent Mail              Demigods
@@ -434,11 +434,11 @@ Crank (orchestrator)              Agent Mail              Demigods
 - **Demigods** = Fresh-context parallel execution with Agent Mail reporting
 - **Chiron** = Expert helper that responds to HELP_REQUESTs
 
-### Level 2 Execution Steps
+### Distributed Mode Execution Steps
 
-When `--level=2` is enabled:
+When `--mode=distributed` is enabled:
 
-#### L2 Step 0: Initialize Orchestrator Identity
+#### Step 0: Initialize Orchestrator Identity
 
 ```bash
 # Register crank as an orchestrator in Agent Mail
@@ -456,7 +456,7 @@ Parameters:
   task_description: "Orchestrating epic <epic-id>"
 ```
 
-#### L2 Step 1: Reserve Files for Wave (Before Spawn)
+#### Step 1: Reserve Files for Wave (Before Spawn)
 
 **Before spawning demigods for a wave, reserve files to prevent conflicts:**
 
@@ -486,7 +486,7 @@ Parameters:
 | Cannot predict files | Skip reservation, rely on demigod to reserve |
 | Conflicting issues in same wave | Serialize those issues (don't spawn parallel) |
 
-#### L2 Step 2: Spawn Demigods via /spawn (Not Task Tool)
+#### Step 2: Spawn Demigods via /spawn (Not Task Tool)
 
 **Instead of:**
 ```
@@ -541,7 +541,7 @@ Parameters:
   agent_name: "<orchestrator-id>"
 ```
 
-#### L2 Step 3: Monitor via Inbox (Not TaskOutput)
+#### Step 3: Monitor via Inbox (Not TaskOutput)
 
 **Polling loop for wave monitoring:**
 
@@ -585,12 +585,12 @@ Parameters:
 |-----------------|--------|
 | `BEAD_ACCEPTED` | Log: "Demigod <id> accepted <issue>" |
 | `PROGRESS` | Log: Update progress tracker |
-| `HELP_REQUEST` | Route to Chiron (see L2 Step 4) |
+| `HELP_REQUEST` | Route to Chiron (see Step 4) |
 | `OFFERING_READY` | Verify + close beads issue |
 | `FAILED` | Log failure, add to retry queue |
 | `CHECKPOINT` | Handle partial progress, spawn replacement |
 
-#### L2 Step 4: Chiron Pattern for Help Requests
+#### Step 4: Chiron Pattern for Help Requests
 
 **When HELP_REQUEST received, route to Chiron:**
 
@@ -628,7 +628,7 @@ Parameters:
 - Log: "No Chiron response - demigod must proceed with best judgment"
 - Demigod either succeeds or fails on its own
 
-#### L2 Step 5: Verify Completion via Agent Mail
+#### Step 5: Verify Completion via Agent Mail
 
 **When OFFERING_READY received:**
 
@@ -649,7 +649,7 @@ git log --oneline -1
 git diff --name-only HEAD~1
 
 # Run validation
-# (same as Level 1 batched vibe)
+# (same as local mode batched vibe)
 ```
 
 3. **Close beads issue:**
@@ -673,7 +673,7 @@ Parameters:
   ack_required: false
 ```
 
-#### L2 Step 6: Handle Failures
+#### Step 6: Handle Failures
 
 **When FAILED message received:**
 
@@ -697,7 +697,7 @@ bd update <issue-id> --append-notes "FAILED: <reason> at $(date -Iseconds)" 2>/d
 bd update <issue-id> --append-notes "RETRY: attempt $(( retry_count + 1 )) at $(date -Iseconds)" 2>/dev/null
 ```
 
-#### L2 Step 7: Release File Reservations
+#### Step 7: Release File Reservations
 
 **After wave completes (success or failure):**
 
@@ -708,7 +708,7 @@ Parameters:
   agent_name: "<orchestrator-id>"
 ```
 
-#### L2 Step 8: Handle Checkpoints (Context Exhaustion)
+#### Step 8: Handle Checkpoints (Context Exhaustion)
 
 **When demigod sends CHECKPOINT due to context exhaustion:**
 
@@ -733,18 +733,18 @@ Parameters:
 - Checkpoint commit (partial work)
 - Guidance for what remains
 
-### Level 2 FIRE Loop
+### Distributed Mode FIRE Loop
 
-Level 2 uses the same FIRE pattern with Agent Mail coordination:
+Distributed mode uses the same FIRE pattern with Agent Mail coordination:
 
-| Phase | Level 1 | Level 2 |
+| Phase | Local | Distributed |
 |-------|---------|---------|
 | **FIND** | `bd ready` | `bd ready` |
 | **IGNITE** | TaskCreate + /swarm | File reserve + /spawn via Agent Mail |
 | **REAP** | TaskOutput notifications | fetch_inbox polling |
 | **ESCALATE** | Retry via swarm | Chiron for help + retry via spawn |
 
-### Level 2 Parallel Wave Model
+### Distributed Mode Parallel Wave Model
 
 ```
 Wave 1: bd ready → [issue-1, issue-2, issue-3]
@@ -774,7 +774,7 @@ Wave 2: bd ready → [issue-4, issue-3-retry]
 Final vibe on all changes → Epic DONE
 ```
 
-### Level 2 Key Rules
+### Distributed Mode Key Rules
 
 - **Reserve files BEFORE spawn** - prevents conflicts between demigods
 - **Monitor via inbox** - not TaskOutput (demigods are independent sessions)
@@ -785,9 +785,9 @@ Final vibe on all changes → Epic DONE
 - **Same wave limit** - MAX_EPIC_WAVES = 50 still applies
 - **Same completion markers** - DONE, BLOCKED, PARTIAL
 
-### Level 2 vs Level 1 Summary
+### Distributed vs Local Mode Summary
 
-| Aspect | Level 1 | Level 2 |
+| Aspect | Local | Distributed |
 |--------|---------|---------|
 | Spawn mechanism | Task tool | /spawn via Agent Mail |
 | Monitoring | TaskOutput | fetch_inbox polling |
@@ -799,10 +799,10 @@ Final vibe on all changes → Epic DONE
 
 ### Without Agent Mail
 
-If Agent Mail is not available and `--level=2` is requested:
+If Agent Mail is not available and `--mode=distributed` is requested:
 
 ```markdown
-Error: Level 2 requires Agent Mail.
+Error: Distributed mode requires Agent Mail.
 
 To enable Agent Mail:
 1. Start MCP Agent Mail server:
@@ -819,27 +819,27 @@ To enable Agent Mail:
 
 3. Restart Claude Code session
 
-Falling back to Level 1 mode.
+Falling back to local mode.
 ```
 
 ### Integration with Other Skills
 
-| Skill | Level 2 Integration |
-|-------|---------------------|
+| Skill | Distributed Mode Integration |
+|-------|------------------------------|
 | `/spawn` | Called by crank to create demigods |
 | `/implement` | Run by demigods with `--agent-mail` flag |
 | `/inbox` | Used by crank for monitoring (or direct fetch_inbox) |
 | `/chiron` | Receives HELP_ROUTE, responds with HELP_RESPONSE |
-| `/vibe` | Final validation (same as Level 1) |
+| `/vibe` | Final validation (same as local mode) |
 
-### Example Level 2 Session
+### Example Distributed Mode Session
 
 ```bash
-# Start with Level 2 mode
-/crank ol-527 --level=2
+# Start with distributed mode
+/crank ol-527 --mode=distributed
 
 # Output:
-# Level 2 mode: Agent Mail orchestration enabled
+# Distributed mode: Agent Mail orchestration enabled
 # Orchestrator ID: crank-ol527
 # Project: /Users/fullerbt/gt/olympus
 #
@@ -868,5 +868,5 @@ Falling back to Level 1 mode.
 # Epic: ol-527
 # Issues completed: 8
 # Iterations: 3/50
-# Level: 2 (Agent Mail)
+# Mode: distributed (Agent Mail)
 ```

@@ -7,9 +7,11 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-**Multi-agent orchestration with validation gates and memory that compounds.**
+**DevOps for AI agents.**
 
-[Install](#install) · [Quick Start](#quick-start) · [How It Works](#how-it-works) · [Documentation](docs/)
+Maximize flow. Shorten feedback loops. Compound what you learn.
+
+[Install](#install) · [What This Is](#what-this-is) · [Quick Start](#quick-start) · [How It Works](#how-it-works) · [Docs](docs/)
 
 </div>
 
@@ -25,6 +27,37 @@ Or with Claude Code:
 ```bash
 claude plugin add boshu2/agentops
 ```
+
+---
+
+## What This Is
+
+DevOps doesn't write your code. It makes sure code flows reliably from commit to production.
+
+**AgentOps doesn't write your spec.** It makes sure specs flow reliably from plan to working code.
+
+```
+Traditional DevOps:
+  code → build → test → deploy → monitor → feedback
+                                              ↓
+                                        next commit
+
+AgentOps:
+  spec → /pre-mortem → /crank → /vibe → /post-mortem
+                                              ↓
+                                     .agents/learnings/
+                                              ↓
+                                         next spec
+```
+
+| DevOps Principle | AgentOps |
+|------------------|----------|
+| CI/CD pipelines | `/crank` + `/swarm` — automated, parallel execution |
+| Shift-left testing | `/pre-mortem` — catch failures before you code |
+| Quality gates | `/vibe` — must pass to merge |
+| Continuous improvement | Flywheel — learnings feed future sessions |
+
+**Bring your own spec tool.** Use [superpowers](https://github.com/anthropics/superpowers), SDD, or write plans by hand. AgentOps is the pipeline that executes them reliably
 
 ---
 
@@ -56,58 +89,92 @@ That's it. AgentOps catches problems before they ship and remembers solutions fo
 
 ## Skills (What They Are)
 
-AgentOps is delivered as **skills**: Markdown playbooks your agent can run via slash commands (e.g. `/vibe`).
+AgentOps is delivered as **skills**: Markdown playbooks your agent runs via slash commands.
 
-- Skills live in this repo under `skills/<name>/SKILL.md`
-- Install them into your agent with `npx skills@latest add boshu2/agentops --all -g` (or `claude plugin add boshu2/agentops`)
-- Bring your own spec/planner: AgentOps is **spec-method agnostic**. Use any SDD/RPI/spec plugin or workflow to generate plans/specs, then use AgentOps to execute/validate against that spec and feed learnings into the next one.
-- Some skills are **orchestrators** that call other skills:
-  - `/crank` orchestrates an epic/wave loop and uses `/swarm` under the hood to execute each wave in parallel
-  - `/swarm` is the executor primitive: it spawns fresh-context agents to run tasks concurrently
+- Skills live in `skills/<name>/SKILL.md` — install with `npx skills` or `claude plugin add`
+- Some skills are **orchestrators** that compose other skills:
+  - `/crank` — runs the epic loop, dispatches `/swarm` for each wave
+  - `/swarm` — spawns fresh-context agents to execute tasks in parallel
 
 ---
 
-## What It Does
+## Why Agents Need DevOps
 
-| Problem | AgentOps Solution |
-|---------|-------------------|
-| Agents make the same mistakes repeatedly | **Memory that compounds** — learnings persist across sessions |
-| Context degrades over long tasks | **Fresh context per agent** — each spawned agent starts clean |
-| Progress slips backward | **Validation gates** — can't commit until checks pass |
-| Parallel agents step on each other | **Orchestrated execution** — mayor coordinates, agents work atomically |
+| Problem | Without AgentOps | With AgentOps |
+|---------|------------------|---------------|
+| Same mistakes repeated | Agent rediscovers bugs every session | Learnings persist and compound |
+| Context bloat | Performance degrades over long tasks | Fresh context per spawned agent |
+| Progress regresses | "Fixed" things break again | Validation gates lock progress |
+| Parallel chaos | Agents step on each other | Orchestrated execution, atomic work |
+| Slow feedback | Find problems after shipping | Shift-left: `/pre-mortem` before code |
 
 ---
 
-## Core Skills
+## The Pipeline
 
-| Skill | What It Does |
-|-------|--------------|
-| `/pre-mortem` | Simulate failures BEFORE you write code |
-| `/crank` | Orchestrate an epic issue loop by running waves via `/swarm` |
-| `/swarm` | Spawn fresh-context agents to execute tasks/issues in parallel |
-| `/vibe` | 8-aspect validation gate before commit |
-| `/post-mortem` | Extract learnings to feed future sessions |
+| Stage | Skill | What It Does |
+|-------|-------|--------------|
+| **Shift-left** | `/pre-mortem` | Simulate failures BEFORE you write code |
+| **Execute** | `/crank` | Orchestrate epic loop, dispatch `/swarm` for each wave |
+| **Execute** | `/swarm` | Spawn fresh-context agents for parallel work |
+| **Gate** | `/vibe` | 8-aspect validation — must pass to merge |
+| **Learn** | `/post-mortem` | Extract learnings to feed future sessions |
 
-## Which Loop Should I Use?
+## Execution Modes
+
+`/swarm`, `/crank`, and `/implement` support two execution modes:
+
+| | Local (default) | Distributed (`--distributed`) |
+|---|---|---|
+| **How** | Task tool background agents | tmux sessions + Agent Mail |
+| **Dependencies** | None (Claude-native) | `tmux`, `claude` CLI, Agent Mail MCP |
+| **Context** | Fresh per agent | Fresh per agent |
+| **Persistence** | Dies if mayor disconnects | Survives disconnection |
+| **Debugging** | Read output file | Attach to tmux session |
+| **Coordination** | TaskList only | Agent Mail + file reservations |
+
+**When to use which:**
+
+| Scenario | Mode |
+|----------|------|
+| Quick parallel tasks (<5 min each) | Local |
+| Long-running work (>10 min each) | Distributed |
+| Need to debug stuck workers | Distributed |
+| Multi-file changes across workers | Distributed |
+| Mayor might disconnect | Distributed |
+| No extra tooling installed | Local |
+
+**Distributed mode dependencies:**
+```bash
+brew install tmux                    # Session management
+# claude CLI - already installed if you're using Claude Code
+```
+
+Agent Mail is an MCP server for inter-agent messaging. Distributed mode requires it for coordination. See [mcp_agent_mail](https://github.com/boshu2/acfs-research) for setup.
+
+> **Note:** Local mode works out of the box with zero extra dependencies. Only set up distributed mode if you need persistence or complex coordination.
+
+## Which Skill Should I Use?
 
 | You Want | Use | Why |
 |----------|-----|-----|
-| Fresh context per iteration (“Ralph loop”) | `/swarm` | The loop belongs in the orchestrator; each spawn is clean context |
-| “Do the whole epic” | `/crank` | Orchestrates the epic and calls `/swarm` for each wave |
-| Track/gate progress through RPI | `/ratchet` | Records/checks gates; does not execute work by itself |
+| Parallel tasks (fresh context each) | `/swarm` | Spawns agents, mayor owns the loop |
+| Execute an entire epic | `/crank` | Orchestrates waves via `/swarm` until done |
+| Single issue, full lifecycle | `/implement` | Claim → execute → validate → close |
+| Gate progress without executing | `/ratchet` | Records/checks gates only |
 
-**The workflow:**
+**The pipeline:**
 ```
-/pre-mortem → /crank → /vibe → /post-mortem
-     ↓           ↓        ↓          ↓
-  Prevent    Execute   Validate   Remember
+[spec] → /pre-mortem → /crank → /vibe → /post-mortem → [learnings]
+              ↓           ↓        ↓          ↓             ↓
+          Shift-left   Execute   Gate      Extract    Feed next run
 ```
 
 ---
 
 ## How It Works
 
-AgentOps combines four patterns that solve autonomous agent failures:
+Four patterns that make the pipeline reliable:
 
 | Pattern | Problem | Solution |
 |---------|---------|----------|
@@ -153,22 +220,24 @@ SessionStart <---- /inject <------------------+
 <summary>View full workflow stages</summary>
 
 ```
-STAGE 1: UNDERSTAND
-  /research → Deep-dive codebase
-  /plan     → Break into tracked issues
+INPUT: SPEC (from superpowers, SDD, or your workflow)
+  └── Plan, issues, acceptance criteria
 
-STAGE 2: PRE-MORTEM [validation gate]
+STAGE 1: PRE-MORTEM [validation gate]
   /pre-mortem → Simulate failures BEFORE implementing
 
-STAGE 3: EXECUTE [orchestrated + fresh context]
+STAGE 2: EXECUTE [orchestrated + fresh context]
   /crank → Autonomous loop
     └── /swarm → Parallel agents (fresh context each)
 
-STAGE 4: VALIDATE [validation gate]
+STAGE 3: VALIDATE [validation gate]
   /vibe → 8-aspect check, must pass to commit
 
-STAGE 5: LEARN [compounding memory]
+STAGE 4: LEARN [compounding memory]
   /post-mortem → Extract learnings for next session
+
+OUTPUT: LEARNINGS (feed your next spec)
+  └── .agents/learnings/, .agents/patterns/
 ```
 
 </details>

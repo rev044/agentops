@@ -1,15 +1,15 @@
 ---
 name: swarm
-description: 'Spawn isolated agents for parallel task execution. Level 1: Task tool (pure Claude-native). Level 2: tmux + Agent Mail (process isolation, persistence). Triggers: "swarm", "spawn agents", "parallel work".'
+description: 'Spawn isolated agents for parallel task execution. Local mode: Task tool (pure Claude-native). Distributed mode: tmux + Agent Mail (process isolation, persistence). Triggers: "swarm", "spawn agents", "parallel work".'
 ---
 
 # Swarm Skill
 
 Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ralph Wiggum pattern).
 
-**Execution Levels:**
-- **Level 1** (default) - Pure Claude-native using Task tool background agents
-- **Level 2** (`--level=2`) - tmux sessions + Agent Mail for robust coordination
+**Execution Modes:**
+- **Local** (default) - Pure Claude-native using Task tool background agents
+- **Distributed** (`--distributed`) - tmux sessions + Agent Mail for robust coordination
 
 **Integration modes:**
 - **Direct** - Create TaskList tasks, invoke `/swarm`
@@ -239,15 +239,15 @@ This gives you:
 
 ---
 
-## Level 2 Mode: tmux + Agent Mail
+## Distributed Mode: tmux + Agent Mail
 
 > **When:** MCP Agent Mail is available AND you want true process isolation, persistent workers, and robust coordination.
 
-Level 2 mode spawns real tmux sessions instead of Task tool background agents. Each demigod runs in its own Claude process with full lifecycle management.
+Distributed mode spawns real tmux sessions instead of Task tool background agents. Each demigod runs in its own Claude process with full lifecycle management.
 
-### Why Level 2?
+### Why Distributed Mode?
 
-| Level 1 (Task tool) | Level 2 (tmux + Agent Mail) |
+| Local (Task tool) | Distributed (tmux + Agent Mail) |
 |---------------------|----------------------------|
 | Background agents in Mayor's process | Separate tmux sessions |
 | Coupled to Mayor lifecycle | Persistent if Mayor crashes |
@@ -256,16 +256,16 @@ Level 2 mode spawns real tmux sessions instead of Task tool background agents. E
 | Simple, fast to spawn | More setup, more robust |
 | Good for small jobs | Better for large/long jobs |
 
-### Level Detection
+### Mode Detection
 
-At skill start, detect which level to use:
+At skill start, detect which mode to use:
 
 ```bash
 # Method 1: Explicit flag
-# /swarm --level=2 <tasks>
+# /swarm --distributed <tasks>
 
 # Method 2: Auto-detect Agent Mail availability
-LEVEL=1
+MODE="local"
 
 # Check for Agent Mail MCP tools (look for register_agent tool)
 if mcp-tools 2>/dev/null | grep -q "mcp-agent-mail"; then
@@ -277,45 +277,45 @@ if curl -s http://localhost:8765/health >/dev/null 2>&1; then
     AGENT_MAIL_HTTP=true
 fi
 
-# Level 2 requires: Agent Mail available + explicit flag or beads mode
-if [ "$LEVEL_FLAG" = "2" ] && [ "$AGENT_MAIL_AVAILABLE" = "true" -o "$AGENT_MAIL_HTTP" = "true" ]; then
-    LEVEL=2
+# Distributed requires: Agent Mail available + explicit flag
+if [ "$MODE_FLAG" = "distributed" ] && [ "$AGENT_MAIL_AVAILABLE" = "true" -o "$AGENT_MAIL_HTTP" = "true" ]; then
+    MODE="distributed"
 fi
 ```
 
 **Decision matrix:**
 
-| `--level` | Agent Mail | Result |
-|-----------|------------|--------|
-| Not set | Not available | Level 1 |
-| Not set | Available | Level 1 (explicit opt-in required) |
-| `--level=1` | Any | Level 1 |
-| `--level=2` | Not available | **Error: Agent Mail required** |
-| `--level=2` | Available | Level 2 |
+| `--mode` | Agent Mail | Result |
+|----------|------------|--------|
+| Not set | Not available | Local |
+| Not set | Available | Local (explicit opt-in required) |
+| `--local` | Any | Local |
+| `--distributed` | Not available | **Error: Agent Mail required** |
+| `--distributed` | Available | Distributed |
 
-### Level 2 Invocation
+### Distributed Mode Invocation
 
 ```
-/swarm --level=2 [--max-workers=N]
-/swarm --level=2 --bead-ids ol-527.1,ol-527.2,ol-527.3
+/swarm --distributed [--max-workers=N]
+/swarm --distributed --bead-ids ol-527.1,ol-527.2,ol-527.3
 ```
 
 **Parameters:**
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--level=2` | Enable tmux + Agent Mail mode | Required |
+| `--distributed` | Enable tmux + Agent Mail mode | Required for distributed |
 | `--max-workers=N` | Max concurrent demigods | 5 |
 | `--bead-ids` | Specific beads to work (comma-separated) | Auto from `bd ready` |
 | `--wait` | Wait for all demigods to complete | false |
 | `--timeout` | Max time to wait (if --wait) | 30m |
 
-### Level 2 Architecture
+### Distributed Mode Architecture
 
 ```
 Mayor Session (this session)
     |
-    +-> Level Detection: Agent Mail available → Level 2
+    +-> Mode Detection: `--distributed` + Agent Mail available → Distributed
     |
     +-> Identify wave: bd ready → [ol-527.1, ol-527.2, ol-527.3]
     |
@@ -334,22 +334,22 @@ Mayor Session (this session)
     +-> Repeat: New wave when workers complete
 ```
 
-### Level 2 Execution Steps
+### Distributed Mode Execution Steps
 
-Given `/swarm --level=2`:
+Given `/swarm --distributed`:
 
-#### L2 Step 1: Pre-flight Checks
+#### Step 1: Pre-flight Checks
 
 ```bash
 # Check tmux is available
 which tmux >/dev/null 2>&1 || {
-    echo "Error: tmux required for Level 2. Install: brew install tmux"
+    echo "Error: tmux required for distributed mode. Install: brew install tmux"
     exit 1
 }
 
 # Check claude CLI is available
 which claude >/dev/null 2>&1 || {
-    echo "Error: claude CLI required for Level 2"
+    echo "Error: claude CLI required for distributed mode"
     exit 1
 }
 
@@ -361,13 +361,13 @@ fi
 # OR check MCP tools
 
 if [ "$AGENT_MAIL_OK" != "true" ]; then
-    echo "Error: Agent Mail required for Level 2"
+    echo "Error: Agent Mail required for distributed mode"
     echo "Start server: cd ~/gt/acfs-research/tier1/mcp_agent_mail && uv run python -m mcp_agent_mail.http"
     exit 1
 fi
 ```
 
-#### L2 Step 2: Register Mayor with Agent Mail
+#### Step 2: Register Mayor with Agent Mail
 
 Register the Mayor session to receive messages from demigods.
 
@@ -382,9 +382,9 @@ Parameters:
 
 **Store the returned agent name as `MAYOR_NAME`.**
 
-#### L2 Step 3: Identify Wave (Ready Beads)
+#### Step 3: Identify Wave (Ready Beads)
 
-Same as Level 1, get the beads to work:
+Same as local mode, get the beads to work:
 
 ```bash
 # Get ready beads
@@ -401,7 +401,7 @@ WAVE_SIZE=$(echo "$READY_BEADS" | wc -l | tr -d ' ')
 
 If no ready beads, exit with message.
 
-#### L2 Step 4: Spawn Demigods via tmux
+#### Step 4: Spawn Demigods via tmux
 
 For each ready bead, spawn a demigod session:
 
@@ -438,7 +438,7 @@ done
 - Rate limit spawns (2 seconds) to avoid API rate limits
 - Verify each session started before continuing
 
-#### L2 Step 5: Monitor via Agent Mail
+#### Step 5: Monitor via Agent Mail
 
 Poll Agent Mail inbox for demigod messages:
 
@@ -461,7 +461,7 @@ Parameters:
 | `[<bead-id>] DONE` | Mark complete, check if wave finished |
 | `[<bead-id>] FAILED` | Log failure, decide on retry or escalate |
 
-#### L2 Step 6: Track Completion
+#### Step 6: Track Completion
 
 Maintain completion state:
 
@@ -490,12 +490,12 @@ if [ $((DONE_COUNT + FAILED_COUNT)) -eq $WAVE_SIZE ]; then
 fi
 ```
 
-#### L2 Step 7: Report Results
+#### Step 7: Report Results
 
 When wave completes (or on `--wait` timeout):
 
 ```markdown
-## Swarm Level 2 Results
+## Swarm Distributed Mode Results
 
 **Wave completed:** <timestamp>
 **Beads in wave:** <WAVE_SIZE>
@@ -521,7 +521,7 @@ When wave completes (or on `--wait` timeout):
 | demigod-ol-527-3 | ol-527.3 | failed | 18m |
 ```
 
-#### L2 Step 8: Cleanup Completed Sessions
+#### Step 8: Cleanup Completed Sessions
 
 Optionally clean up tmux sessions for completed beads:
 
@@ -537,9 +537,9 @@ done
 
 **Or keep all sessions for review:** Use `--keep-sessions` flag to preserve all tmux sessions for post-mortem analysis.
 
-### Level 2 Helper Skills
+### Distributed Mode Helper Skills
 
-Use these companion skills with Level 2 swarm:
+Use these companion skills with distributed mode swarm:
 
 | Skill | Purpose |
 |-------|---------|
@@ -548,7 +548,7 @@ Use these companion skills with Level 2 swarm:
 | `/inbox` | Check Agent Mail for pending messages |
 | `/vibe --remote <session>` | Validate demigod's work before accepting |
 
-### Level 2 File Reservations
+### Distributed Mode File Reservations
 
 File reservations prevent conflicts when multiple demigods edit files.
 
@@ -570,7 +570,7 @@ Parameters:
 - Mayor decides: wait, reassign, or allow parallel work
 - Advisory reservations don't block, just warn
 
-### Level 2 Error Handling
+### Distributed Mode Error Handling
 
 #### Demigod Session Crashes
 
@@ -628,9 +628,9 @@ Wave did not complete within <timeout>.
 3. Kill and retry: `tmux kill-session -t demigod-ol-527-3`
 ```
 
-### Level 2 vs Level 1 Summary
+### Distributed vs Local Mode Summary
 
-| Behavior | Level 1 | Level 2 |
+| Behavior | Local | Distributed |
 |----------|---------|---------|
 | Spawn mechanism | `Task(run_in_background=true)` | `tmux new-session -d` |
 | Worker entry point | Inline prompt | `/demigod <bead-id>` |
@@ -642,27 +642,27 @@ Wave did not complete within <timeout>.
 | Resource overhead | Low | Medium (N tmux sessions) |
 | Setup requirements | None | tmux + Agent Mail |
 
-### When to Use Level 2
+### When to Use Distributed Mode
 
 | Scenario | Recommendation |
 |----------|---------------|
-| Quick parallel tasks (<5 min each) | Level 1 |
-| Long-running work (>10 min each) | Level 2 |
-| Need to debug stuck workers | Level 2 |
-| Multi-file changes across workers | Level 2 (file reservations) |
-| Mayor might disconnect | Level 2 (persistence) |
-| Complex coordination needed | Level 2 |
-| Simple, isolated tasks | Level 1 |
+| Quick parallel tasks (<5 min each) | Local |
+| Long-running work (>10 min each) | Distributed |
+| Need to debug stuck workers | Distributed |
+| Multi-file changes across workers | Distributed (file reservations) |
+| Mayor might disconnect | Distributed (persistence) |
+| Complex coordination needed | Distributed |
+| Simple, isolated tasks | Local |
 
-### Example: Full Level 2 Swarm
+### Example: Full Distributed Mode Swarm
 
 ```bash
 # 1. Start Agent Mail (if not running)
 cd ~/gt/acfs-research/tier1/mcp_agent_mail
 uv run python -m mcp_agent_mail.http --host 127.0.0.1 --port 8765 &
 
-# 2. In Claude session, run Level 2 swarm
-/swarm --level=2 --max-workers=3 --wait
+# 2. In Claude session, run distributed mode swarm
+/swarm --distributed --max-workers=3 --wait
 
 # Output:
 # Pre-flight: tmux OK, Agent Mail OK
@@ -687,16 +687,16 @@ uv run python -m mcp_agent_mail.http --host 127.0.0.1 --port 8765 &
 
 ### Fallback Behavior
 
-If Level 2 requested but requirements not met:
+If distributed mode requested but requirements not met:
 
 ```
-Error: Level 2 requires tmux and Agent Mail.
+Error: Distributed mode requires tmux and Agent Mail.
 
 Missing:
 - [ ] tmux: Install with `brew install tmux`
 - [x] Agent Mail: Running at localhost:8765
 
-Falling back to Level 1? [y/N]
+Falling back to local mode? [y/N]
 ```
 
-If user confirms, degrade to Level 1 execution. Otherwise, exit with error.
+If user confirms, degrade to local mode execution. Otherwise, exit with error.

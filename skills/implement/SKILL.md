@@ -295,19 +295,19 @@ If bd CLI not available:
 
 ---
 
-## Level 2 Mode: Agent Mail Coordination
+## Distributed Mode: Agent Mail Coordination
 
-> **When:** Agent Mail MCP tools are available (Level 2 Olympus or multi-agent coordination)
+> **When:** Agent Mail MCP tools are available (distributed mode or multi-agent coordination)
 
-Level 2 mode enhances /implement with real-time coordination via MCP Agent Mail. This enables:
+Distributed mode enhances /implement with real-time coordination via MCP Agent Mail. This enables:
 - Progress reporting to orchestrators (Mayor/Delphi)
 - Help requests instead of blocking on user input
 - Receiving guidance mid-execution
 - Coordination with parallel workers (file reservations)
 
-### Level Detection
+### Mode Detection
 
-Detect the operational level at skill start:
+Detect the operational mode at skill start:
 
 ```bash
 # Check for Agent Mail availability
@@ -319,35 +319,38 @@ if [ -n "$OLYMPUS_DEMIGOD_ID" ]; then
 fi
 
 # Method 2: Check for explicit flag
-# /implement <issue-id> --agent-mail --thread-id <id>
+# /implement <issue-id> --mode=distributed --thread-id <id>
+# /implement <issue-id> --agent-mail --thread-id <id>  # Back-compat alias
 ```
 
-**Level Semantics:**
-| Level | Condition | Behavior |
-|-------|-----------|----------|
-| `level_1` | No Agent Mail | Current behavior (all steps above) |
-| `level_2` | Agent Mail available | Enhanced coordination (steps below) |
+**Mode Semantics:**
+| Mode | Condition | Behavior |
+|------|-----------|----------|
+| `local` | No Agent Mail | Current behavior (all steps above) |
+| `distributed` | Agent Mail available | Enhanced coordination (steps below) |
 
-### New Parameters
+### Parameters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--agent-mail` | Enable Agent Mail coordination | `false` |
+| `--mode=local` | Force local mode | Default |
+| `--mode=distributed` | Enable Agent Mail coordination | - |
+| `--agent-mail` | Enable Agent Mail coordination (back-compat alias) | `false` |
 | `--thread-id` | Thread ID for message grouping (usually bead-id) | `<issue-id>` |
 | `--demigod-id` | Agent identity for message sender | `demigod-<issue-id>` |
 | `--orchestrator` | Who to send status messages to | `mayor@olympus` |
 
-### Level 2 Execution Steps
+### Distributed Mode Execution Steps
 
-When `--agent-mail` is enabled OR `$OLYMPUS_DEMIGOD_ID` is set:
+When `--mode=distributed` (or `--agent-mail`) is enabled OR `$OLYMPUS_DEMIGOD_ID` is set:
 
-#### L2 Step 0: Initialize Agent Mail Session
+#### Step 0: Initialize Agent Mail Session
 
 ```bash
 # If not already registered (Demigod handles this), register self
 # This is typically done by /demigod, but implement can work standalone
 if [ -z "$OLYMPUS_DEMIGOD_ID" ]; then
-    # Standalone Level 2 mode - need to register
+    # Standalone distributed mode - need to register
     DEMIGOD_ID="${DEMIGOD_ID:-demigod-$(date +%s)}"
 else
     DEMIGOD_ID="$OLYMPUS_DEMIGOD_ID"
@@ -364,7 +367,7 @@ Parameters:
   task_description: "Implementing <issue-id>"
 ```
 
-#### L2 Step 1: Send ACCEPTED Message
+#### Step 1: Send ACCEPTED Message
 
 After claiming the issue (Step 2 in base flow), notify the orchestrator:
 
@@ -384,7 +387,7 @@ Parameters:
   ack_required: false
 ```
 
-#### L2 Step 2: Check Inbox Before Major Steps
+#### Step 2: Check Inbox Before Major Steps
 
 Before Steps 3, 4, 5 in base flow, check for incoming messages:
 
@@ -403,7 +406,7 @@ Parameters:
 | `NUDGE` | Respond with progress update |
 | `TERMINATE` | Exit gracefully (checkpoint work) |
 
-#### L2 Step 3: Send PROGRESS Messages Periodically
+#### Step 3: Send PROGRESS Messages Periodically
 
 After each major step, send progress update:
 
@@ -430,7 +433,7 @@ Parameters:
   ack_required: false
 ```
 
-#### L2 Step 4: Send HELP_REQUEST When Stuck
+#### Step 4: Send HELP_REQUEST When Stuck
 
 **Replace user prompts with Agent Mail help requests:**
 
@@ -478,7 +481,7 @@ for i in {1..24}; do
 done
 ```
 
-#### L2 Step 5: Report Completion via Agent Mail
+#### Step 5: Report Completion via Agent Mail
 
 After Step 7 (closing the issue), send completion message:
 
@@ -536,9 +539,9 @@ Parameters:
   ack_required: false
 ```
 
-### Level 2 File Reservations
+### Distributed Mode File Reservations
 
-When running in Level 2 with parallel workers, claim files before editing:
+When running in distributed mode with parallel workers, claim files before editing:
 
 **Before Step 4 (implementation):**
 ```
@@ -560,7 +563,7 @@ Parameters:
   agent_name: "<demigod-id>"
 ```
 
-### Level 2 Context Checkpoint
+### Distributed Mode Context Checkpoint
 
 If context usage is high (>80%), send checkpoint before exiting:
 
@@ -586,7 +589,7 @@ Parameters:
   ack_required: false
 ```
 
-### Level 2 Key Rules
+### Distributed Mode Key Rules
 
 - **Always check inbox** - Messages may contain critical guidance
 - **Send progress regularly** - Orchestrator needs visibility
@@ -595,9 +598,9 @@ Parameters:
 - **Checkpoint on context high** - Preserve progress for successor
 - **Acknowledge important messages** - Confirms receipt to sender
 
-### Level 2 vs Level 1 Summary
+### Distributed vs Local Mode Summary
 
-| Behavior | Level 1 | Level 2 |
+| Behavior | Local | Distributed |
 |----------|---------|---------|
 | Progress reporting | None | PROGRESS messages |
 | When stuck | Ask user / proceed | HELP_REQUEST to Chiron |
@@ -617,4 +620,4 @@ When /implement is called from /demigod skill:
 When /implement is called standalone with `--agent-mail`:
 1. Must register self
 2. Must claim own files
-3. Full Level 2 behavior
+3. Full distributed mode behavior
