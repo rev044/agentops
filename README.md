@@ -7,7 +7,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-**DevOps for AI agents.**
+**DevOps for AI agents — a knowledge flywheel that gives your agent memory.**
 
 Maximize flow. Shorten feedback loops. Compound what you learn.
 
