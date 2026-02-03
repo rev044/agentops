@@ -35,9 +35,14 @@ claude plugin add boshu2/agentops
 /pre-mortem "add OAuth integration"
 ```
 
-**Execute with parallel agents:**
+**Execute an epic (issue loop):**
 ```
 /crank epic-123
+```
+
+**Parallelize independent tasks (Ralph loop / fresh context):**
+```
+/swarm
 ```
 
 **Check before you commit:**
@@ -65,10 +70,18 @@ That's it. AgentOps catches problems before they ship and remembers solutions fo
 | Skill | What It Does |
 |-------|--------------|
 | `/pre-mortem` | Simulate failures BEFORE you write code |
-| `/crank` | Execute an epic autonomously with parallel agents |
-| `/swarm` | Spawn fresh-context agents for parallel work |
+| `/crank` | Execute an epic autonomously (issue loop; uses `/swarm` for waves) |
+| `/swarm` | Ralph loop: spawn fresh-context agents for parallel work |
 | `/vibe` | 8-aspect validation gate before commit |
 | `/post-mortem` | Extract learnings to feed future sessions |
+
+## Which Loop Should I Use?
+
+| You Want | Use | Why |
+|----------|-----|-----|
+| Fresh context per iteration (“Ralph loop”) | `/swarm` | The loop belongs in the orchestrator; each spawn is clean context |
+| “Do the whole epic” | `/crank` | Loops issues until the epic is done (often calling `/swarm`) |
+| Track/gate progress through RPI | `/ratchet` | Records/checks gates; does not execute work by itself |
 
 **The workflow:**
 ```
