@@ -471,4 +471,4 @@ Vibe-coding becomes reliable when validation is built in, not bolted on.
 
 ---
 
-*This document reframes the 12 Factors through the lens of coding agent validation. For the original factors, see ~/gt/12factor/factors/. For the positioning foundation, see devops-for-vibe-coding.md.*
+*This document reframes the 12 Factors through the lens of coding agent validation. For the positioning foundation, see `docs/positioning/devops-for-vibe-coding.md`.*

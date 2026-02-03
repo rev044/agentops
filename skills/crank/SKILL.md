@@ -1,11 +1,11 @@
 ---
 name: crank
-description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm (Task tool). Distributed mode uses /spawn + Agent Mail for cross-session orchestration with Chiron help routing. NO human prompts, NO stopping.'
+description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm (Task tool). Distributed mode uses /swarm --mode=distributed (tmux + Agent Mail) for persistence and coordination. NO human prompts, NO stopping.'
 ---
 
 # Crank Skill
 
-> **Quick Ref:** Autonomous epic execution. Local mode: `/swarm` for each wave. Distributed mode: `/spawn` via Agent Mail with Chiron pattern. Output: closed issues + final vibe.
+> **Quick Ref:** Autonomous epic execution. Local mode: `/swarm` for each wave. Distributed mode: `/swarm --mode=distributed` (tmux + Agent Mail). Output: closed issues + final vibe.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -349,9 +349,9 @@ Loop until all beads issues are CLOSED.
 
 ## Distributed Mode: Agent Mail Orchestration
 
-> **When:** Agent Mail MCP tools are available AND `--distributed` flag is set
+> **When:** Agent Mail MCP tools are available AND `--mode=distributed` is set
 
-Distributed mode transforms /crank from a TaskList-based orchestrator to an Agent Mail-based orchestrator. Instead of using the Task tool to spawn subagents, it uses `/spawn` to create demigods that communicate via Agent Mail.
+Distributed mode transforms /crank from a TaskList-based orchestrator to a persistent orchestrator that runs waves via `/swarm --mode=distributed` and coordinates through Agent Mail.
 
 ### Why Distributed Mode?
 
@@ -384,14 +384,14 @@ fi
 # (if mcp__mcp-agent-mail__* tools are available)
 
 # Explicit flag takes precedence
-# /crank epic-123 --distributed
+# /crank epic-123 --mode=distributed
 ```
 
 **Mode selection:**
 | Condition | Mode |
 |-----------|------|
-| `--distributed` AND Agent Mail available | Distributed |
-| `--distributed` AND Agent Mail unavailable | Error: "Agent Mail required for distributed mode" |
+| `--mode=distributed` AND Agent Mail available | Distributed |
+| `--mode=distributed` AND Agent Mail unavailable | Error: "Agent Mail required for distributed mode" |
 | No flag AND Agent Mail available | Local (default) |
 | No flag AND Agent Mail unavailable | Local |
 
@@ -399,8 +399,8 @@ fi
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--distributed` | Force distributed orchestration mode | `local` |
-| `--agent-mail` | Enable Agent Mail (same as `--distributed`) | `false` |
+| `--mode=distributed` | Force distributed orchestration mode | `local` |
+| `--agent-mail` | Enable Agent Mail (alias for `--mode=distributed`) | `false` |
 | `--orchestrator-id` | Crank's identity in Agent Mail | `crank-<epic-id>` |
 | `--chiron` | Enable Chiron pattern for help requests | `true` in distributed |
 | `--max-parallel` | Max concurrent demigods per wave | `5` |
@@ -414,7 +414,7 @@ Crank (orchestrator)              Agent Mail              Demigods
     |                                 |                       |
     +-> Reserve files for wave ------>|                       |
     |                                 |                       |
-    +-> /spawn for each issue --------|------- spawns ------->|
+    +-> /swarm --mode=distributed ----|---- spawns workers -->|
     |                                 |                       |
     +-> Poll inbox <------------------|<-- BEAD_ACCEPTED -----|
     |                                 |<-- PROGRESS ----------|
@@ -436,7 +436,7 @@ Crank (orchestrator)              Agent Mail              Demigods
 
 ### Distributed Mode Execution Steps
 
-When `--distributed` is enabled:
+When `--mode=distributed` is enabled:
 
 #### Step 0: Initialize Orchestrator Identity
 
@@ -486,60 +486,15 @@ Parameters:
 | Cannot predict files | Skip reservation, rely on demigod to reserve |
 | Conflicting issues in same wave | Serialize those issues (don't spawn parallel) |
 
-#### Step 2: Spawn Demigods via /spawn (Not Task Tool)
+#### Step 2: Execute Wave via /swarm (Distributed Mode)
 
-**Instead of:**
+In distributed mode, crank delegates parallel execution to swarm’s distributed mode:
+
 ```
-Task(
-  subagent_type="general-purpose",
-  run_in_background=true,
-  prompt="Execute task..."
-)
+/swarm --mode=distributed --bead-ids <issue-1>,<issue-2>,<issue-3> --wait
 ```
 
-**Use:**
-```
-Tool: Skill
-Parameters:
-  skill: "agentops:spawn"
-  args: "--issue <issue-id> --orchestrator <orchestrator-id> --agent-mail"
-```
-
-**Or spawn directly via Agent Mail pattern:**
-
-1. **Send SPAWN_REQUEST to spawn infrastructure:**
-```
-Tool: mcp__mcp-agent-mail__send_message
-Parameters:
-  project_key: "<project-key>"
-  sender_name: "<orchestrator-id>"
-  to: "spawner@olympus"
-  subject: "SPAWN_REQUEST"
-  body_md: |
-    ## Spawn Demigod
-    Issue: <issue-id>
-    Title: <issue-title>
-
-    ## Task
-    <issue description>
-
-    ## Instructions
-    Run: /implement <issue-id> --agent-mail --orchestrator <orchestrator-id>
-
-    ## Files Reserved
-    - src/auth.py
-    - tests/test_auth.py
-  thread_id: "<issue-id>"
-  ack_required: true
-```
-
-2. **Wait for SPAWN_ACK confirming demigod started:**
-```
-Tool: mcp__mcp-agent-mail__fetch_inbox
-Parameters:
-  project_key: "<project-key>"
-  agent_name: "<orchestrator-id>"
-```
+Swarm handles worker spawning (tmux) and coordination (Agent Mail). See `skills/swarm/SKILL.md` for the distributed worker lifecycle and monitoring.
 
 #### Step 3: Monitor via Inbox (Not TaskOutput)
 
@@ -740,7 +695,7 @@ Distributed mode uses the same FIRE pattern with Agent Mail coordination:
 | Phase | Local | Distributed |
 |-------|---------|---------|
 | **FIND** | `bd ready` | `bd ready` |
-| **IGNITE** | TaskCreate + /swarm | File reserve + /spawn via Agent Mail |
+| **IGNITE** | TaskCreate + /swarm | File reserve + `/swarm --mode=distributed` |
 | **REAP** | TaskOutput notifications | fetch_inbox polling |
 | **ESCALATE** | Retry via swarm | Chiron for help + retry via spawn |
 
@@ -751,9 +706,7 @@ Wave 1: bd ready → [issue-1, issue-2, issue-3]
         ↓
         Reserve files for all 3 issues
         ↓
-        /spawn issue-1 --agent-mail
-        /spawn issue-2 --agent-mail
-        /spawn issue-3 --agent-mail
+        /swarm --mode=distributed --bead-ids issue-1,issue-2,issue-3 --wait
         ↓
         Poll inbox:
           - BEAD_ACCEPTED (×3)
@@ -789,7 +742,7 @@ Final vibe on all changes → Epic DONE
 
 | Aspect | Local | Distributed |
 |--------|---------|---------|
-| Spawn mechanism | Task tool | /spawn via Agent Mail |
+| Spawn mechanism | Task tool | `/swarm --mode=distributed` (tmux + Agent Mail) |
 | Monitoring | TaskOutput | fetch_inbox polling |
 | Help requests | User prompt | Chiron pattern |
 | File conflicts | Race conditions | Advisory reservations |
@@ -799,15 +752,14 @@ Final vibe on all changes → Epic DONE
 
 ### Without Agent Mail
 
-If Agent Mail is not available and `--distributed` is requested:
+If Agent Mail is not available and `--mode=distributed` is requested:
 
 ```markdown
 Error: Distributed mode requires Agent Mail.
 
 To enable Agent Mail:
 1. Start MCP Agent Mail server:
-   cd ~/gt/acfs-research/tier1/mcp_agent_mail
-   uv run python -m mcp_agent_mail.http --host 127.0.0.1 --port 8765
+   Start your Agent Mail MCP server (implementation-specific). See `docs/agent-mail.md`.
 
 2. Add to ~/.claude/mcp_servers.json:
    {
@@ -826,7 +778,7 @@ Falling back to local mode.
 
 | Skill | Distributed Mode Integration |
 |-------|------------------------------|
-| `/spawn` | Called by crank to create demigods |
+| `/swarm` | Executes waves (local or distributed mode) |
 | `/implement` | Run by demigods with `--agent-mail` flag |
 | `/inbox` | Used by crank for monitoring (or direct fetch_inbox) |
 | `/chiron` | Receives HELP_ROUTE, responds with HELP_RESPONSE |
@@ -836,7 +788,7 @@ Falling back to local mode.
 
 ```bash
 # Start with distributed mode
-/crank ol-527 --distributed
+/crank ol-527 --mode=distributed
 
 # Output:
 # Distributed mode: Agent Mail orchestration enabled
@@ -844,9 +796,7 @@ Falling back to local mode.
 # Project: /Users/fullerbt/gt/olympus
 #
 # Wave 1: Spawning 3 demigods...
-#   - /spawn ol-527.1 --agent-mail --orchestrator crank-ol527
-#   - /spawn ol-527.2 --agent-mail --orchestrator crank-ol527
-#   - /spawn ol-527.3 --agent-mail --orchestrator crank-ol527
+#   - /swarm --mode=distributed --bead-ids ol-527.1,ol-527.2,ol-527.3 --wait
 #
 # Monitoring inbox...
 #   [00:15] BEAD_ACCEPTED from demigod-ol-527-1

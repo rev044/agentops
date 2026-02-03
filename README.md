@@ -124,7 +124,7 @@ AgentOps is delivered as **skills**: Markdown playbooks your agent runs via slas
 
 `/swarm`, `/crank`, and `/implement` support two execution modes:
 
-| | Local (default) | Distributed (`--distributed`) |
+| | Local (default) | Distributed (`--mode=distributed`) |
 |---|---|---|
 | **How** | Task tool background agents | tmux sessions + Agent Mail |
 | **Dependencies** | None (Claude-native) | `tmux`, `claude` CLI, Agent Mail MCP |
@@ -150,7 +150,7 @@ brew install tmux                    # Session management
 # claude CLI - already installed if you're using Claude Code
 ```
 
-Agent Mail is an MCP server for inter-agent messaging. Distributed mode requires it for coordination. See [mcp_agent_mail](https://github.com/boshu2/acfs-research) for setup.
+Agent Mail is an MCP server for inter-agent messaging. Distributed mode requires it for coordination. See `docs/agent-mail.md` for setup options.
 
 > **Note:** Local mode works out of the box with zero extra dependencies. Only set up distributed mode if you need persistence or complex coordination.
 
@@ -385,7 +385,6 @@ With hooks enabled, the flywheel turns automatically:
 | `/complexity` | Code complexity metrics |
 | `/doc` | Documentation generation |
 | `/standards` | Language-specific rules |
-
 </details>
 
 ---

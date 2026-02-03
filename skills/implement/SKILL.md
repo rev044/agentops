@@ -313,13 +313,13 @@ Detect the operational mode at skill start:
 # Check for Agent Mail availability
 AGENT_MAIL_AVAILABLE=false
 
-# Method 1: Check if running inside /demigod context
+# Method 1: Check if running inside a distributed worker context
 if [ -n "$OLYMPUS_DEMIGOD_ID" ]; then
     AGENT_MAIL_AVAILABLE=true
 fi
 
 # Method 2: Check for explicit flag
-# /implement <issue-id> --distributed --thread-id <id>
+# /implement <issue-id> --mode=distributed --thread-id <id>
 # /implement <issue-id> --agent-mail --thread-id <id>  # Back-compat alias
 ```
 
@@ -333,22 +333,22 @@ fi
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--local` | Force local mode | Default |
-| `--distributed` | Enable Agent Mail coordination | - |
+| `--mode=local` | Force local mode | Default |
+| `--mode=distributed` | Enable Agent Mail coordination | - |
 | `--agent-mail` | Enable Agent Mail coordination (back-compat alias) | `false` |
 | `--thread-id` | Thread ID for message grouping (usually bead-id) | `<issue-id>` |
 | `--demigod-id` | Agent identity for message sender | `demigod-<issue-id>` |
-| `--orchestrator` | Who to send status messages to | `mayor@olympus` |
+| `--orchestrator` | Who to send status messages to | `<orchestrator-agent-name>` |
 
 ### Distributed Mode Execution Steps
 
-When `--distributed` (or `--agent-mail`) is enabled OR `$OLYMPUS_DEMIGOD_ID` is set:
+When `--mode=distributed` (or `--agent-mail`) is enabled OR `$OLYMPUS_DEMIGOD_ID` is set:
 
 #### Step 0: Initialize Agent Mail Session
 
 ```bash
 # If not already registered (Demigod handles this), register self
-# This is typically done by /demigod, but implement can work standalone
+# This is typically done by a worker wrapper (e.g., tmux session), but implement can work standalone
 if [ -z "$OLYMPUS_DEMIGOD_ID" ]; then
     # Standalone distributed mode - need to register
     DEMIGOD_ID="${DEMIGOD_ID:-demigod-$(date +%s)}"
@@ -361,9 +361,9 @@ fi
 ```
 Tool: mcp__mcp-agent-mail__register_agent
 Parameters:
-  project_key: "olympus"
+  project_key: "<project-key>"
   program: "implement-skill"
-  model: "claude-opus-4-5-20250101"
+  model: "<model>"
   task_description: "Implementing <issue-id>"
 ```
 
@@ -375,7 +375,7 @@ After claiming the issue (Step 2 in base flow), notify the orchestrator:
 ```
 Tool: mcp__mcp-agent-mail__send_message
 Parameters:
-  project_key: "olympus"
+  project_key: "<project-key>"
   sender_name: "<demigod-id>"
   to: "<orchestrator>"
   subject: "BEAD_ACCEPTED"
@@ -609,10 +609,10 @@ Parameters:
 | File conflicts | Race conditions | Advisory reservations |
 | Guidance | None | Check inbox for GUIDANCE |
 
-### Integration with /demigod
+### Integration with Distributed Workers
 
-When /implement is called from /demigod skill:
-1. Environment variables are pre-set (`$OLYMPUS_DEMIGOD_ID`, etc.)
+When `/implement` is run inside a distributed worker (e.g., a tmux session):
+1. Environment variables may already be set (`$OLYMPUS_DEMIGOD_ID`, etc.)
 2. Agent registration already done
 3. File reservations already claimed
 4. Just focus on implementation + progress + completion messages

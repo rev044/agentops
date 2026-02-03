@@ -9,7 +9,7 @@ Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ral
 
 **Execution Modes:**
 - **Local** (default) - Pure Claude-native using Task tool background agents
-- **Distributed** (`--distributed`) - tmux sessions + Agent Mail for robust coordination
+- **Distributed** (`--mode=distributed`) - tmux sessions + Agent Mail for robust coordination
 
 **Integration modes:**
 - **Direct** - Create TaskList tasks, invoke `/swarm`
@@ -262,7 +262,7 @@ At skill start, detect which mode to use:
 
 ```bash
 # Method 1: Explicit flag
-# /swarm --distributed <tasks>
+# /swarm --mode=distributed <tasks>
 
 # Method 2: Auto-detect Agent Mail availability
 MODE="local"
@@ -289,22 +289,22 @@ fi
 |----------|------------|--------|
 | Not set | Not available | Local |
 | Not set | Available | Local (explicit opt-in required) |
-| `--local` | Any | Local |
-| `--distributed` | Not available | **Error: Agent Mail required** |
-| `--distributed` | Available | Distributed |
+| `--mode=local` | Any | Local |
+| `--mode=distributed` | Not available | **Error: Agent Mail required** |
+| `--mode=distributed` | Available | Distributed |
 
 ### Distributed Mode Invocation
 
 ```
-/swarm --distributed [--max-workers=N]
-/swarm --distributed --bead-ids ol-527.1,ol-527.2,ol-527.3
+/swarm --mode=distributed [--max-workers=N]
+/swarm --mode=distributed --bead-ids ol-527.1,ol-527.2,ol-527.3
 ```
 
 **Parameters:**
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--distributed` | Enable tmux + Agent Mail mode | Required for distributed |
+| `--mode=distributed` | Enable tmux + Agent Mail mode | - |
 | `--max-workers=N` | Max concurrent demigods | 5 |
 | `--bead-ids` | Specific beads to work (comma-separated) | Auto from `bd ready` |
 | `--wait` | Wait for all demigods to complete | false |
@@ -315,14 +315,14 @@ fi
 ```
 Mayor Session (this session)
     |
-    +-> Mode Detection: `--distributed` + Agent Mail available → Distributed
+    +-> Mode Detection: `--mode=distributed` + Agent Mail available → Distributed
     |
     +-> Identify wave: bd ready → [ol-527.1, ol-527.2, ol-527.3]
     |
-    +-> Spawn: tmux new-session for each (via /spawn skill internally)
-    |       demigod-ol-527-1 → runs /demigod ol-527.1
-    |       demigod-ol-527-2 → runs /demigod ol-527.2
-    |       demigod-ol-527-3 → runs /demigod ol-527.3
+    +-> Spawn: tmux new-session for each worker
+    |       demigod-ol-527-1 → runs `/implement ol-527.1 --mode=distributed`
+    |       demigod-ol-527-2 → runs `/implement ol-527.2 --mode=distributed`
+    |       demigod-ol-527-3 → runs `/implement ol-527.3 --mode=distributed`
     |
     +-> Coordinate: Agent Mail messages
     |       Each demigod sends ACCEPTED, PROGRESS, DONE/FAILED
@@ -336,7 +336,7 @@ Mayor Session (this session)
 
 ### Distributed Mode Execution Steps
 
-Given `/swarm --distributed`:
+Given `/swarm --mode=distributed`:
 
 #### Step 1: Pre-flight Checks
 
@@ -362,7 +362,7 @@ fi
 
 if [ "$AGENT_MAIL_OK" != "true" ]; then
     echo "Error: Agent Mail required for distributed mode"
-    echo "Start server: cd ~/gt/acfs-research/tier1/mcp_agent_mail && uv run python -m mcp_agent_mail.http"
+    echo "Start your Agent Mail MCP server (implementation-specific). See docs/agent-mail.md."
     exit 1
 fi
 ```
@@ -417,7 +417,7 @@ for BEAD_ID in $READY_BEADS; do
     fi
 
     # Spawn demigod in new tmux session
-    tmux new-session -d -s "$SESSION_NAME" "claude -p '/demigod $BEAD_ID'"
+    tmux new-session -d -s "$SESSION_NAME" "claude -p '/implement $BEAD_ID --mode=distributed --thread-id $BEAD_ID'"
 
     # Verify session started
     if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
@@ -537,16 +537,16 @@ done
 
 **Or keep all sessions for review:** Use `--keep-sessions` flag to preserve all tmux sessions for post-mortem analysis.
 
-### Distributed Mode Helper Skills
+### Distributed Mode Helpers
 
-Use these companion skills with distributed mode swarm:
+Use these helpers with distributed mode swarm:
 
-| Skill | Purpose |
-|-------|---------|
-| `/attach <session>` | Attach to a running demigod session for debugging |
-| `/attach --list` | List all running demigod sessions |
+| Helper | Purpose |
+|--------|---------|
+| `tmux list-sessions` | List running worker sessions |
+| `tmux attach -t <session>` | Attach to a worker session for debugging |
 | `/inbox` | Check Agent Mail for pending messages |
-| `/vibe --remote <session>` | Validate demigod's work before accepting |
+| `/vibe --remote <session>` | Validate a worker’s work before accepting |
 
 ### Distributed Mode File Reservations
 
@@ -620,11 +620,11 @@ Wave did not complete within <timeout>.
 ### Still Running
 | Session | Bead | Runtime | Action |
 |---------|------|---------|--------|
-| demigod-ol-527-3 | ol-527.3 | 32m | Consider `/attach` to check status |
+| demigod-ol-527-3 | ol-527.3 | 32m | Consider `tmux attach -t demigod-ol-527-3` |
 
 ### Options
-1. Continue waiting: `/swarm --wait --timeout 60m`
-2. Attach to slow workers: `/attach demigod-ol-527-3`
+1. Continue waiting: `/swarm --mode=distributed --wait --timeout 60m`
+2. Attach to slow workers: `tmux attach -t demigod-ol-527-3`
 3. Kill and retry: `tmux kill-session -t demigod-ol-527-3`
 ```
 
@@ -633,12 +633,12 @@ Wave did not complete within <timeout>.
 | Behavior | Local | Distributed |
 |----------|---------|---------|
 | Spawn mechanism | `Task(run_in_background=true)` | `tmux new-session -d` |
-| Worker entry point | Inline prompt | `/demigod <bead-id>` |
+| Worker entry point | Inline prompt | `/implement <bead-id> --mode=distributed` |
 | Process isolation | Shared parent | Separate processes |
 | Persistence | Tied to Mayor | Survives Mayor crash |
 | Coordination | None | Agent Mail messages |
 | File conflicts | Race conditions | File reservations |
-| Debugging | Limited | `/attach` to inspect |
+| Debugging | Limited | `tmux attach -t <session>` |
 | Resource overhead | Low | Medium (N tmux sessions) |
 | Setup requirements | None | tmux + Agent Mail |
 
@@ -658,11 +658,11 @@ Wave did not complete within <timeout>.
 
 ```bash
 # 1. Start Agent Mail (if not running)
-cd ~/gt/acfs-research/tier1/mcp_agent_mail
-uv run python -m mcp_agent_mail.http --host 127.0.0.1 --port 8765 &
+# Start your Agent Mail MCP server (implementation-specific)
+# See docs/agent-mail.md
 
 # 2. In Claude session, run distributed mode swarm
-/swarm --distributed --max-workers=3 --wait
+/swarm --mode=distributed --max-workers=3 --wait
 
 # Output:
 # Pre-flight: tmux OK, Agent Mail OK
@@ -682,7 +682,7 @@ uv run python -m mcp_agent_mail.http --host 127.0.0.1 --port 8765 &
 #
 # Wave complete: 2 done, 1 failed
 # Sessions cleaned up (except failed)
-# Use `/attach demigod-ol-527-3` to debug failed worker
+# Use `tmux attach -t demigod-ol-527-3` to debug the failed worker
 ```
 
 ### Fallback Behavior

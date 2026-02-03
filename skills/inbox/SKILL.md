@@ -284,8 +284,7 @@ Agent Mail not available.
 
 To enable:
 1. Start MCP Agent Mail server:
-   cd ~/gt/acfs-research/tier1/mcp_agent_mail
-   uv run python -m mcp_agent_mail.http --host 127.0.0.1 --port 8765
+   Start your Agent Mail MCP server (implementation-specific). See `docs/agent-mail.md`.
 
 2. Add to ~/.claude/mcp_servers.json:
    {
