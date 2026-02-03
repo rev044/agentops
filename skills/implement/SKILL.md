@@ -319,7 +319,7 @@ if [ -n "$OLYMPUS_DEMIGOD_ID" ]; then
 fi
 
 # Method 2: Check for explicit flag
-# /implement <issue-id> --mode=distributed --thread-id <id>
+# /implement <issue-id> --distributed --thread-id <id>
 # /implement <issue-id> --agent-mail --thread-id <id>  # Back-compat alias
 ```
 
@@ -333,8 +333,8 @@ fi
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `--mode=local` | Force local mode | Default |
-| `--mode=distributed` | Enable Agent Mail coordination | - |
+| `--local` | Force local mode | Default |
+| `--distributed` | Enable Agent Mail coordination | - |
 | `--agent-mail` | Enable Agent Mail coordination (back-compat alias) | `false` |
 | `--thread-id` | Thread ID for message grouping (usually bead-id) | `<issue-id>` |
 | `--demigod-id` | Agent identity for message sender | `demigod-<issue-id>` |
@@ -342,7 +342,7 @@ fi
 
 ### Distributed Mode Execution Steps
 
-When `--mode=distributed` (or `--agent-mail`) is enabled OR `$OLYMPUS_DEMIGOD_ID` is set:
+When `--distributed` (or `--agent-mail`) is enabled OR `$OLYMPUS_DEMIGOD_ID` is set:
 
 #### Step 0: Initialize Agent Mail Session
 
