@@ -54,6 +54,19 @@ That's it. AgentOps catches problems before they ship and remembers solutions fo
 
 ---
 
+## Skills (What They Are)
+
+AgentOps is delivered as **skills**: Markdown playbooks your agent can run via slash commands (e.g. `/vibe`).
+
+- Skills live in this repo under `skills/<name>/SKILL.md`
+- Install them into your agent with `npx skills@latest add boshu2/agentops --all -g` (or `claude plugin add boshu2/agentops`)
+- Bring your own spec/planner: AgentOps is **spec-method agnostic**. Use any SDD/RPI/spec plugin or workflow to generate plans/specs, then use AgentOps to execute/validate against that spec and feed learnings into the next one.
+- Some skills are **orchestrators** that call other skills:
+  - `/crank` orchestrates an epic/wave loop and uses `/swarm` under the hood to execute each wave in parallel
+  - `/swarm` is the executor primitive: it spawns fresh-context agents to run tasks concurrently
+
+---
+
 ## What It Does
 
 | Problem | AgentOps Solution |
@@ -70,8 +83,8 @@ That's it. AgentOps catches problems before they ship and remembers solutions fo
 | Skill | What It Does |
 |-------|--------------|
 | `/pre-mortem` | Simulate failures BEFORE you write code |
-| `/crank` | Execute an epic autonomously (issue loop; uses `/swarm` for waves) |
-| `/swarm` | Ralph loop: spawn fresh-context agents for parallel work |
+| `/crank` | Orchestrate an epic issue loop by running waves via `/swarm` |
+| `/swarm` | Spawn fresh-context agents to execute tasks/issues in parallel |
 | `/vibe` | 8-aspect validation gate before commit |
 | `/post-mortem` | Extract learnings to feed future sessions |
 
@@ -80,7 +93,7 @@ That's it. AgentOps catches problems before they ship and remembers solutions fo
 | You Want | Use | Why |
 |----------|-----|-----|
 | Fresh context per iteration (“Ralph loop”) | `/swarm` | The loop belongs in the orchestrator; each spawn is clean context |
-| “Do the whole epic” | `/crank` | Loops issues until the epic is done (often calling `/swarm`) |
+| “Do the whole epic” | `/crank` | Orchestrates the epic and calls `/swarm` for each wave |
 | Track/gate progress through RPI | `/ratchet` | Records/checks gates; does not execute work by itself |
 
 **The workflow:**
@@ -281,7 +294,7 @@ With hooks enabled, the flywheel turns automatically:
 | Skill | Purpose |
 |-------|---------|
 | `/pre-mortem` | Simulate failures before coding |
-| `/crank` | Autonomous epic execution (uses swarm) |
+| `/crank` | Autonomous epic execution (orchestrator; runs waves via `/swarm`) |
 | `/swarm` | Parallel agents with fresh context |
 | `/vibe` | 8-aspect validation gate |
 | `/implement` | Single issue execution |
