@@ -1,6 +1,7 @@
 ---
 name: inbox
 description: 'Agent Mail inbox monitoring. Check pending messages, HELP_REQUESTs, and recent completions. Triggers: "inbox", "check mail", "any messages", "show inbox", "pending messages", "who needs help".'
+dependencies: []
 ---
 
 # Inbox Skill
@@ -296,3 +297,10 @@ To enable:
 
 3. Restart Claude Code session
 ```
+
+---
+
+## References
+
+- **Agent Mail Protocol:** See `skills/shared/agent-mail-protocol.md` for message format specifications
+- **Parser (Go):** `cli/internal/agentmail/` - shared parser for all message types

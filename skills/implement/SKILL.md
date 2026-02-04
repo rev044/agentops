@@ -1,6 +1,9 @@
 ---
 name: implement
 description: 'Execute a single beads issue with full lifecycle. Triggers: "implement", "work on task", "fix bug", "start feature", "pick up next issue".'
+dependencies:
+  - beads     # optional - for issue tracking via bd CLI
+  - standards # loads language-specific standards
 ---
 
 # Implement Skill
@@ -621,3 +624,10 @@ When /implement is called standalone with `--agent-mail`:
 1. Must register self
 2. Must claim own files
 3. Full distributed mode behavior
+
+---
+
+## References
+
+- **Agent Mail Protocol:** See `skills/shared/agent-mail-protocol.md` for message format specifications
+- **Parser (Go):** `cli/internal/agentmail/` - shared parser for all message types

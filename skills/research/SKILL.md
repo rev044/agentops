@@ -1,6 +1,9 @@
 ---
 name: research
 description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
+dependencies:
+  - knowledge # optional - queries existing knowledge
+  - inject    # optional - injects prior context
 ---
 
 # Research Skill

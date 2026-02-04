@@ -14,6 +14,7 @@ Write to: `.agents/learnings/YYYY-MM-DD-{topic}.md`
 **Date:** YYYY-MM-DD
 **Epic:** <epic-id>
 **Tags:** [learning, topic1, topic2]
+**Verified:** yes/no
 
 ---
 
@@ -36,6 +37,20 @@ Concrete insight or pattern discovered. Be specific.
 ### Key Insight
 
 > [One-sentence summary that could be quoted]
+
+---
+
+## Verification Status
+
+**Verified:** yes / no
+
+**Verification Method:** [How this was verified]
+- Tool-verified: [tool name and output file]
+- Multi-observation: [list of files/commits where pattern appeared]
+- Production-confirmed: [incident or metric that confirmed]
+- Single-observation: [needs more data to confirm]
+
+**NOTE:** Do NOT use confidence scores (0.92, 0.91). Use "verified: yes/no" with method.
 
 ---
 
@@ -185,9 +200,11 @@ mcp__ai-platform__memory_store(
         f"epic:{epic_id}",
         "learning",
         "topic:specific-topic",
-        "rig:rig-name"
+        "rig:rig-name",
+        "verified:yes"  # or "verified:no" - never use confidence scores
     ]
-    # Note: No confidence scores. Use source citations only.
+    # Note: Use "verified:yes/no" tags, NOT confidence scores (0.92, 0.91).
+    # Verification requires source citation or multiple observations.
 )
 ```
 
@@ -356,6 +373,7 @@ A good learning:
 - [ ] Is actionable (can be applied)
 - [ ] Has context (when it applies)
 - [ ] Is findable (good tags)
+- [ ] Has verification status (verified: yes/no with method, NOT confidence scores)
 
 A good pattern:
 - [ ] Solves a real problem (not hypothetical)

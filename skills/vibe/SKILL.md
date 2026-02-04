@@ -1,6 +1,8 @@
 ---
 name: vibe
 description: 'Talos-class comprehensive code validation. Use for "validate code", "run vibe", "check quality", "security review", "architecture review", "accessibility audit", "complexity check", or any validation need. One skill to validate them all.'
+dependencies:
+  - standards # loads language-specific standards
 ---
 
 # Vibe Skill

@@ -1,6 +1,12 @@
 ---
 name: crank
 description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm (Task tool). Distributed mode uses /swarm --mode=distributed (tmux + Agent Mail) for persistence and coordination. NO human prompts, NO stopping.'
+dependencies:
+  - swarm       # required - executes each wave
+  - vibe        # required - final validation
+  - implement   # required - individual issue execution
+  - beads       # required - issue tracking via bd CLI
+  - post-mortem # optional - suggested for learnings extraction
 ---
 
 # Crank Skill
@@ -189,21 +195,55 @@ Swarm will:
 bd update <issue-id> --status closed 2>/dev/null
 ```
 
-### Step 5: Track Progress
+### Step 5: Validate Before Accepting (MANDATORY)
 
-After swarm completes the wave:
+> **CRITICAL**: Swarm completion claims are NOT trusted. Run validation BEFORE closing issues.
 
-1. Update beads issues based on TaskList results:
-```bash
-bd update <issue-id> --status closed 2>/dev/null
-```
+Swarm executes its own per-task validation (see `skills/swarm/references/validation-contract.md`), but crank adds an additional verification layer for beads integration.
 
-2. Track changed files:
+**For each issue reported complete by swarm:**
+
+1. **Verify swarm validation passed:**
+   ```
+   TaskList() → check task status == "completed" (not just notified)
+   ```
+   If task is still pending/blocked after notification, swarm validation failed.
+
+2. **Run issue-level validation checks:**
+
+   | Check | Command | Fail Action |
+   |-------|---------|-------------|
+   | Commit exists | `git log --oneline -1 \| grep <issue-id>` | Retry |
+   | Files changed | `git diff --name-only HEAD~1` | Verify expected |
+   | Tests pass | `<project test command>` | Retry with hint |
+   | No regressions | `git diff HEAD~1 \| grep -v "^+"` | Review |
+
+3. **On validation PASS:**
+   ```bash
+   bd update <issue-id> --status closed 2>/dev/null
+   ```
+
+4. **On validation FAIL:**
+   - Do NOT close the beads issue
+   - Add failure context to issue:
+     ```bash
+     bd comments add <issue-id> "Validation failed: <reason>. Retrying..."
+     ```
+   - Re-add to next wave (swarm will re-execute)
+   - After 3 failures, escalate:
+     ```bash
+     bd update <issue-id> --labels BLOCKER
+     bd comments add <issue-id> "ESCALATED: 3 validation failures. Human review required."
+     ```
+
+**After all validations complete:**
+
+5. Track changed files:
 ```bash
 git diff --name-only HEAD~5 2>/dev/null | sort -u
 ```
 
-3. **Record ratchet progress (ao integration):**
+6. **Record ratchet progress (ao integration):**
 ```bash
 # If ao CLI available, record wave completion
 if command -v ao &>/dev/null; then
@@ -212,7 +252,7 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-**Note:** Skip per-wave vibe - validation is batched at the end to save context.
+**Note:** Per-issue validation is lightweight. Full vibe is still batched at the end for comprehensive review.
 
 ### Step 6: Check for More Work
 
@@ -820,3 +860,10 @@ Falling back to local mode.
 # Iterations: 3/50
 # Mode: distributed (Agent Mail)
 ```
+
+---
+
+## References
+
+- **Agent Mail Protocol:** See `skills/shared/agent-mail-protocol.md` for message format specifications
+- **Parser (Go):** `cli/internal/agentmail/` - shared parser for all message types

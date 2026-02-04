@@ -1,54 +1,84 @@
 ---
 name: post-mortem
-description: 'Tools-first post-implementation validation. Runs toolchain (linters, tests, scanners), then dispatches agents to synthesize findings. Triggers: "post-mortem", "validate completion", "final check", "wrap up epic".'
+description: 'Tools-first post-implementation validation. Runs CI suite (linters, tests, scanners) BEFORE any agent dispatch. Blocks on failures. Agents synthesize tool output, not find issues. Triggers: "post-mortem", "validate completion", "final check", "wrap up epic".'
+dependencies:
+  - beads  # optional - for issue status
+  - retro  # implicit - extracts learnings
 ---
 
 # Post-Mortem Skill
 
-> **Quick Ref:** Toolchain → Agent Synthesis → Knowledge Extraction. Output: `.agents/retros/*.md` + `.agents/learnings/*.md`
+> **Quick Ref:** CI Suite FIRST (gate) -> Triage Tool Findings -> Knowledge Extraction. Output: `.agents/retros/*.md` + `.agents/learnings/*.md`
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-**Architecture:** Tools do 95% of validation. Agents synthesize the 5%.
+**Architecture:** CI suite runs FIRST and gates further work. Tools find issues. Agents synthesize and triage what tools found. Learnings have verification status ("verified: yes/no"), not confidence scores.
 
 ## Execution Steps
 
 Given `/post-mortem [epic-id]`:
 
-### Step 1: Run Toolchain Validation (MANDATORY FIRST)
+### Step 1: Run CI Suite (MANDATORY GATE)
 
-**Before anything else, run the toolchain:**
+**Before ANY other work, run the full CI suite including tests:**
 
 ```bash
-./scripts/toolchain-validate.sh --gate 2>&1 | tee .agents/tooling/run.log
+./scripts/toolchain-validate.sh --gate --json 2>&1 | tee .agents/tooling/run.log
 TOOL_EXIT=$?
+
+# Also capture structured output for context
+cat .agents/tooling/summary.json
 ```
 
-**Check exit code:**
-- `0` = All tools pass → proceed
-- `2` = CRITICAL findings → STOP, report to user
-- `3` = HIGH findings only → proceed with warnings
+**Exit Code Handling:**
 
-### Step 1a: Early Exit on CRITICAL Tool Failures
+| Exit Code | Meaning | Action |
+|-----------|---------|--------|
+| 0 | All tools pass (including tests) | Proceed to triage |
+| 2 | CRITICAL findings (test failures, secrets, security) | **STOP. Report findings. Do NOT proceed.** |
+| 3 | HIGH findings only | WARN, proceed with warnings in context |
 
-**If TOOL_EXIT == 2:**
+### Step 1a: Block on CI Failures (Hard Gate)
+
+**If TOOL_EXIT == 2 (CRITICAL):**
 
 ```
-STOP IMMEDIATELY.
+STOP and report to user:
 
-Report to user:
-  "Toolchain validation found CRITICAL issues. Fix before post-mortem."
+  Post-Mortem: BLOCKED BY CI SUITE
 
-  Tool outputs in .agents/tooling/:
-  - gitleaks.txt: <count> secret findings
-  - ruff.txt: <count> lint errors
-  - ...
+  CI suite found CRITICAL issues that must be fixed first:
+  - See .agents/tooling/summary.json for summary
+  - See .agents/tooling/<tool>.txt for details
 
-  Run: cat .agents/tooling/<tool>.txt
-  Fix the issues, then re-run /post-mortem
+  Common CRITICAL issues:
+  - pytest.txt: Test failures (MUST pass before post-mortem)
+  - gotest.txt: Go test failures (MUST pass before post-mortem)
+  - gitleaks.txt: Secret leaks detected
+  - semgrep.txt: Security vulnerabilities
+
+  Tool Findings (verified by CI):
+  | Tool | Status | Finding Count | Details File |
+  |------|--------|---------------|--------------|
+  | pytest | <status> | <count> | .agents/tooling/pytest.txt |
+  | gitleaks | <status> | <count> | .agents/tooling/gitleaks.txt |
+  | ... | ... | ... | ... |
+
+  Fix these issues, then re-run /post-mortem
 ```
 
-**DO NOT dispatch agents.** Tools found definitive problems.
+**DO NOT proceed to agent triage.** Test failures and critical security issues block agent dispatch. This prevents theater where agents "analyze" code that doesn't even compile or pass tests.
+
+**If TOOL_EXIT == 3 (HIGH only):**
+
+Continue to Step 2, but include tool findings in agent context:
+```markdown
+## CI Suite Findings (HIGH severity)
+
+The following issues were found by CI. Include in triage context:
+
+<paste structured output from .agents/tooling/summary.json>
+```
 
 ### Step 2: Identify What Was Completed
 
@@ -81,20 +111,32 @@ This creates ground truth for plan-compliance, not gestalt impression.
 
 Write comparison table to prompt text for plan-compliance-expert agent.
 
-### Step 4: Triage Tool Findings and Synthesize
+### Step 4: Synthesize Tool Output (Agents Receive Tool Data)
 
-**TRIAGE tool findings, not FIND issues. Tools already found issues.**
+**Agents SYNTHESIZE tool output. They do not "find issues" - tools already found issues.**
 
-Read the tool outputs:
+**First, read tool outputs to provide as agent context:**
 ```bash
+cat .agents/tooling/summary.json
 cat .agents/tooling/gitleaks.txt
 cat .agents/tooling/semgrep.txt
 cat .agents/tooling/ruff.txt
 cat .agents/tooling/golangci-lint.txt
-cat .agents/tooling/radon.txt
+cat .agents/tooling/pytest.txt
+cat .agents/tooling/gotest.txt
 ```
 
-#### 4a. Triage Security Findings
+**Agent prompts receive structured tool data, not vague instructions:**
+
+```
+WRONG: "Review this code and find security issues"
+RIGHT: "Here are the semgrep findings. For each, read file:line and classify as true_pos/false_pos"
+```
+
+#### 4a. Triage Security Findings (Tool Output as Input)
+
+**Input:** gitleaks.txt, semgrep.txt findings
+**Task:** Classify each tool finding
 
 For each finding from gitleaks/semgrep:
 1. Read the cited file:line
@@ -102,10 +144,15 @@ For each finding from gitleaks/semgrep:
 3. If true positive: severity (CRITICAL/HIGH/MEDIUM/LOW) and fix
 
 Record in table:
-| File:Line | Tool Finding | Verdict | Severity | Fix |
+| File:Line | Tool Finding | Verdict | Verified | Fix |
 |-----------|--------------|---------|----------|-----|
+| src/auth.go:42 | hardcoded secret | TRUE_POS | yes (tool: gitleaks) | Remove and use env var |
+| tests/mock.py:15 | test credential | FALSE_POS | yes (tool: gitleaks, context: test fixture) | Ignore |
 
-#### 4b. Triage Code Quality Findings
+#### 4b. Triage Code Quality Findings (Tool Output as Input)
+
+**Input:** ruff.txt, golangci-lint.txt, radon.txt findings
+**Task:** Prioritize each tool finding
 
 For each finding from linters:
 1. Read the cited file:line
@@ -113,35 +160,48 @@ For each finding from linters:
 3. If worth fixing: suggest specific change
 
 Record in table:
-| File:Line | Tool Finding | Priority | Suggested Fix |
-|-----------|--------------|----------|---------------|
+| File:Line | Tool Finding | Priority | Verified | Suggested Fix |
+|-----------|--------------|----------|----------|---------------|
 
-#### 4c. Verify Plan Completion
+#### 4c. Verify Plan Completion (Comparison Table as Input)
 
-Using the mechanical comparison table from Step 3:
+**Input:** Mechanical comparison table from Step 3
+**Task:** Classify gaps
 
 For each plan item marked "no" or "partial":
 1. Is this a real gap or scope change?
 2. Should it be tracked as follow-up issue?
 
 Record in table:
-| Plan Item | Status | Gap Type | Action |
-|-----------|--------|----------|--------|
+| Plan Item | Status | Gap Type | Verified | Action |
+|-----------|--------|----------|----------|--------|
+| API endpoint | partial | scope change | yes (commit: abc123) | Document in ADR |
 
-#### 4d. Extract Verified Learnings
+#### 4d. Extract Learnings with Verification Status
 
-From the completed work and changed files:
-
-Extract learnings that are VERIFIED (appeared in multiple places or have source citation):
+**From the completed work and changed files, extract learnings with explicit verification status.**
 
 For each learning:
 - ID: L-<date>-<N>
 - Category: technical/process/architecture
 - What: <1 sentence>
 - Source: <file:line or commit hash>
-- Verification: <how we know this is true>
+- **Verified:** yes/no (with method)
 
-DO NOT include confidence scores. Include source citations only.
+**Use verification status, NOT confidence scores:**
+
+```
+WRONG: "Confidence: 0.92"
+RIGHT: "Verified: yes (appeared in 3 files: src/a.go, src/b.go, src/c.go)"
+RIGHT: "Verified: yes (commit abc123 shows fix worked)"
+RIGHT: "Verified: no (single observation, needs confirmation)"
+```
+
+| ID | Learning | Source | Verified |
+|----|----------|--------|----------|
+| L-2024-01-15-1 | Pre-commit hooks catch 80% of lint issues | .agents/metrics/lint.csv | yes (6 months data) |
+| L-2024-01-15-2 | Go context timeout should be 30s | cmd/server/main.go:42 | yes (production incident) |
+| L-2024-01-15-3 | Python async needs explicit cleanup | | no (needs more testing) |
 
 ### Step 5a: Log Triage Decisions
 
@@ -165,20 +225,22 @@ This enables accuracy tracking over time. Ground truth is added later when:
 
 ### Step 5: Synthesize Results
 
-Combine agent outputs:
+Combine triage outputs:
 1. Deduplicate findings by file:line
-2. Sort by severity (CRITICAL → HIGH → MEDIUM → LOW)
-3. Count verified vs disputed findings
+2. Sort by severity (CRITICAL -> HIGH -> MEDIUM -> LOW)
+3. Count verified findings by status
 
-**Compute grade based on TOOL findings, not agent opinions:**
+**Grade based on CI SUITE results (tool findings), not agent opinions:**
 
 ```
-Grade A: 0 critical tool findings
-Grade B: 0 critical, <5 high tool findings
-Grade C: 0 critical, 5-15 high tool findings
-Grade D: 1+ critical tool findings
-Grade F: Multiple critical, tests failing
+Grade A: CI passed, 0 critical tool findings
+Grade B: CI passed, 0 critical, <5 high tool findings
+Grade C: CI passed, 0 critical, 5-15 high tool findings
+Grade D: CI blocked (1+ critical tool findings)
+Grade F: CI blocked (tests failing or multiple critical)
 ```
+
+**Note:** If CI suite was blocked in Step 1, the grade is automatically D or F. There should be no post-mortem report generated for blocked CI - the user must fix issues first.
 
 ### Step 6: Request Human Approval (Gate 4)
 
@@ -200,11 +262,12 @@ Parameters:
 
 **Write to:** `.agents/retros/YYYY-MM-DD-post-mortem-<topic>.md`
 
-**Merge agent outputs:**
-1. Collect tables from all 4 agents
+**Only write report if CI suite passed (Step 1).** If CI was blocked, there is no post-mortem - user must fix issues first.
+
+**Merge triage outputs:**
+1. Collect tables from triage steps
 2. Deduplicate by file:line (within 5 lines tolerance)
 3. Sort by severity (CRITICAL -> HIGH -> MEDIUM -> LOW)
-4. List which agents agreed on each finding
 
 ```markdown
 # Post-Mortem: <Topic/Epic>
@@ -213,36 +276,42 @@ Parameters:
 **Epic:** <epic-id or description>
 **Duration:** <how long>
 
-## Toolchain Results
+## CI Suite Results (Gate)
 
-| Tool | Status | Findings |
-|------|--------|----------|
-| gitleaks | PASS/FAIL | <count> |
-| ruff | PASS/FAIL | <count> |
-| pytest | PASS/FAIL | <count> |
+| Tool | Status | Findings | Details |
+|------|--------|----------|---------|
+| pytest | PASS/FAIL | <count> | .agents/tooling/pytest.txt |
+| go test | PASS/FAIL | <count> | .agents/tooling/gotest.txt |
+| gitleaks | PASS/FAIL | <count> | .agents/tooling/gitleaks.txt |
+| semgrep | PASS/FAIL | <count> | .agents/tooling/semgrep.txt |
+| ruff | PASS/FAIL | <count> | .agents/tooling/ruff.txt |
 
-**Gate Status:** <PASS/BLOCKED>
+**Gate Status:** PASS (CI suite passed, post-mortem proceeds)
 
 ## Triaged Findings
 
 ### True Positives (actionable)
-| File:Line | Issue | Severity | Status |
-|-----------|-------|----------|--------|
+| File:Line | Tool Finding | Severity | Verified | Action |
+|-----------|--------------|----------|----------|--------|
 
 ### False Positives (dismissed)
-| File:Line | Tool Claimed | Why Dismissed |
-|-----------|--------------|---------------|
+| File:Line | Tool Claimed | Verified | Why Dismissed |
+|-----------|--------------|----------|---------------|
 
 ## Plan Compliance
 
 <Mechanical comparison table from Step 3>
 
+| Plan Item | Delivered | Verified | Notes |
+|-----------|-----------|----------|-------|
+
 ## Learnings Extracted
 
-| ID | Category | Learning | Source |
-|----|----------|----------|--------|
+| ID | Category | Learning | Source | Verified |
+|----|----------|----------|--------|----------|
+| L-<date>-1 | technical | <learning> | <file:line> | yes/no (method) |
 
-**Note:** No confidence scores. Source citations only.
+**Note:** Learnings use "verified: yes/no" status, not confidence scores.
 
 ## Follow-up Issues
 
@@ -301,8 +370,10 @@ Tell the user:
 
 | Before | After |
 |--------|-------|
-| Agents find issues | Tools find issues, agents triage |
-| Vague prompts | Checklist-driven prompts with tool output |
-| Fake confidence scores | Source citations only |
-| Always produces report | Gates on tool failures |
-| 6 agents | 4 agents (focused on synthesis) |
+| Agents find issues | CI suite finds issues, agents synthesize tool output |
+| Agents dispatched first | CI suite runs FIRST (hard gate on failures) |
+| Tests run during triage | Tests run BEFORE agent dispatch (blocks on failure) |
+| Vague "find issues" prompts | Agents receive structured tool output as input |
+| Confidence scores (0.92, 0.91) | Verification status ("verified: yes/no" with method) |
+| Always produces report | Blocked if CI fails - no theater |
+| Pattern matching validation | Mechanical verification via CI tools |

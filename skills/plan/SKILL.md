@@ -1,6 +1,12 @@
 ---
 name: plan
 description: 'Epic decomposition into trackable issues. Triggers: "create a plan", "plan implementation", "break down into tasks", "decompose into features", "create beads issues from research", "what issues should we create", "plan out the work".'
+dependencies:
+  - research   # optional - checks for prior research
+  - beads      # required - creates issues via bd CLI
+  - pre-mortem # optional - suggested before crank
+  - crank      # optional - suggested for execution
+  - implement  # optional - suggested for single issue
 ---
 
 # Plan Skill

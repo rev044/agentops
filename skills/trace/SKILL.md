@@ -1,6 +1,8 @@
 ---
 name: trace
 description: 'Trace design decisions and concepts through session history, handoffs, and git. Triggers: "trace decision", "how did we decide", "where did this come from", "design provenance", "decision history".'
+dependencies:
+  - provenance # alternative - for artifact lineage
 ---
 
 # Trace Skill

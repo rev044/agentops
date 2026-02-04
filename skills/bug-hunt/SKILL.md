@@ -1,6 +1,8 @@
 ---
 name: bug-hunt
 description: 'Investigate suspected bugs with git archaeology and root cause analysis. Triggers: "bug", "broken", "doesn''t work", "failing", "investigate bug".'
+dependencies:
+  - beads  # optional - for issue tracking
 ---
 
 # Bug Hunt Skill

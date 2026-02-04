@@ -1,6 +1,9 @@
 ---
 name: swarm
 description: 'Spawn isolated agents for parallel task execution. Local mode: Task tool (pure Claude-native). Distributed mode: tmux + Agent Mail (process isolation, persistence). Triggers: "swarm", "spawn agents", "parallel work".'
+dependencies:
+  - implement # required - executes `/implement <bead-id>` in distributed mode
+  - vibe      # optional - integration with validation
 ---
 
 # Swarm Skill
@@ -81,14 +84,103 @@ Work autonomously. Create/edit files as needed. Verify your work."
 Agents send `<task-notification>` automatically when complete:
 - No polling needed
 - Mayor receives notification with task result
-- Then Mayor updates TaskList and spawns next wave
+- **CRITICAL**: Do NOT mark complete yet - validation required first
 
-### Step 5: Validate & Review
+### Step 4a: Validate Before Accepting (MANDATORY)
 
-When agents complete:
+> **TRUST ISSUE**: Agent completion claims are NOT trusted. Verify then trust.
+
+**The Validation Contract**: Before marking any task complete, Mayor MUST run validation checks. See `skills/swarm/references/validation-contract.md` for full specification.
+
+**Validation flow:**
+
+```
+<task-notification> arrives
+        |
+        v
+    RUN VALIDATION
+        |
+    +---+---+
+    |       |
+  PASS    FAIL
+    |       |
+    v       v
+ complete  retry/escalate
+```
+
+**For each completed task notification:**
+
+1. **Check task metadata for validation requirements:**
+   ```
+   TaskList() → find task → check metadata.validation
+   ```
+
+2. **Execute validation checks (in order):**
+
+   | Check Type | Command | Pass Condition |
+   |------------|---------|----------------|
+   | `files_exist` | `ls -la <paths>` | All files exist |
+   | `command` | Run specified command | Exit code 0 |
+   | `content_check` | `grep <pattern> <file>` | Pattern found |
+   | `tests` | `<test_command>` | Tests pass |
+   | `lint` | `<lint_command>` | No errors |
+
+3. **On validation PASS:**
+   ```
+   TaskUpdate(taskId="<id>", status="completed")
+   ```
+
+4. **On validation FAIL:**
+   - Increment retry count for task
+   - If retries < MAX_RETRIES (default: 3):
+     ```
+     # Add failure context to task description
+     TaskUpdate(taskId="<id>", description="<original> + RETRY: <failure reason>")
+     # Re-spawn agent with guidance
+     Task(run_in_background=true, prompt="Retry task #<id>: Previous attempt failed validation.
+     Failure: <specific failure>
+     Fix the issue and try again.")
+     ```
+   - If retries >= MAX_RETRIES:
+     ```
+     TaskUpdate(taskId="<id>", status="blocked")
+     # Escalate to user
+     ```
+
+**Minimal validation (when no metadata):**
+
+If task has no explicit validation requirements, apply default checks:
+
+```bash
+# Check for uncommitted changes (agent should have committed)
+git status --porcelain
+
+# Check for obvious failures in recent output
+# (agent should not have ended with errors)
+```
+
+**Example task with validation metadata:**
+
+```
+TaskCreate(
+  subject="Add authentication middleware",
+  description="...",
+  metadata={
+    "validation": {
+      "files_exist": ["src/middleware/auth.py", "tests/test_auth.py"],
+      "command": "pytest tests/test_auth.py -v",
+      "content_check": {"file": "src/middleware/auth.py", "pattern": "def authenticate"}
+    }
+  }
+)
+```
+
+### Step 5: Review & Finalize
+
+When agents complete AND pass validation:
 1. Check git status for changes
 2. Review diffs
-3. Run tests/validation
+3. Run any additional tests/validation
 4. Commit combined work if needed
 
 ### Step 6: Repeat if Needed
@@ -700,3 +792,10 @@ Falling back to local mode? [y/N]
 ```
 
 If user confirms, degrade to local mode execution. Otherwise, exit with error.
+
+---
+
+## References
+
+- **Agent Mail Protocol:** See `skills/shared/agent-mail-protocol.md` for message format specifications
+- **Parser (Go):** `cli/internal/agentmail/` - shared parser for all message types
