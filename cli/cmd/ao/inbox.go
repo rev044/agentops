@@ -8,10 +8,16 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	// DefaultInboxLimit is the default number of messages to display.
+	DefaultInboxLimit = 100
 )
 
 // Message represents an inter-agent message.
@@ -30,6 +36,7 @@ var (
 	inboxFrom     string
 	inboxUnread   bool
 	inboxMarkRead bool
+	inboxLimit    int
 	mailTo        string
 	mailBody      string
 	mailType      string
@@ -50,7 +57,8 @@ Examples:
   ao inbox
   ao inbox --since 5m
   ao inbox --from witness
-  ao inbox --unread`,
+  ao inbox --unread
+  ao inbox --limit 50`,
 	RunE: runInbox,
 }
 
@@ -91,6 +99,7 @@ func init() {
 	inboxCmd.Flags().StringVar(&inboxFrom, "from", "", "Filter by sender")
 	inboxCmd.Flags().BoolVar(&inboxUnread, "unread", false, "Show only unread messages")
 	inboxCmd.Flags().BoolVar(&inboxMarkRead, "mark-read", false, "Mark displayed messages as read")
+	inboxCmd.Flags().IntVar(&inboxLimit, "limit", DefaultInboxLimit, "Maximum messages to display (0 for all)")
 
 	// Mail send flags
 	mailSendCmd.Flags().StringVar(&mailTo, "to", "", "Recipient (mayor, witness, agent-N)")
@@ -107,8 +116,8 @@ func runInbox(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	// Load messages
-	messages, err := loadMessages(cwd)
+	// Load messages (returns messages and corruption count)
+	messages, corruptedCount, err := loadMessages(cwd)
 	if err != nil {
 		// If no messages file, show empty
 		if os.IsNotExist(err) {
@@ -118,10 +127,21 @@ func runInbox(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load messages: %w", err)
 	}
 
-	// Filter messages
-	filtered := filterMessages(messages, inboxSince, inboxFrom, inboxUnread)
+	// Report corrupted messages if any
+	if corruptedCount > 0 {
+		fmt.Fprintf(os.Stderr, "Warning: %d corrupted message(s) skipped\n", corruptedCount)
+	}
 
-	if len(filtered) == 0 {
+	// Filter messages (with duration validation)
+	filtered, durationWarning := filterMessages(messages, inboxSince, inboxFrom, inboxUnread)
+
+	// Report invalid duration if any
+	if durationWarning != "" {
+		fmt.Fprintf(os.Stderr, "Warning: %s, using no time filter\n", durationWarning)
+	}
+
+	totalMatching := len(filtered)
+	if totalMatching == 0 {
 		fmt.Println("No messages")
 		return nil
 	}
@@ -131,37 +151,63 @@ func runInbox(cmd *cobra.Command, args []string) error {
 		return filtered[i].Timestamp.After(filtered[j].Timestamp)
 	})
 
+	// Apply pagination limit
+	limited := filtered
+	if inboxLimit > 0 && len(filtered) > inboxLimit {
+		limited = filtered[:inboxLimit]
+	}
+
 	// Output based on format
 	switch GetOutput() {
 	case "json":
+		output := struct {
+			Messages   []Message `json:"messages"`
+			Total      int       `json:"total"`
+			Showing    int       `json:"showing"`
+			Corrupted  int       `json:"corrupted,omitempty"`
+		}{
+			Messages:   limited,
+			Total:      totalMatching,
+			Showing:    len(limited),
+			Corrupted:  corruptedCount,
+		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(filtered)
+		return enc.Encode(output)
 
 	default:
 		// Table format
 		fmt.Println()
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		//nolint:errcheck // CLI tabwriter output to stdout, errors unlikely and non-recoverable
 		fmt.Fprintln(w, "TIME\tFROM\tTYPE\tMESSAGE")
+		//nolint:errcheck // CLI tabwriter output to stdout
 		fmt.Fprintln(w, "----\t----\t----\t-------")
 
-		for _, msg := range filtered {
+		for _, msg := range limited {
 			age := formatAge(msg.Timestamp)
 			body := truncateMessage(msg.Body, 60)
 			unreadMark := ""
 			if !msg.Read {
 				unreadMark = "*"
 			}
+			//nolint:errcheck // CLI tabwriter output to stdout
 			fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\n", unreadMark, age, msg.From, msg.Type, body)
 		}
 
-		w.Flush()
-		fmt.Printf("\n%d message(s)\n", len(filtered))
+		_ = w.Flush()
+
+		// Show count with pagination info
+		if len(limited) < totalMatching {
+			fmt.Printf("\nShowing %d of %d message(s) (use --limit 0 for all)\n", len(limited), totalMatching)
+		} else {
+			fmt.Printf("\n%d message(s)\n", totalMatching)
+		}
 	}
 
 	// Mark as read if requested
 	if inboxMarkRead {
-		if err := markMessagesRead(cwd, filtered); err != nil {
+		if err := markMessagesRead(cwd, limited); err != nil {
 			VerbosePrintf("Warning: failed to mark messages as read: %v\n", err)
 		}
 	}
@@ -214,35 +260,56 @@ func runMailSend(cmd *cobra.Command, args []string) error {
 
 // Helper functions
 
-func loadMessages(cwd string) ([]Message, error) {
+func loadMessages(cwd string) (messages []Message, corruptedCount int, err error) {
 	messagesPath := filepath.Join(cwd, ".agents", "mail", "messages.jsonl")
 	file, err := os.Open(messagesPath)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
-	var messages []Message
+	// Acquire shared lock for reading
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_SH); err != nil {
+		return nil, 0, fmt.Errorf("lock messages file: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // unlock best-effort
+	}()
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
+		line := scanner.Bytes()
+		// Skip empty lines
+		if len(line) == 0 {
+			continue
+		}
 		var msg Message
-		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
+		if err := json.Unmarshal(line, &msg); err != nil {
+			corruptedCount++
 			continue
 		}
 		messages = append(messages, msg)
 	}
 
-	return messages, scanner.Err()
+	return messages, corruptedCount, scanner.Err()
 }
 
-func filterMessages(messages []Message, since, from string, unreadOnly bool) []Message {
+func filterMessages(messages []Message, since, from string, unreadOnly bool) ([]Message, string) {
 	var filtered []Message
+	var durationWarning string
 
-	// Parse since duration
+	// Parse since duration with validation
 	var sinceTime time.Time
 	if since != "" {
 		duration, err := time.ParseDuration(since)
-		if err == nil {
+		if err != nil {
+			durationWarning = fmt.Sprintf("invalid duration %q", since)
+			// Continue without time filter
+		} else {
 			sinceTime = time.Now().Add(-duration)
 		}
 	}
@@ -271,10 +338,10 @@ func filterMessages(messages []Message, since, from string, unreadOnly bool) []M
 		filtered = append(filtered, msg)
 	}
 
-	return filtered
+	return filtered, durationWarning
 }
 
-func appendMessage(cwd string, msg *Message) error {
+func appendMessage(cwd string, msg *Message) (err error) {
 	mailDir := filepath.Join(cwd, ".agents", "mail")
 	if err := os.MkdirAll(mailDir, 0700); err != nil {
 		return err
@@ -282,12 +349,24 @@ func appendMessage(cwd string, msg *Message) error {
 
 	messagesPath := filepath.Join(mailDir, "messages.jsonl")
 
-	// Append to file
+	// Open file for append with exclusive lock
 	file, err := os.OpenFile(messagesPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+
+	// Acquire exclusive lock to prevent concurrent write corruption
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("lock messages file: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // unlock best-effort
+	}()
 
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -301,10 +380,43 @@ func appendMessage(cwd string, msg *Message) error {
 	return nil
 }
 
-func markMessagesRead(cwd string, messages []Message) error {
-	// Load all messages
-	allMessages, err := loadMessages(cwd)
+func markMessagesRead(cwd string, messages []Message) (err error) {
+	messagesPath := filepath.Join(cwd, ".agents", "mail", "messages.jsonl")
+
+	// Open file with exclusive lock for read-modify-write
+	file, err := os.OpenFile(messagesPath, os.O_RDWR, 0600)
 	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+
+	// Acquire exclusive lock
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("lock messages file: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // unlock best-effort
+	}()
+
+	// Read all messages while holding lock
+	var allMessages []Message
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var msg Message
+		if err := json.Unmarshal(line, &msg); err != nil {
+			continue // Skip corrupted
+		}
+		allMessages = append(allMessages, msg)
+	}
+	if err := scanner.Err(); err != nil {
 		return err
 	}
 
@@ -321,20 +433,22 @@ func markMessagesRead(cwd string, messages []Message) error {
 		}
 	}
 
-	// Rewrite file
-	messagesPath := filepath.Join(cwd, ".agents", "mail", "messages.jsonl")
-	file, err := os.Create(messagesPath)
-	if err != nil {
+	// Truncate and rewrite file while still holding lock
+	if err := file.Truncate(0); err != nil {
 		return err
 	}
-	defer file.Close()
+	if _, err := file.Seek(0, 0); err != nil {
+		return err
+	}
 
 	for _, msg := range allMessages {
 		data, err := json.Marshal(msg)
 		if err != nil {
 			continue
 		}
-		file.WriteString(string(data) + "\n")
+		if _, werr := file.WriteString(string(data) + "\n"); werr != nil {
+			return werr
+		}
 	}
 
 	return nil

@@ -15,7 +15,9 @@ func TestComputePlanChecksum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	content := "# Plan Content\n\nThis is test content."
 	path := filepath.Join(tmpDir, "test-plan.md")

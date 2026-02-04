@@ -15,7 +15,9 @@ func TestUpdateJSONLUtility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	tests := []struct {
 		name           string
@@ -137,7 +139,9 @@ func TestUpdateMarkdownUtility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	tests := []struct {
 		name           string
@@ -208,7 +212,9 @@ func TestFindLearningFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	// Create .agents/learnings directory
 	learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
@@ -276,7 +282,9 @@ func TestNeedsUtilityMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	tests := []struct {
 		name    string
@@ -328,7 +336,9 @@ func TestAddUtilityField(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	content := `{"id":"L001","title":"Test Learning"}`
 	path := filepath.Join(tmpDir, "test.jsonl")

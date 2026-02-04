@@ -563,7 +563,9 @@ func (v *Validator) fileContains(path, needle string) bool {
 	if err != nil {
 		return false
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only search, close error non-fatal
+	}()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -813,7 +815,9 @@ func RecordCitation(baseDir string, event types.CitationEvent) error {
 	if err != nil {
 		return fmt.Errorf("open citations file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // write already complete, close best-effort
+	}()
 
 	// Marshal event to JSON
 	data, err := json.Marshal(event)
@@ -840,7 +844,9 @@ func LoadCitations(baseDir string) ([]types.CitationEvent, error) {
 		}
 		return nil, fmt.Errorf("open citations file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only, close error non-fatal
+	}()
 
 	var citations []types.CitationEvent
 	scanner := bufio.NewScanner(f)

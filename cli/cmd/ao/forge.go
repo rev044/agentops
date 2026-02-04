@@ -245,12 +245,16 @@ func runForgeTranscript(cmd *cobra.Command, args []string) error {
 }
 
 // processTranscript parses a transcript and extracts session data.
-func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extractor, quiet bool) (*storage.Session, error) {
+func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extractor, quiet bool) (session *storage.Session, err error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("open file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	info, err := f.Stat()
 	if err != nil {
@@ -264,7 +268,7 @@ func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extr
 	}
 
 	msgCh, errCh := p.ParseChannel(f)
-	session := initSession(filePath)
+	session = initSession(filePath)
 	state := &transcriptState{
 		seenFiles:  make(map[string]bool),
 		seenIssues: make(map[string]bool),
@@ -420,7 +424,9 @@ func countLines(path string) int {
 	if err != nil {
 		return 0
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only line count, close error non-fatal
+	}()
 
 	buf := make([]byte, 64*1024)
 	count := 0
@@ -545,7 +551,9 @@ func queueForExtraction(session *storage.Session, sessionPath, transcriptPath, c
 	if err != nil {
 		return fmt.Errorf("open pending file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // write complete, close best-effort
+	}()
 
 	if _, err := f.Write(append(data, '\n')); err != nil {
 		return fmt.Errorf("write pending: %w", err)

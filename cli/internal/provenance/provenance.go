@@ -67,7 +67,9 @@ func (g *Graph) load() error {
 	if err != nil {
 		return fmt.Errorf("open provenance file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only, errors non-critical
+	}()
 
 	g.Records = nil
 	scanner := bufio.NewScanner(f)

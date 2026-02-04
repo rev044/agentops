@@ -510,7 +510,9 @@ func parseLearningJSONL(path string) (learning, error) {
 	if err != nil {
 		return l, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only learning load, close error non-fatal
+	}()
 
 	scanner := bufio.NewScanner(f)
 	if scanner.Scan() {
@@ -702,7 +704,9 @@ func parseSessionFile(path string) (session, error) {
 		if err != nil {
 			return s, err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close() //nolint:errcheck // read-only session load, close error non-fatal
+		}()
 
 		scanner := bufio.NewScanner(f)
 		if scanner.Scan() {

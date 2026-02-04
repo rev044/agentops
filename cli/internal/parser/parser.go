@@ -178,14 +178,18 @@ func truncateForError(s string, maxLen int) string {
 }
 
 // ParseFile parses a JSONL file by path.
-func (p *Parser) ParseFile(path string) (*ParseResult, error) {
+func (p *Parser) ParseFile(path string) (result *ParseResult, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
-	result, err := p.Parse(f)
+	result, err = p.Parse(f)
 	if result != nil {
 		result.FilePath = path
 	}

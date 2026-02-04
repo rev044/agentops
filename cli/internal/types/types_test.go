@@ -396,3 +396,116 @@ func TestCandidateSupersessionJSONRoundTrip(t *testing.T) {
 		t.Errorf("SupersessionDepth mismatch: got %d, want %d", decoded.SupersessionDepth, original.SupersessionDepth)
 	}
 }
+
+// --- ValidUntil parsing tests (ag-p43.18) ---
+
+func TestCandidateIsExpired_DateFormats(t *testing.T) {
+	tests := []struct {
+		name       string
+		validUntil string
+		wantExpired bool
+	}{
+		{
+			name:        "empty validUntil",
+			validUntil:  "",
+			wantExpired: false,
+		},
+		{
+			name:        "date-only format future",
+			validUntil:  "2099-12-31",
+			wantExpired: false,
+		},
+		{
+			name:        "date-only format past",
+			validUntil:  "2020-01-01",
+			wantExpired: true,
+		},
+		{
+			name:        "RFC3339 format future",
+			validUntil:  "2099-12-31T23:59:59Z",
+			wantExpired: false,
+		},
+		{
+			name:        "RFC3339 format past",
+			validUntil:  "2020-01-01T00:00:00Z",
+			wantExpired: true,
+		},
+		{
+			name:        "RFC3339 with timezone",
+			validUntil:  "2099-06-15T12:00:00-07:00",
+			wantExpired: false,
+		},
+		{
+			name:        "invalid format",
+			validUntil:  "not-a-date",
+			wantExpired: false, // Invalid dates return false (not expired)
+		},
+		{
+			name:        "partial date format",
+			validUntil:  "2026-01",
+			wantExpired: false, // Invalid format returns false
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Candidate{
+				ID:         "test",
+				ValidUntil: tt.validUntil,
+			}
+			if got := c.IsExpired(); got != tt.wantExpired {
+				t.Errorf("IsExpired() = %v, want %v for validUntil=%q",
+					got, tt.wantExpired, tt.validUntil)
+			}
+		})
+	}
+}
+
+func TestParseValidUntil(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "date-only format",
+			input:   "2026-06-30",
+			wantErr: false,
+		},
+		{
+			name:    "RFC3339 format",
+			input:   "2026-06-30T15:30:00Z",
+			wantErr: false,
+		},
+		{
+			name:    "RFC3339 with timezone",
+			input:   "2026-06-30T15:30:00-05:00",
+			wantErr: false,
+		},
+		{
+			name:    "invalid format",
+			input:   "06/30/2026",
+			wantErr: true,
+		},
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "partial ISO format",
+			input:   "2026-06",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseValidUntil(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseValidUntil(%q) error = %v, wantErr %v",
+					tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}

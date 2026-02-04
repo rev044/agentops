@@ -410,7 +410,9 @@ func appendToIndex(baseDir string, entry *IndexEntry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // write complete, close best-effort
+	}()
 
 	_, err = f.Write(append(data, '\n'))
 	return err
@@ -427,7 +429,9 @@ func searchIndex(baseDir, query string, limit int) ([]SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only index search, close error non-fatal
+	}()
 
 	queryTerms := strings.Fields(strings.ToLower(query))
 	var results []SearchResult
@@ -579,6 +583,7 @@ func parseMemRLMetadata(content string) (utility float64, maturity string) {
 
 		if strings.HasPrefix(line, "**Utility**:") || strings.HasPrefix(line, "- **Utility**:") {
 			utilStr := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "**Utility**:"), "- **Utility**:"))
+			//nolint:errcheck // parsing optional metadata, zero value is acceptable default
 			fmt.Sscanf(utilStr, "%f", &utility)
 		}
 		if strings.HasPrefix(line, "**Maturity**:") || strings.HasPrefix(line, "- **Maturity**:") {
@@ -664,7 +669,9 @@ func computeIndexStats(baseDir string) (*IndexStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only index stats, close error non-fatal
+	}()
 
 	var totalUtility float64
 	var utilityCount int
@@ -740,9 +747,10 @@ func printIndexStats(stats *IndexStats) {
 		fmt.Println("By Type:")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		for t, count := range stats.ByType {
+			//nolint:errcheck // CLI tabwriter output to stdout
 			fmt.Fprintf(w, "  %s:\t%d\n", t, count)
 		}
-		w.Flush()
+		_ = w.Flush()
 	}
 
 	if !stats.OldestEntry.IsZero() {

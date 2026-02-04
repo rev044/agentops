@@ -65,14 +65,18 @@ func LoadChain(startDir string) (*Chain, error) {
 }
 
 // loadJSONLChain loads a chain from JSONL format.
-func loadJSONLChain(path string) (*Chain, error) {
+func loadJSONLChain(path string) (chain *Chain, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
-	chain := &Chain{
+	chain = &Chain{
 		path:    path,
 		Entries: []ChainEntry{},
 	}
@@ -189,13 +193,17 @@ func (c *Chain) Save() error {
 	if err != nil {
 		return fmt.Errorf("open chain file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // sync already done via lock release
+	}()
 
 	// Acquire exclusive lock
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
 		return fmt.Errorf("lock chain file: %w", err)
 	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	defer func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck // unlock best-effort
+	}()
 
 	// Write chain metadata on first line
 	meta := struct {
@@ -244,13 +252,17 @@ func (c *Chain) Append(entry ChainEntry) error {
 	if err != nil {
 		return fmt.Errorf("open chain file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // sync already done via lock release
+	}()
 
 	// Acquire exclusive lock
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
 		return fmt.Errorf("lock chain file: %w", err)
 	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	defer func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck // unlock best-effort
+	}()
 
 	// Check if file is empty (needs metadata)
 	stat, _ := f.Stat()

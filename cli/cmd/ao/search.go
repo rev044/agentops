@@ -291,7 +291,9 @@ func getFileContext(path, query string) string {
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only context extraction, close error non-fatal
+	}()
 
 	scanner := bufio.NewScanner(f)
 	queryLower := strings.ToLower(query)
@@ -358,7 +360,7 @@ func searchJSONL(query string, dir string, limit int) ([]searchResult, error) {
 				}
 			}
 		}
-		f.Close()
+		_ = f.Close() //nolint:errcheck // read-only search, close error non-fatal
 
 		if len(results) >= limit {
 			break
@@ -390,7 +392,9 @@ func searchSmartConnections(query, dir string, limit int) ([]searchResult, error
 		VerbosePrintf("Smart Connections API not available: %v\n", err)
 		return nil, fmt.Errorf("smart connections not running: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() //nolint:errcheck // HTTP response body close best-effort
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("smart connections API error: %s", resp.Status)
@@ -576,7 +580,7 @@ func searchLearningsWithMaturity(query, dir string, limit int) ([]searchResult, 
 			})
 			break // One match per file
 		}
-		f.Close()
+		_ = f.Close() //nolint:errcheck // read-only search, close error non-fatal
 	}
 
 	return results, nil

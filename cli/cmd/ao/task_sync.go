@@ -204,7 +204,9 @@ func extractTaskEvents(transcriptPath, filterSession string) ([]TaskEvent, error
 	if err != nil {
 		return nil, fmt.Errorf("open transcript: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only transcript extraction, close error non-fatal
+	}()
 
 	var tasks []TaskEvent
 	taskMap := make(map[string]*TaskEvent) // Track by task ID for updates
@@ -384,7 +386,9 @@ func writeTaskEvents(baseDir string, tasks []TaskEvent) error {
 	if err != nil {
 		return fmt.Errorf("open task file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // write complete, close best-effort
+	}()
 
 	// Write only new tasks
 	written := 0
@@ -414,7 +418,9 @@ func loadTaskEvents(baseDir string) ([]TaskEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only task load, close error non-fatal
+	}()
 
 	var tasks []TaskEvent
 	scanner := bufio.NewScanner(f)

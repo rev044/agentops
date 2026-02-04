@@ -159,7 +159,9 @@ func TestExpandFilePatterns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	// Create test files
 	testFiles := []string{
@@ -240,7 +242,9 @@ func TestParseArtifactMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	t.Run("parse markdown artifact", func(t *testing.T) {
 		content := `# Learning: Test Pattern
@@ -306,7 +310,9 @@ func TestValidateArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
 
 	t.Run("valid artifact", func(t *testing.T) {
 		content := `# Test

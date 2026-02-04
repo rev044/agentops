@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -14,10 +15,11 @@ import (
 )
 
 var (
-	poolTier   string
-	poolStatus string
-	poolLimit  int
-	poolReason string
+	poolTier      string
+	poolStatus    string
+	poolLimit     int
+	poolReason    string
+	poolThreshold string
 )
 
 var poolCmd = &cobra.Command{
@@ -106,10 +108,13 @@ func outputPoolList(entries []pool.PoolEntry) error {
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		//nolint:errcheck // CLI tabwriter output to stdout, errors unlikely and non-recoverable
 		fmt.Fprintln(w, "ID\tTIER\tSTATUS\tAGE\tUTILITY\tCONFIDENCE")
+		//nolint:errcheck // CLI tabwriter output to stdout
 		fmt.Fprintln(w, "--\t----\t------\t---\t-------\t----------")
 
 		for _, e := range entries {
+			//nolint:errcheck // CLI tabwriter output to stdout
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.2f\t%.2f\n",
 				truncateID(e.Candidate.ID, 12),
 				e.Candidate.Tier,
@@ -338,6 +343,63 @@ Examples:
 	},
 }
 
+var poolAutoPromoteCmd = &cobra.Command{
+	Use:   "auto-promote",
+	Short: "Auto-promote silver candidates older than threshold",
+	Long: `Automatically approve silver-tier candidates that have been pending
+for longer than the specified threshold.
+
+This is a bulk operation - use with caution. The threshold must be at least
+1 hour to prevent accidental mass approval of recently added candidates.
+
+Examples:
+  ao pool auto-promote --threshold=24h
+  ao pool auto-promote --threshold=48h --dry-run`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if poolThreshold == "" {
+			return fmt.Errorf("--threshold is required")
+		}
+
+		threshold, err := time.ParseDuration(poolThreshold)
+		if err != nil {
+			return fmt.Errorf("invalid threshold: %w", err)
+		}
+
+		if GetDryRun() {
+			fmt.Printf("[dry-run] Would auto-promote silver candidates older than %s\n", threshold)
+		}
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
+
+		p := pool.NewPool(cwd)
+		reviewer := GetCurrentUser()
+
+		approved, err := p.BulkApprove(threshold, reviewer, GetDryRun())
+		if err != nil {
+			return fmt.Errorf("auto-promote: %w", err)
+		}
+
+		if len(approved) == 0 {
+			fmt.Println("No candidates eligible for auto-promotion")
+			return nil
+		}
+
+		if GetDryRun() {
+			fmt.Printf("Would auto-promote %d candidates:\n", len(approved))
+		} else {
+			fmt.Printf("Auto-promoted %d candidates:\n", len(approved))
+		}
+		for _, id := range approved {
+			fmt.Printf("  - %s\n", id)
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(poolCmd)
 
@@ -347,6 +409,7 @@ func init() {
 	poolCmd.AddCommand(poolStageCmd)
 	poolCmd.AddCommand(poolPromoteCmd)
 	poolCmd.AddCommand(poolRejectCmd)
+	poolCmd.AddCommand(poolAutoPromoteCmd)
 
 	// Add flags to list command
 	poolListCmd.Flags().StringVar(&poolTier, "tier", "", "Filter by tier (gold, silver, bronze)")
@@ -359,6 +422,10 @@ func init() {
 	// Add flags to reject command
 	poolRejectCmd.Flags().StringVar(&poolReason, "reason", "", "Reason for rejection (required)")
 	_ = poolRejectCmd.MarkFlagRequired("reason") //nolint:errcheck
+
+	// Add flags to auto-promote command
+	poolAutoPromoteCmd.Flags().StringVar(&poolThreshold, "threshold", "", "Minimum age for auto-promotion (e.g., 24h)")
+	_ = poolAutoPromoteCmd.MarkFlagRequired("threshold") //nolint:errcheck
 }
 
 // truncateID shortens an ID for display.

@@ -92,14 +92,14 @@ func TestApplyEnv(t *testing.T) {
 	origVerbose := os.Getenv("AGENTOPS_VERBOSE")
 	origNoSC := os.Getenv("AGENTOPS_NO_SC")
 	defer func() {
-		os.Setenv("AGENTOPS_OUTPUT", origOutput)
-		os.Setenv("AGENTOPS_VERBOSE", origVerbose)
-		os.Setenv("AGENTOPS_NO_SC", origNoSC)
+		_ = os.Setenv("AGENTOPS_OUTPUT", origOutput)   //nolint:errcheck // test env restore
+		_ = os.Setenv("AGENTOPS_VERBOSE", origVerbose) //nolint:errcheck // test env restore
+		_ = os.Setenv("AGENTOPS_NO_SC", origNoSC)      //nolint:errcheck // test env restore
 	}()
 
-	os.Setenv("AGENTOPS_OUTPUT", "yaml")
-	os.Setenv("AGENTOPS_VERBOSE", "true")
-	os.Setenv("AGENTOPS_NO_SC", "1")
+	_ = os.Setenv("AGENTOPS_OUTPUT", "yaml")   //nolint:errcheck // test env setup
+	_ = os.Setenv("AGENTOPS_VERBOSE", "true") //nolint:errcheck // test env setup
+	_ = os.Setenv("AGENTOPS_NO_SC", "1")      //nolint:errcheck // test env setup
 
 	cfg := Default()
 	cfg = applyEnv(cfg)

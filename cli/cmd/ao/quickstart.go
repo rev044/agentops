@@ -270,6 +270,7 @@ func createTasksFile(cwd string) {
   "note": "Beads-optional mode. Use 'bd init' to enable full git-native issues."
 }
 `
+	//nolint:errcheck // quickstart setup, errors shown implicitly by missing output
 	os.WriteFile(tasksPath, []byte(content), 0644)
 	fmt.Println("  ✓ Created .agents/tasks.json (beads-optional mode)")
 }

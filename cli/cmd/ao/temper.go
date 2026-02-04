@@ -365,7 +365,9 @@ func parseJSONLMetadata(path string, meta *artifactMetadata) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only metadata parse, close error non-fatal
+	}()
 
 	scanner := bufio.NewScanner(f)
 	if scanner.Scan() {
@@ -408,12 +410,15 @@ func parseMarkdownMetadata(content string, meta *artifactMetadata) {
 			meta.Maturity = types.Maturity(strings.ToLower(val))
 		}
 		if val, ok := parseMarkdownField(line, "Utility"); ok {
+			//nolint:errcheck // parsing optional metadata, zero value is acceptable default
 			fmt.Sscanf(val, "%f", &meta.Utility)
 		}
 		if val, ok := parseMarkdownField(line, "Confidence"); ok {
+			//nolint:errcheck // parsing optional metadata, zero value is acceptable default
 			fmt.Sscanf(val, "%f", &meta.Confidence)
 		}
 		if val, ok := parseMarkdownField(line, "Schema Version"); ok {
+			//nolint:errcheck // parsing optional metadata, zero value is acceptable default
 			fmt.Sscanf(val, "%d", &meta.SchemaVersion)
 		}
 		if val, ok := parseMarkdownField(line, "Status"); ok {
@@ -682,7 +687,9 @@ func printValidationResults(results []TemperResult) {
 	fmt.Println()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	//nolint:errcheck // CLI tabwriter output to stdout, errors unlikely and non-recoverable
 	fmt.Fprintln(w, "FILE\tSTATUS\tMATURITY\tUTILITY")
+	//nolint:errcheck // CLI tabwriter output to stdout
 	fmt.Fprintln(w, "----\t------\t--------\t-------")
 
 	for _, r := range results {
@@ -690,6 +697,7 @@ func printValidationResults(results []TemperResult) {
 		if !r.Valid {
 			status = "INVALID"
 		}
+		//nolint:errcheck // CLI tabwriter output to stdout
 		fmt.Fprintf(w, "%s\t%s\t%s\t%.2f\n",
 			filepath.Base(r.Path),
 			status,
@@ -697,7 +705,7 @@ func printValidationResults(results []TemperResult) {
 			r.Utility,
 		)
 	}
-	w.Flush()
+	_ = w.Flush()
 
 	// Print issues
 	hasIssues := false

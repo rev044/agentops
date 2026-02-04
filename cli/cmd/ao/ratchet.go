@@ -537,7 +537,7 @@ func runRatchetValidate(cmd *cobra.Command, args []string) error {
 		if GetOutput() == "json" {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
-			enc.Encode(result)
+			_ = enc.Encode(result) //nolint:errcheck // CLI JSON output to stdout
 		} else {
 			formatValidationResult(file, result, &allValid)
 		}

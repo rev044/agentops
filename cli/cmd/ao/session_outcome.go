@@ -277,7 +277,9 @@ func analyzeTranscript(path string, sessionID string) (*SessionOutcome, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open transcript: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only transcript analysis, close error non-fatal
+	}()
 
 	outcome := &SessionOutcome{
 		SessionID:  sessionID,

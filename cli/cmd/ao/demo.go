@@ -182,6 +182,7 @@ This demo will:
 
 Press Enter to continue...`)
 
+	//nolint:errcheck // demo interactive prompt, ignore input errors
 	fmt.Scanln()
 
 	// Create demo directories
@@ -197,6 +198,7 @@ Press Enter to continue...`)
 
 	fmt.Println("\n━━━ STEP 1: Creating knowledge structure ━━━")
 	for _, dir := range dirs {
+		//nolint:errcheck // demo code, errors shown implicitly by missing output
 		os.MkdirAll(dir, 0755)
 		fmt.Printf("  ✓ Created %s\n", dir)
 	}
@@ -225,6 +227,7 @@ Future sessions search past learnings before starting work.
 
 Always run /post-mortem after significant work.
 `
+	//nolint:errcheck // demo code, errors shown implicitly by missing output
 	os.WriteFile(learningPath, []byte(learningContent), 0644)
 	fmt.Printf("  ✓ Created sample learning: %s\n", learningPath)
 
@@ -254,6 +257,7 @@ bd ready --parent=<epic>    # See what's unblocked
 gt sling <issue1> <issue2>  # Parallel dispatch
 ` + "```" + `
 `
+	//nolint:errcheck // demo code, errors shown implicitly by missing output
 	os.WriteFile(patternPath, []byte(patternContent), 0644)
 	fmt.Printf("  ✓ Created sample pattern: %s\n", patternPath)
 

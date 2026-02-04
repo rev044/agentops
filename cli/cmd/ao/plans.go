@@ -166,7 +166,9 @@ func appendManifestEntry(manifestPath string, entry types.PlanManifestEntry) err
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // write complete, close best-effort
+	}()
 
 	data, err := json.Marshal(entry)
 	if err != nil {
@@ -452,7 +454,9 @@ func loadManifest(path string) ([]types.PlanManifestEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only manifest load, close error non-fatal
+	}()
 
 	var entries []types.PlanManifestEntry
 	scanner := bufio.NewScanner(f)
@@ -478,7 +482,9 @@ func saveManifest(path string, entries []types.PlanManifestEntry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // write complete, close best-effort
+	}()
 
 	for _, e := range entries {
 		data, err := json.Marshal(e)

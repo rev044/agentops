@@ -183,7 +183,7 @@ func (fs *FileStorage) ReadSession(sessionID string) (*Session, error) {
 }
 
 // ListSessions returns all session index entries.
-func (fs *FileStorage) ListSessions() ([]IndexEntry, error) {
+func (fs *FileStorage) ListSessions() (entries []IndexEntry, err error) {
 	indexPath := filepath.Join(fs.BaseDir, IndexDir, IndexFile)
 
 	f, err := os.Open(indexPath)
@@ -193,9 +193,12 @@ func (fs *FileStorage) ListSessions() ([]IndexEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
-	var entries []IndexEntry
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		var entry IndexEntry
@@ -209,7 +212,7 @@ func (fs *FileStorage) ListSessions() ([]IndexEntry, error) {
 }
 
 // QueryProvenance finds provenance records for an artifact.
-func (fs *FileStorage) QueryProvenance(artifactPath string) ([]ProvenanceRecord, error) {
+func (fs *FileStorage) QueryProvenance(artifactPath string) (records []ProvenanceRecord, err error) {
 	provPath := filepath.Join(fs.BaseDir, ProvenanceDir, ProvenanceFile)
 
 	f, err := os.Open(provPath)
@@ -219,9 +222,12 @@ func (fs *FileStorage) QueryProvenance(artifactPath string) ([]ProvenanceRecord,
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
-	var records []ProvenanceRecord
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		var record ProvenanceRecord
@@ -259,19 +265,19 @@ func (fs *FileStorage) atomicWrite(path string, writeFunc func(io.Writer) error)
 	success := false
 	defer func() {
 		if !success {
-			os.Remove(tmpPath)
+			_ = os.Remove(tmpPath) //nolint:errcheck // cleanup in error path
 		}
 	}()
 
 	// Write content
 	if err := writeFunc(tmpFile); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close() //nolint:errcheck // cleanup in error path
 		return fmt.Errorf("write content: %w", err)
 	}
 
 	// Sync to ensure data is on disk
 	if err := tmpFile.Sync(); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close() //nolint:errcheck // cleanup in error path
 		return fmt.Errorf("sync file: %w", err)
 	}
 
@@ -309,7 +315,9 @@ func (fs *FileStorage) appendJSONL(path string, v interface{}) error {
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // sync already called, close best-effort
+	}()
 
 	// Write with newline
 	if _, err := f.Write(append(data, '\n')); err != nil {
@@ -325,7 +333,9 @@ func (fs *FileStorage) hasIndexEntry(indexPath, sessionID string) bool {
 	if err != nil {
 		return false
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only check, errors non-critical
+	}()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -349,7 +359,9 @@ func (fs *FileStorage) readSessionFile(path string) (*Session, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close() //nolint:errcheck // read-only, errors non-critical
+		}()
 
 		scanner := bufio.NewScanner(f)
 		if scanner.Scan() {

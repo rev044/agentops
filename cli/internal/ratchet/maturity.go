@@ -275,7 +275,7 @@ func GetAntiPatterns(learningsDir string) ([]string, error) {
 		if scanner.Scan() {
 			var data map[string]interface{}
 			if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
-				f.Close()
+				_ = f.Close() //nolint:errcheck // read-only, moving to next file
 				continue
 			}
 
@@ -283,7 +283,7 @@ func GetAntiPatterns(learningsDir string) ([]string, error) {
 				antiPatterns = append(antiPatterns, file)
 			}
 		}
-		f.Close()
+		_ = f.Close() //nolint:errcheck // read-only, moving to next file
 	}
 
 	return antiPatterns, nil
@@ -308,7 +308,7 @@ func GetEstablishedLearnings(learningsDir string) ([]string, error) {
 		if scanner.Scan() {
 			var data map[string]interface{}
 			if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
-				f.Close()
+				_ = f.Close() //nolint:errcheck // read-only, moving to next file
 				continue
 			}
 
@@ -316,7 +316,7 @@ func GetEstablishedLearnings(learningsDir string) ([]string, error) {
 				established = append(established, file)
 			}
 		}
-		f.Close()
+		_ = f.Close() //nolint:errcheck // read-only, moving to next file
 	}
 
 	return established, nil
@@ -351,7 +351,7 @@ func GetMaturityDistribution(learningsDir string) (*MaturityDistribution, error)
 		if scanner.Scan() {
 			var data map[string]interface{}
 			if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
-				f.Close()
+				_ = f.Close() //nolint:errcheck // read-only, moving to next file
 				dist.Unknown++
 				dist.Total++
 				continue
@@ -376,7 +376,7 @@ func GetMaturityDistribution(learningsDir string) (*MaturityDistribution, error)
 			}
 			dist.Total++
 		}
-		f.Close()
+		_ = f.Close() //nolint:errcheck // read-only, moving to next file
 	}
 
 	return dist, nil

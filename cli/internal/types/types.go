@@ -448,15 +448,29 @@ const (
 )
 
 // IsExpired checks if the candidate's valid_until date has passed.
+// Supports both "2006-01-02" (date-only) and RFC3339 formats.
 func (c *Candidate) IsExpired() bool {
 	if c.ValidUntil == "" {
 		return false
 	}
-	expiry, err := time.Parse("2006-01-02", c.ValidUntil)
+	expiry, err := parseValidUntil(c.ValidUntil)
 	if err != nil {
 		return false
 	}
 	return time.Now().After(expiry)
+}
+
+// parseValidUntil parses a ValidUntil string in either date-only (2006-01-02) or RFC3339 format.
+func parseValidUntil(s string) (time.Time, error) {
+	// Try date-only format first (more common)
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t, nil
+	}
+	// Try RFC3339 format
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("unsupported date format: %s", s)
 }
 
 // UpdateExpiryStatus sets the expiry status based on valid_until date.

@@ -915,7 +915,9 @@ func parseUtilityFromFile(path string) float64 {
 	if err != nil {
 		return 0
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only utility parse, close error non-fatal
+	}()
 
 	scanner := bufio.NewScanner(f)
 	if scanner.Scan() {

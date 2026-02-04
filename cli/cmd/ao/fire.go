@@ -442,7 +442,9 @@ func sendMail(to, body, msgType string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck // write already flushed, close best-effort
+	}()
 
 	data, err := json.Marshal(msg)
 	if err != nil {

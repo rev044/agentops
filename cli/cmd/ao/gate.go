@@ -89,7 +89,9 @@ func outputGatePending(entries []pool.PoolEntry) error {
 		fmt.Println()
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		//nolint:errcheck // CLI tabwriter output to stdout, errors unlikely and non-recoverable
 		fmt.Fprintln(w, "ID\tTIER\tAGE\tUTILITY\tURGENCY")
+		//nolint:errcheck // CLI tabwriter output to stdout
 		fmt.Fprintln(w, "--\t----\t---\t-------\t-------")
 
 		for _, e := range entries {
@@ -102,6 +104,7 @@ func outputGatePending(entries []pool.PoolEntry) error {
 				urgency = "LOW"
 			}
 
+			//nolint:errcheck // CLI tabwriter output to stdout
 			fmt.Fprintf(w, "%s\t%s\t%s\t%.2f\t%s\n",
 				truncateID(e.Candidate.ID, 16),
 				e.Candidate.Tier,
@@ -257,11 +260,8 @@ Examples:
 
 		p := pool.NewPool(cwd)
 
-		// Get reviewer from env
-		reviewer := os.Getenv("USER")
-		if reviewer == "" {
-			reviewer = "bulk-approve"
-		}
+		// Get reviewer from system user (not spoofable via env)
+		reviewer := GetCurrentUser()
 
 		approved, err := p.BulkApprove(threshold, reviewer, GetDryRun())
 		if err != nil {

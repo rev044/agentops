@@ -107,14 +107,16 @@ func runExtract(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func readPendingExtractions(path string) ([]PendingExtraction, error) {
+func readPendingExtractions(path string) (pending []PendingExtraction, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
-	var pending []PendingExtraction
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

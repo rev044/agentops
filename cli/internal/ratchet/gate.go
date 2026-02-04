@@ -1,10 +1,18 @@
 package ratchet
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
+
+// BdCLITimeout is the maximum duration to wait for bd CLI commands.
+const BdCLITimeout = 5 * time.Second
+
+// ErrBdCLITimeout is returned when bd CLI command times out.
+var ErrBdCLITimeout = fmt.Errorf("bd CLI timeout after %s", BdCLITimeout)
 
 // GateChecker validates that prerequisites are met before a step can proceed.
 type GateChecker struct {
@@ -182,10 +190,18 @@ func (g *GateChecker) checkPostMortemGate() (*GateResult, error) {
 
 // findEpic uses bd CLI to find an epic with the given status.
 func (g *GateChecker) findEpic(status string) (string, error) {
+	// Create context with 5s timeout
+	ctx, cancel := context.WithTimeout(context.Background(), BdCLITimeout)
+	defer cancel()
+
 	// Call bd list --type epic --status <status>
-	cmd := exec.Command("bd", "list", "--type", "epic", "--status", status)
+	cmd := exec.CommandContext(ctx, "bd", "list", "--type", "epic", "--status", status)
 	out, err := cmd.Output()
 	if err != nil {
+		// Check if the error was due to context timeout
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", ErrBdCLITimeout
+		}
 		return "", err
 	}
 

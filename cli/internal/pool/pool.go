@@ -229,8 +229,8 @@ func (p *Pool) scanDirectory(dir string, status types.PoolStatus) ([]PoolEntry, 
 		entry.Age = time.Since(entry.AddedAt)
 		entry.AgeString = formatDuration(entry.Age)
 
-		// Check if approaching 24h auto-promote threshold
-		if entry.Candidate.Tier == types.TierSilver && entry.Age > 20*time.Hour {
+		// Check if approaching 24h auto-promote threshold (warn at 22h, 2h buffer)
+		if entry.Candidate.Tier == types.TierSilver && entry.Age > 22*time.Hour {
 			entry.ApproachingAutoPromote = true
 		}
 
@@ -295,6 +295,11 @@ func (p *Pool) Stage(candidateID string, minTier types.Tier) error {
 		return err
 	}
 
+	// Prevent staging rejected candidates
+	if entry.Status == types.PoolStatusRejected {
+		return fmt.Errorf("cannot stage rejected candidate")
+	}
+
 	// Validate tier threshold
 	if !isAboveThreshold(entry.Candidate.Tier, minTier) {
 		return fmt.Errorf("candidate tier %s below minimum %s", entry.Candidate.Tier, minTier)
@@ -335,6 +340,11 @@ func (p *Pool) Promote(candidateID string) (string, error) {
 	entry, err := p.Get(candidateID)
 	if err != nil {
 		return "", err
+	}
+
+	// Prevent promoting rejected candidates
+	if entry.Status == types.PoolStatusRejected {
+		return "", fmt.Errorf("cannot promote rejected candidate")
 	}
 
 	// Determine destination based on type
@@ -388,6 +398,11 @@ func (p *Pool) Promote(candidateID string) (string, error) {
 
 // Reject marks a candidate as rejected.
 func (p *Pool) Reject(candidateID, reason, reviewer string) error {
+	// Validate reason length
+	if len(reason) > MaxReasonLength {
+		return ErrReasonTooLong
+	}
+
 	entry, err := p.Get(candidateID)
 	if err != nil {
 		return err
@@ -432,9 +447,19 @@ func (p *Pool) Reject(candidateID, reason, reviewer string) error {
 
 // Approve records human approval for a bronze candidate.
 func (p *Pool) Approve(candidateID, note, reviewer string) error {
+	// Validate note length
+	if len(note) > MaxReasonLength {
+		return ErrReasonTooLong
+	}
+
 	entry, err := p.Get(candidateID)
 	if err != nil {
 		return err
+	}
+
+	// Check if already reviewed
+	if entry.HumanReview != nil && entry.HumanReview.Reviewed {
+		return fmt.Errorf("already reviewed by %s", entry.HumanReview.Reviewer)
 	}
 
 	// Update entry with review
@@ -491,8 +516,27 @@ func (p *Pool) ListPendingReview() ([]PoolEntry, error) {
 	return pending, nil
 }
 
+// MinBulkApproveThreshold is the minimum duration for bulk approval.
+// Prevents accidental approval of very recent candidates.
+const MinBulkApproveThreshold = time.Hour
+
+// MaxReasonLength is the maximum length for reason/note fields.
+// Prevents excessively large review notes that could slow down operations.
+const MaxReasonLength = 1000
+
+// ErrThresholdTooLow is returned when bulk approval threshold is below minimum.
+var ErrThresholdTooLow = fmt.Errorf("threshold must be >= 1h")
+
+// ErrReasonTooLong is returned when reason/note exceeds MaxReasonLength.
+var ErrReasonTooLong = fmt.Errorf("reason/note exceeds maximum length of %d characters", MaxReasonLength)
+
 // BulkApprove approves all silver candidates older than threshold.
+// Returns ErrThresholdTooLow if olderThan < 1h to prevent accidental mass approval.
 func (p *Pool) BulkApprove(olderThan time.Duration, reviewer string, dryRun bool) ([]string, error) {
+	if olderThan < MinBulkApproveThreshold {
+		return nil, ErrThresholdTooLow
+	}
+
 	entries, err := p.List(ListOptions{
 		Tier:   types.TierSilver,
 		Status: types.PoolStatusPending,
@@ -598,7 +642,7 @@ func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 		firstLine = firstLine[:idx]
 	}
 	if len(firstLine) > 80 {
-		firstLine = firstLine[:77] + "..."
+		firstLine = truncateAtWordBoundary(firstLine, 77) + "..."
 	}
 	content.WriteString(firstLine)
 	content.WriteString("\n\n")
@@ -607,7 +651,7 @@ func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 	content.WriteString(fmt.Sprintf("**ID**: %s\n", entry.Candidate.ID))
 	content.WriteString(fmt.Sprintf("**Date**: %s\n", time.Now().Format("2006-01-02")))
 	content.WriteString(fmt.Sprintf("**Tier**: %s\n", entry.Candidate.Tier))
-	content.WriteString(fmt.Sprintf("**Schema Version**: 1\n"))
+	content.WriteString("**Schema Version**: 1\n")
 	content.WriteString("\n")
 
 	// MemRL fields
@@ -640,7 +684,7 @@ func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 }
 
 // recordEvent appends an event to the chain file.
-func (p *Pool) recordEvent(event ChainEvent) error {
+func (p *Pool) recordEvent(event ChainEvent) (err error) {
 	chainPath := filepath.Join(p.PoolPath, ChainFile)
 
 	data, err := json.Marshal(event)
@@ -652,14 +696,18 @@ func (p *Pool) recordEvent(event ChainEvent) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	_, err = f.Write(append(data, '\n'))
 	return err
 }
 
 // GetChain returns all chain events.
-func (p *Pool) GetChain() ([]ChainEvent, error) {
+func (p *Pool) GetChain() (events []ChainEvent, err error) {
 	chainPath := filepath.Join(p.PoolPath, ChainFile)
 
 	f, err := os.Open(chainPath)
@@ -669,9 +717,12 @@ func (p *Pool) GetChain() ([]ChainEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
-	var events []ChainEvent
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		var event ChainEvent
@@ -707,6 +758,21 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 
+// truncateAtWordBoundary truncates a string at the last space before limit.
+// If no space is found before limit, it truncates at limit exactly.
+func truncateAtWordBoundary(s string, limit int) string {
+	if len(s) <= limit {
+		return s
+	}
+	// Find the last space before the limit
+	lastSpace := strings.LastIndex(s[:limit], " ")
+	if lastSpace == -1 {
+		// No space found, truncate at limit
+		return s[:limit]
+	}
+	return s[:lastSpace]
+}
+
 // atomicMove moves a file atomically using the pattern:
 // write-to-temp → sync → chmod 0600 → rename
 // This prevents partial writes and data corruption during moves.
@@ -732,27 +798,27 @@ func atomicMove(srcPath, destPath string) error {
 
 	// Write data
 	if _, err := tempFile.Write(data); err != nil {
-		tempFile.Close()
-		os.Remove(tempPath)
+		_ = tempFile.Close()    //nolint:errcheck // cleanup in error path
+		_ = os.Remove(tempPath) //nolint:errcheck // cleanup in error path
 		return fmt.Errorf("write temp file: %w", err)
 	}
 
 	// Sync to disk
 	if err := tempFile.Sync(); err != nil {
-		tempFile.Close()
-		os.Remove(tempPath)
+		_ = tempFile.Close()    //nolint:errcheck // cleanup in error path
+		_ = os.Remove(tempPath) //nolint:errcheck // cleanup in error path
 		return fmt.Errorf("sync temp file: %w", err)
 	}
 
 	// Close before rename
 	if err := tempFile.Close(); err != nil {
-		os.Remove(tempPath)
+		_ = os.Remove(tempPath) //nolint:errcheck // cleanup in error path
 		return fmt.Errorf("close temp file: %w", err)
 	}
 
 	// Atomic rename
 	if err := os.Rename(tempPath, destPath); err != nil {
-		os.Remove(tempPath)
+		_ = os.Remove(tempPath) //nolint:errcheck // cleanup in error path
 		return fmt.Errorf("rename to destination: %w", err)
 	}
 
