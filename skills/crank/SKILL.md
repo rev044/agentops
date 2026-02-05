@@ -199,7 +199,7 @@ bd update <issue-id> --status closed 2>/dev/null
 
 > **CRITICAL**: Swarm completion claims are NOT trusted. Run validation BEFORE closing issues.
 
-Swarm executes its own per-task validation (see `skills/swarm/references/validation-contract.md`), but crank adds an additional verification layer for beads integration.
+Swarm executes its own per-task validation (see `skills/shared/validation-contract.md`), but crank adds an additional verification layer for beads integration.
 
 **For each issue reported complete by swarm:**
 

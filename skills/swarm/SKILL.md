@@ -90,7 +90,7 @@ Agents send `<task-notification>` automatically when complete:
 
 > **TRUST ISSUE**: Agent completion claims are NOT trusted. Verify then trust.
 
-**The Validation Contract**: Before marking any task complete, Mayor MUST run validation checks. See `skills/swarm/references/validation-contract.md` for full specification.
+**The Validation Contract**: Before marking any task complete, Mayor MUST run validation checks. See `skills/shared/validation-contract.md` for full specification.
 
 **Validation flow:**
 
