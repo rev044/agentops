@@ -65,7 +65,7 @@ Adds Visionary: Where does this lead? What's the 10x version?
 
 ### Step 4: Write Pre-Mortem Report
 
-**Write to:** `.agents/pre-mortems/YYYY-MM-DD-<topic>.md`
+**Write to:** `.agents/council/YYYY-MM-DD-pre-mortem-<topic>.md`
 
 ```markdown
 # Pre-Mortem: <Topic>

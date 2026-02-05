@@ -71,9 +71,19 @@ Run `/retro` to capture what we learned:
 - Patterns to reuse?
 - Anti-patterns to avoid?
 
+**Error Handling:**
+
+| Failure | Behavior |
+|---------|----------|
+| Council fails | Stop, report council error, no retro |
+| Retro fails | Proceed, report learnings as "⚠️ SKIPPED: retro unavailable" |
+| Both succeed | Full post-mortem with council + learnings |
+
+Post-mortem always completes if council succeeds. Retro is optional enrichment.
+
 ### Step 4: Write Post-Mortem Report
 
-**Write to:** `.agents/post-mortems/YYYY-MM-DD-<topic>.md`
+**Write to:** `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`
 
 ```markdown
 # Post-Mortem: <Epic/Topic>

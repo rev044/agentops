@@ -80,7 +80,7 @@ All validation skills depend on `/council`:
 | **council** | - | - (core primitive) |
 | **vibe** | council, complexity, standards | required, required, optional |
 | **pre-mortem** | council | required |
-| **post-mortem** | council, retro, beads | required, required, optional |
+| **post-mortem** | council, retro, beads | required, optional (graceful skip), optional |
 | beads | - | - |
 | bug-hunt | beads | optional |
 | complexity | - | - |
@@ -180,8 +180,23 @@ Supporting: provenance, trace, ratchet
 Task(model="opus", run_in_background=true, prompt="...")
 
 # Codex agents (via Bash tool)
-codex exec -m gpt-5.2 --full-auto -o /tmp/output.md "..."
+codex exec -m gpt-5.2 --full-auto -o .agents/council/codex-output.md "..."
 ```
+
+### Consolidated Output
+
+All council-based skills write to `.agents/council/`:
+
+| Skill | Output Pattern |
+|-------|----------------|
+| `/council` | `.agents/council/YYYY-MM-DD-<target>-report.md` |
+| `/vibe` | `.agents/council/YYYY-MM-DD-vibe-<target>.md` |
+| `/pre-mortem` | `.agents/council/YYYY-MM-DD-pre-mortem-<topic>.md` |
+| `/post-mortem` | `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md` |
+
+Individual judge outputs also go to `.agents/council/`:
+- `claude-pragmatist.md`, `claude-skeptic.md`, `claude-visionary.md`
+- `codex-pragmatist.md`, `codex-skeptic.md`, `codex-visionary.md`
 
 ---
 

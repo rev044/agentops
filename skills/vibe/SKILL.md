@@ -50,25 +50,30 @@ If nothing found, ask user.
 **For Python:**
 ```bash
 # Check if radon is available
-which radon || echo "radon not installed, skipping complexity"
-
-# Run cyclomatic complexity (if available)
-radon cc <path> -a -s 2>/dev/null | head -30
-
-# Run maintainability index
-radon mi <path> -s 2>/dev/null | head -30
+if ! which radon > /dev/null 2>&1; then
+  echo "⚠️ COMPLEXITY SKIPPED: radon not installed (pip install radon)"
+  # Record in report that complexity was skipped
+else
+  # Run cyclomatic complexity
+  radon cc <path> -a -s 2>/dev/null | head -30
+  # Run maintainability index
+  radon mi <path> -s 2>/dev/null | head -30
+fi
 ```
 
 **For Go:**
 ```bash
 # Check if gocyclo is available
-which gocyclo || echo "gocyclo not installed, skipping complexity"
-
-# Run complexity analysis (if available)
-gocyclo -over 10 <path> 2>/dev/null | head -30
+if ! which gocyclo > /dev/null 2>&1; then
+  echo "⚠️ COMPLEXITY SKIPPED: gocyclo not installed (go install github.com/fzipp/gocyclo/cmd/gocyclo@latest)"
+  # Record in report that complexity was skipped
+else
+  # Run complexity analysis
+  gocyclo -over 10 <path> 2>/dev/null | head -30
+fi
 ```
 
-**For other languages:** Skip complexity, proceed to council.
+**For other languages:** Skip complexity with explicit note: "⚠️ COMPLEXITY SKIPPED: No analyzer for <language>"
 
 **Interpret results:**
 
@@ -134,7 +139,7 @@ Each judge reviews for:
 
 ### Step 6: Write Vibe Report
 
-**Write to:** `.agents/vibe/YYYY-MM-DD-<target>.md`
+**Write to:** `.agents/council/YYYY-MM-DD-vibe-<target>.md`
 
 ```markdown
 # Vibe Report: <Target>
@@ -144,12 +149,15 @@ Each judge reviews for:
 
 ## Complexity Analysis
 
+**Status:** ✅ Completed | ⚠️ Skipped (<reason>)
+
 | File | Score | Rating | Notes |
 |------|-------|--------|-------|
 | src/auth.py | 15 | C | Consider breaking up |
 | src/utils.py | 4 | A | Good |
 
 **Hotspots:** <list files with C or worse>
+**Skipped reason:** <if skipped, explain why - e.g., "radon not installed">
 
 ## Council Verdict: PASS / WARN / FAIL
 

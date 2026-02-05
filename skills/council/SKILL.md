@@ -72,8 +72,8 @@ Natural language works — the skill infers task type from your prompt.
 │  (--deep/--mixed only)│           │  (--mixed only)       │
 │                       │           │                       │
 │  Output: JSON + MD    │           │  Output: JSON + MD    │
-│  Files: /tmp/council- │           │  Files: /tmp/council- │
-│         claude-*.json │           │         codex-*.json  │
+│  Files: .agents/      │           │  Files: .agents/      │
+│    council/claude-*   │           │    council/codex-*    │
 └───────────────────────┘           └───────────────────────┘
             │                                   │
             └─────────────────┬─────────────────┘
@@ -104,8 +104,12 @@ Natural language works — the skill infers task type from your prompt.
 | 1 of N agents times out | Proceed with N-1, note in report |
 | All Codex agents fail | Proceed Claude-only, note degradation |
 | All agents fail | Return error, suggest retry |
+| Codex CLI not installed | Skip Codex agents, Claude-only (warn user) |
+| Output dir missing | Create `.agents/council/` automatically |
 
 Timeout: 120s per agent (configurable via `--timeout`).
+
+**Minimum quorum:** At least 1 agent must respond for a valid council. If 0 agents respond, return error.
 
 ---
 
@@ -327,10 +331,10 @@ Task(
 
 ```bash
 # Spawn a Claude session with a prompt
-claude --print "{JUDGE_PACKET}" > /tmp/council-claude-pragmatist.md
+claude --print "{JUDGE_PACKET}" > .agents/council/claude-pragmatist.md
 
 # Or interactive with file output
-claude -p "{JUDGE_PACKET}" --output-file /tmp/council-claude-pragmatist.md
+claude -p "{JUDGE_PACKET}" --output-file .agents/council/claude-pragmatist.md
 ```
 
 ### Codex Agents (via Codex CLI)
@@ -338,7 +342,7 @@ claude -p "{JUDGE_PACKET}" --output-file /tmp/council-claude-pragmatist.md
 **Using Bash tool (inside Claude Code):**
 
 ```bash
-codex exec --full-auto -C "$(pwd)" -o /tmp/council-codex-{perspective}.md "{PACKET}"
+codex exec --full-auto -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
 ```
 
 **Codex CLI flags:**
@@ -351,7 +355,7 @@ codex exec --full-auto -C "$(pwd)" -o /tmp/council-codex-{perspective}.md "{PACK
 
 ```bash
 # Spawn Codex with a prompt
-codex exec -m gpt-5.2 --full-auto -o /tmp/council-codex-pragmatist.md "You are THE PRAGMATIST..."
+codex exec -m gpt-5.2 --full-auto -o .agents/council/codex-pragmatist.md "You are THE PRAGMATIST..."
 ```
 
 ### Parallel Spawning
@@ -365,9 +369,9 @@ Task(description="Judge 2", ..., run_in_background=true)
 Task(description="Judge 3", ..., run_in_background=true)
 
 # Codex agents (Bash tool, parallel)
-Bash(command="codex exec ... -o /tmp/codex-1.md ...", run_in_background=true)
-Bash(command="codex exec ... -o /tmp/codex-2.md ...", run_in_background=true)
-Bash(command="codex exec ... -o /tmp/codex-3.md ...", run_in_background=true)
+Bash(command="codex exec ... -o .agents/council/codex-1.md ...", run_in_background=true)
+Bash(command="codex exec ... -o .agents/council/codex-2.md ...", run_in_background=true)
+Bash(command="codex exec ... -o .agents/council/codex-3.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**
@@ -385,14 +389,20 @@ TaskOutput(task_id="...", block=true)
 
 ### Output Collection
 
-Both CLIs write to files. Read files after completion:
+All council outputs go to `.agents/council/`:
 
 ```bash
+# Ensure directory exists
+mkdir -p .agents/council
+
 # Claude output
-cat /tmp/council-claude-pragmatist.md
+.agents/council/YYYY-MM-DD-<target>-claude-pragmatist.md
 
 # Codex output
-cat /tmp/council-codex-pragmatist.md
+.agents/council/YYYY-MM-DD-<target>-codex-pragmatist.md
+
+# Final consolidated report
+.agents/council/YYYY-MM-DD-<target>-report.md
 ```
 
 ---
