@@ -32,7 +32,7 @@ Comprehensive code validation across 8 quality aspects.
 Given `/vibe [target]`:
 
 **Optional flags:**
-- `--council`: After writing the vibe report, also run `/judge <target>` and append a council consensus section (PASS/FAIL/DISAGREE). This does **not** override toolchain gates.
+- `--council`: After writing the vibe report, also run `/judge <target>` and append a council consensus section (PASS/FAIL/DISAGREE).
 
 ### Step 1: Load Vibe-Coding Science
 
@@ -85,39 +85,6 @@ fi
 - Apply extra scrutiny to areas with known anti-patterns
 
 If ao not available, skip this step and continue with validation.
-
-### Step 1b: Run Toolchain Validation (MANDATORY)
-
-**Before ANY agent dispatch, run the toolchain:**
-
-```bash
-./scripts/toolchain-validate.sh --gate 2>&1 | tee .agents/tooling/vibe-run.log
-TOOL_EXIT=$?
-```
-
-**Interpret results:**
-
-| Exit Code | Meaning | Action |
-|-----------|---------|--------|
-| 0 | All tools pass | Proceed to agent dispatch |
-| 2 | CRITICAL findings | **STOP. Report tool findings. Do not dispatch agents.** |
-| 3 | HIGH findings only | Proceed, but note in report |
-
-**If TOOL_EXIT == 2:**
-
-```
-Report to user:
-
-  Grade: F (tools failed)
-
-  Toolchain found CRITICAL issues that must be fixed:
-  - See .agents/tooling/<tool>.txt for details
-
-  Fix these issues before re-running /vibe.
-  Do NOT generate a false "Grade: B" when tools are failing.
-```
-
-**DO NOT dispatch agents if tools found CRITICAL issues.** This prevents theater where agents ignore definitive tool failures and produce optimistic reports.
 
 ### Step 2: Determine Target and Vibe Level
 
@@ -187,77 +154,7 @@ For each file, check:
 | **Slop** | AI hallucinations, cargo cult code, over-engineering |
 | **Accessibility** | Missing ARIA, keyboard nav issues, contrast |
 
-### Step 6: Triage Tool Findings
-
-**Read tool outputs:**
-```bash
-cat .agents/tooling/semgrep.txt
-cat .agents/tooling/gitleaks.txt
-cat .agents/tooling/gosec.txt
-cat .agents/tooling/ruff.txt
-cat .agents/tooling/golangci-lint.txt
-cat .agents/tooling/shellcheck.txt
-cat .agents/tooling/radon.txt
-cat .agents/tooling/hadolint.txt
-```
-
-**Triage each finding category:**
-
-#### Security Findings (gitleaks, semgrep, gosec)
-
-For EACH finding, determine verdict:
-
-**TRUE_POSITIVE if:**
-- File path exists (not in comments/examples)
-- Not in test fixtures (*/test/*, */mock/*, *_test.go)
-- Not already suppressed (.gitleaksignore, //nolint, # nosec)
-- Pattern matches real credential (not placeholder like "xxx")
-
-**FALSE_POSITIVE if:**
-- In test fixtures or examples
-- Already in ignore file
-- Placeholder value (contains "example", "test", "xxx")
-- Dead code path (function never called)
-
-Record in table:
-| File:Line | Tool | Finding | Verdict | Reason | Fix (if TRUE_POS) |
-|-----------|------|---------|---------|--------|-------------------|
-
-#### Linter Findings (ruff, golangci-lint, shellcheck)
-
-For EACH finding, apply severity rules:
-
-**FIX_NOW if:**
-- Blocks functionality (import error, syntax error)
-- Security implication (bare except, eval usage)
-- Cyclomatic complexity >15 in changed code
-
-**TECH_DEBT if:**
-- Style only (line length 81-100)
-- Complexity 10-15
-- Has TODO with issue reference
-
-**NOISE if:**
-- Already passing CI
-- No functional impact
-- In generated code
-
-Record in table:
-| File:Line | Finding | Priority | Reason |
-|-----------|---------|----------|--------|
-
-#### Complexity Findings (radon, hadolint)
-
-For EACH high-complexity function:
-- Is it in changed files? (only review what's new)
-- Can it be split? (identify extraction points)
-- Is complexity justified? (state machines, parsers OK)
-
-Record in table:
-| File:Function | Complexity | In Changed? | Recommendation |
-|---------------|------------|-------------|----------------|
-
-### Step 7: Check for Failure Patterns
+### Step 6: Check for Failure Patterns
 
 **Detect the 12 failure patterns from vibe-coding science:**
 
@@ -268,7 +165,7 @@ Record in table:
 | #5 Eldritch Horror | Functions >500 lines |
 | #6 Collision | Multiple recent editors on same file |
 
-### Step 8: Categorize Findings
+### Step 7: Categorize Findings
 
 Group findings by severity:
 
@@ -279,7 +176,7 @@ Group findings by severity:
 | **MEDIUM** | Code smell, maintainability issue | Worth noting |
 | **LOW** | Style, minor improvement | Optional |
 
-### Step 9: Compute Grade
+### Step 8: Compute Grade
 
 Based on findings:
 - **A**: 0 critical, 0-2 high
@@ -288,7 +185,7 @@ Based on findings:
 - **D**: 1+ critical unfixed
 - **F**: Multiple critical, systemic issues
 
-### Step 10: Write Vibe Report
+### Step 9: Write Vibe Report
 
 **Write to:** `.agents/vibe/YYYY-MM-DD-<target>.md`
 
@@ -333,7 +230,7 @@ Based on findings:
 | Accessibility | <OK/N/A> |
 ```
 
-### Step 10a: Optional Council Consensus (`--council`)
+### Step 9a: Optional Council Consensus (`--council`)
 
 If `--council` was requested:
 1. Run `/judge <target>` using the same target scope used for this vibe run.
@@ -341,10 +238,9 @@ If `--council` was requested:
    - `## Council Consensus: PASS | FAIL | DISAGREE`
 
 **Rules:**
-- Do **not** run council if toolchain gate failed with CRITICAL (exit 2). Fix tools first.
 - If judges disagree, treat the overall outcome as `DISAGREE` even if vibe graded highly.
 
-### Step 11: Report to User
+### Step 10: Report to User
 
 Tell the user:
 1. Overall grade
@@ -352,7 +248,7 @@ Tell the user:
 3. Critical and high findings (if any)
 4. Location of full report
 
-### Step 12: Record Validation Results (ao integration)
+### Step 11: Record Validation Results (ao integration)
 
 **Store validation learnings for future sessions:**
 
@@ -398,29 +294,6 @@ If ao not available, skip this step and continue.
 
 - **Quick** (`/vibe`): Read files, check obvious issues
 - **Deep** (`/vibe --deep`): Dispatch expert agents for thorough review
-
-## Prescan Script
-
-The vibe skill includes an automated prescan script at `scripts/prescan.sh`:
-
-```bash
-# Run prescan for secret detection
-./scripts/prescan.sh <target-path>
-```
-
-**What it checks:**
-- Hardcoded secrets (API keys, passwords, tokens)
-- AWS/GCP/Azure credentials
-- Private keys
-- Connection strings
-
-**Exit codes:**
-- `0`: No secrets found
-- `1`: Secrets detected (blocks gate)
-
-**Integration:** Run prescan before full vibe validation to catch secrets early.
-
----
 
 ## Spec/Document Validation Mode
 
