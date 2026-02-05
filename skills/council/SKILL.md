@@ -76,7 +76,7 @@ Natural language works — the skill infers task type from your prompt.
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Phase 1: Build Packet (JSON)                                   │
-│  - Task type (validate/brainstorm/critique)                     │
+│  - Task type (validate/brainstorm/critique/research/analyze)     │
 │  - Target description                                           │
 │  - Context (files, diffs, prior decisions)                      │
 │  - Perspectives to assign                                       │
