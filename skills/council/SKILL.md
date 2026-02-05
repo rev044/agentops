@@ -1,24 +1,45 @@
 ---
 name: council
 tier: orchestration
-description: 'Multi-model validation council. Spawns parallel judges with different perspectives, consolidates into consensus. Modes: validate, brainstorm, critique. Triggers: council, validate, brainstorm, critique, multi-model, consensus.'
+description: 'Multi-model consensus council for validation, research, analysis, brainstorming, and critique. Spawns parallel judges with configurable perspectives and optional explorer sub-agents. Modes: validate, brainstorm, critique, research, analyze. Triggers: council, validate, brainstorm, critique, research, analyze, multi-model, consensus.'
 dependencies:
   - standards   # optional - loaded for code validation context
 replaces: judge
 ---
 
-# /council — Multi-Model Validation Council
+# /council — Multi-Model Consensus Council
 
-Spawn parallel judges with different perspectives, consolidate into consensus verdict.
+Spawn parallel judges with different perspectives, consolidate into consensus. Works for any task — validation, research, analysis, brainstorming, critique.
 
 ## Quick Start
 
 ```bash
-/council validate this plan
-/council brainstorm caching approaches
-/council critique the implementation
-/council                              # infers from context
+/council validate this plan                                    # validation
+/council brainstorm caching approaches                         # brainstorm
+/council critique the implementation                           # critique
+/council research kubernetes upgrade strategies                # research
+/council analyze the CI/CD pipeline bottlenecks                # analysis
+/council --preset=security-audit validate the auth system      # preset personas
+/council --deep --explorers=3 research upgrade automation      # deep + explorers
+/council                                                       # infers from context
 ```
+
+## Use Cases
+
+Council is a general-purpose multi-model consensus tool. Use it for:
+
+| Use Case | Example | Recommended Mode |
+|----------|---------|-----------------|
+| Code review | `/council validate recent` | validate |
+| Plan validation | `/council validate the migration plan` | validate |
+| Architecture analysis | `/council --preset=architecture analyze microservices boundaries` | analyze |
+| Deep codebase research | `/council --deep --explorers=3 research the auth system` | research |
+| Decision making | `/council brainstorm caching strategies` | brainstorm |
+| Risk assessment | `/council --preset=ops critique the deployment pipeline` | critique |
+| Security audit | `/council --preset=security-audit validate the API` | validate |
+| Spec feedback | `/council critique the design doc` | critique |
+| Technology comparison | `/council analyze Redis vs Memcached for our use case` | analyze |
+| Incident investigation | `/council --deep research why deployments are slow` | research |
 
 ## Modes
 
@@ -777,15 +798,15 @@ mkdir -p .agents/council
 /council validate recent
 ```
 
-Infers: validate mode, target = recent commits, 2 Claude agents.
+2 Claude agents validate recent commits from pragmatist + skeptic perspectives.
 
 ### Deep Architecture Review
 
 ```bash
-/council --deep validate the authentication system
+/council --deep --preset=architecture analyze the authentication system
 ```
 
-3 Claude agents (pragmatist, skeptic, visionary) analyze auth implementation.
+3 Claude agents (scalability, maintainability, simplicity) analyze auth design.
 
 ### Cross-Vendor Validation
 
@@ -795,6 +816,22 @@ Infers: validate mode, target = recent commits, 2 Claude agents.
 
 3 Claude + 3 Codex agents, cross-vendor synthesis.
 
+### Deep Research with Explorers
+
+```bash
+/council --deep --explorers=3 research upgrade automation patterns
+```
+
+3 judges each spawn 3 explorers = 12 parallel research threads. Each judge explores a different facet of the topic with sub-agent support.
+
+### Security Audit
+
+```bash
+/council --preset=security-audit --deep validate the API endpoints
+```
+
+3 judges (attacker, defender, compliance) review security posture.
+
 ### Brainstorm Approaches
 
 ```bash
@@ -803,13 +840,29 @@ Infers: validate mode, target = recent commits, 2 Claude agents.
 
 2 Claude agents explore options, pros/cons, recommend one.
 
+### Analyze Trade-offs
+
+```bash
+/council analyze Redis vs Memcached for session storage
+```
+
+2 judges assess properties, trade-offs, and gaps between options.
+
 ### Critique a Spec
 
 ```bash
 /council critique the implementation plan in PLAN.md
 ```
 
-2 Claude agents provide feedback on the plan.
+2 Claude agents provide structured feedback on the plan.
+
+### Custom Personas from File
+
+```bash
+/council --perspectives-file=./my-personas.json validate the migration
+```
+
+Load custom judge personas with tailored focus areas and explorer questions.
 
 ---
 
@@ -829,6 +882,9 @@ The `/judge` skill is deprecated. Use `/council`.
 
 ## See Also
 
-- `skills/vibe/SKILL.md` — Complexity + council for code validation
+- `skills/vibe/SKILL.md` — Complexity + council for code validation (uses `--preset=default` + validate)
+- `skills/pre-mortem/SKILL.md` — Plan validation (uses council validate)
+- `skills/post-mortem/SKILL.md` — Work wrap-up (uses council validate + retro)
 - `skills/swarm/SKILL.md` — Multi-agent orchestration
 - `skills/standards/SKILL.md` — Language-specific coding standards
+- `skills/research/SKILL.md` — Codebase exploration (complementary to council research mode)
