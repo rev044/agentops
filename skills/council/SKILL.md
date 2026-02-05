@@ -194,8 +194,91 @@ The packet sent to each agent. **File contents are included inline** — agents 
 
 ### Custom Perspectives
 
+Simple name-based:
 ```bash
 /council --perspectives="security,performance,ux" validate the API
+```
+
+### Persona Definitions
+
+For richer control, use `--perspectives-file=<path>` pointing to a JSON file with full persona definitions:
+
+```json
+[
+  {
+    "name": "security-auditor",
+    "focus": "OWASP top 10, authentication flows, data exposure",
+    "instructions": "Analyze from the perspective of a security auditor performing a pentest",
+    "explore_questions": [
+      "What attack vectors exist?",
+      "Where is input validation missing?",
+      "Are secrets properly managed?"
+    ]
+  },
+  {
+    "name": "performance-engineer",
+    "focus": "Latency, throughput, resource usage, caching",
+    "instructions": "Analyze from the perspective of a performance engineer under load",
+    "explore_questions": [
+      "Where are the hot paths?",
+      "What queries could be slow at scale?",
+      "Where is caching missing or stale?"
+    ]
+  }
+]
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | yes | Short identifier for the perspective |
+| `focus` | yes | Comma-separated focus areas injected into judge prompt |
+| `instructions` | no | Full custom instruction override for the judge |
+| `explore_questions` | no | Seed questions for `--explorers` (overrides auto-generation) |
+
+### Built-in Presets
+
+Use `--preset=<name>` for common persona configurations:
+
+| Preset | Perspectives | Best For |
+|--------|-------------|----------|
+| `default` | pragmatist, skeptic, visionary | General validation |
+| `security-audit` | attacker, defender, compliance | Security review |
+| `architecture` | scalability, maintainability, simplicity | System design |
+| `research` | breadth, depth, contrarian | Deep investigation |
+| `ops` | reliability, observability, incident-response | Operations review |
+
+```bash
+/council --preset=security-audit validate the auth system
+/council --preset=research --explorers=3 research upgrade automation
+/council --preset=architecture analyze microservices boundaries
+```
+
+**Preset definitions** are equivalent to built-in perspective files. Custom `--perspectives-file` overrides any preset.
+
+**Preset perspective details:**
+
+```
+security-audit:
+  attacker:   "How would I exploit this? What's the weakest link?"
+  defender:   "How do we detect and prevent attacks? What's our blast radius?"
+  compliance: "Does this meet regulatory requirements? What's our audit trail?"
+
+architecture:
+  scalability:     "Will this handle 10x load? Where are the bottlenecks?"
+  maintainability: "Can a new engineer understand this in a week? Where's the complexity?"
+  simplicity:      "What can we remove? Is this the simplest solution?"
+
+research:
+  breadth:     "What's the full landscape? What options exist? What's adjacent?"
+  depth:       "What are the deep technical details? What's under the surface?"
+  contrarian:  "What's the conventional wisdom wrong about? What's overlooked?"
+
+ops:
+  reliability:       "What fails first? What's our recovery time? Where are SPOFs?"
+  observability:     "Can we see what's happening? What metrics/logs/traces do we need?"
+  incident-response: "When this breaks at 3am, what do we need? What's our runbook?"
 ```
 
 ---
@@ -584,7 +667,9 @@ Each judge investigated a different aspect of the topic:
 | `--deep` | 3 Claude agents instead of 2 |
 | `--mixed` | Add 3 Codex agents |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
-| `--perspectives="a,b,c"` | Custom perspectives |
+| `--perspectives="a,b,c"` | Custom perspective names |
+| `--perspectives-file=<path>` | JSON file with full persona definitions |
+| `--preset=<name>` | Built-in persona preset (default, security-audit, architecture, research, ops) |
 | `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed) |
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5) |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
