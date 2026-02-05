@@ -16,10 +16,12 @@ Run `/council validate` on a plan or spec to get multi-model judgment before com
 ## Quick Start
 
 ```bash
-/pre-mortem                           # validates most recent plan
-/pre-mortem path/to/PLAN.md           # validates specific plan
-/pre-mortem --deep path/to/SPEC.md    # 3 judges instead of 2
-/pre-mortem --mixed path/to/PLAN.md   # cross-vendor (Claude + Codex)
+/pre-mortem                                         # validates most recent plan
+/pre-mortem path/to/PLAN.md                         # validates specific plan
+/pre-mortem --deep path/to/SPEC.md                  # 3 judges instead of 2
+/pre-mortem --mixed path/to/PLAN.md                 # cross-vendor (Claude + Codex)
+/pre-mortem --preset=architecture path/to/PLAN.md   # architecture-focused review
+/pre-mortem --explorers=3 path/to/SPEC.md           # deep investigation of plan
 ```
 
 ---
@@ -61,6 +63,18 @@ Adds Visionary: Where does this lead? What's the 10x version?
 /council --mixed validate <plan-path>
 ```
 3 Claude + 3 Codex agents for cross-vendor plan validation.
+
+**With preset override:**
+```
+/council --preset=architecture validate <plan-path>
+```
+Uses architecture-focused personas (scalability, maintainability, simplicity) for system design plans.
+
+**With explorers:**
+```
+/council --explorers=3 validate <plan-path>
+```
+Each judge spawns 3 explorers to investigate aspects of the plan's feasibility against the codebase. Useful for complex migration or refactoring plans.
 
 ### Step 3: Interpret Council Verdict
 

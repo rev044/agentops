@@ -20,11 +20,13 @@ Two steps:
 ## Quick Start
 
 ```bash
-/vibe                      # validates recent changes
-/vibe recent               # same as above
-/vibe src/auth/            # validates specific path
-/vibe --deep recent        # 3 judges instead of 2
-/vibe --mixed recent       # cross-vendor (Claude + Codex)
+/vibe                                    # validates recent changes
+/vibe recent                             # same as above
+/vibe src/auth/                          # validates specific path
+/vibe --deep recent                      # 3 judges instead of 2
+/vibe --mixed recent                     # cross-vendor (Claude + Codex)
+/vibe --preset=security-audit src/auth/  # security-focused review
+/vibe --explorers=2 recent               # judges with explorer sub-agents
 ```
 
 ---
@@ -115,6 +117,18 @@ Adds Visionary: Architecture implications? Technical debt?
 /council --mixed validate <target>
 ```
 3 Claude + 3 Codex agents for cross-vendor consensus.
+
+**With preset override:**
+```
+/vibe --preset=security-audit src/auth/
+```
+Uses security-focused personas (attacker, defender, compliance) instead of defaults.
+
+**With explorers:**
+```
+/vibe --explorers=2 src/auth/
+```
+Each judge spawns 2 explorer sub-agents to investigate code patterns before judging. Useful for large codebases.
 
 ### Step 4: Council Checks
 

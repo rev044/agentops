@@ -24,6 +24,7 @@ Two steps:
 /post-mortem epic-123           # wraps up specific epic
 /post-mortem --deep recent      # thorough council review
 /post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
+/post-mortem --explorers=2 epic-123  # deep investigation before judging
 ```
 
 ---
@@ -56,6 +57,10 @@ Run `/council validate` on the completed work:
 - Are there gaps or shortcuts taken?
 - Security concerns?
 - Technical debt introduced?
+
+**Advanced options (passed through to council):**
+- `--preset=<name>` — Use specialized personas (e.g., `--preset=ops` for production readiness)
+- `--explorers=N` — Each judge spawns N explorers to investigate the implementation deeply before judging
 
 ### Step 3: Extract Learnings
 
