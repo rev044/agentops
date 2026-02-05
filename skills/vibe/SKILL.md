@@ -3,6 +3,7 @@ name: vibe
 description: 'Talos-class comprehensive code validation. Use for "validate code", "run vibe", "check quality", "security review", "architecture review", "accessibility audit", "complexity check", or any validation need. One skill to validate them all.'
 dependencies:
   - standards # loads language-specific standards
+  - judge     # optional - multi-model council consensus validation
 ---
 
 # Vibe Skill
@@ -29,6 +30,9 @@ Comprehensive code validation across 8 quality aspects.
 ## Execution Steps
 
 Given `/vibe [target]`:
+
+**Optional flags:**
+- `--council`: After writing the vibe report, also run `/judge <target>` and append a council consensus section (PASS/FAIL/DISAGREE). This does **not** override toolchain gates.
 
 ### Step 1: Load Vibe-Coding Science
 
@@ -328,6 +332,17 @@ Based on findings:
 | Slop | <OK/Issues> |
 | Accessibility | <OK/N/A> |
 ```
+
+### Step 10a: Optional Council Consensus (`--council`)
+
+If `--council` was requested:
+1. Run `/judge <target>` using the same target scope used for this vibe run.
+2. Append the council report to the end of the vibe report under:
+   - `## Council Consensus: PASS | FAIL | DISAGREE`
+
+**Rules:**
+- Do **not** run council if toolchain gate failed with CRITICAL (exit 2). Fix tools first.
+- If judges disagree, treat the overall outcome as `DISAGREE` even if vibe graded highly.
 
 ### Step 11: Report to User
 
