@@ -200,6 +200,120 @@ The packet sent to each agent. **File contents are included inline** — agents 
 
 ---
 
+## Explorer Sub-Agents
+
+Judges can spawn explorer sub-agents for parallel deep-dive research. This is the key differentiator for `research` and `analyze` modes — massive parallel exploration.
+
+### Flag
+
+| Flag | Default | Max | Description |
+|------|---------|-----|-------------|
+| `--explorers=N` | 0 | 5 | Number of explorer sub-agents per judge |
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Judge (Pragmatist)                                              │
+│                                                                  │
+│  1. Receive packet + perspective                                 │
+│  2. Identify N sub-questions to explore                          │
+│  3. Spawn N explorers in parallel (Task tool, background)        │
+│  4. Collect explorer results                                     │
+│  5. Synthesize into final judge response                         │
+└─────────────────────────────────────────────────────────────────┘
+        │              │              │
+        ▼              ▼              ▼
+  ┌──────────┐  ┌──────────┐  ┌──────────┐
+  │Explorer 1│  │Explorer 2│  │Explorer 3│
+  │Sub-Q: "A"│  │Sub-Q: "B"│  │Sub-Q: "C"│
+  │          │  │          │  │          │
+  │Codebase  │  │Codebase  │  │Codebase  │
+  │search +  │  │search +  │  │search +  │
+  │analysis  │  │analysis  │  │analysis  │
+  └──────────┘  └──────────┘  └──────────┘
+```
+
+**Total agents:** `judges * (1 + explorers)`
+
+| Example | Judges | Explorers | Total Agents |
+|---------|--------|-----------|--------------|
+| `/council research X` | 2 | 0 | 2 |
+| `/council --explorers=3 research X` | 2 | 3 | 2 + 6 = 8 |
+| `/council --deep --explorers=3 research X` | 3 | 3 | 3 + 9 = 12 |
+| `/council --mixed --explorers=3 research X` | 6 | 3 | 6 + 18 = 24 |
+
+### Explorer Prompt
+
+```
+You are Explorer {M} for Council Judge {N} — THE {PERSPECTIVE}.
+
+## Your Sub-Question
+
+{SUB_QUESTION}
+
+## Context
+
+Working directory: {CWD}
+Target: {TARGET}
+
+## Instructions
+
+1. Use available tools (Glob, Grep, Read, Bash) to investigate the sub-question
+2. Search the codebase, documentation, and any relevant sources
+3. Be thorough — your findings feed directly into the judge's analysis
+4. Return a structured summary:
+
+### Findings
+<what you discovered>
+
+### Evidence
+<specific files, lines, patterns found>
+
+### Assessment
+<your interpretation of the findings>
+```
+
+### Explorer Execution
+
+Explorers are spawned as `Explore`-type subagents for speed:
+
+```
+Task(
+  description="Explorer for Judge {N}: {SUB_QUESTION_SHORT}",
+  subagent_type="Explore",
+  model="sonnet",
+  run_in_background=true,
+  prompt="{EXPLORER_PROMPT}"
+)
+```
+
+**Model selection:** Explorers use `sonnet` by default (fast, good at search). Judges use `opus` (thorough analysis). Override with `--explorer-model=<model>`.
+
+### Sub-Question Generation
+
+When `--explorers=N` is set, the judge prompt includes:
+
+```
+Before analyzing, identify {N} specific sub-questions that would help you
+answer from your {PERSPECTIVE} angle. For each sub-question, spawn an
+explorer agent to investigate it. Use the explorer findings to inform
+your final analysis.
+
+Sub-questions should be:
+- Specific and searchable (not vague)
+- Complementary (cover different aspects)
+- Relevant to your perspective
+```
+
+If a persona definition includes `explore_questions`, those are used instead of auto-generated sub-questions.
+
+### Timeout
+
+Explorer timeout: 60s (half of judge timeout). Judge timeout starts after all explorers complete.
+
+---
+
 ## Agent Prompts
 
 ### Judge Agent Prompt
@@ -460,6 +574,8 @@ Each judge investigated a different aspect of the topic:
 | `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
 | `COUNCIL_CODEX_MODEL` | gpt-5.2 | Default Codex model for --mixed |
 | `COUNCIL_CLAUDE_MODEL` | opus | Claude model for agents |
+| `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
+| `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
 
 ### Flags
 
@@ -470,6 +586,8 @@ Each judge investigated a different aspect of the topic:
 | `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspectives |
 | `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed) |
+| `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5) |
+| `--explorer-model=M` | Override explorer model (default: sonnet) |
 
 ---
 
