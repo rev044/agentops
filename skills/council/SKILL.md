@@ -3,7 +3,6 @@ name: council
 tier: orchestration
 description: 'Multi-model validation council. Spawns parallel judges with different perspectives, consolidates into consensus. Modes: validate, brainstorm, critique. Triggers: council, validate, brainstorm, critique, multi-model, consensus.'
 dependencies:
-  - vibe        # optional - can run vibe first for toolchain validation
   - standards   # optional - loaded for code validation context
 replaces: judge
 ---
@@ -107,15 +106,33 @@ Natural language works — the skill infers task type from your prompt.
 | Codex CLI not installed | Skip Codex agents, Claude-only (warn user) |
 | Output dir missing | Create `.agents/council/` automatically |
 
-Timeout: 120s per agent (configurable via `--timeout`).
+Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
 
 **Minimum quorum:** At least 1 agent must respond for a valid council. If 0 agents respond, return error.
+
+### Pre-Flight Checks
+
+Before spawning agents, verify tools are available:
+
+```bash
+# Always available (Task tool is built-in)
+# Claude agents: no pre-flight needed
+
+# Codex agents (--mixed only)
+if ! which codex > /dev/null 2>&1; then
+  echo "⚠️ Codex CLI not found. Falling back to Claude-only."
+  # Downgrade --mixed to --deep (3 Claude agents)
+fi
+
+# Create output directory
+mkdir -p .agents/council
+```
 
 ---
 
 ## Packet Format (JSON)
 
-The packet sent to each agent:
+The packet sent to each agent. **File contents are included inline** — agents receive the actual code/plan text in the packet, not just paths. This ensures both Claude and Codex agents can analyze without needing file access.
 
 ```json
 {
@@ -125,9 +142,14 @@ The packet sent to each agent:
     "target": "Implementation of user authentication system",
     "context": {
       "files": [
-        "src/auth/jwt.py",
-        "src/auth/middleware.py",
-        "tests/test_auth.py"
+        {
+          "path": "src/auth/jwt.py",
+          "content": "<file contents inlined here>"
+        },
+        {
+          "path": "src/auth/middleware.py",
+          "content": "<file contents inlined here>"
+        }
       ],
       "diff": "git diff output if applicable",
       "prior_decisions": [
@@ -234,6 +256,8 @@ Disagreement handling:
 - If Claude says PASS and Codex says FAIL → DISAGREE (surface both)
 - Severity-weighted: Security FAIL outweighs style WARN
 
+**DISAGREE resolution:** When vendors disagree, the spawner presents both positions with reasoning and defers to the user. No automatic tie-breaking — cross-vendor disagreement is a signal worth human attention.
+
 ---
 
 ## Output Format
@@ -287,6 +311,55 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 *Council completed in 45s. 6/6 judges responded.*
 ```
 
+### Brainstorm Report
+
+```markdown
+## Council Brainstorm: <Topic>
+
+**Target:** <what we're brainstorming>
+**Judges:** <count and vendors>
+
+### Options Explored
+
+| Option | Pragmatist | Skeptic | Visionary |
+|--------|------------|---------|-----------|
+| Option A | Pros/cons | Risks | Potential |
+| Option B | Pros/cons | Risks | Potential |
+
+### Recommendation
+
+<synthesized recommendation with reasoning>
+
+*Council completed in Ns. N/N judges responded.*
+```
+
+**Write to:** `.agents/council/YYYY-MM-DD-brainstorm-<topic>.md`
+
+### Critique Report
+
+```markdown
+## Council Critique: <Target>
+
+**Target:** <what we're critiquing>
+**Judges:** <count and vendors>
+
+### Strengths
+- ...
+
+### Weaknesses
+
+| Issue | Severity | Source | Recommendation |
+|-------|----------|--------|----------------|
+| ... | critical/significant/minor | Pragmatist/Skeptic/etc | ... |
+
+### Improvement Roadmap
+1. ...
+
+*Council completed in Ns. N/N judges responded.*
+```
+
+**Write to:** `.agents/council/YYYY-MM-DD-critique-<topic>.md`
+
 ---
 
 ## Configuration
@@ -295,7 +368,7 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `COUNCIL_TIMEOUT` | 120000 | Agent timeout in ms |
+| `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
 | `COUNCIL_CODEX_MODEL` | gpt-5.2 | Default Codex model for --mixed |
 | `COUNCIL_CLAUDE_MODEL` | opus | Claude model for agents |
 
@@ -305,9 +378,9 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 |------|-------------|
 | `--deep` | 3 Claude agents instead of 2 |
 | `--mixed` | Add 3 Codex agents |
-| `--timeout=N` | Override timeout (seconds) |
+| `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspectives |
-| `--count=N` | Override agent count |
+| `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed) |
 
 ---
 
@@ -339,29 +412,21 @@ claude -p "{JUDGE_PACKET}" --output-file .agents/council/claude-pragmatist.md
 
 ### Codex Agents (via Codex CLI)
 
-**Using Bash tool (inside Claude Code):**
+**Canonical Codex command form:**
 
 ```bash
-codex exec --full-auto -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
+codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
 ```
+
+Always use this exact flag order: `--full-auto` → `-m` → `-C` → `-o` → prompt.
 
 **Codex CLI flags (ONLY these are valid):**
-- `--full-auto` — No approval prompts (REQUIRED)
+- `--full-auto` — No approval prompts (REQUIRED, always first)
+- `-m <model>` — Model override (default: gpt-5.2)
 - `-C <dir>` — Working directory
 - `-o <file>` — Output file (use `-o` not `--output`)
-- `-m <model>` — Model override (default: gpt-5.2)
 
 **DO NOT USE:** `-q` (doesn't exist), `--quiet` (doesn't exist)
-
-**Using codex CLI directly:**
-
-```bash
-# Spawn Codex with a prompt (exact format - no other flags)
-codex exec --full-auto -m gpt-5.2 -o .agents/council/codex-pragmatist.md "You are THE PRAGMATIST..."
-
-# With working directory
-codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-pragmatist.md "prompt"
-```
 
 ### Parallel Spawning
 
@@ -373,10 +438,10 @@ Task(description="Judge 1", ..., run_in_background=true)
 Task(description="Judge 2", ..., run_in_background=true)
 Task(description="Judge 3", ..., run_in_background=true)
 
-# Codex agents (Bash tool, parallel)
-Bash(command="codex exec ... -o .agents/council/codex-1.md ...", run_in_background=true)
-Bash(command="codex exec ... -o .agents/council/codex-2.md ...", run_in_background=true)
-Bash(command="codex exec ... -o .agents/council/codex-3.md ...", run_in_background=true)
+# Codex agents (Bash tool, parallel — canonical flag order)
+Bash(command="codex exec --full-auto -m gpt-5.2 -C $(pwd) -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.2 -C $(pwd) -o .agents/council/codex-skeptic.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.2 -C $(pwd) -o .agents/council/codex-visionary.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**
@@ -472,6 +537,6 @@ The `/judge` skill is deprecated. Use `/council`.
 
 ## See Also
 
-- `skills/vibe/SKILL.md` — Toolchain validation (run before council for code)
+- `skills/vibe/SKILL.md` — Complexity + council for code validation
 - `skills/swarm/SKILL.md` — Multi-agent orchestration
 - `skills/standards/SKILL.md` — Language-specific coding standards

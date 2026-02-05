@@ -19,6 +19,7 @@ Run `/council validate` on a plan or spec to get multi-model judgment before com
 /pre-mortem                           # validates most recent plan
 /pre-mortem path/to/PLAN.md           # validates specific plan
 /pre-mortem --deep path/to/SPEC.md    # 3 judges instead of 2
+/pre-mortem --mixed path/to/PLAN.md   # cross-vendor (Claude + Codex)
 ```
 
 ---
@@ -54,6 +55,12 @@ Run `/council validate` on the plan/spec:
 /council --deep validate <plan-path>
 ```
 Adds Visionary: Where does this lead? What's the 10x version?
+
+**With --mixed (cross-vendor):**
+```
+/council --mixed validate <plan-path>
+```
+3 Claude + 3 Codex agents for cross-vendor plan validation.
 
 ### Step 3: Interpret Council Verdict
 
@@ -139,6 +146,14 @@ Council reviews the auth system plan, reports whether it's ready to implement.
 ```
 
 3 judges (pragmatist, skeptic, visionary) review the spec thoroughly.
+
+### Cross-Vendor Plan Validation
+
+```bash
+/pre-mortem --mixed .agents/plans/2026-02-05-auth-system.md
+```
+
+3 Claude + 3 Codex agents validate the plan from different vendor perspectives.
 
 ### Auto-Find Recent Plan
 

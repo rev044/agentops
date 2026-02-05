@@ -23,6 +23,7 @@ Two steps:
 /post-mortem                    # wraps up recent work
 /post-mortem epic-123           # wraps up specific epic
 /post-mortem --deep recent      # thorough council review
+/post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
 ```
 
 ---
@@ -98,6 +99,7 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 |-------|---------|-------------|
 | Pragmatist | ... | ... |
 | Skeptic | ... | ... |
+| Visionary | ... | (if --deep/--mixed) |
 
 ### Implementation Assessment
 <council summary>
@@ -189,6 +191,14 @@ Council reviews epic-123 implementation, retro captures learnings.
 ```
 
 3 judges review the epic.
+
+### Cross-Vendor Review
+
+```bash
+/post-mortem --mixed epic-123
+```
+
+3 Claude + 3 Codex agents review the epic.
 
 ---
 

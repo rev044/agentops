@@ -78,7 +78,7 @@ All validation skills depend on `/council`:
 | Skill | Dependencies | Type |
 |-------|--------------|------|
 | **council** | - | - (core primitive) |
-| **vibe** | council, complexity, standards | required, required, optional |
+| **vibe** | council, complexity, standards | required, optional (graceful skip), optional |
 | **pre-mortem** | council | required |
 | **post-mortem** | council, retro, beads | required, optional (graceful skip), optional |
 | beads | - | - |
@@ -163,7 +163,7 @@ Supporting: provenance, trace, ratchet
 | Vendor | CLI | Command |
 |--------|-----|---------|
 | Claude | `claude` | `claude --print "prompt" > output.md` |
-| Codex | `codex` | `codex exec --full-auto -o output.md "prompt"` |
+| Codex | `codex` | `codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o output.md "prompt"` |
 | OpenCode | `opencode` | (similar pattern) |
 
 ### Default Models
@@ -180,23 +180,25 @@ Supporting: provenance, trace, ratchet
 Task(model="opus", run_in_background=true, prompt="...")
 
 # Codex agents (via Bash tool)
-codex exec -m gpt-5.2 --full-auto -o .agents/council/codex-output.md "..."
+codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-output.md "..."
 ```
 
 ### Consolidated Output
 
 All council-based skills write to `.agents/council/`:
 
-| Skill | Output Pattern |
-|-------|----------------|
-| `/council` | `.agents/council/YYYY-MM-DD-<target>-report.md` |
+| Skill / Mode | Output Pattern |
+|--------------|----------------|
+| `/council validate` | `.agents/council/YYYY-MM-DD-<target>-report.md` |
+| `/council brainstorm` | `.agents/council/YYYY-MM-DD-brainstorm-<topic>.md` |
+| `/council critique` | `.agents/council/YYYY-MM-DD-critique-<topic>.md` |
 | `/vibe` | `.agents/council/YYYY-MM-DD-vibe-<target>.md` |
 | `/pre-mortem` | `.agents/council/YYYY-MM-DD-pre-mortem-<topic>.md` |
 | `/post-mortem` | `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md` |
 
 Individual judge outputs also go to `.agents/council/`:
-- `claude-pragmatist.md`, `claude-skeptic.md`, `claude-visionary.md`
-- `codex-pragmatist.md`, `codex-skeptic.md`, `codex-visionary.md`
+- `YYYY-MM-DD-<target>-claude-pragmatist.md`, `...-claude-skeptic.md`, `...-claude-visionary.md`
+- `YYYY-MM-DD-<target>-codex-pragmatist.md`, `...-codex-skeptic.md`, `...-codex-visionary.md`
 
 ---
 
