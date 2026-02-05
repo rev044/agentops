@@ -41,6 +41,8 @@ Spawn parallel judges with different perspectives, consolidate into consensus ve
 | **validate** | validate, check, review, assess | Is this correct? What's wrong? |
 | **brainstorm** | brainstorm, explore, options, approaches | What are the alternatives? Pros/cons? |
 | **critique** | critique, feedback, improve | What could be better? |
+| **research** | research, investigate, deep dive, explore deeply | What can we discover? Each judge explores a different facet. |
+| **analyze** | analyze, assess, examine, evaluate, compare | What are the properties, trade-offs, and structure? |
 
 Natural language works — the skill infers task type from your prompt.
 
@@ -138,7 +140,7 @@ The packet sent to each agent. **File contents are included inline** — agents 
 {
   "council_packet": {
     "version": "1.0",
-    "mode": "validate",
+    "mode": "validate | brainstorm | critique | research | analyze",
     "target": "Implementation of user authentication system",
     "context": {
       "files": [
@@ -230,13 +232,31 @@ You have received {N} judge reports from {VENDORS}.
 
 ## Your Task
 
-Synthesize into a final council report:
+Synthesize into a final council report.
 
+For validate/critique modes:
 1. **Consensus Verdict**: PASS if all PASS, FAIL if any FAIL, else WARN
 2. **Shared Findings**: Points all judges agree on
 3. **Disagreements**: Where judges differ (with attribution)
 4. **Cross-Vendor Insights**: (if --mixed) Unique findings per vendor
 5. **Final Recommendation**: Concrete next step
+
+For brainstorm mode:
+1. **Options Explored**: Each option with multi-perspective assessment
+2. **Trade-offs**: Pros/cons matrix
+3. **Recommendation**: Synthesized best approach
+
+For research mode:
+1. **Facets Explored**: What each judge investigated
+2. **Synthesized Findings**: Merged findings organized by theme
+3. **Open Questions**: What remains unknown
+4. **Recommendation**: Next steps for further investigation or action
+
+For analyze mode:
+1. **Properties**: Key properties assessed with confidence levels
+2. **Trade-offs**: Current vs ideal state gap analysis
+3. **Cross-Perspective Synthesis**: Where judges agreed and disagreed
+4. **Recommendation**: Concrete next steps
 
 Output format: Markdown report for human consumption.
 ```
@@ -359,6 +379,75 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 ```
 
 **Write to:** `.agents/council/YYYY-MM-DD-critique-<topic>.md`
+
+### Research Report
+
+```markdown
+## Council Research: <Topic>
+
+**Target:** <what we're researching>
+**Judges:** <count and vendors>
+
+### Facets Explored
+
+Each judge investigated a different aspect of the topic:
+
+| Facet | Judge | Key Findings |
+|-------|-------|-------------|
+| <aspect 1> | Pragmatist | <summary> |
+| <aspect 2> | Skeptic | <summary> |
+| <aspect 3> | Visionary | <summary> |
+
+### Synthesized Findings
+
+<merged findings across all judges, organized by theme>
+
+### Open Questions
+
+- <questions that emerged during research>
+
+### Recommendation
+
+<synthesized recommendation with reasoning>
+
+*Council completed in Ns. N/N judges responded.*
+```
+
+**Write to:** `.agents/council/YYYY-MM-DD-research-<topic>.md`
+
+### Analyze Report
+
+```markdown
+## Council Analysis: <Target>
+
+**Target:** <what we're analyzing>
+**Judges:** <count and vendors>
+
+### Properties
+
+| Property | Assessment | Confidence |
+|----------|-----------|------------|
+| <property 1> | <assessment> | HIGH/MEDIUM/LOW |
+| <property 2> | <assessment> | HIGH/MEDIUM/LOW |
+
+### Trade-offs
+
+| Dimension | Current State | Ideal State | Gap |
+|-----------|--------------|-------------|-----|
+| <dim 1> | <current> | <ideal> | <gap> |
+
+### Cross-Perspective Synthesis
+
+<where judges agreed and disagreed in their analysis>
+
+### Recommendation
+
+<concrete next steps based on analysis>
+
+*Council completed in Ns. N/N judges responded.*
+```
+
+**Write to:** `.agents/council/YYYY-MM-DD-analyze-<topic>.md`
 
 ---
 
