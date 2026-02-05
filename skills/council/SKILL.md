@@ -676,7 +676,7 @@ Each judge investigated a different aspect of the topic:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
-| `COUNCIL_CODEX_MODEL` | gpt-5.2 | Default Codex model for --mixed |
+| `COUNCIL_CODEX_MODEL` | gpt-5.3 | Default Codex model for --mixed |
 | `COUNCIL_CLAUDE_MODEL` | opus | Claude model for agents |
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
@@ -728,14 +728,14 @@ claude -p "{JUDGE_PACKET}" --output-file .agents/council/claude-pragmatist.md
 **Canonical Codex command form:**
 
 ```bash
-codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
+codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
 ```
 
 Always use this exact flag order: `--full-auto` → `-m` → `-C` → `-o` → prompt.
 
 **Codex CLI flags (ONLY these are valid):**
 - `--full-auto` — No approval prompts (REQUIRED, always first)
-- `-m <model>` — Model override (default: gpt-5.2)
+- `-m <model>` — Model override (default: gpt-5.3)
 - `-C <dir>` — Working directory
 - `-o <file>` — Output file (use `-o` not `--output`)
 
@@ -752,9 +752,9 @@ Task(description="Judge 2", ..., run_in_background=true)
 Task(description="Judge 3", ..., run_in_background=true)
 
 # Codex agents (Bash tool, parallel — canonical flag order)
-Bash(command="codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-skeptic.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-visionary.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-skeptic.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-visionary.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**
@@ -768,7 +768,7 @@ TaskOutput(task_id="...", block=true)
 | Vendor | Default | Override |
 |--------|---------|----------|
 | Claude | opus | `--claude-model=sonnet` |
-| Codex | gpt-5.2 | `--codex-model=o3` |
+| Codex | gpt-5.3 | `--codex-model=<model>` |
 
 ### Output Collection
 
