@@ -439,9 +439,9 @@ Task(description="Judge 2", ..., run_in_background=true)
 Task(description="Judge 3", ..., run_in_background=true)
 
 # Codex agents (Bash tool, parallel — canonical flag order)
-Bash(command="codex exec --full-auto -m gpt-5.2 -C $(pwd) -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.2 -C $(pwd) -o .agents/council/codex-skeptic.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.2 -C $(pwd) -o .agents/council/codex-visionary.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-skeptic.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-visionary.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**

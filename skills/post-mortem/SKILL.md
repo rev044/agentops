@@ -3,7 +3,7 @@ name: post-mortem
 description: 'Wrap up completed work. Council validates the implementation, then extract learnings. Triggers: "post-mortem", "wrap up", "close epic", "what did we learn".'
 dependencies:
   - council  # multi-model judgment
-  - retro    # extracts learnings
+  - retro    # optional - extracts learnings (graceful skip on failure)
   - beads    # optional - for issue status
 ---
 
