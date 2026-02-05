@@ -73,6 +73,7 @@ description: Comprehensive code validation
 | handoff | solo |
 | inbox | solo |
 | swarm | orchestration |
+| judge | orchestration |
 | trace | solo |
 | using-agentops | meta |
 
@@ -116,6 +117,7 @@ This section documents the dependencies between skills. Dependencies are declare
 | retro | vibe | optional |
 | standards | - | - |
 | **swarm** | implement, vibe | required, optional |
+| judge | vibe, swarm | optional, optional |
 | trace | provenance | alternative |
 | using-agentops | - | - |
 | vibe | standards | required |
@@ -168,6 +170,11 @@ This section documents the dependencies between skills. Dependencies are declare
                     │  └──────────┘      └───┬───┘       │
                     │                        │           │
                     │                        ▼           │
+                    │                   ┌───────┐        │
+                    │                   │ judge │        │
+                    │                   └───┬───┘        │
+                    │                       │            │
+                    │                       ▼            │
                     │                   ┌───────┐        │
                     │                   │ vibe  │        │
                     │                   └───────┘        │
