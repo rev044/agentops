@@ -345,17 +345,22 @@ claude -p "{JUDGE_PACKET}" --output-file .agents/council/claude-pragmatist.md
 codex exec --full-auto -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
 ```
 
-**Codex CLI flags:**
-- `--full-auto` — No approval prompts
+**Codex CLI flags (ONLY these are valid):**
+- `--full-auto` — No approval prompts (REQUIRED)
 - `-C <dir>` — Working directory
-- `-o <file>` — Output file
+- `-o <file>` — Output file (use `-o` not `--output`)
 - `-m <model>` — Model override (default: gpt-5.2)
+
+**DO NOT USE:** `-q` (doesn't exist), `--quiet` (doesn't exist)
 
 **Using codex CLI directly:**
 
 ```bash
-# Spawn Codex with a prompt
-codex exec -m gpt-5.2 --full-auto -o .agents/council/codex-pragmatist.md "You are THE PRAGMATIST..."
+# Spawn Codex with a prompt (exact format - no other flags)
+codex exec --full-auto -m gpt-5.2 -o .agents/council/codex-pragmatist.md "You are THE PRAGMATIST..."
+
+# With working directory
+codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-pragmatist.md "prompt"
 ```
 
 ### Parallel Spawning
