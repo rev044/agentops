@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Native Teams Migration
+
+**The big idea:** Council judges and swarm workers are no longer fire-and-forget background agents. They now spawn as teammates on native teams (`TeamCreate` + `SendMessage` + shared `TaskList`), enabling real-time coordination without re-spawning.
+
+#### Council
+
+- **Judges spawn as teammates** on a `council-YYYYMMDD-<target>` team instead of independent `Task(run_in_background=true)` calls
+- **Debate R2 via SendMessage** — judges stay alive after R1 and receive other judges' full verdicts via `SendMessage`. No more re-spawning fresh R2 instances with truncated R1 summaries. Result: zero truncation loss, no spawn overhead, richer debate
+- **Team cleanup** — `shutdown_request` each judge + `TeamDelete()` after consolidation
+- **Communication rules** — judges message team lead only (prevents anchoring); no peer-to-peer, no TaskList access
+- Updated architecture diagram with Phase 1a (Create Team) and Phase 3 (Cleanup)
+- R2 output files unchanged (`.agents/council/YYYY-MM-DD-<target>-claude-{perspective}-r2.md`)
+
+#### Swarm
+
+- **Team-per-wave** — each wave creates a new team (`swarm-<epoch>`), preserving Ralph Wiggum fresh-context isolation
+- **Workers as teammates** — workers join the wave team, claim tasks via `TaskUpdate`, and report via `SendMessage`
+- **Retry via SendMessage** — failed workers receive retry instructions on their existing context (no re-spawn needed within a wave)
+- **Workers access TaskList** — workers can claim and update their own tasks (previously Mayor had to reconcile everything)
+- Step 5a added: team cleanup (`shutdown_request` workers + `TeamDelete`) after each wave
+
+#### Crank
+
+- **Diagram updated** to show swarm's team-based execution flow (`TeamCreate` per wave, `SendMessage` for reporting, `TeamDelete` after wave)
+- Separation of concerns clarified: Crank = beads-aware orchestration, Swarm = team-based parallel execution
+
+#### Shared
+
+- **Native teams fallback** added to CLI availability/fallback table: if `TeamCreate` unavailable, fall back to `Task(run_in_background=true)` fire-and-forget
+- Fallback degrades gracefully: council loses debate-via-message (reverts to R2 re-spawn with truncation), swarm loses retry-via-message (reverts to re-spawn)
+
 ### Documentation
 
 - Added official Skills installer instructions: `npx skills@latest add boshu2/agentops --all -g`

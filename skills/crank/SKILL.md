@@ -26,18 +26,18 @@ Crank (orchestrator)           Swarm (executor)
     |                              |
     +-> bd ready (wave issues)     |
     |                              |
-    +-> TaskCreate from beads  --->+-> Spawn agents (fresh context)
+    +-> TaskCreate from beads  --->+-> TeamCreate (team per wave)
     |                              |
-    +-> /swarm                 --->+-> Execute in parallel
+    +-> /swarm                 --->+-> Spawn workers as teammates
+    |                              |   (fresh context per team)
+    +-> Verify + bd update     <---+-> Workers report via SendMessage
     |                              |
-    +-> Verify + bd update     <---+-> Results
-    |                              |
-    +-> Loop until epic DONE       |
+    +-> Loop until epic DONE   <---+-> TeamDelete after wave
 ```
 
 **Separation of concerns:**
 - **Crank** = Beads-aware orchestration, epic lifecycle, knowledge flywheel
-- **Swarm** = Fresh-context parallel execution (Ralph Wiggum pattern)
+- **Swarm** = Team-based parallel execution (Ralph Wiggum pattern via team-per-wave)
 
 ## Global Limits
 
@@ -185,9 +185,10 @@ Parameters:
 
 Swarm will:
 - Find all unblocked TaskList tasks
-- Spawn background agents with fresh context (Ralph pattern)
-- Execute them in parallel
-- Wait for notifications
+- Create a native team (`TeamCreate`) for the wave
+- Spawn workers as teammates with fresh context (Ralph pattern)
+- Workers claim tasks, execute in parallel, report via `SendMessage`
+- Team lead validates, then cleans up team (`TeamDelete`)
 
 5. **After swarm completes, verify beads status:**
 ```bash

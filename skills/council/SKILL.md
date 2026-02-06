@@ -68,7 +68,7 @@ Use `--debate` for high-stakes or ambiguous reviews where judges are likely to d
 - Reviews where multiple valid perspectives exist
 - Cases where a missed finding has real consequences
 
-Skip `--debate` for routine validation where consensus is expected. Debate doubles cost and latency (two rounds of judge spawning).
+Skip `--debate` for routine validation where consensus is expected. Debate adds R2 latency (judges stay alive, process a second round via SendMessage).
 
 **Incompatibility:** `--quick` and `--debate` cannot be combined. `--quick` runs inline with no spawning; `--debate` requires multi-agent rounds. If both are passed, exit with error: "Error: --quick and --debate are incompatible."
 
@@ -99,31 +99,48 @@ Natural language works — the skill infers task type from your prompt.
 │  - Perspectives to assign                                       │
 └─────────────────────────────────────────────────────────────────┘
                               │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 1a: Create Team                                          │
+│  TeamCreate(team_name="council-YYYYMMDD-<target>")              │
+│  Team lead = spawner (this agent)                               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
             ┌─────────────────┴─────────────────┐
             ▼                                   ▼
 ┌───────────────────────┐           ┌───────────────────────┐
 │     CLAUDE AGENTS     │           │     CODEX AGENTS      │
-│  (Task tool, parallel)│           │  (Bash tool, parallel)│
-│                       │           │                       │
-│  Agent 1: Pragmatist  │           │  Agent 1: Pragmatist  │
-│  Agent 2: Skeptic     │           │  Agent 2: Skeptic     │
-│  Agent 3: Visionary   │           │  Agent 3: Visionary   │
-│  (--deep/--mixed only)│           │  (--mixed only)       │
-│                       │           │                       │
-│  Output: JSON + MD    │           │  Output: JSON + MD    │
-│  Files: .agents/      │           │  Files: .agents/      │
-│    council/claude-*   │           │    council/codex-*    │
-└───────────────────────┘           └───────────────────────┘
+│  (Task tool, teammates│           │  (Bash tool, parallel)│
+│   on council team)    │           │                       │
+│                       │           │  Agent 1: Pragmatist  │
+│  Agent 1: Pragmatist  │           │  Agent 2: Skeptic     │
+│  Agent 2: Skeptic     │           │  Agent 3: Visionary   │
+│  Agent 3: Visionary   │           │  (--mixed only)       │
+│  (--deep/--mixed only)│           │                       │
+│                       │           │  Output: JSON + MD    │
+│  Write files, then    │           │  Files: .agents/      │
+│  SendMessage to lead  │           │    council/codex-*    │
+│  Files: .agents/      │           └───────────────────────┘
+│    council/claude-*   │                       │
+└───────────────────────┘                       │
             │                                   │
             └─────────────────┬─────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Phase 2: Consolidation (Spawner)                               │
-│  - Read all agent outputs                                       │
+│  Phase 2: Consolidation (Team Lead)                             │
+│  - Receive completion messages from judges via SendMessage      │
+│  - Read all agent output files                                  │
 │  - Compute consensus verdict                                    │
 │  - Identify shared findings                                     │
 │  - Surface disagreements with attribution                       │
 │  - Generate Markdown report for human                           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 3: Cleanup                                               │
+│  - shutdown_request each judge                                  │
+│  - TeamDelete()                                                 │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -144,6 +161,7 @@ Natural language works — the skill infers task type from your prompt.
 | All Codex agents fail | Proceed Claude-only, note degradation |
 | All agents fail | Return error, suggest retry |
 | Codex CLI not installed | Skip Codex agents, Claude-only (warn user) |
+| Native teams unavailable | Fall back to `Task(run_in_background=true)` fire-and-forget |
 | Output dir missing | Create `.agents/council/` automatically |
 
 Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
@@ -157,6 +175,9 @@ Before spawning agents, verify tools are available:
 ```bash
 # Always available (Task tool is built-in)
 # Claude agents: no pre-flight needed
+
+# Native teams: TeamCreate is built-in
+# Fallback: if TeamCreate fails, use Task(run_in_background=true)
 
 # Codex agents (--mixed only)
 if ! which codex > /dev/null 2>&1; then
@@ -512,71 +533,72 @@ Explorer timeout: 60s (half of judge timeout). Judge timeout starts after all ex
 
 When `--debate` is passed, council runs two rounds instead of one. Round 1 produces independent verdicts. Round 2 lets judges review each other's work and revise.
 
+**Native teams unlock the key advantage:** Judges stay alive after R1. Instead of re-spawning fresh R2 judges with truncated R1 verdicts, the team lead sends other judges' full R1 verdicts via `SendMessage`. Judges wake from idle, process R2 with full context (their own R1 analysis + others' verdicts), and write R2 files. Result: no truncation loss, no spawn overhead, richer debate.
+
 ### Execution Flow (with --debate)
 
 ```
-Phase 1: Build Packet + Spawn Round 1 judges (unchanged)
+Phase 1: Build Packet + Create Team + Spawn R1 judges as teammates
                               │
-                    Collect all R1 verdicts
+                    Collect all R1 verdicts (via SendMessage)
+                    Judges go idle after R1 (stay alive)
                               │
 Phase 1.5: Prepare R2 context (--debate only)
-  - For each R1 verdict, extract TRUNCATED summary:
-    - JSON verdict block (verdict, confidence, key_insight)
-    - Top 3 findings only (by severity)
-    - ~1.5K tokens per verdict max
-  - Full Markdown verdicts remain in .agents/council/ files
+  - For each OTHER judge's R1 verdict, extract full JSON verdict
+  - Team lead sends R2 instructions to each judge via SendMessage
+  - Each judge already has its own R1 in context (no truncation needed)
+  - Each judge receives other judges' verdicts (full JSON, not truncated)
                               │
-Phase 2: Spawn Round 2 judges (--debate only)
-  - Same perspectives as R1
-  - Each R2 judge receives:
-    - Original packet (same as R1)
-    - Their own R1 verdict (truncated)
-    - All other R1 verdicts (truncated)
+Phase 2: Judges wake up for Round 2 (--debate only)
+  - Same judge instances as R1 (not re-spawned)
+  - Each judge processes via SendMessage:
+    - Other judges' full R1 JSON verdicts
     - Steel-manning rebuttal prompt
-  - Spawn via Task(run_in_background=true) — fresh instances
+    - Branch: disagreed OR agreed
+  - Judges write R2 files + send completion message
                               │
                     Collect all R2 verdicts
                               │
 Phase 3: Consolidation (uses R2 verdicts when --debate)
+                              │
+Phase 4: shutdown_request each judge, TeamDelete()
 ```
 
-### Round 2 Spawning
+### Round 2 via SendMessage
 
-**Branch selection (spawner responsibility):**
+**Branch selection (team lead responsibility):**
 ```
 r1_verdicts = [extract JSON verdict from each R1 output file]
 r1_unanimous = all verdicts have same verdict value (PASS/WARN/FAIL)
 
-For each perspective in [pragmatist, skeptic, visionary...]:
-  prompt = build_r2_prompt(
-    perspective,
-    r1_verdicts,
-    branch="agreed" if r1_unanimous else "disagreed"
-  )
-  # Inject ONLY the applicable branch (disagreed OR agreed), not both
-  Task(
-    description="Council judge R2: {perspective}",
-    subagent_type="general-purpose",
-    model="opus",
-    run_in_background=true,
-    prompt=prompt
+For each judge in [judge-pragmatist, judge-skeptic, judge-visionary...]:
+  other_verdicts = [v for v in r1_verdicts if v.judge != this_judge]
+  branch = "agreed" if r1_unanimous else "disagreed"
+
+  SendMessage(
+    type="message",
+    recipient="judge-{perspective}",
+    content=build_r2_message(other_verdicts, branch),
+    summary="Debate R2: review other verdicts"
   )
 ```
+
+**R2 message content:** See "Debate Round 2 Message" in Agent Prompts section below.
 
 **R2 output files:** Use `-r2` suffix to preserve R1 files:
 ```
 .agents/council/YYYY-MM-DD-<target>-claude-{perspective}-r2.md
 ```
 
-**With --explorers:** Explorers run in R1 only. R2 judges do not spawn explorers. Explorer findings from R1 are captured in the R1 verdict's findings and key_insight, which are injected into R2 via truncation.
+**With --explorers:** Explorers run in R1 only. R2 judges do not spawn explorers. Explorer findings from R1 are already in the judge's context (no truncation loss).
 
-**With --mixed:** Only Claude judges participate in R2. Codex agents run once in R1. For consolidation, use Claude R2 verdicts + Codex R1 verdicts.
+**With --mixed:** Only Claude judges participate in R2 (they stay alive on the team). Codex agents run once in R1 (Bash-spawned, cannot join teams). For consolidation, use Claude R2 verdicts + Codex R1 verdicts.
 
-### R1 Verdict Truncation
+### R1 Verdict Injection for R2
 
-R1 verdicts injected into R2 prompts are truncated to prevent context pressure.
+Since judges stay alive, truncation is no longer needed for a judge's **own** R1 verdict — it's already in their context.
 
-**Extraction:** Read each R1 output file, extract the first JSON code block, then truncate:
+For **other judges' verdicts** sent via SendMessage, include the full JSON verdict block:
 
 ```json
 {
@@ -584,42 +606,44 @@ R1 verdicts injected into R2 prompts are truncated to prevent context pressure.
   "verdict": "WARN",
   "confidence": "HIGH",
   "key_insight": "Rate limiting missing on auth endpoints",
-  "top_findings": [
+  "findings": [
     {"severity": "significant", "description": "No rate limiting on /login"},
     {"severity": "significant", "description": "JWT expiry too long (1h)"},
     {"severity": "minor", "description": "Missing request ID in error responses"}
-  ]
+  ],
+  "recommendation": "Add rate limiting to auth endpoints"
 }
 ```
 
-Full analysis remains in `.agents/council/YYYY-MM-DD-<target>-claude-{perspective}.md` files.
+Full Markdown analysis remains in `.agents/council/YYYY-MM-DD-<target>-claude-{perspective}.md` files and can be referenced by the team lead during consolidation.
 
 ### Timeout and Failure Handling
 
 | Scenario | Behavior |
 |----------|----------|
-| R2 judge times out | Use their R1 verdict for consolidation |
-| All R2 judges time out | Fall back to R1-only consolidation (note in report) |
-| R1 judge timed out | No R2 spawn for that perspective (N-1 in R2) |
+| Judge idle too long after R2 message | Read their R1 output file, use R1 verdict for consolidation |
+| All judges fail R2 | Fall back to R1-only consolidation (note in report) |
+| R1 judge timed out | No R2 message for that perspective (N-1 in R2) |
 | Mixed R2 timeout | Consolidate with available R2 verdicts + R1 fallbacks |
 
 ### Cost and Latency
 
-`--debate` approximately doubles both:
-- **Agents spawned:** N judges x 2 rounds (e.g., --deep = 6 total)
-- **Wall time:** R1 time + R2 time (sequential rounds)
-- **With --mixed:** Only Claude judges get R2. Codex agents run once (cannot participate in Task-tool debate). For consolidation, use Claude R2 verdicts + Codex R1 verdicts for consensus computation.
-- **With --explorers:** Explorers run in R1 only. R2 cost = N judges (no explorer multiplication).
+`--debate` adds R2 latency but **reduces spawn overhead** vs the old re-spawn approach:
+- **Agents spawned:** N judges total (same instances for both rounds, not 2N)
+- **Wall time:** R1 time + R2 time (sequential rounds, but R2 is faster — no spawn delay)
+- **With --mixed:** Only Claude judges get R2. Codex agents run once (Bash-spawned, cannot join teams). For consolidation, use Claude R2 verdicts + Codex R1 verdicts for consensus computation.
+- **With --explorers:** Explorers run in R1 only. R2 cost = judge processing time (no explorer multiplication).
 - **Non-verdict modes:** `--debate` is designed for verdict-producing modes (validate, critique). For brainstorm/research/analyze, `--debate` is not recommended and may produce awkward R2 outputs since these modes do not produce PASS/WARN/FAIL verdicts.
 
 ---
 
 ## Agent Prompts
 
-### Judge Agent Prompt
+### Judge Agent Prompt (Teammate)
 
 ```
 You are Council Member {N} — THE {PERSPECTIVE}.
+You are a teammate on team "{TEAM_NAME}".
 
 {JSON_PACKET}
 
@@ -627,25 +651,29 @@ Your angle: {PERSPECTIVE_DESCRIPTION}
 
 Instructions:
 1. Analyze the target from your perspective
-2. Respond with JSON matching the output_schema
-3. Then provide a Markdown explanation
+2. Write your analysis to: .agents/council/{OUTPUT_FILENAME}
+   - Start with a JSON code block matching the output_schema
+   - Follow with Markdown explanation
+3. Send a message to the team lead with your verdict, confidence, and key insight
+4. You may receive follow-up messages (e.g., debate round 2). Process and respond.
 
-Your response must start with a JSON code block, followed by Markdown analysis.
+Rules:
+- Do NOT message other judges — all communication through team lead
+- Do NOT access TaskList — team lead manages task flow
 ```
 
-### Debate Round Judge Prompt (R2)
+### Debate Round 2 Message (via SendMessage)
 
-Used when `--debate` is active. Each R2 judge is a fresh Task instance (not the same agent as R1).
+When `--debate` is active, the team lead sends this message to each judge after R1 completes. The judge already has its own R1 analysis in context (no truncation needed).
 
 ```
-You are Council Member {N} — THE {PERSPECTIVE} (Debate Round).
+## Debate Round 2
 
-## Prior Assessment from Your Perspective
-A prior independent assessment from the {PERSPECTIVE} angle concluded:
-{ROUND_1_VERDICT_TRUNCATED_JSON}
+Other judges' R1 verdicts:
 
-## All Round 1 Verdicts
-{ALL_ROUND_1_VERDICTS_TRUNCATED}
+### {OTHER_JUDGE_PERSPECTIVE}
+{FULL_JSON_VERDICT}
+(repeat for each other judge)
 
 ## Debate Instructions
 
@@ -678,9 +706,10 @@ Do NOT invent disagreement. Instead, stress-test the consensus:
 Do NOT change your verdict merely because others disagree.
 Do NOT defensively maintain without engaging with opposing arguments.
 
-{ORIGINAL_PACKET}
+Write revised verdict to: .agents/council/{R2_OUTPUT_FILENAME}
+Include "debate_notes" field in your JSON. Send completion message when done.
 
-Respond with JSON matching the output_schema. You MUST include the "debate_notes" field:
+Required JSON format:
 
 {
   "verdict": "PASS | WARN | FAIL",
@@ -1035,7 +1064,7 @@ If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimou
 |------|-------------|
 | `--deep` | 3 Claude agents instead of 2 |
 | `--mixed` | Add 3 Codex agents |
-| `--debate` | Enable adversarial debate round (2 rounds, 2x cost). Incompatible with `--quick`. |
+| `--debate` | Enable adversarial debate round (2 rounds via SendMessage, same agents). Incompatible with `--quick`. |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspective names |
 | `--perspectives-file=<path>` | JSON file with full persona definitions |
@@ -1048,9 +1077,34 @@ If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimou
 
 ## CLI Spawning Commands
 
-### Claude Agents (via Claude Code CLI)
+### Team Setup
 
-**Using Task tool (inside Claude Code):**
+**Create the council team before spawning judges:**
+
+```
+TeamCreate(team_name="council-YYYYMMDD-<target>")
+```
+
+Team naming convention: `council-YYYYMMDD-<target>` (e.g., `council-20260206-auth-system`).
+
+### Claude Agents (via Native Teams)
+
+**Spawn judges as teammates on the council team:**
+
+```
+Task(
+  description="Council judge: Pragmatist",
+  subagent_type="general-purpose",
+  model="opus",
+  team_name="council-YYYYMMDD-<target>",
+  name="judge-pragmatist",
+  prompt="{JUDGE_TEAMMATE_PROMPT}"
+)
+```
+
+Judges join the team, write output files, and send completion messages to the team lead via `SendMessage`.
+
+**Fallback (if native teams unavailable):**
 
 ```
 Task(
@@ -1062,19 +1116,9 @@ Task(
 )
 ```
 
-**Using claude CLI directly:**
-
-```bash
-# Spawn a Claude session with a prompt
-claude --print "{JUDGE_PACKET}" > .agents/council/claude-pragmatist.md
-
-# Or interactive with file output
-claude -p "{JUDGE_PACKET}" --output-file .agents/council/claude-pragmatist.md
-```
-
 ### Codex Agents (via Codex CLI)
 
-**Canonical Codex command form:**
+**Canonical Codex command form (unchanged — Codex cannot join teams):**
 
 ```bash
 codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
@@ -1095,21 +1139,55 @@ Always use this exact flag order: `--full-auto` → `-m` → `-C` → `-o` → p
 **Spawn all agents in parallel:**
 
 ```
-# Claude agents (Task tool, parallel)
-Task(description="Judge 1", ..., run_in_background=true)
-Task(description="Judge 2", ..., run_in_background=true)
-Task(description="Judge 3", ..., run_in_background=true)
+# Step 1: Create team
+TeamCreate(team_name="council-YYYYMMDD-<target>")
 
-# Codex agents (Bash tool, parallel — canonical flag order)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-skeptic.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-visionary.md ...", run_in_background=true)
+# Step 2: Spawn Claude judges as teammates (parallel)
+Task(description="Judge 1: Pragmatist", team_name="council-...", name="judge-pragmatist", ...)
+Task(description="Judge 2: Skeptic", team_name="council-...", name="judge-skeptic", ...)
+Task(description="Judge 3: Visionary", team_name="council-...", name="judge-visionary", ...)
+
+# Step 3: Spawn Codex agents (Bash tool, parallel — cannot join teams)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-skeptic.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-visionary.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**
 
+Judges send completion messages to the team lead via `SendMessage`. These arrive automatically as conversation turns. For Codex agents, use `TaskOutput(task_id="...", block=true)`.
+
+### Debate Round 2 (via SendMessage)
+
+**After R1 completes, send R2 instructions to existing judges (no re-spawn):**
+
 ```
-TaskOutput(task_id="...", block=true)
+# Determine branch
+r1_unanimous = all R1 verdicts have same value
+
+# Send to each judge
+SendMessage(
+  type="message",
+  recipient="judge-pragmatist",
+  content="## Debate Round 2\n\nOther judges' R1 verdicts:\n\n{OTHER_VERDICTS_JSON}\n\n{DEBATE_INSTRUCTIONS_FOR_BRANCH}",
+  summary="Debate R2: review other verdicts"
+)
+```
+
+Judges wake from idle, process R2, write R2 files, send completion message.
+
+### Team Cleanup
+
+**After consolidation:**
+
+```
+# Shutdown each judge
+SendMessage(type="shutdown_request", recipient="judge-pragmatist", content="Council complete")
+SendMessage(type="shutdown_request", recipient="judge-skeptic", content="Council complete")
+SendMessage(type="shutdown_request", recipient="judge-visionary", content="Council complete")
+
+# Delete team
+TeamDelete()
 ```
 
 ### Model Selection
@@ -1232,18 +1310,38 @@ The `/judge` skill is deprecated. Use `/council`.
 
 ---
 
-## Future: Native Teams
+## Native Teams Architecture
+
+Council uses Claude Code native teams (`TeamCreate`, `SendMessage`, shared `TaskList`) as the primary spawning method for Claude judges.
+
+### Deliberation Protocol
 
 The `--debate` flag implements the **deliberation protocol** pattern:
 > Independent assessment → evidence exchange → position revision → convergence analysis
 
-This pattern is backend-agnostic. Current and future implementations:
+Native teams make this pattern first-class:
+- **R1:** Judges spawn as teammates, assess independently, send verdicts to team lead
+- **R2:** Team lead sends other judges' verdicts via `SendMessage`. Judges wake from idle with full R1 context — no truncation, no re-spawn overhead
+- **Consolidation:** Team lead reads all output files, computes consensus
+- **Cleanup:** `shutdown_request` each judge, `TeamDelete()`
 
-- **Phase 1 (current):** `--debate` via Task tool re-spawning. Judges run as independent background agents.
-- **Phase 2 (when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` graduates):** Upgrade to native teams for selective engagement — judge A responds to judge B's specific claim, not batch all-to-all. Add `--team` flag.
-- **Phase 3 (if Phase 2 proves value):** Deliberation protocol as a reusable primitive. Council-as-platform for any multi-agent coordination needing structured disagreement.
+### Communication Rules
 
-**Decision rationale:** See `.agents/council/2026-02-06-native-teams-plan-report.md` and `.agents/council/2026-02-06-plan-validation-report.md`.
+- **Judges → team lead only.** Judges never message each other directly. This prevents anchoring (a judge being swayed by another's framing before forming their own view).
+- **Team lead → judges.** Only the team lead sends messages to judges (R2 debate instructions, shutdown requests).
+- **No TaskList access.** Judges do not use `TaskList` or `TaskUpdate` — the team lead manages all coordination.
+
+### Fallback
+
+If `TeamCreate` is unavailable (API error, environment constraint), fall back to `Task(run_in_background=true)` fire-and-forget. In fallback mode:
+- `--debate` reverts to R2 re-spawning with truncated R1 verdicts
+- Non-debate mode works identically (judges write files, team lead reads them)
+
+### Team Naming
+
+Convention: `council-YYYYMMDD-<target>` (e.g., `council-20260206-auth-system`).
+
+Judge names: `judge-{perspective}` (e.g., `judge-pragmatist`, `judge-skeptic`).
 
 ---
 

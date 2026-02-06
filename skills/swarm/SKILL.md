@@ -27,14 +27,18 @@ Mayor (this session)
     |
     +-> Identify wave: tasks with no blockers
     |
-    +-> Spawn: Task tool (run_in_background=true) for each
-    |       Each agent completes its task atomically
+    +-> Create team: TeamCreate(team_name="swarm-<epoch>")
     |
-    +-> Wait: <task-notification> arrives
+    +-> Spawn: Task(team_name=..., name="worker-<id>") for each
+    |       Workers join team, claim tasks, execute atomically
+    |
+    +-> Wait: Workers send completion via SendMessage
     |
     +-> Validate: Review changes when complete
     |
-    +-> Repeat: New plan if more work needed
+    +-> Cleanup: shutdown_request workers, TeamDelete()
+    |
+    +-> Repeat: New team + new plan if more work needed
 ```
 
 ## Execution
@@ -58,32 +62,49 @@ Find tasks that are:
 
 These can run in parallel.
 
-### Step 3: Spawn Agents
+### Step 3: Create Team + Spawn Workers
 
-For each ready task, spawn a background agent:
+**Create a team for this wave:**
+
+```
+TeamCreate(team_name="swarm-<epoch>")
+```
+
+Team naming: `swarm-<epoch>` (e.g., `swarm-1738857600`). New team per wave = fresh context per spawn (Ralph Wiggum preserved).
+
+**For each ready task, spawn a worker as a teammate:**
 
 ```
 Task(
   subagent_type="general-purpose",
-  run_in_background=true,
-  prompt="Execute task #<id>: <subject>
+  team_name="swarm-<epoch>",
+  name="worker-<task-id>",
+  prompt="You are Worker on swarm team \"swarm-<epoch>\".
 
+Your Assignment: Task #<id>: <subject>
 <description>
 
-Work autonomously. Create/edit files as needed. Verify your work."
+Instructions:
+1. Claim your task: TaskUpdate(taskId=\"<id>\", status=\"in_progress\", owner=\"worker-<task-id>\")
+2. Execute autonomously — create/edit files as needed, verify your work
+3. Send completion message to team lead with summary of what you did
+4. If blocked, message team lead explaining the issue
+
+Rules:
+- Work only on YOUR assigned task
+- Do NOT claim other tasks or message other workers
+- Commit with a message referencing the task ID"
 )
 ```
 
-**Important:** Agents cannot access TaskList/TaskUpdate. Mayor must:
-1. Wait for `<task-notification>`
-2. Verify work was done
-3. Call `TaskUpdate(taskId, status="completed")`
+Workers can access `TaskList`/`TaskUpdate` to claim and update their assigned tasks. Mayor still validates before accepting.
 
-### Step 4: Wait for Notifications
+### Step 4: Wait for Completion Messages
 
-Agents send `<task-notification>` automatically when complete:
-- No polling needed
-- Mayor receives notification with task result
+Workers send completion messages to the team lead via `SendMessage`:
+- Messages arrive automatically as conversation turns (no polling needed)
+- Each message includes a summary of what the worker did
+- Workers go idle after sending — this is normal, not an error
 - **CRITICAL**: Do NOT mark complete yet - validation required first
 
 ### Step 4a: Validate Before Accepting (MANDATORY)
@@ -134,12 +155,13 @@ Agents send `<task-notification>` automatically when complete:
    - Increment retry count for task
    - If retries < MAX_RETRIES (default: 3):
      ```
-     # Add failure context to task description
-     TaskUpdate(taskId="<id>", description="<original> + RETRY: <failure reason>")
-     # Re-spawn agent with guidance
-     Task(run_in_background=true, prompt="Retry task #<id>: Previous attempt failed validation.
-     Failure: <specific failure>
-     Fix the issue and try again.")
+     # Send retry instructions to existing worker (wakes from idle with full context)
+     SendMessage(
+       type="message",
+       recipient="worker-<task-id>",
+       content="Validation failed: <specific failure>. Fix the issue and try again.",
+       summary="Retry: validation failed"
+     )
      ```
    - If retries >= MAX_RETRIES:
      ```
@@ -177,18 +199,30 @@ TaskCreate(
 
 ### Step 5: Review & Finalize
 
-When agents complete AND pass validation:
+When workers complete AND pass validation:
 1. Check git status for changes
 2. Review diffs
 3. Run any additional tests/validation
 4. Commit combined work if needed
 
+### Step 5a: Cleanup Team
+
+After wave completes:
+```
+# Shutdown each worker
+SendMessage(type="shutdown_request", recipient="worker-<task-id>", content="Wave complete")
+
+# Delete team for this wave
+TeamDelete()
+```
+
 ### Step 6: Repeat if Needed
 
 If more tasks remain:
 1. Check TaskList for next wave
-2. Spawn new agents
-3. Continue until all done
+2. Create NEW team (`TeamCreate` with new epoch) — fresh context per wave
+3. Spawn new workers as teammates
+4. Continue until all done
 
 ## Example Flow
 
@@ -217,10 +251,14 @@ Mayor: "Let's build a user auth system"
 ## Key Points
 
 - **Pure Claude-native** - No tmux, no external scripts
-- **Background agents** - `run_in_background=true` for isolation
+- **Native teams** - `TeamCreate` + `Task(team_name=...)` + `SendMessage` for coordination
+- **Workers access TaskList** - Workers claim tasks and update status via `TaskUpdate`
+- **Team per wave** - Fresh team = fresh context (Ralph Wiggum preserved)
 - **Wave execution** - Only unblocked tasks spawn
-- **Mayor orchestrates** - You control the flow
-- **Atomic execution** - Each agent works until task done
+- **Mayor orchestrates** - You control the flow, workers report via `SendMessage`
+- **Retry via message** - Send retry instructions to idle workers (no re-spawn needed)
+- **Atomic execution** - Each worker works until task done
+- **Graceful fallback** - If `TeamCreate` unavailable, fall back to `Task(run_in_background=true)`
 
 ## Integration with AgentOps
 
@@ -268,34 +306,44 @@ TaskUpdate(taskId="2", addBlockedBy=["1"])
 
 This architecture follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/) for autonomous agents.
 
-**Core Insight:** Each `Task(run_in_background=true)` spawn = fresh context.
+**Core Insight:** Each wave creates a new team = fresh context per spawn.
 
 ```
 Ralph's bash loop:          Our swarm:
-while :; do                 Mayor spawns Task → fresh context
-  cat PROMPT.md | claude    Mayor spawns Task → fresh context
-done                        Mayor spawns Task → fresh context
+while :; do                 Wave 1: TeamCreate → spawn workers → fresh context each
+  cat PROMPT.md | claude    Wave 2: TeamCreate → spawn workers → fresh context each
+done                        Wave 3: TeamCreate → spawn workers → fresh context each
 ```
 
 Both achieve the same thing: **fresh context per execution unit**.
+
+### Team-Per-Wave = Ralph Wiggum
+
+Native teams don't break Ralph — they enhance it:
+- **New team per wave** = fresh context per spawn (workers don't persist across waves)
+- **Workers are atomic** = one task, one spawn, one result
+- **Team lead IS the loop** = orchestration layer, manages state across waves
+- **Within a wave**, workers can retry via `SendMessage` (wake from idle with same context) — this is a feature, not a violation, since the retry happens within the same atomic unit of work
 
 ### Why Fresh Context Matters
 
 | Approach | Context | Problem |
 |----------|---------|---------|
 | Internal loop in agent | Accumulates | Degrades over iterations |
-| Mayor spawns agents | Fresh each time | Stays effective at scale |
+| Mayor spawns team per wave | Fresh each time | Stays effective at scale |
 
-Making demigods loop internally would violate Ralph - context accumulates within the session. The loop belongs in Mayor (lightweight orchestration), fresh context belongs in demigods (heavyweight work).
+Making workers loop internally would violate Ralph — context accumulates within the session. The loop belongs in Mayor (lightweight orchestration), fresh context belongs in workers (heavyweight work).
 
 ### Key Properties
 
 - **Mayor IS the loop** - Orchestration layer, manages state
-- **Demigods are atomic** - One task, one spawn, one result
+- **Workers are atomic** - One task, one spawn, one result
+- **Team per wave** - `TeamCreate` → work → `TeamDelete` → repeat
 - **TaskList as memory** - State persists in task status, not context
 - **Filesystem for artifacts** - Files written, commits made
+- **SendMessage for coordination** - Workers report to team lead, never to each other
 
-This is **Ralph + parallelism**: the while loop is distributed across wave spawns, with multiple agents per wave.
+This is **Ralph + parallelism + coordination**: the while loop is distributed across wave spawns, with multiple agents per wave communicating through the team lead.
 
 ## Integration with Crank
 
@@ -724,15 +772,16 @@ Wave did not complete within <timeout>.
 
 | Behavior | Local | Distributed |
 |----------|---------|---------|
-| Spawn mechanism | `Task(run_in_background=true)` | `tmux new-session -d` |
-| Worker entry point | Inline prompt | `/implement <bead-id> --mode=distributed` |
-| Process isolation | Shared parent | Separate processes |
+| Spawn mechanism | `TeamCreate` + `Task(team_name=...)` | `tmux new-session -d` |
+| Worker entry point | Inline prompt (teammate) | `/implement <bead-id> --mode=distributed` |
+| Process isolation | Team per wave (fresh context) | Separate processes |
 | Persistence | Tied to Mayor | Survives Mayor crash |
-| Coordination | None | Agent Mail messages |
-| File conflicts | Race conditions | File reservations |
+| Coordination | `SendMessage` (native teams) | Agent Mail messages |
+| File conflicts | Workers report to lead | File reservations |
+| Retry mechanism | `SendMessage` to idle worker | Re-spawn |
 | Debugging | Limited | `tmux attach -t <session>` |
 | Resource overhead | Low | Medium (N tmux sessions) |
-| Setup requirements | None | tmux + Agent Mail |
+| Setup requirements | None (native teams built-in) | tmux + Agent Mail |
 
 ### When to Use Distributed Mode
 

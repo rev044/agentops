@@ -34,13 +34,14 @@ fi
 
 ### Fallback Table
 
-| CLI | When Missing | Fallback Behavior |
-|-----|-------------|-------------------|
+| Capability | When Missing | Fallback Behavior |
+|------------|-------------|-------------------|
 | `bd` | Issue tracking unavailable | Use TaskList for tracking. Note "install bd for persistent issue tracking" |
 | `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/knowledge/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
 | `codex` | Cross-vendor council unavailable | Fall back to Claude-only (already handled by council pre-flight) |
 | `cass` | Session search unavailable | Skip transcript search. Note "install cass for session history" |
+| Native teams (`TeamCreate`) | API unavailable | Fall back to `Task(run_in_background=true)` fire-and-forget pattern. Council loses debate-via-message (reverts to R2 re-spawn). Swarm loses retry-via-message (reverts to re-spawn). |
 
 ### Rules
 
