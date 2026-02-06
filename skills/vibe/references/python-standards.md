@@ -967,7 +967,7 @@ if status == Status.PENDING:
 
 ### JIT Loading
 
-**Tier 1 (Fast):** Load `~/.claude/skills/standards/references/python.md` (5KB)
+**Tier 1 (Fast):** Load `~/.agents/skills/standards/references/python.md` (5KB)
 **Tier 2 (Deep):** Load this document (20KB) for comprehensive audit
 
 ---

@@ -974,7 +974,7 @@ Deep validation includes:
 
 ### JIT Loading
 
-**Tier 1 (Fast):** Load `~/.claude/skills/standards/references/go.md` (5KB)
+**Tier 1 (Fast):** Load `~/.agents/skills/standards/references/go.md` (5KB)
 **Tier 2 (Deep):** Load this document (16KB) for comprehensive audit
 **Override:** Use `.agents/validation/GO_*.md` if project-specific standards exist
 

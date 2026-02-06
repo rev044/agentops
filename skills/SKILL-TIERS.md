@@ -15,35 +15,47 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
+### User-Facing Skills (19)
+
 | Skill | Tier | Description |
 |-------|------|-------------|
 | **council** | orchestration | Multi-model validation (core primitive) |
-| beads | library | Issue tracking reference |
-| standards | library | Coding standards reference |
-| shared | library | Shared reference documents |
-| crank | orchestration | Autonomous epic execution |
-| swarm | orchestration | Parallel agent spawning |
-| implement | team | Execute single issue |
-| research | solo | Deep codebase exploration |
-| plan | solo | Decompose epics into issues |
+| **crank** | orchestration | Autonomous epic execution |
+| **swarm** | orchestration | Parallel agent spawning |
+| **implement** | team | Execute single issue |
+| **quickstart** | solo | Interactive onboarding (mini RPI cycle) |
+| **status** | solo | Single-screen dashboard |
+| **research** | solo | Deep codebase exploration |
+| **plan** | solo | Decompose epics into issues |
 | **vibe** | solo | Complexity + council (validate code) |
 | **pre-mortem** | solo | Council on plans |
 | **post-mortem** | solo | Council + retro (wrap up work) |
-| retro | solo | Extract learnings |
-| complexity | solo | Cyclomatic analysis |
-| knowledge | solo | Query knowledge artifacts |
-| bug-hunt | solo | Investigate bugs |
-| doc | solo | Generate documentation |
-| handoff | solo | Session handoff |
-| inbox | solo | Agent mail monitoring |
-| trace | solo | Trace design decisions |
-| extract | background | Extract from transcripts |
-| inject | background | Load knowledge at session start |
+| **retro** | solo | Extract learnings |
+| **complexity** | solo | Cyclomatic analysis |
+| **knowledge** | solo | Query knowledge artifacts |
+| **bug-hunt** | solo | Investigate bugs |
+| **doc** | solo | Generate documentation |
+| **handoff** | solo | Session handoff |
+| **inbox** | solo | Agent mail monitoring |
+| **trace** | solo | Trace design decisions |
+
+### Internal Skills (11) — `metadata.internal: true`
+
+These are hidden from interactive `npx skills add` discovery. They are loaded JIT
+by other skills via Read or auto-triggered by hooks. Not intended for direct user invocation.
+
+| Skill | Tier | Purpose |
+|-------|------|---------|
+| beads | library | Issue tracking reference (loaded by /implement, /plan) |
+| standards | library | Coding standards (loaded by /vibe, /implement, /doc) |
+| shared | library | Shared reference documents (distributed mode) |
+| inject | background | Load knowledge at session start (hook-triggered) |
+| extract | background | Extract from transcripts (hook-triggered) |
 | forge | background | Mine transcripts for knowledge |
 | provenance | background | Trace knowledge lineage |
 | ratchet | background | Progress gates |
 | flywheel | background | Knowledge health monitoring |
-| using-agentops | meta | AgentOps workflow guide |
+| using-agentops | meta | AgentOps workflow guide (auto-injected) |
 | ~~judge~~ | deprecated | Replaced by /council |
 
 ---
@@ -84,7 +96,7 @@ All validation skills depend on `/council`:
 | beads | - | - |
 | bug-hunt | beads | optional |
 | complexity | - | - |
-| **crank** | swarm, vibe, implement, beads, post-mortem | required, required, required, required, optional |
+| **crank** | swarm, vibe, implement, beads, post-mortem | required, required, required, optional, optional |
 | doc | standards | required |
 | extract | - | - |
 | flywheel | - | - |
@@ -94,12 +106,14 @@ All validation skills depend on `/council`:
 | inbox | - | - |
 | inject | - | - |
 | knowledge | - | - |
-| **plan** | research, beads, pre-mortem, crank, implement | optional, required, optional, optional, optional |
+| **plan** | research, beads, pre-mortem, crank, implement | optional, optional, optional, optional, optional |
 | provenance | - | - |
+| **quickstart** | - | - (zero dependencies) |
 | ratchet | - | - |
 | research | knowledge, inject | optional, optional |
 | retro | - | - |
 | standards | - | - |
+| **status** | - | - (all CLIs optional) |
 | **swarm** | implement, vibe | required, optional |
 | trace | provenance | alternative |
 | using-agentops | - | - |
@@ -130,14 +144,15 @@ RESEARCH          PLAN              IMPLEMENT           VALIDATE
                                    │  crank  │
                                    └─────────┘
 
-POST-SHIP
-─────────
+POST-SHIP                             ONBOARDING / STATUS
+─────────                             ───────────────────
 
-┌─────────────┐
-│ post-mortem │
-│ (council +  │
-│   retro)    │
-└─────────────┘
+┌─────────────┐                       ┌────────────┐
+│ post-mortem │                       │ quickstart │ (first-time tour)
+│ (council +  │                       └────────────┘
+│   retro)    │                       ┌────────────┐
+└─────────────┘                       │   status   │ (dashboard)
+                                      └────────────┘
 ```
 
 ### Knowledge Flywheel
@@ -163,15 +178,15 @@ Supporting: provenance, trace, ratchet
 | Vendor | CLI | Command |
 |--------|-----|---------|
 | Claude | `claude` | `claude --print "prompt" > output.md` |
-| Codex | `codex` | `codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o output.md "prompt"` |
+| Codex | `codex` | `codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o output.md "prompt"` |
 | OpenCode | `opencode` | (similar pattern) |
 
 ### Default Models
 
 | Vendor | Model |
 |--------|-------|
-| Claude | Opus |
-| Codex/OpenAI | GPT-5.2 |
+| Claude | Opus 4.6 |
+| Codex/OpenAI | GPT-5.3 |
 
 ### /council spawns both
 
@@ -180,7 +195,7 @@ Supporting: provenance, trace, ratchet
 Task(model="opus", run_in_background=true, prompt="...")
 
 # Codex agents (via Bash tool)
-codex exec --full-auto -m gpt-5.2 -C "$(pwd)" -o .agents/council/codex-output.md "..."
+codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-output.md "..."
 ```
 
 ### Consolidated Output

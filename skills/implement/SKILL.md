@@ -14,7 +14,7 @@ dependencies:
 
 Execute a single issue from start to finish.
 
-**Requires:** bd CLI (beads) for issue tracking. Falls back to plain descriptions if unavailable.
+**CLI dependencies:** bd (issue tracking), ao (ratchet gates). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use the issue description directly and track progress via TaskList instead of beads.
 
 ## Execution Steps
 

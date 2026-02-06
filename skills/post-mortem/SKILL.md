@@ -22,6 +22,7 @@ Two steps:
 ```bash
 /post-mortem                    # wraps up recent work
 /post-mortem epic-123           # wraps up specific epic
+/post-mortem --quick recent     # fast inline wrap-up, no spawning
 /post-mortem --deep recent      # thorough council review
 /post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
 /post-mortem --explorers=2 epic-123  # deep investigation before judging
@@ -58,7 +59,15 @@ Run `/council validate` on the completed work:
 - Security concerns?
 - Technical debt introduced?
 
+**With --quick (inline, no spawning):**
+```
+/council --quick validate <epic-or-recent>
+```
+Single-agent structured review. Fast wrap-up without spawning.
+
 **Advanced options (passed through to council):**
+- `--deep` — 3 judges instead of 2
+- `--mixed` — Cross-vendor (Claude + Codex)
 - `--preset=<name>` — Use specialized personas (e.g., `--preset=ops` for production readiness)
 - `--explorers=N` — Each judge spawns N explorers to investigate the implementation deeply before judging
 
@@ -135,13 +144,31 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 [ ] FOLLOW-UP - Issues need addressing (create new beads)
 ```
 
-### Step 5: Report to User
+### Step 5: Feed the Knowledge Flywheel
+
+Post-mortem automatically feeds learnings into the flywheel:
+
+```bash
+mkdir -p .agents/knowledge/pending
+
+if command -v ao &>/dev/null; then
+  ao forge index .agents/learnings/ 2>/dev/null
+  echo "Learnings indexed in knowledge flywheel"
+else
+  # Retro already wrote to .agents/learnings/ — copy to pending for future import
+  cp .agents/learnings/YYYY-MM-DD-*.md .agents/knowledge/pending/ 2>/dev/null
+  echo "Note: Learnings saved to .agents/knowledge/pending/ (install ao for auto-indexing)"
+fi
+```
+
+### Step 6: Report to User
 
 Tell the user:
 1. Council verdict on implementation
 2. Key learnings
 3. Any follow-up items
 4. Location of post-mortem report
+5. Knowledge flywheel status
 
 ---
 

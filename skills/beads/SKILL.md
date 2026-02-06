@@ -2,6 +2,8 @@
 name: beads
 description: 'This skill should be used when the user asks to "track issues", "create beads issue", "show blockers", "what''s ready to work on", "beads routing", "prefix routing", "cross-rig beads", "BEADS_DIR", "two-level beads", "town vs rig beads", "slingable beads", or needs guidance on git-based issue tracking with the bd CLI.'
 dependencies: []
+metadata:
+  internal: true
 ---
 
 # Beads - Persistent Task Memory for AI Agents

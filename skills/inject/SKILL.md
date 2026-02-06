@@ -2,6 +2,8 @@
 name: inject
 description: 'Inject relevant knowledge into session context from .agents/ artifacts. Triggers: "inject knowledge", "recall context", SessionStart hook.'
 dependencies: []
+metadata:
+  internal: true
 ---
 
 # Inject Skill

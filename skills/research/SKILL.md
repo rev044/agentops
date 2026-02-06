@@ -12,6 +12,8 @@ dependencies:
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
+**CLI dependencies:** ao (knowledge injection — optional). If ao is unavailable, skip prior knowledge search and proceed with direct codebase exploration.
+
 ## Execution Steps
 
 Given `/research <topic>`:
