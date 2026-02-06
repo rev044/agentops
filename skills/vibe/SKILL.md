@@ -28,6 +28,7 @@ Two steps:
 /vibe --mixed recent                     # cross-vendor (Claude + Codex)
 /vibe --preset=security-audit src/auth/  # security-focused review
 /vibe --explorers=2 recent               # judges with explorer sub-agents
+/vibe --debate recent                    # two-round adversarial review
 ```
 
 ---
@@ -136,6 +137,12 @@ Uses security-focused personas (attacker, defender, compliance) instead of defau
 /vibe --explorers=2 src/auth/
 ```
 Each judge spawns 2 explorer sub-agents to investigate code patterns before judging. Useful for large codebases.
+
+**With debate mode:**
+```
+/vibe --debate recent
+```
+Enables adversarial two-round review where judges critique each other's findings before final verdict. Use for high-stakes reviews where judges are likely to disagree. See `/council` docs for full --debate details.
 
 ### Step 4: Council Checks
 

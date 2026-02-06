@@ -23,6 +23,7 @@ Run `/council validate` on a plan or spec to get multi-model judgment before com
 /pre-mortem --mixed path/to/PLAN.md                 # cross-vendor (Claude + Codex)
 /pre-mortem --preset=architecture path/to/PLAN.md   # architecture-focused review
 /pre-mortem --explorers=3 path/to/SPEC.md           # deep investigation of plan
+/pre-mortem --debate path/to/PLAN.md                # two-round adversarial review
 ```
 
 ---
@@ -82,6 +83,12 @@ Uses architecture-focused personas (scalability, maintainability, simplicity) fo
 /council --explorers=3 validate <plan-path>
 ```
 Each judge spawns 3 explorers to investigate aspects of the plan's feasibility against the codebase. Useful for complex migration or refactoring plans.
+
+**With debate mode:**
+```
+/pre-mortem --debate
+```
+Enables adversarial two-round review for plan validation. Use for high-stakes plans where multiple valid approaches exist. See `/council` docs for full --debate details.
 
 ### Step 3: Interpret Council Verdict
 

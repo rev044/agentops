@@ -22,6 +22,8 @@ Spawn parallel judges with different perspectives, consolidate into consensus. W
 /council analyze the CI/CD pipeline bottlenecks                # analysis
 /council --preset=security-audit validate the auth system      # preset personas
 /council --deep --explorers=3 research upgrade automation      # deep + explorers
+/council --debate validate the auth system                # adversarial 2-round review
+/council --deep --debate validate the migration plan      # thorough + debate
 /council                                                       # infers from context
 ```
 
@@ -50,6 +52,7 @@ Council is a general-purpose multi-model consensus tool. Use it for:
 | default | 2 | Claude | Standard multi-perspective validation |
 | `--deep` | 3 | Claude | Thorough review |
 | `--mixed` | 3+3 | Claude + Codex | Cross-vendor consensus |
+| `--debate` | 2+ | Claude | Adversarial refinement (2 rounds) |
 
 ```bash
 /council --quick validate recent   # inline single-agent check, no spawning
@@ -57,6 +60,17 @@ Council is a general-purpose multi-model consensus tool. Use it for:
 /council --deep recent             # 3 Claude agents
 /council --mixed recent            # 3 Claude + 3 Codex
 ```
+
+## When to Use `--debate`
+
+Use `--debate` for high-stakes or ambiguous reviews where judges are likely to disagree:
+- Security audits, architecture decisions, migration plans
+- Reviews where multiple valid perspectives exist
+- Cases where a missed finding has real consequences
+
+Skip `--debate` for routine validation where consensus is expected. Debate doubles cost and latency (two rounds of judge spawning).
+
+**Incompatibility:** `--quick` and `--debate` cannot be combined. `--quick` runs inline with no spawning; `--debate` requires multi-agent rounds. If both are passed, exit with error: "Error: --quick and --debate are incompatible."
 
 ## Task Types
 
@@ -494,6 +508,89 @@ Explorer timeout: 60s (half of judge timeout). Judge timeout starts after all ex
 
 ---
 
+## Debate Phase (`--debate`)
+
+When `--debate` is passed, council runs two rounds instead of one. Round 1 produces independent verdicts. Round 2 lets judges review each other's work and revise.
+
+### Execution Flow (with --debate)
+
+```
+Phase 1: Build Packet + Spawn Round 1 judges (unchanged)
+                              │
+                    Collect all R1 verdicts
+                              │
+Phase 1.5: Prepare R2 context (--debate only)
+  - For each R1 verdict, extract TRUNCATED summary:
+    - JSON verdict block (verdict, confidence, key_insight)
+    - Top 3 findings only (by severity)
+    - ~1.5K tokens per verdict max
+  - Full Markdown verdicts remain in .agents/council/ files
+                              │
+Phase 2: Spawn Round 2 judges (--debate only)
+  - Same perspectives as R1
+  - Each R2 judge receives:
+    - Original packet (same as R1)
+    - Their own R1 verdict (truncated)
+    - All other R1 verdicts (truncated)
+    - Steel-manning rebuttal prompt
+  - Spawn via Task(run_in_background=true) — fresh instances
+                              │
+                    Collect all R2 verdicts
+                              │
+Phase 3: Consolidation (uses R2 verdicts when --debate)
+```
+
+### Round 2 Spawning
+
+```
+For each perspective in [pragmatist, skeptic, visionary...]:
+  Task(
+    description="Council judge R2: {perspective}",
+    subagent_type="general-purpose",
+    model="opus",
+    run_in_background=true,
+    prompt="{R2_JUDGE_PROMPT}"   # See Agent Prompts section
+  )
+```
+
+### R1 Verdict Truncation
+
+R1 verdicts injected into R2 prompts are truncated to prevent context pressure:
+
+```json
+{
+  "judge": "pragmatist",
+  "verdict": "WARN",
+  "confidence": "HIGH",
+  "key_insight": "Rate limiting missing on auth endpoints",
+  "top_findings": [
+    {"severity": "significant", "description": "No rate limiting on /login"},
+    {"severity": "significant", "description": "JWT expiry too long (1h)"},
+    {"severity": "minor", "description": "Missing request ID in error responses"}
+  ]
+}
+```
+
+Full analysis remains in `.agents/council/YYYY-MM-DD-<target>-claude-{perspective}.md` files.
+
+### Timeout and Failure Handling
+
+| Scenario | Behavior |
+|----------|----------|
+| R2 judge times out | Use their R1 verdict for consolidation |
+| All R2 judges time out | Fall back to R1-only consolidation (note in report) |
+| R1 judge timed out | No R2 spawn for that perspective (N-1 in R2) |
+| Mixed R2 timeout | Consolidate with available R2 verdicts + R1 fallbacks |
+
+### Cost and Latency
+
+`--debate` approximately doubles both:
+- **Agents spawned:** N judges x 2 rounds (e.g., --deep = 6 total)
+- **Wall time:** R1 time + R2 time (sequential rounds)
+- **With --mixed:** Only Claude judges get R2. Codex agents run once (cannot participate in Task-tool debate).
+
+---
+
 ## Agent Prompts
 
 ### Judge Agent Prompt
@@ -511,6 +608,84 @@ Instructions:
 3. Then provide a Markdown explanation
 
 Your response must start with a JSON code block, followed by Markdown analysis.
+```
+
+### Debate Round Judge Prompt (R2)
+
+Used when `--debate` is active. Each R2 judge is a fresh Task instance (not the same agent as R1).
+
+```
+You are Council Member {N} — THE {PERSPECTIVE} (Debate Round).
+
+## Prior Assessment from Your Perspective
+A prior assessment from your perspective concluded:
+{ROUND_1_VERDICT_TRUNCATED_JSON}
+
+## All Round 1 Verdicts
+{ALL_ROUND_1_VERDICTS_TRUNCATED}
+
+## Debate Instructions
+
+You MUST follow this structure:
+
+**IF judges disagreed in R1 (different verdicts):**
+
+1. **STEEL-MAN**: State the strongest version of an argument from another
+   judge that you initially disagree with. Show you understand it fully
+   before responding to it.
+
+2. **CHALLENGE**: Identify at least one specific claim from another judge
+   that you believe is wrong or incomplete. Cite evidence.
+
+3. **ACKNOWLEDGE**: Identify at least one point from another judge that
+   strengthens, modifies, or adds to your analysis.
+
+4. **REVISE OR CONFIRM**: State your final verdict with specific reasoning.
+   If changing from R1, explain exactly what new evidence changed your mind.
+   If confirming, explain why the opposing arguments did not persuade you.
+
+**IF all judges agreed in R1 (same verdict):**
+
+Do NOT invent disagreement. Instead, stress-test the consensus:
+
+1. **DEVIL'S ADVOCATE**: What is the strongest argument AGAINST the consensus?
+2. **BLIND SPOT**: What perspective or risk did all judges overlook?
+3. **CONFIRM OR REVISE**: Does the consensus hold under scrutiny?
+
+Do NOT change your verdict merely because others disagree.
+Do NOT defensively maintain without engaging with opposing arguments.
+
+{ORIGINAL_PACKET}
+
+Respond with JSON matching the output_schema, plus an optional "debate_notes" field:
+
+{
+  "verdict": "PASS | WARN | FAIL",
+  "confidence": "HIGH | MEDIUM | LOW",
+  "key_insight": "...",
+  "findings": [...],
+  "recommendation": "...",
+  "debate_notes": {
+    "revised_from": "original verdict if changed, or null if unchanged",
+    "steel_man": "strongest opposing argument I considered",
+    "challenges": [
+      {
+        "target_judge": "skeptic",
+        "claim": "what they claimed",
+        "response": "why I agree or disagree"
+      }
+    ],
+    "acknowledgments": [
+      {
+        "source_judge": "pragmatist",
+        "point": "what they found",
+        "impact": "how it affected my analysis"
+      }
+    ]
+  }
+}
+
+Then provide a Markdown explanation of your debate reasoning.
 ```
 
 ### Consolidation Prompt
@@ -553,6 +728,33 @@ For analyze mode:
 4. **Recommendation**: Concrete next steps
 
 Output format: Markdown report for human consumption.
+```
+
+### Consolidation Prompt — Debate Additions
+
+When `--debate` is used, append this to the consolidation prompt:
+
+```
+## Additional Instructions (Debate Mode)
+
+You have received TWO rounds of judge reports.
+
+Round 1 (independent assessment): Each judge evaluated independently.
+Round 2 (post-debate revision): Each judge reviewed all other judges' findings and revised.
+
+When synthesizing:
+1. Use Round 2 verdicts for the CONSENSUS VERDICT computation (PASS/WARN/FAIL)
+2. Use Round 1 verdicts for FINDING COMPLETENESS — a finding in R1 but dropped in R2 without explanation deserves mention
+3. Compare R1 and R2 to identify position shifts
+4. Flag judges who changed verdict without citing a specific technical detail, a misinterpretation they corrected, or a finding they missed (possible anchoring)
+5. If R1 had at least 2 judges with different verdicts AND R2 is unanimous, note "Convergence detected — review reasoning for anchoring risk"
+6. In the report, include the Verdict Shifts table showing R1→R2 changes per judge
+
+When a Round 2 verdict is unavailable (timeout fallback):
+- Read the full R1 output file (.agents/council/YYYY-MM-DD-<target>-claude-{perspective}.md)
+- Extract the JSON verdict block (first JSON code block in the file)
+- Use this as the judge's verdict for consolidation
+- Mark in report: "Judge {perspective}: R1 verdict (R2 timeout)"
 ```
 
 ---
@@ -743,6 +945,53 @@ Each judge investigated a different aspect of the topic:
 
 **Write to:** `.agents/council/YYYY-MM-DD-analyze-<topic>.md`
 
+### Debate Report Additions
+
+When `--debate` is used, add these sections to any report format:
+
+**Header addition:**
+```markdown
+**Mode:** {task_type}, --debate
+**Rounds:** 2 (independent assessment + adversarial debate)
+```
+
+**After the Verdicts table, add:**
+
+```markdown
+### Verdict Shifts (R1 → R2)
+
+| Judge | R1 Verdict | R2 Verdict | Changed? | Reason |
+|-------|-----------|-----------|----------|--------|
+| Pragmatist | PASS | WARN | Yes | Accepted Skeptic's finding on rate limiting |
+| Skeptic | WARN | WARN | No | Confirmed after reviewing counterarguments |
+| Visionary | PASS | PASS | No | Maintained — challenged Skeptic's scope concern |
+
+### Debate Notes
+
+**Key Exchanges:**
+- **Pragmatist ← Skeptic:** [what was exchanged and its impact]
+- **Visionary vs Skeptic:** [where they disagreed and why]
+
+**Steel-Man Highlights:**
+- Pragmatist steel-manned: "[strongest opposing argument they engaged with]"
+- Skeptic steel-manned: "[strongest opposing argument they engaged with]"
+```
+
+**Convergence Detection:**
+
+If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimous, add this flag:
+
+```markdown
+> **⚠ Convergence Detected:** Judges who disagreed in Round 1 now agree in Round 2.
+> Review debate reasoning to verify this reflects genuine persuasion, not anchoring.
+> Round 1 verdicts preserved above for comparison.
+```
+
+**Footer update:**
+```markdown
+*Council completed in {R1_time + R2_time}. {N}/{N} judges responded in R1, {M}/{N} in R2.*
+```
+
 ---
 
 ## Configuration
@@ -763,6 +1012,7 @@ Each judge investigated a different aspect of the topic:
 |------|-------------|
 | `--deep` | 3 Claude agents instead of 2 |
 | `--mixed` | Add 3 Codex agents |
+| `--debate` | Enable adversarial debate round (2 rounds, 2x cost). Incompatible with `--quick`. |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspective names |
 | `--perspectives-file=<path>` | JSON file with full persona definitions |
@@ -953,6 +1203,21 @@ Load custom judge personas with tailored focus areas and explorer questions.
 | `/judge 3 opus` | `/council --deep recent` |
 
 The `/judge` skill is deprecated. Use `/council`.
+
+---
+
+## Future: Native Teams
+
+The `--debate` flag implements the **deliberation protocol** pattern:
+> Independent assessment → evidence exchange → position revision → convergence analysis
+
+This pattern is backend-agnostic. Current and future implementations:
+
+- **Phase 1 (current):** `--debate` via Task tool re-spawning. Judges run as independent background agents.
+- **Phase 2 (when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` graduates):** Upgrade to native teams for selective engagement — judge A responds to judge B's specific claim, not batch all-to-all. Add `--team` flag.
+- **Phase 3 (if Phase 2 proves value):** Deliberation protocol as a reusable primitive. Council-as-platform for any multi-agent coordination needing structured disagreement.
+
+**Decision rationale:** See `.agents/council/2026-02-06-native-teams-plan-report.md` and `.agents/council/2026-02-06-plan-validation-report.md`.
 
 ---
 
