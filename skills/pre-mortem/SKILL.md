@@ -18,6 +18,7 @@ Run `/council validate` on a plan or spec to get multi-model judgment before com
 ```bash
 /pre-mortem                                         # validates most recent plan
 /pre-mortem path/to/PLAN.md                         # validates specific plan
+/pre-mortem --quick path/to/PLAN.md                 # fast inline check, no spawning
 /pre-mortem --deep path/to/SPEC.md                  # 3 judges instead of 2
 /pre-mortem --mixed path/to/PLAN.md                 # cross-vendor (Claude + Codex)
 /pre-mortem --preset=architecture path/to/PLAN.md   # architecture-focused review
@@ -47,6 +48,12 @@ Run `/council validate` on the plan/spec:
 ```
 /council validate <plan-path>
 ```
+
+**With --quick (inline, no spawning):**
+```
+/council --quick validate <plan-path>
+```
+Single-agent structured review. Fast sanity check before committing to full council.
 
 **Default (2 judges):**
 - Pragmatist: Is this implementable? What's missing?

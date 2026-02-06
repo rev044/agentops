@@ -22,6 +22,7 @@ Two steps:
 ```bash
 /post-mortem                    # wraps up recent work
 /post-mortem epic-123           # wraps up specific epic
+/post-mortem --quick recent     # fast inline wrap-up, no spawning
 /post-mortem --deep recent      # thorough council review
 /post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
 /post-mortem --explorers=2 epic-123  # deep investigation before judging

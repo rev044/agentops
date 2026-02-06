@@ -23,6 +23,7 @@ Two steps:
 /vibe                                    # validates recent changes
 /vibe recent                             # same as above
 /vibe src/auth/                          # validates specific path
+/vibe --quick recent                     # fast inline check, no agent spawning
 /vibe --deep recent                      # 3 judges instead of 2
 /vibe --mixed recent                     # cross-vendor (Claude + Codex)
 /vibe --preset=security-audit src/auth/  # security-focused review
@@ -101,6 +102,12 @@ Run `/council validate` with complexity context:
 - Files to review
 - Complexity hotspots (from Step 2)
 - Git diff context
+
+**With --quick (inline, no spawning):**
+```
+/council --quick validate <target>
+```
+Single-agent structured self-review. Fast, cheap, good for mid-implementation checks.
 
 **Default (2 judges):**
 - Pragmatist: Is this implementable? What's overcomplicated?
