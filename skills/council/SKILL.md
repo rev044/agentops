@@ -183,6 +183,13 @@ Before spawning agents, verify tools are available:
 if ! which codex > /dev/null 2>&1; then
   echo "⚠️ Codex CLI not found. Falling back to Claude-only."
   # Downgrade --mixed to --deep (3 Claude agents)
+else
+  # Model availability test — catches account-type restrictions (e.g. gpt-5.3 on ChatGPT accounts)
+  CODEX_MODEL="${COUNCIL_CODEX_MODEL:-gpt-5.3}"
+  if ! codex exec --full-auto -m "$CODEX_MODEL" -C "$(pwd)" "echo model-check-ok" > /dev/null 2>&1; then
+    echo "⚠️ Codex model $CODEX_MODEL unavailable. Falling back to Claude-only."
+    # Downgrade --mixed to --deep (3 Claude agents)
+  fi
 fi
 
 # Create output directory
@@ -621,7 +628,7 @@ Full Markdown analysis remains in `.agents/council/YYYY-MM-DD-<target>-claude-{p
 
 | Scenario | Behavior |
 |----------|----------|
-| Judge idle too long after R2 message | Read their R1 output file, use R1 verdict for consolidation |
+| No R2 completion message within `COUNCIL_R2_TIMEOUT` (default 90s) | Read their R1 output file, use R1 verdict for consolidation |
 | All judges fail R2 | Fall back to R1-only consolidation (note in report) |
 | R1 judge timed out | No R2 message for that perspective (N-1 in R2) |
 | Mixed R2 timeout | Consolidate with available R2 verdicts + R1 fallbacks |
@@ -801,6 +808,7 @@ When synthesizing:
 4. Flag judges who changed verdict without citing a specific technical detail, a misinterpretation they corrected, or a finding they missed (possible anchoring)
 5. If R1 had at least 2 judges with different verdicts AND R2 is unanimous, note "Convergence detected — review reasoning for anchoring risk"
 6. In the report, include the Verdict Shifts table showing R1→R2 changes per judge
+7. Detect whether debate ran via native teams (judges stayed alive between rounds) or fallback (R2 judges were re-spawned with truncated R1 verdicts). Include the `**Fidelity:**` field in the report header: "full" for native teams, "degraded" for fallback.
 
 When a Round 2 verdict is unavailable (timeout fallback):
 - Read the full R1 output file (.agents/council/YYYY-MM-DD-<target>-claude-{perspective}.md)
@@ -1005,6 +1013,14 @@ When `--debate` is used, add these sections to any report format:
 ```markdown
 **Mode:** {task_type}, --debate
 **Rounds:** 2 (independent assessment + adversarial debate)
+**Fidelity:** full (native teams — judges retained full R1 context for R2)
+```
+
+If debate ran in fallback mode (re-spawned with truncated R1 verdicts), use instead:
+```markdown
+**Mode:** {task_type}, --debate
+**Rounds:** 2 (independent assessment + adversarial debate)
+**Fidelity:** degraded (fallback — R1 verdicts truncated for R2 re-spawn)
 ```
 
 **After the Verdicts table, add:**
@@ -1057,6 +1073,7 @@ If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimou
 | `COUNCIL_CLAUDE_MODEL` | opus | Claude model for agents |
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
+| `COUNCIL_R2_TIMEOUT` | 90 | Maximum wait time for R2 debate completion after sending debate messages. Shorter than R1 since judges already have context. |
 
 ### Flags
 
@@ -1176,6 +1193,8 @@ SendMessage(
 
 Judges wake from idle, process R2, write R2 files, send completion message.
 
+**R2 completion wait:** After sending R2 debate messages to all judges, wait up to `COUNCIL_R2_TIMEOUT` (default 90s) for each judge's completion message via `SendMessage`. If a judge does not respond within the timeout, read their R1 output file (`.agents/council/YYYY-MM-DD-<target>-claude-{perspective}.md`) and use the R1 verdict for consolidation. Log: `Judge <name> R2 timeout — using R1 verdict.`
+
 ### Team Cleanup
 
 **After consolidation:**
@@ -1189,6 +1208,8 @@ SendMessage(type="shutdown_request", recipient="judge-visionary", content="Counc
 # Delete team
 TeamDelete()
 ```
+
+> **Note:** `TeamDelete()` deletes the team associated with this session's `TeamCreate()` call. If running concurrent teams (e.g., council inside crank), each team is cleaned up in the session that created it. No team name parameter is needed — the API tracks the current session's team context automatically.
 
 ### Model Selection
 
@@ -1335,6 +1356,7 @@ Native teams make this pattern first-class:
 
 If `TeamCreate` is unavailable (API error, environment constraint), fall back to `Task(run_in_background=true)` fire-and-forget. In fallback mode:
 - `--debate` reverts to R2 re-spawning with truncated R1 verdicts
+- The debate report must include `**Fidelity:** degraded (fallback — R1 verdicts truncated for R2 re-spawn)` in the header so users know results may be lower fidelity
 - Non-debate mode works identically (judges write files, team lead reads them)
 
 ### Team Naming

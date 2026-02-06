@@ -38,6 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native teams fallback** added to CLI availability/fallback table: if `TeamCreate` unavailable, fall back to `Task(run_in_background=true)` fire-and-forget
 - Fallback degrades gracefully: council loses debate-via-message (reverts to R2 re-spawn with truncation), swarm loses retry-via-message (reverts to re-spawn)
 
+### Hardening (ag-3p1)
+
+Fixes from council validation of the native teams migration:
+
+- **Codex model pre-flight** — council now tests model availability (not just CLI presence) before spawning Codex agents. Catches account-type restrictions (e.g. gpt-5.3 on ChatGPT accounts) and degrades to Claude-only
+- **Debate fidelity marker** — debate reports include `**Fidelity:** full | degraded` so users know if `--debate` ran with full-context native teams or truncated fallback
+- **Explicit R2 timeout** — `COUNCIL_R2_TIMEOUT` env var (default 90s) replaces vague "idle too long" with concrete timeout and fallback-to-R1 instruction
+- **TeamDelete() documentation** — clarified that `TeamDelete()` targets the current session's team context; concurrent team scenarios (e.g. council inside crank) documented
+
 ### Documentation
 
 - Added official Skills installer instructions: `npx skills@latest add boshu2/agentops --all -g`

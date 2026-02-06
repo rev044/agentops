@@ -39,7 +39,7 @@ fi
 | `bd` | Issue tracking unavailable | Use TaskList for tracking. Note "install bd for persistent issue tracking" |
 | `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/knowledge/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
-| `codex` | Cross-vendor council unavailable | Fall back to Claude-only (already handled by council pre-flight) |
+| `codex` | CLI missing or model unavailable | Fall back to Claude-only. Council pre-flight checks both CLI presence (`which codex`) and model availability (single test call). Account-type restrictions (e.g. gpt-5.3 on ChatGPT accounts) are caught before spawning agents. |
 | `cass` | Session search unavailable | Skip transcript search. Note "install cass for session history" |
 | Native teams (`TeamCreate`) | API unavailable | Fall back to `Task(run_in_background=true)` fire-and-forget pattern. Council loses debate-via-message (reverts to R2 re-spawn). Swarm loses retry-via-message (reverts to re-spawn). |
 

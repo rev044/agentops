@@ -216,6 +216,8 @@ SendMessage(type="shutdown_request", recipient="worker-<task-id>", content="Wave
 TeamDelete()
 ```
 
+> **Note:** `TeamDelete()` deletes the team associated with this session's `TeamCreate()` call. If running concurrent teams (e.g., council inside crank), each team is cleaned up in the session that created it.
+
 ### Step 6: Repeat if Needed
 
 If more tasks remain:
