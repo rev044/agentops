@@ -3,6 +3,8 @@ name: judge
 deprecated: true
 replaced_by: council
 description: 'DEPRECATED: Use /council instead. Multi-model validation council.'
+metadata:
+  internal: true
 ---
 
 # Judge Skill (DEPRECATED)

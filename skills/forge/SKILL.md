@@ -2,6 +2,8 @@
 name: forge
 description: 'Mine transcripts for knowledge - decisions, learnings, failures, patterns. Triggers: "forge insights", "mine transcripts", "extract knowledge".'
 dependencies: []
+metadata:
+  internal: true
 ---
 
 # Forge Skill

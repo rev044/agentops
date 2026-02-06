@@ -2,6 +2,8 @@
 name: ratchet
 description: 'Brownian Ratchet progress gates for RPI workflow. Check, record, verify. Triggers: "check gate", "verify progress", "ratchet status".'
 dependencies: []
+metadata:
+  internal: true
 ---
 
 # Ratchet Skill

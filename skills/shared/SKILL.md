@@ -1,7 +1,8 @@
 ---
 name: shared
 description: Shared reference documents for distributed mode skills (not directly invocable)
-internal: true
+metadata:
+  internal: true
 ---
 
 # Shared References

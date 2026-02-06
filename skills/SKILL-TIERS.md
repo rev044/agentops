@@ -15,35 +15,45 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
+### User-Facing Skills (17)
+
 | Skill | Tier | Description |
 |-------|------|-------------|
 | **council** | orchestration | Multi-model validation (core primitive) |
-| beads | library | Issue tracking reference |
-| standards | library | Coding standards reference |
-| shared | library | Shared reference documents |
-| crank | orchestration | Autonomous epic execution |
-| swarm | orchestration | Parallel agent spawning |
-| implement | team | Execute single issue |
-| research | solo | Deep codebase exploration |
-| plan | solo | Decompose epics into issues |
+| **crank** | orchestration | Autonomous epic execution |
+| **swarm** | orchestration | Parallel agent spawning |
+| **implement** | team | Execute single issue |
+| **research** | solo | Deep codebase exploration |
+| **plan** | solo | Decompose epics into issues |
 | **vibe** | solo | Complexity + council (validate code) |
 | **pre-mortem** | solo | Council on plans |
 | **post-mortem** | solo | Council + retro (wrap up work) |
-| retro | solo | Extract learnings |
-| complexity | solo | Cyclomatic analysis |
-| knowledge | solo | Query knowledge artifacts |
-| bug-hunt | solo | Investigate bugs |
-| doc | solo | Generate documentation |
-| handoff | solo | Session handoff |
-| inbox | solo | Agent mail monitoring |
-| trace | solo | Trace design decisions |
-| extract | background | Extract from transcripts |
-| inject | background | Load knowledge at session start |
+| **retro** | solo | Extract learnings |
+| **complexity** | solo | Cyclomatic analysis |
+| **knowledge** | solo | Query knowledge artifacts |
+| **bug-hunt** | solo | Investigate bugs |
+| **doc** | solo | Generate documentation |
+| **handoff** | solo | Session handoff |
+| **inbox** | solo | Agent mail monitoring |
+| **trace** | solo | Trace design decisions |
+
+### Internal Skills (11) — `metadata.internal: true`
+
+These are hidden from interactive `npx skills add` discovery. They are loaded JIT
+by other skills via Read or auto-triggered by hooks. Not intended for direct user invocation.
+
+| Skill | Tier | Purpose |
+|-------|------|---------|
+| beads | library | Issue tracking reference (loaded by /implement, /plan) |
+| standards | library | Coding standards (loaded by /vibe, /implement, /doc) |
+| shared | library | Shared reference documents (distributed mode) |
+| inject | background | Load knowledge at session start (hook-triggered) |
+| extract | background | Extract from transcripts (hook-triggered) |
 | forge | background | Mine transcripts for knowledge |
 | provenance | background | Trace knowledge lineage |
 | ratchet | background | Progress gates |
 | flywheel | background | Knowledge health monitoring |
-| using-agentops | meta | AgentOps workflow guide |
+| using-agentops | meta | AgentOps workflow guide (auto-injected) |
 | ~~judge~~ | deprecated | Replaced by /council |
 
 ---
