@@ -7,11 +7,11 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-**DevOps for AI agents — a knowledge flywheel that gives your agent memory.**
+**A knowledge flywheel for AI coding agents — your agent remembers across sessions.**
 
 Maximize flow. Shorten feedback loops. Compound what you learn.
 
-[Install](#install) · [What This Is](#what-this-is) · [Quick Start](#quick-start) · [How It Works](#how-it-works) · [Docs](docs/)
+[Install](#install) · [Tiers](#choose-your-tier) · [What This Is](#what-this-is) · [Quick Start](#quick-start) · [How It Works](#how-it-works) · [Docs](docs/)
 
 </div>
 
@@ -28,13 +28,37 @@ Or with Claude Code:
 claude plugin add boshu2/agentops
 ```
 
+## Choose Your Tier
+
+All skills install together. Tiers are about which tools to **use first** and when to add dependencies:
+
+| Tier | What to Use | Extra Dependencies | When to Graduate |
+|------|-------------|-------------------|-----------------|
+| **Tier 0** | `/research`, `/pre-mortem`, `/vibe` | None | When you find yourself re-explaining context every session |
+| **Tier 1** | + knowledge flywheel, session hooks | `ao` CLI | When you have multi-issue epics to track |
+| **Tier 2** | + issue tracking, epic orchestration | `ao` + `beads` | When you want cross-vendor validation |
+| **Tier 3** | + cross-vendor consensus (`--mixed`) | `ao` + `beads` + `codex` | You're at full power |
+
+**Start at Tier 0.** Add tools as you need them.
+
 ---
 
 ## What This Is
 
-DevOps doesn't write your code. It makes sure code flows reliably from commit to production.
+Every AI coding session starts from zero. AgentOps changes that. Learnings from each session persist to `.agents/` (git-tracked), and the next session starts with that knowledge automatically injected. Each session feeds the next — knowledge compounds.
 
-**AgentOps doesn't write your spec.** It makes sure specs flow reliably from plan to working code — and each run makes the next one smarter.
+**What's automatic vs what you run:**
+
+| | What | How |
+|---|---|---|
+| **Auto** | Inject prior knowledge at session start | Hook — runs before you type anything |
+| **Auto** | Extract learnings at session end | Hook — runs when session closes |
+| **You** | `/pre-mortem` → `/crank` → `/vibe` → `/post-mortem` | Slash commands you invoke |
+
+The hooks close the loop. Without them, you have a pipeline. With them, you have a flywheel — each session feeds the next.
+
+<details>
+<summary>View the knowledge flywheel</summary>
 
 ```
                     THE KNOWLEDGE FLYWHEEL
@@ -86,43 +110,37 @@ DevOps doesn't write your code. It makes sure code flows reliably from commit to
                (back to top)
 ```
 
-**What's automatic vs what you run:**
+</details>
 
-| | What | How |
-|---|---|---|
-| **Auto** | Inject prior knowledge at session start | Hook — runs before you type anything |
-| **Auto** | Extract learnings at session end | Hook — runs when session closes |
-| **You** | `/pre-mortem` → `/crank` → `/vibe` → `/post-mortem` | Slash commands you invoke |
-
-The hooks close the loop. Without them, you have a pipeline. With them, you have a flywheel — each session feeds the next.
-
-**Bring your own spec tool.** Use [superpowers](https://github.com/anthropics/superpowers), SDD, or write plans by hand. AgentOps is the pipeline that executes them reliably.
+**Bring your own spec tool.** Use [superpowers](https://github.com/anthropics/superpowers), SDD, or write plans by hand. AgentOps executes them reliably.
 
 ---
 
 ## Quick Start
 
-**Validate before you code:**
+**Catch risks before you code:**
 ```
 /pre-mortem "add OAuth integration"
 ```
 
-**Execute an epic (issue loop):**
-```
-/crank epic-123
-```
-
-**Parallelize independent tasks (Ralph loop / fresh context):**
-```
-/swarm
-```
-
-**Check before you commit:**
+**Validate before you commit:**
 ```
 /vibe
 ```
 
-That's it. AgentOps catches problems before they ship and remembers solutions for next time.
+**Parallelize independent tasks (fresh context per agent):**
+```
+/swarm
+```
+
+**Execute an entire epic autonomously:**
+```
+/crank epic-123
+```
+
+Want a hands-on walkthrough? Run `/quickstart` for a guided tour on your actual codebase.
+
+**Ready for Tier 1?** Install the `ao` CLI to enable the knowledge flywheel — see [Installation Options](#installation-options).
 
 ---
 
@@ -137,7 +155,7 @@ AgentOps is delivered as **skills**: Markdown playbooks your agent runs via slas
 
 ---
 
-## Why Agents Need DevOps
+## Why Agents Need This
 
 | Problem | Without AgentOps | With AgentOps |
 |---------|------------------|---------------|
@@ -413,12 +431,19 @@ Not just "does it compile?" — **does it match the spec?**
 
 ## CLI Reference
 
+The `ao` CLI is what makes the flywheel turn. It handles knowledge persistence with MemRL two-phase retrieval, confidence decay (stale knowledge ages out), and citation-tracked provenance so you can trace learnings back to the session that produced them.
+
 ```bash
 ao quick-start --minimal  # Create .agents/ structure
 ao hooks install          # Enable auto-hooks (Claude Code)
-ao inject [topic]         # Load prior knowledge
-ao search "query"         # Search knowledge base
-ao flywheel status        # Check flywheel health
+ao hooks test             # Verify hooks are working
+ao inject [topic]         # Load prior knowledge (auto at session start)
+ao search "query"         # Semantic search across learnings
+ao flywheel status        # Knowledge growth rate, escape velocity
+ao metrics report         # Flywheel health dashboard
+ao forge transcript       # Extract learnings from session transcripts
+ao ratchet status         # RPI progress gates (Research → Plan → Implement → Validate)
+ao pool list              # Show knowledge by quality tier
 ```
 
 ---

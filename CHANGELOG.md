@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Adoption Improvements
+
+Driven by council analysis (3 judges + 6 explorers) and pre-mortem validation (2 judges, unanimous WARN → fixes applied).
+
+#### README Overhaul
+
+- **Tagline reframed** — "DevOps for AI agents" → "A knowledge flywheel for AI coding agents — your agent remembers across sessions." Leads with the differentiator (knowledge compounding), not the analogy
+- **Tier table added** — Tier 0 (skills only) through Tier 3 (cross-vendor consensus) with graduation triggers. Uses "Tier" naming to avoid collision with existing L1-L5 learning path
+- **What This Is reframed** — Flywheel narrative leads ("each session feeds the next"), ASCII diagram preserved in `<details>` block
+- **Quick Start rewritten** — Self-contained with commands and context. `/quickstart` offered as optional guided tour (not primary path, due to known slash-command discoverability bug)
+- **CLI Reference expanded** — MemRL retrieval, confidence decay, provenance tracking, escape velocity metrics. Leads with capabilities, not LOC count
+- **"Why Agents Need DevOps" → "Why Agents Need This"** — Consistent with tagline reframe
+
+#### Tier/Level Disambiguation
+
+- **`docs/levels/README.md`** — Added "Tiers vs Levels" section explaining the two axes: Tiers (0-3) = what tools you install, Levels (L1-L5) = what concepts you learn. Cross-references README tier table
+- **`skills/quickstart/SKILL.md`** — Added graduation hints to Step 7 based on detected CLI state (ao, beads presence). Natural language, not formal tier labels
+
 ### Native Teams Migration
 
 **The big idea:** Council judges and swarm workers are no longer fire-and-forget background agents. They now spawn as teammates on native teams (`TeamCreate` + `SendMessage` + shared `TaskList`), enabling real-time coordination without re-spawning.

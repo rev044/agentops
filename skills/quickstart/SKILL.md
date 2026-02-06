@@ -123,6 +123,21 @@ Based on project state, suggest the most useful next action:
 | Bug reports or failures | "Try `/bug-hunt` to investigate systematically" |
 | Clean state, looking for work | "Try `/research` to find improvement opportunities" |
 
+**Graduation hints** (based on what was detected in Step 1):
+
+```bash
+# Check what's available
+command -v ao &>/dev/null && AO_AVAILABLE=true || AO_AVAILABLE=false
+command -v bd &>/dev/null && BD_AVAILABLE=true || BD_AVAILABLE=false
+ls .agents/ &>/dev/null && AGENTS_DIR=true || AGENTS_DIR=false
+```
+
+| What You Have | What to Try Next |
+|---------------|-----------------|
+| Skills only (no `ao`, no `.agents/`) | "You're at Tier 0. When you want learnings to persist across sessions, install the `ao` CLI: `brew install agentops && ao hooks install`" |
+| `ao` installed, no beads | "You're at Tier 1. The knowledge flywheel is active. When you have multi-issue epics, add beads: `brew install beads && bd init`" |
+| `ao` + beads installed | "You're at Tier 2. Try `/crank` for autonomous epic execution, or `/council --mixed` if you have Codex installed for cross-vendor review" |
+
 ---
 
 ## See Also
