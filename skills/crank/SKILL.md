@@ -5,7 +5,7 @@ dependencies:
   - swarm       # required - executes each wave
   - vibe        # required - final validation
   - implement   # required - individual issue execution
-  - beads       # required - issue tracking via bd CLI
+  - beads       # optional - issue tracking via bd CLI (fallback: TaskList)
   - post-mortem # optional - suggested for learnings extraction
 ---
 
@@ -16,6 +16,10 @@ dependencies:
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 Autonomous execution: implement all issues until the epic is DONE.
+
+**CLI dependencies:** bd (issue tracking), ao (knowledge flywheel). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use TaskList for issue tracking and skip beads sync. If ao is unavailable, skip knowledge injection/extraction.
+
+**Requires:** bd CLI (beads) for issue tracking.
 
 ## Architecture: Crank + Swarm
 

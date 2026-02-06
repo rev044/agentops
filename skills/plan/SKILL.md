@@ -3,7 +3,7 @@ name: plan
 description: 'Epic decomposition into trackable issues. Triggers: "create a plan", "plan implementation", "break down into tasks", "decompose into features", "create beads issues from research", "what issues should we create", "plan out the work".'
 dependencies:
   - research   # optional - checks for prior research
-  - beads      # required - creates issues via bd CLI
+  - beads      # optional - creates issues via bd CLI (fallback: plain markdown plan)
   - pre-mortem # optional - suggested before crank
   - crank      # optional - suggested for execution
   - implement  # optional - suggested for single issue
@@ -14,6 +14,8 @@ dependencies:
 > **Quick Ref:** Decompose goal into trackable issues with waves. Output: `.agents/plans/*.md` + bd issues.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
+
+**CLI dependencies:** bd (issue creation). If bd is unavailable, write the plan to `.agents/plans/` as markdown with issue descriptions, and use TaskList for tracking instead. The plan document is always created regardless of bd availability.
 
 ## Execution Steps
 

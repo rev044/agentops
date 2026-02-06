@@ -20,6 +20,8 @@ dependencies:
 
 For knowledge artifact lineage (learnings, patterns, tiers), use `/provenance` instead.
 
+**CLI dependencies:** cass (session search). If cass is unavailable, skip transcript search and rely on git log, handoff docs, and `.agents/` artifacts for decision tracing.
+
 ## Execution Steps
 
 Given `/trace <concept>`:
