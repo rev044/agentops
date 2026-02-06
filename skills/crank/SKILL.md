@@ -21,6 +21,7 @@ Autonomous execution: implement all issues until the epic is DONE.
 
 ## Architecture: Crank + Swarm
 
+**Beads mode** (bd available):
 ```
 Crank (orchestrator)           Swarm (executor)
     |                              |
@@ -35,8 +36,21 @@ Crank (orchestrator)           Swarm (executor)
     +-> Loop until epic DONE   <---+-> TeamDelete after wave
 ```
 
+**TaskList mode** (bd unavailable):
+```
+Crank (orchestrator, TaskList mode)    Swarm (executor)
+    |                                      |
+    +-> TaskList() (wave tasks)            |
+    |                                      |
+    +-> /swarm                         --->+-> TeamCreate (team per wave)
+    |                                      |
+    +-> Verify via TaskList()          <---+-> Workers report via SendMessage
+    |                                      |
+    +-> Loop until all completed       <---+-> TeamDelete after wave
+```
+
 **Separation of concerns:**
-- **Crank** = Beads-aware orchestration, epic lifecycle, knowledge flywheel
+- **Crank** = Orchestration, epic/task lifecycle, knowledge flywheel
 - **Swarm** = Team-based parallel execution (Ralph Wiggum pattern via team-per-wave)
 
 ## Global Limits
@@ -63,7 +77,7 @@ After each wave, output completion marker:
 
 ## Execution Steps
 
-Given `/crank [epic-id]`:
+Given `/crank [epic-id | plan-file.md | "description"]`:
 
 ### Step 0: Load Knowledge Context (ao Integration)
 
@@ -85,7 +99,31 @@ fi
 
 If ao not available, skip this step and proceed. The knowledge flywheel enhances but is not required.
 
-### Step 1: Identify the Epic
+### Step 0.5: Detect Tracking Mode
+
+```bash
+if command -v bd &>/dev/null; then
+  TRACKING_MODE="beads"
+else
+  TRACKING_MODE="tasklist"
+  echo "Note: bd CLI not found. Using TaskList for issue tracking."
+fi
+```
+
+**Tracking mode determines the source of truth for the rest of the workflow:**
+
+| | Beads Mode | TaskList Mode |
+|---|---|---|
+| **Source of truth** | `bd` (beads issues) | TaskList (Claude-native) |
+| **Find work** | `bd ready` | `TaskList()` → pending, unblocked |
+| **Get details** | `bd show <id>` | `TaskGet(taskId)` |
+| **Mark complete** | `bd update <id> --status closed` | `TaskUpdate(taskId, status="completed")` |
+| **Track retries** | `bd comments add` | Task description update |
+| **Epic tracking** | `bd update <epic-id> --append-notes` | In-memory wave counter |
+
+### Step 1: Identify the Epic / Work Source
+
+**Beads mode:**
 
 **If epic ID provided:** Use it directly. Do NOT ask for confirmation.
 
@@ -96,22 +134,50 @@ bd list --type epic --status open 2>/dev/null | head -5
 
 If multiple epics found, ask user which one.
 
+**TaskList mode:**
+
+If input is an epic ID → Error: "bd CLI required for beads epic tracking. Install bd or provide a plan file / task list."
+
+If input is a plan file path (`.md`):
+1. Read the plan file
+2. Decompose into TaskList tasks (one `TaskCreate` per distinct work item)
+3. Set up dependencies via `TaskUpdate(addBlockedBy)`
+4. Proceed to Step 3
+
+If no input:
+1. Check `TaskList()` for existing pending tasks
+2. If tasks exist, use them as the work items
+3. If no tasks, ask user what to work on
+
+If input is a description string:
+1. Decompose into tasks (`TaskCreate` for each)
+2. Set up dependencies
+3. Proceed to Step 3
+
 ### Step 1a: Initialize Wave Counter
 
+**Beads mode:**
 ```bash
 # Initialize crank tracking in epic notes
 bd update <epic-id> --append-notes "CRANK_START: wave=0 at $(date -Iseconds)" 2>/dev/null
 ```
 
+**TaskList mode:** Track wave counter in memory only. No external state needed.
+
 Track in memory: `wave=0`
 
 ### Step 2: Get Epic Details
 
+**Beads mode:**
 ```bash
 bd show <epic-id> 2>/dev/null
 ```
 
+**TaskList mode:** `TaskList()` to see all tasks and their status/dependencies.
+
 ### Step 3: List Ready Issues (Current Wave)
+
+**Beads mode:**
 
 Find issues that can be worked on (no blockers):
 ```bash
@@ -120,11 +186,15 @@ bd ready 2>/dev/null
 
 **`bd ready` returns the current wave** - all unblocked issues. These can be executed in parallel because they have no dependencies on each other.
 
+**TaskList mode:**
+
+`TaskList()` → filter for status=pending, no blockedBy (or all blockers completed). These are the current wave.
+
 ### Step 3a: Pre-flight Check - Issues Exist
 
 **Verify there are issues to work on:**
 
-**If 0 ready issues found:**
+**If 0 ready issues found (beads mode) or 0 pending unblocked tasks (TaskList mode):**
 ```
 STOP and return error:
   "No ready issues found for this epic. Either:
@@ -141,18 +211,25 @@ Do NOT proceed with empty issue list - this produces false "epic complete" statu
 ```bash
 # Increment wave counter
 wave=$((wave + 1))
-bd update <epic-id> --append-notes "CRANK_WAVE: $wave at $(date -Iseconds)" 2>/dev/null
+
+# Beads mode: record wave in epic notes
+if [[ "$TRACKING_MODE" == "beads" ]]; then
+    bd update <epic-id> --append-notes "CRANK_WAVE: $wave at $(date -Iseconds)" 2>/dev/null
+fi
 
 # CHECK GLOBAL LIMIT
 if [[ $wave -ge 50 ]]; then
     echo "<promise>BLOCKED</promise>"
     echo "Global wave limit (50) reached. Remaining issues:"
-    bd children <epic-id> --status open 2>/dev/null
+    # Beads mode: bd children <epic-id> --status open
+    # TaskList mode: TaskList() → pending tasks
     # STOP - do not continue
 fi
 ```
 
 **Wave Execution via Swarm:**
+
+**Beads mode:**
 
 1. **Get ready issues from Step 3**
 2. **Create TaskList tasks from beads issues:**
@@ -183,18 +260,30 @@ Parameters:
   skill: "agentops:swarm"
 ```
 
-Swarm will:
-- Find all unblocked TaskList tasks
-- Create a native team (`TeamCreate`) for the wave
-- Spawn workers as teammates with fresh context (Ralph pattern)
-- Workers claim tasks, execute in parallel, report via `SendMessage`
-- Team lead validates, then cleans up team (`TeamDelete`)
-
 5. **After swarm completes, verify beads status:**
 ```bash
 # For each completed TaskList task, close the beads issue
 bd update <issue-id> --status closed 2>/dev/null
 ```
+
+**TaskList mode:**
+
+Tasks already exist in TaskList (created in Step 1 from plan file/description, or pre-existing). Just invoke swarm directly:
+
+```
+Tool: Skill
+Parameters:
+  skill: "agentops:swarm"
+```
+
+Swarm finds unblocked TaskList tasks and executes them.
+
+**Both modes — Swarm will:**
+- Find all unblocked TaskList tasks
+- Create a native team (`TeamCreate`) for the wave
+- Spawn workers as teammates with fresh context (Ralph pattern)
+- Workers claim tasks, execute in parallel, report via `SendMessage`
+- Team lead validates, then cleans up team (`TeamDelete`)
 
 ### Step 5: Validate Before Accepting (MANDATORY)
 
@@ -220,11 +309,17 @@ Swarm executes its own per-task validation (see `skills/shared/validation-contra
    | No regressions | `git diff HEAD~1 \| grep -v "^+"` | Review |
 
 3. **On validation PASS:**
+
+   **Beads mode:**
    ```bash
    bd update <issue-id> --status closed 2>/dev/null
    ```
 
+   **TaskList mode:** `TaskUpdate(taskId, status="completed")` — already done by swarm workers. Crank just verifies via `TaskList()`.
+
 4. **On validation FAIL:**
+
+   **Beads mode:**
    - Do NOT close the beads issue
    - Add failure context to issue:
      ```bash
@@ -236,6 +331,12 @@ Swarm executes its own per-task validation (see `skills/shared/validation-contra
      bd update <issue-id> --labels BLOCKER
      bd comments add <issue-id> "ESCALATED: 3 validation failures. Human review required."
      ```
+
+   **TaskList mode:**
+   - `TaskUpdate` to reset status to pending
+   - Update description with failure context
+   - Will be picked up in next wave
+   - After 3 failures: mark task description with "ESCALATED" and stop retrying
 
 **After all validations complete:**
 
@@ -258,11 +359,20 @@ fi
 ### Step 6: Check for More Work
 
 After completing a wave:
+
+**Beads mode:**
 1. Clear completed tasks from TaskList
 2. Check if new beads issues are now unblocked: `bd ready`
 3. If yes, return to Step 4 (create new TaskList tasks, invoke swarm)
 4. If no more issues after 3 retry attempts, proceed to Step 7
-5. **Max retries:** If issues remain blocked after 3 checks, escalate: "Epic blocked - cannot unblock remaining issues"
+
+**TaskList mode:**
+1. `TaskList()` → any remaining pending tasks with no blockers?
+2. If yes, loop back to Step 4
+3. If all completed, proceed to Step 7
+
+**Both modes:**
+- **Max retries:** If issues remain blocked after 3 checks, escalate: "Epic blocked - cannot unblock remaining issues"
 
 ### Step 7: Final Batched Validation
 
@@ -338,14 +448,16 @@ Iterations: M/50
 
 Crank follows FIRE for each wave:
 
-| Phase | Action |
-|-------|--------|
-| **FIND** | `bd ready` - get unblocked beads issues |
-| **IGNITE** | Create TaskList tasks, invoke `/swarm` |
-| **REAP** | Swarm collects results, crank syncs to beads |
-| **ESCALATE** | Fix blockers, retry failures |
+| Phase | Beads Mode | TaskList Mode |
+|-------|-----------|--------------|
+| **FIND** | `bd ready` — get unblocked beads issues | `TaskList()` → pending, unblocked |
+| **IGNITE** | TaskCreate from beads + `/swarm` | `/swarm` (tasks already in TaskList) |
+| **REAP** | Swarm results + `bd update --status closed` | Swarm results (TaskUpdate by workers) |
+| **ESCALATE** | `bd comments add` + retry | Update task description + retry |
 
 **Parallel Wave Model (via Swarm):**
+
+**Beads mode:**
 ```
 Wave 1: bd ready → [issue-1, issue-2, issue-3]
         ↓
@@ -370,21 +482,42 @@ Wave 2: bd ready → [issue-4, issue-3-retry]
 Final vibe on all changes → Epic DONE
 ```
 
-Loop until all beads issues are CLOSED.
+**TaskList mode:**
+```
+Wave 1: TaskList() → [task-1, task-2, task-3] (pending, unblocked)
+        ↓
+        /swarm → spawns 3 fresh-context agents
+                  ↓         ↓         ↓
+               DONE      DONE      BLOCKED
+                                     ↓
+                               (reset to pending, retry next wave)
+
+Wave 2: TaskList() → [task-4, task-3-retry] (pending, unblocked)
+        ↓
+        /swarm → spawns 2 fresh-context agents
+        ↓
+        TaskUpdate → completed
+
+Final vibe on all changes → All tasks DONE
+```
+
+Loop until all issues are CLOSED (beads) or all tasks are completed (TaskList).
 
 ## Key Rules
 
-- **If epic ID given, USE IT** - don't ask for confirmation
+- **Auto-detect tracking** - check for `bd` at start; use TaskList if absent
+- **Plan files as input** - `/crank plan.md` decomposes plan into tasks automatically
+- **If epic ID given, USE IT** - don't ask for confirmation (beads mode only)
 - **Swarm for each wave** - delegates parallel execution to swarm
 - **Fresh context per issue** - swarm provides Ralph pattern isolation
 - **Batch validation at end** - ONE vibe at the end saves context
 - **Fix CRITICAL before completion** - address findings before reporting done
-- **Loop until done** - don't stop until all issues closed
+- **Loop until done** - don't stop until all issues closed / tasks completed
 - **Autonomous execution** - minimize human prompts
 - **Respect wave limit** - STOP at 50 waves (hard limit)
 - **Output completion markers** - DONE, BLOCKED, or PARTIAL (required)
 - **Knowledge flywheel** - load learnings at start, forge at end (ao optional)
-- **Beads ↔ TaskList sync** - crank bridges beads issues to TaskList for swarm
+- **Beads ↔ TaskList sync** - in beads mode, crank bridges beads issues to TaskList for swarm
 
 ---
 
@@ -733,12 +866,12 @@ Parameters:
 
 Distributed mode uses the same FIRE pattern with Agent Mail coordination:
 
-| Phase | Local | Distributed |
-|-------|---------|---------|
-| **FIND** | `bd ready` | `bd ready` |
-| **IGNITE** | TaskCreate + /swarm | File reserve + `/swarm --mode=distributed` |
-| **REAP** | TaskOutput notifications | fetch_inbox polling |
-| **ESCALATE** | Retry via swarm | Chiron for help + retry via spawn |
+| Phase | Local (Beads) | Local (TaskList) | Distributed |
+|-------|---------|---------|---------|
+| **FIND** | `bd ready` | `TaskList()` → pending, unblocked | `bd ready` |
+| **IGNITE** | TaskCreate + /swarm | `/swarm` (tasks exist) | File reserve + `/swarm --mode=distributed` |
+| **REAP** | Swarm results + bd update | Swarm results (TaskUpdate) | fetch_inbox polling |
+| **ESCALATE** | `bd comments add` + retry | Task description update + retry | Chiron for help + retry via spawn |
 
 ### Distributed Mode Parallel Wave Model
 
