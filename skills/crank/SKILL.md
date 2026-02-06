@@ -19,8 +19,6 @@ Autonomous execution: implement all issues until the epic is DONE.
 
 **CLI dependencies:** bd (issue tracking), ao (knowledge flywheel). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use TaskList for issue tracking and skip beads sync. If ao is unavailable, skip knowledge injection/extraction.
 
-**Requires:** bd CLI (beads) for issue tracking.
-
 ## Architecture: Crank + Swarm
 
 ```
@@ -40,8 +38,6 @@ Crank (orchestrator)           Swarm (executor)
 **Separation of concerns:**
 - **Crank** = Beads-aware orchestration, epic lifecycle, knowledge flywheel
 - **Swarm** = Fresh-context parallel execution (Ralph Wiggum pattern)
-
-**Requires:** bd CLI (beads) for issue tracking.
 
 ## Global Limits
 

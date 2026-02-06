@@ -59,7 +59,15 @@ Run `/council validate` on the completed work:
 - Security concerns?
 - Technical debt introduced?
 
+**With --quick (inline, no spawning):**
+```
+/council --quick validate <epic-or-recent>
+```
+Single-agent structured review. Fast wrap-up without spawning.
+
 **Advanced options (passed through to council):**
+- `--deep` — 3 judges instead of 2
+- `--mixed` — Cross-vendor (Claude + Codex)
 - `--preset=<name>` — Use specialized personas (e.g., `--preset=ops` for production readiness)
 - `--explorers=N` — Each judge spawns N explorers to investigate the implementation deeply before judging
 

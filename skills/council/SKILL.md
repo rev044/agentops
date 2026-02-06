@@ -583,7 +583,7 @@ Disagreement handling:
 
 **Target:** Implementation of user authentication
 **Modes:** validate, --mixed
-**Judges:** 3 Claude (Opus) + 3 Codex (GPT-5.2)
+**Judges:** 3 Claude (Opus 4.6) + 3 Codex (GPT-5.3)
 
 ---
 
