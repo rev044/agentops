@@ -147,11 +147,24 @@ See: `.agents/learnings/YYYY-MM-DD-<topic>.md`
 - [ ] <any follow-up needed>
 ```
 
-### Step 7: Index for Future Discovery (if ao available)
+### Step 7: Feed the Knowledge Flywheel (auto-extract)
 
 ```bash
-ao forge index .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null
+mkdir -p .agents/knowledge/pending
+
+# If ao available, index via forge
+if command -v ao &>/dev/null; then
+  ao forge index .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null
+  echo "Learnings indexed in knowledge flywheel"
+else
+  # Fallback: copy learnings to pending for future import
+  cp .agents/learnings/YYYY-MM-DD-*.md .agents/knowledge/pending/ 2>/dev/null
+  echo "Note: ao CLI not installed. Learnings saved to .agents/knowledge/pending/"
+  echo "Install ao to enable automatic knowledge flywheel."
+fi
 ```
+
+This auto-extraction step ensures every retro feeds the flywheel without requiring the user to remember manual commands.
 
 ### Step 8: Report to User
 

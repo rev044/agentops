@@ -136,13 +136,31 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 [ ] FOLLOW-UP - Issues need addressing (create new beads)
 ```
 
-### Step 5: Report to User
+### Step 5: Feed the Knowledge Flywheel
+
+Post-mortem automatically feeds learnings into the flywheel:
+
+```bash
+mkdir -p .agents/knowledge/pending
+
+if command -v ao &>/dev/null; then
+  ao forge index .agents/learnings/ 2>/dev/null
+  echo "Learnings indexed in knowledge flywheel"
+else
+  # Retro already wrote to .agents/learnings/ — copy to pending for future import
+  cp .agents/learnings/YYYY-MM-DD-*.md .agents/knowledge/pending/ 2>/dev/null
+  echo "Note: Learnings saved to .agents/knowledge/pending/ (install ao for auto-indexing)"
+fi
+```
+
+### Step 6: Report to User
 
 Tell the user:
 1. Council verdict on implementation
 2. Key learnings
 3. Any follow-up items
 4. Location of post-mortem report
+5. Knowledge flywheel status
 
 ---
 
