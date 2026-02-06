@@ -542,20 +542,41 @@ Phase 3: Consolidation (uses R2 verdicts when --debate)
 
 ### Round 2 Spawning
 
+**Branch selection (spawner responsibility):**
 ```
+r1_verdicts = [extract JSON verdict from each R1 output file]
+r1_unanimous = all verdicts have same verdict value (PASS/WARN/FAIL)
+
 For each perspective in [pragmatist, skeptic, visionary...]:
+  prompt = build_r2_prompt(
+    perspective,
+    r1_verdicts,
+    branch="agreed" if r1_unanimous else "disagreed"
+  )
+  # Inject ONLY the applicable branch (disagreed OR agreed), not both
   Task(
     description="Council judge R2: {perspective}",
     subagent_type="general-purpose",
     model="opus",
     run_in_background=true,
-    prompt="{R2_JUDGE_PROMPT}"   # See Agent Prompts section
+    prompt=prompt
   )
 ```
 
+**R2 output files:** Use `-r2` suffix to preserve R1 files:
+```
+.agents/council/YYYY-MM-DD-<target>-claude-{perspective}-r2.md
+```
+
+**With --explorers:** Explorers run in R1 only. R2 judges do not spawn explorers. Explorer findings from R1 are captured in the R1 verdict's findings and key_insight, which are injected into R2 via truncation.
+
+**With --mixed:** Only Claude judges participate in R2. Codex agents run once in R1. For consolidation, use Claude R2 verdicts + Codex R1 verdicts.
+
 ### R1 Verdict Truncation
 
-R1 verdicts injected into R2 prompts are truncated to prevent context pressure:
+R1 verdicts injected into R2 prompts are truncated to prevent context pressure.
+
+**Extraction:** Read each R1 output file, extract the first JSON code block, then truncate:
 
 ```json
 {
@@ -587,7 +608,9 @@ Full analysis remains in `.agents/council/YYYY-MM-DD-<target>-claude-{perspectiv
 `--debate` approximately doubles both:
 - **Agents spawned:** N judges x 2 rounds (e.g., --deep = 6 total)
 - **Wall time:** R1 time + R2 time (sequential rounds)
-- **With --mixed:** Only Claude judges get R2. Codex agents run once (cannot participate in Task-tool debate).
+- **With --mixed:** Only Claude judges get R2. Codex agents run once (cannot participate in Task-tool debate). For consolidation, use Claude R2 verdicts + Codex R1 verdicts for consensus computation.
+- **With --explorers:** Explorers run in R1 only. R2 cost = N judges (no explorer multiplication).
+- **Non-verdict modes:** `--debate` is designed for verdict-producing modes (validate, critique). For brainstorm/research/analyze, `--debate` is not recommended and may produce awkward R2 outputs since these modes do not produce PASS/WARN/FAIL verdicts.
 
 ---
 
@@ -618,7 +641,7 @@ Used when `--debate` is active. Each R2 judge is a fresh Task instance (not the 
 You are Council Member {N} — THE {PERSPECTIVE} (Debate Round).
 
 ## Prior Assessment from Your Perspective
-A prior assessment from your perspective concluded:
+A prior independent assessment from the {PERSPECTIVE} angle concluded:
 {ROUND_1_VERDICT_TRUNCATED_JSON}
 
 ## All Round 1 Verdicts
@@ -657,7 +680,7 @@ Do NOT defensively maintain without engaging with opposing arguments.
 
 {ORIGINAL_PACKET}
 
-Respond with JSON matching the output_schema, plus an optional "debate_notes" field:
+Respond with JSON matching the output_schema. You MUST include the "debate_notes" field:
 
 {
   "verdict": "PASS | WARN | FAIL",
@@ -1104,10 +1127,13 @@ All council outputs go to `.agents/council/`:
 # Ensure directory exists
 mkdir -p .agents/council
 
-# Claude output
+# Claude output (R1)
 .agents/council/YYYY-MM-DD-<target>-claude-pragmatist.md
 
-# Codex output
+# Claude output (R2, when --debate)
+.agents/council/YYYY-MM-DD-<target>-claude-pragmatist-r2.md
+
+# Codex output (R1 only, even with --debate)
 .agents/council/YYYY-MM-DD-<target>-codex-pragmatist.md
 
 # Final consolidated report
