@@ -34,30 +34,69 @@ claude plugin add boshu2/agentops
 
 DevOps doesn't write your code. It makes sure code flows reliably from commit to production.
 
-**AgentOps doesn't write your spec.** It makes sure specs flow reliably from plan to working code.
+**AgentOps doesn't write your spec.** It makes sure specs flow reliably from plan to working code — and each run makes the next one smarter.
 
 ```
-Traditional DevOps:
-  code → build → test → deploy → monitor → feedback
-                                              ↓
-                                        next commit
+                    THE KNOWLEDGE FLYWHEEL
 
-AgentOps:
-  spec → /pre-mortem → /crank → /vibe → /post-mortem
-                                              ↓
-                                     .agents/learnings/
-                                              ↓
-                                         next spec
+  SESSION START
+  +------------------------------------+
+  | auto-inject prior knowledge        |  <-- hook (automatic)
+  +------------------+-----------------+
+                     |
+                     v
+  +------------------------------------+
+  | /pre-mortem   catch risks early    |  <-- you run this
+  +------------------+-----------------+
+                     |
+                     v
+  +------------------------------------+
+  | /crank        parallel execution   |  <-- you run this
+  |   +- /swarm   fresh-context agents |
+  +------------------+-----------------+
+                     |
+                     v
+  +------------------------------------+
+  | /vibe         validation gate      |  <-- you run this
+  +------------------+-----------------+
+                     |
+                     v
+  +------------------------------------+
+  | /post-mortem  extract learnings    |  <-- you run this
+  +------------------+-----------------+
+                     |
+                     v
+  SESSION END
+  +------------------------------------+
+  | auto-extract new learnings         |  <-- hook (automatic)
+  +------------------+-----------------+
+                     |
+                     v
+               .agents/  (git-tracked, compounds across sessions)
+               |-- learnings/
+               |-- patterns/
+               |-- plans/
+               +-- council/
+                     |
+                     +--------> next session starts here --------+
+                                                                 |
+                     +-------------------------------------------+
+                     |
+                     v
+               (back to top)
 ```
 
-| DevOps Principle | AgentOps |
-|------------------|----------|
-| CI/CD pipelines | `/crank` + `/swarm` — automated, parallel execution |
-| Shift-left testing | `/pre-mortem` — catch failures before you code |
-| Quality gates | `/vibe` — must pass to merge |
-| Continuous improvement | Flywheel — learnings feed future sessions |
+**What's automatic vs what you run:**
 
-**Bring your own spec tool.** Use [superpowers](https://github.com/anthropics/superpowers), SDD, or write plans by hand. AgentOps is the pipeline that executes them reliably
+| | What | How |
+|---|---|---|
+| **Auto** | Inject prior knowledge at session start | Hook — runs before you type anything |
+| **Auto** | Extract learnings at session end | Hook — runs when session closes |
+| **You** | `/pre-mortem` → `/crank` → `/vibe` → `/post-mortem` | Slash commands you invoke |
+
+The hooks close the loop. Without them, you have a pipeline. With them, you have a flywheel — each session feeds the next.
+
+**Bring your own spec tool.** Use [superpowers](https://github.com/anthropics/superpowers), SDD, or write plans by hand. AgentOps is the pipeline that executes them reliably.
 
 ---
 
@@ -117,8 +156,17 @@ AgentOps is delivered as **skills**: Markdown playbooks your agent runs via slas
 | **Shift-left** | `/pre-mortem` | Simulate failures BEFORE you write code |
 | **Execute** | `/crank` | Orchestrate epic loop, dispatch `/swarm` for each wave |
 | **Execute** | `/swarm` | Spawn fresh-context agents for parallel work |
-| **Gate** | `/vibe` | 8-aspect validation — must pass to merge |
+| **Validate** | `/council` | Multi-model consensus (2-6 judges, cross-vendor, debate mode) |
+| **Gate** | `/vibe` | Complexity analysis + council validation — must pass to merge |
 | **Learn** | `/post-mortem` | Extract learnings to feed future sessions |
+
+### What's New
+
+**`/council` — Multi-model consensus validation.** Spawn parallel judges with different perspectives (pragmatist, skeptic, visionary) or custom presets (security-audit, architecture, ops). Supports cross-vendor review (`--mixed` adds Codex judges), adversarial debate (`--debate` for two-round review), and explorer sub-agents (`--explorers=N` for deep research). Council is the validation primitive — `/vibe`, `/pre-mortem`, and `/post-mortem` all use it.
+
+**`/swarm` — Native team coordination.** Workers spawn as teammates on native teams (`TeamCreate` + `SendMessage`), enabling retry-via-message (no re-spawn), task self-service (workers claim via `TaskUpdate`), and fresh context per wave. Falls back to fire-and-forget if teams unavailable.
+
+**`/ratchet` — Progress gates that lock.** Tracks Research → Plan → Implement → Validate stages. Once a gate passes, it's locked — prevents regression. `/crank` records gates automatically as it completes waves.
 
 ## Execution Modes
 
@@ -163,13 +211,6 @@ Agent Mail is an MCP server for inter-agent messaging. Distributed mode requires
 | Single issue, full lifecycle | `/implement` | Claim → execute → validate → close |
 | Gate progress without executing | `/ratchet` | Records/checks gates only |
 
-**The pipeline:**
-```
-[spec] → /pre-mortem → /crank → /vibe → /post-mortem → [learnings]
-              ↓           ↓        ↓          ↓             ↓
-          Shift-left   Execute   Gate      Extract    Feed next run
-```
-
 ---
 
 ## How It Works
@@ -187,31 +228,31 @@ Four patterns that make the pipeline reliable:
 <summary>View architecture diagram</summary>
 
 ```
-MAYOR (orchestrator)              AGENTS (executors)
---------------------              ------------------
+MAYOR (orchestrator)                AGENTS (executors)
+--------------------                ------------------
 
 /crank epic-123
-     |
-     +-> Get ready issues ---------> /swarm spawns N agents
-     |                                    |
-     +-> Create tasks -------------->     +-> Fresh context each
-     |                                    |
-     +-> Wait for completion <------      +-> Execute atomically
-     |                                    |
-     +-> /vibe (validation gate)          +-> Return result
-     |      |
-     |      +-> PASS = progress locked
-     |      +-> FAIL = fix first
-     |
-     +-> Loop until DONE
-     |
-     +-> /post-mortem -----------------> .agents/learnings/
-                                              |
-NEXT SESSION                                  |
-------------                                  |
-SessionStart <---- /inject <------------------+
-     |
-     +-> Starts with prior knowledge
+  |
+  +-> Get ready issues -----------> /swarm creates team per wave
+  |                                   |
+  +-> Create tasks ----------------> +-> Workers join as teammates
+  |                                   |
+  +-> Workers report completion <---- +-> Fresh context, execute atomically
+  |     (via SendMessage)             |
+  +-> /vibe (validation gate)         +-> Return result via SendMessage
+  |     |
+  |     +-> PASS = progress locked (/ratchet)
+  |     +-> FAIL = fix first
+  |
+  +-> Loop until DONE
+  |
+  +-> /post-mortem ----------------> .agents/learnings/
+                                       |
+NEXT SESSION                           |
+------------                           |
+auto-inject (hook) <-------------------+
+  |
+  +-> Starts with prior knowledge
 ```
 
 </details>
@@ -338,38 +379,20 @@ Not just "does it compile?" — **does it match the spec?**
 
 ---
 
-## What Gets Captured
-
-Everything lives in `.agents/` — git-tracked, portable, yours.
-
-```
-.agents/
-├── learnings/     # "Auth bugs stem from token refresh"
-├── patterns/      # "How we handle retries"
-├── pre-mortems/   # Failure simulations
-├── plans/         # Implementation plans
-├── vibe/          # Validation reports
-└── ...
-```
-
-With hooks enabled, the flywheel turns automatically:
-- **SessionStart** → Injects relevant prior knowledge
-- **SessionEnd** → Extracts learnings for next time
-
----
-
 ## All Skills
 
 | Skill | Purpose |
 |-------|---------|
 | `/pre-mortem` | Simulate failures before coding |
 | `/crank` | Autonomous epic execution (orchestrator; runs waves via `/swarm`) |
-| `/swarm` | Parallel agents with fresh context |
-| `/vibe` | 8-aspect validation gate |
+| `/swarm` | Parallel agents with fresh context (native teams) |
+| `/council` | Multi-model consensus (validate, brainstorm, critique, research, analyze) |
+| `/vibe` | Complexity + council validation gate |
 | `/implement` | Single issue execution |
 | `/post-mortem` | Extract learnings |
 | `/research` | Deep codebase exploration |
 | `/plan` | Break goal into tracked issues |
+| `/ratchet` | Progress gates that lock (Research → Plan → Implement → Validate) |
 | `/beads` | Git-native issue tracking |
 
 <details>
@@ -377,7 +400,6 @@ With hooks enabled, the flywheel turns automatically:
 
 | Skill | Purpose |
 |-------|---------|
-| `/ratchet` | Track RPI progress gates |
 | `/retro` | Quick retrospective |
 | `/inject` | Manually load prior knowledge |
 | `/knowledge` | Query knowledge base |
