@@ -15,13 +15,14 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (19)
+### User-Facing Skills (20)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
 | **council** | orchestration | Multi-model validation (core primitive) |
 | **crank** | orchestration | Autonomous epic execution |
 | **swarm** | orchestration | Parallel agent spawning |
+| **codex-team** | orchestration | Spawn parallel Codex execution agents |
 | **implement** | team | Execute single issue |
 | **quickstart** | solo | Interactive onboarding (mini RPI cycle) |
 | **status** | solo | Single-screen dashboard |
@@ -96,6 +97,7 @@ All validation skills depend on `/council`:
 | beads | - | - |
 | bug-hunt | beads | optional |
 | complexity | - | - |
+| **codex-team** | - | - (standalone, fallback to swarm) |
 | **crank** | swarm, vibe, implement, beads, post-mortem | required, required, required, optional, optional |
 | doc | standards | required |
 | extract | - | - |
