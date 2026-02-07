@@ -21,7 +21,10 @@ done
 flywheel_status=""
 if command -v ao &>/dev/null; then
     # Extract just the key metrics from flywheel status
-    flywheel_output=$(ao flywheel status 2>/dev/null || true)
+    flywheel_output=$(ao flywheel status 2>/dev/null || {
+        mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao flywheel status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+    })
     if [[ -n "$flywheel_output" ]]; then
         # Parse the status line and velocity (tr -d removes newlines)
         status_line=$(echo "$flywheel_output" | grep -o '\[.*\]' | head -1 | tr -d '\n' || echo "[UNKNOWN]")
@@ -29,6 +32,18 @@ if command -v ao &>/dev/null; then
         sessions=$(ao status 2>/dev/null | grep "^Sessions:" | awk '{print $2}' | head -1 | tr -d '\n' || echo "?")
         learnings_count=$(ls -1 .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
         flywheel_status="**Flywheel:** ${status_line} | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
+    fi
+fi
+
+# Get ratchet status (brief one-liner for visibility)
+ratchet_status=""
+if command -v ao &>/dev/null; then
+    ratchet_output=$(ao ratchet status --format=oneline 2>/dev/null || {
+        mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+    })
+    if [[ -n "$ratchet_output" ]]; then
+        ratchet_status="**Ratchet:** ${ratchet_output}"
     fi
 fi
 
@@ -79,11 +94,16 @@ fi
 
 # Build flywheel status section if available
 flywheel_section=""
-if [[ -n "$flywheel_status" ]]; then
+if [[ -n "$flywheel_status" || -n "$ratchet_status" ]]; then
     flywheel_section="
 
 ---
-${flywheel_status}
+${flywheel_status}"
+    if [[ -n "$ratchet_status" ]]; then
+        flywheel_section="${flywheel_section}
+${ratchet_status}"
+    fi
+    flywheel_section="${flywheel_section}
 
 **Quick commands:** \`ao search <query>\` | \`ao flywheel status\` | \`ao trace <artifact>\`
 ---

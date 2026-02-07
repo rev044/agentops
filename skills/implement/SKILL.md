@@ -51,7 +51,7 @@ bd update <issue-id> --append-notes "CHECKPOINT: Step N completed at $(date -Ise
 # Check if ao CLI is available
 if command -v ao &>/dev/null; then
   # Check if research and plan phases completed
-  RATCHET_STATUS=$(ao ratchet status --json 2>/dev/null || echo '{}')
+  RATCHET_STATUS=$(ao ratchet status -o json 2>/dev/null || echo '{}')
   RESEARCH_DONE=$(echo "$RATCHET_STATUS" | jq -r '.research.completed // false')
   PLAN_DONE=$(echo "$RATCHET_STATUS" | jq -r '.plan.completed // false')
 
@@ -76,6 +76,31 @@ fi
 ```
 
 **Fallback:** If ao is not available, proceed without ratchet checks. The skill continues normally.
+
+### Step 0b: Pre-Flight Pre-Mortem Gate
+
+**Before starting implementation, check if pre-mortem validation was run on the plan:**
+
+```bash
+if command -v ao &>/dev/null; then
+  RATCHET_JSON=$(ao ratchet status -o json 2>/dev/null || echo '{}')
+  PRE_MORTEM_STATUS=$(echo "$RATCHET_JSON" | jq -r '.steps[]? | select(.name == "pre-mortem") | .status // "none"')
+  PLAN_EXISTS=$(ls .agents/plans/*.md 2>/dev/null | head -1)
+
+  if [ "$PRE_MORTEM_STATUS" = "pending" ] && [ -n "$PLAN_EXISTS" ]; then
+    echo "Pre-mortem hasn't been run on your plan."
+    echo "Options:"
+    echo "  1. Run /pre-mortem first"
+    echo "  2. Skip: ao ratchet skip pre-mortem --reason 'user chose to skip'"
+    echo "  3. Proceed anyway"
+    # Ask user: "Pre-mortem hasn't been run on your plan. Run /pre-mortem first, skip, or proceed?"
+    # If skip: ao ratchet skip pre-mortem --reason "user chose to skip"
+  fi
+  # If ao unavailable or no chain: proceed silently
+fi
+```
+
+**Fallback:** If ao is not available or no ratchet chain exists, proceed silently.
 
 ### Step 1: Get Issue Details
 
@@ -253,6 +278,18 @@ fi
 ```
 
 **Fallback:** If ao is not available, the issue is still closed via bd but won't be tracked in the ratchet chain. The skill continues normally.
+
+### Step 7b: Post-Implementation Ratchet Record
+
+After implementation is complete:
+
+```bash
+if command -v ao &>/dev/null; then
+  ao ratchet record implement --output "<issue-id>" 2>/dev/null || true
+fi
+```
+
+Tell user: "Implementation complete. Run /vibe to validate before pushing."
 
 ### Step 8: Report to User
 

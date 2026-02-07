@@ -255,6 +255,15 @@ Tell the user:
 3. Key concerns
 4. Location of vibe report
 
+### Step 9: Record Ratchet Progress
+
+After council verdict:
+1. If verdict is PASS or WARN:
+   - Run: `ao ratchet record vibe --output "<report-path>" 2>/dev/null || true`
+   - Suggest: "Run /post-mortem to capture learnings and complete the cycle."
+2. If verdict is FAIL:
+   - Do NOT record. Tell user to fix issues and re-run /vibe.
+
 ---
 
 ## Integration with Workflow

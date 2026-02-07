@@ -9,11 +9,19 @@
           },
           {
             "type": "command",
-            "command": "command -v ao >/dev/null 2>&1 && ao extract 2>/dev/null || true"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pending-cleaner.sh"
           },
           {
             "type": "command",
-            "command": "command -v ao >/dev/null 2>&1 && ao inject --apply-decay --format markdown --max-tokens 1000 2>/dev/null || true"
+            "command": "command -v ao >/dev/null 2>&1 && { ao extract 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao extract\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { ao inject --apply-decay --format markdown --max-tokens 1000 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao inject\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { ao ratchet status --format=oneline 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
           }
         ]
       }
@@ -23,20 +31,67 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v ao >/dev/null 2>&1 && ao forge transcript --last-session --queue --quiet 2>/dev/null || true"
+            "command": "command -v ao >/dev/null 2>&1 && { ao forge transcript --last-session --queue --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao forge transcript\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
           }
         ]
       }
     ],
-    "PostToolUse": [
+    "PreToolUse": [
       {
         "matcher": "Write|Edit",
-        "_comment": "5s timeout: sufficient for files up to 10MB on typical systems; grep+wc completes in <1s for most files",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/comment-checker.sh",
-            "timeout": 5
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/standards-injector.sh",
+            "timeout": 2
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/git-worker-guard.sh",
+            "timeout": 2
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/dangerous-git-guard.sh",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/task-validation-gate.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-team-guard.sh",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/precompact-snapshot.sh",
+            "timeout": 2
           }
         ]
       }
