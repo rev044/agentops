@@ -24,12 +24,13 @@ Deep documentation for AgentOps. For quick start, see [README](../README.md).
 
 | | Local (default) | Distributed (`--mode=distributed`) |
 |---|---|---|
-| **How** | Task tool background agents | tmux sessions + Agent Mail |
+| **How** | Native agent teams (`TeamCreate` + `SendMessage`) | tmux sessions + Agent Mail |
 | **Dependencies** | None (Claude-native) | `tmux`, `claude` CLI, Agent Mail MCP |
-| **Context** | Fresh per agent | Fresh per agent |
+| **Context** | Fresh per agent (team-per-wave) | Fresh per agent |
 | **Persistence** | Dies if mayor disconnects | Survives disconnection |
-| **Debugging** | Read output file | Attach to tmux session |
-| **Coordination** | TaskList only | Agent Mail + file reservations |
+| **Debugging** | Click tmux pane or Shift+Up/Down | Attach to tmux session |
+| **Coordination** | `SendMessage` + `TaskList` | Agent Mail + file reservations |
+| **Commits** | Lead-only (workers blocked by hook) | Lead-only (workers blocked by hook) |
 
 **When to use which:**
 
@@ -231,7 +232,7 @@ ao hooks install && ao hooks test
 
 ## Tool Dependencies
 
-The `/vibe` and `/post-mortem` skills run `scripts/toolchain-validate.sh`, which uses available linters and scanners. **All tools are optional** — missing ones are skipped gracefully.
+The `/vibe` skill runs complexity analysis (radon/gocyclo) then spawns a `/council` validation with the `code-review` preset (error-paths, api-surface, spec-compliance). External linters and scanners are used when available. **All tools are optional** — missing ones are skipped gracefully.
 
 | Tool | Purpose | Install |
 |------|---------|---------|

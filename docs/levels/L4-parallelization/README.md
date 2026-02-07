@@ -28,8 +28,9 @@ Execute independent tasks in parallel with wave-based execution using the swarm 
 ## Key Concepts
 
 - **Wave**: Set of independent tasks executed together
-- **Background agents**: Each task spawned via `Task(run_in_background=true)`
-- **Fresh context**: Each agent spawn = clean slate (Ralph Wiggum pattern)
+- **Native teams**: Each wave creates a team (`TeamCreate`), workers join as teammates, communicate via `SendMessage`
+- **Fresh context**: Each team = clean slate (Ralph Wiggum pattern). New team per wave.
+- **Lead-only commit**: Workers write files, lead validates + commits. Hooks block workers from `git commit`.
 - **Dependency resolution**: Only unblocked tasks run in each wave
 
 ## The Ralph Wiggum Pattern
@@ -39,14 +40,16 @@ The swarm follows Ralph Wiggum's core insight: fresh context per iteration.
 ```
 Ralph's loop:               Swarm equivalent:
 while :; do                 Mayor identifies ready tasks
-  cat PROMPT.md | claude    Mayor spawns background agents
-done                        Agents complete, Mayor gets notified
-                            Repeat for next wave
+  cat PROMPT.md | claude    TeamCreate → spawn workers as teammates
+done                        Workers complete, report via SendMessage
+                            Lead validates + commits
+                            TeamDelete → new team for next wave
 ```
 
 Why this matters:
 - **Internal loops accumulate context** → degrades over iterations
 - **Fresh spawns stay effective** → each agent is a clean slate
+- **Team-per-wave** → new team = new context, no bleed-through
 
 ## Swarm vs Crank vs Ratchet
 
@@ -62,32 +65,35 @@ These are easy to mix up:
 
 ```
 1. TaskList → identifies unblocked tasks
-2. /swarm → spawns background agents for wave
-3. Agents complete work → <task-notification> arrives automatically
-4. Mayor reconciliation:
-   a. Verify work (check files/git)
-   b. TaskUpdate(status="completed") for each
-   c. TaskList to find newly unblocked tasks
-5. Next wave begins
+2. /swarm → TeamCreate + spawn workers as teammates
+3. Workers complete → send completion via SendMessage
+4. Lead reconciliation:
+   a. Verify work (check files, run tests)
+   b. Commit all changes (lead-only)
+   c. shutdown_request workers → TeamDelete
+   d. TaskList to find newly unblocked tasks
+5. New team for next wave (fresh context)
 ```
 
-## Mayor Reconciliation Step
+## Lead Reconciliation Step
 
-After notifications arrive, Mayor must verify before marking complete:
+After workers report completion via `SendMessage`, the lead must verify before committing:
 
 ```
-# For each completed agent:
+# For each completed worker:
 1. Check the files created/modified
 2. Run tests (npm test, pytest, etc.)
 3. Run lint (npm run lint, etc.)
-4. If valid: TaskUpdate(taskId="N", status="completed")
-5. If invalid: Note issues, may need re-run
+4. If valid: commit changes (lead-only — workers cannot commit)
+5. If invalid: SendMessage retry instructions to idle worker
+   (worker wakes with full context, no re-spawn needed)
 
 # After all verified:
-TaskList() → shows newly unblocked tasks → ready for next wave
+shutdown_request each worker → TeamDelete()
+TaskList() → shows newly unblocked tasks → new team for next wave
 ```
 
-This prevents marking broken work as complete.
+This prevents marking broken work as complete. The `git-worker-guard` hook enforces lead-only commits.
 
 ## Agent Prompts (Atomic)
 
