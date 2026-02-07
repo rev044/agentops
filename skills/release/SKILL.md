@@ -19,7 +19,7 @@ Pre-flight validation, changelog from git history, version bumps across package 
 /release 1.7.0 --dry-run      # show what would happen, change nothing
 /release --check               # readiness validation only (GO/NO-GO)
 /release                       # suggest version from commit analysis
-/release 2.0.0 --gh-release    # also create draft GitHub Release
+/release 1.7.0 --no-gh-release # skip GitHub Release draft
 ```
 
 ---
@@ -31,8 +31,8 @@ Pre-flight validation, changelog from git history, version bumps across package 
 | `version` | No | Semver string (e.g., `1.7.0`). If omitted, suggest based on commit analysis |
 | `--check` | No | Readiness validation only — don't generate or write anything |
 | `--dry-run` | No | Show generated changelog + version bumps without writing |
-| `--gh-release` | No | Create a draft GitHub Release with the changelog entry |
 | `--skip-checks` | No | Skip pre-flight validation (tests, lint) |
+| `--no-gh-release` | No | Skip draft GitHub Release creation |
 | `--changelog-only` | No | Only update CHANGELOG.md — no version bumps, no commit, no tag |
 
 ---
@@ -43,7 +43,7 @@ Pre-flight validation, changelog from git history, version bumps across package 
 
 `/release [version]` — the complete local release workflow.
 
-Steps: pre-flight → changelog → version bump → user review → write → release commit → tag → optional GitHub Release draft → guidance.
+Steps: pre-flight → changelog → release notes → version bump → user review → write → release commit → tag → draft GitHub Release → guidance.
 
 ### Check Mode
 
@@ -280,19 +280,81 @@ Create an annotated tag:
 git tag -a v<version> -m "Release v<version>"
 ```
 
-### Step 12: Draft GitHub Release (optional)
+### Step 12: Generate release notes
 
-If `--gh-release` was passed and `gh` CLI is available:
+Release notes are **not the changelog**. The changelog is comprehensive and developer-facing. Release notes are what users see on the GitHub Release page — they should be approachable and highlight what matters.
 
+**Structure:**
+
+```markdown
+## Highlights
+
+<2-4 sentence plain-English summary of what's new and why it matters.
+Written for users, not contributors. No jargon.>
+
+## What's New
+
+<Top 3-5 most important changes, each as a short bullet.
+Pick from Added/Changed/Fixed — prioritize user-visible impact.>
+
+## Changelog
+
+<Full changelog entry from Step 6, included below the highlights
+so the detail is there for those who want it.>
+```
+
+**Example:**
+
+```markdown
+## Highlights
+
+This release adds a general-purpose `/release` skill that handles the entire
+local release workflow — pre-flight checks, changelog generation, version bumps,
+and tagging. We also shipped 19 issues across 3 epics via fully autonomous
+parallel execution, and fixed a dedup bug that was silently dropping learnings.
+
+## What's New
+
+- **`/release` skill** — Pre-flight validation, AI-generated changelog, version bumps, and git tagging in one command
+- **`/codex-team` skill** — Spawn parallel Codex agents orchestrated by Claude
+- **Autonomous epic execution** — 19 issues, 3 waves, 18 parallel workers, zero retries
+- **Batch dedup fix** — Learnings with similar openings no longer silently deduplicated
+
+## Changelog
+
+### Added
+...
+
+### Fixed
+...
+
+### Changed
+...
+```
+
+**Show the release notes to the user** as part of Step 8 review, alongside the changelog and version bumps.
+
+### Step 13: Draft GitHub Release
+
+Unless `--no-gh-release` was passed, create a draft GitHub Release.
+
+Check for `gh` CLI:
+```bash
+which gh
+```
+
+If available:
 ```bash
 gh release create v<version> --draft --title "v<version>" --notes-file <tmpfile>
 ```
 
-The notes file contains the generated changelog entry. Draft, not published — the user reviews and publishes.
+The notes file contains the **release notes** (highlights + changelog), not just the raw changelog.
 
-If `gh` is not available, skip and mention it in guidance.
+Draft, not published — the user reviews and publishes from the GitHub UI or via `gh release edit v<version> --draft=false`.
 
-### Step 13: Post-release guidance
+If `gh` is not available, write the release notes to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` and tell the user they can paste them into the GitHub Release page manually.
+
+### Step 14: Post-release guidance
 
 Show the user what to do next:
 
@@ -315,7 +377,7 @@ Next steps:
 No release CI detected. Consider adding a workflow for automated publishing.
 ```
 
-### Step 14: Audit trail
+### Step 15: Audit trail
 
 Write a release record:
 
@@ -381,7 +443,8 @@ Then proceed with the normal workflow to populate the first versioned entry.
 - Semver suggestion from commit classification
 - Version string bumps in package files
 - Release commit + annotated tag
-- Draft GitHub Release
+- Release notes (highlights + changelog) for GitHub Release page
+- Draft GitHub Release (default, opt-out with `--no-gh-release`)
 - Post-release guidance
 - Audit trail
 
