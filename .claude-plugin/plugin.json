@@ -1,7 +1,7 @@
 {
   "name": "agentops",
-  "version": "1.4.0",
-  "description": "DevOps for Vibe-Coding. Shift-left validation for coding agents. Pre-mortem before you implement. Vibe check before you commit. Knowledge that compounds.",
+  "version": "1.6.0",
+  "description": "A knowledge flywheel for AI coding agents. Your agent remembers across sessions — persistent memory, multi-model validation, and structured workflows for Claude Code.",
   "author": {
     "name": "Boden Fuller",
     "email": "fullerbt@users.noreply.github.com"

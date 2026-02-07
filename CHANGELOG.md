@@ -5,7 +5,7 @@ All notable changes to the AgentOps marketplace will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.6.0] - 2026-02-06
 
 ### Adoption Improvements
 
@@ -64,6 +64,18 @@ Fixes from council validation of the native teams migration:
 - **Debate fidelity marker** — debate reports include `**Fidelity:** full | degraded` so users know if `--debate` ran with full-context native teams or truncated fallback
 - **Explicit R2 timeout** — `COUNCIL_R2_TIMEOUT` env var (default 90s) replaces vague "idle too long" with concrete timeout and fallback-to-R1 instruction
 - **TeamDelete() documentation** — clarified that `TeamDelete()` targets the current session's team context; concurrent team scenarios (e.g. council inside crank) documented
+
+### Simplification
+
+Pre-release council validation (2 judges, unanimous WARN) identified over-engineering. Refactored before shipping:
+
+- **Council task types 5 → 3** — merged critique→validate, analyze→research. Keeps validate, research, brainstorm
+- **Removed `--perspectives-file`** — presets and `--perspectives="a,b,c"` cover all current use cases. Bring back when someone asks
+- **Agent hard cap: MAX_AGENTS=12** — prevents resource bombs from `--mixed --deep --explorers=N` combinations. Pre-flight check errors if exceeded
+- **`--debate` restricted to validate mode** — brainstorm and research don't produce PASS/WARN/FAIL verdicts; combining with --debate now errors instead of producing "awkward outputs"
+- **`--debate` documented as Ralph exception** — judges intentionally persist across R1/R2 within one atomic invocation. Bounded, documented, justified
+- **Distributed mode gated as experimental** — swarm and crank distributed mode (tmux + Agent Mail) labeled experimental. Local mode (native teams) is the recommended path
+- **Crank validation simplified** — collapsed triple validation (per-task + per-issue + batched) to double (trust swarm + final batched vibe). Per-issue layer was redundant
 
 ### Documentation
 

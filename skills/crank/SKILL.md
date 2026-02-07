@@ -285,76 +285,48 @@ Swarm finds unblocked TaskList tasks and executes them.
 - Workers claim tasks, execute in parallel, report via `SendMessage`
 - Team lead validates, then cleans up team (`TeamDelete`)
 
-### Step 5: Validate Before Accepting (MANDATORY)
+### Step 5: Verify and Sync to Beads (MANDATORY)
 
-> **CRITICAL**: Swarm completion claims are NOT trusted. Run validation BEFORE closing issues.
-
-Swarm executes its own per-task validation (see `skills/shared/validation-contract.md`), but crank adds an additional verification layer for beads integration.
+> Swarm executes per-task validation (see `skills/shared/validation-contract.md`). Crank trusts swarm validation and focuses on beads sync.
 
 **For each issue reported complete by swarm:**
 
-1. **Verify swarm validation passed:**
+1. **Verify swarm task completed:**
    ```
-   TaskList() → check task status == "completed" (not just notified)
+   TaskList() → check task status == "completed"
    ```
-   If task is still pending/blocked after notification, swarm validation failed.
+   If task is still pending/blocked, swarm validation failed — add to retry queue.
 
-2. **Run issue-level validation checks:**
-
-   | Check | Command | Fail Action |
-   |-------|---------|-------------|
-   | Commit exists | `git log --oneline -1 \| grep <issue-id>` | Retry |
-   | Files changed | `git diff --name-only HEAD~1` | Verify expected |
-   | Tests pass | `<project test command>` | Retry with hint |
-   | No regressions | `git diff HEAD~1 \| grep -v "^+"` | Review |
-
-3. **On validation PASS:**
-
-   **Beads mode:**
+2. **Sync to beads:**
    ```bash
    bd update <issue-id> --status closed 2>/dev/null
    ```
 
-   **TaskList mode:** `TaskUpdate(taskId, status="completed")` — already done by swarm workers. Crank just verifies via `TaskList()`.
+3. **On sync failure** (bd unavailable or error):
+   - Log warning but do NOT block the wave
+   - Track for manual sync after epic completes
 
-4. **On validation FAIL:**
-
-   **Beads mode:**
+4. **On swarm validation failure:**
    - Do NOT close the beads issue
-   - Add failure context to issue:
+   - Add failure context:
      ```bash
-     bd comments add <issue-id> "Validation failed: <reason>. Retrying..."
+     bd comments add <issue-id> "Validation failed: <reason>. Retrying..." 2>/dev/null
      ```
-   - Re-add to next wave (swarm will re-execute)
+   - Re-add to next wave
    - After 3 failures, escalate:
      ```bash
-     bd update <issue-id> --labels BLOCKER
-     bd comments add <issue-id> "ESCALATED: 3 validation failures. Human review required."
+     bd update <issue-id> --labels BLOCKER 2>/dev/null
+     bd comments add <issue-id> "ESCALATED: 3 validation failures. Human review required." 2>/dev/null
      ```
 
-   **TaskList mode:**
-   - `TaskUpdate` to reset status to pending
-   - Update description with failure context
-   - Will be picked up in next wave
-   - After 3 failures: mark task description with "ESCALATED" and stop retrying
+5. **Record ratchet progress (ao integration):**
+   ```bash
+   if command -v ao &>/dev/null; then
+       ao ratchet record implement 2>/dev/null
+   fi
+   ```
 
-**After all validations complete:**
-
-5. Track changed files:
-```bash
-git diff --name-only HEAD~5 2>/dev/null | sort -u
-```
-
-6. **Record ratchet progress (ao integration):**
-```bash
-# If ao CLI available, record wave completion
-if command -v ao &>/dev/null; then
-    ao ratchet record implement 2>/dev/null
-    echo "Ratchet: recorded wave $wave completion"
-fi
-```
-
-**Note:** Per-issue validation is lightweight. Full vibe is still batched at the end for comprehensive review.
+**Note:** Comprehensive code review happens once at the end (Step 7: Final Batched Validation via /vibe), not per-issue.
 
 ### Step 6: Check for More Work
 
@@ -521,7 +493,9 @@ Loop until all issues are CLOSED (beads) or all tasks are completed (TaskList).
 
 ---
 
-## Distributed Mode: Agent Mail Orchestration
+## Distributed Mode: Agent Mail Orchestration (Experimental)
+
+> **Status: Experimental.** Local mode (TaskList + swarm) is the recommended execution method. Distributed mode requires Agent Mail and tmux and has not been battle-tested. Use for long-running epics where process isolation and persistence are critical.
 
 > **When:** Agent Mail MCP tools are available AND `--mode=distributed` is set
 
@@ -719,7 +693,7 @@ Parameters:
 | `FAILED` | Log failure, add to retry queue |
 | `CHECKPOINT` | Handle partial progress, spawn replacement |
 
-#### Step 4: Chiron Pattern for Help Requests
+#### Step 4: Chiron Pattern for Help Requests (Experimental)
 
 **When HELP_REQUEST received, route to Chiron:**
 

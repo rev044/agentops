@@ -1,7 +1,7 @@
 ---
 name: council
 tier: orchestration
-description: 'Multi-model consensus council for validation, research, analysis, brainstorming, and critique. Spawns parallel judges with configurable perspectives and optional explorer sub-agents. Modes: validate, brainstorm, critique, research, analyze. Triggers: council, validate, brainstorm, critique, research, analyze, multi-model, consensus.'
+description: 'Multi-model consensus council for validation, research, and brainstorming. Spawns parallel judges with configurable perspectives and optional explorer sub-agents. Modes: validate, brainstorm, research. Triggers: council, validate, brainstorm, critique, research, analyze, multi-model, consensus.'
 dependencies:
   - standards   # optional - loaded for code validation context
 replaces: judge
@@ -9,7 +9,7 @@ replaces: judge
 
 # /council — Multi-Model Consensus Council
 
-Spawn parallel judges with different perspectives, consolidate into consensus. Works for any task — validation, research, analysis, brainstorming, critique.
+Spawn parallel judges with different perspectives, consolidate into consensus. Works for any task — validation, research, brainstorming.
 
 ## Quick Start
 
@@ -17,9 +17,9 @@ Spawn parallel judges with different perspectives, consolidate into consensus. W
 /council --quick validate recent                               # fast inline check
 /council validate this plan                                    # validation (2 agents)
 /council brainstorm caching approaches                         # brainstorm
-/council critique the implementation                           # critique
+/council validate the implementation                          # validation (critique triggers map here)
 /council research kubernetes upgrade strategies                # research
-/council analyze the CI/CD pipeline bottlenecks                # analysis
+/council research the CI/CD pipeline bottlenecks               # research (analyze triggers map here)
 /council --preset=security-audit validate the auth system      # preset personas
 /council --deep --explorers=3 research upgrade automation      # deep + explorers
 /council --debate validate the auth system                # adversarial 2-round review
@@ -35,13 +35,13 @@ Council is a general-purpose multi-model consensus tool. Use it for:
 |----------|---------|-----------------|
 | Code review | `/council validate recent` | validate |
 | Plan validation | `/council validate the migration plan` | validate |
-| Architecture analysis | `/council --preset=architecture analyze microservices boundaries` | analyze |
+| Architecture analysis | `/council --preset=architecture research microservices boundaries` | research |
 | Deep codebase research | `/council --deep --explorers=3 research the auth system` | research |
 | Decision making | `/council brainstorm caching strategies` | brainstorm |
-| Risk assessment | `/council --preset=ops critique the deployment pipeline` | critique |
+| Risk assessment | `/council --preset=ops validate the deployment pipeline` | validate |
 | Security audit | `/council --preset=security-audit validate the API` | validate |
-| Spec feedback | `/council critique the design doc` | critique |
-| Technology comparison | `/council analyze Redis vs Memcached for our use case` | analyze |
+| Spec feedback | `/council validate the design doc` | validate |
+| Technology comparison | `/council research Redis vs Memcached for our use case` | research |
 | Incident investigation | `/council --deep research why deployments are slow` | research |
 
 ## Modes
@@ -70,17 +70,17 @@ Use `--debate` for high-stakes or ambiguous reviews where judges are likely to d
 
 Skip `--debate` for routine validation where consensus is expected. Debate adds R2 latency (judges stay alive, process a second round via SendMessage).
 
-**Incompatibility:** `--quick` and `--debate` cannot be combined. `--quick` runs inline with no spawning; `--debate` requires multi-agent rounds. If both are passed, exit with error: "Error: --quick and --debate are incompatible."
+**Incompatibilities:**
+- `--quick` and `--debate` cannot be combined. `--quick` runs inline with no spawning; `--debate` requires multi-agent rounds. If both are passed, exit with error: "Error: --quick and --debate are incompatible."
+- `--debate` is only supported with validate mode. Brainstorm and research do not produce PASS/WARN/FAIL verdicts. If combined, exit with error: "Error: --debate is only supported with validate mode."
 
 ## Task Types
 
 | Type | Trigger Words | Perspective Focus |
 |------|---------------|-------------------|
-| **validate** | validate, check, review, assess | Is this correct? What's wrong? |
+| **validate** | validate, check, review, assess, critique, feedback, improve | Is this correct? What's wrong? What could be better? |
 | **brainstorm** | brainstorm, explore, options, approaches | What are the alternatives? Pros/cons? |
-| **critique** | critique, feedback, improve | What could be better? |
-| **research** | research, investigate, deep dive, explore deeply | What can we discover? Each judge explores a different facet. |
-| **analyze** | analyze, assess, examine, evaluate, compare | What are the properties, trade-offs, and structure? |
+| **research** | research, investigate, deep dive, explore deeply, analyze, examine, evaluate, compare | What can we discover? What are the properties, trade-offs, and structure? |
 
 Natural language works — the skill infers task type from your prompt.
 
@@ -93,7 +93,7 @@ Natural language works — the skill infers task type from your prompt.
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Phase 1: Build Packet (JSON)                                   │
-│  - Task type (validate/brainstorm/critique/research/analyze)     │
+│  - Task type (validate/brainstorm/research)                      │
 │  - Target description                                           │
 │  - Context (files, diffs, prior decisions)                      │
 │  - Perspectives to assign                                       │
@@ -192,6 +192,12 @@ else
   fi
 fi
 
+# Check agent count (includes --count override)
+judges = count_override if --count else (judges_for_mode)
+total_agents = judges * (1 + explorers)
+if total_agents > 12:
+    error("Total agent count ${total_agents} exceeds MAX_AGENTS (12). Reduce --count, --explorers, or remove --mixed.")
+
 # Create output directory
 mkdir -p .agents/council
 ```
@@ -279,7 +285,7 @@ The packet sent to each agent. **File contents are included inline** — agents 
 {
   "council_packet": {
     "version": "1.0",
-    "mode": "validate | brainstorm | critique | research | analyze",
+    "mode": "validate | brainstorm | research",
     "target": "Implementation of user authentication system",
     "context": {
       "files": [
@@ -338,44 +344,6 @@ Simple name-based:
 /council --perspectives="security,performance,ux" validate the API
 ```
 
-### Persona Definitions
-
-For richer control, use `--perspectives-file=<path>` pointing to a JSON file with full persona definitions:
-
-```json
-[
-  {
-    "name": "security-auditor",
-    "focus": "OWASP top 10, authentication flows, data exposure",
-    "instructions": "Analyze from the perspective of a security auditor performing a pentest",
-    "explore_questions": [
-      "What attack vectors exist?",
-      "Where is input validation missing?",
-      "Are secrets properly managed?"
-    ]
-  },
-  {
-    "name": "performance-engineer",
-    "focus": "Latency, throughput, resource usage, caching",
-    "instructions": "Analyze from the perspective of a performance engineer under load",
-    "explore_questions": [
-      "Where are the hot paths?",
-      "What queries could be slow at scale?",
-      "Where is caching missing or stale?"
-    ]
-  }
-]
-```
-
-**Fields:**
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | yes | Short identifier for the perspective |
-| `focus` | yes | Comma-separated focus areas injected into judge prompt |
-| `instructions` | no | Full custom instruction override for the judge |
-| `explore_questions` | no | Seed questions for `--explorers` (overrides auto-generation) |
-
 ### Built-in Presets
 
 Use `--preset=<name>` for common persona configurations:
@@ -391,10 +359,10 @@ Use `--preset=<name>` for common persona configurations:
 ```bash
 /council --preset=security-audit validate the auth system
 /council --preset=research --explorers=3 research upgrade automation
-/council --preset=architecture analyze microservices boundaries
+/council --preset=architecture research microservices boundaries
 ```
 
-**Preset definitions** are equivalent to built-in perspective files. Custom `--perspectives-file` overrides any preset.
+**Preset definitions** are built-in perspective configurations.
 
 **Preset perspective details:**
 
@@ -424,7 +392,7 @@ ops:
 
 ## Explorer Sub-Agents
 
-Judges can spawn explorer sub-agents for parallel deep-dive research. This is the key differentiator for `research` and `analyze` modes — massive parallel exploration.
+Judges can spawn explorer sub-agents for parallel deep-dive research. This is the key differentiator for `research` mode — massive parallel exploration.
 
 ### Flag
 
@@ -458,12 +426,16 @@ Judges can spawn explorer sub-agents for parallel deep-dive research. This is th
 
 **Total agents:** `judges * (1 + explorers)`
 
-| Example | Judges | Explorers | Total Agents |
-|---------|--------|-----------|--------------|
-| `/council research X` | 2 | 0 | 2 |
-| `/council --explorers=3 research X` | 2 | 3 | 2 + 6 = 8 |
-| `/council --deep --explorers=3 research X` | 3 | 3 | 3 + 9 = 12 |
-| `/council --mixed --explorers=3 research X` | 6 | 3 | 6 + 18 = 24 |
+**MAX_AGENTS = 12** (hard limit). If total agents (judges x (1 + explorers)) exceeds 12, exit with error: "Error: Total agent count {N} exceeds MAX_AGENTS (12). Reduce --explorers or remove --mixed."
+
+| Example | Judges | Explorers | Total Agents | Status |
+|---------|--------|-----------|--------------|--------|
+| `/council research X` | 2 | 0 | 2 | Valid |
+| `/council --explorers=3 research X` | 2 | 3 | 8 | Valid |
+| `/council --deep --explorers=3 research X` | 3 | 3 | 12 | Valid (at cap) |
+| `/council --mixed --explorers=3 research X` | 6 | 3 | 24 | BLOCKED (exceeds 12) |
+| `/council --mixed research X` | 6 | 0 | 6 | Valid |
+| `/council --mixed --explorers=1 research X` | 6 | 1 | 12 | Valid (at cap) |
 
 ### Explorer Prompt
 
@@ -527,8 +499,6 @@ Sub-questions should be:
 - Complementary (cover different aspects)
 - Relevant to your perspective
 ```
-
-If a persona definition includes `explore_questions`, those are used instead of auto-generated sub-questions.
 
 ### Timeout
 
@@ -640,7 +610,7 @@ Full Markdown analysis remains in `.agents/council/YYYY-MM-DD-<target>-claude-{p
 - **Wall time:** R1 time + R2 time (sequential rounds, but R2 is faster — no spawn delay)
 - **With --mixed:** Only Claude judges get R2. Codex agents run once (Bash-spawned, cannot join teams). For consolidation, use Claude R2 verdicts + Codex R1 verdicts for consensus computation.
 - **With --explorers:** Explorers run in R1 only. R2 cost = judge processing time (no explorer multiplication).
-- **Non-verdict modes:** `--debate` is designed for verdict-producing modes (validate, critique). For brainstorm/research/analyze, `--debate` is not recommended and may produce awkward R2 outputs since these modes do not produce PASS/WARN/FAIL verdicts.
+- **Non-verdict modes:** `--debate` is only supported with validate mode. If combined with brainstorm or research, exit with error: "Error: --debate is only supported with validate mode. Debate requires PASS/WARN/FAIL verdicts."
 
 ---
 
@@ -762,7 +732,7 @@ You have received {N} judge reports from {VENDORS}.
 
 Synthesize into a final council report.
 
-For validate/critique modes:
+For validate mode:
 1. **Consensus Verdict**: PASS if all PASS, FAIL if any FAIL, else WARN
 2. **Shared Findings**: Points all judges agree on
 3. **Disagreements**: Where judges differ (with attribution)
@@ -779,12 +749,6 @@ For research mode:
 2. **Synthesized Findings**: Merged findings organized by theme
 3. **Open Questions**: What remains unknown
 4. **Recommendation**: Next steps for further investigation or action
-
-For analyze mode:
-1. **Properties**: Key properties assessed with confidence levels
-2. **Trade-offs**: Current vs ideal state gap analysis
-3. **Cross-Perspective Synthesis**: Where judges agreed and disagreed
-4. **Recommendation**: Concrete next steps
 
 Output format: Markdown report for human consumption.
 ```
@@ -911,31 +875,6 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 
 **Write to:** `.agents/council/YYYY-MM-DD-brainstorm-<topic>.md`
 
-### Critique Report
-
-```markdown
-## Council Critique: <Target>
-
-**Target:** <what we're critiquing>
-**Judges:** <count and vendors>
-
-### Strengths
-- ...
-
-### Weaknesses
-
-| Issue | Severity | Source | Recommendation |
-|-------|----------|--------|----------------|
-| ... | critical/significant/minor | Pragmatist/Skeptic/etc | ... |
-
-### Improvement Roadmap
-1. ...
-
-*Council completed in Ns. N/N judges responded.*
-```
-
-**Write to:** `.agents/council/YYYY-MM-DD-critique-<topic>.md`
-
 ### Research Report
 
 ```markdown
@@ -970,40 +909,6 @@ Each judge investigated a different aspect of the topic:
 ```
 
 **Write to:** `.agents/council/YYYY-MM-DD-research-<topic>.md`
-
-### Analyze Report
-
-```markdown
-## Council Analysis: <Target>
-
-**Target:** <what we're analyzing>
-**Judges:** <count and vendors>
-
-### Properties
-
-| Property | Assessment | Confidence |
-|----------|-----------|------------|
-| <property 1> | <assessment> | HIGH/MEDIUM/LOW |
-| <property 2> | <assessment> | HIGH/MEDIUM/LOW |
-
-### Trade-offs
-
-| Dimension | Current State | Ideal State | Gap |
-|-----------|--------------|-------------|-----|
-| <dim 1> | <current> | <ideal> | <gap> |
-
-### Cross-Perspective Synthesis
-
-<where judges agreed and disagreed in their analysis>
-
-### Recommendation
-
-<concrete next steps based on analysis>
-
-*Council completed in Ns. N/N judges responded.*
-```
-
-**Write to:** `.agents/council/YYYY-MM-DD-analyze-<topic>.md`
 
 ### Debate Report Additions
 
@@ -1084,10 +989,9 @@ If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimou
 | `--debate` | Enable adversarial debate round (2 rounds via SendMessage, same agents). Incompatible with `--quick`. |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspective names |
-| `--perspectives-file=<path>` | JSON file with full persona definitions |
 | `--preset=<name>` | Built-in persona preset (default, security-audit, architecture, research, ops) |
-| `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed) |
-| `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5) |
+| `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed). Subject to MAX_AGENTS=12 cap. |
+| `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
 
 ---
@@ -1254,10 +1158,10 @@ mkdir -p .agents/council
 ### Deep Architecture Review
 
 ```bash
-/council --deep --preset=architecture analyze the authentication system
+/council --deep --preset=architecture research the authentication system
 ```
 
-3 Claude agents (scalability, maintainability, simplicity) analyze auth design.
+3 Claude agents (scalability, maintainability, simplicity) research auth design.
 
 ### Cross-Vendor Validation
 
@@ -1291,29 +1195,21 @@ mkdir -p .agents/council
 
 2 Claude agents explore options, pros/cons, recommend one.
 
-### Analyze Trade-offs
+### Research Trade-offs
 
 ```bash
-/council analyze Redis vs Memcached for session storage
+/council research Redis vs Memcached for session storage
 ```
 
 2 judges assess properties, trade-offs, and gaps between options.
 
-### Critique a Spec
+### Validate a Spec
 
 ```bash
-/council critique the implementation plan in PLAN.md
+/council validate the implementation plan in PLAN.md
 ```
 
 2 Claude agents provide structured feedback on the plan.
-
-### Custom Personas from File
-
-```bash
-/council --perspectives-file=./my-personas.json validate the migration
-```
-
-Load custom judge personas with tailored focus areas and explorer questions.
 
 ---
 
@@ -1351,6 +1247,18 @@ Native teams make this pattern first-class:
 - **Judges → team lead only.** Judges never message each other directly. This prevents anchoring (a judge being swayed by another's framing before forming their own view).
 - **Team lead → judges.** Only the team lead sends messages to judges (R2 debate instructions, shutdown requests).
 - **No TaskList access.** Judges do not use `TaskList` or `TaskUpdate` — the team lead manages all coordination.
+
+### Ralph Wiggum Compliance
+
+Council maintains fresh-context isolation (Ralph Wiggum pattern) with one documented exception:
+
+**`--debate` reuses judge context across R1 and R2.** This is intentional. Judges persist within a single atomic council invocation — they do NOT persist across separate council calls. The rationale:
+
+- Judges benefit from their own R1 analytical context (reasoning chain, not just the verdict JSON) when evaluating other judges' positions in R2
+- Re-spawning with only the verdict summary (~200 tokens) would lose the judge's working memory of WHY they reached their verdict
+- The exception is bounded: max 2 rounds, within one invocation, with explicit cleanup (shutdown_request + TeamDelete)
+
+Without `--debate`, council is fully Ralph-compliant: each judge is a fresh spawn, executes once, writes output, and terminates.
 
 ### Fallback
 

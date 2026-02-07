@@ -381,7 +381,9 @@ This gives you:
 
 ---
 
-## Distributed Mode: tmux + Agent Mail
+## Distributed Mode: tmux + Agent Mail (Experimental)
+
+> **Status: Experimental.** Local mode (native teams) is the recommended execution method. Distributed mode requires Agent Mail and tmux and has not been battle-tested. Use for long-running epics where process isolation and persistence are critical.
 
 > **When:** MCP Agent Mail is available AND you want true process isolation, persistent workers, and robust coordination.
 

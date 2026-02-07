@@ -165,6 +165,20 @@ AgentOps is delivered as **skills**: Markdown playbooks your agent runs via slas
 | Parallel chaos | Agents step on each other | Orchestrated execution, atomic work |
 | Slow feedback | Find problems after shipping | Shift-left: `/pre-mortem` before code |
 
+### "But Can't Native Teams Do This?"
+
+Claude Code ships with native agent teams (`TeamCreate`, `SendMessage`, `TaskList`). They're powerful primitives. AgentOps builds on them — here's what it adds:
+
+| Layer | What AgentOps provides | Native teams alone? |
+|-------|----------------------|-------------------|
+| **Cross-session memory** | `.agents/` directory, `ao` CLI, auto-inject/extract hooks | No. Native teams have zero memory across sessions. |
+| **Codified patterns** | Ralph Wiggum isolation, debate protocol, FIRE loop, validation contracts | Possible in theory, but agents won't discover these patterns on their own. |
+| **Cross-vendor validation** | Codex judges via `--mixed` mode | No. Native teams can only spawn Claude agents. |
+| **Safety guardrails** | Wave caps, agent caps, convergence detection, fidelity markers | No built-in limits on native teams. |
+| **Agent spawning** | `/swarm`, `/crank` orchestration | Thin layer over native primitives. The spawning itself isn't the value — the methodology is. |
+
+**The analogy:** AgentOps is to native teams what a web framework is to HTTP primitives. You *could* build it all raw, but you'd re-derive the same patterns every session — and lose them when the session ends.
+
 ---
 
 ## The Pipeline
@@ -404,7 +418,7 @@ Not just "does it compile?" — **does it match the spec?**
 | `/pre-mortem` | Simulate failures before coding |
 | `/crank` | Autonomous epic execution (orchestrator; runs waves via `/swarm`) |
 | `/swarm` | Parallel agents with fresh context (native teams) |
-| `/council` | Multi-model consensus (validate, brainstorm, critique, research, analyze) |
+| `/council` | Multi-model consensus (validate, research, brainstorm) |
 | `/vibe` | Complexity + council validation gate |
 | `/implement` | Single issue execution |
 | `/post-mortem` | Extract learnings |

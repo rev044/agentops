@@ -206,7 +206,7 @@ All council-based skills write to `.agents/council/`:
 |--------------|----------------|
 | `/council validate` | `.agents/council/YYYY-MM-DD-<target>-report.md` |
 | `/council brainstorm` | `.agents/council/YYYY-MM-DD-brainstorm-<topic>.md` |
-| `/council critique` | `.agents/council/YYYY-MM-DD-critique-<topic>.md` |
+| `/council research` | `.agents/council/YYYY-MM-DD-research-<topic>.md` |
 | `/vibe` | `.agents/council/YYYY-MM-DD-vibe-<target>.md` |
 | `/pre-mortem` | `.agents/council/YYYY-MM-DD-pre-mortem-<topic>.md` |
 | `/post-mortem` | `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md` |
