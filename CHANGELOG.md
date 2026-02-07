@@ -5,6 +5,16 @@ All notable changes to the AgentOps marketplace will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`bin/ralph`** — Full RPI loop script (Goal → Plan → Pre-mortem → Crank → Vibe → Post-mortem → PR). Each phase gets a fresh Claude context window (Ralph Wiggum pattern). Features: `--dry-run`, `--skip-pre-mortem`, `--branch`, `--spec` for acceptance criteria, `--resume` for checkpoint/resume, `--max-budget` and `--phase-timeout` for gutter detection.
+
+### Changed
+
+- **Codex model updated to `gpt-5.3-codex`** — All references across council, shared, and SKILL-TIERS updated from `gpt-5.3` to `gpt-5.3-codex` (canonical Codex model name).
+
 ## [1.6.0] - 2026-02-06
 
 ### Adoption Improvements
@@ -60,7 +70,7 @@ Driven by council analysis (3 judges + 6 explorers) and pre-mortem validation (2
 
 Fixes from council validation of the native teams migration:
 
-- **Codex model pre-flight** — council now tests model availability (not just CLI presence) before spawning Codex agents. Catches account-type restrictions (e.g. gpt-5.3 on ChatGPT accounts) and degrades to Claude-only
+- **Codex model pre-flight** — council now tests model availability (not just CLI presence) before spawning Codex agents. Catches account-type restrictions (e.g. gpt-5.3-codex on ChatGPT accounts) and degrades to Claude-only
 - **Debate fidelity marker** — debate reports include `**Fidelity:** full | degraded` so users know if `--debate` ran with full-context native teams or truncated fallback
 - **Explicit R2 timeout** — `COUNCIL_R2_TIMEOUT` env var (default 90s) replaces vague "idle too long" with concrete timeout and fallback-to-R1 instruction
 - **TeamDelete() documentation** — clarified that `TeamDelete()` targets the current session's team context; concurrent team scenarios (e.g. council inside crank) documented

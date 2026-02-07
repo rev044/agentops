@@ -178,7 +178,7 @@ Supporting: provenance, trace, ratchet
 | Vendor | CLI | Command |
 |--------|-----|---------|
 | Claude | `claude` | `claude --print "prompt" > output.md` |
-| Codex | `codex` | `codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o output.md "prompt"` |
+| Codex | `codex` | `codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o output.md "prompt"` |
 | OpenCode | `opencode` | (similar pattern) |
 
 ### Default Models
@@ -186,7 +186,7 @@ Supporting: provenance, trace, ratchet
 | Vendor | Model |
 |--------|-------|
 | Claude | Opus 4.6 |
-| Codex/OpenAI | GPT-5.3 |
+| Codex/OpenAI | GPT-5.3-Codex |
 
 ### /council spawns both
 
@@ -195,7 +195,7 @@ Supporting: provenance, trace, ratchet
 Task(model="opus", run_in_background=true, prompt="...")
 
 # Codex agents (via Bash tool)
-codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-output.md "..."
+codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o .agents/council/codex-output.md "..."
 ```
 
 ### Consolidated Output

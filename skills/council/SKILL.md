@@ -185,8 +185,8 @@ if ! which codex > /dev/null 2>&1; then
   echo "⚠️ Codex CLI not found. Falling back to Claude-only."
   # Downgrade --mixed to --deep (3 Claude agents)
 else
-  # Model availability test — catches account-type restrictions (e.g. gpt-5.3 on ChatGPT accounts)
-  CODEX_MODEL="${COUNCIL_CODEX_MODEL:-gpt-5.3}"
+  # Model availability test — catches account-type restrictions (e.g. gpt-5.3-codex on ChatGPT accounts)
+  CODEX_MODEL="${COUNCIL_CODEX_MODEL:-gpt-5.3-codex}"
   if ! codex exec --full-auto -m "$CODEX_MODEL" -C "$(pwd)" "echo model-check-ok" > /dev/null 2>&1; then
     echo "⚠️ Codex model $CODEX_MODEL unavailable. Falling back to Claude-only."
     # Downgrade --mixed to --deep (3 Claude agents)
@@ -890,7 +890,7 @@ Disagreement handling:
 
 **Target:** Implementation of user authentication
 **Modes:** validate, --mixed
-**Judges:** 3 Claude (Opus 4.6) + 3 Codex (GPT-5.3)
+**Judges:** 3 Claude (Opus 4.6) + 3 Codex (GPT-5.3-Codex)
 
 ---
 
@@ -1057,7 +1057,7 @@ If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimou
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
-| `COUNCIL_CODEX_MODEL` | gpt-5.3 | Default Codex model for --mixed |
+| `COUNCIL_CODEX_MODEL` | gpt-5.3-codex | Default Codex model for --mixed |
 | `COUNCIL_CLAUDE_MODEL` | opus | Claude model for agents |
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
@@ -1138,14 +1138,14 @@ Task(
 **Canonical Codex command form (unchanged — Codex cannot join teams):**
 
 ```bash
-codex exec --full-auto -m gpt-5.3 -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
+codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
 ```
 
 Always use this exact flag order: `--full-auto` → `-m` → `-C` → `-o` → prompt.
 
 **Codex CLI flags (ONLY these are valid):**
 - `--full-auto` — No approval prompts (REQUIRED, always first)
-- `-m <model>` — Model override (default: gpt-5.3)
+- `-m <model>` — Model override (default: gpt-5.3-codex)
 - `-C <dir>` — Working directory
 - `-o <file>` — Output file (use `-o` not `--output`)
 
@@ -1168,9 +1168,9 @@ Task(description="Judge 3", team_name="council-...", name="judge-3", ...)
 # Task(description="Judge: Error-Paths", team_name="council-...", name="judge-error-paths", ...)
 
 # Step 3: Spawn Codex agents (Bash tool, parallel — cannot join teams)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-1.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-2.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-3.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-1.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-2.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-3.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**
@@ -1220,7 +1220,7 @@ TeamDelete()
 | Vendor | Default | Override |
 |--------|---------|----------|
 | Claude | opus | `--claude-model=sonnet` |
-| Codex | gpt-5.3 | `--codex-model=<model>` |
+| Codex | gpt-5.3-codex | `--codex-model=<model>` |
 
 ### Output Collection
 
