@@ -268,23 +268,29 @@ After MAX_RETRIES failures:
 When no explicit validation is specified, apply minimal checks:
 
 ```python
-def default_validation(task_id):
+def default_validation(task_id, worker_artifacts):
     # Check agent didn't end with errors
-    # (parse task notification for failure indicators)
+    # (parse task notification / SendMessage envelope for failure indicators)
 
-    # Check for uncommitted changes
+    # Check worker reported artifacts exist
+    # Workers do NOT commit — they write files and report via SendMessage.
+    # The team lead validates artifacts exist before committing.
+    for artifact in worker_artifacts:
+        if not os.path.exists(artifact):
+            return FAIL(f"Reported artifact not found: {artifact}")
+
+    # Check for modified files (workers write to shared worktree)
     result = subprocess.run("git status --porcelain", shell=True, capture_output=True)
-    if result.stdout.strip():
-        # Uncommitted changes - agent should have committed
-        return WARN("Uncommitted changes detected")
-
-    # Check most recent commit references task
-    result = subprocess.run("git log -1 --oneline", shell=True, capture_output=True)
-    if str(task_id) not in result.stdout.decode():
-        return WARN("Recent commit doesn't reference task")
+    if not result.stdout.strip():
+        return WARN("No file changes detected — worker may not have written anything")
 
     return PASS
 ```
+
+> **Note:** Workers MUST NOT commit. The team lead is the sole committer.
+> Validation checks for file existence and content, not commit history.
+> The lead commits all validated changes after the wave completes.
+> See `skills/swarm/SKILL.md` "Git Commit Policy" for details.
 
 ---
 

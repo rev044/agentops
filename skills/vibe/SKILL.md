@@ -47,6 +47,10 @@ git diff --name-only HEAD~3 2>/dev/null | head -20
 
 If nothing found, ask user.
 
+**Pre-flight: If no files found:**
+Return immediately with: "PASS (no changes to review) — no modified files detected."
+Do NOT spawn agents for empty file lists.
+
 ### Step 2: Run Complexity Analysis
 
 **Detect language and run appropriate tool:**
@@ -168,6 +172,10 @@ Each judge spawns 2 explorer sub-agents to investigate code patterns before judg
 /vibe --debate recent
 ```
 Enables adversarial two-round review where judges critique each other's findings before final verdict. Use for high-stakes reviews where judges are likely to disagree. See `/council` docs for full --debate details.
+
+**Timeout:** Vibe inherits council timeout settings. If judges time out,
+the council report will note partial results. Vibe treats a partial council
+report the same as a full report — the verdict stands with available judges.
 
 ### Step 5: Council Checks
 
@@ -330,6 +338,12 @@ Both should pass before shipping.
 
 ---
 
+## Consolidation
+
+For conflict resolution between agent findings, follow the algorithm in `.agents/specs/conflict-resolution-algorithm.md`.
+
+---
+
 ## See Also
 
 - `skills/council/SKILL.md` — Multi-model validation council
@@ -337,3 +351,4 @@ Both should pass before shipping.
 - `skills/pre-mortem/SKILL.md` — Council validates plans
 - `skills/post-mortem/SKILL.md` — Council validates completed work
 - `skills/standards/SKILL.md` — Language-specific coding standards
+- `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution algorithm

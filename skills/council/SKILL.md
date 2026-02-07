@@ -690,6 +690,20 @@ Instructions:
 
 Your job is to find problems. A PASS with caveats is less valuable than a specific FAIL.
 
+When sending your verdict to the team lead, use the structured envelope format.
+Your message MUST start with a JSON code block:
+
+\`\`\`json
+{
+  "type": "verdict",
+  "verdict": {
+    "value": "PASS | WARN | FAIL",
+    "confidence": "HIGH | MEDIUM | LOW",
+    "key_insight": "One sentence summary"
+  }
+}
+\`\`\`
+
 Rules:
 - Do NOT message other judges — all communication through team lead
 - Do NOT access TaskList — team lead manages task flow
@@ -715,6 +729,20 @@ Instructions:
 3. Send a message to the team lead with your verdict, confidence, and key insight
 4. You may receive follow-up messages (e.g., debate round 2). Process and respond.
 
+When sending your verdict to the team lead, use the structured envelope format.
+Your message MUST start with a JSON code block:
+
+\`\`\`json
+{
+  "type": "verdict",
+  "verdict": {
+    "value": "PASS | WARN | FAIL",
+    "confidence": "HIGH | MEDIUM | LOW",
+    "key_insight": "One sentence summary"
+  }
+}
+\`\`\`
+
 Rules:
 - Do NOT message other judges — all communication through team lead
 - Do NOT access TaskList — team lead manages task flow
@@ -726,6 +754,22 @@ When `--debate` is active, the team lead sends this message to each judge after 
 
 ```
 ## Debate Round 2
+
+## Anti-Anchoring Protocol
+
+Before reviewing other judges' verdicts:
+
+1. **RESTATE your R1 position** — Write 2-3 sentences summarizing your own R1 verdict
+   and the key evidence that led to it. This anchors you to YOUR OWN reasoning before
+   exposure to others.
+
+2. **Then review other verdicts** — Only after restating your position, read the
+   other judges' JSON verdicts below.
+
+3. **Evidence bar for changing verdict** — You may only change your verdict if you can
+   cite a SPECIFIC technical detail, code location, or factual error that you missed
+   in R1. "Judge 2 made a good point" is NOT sufficient. "Judge 2 found an unchecked
+   error path at auth.py:45 that I missed" IS sufficient.
 
 Other judges' R1 verdicts:
 
@@ -851,6 +895,11 @@ When synthesizing:
 2. Use Round 1 verdicts for FINDING COMPLETENESS — a finding in R1 but dropped in R2 without explanation deserves mention
 3. Compare R1 and R2 to identify position shifts
 4. Flag judges who changed verdict without citing a specific technical detail, a misinterpretation they corrected, or a finding they missed (possible anchoring)
+   Flag judges who changed verdict without citing:
+   - A specific file:line or code location
+   - A factual error in their R1 analysis
+   - A missing test case or edge case
+   These are "weak flips" — potential anchoring, not genuine persuasion.
 5. If R1 had at least 2 judges with different verdicts AND R2 is unanimous, note "Convergence detected — review reasoning for anchoring risk"
 6. In the report, include the Verdict Shifts table showing R1→R2 changes per judge
 7. Detect whether debate ran via native teams (judges stayed alive between rounds) or fallback (R2 judges were re-spawned with truncated R1 verdicts). Include the `**Fidelity:**` field in the report header: "full" for native teams, "degraded" for fallback.
@@ -1052,6 +1101,24 @@ If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimou
 
 ## Configuration
 
+### Partial Completion
+
+**Minimum quorum:** At least 1 agent must respond for a valid council (already documented).
+
+**Recommended quorum:** 80% of judges (e.g., 2 of 3 in --deep mode).
+
+**Timeout behavior:** If a judge does not respond within COUNCIL_TIMEOUT:
+1. Log warning: "Judge {name} timed out after {N}s"
+2. Proceed with remaining judges
+3. Note in report: "N/M judges responded (J judge(s) timed out)"
+4. If below minimum quorum (1), return error
+
+**User cancellation:** If the user cancels mid-council:
+1. Send shutdown_request to all judges
+2. Read any output files already written
+3. Generate partial report with INCOMPLETE marker
+4. Note: "Council cancelled by user. Partial results from N/M judges."
+
 ### Environment Variables
 
 | Variable | Default | Description |
@@ -1214,6 +1281,35 @@ TeamDelete()
 ```
 
 > **Note:** `TeamDelete()` deletes the team associated with this session's `TeamCreate()` call. If running concurrent teams (e.g., council inside crank), each team is cleaned up in the session that created it. No team name parameter is needed — the API tracks the current session's team context automatically.
+
+### Reaper Cleanup Pattern
+
+Team cleanup MUST succeed even on partial failures. Follow this sequence:
+
+1. **Attempt graceful shutdown:** Send shutdown_request to each judge
+2. **Wait up to 30s** for shutdown_approved responses
+3. **If any judge doesn't respond:** Log warning, proceed anyway
+4. **Always call TeamDelete()** — even if some judges are unresponsive
+5. **TeamDelete cleans up** the team regardless of member state
+
+**Failure modes and recovery:**
+
+| Failure | Behavior |
+|---------|----------|
+| Judge hangs (no response) | 30s timeout → proceed to TeamDelete |
+| shutdown_request fails | Log warning → proceed to TeamDelete |
+| TeamDelete fails | Log error → team orphaned (manual cleanup: delete ~/.claude/teams/<name>/) |
+| Lead crashes mid-council | Team orphaned until session ends or manual cleanup |
+
+**Never skip TeamDelete.** A lingering team config pollutes future sessions.
+
+### Team Timeout Configuration
+
+| Timeout | Default | Description |
+|---------|---------|-------------|
+| Judge timeout | 120s | Max time for judge to complete (per round) |
+| Shutdown grace period | 30s | Time to wait for shutdown_approved |
+| R2 debate timeout | 90s | Max time for R2 completion after sending debate messages |
 
 ### Model Selection
 

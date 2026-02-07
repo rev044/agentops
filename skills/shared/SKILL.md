@@ -41,7 +41,28 @@ fi
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
 | `codex` | CLI missing or model unavailable | Fall back to Claude-only. Council pre-flight checks both CLI presence (`which codex`) and model availability (single test call). Account-type restrictions (e.g. gpt-5.3-codex on ChatGPT accounts) are caught before spawning agents. |
 | `cass` | Session search unavailable | Skip transcript search. Note "install cass for session history" |
-| Native teams (`TeamCreate`) | API unavailable | Fall back to `Task(run_in_background=true)` fire-and-forget pattern. Council loses debate-via-message (reverts to R2 re-spawn). Swarm loses retry-via-message (reverts to re-spawn). |
+| Native teams | Any capability missing | See "Native Teams Capability Bundle" below for per-capability degradation |
+
+### Native Teams Capability Bundle
+
+Native teams consist of multiple independent capabilities. Each can degrade independently:
+
+| Capability | API | Degraded Behavior |
+|------------|-----|-------------------|
+| Team lifecycle | `TeamCreate`, `TeamDelete` | Fall back to `Task(run_in_background=true)`. No team cleanup needed. |
+| Directed messaging | `SendMessage(type="message")` | Cannot send follow-up instructions. Debate R2 unavailable. Workers run fire-and-forget. |
+| Broadcast | `SendMessage(type="broadcast")` | Cannot notify all workers. Use per-worker Task spawning instead. |
+| Shutdown coordination | `SendMessage(type="shutdown_request/response")` | Workers terminate on their own when done. No graceful shutdown. |
+| Shared task list | `TaskList`, `TaskCreate`, `TaskUpdate` | Use in-memory tracking. Workers cannot see shared state. |
+
+**Degradation matrix:**
+
+| Scenario | Team | Messaging | TaskList | Impact |
+|----------|------|-----------|----------|--------|
+| Full native teams | Yes | Yes | Yes | All features available |
+| TeamCreate fails | No | No | Yes | Fire-and-forget workers, no debate |
+| SendMessage fails | Yes | No | Yes | Workers isolated, no R2 debate |
+| TaskList fails | Yes | Yes | No | Lead tracks manually, workers report via message |
 
 ### Rules
 

@@ -33,6 +33,13 @@ Two steps:
 
 ## Execution Steps
 
+### Pre-Flight Checks
+
+Before proceeding, verify:
+1. **Git repo exists:** `git rev-parse --git-dir 2>/dev/null` — if not, error: "Not in a git repository"
+2. **Work was done:** `git log --oneline -1 2>/dev/null` — if empty, error: "No commits found. Run /implement first."
+3. **Epic context:** If epic ID provided, verify it has closed children. If 0 closed children, error: "No completed work to review."
+
 ### Step 1: Identify Completed Work
 
 **If epic/issue ID provided:** Use it directly.
@@ -78,6 +85,10 @@ Run `/council` with the **retrospective** preset and always 3 judges:
 - `learnings`: What patterns emerged? What should be extracted as reusable knowledge?
 
 Post-mortem always uses 3 judges (`--deep`) because completed work deserves thorough review.
+
+**Timeout:** Post-mortem inherits council timeout settings. If judges time out,
+the council report will note partial results. Post-mortem treats a partial council
+report the same as a full report — the verdict stands with available judges.
 
 The plan/spec content is injected into the council packet context so the `plan-compliance` judge can compare planned vs delivered.
 
@@ -273,9 +284,16 @@ Council reviews epic-123 implementation, retro captures learnings.
 
 ---
 
+## Consolidation
+
+For conflict resolution between agent findings, follow the algorithm in `.agents/specs/conflict-resolution-algorithm.md`.
+
+---
+
 ## See Also
 
 - `skills/council/SKILL.md` — Multi-model validation council
 - `skills/retro/SKILL.md` — Extract learnings
 - `skills/vibe/SKILL.md` — Council validates code
 - `skills/pre-mortem/SKILL.md` — Council validates plans
+- `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution algorithm

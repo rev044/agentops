@@ -203,6 +203,8 @@ STOP and return error:
    - All issues already completed"
 ```
 
+Also verify: epic has at least 1 child issue total. An epic with 0 children means /plan was not run.
+
 Do NOT proceed with empty issue list - this produces false "epic complete" status.
 
 ### Step 4: Execute Wave via Swarm
