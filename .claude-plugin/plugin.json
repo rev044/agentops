@@ -1,6 +1,6 @@
 {
   "name": "agentops",
-  "version": "1.6.0",
+  "version": "1.7.1",
   "description": "A knowledge flywheel for AI coding agents. Your agent remembers across sessions — persistent memory, multi-model validation, and structured workflows for Claude Code.",
   "author": {
     "name": "Boden Fuller",

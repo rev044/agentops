@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-02-07
+
+### Added
+
+- **Hooks system** — 7 hook event types (SessionStart, SessionEnd, PreToolUse, UserPromptSubmit, TaskCompleted, Stop, PreCompact) with 10 scripts covering flywheel pipeline fixes, RPI enforcement gates, and agent team safety
+- **Push gate** (`push-gate.sh`) — Blocks `git push`/`git tag` when vibe check not completed. Gates on RPI ratchet state. Cold start = no enforcement.
+- **Ratchet-aware nudges** (`prompt-nudge.sh`) — Injects one-liner reminders based on prompt keywords vs ratchet state (e.g., "run /vibe before pushing")
+- **Task validation gate** (`task-validation-gate.sh`) — TaskCompleted hook validates metadata.validation rules (files_exist, content_check, tests, lint, command) before accepting task completion
+- **Git worker guard** (`git-worker-guard.sh`) — Blocks `git commit`/`push`/`add --all` for swarm workers, enforcing lead-only commit pattern
+- **Dangerous git guard** (`dangerous-git-guard.sh`) — Blocks force-push, reset --hard, clean -f, checkout ., branch -D. Suggests safe alternatives.
+- **Stop team guard** (`stop-team-guard.sh`) — Prevents orphaned teams by checking for active configs before session stop
+- **PreCompact snapshot** (`precompact-snapshot.sh`) — Snapshots team state + git status before context compaction for recovery
+- **Standards injector** (`standards-injector.sh`) — PreToolUse hook injects language-specific coding standards before Write/Edit
+- **Pending cleaner** (`pending-cleaner.sh`) — Archives stale pending queue entries (>2 days) at session start
+- **Ratchet pre-flight** in `/implement` — Checks pre-mortem status before coding starts
+- **Ratchet post-flight** in `/vibe` — Records vibe completion in ratchet chain on PASS/WARN
+- **README** — Reorganized skill catalog by category (orchestration, workflow, utilities, internal)
+
+### Fixed
+
+- Replace `eval()` with restricted execution in task-validation-gate.sh (command injection)
+- Add missing kill switch to standards-injector.sh
+- Remove `set -euo pipefail` from session-start.sh (hooks must fail open)
+- Fix `--format=oneline` to `-o oneline` for ao ratchet status
+- Fix relative `.agents/ao` path to use `git rev-parse --show-toplevel`
+- Replace PostToolUse comment-checker with PreToolUse standards-injector
+- Add failure logging to all ao commands in hooks.json (was bare `|| true`)
+
+### Removed
+
+- `comment-checker.sh` — Replaced by standards-injector.sh
+
 ## [1.7.0] - 2026-02-07
 
 ### Added
