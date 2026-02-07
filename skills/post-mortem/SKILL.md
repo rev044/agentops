@@ -26,6 +26,7 @@ Two steps:
 /post-mortem --deep recent      # thorough council review
 /post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
 /post-mortem --explorers=2 epic-123  # deep investigation before judging
+/post-mortem --debate epic-123      # two-round adversarial review
 ```
 
 ---
@@ -86,10 +87,17 @@ The plan/spec content is injected into the council packet context so the `plan-c
 ```
 Single-agent structured review. Fast wrap-up without spawning.
 
+**With debate mode:**
+```
+/post-mortem --debate epic-123
+```
+Enables adversarial two-round review for post-implementation validation. Use for high-stakes shipped work where missed findings have production consequences. See `/council` docs for full --debate details.
+
 **Advanced options (passed through to council):**
 - `--mixed` — Cross-vendor (Claude + Codex) with retrospective perspectives
 - `--preset=<name>` — Override with different personas (e.g., `--preset=ops` for production readiness)
 - `--explorers=N` — Each judge spawns N explorers to investigate the implementation deeply before judging
+- `--debate` — Two-round adversarial review (judges critique each other's findings before final verdict)
 
 ### Step 4: Extract Learnings
 

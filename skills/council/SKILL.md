@@ -363,6 +363,14 @@ Your job is to find problems. A PASS with caveats is less valuable than a specif
 
 When `--preset` or `--perspectives` is used, judges receive the perspective-labeled prompt instead (see Agent Prompts section).
 
+### Auto-Escalation Rule
+
+**When `--preset` or `--perspectives` specifies more perspectives than the current judge count, automatically escalate judge count to match.** For example:
+- `/council --preset=security-audit validate X` → 3 perspectives → auto-escalate to 3 judges (equivalent to `--deep`)
+- `/council --perspectives="a,b,c,d" validate X` → 4 perspectives → auto-escalate to 4 judges (equivalent to `--count=4`)
+
+This prevents silently dropping perspectives. The `--count` flag overrides auto-escalation (user explicitly chose a count).
+
 ### Custom Perspectives
 
 Simple name-based:
@@ -420,6 +428,8 @@ code-review:
   error-paths:      "Trace every error handling path. What's uncaught? What fails silently?"
   api-surface:      "Review every public interface. Is the contract clear? Breaking changes?"
   spec-compliance:  "Compare implementation against the spec/bead. What's missing? What diverges?"
+  # Note: spec-compliance gracefully degrades to general correctness review when no spec
+  # is present in context.spec. The judge reviews code on its own merits.
 
 plan-review:
   missing-requirements: "What's not in the spec that should be? What questions haven't been asked?"

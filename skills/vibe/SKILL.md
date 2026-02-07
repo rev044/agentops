@@ -121,11 +121,11 @@ If a spec is found, include it in the council packet's `context.spec` field:
 
 The spec content is injected into the council packet context so the `spec-compliance` judge can compare implementation against it.
 
-**Without spec — use default independent judges:**
+**Without spec — 3 independent judges (no perspectives):**
 ```
-/council validate <target>
+/council --deep validate <target>
 ```
-Falls back to council default behavior (independent judges, no perspectives).
+3 independent judges (no perspective labels). Vibe always uses `--deep` for consistency with /pre-mortem and /post-mortem.
 
 **Council receives:**
 - Files to review
@@ -139,11 +139,11 @@ Falls back to council default behavior (independent judges, no perspectives).
 ```
 Single-agent structured self-review. Fast, cheap, good for mid-implementation checks.
 
-**With --deep (3 judges, no spec):**
+**With explicit --deep (redundant — vibe always uses --deep):**
 ```
 /council --deep validate <target>
 ```
-3 independent judges (no perspective labels).
+3 independent judges (no perspective labels). Same as default vibe behavior.
 
 **With --mixed (cross-vendor):**
 ```
@@ -216,11 +216,12 @@ Each judge reviews for:
 
 | Judge | Verdict | Key Finding |
 |-------|---------|-------------|
-| Error-Paths | ... | ... (if spec found) |
-| API-Surface | ... | ... (if spec found) |
-| Spec-Compliance | ... | ... (if spec found) |
-| Judge 1 | ... | ... (if no spec — independent) |
-| Judge 2 | ... | ... (if no spec — independent) |
+| Error-Paths | ... | ... (with spec — code-review preset) |
+| API-Surface | ... | ... (with spec — code-review preset) |
+| Spec-Compliance | ... | ... (with spec — code-review preset) |
+| Judge 1 | ... | ... (no spec — 3 independent judges) |
+| Judge 2 | ... | ... (no spec — 3 independent judges) |
+| Judge 3 | ... | ... (no spec — 3 independent judges) |
 
 ## Shared Findings
 - ...
