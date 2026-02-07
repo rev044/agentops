@@ -13,6 +13,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/codex-team` skill** — Spawn parallel Codex execution agents from Claude. Claude orchestrates task decomposition, Codex agents execute independently via `codex exec --full-auto`. Includes pre-flight checks, canonical command form, prompt guidelines, and fallback to `/swarm`.
 - **`/codex-team` file-conflict prevention** — Team lead analyzes file targets before spawning: same-file tasks merge into one agent, dependent tasks sequence into waves with context injection, different-file tasks run in parallel. The orchestrator IS the lock manager.
 
+### Crank All Epics (ag-kmk, ag-e0g, ag-ow7)
+
+Autonomous execution of 19 issues across 3 epics in 3 waves (18 parallel workers, ~16 minutes, 100% success rate, zero retries).
+
+#### Skills Hardening (ag-kmk + ag-e0g)
+
+- **Structured SendMessage envelope** — JSON envelope schema for machine-parseable team communication (completion, blocked, retry, progress, verdict types)
+- **Conflict resolution algorithm** — Severity escalation, deduplication, quorum rules, verdict computation, contradiction handling (`.agents/specs/conflict-resolution-algorithm.md`)
+- **Pre-flight checks** — Added to vibe, post-mortem, and crank: verify git repo, files exist, epic has children before spawning agents
+- **Native-teams fallback bundle** — Per-capability degradation table in `skills/shared/SKILL.md`; graceful fallback when specific team features unavailable
+- **Race-free swarm claiming** — Mayor assigns tasks before spawning; workers only transition status (no concurrent claim races)
+- **Anti-anchoring debate protocol** — R2 judges restate their R1 position before reading others' verdicts; weak flip detection in consolidation
+- **Lead-only commit policy** — Workers write files, never `git commit`; team lead validates and commits per wave
+- **Validation contract updated** — Default validation checks worker-reported artifacts, not commit history
+- **Reaper cleanup pattern** — Graceful team shutdown sequence (shutdown_request → wait → TeamDelete) with configurable timeouts
+- **Agent timeout and partial completion** — Worker timeout (180s), quorum handling for partial council results
+
+#### ao CLI Quality (ag-ow7)
+
+- **Shell completion** — `ao completion bash|zsh|fish` for tab-complete support
+- **`ao forge batch`** — Scan and process pending transcripts in bulk with deduplication
+- **`ao pool batch-promote`** — Bulk promote pending candidates meeting criteria (age >24h, cited, not duplicate)
+- **File splits** — `ratchet.go` (1001→11 files), `metrics.go` (930→5 files), `inject.go` (891→5 files) for maintainability
+
+### Fixed
+
+- **Batch dedup false positives** — Replaced naive 80-char and 200-char prefix truncation in `normalizeForDedup` and `normalizeContent` with SHA256 content hashing. Distinct learnings with similar openings are no longer silently deduplicated.
+- **Batch command test coverage** — Added `batch_forge_test.go` and `batch_promote_test.go` covering dedup logic, promotion criteria, citation counting, transcript discovery, and content loading.
+
 ### Changed
 
 - **Codex model updated to `gpt-5.3-codex`** — All references across council, shared, and SKILL-TIERS updated from `gpt-5.3` to `gpt-5.3-codex` (canonical Codex model name).
