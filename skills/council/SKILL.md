@@ -49,7 +49,7 @@ Council is a general-purpose multi-model consensus tool. Use it for:
 | Mode | Agents | Vendors | Use Case |
 |------|--------|---------|----------|
 | `--quick` | 0 (inline) | Self | Fast single-agent check, no spawning |
-| default | 2 | Claude | Standard multi-perspective validation |
+| default | 2 | Claude | Independent judges (no perspective labels) |
 | `--deep` | 3 | Claude | Thorough review |
 | `--mixed` | 3+3 | Claude + Codex | Cross-vendor consensus |
 | `--debate` | 2+ | Claude | Adversarial refinement (2 rounds) |
@@ -112,10 +112,11 @@ Natural language works — the skill infers task type from your prompt.
 │     CLAUDE AGENTS     │           │     CODEX AGENTS      │
 │  (Task tool, teammates│           │  (Bash tool, parallel)│
 │   on council team)    │           │                       │
-│                       │           │  Agent 1: Pragmatist  │
-│  Agent 1: Pragmatist  │           │  Agent 2: Skeptic     │
-│  Agent 2: Skeptic     │           │  Agent 3: Visionary   │
-│  Agent 3: Visionary   │           │  (--mixed only)       │
+│                       │           │  Agent 1 (independent │
+│  Agent 1 (independent │           │    or with preset)    │
+│    or with preset)    │           │  Agent 2              │
+│  Agent 2              │           │  Agent 3              │
+│  Agent 3 (--deep only)│           │  (--mixed only)       │
 │  (--deep/--mixed only)│           │                       │
 │                       │           │  Output: JSON + MD    │
 │  Write files, then    │           │  Files: .agents/      │
@@ -217,7 +218,7 @@ Single-agent inline validation. No subprocess spawning, no Task tool, no Codex. 
 3. **Perform structured self-review inline** using this template:
 
 ```
-Analyze the target as a single reviewer covering all perspectives (pragmatist + skeptic).
+Analyze the target as a single independent reviewer.
 
 Target: {TARGET_DESCRIPTION}
 
@@ -299,13 +300,17 @@ The packet sent to each agent. **File contents are included inline** — agents 
         }
       ],
       "diff": "git diff output if applicable",
+      "spec": {
+        "source": "bead na-0042 | plan doc | none",
+        "content": "The spec/bead description text (optional — included when wrapper provides it)"
+      },
       "prior_decisions": [
         "Using JWT, not sessions",
         "Refresh tokens required"
       ]
     },
-    "perspective": "skeptic",
-    "perspective_description": "What could go wrong? What's over-engineered? Where will this break?",
+    "perspective": "skeptic (only when --preset or --perspectives used)",
+    "perspective_description": "What could go wrong? (only when --preset or --perspectives used)",
     "output_schema": {
       "verdict": "PASS | WARN | FAIL",
       "confidence": "HIGH | MEDIUM | LOW",
@@ -329,13 +334,34 @@ The packet sent to each agent. **File contents are included inline** — agents 
 
 ## Perspectives
 
-### Default Perspectives
+### Default: Independent Judges (No Perspectives)
 
-| Perspective | Focus | Assigned To |
-|-------------|-------|-------------|
-| **pragmatist** | What's simplest? What can we cut? Implementation risk. | Agent 1 |
-| **skeptic** | What could go wrong? Failure modes. Over-engineering. | Agent 2 |
-| **visionary** | Where does this lead? 10x version. Missing pieces. | Agent 3 (--deep/--mixed) |
+When no `--preset` or `--perspectives` flag is provided, all judges get the **same prompt** with no perspective label. Diversity comes from independent sampling, not personality labels.
+
+| Judge | Prompt | Assigned To |
+|-------|--------|-------------|
+| **Judge 1** | Independent judge — same prompt as all others | Agent 1 |
+| **Judge 2** | Independent judge — same prompt as all others | Agent 2 |
+| **Judge 3** | Independent judge — same prompt as all others | Agent 3 (--deep/--mixed) |
+
+The default judge prompt (no perspective labels):
+
+```
+You are Council Judge {N}. You are one of {TOTAL} independent judges evaluating the same target.
+
+{JSON_PACKET}
+
+Instructions:
+1. Analyze the target thoroughly
+2. Write your analysis to: .agents/council/{OUTPUT_FILENAME}
+   - Start with a JSON code block matching the output_schema
+   - Follow with Markdown explanation
+3. Send verdict to team lead
+
+Your job is to find problems. A PASS with caveats is less valuable than a specific FAIL.
+```
+
+When `--preset` or `--perspectives` is used, judges receive the perspective-labeled prompt instead (see Agent Prompts section).
 
 ### Custom Perspectives
 
@@ -350,11 +376,14 @@ Use `--preset=<name>` for common persona configurations:
 
 | Preset | Perspectives | Best For |
 |--------|-------------|----------|
-| `default` | pragmatist, skeptic, visionary | General validation |
+| `default` | (none — independent judges) | General validation |
 | `security-audit` | attacker, defender, compliance | Security review |
 | `architecture` | scalability, maintainability, simplicity | System design |
 | `research` | breadth, depth, contrarian | Deep investigation |
 | `ops` | reliability, observability, incident-response | Operations review |
+| `code-review` | error-paths, api-surface, spec-compliance | Code validation (used by /vibe) |
+| `plan-review` | missing-requirements, feasibility, scope | Plan validation (used by /pre-mortem) |
+| `retrospective` | plan-compliance, tech-debt, learnings | Post-implementation review (used by /post-mortem) |
 
 ```bash
 /council --preset=security-audit validate the auth system
@@ -386,6 +415,21 @@ ops:
   reliability:       "What fails first? What's our recovery time? Where are SPOFs?"
   observability:     "Can we see what's happening? What metrics/logs/traces do we need?"
   incident-response: "When this breaks at 3am, what do we need? What's our runbook?"
+
+code-review:
+  error-paths:      "Trace every error handling path. What's uncaught? What fails silently?"
+  api-surface:      "Review every public interface. Is the contract clear? Breaking changes?"
+  spec-compliance:  "Compare implementation against the spec/bead. What's missing? What diverges?"
+
+plan-review:
+  missing-requirements: "What's not in the spec that should be? What questions haven't been asked?"
+  feasibility:          "What's technically hard or impossible here? What will take 3x longer than estimated?"
+  scope:                "What's unnecessary? What's missing? Where will scope creep?"
+
+retrospective:
+  plan-compliance: "What was planned vs what was delivered? What's missing? What was added?"
+  tech-debt:       "What shortcuts were taken? What will bite us later? What needs cleanup?"
+  learnings:       "What patterns emerged? What should be extracted as reusable knowledge?"
 ```
 
 ---
@@ -404,7 +448,7 @@ Judges can spawn explorer sub-agents for parallel deep-dive research. This is th
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Judge (Pragmatist)                                              │
+│  Judge (independent or with perspective)                          │
 │                                                                  │
 │  1. Receive packet + perspective                                 │
 │  2. Identify N sub-questions to explore                          │
@@ -440,7 +484,8 @@ Judges can spawn explorer sub-agents for parallel deep-dive research. This is th
 ### Explorer Prompt
 
 ```
-You are Explorer {M} for Council Judge {N} — THE {PERSPECTIVE}.
+You are Explorer {M} for Council Judge {N}{PERSPECTIVE_SUFFIX}.
+(PERSPECTIVE_SUFFIX is " — THE {PERSPECTIVE}" when using presets, or empty for independent judges)
 
 ## Your Sub-Question
 
@@ -490,14 +535,13 @@ When `--explorers=N` is set, the judge prompt includes:
 
 ```
 Before analyzing, identify {N} specific sub-questions that would help you
-answer from your {PERSPECTIVE} angle. For each sub-question, spawn an
-explorer agent to investigate it. Use the explorer findings to inform
-your final analysis.
+answer thoroughly. For each sub-question, spawn an explorer agent to
+investigate it. Use the explorer findings to inform your final analysis.
 
 Sub-questions should be:
 - Specific and searchable (not vague)
 - Complementary (cover different aspects)
-- Relevant to your perspective
+- Relevant to your analysis angle (perspective if assigned, or general if independent)
 ```
 
 ### Timeout
@@ -548,7 +592,7 @@ Phase 4: shutdown_request each judge, TeamDelete()
 r1_verdicts = [extract JSON verdict from each R1 output file]
 r1_unanimous = all verdicts have same verdict value (PASS/WARN/FAIL)
 
-For each judge in [judge-pragmatist, judge-skeptic, judge-visionary...]:
+For each judge in [judge-1, judge-2, judge-3...] (or [judge-{perspective}...] with presets):
   other_verdicts = [v for v in r1_verdicts if v.judge != this_judge]
   branch = "agreed" if r1_unanimous else "disagreed"
 
@@ -579,7 +623,7 @@ For **other judges' verdicts** sent via SendMessage, include the full JSON verdi
 
 ```json
 {
-  "judge": "pragmatist",
+  "judge": "judge-1 (or perspective name when using presets)",
   "verdict": "WARN",
   "confidence": "HIGH",
   "key_insight": "Rate limiting missing on auth endpoints",
@@ -616,7 +660,34 @@ Full Markdown analysis remains in `.agents/council/YYYY-MM-DD-<target>-claude-{p
 
 ## Agent Prompts
 
-### Judge Agent Prompt (Teammate)
+### Judge Agent Prompt — Default (Independent, No Perspectives)
+
+Used when no `--preset` or `--perspectives` flag is provided:
+
+```
+You are Council Judge {N}. You are one of {TOTAL} independent judges evaluating the same target.
+You are a teammate on team "{TEAM_NAME}".
+
+{JSON_PACKET}
+
+Instructions:
+1. Analyze the target thoroughly
+2. Write your analysis to: .agents/council/{OUTPUT_FILENAME}
+   - Start with a JSON code block matching the output_schema
+   - Follow with Markdown explanation
+3. Send a message to the team lead with your verdict, confidence, and key insight
+4. You may receive follow-up messages (e.g., debate round 2). Process and respond.
+
+Your job is to find problems. A PASS with caveats is less valuable than a specific FAIL.
+
+Rules:
+- Do NOT message other judges — all communication through team lead
+- Do NOT access TaskList — team lead manages task flow
+```
+
+### Judge Agent Prompt — With Perspectives (Preset or Custom)
+
+Used when `--preset` or `--perspectives` flag is provided:
 
 ```
 You are Council Member {N} — THE {PERSPECTIVE}.
@@ -699,14 +770,14 @@ Required JSON format:
     "steel_man": "strongest opposing argument I considered",
     "challenges": [
       {
-        "target_judge": "skeptic",
+        "target_judge": "judge-2",
         "claim": "what they claimed",
         "response": "why I agree or disagree"
       }
     ],
     "acknowledgments": [
       {
-        "source_judge": "pragmatist",
+        "source_judge": "judge-1",
         "point": "what they found",
         "impact": "how it affected my analysis"
       }
@@ -815,10 +886,12 @@ Disagreement handling:
 
 ### Verdicts
 
-| Vendor | Pragmatist | Skeptic | Visionary |
-|--------|------------|---------|-----------|
+| Vendor | Judge 1 | Judge 2 | Judge 3 |
+|--------|---------|---------|---------|
 | Claude | PASS | WARN | PASS |
 | Codex | WARN | WARN | WARN |
+
+*(With `--preset`, column headers reflect perspective names instead of Judge N)*
 
 ---
 
@@ -861,10 +934,10 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 
 ### Options Explored
 
-| Option | Pragmatist | Skeptic | Visionary |
-|--------|------------|---------|-----------|
-| Option A | Pros/cons | Risks | Potential |
-| Option B | Pros/cons | Risks | Potential |
+| Option | Judge 1 | Judge 2 | Judge 3 |
+|--------|---------|---------|---------|
+| Option A | Assessment | Assessment | Assessment |
+| Option B | Assessment | Assessment | Assessment |
 
 ### Recommendation
 
@@ -889,9 +962,9 @@ Each judge investigated a different aspect of the topic:
 
 | Facet | Judge | Key Findings |
 |-------|-------|-------------|
-| <aspect 1> | Pragmatist | <summary> |
-| <aspect 2> | Skeptic | <summary> |
-| <aspect 3> | Visionary | <summary> |
+| <aspect 1> | Judge 1 | <summary> |
+| <aspect 2> | Judge 2 | <summary> |
+| <aspect 3> | Judge 3 | <summary> |
 
 ### Synthesized Findings
 
@@ -935,19 +1008,19 @@ If debate ran in fallback mode (re-spawned with truncated R1 verdicts), use inst
 
 | Judge | R1 Verdict | R2 Verdict | Changed? | Reason |
 |-------|-----------|-----------|----------|--------|
-| Pragmatist | PASS | WARN | Yes | Accepted Skeptic's finding on rate limiting |
-| Skeptic | WARN | WARN | No | Confirmed after reviewing counterarguments |
-| Visionary | PASS | PASS | No | Maintained — challenged Skeptic's scope concern |
+| Judge 1 (or Perspective) | PASS | WARN | Yes | Accepted Judge 2's finding on rate limiting |
+| Judge 2 (or Perspective) | WARN | WARN | No | Confirmed after reviewing counterarguments |
+| Judge 3 (or Perspective) | PASS | PASS | No | Maintained — challenged Judge 2's scope concern |
 
 ### Debate Notes
 
 **Key Exchanges:**
-- **Pragmatist ← Skeptic:** [what was exchanged and its impact]
-- **Visionary vs Skeptic:** [where they disagreed and why]
+- **Judge 1 ← Judge 2:** [what was exchanged and its impact]
+- **Judge 3 vs Judge 2:** [where they disagreed and why]
 
 **Steel-Man Highlights:**
-- Pragmatist steel-manned: "[strongest opposing argument they engaged with]"
-- Skeptic steel-manned: "[strongest opposing argument they engaged with]"
+- Judge 1 steel-manned: "[strongest opposing argument they engaged with]"
+- Judge 2 steel-manned: "[strongest opposing argument they engaged with]"
 ```
 
 **Convergence Detection:**
@@ -989,7 +1062,7 @@ If Round 1 had at least 2 judges with different verdicts AND Round 2 is unanimou
 | `--debate` | Enable adversarial debate round (2 rounds via SendMessage, same agents). Incompatible with `--quick`. |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspective names |
-| `--preset=<name>` | Built-in persona preset (default, security-audit, architecture, research, ops) |
+| `--preset=<name>` | Built-in persona preset (security-audit, architecture, research, ops, code-review, plan-review, retrospective) |
 | `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed). Subject to MAX_AGENTS=12 cap. |
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
@@ -1012,14 +1085,27 @@ Team naming convention: `council-YYYYMMDD-<target>` (e.g., `council-20260206-aut
 
 **Spawn judges as teammates on the council team:**
 
+Default (independent judges, no perspectives):
 ```
 Task(
-  description="Council judge: Pragmatist",
+  description="Council judge 1",
   subagent_type="general-purpose",
   model="opus",
   team_name="council-YYYYMMDD-<target>",
-  name="judge-pragmatist",
-  prompt="{JUDGE_TEAMMATE_PROMPT}"
+  name="judge-1",
+  prompt="{JUDGE_DEFAULT_PROMPT}"
+)
+```
+
+With perspectives (--preset or --perspectives):
+```
+Task(
+  description="Council judge: Error-Paths",
+  subagent_type="general-purpose",
+  model="opus",
+  team_name="council-YYYYMMDD-<target>",
+  name="judge-error-paths",
+  prompt="{JUDGE_PERSPECTIVE_PROMPT}"
 )
 ```
 
@@ -1029,7 +1115,7 @@ Judges join the team, write output files, and send completion messages to the te
 
 ```
 Task(
-  description="Council judge: Pragmatist",
+  description="Council judge 1",
   subagent_type="general-purpose",
   model="opus",
   run_in_background=true,
@@ -1064,14 +1150,17 @@ Always use this exact flag order: `--full-auto` → `-m` → `-C` → `-o` → p
 TeamCreate(team_name="council-YYYYMMDD-<target>")
 
 # Step 2: Spawn Claude judges as teammates (parallel)
-Task(description="Judge 1: Pragmatist", team_name="council-...", name="judge-pragmatist", ...)
-Task(description="Judge 2: Skeptic", team_name="council-...", name="judge-skeptic", ...)
-Task(description="Judge 3: Visionary", team_name="council-...", name="judge-visionary", ...)
+# Default (independent — no perspectives):
+Task(description="Judge 1", team_name="council-...", name="judge-1", ...)
+Task(description="Judge 2", team_name="council-...", name="judge-2", ...)
+Task(description="Judge 3", team_name="council-...", name="judge-3", ...)
+# With --preset or --perspectives:
+# Task(description="Judge: Error-Paths", team_name="council-...", name="judge-error-paths", ...)
 
 # Step 3: Spawn Codex agents (Bash tool, parallel — cannot join teams)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-pragmatist.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-skeptic.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-visionary.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-1.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-2.md ...", run_in_background=true)
+Bash(command="codex exec --full-auto -m gpt-5.3 -C \"$(pwd)\" -o .agents/council/codex-3.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**
@@ -1089,7 +1178,7 @@ r1_unanimous = all R1 verdicts have same value
 # Send to each judge
 SendMessage(
   type="message",
-  recipient="judge-pragmatist",
+  recipient="judge-1",  # or "judge-{perspective}" with presets
   content="## Debate Round 2\n\nOther judges' R1 verdicts:\n\n{OTHER_VERDICTS_JSON}\n\n{DEBATE_INSTRUCTIONS_FOR_BRANCH}",
   summary="Debate R2: review other verdicts"
 )
@@ -1105,9 +1194,10 @@ Judges wake from idle, process R2, write R2 files, send completion message.
 
 ```
 # Shutdown each judge
-SendMessage(type="shutdown_request", recipient="judge-pragmatist", content="Council complete")
-SendMessage(type="shutdown_request", recipient="judge-skeptic", content="Council complete")
-SendMessage(type="shutdown_request", recipient="judge-visionary", content="Council complete")
+SendMessage(type="shutdown_request", recipient="judge-1", content="Council complete")
+SendMessage(type="shutdown_request", recipient="judge-2", content="Council complete")
+SendMessage(type="shutdown_request", recipient="judge-3", content="Council complete")
+# With presets: use judge-{perspective} names instead (e.g., judge-error-paths)
 
 # Delete team
 TeamDelete()
@@ -1130,14 +1220,17 @@ All council outputs go to `.agents/council/`:
 # Ensure directory exists
 mkdir -p .agents/council
 
-# Claude output (R1)
-.agents/council/YYYY-MM-DD-<target>-claude-pragmatist.md
+# Claude output (R1) — independent judges
+.agents/council/YYYY-MM-DD-<target>-claude-1.md
+
+# Claude output (R1) — with presets
+.agents/council/YYYY-MM-DD-<target>-claude-error-paths.md
 
 # Claude output (R2, when --debate)
-.agents/council/YYYY-MM-DD-<target>-claude-pragmatist-r2.md
+.agents/council/YYYY-MM-DD-<target>-claude-1-r2.md
 
 # Codex output (R1 only, even with --debate)
-.agents/council/YYYY-MM-DD-<target>-codex-pragmatist.md
+.agents/council/YYYY-MM-DD-<target>-codex-1.md
 
 # Final consolidated report
 .agents/council/YYYY-MM-DD-<target>-report.md
@@ -1153,7 +1246,7 @@ mkdir -p .agents/council
 /council validate recent
 ```
 
-2 Claude agents validate recent commits from pragmatist + skeptic perspectives.
+2 independent Claude judges validate recent commits (no perspective labels).
 
 ### Deep Architecture Review
 
@@ -1193,7 +1286,7 @@ mkdir -p .agents/council
 /council brainstorm caching strategies for the API
 ```
 
-2 Claude agents explore options, pros/cons, recommend one.
+2 independent Claude judges explore options, pros/cons, recommend one.
 
 ### Research Trade-offs
 
@@ -1201,7 +1294,7 @@ mkdir -p .agents/council
 /council research Redis vs Memcached for session storage
 ```
 
-2 judges assess properties, trade-offs, and gaps between options.
+2 independent judges assess properties, trade-offs, and gaps between options.
 
 ### Validate a Spec
 
@@ -1209,7 +1302,7 @@ mkdir -p .agents/council
 /council validate the implementation plan in PLAN.md
 ```
 
-2 Claude agents provide structured feedback on the plan.
+2 independent Claude judges provide structured feedback on the plan.
 
 ---
 
@@ -1271,15 +1364,15 @@ If `TeamCreate` is unavailable (API error, environment constraint), fall back to
 
 Convention: `council-YYYYMMDD-<target>` (e.g., `council-20260206-auth-system`).
 
-Judge names: `judge-{perspective}` (e.g., `judge-pragmatist`, `judge-skeptic`).
+Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or `judge-{perspective}` when using presets/perspectives (e.g., `judge-error-paths`, `judge-feasibility`).
 
 ---
 
 ## See Also
 
-- `skills/vibe/SKILL.md` — Complexity + council for code validation (uses `--preset=default` + validate)
-- `skills/pre-mortem/SKILL.md` — Plan validation (uses council validate)
-- `skills/post-mortem/SKILL.md` — Work wrap-up (uses council validate + retro)
+- `skills/vibe/SKILL.md` — Complexity + council for code validation (uses `--preset=code-review` when spec found)
+- `skills/pre-mortem/SKILL.md` — Plan validation (uses `--preset=plan-review`, always 3 judges)
+- `skills/post-mortem/SKILL.md` — Work wrap-up (uses `--preset=retrospective`, always 3 judges + retro)
 - `skills/swarm/SKILL.md` — Multi-agent orchestration
 - `skills/standards/SKILL.md` — Language-specific coding standards
 - `skills/research/SKILL.md` — Codebase exploration (complementary to council research mode)

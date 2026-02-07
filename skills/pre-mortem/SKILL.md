@@ -44,11 +44,18 @@ Use the most recent file. If nothing found, ask user.
 
 ### Step 2: Run Council Validation
 
-Run `/council validate` on the plan/spec:
+Run `/council` with the **plan-review** preset and always 3 judges:
 
 ```
-/council validate <plan-path>
+/council --deep --preset=plan-review validate <plan-path>
 ```
+
+**Default (3 judges with plan-review perspectives):**
+- `missing-requirements`: What's not in the spec that should be? What questions haven't been asked?
+- `feasibility`: What's technically hard or impossible here? What will take 3x longer than estimated?
+- `scope`: What's unnecessary? What's missing? Where will scope creep?
+
+Pre-mortem always uses 3 judges (`--deep`) because plans deserve thorough review.
 
 **With --quick (inline, no spawning):**
 ```
@@ -56,31 +63,21 @@ Run `/council validate` on the plan/spec:
 ```
 Single-agent structured review. Fast sanity check before committing to full council.
 
-**Default (2 judges):**
-- Pragmatist: Is this implementable? What's missing?
-- Skeptic: What could go wrong? What's over-engineered?
-
-**With --deep (3 judges):**
-```
-/council --deep validate <plan-path>
-```
-Adds Visionary: Where does this lead? What's the 10x version?
-
 **With --mixed (cross-vendor):**
 ```
-/council --mixed validate <plan-path>
+/council --mixed --preset=plan-review validate <plan-path>
 ```
-3 Claude + 3 Codex agents for cross-vendor plan validation.
+3 Claude + 3 Codex agents for cross-vendor plan validation with plan-review perspectives.
 
-**With preset override:**
+**With explicit preset override:**
 ```
-/council --preset=architecture validate <plan-path>
+/pre-mortem --preset=architecture path/to/PLAN.md
 ```
-Uses architecture-focused personas (scalability, maintainability, simplicity) for system design plans.
+Explicit `--preset` overrides the automatic plan-review preset. Uses architecture-focused personas instead.
 
 **With explorers:**
 ```
-/council --explorers=3 validate <plan-path>
+/council --deep --preset=plan-review --explorers=3 validate <plan-path>
 ```
 Each judge spawns 3 explorers to investigate aspects of the plan's feasibility against the codebase. Useful for complex migration or refactoring plans.
 
@@ -112,9 +109,9 @@ Enables adversarial two-round review for plan validation. Use for high-stakes pl
 
 | Judge | Verdict | Key Finding |
 |-------|---------|-------------|
-| Pragmatist | ... | ... |
-| Skeptic | ... | ... |
-| Visionary | ... | (if --deep) |
+| Missing-Requirements | ... | ... |
+| Feasibility | ... | ... |
+| Scope | ... | ... |
 
 ## Shared Findings
 - ...
@@ -165,15 +162,7 @@ Tell the user:
 /pre-mortem .agents/plans/2026-02-05-auth-system.md
 ```
 
-Council reviews the auth system plan, reports whether it's ready to implement.
-
-### Deep Validation for Complex Specs
-
-```bash
-/pre-mortem --deep .agents/specs/api-v2-spec.md
-```
-
-3 judges (pragmatist, skeptic, visionary) review the spec thoroughly.
+3 judges (missing-requirements, feasibility, scope) review the auth system plan.
 
 ### Cross-Vendor Plan Validation
 
@@ -181,7 +170,15 @@ Council reviews the auth system plan, reports whether it's ready to implement.
 /pre-mortem --mixed .agents/plans/2026-02-05-auth-system.md
 ```
 
-3 Claude + 3 Codex agents validate the plan from different vendor perspectives.
+3 Claude + 3 Codex agents validate the plan with plan-review perspectives.
+
+### Architecture-Focused Review
+
+```bash
+/pre-mortem --preset=architecture .agents/specs/api-v2-spec.md
+```
+
+3 judges with architecture perspectives (scalability, maintainability, simplicity) review the spec.
 
 ### Auto-Find Recent Plan
 

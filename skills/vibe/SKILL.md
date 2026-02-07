@@ -91,18 +91,47 @@ fi
 
 **Include complexity findings in council context.**
 
-### Step 3: Run Council Validation
+### Step 3: Load the Spec (New)
 
-Run `/council validate` with complexity context:
+Before invoking council, try to find the relevant spec/bead:
 
+1. **If target looks like a bead ID** (e.g., `na-0042`): `bd show <id>` to get the spec
+2. **Search for plan doc:** `ls .agents/plans/ | grep <target-keyword>`
+3. **Check git log:** `git log --oneline | head -10` to find the relevant bead reference
+
+If a spec is found, include it in the council packet's `context.spec` field:
+```json
+{
+  "spec": {
+    "source": "bead na-0042",
+    "content": "<the spec/bead description text>"
+  }
+}
+```
+
+### Step 4: Run Council Validation
+
+**With spec found — use code-review preset (3 judges):**
+```
+/council --deep --preset=code-review validate <target>
+```
+- `error-paths`: Trace every error handling path. What's uncaught? What fails silently?
+- `api-surface`: Review every public interface. Is the contract clear? Breaking changes?
+- `spec-compliance`: Compare implementation against the spec. What's missing? What diverges?
+
+The spec content is injected into the council packet context so the `spec-compliance` judge can compare implementation against it.
+
+**Without spec — use default independent judges:**
 ```
 /council validate <target>
 ```
+Falls back to council default behavior (independent judges, no perspectives).
 
 **Council receives:**
 - Files to review
 - Complexity hotspots (from Step 2)
 - Git diff context
+- Spec content (when found, in `context.spec`)
 
 **With --quick (inline, no spawning):**
 ```
@@ -110,15 +139,11 @@ Run `/council validate` with complexity context:
 ```
 Single-agent structured self-review. Fast, cheap, good for mid-implementation checks.
 
-**Default (2 judges):**
-- Pragmatist: Is this implementable? What's overcomplicated?
-- Skeptic: What could break? Security issues? Edge cases?
-
-**With --deep (3 judges):**
+**With --deep (3 judges, no spec):**
 ```
 /council --deep validate <target>
 ```
-Adds Visionary: Architecture implications? Technical debt?
+3 independent judges (no perspective labels).
 
 **With --mixed (cross-vendor):**
 ```
@@ -126,11 +151,11 @@ Adds Visionary: Architecture implications? Technical debt?
 ```
 3 Claude + 3 Codex agents for cross-vendor consensus.
 
-**With preset override:**
+**With explicit preset override:**
 ```
 /vibe --preset=security-audit src/auth/
 ```
-Uses security-focused personas (attacker, defender, compliance) instead of defaults.
+Explicit `--preset` overrides the automatic code-review preset. Uses security-focused personas instead.
 
 **With explorers:**
 ```
@@ -144,7 +169,7 @@ Each judge spawns 2 explorer sub-agents to investigate code patterns before judg
 ```
 Enables adversarial two-round review where judges critique each other's findings before final verdict. Use for high-stakes reviews where judges are likely to disagree. See `/council` docs for full --debate details.
 
-### Step 4: Council Checks
+### Step 5: Council Checks
 
 Each judge reviews for:
 
@@ -157,7 +182,7 @@ Each judge reviews for:
 | **Complexity** | High cyclomatic scores, deep nesting |
 | **Architecture** | Coupling, abstractions, patterns |
 
-### Step 5: Interpret Verdict
+### Step 6: Interpret Verdict
 
 | Council Verdict | Vibe Result | Action |
 |-----------------|-------------|--------|
@@ -165,7 +190,7 @@ Each judge reviews for:
 | WARN | Review concerns | Address or accept risk |
 | FAIL | Not ready | Fix issues |
 
-### Step 6: Write Vibe Report
+### Step 7: Write Vibe Report
 
 **Write to:** `.agents/council/YYYY-MM-DD-vibe-<target>.md`
 
@@ -191,9 +216,11 @@ Each judge reviews for:
 
 | Judge | Verdict | Key Finding |
 |-------|---------|-------------|
-| Pragmatist | ... | ... |
-| Skeptic | ... | ... |
-| Visionary | ... | (if --deep) |
+| Error-Paths | ... | ... (if spec found) |
+| API-Surface | ... | ... (if spec found) |
+| Spec-Compliance | ... | ... (if spec found) |
+| Judge 1 | ... | ... (if no spec — independent) |
+| Judge 2 | ... | ... (if no spec — independent) |
 
 ## Shared Findings
 - ...
@@ -211,7 +238,7 @@ Each judge reviews for:
 [ ] REFACTOR - High complexity, needs rework
 ```
 
-### Step 7: Report to User
+### Step 8: Report to User
 
 Tell the user:
 1. Complexity hotspots (if any)

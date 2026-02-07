@@ -45,19 +45,40 @@ bd list --status closed --since "7 days ago" 2>/dev/null | head -5
 git log --oneline --since="7 days ago" | head -10
 ```
 
-### Step 2: Council Validates the Work
+### Step 2: Load the Original Plan/Spec
 
-Run `/council validate` on the completed work:
+Before invoking council, load the original plan for comparison:
+
+1. **If epic/issue ID provided:** `bd show <id>` to get the spec/description
+2. **Search for plan doc:** `ls .agents/plans/ | grep <target-keyword>`
+3. **Check git log:** `git log --oneline | head -10` to find the relevant bead reference
+
+If a plan is found, include it in the council packet's `context.spec` field:
+```json
+{
+  "spec": {
+    "source": "bead na-0042",
+    "content": "<the original plan/spec text>"
+  }
+}
+```
+
+### Step 3: Council Validates the Work
+
+Run `/council` with the **retrospective** preset and always 3 judges:
 
 ```
-/council validate <epic-or-recent>
+/council --deep --preset=retrospective validate <epic-or-recent>
 ```
 
-**Council reviews:**
-- Did implementation match the plan?
-- Are there gaps or shortcuts taken?
-- Security concerns?
-- Technical debt introduced?
+**Default (3 judges with retrospective perspectives):**
+- `plan-compliance`: What was planned vs what was delivered? What's missing? What was added?
+- `tech-debt`: What shortcuts were taken? What will bite us later? What needs cleanup?
+- `learnings`: What patterns emerged? What should be extracted as reusable knowledge?
+
+Post-mortem always uses 3 judges (`--deep`) because completed work deserves thorough review.
+
+The plan/spec content is injected into the council packet context so the `plan-compliance` judge can compare planned vs delivered.
 
 **With --quick (inline, no spawning):**
 ```
@@ -66,12 +87,11 @@ Run `/council validate` on the completed work:
 Single-agent structured review. Fast wrap-up without spawning.
 
 **Advanced options (passed through to council):**
-- `--deep` — 3 judges instead of 2
-- `--mixed` — Cross-vendor (Claude + Codex)
-- `--preset=<name>` — Use specialized personas (e.g., `--preset=ops` for production readiness)
+- `--mixed` — Cross-vendor (Claude + Codex) with retrospective perspectives
+- `--preset=<name>` — Override with different personas (e.g., `--preset=ops` for production readiness)
 - `--explorers=N` — Each judge spawns N explorers to investigate the implementation deeply before judging
 
-### Step 3: Extract Learnings
+### Step 4: Extract Learnings
 
 Run `/retro` to capture what we learned:
 
@@ -96,7 +116,7 @@ Run `/retro` to capture what we learned:
 
 Post-mortem always completes if council succeeds. Retro is optional enrichment.
 
-### Step 4: Write Post-Mortem Report
+### Step 5: Write Post-Mortem Report
 
 **Write to:** `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`
 
@@ -111,9 +131,9 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 
 | Judge | Verdict | Key Finding |
 |-------|---------|-------------|
-| Pragmatist | ... | ... |
-| Skeptic | ... | ... |
-| Visionary | ... | (if --deep/--mixed) |
+| Plan-Compliance | ... | ... |
+| Tech-Debt | ... | ... |
+| Learnings | ... | ... |
 
 ### Implementation Assessment
 <council summary>
@@ -144,7 +164,7 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 [ ] FOLLOW-UP - Issues need addressing (create new beads)
 ```
 
-### Step 5: Feed the Knowledge Flywheel
+### Step 6: Feed the Knowledge Flywheel
 
 Post-mortem automatically feeds learnings into the flywheel:
 
@@ -161,7 +181,7 @@ else
 fi
 ```
 
-### Step 6: Report to User
+### Step 7: Report to User
 
 Tell the user:
 1. Council verdict on implementation
