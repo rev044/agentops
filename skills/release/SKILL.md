@@ -1,6 +1,7 @@
 ---
 name: release
 description: 'Release your software. Pre-flight validation, changelog generation, version bumps, release commit, tag, draft GitHub Release. Boundary: everything up to the git tag. Triggers: "release", "cut a release", "prepare release", "release check".'
+dependencies: []
 ---
 
 # Release Skill
@@ -54,7 +55,7 @@ Runs all pre-flight checks and reports GO/NO-GO. Useful before starting the rele
 
 `/release 1.7.0 --changelog-only` — just update CHANGELOG.md.
 
-Generates the changelog entry and writes it. No version bumps, no commit, no tag. This is the current skill's behavior.
+Generates the changelog entry and writes it. No version bumps, no commit, no tag.
 
 ---
 

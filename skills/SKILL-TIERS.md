@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (20)
+### User-Facing Skills (21)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -38,6 +38,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **doc** | solo | Generate documentation |
 | **handoff** | solo | Session handoff |
 | **inbox** | solo | Agent mail monitoring |
+| **release** | solo | Pre-flight, changelog, version bumps, tag |
 | **trace** | solo | Trace design decisions |
 
 ### Internal Skills (11) — `metadata.internal: true`
@@ -111,6 +112,7 @@ All validation skills depend on `/council`:
 | **plan** | research, beads, pre-mortem, crank, implement | optional, optional, optional, optional, optional |
 | provenance | - | - |
 | **quickstart** | - | - (zero dependencies) |
+| **release** | - | - (standalone) |
 | ratchet | - | - |
 | research | knowledge, inject | optional, optional |
 | retro | - | - |
@@ -153,8 +155,12 @@ POST-SHIP                             ONBOARDING / STATUS
 │ post-mortem │                       │ quickstart │ (first-time tour)
 │ (council +  │                       └────────────┘
 │   retro)    │                       ┌────────────┐
-└─────────────┘                       │   status   │ (dashboard)
-                                      └────────────┘
+└──────┬──────┘                       │   status   │ (dashboard)
+       │                              └────────────┘
+       ▼
+┌─────────────┐
+│   release   │ (changelog, version bump, tag)
+└─────────────┘
 ```
 
 ### Knowledge Flywheel

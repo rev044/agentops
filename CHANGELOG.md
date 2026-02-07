@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-02-07
+
 ### Added
 
 - **`bin/ralph`** — Full RPI loop script (Goal → Plan → Pre-mortem → Crank → Vibe → Post-mortem → PR). Each phase gets a fresh Claude context window (Ralph Wiggum pattern). Features: `--dry-run`, `--skip-pre-mortem`, `--branch`, `--spec` for acceptance criteria, `--resume` for checkpoint/resume, `--max-budget` and `--phase-timeout` for gutter detection.
 - **`/codex-team` skill** — Spawn parallel Codex execution agents from Claude. Claude orchestrates task decomposition, Codex agents execute independently via `codex exec --full-auto`. Includes pre-flight checks, canonical command form, prompt guidelines, and fallback to `/swarm`.
 - **`/codex-team` file-conflict prevention** — Team lead analyzes file targets before spawning: same-file tasks merge into one agent, dependent tasks sequence into waves with context injection, different-file tasks run in parallel. The orchestrator IS the lock manager.
+- **`/release` skill** — General-purpose release workflow: pre-flight validation (`--check` mode), changelog generation from git history, semver suggestion from commit classification, version bump detection across ecosystems (package.json, pyproject.toml, Cargo.toml, go files), release commit, annotated tag, and optional draft GitHub Release. Boundary at the git tag — everything local and reversible.
 
 ### Crank All Epics (ag-kmk, ag-e0g, ag-ow7)
 
@@ -41,10 +44,13 @@ Autonomous execution of 19 issues across 3 epics in 3 waves (18 parallel workers
 
 - **Batch dedup false positives** — Replaced naive 80-char and 200-char prefix truncation in `normalizeForDedup` and `normalizeContent` with SHA256 content hashing. Distinct learnings with similar openings are no longer silently deduplicated.
 - **Batch command test coverage** — Added `batch_forge_test.go` and `batch_promote_test.go` covering dedup logic, promotion criteria, citation counting, transcript discovery, and content loading.
+- **Council findings** — Vibe always uses `--deep` (3 judges), debate enabled in post-mortem, auto-escalation when preset specifies more perspectives than judge count.
 
 ### Changed
 
+- **Council redesign** — Independent judges by default (no perspective labels); diversity from sampling, not personality. Specialized presets (`code-review`, `plan-review`, `retrospective`) used by wrapper skills (`/vibe`, `/pre-mortem`, `/post-mortem`).
 - **Codex model updated to `gpt-5.3-codex`** — All references across council, shared, and SKILL-TIERS updated from `gpt-5.3` to `gpt-5.3-codex` (canonical Codex model name).
+- **README rewrite** — 479→149 lines. Leads with value prop, moved architecture and deep docs to `docs/reference.md`.
 
 ## [1.6.0] - 2026-02-06
 

@@ -56,6 +56,16 @@ Research → Plan → Implement → Validate
 
 **Output:** `.agents/learnings/`, `.agents/patterns/`
 
+### Release Phase
+
+```bash
+/release [version]     # Full release: changelog + bump + commit + tag
+/release --check       # Readiness validation only (GO/NO-GO)
+/release --dry-run     # Preview without writing
+```
+
+**Output:** Updated CHANGELOG.md, version bumps, git tag, `.agents/releases/`
+
 ## Phase-to-Skill Mapping
 
 | Phase | Primary Skill | Supporting Skills |
@@ -64,6 +74,7 @@ Research → Plan → Implement → Validate
 | **Plan** | `/plan` | `/pre-mortem` |
 | **Implement** | `/implement` | `/crank` (epic loop), `/swarm` (parallel execution) |
 | **Validate** | `/vibe` | `/retro`, `/post-mortem` |
+| **Release** | `/release` | — |
 
 **Choosing the skill:**
 - Use `/implement` for **single issue** execution.
@@ -90,6 +101,7 @@ Research → Plan → Implement → Validate
 | `/complexity` | Code complexity analysis |
 | `/doc` | Documentation generation |
 | `/provenance` | Trace artifact lineage to sources |
+| `/release` | Pre-flight, changelog, version bumps, tag |
 | `/trace` | Trace design decisions through history |
 
 ## Knowledge Flywheel
@@ -113,6 +125,8 @@ Skills auto-trigger from conversation:
 | "Spawn agents to work in parallel" | `/swarm` |
 | "How did we decide on this?" | `/trace` |
 | "Where did this learning come from?" | `/provenance` |
+| "Cut a release" | `/release` |
+| "Are we ready to release?" | `/release --check` |
 
 ## Issue Tracking
 

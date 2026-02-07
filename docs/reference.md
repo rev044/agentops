@@ -14,6 +14,7 @@ Deep documentation for AgentOps. For quick start, see [README](../README.md).
 | **Validate** | `/council` | Multi-model consensus (2-6 judges, cross-vendor, debate mode) |
 | **Gate** | `/vibe` | Complexity analysis + council validation — must pass to merge |
 | **Learn** | `/post-mortem` | Extract learnings to feed future sessions |
+| **Release** | `/release` | Pre-flight, changelog, version bumps, tag — everything up to git tag |
 
 ---
 
@@ -288,6 +289,7 @@ ao pool list              # Show knowledge by quality tier
 | `/post-mortem` | Extract learnings |
 | `/research` | Deep codebase exploration |
 | `/plan` | Break goal into tracked issues |
+| `/release` | Pre-flight, changelog, version bumps, tag |
 | `/ratchet` | Progress gates that lock (Research → Plan → Implement → Validate) |
 | `/beads` | Git-native issue tracking |
 

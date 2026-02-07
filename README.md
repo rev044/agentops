@@ -75,6 +75,7 @@ All 3 tasks complete. Run /vibe to validate.
 | `/post-mortem` | Extract learnings for future sessions |
 | `/research` | Deep codebase exploration |
 | `/plan` | Break a goal into tracked issues |
+| `/release` | Pre-flight, changelog, version bumps, tag |
 | `/ratchet` | Progress gates that lock |
 
 <details>
