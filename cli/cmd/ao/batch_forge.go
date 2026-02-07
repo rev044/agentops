@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -238,18 +240,15 @@ func dedupSimilar(items []string) []string {
 	return result
 }
 
-// normalizeForDedup creates a normalized key for deduplication.
-// Lowercases, trims whitespace, and truncates to first 80 chars
-// to catch near-duplicate snippets that differ only in trailing content.
+// normalizeForDedup creates a normalized key for deduplication using content hashing.
+// Lowercases, collapses whitespace, strips ellipsis, then SHA256 hashes the full
+// normalized content. This avoids false positives from naive prefix truncation.
 func normalizeForDedup(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
-	// Remove trailing ellipsis from snippets
 	s = strings.TrimSuffix(s, "...")
-	s = strings.TrimSpace(s)
-	if len(s) > 80 {
-		s = s[:80]
-	}
-	return s
+	s = strings.Join(strings.Fields(s), " ")
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
 }
 
 // humanSize returns a human-readable file size string.

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -235,16 +237,14 @@ func loadPromotedContent(baseDir string) map[string]bool {
 	return content
 }
 
-// normalizeContent creates a normalized key for content comparison.
-// Strips whitespace and lowercases for fuzzy duplicate detection.
+// normalizeContent creates a normalized key for content comparison using content hashing.
+// Lowercases, collapses whitespace, then SHA256 hashes the full normalized content.
+// This avoids false positives from naive prefix truncation.
 func normalizeContent(s string) string {
 	s = strings.ToLower(s)
 	s = strings.Join(strings.Fields(s), " ")
-	// Use first 200 chars as fingerprint to avoid massive keys
-	if len(s) > 200 {
-		s = s[:200]
-	}
-	return s
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
 }
 
 // outputBatchResult prints the batch-promote summary.
