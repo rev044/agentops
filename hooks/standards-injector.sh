@@ -2,6 +2,9 @@
 # standards-injector.sh - PreToolUse hook: inject language standards as context
 # Reads tool_input.file_path, maps extension to language, injects standards reference.
 
+# Kill switch
+[ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
+
 # Read all of stdin (hook pipes JSON)
 INPUT=$(cat)
 

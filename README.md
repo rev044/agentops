@@ -64,33 +64,68 @@ All 3 tasks complete. Run /vibe to validate.
 
 ## Skills
 
+### Orchestration
+
 | Skill | What it does |
 |-------|-------------|
-| `/pre-mortem` | Simulate failures before coding |
-| `/vibe` | Complexity analysis + multi-model validation gate |
-| `/swarm` | Parallel agents with fresh context |
+| `/council` | Multi-model consensus — validate, brainstorm, research (core primitive) |
 | `/crank` | Autonomous epic execution (orchestrates `/swarm` waves) |
-| `/council` | Multi-model consensus — validate, brainstorm, research |
-| `/implement` | Single issue, full lifecycle |
-| `/post-mortem` | Extract learnings for future sessions |
+| `/swarm` | Parallel agents with fresh context |
+| `/codex-team` | Spawn parallel Codex agents orchestrated by Claude |
+
+### Workflow
+
+| Skill | What it does |
+|-------|-------------|
 | `/research` | Deep codebase exploration |
 | `/plan` | Break a goal into tracked issues |
+| `/implement` | Single issue, full lifecycle |
+| `/vibe` | Complexity analysis + multi-model validation gate |
+| `/pre-mortem` | Simulate failures before coding |
+| `/post-mortem` | Validate implementation + extract learnings |
 | `/release` | Pre-flight, changelog, version bumps, tag |
-| `/ratchet` | Progress gates that lock |
 
-<details>
-<summary>More skills</summary>
+### Utilities
 
 | Skill | What it does |
 |-------|-------------|
+| `/status` | Single-screen dashboard — current work, validations, next action |
+| `/quickstart` | Interactive onboarding (guided RPI cycle) |
+| `/handoff` | Structured session handoff for continuation |
 | `/retro` | Quick retrospective |
-| `/inject` | Manually load prior knowledge |
 | `/knowledge` | Query knowledge base |
-| `/bug-hunt` | Root cause analysis |
+| `/bug-hunt` | Root cause analysis with git archaeology |
 | `/complexity` | Code complexity metrics |
-| `/doc` | Documentation generation |
-| `/standards` | Language-specific coding rules |
-| `/beads` | Git-native issue tracking |
+| `/doc` | Documentation generation and validation |
+| `/trace` | Trace design decisions through history and git |
+| `/inbox` | Monitor Agent Mail messages |
+
+<details>
+<summary>Internal skills</summary>
+
+**Auto-loaded (session hooks):**
+
+| Skill | What it does |
+|-------|-------------|
+| `inject` | Load prior knowledge at session start |
+| `extract` | Extract learnings from transcripts |
+| `forge` | Mine transcripts for decisions and patterns |
+| `flywheel` | Knowledge flywheel health monitoring |
+| `ratchet` | RPI progress gate status |
+
+**JIT-loaded (pulled in by other skills):**
+
+| Skill | What it does |
+|-------|-------------|
+| `standards` | Language-specific coding rules (by `/vibe`, `/implement`, `/doc`) |
+| `beads` | Git-native issue tracking reference (by `/implement`, `/plan`) |
+
+**On-demand:**
+
+| Skill | What it does |
+|-------|-------------|
+| `provenance` | Trace knowledge artifact lineage |
+
 </details>
 
 ## How It Works
@@ -117,6 +152,23 @@ ao hooks install
 **Optional: `beads`** — git-native issue tracking. Lets `/crank` orchestrate multi-issue work from a tracked backlog.
 
 See [docs/reference.md](docs/reference.md) for per-agent install options, CLI reference, execution modes (local vs distributed), and tool dependencies.
+
+## Agent Teams
+
+AgentOps works with Claude Code's native [agent teams](https://code.claude.com/docs/en/agent-teams) — multiple Claude instances coordinating on shared work. Our `/council`, `/swarm`, and `/crank` skills use teams automatically.
+
+**Setup** (one-time):
+```json
+// ~/.claude/settings.json
+{
+  "teammateMode": "tmux",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+This gives each teammate its own tmux pane — you see the team lead on the left, workers on the right, and can click into any pane to interact. Requires `tmux` (`brew install tmux`). Without tmux, teammates run in-process (Shift+Up/Down to cycle).
 
 ## FAQ
 

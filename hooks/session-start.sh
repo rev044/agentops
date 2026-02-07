@@ -2,7 +2,7 @@
 # AgentOps Session Start Hook
 # Creates .agents/ directories and injects using-agentops context
 
-set -euo pipefail
+# Note: no set -e — hooks must fail open (exit 0), not abort on errors
 
 # Get plugin directory (where this script lives)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -38,7 +38,7 @@ fi
 # Get ratchet status (brief one-liner for visibility)
 ratchet_status=""
 if command -v ao &>/dev/null; then
-    ratchet_output=$(ao ratchet status --format=oneline 2>/dev/null || {
+    ratchet_output=$(ao ratchet status -o oneline 2>/dev/null || {
         mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
         echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
     })

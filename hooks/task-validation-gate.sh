@@ -14,9 +14,23 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 0
 fi
 
-# Error log directory
-ERROR_LOG_DIR=".agents/ao"
+# Error log directory (repo-local)
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+ERROR_LOG_DIR="$ROOT/.agents/ao"
 ERROR_LOG="$ERROR_LOG_DIR/hook-errors.log"
+
+# Restricted command execution: only allow simple commands, no shell metacharacters
+run_restricted() {
+    local cmd="$1"
+    # Block shell metacharacters that enable injection
+    if echo "$cmd" | grep -qE '[;&|`$(){}]'; then
+        log_error "BLOCKED: shell metacharacters in validation command: $cmd"
+        echo "VALIDATION BLOCKED: command contains disallowed shell characters" >&2
+        exit 2
+    fi
+    # Execute without eval — word-split the command naturally
+    /bin/sh -c "$cmd" >/dev/null 2>&1
+}
 
 log_error() {
     mkdir -p "$ERROR_LOG_DIR" 2>/dev/null
@@ -73,7 +87,7 @@ fi
 # 3. tests: command string
 TESTS_CMD=$(echo "$VALIDATION" | jq -r '.tests // empty' 2>/dev/null)
 if [ -n "$TESTS_CMD" ] && [ "$TESTS_CMD" != "null" ]; then
-    if ! eval "$TESTS_CMD" >/dev/null 2>&1; then
+    if ! run_restricted "$TESTS_CMD"; then
         echo "VALIDATION FAILED: tests — command failed: $TESTS_CMD" >&2
         exit 2
     fi
@@ -82,7 +96,7 @@ fi
 # 4. lint: command string
 LINT_CMD=$(echo "$VALIDATION" | jq -r '.lint // empty' 2>/dev/null)
 if [ -n "$LINT_CMD" ] && [ "$LINT_CMD" != "null" ]; then
-    if ! eval "$LINT_CMD" >/dev/null 2>&1; then
+    if ! run_restricted "$LINT_CMD"; then
         echo "VALIDATION FAILED: lint — command failed: $LINT_CMD" >&2
         exit 2
     fi
@@ -91,7 +105,7 @@ fi
 # 5. command: command string
 GENERIC_CMD=$(echo "$VALIDATION" | jq -r '.command // empty' 2>/dev/null)
 if [ -n "$GENERIC_CMD" ] && [ "$GENERIC_CMD" != "null" ]; then
-    if ! eval "$GENERIC_CMD" >/dev/null 2>&1; then
+    if ! run_restricted "$GENERIC_CMD"; then
         echo "VALIDATION FAILED: command — command failed: $GENERIC_CMD" >&2
         exit 2
     fi
