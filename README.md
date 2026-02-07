@@ -8,8 +8,6 @@
 
 **Your AI agent forgets everything between sessions. AgentOps fixes that.**
 
-Cross-session memory, validation gates, and orchestrated parallel execution for AI coding agents.
-
 </div>
 
 ## Install
@@ -26,41 +24,83 @@ Or: `claude plugin add boshu2/agentops`
 ```
 > /pre-mortem "add OAuth integration"
 
-[council] Spawning 2 judges: pragmatist, skeptic
-[pragmatist] RISK: Token storage — localStorage is XSS-vulnerable
-[skeptic] RISK: Refresh token rotation — silent failure on expiry
-Verdict: 3 risks found, 1 critical → fix before implementing
+[council] Spawning 3 judges: missing-requirements, feasibility, scope
+[missing-requirements] RISK: No token revocation strategy defined
+[feasibility] RISK: Refresh token rotation — silent failure on expiry
+[scope] WARN: OAuth adds 3 new dependencies, consider scope
+Verdict: WARN — 2 significant risks, address before implementing
 ```
 
 **Validate before you commit:**
 ```
 > /vibe
 
-[toolchain] gitleaks ✓  semgrep ✓  shellcheck ✓
-[council] Spawning 2 judges...
-[complexity] All functions within threshold
-Verdict: PASS — no critical findings, ready to ship
+[complexity] radon: all functions grade A-B ✓
+[council] Spawning 3 judges: error-paths, api-surface, spec-compliance
+[spec-compliance] All acceptance criteria met
+Verdict: PASS — ready to ship
 ```
 
 **Parallelize with fresh context per agent:**
 ```
 > /swarm
 
-[swarm] Creating team with 3 workers...
-[worker-1] ✓ implement-auth (2m 14s)
-[worker-2] ✓ add-rate-limiter (1m 48s)
-[worker-3] ✓ update-tests (3m 02s)
-All 3 tasks complete. Run /vibe to validate.
+[swarm] Creating team swarm-1738900000...
+[worker-1] ✓ implement-auth
+[worker-2] ✓ add-rate-limiter
+[worker-3] ✓ update-tests
+[lead] Validated + committed. Run /vibe to gate.
 ```
 
-## What You Get
+**Run an entire epic hands-free:**
+```
+> /crank
 
-- **Cross-session memory** — learnings persist to `.agents/` and inject into future sessions (`/inject`, automatic with `ao` CLI)
-- **Validation gates** — multi-aspect code review (security, complexity, architecture, and more) that blocks bad merges (`/vibe`)
-- **Parallel execution** — fresh-context agents work simultaneously without stepping on each other (`/swarm`)
-- **Shift-left risk analysis** — simulate failures before writing code (`/pre-mortem`)
-- **Progress locks** — once a gate passes, it stays passed — no regression (`/ratchet`)
-- **Autonomous execution** — orchestrate multi-issue work across waves of parallel agents (`/crank`)
+[crank] Epic: ag-0042 — 6 issues, 3 waves
+[wave-1] ██████ 3/3 complete
+[wave-2] ████── 2/2 complete
+[wave-3] ██──── 1/1 complete
+[vibe] PASS — all gates locked
+[post-mortem] 4 learnings extracted → .agents/
+```
+
+## How It Works
+
+```
+  ╭── Research → Plan → Implement → Validate ──╮
+  │                                            │
+  ╰─────────── Knowledge Flywheel ◀────────────╯
+```
+
+```
+  ╭─ worker-1 ─→ ✓ task      Fresh context per agent.
+  ├─ worker-2 ─→ ✓ task      No bleed-through.
+  ├─ worker-3 ─→ ✓ task      Lead validates + commits.
+  ╰─ lead ─────→ validate
+```
+
+```
+  ╭─ Claude ─→ PASS ─╮
+  ├─ Claude ─→ WARN ─┼→ Consensus: WARN
+  ╰─ Codex ──→ PASS ─╯
+```
+
+```
+  Session 1:  learn → .agents/
+  Session 2:  .agents/ → learn → .agents/
+  Session 3:  .agents/ → learn → .agents/
+              memory compounds ↑
+```
+
+```
+  Hooks auto-enforce the loop:
+  ┌─────────────────────────────────────────┐
+  │ push without /vibe?        → blocked    │
+  │ worker tries git commit?   → blocked    │
+  │ forgot /pre-mortem?        → nudged     │
+  │ force push to main?        → blocked    │
+  └─────────────────────────────────────────┘
+```
 
 ## Skills
 
@@ -68,94 +108,64 @@ All 3 tasks complete. Run /vibe to validate.
 
 | Skill | What it does |
 |-------|-------------|
-| `/council` | Multi-model consensus — validate, brainstorm, research (core primitive) |
-| `/crank` | Autonomous epic execution (orchestrates `/swarm` waves) |
-| `/swarm` | Parallel agents with fresh context |
-| `/codex-team` | Spawn parallel Codex agents orchestrated by Claude |
+| `/council` | Multi-model consensus — spawns parallel judges, consolidates verdict |
+| `/crank` | Autonomous epic execution — runs `/swarm` waves until all issues closed |
+| `/swarm` | Parallel agents with fresh context — team per wave, lead commits |
+| `/codex-team` | Parallel Codex agents orchestrated by Claude — cross-vendor execution |
 
 ### Workflow
 
 | Skill | What it does |
 |-------|-------------|
-| `/research` | Deep codebase exploration |
-| `/plan` | Break a goal into tracked issues |
-| `/implement` | Single issue, full lifecycle |
+| `/research` | Deep codebase exploration → `.agents/research/` |
+| `/plan` | Decompose goal into issues with dependency waves |
+| `/implement` | Single issue, full lifecycle — explore, code, test, commit |
 | `/vibe` | Complexity analysis + multi-model validation gate |
-| `/pre-mortem` | Simulate failures before coding |
+| `/pre-mortem` | Simulate failures before coding (3 judges: requirements, feasibility, scope) |
 | `/post-mortem` | Validate implementation + extract learnings |
-| `/release` | Pre-flight, changelog, version bumps, tag |
+| `/release` | Pre-flight, changelog, version bumps, tag, GitHub Release |
 
 ### Utilities
 
 | Skill | What it does |
 |-------|-------------|
-| `/status` | Single-screen dashboard — current work, validations, next action |
-| `/quickstart` | Interactive onboarding (guided RPI cycle) |
+| `/status` | Dashboard — current work, recent validations, next action |
+| `/quickstart` | Interactive onboarding — guided RPI cycle on your codebase |
 | `/handoff` | Structured session handoff for continuation |
-| `/retro` | Quick retrospective |
-| `/knowledge` | Query knowledge base |
+| `/retro` | Extract learnings from completed work |
+| `/knowledge` | Query knowledge base across `.agents/` |
 | `/bug-hunt` | Root cause analysis with git archaeology |
-| `/complexity` | Code complexity metrics |
+| `/complexity` | Code complexity metrics (radon, gocyclo) |
 | `/doc` | Documentation generation and validation |
 | `/trace` | Trace design decisions through history and git |
 | `/inbox` | Monitor Agent Mail messages |
 
 <details>
-<summary>Internal skills</summary>
+<summary>Internal skills (auto-loaded)</summary>
 
-**Auto-loaded (session hooks):**
-
-| Skill | What it does |
-|-------|-------------|
-| `inject` | Load prior knowledge at session start |
-| `extract` | Extract learnings from transcripts |
-| `forge` | Mine transcripts for decisions and patterns |
-| `flywheel` | Knowledge flywheel health monitoring |
-| `ratchet` | RPI progress gate status |
-
-**JIT-loaded (pulled in by other skills):**
-
-| Skill | What it does |
-|-------|-------------|
-| `standards` | Language-specific coding rules (by `/vibe`, `/implement`, `/doc`) |
-| `beads` | Git-native issue tracking reference (by `/implement`, `/plan`) |
-
-**On-demand:**
-
-| Skill | What it does |
-|-------|-------------|
-| `provenance` | Trace knowledge artifact lineage |
+| Skill | Trigger | What it does |
+|-------|---------|-------------|
+| `inject` | Session start | Load relevant prior knowledge with decay weighting |
+| `extract` | On demand | Pull learnings from artifacts |
+| `forge` | Session end | Mine transcript for decisions, learnings, failures, patterns |
+| `flywheel` | On demand | Knowledge health — velocity, pool depths, staleness |
+| `ratchet` | On demand | RPI progress gates — once locked, stays locked |
+| `standards` | By `/vibe`, `/implement` | Language-specific coding rules (Python, Go, TS, Shell) |
+| `beads` | By `/plan`, `/implement` | Git-native issue tracking reference |
+| `provenance` | On demand | Trace knowledge artifact lineage and sources |
 
 </details>
 
-## How It Works
-
-| Pattern | What it solves |
-|---------|---------------|
-| **Fresh context per agent** | Context bloat degrades performance — each agent starts clean |
-| **Validation gates** | Work regresses silently — must pass `/vibe` to commit |
-| **Orchestrated execution** | Multiple agents cause chaos — one orchestrator owns the loop, agents work atomically |
-| **Compounding memory** | Same bugs rediscovered — `/post-mortem` → `.agents/` → next session |
-
-See [docs/reference.md](docs/reference.md) for architecture diagrams, execution modes, and the full pipeline.
-
-## Going Deeper
-
-**Optional: `ao` CLI** — adds session hooks that auto-inject prior knowledge at session start and auto-extract learnings at session end. Without it, you run `/inject` manually.
-
-```bash
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
-brew install agentops
-ao hooks install
-```
-
-**Optional: `beads`** — git-native issue tracking. Lets `/crank` orchestrate multi-issue work from a tracked backlog.
-
-See [docs/reference.md](docs/reference.md) for per-agent install options, CLI reference, execution modes (local vs distributed), and tool dependencies.
-
 ## Agent Teams
 
-AgentOps works with Claude Code's native [agent teams](https://code.claude.com/docs/en/agent-teams) — multiple Claude instances coordinating on shared work. Our `/council`, `/swarm`, and `/crank` skills use teams automatically.
+AgentOps uses Claude Code's native [agent teams](https://code.claude.com/docs/en/agent-teams) — `/council`, `/swarm`, and `/crank` create teams automatically.
+
+```
+  Council:                         Swarm:
+  ╭─ judge-1 ──╮                  ╭─ worker-1 ──╮
+  ├─ judge-2 ──┼→ team lead       ├─ worker-2 ──┼→ team lead
+  ╰─ judge-3 ──╯   consolidates   ╰─ worker-3 ──╯   validates + commits
+```
 
 **Setup** (one-time):
 ```json
@@ -168,7 +178,41 @@ AgentOps works with Claude Code's native [agent teams](https://code.claude.com/d
 }
 ```
 
-This gives each teammate its own tmux pane — you see the team lead on the left, workers on the right, and can click into any pane to interact. Requires `tmux` (`brew install tmux`). Without tmux, teammates run in-process (Shift+Up/Down to cycle).
+| Mode | What you see |
+|------|-------------|
+| `"tmux"` | Each teammate gets own pane — click to interact |
+| `"in-process"` | Single terminal — Shift+Up/Down cycles teammates |
+| `"auto"` | Best available (default) |
+
+Requires `tmux` for pane mode (`brew install tmux`).
+
+## Hooks
+
+Hooks auto-enforce the workflow — no discipline required.
+
+| Hook | Trigger | What it does |
+|------|---------|-------------|
+| Push gate | `git push` | Blocks push if `/vibe` hasn't passed |
+| Worker guard | `git commit` | Blocks workers from committing (lead-only) |
+| Dangerous git guard | `force-push`, `reset --hard` | Blocks destructive git commands |
+| Ratchet nudge | Any prompt | "Run /vibe before pushing", "Run /pre-mortem first" |
+| Task validation | Task completed | Validates metadata before accepting completion |
+
+All hooks have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
+
+## Going Deeper
+
+**Optional: `ao` CLI** — auto-inject knowledge at session start, auto-extract at session end.
+
+```bash
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
+brew install agentops
+ao hooks install
+```
+
+**Optional: `beads`** — git-native issue tracking. Lets `/crank` orchestrate multi-issue work from a tracked backlog.
+
+See [docs/reference.md](docs/reference.md) for CLI reference, execution modes (local vs distributed), and tool dependencies.
 
 ## FAQ
 
@@ -177,6 +221,7 @@ Claude Code has agent spawning built in. AgentOps adds what it lacks:
 - Cross-session memory (agents forget everything when the session ends)
 - Codified patterns (isolation, validation contracts, debate protocol) that agents won't discover on their own
 - Cross-vendor validation (`--mixed` mode adds Codex judges alongside Claude)
+- Hooks that enforce the workflow without requiring discipline
 
 **What data leaves my machine?**
 Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cloud sync.
@@ -187,8 +232,6 @@ npx skills@latest remove boshu2/agentops -g
 ```
 
 ## Built On
-
-These ideas shaped AgentOps — they're baked in, not extra dependencies.
 
 | Project | What we use it for |
 |---------|-------------------|
