@@ -10,45 +10,46 @@ AgentOps is a single Claude Code plugin providing the RPI workflow with Knowledg
 .
 ├── .claude-plugin/
 │   └── plugin.json      # Plugin manifest
-├── skills/              # All 21 skills
-│   ├── research/
-│   ├── plan/
-│   ├── implement/
-│   ├── crank/
-│   ├── vibe/
-│   ├── retro/
-│   ├── post-mortem/
-│   ├── beads/
-│   ├── bug-hunt/
-│   ├── knowledge/
-│   ├── complexity/
-│   ├── doc/
-│   ├── pre-mortem/
-│   └── using-agentops/  # Meta skill (injected on session start)
-├── agents/              # 20 Subagent definitions
-│   ├── code-reviewer.md           # Code quality review
-│   ├── security-reviewer.md       # Security vulnerabilities
-│   ├── security-expert.md         # Deep security analysis
-│   ├── architecture-expert.md     # System design
-│   ├── code-quality-expert.md     # Complexity, refactoring
-│   ├── ux-expert.md               # Accessibility, UX
-│   ├── plan-compliance-expert.md  # Plan vs implementation
-│   ├── goal-achievement-expert.md # Did we solve the problem?
-│   ├── ratchet-validator.md       # Gate validation
-│   ├── flywheel-feeder.md         # Knowledge extraction
-│   ├── technical-learnings-expert.md
-│   ├── process-learnings-expert.md
-│   ├── integration-failure-expert.md  # Pre-mortem
-│   ├── ops-failure-expert.md
-│   ├── data-failure-expert.md
-│   ├── edge-case-hunter.md
-│   ├── coverage-expert.md         # Research quality
-│   ├── depth-expert.md
-│   ├── gap-identifier.md
-│   └── assumption-challenger.md
+├── skills/              # 32 skills (21 user-facing, 11 internal)
+│   ├── council/         # orchestration — Multi-model validation (core primitive)
+│   ├── crank/           # orchestration — Autonomous epic execution
+│   ├── swarm/           # orchestration — Parallel agent spawning
+│   ├── codex-team/      # orchestration — Parallel Codex execution
+│   ├── implement/       # team — Execute single issue
+│   ├── quickstart/      # solo — Interactive onboarding
+│   ├── status/          # solo — Single-screen dashboard
+│   ├── research/        # solo — Deep codebase exploration
+│   ├── plan/            # solo — Decompose epics into issues
+│   ├── vibe/            # solo — Code validation (complexity + council)
+│   ├── pre-mortem/      # solo — Council on plans
+│   ├── post-mortem/     # solo — Council + retro (wrap up work)
+│   ├── retro/           # solo — Extract learnings
+│   ├── complexity/      # solo — Cyclomatic analysis
+│   ├── knowledge/       # solo — Query knowledge artifacts
+│   ├── bug-hunt/        # solo — Investigate bugs
+│   ├── doc/             # solo — Generate documentation
+│   ├── handoff/         # solo — Session handoff
+│   ├── inbox/           # solo — Agent mail monitoring
+│   ├── release/         # solo — Pre-flight, changelog, tag
+│   ├── trace/           # solo — Trace design decisions
+│   ├── beads/           # library — Issue tracking reference
+│   ├── standards/       # library — Coding standards
+│   ├── shared/          # library — Shared reference docs
+│   ├── inject/          # background — Load knowledge at session start
+│   ├── extract/         # background — Extract from transcripts
+│   ├── forge/           # background — Mine transcripts
+│   ├── provenance/      # background — Trace knowledge lineage
+│   ├── ratchet/         # background — Progress gates
+│   ├── flywheel/        # background — Knowledge health monitoring
+│   ├── using-agentops/  # meta — Workflow guide (auto-injected)
+│   └── judge/           # DEPRECATED — replaced by /council
 ├── hooks/               # Session hooks
 │   ├── hooks.json
-│   └── session-start.sh
+│   ├── session-start.sh
+│   └── ...              # 10 hook scripts total
+├── lib/                 # Shared code
+│   ├── skills-core.js
+│   └── scripts/prescan.sh
 └── docs/                # Documentation
 ```
 
@@ -95,6 +96,14 @@ Every `/post-mortem` feeds back to `/research`:
 | `/retro` | Extract learnings |
 | `/post-mortem` | Full validation + knowledge extraction |
 
+### Orchestration
+
+| Skill | Purpose |
+|-------|---------|
+| `/council` | Multi-model validation (core primitive) |
+| `/swarm` | Parallel agent spawning |
+| `/codex-team` | Parallel Codex execution agents |
+
 ### Utilities
 
 | Skill | Purpose |
@@ -105,6 +114,28 @@ Every `/post-mortem` feeds back to `/research`:
 | `/complexity` | Code complexity analysis |
 | `/doc` | Documentation generation |
 | `/pre-mortem` | Failure simulation |
+| `/handoff` | Session handoff |
+| `/inbox` | Agent mail monitoring |
+| `/release` | Pre-flight, changelog, version bumps, tag |
+| `/status` | Single-screen dashboard |
+| `/quickstart` | Interactive onboarding |
+| `/trace` | Trace design decisions |
+
+### Internal (not invoked directly)
+
+| Skill | Purpose |
+|-------|---------|
+| `beads` | Issue tracking reference (loaded by /implement, /plan) |
+| `standards` | Coding standards (loaded by /vibe, /implement, /doc) |
+| `shared` | Shared reference documents |
+| `inject` | Load knowledge at session start (hook-triggered) |
+| `extract` | Extract from transcripts (hook-triggered) |
+| `forge` | Mine transcripts for knowledge |
+| `provenance` | Trace knowledge lineage |
+| `ratchet` | Progress gates |
+| `flywheel` | Knowledge health monitoring |
+| `using-agentops` | Workflow overview (auto-injected on session start) |
+| ~~`judge`~~ | DEPRECATED — replaced by `/council` |
 
 ### Meta
 
@@ -134,74 +165,68 @@ The ao CLI provides:
 
 ## Subagents
 
-Located in `agents/`. 20 specialized validators used by `/vibe`, `/pre-mortem`, `/post-mortem`, and `/research`.
+Subagent behaviors are defined inline within SKILL.md files — there is no separate `agents/` directory. Skills that use subagents (e.g., `/council`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/research`) spawn them as Task agents during execution.
 
-### Validation Agents (used by /vibe)
+### Validation Subagents (spawned by /vibe, /council)
 
-| Agent | Focus |
-|-------|-------|
-| `code-reviewer` | Quality, patterns, maintainability |
-| `security-reviewer` | Vulnerabilities, OWASP |
-| `security-expert` | Deep security analysis |
-| `architecture-expert` | System design, cross-cutting |
-| `code-quality-expert` | Complexity, refactoring |
-| `ux-expert` | Accessibility, user experience |
+| Agent Role | Focus |
+|------------|-------|
+| Code reviewer | Quality, patterns, maintainability |
+| Security reviewer | Vulnerabilities, OWASP |
+| Security expert | Deep security analysis |
+| Architecture expert | System design, cross-cutting |
+| Code quality expert | Complexity, refactoring |
+| UX expert | Accessibility, user experience |
 
-### Post-Mortem Agents (used by /post-mortem)
+### Post-Mortem Subagents (spawned by /post-mortem)
 
-| Agent | Focus |
-|-------|-------|
-| `plan-compliance-expert` | Compare implementation to plan |
-| `goal-achievement-expert` | Did we solve the problem? |
-| `ratchet-validator` | Verify gates are locked |
-| `flywheel-feeder` | Extract learnings with provenance |
-| `technical-learnings-expert` | Technical patterns |
-| `process-learnings-expert` | Process improvements |
+| Agent Role | Focus |
+|------------|-------|
+| Plan compliance expert | Compare implementation to plan |
+| Goal achievement expert | Did we solve the problem? |
+| Ratchet validator | Verify gates are locked |
+| Flywheel feeder | Extract learnings with provenance |
+| Technical learnings expert | Technical patterns |
+| Process learnings expert | Process improvements |
 
-### Pre-Mortem Agents (used by /pre-mortem)
+### Pre-Mortem Subagents (spawned by /pre-mortem)
 
-| Agent | Focus |
-|-------|-------|
-| `integration-failure-expert` | Integration risks |
-| `ops-failure-expert` | Operational risks |
-| `data-failure-expert` | Data integrity risks |
-| `edge-case-hunter` | Edge cases and exceptions |
+| Agent Role | Focus |
+|------------|-------|
+| Integration failure expert | Integration risks |
+| Ops failure expert | Operational risks |
+| Data failure expert | Data integrity risks |
+| Edge case hunter | Edge cases and exceptions |
 
-### Research Agents (used by /research)
+### Research Subagents (spawned by /research)
 
-| Agent | Focus |
-|-------|-------|
-| `coverage-expert` | Research completeness |
-| `depth-expert` | Depth of analysis |
-| `gap-identifier` | Missing areas |
-| `assumption-challenger` | Challenge assumptions |
+| Agent Role | Focus |
+|------------|-------|
+| Coverage expert | Research completeness |
+| Depth expert | Depth of analysis |
+| Gap identifier | Missing areas |
+| Assumption challenger | Challenge assumptions |
 
 ---
 
 ## Knowledge Artifacts
 
-`.agents/` stores knowledge (18 directories):
+`.agents/` stores knowledge generated during sessions:
 
 ```
 .agents/
-├── research/      # Exploration findings
-├── plans/         # Implementation plans
-├── pre-mortems/   # Failure simulations
-├── specs/         # Validated specifications
+├── bundles/       # Grouped artifacts
+├── council/       # Council/validation reports
+├── handoff/       # Session handoff context
 ├── learnings/     # Extracted lessons
 ├── patterns/      # Reusable patterns
-├── retros/        # Retrospective reports
-├── vibe/          # Validation reports
-├── complexity/    # Complexity analysis
-├── doc/           # Generated documentation
-├── assessments/   # Quality assessments
+├── plans/         # Implementation plans
+├── pre-mortems/   # Failure simulations
 ├── reports/       # General reports
-├── products/      # Product briefs
-├── synthesis/     # Synthesized knowledge
-├── patches/       # Patch tracking
-├── bundles/       # Grouped artifacts
-├── docs/          # Documentation outputs
-└── ao/            # CLI state
+├── research/      # Exploration findings
+├── retros/        # Retrospective reports
+├── specs/         # Validated specifications
+└── tooling/       # Tooling documentation
 ```
 
 Future `/research` commands discover these automatically via:

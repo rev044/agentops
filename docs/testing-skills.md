@@ -445,7 +445,7 @@ fi
 ### Single Test
 
 ```bash
-cd /Users/fullerbt/gt/agentops/crew/nami
+cd <repo-root>
 ./tests/claude-code/test-swarm-skill.sh
 ```
 
@@ -573,7 +573,7 @@ MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/claude-code/test-swarm-skill.sh
 4. **Run interactively:**
    ```bash
    claude -p "What is the swarm skill?" \
-       --plugin-dir /Users/fullerbt/gt/agentops/crew/nami \
+       --plugin-dir <repo-root> \
        --dangerously-skip-permissions \
        --max-turns 5
    ```
@@ -603,7 +603,7 @@ MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/claude-code/test-swarm-skill.sh
 
 ## Example: Complete Test File
 
-See `/Users/fullerbt/gt/agentops/crew/nami/tests/claude-code/test-swarm-skill.sh` for a comprehensive example with:
+See `<repo-root>/tests/claude-code/test-swarm-skill.sh` for a comprehensive example with:
 - 8 tests covering full skill behavior
 - Retry logic for transient failures
 - Structured test runner with pass/fail tracking
