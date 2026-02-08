@@ -214,6 +214,9 @@ Do NOT proceed with empty issue list - this produces false "epic complete" statu
 # Increment wave counter
 wave=$((wave + 1))
 
+# Record starting commit for wave vibe gate (Step 5.5)
+WAVE_START_SHA=$(git rev-parse HEAD)
+
 # Beads mode: record wave in epic notes
 if [[ "$TRACKING_MODE" == "beads" ]]; then
     bd update <epic-id> --append-notes "CRANK_WAVE: $wave at $(date -Iseconds)" 2>/dev/null
@@ -328,7 +331,55 @@ Swarm finds unblocked TaskList tasks and executes them.
    fi
    ```
 
-**Note:** Comprehensive code review happens once at the end (Step 7: Final Batched Validation via /vibe), not per-issue.
+**Note:** Per-issue review is handled by swarm validation. Wave-level semantic review happens in Step 5.5.
+
+### Step 5.5: Wave Vibe Gate (MANDATORY)
+
+> **Principle:** Fresh context catches what saturated context misses. No self-grading.
+
+**After closing all beads in a wave, before advancing to the next wave:**
+
+1. **Tag the wave start** (for diff):
+   ```bash
+   # Before each wave (Step 4), record the starting commit:
+   WAVE_START_SHA=$(git rev-parse HEAD)
+   ```
+
+2. **Compute wave diff:**
+   ```bash
+   git diff $WAVE_START_SHA HEAD --name-only
+   ```
+
+3. **Load acceptance criteria** for all issues closed in this wave:
+   ```bash
+   # For each closed issue in the wave:
+   bd show <issue-id>  # extract ACCEPTANCE CRITERIA section
+   ```
+
+4. **Run inline vibe** (spec-compliance + error-paths, 2 judges minimum):
+   ```
+   Tool: Skill
+   Parameters:
+     skill: "agentops:vibe"
+     args: "--quick --diff $WAVE_START_SHA --criteria '<acceptance criteria>'"
+   ```
+   If /vibe doesn't support --quick, run a lightweight council:
+   - Spawn 2 Task agents (spec-compliance judge, error-paths judge)
+   - Each reviews the wave diff against acceptance criteria
+   - Aggregate verdicts: all PASS = PASS, any FAIL = FAIL, else WARN
+
+5. **Gate on verdict:**
+
+   | Verdict | Action |
+   |---------|--------|
+   | **PASS** | Record `CRANK_VIBE: wave=N verdict=PASS` in epic notes. Advance to Step 6. |
+   | **WARN** | Create fix beads as children of the epic (`bd create`). Execute fixes inline (small) or as wave N.5 via swarm. Re-run vibe. If PASS on re-vibe, advance. If still WARN after 2 attempts, treat as FAIL. |
+   | **FAIL** | Record `CRANK_VIBE: wave=N verdict=FAIL` in epic notes. Output `<promise>BLOCKED</promise>` and exit. Human review required. |
+
+   ```bash
+   # Record verdict in epic notes
+   bd update <epic-id> --append-notes "CRANK_VIBE: wave=$wave verdict=<PASS|WARN|FAIL> at $(date -Iseconds)"
+   ```
 
 ### Step 6: Check for More Work
 
@@ -427,6 +478,7 @@ Crank follows FIRE for each wave:
 | **FIND** | `bd ready` — get unblocked beads issues | `TaskList()` → pending, unblocked |
 | **IGNITE** | TaskCreate from beads + `/swarm` | `/swarm` (tasks already in TaskList) |
 | **REAP** | Swarm results + `bd update --status closed` | Swarm results (TaskUpdate by workers) |
+| **VIBE** | Wave diff vs acceptance criteria → PASS/WARN/FAIL | Same |
 | **ESCALATE** | `bd comments add` + retry | Update task description + retry |
 
 **Parallel Wave Model (via Swarm):**

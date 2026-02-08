@@ -54,6 +54,25 @@ Parameters:
     Return: key files, current state, suggested approach
 ```
 
+#### Pre-Planning Audit (Cleanup/Refactoring Epics)
+
+If goal includes "cleanup", "refactor", "remove dead", or "update stale":
+Run a **quantitative audit** BEFORE decomposing into issues:
+
+- **Dead code:** count packages, LOC, import references
+- **Stale docs:** count files, old vs new references
+- **Orphaned items:** count issues, follow-ups without beads
+
+Output concrete numbers. These become the plan's scope.
+
+| Bad | Good |
+|-----|------|
+| "clean up dead code" | "Delete 3,003 LOC across 3 packages" |
+| "update stale docs" | "Rewrite 4 specs (cli, observability, quest-events, index)" |
+| "remove old stuff" | "Remove 5 v2 agent references from 3 role prompts" |
+
+Ground truth with numbers prevents scope creep and makes completion verifiable. In ol-571, the audit found 5,752 LOC to remove — without it, the plan would have been vague.
+
 ### Step 4: Decompose into Issues
 
 Analyze the goal and break it into discrete, implementable issues. For each issue define:
@@ -62,6 +81,24 @@ Analyze the goal and break it into discrete, implementable issues. For each issu
 - **Dependencies**: Which issues must complete first (if any)
 - **Acceptance criteria**: How to verify it's done
 
+#### Design Briefs for Rewrites
+
+For any issue that says "rewrite", "redesign", or "create from scratch":
+Include a **design brief** (3+ sentences) covering:
+1. **Purpose** — what does this component do in the new architecture?
+2. **Key artifacts** — what files/interfaces define success?
+3. **Workflows** — what sequences must work?
+
+Without a design brief, workers invent design decisions. In ol-571, a spec rewrite issue without a design brief produced output that diverged from the intended architecture.
+
+#### Issue Granularity
+
+- **1-2 independent files** → 1 issue
+- **3+ independent files with no code deps** → split into sub-issues (one per file)
+  - Example: "Rewrite 4 specs" → 4 sub-issues (4.1, 4.2, 4.3, 4.4)
+  - Enables N parallel workers instead of 1 serial worker
+- **Shared files between issues** → serialize or assign to same worker
+
 ### Step 5: Compute Waves
 
 Group issues by dependencies for parallel execution:
@@ -69,6 +106,15 @@ Group issues by dependencies for parallel execution:
 - **Wave 2**: Issues depending only on Wave 1
 - **Wave 3**: Issues depending on Wave 2
 - Continue until all issues assigned
+
+#### Validate Dependency Necessity
+
+For EACH declared dependency, verify:
+1. Does the blocked issue modify a file that the blocker also modifies? → **Keep**
+2. Does the blocked issue read output produced by the blocker? → **Keep**
+3. Is the dependency only logical ordering (e.g., "specs before roles")? → **Remove**
+
+False dependencies reduce parallelism. Pre-mortem judges will also flag these. In ol-571, unnecessary serialization between independent spec rewrites was caught by pre-mortem.
 
 ### Step 6: Write Plan Document
 

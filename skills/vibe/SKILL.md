@@ -95,6 +95,92 @@ fi
 
 **Include complexity findings in council context.**
 
+### Step 2a: Run Constraint Tests
+
+**If the project has constraint tests, run them before council:**
+
+```bash
+# Check if constraint tests exist (Olympus pattern)
+if [ -d "internal/constraints" ] && ls internal/constraints/*_test.go &>/dev/null; then
+  echo "Running constraint tests..."
+  go test ./internal/constraints/ -run TestConstraint -v 2>&1
+  # If FAIL → include failures in council context as CRITICAL findings
+  # If PASS → note "N constraint tests passed" in report
+fi
+```
+
+**Why:** Constraint tests catch mechanical violations (ghost references, TOCTOU races, dead code at entry points) that council judges miss. Proven by Argus ghost ref in ol-571 — council gave PASS while constraint test caught it.
+
+Include constraint test results in the council packet context. Failed constraint tests are CRITICAL findings that override council PASS verdict.
+
+### Step 2b: Metadata Verification Checklist (MANDATORY)
+
+**Run mechanical checks BEFORE council. These catch errors that LLMs estimate instead of measure (L19, L22, L24).**
+
+```bash
+METADATA_FAILURES=""
+
+# 1. File existence — every path referenced in recent changes must exist
+for f in $(git diff --name-only HEAD~3 2>/dev/null); do
+  if [ ! -f "$f" ]; then
+    METADATA_FAILURES="${METADATA_FAILURES}\n- MISSING FILE: $f (in git diff but not on disk)"
+  fi
+done
+
+# 2. Line counts — if any file claims a count (e.g., "# 150 lines"), verify
+# Search for self-reported line counts in changed files
+for f in $(git diff --name-only HEAD~3 2>/dev/null); do
+  if [ -f "$f" ]; then
+    claimed=$(grep -oP '(\d+)\s*lines' "$f" 2>/dev/null | head -1 | grep -oP '\d+')
+    if [ -n "$claimed" ]; then
+      actual=$(wc -l < "$f" | tr -d ' ')
+      if [ "$claimed" -ne "$actual" ] 2>/dev/null; then
+        METADATA_FAILURES="${METADATA_FAILURES}\n- LINE COUNT MISMATCH: $f claims ${claimed} lines, actual ${actual}"
+      fi
+    fi
+  fi
+done
+
+# 3. Cross-references — internal doc links resolve
+for f in $(git diff --name-only HEAD~3 2>/dev/null | grep -E '\.(md|txt)$'); do
+  if [ -f "$f" ]; then
+    for ref in $(grep -oP '\[.*?\]\(((?!http)[^)]+)\)' "$f" 2>/dev/null | grep -oP '\(([^)]+)\)' | tr -d '()'); do
+      ref_dir=$(dirname "$f")
+      if [ ! -f "$ref_dir/$ref" ] && [ ! -f "$ref" ]; then
+        METADATA_FAILURES="${METADATA_FAILURES}\n- BROKEN LINK: $f references $ref (not found)"
+      fi
+    done
+  fi
+done
+
+# 4. ASCII diagram sanity — boxes vs labels (>3 boxes need verification per L22)
+for f in $(git diff --name-only HEAD~3 2>/dev/null | grep -E '\.(md|txt)$'); do
+  if [ -f "$f" ]; then
+    box_count=$(grep -cP '┌|╔|\+--' "$f" 2>/dev/null || echo 0)
+    if [ "$box_count" -gt 3 ]; then
+      label_count=$(grep -cP '│\s+\S' "$f" 2>/dev/null || echo 0)
+      if [ "$box_count" -gt "$label_count" ]; then
+        METADATA_FAILURES="${METADATA_FAILURES}\n- DIAGRAM CHECK: $f has ${box_count} boxes but only ${label_count} label lines — verify diagram accuracy"
+      fi
+    fi
+  fi
+done
+
+# Report results
+if [ -n "$METADATA_FAILURES" ]; then
+  echo "METADATA VERIFICATION FAILURES:"
+  echo -e "$METADATA_FAILURES"
+else
+  echo "Metadata verification: all checks passed"
+fi
+```
+
+**If failures found:** Include them in the council packet as `context.metadata_failures`. These are MECHANICAL findings — council should not need to re-discover them. Council judges focus on structural and logical issues instead.
+
+**If all pass:** Note "Metadata verification: N checks passed" in the vibe report.
+
+**Why:** LLMs estimate metadata from content complexity, not measurement (L24). Line counts, cross-references, and diagram accuracy are mechanical — verify them mechanically. This frees council judges to focus on correctness, architecture, and security.
+
 ### Step 3: Load the Spec (New)
 
 Before invoking council, try to find the relevant spec/bead:
