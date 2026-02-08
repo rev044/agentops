@@ -23,18 +23,38 @@ rm -f .agents/ao/.ratchet-advance-fired 2>/dev/null
 # Get flywheel status (brief one-liner for visibility)
 flywheel_status=""
 if command -v ao &>/dev/null; then
-    # Extract just the key metrics from flywheel status
-    flywheel_output=$(ao flywheel status 2>/dev/null || {
-        mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
-        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao flywheel status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
-    })
-    if [[ -n "$flywheel_output" ]]; then
-        # Parse the status line and velocity (tr -d removes newlines)
-        status_line=$(echo "$flywheel_output" | grep -o '\[.*\]' | head -1 | tr -d '\n' || echo "[UNKNOWN]")
-        velocity=$(echo "$flywheel_output" | grep "velocity:" | grep -o '[+-][0-9.]*' | tr -d '\n' || echo "?")
-        sessions=$(ao status 2>/dev/null | grep "^Sessions:" | awk '{print $2}' | head -1 | tr -d '\n' || echo "?")
-        learnings_count=$(ls -1 .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
-        flywheel_status="**Flywheel:** ${status_line} | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
+    # Try new structured command first
+    if ao flywheel nudge --help >/dev/null 2>&1; then
+        nudge_json=$(ao flywheel nudge -o json 2>/dev/null || {
+            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao flywheel nudge" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+        })
+        if [ -n "$nudge_json" ] && command -v jq >/dev/null 2>&1; then
+            status_line=$(echo "$nudge_json" | jq -r '.status // ""')
+            velocity=$(echo "$nudge_json" | jq -r '.velocity // 0')
+            sessions=$(echo "$nudge_json" | jq -r '.sessions_count // 0')
+            learnings_count=$(echo "$nudge_json" | jq -r '.learnings_count // 0')
+            pool_pending=$(echo "$nudge_json" | jq -r '.pool_pending // 0')
+            if [[ -n "$status_line" ]]; then
+                flywheel_status="**Flywheel:** [${status_line}] | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
+            fi
+        fi
+    fi
+
+    # Fallback: old grep/tr parsing if new command unavailable or failed
+    if [[ -z "$flywheel_status" ]]; then
+        flywheel_output=$(ao flywheel status 2>/dev/null || {
+            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao flywheel status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+        })
+        if [[ -n "$flywheel_output" ]]; then
+            # Parse the status line and velocity (tr -d removes newlines)
+            status_line=$(echo "$flywheel_output" | grep -o '\[.*\]' | head -1 | tr -d '\n' || echo "[UNKNOWN]")
+            velocity=$(echo "$flywheel_output" | grep "velocity:" | grep -o '[+-][0-9.]*' | tr -d '\n' || echo "?")
+            sessions=$(ao status 2>/dev/null | grep "^Sessions:" | awk '{print $2}' | head -1 | tr -d '\n' || echo "?")
+            learnings_count=$(ls -1 .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
+            flywheel_status="**Flywheel:** ${status_line} | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
+        fi
     fi
 fi
 
@@ -67,69 +87,95 @@ fi
 resume_directive=""
 if [ "${AGENTOPS_AUTOCHAIN:-}" != "0" ] && command -v jq >/dev/null 2>&1; then
     ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
-    CHAIN_FILE="$ROOT/.agents/ao/chain.jsonl"
-    if [ -f "$CHAIN_FILE" ]; then
-        # RPI step sequence
-        RPI_STEPS="research plan pre-mortem implement vibe post-mortem"
 
-        # Find the latest completed/locked step, handling both old and new schema
-        # Old schema: {"gate":"<step>","status":"locked"} or {"status":"skipped"}
-        # New schema: {"step":"<step>","locked":true}
-        last_step=""
-        last_timestamp=""
-        last_artifact=""
+    # Try new structured command first
+    if ao ratchet next --help >/dev/null 2>&1; then
+        next_json=$(ao ratchet next -o json 2>/dev/null)
+        if [ -n "$next_json" ]; then
+            next_step=$(echo "$next_json" | jq -r '.next // ""')
+            last_step=$(echo "$next_json" | jq -r '.last_step // ""')
+            last_artifact=$(echo "$next_json" | jq -r '.last_artifact // ""')
+            skill=$(echo "$next_json" | jq -r '.skill // ""')
+            complete=$(echo "$next_json" | jq -r '.complete // false')
 
-        # Read chain.jsonl and find last completed entry
-        while IFS= read -r line; do
-            # Try new schema first: "step" field + "locked":true
-            step_name=$(echo "$line" | jq -r 'if .step then .step else .gate // empty end' 2>/dev/null)
-            is_done=$(echo "$line" | jq -r '
-                if .locked == true then "yes"
-                elif .status == "locked" then "yes"
-                elif .status == "skipped" then "yes"
-                else "no"
-                end
-            ' 2>/dev/null)
-
-            if [ "$is_done" = "yes" ] && [ -n "$step_name" ]; then
-                last_step="$step_name"
-                last_timestamp=$(echo "$line" | jq -r '.timestamp // .ts // empty' 2>/dev/null)
-                # Extract artifact path: "artifact" (old) or "output" (new)
-                raw_artifact=$(echo "$line" | jq -r '.artifact // .output // empty' 2>/dev/null)
-                # Sanitize: relative only, under .agents/, no ".."
-                if [ -n "$raw_artifact" ]; then
-                    case "$raw_artifact" in
-                        /*|*..*)  raw_artifact="" ;;  # reject absolute or traversal
-                        .agents/*) last_artifact="$raw_artifact" ;;
-                        *)         raw_artifact="" ;;  # reject paths not under .agents/
-                    esac
-                fi
-            fi
-        done < "$CHAIN_FILE"
-
-        # Determine next pending step
-        if [ -n "$last_step" ]; then
-            next_step=""
-            found_last=false
-            for s in $RPI_STEPS; do
-                if $found_last; then
-                    next_step="$s"
-                    break
-                fi
-                if [ "$s" = "$last_step" ]; then
-                    found_last=true
-                fi
-            done
-
-            if [ -n "$next_step" ]; then
-                # Map step names to skill commands
-                skill_cmd="/$next_step"
+            if [ "$complete" = "true" ]; then
+                resume_directive="RPI cycle complete. Run /post-mortem to extract learnings."
+            elif [ -n "$next_step" ] && [ -n "$skill" ]; then
                 artifact_arg=""
                 if [ -n "$last_artifact" ]; then
                     artifact_arg=" $last_artifact"
                 fi
-                ts_display="${last_timestamp:-unknown}"
-                resume_directive="RESUMING FLYWHEEL: ${last_step} completed at ${ts_display}. Suggested next: ${skill_cmd}${artifact_arg}. Say SKIP to bypass."
+                resume_directive="RESUMING FLYWHEEL: ${last_step} completed. Suggested next: ${skill}${artifact_arg}. Say SKIP to bypass."
+            fi
+        fi
+    fi
+
+    # Fallback: existing chain.jsonl walking code if new command unavailable or failed
+    if [ -z "$resume_directive" ]; then
+        CHAIN_FILE="$ROOT/.agents/ao/chain.jsonl"
+        if [ -f "$CHAIN_FILE" ]; then
+            # RPI step sequence
+            RPI_STEPS="research plan pre-mortem implement vibe post-mortem"
+
+            # Find the latest completed/locked step, handling both old and new schema
+            # Old schema: {"gate":"<step>","status":"locked"} or {"status":"skipped"}
+            # New schema: {"step":"<step>","locked":true}
+            last_step=""
+            last_timestamp=""
+            last_artifact=""
+
+            # Read chain.jsonl and find last completed entry
+            while IFS= read -r line; do
+                # Try new schema first: "step" field + "locked":true
+                step_name=$(echo "$line" | jq -r 'if .step then .step else .gate // empty end' 2>/dev/null)
+                is_done=$(echo "$line" | jq -r '
+                    if .locked == true then "yes"
+                    elif .status == "locked" then "yes"
+                    elif .status == "skipped" then "yes"
+                    else "no"
+                    end
+                ' 2>/dev/null)
+
+                if [ "$is_done" = "yes" ] && [ -n "$step_name" ]; then
+                    last_step="$step_name"
+                    last_timestamp=$(echo "$line" | jq -r '.timestamp // .ts // empty' 2>/dev/null)
+                    # Extract artifact path: "artifact" (old) or "output" (new)
+                    raw_artifact=$(echo "$line" | jq -r '.artifact // .output // empty' 2>/dev/null)
+                    # Sanitize: relative only, under .agents/, no ".."
+                    if [ -n "$raw_artifact" ]; then
+                        case "$raw_artifact" in
+                            /*|*..*)  raw_artifact="" ;;  # reject absolute or traversal
+                            .agents/*) last_artifact="$raw_artifact" ;;
+                            *)         raw_artifact="" ;;  # reject paths not under .agents/
+                        esac
+                    fi
+                fi
+            done < "$CHAIN_FILE"
+
+            # Determine next pending step
+            if [ -n "$last_step" ]; then
+                next_step=""
+                found_last=false
+                for s in $RPI_STEPS; do
+                    if $found_last; then
+                        next_step="$s"
+                        break
+                    fi
+                    if [ "$s" = "$last_step" ]; then
+                        found_last=true
+                    fi
+                done
+
+                if [ -n "$next_step" ]; then
+                    # Map step names to skill commands
+                    skill_cmd="/$next_step"
+                    artifact_arg=""
+                    if [ -n "$last_artifact" ]; then
+                        artifact_arg=" $last_artifact"
+                    fi
+                    ts_display="${last_timestamp:-unknown}"
+                    resume_directive="RESUMING FLYWHEEL: ${last_step} completed at ${ts_display}. Suggested next: ${skill_cmd}${artifact_arg}. Say SKIP to bypass."
+                fi
             fi
         fi
     fi

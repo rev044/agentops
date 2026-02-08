@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -233,5 +234,210 @@ func TestTranscriptCandidateFields(t *testing.T) {
 	}
 	if !c.modTime.Equal(now) {
 		t.Error("modTime mismatch")
+	}
+}
+
+func TestLoadForgedIndex(t *testing.T) {
+	// Create temp directory
+	tmpDir := t.TempDir()
+	indexPath := filepath.Join(tmpDir, "forged.jsonl")
+
+	// Test empty index (file doesn't exist)
+	forgedSet, err := loadForgedIndex(indexPath)
+	if err != nil {
+		t.Fatalf("loadForgedIndex failed: %v", err)
+	}
+	if len(forgedSet) != 0 {
+		t.Errorf("expected empty set, got %d entries", len(forgedSet))
+	}
+
+	// Write some test records
+	records := []ForgedRecord{
+		{Path: "/path/to/session1.jsonl", ForgedAt: time.Now(), Session: "session-1"},
+		{Path: "/path/to/session2.jsonl", ForgedAt: time.Now(), Session: "session-2"},
+		{Path: "/path/to/session3.jsonl", ForgedAt: time.Now(), Session: "session-3"},
+	}
+
+	f, err := os.Create(indexPath)
+	if err != nil {
+		t.Fatalf("create index file: %v", err)
+	}
+	for _, record := range records {
+		data, _ := json.Marshal(record)
+		f.Write(append(data, '\n'))
+	}
+	f.Close()
+
+	// Load index
+	forgedSet, err = loadForgedIndex(indexPath)
+	if err != nil {
+		t.Fatalf("loadForgedIndex failed: %v", err)
+	}
+
+	// Verify all paths are in set
+	if len(forgedSet) != 3 {
+		t.Errorf("expected 3 entries, got %d", len(forgedSet))
+	}
+	for _, record := range records {
+		if !forgedSet[record.Path] {
+			t.Errorf("expected path %s to be in set", record.Path)
+		}
+	}
+}
+
+func TestAppendForgedRecord(t *testing.T) {
+	tmpDir := t.TempDir()
+	indexPath := filepath.Join(tmpDir, "forged.jsonl")
+
+	record1 := ForgedRecord{
+		Path:     "/path/to/session1.jsonl",
+		ForgedAt: time.Now(),
+		Session:  "session-1",
+	}
+
+	// Append first record
+	if err := appendForgedRecord(indexPath, record1); err != nil {
+		t.Fatalf("appendForgedRecord failed: %v", err)
+	}
+
+	// Verify file exists
+	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+		t.Fatal("expected index file to exist")
+	}
+
+	// Append second record
+	record2 := ForgedRecord{
+		Path:     "/path/to/session2.jsonl",
+		ForgedAt: time.Now(),
+		Session:  "session-2",
+	}
+	if err := appendForgedRecord(indexPath, record2); err != nil {
+		t.Fatalf("appendForgedRecord failed on second write: %v", err)
+	}
+
+	// Load and verify
+	forgedSet, err := loadForgedIndex(indexPath)
+	if err != nil {
+		t.Fatalf("loadForgedIndex failed: %v", err)
+	}
+
+	if len(forgedSet) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(forgedSet))
+	}
+	if !forgedSet[record1.Path] {
+		t.Errorf("expected path %s to be in set", record1.Path)
+	}
+	if !forgedSet[record2.Path] {
+		t.Errorf("expected path %s to be in set", record2.Path)
+	}
+}
+
+func TestBatchForgeSkipsAlreadyForged(t *testing.T) {
+	tmpDir := t.TempDir()
+	indexPath := filepath.Join(tmpDir, "forged.jsonl")
+
+	// Create forged index with one entry
+	record := ForgedRecord{
+		Path:     "/already/forged.jsonl",
+		ForgedAt: time.Now(),
+		Session:  "session-old",
+	}
+	if err := appendForgedRecord(indexPath, record); err != nil {
+		t.Fatalf("appendForgedRecord failed: %v", err)
+	}
+
+	// Load index
+	forgedSet, err := loadForgedIndex(indexPath)
+	if err != nil {
+		t.Fatalf("loadForgedIndex failed: %v", err)
+	}
+
+	// Simulate filtering transcripts
+	candidates := []transcriptCandidate{
+		{path: "/already/forged.jsonl", modTime: time.Now(), size: 1000},
+		{path: "/new/transcript.jsonl", modTime: time.Now(), size: 2000},
+	}
+
+	var unforged []transcriptCandidate
+	for _, c := range candidates {
+		if !forgedSet[c.path] {
+			unforged = append(unforged, c)
+		}
+	}
+
+	// Verify only new transcript remains
+	if len(unforged) != 1 {
+		t.Errorf("expected 1 unforged transcript, got %d", len(unforged))
+	}
+	if unforged[0].path != "/new/transcript.jsonl" {
+		t.Errorf("expected /new/transcript.jsonl, got %s", unforged[0].path)
+	}
+}
+
+func TestBatchForgeMaxFlag(t *testing.T) {
+	// Simulate --max flag limiting transcripts
+	candidates := []transcriptCandidate{
+		{path: "/transcript1.jsonl", modTime: time.Now(), size: 1000},
+		{path: "/transcript2.jsonl", modTime: time.Now(), size: 1000},
+		{path: "/transcript3.jsonl", modTime: time.Now(), size: 1000},
+		{path: "/transcript4.jsonl", modTime: time.Now(), size: 1000},
+		{path: "/transcript5.jsonl", modTime: time.Now(), size: 1000},
+	}
+
+	maxLimit := 3
+	var limited []transcriptCandidate
+	if maxLimit > 0 && len(candidates) > maxLimit {
+		limited = candidates[:maxLimit]
+	} else {
+		limited = candidates
+	}
+
+	if len(limited) != maxLimit {
+		t.Errorf("expected %d transcripts after limit, got %d", maxLimit, len(limited))
+	}
+
+	// Verify we got the first 3
+	for i := 0; i < maxLimit; i++ {
+		if limited[i].path != candidates[i].path {
+			t.Errorf("expected %s at position %d, got %s", candidates[i].path, i, limited[i].path)
+		}
+	}
+}
+
+func TestBatchForgeResult(t *testing.T) {
+	// Test JSON marshaling of BatchForgeResult
+	result := BatchForgeResult{
+		Forged:    10,
+		Skipped:   3,
+		Failed:    1,
+		Extracted: 8,
+		Paths:     []string{"/path1.jsonl", "/path2.jsonl"},
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	// Unmarshal and verify
+	var decoded BatchForgeResult
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	if decoded.Forged != result.Forged {
+		t.Errorf("expected Forged=%d, got %d", result.Forged, decoded.Forged)
+	}
+	if decoded.Skipped != result.Skipped {
+		t.Errorf("expected Skipped=%d, got %d", result.Skipped, decoded.Skipped)
+	}
+	if decoded.Failed != result.Failed {
+		t.Errorf("expected Failed=%d, got %d", result.Failed, decoded.Failed)
+	}
+	if decoded.Extracted != result.Extracted {
+		t.Errorf("expected Extracted=%d, got %d", result.Extracted, decoded.Extracted)
+	}
+	if len(decoded.Paths) != len(result.Paths) {
+		t.Errorf("expected %d paths, got %d", len(result.Paths), len(decoded.Paths))
 	}
 }

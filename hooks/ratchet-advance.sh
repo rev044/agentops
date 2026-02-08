@@ -30,16 +30,31 @@ STEP=$(echo "$CMD" | sed -n 's/.*ao ratchet record[[:space:]]\{1,\}\([a-z_-]*\).
 [ -z "$STEP" ] && exit 0
 
 # Map step → next skill
-case "$STEP" in
-    research)    NEXT="/plan" ;;
-    plan)        NEXT="/pre-mortem" ;;
-    pre-mortem)  NEXT="/implement or /crank" ;;
-    implement)   NEXT="/vibe" ;;
-    crank)       NEXT="/vibe" ;;
-    vibe)        NEXT="/post-mortem" ;;
-    post-mortem) NEXT="Cycle complete" ;;
-    *)           exit 0 ;;  # Unknown step, no suggestion
-esac
+# Try new structured command first
+if command -v jq >/dev/null 2>&1 && ao ratchet next --help >/dev/null 2>&1; then
+    next_json=$(ao ratchet next -o json 2>/dev/null)
+    if [ -n "$next_json" ]; then
+        NEXT=$(echo "$next_json" | jq -r '.skill // ""')
+        COMPLETE=$(echo "$next_json" | jq -r '.complete // false')
+        if [ "$COMPLETE" = "true" ]; then
+            NEXT="Cycle complete"
+        fi
+    fi
+fi
+
+# Fallback: original case statement if new command unavailable or failed
+if [ -z "$NEXT" ]; then
+    case "$STEP" in
+        research)    NEXT="/plan" ;;
+        plan)        NEXT="/pre-mortem" ;;
+        pre-mortem)  NEXT="/implement or /crank" ;;
+        implement)   NEXT="/vibe" ;;
+        crank)       NEXT="/vibe" ;;
+        vibe)        NEXT="/post-mortem" ;;
+        post-mortem) NEXT="Cycle complete" ;;
+        *)           exit 0 ;;  # Unknown step, no suggestion
+    esac
+fi
 
 # Extract --output artifact path if present
 ARTIFACT=$(echo "$CMD" | sed -n 's/.*--output[[:space:]]\{1,\}\([^[:space:]]*\).*/\1/p')

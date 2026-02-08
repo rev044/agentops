@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -28,18 +31,31 @@ the forge extraction pipeline, and deduplicates similar learnings.
 Examples:
   ao forge batch                    # Process all pending transcripts
   ao forge batch --dry-run          # List what would be processed
-  ao forge batch --dir ~/.claude/projects/my-project`,
+  ao forge batch --dir ~/.claude/projects/my-project
+  ao forge batch --max 10           # Process up to 10 transcripts
+  ao forge batch --extract          # Trigger extraction after forging`,
 	RunE: runForgeBatch,
 }
 
-var batchDir string
+var (
+	batchDir     string
+	batchExtract bool
+	batchMax     int
+)
 
 func init() {
 	forgeCmd.AddCommand(forgeBatchCmd)
 	forgeBatchCmd.Flags().StringVar(&batchDir, "dir", "", "Specific directory to scan (default: all Claude project dirs)")
+	forgeBatchCmd.Flags().BoolVar(&batchExtract, "extract", false, "Trigger extraction after forging")
+	forgeBatchCmd.Flags().IntVar(&batchMax, "max", 0, "Maximum transcripts to process (0 = all)")
 }
 
 func runForgeBatch(cmd *cobra.Command, args []string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
 	transcripts, err := findPendingTranscripts(batchDir)
 	if err != nil {
 		return fmt.Errorf("find transcripts: %w", err)
@@ -50,22 +66,41 @@ func runForgeBatch(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Load forged index
+	forgedIndexPath := filepath.Join(cwd, storage.DefaultBaseDir, "forged.jsonl")
+	forgedSet, err := loadForgedIndex(forgedIndexPath)
+	if err != nil {
+		return fmt.Errorf("load forged index: %w", err)
+	}
+
+	// Filter out already-forged transcripts
+	var unforgedTranscripts []transcriptCandidate
+	var skippedCount int
+	for _, t := range transcripts {
+		if forgedSet[t.path] {
+			skippedCount++
+			VerbosePrintf("Skipping already-forged: %s\n", t.path)
+		} else {
+			unforgedTranscripts = append(unforgedTranscripts, t)
+		}
+	}
+
+	// Apply --max limit
+	if batchMax > 0 && len(unforgedTranscripts) > batchMax {
+		unforgedTranscripts = unforgedTranscripts[:batchMax]
+	}
+
 	if GetDryRun() {
-		fmt.Printf("[dry-run] Would process %d transcript(s):\n", len(transcripts))
-		for _, t := range transcripts {
+		fmt.Printf("[dry-run] Would process %d transcript(s) (skipped %d):\n", len(unforgedTranscripts), skippedCount)
+		for _, t := range unforgedTranscripts {
 			fmt.Printf("  - %s (%s)\n", t.path, humanSize(t.size))
 		}
 		return nil
 	}
 
-	fmt.Printf("Found %d transcript(s) to process.\n", len(transcripts))
+	fmt.Printf("Found %d transcript(s) to process (skipped %d already forged).\n", len(unforgedTranscripts), skippedCount)
 
 	// Initialize storage
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
-	}
-
 	baseDir := filepath.Join(cwd, storage.DefaultBaseDir)
 	fs := storage.NewFileStorage(
 		storage.WithBaseDir(baseDir),
@@ -85,19 +120,22 @@ func runForgeBatch(cmd *cobra.Command, args []string) error {
 
 	var (
 		totalProcessed  int
+		totalFailed     int
 		totalDecisions  int
 		totalKnowledge  int
 		totalDupsRemoved int
 		allKnowledge    []string
 		allDecisions    []string
+		processedPaths  []string
 	)
 
-	for i, t := range transcripts {
-		fmt.Printf("[%d/%d] Processing %s...\n", i+1, len(transcripts), filepath.Base(t.path))
+	for i, t := range unforgedTranscripts {
+		fmt.Printf("[%d/%d] Processing %s...\n", i+1, len(unforgedTranscripts), filepath.Base(t.path))
 
 		session, err := processTranscript(t.path, p, extractor, false)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: skipping %s: %v\n", t.path, err)
+			totalFailed++
 			continue
 		}
 
@@ -138,6 +176,17 @@ func runForgeBatch(cmd *cobra.Command, args []string) error {
 		totalKnowledge += len(session.Knowledge)
 		allKnowledge = append(allKnowledge, session.Knowledge...)
 		allDecisions = append(allDecisions, session.Decisions...)
+		processedPaths = append(processedPaths, t.path)
+
+		// Record in forged index
+		forgedRecord := ForgedRecord{
+			Path:     t.path,
+			ForgedAt: time.Now(),
+			Session:  session.ID,
+		}
+		if err := appendForgedRecord(forgedIndexPath, forgedRecord); err != nil {
+			VerbosePrintf("  Warning: failed to record forged transcript: %v\n", err)
+		}
 
 		VerbosePrintf("  -> %d decisions, %d learnings\n", len(session.Decisions), len(session.Knowledge))
 	}
@@ -149,14 +198,44 @@ func runForgeBatch(cmd *cobra.Command, args []string) error {
 	decisionDups := len(allDecisions) - len(dedupedDecisions)
 	totalDupsRemoved = knowledgeDups + decisionDups
 
-	fmt.Printf("\n--- Batch Forge Summary ---\n")
-	fmt.Printf("Transcripts processed: %d\n", totalProcessed)
-	fmt.Printf("Decisions extracted:   %d\n", totalDecisions)
-	fmt.Printf("Learnings extracted:   %d\n", totalKnowledge)
-	fmt.Printf("Duplicates removed:    %d\n", totalDupsRemoved)
-	fmt.Printf("Unique decisions:      %d\n", len(dedupedDecisions))
-	fmt.Printf("Unique learnings:      %d\n", len(dedupedKnowledge))
-	fmt.Printf("Output:                %s\n", baseDir)
+	// Run extraction if --extract flag is set
+	totalExtracted := 0
+	if batchExtract && totalProcessed > 0 {
+		fmt.Printf("\nTriggering extraction for %d session(s)...\n", totalProcessed)
+		extractedCount, extractErr := triggerExtraction(cwd)
+		if extractErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: extraction failed: %v\n", extractErr)
+		} else {
+			totalExtracted = extractedCount
+		}
+	}
+
+	// Output results
+	if GetOutput() == "json" {
+		result := BatchForgeResult{
+			Forged:    totalProcessed,
+			Skipped:   skippedCount,
+			Failed:    totalFailed,
+			Extracted: totalExtracted,
+			Paths:     processedPaths,
+		}
+		data, _ := json.MarshalIndent(result, "", "  ")
+		fmt.Println(string(data))
+	} else {
+		fmt.Printf("\n--- Batch Forge Summary ---\n")
+		fmt.Printf("Transcripts processed: %d\n", totalProcessed)
+		fmt.Printf("Skipped (already):     %d\n", skippedCount)
+		fmt.Printf("Failed:                %d\n", totalFailed)
+		fmt.Printf("Decisions extracted:   %d\n", totalDecisions)
+		fmt.Printf("Learnings extracted:   %d\n", totalKnowledge)
+		fmt.Printf("Duplicates removed:    %d\n", totalDupsRemoved)
+		fmt.Printf("Unique decisions:      %d\n", len(dedupedDecisions))
+		fmt.Printf("Unique learnings:      %d\n", len(dedupedKnowledge))
+		if totalExtracted > 0 {
+			fmt.Printf("Extractions processed: %d\n", totalExtracted)
+		}
+		fmt.Printf("Output:                %s\n", baseDir)
+	}
 
 	return nil
 }
@@ -166,6 +245,22 @@ type transcriptCandidate struct {
 	path    string
 	modTime time.Time
 	size    int64
+}
+
+// ForgedRecord represents a forged transcript entry.
+type ForgedRecord struct {
+	Path     string    `json:"path"`
+	ForgedAt time.Time `json:"forged_at"`
+	Session  string    `json:"session,omitempty"`
+}
+
+// BatchForgeResult holds results from batch forge operation.
+type BatchForgeResult struct {
+	Forged    int      `json:"forged"`
+	Skipped   int      `json:"skipped"`
+	Failed    int      `json:"failed"`
+	Extracted int      `json:"extracted,omitempty"`
+	Paths     []string `json:"paths"`
 }
 
 // findPendingTranscripts discovers JSONL transcript files in Claude project directories.
@@ -263,4 +358,109 @@ func humanSize(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMG"[exp])
+}
+
+// loadForgedIndex reads the forged.jsonl index and returns a set of forged paths.
+func loadForgedIndex(path string) (map[string]bool, error) {
+	forgedSet := make(map[string]bool)
+
+	// If file doesn't exist, return empty set
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return forgedSet, nil
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open forged index: %w", err)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		var record ForgedRecord
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			VerbosePrintf("Warning: skipping malformed forged record: %v\n", err)
+			continue
+		}
+
+		forgedSet[record.Path] = true
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan forged index: %w", err)
+	}
+
+	return forgedSet, nil
+}
+
+// appendForgedRecord appends a forged record to the index using flock.
+func appendForgedRecord(path string, record ForgedRecord) error {
+	// Ensure directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+
+	// Open file for append with exclusive lock
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("open forged index: %w", err)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	// Acquire exclusive lock
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("lock forged index: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	}()
+
+	// Marshal and write record
+	data, err := json.Marshal(record)
+	if err != nil {
+		return fmt.Errorf("marshal record: %w", err)
+	}
+
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		return fmt.Errorf("write record: %w", err)
+	}
+
+	return nil
+}
+
+// triggerExtraction runs extraction for all pending sessions.
+func triggerExtraction(cwd string) (int, error) {
+	pendingPath := filepath.Join(cwd, storage.DefaultBaseDir, "pending.jsonl")
+
+	// Check if pending file exists
+	if _, err := os.Stat(pendingPath); os.IsNotExist(err) {
+		return 0, nil // No pending extractions
+	}
+
+	// Read pending extractions
+	pending, err := readPendingExtractions(pendingPath)
+	if err != nil {
+		return 0, fmt.Errorf("read pending: %w", err)
+	}
+
+	if len(pending) == 0 {
+		return 0, nil
+	}
+
+	// Call the existing runExtractAll function from extract.go
+	if err := runExtractAll(pendingPath, pending, cwd); err != nil {
+		return 0, err
+	}
+
+	return len(pending), nil
 }
