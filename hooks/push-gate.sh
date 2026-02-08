@@ -37,35 +37,66 @@ fi
 
 # Parse chain directly for speed (avoid spawning ao process)
 # Look for the latest vibe step entry
-VIBE_LINE=$(grep '"step"[[:space:]]*:[[:space:]]*"vibe"' "$ROOT/.agents/ao/chain.jsonl" 2>/dev/null | tail -1)
+VIBE_LINE=$(grep -E '"(step|gate)"[[:space:]]*:[[:space:]]*"vibe"' "$ROOT/.agents/ao/chain.jsonl" 2>/dev/null | tail -1)
 
+LOG_DIR="$ROOT/.agents/ao"
+mkdir -p "$LOG_DIR" 2>/dev/null
+
+VIBE_DONE=false
 if [ -z "$VIBE_LINE" ]; then
     # No vibe entry at all — vibe is pending, block
     :
 else
-    # Check if vibe is locked or skipped
-    if echo "$VIBE_LINE" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"'; then
-        # Vibe completed or skipped — allow push
-        exit 0
+    # Check if vibe is locked or skipped (both schemas)
+    if echo "$VIBE_LINE" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"' || echo "$VIBE_LINE" | grep -qE '"locked"[[:space:]]*:[[:space:]]*true'; then
+        VIBE_DONE=true
     fi
 fi
 
-# Determine message based on agent context
-if [ -n "$CLAUDE_AGENT_NAME" ] && echo "$CLAUDE_AGENT_NAME" | grep -q '^worker-'; then
-    MSG="Push blocked: vibe check needed. Report to team lead."
-else
-    MSG="BLOCKED: vibe not completed. Run /vibe before pushing.
+if [ "$VIBE_DONE" = "false" ]; then
+    # Vibe not completed — block push
+    if [ -n "$CLAUDE_AGENT_NAME" ] && echo "$CLAUDE_AGENT_NAME" | grep -q '^worker-'; then
+        MSG="Push blocked: vibe check needed. Report to team lead."
+    else
+        MSG="BLOCKED: vibe not completed. Run /vibe before pushing.
 Options:
   1. /vibe              -- full council validation
   2. /vibe --quick      -- fast inline check
   3. ao ratchet skip vibe --reason \"<why>\"
 To disable all gates: export AGENTOPS_HOOKS_DISABLED=1"
+    fi
+
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (vibe): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+    echo "$MSG" >&2
+    exit 2
 fi
 
-# Log the block
-LOG_DIR="$ROOT/.agents/ao"
-mkdir -p "$LOG_DIR" 2>/dev/null
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked: $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+# --- Post-mortem gate ---
+# If vibe exists, check that post-mortem is also done before allowing push
+PM_LINE=$(grep -E '"(step|gate)"[[:space:]]*:[[:space:]]*"post-mortem"' "$ROOT/.agents/ao/chain.jsonl" 2>/dev/null | tail -1)
 
-echo "$MSG" >&2
+if [ -z "$PM_LINE" ]; then
+    # Vibe exists but no post-mortem entry — block
+    :
+else
+    # Check if post-mortem is locked or skipped (both schemas)
+    if echo "$PM_LINE" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"' || echo "$PM_LINE" | grep -qE '"locked"[[:space:]]*:[[:space:]]*true'; then
+        # Post-mortem done — allow push
+        exit 0
+    fi
+fi
+
+# Post-mortem not completed — block push
+if [ -n "$CLAUDE_AGENT_NAME" ] && echo "$CLAUDE_AGENT_NAME" | grep -q '^worker-'; then
+    PM_MSG="Push blocked: post-mortem needed. Report to team lead."
+else
+    PM_MSG="BLOCKED: post-mortem not completed. Run /post-mortem to capture learnings before pushing.
+Options:
+  1. /post-mortem          -- full council wrap-up
+  2. ao ratchet skip post-mortem --reason '<why>'
+To disable all gates: export AGENTOPS_HOOKS_DISABLED=1"
+fi
+
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (post-mortem): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+echo "$PM_MSG" >&2
 exit 2

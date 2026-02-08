@@ -2,6 +2,8 @@
 # prompt-nudge.sh - UserPromptSubmit hook: ratchet-aware one-liner nudges
 # Checks prompt keywords against RPI ratchet state. Injects reminders.
 # Cap: one nudge line, < 200 bytes. No directory scanning.
+# Nudge priority: ratchet-advance.sh (PostToolUse, PRIMARY) > prompt-nudge.sh (UserPromptSubmit, SECONDARY) > session-start.sh (SessionStart, CROSS-SESSION)
+# This hook suppresses if ratchet-advance already fired recently (dedup via .ratchet-advance-fired flag).
 
 # Kill switch
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
@@ -21,6 +23,19 @@ fi
 
 # Find repo root
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+
+# Nudge dedup: suppress if ratchet-advance already fired recently
+DEDUP_FLAG="$ROOT/.agents/ao/.ratchet-advance-fired"
+if [ -f "$DEDUP_FLAG" ]; then
+    # Check if flag is fresh (written in last 10 minutes)
+    if find "$DEDUP_FLAG" -mmin -10 2>/dev/null | grep -q .; then
+        # ratchet-advance already fired recently — suppress this nudge
+        exit 0
+    else
+        # Stale flag — clean up and continue with normal nudge logic
+        rm -f "$DEDUP_FLAG" 2>/dev/null
+    fi
+fi
 
 # Cold start: no ratchet chain = no nudging
 [ ! -f "$ROOT/.agents/ao/chain.jsonl" ] && exit 0

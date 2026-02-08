@@ -17,6 +17,9 @@ for dir in "${AGENTS_DIRS[@]}"; do
     fi
 done
 
+# Clean up stale nudge dedup flag from previous session
+rm -f .agents/ao/.ratchet-advance-fired 2>/dev/null
+
 # Get flywheel status (brief one-liner for visibility)
 flywheel_status=""
 if command -v ao &>/dev/null; then
@@ -37,13 +40,98 @@ fi
 
 # Get ratchet status (brief one-liner for visibility)
 ratchet_status=""
+ratchet_output=""
 if command -v ao &>/dev/null; then
-    ratchet_output=$(ao ratchet status -o oneline 2>/dev/null || {
-        mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
-        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
-    })
+    if command -v jq >/dev/null 2>&1; then
+        ratchet_json=$(ao ratchet status -o json 2>/dev/null) || {
+            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+        }
+        if [ -n "$ratchet_json" ]; then
+            ratchet_output=$(echo "$ratchet_json" | jq -r '
+                [.steps[] | "\(.step):\(.status)"] | join(" → ")
+            ' 2>/dev/null)
+        fi
+    else
+        ratchet_output=$(ao ratchet status -o table 2>/dev/null | head -3) || {
+            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+        }
+    fi
     if [[ -n "$ratchet_output" ]]; then
         ratchet_status="**Ratchet:** ${ratchet_output}"
+    fi
+fi
+
+# Ratchet resume directive: suggest next RPI step if chain.jsonl exists
+resume_directive=""
+if [ "${AGENTOPS_AUTOCHAIN:-}" != "0" ] && command -v jq >/dev/null 2>&1; then
+    ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+    CHAIN_FILE="$ROOT/.agents/ao/chain.jsonl"
+    if [ -f "$CHAIN_FILE" ]; then
+        # RPI step sequence
+        RPI_STEPS="research plan pre-mortem implement vibe post-mortem"
+
+        # Find the latest completed/locked step, handling both old and new schema
+        # Old schema: {"gate":"<step>","status":"locked"} or {"status":"skipped"}
+        # New schema: {"step":"<step>","locked":true}
+        last_step=""
+        last_timestamp=""
+        last_artifact=""
+
+        # Read chain.jsonl and find last completed entry
+        while IFS= read -r line; do
+            # Try new schema first: "step" field + "locked":true
+            step_name=$(echo "$line" | jq -r 'if .step then .step else .gate // empty end' 2>/dev/null)
+            is_done=$(echo "$line" | jq -r '
+                if .locked == true then "yes"
+                elif .status == "locked" then "yes"
+                elif .status == "skipped" then "yes"
+                else "no"
+                end
+            ' 2>/dev/null)
+
+            if [ "$is_done" = "yes" ] && [ -n "$step_name" ]; then
+                last_step="$step_name"
+                last_timestamp=$(echo "$line" | jq -r '.timestamp // .ts // empty' 2>/dev/null)
+                # Extract artifact path: "artifact" (old) or "output" (new)
+                raw_artifact=$(echo "$line" | jq -r '.artifact // .output // empty' 2>/dev/null)
+                # Sanitize: relative only, under .agents/, no ".."
+                if [ -n "$raw_artifact" ]; then
+                    case "$raw_artifact" in
+                        /*|*..*)  raw_artifact="" ;;  # reject absolute or traversal
+                        .agents/*) last_artifact="$raw_artifact" ;;
+                        *)         raw_artifact="" ;;  # reject paths not under .agents/
+                    esac
+                fi
+            fi
+        done < "$CHAIN_FILE"
+
+        # Determine next pending step
+        if [ -n "$last_step" ]; then
+            next_step=""
+            found_last=false
+            for s in $RPI_STEPS; do
+                if $found_last; then
+                    next_step="$s"
+                    break
+                fi
+                if [ "$s" = "$last_step" ]; then
+                    found_last=true
+                fi
+            done
+
+            if [ -n "$next_step" ]; then
+                # Map step names to skill commands
+                skill_cmd="/$next_step"
+                artifact_arg=""
+                if [ -n "$last_artifact" ]; then
+                    artifact_arg=" $last_artifact"
+                fi
+                ts_display="${last_timestamp:-unknown}"
+                resume_directive="RESUMING FLYWHEEL: ${last_step} completed at ${ts_display}. Suggested next: ${skill_cmd}${artifact_arg}. Say SKIP to bypass."
+            fi
+        fi
     fi
 fi
 
@@ -94,7 +182,7 @@ fi
 
 # Build flywheel status section if available
 flywheel_section=""
-if [[ -n "$flywheel_status" || -n "$ratchet_status" ]]; then
+if [[ -n "$flywheel_status" || -n "$ratchet_status" || -n "$resume_directive" ]]; then
     flywheel_section="
 
 ---
@@ -102,6 +190,10 @@ ${flywheel_status}"
     if [[ -n "$ratchet_status" ]]; then
         flywheel_section="${flywheel_section}
 ${ratchet_status}"
+    fi
+    if [[ -n "$resume_directive" ]]; then
+        flywheel_section="${flywheel_section}
+**${resume_directive}**"
     fi
     flywheel_section="${flywheel_section}
 
