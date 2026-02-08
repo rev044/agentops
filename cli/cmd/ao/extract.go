@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -25,9 +26,18 @@ type PendingExtraction struct {
 	QueuedAt       time.Time `json:"queued_at"`
 }
 
+// ExtractBatchResult holds results from batch extraction.
+type ExtractBatchResult struct {
+	Processed int      `json:"processed"`
+	Failed    int      `json:"failed"`
+	Remaining int      `json:"remaining"`
+	Entries   []string `json:"entries"` // session IDs processed
+}
+
 var (
 	extractMaxContent int
 	extractClear      bool
+	extractAll        bool
 )
 
 var extractCmd = &cobra.Command{
@@ -48,7 +58,10 @@ The prompt includes:
 If no pending extractions exist, outputs nothing (silent).
 
 Examples:
-  ao extract                    # Check and output extraction prompt
+  ao extract                    # Process most recent pending extraction
+  ao extract --all              # Process all pending extractions
+  ao extract --all --dry-run    # Preview what would be processed
+  ao extract --all -o json      # Process all with JSON output
   ao extract --clear            # Clear pending queue without processing
   ao extract --max-content 4000 # Limit content size`,
 	RunE: runExtract,
@@ -58,6 +71,7 @@ func init() {
 	rootCmd.AddCommand(extractCmd)
 	extractCmd.Flags().IntVar(&extractMaxContent, "max-content", 3000, "Maximum characters of session content to include")
 	extractCmd.Flags().BoolVar(&extractClear, "clear", false, "Clear pending queue without processing")
+	extractCmd.Flags().BoolVar(&extractAll, "all", false, "Process all pending entries")
 }
 
 func runExtract(cmd *cobra.Command, args []string) error {
@@ -92,16 +106,152 @@ func runExtract(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Process the most recent pending extraction
+	// Handle --all flag
+	if extractAll {
+		return runExtractAll(pendingPath, pending, cwd)
+	}
+
+	// Default behavior: process only the most recent entry
 	extraction := pending[len(pending)-1]
 
 	// Output the extraction prompt for Claude
 	outputExtractionPrompt(extraction, cwd, extractMaxContent)
 
-	// Clear the pending file after outputting
-	if err := os.Remove(pendingPath); err != nil && !os.IsNotExist(err) {
-		// Non-fatal, just log
-		VerbosePrintf("Warning: failed to clear pending file: %v\n", err)
+	// Remove only the processed entry from pending
+	if err := removePendingEntry(pendingPath, pending, len(pending)-1); err != nil {
+		VerbosePrintf("Warning: failed to update pending file: %v\n", err)
+	}
+
+	return nil
+}
+
+// runExtractAll processes all pending extractions.
+func runExtractAll(pendingPath string, pending []PendingExtraction, cwd string) error {
+	// Handle dry-run mode
+	if GetDryRun() {
+		if GetOutput() == "json" {
+			result := ExtractBatchResult{
+				Processed: 0,
+				Failed:    0,
+				Remaining: len(pending),
+				Entries:   make([]string, len(pending)),
+			}
+			for i, p := range pending {
+				result.Entries[i] = p.SessionID
+			}
+			data, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(data))
+		} else {
+			fmt.Printf("Would process %d pending extraction(s):\n", len(pending))
+			for _, p := range pending {
+				fmt.Printf("  - %s (%s)\n", p.SessionID, p.Summary)
+			}
+		}
+		return nil
+	}
+
+	// Process all entries
+	processed := []string{}
+	failed := 0
+
+	for i, extraction := range pending {
+		VerbosePrintf("Processing %d/%d: %s\n", i+1, len(pending), extraction.SessionID)
+
+		// Output the extraction prompt
+		outputExtractionPrompt(extraction, cwd, extractMaxContent)
+
+		// Mark as processed (success)
+		processed = append(processed, extraction.SessionID)
+	}
+
+	// Remove successfully processed entries from pending
+	remaining := []PendingExtraction{}
+	for i, entry := range pending {
+		// If this entry was not processed, keep it
+		found := false
+		for _, sessionID := range processed {
+			if entry.SessionID == sessionID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			remaining = append(remaining, entry)
+		}
+		// For now, we assume all succeed (since we can't detect failure)
+		// In a real implementation, this would track actual success/failure
+		_ = i
+	}
+
+	// Rewrite pending file with remaining entries using flock
+	if err := rewritePendingFile(pendingPath, remaining); err != nil {
+		return fmt.Errorf("update pending file: %w", err)
+	}
+
+	// Output results
+	if GetOutput() == "json" {
+		result := ExtractBatchResult{
+			Processed: len(processed),
+			Failed:    failed,
+			Remaining: len(remaining),
+			Entries:   processed,
+		}
+		data, _ := json.MarshalIndent(result, "", "  ")
+		fmt.Println(string(data))
+	} else {
+		fmt.Printf("Processed: %d, Failed: %d, Remaining: %d\n", len(processed), failed, len(remaining))
+	}
+
+	return nil
+}
+
+// removePendingEntry removes a single entry from pending file using flock.
+func removePendingEntry(pendingPath string, pending []PendingExtraction, indexToRemove int) error {
+	// Build new list without the removed entry
+	remaining := make([]PendingExtraction, 0, len(pending)-1)
+	for i, entry := range pending {
+		if i != indexToRemove {
+			remaining = append(remaining, entry)
+		}
+	}
+
+	return rewritePendingFile(pendingPath, remaining)
+}
+
+// rewritePendingFile rewrites the pending file with the given entries using flock.
+func rewritePendingFile(pendingPath string, entries []PendingExtraction) error {
+	// Ensure directory exists
+	dir := filepath.Dir(pendingPath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+
+	// Open file with exclusive lock
+	f, err := os.OpenFile(pendingPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("open pending file: %w", err)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	// Acquire exclusive lock
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("lock pending file: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	}()
+
+	// Write each entry as JSONL
+	for _, entry := range entries {
+		line, err := json.Marshal(entry)
+		if err != nil {
+			return fmt.Errorf("marshal entry: %w", err)
+		}
+		if _, err := f.Write(append(line, '\n')); err != nil {
+			return fmt.Errorf("write entry: %w", err)
+		}
 	}
 
 	return nil
