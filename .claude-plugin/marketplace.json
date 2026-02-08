@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "AI-assisted development workflows with Knowledge Flywheel",
-    "version": "1.7.1"
+    "version": "1.8.0"
   },
   "plugins": [
     {
       "name": "agentops",
       "description": "AI-assisted development workflow with 32 skills (21 user-facing, 11 internal) + 20 subagent roles: Brownian Ratchet gates with Knowledge Flywheel",
-      "version": "1.7.1",
+      "version": "1.8.0",
       "source": "./",
       "author": {
         "name": "Boden Fuller",

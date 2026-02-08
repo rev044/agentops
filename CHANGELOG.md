@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-02-08
+
+### Added
+
+- **Flywheel automation hooks** (ag-oke) — RPI lifecycle hooks that nudge agents through the knowledge flywheel without forcing invocation
+  - `ratchet-advance.sh` — PostToolUse hook detects `ao ratchet record` and suggests next RPI skill via additionalContext
+  - `session-start.sh` ratchet resume — Reads chain.jsonl on new session, injects "RESUMING FLYWHEEL" directive with last step + artifact
+  - `push-gate.sh` post-mortem gate — Blocks push when vibe exists but no post-mortem entry
+  - `prompt-nudge.sh` nudge dedup — Flag-file coordination with 10-min TTL prevents triple-nudging across hooks
+- **Safety and enforcement hooks** — 7 new hooks for agent guardrails
+  - `dangerous-git-guard.sh` — Blocks force-push, reset --hard, clean -f, branch -D
+  - `git-worker-guard.sh` — Blocks git commit/push for swarm workers (lead-only commit pattern)
+  - `task-validation-gate.sh` — TaskCompleted hook validates metadata rules before accepting
+  - `stop-team-guard.sh` — Prevents orphaned teams on session stop
+  - `precompact-snapshot.sh` — Snapshots team state + git status before context compaction
+  - `standards-injector.sh` — PreToolUse hook injects language-specific coding standards
+  - `pending-cleaner.sh` — Archives stale pending queue entries at session start
+- **Skill enhancements** — Metadata verification in `/crank`, wave vibe gate, pre-planning audit in `/plan`, ratchet pre-flight in `/implement`, ratchet post-flight in `/vibe`
+- **`/release` skill** — GitHub Release draft with highlights + changelog (added in v1.7.0, enhanced with `--no-gh-release` and release notes generation)
+- **README** — Reorganized skill catalog by category (orchestration, workflow, utilities, internal)
+
+### Fixed
+
+- Replace `eval()` with restricted execution in task-validation-gate.sh (command injection vulnerability)
+- Add missing kill switch (`AGENTOPS_HOOKS_DISABLED`) to standards-injector.sh
+- Remove `set -euo pipefail` from session-start.sh (hooks must fail open)
+- Fix `--format=oneline` → `-o json` for `ao ratchet status` (flag doesn't exist)
+- Fix relative `.agents/ao` path → `git rev-parse --show-toplevel` for correct root detection
+- Replace PostToolUse comment-checker with PreToolUse standards-injector (better timing)
+- Add failure logging to all ao commands in hooks.json (was bare `|| true`)
+
+### Changed
+
+- **README** — Visual-first rewrite with accurate skill examples
+- **Docs** — Reference and L4 updated for native teams + lead-only commits
+
+### Removed
+
+- `comment-checker.sh` — Replaced by standards-injector.sh
+
 ## [1.7.1] - 2026-02-07
 
 ### Added
