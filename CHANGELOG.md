@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-02-08
+
+### Added
+
+- **Flywheel automation CLI** (ag-m0r) — 4 new `ao` commands that replace fragile bash parsing in hooks with structured JSON output
+  - `ao ratchet next` — Compute next RPI step from chain.jsonl state, with skill suggestion and lock detection
+  - `ao flywheel nudge` — Single-command dashboard combining flywheel metrics, ratchet state, and pool status for session-start hook
+  - `ao forge batch --extract` — Scan and process pending transcripts with forged-index deduplication and optional extraction trigger
+  - `ao session close` — End-to-end session pipeline: forge transcript, extract learnings, measure flywheel velocity delta, report impact
+- **Hook CLI integration** — `session-start.sh` and `ratchet-advance.sh` now use `ao` commands with version detection and full fallback paths for backward compatibility
+- **Integration tests** — 836 lines covering full pipeline lifecycles (ratchet progression, forge batch dedup, session close, cross-command consistency)
+
 ## [1.8.0] - 2026-02-08
 
 ### Added
