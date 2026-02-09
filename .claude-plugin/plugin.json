@@ -1,6 +1,6 @@
 {
   "name": "agentops",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Autonomous coding agent orchestration. Goal in, production code out — one command runs research, planning, multi-model validation, parallel implementation, and knowledge extraction with self-correcting retry loops.",
   "author": {
     "name": "Boden Fuller",

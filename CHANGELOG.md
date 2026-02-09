@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-02-09
+
 ### Added
 
 - **Codex CLI native features** (ag-uj4) — Enhanced cross-vendor capabilities across council, vibe, and codex-team skills
@@ -17,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--json` JSONL monitoring guidance in `/codex-team` — detect stuck agents, track token usage
   - Sandbox levels table in `/codex-team` — read-only, workspace-write, full-access guidance
   - Pre-flight `--output-schema` test with graceful fallback to `--full-auto` + markdown
-- **Olympus (OL) CLI bridge** — Bidirectional integration with the Olympus context orchestration platform
+- **Olympus (OL) CLI bridge** (ag-q7n) — Bidirectional integration with the Olympus context orchestration platform
   - `ao inject` discovers OL constraints from `.ol/constraints/quarantine.json` when present
   - `/vibe` runs `ol validate stage1` before council in Olympus projects (auto-FAIL on validation failure)
   - `/swarm --from-wave <json>` reads `ol hero hunt` output, creates tasks, ratchets completion back to OL
