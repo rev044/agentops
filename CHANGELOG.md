@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`/rpi` lifecycle skill** — One command, full lifecycle. Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem. Give it a goal, get production code with multi-model validation at every gate. Autonomous by default — zero human prompts. Failed validations trigger retry loops with failure context, not escalation.
+- **`--auto` is now the default for `/rpi`** — Just type `/rpi "goal"` and walk away. Use `--interactive` if you want human gates at research and plan phases. `--auto` flag kept for backwards compatibility.
+- **`--auto` mode for `/research` and `/plan`** — Sub-skills now accept `--auto` to skip human approval gates. Enables fully autonomous `/rpi` pipeline.
+
+### Changed
+
+- **README rewritten** — Repositioned from "memory tool" to autonomous execution engine. New tagline: "One command, full lifecycle." ao CLI promoted to primary install. Four "How It Works" sections: Brownian Ratchet, Ralph Loops, Context Orchestration, Knowledge Flywheel.
+
 ### Fixed
 
 - **README ao CLI docs accuracy** — Removed false claim that `ao inject` uses decay weighting by default (requires `--apply-decay` flag). Fixed `ao forge transcript` example to show it takes a file path argument.

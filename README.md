@@ -28,7 +28,7 @@ Or: `claude plugin add boshu2/agentops`
 
 **One command, goal to production:**
 ```
-> /rpi --auto "add rate limiting to the API"
+> /rpi "add rate limiting to the API"
 
 [research]    Exploring codebase... → .agents/research/rate-limiting.md
 [plan]        3 issues, 2 waves → epic ag-0057
@@ -37,6 +37,7 @@ Or: `claude plugin add boshu2/agentops`
 [vibe]        3 judges → Verdict: PASS
 [post-mortem] 3 learnings extracted → .agents/
 ```
+No prompts. No babysitting. Failed validation → automatic retry with failure context. Ratchet locks each phase — progress can't go backward.
 
 **Run an entire epic hands-free:**
 ```
@@ -94,7 +95,7 @@ Every wave gets a new team. Every worker gets clean context. No bleed-through be
 ### Context Orchestration
 
 ```
-  /rpi --auto "goal"
+  /rpi "goal"
     │
     ├─ Phase 1: /research ─── explore codebase
     ├─ Phase 2: /plan ─────── decompose into issues + waves
@@ -107,7 +108,7 @@ Every wave gets a new team. Every worker gets clean context. No bleed-through be
     └─ Phase 6: /post-mortem ─ extract learnings → .agents/
 ```
 
-Six phases, zero human gates in `--auto` mode. Council FAIL triggers retry loops — re-plan or re-crank with the failure context, then re-validate. Ratchet checkpoints after each phase lock progress.
+Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or re-crank with the failure context, then re-validate. Ratchet checkpoints after each phase lock progress. Use `--interactive` if you want human gates at research and plan.
 
 ### Knowledge Flywheel
 
@@ -126,7 +127,7 @@ The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts 
 
 | Skill | What it does |
 |-------|-------------|
-| `/rpi` | Full lifecycle — research → plan → pre-mortem → crank → vibe → post-mortem |
+| `/rpi` | Goal to production — autonomous 6-phase lifecycle with self-correcting retry loops |
 | `/council` | Multi-model consensus — spawns parallel judges, consolidates verdict |
 | `/crank` | Autonomous epic execution — runs `/swarm` waves until all issues closed |
 | `/swarm` | Parallel agents with fresh context — team per wave, lead commits |
@@ -237,13 +238,14 @@ All hooks have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 ## FAQ
 
 **Why not just use Claude Code directly?**
-Claude Code has agent spawning built in. AgentOps adds what it lacks:
-- Autonomous full-lifecycle execution (`/rpi --auto` — goal to production, zero human gates)
-- Brownian ratchet (parallel chaos + council filter + locked progress)
-- Fresh context isolation (ralph loops — team per wave, no bleed-through)
-- Cross-session memory (knowledge flywheel — agents compound learnings)
-- Cross-vendor validation (`--mixed` mode adds Codex judges alongside Claude)
-- Hooks that enforce the workflow without requiring discipline
+Claude Code can spawn agents and write code. AgentOps turns it into an autonomous software engineering system:
+- **Goal in, production code out** — `/rpi "goal"` runs 6 phases hands-free. You don't prompt, approve, or babysit.
+- **Self-correcting** — Failed validation triggers retry with failure context, not human escalation. The system fixes its own mistakes.
+- **Can't regress** — Brownian ratchet locks progress after each phase. Parallel agents generate chaos; multi-model council filters it; ratchet keeps only what passes.
+- **Fresh context every time** — Ralph loops: each wave gets a new team, each worker gets clean context. No accumulated hallucinations, no bleed-through between tasks.
+- **Gets smarter** — Knowledge flywheel: every session forges learnings into `.agents/`. Next session injects them. Your agents compound intelligence across sessions.
+- **Cross-vendor** — `--mixed` mode adds Codex judges alongside Claude. Different models catch different bugs.
+- **Self-enforcing** — Hooks block pushes without validation, prevent workers from committing, nudge agents through the lifecycle. No discipline required.
 
 **What data leaves my machine?**
 Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cloud sync.
