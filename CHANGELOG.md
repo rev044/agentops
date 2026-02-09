@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Codex CLI native features** (ag-uj4) — Enhanced cross-vendor capabilities across council, vibe, and codex-team skills
+  - `--output-schema` support in `/council` — Codex judges produce structured JSON verdicts via `skills/council/schemas/verdict.json`
+  - `-s read-only` sandbox for Codex judges — safer execution with CLI-level output capture
+  - `codex review --uncommitted` in `/vibe` (Step 2.5) — fast diff-focused review before council validation
+  - `--add-dir` cross-project support in `/codex-team` — tasks spanning multiple repos
+  - `--json` JSONL monitoring guidance in `/codex-team` — detect stuck agents, track token usage
+  - Sandbox levels table in `/codex-team` — read-only, workspace-write, full-access guidance
+  - Pre-flight `--output-schema` test with graceful fallback to `--full-auto` + markdown
 - **Olympus (OL) CLI bridge** — Bidirectional integration with the Olympus context orchestration platform
   - `ao inject` discovers OL constraints from `.ol/constraints/quarantine.json` when present
   - `/vibe` runs `ol validate stage1` before council in Olympus projects (auto-FAIL on validation failure)
