@@ -6,55 +6,41 @@
 [![Skills](https://img.shields.io/badge/Skills-npx%20skills-7c3aed)](https://skills.sh/)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
-**Your AI agent forgets everything between sessions. AgentOps fixes that.**
+**Autonomous coding agent orchestration. One command, full lifecycle.**
 
 </div>
 
 ## Install
 
 ```bash
+# Skills (Claude Code plugin — skills, hooks, agent teams)
 npx skills@latest add boshu2/agentops --all -g
+
+# CLI (knowledge engine — inject, extract, ratchet gates)
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
+brew install agentops
+ao hooks install
 ```
 
 Or: `claude plugin add boshu2/agentops`
 
 ## See It Work
 
-**Catch risks before you code:**
+**One command, goal to production:**
 ```
-> /pre-mortem "add OAuth integration"
+> /rpi --auto "add rate limiting to the API"
 
-[council] Spawning 3 judges: missing-requirements, feasibility, scope
-[missing-requirements] RISK: No token revocation strategy defined
-[feasibility] RISK: Refresh token rotation — silent failure on expiry
-[scope] WARN: OAuth adds 3 new dependencies, consider scope
-Verdict: WARN — 2 significant risks, address before implementing
-```
-
-**Validate before you commit:**
-```
-> /vibe
-
-[complexity] radon: all functions grade A-B ✓
-[council] Spawning 3 judges: error-paths, api-surface, spec-compliance
-[spec-compliance] All acceptance criteria met
-Verdict: PASS — ready to ship
-```
-
-**Parallelize with fresh context per agent:**
-```
-> /swarm
-
-[swarm] Creating team swarm-1738900000...
-[worker-1] ✓ implement-auth
-[worker-2] ✓ add-rate-limiter
-[worker-3] ✓ update-tests
-[lead] Validated + committed. Run /vibe to gate.
+[research]    Exploring codebase... → .agents/research/rate-limiting.md
+[plan]        3 issues, 2 waves → epic ag-0057
+[pre-mortem]  3 judges → Verdict: PASS
+[crank]       Wave 1: ███ 2/2 · Wave 2: █ 1/1
+[vibe]        3 judges → Verdict: PASS
+[post-mortem] 3 learnings extracted → .agents/
 ```
 
 **Run an entire epic hands-free:**
 ```
-> /crank
+> /crank ag-0042
 
 [crank] Epic: ag-0042 — 6 issues, 3 waves
 [wave-1] ██████ 3/3 complete
@@ -64,43 +50,75 @@ Verdict: PASS — ready to ship
 [post-mortem] 4 learnings extracted → .agents/
 ```
 
+**Multi-model validation before you ship:**
+```
+> /council --deep validate the auth system
+
+[council] 3 judges spawned
+[judge-1] PASS — JWT implementation correct
+[judge-2] WARN — rate limiting missing on /login
+[judge-3] PASS — refresh rotation implemented
+Consensus: WARN — add rate limiting before shipping
+```
+
 ## How It Works
 
-```
-  ╭── Research → Plan → Implement → Validate ──╮
-  │                                            │
-  ╰─────────── Knowledge Flywheel ◀────────────╯
-```
+### The Brownian Ratchet
 
 ```
-  ╭─ worker-1 ─→ ✓ task      Fresh context per agent.
-  ├─ worker-2 ─→ ✓ task      No bleed-through.
-  ├─ worker-3 ─→ ✓ task      Lead validates + commits.
-  ╰─ lead ─────→ validate
+  Chaos × Filter → Locked Progress
+
+  ╭─ agent-1 ─→ ✓ ─╮
+  ├─ agent-2 ─→ ✗ ─┤   3 attempts, 1 fails
+  ├─ agent-3 ─→ ✓ ─┤   filter catches it
+  ╰─ council ──→ PASS   ratchet locks the progress
+                  ↓
+          can't go backward
 ```
 
-```
-  ╭─ Claude ─→ PASS ─╮
-  ├─ Claude ─→ WARN ─┼→ Consensus: WARN
-  ╰─ Codex ──→ PASS ─╯
-```
+Spawn parallel agents (chaos), validate with multi-model council (filter), merge to main (ratchet). Failed agents are cheap — fresh context means no contamination. Progress only moves forward.
+
+### Ralph Loops
 
 ```
-  Session 1:  learn → .agents/
-  Session 2:  .agents/ → learn → .agents/
-  Session 3:  .agents/ → learn → .agents/
-              memory compounds ↑
+  Wave 1:  TeamCreate → spawn 3 workers (fresh context each)
+           workers write files → lead validates → lead commits
+           TeamDelete
+
+  Wave 2:  TeamCreate → spawn 2 workers (fresh context each)
+           ...same pattern, zero accumulated context
 ```
 
+Every wave gets a new team. Every worker gets clean context. No bleed-through between waves. The lead is the only one who commits — eliminates merge conflicts across parallel workers.
+
+### Context Orchestration
+
 ```
-  Hooks auto-enforce the loop:
-  ┌─────────────────────────────────────────┐
-  │ push without /vibe?        → blocked    │
-  │ worker tries git commit?   → blocked    │
-  │ forgot /pre-mortem?        → nudged     │
-  │ force push to main?        → blocked    │
-  └─────────────────────────────────────────┘
+  /rpi --auto "goal"
+    │
+    ├─ Phase 1: /research ─── explore codebase
+    ├─ Phase 2: /plan ─────── decompose into issues + waves
+    ├─ Phase 3: /pre-mortem ── 3-judge council validates plan
+    │                          FAIL? → re-plan → re-validate (max 3)
+    ├─ Phase 4: /crank ─────── autonomous wave execution
+    │                          BLOCKED? → retry with context (max 3)
+    ├─ Phase 5: /vibe ──────── 3-judge council validates code
+    │                          FAIL? → re-crank → re-vibe (max 3)
+    └─ Phase 6: /post-mortem ─ extract learnings → .agents/
 ```
+
+Six phases, zero human gates in `--auto` mode. Council FAIL triggers retry loops — re-plan or re-crank with the failure context, then re-validate. Ratchet checkpoints after each phase lock progress.
+
+### Knowledge Flywheel
+
+```
+  Session 1:  work → ao forge → extract learnings → .agents/
+  Session 2:  ao inject → .agents/ loaded → work → extract → .agents/
+  Session 3:  ao inject → richer context → work → extract → .agents/
+                          compounds over time ↑
+```
+
+The `ao` CLI auto-injects relevant knowledge at session start (with decay weighting) and auto-extracts learnings at session end. Knowledge compounds across sessions — the agent gets smarter with every cycle.
 
 ## Skills
 
@@ -108,6 +126,7 @@ Verdict: PASS — ready to ship
 
 | Skill | What it does |
 |-------|-------------|
+| `/rpi` | Full lifecycle — research → plan → pre-mortem → crank → vibe → post-mortem |
 | `/council` | Multi-model consensus — spawns parallel judges, consolidates verdict |
 | `/crank` | Autonomous epic execution — runs `/swarm` waves until all issues closed |
 | `/swarm` | Parallel agents with fresh context — team per wave, lead commits |
@@ -156,6 +175,21 @@ Verdict: PASS — ready to ship
 
 </details>
 
+## The `ao` CLI
+
+The engine behind the skills. Manages knowledge injection, extraction, ratchet gates, and session lifecycle.
+
+```bash
+ao inject              # Load prior knowledge into session (with decay weighting)
+ao forge transcript    # Extract learnings from session transcripts
+ao ratchet status      # Check RPI progress gates
+ao ratchet next        # What's the next phase?
+ao search "topic"      # Semantic search across knowledge artifacts
+ao session close       # Full lifecycle close: forge → extract → promote
+ao flywheel status     # Knowledge health — velocity, pool depths
+ao hooks install       # Install session hooks for auto-inject/extract
+```
+
 ## Agent Teams
 
 AgentOps uses Claude Code's native [agent teams](https://code.claude.com/docs/en/agent-teams) — `/council`, `/swarm`, and `/crank` create teams automatically.
@@ -200,35 +234,27 @@ Hooks auto-enforce the workflow — no discipline required.
 
 All hooks have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 
-## Going Deeper
-
-**Optional: `ao` CLI** — auto-inject knowledge at session start, auto-extract at session end.
-
-```bash
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
-brew install agentops
-ao hooks install
-```
-
-**Optional: `beads`** — git-native issue tracking. Lets `/crank` orchestrate multi-issue work from a tracked backlog.
-
-See [docs/reference.md](docs/reference.md) for CLI reference, execution modes (local vs distributed), and tool dependencies.
-
 ## FAQ
 
 **Why not just use Claude Code directly?**
 Claude Code has agent spawning built in. AgentOps adds what it lacks:
-- Cross-session memory (agents forget everything when the session ends)
-- Codified patterns (isolation, validation contracts, debate protocol) that agents won't discover on their own
+- Autonomous full-lifecycle execution (`/rpi --auto` — goal to production, zero human gates)
+- Brownian ratchet (parallel chaos + council filter + locked progress)
+- Fresh context isolation (ralph loops — team per wave, no bleed-through)
+- Cross-session memory (knowledge flywheel — agents compound learnings)
 - Cross-vendor validation (`--mixed` mode adds Codex judges alongside Claude)
 - Hooks that enforce the workflow without requiring discipline
 
 **What data leaves my machine?**
 Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cloud sync.
 
+**Do I need the `ao` CLI?**
+Skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle management. Recommended for full-lifecycle workflows.
+
 **How do I uninstall?**
 ```bash
 npx skills@latest remove boshu2/agentops -g
+brew uninstall agentops  # if installed
 ```
 
 ## Built On
