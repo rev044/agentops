@@ -118,7 +118,7 @@ Six phases, zero human gates in `--auto` mode. Council FAIL triggers retry loops
                           compounds over time ↑
 ```
 
-The `ao` CLI auto-injects relevant knowledge at session start (with decay weighting) and auto-extracts learnings at session end. Knowledge compounds across sessions — the agent gets smarter with every cycle.
+The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts learnings at session end. Knowledge compounds across sessions — the agent gets smarter with every cycle.
 
 ## Skills
 
@@ -180,8 +180,8 @@ The `ao` CLI auto-injects relevant knowledge at session start (with decay weight
 The engine behind the skills. Manages knowledge injection, extraction, ratchet gates, and session lifecycle.
 
 ```bash
-ao inject              # Load prior knowledge into session (with decay weighting)
-ao forge transcript    # Extract learnings from session transcripts
+ao inject              # Load prior knowledge into session
+ao forge transcript <path>  # Extract learnings from session transcripts
 ao ratchet status      # Check RPI progress gates
 ao ratchet next        # What's the next phase?
 ao search "topic"      # Semantic search across knowledge artifacts
