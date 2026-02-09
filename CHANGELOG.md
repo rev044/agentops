@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Olympus (OL) CLI bridge** — Bidirectional integration with the Olympus context orchestration platform
+  - `ao inject` discovers OL constraints from `.ol/constraints/quarantine.json` when present
+  - `/vibe` runs `ol validate stage1` before council in Olympus projects (auto-FAIL on validation failure)
+  - `/swarm --from-wave <json>` reads `ol hero hunt` output, creates tasks, ratchets completion back to OL
+  - Bridge contracts spec at `docs/ol-bridge-contracts.md`
+- **`ol harvest --format=ao`** — OL harvest outputs AO-compatible learning markdown (in OL repo)
+
 ## [2.0.0] - 2026-02-09
 
 ### Added
@@ -17,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **README rewritten for best-in-class quality** — Benchmarked against aider (40.5k stars), lobe-chat (72.1k stars), httpie, fiber, and create-go-app. New tagline: "Goal in, production code out." Narrative flow restructured (hook → show → act → explain → reference). Added meaningful metric badges (version, 33 skills, 11 hooks). Expanded "See It Work" with 4 examples in progressive disclosure. Added "Try it in 60 seconds" quickstart callout. FAQ expanded to 6 items in collapsible details. Contributing section added.
+- **README rewritten** — New tagline: "Goal in, production code out." Restructured narrative flow, meaningful metric badges, progressive disclosure, expanded FAQ and examples.
 - **Plugin description updated** — Reflects autonomous execution positioning.
 
 ### Fixed
