@@ -2,31 +2,26 @@
 
 # AgentOps
 
+### Goal in, production code out.
+
+[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen)](CHANGELOG.md)
+[![Skills](https://img.shields.io/badge/skills-33-7c3aed)](skills/)
+[![Hooks](https://img.shields.io/badge/hooks-11-orange)](hooks/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Skills](https://img.shields.io/badge/Skills-npx%20skills-7c3aed)](https://skills.sh/)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
-**Autonomous coding agent orchestration. One command, full lifecycle.**
+**Turn Claude Code into an autonomous software engineering system.**<br/>
+One command runs research, planning, multi-model validation, parallel implementation,<br/>
+and knowledge extraction — with self-correcting retry loops and zero human prompts.
+
+[Install](#install) · [See It Work](#see-it-work) · [Skills](#skills-catalog) · [FAQ](#faq) · [Docs](docs/)
 
 </div>
 
-## Install
-
-```bash
-# Skills (Claude Code plugin — skills, hooks, agent teams)
-npx skills@latest add boshu2/agentops --all -g
-
-# CLI (knowledge engine — inject, extract, ratchet gates)
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
-brew install agentops
-ao hooks install
-```
-
-Or: `claude plugin add boshu2/agentops`
+---
 
 ## See It Work
 
-**One command, goal to production:**
 ```
 > /rpi "add rate limiting to the API"
 
@@ -37,9 +32,13 @@ Or: `claude plugin add boshu2/agentops`
 [vibe]        3 judges → Verdict: PASS
 [post-mortem] 3 learnings extracted → .agents/
 ```
-No prompts. No babysitting. Failed validation → automatic retry with failure context. Ratchet locks each phase — progress can't go backward.
 
-**Run an entire epic hands-free:**
+That's six phases — research, planning, failure simulation, parallel implementation, code validation, and learning extraction — running autonomously. Failed validation triggers a retry with the failure context. Ratchet gates lock each phase so progress can't go backward. You type one command and walk away.
+
+<details>
+<summary><strong>More examples</strong></summary>
+
+**Autonomous epic execution:**
 ```
 > /crank ag-0042
 
@@ -51,7 +50,7 @@ No prompts. No babysitting. Failed validation → automatic retry with failure c
 [post-mortem] 4 learnings extracted → .agents/
 ```
 
-**Multi-model validation before you ship:**
+**Multi-model validation council:**
 ```
 > /council --deep validate the auth system
 
@@ -62,7 +61,38 @@ No prompts. No babysitting. Failed validation → automatic retry with failure c
 Consensus: WARN — add rate limiting before shipping
 ```
 
+**Parallel agents with fresh context:**
+```
+> /swarm ag-0042 --wave=1
+
+[swarm] Spawning 3 workers (clean context each)
+[worker-1] ✓ ag-001 — add middleware
+[worker-2] ✓ ag-002 — add rate limiter
+[worker-3] ✓ ag-003 — add config schema
+[lead] Validated → committed 3 files
+```
+
+</details>
+
+## Install
+
+```bash
+# Plugin (skills, hooks, agent teams)
+npx skills@latest add boshu2/agentops --all -g
+
+# CLI (knowledge engine — inject, extract, ratchet gates)
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
+brew install agentops
+ao hooks install
+```
+
+Or: `claude plugin add boshu2/agentops`
+
+**Try it in 60 seconds:** After install, run `/quickstart` — it walks you through a guided RPI cycle on your actual codebase.
+
 ## How It Works
+
+AgentOps is built on four ideas: a physics metaphor for reliable agent output, a memory pattern for compounding intelligence, an execution model for safe parallelism, and an orchestration loop that wires them together.
 
 ### The Brownian Ratchet
 
@@ -92,6 +122,17 @@ Spawn parallel agents (chaos), validate with multi-model council (filter), merge
 
 Every wave gets a new team. Every worker gets clean context. No bleed-through between waves. The lead is the only one who commits — eliminates merge conflicts across parallel workers.
 
+### Knowledge Flywheel
+
+```
+  Session 1:  work → ao forge → extract learnings → .agents/
+  Session 2:  ao inject → .agents/ loaded → work → extract → .agents/
+  Session 3:  ao inject → richer context → work → extract → .agents/
+                          compounds over time ↑
+```
+
+The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts learnings at session end. Decisions, patterns, failures, and fixes accumulate in `.agents/` — your agents get smarter with every cycle.
+
 ### Context Orchestration
 
 ```
@@ -110,25 +151,16 @@ Every wave gets a new team. Every worker gets clean context. No bleed-through be
 
 Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or re-crank with the failure context, then re-validate. Ratchet checkpoints after each phase lock progress. Use `--interactive` if you want human gates at research and plan.
 
-### Knowledge Flywheel
+## Skills Catalog
 
-```
-  Session 1:  work → ao forge → extract learnings → .agents/
-  Session 2:  ao inject → .agents/ loaded → work → extract → .agents/
-  Session 3:  ao inject → richer context → work → extract → .agents/
-                          compounds over time ↑
-```
-
-The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts learnings at session end. Knowledge compounds across sessions — the agent gets smarter with every cycle.
-
-## Skills
+33 skills across three tiers — orchestration, workflow, and utilities — plus 8 internal skills that fire automatically.
 
 ### Orchestration
 
 | Skill | What it does |
 |-------|-------------|
 | `/rpi` | Goal to production — autonomous 6-phase lifecycle with self-correcting retry loops |
-| `/council` | Multi-model consensus — spawns parallel judges, consolidates verdict |
+| `/council` | Multi-model consensus — spawns parallel judges, consolidates verdict (default, `--deep`, `--mixed`) |
 | `/crank` | Autonomous epic execution — runs `/swarm` waves until all issues closed |
 | `/swarm` | Parallel agents with fresh context — team per wave, lead commits |
 | `/codex-team` | Parallel Codex agents orchestrated by Claude — cross-vendor execution |
@@ -143,7 +175,7 @@ The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts 
 | `/vibe` | Complexity analysis + multi-model validation gate |
 | `/pre-mortem` | Simulate failures before coding (3 judges: requirements, feasibility, scope) |
 | `/post-mortem` | Validate implementation + extract learnings |
-| `/release` | Pre-flight, changelog, version bumps, tag, GitHub Release |
+| `/release` | Pre-flight checks, changelog, version bumps, tag, GitHub Release |
 
 ### Utilities
 
@@ -161,11 +193,11 @@ The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts 
 | `/inbox` | Monitor Agent Mail messages |
 
 <details>
-<summary>Internal skills (auto-loaded)</summary>
+<summary><strong>Internal skills (auto-loaded, 8 total)</strong></summary>
 
 | Skill | Trigger | What it does |
 |-------|---------|-------------|
-| `inject` | Session start | Load relevant prior knowledge with decay weighting |
+| `inject` | Session start | Load relevant prior knowledge into session context |
 | `extract` | On demand | Pull learnings from artifacts |
 | `forge` | Session end | Mine transcript for decisions, learnings, failures, patterns |
 | `flywheel` | On demand | Knowledge health — velocity, pool depths, staleness |
@@ -178,11 +210,11 @@ The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts 
 
 ## The `ao` CLI
 
-The engine behind the skills. Manages knowledge injection, extraction, ratchet gates, and session lifecycle.
+The engine behind the skills. Written in Go. Manages knowledge injection, extraction, ratchet gates, and session lifecycle.
 
 ```bash
 ao inject              # Load prior knowledge into session
-ao forge transcript <path>  # Extract learnings from session transcripts
+ao forge transcript <path>  # Extract learnings from session transcript
 ao ratchet status      # Check RPI progress gates
 ao ratchet next        # What's the next phase?
 ao search "topic"      # Semantic search across knowledge artifacts
@@ -193,7 +225,7 @@ ao hooks install       # Install session hooks for auto-inject/extract
 
 ## Agent Teams
 
-AgentOps uses Claude Code's native [agent teams](https://code.claude.com/docs/en/agent-teams) — `/council`, `/swarm`, and `/crank` create teams automatically.
+AgentOps uses Claude Code's native [agent teams](https://docs.anthropic.com/en/docs/claude-code) — `/council`, `/swarm`, and `/crank` create and manage teams automatically.
 
 ```
   Council:                         Swarm:
@@ -223,7 +255,7 @@ Requires `tmux` for pane mode (`brew install tmux`).
 
 ## Hooks
 
-Hooks auto-enforce the workflow — no discipline required.
+11 hooks auto-enforce the workflow — no discipline required.
 
 | Hook | Trigger | What it does |
 |------|---------|-------------|
@@ -237,8 +269,11 @@ All hooks have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 
 ## FAQ
 
-**Why not just use Claude Code directly?**
+<details>
+<summary><strong>Why not just use Claude Code directly?</strong></summary>
+
 Claude Code can spawn agents and write code. AgentOps turns it into an autonomous software engineering system:
+
 - **Goal in, production code out** — `/rpi "goal"` runs 6 phases hands-free. You don't prompt, approve, or babysit.
 - **Self-correcting** — Failed validation triggers retry with failure context, not human escalation. The system fixes its own mistakes.
 - **Can't regress** — Brownian ratchet locks progress after each phase. Parallel agents generate chaos; multi-model council filters it; ratchet keeps only what passes.
@@ -247,17 +282,45 @@ Claude Code can spawn agents and write code. AgentOps turns it into an autonomou
 - **Cross-vendor** — `--mixed` mode adds Codex judges alongside Claude. Different models catch different bugs.
 - **Self-enforcing** — Hooks block pushes without validation, prevent workers from committing, nudge agents through the lifecycle. No discipline required.
 
-**What data leaves my machine?**
-Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cloud sync.
+</details>
 
-**Do I need the `ao` CLI?**
-Skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle management. Recommended for full-lifecycle workflows.
+<details>
+<summary><strong>What data leaves my machine?</strong></summary>
 
-**How do I uninstall?**
+Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cloud sync, no external services. Your knowledge stays yours.
+
+</details>
+
+<details>
+<summary><strong>Do I need the ao CLI?</strong></summary>
+
+Skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle management. Recommended for full-lifecycle workflows. Install it with `brew install agentops`.
+
+</details>
+
+<details>
+<summary><strong>How does the council actually work?</strong></summary>
+
+`/council` spawns 2–6 parallel judge agents (Claude and/or Codex), each with a different perspective (security, performance, correctness, etc.). Judges deliberate asynchronously, then the lead consolidates into a single verdict: PASS, WARN, or FAIL with specific findings. Built-in presets: `default`, `security-audit`, `architecture`, `research`, `ops`.
+
+</details>
+
+<details>
+<summary><strong>Can I use this with other AI coding tools?</strong></summary>
+
+AgentOps is a Claude Code plugin — it runs inside Claude Code sessions. The `--mixed` council mode adds Codex (OpenAI) judges alongside Claude for cross-vendor validation. The knowledge flywheel (`.agents/` directory) is plain markdown files that any tool can read.
+
+</details>
+
+<details>
+<summary><strong>How do I uninstall?</strong></summary>
+
 ```bash
 npx skills@latest remove boshu2/agentops -g
 brew uninstall agentops  # if installed
 ```
+
+</details>
 
 ## Built On
 
@@ -268,6 +331,18 @@ brew uninstall agentops  # if installed
 | [beads](https://github.com/steveyegge/beads) | Git-native issue tracking |
 | [MemRL](https://arxiv.org/abs/2502.06173) | Two-phase retrieval for cross-session memory |
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guide.
+
+```bash
+# Run tests
+./tests/run-all.sh
+
+# Test the plugin locally
+claude --plugin ./
+```
+
 ## License
 
-Apache-2.0 · [Documentation](docs/) · [Reference](docs/reference.md) · [Changelog](CHANGELOG.md)
+Apache-2.0 · [Documentation](docs/) · [Architecture](docs/ARCHITECTURE.md) · [Changelog](CHANGELOG.md)

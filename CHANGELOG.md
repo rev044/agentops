@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-02-09
+
 ### Added
 
 - **`/rpi` lifecycle skill** — One command, full lifecycle. Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem. Give it a goal, get production code with multi-model validation at every gate. Autonomous by default — zero human prompts. Failed validations trigger retry loops with failure context, not escalation.
@@ -15,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **README rewritten** — Repositioned from "memory tool" to autonomous execution engine. New tagline: "One command, full lifecycle." ao CLI promoted to primary install. Four "How It Works" sections: Brownian Ratchet, Ralph Loops, Context Orchestration, Knowledge Flywheel.
+- **README rewritten for best-in-class quality** — Benchmarked against aider (40.5k stars), lobe-chat (72.1k stars), httpie, fiber, and create-go-app. New tagline: "Goal in, production code out." Narrative flow restructured (hook → show → act → explain → reference). Added meaningful metric badges (version, 33 skills, 11 hooks). Expanded "See It Work" with 4 examples in progressive disclosure. Added "Try it in 60 seconds" quickstart callout. FAQ expanded to 6 items in collapsible details. Contributing section added.
+- **Plugin description updated** — Reflects autonomous execution positioning.
 
 ### Fixed
 
