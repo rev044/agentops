@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-02-09
+
+### Fixed
+
+- **`ao hooks install` generates invalid format for Claude Code 2.1+** — Hook entries used old `{matcher, command: []}` format; now generates correct `{hooks: [{type: "command", command: "..."}]}` matcher format. Detection and merge logic handles both old and new formats for backwards compatibility.
+
 ## [1.9.0] - 2026-02-08
 
 ### Added

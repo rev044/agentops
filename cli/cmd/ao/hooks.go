@@ -18,16 +18,28 @@ var (
 	hooksForce        bool
 )
 
-// HookConfig represents a single hook configuration.
-type HookConfig struct {
-	Matcher string   `json:"matcher"`
-	Command []string `json:"command"`
+// HookEntry represents a single hook command (e.g., {"type": "command", "command": "..."}).
+type HookEntry struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
+}
+
+// HookGroup represents a hook group with optional matcher and a hooks array.
+// Claude Code 2.1+ format: {"matcher": {...}, "hooks": [{"type": "command", "command": "..."}]}
+type HookGroup struct {
+	Matcher *HookMatcher `json:"matcher,omitempty"`
+	Hooks   []HookEntry  `json:"hooks"`
+}
+
+// HookMatcher represents optional matcher criteria for a hook group.
+type HookMatcher struct {
+	Tools []string `json:"tools,omitempty"`
 }
 
 // HooksConfig represents the hooks section of Claude settings.
 type HooksConfig struct {
-	SessionStart []HookConfig `json:"SessionStart,omitempty"`
-	Stop         []HookConfig `json:"Stop,omitempty"`
+	SessionStart []HookGroup `json:"SessionStart,omitempty"`
+	Stop         []HookGroup `json:"Stop,omitempty"`
 }
 
 // ClaudeSettings represents the Claude Code settings.json structure.
@@ -133,18 +145,21 @@ func init() {
 }
 
 // generateHooksConfig creates the standard ao hooks configuration.
+// Uses Claude Code 2.1+ matcher format: {"hooks": [{"type": "command", "command": "..."}]}
 func generateHooksConfig() *HooksConfig {
 	return &HooksConfig{
-		SessionStart: []HookConfig{
+		SessionStart: []HookGroup{
 			{
-				Matcher: "",
-				Command: []string{"bash", "-c", "ao inject --apply-decay --max-tokens 1500 2>/dev/null || true"},
+				Hooks: []HookEntry{
+					{Type: "command", Command: "ao inject --apply-decay --max-tokens 1500 2>/dev/null || true"},
+				},
 			},
 		},
-		Stop: []HookConfig{
+		Stop: []HookGroup{
 			{
-				Matcher: "",
-				Command: []string{"bash", "-c", "ao forge transcript --last-session --quiet --queue 2>/dev/null; ao task-sync --promote 2>/dev/null || true"},
+				Hooks: []HookEntry{
+					{Type: "command", Command: "ao forge transcript --last-session --quiet --queue 2>/dev/null; ao task-sync --promote 2>/dev/null || true"},
+				},
 			},
 		},
 	}
@@ -167,11 +182,11 @@ func runHooksInit(cmd *cobra.Command, args []string) error {
 
 	case "shell":
 		fmt.Println("# SessionStart hook (knowledge injection)")
-		fmt.Printf("# %s\n", strings.Join(hooks.SessionStart[0].Command, " "))
+		fmt.Printf("# %s\n", hooks.SessionStart[0].Hooks[0].Command)
 		fmt.Println("ao inject --apply-decay --max-tokens 1500")
 		fmt.Println()
 		fmt.Println("# Stop hook (learning extraction)")
-		fmt.Printf("# %s\n", strings.Join(hooks.Stop[0].Command, " "))
+		fmt.Printf("# %s\n", hooks.Stop[0].Hooks[0].Command)
 		fmt.Println("ao forge transcript --last-session --quiet --queue")
 		fmt.Println("ao task-sync --promote")
 
@@ -205,84 +220,36 @@ func runHooksInstall(cmd *cobra.Command, args []string) error {
 	// Generate new hooks
 	newHooks := generateHooksConfig()
 
-	// Check for existing hooks
-	if existingHooks, ok := rawSettings["hooks"].(map[string]interface{}); ok {
-		if !hooksForce {
-			// Check if ao hooks already exist
-			if sessionStart, ok := existingHooks["SessionStart"].([]interface{}); ok {
-				for _, h := range sessionStart {
-					if hook, ok := h.(map[string]interface{}); ok {
-						if cmd, ok := hook["command"].([]interface{}); ok && len(cmd) > 1 {
-							if cmdStr, ok := cmd[1].(string); ok && strings.Contains(cmdStr, "ao inject") {
-								fmt.Println("ao hooks already installed. Use --force to overwrite.")
-								return nil
-							}
-						}
-					}
-				}
-			}
+	// Check for existing ao hooks
+	if existingHooks, ok := rawSettings["hooks"].(map[string]interface{}); ok && !hooksForce {
+		if hookGroupContainsAo(existingHooks, "SessionStart") {
+			fmt.Println("ao hooks already installed. Use --force to overwrite.")
+			return nil
 		}
 	}
 
-	// Merge hooks - preserve existing non-ao hooks
+	// Merge hooks - preserve existing non-ao hook groups
 	hooksMap := make(map[string]interface{})
 	if existing, ok := rawSettings["hooks"].(map[string]interface{}); ok {
-		// Copy existing hooks
 		for k, v := range existing {
 			hooksMap[k] = v
 		}
 	}
 
-	// Convert new hooks to map format
-	sessionStartHooks := make([]map[string]interface{}, 0)
-	stopHooks := make([]map[string]interface{}, 0)
+	// Filter out existing ao hook groups, keep non-ao ones
+	sessionStartGroups := filterNonAoHookGroups(hooksMap, "SessionStart")
+	stopGroups := filterNonAoHookGroups(hooksMap, "Stop")
 
-	// Preserve existing non-ao hooks
-	if existing, ok := hooksMap["SessionStart"].([]interface{}); ok {
-		for _, h := range existing {
-			if hook, ok := h.(map[string]interface{}); ok {
-				if cmd, ok := hook["command"].([]interface{}); ok && len(cmd) > 1 {
-					if cmdStr, ok := cmd[1].(string); ok && !strings.Contains(cmdStr, "ao ") {
-						sessionStartHooks = append(sessionStartHooks, hook)
-					}
-				} else {
-					sessionStartHooks = append(sessionStartHooks, hook)
-				}
-			}
-		}
+	// Add ao hook groups (new format)
+	for _, g := range newHooks.SessionStart {
+		sessionStartGroups = append(sessionStartGroups, hookGroupToMap(g))
+	}
+	for _, g := range newHooks.Stop {
+		stopGroups = append(stopGroups, hookGroupToMap(g))
 	}
 
-	if existing, ok := hooksMap["Stop"].([]interface{}); ok {
-		for _, h := range existing {
-			if hook, ok := h.(map[string]interface{}); ok {
-				if cmd, ok := hook["command"].([]interface{}); ok && len(cmd) > 1 {
-					if cmdStr, ok := cmd[1].(string); ok && !strings.Contains(cmdStr, "ao ") {
-						stopHooks = append(stopHooks, hook)
-					}
-				} else {
-					stopHooks = append(stopHooks, hook)
-				}
-			}
-		}
-	}
-
-	// Add ao hooks
-	for _, h := range newHooks.SessionStart {
-		sessionStartHooks = append(sessionStartHooks, map[string]interface{}{
-			"matcher": h.Matcher,
-			"command": h.Command,
-		})
-	}
-
-	for _, h := range newHooks.Stop {
-		stopHooks = append(stopHooks, map[string]interface{}{
-			"matcher": h.Matcher,
-			"command": h.Command,
-		})
-	}
-
-	hooksMap["SessionStart"] = sessionStartHooks
-	hooksMap["Stop"] = stopHooks
+	hooksMap["SessionStart"] = sessionStartGroups
+	hooksMap["Stop"] = stopGroups
 	rawSettings["hooks"] = hooksMap
 
 	if hooksDryRun {
@@ -370,21 +337,7 @@ func runHooksShow(cmd *cobra.Command, args []string) error {
 
 	// Check for ao hooks
 	if hooksMap, ok := hooks.(map[string]interface{}); ok {
-		hasAoHooks := false
-		if sessionStart, ok := hooksMap["SessionStart"].([]interface{}); ok {
-			for _, h := range sessionStart {
-				if hook, ok := h.(map[string]interface{}); ok {
-					if cmd, ok := hook["command"].([]interface{}); ok && len(cmd) > 1 {
-						if cmdStr, ok := cmd[1].(string); ok && strings.Contains(cmdStr, "ao ") {
-							hasAoHooks = true
-							break
-						}
-					}
-				}
-			}
-		}
-
-		if hasAoHooks {
+		if hookGroupContainsAo(hooksMap, "SessionStart") {
 			fmt.Println()
 			fmt.Println("✓ ao hooks are installed")
 		} else {
@@ -394,6 +347,92 @@ func runHooksShow(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// hookGroupContainsAo checks if any hook group in the given event contains an ao command.
+func hookGroupContainsAo(hooksMap map[string]interface{}, event string) bool {
+	groups, ok := hooksMap[event].([]interface{})
+	if !ok {
+		return false
+	}
+	for _, g := range groups {
+		group, ok := g.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		// New format: check hooks array
+		if hooks, ok := group["hooks"].([]interface{}); ok {
+			for _, h := range hooks {
+				if hook, ok := h.(map[string]interface{}); ok {
+					if cmd, ok := hook["command"].(string); ok && strings.Contains(cmd, "ao ") {
+						return true
+					}
+				}
+			}
+		}
+		// Legacy format: check top-level command array
+		if cmd, ok := group["command"].([]interface{}); ok && len(cmd) > 1 {
+			if cmdStr, ok := cmd[1].(string); ok && strings.Contains(cmdStr, "ao ") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// filterNonAoHookGroups returns hook groups that don't contain ao commands.
+func filterNonAoHookGroups(hooksMap map[string]interface{}, event string) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0)
+	groups, ok := hooksMap[event].([]interface{})
+	if !ok {
+		return result
+	}
+	for _, g := range groups {
+		group, ok := g.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		isAo := false
+		// Check new format
+		if hooks, ok := group["hooks"].([]interface{}); ok {
+			for _, h := range hooks {
+				if hook, ok := h.(map[string]interface{}); ok {
+					if cmd, ok := hook["command"].(string); ok && strings.Contains(cmd, "ao ") {
+						isAo = true
+						break
+					}
+				}
+			}
+		}
+		// Check legacy format
+		if cmd, ok := group["command"].([]interface{}); ok && len(cmd) > 1 {
+			if cmdStr, ok := cmd[1].(string); ok && strings.Contains(cmdStr, "ao ") {
+				isAo = true
+			}
+		}
+		if !isAo {
+			result = append(result, group)
+		}
+	}
+	return result
+}
+
+// hookGroupToMap converts a HookGroup to a map for JSON serialization.
+func hookGroupToMap(g HookGroup) map[string]interface{} {
+	hooks := make([]map[string]interface{}, len(g.Hooks))
+	for i, h := range g.Hooks {
+		hooks[i] = map[string]interface{}{
+			"type":    h.Type,
+			"command": h.Command,
+		}
+	}
+	result := map[string]interface{}{
+		"hooks": hooks,
+	}
+	if g.Matcher != nil {
+		result["matcher"] = g.Matcher
+	}
+	return result
 }
 
 func runHooksTest(cmd *cobra.Command, args []string) error {
