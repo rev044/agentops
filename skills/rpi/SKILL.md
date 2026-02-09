@@ -22,29 +22,29 @@ metadata:
 ## Quick Start
 
 ```bash
-/rpi "add user authentication"        # Full lifecycle from goal
-/rpi --auto "add user authentication" # Fully autonomous — no human gates
-/rpi --from=plan "add auth"           # Skip research, start from plan
-/rpi --from=crank ag-23k              # Skip to crank with existing epic
-/rpi --from=vibe                      # Just run final validation + post-mortem
+/rpi "add user authentication"              # Full lifecycle, fully autonomous (default)
+/rpi --interactive "add user authentication" # Human gates at research + plan
+/rpi --from=plan "add auth"                 # Skip research, start from plan
+/rpi --from=crank ag-23k                    # Skip to crank with existing epic
+/rpi --from=vibe                            # Just run final validation + post-mortem
 ```
 
 ## Architecture
 
 ```
-/rpi <goal | epic-id> [--from=<phase>]
+/rpi <goal | epic-id> [--from=<phase>] [--interactive]
   │  (session = the lead, no TeamCreate)
   │
-  ├── Phase 1: /research ── human gate (built into skill)
-  ├── Phase 2: /plan ────── human gate (built into skill)
-  ├── Phase 3: /pre-mortem ── auto (FAIL → escalate)
+  ├── Phase 1: /research ── auto (default) or human gate (--interactive)
+  ├── Phase 2: /plan ────── auto (default) or human gate (--interactive)
+  ├── Phase 3: /pre-mortem ── auto (FAIL → retry loop)
   ├── Phase 4: /crank ────── autonomous (manages own teams)
-  ├── Phase 5: /vibe ──────── auto (FAIL → escalate)
+  ├── Phase 5: /vibe ──────── auto (FAIL → retry loop)
   └── Phase 6: /post-mortem ── auto (council + retro + flywheel)
 ```
 
-**Human gates (default mode):** 2 (research + plan approval, owned by those skills)
-**Human gates (--auto mode):** 0 — all gates are retry loops
+**Human gates (default):** 0 — fully autonomous, all gates are retry loops
+**Human gates (--interactive mode):** 2 (research + plan approval, owned by those skills)
 **Retry gates:** pre-mortem FAIL → re-plan, vibe FAIL → re-crank, crank BLOCKED/PARTIAL → re-crank (max 3 attempts each)
 **No gate:** post-mortem (end of lifecycle)
 
@@ -61,7 +61,7 @@ metadata:
 
 ## Execution Steps
 
-Given `/rpi <goal | epic-id> [--from=<phase>] [--auto]`:
+Given `/rpi <goal | epic-id> [--from=<phase>] [--interactive]`:
 
 ### Step 0: Setup
 
@@ -85,7 +85,7 @@ rpi_state = {
   goal: "<goal string>",
   epic_id: null,     # populated after Phase 2
   phase: "<starting phase>",
-  auto: <true if --auto flag present>,
+  auto: <true unless --interactive flag present>,
   verdicts: {}       # populated as phases complete
 }
 ```
@@ -95,11 +95,11 @@ rpi_state = {
 **Skip if:** `--from` is set to a later phase.
 
 ```
-Skill(skill="research", args="<goal> --auto")   # --auto if rpi_state.auto is true
+Skill(skill="research", args="<goal> --auto")   # always --auto unless --interactive
 ```
 
-In `--auto` mode, /research skips its human gate and proceeds automatically.
-Without `--auto`, the research skill has its own human gate (AskUserQuestion). /rpi trusts the outcome:
+By default, /research runs with `--auto` (skips human gate, proceeds automatically).
+With `--interactive`, the research skill shows its human gate (AskUserQuestion). /rpi trusts the outcome:
 - User approves → research complete, proceed
 - User abandons → /rpi stops with message: "Research abandoned by user."
 
@@ -120,11 +120,11 @@ Without `--auto`, the research skill has its own human gate (AskUserQuestion). /
 **Skip if:** `--from` is set to a later phase.
 
 ```
-Skill(skill="plan", args="<goal> --auto")   # --auto if rpi_state.auto is true
+Skill(skill="plan", args="<goal> --auto")   # always --auto unless --interactive
 ```
 
-In `--auto` mode, /plan skips its human gate and proceeds automatically.
-Without `--auto`, the plan skill has its own human gate. /rpi trusts the outcome.
+By default, /plan runs with `--auto` (skips human gate, proceeds automatically).
+With `--interactive`, the plan skill shows its human gate. /rpi trusts the outcome.
 
 **After plan completes:**
 1. Extract epic-id:
@@ -299,7 +299,7 @@ Summarize the entire lifecycle to the user:
 | Failure | Behavior |
 |---------|----------|
 | Skill invocation fails | Log error, retry once. If still fails → stop with checkpoint. |
-| User abandons at sub-skill gate | /rpi stops with checkpoint (only in non-auto mode) |
+| User abandons at sub-skill gate | /rpi stops with checkpoint (only in --interactive mode) |
 | /crank returns BLOCKED | Re-crank with context (max 2 retries). If still blocked → stop. |
 | /crank returns PARTIAL | Re-crank remaining items with context (max 2 retries). If still partial → stop. |
 | Pre-mortem FAIL | Re-plan with fail feedback → re-run pre-mortem (max 3 total attempts) |
@@ -312,7 +312,8 @@ Summarize the entire lifecycle to the user:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--from=<phase>` | `research` | Start from this phase (research, plan, pre-mortem, crank, vibe, post-mortem) |
-| `--auto` | off | Fully autonomous mode. Skips human gates in /research and /plan. Pre-mortem WARN/PASS auto-proceed (FAIL still escalates). |
+| `--interactive` | off | Enable human gates in /research and /plan. Without this flag, /rpi runs fully autonomous. |
+| `--auto` | on | (Legacy, now default) Fully autonomous — zero human gates. Kept for backwards compatibility. |
 
 ## See Also
 
