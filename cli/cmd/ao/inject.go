@@ -41,12 +41,21 @@ var (
 	injectApplyDecay bool
 )
 
+type olConstraint struct {
+	Pattern    string  `json:"pattern"`
+	Detection  string  `json:"detection"`
+	Source     string  `json:"source,omitempty"`
+	Confidence float64 `json:"confidence,omitempty"`
+	Status     string  `json:"status,omitempty"`
+}
+
 type injectedKnowledge struct {
-	Learnings []learning `json:"learnings,omitempty"`
-	Patterns  []pattern  `json:"patterns,omitempty"`
-	Sessions  []session  `json:"sessions,omitempty"`
-	Timestamp time.Time  `json:"timestamp"`
-	Query     string     `json:"query,omitempty"`
+	Learnings     []learning     `json:"learnings,omitempty"`
+	Patterns      []pattern      `json:"patterns,omitempty"`
+	Sessions      []session      `json:"sessions,omitempty"`
+	OLConstraints []olConstraint `json:"ol_constraints,omitempty"`
+	Timestamp     time.Time      `json:"timestamp"`
+	Query         string         `json:"query,omitempty"`
 }
 
 type learning struct {
@@ -172,6 +181,13 @@ func runInject(cmd *cobra.Command, args []string) error {
 	}
 	knowledge.Sessions = sessions
 
+	// Discover OL constraints (no-op if .ol/ doesn't exist)
+	olConstraints, err := collectOLConstraints(cwd, query)
+	if err != nil {
+		VerbosePrintf("Warning: failed to collect OL constraints: %v\n", err)
+	}
+	knowledge.OLConstraints = olConstraints
+
 	// Format output
 	var output string
 	if injectFormat == "json" {
@@ -262,7 +278,15 @@ func formatKnowledgeMarkdown(k *injectedKnowledge) string {
 		sb.WriteString("\n")
 	}
 
-	if len(k.Learnings) == 0 && len(k.Patterns) == 0 && len(k.Sessions) == 0 {
+	if len(k.OLConstraints) > 0 {
+		sb.WriteString("### Olympus Constraints\n")
+		for _, c := range k.OLConstraints {
+			sb.WriteString(fmt.Sprintf("- **[olympus constraint]** %s: %s\n", c.Pattern, c.Detection))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(k.Learnings) == 0 && len(k.Patterns) == 0 && len(k.Sessions) == 0 && len(k.OLConstraints) == 0 {
 		sb.WriteString("*No prior knowledge found.*\n\n")
 	}
 
@@ -324,6 +348,44 @@ func canonicalSessionID(raw string) string {
 
 	// Return as-is for other formats (e.g., user-provided IDs)
 	return raw
+}
+
+// collectOLConstraints reads constraints from .ol/constraints/quarantine.json.
+// Returns nil (no-op) if .ol/ directory doesn't exist.
+func collectOLConstraints(cwd, query string) ([]olConstraint, error) {
+	olDir := filepath.Join(cwd, ".ol")
+	if _, err := os.Stat(olDir); os.IsNotExist(err) {
+		return nil, nil // Not an Olympus project
+	}
+
+	quarantinePath := filepath.Join(olDir, "constraints", "quarantine.json")
+	data, err := os.ReadFile(quarantinePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // No quarantine file
+		}
+		return nil, fmt.Errorf("read quarantine.json: %w", err)
+	}
+
+	var raw []olConstraint
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("parse quarantine.json: %w", err)
+	}
+
+	// Filter by query if provided
+	if query == "" {
+		return raw, nil
+	}
+
+	queryLower := strings.ToLower(query)
+	var filtered []olConstraint
+	for _, c := range raw {
+		content := strings.ToLower(c.Pattern + " " + c.Detection)
+		if strings.Contains(content, queryLower) {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered, nil
 }
 
 // recordCitations records citation events for retrieved learnings.

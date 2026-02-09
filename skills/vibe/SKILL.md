@@ -181,6 +181,77 @@ fi
 
 **Why:** LLMs estimate metadata from content complexity, not measurement (L24). Line counts, cross-references, and diagram accuracy are mechanical — verify them mechanically. This frees council judges to focus on correctness, architecture, and security.
 
+### Step 2c: Deterministic Validation (Olympus)
+
+**Guard:** Only run when BOTH conditions are true:
+1. `.ol/config.yaml` exists in the project root
+2. `which ol` succeeds (ol CLI is on PATH)
+
+If either condition fails, skip this step entirely (no-op). Non-Olympus projects are unaffected.
+
+**Detection:**
+```bash
+if [ -f ".ol/config.yaml" ] && which ol > /dev/null 2>&1; then
+  OL_PROJECT=true
+else
+  OL_PROJECT=false
+fi
+```
+
+**If OL_PROJECT is true:**
+
+1. Determine `<quest-id>` and `<bead-id>` from context:
+   - Check `.ol/config.yaml` for current quest
+   - Or extract from git branch name (e.g., `ol-572/bead-3`)
+   - Or from the target argument if it looks like an OL bead ID
+
+2. Run deterministic validation:
+```bash
+ol validate stage1 --quest <quest-id> --bead <bead-id> --worktree .
+```
+
+3. Parse the JSON output (Stage1Result format):
+```json
+{
+  "quest_id": "ol-572",
+  "bead_id": "ol-572.3",
+  "worktree": "/path/to/worktree",
+  "passed": true,
+  "steps": [
+    {"name": "go build", "passed": true, "duration": "1.2s"},
+    {"name": "go vet", "passed": true, "duration": "0.8s"},
+    {"name": "go test", "passed": true, "duration": "3.4s"}
+  ],
+  "summary": "all steps passed"
+}
+```
+
+4. **If `passed: false`:** Auto-FAIL the vibe immediately. Do NOT proceed to council. Write the vibe report with:
+   - Verdict: **FAIL**
+   - Include all step details showing which steps failed
+   - Recommendation: "Fix deterministic validation failures before running council review."
+
+5. **If `passed: true`:** Record results and proceed to council (Step 4). Include the Stage1Result in the vibe report as a "Deterministic Validation" section and pass it as context to council.
+
+6. **If `ol validate stage1` exits non-zero (error):** Log the error, note it in the report as "Deterministic validation: SKIPPED (ol error)", and proceed to council normally.
+
+**Include in vibe report (Step 7)** — add before the "Council Verdict" section:
+
+```markdown
+## Deterministic Validation (Olympus)
+
+**Status:** PASS | FAIL | SKIPPED
+**Quest:** <quest-id> | **Bead:** <bead-id>
+
+| Step | Result | Duration |
+|------|--------|----------|
+| go build | PASS | 1.2s |
+| go vet | PASS | 0.8s |
+| go test | PASS | 3.4s |
+
+**Summary:** <summary from Stage1Result>
+```
+
 ### Step 3: Load the Spec (New)
 
 Before invoking council, try to find the relevant spec/bead:
