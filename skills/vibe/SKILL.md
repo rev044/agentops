@@ -252,6 +252,35 @@ ol validate stage1 --quest <quest-id> --bead <bead-id> --worktree .
 **Summary:** <summary from Stage1Result>
 ```
 
+### Step 2.5: Codex Review (if available)
+
+Run a fast, diff-focused code review via Codex CLI before council:
+
+```bash
+if which codex > /dev/null 2>&1; then
+  codex review --uncommitted -o .agents/council/codex-review-pre.md 2>/dev/null && \
+    echo "Codex review complete — output at .agents/council/codex-review-pre.md" || \
+    echo "Codex review skipped (failed)"
+else
+  echo "Codex review skipped (CLI not found)"
+fi
+```
+
+**If output exists**, include in council packet as additional context:
+```json
+"codex_review": {
+  "source": "codex review --uncommitted",
+  "content": "<contents of .agents/council/codex-review-pre.md>"
+}
+```
+
+This gives council judges a Codex-generated review as pre-existing context — cheap, fast, diff-focused. It does NOT replace council judgment; it augments it.
+
+**Skip conditions:**
+- Codex CLI not on PATH → skip silently
+- `codex review` fails → skip silently, proceed with council only
+- No uncommitted changes → skip (nothing to review)
+
 ### Step 3: Load the Spec (New)
 
 Before invoking council, try to find the relevant spec/bead:

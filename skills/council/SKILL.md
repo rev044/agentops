@@ -191,6 +191,13 @@ else
     echo "⚠️ Codex model $CODEX_MODEL unavailable. Falling back to Claude-only."
     # Downgrade --mixed to --deep (3 Claude agents)
   fi
+
+  # Test --output-schema support
+  SCHEMA_SUPPORTED=false
+  if codex exec -s read-only -m "$CODEX_MODEL" -C "$(pwd)" --output-schema skills/council/schemas/verdict.json -o /tmp/council-schema-test.json "Return PASS verdict" > /dev/null 2>&1; then
+    SCHEMA_SUPPORTED=true
+  fi
+  # If false, fall back to --full-auto + .md output (current behavior)
 fi
 
 # Check agent count (includes --count override)
@@ -844,6 +851,8 @@ Then provide a Markdown explanation of your debate reasoning.
 
 ### Consolidation Prompt
 
+**Codex output format note:** When Codex judges used `--output-schema`, their output files are pure JSON (`.json` extension) conforming to `skills/council/schemas/verdict.json`. Parse directly with JSON. When fallback was used, output files are markdown (`.md` extension) with a JSON code block that must be extracted (current behavior). Check file extension to determine parse strategy.
+
 ```
 You are the Council Chairman.
 
@@ -1205,16 +1214,23 @@ Task(
 **Canonical Codex command form (unchanged — Codex cannot join teams):**
 
 ```bash
-codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o .agents/council/codex-{perspective}.md "{PACKET}"
+# With structured output (preferred — requires --output-schema support)
+codex exec -s read-only -m gpt-5.3-codex -C "$(pwd)" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-{N}.json "{PACKET}"
+
+# Fallback (if --output-schema unsupported by model)
+codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o .agents/council/codex-{N}.md "{PACKET}"
 ```
 
-Always use this exact flag order: `--full-auto` → `-m` → `-C` → `-o` → prompt.
+Always use this exact flag order: `-s` / `--full-auto` → `-m` → `-C` → `--output-schema` (if applicable) → `-o` → prompt.
 
 **Codex CLI flags (ONLY these are valid):**
-- `--full-auto` — No approval prompts (REQUIRED, always first)
+- `--full-auto` — No approval prompts (REQUIRED for fallback, always first)
+- `-s read-only` / `-s workspace-write` — Sandbox level (read-only for judges, workspace-write for workers)
 - `-m <model>` — Model override (default: gpt-5.3-codex)
 - `-C <dir>` — Working directory
-- `-o <file>` — Output file (use `-o` not `--output`)
+- `--output-schema <file>` — Enforce structured JSON output (requires `additionalProperties: false` in schema)
+- `-o <file>` — Output file (use `-o` not `--output`). Extension `.json` when using `--output-schema`, `.md` for fallback.
+- `--add-dir <dir>` — Additional writable directories (repeatable)
 
 **DO NOT USE:** `-q` (doesn't exist), `--quiet` (doesn't exist)
 
@@ -1235,9 +1251,14 @@ Task(description="Judge 3", team_name="council-...", name="judge-3", ...)
 # Task(description="Judge: Error-Paths", team_name="council-...", name="judge-error-paths", ...)
 
 # Step 3: Spawn Codex agents (Bash tool, parallel — cannot join teams)
-Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-1.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-2.md ...", run_in_background=true)
-Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-3.md ...", run_in_background=true)
+# With --output-schema (preferred, when SCHEMA_SUPPORTED=true):
+Bash(command="codex exec -s read-only -m gpt-5.3-codex -C \"$(pwd)\" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-1.json ...", run_in_background=true)
+Bash(command="codex exec -s read-only -m gpt-5.3-codex -C \"$(pwd)\" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-2.json ...", run_in_background=true)
+Bash(command="codex exec -s read-only -m gpt-5.3-codex -C \"$(pwd)\" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-3.json ...", run_in_background=true)
+# Fallback (when SCHEMA_SUPPORTED=false):
+# Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-1.md ...", run_in_background=true)
+# Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-2.md ...", run_in_background=true)
+# Bash(command="codex exec --full-auto -m gpt-5.3-codex -C \"$(pwd)\" -o .agents/council/codex-3.md ...", run_in_background=true)
 ```
 
 **Wait for completion:**
@@ -1336,6 +1357,9 @@ mkdir -p .agents/council
 .agents/council/YYYY-MM-DD-<target>-claude-1-r2.md
 
 # Codex output (R1 only, even with --debate)
+# When --output-schema is supported:
+.agents/council/YYYY-MM-DD-<target>-codex-1.json
+# Fallback (no --output-schema):
 .agents/council/YYYY-MM-DD-<target>-codex-1.md
 
 # Final consolidated report

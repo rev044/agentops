@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {"type": "string", "enum": ["PASS", "WARN", "FAIL"]},
+    "confidence": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW"]},
+    "key_insight": {"type": "string"},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": {"type": "string", "enum": ["critical", "significant", "minor"]},
+          "category": {"type": "string"},
+          "description": {"type": "string"},
+          "location": {"type": "string"},
+          "recommendation": {"type": "string"}
+        },
+        "required": ["severity", "description"],
+        "additionalProperties": false
+      }
+    },
+    "recommendation": {"type": "string"}
+  },
+  "required": ["verdict", "confidence", "key_insight", "findings", "recommendation"],
+  "additionalProperties": false
+}

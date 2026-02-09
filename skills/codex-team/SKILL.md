@@ -41,9 +41,44 @@ codex exec --full-auto -m "gpt-5.3-codex" -C "$(pwd)" -o <output-file> "<prompt>
 
 Flag order: `--full-auto` -> `-m` -> `-C` -> `-o` -> prompt. Always this order.
 
-**Valid flags ONLY:** `--full-auto`, `-m`, `-C`, `-o`, `--json`, `--output-schema`
+**Valid flags:** `--full-auto`, `-m`, `-C`, `-o`, `--json`, `--output-schema`, `--add-dir`, `-s`
 
 **DO NOT USE:** `-q`, `--quiet` (don't exist)
+
+## Cross-Project Tasks
+
+When tasks span multiple repos/directories, use `--add-dir` to grant access:
+
+```bash
+codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" --add-dir /path/to/other/repo -o output.md "prompt"
+```
+
+The `--add-dir` flag is repeatable for multiple additional directories.
+
+## Progress Monitoring (optional)
+
+Add `--json` to stream JSONL events to stdout for real-time monitoring:
+
+```bash
+codex exec --full-auto --json -m gpt-5.3-codex -C "$(pwd)" -o output.md "prompt" 2>/dev/null
+```
+
+Key events:
+- `turn.started` / `turn.completed` — track progress
+- `turn.completed` includes token `usage` field
+- No events for 60s → agent likely stuck
+
+## Sandbox Levels
+
+Use `-s` to control the sandbox:
+
+| Level | Flag | Use When |
+|-------|------|----------|
+| Read-only | `-s read-only` | Judges, reviewers (no file writes needed) |
+| Workspace write | `-s workspace-write` | Default with `--full-auto` |
+| Full access | `-s danger-full-access` | Only in externally sandboxed environments |
+
+For code review and analysis tasks, prefer `-s read-only` over `--full-auto`.
 
 ## Execution
 
