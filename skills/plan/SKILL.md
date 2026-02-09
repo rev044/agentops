@@ -17,9 +17,15 @@ dependencies:
 
 **CLI dependencies:** bd (issue creation). If bd is unavailable, write the plan to `.agents/plans/` as markdown with issue descriptions, and use TaskList for tracking instead. The plan document is always created regardless of bd availability.
 
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--auto` | off | Skip human approval gate. Used by `/rpi --auto` for fully autonomous lifecycle. |
+
 ## Execution Steps
 
-Given `/plan <goal>`:
+Given `/plan <goal> [--auto]`:
 
 ### Step 1: Setup
 ```bash
@@ -206,6 +212,8 @@ bd dep add na-0001 na-0002
 Without bd issues, the ratchet validator cannot track gate progress. This is required for `/crank` autonomous execution and `/post-mortem` validation.
 
 ### Step 8: Request Human Approval (Gate 2)
+
+**Skip this step if `--auto` flag is set.** In auto mode, proceed directly to Step 9.
 
 **USE AskUserQuestion tool:**
 

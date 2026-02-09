@@ -14,9 +14,15 @@ dependencies:
 
 **CLI dependencies:** ao (knowledge injection — optional). If ao is unavailable, skip prior knowledge search and proceed with direct codebase exploration.
 
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--auto` | off | Skip human approval gate. Used by `/rpi --auto` for fully autonomous lifecycle. |
+
 ## Execution Steps
 
-Given `/research <topic>`:
+Given `/research <topic> [--auto]`:
 
 ### Step 1: Create Output Directory
 ```bash
@@ -133,6 +139,8 @@ Use this format:
 ```
 
 ### Step 6: Request Human Approval (Gate 1)
+
+**Skip this step if `--auto` flag is set.** In auto mode, proceed directly to Step 7.
 
 **USE AskUserQuestion tool:**
 
