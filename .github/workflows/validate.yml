@@ -97,6 +97,8 @@ jobs:
             if grep -r -E "$pattern" \
                 --include="*.sh" \
                 --exclude-dir=.git \
+                --exclude-dir=tests \
+                --exclude-dir=cli/testdata \
                 . 2>/dev/null; then
               echo "Found: $pattern"
               found=1

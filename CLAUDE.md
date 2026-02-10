@@ -1,6 +1,6 @@
 # AgentOps
 
-A knowledge flywheel for AI coding agents — persistent memory, multi-model validation, and structured workflows for Claude Code.
+Turn your coding agent into a self-correcting dev pipeline.
 
 ## Project Structure
 
