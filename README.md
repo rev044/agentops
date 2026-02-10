@@ -196,7 +196,7 @@ Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or r
 
 ## Skills Catalog
 
-32 skills across three tiers — orchestration, workflow, and utilities — plus 8 internal skills that fire automatically.
+32 skills across three tiers — orchestration, workflow, and utilities — plus 10 internal skills that fire automatically.
 
 ### Orchestration
 
@@ -236,7 +236,7 @@ Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or r
 | `/inbox` | Monitor Agent Mail messages |
 
 <details>
-<summary><strong>Internal skills (auto-loaded, 8 total)</strong></summary>
+<summary><strong>Internal skills (auto-loaded, 10 total)</strong></summary>
 
 | Skill | Trigger | What it does |
 |-------|---------|-------------|
@@ -248,6 +248,8 @@ Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or r
 | `standards` | By `/vibe`, `/implement` | Language-specific coding rules (Python, Go, TS, Shell) |
 | `beads` | By `/plan`, `/implement` | Git-native issue tracking reference |
 | `provenance` | On demand | Trace knowledge artifact lineage and sources |
+| `shared` | By distributed skills | Shared reference documents for distributed mode |
+| `using-agentops` | Auto-injected | AgentOps workflow guide |
 
 </details>
 

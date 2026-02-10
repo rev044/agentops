@@ -42,7 +42,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **release** | solo | Pre-flight, changelog, version bumps, tag |
 | **trace** | solo | Trace design decisions |
 
-### Internal Skills (11) — `metadata.internal: true`
+### Internal Skills (10) — `metadata.internal: true`
 
 These are hidden from interactive `npx skills add` discovery. They are loaded JIT
 by other skills via Read or auto-triggered by hooks. Not intended for direct user invocation.

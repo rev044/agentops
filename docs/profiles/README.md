@@ -6,10 +6,24 @@
 
 ---
 
+## How to Use Profiles
+
+Profiles are **documentation groupings**, not executable configs. They organize AgentOps skills by domain so you can quickly find which skills are relevant to your work.
+
+To use a profile:
+
+1. **Find your domain** in the table below
+2. **Open the profile YAML** (e.g., `docs/profiles/roles/software-dev.yaml`) to see which skills it groups together
+3. **Use those skills directly** via slash commands (`/research`, `/plan`, `/implement`) or by reading the SKILL.md files listed in the profile
+
+You do not "load" or "activate" a profile — you read it to discover which skills apply to your workflow, then invoke those skills individually.
+
+---
+
 ## Quick Start
 
-| You're doing... | Load this profile | Key Skills |
-|-----------------|-------------------|------------|
+| You're doing... | Profile | Key Skills |
+|-----------------|---------|------------|
 | Building apps (APIs, frontends, features) | **software-dev** | languages, development, code-quality |
 | Operations (incidents, monitoring, deploys) | **platform-ops** | operations, monitoring, security |
 | Writing (docs, research, patterns) | **content-creation** | documentation, research, meta |

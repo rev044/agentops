@@ -6,7 +6,7 @@ Inspired by Kelsey Hightower's approach: learn by doing, one level at a time.
 
 AgentOps has two progression axes:
 
-- **Tiers (0-3)** = what tools you install. See the [README tier table](../../README.md#choose-your-tier).
+- **Tiers (0-3)** = what tools you install. See the [Install section](../../README.md#install).
 - **Levels (L1-L5)** = what concepts you learn. That's this document.
 
 Tiers tell you **what to install**. Levels tell you **what to learn**. You can be at Tier 0 (skills only, no CLI) and still work through all five learning levels. The CLI and beads enhance the experience but aren't required to learn the concepts.

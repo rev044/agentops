@@ -1,14 +1,5 @@
 # Coding Standards
 
-<!-- Canonical source: gitops/docs/standards/README.md -->
-<!-- Last synced: 2026-01-19 -->
-
-> **This repository follows the canonical standards defined in gitops/docs/standards/.**
->
-> When updating standards, first update gitops then sync here.
-
----
-
 ## Skills Integration
 
 These standards are also available as a **library skill** in domain-kit:
@@ -159,10 +150,8 @@ Each standard follows a consistent format:
 
 To update a standard:
 
-1. First update the canonical source in `gitops/docs/standards/`
-2. Copy here and update the sync date header
-3. Customize any project-specific sections as needed
-4. Run validation to ensure format compliance
+1. Edit the standard directly in `docs/standards/`
+2. Run validation to ensure format compliance
 
 ### Adding a New Standard
 
@@ -175,4 +164,4 @@ To update a standard:
 
 **Created:** 2024-12-30
 **Last Updated:** 2026-02-09
-**Related:** [Canonical Standards](https://github.com/your-org/gitops/tree/main/docs/standards)
+**Related:** [SKILL-TIERS.md](../../skills/SKILL-TIERS.md)

@@ -123,8 +123,11 @@ Monitor for completion. When polecats finish, validate their work:
 
 Valid completions get merged. **Merge is the ratchet**—once in main, it's permanent.
 
+<!-- FUTURE: gt convoy not yet implemented -->
+> **Not yet implemented:** `gt convoy` — convoy monitoring is planned but not yet available.
+
 ```bash
-gt convoy status <id>         # Monitor  <!-- FUTURE: gt convoy not yet implemented -->
+gt convoy status <id>         # Monitor
 # Polecat runs: gt done → push → merge queue
 git merge origin/polecat/...  # Ratchet
 ```
