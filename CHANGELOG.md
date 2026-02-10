@@ -7,19 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Documentation validation test suite** (ag-o80) — Three CI-ready scripts preventing doc drift:
+  - `tests/docs/validate-links.sh` — Validates 280+ internal markdown links across repo root, docs/, skills/, cli/ with allowlist for known broken links
+  - `tests/docs/validate-skill-count.sh` — Asserts skill counts (total/user-facing/internal) are consistent across README.md, CLAUDE.md, and SKILL-TIERS.md
+  - `scripts/generate-cli-reference.sh` — Auto-generates cli/docs/COMMANDS.md from `ao --help`; `--check` flag for CI freshness validation
+- **Doc validation in test suite** (ag-o80) — Link validation and skill count assertion wired into `tests/run-all.sh` Tier 1 (always runs)
+- **INDEX.md, GLOSSARY.md, workflows guide, CLI reference** (ag-qmd) — 83-link documentation index, 30-term glossary, workflow decision matrix, 35-command CLI reference
+- **Hook execution integration tests** (ag-ab6) — 26 tests in `tests/hooks/test-hooks.sh` covering prompt-nudge, push-gate, and task-validation-gate hooks (JSON injection resistance, kill switches, allowlist enforcement, mock chain gates, literal pattern matching)
+- **Skill dependency validation** (ag-ab6) — `validate-skill.sh` now checks declared dependencies exist; `run-all.sh` reports dependency health summary
+- **Standards gap fills** (ag-ab6) — TypeScript Testing (Vitest/Jest, mocking, async, type-safe testing), Python Security (YAML deserialization, path traversal), Rust Security (integer overflow, panic handling) + Documentation (rustdoc, cargo-readme), Go Documentation (godoc, interface docs, package comments)
+
 ### Changed
 
 - **README intro rewrite for multi-agent compatibility** — New "What Is AgentOps" section, prerequisites table, 3 install options ordered by ease (npx → script → manual), "See It Work" moved after install, FAQ updated to reflect Skills protocol support for Claude Code, Codex CLI, Cursor, Open Code
 - **install.sh agent gate softened** — Hard `exit 1` on missing `claude` CLI replaced with warning that checks `claude`/`codex`/`cursor` and continues; usage comment updated to `bash <()` pattern
 
-### Added
-
-- **Hook execution integration tests** (ag-ab6) — 26 tests in `tests/hooks/test-hooks.sh` covering prompt-nudge, push-gate, and task-validation-gate hooks (JSON injection resistance, kill switches, allowlist enforcement, mock chain gates, literal pattern matching)
-- **Skill dependency validation** (ag-ab6) — `validate-skill.sh` now checks declared dependencies exist; `run-all.sh` reports dependency health summary
-- **Standards gap fills** (ag-ab6) — TypeScript Testing (Vitest/Jest, mocking, async, type-safe testing), Python Security (YAML deserialization, path traversal), Rust Security (integer overflow, panic handling) + Documentation (rustdoc, cargo-readme), Go Documentation (godoc, interface docs, package comments)
-
 ### Fixed
 
+- **CLAUDE.md skill count committed** (ag-o80) — Cleared skip-worktree flag; count updated from "21 user-facing, 11 internal" to "22 user-facing, 10 internal"; added rpi/ entry, removed deprecated judge/ entry
+- **SKILL-TIERS.md header count** (ag-o80) — User-facing heading corrected from (21) to (22) to match actual table
+- **5 broken links in meta-observer README** (ag-o80) — Replaced dead links to nonexistent `../commands/` and `../agents/` paths with inline descriptions
+- **7 doc inaccuracies** (ag-qmd) — Skill count fixes, broken anchor, stale gitops claim, profiles clarity, FUTURE marker standardization across README.md, SKILL-TIERS.md, ARCHITECTURE.md, profiles docs
 - **Security: command injection in task-validation-gate.sh** (ag-ab6) — Replaced `/bin/sh -c "$cmd"` with allowlist-based array execution; only `go`, `pytest`, `npm`, `npx`, `make`, `bash` permitted
 - **Security: regex injection in task-validation-gate.sh** (ag-ab6) — Changed `grep -q` to `grep -qF` for literal pattern matching in content_check
 - **Security: JSON injection in prompt-nudge.sh** (ag-ab6) — Replaced `printf` JSON construction with `jq -n --arg` for safe escaping
