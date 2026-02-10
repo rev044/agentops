@@ -7,38 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-02-09
+
 ### Added
 
-- **Rust standards skill** (ag-cn3) — Full two-tier Rust language support
-  - `skills/standards/references/rust.md` — Tier 1 quick reference (39 lines: cargo fmt/clippy, error handling, ownership, unsafe)
-  - `skills/vibe/references/rust-standards.md` — Tier 2 deep reference (1118 lines: 10 sections covering project structure, cargo config, ownership patterns, error handling, trait system, concurrency, unsafe code, testing, metrics)
-  - Updated SKILL.md, standards-index.md, README.md, test assertions
+- **Public-ready polish** (ag-yxj) — Two-wave epic making AgentOps ready for external users
+  - `scripts/install.sh` — One-liner automated install script
+  - `cli/cmd/ao/doctor.go` — Health check command validating Go, skills, hooks, ao CLI (298 LOC)
+  - `docs/troubleshooting.md` — Comprehensive troubleshooting guide covering hooks, skills, push gate, phantom commands (200 LOC)
+  - `skills/quickstart/` — Pre-flight checks, error handling, `references/getting-started.md` and `references/troubleshooting.md`
+  - `skills/status/SKILL.md` — Expanded dashboard with colored output, wave progress, and suggested next actions
+  - `skills/council/SKILL.md` — Standalone usage section positioning council as an independent PR validator
+  - 3 validation scripts — `council/scripts/validate.sh`, `crank/scripts/validate.sh`, `swarm/scripts/validate.sh`
+  - 8 files with phantom commands quarantined with `FUTURE` markers
+  - `MOLECULES.md` — `NOT YET IMPLEMENTED` header added
+- **Rust standards** (ag-cn3) — Full two-tier Rust language support
+  - `skills/standards/references/rust.md` — Tier 1 quick reference (cargo fmt/clippy, error handling, ownership, unsafe)
+  - `skills/vibe/references/rust-standards.md` — Tier 2 deep reference (1,118 lines: project structure, ownership patterns, error handling, trait system, concurrency, unsafe code, testing)
 - **Common standards catalog** (ag-eba) — Cross-language universal patterns as single source of truth
-  - `skills/standards/references/common-standards.md` — 17KB covering error handling philosophy, testing best practices, security principles, documentation standards, code organization, with dedup manifest
+  - `skills/standards/references/common-standards.md` — 17KB covering error handling, testing, security, documentation, code organization
   - Updated JIT loading order: vibe-coding.md → common-standards.md → language standards
-- **Standards gap fill** (ag-eba) — Filled critical coverage gaps across 6 Tier 2 files
-  - TypeScript: Testing Patterns section (Jest/Vitest, React Testing Library, MSW, async, snapshots)
-  - Python: Security Practices section (eval/exec, pickle, SQL injection, SSRF, secrets)
-  - Rust: Security Practices + Documentation Standards sections (unsafe audit, FFI safety, rustdoc, doc tests)
-  - Go + Shell: Documentation Standards sections (godoc, Example functions, --help, header comments)
-  - JSON: Anti-Patterns, Code Quality Metrics, Prescan P01-P05 (jq-based detection)
-  - YAML: Anti-Patterns, Code Quality Metrics, Prescan P01-P05 (yamllint-based detection)
-- **Cross-references in language files** (ag-eba) — 5 language Tier 2 files link to common-standards.md at Anti-Patterns and Code Quality Metrics sections
+- **Standards coverage gaps filled** (ag-eba) — Critical sections added across 6 Tier 2 files
+  - TypeScript: Testing Patterns (Jest/Vitest, React Testing Library, MSW)
+  - Python: Security Practices (eval/exec, pickle, SQL injection, SSRF)
+  - Rust: Security Practices + Documentation Standards
+  - Go + Shell: Documentation Standards
+  - JSON + YAML: Anti-Patterns, Code Quality Metrics, Prescan rules
+- **Cross-references in language files** (ag-eba) — 5 language Tier 2 files link to common-standards.md
 - **Codex integration tests** (ag-3b7) — Empirical validation of Codex CLI native features
-  - `tests/codex/test-schema-validation.sh` — 10 assertions validating verdict.json schema structure
-  - `tests/codex/test-structured-output.sh` — 13 assertions proving `--output-schema` produces conforming JSON
-  - `tests/codex/test-sandbox-mode.sh` — 4 assertions proving `-s read-only` + `-o` output capture works
-  - `tests/codex/test-codex-review.sh` — 4 assertions proving `codex review --uncommitted` runs in controlled repo
+  - `tests/codex/test-schema-validation.sh` — 10 assertions for verdict.json schema
+  - `tests/codex/test-structured-output.sh` — 13 assertions for `--output-schema` conformance
+  - `tests/codex/test-sandbox-mode.sh` — 4 assertions for `-s read-only` + `-o` capture
+  - `tests/codex/test-codex-review.sh` — 4 assertions for `codex review --uncommitted`
   - `tests/codex/run-all.sh` — Runner with pass/fail/skip summary
-  - Codex tests added to `tests/run-all.sh` as Tier 2 (requires Codex CLI, graceful skip)
 
 ### Fixed
 
-- **Model selection consistency** — Replaced hardcoded model versions with `"opus"` short name (always resolves to latest)
-  - crank/SKILL.md: `claude-opus-4-5-20250101` → `opus`
-  - swarm/SKILL.md: `opus-4.5` → `opus` (MCP metadata + explicit `model="opus"` on worker Task calls)
+- **Model selection consistency** — Replaced hardcoded model versions with `"opus"` short name in crank and swarm skills
 - **verdict.json schema** — All properties now listed in `required` arrays (OpenAI structured output API requirement)
-- **vibe SKILL.md codex review** — Fixed command to use `> file 2>&1` redirect instead of unsupported `-o` flag
+- **vibe SKILL.md codex review** — Fixed to use `> file 2>&1` redirect instead of unsupported `-o` flag
 
 ## [2.0.1] - 2026-02-09
 

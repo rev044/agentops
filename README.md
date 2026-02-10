@@ -4,7 +4,7 @@
 
 ### Goal in, production code out.
 
-[![Version](https://img.shields.io/badge/version-2.0.1-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.1.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-33-7c3aed)](skills/)
 [![Hooks](https://img.shields.io/badge/hooks-11-orange)](hooks/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
