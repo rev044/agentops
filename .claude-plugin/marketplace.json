@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "agentops",
-      "description": "AI-assisted development workflow with 33 skills (22 user-facing, 11 internal) + 20 subagent roles: Brownian Ratchet gates with Knowledge Flywheel",
+      "description": "AI-assisted development workflow with 32 skills (21 user-facing, 11 internal) + 20 subagent roles: Brownian Ratchet gates with Knowledge Flywheel",
       "version": "2.1.0",
       "source": "./",
       "author": {
