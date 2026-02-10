@@ -1,0 +1,117 @@
+#!/bin/bash
+# Test: Schema validation for verdict.json
+# Validates verdict.json is well-formed with additionalProperties: false at all levels
+# ag-3b7.1
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SCHEMA="$REPO_ROOT/skills/council/schemas/verdict.json"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+passed=0
+failed=0
+
+pass() { echo -e "${GREEN}  ✓${NC} $1"; ((passed++)) || true; }
+fail() { echo -e "${RED}  ✗${NC} $1"; ((failed++)) || true; }
+
+echo -e "${BLUE}[TEST]${NC} Schema validation: $SCHEMA"
+
+# Test 1: Schema file exists
+if [[ -f "$SCHEMA" ]]; then
+    pass "Schema file exists"
+else
+    fail "Schema file not found: $SCHEMA"
+    exit 1
+fi
+
+# Test 2: Valid JSON
+if jq empty "$SCHEMA" 2>/dev/null; then
+    pass "Schema is valid JSON"
+else
+    fail "Schema is not valid JSON"
+    exit 1
+fi
+
+# Test 3: Root has additionalProperties: false
+if jq -e '.additionalProperties == false' "$SCHEMA" > /dev/null 2>&1; then
+    pass "Root has additionalProperties: false"
+else
+    fail "Root missing additionalProperties: false"
+fi
+
+# Test 4: findings.items has additionalProperties: false
+if jq -e '.properties.findings.items.additionalProperties == false' "$SCHEMA" > /dev/null 2>&1; then
+    pass "findings.items has additionalProperties: false"
+else
+    fail "findings.items missing additionalProperties: false"
+fi
+
+# Test 5: Required fields at root
+REQUIRED='["verdict","confidence","key_insight","findings","recommendation"]'
+if jq -e --argjson expected "$REQUIRED" '.required | sort == ($expected | sort)' "$SCHEMA" > /dev/null 2>&1; then
+    pass "Root required fields match"
+else
+    fail "Root required fields mismatch (expected: $REQUIRED)"
+fi
+
+# Test 6: verdict enum values
+if jq -e '.properties.verdict.enum == ["PASS","WARN","FAIL"]' "$SCHEMA" > /dev/null 2>&1; then
+    pass "verdict enum: PASS, WARN, FAIL"
+else
+    fail "verdict enum mismatch"
+fi
+
+# Test 7: confidence enum values
+if jq -e '.properties.confidence.enum == ["HIGH","MEDIUM","LOW"]' "$SCHEMA" > /dev/null 2>&1; then
+    pass "confidence enum: HIGH, MEDIUM, LOW"
+else
+    fail "confidence enum mismatch"
+fi
+
+# Test 8: findings items required fields
+if jq -e '.properties.findings.items.required == ["severity","category","description","location","recommendation"]' "$SCHEMA" > /dev/null 2>&1; then
+    pass "findings items required: all properties (OpenAI structured output requirement)"
+else
+    fail "findings items required fields mismatch"
+fi
+
+# Test 9: Conforming sample validates structurally
+GOOD_SAMPLE='{"verdict":"PASS","confidence":"HIGH","key_insight":"test","findings":[{"severity":"minor","description":"test"}],"recommendation":"none"}'
+if echo "$GOOD_SAMPLE" | jq -e '
+  .verdict as $v | .confidence as $c |
+  ($v == "PASS" or $v == "WARN" or $v == "FAIL") and
+  ($c == "HIGH" or $c == "MEDIUM" or $c == "LOW") and
+  (.findings | type == "array") and
+  (.findings | all(.severity and .description))
+' > /dev/null 2>&1; then
+    pass "Conforming sample passes structural validation"
+else
+    fail "Conforming sample rejected"
+fi
+
+# Test 10: Non-conforming sample (missing required field) detected
+BAD_SAMPLE='{"verdict":"PASS","confidence":"HIGH"}'
+if echo "$BAD_SAMPLE" | jq -e '
+  .key_insight and .findings and .recommendation
+' > /dev/null 2>&1; then
+    fail "Non-conforming sample should have been rejected (missing fields)"
+else
+    pass "Non-conforming sample correctly rejected (missing fields)"
+fi
+
+# Summary
+echo ""
+echo -e "${BLUE}═══════════════════════════════════════════${NC}"
+if [[ $failed -gt 0 ]]; then
+    echo -e "${RED}FAILED${NC} - $passed passed, $failed failed"
+    exit 1
+else
+    echo -e "${GREEN}PASSED${NC} - $passed passed, $failed failed"
+    exit 0
+fi

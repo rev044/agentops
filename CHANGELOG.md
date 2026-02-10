@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Codex integration tests** (ag-3b7) — Empirical validation of Codex CLI native features
+  - `tests/codex/test-schema-validation.sh` — 10 assertions validating verdict.json schema structure
+  - `tests/codex/test-structured-output.sh` — 13 assertions proving `--output-schema` produces conforming JSON
+  - `tests/codex/test-sandbox-mode.sh` — 4 assertions proving `-s read-only` + `-o` output capture works
+  - `tests/codex/test-codex-review.sh` — 4 assertions proving `codex review --uncommitted` runs in controlled repo
+  - `tests/codex/run-all.sh` — Runner with pass/fail/skip summary
+  - Codex tests added to `tests/run-all.sh` as Tier 2 (requires Codex CLI, graceful skip)
+
+### Fixed
+
+- **verdict.json schema** — All properties now listed in `required` arrays (OpenAI structured output API requirement)
+- **vibe SKILL.md codex review** — Fixed command to use `> file 2>&1` redirect instead of unsupported `-o` flag
+
 ## [2.0.1] - 2026-02-09
 
 ### Added

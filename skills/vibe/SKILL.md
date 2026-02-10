@@ -258,7 +258,7 @@ Run a fast, diff-focused code review via Codex CLI before council:
 
 ```bash
 if which codex > /dev/null 2>&1; then
-  codex review --uncommitted -o .agents/council/codex-review-pre.md 2>/dev/null && \
+  codex review --uncommitted > .agents/council/codex-review-pre.md 2>&1 && \
     echo "Codex review complete — output at .agents/council/codex-review-pre.md" || \
     echo "Codex review skipped (failed)"
 else

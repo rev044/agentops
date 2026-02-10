@@ -15,7 +15,7 @@
           "location": {"type": "string"},
           "recommendation": {"type": "string"}
         },
-        "required": ["severity", "description"],
+        "required": ["severity", "category", "description", "location", "recommendation"],
         "additionalProperties": false
       }
     },
