@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  # Go modules
+  - package-ecosystem: gomod
+    directory: /cli
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    assignees:
+      - boshu2
+    commit-message:
+      prefix: "deps(go):"
+    labels:
+      - dependencies
+      - go
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    assignees:
+      - boshu2
+    commit-message:
+      prefix: "deps(actions):"
+    labels:
+      - dependencies
+      - ci

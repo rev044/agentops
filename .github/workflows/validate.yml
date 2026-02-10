@@ -67,7 +67,6 @@ jobs:
                 --exclude-dir=cli/testdata \
                 --exclude="*.md" \
                 --exclude="*.jsonl" \
-                --exclude="*.sh" \
                 --exclude="validate.yml" \
                 . 2>/dev/null; then
               found=1
@@ -253,11 +252,23 @@ jobs:
           go build -o /tmp/ao-test ./cmd/ao
           echo "✅ ao CLI builds successfully"
 
-      - name: Run Go tests
+      - name: Run Go tests with race detection and coverage
         run: |
           echo "=== Running Go tests ==="
           cd cli
-          go test ./... -v || echo "No tests found or tests skipped"
+          go test -race -coverprofile=coverage.out -covermode=atomic ./... -v
+          echo ""
+          echo "=== Coverage Summary ==="
+          go tool cover -func=coverage.out | tail -1
+          echo "✅ Go tests passed"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: go-coverage
+          path: cli/coverage.out
+          retention-days: 7
 
   e2e-install-test:
     runs-on: ubuntu-latest

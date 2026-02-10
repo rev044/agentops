@@ -5,6 +5,10 @@ on:
     - cron: '0 6 * * *'  # 6am UTC daily
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   cli-tests:
     name: Go CLI Tests
@@ -18,9 +22,15 @@ jobs:
           go-version: '1.23'
           cache-dependency-path: cli/go.sum
 
-      - name: Run CLI tests
+      - name: Run CLI tests with coverage
         working-directory: cli
-        run: make test
+        run: |
+          go test -race -coverprofile=coverage.out -covermode=atomic ./... -v
+          echo ""
+          echo "=== Coverage Summary ==="
+          COVERAGE=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}')
+          echo "Total coverage: $COVERAGE"
+          echo "COVERAGE=$COVERAGE" >> "$GITHUB_ENV"
 
       - name: Test CLI builds
         working-directory: cli
@@ -48,6 +58,8 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Summary
         run: |
           echo "## Nightly Test Results" >> $GITHUB_STEP_SUMMARY
@@ -58,6 +70,31 @@ jobs:
           echo "| Static validation | ${{ needs.static-validation.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create issue on failure
+        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Nightly build failed: $(date -u +%Y-%m-%d)"
+          BODY="## Nightly Build Failure
+
+          | Job | Status |
+          |-----|--------|
+          | CLI tests | ${{ needs.cli-tests.result }} |
+          | Static validation | ${{ needs.static-validation.result }} |
+
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Please investigate and fix before the next release."
+
+          # Check if issue already exists for today
+          EXISTING=$(gh issue list --label "nightly-failure" --search "$TITLE" --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [[ -z "$EXISTING" ]]; then
+            gh issue create --title "$TITLE" --body "$BODY" --label "bug,nightly-failure"
+          else
+            echo "Issue #$EXISTING already exists for today's failure"
+          fi
 
       - name: Check for failures
         if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure'

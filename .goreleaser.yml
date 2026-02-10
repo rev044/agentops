@@ -20,6 +20,59 @@ archives:
     name_template: ao-{{ .Os }}-{{ .Arch }}
     wrap_in_directory: false
 
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  groups:
+    - title: "🚀 New Features"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "🐛 Bug Fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "📚 Documentation"
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: "🔧 Other"
+      order: 999
+  filters:
+    exclude:
+      - '^Merge'
+
+release:
+  header: |
+    ## AgentOps {{ .Tag }} — The Flywheel Keeps Spinning
+
+    Another turn of the crank. This release was planned, validated, and shipped
+    by the same autonomous agent system it's building — AgentOps eating its own
+    cooking, as usual.
+
+    **Install or upgrade:**
+    ```bash
+    brew tap boshu2/agentops && brew install agentops
+    # or upgrade
+    brew upgrade agentops
+    ```
+
+    **Verify integrity:**
+    ```bash
+    # Download checksums and verify your binary
+    curl -sL https://github.com/boshu2/agentops/releases/download/{{ .Tag }}/checksums.txt
+    shasum -a 256 -c checksums.txt --ignore-missing
+    ```
+
+    ---
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/boshu2/agentops/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    Built with the [AgentOps Knowledge Flywheel](https://github.com/boshu2/agentops) —
+    where every release makes the next one smarter.
+
 brews:
   - name: agentops
     directory: Formula
