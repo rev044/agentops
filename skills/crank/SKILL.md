@@ -241,6 +241,29 @@ fi
 
 **For wave vibe gate details (diff computation, acceptance criteria, verdict gating), read `skills/crank/references/wave-patterns.md`.**
 
+### Step 5.7: Wave Checkpoint
+
+After each wave completes (post-vibe-gate, pre-next-wave), write a checkpoint file:
+
+```bash
+mkdir -p .agents/crank
+
+cat > ".agents/crank/wave-${wave}-checkpoint.json" <<EOF
+{
+  "wave": ${wave},
+  "timestamp": "$(date -Iseconds)",
+  "tasks_completed": $(echo "$COMPLETED_IDS" | jq -R 'split(" ")'),
+  "tasks_failed": $(echo "$FAILED_IDS" | jq -R 'split(" ")'),
+  "files_changed": $(git diff --name-only "${WAVE_START_SHA}..HEAD" | jq -R . | jq -s .),
+  "git_sha": "$(git rev-parse HEAD)"
+}
+EOF
+```
+
+- `COMPLETED_IDS` / `FAILED_IDS`: space-separated issue IDs from the wave results.
+- On retry of the same wave, the file is overwritten (same path).
+- Checkpoint files are informational — no resume logic reads them yet (future work).
+
 ### Step 6: Check for More Work
 
 After completing a wave, check for newly unblocked issues (beads: `bd ready`, TaskList: `TaskList()`). Loop back to Step 4 if work remains, or proceed to Step 7 when done.

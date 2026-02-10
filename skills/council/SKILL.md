@@ -116,6 +116,8 @@ Natural language works — the skill infers task type from your prompt.
 │  Phase 2: Consolidation (Team Lead)                             │
 │  - Receive completion messages from judges via SendMessage      │
 │  - Read all agent output files                                  │
+│  - If schema_version is missing from a judge's output, treat    │
+│    as version 0 (backward compatibility)                        │
 │  - Compute consensus verdict                                    │
 │  - Identify shared findings                                     │
 │  - Surface disagreements with attribution                       │
@@ -222,7 +224,8 @@ The packet sent to each agent. **File contents are included inline** — agents 
           "recommendation": "How to address"
         }
       ],
-      "recommendation": "Concrete next step"
+      "recommendation": "Concrete next step",
+      "schema_version": 1
     }
   }
 }

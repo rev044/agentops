@@ -59,7 +59,9 @@ Do NOT spawn agents for empty file lists.
 **For Python:**
 ```bash
 # Check if radon is available
-if ! which radon > /dev/null 2>&1; then
+mkdir -p .agents/council
+echo "$(date -Iseconds) preflight: checking radon" >> .agents/council/preflight.log
+if ! which radon >> .agents/council/preflight.log 2>&1; then
   echo "⚠️ COMPLEXITY SKIPPED: radon not installed (pip install radon)"
   # Record in report that complexity was skipped
 else
@@ -73,7 +75,8 @@ fi
 **For Go:**
 ```bash
 # Check if gocyclo is available
-if ! which gocyclo > /dev/null 2>&1; then
+echo "$(date -Iseconds) preflight: checking gocyclo" >> .agents/council/preflight.log
+if ! which gocyclo >> .agents/council/preflight.log 2>&1; then
   echo "⚠️ COMPLEXITY SKIPPED: gocyclo not installed (go install github.com/fzipp/gocyclo/cmd/gocyclo@latest)"
   # Record in report that complexity was skipped
 else
@@ -138,7 +141,8 @@ If OL project detected: run `ol validate stage1 --quest <quest-id> --bead <bead-
 Run a fast, diff-focused code review via Codex CLI before council:
 
 ```bash
-if which codex > /dev/null 2>&1; then
+echo "$(date -Iseconds) preflight: checking codex" >> .agents/council/preflight.log
+if which codex >> .agents/council/preflight.log 2>&1; then
   codex review --uncommitted > .agents/council/codex-review-pre.md 2>&1 && \
     echo "Codex review complete — output at .agents/council/codex-review-pre.md" || \
     echo "Codex review skipped (failed)"

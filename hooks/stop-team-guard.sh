@@ -7,6 +7,61 @@
 
 TEAMS_DIR="$HOME/.claude/teams"
 
+# --- Stale team cleanup (SessionStart --cleanup mode) ---
+cleanup_stale_teams() {
+    [ ! -d "$TEAMS_DIR" ] && exit 0
+
+    LOG_DIR="$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
+    mkdir -p "$LOG_DIR"
+    LOG_FILE="$LOG_DIR/team-lifecycle.log"
+    NOW=$(date +%s)
+    STALE_THRESHOLD=7200  # 2 hours in seconds
+
+    find "$TEAMS_DIR" -maxdepth 2 -name "config.json" 2>/dev/null | while IFS= read -r cfg; do
+        dir=$(dirname "$cfg")
+        name=$(basename "$dir")
+
+        # Check mtime — skip if younger than 2h
+        if stat -f %m "$cfg" >/dev/null 2>&1; then
+            mtime=$(stat -f %m "$cfg")  # macOS
+        else
+            mtime=$(stat -c %Y "$cfg" 2>/dev/null || echo "$NOW")  # Linux
+        fi
+        age=$(( NOW - mtime ))
+        [ "$age" -lt "$STALE_THRESHOLD" ] && continue
+
+        # Check for live tmux panes (reuse existing logic)
+        pane_ids=$(grep -o '"tmuxPaneId"[[:space:]]*:[[:space:]]*"[^"]*"' "$cfg" 2>/dev/null \
+            | sed 's/.*"tmuxPaneId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' \
+            | grep -v '^$' \
+            | grep -v '^in-process$')
+
+        has_live_pane=false
+        if [ -n "$pane_ids" ]; then
+            while IFS= read -r pane_id; do
+                if tmux has-session -t "${pane_id%%.*}" 2>/dev/null; then
+                    has_live_pane=true
+                    break
+                fi
+            done <<< "$pane_ids"
+        fi
+
+        # Skip if any pane is still alive
+        [ "$has_live_pane" = "true" ] && continue
+
+        # Remove stale team directory
+        rm -rf "$dir"
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) CLEANUP: removed stale team '$name' (age=${age}s)" >> "$LOG_FILE"
+    done
+
+    exit 0
+}
+
+# Handle --cleanup flag (SessionStart mode)
+[ "${1:-}" = "--cleanup" ] && cleanup_stale_teams
+
+# --- Original Stop guard logic below ---
+
 # If teams directory doesn't exist, nothing to guard
 [ ! -d "$TEAMS_DIR" ] && exit 0
 

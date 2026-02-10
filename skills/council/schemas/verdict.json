@@ -19,8 +19,9 @@
         "additionalProperties": false
       }
     },
-    "recommendation": {"type": "string"}
+    "recommendation": {"type": "string"},
+    "schema_version": {"type": "integer", "const": 1}
   },
-  "required": ["verdict", "confidence", "key_insight", "findings", "recommendation"],
+  "required": ["verdict", "confidence", "key_insight", "findings", "recommendation", "schema_version"],
   "additionalProperties": false
 }
