@@ -85,6 +85,8 @@ dK/dt = I(t) - δ·K + σ·ρ·K
 
 See [docs/HOOKS.md](docs/HOOKS.md) for details.
 
+For a complete command reference, see [docs/COMMANDS.md](docs/COMMANDS.md).
+
 ## License
 
 MIT

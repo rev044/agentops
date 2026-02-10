@@ -403,4 +403,4 @@ claude --plugin ./
 
 ## License
 
-Apache-2.0 · [Documentation](docs/) · [Architecture](docs/ARCHITECTURE.md) · [Changelog](CHANGELOG.md)
+Apache-2.0 · [Documentation](docs/INDEX.md) · [Glossary](docs/GLOSSARY.md) · [Architecture](docs/ARCHITECTURE.md) · [CLI Reference](cli/docs/COMMANDS.md) · [Changelog](CHANGELOG.md)

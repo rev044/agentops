@@ -23,6 +23,7 @@
 
 ## Workflows
 
+- [Workflow Guide](workflows/README.md) — Decision matrix for choosing the right workflow
 - [Complete Cycle](workflows/complete-cycle.md) — Full Research, Plan, Implement, Validate, Learn workflow
 - [Session Lifecycle](workflows/session-lifecycle.md) — Complete guide to working with Claude across sessions
 - [Quick Fix](workflows/quick-fix.md) — Fast implementation for simple, low-risk changes
@@ -136,6 +137,8 @@
 
 ## Reference
 
+- [Glossary](GLOSSARY.md) — Definitions of domain-specific terms (Beads, Brownian Ratchet, RPI, etc.)
+- [CLI Reference](../cli/docs/COMMANDS.md) — Complete `ao` command reference
 - [Reference](reference.md) — Deep documentation and pipeline details
 - [Releasing](RELEASING.md) — Release process for ao CLI and plugin
 - [Troubleshooting](troubleshooting.md) — Common issues and quick fixes
