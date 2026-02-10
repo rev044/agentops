@@ -654,7 +654,7 @@ Tool: mcp__mcp-agent-mail__register_agent
 Parameters:
   project_key: "<project-key>"
   program: "crank-skill"
-  model: "claude-opus-4-5-20250101"
+  model: "opus"
   task_description: "Orchestrating epic <epic-id>"
 ```
 

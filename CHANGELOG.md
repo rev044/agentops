@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Model selection consistency** — Replaced hardcoded model versions with `"opus"` short name (always resolves to latest)
+  - crank/SKILL.md: `claude-opus-4-5-20250101` → `opus`
+  - swarm/SKILL.md: `opus-4.5` → `opus` (MCP metadata + explicit `model="opus"` on worker Task calls)
 - **verdict.json schema** — All properties now listed in `required` arrays (OpenAI structured output API requirement)
 - **vibe SKILL.md codex review** — Fixed command to use `> file 2>&1` redirect instead of unsupported `-o` flag
 

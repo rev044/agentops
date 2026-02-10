@@ -83,6 +83,7 @@ TaskUpdate(taskId="<id>", owner="worker-<task-id>", status="in_progress")
 # 2. Spawn the worker with the assignment baked into its prompt
 Task(
   subagent_type="general-purpose",
+  model="opus",
   team_name="swarm-<epoch>",
   name="worker-<task-id>",
   timeout=180000,  # 3 minutes per worker
@@ -632,7 +633,7 @@ MCP Tool: register_agent
 Parameters:
   project_key: <absolute path to project>
   program: "claude-code"
-  model: "opus-4.5"
+  model: "opus"
   task_description: "Mayor orchestrating swarm for wave"
 ```
 
