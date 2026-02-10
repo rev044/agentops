@@ -102,6 +102,15 @@ mkdir -p skills/new-skill
 claude --plugin ./
 ```
 
+**Update dependencies:**
+```bash
+# Go modules
+cd cli && go get -u ./... && go mod tidy
+
+# Scan all deps (Go, GitHub Actions, Dockerfile) with Renovate
+GITHUB_COM_TOKEN=$(gh auth token) renovate --platform=local
+```
+
 ## Key Patterns
 
 1. **SKILL.md is the entry point** - Triggers, instructions, allowed tools
