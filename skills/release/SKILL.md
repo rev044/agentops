@@ -285,59 +285,102 @@ git tag -a v<version> -m "Release v<version>"
 
 Release notes are **not the changelog**. The changelog is comprehensive and developer-facing. Release notes are what users see on the GitHub Release page — they should be approachable and highlight what matters.
 
+**Audience:** People scrolling their GitHub feed. They haven't read your commit log, don't know your internal architecture names, and will spend 10 seconds deciding if this release matters to them. Write for THEM, not for contributors.
+
+**Quality bar — the feed test:**
+
+- Would a first-time visitor understand every bullet?
+- Are internal code names explained or omitted? (e.g., "Gate 4" means nothing — say "retry loop after validation failure")
+- Does the Highlights paragraph answer "why should I care?" in plain English?
+- Is every bullet about user-visible impact, not implementation detail?
+
 **Structure:**
 
 ```markdown
 ## Highlights
 
 <2-4 sentence plain-English summary of what's new and why it matters.
-Written for users, not contributors. No jargon.>
+Written for users, not contributors. No jargon. No internal architecture names.
+Answer: "What can I do now that I couldn't before?">
 
 ## What's New
 
 <Top 3-5 most important changes, each as a short bullet.
-Pick from Added/Changed/Fixed — prioritize user-visible impact.>
+Pick from Added/Changed/Fixed — prioritize user-visible impact.
+Explain internal terms or don't use them.>
 
-## Changelog
+## All Changes
 
-<Full changelog entry from Step 6, included below the highlights
-so the detail is there for those who want it.>
+<CONDENSED version of the changelog — NOT a raw copy-paste from CHANGELOG.md.
+Strip: issue IDs (ag-xxx), file paths, internal tool names, architecture jargon.
+Keep: what changed, described in plain English.
+Each bullet: one sentence, no bold lead-in, no parenthetical issue refs.
+End with a link to the full CHANGELOG.md for those who want raw detail.>
+
+[Full changelog](<link to CHANGELOG.md#version-anchor>)
 ```
+
+**The All Changes section is NOT the CHANGELOG.** The CHANGELOG is for contributors who want file paths, issue IDs, and implementation detail. The release page condenses that into plain-English bullets a user can scan in 15 seconds. When in doubt, leave it out — the link is there for the curious.
+
+**Condensing rules:**
+- Remove issue IDs: `(ag-ab6)` → gone
+- Remove file paths: `skills/council/scripts/validate-council.sh` → "council validation script"
+- Remove internal terms: "progressive-disclosure reference files" → "reference content loaded on demand"
+- Collapse related items: "5 broken links" + "7 doc inaccuracies" → "12 broken links and doc inaccuracies fixed"
+- Bold sparingly: only in What's New section, not in All Changes
 
 **Example:**
 
 ```markdown
 ## Highlights
 
-This release adds a general-purpose `/release` skill that handles the entire
-local release workflow — pre-flight checks, changelog generation, version bumps,
-and tagging. We also shipped 19 issues across 3 epics via fully autonomous
-parallel execution, and fixed a dedup bug that was silently dropping learnings.
+Three security vulnerabilities patched in hook scripts. The validation lifecycle
+now retries automatically when validation fails instead of stopping — no manual
+intervention needed. The five largest skills now load significantly faster by
+loading reference docs only when needed.
 
 ## What's New
 
-- **`/release` skill** — Pre-flight validation, AI-generated changelog, version bumps, and git tagging in one command
-- **`/codex-team` skill** — Spawn parallel Codex agents orchestrated by Claude
-- **Autonomous epic execution** — 19 issues, 3 waves, 18 parallel workers, zero retries
-- **Batch dedup fix** — Learnings with similar openings no longer silently deduplicated
+- **Self-healing validation** — Failed code reviews now retry automatically with failure context, instead of stopping and waiting for you
+- **Faster skill loading** — Five core skills restructured to load reference content on demand instead of all at once
+- **3 security fixes** — Command injection, regex injection, and JSON injection vulnerabilities patched in hook scripts
 
-## Changelog
+## All Changes
 
 ### Added
-...
+
+- Self-healing retry loop for the validation lifecycle
+- Security and documentation sections for Go, Python, Rust, JSON, YAML standards
+- 26 hook integration tests (injection resistance, kill switches, allowlist enforcement)
+- Monorepo-friendly quickstart detection
 
 ### Fixed
-...
 
-### Changed
-...
+- Command injection in task validation hook (now allowlist-based)
+- Regex injection in task validation hook (now literal matching)
+- JSON injection in prompt nudge hook (now safe escaping)
+- 12 broken links and doc inaccuracies fixed across the project
+
+### Removed
+
+- Deprecated `/judge` skill (use `/council` instead)
+
+[Full changelog](https://github.com/example/project/blob/main/CHANGELOG.md#version)
 ```
+
+**Always write release notes to a file immediately after generating:**
+
+```bash
+mkdir -p .agents/releases
+```
+
+Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` — this is the **public-facing** file used by `gh release create` and is what users see. It contains ONLY the Highlights + What's New + All Changes structure above, ending with a link to the full CHANGELOG.md. No internal metadata, no pre-flight results, no next steps, no issue IDs, no file paths.
 
 **Show the release notes to the user** as part of Step 8 review, alongside the changelog and version bumps.
 
 ### Step 13: Draft GitHub Release
 
-Unless `--no-gh-release` was passed, create a draft GitHub Release.
+Unless `--no-gh-release` was passed, create a draft GitHub Release using the notes file written in Step 12.
 
 Check for `gh` CLI:
 ```bash
@@ -346,14 +389,19 @@ which gh
 
 If available:
 ```bash
-gh release create v<version> --draft --title "v<version>" --notes-file <tmpfile>
+gh release create v<version> --draft --title "v<version>" --notes-file .agents/releases/YYYY-MM-DD-v<version>-notes.md
 ```
 
-The notes file contains the **release notes** (highlights + changelog), not just the raw changelog.
+If the tag hasn't been pushed yet (common — we don't push), `gh release create` will fail. In that case, tell the user to push first, then create the release:
+
+```
+Tag not pushed yet. After pushing, create the release with:
+  gh release create v<version> --draft --title "v<version>" --notes-file .agents/releases/YYYY-MM-DD-v<version>-notes.md
+```
 
 Draft, not published — the user reviews and publishes from the GitHub UI or via `gh release edit v<version> --draft=false`.
 
-If `gh` is not available, write the release notes to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` and tell the user they can paste them into the GitHub Release page manually.
+If `gh` is not available, tell the user the notes file is ready to paste into the GitHub Release page manually.
 
 ### Step 14: Post-release guidance
 
@@ -380,24 +428,20 @@ No release CI detected. Consider adding a workflow for automated publishing.
 
 ### Step 15: Audit trail
 
-Write a release record:
+Write an internal release record (separate from the public release notes written in Step 12):
 
 ```bash
 mkdir -p .agents/releases
 ```
 
-Write to `.agents/releases/YYYY-MM-DD-v<version>.md`:
+Write to `.agents/releases/YYYY-MM-DD-v<version>-audit.md`:
 
 ```markdown
-# Release v<version>
+# Release v<version> — Audit
 
 **Date:** YYYY-MM-DD
 **Previous:** v<previous-version>
 **Commits:** N commits in range
-
-## Changelog Entry
-
-<the generated entry>
 
 ## Version Bumps
 
@@ -406,13 +450,16 @@ Write to `.agents/releases/YYYY-MM-DD-v<version>.md`:
 ## Pre-flight Results
 
 <check summary table>
-
-## Next Steps
-
-<guidance shown to user>
 ```
 
-This feeds into the knowledge flywheel and provides a record of what happened.
+This is an **internal** record for the knowledge flywheel. It does NOT go on the GitHub Release page — that's the `-notes.md` file from Step 12.
+
+**Two files, two audiences:**
+
+| File | Audience | Contains |
+|------|----------|----------|
+| `*-notes.md` | GitHub feed readers | Highlights, What's New, All Changes |
+| `*-audit.md` | Internal/flywheel | Version bumps, pre-flight results |
 
 ---
 
@@ -474,3 +521,4 @@ Everything this skill does is local and reversible:
 - **Adapt, don't impose** — match the project's existing style rather than forcing a particular format
 - **User confirms** — never write without showing the draft first
 - **Local only** — never push, publish, or trigger remote actions
+- **Two audiences** — CHANGELOG.md is for contributors (file paths, issue IDs, implementation detail). Release notes are for feed readers (plain English, user-visible impact, no insider jargon). Never copy-paste the changelog into the release notes.
