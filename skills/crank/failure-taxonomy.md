@@ -19,7 +19,7 @@ Failures in crank execution fall into distinct categories, each with specific de
 
 ```bash
 # Check convoy status history
-gt convoy status <id> --history
+gt convoy status <id> --history               # FUTURE: gt convoy not yet implemented
 
 # Peek at polecat
 tmux capture-pane -t gt-<rig>-<polecat> -p | tail -30

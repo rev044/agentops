@@ -126,7 +126,7 @@ vim services/etl/app/main.py  # NO!
 # CORRECT - Mayor dispatches
 gt sling ap-1234 ai_platform
 # Polecat does the work, Mayor monitors
-gt convoy list
+gt convoy list  <!-- FUTURE: gt convoy not yet implemented -->
 ```
 
 **Why it matters**:
@@ -281,7 +281,7 @@ When using beads with Gas Town:
 
 | Role | Can Create Issues | Can Edit Code | Uses |
 |------|-------------------|---------------|------|
-| Mayor | Yes (HQ beads) | NO | gt sling, gt convoy |
+| Mayor | Yes (HQ beads) | NO | gt sling, gt convoy <!-- FUTURE: gt convoy not yet implemented --> |
 | Crew | Yes (rig beads) | Yes | bd commands directly |
 | Polecat | Update only | Yes | bd update, bd close |
 

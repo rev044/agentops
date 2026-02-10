@@ -1,5 +1,11 @@
 # Molecules and Wisps Reference
 
+> **Status: NOT YET IMPLEMENTED — Design Spec Only**
+>
+> The `bd mol` commands described below are a planned feature. They do not exist yet in the bd CLI.
+> This document serves as the design specification for the molecule subsystem.
+> Do not reference these commands in active skill code paths.
+
 This reference covers bd's molecular chemistry system for reusable work templates and ephemeral workflows.
 
 > **WARNING**: Molecule/formula templates must use standard `prefix-hash` ID format.

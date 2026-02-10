@@ -48,7 +48,7 @@ bd ready --parent=<epic>                    # Ready to ignite
 bd list --parent=<epic> --status=in_progress  # Currently burning
 bd list --parent=<epic> --status=closed       # Reaped
 bd blocked --parent=<epic>                    # Waiting on deps
-gt convoy list                               # Active convoys
+gt convoy list                               # Active convoys  <!-- FUTURE: gt convoy not yet implemented -->
 ```
 
 **State object**:
@@ -115,7 +115,7 @@ gt sling <issue1> <issue2> <issue3> <rig>
 gt sling <issue> <rig>
 
 # Find stranded convoys (ready work, no workers)
-gt convoy stranded
+gt convoy stranded                           # FUTURE: gt convoy not yet implemented
 ```
 
 **Token cost**: ~50 tokens per dispatch
@@ -136,7 +136,7 @@ The REAP phase combines monitoring and collection into a single harvest operatio
 
 ```bash
 # Primary: Convoy dashboard (lowest token cost)
-gt convoy status <convoy-id>
+gt convoy status <convoy-id>                 # FUTURE: gt convoy not yet implemented
 
 # Secondary: Individual polecat check
 gt polecat status <rig>/<name>

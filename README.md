@@ -4,7 +4,7 @@
 
 ### Goal in, production code out.
 
-[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.1-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-33-7c3aed)](skills/)
 [![Hooks](https://img.shields.io/badge/hooks-11-orange)](hooks/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -77,16 +77,27 @@ Consensus: WARN — add rate limiting before shipping
 ## Install
 
 ```bash
-# Plugin (skills, hooks, agent teams)
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh | bash
+```
+
+<details>
+<summary><strong>Manual install</strong></summary>
+
+```bash
+# Step 1: Plugin (skills, hooks, agent teams)
 npx skills@latest add boshu2/agentops --all -g
 
-# CLI (knowledge engine — inject, extract, ratchet gates)
+# Step 2: CLI (knowledge engine — inject, extract, ratchet gates)
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
+
+# Step 3: Hooks
 ao hooks install
 ```
 
 Or: `claude plugin add boshu2/agentops`
+
+</details>
 
 **Try it in 60 seconds:** After install, run `/quickstart` — it walks you through a guided RPI cycle on your actual codebase.
 

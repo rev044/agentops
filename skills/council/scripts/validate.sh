@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PASS=0; FAIL=0
+
+check() { if eval "$2"; then echo "PASS: $1"; PASS=$((PASS + 1)); else echo "FAIL: $1"; FAIL=$((FAIL + 1)); fi; }
+
+check "SKILL.md exists" "[ -f '$SKILL_DIR/SKILL.md' ]"
+check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '^---$'"
+check "SKILL.md has name: council" "grep -q '^name: council' '$SKILL_DIR/SKILL.md'"
+check "schemas/ directory exists" "[ -d '$SKILL_DIR/schemas' ]"
+check "verdict.json exists" "[ -f '$SKILL_DIR/schemas/verdict.json' ]"
+check "verdict.json is valid JSON" "python3 -m json.tool '$SKILL_DIR/schemas/verdict.json' >/dev/null 2>&1"
+check "verdict.json has verdict field" "grep -q '\"verdict\"' '$SKILL_DIR/schemas/verdict.json'"
+check "verdict.json has confidence field" "grep -q '\"confidence\"' '$SKILL_DIR/schemas/verdict.json'"
+check "verdict.json has key_insight field" "grep -q '\"key_insight\"' '$SKILL_DIR/schemas/verdict.json'"
+check "verdict.json has findings field" "grep -q '\"findings\"' '$SKILL_DIR/schemas/verdict.json'"
+check "verdict.json has recommendation field" "grep -q '\"recommendation\"' '$SKILL_DIR/schemas/verdict.json'"
+check "verdict.json has additionalProperties:false at root" "python3 -c \"import json,sys; d=json.load(open('$SKILL_DIR/schemas/verdict.json')); sys.exit(0 if d.get('additionalProperties') == False else 1)\""
+check "verdict.json has additionalProperties:false in findings items" "python3 -c \"import json,sys; d=json.load(open('$SKILL_DIR/schemas/verdict.json')); sys.exit(0 if d['properties']['findings']['items'].get('additionalProperties') == False else 1)\""
+check "Output directory pattern documented" "grep -q '\.agents/council/' '$SKILL_DIR/SKILL.md'"
+
+echo ""; echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

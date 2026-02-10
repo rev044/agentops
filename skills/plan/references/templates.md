@@ -184,6 +184,8 @@ needs = []
 
 ### Using bd cook
 
+> **Note:** `bd cook` is a planned feature, not yet implemented.
+
 ```bash
 # Preview what would be created
 bd cook .agents/formulas/{topic-slug}.formula.toml --dry-run
@@ -196,6 +198,7 @@ bd cook .agents/formulas/{topic-slug}.formula.toml --persist \
   --var service_name=auth-middleware
 
 # Then pour to create actual issues
+# FUTURE: bd mol not yet implemented. See skills/beads/references/MOLECULES.md for design spec.
 bd mol pour {topic-slug}
 ```
 
@@ -281,6 +284,8 @@ Wave 2 (Depends on Wave 1):
 
 ### Cook and Pour
 
+> **Note:** `bd cook` is a planned feature, not yet implemented.
+
 ```bash
 # Preview what would be created
 bd cook .agents/formulas/{topic-slug}.formula.toml --dry-run
@@ -289,9 +294,11 @@ bd cook .agents/formulas/{topic-slug}.formula.toml --dry-run
 bd cook .agents/formulas/{topic-slug}.formula.toml --persist
 
 # Pour to create actual issues
+# FUTURE: bd mol not yet implemented. See skills/beads/references/MOLECULES.md for design spec.
 bd mol pour {topic-slug}
 
 # With variable overrides
+# FUTURE: bd mol not yet implemented. See skills/beads/references/MOLECULES.md for design spec.
 bd mol pour {topic-slug} --var service_name=rate-limiter
 ```
 
@@ -352,8 +359,8 @@ Wave 2 (depends on Wave 1):
 
 ### Pre-Flight Checklist
 
-- [x] Formula cooked with `bd cook --persist`
-- [x] Mol poured with `bd mol pour`
+- [x] Formula cooked with `bd cook --persist` <!-- FUTURE: bd cook not yet implemented -->
+- [x] Mol poured with `bd mol pour` <!-- FUTURE: bd mol not yet implemented. See skills/beads/references/MOLECULES.md for design spec. -->
 - [x] Steps have proper dependencies via `needs`
 - [ ] External requirements: [list any, e.g., "API key configured"]
 

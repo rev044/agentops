@@ -105,9 +105,11 @@ needs = []
 
 ```bash
 # Phase 4: Cook and Pour
+# NOTE: bd cook is a planned feature, not yet implemented
 bd cook .agents/formulas/oauth-gitlab.formula.toml --persist
 # -> Cooked proto: oauth-gitlab
 
+# FUTURE: bd mol not yet implemented. See skills/beads/references/MOLECULES.md for design spec.
 bd mol pour oauth-gitlab
 # -> Created mol ai-platform-101 with children:
 #    ai-platform-101.callback-endpoint, ai-platform-101.token-exchange, etc.
@@ -143,6 +145,7 @@ OAuth providers. I can instantiate it with `provider=github`:
 
 ```bash
 # Pour with different provider variable
+# FUTURE: bd mol not yet implemented. See skills/beads/references/MOLECULES.md for design spec.
 bd mol pour oauth-gitlab --var provider=github
 ```
 
@@ -367,7 +370,7 @@ bd ready
 ### WRONG: Using Old Formula Format
 
 ```toml
-# WRONG - This format will fail with bd cook!
+# WRONG - This format will fail with bd cook! (NOTE: bd cook is planned, not yet implemented)
 [formula]                              # WRONG: use top-level `formula = "..."`
 name = "oauth-gitlab"
 version = "1.0.0"                      # WRONG: use integer version = 2
@@ -446,5 +449,6 @@ needs = []
 # Creating a new plan document every time you add OAuth to a service
 
 # Better: Create a formula template once, pour with variables
+# FUTURE: bd mol not yet implemented. See skills/beads/references/MOLECULES.md for design spec.
 bd mol pour oauth-gitlab --var provider=github
 ```
