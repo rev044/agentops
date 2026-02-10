@@ -116,142 +116,22 @@ Include constraint test results in the council packet context. Failed constraint
 
 ### Step 2b: Metadata Verification Checklist (MANDATORY)
 
-**Run mechanical checks BEFORE council. These catch errors that LLMs estimate instead of measure (L19, L22, L24).**
+Run mechanical checks BEFORE council — catches errors LLMs estimate instead of measure:
+1. **File existence** — every path in `git diff --name-only HEAD~3` must exist on disk
+2. **Line counts** — if a file claims "N lines", verify with `wc -l`
+3. **Cross-references** — internal markdown links resolve to existing files
+4. **Diagram sanity** — files with >3 ASCII boxes should have matching labels
 
-```bash
-METADATA_FAILURES=""
-
-# 1. File existence — every path referenced in recent changes must exist
-for f in $(git diff --name-only HEAD~3 2>/dev/null); do
-  if [ ! -f "$f" ]; then
-    METADATA_FAILURES="${METADATA_FAILURES}\n- MISSING FILE: $f (in git diff but not on disk)"
-  fi
-done
-
-# 2. Line counts — if any file claims a count (e.g., "# 150 lines"), verify
-# Search for self-reported line counts in changed files
-for f in $(git diff --name-only HEAD~3 2>/dev/null); do
-  if [ -f "$f" ]; then
-    claimed=$(grep -oP '(\d+)\s*lines' "$f" 2>/dev/null | head -1 | grep -oP '\d+')
-    if [ -n "$claimed" ]; then
-      actual=$(wc -l < "$f" | tr -d ' ')
-      if [ "$claimed" -ne "$actual" ] 2>/dev/null; then
-        METADATA_FAILURES="${METADATA_FAILURES}\n- LINE COUNT MISMATCH: $f claims ${claimed} lines, actual ${actual}"
-      fi
-    fi
-  fi
-done
-
-# 3. Cross-references — internal doc links resolve
-for f in $(git diff --name-only HEAD~3 2>/dev/null | grep -E '\.(md|txt)$'); do
-  if [ -f "$f" ]; then
-    for ref in $(grep -oP '\[.*?\]\(((?!http)[^)]+)\)' "$f" 2>/dev/null | grep -oP '\(([^)]+)\)' | tr -d '()'); do
-      ref_dir=$(dirname "$f")
-      if [ ! -f "$ref_dir/$ref" ] && [ ! -f "$ref" ]; then
-        METADATA_FAILURES="${METADATA_FAILURES}\n- BROKEN LINK: $f references $ref (not found)"
-      fi
-    done
-  fi
-done
-
-# 4. ASCII diagram sanity — boxes vs labels (>3 boxes need verification per L22)
-for f in $(git diff --name-only HEAD~3 2>/dev/null | grep -E '\.(md|txt)$'); do
-  if [ -f "$f" ]; then
-    box_count=$(grep -cP '┌|╔|\+--' "$f" 2>/dev/null || echo 0)
-    if [ "$box_count" -gt 3 ]; then
-      label_count=$(grep -cP '│\s+\S' "$f" 2>/dev/null || echo 0)
-      if [ "$box_count" -gt "$label_count" ]; then
-        METADATA_FAILURES="${METADATA_FAILURES}\n- DIAGRAM CHECK: $f has ${box_count} boxes but only ${label_count} label lines — verify diagram accuracy"
-      fi
-    fi
-  fi
-done
-
-# Report results
-if [ -n "$METADATA_FAILURES" ]; then
-  echo "METADATA VERIFICATION FAILURES:"
-  echo -e "$METADATA_FAILURES"
-else
-  echo "Metadata verification: all checks passed"
-fi
-```
-
-**If failures found:** Include them in the council packet as `context.metadata_failures`. These are MECHANICAL findings — council should not need to re-discover them. Council judges focus on structural and logical issues instead.
-
-**If all pass:** Note "Metadata verification: N checks passed" in the vibe report.
-
-**Why:** LLMs estimate metadata from content complexity, not measurement (L24). Line counts, cross-references, and diagram accuracy are mechanical — verify them mechanically. This frees council judges to focus on correctness, architecture, and security.
+Include failures in council packet as `context.metadata_failures` (MECHANICAL findings). If all pass, note in report.
 
 ### Step 2c: Deterministic Validation (Olympus)
 
-**Guard:** Only run when BOTH conditions are true:
-1. `.ol/config.yaml` exists in the project root
-2. `which ol` succeeds (ol CLI is on PATH)
+**Guard:** Only run when `.ol/config.yaml` exists AND `which ol` succeeds. Skip silently otherwise.
 
-If either condition fails, skip this step entirely (no-op). Non-Olympus projects are unaffected.
-
-**Detection:**
-```bash
-if [ -f ".ol/config.yaml" ] && which ol > /dev/null 2>&1; then
-  OL_PROJECT=true
-else
-  OL_PROJECT=false
-fi
-```
-
-**If OL_PROJECT is true:**
-
-1. Determine `<quest-id>` and `<bead-id>` from context:
-   - Check `.ol/config.yaml` for current quest
-   - Or extract from git branch name (e.g., `ol-572/bead-3`)
-   - Or from the target argument if it looks like an OL bead ID
-
-2. Run deterministic validation:
-```bash
-ol validate stage1 --quest <quest-id> --bead <bead-id> --worktree .
-```
-
-3. Parse the JSON output (Stage1Result format):
-```json
-{
-  "quest_id": "ol-572",
-  "bead_id": "ol-572.3",
-  "worktree": "/path/to/worktree",
-  "passed": true,
-  "steps": [
-    {"name": "go build", "passed": true, "duration": "1.2s"},
-    {"name": "go vet", "passed": true, "duration": "0.8s"},
-    {"name": "go test", "passed": true, "duration": "3.4s"}
-  ],
-  "summary": "all steps passed"
-}
-```
-
-4. **If `passed: false`:** Auto-FAIL the vibe immediately. Do NOT proceed to council. Write the vibe report with:
-   - Verdict: **FAIL**
-   - Include all step details showing which steps failed
-   - Recommendation: "Fix deterministic validation failures before running council review."
-
-5. **If `passed: true`:** Record results and proceed to council (Step 4). Include the Stage1Result in the vibe report as a "Deterministic Validation" section and pass it as context to council.
-
-6. **If `ol validate stage1` exits non-zero (error):** Log the error, note it in the report as "Deterministic validation: SKIPPED (ol error)", and proceed to council normally.
-
-**Include in vibe report (Step 7)** — add before the "Council Verdict" section:
-
-```markdown
-## Deterministic Validation (Olympus)
-
-**Status:** PASS | FAIL | SKIPPED
-**Quest:** <quest-id> | **Bead:** <bead-id>
-
-| Step | Result | Duration |
-|------|--------|----------|
-| go build | PASS | 1.2s |
-| go vet | PASS | 0.8s |
-| go test | PASS | 3.4s |
-
-**Summary:** <summary from Stage1Result>
-```
+If OL project detected: run `ol validate stage1 --quest <quest-id> --bead <bead-id> --worktree .`
+- **`passed: false`** → Auto-FAIL the vibe. Do NOT proceed to council.
+- **`passed: true`** → Include Stage1Result in council context. Proceed normally.
+- **Error/non-zero exit** → Note "SKIPPED (ol error)" in report. Proceed to council.
 
 ### Step 2.5: Codex Review (if available)
 
@@ -324,45 +204,7 @@ The spec content is injected into the council packet context so the `spec-compli
 - Git diff context
 - Spec content (when found, in `context.spec`)
 
-**With --quick (inline, no spawning):**
-```
-/council --quick validate <target>
-```
-Single-agent structured self-review. Fast, cheap, good for mid-implementation checks.
-
-**With explicit --deep (same as default):**
-```
-/council --deep validate <target>
-```
-3 independent judges (no perspective labels). Same as default vibe behavior.
-
-**With --mixed (cross-vendor):**
-```
-/council --mixed validate <target>
-```
-3 Claude + 3 Codex agents for cross-vendor consensus.
-
-**With explicit preset override:**
-```
-/vibe --preset=security-audit src/auth/
-```
-Explicit `--preset` overrides the automatic code-review preset. Uses security-focused personas instead.
-
-**With explorers:**
-```
-/vibe --explorers=2 src/auth/
-```
-Each judge spawns 2 explorer sub-agents to investigate code patterns before judging. Useful for large codebases.
-
-**With debate mode:**
-```
-/vibe --debate recent
-```
-Enables adversarial two-round review where judges critique each other's findings before final verdict. Use for high-stakes reviews where judges are likely to disagree. See `/council` docs for full --debate details.
-
-**Timeout:** Vibe inherits council timeout settings. If judges time out,
-the council report will note partial results. Vibe treats a partial council
-report the same as a full report — the verdict stands with available judges.
+All council flags pass through: `--quick` (inline), `--mixed` (cross-vendor), `--preset=<name>` (override perspectives), `--explorers=N`, `--debate` (adversarial 2-round). See Quick Start examples and `/council` docs.
 
 ### Step 5: Council Checks
 

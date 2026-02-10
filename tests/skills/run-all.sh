@@ -109,6 +109,23 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     fi
 done
 
+# Run lint-skills.sh
+echo ""
+echo -e "${BLUE}━━━ Skill Lint Checks ━━━${NC}"
+echo ""
+LINT_SCRIPT="$SCRIPT_DIR/lint-skills.sh"
+if [ -f "$LINT_SCRIPT" ]; then
+    chmod +x "$LINT_SCRIPT"
+    if "$LINT_SCRIPT"; then
+        echo -e "  ${GREEN}✓ lint-skills passed${NC}"
+    else
+        echo -e "  ${RED}✗ lint-skills failed${NC}"
+        FAILED=$((FAILED + 1))
+    fi
+else
+    echo -e "  ${YELLOW}⚠ lint-skills.sh not found${NC}"
+fi
+
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
 echo "║                       RESULTS                              ║"
