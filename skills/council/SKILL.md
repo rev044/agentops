@@ -27,6 +27,32 @@ Spawn parallel judges with different perspectives, consolidate into consensus. W
 /council                                                       # infers from context
 ```
 
+## Standalone Usage
+
+Council works independently — no RPI workflow, no ratchet chain, no `ao` CLI required. Install the plugin and go.
+
+```bash
+# Validate a PR or recent changes
+/council validate this PR
+
+# Review a specific file
+/council validate src/auth/middleware.py
+
+# Security audit with deep review
+/council --deep --preset=security-audit validate the auth system
+
+# Get feedback on a design
+/council brainstorm approaches for caching
+
+# Research a technology decision
+/council research Redis vs Memcached for our use case
+
+# Quick inline check (no agent spawning)
+/council --quick validate recent
+```
+
+Zero setup beyond plugin install. No issues, no epics, no phases — just multi-model consensus on whatever you point it at.
+
 ## Use Cases
 
 Council is a general-purpose multi-model consensus tool. Use it for:

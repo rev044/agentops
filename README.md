@@ -291,6 +291,19 @@ AgentOps bridges with the [Olympus CLI](https://github.com/boshu2/olympus) (`ol`
 
 All OL integrations are guarded — complete no-op when `ol` is not on PATH or `.ol/` is absent. See [docs/ol-bridge-contracts.md](docs/ol-bridge-contracts.md) for the full interchange spec.
 
+## Use Council Standalone
+
+Use `/council` independently — no RPI workflow required, no `ao` CLI, no setup beyond plugin install. Validate any PR, brainstorm approaches, or research decisions with multi-model consensus.
+
+```bash
+/council validate this PR                                    # review current changes
+/council --deep --preset=security-audit validate the auth system  # thorough security audit
+/council brainstorm caching strategies for the API           # explore options with parallel judges
+/council research Redis vs Memcached for our use case        # deep-dive technology comparison
+```
+
+Works on any codebase, any file, any question. See [skills/council/SKILL.md](skills/council/SKILL.md) for all modes and presets.
+
 ## FAQ
 
 <details>
