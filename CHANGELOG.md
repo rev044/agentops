@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hook execution integration tests** (ag-ab6) — 26 tests in `tests/hooks/test-hooks.sh` covering prompt-nudge, push-gate, and task-validation-gate hooks (JSON injection resistance, kill switches, allowlist enforcement, mock chain gates, literal pattern matching)
+- **Skill dependency validation** (ag-ab6) — `validate-skill.sh` now checks declared dependencies exist; `run-all.sh` reports dependency health summary
+- **Standards gap fills** (ag-ab6) — TypeScript Testing (Vitest/Jest, mocking, async, type-safe testing), Python Security (YAML deserialization, path traversal), Rust Security (integer overflow, panic handling) + Documentation (rustdoc, cargo-readme), Go Documentation (godoc, interface docs, package comments)
+
+### Fixed
+
+- **Security: command injection in task-validation-gate.sh** (ag-ab6) — Replaced `/bin/sh -c "$cmd"` with allowlist-based array execution; only `go`, `pytest`, `npm`, `npx`, `make`, `bash` permitted
+- **Security: regex injection in task-validation-gate.sh** (ag-ab6) — Changed `grep -q` to `grep -qF` for literal pattern matching in content_check
+- **Security: JSON injection in prompt-nudge.sh** (ag-ab6) — Replaced `printf` JSON construction with `jq -n --arg` for safe escaping
+- **Skill count accuracy** (ag-ab6) — Updated 33→32 skills (21 user-facing, 11 internal) across ARCHITECTURE.md, README.md, CLAUDE.md, SKILL-TIERS.md, marketplace.json, troubleshooting.md
+- **Vibe flag documentation contradiction** (ag-ab6) — Clarified default is `--deep` (3 judges), users can override with `--quick` or `--mixed`
+- **Phantom `ao export-constraints`** (ag-ab6) — Marked as FUTURE in ol-bridge-contracts.md
+- **Dual schema confusion in push-gate.sh** (ag-ab6) — Added CANONICAL/LEGACY comments documenting `gate`/`status` vs `step`/`locked` field names
+
+### Removed
+
+- **Deprecated `/judge` skill** (ag-ab6) — `skills/judge/` directory removed; all references updated to `/council`
+
 ## [2.1.0] - 2026-02-09
 
 ### Added
