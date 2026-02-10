@@ -1,5 +1,6 @@
 ---
 name: retro
+tier: solo
 description: 'Extract learnings from completed work. Trigger phrases: "run a retrospective", "extract learnings", "what did we learn", "capture lessons", "create a retro".'
 dependencies:
   - vibe  # optional - can receive --vibe-results

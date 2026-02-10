@@ -1,5 +1,6 @@
 ---
 name: codex-team
+tier: orchestration
 description: 'Use when you have 2+ tasks that Codex agents should execute. Claude orchestrates, Codex executes. Handles file conflicts via merge/wave strategies. Triggers: "codex team", "spawn codex", "codex agents", "use codex for", "codex fix".'
 ---
 

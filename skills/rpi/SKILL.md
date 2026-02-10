@@ -1,5 +1,6 @@
 ---
 name: rpi
+tier: orchestration
 description: 'Full RPI lifecycle orchestrator. Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem. One command, sequential skill invocations with human gates and autonomous validation. Triggers: "rpi", "full lifecycle", "end to end", "research to production".'
 dependencies:
   - research    # required - Phase 1

@@ -1,5 +1,6 @@
 ---
 name: bug-hunt
+tier: solo
 description: 'Investigate suspected bugs with git archaeology and root cause analysis. Triggers: "bug", "broken", "doesn''t work", "failing", "investigate bug".'
 dependencies:
   - beads  # optional - for issue tracking
@@ -26,28 +27,7 @@ Systematic investigation to find root cause and design a complete fix.
 | **3. Hypothesis** | Form and test single hypothesis | Pass/fail for each |
 | **4. Implementation** | Fix at root, not symptoms | Verified fix |
 
-## Failure Tracking
-
-**Track failures by TYPE - not all failures are equal:**
-
-| Failure Type | Counts Toward Limit? | Action |
-|--------------|----------------------|--------|
-| `root_cause_not_found` | YES | Re-investigate from Phase 1 |
-| `fix_failed_tests` | YES | New hypothesis in Phase 3 |
-| `design_rejected` | YES | Rethink approach |
-| `execution_timeout` | NO (reset counter) | Retry same approach |
-| `external_dependency` | NO (escalate) | Report blocker |
-
-**The 3-Failure Rule:**
-- Count only `root_cause_not_found`, `fix_failed_tests`, `design_rejected`
-- After 3 such failures: **STOP and question architecture**
-- Output: "3+ fix attempts failed. Escalating to architecture review."
-- Do NOT count timeouts or external blockers toward limit
-
-**Track in issue notes:**
-```bash
-bd update <issue-id> --append-notes "FAILURE: <type> at $(date -Iseconds) - <reason>" 2>/dev/null
-```
+**For failure category taxonomy and the 3-failure rule, read `skills/bug-hunt/references/failure-categories.md`.**
 
 ## Execution Steps
 
@@ -99,26 +79,11 @@ git log --oneline --grep="<keyword>" | head -10
 
 ### Step 1.4: Trace the Execution Path
 
-**USE THE TASK TOOL** to explore the code:
-
-```
-Tool: Task
-Parameters:
-  subagent_type: "Explore"
-  description: "Trace bug execution path"
-  prompt: |
-    Trace the execution path for: <symptom>
-
-    1. Find the entry point where the bug manifests
-    2. Trace backward to find where bad data/state originates
-    3. Identify all functions in the path
-    4. Look for recent changes to these functions
-
-    Return:
-    - Execution path (function call chain)
-    - Likely location of root cause
-    - Recent changes that might be responsible
-```
+**USE THE TASK TOOL** (subagent_type: "Explore") to trace the execution path:
+- Find the entry point where the bug manifests
+- Trace backward to find where bad data/state originates
+- Identify all functions in the path and recent changes to them
+- Return: execution path, likely root cause location, responsible changes
 
 ### Step 1.5: Identify Root Cause
 
@@ -167,16 +132,7 @@ Make the SMALLEST possible change to test the hypothesis:
 
 ### Step 3.3: Check Failure Counter
 
-```bash
-# Count failures (excluding timeouts and external blockers)
-failures=$(bd show <issue-id> --json 2>/dev/null | jq '[.notes[]? | select(startswith("FAILURE:")) | select(contains("root_cause") or contains("fix_failed") or contains("design_rejected"))] | length')
-
-if [[ "$failures" -ge 3 ]]; then
-    echo "3+ fix attempts failed. Escalating to architecture review."
-    bd update <issue-id> --append-notes "ESCALATION: Architecture review needed after 3 failures" 2>/dev/null
-    exit 1
-fi
-```
+Check failure count per `skills/bug-hunt/references/failure-categories.md`. After 3 countable failures, escalate to architecture review.
 
 ---
 
@@ -206,56 +162,7 @@ Run the failing test - it should now pass.
 
 ## Step 5: Write Bug Report
 
-**Write to:** `.agents/research/YYYY-MM-DD-bug-<slug>.md`
-
-```markdown
-# Bug Report: <Short Description>
-
-**Date:** YYYY-MM-DD
-**Severity:** <critical|high|medium|low>
-**Status:** <investigating|root-cause-found|fix-designed>
-
-## Symptom
-<What the user sees>
-
-## Expected Behavior
-<What should happen>
-
-## Reproduction Steps
-1. <step 1>
-2. <step 2>
-3. <observe bug>
-
-## Root Cause Analysis
-
-### Location
-- **File:** <path>
-- **Line:** <line number>
-- **Function:** <function name>
-
-### Cause
-<Explanation of what's wrong>
-
-### When Introduced
-- **Commit:** <hash>
-- **Date:** <date>
-- **Author:** <author>
-
-## Proposed Fix
-
-### Changes Required
-1. <change 1>
-2. <change 2>
-
-### Risks
-- <potential risk>
-
-### Tests Needed
-- <test to add/update>
-
-## Related
-- <related issues or PRs>
-```
+**For bug report template, read `skills/bug-hunt/references/bug-report-template.md`.**
 
 ### Step 6: Report to User
 

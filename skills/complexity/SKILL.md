@@ -1,5 +1,6 @@
 ---
 name: complexity
+tier: solo
 description: 'Analyze code complexity and find refactor targets using radon/gocyclo. Triggers: "complexity", "analyze complexity", "find complex code", "refactor targets", "cyclomatic complexity", "code metrics".'
 dependencies: []
 ---

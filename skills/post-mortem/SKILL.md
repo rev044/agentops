@@ -1,5 +1,6 @@
 ---
 name: post-mortem
+tier: solo
 description: 'Wrap up completed work. Council validates the implementation, then extract learnings. Triggers: "post-mortem", "wrap up", "close epic", "what did we learn".'
 dependencies:
   - council  # multi-model judgment

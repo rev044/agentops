@@ -1,5 +1,6 @@
 ---
 name: research
+tier: solo
 description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
 dependencies:
   - knowledge # optional - queries existing knowledge

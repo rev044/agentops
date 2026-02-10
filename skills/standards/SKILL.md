@@ -1,5 +1,6 @@
 ---
 name: standards
+tier: library
 description: 'Language-specific coding standards and validation rules. Provides Python, Go, Rust, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded by /vibe, /implement, /doc, /bug-hunt, /complexity based on file types.'
 dependencies: []
 metadata:

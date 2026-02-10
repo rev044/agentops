@@ -1,5 +1,6 @@
 ---
 name: quickstart
+tier: solo
 description: 'Interactive onboarding for new AgentOps users. Guided RPI cycle on your actual codebase in under 10 minutes. Triggers: "quickstart", "get started", "onboarding", "how do I start".'
 dependencies: []
 ---
