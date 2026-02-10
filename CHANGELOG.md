@@ -7,41 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-02-10
+
 ### Added
 
-- **Documentation validation test suite** (ag-o80) — Three CI-ready scripts preventing doc drift:
-  - `tests/docs/validate-links.sh` — Validates 280+ internal markdown links across repo root, docs/, skills/, cli/ with allowlist for known broken links
-  - `tests/docs/validate-skill-count.sh` — Asserts skill counts (total/user-facing/internal) are consistent across README.md, CLAUDE.md, and SKILL-TIERS.md
-  - `scripts/generate-cli-reference.sh` — Auto-generates cli/docs/COMMANDS.md from `ao --help`; `--check` flag for CI freshness validation
-- **Doc validation in test suite** (ag-o80) — Link validation and skill count assertion wired into `tests/run-all.sh` Tier 1 (always runs)
+- **RPI Gate 4 iteration loop** — `/rpi` now loops after post-mortem failure instead of stopping, feeding failure context back into the retry
+- **Standards security and documentation sections** — Security Practices and Documentation Standards added to Go, Python, Rust, JSON, YAML language references
+- **Skill tier frontmatter** — All 32 skills now declare `tier:` in YAML frontmatter for taxonomy validation
+- **Council validation script** — `skills/council/scripts/validate-council.sh` (308 lines) validates schema, presets, personas, and output format
+- **Skill linting** — `tests/skills/lint-skills.sh` validates tier, triggers, and tool declarations across all skills
+- **5 SKILL.md extractions into references/** — Council, crank, implement, swarm, and vibe moved detailed content into progressive-disclosure reference files, keeping SKILL.md lean
+- **Documentation validation test suite** (ag-o80) — Three CI-ready scripts preventing doc drift: link validation, skill count assertion, CLI reference generation
 - **INDEX.md, GLOSSARY.md, workflows guide, CLI reference** (ag-qmd) — 83-link documentation index, 30-term glossary, workflow decision matrix, 35-command CLI reference
-- **Hook execution integration tests** (ag-ab6) — 26 tests in `tests/hooks/test-hooks.sh` covering prompt-nudge, push-gate, and task-validation-gate hooks (JSON injection resistance, kill switches, allowlist enforcement, mock chain gates, literal pattern matching)
-- **Skill dependency validation** (ag-ab6) — `validate-skill.sh` now checks declared dependencies exist; `run-all.sh` reports dependency health summary
-- **Standards gap fills** (ag-ab6) — TypeScript Testing (Vitest/Jest, mocking, async, type-safe testing), Python Security (YAML deserialization, path traversal), Rust Security (integer overflow, panic handling) + Documentation (rustdoc, cargo-readme), Go Documentation (godoc, interface docs, package comments)
+- **Hook execution integration tests** (ag-ab6) — 26 tests in `tests/hooks/test-hooks.sh` covering prompt-nudge, push-gate, and task-validation-gate (JSON injection resistance, kill switches, allowlist enforcement)
+- **Skill dependency validation** — `validate-skill.sh` and `run-all.sh` now check declared dependencies exist and report health summary
+- **Standards gap fills** (ag-ab6) — TypeScript Testing, Python Security, Rust Security + Documentation, Go Documentation sections added
+- **Quickstart monorepo detection** — Shallow scan with trigger paths and dirty-tree-first recent file selection for better onboarding heuristics
 
 ### Changed
 
-- **README intro rewrite for multi-agent compatibility** — New "What Is AgentOps" section, prerequisites table, 3 install options ordered by ease (npx → script → manual), "See It Work" moved after install, FAQ updated to reflect Skills protocol support for Claude Code, Codex CLI, Cursor, Open Code
-- **install.sh agent gate softened** — Hard `exit 1` on missing `claude` CLI replaced with warning that checks `claude`/`codex`/`cursor` and continues; usage comment updated to `bash <()` pattern
+- **README intro rewrite** — New "What Is AgentOps" section, prerequisites table, 3 install options ordered by ease, FAQ updated for multi-agent compatibility (Claude Code, Codex CLI, Cursor, Open Code)
+- **install.sh agent gate softened** — Hard `exit 1` on missing `claude` CLI replaced with warning that checks `claude`/`codex`/`cursor` and continues
+- **Vibe skill restructured** — Excess inline content moved to `references/` for progressive disclosure
+- **Project tagline** updated to describe full product value
 
 ### Fixed
 
-- **Quickstart onboarding heuristics** (ag-4dw) — Monorepo-friendly language detection (shallow scan + trigger paths) and dirty-tree-first recent file selection; docs aligned; smoke test CLI build cleanup made robust
-- **CLAUDE.md skill count committed** (ag-o80) — Cleared skip-worktree flag; count updated from "21 user-facing, 11 internal" to "22 user-facing, 10 internal"; added rpi/ entry, removed deprecated judge/ entry
-- **SKILL-TIERS.md header count** (ag-o80) — User-facing heading corrected from (21) to (22) to match actual table
-- **5 broken links in meta-observer README** (ag-o80) — Replaced dead links to nonexistent `../commands/` and `../agents/` paths with inline descriptions
-- **7 doc inaccuracies** (ag-qmd) — Skill count fixes, broken anchor, stale gitops claim, profiles clarity, FUTURE marker standardization across README.md, SKILL-TIERS.md, ARCHITECTURE.md, profiles docs
-- **Security: command injection in task-validation-gate.sh** (ag-ab6) — Replaced `/bin/sh -c "$cmd"` with allowlist-based array execution; only `go`, `pytest`, `npm`, `npx`, `make`, `bash` permitted
-- **Security: regex injection in task-validation-gate.sh** (ag-ab6) — Changed `grep -q` to `grep -qF` for literal pattern matching in content_check
-- **Security: JSON injection in prompt-nudge.sh** (ag-ab6) — Replaced `printf` JSON construction with `jq -n --arg` for safe escaping
-- **Skill count accuracy** (ag-ab6) — Updated 33→32 skills (21 user-facing, 11 internal) across ARCHITECTURE.md, README.md, CLAUDE.md, SKILL-TIERS.md, marketplace.json, troubleshooting.md
-- **Vibe flag documentation contradiction** (ag-ab6) — Clarified default is `--deep` (3 judges), users can override with `--quick` or `--mixed`
-- **Phantom `ao export-constraints`** (ag-ab6) — Marked as FUTURE in ol-bridge-contracts.md
-- **Dual schema confusion in push-gate.sh** (ag-ab6) — Added CANONICAL/LEGACY comments documenting `gate`/`status` vs `step`/`locked` field names
+- **Security: command injection in task-validation-gate.sh** — Replaced `/bin/sh -c "$cmd"` with allowlist-based array execution; only `go`, `pytest`, `npm`, `npx`, `make`, `bash` permitted
+- **Security: regex injection in task-validation-gate.sh** — Changed `grep -q` to `grep -qF` for literal pattern matching
+- **Security: JSON injection in prompt-nudge.sh** — Replaced `printf` JSON construction with `jq -n --arg` for safe escaping
+- **stop-team-guard** only blocks when tmux panes are alive (no longer blocks on dead panes)
+- **bd doctor warnings** — Sync, config, hooks, gitignore issues resolved
+- **Skill count accuracy** — 33→32 across ARCHITECTURE.md, README.md, CLAUDE.md, SKILL-TIERS.md, marketplace.json
+- **Vibe flag documentation contradiction** — Clarified default is `--deep` (3 judges), users can override with `--quick` or `--mixed`
+- **Phantom `ao export-constraints`** marked as FUTURE in ol-bridge-contracts.md
+- **Dual schema confusion in push-gate.sh** — Added CANONICAL/LEGACY comments for `gate`/`status` vs `step`/`locked` fields
+- **7 doc inaccuracies** across README.md, SKILL-TIERS.md, ARCHITECTURE.md, profiles docs
+- **5 broken links** in meta-observer README replaced with inline descriptions
+- **CLAUDE.md skill count** and **SKILL-TIERS.md header count** corrected to match actual (22 user-facing, 10 internal)
+- **curl-pipe pattern** removed from install.sh comment to pass security scan
 
 ### Removed
 
-- **Deprecated `/judge` skill** (ag-ab6) — `skills/judge/` directory removed; all references updated to `/council`
+- **Deprecated `/judge` skill** — `skills/judge/` directory removed; all references updated to `/council`
+- **Stale repo root files** — REBRAND-COORDINATION.md, RELEASE-NOTES.md, prompts/witness_prompt.txt
+- **Olympus integration section** removed from README (bridge documented in ol-bridge-contracts.md)
 
 ## [2.1.0] - 2026-02-09
 
