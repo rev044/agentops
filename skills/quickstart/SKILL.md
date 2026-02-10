@@ -60,13 +60,62 @@ claude --version 2>/dev/null || echo "Claude Code version: unknown"
 ### Step 1: Detect Project
 
 ```bash
-# Detect language/framework
-ls *.py setup.py pyproject.toml requirements.txt 2>/dev/null && echo "Python detected"
-ls *.go go.mod go.sum 2>/dev/null && echo "Go detected"
-ls *.ts *.tsx tsconfig.json package.json 2>/dev/null && echo "TypeScript detected"
-ls *.rs Cargo.toml 2>/dev/null && echo "Rust detected"
-ls *.java pom.xml build.gradle 2>/dev/null && echo "Java detected"
-ls *.sh Makefile Dockerfile 2>/dev/null && echo "Shell/Infra detected"
+# Detect language/framework (monorepo-friendly)
+# - Uses a shallow scan to avoid walking giant repos
+# - Prints the path that triggered detection (helps when you're in the wrong subdir)
+ROOT="."
+GIT_ROOT=""
+if git rev-parse --show-toplevel >/dev/null 2>&1; then
+  GIT_ROOT="$(git rev-parse --show-toplevel)"
+  ROOT="$GIT_ROOT"
+fi
+
+# Pretty-print paths relative to repo root when possible.
+relpath() {
+  local p="$1"
+  if [[ -n "$GIT_ROOT" ]]; then
+    echo "${p#"$GIT_ROOT"/}"
+    return
+  fi
+  echo "${p#./}"
+}
+
+find_first() {
+  # Usage: find_first <name-pattern> (e.g., "go.mod" or "*.py")
+  find "$ROOT" -maxdepth 4 \
+    -type d \( -name .git -o -name .agents -o -name .beads -o -name node_modules \) -prune \
+    -o -type f -name "$1" -print -quit 2>/dev/null
+}
+
+python="$(find_first pyproject.toml)"
+[[ -n "$python" ]] || python="$(find_first requirements.txt)"
+[[ -n "$python" ]] || python="$(find_first setup.py)"
+[[ -n "$python" ]] || python="$(find_first '*.py')"
+[[ -n "$python" ]] && echo "Python detected ($(relpath "$python"))"
+
+go="$(find_first go.mod)"
+[[ -n "$go" ]] || go="$(find_first '*.go')"
+[[ -n "$go" ]] && echo "Go detected ($(relpath "$go"))"
+
+ts="$(find_first tsconfig.json)"
+[[ -n "$ts" ]] || ts="$(find_first package.json)"
+[[ -n "$ts" ]] || ts="$(find_first '*.ts')"
+[[ -n "$ts" ]] || ts="$(find_first '*.tsx')"
+[[ -n "$ts" ]] && echo "TypeScript detected ($(relpath "$ts"))"
+
+rust="$(find_first Cargo.toml)"
+[[ -n "$rust" ]] || rust="$(find_first '*.rs')"
+[[ -n "$rust" ]] && echo "Rust detected ($(relpath "$rust"))"
+
+java="$(find_first pom.xml)"
+[[ -n "$java" ]] || java="$(find_first build.gradle)"
+[[ -n "$java" ]] || java="$(find_first '*.java')"
+[[ -n "$java" ]] && echo "Java detected ($(relpath "$java"))"
+
+infra="$(find_first Dockerfile)"
+[[ -n "$infra" ]] || infra="$(find_first Makefile)"
+[[ -n "$infra" ]] || infra="$(find_first '*.sh')"
+[[ -n "$infra" ]] && echo "Shell/Infra detected ($(relpath "$infra"))"
 ```
 
 **If no language detected:** Tell the user: "I couldn't auto-detect a language. What is the primary language of this project? (Python, Go, TypeScript, Rust, Java, Shell, or other)" Then continue with whatever they choose.
@@ -79,6 +128,9 @@ git diff --stat HEAD~3 2>/dev/null | tail -5
 # Check for existing AgentOps setup
 ls .agents/ 2>/dev/null && echo "AgentOps artifacts found"
 ls .beads/ 2>/dev/null && echo "Beads issue tracking found"
+
+# Repo-specific instructions (optional but high-signal)
+test -f AGENTS.md && echo "AGENTS.md found (repo-specific workflow)"
 ```
 
 ### Step 2: Welcome and Orient
@@ -100,8 +152,28 @@ Let's do a quick tour using YOUR code.
 Run a focused research pass on the most recently changed area:
 
 ```bash
-# Find what changed recently
-git diff --name-only HEAD~5 2>/dev/null | head -10
+# Find what changed recently (dirty tree first; fall back to last commit if clean)
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  STAGED="$(git diff --name-only --cached 2>/dev/null || true)"
+  UNSTAGED="$(git diff --name-only 2>/dev/null || true)"
+  UNTRACKED="$(git ls-files --others --exclude-standard 2>/dev/null || true)"
+
+  RECENT_FILES="$(printf "%s\n%s\n%s\n" "$STAGED" "$UNSTAGED" "$UNTRACKED" | sed '/^$/d' | sort -u)"
+
+  # Clean repo: fall back to last commit, then fall back to "some tracked files"
+  if [[ -z "$RECENT_FILES" ]] && git rev-parse --verify HEAD >/dev/null 2>&1; then
+    RECENT_FILES="$(git show --name-only --pretty="" HEAD 2>/dev/null | sed '/^$/d')"
+  fi
+  [[ -z "$RECENT_FILES" ]] && RECENT_FILES="$(git ls-files 2>/dev/null | head -50)"
+
+  # Best-effort noise filtering; keep unfiltered list if filtering drops everything
+  FILTERED="$(echo "$RECENT_FILES" | grep -Ev '^(\\.agents/|cli/\\.agents/|\\.beads/)' || true)"
+  [[ -n "$FILTERED" ]] && RECENT_FILES="$FILTERED"
+
+  echo "$RECENT_FILES" | head -10
+else
+  echo "Not a git repo; skipping recent-change detection."
+fi
 ```
 
 Read 2-3 of the most recently changed files. Provide a brief summary:
@@ -129,8 +201,13 @@ dependencies and waves.
 Run a quick validation on recent changes:
 
 ```bash
-# Get recent changes for vibe check
-git diff --name-only HEAD~3 2>/dev/null | head -10
+# Use the same RECENT_FILES list from Step 3.
+# If you didn't run Step 3 in the same shell, re-run the Step 3 snippet to rebuild RECENT_FILES.
+if [[ -n "${RECENT_FILES:-}" ]]; then
+  echo "$RECENT_FILES" | head -10
+else
+  echo "RECENT_FILES is empty; re-run the Step 3 snippet to rebuild it."
+fi
 ```
 
 Perform a brief inline review (similar to `/council --quick`) of the most recent changes:
@@ -192,7 +269,7 @@ git rev-parse --is-inside-work-tree &>/dev/null && GIT_REPO=true || GIT_REPO=fal
 | Git repo, no `ao`, no `.agents/` | Tier 0 | "You're at Tier 0 — skills work standalone. When you want learnings to persist across sessions, install the `ao` CLI: `brew install agentops && ao hooks install`" |
 | `ao` installed, no `.agents/` yet | Tier 0+ | "Run `ao init` to create the `.agents/` directory. Then your knowledge flywheel starts capturing learnings automatically." |
 | `ao` + `.agents/`, no beads | Tier 1 | "Knowledge flywheel is active. When you have multi-issue epics, add beads for issue tracking: `brew install beads && bd init --prefix <your-prefix>`" |
-| `ao` + beads, no Codex | Tier 2 | "Full RPI stack. Try `/crank` for autonomous epic execution, or `/council --deep` for thorough multi-judge review." |
+| `ao` + beads, no Codex | Tier 2 | "Full RPI stack. Start with repo instructions (check `AGENTS.md` if present), then try `bd ready` (find work) or `/crank` (run an epic)." |
 | `ao` + beads + Codex | Tier 2+ | "Full stack with cross-vendor. Try `/council --mixed` for Claude + Codex consensus, or `/vibe --mixed` for cross-vendor code review." |
 
 ---

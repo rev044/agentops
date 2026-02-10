@@ -10,9 +10,9 @@ The quickstart walks you through a mini **RPI cycle** (Research-Plan-Implement) 
 
 1. **Pre-flight** — Checks your environment (git, CLI tools, directories)
 2. **Detection** — Identifies your project language, framework, and existing setup
-3. **Mini Research** — Explores recently changed code to show what `/research` does
+3. **Mini Research** — Explores your *current* work (dirty working tree if present; otherwise last commit) to show what `/research` does
 4. **Mini Plan** — Suggests one concrete improvement to show what `/plan` does
-5. **Mini Vibe** — Quick validation of recent changes to show what `/vibe` does
+5. **Mini Vibe** — Quick validation of those same “recent files” to show what `/vibe` does
 6. **Orientation** — Shows available skills organized by workflow phase
 7. **Next Steps** — Personalized recommendation based on your project state
 
@@ -35,10 +35,10 @@ Code validation combining complexity analysis (cyclomatic metrics) with multi-mo
 | Step | What You See |
 |------|-------------|
 | Pre-flight | Environment status (git, ao, directories) |
-| Detection | Language, framework, existing AgentOps state |
-| Mini Research | Summary of active code area, patterns, quality observation |
+| Detection | Language/framework detection (often includes the path that triggered detection), existing AgentOps state |
+| Mini Research | Summary of active code area (dirty-tree-first), patterns, quality observation |
 | Mini Plan | One specific improvement suggestion with rationale |
-| Mini Vibe | Quick PASS/WARN/FAIL assessment of recent changes |
+| Mini Vibe | Quick PASS/WARN/FAIL assessment of the same recent files |
 | Orientation | Skill reference table organized by workflow phase |
 | Next Steps | One personalized recommendation for what to try next |
 

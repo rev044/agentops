@@ -109,9 +109,11 @@ mkdir -p .agents && echo "OK" || echo "PERMISSION DENIED"
 
 **Symptom:** Quickstart says "I couldn't auto-detect a language."
 
-**Why:** No recognized project files found in the current directory (e.g., `go.mod`, `package.json`, `pyproject.toml`).
+**Why:** Quickstart couldn't find any recognized project files in its **shallow scan** (it avoids walking entire repos). In monorepos, the primary module might be deeper than the scan depth.
 
-**Fix:** Tell quickstart your primary language when prompted. Detection looks at the current directory only — if your source is in a subdirectory, either `cd` there first or specify the language manually.
+**Fix:**
+- Run quickstart from your repo root (recommended), or `cd` into the primary module directory (e.g., `cli/`, `src/`).
+- If detection still fails, tell quickstart your primary language when prompted and continue manually.
 
 ## Session Knowledge Not Persisting
 

@@ -261,7 +261,7 @@ More tools = more coverage. But even with zero tools installed, the workflow sti
 The `ao` CLI handles knowledge persistence with MemRL two-phase retrieval, confidence decay (stale knowledge ages out), and citation-tracked provenance so you can trace learnings back to the session that produced them.
 
 ```bash
-ao quickstart --minimal   # Create .agents/ structure (or use /quickstart skill)
+ao quick-start --minimal  # Create .agents/ structure (or use /quickstart skill)
 ao hooks install          # Enable auto-hooks (Claude Code)
 ao hooks test             # Verify hooks are working
 ao inject [topic]         # Load prior knowledge (auto at session start)
