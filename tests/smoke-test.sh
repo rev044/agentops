@@ -188,6 +188,50 @@ else
 fi
 
 # =============================================================================
+# Test 9: Flywheel loop (next-work round-trip)
+# =============================================================================
+log "Testing flywheel loop (next-work round-trip)..."
+
+NEXTWORK_DIR="$REPO_ROOT/.agents/rpi"
+NEXTWORK_FILE="$NEXTWORK_DIR/next-work.jsonl"
+NEXTWORK_SCHEMA="$NEXTWORK_DIR/next-work.schema.md"
+
+# Check schema contract exists
+if [[ -f "$NEXTWORK_SCHEMA" ]]; then
+    pass "next-work.schema.md exists"
+else
+    fail "next-work.schema.md missing — flywheel loop has no contract"
+fi
+
+# Validate existing next-work.jsonl if present
+if [[ -f "$NEXTWORK_FILE" ]]; then
+    if command -v jq &>/dev/null; then
+        # Validate each line is valid JSON with required fields
+        line_num=0
+        nw_errors=0
+        while IFS= read -r line; do
+            ((line_num++)) || true
+            [[ -z "$line" ]] && continue
+            if ! echo "$line" | jq -e '.source_epic and .timestamp and (.items | type == "array") and (.consumed | type == "boolean")' >/dev/null 2>&1; then
+                fail "next-work.jsonl line $line_num: missing required fields"
+                ((nw_errors++)) || true
+            fi
+        done < "$NEXTWORK_FILE"
+        if [[ $nw_errors -eq 0 ]]; then
+            pass "next-work.jsonl: all $line_num entries have valid schema"
+        fi
+    else
+        warn "jq not available — skipping next-work.jsonl schema validation"
+    fi
+else
+    # Not an error — file only exists after first post-mortem with Step 8
+    if [[ "$VERBOSE" == "--verbose" ]]; then
+        log "  next-work.jsonl not present (expected before first flywheel cycle)"
+    fi
+    pass "next-work.jsonl absent (pre-flywheel state is valid)"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo ""

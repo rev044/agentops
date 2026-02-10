@@ -314,7 +314,8 @@ Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after po
 
 1. Read `.agents/rpi/next-work.jsonl` for unconsumed entries (schema: `.agents/rpi/next-work.schema.md`)
 2. If unconsumed entries exist:
-   - Mark the current cycle's entry as consumed (set `consumed: true`, `consumed_by: <epic-id>`, `consumed_at: <now>`)
+   - If `--dry-run` is set: report items but do NOT mutate next-work.jsonl (skip consumption). Log: "Dry run — items not marked consumed."
+   - Otherwise: mark the current cycle's entry as consumed (set `consumed: true`, `consumed_by: <epic-id>`, `consumed_at: <now>`)
    - Report harvested items to user with suggested next command:
      ```
      ## Next Work Available
@@ -385,6 +386,7 @@ Summarize the entire lifecycle to the user:
 | `--loop` | off | Enable Gate 4 loop: after /post-mortem, iterate only when post-mortem verdict is FAIL (spawns another /rpi cycle). |
 | `--max-cycles=<n>` | `1` | Hard cap on total /rpi cycles when `--loop` is set (recommended: 3). |
 | `--spawn-next` | off | After post-mortem, read harvested next-work items and report suggested next `/rpi` command. Marks consumed entries. |
+| `--dry-run` | off | With `--spawn-next`: report items without marking consumed. Useful for testing the consumption flow. |
 
 ## See Also
 
