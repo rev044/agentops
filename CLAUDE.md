@@ -1,6 +1,6 @@
 # AgentOps
 
-Turn your coding agent into a self-correcting dev pipeline.
+Give it any goal — it structures the work into issues, validates every stage with parallel judges, orchestrates fresh-context agents in waves, and gets smarter each time you use it.
 
 ## Project Structure
 
