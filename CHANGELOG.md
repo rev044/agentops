@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Quickstart onboarding heuristics** (ag-4dw) — Monorepo-friendly language detection (shallow scan + trigger paths) and dirty-tree-first recent file selection; docs aligned; smoke test CLI build cleanup made robust
 - **CLAUDE.md skill count committed** (ag-o80) — Cleared skip-worktree flag; count updated from "21 user-facing, 11 internal" to "22 user-facing, 10 internal"; added rpi/ entry, removed deprecated judge/ entry
 - **SKILL-TIERS.md header count** (ag-o80) — User-facing heading corrected from (21) to (22) to match actual table
 - **5 broken links in meta-observer README** (ag-o80) — Replaced dead links to nonexistent `../commands/` and `../agents/` paths with inline descriptions
