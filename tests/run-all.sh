@@ -93,6 +93,27 @@ else
     skip "No agents found (optional)"
 fi
 
+# Validate documentation
+if [[ -f "$SCRIPT_DIR/docs/validate-links.sh" ]]; then
+    if bash "$SCRIPT_DIR/docs/validate-links.sh" > /dev/null 2>&1; then
+        pass "Doc link validation"
+    else
+        fail "Doc link validation"
+    fi
+else
+    skip "Doc link validation (script not found)"
+fi
+
+if [[ -f "$SCRIPT_DIR/docs/validate-skill-count.sh" ]]; then
+    if bash "$SCRIPT_DIR/docs/validate-skill-count.sh" > /dev/null 2>&1; then
+        pass "Doc skill count validation"
+    else
+        fail "Doc skill count validation"
+    fi
+else
+    skip "Doc skill count validation (script not found)"
+fi
+
 echo ""
 
 # =============================================================================
