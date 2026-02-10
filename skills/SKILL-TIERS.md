@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (21)
+### User-Facing Skills (22)
 
 | Skill | Tier | Description |
 |-------|------|-------------|

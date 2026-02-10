@@ -9,11 +9,12 @@ A knowledge flywheel for AI coding agents — persistent memory, multi-model val
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest (v1.7.1)
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 32 skills (21 user-facing, 11 internal)
+├── skills/                # All 32 skills (22 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Autonomous epic execution
 │   ├── swarm/             # Parallel agent spawning
 │   ├── codex-team/        # Parallel Codex execution agents
+│   ├── rpi/               # Full RPI lifecycle orchestrator
 │   ├── implement/         # Execute single issue
 │   ├── quickstart/        # Interactive onboarding
 │   ├── status/            # Single-screen dashboard
@@ -40,8 +41,7 @@ A knowledge flywheel for AI coding agents — persistent memory, multi-model val
 │   ├── provenance/        # Trace knowledge lineage (internal)
 │   ├── ratchet/           # Progress gates (internal)
 │   ├── flywheel/          # Knowledge health monitoring (internal)
-│   ├── using-agentops/    # Workflow guide (auto-injected, internal)
-│   └── judge/             # DEPRECATED — use /council
+│   └── using-agentops/    # Workflow guide (auto-injected, internal)
 ├── hooks/                 # Session and git hooks
 │   ├── hooks.json
 │   ├── session-start.sh

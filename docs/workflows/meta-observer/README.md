@@ -88,20 +88,20 @@ Located in `.claude/commands/`
    - Initialize full pattern (observer + N workers)
    - Interactive or quick mode
    - Creates all entities and briefs
-   - [View command →](../commands/launch-meta-observer.md)
+   - *(Full pattern initialization with interactive or quick mode)*
 
 2. **`/start-worker`** (7.2 KB)
    - Transform THIS session into autonomous worker
    - Interactive setup
    - Creates Memory MCP entity
    - Provides operating protocol
-   - [View command →](../commands/start-worker.md)
+   - *(Transform current session into autonomous worker with Memory MCP entity)*
 
 3. **`/worker-brief`** (9.1 KB)
    - Generate detailed worker brief document
    - Save to `.agents/briefs/`
    - Customized for specific domain
-   - [View command →](../commands/worker-brief.md)
+   - *(Generate detailed worker brief document for specific domain)*
 
 ### Agents (2)
 
@@ -112,14 +112,14 @@ Located in `.claude/agents/`
    - Monitors N workers via Memory MCP
    - Synthesizes discoveries
    - Intervenes minimally
-   - [View agent →](../agents/meta-observer.md)
+   - *(Monitors N workers via Memory MCP, synthesizes discoveries, minimal intervention)*
 
 2. **`autonomous-worker.md`** (13.8 KB)
    - Autonomous worker template
    - Domain expert protocol
    - Memory MCP coordination
    - Context management
-   - [View agent →](../agents/autonomous-worker.md)
+   - *(Domain expert protocol with Memory MCP coordination and context management)*
 
 ### Documentation (4 files)
 
