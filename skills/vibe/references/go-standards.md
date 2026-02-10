@@ -14,8 +14,9 @@
 4. [Security Practices](#security-practices)
 5. [Package Organization](#package-organization)
 6. [Testing Patterns](#testing-patterns)
-7. [Code Quality Metrics](#code-quality-metrics)
-8. [Anti-Patterns Avoided](#anti-patterns-avoided)
+7. [Documentation Standards](#documentation-standards)
+8. [Code Quality Metrics](#code-quality-metrics)
+9. [Anti-Patterns Avoided](#anti-patterns-avoided)
 
 ---
 
@@ -516,6 +517,101 @@ func TestProcessor(t *testing.T) {
 
 ---
 
+## Documentation Standards
+
+### ✅ **Godoc Format**
+
+Document all exported symbols with a comment directly above the declaration:
+
+```go
+// Registry manages agent lifecycle and discovery.
+// It is safe for concurrent use.
+type Registry struct {
+    agents map[string]Agent
+    mu     sync.RWMutex
+}
+
+// Get returns the agent registered under the given key.
+// It returns ErrNotFound if no agent is registered with that key.
+func (r *Registry) Get(key string) (Agent, error) {
+    // ...
+}
+```
+
+**Rules:**
+- Comment starts with the name of the symbol
+- First sentence is a complete summary (used by `go doc -short`)
+- Use `//` comments, not `/* */` blocks (except for package-level docs)
+
+### ✅ **Package-Level Comments**
+
+For packages with significant public API, use a `doc.go` file:
+
+```go
+// Package registry provides agent lifecycle management
+// including registration, discovery, and health monitoring.
+//
+// Basic usage:
+//
+//	reg := registry.New()
+//	reg.Register("my-agent", agent)
+//	a, err := reg.Get("my-agent")
+package registry
+```
+
+**When to use `doc.go`:**
+- Package has 3+ exported symbols
+- Package is part of a public API (`pkg/`)
+- Package needs usage examples beyond a single line
+
+### ✅ **Testable Examples**
+
+Write `Example*` functions in `_test.go` files — they appear in generated docs and are compiled/run by `go test`:
+
+```go
+func ExampleRegistry_Get() {
+    reg := registry.New()
+    reg.Register("agent-1", &MyAgent{Name: "alpha"})
+
+    agent, err := reg.Get("agent-1")
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(agent.Name)
+    // Output: alpha
+}
+```
+
+**Naming Convention:**
+- `ExampleTypeName` — type-level example
+- `ExampleTypeName_MethodName` — method-level example
+- `Example` — package-level example
+
+### ✅ **Doc Generation**
+
+```bash
+# View docs in terminal
+go doc ./pkg/registry
+go doc ./pkg/registry.Registry.Get
+
+# Run local doc server (pkgsite)
+go install golang.org/x/pkgsite/cmd/pkgsite@latest
+pkgsite -open .
+```
+
+### ALWAYS / NEVER Rules
+
+| Rule | Rationale |
+|------|-----------|
+| **ALWAYS** document exported types, functions, and methods | Required by `revive` linter, enables `go doc` |
+| **ALWAYS** start doc comments with the symbol name | Standard godoc convention, enables tooling |
+| **ALWAYS** include `// Output:` in Example functions | Makes examples testable by `go test` |
+| **NEVER** document unexported symbols unless logic is non-obvious | Noise — internal code changes frequently |
+| **NEVER** use `@param` / `@return` javadoc-style annotations | Not idiomatic Go — godoc ignores them |
+| **NEVER** duplicate the function signature in prose | Redundant — the signature is right below |
+
+---
+
 ## Structured Logging (slog)
 
 ### ✅ **Use log/slog (Go 1.21+)**
@@ -803,6 +899,8 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 ## Code Quality Metrics
 
+> See `common-standards.md` for universal coverage targets and testing principles.
+
 ### ✅ **golangci-lint Configuration**
 
 Minimum recommended linters:
@@ -845,6 +943,8 @@ linters-settings:
 ---
 
 ## Anti-Patterns Avoided
+
+> See `common-standards.md` for universal anti-patterns across all languages.
 
 ### ❌ **No Naked Returns**
 ```go

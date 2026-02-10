@@ -1,6 +1,6 @@
 ---
 name: standards
-description: 'Language-specific coding standards and validation rules. Provides Python, Go, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded by /vibe, /implement, /doc, /bug-hunt, /complexity based on file types.'
+description: 'Language-specific coding standards and validation rules. Provides Python, Go, Rust, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded by /vibe, /implement, /doc, /bug-hunt, /complexity based on file types.'
 dependencies: []
 metadata:
   internal: true
@@ -21,6 +21,7 @@ references that other skills load based on file types being processed.
 |----------|-----------|-----------|
 | Python | `references/python.md` | vibe, implement, complexity |
 | Go | `references/go.md` | vibe, implement, complexity |
+| Rust | `references/rust.md` | vibe, implement, complexity |
 | TypeScript | `references/typescript.md` | vibe, implement |
 | Shell | `references/shell.md` | vibe, implement |
 | YAML | `references/yaml.md` | vibe |
@@ -44,6 +45,8 @@ if file.endswith('.py'):
     load('standards/references/python.md')
 elif file.endswith('.go'):
     load('standards/references/go.md')
+elif file.endswith('.rs'):
+    load('standards/references/rust.md')
 # etc.
 ```
 

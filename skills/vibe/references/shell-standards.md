@@ -16,9 +16,10 @@
 6. [Security](#security)
 7. [Common Patterns](#common-patterns)
 8. [Testing](#testing)
-9. [Code Quality Metrics](#code-quality-metrics)
-10. [Anti-Patterns Avoided](#anti-patterns-avoided)
-11. [Compliance Assessment](#compliance-assessment)
+9. [Documentation Standards](#documentation-standards)
+10. [Code Quality Metrics](#code-quality-metrics)
+11. [Anti-Patterns Avoided](#anti-patterns-avoided)
+12. [Compliance Assessment](#compliance-assessment)
 
 ---
 
@@ -650,7 +651,95 @@ setup() {
 
 ---
 
+## Documentation Standards
+
+### Header Comments
+
+Every script MUST have a header block describing purpose, usage, and exit codes:
+
+```bash
+#!/usr/bin/env bash
+# ===================================================================
+# Script: deploy.sh
+# Purpose: Deploy application to target Kubernetes cluster
+# Usage: ./deploy.sh [options] <namespace>
+#
+# Options:
+#   -h, --help      Show this help message
+#   -n, --namespace Target namespace (default: default)
+#   --dry-run       Preview changes without applying
+#
+# Environment Variables:
+#   NAMESPACE - Target namespace (default: default)
+#   DRY_RUN   - If "true", don't make changes
+#
+# Exit Codes:
+#   0 - Success
+#   1 - Argument error
+#   2 - Missing dependency
+# ===================================================================
+```
+
+### Inline Help (--help / -h)
+
+Every user-facing script MUST support `--help` and `-h` flags:
+
+```bash
+usage() {
+    cat <<EOF
+Usage: ${SCRIPT_NAME} [options] <required-arg>
+
+Options:
+    -h, --help      Show this help message
+    -v, --verbose   Enable verbose output
+    --dry-run       Preview mode
+
+Examples:
+    ${SCRIPT_NAME} my-namespace
+    ${SCRIPT_NAME} --dry-run my-namespace
+EOF
+}
+```
+
+**Requirements:**
+- Print to stdout (not stderr) so output is pipeable
+- Exit 0 on `--help`, exit 1 on missing/invalid args
+- Include at least one usage example
+
+### Function Documentation
+
+Document non-trivial functions with a comment above the declaration:
+
+```bash
+# Wait for a Kubernetes resource to reach the desired state.
+# Arguments:
+#   $1 - Resource kind (e.g., deployment, pod)
+#   $2 - Resource name
+#   $3 - Desired condition (e.g., Available, Ready)
+#   $4 - Timeout in seconds (default: 300)
+# Returns: 0 on success, 1 on timeout
+wait_for_resource() {
+    local kind="$1" name="$2" condition="$3" timeout="${4:-300}"
+    # ...
+}
+```
+
+### ALWAYS / NEVER Rules
+
+| Rule | Rationale |
+|------|-----------|
+| **ALWAYS** include a header block with Purpose, Usage, Exit Codes | First thing a reader sees — orients them |
+| **ALWAYS** support `--help` / `-h` in user-facing scripts | Discoverability — no need to read source |
+| **ALWAYS** document functions with 3+ parameters | Prevents misuse of positional args |
+| **ALWAYS** document non-obvious exit codes (beyond 0/1) | Callers need to handle specific failures |
+| **NEVER** omit the shebang line (`#!/usr/bin/env bash`) | Portability — don't assume `/bin/bash` |
+| **NEVER** put usage info only in comments (not in `--help`) | Users shouldn't need to read source |
+
+---
+
 ## Code Quality Metrics
+
+> See `common-standards.md` for universal coverage targets and testing principles.
 
 ### Validation Commands
 
@@ -680,6 +769,8 @@ grep -rE "\-\-(password|token|secret)=" scripts/
 ---
 
 ## Anti-Patterns Avoided
+
+> See `common-standards.md` for universal anti-patterns across all languages.
 
 ### No Parsing ls Output
 

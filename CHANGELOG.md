@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rust standards skill** (ag-cn3) — Full two-tier Rust language support
+  - `skills/standards/references/rust.md` — Tier 1 quick reference (39 lines: cargo fmt/clippy, error handling, ownership, unsafe)
+  - `skills/vibe/references/rust-standards.md` — Tier 2 deep reference (1118 lines: 10 sections covering project structure, cargo config, ownership patterns, error handling, trait system, concurrency, unsafe code, testing, metrics)
+  - Updated SKILL.md, standards-index.md, README.md, test assertions
+- **Common standards catalog** (ag-eba) — Cross-language universal patterns as single source of truth
+  - `skills/standards/references/common-standards.md` — 17KB covering error handling philosophy, testing best practices, security principles, documentation standards, code organization, with dedup manifest
+  - Updated JIT loading order: vibe-coding.md → common-standards.md → language standards
+- **Standards gap fill** (ag-eba) — Filled critical coverage gaps across 6 Tier 2 files
+  - TypeScript: Testing Patterns section (Jest/Vitest, React Testing Library, MSW, async, snapshots)
+  - Python: Security Practices section (eval/exec, pickle, SQL injection, SSRF, secrets)
+  - Rust: Security Practices + Documentation Standards sections (unsafe audit, FFI safety, rustdoc, doc tests)
+  - Go + Shell: Documentation Standards sections (godoc, Example functions, --help, header comments)
+  - JSON: Anti-Patterns, Code Quality Metrics, Prescan P01-P05 (jq-based detection)
+  - YAML: Anti-Patterns, Code Quality Metrics, Prescan P01-P05 (yamllint-based detection)
+- **Cross-references in language files** (ag-eba) — 5 language Tier 2 files link to common-standards.md at Anti-Patterns and Code Quality Metrics sections
 - **Codex integration tests** (ag-3b7) — Empirical validation of Codex CLI native features
   - `tests/codex/test-schema-validation.sh` — 10 assertions validating verdict.json schema structure
   - `tests/codex/test-structured-output.sh` — 13 assertions proving `--output-schema` produces conforming JSON

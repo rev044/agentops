@@ -17,8 +17,9 @@
 7. [Error Handling](#error-handling)
 8. [Module Template](#module-template)
 9. [Code Quality Metrics](#code-quality-metrics)
-10. [Anti-Patterns Avoided](#anti-patterns-avoided)
-11. [Compliance Assessment](#compliance-assessment)
+10. [Testing Patterns](#testing-patterns)
+11. [Anti-Patterns Avoided](#anti-patterns-avoided)
+12. [Compliance Assessment](#compliance-assessment)
 
 ---
 
@@ -520,6 +521,8 @@ export class Client {
 
 ## Code Quality Metrics
 
+> See `common-standards.md` for universal coverage targets and testing principles.
+
 ### Type Coverage Metrics
 
 | Metric | Target | Validation |
@@ -555,7 +558,239 @@ grep -r "^import {" src/ | grep -vc "import type"
 
 ---
 
+## Testing Patterns
+
+### Jest/Vitest Configuration
+
+Standard test runner configuration for TypeScript projects:
+
+```typescript
+// vitest.config.ts (preferred) or jest.config.ts
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'jsdom',          // For React; use 'node' for backend
+    setupFiles: ['./src/test/setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      exclude: ['**/*.d.ts', '**/*.test.ts', '**/test/**'],
+    },
+  },
+});
+```
+
+| Setting | Recommendation |
+|---------|---------------|
+| Runner | Vitest (preferred) or Jest 29+ with ts-jest |
+| Environment | `jsdom` for UI, `node` for backend/CLI |
+| Globals | `true` — avoids `import { describe, it }` boilerplate |
+| Coverage provider | `v8` (fast) or `istanbul` (precise) |
+
+### React Testing Library Patterns
+
+Test components by user behavior, not implementation:
+
+```typescript
+// Good - tests user-visible behavior
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+test('submits form with valid data', async () => {
+  const onSubmit = vi.fn();
+  const user = userEvent.setup();
+
+  render(<LoginForm onSubmit={onSubmit} />);
+
+  await user.type(screen.getByLabelText('Email'), 'alice@example.com');
+  await user.type(screen.getByLabelText('Password'), 'secret123');
+  await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+  expect(onSubmit).toHaveBeenCalledWith({
+    email: 'alice@example.com',
+    password: 'secret123',
+  });
+});
+
+// Bad - tests implementation details
+test('sets state on input change', () => {
+  const { container } = render(<LoginForm />);
+  const input = container.querySelector('input[name="email"]')!;
+  fireEvent.change(input, { target: { value: 'alice@example.com' } });
+  // Brittle: relies on DOM structure and internal state
+});
+```
+
+**Query Priority (prefer top to bottom):**
+
+| Priority | Query | When |
+|----------|-------|------|
+| 1 | `getByRole` | Interactive elements (buttons, inputs, headings) |
+| 2 | `getByLabelText` | Form fields |
+| 3 | `getByText` | Non-interactive text content |
+| 4 | `getByTestId` | Last resort — no accessible selector available |
+
+### MSW (Mock Service Worker) for API Mocking
+
+Mock API calls at the network level, not the implementation level:
+
+```typescript
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+
+const handlers = [
+  http.get('/api/users/:id', ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Alice',
+      email: 'alice@example.com',
+    });
+  }),
+
+  http.post('/api/users', async ({ request }) => {
+    const body = await request.json();
+    return HttpResponse.json(body, { status: 201 });
+  }),
+];
+
+const server = setupServer(...handlers);
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+// Override for specific test
+test('handles server error', async () => {
+  server.use(
+    http.get('/api/users/:id', () => {
+      return HttpResponse.json({ message: 'Internal error' }, { status: 500 });
+    }),
+  );
+  // ... test error handling
+});
+```
+
+### Async Testing Patterns
+
+Use `waitFor` and async queries for asynchronous UI updates:
+
+```typescript
+// Good - waits for async state updates
+import { render, screen, waitFor } from '@testing-library/react';
+
+test('loads and displays user data', async () => {
+  render(<UserProfile userId="123" />);
+
+  // findBy* waits for element to appear (combines getBy + waitFor)
+  const name = await screen.findByText('Alice');
+  expect(name).toBeInTheDocument();
+
+  // waitFor for assertions on async state
+  await waitFor(() => {
+    expect(screen.getByRole('status')).toHaveTextContent('Active');
+  });
+});
+
+// Bad - manual timers and arbitrary delays
+test('loads data', async () => {
+  render(<UserProfile userId="123" />);
+  await new Promise((r) => setTimeout(r, 1000)); // Flaky!
+  expect(screen.getByText('Alice')).toBeInTheDocument();
+});
+```
+
+### Snapshot Testing
+
+| Use Snapshots For | Avoid Snapshots For |
+|-------------------|---------------------|
+| Serialized data structures (API responses, configs) | Full component trees (too brittle) |
+| Error message formatting | Styled components (CSS changes break snapshots) |
+| CLI output strings | Large objects (unreadable diffs) |
+
+```typescript
+// Good - small, focused snapshot
+test('formats error response', () => {
+  const error = formatApiError(404, 'User not found');
+  expect(error).toMatchInlineSnapshot(`
+    {
+      "code": 404,
+      "message": "User not found",
+      "type": "NOT_FOUND",
+    }
+  `);
+});
+
+// Bad - entire component tree snapshot
+test('renders dashboard', () => {
+  const { container } = render(<Dashboard />);
+  expect(container).toMatchSnapshot(); // 500+ line snapshot nobody reviews
+});
+```
+
+### Coverage Targets
+
+| Level | Minimum | Target | Notes |
+|-------|---------|--------|-------|
+| Overall | 60% | 80% | Enforced in CI |
+| Critical paths | 80% | 90% | Auth, payments, data mutations |
+| Utility functions | 80% | 95% | Pure functions are easy to test |
+| Type guards | 100% | 100% | Runtime type safety boundary |
+
+```bash
+# Run tests with coverage
+npx vitest run --coverage
+
+# Check coverage thresholds (in vitest.config.ts)
+# coverage.thresholds: { lines: 60, branches: 60, functions: 60 }
+```
+
+### Test Organization
+
+```typescript
+describe('UserService', () => {
+  // Group by method
+  describe('createUser', () => {
+    it('creates user with valid data', async () => { /* ... */ });
+    it('throws ValidationError for duplicate email', async () => { /* ... */ });
+    it('hashes password before storing', async () => { /* ... */ });
+  });
+
+  describe('deleteUser', () => {
+    it('soft-deletes user by setting deletedAt', async () => { /* ... */ });
+    it('throws NotFoundError for unknown id', async () => { /* ... */ });
+  });
+});
+```
+
+**Naming conventions:**
+
+| Convention | Example |
+|-----------|---------|
+| File naming | `user-service.test.ts` (co-located) or `__tests__/user-service.test.ts` |
+| Describe blocks | Class/module name: `describe('UserService', ...)` |
+| Test names | Behavior: `it('throws ValidationError for duplicate email')` |
+| Setup files | `src/test/setup.ts` for global setup (MSW, custom matchers) |
+
+### ALWAYS / NEVER Rules
+
+| Rule | Type | Rationale |
+|------|------|-----------|
+| ALWAYS use `userEvent` over `fireEvent` | ALWAYS | `userEvent` simulates real browser behavior (focus, hover, keystrokes) |
+| ALWAYS use `findBy*` for async elements | ALWAYS | Avoids race conditions; auto-retries until timeout |
+| ALWAYS set `onUnhandledRequest: 'error'` in MSW | ALWAYS | Catches unmocked API calls that indicate missing test setup |
+| ALWAYS co-locate test files with source | ALWAYS | Easier navigation; test dies when source is deleted |
+| NEVER use `container.querySelector` in RTL tests | NEVER | Bypasses accessibility queries; tests implementation not behavior |
+| NEVER use `setTimeout` / manual delays in tests | NEVER | Flaky; use `waitFor` or `findBy*` instead |
+| NEVER snapshot full component trees | NEVER | Unreadable diffs; nobody reviews 500-line snapshots |
+| NEVER mock what you don't own without MSW | NEVER | Direct `jest.mock('axios')` couples tests to HTTP library choice |
+
+---
+
 ## Anti-Patterns Avoided
+
+> See `common-standards.md` for universal anti-patterns across all languages.
 
 ### No Any Escape
 

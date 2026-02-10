@@ -21,6 +21,7 @@ plugins/domain-kit/skills/standards/references/
 ├── shell.md
 ├── yaml.md
 ├── json.md
+├── rust.md
 ├── markdown.md
 └── openai.md (+ related OpenAI references)
 ```
@@ -36,6 +37,7 @@ Skills like `/bug-hunt` and `/complexity` depend on the standards library for co
 | **Python** | [python-style-guide.md](./python-style-guide.md) | CC ≤ 10 | ruff | ★★★★★ |
 | **Shell/Bash** | [shell-script-standards.md](./shell-script-standards.md) | shellcheck | shellcheck | ★★★★★ |
 | **Go** | [golang-style-guide.md](./golang-style-guide.md) | golangci-lint, CC ≤ 10 | - | ★★★★★ |
+| **Rust** | — | cargo clippy, CC ≤ 10 | - | ★★★★★ |
 | **TypeScript** | [typescript-standards.md](./typescript-standards.md) | tsc --strict | eslint | ★★★★★ |
 | **YAML/Helm** | [yaml-helm-standards.md](./yaml-helm-standards.md) | yamllint | yamllint | ★★★★★ |
 | **Markdown** | [markdown-style-guide.md](./markdown-style-guide.md) | markdownlint | - | ★★★★★ |
@@ -68,6 +70,7 @@ All functions MUST meet complexity thresholds:
 |----------|------|-----------|-------------|
 | Python | radon/xenon | CC ≤ 10 | [Yes](./python-style-guide.md#code-complexity) |
 | Go | gocyclo | CC ≤ 10 | [Yes](./golang-style-guide.md#code-complexity) |
+| Rust | cargo clippy | Clippy warnings = 0 | — |
 | Shell | shellcheck | Pass all | [Yes](./shell-script-standards.md) |
 | TypeScript | tsc --strict | No errors | [Yes](./typescript-standards.md) |
 | YAML/Helm | yamllint | Pass all | [Yes](./yaml-helm-standards.md) |
@@ -97,6 +100,7 @@ git commit --no-verify
 |----------|---------|
 | **Python** | `ruff check scripts/ && xenon scripts/ --max-absolute B` |
 | **Go** | `golangci-lint run ./... && gocyclo -over 10 ./...` |
+| **Rust** | `cargo clippy --all-targets --all-features -- -D warnings && cargo test` |
 | **Shell** | `shellcheck scripts/*.sh` |
 | **TypeScript** | `tsc --noEmit && eslint . --ext .ts,.tsx` |
 | **YAML** | `yamllint .` |
@@ -144,6 +148,8 @@ Each standard follows a consistent format:
 | `.prettierrc` | JSON/Markdown formatting |
 | `pyproject.toml` | Python tool settings (ruff, pytest) |
 | `.golangci.yml` | Go linting configuration |
+| `rustfmt.toml` | Rust formatting rules |
+| `clippy.toml` | Rust linting configuration |
 | `tsconfig.json` | TypeScript compiler settings |
 | `eslint.config.js` | TypeScript/JS linting |
 
@@ -168,5 +174,5 @@ To update a standard:
 ---
 
 **Created:** 2024-12-30
-**Last Updated:** 2026-01-19
+**Last Updated:** 2026-02-09
 **Related:** [Canonical Standards](https://github.com/your-org/gitops/tree/main/docs/standards)

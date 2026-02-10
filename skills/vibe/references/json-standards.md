@@ -14,7 +14,10 @@
 4. [Configuration Files](#configuration-files)
 5. [JSON Schema](#json-schema)
 6. [Tooling](#tooling)
-7. [Compliance Assessment](#compliance-assessment)
+7. [Anti-Patterns](#anti-patterns)
+8. [Code Quality Metrics](#code-quality-metrics)
+9. [Prescan Patterns](#prescan-patterns)
+10. [Compliance Assessment](#compliance-assessment)
 
 ---
 
@@ -318,6 +321,113 @@ insert_final_newline = true
   "singleQuote": false
 }
 ```
+
+---
+
+## Anti-Patterns
+
+### Deeply Nested Objects
+
+Nesting beyond 4 levels indicates missing abstraction or flattening opportunity.
+
+```json
+// BAD - 5 levels deep
+{"config": {"server": {"auth": {"oauth": {"scopes": ["read"]}}}}}
+
+// GOOD - flattened
+{"auth_oauth_scopes": ["read"]}
+```
+
+### Inconsistent Key Naming
+
+Mixing `camelCase` and `snake_case` within a single file breaks grep-ability and signals multiple authors without review.
+
+### Missing Schema References
+
+JSON config files without a `$schema` field cannot be validated automatically. Always include `$schema` when a schema exists.
+
+### Magic Values Without Documentation
+
+Undocumented numeric or string constants embedded in JSON (e.g., `"timeout": 86400`) should use descriptive keys or adjacent comments in the referencing code.
+
+### Oversized Arrays or Objects
+
+Arrays with >1000 elements or objects with >100 keys in a single file suggest the data belongs in JSONL or a database, not a monolithic JSON file.
+
+### Duplicate Keys
+
+JSON parsers silently drop earlier values when duplicate keys exist. This is always a bug.
+
+---
+
+## Code Quality Metrics
+
+### Validation Thresholds
+
+| Metric | Threshold | Severity |
+|--------|-----------|----------|
+| Schema coverage | 100% of config files have `$schema` | Warning |
+| Nesting depth | ≤4 levels | Error above 4 |
+| File size | ≤100KB per JSON file | Warning above 100KB |
+| Key consistency | Single naming convention per file | Error if mixed |
+| JSONL line validity | 100% lines parse | Error on any failure |
+| Duplicate keys | 0 per file | Error |
+
+### Grading Impact
+
+| Violation | Grade Impact |
+|-----------|-------------|
+| Parse failure | Automatic C |
+| Nesting >4 levels | Cap at B+ |
+| Mixed key naming | Cap at A- |
+| Missing schema ref | -0.5 grade step |
+| File >100KB | -0.5 grade step |
+
+---
+
+## Prescan Patterns
+
+Automated detection commands for CI or pre-commit validation.
+
+### P01: Nesting Depth Check
+
+| Field | Value |
+|-------|-------|
+| **Pattern** | Nesting depth exceeds 4 levels |
+| **Detection** | `jq '[paths \| length] \| max' file.json` — fails if result >4 |
+| **Severity** | Error |
+
+### P02: Inconsistent Key Naming
+
+| Field | Value |
+|-------|-------|
+| **Pattern** | Mixed camelCase and snake_case keys in same file |
+| **Detection** | `jq '[paths \| .[] \| strings] \| unique \| map(test("_")) \| unique \| length' file.json` — fails if result >1 |
+| **Severity** | Error |
+
+### P03: Duplicate Keys
+
+| Field | Value |
+|-------|-------|
+| **Pattern** | Same key appears twice in an object |
+| **Detection** | `python -c "import json,sys; json.load(open(sys.argv[1]),object_pairs_hook=lambda p: (_ for k,v in p if sum(1 for k2,_ in p if k2==k)>1).__next__())" file.json` or use `jq --jsonargs` strict mode |
+| **Severity** | Error |
+
+### P04: Missing Schema Reference
+
+| Field | Value |
+|-------|-------|
+| **Pattern** | Config file lacks `$schema` field |
+| **Detection** | `jq 'has("$schema")' file.json` — fails if result is `false` |
+| **Severity** | Warning |
+
+### P05: Oversized Values
+
+| Field | Value |
+|-------|-------|
+| **Pattern** | File exceeds 100KB or arrays exceed 1000 elements |
+| **Detection** | `stat -f%z file.json` (macOS) or `stat -c%s file.json` (Linux) — fails if >102400; `jq '[.. \| arrays \| length] \| max' file.json` — fails if >1000 |
+| **Severity** | Warning |
 
 ---
 

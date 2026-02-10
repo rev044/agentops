@@ -19,8 +19,9 @@
 9. [Testing](#testing)
 10. [CLI Script Template](#cli-script-template)
 11. [Code Quality Metrics](#code-quality-metrics)
-12. [Anti-Patterns Avoided](#anti-patterns-avoided)
-13. [Compliance Assessment](#compliance-assessment)
+12. [Security Practices](#security-practices)
+13. [Anti-Patterns Avoided](#anti-patterns-avoided)
+14. [Compliance Assessment](#compliance-assessment)
 
 ---
 
@@ -787,6 +788,8 @@ if __name__ == "__main__":
 
 ## Code Quality Metrics
 
+> See `common-standards.md` for universal coverage targets and testing principles.
+
 ### Complexity Thresholds
 
 | Grade | CC Range | Action |
@@ -823,7 +826,192 @@ interrogate src/
 
 ---
 
+## Security Practices
+
+### eval/exec Avoidance
+
+Never use `eval()` or `exec()` on user-controlled input:
+
+```python
+# DANGEROUS - Remote code execution
+user_expr = request.args["expr"]
+result = eval(user_expr)  # Attacker sends: __import__('os').system('rm -rf /')
+
+# SAFE - Use ast.literal_eval for data literals
+import ast
+result = ast.literal_eval(user_input)  # Only parses strings, numbers, tuples, lists, dicts
+
+# SAFE - Use a mapping for dynamic dispatch
+OPERATIONS = {"add": operator.add, "mul": operator.mul}
+func = OPERATIONS.get(user_input)
+if func:
+    result = func(a, b)
+```
+
+**Validation:** Prescan pattern P16 detects `eval(` and `exec(` calls
+
+### Pickle Safety
+
+Never unpickle untrusted data — `pickle.loads()` executes arbitrary code:
+
+```python
+# DANGEROUS - Arbitrary code execution on load
+import pickle
+data = pickle.loads(untrusted_bytes)  # Attacker crafts payload to run code
+
+# SAFE - Use JSON for data interchange
+import json
+data = json.loads(untrusted_bytes)
+
+# SAFE - Use msgpack for binary efficiency
+import msgpack
+data = msgpack.unpackb(untrusted_bytes, raw=False)
+```
+
+If pickle is unavoidable (e.g., ML model loading), load only from trusted, integrity-verified sources.
+
+### SQL Injection Prevention
+
+Always use parameterized queries:
+
+```python
+# DANGEROUS - SQL injection
+cursor.execute(f"SELECT * FROM users WHERE name = '{user_input}'")
+
+# SAFE - Parameterized query
+cursor.execute("SELECT * FROM users WHERE name = %s", (user_input,))
+
+# SAFE - SQLAlchemy ORM
+user = session.query(User).filter(User.name == user_input).first()
+
+# SAFE - SQLAlchemy text with bind params
+from sqlalchemy import text
+stmt = text("SELECT * FROM users WHERE name = :name")
+result = conn.execute(stmt, {"name": user_input})
+```
+
+### SSRF Prevention
+
+Validate URLs before making outbound requests:
+
+```python
+# DANGEROUS - Server-Side Request Forgery
+url = request.args["url"]
+resp = requests.get(url)  # Attacker sends: http://169.254.169.254/metadata
+
+# SAFE - URL allowlist validation
+from urllib.parse import urlparse
+
+ALLOWED_HOSTS = {"api.example.com", "cdn.example.com"}
+
+def validate_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+    if parsed.hostname not in ALLOWED_HOSTS:
+        return False
+    return True
+
+if validate_url(url):
+    resp = requests.get(url, timeout=10)
+```
+
+### Input Validation
+
+Validate all external input at system boundaries:
+
+```python
+# Pydantic (recommended for structured data)
+from pydantic import BaseModel, Field, field_validator
+
+class CreateUserRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: str = Field(pattern=r"^[\w.+-]+@[\w-]+\.[\w.]+$")
+    age: int = Field(ge=0, le=150)
+
+    @field_validator("name")
+    @classmethod
+    def no_script_tags(cls, v: str) -> str:
+        if "<script" in v.lower():
+            raise ValueError("HTML not allowed in name")
+        return v.strip()
+
+# Manual validation for simple cases
+def validate_port(port: str) -> int:
+    try:
+        p = int(port)
+    except ValueError:
+        raise ValueError(f"Invalid port: {port!r}")
+    if not (1 <= p <= 65535):
+        raise ValueError(f"Port out of range: {p}")
+    return p
+```
+
+### Secrets Management
+
+Never hardcode secrets in source code:
+
+```python
+# DANGEROUS - Hardcoded secrets
+API_KEY = "sk-abc123secret"  # Leaked in git history forever
+db_url = "postgresql://admin:password@prod-db:5432/app"
+
+# SAFE - Environment variables
+import os
+API_KEY = os.environ["API_KEY"]  # Fails loudly if missing
+
+# SAFE - With default for optional config
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
+
+# SAFE - Vault/secrets manager for production
+from hvac import Client
+vault = Client(url=os.environ["VAULT_ADDR"])
+secret = vault.secrets.kv.v2.read_secret_version(path="myapp/creds")
+```
+
+**Validation:** Prescan pattern P17 detects common secret patterns (API keys, passwords in strings)
+
+### Subprocess Safety
+
+Avoid `shell=True` — it enables command injection:
+
+```python
+# DANGEROUS - Shell injection
+filename = request.args["file"]
+subprocess.run(f"cat {filename}", shell=True)  # Attacker sends: "; rm -rf /"
+
+# SAFE - List arguments, no shell
+subprocess.run(["cat", filename], check=True, capture_output=True)
+
+# SAFE - For complex pipelines, use Python instead of shell
+from pathlib import Path
+content = Path(filename).read_text()
+
+# If shell=True is truly needed, validate input strictly
+import shlex
+safe_arg = shlex.quote(user_input)
+```
+
+### ALWAYS / NEVER Rules
+
+| Rule | Category | Detail |
+|------|----------|--------|
+| **ALWAYS** use parameterized queries | SQL | Never interpolate user input into SQL strings |
+| **ALWAYS** validate URLs before fetch | SSRF | Check scheme, hostname against allowlist |
+| **ALWAYS** use `secrets` module for tokens | Crypto | `secrets.token_urlsafe()`, not `random` |
+| **ALWAYS** set request timeouts | Network | `requests.get(url, timeout=10)` |
+| **NEVER** use `eval()`/`exec()` on user input | Injection | Use `ast.literal_eval` or dispatch maps |
+| **NEVER** unpickle untrusted data | Deserialization | Use JSON or msgpack instead |
+| **NEVER** use `shell=True` with user input | Command injection | Use list args with `subprocess.run` |
+| **NEVER** hardcode secrets | Secrets | Use env vars or vault |
+| **NEVER** disable TLS verification | TLS | No `verify=False` in production |
+| **NEVER** log secrets or tokens | Logging | Redact sensitive fields before logging |
+
+---
+
 ## Anti-Patterns Avoided
+
+> See `common-standards.md` for universal anti-patterns across all languages.
 
 ### No God Functions
 

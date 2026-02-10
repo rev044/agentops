@@ -50,6 +50,12 @@ else
     exit 1
 fi
 
+if assert_contains "$output" "rust\|Rust" "Rust mentioned"; then
+    :
+else
+    exit 1
+fi
+
 echo ""
 
 # Test 3: Verify library skill nature

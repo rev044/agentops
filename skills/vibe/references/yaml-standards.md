@@ -15,6 +15,9 @@
 5. [Template Best Practices](#template-best-practices)
 6. [Validation Workflow](#validation-workflow)
 7. [Compliance Assessment](#compliance-assessment)
+8. [Anti-Patterns Avoided](#anti-patterns-avoided)
+9. [Code Quality Metrics](#code-quality-metrics)
+10. [Prescan Patterns](#prescan-patterns)
 
 ---
 
@@ -432,6 +435,186 @@ grep -r "password:\|secret:\|token:" --include='*.yaml' apps/
 | Security | A | 0 hardcoded secrets |
 | **OVERALL** | **A** | **3 MEDIUM findings** |
 ```
+
+---
+
+## Anti-Patterns Avoided
+
+### ❌ **Implicit Typing Traps (Norway Problem)**
+
+Unquoted values silently coerced to unexpected types:
+
+```yaml
+# BAD - These become booleans (false, true)
+country: NO       # false
+feature: YES      # true
+enabled: on       # true
+disabled: off     # false
+
+# GOOD - Quote ambiguous strings
+country: "NO"
+feature: "YES"
+enabled: "on"
+disabled: "off"
+```
+
+### ❌ **Anchor/Alias Abuse**
+
+Overuse of `&` anchors and `*` aliases creates unreadable configs:
+
+```yaml
+# BAD - Excessive aliasing obscures intent
+defaults: &defaults
+  timeout: 30
+  retries: 3
+
+service_a:
+  <<: *defaults
+  name: a
+
+service_b:
+  <<: *defaults
+  name: b
+
+# GOOD - Explicit values for clarity (or use Kustomize overlays)
+service_a:
+  timeout: 30
+  retries: 3
+  name: a
+```
+
+**Rule:** Anchors acceptable for DRY in 2-3 references. Beyond that, use templating (Helm, Kustomize).
+
+### ❌ **Deeply Nested Configs**
+
+Nesting beyond 6 levels signals structural problems:
+
+```yaml
+# BAD - 7+ levels deep
+app:
+  server:
+    routes:
+      api:
+        v1:
+          users:
+            endpoints:
+              list:
+                timeout: 30
+
+# GOOD - Flatten with dotted keys or restructure
+app:
+  server:
+    routes:
+      api-v1-users-list:
+        timeout: 30
+```
+
+### ❌ **Missing Document Markers**
+
+Multi-document YAML files without `---` separators cause parse failures:
+
+```yaml
+# BAD - Two documents, no separator
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-a
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-b
+
+# GOOD - Explicit document markers
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-a
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-b
+```
+
+### ❌ **Mixed Indentation**
+
+Tabs or inconsistent indent widths cause silent parse errors:
+
+```yaml
+# BAD - Tabs mixed with spaces (invisible breakage)
+app:
+	name: broken    # Tab character
+
+# BAD - Inconsistent indent width
+app:
+  name: my-app     # 2 spaces
+  config:
+      port: 8080   # 4 spaces
+
+# GOOD - Consistent 2-space indentation throughout
+app:
+  name: my-app
+  config:
+    port: 8080
+```
+
+---
+
+## Code Quality Metrics
+
+### Validation Thresholds
+
+| Metric | Threshold | Status | Action |
+|--------|-----------|--------|--------|
+| yamllint errors | 0 | ✅ Required | Fix before merge |
+| yamllint warnings | <5 | ✅ Acceptable | Fix in next PR |
+| yamllint warnings | 5-20 | ⚠️ Warning | Refactor recommended |
+| yamllint warnings | 20+ | ❌ Critical | Block merge |
+| Nesting depth | ≤6 levels | ✅ Acceptable | Flatten if deeper |
+| Line length | ≤256 chars | ✅ Maximum | Prefer ≤120 |
+| Helm lint errors | 0 | ✅ Required | Fix before merge |
+| Kustomize build | Pass | ✅ Required | All overlays must build |
+| Hardcoded secrets | 0 | ✅ Required | Use external refs |
+
+### Tool Commands
+
+```bash
+# Full validation pass
+yamllint -f parsable . | wc -l          # Total findings
+yamllint -f parsable . | grep error     # Errors only
+helm lint charts/*/                      # Helm validation
+grep -rP '\t' --include='*.yaml' . | wc -l  # Tab detection
+```
+
+---
+
+## Prescan Patterns
+
+| ID | Pattern | Detection Command | Severity |
+|----|---------|-------------------|----------|
+| P01 | Implicit boolean detection | `yamllint -d '{extends: default, rules: {truthy: {check-keys: true}}}' .` | HIGH |
+| P02 | Duplicate keys | `yamllint -d '{extends: default, rules: {key-duplicates: enable}}' .` | HIGH |
+| P03 | Excessive nesting (>6 levels) | `awk '/^( ){14}[^ ]/' *.yaml` | MEDIUM |
+| P04 | Long lines (>256 chars) | `yamllint -d '{extends: default, rules: {line-length: {max: 256}}}' .` | MEDIUM |
+| P05 | Missing document marker | `grep -rL '^---' --include='*.yaml' .` | LOW |
+
+### Pattern Details
+
+**P01: Implicit Boolean Detection**
+Catches the Norway problem — unquoted values like `NO`, `YES`, `on`, `off` silently become booleans. The `truthy` rule with `check-keys: true` flags these in both keys and values.
+
+**P02: Duplicate Keys**
+Duplicate keys in the same mapping silently overwrite earlier values. YAML spec allows it but most parsers keep only the last value, causing hard-to-debug configuration drift.
+
+**P03: Excessive Nesting**
+Detects indentation at 14+ spaces (7+ levels at 2-space indent). Deep nesting indicates config structure should be flattened or split into overlays.
+
+**P04: Long Lines**
+Lines beyond 256 characters indicate inline lists or values that should use block scalars. Default yamllint threshold is 120; 256 is the hard maximum.
+
+**P05: Missing Document Marker**
+Multi-resource YAML files (common in Kubernetes) require `---` separators. Missing markers cause concatenation errors during apply.
 
 ---
 

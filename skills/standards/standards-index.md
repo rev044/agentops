@@ -6,12 +6,13 @@ JIT loading map for validation agents. Load only what you need based on file typ
 
 | Extension | Standard File | Size |
 |-----------|---------------|------|
-| `.py` | `skills/vibe/references/python-standards.md` | 23k |
-| `.go` | `skills/vibe/references/go-standards.md` | 25k |
-| `.ts`, `.tsx` | `skills/vibe/references/typescript-standards.md` | 15k |
-| `.sh`, `.bash` | `skills/vibe/references/shell-standards.md` | 18k |
-| `.yaml`, `.yml` | `skills/vibe/references/yaml-standards.md` | 9k |
-| `.json` | `skills/vibe/references/json-standards.md` | 8k |
+| `.py` | `skills/vibe/references/python-standards.md` | 32k |
+| `.go` | `skills/vibe/references/go-standards.md` | 28k |
+| `.rs` | `skills/vibe/references/rust-standards.md` | 40k |
+| `.ts`, `.tsx` | `skills/vibe/references/typescript-standards.md` | 24k |
+| `.sh`, `.bash` | `skills/vibe/references/shell-standards.md` | 20k |
+| `.yaml`, `.yml` | `skills/vibe/references/yaml-standards.md` | 16k |
+| `.json` | `skills/vibe/references/json-standards.md` | 12k |
 | `.md` | `skills/vibe/references/markdown-standards.md` | 8k |
 
 ## Universal Standards (Always Load)
@@ -19,8 +20,9 @@ JIT loading map for validation agents. Load only what you need based on file typ
 | Standard | File | Purpose |
 |----------|------|---------|
 | **Vibe-Coding** | `skills/vibe/references/vibe-coding.md` | Trust calibration, metrics, failure patterns |
+| **Common Standards** | `skills/standards/references/common-standards.md` | Cross-language patterns: error handling, testing, security, docs, organization |
 
-**Always load vibe-coding.md first** - it contains the science behind validation.
+**Always load vibe-coding.md first**, then common-standards.md for universal patterns.
 
 ## Pattern Files (Load When Relevant)
 
@@ -79,6 +81,7 @@ Keep agents lean. Load only what's needed.
 
 ## JIT Loading Order
 
-1. **vibe-coding.md** (universal - trust calibration, failure patterns)
-2. **Language standards** (per detected extensions)
-3. **Pattern files** (if architecture/design review)
+1. **vibe-coding.md** (universal — trust calibration, failure patterns)
+2. **common-standards.md** (universal — cross-language error handling, testing, security, docs, organization)
+3. **Language standards** (per detected extensions)
+4. **Pattern files** (if architecture/design review)
