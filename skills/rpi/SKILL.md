@@ -81,6 +81,20 @@ Determine the starting phase:
 
 If input looks like an epic-id (matches `ag-*` or similar bead prefix pattern), treat it as an existing epic and skip to the appropriate phase (default: crank if no --from specified).
 
+**Check for harvested next-work from prior RPI cycles:**
+
+```bash
+if [ -f .agents/rpi/next-work.jsonl ]; then
+  # Read unconsumed entries (consumed: false)
+  # Schema: .agents/rpi/next-work.schema.md
+fi
+```
+
+If unconsumed entries exist in `.agents/rpi/next-work.jsonl`:
+- In `--auto` mode: use the highest-severity item's title as the goal (no user prompt)
+- In `--interactive` mode: present items via AskUserQuestion and let user choose or provide custom goal
+- If goal was already provided by the user, ignore next-work.jsonl (explicit goal takes precedence)
+
 Initialize state:
 ```
 rpi_state = {
@@ -88,6 +102,8 @@ rpi_state = {
   epic_id: null,     # populated after Phase 2
   phase: "<starting phase>",
   auto: <true unless --interactive flag present>,
+  cycle: 1,          # RPI iteration number (incremented on --spawn-next)
+  parent_epic: null,  # epic ID from prior cycle (if spawned from next-work)
   verdicts: {}       # populated as phases complete
 }
 ```
@@ -263,9 +279,9 @@ Skill(skill="post-mortem", args="<epic-id>")
 Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after post-mortem (enable Gate 4 loop via `--loop`).
 
 **After post-mortem completes:**
-1. Ratchet checkpoint:
+1. Ratchet checkpoint (with cycle lineage):
    ```bash
-   ao ratchet record post-mortem 2>/dev/null || true
+   ao ratchet record post-mortem --cycle=<rpi_state.cycle> --parent-epic=<rpi_state.parent_epic> 2>/dev/null || true
    ```
 
 ### Phase 6.5: Gate 4 Loop (Optional) — Post-mortem → Spawn Another /rpi
@@ -290,6 +306,31 @@ Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after po
    ```
    If still FAIL after `--max-cycles` total cycles, stop and require manual intervention (file follow-up bd issues).
 
+### Phase 6.6: Spawn Next Work (Optional) — Post-mortem → Queue Next RPI
+
+**Enable:** pass `--spawn-next` flag.
+
+**Complementary to Gate 4:** Gate 4 (`--loop`) handles FAIL→iterate (same goal, tighter). `--spawn-next` handles PASS/WARN→new-goal (different work harvested from post-mortem).
+
+1. Read `.agents/rpi/next-work.jsonl` for unconsumed entries (schema: `.agents/rpi/next-work.schema.md`)
+2. If unconsumed entries exist:
+   - Mark the current cycle's entry as consumed (set `consumed: true`, `consumed_by: <epic-id>`, `consumed_at: <now>`)
+   - Report harvested items to user with suggested next command:
+     ```
+     ## Next Work Available
+
+     Post-mortem harvested N follow-up items from <source_epic>:
+     1. <title> (severity: <severity>, type: <type>)
+     ...
+
+     To start the next RPI cycle:
+       /rpi "<highest-severity item title>"
+     ```
+   - Do NOT auto-invoke `/rpi` — the user decides when to start the next cycle
+3. If no unconsumed entries: report "No follow-up work harvested. Flywheel stable."
+
+**Note:** Only `--spawn-next` mutates next-work.jsonl (marks consumed). Phase 0 read is read-only.
+
 ### Step Final: Report
 
 Summarize the entire lifecycle to the user:
@@ -299,6 +340,7 @@ Summarize the entire lifecycle to the user:
 
 **Goal:** <goal>
 **Epic:** <epic-id>
+**Cycle:** <rpi_state.cycle> (parent: <rpi_state.parent_epic or "none">)
 
 | Phase | Verdict/Status |
 |-------|---------------|
@@ -308,6 +350,7 @@ Summarize the entire lifecycle to the user:
 | Crank | <DONE/BLOCKED/PARTIAL> |
 | Vibe | <PASS/WARN/FAIL> |
 | Post-mortem | Complete |
+| Next Work | <N items harvested / none> |
 
 **Artifacts:**
 - Research: .agents/research/...
@@ -316,6 +359,7 @@ Summarize the entire lifecycle to the user:
 - Vibe: .agents/council/...
 - Post-mortem: .agents/council/...
 - Learnings: .agents/learnings/...
+- Next Work: .agents/rpi/next-work.jsonl
 ```
 
 ## Error Handling
@@ -340,6 +384,7 @@ Summarize the entire lifecycle to the user:
 | `--auto` | on | (Legacy, now default) Fully autonomous — zero human gates. Kept for backwards compatibility. |
 | `--loop` | off | Enable Gate 4 loop: after /post-mortem, iterate only when post-mortem verdict is FAIL (spawns another /rpi cycle). |
 | `--max-cycles=<n>` | `1` | Hard cap on total /rpi cycles when `--loop` is set (recommended: 3). |
+| `--spawn-next` | off | After post-mortem, read harvested next-work items and report suggested next `/rpi` command. Marks consumed entries. |
 
 ## See Also
 

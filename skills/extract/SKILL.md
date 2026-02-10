@@ -68,6 +68,27 @@ For each queued session:
 Session: <session-id>
 ```
 
+### Step 3.5: Validate Learnings
+
+After writing learning files, validate each has required fields:
+
+1. **Scan newly written files:**
+```bash
+ls -t .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null | head -5
+```
+
+2. **For each file, check required fields:**
+   - **Heading:** File must start with `# Learning: <title>` (non-empty title)
+   - **Category:** Must contain `**Category**: <value>` where value is one of: `debugging`, `architecture`, `process`, `testing`, `security`
+   - **Confidence:** Must contain `**Confidence**: <value>` where value is one of: `high`, `medium`, `low`
+   - **Content:** Must contain a `## What We Learned` section with at least one non-empty line after the heading
+
+3. **Report validation results:**
+   - For each valid learning: "✓ <filename>: valid"
+   - For each invalid learning: "⚠ <filename>: missing <field>" (list each missing field)
+
+4. **Do NOT delete or retry invalid learnings.** Log the warning and proceed. Invalid learnings are still better than no learnings — the warning helps identify extraction quality issues over time.
+
 ### Step 4: Clear the Queue
 
 ```bash
@@ -92,6 +113,7 @@ Session N+1 starts:
   → ao extract (this skill)
   → Claude processes the queue
   → Writes to .agents/learnings/
+  → Validates required fields
   → Loop closed
 ```
 

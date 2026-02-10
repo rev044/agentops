@@ -150,6 +150,12 @@ type ChainEntry struct {
 
 	// Location indicates where the artifact was found/stored.
 	Location string `json:"location,omitempty"`
+
+	// Cycle is the RPI iteration number (1 for first cycle, 2+ for iterations).
+	Cycle int `json:"cycle,omitempty"`
+
+	// ParentEpic is the epic ID from the prior RPI cycle (empty for first cycle).
+	ParentEpic string `json:"parent_epic,omitempty"`
 }
 
 // Chain represents the full ratchet chain state for a workflow.

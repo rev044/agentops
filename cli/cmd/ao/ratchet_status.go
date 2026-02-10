@@ -67,6 +67,8 @@ func runRatchetStatus(cmd *cobra.Command, args []string) error {
 			info.Input = entry.Input
 			info.Time = entry.Timestamp.Format(time.RFC3339)
 			info.Location = entry.Location
+			info.Cycle = entry.Cycle
+			info.ParentEpic = entry.ParentEpic
 		}
 
 		output.Steps = append(output.Steps, info)
@@ -93,6 +95,17 @@ func outputRatchetStatus(data *ratchetStatusOutput) error {
 		fmt.Printf("Started: %s\n", data.Started)
 		if data.EpicID != "" {
 			fmt.Printf("Epic: %s\n", data.EpicID)
+		}
+
+		// Show cycle and parent epic from the latest entry if present
+		for _, s := range data.Steps {
+			if s.Cycle > 0 {
+				fmt.Printf("Cycle: %d\n", s.Cycle)
+				if s.ParentEpic != "" {
+					fmt.Printf("Parent: %s\n", s.ParentEpic)
+				}
+				break
+			}
 		}
 		fmt.Println()
 

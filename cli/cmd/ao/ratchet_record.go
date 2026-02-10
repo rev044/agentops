@@ -29,6 +29,8 @@ Examples:
 	recordSubCmd.Flags().StringVar(&ratchetOutput, "output", "", "Output artifact path (required)")
 	recordSubCmd.Flags().IntVar(&ratchetTier, "tier", -1, "Quality tier (0-4)")
 	recordSubCmd.Flags().BoolVar(&ratchetLock, "lock", true, "Lock the step (engage ratchet)")
+	recordSubCmd.Flags().IntVar(&ratchetCycle, "cycle", 0, "RPI cycle number (1 for first, 2+ for iterations)")
+	recordSubCmd.Flags().StringVar(&ratchetParentEpic, "parent-epic", "", "Parent epic ID from prior RPI cycle")
 	_ = recordSubCmd.MarkFlagRequired("output") //nolint:errcheck
 	ratchetCmd.AddCommand(recordSubCmd)
 }
@@ -60,11 +62,13 @@ func runRatchetRecord(cmd *cobra.Command, args []string) error {
 	}
 
 	entry := ratchet.ChainEntry{
-		Step:      step,
-		Timestamp: time.Now(),
-		Input:     ratchetInput,
-		Output:    ratchetOutput,
-		Locked:    ratchetLock,
+		Step:       step,
+		Timestamp:  time.Now(),
+		Input:      ratchetInput,
+		Output:     ratchetOutput,
+		Locked:     ratchetLock,
+		Cycle:      ratchetCycle,
+		ParentEpic: ratchetParentEpic,
 	}
 
 	if ratchetTier >= 0 && ratchetTier <= 4 {

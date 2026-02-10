@@ -281,6 +281,42 @@ Tell the user:
 4. Location of post-mortem report
 5. Knowledge flywheel status
 
+### Step 8: Harvest Next Work
+
+Scan the council report and retro for actionable follow-up items:
+
+1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
+2. **Retro patterns:** Extract recurring patterns from retro learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
+3. **Write `## Next Work` section** to the post-mortem report:
+
+```markdown
+## Next Work
+
+| # | Title | Type | Severity | Source |
+|---|-------|------|----------|--------|
+| 1 | <title> | tech-debt / improvement / pattern-fix | high / medium / low | council-finding / retro-learning / retro-pattern |
+```
+
+4. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`):
+
+```bash
+mkdir -p .agents/rpi
+
+# Append one entry per epic (schema: .agents/rpi/next-work.schema.md)
+# Each item: {title, type, severity, source, description, evidence}
+# Entry fields: source_epic, timestamp, items[], consumed: false
+```
+
+Use the Write tool to append a single JSON line to `.agents/rpi/next-work.jsonl` with:
+- `source_epic`: the epic ID being post-mortemed
+- `timestamp`: current ISO-8601
+- `items`: array of harvested items (min 0 — if nothing found, write entry with empty items array)
+- `consumed`: false, `consumed_by`: null, `consumed_at`: null
+
+5. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `/rpi --spawn-next` to create an epic from these items."
+
+If no actionable items found, write: "No follow-up items identified. Flywheel stable."
+
 ---
 
 ## Integration with Workflow
