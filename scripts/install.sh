@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # AgentOps Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh | bash
+# Usage: Download and run this script, or execute via npx skills@latest add boshu2/agentops --all -g
 
 echo "Installing AgentOps..."
 
