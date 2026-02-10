@@ -28,6 +28,7 @@ metadata:
 /rpi --from=plan "add auth"                 # Skip research, start from plan
 /rpi --from=crank ag-23k                    # Skip to crank with existing epic
 /rpi --from=vibe                            # Just run final validation + post-mortem
+/rpi --loop --max-cycles=3 "add auth"       # Gate 4 loop: post-mortem FAIL -> spawn another /rpi cycle
 ```
 
 ## Architecture
@@ -47,7 +48,7 @@ metadata:
 **Human gates (default):** 0 — fully autonomous, all gates are retry loops
 **Human gates (--interactive mode):** 2 (research + plan approval, owned by those skills)
 **Retry gates:** pre-mortem FAIL → re-plan, vibe FAIL → re-crank, crank BLOCKED/PARTIAL → re-crank (max 3 attempts each)
-**No gate:** post-mortem (end of lifecycle)
+**Gate 4 (optional):** post-mortem FAIL → spawn another /rpi cycle (enabled via `--loop`)
 
 ## Phase Data Contracts
 
@@ -259,13 +260,35 @@ Vibe runs a full council on recent changes (cross-wave consistency check).
 Skill(skill="post-mortem", args="<epic-id>")
 ```
 
-Post-mortem runs council + retro + flywheel feed. No gate (end of lifecycle).
+Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after post-mortem (enable Gate 4 loop via `--loop`).
 
 **After post-mortem completes:**
 1. Ratchet checkpoint:
    ```bash
    ao ratchet record post-mortem 2>/dev/null || true
    ```
+
+### Phase 6.5: Gate 4 Loop (Optional) — Post-mortem → Spawn Another /rpi
+
+**Default behavior:** /rpi ends after Phase 6.
+
+**Enable loop:** pass `--loop` (and optionally `--max-cycles=<n>`).
+
+**Gate 4 goal:** make the "ITERATE vs TEMPER" decision explicit, and if iteration is required, run another full /rpi cycle with tighter context.
+
+**Loop decision input:** the most recent post-mortem council verdict.
+
+1. Find the most recent post-mortem report:
+   ```bash
+   REPORT=$(ls -t .agents/council/*post-mortem*.md 2>/dev/null | head -1)
+   ```
+2. Read `REPORT` and extract the verdict line (`## Council Verdict: PASS / WARN / FAIL`).
+3. Apply gate logic (only when `--loop` is set). If verdict is PASS or WARN, stop (TEMPER path). If verdict is FAIL, iterate (spawn another /rpi cycle), up to `--max-cycles`.
+4. Iterate behavior (spawn). Read the post-mortem report and extract 3 concrete fixes, then re-invoke /rpi from Phase 1 with a tightened goal that includes the fixes:
+   ```
+   /rpi "<original goal> (Iteration <n>): Fix <item1>; <item2>; <item3>"
+   ```
+   If still FAIL after `--max-cycles` total cycles, stop and require manual intervention (file follow-up bd issues).
 
 ### Step Final: Report
 
@@ -315,6 +338,8 @@ Summarize the entire lifecycle to the user:
 | `--from=<phase>` | `research` | Start from this phase (research, plan, pre-mortem, crank, vibe, post-mortem) |
 | `--interactive` | off | Enable human gates in /research and /plan. Without this flag, /rpi runs fully autonomous. |
 | `--auto` | on | (Legacy, now default) Fully autonomous — zero human gates. Kept for backwards compatibility. |
+| `--loop` | off | Enable Gate 4 loop: after /post-mortem, iterate only when post-mortem verdict is FAIL (spawns another /rpi cycle). |
+| `--max-cycles=<n>` | `1` | Hard cap on total /rpi cycles when `--loop` is set (recommended: 3). |
 
 ## See Also
 
