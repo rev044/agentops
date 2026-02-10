@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **README intro rewrite for multi-agent compatibility** — New "What Is AgentOps" section, prerequisites table, 3 install options ordered by ease (npx → script → manual), "See It Work" moved after install, FAQ updated to reflect Skills protocol support for Claude Code, Codex CLI, Cursor, Open Code
+- **install.sh agent gate softened** — Hard `exit 1` on missing `claude` CLI replaced with warning that checks `claude`/`codex`/`cursor` and continues; usage comment updated to `bash <()` pattern
+
 ### Added
 
 - **Hook execution integration tests** (ag-ab6) — 26 tests in `tests/hooks/test-hooks.sh` covering prompt-nudge, push-gate, and task-validation-gate hooks (JSON injection resistance, kill switches, allowlist enforcement, mock chain gates, literal pattern matching)
