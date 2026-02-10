@@ -10,15 +10,74 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
-**Turn Claude Code into an autonomous software engineering system.**<br/>
+**Turn your coding agent into an autonomous software engineering system.**<br/>
 One command runs research, planning, multi-model validation, parallel implementation,<br/>
 and knowledge extraction — with self-correcting retry loops and zero human prompts.
 
-[Install](#install) · [See It Work](#see-it-work) · [Skills](#skills-catalog) · [FAQ](#faq) · [Docs](docs/)
+[What Is AgentOps](#what-is-agentops) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills-catalog) · [FAQ](#faq) · [Docs](docs/)
 
 </div>
 
 ---
+
+## What Is AgentOps
+
+AgentOps is a skills plugin that turns your coding agent into an autonomous software engineering system. It works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports the [Skills protocol](https://skills.sh). One command runs research, planning, multi-model validation, parallel implementation, and knowledge extraction. All state is local — stored in a `.agents/` directory and tracked in git.
+
+## Prerequisites
+
+| Dependency | Required? | What it's for |
+|-----------|-----------|---------------|
+| **Node.js 18+ + npm** | Yes | Installs the skills plugin (`npx skills`) |
+| **A coding agent** | Yes | Claude Code, Cursor, Codex CLI, or any Skills-compatible agent |
+| **Git** | Recommended | Knowledge artifacts tracked in `.agents/`, hooks gate on git ops |
+| **Homebrew** | Optional | Easiest way to install the `ao` CLI |
+| **`ao` CLI** | Optional | Knowledge flywheel, ratchet gates, session hooks |
+| **`tmux`** | Optional | Agent team pane mode (`brew install tmux`) |
+
+> **What works without `ao`?** All 32 skills work without the CLI. The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle hooks.
+
+## Install
+
+**Option 1: npx (recommended)**
+
+```bash
+npx skills@latest add boshu2/agentops --all -g
+```
+
+One line. Done. Run `/quickstart` to get started.
+
+**Option 2: Install script** (installs plugin + optional CLI + hooks)
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
+```
+
+<details>
+<summary><strong>Option 3: Manual</strong></summary>
+
+```bash
+# 1. Plugin
+npx skills@latest add boshu2/agentops --all -g
+
+# 2. CLI (optional — adds knowledge flywheel)
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
+brew install agentops
+
+# 3. Hooks (optional — auto-enforces workflow)
+ao hooks install
+```
+
+Or: `claude plugin add boshu2/agentops`
+
+</details>
+
+**Try it in 60 seconds** (run these inside your coding agent):
+
+```bash
+/quickstart                        # Guided tour on your actual codebase
+/council validate this PR           # Standalone — no setup needed
+```
 
 ## See It Work
 
@@ -73,33 +132,6 @@ Consensus: WARN — add rate limiting before shipping
 ```
 
 </details>
-
-## Install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh | bash
-```
-
-<details>
-<summary><strong>Manual install</strong></summary>
-
-```bash
-# Step 1: Plugin (skills, hooks, agent teams)
-npx skills@latest add boshu2/agentops --all -g
-
-# Step 2: CLI (knowledge engine — inject, extract, ratchet gates)
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
-brew install agentops
-
-# Step 3: Hooks
-ao hooks install
-```
-
-Or: `claude plugin add boshu2/agentops`
-
-</details>
-
-**Try it in 60 seconds:** After install, run `/quickstart` — it walks you through a guided RPI cycle on your actual codebase.
 
 ## How It Works
 
@@ -345,7 +377,7 @@ Skills work without it. The CLI adds automatic knowledge injection/extraction, r
 <details>
 <summary><strong>Can I use this with other AI coding tools?</strong></summary>
 
-AgentOps is a Claude Code plugin — it runs inside Claude Code sessions. The `--mixed` council mode adds Codex (OpenAI) judges alongside Claude for cross-vendor validation. The knowledge flywheel (`.agents/` directory) is plain markdown files that any tool can read.
+AgentOps works with any agent that supports the Skills protocol — Claude Code, Codex CLI, Cursor, Open Code, and others. The `--mixed` council mode adds Codex (OpenAI) judges alongside Claude for cross-vendor validation. The knowledge flywheel (`.agents/` directory) is plain markdown files that any tool can read.
 
 </details>
 

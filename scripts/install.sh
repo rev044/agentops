@@ -2,13 +2,20 @@
 set -euo pipefail
 
 # AgentOps Installer
-# Usage: Download and run this script, or execute via npx skills@latest add boshu2/agentops --all -g
+# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
+# Or:    npx skills@latest add boshu2/agentops --all -g
 
 echo "Installing AgentOps..."
 
 # Check prerequisites
 command -v npm >/dev/null 2>&1 || { echo "Error: npm required. Install Node.js first."; exit 1; }
-command -v claude >/dev/null 2>&1 || { echo "Error: Claude Code CLI required. See https://docs.anthropic.com/en/docs/claude-code"; exit 1; }
+command -v claude >/dev/null 2>&1 || command -v codex >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1 || {
+    echo "Warning: No supported coding agent found (claude, codex, cursor)."
+    echo "AgentOps requires a Skills-compatible agent. Install one first:"
+    echo "  Claude Code: https://docs.anthropic.com/en/docs/claude-code"
+    echo "  Codex CLI:   https://github.com/openai/codex"
+    echo "Continuing anyway — you can install an agent later."
+}
 
 # Step 1: Install plugin (skills + hooks + agents)
 echo "Step 1/3: Installing plugin..."
