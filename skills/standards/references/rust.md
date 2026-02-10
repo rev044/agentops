@@ -32,6 +32,18 @@
 - Minimize unsafe scope
 - Prefer safe abstractions
 
+## Security
+- Minimize `unsafe` blocks — each needs `// SAFETY:` justification
+- Use `secrecy::Secret<T>` for sensitive values (prevents accidental logging)
+- Validate all external input before deserialization (`serde` validators)
+- Prefer `ring` or `rustls` over OpenSSL bindings
+
+## Documentation
+- All public items must have rustdoc comments (`///`)
+- Include `# Examples` section in doc comments for complex APIs
+- Use `#![deny(missing_docs)]` in library crates
+- Run `cargo doc --no-deps` to verify doc builds
+
 ## Testing
 - `cargo test` (built-in)
 - `cargo test --doc` (doc tests)

@@ -19,6 +19,12 @@
 | `eval()` / `exec()` | Security risk | Use safer alternatives |
 | Mutable default args | Shared state bugs | Use `None` + conditional |
 
+## Security
+- Never use `eval()`, `exec()`, or `__import__()` with untrusted input
+- Use `secrets` module for tokens, not `random`
+- Validate and sanitize all external input (user data, file paths, URLs)
+- Use parameterized queries for SQL — never string formatting
+
 ## Testing
 - pytest preferred
 - `conftest.py` for shared fixtures

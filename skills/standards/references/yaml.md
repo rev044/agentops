@@ -19,6 +19,12 @@
 - Always specify `resources.limits`
 - Use ConfigMaps for config, Secrets for secrets
 
+## Security
+- Never use `yaml.load()` (Python) — always `yaml.safe_load()`
+- Quote values that look like booleans (`"yes"`, `"no"`, `"true"`)
+- Validate against schema before processing untrusted YAML
+- Avoid anchors/aliases (`*`/`&`) in user-facing configs — confusing and exploitable
+
 ## Multiline Strings
 ```yaml
 # Literal (preserves newlines)

@@ -23,6 +23,12 @@
 - Keep interfaces small (1-3 methods)
 - Define interfaces where used, not implemented
 
+## Documentation
+- All exported symbols must have godoc comments starting with the symbol name
+- Package-level doc in `doc.go` for non-trivial packages
+- Include runnable `Example_*` functions in `_test.go` files
+- Run `go doc ./...` to verify documentation
+
 ## Concurrency
 - Always pass `context.Context` as first param
 - Use `sync.Mutex` for shared state

@@ -23,6 +23,12 @@
 - Reference: `"$schema": "https://..."`
 - Required fields should be explicit
 
+## Security
+- Never use `eval()` or `Function()` to parse JSON — use `JSON.parse()`
+- Validate against JSON Schema before processing untrusted input
+- Watch for prototype pollution in JavaScript/TypeScript JSON handling
+- Sanitize keys and values when constructing JSON from user input
+
 ## Large Files
 - Consider JSONL for append-only logs
 - Use streaming parsers for large files
