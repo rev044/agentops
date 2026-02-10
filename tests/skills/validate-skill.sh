@@ -97,6 +97,24 @@ get_skill_dependencies() {
         tr -d ' '
 }
 
+# Extract dependencies array from frontmatter
+# Returns newline-separated list of dependency names (strips comments)
+get_declared_dependencies() {
+    local skill_dir="$1"
+    local skill_md="$skill_dir/SKILL.md"
+
+    if [ ! -f "$skill_md" ]; then
+        return 1
+    fi
+
+    # Extract YAML frontmatter, find dependencies: section
+    # Handle multi-line list format, strip inline comments
+    sed -n '/^---$/,/^---$/p' "$skill_md" | \
+        awk '/^dependencies:/{found=1; next} found && /^[^ -]/{exit} found && /^  - /{print substr($0, 5)}' | \
+        sed 's/#.*//' | \
+        tr -d ' '
+}
+
 # Validate a single skill
 # Args: skill_name_or_path [dep_base_dir]
 # If skill_name_or_path is a directory, use it directly
@@ -176,6 +194,22 @@ validate_skill() {
                 WARNINGS=$((WARNINGS + 1))
             fi
         done <<< "$deps"
+    fi
+
+    # Test 3b: Check declared dependencies (dependencies: field) exist
+    local declared_deps
+    declared_deps=$(get_declared_dependencies "$skill_dir")
+    if [ -n "$declared_deps" ]; then
+        while IFS= read -r dep; do
+            [ -z "$dep" ] && continue
+            if [ -d "$dep_base/$dep" ] || [ -d "$SKILLS_DIR/$dep" ]; then
+                echo -e "  ${GREEN}✓${NC} Dependency: $dep exists"
+                local_checks=$((local_checks + 1))
+            else
+                echo -e "  ${YELLOW}⚠${NC} Dependency: $dep not found (may be external or not yet created)"
+                WARNINGS=$((WARNINGS + 1))
+            fi
+        done <<< "$declared_deps"
     fi
 
     # Test 4: Check references directory if local references are mentioned in SKILL.md

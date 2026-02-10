@@ -19,17 +19,28 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
 ERROR_LOG_DIR="$ROOT/.agents/ao"
 ERROR_LOG="$ERROR_LOG_DIR/hook-errors.log"
 
-# Restricted command execution: only allow simple commands, no shell metacharacters
+# Restricted command execution: allowlist-based, no shell interpretation
 run_restricted() {
     local cmd="$1"
-    # Block shell metacharacters that enable injection
-    if echo "$cmd" | grep -qE '[;&|`$(){}]'; then
-        log_error "BLOCKED: shell metacharacters in validation command: $cmd"
-        echo "VALIDATION BLOCKED: command contains disallowed shell characters" >&2
+    # Split command string into array (word-split on whitespace)
+    read -ra cmd_parts <<< "$cmd"
+    local binary="${cmd_parts[0]}"
+    # Strict allowlist of permitted binaries
+    local allowed="go pytest npm npx make bash"
+    local found=0
+    for a in $allowed; do
+        if [ "$binary" = "$a" ]; then
+            found=1
+            break
+        fi
+    done
+    if [ "$found" -ne 1 ]; then
+        log_error "BLOCKED: command not in allowlist: $binary (full: $cmd)"
+        echo "VALIDATION BLOCKED: command '$binary' not in allowlist ($allowed)" >&2
         exit 2
     fi
-    # Execute without eval — word-split the command naturally
-    /bin/sh -c "$cmd" >/dev/null 2>&1
+    # Execute as array — no shell interpretation
+    "${cmd_parts[@]}" >/dev/null 2>&1
 }
 
 log_error() {
@@ -75,7 +86,7 @@ if [ -n "$CONTENT_CHECKS" ] && [ "$CONTENT_CHECKS" != "null" ]; then
             CHECK_FILE=$(echo "$CONTENT_CHECKS" | jq -r ".[$i].file" 2>/dev/null)
             CHECK_PATTERN=$(echo "$CONTENT_CHECKS" | jq -r ".[$i].pattern" 2>/dev/null)
             if [ -n "$CHECK_FILE" ] && [ "$CHECK_FILE" != "null" ] && [ -n "$CHECK_PATTERN" ] && [ "$CHECK_PATTERN" != "null" ]; then
-                if ! grep -q "$CHECK_PATTERN" "$CHECK_FILE" 2>/dev/null; then
+                if ! grep -qF "$CHECK_PATTERN" "$CHECK_FILE" 2>/dev/null; then
                     echo "VALIDATION FAILED: content_check — pattern '$CHECK_PATTERN' not found in $CHECK_FILE" >&2
                     exit 2
                 fi

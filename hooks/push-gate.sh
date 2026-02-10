@@ -37,6 +37,8 @@ fi
 
 # Parse chain directly for speed (avoid spawning ao process)
 # Look for the latest vibe step entry
+# Schema naming: "gate" + "status" are CANONICAL (current schema)
+#                "step" + "locked" are LEGACY (preserved for backward compat with old chain.jsonl entries)
 VIBE_LINE=$(grep -E '"(step|gate)"[[:space:]]*:[[:space:]]*"vibe"' "$ROOT/.agents/ao/chain.jsonl" 2>/dev/null | tail -1)
 
 LOG_DIR="$ROOT/.agents/ao"
@@ -47,7 +49,8 @@ if [ -z "$VIBE_LINE" ]; then
     # No vibe entry at all — vibe is pending, block
     :
 else
-    # Check if vibe is locked or skipped (both schemas)
+    # Check if vibe is locked or skipped
+    # CANONICAL: "status": "locked|skipped"  |  LEGACY: "locked": true
     if echo "$VIBE_LINE" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"' || echo "$VIBE_LINE" | grep -qE '"locked"[[:space:]]*:[[:space:]]*true'; then
         VIBE_DONE=true
     fi
@@ -73,13 +76,15 @@ fi
 
 # --- Post-mortem gate ---
 # If vibe exists, check that post-mortem is also done before allowing push
+# Schema naming: "gate" is CANONICAL, "step" is LEGACY (backward compat)
 PM_LINE=$(grep -E '"(step|gate)"[[:space:]]*:[[:space:]]*"post-mortem"' "$ROOT/.agents/ao/chain.jsonl" 2>/dev/null | tail -1)
 
 if [ -z "$PM_LINE" ]; then
     # Vibe exists but no post-mortem entry — block
     :
 else
-    # Check if post-mortem is locked or skipped (both schemas)
+    # Check if post-mortem is locked or skipped
+    # CANONICAL: "status": "locked|skipped"  |  LEGACY: "locked": true
     if echo "$PM_LINE" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"' || echo "$PM_LINE" | grep -qE '"locked"[[:space:]]*:[[:space:]]*true'; then
         # Post-mortem done — allow push
         exit 0

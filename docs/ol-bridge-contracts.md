@@ -61,7 +61,7 @@ AO learnings with `type: failure` or `maturity: anti-pattern` can be converted t
 
 AO writes anti-patterns/failures to `.agents/learnings/`. OL reads constraints from `.ol/constraints/quarantine.json`. The bridge must translate between formats.
 
-**Bridge command:** `ao export-constraints --format=ol` writes to `.ol/constraints/quarantine.json`. <!-- FUTURE: ao export-constraints not yet implemented -->
+**Bridge command (FUTURE — not yet implemented):** `ao export-constraints --format=ol` would write to `.ol/constraints/quarantine.json`.
 
 ## 2. Exit Code Contract
 

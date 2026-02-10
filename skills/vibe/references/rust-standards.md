@@ -17,7 +17,9 @@
 7. [Concurrency Patterns](#concurrency-patterns)
 8. [Unsafe Code](#unsafe-code)
 9. [Testing Patterns](#testing-patterns)
-10. [Code Quality Metrics & Anti-Patterns](#code-quality-metrics--anti-patterns)
+10. [Security Practices](#security-practices)
+11. [Documentation Standards](#documentation-standards)
+12. [Code Quality Metrics & Anti-Patterns](#code-quality-metrics--anti-patterns)
 
 ---
 
@@ -948,6 +950,82 @@ pub fn process(data: &[u8]) -> Result<(), FfiError> {
 - Never expose raw pointers in public APIs
 - Use `CStr`/`CString` for string interchange, never cast directly
 
+### ✅ **Integer Overflow**
+
+```rust
+// CORRECT — use checked arithmetic for untrusted inputs
+fn allocate_buffer(count: usize, item_size: usize) -> Result<Vec<u8>, AllocError> {
+    let total = count.checked_mul(item_size)
+        .ok_or(AllocError::Overflow)?;
+    Ok(vec![0u8; total])
+}
+
+// CORRECT — use saturating arithmetic for counters/metrics
+fn increment_retry(count: u32) -> u32 {
+    count.saturating_add(1) // Caps at u32::MAX instead of wrapping
+}
+
+// INCORRECT — silent wrapping in release mode
+fn total_size(count: usize, item_size: usize) -> usize {
+    count * item_size // Wraps silently in release, panics in debug
+}
+```
+
+**Integer Overflow Rules:**
+
+| Context | Strategy | Method |
+|---------|----------|--------|
+| Untrusted input | Checked | `checked_add`, `checked_mul` — returns `None` on overflow |
+| Counters / metrics | Saturating | `saturating_add` — caps at MAX |
+| Bit manipulation | Wrapping | `wrapping_add` — intentional modular arithmetic |
+| Debug assertions | Default | Panics in debug, wraps in release |
+
+- Prefer `checked_*` for any arithmetic involving external data
+- Use `saturating_*` when capping is acceptable (progress bars, counters)
+- Use `wrapping_*` only for intentional modular arithmetic (hashing, crypto)
+- Add `#[deny(clippy::arithmetic_side_effects)]` for high-assurance modules
+
+### ✅ **Panic Handling**
+
+```rust
+// CORRECT — catch_unwind at FFI and thread boundaries
+use std::panic;
+
+pub extern "C" fn ffi_entry_point(input: *const u8, len: usize) -> i32 {
+    let result = panic::catch_unwind(|| {
+        // SAFETY: caller guarantees valid pointer and length
+        let data = unsafe { std::slice::from_raw_parts(input, len) };
+        process(data)
+    });
+    match result {
+        Ok(Ok(())) => 0,
+        Ok(Err(_)) => -1,
+        Err(_panic) => -2, // Caught a panic — do not unwind into C
+    }
+}
+
+// CORRECT — prefer Result over panic for recoverable errors
+pub fn parse_port(s: &str) -> Result<u16, ParseError> {
+    let port: u16 = s.parse().map_err(|_| ParseError::InvalidPort)?;
+    if port == 0 {
+        return Err(ParseError::PortZero);
+    }
+    Ok(port)
+}
+
+// INCORRECT — panic for expected failure
+pub fn parse_port(s: &str) -> u16 {
+    s.parse().expect("invalid port") // Crashes on bad input
+}
+```
+
+**Panic Rules:**
+- Use `catch_unwind` at FFI boundaries to prevent unwinding into C/C++
+- Use `catch_unwind` in thread pool workers to prevent poisoning the pool
+- Return `Result` for all recoverable errors — reserve `panic!` for programmer bugs
+- Set `panic = "abort"` in release profile if unwinding is not needed (smaller binary)
+- Use `assert!` only for invariants that indicate a bug if violated
+
 ### ✅ **Input Validation**
 
 ```rust
@@ -1126,6 +1204,45 @@ pub fn __macro_helper() {}
 - Trait implementations required by the compiler but meaningless to users
 - Never hide things to avoid documenting them
 
+### ✅ **README Integration**
+
+```bash
+# Generate README.md from lib.rs module-level docs
+cargo install cargo-readme
+cargo readme > README.md
+
+# Verify README stays in sync (CI check)
+cargo readme | diff - README.md
+```
+
+```rust
+// src/lib.rs — module-level docs become README content
+//! # mycrate
+//!
+//! A fast, safe widget processor.
+//!
+//! ## Features
+//!
+//! - Zero-copy parsing
+//! - Async support via tokio
+//! - Type-safe configuration
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use mycrate::process;
+//!
+//! let result = process("input").unwrap();
+//! assert!(!result.is_empty());
+//! ```
+```
+
+**README Rules:**
+- Use `cargo-readme` to generate README.md from `//!` docs in `src/lib.rs`
+- Keep the single source of truth in `lib.rs` — README is a derived artifact
+- Add a CI step to verify README stays in sync with `lib.rs` docs
+- Include: crate purpose, features, usage example, MSRV, license
+
 ### Documentation ALWAYS / NEVER
 
 | ALWAYS | NEVER |
@@ -1299,6 +1416,8 @@ let cache = lru::LruCache::new(NonZeroUsize::new(10_000).unwrap());
 | Concurrency | Minimal lock scope, bounded channels, Send/Sync correct | Lock duration, channel audit |
 | Unsafe Code | SAFETY comments, minimal scope, safe wrappers | Unsafe block count, comment coverage |
 | Testing | Unit + integration + doc tests, property tests | Coverage %, test type distribution |
+| Security | Unsafe minimized, FFI wrapped, inputs validated, deps audited | Unsafe count, audit output, overflow handling |
+| Documentation | Rustdoc on public API, doc tests, module docs, README sync | `cargo doc` warnings, doc test count, README freshness |
 | Code Quality | Clippy clean, low complexity, no named anti-patterns | Clippy findings, CC distribution |
 
 **Grading Scale:**

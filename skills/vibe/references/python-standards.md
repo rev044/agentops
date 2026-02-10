@@ -870,6 +870,24 @@ data = msgpack.unpackb(untrusted_bytes, raw=False)
 
 If pickle is unavoidable (e.g., ML model loading), load only from trusted, integrity-verified sources.
 
+### YAML Deserialization
+
+`yaml.load()` with the default loader executes arbitrary Python objects:
+
+```python
+# DANGEROUS - Arbitrary code execution
+import yaml
+data = yaml.load(untrusted_string)  # Can execute __reduce__, !!python/object, etc.
+
+# SAFE - Use safe_load (only basic YAML types)
+data = yaml.safe_load(untrusted_string)
+
+# SAFE - Explicit SafeLoader
+data = yaml.load(untrusted_string, Loader=yaml.SafeLoader)
+```
+
+**Rule:** Always use `yaml.safe_load()` or `yaml.safe_load_all()`. Never use `yaml.load()` without `Loader=yaml.SafeLoader`.
+
 ### SQL Injection Prevention
 
 Always use parameterized queries:
@@ -915,6 +933,41 @@ def validate_url(url: str) -> bool:
 if validate_url(url):
     resp = requests.get(url, timeout=10)
 ```
+
+### Path Traversal Prevention
+
+User-controlled path components can escape intended directories:
+
+```python
+# DANGEROUS - Path traversal
+user_file = request.args["filename"]
+path = os.path.join("/data/uploads", user_file)  # "../../../etc/passwd" escapes!
+content = open(path).read()
+
+# SAFE - Resolve and check prefix
+from pathlib import Path
+
+UPLOAD_DIR = Path("/data/uploads").resolve()
+
+def safe_read(filename: str) -> str:
+    target = (UPLOAD_DIR / filename).resolve()
+    if not target.is_relative_to(UPLOAD_DIR):
+        raise ValueError(f"Path traversal blocked: {filename!r}")
+    return target.read_text()
+
+# SAFE - Strip directory components entirely
+from pathlib import PurePosixPath
+
+def sanitize_filename(filename: str) -> str:
+    """Extract only the final filename component."""
+    return PurePosixPath(filename).name
+```
+
+**Key pitfalls:**
+- `os.path.join("/base", "/etc/passwd")` returns `/etc/passwd` (absolute path overrides base)
+- Symlinks can bypass prefix checks — use `.resolve()` before comparison
+- Always use `pathlib.Path.is_relative_to()` (Python 3.9+) for containment checks
+- Never construct file paths from user input without validation
 
 ### Input Validation
 
@@ -998,6 +1051,7 @@ safe_arg = shlex.quote(user_input)
 |------|----------|--------|
 | **ALWAYS** use parameterized queries | SQL | Never interpolate user input into SQL strings |
 | **ALWAYS** validate URLs before fetch | SSRF | Check scheme, hostname against allowlist |
+| **ALWAYS** resolve and check path prefix | Path Traversal | Use `pathlib.resolve()` + `is_relative_to()` |
 | **ALWAYS** use `secrets` module for tokens | Crypto | `secrets.token_urlsafe()`, not `random` |
 | **ALWAYS** set request timeouts | Network | `requests.get(url, timeout=10)` |
 | **NEVER** use `eval()`/`exec()` on user input | Injection | Use `ast.literal_eval` or dispatch maps |

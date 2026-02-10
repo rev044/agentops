@@ -599,16 +599,126 @@ go install golang.org/x/pkgsite/cmd/pkgsite@latest
 pkgsite -open .
 ```
 
+### ✅ **Interface Documentation**
+
+Interfaces define contracts — document the behavioral expectations, not just the signature:
+
+```go
+// Store persists agent state across restarts.
+//
+// Implementations must be safe for concurrent use.
+// All methods must respect context cancellation.
+type Store interface {
+    // Save persists the agent. It returns ErrConflict if the agent
+    // was modified since it was last read (optimistic locking).
+    Save(ctx context.Context, agent *Agent) error
+
+    // Load retrieves an agent by ID. It returns ErrNotFound if
+    // no agent exists with the given ID.
+    Load(ctx context.Context, id string) (*Agent, error)
+}
+```
+
+**Guidelines:**
+- Document concurrency guarantees on the interface comment
+- Document error contracts on each method (which sentinel errors are returned)
+- Document preconditions and postconditions when non-obvious
+
+### ✅ **Internal Package Documentation**
+
+`internal/` packages cannot be imported outside the module, but still need documentation for team maintainability:
+
+```go
+// Package repository implements data access for agent storage.
+//
+// This is an internal package — it should not be imported outside
+// the module. Use pkg/client for the public API.
+package repository
+```
+
+**Guidelines:**
+- Every `internal/` package needs a package comment explaining its role
+- Note the public alternative if one exists (e.g., `pkg/client`)
+- Document non-obvious design constraints (e.g., "not safe for concurrent use")
+
+### ✅ **Package README Files**
+
+For packages with significant scope, include a `README.md` alongside the Go source:
+
+```
+pkg/registry/
+├── README.md          # Setup instructions, architecture notes
+├── doc.go             # Godoc package comment
+├── registry.go        # Implementation
+└── registry_test.go   # Tests with examples
+```
+
+**When to include a README:**
+- Package requires setup steps (config, env vars, migrations)
+- Package has architecture or design decisions worth explaining
+- Package is a top-level entry point (`cmd/`, major `pkg/` packages)
+
+**README vs doc.go:**
+- `doc.go` → API usage shown in `go doc` output
+- `README.md` → Setup, architecture, diagrams, non-API context
+
+### ✅ **Comment Style**
+
+Follow Go's documentation conventions for consistent, tooling-friendly comments:
+
+```go
+// ProcessBatch sends all queued events to the remote collector.
+// It returns the number of events successfully delivered and
+// a non-nil error if the connection to the collector fails.
+//
+// ProcessBatch is safe for concurrent use. Each call acquires
+// a connection from the pool and releases it on return.
+func (c *Client) ProcessBatch(ctx context.Context) (int, error) {
+    // ...
+}
+
+// ErrRateLimited is returned when the collector rejects a request
+// due to rate limiting. Callers should back off and retry.
+var ErrRateLimited = errors.New("rate limited")
+```
+
+**Rules:**
+- Write complete sentences with proper punctuation
+- First word is the name of the declared thing (`ProcessBatch sends...`, `ErrRateLimited is...`)
+- First sentence stands alone as a summary — `go doc -short` shows only this
+- Use third-person declarative ("ProcessBatch sends...") not imperative ("Send...")
+- Separate paragraphs with a blank `//` line
+- Use `[Registry.Get]` syntax (Go 1.19+) to link to other symbols in doc comments
+- Keep line length under 80 characters for readability in terminals
+
+**Anti-Patterns:**
+```go
+// BAD - Doesn't start with symbol name
+// This function processes a batch of events.
+func (c *Client) ProcessBatch(ctx context.Context) (int, error)
+
+// BAD - Not a complete sentence
+// process batch
+func (c *Client) ProcessBatch(ctx context.Context) (int, error)
+
+// BAD - Imperative instead of declarative
+// Send all queued events to the remote collector.
+func (c *Client) ProcessBatch(ctx context.Context) (int, error)
+```
+
 ### ALWAYS / NEVER Rules
 
 | Rule | Rationale |
 |------|-----------|
 | **ALWAYS** document exported types, functions, and methods | Required by `revive` linter, enables `go doc` |
 | **ALWAYS** start doc comments with the symbol name | Standard godoc convention, enables tooling |
+| **ALWAYS** write doc comments as complete sentences | Consistent style, readable in `go doc` output |
 | **ALWAYS** include `// Output:` in Example functions | Makes examples testable by `go test` |
+| **ALWAYS** document interface contracts (thread-safety, errors, lifecycle) | Callers depend on the contract, not the implementation |
 | **NEVER** document unexported symbols unless logic is non-obvious | Noise — internal code changes frequently |
 | **NEVER** use `@param` / `@return` javadoc-style annotations | Not idiomatic Go — godoc ignores them |
 | **NEVER** duplicate the function signature in prose | Redundant — the signature is right below |
+| **NEVER** use imperative voice in doc comments | Go convention is declarative third-person |
 
 ---
 

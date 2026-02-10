@@ -18,6 +18,15 @@
 8. [Module Template](#module-template)
 9. [Code Quality Metrics](#code-quality-metrics)
 10. [Testing Patterns](#testing-patterns)
+    - [Test Frameworks](#test-frameworks)
+    - [Test Organization](#test-organization)
+    - [React Testing Library Patterns](#react-testing-library-patterns)
+    - [MSW (Mock Service Worker)](#msw-mock-service-worker-for-api-mocking)
+    - [Mocking](#mocking)
+    - [Async Testing](#async-testing)
+    - [Type-safe Testing](#type-safe-testing)
+    - [Snapshot Testing](#snapshot-testing)
+    - [Coverage Expectations](#coverage-expectations)
 11. [Anti-Patterns Avoided](#anti-patterns-avoided)
 12. [Compliance Assessment](#compliance-assessment)
 
@@ -560,12 +569,14 @@ grep -r "^import {" src/ | grep -vc "import type"
 
 ## Testing Patterns
 
-### Jest/Vitest Configuration
+### Test Frameworks
 
-Standard test runner configuration for TypeScript projects:
+#### Vitest (Preferred)
+
+Vitest is the recommended test runner for TypeScript projects. It shares Vite's config and transform pipeline, supports ESM natively, and runs significantly faster than Jest for TypeScript codebases.
 
 ```typescript
-// vitest.config.ts (preferred) or jest.config.ts
+// vitest.config.ts
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -578,8 +589,36 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       exclude: ['**/*.d.ts', '**/*.test.ts', '**/test/**'],
     },
+    typecheck: {
+      enabled: true,               // Run type-level tests via expect-type
+    },
   },
 });
+```
+
+#### Jest 29+ with ts-jest
+
+When Vitest is not an option (legacy codebase, specific CI constraints):
+
+```typescript
+// jest.config.ts
+import type { Config } from 'jest';
+
+const config: Config = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/**/*.test.ts',
+  ],
+};
+
+export default config;
 ```
 
 | Setting | Recommendation |
@@ -588,6 +627,44 @@ export default defineConfig({
 | Environment | `jsdom` for UI, `node` for backend/CLI |
 | Globals | `true` — avoids `import { describe, it }` boilerplate |
 | Coverage provider | `v8` (fast) or `istanbul` (precise) |
+| Transform | Vitest uses esbuild (fast); Jest uses ts-jest or `@swc/jest` |
+
+### Test Organization
+
+```typescript
+describe('UserService', () => {
+  // Group by method
+  describe('createUser', () => {
+    it('creates user with valid data', async () => { /* ... */ });
+    it('throws ValidationError for duplicate email', async () => { /* ... */ });
+    it('hashes password before storing', async () => { /* ... */ });
+  });
+
+  describe('deleteUser', () => {
+    it('soft-deletes user by setting deletedAt', async () => { /* ... */ });
+    it('throws NotFoundError for unknown id', async () => { /* ... */ });
+  });
+});
+```
+
+**Nesting guidelines:**
+
+- Top-level `describe` = class or module name
+- Second-level `describe` = method or function name
+- `it` blocks = single behavior, stated as expected outcome
+- Limit nesting to 3 levels maximum — deeper nesting signals the unit under test is too complex
+
+**File naming and placement:**
+
+| Convention | Example |
+|-----------|---------|
+| Co-located tests (preferred) | `user-service.test.ts` next to `user-service.ts` |
+| Test directory | `__tests__/user-service.test.ts` (when co-location is impractical) |
+| Test utilities | `src/test/setup.ts` for global setup, `src/test/factories.ts` for test data |
+| Integration tests | `tests/integration/` at project root |
+| E2E tests | `tests/e2e/` at project root |
+| Describe blocks | Class/module name: `describe('UserService', ...)` |
+| Test names | Behavior: `it('throws ValidationError for duplicate email')` |
 
 ### React Testing Library Patterns
 
@@ -729,7 +806,290 @@ test('renders dashboard', () => {
 });
 ```
 
-### Coverage Targets
+### Mocking
+
+#### Function Mocks (`vi.fn` / `jest.fn`)
+
+Use function mocks to verify interactions and control return values:
+
+```typescript
+// Basic function mock
+const onSave = vi.fn();
+render(<Form onSave={onSave} />);
+await user.click(screen.getByRole('button', { name: /save/i }));
+expect(onSave).toHaveBeenCalledOnce();
+expect(onSave).toHaveBeenCalledWith({ name: 'Alice', email: 'alice@example.com' });
+
+// Mock with return value
+const fetchUser = vi.fn().mockResolvedValue({ id: '1', name: 'Alice' });
+
+// Mock with implementation
+const hash = vi.fn((input: string) => `hashed_${input}`);
+
+// Spy on existing method (preserves original by default)
+const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+// ... test code ...
+expect(consoleSpy).toHaveBeenCalledWith('Connection failed');
+consoleSpy.mockRestore();
+```
+
+#### Module Mocks
+
+Mock entire modules when you need to replace dependencies:
+
+```typescript
+// Vitest — mock a module
+vi.mock('./database', () => ({
+  getConnection: vi.fn().mockReturnValue({
+    query: vi.fn().mockResolvedValue([]),
+    close: vi.fn(),
+  }),
+}));
+
+// Jest — mock a module
+jest.mock('./database', () => ({
+  getConnection: jest.fn().mockReturnValue({
+    query: jest.fn().mockResolvedValue([]),
+    close: jest.fn(),
+  }),
+}));
+
+// Import after mock declaration — the import gets the mocked version
+import { getConnection } from './database';
+```
+
+#### Manual Mocks (`__mocks__/`)
+
+Use manual mocks for complex dependencies shared across many test files:
+
+```
+src/
+  services/
+    __mocks__/
+      email-service.ts    # Manual mock — auto-used when vi.mock('./email-service') is called
+    email-service.ts      # Real implementation
+    email-service.test.ts
+```
+
+```typescript
+// src/services/__mocks__/email-service.ts
+export const sendEmail = vi.fn().mockResolvedValue({ messageId: 'mock-id' });
+export const validateAddress = vi.fn().mockReturnValue(true);
+
+// In test file — just declare the mock, implementation comes from __mocks__/
+vi.mock('./email-service');
+```
+
+**When to use each mocking approach:**
+
+| Approach | When |
+|----------|------|
+| `vi.fn()` / `jest.fn()` | Callbacks, event handlers, simple dependency injection |
+| `vi.spyOn()` / `jest.spyOn()` | Observing calls without replacing behavior (or with `mockImplementation`) |
+| `vi.mock()` / `jest.mock()` | Replacing an imported module for a single test file |
+| Manual mocks (`__mocks__/`) | Shared mock used by 3+ test files |
+| MSW | HTTP/API calls — always prefer over mocking `fetch`/`axios` directly |
+
+### Async Testing
+
+#### Promises and Async/Await
+
+```typescript
+// Good — async/await with proper assertion
+it('fetches user by id', async () => {
+  const user = await userService.getById('123');
+  expect(user).toEqual({ id: '123', name: 'Alice' });
+});
+
+// Good — testing rejected promises
+it('throws NotFoundError for missing user', async () => {
+  await expect(userService.getById('nonexistent')).rejects.toThrow(NotFoundError);
+});
+
+// Good — testing promise resolution value
+it('resolves with created user', async () => {
+  await expect(userService.create({ name: 'Bob' })).resolves.toMatchObject({
+    name: 'Bob',
+    id: expect.any(String),
+  });
+});
+```
+
+#### Fake Timers
+
+```typescript
+// Vitest
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+it('retries after delay', async () => {
+  const fetchData = vi.fn()
+    .mockRejectedValueOnce(new Error('timeout'))
+    .mockResolvedValue({ data: 'ok' });
+
+  const promise = retryWithDelay(fetchData, { delay: 1000, retries: 2 });
+
+  // Advance past the retry delay
+  await vi.advanceTimersByTimeAsync(1000);
+
+  const result = await promise;
+  expect(result).toEqual({ data: 'ok' });
+  expect(fetchData).toHaveBeenCalledTimes(2);
+});
+
+it('debounces input handler', async () => {
+  const handler = vi.fn();
+  const debounced = debounce(handler, 300);
+
+  debounced('a');
+  debounced('ab');
+  debounced('abc');
+
+  expect(handler).not.toHaveBeenCalled();
+
+  await vi.advanceTimersByTimeAsync(300);
+
+  expect(handler).toHaveBeenCalledOnce();
+  expect(handler).toHaveBeenCalledWith('abc');
+});
+```
+
+#### React `act()` and Async State Updates
+
+```typescript
+import { act, render, screen } from '@testing-library/react';
+
+// act() is needed when triggering state updates outside of RTL helpers
+it('updates count on external event', async () => {
+  const eventBus = new EventEmitter();
+  render(<Counter eventBus={eventBus} />);
+
+  await act(async () => {
+    eventBus.emit('increment');
+  });
+
+  expect(screen.getByText('Count: 1')).toBeInTheDocument();
+});
+
+// RTL's userEvent and findBy* wrap act() automatically — prefer those
+// Only use act() directly when dealing with non-RTL async triggers
+```
+
+### Type-safe Testing
+
+#### Typed Mocks
+
+```typescript
+// Type-safe mock function
+const onSubmit = vi.fn<[FormData], Promise<void>>();
+
+// Type-safe mock of an interface
+interface UserRepository {
+  findById(id: string): Promise<User | null>;
+  save(user: User): Promise<User>;
+  delete(id: string): Promise<void>;
+}
+
+function createMockRepository(): { [K in keyof UserRepository]: ReturnType<typeof vi.fn> } & UserRepository {
+  return {
+    findById: vi.fn<[string], Promise<User | null>>().mockResolvedValue(null),
+    save: vi.fn<[User], Promise<User>>().mockImplementation(async (user) => user),
+    delete: vi.fn<[string], Promise<void>>().mockResolvedValue(undefined),
+  };
+}
+
+it('returns null for unknown user', async () => {
+  const repo = createMockRepository();
+  const service = new UserService(repo);
+
+  const result = await service.getById('unknown');
+  expect(result).toBeNull();
+  expect(repo.findById).toHaveBeenCalledWith('unknown');
+});
+```
+
+#### Assertion Helpers and Custom Matchers
+
+```typescript
+// Custom matcher for domain-specific assertions
+expect.extend({
+  toBeValidEmail(received: string) {
+    const pass = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(received);
+    return {
+      pass,
+      message: () => `expected ${received} ${pass ? 'not ' : ''}to be a valid email`,
+    };
+  },
+});
+
+// Declare the matcher type
+declare module 'vitest' {
+  interface Assertion<T> {
+    toBeValidEmail(): T;
+  }
+}
+
+// Usage
+it('generates valid email for new user', () => {
+  const user = createUser({ name: 'Alice' });
+  expect(user.email).toBeValidEmail();
+});
+```
+
+#### Type-level Testing with `expect-type`
+
+```typescript
+import { expectTypeOf } from 'vitest';
+
+it('returns correct types', () => {
+  // Verify function signature types
+  expectTypeOf(getUser).parameter(0).toBeString();
+  expectTypeOf(getUser).returns.resolves.toMatchTypeOf<User>();
+
+  // Verify discriminated union exhaustiveness
+  expectTypeOf<Result<string>>().toMatchTypeOf<
+    { ok: true; value: string } | { ok: false; error: Error }
+  >();
+
+  // Verify type utilities produce correct types
+  expectTypeOf<WithRequired<Partial<User>, 'id'>>().toHaveProperty('id');
+});
+```
+
+### Snapshot Testing
+
+| Use Snapshots For | Avoid Snapshots For |
+|-------------------|---------------------|
+| Serialized data structures (API responses, configs) | Full component trees (too brittle) |
+| Error message formatting | Styled components (CSS changes break snapshots) |
+| CLI output strings | Large objects (unreadable diffs) |
+
+```typescript
+// Good - small, focused snapshot
+test('formats error response', () => {
+  const error = formatApiError(404, 'User not found');
+  expect(error).toMatchInlineSnapshot(`
+    {
+      "code": 404,
+      "message": "User not found",
+      "type": "NOT_FOUND",
+    }
+  `);
+});
+
+// Bad - entire component tree snapshot
+test('renders dashboard', () => {
+  const { container } = render(<Dashboard />);
+  expect(container).toMatchSnapshot(); // 500+ line snapshot nobody reviews
+});
+```
+
+### Coverage Expectations
 
 | Level | Minimum | Target | Notes |
 |-------|---------|--------|-------|
@@ -746,32 +1106,15 @@ npx vitest run --coverage
 # coverage.thresholds: { lines: 60, branches: 60, functions: 60 }
 ```
 
-### Test Organization
+**What to cover vs. what to skip:**
 
-```typescript
-describe('UserService', () => {
-  // Group by method
-  describe('createUser', () => {
-    it('creates user with valid data', async () => { /* ... */ });
-    it('throws ValidationError for duplicate email', async () => { /* ... */ });
-    it('hashes password before storing', async () => { /* ... */ });
-  });
-
-  describe('deleteUser', () => {
-    it('soft-deletes user by setting deletedAt', async () => { /* ... */ });
-    it('throws NotFoundError for unknown id', async () => { /* ... */ });
-  });
-});
-```
-
-**Naming conventions:**
-
-| Convention | Example |
-|-----------|---------|
-| File naming | `user-service.test.ts` (co-located) or `__tests__/user-service.test.ts` |
-| Describe blocks | Class/module name: `describe('UserService', ...)` |
-| Test names | Behavior: `it('throws ValidationError for duplicate email')` |
-| Setup files | `src/test/setup.ts` for global setup (MSW, custom matchers) |
+| Cover | Skip |
+|-------|------|
+| Business logic and domain rules | Generated code (protobuf, GraphQL types) |
+| Error handling paths | Third-party library internals |
+| Type guards (runtime boundary) | Trivial getters/setters |
+| State transitions | Framework boilerplate (module re-exports) |
+| Edge cases in parsing/validation | Static configuration objects |
 
 ### ALWAYS / NEVER Rules
 
@@ -781,10 +1124,13 @@ describe('UserService', () => {
 | ALWAYS use `findBy*` for async elements | ALWAYS | Avoids race conditions; auto-retries until timeout |
 | ALWAYS set `onUnhandledRequest: 'error'` in MSW | ALWAYS | Catches unmocked API calls that indicate missing test setup |
 | ALWAYS co-locate test files with source | ALWAYS | Easier navigation; test dies when source is deleted |
+| ALWAYS type your mock functions | ALWAYS | Catches incorrect call signatures at compile time |
+| ALWAYS clean up mocks in `afterEach` | ALWAYS | Prevents test pollution; use `vi.restoreAllMocks()` or `jest.restoreAllMocks()` |
 | NEVER use `container.querySelector` in RTL tests | NEVER | Bypasses accessibility queries; tests implementation not behavior |
 | NEVER use `setTimeout` / manual delays in tests | NEVER | Flaky; use `waitFor` or `findBy*` instead |
 | NEVER snapshot full component trees | NEVER | Unreadable diffs; nobody reviews 500-line snapshots |
 | NEVER mock what you don't own without MSW | NEVER | Direct `jest.mock('axios')` couples tests to HTTP library choice |
+| NEVER use `as any` to silence mock type errors | NEVER | Hides real type mismatches; use proper typed mocks instead |
 
 ---
 

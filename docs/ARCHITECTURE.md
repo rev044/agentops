@@ -41,8 +41,7 @@ AgentOps is a single Claude Code plugin providing the RPI workflow with Knowledg
 │   ├── provenance/      # background — Trace knowledge lineage
 │   ├── ratchet/         # background — Progress gates
 │   ├── flywheel/        # background — Knowledge health monitoring
-│   ├── using-agentops/  # meta — Workflow guide (auto-injected)
-│   └── judge/           # DEPRECATED — replaced by /council
+│   └── using-agentops/  # meta — Workflow guide (auto-injected)
 ├── hooks/               # Session hooks
 │   ├── hooks.json
 │   ├── session-start.sh
@@ -135,7 +134,6 @@ Every `/post-mortem` feeds back to `/research`:
 | `ratchet` | Progress gates |
 | `flywheel` | Knowledge health monitoring |
 | `using-agentops` | Workflow overview (auto-injected on session start) |
-| ~~`judge`~~ | DEPRECATED — replaced by `/council` |
 
 ### Meta
 

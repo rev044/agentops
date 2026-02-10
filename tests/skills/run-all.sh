@@ -9,6 +9,9 @@ SKILLS_DIR="$REPO_ROOT/skills"
 PASSED=0
 FAILED=0
 SKIPPED=0
+DEP_OK=0
+DEP_WARN=0
+DEP_WARNINGS_LIST=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -73,6 +76,22 @@ for skill_dir in "$SKILLS_DIR"/*/; do
         continue
     fi
 
+    # Check declared dependencies exist
+    dep_list=$(sed -n '/^---$/,/^---$/p' "$skill_md" | \
+        awk '/^dependencies:/{found=1; next} found && /^[^ -]/{exit} found && /^  - /{print substr($0, 5)}' | \
+        sed 's/#.*//' | tr -d ' ')
+    if [ -n "$dep_list" ]; then
+        while IFS= read -r dep; do
+            [ -z "$dep" ] && continue
+            if [ -d "$SKILLS_DIR/$dep" ]; then
+                DEP_OK=$((DEP_OK + 1))
+            else
+                DEP_WARN=$((DEP_WARN + 1))
+                DEP_WARNINGS_LIST="${DEP_WARNINGS_LIST}    ${skill_name} -> ${dep}\n"
+            fi
+        done <<< "$dep_list"
+    fi
+
     # Run skill-specific validation if present
     if [ -f "$validate_script" ]; then
         chmod +x "$validate_script"
@@ -99,7 +118,16 @@ printf "║  ${RED}✗${NC} Failed:     %-42s ║\n" "$FAILED skills"
 printf "║  ${BLUE}○${NC} Skipped:    %-42s ║\n" "$SKIPPED (library/no test)"
 echo "╠════════════════════════════════════════════════════════════╣"
 printf "║  Total Skills: %-40s ║\n" "$((PASSED + FAILED + SKIPPED))"
+echo "╠════════════════════════════════════════════════════════════╣"
+printf "║  ${GREEN}✓${NC} Deps Found:  %-42s ║\n" "$DEP_OK"
+printf "║  ${YELLOW}⚠${NC} Deps Missing: %-42s ║\n" "$DEP_WARN"
 echo "╚════════════════════════════════════════════════════════════╝"
+
+if [ $DEP_WARN -gt 0 ]; then
+    echo ""
+    echo -e "${YELLOW}Dependency warnings (not found locally):${NC}"
+    echo -e "$DEP_WARNINGS_LIST"
+fi
 
 if [ $FAILED -gt 0 ]; then
     echo ""

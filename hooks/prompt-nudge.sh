@@ -51,6 +51,8 @@ RATCHET=$(ao ratchet status -o json 2>/dev/null) || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 
 # Helper: check if a step is pending
+# Note: ao ratchet status normalizes to CANONICAL field names ("step", "status"),
+# so no dual-schema grep needed here (unlike push-gate.sh which parses chain.jsonl directly).
 step_pending() {
     echo "$RATCHET" | jq -e ".steps[] | select(.step == \"$1\" and .status == \"pending\")" >/dev/null 2>&1
 }
@@ -79,7 +81,6 @@ fi
 [ -z "$NUDGE" ] && exit 0
 
 # Output nudge as additionalContext
-# JSON-escape the nudge (minimal — no special chars expected)
-printf '{"hookSpecificOutput":{"additionalContext":"%s"}}\n' "$NUDGE"
+jq -n --arg nudge "$NUDGE" '{"hookSpecificOutput":{"additionalContext":$nudge}}'
 
 exit 0

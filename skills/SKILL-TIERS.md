@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (22)
+### User-Facing Skills (21)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -59,7 +59,6 @@ by other skills via Read or auto-triggered by hooks. Not intended for direct use
 | ratchet | background | Progress gates |
 | flywheel | background | Knowledge health monitoring |
 | using-agentops | meta | AgentOps workflow guide (auto-injected) |
-| ~~judge~~ | deprecated | Replaced by /council |
 
 ---
 
@@ -226,12 +225,6 @@ Individual judge outputs also go to `.agents/council/`:
 - `YYYY-MM-DD-<target>-codex-pragmatist.md`, `...-codex-skeptic.md`, `...-codex-visionary.md`
 
 ---
-
-## Deprecated Skills
-
-| Skill | Replaced By | Notes |
-|-------|-------------|-------|
-| `/judge` | `/council` | Council is the new multi-model validation primitive |
 
 ---
 

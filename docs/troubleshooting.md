@@ -176,7 +176,7 @@ AgentOps Health Check
 ✓ ao CLI: v2.0.1
 ✓ Hooks installed: 12 hooks configured
 ✓ Knowledge base: .agents/ao initialized
-✓ Plugin: 33 skills found
+✓ Plugin: 32 skills found
 ⚠ Codex CLI: not found (optional — needed for --mixed council)
 ✓ Bd CLI: available
 ⚠ Knowledge pool: empty (no learnings or patterns yet)

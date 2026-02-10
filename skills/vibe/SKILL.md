@@ -315,7 +315,7 @@ The spec content is injected into the council packet context so the `spec-compli
 ```
 /council --deep validate <target>
 ```
-3 independent judges (no perspective labels). Vibe always uses `--deep` for consistency with /pre-mortem and /post-mortem.
+3 independent judges (no perspective labels). Vibe uses `--deep` by default (3 judges) for consistency with /pre-mortem and /post-mortem, but users can override with `--quick` (inline single-agent check) or `--mixed` (cross-vendor with Codex).
 
 **Council receives:**
 - Files to review
@@ -329,7 +329,7 @@ The spec content is injected into the council packet context so the `spec-compli
 ```
 Single-agent structured self-review. Fast, cheap, good for mid-implementation checks.
 
-**With explicit --deep (redundant — vibe always uses --deep):**
+**With explicit --deep (same as default):**
 ```
 /council --deep validate <target>
 ```
