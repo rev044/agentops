@@ -310,19 +310,6 @@ Requires `tmux` for pane mode (`brew install tmux`).
 
 All hooks have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 
-## Olympus (OL) Integration
-
-AgentOps bridges with the [Olympus CLI](https://github.com/boshu2/olympus) (`ol`) for context orchestration. When `.ol/` is present in a project, AO features auto-enhance:
-
-| Feature | How It Works |
-|---------|-------------|
-| **Knowledge flow (OL→AO)** | `ol harvest --format=ao` outputs AO-compatible learnings to `.agents/learnings/` |
-| **Knowledge flow (AO→OL)** | `ao inject` discovers OL constraints from `.ol/constraints/quarantine.json` |
-| **Validation bridge** | `/vibe` runs `ol validate stage1` before council in Olympus projects |
-| **Wave→Swarm bridge** | `/swarm --from-wave <json>` reads `ol hero hunt` output, executes tasks, ratchets back to OL |
-
-All OL integrations are guarded — complete no-op when `ol` is not on PATH or `.ol/` is absent. See [docs/ol-bridge-contracts.md](docs/ol-bridge-contracts.md) for the full interchange spec.
-
 ## Use Council Standalone
 
 Use `/council` independently — no RPI workflow required, no `ao` CLI, no setup beyond plugin install. Validate any PR, brainstorm approaches, or research decisions with multi-model consensus.
