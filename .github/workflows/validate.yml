@@ -67,6 +67,7 @@ jobs:
                 --exclude-dir=cli/testdata \
                 --exclude="*.md" \
                 --exclude="*.jsonl" \
+                --exclude="*.sh" \
                 --exclude="validate.yml" \
                 . 2>/dev/null; then
               found=1

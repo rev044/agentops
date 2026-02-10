@@ -200,7 +200,7 @@ NEXTWORK_SCHEMA="$NEXTWORK_DIR/next-work.schema.md"
 if [[ -f "$NEXTWORK_SCHEMA" ]]; then
     pass "next-work.schema.md exists"
 else
-    fail "next-work.schema.md missing — flywheel loop has no contract"
+    warn "next-work.schema.md missing — flywheel loop has no contract (gitignored, local-only)"
 fi
 
 # Validate existing next-work.jsonl if present
