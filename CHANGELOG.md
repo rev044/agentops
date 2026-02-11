@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-02-11
+
+### Added
+
+- **Knowledge flywheel wiring across RPI skills** — `/plan`, `/pre-mortem`, and `/vibe` now search `ao` for prior learnings before council dispatch (`ao search` with guard + fallback). `/plan` and `/pre-mortem` record ratchet progress after completion. Session-start hook runs `ao extract` to close the forge-extract loop.
+- **Retro remediation hardening sweep** — JSON Schema validation for plugin and hooks manifests (`schemas/`), Dependabot config for Go + GitHub Actions, release workflow stub, hook preflight validator, expanded hook integration tests (170+ lines), doc-release validation script.
+- **`ao forge markdown` subcommand** — Forge now supports mining `.md` files in addition to `.jsonl` transcripts (256+ LOC in `forge.go`).
+- **Task-validation-gate command allowlist** — Replaced `eval()` shell injection vector with allowlist-based execution; only `go`, `pytest`, `npm`, `npx`, `make`, `bash` permitted.
+
+### Changed
+
+- **README onboarding and engagement** — Expanded install flow with plugin adoption path, swarm/Ralph loop backend support clarification, engagement funnel improvements, issue routing via CONTRIBUTING.md and GitHub issue templates.
+- **Smoke and e2e test improvements** — Timeout shims, environment variable documentation in `docs/reference.md`, CI workflow matrix improvements.
+
+### Fixed
+
+- **8 vibe WARN findings from retro remediation** — CI validate workflow permissions, schema `additionalProperties` consistency, hook preflight script exit codes, smoke test portability, tasks-sync error handling.
+- **Command injection in task-validation-gate.sh** — Fixed `eval()` on untrusted metadata (shipped alongside `ao forge markdown` in `acc49f8`).
+
+### Removed
+
+- **Multi-agent preflight script** — Removed `scripts/multi-agent-preflight.sh` (268 lines) and all distributed-mode references to it from crank, implement, and swarm skills. Superseded by native team pre-flight in each skill.
+- **Low-value vibe fixes reverted** — Removed env var docs and timeout shim additions that added complexity without proportional value.
+
 ## [2.3.0] - 2026-02-11
 
 ### Added
