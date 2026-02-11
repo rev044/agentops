@@ -4,6 +4,7 @@
 
 ### DevOps for AI agents. The system that gets smarter every time you use it.
 
+[![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.4.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-32-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -61,13 +62,6 @@ claude plugin add boshu2/agentops
 bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 ```
 
-**Manual:**
-```bash
-npx skills@latest add boshu2/agentops --all -g   # Plugin
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops   # CLI (optional)
-ao hooks install   # Hooks (optional)
-```
-
 </details>
 
 <details>
@@ -92,7 +86,7 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 [crank]       Wave 1: ███ 2/2 · Wave 2: █ 1/1
 [vibe]        3 judges → Verdict: PASS
 [post-mortem] 3 learnings extracted → .agents/
-[flywheel]    Next: /rpi "add consistency-check finding category to /vibe"
+[flywheel]    Next: /rpi "add retry backoff to rate limiter"
 ```
 
 You type one command and walk away. Come back, copy-paste the next command, walk away again.
@@ -379,7 +373,8 @@ brew uninstall agentops  # if installed
 
 ---
 
-## Built On
+<details>
+<summary><strong>Built on</strong></summary>
 
 | Project | Role |
 |---------|------|
@@ -387,6 +382,8 @@ brew uninstall agentops  # if installed
 | [Multiclaude](https://github.com/dlorenc/multiclaude) | Validation gates that lock — no regression |
 | [beads](https://github.com/steveyegge/beads) | Git-native issue tracking |
 | [MemRL](https://arxiv.org/abs/2502.06173) | Two-phase retrieval for cross-session memory |
+
+</details>
 
 ## Contributing
 
