@@ -1,7 +1,7 @@
 ---
 name: crank
 tier: orchestration
-description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm (Task tool). Distributed mode uses /swarm --mode=distributed (tmux + Agent Mail) for persistence and coordination. NO human prompts, NO stopping.'
+description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm with runtime-native spawning (Codex sub-agents or Claude teams). Distributed mode uses /swarm --mode=distributed (tmux + Agent Mail) for persistence and coordination. NO human prompts, NO stopping.'
 dependencies:
   - swarm       # required - executes each wave
   - vibe        # required - final validation
@@ -12,7 +12,7 @@ dependencies:
 
 # Crank Skill
 
-> **Quick Ref:** Autonomous epic execution. Local mode: `/swarm` for each wave. Distributed mode: `/swarm --mode=distributed` (tmux + Agent Mail). Output: closed issues + final vibe.
+> **Quick Ref:** Autonomous epic execution. Local mode: `/swarm` for each wave with runtime-native spawning. Distributed mode: `/swarm --mode=distributed` (tmux + Agent Mail). Output: closed issues + final vibe.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -28,13 +28,13 @@ Crank (orchestrator)           Swarm (executor)
     |                              |
     +-> bd ready (wave issues)     |
     |                              |
-    +-> TaskCreate from beads  --->+-> TeamCreate (team per wave)
+    +-> TaskCreate from beads  --->+-> Select spawn backend (codex sub-agents | claude teams | fallback)
     |                              |
-    +-> /swarm                 --->+-> Spawn workers as teammates
-    |                              |   (fresh context per team)
-    +-> Verify + bd update     <---+-> Workers report via SendMessage
+    +-> /swarm                 --->+-> Spawn workers per backend
+    |                              |   (fresh context per wave)
+    +-> Verify + bd update     <---+-> Workers report via backend channel
     |                              |
-    +-> Loop until epic DONE   <---+-> TeamDelete after wave
+    +-> Loop until epic DONE   <---+-> Cleanup backend resources after wave
 ```
 
 **TaskList mode** (bd unavailable):
@@ -43,16 +43,16 @@ Crank (orchestrator, TaskList mode)    Swarm (executor)
     |                                      |
     +-> TaskList() (wave tasks)            |
     |                                      |
-    +-> /swarm                         --->+-> TeamCreate (team per wave)
+    +-> /swarm                         --->+-> Select spawn backend per wave
     |                                      |
-    +-> Verify via TaskList()          <---+-> Workers report via SendMessage
+    +-> Verify via TaskList()          <---+-> Workers report via backend channel
     |                                      |
-    +-> Loop until all completed       <---+-> TeamDelete after wave
+    +-> Loop until all completed       <---+-> Cleanup backend resources after wave
 ```
 
 **Separation of concerns:**
 - **Crank** = Orchestration, epic/task lifecycle, knowledge flywheel
-- **Swarm** = Team-based parallel execution (Ralph Wiggum pattern via team-per-wave)
+- **Swarm** = Runtime-native parallel execution (Ralph Wiggum pattern via fresh worker set per wave)
 
 ## Global Limits
 

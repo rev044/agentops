@@ -54,10 +54,10 @@ Swarm finds unblocked TaskList tasks and executes them.
 ### Both Modes — Swarm Will:
 
 - Find all unblocked TaskList tasks
-- Create a native team (`TeamCreate`) for the wave
-- Spawn workers as teammates with fresh context (Ralph pattern)
-- Workers claim tasks, execute in parallel, report via `SendMessage`
-- Team lead validates, then cleans up team (`TeamDelete`)
+- Select runtime backend for the wave (`spawn_agent` -> `TeamCreate` -> fallback tasks)
+- Spawn workers with fresh context (Ralph pattern)
+- Workers execute in parallel and report via backend channel (`wait`/`SendMessage`/`TaskOutput`)
+- Team lead validates, then cleans up backend resources (`close_agent`/`TeamDelete`/none)
 
 ## Verify and Sync to Beads (MANDATORY)
 

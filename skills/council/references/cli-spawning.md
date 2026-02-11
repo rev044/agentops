@@ -1,16 +1,59 @@
-# CLI Spawning Commands
+# Runtime Spawning Commands
 
-## Team Setup
+## Backend Selection (MANDATORY)
 
-**Create the council team before spawning judges:**
+Select backend in this order:
+
+1. `spawn_agent` available -> **Codex experimental sub-agents**
+2. `TeamCreate` available -> **Claude native teams**
+3. Otherwise -> **Task(run_in_background=true)** fallback
+
+This keeps `/council` universal across Codex and Claude runtimes.
+
+## Codex Judges (experimental sub-agents)
+
+Spawn judges directly as sub-agents:
+
+```
+spawn_agent(message="{JUDGE_PACKET for judge-1}")
+spawn_agent(message="{JUDGE_PACKET for judge-2}")
+spawn_agent(message="{JUDGE_PACKET for judge-3}")
+```
+
+Track judge mapping (`judge-1 -> <agent-id>`) for debate and cleanup.
+
+Wait for completion:
+
+```
+wait(ids=["<judge-1-id>", "<judge-2-id>", "<judge-3-id>"], timeout_ms=120000)
+```
+
+Debate R2 follow-up:
+
+```
+send_input(
+  id="<judge-1-id>",
+  message="## Debate Round 2\n\nOther judges' R1 verdicts:\n\n{OTHER_VERDICTS_JSON}\n\n{DEBATE_INSTRUCTIONS}"
+)
+```
+
+Cleanup:
+
+```
+close_agent(id="<judge-1-id>")
+close_agent(id="<judge-2-id>")
+close_agent(id="<judge-3-id>")
+```
+
+## Claude Judges (via Native Teams)
+
+Create the council team before spawning judges:
 
 ```
 TeamCreate(team_name="council-YYYYMMDD-<target>")
 ```
 
 Team naming convention: `council-YYYYMMDD-<target>` (e.g., `council-20260206-auth-system`).
-
-## Claude Agents (via Native Teams)
 
 **Spawn judges as teammates on the council team:**
 
@@ -52,9 +95,9 @@ Task(
 )
 ```
 
-## Codex Agents (via Codex CLI)
+## Codex Judges (via Codex CLI for --mixed)
 
-**Canonical Codex command form (unchanged -- Codex cannot join teams):**
+Use Codex CLI to add cross-vendor judges in `--mixed` mode:
 
 ```bash
 # With structured output (preferred -- requires --output-schema support)
@@ -82,18 +125,18 @@ Always use this exact flag order: `-s` / `--full-auto` -> `-m` -> `-C` -> `--out
 **Spawn all agents in parallel:**
 
 ```
-# Step 1: Create team
-TeamCreate(team_name="council-YYYYMMDD-<target>")
+# Codex runtime backend:
+spawn_agent(message="{judge-1 packet}")
+spawn_agent(message="{judge-2 packet}")
+spawn_agent(message="{judge-3 packet}")
 
-# Step 2: Spawn Claude judges as teammates (parallel)
-# Default (independent -- no perspectives):
+# Claude runtime backend:
+TeamCreate(team_name="council-YYYYMMDD-<target>")
 Task(description="Judge 1", team_name="council-...", name="judge-1", ...)
 Task(description="Judge 2", team_name="council-...", name="judge-2", ...)
 Task(description="Judge 3", team_name="council-...", name="judge-3", ...)
-# With --preset or --perspectives:
-# Task(description="Judge: Error-Paths", team_name="council-...", name="judge-error-paths", ...)
 
-# Step 3: Spawn Codex agents (Bash tool, parallel -- cannot join teams)
+# Optional Codex CLI judges for --mixed mode:
 # With --output-schema (preferred, when SCHEMA_SUPPORTED=true):
 Bash(command="codex exec -s read-only -m gpt-5.3-codex -C \"$(pwd)\" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-1.json ...", run_in_background=true)
 Bash(command="codex exec -s read-only -m gpt-5.3-codex -C \"$(pwd)\" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-2.json ...", run_in_background=true)
@@ -106,9 +149,11 @@ Bash(command="codex exec -s read-only -m gpt-5.3-codex -C \"$(pwd)\" --output-sc
 
 **Wait for completion:**
 
-Judges send completion messages to the team lead via `SendMessage`. These arrive automatically as conversation turns. For Codex agents, use `TaskOutput(task_id="...", block=true)`.
+- Codex sub-agent backend: `wait(ids=[...])`
+- Claude teams backend: completion via `SendMessage`
+- Codex CLI judges: `TaskOutput(task_id="...", block=true)`
 
-## Debate Round 2 (via SendMessage)
+## Debate Round 2 (via send_input or SendMessage)
 
 **After R1 completes, send R2 instructions to existing judges (no re-spawn):**
 
@@ -116,56 +161,57 @@ Judges send completion messages to the team lead via `SendMessage`. These arrive
 # Determine branch
 r1_unanimous = all R1 verdicts have same value
 
-# Send to each judge
-SendMessage(
-  type="message",
-  recipient="judge-1",  # or "judge-{perspective}" with presets
-  content="## Debate Round 2\n\nOther judges' R1 verdicts:\n\n{OTHER_VERDICTS_JSON}\n\n{DEBATE_INSTRUCTIONS_FOR_BRANCH}",
-  summary="Debate R2: review other verdicts"
-)
+# Codex backend:
+send_input(id="<judge-1-id>", message="## Debate Round 2 ... {OTHER_VERDICTS_JSON} ...")
+
+# Claude teams backend:
+SendMessage(type="message", recipient="judge-1", content="## Debate Round 2 ... {OTHER_VERDICTS_JSON} ...", summary="Debate R2: review other verdicts")
 ```
 
 Judges wake from idle, process R2, write R2 files, send completion message.
 
-**R2 completion wait:** After sending R2 debate messages to all judges, wait up to `COUNCIL_R2_TIMEOUT` (default 90s) for each judge's completion message via `SendMessage`. If a judge does not respond within the timeout, read their R1 output file (`.agents/council/YYYY-MM-DD-<target>-claude-{perspective}.md`) and use the R1 verdict for consolidation. Log: `Judge <name> R2 timeout -- using R1 verdict.`
+**R2 completion wait:** wait up to `COUNCIL_R2_TIMEOUT` (default 90s) using backend channel (`wait` or `SendMessage`). If a judge does not respond, read their R1 output file and use the R1 verdict for consolidation. Log: `Judge <name> R2 timeout -- using R1 verdict.`
 
-## Team Cleanup
+## Cleanup
 
 **After consolidation:**
 
 ```
-# Shutdown each judge
+# Codex backend:
+close_agent(id="<judge-1-id>")
+close_agent(id="<judge-2-id>")
+close_agent(id="<judge-3-id>")
+
+# Claude teams backend:
 SendMessage(type="shutdown_request", recipient="judge-1", content="Council complete")
 SendMessage(type="shutdown_request", recipient="judge-2", content="Council complete")
 SendMessage(type="shutdown_request", recipient="judge-3", content="Council complete")
-# With presets: use judge-{perspective} names instead (e.g., judge-error-paths)
-
-# Delete team
 TeamDelete()
 ```
 
-> **Note:** `TeamDelete()` deletes the team associated with this session's `TeamCreate()` call. If running concurrent teams (e.g., council inside crank), each team is cleaned up in the session that created it. No team name parameter is needed -- the API tracks the current session's team context automatically.
+> **Note:** `TeamDelete()` applies only to Claude team backend. Codex backend cleanup is explicit via `close_agent()`.
 
 ## Reaper Cleanup Pattern
 
-Team cleanup MUST succeed even on partial failures. Follow this sequence:
+Cleanup MUST succeed even on partial failures. Follow this sequence:
 
-1. **Attempt graceful shutdown:** Send shutdown_request to each judge
+1. **Attempt graceful close/shutdown:** `close_agent` (Codex) or `shutdown_request` (Claude)
 2. **Wait up to 30s** for shutdown_approved responses
 3. **If any judge doesn't respond:** Log warning, proceed anyway
-4. **Always call TeamDelete()** -- even if some judges are unresponsive
-5. **TeamDelete cleans up** the team regardless of member state
+4. **Always run backend cleanup** (`close_agent` or `TeamDelete`)
+5. **Cleanup must complete best-effort**
 
 **Failure modes and recovery:**
 
 | Failure | Behavior |
 |---------|----------|
-| Judge hangs (no response) | 30s timeout -> proceed to TeamDelete |
-| shutdown_request fails | Log warning -> proceed to TeamDelete |
+| Judge hangs (no response) | 30s timeout -> proceed with cleanup |
+| close/shutdown fails | Log warning -> continue cleanup |
 | TeamDelete fails | Log error -> team orphaned (manual cleanup: delete ~/.claude/teams/<name>/) |
-| Lead crashes mid-council | Team orphaned until session ends or manual cleanup |
+| close_agent fails | Log error -> leaked sub-agent handle (best effort close later) |
+| Lead crashes mid-council | Cleanup may be deferred to session end |
 
-**Never skip TeamDelete.** A lingering team config pollutes future sessions.
+**Never skip cleanup.** Lingering workers pollute future sessions.
 
 ## Team Timeout Configuration
 

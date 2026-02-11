@@ -1,7 +1,7 @@
 ---
 name: swarm
 tier: orchestration
-description: 'Spawn isolated agents for parallel task execution. Local mode: Task tool (pure Claude-native). Distributed mode: tmux + Agent Mail (process isolation, persistence). Triggers: "swarm", "spawn agents", "parallel work".'
+description: 'Spawn isolated agents for parallel task execution. Local mode auto-selects Codex sub-agents or Claude teams. Distributed mode uses tmux + Agent Mail (process isolation, persistence). Triggers: "swarm", "spawn agents", "parallel work".'
 dependencies:
   - implement # required - executes `/implement <bead-id>` in distributed mode
   - vibe      # optional - integration with validation
@@ -12,7 +12,7 @@ dependencies:
 Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ralph Wiggum pattern).
 
 **Execution Modes:**
-- **Local** (default) - Pure Claude-native using Task tool background agents
+- **Local** (default) - Runtime-native spawning (Codex sub-agents when available, otherwise Claude teams/task agents)
 - **Distributed** (`--mode=distributed`) - tmux sessions + Agent Mail for robust coordination
 
 **Integration modes:**
@@ -28,18 +28,18 @@ Mayor (this session)
     |
     +-> Identify wave: tasks with no blockers
     |
-    +-> Create team: TeamCreate(team_name="swarm-<epoch>")
+    +-> Select spawn backend (Codex sub-agents | Claude teams | fallback tasks)
     |
     +-> Assign: TaskUpdate(taskId, owner="worker-<id>", status="in_progress")
     |
-    +-> Spawn: Task(team_name=..., name="worker-<id>") for each
+    +-> Spawn workers via selected backend
     |       Workers receive pre-assigned task, execute atomically
     |
-    +-> Wait: Workers send completion via SendMessage
+    +-> Wait for completion (wait() | SendMessage | TaskOutput)
     |
     +-> Validate: Review changes when complete
     |
-    +-> Cleanup: shutdown_request workers, TeamDelete()
+    +-> Cleanup backend resources (close_agent | TeamDelete | none)
     |
     +-> Repeat: New team + new plan if more work needed
 ```
@@ -47,6 +47,16 @@ Mayor (this session)
 ## Execution
 
 Given `/swarm`:
+
+### Step 0: Select Local Spawn Backend (MANDATORY)
+
+Use runtime capability detection, not hardcoded assumptions:
+
+1. If `spawn_agent` is available, use **Codex experimental sub-agents**
+2. Else if `TeamCreate` is available, use **Claude native teams**
+3. Else use **background task fallback** (`Task(run_in_background=true)`)
+
+See `skills/shared/SKILL.md` ("Runtime-Native Spawn Backend Selection") for the shared contract used by all orchestration skills.
 
 ### Step 1: Ensure Tasks Exist
 
@@ -65,7 +75,7 @@ Find tasks that are:
 
 These can run in parallel.
 
-### Steps 3-6: Create Team, Spawn Workers, Validate, Finalize
+### Steps 3-6: Spawn Workers, Validate, Finalize
 
 **For detailed local mode execution (team creation, worker spawning, race condition prevention, git commit policy, validation contract, cleanup, and repeat logic), read `skills/swarm/references/local-mode.md`.**
 
@@ -95,15 +105,15 @@ Mayor: "Let's build a user auth system"
 
 ## Key Points
 
-- **Pure Claude-native** - No tmux, no external scripts
-- **Native teams** - `TeamCreate` + `Task(team_name=...)` + `SendMessage` for coordination
+- **Runtime-native local mode** - Auto-selects Codex sub-agents or Claude teams
+- **Universal orchestration contract** - Same swarm behavior across Claude and Codex sessions
 - **Pre-assigned tasks** - Mayor assigns tasks before spawning; workers never race-claim
-- **Team per wave** - Fresh team = fresh context (Ralph Wiggum preserved)
+- **Fresh worker contexts** - New sub-agents/teammates per wave preserve Ralph isolation
 - **Wave execution** - Only unblocked tasks spawn
-- **Mayor orchestrates** - You control the flow, workers report via `SendMessage`
-- **Retry via message** - Send retry instructions to idle workers (no re-spawn needed)
+- **Mayor orchestrates** - You control the flow, workers report via backend channel
+- **Retry via message/input** - Use `send_input` (Codex) or `SendMessage` (Claude)
 - **Atomic execution** - Each worker works until task done
-- **Graceful fallback** - If `TeamCreate` unavailable, fall back to `Task(run_in_background=true)`
+- **Graceful fallback** - If richer APIs unavailable, fall back to `Task(run_in_background=true)`
 
 ## Integration with AgentOps
 
@@ -162,12 +172,12 @@ TaskUpdate(taskId="2", addBlockedBy=["1"])
 
 Follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/): **fresh context per execution unit**.
 
-- **Team per wave** = `TeamCreate` -> work -> `TeamDelete` -> repeat (fresh context each spawn)
+- **Wave-scoped worker set** = spawn workers -> execute -> cleanup -> repeat (fresh context each wave)
 - **Mayor IS the loop** - Orchestration layer, manages state across waves
 - **Workers are atomic** - One task, one spawn, one result
 - **TaskList as memory** - State persists in task status, not agent context
 - **Filesystem for artifacts** - Files written by workers, committed by team lead
-- **SendMessage for coordination** - Workers report to team lead, never to each other
+- **Backend messaging for coordination** - Workers report to team lead, never to each other
 
 ## Integration with Crank
 

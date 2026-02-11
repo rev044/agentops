@@ -40,7 +40,7 @@ fi
 | `bd` | Issue tracking unavailable | Use TaskList for tracking. Note "install bd for persistent issue tracking" |
 | `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/knowledge/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
-| `codex` | CLI missing or model unavailable | Fall back to Claude-only. Council pre-flight checks both CLI presence (`which codex`) and model availability (single test call). Account-type restrictions (e.g. gpt-5.3-codex on ChatGPT accounts) are caught before spawning agents. |
+| `codex` | CLI missing or model unavailable | Fall back to runtime-native agents (Codex sub-agents if available, else Claude teams/task fallback). Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
 | `cass` | Session search unavailable | Skip transcript search. Note "install cass for session history" |
 | Native teams | Any capability missing | See "Native Teams Capability Bundle" below for per-capability degradation |
 
@@ -64,6 +64,23 @@ Native teams consist of multiple independent capabilities. Each can degrade inde
 | TeamCreate fails | No | No | Yes | Fire-and-forget workers, no debate |
 | SendMessage fails | Yes | No | Yes | Workers isolated, no R2 debate |
 | TaskList fails | Yes | Yes | No | Lead tracks manually, workers report via message |
+
+### Runtime-Native Spawn Backend Selection
+
+All orchestration skills that spawn parallel workers or judges MUST select backend in this order:
+
+1. **Codex experimental sub-agents** (when `spawn_agent` is available)
+2. **Claude native teams** (`TeamCreate` + `Task(team_name=...)` + `SendMessage`)
+3. **Background task fallback** (`Task(run_in_background=true)`)
+
+Use capability detection, not hardcoded agent assumptions. The same skill must run in both Claude and Codex sessions.
+
+| Operation | Codex Sub-Agents | Claude Native Teams | Background Fallback |
+|-----------|------------------|---------------------|---------------------|
+| Spawn | `spawn_agent(message=...)` | `TeamCreate` + `Task(team_name=...)` | `Task(run_in_background=true)` |
+| Wait | `wait(ids=[...])` | Completion via `SendMessage` | `TaskOutput(..., block=true)` |
+| Retry/follow-up | `send_input(id=..., message=...)` | `SendMessage(type="message", ...)` | Re-spawn with revised prompt |
+| Cleanup | `close_agent(id=...)` | `shutdown_request` + `TeamDelete()` | None |
 
 ### Rules
 

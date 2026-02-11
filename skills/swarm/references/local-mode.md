@@ -1,8 +1,40 @@
-# Swarm Local Mode: Detailed Execution
+# Swarm Local Mode: Runtime-Aware Detailed Execution
 
-## Step 3: Create Team + Spawn Workers
+## Step 3: Select Backend + Spawn Workers
 
-**Create a team for this wave:**
+Choose the local backend in this order:
+
+1. `spawn_agent` available -> **Codex experimental sub-agents**
+2. `TeamCreate` available -> **Claude native teams**
+3. Otherwise -> **Task(run_in_background=true)** fallback
+
+### Codex backend (preferred when available)
+
+For each ready task, pre-assign and spawn a worker:
+
+```
+# 1. Pre-assign the task (deterministic, race-free)
+TaskUpdate(taskId="<id>", owner="worker-<task-id>", status="in_progress")
+
+# 2. Spawn Codex sub-agent for that task
+spawn_agent(
+  message="You are worker-<task-id>.
+Task #<id>: <subject>
+<description>
+
+Rules:
+- Work only this task
+- Do not commit
+- On completion return JSON envelope with status, detail, artifacts
+- If blocked, return JSON blocked envelope"
+)
+```
+
+Track `worker-<task-id> -> <agent-id>` mapping for waits/retries/cleanup.
+
+### Claude teams backend
+
+Create a team for this wave:
 
 ```
 TeamCreate(team_name="swarm-<epoch>")
@@ -93,11 +125,16 @@ Workers only transition their assigned task: in_progress -> completed.
 
 **Worker instructions:** Include in every worker prompt:
 "Do NOT run git add, git commit, or git push. Write your files and report
-completion via SendMessage. The team lead will commit."
+completion through your runtime channel (Codex reply or SendMessage). The team lead will commit."
 
-## Step 4: Wait for Completion Messages
+## Step 4: Wait for Completion
 
-Workers send completion messages to the team lead via `SendMessage`:
+Completion channel depends on backend:
+- Codex backend: `wait(ids=[...], timeout_ms=<worker-timeout>)`
+- Claude teams: workers send completion via `SendMessage`
+- Fallback: `TaskOutput(..., block=true)`
+
+For Claude teams specifically:
 - Messages arrive automatically as conversation turns (no polling needed)
 - Each message includes a summary of what the worker did
 - Workers go idle after sending -- this is normal, not an error
@@ -151,13 +188,14 @@ Workers send completion messages to the team lead via `SendMessage`:
    - Increment retry count for task
    - If retries < MAX_RETRIES (default: 3):
      ```
-     # Send retry instructions to existing worker (wakes from idle with full context)
-     SendMessage(
-       type="message",
-       recipient="worker-<task-id>",
-       content="Validation failed: <specific failure>. Fix the issue and try again.",
-       summary="Retry: validation failed"
+     # Codex backend: send follow-up to existing sub-agent
+     send_input(
+       id="<agent-id-for-task>",
+       message="Validation failed: <specific failure>. Fix and retry."
      )
+
+     # Claude teams backend:
+     SendMessage(type="message", recipient="worker-<task-id>", content="Validation failed: <specific failure>. Fix and retry.", summary="Retry: validation failed")
      ```
    - If retries >= MAX_RETRIES:
      ```
@@ -201,39 +239,42 @@ When workers complete AND pass validation:
 3. Run any additional tests/validation
 4. Team lead commits all changes for the wave (sole committer)
 
-## Step 5a: Cleanup Team
+## Step 5a: Cleanup
 
 After wave completes:
 ```
-# Shutdown each worker
-SendMessage(type="shutdown_request", recipient="worker-<task-id>", content="Wave complete")
+# Codex backend: close all spawned workers
+close_agent(id="<agent-id-1>")
+close_agent(id="<agent-id-2>")
 
-# Delete team for this wave
+# Claude teams backend:
+SendMessage(type="shutdown_request", recipient="worker-<task-id>", content="Wave complete")
 TeamDelete()
 ```
 
-> **Note:** `TeamDelete()` deletes the team associated with this session's `TeamCreate()` call. If running concurrent teams (e.g., council inside crank), each team is cleaned up in the session that created it.
+> **Note:** `TeamDelete()` applies only to Claude team backend. Codex backend requires explicit `close_agent()` for each spawned worker.
 
 ### Reaper Cleanup Pattern
 
 Team cleanup MUST succeed even on partial failures. Follow this sequence:
 
-1. **Attempt graceful shutdown:** Send shutdown_request to each worker
+1. **Attempt graceful shutdown/close:** `close_agent` (Codex) or `shutdown_request` (Claude)
 2. **Wait up to 30s** for shutdown_approved responses
 3. **If any worker doesn't respond:** Log warning, proceed anyway
-4. **Always call TeamDelete()** -- even if some workers are unresponsive
-5. **TeamDelete cleans up** the team regardless of member state
+4. **Always cleanup backend resources** (`close_agent` or `TeamDelete`)
+5. **Cleanup must run even on partial failures**
 
 **Failure modes and recovery:**
 
 | Failure | Behavior |
 |---------|----------|
-| Worker hangs (no response) | 30s timeout -> proceed to TeamDelete |
-| shutdown_request fails | Log warning -> proceed to TeamDelete |
+| Worker hangs (no response) | 30s timeout -> proceed with cleanup |
+| close/shutdown fails | Log warning -> continue cleanup |
 | TeamDelete fails | Log error -> team orphaned (manual cleanup: delete ~/.claude/teams/<name>/) |
-| Lead crashes mid-swarm | Team orphaned until session ends or manual cleanup |
+| close_agent fails | Log error -> leaked sub-agent handle (best effort close later) |
+| Lead crashes mid-swarm | Cleanup may be deferred to session end |
 
-**Never skip TeamDelete.** A lingering team config pollutes future sessions.
+**Never skip cleanup.** Lingering workers/teams pollute future sessions.
 
 ### Team Timeout Configuration
 
@@ -247,8 +288,8 @@ Team cleanup MUST succeed even on partial failures. Follow this sequence:
 
 If more tasks remain:
 1. Check TaskList for next wave
-2. Create NEW team (`TeamCreate` with new epoch) -- fresh context per wave
-3. Spawn new workers as teammates
+2. Spawn a NEW wave worker set (new sub-agents or new team) for fresh context
+3. Execute the next wave
 4. Continue until all done
 
 ## Partial Completion

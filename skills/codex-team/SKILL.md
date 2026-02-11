@@ -1,36 +1,44 @@
 ---
 name: codex-team
 tier: orchestration
-description: 'Use when you have 2+ tasks that Codex agents should execute. Claude orchestrates, Codex executes. Handles file conflicts via merge/wave strategies. Triggers: "codex team", "spawn codex", "codex agents", "use codex for", "codex fix".'
+description: 'Use when you have 2+ tasks that Codex agents should execute. Runtime-native: Codex sub-agents when available, Codex CLI fallback otherwise. Handles file conflicts via merge/wave strategies. Triggers: "codex team", "spawn codex", "codex agents", "use codex for", "codex fix".'
 ---
 
 # Codex Team
 
-Claude orchestrates, Codex agents execute. Each agent gets one focused task. The team lead prevents file conflicts before spawning — the orchestrator IS the lock manager.
+The lead orchestrates, Codex agents execute. Each agent gets one focused task. The team lead prevents file conflicts before spawning — the orchestrator IS the lock manager.
 
 ## When to Use
 
 - You have 2+ tasks (bug fixes, implementations, refactors)
 - Tasks are well-scoped with clear instructions
-- You want cross-vendor execution (GPT-5.3-Codex alongside Claude)
-- Tasks don't require Claude-specific tools (Task, SendMessage, TeamCreate)
+- You want Codex execution with predictable isolation
+- You may be in Claude or Codex runtime (skill auto-selects backend)
 
-**Don't use when:** Tasks need real-time coordination, shared state, or Claude Code tools.
+**Don't use when:** Tasks need tight shared-state coordination. Use `/swarm` for dependency-heavy wave orchestration.
 
-## Pre-Flight
+## Backend Selection (MANDATORY)
+
+Select backend in this order:
+
+1. `spawn_agent` available -> **Codex experimental sub-agents** (preferred)
+2. Otherwise -> **Codex CLI via Bash** (`codex exec ...`)
+
+If neither is available, fall back to `/swarm`.
+
+## Pre-Flight (CLI backend only)
 
 ```
-# REQUIRED before spawning
+# REQUIRED before spawning with Codex CLI backend
 if ! which codex > /dev/null 2>&1; then
   echo "Codex CLI not found. Install: npm i -g @openai/codex"
-  # Fallback: use /swarm with Task tool instead
+  # Fallback: use /swarm
 fi
 
 # Model availability test
 CODEX_MODEL="${CODEX_MODEL:-gpt-5.3-codex}"
 if ! codex exec --full-auto -m "$CODEX_MODEL" -C "$(pwd)" "echo ok" > /dev/null 2>&1; then
-  echo "Codex model $CODEX_MODEL unavailable. Falling back to Claude-only."
-  # Fallback: use /swarm with Task tool instead
+  echo "Codex model $CODEX_MODEL unavailable. Falling back to /swarm."
 fi
 ```
 
@@ -136,7 +144,15 @@ tasks = [
 
 **Strategy: Parallel (no file overlap)**
 
-Spawn all agents in a single response using Bash with `run_in_background=true`:
+Codex sub-agent backend (preferred):
+
+```
+spawn_agent(message="Fix the null check in pkg/auth.go:validateToken around line 89...")
+spawn_agent(message="Add timeout field to internal/config.go:Config struct...")
+spawn_agent(message="Fix log rotation in pkg/log.go:rotateLogFile...")
+```
+
+Codex CLI backend:
 
 ```
 Bash(command='codex exec --full-auto -m "gpt-5.3-codex" -C "$(pwd)" -o .agents/codex-team/auth-fix.md "Fix the null check in pkg/auth.go:validateToken around line 89..."', run_in_background=true)
@@ -149,6 +165,9 @@ Bash(command='codex exec --full-auto -m "gpt-5.3-codex" -C "$(pwd)" -o .agents/c
 Combine all fixes into a single agent prompt:
 
 ```
+spawn_agent(message="Fix these 3 issues in cmd/zeus.go: (1) rename spec_path to spec_location in QUEST_REQUEST payload (2) remove beads field (3) fix dispatch counter increment location")
+
+# CLI equivalent:
 Bash(command='codex exec --full-auto -m "gpt-5.3-codex" -C "$(pwd)" -o .agents/codex-team/zeus-fixes.md \
   "Fix these 3 issues in cmd/zeus.go: \
    (1) Line 245: rename spec_path to spec_location in QUEST_REQUEST payload \
@@ -161,7 +180,14 @@ One agent, one file, no conflicts possible.
 **Strategy: Multi-wave (partial overlap)**
 
 ```
-# Wave 1: non-overlapping tasks
+# Wave 1: non-overlapping tasks (sub-agent backend)
+spawn_agent(message='Fix null check in pkg/auth.go:89...')
+spawn_agent(message='Add timeout to internal/config.go...')
+
+# Wait for Wave 1 (sub-agent backend)
+wait(ids=["<id-1>", "<id-2>"], timeout_ms=120000)
+
+# Wave 1: non-overlapping tasks (CLI backend)
 Bash(command='codex exec ... -o .agents/codex-team/auth-fix.md "Fix null check in pkg/auth.go:89..."', run_in_background=true)
 Bash(command='codex exec ... -o .agents/codex-team/config-fix.md "Add timeout to internal/config.go..."', run_in_background=true)
 
@@ -173,7 +199,10 @@ TaskOutput(task_id="<id-2>", block=true, timeout=120000)
 Read(.agents/codex-team/auth-fix.md)
 git diff pkg/auth.go
 
-# Wave 2: task that shares files with Wave 1
+# Wave 2: task that shares files with Wave 1 (sub-agent backend)
+spawn_agent(message='Add rate limiting to pkg/auth.go and pkg/middleware.go. Note: validateToken now has a null check at line 89. Build on current file state.')
+
+# Wave 2: CLI backend equivalent
 Bash(command='codex exec ... -o .agents/codex-team/rate-limit.md \
   "Add rate limiting to pkg/auth.go and pkg/middleware.go. \
    Note: pkg/auth.go was recently modified — the validateToken function now has a null check at line 89. \
@@ -187,6 +216,10 @@ The team lead synthesizes Wave 1 results and injects relevant context into Wave 
 ### Step 4: Wait for Completion
 
 ```
+# Sub-agent backend:
+wait(ids=["<id-1>", "<id-2>", "<id-3>"], timeout_ms=120000)
+
+# CLI backend:
 TaskOutput(task_id="<id-1>", block=true, timeout=120000)
 TaskOutput(task_id="<id-2>", block=true, timeout=120000)
 TaskOutput(task_id="<id-3>", block=true, timeout=120000)
@@ -253,4 +286,4 @@ Task(description="Fix task 1", subagent_type="general-purpose", run_in_backgroun
 | Max agents/wave | 6 recommended |
 | Timeout | 120s default |
 | Strategies | Parallel (no overlap), Merge (same file), Multi-wave (partial overlap) |
-| Fallback | `/swarm` (Claude Task tool) |
+| Fallback | `/swarm` (runtime-native) |

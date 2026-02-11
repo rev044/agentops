@@ -129,22 +129,22 @@ echo "=== Judge Count Validation ==="
 SKILL_CONTENT=$(cat "$SKILL_DIR/SKILL.md" 2>/dev/null || true)
 
 # Check default mode documents 2 agents
-if echo "$SKILL_CONTENT" | grep -qE 'default.*\|.*2.*\|.*Claude'; then
-    pass "Default mode documents 2 Claude judges"
+if echo "$SKILL_CONTENT" | grep -qE 'default.*\|.*2.*\|'; then
+    pass "Default mode documents 2 judges"
 else
-    fail "Default mode should document 2 Claude judges"
+    fail "Default mode should document 2 judges"
 fi
 
 # Check --deep mode documents 3 agents
-if echo "$SKILL_CONTENT" | grep -qE '\-\-deep.*\|.*3.*\|.*Claude'; then
-    pass "--deep mode documents 3 Claude judges"
+if echo "$SKILL_CONTENT" | grep -qE '\-\-deep.*\|.*3.*\|'; then
+    pass "--deep mode documents 3 judges"
 else
-    fail "--deep mode should document 3 Claude judges"
+    fail "--deep mode should document 3 judges"
 fi
 
 # Check --mixed mode documents 3+3 agents
-if echo "$SKILL_CONTENT" | grep -qE '\-\-mixed.*\|.*3\+3.*\|.*Claude.*Codex'; then
-    pass "--mixed mode documents 3+3 (Claude + Codex) judges"
+if echo "$SKILL_CONTENT" | grep -qE '\-\-mixed.*\|.*3\+3'; then
+    pass "--mixed mode documents 3+3 judges"
 else
     fail "--mixed mode should document 3+3 judges"
 fi
