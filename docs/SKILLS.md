@@ -66,13 +66,13 @@ Extract learnings from completed work.
 
 ### /post-mortem
 
-Full validation + knowledge extraction. Council validates, retro extracts learnings, then synthesizes skill enhancement proposals and suggests the next `/rpi` command. The flywheel exit point.
+Full validation + knowledge extraction. Council validates, retro extracts learnings, then synthesizes process improvement proposals and suggests the next `/rpi` command. The flywheel exit point.
 
 ```bash
 /post-mortem <epic-id>
 ```
 
-**Output:** Council report, retro, learnings, skill enhancement proposals, next-work queue (`.agents/rpi/next-work.jsonl`)
+**Output:** Council report, retro, learnings, process improvement proposals, next-work queue (`.agents/rpi/next-work.jsonl`)
 
 ---
 

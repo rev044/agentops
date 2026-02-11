@@ -142,7 +142,7 @@ Consensus: WARN — add rate limiting before shipping
 
 5. **`/vibe`** — 3 judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
 
-6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes skill enhancements. **Suggests the next `/rpi` command.**
+6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes process improvements. **Suggests the next `/rpi` command.**
 
 `/rpi "goal"` runs all six, end to end. Use `--interactive` if you want human gates at research and plan.
 
@@ -169,7 +169,7 @@ This is what makes AgentOps different. The system doesn't just run — it compou
     └── ...repeat forever
 ```
 
-Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "which skill would this improve?", and writes concrete enhancement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system rewrites its own playbook.
+Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system grows its knowledge stock with each cycle.
 
 **Session 1:** Your agent ships a feature but the tests are weak.
 **Session 2:** The flywheel already knows — `/vibe` now checks test assertion coverage because last cycle's retro proposed it.

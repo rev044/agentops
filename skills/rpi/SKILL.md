@@ -367,11 +367,11 @@ Summarize the entire lifecycle to the user:
 ```markdown
 ## Flywheel: Next Cycle
 
-Post-mortem harvested N follow-up items (M skill-enhancements, K tech-debt):
+Post-mortem harvested N follow-up items (M process-improvements, K tech-debt):
 
 | # | Title | Type | Severity |
 |---|-------|------|----------|
-| 1 | ... | skill-enhancement | high |
+| 1 | ... | process-improvement | high |
 
 Ready to run:
     /rpi "<highest-severity item title>"

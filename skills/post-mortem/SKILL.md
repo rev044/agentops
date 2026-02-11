@@ -357,31 +357,31 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 [ ] FOLLOW-UP - Issues need addressing (create new beads)
 ```
 
-### Step 5.5: Synthesize Skill Enhancement Proposals
+### Step 5.5: Synthesize Process Improvement Proposals
 
-**After writing the post-mortem report, analyze retro learnings for skill improvement opportunities.**
+**After writing the post-mortem report, analyze retro learnings for process improvement opportunities — things that make development more effective with each cycle.**
 
 Read the retro output (from Step 4) and the council report (from Step 3). For each learning, ask:
-1. **Which skill would this improve?** (council, crank, vibe, pre-mortem, rpi, research, plan, etc.)
-2. **What's the concrete change?** (new flag, new check, new reference doc, workflow change)
+1. **What process does this improve?** (build, test, review, deploy, documentation, automation, etc.)
+2. **What's the concrete change?** (new check, new automation, workflow change, tooling improvement)
 3. **Is it actionable in one RPI cycle?** (if not, split into smaller pieces)
 
-Write skill enhancement items with type `skill-enhancement` (distinct from `tech-debt` or `improvement`). Each item must have:
-- `title`: imperative form, e.g. "Add --auto-waves flag to /crank"
-- `skill`: which skill to enhance
+Write process improvement items with type `process-improvement` (distinct from `tech-debt` or `improvement`). Each item must have:
+- `title`: imperative form, e.g. "Add pre-commit lint check"
+- `area`: which part of the development process to improve
 - `description`: 2-3 sentences describing the change and why retro evidence supports it
 - `evidence`: which retro finding or council finding motivates this
 
-**These items feed directly into Step 8 (Harvest Next Work) alongside council findings.**
+**These items feed directly into Step 8 (Harvest Next Work) alongside council findings. They are the flywheel's growth vector — each cycle makes the system smarter.**
 
 Example output:
 ```markdown
-### Skill Enhancement Proposals
+### Process Improvement Proposals
 
-| # | Skill | Enhancement | Evidence |
-|---|-------|-------------|----------|
-| 1 | /crank | Add validation metadata requirement for Go tasks | Workers shipped untested code when metadata didn't require `go test` |
-| 2 | /vibe | Add consistency-check finding category | Partial refactoring left stale references undetected |
+| # | Area | Improvement | Evidence |
+|---|------|-------------|----------|
+| 1 | testing | Add validation metadata requirement for Go tasks | Workers shipped untested code when metadata didn't require `go test` |
+| 2 | review | Add consistency-check finding category | Partial refactoring left stale references undetected |
 ```
 
 ### Step 6: Feed the Knowledge Flywheel
@@ -437,7 +437,7 @@ Scan the council report and retro for actionable follow-up items:
 
 1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
 2. **Retro patterns:** Extract recurring patterns from retro learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
-3. **Skill enhancements:** Include all items from Step 5.5 (type: `skill-enhancement`). These are the flywheel's growth vector — learnings that make the system better, not just fix the current codebase.
+3. **Process improvements:** Include all items from Step 5.5 (type: `process-improvement`). These are the flywheel's growth vector — each cycle makes development more effective.
 3. **Write `## Next Work` section** to the post-mortem report:
 
 ```markdown
@@ -445,7 +445,7 @@ Scan the council report and retro for actionable follow-up items:
 
 | # | Title | Type | Severity | Source |
 |---|-------|------|----------|--------|
-| 1 | <title> | tech-debt / improvement / pattern-fix / skill-enhancement | high / medium / low | council-finding / retro-learning / retro-pattern / retro-skill-proposal |
+| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern |
 ```
 
 4. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the schema contract (`.agents/rpi/next-work.schema.md`):
@@ -467,7 +467,7 @@ validate_next_work_item() {
 
   # Type enum validation
   case "$type" in
-    tech-debt|improvement|pattern-fix|skill-enhancement) ;;
+    tech-debt|improvement|pattern-fix|process-improvement) ;;
     *) echo "SCHEMA VALIDATION FAILED: invalid type '$type' for item '$title'"; return 1 ;;
   esac
 
@@ -544,7 +544,7 @@ Ship it
     │
     ├── Council validates implementation
     ├── Retro extracts learnings
-    ├── Synthesize skill enhancements
+    ├── Synthesize process improvements
     └── Suggest next /rpi ──────────┐
                                     │
     ┌───────────────────────────────┘
