@@ -189,6 +189,20 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Delete existing release assets (idempotent re-runs)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          RELEASE_ID=$(gh api "repos/${{ github.repository }}/releases/tags/$VERSION" --jq '.id' 2>/dev/null || echo "")
+          if [[ -n "$RELEASE_ID" ]]; then
+            echo "Existing release found (id=$RELEASE_ID), deleting assets..."
+            gh api "repos/${{ github.repository }}/releases/$RELEASE_ID/assets" --jq '.[].id' | while read ASSET_ID; do
+              gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+              echo "  deleted asset $ASSET_ID"
+            done
+          fi
+
       - name: Publish with GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
