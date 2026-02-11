@@ -1,11 +1,11 @@
 ---
 name: quickstart
 tier: solo
-description: 'Interactive onboarding for new AgentOps users. Guided RPI cycle on your actual codebase in under 10 minutes. Triggers: "quickstart", "get started", "onboarding", "how do I start".'
+description: 'Interactive onboarding for new users. Guided RPI cycle on your actual codebase in under 10 minutes. Triggers: "quickstart", "get started", "onboarding", "how do I start".'
 dependencies: []
 ---
 
-# /quickstart — Get Started with AgentOps
+# /quickstart — Get Started
 
 > **Purpose:** Walk a new user through their first Research-Plan-Implement cycle on their actual codebase. Under 10 minutes to first value.
 
@@ -125,8 +125,8 @@ infra="$(find_first Dockerfile)"
 git log --oneline -5 2>/dev/null
 git diff --stat HEAD~3 2>/dev/null | tail -5
 
-# Check for existing AgentOps setup
-ls .agents/ 2>/dev/null && echo "AgentOps artifacts found"
+# Check for existing workflow setup
+ls .agents/ 2>/dev/null && echo "Workflow artifacts found"
 ls .beads/ 2>/dev/null && echo "Beads issue tracking found"
 
 # Repo-specific instructions (optional but high-signal)
@@ -138,7 +138,7 @@ test -f AGENTS.md && echo "AGENTS.md found (repo-specific workflow)"
 Present this to the user:
 
 ```
-Welcome to AgentOps! Here are the 3 skills that matter most:
+Welcome! Here are the 3 skills that matter most:
 
   /research  — Deep dive into your codebase to understand it
   /plan      — Break a goal into trackable issues

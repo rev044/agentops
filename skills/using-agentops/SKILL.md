@@ -1,15 +1,15 @@
 ---
 name: using-agentops
 tier: meta
-description: 'Meta skill explaining the AgentOps workflow. Auto-injected on session start. Covers RPI workflow, Knowledge Flywheel, and skill catalog.'
+description: 'Meta skill explaining the RPI workflow. Auto-injected on session start. Covers Research-Plan-Implement workflow, Knowledge Flywheel, and skill catalog.'
 dependencies: []
 metadata:
   internal: true
 ---
 
-# AgentOps Workflow
+# RPI Workflow
 
-You have access to the AgentOps skill set for structured development workflows.
+You have access to workflow skills for structured development.
 
 ## The RPI Workflow
 
@@ -131,7 +131,7 @@ Skills auto-trigger from conversation:
 
 ## Issue Tracking
 
-AgentOps uses beads for git-native issue tracking:
+This workflow uses beads for git-native issue tracking:
 
 ```bash
 bd ready              # Unblocked issues

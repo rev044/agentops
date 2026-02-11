@@ -115,7 +115,7 @@ Mayor: "Let's build a user auth system"
 - **Atomic execution** - Each worker works until task done
 - **Graceful fallback** - If richer APIs unavailable, fall back to `Task(run_in_background=true)`
 
-## Integration with AgentOps
+## Workflow Integration
 
 This ties into the full workflow:
 

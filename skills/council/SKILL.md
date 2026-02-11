@@ -27,7 +27,7 @@ Spawn parallel judges with different perspectives, consolidate into consensus. W
 /council                                                       # infers from context
 ```
 
-Council works independently — no RPI workflow, no ratchet chain, no `ao` CLI required. Zero setup beyond plugin install.
+Council works independently — no RPI workflow, no ratchet chain, no `ao` CLI required. Zero setup beyond initial install.
 
 ## Modes
 

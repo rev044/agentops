@@ -5,7 +5,7 @@ description: 'Single-screen dashboard showing current work, recent validations, 
 dependencies: []
 ---
 
-# /status — AgentOps Dashboard
+# /status — Workflow Dashboard
 
 > **Purpose:** Single-screen overview of your current state. What am I working on? What happened recently? What should I do next?
 
@@ -113,7 +113,7 @@ Assemble gathered data into this format. Use Unicode indicators for visual clari
 
 ```
 ══════════════════════════════════════════════════
-  AgentOps Dashboard
+  Workflow Dashboard
 ══════════════════════════════════════════════════
 
 RPI PROGRESS
