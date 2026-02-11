@@ -351,7 +351,6 @@ Summarize the entire lifecycle to the user:
 | Crank | <DONE/BLOCKED/PARTIAL> |
 | Vibe | <PASS/WARN/FAIL> |
 | Post-mortem | Complete |
-| Next Work | <N items harvested / none> |
 
 **Artifacts:**
 - Research: .agents/research/...
@@ -362,6 +361,23 @@ Summarize the entire lifecycle to the user:
 - Learnings: .agents/learnings/...
 - Next Work: .agents/rpi/next-work.jsonl
 ```
+
+**ALWAYS include the flywheel section** (regardless of `--spawn-next` flag):
+
+```markdown
+## Flywheel: Next Cycle
+
+Post-mortem harvested N follow-up items (M skill-enhancements, K tech-debt):
+
+| # | Title | Type | Severity |
+|---|-------|------|----------|
+| 1 | ... | skill-enhancement | high |
+
+Ready to run:
+    /rpi "<highest-severity item title>"
+```
+
+The `--spawn-next` flag controls whether items are **marked consumed** in `next-work.jsonl`. The suggestion is ALWAYS shown. This ensures every `/rpi` cycle ends by pointing at the next one — the flywheel never stops spinning unless there's nothing to improve.
 
 ## Error Handling
 

@@ -4,7 +4,7 @@
 
 ### Goal in, production code out.
 
-[![Version](https://img.shields.io/badge/version-2.3.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-32-7c3aed)](skills/)
 [![Hooks](https://img.shields.io/badge/hooks-11-orange)](hooks/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -158,9 +158,10 @@ After a successful first lifecycle run (for example, `/rpi "small scoped change"
 [crank]       Wave 1: ███ 2/2 · Wave 2: █ 1/1
 [vibe]        3 judges → Verdict: PASS
 [post-mortem] 3 learnings extracted → .agents/
+[flywheel]    Next: /rpi "add consistency-check finding category to /vibe"
 ```
 
-That's six phases — research, planning, failure simulation, parallel implementation, code validation, and learning extraction — running autonomously. Failed validation triggers a retry with the failure context. Ratchet gates lock each phase so progress can't go backward. You type one command and walk away.
+That's six phases — research, planning, failure simulation, parallel implementation, code validation, and learning extraction — running autonomously. Failed validation triggers a retry with the failure context. Ratchet gates lock each phase so progress can't go backward. **Every cycle ends by suggesting the next one** — the system learns what to improve and tells you exactly what command to run. You type one command, walk away, come back, copy-paste the next command, walk away again.
 
 <details>
 <summary><strong>More examples</strong></summary>
@@ -238,13 +239,26 @@ Every wave gets a fresh worker set (new sub-agents or teammates). Every worker g
 ### Knowledge Flywheel
 
 ```
-  Session 1:  work → ao forge → extract learnings → .agents/
-  Session 2:  ao inject → .agents/ loaded → work → extract → .agents/
-  Session 3:  ao inject → richer context → work → extract → .agents/
-                          compounds over time ↑
+  /rpi "goal"
+    │
+    ├── research → plan → crank → vibe
+    │
+    ▼
+  /post-mortem
+    ├── council validates implementation
+    ├── /retro extracts learnings
+    ├── synthesize skill enhancements        ← new: learnings improve the tools
+    └── suggest next /rpi ──────────┐
+                                    │
+    ┌───────────────────────────────┘
+    │  (flywheel: every cycle feeds the next)
+    ▼
+  /rpi "highest-priority enhancement"
+    │
+    └── ...repeat forever
 ```
 
-The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts learnings at session end. Decisions, patterns, failures, and fixes accumulate in `.agents/` — your agents get smarter with every cycle.
+Every `/rpi` cycle ends by feeding learnings back into the system. Post-mortem extracts what went well, what was hard, and what the tools should do better. Those learnings become **skill enhancement proposals** — concrete improvements to the skills themselves. The post-mortem then suggests the next `/rpi` command, ready to copy-paste. The system doesn't just get smarter — it tells you exactly what to improve next and hands you the command to do it.
 
 ### Context Orchestration
 
@@ -259,10 +273,12 @@ The `ao` CLI auto-injects relevant knowledge at session start and auto-extracts 
     │                          BLOCKED? → retry with context (max 3)
     ├─ Phase 5: /vibe ──────── 3-judge council validates code
     │                          FAIL? → re-crank → re-vibe (max 3)
-    └─ Phase 6: /post-mortem ─ extract learnings → .agents/
+    └─ Phase 6: /post-mortem ─ council + retro + skill enhancements
+                 │
+                 └─→ "Next: /rpi <enhancement>"  ← the flywheel
 ```
 
-Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or re-crank with the failure context, then re-validate. Ratchet checkpoints after each phase lock progress. Use `--interactive` if you want human gates at research and plan.
+Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or re-crank with the failure context, then re-validate. Ratchet checkpoints after each phase lock progress. **Phase 6 always suggests the next `/rpi` command** — learnings from this cycle become the goal for the next one. Use `--interactive` if you want human gates at research and plan.
 
 ## Skills Catalog
 
@@ -416,7 +432,7 @@ Your coding agent can spawn agents and write code. AgentOps turns it into an aut
 - **Can't regress** — Brownian ratchet locks progress after each phase. Parallel agents generate chaos; multi-model council filters it; ratchet keeps only what passes.
 - **Runtime-aware orchestration** — Same skills choose Codex sub-agents or Claude teams automatically based on the active runtime.
 - **Fresh context every time** — Ralph loops: each wave gets fresh workers, each worker gets clean context. No accumulated hallucinations, no bleed-through between tasks.
-- **Gets smarter** — Knowledge flywheel: every session forges learnings into `.agents/`. Next session injects them. Your agents compound intelligence across sessions.
+- **Gets smarter** — Knowledge flywheel: every `/rpi` cycle extracts learnings, proposes skill enhancements, and suggests the next cycle. The system compounds intelligence — each run makes the next one better. Your agents don't just remember, they improve their own tools.
 - **Cross-vendor** — `--mixed` mode adds Codex judges alongside Claude. Different models catch different bugs.
 - **Self-enforcing** — Hooks block pushes without validation, prevent workers from committing, nudge agents through the lifecycle. No discipline required.
 

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Retro remediation hardening sweep** — JSON Schema validation for plugin and hooks manifests (`schemas/`), Dependabot config for Go + GitHub Actions, release workflow stub, hook preflight validator, expanded hook integration tests (170+ lines), doc-release validation script.
 - **`ao forge markdown` subcommand** — Forge now supports mining `.md` files in addition to `.jsonl` transcripts (256+ LOC in `forge.go`).
 - **Task-validation-gate command allowlist** — Replaced `eval()` shell injection vector with allowlist-based execution; only `go`, `pytest`, `npm`, `npx`, `make`, `bash` permitted.
+- **Self-perpetuating knowledge flywheel** — Post-mortem now synthesizes skill enhancement proposals from retro learnings (Step 5.5), always suggests a ready-to-copy next `/rpi` command (Step 7), and harvests `skill-enhancement` items alongside tech-debt (Step 8). `/rpi` Step Final always shows the flywheel section with the next suggested cycle. Every run ends by pointing at the next one — the system improves its own tools.
 
 ### Changed
 

@@ -255,6 +255,33 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 [ ] FOLLOW-UP - Issues need addressing (create new beads)
 ```
 
+### Step 5.5: Synthesize Skill Enhancement Proposals
+
+**After writing the post-mortem report, analyze retro learnings for skill improvement opportunities.**
+
+Read the retro output (from Step 4) and the council report (from Step 3). For each learning, ask:
+1. **Which skill would this improve?** (council, crank, vibe, pre-mortem, rpi, research, plan, etc.)
+2. **What's the concrete change?** (new flag, new check, new reference doc, workflow change)
+3. **Is it actionable in one RPI cycle?** (if not, split into smaller pieces)
+
+Write skill enhancement items with type `skill-enhancement` (distinct from `tech-debt` or `improvement`). Each item must have:
+- `title`: imperative form, e.g. "Add --auto-waves flag to /crank"
+- `skill`: which skill to enhance
+- `description`: 2-3 sentences describing the change and why retro evidence supports it
+- `evidence`: which retro finding or council finding motivates this
+
+**These items feed directly into Step 8 (Harvest Next Work) alongside council findings.**
+
+Example output:
+```markdown
+### Skill Enhancement Proposals
+
+| # | Skill | Enhancement | Evidence |
+|---|-------|-------------|----------|
+| 1 | /crank | Add validation metadata requirement for Go tasks | Workers shipped untested code when metadata didn't require `go test` |
+| 2 | /vibe | Add consistency-check finding category | Partial refactoring left stale references undetected |
+```
+
 ### Step 6: Feed the Knowledge Flywheel
 
 Post-mortem automatically feeds learnings into the flywheel:
@@ -280,6 +307,27 @@ Tell the user:
 3. Any follow-up items
 4. Location of post-mortem report
 5. Knowledge flywheel status
+6. **Suggested next `/rpi` command** (ALWAYS — this is how the flywheel spins itself)
+
+**The next `/rpi` suggestion is MANDATORY, not opt-in.** After every post-mortem, present the highest-severity harvested item as a ready-to-copy command:
+
+```markdown
+## Flywheel: Next Cycle
+
+Based on this post-mortem, the highest-priority follow-up is:
+
+> **<title>** (<type>, <severity>)
+> <1-line description>
+
+Ready to run:
+```
+/rpi "<title>"
+```
+
+Or see all N harvested items in `.agents/rpi/next-work.jsonl`.
+```
+
+If no items were harvested, write: "Flywheel stable — no follow-up items identified."
 
 ### Step 8: Harvest Next Work
 
@@ -287,6 +335,7 @@ Scan the council report and retro for actionable follow-up items:
 
 1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
 2. **Retro patterns:** Extract recurring patterns from retro learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
+3. **Skill enhancements:** Include all items from Step 5.5 (type: `skill-enhancement`). These are the flywheel's growth vector — learnings that make the system better, not just fix the current codebase.
 3. **Write `## Next Work` section** to the post-mortem report:
 
 ```markdown
@@ -294,7 +343,7 @@ Scan the council report and retro for actionable follow-up items:
 
 | # | Title | Type | Severity | Source |
 |---|-------|------|----------|--------|
-| 1 | <title> | tech-debt / improvement / pattern-fix | high / medium / low | council-finding / retro-learning / retro-pattern |
+| 1 | <title> | tech-debt / improvement / pattern-fix / skill-enhancement | high / medium / low | council-finding / retro-learning / retro-pattern / retro-skill-proposal |
 ```
 
 4. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`):
@@ -340,7 +389,14 @@ Ship it
 /post-mortem              ← You are here
     │
     ├── Council validates implementation
-    └── Retro extracts learnings
+    ├── Retro extracts learnings
+    ├── Synthesize skill enhancements
+    └── Suggest next /rpi ──────────┐
+                                    │
+    ┌───────────────────────────────┘
+    │  (flywheel: learnings become next work)
+    ▼
+/rpi "<highest-priority enhancement>"
 ```
 
 ---

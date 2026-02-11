@@ -73,11 +73,23 @@ Research → Plan → Implement → Validate
 
 ### Knowledge Flywheel
 
-Every `/post-mortem` feeds back to `/research`:
+Every `/post-mortem` feeds back into the next `/rpi` cycle:
 
-1. Learnings extracted → `.agents/learnings/`
-2. Patterns discovered → `.agents/patterns/`
-3. Research enriched → Future sessions benefit
+1. Council validates the implementation
+2. `/retro` extracts learnings → `.agents/learnings/`
+3. Skill enhancement proposals synthesized from retro findings
+4. Next-work items harvested → `.agents/rpi/next-work.jsonl`
+5. **Suggested `/rpi` command presented** — ready to copy-paste
+
+```
+  /rpi "goal A"
+    └─ post-mortem → retro → skill enhancements → "Next: /rpi goal B"
+                                                          │
+  /rpi "goal B" ←──────────────────────────────────────────┘
+    └─ post-mortem → retro → skill enhancements → "Next: /rpi goal C"
+```
+
+The flywheel is self-perpetuating: every cycle learns, proposes improvements, and queues the next cycle. The system doesn't just get smarter — it tells you exactly what to improve next.
 
 ---
 
