@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-02-11
+
+### Added
+
+- **Runtime-native spawn backend contract** — `skills/shared/SKILL.md` now defines backend selection order for orchestration skills: `spawn_agent` → `TeamCreate` → `Task(run_in_background=true)`, plus operation mapping for spawn/wait/retry/cleanup.
+- **Codex sub-agent execution reference flows** — `skills/swarm/references/local-mode.md` and `skills/council/references/cli-spawning.md` now include concrete `spawn_agent`, `wait`, `send_input`, and `close_agent` patterns.
+
+### Changed
+
+- **Swarm/Council/Crank/Codex-Team runtime universality** — `skills/swarm/SKILL.md`, `skills/council/SKILL.md`, `skills/crank/SKILL.md`, and `skills/codex-team/SKILL.md` now document runtime-native orchestration (Codex sub-agents or Claude teams with fallback).
+- **Council validator generalized** — `skills/council/scripts/validate-council.sh` now validates judge counts without Claude-specific assumptions.
+- **Core docs updated for Codex sub-agents** — `README.md`, `docs/reference.md`, and `docs/ARCHITECTURE.md` now describe runtime-native backend selection and coordination behavior.
+- **Swarm validator updated** — `skills/swarm/scripts/validate.sh` now validates runtime backend selection and cleanup lifecycle documentation.
+
+### Fixed
+
+- **Release skill doc-link integrity** — Fixed `skills/release/SKILL.md` changelog link template to satisfy doc link validation.
+
 ## [2.2.1] - 2026-02-10
 
 ### Added
