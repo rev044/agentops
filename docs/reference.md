@@ -275,31 +275,6 @@ ao pool list              # Show knowledge by quality tier
 
 ---
 
-## Environment Variables
-
-AgentOps hooks and scripts respect these environment variables:
-
-### Kill Switches
-
-| Variable | Effect | Default |
-|----------|--------|---------|
-| `AGENTOPS_HOOKS_DISABLED=1` | Disable ALL hooks | `0` (enabled) |
-| `AGENTOPS_SESSION_START_DISABLED=1` | Disable session-start hook | `0` |
-| `AGENTOPS_PRECOMPACT_DISABLED=1` | Disable precompact hook | `0` |
-| `AGENTOPS_PENDING_CLEANER_DISABLED=1` | Disable pending-cleaner hook | `0` |
-| `AGENTOPS_TASK_VALIDATION_DISABLED=1` | Disable task-validation hook | `0` |
-
-### Behavior Controls
-
-| Variable | Effect | Default |
-|----------|--------|---------|
-| `AGENTOPS_AUTOCHAIN` | Enable/disable automatic ratchet advancement | `1` (enabled) |
-| `AGENTOPS_WORKER=1` | Mark agent as worker (blocks git push) | `0` (lead) |
-| `AGENTOPS_PENDING_STALE_SECONDS` | Stale pending file threshold (seconds) | `172800` (48h) |
-| `AGENTOPS_PENDING_ALERT_LINES` | Pending file size alert threshold | `50` |
-
----
-
 ## All Skills
 
 ### Primary

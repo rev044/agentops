@@ -18,11 +18,6 @@ pass() { echo -e "${GREEN}  ✓${NC} $1"; }
 fail() { echo -e "${RED}  ✗${NC} $1"; }
 warn() { echo -e "${YELLOW}  !${NC} $1"; }
 
-# Provide timeout shim for macOS (coreutils timeout not available by default)
-if ! command -v timeout &>/dev/null; then
-    timeout() { local t="$1"; shift; "$@"; }
-fi
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR}/.."
 [[ -d "$REPO_ROOT/agentops" ]] && REPO_ROOT="$REPO_ROOT/agentops"
