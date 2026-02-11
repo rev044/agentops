@@ -101,22 +101,7 @@ Given `/swarm --mode=distributed`:
 
 ### Step 1: Pre-flight Checks
 
-Run the shared preflight helper first:
-
-```bash
-scripts/multi-agent-preflight.sh \
-  --workflow swarm \
-  --max-workers "${MAX_WORKERS:-5}" \
-  --min-quorum "${MIN_QUORUM:-1}" \
-  --bead-ids "${BEAD_IDS:-}"
-```
-
-The helper verifies:
-- Registration prerequisites (`claude`, `tmux`, Agent Mail health endpoint, project key)
-- Quorum inputs (`max-workers`, `min-quorum`, and ready bead count)
-- Claim-lock health (`scripts/tasks-sync.sh lock-health`, with `flock` preferred when available)
-
-If the helper is unavailable, run equivalent checks manually:
+Run equivalent checks manually before starting:
 
 ```bash
 # Check tmux is available
