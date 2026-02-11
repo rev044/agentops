@@ -41,6 +41,13 @@ echo ""
 # =============================================================================
 log "Tier 1: Static Validation"
 
+# Validate manifests against canonical schemas
+if bash "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" > /dev/null 2>&1; then
+    pass "Manifest schema validation"
+else
+    fail "Manifest schema validation"
+fi
+
 # Validate JSON files
 for jf in "$REPO_ROOT/.claude-plugin/plugin.json" "$REPO_ROOT/hooks/hooks.json"; do
     if [[ ! -f "$jf" ]]; then

@@ -101,6 +101,23 @@ Given `/swarm --mode=distributed`:
 
 ### Step 1: Pre-flight Checks
 
+Run the shared preflight helper first:
+
+```bash
+scripts/multi-agent-preflight.sh \
+  --workflow swarm \
+  --max-workers "${MAX_WORKERS:-5}" \
+  --min-quorum "${MIN_QUORUM:-1}" \
+  --bead-ids "${BEAD_IDS:-}"
+```
+
+The helper verifies:
+- Registration prerequisites (`claude`, `tmux`, Agent Mail health endpoint, project key)
+- Quorum inputs (`max-workers`, `min-quorum`, and ready bead count)
+- Claim-lock health (`scripts/tasks-sync.sh lock-health`, with `flock` preferred when available)
+
+If the helper is unavailable, run equivalent checks manually:
+
 ```bash
 # Check tmux is available
 which tmux >/dev/null 2>&1 || {
@@ -126,6 +143,12 @@ if [ "$AGENT_MAIL_OK" != "true" ]; then
     echo "Start your Agent Mail MCP server (implementation-specific). See docs/agent-mail.md."
     exit 1
 fi
+
+# Check claim-lock health for shared task claims
+scripts/tasks-sync.sh lock-health >/dev/null 2>&1 || {
+    echo "Error: claim-lock health check failed (scripts/tasks-sync.sh lock-health)"
+    exit 1
+}
 ```
 
 ### Step 2: Register Mayor with Agent Mail

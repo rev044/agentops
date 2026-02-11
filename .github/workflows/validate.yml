@@ -7,6 +7,16 @@ on:
     branches: [main]
 
 jobs:
+  doc-release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run doc-release stabilization gate
+        run: |
+          chmod +x tests/docs/validate-doc-release.sh
+          ./tests/docs/validate-doc-release.sh
+
   smoke-test:
     runs-on: ubuntu-latest
     steps:
@@ -116,48 +126,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Validate plugin manifests
+      - name: Validate manifests against versioned schemas
         run: |
-          echo "=== Validating plugin.json manifests ==="
-
-          # Valid keys per Claude Code plugin spec (includes $schema and hooks)
-          valid_keys='["$schema","name","version","description","author","homepage","repository","license","keywords","commands","skills","agents","hooks"]'
-
-          failed=0
-          # Check root manifest only (unified structure)
-          manifest=".claude-plugin/plugin.json"
-          if [[ -f "$manifest" ]]; then
-            echo "Checking: $manifest"
-
-            # Check JSON validity
-            if ! jq empty "$manifest" 2>/dev/null; then
-              echo "❌ Invalid JSON in manifest"
-              failed=1
-            fi
-
-            # Check for invalid keys
-            invalid=$(jq -r --argjson valid "$valid_keys" 'keys - $valid | .[]' "$manifest" 2>/dev/null)
-            if [[ -n "$invalid" ]]; then
-              echo "❌ Invalid keys in manifest: $invalid"
-              failed=1
-            fi
-
-            # Check required fields
-            if ! jq -e '.name' "$manifest" > /dev/null 2>&1; then
-              echo "❌ Missing 'name' field"
-              failed=1
-            fi
-            if ! jq -e '.version' "$manifest" > /dev/null 2>&1; then
-              echo "❌ Missing 'version' field"
-              failed=1
-            fi
-          else
-            echo "❌ No .claude-plugin/plugin.json found"
-            failed=1
-          fi
-
-          [[ $failed -eq 1 ]] && exit 1
-          echo "✅ Manifest valid"
+          chmod +x scripts/validate-manifests.sh
+          ./scripts/validate-manifests.sh --repo-root "$GITHUB_WORKSPACE"
 
       - name: Check for broken symlinks
         run: |
@@ -290,13 +262,14 @@ jobs:
           ./tests/e2e-install-test.sh
 
   summary:
-    needs: [smoke-test, shellcheck, security-scan, plugin-load-test, go-build, e2e-install-test]
+    needs: [doc-release-gate, smoke-test, shellcheck, security-scan, plugin-load-test, go-build, e2e-install-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check results
         run: |
           echo "=== CI Summary ==="
+          echo "doc-release-gate: ${{ needs.doc-release-gate.result }}"
           echo "smoke-test: ${{ needs.smoke-test.result }}"
           echo "shellcheck: ${{ needs.shellcheck.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
@@ -304,7 +277,8 @@ jobs:
           echo "go-build: ${{ needs.go-build.result }}"
           echo "e2e-install-test: ${{ needs.e2e-install-test.result }}"
 
-          if [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
+          if [[ "${{ needs.doc-release-gate.result }}" != "success" ]] || \
+             [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \

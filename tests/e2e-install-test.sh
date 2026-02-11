@@ -28,6 +28,18 @@ errors=0
 tests_passed=0
 
 # =============================================================================
+log "Phase 0: Validate manifests against schemas"
+# =============================================================================
+
+if "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" >/dev/null 2>&1; then
+    pass "Manifest schemas valid"
+    tests_passed=$((tests_passed + 1))
+else
+    fail "Manifest schema validation failed"
+    errors=$((errors + 1))
+fi
+
+# =============================================================================
 log "Phase 1: Verify Claude Code CLI"
 # =============================================================================
 
@@ -45,24 +57,30 @@ log "Phase 2: Test plugin loading with --plugin-dir"
 # =============================================================================
 
 # Get list of plugins to test
+plugins=()
+plugin_count=0
 if [[ $# -gt 0 ]]; then
     plugins=("$1")
+    plugin_count=1
 else
-    plugins=()
     if [[ -d "plugins" ]]; then
         for p in plugins/*/; do
-            [[ -d "$p" ]] && plugins+=("$(basename "$p")")
+            if [[ -d "$p" ]]; then
+                plugins+=("$(basename "$p")")
+                plugin_count=$((plugin_count + 1))
+            fi
         done
     fi
 fi
 
 # If no plugins, skip plugin tests
-if [[ ${#plugins[@]} -eq 0 ]]; then
+if [[ $plugin_count -eq 0 ]]; then
     pass "No plugins to test (plugins/ empty or missing)"
     tests_passed=$((tests_passed + 1))
 fi
 
-for plugin in "${plugins[@]}"; do
+for plugin in "${plugins[@]:-}"; do
+    [[ -z "$plugin" ]] && continue
     plugin_dir="plugins/$plugin"
 
     if [[ ! -d "$plugin_dir" ]]; then
@@ -110,7 +128,8 @@ for plugin in "${plugins[@]}"; do
     manifest="$plugin_dir/.claude-plugin/plugin.json"
     if [[ -f "$manifest" ]]; then
         # Check for invalid keys
-        valid_keys='["name","version","description","author","homepage","repository","license","keywords","commands","skills","agents"]'
+        # shellcheck disable=SC2016
+        valid_keys='["$schema","name","version","description","author","homepage","repository","license","keywords","commands","skills","agents","hooks"]'
         invalid=$(jq -r --argjson valid "$valid_keys" 'keys - $valid | .[]' "$manifest" 2>/dev/null || echo "JSON_ERROR")
 
         if [[ "$invalid" == "JSON_ERROR" ]]; then
@@ -158,7 +177,7 @@ else
         echo "$combined_output" | grep -iE "invalid|failed|conflict|duplicate" | head -5
         errors=$((errors + 1))
     else
-        pass "Combined load: All ${#plugins[@]} plugins load together"
+        pass "Combined load: All $plugin_count plugins load together"
         tests_passed=$((tests_passed + 1))
     fi
 fi

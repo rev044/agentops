@@ -91,6 +91,22 @@ Crank (orchestrator)              Agent Mail              Demigods
 
 When `--mode=distributed` is enabled:
 
+### Step Pre-flight: Multi-Agent Readiness
+
+Run the shared preflight helper before registering the orchestrator:
+
+```bash
+scripts/multi-agent-preflight.sh \
+  --workflow crank \
+  --max-workers "${MAX_PARALLEL:-5}" \
+  --min-quorum "${MIN_QUORUM:-1}"
+```
+
+This checks:
+- Registration prerequisites (`claude`, `tmux`, Agent Mail health endpoint, project key)
+- Quorum inputs (`max-workers`, `min-quorum`, and ready-bead count)
+- Claim-lock health via `scripts/tasks-sync.sh lock-health`
+
 ### Step 0: Initialize Orchestrator Identity
 
 ```bash

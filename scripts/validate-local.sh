@@ -3,7 +3,7 @@
 # Usage: ./scripts/validate-local.sh
 #
 # Validates:
-# 1. Manifest structure (no invalid keys)
+# 1. Manifest schema conformance (versioned schemas)
 # 2. No symlinks (breaks GitHub install)
 # 3. SKILL.md frontmatter for all skills
 # 4. Actually loads with claude --plugin-dir
@@ -36,28 +36,11 @@ echo "  AgentOps Plugin Validation"
 echo "═══════════════════════════════════════════════════════"
 echo ""
 
-manifest=".claude-plugin/plugin.json"
-
-# Valid manifest keys (including $schema and hooks)
-valid_keys='["$schema","name","version","description","author","homepage","repository","license","keywords","commands","skills","agents","hooks"]'
-
-echo "── Manifest ──"
-
-# 1. Check manifest exists and is valid JSON
-if [[ ! -f "$manifest" ]]; then
-    fail "Missing manifest: $manifest"
+echo "── Manifests ──"
+if "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" >/dev/null 2>&1; then
+    pass "Manifests match versioned schemas"
 else
-    if ! jq empty "$manifest" 2>/dev/null; then
-        fail "Invalid JSON in manifest"
-    else
-        # 2. Check for invalid keys
-        invalid=$(jq -r --argjson valid "$valid_keys" 'keys - $valid | .[]' "$manifest" 2>/dev/null)
-        if [[ -n "$invalid" ]]; then
-            fail "Invalid manifest keys: $invalid"
-        else
-            pass "Manifest valid"
-        fi
-    fi
+    fail "Manifest schema validation failed"
 fi
 echo ""
 
@@ -127,20 +110,17 @@ else
 fi
 echo ""
 
-# 6. Check hooks
-echo "── Hooks ──"
-if [[ -d "hooks" ]]; then
-    if [[ -f "hooks/hooks.json" ]]; then
-        if jq empty "hooks/hooks.json" 2>/dev/null; then
-            pass "hooks.json valid"
-        else
-            fail "Invalid JSON in hooks/hooks.json"
-        fi
+# 6. Hook preflight checklist
+echo "── Hook Preflight ──"
+if [[ -x "scripts/validate-hook-preflight.sh" ]]; then
+    if hook_preflight_output=$(./scripts/validate-hook-preflight.sh 2>&1); then
+        pass "Hook preflight checks passed"
     else
-        warn "No hooks.json found"
+        fail "Hook preflight checks failed"
+        echo "$hook_preflight_output" | sed 's/^/    /'
     fi
 else
-    warn "No hooks/ directory found"
+    fail "Missing executable script: scripts/validate-hook-preflight.sh"
 fi
 echo ""
 

@@ -336,6 +336,7 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 > **Status: Experimental.** Local mode (TaskList + swarm) is the recommended execution method.
 
 **For distributed mode details (architecture, execution steps, Chiron pattern, file reservations, checkpoint handling), read `skills/crank/references/distributed-mode.md`.**
+Run `scripts/multi-agent-preflight.sh --workflow crank` before distributed orchestration starts.
 
 ---
 

@@ -5,6 +5,7 @@
 
 # Kill switch
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
+[ "${AGENTOPS_TASK_VALIDATION_DISABLED:-}" = "1" ] && exit 0
 
 # Read all stdin
 INPUT=$(cat)
@@ -15,9 +16,13 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 # Error log directory (repo-local)
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 ERROR_LOG_DIR="$ROOT/.agents/ao"
 ERROR_LOG="$ERROR_LOG_DIR/hook-errors.log"
+
+# Execute validations from repo root so relative paths are predictable.
+cd "$ROOT" 2>/dev/null || true
 
 # Restricted command execution: allowlist-based, no shell interpretation
 run_restricted() {
@@ -48,6 +53,39 @@ log_error() {
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task-validation-gate: $1" >> "$ERROR_LOG" 2>/dev/null
 }
 
+# Resolve user-provided file paths to repo-rooted absolute paths.
+# Returns non-zero if path escapes ROOT or cannot be normalized.
+resolve_repo_path() {
+    local raw_path="$1"
+    local candidate dir base normalized_dir normalized_path
+
+    [ -n "$raw_path" ] || return 1
+    case "$raw_path" in
+        *$'\n'*|*$'\r'*) return 1 ;;
+    esac
+
+    if [[ "$raw_path" = /* ]]; then
+        candidate="$raw_path"
+    else
+        candidate="$ROOT/$raw_path"
+    fi
+
+    dir=$(dirname -- "$candidate")
+    base=$(basename -- "$candidate")
+    normalized_dir=$(cd "$dir" 2>/dev/null && pwd -P) || return 1
+    normalized_path="$normalized_dir/$base"
+
+    case "$normalized_path" in
+        "$ROOT"|"$ROOT"/*)
+            printf '%s\n' "$normalized_path"
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # Extract metadata.validation — fail open on parse errors
 VALIDATION=$(echo "$INPUT" | jq -r '.metadata.validation // empty' 2>/dev/null)
 if [ $? -ne 0 ]; then
@@ -69,9 +107,16 @@ if [ -n "$FILES_EXIST" ] && [ "$FILES_EXIST" != "null" ]; then
     if [ -n "$FILE_COUNT" ] && [ "$FILE_COUNT" -gt 0 ] 2>/dev/null; then
         for i in $(seq 0 $((FILE_COUNT - 1))); do
             FILE_PATH=$(echo "$FILES_EXIST" | jq -r ".[$i]" 2>/dev/null)
-            if [ -n "$FILE_PATH" ] && [ "$FILE_PATH" != "null" ] && [ ! -f "$FILE_PATH" ]; then
-                echo "VALIDATION FAILED: files_exist — $FILE_PATH not found" >&2
-                exit 2
+            if [ -n "$FILE_PATH" ] && [ "$FILE_PATH" != "null" ]; then
+                RESOLVED_FILE=$(resolve_repo_path "$FILE_PATH") || {
+                    log_error "blocked files_exist path outside repo root: $FILE_PATH"
+                    echo "VALIDATION FAILED: files_exist — path escapes repo root: $FILE_PATH" >&2
+                    exit 2
+                }
+                if [ ! -f "$RESOLVED_FILE" ]; then
+                    echo "VALIDATION FAILED: files_exist — $FILE_PATH not found" >&2
+                    exit 2
+                fi
             fi
         done
     fi
@@ -86,7 +131,12 @@ if [ -n "$CONTENT_CHECKS" ] && [ "$CONTENT_CHECKS" != "null" ]; then
             CHECK_FILE=$(echo "$CONTENT_CHECKS" | jq -r ".[$i].file" 2>/dev/null)
             CHECK_PATTERN=$(echo "$CONTENT_CHECKS" | jq -r ".[$i].pattern" 2>/dev/null)
             if [ -n "$CHECK_FILE" ] && [ "$CHECK_FILE" != "null" ] && [ -n "$CHECK_PATTERN" ] && [ "$CHECK_PATTERN" != "null" ]; then
-                if ! grep -qF "$CHECK_PATTERN" "$CHECK_FILE" 2>/dev/null; then
+                RESOLVED_CHECK_FILE=$(resolve_repo_path "$CHECK_FILE") || {
+                    log_error "blocked content_check path outside repo root: $CHECK_FILE"
+                    echo "VALIDATION FAILED: content_check — path escapes repo root: $CHECK_FILE" >&2
+                    exit 2
+                }
+                if ! grep -qF "$CHECK_PATTERN" "$RESOLVED_CHECK_FILE" 2>/dev/null; then
                     echo "VALIDATION FAILED: content_check — pattern '$CHECK_PATTERN' not found in $CHECK_FILE" >&2
                     exit 2
                 fi

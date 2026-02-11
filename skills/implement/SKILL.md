@@ -263,6 +263,7 @@ If bd CLI not available:
 ## Distributed Mode: Agent Mail Coordination
 
 **For full distributed mode details, read `skills/implement/references/distributed-mode.md`.**
+For standalone distributed runs, start with `scripts/multi-agent-preflight.sh --workflow implement`.
 
 Distributed mode enhances /implement with real-time coordination via MCP Agent Mail when `--mode=distributed`, `--agent-mail`, or `$OLYMPUS_DEMIGOD_ID` is set.
 

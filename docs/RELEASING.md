@@ -12,6 +12,10 @@ git tag v2.3.0
 ┌──────────────────────────────────────────────────────┐
 │                release.yml workflow                  │
 ├──────────────────────────────────────────────────────┤
+│  DOC GATE   → Runs tests/docs/validate-doc-release.sh│
+│               Checks links, skill counts, and        │
+│               release-message freeze                 │
+├──────────────────────────────────────────────────────┤
 │  BUILD      → GoReleaser builds 4 binaries           │
 │               (darwin/linux × amd64/arm64)           │
 │               Generates checksums.txt (SHA256)       │
@@ -39,6 +43,7 @@ git tag v2.3.0
 - [ ] plugin.json version matches tag
 - [ ] No uncommitted changes on main
 - [ ] Homebrew token is valid (check secrets)
+- [ ] Doc-release gate passes locally (`./tests/docs/validate-doc-release.sh`)
 
 ### 2. Update CHANGELOG
 
@@ -75,10 +80,11 @@ git push origin v2.3.0
 
 Watch the release at: https://github.com/boshu2/agentops/actions
 
-The workflow runs three jobs sequentially:
-1. **build** - Creates binaries + checksums (~2 min)
-2. **validate** - Tests darwin-arm64 binary (~1 min)
-3. **publish** - Creates release, updates Homebrew, signs attestation (~2 min)
+The workflow runs four jobs sequentially:
+1. **doc-release-gate** - Validates links, skill counts, and release-message freeze
+2. **build** - Creates binaries + checksums (~2 min)
+3. **validate** - Tests darwin-arm64 binary (~1 min)
+4. **publish** - Creates release, updates Homebrew, signs attestation (~2 min)
 
 ### 5. Verify the Release
 
@@ -143,6 +149,32 @@ The `validate` stage runs `scripts/validate-release.sh` which checks:
 | `-h` works | Flag parsing broken |
 | `status` runs | Basic command execution |
 
+## Doc-Release Stabilization Gate
+
+The `doc-release-gate` stage runs `tests/docs/validate-doc-release.sh`, which is a single
+gate for:
+
+- Link validation (`tests/docs/validate-links.sh`)
+- Skill count consistency (`tests/docs/validate-skill-count.sh`)
+- Release message freeze check (against `.goreleaser.yml` release header/footer text)
+
+### Message Freeze Override
+
+By default, release message text is frozen. Any change to the canonical release header/footer
+in `.goreleaser.yml` fails the gate.
+
+To intentionally bypass this check, set both variables:
+
+```bash
+DOC_RELEASE_FREEZE_OVERRIDE=true
+DOC_RELEASE_FREEZE_REASON="short explanation of approved copy change"
+```
+
+In GitHub Actions `workflow_dispatch`, these are exposed as inputs:
+
+- `doc_release_freeze_override` (`true` or `false`)
+- `doc_release_freeze_override_reason` (required when override is true)
+
 ## Failure Modes
 
 ### Validation Fails
@@ -179,7 +211,8 @@ If you need to re-run a release without pushing a new tag:
 1. Go to Actions → Release workflow
 2. Click "Run workflow"
 3. Enter the tag (e.g., `v2.3.0`)
-4. Click "Run workflow"
+4. Optionally set `doc_release_freeze_override=true` and provide a reason
+5. Click "Run workflow"
 
 ## Local Testing
 
@@ -199,18 +232,33 @@ goreleaser build --snapshot --clean --single-target
 ./dist/ao_darwin_arm64/ao version
 ./dist/ao_darwin_arm64/ao --help
 ./dist/ao_darwin_arm64/ao status
+
+# Run doc-release gate
+./tests/docs/validate-doc-release.sh
 ```
+
+## Dependency Automation Policy
+
+Dependency automation is managed by Dependabot and follows this policy:
+
+- Scope: Go modules (`/cli/go.mod`) and GitHub Actions (`/.github/workflows/*.yml`)
+- Cadence: Weekly on Monday (separate schedules for Go and Actions)
+- Grouping: Minor and patch updates are grouped per ecosystem
+- Major updates: Opened as separate PRs for explicit review
+- Security updates: Treated as priority work and merged outside normal cadence when validated
+- PR limits: Capped to keep queue manageable and avoid review overload
 
 ## Configuration Files
 
 | File | Purpose |
 |------|---------|
 | `.goreleaser.yml` | Build config, checksums, release notes, Homebrew formula |
-| `.github/workflows/release.yml` | 4-stage release workflow (build → validate → publish → attest) |
-| `.github/workflows/validate.yml` | CI validation (6 parallel jobs) |
+| `.github/workflows/release.yml` | 4-stage release workflow (doc gate → build → validate → publish) |
+| `.github/workflows/validate.yml` | CI validation (includes doc-release stabilization gate) |
 | `.github/workflows/nightly.yml` | Nightly tests with failure alerts |
-| `.github/dependabot.yml` | Automated dependency updates |
+| `.github/dependabot.yml` | Dependabot policy and schedules for Go modules + GitHub Actions |
 | `scripts/validate-release.sh` | Binary validation script |
+| `tests/docs/validate-doc-release.sh` | Unified doc-release gate (links + skills + message freeze) |
 
 ## Homebrew Tap
 

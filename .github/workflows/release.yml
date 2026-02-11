@@ -9,6 +9,14 @@ on:
       tag:
         description: 'Tag to release (e.g., v1.0.12)'
         required: true
+      doc_release_freeze_override:
+        description: 'Set true to bypass release-message freeze validation'
+        required: false
+        default: 'false'
+      doc_release_freeze_override_reason:
+        description: 'Required when override=true; explain why release message changed'
+        required: false
+        default: ''
 
 # Prevent concurrent releases from corrupting artifacts
 concurrency:
@@ -21,8 +29,23 @@ permissions:
   attestations: write
 
 jobs:
+  # Stage 0: Validate doc-release stability checks
+  doc-release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run doc-release stabilization gate
+        env:
+          DOC_RELEASE_FREEZE_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.doc_release_freeze_override || 'false' }}
+          DOC_RELEASE_FREEZE_REASON: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.doc_release_freeze_override_reason || '' }}
+        run: |
+          chmod +x tests/docs/validate-doc-release.sh
+          ./tests/docs/validate-doc-release.sh
+
   # Stage 1: Build all binaries and generate artifacts
   build:
+    needs: doc-release-gate
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}

@@ -7,28 +7,46 @@
 # Get plugin directory (where this script lives)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+AO_DIR="$ROOT/.agents/ao"
+HOOK_ERROR_LOG="$AO_DIR/hook-errors.log"
+
+# Kill switches
+[ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
+[ "${AGENTOPS_SESSION_START_DISABLED:-}" = "1" ] && exit 0
+
+log_hook_fail() {
+    local message="$1"
+    mkdir -p "$AO_DIR" 2>/dev/null || return 0
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ${message}" >> "$HOOK_ERROR_LOG" 2>/dev/null || true
+}
+
+# Ensure relative paths and ao commands are rooted to the active repo.
+cd "$ROOT" 2>/dev/null || true
 
 # Create .agents directories if they don't exist
 AGENTS_DIRS=(".agents/research" ".agents/products" ".agents/retros" ".agents/learnings" ".agents/patterns" ".agents/council" ".agents/knowledge/pending")
 
 for dir in "${AGENTS_DIRS[@]}"; do
-    if [[ ! -d "$dir" ]]; then
-        mkdir -p "$dir"
+    target_dir="$ROOT/$dir"
+    if [[ ! -d "$target_dir" ]]; then
+        mkdir -p "$target_dir" 2>/dev/null
     fi
 done
 
 # Clean up stale nudge dedup flag from previous session
-rm -f .agents/ao/.ratchet-advance-fired 2>/dev/null
+rm -f "$ROOT/.agents/ao/.ratchet-advance-fired" 2>/dev/null
 
 # Get flywheel status (brief one-liner for visibility)
 flywheel_status=""
 if command -v ao &>/dev/null; then
     # Try new structured command first
     if ao flywheel nudge --help >/dev/null 2>&1; then
-        nudge_json=$(ao flywheel nudge -o json 2>/dev/null || {
-            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
-            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao flywheel nudge" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
-        })
+        nudge_json=$(ao flywheel nudge -o json 2>/dev/null) || {
+            log_hook_fail "ao flywheel nudge"
+            nudge_json=""
+        }
         if [ -n "$nudge_json" ] && command -v jq >/dev/null 2>&1; then
             status_line=$(echo "$nudge_json" | jq -r '.status // ""')
             velocity=$(echo "$nudge_json" | jq -r '.velocity // 0')
@@ -43,16 +61,16 @@ if command -v ao &>/dev/null; then
 
     # Fallback: old grep/tr parsing if new command unavailable or failed
     if [[ -z "$flywheel_status" ]]; then
-        flywheel_output=$(ao flywheel status 2>/dev/null || {
-            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
-            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao flywheel status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
-        })
+        flywheel_output=$(ao flywheel status 2>/dev/null) || {
+            log_hook_fail "ao flywheel status"
+            flywheel_output=""
+        }
         if [[ -n "$flywheel_output" ]]; then
             # Parse the status line and velocity (tr -d removes newlines)
             status_line=$(echo "$flywheel_output" | grep -o '\[.*\]' | head -1 | tr -d '\n' || echo "[UNKNOWN]")
             velocity=$(echo "$flywheel_output" | grep "velocity:" | grep -o '[+-][0-9.]*' | tr -d '\n' || echo "?")
             sessions=$(ao status 2>/dev/null | grep "^Sessions:" | awk '{print $2}' | head -1 | tr -d '\n' || echo "?")
-            learnings_count=$(ls -1 .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
+            learnings_count=$(ls -1 "$ROOT"/.agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
             flywheel_status="**Flywheel:** ${status_line} | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
         fi
     fi
@@ -64,8 +82,8 @@ ratchet_output=""
 if command -v ao &>/dev/null; then
     if command -v jq >/dev/null 2>&1; then
         ratchet_json=$(ao ratchet status -o json 2>/dev/null) || {
-            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
-            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+            log_hook_fail "ao ratchet status"
+            ratchet_json=""
         }
         if [ -n "$ratchet_json" ]; then
             ratchet_output=$(echo "$ratchet_json" | jq -r '
@@ -74,8 +92,8 @@ if command -v ao &>/dev/null; then
         fi
     else
         ratchet_output=$(ao ratchet status -o table 2>/dev/null | head -3) || {
-            mkdir -p "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao"
-            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao ratchet status" >> "$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log"
+            log_hook_fail "ao ratchet status"
+            ratchet_output=""
         }
     fi
     if [[ -n "$ratchet_output" ]]; then
@@ -86,8 +104,6 @@ fi
 # Ratchet resume directive: suggest next RPI step if chain.jsonl exists
 resume_directive=""
 if [ "${AGENTOPS_AUTOCHAIN:-}" != "0" ] && command -v jq >/dev/null 2>&1; then
-    ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
-
     # Try new structured command first
     if ao ratchet next --help >/dev/null 2>&1; then
         next_json=$(ao ratchet next -o json 2>/dev/null)
@@ -183,8 +199,8 @@ fi
 
 # Detect and read AGENTS.md if present (competitor adoption: AGENTS.md standard)
 agents_md_content=""
-if [[ -f "AGENTS.md" ]]; then
-    agents_md_content=$(cat AGENTS.md 2>/dev/null || echo "")
+if [[ -f "$ROOT/AGENTS.md" ]]; then
+    agents_md_content=$(cat "$ROOT/AGENTS.md" 2>/dev/null || echo "")
 fi
 
 # Read the using-agentops skill content (with safe error handling)

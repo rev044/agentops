@@ -3,7 +3,20 @@
 # Captures active teams, git status, branch info for recovery after compaction
 # Fail-open: all errors are non-fatal, always exit 0
 
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+AO_DIR="$ROOT/.agents/ao"
+LOG_FILE="$AO_DIR/hook-errors.log"
+
+# Kill switches
+[ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
+[ "${AGENTOPS_PRECOMPACT_DISABLED:-}" = "1" ] && exit 0
+
+log_error() {
+  mkdir -p "$AO_DIR" 2>/dev/null || return 0
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) precompact-snapshot: $1" >> "$LOG_FILE" 2>/dev/null || true
+}
+
 TEAMS_DIR="$HOME/.claude/teams"
 AGENTS_DIR="$ROOT/.agents"
 SNAP_DIR="$ROOT/.agents/compaction-snapshots"
@@ -19,7 +32,10 @@ if ! $has_teams && ! $has_agents; then
 fi
 
 # Create snapshot directory
-mkdir -p "$SNAP_DIR" 2>/dev/null || exit 0
+mkdir -p "$SNAP_DIR" 2>/dev/null || {
+  log_error "unable to create snapshot directory: $SNAP_DIR"
+  exit 0
+}
 
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 SNAP_FILE="$SNAP_DIR/${TIMESTAMP}.md"
@@ -62,16 +78,24 @@ fi
     echo "$GIT_DIFF_STAT"
     echo '```'
   fi
-} > "$SNAP_FILE" 2>/dev/null
+} > "$SNAP_FILE" 2>/dev/null || log_error "failed writing snapshot: $SNAP_FILE"
 
 # Build compact summary for additionalContext (<500 bytes)
-STATUS_COUNT=$(echo "$GIT_STATUS" | grep -c . 2>/dev/null || echo "0")
+STATUS_COUNT=$(printf '%s\n' "$GIT_STATUS" | sed '/^$/d' | wc -l | tr -d ' ')
 SUMMARY="branch=$BRANCH teams=[$TEAM_NAMES] files_changed=$STATUS_COUNT snapshot=$TIMESTAMP"
+# Remove line breaks to keep JSON payload valid.
+SUMMARY=$(printf '%s' "$SUMMARY" | tr '\n\r' '  ')
 # Truncate to stay under 500 bytes
 SUMMARY="${SUMMARY:0:480}"
 
 # Output JSON for hook system
-echo "{\"hookSpecificOutput\":{\"additionalContext\":\"$SUMMARY\"}}"
+if command -v jq >/dev/null 2>&1; then
+  jq -n --arg summary "$SUMMARY" '{"hookSpecificOutput":{"additionalContext":$summary}}'
+else
+  safe_summary=${SUMMARY//\\/\\\\}
+  safe_summary=${safe_summary//\"/\\\"}
+  echo "{\"hookSpecificOutput\":{\"additionalContext\":\"$safe_summary\"}}"
+fi
 
 # Cleanup: keep last 5 snapshots, remove older
 if [[ -d "$SNAP_DIR" ]]; then

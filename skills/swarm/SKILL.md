@@ -195,6 +195,7 @@ When `/crank` invokes `/swarm`: Crank bridges beads to TaskList, swarm executes 
 ## Distributed Mode
 
 **For the full distributed mode specification (tmux + Agent Mail, experimental), read `skills/swarm/references/distributed-mode.md`.**
+Run `scripts/multi-agent-preflight.sh --workflow swarm` before starting distributed mode.
 
 ---
 

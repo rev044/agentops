@@ -26,43 +26,18 @@ warn() { echo -e "${YELLOW}  ⚠${NC} $1"; ((warnings++)) || true; }
 cd "$REPO_ROOT"
 
 # =============================================================================
-# Test 1: Validate JSON files
+# Test 1: Validate manifests against versioned schemas
 # =============================================================================
-log "Validating JSON files..."
+log "Validating manifests against schemas..."
 
-for jf in .claude-plugin/plugin.json hooks/hooks.json; do
-    if [[ ! -f "$jf" ]]; then
-        fail "$jf - not found"
-        continue
-    fi
-    if python3 -m json.tool "$jf" > /dev/null 2>&1; then
-        pass "$jf"
-    else
-        fail "$jf - invalid JSON"
-    fi
-done
-
-# =============================================================================
-# Test 2: Validate plugin manifest
-# =============================================================================
-log "Validating plugin manifest..."
-
-manifest=".claude-plugin/plugin.json"
-valid_keys='["$schema","name","version","description","author","homepage","repository","license","keywords","commands","skills","agents","hooks"]'
-
-if jq empty "$manifest" 2>/dev/null; then
-    invalid=$(jq -r --argjson valid "$valid_keys" 'keys - $valid | .[]' "$manifest" 2>/dev/null || true)
-    if [[ -n "$invalid" ]]; then
-        fail "Invalid manifest keys: $invalid"
-    else
-        pass "Manifest keys valid"
-    fi
+if "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" >/dev/null 2>&1; then
+    pass "Manifest schemas valid"
 else
-    fail "Manifest not valid JSON"
+    fail "Manifest schema validation failed"
 fi
 
 # =============================================================================
-# Test 3: Validate skill structure (unified - skills/ at root)
+# Test 2: Validate skill structure (unified - skills/ at root)
 # =============================================================================
 log "Validating skill structure..."
 
@@ -98,7 +73,7 @@ if [[ $skill_errors -eq 0 ]] && [[ $skill_count -gt 0 ]]; then
 fi
 
 # =============================================================================
-# Test 4: Validate agents structure
+# Test 3: Validate agents structure
 # =============================================================================
 log "Validating agents structure..."
 
@@ -112,22 +87,7 @@ else
 fi
 
 # =============================================================================
-# Test 5: Validate hooks
-# =============================================================================
-log "Validating hooks..."
-
-if [[ -f "hooks/hooks.json" ]]; then
-    if jq empty "hooks/hooks.json" 2>/dev/null; then
-        pass "hooks.json valid"
-    else
-        fail "hooks.json invalid JSON"
-    fi
-else
-    warn "No hooks.json found"
-fi
-
-# =============================================================================
-# Test 6: Validate CLI builds (if Go available)
+# Test 4: Validate CLI builds (if Go available)
 # =============================================================================
 log "Validating ao CLI..."
 
@@ -149,7 +109,24 @@ else
 fi
 
 # =============================================================================
-# Test 7: Check for placeholder patterns
+# Test 5: Validate hook preflight checklist
+# =============================================================================
+log "Validating hook preflight checklist..."
+
+if [[ -x "scripts/validate-hook-preflight.sh" ]]; then
+    preflight_output=""
+    if preflight_output=$(./scripts/validate-hook-preflight.sh 2>&1); then
+        pass "Hook preflight validation passed"
+    else
+        fail "Hook preflight validation failed"
+        [[ "$VERBOSE" == "--verbose" ]] && echo "$preflight_output" | sed 's/^/    /'
+    fi
+else
+    fail "scripts/validate-hook-preflight.sh missing or not executable"
+fi
+
+# =============================================================================
+# Test 6: Check for placeholder patterns
 # =============================================================================
 log "Checking for issues..."
 
@@ -171,7 +148,7 @@ else
 fi
 
 # =============================================================================
-# Test 8: Claude CLI load test
+# Test 7: Claude CLI load test
 # =============================================================================
 log "Testing Claude CLI plugin load..."
 
@@ -188,7 +165,7 @@ else
 fi
 
 # =============================================================================
-# Test 9: Flywheel loop (next-work round-trip)
+# Test 8: Flywheel loop (next-work round-trip)
 # =============================================================================
 log "Testing flywheel loop (next-work round-trip)..."
 

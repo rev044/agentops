@@ -49,6 +49,22 @@ fi
 
 When `--mode=distributed` (or `--agent-mail`) is enabled OR `$OLYMPUS_DEMIGOD_ID` is set:
 
+### Step Pre-flight: Multi-Agent Readiness
+
+For standalone distributed runs, run:
+
+```bash
+scripts/multi-agent-preflight.sh \
+  --workflow implement \
+  --max-workers 1 \
+  --min-quorum 1 \
+  --ready-count 1
+```
+
+This validates registration prerequisites, quorum inputs, and claim-lock health before `/implement` starts coordination.
+
+If `/implement` is launched by `/swarm --mode=distributed`, this preflight is typically already executed by the orchestrator.
+
 ### Step 0: Initialize Agent Mail Session
 
 ```bash
