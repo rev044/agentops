@@ -51,6 +51,7 @@ TaskCreate(
 | `tests` | `string` | Test command that must pass |
 | `lint` | `string` | Lint command that must pass |
 | `custom` | `{name: string, command: string}` | Named custom check |
+| `cross_cutting` | `{name, type, ...}[]` | Epic-level constraints from "Always" boundaries, applied to every task |
 
 ### Multiple Checks
 
@@ -62,6 +63,7 @@ All specified checks must pass. Order of execution:
 4. `tests` - comprehensive verification
 5. `command` - custom commands last
 6. `custom` - any additional custom checks
+7. `cross_cutting` - epic-level constraints last
 
 ---
 
@@ -200,6 +202,43 @@ Named custom check for documentation.
 ```
 
 **Use when:** Domain-specific validation needed.
+
+### cross_cutting
+
+Epic-level constraints applied to EVERY task. Derived from "Always" boundaries in the plan.
+
+**Schema:**
+```json
+{
+  "cross_cutting": [
+    {"name": "auth-required", "type": "content_check", "file": "src/middleware.go", "pattern": "AuthMiddleware"},
+    {"name": "tests-pass", "type": "tests", "command": "go test ./..."},
+    {"name": "builds-clean", "type": "command", "command": "go build ./..."}
+  ]
+}
+```
+
+Each entry is a **flat object** with:
+- `name` (string): Human-readable label for the constraint
+- `type` (string): One of `files_exist`, `content_check`, `command`, `tests`, `lint`
+- Remaining fields: Same as the corresponding validation type above
+
+**Execution:**
+```bash
+# Run AFTER all per-task checks pass
+for check in cross_cutting:
+    run_check(check.type, check)  # Same execution logic as per-task checks
+    if FAIL:
+        FAIL(f"Cross-cutting constraint '{check.name}' failed")
+PASS
+```
+
+**Use when:** Plan defines "Always" boundaries that apply to every issue in the epic. /crank reads these from the epic description and injects into every worker task.
+
+**Source:** Cross-cutting constraints flow from plan boundaries:
+```
+Plan "Always" boundaries → Epic description → /crank extracts → TaskCreate metadata
+```
 
 ---
 

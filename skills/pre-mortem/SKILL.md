@@ -54,18 +54,19 @@ If ao returns prior plan review findings, include them as context for the counci
 
 ### Step 2: Run Council Validation
 
-Run `/council` with the **plan-review** preset and always 3 judges:
+Run `/council` with the **plan-review** preset and always 4 judges (--deep):
 
 ```
 /council --deep --preset=plan-review validate <plan-path>
 ```
 
-**Default (3 judges with plan-review perspectives):**
+**Default (4 judges with plan-review perspectives):**
 - `missing-requirements`: What's not in the spec that should be? What questions haven't been asked?
 - `feasibility`: What's technically hard or impossible here? What will take 3x longer than estimated?
 - `scope`: What's unnecessary? What's missing? Where will scope creep?
+- `spec-completeness`: Are boundaries defined? Do conformance checks cover all acceptance criteria? Is the plan mechanically verifiable?
 
-Pre-mortem always uses 3 judges (`--deep`) because plans deserve thorough review.
+Pre-mortem always uses 4 judges (`--deep`) because plans deserve thorough review. The spec-completeness judge validates SDD patterns; for plans without boundaries/conformance sections, it issues WARN (not FAIL) for backward compatibility.
 
 **With --quick (inline, no spawning):**
 ```

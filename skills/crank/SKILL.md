@@ -227,7 +227,50 @@ if [[ $wave -ge 50 ]]; then
 fi
 ```
 
+**Cross-cutting constraint injection (SDD):**
+
+Before spawning workers, check for cross-cutting constraints:
+
+```bash
+# Guard clause: skip if plan has no boundaries (backward compat)
+PLAN_FILE=$(ls -t .agents/plans/*.md 2>/dev/null | head -1)
+if [[ -n "$PLAN_FILE" ]] && grep -q "## Boundaries" "$PLAN_FILE"; then
+    # Extract "Always" boundaries and convert to cross_cutting checks
+    # Read the plan's ## Cross-Cutting Constraints section or derive from ## Boundaries
+    # Inject into every TaskCreate's metadata.validation.cross_cutting
+fi
+# "Ask First" boundaries: in auto mode, log as annotation only (no blocking)
+# In --interactive mode, prompt before proceeding
+```
+
+When creating TaskCreate for each wave issue, include cross-cutting constraints in metadata:
+```json
+{
+  "validation": {
+    "files_exist": [...],
+    "content_check": {...},
+    "cross_cutting": [
+      {"name": "...", "type": "content_check", "file": "...", "pattern": "..."}
+    ]
+  }
+}
+```
+
 **For wave execution details (beads sync, TaskList bridging, swarm invocation), read `skills/crank/references/team-coordination.md`.**
+
+**Cross-cutting validation (SDD):**
+
+After per-task validation passes, run cross-cutting checks across all files modified in the wave:
+
+```bash
+# Only if cross_cutting constraints were injected
+if [[ -n "$CROSS_CUTTING_CHECKS" ]]; then
+    WAVE_FILES=$(git diff --name-only "${WAVE_START_SHA}..HEAD")
+    for check in $CROSS_CUTTING_CHECKS; do
+        run_validation_check "$check" "$WAVE_FILES"
+    done
+fi
+```
 
 ### Step 5: Verify and Sync to Beads (MANDATORY)
 

@@ -48,7 +48,7 @@ Use `--preset=<name>` for common persona configurations:
 | `research` | breadth, depth, contrarian | Deep investigation |
 | `ops` | reliability, observability, incident-response | Operations review |
 | `code-review` | error-paths, api-surface, spec-compliance | Code validation (used by /vibe) |
-| `plan-review` | missing-requirements, feasibility, scope | Plan validation (used by /pre-mortem) |
+| `plan-review` | missing-requirements, feasibility, scope, spec-completeness | Plan validation (used by /pre-mortem) |
 | `retrospective` | plan-compliance, tech-debt, learnings | Post-implementation review (used by /post-mortem) |
 
 ```bash
@@ -93,6 +93,7 @@ plan-review:
   missing-requirements: "What's not in the spec that should be? What questions haven't been asked?"
   feasibility:          "What's technically hard or impossible here? What will take 3x longer than estimated?"
   scope:                "What's unnecessary? What's missing? Where will scope creep?"
+  spec-completeness:    "Are boundaries defined (Always/Ask First/Never)? Do conformance checks cover all acceptance criteria? Can every acceptance criterion be mechanically verified? Plans without boundaries get WARN, plans with zero conformance checks get FAIL."
 
 retrospective:
   plan-compliance: "What was planned vs what was delivered? What's missing? What was added?"
