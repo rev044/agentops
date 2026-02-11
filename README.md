@@ -30,6 +30,8 @@ Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any age
 
 ```bash
 npx skills@latest add boshu2/agentops --all -g
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops   # CLI (optional)
+ao hooks install   # Hooks (optional)
 ```
 
 Then inside your coding agent:
