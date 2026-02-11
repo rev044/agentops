@@ -39,6 +39,16 @@ AgentOps is a skills plugin that turns your coding agent into an autonomous soft
 
 ## Install
 
+**Claude Code quick path**
+
+If you are using Claude Code and want the fastest plugin install path:
+
+```bash
+claude plugin add boshu2/agentops
+```
+
+Then run `/quickstart` inside Claude Code.
+
 **Option 1: npx (recommended)**
 
 ```bash
@@ -68,8 +78,6 @@ brew install agentops
 ao hooks install
 ```
 
-Or: `claude plugin add boshu2/agentops`
-
 </details>
 
 **Try it in 60 seconds** (run these inside your coding agent):
@@ -78,6 +86,16 @@ Or: `claude plugin add boshu2/agentops`
 /quickstart                        # Guided tour on your actual codebase
 /council validate this PR           # Standalone — no setup needed
 ```
+
+### First-Run Troubleshooting
+
+If slash commands do not appear immediately:
+
+```bash
+npx skills@latest update
+```
+
+If updates still seem stale, follow cache refresh guidance in [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## First Run Checklist
 
@@ -113,6 +131,14 @@ Or: `claude plugin add boshu2/agentops`
   ```
 
   Verify: `ao ok` prints and ratchet status is shown.
+
+## Example Outcome
+
+After a successful first lifecycle run (for example, `/rpi "small scoped change"`), you should see:
+- `.agents/research/` with a dated research artifact
+- `.agents/plans/` with a dated plan artifact
+- `.agents/council/` with validation reports
+- `.agents/learnings/` and `.agents/retros/` populated after post-mortem
 
 ## Proof and Demos
 
