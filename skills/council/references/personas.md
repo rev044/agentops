@@ -93,7 +93,7 @@ plan-review:
   missing-requirements: "What's not in the spec that should be? What questions haven't been asked?"
   feasibility:          "What's technically hard or impossible here? What will take 3x longer than estimated?"
   scope:                "What's unnecessary? What's missing? Where will scope creep?"
-  spec-completeness:    "Are boundaries defined (Always/Ask First/Never)? Do conformance checks cover all acceptance criteria? Can every acceptance criterion be mechanically verified? Plans without boundaries get WARN, plans with zero conformance checks get FAIL."
+  spec-completeness:    "Are boundaries defined (Always/Ask First/Never)? Do conformance checks cover all acceptance criteria? Can every acceptance criterion be mechanically verified? Are schema enum values and field names domain-neutral (meaningful in ANY codebase, not just this repo)? Plans without boundaries get WARN, plans with zero conformance checks get FAIL, self-referential schema terms get WARN."
 
 retrospective:
   plan-compliance: "What was planned vs what was delivered? What's missing? What was added?"
