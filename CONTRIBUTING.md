@@ -5,6 +5,7 @@ Thank you for your interest in contributing to AgentOps! This guide will help yo
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Ways to Contribute](#ways-to-contribute)
 - [How to Add a Skill](#how-to-add-a-skill)
 - [Skill Structure](#skill-structure)
 - [Quality Standards](#quality-standards)
@@ -29,6 +30,25 @@ Thank you for your interest in contributing to AgentOps! This guide will help yo
 git clone https://github.com/YOUR_USERNAME/agentops.git
 cd agentops
 ```
+
+## Ways to Contribute
+
+You do not need to create a new skill to contribute.
+
+High-leverage contribution paths:
+- Docs quality: README clarity, broken links, missing examples
+- Testing and validation: smoke tests, scripts, CI checks
+- CLI/runtime improvements: command UX, error handling, reliability
+- Skills: new skills, existing skill fixes, reference updates
+
+### First Contribution in 30 Minutes
+
+1. Pick a small scope: typo fix, unclear sentence, broken link, or missing example.
+2. Create a branch: `git checkout -b docs/first-contribution-fix`
+3. Make your change and run a targeted check (for docs, verify links/commands you touched).
+4. Commit and open a PR with clear before/after context.
+
+For ideas, check open issues and prioritize items labeled `good first issue` or `documentation`.
 
 ## How to Add a Skill
 
@@ -310,7 +330,8 @@ Report issues to: fullerbt@users.noreply.github.com
 - **Documentation:** Check README.md and existing skills
 - **Examples:** Browse `skills/` for reference implementations
 - **Skill Taxonomy:** See `skills/SKILL-TIERS.md`
-- **GitHub Issues:** Search existing issues or create new one
+- **GitHub Discussions:** Ask usage questions and share workflow results
+- **GitHub Issues:** Report confirmed bugs or request concrete features
 - **Email:** fullerbt@users.noreply.github.com
 
 ### Useful Resources

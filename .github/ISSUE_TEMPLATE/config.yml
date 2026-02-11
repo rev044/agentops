@@ -1,4 +1,4 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
   - name: Documentation
     url: https://github.com/boshu2/agentops/blob/main/README.md
@@ -11,4 +11,4 @@ contact_links:
     about: Learn how to contribute to the marketplace
   - name: GitHub Discussions
     url: https://github.com/boshu2/agentops/discussions
-    about: Ask questions and discuss ideas with the community
+    about: Ask questions, share results, and discuss ideas with the community

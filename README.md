@@ -14,7 +14,7 @@
 One command runs research, planning, multi-model validation, parallel implementation,<br/>
 and knowledge extraction — with self-correcting retry loops and zero human prompts.
 
-[What Is AgentOps](#what-is-agentops) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills-catalog) · [FAQ](#faq) · [Docs](docs/)
+[What Is AgentOps](#what-is-agentops) · [Install](#install) · [First Run](#first-run-checklist) · [Proof](#proof-and-demos) · [See It Work](#see-it-work) · [Community](#community) · [Skills](#skills-catalog) · [FAQ](#faq) · [Docs](docs/)
 
 </div>
 
@@ -78,6 +78,48 @@ Or: `claude plugin add boshu2/agentops`
 /quickstart                        # Guided tour on your actual codebase
 /council validate this PR           # Standalone — no setup needed
 ```
+
+## First Run Checklist
+
+- [ ] Confirm plugin install:
+
+  ```bash
+  npx skills@latest list -g | rg boshu2/agentops
+  ```
+
+  Verify: output contains `boshu2/agentops`.
+
+- [ ] Run the guided flow in your codebase:
+
+  ```bash
+  /quickstart
+  ```
+
+  Verify: the walkthrough starts and `.agents/` exists in your repo.
+
+- [ ] Run one council validation:
+
+  ```bash
+  /council validate this PR
+  ```
+
+  Verify: council returns a `PASS`, `WARN`, or `FAIL` verdict.
+
+- [ ] Optional (`ao` CLI):
+
+  ```bash
+  ao --help >/dev/null && echo "ao ok"
+  ao ratchet status
+  ```
+
+  Verify: `ao ok` prints and ratchet status is shown.
+
+## Proof and Demos
+
+- [See It Work](#see-it-work): end-to-end `/rpi` and `/crank` output examples in this README.
+- [`ao demo --quick`](cli/docs/COMMANDS.md#ao-demo): 2-minute CLI walkthrough.
+- [L1 demo transcripts](docs/levels/L1-basics/demo/): `/research` and `/implement` session transcripts.
+- [L5 `/crank` demo transcript](docs/levels/L5-orchestration/demo/crank-session.md): full orchestration example.
 
 ## See It Work
 
@@ -409,6 +451,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution gu
 # Test the plugin locally
 claude --plugin ./
 ```
+
+## Community
+
+- Ask questions and share workflows: [GitHub Discussions](https://github.com/boshu2/agentops?tab=discussions)
+- Report bugs and request features: [GitHub Issues](https://github.com/boshu2/agentops/issues)
+- Contribute code/docs/skills: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+If AgentOps helped you ship something, post the command + result in Discussions so others can reproduce it.
 
 ## License
 
