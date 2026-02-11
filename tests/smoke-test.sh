@@ -93,8 +93,8 @@ log "Validating ao CLI..."
 
 if [[ -d "cli" ]]; then
     if command -v go &>/dev/null; then
-        tmpdir="$(mktemp -d -t ao-test.XXXXXX)"
-        trap 'rm -rf "$tmpdir"' EXIT
+        tmpdir="$(mktemp -d -t ao-test.XXXXXX)" || { fail "mktemp failed"; tmpdir=""; }
+        trap '[ -n "$tmpdir" ] && [ "$tmpdir" != "/" ] && rm -rf "$tmpdir"' EXIT
         tmpbin="$tmpdir/ao"
         if (cd "$REPO_ROOT/cli" && go build -o "$tmpbin" ./cmd/ao 2>/dev/null); then
             pass "ao CLI builds successfully"

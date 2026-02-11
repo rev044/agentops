@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # tasks-sync.sh - Beads Light: sync tasks to/from .tasks.json
 # Usage: tasks-sync.sh list|ready|show|claim|complete|add|import|lock-health
+# Exit codes: 0=success, 1=failure. lock-health: 0=healthy, 1=unhealthy.
 
 set -euo pipefail
 
@@ -28,6 +29,8 @@ is_pid_running() {
 acquire_lock_with_flock() {
     exec {LOCK_FD}>"$TASKS_LOCK"
     if ! flock -w "$LOCK_TIMEOUT" "$LOCK_FD"; then
+        exec {LOCK_FD}>&- 2>/dev/null || true
+        LOCK_FD=-1
         echo "Error: lock timeout (${LOCK_TIMEOUT}s) using flock on $TASKS_LOCK" >&2
         return 1
     fi

@@ -7,8 +7,7 @@
   "required": ["$schema", "hooks"],
   "properties": {
     "$schema": {
-      "type": "string",
-      "const": "../schemas/hooks-manifest.v1.schema.json"
+      "type": "string"
     },
     "hooks": {
       "type": "object",

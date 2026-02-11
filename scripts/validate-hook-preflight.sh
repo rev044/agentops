@@ -103,7 +103,7 @@ for file in "${HOOK_FILES[@]}"; do
         fail "$file contains unsafe eval usage"
         unsafe=1
     fi
-    if grep -nE '(^|[^\\])`[^`[:space:]][^`]*`' "$file" >/dev/null 2>&1; then
+    if grep -nE '(^|[^\\$()])`[^`]+`' "$file" >/dev/null 2>&1; then
         fail "$file contains backtick command substitution"
         unsafe=1
     fi

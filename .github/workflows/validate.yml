@@ -32,6 +32,16 @@ jobs:
           chmod +x tests/smoke-test.sh
           ./tests/smoke-test.sh --verbose
 
+  hook-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run hook preflight checks
+        run: |
+          chmod +x scripts/validate-hook-preflight.sh
+          ./scripts/validate-hook-preflight.sh
+
   shellcheck:
     runs-on: ubuntu-latest
     steps:
@@ -262,7 +272,7 @@ jobs:
           ./tests/e2e-install-test.sh
 
   summary:
-    needs: [doc-release-gate, smoke-test, shellcheck, security-scan, plugin-load-test, go-build, e2e-install-test]
+    needs: [doc-release-gate, smoke-test, hook-preflight, shellcheck, security-scan, plugin-load-test, go-build, e2e-install-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -271,6 +281,7 @@ jobs:
           echo "=== CI Summary ==="
           echo "doc-release-gate: ${{ needs.doc-release-gate.result }}"
           echo "smoke-test: ${{ needs.smoke-test.result }}"
+          echo "hook-preflight: ${{ needs.hook-preflight.result }}"
           echo "shellcheck: ${{ needs.shellcheck.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
@@ -279,6 +290,7 @@ jobs:
 
           if [[ "${{ needs.doc-release-gate.result }}" != "success" ]] || \
              [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
+             [[ "${{ needs.hook-preflight.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
