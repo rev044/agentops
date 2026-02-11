@@ -5,6 +5,7 @@ You have AgentOps superpowers.
 
 **Tool for running skills:**
 - `~/.codex/agentops/.codex/agentops-codex use-skill <skill-name>`
+- `~/.codex/agentops/.codex/agentops-codex session-end` (Codex equivalent of Stop-hook close-loop)
 
 **Tool Mapping for Codex:**
 When skills reference tools you don't have, substitute your equivalent tools:
@@ -24,6 +25,7 @@ When skills reference tools you don't have, substitute your equivalent tools:
 - Announce: "I've read the [Skill Name] skill and I'm using it to [purpose]"
 - Skills with checklists require `update_plan` todos for each item
 - NEVER skip mandatory workflows (brainstorming before coding, TDD, systematic debugging)
+- At the end of a Codex work session, run `~/.codex/agentops/.codex/agentops-codex session-end` to execute flywheel close-loop.
 
 **Skills location:**
 - AgentOps skills: ~/.codex/agentops/skills/

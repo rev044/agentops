@@ -33,3 +33,14 @@ Test the installation:
 ```
 
 You should see skill listings and bootstrap instructions. The system is now ready for use.
+
+## Codex Session-End Equivalent
+
+Claude plugin hooks (`hooks/hooks.json`) are not consumed by Codex. Use this command at the end of a Codex session:
+
+```bash
+~/.codex/agentops/.codex/agentops-codex session-end
+```
+
+It runs the same flywheel close-loop used by the Claude Stop hook:
+`ao flywheel close-loop --quiet` (with failure logging to `.agents/ao/hook-errors.log`).
