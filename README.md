@@ -2,27 +2,33 @@
 
 # AgentOps
 
-### Goal in, production code out. Every cycle makes the next one better.
+### DevOps for AI agents. The system that gets smarter every time you use it.
 
 [![Version](https://img.shields.io/badge/version-2.4.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-32-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
-[Install](#install) · [See It Work](#see-it-work) · [The Workflow](#the-workflow) · [Skills](#skills) · [FAQ](#faq) · [Docs](docs/)
+[Install](#install) · [See It Work](#see-it-work) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [FAQ](#faq)
 
 </div>
 
 ---
 
-## What Is It
+Your coding agent can write code. But it doesn't know what it learned last session. It doesn't validate its own work. It doesn't plan before it builds, or extract learnings after it ships. You're the glue — managing context, remembering decisions, catching mistakes, figuring out what to work on next.
 
-- **One command, six phases.** `/rpi "goal"` runs research, planning, failure simulation, parallel implementation, code validation, and learning extraction — hands-free.
-- **Self-correcting.** Failed validation retries with failure context. No human escalation.
-- **Self-improving.** Every cycle extracts learnings and suggests the next `/rpi` command. The system improves its own tools.
-- **All local.** Everything lives in `.agents/` and git. No cloud, no telemetry, no external services.
+AgentOps automates all of that. Give it a goal. It researches, plans, validates the plan, implements in parallel, validates the code, extracts what it learned, and **tells you what to run next**. Each cycle makes the next one better. You stop managing your agent and start managing your roadmap.
 
-Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh).
+---
+
+## What It Does
+
+- **Manages context perfectly.** Research loads prior knowledge. Each worker gets fresh context. Learnings persist across sessions in `.agents/` and git.
+- **Validates at every stage.** Multi-model councils judge plans before coding and code before shipping. Failures retry with failure context — no human escalation.
+- **Compounds intelligence.** Post-mortem extracts what worked, what didn't, and how to improve the tools themselves. Then it suggests the next `/rpi` command. The system improves its own skills.
+- **One command, six phases.** `/rpi "goal"` runs the full lifecycle hands-free. Or use any skill standalone — `/council validate this PR` works with zero setup.
+
+Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local.
 
 ---
 
@@ -148,7 +154,7 @@ Consensus: WARN — add rate limiting before shipping
 
 ## The Flywheel
 
-This is the core idea. Every cycle feeds the next one.
+This is what makes AgentOps different. The system doesn't just run — it compounds.
 
 ```
   /rpi "goal A"
@@ -159,15 +165,19 @@ This is the core idea. Every cycle feeds the next one.
   /post-mortem
     ├── council validates what shipped
     ├── retro extracts what you learned
-    ├── synthesize skill enhancements       ← learnings improve the tools
+    ├── proposes how to improve the skills   ← the tools get better
     └── "Next: /rpi <enhancement>" ────┐
                                        │
   /rpi "goal B" ◄──────────────────────┘
     │
-    └── ...repeat
+    └── ...repeat forever
 ```
 
-Post-mortem doesn't just wrap up — it proposes how to make the skills better and hands you the command to do it. The system compounds. Each run makes the next one smarter.
+Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "which skill would this improve?", and writes concrete enhancement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system rewrites its own playbook.
+
+**Session 1:** Your agent ships a feature but the tests are weak.
+**Session 2:** The flywheel already knows — `/vibe` now checks test assertion coverage because last cycle's retro proposed it.
+**Session 10:** Your agent catches bugs it would have missed on day one. Not because you configured anything — because the system learned.
 
 ---
 
@@ -329,16 +339,17 @@ Install: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops &
 ## FAQ
 
 <details>
-<summary><strong>Why not just use your coding agent directly?</strong></summary>
+<summary><strong>Why not just use my coding agent directly?</strong></summary>
 
-Your coding agent can spawn agents and write code. AgentOps makes it autonomous:
+Your coding agent writes code. AgentOps manages everything around the code — the context, the validation, the knowledge, the intent. It's the difference between a developer and a development team with process:
 
-- **Self-correcting** — failed validation retries with failure context, not human escalation
-- **Can't regress** — ratchet locks progress after each phase
-- **Fresh context** — each worker gets clean context, no accumulated hallucinations
-- **Self-improving** — every cycle proposes how to make the tools better
-- **Cross-vendor** — `--mixed` mode adds Codex judges alongside Claude
-- **Self-enforcing** — hooks block bad pushes, enforce lead-only commits
+- **Context management** — injects prior knowledge, gives each worker fresh context, persists learnings across sessions
+- **Quality gates** — multi-model councils validate plans before coding and code before shipping
+- **Self-correction** — failures retry with failure context, not human escalation
+- **Self-improvement** — every cycle proposes how to make the tools better, then suggests what to run next
+- **Self-enforcement** — hooks block bad pushes, enforce lead-only commits, nudge agents through the workflow
+
+Without AgentOps, you are the context manager, the quality gate, and the memory. With it, you manage the roadmap.
 
 </details>
 
