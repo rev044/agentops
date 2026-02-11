@@ -82,7 +82,9 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 [research]    Exploring codebase... → .agents/research/rate-limiting.md
 [plan]        3 issues, 2 waves → epic ag-0057
-[pre-mortem]  3 judges → Verdict: PASS
+              Boundaries: 3 always · 2 ask-first · 2 never
+              Conformance: 4 verifiable assertions derived from spec
+[pre-mortem]  4 judges → Verdict: PASS (incl. spec-completeness)
 [crank]       Wave 1: ███ 2/2 · Wave 2: █ 1/1
 [vibe]        3 judges → Verdict: PASS
 [post-mortem] 3 learnings extracted → .agents/
@@ -132,11 +134,11 @@ Consensus: WARN — add rate limiting before shipping
 
 1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
 
-2. **`/plan`** — Decomposes the goal into issues with dependency waves. Creates a beads epic.
+2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a beads epic.
 
-3. **`/pre-mortem`** — 3 judges simulate failures before you write code. FAIL? Re-plan with feedback and try again (max 3).
+3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
 
-4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Lead validates and commits. Runs until every issue is closed.
+4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Cross-cutting constraints from the plan are injected into every wave's validation pass. Lead validates and commits. Runs until every issue is closed.
 
 5. **`/vibe`** — 3 judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
 
@@ -194,10 +196,10 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 | Skill | What it does |
 |-------|-------------|
 | `/research` | Deep codebase exploration |
-| `/plan` | Decompose goal into issues with dependency waves |
+| `/plan` | Decompose goal into issues with dependency waves, boundaries, and conformance checks |
 | `/implement` | Single issue, full lifecycle |
 | `/vibe` | Complexity analysis + multi-model validation gate |
-| `/pre-mortem` | Simulate failures before coding |
+| `/pre-mortem` | Simulate failures before coding (4 judges incl. spec-completeness) |
 | `/post-mortem` | Validate implementation + extract learnings + suggest next cycle |
 | `/release` | Pre-flight checks, changelog, version bumps, tag |
 
