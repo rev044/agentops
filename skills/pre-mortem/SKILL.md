@@ -20,7 +20,7 @@ Run `/council validate` on a plan or spec to get multi-model judgment before com
 /pre-mortem                                         # validates most recent plan
 /pre-mortem path/to/PLAN.md                         # validates specific plan
 /pre-mortem --quick path/to/PLAN.md                 # fast inline check, no spawning
-/pre-mortem --deep path/to/SPEC.md                  # 3 judges instead of 2
+/pre-mortem --deep path/to/SPEC.md                  # 4 judges with plan-review preset
 /pre-mortem --mixed path/to/PLAN.md                 # cross-vendor (Claude + Codex)
 /pre-mortem --preset=architecture path/to/PLAN.md   # architecture-focused review
 /pre-mortem --explorers=3 path/to/SPEC.md           # deep investigation of plan
