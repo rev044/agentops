@@ -20,6 +20,7 @@ import (
 var (
 	storeLimit   int
 	storeRebuild bool
+	storeCategorize bool
 )
 
 const (
@@ -49,6 +50,12 @@ type IndexEntry struct {
 
 	// Keywords are extracted keywords for search.
 	Keywords []string `json:"keywords,omitempty"`
+
+	// Category is the artifact's category (best-effort), when --categorize is enabled.
+	Category string `json:"category,omitempty"`
+
+	// Tags are best-effort extracted tags, when --categorize is enabled.
+	Tags []string `json:"tags,omitempty"`
 
 	// Utility is the MemRL utility score.
 	Utility float64 `json:"utility,omitempty"`
@@ -93,7 +100,7 @@ func init() {
 	rootCmd.AddCommand(storeCmd)
 
 	// index subcommand
-	indexCmd := &cobra.Command{
+		indexCmd := &cobra.Command{
 		Use:   "index <files...>",
 		Short: "Add files to search index",
 		Long: `Add artifacts to the search index.
@@ -109,9 +116,10 @@ Examples:
   ao store index .agents/patterns/error-handling.md
   ao store index --rebuild .agents/`,
 		Args: cobra.MinimumNArgs(1),
-		RunE: runStoreIndex,
-	}
-	storeCmd.AddCommand(indexCmd)
+			RunE: runStoreIndex,
+		}
+		indexCmd.Flags().BoolVar(&storeCategorize, "categorize", false, "Extract and store category/tags for retrieval")
+		storeCmd.AddCommand(indexCmd)
 
 	// search subcommand
 	searchCmd := &cobra.Command{
@@ -132,7 +140,7 @@ Examples:
 	storeCmd.AddCommand(searchCmd)
 
 	// rebuild subcommand
-	rebuildCmd := &cobra.Command{
+		rebuildCmd := &cobra.Command{
 		Use:   "rebuild",
 		Short: "Rebuild search index",
 		Long: `Rebuild the search index from scratch.
@@ -146,9 +154,10 @@ Scans all .agents/ directories and re-indexes:
 Examples:
   ao store rebuild
   ao store rebuild --verbose`,
-		RunE: runStoreRebuild,
-	}
-	storeCmd.AddCommand(rebuildCmd)
+			RunE: runStoreRebuild,
+		}
+		rebuildCmd.Flags().BoolVar(&storeCategorize, "categorize", false, "Extract and store category/tags for retrieval")
+		storeCmd.AddCommand(rebuildCmd)
 
 	// stats subcommand
 	statsCmd := &cobra.Command{
@@ -196,7 +205,7 @@ func runStoreIndex(cmd *cobra.Command, args []string) error {
 
 	indexed := 0
 	for _, path := range files {
-		entry, err := createIndexEntry(path)
+		entry, err := createIndexEntry(path, storeCategorize)
 		if err != nil {
 			VerbosePrintf("Warning: skip %s: %v\n", filepath.Base(path), err)
 			continue
@@ -293,7 +302,7 @@ func runStoreRebuild(cmd *cobra.Command, args []string) error {
 
 	indexed := 0
 	for _, path := range files {
-		entry, err := createIndexEntry(path)
+		entry, err := createIndexEntry(path, storeCategorize)
 		if err != nil {
 			VerbosePrintf("Warning: skip %s: %v\n", filepath.Base(path), err)
 			continue
@@ -340,7 +349,7 @@ func runStoreStats(cmd *cobra.Command, args []string) error {
 }
 
 // createIndexEntry creates an index entry from a file.
-func createIndexEntry(path string) (*IndexEntry, error) {
+func createIndexEntry(path string, categorize bool) (*IndexEntry, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -373,6 +382,21 @@ func createIndexEntry(path string) (*IndexEntry, error) {
 	// Extract keywords
 	keywords := extractKeywords(text)
 
+	var category string
+	var tags []string
+	if categorize {
+		category, tags = extractCategoryAndTags(text)
+		if category != "" {
+			keywords = append(keywords, strings.ToLower(category))
+		}
+		for _, t := range tags {
+			tt := strings.TrimSpace(t)
+			if tt != "" {
+				keywords = append(keywords, strings.ToLower(tt))
+			}
+		}
+	}
+
 	// Parse MemRL metadata if present
 	utility, maturity := parseMemRLMetadata(text)
 
@@ -383,6 +407,8 @@ func createIndexEntry(path string) (*IndexEntry, error) {
 		Title:      title,
 		Content:    text,
 		Keywords:   keywords,
+		Category:   category,
+		Tags:       tags,
 		Utility:    utility,
 		Maturity:   maturity,
 		IndexedAt:  time.Now(),
@@ -570,6 +596,59 @@ func extractKeywords(content string) []string {
 		result = append(result, kw)
 	}
 	return result
+}
+
+// extractCategoryAndTags tries to derive category/tags from either YAML frontmatter or common markdown metadata lines.
+// Best-effort: missing/malformed metadata should not fail indexing.
+func extractCategoryAndTags(content string) (category string, tags []string) {
+	lines := strings.Split(content, "\n")
+
+	// YAML frontmatter (only if it starts at top of file).
+	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "---" {
+		for i := 1; i < len(lines); i++ {
+			line := strings.TrimSpace(lines[i])
+			if line == "---" {
+				break
+			}
+			if strings.HasPrefix(line, "category:") {
+				category = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "category:")), "\"'")
+				continue
+			}
+			if strings.HasPrefix(line, "tags:") {
+				rest := strings.TrimSpace(strings.TrimPrefix(line, "tags:"))
+				// Support: tags: [a, b, c]
+				if strings.HasPrefix(rest, "[") && strings.HasSuffix(rest, "]") {
+					inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
+					for _, t := range strings.Split(inner, ",") {
+						tt := strings.TrimSpace(strings.Trim(t, "\"'"))
+						if tt != "" {
+							tags = append(tags, tt)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Markdown metadata lines (learning format).
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if category == "" && strings.HasPrefix(line, "**Category**:") {
+			category = strings.TrimSpace(strings.TrimPrefix(line, "**Category**:"))
+			continue
+		}
+		if strings.HasPrefix(line, "**Tags**:") {
+			rest := strings.TrimSpace(strings.TrimPrefix(line, "**Tags**:"))
+			for _, t := range strings.Split(rest, ",") {
+				tt := strings.TrimSpace(t)
+				if tt != "" {
+					tags = append(tags, tt)
+				}
+			}
+		}
+	}
+
+	return category, tags
 }
 
 // parseMemRLMetadata extracts utility and maturity from content.

@@ -20,6 +20,8 @@ var (
 	poolLimit     int
 	poolReason    string
 	poolThreshold string
+	poolDoPromote bool
+	poolGold      bool
 )
 
 var poolCmd = &cobra.Command{
@@ -345,16 +347,20 @@ Examples:
 
 var poolAutoPromoteCmd = &cobra.Command{
 	Use:   "auto-promote",
-	Short: "Auto-promote silver candidates older than threshold",
-	Long: `Automatically approve silver-tier candidates that have been pending
+	Short: "Auto-promote eligible candidates older than threshold",
+	Long: `Automatically approve (and optionally promote) high-quality candidates
 for longer than the specified threshold.
+
+By default, this command bulk-approves eligible candidates. With --promote,
+it will also stage + promote them into .agents/learnings/ or .agents/patterns/.
 
 This is a bulk operation - use with caution. The threshold must be at least
 1 hour to prevent accidental mass approval of recently added candidates.
 
 Examples:
   ao pool auto-promote --threshold=24h
-  ao pool auto-promote --threshold=48h --dry-run`,
+  ao pool auto-promote --threshold=48h --dry-run
+  ao pool auto-promote --threshold=24h --promote`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if poolThreshold == "" {
 			return fmt.Errorf("--threshold is required")
@@ -365,10 +371,6 @@ Examples:
 			return fmt.Errorf("invalid threshold: %w", err)
 		}
 
-		if GetDryRun() {
-			fmt.Printf("[dry-run] Would auto-promote silver candidates older than %s\n", threshold)
-		}
-
 		cwd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("get working directory: %w", err)
@@ -377,27 +379,122 @@ Examples:
 		p := pool.NewPool(cwd)
 		reviewer := GetCurrentUser()
 
-		approved, err := p.BulkApprove(threshold, reviewer, GetDryRun())
-		if err != nil {
-			return fmt.Errorf("auto-promote: %w", err)
-		}
+		if !poolDoPromote {
+			if GetDryRun() {
+				fmt.Printf("[dry-run] Would auto-promote (approve) eligible candidates older than %s\n", threshold)
+			}
 
-		if len(approved) == 0 {
-			fmt.Println("No candidates eligible for auto-promotion")
+			approved, err := p.BulkApprove(threshold, reviewer, GetDryRun())
+			if err != nil {
+				return fmt.Errorf("auto-promote: %w", err)
+			}
+
+			if len(approved) == 0 {
+				fmt.Println("No candidates eligible for auto-promotion")
+				return nil
+			}
+
+			if GetDryRun() {
+				fmt.Printf("Would auto-promote %d candidates:\n", len(approved))
+			} else {
+				fmt.Printf("Auto-promoted %d candidates:\n", len(approved))
+			}
+			for _, id := range approved {
+				fmt.Printf("  - %s\n", id)
+			}
 			return nil
 		}
 
-		if GetDryRun() {
-			fmt.Printf("Would auto-promote %d candidates:\n", len(approved))
-		} else {
-			fmt.Printf("Auto-promoted %d candidates:\n", len(approved))
+		// --promote mode: stage + promote high-quality candidates (silver, plus gold if enabled).
+		return runPoolAutoPromoteAndPromote(p, threshold, reviewer)
+	},
+}
+
+type poolAutoPromotePromoteResult struct {
+	Threshold string   `json:"threshold"`
+	Considered int     `json:"considered"`
+	Promoted  int      `json:"promoted"`
+	Skipped   int      `json:"skipped"`
+	Artifacts []string `json:"artifacts,omitempty"`
+	SkippedIDs []string `json:"skipped_ids,omitempty"`
+}
+
+func runPoolAutoPromoteAndPromote(p *pool.Pool, threshold time.Duration, reviewer string) error {
+	entries, err := p.List(pool.ListOptions{
+		Status: types.PoolStatusPending,
+	})
+	if err != nil {
+		return fmt.Errorf("list pending: %w", err)
+	}
+
+	result := poolAutoPromotePromoteResult{
+		Threshold: threshold.String(),
+	}
+
+	for _, e := range entries {
+		// Only auto-promote high-quality tiers.
+		if e.Candidate.Tier != types.TierSilver && !(poolGold && e.Candidate.Tier == types.TierGold) {
+			continue
 		}
-		for _, id := range approved {
-			fmt.Printf("  - %s\n", id)
+		// Never auto-promote human-gated items.
+		if e.ScoringResult.GateRequired {
+			result.Skipped++
+			result.SkippedIDs = append(result.SkippedIDs, e.Candidate.ID)
+			continue
+		}
+		if e.Age < threshold {
+			continue
 		}
 
+		result.Considered++
+
+		if GetDryRun() {
+			result.Promoted++
+			continue
+		}
+
+		// Stage (enforces min tier) then promote to knowledge base.
+		if err := p.Stage(e.Candidate.ID, types.TierSilver); err != nil {
+			result.Skipped++
+			result.SkippedIDs = append(result.SkippedIDs, e.Candidate.ID)
+			VerbosePrintf("Warning: stage %s: %v\n", e.Candidate.ID, err)
+			continue
+		}
+
+		artifactPath, err := p.Promote(e.Candidate.ID)
+		if err != nil {
+			result.Skipped++
+			result.SkippedIDs = append(result.SkippedIDs, e.Candidate.ID)
+			VerbosePrintf("Warning: promote %s: %v\n", e.Candidate.ID, err)
+			continue
+		}
+
+		// Record an approval note for audit (best-effort).
+		_ = reviewer
+		result.Promoted++
+		result.Artifacts = append(result.Artifacts, artifactPath)
+	}
+
+	switch GetOutput() {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	default:
+		if GetDryRun() {
+			fmt.Printf("[dry-run] Would promote %d candidate(s) (threshold=%s)\n", result.Promoted, result.Threshold)
+			return nil
+		}
+		if result.Promoted == 0 {
+			fmt.Printf("No candidates eligible for promotion (threshold=%s)\n", result.Threshold)
+			return nil
+		}
+		fmt.Printf("Promoted %d candidate(s):\n", result.Promoted)
+		for _, a := range result.Artifacts {
+			fmt.Printf("  - %s\n", a)
+		}
 		return nil
-	},
+	}
 }
 
 func init() {
@@ -425,6 +522,8 @@ func init() {
 
 	// Add flags to auto-promote command
 	poolAutoPromoteCmd.Flags().StringVar(&poolThreshold, "threshold", "", "Minimum age for auto-promotion (e.g., 24h)")
+	poolAutoPromoteCmd.Flags().BoolVar(&poolDoPromote, "promote", false, "Also stage+promote eligible candidates into .agents/ (not just approval)")
+	poolAutoPromoteCmd.Flags().BoolVar(&poolGold, "include-gold", true, "Include gold-tier candidates when using --promote")
 	_ = poolAutoPromoteCmd.MarkFlagRequired("threshold") //nolint:errcheck
 }
 

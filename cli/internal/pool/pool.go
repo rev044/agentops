@@ -566,6 +566,13 @@ func (p *Pool) BulkApprove(olderThan time.Duration, reviewer string, dryRun bool
 
 // Add adds a new candidate to the pending pool.
 func (p *Pool) Add(candidate types.Candidate, scoring types.Scoring) error {
+	return p.AddAt(candidate, scoring, time.Now())
+}
+
+// AddAt adds a new candidate to the pending pool with a caller-supplied AddedAt timestamp.
+// This is useful when ingesting historical artifacts where "age" should reflect the original
+// creation/modification time, not the ingestion time.
+func (p *Pool) AddAt(candidate types.Candidate, scoring types.Scoring, addedAt time.Time) error {
 	// Validate ID to prevent path traversal
 	if err := validateCandidateID(candidate.ID); err != nil {
 		return fmt.Errorf("invalid candidate ID: %w", err)
@@ -579,7 +586,7 @@ func (p *Pool) Add(candidate types.Candidate, scoring types.Scoring) error {
 		Candidate:     candidate,
 		ScoringResult: scoring,
 		Status:        types.PoolStatusPending,
-		AddedAt:       time.Now(),
+		AddedAt:       addedAt,
 		UpdatedAt:     time.Now(),
 	}
 
