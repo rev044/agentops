@@ -57,9 +57,66 @@ Also use Grep to search `.agents/` for related content. Check TEMPERED learnings
 ls -la .agents/learnings/ .agents/patterns/ 2>/dev/null | head -10
 ```
 
+### Step 2.5: Pre-Flight — Detect Spawn Backend
+
+Before launching the explore agent, detect which backend is available:
+
+1. Check if `spawn_agent` is available → log `"Backend: codex-sub-agents"`
+2. Else check if `TeamCreate` is available → log `"Backend: claude-native-teams"`
+3. Else check if `Task` is available → log `"Backend: background-task-fallback"`
+4. Else → log `"Backend: inline (no spawn available)"`
+
+Record the selected backend — it will be included in the research output document for traceability.
+
 ### Step 3: Launch Explore Agent
 
-**YOU MUST USE THE TASK TOOL NOW.** Call it with these exact parameters:
+**YOU MUST DISPATCH AN EXPLORATION AGENT NOW.** Select the backend using capability detection:
+
+#### Backend Selection (MANDATORY)
+
+1. If `spawn_agent` is available → **Codex sub-agent**
+2. Else if `TeamCreate` is available → **Claude native team** (Explore agent)
+3. Else → **Background task fallback**
+
+#### Exploration Prompt (all backends)
+
+Use this prompt for whichever backend is selected:
+
+```
+Thoroughly investigate: <topic>
+
+Search strategy:
+1. Glob for relevant files (*.md, *.py, *.ts, *.go, etc.)
+2. Grep for keywords related to <topic>
+3. Read key files and understand the architecture
+4. Check docs/ and .agents/ for existing documentation
+
+Return a detailed report with:
+- Key files found (with paths)
+- How the system works
+- Important patterns or conventions
+- Any issues or concerns
+
+Cite specific file:line references for all claims.
+```
+
+#### Backend 1: Codex Sub-Agents (`spawn_agent` available)
+
+```
+agent_id = spawn_agent(message="""
+You are a codebase research agent. Your task:
+
+<exploration prompt from above>
+
+Use file reading, grep, and glob to explore the codebase at: <cwd>
+Write your findings as structured markdown.
+""")
+
+result = wait(ids=[agent_id])
+# Extract findings from result
+```
+
+#### Backend 2: Claude Native Teams (`TeamCreate` available)
 
 ```
 Tool: Task
@@ -67,22 +124,26 @@ Parameters:
   subagent_type: "Explore"
   description: "Research: <topic>"
   prompt: |
-    Thoroughly investigate: <topic>
-
-    Search strategy:
-    1. Glob for relevant files (*.md, *.py, *.ts, *.go, etc.)
-    2. Grep for keywords related to <topic>
-    3. Read key files and understand the architecture
-    4. Check docs/ and .agents/ for existing documentation
-
-    Return a detailed report with:
-    - Key files found (with paths)
-    - How the system works
-    - Important patterns or conventions
-    - Any issues or concerns
-
-    Cite specific file:line references for all claims.
+    <exploration prompt from above>
 ```
+
+#### Backend 3: Background Task Fallback
+
+```
+Tool: Task
+Parameters:
+  subagent_type: "general-purpose"
+  run_in_background: true
+  description: "Research: <topic>"
+  prompt: |
+    <exploration prompt from above>
+```
+
+Then retrieve results with `TaskOutput(task_id=..., block=true)`.
+
+#### No Backend Available
+
+If none of the above are available, perform the exploration **inline** in the current session using Glob, Grep, and Read tools directly. Log: `"Note: No spawn backend available. Performing inline exploration."`
 
 ### Step 4: Validate Research Quality (Optional)
 
@@ -122,6 +183,7 @@ Use this format:
 # Research: <Topic>
 
 **Date:** YYYY-MM-DD
+**Backend:** <codex-sub-agents | claude-native-teams | background-task-fallback | inline>
 **Scope:** <what was investigated>
 
 ## Summary
