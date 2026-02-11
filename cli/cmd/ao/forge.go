@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -21,6 +23,8 @@ var (
 	forgeLastSession bool
 	forgeQuiet       bool
 	forgeQueue       bool
+	forgeMdQuiet     bool
+	forgeMdQueue     bool
 )
 
 const (
@@ -45,9 +49,11 @@ var forgeCmd = &cobra.Command{
 
 Currently supported forges:
   transcript    Extract from Claude Code JSONL transcripts
+  markdown      Extract from markdown files (.md)
 
 Example:
-  ao forge transcript ~/.claude/projects/**/*.jsonl`,
+  ao forge transcript ~/.claude/projects/**/*.jsonl
+  ao forge markdown .agents/learnings/*.md`,
 }
 
 var forgeTranscriptCmd = &cobra.Command{
@@ -78,14 +84,36 @@ Examples:
 	RunE: runForgeTranscript,
 }
 
+var forgeMarkdownCmd = &cobra.Command{
+	Use:   "markdown <path-or-glob>",
+	Short: "Extract knowledge from markdown files",
+	Long: `Parse markdown (.md) files and extract knowledge candidates.
+
+The markdown forge splits files by headings and runs the same extraction
+patterns used for transcripts (decisions, solutions, learnings, failures,
+references).
+
+Examples:
+  ao forge markdown .agents/learnings/*.md
+  ao forge markdown docs/**/*.md
+  ao forge markdown session-notes.md --quiet`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: runForgeMarkdown,
+}
+
 func init() {
 	rootCmd.AddCommand(forgeCmd)
 	forgeCmd.AddCommand(forgeTranscriptCmd)
+	forgeCmd.AddCommand(forgeMarkdownCmd)
 
 	// Transcript flags
 	forgeTranscriptCmd.Flags().BoolVar(&forgeLastSession, "last-session", false, "Process only the most recent transcript")
 	forgeTranscriptCmd.Flags().BoolVar(&forgeQuiet, "quiet", false, "Suppress all output (for hooks)")
 	forgeTranscriptCmd.Flags().BoolVar(&forgeQueue, "queue", false, "Queue session for learning extraction at next session start")
+
+	// Markdown flags
+	forgeMarkdownCmd.Flags().BoolVar(&forgeMdQuiet, "quiet", false, "Suppress all output (for hooks)")
+	forgeMarkdownCmd.Flags().BoolVar(&forgeMdQueue, "queue", false, "Queue for learning extraction at next session start")
 }
 
 func runForgeTranscript(cmd *cobra.Command, args []string) error {
@@ -560,6 +588,232 @@ func queueForExtraction(session *storage.Session, sessionPath, transcriptPath, c
 	}
 
 	return nil
+}
+
+func runForgeMarkdown(cmd *cobra.Command, args []string) error {
+	// Expand globs and collect files
+	var files []string
+	for _, pattern := range args {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid pattern %q: %w", pattern, err)
+		}
+		if len(matches) == 0 {
+			if _, err := os.Stat(pattern); err == nil {
+				files = append(files, pattern)
+			}
+		} else {
+			for _, m := range matches {
+				if filepath.Ext(m) == ".md" {
+					files = append(files, m)
+				}
+			}
+		}
+	}
+
+	if GetDryRun() && !forgeMdQuiet {
+		fmt.Printf("[dry-run] Would process %d markdown file(s)\n", len(files))
+		for _, path := range files {
+			fmt.Printf("  - %s\n", path)
+		}
+		return nil
+	}
+
+	if len(files) == 0 {
+		if forgeMdQuiet {
+			return nil
+		}
+		return fmt.Errorf("no markdown files found matching patterns")
+	}
+
+	if !forgeMdQuiet {
+		VerbosePrintf("Processing %d markdown file(s)...\n", len(files))
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	baseDir := filepath.Join(cwd, storage.DefaultBaseDir)
+	fs := storage.NewFileStorage(
+		storage.WithBaseDir(baseDir),
+		storage.WithFormatters(
+			formatter.NewMarkdownFormatter(),
+			formatter.NewJSONLFormatter(),
+		),
+	)
+
+	if err := fs.Init(); err != nil {
+		return fmt.Errorf("initialize storage: %w", err)
+	}
+
+	extractor := parser.NewExtractor()
+
+	totalSessions := 0
+	totalDecisions := 0
+	totalKnowledge := 0
+
+	for _, filePath := range files {
+		session, err := processMarkdown(filePath, extractor, forgeMdQuiet)
+		if err != nil {
+			if !forgeMdQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to process %s: %v\n", filePath, err)
+			}
+			continue
+		}
+
+		sessionPath, err := fs.WriteSession(session)
+		if err != nil {
+			if !forgeMdQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to write session for %s: %v\n", filePath, err)
+			}
+			continue
+		}
+
+		indexEntry := &storage.IndexEntry{
+			SessionID:   session.ID,
+			Date:        session.Date,
+			SessionPath: sessionPath,
+			Summary:     session.Summary,
+		}
+		if err := fs.WriteIndex(indexEntry); err != nil {
+			if !forgeMdQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to index session: %v\n", err)
+			}
+		}
+
+		provRecord := &storage.ProvenanceRecord{
+			ID:           fmt.Sprintf("prov-%s", session.ID[:7]),
+			ArtifactPath: sessionPath,
+			ArtifactType: "session",
+			SourcePath:   filePath,
+			SourceType:   "markdown",
+			CreatedAt:    time.Now(),
+		}
+		if err := fs.WriteProvenance(provRecord); err != nil {
+			if !forgeMdQuiet {
+				fmt.Fprintf(os.Stderr, "Warning: failed to write provenance: %v\n", err)
+			}
+		}
+
+		totalSessions++
+		totalDecisions += len(session.Decisions)
+		totalKnowledge += len(session.Knowledge)
+
+		if !forgeMdQuiet {
+			VerbosePrintf("  ✓ %s → %s\n", filepath.Base(filePath), filepath.Base(sessionPath))
+		}
+
+		if forgeMdQueue {
+			if err := queueForExtraction(session, sessionPath, filePath, cwd); err != nil {
+				if !forgeMdQuiet {
+					fmt.Fprintf(os.Stderr, "Warning: failed to queue for extraction: %v\n", err)
+				}
+			}
+		}
+	}
+
+	if !forgeMdQuiet {
+		fmt.Printf("\n✓ Processed %d markdown file(s)\n", totalSessions)
+		fmt.Printf("  Decisions: %d\n", totalDecisions)
+		fmt.Printf("  Knowledge: %d\n", totalKnowledge)
+		fmt.Printf("  Output: %s\n", baseDir)
+	}
+
+	return nil
+}
+
+// processMarkdown parses a markdown file and extracts session data.
+func processMarkdown(filePath string, extractor *parser.Extractor, quiet bool) (*storage.Session, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("read file: %w", err)
+	}
+
+	content := string(data)
+	if len(content) == 0 {
+		return nil, fmt.Errorf("empty file")
+	}
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("stat file: %w", err)
+	}
+
+	// Generate a deterministic session ID from file path
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(filePath)))
+	sessionID := fmt.Sprintf("md-%s", hash[:12])
+
+	session := &storage.Session{
+		ID:             sessionID,
+		Date:           info.ModTime(),
+		TranscriptPath: filePath,
+		ToolCalls:      make(map[string]int),
+		Tokens: storage.TokenUsage{
+			Total:     len(content) / CharsPerToken,
+			Estimated: true,
+		},
+	}
+
+	// Split by headings (## or #) into sections
+	sections := splitMarkdownSections(content)
+
+	state := &transcriptState{
+		seenFiles:  make(map[string]bool),
+		seenIssues: make(map[string]bool),
+	}
+
+	for i, section := range sections {
+		if len(section) == 0 {
+			continue
+		}
+
+		// Create a synthetic message for the extractor
+		msg := types.TranscriptMessage{
+			Content:      section,
+			Role:         "assistant",
+			SessionID:    sessionID,
+			Timestamp:    info.ModTime(),
+			MessageIndex: i,
+		}
+
+		extractMessageKnowledge(msg, extractor, state)
+		extractIssueRefs(section, state)
+	}
+
+	session.Summary = generateSummary(state.decisions, state.knowledge, session.Date)
+	session.Decisions = dedup(state.decisions)
+	session.Knowledge = dedup(state.knowledge)
+	session.Issues = state.issues
+
+	return session, nil
+}
+
+// splitMarkdownSections splits markdown content by heading boundaries.
+// Returns sections including their heading line.
+func splitMarkdownSections(content string) []string {
+	lines := strings.Split(content, "\n")
+	var sections []string
+	var current []string
+
+	for _, line := range lines {
+		if (strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "## ")) && len(current) > 0 {
+			sections = append(sections, strings.Join(current, "\n"))
+			current = nil
+		}
+		current = append(current, line)
+	}
+	if len(current) > 0 {
+		sections = append(sections, strings.Join(current, "\n"))
+	}
+
+	// If no headings found, treat entire content as one section
+	if len(sections) == 0 {
+		sections = []string{content}
+	}
+
+	return sections
 }
 
 // findLastSession finds the most recently modified transcript file.

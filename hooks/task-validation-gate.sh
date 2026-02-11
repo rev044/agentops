@@ -27,9 +27,25 @@ cd "$ROOT" 2>/dev/null || true
 # Restricted command execution: allowlist-based, no shell interpretation
 run_restricted() {
     local cmd="$1"
+
+    # Block shell metacharacters — prevents injection via crafted metadata
+    if [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>] ]]; then
+        log_error "BLOCKED: shell metacharacters in command: $cmd"
+        echo "VALIDATION BLOCKED: shell metacharacters not allowed in command" >&2
+        exit 2
+    fi
+
     # Split command string into array (word-split on whitespace)
     read -ra cmd_parts <<< "$cmd"
     local binary="${cmd_parts[0]}"
+
+    # Binary must be a bare name (no path separators)
+    if [[ "$binary" == */* ]]; then
+        log_error "BLOCKED: path in binary name: $binary (full: $cmd)"
+        echo "VALIDATION BLOCKED: binary must be a bare name, not a path" >&2
+        exit 2
+    fi
+
     # Strict allowlist of permitted binaries
     local allowed="go pytest npm npx make bash"
     local found=0
@@ -44,6 +60,18 @@ run_restricted() {
         echo "VALIDATION BLOCKED: command '$binary' not in allowlist ($allowed)" >&2
         exit 2
     fi
+
+    # Block bash -c (shell interpretation escape)
+    if [ "$binary" = "bash" ]; then
+        for arg in "${cmd_parts[@]:1}"; do
+            if [ "$arg" = "-c" ]; then
+                log_error "BLOCKED: bash -c not allowed: $cmd"
+                echo "VALIDATION BLOCKED: 'bash -c' not allowed (use direct commands)" >&2
+                exit 2
+            fi
+        done
+    fi
+
     # Execute as array — no shell interpretation
     "${cmd_parts[@]}" >/dev/null 2>&1
 }
