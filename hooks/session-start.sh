@@ -38,6 +38,11 @@ done
 # Clean up stale nudge dedup flag from previous session
 rm -f "$ROOT/.agents/ao/.ratchet-advance-fired" 2>/dev/null
 
+# Process pending extraction queue (closes forge → extract loop)
+if command -v ao &>/dev/null; then
+    timeout 5 ao extract 2>/dev/null || true
+fi
+
 # Get flywheel status (brief one-liner for visibility)
 flywheel_status=""
 if command -v ao &>/dev/null; then

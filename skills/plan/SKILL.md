@@ -42,6 +42,14 @@ ls -la .agents/research/ 2>/dev/null | head -10
 
 Use Grep to search `.agents/` for related content. If research exists, read it with the Read tool to understand the context before planning.
 
+**Search knowledge flywheel for prior planning patterns:**
+```bash
+if command -v ao &>/dev/null; then
+    ao search "<topic> plan decomposition patterns" 2>/dev/null | head -10
+fi
+```
+If ao returns relevant learnings or patterns, incorporate them into the plan. Skip silently if ao is unavailable or returns no results.
+
 ### Step 3: Explore the Codebase (if needed)
 
 **USE THE TASK TOOL** to dispatch an Explore agent:
@@ -236,7 +244,13 @@ Parameters:
 
 **Wait for approval before reporting completion.**
 
-### Step 9: Report to User
+### Step 9: Record Ratchet Progress
+
+```bash
+ao ratchet record plan 2>/dev/null || true
+```
+
+### Step 10: Report to User
 
 Tell the user:
 1. Plan document location

@@ -166,6 +166,15 @@ This gives council judges a Codex-generated review as pre-existing context — c
 - `codex review` fails → skip silently, proceed with council only
 - No uncommitted changes → skip (nothing to review)
 
+### Step 2d: Search Knowledge Flywheel
+
+```bash
+if command -v ao &>/dev/null; then
+    ao search "code review findings <target>" 2>/dev/null | head -10
+fi
+```
+If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
+
 ### Step 3: Load the Spec (New)
 
 Before invoking council, try to find the relevant spec/bead:

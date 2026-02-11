@@ -43,6 +43,15 @@ ls -lt .agents/specs/ 2>/dev/null | head -3
 
 Use the most recent file. If nothing found, ask user.
 
+### Step 1a: Search Knowledge Flywheel
+
+```bash
+if command -v ao &>/dev/null; then
+    ao search "plan validation lessons <goal>" 2>/dev/null | head -10
+fi
+```
+If ao returns prior plan review findings, include them as context for the council packet. Skip silently if ao is unavailable or returns no results.
+
 ### Step 2: Run Council Validation
 
 Run `/council` with the **plan-review** preset and always 3 judges:
@@ -130,7 +139,13 @@ Enables adversarial two-round review for plan validation. Use for high-stakes pl
 [ ] RETHINK - Fundamental issues, needs redesign
 ```
 
-### Step 5: Report to User
+### Step 5: Record Ratchet Progress
+
+```bash
+ao ratchet record pre-mortem 2>/dev/null || true
+```
+
+### Step 6: Report to User
 
 Tell the user:
 1. Council verdict (PASS/WARN/FAIL)
