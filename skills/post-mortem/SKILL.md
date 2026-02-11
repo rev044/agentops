@@ -28,6 +28,7 @@ Two steps:
 /post-mortem --mixed epic-123   # cross-vendor (Claude + Codex)
 /post-mortem --explorers=2 epic-123  # deep investigation before judging
 /post-mortem --debate epic-123      # two-round adversarial review
+/post-mortem --skip-checkpoint-policy epic-123  # skip ratchet chain validation
 ```
 
 ---
@@ -40,6 +41,107 @@ Before proceeding, verify:
 1. **Git repo exists:** `git rev-parse --git-dir 2>/dev/null` — if not, error: "Not in a git repository"
 2. **Work was done:** `git log --oneline -1 2>/dev/null` — if empty, error: "No commits found. Run /implement first."
 3. **Epic context:** If epic ID provided, verify it has closed children. If 0 closed children, error: "No completed work to review."
+
+### Step 0.5: Checkpoint-Policy Preflight (MANDATORY)
+
+Validates the ratchet chain before running the post-mortem council. Ensures prior phases completed successfully and all artifacts are available.
+
+#### 1. Guard Clause
+
+```bash
+# Skip if --skip-checkpoint-policy flag is set
+# Skip if chain file doesn't exist (standalone post-mortem is valid)
+CHAIN_FILE=".agents/ao/chain.jsonl"
+if [ ! -f "$CHAIN_FILE" ]; then
+  echo "Checkpoint policy: SKIP (no chain file — standalone post-mortem)"
+  # Continue to Step 1 without blocking
+fi
+```
+
+#### 2. Ratchet Chain Policy Checks
+
+Load `chain.jsonl` and verify prior phases are locked:
+
+1. **Parse entries using dual-schema:** Check for BOTH `gate` (old schema) and `step` (new schema) field names. Each line is a JSON object — use `jq` to extract either field:
+   ```bash
+   jq -r '.gate // .step' "$CHAIN_FILE"
+   ```
+2. **Required phases:** For each of `research`, `plan`, `pre-mortem`, `implement`/`crank`, `vibe`:
+   - Check that at least one entry exists with `locked: true` or `status: "locked"`
+   - Missing phases: **WARN** (logged, not blocking)
+3. **Council verdict validation:** For `pre-mortem` and `vibe` entries:
+   - Find the corresponding council report in `.agents/council/` (match by date and type in filename)
+   - Read the `## Council Verdict:` line
+   - If verdict is `FAIL`: **BLOCK** — do not proceed
+4. **Cycle guard:** If `cycle > 1` in any entry, verify `parent_epic` is non-empty. Empty parent on multi-cycle: **WARN**
+
+#### 3. Artifact Availability Checks
+
+For each chain entry's `output` path:
+
+1. If output starts with `.agents/` or contains `/` (is a file path): verify file exists on disk
+2. If output matches `epic:<id>` or `issue:<id>`: skip (not a file reference)
+3. If output is `inline-pass`: skip (no artifact expected)
+4. Missing artifacts: **WARN**
+
+```bash
+while IFS= read -r line; do
+  output=$(echo "$line" | jq -r '.output // .artifact // empty')
+  case "$output" in
+    epic:*|issue:*|inline-pass|"") continue ;;
+    *)
+      if [[ "$output" == *"/"* ]] && [ ! -f "$output" ]; then
+        echo "WARN: artifact missing: $output"
+      fi
+      ;;
+  esac
+done < "$CHAIN_FILE"
+```
+
+#### 4. Idempotency Check
+
+If an epic ID is provided, check `.agents/rpi/next-work.jsonl` for an existing entry with the same `source_epic`:
+
+1. If found and `consumed: false`: **WARN** "Post-mortem already harvested for this epic. Re-running will create duplicate entries."
+2. If found and `consumed: true`: **INFO** "Prior post-mortem consumed by `<consumed_by>`. Fresh harvest will be appended."
+3. If not found: no action needed
+
+```bash
+NEXT_WORK=".agents/rpi/next-work.jsonl"
+if [ -n "$EPIC_ID" ] && [ -f "$NEXT_WORK" ]; then
+  existing=$(grep "\"source_epic\":\"$EPIC_ID\"" "$NEXT_WORK" | tail -1)
+  if [ -n "$existing" ]; then
+    consumed=$(echo "$existing" | jq -r '.consumed')
+    if [ "$consumed" = "false" ]; then
+      echo "WARN: Post-mortem already harvested for $EPIC_ID. Re-running will create duplicate entries."
+    else
+      consumed_by=$(echo "$existing" | jq -r '.consumed_by')
+      echo "INFO: Prior post-mortem consumed by $consumed_by. Fresh harvest will be appended."
+    fi
+  fi
+fi
+```
+
+#### 5. Summary Report Table
+
+Print the preflight summary before proceeding:
+
+```
+| Check              | Status    | Detail                    |
+|--------------------|-----------|---------------------------|
+| Chain loaded       | PASS/SKIP | path or "not found"       |
+| Prior phases locked| PASS/WARN | list any unlocked         |
+| No FAIL verdicts   | PASS/BLOCK| list any FAILed           |
+| Artifacts exist    | PASS/WARN | list any missing          |
+| Idempotency        | PASS/WARN/INFO | dedup status         |
+```
+
+#### 6. Blocking Behavior
+
+- **BLOCK** only on FAIL verdicts in prior gates (pre-mortem or vibe). If any check is BLOCK: stop post-mortem and report:
+  > "Checkpoint-policy BLOCKED: `<reason>`. Fix the failing gate and re-run."
+- **WARN** on everything else (missing phases, missing artifacts, idempotency). Warnings are logged, included in the council packet as `context.checkpoint_warnings`, and execution proceeds.
+- **INFO** is purely informational — no action needed.
 
 ### Step 1: Identify Completed Work
 
@@ -346,12 +448,64 @@ Scan the council report and retro for actionable follow-up items:
 | 1 | <title> | tech-debt / improvement / pattern-fix / skill-enhancement | high / medium / low | council-finding / retro-learning / retro-pattern / retro-skill-proposal |
 ```
 
-4. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`):
+4. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the schema contract (`.agents/rpi/next-work.schema.md`):
+
+```bash
+validate_next_work_item() {
+  local item="$1"
+  local title=$(echo "$item" | jq -r '.title // empty')
+  local type=$(echo "$item" | jq -r '.type // empty')
+  local severity=$(echo "$item" | jq -r '.severity // empty')
+  local source=$(echo "$item" | jq -r '.source // empty')
+  local description=$(echo "$item" | jq -r '.description // empty')
+
+  # Required fields
+  if [ -z "$title" ] || [ -z "$description" ]; then
+    echo "SCHEMA VALIDATION FAILED: missing title or description for item"
+    return 1
+  fi
+
+  # Type enum validation
+  case "$type" in
+    tech-debt|improvement|pattern-fix|skill-enhancement) ;;
+    *) echo "SCHEMA VALIDATION FAILED: invalid type '$type' for item '$title'"; return 1 ;;
+  esac
+
+  # Severity enum validation
+  case "$severity" in
+    high|medium|low) ;;
+    *) echo "SCHEMA VALIDATION FAILED: invalid severity '$severity' for item '$title'"; return 1 ;;
+  esac
+
+  # Source enum validation
+  case "$source" in
+    council-finding|retro-learning|retro-pattern) ;;
+    *) echo "SCHEMA VALIDATION FAILED: invalid source '$source' for item '$title'"; return 1 ;;
+  esac
+
+  return 0
+}
+
+# Validate each item; drop invalid items (do NOT block the entire harvest)
+VALID_ITEMS=()
+INVALID_COUNT=0
+for item in "${HARVESTED_ITEMS[@]}"; do
+  if validate_next_work_item "$item"; then
+    VALID_ITEMS+=("$item")
+  else
+    INVALID_COUNT=$((INVALID_COUNT + 1))
+  fi
+done
+echo "Schema validation: ${#VALID_ITEMS[@]}/$((${#VALID_ITEMS[@]} + INVALID_COUNT)) items passed"
+```
+
+5. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`):
 
 ```bash
 mkdir -p .agents/rpi
 
 # Append one entry per epic (schema: .agents/rpi/next-work.schema.md)
+# Only include VALID_ITEMS that passed schema validation
 # Each item: {title, type, severity, source, description, evidence}
 # Entry fields: source_epic, timestamp, items[], consumed: false
 ```
@@ -362,7 +516,7 @@ Use the Write tool to append a single JSON line to `.agents/rpi/next-work.jsonl`
 - `items`: array of harvested items (min 0 — if nothing found, write entry with empty items array)
 - `consumed`: false, `consumed_by`: null, `consumed_at`: null
 
-5. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `/rpi --spawn-next` to create an epic from these items."
+6. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `/rpi --spawn-next` to create an epic from these items."
 
 If no actionable items found, write: "No follow-up items identified. Flywheel stable."
 
