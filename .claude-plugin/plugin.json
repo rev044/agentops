@@ -2,7 +2,7 @@
   "$schema": "../schemas/plugin-manifest.v1.schema.json",
   "name": "agentops",
   "version": "2.4.0",
-  "description": "Autonomous coding agent orchestration. Goal in, production code out — one command runs research, planning, multi-model validation, parallel implementation, and knowledge extraction with self-correcting retry loops.",
+  "description": "DevOps for AI agents. Automates context management, multi-model validation, parallel execution, and knowledge extraction — the system gets smarter every time you use it.",
   "author": {
     "name": "Boden Fuller",
     "email": "fullerbt@users.noreply.github.com"

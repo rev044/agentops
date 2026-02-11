@@ -1,6 +1,6 @@
 # AgentOps
 
-Give it any goal — it structures the work into issues, validates every stage with parallel judges, orchestrates fresh-context agents in waves, and gets smarter each time you use it.
+DevOps for AI agents. Automates context management, multi-model validation, parallel execution, and knowledge extraction — the system gets smarter every time you use it.
 
 ## Project Structure
 
