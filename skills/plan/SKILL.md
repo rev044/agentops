@@ -114,6 +114,24 @@ Without a design brief, workers invent design decisions. In ol-571, a spec rewri
   - Enables N parallel workers instead of 1 serial worker
 - **Shared files between issues** → serialize or assign to same worker
 
+#### Conformance Checks
+
+For each issue's acceptance criteria, derive at least one **mechanically verifiable** conformance check using validation-contract.md types. These checks bridge the gap between spec intent and implementation verification.
+
+| Acceptance Criteria | Conformance Check |
+|-----|------|
+| "File X exists" | `files_exist: ["X"]` |
+| "Function Y is implemented" | `content_check: {file: "src/foo.go", pattern: "func Y"}` |
+| "Tests pass" | `tests: "go test ./..."` |
+| "Endpoint returns 200" | `command: "curl -s -o /dev/null -w '%{http_code}' localhost:8080/api \| grep 200"` |
+| "Config has setting Z" | `content_check: {file: "config.yaml", pattern: "setting_z:"}` |
+
+**Rules:**
+- Every issue MUST have at least one conformance check
+- Checks MUST use validation-contract.md types: `files_exist`, `content_check`, `command`, `tests`, `lint`
+- Prefer `content_check` and `files_exist` (fast, deterministic) over `command` (slower, environment-dependent)
+- If acceptance criteria cannot be mechanically verified, flag it as underspecified
+
 ### Step 5: Compute Waves
 
 Group issues by dependencies for parallel execution:
@@ -143,6 +161,20 @@ False dependencies reduce parallelism. Pre-mortem judges will also flag these. I
 
 ## Overview
 <1-2 sentence summary of what we're building>
+
+## Boundaries
+
+**Always:** <non-negotiable requirements — security, backward compat, testing, etc.>
+**Ask First:** <decisions needing human input before proceeding — in auto mode, logged only>
+**Never:** <explicit out-of-scope items preventing scope creep>
+
+## Conformance Checks
+
+| Issue | Check Type | Check |
+|-------|-----------|-------|
+| Issue 1 | content_check | `{file: "src/auth.go", pattern: "func Authenticate"}` |
+| Issue 1 | tests | `go test ./src/auth/...` |
+| Issue 2 | files_exist | `["docs/api-v2.md"]` |
 
 ## Issues
 
@@ -210,6 +242,23 @@ bd create --title "<wave-2-task-depends-on-wave-1>" --body "<description>" --par
 bd dep add na-0001 na-0002
 # Now na-0002 is blocked by na-0001 → Wave 2
 ```
+
+**Include conformance checks in issue bodies:**
+
+When creating beads issues, embed the conformance checks from the plan as a fenced validation block in the issue description. This flows to worker validation metadata via /crank:
+
+````
+bd create --title "<task>" --body "Description...
+
+\`\`\`validation
+{\"files_exist\": [\"src/auth.go\"], \"content_check\": {\"file\": \"src/auth.go\", \"pattern\": \"func Authenticate\"}}
+\`\`\`
+" --parent <epic-id>
+````
+
+**Include cross-cutting constraints in epic description:**
+
+"Always" boundaries from the plan should be added to the epic's description as a `## Cross-Cutting Constraints` section. /crank reads these from the epic (not per-issue) and injects them into every worker task's validation metadata.
 
 **Waves are formed by `blocks` dependencies:**
 - Issues with NO blockers → Wave 1 (appear in `bd ready` immediately)
