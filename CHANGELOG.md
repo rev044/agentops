@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-02-10
+
+### Added
+
+- **`ao pool ingest`** — New command to ingest `.agents/knowledge/pending/*.md` learnings into `.agents/pool/` candidates with stable IDs and preserved timestamps.
+- **`ao flywheel close-loop`** — New orchestration command chaining: `pool ingest → auto-promote (promote) → promote-anti-patterns → store --categorize`.
+- **Codex session-end equivalent** — `~/.codex/agentops/.codex/agentops-codex session-end` for manual close-loop on Codex (since Codex has no native Stop hook).
+
+### Changed
+
+- **`ao pool auto-promote`** — Added `--promote` mode to stage and promote eligible silver/gold candidates into `.agents/learnings/` / `.agents/patterns/`.
+- **`ao store` indexing** — Added `--categorize` to capture `category` and `tags` metadata in index entries.
+- **Codex bootstrap/install docs** — Updated `.codex/agentops-bootstrap.md` and `.codex/INSTALL.md` with session-end workflow and usage.
+
+### Fixed
+
+- **Stop hook close-loop wiring** — `hooks/hooks.json` Stop hook now executes flywheel close-loop and logs failures to `.agents/ao/hook-errors.log`.
+- **Codex compatibility fallback** — `agentops-codex session-end` falls back to repo-local `go run ./cmd/ao` when system `ao` is missing/outdated.
+
 ## [2.2.0] - 2026-02-10
 
 ### Added
