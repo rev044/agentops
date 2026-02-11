@@ -24,12 +24,12 @@ Deep documentation for AgentOps. For quick start, see [README](../README.md).
 
 | | Local (default) | Distributed (`--mode=distributed`) |
 |---|---|---|
-| **How** | Native agent teams (`TeamCreate` + `SendMessage`) | tmux sessions + Agent Mail |
-| **Dependencies** | None (Claude-native) | `tmux`, `claude` CLI, Agent Mail MCP |
+| **How** | Runtime-native backends (`spawn_agent` -> `TeamCreate` -> `Task(run_in_background=true)`) | tmux sessions + Agent Mail |
+| **Dependencies** | None (runtime-native) | `tmux`, `claude` CLI, Agent Mail MCP |
 | **Context** | Fresh per agent (team-per-wave) | Fresh per agent |
 | **Persistence** | Dies if mayor disconnects | Survives disconnection |
 | **Debugging** | Click tmux pane or Shift+Up/Down | Attach to tmux session |
-| **Coordination** | `SendMessage` + `TaskList` | Agent Mail + file reservations |
+| **Coordination** | `wait`/`SendMessage`/`TaskOutput` + `TaskList` | Agent Mail + file reservations |
 | **Commits** | Lead-only (workers blocked by hook) | Lead-only (workers blocked by hook) |
 
 **When to use which:**
@@ -93,13 +93,13 @@ MAYOR (orchestrator)                AGENTS (executors)
 
 /crank epic-123
   |
-  +-> Get ready issues -----------> /swarm creates team per wave
+  +-> Get ready issues -----------> /swarm selects runtime backend per wave
   |                                   |
-  +-> Create tasks ----------------> +-> Workers join as teammates
+  +-> Create tasks ----------------> +-> Workers spawn as sub-agents/teammates
   |                                   |
   +-> Workers report completion <---- +-> Fresh context, execute atomically
-  |     (via SendMessage)             |
-  +-> /vibe (validation gate)         +-> Return result via SendMessage
+  |     (via wait/message/output)     |
+  +-> /vibe (validation gate)         +-> Return result via runtime channel
   |     |
   |     +-> PASS = progress locked (/ratchet)
   |     +-> FAIL = fix first
@@ -283,7 +283,7 @@ ao pool list              # Show knowledge by quality tier
 |-------|---------|
 | `/pre-mortem` | Simulate failures before coding |
 | `/crank` | Autonomous epic execution (orchestrator; runs waves via `/swarm`) |
-| `/swarm` | Parallel agents with fresh context (native teams) |
+| `/swarm` | Parallel agents with fresh context (runtime-native backends) |
 | `/council` | Multi-model consensus (validate, research, brainstorm) |
 | `/vibe` | Complexity + council validation gate |
 | `/implement` | Single issue execution |

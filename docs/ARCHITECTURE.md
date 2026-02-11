@@ -1,10 +1,10 @@
 # AgentOps Architecture
 
-> AI-assisted development workflows for Claude Code.
+> AI-assisted development workflows for skills-protocol coding agents.
 
 ## Overview
 
-AgentOps is a single Claude Code plugin providing the RPI workflow with Knowledge Flywheel.
+AgentOps is a skills plugin providing the RPI workflow with Knowledge Flywheel.
 
 ```
 .
@@ -163,7 +163,7 @@ The ao CLI provides:
 
 ## Subagents
 
-Subagent behaviors are defined inline within SKILL.md files — there is no separate `agents/` directory. Skills that use subagents (e.g., `/council`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/research`) spawn them as Task agents during execution.
+Subagent behaviors are defined inline within SKILL.md files — there is no separate `agents/` directory. Skills that use subagents (e.g., `/council`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/research`) spawn them via runtime-native backends (Codex sub-agents, Claude teams, or fallback background tasks).
 
 ### Validation Subagents (spawned by /vibe, /council)
 
@@ -239,14 +239,14 @@ Future `/research` commands discover these automatically via:
 On session start, `hooks/session-start.sh`:
 1. Creates `.agents/` directories if missing
 2. Injects `using-agentops` skill content as context
-3. Outputs JSON with `additionalContext` for Claude Code
+3. Outputs JSON with `additionalContext` for compatible agent runtimes
 
 ---
 
 ## Installation
 
 ```bash
-claude plugin add boshu2/agentops
+npx skills@latest add boshu2/agentops --all -g
 ```
 
 Optional:

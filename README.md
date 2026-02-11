@@ -4,7 +4,7 @@
 
 ### Goal in, production code out.
 
-[![Version](https://img.shields.io/badge/version-2.1.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.3.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-32-7c3aed)](skills/)
 [![Hooks](https://img.shields.io/badge/hooks-11-orange)](hooks/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -155,15 +155,15 @@ Spawn parallel agents (chaos), validate with multi-model council (filter), merge
 ### Ralph Loops
 
 ```
-  Wave 1:  TeamCreate → spawn 3 workers (fresh context each)
+  Wave 1:  Select backend (spawn_agent or TeamCreate) → spawn 3 workers
            workers write files → lead validates → lead commits
-           TeamDelete
+           cleanup backend resources
 
-  Wave 2:  TeamCreate → spawn 2 workers (fresh context each)
+  Wave 2:  Select backend (spawn_agent or TeamCreate) → spawn 2 workers
            ...same pattern, zero accumulated context
 ```
 
-Every wave gets a new team. Every worker gets clean context. No bleed-through between waves. The lead is the only one who commits — eliminates merge conflicts across parallel workers.
+Every wave gets a fresh worker set (new sub-agents or teammates). Every worker gets clean context. No bleed-through between waves. The lead is the only one who commits — eliminates merge conflicts across parallel workers.
 
 ### Knowledge Flywheel
 
@@ -205,8 +205,8 @@ Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or r
 | `/rpi` | Goal to production — autonomous 6-phase lifecycle with self-correcting retry loops |
 | `/council` | Multi-model consensus — spawns parallel judges, consolidates verdict (default, `--deep`, `--mixed`) |
 | `/crank` | Autonomous epic execution — runs `/swarm` waves until all issues closed |
-| `/swarm` | Parallel agents with fresh context — team per wave, lead commits |
-| `/codex-team` | Parallel Codex agents orchestrated by Claude — cross-vendor execution |
+| `/swarm` | Parallel agents with fresh context — runtime-native backend (Codex sub-agents or Claude teams), lead commits |
+| `/codex-team` | Parallel Codex execution — prefers Codex sub-agents, falls back to Codex CLI |
 
 ### Workflow
 
@@ -268,18 +268,24 @@ ao flywheel status     # Knowledge health — velocity, pool depths
 ao hooks install       # Install session hooks for auto-inject/extract
 ```
 
-## Agent Teams
+## Agent Backends
 
-AgentOps uses Claude Code's native [agent teams](https://docs.anthropic.com/en/docs/claude-code) — `/council`, `/swarm`, and `/crank` create and manage teams automatically.
+AgentOps orchestration skills are runtime-native. In local mode they select backend in this order:
+
+1. Codex experimental sub-agents (`spawn_agent`)
+2. Claude native teams (`TeamCreate` + `SendMessage`)
+3. Background task fallback (`Task(run_in_background=true)`)
+
+`/council`, `/swarm`, and `/crank` all follow this backend contract.
 
 ```
-  Council:                         Swarm:
+  Council:                               Swarm:
   ╭─ judge-1 ──╮                  ╭─ worker-1 ──╮
-  ├─ judge-2 ──┼→ team lead       ├─ worker-2 ──┼→ team lead
+  ├─ judge-2 ──┼→ lead            ├─ worker-2 ──┼→ lead
   ╰─ judge-3 ──╯   consolidates   ╰─ worker-3 ──╯   validates + commits
 ```
 
-**Setup** (one-time):
+**Claude teams setup** (optional, only if using Claude team backend):
 ```json
 // ~/.claude/settings.json
 {
@@ -297,6 +303,8 @@ AgentOps uses Claude Code's native [agent teams](https://docs.anthropic.com/en/d
 | `"auto"` | Best available (default) |
 
 Requires `tmux` for pane mode (`brew install tmux`).
+
+Codex sub-agent backend requires no Claude team configuration.
 
 ## Hooks
 
@@ -328,14 +336,15 @@ Works on any codebase, any file, any question. See [skills/council/SKILL.md](ski
 ## FAQ
 
 <details>
-<summary><strong>Why not just use Claude Code directly?</strong></summary>
+<summary><strong>Why not just use your coding agent directly?</strong></summary>
 
-Claude Code can spawn agents and write code. AgentOps turns it into an autonomous software engineering system:
+Your coding agent can spawn agents and write code. AgentOps turns it into an autonomous software engineering system:
 
 - **Goal in, production code out** — `/rpi "goal"` runs 6 phases hands-free. You don't prompt, approve, or babysit.
 - **Self-correcting** — Failed validation triggers retry with failure context, not human escalation. The system fixes its own mistakes.
 - **Can't regress** — Brownian ratchet locks progress after each phase. Parallel agents generate chaos; multi-model council filters it; ratchet keeps only what passes.
-- **Fresh context every time** — Ralph loops: each wave gets a new team, each worker gets clean context. No accumulated hallucinations, no bleed-through between tasks.
+- **Runtime-aware orchestration** — Same skills choose Codex sub-agents or Claude teams automatically based on the active runtime.
+- **Fresh context every time** — Ralph loops: each wave gets fresh workers, each worker gets clean context. No accumulated hallucinations, no bleed-through between tasks.
 - **Gets smarter** — Knowledge flywheel: every session forges learnings into `.agents/`. Next session injects them. Your agents compound intelligence across sessions.
 - **Cross-vendor** — `--mixed` mode adds Codex judges alongside Claude. Different models catch different bugs.
 - **Self-enforcing** — Hooks block pushes without validation, prevent workers from committing, nudge agents through the lifecycle. No discipline required.
