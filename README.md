@@ -222,6 +222,8 @@ Spawn parallel agents (chaos), validate with multi-model council (filter), merge
 
 ### Ralph Loops
 
+Ralph loops in AgentOps swarms support both **Codex sub-agents** (`spawn_agent`) and **Claude agent teams** (`TeamCreate` + `SendMessage`).
+
 ```
   Wave 1:  Select backend (spawn_agent or TeamCreate) → spawn 3 workers
            workers write files → lead validates → lead commits
@@ -273,7 +275,7 @@ Six phases, zero human gates. Council FAIL triggers retry loops — re-plan or r
 | `/rpi` | Goal to production — autonomous 6-phase lifecycle with self-correcting retry loops |
 | `/council` | Multi-model consensus — spawns parallel judges, consolidates verdict (default, `--deep`, `--mixed`) |
 | `/crank` | Autonomous epic execution — runs `/swarm` waves until all issues closed |
-| `/swarm` | Parallel agents with fresh context — runtime-native backend (Codex sub-agents or Claude teams), lead commits |
+| `/swarm` | Parallel agents with fresh context — supports both Codex sub-agents and Claude agent teams via runtime-native backend selection, lead commits |
 | `/codex-team` | Parallel Codex execution — prefers Codex sub-agents, falls back to Codex CLI |
 
 ### Workflow
@@ -345,6 +347,7 @@ AgentOps orchestration skills are runtime-native. In local mode they select back
 3. Background task fallback (`Task(run_in_background=true)`)
 
 `/council`, `/swarm`, and `/crank` all follow this backend contract.
+Ralph loops use this same backend contract for wave execution.
 
 ```
   Council:                               Swarm:
