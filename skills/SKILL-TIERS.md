@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (23)
+### User-Facing Skills (24)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -24,6 +24,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **swarm** | orchestration | Parallel agent spawning |
 | **codex-team** | orchestration | Spawn parallel Codex execution agents |
 | **rpi** | orchestration | Full RPI lifecycle orchestrator (research → post-mortem) |
+| **evolve** | orchestration | Autonomous fitness-scored improvement loop |
 | **implement** | team | Execute single issue |
 | **quickstart** | solo | Interactive onboarding (mini RPI cycle) |
 | **status** | solo | Single-screen dashboard |
@@ -115,6 +116,7 @@ All validation skills depend on `/council`:
 | provenance | - | - |
 | **quickstart** | - | - (zero dependencies) |
 | **rpi** | research, plan, pre-mortem, crank, vibe, post-mortem, ratchet | all required |
+| **evolve** | rpi | required (rpi pulls in all sub-skills) |
 | **release** | - | - (standalone) |
 | ratchet | - | - |
 | research | knowledge, inject | optional, optional |

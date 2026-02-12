@@ -1,0 +1,23 @@
+version: 1
+mission: "DevOps for AI agents — automates context, validation, execution, and learning"
+
+goals:
+  - id: test-pass-rate
+    description: "All skill validation tests pass"
+    check: "./tests/skills/run-all.sh"
+    weight: 3
+
+  - id: full-test-suite
+    description: "Full test suite passes (all tiers)"
+    check: "./tests/run-all.sh"
+    weight: 3
+
+  - id: smoke-tests
+    description: "Smoke tests pass"
+    check: "./tests/smoke-test.sh"
+    weight: 2
+
+  - id: doc-coverage
+    description: "All public skills have references/ documentation"
+    check: "test $(ls -d skills/*/references/ 2>/dev/null | wc -l | tr -d ' ') -ge 16"
+    weight: 1

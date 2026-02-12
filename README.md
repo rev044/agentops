@@ -179,7 +179,7 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 
 ## Skills
 
-33 skills across three tiers, plus 10 internal skills that fire automatically.
+34 skills across three tiers, plus 10 internal skills that fire automatically.
 
 ### Orchestration
 
@@ -190,6 +190,7 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 | `/crank` | Autonomous epic execution — runs waves until all issues closed |
 | `/swarm` | Parallel agents with fresh context — Codex sub-agents or Claude teams |
 | `/codex-team` | Parallel Codex execution agents |
+| `/evolve` | Autonomous fitness loop — measures goals, fixes worst gap, compounds via flywheel |
 
 ### Workflow
 
@@ -316,7 +317,7 @@ Skills auto-select the best available backend:
 <details>
 <summary><strong>The <code>ao</code> CLI</strong> — optional engine for the flywheel</summary>
 
-All 33 skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle.
+All 34 skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle.
 
 ```bash
 ao inject              # Load prior knowledge
