@@ -85,11 +85,33 @@ Use this prompt for whichever backend is selected:
 ```
 Thoroughly investigate: <topic>
 
-Search strategy:
-1. Glob for relevant files (*.md, *.py, *.ts, *.go, etc.)
-2. Grep for keywords related to <topic>
-3. Read key files and understand the architecture
-4. Check docs/ and .agents/ for existing documentation
+Discovery tiers (execute in order, skip if source unavailable):
+
+Tier 1 — Code-Map (fastest, authoritative):
+  Read docs/code-map/README.md → find <topic> category
+  Read docs/code-map/{feature}.md → get exact paths and function names
+  Skip if: no docs/code-map/ directory
+
+Tier 2 — Semantic Search (conceptual matches):
+  mcp__smart-connections-work__lookup query="<topic>" limit=10
+  Skip if: MCP not connected
+
+Tier 3 — Scoped Search (keyword precision):
+  Grep("<topic>", path="<specific-dir>/")   # ALWAYS scope to a directory
+  Glob("<specific-dir>/**/*.py")            # ALWAYS scope to a directory
+  NEVER: Grep("<topic>") or Glob("**/*.py") on full repo — causes context overload
+
+Tier 4 — Source Code (verify from signposts):
+  Read files identified by Tiers 1-3
+  Use function/class names, not line numbers
+
+Tier 5 — Prior Knowledge (may be stale):
+  ls .agents/research/ | grep -i "<topic>"
+  Cross-check findings against current source
+
+Tier 6 — External Docs (last resort):
+  WebSearch for external APIs or standards
+  Only when Tiers 1-5 are insufficient
 
 Return a detailed report with:
 - Key files found (with paths)

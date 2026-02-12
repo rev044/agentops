@@ -6,7 +6,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.4.0-brightgreen)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-33-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-34-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
