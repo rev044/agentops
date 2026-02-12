@@ -45,6 +45,11 @@ Parse flags:
 - `--max-cycles=N` (default: 10) — hard cap on improvement cycles
 - `--dry-run` — measure and report only, no execution
 
+**Capture session-start SHA** (for multi-commit revert):
+```bash
+SESSION_START_SHA=$(git rev-parse HEAD)
+```
+
 Initialize state:
 ```
 evolve_state = {
@@ -52,6 +57,7 @@ evolve_state = {
   max_cycles: <from flag, default 10>,
   dry_run: <from flag, default false>,
   test_first: <from flag, default false>,
+  session_start_sha: $SESSION_START_SHA,
   history: []
 }
 ```
@@ -93,20 +99,36 @@ else
 fi
 ```
 
-Record results:
+Record results with **continuous values** (not just pass/fail):
 ```bash
 # Write fitness snapshot
 cat > .agents/evolve/fitness-${CYCLE}.json << EOF
 {
   "cycle": $CYCLE,
   "timestamp": "$(date -Iseconds)",
+  "cycle_start_sha": "$(git rev-parse HEAD)",
   "goals": [
-    {"id": "$goal_id", "result": "$result", "weight": $weight},
+    {"id": "$goal_id", "result": "$result", "weight": $weight, "value": $metric_value, "threshold": $threshold},
     ...
   ]
 }
 EOF
 ```
+
+For goals with measurable metrics, extract the continuous value:
+- `go-coverage-floor`: parse `go test -cover` output → `"value": 85.7, "threshold": 80`
+- `doc-coverage`: count skills with references/ → `"value": 20, "threshold": 16`
+- `shellcheck-clean`: count of warnings → `"value": 0, "threshold": 0`
+- Other goals: `"value": null` (binary pass/fail only)
+
+**Snapshot enforcement (HARD GATE):** After writing the snapshot, validate it:
+```bash
+if ! jq empty ".agents/evolve/fitness-${CYCLE}.json" 2>/dev/null; then
+  echo "ERROR: Fitness snapshot write failed or invalid JSON. Refusing to proceed."
+  exit 1
+fi
+```
+Do NOT proceed to Step 3 without a valid fitness snapshot.
 
 **Bootstrap mode:** If a check command fails to execute (command not found, permission denied), mark that goal as `"result": "skip"` with a warning. Do NOT block the entire loop because one check is broken.
 
@@ -187,37 +209,60 @@ This internally runs the full lifecycle:
 
 **Wait for /rpi to complete before proceeding.**
 
-### Step 5: Re-Measure and Check Regression
+### Step 5: Full-Fitness Regression Gate
 
-After /rpi completes, re-run MEASURE_FITNESS (same as Step 2).
+**CRITICAL: Re-run ALL goals, not just the target.**
 
-Compare before/after:
+After /rpi completes, re-run MEASURE_FITNESS on **every goal** (same as Step 2). Write result to `fitness-{CYCLE}-post.json`.
+
+Compare the pre-cycle snapshot (`fitness-{CYCLE}.json`) against the post-cycle snapshot (`fitness-{CYCLE}-post.json`) for **ALL goals**:
 
 ```
+# Load pre-cycle results
+pre_results = load("fitness-{CYCLE}.json")
+
+# Re-measure ALL goals (writes fitness-{CYCLE}-post.json)
+post_results = MEASURE_FITNESS()
+
 # Check the target goal
-if selected_goal.result == "pass":
+if selected_goal.post_result == "pass":
   outcome = "improved"
-elif selected_goal.result == "fail":
-  # Check if OTHER goals regressed
-  newly_failing = [g for g in goals if g.was_passing_before and g.result == "fail"]
-  if newly_failing:
-    outcome = "regressed"
-    log "REGRESSION: {newly_failing} started failing after fixing {selected.id}"
-    # Revert: find the most recent merge commit and revert it
-    git log --oneline -5  # Find the merge
-    git revert HEAD --no-edit  # Revert the last commit
-    log "Reverted regression. Moving to next goal."
+else:
+  outcome = "unchanged"
+
+# FULL REGRESSION CHECK: compare ALL goals, not just the target
+newly_failing = []
+for goal in post_results.goals:
+  pre = pre_results.find(goal.id)
+  if pre.result == "pass" and goal.result == "fail":
+    newly_failing.append(goal.id)
+
+if newly_failing:
+  outcome = "regressed"
+  log "REGRESSION: {newly_failing} started failing after fixing {selected.id}"
+
+  # Multi-commit revert using cycle start SHA
+  cycle_start_sha = pre_results.cycle_start_sha
+  commit_count = $(git rev-list --count ${cycle_start_sha}..HEAD)
+  if commit_count == 0:
+    log "No commits to revert"
+  elif commit_count == 1:
+    git revert HEAD --no-edit
   else:
-    outcome = "unchanged"
+    git revert --no-commit ${cycle_start_sha}..HEAD
+    git commit -m "revert: evolve cycle ${CYCLE} regression in {newly_failing}"
+  log "Reverted ${commit_count} commits. Moving to next goal."
 ```
+
+**Snapshot enforcement:** Validate `fitness-{CYCLE}-post.json` was written and is valid JSON before proceeding.
 
 ### Step 6: Log Cycle
 
 Append to `.agents/evolve/cycle-history.jsonl`:
 
 ```jsonl
-{"cycle": 1, "goal_id": "test-pass-rate", "result": "improved", "timestamp": "2026-02-11T21:00:00Z"}
-{"cycle": 2, "goal_id": "doc-coverage", "result": "regressed", "timestamp": "2026-02-11T21:30:00Z"}
+{"cycle": 1, "goal_id": "test-pass-rate", "result": "improved", "commit_sha": "abc1234", "timestamp": "2026-02-11T21:00:00Z"}
+{"cycle": 2, "goal_id": "doc-coverage", "result": "regressed", "commit_sha": "def5678", "reverted_to": "abc1234", "timestamp": "2026-02-11T21:30:00Z"}
 ```
 
 ### Step 7: Loop or Stop
@@ -330,8 +375,9 @@ Read `references/goals-schema.md` for the GOALS.yaml format.
 | File | Purpose |
 |------|---------|
 | `GOALS.yaml` | Fitness goals (repo root) |
-| `.agents/evolve/fitness-{N}.json` | Fitness snapshot per cycle |
-| `.agents/evolve/cycle-history.jsonl` | Cycle outcomes log |
+| `.agents/evolve/fitness-{N}.json` | Pre-cycle fitness snapshot (continuous values) |
+| `.agents/evolve/fitness-{N}-post.json` | Post-cycle fitness snapshot (for regression comparison) |
+| `.agents/evolve/cycle-history.jsonl` | Cycle outcomes log (includes commit SHAs) |
 | `.agents/evolve/session-summary.md` | Session wrap-up |
 | `.agents/evolve/STOP` | Local kill switch |
 | `.agents/evolve/KILLED.json` | Kill acknowledgment |

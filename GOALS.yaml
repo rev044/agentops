@@ -88,6 +88,11 @@ goals:
     check: "./tests/smoke-test.sh >/dev/null 2>&1"
     weight: 2
 
+  - id: behavioral-skill-contracts
+    description: "Critical skills have behavioral validate.sh checks (not just structural)"
+    check: "for d in council evolve rpi crank; do skills/$d/scripts/validate.sh >/dev/null 2>&1 || exit 1; done"
+    weight: 2
+
   - id: council-schema-valid
     description: "Council verdict schema is valid JSON with all required fields"
     check: "jq -e '.properties and .required' skills/council/schemas/verdict.json >/dev/null 2>&1"

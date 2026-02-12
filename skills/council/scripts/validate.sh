@@ -23,6 +23,11 @@ check "SKILL.md mentions default mode" "grep -q 'default' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions --deep mode" "grep -q '\-\-deep' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions --mixed mode" "grep -q '\-\-mixed' '$SKILL_DIR/SKILL.md'"
 check "Output directory pattern documented" "grep -q '\.agents/council/' '$SKILL_DIR/SKILL.md'"
+# Behavioral contracts: verify key features remain documented
+check "SKILL.md mentions --debate mode" "grep -q '\-\-debate' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions --quick mode" "grep -q '\-\-quick' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions verdict field" "grep -q 'verdict' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions PASS/WARN/FAIL" "grep -q 'PASS.*WARN.*FAIL\|PASS | WARN | FAIL' '$SKILL_DIR/SKILL.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
