@@ -8,7 +8,7 @@
 # --- Contract Frontmatter ---
 issue:      # e.g., ag-abc.3
 framework:  # go | python | typescript | rust | shell
-category:   # feature | bugfix | refactor
+category:   # feature | bugfix | refactor | docs | chore | ci
 ```
 
 ---

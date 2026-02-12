@@ -181,13 +181,31 @@ if [[ "$TEST_FIRST" == "true" ]]; then
     # Classify issues by category
     # spec-eligible: feature, bugfix, refactor → SPEC + TEST waves apply
     # skip: docs, chore, ci → standard implementation waves only
+    INVALID_ISSUES=()
     for issue in $READY_ISSUES; do
-        CATEGORY=$(bd show "$issue" 2>/dev/null | grep -i "category:" | head -1)
+        CATEGORY=$(bd show "$issue" 2>/dev/null | grep -i "category:" | head -1 | awk '{print tolower($NF)}')
+        # Validate category is non-empty and matches known values
+        if [[ -z "$CATEGORY" ]]; then
+            echo "ERROR: Issue $issue has no category field. Valid: feature|bugfix|refactor|docs|chore|ci"
+            INVALID_ISSUES+=("$issue")
+            continue
+        fi
         case "$CATEGORY" in
+            *feature*|*bugfix*|*refactor*) SPEC_ELIGIBLE+=("$issue") ;;
             *docs*|*chore*|*ci*) SPEC_SKIP+=("$issue") ;;
-            *) SPEC_ELIGIBLE+=("$issue") ;;
+            *)
+                echo "WARNING: Issue $issue has unknown category '$CATEGORY'. Defaulting to spec-eligible."
+                SPEC_ELIGIBLE+=("$issue")
+                ;;
         esac
     done
+    # Fail-fast if any issues have missing categories
+    if [[ ${#INVALID_ISSUES[@]} -gt 0 ]]; then
+        echo "<promise>BLOCKED</promise>"
+        echo "Issues with missing/invalid categories: ${INVALID_ISSUES[*]}"
+        echo "Add category to each issue: bd update <id> --category <feature|bugfix|refactor|docs|chore|ci>"
+        # STOP - do not continue
+    fi
     echo "Test-first mode: ${#SPEC_ELIGIBLE[@]} spec-eligible, ${#SPEC_SKIP[@]} skipped (docs/chore/ci)"
 fi
 ```
