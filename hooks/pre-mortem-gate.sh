@@ -2,7 +2,8 @@
 # pre-mortem-gate.sh - PreToolUse hook: block /crank when epic has 3+ issues and no pre-mortem
 # Evidence: 6/6 consecutive positive pre-mortem ROI across epics.
 
-# Kill switch
+# Kill switches
+[ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_SKIP_PRE_MORTEM_GATE:-}" = "1" ] && exit 0
 
 # Workers are exempt

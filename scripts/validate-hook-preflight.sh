@@ -35,6 +35,14 @@ HOOK_FILES=(
   "hooks/precompact-snapshot.sh"
   "hooks/pending-cleaner.sh"
   "hooks/task-validation-gate.sh"
+  "hooks/dangerous-git-guard.sh"
+  "hooks/git-worker-guard.sh"
+  "hooks/pre-mortem-gate.sh"
+  "hooks/push-gate.sh"
+  "hooks/prompt-nudge.sh"
+  "hooks/ratchet-advance.sh"
+  "hooks/standards-injector.sh"
+  "hooks/stop-team-guard.sh"
 )
 
 section "Hook preflight checks"
@@ -81,6 +89,18 @@ else
     fail "task-validation-gate missing AGENTOPS_TASK_VALIDATION_DISABLED"
 fi
 
+if search_q "AGENTOPS_SKIP_PRE_MORTEM_GATE" hooks/pre-mortem-gate.sh; then
+    pass "pre-mortem-gate has hook-specific kill switch"
+else
+    fail "pre-mortem-gate missing AGENTOPS_SKIP_PRE_MORTEM_GATE"
+fi
+
+if search_q "AGENTOPS_AUTOCHAIN" hooks/ratchet-advance.sh; then
+    pass "ratchet-advance has hook-specific kill switch"
+else
+    fail "ratchet-advance missing AGENTOPS_AUTOCHAIN"
+fi
+
 # 3) Path rooting checks
 if search_q "ROOT=.*git rev-parse --show-toplevel" hooks/session-start.sh \
     && search_q '\$ROOT/\.agents' hooks/session-start.sh; then
@@ -103,7 +123,7 @@ for file in "${HOOK_FILES[@]}"; do
         fail "$file contains unsafe eval usage"
         unsafe=1
     fi
-    if grep -nE '(^|[^\\$()])`[^`]+`' "$file" >/dev/null 2>&1; then
+    if grep -E '(^|[^\\$()])`[^`]+`' "$file" | grep -vE '^\s*#' >/dev/null 2>&1; then
         fail "$file contains backtick command substitution"
         unsafe=1
     fi
