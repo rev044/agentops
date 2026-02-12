@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -182,6 +183,112 @@ func TestCountUnlinkedEntries(t *testing.T) {
 	count := countUnlinkedEntries(entries)
 	if count != 2 {
 		t.Errorf("countUnlinkedEntries() = %d, want 2", count)
+	}
+}
+
+func TestAppendManifestEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	manifestPath := filepath.Join(tmpDir, "manifest.jsonl")
+
+	entry := types.PlanManifestEntry{
+		Path:     "/plan1.md",
+		PlanName: "plan1",
+		Status:   types.PlanStatusActive,
+	}
+
+	t.Run("creates new file", func(t *testing.T) {
+		if err := appendManifestEntry(manifestPath, entry); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		content, _ := os.ReadFile(manifestPath)
+		if len(content) == 0 {
+			t.Error("expected non-empty file")
+		}
+	})
+
+	t.Run("appends to existing", func(t *testing.T) {
+		entry2 := types.PlanManifestEntry{
+			Path:     "/plan2.md",
+			PlanName: "plan2",
+			Status:   types.PlanStatusActive,
+		}
+		if err := appendManifestEntry(manifestPath, entry2); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		entries, err := loadManifest(manifestPath)
+		if err != nil {
+			t.Fatalf("loadManifest error: %v", err)
+		}
+		if len(entries) != 2 {
+			t.Errorf("expected 2 entries after append, got %d", len(entries))
+		}
+	})
+}
+
+func TestLoadManifest(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	t.Run("nonexistent file", func(t *testing.T) {
+		_, err := loadManifest(filepath.Join(tmpDir, "nope.jsonl"))
+		if err == nil {
+			t.Error("expected error for nonexistent file")
+		}
+	})
+
+	t.Run("empty file", func(t *testing.T) {
+		emptyPath := filepath.Join(tmpDir, "empty.jsonl")
+		os.WriteFile(emptyPath, []byte(""), 0644)
+
+		entries, err := loadManifest(emptyPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 0 {
+			t.Errorf("got %d entries from empty file, want 0", len(entries))
+		}
+	})
+
+	t.Run("skips invalid lines", func(t *testing.T) {
+		mixedPath := filepath.Join(tmpDir, "mixed.jsonl")
+		entry := types.PlanManifestEntry{Path: "/valid.md", PlanName: "valid"}
+		line, _ := json.Marshal(entry)
+		content := string(line) + "\nnot json\n" + string(line) + "\n"
+		os.WriteFile(mixedPath, []byte(content), 0644)
+
+		entries, err := loadManifest(mixedPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 2 {
+			t.Errorf("got %d entries, want 2 (invalid line skipped)", len(entries))
+		}
+	})
+}
+
+func TestSaveManifest(t *testing.T) {
+	tmpDir := t.TempDir()
+	manifestPath := filepath.Join(tmpDir, "save.jsonl")
+
+	entries := []types.PlanManifestEntry{
+		{Path: "/a.md", PlanName: "a", Status: types.PlanStatusActive},
+		{Path: "/b.md", PlanName: "b", Status: types.PlanStatusCompleted},
+	}
+
+	if err := saveManifest(manifestPath, entries); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify round-trip
+	loaded, err := loadManifest(manifestPath)
+	if err != nil {
+		t.Fatalf("loadManifest error: %v", err)
+	}
+	if len(loaded) != 2 {
+		t.Errorf("got %d entries after save/load, want 2", len(loaded))
+	}
+	if loaded[0].PlanName != "a" {
+		t.Errorf("first entry name = %q, want %q", loaded[0].PlanName, "a")
 	}
 }
 
