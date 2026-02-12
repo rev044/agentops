@@ -41,9 +41,15 @@ fi
 CHILD_COUNT=$(bd children "$EPIC_ID" 2>/dev/null | wc -l | tr -d ' ')
 [ "$CHILD_COUNT" -lt 3 ] && exit 0  # Less than 3 issues, no gate needed
 
-# Check for pre-mortem evidence
-# Method 1: Council artifacts
-if ls .agents/council/*pre-mortem* >/dev/null 2>&1; then
+# Check for pre-mortem evidence (scoped to this epic)
+# Method 1: Council artifacts — match epic-specific pattern
+if ls .agents/council/*-pre-mortem-"$EPIC_ID"* >/dev/null 2>&1 || \
+   ls .agents/council/*-pre-mortem-"${EPIC_ID%%.*}"* >/dev/null 2>&1; then
+    exit 0
+fi
+# Method 1b: Fallback — any pre-mortem from today (same session)
+TODAY=$(date +%Y-%m-%d)
+if ls .agents/council/"$TODAY"-*pre-mortem* >/dev/null 2>&1; then
     exit 0
 fi
 

@@ -51,6 +51,7 @@ evolve_state = {
   cycle: 0,
   max_cycles: <from flag, default 10>,
   dry_run: <from flag, default false>,
+  test_first: <from flag, default false>,
   history: []
 }
 ```
@@ -122,7 +123,8 @@ if not failing_goals:
       selected_item = max(items, by=severity)  # highest severity first
       log "All goals met. Picking harvested work: {selected_item.title}"
       # Execute as an /rpi cycle (Step 4), then mark consumed
-      /rpi "{selected_item.title}" --auto --max-cycles=1
+      /rpi "{selected_item.title}" --auto --max-cycles=1 --test-first   # if --test-first set
+      /rpi "{selected_item.title}" --auto --max-cycles=1                 # otherwise
       mark_consumed(selected_item)  # set consumed: true, consumed_by, consumed_at
       # Skip Steps 4-5 (already executed above), go to Step 6 (log cycle)
       log_cycle(cycle, goal_id="next-work:{selected_item.title}", result="harvested")
@@ -171,7 +173,8 @@ STOP → go to Teardown
 **Otherwise:** Run a full /rpi cycle on the selected goal.
 
 ```
-/rpi "Improve {selected.id}: {selected.description}" --auto --max-cycles=1
+/rpi "Improve {selected.id}: {selected.description}" --auto --max-cycles=1 --test-first   # if --test-first set
+/rpi "Improve {selected.id}: {selected.description}" --auto --max-cycles=1                 # otherwise
 ```
 
 This internally runs the full lifecycle:
@@ -281,43 +284,7 @@ Run `/evolve` again to continue improving.
 
 ---
 
-## How Compounding Works
-
-Two mechanisms feed the loop:
-
-**1. Knowledge flywheel (each cycle is smarter):**
-```
-Session 1:
-  ao inject (nothing yet)         → cycle runs blind
-  /rpi fixes test-pass-rate       → post-mortem runs ao forge
-  Learnings extracted: "tests/skills/run-all.sh validates frontmatter"
-
-Session 2:
-  ao inject (loads Session 1 learnings)  → cycle knows about frontmatter validation
-  /rpi fixes doc-coverage                → approach informed by prior learning
-  Learnings extracted: "references/ dirs need at least one .md file"
-```
-
-**2. Work harvesting (each cycle discovers the next):**
-```
-Cycle 1: /rpi fixes test-pass-rate
-  → post-mortem harvests: "add missing smoke test for /evolve" → next-work.jsonl
-
-Cycle 2: all GOALS.yaml goals pass
-  → /evolve reads next-work.jsonl → picks "add missing smoke test"
-  → /rpi fixes it → post-mortem harvests: "update SKILL-TIERS count"
-
-Cycle 3: reads next-work.jsonl → picks "update SKILL-TIERS count" → ...
-```
-
-The loop keeps running as long as post-mortem keeps finding follow-up work. Each /rpi cycle generates next-work items from its own post-mortem. The system feeds itself.
-
-**Priority cascade:**
-```
-GOALS.yaml goals (explicit, human-authored)  → fix these first
-next-work.jsonl (harvested from post-mortem) → work on these when goals pass
-nothing left                                 → stop (human re-evaluates)
-```
+Read `references/compounding.md` for details on how the knowledge flywheel and work harvesting compound across cycles.
 
 ---
 
@@ -349,24 +316,12 @@ rm .agents/evolve/STOP
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--max-cycles=N` | 10 | Hard cap on improvement cycles per session |
+| `--test-first` | off | Pass `--test-first` through to `/rpi` → `/crank` |
 | `--dry-run` | off | Measure fitness and show plan, don't execute |
 
 ---
 
-## GOALS.yaml Schema
-
-```yaml
-version: 1
-mission: "What this repo does"
-
-goals:
-  - id: unique-identifier
-    description: "Human-readable description"
-    check: "shell command — exit 0 = pass, non-zero = fail"
-    weight: 1-10  # Higher = fix first
-```
-
-Goals are checked in weight order (highest first). The first failing goal with the highest weight is selected for improvement.
+Read `references/goals-schema.md` for the GOALS.yaml format.
 
 ---
 

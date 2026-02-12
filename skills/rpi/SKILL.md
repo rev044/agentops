@@ -29,6 +29,7 @@ metadata:
 /rpi --from=crank ag-23k                    # Skip to crank with existing epic
 /rpi --from=vibe                            # Just run final validation + post-mortem
 /rpi --loop --max-cycles=3 "add auth"       # Gate 4 loop: post-mortem FAIL -> spawn another /rpi cycle
+/rpi --test-first "add auth"               # Spec-first TDD (contracts → tests → impl)
 ```
 
 ## Architecture
@@ -50,16 +51,7 @@ metadata:
 **Retry gates:** pre-mortem FAIL → re-plan, vibe FAIL → re-crank, crank BLOCKED/PARTIAL → re-crank (max 3 attempts each)
 **Gate 4 (optional):** post-mortem FAIL → spawn another /rpi cycle (enabled via `--loop`)
 
-## Phase Data Contracts
-
-| Transition | Output | Extraction | Input to Next |
-|------------|--------|------------|---------------|
-| → Research | `.agents/research/YYYY-MM-DD-<slug>.md` | `ls -t .agents/research/ \| head -1` | /plan reads .agents/research/ automatically |
-| Research → Plan | Plan doc + bd epic | Most recent epic from `bd list --type epic` | epic-id stored in session state |
-| Plan → Pre-mortem | `.agents/plans/YYYY-MM-DD-<slug>.md` | /pre-mortem auto-discovers most recent plan | No args needed |
-| Pre-mortem → Crank | Council report with verdict | Grep verdict from council report | epic-id passed to /crank |
-| Crank → Vibe | Committed code + closed issues | Check `<promise>` tag | /vibe runs on recent changes |
-| Vibe → Post-mortem | Council report with verdict | Grep verdict from council report | epic-id passed to /post-mortem |
+Read `references/phase-data-contracts.md` for the full phase-to-phase data contract table.
 
 ## Execution Steps
 
@@ -102,6 +94,7 @@ rpi_state = {
   epic_id: null,     # populated after Phase 2
   phase: "<starting phase>",
   auto: <true unless --interactive flag present>,
+  test_first: <true if --test-first flag present>,
   cycle: 1,          # RPI iteration number (incremented on --spawn-next)
   parent_epic: null,  # epic ID from prior cycle (if spawned from next-work)
   verdicts: {}       # populated as phases complete
@@ -169,68 +162,40 @@ Skill(skill="pre-mortem")
 
 Pre-mortem auto-discovers the most recent plan. No args needed.
 
-**After pre-mortem completes:**
-1. Extract verdict from council report:
-   ```bash
-   REPORT=$(ls -t .agents/council/*pre-mortem*.md 2>/dev/null | head -1)
-   ```
-   Read the report file and find the verdict line (`## Council Verdict: PASS / WARN / FAIL`).
+**After pre-mortem completes:** Extract verdict (PASS/WARN/FAIL) from council report. Read `references/gate-retry-logic.md` for detailed Pre-mortem gate retry behavior.
 
-2. Apply gate logic:
-   - **PASS:** Auto-proceed. Log: "Pre-mortem: PASS"
-   - **WARN:** Auto-proceed. Log: "Pre-mortem: WARN — see report for concerns"
-   - **FAIL:** Retry loop (max 2 retries):
-     1. Read the full pre-mortem report to extract specific failure reasons
-     2. Log: "Pre-mortem: FAIL (attempt N/3) — retrying plan with feedback"
-     3. Re-invoke `/plan` with the goal AND the failure context:
-        ```
-        Skill(skill="plan", args="<goal> --auto --context 'Pre-mortem FAIL: <key concerns from report>'")
-        ```
-     4. Re-invoke `/pre-mortem` on the new plan
-     5. If still FAIL after 3 total attempts → stop with message:
-        "Pre-mortem failed 3 times. Last report: <path>. Manual intervention needed."
+- PASS/WARN: auto-proceed
+- FAIL: re-plan with feedback, re-run pre-mortem (max 3 total attempts)
 
-3. Store verdict in `rpi_state.verdicts.pre_mortem`
+Store verdict in `rpi_state.verdicts.pre_mortem`. Write phase summary to `.agents/rpi/phase-3-summary.md`.
 
-4. Write phase summary to `.agents/rpi/phase-3-summary.md`
-
-5. Ratchet checkpoint:
-   ```bash
-   ao ratchet record pre-mortem 2>/dev/null || true
-   ```
+Ratchet checkpoint:
+```bash
+ao ratchet record pre-mortem 2>/dev/null || true
+```
 
 ### Phase 4: Crank (Implementation)
 
 **Requires:** `rpi_state.epic_id` (from Phase 2 or --from=crank with epic-id argument)
 
 ```
-Skill(skill="crank", args="<epic-id>")
+Skill(skill="crank", args="<epic-id> --test-first")   # if --test-first set
+Skill(skill="crank", args="<epic-id>")                 # otherwise
 ```
 
 Crank manages its own waves, teams, and internal validation. /rpi waits for completion.
 
-**After crank completes:**
-1. Check completion status from crank's output. Look for `<promise>` tags:
-   - `<promise>DONE</promise>` → Proceed to Phase 5
-   - `<promise>BLOCKED</promise>` → Retry (max 2 retries):
-     1. Read crank output to extract block reason
-     2. Log: "Crank: BLOCKED (attempt N/3) — retrying with context"
-     3. Re-invoke `/crank` with epic-id and block context
-     4. If still BLOCKED after 3 total attempts → stop with message:
-        "Crank blocked 3 times. Reason: <reason>. Manual intervention needed."
-   - `<promise>PARTIAL</promise>` → Retry remaining (max 2 retries):
-     1. Read crank output to identify remaining items
-     2. Log: "Crank: PARTIAL (attempt N/3) — retrying remaining items"
-     3. Re-invoke `/crank` with epic-id (it picks up unclosed issues)
-     4. If still PARTIAL after 3 total attempts → stop with message:
-        "Crank partial after 3 attempts. Remaining: <items>. Manual intervention needed."
+**After crank completes:** Check `<promise>` tags for completion status. Read `references/gate-retry-logic.md` for detailed Crank gate retry behavior.
 
-2. Write phase summary to `.agents/rpi/phase-4-summary.md`
+- DONE: proceed to Phase 5
+- BLOCKED/PARTIAL: re-crank with context (max 3 total attempts)
 
-3. Ratchet checkpoint:
-   ```bash
-   ao ratchet record implement 2>/dev/null || true
-   ```
+Write phase summary to `.agents/rpi/phase-4-summary.md`.
+
+Ratchet checkpoint:
+```bash
+ao ratchet record implement 2>/dev/null || true
+```
 
 ### Phase 5: Final Vibe
 
@@ -240,35 +205,17 @@ Skill(skill="vibe", args="recent")
 
 Vibe runs a full council on recent changes (cross-wave consistency check).
 
-**After vibe completes:**
-1. Extract verdict from council report:
-   ```bash
-   REPORT=$(ls -t .agents/council/*vibe*.md 2>/dev/null | head -1)
-   ```
-   Read and extract verdict.
+**After vibe completes:** Extract verdict (PASS/WARN/FAIL) and apply gate logic. Read `references/gate-retry-logic.md` for detailed Vibe gate retry behavior.
 
-2. Apply gate logic:
-   - **PASS:** Auto-proceed. Log: "Vibe: PASS"
-   - **WARN:** Auto-proceed. Log: "Vibe: WARN — see report for concerns"
-   - **FAIL:** Retry loop (max 2 retries):
-     1. Read the full vibe report to extract specific failure reasons
-     2. Log: "Vibe: FAIL (attempt N/3) — retrying crank with feedback"
-     3. Re-invoke `/crank` with the epic-id AND the failure context:
-        ```
-        Skill(skill="crank", args="<epic-id> --context 'Vibe FAIL: <key issues from report>'")
-        ```
-     4. Re-invoke `/vibe` on the new changes
-     5. If still FAIL after 3 total attempts → stop with message:
-        "Vibe failed 3 times. Last report: <path>. Manual intervention needed."
+- PASS/WARN: auto-proceed
+- FAIL: re-crank with feedback, re-vibe (max 3 total attempts)
 
-3. Store verdict in `rpi_state.verdicts.vibe`
+Store verdict in `rpi_state.verdicts.vibe`. Write phase summary to `.agents/rpi/phase-5-summary.md`.
 
-4. Write phase summary to `.agents/rpi/phase-5-summary.md`
-
-5. Ratchet checkpoint:
-   ```bash
-   ao ratchet record vibe 2>/dev/null || true
-   ```
+Ratchet checkpoint:
+```bash
+ao ratchet record vibe 2>/dev/null || true
+```
 
 ### Phase 6: Post-mortem
 
@@ -284,113 +231,13 @@ Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after po
    ao ratchet record post-mortem --cycle=<rpi_state.cycle> --parent-epic=<rpi_state.parent_epic> 2>/dev/null || true
    ```
 
-### Phase 6.5: Gate 4 Loop (Optional) — Post-mortem → Spawn Another /rpi
-
-**Default behavior:** /rpi ends after Phase 6.
-
-**Enable loop:** pass `--loop` (and optionally `--max-cycles=<n>`).
-
-**Gate 4 goal:** make the "ITERATE vs TEMPER" decision explicit, and if iteration is required, run another full /rpi cycle with tighter context.
-
-**Loop decision input:** the most recent post-mortem council verdict.
-
-1. Find the most recent post-mortem report:
-   ```bash
-   REPORT=$(ls -t .agents/council/*post-mortem*.md 2>/dev/null | head -1)
-   ```
-2. Read `REPORT` and extract the verdict line (`## Council Verdict: PASS / WARN / FAIL`).
-3. Apply gate logic (only when `--loop` is set). If verdict is PASS or WARN, stop (TEMPER path). If verdict is FAIL, iterate (spawn another /rpi cycle), up to `--max-cycles`.
-4. Iterate behavior (spawn). Read the post-mortem report and extract 3 concrete fixes, then re-invoke /rpi from Phase 1 with a tightened goal that includes the fixes:
-   ```
-   /rpi "<original goal> (Iteration <n>): Fix <item1>; <item2>; <item3>"
-   ```
-   If still FAIL after `--max-cycles` total cycles, stop and require manual intervention (file follow-up bd issues).
-
-### Phase 6.6: Spawn Next Work (Optional) — Post-mortem → Queue Next RPI
-
-**Enable:** pass `--spawn-next` flag.
-
-**Complementary to Gate 4:** Gate 4 (`--loop`) handles FAIL→iterate (same goal, tighter). `--spawn-next` handles PASS/WARN→new-goal (different work harvested from post-mortem).
-
-1. Read `.agents/rpi/next-work.jsonl` for unconsumed entries (schema: `.agents/rpi/next-work.schema.md`)
-2. If unconsumed entries exist:
-   - If `--dry-run` is set: report items but do NOT mutate next-work.jsonl (skip consumption). Log: "Dry run — items not marked consumed."
-   - Otherwise: mark the current cycle's entry as consumed (set `consumed: true`, `consumed_by: <epic-id>`, `consumed_at: <now>`)
-   - Report harvested items to user with suggested next command:
-     ```
-     ## Next Work Available
-
-     Post-mortem harvested N follow-up items from <source_epic>:
-     1. <title> (severity: <severity>, type: <type>)
-     ...
-
-     To start the next RPI cycle:
-       /rpi "<highest-severity item title>"
-     ```
-   - Do NOT auto-invoke `/rpi` — the user decides when to start the next cycle
-3. If no unconsumed entries: report "No follow-up work harvested. Flywheel stable."
-
-**Note:** Only `--spawn-next` mutates next-work.jsonl (marks consumed). Phase 0 read is read-only.
+Read `references/gate4-loop-and-spawn.md` for Gate 4 loop (`--loop`) and spawn-next work details.
 
 ### Step Final: Report
 
-Summarize the entire lifecycle to the user:
+Read `references/report-template.md` for the full report and flywheel output templates.
 
-```markdown
-## /rpi Complete
-
-**Goal:** <goal>
-**Epic:** <epic-id>
-**Cycle:** <rpi_state.cycle> (parent: <rpi_state.parent_epic or "none">)
-
-| Phase | Verdict/Status |
-|-------|---------------|
-| Research | Complete |
-| Plan | Complete (<N> issues, <M> waves) |
-| Pre-mortem | <PASS/WARN/FAIL> |
-| Crank | <DONE/BLOCKED/PARTIAL> |
-| Vibe | <PASS/WARN/FAIL> |
-| Post-mortem | Complete |
-
-**Artifacts:**
-- Research: .agents/research/...
-- Plan: .agents/plans/...
-- Pre-mortem: .agents/council/...
-- Vibe: .agents/council/...
-- Post-mortem: .agents/council/...
-- Learnings: .agents/learnings/...
-- Next Work: .agents/rpi/next-work.jsonl
-```
-
-**ALWAYS include the flywheel section** (regardless of `--spawn-next` flag):
-
-```markdown
-## Flywheel: Next Cycle
-
-Post-mortem harvested N follow-up items (M process-improvements, K tech-debt):
-
-| # | Title | Type | Severity |
-|---|-------|------|----------|
-| 1 | ... | process-improvement | high |
-
-Ready to run:
-    /rpi "<highest-severity item title>"
-```
-
-The `--spawn-next` flag controls whether items are **marked consumed** in `next-work.jsonl`. The suggestion is ALWAYS shown. This ensures every `/rpi` cycle ends by pointing at the next one — the flywheel never stops spinning unless there's nothing to improve.
-
-## Error Handling
-
-| Failure | Behavior |
-|---------|----------|
-| Skill invocation fails | Log error, retry once. If still fails → stop with checkpoint. |
-| User abandons at sub-skill gate | /rpi stops with checkpoint (only in --interactive mode) |
-| /crank returns BLOCKED | Re-crank with context (max 2 retries). If still blocked → stop. |
-| /crank returns PARTIAL | Re-crank remaining items with context (max 2 retries). If still partial → stop. |
-| Pre-mortem FAIL | Re-plan with fail feedback → re-run pre-mortem (max 3 total attempts) |
-| Vibe FAIL | Re-crank with fail feedback → re-run vibe (max 3 total attempts) |
-| Max retries exhausted | Stop with message + path to last report. Manual intervention needed. |
-| Context feels degraded | Log warning, suggest starting new session with --from |
+Read `references/error-handling.md` for error handling details.
 
 ## Flags
 
@@ -402,6 +249,7 @@ The `--spawn-next` flag controls whether items are **marked consumed** in `next-
 | `--loop` | off | Enable Gate 4 loop: after /post-mortem, iterate only when post-mortem verdict is FAIL (spawns another /rpi cycle). |
 | `--max-cycles=<n>` | `1` | Hard cap on total /rpi cycles when `--loop` is set (recommended: 3). |
 | `--spawn-next` | off | After post-mortem, read harvested next-work items and report suggested next `/rpi` command. Marks consumed entries. |
+| `--test-first` | off | Pass `--test-first` to `/crank` for spec-first TDD |
 | `--dry-run` | off | With `--spawn-next`: report items without marking consumed. Useful for testing the consumption flow. |
 
 ## See Also
