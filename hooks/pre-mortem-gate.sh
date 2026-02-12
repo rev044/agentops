@@ -56,9 +56,14 @@ fi
 
 # No evidence found — block
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+# shellcheck source=../lib/hook-helpers.sh
+. "$ROOT/lib/hook-helpers.sh"
+
 LOG_DIR="$ROOT/.agents/ao"
 mkdir -p "$LOG_DIR" 2>/dev/null
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: pre-mortem-gate blocked crank for $EPIC_ID ($CHILD_COUNT children)" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+write_failure "pre_mortem_gate" "bd children $EPIC_ID" 2 "Epic $EPIC_ID has $CHILD_COUNT issues, no pre-mortem evidence found"
 
 cat >&2 <<EOMSG
 BLOCKED: Epic $EPIC_ID has $CHILD_COUNT issues. Pre-mortem is mandatory for 3+ issue epics.

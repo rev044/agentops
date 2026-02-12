@@ -44,10 +44,17 @@ if [ "$BLOCKED" -eq 0 ]; then
     exit 0
 fi
 
+# Source shared helpers for structured failure output
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+# shellcheck source=../lib/hook-helpers.sh
+. "$ROOT/lib/hook-helpers.sh"
+
 # Check agent identity via CLAUDE_AGENT_NAME
 if [ -n "$CLAUDE_AGENT_NAME" ]; then
     case "$CLAUDE_AGENT_NAME" in
         worker-*)
+            write_failure "worker_guard" "git commit" 2 "worker $CLAUDE_AGENT_NAME attempted git commit/push"
             echo "Workers must NOT commit. Write files and report via SendMessage to the team lead." >&2
             exit 2
             ;;
@@ -58,11 +65,11 @@ if [ -n "$CLAUDE_AGENT_NAME" ]; then
 fi
 
 # Fallback: check for swarm-role marker file
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-if [ -n "$ROOT" ] && [ -f "$ROOT/.agents/swarm-role" ]; then
+if [ -f "$ROOT/.agents/swarm-role" ]; then
     ROLE=$(cat "$ROOT/.agents/swarm-role")
     case "$ROLE" in
         worker*)
+            write_failure "worker_guard" "git commit" 2 "worker role '$ROLE' attempted git commit/push"
             echo "Workers must NOT commit. Write files and report via SendMessage to the team lead." >&2
             exit 2
             ;;

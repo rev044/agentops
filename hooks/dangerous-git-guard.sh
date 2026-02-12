@@ -7,6 +7,12 @@
 # Read all stdin
 INPUT=$(cat)
 
+# Source shared helpers for structured failure output
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+# shellcheck source=../lib/hook-helpers.sh
+. "$ROOT/lib/hook-helpers.sh"
+
 # Extract tool_input.command from JSON
 COMMAND=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/^"command"[[:space:]]*:[[:space:]]*"//;s/"$//')
 
@@ -18,26 +24,31 @@ echo "$COMMAND" | grep -qE 'push.*--force-with-lease' && exit 0
 
 # Block-list with safe alternatives
 if echo "$COMMAND" | grep -qE 'push\s+.*(-f|--force)'; then
+  write_failure "dangerous_git" "git push --force" 2 "force push blocked"
   echo "Blocked: force push. Use --force-with-lease instead." >&2
   exit 2
 fi
 
 if echo "$COMMAND" | grep -qE 'reset\s+--hard'; then
+  write_failure "dangerous_git" "git reset --hard" 2 "hard reset blocked"
   echo "Blocked: hard reset. Use git stash or git reset --soft." >&2
   exit 2
 fi
 
 if echo "$COMMAND" | grep -qE 'clean\s+-f'; then
+  write_failure "dangerous_git" "git clean -f" 2 "force clean blocked"
   echo "Blocked: force clean. Review with git clean -n first." >&2
   exit 2
 fi
 
 if echo "$COMMAND" | grep -qE 'checkout\s+\.'; then
+  write_failure "dangerous_git" "git checkout ." 2 "checkout dot blocked"
   echo "Blocked: checkout dot. Use git stash to preserve changes." >&2
   exit 2
 fi
 
 if echo "$COMMAND" | grep -qE 'branch\s+-D'; then
+  write_failure "dangerous_git" "git branch -D" 2 "force branch delete blocked"
   echo "Blocked: force branch delete. Use git branch -d (safe delete)." >&2
   exit 2
 fi

@@ -31,6 +31,9 @@ if [ -z "$ROOT" ]; then
     # Not in a git repo — can't enforce, fail open
     exit 0
 fi
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+# shellcheck source=../lib/hook-helpers.sh
+. "$ROOT/lib/hook-helpers.sh"
 
 # Cold start: no chain = no enforcement
 [ ! -f "$ROOT/.agents/ao/chain.jsonl" ] && exit 0
@@ -70,6 +73,7 @@ To disable all gates: export AGENTOPS_HOOKS_DISABLED=1"
     fi
 
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (vibe): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+    write_failure "push_gate_vibe" "git push" 2 "vibe not completed before push: $CMD"
     echo "$MSG" >&2
     exit 2
 fi
@@ -103,5 +107,6 @@ To disable all gates: export AGENTOPS_HOOKS_DISABLED=1"
 fi
 
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (post-mortem): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+write_failure "push_gate_postmortem" "git push" 2 "post-mortem not completed before push: $CMD"
 echo "$PM_MSG" >&2
 exit 2
