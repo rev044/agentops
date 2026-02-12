@@ -112,7 +112,20 @@ EOF
 failing_goals = [g for g in goals if g.result == "fail"]
 
 if not failing_goals:
-  log "All goals met. Nothing to improve."
+  # Before stopping, check harvested work from prior /rpi cycles
+  if [ -f .agents/rpi/next-work.jsonl ]; then
+    items = read_unconsumed(next-work.jsonl)  # entries with consumed: false
+    if items:
+      selected_item = max(items, by=severity)  # highest severity first
+      log "All goals met. Picking harvested work: {selected_item.title}"
+      # Execute as an /rpi cycle (Step 4), then mark consumed
+      /rpi "{selected_item.title}" --auto --max-cycles=1
+      mark_consumed(selected_item)  # set consumed: true, consumed_by, consumed_at
+      # Skip Steps 4-5 (already executed above), go to Step 6 (log cycle)
+      log_cycle(cycle, goal_id="next-work:{selected_item.title}", result="harvested")
+      continue loop  # → Step 1 (kill switch check)
+
+  log "All goals met, no harvested work. Done."
   STOP → go to Teardown
 
 # Sort by weight (highest priority first)
@@ -134,12 +147,21 @@ if no goal selected:
 
 ### Step 4: Execute
 
-**If `--dry-run`:** Report the selected goal and stop.
+**If `--dry-run`:** Report the selected goal (or harvested item) and stop.
 
 ```
 log "Dry run: would work on '{selected.id}' (weight: {selected.weight})"
 log "Description: {selected.description}"
 log "Check command: {selected.check}"
+
+# Also show queued harvested work
+if [ -f .agents/rpi/next-work.jsonl ]; then
+  items = read_unconsumed(next-work.jsonl)
+  if items:
+    log "Harvested work queue ({len(items)} items):"
+    for item in items:
+      log "  - [{item.severity}] {item.title} ({item.type})"
+
 STOP → go to Teardown
 ```
 
@@ -245,6 +267,9 @@ Run `/evolve` again to continue, or `/post-mortem` to wrap up.
 
 ## How Compounding Works
 
+Two mechanisms feed the loop:
+
+**1. Knowledge flywheel (each cycle is smarter):**
 ```
 Session 1:
   ao inject (nothing yet)         → cycle runs blind
@@ -255,13 +280,28 @@ Session 2:
   ao inject (loads Session 1 learnings)  → cycle knows about frontmatter validation
   /rpi fixes doc-coverage                → approach informed by prior learning
   Learnings extracted: "references/ dirs need at least one .md file"
-
-Session N:
-  ao inject (loads ALL prior learnings)  → system knows patterns from N-1 sessions
-  Each cycle is smarter than the last
 ```
 
-The flywheel is the compounding mechanism. /evolve just feeds it consistently.
+**2. Work harvesting (each cycle discovers the next):**
+```
+Cycle 1: /rpi fixes test-pass-rate
+  → post-mortem harvests: "add missing smoke test for /evolve" → next-work.jsonl
+
+Cycle 2: all GOALS.yaml goals pass
+  → /evolve reads next-work.jsonl → picks "add missing smoke test"
+  → /rpi fixes it → post-mortem harvests: "update SKILL-TIERS count"
+
+Cycle 3: reads next-work.jsonl → picks "update SKILL-TIERS count" → ...
+```
+
+The loop keeps running as long as post-mortem keeps finding follow-up work. Each /rpi cycle generates next-work items from its own post-mortem. The system feeds itself.
+
+**Priority cascade:**
+```
+GOALS.yaml goals (explicit, human-authored)  → fix these first
+next-work.jsonl (harvested from post-mortem) → work on these when goals pass
+nothing left                                 → stop (human re-evaluates)
+```
 
 ---
 
