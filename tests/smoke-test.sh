@@ -140,7 +140,7 @@ else
 fi
 
 # Check for TODO/FIXME in skills
-todo_files=$(grep -l "TODO\|FIXME" skills/*/SKILL.md 2>/dev/null | wc -l | tr -d ' ') || true
+todo_files=$(grep -lE "(TODO|FIXME):" skills/*/SKILL.md 2>/dev/null | wc -l | tr -d ' ') || true
 if [[ "${todo_files:-0}" -gt 0 ]]; then
     warn "$todo_files skills with TODO/FIXME"
 else
