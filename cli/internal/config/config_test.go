@@ -188,3 +188,516 @@ func TestResolve(t *testing.T) {
 		t.Errorf("Resolve Verbose.Value = %v, want true", rc.Verbose.Value)
 	}
 }
+
+func TestResolve_Defaults(t *testing.T) {
+	// No flags, no env — should get defaults
+	for _, key := range []string{"AGENTOPS_OUTPUT", "AGENTOPS_BASE_DIR", "AGENTOPS_VERBOSE"} {
+		t.Setenv(key, "")
+	}
+
+	rc := Resolve("", "", false)
+
+	if rc.Output.Value != "table" {
+		t.Errorf("Resolve default Output.Value = %v, want %q", rc.Output.Value, "table")
+	}
+	if rc.Verbose.Value != false {
+		t.Errorf("Resolve default Verbose.Value = %v, want false", rc.Verbose.Value)
+	}
+}
+
+func TestResolve_EnvOverride(t *testing.T) {
+	t.Setenv("AGENTOPS_OUTPUT", "yaml")
+	t.Setenv("AGENTOPS_BASE_DIR", "/env/path")
+	t.Setenv("AGENTOPS_VERBOSE", "1")
+
+	rc := Resolve("", "", false)
+
+	if rc.Output.Value != "yaml" {
+		t.Errorf("Resolve env Output.Value = %v, want %q", rc.Output.Value, "yaml")
+	}
+	if rc.Output.Source != SourceEnv {
+		t.Errorf("Resolve env Output.Source = %v, want %v", rc.Output.Source, SourceEnv)
+	}
+	if rc.BaseDir.Value != "/env/path" {
+		t.Errorf("Resolve env BaseDir.Value = %v, want %q", rc.BaseDir.Value, "/env/path")
+	}
+	if rc.BaseDir.Source != SourceEnv {
+		t.Errorf("Resolve env BaseDir.Source = %v, want %v", rc.BaseDir.Source, SourceEnv)
+	}
+	if rc.Verbose.Value != true {
+		t.Errorf("Resolve env Verbose.Value = %v, want true", rc.Verbose.Value)
+	}
+	if rc.Verbose.Source != SourceEnv {
+		t.Errorf("Resolve env Verbose.Source = %v, want %v", rc.Verbose.Source, SourceEnv)
+	}
+}
+
+func TestResolveStringField(t *testing.T) {
+	tests := []struct {
+		name       string
+		home       string
+		project    string
+		env        string
+		flag       string
+		def        string
+		wantValue  string
+		wantSource Source
+	}{
+		{
+			name:       "default only",
+			def:        "table",
+			wantValue:  "table",
+			wantSource: SourceDefault,
+		},
+		{
+			name:       "home overrides default",
+			home:       "json",
+			def:        "table",
+			wantValue:  "json",
+			wantSource: SourceHome,
+		},
+		{
+			name:       "project overrides home",
+			home:       "json",
+			project:    "yaml",
+			def:        "table",
+			wantValue:  "yaml",
+			wantSource: SourceProject,
+		},
+		{
+			name:       "env overrides project",
+			home:       "json",
+			project:    "yaml",
+			env:        "csv",
+			def:        "table",
+			wantValue:  "csv",
+			wantSource: SourceEnv,
+		},
+		{
+			name:       "flag overrides everything",
+			home:       "json",
+			project:    "yaml",
+			env:        "csv",
+			flag:       "text",
+			def:        "table",
+			wantValue:  "text",
+			wantSource: SourceFlag,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveStringField(tt.home, tt.project, tt.env, tt.flag, tt.def)
+			if got.Value != tt.wantValue {
+				t.Errorf("resolveStringField() Value = %v, want %v", got.Value, tt.wantValue)
+			}
+			if got.Source != tt.wantSource {
+				t.Errorf("resolveStringField() Source = %v, want %v", got.Source, tt.wantSource)
+			}
+		})
+	}
+}
+
+func TestGetEnvBool(t *testing.T) {
+	tests := []struct {
+		name     string
+		envVal   string
+		wantBool bool
+		wantSet  bool
+	}{
+		{name: "true string", envVal: "true", wantBool: true, wantSet: true},
+		{name: "1 string", envVal: "1", wantBool: true, wantSet: true},
+		{name: "false string", envVal: "false", wantBool: false, wantSet: false},
+		{name: "empty string", envVal: "", wantBool: false, wantSet: false},
+		{name: "random string", envVal: "yes", wantBool: false, wantSet: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("TEST_BOOL_KEY", tt.envVal)
+			gotBool, gotSet := getEnvBool("TEST_BOOL_KEY")
+			if gotBool != tt.wantBool {
+				t.Errorf("getEnvBool() bool = %v, want %v", gotBool, tt.wantBool)
+			}
+			if gotSet != tt.wantSet {
+				t.Errorf("getEnvBool() set = %v, want %v", gotSet, tt.wantSet)
+			}
+		})
+	}
+}
+
+func TestGetEnvString(t *testing.T) {
+	tests := []struct {
+		name    string
+		envVal  string
+		wantVal string
+		wantSet bool
+	}{
+		{name: "set value", envVal: "hello", wantVal: "hello", wantSet: true},
+		{name: "empty value", envVal: "", wantVal: "", wantSet: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("TEST_STR_KEY", tt.envVal)
+			gotVal, gotSet := getEnvString("TEST_STR_KEY")
+			if gotVal != tt.wantVal {
+				t.Errorf("getEnvString() val = %q, want %q", gotVal, tt.wantVal)
+			}
+			if gotSet != tt.wantSet {
+				t.Errorf("getEnvString() set = %v, want %v", gotSet, tt.wantSet)
+			}
+		})
+	}
+}
+
+func TestApplyEnv_BaseDir(t *testing.T) {
+	t.Setenv("AGENTOPS_OUTPUT", "")
+	t.Setenv("AGENTOPS_VERBOSE", "")
+	t.Setenv("AGENTOPS_NO_SC", "")
+	t.Setenv("AGENTOPS_BASE_DIR", "/env/base")
+
+	cfg := Default()
+	cfg = applyEnv(cfg)
+
+	if cfg.BaseDir != "/env/base" {
+		t.Errorf("applyEnv BaseDir = %q, want %q", cfg.BaseDir, "/env/base")
+	}
+}
+
+func TestApplyEnv_VerboseVariants(t *testing.T) {
+	tests := []struct {
+		name    string
+		envVal  string
+		wantVer bool
+	}{
+		{name: "true", envVal: "true", wantVer: true},
+		{name: "1", envVal: "1", wantVer: true},
+		{name: "false", envVal: "false", wantVer: false},
+		{name: "empty", envVal: "", wantVer: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("AGENTOPS_OUTPUT", "")
+			t.Setenv("AGENTOPS_BASE_DIR", "")
+			t.Setenv("AGENTOPS_NO_SC", "")
+			t.Setenv("AGENTOPS_VERBOSE", tt.envVal)
+
+			cfg := Default()
+			cfg = applyEnv(cfg)
+
+			if cfg.Verbose != tt.wantVer {
+				t.Errorf("applyEnv Verbose = %v, want %v for AGENTOPS_VERBOSE=%q", cfg.Verbose, tt.wantVer, tt.envVal)
+			}
+		})
+	}
+}
+
+func TestApplyEnv_NoSCVariants(t *testing.T) {
+	tests := []struct {
+		name    string
+		envVal  string
+		wantSC  bool
+		wantSet bool
+	}{
+		{name: "true disables SC", envVal: "true", wantSC: false, wantSet: true},
+		{name: "1 disables SC", envVal: "1", wantSC: false, wantSet: true},
+		{name: "false keeps SC", envVal: "false", wantSC: true, wantSet: false},
+		{name: "empty keeps SC", envVal: "", wantSC: true, wantSet: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("AGENTOPS_OUTPUT", "")
+			t.Setenv("AGENTOPS_BASE_DIR", "")
+			t.Setenv("AGENTOPS_VERBOSE", "")
+			t.Setenv("AGENTOPS_NO_SC", tt.envVal)
+
+			cfg := Default()
+			cfg = applyEnv(cfg)
+
+			if cfg.Search.UseSmartConnections != tt.wantSC {
+				t.Errorf("applyEnv UseSmartConnections = %v, want %v", cfg.Search.UseSmartConnections, tt.wantSC)
+			}
+			if cfg.Search.UseSmartConnectionsSet != tt.wantSet {
+				t.Errorf("applyEnv UseSmartConnectionsSet = %v, want %v", cfg.Search.UseSmartConnectionsSet, tt.wantSet)
+			}
+		})
+	}
+}
+
+func TestMerge_Paths(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Paths: PathsConfig{
+			LearningsDir:   "/custom/learnings",
+			PatternsDir:    "/custom/patterns",
+			RetrosDir:      "/custom/retros",
+			ResearchDir:    "/custom/research",
+			PlansDir:       "/custom/plans",
+			ClaudePlansDir: "/custom/claude-plans",
+			CitationsFile:  "/custom/citations.jsonl",
+			TranscriptsDir: "/custom/transcripts",
+		},
+	}
+
+	result := merge(dst, src)
+
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"LearningsDir", result.Paths.LearningsDir, "/custom/learnings"},
+		{"PatternsDir", result.Paths.PatternsDir, "/custom/patterns"},
+		{"RetrosDir", result.Paths.RetrosDir, "/custom/retros"},
+		{"ResearchDir", result.Paths.ResearchDir, "/custom/research"},
+		{"PlansDir", result.Paths.PlansDir, "/custom/plans"},
+		{"ClaudePlansDir", result.Paths.ClaudePlansDir, "/custom/claude-plans"},
+		{"CitationsFile", result.Paths.CitationsFile, "/custom/citations.jsonl"},
+		{"TranscriptsDir", result.Paths.TranscriptsDir, "/custom/transcripts"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("merge Paths.%s = %q, want %q", tt.name, tt.got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMerge_PathsPreservedWhenEmpty(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Output: "json",
+		// All Paths fields are empty strings (zero value)
+	}
+
+	result := merge(dst, src)
+
+	// Defaults should be preserved
+	if result.Paths.LearningsDir != ".agents/learnings" {
+		t.Errorf("merge should preserve default LearningsDir, got %q", result.Paths.LearningsDir)
+	}
+	if result.Paths.PatternsDir != ".agents/patterns" {
+		t.Errorf("merge should preserve default PatternsDir, got %q", result.Paths.PatternsDir)
+	}
+}
+
+func TestMerge_ForgeOverrides(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Forge: ForgeConfig{
+			MaxContentLength: 5000,
+			ProgressInterval: 500,
+		},
+	}
+
+	result := merge(dst, src)
+
+	if result.Forge.MaxContentLength != 5000 {
+		t.Errorf("merge Forge.MaxContentLength = %d, want 5000", result.Forge.MaxContentLength)
+	}
+	if result.Forge.ProgressInterval != 500 {
+		t.Errorf("merge Forge.ProgressInterval = %d, want 500", result.Forge.ProgressInterval)
+	}
+}
+
+func TestMerge_VerboseOverride(t *testing.T) {
+	dst := Default()
+	src := &Config{Verbose: true}
+
+	result := merge(dst, src)
+
+	if !result.Verbose {
+		t.Error("merge Verbose = false, want true")
+	}
+}
+
+func TestMerge_SearchDefaultLimit(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Search: SearchConfig{DefaultLimit: 50},
+	}
+
+	result := merge(dst, src)
+
+	if result.Search.DefaultLimit != 50 {
+		t.Errorf("merge Search.DefaultLimit = %d, want 50", result.Search.DefaultLimit)
+	}
+}
+
+func TestLoad_WithFlagOverrides(t *testing.T) {
+	// Clear env vars to avoid interference
+	t.Setenv("AGENTOPS_OUTPUT", "")
+	t.Setenv("AGENTOPS_BASE_DIR", "")
+	t.Setenv("AGENTOPS_VERBOSE", "")
+	t.Setenv("AGENTOPS_NO_SC", "")
+
+	overrides := &Config{
+		Output:  "json",
+		BaseDir: "/flag/base",
+		Verbose: true,
+	}
+
+	cfg, err := Load(overrides)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Output != "json" {
+		t.Errorf("Load Output = %q, want %q", cfg.Output, "json")
+	}
+	if cfg.BaseDir != "/flag/base" {
+		t.Errorf("Load BaseDir = %q, want %q", cfg.BaseDir, "/flag/base")
+	}
+	if !cfg.Verbose {
+		t.Error("Load Verbose = false, want true")
+	}
+}
+
+func TestLoad_NilOverrides(t *testing.T) {
+	t.Setenv("AGENTOPS_OUTPUT", "")
+	t.Setenv("AGENTOPS_BASE_DIR", "")
+	t.Setenv("AGENTOPS_VERBOSE", "")
+	t.Setenv("AGENTOPS_NO_SC", "")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	// Should get defaults
+	if cfg.Output != "table" {
+		t.Errorf("Load nil Output = %q, want %q", cfg.Output, "table")
+	}
+	if cfg.BaseDir != ".agents/ao" {
+		t.Errorf("Load nil BaseDir = %q, want %q", cfg.BaseDir, ".agents/ao")
+	}
+}
+
+func TestLoad_EnvOverrides(t *testing.T) {
+	t.Setenv("AGENTOPS_OUTPUT", "yaml")
+	t.Setenv("AGENTOPS_BASE_DIR", "/env/dir")
+	t.Setenv("AGENTOPS_VERBOSE", "1")
+	t.Setenv("AGENTOPS_NO_SC", "")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Output != "yaml" {
+		t.Errorf("Load env Output = %q, want %q", cfg.Output, "yaml")
+	}
+	if cfg.BaseDir != "/env/dir" {
+		t.Errorf("Load env BaseDir = %q, want %q", cfg.BaseDir, "/env/dir")
+	}
+	if !cfg.Verbose {
+		t.Error("Load env Verbose = false, want true")
+	}
+}
+
+func TestLoadFromPath_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	content := `{{{invalid yaml`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := loadFromPath(configPath)
+	if err == nil {
+		t.Error("loadFromPath for invalid YAML should return error")
+	}
+	if cfg != nil {
+		t.Error("loadFromPath for invalid YAML should return nil config")
+	}
+}
+
+func TestDefault_Paths(t *testing.T) {
+	cfg := Default()
+
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"LearningsDir", cfg.Paths.LearningsDir, ".agents/learnings"},
+		{"PatternsDir", cfg.Paths.PatternsDir, ".agents/patterns"},
+		{"RetrosDir", cfg.Paths.RetrosDir, ".agents/retros"},
+		{"ResearchDir", cfg.Paths.ResearchDir, ".agents/research"},
+		{"PlansDir", cfg.Paths.PlansDir, ".agents/plans"},
+		{"CitationsFile", cfg.Paths.CitationsFile, ".agents/ao/citations.jsonl"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("Default Paths.%s = %q, want %q", tt.name, tt.got, tt.want)
+			}
+		})
+	}
+
+	// Home-relative paths should contain home dir
+	homeDir, _ := os.UserHomeDir()
+	if cfg.Paths.ClaudePlansDir != filepath.Join(homeDir, ".claude", "plans") {
+		t.Errorf("Default Paths.ClaudePlansDir = %q, want suffix .claude/plans", cfg.Paths.ClaudePlansDir)
+	}
+	if cfg.Paths.TranscriptsDir != filepath.Join(homeDir, ".claude", "projects") {
+		t.Errorf("Default Paths.TranscriptsDir = %q, want suffix .claude/projects", cfg.Paths.TranscriptsDir)
+	}
+}
+
+func TestDefault_Forge(t *testing.T) {
+	cfg := Default()
+
+	if cfg.Forge.MaxContentLength != 0 {
+		t.Errorf("Default Forge.MaxContentLength = %d, want 0", cfg.Forge.MaxContentLength)
+	}
+	if cfg.Forge.ProgressInterval != 1000 {
+		t.Errorf("Default Forge.ProgressInterval = %d, want 1000", cfg.Forge.ProgressInterval)
+	}
+}
+
+func TestLoadFromPath_WithPaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	content := `
+output: json
+paths:
+  learnings_dir: /my/learnings
+  patterns_dir: /my/patterns
+  retros_dir: /my/retros
+  research_dir: /my/research
+  plans_dir: /my/plans
+  claude_plans_dir: /my/claude-plans
+  citations_file: /my/citations.jsonl
+  transcripts_dir: /my/transcripts
+forge:
+  max_content_length: 10000
+  progress_interval: 200
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := loadFromPath(configPath)
+	if err != nil {
+		t.Fatalf("loadFromPath() error = %v", err)
+	}
+
+	if cfg.Paths.LearningsDir != "/my/learnings" {
+		t.Errorf("loadFromPath Paths.LearningsDir = %q, want %q", cfg.Paths.LearningsDir, "/my/learnings")
+	}
+	if cfg.Forge.MaxContentLength != 10000 {
+		t.Errorf("loadFromPath Forge.MaxContentLength = %d, want 10000", cfg.Forge.MaxContentLength)
+	}
+	if cfg.Forge.ProgressInterval != 200 {
+		t.Errorf("loadFromPath Forge.ProgressInterval = %d, want 200", cfg.Forge.ProgressInterval)
+	}
+}
