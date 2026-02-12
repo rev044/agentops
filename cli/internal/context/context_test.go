@@ -1,6 +1,7 @@
 package context
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -297,4 +298,327 @@ func TestBudgetRecommendation(t *testing.T) {
 
 func contains(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
+}
+
+func TestGetUsagePercentZeroMax(t *testing.T) {
+	bt := &BudgetTracker{MaxTokens: 0, EstimatedUsage: 100}
+	if bt.GetUsagePercent() != 0 {
+		t.Error("expected 0 when MaxTokens is 0")
+	}
+}
+
+func TestNeedsCheckpoint(t *testing.T) {
+	tests := []struct {
+		name     string
+		usage    int
+		max      int
+		expected bool
+	}{
+		{"below threshold", 50000, 100000, false},
+		{"at threshold", 60000, 100000, true},
+		{"above threshold", 75000, 100000, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bt := NewBudgetTracker("test")
+			bt.MaxTokens = tt.max
+			bt.UpdateUsage(tt.usage)
+			if bt.NeedsCheckpoint() != tt.expected {
+				t.Errorf("NeedsCheckpoint() = %v, want %v", bt.NeedsCheckpoint(), tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetLastCheckpointEmpty(t *testing.T) {
+	bt := NewBudgetTracker("test")
+	if bt.GetLastCheckpoint() != nil {
+		t.Error("expected nil for empty checkpoints")
+	}
+}
+
+func TestSaveAndLoad(t *testing.T) {
+	dir := t.TempDir()
+	bt := NewBudgetTracker("save-test")
+	bt.MaxTokens = 100000
+	bt.UpdateUsage(55000)
+	bt.CreateCheckpoint("cp1", "test checkpoint", []string{"a.go"}, "passing")
+
+	if err := bt.Save(dir); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	loaded, err := Load(dir, "save-test")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if loaded.SessionID != "save-test" {
+		t.Errorf("expected SessionID save-test, got %s", loaded.SessionID)
+	}
+	if loaded.EstimatedUsage != 55000 {
+		t.Errorf("expected EstimatedUsage 55000, got %d", loaded.EstimatedUsage)
+	}
+	if len(loaded.Checkpoints) != 1 {
+		t.Errorf("expected 1 checkpoint, got %d", len(loaded.Checkpoints))
+	}
+}
+
+func TestLoadNotFound(t *testing.T) {
+	dir := t.TempDir()
+	_, err := Load(dir, "nonexistent")
+	if err == nil {
+		t.Error("expected error loading nonexistent session")
+	}
+}
+
+func TestEstimateFileTokens(t *testing.T) {
+	// Create a temp file with known content
+	dir := t.TempDir()
+	path := dir + "/test.txt"
+	content := "Hello, this is a test file with some content for estimation."
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	tokens := EstimateFileTokens(path)
+	expected := len(content) / 4
+	if tokens != expected {
+		t.Errorf("EstimateFileTokens() = %d, want %d", tokens, expected)
+	}
+}
+
+func TestEstimateFileTokensNotFound(t *testing.T) {
+	tokens := EstimateFileTokens("/nonexistent/file.txt")
+	if tokens != 1000 {
+		t.Errorf("expected default 1000 for missing file, got %d", tokens)
+	}
+}
+
+func TestClassifyItemAllTypes(t *testing.T) {
+	bt := NewBudgetTracker("test")
+	s := NewSummarizer(bt)
+
+	tests := []struct {
+		itemType string
+		expected SummaryPriority
+	}{
+		{"failing_test", PriorityCritical},
+		{"file_change", PriorityCritical},
+		{"critical_finding", PriorityCritical},
+		{"high_finding", PriorityHigh},
+		{"medium_finding", PriorityMedium},
+		{"low_finding", PriorityLow},
+		{"context", PriorityLow},
+		{"exploration", PriorityLow},
+		{"unknown_type", PriorityMedium},
+	}
+	for _, tt := range tests {
+		t.Run(tt.itemType, func(t *testing.T) {
+			result := s.ClassifyItem(tt.itemType, "")
+			if result != tt.expected {
+				t.Errorf("ClassifyItem(%s) = %d, want %d", tt.itemType, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestClassifyItemPreserveDisabled(t *testing.T) {
+	bt := NewBudgetTracker("test")
+	s := NewSummarizer(bt)
+	s.Config.PreserveFailingTests = false
+	s.Config.PreserveFileChanges = false
+	s.Config.PreserveCriticalFindings = false
+
+	tests := []struct {
+		itemType string
+		expected SummaryPriority
+	}{
+		{"failing_test", PriorityHigh},
+		{"file_change", PriorityHigh},
+		{"critical_finding", PriorityHigh},
+	}
+	for _, tt := range tests {
+		t.Run(tt.itemType, func(t *testing.T) {
+			result := s.ClassifyItem(tt.itemType, "")
+			if result != tt.expected {
+				t.Errorf("ClassifyItem(%s) with preserve=false = %d, want %d", tt.itemType, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSummarizeContextWithSummarizedItems(t *testing.T) {
+	bt := NewBudgetTracker("test")
+	bt.MaxTokens = 500
+	bt.UpdateUsage(400)
+
+	s := NewSummarizer(bt)
+	s.Config.TargetUsage = 0.5
+
+	// Item with a pre-existing summary (triggers summarizeItem with Summary set)
+	items := []ContextItem{
+		{Type: "critical_finding", Priority: PriorityCritical, Content: "Must keep", TokenEstimate: 50},
+		{
+			Type:          "medium_finding",
+			Priority:      PriorityMedium,
+			Content:       "This is a long medium priority finding that exceeds budget and needs summarization",
+			Summary:       "Medium finding summarized",
+			TokenEstimate: 300,
+		},
+	}
+
+	result, event := s.SummarizeContext(items)
+	if len(result) < 1 {
+		t.Fatal("expected at least 1 item in result")
+	}
+	if event.TokensBefore != 400 {
+		t.Errorf("expected TokensBefore 400, got %d", event.TokensBefore)
+	}
+
+	// Verify the medium item was summarized (uses Summary field)
+	foundSummarized := false
+	for _, item := range result {
+		if item.Type == "medium_finding" && item.Content == "Medium finding summarized" {
+			foundSummarized = true
+		}
+	}
+	if !foundSummarized {
+		t.Error("expected medium_finding to be summarized using its Summary field")
+	}
+}
+
+func TestSummarizeContextTruncation(t *testing.T) {
+	bt := NewBudgetTracker("test")
+	bt.MaxTokens = 500
+	bt.UpdateUsage(400)
+
+	s := NewSummarizer(bt)
+	s.Config.TargetUsage = 0.5
+	s.Config.MaxSummaryLength = 20
+
+	// Item without a summary that exceeds budget (triggers truncation path)
+	longContent := "This is a very long content string that should be truncated during summarization to fit within budget"
+	items := []ContextItem{
+		{Type: "critical_finding", Priority: PriorityCritical, Content: "Keep", TokenEstimate: 50},
+		{
+			Type:          "medium_finding",
+			Priority:      PriorityMedium,
+			Content:       longContent,
+			TokenEstimate: 300,
+		},
+	}
+
+	result, _ := s.SummarizeContext(items)
+
+	foundTruncated := false
+	for _, item := range result {
+		if item.Type == "medium_finding" && len(item.Content) < len(longContent) {
+			foundTruncated = true
+		}
+	}
+	if !foundTruncated {
+		t.Error("expected medium_finding to be truncated")
+	}
+}
+
+func TestSaveStateAndLoadState(t *testing.T) {
+	dir := t.TempDir()
+	bt := NewBudgetTracker("test")
+	s := NewSummarizer(bt)
+
+	state := SummarizeState{
+		SessionID:        "state-test",
+		Timestamp:        time.Now(),
+		FilesChanged:     []string{"a.go", "b.go"},
+		TestStatus:       "passing",
+		CriticalFindings: []string{"finding1"},
+		CurrentTask:      "task1",
+		CompletedTasks:   []string{"task0"},
+		Notes:            "some notes",
+	}
+
+	if err := s.SaveState(dir, state); err != nil {
+		t.Fatalf("SaveState failed: %v", err)
+	}
+
+	loaded, err := LoadState(dir, "state-test")
+	if err != nil {
+		t.Fatalf("LoadState failed: %v", err)
+	}
+	if loaded.SessionID != "state-test" {
+		t.Errorf("expected SessionID state-test, got %s", loaded.SessionID)
+	}
+	if len(loaded.FilesChanged) != 2 {
+		t.Errorf("expected 2 files changed, got %d", len(loaded.FilesChanged))
+	}
+	if loaded.Notes != "some notes" {
+		t.Errorf("expected Notes 'some notes', got %s", loaded.Notes)
+	}
+}
+
+func TestLoadStateNotFound(t *testing.T) {
+	dir := t.TempDir()
+	_, err := LoadState(dir, "nonexistent")
+	if err == nil {
+		t.Error("expected error loading nonexistent state")
+	}
+}
+
+func TestGenerateResumptionContextAllBranches(t *testing.T) {
+	bt := NewBudgetTracker("test")
+	s := NewSummarizer(bt)
+
+	tests := []struct {
+		name           string
+		state          SummarizeState
+		mustContain    []string
+		mustNotContain []string
+	}{
+		{
+			name: "no files changed",
+			state: SummarizeState{
+				TestStatus: "passing",
+			},
+			mustContain: []string{"No files changed yet."},
+		},
+		{
+			name: "with completed tasks and notes",
+			state: SummarizeState{
+				FilesChanged:   []string{"x.go"},
+				TestStatus:     "passing",
+				CompletedTasks: []string{"did thing A", "did thing B"},
+				Notes:          "Remember to check edge cases",
+			},
+			mustContain: []string{"Completed Tasks", "[x] did thing A", "[x] did thing B", "Notes", "Remember to check edge cases"},
+		},
+		{
+			name: "with critical findings",
+			state: SummarizeState{
+				FilesChanged:     []string{"y.go"},
+				TestStatus:       "failing",
+				FailingTests:     []string{"TestBroken"},
+				CriticalFindings: []string{"Memory leak in handler"},
+			},
+			mustContain: []string{"Critical Findings", "Memory leak in handler", "TestBroken"},
+		},
+		{
+			name: "with current task",
+			state: SummarizeState{
+				FilesChanged: []string{"z.go"},
+				TestStatus:   "passing",
+				CurrentTask:  "Implement feature Y",
+			},
+			mustContain: []string{"Current Task", "Implement feature Y"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := s.GenerateResumptionContext(tt.state)
+			for _, s := range tt.mustContain {
+				if !contains(result, s) {
+					t.Errorf("expected output to contain %q", s)
+				}
+			}
+		})
+	}
 }

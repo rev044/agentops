@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -458,6 +459,468 @@ func TestCandidateIsExpired_DateFormats(t *testing.T) {
 					got, tt.wantExpired, tt.validUntil)
 			}
 		})
+	}
+}
+
+func TestUpdateExpiryStatus(t *testing.T) {
+	tests := []struct {
+		name           string
+		validUntil     string
+		initialStatus  ExpiryStatus
+		expectedStatus ExpiryStatus
+	}{
+		{
+			name:           "expired date sets expired",
+			validUntil:     "2020-01-01",
+			initialStatus:  ExpiryStatusActive,
+			expectedStatus: ExpiryStatusExpired,
+		},
+		{
+			name:           "future date stays active",
+			validUntil:     "2099-12-31",
+			initialStatus:  ExpiryStatusActive,
+			expectedStatus: ExpiryStatusActive,
+		},
+		{
+			name:           "empty validUntil stays active",
+			validUntil:     "",
+			initialStatus:  ExpiryStatusActive,
+			expectedStatus: ExpiryStatusActive,
+		},
+		{
+			name:           "archived status not overwritten by expired",
+			validUntil:     "2020-01-01",
+			initialStatus:  ExpiryStatusArchived,
+			expectedStatus: ExpiryStatusArchived,
+		},
+		{
+			name:           "archived status not overwritten by active",
+			validUntil:     "2099-12-31",
+			initialStatus:  ExpiryStatusArchived,
+			expectedStatus: ExpiryStatusArchived,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Candidate{
+				ID:           "test",
+				ValidUntil:   tt.validUntil,
+				ExpiryStatus: tt.initialStatus,
+			}
+			c.UpdateExpiryStatus()
+			if c.ExpiryStatus != tt.expectedStatus {
+				t.Errorf("ExpiryStatus = %q, want %q", c.ExpiryStatus, tt.expectedStatus)
+			}
+		})
+	}
+}
+
+func TestSupersedeChain(t *testing.T) {
+	// Build a chain L1 -> L2 -> L3 and verify depth tracking
+	l1 := &Candidate{ID: "L1", IsCurrent: true, SupersessionDepth: 0}
+	l2 := &Candidate{ID: "L2"}
+	l3 := &Candidate{ID: "L3"}
+
+	if err := Supersede(l1, l2); err != nil {
+		t.Fatalf("Supersede L1->L2: %v", err)
+	}
+	if err := Supersede(l2, l3); err != nil {
+		t.Fatalf("Supersede L2->L3: %v", err)
+	}
+
+	if l3.SupersessionDepth != 2 {
+		t.Errorf("L3 depth: got %d, want 2", l3.SupersessionDepth)
+	}
+	if l1.IsCurrent || l2.IsCurrent {
+		t.Error("L1 and L2 should not be current")
+	}
+	if !l3.IsCurrent {
+		t.Error("L3 should be current")
+	}
+}
+
+func TestSupersessionError_Error(t *testing.T) {
+	e := &SupersessionError{
+		Message: "test error message",
+		ChainID: "L1",
+		Depth:   4,
+	}
+	if got := e.Error(); got != "test error message" {
+		t.Errorf("Error() = %q, want %q", got, "test error message")
+	}
+}
+
+func TestGetKnowledgeTier(t *testing.T) {
+	tests := []struct {
+		name     string
+		envValue string
+		want     KnowledgeTier
+	}{
+		{"strict", "STRICT", KnowledgeTierStrict},
+		{"standard", "STANDARD", KnowledgeTierStandard},
+		{"minimal", "MINIMAL", KnowledgeTierMinimal},
+		{"empty defaults to standard", "", KnowledgeTierStandard},
+		{"invalid defaults to standard", "INVALID", KnowledgeTierStandard},
+		{"lowercase defaults to standard", "strict", KnowledgeTierStandard},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(KnowledgeTierEnvVar, tt.envValue)
+			if got := GetKnowledgeTier(); got != tt.want {
+				t.Errorf("GetKnowledgeTier() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestKnowledgeTier_MCPRequired(t *testing.T) {
+	tests := []struct {
+		tier KnowledgeTier
+		want bool
+	}{
+		{KnowledgeTierStrict, true},
+		{KnowledgeTierStandard, false},
+		{KnowledgeTierMinimal, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.tier), func(t *testing.T) {
+			if got := tt.tier.MCPRequired(); got != tt.want {
+				t.Errorf("MCPRequired() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestKnowledgeTier_MCPEnabled(t *testing.T) {
+	tests := []struct {
+		tier KnowledgeTier
+		want bool
+	}{
+		{KnowledgeTierStrict, true},
+		{KnowledgeTierStandard, true},
+		{KnowledgeTierMinimal, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.tier), func(t *testing.T) {
+			if got := tt.tier.MCPEnabled(); got != tt.want {
+				t.Errorf("MCPEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMCPError_Error(t *testing.T) {
+	e := &MCPError{
+		Tier:    KnowledgeTierStrict,
+		Message: "MCP unavailable",
+	}
+	if got := e.Error(); got != "MCP unavailable" {
+		t.Errorf("Error() = %q, want %q", got, "MCP unavailable")
+	}
+}
+
+func TestHandleMCPFailure(t *testing.T) {
+	tests := []struct {
+		name      string
+		tier      KnowledgeTier
+		operation string
+		wantErr   bool
+	}{
+		{"strict returns error", KnowledgeTierStrict, "inject", true},
+		{"standard returns nil", KnowledgeTierStandard, "inject", false},
+		{"minimal returns nil", KnowledgeTierMinimal, "inject", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := HandleMCPFailure(tt.tier, tt.operation, fmt.Errorf("connection refused"))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HandleMCPFailure() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				mcpErr, ok := err.(*MCPError)
+				if !ok {
+					t.Fatalf("Expected *MCPError, got %T", err)
+				}
+				if mcpErr.Tier != KnowledgeTierStrict {
+					t.Errorf("MCPError.Tier = %q, want %q", mcpErr.Tier, KnowledgeTierStrict)
+				}
+			}
+		})
+	}
+}
+
+func TestGetTierBehaviors(t *testing.T) {
+	behaviors := GetTierBehaviors()
+	if len(behaviors) != 3 {
+		t.Fatalf("GetTierBehaviors() returned %d items, want 3", len(behaviors))
+	}
+
+	// Verify each tier is represented
+	tiers := map[KnowledgeTier]bool{}
+	for _, b := range behaviors {
+		tiers[b.Tier] = true
+		if b.Description == "" {
+			t.Errorf("Tier %q has empty description", b.Tier)
+		}
+		// Verify MCPRequired/MCPEnabled match the method results
+		if b.MCPRequired != b.Tier.MCPRequired() {
+			t.Errorf("Tier %q: behavior MCPRequired=%v, method=%v", b.Tier, b.MCPRequired, b.Tier.MCPRequired())
+		}
+		if b.MCPEnabled != b.Tier.MCPEnabled() {
+			t.Errorf("Tier %q: behavior MCPEnabled=%v, method=%v", b.Tier, b.MCPEnabled, b.Tier.MCPEnabled())
+		}
+	}
+	for _, tier := range []KnowledgeTier{KnowledgeTierStrict, KnowledgeTierStandard, KnowledgeTierMinimal} {
+		if !tiers[tier] {
+			t.Errorf("Missing tier %q in behaviors", tier)
+		}
+	}
+}
+
+func TestEscapeVelocityStatus(t *testing.T) {
+	tests := []struct {
+		name                string
+		aboveEscapeVelocity bool
+		velocity            float64
+		want                string
+	}{
+		{"compounding", true, 0.1, "COMPOUNDING"},
+		{"near escape", false, -0.03, "NEAR ESCAPE"},
+		{"near escape at boundary", false, -0.05, "DECAYING"},
+		{"decaying", false, -0.2, "DECAYING"},
+		{"zero velocity not above", false, 0.0, "NEAR ESCAPE"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &FlywheelMetrics{
+				AboveEscapeVelocity: tt.aboveEscapeVelocity,
+				Velocity:            tt.velocity,
+			}
+			if got := m.EscapeVelocityStatus(); got != tt.want {
+				t.Errorf("EscapeVelocityStatus() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExpiryStatusValues(t *testing.T) {
+	statuses := []ExpiryStatus{ExpiryStatusActive, ExpiryStatusExpired, ExpiryStatusArchived}
+	expected := []string{"active", "expired", "archived"}
+
+	for i, s := range statuses {
+		if string(s) != expected[i] {
+			t.Errorf("ExpiryStatus value mismatch: got %q, want %q", s, expected[i])
+		}
+	}
+}
+
+func TestMaturityValues(t *testing.T) {
+	maturities := []Maturity{MaturityProvisional, MaturityCandidate, MaturityEstablished, MaturityAntiPattern}
+	expected := []string{"provisional", "candidate", "established", "anti-pattern"}
+
+	for i, m := range maturities {
+		if string(m) != expected[i] {
+			t.Errorf("Maturity value mismatch: got %q, want %q", m, expected[i])
+		}
+	}
+}
+
+func TestPlanStatusValues(t *testing.T) {
+	statuses := []PlanStatus{PlanStatusActive, PlanStatusCompleted, PlanStatusAbandoned, PlanStatusSuperseded}
+	expected := []string{"active", "completed", "abandoned", "superseded"}
+
+	for i, s := range statuses {
+		if string(s) != expected[i] {
+			t.Errorf("PlanStatus value mismatch: got %q, want %q", s, expected[i])
+		}
+	}
+}
+
+func TestKnowledgeTierValues(t *testing.T) {
+	tiers := []KnowledgeTier{KnowledgeTierStrict, KnowledgeTierStandard, KnowledgeTierMinimal}
+	expected := []string{"STRICT", "STANDARD", "MINIMAL"}
+
+	for i, tier := range tiers {
+		if string(tier) != expected[i] {
+			t.Errorf("KnowledgeTier value mismatch: got %q, want %q", tier, expected[i])
+		}
+	}
+}
+
+func TestCitationEventJSONRoundTrip(t *testing.T) {
+	original := CitationEvent{
+		ArtifactPath:   "/home/user/.agents/learnings/test.md",
+		SessionID:      "session-456",
+		CitedAt:        time.Date(2026, 2, 1, 14, 0, 0, 0, time.UTC),
+		CitationType:   "retrieved",
+		Query:          "context cancellation",
+		FeedbackGiven:  true,
+		FeedbackReward: 0.8,
+		UtilityBefore:  0.5,
+		UtilityAfter:   0.53,
+		FeedbackAt:     time.Date(2026, 2, 1, 14, 5, 0, 0, time.UTC),
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	var decoded CitationEvent
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if decoded.ArtifactPath != original.ArtifactPath {
+		t.Errorf("ArtifactPath mismatch: got %q, want %q", decoded.ArtifactPath, original.ArtifactPath)
+	}
+	if decoded.CitationType != original.CitationType {
+		t.Errorf("CitationType mismatch: got %q, want %q", decoded.CitationType, original.CitationType)
+	}
+	if decoded.FeedbackGiven != original.FeedbackGiven {
+		t.Errorf("FeedbackGiven mismatch: got %v, want %v", decoded.FeedbackGiven, original.FeedbackGiven)
+	}
+	if decoded.FeedbackReward != original.FeedbackReward {
+		t.Errorf("FeedbackReward mismatch: got %f, want %f", decoded.FeedbackReward, original.FeedbackReward)
+	}
+	if decoded.UtilityAfter != original.UtilityAfter {
+		t.Errorf("UtilityAfter mismatch: got %f, want %f", decoded.UtilityAfter, original.UtilityAfter)
+	}
+}
+
+func TestPlanManifestEntryJSONRoundTrip(t *testing.T) {
+	original := PlanManifestEntry{
+		Path:         ".agents/plans/peaceful-stirring-tome.md",
+		CreatedAt:    time.Date(2026, 2, 1, 10, 0, 0, 0, time.UTC),
+		ProjectPath:  "/home/user/project",
+		PlanName:     "peaceful-stirring-tome",
+		Status:       PlanStatusActive,
+		BeadsID:      "ag-abc",
+		UpdatedAt:    time.Date(2026, 2, 1, 11, 0, 0, 0, time.UTC),
+		Checksum:     "sha256:abcdef",
+		SupersededBy: "",
+		Metadata:     map[string]interface{}{"source": "plan-skill"},
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	var decoded PlanManifestEntry
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if decoded.Path != original.Path {
+		t.Errorf("Path mismatch: got %q, want %q", decoded.Path, original.Path)
+	}
+	if decoded.PlanName != original.PlanName {
+		t.Errorf("PlanName mismatch: got %q, want %q", decoded.PlanName, original.PlanName)
+	}
+	if decoded.Status != original.Status {
+		t.Errorf("Status mismatch: got %q, want %q", decoded.Status, original.Status)
+	}
+	if decoded.BeadsID != original.BeadsID {
+		t.Errorf("BeadsID mismatch: got %q, want %q", decoded.BeadsID, original.BeadsID)
+	}
+	if decoded.Checksum != original.Checksum {
+		t.Errorf("Checksum mismatch: got %q, want %q", decoded.Checksum, original.Checksum)
+	}
+}
+
+func TestFlywheelMetricsJSONRoundTrip(t *testing.T) {
+	original := FlywheelMetrics{
+		Timestamp:           time.Date(2026, 2, 1, 12, 0, 0, 0, time.UTC),
+		PeriodStart:         time.Date(2026, 1, 25, 0, 0, 0, 0, time.UTC),
+		PeriodEnd:           time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		Delta:               0.17,
+		Sigma:               0.6,
+		Rho:                 0.4,
+		SigmaRho:            0.24,
+		Velocity:            0.07,
+		AboveEscapeVelocity: true,
+		TotalArtifacts:      50,
+		CitationsThisPeriod: 12,
+		UniqueCitedArtifacts: 8,
+		NewArtifacts:        5,
+		StaleArtifacts:      3,
+		TierCounts:          map[string]int{"gold": 10, "silver": 20, "bronze": 15},
+		MeanUtility:         0.65,
+		HighUtilityCount:    15,
+		LowUtilityCount:     5,
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	var decoded FlywheelMetrics
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if decoded.Delta != original.Delta {
+		t.Errorf("Delta mismatch: got %f, want %f", decoded.Delta, original.Delta)
+	}
+	if decoded.AboveEscapeVelocity != original.AboveEscapeVelocity {
+		t.Errorf("AboveEscapeVelocity mismatch: got %v, want %v", decoded.AboveEscapeVelocity, original.AboveEscapeVelocity)
+	}
+	if decoded.TotalArtifacts != original.TotalArtifacts {
+		t.Errorf("TotalArtifacts mismatch: got %d, want %d", decoded.TotalArtifacts, original.TotalArtifacts)
+	}
+	if decoded.TierCounts["gold"] != 10 {
+		t.Errorf("TierCounts[gold] mismatch: got %d, want 10", decoded.TierCounts["gold"])
+	}
+	if decoded.MeanUtility != original.MeanUtility {
+		t.Errorf("MeanUtility mismatch: got %f, want %f", decoded.MeanUtility, original.MeanUtility)
+	}
+}
+
+func TestConstants(t *testing.T) {
+	// Verify key constants have expected values
+	if MaxSupersessionDepth != 3 {
+		t.Errorf("MaxSupersessionDepth = %d, want 3", MaxSupersessionDepth)
+	}
+	if DefaultDelta != 0.17 {
+		t.Errorf("DefaultDelta = %f, want 0.17", DefaultDelta)
+	}
+	if DefaultAlpha != 0.1 {
+		t.Errorf("DefaultAlpha = %f, want 0.1", DefaultAlpha)
+	}
+	if DefaultLambda != 0.5 {
+		t.Errorf("DefaultLambda = %f, want 0.5", DefaultLambda)
+	}
+	if InitialUtility != 0.5 {
+		t.Errorf("InitialUtility = %f, want 0.5", InitialUtility)
+	}
+	if KnowledgeTierEnvVar != "KNOWLEDGE_TIER" {
+		t.Errorf("KnowledgeTierEnvVar = %q, want %q", KnowledgeTierEnvVar, "KNOWLEDGE_TIER")
+	}
+	if MaturityPromotionThreshold != 0.7 {
+		t.Errorf("MaturityPromotionThreshold = %f, want 0.7", MaturityPromotionThreshold)
+	}
+	if MaturityDemotionThreshold != 0.3 {
+		t.Errorf("MaturityDemotionThreshold = %f, want 0.3", MaturityDemotionThreshold)
+	}
+	if MaturityAntiPatternThreshold != 0.2 {
+		t.Errorf("MaturityAntiPatternThreshold = %f, want 0.2", MaturityAntiPatternThreshold)
+	}
+	if MinFeedbackForPromotion != 3 {
+		t.Errorf("MinFeedbackForPromotion = %d, want 3", MinFeedbackForPromotion)
+	}
+	if MinFeedbackForAntiPattern != 5 {
+		t.Errorf("MinFeedbackForAntiPattern = %d, want 5", MinFeedbackForAntiPattern)
+	}
+	if ConfidenceDecayRate != 0.1 {
+		t.Errorf("ConfidenceDecayRate = %f, want 0.1", ConfidenceDecayRate)
 	}
 }
 
