@@ -1,6 +1,6 @@
 # Skills Reference
 
-Complete reference for all AgentOps skills.
+Complete reference for all 34 AgentOps skills (24 user-facing + 10 internal).
 
 ## Core Workflow Skills
 
@@ -33,6 +33,17 @@ Execute a single beads issue with full lifecycle.
 ```
 
 **Phases:** Context → Tests → Code → Validation → Commit
+
+### /rpi
+
+Full RPI lifecycle orchestrator. Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem in one command.
+
+```bash
+/rpi "Add user authentication"
+/rpi --auto --max-cycles=1    # fully autonomous single cycle
+```
+
+**Phases:** Setup → Research → Plan → Pre-mortem gate → Crank → Vibe gate → Post-mortem
 
 ### /crank
 
@@ -214,6 +225,45 @@ Trace design decisions through knowledge artifacts.
 ```bash
 /trace "why did we choose Redis?"
 ```
+
+### /evolve
+
+Autonomous fitness-scored improvement loop. Measures GOALS.yaml, fixes the worst gap, compounds via knowledge flywheel.
+
+```bash
+/evolve                      # Run until all goals met
+/evolve --max-cycles=5       # Cap at 5 cycles
+/evolve --dry-run            # Measure only, don't execute
+```
+
+### /product
+
+Interactive PRODUCT.md generation. Interviews about mission, personas, value props, and competitive landscape.
+
+```bash
+/product
+```
+
+**Output:** `PRODUCT.md` in repo root
+
+---
+
+## Internal Skills
+
+These fire automatically and are not directly invoked:
+
+| Skill | Purpose |
+|-------|---------|
+| `inject` | Load knowledge at session start (`ao inject`) |
+| `extract` | Extract decisions/learnings from transcripts |
+| `forge` | Mine transcripts for knowledge artifacts |
+| `ratchet` | Progress gates for RPI workflow |
+| `flywheel` | Knowledge health monitoring |
+| `provenance` | Trace knowledge artifact lineage |
+| `standards` | Language-specific coding standards (auto-loaded by /vibe, /implement) |
+| `shared` | Shared reference documents for distributed mode |
+| `beads` | Issue tracking reference |
+| `using-agentops` | Workflow guide (auto-injected on session start) |
 
 ---
 

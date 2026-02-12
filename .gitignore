@@ -49,6 +49,9 @@ reports/
 # Runtime state
 state.json
 
+# CLI generated artifacts
+cli/.agents/
+
 # Go binaries (built locally)
 cli/ao
 cli/bin/ao

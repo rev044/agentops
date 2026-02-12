@@ -199,7 +199,7 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 
 ## Skills
 
-34 skills across three tiers, plus 10 internal skills that fire automatically.
+34 skills total: 24 user-facing across three tiers, plus 10 internal skills that fire automatically.
 
 ### Orchestration
 
