@@ -2,6 +2,9 @@
 name: evolve
 description: Autonomous fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi, compounds via knowledge flywheel.
 tier: orchestration
+dependencies:
+  - rpi         # required - executes each improvement cycle
+  - post-mortem # required - auto-runs at teardown to harvest learnings
 triggers:
   - evolve
   - improve everything
@@ -228,8 +231,17 @@ if evolve_state.cycle >= evolve_state.max_cycles:
 
 ### Teardown
 
+**Auto-run /post-mortem on the full evolution session:**
+
+```
+/post-mortem "evolve session: $CYCLE cycles, goals improved: X, harvested: Y"
+```
+
+This captures learnings from the ENTIRE evolution run (all cycles, all /rpi invocations) in one council review. The post-mortem harvests follow-up items into `next-work.jsonl`, feeding the next `/evolve` session.
+
+**Then write session summary:**
+
 ```bash
-# Write session summary
 cat > .agents/evolve/session-summary.md << EOF
 # /evolve Session Summary
 
@@ -242,6 +254,9 @@ $(cat .agents/evolve/cycle-history.jsonl)
 
 ## Final Fitness
 $(cat .agents/evolve/fitness-${CYCLE}.json)
+
+## Post-Mortem
+<path to post-mortem report from above>
 
 ## Next Steps
 - Run \`/evolve\` again to continue improving
@@ -259,8 +274,9 @@ Cycles: N of M
 Goals improved: X
 Goals regressed: Y (reverted)
 Goals unchanged: Z
+Post-mortem: <verdict> (see <report-path>)
 
-Run `/evolve` again to continue, or `/post-mortem` to wrap up.
+Run `/evolve` again to continue improving.
 ```
 
 ---

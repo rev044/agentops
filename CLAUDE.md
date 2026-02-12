@@ -114,10 +114,11 @@ GITHUB_COM_TOKEN=$(gh auth token) renovate --platform=local
 
 ## Key Patterns
 
-1. **SKILL.md is the entry point** - Triggers, instructions, allowed tools
-2. **References are loaded JIT** - Keep SKILL.md lean, details in references/
-3. **Scripts validate behavior** - Prove skills work, catch regressions
-4. **Subagents are defined inline** - Agent behaviors live in SKILL.md files, not as separate files
+1. **This repo is the source of truth for skills** - Edit skills HERE, push to git, consumers install via `npx skills@latest add boshu2/agentops --all -g`. Never edit installed copies.
+2. **SKILL.md is the entry point** - Triggers, instructions, allowed tools
+3. **References are loaded JIT** - Keep SKILL.md lean, details in references/
+4. **Scripts validate behavior** - Prove skills work, catch regressions
+5. **Subagents are defined inline** - Agent behaviors live in SKILL.md files, not as separate files
 
 ## See Also
 
