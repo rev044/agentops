@@ -2,22 +2,63 @@ version: 1
 mission: "DevOps for AI agents — automates context, validation, execution, and learning"
 
 goals:
-  - id: test-pass-rate
-    description: "All skill validation tests pass"
-    check: "./tests/skills/run-all.sh"
-    weight: 3
+  # === Critical (weight 5) — Build & test integrity ===
+
+  - id: go-cli-builds
+    description: "Go CLI compiles without errors"
+    check: "cd cli && go build -o /tmp/test-ao ./cmd/ao >/dev/null 2>&1"
+    weight: 5
+
+  - id: go-cli-tests
+    description: "Go CLI unit tests pass"
+    check: "cd cli && go test ./... >/dev/null 2>&1"
+    weight: 5
+
+  # === Important (weight 3-4) — Suite & safety ===
 
   - id: full-test-suite
     description: "Full test suite passes (all tiers)"
     check: "./tests/run-all.sh"
-    weight: 3
+    weight: 4
+
+  - id: hook-preflight
+    description: "All hooks pass safety checks (kill switches, paths)"
+    check: "./scripts/validate-hook-preflight.sh >/dev/null 2>&1"
+    weight: 4
 
   - id: smoke-tests
-    description: "Smoke tests pass"
+    description: "Smoke tests pass (toolchain, skills, manifests)"
     check: "./tests/smoke-test.sh"
-    weight: 2
+    weight: 3
+
+  - id: go-vet-clean
+    description: "Go CLI passes vet checks (no common bugs)"
+    check: "cd cli && go vet ./... 2>&1"
+    weight: 3
+
+  - id: manifest-versions-match
+    description: "Plugin and marketplace versions are in sync"
+    check: "test \"$(jq -r '.metadata.version' .claude-plugin/marketplace.json)\" = \"$(jq -r '.version' .claude-plugin/plugin.json)\""
+    weight: 3
+
+  # === Hygiene (weight 1-2) — Docs & consistency ===
 
   - id: doc-coverage
     description: "All public skills have references/ documentation"
     check: "test $(ls -d skills/*/references/ 2>/dev/null | wc -l | tr -d ' ') -ge 16"
+    weight: 2
+
+  - id: skill-tier-coverage
+    description: "All skills have tier: defined in YAML frontmatter"
+    check: "test $(grep -rl '^tier:' skills/*/SKILL.md 2>/dev/null | wc -l | tr -d ' ') -eq $(ls -d skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
+    weight: 2
+
+  - id: skill-validation
+    description: "All skills have valid SKILL.md with frontmatter"
+    check: "./tests/skills/run-all.sh"
+    weight: 2
+
+  - id: council-schema-valid
+    description: "Council verdict schema is valid JSON with all required fields"
+    check: "jq -e '.properties and .required' skills/council/schemas/verdict.json >/dev/null 2>&1"
     weight: 1
