@@ -52,6 +52,30 @@ fi
 ```
 If ao returns prior plan review findings, include them as context for the council packet. Skip silently if ao is unavailable or returns no results.
 
+### Step 1b: Check for Product Context
+
+```bash
+if [ -f PRODUCT.md ]; then
+  # PRODUCT.md exists — include product perspectives alongside plan-review
+fi
+```
+
+When `PRODUCT.md` exists in the project root AND the user did NOT pass an explicit `--preset` override:
+1. Read `PRODUCT.md` content and include in the council packet via `context.files`
+2. Replace the default council invocation (Step 2) with:
+   ```
+   /council --deep --preset=plan-review --perspectives="user-value,adoption-barriers,competitive-position" validate <plan-path>
+   ```
+3. Auto-escalation handles judge count (7 judges: 4 plan-review + 3 product)
+
+When `PRODUCT.md` exists BUT the user passed an explicit `--preset`: skip product auto-include (user's explicit preset takes precedence).
+
+When `PRODUCT.md` does not exist: proceed to Step 2 unchanged (4 judges, plan-review only).
+
+**Cost note:** 7 judges vs 4 is intentional — product review merits thoroughness when product context is available. Product perspectives (user-value, adoption-barriers, competitive-position) catch requirements gaps that technical judges miss.
+
+> **Tip:** Create `PRODUCT.md` from `docs/PRODUCT-TEMPLATE.md` to enable product-aware plan validation.
+
 ### Step 2: Run Council Validation
 
 Run `/council` with the **plan-review** preset and always 4 judges (--deep):

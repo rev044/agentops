@@ -175,6 +175,26 @@ fi
 ```
 If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
 
+### Step 2e: Check for Product Context
+
+```bash
+if [ -f PRODUCT.md ]; then
+  # PRODUCT.md exists — include developer-experience perspectives
+fi
+```
+
+When `PRODUCT.md` exists in the project root AND the user did NOT pass an explicit `--preset` override:
+1. Read `PRODUCT.md` content and include in the council packet via `context.files`
+2. Append DX perspectives to the council invocation in Step 4:
+   - **With spec (code-review preset active):** Add `--perspectives="api-clarity,error-experience,discoverability"` alongside code-review. Auto-escalation handles count (6 judges: 3 code-review + 3 DX).
+   - **Without spec (independent judges):** Add `--perspectives="api-clarity,error-experience,discoverability"`. Auto-escalation handles count (6 judges: 3 independent + 3 DX).
+
+When `PRODUCT.md` exists BUT the user passed an explicit `--preset`: skip DX auto-include (user's explicit preset takes precedence).
+
+When `PRODUCT.md` does not exist: proceed to Step 3 unchanged.
+
+> **Tip:** Create `PRODUCT.md` from `docs/PRODUCT-TEMPLATE.md` to enable developer-experience-aware code review.
+
 ### Step 3: Load the Spec (New)
 
 Before invoking council, try to find the relevant spec/bead:

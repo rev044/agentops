@@ -50,6 +50,8 @@ Use `--preset=<name>` for common persona configurations:
 | `code-review` | error-paths, api-surface, spec-compliance | Code validation (used by /vibe) |
 | `plan-review` | missing-requirements, feasibility, scope, spec-completeness | Plan validation (used by /pre-mortem) |
 | `retrospective` | plan-compliance, tech-debt, learnings | Post-implementation review (used by /post-mortem) |
+| `product` | user-value, adoption-barriers, competitive-position | Product-market fit review (used by /pre-mortem when PRODUCT.md exists) |
+| `developer-experience` | api-clarity, error-experience, discoverability | Developer UX review (used by /vibe when PRODUCT.md exists) |
 
 ```bash
 /council --preset=security-audit validate the auth system
@@ -99,4 +101,14 @@ retrospective:
   plan-compliance: "What was planned vs what was delivered? What's missing? What was added?"
   tech-debt:       "What shortcuts were taken? What will bite us later? What needs cleanup?"
   learnings:       "What patterns emerged? What should be extracted as reusable knowledge?"
+
+product:
+  user-value:            "What user problem does this solve? Who benefits and how?"
+  adoption-barriers:     "What makes this hard to discover, learn, or use? What's the friction?"
+  competitive-position:  "How does this compare to alternatives? What's our differentiation?"
+
+developer-experience:
+  api-clarity:     "Is every public interface self-documenting? Can a user predict behavior from names alone?"
+  error-experience: "When something goes wrong, does the user know what happened, why, and what to do next?"
+  discoverability: "Can a new user find this feature without reading docs? Is the happy path obvious?"
 ```

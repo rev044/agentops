@@ -324,7 +324,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | `--debate` | Enable adversarial debate round (2 rounds via backend messaging, same agents). Incompatible with `--quick`. |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
 | `--perspectives="a,b,c"` | Custom perspective names |
-| `--preset=<name>` | Built-in persona preset (security-audit, architecture, research, ops, code-review, plan-review, retrospective) |
+| `--preset=<name>` | Built-in persona preset (security-audit, architecture, research, ops, code-review, plan-review, retrospective, product, developer-experience) |
 | `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed). Subject to MAX_AGENTS=12 cap. |
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
