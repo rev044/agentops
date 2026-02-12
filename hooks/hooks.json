@@ -72,6 +72,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-mortem-gate.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [

@@ -10,6 +10,8 @@ dependencies:
 
 > **Purpose:** Is this plan/spec good enough to implement?
 
+> **Mandatory for 3+ issue epics.** Pre-mortem is enforced by hook when `/crank` is invoked on epics with 3+ child issues. 6/6 consecutive positive ROI. Bypass: `--skip-pre-mortem` flag or `AGENTOPS_SKIP_PRE_MORTEM_GATE=1`.
+
 Run `/council validate` on a plan or spec to get multi-model judgment before committing to implementation.
 
 ---
