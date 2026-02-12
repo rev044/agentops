@@ -6,7 +6,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.4.0-brightgreen)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-32-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-33-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
@@ -179,7 +179,7 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 
 ## Skills
 
-32 skills across three tiers, plus 10 internal skills that fire automatically.
+33 skills across three tiers, plus 10 internal skills that fire automatically.
 
 ### Orchestration
 
@@ -214,6 +214,7 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 | `/bug-hunt` | Root cause analysis with git archaeology |
 | `/complexity` | Code complexity metrics |
 | `/doc` | Documentation generation and validation |
+| `/product` | Interactive PRODUCT.md generation for product-aware reviews |
 | `/trace` | Trace design decisions through history |
 | `/handoff` | Structured session handoff |
 | `/inbox` | Agent Mail monitoring |
@@ -315,7 +316,7 @@ Skills auto-select the best available backend:
 <details>
 <summary><strong>The <code>ao</code> CLI</strong> — optional engine for the flywheel</summary>
 
-All 32 skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle.
+All 33 skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle.
 
 ```bash
 ao inject              # Load prior knowledge
