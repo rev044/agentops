@@ -18,6 +18,10 @@ check "verdict.json has findings field" "grep -q '\"findings\"' '$SKILL_DIR/sche
 check "verdict.json has recommendation field" "grep -q '\"recommendation\"' '$SKILL_DIR/schemas/verdict.json'"
 check "verdict.json has additionalProperties:false at root" "python3 -c \"import json,sys; d=json.load(open('$SKILL_DIR/schemas/verdict.json')); sys.exit(0 if d.get('additionalProperties') == False else 1)\""
 check "verdict.json has additionalProperties:false in findings items" "python3 -c \"import json,sys; d=json.load(open('$SKILL_DIR/schemas/verdict.json')); sys.exit(0 if d['properties']['findings']['items'].get('additionalProperties') == False else 1)\""
+check "references/ has at least 5 files" "[ \$(ls '$SKILL_DIR/references/' | wc -l) -ge 5 ]"
+check "SKILL.md mentions default mode" "grep -q 'default' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions --deep mode" "grep -q '\-\-deep' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions --mixed mode" "grep -q '\-\-mixed' '$SKILL_DIR/SKILL.md'"
 check "Output directory pattern documented" "grep -q '\.agents/council/' '$SKILL_DIR/SKILL.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"

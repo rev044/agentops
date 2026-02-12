@@ -209,6 +209,23 @@ else
 fi
 
 # =============================================================================
+# Test 9: RPI context-windowing contract (large-repo mode)
+# =============================================================================
+log "Testing RPI context-windowing contract..."
+
+if [[ -x "scripts/rpi/context-window-contract.sh" ]]; then
+    cw_output=""
+    if cw_output=$(./scripts/rpi/context-window-contract.sh 2>&1); then
+        pass "RPI context-window contract passed"
+    else
+        fail "RPI context-window contract failed"
+        [[ "$VERBOSE" == "--verbose" ]] && echo "$cw_output" | sed 's/^/    /'
+    fi
+else
+    fail "scripts/rpi/context-window-contract.sh missing or not executable"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo ""
