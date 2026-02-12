@@ -5,7 +5,7 @@
 ### DevOps for AI agents. The system that gets smarter every time you use it.
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
-[![Version](https://img.shields.io/badge/version-2.4.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.5.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-34-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
@@ -119,6 +119,23 @@ Consensus: WARN — add rate limiting before shipping
 [post-mortem] 4 learnings extracted
 ```
 
+**Autonomous improvement loop:**
+```
+> /evolve --max-cycles=5
+
+[evolve] GOALS.yaml: 4 goals loaded
+[cycle-1] Measuring fitness... 2/4 passing
+         Worst gap: test-pass-rate (weight: 10)
+         /rpi "Improve test-pass-rate" → 3 issues, 2 waves
+         Re-measure: 3/4 passing ✓
+[cycle-2] Worst gap: doc-coverage (weight: 7)
+         /rpi "Improve doc-coverage" → 2 issues, 1 wave
+         Re-measure: 4/4 passing ✓
+[cycle-3] All goals met. Checking harvested work...
+         Picked: "add smoke test for /evolve" (from post-mortem)
+[teardown] /post-mortem → 5 learnings extracted
+```
+
 **Council standalone** (no setup, no workflow):
 ```
 > /council validate this PR
@@ -138,7 +155,7 @@ Consensus: WARN — add rate limiting before shipping
 
 3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
 
-4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Cross-cutting constraints from the plan are injected into every wave's validation pass. Lead validates and commits. Runs until every issue is closed.
+4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Cross-cutting constraints from the plan are injected into every wave's validation pass. `--test-first` uses a spec-first TDD model — specs and tests before implementation in every wave. Lead validates and commits. Runs until every issue is closed.
 
 5. **`/vibe`** — 3 judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
 
@@ -171,6 +188,8 @@ This is what makes AgentOps different. The system doesn't just run — it compou
 
 Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system grows its knowledge stock with each cycle.
 
+**Or automate the whole thing:** `/evolve` reads `GOALS.yaml`, measures fitness, picks the worst failing goal, runs a full `/rpi` cycle, re-measures, and loops — compounding improvements until all goals pass or the cycle cap is hit. Each cycle loads learnings from all prior cycles via the flywheel. You define the goals; the system does the rest.
+
 **Session 1:** Your agent ships a feature but the tests are weak.
 **Session 2:** The flywheel already knows — `/vibe` now checks test assertion coverage because last cycle's retro proposed it.
 **Session 10:** Your agent catches bugs it would have missed on day one. Not because you configured anything — because the system learned.
@@ -187,7 +206,7 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 |-------|-------------|
 | `/rpi` | Goal to production — 6-phase lifecycle with self-correcting retry loops |
 | `/council` | Multi-model consensus — parallel judges, consolidated verdict |
-| `/crank` | Autonomous epic execution — runs waves until all issues closed |
+| `/crank` | Autonomous epic execution — runs waves until all issues closed (supports `--test-first` TDD) |
 | `/swarm` | Parallel agents with fresh context — Codex sub-agents or Claude teams |
 | `/codex-team` | Parallel Codex execution agents |
 | `/evolve` | Autonomous fitness loop — measures goals, fixes worst gap, compounds via flywheel |
@@ -302,15 +321,24 @@ Skills auto-select the best available backend:
 <details>
 <summary><strong>Hooks</strong> — the workflow enforces itself</summary>
 
-11 hooks. All have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
+12 hooks. All have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 
 | Hook | Trigger | What it does |
 |------|---------|-------------|
 | Push gate | `git push` | Blocks push if `/vibe` hasn't passed |
+| Pre-mortem gate | `/crank` invocation | Blocks `/crank` if `/pre-mortem` hasn't passed |
 | Worker guard | `git commit` | Blocks workers from committing (lead-only) |
 | Dangerous git guard | `force-push`, `reset --hard` | Blocks destructive git commands |
+| Standards injector | Write/Edit | Auto-injects language-specific coding rules |
 | Ratchet nudge | Any prompt | "Run /vibe before pushing" |
 | Task validation | Task completed | Validates metadata before accepting |
+| Session start | Session start | Knowledge injection, stale state cleanup |
+| Ratchet advance | After Bash | Locks progress gates |
+| Stop team guard | Session stop | Prevents premature stop with active teams |
+| Precompact snapshot | Before compaction | Saves state before context compaction |
+| Pending cleaner | Session start | Cleans stale pending state |
+
+All hooks use `lib/hook-helpers.sh` for structured error recovery — failures include suggested next actions and auto-handoff context.
 
 </details>
 
@@ -345,7 +373,7 @@ Your coding agent writes code. AgentOps manages everything around the code — t
 - **Quality gates** — multi-model councils validate plans before coding and code before shipping
 - **Self-correction** — failures retry with failure context, not human escalation
 - **Self-improvement** — every cycle proposes how to make the tools better, then suggests what to run next
-- **Self-enforcement** — hooks block bad pushes, enforce lead-only commits, nudge agents through the workflow
+- **Self-enforcement** — hooks block bad pushes, enforce lead-only commits, gate `/crank` on `/pre-mortem`, nudge agents through the workflow
 
 Without AgentOps, you are the context manager, the quality gate, and the memory. With it, you manage the roadmap.
 
