@@ -99,7 +99,7 @@ fi
 
 # Cleanup: keep last 5 snapshots, remove older
 if [[ -d "$SNAP_DIR" ]]; then
-  ls -t "$SNAP_DIR"/*.md 2>/dev/null | tail -n +6 | while read -r old; do
+  find "$SNAP_DIR" -maxdepth 1 -name '*.md' -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | tail -n +6 | cut -d' ' -f2- | while read -r old; do
     rm -f "$old" 2>/dev/null
   done
 fi

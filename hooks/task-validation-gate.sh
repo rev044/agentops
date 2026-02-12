@@ -115,8 +115,7 @@ resolve_repo_path() {
 }
 
 # Extract metadata.validation — fail open on parse errors
-VALIDATION=$(echo "$INPUT" | jq -r '.metadata.validation // empty' 2>/dev/null)
-if [ $? -ne 0 ]; then
+if ! VALIDATION=$(echo "$INPUT" | jq -r '.metadata.validation // empty' 2>/dev/null); then
     log_error "JSON parse error on stdin"
     exit 0
 fi

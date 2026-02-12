@@ -59,7 +59,7 @@ if command -v ao &>/dev/null; then
             learnings_count=$(echo "$nudge_json" | jq -r '.learnings_count // 0')
             pool_pending=$(echo "$nudge_json" | jq -r '.pool_pending // 0')
             if [[ -n "$status_line" ]]; then
-                flywheel_status="**Flywheel:** [${status_line}] | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
+                flywheel_status="**Flywheel:** [${status_line}] | ${sessions} sessions | ${learnings_count} learnings | ${pool_pending} pending | velocity: ${velocity}/week"
             fi
         fi
     fi
@@ -75,7 +75,7 @@ if command -v ao &>/dev/null; then
             status_line=$(echo "$flywheel_output" | grep -o '\[.*\]' | head -1 | tr -d '\n' || echo "[UNKNOWN]")
             velocity=$(echo "$flywheel_output" | grep "velocity:" | grep -o '[+-][0-9.]*' | tr -d '\n' || echo "?")
             sessions=$(ao status 2>/dev/null | grep "^Sessions:" | awk '{print $2}' | head -1 | tr -d '\n' || echo "?")
-            learnings_count=$(ls -1 "$ROOT"/.agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
+            learnings_count=$(find "$ROOT"/.agents/learnings -maxdepth 1 -name '*.md' -type f 2>/dev/null | wc -l | tr -d ' \n' || echo "0")
             flywheel_status="**Flywheel:** ${status_line} | ${sessions} sessions | ${learnings_count} learnings | velocity: ${velocity}/week"
         fi
     fi

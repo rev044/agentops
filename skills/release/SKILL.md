@@ -84,6 +84,7 @@ git branch --show-current         # show current branch
 | Tests pass | Detect and run test command | Warn (show failures) |
 | Lint clean | Detect and run lint command | Warn (show issues) |
 | Version consistency | Compare versions across package files | Warn (show mismatches) |
+| Manifest versions sync | Compare `.claude-plugin/plugin.json` and `marketplace.json` versions | Warn (show mismatches) |
 | Commits since last tag | `git log --oneline <range>` | Block if empty — nothing to release |
 
 **Test/lint detection:**
