@@ -7,13 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **`--test-first` flag passthrough** — `/rpi --test-first` and `/evolve --test-first` now pass the flag through to `/crank` for spec-first TDD across the full lifecycle.
-- **RPI large-repo context windowing tools** — Added `scripts/rpi/` shard generator, progress tracker, bounded shard runner, and `context-window-contract.sh`; wired into `/rpi` docs and smoke tests for deterministic full-file coverage under bounded context budgets.
-- **Evolve full-fitness regression gate** — Step 5 now re-checks ALL goals (not just the target) after each cycle. Multi-commit revert using cycle start SHA. Continuous fitness values (value + threshold) in snapshots. Snapshot enforcement as hard gate.
-- **100% behavioral validate.sh coverage** — All 34 skills now have validate.sh scripts with behavioral contracts (was 8). ~280 total behavioral checks across structural, semantic, and mode-preservation checks.
+## [2.5.1] - 2026-02-12
+
+### Added
+
+- **100% behavioral validate.sh coverage** — All 34 skills now have validate.sh scripts with behavioral contracts (~280 total checks across structural, semantic, and mode-preservation dimensions).
+- **RPI large-repo context windowing** — `scripts/rpi/` shard generator, progress tracker, bounded shard runner, and `context-window-contract.sh` for deterministic full-file coverage under bounded context budgets.
 - **Incident runbook** — `docs/INCIDENT-RUNBOOK.md` with consumer recovery procedures, emergency kill switches, rollback escalation levels, and root cause analysis workflows.
-- **cmd/ao test coverage boost** — 37 new test functions across 12 files. Coverage: cmd/ao 25.1%→30.5%, overall average 85.7%→86.1%.
-- **GOALS.yaml expanded** — Added `behavioral-skill-contracts` goal. Now 18 goals (was 17).
+- **cmd/ao test coverage boost** — 37 new test functions across 12 files (cmd/ao 25.1%→30.5%, overall average 85.7%→86.1%).
+- **Hook integration tests** — 100 tests across all 12 hook scripts for error recovery, auto-handoff, and kill switch enforcement.
+- **GOALS.yaml expanded to 20 goals** — Added `behavioral-skill-contracts`, `hook-tests-pass`, and `incident-runbook-exists`.
+
+### Changed
+
+- **`--test-first` flag passthrough** — `/rpi --test-first` and `/evolve --test-first` now pass the flag through to `/crank` for spec-first TDD across the full lifecycle.
+- **Evolve full-fitness regression gate** — Step 5 re-checks ALL goals (not just target) after each cycle. Multi-commit revert using cycle start SHA. Continuous fitness values in snapshots.
+- **4 large skills split into references/** — Progressive disclosure extraction for inbox, trace, rpi, and evolve.
+- **Goals schema docs** — `goals-schema.md` updated with continuous values format.
+
+### Fixed
+
+- **Hook preflight expanded** — Now validates all 12 hooks (was partial). Fixed false positive detection for kill switches.
+- **SKILLS.md completeness** — Added 12 missing skill entries, fixed README skill count.
+- **Smoke test false positive** — Fixed ratchet coverage test that was masking real failures.
 
 ## [2.5.0] - 2026-02-12
 
