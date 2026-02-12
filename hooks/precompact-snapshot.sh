@@ -88,6 +88,58 @@ SUMMARY=$(printf '%s' "$SUMMARY" | tr '\n\r' '  ')
 # Truncate to stay under 500 bytes
 SUMMARY="${SUMMARY:0:480}"
 
+# Generate auto-handoff before cleanup
+HANDOFF_DIR="$ROOT/.agents/handoff"
+mkdir -p "$HANDOFF_DIR" 2>/dev/null || log_error "unable to create handoff directory: $HANDOFF_DIR"
+
+HANDOFF_DATE=$(date -u +%Y-%m-%d)
+HANDOFF_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+HANDOFF_FILE="$HANDOFF_DIR/auto-${HANDOFF_DATE}.md"
+
+# Gather handoff data (all with 1s timeout to stay under 2s budget)
+RATCHET_STATE=$(timeout 1 ao ratchet status -o json 2>/dev/null || echo "")
+ACTIVE_BEAD=$(timeout 1 bd current 2>/dev/null || echo "")
+MODIFIED_FILES=$(git diff --name-only HEAD 2>/dev/null | head -20)
+
+# Write auto-handoff document
+{
+  echo "# Auto-Handoff (Pre-Compaction)"
+  echo "**Timestamp:** $HANDOFF_TS"
+  echo "**Branch:** $BRANCH"
+  echo ""
+  echo "## Ratchet State"
+  if [[ -n "$RATCHET_STATE" ]]; then
+    echo '```json'
+    echo "$RATCHET_STATE"
+    echo '```'
+  else
+    echo "no active cycle"
+  fi
+  echo ""
+  echo "## Active Work"
+  if [[ -n "$ACTIVE_BEAD" ]]; then
+    echo "$ACTIVE_BEAD"
+  else
+    echo "none"
+  fi
+  echo ""
+  echo "## Modified Files"
+  if [[ -n "$MODIFIED_FILES" ]]; then
+    echo '```'
+    echo "$MODIFIED_FILES"
+    echo '```'
+  else
+    echo "none"
+  fi
+  echo ""
+  echo "## Active Teams"
+  if [[ -n "$TEAM_NAMES" ]]; then
+    echo "$TEAM_NAMES"
+  else
+    echo "none"
+  fi
+} > "$HANDOFF_FILE" 2>/dev/null || log_error "failed writing auto-handoff: $HANDOFF_FILE"
+
 # Output JSON for hook system
 if command -v jq >/dev/null 2>&1; then
   jq -n --arg summary "$SUMMARY" '{"hookSpecificOutput":{"additionalContext":$summary}}'

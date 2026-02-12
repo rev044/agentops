@@ -202,6 +202,25 @@ if [ "${AGENTOPS_AUTOCHAIN:-}" != "0" ] && command -v jq >/dev/null 2>&1; then
     fi
 fi
 
+# Check for auto-handoff from precompact
+handoff_section=""
+HANDOFF_FILE=$(ls -t "$ROOT/.agents/handoff/auto-"*.md 2>/dev/null | head -1)
+if [[ -n "$HANDOFF_FILE" && -f "$HANDOFF_FILE" ]]; then
+    handoff_content=$(cat "$HANDOFF_FILE" 2>/dev/null || echo "")
+    if [[ -n "$handoff_content" ]]; then
+        handoff_section="
+
+---
+## 🔄 Recovery: Auto-Handoff from Pre-Compaction
+
+${handoff_content}
+---
+"
+        # Delete handoff file after reading (consumed once)
+        rm -f "$HANDOFF_FILE" 2>/dev/null
+    fi
+fi
+
 # Detect and read AGENTS.md if present (competitor adoption: AGENTS.md standard)
 agents_md_content=""
 if [[ -f "$ROOT/AGENTS.md" ]]; then
@@ -272,7 +291,7 @@ fi
 # Combine all content for context injection
 full_content="<EXTREMELY_IMPORTANT>
 You have AgentOps superpowers.
-${flywheel_section}
+${flywheel_section}${handoff_section}
 **Below is the full content of your 'agentops:using-agentops' skill - your introduction to using AgentOps skills. For all other skills, use the 'Skill' tool:**
 
 ${using_agentops_content}${agents_md_section}
