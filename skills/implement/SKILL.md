@@ -73,6 +73,12 @@ Parameters:
 
 ### Step 4: Implement the Change
 
+**GREEN Mode check:** If test files were provided (invoked by /crank --test-first):
+1. Read all provided test files FIRST
+2. Read the contract for invariants
+3. Implement to make tests pass (do NOT modify test files)
+4. Skip to Step 5 verification
+
 Based on the context gathered:
 
 1. **Edit existing files** using the Edit tool (preferred)
@@ -141,6 +147,31 @@ Before reporting success, you MUST:
 ```bash
 bd update <issue-id> --append-notes "CHECKPOINT: Step 5a verification passed at $(date -Iseconds)" 2>/dev/null
 ```
+
+### GREEN Mode (Test-First Implementation)
+
+When invoked by /crank with `--test-first`, the worker receives:
+- **Failing tests** (immutable — DO NOT modify)
+- **Contract** (contract-{issue-id}.md)
+- **Issue description**
+
+**GREEN Mode Rules:**
+
+1. **Read failing tests FIRST** — understand what must pass
+2. **Read contract** — understand invariants and failure modes
+3. **Implement ONLY enough** to make all tests pass
+4. **Do NOT modify test files** — tests are immutable in GREEN mode
+5. **Do NOT add features** beyond what tests require
+6. **BLOCKED if spec error** — if contract contradicts tests or is incomplete, write BLOCKED with reason
+
+**Verification (GREEN Mode):**
+1. Run test suite → ALL tests must PASS
+2. Standard Iron Law (Step 5a) still applies — fresh verification evidence required
+3. No untested code — every line must be reachable by a test
+
+**Test Immutability Enforcement:**
+- Workers may ADD new test files but MUST NOT modify existing test files provided by the TEST WAVE
+- If a test appears wrong, write BLOCKED with the specific test and reason — do NOT fix it
 
 ### Step 6: Commit the Change
 
