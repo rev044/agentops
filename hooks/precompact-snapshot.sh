@@ -92,9 +92,9 @@ SUMMARY="${SUMMARY:0:480}"
 HANDOFF_DIR="$ROOT/.agents/handoff"
 mkdir -p "$HANDOFF_DIR" 2>/dev/null || log_error "unable to create handoff directory: $HANDOFF_DIR"
 
-HANDOFF_DATE=$(date -u +%Y-%m-%d)
 HANDOFF_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-HANDOFF_FILE="$HANDOFF_DIR/auto-${HANDOFF_DATE}.md"
+HANDOFF_TS_SAFE=$(date -u +%Y%m%dT%H%M%SZ)
+HANDOFF_FILE="$HANDOFF_DIR/auto-${HANDOFF_TS_SAFE}.md"
 
 # Gather handoff data (all with 1s timeout to stay under 2s budget)
 RATCHET_STATE=$(timeout 1 ao ratchet status -o json 2>/dev/null || echo "")

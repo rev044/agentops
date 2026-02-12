@@ -81,46 +81,9 @@ log_error() {
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task-validation-gate: $1" >> "$ERROR_LOG" 2>/dev/null
 }
 
-# Write structured failure details to last-failure.json
-write_failure() {
-    local type="$1"
-    local command="$2"
-    local exit_code="$3"
-    local details="$4"
-
-    mkdir -p "$ERROR_LOG_DIR" 2>/dev/null
-
-    # Extract task subject from INPUT
-    local task_subject
-    task_subject=$(echo "$INPUT" | jq -r '.subject // "unknown"' 2>/dev/null)
-    [ -z "$task_subject" ] || [ "$task_subject" = "null" ] && task_subject="unknown"
-
-    local ts
-    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
-
-    # Try jq first (preferred)
-    if command -v jq >/dev/null 2>&1; then
-        jq -n \
-            --arg ts "$ts" \
-            --arg type "$type" \
-            --arg command "$command" \
-            --argjson exit_code "$exit_code" \
-            --arg task_subject "$task_subject" \
-            --arg details "$details" \
-            '{ts:$ts,type:$type,command:$command,exit_code:$exit_code,task_subject:$task_subject,details:$details}' \
-            > "$ERROR_LOG_DIR/last-failure.json" 2>/dev/null
-    else
-        # Fallback: use printf and basic escaping (escape quotes and backslashes)
-        local escaped_command escaped_subject escaped_details
-        escaped_command=$(printf '%s' "$command" | sed 's/["\\]/\\&/g')
-        escaped_subject=$(printf '%s' "$task_subject" | sed 's/["\\]/\\&/g')
-        escaped_details=$(printf '%s' "$details" | sed 's/["\\]/\\&/g')
-
-        printf '{"ts":"%s","type":"%s","command":"%s","exit_code":%d,"task_subject":"%s","details":"%s"}\n' \
-            "$ts" "$type" "$escaped_command" "$exit_code" "$escaped_subject" "$escaped_details" \
-            > "$ERROR_LOG_DIR/last-failure.json" 2>/dev/null
-    fi
-}
+# Source shared write_failure() from hook-helpers.sh
+# shellcheck source=../lib/hook-helpers.sh
+. "$ROOT/lib/hook-helpers.sh"
 
 # Resolve user-provided file paths to repo-rooted absolute paths.
 # Returns non-zero if path escapes ROOT or cannot be normalized.

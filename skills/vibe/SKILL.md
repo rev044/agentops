@@ -262,7 +262,7 @@ Each judge reviews for:
 
 ### Step 7: Write Vibe Report
 
-**Write to:** `.agents/council/YYYY-MM-DD-vibe-<target>.md`
+**Write to:** `.agents/council/YYYYMMDDTHHMMSSZ-vibe-<target>.md` (use `date -u +%Y%m%dT%H%M%SZ`)
 
 ```markdown
 # Vibe Report: <Target>

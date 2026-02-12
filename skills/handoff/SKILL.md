@@ -8,7 +8,7 @@ dependencies:
 
 # Handoff Skill
 
-> **Quick Ref:** Create structured handoff for session continuation. Output: `.agents/handoff/YYYY-MM-DD-<topic>.md` + continuation prompt.
+> **Quick Ref:** Create structured handoff for session continuation. Output: `.agents/handoff/YYYYMMDDTHHMMSSZ-<topic>.md` + continuation prompt.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -97,12 +97,12 @@ ls .agents/research/*.md .agents/plans/*.md 2>/dev/null | tail -5
 
 ### Step 6: Write Handoff Document
 
-**Write to:** `.agents/handoff/YYYY-MM-DD-<topic-slug>.md`
+**Write to:** `.agents/handoff/YYYYMMDDTHHMMSSZ-<topic-slug>.md` (use `date -u +%Y%m%dT%H%M%SZ`)
 
 ```markdown
 # Handoff: <Topic>
 
-**Date:** YYYY-MM-DD
+**Date:** YYYY-MM-DDTHH:MM:SSZ
 **Session:** <brief session description>
 **Status:** <Paused mid-task | Between tasks | Blocked on X>
 
@@ -160,7 +160,7 @@ path/to/related-file.py
 
 ### Step 7: Write Continuation Prompt
 
-**Write to:** `.agents/handoff/YYYY-MM-DD-<topic-slug>-prompt.md`
+**Write to:** `.agents/handoff/YYYYMMDDTHHMMSSZ-<topic-slug>-prompt.md` (use `date -u +%Y%m%dT%H%M%SZ`)
 
 ```markdown
 # Continuation Prompt for New Session
@@ -175,7 +175,7 @@ Copy/paste this to start the next session:
 
 ## Read First
 
-1. The handoff doc: `.agents/handoff/YYYY-MM-DD-<topic-slug>.md`
+1. The handoff doc: `.agents/handoff/YYYYMMDDTHHMMSSZ-<topic-slug>.md`
 2. <Other critical files>
 
 ## What I Need Help With
