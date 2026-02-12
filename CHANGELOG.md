@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-02-12
+
+### Added
+
+- **`/evolve` skill** — Autonomous fitness-scored improvement loop. Measures `GOALS.yaml` fitness, picks the worst-scoring goal, runs `/rpi` to fix it, re-measures. Compounds via the knowledge flywheel — each cycle loads learnings from all prior cycles. Includes kill switches (`~/.config/evolve/KILL`, `.agents/evolve/STOP`), `--dry-run` mode, and harvested-work queue from `next-work.jsonl`.
+- **`/product` skill** — Interactive interview that generates a filled-in `PRODUCT.md` covering mission, personas, value propositions, and competitive landscape. New `product` and `developer-experience` council presets.
+- **`/crank --test-first` mode** — Spec-first TDD wave model. Specs and tests are written in early waves (GREEN), implementation follows. Includes contract templates, BLOCKED recovery, RED gate enforcement, strict category validation, and TaskCreate examples reference.
+- **Pre-mortem gate hook** — `pre-mortem-gate.sh` enforces pre-mortem validation before `/crank` execution. Integrated with smoke tests.
+- **Hook error recovery and auto-handoff** — All hook failure paths now include error recovery suggestions and auto-handoff context. Shared `lib/hook-helpers.sh` with `write_failure()`, `schema_version`, and ISO timestamps. Dual-output pattern applied to all failure paths.
+- **Spec-completeness judge** — New council judge validates specs for completeness with cross-cutting constraint injection. Domain-neutrality check included.
+- **`/plan` SDD boundaries** — Solution Design Document patterns with conformance checks, new `sdd-patterns.md` reference.
+- **`/post-mortem` checkpoint policy** — Preflight validator with metadata verification reference.
+- **GOALS.yaml fitness suite** — 11 goals for automated repo health measurement. Release pre-flight manifest check.
+- **Hook integration tests** — 10 new test cases for error recovery and auto-handoff hooks. Smoke test for `--test-first` flow (286 lines).
+
+### Changed
+
+- **`/research` runtime-agnostic** — Works across Claude and Codex runtimes. 6-tier discovery enrichment for exploration prompts.
+- **Domain-neutral language** — Replaced AgentOps-specific branding with domain-neutral terms across all skills.
+- **Flywheel taxonomy** — Renamed `skill-enhancement` → `process-improvement` across the knowledge flywheel.
+- **`/evolve` teardown** — Auto-runs `/post-mortem` on the full evolution session before writing summary. Added `post-mortem` as explicit dependency.
+- **Skills source-of-truth pattern** — `CLAUDE.md` now documents that this repo is the canonical source for skills.
+
+### Fixed
+
+- **Skills badge count** — Updated to 34 to match actual skill count.
+- **Pre-mortem judge count** — Corrected comment from 3 → 4.
+- **Release pipeline idempotency** — Deletes existing assets before publish to avoid conflicts.
+
 ## [2.4.0] - 2026-02-11
 
 ### Added
