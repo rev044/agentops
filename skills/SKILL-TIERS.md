@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (22)
+### User-Facing Skills (23)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -40,6 +40,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **handoff** | solo | Session handoff |
 | **inbox** | solo | Agent mail monitoring |
 | **release** | solo | Pre-flight, changelog, version bumps, tag |
+| **product** | solo | Interactive PRODUCT.md generation |
 | **trace** | solo | Trace design decisions |
 
 ### Internal Skills (10) — `metadata.internal: true`
@@ -110,6 +111,7 @@ All validation skills depend on `/council`:
 | inject | - | - |
 | knowledge | - | - |
 | **plan** | research, beads, pre-mortem, crank, implement | optional, optional, optional, optional, optional |
+| **product** | - | - (standalone) |
 | provenance | - | - |
 | **quickstart** | - | - (zero dependencies) |
 | **rpi** | research, plan, pre-mortem, crank, vibe, post-mortem, ratchet | all required |

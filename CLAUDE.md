@@ -9,7 +9,7 @@ DevOps for AI agents. Automates context management, multi-model validation, para
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest (v1.7.1)
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 32 skills (22 user-facing, 10 internal)
+├── skills/                # All 33 skills (23 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Autonomous epic execution
 │   ├── swarm/             # Parallel agent spawning
