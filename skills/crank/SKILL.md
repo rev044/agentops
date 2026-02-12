@@ -286,6 +286,23 @@ For each **spec-eligible** issue (feature/bugfix/refactor):
 
 **Category-based skip:** Issues categorized as docs/chore/ci bypass SPEC and TEST waves entirely and proceed directly to standard implementation waves.
 
+#### SPEC WAVE BLOCKED Recovery
+
+If a spec worker writes `BLOCKED` instead of a contract:
+
+1. **Read the BLOCKED reason** from the worker output
+2. **Add context to the issue:**
+   ```bash
+   bd comments add <issue-id> "SPEC BLOCKED: <reason>. Retrying with additional context..." 2>/dev/null
+   ```
+3. **Retry once** with enriched prompt (include the BLOCKED reason + additional codebase context)
+4. **If still BLOCKED after 2 attempts**, escalate:
+   ```bash
+   bd update <issue-id> --labels BLOCKER 2>/dev/null
+   bd comments add <issue-id> "ESCALATED: Spec generation failed 2x. Reason: <reason>. Human review required." 2>/dev/null
+   ```
+   Remove the issue from spec-eligible list and continue with remaining issues. Do NOT block the entire wave.
+
 ### Step 3c: TEST WAVE (--test-first only)
 
 > **Purpose:** Generate failing tests from contracts. Tests must FAIL (RED confirmation).
@@ -322,6 +339,43 @@ For each **spec-eligible** issue:
    # If any new test PASSES, the test is not meaningful (validates existing behavior, not new)
    ```
 6. **Lead commits** test harness: `git add <test-files> && git commit -m "test: failing tests for <issue-ids> (RED)"`
+
+#### RED Gate Enforcement
+
+After TEST WAVE, the lead **must** verify RED state before proceeding:
+
+```bash
+# Run the test suite and capture results
+TEST_OUTPUT=$(<test-command> 2>&1) || true
+TEST_EXIT=$?
+
+# Parse for unexpected passes among new test files
+UNEXPECTED_PASSES=()
+for test_file in $NEW_TEST_FILES; do
+    # Check if tests in this file passed (framework-specific detection)
+    if echo "$TEST_OUTPUT" | grep -q "PASS.*$(basename $test_file)"; then
+        UNEXPECTED_PASSES+=("$test_file")
+    fi
+done
+
+if [[ ${#UNEXPECTED_PASSES[@]} -gt 0 ]]; then
+    echo "RED GATE FAILED: ${#UNEXPECTED_PASSES[@]} test file(s) passed unexpectedly:"
+    printf '  - %s\n' "${UNEXPECTED_PASSES[@]}"
+fi
+```
+
+**Decision tree for unexpected passes:**
+
+| Condition | Action |
+|-----------|--------|
+| All new tests FAIL | PASS — proceed to IMPL wave |
+| Some tests pass, some fail | Retry: re-generate passing tests with explicit "must fail" constraint |
+| All new tests PASS | BLOCKED — tests validate existing behavior, not new requirements. Escalate to human. |
+
+**On retry (max 2 attempts):**
+1. Add the unexpected-pass context to the worker prompt
+2. Re-spawn test writer with: "These tests passed unexpectedly: <list>. They must fail against current code. Rewrite them to test NEW behavior described in the contract."
+3. If still passing after 2 retries, mark issue as BLOCKER and skip to standard IMPL
 
 ### Step 4: Execute Wave via Swarm
 
