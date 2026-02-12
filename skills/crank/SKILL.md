@@ -54,6 +54,12 @@ Crank (orchestrator, TaskList mode)    Swarm (executor)
 - **Crank** = Orchestration, epic/task lifecycle, knowledge flywheel
 - **Swarm** = Runtime-native parallel execution (Ralph Wiggum pattern via fresh worker set per wave)
 
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--test-first` | off | Enable spec-first TDD: SPEC WAVE generates contracts, TEST WAVE generates failing tests, IMPL WAVES make tests pass |
+
 ## Global Limits
 
 **MAX_EPIC_WAVES = 50** (hard limit across entire epic)
@@ -167,6 +173,27 @@ bd update <epic-id> --append-notes "CRANK_START: wave=0 at $(date -Iseconds)" 2>
 
 Track in memory: `wave=0`
 
+### Step 1b: Detect Test-First Mode (--test-first only)
+
+```bash
+# Check for --test-first flag
+if [[ "$TEST_FIRST" == "true" ]]; then
+    # Classify issues by category
+    # spec-eligible: feature, bugfix, refactor → SPEC + TEST waves apply
+    # skip: docs, chore, ci → standard implementation waves only
+    for issue in $READY_ISSUES; do
+        CATEGORY=$(bd show "$issue" 2>/dev/null | grep -i "category:" | head -1)
+        case "$CATEGORY" in
+            *docs*|*chore*|*ci*) SPEC_SKIP+=("$issue") ;;
+            *) SPEC_ELIGIBLE+=("$issue") ;;
+        esac
+    done
+    echo "Test-first mode: ${#SPEC_ELIGIBLE[@]} spec-eligible, ${#SPEC_SKIP[@]} skipped (docs/chore/ci)"
+fi
+```
+
+If `--test-first` is NOT set, skip Steps 3b and 3c entirely — behavior is unchanged.
+
 ### Step 2: Get Epic Details
 
 **Beads mode:**
@@ -208,7 +235,83 @@ Also verify: epic has at least 1 child issue total. An epic with 0 children mean
 
 Do NOT proceed with empty issue list - this produces false "epic complete" status.
 
+### Step 3b: SPEC WAVE (--test-first only)
+
+> **Purpose:** Generate contracts that ground implementation in verified requirements.
+
+**Skip this step if `--test-first` is NOT set or if no spec-eligible issues exist.**
+
+For each **spec-eligible** issue (feature/bugfix/refactor):
+
+1. **TaskCreate** with subject `SPEC: <issue-title>`
+2. **Worker prompt:**
+   ```
+   You are a spec writer. Generate a contract for this issue.
+
+   FIRST: Explore the codebase to understand existing patterns, types, and interfaces
+   relevant to this issue. Use Glob and Read to examine the code.
+
+   THEN: Read the contract template at skills/crank/references/contract-template.md.
+
+   Generate a contract following the template. Include:
+   - At least 3 invariants
+   - At least 3 test cases mapped to invariants
+   - Concrete types and interfaces from the actual codebase
+
+   If inputs are missing or the issue is underspecified, write BLOCKED with reason.
+
+   Output: .agents/specs/contract-<issue-id>.md
+   ```
+3. **Worker receives:** Issue description, plan boundaries, contract template, codebase access (read-only)
+4. **Validation:** files_exist + content_check for `## Invariants` AND `## Test Cases`
+5. **Lead commits** all specs after validation: `git add .agents/specs/ && git commit -m "spec: contracts for <issue-ids>"`
+
+**Category-based skip:** Issues categorized as docs/chore/ci bypass SPEC and TEST waves entirely and proceed directly to standard implementation waves.
+
+### Step 3c: TEST WAVE (--test-first only)
+
+> **Purpose:** Generate failing tests from contracts. Tests must FAIL (RED confirmation).
+
+**Skip this step if `--test-first` is NOT set or if no spec-eligible issues exist.**
+
+For each **spec-eligible** issue:
+
+1. **TaskCreate** with subject `TEST: <issue-title>`
+2. **Worker prompt:**
+   ```
+   You are a test writer. Generate FAILING tests from the contract.
+
+   Read ONLY the contract at .agents/specs/contract-<issue-id>.md.
+   You may read codebase structure (imports, types, interfaces) but NOT existing
+   implementation details.
+
+   Generate tests that:
+   - Cover ALL test cases from the contract's Test Cases table
+   - Cover ALL invariants (at least one test per invariant)
+   - All tests MUST FAIL when run (RED state)
+   - Follow existing test patterns in the codebase
+
+   Do NOT read or reference existing implementation code.
+   Do NOT write implementation code.
+
+   Output: test files in the appropriate location for the project's test framework.
+   ```
+3. **Worker receives:** contract-<issue-id>.md + codebase structure (imports, types) but NOT existing implementations
+4. **Validation:** test files exist + RED confirmation (lead runs test suite, all new tests must fail)
+5. **RED Gate:** Lead runs the test suite. ALL new tests must FAIL:
+   ```bash
+   # Run tests — expect failures for new tests
+   # If any new test PASSES, the test is not meaningful (validates existing behavior, not new)
+   ```
+6. **Lead commits** test harness: `git add <test-files> && git commit -m "test: failing tests for <issue-ids> (RED)"`
+
 ### Step 4: Execute Wave via Swarm
+
+**GREEN mode (--test-first only):** If `--test-first` is set and SPEC/TEST waves have completed, modify worker prompts for spec-eligible issues:
+- Include in each worker's TaskCreate: `"Failing tests exist at <test-file-paths>. Make them pass. Do NOT modify test files. See GREEN Mode rules in /implement SKILL.md."`
+- Workers receive: failing tests (immutable), contract, issue description
+- Workers follow GREEN Mode rules from `/implement` SKILL.md
+- Docs/chore/ci issues (skipped by SPEC/TEST waves) use standard worker prompts unchanged
 
 **BEFORE each wave:**
 ```bash
