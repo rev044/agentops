@@ -93,6 +93,16 @@ goals:
     check: "for d in skills/*/scripts/validate.sh; do \"$d\" >/dev/null 2>&1 || exit 1; done"
     weight: 2
 
+  - id: hook-tests-pass
+    description: "All 100 hook integration tests pass"
+    check: "bash tests/hooks/test-hooks.sh 2>&1 | tail -1 | grep -q 'ALL PASSED'"
+    weight: 2
+
+  - id: incident-runbook-exists
+    description: "Consumer incident runbook exists with recovery procedures"
+    check: "test -f docs/INCIDENT-RUNBOOK.md && grep -q 'AGENTOPS_HOOKS_DISABLED' docs/INCIDENT-RUNBOOK.md"
+    weight: 1
+
   - id: council-schema-valid
     description: "Council verdict schema is valid JSON with all required fields"
     check: "jq -e '.properties and .required' skills/council/schemas/verdict.json >/dev/null 2>&1"
