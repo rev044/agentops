@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`--test-first` flag passthrough** — `/rpi --test-first` and `/evolve --test-first` now pass the flag through to `/crank` for spec-first TDD across the full lifecycle.
+
 ## [2.5.0] - 2026-02-12
 
 ### Added

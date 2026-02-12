@@ -38,7 +38,8 @@ Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any age
 ```bash
 npx skills@latest add boshu2/agentops --all -g
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops   # CLI (optional)
-ao hooks install   # Hooks (optional)
+ao hooks install        # Flywheel hooks (SessionStart + Stop)
+ao hooks install --full # All 8 events with safety gates, standards, validation
 ```
 
 Then inside your coding agent:
@@ -353,7 +354,10 @@ ao forge transcript    # Extract learnings from session
 ao ratchet status      # Check progress gates
 ao flywheel status     # Knowledge health metrics
 ao session close       # Full lifecycle close
-ao hooks install       # Install session hooks
+ao hooks install       # Flywheel hooks (SessionStart + Stop)
+ao hooks install --full # All 8 events (safety gates, standards, validation)
+ao hooks show          # View installed hook coverage
+ao hooks test          # Verify hook configuration
 ```
 
 Install: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops`

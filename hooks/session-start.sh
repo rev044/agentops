@@ -204,7 +204,7 @@ fi
 
 # Check for auto-handoff from precompact
 handoff_section=""
-HANDOFF_FILE=$(ls -t "$ROOT/.agents/handoff/auto-"*.md 2>/dev/null | head -1)
+HANDOFF_FILE=$(find "$ROOT/.agents/handoff/" -maxdepth 1 -name 'auto-*.md' -print 2>/dev/null | sort -r | head -1)
 if [[ -n "$HANDOFF_FILE" && -f "$HANDOFF_FILE" ]]; then
     handoff_content=$(cat "$HANDOFF_FILE" 2>/dev/null || echo "")
     if [[ -n "$handoff_content" ]]; then

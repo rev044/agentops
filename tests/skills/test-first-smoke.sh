@@ -272,6 +272,50 @@ else
 fi
 
 # =============================================================================
+# 6. Passthrough wiring checks (rpi + evolve)
+# =============================================================================
+echo -e "${BLUE}[TEST-FIRST]${NC} Passthrough wiring (skills/rpi/SKILL.md, skills/evolve/SKILL.md)"
+
+RPI="skills/rpi/SKILL.md"
+EVOLVE="skills/evolve/SKILL.md"
+
+if [[ ! -f "$RPI" ]]; then
+    fail "File missing: $RPI"
+else
+    # 6a: --test-first in rpi flag table
+    if grep -qE '^\|.*--test-first.*\|' "$RPI"; then
+        pass "/rpi documents --test-first in flag table"
+    else
+        fail "/rpi missing --test-first in flag table"
+    fi
+
+    # 6b: --test-first in rpi_state
+    if grep -q 'test_first' "$RPI"; then
+        pass "/rpi tracks test_first in state"
+    else
+        fail "/rpi missing test_first in state object"
+    fi
+fi
+
+if [[ ! -f "$EVOLVE" ]]; then
+    fail "File missing: $EVOLVE"
+else
+    # 6c: --test-first in evolve flag table
+    if grep -qE '^\|.*--test-first.*\|' "$EVOLVE"; then
+        pass "/evolve documents --test-first in flag table"
+    else
+        fail "/evolve missing --test-first in flag table"
+    fi
+
+    # 6d: --test-first in evolve_state
+    if grep -q 'test_first' "$EVOLVE"; then
+        pass "/evolve tracks test_first in state"
+    else
+        fail "/evolve missing test_first in state object"
+    fi
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo ""

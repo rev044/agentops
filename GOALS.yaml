@@ -48,7 +48,7 @@ goals:
 
   - id: shellcheck-clean
     description: "Hook scripts pass shellcheck with no warnings"
-    check: "shellcheck hooks/*.sh 2>&1 | grep -c '^In ' | xargs test 0 -eq"
+    check: "shellcheck -x -P SCRIPTDIR hooks/*.sh 2>&1 | grep -c '^In ' | xargs test 0 -eq"
     weight: 2
 
   - id: go-coverage-floor
