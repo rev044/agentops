@@ -253,6 +253,146 @@ if [ $? -eq 0 ]; then pass "allowlist allows go command"; else fail "allowlist a
 
 # ============================================================
 echo ""
+echo "=== task-validation-gate.sh error recovery ==="
+# ============================================================
+
+# Test 33: Test failure writes last-failure.json with all 6 required fields
+MOCK_FAIL_REPO="$TMPDIR/mock-fail-test"
+mkdir -p "$MOCK_FAIL_REPO/.agents/ao"
+git -C "$MOCK_FAIL_REPO" init -q >/dev/null 2>&1
+(cd "$MOCK_FAIL_REPO" && echo '{"subject":"test task","metadata":{"validation":{"tests":"make nonexistent-target-xyz"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || true)
+if [ -f "$MOCK_FAIL_REPO/.agents/ao/last-failure.json" ]; then
+    FAILURE_JSON=$(cat "$MOCK_FAIL_REPO/.agents/ao/last-failure.json")
+    if echo "$FAILURE_JSON" | jq -e '.ts and .type and .command and .exit_code and .task_subject and .details' >/dev/null 2>&1; then
+        pass "test failure writes last-failure.json with all 6 fields"
+    else
+        fail "test failure writes last-failure.json with all 6 fields"
+    fi
+else
+    fail "test failure writes last-failure.json with all 6 fields (file missing)"
+fi
+
+# Test 34: last-failure.json "type" field matches failure type
+MOCK_FILES_REPO="$TMPDIR/mock-files-fail"
+mkdir -p "$MOCK_FILES_REPO/.agents/ao"
+git -C "$MOCK_FILES_REPO" init -q >/dev/null 2>&1
+(cd "$MOCK_FILES_REPO" && echo '{"subject":"files task","metadata":{"validation":{"files_exist":["nonexistent-file.txt"]}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || true)
+if [ -f "$MOCK_FILES_REPO/.agents/ao/last-failure.json" ]; then
+    FAILURE_TYPE=$(jq -r '.type' "$MOCK_FILES_REPO/.agents/ao/last-failure.json" 2>/dev/null)
+    if [ "$FAILURE_TYPE" = "files_exist" ]; then
+        pass "last-failure.json type field matches failure type"
+    else
+        fail "last-failure.json type field matches failure type (got: $FAILURE_TYPE)"
+    fi
+else
+    fail "last-failure.json type field matches failure type (file missing)"
+fi
+
+# Test 35: Stderr includes "bug-hunt" for test failures
+MOCK_TEST_FAIL="$TMPDIR/mock-test-fail"
+mkdir -p "$MOCK_TEST_FAIL/.agents/ao"
+git -C "$MOCK_TEST_FAIL" init -q >/dev/null 2>&1
+OUTPUT=$(cd "$MOCK_TEST_FAIL" && echo '{"subject":"test task","metadata":{"validation":{"tests":"make nonexistent-target-xyz"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1 || true)
+if echo "$OUTPUT" | grep -q "bug-hunt"; then
+    pass "stderr includes bug-hunt for test failures"
+else
+    fail "stderr includes bug-hunt for test failures"
+fi
+
+# Test 36: Stderr lists missing files for files_exist failures
+MOCK_MISSING="$TMPDIR/mock-missing-files"
+mkdir -p "$MOCK_MISSING/.agents/ao"
+git -C "$MOCK_MISSING" init -q >/dev/null 2>&1
+OUTPUT=$(cd "$MOCK_MISSING" && echo '{"subject":"files task","metadata":{"validation":{"files_exist":["missing-a.txt"]}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1 || true)
+if echo "$OUTPUT" | grep -q "missing-a.txt"; then
+    pass "stderr lists missing files for files_exist failures"
+else
+    fail "stderr lists missing files for files_exist failures"
+fi
+
+# Test 37: Exit code still 2 on failure (regression test)
+MOCK_EXIT_CHECK="$TMPDIR/mock-exit-check"
+mkdir -p "$MOCK_EXIT_CHECK/.agents/ao"
+git -C "$MOCK_EXIT_CHECK" init -q >/dev/null 2>&1
+EC=0
+(cd "$MOCK_EXIT_CHECK" && echo '{"subject":"exit test","metadata":{"validation":{"tests":"make nonexistent-target-xyz"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1) || EC=$?
+if [ "$EC" -eq 2 ]; then
+    pass "exit code still 2 on failure (regression test)"
+else
+    fail "exit code still 2 on failure (got: $EC, expected: 2)"
+fi
+
+# ============================================================
+echo ""
+echo "=== precompact-snapshot.sh auto-handoff ==="
+# ============================================================
+
+# Test 38: Auto-handoff document created in .agents/handoff/
+MOCK_HANDOFF_REPO="$TMPDIR/mock-handoff-create"
+mkdir -p "$MOCK_HANDOFF_REPO/.agents/ao"
+git -C "$MOCK_HANDOFF_REPO" init -q >/dev/null 2>&1
+(cd "$MOCK_HANDOFF_REPO" && bash "$HOOKS_DIR/precompact-snapshot.sh" >/dev/null 2>&1 || true)
+if ls "$MOCK_HANDOFF_REPO/.agents/handoff/auto-"*.md >/dev/null 2>&1; then
+    pass "auto-handoff document created in .agents/handoff/"
+else
+    fail "auto-handoff document created in .agents/handoff/"
+fi
+
+# Test 39: Handoff contains "Ratchet State" section
+MOCK_HANDOFF_CONTENT="$TMPDIR/mock-handoff-content"
+mkdir -p "$MOCK_HANDOFF_CONTENT/.agents/ao"
+git -C "$MOCK_HANDOFF_CONTENT" init -q >/dev/null 2>&1
+(cd "$MOCK_HANDOFF_CONTENT" && bash "$HOOKS_DIR/precompact-snapshot.sh" >/dev/null 2>&1 || true)
+HANDOFF_FILE=$(ls -t "$MOCK_HANDOFF_CONTENT/.agents/handoff/auto-"*.md 2>/dev/null | head -1)
+if [ -f "$HANDOFF_FILE" ]; then
+    if grep -q "Ratchet State" "$HANDOFF_FILE"; then
+        pass "handoff contains Ratchet State section"
+    else
+        fail "handoff contains Ratchet State section"
+    fi
+else
+    fail "handoff contains Ratchet State section (file missing)"
+fi
+
+# Test 40: Kill switch suppresses handoff
+MOCK_HANDOFF_KILL="$TMPDIR/mock-handoff-kill"
+mkdir -p "$MOCK_HANDOFF_KILL/.agents/ao"
+git -C "$MOCK_HANDOFF_KILL" init -q >/dev/null 2>&1
+(cd "$MOCK_HANDOFF_KILL" && AGENTOPS_PRECOMPACT_DISABLED=1 bash "$HOOKS_DIR/precompact-snapshot.sh" >/dev/null 2>&1 || true)
+if ! ls "$MOCK_HANDOFF_KILL/.agents/handoff/auto-"*.md >/dev/null 2>&1; then
+    pass "kill switch suppresses handoff"
+else
+    fail "kill switch suppresses handoff"
+fi
+
+# ============================================================
+echo ""
+echo "=== session-start.sh handoff injection ==="
+# ============================================================
+
+# Test 41: session-start.sh reads auto-handoff and includes content
+MOCK_SESSION_HANDOFF="$TMPDIR/mock-session-handoff"
+mkdir -p "$MOCK_SESSION_HANDOFF/.agents/handoff"
+git -C "$MOCK_SESSION_HANDOFF" init -q >/dev/null 2>&1
+HANDOFF_TEST_FILE="$MOCK_SESSION_HANDOFF/.agents/handoff/auto-2026-01-01.md"
+echo "# Test Handoff" > "$HANDOFF_TEST_FILE"
+echo "HANDOFF_TEST_MARKER_12345" >> "$HANDOFF_TEST_FILE"
+OUTPUT=$(cd "$MOCK_SESSION_HANDOFF" && bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
+if echo "$OUTPUT" | grep -q "HANDOFF_TEST_MARKER_12345"; then
+    pass "session-start.sh reads auto-handoff and includes content"
+else
+    fail "session-start.sh reads auto-handoff and includes content"
+fi
+
+# Test 42: Auto-handoff file deleted after injection
+if [ ! -f "$HANDOFF_TEST_FILE" ]; then
+    pass "auto-handoff file deleted after injection"
+else
+    fail "auto-handoff file deleted after injection"
+fi
+
+# ============================================================
+echo ""
 echo "=== validate-hook-preflight.sh ==="
 # ============================================================
 
