@@ -12,6 +12,8 @@ AO↔Olympus interop is limited to **three contract surfaces**:
 
 This document may define multiple payload profiles, but those profiles MUST map to one of the three surfaces above. Do not add new independent bridge surfaces without updating this section.
 
+**Enforcement status:** The schema-enveloped bridge in this section is a target contract. Until Olympus emits/parses these envelopes and conformance tests exist, envelope enforcement MUST be treated as `SPEC_ONLY`.
+
 ### 0.1 `INVOCATION_ENVELOPE`
 
 Used when AO declares intent for Olympus execution (or vice versa), including skill dispatch and context/input metadata.
@@ -101,9 +103,14 @@ For `schema_version: 1`, envelopes MUST include:
 Envelopes SHOULD include:
 - `meta.correlation_id` (string, recommended; stable across retries)
 
-Default rules:
-- If `schema_version` is absent, treat it as `1`.
-- If `schema_version` is greater than supported, the receiver MUST emit an `OBSERVABILITY_EVENTS` error and fail closed (no checkpoint mutation).
+Validation / default rules (normative):
+- Writers MUST include `schema_version`.
+- If `schema_version` is absent, treat it as `1` (legacy reader behavior; writers MUST NOT omit it).
+- If `schema_version` is less than `1`, the receiver MUST reject the payload.
+- If `schema_version` is greater than supported, the receiver MUST reject the payload.
+- If required fields are missing, or `contract` is unknown, the receiver MUST reject the payload.
+
+On rejection, the receiver MUST emit an `OBSERVABILITY_EVENTS` error and fail closed (no checkpoint mutation).
 
 ## 1. Learning Interchange Format
 
@@ -197,18 +204,33 @@ When AO invokes `ol` commands:
 | 2 | Present to user or invoke fallback skill |
 | 42 | Epic/quest complete |
 
+Note: `ol validate stage1 -o json` may exit `0` even when `passed: false` (it returns after encoding JSON). Consumers MUST gate on the JSON `passed` field for that command until Olympus changes this behavior.
+
 When OL dispatches to Claude Code (which runs AO skills):
 
-Claude Code exit `1` is ambiguous (skill error vs user cancel/context exhaustion). Disambiguate using artifact presence:
+Olympus treats **artifacts** as the authoritative completion signal. Exit codes are secondary and may be ambiguous (e.g., user cancel vs skill error).
 
-- If **expected artifacts exist**, interpret as skill failure (retry).
-- If **no expected artifacts exist**, interpret as user cancel/context exhaustion (escalation).
+**Normative definition: Expected artifacts (DD8)**
+- "Expected artifacts" are phase-specific glob patterns relative to repo root.
+- Checks MUST be scoped by `dispatch_start_time` (phase entry time): for freshness-checked patterns, a matching file MUST have `mtime > dispatch_start_time`.
+- Note: `dispatch_start_time` is stable across retries for a phase. This intentionally allows artifacts produced by a prior attempt in the same phase to satisfy the check (crash recovery).
+- Optional checks do not gate success.
 
-| AO outcome | Claude Code exit | Discriminator | ol interpretation |
-|------------|-----------------|--------------|-------------------|
-| Skill succeeds, artifacts written | 0 | N/A | Phase complete, advance |
-| Skill fails | 1 | Expected artifacts exist | Retry phase |
-| User cancels / context exhausted | 1 | No expected artifacts exist | Escalation (treat as exit 2) |
+Current phase patterns (authoritative in Olympus code; may drift):
+- `RESEARCH`: `.agents/research/*` (required)
+- `PLAN`: `.agents/plans/*` (required), `.beads/issues.jsonl` (optional)
+- `RETRO`: `.agents/retros/*` (required)
+- `FLYWHEEL`: `.agents/learnings/*` (optional)
+
+**Normative interpretation (DD7.3 + DD8)**
+- If **required artifacts exist** (artifact check OK), treat the dispatch as **SUCCESS**, even if the subprocess exited non-zero (crash recovery).
+- If **required artifacts are missing**, treat the dispatch as **FAILURE/RETRY**, even if the subprocess exited 0.
+
+| Subprocess exit | Artifact check (`artifact_check_ok`) | Olympus interpretation |
+|---|---|---|
+| non-zero | true | **SUCCESS** (treat as phase success; clear dispatch state; no retry) |
+| 0 | false | **RETRY/FAIL** (retry up to budget; if still missing, fail closed, typically exit `1`) |
+| non-zero | false | **RETRY/ESCALATE** (retry up to budget; if a deterministic breaker triggers, exit `2`; otherwise fail closed, exit `1`) |
 
 ## 3. Versioning and Capability Negotiation
 
@@ -265,7 +287,30 @@ ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
 
 ### OL Stage1Result → AO Vibe Input
 
-When `/vibe` invokes `ol validate stage1`, it reads a `STATE_CHECKPOINT_HANDOFF` envelope whose payload contains the Stage1Result profile:
+#### Current State (Implemented): Raw `Stage1Result` JSON
+
+Today, `ol validate stage1 -o json` emits **raw `Stage1Result` JSON** (no envelope).
+
+Important: In JSON mode, consumers MUST gate on `passed` (not process exit code). `passed: false` may still exit `0` after emitting JSON.
+
+Example (raw, abbreviated):
+
+```json
+{
+  "quest_id": "ol-572",
+  "bead_id": "ol-572.3",
+  "worktree": "/path/to/worktree",
+  "passed": true,
+  "steps": [
+    {"name": "go test", "exit_code": 0, "passed": true, "duration": "3.4s"}
+  ],
+  "summary": "all steps passed"
+}
+```
+
+#### Future (SPEC_ONLY): Enveloped `Stage1Result` via `STATE_CHECKPOINT_HANDOFF`
+
+Once Olympus implements schema-enveloped emit/parse + conformance tests, `Stage1Result` MAY be carried inside a `STATE_CHECKPOINT_HANDOFF` envelope.
 
 ```json
 {

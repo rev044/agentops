@@ -81,7 +81,7 @@ All AO↔Olympus interop is limited to **three contract surfaces**:
 
 ## Olympus Role Mapping Disclaimer
 
-The "Olympus Role Mapping" column references mt-olympus role topology (`mt-olympus.md`). These roles are **target-state directional** and may not correspond 1:1 to current-state runtime entities.
+The "Olympus Role Mapping" column references mt-olympus role topology (`mt-olympus.md`). These roles are **target-state directional** and may not correspond 1:1 to current-state runtime entities. Do not assume these roles exist as current runtime processes; treat them as conceptual labels mapped to current CLI/code paths until mt-olympus promotion.
 
 ## Ownership Matrix
 
