@@ -17,10 +17,18 @@ Gate logic:
 - **WARN:** Auto-proceed. Log: "Pre-mortem: WARN -- see report for concerns"
 - **FAIL:** Retry loop (max 2 retries):
   1. Read the full pre-mortem report to extract specific failure reasons
+  1a. Extract top 5 findings with structured fields:
+      ```
+      For each finding (max 5), extract:
+        FINDING: <description> | FIX: <fix or recommendation> | REF: <ref or location>
+
+      Fallback for v1 findings: fix = finding.fix || finding.recommendation || "No fix specified"
+                                 ref = finding.ref || finding.location || "No reference"
+      ```
   2. Log: "Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"
-  3. Re-invoke `/plan` with the goal AND the failure context:
+  3. Re-invoke `/plan` with the goal AND the failure context including structured findings:
      ```
-     Skill(skill="plan", args="<goal> --auto --context 'Pre-mortem FAIL: <key concerns from report>'")
+     Skill(skill="plan", args="<goal> --auto --context 'Pre-mortem FAIL: <key concerns>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z\nFINDING: A | FIX: B | REF: C'")
      ```
   4. Re-invoke `/pre-mortem` on the new plan
   5. If still FAIL after 3 total attempts, stop with message:
@@ -61,11 +69,19 @@ Gate logic:
 - **WARN:** Auto-proceed. Log: "Vibe: WARN -- see report for concerns"
 - **FAIL:** Retry loop (max 2 retries):
   1. Read the full vibe report to extract specific failure reasons
+  1a. Extract top 5 findings with structured fields:
+      ```
+      For each finding (max 5), extract:
+        FINDING: <description> | FIX: <fix or recommendation> | REF: <ref or location>
+
+      Fallback for v1 findings: fix = finding.fix || finding.recommendation || "No fix specified"
+                                 ref = finding.ref || finding.location || "No reference"
+      ```
   2. Log: "Vibe: FAIL (attempt N/3) -- retrying crank with feedback"
-  3. Re-invoke `/crank` with the epic-id AND the failure context:
+  3. Re-invoke `/crank` with the epic-id AND the failure context including structured findings:
      ```
-     Skill(skill="crank", args="<epic-id> --context 'Vibe FAIL: <key issues from report>' --test-first")   # if --test-first set
-     Skill(skill="crank", args="<epic-id> --context 'Vibe FAIL: <key issues from report>'")                 # otherwise
+     Skill(skill="crank", args="<epic-id> --context 'Vibe FAIL: <key issues>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z' --test-first")   # if --test-first set
+     Skill(skill="crank", args="<epic-id> --context 'Vibe FAIL: <key issues>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z'")                 # otherwise
      ```
   4. Re-invoke `/vibe` on the new changes
   5. If still FAIL after 3 total attempts, stop with message:

@@ -325,7 +325,17 @@ After council verdict:
    - Run: `ao ratchet record vibe --output "<report-path>" 2>/dev/null || true`
    - Suggest: "Run /post-mortem to capture learnings and complete the cycle."
 2. If verdict is FAIL:
-   - Do NOT record. Tell user to fix issues and re-run /vibe.
+   - Do NOT record ratchet progress.
+   - Extract top 5 findings from the council report for structured retry context:
+     ```
+     Read the council report. For each finding (max 5), format as:
+     FINDING: <description> | FIX: <fix or recommendation> | REF: <ref or location>
+
+     Fallback for v1 findings (no fix/why/ref fields):
+       fix = finding.fix || finding.recommendation || "No fix specified"
+       ref = finding.ref || finding.location || "No reference"
+     ```
+   - Tell user to fix issues and re-run /vibe, including the formatted findings as actionable guidance.
 
 ---
 
