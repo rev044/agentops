@@ -2,6 +2,109 @@
 
 > Interchange formats, exit codes, and version negotiation for the Olympus (ol) ↔ AgentOps (ao) CLI bridge.
 
+## 0. Canonical Bridge Contract Surfaces (Normative)
+
+AO↔Olympus interop is limited to **three contract surfaces**:
+
+1. `INVOCATION_ENVELOPE`
+2. `STATE_CHECKPOINT_HANDOFF`
+3. `OBSERVABILITY_EVENTS`
+
+This document may define multiple payload profiles, but those profiles MUST map to one of the three surfaces above. Do not add new independent bridge surfaces without updating this section.
+
+### 0.1 `INVOCATION_ENVELOPE`
+
+Used when AO declares intent for Olympus execution (or vice versa), including skill dispatch and context/input metadata.
+
+```json
+{
+  "schema_version": 1,
+  "contract": "INVOCATION_ENVELOPE",
+  "source_system": "ao",
+  "target_system": "ol",
+  "operation": "skill.invoke",
+  "payload": {},
+  "meta": {
+    "timestamp": "2026-02-12T00:00:00Z",
+    "correlation_id": "uuid"
+  }
+}
+```
+
+### 0.2 `STATE_CHECKPOINT_HANDOFF`
+
+Used for runtime phase/checkpoint/result handoff and deterministic state transitions.
+
+```json
+{
+  "schema_version": 1,
+  "contract": "STATE_CHECKPOINT_HANDOFF",
+  "source_system": "ol",
+  "target_system": "ao",
+  "operation": "checkpoint.update",
+  "payload": {
+    "quest_id": "ol-572",
+    "phase": "VALIDATE",
+    "status": "PASS"
+  },
+  "meta": {
+    "timestamp": "2026-02-12T00:00:00Z",
+    "correlation_id": "uuid"
+  }
+}
+```
+
+### 0.3 `OBSERVABILITY_EVENTS`
+
+Used for lifecycle/audit/rollback evidence events.
+
+```json
+{
+  "schema_version": 1,
+  "contract": "OBSERVABILITY_EVENTS",
+  "source_system": "ol",
+  "target_system": "ao",
+  "operation": "event.emit",
+  "payload": {
+    "event_type": "runtime.kill_switch.enforced",
+    "severity": "warn",
+    "message": "Quest canceled and checkpoint preserved"
+  },
+  "meta": {
+    "timestamp": "2026-02-12T00:00:00Z",
+    "correlation_id": "uuid"
+  }
+}
+```
+
+### 0.4 Profile Mapping
+
+| This Section | Surface |
+|---|---|
+| Learning interchange format | `INVOCATION_ENVELOPE` |
+| Exit code contract | `STATE_CHECKPOINT_HANDOFF` |
+| Validation result format | `STATE_CHECKPOINT_HANDOFF` |
+| Storage path conventions | `INVOCATION_ENVELOPE` |
+| Lifecycle/audit/kill switch evidence | `OBSERVABILITY_EVENTS` |
+
+### 0.5 Schema v1 Baseline (Required vs Optional)
+
+For `schema_version: 1`, envelopes MUST include:
+- `schema_version` (int, required)
+- `contract` (string, required; one of `INVOCATION_ENVELOPE`, `STATE_CHECKPOINT_HANDOFF`, `OBSERVABILITY_EVENTS`)
+- `source_system` (string, required; `ao` or `ol`)
+- `target_system` (string, required; `ao` or `ol`)
+- `operation` (string, required)
+- `payload` (object, required; may be empty `{}`)
+- `meta.timestamp` (RFC3339 string, required)
+
+Envelopes SHOULD include:
+- `meta.correlation_id` (string, recommended; stable across retries)
+
+Default rules:
+- If `schema_version` is absent, treat it as `1`.
+- If `schema_version` is greater than supported, the receiver MUST emit an `OBSERVABILITY_EVENTS` error and fail closed (no checkpoint mutation).
+
 ## 1. Learning Interchange Format
 
 ### OL → AO (harvest → forge)
@@ -27,7 +130,9 @@ OL `harvestCandidate` maps to AO `Candidate` as follows:
 
 ### File Format
 
-OL harvest outputs markdown with YAML frontmatter to `.agents/learnings/`. AO `inject` discovers files at this same path. The interchange format IS the file system — both read/write `.agents/learnings/*.md`.
+OL harvest outputs markdown with YAML frontmatter to `.agents/learnings/`. AO `inject` discovers files at this same path.
+
+**Transport note:** The file system under `.agents/` is the canonical transport for this profile, but the contract surface is still `INVOCATION_ENVELOPE` (this is not an extra bridge surface).
 
 **Required frontmatter fields for AO compatibility:**
 
@@ -62,7 +167,7 @@ AO learnings with `type: failure` or `maturity: anti-pattern` can be converted t
 AO writes anti-patterns/failures to `.agents/learnings/`. OL reads constraints from `.ol/constraints/quarantine.json`. The bridge must translate between formats.
 
 <!-- FUTURE: ao export-constraints not yet implemented -->
-> **Not yet implemented:** `ao export-constraints --format=ol` — would write to `.ol/constraints/quarantine.json`.
+> **Not yet implemented:** `ao export-constraints --format=ol` — would write to `.ol/constraints/quarantine.json`. **Owner:** AO. **Migration note:** treat as Phase 2 prerequisite for AO→OL constraint propagation.
 
 ## 2. Exit Code Contract
 
@@ -94,15 +199,32 @@ When AO invokes `ol` commands:
 
 When OL dispatches to Claude Code (which runs AO skills):
 
-| AO outcome | Claude Code exit | ol interpretation |
-|------------|-----------------|-------------------|
-| Skill succeeds, artifacts written | 0 | Phase complete, advance |
-| Skill fails, no artifacts | 1 | Retry phase |
-| User cancels / context exhausted | 1 | Escalation (treat as exit 2) |
+Claude Code exit `1` is ambiguous (skill error vs user cancel/context exhaustion). Disambiguate using artifact presence:
 
-## 3. Version Negotiation
+- If **expected artifacts exist**, interpret as skill failure (retry).
+- If **no expected artifacts exist**, interpret as user cancel/context exhaustion (escalation).
 
-### Capability Query
+| AO outcome | Claude Code exit | Discriminator | ol interpretation |
+|------------|-----------------|--------------|-------------------|
+| Skill succeeds, artifacts written | 0 | N/A | Phase complete, advance |
+| Skill fails | 1 | Expected artifacts exist | Retry phase |
+| User cancels / context exhausted | 1 | No expected artifacts exist | Escalation (treat as exit 2) |
+
+## 3. Versioning and Capability Negotiation
+
+### 3.1 Schema Versioning (Normative)
+
+Bridge payload versioning uses a **monotonic integer** field: `schema_version`.
+
+Rules:
+1. Every bridge payload MUST include `schema_version`.
+2. Increment by `+1` for any contract change.
+3. Prefer additive changes.
+4. Readers MUST be default-safe when new fields are absent.
+5. Unknown fields MUST NOT fail parsing by default.
+6. Breaking changes require a dual-read compatibility window and explicit migration gate.
+
+### 3.2 Capability Query
 
 Before bridge commands call across CLIs, verify the other CLI exists and supports the expected interface:
 
@@ -114,7 +236,7 @@ ol_version=$(ol --version 2>/dev/null) || { echo "ol CLI not found"; exit 1; }
 ao_version=$(ao version 2>/dev/null) || { echo "ao CLI not found"; exit 1; }
 ```
 
-### Feature Detection
+### 3.3 Feature Detection
 
 Rather than version parsing, use feature detection:
 
@@ -129,7 +251,7 @@ ao inject --help 2>&1 | grep -q "ol-constraints" && AO_HAS_OL=true
 ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
 ```
 
-### Graceful Degradation
+### 3.4 Graceful Degradation
 
 | Missing capability | Fallback |
 |-------------------|----------|
@@ -143,20 +265,31 @@ ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
 
 ### OL Stage1Result → AO Vibe Input
 
-When `/vibe` invokes `ol validate stage1`, it reads the JSON output:
+When `/vibe` invokes `ol validate stage1`, it reads a `STATE_CHECKPOINT_HANDOFF` envelope whose payload contains the Stage1Result profile:
 
 ```json
 {
-  "quest_id": "ol-572",
-  "bead_id": "ol-572.3",
-  "worktree": "/path/to/worktree",
-  "passed": true,
-  "steps": [
-    {"name": "go build", "passed": true, "duration": "1.2s"},
-    {"name": "go vet", "passed": true, "duration": "0.8s"},
-    {"name": "go test", "passed": true, "duration": "3.4s"}
-  ],
-  "summary": "all steps passed"
+  "schema_version": 1,
+  "contract": "STATE_CHECKPOINT_HANDOFF",
+  "source_system": "ol",
+  "target_system": "ao",
+  "operation": "validate.stage1.result",
+  "payload": {
+    "quest_id": "ol-572",
+    "bead_id": "ol-572.3",
+    "worktree": "/path/to/worktree",
+    "passed": true,
+    "steps": [
+      {"name": "go build", "passed": true, "duration": "1.2s"},
+      {"name": "go vet", "passed": true, "duration": "0.8s"},
+      {"name": "go test", "passed": true, "duration": "3.4s"}
+    ],
+    "summary": "all steps passed"
+  },
+  "meta": {
+    "timestamp": "2026-02-12T00:00:00Z",
+    "correlation_id": "uuid"
+  }
 }
 ```
 

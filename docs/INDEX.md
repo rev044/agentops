@@ -11,6 +11,7 @@
 ## Architecture
 
 - [Architecture](ARCHITECTURE.md) — System design and component overview
+- [AO-Olympus Ownership Matrix](architecture/ao-olympus-ownership-matrix.md) — Responsibility split for skills, runtime, and bridge contracts
 - [PDC Framework](architecture/pdc-framework.md) — Prevent, Detect, Correct quality control approach
 - [FAAFO Alignment](architecture/faafo-alignment.md) — FAAFO promise framework for vibe coding value
 - [Failure Patterns](architecture/failure-patterns.md) — The 12 failure patterns reference guide

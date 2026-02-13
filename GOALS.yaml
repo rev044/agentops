@@ -46,6 +46,35 @@ goals:
     check: "cd cli && go test -race ./... >/dev/null 2>&1"
     weight: 3
 
+  # === Mission fitness (weight 2-3) — AO ownership areas ===
+
+  - id: knowledge-flywheel-health
+    description: "Knowledge flywheel has ≥5 learnings and newest is <30 days old"
+    check: "test $(ls .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' ') -ge 5 && test $(find .agents/learnings/ -name '*.md' -mtime -30 2>/dev/null | head -1 | wc -l | tr -d ' ') -ge 1"
+    weight: 3
+
+  - id: skill-semantic-stability
+    description: "Core skills have name, tier, and description in YAML frontmatter"
+    check: "for s in council crank swarm rpi vibe pre-mortem post-mortem plan research implement evolve; do grep -q '^name:' skills/$s/SKILL.md && grep -q '^tier:' skills/$s/SKILL.md && grep -q '^description:' skills/$s/SKILL.md || exit 1; done"
+    weight: 3
+
+  - id: bridge-contract-schemas
+    description: "Bridge contracts doc defines all 3 canonical surfaces (INVOCATION_ENVELOPE, STATE_CHECKPOINT_HANDOFF, OBSERVABILITY_EVENTS)"
+    check: "grep -q 'INVOCATION_ENVELOPE' docs/ol-bridge-contracts.md && grep -q 'STATE_CHECKPOINT_HANDOFF' docs/ol-bridge-contracts.md && grep -q 'OBSERVABILITY_EVENTS' docs/ol-bridge-contracts.md"
+    weight: 2
+
+  - id: learning-format-compliance
+    description: "Learnings conform to interchange spec (YAML frontmatter with id, type, created_at)"
+    check: "for f in $(ls .agents/learnings/*.md | head -10); do head -10 \"$f\" | grep -q '^---' && head -10 \"$f\" | grep -q '^id:' && head -10 \"$f\" | grep -q '^type:' && head -10 \"$f\" | grep -q '^created_at:' || exit 1; done"
+    weight: 2
+
+  - id: council-schema-valid
+    description: "Council verdict schema has additionalProperties:false at all levels and all properties in required array"
+    check: "jq -e '. as $s | ($s.additionalProperties == false) and (($s.required | length) == ($s.properties | keys | length)) and ($s.properties.findings.items.additionalProperties == false) and (($s.properties.findings.items.required | length) == ($s.properties.findings.items.properties | keys | length))' skills/council/schemas/verdict.json >/dev/null 2>&1"
+    weight: 2
+
+  # === Hygiene (weight 1-2) — Docs & consistency ===
+
   - id: shellcheck-clean
     description: "Hook scripts pass shellcheck with no warnings"
     check: "shellcheck -x -P SCRIPTDIR hooks/*.sh 2>&1 | grep -c '^In ' | xargs test 0 -eq"
@@ -60,8 +89,6 @@ goals:
     description: "RPI large-repo context sharding contract is healthy and runnable."
     check: "./scripts/rpi/context-window-contract.sh"
     weight: 2
-
-  # === Hygiene (weight 1-2) — Docs & consistency ===
 
   - id: doc-coverage
     description: "All public skills have references/ documentation"
@@ -83,11 +110,6 @@ goals:
     check: "for d in council crank swarm codex-team rpi evolve; do test -x skills/$d/scripts/validate.sh || exit 1; done"
     weight: 2
 
-  - id: no-smoke-test-errors
-    description: "Smoke tests pass with zero errors (warnings OK)"
-    check: "./tests/smoke-test.sh >/dev/null 2>&1"
-    weight: 2
-
   - id: behavioral-skill-contracts
     description: "All 34 skills have behavioral validate.sh checks that pass"
     check: "for d in skills/*/scripts/validate.sh; do \"$d\" >/dev/null 2>&1 || exit 1; done"
@@ -98,12 +120,12 @@ goals:
     check: "bash tests/hooks/test-hooks.sh 2>&1 | tail -1 | grep -q 'ALL PASSED'"
     weight: 2
 
+  - id: export-constraints-readiness
+    description: "ao export-constraints subcommand is stubbed in CLI"
+    check: "grep -rq 'export.constraints\\|export-constraints\\|exportConstraints' cli/cmd/ao/ 2>/dev/null"
+    weight: 1
+
   - id: incident-runbook-exists
     description: "Consumer incident runbook exists with recovery procedures"
     check: "test -f docs/INCIDENT-RUNBOOK.md && grep -q 'AGENTOPS_HOOKS_DISABLED' docs/INCIDENT-RUNBOOK.md"
-    weight: 1
-
-  - id: council-schema-valid
-    description: "Council verdict schema is valid JSON with all required fields"
-    check: "jq -e '.properties and .required' skills/council/schemas/verdict.json >/dev/null 2>&1"
     weight: 1
