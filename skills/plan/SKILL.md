@@ -1,13 +1,14 @@
 ---
 name: plan
-tier: solo
 description: 'Epic decomposition into trackable issues. Triggers: "create a plan", "plan implementation", "break down into tasks", "decompose into features", "create beads issues from research", "what issues should we create", "plan out the work".'
-dependencies:
-  - research   # optional - checks for prior research
-  - beads      # optional - creates issues via bd CLI (fallback: plain markdown plan)
-  - pre-mortem # optional - suggested before crank
-  - crank      # optional - suggested for execution
-  - implement  # optional - suggested for single issue
+metadata:
+  tier: solo
+  dependencies:
+    - research   # optional - checks for prior research
+    - beads      # optional - creates issues via bd CLI (fallback: plain markdown plan)
+    - pre-mortem # optional - suggested before crank
+    - crank      # optional - suggested for execution
+    - implement  # optional - suggested for single issue
 ---
 
 # Plan Skill
@@ -315,3 +316,37 @@ Tell the user:
 - **Identify dependencies** between issues
 - **Compute waves** for parallel execution
 - **Always write the plan** to `.agents/plans/`
+
+## Examples
+
+### Example 1: Plan from research
+```
+/plan "add user authentication"
+```
+Reads recent research from `.agents/research/`, decomposes into beads issues with dependency graph.
+
+### Example 2: Plan with auto mode
+```
+/plan --auto "refactor payment module"
+```
+Skips human gate, creates epic and issues automatically.
+
+### Example 3: Plan specific epic
+```
+/plan ag-abc "implement caching layer"
+```
+Adds child issues to existing epic ag-abc.
+
+## Troubleshooting
+
+### bd create fails
+Cause: Beads not initialized in repo.
+Solution: Run `bd init --prefix <prefix>` first.
+
+### Dependencies not created
+Cause: Issues created without explicit `bd dep add` calls.
+Solution: Verify plan output includes dependency commands. Re-run with `--auto` to regenerate.
+
+### Plan too large
+Cause: Research scope was too broad, resulting in >20 issues.
+Solution: Narrow the goal or split into multiple epics.

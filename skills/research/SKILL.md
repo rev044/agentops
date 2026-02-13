@@ -1,10 +1,11 @@
 ---
 name: research
-tier: solo
 description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
-dependencies:
-  - knowledge # optional - queries existing knowledge
-  - inject    # optional - injects prior context
+metadata:
+  tier: solo
+  dependencies:
+    - knowledge # optional - queries existing knowledge
+    - inject    # optional - injects prior context
 ---
 
 # Research Skill
@@ -268,3 +269,21 @@ Include in your Explore agent prompt:
 - "quick" - for simple questions
 - "medium" - for feature exploration
 - "very thorough" - for architecture/cross-cutting concerns
+
+## Troubleshooting
+
+### Research too shallow
+Cause: Default exploration depth insufficient for the topic.
+Solution: Re-run with broader scope or specify additional search areas: `/research "topic" --deep`.
+
+### Research output too large
+Cause: Exploration covered too many tangential areas.
+Solution: Narrow the goal to a specific question rather than a broad topic.
+
+### Missing file references
+Cause: Codebase has changed since last exploration or files are in unexpected locations.
+Solution: Use Glob to verify file locations before citing them. Always use absolute paths.
+
+### Auto mode skips important areas
+Cause: Automated exploration prioritizes breadth over depth.
+Solution: Use `--interactive` mode to guide which areas to explore deeper.

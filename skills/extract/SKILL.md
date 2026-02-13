@@ -1,9 +1,9 @@
 ---
 name: extract
-tier: background
 description: 'Extract decisions and learnings from Claude session transcripts. Triggers: "extract learnings", "process pending", SessionStart hook.'
-dependencies: []
 metadata:
+  tier: background
+  dependencies: []
   internal: true
 ---
 

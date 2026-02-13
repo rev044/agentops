@@ -211,23 +211,29 @@ for skill_dir in skills_dir.iterdir():
         skill_name = skill_dir.name
         all_skills.add(skill_name)
 
-        # Extract dependencies
+        # Extract dependencies (under metadata: per Anthropic skills spec)
         with open(skill_file) as f:
             content = f.read()
         match = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
         if match:
             yaml_content = match.group(1)
-            in_skills = False
+            in_deps = False
             deps = []
             for line in yaml_content.split('\n'):
-                if line.strip().startswith('skills:'):
-                    in_skills = True
+                stripped = line.strip()
+                if stripped.startswith('dependencies:'):
+                    in_deps = True
                     continue
-                if in_skills:
-                    if line.startswith('  - '):
-                        deps.append(line.strip('  - ').strip().strip('"').strip("'"))
-                    elif line and not line.startswith(' '):
-                        in_skills = False
+                if in_deps:
+                    if stripped.startswith('- '):
+                        dep = stripped[2:].strip().strip('"').strip("'")
+                        # Strip inline comments
+                        if '#' in dep:
+                            dep = dep[:dep.index('#')].strip()
+                        if dep:
+                            deps.append(dep)
+                    elif stripped and not stripped.startswith('-'):
+                        in_deps = False
             if deps:
                 skill_deps[skill_name] = deps
 

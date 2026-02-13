@@ -107,10 +107,10 @@ get_declared_dependencies() {
         return 1
     fi
 
-    # Extract YAML frontmatter, find dependencies: section
+    # Extract YAML frontmatter, find dependencies: section (under metadata:)
     # Handle multi-line list format, strip inline comments
     sed -n '/^---$/,/^---$/p' "$skill_md" | \
-        awk '/^dependencies:/{found=1; next} found && /^[^ -]/{exit} found && /^  - /{print substr($0, 5)}' | \
+        awk '/^[[:space:]]*dependencies:/{found=1; next} found && /^[[:space:]]{0,3}[^ -]/{exit} found && /^[[:space:]]*- /{gsub(/^[[:space:]]*- /, ""); print}' | \
         sed 's/#.*//' | \
         tr -d ' '
 }

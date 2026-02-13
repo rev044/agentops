@@ -1,9 +1,9 @@
 ---
 name: using-agentops
-tier: meta
 description: 'Meta skill explaining the RPI workflow. Auto-injected on session start. Covers Research-Plan-Implement workflow, Knowledge Flywheel, and skill catalog.'
-dependencies: []
 metadata:
+  tier: meta
+  dependencies: []
   internal: true
 ---
 

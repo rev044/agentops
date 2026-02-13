@@ -1,10 +1,11 @@
 ---
 name: implement
-tier: team
 description: 'Execute a single beads issue with full lifecycle. Triggers: "implement", "work on task", "fix bug", "start feature", "pick up next issue".'
-dependencies:
-  - beads     # optional - for issue tracking via bd CLI
-  - standards # loads language-specific standards
+metadata:
+  tier: team
+  dependencies:
+    - beads     # optional - for issue tracking via bd CLI
+    - standards # loads language-specific standards
 ---
 
 # Implement Skill
@@ -303,3 +304,37 @@ Distributed mode enhances /implement with real-time coordination via MCP Agent M
 
 - **Agent Mail Protocol:** See `skills/shared/agent-mail-protocol.md` for message format specifications
 - **Parser (Go):** `cli/internal/agentmail/` - shared parser for all message types
+
+## Examples
+
+### Example 1: Implement a specific issue
+```
+/implement ag-5k2
+```
+Reads issue details from beads, enters GREEN mode, implements with verification gate.
+
+### Example 2: Pick up next available work
+```
+/implement
+```
+Runs `bd ready` to find the next unblocked issue and implements it.
+
+### Example 3: Implement with context
+```
+/implement ag-5k2 --context "Uses the new auth middleware from ag-5k1"
+```
+Provides implementation context from a related issue.
+
+## Troubleshooting
+
+### Issue not found
+Cause: Issue ID doesn't exist or beads not synced.
+Solution: Run `bd sync` then `bd show <id>` to verify.
+
+### GREEN mode violation
+Cause: Edited a file not related to the issue scope.
+Solution: Revert unrelated changes. GREEN mode restricts edits to files relevant to the issue.
+
+### Verification gate fails
+Cause: Tests fail or build breaks after implementation.
+Solution: Read the verification output, fix the specific failures, re-run verification.

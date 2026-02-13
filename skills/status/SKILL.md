@@ -1,8 +1,9 @@
 ---
 name: status
-tier: solo
 description: 'Single-screen dashboard showing current work, recent validations, flywheel health, and suggested next action. Triggers: "status", "dashboard", "what am I working on", "where was I".'
-dependencies: []
+metadata:
+  tier: solo
+  dependencies: []
 ---
 
 # /status — Workflow Dashboard

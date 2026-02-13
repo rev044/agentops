@@ -1,11 +1,12 @@
 ---
 name: post-mortem
-tier: solo
 description: 'Wrap up completed work. Council validates the implementation, then extract learnings. Triggers: "post-mortem", "wrap up", "close epic", "what did we learn".'
-dependencies:
-  - council  # multi-model judgment
-  - retro    # optional - extracts learnings (graceful skip on failure)
-  - beads    # optional - for issue status
+metadata:
+  tier: solo
+  dependencies:
+    - council  # multi-model judgment
+    - retro    # optional - extracts learnings (graceful skip on failure)
+    - beads    # optional - for issue status
 ---
 
 # Post-Mortem Skill

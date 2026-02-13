@@ -1,9 +1,9 @@
 ---
 name: forge
-tier: background
 description: 'Mine transcripts for knowledge - decisions, learnings, failures, patterns. Triggers: "forge insights", "mine transcripts", "extract knowledge".'
-dependencies: []
 metadata:
+  tier: background
+  dependencies: []
   internal: true
 ---
 

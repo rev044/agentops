@@ -1,15 +1,16 @@
 ---
 name: evolve
 description: Autonomous fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi, compounds via knowledge flywheel.
-tier: orchestration
-dependencies:
-  - rpi         # required - executes each improvement cycle
-  - post-mortem # required - auto-runs at teardown to harvest learnings
-triggers:
-  - evolve
-  - improve everything
-  - autonomous improvement
-  - run until done
+metadata:
+  tier: orchestration
+  dependencies:
+    - rpi         # required - executes each improvement cycle
+    - post-mortem # required - auto-runs at teardown to harvest learnings
+  triggers:
+    - evolve
+    - improve everything
+    - autonomous improvement
+    - run until done
 ---
 
 # /evolve — Autonomous Compounding Loop

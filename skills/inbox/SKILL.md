@@ -1,8 +1,9 @@
 ---
 name: inbox
-tier: solo
 description: 'Agent Mail inbox monitoring. Check pending messages, HELP_REQUESTs, and recent completions. Triggers: "inbox", "check mail", "any messages", "show inbox", "pending messages", "who needs help".'
-dependencies: []
+metadata:
+  tier: solo
+  dependencies: []
 ---
 
 # Inbox Skill

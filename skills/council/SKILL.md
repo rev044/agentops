@@ -1,10 +1,11 @@
 ---
 name: council
-tier: orchestration
 description: 'Multi-model consensus council for validation, research, and brainstorming. Spawns parallel judges with configurable perspectives and optional explorer sub-agents using runtime-native backends (Codex sub-agents or Claude teams). Modes: validate, brainstorm, research. Triggers: council, validate, brainstorm, critique, research, analyze, multi-model, consensus.'
-dependencies:
-  - standards   # optional - loaded for code validation context
-replaces: judge
+metadata:
+  tier: orchestration
+  dependencies:
+    - standards   # optional - loaded for code validation context
+  replaces: judge
 ---
 
 # /council — Multi-Model Consensus Council

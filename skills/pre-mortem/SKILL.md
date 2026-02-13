@@ -1,9 +1,10 @@
 ---
 name: pre-mortem
-tier: solo
 description: 'Validate a plan or spec before implementation using multi-model council. Answer: Is this good enough to implement? Triggers: "pre-mortem", "validate plan", "validate spec", "is this ready".'
-dependencies:
-  - council  # multi-model judgment
+metadata:
+  tier: solo
+  dependencies:
+    - council  # multi-model judgment
 ---
 
 # Pre-Mortem Skill

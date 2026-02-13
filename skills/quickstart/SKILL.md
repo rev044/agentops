@@ -1,8 +1,9 @@
 ---
 name: quickstart
-tier: solo
 description: 'Interactive onboarding for new users. Guided RPI cycle on your actual codebase in under 10 minutes. Triggers: "quickstart", "get started", "onboarding", "how do I start".'
-dependencies: []
+metadata:
+  tier: solo
+  dependencies: []
 ---
 
 # /quickstart — Get Started

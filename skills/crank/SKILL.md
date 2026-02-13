@@ -1,13 +1,14 @@
 ---
 name: crank
-tier: orchestration
-description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm with runtime-native spawning (Codex sub-agents or Claude teams). Distributed mode uses /swarm --mode=distributed (tmux + Agent Mail) for persistence and coordination. NO human prompts, NO stopping.'
-dependencies:
-  - swarm       # required - executes each wave
-  - vibe        # required - final validation
-  - implement   # required - individual issue execution
-  - beads       # optional - issue tracking via bd CLI (fallback: TaskList)
-  - post-mortem # optional - suggested for learnings extraction
+description: 'Fully autonomous epic execution. Runs until ALL children are CLOSED. Local mode uses /swarm with runtime-native spawning (Codex sub-agents or Claude teams). Distributed mode uses /swarm --mode=distributed (tmux + Agent Mail) for persistence and coordination. NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "autonomous execution", "crank it".'
+metadata:
+  tier: orchestration
+  dependencies:
+    - swarm       # required - executes each wave
+    - vibe        # required - final validation
+    - implement   # required - individual issue execution
+    - beads       # optional - issue tracking via bd CLI (fallback: TaskList)
+    - post-mortem # optional - suggested for learnings extraction
 ---
 
 # Crank Skill

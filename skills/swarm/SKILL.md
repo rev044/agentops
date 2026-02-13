@@ -1,10 +1,11 @@
 ---
 name: swarm
-tier: orchestration
 description: 'Spawn isolated agents for parallel task execution. Local mode auto-selects Codex sub-agents or Claude teams. Distributed mode uses tmux + Agent Mail (process isolation, persistence). Triggers: "swarm", "spawn agents", "parallel work".'
-dependencies:
-  - implement # required - executes `/implement <bead-id>` in distributed mode
-  - vibe      # optional - integration with validation
+metadata:
+  tier: orchestration
+  dependencies:
+    - implement # required - executes `/implement <bead-id>` in distributed mode
+    - vibe      # optional - integration with validation
 ---
 
 # Swarm Skill
@@ -295,3 +296,23 @@ ol hero ratchet "$BEAD_ID" --quest "$QUEST_ID"
 - **Validation Contract:** `skills/swarm/references/validation-contract.md`
 - **Agent Mail Protocol:** See `skills/shared/agent-mail-protocol.md` for message format specifications
 - **Parser (Go):** `cli/internal/agentmail/` - shared parser for all message types
+
+---
+
+## Troubleshooting
+
+### Workers produce file conflicts
+Cause: Multiple workers editing the same file in parallel.
+Solution: Use wave decomposition to group workers by file scope. Homogeneous waves (all Go, all docs) prevent conflicts.
+
+### Team creation fails
+Cause: Stale team from prior session not cleaned up.
+Solution: Run `rm -rf ~/.claude/teams/<team-name>` then retry.
+
+### Codex agents unavailable
+Cause: `codex` CLI not installed or API key not configured.
+Solution: Run `which codex` to verify installation. Check `~/.codex/config.toml` for API credentials.
+
+### Workers timeout or hang
+Cause: Worker task too large or blocked on external dependency.
+Solution: Break tasks into smaller units. Add timeout metadata to worker tasks.

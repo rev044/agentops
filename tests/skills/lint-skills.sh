@@ -49,10 +49,11 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     frontmatter=$(awk 'BEGIN{n=0} /^---$/{n++; if(n==2) exit; next} n==1{print}' "$skill_md")
 
     tier=""
-    if echo "$frontmatter" | grep -q '^tier:'; then
-        tier=$(echo "$frontmatter" | grep '^tier:' | head -1 | sed 's/^tier:[[:space:]]*//' | tr -d '\r')
+    # tier is now under metadata: per Anthropic skills spec
+    if echo "$frontmatter" | grep -q '^[[:space:]]*tier:'; then
+        tier=$(echo "$frontmatter" | grep '^[[:space:]]*tier:' | head -1 | sed 's/^[[:space:]]*tier:[[:space:]]*//' | tr -d '\r')
     else
-        fail "$skill_name" "missing 'tier:' in YAML frontmatter"
+        fail "$skill_name" "missing 'tier:' in YAML frontmatter (under metadata:)"
         skill_ok=false
     fi
 

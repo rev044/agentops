@@ -1,9 +1,9 @@
 ---
 name: standards
-tier: library
 description: 'Language-specific coding standards and validation rules. Provides Python, Go, Rust, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded by /vibe, /implement, /doc, /bug-hunt, /complexity based on file types.'
-dependencies: []
 metadata:
+  tier: library
+  dependencies: []
   internal: true
 ---
 
@@ -18,8 +18,9 @@ references that other skills load based on file types being processed.
 
 ## Standards Available
 
-| Language | Reference | Loaded By |
+| Standard | Reference | Loaded By |
 |----------|-----------|-----------|
+| Skill Structure | `references/skill-structure.md` | vibe (skill audits), doc (skill creation) |
 | Python | `references/python.md` | vibe, implement, complexity |
 | Go | `references/go.md` | vibe, implement, complexity |
 | Rust | `references/rust.md` | vibe, implement, complexity |

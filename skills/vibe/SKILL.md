@@ -1,11 +1,12 @@
 ---
 name: vibe
-tier: solo
 description: 'Comprehensive code validation. Runs complexity analysis then multi-model council. Answer: Is this code ready to ship? Triggers: "vibe", "validate code", "check code", "review code", "is this ready".'
-dependencies:
-  - council    # multi-model judgment
-  - complexity # complexity analysis
-  - standards  # loaded for language-specific context
+metadata:
+  tier: solo
+  dependencies:
+    - council    # multi-model judgment
+    - complexity # complexity analysis
+    - standards  # loaded for language-specific context
 ---
 
 # Vibe Skill

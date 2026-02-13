@@ -1,8 +1,9 @@
 ---
 name: release
-tier: solo
 description: 'Release your software. Pre-flight validation, changelog generation, version bumps, release commit, tag, draft GitHub Release. Boundary: everything up to the git tag. Triggers: "release", "cut a release", "prepare release", "release check".'
-dependencies: []
+metadata:
+  tier: solo
+  dependencies: []
 ---
 
 # Release Skill

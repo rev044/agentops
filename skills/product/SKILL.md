@@ -1,8 +1,9 @@
 ---
 name: product
-tier: solo
 description: 'Interactive PRODUCT.md generation. Interviews you about mission, personas, value props, and competitive landscape, then generates a filled-in PRODUCT.md. Triggers: "product", "create product doc", "product definition", "who is this for".'
-dependencies: []
+metadata:
+  tier: solo
+  dependencies: []
 ---
 
 # /product — Interactive PRODUCT.md Generation

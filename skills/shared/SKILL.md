@@ -1,8 +1,8 @@
 ---
 name: shared
-tier: library
 description: Shared reference documents for distributed mode skills (not directly invocable)
 metadata:
+  tier: library
   internal: true
 ---
 

@@ -76,9 +76,9 @@ for skill_dir in "$SKILLS_DIR"/*/; do
         continue
     fi
 
-    # Check declared dependencies exist
+    # Check declared dependencies exist (now under metadata: per Anthropic spec)
     dep_list=$(sed -n '/^---$/,/^---$/p' "$skill_md" | \
-        awk '/^dependencies:/{found=1; next} found && /^[^ -]/{exit} found && /^  - /{print substr($0, 5)}' | \
+        awk '/^[[:space:]]*dependencies:/{found=1; next} found && /^[[:space:]]{0,3}[^ -]/{exit} found && /^[[:space:]]*- /{gsub(/^[[:space:]]*- /, ""); print}' | \
         sed 's/#.*//' | tr -d ' ')
     if [ -n "$dep_list" ]; then
         while IFS= read -r dep; do
