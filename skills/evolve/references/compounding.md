@@ -33,5 +33,9 @@ The loop keeps running as long as post-mortem keeps finding follow-up work. Each
 ```
 GOALS.yaml goals (explicit, human-authored)  → fix these first
 next-work.jsonl (harvested from post-mortem) → work on these when goals pass
-nothing left                                 → stop (human re-evaluates)
+nothing left                                 → re-measure (external changes may create new work)
+3 consecutive idle cycles                    → stagnation stop (nothing left to improve)
+kill switch                                  → immediate stop
 ```
+
+The loop does NOT stop just because goals are met. It re-measures, checks for harvested work, and only stops after 3 consecutive cycles with truly nothing to do. Use the kill switch for intentional stops.

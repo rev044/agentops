@@ -22,7 +22,7 @@ Thin fitness-scored loop over `/rpi`. The knowledge flywheel provides compoundin
 ## Quick Start
 
 ```bash
-/evolve                      # Run until all goals met or --max-cycles hit
+/evolve                      # Run forever until kill switch or stagnation
 /evolve --max-cycles=5       # Cap at 5 improvement cycles
 /evolve --dry-run            # Measure fitness, show what would be worked on, don't execute
 ```
@@ -43,7 +43,7 @@ ao inject 2>/dev/null || true
 ```
 
 Parse flags:
-- `--max-cycles=N` (default: 10) — hard cap on improvement cycles
+- `--max-cycles=N` (default: **unlimited**) — optional hard cap. Without this flag, the loop runs **forever** until kill switch or stagnation.
 - `--dry-run` — measure and report only, no execution
 
 **Capture session-start SHA** (for multi-commit revert):
@@ -55,10 +55,12 @@ Initialize state:
 ```
 evolve_state = {
   cycle: 0,
-  max_cycles: <from flag, default 10>,
+  max_cycles: <from flag, or Infinity if not set>,
   dry_run: <from flag, default false>,
   test_first: <from flag, default false>,
   session_start_sha: $SESSION_START_SHA,
+  idle_streak: 0,         # consecutive cycles with nothing to do
+  max_idle_streak: 3,     # stop after this many consecutive idle cycles
   history: []
 }
 ```
@@ -139,10 +141,11 @@ Do NOT proceed to Step 3 without a valid fitness snapshot.
 failing_goals = [g for g in goals if g.result == "fail"]
 
 if not failing_goals:
-  # Before stopping, check harvested work from prior /rpi cycles
+  # All goals pass — check harvested work from prior /rpi cycles
   if [ -f .agents/rpi/next-work.jsonl ]; then
     items = read_unconsumed(next-work.jsonl)  # entries with consumed: false
     if items:
+      evolve_state.idle_streak = 0  # reset — we found work
       selected_item = max(items, by=severity)  # highest severity first
       log "All goals met. Picking harvested work: {selected_item.title}"
       # Execute as an /rpi cycle (Step 4), then mark consumed
@@ -153,8 +156,20 @@ if not failing_goals:
       log_cycle(cycle, goal_id="next-work:{selected_item.title}", result="harvested")
       continue loop  # → Step 1 (kill switch check)
 
-  log "All goals met, no harvested work. Done."
-  STOP → go to Teardown
+  # Nothing to do THIS cycle — but don't quit yet
+  evolve_state.idle_streak += 1
+  log "All goals met, no harvested work. Idle streak: {idle_streak}/{max_idle_streak}"
+
+  if evolve_state.idle_streak >= evolve_state.max_idle_streak:
+    log "Stagnation: {max_idle_streak} consecutive idle cycles. Nothing left to improve."
+    STOP → go to Teardown
+
+  # NOT stagnant yet — re-measure next cycle (external changes, new harvested work)
+  log "Re-measuring next cycle in case conditions changed..."
+  continue loop  # → Step 1 (kill switch check)
+
+# We have failing goals — reset idle streak
+evolve_state.idle_streak = 0
 
 # Sort by weight (highest priority first)
 failing_goals.sort(by=weight, descending)
@@ -271,11 +286,12 @@ Append to `.agents/evolve/cycle-history.jsonl`:
 ```
 evolve_state.cycle += 1
 
-if evolve_state.cycle >= evolve_state.max_cycles:
+# Only stop for max-cycles if the user explicitly set one
+if evolve_state.max_cycles != Infinity and evolve_state.cycle >= evolve_state.max_cycles:
   log "Max cycles ({max_cycles}) reached."
   STOP → go to Teardown
 
-# Otherwise: loop back to Step 1 (kill switch check)
+# Otherwise: loop back to Step 1 (kill switch check) — run forever
 ```
 
 ### Teardown
@@ -361,7 +377,7 @@ rm .agents/evolve/STOP
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--max-cycles=N` | 10 | Hard cap on improvement cycles per session |
+| `--max-cycles=N` | unlimited | Optional hard cap. Without this, loop runs forever. |
 | `--test-first` | off | Pass `--test-first` through to `/rpi` → `/crank` |
 | `--dry-run` | off | Measure fitness and show plan, don't execute |
 
@@ -390,7 +406,7 @@ Read `references/goals-schema.md` for the GOALS.yaml format.
 
 ## Examples
 
-### Autonomous Improvement Until Goals Met
+### Infinite Autonomous Improvement
 
 **User says:** `/evolve`
 
@@ -402,9 +418,12 @@ Read `references/goals-schema.md` for the GOALS.yaml format.
 5. Agent re-measures fitness post-cycle (test-pass-rate now passing, all others unchanged)
 6. Agent logs cycle to history, increments cycle counter
 7. Agent loops to next cycle, selects next failing goal
-8. After 5 cycles, all goals met. Agent runs `/post-mortem`, writes session summary
+8. After all goals pass, agent checks harvested work from post-mortem — finds 3 items
+9. Agent works through harvested items, each generating more via post-mortem
+10. After 3 consecutive idle cycles (no failing goals, no harvested work), agent runs `/post-mortem` and writes session summary
+11. To stop earlier: create `~/.config/evolve/KILL` or `.agents/evolve/STOP`
 
-**Result:** Autonomous compounding loop improves repo until all fitness goals pass.
+**Result:** Runs forever — fixing goals, consuming harvested work, re-measuring. Only stops on kill switch or stagnation (3 idle cycles).
 
 ### Dry-Run Mode
 
@@ -443,6 +462,7 @@ Read `references/goals-schema.md` for the GOALS.yaml format.
 | Cycle completes but fitness unchanged | Goal check command is always passing or always failing | Verify check command logic in GOALS.yaml produces exit code 0 (pass) or non-zero (fail) |
 | Regression revert fails | Multiple commits in cycle or uncommitted changes | Check cycle-start SHA in fitness snapshot, commit or stash changes before retrying |
 | Harvested work never consumed | All goals passing but `next-work.jsonl` not read | Check file exists and has `consumed: false` entries. Agent picks harvested work after goals met. |
+| Loop stops after N cycles | `--max-cycles` was set (or old default of 10) | Omit `--max-cycles` flag — default is now unlimited. Loop runs until kill switch or 3 idle cycles. |
 
 ---
 
