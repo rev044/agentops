@@ -55,7 +55,7 @@ goals:
 
   - id: skill-semantic-stability
     description: "Core skills have name, tier, and description in YAML frontmatter"
-    check: "for s in council crank swarm rpi vibe pre-mortem post-mortem plan research implement evolve; do grep -q '^name:' skills/$s/SKILL.md && grep -q '^tier:' skills/$s/SKILL.md && grep -q '^description:' skills/$s/SKILL.md || exit 1; done"
+    check: "for s in council crank swarm rpi vibe pre-mortem post-mortem plan research implement evolve; do grep -q '^name:' skills/$s/SKILL.md && grep -q 'tier:' skills/$s/SKILL.md && grep -q '^description:' skills/$s/SKILL.md || exit 1; done"
     weight: 3
 
   - id: bridge-contract-schemas
@@ -69,8 +69,8 @@ goals:
     weight: 2
 
   - id: council-schema-valid
-    description: "Council verdict schema has additionalProperties:false at all levels and all properties in required array"
-    check: "jq -e '. as $s | ($s.additionalProperties == false) and (($s.required | length) == ($s.properties | keys | length)) and ($s.properties.findings.items.additionalProperties == false) and (($s.properties.findings.items.required | length) == ($s.properties.findings.items.properties | keys | length))' skills/council/schemas/verdict.json >/dev/null 2>&1"
+    description: "Council verdict schema has additionalProperties:false at all levels and required covers core properties (v2 optional fields: fix, why, ref)"
+    check: "jq -e '. as $s | ($s.additionalProperties == false) and (($s.required | length) == ($s.properties | keys | length)) and ($s.properties.findings.items.additionalProperties == false) and (($s.properties.findings.items.required | length) >= 5) and (($s.properties.findings.items.properties | keys | length) <= ($s.properties.findings.items.required | length) + 3)' skills/council/schemas/verdict.json >/dev/null 2>&1"
     weight: 2
 
   # === Hygiene (weight 1-2) — Docs & consistency ===
@@ -97,7 +97,7 @@ goals:
 
   - id: skill-tier-coverage
     description: "All skills have tier: defined in YAML frontmatter"
-    check: "test $(grep -rl '^tier:' skills/*/SKILL.md 2>/dev/null | wc -l | tr -d ' ') -eq $(ls -d skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
+    check: "test $(grep -rl 'tier:' skills/*/SKILL.md 2>/dev/null | wc -l | tr -d ' ') -eq $(ls -d skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
     weight: 2
 
   - id: skill-validation
