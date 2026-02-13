@@ -49,7 +49,7 @@ Based on what quickstart found, pick your next action:
 - **Want to understand the codebase?** Run `/research` for a deep dive
 - **Have a goal to accomplish?** Run `/plan "your goal"` to decompose it
 - **Ready to validate code?** Run `/vibe recent` for a full review
-- **Have a multi-step epic?** Run `/crank` for autonomous execution
+- **Have a multi-step epic?** Run `/crank` for hands-free execution
 - **Want cross-model validation?** Run `/council --mixed` for Claude + Codex review
 
 ## The RPI Lifecycle

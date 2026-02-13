@@ -61,7 +61,7 @@ Your Assignment: Task #<id>: <subject>
 <description>
 
 Instructions:
-1. Execute your pre-assigned task autonomously — create/edit files as needed, verify your work
+1. Execute your pre-assigned task independently — create/edit files as needed, verify your work
 2. When done, mark complete: TaskUpdate(taskId=\"<id>\", status=\"completed\")
 3. Send completion message to team lead with summary of what you did
 4. If blocked, message team lead explaining the issue

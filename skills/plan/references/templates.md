@@ -303,7 +303,7 @@ bd mol pour {topic-slug} --var service_name=rate-limiter
 ```
 
 ## Next Steps
-Run `/crank <epic-id>` for autonomous execution, or `/implement-wave <epic-id>` for supervised.
+Run `/crank <epic-id>` for hands-free execution, or `/implement-wave <epic-id>` for supervised.
 ```
 
 ---
