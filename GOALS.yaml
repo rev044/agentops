@@ -125,7 +125,7 @@ goals:
     weight: 3
     pillar: zero-friction-workflow
 
-  # === Critical (weight 5) — Build & test integrity ===
+  # === Critical (weight 5) — Build & test integrity (infrastructure — no pillar tag by design) ===
 
   - id: go-cli-builds
     description: "Go CLI compiles without errors"
@@ -137,7 +137,7 @@ goals:
     check: "cd cli && go test ./... >/dev/null 2>&1"
     weight: 5
 
-  # === Important (weight 3-4) — Suite & safety ===
+  # === Important (weight 3-4) — Suite & safety (infrastructure — no pillar tag by design) ===
 
   - id: full-test-suite
     description: "Full test suite passes (all tiers)"
@@ -169,11 +169,11 @@ goals:
     check: "cd cli && go test -race ./... >/dev/null 2>&1"
     weight: 3
 
-  # === Mission fitness (weight 2-3) — AO ownership areas ===
+  # === Mission fitness (weight 2-3) — AO ownership areas (infrastructure — no pillar tag by design) ===
 
   - id: knowledge-flywheel-health
     description: "Knowledge flywheel has ≥5 learnings and newest is <30 days old"
-    check: "test $(ls .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' ') -ge 5 && test $(find .agents/learnings/ -name '*.md' -mtime -30 2>/dev/null | head -1 | wc -l | tr -d ' ') -ge 1"
+    check: "test $(ls .agents/learnings/*.md 2>/dev/null | wc -l | tr -d ' ') -ge 5 && test $(find .agents/learnings/ -name '*.md' -mtime -30 2>/dev/null | wc -l | tr -d ' ') -ge 1"
     weight: 3
 
   - id: skill-semantic-stability
@@ -196,7 +196,7 @@ goals:
     check: "jq -e '. as $s | ($s.additionalProperties == false) and (($s.required | length) == ($s.properties | keys | length)) and ($s.properties.findings.items.additionalProperties == false) and (($s.properties.findings.items.required | length) >= 5) and (($s.properties.findings.items.properties | keys | length) <= ($s.properties.findings.items.required | length) + 3)' skills/council/schemas/verdict.json >/dev/null 2>&1"
     weight: 2
 
-  # === Hygiene (weight 1-2) — Docs & consistency ===
+  # === Hygiene (weight 1-2) — Docs & consistency (infrastructure — no pillar tag by design) ===
 
   - id: shellcheck-clean
     description: "Hook scripts pass shellcheck with no warnings"
