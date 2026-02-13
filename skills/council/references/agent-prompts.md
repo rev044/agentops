@@ -199,7 +199,10 @@ You have received {N} judge reports from {VENDORS}.
 
 Synthesize into a final council report.
 
-Ensure all consolidated findings have fix/why/ref populated. If a judge omitted these fields, infer them from the judge's analysis. Use fallback: fix = finding.recommendation if fix is missing.
+Ensure all consolidated findings have fix/why/ref populated. If a judge omitted these fields, infer them from the judge's analysis. Use fallbacks:
+- fix = finding.fix || finding.recommendation || "No fix specified"
+- why = finding.why || "No root cause specified"
+- ref = finding.ref || finding.location || "No reference"
 
 For validate mode:
 1. **Consensus Verdict**: PASS if all PASS, FAIL if any FAIL, else WARN

@@ -240,7 +240,7 @@ If `.agents/ao/environment.json` exists, include it in the context packet so jud
         }
       ],
       "recommendation": "Concrete next step",
-      "schema_version": 1
+      "schema_version": 2
     }
   }
 }
