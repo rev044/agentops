@@ -20,6 +20,11 @@ Instructions:
 
 Your job is to find problems. A PASS with caveats is less valuable than a specific FAIL.
 
+For every finding, include these structured remediation fields:
+- fix: Specific action to resolve this finding
+- why: Root cause or rationale
+- ref: File path, spec anchor, or doc reference that supports this finding
+
 When sending your verdict to the team lead, use the structured envelope format.
 Your message MUST start with a JSON code block:
 
@@ -50,6 +55,11 @@ You are a teammate on team "{TEAM_NAME}".
 {JSON_PACKET}
 
 Your angle: {PERSPECTIVE_DESCRIPTION}
+
+For every finding, include these structured remediation fields:
+- fix: Specific action to resolve this finding
+- why: Root cause or rationale
+- ref: File path, spec anchor, or doc reference that supports this finding
 
 Instructions:
 1. Analyze the target from your perspective
@@ -188,6 +198,8 @@ You have received {N} judge reports from {VENDORS}.
 ## Your Task
 
 Synthesize into a final council report.
+
+Ensure all consolidated findings have fix/why/ref populated. If a judge omitted these fields, infer them from the judge's analysis. Use fallback: fix = finding.recommendation if fix is missing.
 
 For validate mode:
 1. **Consensus Verdict**: PASS if all PASS, FAIL if any FAIL, else WARN

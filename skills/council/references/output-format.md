@@ -24,9 +24,11 @@
 
 ### Shared Findings
 
-- JWT implementation follows best practices
-- Refresh token rotation is correctly implemented
-- Test coverage is adequate
+| Finding | Severity | Fix | Ref |
+|---------|----------|-----|-----|
+| JWT implementation follows best practices | minor | No action needed | src/auth/jwt.py:15 |
+| Refresh token rotation is correctly implemented | minor | No action needed | src/auth/refresh.py:42 |
+| Rate limiting missing on auth endpoints | significant | Add rate limiting middleware to /auth/* routes | OWASP Authentication Cheatsheet |
 
 ### Disagreements
 

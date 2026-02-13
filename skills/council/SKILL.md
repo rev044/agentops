@@ -233,7 +233,10 @@ If `.agents/ao/environment.json` exists, include it in the context packet so jud
           "category": "security | architecture | performance | style",
           "description": "What was found",
           "location": "file:line if applicable",
-          "recommendation": "How to address"
+          "recommendation": "How to address",
+          "fix": "Specific action to resolve this finding",
+          "why": "Root cause or rationale",
+          "ref": "File path, spec anchor, or doc reference"
         }
       ],
       "recommendation": "Concrete next step",

@@ -173,6 +173,41 @@ for skill_dir in "$SKILLS_DIR"/*/; do
         done <<< "$ref_paths"
     fi
 
+    # --- (g) Verdict schema v2 validation ---
+    if [ "$skill_name" = "council" ]; then
+        verdict_schema="$skill_dir/schemas/verdict.json"
+        if [ -f "$verdict_schema" ]; then
+            # Check fix/why/ref fields exist in findings items
+            for field in fix why ref; do
+                if ! grep -q "\"$field\"" "$verdict_schema" 2>/dev/null; then
+                    fail "$skill_name" "verdict.json missing '$field' field in findings items (schema v2)"
+                    skill_ok=false
+                fi
+            done
+            # Check schema_version allows value 2
+            if ! grep -q '"enum"' "$verdict_schema" 2>/dev/null || ! grep -q '2' "$verdict_schema" 2>/dev/null; then
+                fail "$skill_name" "verdict.json schema_version doesn't allow value 2"
+                skill_ok=false
+            fi
+            # Check fix/why/ref are NOT in findings required array (backward compat)
+            # Extract the required array from findings items
+            findings_required=$(python3 -c "
+import json, sys
+with open('$verdict_schema') as f:
+    schema = json.load(f)
+items_req = schema.get('properties', {}).get('findings', {}).get('items', {}).get('required', [])
+for r in items_req:
+    print(r)
+" 2>/dev/null || true)
+            for field in fix why ref; do
+                if echo "$findings_required" | grep -qx "$field" 2>/dev/null; then
+                    fail "$skill_name" "verdict.json '$field' should NOT be in findings required array (backward compat)"
+                    skill_ok=false
+                fi
+            done
+        fi
+    fi
+
     if $skill_ok; then
         PASSED=$((PASSED + 1))
         echo -e "  ${GREEN}✓${NC} $skill_name (tier=$tier, ${line_count} lines)"
