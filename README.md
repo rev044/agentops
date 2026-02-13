@@ -87,6 +87,22 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ---
 
+## The Path
+
+```
+/quickstart                          ← first session: guided tour on your codebase
+    │
+/council, /research, /vibe           ← use skills standalone, learn the pieces
+    │
+/rpi "goal"                          ← full lifecycle: research → ship → learn
+    │
+/evolve                              ← define goals, let the system improve itself
+```
+
+Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. Set `GOALS.yaml` and let `/evolve` compound from there.
+
+---
+
 ## See It Work
 
 ```
