@@ -28,8 +28,19 @@ AgentOps makes every coding session compound. It researches, plans, validates th
 - **Validates at every stage.** Multi-model councils judge plans before coding and code before shipping. Failures retry with failure context — no human escalation.
 - **Compounds intelligence.** Post-mortem extracts what worked, what didn't, and how to improve the tools themselves. Then it suggests the next `/rpi` command. The system improves its own skills.
 - **One command, six phases.** `/rpi "goal"` runs the full lifecycle hands-free. Or use any skill standalone — `/council validate this PR` works with zero setup.
+- **Enforces its own workflow.** 12 hooks block bad pushes, enforce lead-only commits, gate `/crank` on `/pre-mortem`, and auto-inject language-specific standards. The system doesn't just suggest good practice — it requires it.
 
 Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local.
+
+---
+
+## Who This Is For
+
+**Solo developers** who ship fast but skip validation — or burn hours doing it manually. AgentOps runs `/rpi` end-to-end so you get multi-model code review, retry-on-failure, and knowledge that persists across sessions. No team required.
+
+**Tech leads scaling agent work** across a backlog. `/crank` runs parallel waves with fresh context per worker. `/status` shows what's in flight. `/post-mortem` captures what the system learned so the next cycle doesn't repeat mistakes. You manage the roadmap, not the agents.
+
+**Quality-focused maintainers** who need high-confidence releases without manual regression hunting. `/pre-mortem` catches plan gaps before coding starts. `/vibe` validates code before push. The knowledge flywheel preserves institutional knowledge even when team members change.
 
 ---
 
@@ -189,11 +200,45 @@ This is what makes AgentOps different. The system doesn't just run — it compou
 
 Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system grows its knowledge stock with each cycle.
 
-**Or automate the whole thing:** `/evolve` reads `GOALS.yaml`, measures fitness, picks the worst failing goal, runs a full `/rpi` cycle, re-measures, and loops — compounding improvements until all goals pass or the cycle cap is hit. Each cycle loads learnings from all prior cycles via the flywheel. You define the goals; the system does the rest.
+### Goal-Driven Mode: `/evolve`
+
+Define what "done" looks like in `GOALS.yaml` — a quality contract with measurable goals and priority weights:
+
+```yaml
+goals:
+  - id: test-pass-rate
+    description: "All tests pass"
+    check: "go test ./..."       # exit 0 = pass
+    weight: 10                   # fix this first
+  - id: doc-coverage
+    description: "All public skills have reference docs"
+    check: "test $(ls -d skills/*/references/ | wc -l) -ge 16"
+    weight: 7
+```
+
+`/evolve` reads `GOALS.yaml`, measures every goal, picks the worst failing one (highest weight), runs a full `/rpi` cycle to fix it, re-measures, and loops. Each cycle loads learnings from all prior cycles via the flywheel. When all goals pass, the system goes dormant — a valid success state, not a bug. You define the goals; the system handles the rest.
+
+Kill switch at any time: `echo "stop" > ~/.config/evolve/KILL`
 
 **Session 1:** Your agent ships a feature but the tests are weak.
 **Session 2:** The flywheel already knows — `/vibe` now checks test assertion coverage because last cycle's retro proposed it.
 **Session 10:** Your agent catches bugs it would have missed on day one. Not because you configured anything — because the system learned.
+
+---
+
+## The Design: Four Pillars
+
+Every skill, goal, and hook in AgentOps maps to one of four pillars:
+
+**Knowledge Compounding** — The system remembers. `/inject` loads prior learnings at session start. `/forge` mines transcripts at session end. `/retro` extracts what worked and what didn't. Each session is smarter than the last because the flywheel never stops turning.
+
+**Validated Acceleration** — Speed without recklessness. `/council` spawns parallel judges for multi-model consensus. `/pre-mortem` catches plan gaps before coding. `/vibe` validates code before shipping. Failures retry with context — no human escalation needed.
+
+**Goal-Driven Automation** — Define goals, not tasks. `/evolve` measures fitness against `GOALS.yaml` and runs `/rpi` cycles until all goals pass. `/crank` executes entire epics hands-free with wave-based parallelism. The system works toward outcomes, not checklists.
+
+**Zero-Friction Workflow** — Start in 60 seconds. `/quickstart` runs a guided cycle on your actual codebase. `/implement` picks up a single issue end-to-end. `/handoff` preserves context across sessions. `/status` shows where you are and what to do next. No configuration required.
+
+These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 42 measurable goals that define what "healthy" means for the system. `/evolve` measures them all.
 
 ---
 
@@ -235,7 +280,7 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 | `/bug-hunt` | Root cause analysis with git archaeology |
 | `/complexity` | Code complexity metrics |
 | `/doc` | Documentation generation and validation |
-| `/product` | Interactive PRODUCT.md generation for product-aware reviews |
+| `/product` | Generate `PRODUCT.md` — unlocks product-aware judges in `/pre-mortem` and `/vibe` automatically |
 | `/trace` | Trace design decisions through history |
 | `/handoff` | Structured session handoff |
 | `/inbox` | Agent Mail monitoring |
@@ -384,6 +429,18 @@ Without AgentOps, you are the context manager, the quality gate, and the memory.
 </details>
 
 <details>
+<summary><strong>How does this compare to other approaches?</strong></summary>
+
+| Approach | What it does well | What AgentOps adds |
+|----------|------------------|--------------------|
+| **Direct agent use** (Claude Code, Cursor, Copilot) | Full autonomy, simple to start | Multi-model councils, fresh-context waves, and knowledge that compounds across sessions. A bare agent writes code once; ours extracts learnings and applies them next time. |
+| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Static instructions don't compound. The flywheel auto-extracts learnings and injects them back. `/post-mortem` proposes changes to the tools themselves. |
+| **Agent orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-language task scheduling | Those choreograph sequential tasks; we compose parallel waves with validation at every stage. No external state backend — all learnings are git-tracked. |
+| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, industry standard | Gates run after code is written. Ours run before coding (`/pre-mortem`) and before push (`/vibe`). Failures retry with context, not human escalation. |
+
+</details>
+
+<details>
 <summary><strong>What data leaves my machine?</strong></summary>
 
 Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cloud, no external services.
@@ -394,6 +451,13 @@ Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cl
 <summary><strong>Can I use this with other AI coding tools?</strong></summary>
 
 Yes — Claude Code, Codex CLI, Cursor, Open Code, anything supporting [Skills](https://skills.sh). The `--mixed` council mode adds Codex judges alongside Claude. Knowledge artifacts are plain markdown.
+
+</details>
+
+<details>
+<summary><strong>What does PRODUCT.md do?</strong></summary>
+
+Run `/product` to generate a `PRODUCT.md` describing your mission, personas, and competitive landscape. Once it exists, `/pre-mortem` automatically adds product perspectives (user-value, adoption-barriers) and `/vibe` adds developer-experience perspectives (api-clarity, error-experience) to their council reviews. Your agent understands what matters to your product — not just whether the code compiles.
 
 </details>
 
