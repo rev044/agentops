@@ -140,3 +140,43 @@ Tell the user:
 - Use early returns
 - Break up long functions
 - Simplify nested loops
+
+## Examples
+
+### Analyzing Python Project
+
+**User says:** `/complexity src/`
+
+**What happens:**
+1. Agent detects Python files in `src/` directory
+2. Agent checks for radon installation, installs if missing
+3. Agent runs `radon cc src/ -a -s` for cyclomatic complexity
+4. Agent runs `radon mi src/ -s` for maintainability index
+5. Agent identifies 3 functions with CC > 20, 7 functions with CC 11-20
+6. Agent writes detailed report to `.agents/complexity/2026-02-13-src.md`
+7. Agent recommends extracting nested conditionals in `process_request()` function
+
+**Result:** Complexity report identifies `process_request()` (CC: 28) as critical refactor target with specific extraction recommendations.
+
+### Finding Refactor Targets in Go Module
+
+**User says:** `/complexity`
+
+**What happens:**
+1. Agent checks recent changes with `git diff --name-only HEAD~5`
+2. Agent detects Go files, verifies gocyclo installation
+3. Agent runs `gocyclo -over 10 ./...` on project
+4. Agent finds `HandleWebhook()` function with complexity 34
+5. Agent writes report with recommendation to extract validation logic
+6. Agent reports top 3 targets: HandleWebhook (34), ProcessBatch (22), ValidateInput (15)
+
+**Result:** Critical function identified for immediate refactoring with actionable extraction plan.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Tool not installed (radon/gocyclo) | Missing dependency | Agent auto-installs: `pip install radon` for Python or `go install github.com/fzipp/gocyclo/cmd/gocyclo@latest` for Go. Verify install path in $PATH. |
+| No complexity issues found | Threshold too high or genuinely simple code | Lower threshold: try `gocyclo -over 5` or check if path includes actual implementation files vs tests. |
+| Report shows functions without recommendations | Generic analysis without codebase context | Read the high-CC functions to understand structure, then provide specific refactoring suggestions based on actual code patterns. |
+| Mixed language project | Multiple languages in target path | Run analysis separately per language: `/complexity src/python/` then `/complexity src/go/`, combine reports manually. |

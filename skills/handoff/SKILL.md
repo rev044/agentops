@@ -277,3 +277,67 @@ If ao CLI not available:
 2. Step 8 retro suggestion still works (uses git commit count)
 3. All handoff documents are still written to `.agents/handoff/`
 4. Knowledge is captured for future sessions via handoff, just not indexed
+
+---
+
+## Examples
+
+### Paused Mid-Implementation
+
+**User says:** `/handoff` (after working on OAuth flow for 2 hours, need to stop)
+
+**What happens:**
+1. Agent detects recent commits (5 commits in last 2 hours, auth-related)
+2. Agent checks in-progress work with `bd list` (issue #42 still open)
+3. Agent identifies pause point: "Completed token generation, about to start refresh logic"
+4. Agent lists key files: auth.go, token.go, research doc, plan doc
+5. Agent writes handoff document with accomplishments and pause state
+6. Agent writes continuation prompt with clear next action
+7. Agent checks commits (5) and suggests running `/retro` to extract learnings
+
+**Result:** Handoff captures state, continuation prompt ready, retro suggested.
+
+### Between Tasks, Clean State
+
+**User says:** `/handoff` (just closed issue #40, about to start #41 next session)
+
+**What happens:**
+1. Agent detects 1 commit (closed issue #40), no pending changes
+2. Agent identifies pause point: "Between tasks. Last: closed #40 (fixed rate limiting). Next: start #41 (add JWT refresh)"
+3. Agent lists files from #40 (middleware.go, config.go)
+4. Agent writes handoff with accomplishment summary and next-task preview
+5. Agent writes continuation prompt with `/implement #41` suggestion
+6. Agent skips retro suggestion (<3 commits)
+
+**Result:** Handoff captures clean boundary, continuation is simple.
+
+### Auto-Derived Topic
+
+**User says:** `/handoff` (no topic provided, agent derives from commits)
+
+**What happens:**
+1. Agent reads recent commits: "feat: add rate limiting", "fix: token expiry"
+2. Agent derives topic slug: "rate-limiting" (from most recent commit)
+3. Agent creates handoff files with derived topic in filename
+4. Agent reports: "Handoff created: .agents/handoff/20260213T143000Z-rate-limiting.md"
+
+**Result:** Topic auto-derived from git history, no user input needed.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "No session activity found to hand off" | No commits, no file changes detected | Expected for idle sessions. Nothing to hand off. Start new work or skip handoff. |
+| Handoff files not written | `.agents/handoff/` directory does not exist or not writable | Run `mkdir -p .agents/handoff` or check directory permissions |
+| Topic slug is generic "session-1430" | No descriptive commits or issues to derive topic from | Provide explicit topic: `/handoff auth-refactor` for better naming |
+| Continuation prompt missing key context | Recent files or artifacts not listed in handoff | Manually add missing files to handoff document or re-run with explicit topic |
+| Retro suggested but no learnings | Agent sees ≥3 commits and auto-suggests `/retro` | Run `/retro` or skip if commits are trivial (agent can't judge learning quality, only commit count) |
+
+---
+
+## See Also
+
+- `skills/retro/SKILL.md` — Extract learnings for knowledge flywheel
+- `skills/post-mortem/SKILL.md` — Wrap-up with council review

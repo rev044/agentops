@@ -235,9 +235,42 @@ Render this with a single code block. No visual dashboard when `--json` is activ
 
 ---
 
-## See Also
+## Examples
 
-- `skills/quickstart/SKILL.md` — First-time onboarding
-- `skills/inbox/SKILL.md` — Agent mail monitoring
-- `skills/knowledge/SKILL.md` — Query knowledge artifacts
-- `skills/ratchet/SKILL.md` — RPI progress gates
+### Checking Status Mid-Epic
+
+**User says:** `/status`
+
+**What happens:**
+1. Agent runs 5 parallel bash calls to gather all state
+2. Agent reads ratchet chain showing "implement" phase
+3. Agent queries beads showing epic ag-042 with 3/7 issues completed
+4. Agent finds 2 in-progress issues and 4 ready issues
+5. Agent lists recent council verdict: PASS on src/auth/
+6. Agent checks flywheel showing 12 learnings, 5 patterns, 2 pending
+7. Agent renders dashboard with progress bars and suggests: "Continue working: /implement ag-042.2"
+
+**Result:** Full single-screen dashboard showing mid-epic progress with actionable next step.
+
+### Status in Clean State
+
+**User says:** `/status`
+
+**What happens:**
+1. Agent gathers all state in parallel
+2. Agent finds no ratchet chain exists (.agents/ao/chain.jsonl missing)
+3. Agent finds no open epics or in-progress issues
+4. Agent shows clean git state, recent commits only
+5. Agent finds no recent validations
+6. Agent suggests: "All clear. Start with /research or /plan to find new work"
+
+**Result:** Dashboard confirms clean slate, points user to workflow entry points.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Shows "BD_UNAVAILABLE" or "AO_UNAVAILABLE" | CLI tools not installed or not in PATH | Install missing tools: `brew install bd` or `brew install ao`. Skill gracefully degrades by showing available state only. |
+| Ratchet phase shows stale data | Old chain.jsonl not cleaned up | Check timestamp of `.agents/ao/chain.jsonl`. If stale, delete it or run `/post-mortem` to complete cycle and reset state. |
+| Suggested action doesn't match intent | State-aware rules didn't capture edge case | Review priority table in Step 3. May need to refine conditions. Use `--json` to inspect raw state and debug rule matching. |
+| JSON output malformed | Parallel bash calls returned unexpected format | Check each bash call individually. Ensure jq parsing works on actual data. Validate JSON structure with `jq .` before returning to user. |

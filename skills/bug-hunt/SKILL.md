@@ -194,3 +194,44 @@ Common bug patterns to check:
 - Missing error handling
 - State not reset
 - Cache issues
+
+## Examples
+
+### Investigating a Test Failure
+
+**User says:** `/bug-hunt "tests failing on CI but pass locally"`
+
+**What happens:**
+1. Agent confirms bug by checking CI logs vs local test output
+2. Agent uses git archaeology to find recent changes to test files
+3. Agent traces execution path to identify environment-specific differences
+4. Agent forms hypothesis about missing environment variable
+5. Agent creates failing test locally by unsetting the variable
+6. Agent implements fix by adding default value
+7. Bug report written to `.agents/research/2026-02-13-bug-test-failure.md`
+
+**Result:** Root cause identified as missing ENV variable in CI configuration. Fix applied and verified.
+
+### Tracking Down a Regression
+
+**User says:** `/bug-hunt "feature X broke after yesterday's deployment"`
+
+**What happens:**
+1. Agent reproduces issue in current state
+2. Agent uses `git log --since="2 days ago"` to find recent commits
+3. Agent uses `git bisect` to identify exact breaking commit
+4. Agent compares broken code against working examples in codebase
+5. Agent forms hypothesis about introduced type mismatch
+6. Agent implements minimal fix and verifies with existing tests
+7. Bug report documents commit sha, root cause, and fix
+
+**Result:** Regression traced to commit abc1234, type conversion error fixed at root cause in validation logic.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Can't reproduce bug | Insufficient environment context or intermittent issue | Ask user for specific steps, environment variables, input data. Check for race conditions or timing issues. |
+| Git archaeology returns too many commits | Broad search or high-churn file | Narrow timeframe with `--since` flag, focus on specific function with `git blame`, search commit messages for related keywords. |
+| Hit 3-failure limit during hypothesis testing | Multiple incorrect hypotheses or complex root cause | Escalate to architecture review. Read `failure-categories.md` to determine if failures are countable. Consider asking for domain expert input. |
+| Bug report missing key information | Incomplete investigation or skipped steps | Verify all 4 phases completed. Ensure root cause identified with file:line. Check git blame ran for responsible commit. |

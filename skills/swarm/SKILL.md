@@ -299,6 +299,52 @@ ol hero ratchet "$BEAD_ID" --quest "$QUEST_ID"
 
 ---
 
+## Examples
+
+### Building a User Auth System
+
+**User says:** `/swarm`
+
+**What happens:**
+1. Agent identifies unblocked tasks from TaskList (e.g., "Create User model")
+2. Agent selects spawn backend (Codex sub-agents if available, else Claude teams)
+3. Agent spawns worker for task #1, assigns ownership via TaskUpdate
+4. Worker completes, team lead validates changes
+5. Agent identifies next wave (tasks #2 and #3 now unblocked)
+6. Agent spawns two workers in parallel for Wave 2
+
+**Result:** Multi-wave execution with fresh-context workers per wave, zero race conditions.
+
+### Direct Swarm Without Beads
+
+**User says:** Create three tasks for API refactor, then `/swarm`
+
+**What happens:**
+1. User creates TaskList tasks with TaskCreate
+2. Agent calls `/swarm` without beads integration
+3. Agent identifies parallel tasks (no dependencies)
+4. Agent spawns all three workers simultaneously
+5. Workers execute atomically, report to team lead via SendMessage or task completion
+6. Team lead validates all changes, commits once per wave
+
+**Result:** Parallel execution of independent tasks using TaskList only.
+
+### Loading Wave from OL
+
+**User says:** `/swarm --from-wave /tmp/wave-ol-527.json`
+
+**What happens:**
+1. Agent validates `ol` CLI is on PATH (pre-flight check)
+2. Agent reads wave JSON from OL hero hunt output
+3. Agent creates TaskList tasks from wave entries (priority-sorted)
+4. Agent spawns workers for all unblocked beads
+5. On completion, agent runs `ol hero ratchet <bead-id> --quest <quest-id>` for each bead
+6. Agent reports backflow status to user
+
+**Result:** OL beads executed with completion reporting back to Olympus.
+
+---
+
 ## Troubleshooting
 
 ### Workers produce file conflicts
@@ -316,3 +362,11 @@ Solution: Run `which codex` to verify installation. Check `~/.codex/config.toml`
 ### Workers timeout or hang
 Cause: Worker task too large or blocked on external dependency.
 Solution: Break tasks into smaller units. Add timeout metadata to worker tasks.
+
+### OL wave integration fails with "ol CLI required"
+Cause: `--from-wave` used but `ol` CLI not on PATH.
+Solution: Install Olympus CLI or run swarm without `--from-wave` flag.
+
+### Tasks assigned but workers never spawn
+Cause: Backend selection failed or spawning API unavailable.
+Solution: Check which spawn backend was selected (look for "Using: <backend>" message). Verify Codex CLI (`which codex`) or native team API availability.

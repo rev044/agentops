@@ -107,3 +107,43 @@ Present the knowledge found:
 /knowledge kubernetes        # Find K8s knowledge
 /knowledge "what do we know about caching"
 ```
+
+## Examples
+
+### Finding Past Learnings
+
+**User says:** `/knowledge "error handling patterns"`
+
+**What happens:**
+1. Agent tries `ao forge search "error handling patterns"`, finds 3 matches
+2. Agent searches `.agents/learnings/` with grep, finds 5 additional matches
+3. Agent searches `.agents/patterns/` for related patterns, finds 2 matches
+4. Agent reads all matched files using Read tool
+5. Agent synthesizes findings into coherent response
+6. Agent reports: "We have 5 learnings about error handling: L1 (always wrap errors), L3 (use typed errors), L12 (log before returning), L15 (context propagation), L22 (retry with backoff)"
+7. Agent provides links to source files and confidence level: high (multiple confirmations)
+
+**Result:** Complete knowledge synthesis with 5 specific learnings and 2 related patterns, all with source citations.
+
+### Querying Without ao CLI
+
+**User says:** `/knowledge "database migrations"`
+
+**What happens:**
+1. Agent tries `ao forge search`, command not found
+2. Agent falls back to grep search across `.agents/` directories
+3. Agent finds 2 matches in learnings, 1 in research, 0 in patterns
+4. Agent reads matched files
+5. Agent synthesizes: "Limited knowledge found. L8 recommends using transaction-wrapped migrations. Research doc from 2026-01-20 analyzed migration tools."
+6. Agent reports medium confidence (only 2 sources)
+
+**Result:** Knowledge found despite missing ao CLI, with appropriate confidence level based on source count.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| No results found | Query too specific or knowledge not yet captured | Broaden search terms. Try synonyms. Check if topic was covered in recent work but retro not yet run. Suggest running `/retro` to extract recent learnings. |
+| Too many results (overwhelming) | Very broad query term | Narrow query with more specific terms. Filter by date: search only recent learnings. Use semantic search (ao CLI) for better ranking if available. |
+| Results lack context | Grep matches found but files don't address query | Read full files, not just matching lines. Synthesize from surrounding context. May need to trace back to original research with `/trace`. |
+| Confidence level unclear | Mixed or contradictory sources | Report conflicting information explicitly. Note which sources agree/disagree. Suggest running `/research` to investigate further if critical. |

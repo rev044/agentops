@@ -68,6 +68,12 @@ for skill_dir in "$SKILLS_DIR"/*/; do
                     skill_ok=false
                 fi
                 ;;
+            orchestration)
+                if [ "$line_count" -gt 550 ]; then
+                    fail "$skill_name" "tier=$tier, ${line_count} lines exceeds 550-line limit"
+                    skill_ok=false
+                fi
+                ;;
             *)
                 if [ "$line_count" -gt 500 ]; then
                     fail "$skill_name" "tier=$tier, ${line_count} lines exceeds 500-line limit"
@@ -83,7 +89,78 @@ for skill_dir in "$SKILLS_DIR"/*/; do
         WARNINGS="${WARNINGS}  ${YELLOW}⚠${NC} ${skill_name}: ${line_count} lines but no references/ directory (consider splitting)\n"
     fi
 
-    # --- (d) Referenced files must exist ---
+    # --- (d) Examples section required ---
+    # User-facing skills: FAIL if missing. Internal skills: WARN if missing.
+    USER_FACING="beads bug-hunt codex-team complexity council crank doc evolve handoff implement inbox knowledge plan post-mortem pre-mortem product quickstart release research retro rpi status swarm trace vibe"
+    INTERNAL="extract flywheel forge inject provenance ratchet shared standards using-agentops"
+
+    is_user_facing=false
+    for uf in $USER_FACING; do
+        [ "$skill_name" = "$uf" ] && is_user_facing=true && break
+    done
+
+    is_internal=false
+    for int in $INTERNAL; do
+        [ "$skill_name" = "$int" ] && is_internal=true && break
+    done
+
+    has_examples=$(grep -c '^## Examples' "$skill_md" 2>/dev/null || echo 0)
+    has_examples=$(echo "$has_examples" | tr -d '[:space:]')
+    has_troubleshooting=$(grep -c '^## Troubleshooting' "$skill_md" 2>/dev/null || echo 0)
+    has_troubleshooting=$(echo "$has_troubleshooting" | tr -d '[:space:]')
+
+    if $is_user_facing; then
+        if [ "$has_examples" -eq 0 ]; then
+            fail "$skill_name" "missing '## Examples' section (required for user-facing skills)"
+            skill_ok=false
+        fi
+        if [ "$has_troubleshooting" -eq 0 ]; then
+            fail "$skill_name" "missing '## Troubleshooting' section (required for user-facing skills)"
+            skill_ok=false
+        fi
+        # Format validation: Examples should have "User says" pattern
+        if [ "$has_examples" -gt 0 ]; then
+            user_says_count=$(grep -c '\*\*User says:\*\*' "$skill_md" 2>/dev/null || echo 0)
+            user_says_count=$(echo "$user_says_count" | tr -d '[:space:]')
+            if [ "$user_says_count" -eq 0 ]; then
+                WARNED=$((WARNED + 1))
+                WARNINGS="${WARNINGS}  ${YELLOW}⚠${NC} ${skill_name}: Examples section missing '**User says:**' format\n"
+            fi
+        fi
+        # Format validation: Troubleshooting should have table format
+        if [ "$has_troubleshooting" -gt 0 ]; then
+            has_table=$(grep -c '| Problem |' "$skill_md" 2>/dev/null || echo 0)
+            has_table=$(echo "$has_table" | tr -d '[:space:]')
+            has_prose_troubleshoot=$(grep -cE '^### .+' "$skill_md" 2>/dev/null || echo 0)
+            has_prose_troubleshoot=$(echo "$has_prose_troubleshoot" | tr -d '[:space:]')
+            # Accept either table format or prose format (some pre-existing skills use prose)
+            if [ "$has_table" -eq 0 ] && [ "$has_prose_troubleshoot" -eq 0 ]; then
+                WARNED=$((WARNED + 1))
+                WARNINGS="${WARNINGS}  ${YELLOW}⚠${NC} ${skill_name}: Troubleshooting section has no table or structured entries\n"
+            fi
+        fi
+    elif $is_internal; then
+        # Internal skills: warn only (shared is excluded from content requirement)
+        if [ "$skill_name" != "shared" ]; then
+            if [ "$has_examples" -eq 0 ]; then
+                WARNED=$((WARNED + 1))
+                WARNINGS="${WARNINGS}  ${YELLOW}⚠${NC} ${skill_name}: missing '## Examples' section (recommended for internal skills)\n"
+            fi
+            if [ "$has_troubleshooting" -eq 0 ]; then
+                WARNED=$((WARNED + 1))
+                WARNINGS="${WARNINGS}  ${YELLOW}⚠${NC} ${skill_name}: missing '## Troubleshooting' section (recommended for internal skills)\n"
+            fi
+        fi
+    fi
+
+    # --- (e) Word count limit (5000 words) ---
+    word_count=$(wc -w < "$skill_md" | tr -d ' ')
+    if [ "$word_count" -gt 5000 ]; then
+        fail "$skill_name" "${word_count} words exceeds 5000-word limit"
+        skill_ok=false
+    fi
+
+    # --- (f) Referenced files must exist ---
     # Match patterns like references/foo.md, references/bar-baz.md
     ref_paths=$(grep -oE 'references/[A-Za-z0-9_.-]+(\.[a-z]+)?' "$skill_md" 2>/dev/null || true)
     if [ -n "$ref_paths" ]; then

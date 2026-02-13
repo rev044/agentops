@@ -128,3 +128,41 @@ Tell the user:
 - **Address friction** - bottlenecks slow compounding
 - **Feed the flywheel** - run /retro and /post-mortem
 - **Prune stale knowledge** - archive old artifacts
+
+## Examples
+
+### Status Check Invocation
+
+**User says:** `/flywheel` or "check knowledge health"
+
+**What happens:**
+1. Agent counts artifacts in `.agents/learnings/`, `.agents/patterns/`, `.agents/research/`, `.agents/retros/`
+2. Agent checks recent activity with `find -mtime -7`
+3. Agent detects stale artifacts with `find -mtime +30`
+4. Agent calls `ao forge status` to check CLI state
+5. Agent writes health report to `.agents/flywheel-status.md`
+6. Agent reports overall health, friction points, recommendations
+
+**Result:** Single-screen dashboard showing knowledge flywheel velocity, pool depths, and health status.
+
+### Automated Health Monitoring
+
+**Hook triggers:** Periodic check or after `/post-mortem`
+
+**What happens:**
+1. Hook calls flywheel skill to measure pools
+2. Agent compares current vs historical metrics
+3. Agent detects velocity drops (learnings/week < threshold)
+4. Agent flags friction points (e.g., stale artifacts >50%)
+5. Agent recommends actions to restore velocity
+
+**Result:** Proactive alerts when knowledge flywheel slows or stalls, enabling intervention before bottlenecks harden.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| All pool counts zero | `.agents/` directory missing or empty | Run `/post-mortem` or `/retro` to seed knowledge pools |
+| Velocity always zero | No recent extractions (last 7 days) | Run `/forge` + `/extract` to process pending sessions |
+| "ao CLI not available" | ao command not installed or not in PATH | Install ao CLI or use manual pool counting fallback |
+| Stale artifacts >50% | Long time since last session or inactive repo | Run `/provenance --stale` to audit and archive old artifacts |

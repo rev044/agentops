@@ -92,3 +92,39 @@ Progress stored in `.agents/ao/chain.jsonl`:
 - **Gates must pass** - validate before proceeding
 - **Record everything** - maintain the chain
 - **Skip explicitly** - document why if skipping a step
+
+## Examples
+
+### Check RPI Progress
+
+**User says:** `/ratchet status`
+
+**What happens:**
+1. Agent calls `ao ratchet status 2>/dev/null` to check current state
+2. CLI reads `.agents/ao/chain.jsonl` and parses progress
+3. Agent reports which steps are completed, in-progress, or pending
+4. Agent shows output artifact paths for completed steps
+5. Agent identifies next gate to pass
+
+**Result:** Single-screen view of RPI workflow progress, showing which gates passed and what's next.
+
+### Record Step Completion
+
+**Skill says:** After `/research` completes
+
+**What happens:**
+1. Agent calls `ao ratchet record research --output ".agents/research/auth.md"`
+2. CLI appends completion entry to `.agents/ao/chain.jsonl`
+3. Agent locks research step as permanently completed
+4. Agent proceeds to plan phase knowing research gate passed
+
+**Result:** Progress permanently recorded, gate locked, workflow advances without backsliding.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| ao ratchet status fails | ao CLI not available or chain.jsonl missing | Manually check `.agents/ao/chain.jsonl` or create empty file |
+| Step already completed error | Attempting to re-ratchet locked step | Use `ao ratchet status` to check state; skip if already done |
+| chain.jsonl corrupted | Malformed JSON entries | Manually edit to fix JSON; validate each line with `jq -c '.' <file>` |
+| Out-of-order steps | Implementing before planning | Follow RPI order strictly; use `--skip` only with explicit reason |

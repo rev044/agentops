@@ -123,3 +123,42 @@ Session N+1 starts:
 - **Process the queue** - don't leave extractions pending
 - **Be specific** - actionable learnings, not vague observations
 - **Close the loop** - extraction completes the knowledge cycle
+
+## Examples
+
+### SessionStart Hook Invocation
+
+**Hook triggers:** `session-start.sh` runs at session start
+
+**What happens:**
+1. Hook calls `ao extract 2>/dev/null`
+2. CLI outputs queued session IDs and prompts
+3. Agent processes each pending extraction
+4. Agent writes learnings to `.agents/learnings/<date>-<session>.md`
+5. Agent validates required fields and reports results
+6. Hook calls `ao extract --clear` to empty queue
+
+**Result:** Prior session knowledge automatically extracted at session start without user action.
+
+### Manual Extraction Trigger
+
+**User says:** `/extract` or "extract learnings from last session"
+
+**What happens:**
+1. Agent checks pending queue with `ao extract`
+2. Agent reads session summaries from queue
+3. Agent extracts decisions, learnings, failures
+4. Agent writes to `.agents/learnings/` with proper structure
+5. Agent validates fields (category, confidence, content)
+6. Agent clears queue and reports completion
+
+**Result:** Pending extractions processed manually, queue cleared, learnings indexed.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| No pending extractions found | Queue empty or ao CLI unavailable | Check `.agents/ao/pending.jsonl` exists; verify ao CLI installed |
+| Invalid learning warning | Missing category/confidence/content | Review learning file, add missing fields; DO NOT delete |
+| extraction --clear fails | CLI not available or permission error | Manually truncate `.agents/ao/pending.jsonl` as fallback |
+| Duplicate extractions | Queue not cleared after processing | Always run `ao extract --clear` after writing learnings |

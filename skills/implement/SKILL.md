@@ -307,34 +307,52 @@ Distributed mode enhances /implement with real-time coordination via MCP Agent M
 
 ## Examples
 
-### Example 1: Implement a specific issue
-```
-/implement ag-5k2
-```
-Reads issue details from beads, enters GREEN mode, implements with verification gate.
+### Implement Specific Issue
 
-### Example 2: Pick up next available work
-```
-/implement
-```
-Runs `bd ready` to find the next unblocked issue and implements it.
+**User says:** `/implement ag-5k2`
 
-### Example 3: Implement with context
-```
-/implement ag-5k2 --context "Uses the new auth middleware from ag-5k1"
-```
-Provides implementation context from a related issue.
+**What happens:**
+1. Agent reads issue from beads: "Add JWT token validation middleware"
+2. Explore agent finds relevant auth code and middleware patterns
+3. Agent edits `middleware/auth.go` to add token validation
+4. Runs `go test ./middleware/...` — all tests pass
+5. Commits with message "Add JWT token validation middleware\n\nImplements: ag-5k2"
+6. Closes issue via `bd update ag-5k2 --status closed`
+
+**Result:** Issue implemented, verified, committed, and closed. Ratchet recorded.
+
+### Pick Up Next Available Work
+
+**User says:** `/implement`
+
+**What happens:**
+1. Agent runs `bd ready` — finds `ag-3b7` (first unblocked issue)
+2. Claims issue via `bd update ag-3b7 --status in_progress`
+3. Implements and verifies
+4. Closes issue
+
+**Result:** Autonomous work pickup and completion from ready queue.
+
+### GREEN Mode (Test-First)
+
+**User says:** `/implement ag-8h3` (invoked by `/crank --test-first`)
+
+**What happens:**
+1. Agent receives failing tests (immutable) and contract
+2. Reads tests to understand expected behavior
+3. Implements ONLY enough to make tests pass
+4. Does NOT modify test files
+5. Verification: all tests pass with fresh output
+
+**Result:** Minimal implementation driven by tests, no over-engineering.
 
 ## Troubleshooting
 
-### Issue not found
-Cause: Issue ID doesn't exist or beads not synced.
-Solution: Run `bd sync` then `bd show <id>` to verify.
-
-### GREEN mode violation
-Cause: Edited a file not related to the issue scope.
-Solution: Revert unrelated changes. GREEN mode restricts edits to files relevant to the issue.
-
-### Verification gate fails
-Cause: Tests fail or build breaks after implementation.
-Solution: Read the verification output, fix the specific failures, re-run verification.
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Issue not found | Issue ID doesn't exist or beads not synced | Run `bd sync` then `bd show <id>` to verify |
+| GREEN mode violation | Edited a file not related to the issue scope | Revert unrelated changes. GREEN mode restricts edits to files relevant to the issue |
+| Verification gate fails | Tests fail or build breaks after implementation | Read the verification output, fix the specific failures, re-run verification |
+| "BLOCKED" status | Contract contradicts tests or is incomplete in GREEN mode | Write BLOCKED with specific reason, do NOT modify tests |
+| Fresh verification missing | Agent claims success without running verification command | MUST run verification command fresh with full output before claiming completion |
+| Ratchet record failed | ao CLI unavailable or chain.jsonl corrupted | Implementation still closes via bd, but ratchet chain needs manual repair |

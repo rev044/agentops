@@ -264,6 +264,58 @@ Read `references/error-handling.md` for error handling details.
 | `--test-first` | off | Pass `--test-first` to `/crank` for spec-first TDD |
 | `--dry-run` | off | With `--spawn-next`: report items without marking consumed. Useful for testing the consumption flow. |
 
+## Examples
+
+### Full Lifecycle from Scratch
+
+**User says:** `/rpi "add user authentication"`
+
+**What happens:**
+1. Phase 1: Research agent explores auth patterns in codebase
+2. Phase 2: Plan creates epic `ag-5k2` with 5 issues in 2 waves
+3. Phase 3: Pre-mortem validates plan — PASS
+4. Phase 4: Crank spawns 5 workers across 2 waves, all complete
+5. Phase 5: Vibe validates recent changes — PASS
+6. Phase 6: Post-mortem extracts learnings, harvests 2 tech-debt items
+
+**Result:** Auth system implemented end-to-end. Suggested next `/rpi` command for highest-priority tech-debt.
+
+### Resume from Crank
+
+**User says:** `/rpi --from=crank ag-5k2`
+
+**What happens:**
+1. Skips research, plan, pre-mortem (already done)
+2. Phase 4: Crank resumes or restarts epic `ag-5k2`
+3. Phase 5: Vibe validates
+4. Phase 6: Post-mortem wraps up
+
+**Result:** Fast resumption for already-planned work.
+
+### Interactive Mode
+
+**User says:** `/rpi --interactive "refactor payment module"`
+
+**What happens:**
+1. Phase 1: Research completes, asks for human approval
+2. User approves research
+3. Phase 2: Plan completes, asks for human approval
+4. User approves plan with revisions
+5. Phases 3-6: Fully autonomous (pre-mortem auto-retries on FAIL)
+
+**Result:** Human-guided research and planning, autonomous execution.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Pre-mortem retry loop hits max attempts | Plan has fundamental issues that retry loop cannot fix | Review council findings, manually revise plan, re-run `/rpi --from=plan` |
+| Vibe retry loop hits max attempts | Implementation has critical flaws that re-crank cannot fix | Review vibe findings, manually fix code, re-run `/rpi --from=vibe` |
+| Crank blocks on missing dependency | Epic issue references unavailable blocker | Check `bd show <epic-id>` for dep graph, fix or remove blocker |
+| Post-mortem harvests no next-work | Council found no tech debt or improvements | Flywheel stable — no follow-up needed |
+| `--loop` causes infinite cycles | Gate 4 loop enabled but post-mortem always returns FAIL | Set `--max-cycles=3` to cap iterations, review why FAIL persists |
+| Large repo context overflow | Repo has >1500 files and agents run out of context | Enable context-windowing via `scripts/rpi/context-window-contract.sh` before Phase 1 |
+
 ## See Also
 
 - `skills/research/SKILL.md` — Phase 1

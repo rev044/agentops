@@ -270,20 +270,51 @@ Include in your Explore agent prompt:
 - "medium" - for feature exploration
 - "very thorough" - for architecture/cross-cutting concerns
 
+## Examples
+
+### Investigate Authentication System
+
+**User says:** `/research "authentication system"`
+
+**What happens:**
+1. Agent searches knowledge base for prior auth research
+2. Explore agent investigates via Code-Map, Grep, and file reading
+3. Findings synthesized with file:line citations
+4. Output written to `.agents/research/2026-02-13-authentication-system.md`
+
+**Result:** Detailed report identifying auth middleware location, session handling, and token validation patterns.
+
+### Quick Exploration of Cache Layer
+
+**User says:** `/research "cache implementation"`
+
+**What happens:**
+1. Agent uses Glob to find cache-related files
+2. Explore agent reads key files and summarizes current state
+3. No prior research found, proceeds with fresh exploration
+4. Output written to `.agents/research/2026-02-13-cache-implementation.md`
+
+**Result:** Summary of cache strategy, TTL settings, and eviction policies with file references.
+
+### Deep Dive into Payment Flow
+
+**User says:** `/research "payment processing flow"`
+
+**What happens:**
+1. Agent loads prior payment research from knowledge base
+2. Explore agent traces flow through multiple services
+3. Identifies integration points and error handling
+4. Output written with cross-service file citations
+
+**Result:** End-to-end payment flow diagram with file paths and critical decision points.
+
 ## Troubleshooting
 
-### Research too shallow
-Cause: Default exploration depth insufficient for the topic.
-Solution: Re-run with broader scope or specify additional search areas: `/research "topic" --deep`.
-
-### Research output too large
-Cause: Exploration covered too many tangential areas.
-Solution: Narrow the goal to a specific question rather than a broad topic.
-
-### Missing file references
-Cause: Codebase has changed since last exploration or files are in unexpected locations.
-Solution: Use Glob to verify file locations before citing them. Always use absolute paths.
-
-### Auto mode skips important areas
-Cause: Automated exploration prioritizes breadth over depth.
-Solution: Use `--interactive` mode to guide which areas to explore deeper.
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Research too shallow | Default exploration depth insufficient for the topic | Re-run with broader scope or specify additional search areas |
+| Research output too large | Exploration covered too many tangential areas | Narrow the goal to a specific question rather than a broad topic |
+| Missing file references | Codebase has changed since last exploration or files are in unexpected locations | Use Glob to verify file locations before citing them. Always use absolute paths |
+| Auto mode skips important areas | Automated exploration prioritizes breadth over depth | Remove `--auto` flag to enable human approval gate for guided exploration |
+| Explore agent times out | Topic too broad for single exploration pass | Split into smaller focused topics (e.g., "auth flow" vs "entire auth system") |
+| No backend available for spawning | Running in environment without Task or TeamCreate support | Research runs inline — still functional but slower |

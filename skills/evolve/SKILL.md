@@ -386,6 +386,66 @@ Read `references/goals-schema.md` for the GOALS.yaml format.
 
 ---
 
+---
+
+## Examples
+
+### Autonomous Improvement Until Goals Met
+
+**User says:** `/evolve`
+
+**What happens:**
+1. Agent checks kill switch files (none found, continues)
+2. Agent measures fitness against GOALS.yaml (3 of 5 goals passing)
+3. Agent selects worst-failing goal by weight (test-pass-rate)
+4. Agent invokes `/rpi "Improve test-pass-rate"` with full lifecycle
+5. Agent re-measures fitness post-cycle (test-pass-rate now passing, all others unchanged)
+6. Agent logs cycle to history, increments cycle counter
+7. Agent loops to next cycle, selects next failing goal
+8. After 5 cycles, all goals met. Agent runs `/post-mortem`, writes session summary
+
+**Result:** Autonomous compounding loop improves repo until all fitness goals pass.
+
+### Dry-Run Mode
+
+**User says:** `/evolve --dry-run`
+
+**What happens:**
+1. Agent measures fitness (3 of 5 goals passing)
+2. Agent identifies worst-failing goal (doc-coverage, weight 5)
+3. Agent reports what would be worked on: "Dry run: would work on 'doc-coverage' (weight: 5)"
+4. Agent shows harvested work queue (2 items from prior RPI cycles)
+5. Agent stops without executing
+
+**Result:** Fitness report and next-action preview without code changes.
+
+### Regression with Revert
+
+**User says:** `/evolve --max-cycles=3`
+
+**What happens:**
+1. Agent improves goal A in cycle 1 (commit abc123)
+2. Agent measures fitness post-cycle: goal A passes, but goal B now fails (regression)
+3. Agent reverts commit abc123 with annotated message
+4. Agent logs regression to history, moves to next goal
+5. Agent completes 3 cycles (cap reached), runs post-mortem
+
+**Result:** Fitness regressions are auto-reverted, preventing compounding failures.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| `/evolve` exits immediately with "KILL SWITCH ACTIVE" | Kill switch file exists | Remove `~/.config/evolve/KILL` or `.agents/evolve/STOP` to re-enable |
+| "No goals to measure" error | GOALS.yaml missing or empty | Create GOALS.yaml in repo root with fitness goals (see references/goals-schema.md) |
+| Cycle completes but fitness unchanged | Goal check command is always passing or always failing | Verify check command logic in GOALS.yaml produces exit code 0 (pass) or non-zero (fail) |
+| Regression revert fails | Multiple commits in cycle or uncommitted changes | Check cycle-start SHA in fitness snapshot, commit or stash changes before retrying |
+| Harvested work never consumed | All goals passing but `next-work.jsonl` not read | Check file exists and has `consumed: false` entries. Agent picks harvested work after goals met. |
+
+---
+
 ## See Also
 
 - `skills/rpi/SKILL.md` — Full lifecycle orchestrator (called per cycle)

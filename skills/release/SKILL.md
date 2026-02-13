@@ -436,3 +436,61 @@ Everything this skill does is local and reversible:
 - **User confirms** — never write without showing the draft first
 - **Local only** — never push, publish, or trigger remote actions
 - **Two audiences** — CHANGELOG.md is for contributors (file paths, issue IDs, implementation detail). Release notes are for feed readers (plain English, user-visible impact, no insider jargon). Never copy-paste the changelog into the release notes.
+
+---
+
+## Examples
+
+### Full Release Workflow
+
+**User says:** `/release 1.7.0`
+
+**What happens:**
+1. Agent runs pre-flight checks (git status, tests, lint, versions)
+2. Agent reads git history since last tag (v1.6.0..HEAD)
+3. Agent classifies commits into Added/Changed/Fixed/Removed categories
+4. Agent generates changelog entry in Keep a Changelog format
+5. Agent detects version files (package.json, version.go) and proposes bumps
+6. Agent shows draft changelog and version diffs to user for review
+7. User approves. Agent writes CHANGELOG.md, updates version files
+8. Agent creates release commit and annotated tag (v1.7.0)
+9. Agent generates release notes and creates draft GitHub Release
+10. Agent displays post-release guidance (push commands)
+
+**Result:** Local release fully prepared: changelog updated, versions bumped, tag created, draft release ready.
+
+### Readiness Check Only
+
+**User says:** `/release --check`
+
+**What happens:**
+1. Agent runs all pre-flight checks (git, tests, lint, versions, commits)
+2. Agent outputs GO/NO-GO summary table with pass/fail/warn for each check
+3. Agent stops without generating or writing anything
+
+**Result:** Release readiness report only, no changes made.
+
+### Version Suggestion Mode
+
+**User says:** `/release` (no version provided)
+
+**What happens:**
+1. Agent reads git history and classifies commits
+2. Agent suggests version based on classification (major if breaking, minor if features, patch if fixes only)
+3. Agent shows suggestion with reasoning: "Suggested version: 1.7.0 (minor). Reason: 3 new features added, no breaking changes."
+4. Agent asks user to confirm or provide different version
+5. Agent continues with user-selected version
+
+**Result:** Suggested version based on commit analysis, user confirms or overrides.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "No commits since last tag" error | Working tree clean, no new commits | Commit pending changes or skip release (nothing to release) |
+| Version mismatch warning | package.json shows 1.6.0, go shows 1.5.9 | Manually sync versions before release, or choose one as source of truth |
+| Tests fail during pre-flight | Breaking changes not caught earlier | Fix failing tests or use `--skip-checks` (not recommended) |
+| Dirty working tree warning | Uncommitted changes present | Commit or stash changes before release for clean state |
+| GitHub Release creation fails "tag not found" | Tag created locally but not pushed | Push tag first: `git push origin main --tags`, then retry `gh release create` |

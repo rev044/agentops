@@ -275,6 +275,65 @@ git rev-parse --is-inside-work-tree &>/dev/null && GIT_REPO=true || GIT_REPO=fal
 
 ---
 
+## Examples
+
+### First-Time User in a Go Project
+
+**User says:** `/quickstart`
+
+**What happens:**
+1. Agent runs pre-flight checks (git repo: yes, ao CLI: no, .agents/: no)
+2. Agent detects Go (finds go.mod at root)
+3. Agent reads recently changed files (auth.go, config.go from last commit)
+4. Agent provides mini-research summary: "Active area: authentication. Patterns: standard library HTTP handlers. Observation: missing error wrapping in 3 locations."
+5. Agent suggests improvement: "Add error wrapping to auth.go error returns"
+6. Agent runs mini-vibe on auth.go: WARN for missing error context
+7. Agent displays skill menu and next steps
+8. Agent shows Tier 0 graduation hint: "Install ao CLI to enable knowledge flywheel"
+
+**Result:** User completes mini RPI cycle in under 10 minutes, sees real value on their code.
+
+### Non-Git Repository
+
+**User says:** `/quickstart` (in a directory without `.git/`)
+
+**What happens:**
+1. Agent runs pre-flight, detects GIT_REPO=false
+2. Agent continues walkthrough but skips git-dependent steps (recent commits, vibe)
+3. Agent detects Python (finds pyproject.toml)
+4. Agent browses recent files using `ls -lt` instead of `git diff`
+5. Agent suggests: "Initialize git with `git init` to unlock change tracking and full RPI workflow"
+6. Agent completes quickstart with adapted steps
+
+**Result:** Quickstart works without git, user sees value and learns what git unlocks.
+
+### Monorepo with Multiple Languages
+
+**User says:** `/quickstart` (in a monorepo with Go + TypeScript)
+
+**What happens:**
+1. Agent detects both Go (go.mod) and TypeScript (tsconfig.json) with relative paths
+2. Agent displays: "Go detected (backend/go.mod), TypeScript detected (frontend/tsconfig.json)"
+3. Agent asks: "Which area should we explore?" (backend or frontend)
+4. User chooses backend. Agent focuses mini-research on Go code
+5. Agent completes quickstart scoped to selected area
+
+**Result:** Quickstart adapts to monorepo structure, user picks focus area.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "No language detected" | Shallow scan missed project files or in wrong directory | Change to project root directory or manually specify language when prompted |
+| "Cannot create .agents/ directory" | Permissions issue or read-only filesystem | Check directory permissions or continue without persistent artifacts (functionality reduced) |
+| Pre-flight shows all "false" | Running in minimal environment or empty directory | Verify you're in the correct project directory with code files |
+| Mini-vibe step skipped | GIT_REPO=false or no recent changes | Expected behavior for non-git repos or clean trees. Vibe requires git history. |
+| Graduation hint shows wrong tier | Detection logic using cached state | Re-run pre-flight checks in Step 0 to refresh environment state |
+
+---
+
 ## See Also
 
 - `skills/vibe/SKILL.md` — Code validation

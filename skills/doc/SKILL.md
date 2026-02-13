@@ -206,3 +206,42 @@ Tell the user:
 | `gen [feature]` | Generate docs for specific feature |
 | `all` | Update all documentation |
 | `validate` | Check docs match code |
+
+## Examples
+
+### Generating API Documentation
+
+**User says:** `/doc gen authentication`
+
+**What happens:**
+1. Agent detects project type by checking for `package.json` and finding Node.js project
+2. Agent searches codebase for authentication-related functions using grep
+3. Agent reads authentication module files to understand implementation
+4. Agent generates documentation with purpose, parameters, returns, and usage examples
+5. Agent writes to `docs/api/authentication.md` with code samples
+6. Agent validates generated docs match actual function signatures
+
+**Result:** Complete API documentation created for authentication module with working code examples.
+
+### Checking Documentation Coverage
+
+**User says:** `/doc coverage`
+
+**What happens:**
+1. Agent detects Python project from `pyproject.toml`
+2. Agent counts total functions/classes with `grep -r "^def \|^class "`
+3. Agent counts documented items by searching for docstrings (`"""`)
+4. Agent calculates coverage: 45/67 items = 67% coverage
+5. Agent writes report to `.agents/doc/2026-02-13-coverage.md`
+6. Agent lists 22 undocumented functions as gaps
+
+**Result:** Documentation coverage report shows 67% coverage with specific list of 22 functions needing docs.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Coverage calculation inaccurate | Grep pattern doesn't match all code styles | Adjust pattern for project conventions. For Python, check for `async def` and class methods. For Go, check both `func` and `type` definitions. |
+| Generated docs lack examples | Missing context about typical usage | Read existing tests to find usage patterns. Check README for code samples. Ask user for typical use case if unclear. |
+| Discover command finds too many items | Low existing documentation coverage | Prioritize by running `discover` on specific subdirectories. Focus on public API first, internal utilities later. Use `--limit` to process in batches. |
+| Validation shows docs out of sync | Code changed after docs written | Re-run `gen` command for affected features. Consider adding git hook to flag doc updates needed when code changes. |

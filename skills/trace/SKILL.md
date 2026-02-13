@@ -117,3 +117,40 @@ Use `/trace` for: "How did we decide on this architecture?"
 # Trace a feature
 /trace "parallel wave execution"
 ```
+
+### Tracing an Architectural Decision
+
+**User says:** `/trace "agent team protocol"`
+
+**What happens:**
+1. Agent classifies target as concept (not file path or git ref)
+2. Agent launches 4 parallel agents: CASS search, handoff search, git log search, research artifact search
+3. CASS finds 8 sessions mentioning "agent team", handoff finds 2 docs, git finds 3 commits, research finds 1 analysis
+4. Agent builds chronological timeline from 2026-01-15 (first mention) to 2026-02-08 (latest update)
+5. Agent extracts 5 key decisions: initial SendMessage design, TeamCreate addition, deliberation protocol, in-process mode, delegate mode
+6. Agent writes trace report to `.agents/research/2026-02-13-trace-agent-team-protocol.md` with full timeline and citations
+
+**Result:** Complete evolution timeline showing how agent team protocol developed across 7 sessions with source citations.
+
+### Tracing from Git Commit
+
+**User says:** `/trace abc1234`
+
+**What happens:**
+1. Agent detects git ref format (short sha)
+2. Agent runs git-based tracing commands to get commit details, changed files, related commits
+3. Agent uses `git log --grep` to find related work
+4. Agent searches `.agents/` for contemporary research/plans
+5. Agent builds timeline focused on that specific change
+6. Agent writes report showing commit context, what changed, why (from commit message and related docs)
+
+**Result:** Trace report links commit to broader design context from surrounding artifacts.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| CASS returns no results | Session search not installed or query too specific | Check `which cass`. If missing, skip CASS and rely on handoffs/git/research. Try broader query terms. |
+| Timeline has gaps | Not all decisions documented in searchable artifacts | Note gaps in report. Suggest interviewing team members or checking Slack/email archives for missing context. |
+| Too many results (>50 matches) | Very broad concept or high-frequency term | Read `references/edge-cases.md` for ambiguous concept handling. Narrow query or filter by date range. Ask user for more specific aspect to trace. |
+| Empty trace report (all sources failed) | Concept genuinely undocumented or typo | Verify spelling. Try synonyms. Report to user: "No documented history found. This may be a new concept or may need different search terms." |

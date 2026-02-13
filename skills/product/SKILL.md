@@ -149,3 +149,44 @@ Tell the user:
    - `/vibe` will now auto-include developer-experience perspectives (api-clarity, error-experience, discoverability)
    - `/council --preset=product` and `/council --preset=developer-experience` are available on demand
 3. **Next steps:** Suggest running `/pre-mortem` on their next plan to see product perspectives in action
+
+## Examples
+
+### Creating Product Doc for New Project
+
+**User says:** `/product`
+
+**What happens:**
+1. Agent checks for existing PRODUCT.md, finds none
+2. Agent reads README.md and package.json to extract project context
+3. Agent asks user about mission, suggesting "CLI tool for automated dependency updates"
+4. Agent interviews for 2 personas: DevOps Engineer and Backend Developer
+5. Agent asks about value props, user provides: "Zero-config automation, Safe updates, Time savings"
+6. Agent asks about competitors, user mentions Renovate and Dependabot
+7. Agent writes PRODUCT.md with all gathered information and today's review date
+
+**Result:** PRODUCT.md created, unlocking product-aware council perspectives in future validations.
+
+### Updating Existing Product Doc
+
+**User says:** `/product`
+
+**What happens:**
+1. Agent finds existing PRODUCT.md from 3 months ago
+2. Agent prompts: "PRODUCT.md exists. What would you like to do?"
+3. User selects "Update — keep existing content as defaults"
+4. Agent reads current file, extracts mission and personas as suggestions
+5. Agent asks about mission, user keeps existing one
+6. Agent asks about personas, user adds new "Security Engineer" persona
+7. Agent updates PRODUCT.md with new persona, updates `last_reviewed` date
+
+**Result:** PRODUCT.md refreshed with additional persona, ready for next validation cycle.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| No context to pre-populate suggestions | Missing README or project metadata files | Continue with blank suggestions. Ask user to describe project in own words. Extract mission from conversation. |
+| User unclear on personas vs users | Confusion about persona definition | Explain: "Personas are specific user archetypes with goals and pain points. Think of one real person who would use this." Provide example. |
+| Competitive landscape feels forced | Genuinely novel product or niche tool | Accept "No direct competitors" as valid. Focus on alternative approaches (manual processes, scripts) rather than products. |
+| PRODUCT.md feels generic | Insufficient user input or rushed interview | Ask follow-up questions. Request specific examples. Challenge vague statements like "makes things easier" — easier how? Measured how? |

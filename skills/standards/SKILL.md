@@ -70,3 +70,40 @@ Skills that use standards:
 - `/doc` - Loads markdown standards
 - `/bug-hunt` - Loads for root cause analysis
 - `/complexity` - Loads for refactoring recommendations
+
+## Examples
+
+### Vibe Loads Python Standards
+
+**User says:** `/vibe` (detects changed Python files)
+
+**What happens:**
+1. Vibe skill checks git diff for file types
+2. Vibe finds `auth.py` in changeset
+3. Vibe loads `standards/references/python.md` automatically
+4. Vibe validates against Python standards (type hints, docstrings, error handling)
+5. Vibe reports findings with standard references
+
+**Result:** Python code validated against language-specific standards without manual reference loading.
+
+### Implement Loads Go Standards
+
+**User says:** `/implement ag-xyz-123` (issue modifies Go files)
+
+**What happens:**
+1. Implement skill reads issue metadata to identify file targets
+2. Implement finds `server.go` in implementation scope
+3. Implement loads `standards/references/go.md` for context
+4. Implement writes code following Go standards (error handling, naming, package structure)
+5. Implement validates output against loaded standards before committing
+
+**Result:** Go code generated conforming to standards, reducing post-implementation vibe findings.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Standards not loaded | File type not detected or standards skill missing | Check file extension matches reference; verify standards in dependencies |
+| Wrong standard loaded | File type misidentified (e.g., .sh as .bash) | Manually specify standard; update file type detection logic |
+| Deep standards missing | Vibe needs extended catalog, not found | Check `vibe/references/*-standards.md` exists; use `--deep` flag |
+| Standard conflicts | Multiple languages in same changeset | Load all relevant standards; prioritize by primary language |

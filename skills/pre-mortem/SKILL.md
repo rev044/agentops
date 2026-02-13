@@ -202,35 +202,50 @@ Tell the user:
 
 ### Validate a Plan
 
-```bash
-/pre-mortem .agents/plans/2026-02-05-auth-system.md
-```
+**User says:** `/pre-mortem .agents/plans/2026-02-05-auth-system.md`
 
-3 judges (missing-requirements, feasibility, scope) review the auth system plan.
+**What happens:**
+1. Agent reads the auth system plan
+2. Runs `/council --deep --preset=plan-review validate <plan-path>`
+3. 4 judges (missing-requirements, feasibility, scope, spec-completeness) review
+4. Council verdict: WARN (missing error handling for token expiry)
+5. Output written to `.agents/council/2026-02-13-pre-mortem-auth-system.md`
+
+**Result:** Pre-mortem report with actionable concerns before implementation starts.
 
 ### Cross-Vendor Plan Validation
 
-```bash
-/pre-mortem --mixed .agents/plans/2026-02-05-auth-system.md
-```
+**User says:** `/pre-mortem --mixed .agents/plans/2026-02-05-auth-system.md`
 
-3 Claude + 3 Codex agents validate the plan with plan-review perspectives.
+**What happens:**
+1. Agent runs mixed-vendor council (3 Claude + 3 Codex)
+2. Cross-vendor perspectives catch platform-specific issues
+3. Verdict: PASS with 2 warnings
 
-### Architecture-Focused Review
-
-```bash
-/pre-mortem --preset=architecture .agents/specs/api-v2-spec.md
-```
-
-3 judges with architecture perspectives (scalability, maintainability, simplicity) review the spec.
+**Result:** Higher confidence from cross-vendor validation before committing resources.
 
 ### Auto-Find Recent Plan
 
-```bash
-/pre-mortem
-```
+**User says:** `/pre-mortem`
 
-Finds the most recent plan in `.agents/plans/` and validates it.
+**What happens:**
+1. Agent scans `.agents/plans/` for most recent plan
+2. Finds `2026-02-13-add-caching-layer.md`
+3. Runs council validation automatically
+4. Records ratchet progress
+
+**Result:** Frictionless validation of most recent planning work.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Council times out | Plan too large or complex for judges to review in allocated time | Split plan into smaller epics or increase timeout via council config |
+| FAIL verdict on valid plan | Judges misunderstand domain-specific constraints | Add context via `--perspectives-file` with domain explanations |
+| Product perspectives missing | PRODUCT.md exists but not included in council packet | Verify PRODUCT.md is in project root and no explicit `--preset` override was passed |
+| Pre-mortem gate blocks /crank | Epic has 3+ issues and no pre-mortem ran | Run `/pre-mortem` before `/crank`, or use `--skip-pre-mortem` flag (not recommended) |
+| Spec-completeness judge warns | Plan lacks Boundaries or Conformance Checks sections | Add SDD sections or accept WARN (backward compatibility — not a failure) |
+| Mandatory for epics enforcement | Hook blocks /crank on 3+ issue epic without pre-mortem | Run `/pre-mortem` first, or set `AGENTOPS_SKIP_PRE_MORTEM_GATE=1` to bypass |
 
 ---
 

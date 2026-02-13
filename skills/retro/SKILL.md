@@ -192,3 +192,44 @@ Work → /retro → .agents/learnings/ → ao forge index → /research finds it
 ```
 
 Future sessions start smarter because of your retrospective.
+
+## Examples
+
+### Retrospective After Implementation
+
+**User says:** `/retro`
+
+**What happens:**
+1. Agent looks at recent activity via `git log --oneline -10`
+2. Agent finds 8 commits related to authentication refactor
+3. Agent reads commit messages, code changes, and related issue in beads
+4. Agent asks: What went well? What went wrong? What was discovered?
+5. Agent identifies 4 learnings: L1 (token expiry pattern), L2 (middleware ordering matters), L3 (test coverage caught edge case), L4 (documentation prevents support load)
+6. Agent writes learnings file to `.agents/learnings/2026-02-13-auth-refactor.md`
+7. Agent writes retro summary to `.agents/retros/2026-02-13-auth-refactor.md`
+8. Agent runs `ao forge index` to add learnings to knowledge base
+
+**Result:** 4 learnings extracted and indexed, retro summary documents what went well and improvements needed.
+
+### Post-Mortem with Vibe Results
+
+**User says:** `/retro --vibe-results .agents/council/2026-02-13-vibe-api.md`
+
+**What happens:**
+1. Agent reads vibe results file showing 2 CRITICAL and 3 HIGH findings
+2. Agent extracts learnings from validation findings (race condition pattern, missing input validation)
+3. Agent reviews recent commits for context
+4. Agent creates 6 learnings: 2 from vibe findings (what to avoid), 4 from successful patterns (what to repeat)
+5. Agent writes both learnings and retro files
+6. Agent indexes knowledge automatically via ao forge
+
+**Result:** Vibe findings incorporated into learnings, preventing same issues in future work.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| No recent activity found | Clean git history or work not committed yet | Ask user what to retrospect. Accept manual topic: `/retro "planning process improvements"`. Review uncommitted changes if needed. |
+| Learnings too generic | Insufficient analysis or surface-level review | Dig deeper into code changes. Ask "why" repeatedly. Ensure learnings are actionable (specific pattern, not vague principle). Check confidence level. |
+| ao forge index fails | ao CLI not installed or .agents/ structure wrong | Graceful fallback: copy to `.agents/knowledge/pending/` instead. Notify user ao not available. Learnings still saved, just not auto-indexed. |
+| Duplicate learnings extracted | Same insight from multiple sources | Deduplicate before writing. Check existing learnings with grep. Merge duplicates into single learning with multiple source citations. |

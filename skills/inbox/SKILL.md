@@ -128,6 +128,46 @@ Read `references/transport-reference.md` for MCP tool reference, HTTP fallback, 
 
 ---
 
+## Examples
+
+### Checking Inbox During Active Work
+
+**User says:** `/inbox`
+
+**What happens:**
+1. Agent checks for MCP Agent Mail tools, finds them available
+2. Agent determines identity from $AGENT_NAME or hostname, gets project key from git
+3. Agent fetches inbox using MCP tool, finds 3 pending messages
+4. Agent searches for HELP_REQUESTs, finds 1 unresolved request from worker-2
+5. Agent gets recent completions, finds 2 OFFERING_READY messages
+6. Agent displays formatted results showing pending help request and recent completions
+7. Agent suggests: "Worker-2 needs help with database schema migration"
+
+**Result:** Inbox shows 1 critical help request requiring attention and 2 completed tasks.
+
+### Watch Mode for Orchestration
+
+**User says:** `/inbox --watch`
+
+**What happens:**
+1. Agent enters polling loop checking inbox every 30 seconds
+2. Agent displays initial state: 0 pending, 0 help requests
+3. After 2 minutes, new HELP_REQUEST appears from worker-5
+4. Agent alerts user with notification and message summary
+5. Agent continues watching, detects OFFERING_READY from worker-3
+6. Agent maintains live display of inbox state until user interrupts
+
+**Result:** Continuous monitoring mode catches new help requests in real-time for quick response.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "Agent Mail not running" error | MCP server not started or HTTP endpoint down | Start Agent Mail server: check MCP config or run standalone server on localhost:8765. Verify with `curl http://localhost:8765/health`. |
+| Empty inbox despite active workers | Wrong agent name or project key | Verify `$AGENT_NAME` matches worker expectations. Check project key with `git rev-parse --show-toplevel`. Use absolute path, not relative. |
+| HELP_REQUESTs not showing | Missing search or filter issue | Verify search query includes "HELP_REQUEST" string. Check message subjects match protocol. Use `search_messages` tool to debug. |
+| Watch mode exits immediately | Polling error or missing dependency | Check MCP tools work individually first. Verify --watch flag parsing. Fall back to manual polling: run `/inbox` repeatedly instead of --watch. |
+
 ## References
 
 - **Agent Mail Protocol:** See `skills/shared/agent-mail-protocol.md` for message format specifications

@@ -370,3 +370,61 @@ Task(description="Fix task 1", subagent_type="general-purpose", run_in_backgroun
 | Timeout | 120s default |
 | Strategies | Parallel (no overlap), Merge (same file), Multi-wave (partial overlap) |
 | Fallback | `/swarm` (runtime-native) |
+
+---
+
+## Examples
+
+### Parallel Execution (No File Overlap)
+
+**User says:** Fix three bugs in auth.go, config.go, and logging.go using `/codex-team`
+
+**What happens:**
+1. Agent analyzes file targets (auth.go, config.go, log.go — no overlap)
+2. Agent selects PARALLEL strategy
+3. Agent spawns three Codex agents (sub-agents if available, else CLI via Bash)
+4. All agents execute simultaneously, write to `.agents/codex-team/*.md`
+5. Team lead verifies results with `git diff` and tests
+6. Team lead commits all changes together
+
+**Result:** Three bugs fixed in parallel with zero file conflicts.
+
+### Merge Strategy (Same File)
+
+**User says:** Fix three issues in zeus.go: rename field, remove unused field, fix counter
+
+**What happens:**
+1. Agent analyzes file targets (all three tasks touch zeus.go)
+2. Agent selects MERGE strategy
+3. Agent combines all three fixes into a single Codex prompt with line-specific instructions
+4. Agent spawns ONE Codex agent with merged prompt
+5. Agent completes all three fixes in one pass
+6. Team lead verifies and commits
+
+**Result:** One agent, one file, no conflicts possible.
+
+### Multi-Wave (Partial Overlap)
+
+**User says:** Fix auth.go, add rate limiting to auth.go + middleware.go, update config.go
+
+**What happens:**
+1. Agent identifies overlap: tasks 1 and 2 both touch auth.go
+2. Agent decomposes into waves: W1 = task 1 + task 3 (non-overlapping), W2 = task 2
+3. Agent spawns Wave 1 agents in parallel, waits for completion
+4. Agent reads Wave 1 results, synthesizes context for Wave 2
+5. Agent spawns Wave 2 agent with updated file-state context
+6. Team lead validates and commits after Wave 2
+
+**Result:** Sequential wave execution prevents conflicts, context flows forward.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Codex CLI not found | `codex` not installed or not on PATH | Run `npm i -g @openai/codex` or use fallback `/swarm` |
+| Model `gpt-5.3-codex` unavailable | ChatGPT account, not API account | Use API account or switch to `gpt-4o` |
+| Agents produce file conflicts | Multiple agents editing same file | Use file-target analysis and apply merge or multi-wave strategy |
+| Agent timeout with no output | Task too complex or vague prompt | Break into smaller tasks, add specific file:line instructions |
+| Output files empty or missing | `-o` path invalid or permission denied | Check `.agents/codex-team/` directory exists and is writable |

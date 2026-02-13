@@ -154,3 +154,40 @@ find .agents/ -name "*.md" -mtime +30 2>/dev/null
 - **Find orphans** - clean up untracked knowledge
 - **Maintain lineage** - provenance enables trust
 - **Use CASS** - find when artifacts were discussed
+
+## Examples
+
+### Trace Artifact Lineage
+
+**User says:** `/provenance .agents/learnings/2026-01-15-auth-tokens.md`
+
+**What happens:**
+1. Agent reads artifact and extracts source metadata (session ID, date, references)
+2. Agent searches session transcripts with `cass search "auth-tokens" --json --limit 5`
+3. Agent parses CASS results to find origin session and timeline
+4. Agent traces promotion history from forge → learnings → patterns
+5. Agent builds lineage chain and writes report to markdown
+6. Agent reports artifact tier, citations, related artifacts
+
+**Result:** Full provenance chain from transcript to current tier, showing when artifact was created, discussed, and promoted.
+
+### Find Orphaned Artifacts
+
+**User says:** `/provenance --orphans`
+
+**What happens:**
+1. Agent scans `.agents/learnings/`, `.agents/patterns/` for files missing source metadata
+2. Agent greps each file for "Source:" or "Session:" fields
+3. Agent lists files without provenance tracking
+4. Agent reports orphan count and recommends adding source references
+
+**Result:** Untracked knowledge identified, enabling retroactive lineage documentation or archival.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| No source metadata found | Artifact created before provenance tracking | Use CASS to find origin session retroactively; add Source field manually |
+| CASS returns no results | Session not indexed or artifact name mismatch | Check session transcript exists; try broader search terms |
+| Stale artifact check fails | find command not available or permission error | Use `ls -lt .agents/ | grep -v mtime` as fallback |
+| Lineage chain incomplete | Promotion not recorded in artifact metadata | Reconstruct from git history or session transcripts; document gaps |

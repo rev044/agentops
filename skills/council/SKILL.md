@@ -351,6 +351,56 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 /council validate the implementation plan in PLAN.md            # structured plan feedback
 ```
 
+### Fast Single-Agent Validation
+
+**User says:** `/council --quick validate recent`
+
+**What happens:**
+1. Agent gathers context (recent diffs, files) inline without spawning
+2. Agent performs structured self-review using council output schema
+3. Report written to `.agents/council/YYYY-MM-DD-quick-<target>.md` labeled `Mode: quick (single-agent)`
+
+**Result:** Fast sanity check for routine validation (no cross-perspective insights or debate).
+
+### Adversarial Debate Review
+
+**User says:** `/council --debate validate the auth system`
+
+**What happens:**
+1. Agent spawns 2 judges (runtime-native backend) with independent perspectives
+2. R1: Judges assess independently, write verdicts to `.agents/council/`
+3. R2: Team lead sends other judges' verdicts via backend messaging
+4. Judges revise positions based on cross-perspective evidence
+5. Consolidation: Team lead computes consensus with convergence detection
+
+**Result:** Two-round review with steel-manning and revision, useful for high-stakes decisions.
+
+### Cross-Vendor Consensus with Explorers
+
+**User says:** `/council --mixed --explorers=2 research Kubernetes upgrade strategies`
+
+**What happens:**
+1. Agent spawns 3 Claude judges + 3 Codex judges (6 total)
+2. Each judge spawns 2 explorer sub-agents (6 x 3 = 18 total agents, exceeds MAX_AGENTS)
+3. Agent auto-scales to 2 judges per vendor (4 x 3 = 12 agents at limit)
+4. Explorers perform parallel deep-dives, return sub-findings to judges
+5. Judges consolidate explorer findings with own research
+
+**Result:** Cross-vendor research with deep exploration, capped at 12 total agents.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "Error: --quick and --debate are incompatible" | Both flags passed together | Use `--quick` for fast inline check OR `--debate` for multi-round review, not both |
+| "Error: --debate is only supported with validate mode" | Debate flag used with brainstorm/research | Remove `--debate` or switch to validate mode — brainstorming/research have no PASS/FAIL verdicts |
+| Council spawns fewer agents than expected | `--explorers=N` exceeds MAX_AGENTS (12) | Agent auto-scales judge count. Check report header for actual judge count. Reduce `--explorers` or use `--count` to manually set judges |
+| Codex judges skipped in --mixed mode | Codex CLI not on PATH or gpt-5.3-codex unavailable | Install Codex CLI (`brew install codex`) or use ChatGPT API account. Fallback to runtime-native judges only. |
+| No output files in `.agents/council/` | Permission error or disk full | Check directory permissions with `ls -ld .agents/council/`. Council auto-creates missing dirs. |
+| Agent timeout after 120s | Slow file reads or network issues | Increase timeout with `--timeout=300` or check `COUNCIL_TIMEOUT` env var. Default: 120s. |
+
 ---
 
 ## Migration from /judge

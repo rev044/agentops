@@ -396,35 +396,54 @@ Ship it
 
 ### Wrap Up Recent Work
 
-```bash
-/post-mortem
-```
+**User says:** `/post-mortem`
 
-Validates recent commits, extracts learnings.
+**What happens:**
+1. Agent scans recent commits (last 7 days)
+2. Runs `/council --deep --preset=retrospective validate recent`
+3. 3 judges (plan-compliance, tech-debt, learnings) review
+4. Runs `/retro` to extract learnings
+5. Synthesizes process improvement proposals
+6. Harvests next-work items to `.agents/rpi/next-work.jsonl`
+7. Feeds learnings to knowledge flywheel via `ao forge`
+
+**Result:** Post-mortem report with learnings, tech debt identified, and suggested next `/rpi` command.
 
 ### Wrap Up Specific Epic
 
-```bash
-/post-mortem epic-123
-```
+**User says:** `/post-mortem ag-5k2`
 
-Council reviews epic-123 implementation, retro captures learnings.
+**What happens:**
+1. Agent loads original plan from `bd show ag-5k2`
+2. Council reviews implementation vs plan
+3. Retro captures what went well and what was hard
+4. Process improvements identified (e.g., "Add pre-commit lint check")
+5. Next-work items harvested and written to JSONL
 
-### Thorough Review
-
-```bash
-/post-mortem --deep epic-123
-```
-
-3 judges review the epic.
+**Result:** Epic-specific post-mortem with 3 harvested follow-up items (2 tech-debt, 1 process-improvement).
 
 ### Cross-Vendor Review
 
-```bash
-/post-mortem --mixed epic-123
-```
+**User says:** `/post-mortem --mixed ag-3b7`
 
-3 Claude + 3 Codex agents review the epic.
+**What happens:**
+1. Agent runs 3 Claude + 3 Codex judges
+2. Cross-vendor perspectives catch edge cases
+3. Verdict: WARN (missing error handling in 2 files)
+4. Harvests 1 tech-debt item
+
+**Result:** Higher confidence validation with cross-vendor review before closing epic.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Council times out | Epic too large or too many files changed | Split post-mortem into smaller reviews or increase timeout |
+| Retro fails but council succeeds | `/retro` skill unavailable or errors | Post-mortem proceeds with "⚠️ SKIPPED: retro unavailable" — council findings still captured |
+| No next-work items harvested | Council found no tech debt or improvements | Flywheel stable — write entry with empty items array to next-work.jsonl |
+| Schema validation failed | Harvested item missing required field or has invalid enum value | Drop invalid item, log error, proceed with valid items only |
+| Checkpoint-policy preflight blocks | Prior FAIL verdict in ratchet chain without fix | Resolve prior failure (fix + re-vibe) or skip checkpoint-policy via `--skip-checkpoint-policy` |
+| Metadata verification fails | Plan vs actual files mismatch or missing cross-references | Include failures in council packet as `context.metadata_failures` — judges assess severity |
 
 ---
 

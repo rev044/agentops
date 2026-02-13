@@ -319,34 +319,50 @@ Tell the user:
 
 ## Examples
 
-### Example 1: Plan from research
-```
-/plan "add user authentication"
-```
-Reads recent research from `.agents/research/`, decomposes into beads issues with dependency graph.
+### Plan from Research
 
-### Example 2: Plan with auto mode
-```
-/plan --auto "refactor payment module"
-```
-Skips human gate, creates epic and issues automatically.
+**User says:** `/plan "add user authentication"`
 
-### Example 3: Plan specific epic
-```
-/plan ag-abc "implement caching layer"
-```
-Adds child issues to existing epic ag-abc.
+**What happens:**
+1. Agent reads recent research from `.agents/research/2026-02-13-authentication-system.md`
+2. Explores codebase to identify integration points
+3. Decomposes into 5 issues: middleware, session store, token validation, tests, docs
+4. Creates epic `ag-5k2` with 5 child issues in 2 waves
+5. Output written to `.agents/plans/2026-02-13-add-user-authentication.md`
+
+**Result:** Epic with dependency graph, conformance checks, and wave structure for parallel execution.
+
+### Plan with Auto Mode
+
+**User says:** `/plan --auto "refactor payment module"`
+
+**What happens:**
+1. Agent skips human approval gates
+2. Searches knowledge base for refactoring patterns
+3. Creates epic and child issues automatically
+4. Records ratchet progress
+
+**Result:** Fully autonomous plan creation with 3 waves, 8 issues, ready for `/crank`.
+
+### Plan Cleanup Epic with Audit
+
+**User says:** `/plan "remove dead code"`
+
+**What happens:**
+1. Agent runs quantitative audit: 3,003 LOC across 3 packages
+2. Creates issues grounded in audit numbers (not vague "cleanup")
+3. Each issue specifies exact files and line count reduction
+4. Output includes deletion verification checks
+
+**Result:** Scoped cleanup plan with measurable completion criteria (e.g., "Delete 1,500 LOC from pkg/legacy").
 
 ## Troubleshooting
 
-### bd create fails
-Cause: Beads not initialized in repo.
-Solution: Run `bd init --prefix <prefix>` first.
-
-### Dependencies not created
-Cause: Issues created without explicit `bd dep add` calls.
-Solution: Verify plan output includes dependency commands. Re-run with `--auto` to regenerate.
-
-### Plan too large
-Cause: Research scope was too broad, resulting in >20 issues.
-Solution: Narrow the goal or split into multiple epics.
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| bd create fails | Beads not initialized in repo | Run `bd init --prefix <prefix>` first |
+| Dependencies not created | Issues created without explicit `bd dep add` calls | Verify plan output includes dependency commands. Re-run to regenerate |
+| Plan too large | Research scope was too broad, resulting in >20 issues | Narrow the goal or split into multiple epics |
+| Wave structure incorrect | False dependencies declared (logical ordering, not file conflicts) | Review dependency necessity: does blocked issue modify blocker's files? |
+| Conformance checks missing | Acceptance criteria not mechanically verifiable | Add `files_exist`, `content_check`, `tests`, or `command` checks per validation-contract.md |
+| Epic has no children | Plan created but bd commands failed silently | Check `bd list --type epic` output; re-run plan with bd CLI available |

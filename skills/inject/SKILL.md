@@ -75,3 +75,40 @@ Knowledge relevance decays over time (~17%/week). More recent learnings are weig
 - **Context-aware** - filters by current directory/topic
 - **Token-budgeted** - respects max-tokens limit
 - **Recency-weighted** - newer knowledge prioritized
+
+## Examples
+
+### SessionStart Hook Invocation
+
+**Hook triggers:** `session-start.sh` runs at session start
+
+**What happens:**
+1. Hook calls `ao inject --apply-decay --format markdown --max-tokens 1000`
+2. CLI searches `.agents/learnings/`, `.agents/patterns/`, `.agents/research/` for relevant artifacts
+3. CLI applies recency-weighted decay (~17%/week) to rank results
+4. CLI outputs top-ranked knowledge as markdown within token budget
+5. Agent presents injected knowledge in session context
+
+**Result:** Prior learnings, patterns, research automatically available at session start without manual lookup.
+
+### Manual Context Injection
+
+**User says:** `/inject authentication` or "recall knowledge about auth"
+
+**What happens:**
+1. Agent calls `ao inject --context "authentication" --format markdown --max-tokens 1000`
+2. CLI filters artifacts by topic relevance
+3. Agent reads top-ranked learnings and patterns
+4. Agent summarizes injected knowledge for current work
+5. Agent references artifact paths for deeper exploration
+
+**Result:** Topic-specific knowledge retrieved and summarized, enabling faster context loading than full artifact reads.
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| No knowledge injected | Empty knowledge pools or ao CLI unavailable | Run `/post-mortem` to seed pools; verify ao CLI installed |
+| Irrelevant knowledge | Topic mismatch or stale artifacts dominate | Use `--context "<topic>"` to filter; prune stale artifacts |
+| Token budget exceeded | Too many high-relevance artifacts | Reduce `--max-tokens` or increase topic specificity |
+| Decay too aggressive | Recent learnings not prioritized | Check artifact modification times; verify `--apply-decay` flag |

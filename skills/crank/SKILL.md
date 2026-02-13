@@ -450,6 +450,81 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 
 ---
 
+## Examples
+
+### Execute Epic with Beads Tracking
+
+**User says:** `/crank ag-m0r`
+
+**What happens:**
+1. Agent runs `ao inject` to load prior learnings, then `bd show ag-m0r` to get epic details
+2. Agent runs `bd ready` to find unblocked issues (wave 1)
+3. Agent creates TaskList from beads issues, invokes `/swarm` with runtime-native spawning
+4. Workers execute in parallel, write files, report completion via backend channel
+5. Team lead verifies outputs, runs wave vibe gate, commits if passing
+6. Agent loops to next wave until all issues closed
+7. Final batched vibe on all changes, then `ao forge transcript` to extract learnings
+
+**Result:** Fully autonomous epic execution with knowledge flywheel integration.
+
+### Execute from Plan File (TaskList Mode)
+
+**User says:** `/crank .agents/plans/auth-refactor.md`
+
+**What happens:**
+1. Agent reads plan file, decomposes into TaskList tasks (one per distinct work item)
+2. Agent sets up dependencies via `TaskUpdate(addBlockedBy)`
+3. Agent invokes `/swarm` for wave 1 (unblocked tasks)
+4. Workers execute, team lead verifies and commits
+5. Agent loops through remaining waves until all tasks completed
+6. Final vibe on recent changes
+
+**Result:** Plan-driven execution without beads dependency.
+
+### Test-First Epic with Contract-Based TDD
+
+**User says:** `/crank --test-first ag-xj9`
+
+**What happens:**
+1. Agent classifies issues by type (feature/bug/task = spec-eligible, chore/epic/docs = skip)
+2. SPEC WAVE: Workers generate contracts (`.agents/specs/contract-<id>.md`) from issue descriptions
+3. Team lead commits specs after validation
+4. TEST WAVE: Workers generate failing tests from contracts (no implementation code access)
+5. RED Gate: Team lead runs test suite — all new tests must FAIL before proceeding
+6. Team lead commits test harness after RED Gate passes
+7. GREEN IMPL WAVES: Workers make tests pass (immutable tests, contract + failing tests as input)
+8. Final vibe + knowledge extraction
+
+**Result:** Spec → Failing Tests → Passing Implementation with built-in quality gates.
+
+### Recovery from Blocked State
+
+**User says:** `/crank ag-oke` (epic with circular dependencies)
+
+**What happens:**
+1. Wave 1: Agent finds 5 ready issues, executes via swarm
+2. Wave 2: Agent finds 0 ready issues (all blocked by each other)
+3. Agent checks wave counter: 2/50
+4. Agent outputs `<promise>BLOCKED</promise>` with reason: "Circular dependencies detected"
+5. Agent lists remaining issues with blocking chains
+
+**Result:** Clean exit with diagnostic info, prevents infinite loop.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "No ready issues found for this epic" | Epic has no child issues or all blocked | Run `/plan <epic-id>` first to decompose epic into issues. Check dependencies with `bd show <id>`. |
+| "Global wave limit (50) reached" | Excessive retries or circular dependencies | Review failed waves in `.agents/crank/wave-N-checkpoint.json`. Fix blocking issues manually or break circular deps with `bd dep remove`. |
+| Wave vibe gate fails repeatedly | Workers producing non-conforming code | Check `.agents/council/YYYY-MM-DD-vibe-wave-N.md` for specific findings. Add cross-cutting constraints to task metadata or refine worker prompts. |
+| Workers report completion but files missing | Permission errors or workers writing to wrong paths | Check `.agents/swarm/<team>/worker-N-output.json` for file paths. Verify write permissions with `ls -ld`. |
+| RED Gate passes (tests don't fail) | Test wave workers wrote implementation code | Re-run TEST WAVE with explicit "no implementation code access" in worker prompts. Tests must fail before GREEN waves start. |
+| TaskList mode can't find epic ID | bd CLI required for beads epic tracking | Provide plan file path (`.md`) or task description string instead of epic ID. Or install bd CLI with `brew install bd`. |
+
+---
+
 ## Distributed Mode: Agent Mail Orchestration (Experimental)
 
 > **Status: Experimental.** Local mode (TaskList + swarm) is the recommended execution method.
