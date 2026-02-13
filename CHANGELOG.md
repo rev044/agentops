@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-02-13
+
+### Added
+
+- **ao CLI improvements (ag-z9ok)** — 11-issue epic: generic worker pool for concurrent file processing, inverted search index, shared table formatter, CASS as default search mode, pool pagination (--offset/--limit), progress indicators for inject/search, dry-run flags for destructive pool operations, expanded doctor (9 health checks), unified status + flywheel display.
+- **README overhaul** — Dedicated ao CLI section, adoption path diagram, personas, 4 pillars framework, competitive comparison, /evolve expansion.
+- **Deliberation consensus alignment** — 4 pillars, new mission statement, 42 fitness goals in GOALS.yaml.
+
+### Changed
+
+- **`/evolve` runs forever by default** — Removed 10-cycle cap; loop runs until kill switch or stagnation (3 idle cycles). Use `--max-cycles=N` for explicit cap.
+- **Terminology alignment** — Replaced 'autonomous' with 'hands-free'/'independently' across reference docs.
+- **Council verdict schema v2** — Judges now emit FIX/WHY/REF fields per finding, env manifest, flywheel validation.
+
+### Fixed
+
+- **GOALS.yaml reliability** — Fixed check patterns for tier and schema validation, annotated infrastructure goal sections, fixed fragile find pattern.
+- **Learning-format compliance** — Widened check to all files, backfilled 56 legacy learnings to match format.
+- **Vibe council findings** — Restored CASS default (reverted by parallel agent), added pool pagination CLI flags, replaced dead tabwriter import with shared formatter.
+- **Consolidation fallback** — Aligned fallback behavior + updated packet schema_version example.
+- **Structured failure feedback** — Retry loops now include formatted findings for actionable guidance.
+
 ## [2.6.0] - 2026-02-13
 
 ### Added
