@@ -131,7 +131,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
         if [ "$has_troubleshooting" -gt 0 ]; then
             has_table=$(grep -c '| Problem |' "$skill_md" 2>/dev/null || echo 0)
             has_table=$(echo "$has_table" | tr -d '[:space:]')
-            has_prose_troubleshoot=$(grep -cE '^### .+' "$skill_md" 2>/dev/null || echo 0)
+            has_prose_troubleshoot=$(awk '/^## Troubleshooting/ { in_section=1; next } in_section && /^## / { exit } in_section && /^### / { count++ } END { print count+0 }' "$skill_md")
             has_prose_troubleshoot=$(echo "$has_prose_troubleshoot" | tr -d '[:space:]')
             # Accept either table format or prose format (some pre-existing skills use prose)
             if [ "$has_table" -eq 0 ] && [ "$has_prose_troubleshoot" -eq 0 ]; then

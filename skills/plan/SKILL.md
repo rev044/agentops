@@ -70,24 +70,27 @@ Parameters:
     Return: key files, current state, suggested approach
 ```
 
-#### Pre-Planning Audit (Cleanup/Refactoring Epics)
+#### Pre-Planning Baseline Audit (Mandatory)
 
-If goal includes "cleanup", "refactor", "remove dead", or "update stale":
-Run a **quantitative audit** BEFORE decomposing into issues:
+**Before decomposing into issues**, run a quantitative baseline audit to ground the plan in verified numbers. This is mandatory for ALL plans — not just cleanup/refactor. Any plan that makes quantitative claims (counts, sizes, coverage) must verify them mechanically.
 
-- **Dead code:** count packages, LOC, import references
-- **Stale docs:** count files, old vs new references
-- **Orphaned items:** count issues, follow-ups without beads
+Run grep/wc/ls commands to count the current state of what you're changing:
 
-Output concrete numbers. These become the plan's scope.
+- **Files to change:** count with `ls`/`find`/`wc -l`
+- **Sections to add/remove:** count with `grep -l`/`grep -L`
+- **Code to modify:** count LOC, packages, import references
+- **Coverage gaps:** count missing items with `grep -L` or `find`
+
+**Record the verification commands alongside their results.** These become pre-mortem evidence and acceptance criteria.
 
 | Bad | Good |
 |-----|------|
-| "clean up dead code" | "Delete 3,003 LOC across 3 packages" |
-| "update stale docs" | "Rewrite 4 specs (cli, observability, quest-events, index)" |
-| "remove old stuff" | "Remove 5 v2 agent references from 3 role prompts" |
+| "14 missing refs/" | "14 missing refs/ (verified: `ls -d skills/*/references/ \| wc -l` = 20 of 34)" |
+| "clean up dead code" | "Delete 3,003 LOC across 3 packages (verified: `find src/old -name '*.go' \| xargs wc -l`)" |
+| "update stale docs" | "Rewrite 4 specs (verified: `ls docs/specs/*.md \| wc -l` = 4)" |
+| "add missing sections" | "Add Examples to 27 skills (verified: `grep -L '## Examples' skills/*/SKILL.md \| wc -l` = 27)" |
 
-Ground truth with numbers prevents scope creep and makes completion verifiable. In ol-571, the audit found 5,752 LOC to remove — without it, the plan would have been vague.
+Ground truth with numbers prevents scope creep and makes completion verifiable. In ol-571, the audit found 5,752 LOC to remove — without it, the plan would have been vague. In ag-dnu, wrong counts (11 vs 14, 0 vs 7) caused a pre-mortem FAIL that a simple grep audit would have prevented.
 
 ### Step 4: Decompose into Issues
 
@@ -168,6 +171,12 @@ False dependencies reduce parallelism. Pre-mortem judges will also flag these. I
 **Always:** <non-negotiable requirements — security, backward compat, testing, etc.>
 **Ask First:** <decisions needing human input before proceeding — in auto mode, logged only>
 **Never:** <explicit out-of-scope items preventing scope creep>
+
+## Baseline Audit
+
+| Metric | Command | Result |
+|--------|---------|--------|
+| <what was measured> | `<grep/wc/ls command used>` | <result> |
 
 ## Conformance Checks
 
