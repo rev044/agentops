@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/boshu2/agentops/cli/internal/pool"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -18,6 +18,7 @@ var (
 	poolTier      string
 	poolStatus    string
 	poolLimit     int
+	poolOffset    int
 	poolReason    string
 	poolThreshold string
 	poolDoPromote bool
@@ -73,7 +74,8 @@ Examples:
 		p := pool.NewPool(cwd)
 
 		opts := pool.ListOptions{
-			Limit: poolLimit,
+			Limit:  poolLimit,
+			Offset: poolOffset,
 		}
 
 		if poolTier != "" {
@@ -83,16 +85,16 @@ Examples:
 			opts.Status = types.PoolStatus(poolStatus)
 		}
 
-		entries, err := p.List(opts)
+		result, err := p.ListPaginated(opts)
 		if err != nil {
 			return fmt.Errorf("list pool: %w", err)
 		}
 
-		return outputPoolList(entries)
+		return outputPoolList(result.Entries, poolOffset, poolLimit, result.Total)
 	},
 }
 
-func outputPoolList(entries []pool.PoolEntry) error {
+func outputPoolList(entries []pool.PoolEntry, offset, limit, total int) error {
 	switch GetOutput() {
 	case "json":
 		enc := json.NewEncoder(os.Stdout)
@@ -109,25 +111,31 @@ func outputPoolList(entries []pool.PoolEntry) error {
 			return nil
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		//nolint:errcheck // CLI tabwriter output to stdout, errors unlikely and non-recoverable
-		fmt.Fprintln(w, "ID\tTIER\tSTATUS\tAGE\tUTILITY\tCONFIDENCE")
-		//nolint:errcheck // CLI tabwriter output to stdout
-		fmt.Fprintln(w, "--\t----\t------\t---\t-------\t----------")
+		tbl := formatter.NewTable(os.Stdout, "ID", "TIER", "STATUS", "AGE", "UTILITY", "CONFIDENCE")
+		tbl.SetMaxWidth(0, 12)
 
 		for _, e := range entries {
-			//nolint:errcheck // CLI tabwriter output to stdout
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.2f\t%.2f\n",
-				truncateID(e.Candidate.ID, 12),
-				e.Candidate.Tier,
-				e.Status,
+			tbl.AddRow(
+				e.Candidate.ID,
+				string(e.Candidate.Tier),
+				string(e.Status),
 				e.AgeString,
-				e.Candidate.Utility,
-				e.Candidate.Confidence,
+				fmt.Sprintf("%.2f", e.Candidate.Utility),
+				fmt.Sprintf("%.2f", e.Candidate.Confidence),
 			)
 		}
 
-		return w.Flush()
+		if err := tbl.Render(); err != nil {
+			return err
+		}
+
+		if total > len(entries) {
+			start := offset + 1
+			end := offset + len(entries)
+			fmt.Printf("\nShowing %d-%d of %d entries (use --offset/--limit to paginate)\n", start, end, total)
+		}
+
+		return nil
 	}
 }
 
@@ -511,7 +519,8 @@ func init() {
 	// Add flags to list command
 	poolListCmd.Flags().StringVar(&poolTier, "tier", "", "Filter by tier (gold, silver, bronze)")
 	poolListCmd.Flags().StringVar(&poolStatus, "status", "", "Filter by status (pending, staged, promoted, rejected)")
-	poolListCmd.Flags().IntVar(&poolLimit, "limit", 0, "Limit number of results")
+	poolListCmd.Flags().IntVar(&poolLimit, "limit", 50, "Maximum results to return (default 50, 0 for unlimited)")
+	poolListCmd.Flags().IntVar(&poolOffset, "offset", 0, "Skip first N results (for pagination)")
 
 	// Add flags to stage command
 	poolStageCmd.Flags().StringVar(&poolTier, "min-tier", "", "Minimum tier threshold (default: bronze)")

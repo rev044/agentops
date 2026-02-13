@@ -39,19 +39,18 @@ var (
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
 	Short: "Search knowledge base",
-	Long: `Search AgentOps knowledge using file-based search.
+	Long: `Search AgentOps knowledge using CASS (Contextual Agent Session Search).
 
-By default, searches markdown and JSONL files in .agents/ao/sessions/.
+By default, uses CASS which searches learnings, patterns, and sessions
+with maturity-weighted ranking. Use --cass=false for plain file-based search.
 Optionally use Smart Connections for semantic search if Obsidian is running.
-Use --cass to enable CASS (Contextual Agent Session Search) which includes
-session context and maturity-weighted ranking.
 
 Examples:
   ao search "mutex pattern"
   ao search "authentication" --limit 20
   ao search "database migration" --type decisions
-  ao search "config" --use-sc   # Enable Smart Connections semantic search
-  ao search "auth" --cass       # Enable CASS session-aware search`,
+  ao search "config" --use-sc      # Enable Smart Connections semantic search
+  ao search "auth" --cass=false    # Plain file-based search (no maturity weighting)`,
 	Args: cobra.ExactArgs(1),
 	RunE: runSearch,
 }
@@ -61,7 +60,7 @@ func init() {
 	searchCmd.Flags().IntVar(&searchLimit, "limit", 10, "Maximum results to return")
 	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: decisions, knowledge, sessions")
 	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Enable Smart Connections semantic search (requires Obsidian)")
-	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Enable CASS session-aware search with maturity weighting")
+	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", true, "CASS session-aware search with maturity weighting (default: on, use --cass=false to disable)")
 	searchCmd.Flags().BoolVar(&searchRebuildIndex, "rebuild-index", false, "Force rebuild of the search index")
 }
 
