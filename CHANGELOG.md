@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-02-13
+
+### Added
+
+- **Micro-epic fast path for `/rpi`** — Issues with 3 or fewer children skip `/pre-mortem` and execute sequentially without `/swarm`, reducing overhead for small epics.
+- **Examples + Troubleshooting for all 34 skills** — Every skill now includes usage examples and common troubleshooting guidance, following the Anthropic official skills guide structure.
+- **`--test-first` scaffolding** — `/crank --test-first` wave model with spec-first TDD templates, RED gate enforcement, and `test-first-mode.md` reference.
+- **Headless Codex team-runner** — `lib/scripts/team-runner.sh` spawns parallel Codex agents with JSONL event watching, structured output via `worker-output.json` and `team-spec.json` schemas.
+- **5 mission-fitness goals** — GOALS.yaml expanded with mission-aligned fitness targets; stub `ao export-constraints` command added.
+
+### Changed
+
+- **Anthropic skills guide alignment** — All 34 skills restructured to match the official Anthropic skills guide format (YAML frontmatter, triggers, progressive disclosure).
+- **AO-OL bridge contracts updated** — Bridge contracts document aligned with Olympus codebase; ownership matrix and next-steps plan added.
+
+### Fixed
+
+- **Mandatory plan audit + scoped lint detection** — `/plan` now enforces audit step; lint troubleshooting detection scoped to avoid false positives.
+- **Vibe findings remediation** — Fixed shell quoting, validation edge cases, cleanup ordering, and portability issues across hook and test scripts.
+
 ## [2.5.1] - 2026-02-12
 
 ### Added

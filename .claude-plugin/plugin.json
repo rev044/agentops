@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/plugin-manifest.v1.schema.json",
   "name": "agentops",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "DevOps for AI agents. Automates context management, multi-model validation, parallel execution, and knowledge extraction — the system gets smarter every time you use it.",
   "author": {
     "name": "Boden Fuller",
