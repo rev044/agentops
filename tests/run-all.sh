@@ -100,6 +100,17 @@ else
     skip "No agents found (optional)"
 fi
 
+# Validate GOALS.yaml
+if [[ -f "$SCRIPT_DIR/goals/validate-goals.sh" ]]; then
+    if bash "$SCRIPT_DIR/goals/validate-goals.sh" > /dev/null 2>&1; then
+        pass "GOALS.yaml validation"
+    else
+        fail "GOALS.yaml validation"
+    fi
+else
+    skip "GOALS.yaml validation (script not found)"
+fi
+
 # Validate documentation
 if [[ -f "$SCRIPT_DIR/docs/validate-links.sh" ]]; then
     if bash "$SCRIPT_DIR/docs/validate-links.sh" > /dev/null 2>&1; then

@@ -2,7 +2,7 @@
 
 # AgentOps
 
-### DevOps for AI agents. The system that gets smarter every time you use it.
+### Your coding agent gets smarter every time you use it.
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.5.0-brightgreen)](CHANGELOG.md)
@@ -16,9 +16,9 @@
 
 ---
 
-Your coding agent can write code. But it doesn't know what it learned last session. It doesn't validate its own work. It doesn't plan before it builds, or extract learnings after it ships. You're the glue — managing context, remembering decisions, catching mistakes, figuring out what to work on next.
+**Session 1:** Your agent writes a feature but the tests are weak. **Session 5:** It catches the same kind of gap automatically — because the system learned from every session in between. **Session 20:** It ships faster than you could alone, and catches bugs it would have missed on day one.
 
-AgentOps automates all of that. Give it a goal. It researches, plans, validates the plan, implements in parallel, validates the code, extracts what it learned, and **tells you what to run next**. Each cycle makes the next one better. You stop managing your agent and start managing your roadmap.
+AgentOps makes every coding session compound. It researches, plans, validates the plan, implements in parallel, validates the code, extracts what it learned, and **tells you what to run next**. Each cycle makes the next one better. You stop managing your agent and start managing your roadmap.
 
 ---
 
@@ -120,7 +120,7 @@ Consensus: WARN — add rate limiting before shipping
 [post-mortem] 4 learnings extracted
 ```
 
-**Autonomous improvement loop:**
+**Goal-driven improvement loop:**
 ```
 > /evolve --max-cycles=5
 
@@ -207,10 +207,10 @@ Post-mortem doesn't just wrap up. It analyzes every learning from the retro, ask
 |-------|-------------|
 | `/rpi` | Goal to production — 6-phase lifecycle with self-correcting retry loops |
 | `/council` | Multi-model consensus — parallel judges, consolidated verdict |
-| `/crank` | Autonomous epic execution — runs waves until all issues closed (supports `--test-first` TDD) |
+| `/crank` | Hands-free epic execution — runs waves until all issues closed (supports `--test-first` TDD) |
 | `/swarm` | Parallel agents with fresh context — Codex sub-agents or Claude teams |
 | `/codex-team` | Parallel Codex execution agents |
-| `/evolve` | Autonomous fitness loop — measures goals, fixes worst gap, compounds via flywheel |
+| `/evolve` | Goal-driven fitness loop — measures goals, fixes worst gap, compounds via flywheel |
 
 ### Workflow
 

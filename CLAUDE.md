@@ -1,6 +1,6 @@
 # AgentOps
 
-DevOps for AI agents. Automates context management, multi-model validation, parallel execution, and knowledge extraction — the system gets smarter every time you use it.
+Your coding agent gets smarter every time you use it. Automates context, validation, execution, and learning — each session compounds on every session before it.
 
 ## Project Structure
 
@@ -11,7 +11,7 @@ DevOps for AI agents. Automates context management, multi-model validation, para
 │   └── marketplace.json   # Marketplace metadata
 ├── skills/                # All 34 skills (24 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
-│   ├── crank/             # Autonomous epic execution
+│   ├── crank/             # Hands-free epic execution
 │   ├── swarm/             # Parallel agent spawning
 │   ├── codex-team/        # Parallel Codex execution agents
 │   ├── rpi/               # Full RPI lifecycle orchestrator

@@ -8,11 +8,13 @@
 
 ## Tagline
 
-**Primary:** DevOps for Vibe-Coding
+**Primary:** Your coding agent gets smarter every time you use it.
 
-**Secondary:** Shift-Left Validation for Coding Agents
+**Secondary:** Validation Built In, Not Bolted On
 
-**Tertiary:** Validation Built In, Not Bolted On
+**Category:** DevOps for coding agents
+
+**Legacy (SEO/blog only):** DevOps for Vibe-Coding
 
 ---
 

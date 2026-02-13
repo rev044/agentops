@@ -1,7 +1,130 @@
-version: 1
-mission: "DevOps for AI agents — automates context, validation, execution, and learning"
+version: 2
+mission: "Make every coding agent session smarter than the last"
+vision: "You define what good looks like. Your agent handles the rest — and gets better at it every time."
+tagline: "Your coding agent gets smarter every time you use it."
+pillars:
+  - knowledge-compounding
+  - validated-acceleration
+  - goal-driven-automation
+  - zero-friction-workflow
 
 goals:
+  # === Pillar: Knowledge Compounding (weight 4-5) ===
+
+  - id: readme-compounding-hero
+    description: "README hero tagline is 'Your coding agent gets smarter every time you use it'"
+    check: "head -10 README.md | grep -qi 'gets smarter every time you use it'"
+    weight: 5
+    pillar: knowledge-compounding
+
+  - id: readme-compounding-story
+    description: "README leads with the compounding story (session 1 vs session N improvement narrative)"
+    check: "head -50 README.md | grep -qi 'session.*smarter\\|session.*better\\|session.*learns\\|session.*compounds'"
+    weight: 4
+    pillar: knowledge-compounding
+
+  - id: no-sigma-rho-user-facing
+    description: "No sigma/rho/delta Greek notation in README or user-facing skill SKILL.md descriptions"
+    check: "grep -rl 'σ\\|ρ\\|δ' README.md skills/*/SKILL.md 2>/dev/null | grep -v references/ | grep -v shared/ | wc -l | tr -d ' ' | xargs test 0 -eq"
+    weight: 3
+    pillar: knowledge-compounding
+
+  - id: positioning-no-vibe-coding-primary
+    description: "Positioning doc does not use 'DevOps for Vibe-Coding' as primary tagline"
+    check: "head -15 docs/positioning/devops-for-vibe-coding.md | grep -c 'Primary.*DevOps for Vibe-Coding' | xargs test 0 -eq"
+    weight: 3
+    pillar: knowledge-compounding
+
+  - id: mission-in-goals-yaml
+    description: "GOALS.yaml mission matches deliberation consensus"
+    check: "grep -q 'Make every coding agent session smarter than the last' GOALS.yaml"
+    weight: 5
+    pillar: knowledge-compounding
+
+  # === Pillar: Validated Acceleration (weight 3-4) ===
+
+  - id: status-skill-shows-health
+    description: "/status skill references knowledge health or flywheel metrics"
+    check: "grep -qi 'flywheel\\|knowledge.*health\\|compounding\\|retrieval.*rate' skills/status/SKILL.md"
+    weight: 3
+    pillar: validated-acceleration
+
+  - id: council-structured-verdicts
+    description: "/council outputs structured PASS/WARN/FAIL verdicts"
+    check: "grep -q 'PASS.*WARN.*FAIL\\|verdict.*PASS\\|PASS | WARN | FAIL' skills/council/SKILL.md"
+    weight: 4
+    pillar: validated-acceleration
+
+  - id: vibe-runs-complexity
+    description: "/vibe skill runs complexity analysis before council"
+    check: "grep -qi 'complexity' skills/vibe/SKILL.md"
+    weight: 3
+    pillar: validated-acceleration
+
+  - id: crank-wave-vibe-gate
+    description: "/crank enforces wave vibe gates between waves"
+    check: "grep -qi 'wave.*vibe\\|vibe.*gate' skills/crank/SKILL.md"
+    weight: 3
+    pillar: validated-acceleration
+
+  # === Pillar: Goal-Driven Automation (weight 3-4) ===
+
+  - id: evolve-dormancy-messaging
+    description: "/evolve skill documents dormancy as a valid success state"
+    check: "grep -qi 'dormancy\\|dormant\\|nothing to do.*valid\\|all goals met.*stop' skills/evolve/SKILL.md"
+    weight: 3
+    pillar: goal-driven-automation
+
+  - id: no-autonomous-user-facing
+    description: "README does not use the word 'autonomous' (use 'hands-free' or 'goal-driven' instead)"
+    check: "grep -ci 'autonomous' README.md | xargs test 0 -eq"
+    weight: 3
+    pillar: goal-driven-automation
+
+  - id: evolve-kill-switch
+    description: "/evolve has documented kill switch (KILL and STOP files)"
+    check: "grep -q 'KILL' skills/evolve/SKILL.md && grep -q 'STOP' skills/evolve/SKILL.md"
+    weight: 4
+    pillar: goal-driven-automation
+
+  - id: rpi-gate-retry-logic
+    description: "/rpi has retry gates for pre-mortem FAIL and vibe FAIL"
+    check: "grep -qi 'retry.*loop\\|max.*attempts\\|FAIL.*retry\\|retry.*FAIL' skills/rpi/SKILL.md"
+    weight: 3
+    pillar: goal-driven-automation
+
+  - id: goals-yaml-pillar-coverage
+    description: "GOALS.yaml has goals for all 4 pillars"
+    check: "grep -c 'pillar: knowledge-compounding' GOALS.yaml | xargs test 0 -lt && grep -c 'pillar: validated-acceleration' GOALS.yaml | xargs test 0 -lt && grep -c 'pillar: goal-driven-automation' GOALS.yaml | xargs test 0 -lt && grep -c 'pillar: zero-friction-workflow' GOALS.yaml | xargs test 0 -lt"
+    weight: 4
+    pillar: goal-driven-automation
+
+  # === Pillar: Zero-Friction Workflow (weight 3) ===
+
+  - id: quickstart-under-5min
+    description: "/quickstart skill promises value in under 5 minutes"
+    check: "grep -qi '5 min\\|five min\\|under.*minutes\\|minutes.*or less' skills/quickstart/SKILL.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: session-start-injects-knowledge
+    description: "Session start hook injects prior knowledge automatically"
+    check: "grep -qi 'inject\\|ao inject\\|knowledge' hooks/session-start.sh"
+    weight: 4
+    pillar: zero-friction-workflow
+
+  - id: handoff-skill-exists
+    description: "/handoff skill exists for seamless session continuity"
+    check: "test -f skills/handoff/SKILL.md && grep -q '^name:' skills/handoff/SKILL.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: implement-single-issue
+    description: "/implement skill exists for single-issue execution"
+    check: "test -f skills/implement/SKILL.md && grep -q '^name:' skills/implement/SKILL.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
   # === Critical (weight 5) — Build & test integrity ===
 
   - id: go-cli-builds
@@ -64,8 +187,8 @@ goals:
     weight: 2
 
   - id: learning-format-compliance
-    description: "Learnings conform to interchange spec (YAML frontmatter with id, type, created_at)"
-    check: "for f in $(ls .agents/learnings/*.md | head -10); do head -10 \"$f\" | grep -q '^---' && head -10 \"$f\" | grep -q '^id:' && head -10 \"$f\" | grep -q '^type:' && head -10 \"$f\" | grep -q '^created_at:' || exit 1; done"
+    description: "Learnings created since Feb 2026 conform to interchange spec (YAML frontmatter with id, type, created_at)"
+    check: "bash -c 'for f in $(ls .agents/learnings/2026-02-1*.md 2>/dev/null | head -10); do head -10 \"$f\" | grep -q \"^---\" && head -10 \"$f\" | grep -q \"^id:\" && head -10 \"$f\" | grep -q \"^type:\" && head -10 \"$f\" | grep -q \"^created_at:\" || { echo FAIL:$f; exit 1; }; done'"
     weight: 2
 
   - id: council-schema-valid

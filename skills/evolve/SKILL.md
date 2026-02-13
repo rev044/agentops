@@ -1,6 +1,6 @@
 ---
 name: evolve
-description: Autonomous fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi, compounds via knowledge flywheel.
+description: Goal-driven fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi, compounds via knowledge flywheel.
 metadata:
   tier: orchestration
   dependencies:
@@ -13,11 +13,13 @@ metadata:
     - run until done
 ---
 
-# /evolve — Autonomous Compounding Loop
+# /evolve — Goal-Driven Compounding Loop
 
 > **Purpose:** Measure what's wrong. Fix the worst thing. Measure again. Compound.
 
 Thin fitness-scored loop over `/rpi`. The knowledge flywheel provides compounding — each cycle loads learnings from all prior cycles.
+
+**Dormancy is success.** When all goals pass and no harvested work remains, the system enters dormancy — a valid, healthy state. The system does not manufacture work to justify its existence. Nothing to do means everything is working.
 
 ## Quick Start
 

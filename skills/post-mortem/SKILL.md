@@ -47,7 +47,12 @@ Before proceeding, verify:
 
 Read `references/checkpoint-policy.md` for the full checkpoint-policy preflight procedure. It validates the ratchet chain, checks artifact availability, and runs idempotency checks. BLOCK on prior FAIL verdicts; WARN on everything else.
 
-### Step 1: Identify Completed Work
+### Step 1: Identify Completed Work and Record Timing
+
+**Record the post-mortem start time for cycle-time tracking:**
+```bash
+PM_START=$(date +%s)
+```
 
 **If epic/issue ID provided:** Use it directly.
 
@@ -155,7 +160,8 @@ Post-mortem always completes if council succeeds. Retro is optional enrichment.
 
 **Date:** YYYY-MM-DD
 **Epic:** <epic-id or "recent">
-**Duration:** <how long it took>
+**Duration:** <elapsed time from PM_START to now>
+**Cycle-Time Trend:** <compare against prior post-mortems — is this faster or slower? Check .agents/retros/ for prior Duration values>
 
 ## Council Verdict: PASS / WARN / FAIL
 

@@ -5,13 +5,13 @@
     "email": "fullerbt@users.noreply.github.com"
   },
   "metadata": {
-    "description": "AI-assisted development workflows with Knowledge Flywheel",
+    "description": "Your coding agent gets smarter every time you use it — 34 skills with Knowledge Flywheel",
     "version": "2.6.0"
   },
   "plugins": [
     {
       "name": "agentops",
-      "description": "AI-assisted development workflow with 34 skills (24 user-facing, 10 internal) + 20 subagent roles: Brownian Ratchet gates with Knowledge Flywheel",
+      "description": "Your coding agent gets smarter every time you use it. 34 skills (24 user-facing, 10 internal) — validation, parallel execution, and knowledge that compounds.",
       "version": "2.6.0",
       "source": "./",
       "author": {
