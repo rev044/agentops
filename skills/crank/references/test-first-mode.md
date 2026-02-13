@@ -126,3 +126,27 @@ fi
 1. Add the unexpected-pass context to the worker prompt
 2. Re-spawn test writer with: "These tests passed unexpectedly: <list>. They must fail against current code. Rewrite them to test NEW behavior described in the contract."
 3. If still passing after 2 retries, mark issue as BLOCKER and skip to standard IMPL
+
+## Test Framework Detection
+
+> Spec workers use this heuristic when the issue doesn't specify a test framework. First match wins.
+
+**Detection priority (check in order, first match wins):**
+
+| Priority | File Present | Check | Framework | Test Command | Contract `framework:` |
+|----------|-------------|-------|-----------|-------------|----------------------|
+| 1 | `Cargo.toml` | file exists | Rust | `cargo test` | `rust` |
+| 2 | `go.mod` | file exists | Go | `go test ./...` | `go` |
+| 3 | `pyproject.toml` or `pytest.ini` | file exists | pytest | `pytest` | `python` |
+| 4 | `package.json` | `devDependencies.vitest` key exists | Vitest | `npx vitest run` | `typescript` |
+| 5 | `package.json` | `devDependencies.jest` key exists | Jest | `npx jest` | `typescript` |
+| 6 | `package.json` | file exists (no jest/vitest) | Node | `npm test` | `typescript` |
+| 7 | `*.test.sh` or `tests/*.sh` | glob match | Shell | `bash <test-file>` | `shell` |
+
+**For SPEC WAVE workers:** Detect the project framework using the heuristic above. Set `framework:` in the contract YAML frontmatter.
+
+**For TEST WAVE workers:** Read the `framework:` field from the contract to determine which test runner to use. Generate tests following the project's existing test patterns.
+
+**Fallback:** If no framework detected, spec worker writes `framework: unknown` and TEST WAVE skips that issue (falls back to standard IMPL without TDD).
+
+**Polyglot repos:** If multiple frameworks match (e.g., Go backend + Node tooling), use the framework that matches the issue's target files. If ambiguous, use the highest-priority match.

@@ -178,35 +178,30 @@ Track in memory: `wave=0`
 ```bash
 # Check for --test-first flag
 if [[ "$TEST_FIRST" == "true" ]]; then
-    # Classify issues by category
-    # spec-eligible: feature, bugfix, refactor → SPEC + TEST waves apply
-    # skip: docs, chore, ci → standard implementation waves only
-    INVALID_ISSUES=()
-    for issue in $READY_ISSUES; do
-        CATEGORY=$(bd show "$issue" 2>/dev/null | grep -i "category:" | head -1 | awk '{print tolower($NF)}')
-        # Validate category is non-empty and matches known values
-        if [[ -z "$CATEGORY" ]]; then
-            echo "ERROR: Issue $issue has no category field. Valid: feature|bugfix|refactor|docs|chore|ci"
-            INVALID_ISSUES+=("$issue")
-            continue
-        fi
-        case "$CATEGORY" in
-            *feature*|*bugfix*|*refactor*) SPEC_ELIGIBLE+=("$issue") ;;
-            *docs*|*chore*|*ci*) SPEC_SKIP+=("$issue") ;;
-            *)
-                echo "WARNING: Issue $issue has unknown category '$CATEGORY'. Defaulting to spec-eligible."
-                SPEC_ELIGIBLE+=("$issue")
-                ;;
-        esac
-    done
-    # Fail-fast if any issues have missing categories
-    if [[ ${#INVALID_ISSUES[@]} -gt 0 ]]; then
-        echo "<promise>BLOCKED</promise>"
-        echo "Issues with missing/invalid categories: ${INVALID_ISSUES[*]}"
-        echo "Add category to each issue: bd update <id> --category <feature|bugfix|refactor|docs|chore|ci>"
-        # STOP - do not continue
+    # Classify issues by type
+    # spec-eligible: feature, bug, task → SPEC + TEST waves apply
+    # skip: chore, epic, docs → standard implementation waves only
+    SPEC_ELIGIBLE=()
+    SPEC_SKIP=()
+
+    if [[ "$TRACKING_MODE" == "beads" ]]; then
+        for issue in $READY_ISSUES; do
+            ISSUE_TYPE=$(bd show "$issue" 2>/dev/null | grep "Type:" | head -1 | awk '{print tolower($NF)}')
+            case "$ISSUE_TYPE" in
+                feature|bug|task) SPEC_ELIGIBLE+=("$issue") ;;
+                chore|epic|docs) SPEC_SKIP+=("$issue") ;;
+                *)
+                    echo "WARNING: Issue $issue has unknown type '$ISSUE_TYPE'. Defaulting to spec-eligible."
+                    SPEC_ELIGIBLE+=("$issue")
+                    ;;
+            esac
+        done
+    else
+        # TaskList mode: no bd available, default all to spec-eligible
+        SPEC_ELIGIBLE=($READY_ISSUES)
+        echo "TaskList mode: all ${#SPEC_ELIGIBLE[@]} issues defaulted to spec-eligible (no bd type info)"
     fi
-    echo "Test-first mode: ${#SPEC_ELIGIBLE[@]} spec-eligible, ${#SPEC_SKIP[@]} skipped (docs/chore/ci)"
+    echo "Test-first mode: ${#SPEC_ELIGIBLE[@]} spec-eligible, ${#SPEC_SKIP[@]} skipped (chore/epic/docs)"
 fi
 ```
 
@@ -253,9 +248,31 @@ Also verify: epic has at least 1 child issue total. An epic with 0 children mean
 
 Do NOT proceed with empty issue list - this produces false "epic complete" status.
 
-### Step 3b–3c: SPEC and TEST Waves (--test-first only)
+### Step 3b: SPEC WAVE (--test-first only)
 
-**Skip if `--test-first` is NOT set.** For full details on SPEC WAVE (contract generation), TEST WAVE (failing test generation), BLOCKED recovery, and RED Gate enforcement, read `skills/crank/references/test-first-mode.md`.
+**Skip if `--test-first` is NOT set or if no spec-eligible issues exist.**
+
+For each spec-eligible issue (feature/bug/task):
+1. **TaskCreate** with subject `SPEC: <issue-title>`
+2. Worker receives: issue description, plan boundaries, contract template (`skills/crank/references/contract-template.md`), codebase access (read-only)
+3. Worker generates: `.agents/specs/contract-<issue-id>.md`
+4. **Validation:** files_exist + content_check for `## Invariants` AND `## Test Cases`
+5. Lead commits all specs after validation
+
+For BLOCKED recovery and full worker prompt, read `skills/crank/references/test-first-mode.md`.
+
+### Step 3c: TEST WAVE (--test-first only)
+
+**Skip if `--test-first` is NOT set or if no spec-eligible issues exist.**
+
+For each spec-eligible issue:
+1. **TaskCreate** with subject `TEST: <issue-title>`
+2. Worker receives: contract-<issue-id>.md + codebase types (NOT implementation code)
+3. Worker generates: failing test files in appropriate location
+4. **RED Gate:** Lead runs test suite — ALL new tests must FAIL
+5. Lead commits test harness after RED Gate passes
+
+For RED Gate enforcement and retry logic, read `skills/crank/references/test-first-mode.md`.
 
 **Summary:** SPEC WAVE generates contracts from issues → TEST WAVE generates failing tests from contracts → RED Gate verifies all new tests fail before proceeding. Docs/chore/ci issues bypass both waves.
 
