@@ -15,6 +15,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/search"
 	"github.com/boshu2/agentops/cli/internal/storage"
 	"github.com/boshu2/agentops/cli/pkg/vault"
 )
@@ -28,10 +29,11 @@ const (
 )
 
 var (
-	searchLimit   int
-	searchType    string
-	searchUseSC   bool
-	searchUseCASS bool
+	searchLimit        int
+	searchType         string
+	searchUseSC        bool
+	searchUseCASS      bool
+	searchRebuildIndex bool
 )
 
 var searchCmd = &cobra.Command{
@@ -60,6 +62,7 @@ func init() {
 	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: decisions, knowledge, sessions")
 	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Enable Smart Connections semantic search (requires Obsidian)")
 	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Enable CASS session-aware search with maturity weighting")
+	searchCmd.Flags().BoolVar(&searchRebuildIndex, "rebuild-index", false, "Force rebuild of the search index")
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
@@ -83,6 +86,13 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		fmt.Println("No AgentOps data found.")
 		fmt.Println("Run 'ao init' and 'ao forge transcript <path>' first.")
 		return nil
+	}
+
+	// Handle --rebuild-index: rebuild and save the search index
+	if searchRebuildIndex {
+		if err := rebuildSearchIndex(baseDir); err != nil {
+			return fmt.Errorf("rebuild index: %w", err)
+		}
 	}
 
 	results, err := selectAndSearch(query, sessionsDir, searchLimit)
@@ -171,8 +181,71 @@ type searchResult struct {
 	Type    string  `json:"type,omitempty"`
 }
 
-// searchFiles performs grep-based search on markdown and JSONL files.
+// searchIndexPath returns the path to the search index file.
+func searchIndexPath(baseDir string) string {
+	return filepath.Join(baseDir, "index.jsonl")
+}
+
+// rebuildSearchIndex builds a new index from all files under baseDir and saves it.
+func rebuildSearchIndex(baseDir string) error {
+	VerbosePrintf("Rebuilding search index...\n")
+	idx, err := search.BuildIndex(baseDir)
+	if err != nil {
+		return fmt.Errorf("build index: %w", err)
+	}
+	idxPath := searchIndexPath(baseDir)
+	if err := search.SaveIndex(idx, idxPath); err != nil {
+		return fmt.Errorf("save index: %w", err)
+	}
+	termCount := len(idx.Terms)
+	VerbosePrintf("Index rebuilt: %d terms -> %s\n", termCount, idxPath)
+	fmt.Printf("Search index rebuilt (%d terms)\n", termCount)
+	return nil
+}
+
+// searchFiles performs search on markdown and JSONL files.
+// If a search index exists, uses it for fast lookup; otherwise falls back to grep.
 func searchFiles(query string, dir string, limit int) ([]searchResult, error) {
+	// Try index-based search first
+	baseDir := filepath.Dir(dir) // dir is sessionsDir; baseDir is .agents/ao
+	idxPath := searchIndexPath(baseDir)
+	if _, err := os.Stat(idxPath); err == nil {
+		VerbosePrintf("Using search index: %s\n", idxPath)
+		idx, err := search.LoadIndex(idxPath)
+		if err == nil {
+			return searchFromIndex(idx, query, dir, limit)
+		}
+		VerbosePrintf("Failed to load index, falling back to grep: %v\n", err)
+	}
+
+	// Fall back to grep-based search
+	return searchFilesGrep(query, dir, limit)
+}
+
+// searchFromIndex uses the inverted index for fast search, then enriches
+// results with context from the matched files.
+func searchFromIndex(idx *search.Index, query string, dir string, limit int) ([]searchResult, error) {
+	hits := search.Search(idx, query, limit)
+	if len(hits) == 0 {
+		return nil, nil
+	}
+
+	results := make([]searchResult, 0, len(hits))
+	for _, hit := range hits {
+		context := getFileContext(hit.Path, query)
+		results = append(results, searchResult{
+			Path:    hit.Path,
+			Score:   float64(hit.Score),
+			Context: context,
+			Type:    classifyResultType(hit.Path),
+		})
+	}
+
+	return results, nil
+}
+
+// searchFilesGrep performs grep-based search on markdown and JSONL files.
+func searchFilesGrep(query string, dir string, limit int) ([]searchResult, error) {
 	var results []searchResult
 
 	// Search markdown files

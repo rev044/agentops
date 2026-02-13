@@ -14,17 +14,25 @@ var ratchetCmd = &cobra.Command{
 The Brownian Ratchet ensures progress can't be lost:
   Chaos × Filter → Ratchet = Progress
 
-Commands:
-  status     Show current ratchet chain state
-  check      Check if a step's gate is met
-  record     Record step completion
-  skip       Record intentional skip
-  validate   Validate step requirements
-  trace      Trace provenance backward
-  spec       Get current spec path
-  find       Search for artifacts across locations
-  promote    Record tier promotion
-  migrate    Migrate legacy chain format
+Inspection:
+  status (s)    Show current ratchet chain state
+  check (c)     Check if a step's gate is met
+  next (n)      Show next pending RPI step
+  spec          Get current spec path
+  validate      Validate step requirements
+
+Progression:
+  record        Record step completion
+  promote (p)   Record tier promotion
+  skip          Record intentional skip
+
+Search & Trace:
+  find          Search for artifacts across locations
+  trace         Trace provenance backward
+
+Management:
+  migrate            Migrate legacy chain format
+  migrate-artifacts  Add schema_version to artifacts
 
 The ratchet chain is stored in .agents/ao/chain.jsonl`,
 }
@@ -67,6 +75,12 @@ type ratchetStatusOutput struct {
 }
 
 func init() {
+	ratchetCmd.AddGroup(
+		&cobra.Group{ID: "inspection", Title: "Inspection:"},
+		&cobra.Group{ID: "progression", Title: "Progression:"},
+		&cobra.Group{ID: "search", Title: "Search & Trace:"},
+		&cobra.Group{ID: "management", Title: "Management:"},
+	)
 	rootCmd.AddCommand(ratchetCmd)
 }
 

@@ -14,8 +14,9 @@ import (
 
 func init() {
 	validateSubCmd := &cobra.Command{
-		Use:   "validate <step>",
-		Short: "Validate step requirements",
+		Use:     "validate <step>",
+		GroupID: "inspection",
+		Short:   "Validate step requirements",
 		Long: `Validate that an artifact meets quality requirements.
 
 Checks for required sections, formatting, and tier criteria.

@@ -13,8 +13,9 @@ import (
 
 func init() {
 	migrateSubCmd := &cobra.Command{
-		Use:   "migrate",
-		Short: "Migrate legacy chain",
+		Use:     "migrate",
+		GroupID: "management",
+		Short:   "Migrate legacy chain",
 		Long: `Migrate chain from legacy YAML format to JSONL.
 
 Reads from .agents/provenance/chain.yaml
@@ -29,8 +30,9 @@ Examples:
 
 	// ol-a46.1.3: Artifact schema version migration
 	migrateArtifactsCmd := &cobra.Command{
-		Use:   "migrate-artifacts [path]",
-		Short: "Add schema_version to artifacts (ol-a46.1.3)",
+		Use:     "migrate-artifacts [path]",
+		GroupID: "management",
+		Short:   "Add schema_version to artifacts (ol-a46.1.3)",
 		Long: `Add schema_version: 1 to existing .agents/ artifacts.
 
 Scans markdown files and adds **Schema Version:** 1 if missing.

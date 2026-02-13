@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -68,9 +69,10 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("compute metrics: %w", err)
 	}
 
+	w := cmd.OutOrStdout()
 	switch GetOutput() {
 	case "json":
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(map[string]interface{}{
 			"status":      metrics.EscapeVelocityStatus(),
@@ -84,7 +86,7 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 		})
 
 	case "yaml":
-		enc := yaml.NewEncoder(os.Stdout)
+		enc := yaml.NewEncoder(w)
 		return enc.Encode(map[string]interface{}{
 			"status":      metrics.EscapeVelocityStatus(),
 			"delta":       metrics.Delta,
@@ -96,14 +98,14 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 		})
 
 	default:
-		printFlywheelStatus(metrics)
+		printFlywheelStatus(w, metrics)
 	}
 
 	return nil
 }
 
 // printFlywheelStatus prints a focused flywheel status display.
-func printFlywheelStatus(m *types.FlywheelMetrics) {
+func printFlywheelStatus(w io.Writer, m *types.FlywheelMetrics) {
 	status := m.EscapeVelocityStatus()
 
 	// Status indicator (ASCII for accessibility)
@@ -117,52 +119,54 @@ func printFlywheelStatus(m *types.FlywheelMetrics) {
 		statusIcon = "[DECAYING]"
 	}
 
-	fmt.Println()
-	fmt.Printf("  Flywheel Status: %s\n", statusIcon)
-	fmt.Println("  ═══════════════════════════════")
-	fmt.Println()
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "  Flywheel Status: %s\n", statusIcon)
+	fmt.Fprintln(w, "  ═══════════════════════════════")
+	fmt.Fprintln(w)
 
 	// Core equation
-	fmt.Println("  EQUATION: dK/dt = I(t) - δ·K + σ·ρ·K")
-	fmt.Println()
+	fmt.Fprintln(w, "  EQUATION: dK/dt = I(t) - δ·K + σ·ρ·K")
+	fmt.Fprintln(w)
 
 	// Parameters
-	fmt.Printf("  δ (decay):      %.2f/week\n", m.Delta)
-	fmt.Printf("  σ (retrieval):  %.2f (%d%% of artifacts surfaced)\n", m.Sigma, int(m.Sigma*100))
-	fmt.Printf("  ρ (citation):   %.2f refs/artifact/week\n", m.Rho)
-	fmt.Println()
+	fmt.Fprintf(w, "  δ (decay):      %.2f/week\n", m.Delta)
+	fmt.Fprintf(w, "  σ (retrieval):  %.2f (%d%% of artifacts surfaced)\n", m.Sigma, int(m.Sigma*100))
+	fmt.Fprintf(w, "  ρ (citation):   %.2f refs/artifact/week\n", m.Rho)
+	fmt.Fprintln(w)
 
 	// Critical comparison
-	fmt.Println("  ESCAPE VELOCITY CHECK:")
-	fmt.Printf("    σ × ρ = %.3f\n", m.SigmaRho)
-	fmt.Printf("    δ     = %.3f\n", m.Delta)
-	fmt.Println("    ───────────────")
+	fmt.Fprintln(w, "  ESCAPE VELOCITY CHECK:")
+	fmt.Fprintf(w, "    σ × ρ = %.3f\n", m.SigmaRho)
+	fmt.Fprintf(w, "    δ     = %.3f\n", m.Delta)
+	fmt.Fprintln(w, "    ───────────────")
 
 	if m.AboveEscapeVelocity {
-		fmt.Printf("    σρ > δ ✓ (velocity: +%.3f/week)\n", m.Velocity)
-		fmt.Println("    → Knowledge is COMPOUNDING")
+		fmt.Fprintf(w, "    σρ > δ ✓ (velocity: +%.3f/week)\n", m.Velocity)
+		fmt.Fprintln(w, "    → Knowledge is COMPOUNDING")
 	} else if m.Velocity > -0.05 {
-		fmt.Printf("    σρ ≈ δ (velocity: %.3f/week)\n", m.Velocity)
-		fmt.Println("    → NEAR escape velocity, keep building!")
+		fmt.Fprintf(w, "    σρ ≈ δ (velocity: %.3f/week)\n", m.Velocity)
+		fmt.Fprintln(w, "    → NEAR escape velocity, keep building!")
 	} else {
-		fmt.Printf("    σρ < δ ✗ (velocity: %.3f/week)\n", m.Velocity)
-		fmt.Println("    → Knowledge is DECAYING")
-		fmt.Println()
-		fmt.Println("  RECOMMENDATIONS:")
+		fmt.Fprintf(w, "    σρ < δ ✗ (velocity: %.3f/week)\n", m.Velocity)
+		fmt.Fprintln(w, "    → Knowledge is DECAYING")
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "  RECOMMENDATIONS:")
 		if m.Sigma < 0.3 {
-			fmt.Println("    • Improve retrieval: run 'ao inject' more often")
+			fmt.Fprintln(w, "    • Improve retrieval: run 'ao inject' more often")
 		}
 		if m.Rho < 0.5 {
-			fmt.Println("    • Cite more learnings: reference artifacts in your work")
+			fmt.Fprintln(w, "    • Cite more learnings: reference artifacts in your work")
 		}
 		if m.StaleArtifacts > 5 {
-			fmt.Printf("    • Review %d stale artifacts (90+ days uncited)\n", m.StaleArtifacts)
+			fmt.Fprintf(w, "    • Review %d stale artifacts (90+ days uncited)\n", m.StaleArtifacts)
 		}
 	}
 
-	fmt.Println()
-	fmt.Printf("  Period: %s to %s (%d days)\n",
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "  Period: %s to %s (%d days)\n",
 		m.PeriodStart.Format("2006-01-02"),
 		m.PeriodEnd.Format("2006-01-02"),
 		metricsDays)
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "  Tip: 'ao status' shows flywheel health alongside session info.")
 }

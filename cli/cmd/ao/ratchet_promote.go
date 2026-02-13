@@ -12,8 +12,10 @@ import (
 
 func init() {
 	promoteSubCmd := &cobra.Command{
-		Use:   "promote <artifact>",
-		Short: "Record tier promotion",
+		Use:     "promote <artifact>",
+		Aliases: []string{"p"},
+		GroupID: "progression",
+		Short:   "Record tier promotion",
 		Long: `Record promotion of an artifact to a higher tier.
 
 Validates promotion requirements before recording.

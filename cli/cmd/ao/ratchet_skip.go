@@ -12,8 +12,9 @@ import (
 
 func init() {
 	skipSubCmd := &cobra.Command{
-		Use:   "skip <step>",
-		Short: "Record intentional skip",
+		Use:     "skip <step>",
+		GroupID: "progression",
+		Short:   "Record intentional skip",
 		Long: `Record that a step was intentionally skipped.
 
 Use this for valid workflow variations (e.g., skipping pre-mortem for bug fixes).

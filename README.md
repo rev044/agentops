@@ -10,7 +10,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
-[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -412,26 +412,41 @@ All hooks use `lib/hook-helpers.sh` for structured error recovery — failures i
 
 </details>
 
-<details>
-<summary><strong>The <code>ao</code> CLI</strong> — optional engine for the flywheel</summary>
+---
 
-All 34 skills work without it. The CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle.
+## The `ao` CLI
 
+Optional but recommended. All 34 skills work without it — the CLI adds automatic knowledge injection/extraction, session search, ratchet gates, and session lifecycle management.
+
+**Install:**
 ```bash
-ao inject              # Load prior knowledge
-ao forge transcript    # Extract learnings from session
-ao ratchet status      # Check progress gates
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
+```
+
+**Knowledge:**
+```bash
+ao inject              # Load prior knowledge into session
+ao search "query"      # Search knowledge base (CASS-ranked by default)
+ao forge transcript    # Extract learnings from session transcript
 ao flywheel status     # Knowledge health metrics
+```
+
+**Workflow:**
+```bash
+ao ratchet status      # Check progress gates
 ao session close       # Full lifecycle close
+ao status              # Current state overview
+```
+
+**Hooks:**
+```bash
 ao hooks install       # Flywheel hooks (SessionStart + Stop)
-ao hooks install --full # All 8 events (safety gates, standards, validation)
+ao hooks install --full # All 12 hooks across 8 lifecycle events
 ao hooks show          # View installed hook coverage
 ao hooks test          # Verify hook configuration
 ```
 
-Install: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops`
-
-</details>
+Full reference: [CLI Commands](cli/docs/COMMANDS.md)
 
 ---
 

@@ -12,8 +12,9 @@ import (
 
 func init() {
 	specSubCmd := &cobra.Command{
-		Use:   "spec",
-		Short: "Get current spec path",
+		Use:     "spec",
+		GroupID: "inspection",
+		Short:   "Get current spec path",
 		Long: `Find and output the current spec artifact path.
 
 Searches for specs in priority order: crew → rig → town.

@@ -145,12 +145,33 @@ type ListOptions struct {
 	// Status filters by pool status.
 	Status types.PoolStatus
 
+	// Offset skips the first N results (for pagination).
+	Offset int
+
 	// Limit caps the number of results.
 	Limit int
 }
 
+// ListResult contains pool entries and pagination metadata.
+type ListResult struct {
+	// Entries is the page of results.
+	Entries []PoolEntry
+
+	// Total is the count of all matching entries before pagination.
+	Total int
+}
+
 // List returns pool entries matching the options.
 func (p *Pool) List(opts ListOptions) ([]PoolEntry, error) {
+	result, err := p.ListPaginated(opts)
+	if err != nil {
+		return nil, err
+	}
+	return result.Entries, nil
+}
+
+// ListPaginated returns pool entries with pagination metadata.
+func (p *Pool) ListPaginated(opts ListOptions) (*ListResult, error) {
 	var entries []PoolEntry
 
 	// Scan all pool directories
@@ -196,12 +217,26 @@ func (p *Pool) List(opts ListOptions) ([]PoolEntry, error) {
 		return entries[i].AddedAt.After(entries[j].AddedAt)
 	})
 
+	total := len(entries)
+
+	// Apply offset
+	if opts.Offset > 0 {
+		if opts.Offset >= len(entries) {
+			entries = nil
+		} else {
+			entries = entries[opts.Offset:]
+		}
+	}
+
 	// Apply limit
 	if opts.Limit > 0 && len(entries) > opts.Limit {
 		entries = entries[:opts.Limit]
 	}
 
-	return entries, nil
+	return &ListResult{
+		Entries: entries,
+		Total:   total,
+	}, nil
 }
 
 // scanDirectory reads all entries from a pool directory.

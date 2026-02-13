@@ -12,8 +12,9 @@ import (
 
 func init() {
 	findSubCmd := &cobra.Command{
-		Use:   "find <pattern>",
-		Short: "Search for artifacts",
+		Use:     "find <pattern>",
+		GroupID: "search",
+		Short:   "Search for artifacts",
 		Long: `Search for artifacts across all locations.
 
 Searches in order: crew → rig → town → plugins.

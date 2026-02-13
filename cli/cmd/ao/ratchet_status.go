@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -14,8 +15,10 @@ import (
 
 func init() {
 	statusSubCmd := &cobra.Command{
-		Use:   "status",
-		Short: "Show ratchet chain state",
+		Use:     "status",
+		Aliases: []string{"s"},
+		GroupID: "inspection",
+		Short:   "Show ratchet chain state",
 		Long: `Display the current state of the ratchet chain.
 
 Shows all steps and their status (pending, in_progress, locked, skipped).
@@ -74,51 +77,52 @@ func runRatchetStatus(cmd *cobra.Command, args []string) error {
 		output.Steps = append(output.Steps, info)
 	}
 
-	return outputRatchetStatus(&output)
+	w := cmd.OutOrStdout()
+	return outputRatchetStatus(w, &output)
 }
 
-func outputRatchetStatus(data *ratchetStatusOutput) error {
+func outputRatchetStatus(w io.Writer, data *ratchetStatusOutput) error {
 	switch GetOutput() {
 	case "json":
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(data)
 
 	case "yaml":
-		enc := yaml.NewEncoder(os.Stdout)
+		enc := yaml.NewEncoder(w)
 		return enc.Encode(data)
 
 	default: // table
-		fmt.Println("Ratchet Chain Status")
-		fmt.Println("====================")
-		fmt.Printf("Chain: %s\n", data.ChainID)
-		fmt.Printf("Started: %s\n", data.Started)
+		fmt.Fprintln(w, "Ratchet Chain Status")
+		fmt.Fprintln(w, "====================")
+		fmt.Fprintf(w, "Chain: %s\n", data.ChainID)
+		fmt.Fprintf(w, "Started: %s\n", data.Started)
 		if data.EpicID != "" {
-			fmt.Printf("Epic: %s\n", data.EpicID)
+			fmt.Fprintf(w, "Epic: %s\n", data.EpicID)
 		}
 
 		// Show cycle and parent epic from the latest entry if present
 		for _, s := range data.Steps {
 			if s.Cycle > 0 {
-				fmt.Printf("Cycle: %d\n", s.Cycle)
+				fmt.Fprintf(w, "Cycle: %d\n", s.Cycle)
 				if s.ParentEpic != "" {
-					fmt.Printf("Parent: %s\n", s.ParentEpic)
+					fmt.Fprintf(w, "Parent: %s\n", s.ParentEpic)
 				}
 				break
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 
-		fmt.Printf("%-15s %-12s %-40s\n", "STEP", "STATUS", "OUTPUT")
-		fmt.Printf("%-15s %-12s %-40s\n", "----", "------", "------")
+		fmt.Fprintf(w, "%-15s %-12s %-40s\n", "STEP", "STATUS", "OUTPUT")
+		fmt.Fprintf(w, "%-15s %-12s %-40s\n", "----", "------", "------")
 
 		for _, s := range data.Steps {
 			icon := statusIcon(s.Status)
 			out := truncate(s.Output, 40)
-			fmt.Printf("%-15s %s %-10s %-40s\n", s.Step, icon, s.Status, out)
+			fmt.Fprintf(w, "%-15s %s %-10s %-40s\n", s.Step, icon, s.Status, out)
 		}
 
-		fmt.Printf("\nPath: %s\n", data.Path)
+		fmt.Fprintf(w, "\nPath: %s\n", data.Path)
 		return nil
 	}
 }

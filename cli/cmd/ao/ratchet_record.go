@@ -12,8 +12,9 @@ import (
 
 func init() {
 	recordSubCmd := &cobra.Command{
-		Use:   "record <step>",
-		Short: "Record step completion",
+		Use:     "record <step>",
+		GroupID: "progression",
+		Short:   "Record step completion",
 		Long: `Record that a workflow step has been completed.
 
 This locks progress - the ratchet engages.

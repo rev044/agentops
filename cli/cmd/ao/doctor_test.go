@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,8 +68,11 @@ func TestComputeResult(t *testing.T) {
 			if tt.wantFails && output.Summary == "all checks passed" {
 				t.Error("expected failure in summary")
 			}
-			if !tt.wantFails && len(tt.checks) > 0 && !hasWarns(tt.checks) && output.Summary != "all checks passed" {
-				t.Errorf("expected 'all checks passed', got %q", output.Summary)
+			if !tt.wantFails && len(tt.checks) > 0 && !hasWarns(tt.checks) {
+				expected := fmt.Sprintf("%d/%d checks passed", len(tt.checks), len(tt.checks))
+				if output.Summary != expected {
+					t.Errorf("expected %q, got %q", expected, output.Summary)
+				}
 			}
 		})
 	}

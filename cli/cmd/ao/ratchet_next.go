@@ -34,8 +34,10 @@ var stepSkillMap = map[string]string{
 
 func init() {
 	ratchetNextCmd := &cobra.Command{
-		Use:   "next",
-		Short: "Show next pending RPI step",
+		Use:     "next",
+		Aliases: []string{"n"},
+		GroupID: "inspection",
+		Short:   "Show next pending RPI step",
 		Long: `Show the next pending step in the RPI workflow.
 
 Returns structured output indicating what to do next based on the current

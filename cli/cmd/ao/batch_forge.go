@@ -132,7 +132,7 @@ func runForgeBatch(cmd *cobra.Command, args []string) error {
 	for i, t := range unforgedTranscripts {
 		fmt.Printf("[%d/%d] Processing %s...\n", i+1, len(unforgedTranscripts), filepath.Base(t.path))
 
-		session, err := processTranscript(t.path, p, extractor, false)
+		session, err := processTranscript(t.path, p, extractor, false, os.Stdout)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: skipping %s: %v\n", t.path, err)
 			totalFailed++

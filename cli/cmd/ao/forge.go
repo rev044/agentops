@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/boshu2/agentops/cli/internal/parser"
+	"github.com/boshu2/agentops/cli/internal/search"
 	"github.com/boshu2/agentops/cli/internal/storage"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -117,6 +119,8 @@ func init() {
 }
 
 func runForgeTranscript(cmd *cobra.Command, args []string) error {
+	w := cmd.OutOrStdout()
+
 	// Handle --last-session flag
 	var files []string
 	if forgeLastSession {
@@ -147,9 +151,9 @@ func runForgeTranscript(cmd *cobra.Command, args []string) error {
 	}
 
 	if GetDryRun() && !forgeQuiet {
-		fmt.Printf("[dry-run] Would process %d file(s)\n", len(files))
+		fmt.Fprintf(w, "[dry-run] Would process %d file(s)\n", len(files))
 		for _, path := range files {
-			fmt.Printf("  - %s\n", path)
+			fmt.Fprintf(w, "  - %s\n", path)
 		}
 		return nil
 	}
@@ -198,7 +202,7 @@ func runForgeTranscript(cmd *cobra.Command, args []string) error {
 	totalKnowledge := 0
 
 	for _, filePath := range files {
-		session, err := processTranscript(filePath, p, extractor, forgeQuiet)
+		session, err := processTranscript(filePath, p, extractor, forgeQuiet, w)
 		if err != nil {
 			if !forgeQuiet {
 				fmt.Fprintf(os.Stderr, "Warning: failed to process %s: %v\n", filePath, err)
@@ -244,6 +248,9 @@ func runForgeTranscript(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		// Update search index with the new session file
+		updateSearchIndexForFile(baseDir, sessionPath, forgeQuiet)
+
 		totalSessions++
 		totalDecisions += len(session.Decisions)
 		totalKnowledge += len(session.Knowledge)
@@ -263,17 +270,17 @@ func runForgeTranscript(cmd *cobra.Command, args []string) error {
 	}
 
 	if !forgeQuiet {
-		fmt.Printf("\n✓ Processed %d session(s)\n", totalSessions)
-		fmt.Printf("  Decisions: %d\n", totalDecisions)
-		fmt.Printf("  Knowledge: %d\n", totalKnowledge)
-		fmt.Printf("  Output: %s\n", baseDir)
+		fmt.Fprintf(w, "\n✓ Processed %d session(s)\n", totalSessions)
+		fmt.Fprintf(w, "  Decisions: %d\n", totalDecisions)
+		fmt.Fprintf(w, "  Knowledge: %d\n", totalKnowledge)
+		fmt.Fprintf(w, "  Output: %s\n", baseDir)
 	}
 
 	return nil
 }
 
 // processTranscript parses a transcript and extracts session data.
-func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extractor, quiet bool) (session *storage.Session, err error) {
+func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extractor, quiet bool, w io.Writer) (session *storage.Session, err error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("open file: %w", err)
@@ -314,7 +321,7 @@ func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extr
 			if totalLines > 0 {
 				pct = lineCount * 100 / totalLines
 			}
-			fmt.Printf("\r[forge] Processing... %d/%d (%d%%)  ", lineCount, totalLines, pct)
+			fmt.Fprintf(w, "\r[forge] Processing... %d/%d (%d%%)  ", lineCount, totalLines, pct)
 			lastProgress = lineCount
 		}
 
@@ -324,7 +331,7 @@ func processTranscript(filePath string, p *parser.Parser, extractor *parser.Extr
 	}
 
 	if !quiet {
-		fmt.Printf("\r%s\r", "                                                    ")
+		fmt.Fprintf(w, "\r%s\r", "                                                    ")
 	}
 
 	select {
@@ -591,6 +598,8 @@ func queueForExtraction(session *storage.Session, sessionPath, transcriptPath, c
 }
 
 func runForgeMarkdown(cmd *cobra.Command, args []string) error {
+	w := cmd.OutOrStdout()
+
 	// Expand globs and collect files
 	var files []string
 	for _, pattern := range args {
@@ -612,9 +621,9 @@ func runForgeMarkdown(cmd *cobra.Command, args []string) error {
 	}
 
 	if GetDryRun() && !forgeMdQuiet {
-		fmt.Printf("[dry-run] Would process %d markdown file(s)\n", len(files))
+		fmt.Fprintf(w, "[dry-run] Would process %d markdown file(s)\n", len(files))
 		for _, path := range files {
-			fmt.Printf("  - %s\n", path)
+			fmt.Fprintf(w, "  - %s\n", path)
 		}
 		return nil
 	}
@@ -697,6 +706,9 @@ func runForgeMarkdown(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		// Update search index with the new session file
+		updateSearchIndexForFile(baseDir, sessionPath, forgeMdQuiet)
+
 		totalSessions++
 		totalDecisions += len(session.Decisions)
 		totalKnowledge += len(session.Knowledge)
@@ -715,10 +727,10 @@ func runForgeMarkdown(cmd *cobra.Command, args []string) error {
 	}
 
 	if !forgeMdQuiet {
-		fmt.Printf("\n✓ Processed %d markdown file(s)\n", totalSessions)
-		fmt.Printf("  Decisions: %d\n", totalDecisions)
-		fmt.Printf("  Knowledge: %d\n", totalKnowledge)
-		fmt.Printf("  Output: %s\n", baseDir)
+		fmt.Fprintf(w, "\n✓ Processed %d markdown file(s)\n", totalSessions)
+		fmt.Fprintf(w, "  Decisions: %d\n", totalDecisions)
+		fmt.Fprintf(w, "  Knowledge: %d\n", totalKnowledge)
+		fmt.Fprintf(w, "  Output: %s\n", baseDir)
 	}
 
 	return nil
@@ -814,6 +826,37 @@ func splitMarkdownSections(content string) []string {
 	}
 
 	return sections
+}
+
+// updateSearchIndexForFile loads the search index (if it exists), updates the
+// entry for the given file path, and saves it back. If no index exists yet
+// this is a no-op -- the user can create one with `ao search --rebuild-index`.
+func updateSearchIndexForFile(baseDir, filePath string, quiet bool) {
+	idxPath := filepath.Join(baseDir, "index.jsonl")
+	if _, err := os.Stat(idxPath); os.IsNotExist(err) {
+		return // no index yet -- nothing to update
+	}
+
+	idx, err := search.LoadIndex(idxPath)
+	if err != nil {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "Warning: failed to load search index: %v\n", err)
+		}
+		return
+	}
+
+	if err := search.UpdateIndex(idx, filePath); err != nil {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "Warning: failed to update search index for %s: %v\n", filePath, err)
+		}
+		return
+	}
+
+	if err := search.SaveIndex(idx, idxPath); err != nil {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "Warning: failed to save search index: %v\n", err)
+		}
+	}
 }
 
 // findLastSession finds the most recently modified transcript file.

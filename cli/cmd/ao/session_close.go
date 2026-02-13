@@ -222,7 +222,7 @@ func forgeTranscriptForClose(transcriptPath, cwd string) (*storage.Session, erro
 
 	extractor := parser.NewExtractor()
 
-	session, err := processTranscript(transcriptPath, p, extractor, true)
+	session, err := processTranscript(transcriptPath, p, extractor, true, os.Stdout)
 	if err != nil {
 		return nil, fmt.Errorf("process transcript: %w", err)
 	}

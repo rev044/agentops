@@ -12,8 +12,10 @@ import (
 
 func init() {
 	checkSubCmd := &cobra.Command{
-		Use:   "check <step>",
-		Short: "Check if step gate is met",
+		Use:     "check <step>",
+		Aliases: []string{"c"},
+		GroupID: "inspection",
+		Short:   "Check if step gate is met",
 		Long: `Check if prerequisites are satisfied for a workflow step.
 
 Returns exit code 0 if gate passes, 1 if not.
@@ -55,20 +57,21 @@ func runRatchetCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
+	w := cmd.OutOrStdout()
 	switch GetOutput() {
 	case "json":
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 
 	default:
 		if result.Passed {
-			fmt.Printf("GATE PASSED: %s\n", result.Message)
+			fmt.Fprintf(w, "GATE PASSED: %s\n", result.Message)
 			if result.Input != "" {
-				fmt.Printf("Input: %s (%s)\n", result.Input, result.Location)
+				fmt.Fprintf(w, "Input: %s (%s)\n", result.Input, result.Location)
 			}
 		} else {
-			fmt.Printf("GATE FAILED: %s\n", result.Message)
+			fmt.Fprintf(w, "GATE FAILED: %s\n", result.Message)
 			os.Exit(1)
 		}
 	}

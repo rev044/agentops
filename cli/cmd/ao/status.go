@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -22,6 +23,7 @@ Shows:
   - Number of sessions indexed
   - Recent sessions
   - Provenance statistics
+  - Flywheel health summary
   - Storage locations
 
 Examples:
@@ -35,11 +37,12 @@ func init() {
 }
 
 type statusOutput struct {
-	Initialized     bool          `json:"initialized"`
-	BaseDir         string        `json:"base_dir"`
-	SessionCount    int           `json:"session_count"`
-	RecentSessions  []sessionInfo `json:"recent_sessions,omitempty"`
-	ProvenanceStats *provStats    `json:"provenance_stats,omitempty"`
+	Initialized     bool           `json:"initialized"`
+	BaseDir         string         `json:"base_dir"`
+	SessionCount    int            `json:"session_count"`
+	RecentSessions  []sessionInfo  `json:"recent_sessions,omitempty"`
+	ProvenanceStats *provStats     `json:"provenance_stats,omitempty"`
+	Flywheel        *flywheelBrief `json:"flywheel,omitempty"`
 }
 
 type sessionInfo struct {
@@ -52,6 +55,16 @@ type sessionInfo struct {
 type provStats struct {
 	TotalRecords   int `json:"total_records"`
 	UniqueSessions int `json:"unique_sessions"`
+}
+
+type flywheelBrief struct {
+	Status         string  `json:"status"`
+	TotalArtifacts int     `json:"total_artifacts"`
+	Velocity       float64 `json:"velocity"`
+	NewArtifacts   int     `json:"new_artifacts"`
+	StaleArtifacts int     `json:"stale_artifacts"`
+	LastForgeAge   string  `json:"last_forge_age,omitempty"`
+	LastForgeTime  string  `json:"last_forge_time,omitempty"`
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
@@ -112,6 +125,24 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Flywheel health summary
+	metrics, err := computeMetrics(cwd, 7)
+	if err == nil {
+		brief := &flywheelBrief{
+			Status:         metrics.EscapeVelocityStatus(),
+			TotalArtifacts: metrics.TotalArtifacts,
+			Velocity:       metrics.Velocity,
+			NewArtifacts:   metrics.NewArtifacts,
+			StaleArtifacts: metrics.StaleArtifacts,
+		}
+		// Find most recent forge (retro/learning) timestamp
+		if lastForge := findLastForgeTime(cwd); !lastForge.IsZero() {
+			brief.LastForgeTime = lastForge.Format("2006-01-02 15:04")
+			brief.LastForgeAge = formatDurationBrief(time.Since(lastForge))
+		}
+		status.Flywheel = brief
+	}
+
 	return outputStatus(status)
 }
 
@@ -153,10 +184,27 @@ func outputStatus(status *statusOutput) error {
 		fmt.Printf("  Sessions: %d\n", status.ProvenanceStats.UniqueSessions)
 	}
 
+	if status.Flywheel != nil {
+		fmt.Println("\nFlywheel Health")
+		fmt.Println("───────────────")
+		fmt.Printf("  Status:     %s\n", status.Flywheel.Status)
+		fmt.Printf("  Artifacts:  %d total, %d new (7d), %d stale (90d+)\n",
+			status.Flywheel.TotalArtifacts, status.Flywheel.NewArtifacts, status.Flywheel.StaleArtifacts)
+		velocitySign := "+"
+		if status.Flywheel.Velocity < 0 {
+			velocitySign = ""
+		}
+		fmt.Printf("  Velocity:   %s%.3f/week\n", velocitySign, status.Flywheel.Velocity)
+		if status.Flywheel.LastForgeAge != "" {
+			fmt.Printf("  Last forge: %s ago\n", status.Flywheel.LastForgeAge)
+		}
+	}
+
 	fmt.Println("\nCommands:")
 	fmt.Println("  ao forge transcript <path>  - Extract knowledge from transcript")
 	fmt.Println("  ao search <query>           - Search knowledge base")
 	fmt.Println("  ao trace <artifact>         - Trace provenance")
+	fmt.Println("  ao flywheel status          - Detailed flywheel metrics")
 
 	return nil
 }
@@ -177,4 +225,53 @@ func firstLine(s string) string {
 		}
 	}
 	return s
+}
+
+// findLastForgeTime returns the modification time of the most recent retro or learning artifact.
+func findLastForgeTime(baseDir string) time.Time {
+	var latest time.Time
+	dirs := []string{
+		filepath.Join(baseDir, ".agents", "retros"),
+		filepath.Join(baseDir, ".agents", "learnings"),
+	}
+	for _, dir := range dirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			if info.ModTime().After(latest) {
+				latest = info.ModTime()
+			}
+		}
+	}
+	return latest
+}
+
+// formatDurationBrief formats a duration as a human-friendly short string (e.g., "2h", "3d").
+func formatDurationBrief(d time.Duration) string {
+	if d < time.Minute {
+		return "<1m"
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	}
+	if d < 24*time.Hour {
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	}
+	days := int(d.Hours() / 24)
+	if days < 30 {
+		return fmt.Sprintf("%dd", days)
+	}
+	return fmt.Sprintf("%dw", days/7)
 }

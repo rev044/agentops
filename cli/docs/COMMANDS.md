@@ -938,7 +938,7 @@ ao search <query> [flags]
 **Flags:**
 
 ```
-      --cass          Enable CASS session-aware search with maturity weighting
+      --cass          CASS session-aware search with maturity weighting (default: on, use --cass=false to disable)
   -h, --help          help for search
       --limit int     Maximum results to return (default 10)
       --type string   Filter by type: decisions, knowledge, sessions

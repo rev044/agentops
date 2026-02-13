@@ -14,8 +14,9 @@ import (
 
 func init() {
 	traceSubCmd := &cobra.Command{
-		Use:   "trace <artifact>",
-		Short: "Trace provenance backward",
+		Use:     "trace <artifact>",
+		GroupID: "search",
+		Short:   "Trace provenance backward",
 		Long: `Trace an artifact back through the ratchet chain.
 
 Shows the provenance chain from output to input.
