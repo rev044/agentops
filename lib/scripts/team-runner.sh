@@ -23,6 +23,17 @@ MAX_RETRIES=3
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WATCHER="${SCRIPT_DIR}/watch-codex-stream.sh"
 
+# Cleanup on exit: kill any orphaned background jobs
+cleanup() {
+    local pids
+    pids=$(jobs -p 2>/dev/null)
+    if [[ -n "$pids" ]]; then
+        kill $pids 2>/dev/null || true
+        wait $pids 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # --- Pre-flight checks ---
 
 preflight() {
@@ -62,6 +73,10 @@ parse_spec() {
         echo "ERROR: team_id is required in spec" >&2
         exit 1
     fi
+    if ! echo "$TEAM_ID" | grep -qE '^[a-zA-Z0-9_-]+$'; then
+        echo "ERROR: team_id must match [a-zA-Z0-9_-]+" >&2
+        exit 1
+    fi
     if [[ ! -d "$REPO_PATH" ]]; then
         echo "ERROR: repo_path does not exist: $REPO_PATH" >&2
         exit 1
@@ -98,10 +113,14 @@ spawn_agent() {
     local agent_dir="${TEAM_DIR}/${name}"
     mkdir -p "$agent_dir"
 
-    # Build sandbox flag
-    local sandbox_flag="--full-auto"
+    # Build sandbox flags as array for safe expansion
+    local -a sandbox_args
     if [[ "$sandbox" == "read-only" ]]; then
-        sandbox_flag="-s read-only"
+        sandbox_args=(-s read-only)
+    elif [[ "$sandbox" == "danger-full-access" ]]; then
+        sandbox_args=(-s danger-full-access)
+    else
+        sandbox_args=(--full-auto)
     fi
 
     # Inject retry context if this is a retry
@@ -120,7 +139,7 @@ ${extra_context}"
     schema_path="$(cd "$REPO_PATH" && pwd)/lib/schemas/worker-output.json"
 
     if [[ -n "${TEAM_RUNNER_DRY_RUN:-}" ]]; then
-        echo "[DRY RUN] codex exec ${sandbox_flag} --json -m ${CODEX_MODEL} -C ${REPO_PATH} --output-schema ${schema_path} -o ${output_file} \"${prompt:0:80}...\"" >&2
+        echo "[DRY RUN] codex exec ${sandbox_args[*]} --json -m ${CODEX_MODEL} -C ${REPO_PATH} --output-schema ${schema_path} -o ${output_file} \"${prompt:0:80}...\"" >&2
         echo 0 > "${agent_dir}/codex-exit.txt"
         echo '{"status":"completed","token_usage":{"input":0,"output":0},"duration_ms":0,"events_count":0}' > "$status_file"
         echo '{"status":"done","summary":"dry run","artifacts":[],"errors":[],"token_usage":{"input":0,"output":0},"duration_ms":0}' > "$output_file"
@@ -133,7 +152,7 @@ ${extra_context}"
     # Spawn codex with JSONL piped to watcher
     # Sidecar pattern: capture codex exit code separately
     (
-        timeout "$timeout_s" codex exec $sandbox_flag --json \
+        timeout "$timeout_s" codex exec "${sandbox_args[@]}" --json \
             -m "$CODEX_MODEL" \
             -C "$REPO_PATH" \
             --output-schema "$schema_path" \
@@ -222,7 +241,7 @@ generate_report() {
     {
         echo "# Team Report: ${TEAM_ID}"
         echo ""
-        echo "**Date:** $(date -Iseconds)"
+        echo "**Date:** $(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -Iseconds)"
         echo "**Spec:** ${SPEC_FILE}"
         echo "**Model:** ${CODEX_MODEL}"
         echo ""

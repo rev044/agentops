@@ -25,6 +25,7 @@ output_tokens=0
 start_time=$(date +%s)
 completed=false
 error_msg=""
+timeout_triggered=""
 
 # Write status file on exit
 write_status() {
@@ -49,8 +50,6 @@ STATUSEOF
     exit "$exit_code"
 }
 
-timeout_triggered=""
-
 # Process JSONL line by line with idle timeout
 while IFS= read -r -t "$IDLE_TIMEOUT" line; do
     # Skip empty lines
@@ -66,6 +65,8 @@ while IFS= read -r -t "$IDLE_TIMEOUT" line; do
     if [[ "$event_type" == "turn.completed" ]]; then
         local_input=$(echo "$line" | jq -r '.usage.input_tokens // .usage.input // 0' 2>/dev/null) || local_input=0
         local_output=$(echo "$line" | jq -r '.usage.output_tokens // .usage.output // 0' 2>/dev/null) || local_output=0
+        [[ -z "$local_input" || "$local_input" == "null" ]] && local_input=0
+        [[ -z "$local_output" || "$local_output" == "null" ]] && local_output=0
         input_tokens=$((input_tokens + local_input))
         output_tokens=$((output_tokens + local_output))
         completed=true
