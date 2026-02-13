@@ -71,7 +71,14 @@ find .agents/ -name "*.md" -mtime +30 2>/dev/null | wc -l
 ao forge status 2>/dev/null || echo "ao CLI not available"
 ```
 
-### Step 5: Write Health Report
+### Step 5: Validate Artifact Consistency
+
+Cross-reference validation: scan knowledge artifacts for broken internal references.
+Read `references/artifact-consistency.md` for validation details.
+
+Health indicator: >90% = Healthy, 70-90% = Warning, <70% = Critical.
+
+### Step 6: Write Health Report
 
 **Write to:** `.agents/flywheel-status.md`
 
@@ -93,6 +100,12 @@ ao forge status 2>/dev/null || echo "ao CLI not available"
 - New learnings: <count>
 - New patterns: <count>
 
+## Artifact Consistency
+- References scanned: <count>
+- Broken references: <count>
+- Consistency score: <percentage>%
+- Status: <Healthy/Warning/Critical>
+
 ## Health Status
 <Healthy/Warning/Critical>
 
@@ -105,7 +118,7 @@ ao forge status 2>/dev/null || echo "ao CLI not available"
 2. <recommendation>
 ```
 
-### Step 6: Report to User
+### Step 7: Report to User
 
 Tell the user:
 1. Overall flywheel health
@@ -140,8 +153,9 @@ Tell the user:
 2. Agent checks recent activity with `find -mtime -7`
 3. Agent detects stale artifacts with `find -mtime +30`
 4. Agent calls `ao forge status` to check CLI state
-5. Agent writes health report to `.agents/flywheel-status.md`
-6. Agent reports overall health, friction points, recommendations
+5. Agent validates artifact consistency (cross-references)
+6. Agent writes health report to `.agents/flywheel-status.md`
+7. Agent reports overall health, friction points, recommendations
 
 **Result:** Single-screen dashboard showing knowledge flywheel velocity, pool depths, and health status.
 

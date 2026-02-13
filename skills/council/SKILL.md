@@ -192,6 +192,8 @@ Single-agent inline validation. No subprocess spawning, no Task tool, no Codex. 
 
 The packet sent to each agent. **File contents are included inline** — agents receive the actual code/plan text in the packet, not just paths. This ensures both Claude and Codex agents can analyze without needing file access.
 
+If `.agents/ao/environment.json` exists, include it in the context packet so judges can reason about available tools and environment state.
+
 ```json
 {
   "council_packet": {

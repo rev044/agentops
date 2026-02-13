@@ -13,14 +13,17 @@
           "category": {"type": "string"},
           "description": {"type": "string"},
           "location": {"type": "string"},
-          "recommendation": {"type": "string"}
+          "recommendation": {"type": "string"},
+          "fix": {"type": "string", "description": "Specific action to resolve this finding"},
+          "why": {"type": "string", "description": "Root cause or rationale"},
+          "ref": {"type": "string", "description": "File path, spec anchor, or doc reference"}
         },
         "required": ["severity", "category", "description", "location", "recommendation"],
         "additionalProperties": false
       }
     },
     "recommendation": {"type": "string"},
-    "schema_version": {"type": "integer", "const": 1}
+    "schema_version": {"type": "integer", "enum": [1, 2]}
   },
   "required": ["verdict", "confidence", "key_insight", "findings", "recommendation", "schema_version"],
   "additionalProperties": false

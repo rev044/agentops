@@ -26,7 +26,7 @@ log_hook_fail() {
 cd "$ROOT" 2>/dev/null || true
 
 # Create .agents directories if they don't exist
-AGENTS_DIRS=(".agents/research" ".agents/products" ".agents/retros" ".agents/learnings" ".agents/patterns" ".agents/council" ".agents/knowledge/pending")
+AGENTS_DIRS=(".agents/research" ".agents/products" ".agents/retros" ".agents/learnings" ".agents/patterns" ".agents/council" ".agents/knowledge/pending" ".agents/ao")
 
 for dir in "${AGENTS_DIRS[@]}"; do
     target_dir="$ROOT/$dir"
@@ -34,6 +34,47 @@ for dir in "${AGENTS_DIRS[@]}"; do
         mkdir -p "$target_dir" 2>/dev/null
     fi
 done
+
+# Environment manifest — capture tool presence and git state for council legibility
+{
+  ENV_JSON="$ROOT/.agents/ao/environment.json"
+
+  # Tool presence checks (command -v only, no version extraction)
+  ao_present=false; command -v ao &>/dev/null && ao_present=true
+  bd_present=false; command -v bd &>/dev/null && bd_present=true
+  codex_present=false; command -v codex &>/dev/null && codex_present=true
+  gt_present=false; command -v gt &>/dev/null && gt_present=true
+  gh_present=false; command -v gh &>/dev/null && gh_present=true
+  jq_present=false; command -v jq &>/dev/null && jq_present=true
+
+  # Git state
+  git_branch="$(git branch --show-current 2>/dev/null || echo 'unknown')"
+  git_head="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+  git_dirty=false; [ -n "$(git status --porcelain 2>/dev/null)" ] && git_dirty=true
+
+  # Missing tools list
+  missing_tools=""
+  $ao_present || missing_tools="${missing_tools}\"ao\","
+  $bd_present || missing_tools="${missing_tools}\"bd\","
+  $codex_present || missing_tools="${missing_tools}\"codex\","
+  $gt_present || missing_tools="${missing_tools}\"gt\","
+  $gh_present || missing_tools="${missing_tools}\"gh\","
+  $jq_present || missing_tools="${missing_tools}\"jq\","
+  missing_tools="[${missing_tools%,}]"
+
+  # Platform
+  platform="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+  cat > "$ENV_JSON" <<ENVEOF
+{
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "platform": "$platform",
+  "tools": {"ao": $ao_present, "bd": $bd_present, "codex": $codex_present, "gt": $gt_present, "gh": $gh_present, "jq": $jq_present},
+  "missing_tools": $missing_tools,
+  "git": {"branch": "$git_branch", "head": "$git_head", "dirty": $git_dirty}
+}
+ENVEOF
+} 2>/dev/null || log_hook_fail "environment manifest write failed"
 
 # Clean up stale nudge dedup flag from previous session
 rm -f "$ROOT/.agents/ao/.ratchet-advance-fired" 2>/dev/null
