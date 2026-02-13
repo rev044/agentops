@@ -5,101 +5,18 @@
 ### Your coding agent gets smarter every time you use it.
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
-[![Version](https://img.shields.io/badge/version-2.5.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.6.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-34-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
-[Install](#install) · [See It Work](#see-it-work) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [FAQ](#faq)
 
 </div>
 
 ---
 
-**Session 1:** Your agent writes a feature but the tests are weak. **Session 5:** It catches the same kind of gap automatically — because the system learned from every session in between. **Session 20:** It ships faster than you could alone, and catches bugs it would have missed on day one.
-
-AgentOps makes every coding session compound. It researches, plans, validates the plan, implements in parallel, validates the code, extracts what it learned, and **tells you what to run next**. Each cycle makes the next one better. You stop managing your agent and start managing your roadmap.
-
----
-
-## What It Does
-
-- **Manages context perfectly.** Research loads prior knowledge. Each worker gets fresh context. Learnings persist across sessions in `.agents/` and git.
-- **Validates at every stage.** Multi-model councils judge plans before coding and code before shipping. Failures retry with failure context — no human escalation.
-- **Compounds intelligence.** Post-mortem extracts what worked, what didn't, and how to improve the tools themselves. Then it suggests the next `/rpi` command. The system improves its own skills.
-- **One command, six phases.** `/rpi "goal"` runs the full lifecycle hands-free. Or use any skill standalone — `/council validate this PR` works with zero setup.
-- **Enforces its own workflow.** 12 hooks block bad pushes, enforce lead-only commits, gate `/crank` on `/pre-mortem`, and auto-inject language-specific standards. The system doesn't just suggest good practice — it requires it.
-
-Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local.
-
----
-
-## Who This Is For
-
-**Solo developers** who ship fast but skip validation — or burn hours doing it manually. AgentOps runs `/rpi` end-to-end so you get multi-model code review, retry-on-failure, and knowledge that persists across sessions. No team required.
-
-**Tech leads scaling agent work** across a backlog. `/crank` runs parallel waves with fresh context per worker. `/status` shows what's in flight. `/post-mortem` captures what the system learned so the next cycle doesn't repeat mistakes. You manage the roadmap, not the agents.
-
-**Quality-focused maintainers** who need high-confidence releases without manual regression hunting. `/pre-mortem` catches plan gaps before coding starts. `/vibe` validates code before push. The knowledge flywheel preserves institutional knowledge even when team members change.
-
----
-
-## Install
-
-```bash
-npx skills@latest add boshu2/agentops --all -g
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops   # CLI (optional)
-ao hooks install        # Flywheel hooks (SessionStart + Stop)
-ao hooks install --full # All 8 events with safety gates, standards, validation
-```
-
-Then inside your coding agent:
-
-```bash
-/quickstart
-```
-
-That's it.
-
-<details>
-<summary>Other install methods</summary>
-
-**Claude Code plugin path:**
-```bash
-claude plugin add boshu2/agentops
-```
-
-**Install script** (plugin + optional CLI + hooks):
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
-```
-
-</details>
-
-<details>
-<summary>Troubleshooting</summary>
-
-If slash commands don't appear: `npx skills@latest update`
-
-More: [docs/troubleshooting.md](docs/troubleshooting.md)
-
-</details>
-
----
-
-## The Path
-
-```
-/quickstart                          ← first session: guided tour on your codebase
-    │
-/council, /research, /vibe           ← use skills standalone, learn the pieces
-    │
-/rpi "goal"                          ← full lifecycle: research → ship → learn
-    │
-/evolve                              ← define goals, let the system improve itself
-```
-
-Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. Set `GOALS.yaml` and let `/evolve` compound from there.
+One command ships a feature end-to-end — researched, planned, validated by multiple AI models, implemented in parallel, and the system remembers what it learned for next time. Every session compounds on the last. You stop managing your agent and start managing your roadmap.
 
 ---
 
@@ -175,11 +92,98 @@ Consensus: WARN — add rate limiting before shipping
 
 ---
 
+## What It Does
+
+- **Ships features end-to-end with one command.** `/rpi "goal"` runs six phases hands-free — research, plan, pre-mortem, implement, validate, post-mortem. Or use any skill standalone: `/council validate this PR` works with zero setup.
+- **Catches bugs before they reach your branch.** Multi-model councils validate plans before coding (`/pre-mortem`) and code before shipping (`/vibe`). Failures retry with context — after 3 retries, the system surfaces the failure with full context for your decision.
+- **Gets better the more you use it.** Post-mortem extracts what worked, what didn't, and how to improve the tools themselves. Then it suggests the next `/rpi` command. The system improves its own process.
+- **Remembers everything across sessions.** Research loads prior knowledge. Each worker gets fresh context. Learnings persist in `.agents/` and git — no context resets between sessions.
+- **Enforces its own workflow.** 12 hooks across 8 lifecycle events block bad pushes, enforce lead-only commits, gate `/crank` on `/pre-mortem`, and auto-inject language-specific standards. The system doesn't just suggest good practice — it requires it.
+
+Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local.
+
+---
+
+## Who This Is For
+
+**Solo developers** who ship fast but skip validation — or burn hours doing it manually. AgentOps runs `/rpi` end-to-end so you get multi-model code review, retry-on-failure, and knowledge that persists across sessions. No team required.
+
+**Tech leads scaling agent work** across a backlog. `/crank` runs parallel waves with fresh context per worker. `/status` shows what's in flight. `/post-mortem` captures what the system learned so the next cycle doesn't repeat mistakes. You manage the roadmap, not the agents.
+
+**Quality-focused maintainers** who need high-confidence releases without manual regression hunting. `/pre-mortem` catches plan gaps before coding starts. `/vibe` validates code before push. The knowledge flywheel preserves institutional knowledge even when team members change.
+
+---
+
+## Install
+
+**Requires:** Node.js 18+ and a coding agent that supports [Skills](https://skills.sh) (Claude Code, Codex CLI, Cursor, Open Code).
+
+```bash
+npx skills@latest add boshu2/agentops --all -g
+```
+
+Then open your coding agent and type `/quickstart`. That's it.
+
+<details>
+<summary>Full setup (CLI + hooks)</summary>
+
+```bash
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
+ao hooks install        # Flywheel hooks (SessionStart + Stop)
+ao hooks install --full # All 12 hooks across 8 lifecycle events
+```
+
+The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 34 skills work without it.
+
+</details>
+
+<details>
+<summary>Other install methods</summary>
+
+**Claude Code plugin path:**
+```bash
+claude plugin add boshu2/agentops
+```
+
+**Install script** (plugin + optional CLI + hooks):
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
+```
+
+</details>
+
+<details>
+<summary>Troubleshooting</summary>
+
+If slash commands don't appear: `npx skills@latest update`
+
+More: [docs/troubleshooting.md](docs/troubleshooting.md)
+
+</details>
+
+---
+
+## The Path
+
+```
+/quickstart                          ← first session: guided tour on your codebase
+    │
+/council, /research, /vibe           ← use skills standalone, learn the pieces
+    │
+/rpi "goal"                          ← full lifecycle: research → ship → learn
+    │
+/evolve                              ← define goals, let the system improve itself
+```
+
+Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. Set `GOALS.yaml` and let `/evolve` compound from there.
+
+---
+
 ## The Workflow
 
 1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
 
-2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a beads epic.
+2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking).
 
 3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
 
@@ -323,6 +327,8 @@ These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 42 measurable goals
 
 ## How It Works
 
+Parallel agents produce noisy output; councils filter it; ratchets lock progress so it can never regress.
+
 <details>
 <summary><strong>The Brownian Ratchet</strong> — chaos in, locked progress out</summary>
 
@@ -338,6 +344,8 @@ These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 42 measurable goals
 Spawn parallel agents (chaos), validate with multi-model council (filter), merge to main (ratchet). Failed agents are cheap — fresh context means no contamination.
 
 </details>
+
+Every wave gets a fresh worker set with clean context — no bleed-through between waves.
 
 <details>
 <summary><strong>Ralph Loops</strong> — fresh context every wave</summary>
@@ -432,15 +440,7 @@ Install: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops &
 <details>
 <summary><strong>Why not just use my coding agent directly?</strong></summary>
 
-Your coding agent writes code. AgentOps manages everything around the code — the context, the validation, the knowledge, the intent. It's the difference between a developer and a development team with process:
-
-- **Context management** — injects prior knowledge, gives each worker fresh context, persists learnings across sessions
-- **Quality gates** — multi-model councils validate plans before coding and code before shipping
-- **Self-correction** — failures retry with failure context, not human escalation
-- **Self-improvement** — every cycle proposes how to make the tools better, then suggests what to run next
-- **Self-enforcement** — hooks block bad pushes, enforce lead-only commits, gate `/crank` on `/pre-mortem`, nudge agents through the workflow
-
-Without AgentOps, you are the context manager, the quality gate, and the memory. With it, you manage the roadmap.
+Without AgentOps, every session starts from scratch. Your agent doesn't remember what failed last time, doesn't validate its plan before coding, doesn't check its code with a second opinion, and doesn't capture what it learned. You fill those gaps manually — re-explaining context, reviewing code, tracking what changed. With AgentOps, the system handles context, validation, and memory. You manage the roadmap.
 
 </details>
 
@@ -449,7 +449,7 @@ Without AgentOps, you are the context manager, the quality gate, and the memory.
 
 | Approach | What it does well | What AgentOps adds |
 |----------|------------------|--------------------|
-| **Direct agent use** (Claude Code, Cursor, Copilot) | Full autonomy, simple to start | Multi-model councils, fresh-context waves, and knowledge that compounds across sessions. A bare agent writes code once; ours extracts learnings and applies them next time. |
+| **Direct agent use** (Claude Code, Cursor, Copilot) | Full autonomy, simple to start | Multi-model councils, fresh-context waves, and knowledge that compounds across sessions. A bare agent starts fresh each session; ours extracts learnings and applies them next time. |
 | **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Static instructions don't compound. The flywheel auto-extracts learnings and injects them back. `/post-mortem` proposes changes to the tools themselves. |
 | **Agent orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-language task scheduling | Those choreograph sequential tasks; we compose parallel waves with validation at every stage. No external state backend — all learnings are git-tracked. |
 | **CI/CD gates** (GitHub Actions, pre-commit) | Automated, industry standard | Gates run after code is written. Ours run before coding (`/pre-mortem`) and before push (`/vibe`). Failures retry with context, not human escalation. |
@@ -459,7 +459,7 @@ Without AgentOps, you are the context manager, the quality gate, and the memory.
 <details>
 <summary><strong>What data leaves my machine?</strong></summary>
 
-Nothing. All state lives in `.agents/` (git-tracked, local). No telemetry, no cloud, no external services.
+AgentOps itself stores nothing externally — all state lives in `.agents/` (git-tracked, local). No telemetry, no cloud, no external services. Your coding agent's normal API traffic to its LLM provider still applies.
 
 </details>
 

@@ -46,7 +46,7 @@ Your coding agent gets smarter every time you use it. Automates context, validat
 ├── hooks/                 # Session and git hooks
 │   ├── hooks.json
 │   ├── session-start.sh
-│   └── ...                # 10 hook scripts total
+│   └── ...                # 12 hook scripts total
 ├── cli/                   # Go CLI (ao command)
 ├── lib/                   # Shared code
 │   ├── skills-core.js
