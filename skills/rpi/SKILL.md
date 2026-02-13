@@ -107,6 +107,7 @@ rpi_state = {
   phase: "<starting phase>",
   auto: <true unless --interactive flag present>,
   test_first: <true if --test-first flag present>,
+  fast_path: false,  # auto-detected after Phase 2, or forced via --fast-path
   cycle: 1,          # RPI iteration number (incremented on --spawn-next)
   parent_epic: null,  # epic ID from prior cycle (if spawned from next-work)
   verdicts: {}       # populated as phases complete
@@ -157,9 +158,20 @@ With `--interactive`, the plan skill shows its human gate. /rpi trusts the outco
    ```
    Store in `rpi_state.epic_id`.
 
-2. Write phase summary to `.agents/rpi/phase-2-summary.md`
+2. **Detect micro-epic (fast-path):**
+   ```bash
+   ISSUE_COUNT=$(bd children <epic-id> 2>/dev/null | wc -l | tr -d ' ')
+   BLOCKED_COUNT=$(bd children <epic-id> 2>/dev/null | grep -c 'blocked' || echo 0)
+   ```
+   If `ISSUE_COUNT <= 2` AND `BLOCKED_COUNT == 0` (all issues in Wave 1), OR if `--fast-path` flag is set:
+   - Set `rpi_state.fast_path = true`
+   - Log: "Micro-epic detected (N issues, 1 wave) — using fast path (--quick for gates)"
 
-3. Ratchet checkpoint:
+   Fast path passes `--quick` to pre-mortem, vibe, and post-mortem, using inline review instead of spawning full council. This saves ~15 min on small epics with no loss of quality.
+
+3. Write phase summary to `.agents/rpi/phase-2-summary.md`
+
+4. Ratchet checkpoint:
    ```bash
    ao ratchet record plan 2>/dev/null || true
    ```
@@ -169,7 +181,8 @@ With `--interactive`, the plan skill shows its human gate. /rpi trusts the outco
 **Skip if:** `--from` is set to a later phase.
 
 ```
-Skill(skill="pre-mortem")
+Skill(skill="pre-mortem", args="--quick")   # if rpi_state.fast_path
+Skill(skill="pre-mortem")                    # otherwise (full council)
 ```
 
 Pre-mortem auto-discovers the most recent plan. No args needed.
@@ -212,7 +225,8 @@ ao ratchet record implement 2>/dev/null || true
 ### Phase 5: Final Vibe
 
 ```
-Skill(skill="vibe", args="recent")
+Skill(skill="vibe", args="--quick recent")   # if rpi_state.fast_path
+Skill(skill="vibe", args="recent")            # otherwise (full council)
 ```
 
 Vibe runs a full council on recent changes (cross-wave consistency check).
@@ -232,7 +246,8 @@ ao ratchet record vibe 2>/dev/null || true
 ### Phase 6: Post-mortem
 
 ```
-Skill(skill="post-mortem", args="<epic-id>")
+Skill(skill="post-mortem", args="--quick <epic-id>")   # if rpi_state.fast_path
+Skill(skill="post-mortem", args="<epic-id>")            # otherwise (full council)
 ```
 
 Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after post-mortem (enable Gate 4 loop via `--loop`).
@@ -262,6 +277,7 @@ Read `references/error-handling.md` for error handling details.
 | `--max-cycles=<n>` | `1` | Hard cap on total /rpi cycles when `--loop` is set (recommended: 3). |
 | `--spawn-next` | off | After post-mortem, read harvested next-work items and report suggested next `/rpi` command. Marks consumed entries. |
 | `--test-first` | off | Pass `--test-first` to `/crank` for spec-first TDD |
+| `--fast-path` | auto | Force fast path (--quick for gates). Auto-detected when ≤2 issues and 1 wave. |
 | `--dry-run` | off | With `--spawn-next`: report items without marking consumed. Useful for testing the consumption flow. |
 
 ## Examples
