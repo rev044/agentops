@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-02-14
+
+### Changed
+
+- **ao search simplified** — Removed index-based search path; CASS now opt-in (`--cass`) instead of default, reducing complexity.
+- **README and PRODUCT.md** — Aligned with context orchestration framing.
+- **Architecture docs** — Updated framing, fixed broken links, added export-constraints stub.
+
+### Fixed
+
+- **Crank pre-mortem gate** — Epics with 3+ issues now require pre-mortem evidence before cranking, codifying the pattern validated across 7 consecutive epics.
+- **Integration test coverage** — Added tests for `ao doctor`, `ao pool`, `ao search`, and `ao status` commands.
+
 ## [2.7.0] - 2026-02-13
 
 ### Added
