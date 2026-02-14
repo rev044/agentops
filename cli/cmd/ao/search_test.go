@@ -308,6 +308,85 @@ func TestSearchJSONL(t *testing.T) {
 	})
 }
 
+func TestSearchFilesWithFixtures(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create a sessions directory with sample session files
+	sessDir := filepath.Join(tmp, "sessions")
+	if err := os.MkdirAll(sessDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a session file with searchable content
+	sessionContent := `# Session: abc-123
+
+## Summary
+Implemented mutex pattern for concurrent access to shared state.
+
+## Learnings
+- Use sync.RWMutex for read-heavy workloads
+- Always defer Unlock() calls
+`
+	if err := os.WriteFile(filepath.Join(sessDir, "session-abc-123.md"), []byte(sessionContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write another session
+	session2 := `# Session: def-456
+
+## Summary
+Database migration patterns for PostgreSQL.
+`
+	if err := os.WriteFile(filepath.Join(sessDir, "session-def-456.md"), []byte(session2), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("finds matching content", func(t *testing.T) {
+		results, err := searchFiles("mutex", sessDir, 10)
+		if err != nil {
+			t.Fatalf("searchFiles() error: %v", err)
+		}
+		if len(results) == 0 {
+			t.Error("expected at least 1 result for 'mutex'")
+		}
+	})
+
+	t.Run("no match returns empty", func(t *testing.T) {
+		results, err := searchFiles("kubernetes_xyz_nonexistent", sessDir, 10)
+		if err != nil {
+			t.Fatalf("searchFiles() error: %v", err)
+		}
+		if len(results) != 0 {
+			t.Errorf("expected 0 results, got %d", len(results))
+		}
+	})
+
+	t.Run("returns results from both sources", func(t *testing.T) {
+		results, err := searchFiles("Session", sessDir, 10)
+		if err != nil {
+			t.Fatalf("searchFiles() error: %v", err)
+		}
+		if len(results) == 0 {
+			t.Error("expected results for 'Session'")
+		}
+	})
+}
+
+func TestSearchFilesNoData(t *testing.T) {
+	tmp := t.TempDir()
+	// Use an empty (but existing) directory — grep returns error for nonexistent dirs
+	emptyDir := filepath.Join(tmp, "sessions")
+	os.MkdirAll(emptyDir, 0755)
+
+	results, err := searchFiles("test", emptyDir, 10)
+	if err != nil {
+		t.Fatalf("searchFiles() error: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty dir, got %d", len(results))
+	}
+}
+
 func TestParseGrepResults(t *testing.T) {
 	tests := []struct {
 		name        string
