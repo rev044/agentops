@@ -1,20 +1,22 @@
 # AgentOps Architecture
 
-> AI-assisted development workflows for skills-protocol coding agents.
+> Context quality is the primary lever for agent output quality. Orchestrate what enters each window, compound what comes out.
 
 ## Overview
 
-AgentOps is a skills plugin providing the RPI workflow with Knowledge Flywheel.
+AgentOps is a skills plugin that orchestrates context across agent windows and compounds results through a knowledge flywheel — each session is smarter than the last.
 
 ```
 .
 ├── .claude-plugin/
 │   └── plugin.json      # Plugin manifest
-├── skills/              # 32 skills (21 user-facing, 11 internal)
+├── skills/              # 34 skills (24 user-facing, 10 internal)
+│   ├── rpi/             # orchestration — Full RPI lifecycle orchestrator
 │   ├── council/         # orchestration — Multi-model validation (core primitive)
 │   ├── crank/           # orchestration — Autonomous epic execution
 │   ├── swarm/           # orchestration — Parallel agent spawning
 │   ├── codex-team/      # orchestration — Parallel Codex execution
+│   ├── evolve/          # orchestration — Goal-driven fitness loop
 │   ├── implement/       # team — Execute single issue
 │   ├── quickstart/      # solo — Interactive onboarding
 │   ├── status/          # solo — Single-screen dashboard
@@ -28,6 +30,7 @@ AgentOps is a skills plugin providing the RPI workflow with Knowledge Flywheel.
 │   ├── knowledge/       # solo — Query knowledge artifacts
 │   ├── bug-hunt/        # solo — Investigate bugs
 │   ├── doc/             # solo — Generate documentation
+│   ├── product/         # solo — Generate PRODUCT.md
 │   ├── handoff/         # solo — Session handoff
 │   ├── inbox/           # solo — Agent mail monitoring
 │   ├── release/         # solo — Pre-flight, changelog, tag
@@ -45,12 +48,24 @@ AgentOps is a skills plugin providing the RPI workflow with Knowledge Flywheel.
 ├── hooks/               # Session hooks
 │   ├── hooks.json
 │   ├── session-start.sh
-│   └── ...              # 10 hook scripts total
+│   └── ...              # 12 hook scripts total
 ├── lib/                 # Shared code
 │   ├── skills-core.js
 │   └── scripts/prescan.sh
 └── docs/                # Documentation
 ```
+
+---
+
+## Design Philosophy
+
+Three principles drive every architectural decision in AgentOps:
+
+**The intelligence lives in the window.** Agent output quality is determined by context input quality. Bad answers mean wrong context was loaded. Contradictions mean context wasn't shared between agents. Hallucinations mean context was too sparse. Drifting means signal-to-noise collapsed. Every failure is a context failure — so every solution is a context solution.
+
+**Least-privilege context loading.** Each agent receives only the context necessary for its task. Research gets prior knowledge. Plan gets a 500-token research summary. Crank workers get fresh context per wave with zero bleed-through. Vibe gets recent changes only. Phase summaries compress output between phases to prevent signal-to-noise collapse. The context window is treated as a security boundary — nothing enters without scoping.
+
+**The cycle is the product.** No single skill is the value. The compounding loop — research, plan, validate, build, validate, learn, repeat — makes each successive context window smarter than the last. Post-mortem doesn't just extract learnings; it proposes the next cycle's work. The system feeds itself.
 
 ---
 
@@ -61,6 +76,8 @@ Research → Plan → Implement → Validate
     ↑                            │
     └──── Knowledge Flywheel ────┘
 ```
+
+Each phase is a context boundary. The output of one phase is compressed and scoped before entering the next — preventing context contamination across phases.
 
 ### Phases
 
@@ -90,6 +107,8 @@ Every `/post-mortem` feeds back into the next `/rpi` cycle:
 ```
 
 The flywheel is self-perpetuating: every cycle learns, proposes improvements, and queues the next cycle. The system doesn't just get smarter — it tells you exactly what to improve next.
+
+Learnings re-enter future context windows through quality gates: 5-dimension scoring (specificity, actionability, novelty, context, confidence) into gold/silver/bronze tiers, with freshness decay (MemRL two-phase retrieval, delta=0.17/week) ensuring stale knowledge loses priority automatically. The flywheel is curation, not just storage.
 
 ---
 
@@ -175,6 +194,8 @@ The ao CLI provides:
 
 ## Subagents
 
+Subagents are disposable. Each gets fresh context scoped to its role — no accumulated state, no bleed-through. Clean context in, validated output out, then terminate.
+
 Subagent behaviors are defined inline within SKILL.md files — there is no separate `agents/` directory. Skills that use subagents (e.g., `/council`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/research`) spawn them via runtime-native backends (Codex sub-agents, Claude teams, or fallback background tasks).
 
 ### Validation Subagents (spawned by /vibe, /council)
@@ -239,10 +260,19 @@ Subagent behaviors are defined inline within SKILL.md files — there is no sepa
 └── tooling/       # Tooling documentation
 ```
 
-Future `/research` commands discover these automatically via:
-1. File pattern matching
-2. Semantic search (ao forge)
-3. Smart Connections MCP (if available)
+Knowledge artifacts are the system's long-term memory. Future `/research` commands discover them via file pattern matching, semantic search (`ao forge`), or Smart Connections MCP (if available). Freshness decay ensures stale artifacts lose priority over time — the system forgets what's no longer relevant. Quality gates prevent low-confidence or context-specific learnings from polluting the shared knowledge base.
+
+---
+
+## Context Boundaries
+
+The system enforces context isolation at three levels:
+
+**Phase boundaries.** Each RPI phase produces a compressed summary (500 tokens max) that feeds the next phase. Raw output never crosses phase boundaries — only distilled signal.
+
+**Worker boundaries.** Each crank worker gets fresh context scoped to its assigned issue. Workers cannot see each other's work-in-progress. Only the lead sees all workers' output and commits.
+
+**Session boundaries.** Each session starts with injected knowledge (freshness-weighted, quality-gated) and ends with extracted learnings. The flywheel bridges sessions without carrying raw context forward.
 
 ---
 

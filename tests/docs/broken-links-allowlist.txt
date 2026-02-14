@@ -42,3 +42,7 @@ docs/brownian-ratchet.md:/.beads/issues/ol-rg3p
 
 # Release notes template (CHANGELOG.md created at release time)
 skills/release/references/release-notes.md:../../CHANGELOG.md
+
+# Auto-generated session files (concurrency text parsed as links)
+cli/.agents/ao/sessions/2026-02-13-till-disable-it-with-cass-false-if-you-ever-want-7eb47b8.md:concurrency
+cli/.agents/ao/sessions/2026-02-13-selected-version-result-suggested-version-based-7eb47b8.md:concurrency
