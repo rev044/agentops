@@ -5,7 +5,7 @@
 ### Your coding agent gets smarter every time you use it.
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
-[![Version](https://img.shields.io/badge/version-2.6.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.7.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-34-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
@@ -16,7 +16,7 @@
 
 ---
 
-One command ships a feature end-to-end — researched, planned, validated by multiple AI models, implemented in parallel, and the system remembers what it learned for next time. Every session compounds on the last. You stop managing your agent and start managing your roadmap.
+One command ships a feature end-to-end — researched, planned, validated by multiple AI models, implemented in parallel, and the system remembers what it learned for next time. The difference isn't smarter agents — it's controlling what context enters each agent's window at each phase, so every decision is made with the right information and nothing else. Every session compounds on the last. You stop managing your agent and start managing your roadmap.
 
 ---
 
@@ -193,7 +193,7 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 
 6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes process improvements. **Suggests the next `/rpi` command.**
 
-`/rpi "goal"` runs all six, end to end. Use `--interactive` if you want human gates at research and plan.
+`/rpi "goal"` runs all six, end to end (micro-epics of 2 or fewer issues auto-detect fast-path: inline validation instead of full council, ~15 min faster with no quality loss). Use `--interactive` if you want human gates at research and plan.
 
 ---
 
@@ -220,6 +220,8 @@ This is what makes AgentOps different. The system doesn't just run — it compou
 
 Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system grows its knowledge stock with each cycle.
 
+Learnings don't enter the knowledge base unchecked — they pass quality gates scored on specificity, actionability, novelty, context, and confidence, then land in gold/silver/bronze tiers. Good learnings get promoted over time; weak ones get demoted. Freshness decay (inspired by [MemRL](https://arxiv.org/abs/2502.06173) two-phase retrieval) ensures recent insights outweigh stale patterns automatically.
+
 ### Goal-Driven Mode: `/evolve`
 
 Define what "done" looks like in `GOALS.yaml` — a quality contract with measurable goals and priority weights:
@@ -236,7 +238,7 @@ goals:
     weight: 7
 ```
 
-`/evolve` reads `GOALS.yaml`, measures every goal, picks the worst failing one (highest weight), runs a full `/rpi` cycle to fix it, re-measures, and loops. Each cycle loads learnings from all prior cycles via the flywheel. When all goals pass, the system goes dormant — a valid success state, not a bug. You define the goals; the system handles the rest.
+`/evolve` reads `GOALS.yaml`, measures every goal, picks the worst failing one (highest weight), runs a full `/rpi` cycle to fix it, re-measures, and loops. After each cycle, `/evolve` re-measures ALL goals — not just the target. If any goal regresses, every commit from that cycle is auto-reverted. This full regression gate is what makes "walk away" safe. Each cycle loads learnings from all prior cycles via the flywheel. When all goals pass, the system goes dormant — a valid success state, not a bug. You define the goals; the system handles the rest.
 
 Kill switch at any time: `echo "stop" > ~/.config/evolve/KILL`
 
@@ -327,6 +329,8 @@ These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 42 measurable goals
 
 ## How It Works
 
+Agent output quality is determined by context input quality. Every pattern below — fresh context per worker, ratcheted progress, least-privilege loading — exists to ensure the right information is in the right window at the right time.
+
 Parallel agents produce noisy output; councils filter it; ratchets lock progress so it can never regress.
 
 <details>
@@ -412,6 +416,13 @@ All hooks use `lib/hook-helpers.sh` for structured error recovery — failures i
 
 </details>
 
+<details>
+<summary><strong>Context Windowing</strong> — bounded execution for large codebases</summary>
+
+For repos over ~1500 files, `/rpi` uses deterministic shards to keep each worker's context window bounded. Run `scripts/rpi/context-window-contract.sh` before `/rpi` to enable sharding. This prevents context overflow and keeps worker quality consistent regardless of codebase size.
+
+</details>
+
 ---
 
 ## The `ao` CLI
@@ -489,6 +500,16 @@ Yes — Claude Code, Codex CLI, Cursor, Open Code, anything supporting [Skills](
 <summary><strong>What does PRODUCT.md do?</strong></summary>
 
 Run `/product` to generate a `PRODUCT.md` describing your mission, personas, and competitive landscape. Once it exists, `/pre-mortem` automatically adds product perspectives (user-value, adoption-barriers) and `/vibe` adds developer-experience perspectives (api-clarity, error-experience) to their council reviews. Your agent understands what matters to your product — not just whether the code compiles.
+
+</details>
+
+<details>
+<summary><strong>What are the current limitations?</strong></summary>
+
+- **Single primary author so far.** The system works but hasn't been stress-tested across diverse codebases and team sizes. Looking for early adopters willing to break things.
+- **Quality pool can over-promote.** Context-specific patterns sometimes get promoted as general knowledge. Freshness decay helps but doesn't fully solve stale injection.
+- **Retry loops cap at 3.** If a council or crank wave fails three times, the system surfaces the failure to you rather than looping forever. This is intentional but means some edge cases need human judgment.
+- **Knowledge curation is imperfect.** Freshness decay prevents the worst staleness, but the scoring heuristics (specificity, actionability, novelty) are tuned for one author's workflow. Your mileage may vary.
 
 </details>
 
