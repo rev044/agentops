@@ -249,6 +249,35 @@ Also verify: epic has at least 1 child issue total. An epic with 0 children mean
 
 Do NOT proceed with empty issue list - this produces false "epic complete" status.
 
+### Step 3a.1: Pre-flight Check - Pre-Mortem Required (3+ issues)
+
+**If the epic has 3 or more child issues, require pre-mortem evidence before proceeding.**
+
+```bash
+# Count child issues (beads mode)
+if [[ "$TRACKING_MODE" == "beads" ]]; then
+    CHILD_COUNT=$(bd show "$EPIC_ID" 2>/dev/null | grep -c "↳")
+else
+    CHILD_COUNT=$(TaskList | grep -c "pending\|in_progress")
+fi
+
+if [[ "$CHILD_COUNT" -ge 3 ]]; then
+    # Look for pre-mortem report in .agents/council/
+    PRE_MORTEM=$(ls -t .agents/council/*pre-mortem* 2>/dev/null | head -1)
+    if [[ -z "$PRE_MORTEM" ]]; then
+        echo "STOP: Epic has $CHILD_COUNT issues but no pre-mortem evidence found."
+        echo "Run '/pre-mortem' first to validate the plan before cranking."
+        echo "<promise>BLOCKED</promise>"
+        echo "Reason: pre-mortem required for epics with 3+ issues"
+        # STOP - do not continue
+        exit 1
+    fi
+    echo "Pre-mortem evidence found: $PRE_MORTEM"
+fi
+```
+
+**Why:** 7 consecutive epics (ag-oke through ag-9ad) showed positive ROI from pre-mortem validation. For epics with 3+ issues, the cost of a pre-mortem (~2 min) is negligible compared to the cost of cranking a flawed plan.
+
 ### Step 3b: SPEC WAVE (--test-first only)
 
 **Skip if `--test-first` is NOT set or if no spec-eligible issues exist.**
