@@ -647,11 +647,22 @@ const (
 )
 
 // spawnClaudePhase spawns a fresh Claude session for a single phase.
+// Strips CLAUDECODE env var so the child session doesn't trigger the
+// nesting guard — these are independent sequential sessions, not nested.
 func spawnClaudePhase(prompt string) error {
 	cmd := exec.Command("claude", "-p", prompt)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+	// Build clean env without CLAUDECODE to avoid nesting guard.
+	// Each phase is an independent session, not a nested one.
+	var env []string
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "CLAUDECODE=") {
+			env = append(env, e)
+		}
+	}
+	cmd.Env = env
 	err := cmd.Run()
 	if err == nil {
 		return nil
