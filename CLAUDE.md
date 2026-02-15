@@ -7,9 +7,9 @@ Your coding agent gets smarter every time you use it. Automates context, validat
 ```
 .
 ├── .claude-plugin/
-│   ├── plugin.json        # Plugin manifest (v1.7.1)
+│   ├── plugin.json        # Plugin manifest (v2.7.1)
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 34 skills (24 user-facing, 10 internal)
+├── skills/                # All 35 skills (25 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Hands-free epic execution
 │   ├── swarm/             # Parallel agent spawning
@@ -21,6 +21,7 @@ Your coding agent gets smarter every time you use it. Automates context, validat
 │   ├── status/            # Single-screen dashboard
 │   ├── research/          # Deep codebase exploration
 │   ├── plan/              # Decompose epics into issues
+│   ├── product/           # Interactive PRODUCT.md generation
 │   ├── vibe/              # Code validation (complexity + council)
 │   ├── pre-mortem/        # Council on plans (failure simulation)
 │   ├── post-mortem/       # Council + retro (wrap up work)
@@ -46,11 +47,13 @@ Your coding agent gets smarter every time you use it. Automates context, validat
 ├── hooks/                 # Session and git hooks
 │   ├── hooks.json
 │   ├── session-start.sh
-│   └── ...                # 12 hook scripts total
+│   └── ...                # 13 hook scripts total
 ├── cli/                   # Go CLI (ao command)
 ├── lib/                   # Shared code
 │   ├── skills-core.js
-│   └── scripts/prescan.sh
+│   ├── hook-helpers.sh
+│   ├── schemas/           # JSON schemas (team-spec, worker-output)
+│   └── scripts/           # prescan.sh, team-runner.sh, watch-codex-stream.sh
 ├── docs/                  # Documentation
 ├── tests/                 # Validation and smoke tests
 ├── .agents/               # Knowledge artifacts (generated)
@@ -119,6 +122,28 @@ GITHUB_COM_TOKEN=$(gh auth token) renovate --platform=local
 3. **References are loaded JIT** - Keep SKILL.md lean, details in references/
 4. **Scripts validate behavior** - Prove skills work, catch regressions
 5. **Subagents are defined inline** - Agent behaviors live in SKILL.md files, not as separate files
+
+## Development Pitfalls
+
+These mistakes have been made repeatedly. Read before planning or implementing.
+
+1. **Verify mechanically before planning** — Never write counts like "11 missing" or "28 need X" without running the actual command first. Grep for ALL invocation sites; don't list known ones. Plans built on assumed data have caused 43% scope underestimation.
+
+2. **Go tasks need test validation** — Always add `"tests": "go test ./..."` to task validation metadata. Check for `_test.go` existence when creating new `.go` files. Run `go build` after each wave, not just at the end.
+
+3. **TaskCreate AFTER TeamCreate** — Tasks created before spawning a team are invisible to teammates. Always: TeamCreate first, then TaskCreate. This has been re-learned 3 times.
+
+4. **Lead-only commits in parallel work** — Workers write files but NEVER run `git add` or `git commit`. The team lead validates artifacts exist, then commits once after the wave. Worker commits are the dominant source of merge conflicts.
+
+5. **Grep all call sites before changing signatures** — When a function signature changes, grep for ALL callers and update them in the same commit. Missed callers have broken `go build` repeatedly.
+
+6. **No hardcoded counts without CI assertions** — README badges, prose counts ("34 skills", "10 internal") drift immediately. Pair every count in prose with a validation script that fails when reality diverges. This CLAUDE.md itself has drifted multiple times.
+
+7. **Validate full corpus, not date-scoped subsets** — Scoping checks to `2026-02-1*` or similar date ranges masks non-compliant files outside that range. Only use date filtering for reporting, never for validation gates.
+
+8. **Tighten validation regex patterns** — Grep-based checks cause false positives when patterns are too broad (matching comments, unrelated headers, etc.). Use structured parsing or scope patterns to specific file sections.
+
+9. **Parallel agents must not share files** — When two agents modify the same file, the last write wins silently. Wave planning must ensure file disjointness. Always `git diff` after each wave to catch unexpected reversions.
 
 ## See Also
 
