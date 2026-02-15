@@ -301,7 +301,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
 	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
-	logPhaseTransition(logPath, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, phasedFrom))
+	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, phasedFrom))
 
 	// Execute phases sequentially
 	for i := startPhase; i <= 6; i++ {
@@ -321,7 +321,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 				fmt.Printf("[dry-run] Would create worktree: ../%s-rpi-%s/ (branch: rpi/%s)\n",
 					filepath.Base(cwd), runID, runID)
 			}
-			logPhaseTransition(logPath, p.Name, "dry-run")
+			logPhaseTransition(logPath, state.RunID, p.Name, "dry-run")
 			continue
 		}
 
@@ -330,13 +330,13 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		start := time.Now()
 
 		if err := spawnClaudePhase(prompt, spawnCwd); err != nil {
-			logPhaseTransition(logPath, p.Name, fmt.Sprintf("FAILED: %v", err))
+			logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("FAILED: %v", err))
 			return fmt.Errorf("phase %d (%s) failed: %w", i, p.Name, err)
 		}
 
 		elapsed := time.Since(start).Round(time.Second)
 		fmt.Printf("Phase %d completed in %s\n", i, elapsed)
-		logPhaseTransition(logPath, p.Name, fmt.Sprintf("completed in %s", elapsed))
+		logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("completed in %s", elapsed))
 
 		// Post-phase processing
 		if err := postPhaseProcessing(spawnCwd, state, i, logPath); err != nil {
@@ -358,7 +358,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		// Check if phase triggered a handoff (context degradation detected)
 		if handoffDetected(spawnCwd, i) {
 			fmt.Printf("Phase %d: handoff detected — phase reported context degradation\n", i)
-			logPhaseTransition(logPath, p.Name, "HANDOFF detected — context degradation")
+			logPhaseTransition(logPath, state.RunID, p.Name, "HANDOFF detected — context degradation")
 			// Continue to next phase (fresh session will pick up from handoff)
 		}
 
@@ -384,7 +384,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Epic: %s\n", state.EpicID)
 	}
 	fmt.Printf("Verdicts: %v\n", state.Verdicts)
-	logPhaseTransition(logPath, "complete", fmt.Sprintf("epic=%s verdicts=%v", state.EpicID, state.Verdicts))
+	logPhaseTransition(logPath, state.RunID, "complete", fmt.Sprintf("epic=%s verdicts=%v", state.EpicID, state.Verdicts))
 
 	return nil
 }
@@ -486,12 +486,12 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 		msg := fmt.Sprintf("%s failed %d times. Last report: %s. Manual intervention needed.",
 			phaseName, phasedMaxRetries, gateErr.Report)
 		fmt.Println(msg)
-		logPhaseTransition(logPath, phaseName, msg)
+		logPhaseTransition(logPath, state.RunID, phaseName, msg)
 		return false, nil
 	}
 
 	fmt.Printf("%s: %s (attempt %d/%d) — retrying\n", phaseName, gateErr.Verdict, attempt, phasedMaxRetries)
-	logPhaseTransition(logPath, phaseName, fmt.Sprintf("RETRY attempt %d/%d", attempt+1, phasedMaxRetries))
+	logPhaseTransition(logPath, state.RunID, phaseName, fmt.Sprintf("RETRY attempt %d/%d", attempt+1, phasedMaxRetries))
 
 	// Build retry prompt
 	retryCtx := &retryContext{
@@ -1275,8 +1275,13 @@ func recordRatchetCheckpoint(step string) {
 }
 
 // logPhaseTransition appends a log entry to the orchestration log.
-func logPhaseTransition(logPath, phase, details string) {
-	entry := fmt.Sprintf("[%s] %s: %s\n", time.Now().Format(time.RFC3339), phase, details)
+func logPhaseTransition(logPath, runID, phase, details string) {
+	var entry string
+	if runID != "" {
+		entry = fmt.Sprintf("[%s] [%s] %s: %s\n", time.Now().Format(time.RFC3339), runID, phase, details)
+	} else {
+		entry = fmt.Sprintf("[%s] %s: %s\n", time.Now().Format(time.RFC3339), phase, details)
+	}
 
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

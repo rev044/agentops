@@ -7,7 +7,7 @@ pillars:
   - validated-acceleration
   - goal-driven-automation
   - zero-friction-workflow
-# 43 goals: 19 pillar + 24 infrastructure
+# 44 goals: 19 pillar + 25 infrastructure
 
 goals:
   # === Pillar: Knowledge Compounding (weight 4-5) ===
@@ -260,3 +260,8 @@ goals:
     description: "Consumer incident runbook exists with recovery procedures"
     check: "test -f docs/INCIDENT-RUNBOOK.md && grep -q 'AGENTOPS_HOOKS_DISABLED' docs/INCIDENT-RUNBOOK.md"
     weight: 1
+
+  - id: readme-goal-count
+    description: "README goal count matches actual GOALS.yaml goal count"
+    check: "bash tests/docs/validate-goal-count.sh"
+    weight: 2

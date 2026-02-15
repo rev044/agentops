@@ -926,3 +926,33 @@ func containsSubstring(s, sub string) bool {
 	}
 	return false
 }
+
+func TestLogPhaseTransition(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	// Test with runID
+	logPhaseTransition(logPath, "abc123", "research", "started")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "[abc123] research: started") {
+		t.Errorf("expected runID in log, got: %s", string(data))
+	}
+
+	// Test without runID (empty string)
+	logPath2 := filepath.Join(tmpDir, "test2.log")
+	logPhaseTransition(logPath2, "", "plan", "completed")
+	data2, err := os.ReadFile(logPath2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data2)
+	if !strings.Contains(content, "plan: completed") {
+		t.Errorf("expected phase in log, got: %s", content)
+	}
+	if strings.Contains(content, "[]") {
+		t.Errorf("empty runID should not produce brackets, got: %s", content)
+	}
+}
