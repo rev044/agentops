@@ -30,6 +30,11 @@
           },
           {
             "type": "command",
+            "command": "AGENTS_DIR=\"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents\"; FCOUNT=$(find \"$AGENTS_DIR\" -type f 2>/dev/null | wc -l | tr -d ' '); if [ \"$FCOUNT\" -gt 500 ]; then echo \"⚠️ .agents/ has $FCOUNT files. Run: scripts/prune-agents.sh --execute\"; fi || true",
+            "timeout": 3
+          },
+          {
+            "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-team-guard.sh --cleanup",
             "timeout": 2
           }

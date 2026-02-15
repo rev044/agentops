@@ -132,7 +132,7 @@ With `--interactive`, the research skill shows its human gate (AskUserQuestion).
 2. Write phase summary (keep context lean):
    ```
    Read the research output file.
-   Write a 500-token summary to .agents/rpi/phase-1-summary.md
+   Write a 500-token summary to .agents/rpi/phase-1-summary-YYYY-MM-DD-<goal-slug>.md
    ```
 3. Ratchet checkpoint:
    ```bash
@@ -169,7 +169,7 @@ With `--interactive`, the plan skill shows its human gate. /rpi trusts the outco
 
    Fast path passes `--quick` to pre-mortem, vibe, and post-mortem, using inline review instead of spawning full council. This saves ~15 min on small epics with no loss of quality.
 
-3. Write phase summary to `.agents/rpi/phase-2-summary.md`
+3. Write phase summary to `.agents/rpi/phase-2-summary-YYYY-MM-DD-<goal-slug>.md`
 
 4. Ratchet checkpoint:
    ```bash
@@ -192,7 +192,7 @@ Pre-mortem auto-discovers the most recent plan. No args needed.
 - PASS/WARN: auto-proceed
 - FAIL: re-plan with feedback, re-run pre-mortem (max 3 total attempts)
 
-Store verdict in `rpi_state.verdicts.pre_mortem`. Write phase summary to `.agents/rpi/phase-3-summary.md`.
+Store verdict in `rpi_state.verdicts.pre_mortem`. Write phase summary to `.agents/rpi/phase-3-summary-YYYY-MM-DD-<goal-slug>.md`.
 
 Ratchet checkpoint:
 ```bash
@@ -215,7 +215,7 @@ Crank manages its own waves, teams, and internal validation. /rpi waits for comp
 - DONE: proceed to Phase 5
 - BLOCKED/PARTIAL: re-crank with context (max 3 total attempts)
 
-Write phase summary to `.agents/rpi/phase-4-summary.md`.
+Write phase summary to `.agents/rpi/phase-4-summary-YYYY-MM-DD-<goal-slug>.md`.
 
 Ratchet checkpoint:
 ```bash
@@ -236,7 +236,7 @@ Vibe runs a full council on recent changes (cross-wave consistency check).
 - PASS/WARN: auto-proceed
 - FAIL: re-crank with feedback, re-vibe (max 3 total attempts)
 
-Store verdict in `rpi_state.verdicts.vibe`. Write phase summary to `.agents/rpi/phase-5-summary.md`.
+Store verdict in `rpi_state.verdicts.vibe`. Write phase summary to `.agents/rpi/phase-5-summary-YYYY-MM-DD-<goal-slug>.md`.
 
 Ratchet checkpoint:
 ```bash
