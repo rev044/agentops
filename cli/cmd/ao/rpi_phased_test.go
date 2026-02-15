@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExtractCouncilVerdict(t *testing.T) {
@@ -339,7 +340,7 @@ func TestFindLatestCouncilReport(t *testing.T) {
 	}
 
 	// Should find the latest pre-mortem report
-	report, err := findLatestCouncilReport(tmpDir, "pre-mortem")
+	report, err := findLatestCouncilReport(tmpDir, "pre-mortem", time.Time{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -348,7 +349,7 @@ func TestFindLatestCouncilReport(t *testing.T) {
 	}
 
 	// Should find vibe report
-	report, err = findLatestCouncilReport(tmpDir, "vibe")
+	report, err = findLatestCouncilReport(tmpDir, "vibe", time.Time{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -357,10 +358,57 @@ func TestFindLatestCouncilReport(t *testing.T) {
 	}
 
 	// Should error on missing pattern
-	_, err = findLatestCouncilReport(tmpDir, "nonexistent")
+	_, err = findLatestCouncilReport(tmpDir, "nonexistent", time.Time{})
 	if err == nil {
 		t.Error("expected error for missing pattern")
 	}
+
+	// notBefore filter: only return files modified after the cutoff
+	t.Run("notBefore filters older files", func(t *testing.T) {
+		dir := t.TempDir()
+		cDir := filepath.Join(dir, ".agents", "council")
+		if err := os.MkdirAll(cDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldFile := filepath.Join(cDir, "2026-02-10-pre-mortem-old.md")
+		newFile := filepath.Join(cDir, "2026-02-14-pre-mortem-new.md")
+		if err := os.WriteFile(oldFile, []byte("old"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(newFile, []byte("new"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Set old file mtime to the past
+		oldTime := time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC)
+		if err := os.Chtimes(oldFile, oldTime, oldTime); err != nil {
+			t.Fatal(err)
+		}
+
+		// Set new file mtime to recent
+		newTime := time.Date(2026, 2, 14, 12, 0, 0, 0, time.UTC)
+		if err := os.Chtimes(newFile, newTime, newTime); err != nil {
+			t.Fatal(err)
+		}
+
+		// notBefore between old and new
+		cutoff := time.Date(2026, 2, 12, 0, 0, 0, 0, time.UTC)
+		report, err := findLatestCouncilReport(dir, "pre-mortem", cutoff)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !containsStr(report, "2026-02-14-pre-mortem-new") {
+			t.Errorf("expected new report, got: %s", report)
+		}
+
+		// notBefore after both files should return error
+		future := time.Date(2026, 2, 20, 0, 0, 0, 0, time.UTC)
+		_, err = findLatestCouncilReport(dir, "pre-mortem", future)
+		if err == nil {
+			t.Error("expected error when all files are before notBefore")
+		}
+	})
 }
 
 func TestParseFastPath(t *testing.T) {

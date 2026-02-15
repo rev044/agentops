@@ -103,6 +103,20 @@ echo "--- Running 'status' (may show error, that's OK) ---"
 echo "--- End status output ---"
 echo "✓ status runs (exit code ignored)"
 
+# Check commit count since last tag (warning, not failure)
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+if [[ -n "$LAST_TAG" ]]; then
+    COMMIT_COUNT=$(git log "${LAST_TAG}..HEAD" --oneline 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$COMMIT_COUNT" -gt 15 ]]; then
+        echo "⚠ WARNING: $COMMIT_COUNT commits since $LAST_TAG (recommended max: 15)"
+        echo "  Consider splitting into multiple releases for easier review/bisect."
+    else
+        echo "✓ Commit count OK ($COMMIT_COUNT since $LAST_TAG)"
+    fi
+else
+    echo "⚠ No previous tag found — skipping commit count check"
+fi
+
 echo ""
 echo "=== All Validation Checks Passed ==="
 echo "  Binary: $BINARY"

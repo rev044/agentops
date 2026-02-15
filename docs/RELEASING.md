@@ -45,6 +45,21 @@ git tag v2.3.0
 - [ ] Homebrew token is valid (check secrets)
 - [ ] Doc-release gate passes locally (`./tests/docs/validate-doc-release.sh`)
 
+### 1a. Release Size Check
+
+Releases should contain **at most 15 commits** per minor version bump. v2.2.0 had 26 commits — too large to review, debug, or bisect effectively.
+
+If the commit count since the last tag exceeds 15:
+- Split into multiple releases (e.g., v2.3.0 for first batch, v2.3.1 for remainder)
+- Or ensure each commit is well-scoped and the changelog covers all changes
+
+Check commit count:
+```bash
+git log $(git describe --tags --abbrev=0)..HEAD --oneline | wc -l
+```
+
+The pre-flight validation script (`scripts/validate-release.sh`) will warn (not fail) when this threshold is exceeded.
+
 ### 2. Update CHANGELOG
 
 Follow [Keep a Changelog](https://keepachangelog.com/) format:

@@ -423,7 +423,7 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		}
 
 	case 3: // Pre-mortem — check verdict
-		report, err := findLatestCouncilReport(cwd, "pre-mortem")
+		report, err := findLatestCouncilReport(cwd, "pre-mortem", time.Time{})
 		if err != nil {
 			return fmt.Errorf("pre-mortem phase: council report not found (phase may not have completed): %w", err)
 		}
@@ -453,7 +453,7 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		}
 
 	case 5: // Vibe — check verdict
-		report, err := findLatestCouncilReport(cwd, "vibe")
+		report, err := findLatestCouncilReport(cwd, "vibe", time.Time{})
 		if err != nil {
 			return fmt.Errorf("vibe phase: council report not found (phase may not have completed): %w", err)
 		}
@@ -770,7 +770,7 @@ func extractCouncilVerdict(reportPath string) (string, error) {
 }
 
 // findLatestCouncilReport finds the most recent council report matching a pattern.
-func findLatestCouncilReport(cwd string, pattern string) (string, error) {
+func findLatestCouncilReport(cwd string, pattern string, notBefore time.Time) (string, error) {
 	councilDir := filepath.Join(cwd, ".agents", "council")
 	entries, err := os.ReadDir(councilDir)
 	if err != nil {
@@ -784,6 +784,15 @@ func findLatestCouncilReport(cwd string, pattern string) (string, error) {
 		}
 		name := entry.Name()
 		if strings.Contains(name, pattern) && strings.HasSuffix(name, ".md") {
+			if !notBefore.IsZero() {
+				info, err := entry.Info()
+				if err != nil {
+					continue
+				}
+				if info.ModTime().Before(notBefore) {
+					continue
+				}
+			}
 			matches = append(matches, filepath.Join(councilDir, name))
 		}
 	}
