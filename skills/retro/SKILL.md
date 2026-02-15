@@ -154,10 +154,14 @@ See: `.agents/learnings/YYYY-MM-DD-<topic>.md`
 ```bash
 mkdir -p .agents/knowledge/pending
 
-# If ao available, index via forge
+# If ao available, index via forge and close feedback loop
 if command -v ao &>/dev/null; then
   ao forge index .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null
   echo "Learnings indexed in knowledge flywheel"
+
+  # Apply feedback from completed tasks to associated learnings
+  ao task-feedback --quiet 2>/dev/null
+  echo "Task feedback applied"
 else
   # Fallback: copy learnings to pending for future import
   cp .agents/learnings/YYYY-MM-DD-*.md .agents/knowledge/pending/ 2>/dev/null

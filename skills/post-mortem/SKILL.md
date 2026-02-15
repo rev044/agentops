@@ -237,6 +237,18 @@ mkdir -p .agents/knowledge/pending
 if command -v ao &>/dev/null; then
   ao forge index .agents/learnings/ 2>/dev/null
   echo "Learnings indexed in knowledge flywheel"
+
+  # Close the MemRL feedback loop — update utility scores for cited learnings
+  ao feedback-loop --quiet 2>/dev/null
+  echo "Feedback loop closed"
+
+  # Record session outcome for cycle-time tracking and reward signals
+  ao session-outcome --quiet 2>/dev/null
+  echo "Session outcome recorded"
+
+  # Validate and lock artifacts that passed council review
+  ao temper validate .agents/learnings/YYYY-MM-DD-*.md --quiet 2>/dev/null
+  echo "Artifacts validated for tempering"
 else
   # Retro already wrote to .agents/learnings/ — copy to pending for future import
   cp .agents/learnings/YYYY-MM-DD-*.md .agents/knowledge/pending/ 2>/dev/null

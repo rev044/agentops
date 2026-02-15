@@ -31,7 +31,7 @@ metadata:
 
 Run ALL of the following in parallel bash calls for speed:
 
-**Call 1 — RPI + Ratchet State:**
+**Call 1 — RPI + Ratchet + Task State:**
 ```bash
 # Current ratchet phase
 if [ -f .agents/ao/chain.jsonl ]; then
@@ -43,6 +43,7 @@ fi
 # Ratchet status via CLI
 if command -v ao &>/dev/null; then
   ao ratchet status -o json 2>/dev/null || echo "RATCHET_UNAVAILABLE"
+  ao task-status -o json 2>/dev/null || echo "TASK_STATUS_UNAVAILABLE"
 fi
 ```
 
@@ -69,9 +70,10 @@ echo "LEARNINGS=$(ls .agents/learnings/ 2>/dev/null | wc -l | tr -d ' ')"
 echo "PATTERNS=$(ls .agents/patterns/ 2>/dev/null | wc -l | tr -d ' ')"
 echo "PENDING=$(ls .agents/knowledge/pending/ 2>/dev/null | wc -l | tr -d ' ')"
 
-# Flywheel health
+# Flywheel health + badge
 if command -v ao &>/dev/null; then
   ao flywheel status 2>/dev/null || echo "FLYWHEEL_UNAVAILABLE"
+  ao badge 2>/dev/null || echo "BADGE_UNAVAILABLE"
 fi
 ```
 
@@ -141,6 +143,10 @@ RECENT VALIDATIONS
 KNOWLEDGE FLYWHEEL
   Learnings: <count>  Patterns: <count>  Pending: <count>
   Health: <flywheel status or "ao not installed">
+  Badge: <ao badge output or omit if unavailable>
+
+TASK MATURITY
+  <ao task-status summary: active tasks with CASS maturity levels, or omit if unavailable>
 
 RECENT SESSIONS
   <last 3 session summaries with dates>

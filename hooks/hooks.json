@@ -26,6 +26,10 @@
           },
           {
             "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { ao maturity --scan --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao maturity --scan\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-team-guard.sh --cleanup",
             "timeout": 2
           }
@@ -38,6 +42,22 @@
           {
             "type": "command",
             "command": "command -v ao >/dev/null 2>&1 && { ao forge transcript --last-session --queue --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao forge transcript\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { ao session-outcome --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao session-outcome\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { ao feedback-loop --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao feedback-loop\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { ao task-sync --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao task-sync\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { ao batch-feedback --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao batch-feedback\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
           }
         ]
       }

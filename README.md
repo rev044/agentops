@@ -81,6 +81,29 @@ Consensus: WARN — add rate limiting before shipping
 [teardown] /post-mortem → 5 learnings extracted
 ```
 
+**Search across knowledge and chat history:**
+```
+> ao search "mutex pattern"
+
+Found 4 result(s) for: mutex pattern
+
+1. .agents/learnings/2026-02-10-mutex-guard.md
+   [established] Use sync.Mutex guard pattern for concurrent map access
+2. .agents/sessions/2026-02-09-refactor.md
+   Discussed mutex vs channel approaches for worker pool
+3. .agents/patterns/concurrent-safety.md
+   Pattern: always defer mutex.Unlock() immediately after Lock()
+
+> ao search "auth retry" --cass    # session-aware, maturity-weighted
+
+Found 3 result(s) for: auth retry
+
+1. .agents/learnings/2026-02-12-auth-retry.md  (score: 0.92)
+   [established] Exponential backoff on 401 with token refresh
+2. .agents/sessions/2026-02-11-api-hardening.md  (score: 0.71)
+   [candidate] Discussed retry budget per endpoint
+```
+
 **Council standalone** (no setup, no workflow):
 ```
 > /council validate this PR
@@ -97,7 +120,7 @@ Consensus: WARN — add rate limiting before shipping
 - **Ships features end-to-end with one command.** `/rpi "goal"` runs six phases hands-free — research, plan, pre-mortem, implement, validate, post-mortem. Or use any skill standalone: `/council validate this PR` works with zero setup.
 - **Catches bugs before they reach your branch.** Multi-model councils validate plans before coding (`/pre-mortem`) and code before shipping (`/vibe`). Failures retry with context — after 3 retries, the system surfaces the failure with full context for your decision.
 - **Gets better the more you use it.** Post-mortem extracts what worked, what didn't, and how to improve the tools themselves. Then it suggests the next `/rpi` command. The system improves its own process.
-- **Remembers everything across sessions.** Research loads prior knowledge. Each worker gets fresh context. Learnings persist in `.agents/` and git — no context resets between sessions.
+- **Remembers everything across sessions.** Research loads prior knowledge. Each worker gets fresh context. Learnings persist in `.agents/` and git — no context resets between sessions. `ao search` finds knowledge across files and past chat history, with maturity-weighted ranking powered by [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search).
 - **Enforces its own workflow.** 12 hooks across 8 lifecycle events block bad pushes, enforce lead-only commits, gate `/crank` on `/pre-mortem`, and auto-inject language-specific standards. The system doesn't just suggest good practice — it requires it.
 
 Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local.
@@ -427,37 +450,53 @@ For repos over ~1500 files, `/rpi` uses deterministic shards to keep each worker
 
 ## The `ao` CLI
 
-Optional but recommended. All 34 skills work without it — the CLI adds automatic knowledge injection/extraction, session search, ratchet gates, and session lifecycle management.
+Optional but recommended. The CLI is plumbing — skills and hooks call it automatically. You install it, your agent uses it. You don't type `ao` commands yourself (with two exceptions below).
+
+**How it works:** 12 hooks fire `ao` commands at session lifecycle boundaries (start, stop, tool use, compaction). Skills call `ao` commands internally during `/rpi`, `/post-mortem`, `/status`, `/flywheel`, and other workflows. Every `ao` command is wired to at least one automated caller.
+
+**What it enables:**
+
+- **Search** — `ao search` finds knowledge across files and past chat history, with [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)-powered maturity-weighted ranking. For full session search across Claude Code, Cursor, and other agents, use [`cass`](https://github.com/Dicklesworthstone/coding_agent_session_search) directly.
+- **Knowledge curation** — Learnings flow through quality pools (`ao pool`), human review gates (`ao gate`), and maturity transitions (`ao maturity`). [MemRL](https://arxiv.org/abs/2502.06173)-inspired reward signals (`ao feedback`) update ranking automatically via hooks.
+- **Forge→temper→store pipeline** — `ao forge` extracts knowledge from transcripts at session end, `ao temper` validates and locks it during `/post-mortem`, `ao store` indexes it for retrieval. Fully automated.
+- **Feedback loop** — `ao feedback-loop` closes the MemRL reward cycle, `ao session-outcome` records composite reward signals, `ao task-feedback` applies outcomes to associated learnings. All fire automatically at session end.
+- **Provenance** — `ao trace` follows any artifact back to the session transcript that created it.
+- **Ratchet gates** — `ao ratchet` tracks RPI workflow progress and prevents regression. Once a phase passes, it stays passed.
+- **Plans** — `ao plans` maintains a registry connecting research artifacts to [beads](https://github.com/steveyegge/beads) issues, with drift detection.
+- **Metrics** — `ao metrics`, `ao badge`, and `ao task-status` give quantitative flywheel health. `/status` renders them into a dashboard.
+
+<details>
+<summary><strong>Automation map</strong> — which skills/hooks call which commands</summary>
+
+| ao command | Called by |
+|------------|----------|
+| `inject`, `extract`, `ratchet status`, `maturity --scan` | SessionStart hooks |
+| `forge transcript`, `session-outcome`, `feedback-loop`, `task-sync`, `batch-feedback` | SessionEnd hooks |
+| `flywheel close-loop` | Stop hook |
+| `ratchet record` | `/rpi` (each phase), ratchet-advance hook |
+| `forge index`, `feedback-loop`, `session-outcome`, `temper validate`, `task-feedback` | `/post-mortem`, `/retro` |
+| `badge`, `task-status`, `flywheel status`, `ratchet status` | `/status` |
+| `maturity --scan`, `promote-anti-patterns`, `badge`, `forge status` | `/flywheel` |
+| `search`, `pool`, `plans` | `/research`, `/knowledge`, `/plan` |
+
+</details>
 
 **Install:**
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-```
-
-**Knowledge:**
-```bash
-ao inject              # Load prior knowledge into session
-ao search "query"      # Search knowledge base (CASS-ranked by default)
-ao forge transcript    # Extract learnings from session transcript
-ao flywheel status     # Knowledge health metrics
-```
-
-**Workflow:**
-```bash
-ao ratchet status      # Check progress gates
-ao session close       # Full lifecycle close
-ao status              # Current state overview
-```
-
-**Hooks:**
-```bash
 ao hooks install       # Flywheel hooks (SessionStart + Stop)
 ao hooks install --full # All 12 hooks across 8 lifecycle events
-ao hooks show          # View installed hook coverage
-ao hooks test          # Verify hook configuration
 ```
 
-Full reference: [CLI Commands](cli/docs/COMMANDS.md)
+**The two commands you'll actually type:**
+```bash
+ao search "query"      # Search knowledge (also: --cass, --use-sc, --type)
+ao demo                # Interactive demo of capabilities
+```
+
+Everything else runs automatically. `ao quick-start` and `ao export-constraints` are the only other human-initiated commands (setup and debugging).
+
+73 commands total. Full reference: [CLI Commands](cli/docs/COMMANDS.md)
 
 ---
 
@@ -533,6 +572,7 @@ brew uninstall agentops  # if installed
 | [Ralph Wiggum pattern](https://ghuntley.com/ralph/) | Fresh context per agent — no bleed-through |
 | [Multiclaude](https://github.com/dlorenc/multiclaude) | Validation gates that lock — no regression |
 | [beads](https://github.com/steveyegge/beads) | Git-native issue tracking |
+| [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) | Unified search across coding agent chat histories |
 | [MemRL](https://arxiv.org/abs/2502.06173) | Two-phase retrieval for cross-session memory |
 
 </details>

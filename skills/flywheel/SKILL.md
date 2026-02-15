@@ -68,7 +68,14 @@ find .agents/ -name "*.md" -mtime +30 2>/dev/null | wc -l
 ### Step 4: Check ao CLI Status
 
 ```bash
-ao forge status 2>/dev/null || echo "ao CLI not available"
+if command -v ao &>/dev/null; then
+  ao forge status 2>/dev/null || echo "ao forge status unavailable"
+  ao maturity --scan 2>/dev/null || echo "ao maturity unavailable"
+  ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
+  ao badge 2>/dev/null || echo "ao badge unavailable"
+else
+  echo "ao CLI not available"
+fi
 ```
 
 ### Step 5: Validate Artifact Consistency
