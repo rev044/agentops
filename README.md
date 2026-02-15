@@ -5,7 +5,7 @@
 ### Your coding agent gets smarter every time you use it.
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
-[![Version](https://img.shields.io/badge/version-2.7.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.8.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-34-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
@@ -217,6 +217,31 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes process improvements. **Suggests the next `/rpi` command.**
 
 `/rpi "goal"` runs all six, end to end (micro-epics of 2 or fewer issues auto-detect fast-path: inline validation instead of full council, ~15 min faster with no quality loss). Use `--interactive` if you want human gates at research and plan.
+
+### Phased RPI: Own Your Context Window
+
+`/rpi` runs all six phases in one Claude session. That works — but the context window fills up. Compaction kicks in, and while it's mostly fine (the real state lives in the plan and beads issues, not the conversation), you're still hoping compaction doesn't lose something important.
+
+`ao rpi phased` solves this. Each phase runs in its own fresh Claude session. The Go CLI carries state between phases through filesystem artifacts — goal, verdicts, phase summaries — so each session starts clean with exactly the context it needs.
+
+```
+> ao rpi phased "add rate limiting to the API"
+
+[phase 1/6] research  — spawning Claude session...done
+[phase 2/6] plan      — spawning Claude session...done  (3 issues, 2 waves)
+[phase 3/6] pre-mortem — spawning Claude session...done  (PASS)
+[phase 4/6] crank     — spawning Claude session...done  (2 waves complete)
+[phase 5/6] vibe      — spawning Claude session...done  (PASS)
+[phase 6/6] post-mortem — spawning Claude session...done (3 learnings)
+```
+
+Three ways to use it:
+
+- **Hands-free** — `ao rpi phased "goal"` runs start to finish, no prompts. Walk away.
+- **Interactive** — `ao rpi phased --interactive "goal"` pauses at research and plan for your review. Step through it, approve each phase, keep full control.
+- **Resume** — `ao rpi phased --from=crank "goal"` picks up from any phase. Session crashed during crank? Resume there. Want to re-run just validation? `--from=vibe`.
+
+The `/rpi` skill and `ao rpi phased` command do the same work. The difference is context control: one session vs. six fresh sessions. Use `/rpi` for small goals where context fits comfortably. Use `ao rpi phased` when the goal is big enough that you want each phase thinking clearly.
 
 ---
 
@@ -450,7 +475,7 @@ For repos over ~1500 files, `/rpi` uses deterministic shards to keep each worker
 
 ## The `ao` CLI
 
-Optional but recommended. The CLI is plumbing — skills and hooks call it automatically. You install it, your agent uses it. You don't type `ao` commands yourself (with two exceptions below).
+Optional but recommended. The CLI is plumbing — skills and hooks call it automatically. You install it, your agent uses it. You don't type `ao` commands yourself (with three exceptions below).
 
 **How it works:** 12 hooks fire `ao` commands at session lifecycle boundaries (start, stop, tool use, compaction). Skills call `ao` commands internally during `/rpi`, `/post-mortem`, `/status`, `/flywheel`, and other workflows. Every `ao` command is wired to at least one automated caller.
 
@@ -488,8 +513,9 @@ ao hooks install       # Flywheel hooks (SessionStart + Stop)
 ao hooks install --full # All 12 hooks across 8 lifecycle events
 ```
 
-**The two commands you'll actually type:**
+**The three commands you'll actually type:**
 ```bash
+ao rpi phased "goal"   # Full RPI lifecycle, fresh context per phase (see Phased RPI above)
 ao search "query"      # Search knowledge (also: --cass, --use-sc, --type)
 ao demo                # Interactive demo of capabilities
 ```

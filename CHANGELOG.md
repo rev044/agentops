@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-02-15
+
+### Added
+
+- **`ao rpi phased` command** — Solves the context window problem with `/rpi`. Currently `/rpi` runs all 6 phases in one session — the context fills up and you rely on compaction being lossless (it mostly is, since real state lives in plans and beads issues, but you're hoping). `ao rpi phased` runs each phase in its own fresh Claude session. The Go CLI carries state between phases via filesystem artifacts (goal, verdicts, phase summaries), so each session starts clean with exactly the context it needs. Three modes: hands-free (`ao rpi phased "goal"`), interactive with human gates at research/plan (`--interactive`), or resume from any phase (`--from=crank`). Also supports `--fast-path` for small epics, `--max-retries` for retry loops with structured findings. Per-phase token budgets prevent compaction. Runnable by a human from the terminal or by an agent — it's a CLI command, not a skill. 33 unit tests.
+- **Wire 10 ao CLI commands into skills/hooks** — `ao maturity --scan` on SessionStart; `ao session-outcome`, `ao feedback-loop`, `ao task-sync`, `ao batch-feedback` on SessionEnd; `ao badge` and `ao task-status` in `/status`; `ao maturity --scan`, `ao promote-anti-patterns`, `ao badge` in `/flywheel`; `ao feedback-loop`, `ao session-outcome`, `ao temper validate` in `/post-mortem`; `ao task-feedback` in `/retro`. Every ao command now has an automated caller — only `ao rpi phased`, `ao search`, and `ao demo` remain human-typed.
+- **3-layer compaction prevention tests** — Layer 1: `test-token-budgets.sh` statically checks per-skill and SessionStart token budgets without running the CLI. Layer 2: `test-no-compaction.sh` runs 3 scenarios asserting no `compact_boundary` events and <60% context utilization. Layer 3: reusable `assert_context_under_60pct` helper parsing `stream-json` peak token usage.
+- **.agents/ directory standardization** — RPI phase summaries now use dated filenames to prevent silent overwrites between cycles. `.agents/README.md` rewritten documenting all 25+ directories with purpose, writers, and retention policies. New `scripts/prune-agents.sh` enforces per-directory retention (dry-run default). SessionStart hook warns when `.agents/` exceeds 500 files.
+
+### Changed
+
+- **README CLI section** — Reframed: the ao CLI is plumbing invoked by skills and hooks, not a human interface. Added automation map showing which skills/hooks call which commands. Added CASS search example to "See It Work" section.
+- **CLAUDE.md** — Synced stale metadata, added 9 development pitfalls (verified mechanically, go test validation, TaskCreate ordering, lead-only commits, grep call sites, no hardcoded counts, full corpus validation, tight regex, file disjointness).
+- **Crank SKILL.md slimmed** — Context-discipline goal added to GOALS.yaml.
+
 ## [2.7.1] - 2026-02-14
 
 ### Changed
