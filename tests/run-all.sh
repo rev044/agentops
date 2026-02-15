@@ -245,13 +245,41 @@ if [[ "$TIER" == "--tier=3" ]] || [[ "$TIER" == "--all" ]]; then
 
         # Run release smoke tests (agents + skills)
         if [[ -f "$SCRIPT_DIR/release-smoke-test.sh" ]]; then
-            log "  Running release smoke tests (20 agents + 21 skills)..."
+            log "  Running release smoke tests..."
             if bash "$SCRIPT_DIR/release-smoke-test.sh" > /tmp/release-tests.log 2>&1; then
-                pass "Release smoke tests (41 components)"
+                pass "Release smoke tests"
             else
                 fail "Release smoke tests"
                 tail -30 /tmp/release-tests.log | sed 's/^/    /'
             fi
+        fi
+
+        # Run integration tests (CLI commands, skill invocation, hook chain)
+        if [[ -d "$SCRIPT_DIR/integration" ]]; then
+            log "  Running integration tests..."
+            for test_script in "$SCRIPT_DIR"/integration/test-*.sh; do
+                [[ ! -f "$test_script" ]] && continue
+                test_name="$(basename "$test_script" .sh)"
+
+                # Skip skill invocation tests if Claude CLI not available
+                if [[ "$test_name" == "test-skill-invocation" ]] && ! command -v claude &>/dev/null; then
+                    skip "$test_name (claude CLI not available)"
+                    continue
+                fi
+
+                # Skip CLI tests if Go not available
+                if [[ "$test_name" == "test-cli-commands" ]] && ! command -v go &>/dev/null; then
+                    skip "$test_name (go not available)"
+                    continue
+                fi
+
+                if bash "$test_script" > "/tmp/${test_name}.log" 2>&1; then
+                    pass "$test_name"
+                else
+                    fail "$test_name"
+                    tail -20 "/tmp/${test_name}.log" | sed 's/^/    /'
+                fi
+            done
         fi
     fi
 

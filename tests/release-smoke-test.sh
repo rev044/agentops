@@ -17,8 +17,8 @@ log() { echo -e "${BLUE}[TEST]${NC} $1"; }
 pass() { echo -e "${GREEN}  ✓${NC} $1"; }
 fail() { echo -e "${RED}  ✗${NC} $1"; }
 
-# Expected counts (agents removed - skills only)
-EXPECTED_SKILLS=21
+# Expected counts — computed dynamically from skill directories
+EXPECTED_SKILLS=$(find "$REPO_ROOT/skills" -maxdepth 2 -name SKILL.md -type f | wc -l | tr -d ' ')
 
 # Parse args
 FULL_TEST=false
@@ -37,9 +37,11 @@ if $FULL_TEST; then
     # =========================================================================
     log "Running FULL test (individual invocations)..."
 
-    SKILLS=(beads bug-hunt complexity crank doc extract flywheel forge implement
-            inject knowledge plan post-mortem pre-mortem provenance ratchet
-            research retro standards using-agentops vibe)
+    # Build skills array dynamically from skill directories
+    SKILLS=()
+    for skill_dir in "$REPO_ROOT"/skills/*/; do
+        [[ -f "${skill_dir}SKILL.md" ]] && SKILLS+=("$(basename "$skill_dir")")
+    done
 
     passed=0
     failed=0
