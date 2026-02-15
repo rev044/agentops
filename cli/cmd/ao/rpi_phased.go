@@ -1107,22 +1107,35 @@ func createWorktree(cwd string) (worktreePath, runID string, err error) {
 }
 
 // mergeWorktree merges the RPI worktree branch back into the original branch.
-// Modeled on Olympus validation/stage2.go.
+// Retries the pre-merge dirty check with backoff to handle the race where
+// another parallel run is mid-merge (repo momentarily dirty).
 func mergeWorktree(repoRoot, runID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), worktreeTimeout)
-	defer cancel()
+	// Retry dirty check up to 5 times with 2s backoff.
+	// Another parallel run's merge takes <1s, so 10s total wait is generous.
+	var dirtyErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), worktreeTimeout)
+		checkCmd := exec.CommandContext(ctx, "git", "diff-index", "--quiet", "HEAD")
+		checkCmd.Dir = repoRoot
+		dirtyErr = checkCmd.Run()
+		cancel()
 
-	// Pre-merge: check that original repo is clean.
-	checkCmd := exec.CommandContext(ctx, "git", "diff-index", "--quiet", "HEAD")
-	checkCmd.Dir = repoRoot
-	if err := checkCmd.Run(); err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("git diff-index timed out after %s", worktreeTimeout)
+		if dirtyErr == nil {
+			break // Repo is clean, proceed to merge.
 		}
-		return fmt.Errorf("original repo has uncommitted changes: commit or stash before merge")
+		if attempt < 4 {
+			VerbosePrintf("Repo dirty (another merge in progress?), retrying in 2s (%d/5)\n", attempt+1)
+			time.Sleep(2 * time.Second)
+		}
+	}
+	if dirtyErr != nil {
+		return fmt.Errorf("original repo has uncommitted changes after 5 retries: commit or stash before merge")
 	}
 
 	// Merge the worktree branch.
+	ctx, cancel := context.WithTimeout(context.Background(), worktreeTimeout)
+	defer cancel()
+
 	branchName := "rpi/" + runID
 	mergeMsg := fmt.Sprintf("Merge %s (ao rpi phased worktree)", branchName)
 	mergeCmd := exec.CommandContext(ctx, "git", "merge", "--no-ff", "-m", mergeMsg, branchName)

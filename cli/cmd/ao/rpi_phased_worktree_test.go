@@ -374,7 +374,7 @@ func TestMergeWorktree_DirtyRepo(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for dirty repo")
 	}
-	if !strings.Contains(err.Error(), "uncommitted changes") {
+	if !strings.Contains(err.Error(), "uncommitted changes") && !strings.Contains(err.Error(), "after 5 retries") {
 		t.Fatalf("expected 'uncommitted changes' error, got: %v", err)
 	}
 }
