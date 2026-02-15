@@ -96,13 +96,23 @@ test_command() {
     else
         fail "Empty output"
     fi
+
+    # Check output pattern (optional 3rd argument)
+    local pattern="${3:-}"
+    if [[ -n "$pattern" ]]; then
+        if echo "$output" | grep -qE "$pattern"; then
+            pass "Output matches pattern: $pattern"
+        else
+            fail "Output missing pattern: $pattern"
+        fi
+    fi
 }
 
 # Test 1: ao status
-test_command "$TMPBIN status" "ao status"
+test_command "$TMPBIN status" "ao status" "RPI:"
 
 # Test 2: ao version
-test_command "$TMPBIN version" "ao version"
+test_command "$TMPBIN version" "ao version" "^v?[0-9]+\.[0-9]+"
 
 # Test 3: ao search
 test_command "$TMPBIN search test" "ao search \"test\""
@@ -111,10 +121,28 @@ test_command "$TMPBIN search test" "ao search \"test\""
 test_command "$TMPBIN ratchet status" "ao ratchet status"
 
 # Test 5: ao flywheel status
-test_command "$TMPBIN flywheel status" "ao flywheel status"
+test_command "$TMPBIN flywheel status" "ao flywheel status" "velocity|health|status"
 
 # Test 6: ao pool list
 test_command "$TMPBIN pool list" "ao pool list"
+
+# Test 7: ao doctor
+test_command "$TMPBIN doctor" "ao doctor" "check|pass|fail|warn"
+
+# Test 8: ao forge transcript
+test_command "$TMPBIN forge transcript" "ao forge transcript"
+
+# Test 9: ao extract
+test_command "$TMPBIN extract" "ao extract"
+
+# Test 10: ao inject
+test_command "$TMPBIN inject" "ao inject"
+
+# Test 11: ao ratchet check
+test_command "$TMPBIN ratchet check" "ao ratchet check"
+
+# Test 12: ao rpi status
+test_command "$TMPBIN rpi status" "ao rpi status" "phase|cycle|status"
 
 # =============================================================================
 # Summary
