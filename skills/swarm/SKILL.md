@@ -111,8 +111,9 @@ Mayor: "Let's build a user auth system"
 - **Pre-assigned tasks** - Mayor assigns tasks before spawning; workers never race-claim
 - **Fresh worker contexts** - New sub-agents/teammates per wave preserve Ralph isolation
 - **Wave execution** - Only unblocked tasks spawn
-- **Mayor orchestrates** - You control the flow, workers report via backend channel
-- **Retry via message/input** - Use `send_input` (Codex) or `SendMessage` (Claude)
+- **Mayor orchestrates** - You control the flow, workers write results to disk
+- **Thin results** - Workers write `.agents/swarm/results/<id>.json`, orchestrator reads files (NOT Task returns or SendMessage content)
+- **Retry via message/input** - Use `send_input` (Codex) or `SendMessage` (Claude) for coordination only
 - **Atomic execution** - Each worker works until task done
 - **Graceful fallback** - If richer APIs unavailable, fall back to `Task(run_in_background=true)`
 
@@ -177,8 +178,8 @@ Follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/): **fresh context
 - **Mayor IS the loop** - Orchestration layer, manages state across waves
 - **Workers are atomic** - One task, one spawn, one result
 - **TaskList as memory** - State persists in task status, not agent context
-- **Filesystem for artifacts** - Files written by workers, committed by team lead
-- **Backend messaging for coordination** - Workers report to team lead, never to each other
+- **Filesystem for EVERYTHING** - Code artifacts AND result status written to disk, not passed through context
+- **Backend messaging for signals only** - Short coordination signals (under 100 tokens), never work details
 
 ## Integration with Crank
 

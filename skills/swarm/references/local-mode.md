@@ -1,5 +1,22 @@
 # Swarm Local Mode: Runtime-Aware Detailed Execution
 
+## Context Budget Rule
+
+> **Workers write results to disk. The orchestrator reads only thin status files.**
+>
+> When N workers finish, their full output (file reads, tool calls, reasoning) must NOT flood back into the orchestrator context. This is the #1 cause of context explosion in multi-wave epics.
+
+**Result protocol:**
+1. Workers write `.agents/swarm/results/<task-id>.json` on completion
+2. Orchestrator checks for result files (Glob/Read), NOT full Task/SendMessage output
+3. SendMessage used only for coordination signals (blocked, need help) — kept under 100 tokens
+4. Task tool return values are acknowledged but NOT parsed for work details
+
+```bash
+# Orchestrator creates result directory before spawning
+mkdir -p .agents/swarm/results
+```
+
 ## Step 3: Select Backend + Spawn Workers
 
 Choose the local backend in this order:
@@ -25,8 +42,11 @@ Task #<id>: <subject>
 Rules:
 - Work only this task
 - Do not commit
-- On completion return JSON envelope with status, detail, artifacts
-- If blocked, return JSON blocked envelope"
+- On completion, write your result to .agents/swarm/results/<task-id>.json:
+  {\"type\":\"completion\",\"issue_id\":\"<task-id>\",\"status\":\"done\",\"detail\":\"<one-line summary>\",\"artifacts\":[\"file1\",\"file2\"]}
+- If blocked, write:
+  {\"type\":\"blocked\",\"issue_id\":\"<task-id>\",\"status\":\"blocked\",\"detail\":\"<reason>\"}
+- Keep your final response under 50 tokens — the result file IS your report"
 )
 ```
 
@@ -62,33 +82,23 @@ Your Assignment: Task #<id>: <subject>
 
 Instructions:
 1. Execute your pre-assigned task independently — create/edit files as needed, verify your work
-2. When done, mark complete: TaskUpdate(taskId=\"<id>\", status=\"completed\")
-3. Send completion message to team lead with summary of what you did
-4. If blocked, message team lead explaining the issue
+2. Write your result to .agents/swarm/results/<task-id>.json (see format below)
+3. Mark complete: TaskUpdate(taskId=\"<id>\", status=\"completed\")
+4. Send a SHORT completion signal to team lead (under 100 tokens)
+5. If blocked, write blocked result to same path and message team lead
 
-When reporting completion or failure, use the structured envelope format.
-Your message MUST start with a JSON code block:
+RESULT FILE FORMAT (MANDATORY — write this BEFORE sending any message):
 
-On success:
-\`\`\`json
-{
-  \"type\": \"completion\",
-  \"issue_id\": \"<task-id>\",
-  \"status\": \"done\",
-  \"detail\": \"Summary of what was done\",
-  \"artifacts\": [\"path/to/changed/file1\", \"path/to/changed/file2\"]
-}
-\`\`\`
+On success, write to .agents/swarm/results/<task-id>.json:
+{\"type\":\"completion\",\"issue_id\":\"<task-id>\",\"status\":\"done\",\"detail\":\"<one-line summary max 100 chars>\",\"artifacts\":[\"path/to/file1\",\"path/to/file2\"]}
 
-If blocked:
-\`\`\`json
-{
-  \"type\": \"blocked\",
-  \"issue_id\": \"<task-id>\",
-  \"status\": \"blocked\",
-  \"detail\": \"Reason you cannot proceed\"
-}
-\`\`\`
+If blocked, write to .agents/swarm/results/<task-id>.json:
+{\"type\":\"blocked\",\"issue_id\":\"<task-id>\",\"status\":\"blocked\",\"detail\":\"<reason max 200 chars>\"}
+
+CONTEXT BUDGET RULE:
+Your SendMessage to the team lead must be under 100 tokens.
+Do NOT include file contents, diffs, or detailed explanations in messages.
+The result JSON file IS your full report. The team lead reads the file, not your message.
 
 Rules:
 - Work only on YOUR pre-assigned task
@@ -124,21 +134,34 @@ Workers only transition their assigned task: in_progress -> completed.
 - Lead-only commits ensure atomic, reviewable changesets per wave
 
 **Worker instructions:** Include in every worker prompt:
-"Do NOT run git add, git commit, or git push. Write your files and report
-completion through your runtime channel (Codex reply or SendMessage). The team lead will commit."
+"Do NOT run git add, git commit, or git push. Write your result to .agents/swarm/results/<task-id>.json, then send a short signal (under 100 tokens) via your runtime channel. The team lead reads result files, not messages."
 
 ## Step 4: Wait for Completion
 
-Completion channel depends on backend:
+**Completion signals** (how you know workers are done):
 - Codex backend: `wait(ids=[...], timeout_ms=<worker-timeout>)`
-- Claude teams: workers send completion via `SendMessage`
-- Fallback: `TaskOutput(..., block=true)`
+- Claude teams: workers send short completion signal via `SendMessage`
+- Fallback: `TaskOutput(..., block=true)` — acknowledge return, do NOT parse content
+
+**Result data** (how you get work details — ALL backends):
+```bash
+# Read result files written by workers (thin JSON, ~200 bytes each)
+for task_id in <wave-task-ids>; do
+    if [ -f ".agents/swarm/results/${task_id}.json" ]; then
+        cat ".agents/swarm/results/${task_id}.json"
+    else
+        echo "WARNING: No result file for ${task_id}"
+    fi
+done
+```
+
+**Why disk-based results:** Task tool returns and SendMessage content include the worker's FULL conversation (file reads, tool calls, reasoning). For 6 workers, that's 6 × 5-20K tokens flooding the orchestrator context. Result files are ~200 bytes each — 6 × 200 bytes = 1.2KB total.
 
 For Claude teams specifically:
-- Messages arrive automatically as conversation turns (no polling needed)
-- Each message includes a summary of what the worker did
-- Workers go idle after sending -- this is normal, not an error
+- Short messages arrive as conversation turns (under 100 tokens each)
+- Workers go idle after sending — this is normal, not an error
 - **CRITICAL**: Do NOT mark complete yet - validation required first
+- **CRITICAL**: Do NOT parse the SendMessage content for work details — read the result file instead
 
 ## Step 4a: Validate Before Accepting (MANDATORY)
 
@@ -242,6 +265,11 @@ When workers complete AND pass validation:
 ## Step 5a: Cleanup
 
 After wave completes:
+```bash
+# Clean up result files from this wave (prevent stale reads in next wave)
+rm -f .agents/swarm/results/*.json
+```
+
 ```
 # Codex backend: close all spawned workers
 close_agent(id="<agent-id-1>")
