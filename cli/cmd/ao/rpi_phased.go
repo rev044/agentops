@@ -16,10 +16,11 @@ import (
 )
 
 var (
-	phasedFrom       string
-	phasedTestFirst  bool
-	phasedFastPath   bool
-	phasedMaxRetries int
+	phasedFrom        string
+	phasedTestFirst   bool
+	phasedFastPath    bool
+	phasedInteractive bool
+	phasedMaxRetries  int
 )
 
 func init() {
@@ -53,6 +54,7 @@ Examples:
 	phasedCmd.Flags().StringVar(&phasedFrom, "from", "research", "Start from phase (research, plan, pre-mortem, crank, vibe, post-mortem)")
 	phasedCmd.Flags().BoolVar(&phasedTestFirst, "test-first", false, "Pass --test-first to /crank for spec-first TDD")
 	phasedCmd.Flags().BoolVar(&phasedFastPath, "fast-path", false, "Force fast path (--quick for gates)")
+	phasedCmd.Flags().BoolVar(&phasedInteractive, "interactive", false, "Enable human gates at research and plan phases")
 	phasedCmd.Flags().IntVar(&phasedMaxRetries, "max-retries", 3, "Maximum retry attempts per gate (default: 3)")
 
 	rpiCmd.AddCommand(phasedCmd)
@@ -76,16 +78,17 @@ var phases = []phase{
 
 // phasedState persists orchestrator state between phase spawns.
 type phasedState struct {
-	Goal       string            `json:"goal"`
-	EpicID     string            `json:"epic_id,omitempty"`
-	Phase      int               `json:"phase"`
-	Cycle      int               `json:"cycle"`
-	ParentEpic string            `json:"parent_epic,omitempty"`
-	FastPath   bool              `json:"fast_path"`
-	TestFirst  bool              `json:"test_first"`
-	Verdicts   map[string]string `json:"verdicts"`
-	Attempts   map[string]int    `json:"attempts"`
-	StartedAt  string            `json:"started_at"`
+	SchemaVersion int               `json:"schema_version"`
+	Goal          string            `json:"goal"`
+	EpicID        string            `json:"epic_id,omitempty"`
+	Phase         int               `json:"phase"`
+	Cycle         int               `json:"cycle"`
+	ParentEpic    string            `json:"parent_epic,omitempty"`
+	FastPath      bool              `json:"fast_path"`
+	TestFirst     bool              `json:"test_first"`
+	Verdicts      map[string]string `json:"verdicts"`
+	Attempts      map[string]int    `json:"attempts"`
+	StartedAt     string            `json:"started_at"`
 }
 
 // retryContext holds context for retrying a failed gate.
@@ -102,10 +105,37 @@ type finding struct {
 	Ref         string `json:"ref"`
 }
 
+// phaseSummaryInstruction is prepended to each phase prompt so Claude writes a rich summary.
+// Placed first so it survives context compaction (early instructions persist longer).
+const phaseSummaryInstruction = `PHASE SUMMARY CONTRACT: Before finishing this session, write a concise summary (max 500 tokens) to .agents/rpi/phase-{{.PhaseNum}}-summary.md covering key insights, tradeoffs considered, and risks for subsequent phases. This file is read by the next phase.
+
+`
+
+// contextDisciplineInstruction is prepended to every phase prompt to prevent compaction.
+// CONTEXT DISCIPLINE: This constant exists so the CLI can enforce context-aware behavior.
+const contextDisciplineInstruction = `CONTEXT DISCIPLINE: You are running inside ao rpi phased (phase {{.PhaseNum}} of 6). Each phase gets a FRESH context window. Stay disciplined:
+- Do NOT accumulate large file contents in context. Read files with the Read tool JIT and extract only what you need.
+- Do NOT explore broadly when narrow exploration suffices. Be surgical.
+- Write findings, plans, and results to DISK (files in .agents/), not just in conversation.
+- If you are delegating to workers or spawning agents, do NOT accumulate their full output. Read their result files from disk.
+- If you notice context degradation (forgetting earlier instructions, repeating yourself, losing track of the goal), IMMEDIATELY write a handoff to .agents/rpi/phase-{{.PhaseNum}}-handoff.md with: (1) what you accomplished, (2) what remains, (3) key context. Then finish cleanly.
+{{.ContextBudget}}
+`
+
+// phaseContextBudgets provides phase-specific context guidance.
+var phaseContextBudgets = map[int]string{
+	1: "BUDGET: Limit codebase exploration to ~15 file reads. Write research findings to .agents/research/, not into conversation context.",
+	2: "BUDGET: Plan decomposition is lightweight. Write the plan document to .agents/plans/. Keep conversation focused on issue creation.",
+	3: "BUDGET: Pre-mortem invokes /council which manages its own agents. Your job: invoke, read the verdict file, done. Minimal context.",
+	4: "BUDGET (CRITICAL): Crank is the highest-risk phase for context. /crank spawns workers internally. Do NOT re-read worker output into your context. Trust /crank to manage its waves. Read only the completion status.",
+	5: "BUDGET: Vibe invokes /council. Your job: invoke, read the verdict file, done. Minimal context.",
+	6: "BUDGET: Post-mortem invokes /council + /retro. Your job: invoke both, read their output files, write summary. Minimal context.",
+}
+
 // phasePrompts defines Go templates for each phase's Claude invocation.
 var phasePrompts = map[int]string{
-	1: `/research "{{.Goal}}" --auto`,
-	2: `/plan "{{.Goal}}" --auto`,
+	1: `/research "{{.Goal}}"{{if not .Interactive}} --auto{{end}}`,
+	2: `/plan "{{.Goal}}"{{if not .Interactive}} --auto{{end}}`,
 	3: `/pre-mortem{{if .FastPath}} --quick{{end}}`,
 	4: `/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}`,
 	5: `/vibe{{if .FastPath}} --quick{{end}} recent`,
@@ -162,14 +192,15 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 
 	// Initialize state
 	state := &phasedState{
-		Goal:      goal,
-		Phase:     startPhase,
-		Cycle:     1,
-		FastPath:  phasedFastPath,
-		TestFirst: phasedTestFirst,
-		Verdicts:  make(map[string]string),
-		Attempts:  make(map[string]int),
-		StartedAt: time.Now().Format(time.RFC3339),
+		SchemaVersion: 1,
+		Goal:          goal,
+		Phase:         startPhase,
+		Cycle:         1,
+		FastPath:      phasedFastPath,
+		TestFirst:     phasedTestFirst,
+		Verdicts:      make(map[string]string),
+		Attempts:      make(map[string]int),
+		StartedAt:     time.Now().Format(time.RFC3339),
 	}
 
 	// Try loading existing state for resume
@@ -197,6 +228,11 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 
 	logPath := filepath.Join(stateDir, "phased-orchestration.log")
 
+	// Clean stale phase summaries from prior runs (only on fresh start)
+	if startPhase == 1 {
+		cleanPhaseSummaries(stateDir)
+	}
+
 	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
 	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
 	logPhaseTransition(logPath, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, phasedFrom))
@@ -207,7 +243,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		fmt.Printf("\n--- Phase %d: %s ---\n", p.Num, p.Name)
 		state.Phase = i
 
-		prompt, err := buildPromptForPhase(i, state, nil)
+		prompt, err := buildPromptForPhase(cwd, i, state, nil)
 		if err != nil {
 			return fmt.Errorf("build prompt for phase %d: %w", i, err)
 		}
@@ -248,6 +284,16 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
+		// Check if phase triggered a handoff (context degradation detected)
+		if handoffDetected(cwd, i) {
+			fmt.Printf("Phase %d: handoff detected — phase reported context degradation\n", i)
+			logPhaseTransition(logPath, p.Name, "HANDOFF detected — context degradation")
+			// Continue to next phase (fresh session will pick up from handoff)
+		}
+
+		// Write phase summary for next phase's context
+		writePhaseSummary(cwd, state, i)
+
 		// Record ratchet checkpoint
 		recordRatchetCheckpoint(p.Step)
 
@@ -287,15 +333,16 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 	case 2: // Plan — extract epic ID and detect fast path
 		epicID, err := extractEpicID()
 		if err != nil {
-			VerbosePrintf("Warning: could not extract epic ID: %v\n", err)
-		} else {
-			state.EpicID = epicID
-			fmt.Printf("Epic ID: %s\n", epicID)
+			return fmt.Errorf("plan phase: could not extract epic ID (crank needs this): %w", err)
 		}
+		state.EpicID = epicID
+		fmt.Printf("Epic ID: %s\n", epicID)
 
-		if !phasedFastPath && state.EpicID != "" {
+		if !phasedFastPath {
 			fast, err := detectFastPath(state.EpicID)
-			if err == nil && fast {
+			if err != nil {
+				VerbosePrintf("Warning: fast-path detection failed (continuing without): %v\n", err)
+			} else if fast {
 				state.FastPath = true
 				fmt.Println("Micro-epic detected — using fast path (--quick for gates)")
 			}
@@ -304,13 +351,11 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 	case 3: // Pre-mortem — check verdict
 		report, err := findLatestCouncilReport(cwd, "pre-mortem")
 		if err != nil {
-			VerbosePrintf("Warning: could not find pre-mortem report: %v\n", err)
-			return nil
+			return fmt.Errorf("pre-mortem phase: council report not found (phase may not have completed): %w", err)
 		}
 		verdict, err := extractCouncilVerdict(report)
 		if err != nil {
-			VerbosePrintf("Warning: could not extract verdict: %v\n", err)
-			return nil
+			return fmt.Errorf("pre-mortem phase: could not extract verdict from %s: %w", report, err)
 		}
 		state.Verdicts["pre_mortem"] = verdict
 		fmt.Printf("Pre-mortem verdict: %s\n", verdict)
@@ -324,7 +369,7 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		if state.EpicID != "" {
 			status, err := checkCrankCompletion(state.EpicID)
 			if err != nil {
-				VerbosePrintf("Warning: could not check crank completion: %v\n", err)
+				VerbosePrintf("Warning: could not check crank completion (continuing to vibe): %v\n", err)
 			} else {
 				fmt.Printf("Crank status: %s\n", status)
 				if status == "BLOCKED" || status == "PARTIAL" {
@@ -336,13 +381,11 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 	case 5: // Vibe — check verdict
 		report, err := findLatestCouncilReport(cwd, "vibe")
 		if err != nil {
-			VerbosePrintf("Warning: could not find vibe report: %v\n", err)
-			return nil
+			return fmt.Errorf("vibe phase: council report not found (phase may not have completed): %w", err)
 		}
 		verdict, err := extractCouncilVerdict(report)
 		if err != nil {
-			VerbosePrintf("Warning: could not extract verdict: %v\n", err)
-			return nil
+			return fmt.Errorf("vibe phase: could not extract verdict from %s: %w", report, err)
 		}
 		state.Verdicts["vibe"] = verdict
 		fmt.Printf("Vibe verdict: %s\n", verdict)
@@ -382,7 +425,7 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 		Verdict:  gateErr.Verdict,
 	}
 
-	retryPrompt, err := buildRetryPrompt(phaseNum, state, retryCtx)
+	retryPrompt, err := buildRetryPrompt(cwd, phaseNum, state, retryCtx)
 	if err != nil {
 		return false, fmt.Errorf("build retry prompt: %w", err)
 	}
@@ -399,7 +442,7 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 	}
 
 	// Re-run the original phase after retry
-	rerunPrompt, err := buildPromptForPhase(phaseNum, state, nil)
+	rerunPrompt, err := buildPromptForPhase(cwd, phaseNum, state, nil)
 	if err != nil {
 		return false, fmt.Errorf("build rerun prompt: %w", err)
 	}
@@ -422,7 +465,7 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 }
 
 // buildPromptForPhase constructs the Claude invocation prompt for a phase.
-func buildPromptForPhase(phaseNum int, state *phasedState, _ *retryContext) (string, error) {
+func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryContext) (string, error) {
 	tmplStr, ok := phasePrompts[phaseNum]
 	if !ok {
 		return "", fmt.Errorf("no prompt template for phase %d", phaseNum)
@@ -433,16 +476,25 @@ func buildPromptForPhase(phaseNum int, state *phasedState, _ *retryContext) (str
 		return "", fmt.Errorf("parse template: %w", err)
 	}
 
+	// Get phase-specific context budget guidance
+	budget := phaseContextBudgets[phaseNum]
+
 	data := struct {
-		Goal      string
-		EpicID    string
-		FastPath  bool
-		TestFirst bool
+		Goal          string
+		EpicID        string
+		FastPath      bool
+		TestFirst     bool
+		Interactive   bool
+		PhaseNum      int
+		ContextBudget string
 	}{
-		Goal:      state.Goal,
-		EpicID:    state.EpicID,
-		FastPath:  state.FastPath,
-		TestFirst: state.TestFirst,
+		Goal:          state.Goal,
+		EpicID:        state.EpicID,
+		FastPath:      state.FastPath,
+		TestFirst:     state.TestFirst,
+		Interactive:   phasedInteractive,
+		PhaseNum:      phaseNum,
+		ContextBudget: budget,
 	}
 
 	var buf strings.Builder
@@ -450,15 +502,110 @@ func buildPromptForPhase(phaseNum int, state *phasedState, _ *retryContext) (str
 		return "", fmt.Errorf("execute template: %w", err)
 	}
 
-	return buf.String(), nil
+	skillInvocation := buf.String()
+
+	// Build prompt: summary contract first, then context, then skill invocation.
+	// Early instructions survive compaction better than trailing ones.
+	var prompt strings.Builder
+
+	// 1. Context discipline instruction (first — survives compaction)
+	disciplineTmpl, err := template.New("discipline").Parse(contextDisciplineInstruction)
+	if err == nil {
+		if err := disciplineTmpl.Execute(&prompt, data); err != nil {
+			VerbosePrintf("Warning: could not render context discipline instruction: %v\n", err)
+		}
+	}
+
+	// 2. Summary instruction
+	summaryTmpl, err := template.New("summary").Parse(phaseSummaryInstruction)
+	if err == nil {
+		if err := summaryTmpl.Execute(&prompt, data); err != nil {
+			VerbosePrintf("Warning: could not render summary instruction: %v\n", err)
+		}
+	}
+
+	// 3. Cross-phase context for phases 3+ (goal, verdicts, prior summaries)
+	if phaseNum >= 3 {
+		ctx := buildPhaseContext(cwd, state, phaseNum)
+		if ctx != "" {
+			prompt.WriteString(ctx)
+			prompt.WriteString("\n\n")
+		}
+	}
+
+	// 4. Skill invocation (last — the actual command)
+	prompt.WriteString(skillInvocation)
+
+	return prompt.String(), nil
+}
+
+// buildPhaseContext constructs a context block from goal, verdicts, and prior phase summaries.
+func buildPhaseContext(cwd string, state *phasedState, phaseNum int) string {
+	var parts []string
+
+	// Always include the goal
+	if state.Goal != "" {
+		parts = append(parts, fmt.Sprintf("Goal: %s", state.Goal))
+	}
+
+	// Include prior verdicts
+	for key, verdict := range state.Verdicts {
+		parts = append(parts, fmt.Sprintf("%s verdict: %s", strings.ReplaceAll(key, "_", "-"), verdict))
+	}
+
+	// Include prior phase summaries (read from disk)
+	if cwd != "" {
+		summaries := readPhaseSummaries(cwd, phaseNum)
+		if summaries != "" {
+			parts = append(parts, summaries)
+		}
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "--- RPI Context (from prior phases) ---\n" + strings.Join(parts, "\n")
+}
+
+// readPhaseSummaries reads all phase summary files prior to the given phase.
+func readPhaseSummaries(cwd string, currentPhase int) string {
+	var summaries []string
+	rpiDir := filepath.Join(cwd, ".agents", "rpi")
+
+	for i := 1; i < currentPhase; i++ {
+		path := filepath.Join(rpiDir, fmt.Sprintf("phase-%d-summary.md", i))
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		content := strings.TrimSpace(string(data))
+		if content == "" {
+			continue
+		}
+		// Cap each summary to prevent context bloat
+		if len(content) > 2000 {
+			content = content[:2000] + "..."
+		}
+		phaseName := "unknown"
+		if i > 0 && i <= len(phases) {
+			phaseName = phases[i-1].Name
+		}
+		summaries = append(summaries, fmt.Sprintf("[Phase %d: %s]\n%s", i, phaseName, content))
+	}
+
+	if len(summaries) == 0 {
+		return ""
+	}
+	return strings.Join(summaries, "\n\n")
 }
 
 // buildRetryPrompt constructs a retry prompt with feedback context.
-func buildRetryPrompt(phaseNum int, state *phasedState, retryCtx *retryContext) (string, error) {
+func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *retryContext) (string, error) {
 	tmplStr, ok := retryPrompts[phaseNum]
 	if !ok {
 		// No retry template — fall back to normal prompt
-		return buildPromptForPhase(phaseNum, state, retryCtx)
+		return buildPromptForPhase(cwd, phaseNum, state, retryCtx)
 	}
 
 	tmpl, err := template.New("retry").Parse(tmplStr)
@@ -492,13 +639,28 @@ func buildRetryPrompt(phaseNum int, state *phasedState, retryCtx *retryContext) 
 	return buf.String(), nil
 }
 
+// Exit codes for phased orchestration.
+const (
+	ExitGateFail  = 10 // Council gate returned FAIL
+	ExitUserAbort = 20 // User cancelled the session
+	ExitCLIError  = 30 // Claude CLI error (not found, config issue)
+)
+
 // spawnClaudePhase spawns a fresh Claude session for a single phase.
 func spawnClaudePhase(prompt string) error {
 	cmd := exec.Command("claude", "-p", prompt)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	return cmd.Run()
+	err := cmd.Run()
+	if err == nil {
+		return nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		code := exitErr.ExitCode()
+		return fmt.Errorf("claude exited with code %d: %w", code, err)
+	}
+	return fmt.Errorf("claude execution failed: %w", err)
 }
 
 // --- Verdict extraction helpers ---
@@ -526,26 +688,14 @@ func findLatestCouncilReport(cwd string, pattern string) (string, error) {
 		return "", fmt.Errorf("read council directory: %w", err)
 	}
 
-	type fileWithTime struct {
-		path    string
-		modTime time.Time
-	}
-
-	var matches []fileWithTime
+	var matches []string
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
 		name := entry.Name()
 		if strings.Contains(name, pattern) && strings.HasSuffix(name, ".md") {
-			info, err := entry.Info()
-			if err != nil {
-				continue
-			}
-			matches = append(matches, fileWithTime{
-				path:    filepath.Join(councilDir, name),
-				modTime: info.ModTime(),
-			})
+			matches = append(matches, filepath.Join(councilDir, name))
 		}
 	}
 
@@ -553,11 +703,9 @@ func findLatestCouncilReport(cwd string, pattern string) (string, error) {
 		return "", fmt.Errorf("no council report matching %q found", pattern)
 	}
 
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].modTime.After(matches[j].modTime)
-	})
+	sort.Strings(matches)
 
-	return matches[0].path, nil
+	return matches[len(matches)-1], nil
 }
 
 // extractCouncilFindings extracts structured findings from a council report.
@@ -627,8 +775,12 @@ func detectFastPath(epicID string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("bd children: %w", err)
 	}
+	return parseFastPath(string(out)), nil
+}
 
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+// parseFastPath determines if bd children output indicates a micro-epic.
+func parseFastPath(output string) bool {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
 	issueCount := 0
 	blockedCount := 0
 	for _, line := range lines {
@@ -640,8 +792,7 @@ func detectFastPath(epicID string) (bool, error) {
 			blockedCount++
 		}
 	}
-
-	return issueCount <= 2 && blockedCount == 0, nil
+	return issueCount <= 2 && blockedCount == 0
 }
 
 // checkCrankCompletion checks epic completion via bd children statuses.
@@ -652,8 +803,12 @@ func checkCrankCompletion(epicID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("bd children: %w", err)
 	}
+	return parseCrankCompletion(string(out)), nil
+}
 
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+// parseCrankCompletion determines completion status from bd children output.
+func parseCrankCompletion(output string) string {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
 	total := 0
 	closed := 0
 	blocked := 0
@@ -672,15 +827,92 @@ func checkCrankCompletion(epicID string) (string, error) {
 	}
 
 	if total == 0 {
-		return "DONE", nil
+		return "DONE"
 	}
 	if closed == total {
-		return "DONE", nil
+		return "DONE"
 	}
 	if blocked > 0 {
-		return "BLOCKED", nil
+		return "BLOCKED"
 	}
-	return "PARTIAL", nil
+	return "PARTIAL"
+}
+
+// --- Phase summaries ---
+
+// writePhaseSummary writes a fallback summary only if Claude didn't write one.
+func writePhaseSummary(cwd string, state *phasedState, phaseNum int) {
+	rpiDir := filepath.Join(cwd, ".agents", "rpi")
+	path := filepath.Join(rpiDir, fmt.Sprintf("phase-%d-summary.md", phaseNum))
+
+	// If Claude already wrote a summary, keep it (it's richer than our mechanical one)
+	if _, err := os.Stat(path); err == nil {
+		fmt.Printf("Phase %d: Claude-written summary found\n", phaseNum)
+		return
+	}
+	fmt.Printf("Phase %d: no Claude summary found, writing fallback\n", phaseNum)
+
+	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+		VerbosePrintf("Warning: could not create rpi dir for summary: %v\n", err)
+		return
+	}
+
+	summary := generatePhaseSummary(state, phaseNum)
+	if summary == "" {
+		return
+	}
+
+	if err := os.WriteFile(path, []byte(summary), 0644); err != nil {
+		VerbosePrintf("Warning: could not write phase summary: %v\n", err)
+	}
+}
+
+// generatePhaseSummary produces a concise summary of what a phase accomplished.
+func generatePhaseSummary(state *phasedState, phaseNum int) string {
+	switch phaseNum {
+	case 1: // Research
+		return fmt.Sprintf("Research completed for goal: %s\nSee .agents/research/ for findings.", state.Goal)
+	case 2: // Plan
+		summary := fmt.Sprintf("Plan completed. Epic: %s", state.EpicID)
+		if state.FastPath {
+			summary += " (micro-epic, fast path)"
+		}
+		return summary
+	case 3: // Pre-mortem
+		verdict := state.Verdicts["pre_mortem"]
+		if verdict == "" {
+			verdict = "unknown"
+		}
+		return fmt.Sprintf("Pre-mortem verdict: %s\nSee .agents/council/*pre-mortem*.md for details.", verdict)
+	case 4: // Crank
+		return fmt.Sprintf("Crank completed for epic %s.\nCheck bd children %s for issue statuses.", state.EpicID, state.EpicID)
+	case 5: // Vibe
+		verdict := state.Verdicts["vibe"]
+		if verdict == "" {
+			verdict = "unknown"
+		}
+		return fmt.Sprintf("Vibe verdict: %s\nSee .agents/council/*vibe*.md for details.", verdict)
+	case 6: // Post-mortem
+		return fmt.Sprintf("Post-mortem completed for epic %s.\nSee .agents/council/*post-mortem*.md and .agents/learnings/ for extracted knowledge.", state.EpicID)
+	}
+	return ""
+}
+
+// handoffDetected checks if a phase wrote a handoff file (context degradation signal).
+func handoffDetected(cwd string, phaseNum int) bool {
+	path := filepath.Join(cwd, ".agents", "rpi", fmt.Sprintf("phase-%d-handoff.md", phaseNum))
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// cleanPhaseSummaries removes stale phase summaries and handoffs from a prior run.
+func cleanPhaseSummaries(stateDir string) {
+	for i := 1; i <= 6; i++ {
+		path := filepath.Join(stateDir, fmt.Sprintf("phase-%d-summary.md", i))
+		os.Remove(path) //nolint:errcheck
+		handoffPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-handoff.md", i))
+		os.Remove(handoffPath) //nolint:errcheck
+	}
 }
 
 // --- State persistence ---
