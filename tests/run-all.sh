@@ -132,6 +132,16 @@ else
     skip "Doc skill count validation (script not found)"
 fi
 
+if [[ -f "$SCRIPT_DIR/docs/validate-goal-count.sh" ]]; then
+    if bash "$SCRIPT_DIR/docs/validate-goal-count.sh" > /dev/null 2>&1; then
+        pass "Doc goal count validation"
+    else
+        fail "Doc goal count validation"
+    fi
+else
+    skip "Doc goal count validation (script not found)"
+fi
+
 # Validate token budgets (static, no CLI needed)
 if [[ -f "$SCRIPT_DIR/skills/test-token-budgets.sh" ]]; then
     if bash "$SCRIPT_DIR/skills/test-token-budgets.sh" > /dev/null 2>&1; then
