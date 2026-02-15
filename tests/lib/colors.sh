@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared color definitions and helper functions for test scripts
 # Usage: source "${SCRIPT_DIR}/../lib/colors.sh"
 # (adjust path based on file location relative to tests/lib/)
