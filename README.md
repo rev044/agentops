@@ -241,6 +241,16 @@ Three ways to use it:
 - **Interactive** — `ao rpi phased --interactive "goal"` pauses at research and plan for your review. Step through it, approve each phase, keep full control.
 - **Resume** — `ao rpi phased --from=crank "goal"` picks up from any phase. Session crashed during crank? Resume there. Want to re-run just validation? `--from=vibe`.
 
+**Run multiple in parallel** — each run gets its own git worktree, so parallel invocations don't collide on state files or code changes:
+
+```bash
+ao rpi phased "add auth" &
+ao rpi phased "fix perf" &
+# Each runs in ../<repo>-rpi-<runID>/, merges back on success
+```
+
+ON by default. `--no-worktree` to opt out. On failure or Ctrl+C, the worktree is preserved for debugging.
+
 The `/rpi` skill and `ao rpi phased` command do the same work. The difference is context control: one session vs. six fresh sessions. Use `/rpi` for small goals where context fits comfortably. Use `ao rpi phased` when the goal is big enough that you want each phase thinking clearly.
 
 ---
