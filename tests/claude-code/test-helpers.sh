@@ -61,6 +61,7 @@ run_claude_json() {
         --dangerously-skip-permissions \
         --max-turns "$MAX_TURNS" \
         --output-format stream-json \
+        --verbose \
         > "$log_file" 2>&1; then
         echo "$log_file"
         return 0
@@ -300,6 +301,87 @@ print_summary() {
     return 0
 }
 
+# Assert context window stays under 60% utilization (120K of 200K)
+# Parses stream-json log for assistant message token usage, tracks peak.
+# Usage: assert_context_under_60pct "log_file" ["test name"]
+# Returns: 0 = pass, 1 = fail, 0 + SKIP message if parsing fails
+assert_context_under_60pct() {
+    local log_file="$1"
+    local test_name="${2:-Context under 60%}"
+    local limit=120000  # 60% of 200K
+
+    if [[ ! -f "$log_file" ]]; then
+        echo -e "  ${YELLOW}[SKIP]${NC} $test_name: Log file not found"
+        return 0
+    fi
+
+    # Use python3 to parse stream-json and find peak token usage
+    local result
+    result=$(python3 -c "
+import json, sys
+
+peak = 0
+peak_input = 0
+peak_cache_read = 0
+peak_cache_create = 0
+count = 0
+
+for line in open(sys.argv[1]):
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        obj = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+
+    # Look for assistant messages with usage info
+    if obj.get('type') != 'assistant':
+        continue
+    usage = obj.get('message', {}).get('usage', {})
+    if not usage:
+        usage = obj.get('usage', {})
+    if not usage:
+        continue
+
+    inp = usage.get('input_tokens', 0)
+    cache_read = usage.get('cache_read_input_tokens', 0)
+    cache_create = usage.get('cache_creation_input_tokens', 0)
+    total = inp + cache_read + cache_create
+    count += 1
+
+    if total > peak:
+        peak = total
+        peak_input = inp
+        peak_cache_read = cache_read
+        peak_cache_create = cache_create
+
+if count == 0:
+    print('SKIP|0|0|0|0|0')
+else:
+    pct = peak * 100 // 200000
+    print(f'{peak}|{peak_input}|{peak_cache_read}|{peak_cache_create}|{pct}|{count}')
+" "$log_file" 2>/dev/null) || true
+
+    if [[ -z "$result" || "$result" == SKIP* ]]; then
+        echo -e "  ${YELLOW}[SKIP]${NC} $test_name: Could not parse token usage from log"
+        return 0
+    fi
+
+    IFS='|' read -r peak peak_input peak_cache_read peak_cache_create pct msg_count <<< "$result"
+
+    if [[ $peak -gt $limit ]]; then
+        echo -e "  ${RED}[FAIL]${NC} $test_name: Peak ${peak} tokens (${pct}% of 200K) exceeds 60% limit"
+        echo "    Breakdown: input=${peak_input} cache_read=${peak_cache_read} cache_create=${peak_cache_create}"
+        echo "    Messages sampled: ${msg_count}"
+        return 1
+    else
+        echo -e "  ${GREEN}[PASS]${NC} $test_name: Peak ${peak} tokens (${pct}% of 200K)"
+        echo "    Breakdown: input=${peak_input} cache_read=${peak_cache_read} cache_create=${peak_cache_create}"
+        return 0
+    fi
+}
+
 # Export functions for use in tests
 export -f run_claude
 export -f run_claude_json
@@ -314,6 +396,7 @@ export -f create_test_project
 export -f cleanup_test_project
 export -f cleanup_logs
 export -f print_summary
+export -f assert_context_under_60pct
 export REPO_ROOT
 export LOG_DIR
 export MAX_TURNS

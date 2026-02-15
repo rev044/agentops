@@ -132,6 +132,17 @@ else
     skip "Doc skill count validation (script not found)"
 fi
 
+# Validate token budgets (static, no CLI needed)
+if [[ -f "$SCRIPT_DIR/skills/test-token-budgets.sh" ]]; then
+    if bash "$SCRIPT_DIR/skills/test-token-budgets.sh" > /dev/null 2>&1; then
+        pass "Token budget validation"
+    else
+        fail "Token budget validation"
+    fi
+else
+    skip "Token budget validation (script not found)"
+fi
+
 echo ""
 
 # =============================================================================
