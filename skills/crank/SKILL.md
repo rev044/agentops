@@ -382,11 +382,11 @@ fi
 
 **For verification details, retry logic, and failure escalation, read `skills/crank/references/team-coordination.md` and `skills/crank/references/failure-recovery.md`.**
 
-### Step 5.5: Wave Vibe Gate (MANDATORY)
+### Step 5.5: Wave Acceptance Check (MANDATORY)
 
-> **Principle:** Fresh context catches what saturated context misses. No self-grading.
+> **Principle:** Verify each wave meets acceptance criteria using lightweight inline judges. No skill invocations — prevents context explosion in the orchestrator loop.
 
-**For wave vibe gate details (diff computation, acceptance criteria, verdict gating), read `skills/crank/references/wave-patterns.md`.**
+**For acceptance check details (diff computation, inline judges, verdict gating), read `skills/crank/references/wave-patterns.md`.**
 
 ### Step 5.7: Wave Checkpoint
 
@@ -403,14 +403,15 @@ cat > ".agents/crank/wave-${wave}-checkpoint.json" <<EOF
   "tasks_completed": $(echo "$COMPLETED_IDS" | jq -R 'split(" ")'),
   "tasks_failed": $(echo "$FAILED_IDS" | jq -R 'split(" ")'),
   "files_changed": $(git diff --name-only "${WAVE_START_SHA}..HEAD" | jq -R . | jq -s .),
-  "git_sha": "$(git rev-parse HEAD)"
+  "git_sha": "$(git rev-parse HEAD)",
+  "acceptance_verdict": "<PASS|WARN|FAIL>"
 }
 EOF
 ```
 
 - `COMPLETED_IDS` / `FAILED_IDS`: space-separated issue IDs from the wave results.
+- `acceptance_verdict`: verdict from the Wave Acceptance Check (Step 5.5). Used by final validation to skip redundant /vibe on clean epics.
 - On retry of the same wave, the file is overwritten (same path).
-- Checkpoint files are informational — no resume logic reads them yet (future work).
 
 ### Step 6: Check for More Work
 
@@ -459,7 +460,7 @@ Iterations: M/50
 
 Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wave. Loop until all issues are CLOSED (beads) or all tasks are completed (TaskList).
 
-**For FIRE loop details, parallel wave models, and wave vibe gate, read `skills/crank/references/wave-patterns.md`.**
+**For FIRE loop details, parallel wave models, and wave acceptance check, read `skills/crank/references/wave-patterns.md`.**
 
 ## Key Rules
 
@@ -490,7 +491,7 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 2. Agent runs `bd ready` to find unblocked issues (wave 1)
 3. Agent creates TaskList from beads issues, invokes `/swarm` with runtime-native spawning
 4. Workers execute in parallel, write files, report completion via backend channel
-5. Team lead verifies outputs, runs wave vibe gate, commits if passing
+5. Team lead verifies outputs, runs wave acceptance check, commits if passing
 6. Agent loops to next wave until all issues closed
 7. Final batched vibe on all changes, then `ao forge transcript` to extract learnings
 

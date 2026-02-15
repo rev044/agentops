@@ -9,7 +9,7 @@ Crank follows FIRE for each wave:
 | **FIND** | `bd ready` — get unblocked beads issues | `TaskList()` → pending, unblocked |
 | **IGNITE** | TaskCreate from beads + `/swarm` | `/swarm` (tasks already in TaskList) |
 | **REAP** | Swarm results + `bd update --status closed` | Swarm results (TaskUpdate by workers) |
-| **VIBE** | Wave diff vs acceptance criteria → PASS/WARN/FAIL | Same |
+| **CHECK** | Wave acceptance check (2 inline judges) → PASS/WARN/FAIL | Same |
 | **ESCALATE** | `bd comments add` + retry | Update task description + retry |
 
 **With `--test-first` flag, FIRE extends with two pre-implementation phases:**
@@ -90,7 +90,7 @@ IMPL WAVE (standard, enhanced with GREEN mode)
   Workers: 1 per issue (full access)
   Input: failing tests + contract + issue description
   Output: implementation code
-  Gate: GREEN confirmation — ALL tests must PASS + wave vibe gate
+  Gate: GREEN confirmation — ALL tests must PASS + wave acceptance check
                     ↓
 [Optional] REFACTOR WAVE
   Workers: 1 per changed file group
@@ -133,7 +133,7 @@ fi
 After IMPL WAVE, the lead runs the test suite. ALL tests must PASS:
 - New tests (from TEST WAVE) must now pass
 - Existing tests must still pass (no regressions)
-- Standard wave vibe gate also applies
+- Standard wave acceptance check also applies
 
 ### Contract Validation
 
@@ -144,52 +144,77 @@ SPEC WAVE workers explore the codebase before writing contracts (not fully isola
 
 But do NOT read implementation details of the specific feature being specified.
 
-## Wave Vibe Gate (MANDATORY)
+## Wave Acceptance Check (MANDATORY)
 
-> **Principle:** Fresh context catches what saturated context misses. No self-grading.
+> **Principle:** Verify each wave meets acceptance criteria before advancing. Uses lightweight inline judges — no skill invocations, no context explosion.
 
 **After closing all beads in a wave, before advancing to the next wave:**
 
-1. **Tag the wave start** (for diff):
-   ```bash
-   # Before each wave (Step 4), record the starting commit:
-   WAVE_START_SHA=$(git rev-parse HEAD)
-   ```
+**Note:** SPEC WAVE has its own validation (contract completeness check) and TEST WAVE has the RED gate. The Wave Acceptance Check applies only to IMPL and REFACTOR waves.
 
-2. **Compute wave diff:**
+1. **Compute wave diff** (WAVE_START_SHA recorded in Step 4):
    ```bash
    git diff $WAVE_START_SHA HEAD --name-only
+   WAVE_DIFF=$(git diff $WAVE_START_SHA HEAD)
    ```
 
-3. **Load acceptance criteria** for all issues closed in this wave:
+2. **Load acceptance criteria** for all issues closed in this wave:
    ```bash
    # For each closed issue in the wave:
    bd show <issue-id>  # extract ACCEPTANCE CRITERIA section
    ```
 
-4. **Run inline vibe** (spec-compliance + error-paths, 2 judges minimum):
-   ```
-   Tool: Skill
-   Parameters:
-     skill: "agentops:vibe"
-     args: "--quick --diff $WAVE_START_SHA --criteria '<acceptance criteria>'"
-   ```
-   If /vibe doesn't support --quick, run a lightweight council:
-   - Spawn 2 Task agents (spec-compliance judge, error-paths judge)
-   - Each reviews the wave diff against acceptance criteria
-   - Aggregate verdicts: all PASS = PASS, any FAIL = FAIL, else WARN
+3. **Spawn 2 inline judges** (Task agents, NOT skill invocations):
 
-   **Note:** SPEC WAVE has its own validation (contract completeness check) and TEST WAVE has the RED gate. The Wave Vibe Gate applies only to IMPL and REFACTOR waves.
+   ```
+   # Judge 1: Spec compliance
+   Tool: Task
+   Parameters:
+     subagent_type: "general-purpose"
+     model: "haiku"
+     description: "Wave N spec-compliance check"
+     prompt: |
+       Review this git diff against the acceptance criteria below.
+       Does the implementation satisfy all acceptance criteria?
+       Return: PASS, WARN (minor gaps), or FAIL (criteria not met) with brief justification.
+
+       ## Acceptance Criteria
+       <acceptance criteria from step 2>
+
+       ## Git Diff
+       <wave diff>
+
+   # Judge 2: Error paths
+   Tool: Task
+   Parameters:
+     subagent_type: "general-purpose"
+     model: "haiku"
+     description: "Wave N error-paths check"
+     prompt: |
+       Review this git diff for error handling and edge cases.
+       Are error paths handled? Any unhandled exceptions or missing validations?
+       Return: PASS, WARN (minor gaps), or FAIL (critical gaps) with brief justification.
+
+       ## Git Diff
+       <wave diff>
+   ```
+
+   **Dispatch both judges in parallel** (single message, 2 Task tool calls).
+
+4. **Aggregate verdicts:**
+   - Both PASS → **PASS**
+   - Any FAIL → **FAIL**
+   - Otherwise → **WARN**
 
 5. **Gate on verdict:**
 
    | Verdict | Action |
    |---------|--------|
-   | **PASS** | Record `CRANK_VIBE: wave=N verdict=PASS` in epic notes. Advance to next wave. |
-   | **WARN** | Create fix beads as children of the epic (`bd create`). Execute fixes inline (small) or as wave N.5 via swarm. Re-run vibe. If PASS on re-vibe, advance. If still WARN after 2 attempts, treat as FAIL. |
-   | **FAIL** | Record `CRANK_VIBE: wave=N verdict=FAIL` in epic notes. Output `<promise>BLOCKED</promise>` and exit. Human review required. |
+   | **PASS** | Record verdict in epic notes. Advance to next wave. |
+   | **WARN** | Create fix beads as children of the epic (`bd create`). Execute fixes inline (small) or as wave N.5 via swarm. Re-run acceptance check. If PASS on re-check, advance. If still WARN after 2 attempts, treat as FAIL. |
+   | **FAIL** | Record verdict in epic notes. Output `<promise>BLOCKED</promise>` and exit. Human review required. |
 
    ```bash
    # Record verdict in epic notes
-   bd update <epic-id> --append-notes "CRANK_VIBE: wave=$wave verdict=<PASS|WARN|FAIL> at $(date -Iseconds)"
+   bd update <epic-id> --append-notes "CRANK_ACCEPT: wave=$wave verdict=<PASS|WARN|FAIL> at $(date -Iseconds)"
    ```

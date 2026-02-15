@@ -87,7 +87,7 @@ Swarm finds unblocked TaskList tasks and executes them.
    fi
    ```
 
-**Note:** Per-issue review is handled by swarm validation. Wave-level semantic review happens in the Wave Vibe Gate.
+**Note:** Per-issue review is handled by swarm validation. Wave-level semantic review happens in the Wave Acceptance Check.
 
 ## Check for More Work
 
