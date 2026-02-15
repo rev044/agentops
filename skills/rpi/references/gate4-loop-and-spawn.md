@@ -29,8 +29,12 @@
 
 **Complementary to Gate 4:** Gate 4 (`--loop`) handles FAIL->iterate (same goal, tighter). `--spawn-next` handles PASS/WARN->new-goal (different work harvested from post-mortem).
 
-1. Read `.agents/rpi/next-work.jsonl` for unconsumed entries (schema: `.agents/rpi/next-work.schema.md`)
-2. If unconsumed entries exist:
+1. Read `.agents/rpi/next-work.jsonl` for unconsumed entries (schema: `.agents/rpi/next-work.schema.md`).
+   Filter entries by `target_repo`:
+   - **Include** if `target_repo` matches the current repo name, OR `target_repo` is `"*"` (wildcard), OR the field is absent (backward compatibility).
+   - **Skip** if `target_repo` names a different repo.
+   - Current repo is derived from: `basename` of `git remote get-url origin`, or failing that, `basename "$PWD"`.
+2. If unconsumed, repo-matched entries exist:
    - If `--dry-run` is set: report items but do NOT mutate next-work.jsonl (skip consumption). Log: "Dry run -- items not marked consumed."
    - Otherwise: mark the current cycle's entry as consumed (set `consumed: true`, `consumed_by: <epic-id>`, `consumed_at: <now>`)
    - Report harvested items to user with suggested next command:
@@ -48,3 +52,18 @@
 3. If no unconsumed entries: report "No follow-up work harvested. Flywheel stable."
 
 **Note:** Only `--spawn-next` mutates next-work.jsonl (marks consumed). Phase 0 read is read-only.
+
+## Repo-Scoped Filtering (target_repo)
+
+Both Phase 0 and `--spawn-next` filter next-work entries by `target_repo`:
+
+| `target_repo` value | Behavior |
+|---------------------|----------|
+| Matches current repo | Included |
+| `"*"` (wildcard) | Included — applies to any repo |
+| Absent / null | Included — backward compatible with pre-v1.2 entries |
+| Different repo name | Skipped — intended for a different rig |
+
+The current repo name is resolved as: `basename $(git remote get-url origin 2>/dev/null)` with `.git` suffix stripped, falling back to `basename "$PWD"` when no remote is configured.
+
+This prevents cross-repo pollution when `.agents/rpi/next-work.jsonl` is shared or synced across rigs.

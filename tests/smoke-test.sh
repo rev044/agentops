@@ -189,6 +189,13 @@ if [[ -f "$NEXTWORK_FILE" ]]; then
                 fail "next-work.jsonl line $line_num: missing required fields"
                 ((nw_errors++)) || true
             fi
+            # Validate optional target_repo is a string when present
+            if echo "$line" | jq -e 'has("target_repo")' >/dev/null 2>&1; then
+                if ! echo "$line" | jq -e '(.target_repo | type) == "string"' >/dev/null 2>&1; then
+                    fail "next-work.jsonl line $line_num: target_repo must be a string"
+                    ((nw_errors++)) || true
+                fi
+            fi
         done < "$NEXTWORK_FILE"
         if [[ $nw_errors -eq 0 ]]; then
             pass "next-work.jsonl: all $line_num entries have valid schema"

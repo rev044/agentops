@@ -298,9 +298,9 @@ Scan the council report and retro for actionable follow-up items:
 ```markdown
 ## Next Work
 
-| # | Title | Type | Severity | Source |
-|---|-------|------|----------|--------|
-| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern |
+| # | Title | Type | Severity | Source | Target Repo |
+|---|-------|------|----------|--------|-------------|
+| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
 ```
 
 4. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the schema contract (`.agents/rpi/next-work.schema.md`):
@@ -313,10 +313,17 @@ validate_next_work_item() {
   local severity=$(echo "$item" | jq -r '.severity // empty')
   local source=$(echo "$item" | jq -r '.source // empty')
   local description=$(echo "$item" | jq -r '.description // empty')
+  local target_repo=$(echo "$item" | jq -r '.target_repo // empty')
 
   # Required fields
   if [ -z "$title" ] || [ -z "$description" ]; then
     echo "SCHEMA VALIDATION FAILED: missing title or description for item"
+    return 1
+  fi
+
+  # target_repo required (v1.2)
+  if [ -z "$target_repo" ]; then
+    echo "SCHEMA VALIDATION FAILED: missing target_repo for item '$title'"
     return 1
   fi
 
@@ -359,9 +366,27 @@ echo "Schema validation: ${#VALID_ITEMS[@]}/$((${#VALID_ITEMS[@]} + INVALID_COUN
 ```bash
 mkdir -p .agents/rpi
 
-# Append one entry per epic (schema: .agents/rpi/next-work.schema.md)
+# Resolve current repo name for target_repo default
+CURRENT_REPO=$(bd config --get prefix 2>/dev/null \
+  || basename "$(git remote get-url origin 2>/dev/null)" .git 2>/dev/null \
+  || basename "$(pwd)")
+
+# Assign target_repo to each validated item (v1.2):
+#   process-improvement → "*" (applies across all repos)
+#   all other types     → CURRENT_REPO (scoped to this repo)
+for i in "${!VALID_ITEMS[@]}"; do
+  item="${VALID_ITEMS[$i]}"
+  item_type=$(echo "$item" | jq -r '.type')
+  if [ "$item_type" = "process-improvement" ]; then
+    VALID_ITEMS[$i]=$(echo "$item" | jq -c '.target_repo = "*"')
+  else
+    VALID_ITEMS[$i]=$(echo "$item" | jq -c --arg repo "$CURRENT_REPO" '.target_repo = $repo')
+  fi
+done
+
+# Append one entry per epic (schema v1.2: .agents/rpi/next-work.schema.md)
 # Only include VALID_ITEMS that passed schema validation
-# Each item: {title, type, severity, source, description, evidence}
+# Each item: {title, type, severity, source, description, evidence, target_repo}
 # Entry fields: source_epic, timestamp, items[], consumed: false
 ```
 

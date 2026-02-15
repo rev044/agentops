@@ -21,7 +21,8 @@ Cycle 1: /rpi fixes test-pass-rate
   → post-mortem harvests: "add missing smoke test for /evolve" → next-work.jsonl
 
 Cycle 2: all GOALS.yaml goals pass
-  → /evolve reads next-work.jsonl → picks "add missing smoke test"
+  → /evolve reads next-work.jsonl (filtered to current repo + cross-repo '*')
+  → picks "add missing smoke test"
   → /rpi fixes it → post-mortem harvests: "update SKILL-TIERS count"
 
 Cycle 3: reads next-work.jsonl → picks "update SKILL-TIERS count" → ...

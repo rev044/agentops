@@ -8,7 +8,7 @@ import (
 )
 
 func TestReadUnconsumedItems_NoFile(t *testing.T) {
-	items, err := readUnconsumedItems("/nonexistent/path/next-work.jsonl")
+	items, err := readUnconsumedItems("/nonexistent/path/next-work.jsonl", "")
 	if err != nil {
 		t.Fatalf("expected nil error for missing file, got: %v", err)
 	}
@@ -24,7 +24,7 @@ func TestReadUnconsumedItems_EmptyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	items, err := readUnconsumedItems(path)
+	items, err := readUnconsumedItems(path, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestReadUnconsumedItems_ConsumedOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	items, err := readUnconsumedItems(path)
+	items, err := readUnconsumedItems(path, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestReadUnconsumedItems_UnconsumedWithItems(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	items, err := readUnconsumedItems(path)
+	items, err := readUnconsumedItems(path, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestReadUnconsumedItems_EmptyItemsArray(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	items, err := readUnconsumedItems(path)
+	items, err := readUnconsumedItems(path, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestReadUnconsumedItems_MultipleEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	items, err := readUnconsumedItems(path)
+	items, err := readUnconsumedItems(path, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestReadUnconsumedItems_MalformedLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	items, err := readUnconsumedItems(path)
+	items, err := readUnconsumedItems(path, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -250,5 +250,151 @@ func TestReadUnconsumedItems_MalformedLines(t *testing.T) {
 	}
 	if items[0].Title != "Valid" {
 		t.Errorf("expected 'Valid', got %q", items[0].Title)
+	}
+}
+
+func TestReadUnconsumedItems_RepoFilter_Match(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "ag-repo",
+		Timestamp:  "2026-02-10T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "For agentops", Severity: "high", TargetRepo: "agentops"},
+			{Title: "For olympus", Severity: "medium", TargetRepo: "olympus"},
+		},
+		Consumed: false,
+	}
+	data, _ := json.Marshal(entry)
+	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := readUnconsumedItems(path, "agentops")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item matching repo filter, got %d", len(items))
+	}
+	if items[0].Title != "For agentops" {
+		t.Errorf("expected 'For agentops', got %q", items[0].Title)
+	}
+}
+
+func TestReadUnconsumedItems_RepoFilter_Exclude(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "ag-repo",
+		Timestamp:  "2026-02-10T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "For olympus only", Severity: "high", TargetRepo: "olympus"},
+		},
+		Consumed: false,
+	}
+	data, _ := json.Marshal(entry)
+	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := readUnconsumedItems(path, "agentops")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("expected 0 items (filtered out), got %d", len(items))
+	}
+}
+
+func TestReadUnconsumedItems_RepoFilter_Wildcard(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "ag-repo",
+		Timestamp:  "2026-02-10T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "For all repos", Severity: "high", TargetRepo: "*"},
+			{Title: "For olympus", Severity: "low", TargetRepo: "olympus"},
+		},
+		Consumed: false,
+	}
+	data, _ := json.Marshal(entry)
+	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := readUnconsumedItems(path, "agentops")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item (wildcard passes, olympus excluded), got %d", len(items))
+	}
+	if items[0].Title != "For all repos" {
+		t.Errorf("expected 'For all repos', got %q", items[0].Title)
+	}
+}
+
+func TestReadUnconsumedItems_RepoFilter_Legacy(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	// Legacy items have no target_repo field (empty string after deserialization)
+	entry := nextWorkEntry{
+		SourceEpic: "ag-legacy",
+		Timestamp:  "2026-02-10T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "Legacy item", Severity: "medium"},
+		},
+		Consumed: false,
+	}
+	data, _ := json.Marshal(entry)
+	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Legacy items (no target_repo) should pass any filter
+	items, err := readUnconsumedItems(path, "agentops")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item (legacy passes all filters), got %d", len(items))
+	}
+	if items[0].Title != "Legacy item" {
+		t.Errorf("expected 'Legacy item', got %q", items[0].Title)
+	}
+}
+
+func TestReadUnconsumedItems_RepoFilter_EmptyFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "ag-repo",
+		Timestamp:  "2026-02-10T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "For agentops", Severity: "high", TargetRepo: "agentops"},
+			{Title: "For olympus", Severity: "medium", TargetRepo: "olympus"},
+			{Title: "Legacy", Severity: "low"},
+		},
+		Consumed: false,
+	}
+	data, _ := json.Marshal(entry)
+	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Empty filter means no filtering - all items pass
+	items, err := readUnconsumedItems(path, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected 3 items (no filter), got %d", len(items))
 	}
 }

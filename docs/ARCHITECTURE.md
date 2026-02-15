@@ -96,6 +96,8 @@ Every `/post-mortem` feeds back into the next `/rpi` cycle:
 2. `/retro` extracts learnings → `.agents/learnings/`
 3. Process improvement proposals synthesized from retro findings
 4. Next-work items harvested → `.agents/rpi/next-work.jsonl`
+   - Each item includes a `target_repo` field: repo name (string) for repo-scoped work, `"*"` for cross-repo items, or omitted for legacy backward compatibility
+   - Consumers filter items by matching `target_repo` against the current repo
 5. **Suggested `/rpi` command presented** — ready to copy-paste
 
 ```

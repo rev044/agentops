@@ -90,11 +90,17 @@ If input looks like an epic-id (matches `ag-*` or similar bead prefix pattern), 
 ```bash
 if [ -f .agents/rpi/next-work.jsonl ]; then
   # Read unconsumed entries (consumed: false)
+  # Filter by target_repo: include entries where target_repo matches
+  # the current repo name OR target_repo is "*" (wildcard).
+  # Skip entries whose target_repo names a different repo.
+  # Entries with no target_repo field are treated as matching (backward compat).
+  # Current repo is derived from: basename of git remote origin URL, or
+  # failing that, basename of the working directory.
   # Schema: .agents/rpi/next-work.schema.md
 fi
 ```
 
-If unconsumed entries exist in `.agents/rpi/next-work.jsonl`:
+If unconsumed, repo-matched entries exist in `.agents/rpi/next-work.jsonl`:
 - In `--auto` mode: use the highest-severity item's title as the goal (no user prompt)
 - In `--interactive` mode: present items via AskUserQuestion and let user choose or provide custom goal
 - If goal was already provided by the user, ignore next-work.jsonl (explicit goal takes precedence)

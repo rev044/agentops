@@ -145,7 +145,17 @@ failing_goals = [g for g in goals if g.result == "fail"]
 if not failing_goals:
   # All goals pass — check harvested work from prior /rpi cycles
   if [ -f .agents/rpi/next-work.jsonl ]; then
-    items = read_unconsumed(next-work.jsonl)  # entries with consumed: false
+    # Detect current repo for filtering
+    CURRENT_REPO=$(bd config --get prefix 2>/dev/null \
+      || basename "$(git remote get-url origin 2>/dev/null)" .git 2>/dev/null \
+      || basename "$(pwd)")
+
+    all_items = read_unconsumed(next-work.jsonl)  # entries with consumed: false
+    # Filter by target_repo: include items where target_repo matches
+    # CURRENT_REPO, target_repo is "*" (cross-repo), or field is absent (backward compat).
+    # Skip items whose target_repo names a different repo.
+    items = [i for i in all_items
+             if i.target_repo in (CURRENT_REPO, "*", None)]
     if items:
       evolve_state.idle_streak = 0  # reset — we found work
       selected_item = max(items, by=severity)  # highest severity first
@@ -199,9 +209,11 @@ log "Dry run: would work on '{selected.id}' (weight: {selected.weight})"
 log "Description: {selected.description}"
 log "Check command: {selected.check}"
 
-# Also show queued harvested work
+# Also show queued harvested work (filtered to current repo)
 if [ -f .agents/rpi/next-work.jsonl ]; then
-  items = read_unconsumed(next-work.jsonl)
+  all_items = read_unconsumed(next-work.jsonl)
+  items = [i for i in all_items
+           if i.target_repo in (CURRENT_REPO, "*", None)]
   if items:
     log "Harvested work queue ({len(items)} items):"
     for item in items:

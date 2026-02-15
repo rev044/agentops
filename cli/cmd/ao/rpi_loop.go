@@ -63,6 +63,7 @@ type nextWorkItem struct {
 	Source      string `json:"source"`
 	Description string `json:"description"`
 	Evidence    string `json:"evidence,omitempty"`
+	TargetRepo  string `json:"target_repo,omitempty"`
 }
 
 func runRPILoop(cmd *cobra.Command, args []string) error {
@@ -99,7 +100,7 @@ func runRPILoop(cmd *cobra.Command, args []string) error {
 		goal := explicitGoal
 		if goal == "" {
 			// Read queue for unconsumed items
-			items, err := readUnconsumedItems(nextWorkPath)
+			items, err := readUnconsumedItems(nextWorkPath, "")
 			if err != nil {
 				VerbosePrintf("Warning: %v\n", err)
 			}
@@ -153,8 +154,10 @@ func runRPILoop(cmd *cobra.Command, args []string) error {
 }
 
 // readUnconsumedItems reads next-work.jsonl and returns all unconsumed items
-// across all entries, flattened.
-func readUnconsumedItems(path string) ([]nextWorkItem, error) {
+// across all entries, flattened. When repoFilter is non-empty, items with a
+// non-empty TargetRepo that is neither "*" nor equal to repoFilter are skipped.
+// Items without a TargetRepo (legacy) or with TargetRepo=="*" always pass.
+func readUnconsumedItems(path string, repoFilter string) ([]nextWorkItem, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -182,7 +185,12 @@ func readUnconsumedItems(path string) ([]nextWorkItem, error) {
 		}
 
 		if !entry.Consumed && len(entry.Items) > 0 {
-			items = append(items, entry.Items...)
+			for _, item := range entry.Items {
+				if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
+					continue
+				}
+				items = append(items, item)
+			}
 		}
 	}
 
