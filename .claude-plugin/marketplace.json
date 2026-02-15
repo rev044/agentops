@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "Your coding agent gets smarter every time you use it — 34 skills with Knowledge Flywheel",
-    "version": "2.7.0"
+    "version": "2.7.1"
   },
   "plugins": [
     {
       "name": "agentops",
       "description": "Your coding agent gets smarter every time you use it. 34 skills (24 user-facing, 10 internal) — validation, parallel execution, and knowledge that compounds.",
-      "version": "2.7.0",
+      "version": "2.7.1",
       "source": "./",
       "author": {
         "name": "Boden Fuller",

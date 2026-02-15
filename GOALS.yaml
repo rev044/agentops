@@ -208,6 +208,12 @@ goals:
     check: "cd cli && go test -cover ./... 2>&1 | grep '^ok' | sed -n 's/.*coverage: \\([0-9.]*\\)%.*/\\1/p' | awk '{s+=$1;n++} END{if(n>0 && s/n>=80) exit 0; else exit 1}'"
     weight: 2
 
+  - id: rpi-phased-context-discipline
+    description: "ao rpi phased includes context discipline and handoff instructions in every phase prompt"
+    check: "grep -q 'CONTEXT DISCIPLINE' cli/cmd/ao/rpi_phased.go && grep -q 'handoff' cli/cmd/ao/rpi_phased.go && grep -q 'phaseContextBudgets' cli/cmd/ao/rpi_phased.go"
+    weight: 3
+    pillar: zero-friction-workflow
+
   - id: rpi-context-window-contract
     description: "RPI large-repo context sharding contract is healthy and runnable."
     check: "./scripts/rpi/context-window-contract.sh"

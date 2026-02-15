@@ -514,43 +514,17 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 
 **User says:** `/crank --test-first ag-xj9`
 
-**What happens:**
-1. Agent classifies issues by type (feature/bug/task = spec-eligible, chore/epic/docs = skip)
-2. SPEC WAVE: Workers generate contracts (`.agents/specs/contract-<id>.md`) from issue descriptions
-3. Team lead commits specs after validation
-4. TEST WAVE: Workers generate failing tests from contracts (no implementation code access)
-5. RED Gate: Team lead runs test suite — all new tests must FAIL before proceeding
-6. Team lead commits test harness after RED Gate passes
-7. GREEN IMPL WAVES: Workers make tests pass (immutable tests, contract + failing tests as input)
-8. Final vibe + knowledge extraction
-
-**Result:** Spec → Failing Tests → Passing Implementation with built-in quality gates.
+Runs: classify issues → SPEC WAVE (contracts) → TEST WAVE (failing tests, no impl access) → RED Gate (tests must fail) → GREEN IMPL WAVES (make tests pass) → final vibe. See `skills/crank/references/test-first-mode.md`.
 
 ### Recovery from Blocked State
 
-**User says:** `/crank ag-oke` (epic with circular dependencies)
-
-**What happens:**
-1. Wave 1: Agent finds 5 ready issues, executes via swarm
-2. Wave 2: Agent finds 0 ready issues (all blocked by each other)
-3. Agent checks wave counter: 2/50
-4. Agent outputs `<promise>BLOCKED</promise>` with reason: "Circular dependencies detected"
-5. Agent lists remaining issues with blocking chains
-
-**Result:** Clean exit with diagnostic info, prevents infinite loop.
+If all remaining issues are blocked (e.g., circular dependencies), crank outputs `<promise>BLOCKED</promise>` with the blocking chains and exits cleanly. See `skills/crank/references/failure-recovery.md`.
 
 ---
 
 ## Troubleshooting
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| "No ready issues found for this epic" | Epic has no child issues or all blocked | Run `/plan <epic-id>` first to decompose epic into issues. Check dependencies with `bd show <id>`. |
-| "Global wave limit (50) reached" | Excessive retries or circular dependencies | Review failed waves in `.agents/crank/wave-N-checkpoint.json`. Fix blocking issues manually or break circular deps with `bd dep remove`. |
-| Wave vibe gate fails repeatedly | Workers producing non-conforming code | Check `.agents/council/YYYY-MM-DD-vibe-wave-N.md` for specific findings. Add cross-cutting constraints to task metadata or refine worker prompts. |
-| Workers report completion but files missing | Permission errors or workers writing to wrong paths | Check `.agents/swarm/<team>/worker-N-output.json` for file paths. Verify write permissions with `ls -ld`. |
-| RED Gate passes (tests don't fail) | Test wave workers wrote implementation code | Re-run TEST WAVE with explicit "no implementation code access" in worker prompts. Tests must fail before GREEN waves start. |
-| TaskList mode can't find epic ID | bd CLI required for beads epic tracking | Provide plan file path (`.md`) or task description string instead of epic ID. Or install bd CLI with `brew install bd`. |
+See `skills/crank/references/troubleshooting.md` for common issues and solutions.
 
 ---
 
