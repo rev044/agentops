@@ -8,13 +8,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 HOOKS_DIR="$REPO_ROOT/hooks"
+
+# Source shared colors and helpers
+source "${SCRIPT_DIR}/../lib/colors.sh"
+
 PASS=0
 FAIL=0
 
-red() { printf '\033[0;31m%s\033[0m\n' "$1"; }
-green() { printf '\033[0;32m%s\033[0m\n' "$1"; }
-yellow() { printf '\033[0;33m%s\033[0m\n' "$1"; }
-
+# Override pass() and fail() to increment local counters
 pass() {
     green "  PASS: $1"
     PASS=$((PASS + 1))
@@ -50,6 +51,7 @@ mkdir -p "$TMPDIR/.agents/council"
 mkdir -p "$TMPDIR/.agents/knowledge/pending"
 mkdir -p "$TMPDIR/.agents/ao"
 mkdir -p "$TMPDIR/lib"
+mkdir -p "$TMPDIR/skills/standards/references"
 
 # Create sample learning file
 cat > "$TMPDIR/.agents/learnings/2026-02-10-ag-test.md" <<'EOF'
@@ -88,10 +90,31 @@ cat > "$TMPDIR/CLAUDE.md" <<'EOF'
 Test project for hook chain integration testing.
 EOF
 
+# Create minimal Python standards fixture
+cat > "$TMPDIR/skills/standards/references/python.md" <<'EOF'
+# Python Coding Standards
+
+## Test Fixture
+
+This is a minimal Python standards file for testing standards-injector.sh.
+
+## Guidelines
+
+- Use type hints
+- Follow PEP 8
+- Write docstrings
+EOF
+
 # Copy hook-helpers.sh (session-start.sh might need it)
 if [ -f "$REPO_ROOT/lib/hook-helpers.sh" ]; then
     cp "$REPO_ROOT/lib/hook-helpers.sh" "$TMPDIR/lib/"
 fi
+
+# Copy hooks directory to temp location so standards-injector can find fixture
+mkdir -p "$TMPDIR/hooks"
+cp -r "$HOOKS_DIR"/* "$TMPDIR/hooks/"
+# Update HOOKS_DIR to point to temp location
+HOOKS_DIR="$TMPDIR/hooks"
 
 # Initialize git repo (hooks use git rev-parse)
 cd "$TMPDIR"
@@ -272,8 +295,8 @@ echo ""
 echo "=== Test 7: standards-injector.sh output validation ==="
 # ============================================================
 
-# Check if standards file exists for Python
-PYTHON_STANDARDS="$REPO_ROOT/skills/standards/references/python.md"
+# Check if standards fixture exists for Python
+PYTHON_STANDARDS="$TMPDIR/skills/standards/references/python.md"
 if [ -f "$PYTHON_STANDARDS" ]; then
     # Should produce output for .py file
     if [ -n "$STANDARDS_OUTPUT" ]; then

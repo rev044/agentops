@@ -262,6 +262,15 @@ ${handoff_content}
     fi
 fi
 
+# Prune check (dry-run only — warns but never deletes)
+if [ "${AGENTOPS_HOOKS_DISABLED:-}" != "1" ] && [ -x "$PLUGIN_ROOT/scripts/prune-agents.sh" ]; then
+    FCOUNT=$(find "$ROOT/.agents" -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${FCOUNT:-0}" -gt 500 ]; then
+        "$PLUGIN_ROOT/scripts/prune-agents.sh" > "$AO_DIR/prune-dry-run.log" 2>&1 || true
+        echo "⚠️ .agents/ has $FCOUNT files. Prune preview: $AO_DIR/prune-dry-run.log" >&2
+    fi
+fi
+
 # Detect and read AGENTS.md if present (competitor adoption: AGENTS.md standard)
 agents_md_content=""
 if [[ -f "$ROOT/AGENTS.md" ]]; then

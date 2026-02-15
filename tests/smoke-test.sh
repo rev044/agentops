@@ -9,17 +9,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VERBOSE="${1:-}"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Source shared colors and helpers
+source "${SCRIPT_DIR}/lib/colors.sh"
 
 errors=0
 warnings=0
 
-log() { echo -e "${BLUE}[TEST]${NC} $1"; }
-pass() { echo -e "${GREEN}  ✓${NC} $1"; }
+# Override fail() and warn() to increment local counters
 fail() { echo -e "${RED}  ✗${NC} $1"; ((errors++)) || true; }
 warn() { echo -e "${YELLOW}  ⚠${NC} $1"; ((warnings++)) || true; }
 

@@ -199,6 +199,11 @@ func searchFiles(query string, dir string, limit int) ([]searchResult, error) {
 		}
 	}
 
+	// Enforce combined result limit after deduplication
+	if limit > 0 && len(unique) > limit {
+		unique = unique[:limit]
+	}
+
 	return unique, nil
 }
 

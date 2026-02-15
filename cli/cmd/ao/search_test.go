@@ -453,3 +453,72 @@ func TestParseGrepResults(t *testing.T) {
 		})
 	}
 }
+
+func TestSearchFilesCombinedLimitEnforcement(t *testing.T) {
+	tmp := t.TempDir()
+	sessDir := filepath.Join(tmp, "sessions")
+	if err := os.MkdirAll(sessDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create multiple markdown files
+	for i := 1; i <= 5; i++ {
+		content := "test content with searchable term\n"
+		path := filepath.Join(sessDir, "session-"+string(rune('a'+i-1))+".md")
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create multiple JSONL files
+	for i := 1; i <= 5; i++ {
+		data := map[string]interface{}{
+			"id":      "L" + string(rune('0'+i)),
+			"summary": "searchable term in JSONL content",
+		}
+		line, _ := json.Marshal(data)
+		path := filepath.Join(sessDir, "learning-"+string(rune('a'+i-1))+".jsonl")
+		if err := os.WriteFile(path, line, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("enforces combined limit after dedup", func(t *testing.T) {
+		limit := 3
+		results, err := searchFiles("searchable", sessDir, limit)
+		if err != nil {
+			t.Fatalf("searchFiles() error: %v", err)
+		}
+
+		// Total files: 5 md + 5 jsonl = 10 unique results
+		// After dedup, should be exactly the limit (3)
+		if len(results) > limit {
+			t.Errorf("searchFiles() returned %d results, want at most %d", len(results), limit)
+		}
+	})
+
+	t.Run("no limit enforcement when limit is 0", func(t *testing.T) {
+		results, err := searchFiles("searchable", sessDir, 0)
+		if err != nil {
+			t.Fatalf("searchFiles() error: %v", err)
+		}
+
+		// Should return all unique results without limit
+		if len(results) == 0 {
+			t.Error("expected results when limit=0, got none")
+		}
+	})
+
+	t.Run("limit larger than results", func(t *testing.T) {
+		limit := 100
+		results, err := searchFiles("searchable", sessDir, limit)
+		if err != nil {
+			t.Fatalf("searchFiles() error: %v", err)
+		}
+
+		// Should return all available results (10)
+		if len(results) > limit {
+			t.Errorf("searchFiles() returned %d results, want at most %d", len(results), limit)
+		}
+	})
+}

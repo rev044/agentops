@@ -7,19 +7,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Source shared colors and helpers
+source "${SCRIPT_DIR}/../lib/colors.sh"
 
 errors=0
 
-log() { echo -e "${BLUE}[TEST]${NC} $1"; }
-pass() { echo -e "${GREEN}  ✓${NC} $1"; }
+# Override fail() to increment local error counter
 fail() { echo -e "${RED}  ✗${NC} $1"; ((errors++)) || true; }
-warn() { echo -e "${YELLOW}  ⚠${NC} $1"; }
 
 # Pre-flight: check for Go
 if ! command -v go &>/dev/null; then
@@ -34,20 +28,28 @@ log "Building ao CLI from source..."
 TMPDIR="${TMPDIR:-/tmp}"
 TMPBIN="$TMPDIR/ao-test-$$"
 TMPDIR_TEST="$TMPDIR/ao-test-dir-$$"
+CACHE_BIN="${TMPDIR}/ao-test-cached"
 
-# Trap cleanup
+# Trap cleanup (preserve cache, clean per-run artifacts)
 cleanup() {
     [[ -f "$TMPBIN" ]] && rm -f "$TMPBIN"
     [[ -d "$TMPDIR_TEST" ]] && rm -rf "$TMPDIR_TEST"
 }
 trap cleanup EXIT
 
-if (cd "$REPO_ROOT/cli" && go build -o "$TMPBIN" ./cmd/ao 2>/dev/null); then
-    pass "Built ao CLI successfully"
+# Check cache: if binary exists and no .go files are newer, use it
+if [[ -f "$CACHE_BIN" ]] && [[ -z "$(find "$REPO_ROOT/cli" -name '*.go' -newer "$CACHE_BIN" | head -1)" ]]; then
+    /bin/cp "$CACHE_BIN" "$TMPBIN"
+    pass "Using cached binary (source unchanged)"
 else
-    fail "go build failed"
-    echo -e "${RED}FAILED${NC} - Build failed"
-    exit 1
+    if (cd "$REPO_ROOT/cli" && go build -o "$TMPBIN" ./cmd/ao 2>/dev/null); then
+        /bin/cp "$TMPBIN" "$CACHE_BIN"
+        pass "Built ao CLI successfully (cache updated)"
+    else
+        fail "go build failed"
+        echo -e "${RED}FAILED${NC} - Build failed"
+        exit 1
+    fi
 fi
 
 # Set up minimal .agents/ directory for commands that need it

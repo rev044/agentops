@@ -13,19 +13,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Source shared colors and helpers
+source "${SCRIPT_DIR}/lib/colors.sh"
 
 TIER="${1:-}"
 total_passed=0
 total_failed=0
 total_skipped=0
 
-log() { echo -e "${BLUE}[TEST]${NC} $1"; }
+# Override helpers to increment local counters
 pass() { echo -e "${GREEN}  ✓${NC} $1"; ((total_passed++)) || true; }
 fail() { echo -e "${RED}  ✗${NC} $1"; ((total_failed++)) || true; }
 skip() { echo -e "${YELLOW}  ⊘${NC} $1 (skipped)"; ((total_skipped++)) || true; }
