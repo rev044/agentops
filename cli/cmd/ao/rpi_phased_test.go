@@ -340,7 +340,7 @@ func TestFindLatestCouncilReport(t *testing.T) {
 	}
 
 	// Should find the latest pre-mortem report
-	report, err := findLatestCouncilReport(tmpDir, "pre-mortem", time.Time{})
+	report, err := findLatestCouncilReport(tmpDir, "pre-mortem", time.Time{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -349,7 +349,7 @@ func TestFindLatestCouncilReport(t *testing.T) {
 	}
 
 	// Should find vibe report
-	report, err = findLatestCouncilReport(tmpDir, "vibe", time.Time{})
+	report, err = findLatestCouncilReport(tmpDir, "vibe", time.Time{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -358,7 +358,7 @@ func TestFindLatestCouncilReport(t *testing.T) {
 	}
 
 	// Should error on missing pattern
-	_, err = findLatestCouncilReport(tmpDir, "nonexistent", time.Time{})
+	_, err = findLatestCouncilReport(tmpDir, "nonexistent", time.Time{}, "")
 	if err == nil {
 		t.Error("expected error for missing pattern")
 	}
@@ -394,7 +394,7 @@ func TestFindLatestCouncilReport(t *testing.T) {
 
 		// notBefore between old and new
 		cutoff := time.Date(2026, 2, 12, 0, 0, 0, 0, time.UTC)
-		report, err := findLatestCouncilReport(dir, "pre-mortem", cutoff)
+		report, err := findLatestCouncilReport(dir, "pre-mortem", cutoff, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -404,11 +404,59 @@ func TestFindLatestCouncilReport(t *testing.T) {
 
 		// notBefore after both files should return error
 		future := time.Date(2026, 2, 20, 0, 0, 0, 0, time.UTC)
-		_, err = findLatestCouncilReport(dir, "pre-mortem", future)
+		_, err = findLatestCouncilReport(dir, "pre-mortem", future, "")
 		if err == nil {
 			t.Error("expected error when all files are before notBefore")
 		}
 	})
+}
+
+func TestFindLatestCouncilReport_EpicScoped(t *testing.T) {
+	tmpDir := t.TempDir()
+	councilDir := filepath.Join(tmpDir, ".agents", "council")
+	if err := os.MkdirAll(councilDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create two reports: one with epicID in the name (older timestamp),
+	// one without (newer timestamp).
+	epicReport := filepath.Join(councilDir, "2026-02-13-pre-mortem-ag-abc1.md")
+	genericReport := filepath.Join(councilDir, "2026-02-14-pre-mortem-other.md")
+
+	if err := os.WriteFile(epicReport, []byte("## Council Verdict: FAIL\nepic-scoped"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(genericReport, []byte("## Council Verdict: PASS\ngeneric"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// With epicID provided, should select the epic-scoped report even though
+	// the generic one sorts later (newer date in filename).
+	report, err := findLatestCouncilReport(tmpDir, "pre-mortem", time.Time{}, "ag-abc1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !containsStr(report, "ag-abc1") {
+		t.Errorf("expected epic-scoped report, got: %s", report)
+	}
+
+	// With empty epicID, should fall back to the latest overall (generic).
+	report, err = findLatestCouncilReport(tmpDir, "pre-mortem", time.Time{}, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !containsStr(report, "2026-02-14-pre-mortem-other") {
+		t.Errorf("expected latest generic report, got: %s", report)
+	}
+
+	// With a non-matching epicID, should fall back to all matches.
+	report, err = findLatestCouncilReport(tmpDir, "pre-mortem", time.Time{}, "ag-zzz9")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !containsStr(report, "2026-02-14-pre-mortem-other") {
+		t.Errorf("expected fallback to latest report, got: %s", report)
+	}
 }
 
 func TestParseFastPath(t *testing.T) {

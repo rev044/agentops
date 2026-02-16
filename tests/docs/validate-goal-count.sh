@@ -27,7 +27,7 @@ if [[ "$actual_count" -ne "$readme_claim" ]]; then
 fi
 
 # Also check GOALS.yaml count comment if present
-yaml_claim=$(grep -oE '^# [0-9]+ goals:' "$REPO_ROOT/GOALS.yaml" | head -1 | grep -oE '[0-9]+')
+yaml_claim=$(grep -oE '^# [0-9]+ goals:' "$REPO_ROOT/GOALS.yaml" | head -1 | grep -oE '[0-9]+' || echo "")
 if [[ -n "$yaml_claim" ]]; then
     echo "  GOALS.yaml comment: $yaml_claim"
     if [[ "$actual_count" -ne "$yaml_claim" ]]; then

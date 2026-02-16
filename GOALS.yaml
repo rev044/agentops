@@ -7,10 +7,15 @@ pillars:
   - validated-acceleration
   - goal-driven-automation
   - zero-friction-workflow
-# 44 goals: 19 pillar + 25 infrastructure
+
+# Total: 45 goals (24 pillar + 21 infrastructure)
 
 goals:
-  # === Pillar: Knowledge Compounding (weight 4-5) ===
+  # ============================================================================
+  # PILLAR GOALS (24 total)
+  # ============================================================================
+
+  # === Pillar: Knowledge Compounding (6 goals, weight 3-5) ===
 
   - id: readme-compounding-hero
     description: "README hero tagline is 'Your coding agent gets smarter every time you use it'"
@@ -30,6 +35,12 @@ goals:
     weight: 3
     pillar: knowledge-compounding
 
+  - id: no-stale-framing
+    description: "No stale factor names in docs, README, CONTRIBUTING, or SVG assets (factors must use 'Factor X: Name → Purpose' format)"
+    check: "bash -c \"find README.md CONTRIBUTING.md docs/ docs/assets/ -type f \\( -name '*.md' -o -name '*.svg' \\) 2>/dev/null | xargs grep -l 'Factor [IVX]\\+:' 2>/dev/null | xargs grep 'Factor [IVX]\\+:' 2>/dev/null | grep -v '→' | wc -l | tr -d ' ' | xargs test 0 -eq\""
+    weight: 3
+    pillar: knowledge-compounding
+
   - id: positioning-no-vibe-coding-primary
     description: "Positioning doc does not use 'DevOps for Vibe-Coding' as primary tagline"
     check: "head -15 docs/positioning/devops-for-vibe-coding.md | grep -c 'Primary.*DevOps for Vibe-Coding' | xargs test 0 -eq"
@@ -42,7 +53,7 @@ goals:
     weight: 5
     pillar: knowledge-compounding
 
-  # === Pillar: Validated Acceleration (weight 3-4) ===
+  # === Pillar: Validated Acceleration (5 goals, weight 3-4) ===
 
   - id: status-skill-shows-health
     description: "/status skill references knowledge health or flywheel metrics"
@@ -68,7 +79,7 @@ goals:
     weight: 3
     pillar: validated-acceleration
 
-  # === Pillar: Goal-Driven Automation (weight 3-4) ===
+  # === Pillar: Goal-Driven Automation (6 goals, weight 3-4) ===
 
   - id: evolve-dormancy-messaging
     description: "/evolve skill documents dormancy as a valid success state"
@@ -100,7 +111,7 @@ goals:
     weight: 4
     pillar: goal-driven-automation
 
-  # === Pillar: Zero-Friction Workflow (weight 3) ===
+  # === Pillar: Zero-Friction Workflow (6 goals, weight 3-4) ===
 
   - id: quickstart-under-5min
     description: "/quickstart skill promises value in under 5 minutes"
@@ -126,8 +137,11 @@ goals:
     weight: 3
     pillar: zero-friction-workflow
 
-  # === Infrastructure Goals ===
-  # === Critical (weight 5) — Build & test integrity ===
+  # ============================================================================
+  # INFRASTRUCTURE GOALS (21 total)
+  # ============================================================================
+
+  # === Critical (5 goals, weight 5) — Build & test integrity ===
 
   - id: go-cli-builds
     description: "Go CLI compiles without errors"
@@ -139,7 +153,7 @@ goals:
     check: "cd cli && go test ./... >/dev/null 2>&1"
     weight: 5
 
-  # === Important (weight 3-4) — Suite & safety ===
+  # === Important (6 goals, weight 3-4) — Suite & safety ===
 
   - id: full-test-suite
     description: "Full test suite passes (all tiers)"
@@ -171,7 +185,7 @@ goals:
     check: "cd cli && go test -race ./... >/dev/null 2>&1"
     weight: 3
 
-  # === Mission fitness (weight 2-3) — AO ownership areas ===
+  # === Mission Fitness (4 goals, weight 2-3) — AO ownership areas ===
 
   - id: knowledge-flywheel-health
     description: "Knowledge flywheel has ≥5 learnings and newest is <30 days old"
@@ -198,7 +212,7 @@ goals:
     check: "jq -e '. as $s | ($s.additionalProperties == false) and (($s.required | length) == ($s.properties | keys | length)) and ($s.properties.findings.items.additionalProperties == false) and (($s.properties.findings.items.required | length) >= 5) and (($s.properties.findings.items.properties | keys | length) <= ($s.properties.findings.items.required | length) + 3)' skills/council/schemas/verdict.json >/dev/null 2>&1"
     weight: 2
 
-  # === Hygiene (weight 1-2) — Docs & consistency ===
+  # === Hygiene (6 goals, weight 1-3) — Docs & consistency ===
 
   - id: shellcheck-clean
     description: "Hook scripts pass shellcheck with no warnings"

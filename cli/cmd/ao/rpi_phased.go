@@ -27,6 +27,7 @@ var (
 	phasedInteractive bool
 	phasedMaxRetries  int
 	phasedNoWorktree  bool
+	phasedLiveStatus  bool
 )
 
 func init() {
@@ -63,6 +64,7 @@ Examples:
 	phasedCmd.Flags().BoolVar(&phasedInteractive, "interactive", false, "Enable human gates at research and plan phases")
 	phasedCmd.Flags().IntVar(&phasedMaxRetries, "max-retries", 3, "Maximum retry attempts per gate (default: 3)")
 	phasedCmd.Flags().BoolVar(&phasedNoWorktree, "no-worktree", false, "Disable worktree isolation (run in current directory)")
+	phasedCmd.Flags().BoolVar(&phasedLiveStatus, "live-status", false, "Stream phase progress to a live-status.md file")
 
 	rpiCmd.AddCommand(phasedCmd)
 }
@@ -303,6 +305,9 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
 	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, phasedFrom))
 
+	// Register with agent mail for observability
+	registerRPIAgent(state.RunID)
+
 	// Execute phases sequentially
 	for i := startPhase; i <= 6; i++ {
 		p := phases[i-1]
@@ -313,6 +318,8 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("build prompt for phase %d: %w", i, err)
 		}
+
+		emitRPIStatus(state.RunID, p.Name, "started")
 
 		if GetDryRun() {
 			fmt.Printf("[dry-run] Would spawn: claude -p '%s'\n", prompt)
@@ -329,7 +336,15 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Spawning: claude -p '%s'\n", prompt)
 		start := time.Now()
 
-		if err := spawnClaudePhase(prompt, spawnCwd); err != nil {
+		var spawnErr error
+		if phasedLiveStatus {
+			statusPath := filepath.Join(stateDir, "live-status.md")
+			allPhases := buildAllPhases(phases)
+			spawnErr = spawnClaudePhaseWithStream(prompt, spawnCwd, state.RunID, i, statusPath, allPhases)
+		} else {
+			spawnErr = spawnClaudePhase(prompt, spawnCwd, state.RunID, i)
+		}
+		if err := spawnErr; err != nil {
 			logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("FAILED: %v", err))
 			return fmt.Errorf("phase %d (%s) failed: %w", i, p.Name, err)
 		}
@@ -337,6 +352,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		elapsed := time.Since(start).Round(time.Second)
 		fmt.Printf("Phase %d completed in %s\n", i, elapsed)
 		logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("completed in %s", elapsed))
+		emitRPIStatus(state.RunID, p.Name, "completed")
 
 		// Post-phase processing
 		if err := postPhaseProcessing(spawnCwd, state, i, logPath); err != nil {
@@ -386,6 +402,9 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Verdicts: %v\n", state.Verdicts)
 	logPhaseTransition(logPath, state.RunID, "complete", fmt.Sprintf("epic=%s verdicts=%v", state.EpicID, state.Verdicts))
 
+	// Deregister from agent mail
+	deregisterRPIAgent(state.RunID)
+
 	return nil
 }
 
@@ -423,7 +442,7 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		}
 
 	case 3: // Pre-mortem — check verdict
-		report, err := findLatestCouncilReport(cwd, "pre-mortem", time.Time{})
+		report, err := findLatestCouncilReport(cwd, "pre-mortem", time.Time{}, state.EpicID)
 		if err != nil {
 			return fmt.Errorf("pre-mortem phase: council report not found (phase may not have completed): %w", err)
 		}
@@ -453,7 +472,7 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		}
 
 	case 5: // Vibe — check verdict
-		report, err := findLatestCouncilReport(cwd, "vibe", time.Time{})
+		report, err := findLatestCouncilReport(cwd, "vibe", time.Time{}, state.EpicID)
 		if err != nil {
 			return fmt.Errorf("vibe phase: council report not found (phase may not have completed): %w", err)
 		}
@@ -512,8 +531,16 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 
 	// Spawn retry session
 	fmt.Printf("Spawning retry: claude -p '%s'\n", retryPrompt)
-	if err := spawnClaudePhase(retryPrompt, spawnCwd); err != nil {
-		return false, fmt.Errorf("retry failed: %w", err)
+	if phasedLiveStatus {
+		statusPath := filepath.Join(cwd, ".agents", "rpi", "live-status.md")
+		allPhases := buildAllPhases(phases)
+		if err := spawnClaudePhaseWithStream(retryPrompt, spawnCwd, state.RunID, phaseNum, statusPath, allPhases); err != nil {
+			return false, fmt.Errorf("retry failed: %w", err)
+		}
+	} else {
+		if err := spawnClaudePhase(retryPrompt, spawnCwd, state.RunID, phaseNum); err != nil {
+			return false, fmt.Errorf("retry failed: %w", err)
+		}
 	}
 
 	// Re-run the original phase after retry
@@ -523,8 +550,16 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 	}
 
 	fmt.Printf("Re-running phase %d after retry\n", phaseNum)
-	if err := spawnClaudePhase(rerunPrompt, spawnCwd); err != nil {
-		return false, fmt.Errorf("rerun failed: %w", err)
+	if phasedLiveStatus {
+		statusPath := filepath.Join(cwd, ".agents", "rpi", "live-status.md")
+		allPhases := buildAllPhases(phases)
+		if err := spawnClaudePhaseWithStream(rerunPrompt, spawnCwd, state.RunID, phaseNum, statusPath, allPhases); err != nil {
+			return false, fmt.Errorf("rerun failed: %w", err)
+		}
+	} else {
+		if err := spawnClaudePhase(rerunPrompt, spawnCwd, state.RunID, phaseNum); err != nil {
+			return false, fmt.Errorf("rerun failed: %w", err)
+		}
 	}
 
 	// Check gate again
@@ -722,34 +757,146 @@ const (
 )
 
 // spawnClaudePhase spawns a fresh Claude session for a single phase.
+// When ntm is available in PATH, wraps the session in a named tmux pane
+// (ao-rpi-<runID>-p<N>) for live observability via ntm attach.
+// Falls back to direct exec when ntm is unavailable.
 // Strips CLAUDECODE env var so the child session doesn't trigger the
 // nesting guard — these are independent sequential sessions, not nested.
 // cmd.Dir is set to cwd for worktree isolation. GIT_DIR/GIT_WORK_TREE are
 // NOT set — git auto-discovers the repo from the working directory.
-func spawnClaudePhase(prompt, cwd string) error {
+func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
+	// Check if ntm is available for observable sessions
+	ntmPath, ntmErr := lookPath("ntm")
+	if ntmErr == nil {
+		return spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID, phaseNum)
+	}
+	return spawnDirectFn(prompt, cwd)
+}
+
+// spawnClaudeDirectImpl runs claude -p directly (fallback when ntm unavailable).
+func spawnClaudeDirectImpl(prompt, cwd string) error {
 	cmd := exec.Command("claude", "-p", prompt)
 	cmd.Dir = cwd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	// Build clean env without CLAUDECODE to avoid nesting guard.
-	// Each phase is an independent session, not a nested one.
+	cmd.Env = cleanEnvNoClaude()
+	err := cmd.Run()
+	if err == nil {
+		return nil
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		return fmt.Errorf("claude exited with code %d: %w", exitErr.ExitCode(), err)
+	}
+	return fmt.Errorf("claude execution failed: %w", err)
+}
+
+// spawnClaudePhaseNtm wraps a claude session inside an ntm-managed tmux pane.
+// Session name: ao-rpi-<runID>-p<phaseNum>. Attach with: ntm attach <name>.
+func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int) error {
+	sessionName := fmt.Sprintf("ao-rpi-%s-p%d", runID, phaseNum)
+	fmt.Printf("ntm session: %s (attach with: ntm attach %s)\n", sessionName, sessionName)
+
+	// Spawn ntm session with one claude agent
+	spawnCmd := exec.Command(ntmPath, "spawn", sessionName, "--cc=1", "--no-user-pane", "--dir", cwd)
+	spawnCmd.Env = cleanEnvNoClaude()
+	if out, err := spawnCmd.CombinedOutput(); err != nil {
+		fmt.Printf("ntm spawn failed, falling back to direct exec: %s\n", string(out))
+		return spawnDirectFn(prompt, cwd)
+	}
+
+	// Send the prompt to the claude agent
+	sendCmd := exec.Command(ntmPath, "send", sessionName, prompt)
+	sendCmd.Env = cleanEnvNoClaude()
+	if out, err := sendCmd.CombinedOutput(); err != nil {
+		fmt.Printf("ntm send failed: %s\n", string(out))
+		// Clean up session on failure
+		_ = exec.Command(ntmPath, "kill", sessionName).Run()
+		return fmt.Errorf("ntm send failed: %w", err)
+	}
+
+	// Poll for session completion (agent exits when prompt completes)
+	for {
+		time.Sleep(5 * time.Second)
+		checkCmd := exec.Command("tmux", "has-session", "-t", sessionName)
+		if err := checkCmd.Run(); err != nil {
+			// Session gone — agent completed
+			break
+		}
+	}
+
+	// Clean up tmux session
+	_ = exec.Command(ntmPath, "kill", sessionName).Run()
+	return nil
+}
+
+// spawnClaudePhaseWithStream spawns a Claude session using --output-format stream-json
+// and feeds stdout through ParseStreamEvents for live progress tracking.
+// An onUpdate callback calls WriteLiveStatus after every parsed event so that
+// external watchers (e.g. ao status) can tail the status file.
+// Stderr is passed through to os.Stderr for real-time error visibility.
+func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress) error {
+	cmd := exec.Command("claude", "-p", prompt, "--output-format", "stream-json", "--verbose")
+	cmd.Dir = cwd
+	cmd.Stderr = os.Stderr
+	cmd.Env = cleanEnvNoClaude()
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start claude: %w", err)
+	}
+
+	// phaseIdx is 0-based for allPhases slice.
+	phaseIdx := phaseNum - 1
+
+	onUpdate := func(p PhaseProgress) {
+		if phaseIdx >= 0 && phaseIdx < len(allPhases) {
+			allPhases[phaseIdx] = p
+		}
+		if writeErr := WriteLiveStatus(statusPath, allPhases, phaseIdx); writeErr != nil {
+			VerbosePrintf("Warning: could not write live status: %v\n", writeErr)
+		}
+	}
+
+	_, parseErr := ParseStreamEvents(stdout, onUpdate)
+	waitErr := cmd.Wait()
+
+	// Prefer wait error (exit code) over parse error.
+	if waitErr != nil {
+		if exitErr, ok := waitErr.(*exec.ExitError); ok {
+			return fmt.Errorf("claude exited with code %d: %w", exitErr.ExitCode(), waitErr)
+		}
+		return fmt.Errorf("claude execution failed: %w", waitErr)
+	}
+	if parseErr != nil {
+		return fmt.Errorf("stream parse error: %w", parseErr)
+	}
+	return nil
+}
+
+// buildAllPhases constructs a []PhaseProgress with Name fields populated
+// from the global phases slice, used as the initial state for live status tracking.
+func buildAllPhases(phaseDefs []phase) []PhaseProgress {
+	all := make([]PhaseProgress, len(phaseDefs))
+	for i, p := range phaseDefs {
+		all[i] = PhaseProgress{Name: p.Name}
+	}
+	return all
+}
+
+// cleanEnvNoClaude builds a clean env without CLAUDECODE to avoid nesting guard.
+func cleanEnvNoClaude() []string {
 	var env []string
 	for _, e := range os.Environ() {
 		if !strings.HasPrefix(e, "CLAUDECODE=") {
 			env = append(env, e)
 		}
 	}
-	cmd.Env = env
-	err := cmd.Run()
-	if err == nil {
-		return nil
-	}
-	if exitErr, ok := err.(*exec.ExitError); ok {
-		code := exitErr.ExitCode()
-		return fmt.Errorf("claude exited with code %d: %w", code, err)
-	}
-	return fmt.Errorf("claude execution failed: %w", err)
+	return env
 }
 
 // --- Verdict extraction helpers ---
@@ -770,7 +917,9 @@ func extractCouncilVerdict(reportPath string) (string, error) {
 }
 
 // findLatestCouncilReport finds the most recent council report matching a pattern.
-func findLatestCouncilReport(cwd string, pattern string, notBefore time.Time) (string, error) {
+// When epicID is non-empty, reports whose filename contains the epicID are preferred.
+// If no epic-scoped report is found, all pattern-matching reports are used as fallback.
+func findLatestCouncilReport(cwd string, pattern string, notBefore time.Time, epicID string) (string, error) {
 	councilDir := filepath.Join(cwd, ".agents", "council")
 	entries, err := os.ReadDir(councilDir)
 	if err != nil {
@@ -778,6 +927,7 @@ func findLatestCouncilReport(cwd string, pattern string, notBefore time.Time) (s
 	}
 
 	var matches []string
+	var epicMatches []string
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -793,17 +943,27 @@ func findLatestCouncilReport(cwd string, pattern string, notBefore time.Time) (s
 					continue
 				}
 			}
-			matches = append(matches, filepath.Join(councilDir, name))
+			fullPath := filepath.Join(councilDir, name)
+			matches = append(matches, fullPath)
+			if epicID != "" && strings.Contains(name, epicID) {
+				epicMatches = append(epicMatches, fullPath)
+			}
 		}
 	}
 
-	if len(matches) == 0 {
+	// Prefer epic-scoped matches when available.
+	selected := matches
+	if len(epicMatches) > 0 {
+		selected = epicMatches
+	}
+
+	if len(selected) == 0 {
 		return "", fmt.Errorf("no council report matching %q found", pattern)
 	}
 
-	sort.Strings(matches)
+	sort.Strings(selected)
 
-	return matches[len(matches)-1], nil
+	return selected[len(selected)-1], nil
 }
 
 // extractCouncilFindings extracts structured findings from a council report.
@@ -1293,6 +1453,49 @@ func logPhaseTransition(logPath, runID, phase, details string) {
 	if _, err := f.WriteString(entry); err != nil {
 		VerbosePrintf("Warning: could not write log entry: %v\n", err)
 	}
+}
+
+// --- Agent mail observability ---
+
+// lookPath is the function used to resolve binary paths. Package-level for testability.
+var lookPath = exec.LookPath
+
+// spawnDirectFn is the function used to spawn claude directly. Package-level for testability.
+var spawnDirectFn = spawnClaudeDirectImpl
+
+// gtPath caches the resolved path to the gt binary, or empty string if not found.
+var gtPath string
+
+func init() {
+	gtPath, _ = lookPath("gt")
+}
+
+// registerRPIAgent registers this RPI run with agent mail for observability.
+// Fails silently if gt is not on PATH or the command errors.
+func registerRPIAgent(runID string) {
+	if gtPath == "" {
+		return
+	}
+	_ = exec.Command(gtPath, "mail", "register", "rpi-"+runID).Run() //nolint:errcheck
+}
+
+// emitRPIStatus sends a status message to mayor via agent mail.
+// Fails silently if gt is not on PATH or the command errors.
+func emitRPIStatus(runID, phaseName, status string) {
+	if gtPath == "" {
+		return
+	}
+	msg := fmt.Sprintf("rpi-%s: %s %s", runID, phaseName, status)
+	_ = exec.Command(gtPath, "mail", "send", "mayor", msg).Run() //nolint:errcheck
+}
+
+// deregisterRPIAgent deregisters this RPI run from agent mail.
+// Fails silently if gt is not on PATH or the command errors.
+func deregisterRPIAgent(runID string) {
+	if gtPath == "" {
+		return
+	}
+	_ = exec.Command(gtPath, "mail", "deregister", "rpi-"+runID).Run() //nolint:errcheck
 }
 
 // --- Phase name helpers ---

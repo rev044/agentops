@@ -47,6 +47,7 @@ ao inject 2>/dev/null || true
 Parse flags:
 - `--max-cycles=N` (default: **unlimited**) — optional hard cap. Without this flag, the loop runs **forever** until kill switch or stagnation.
 - `--dry-run` — measure and report only, no execution
+- `--skip-baseline` — skip the Step 0.5 baseline sweep
 
 **Capture session-start SHA** (for multi-commit revert):
 ```bash
@@ -65,6 +66,37 @@ evolve_state = {
   max_idle_streak: 3,     # stop after this many consecutive idle cycles
   history: []
 }
+```
+
+### Step 0.5: Cycle-0 Baseline Sweep
+
+Capture a baseline fitness snapshot before the first cycle so every later cycle
+has a comparison anchor.  Skipped on resume (idempotent).
+
+```
+if [ "$SKIP_BASELINE" = "true" ]; then
+  log "Skipping baseline sweep (--skip-baseline flag set)"
+  exit 0
+fi
+
+if ! [ -f .agents/evolve/fitness-0-baseline.json ]; then
+  baseline = MEASURE_FITNESS()            # run every GOALS.yaml goal
+  baseline.cycle = 0
+  write ".agents/evolve/fitness-0-baseline.json" baseline
+
+  # Baseline report
+  failing = [g for g in baseline.goals if g.result == "fail"]
+  failing.sort(by=weight, descending)
+  cat > .agents/evolve/cycle-0-report.md << EOF
+  # Cycle-0 Baseline
+  **Total goals:** ${len(baseline.goals)}
+  **Passing:** ${len(baseline.goals) - len(failing)}
+  **Failing:** ${len(failing)}
+  $(for g in failing: "- [weight ${g.weight}] ${g.id}: ${g.result}")
+  EOF
+
+  log "Baseline captured: ${len(failing)}/${len(baseline.goals)} goals failing"
+fi
 ```
 
 ### Step 1: Kill Switch Check
@@ -143,6 +175,34 @@ Do NOT proceed to Step 3 without a valid fitness snapshot.
 failing_goals = [g for g in goals if g.result == "fail"]
 
 if not failing_goals:
+  # Cycle-0 Comprehensive Sweep (optional full-repo scan)
+  # Before consuming harvested work, optionally discover items the harvest missed.
+  # This is because manual sweeps have found issues automated harvests didn't catch.
+
+  if ! [ -f .agents/evolve/last-sweep-date ] || \
+     [ $(date +%s) -gt $(( $(stat -f %m .agents/evolve/last-sweep-date) + 604800 )) ]; then
+    # Sweep is stale (> 7 days) or missing — run lightweight scan
+    log "Running cycle-0 comprehensive sweep (stale/missing: .agents/evolve/last-sweep-date)"
+
+    # Lightweight sweep: shellcheck, go vet, known anti-patterns
+    shellcheck hooks/*.sh 2>&1 | grep -v "^$" | while read line; do
+      add_to_next_work("shellcheck finding: $line", severity="medium", type="bug")
+    done
+
+    go vet ./cli/... 2>&1 | grep -v "^$" | while read line; do
+      add_to_next_work("go vet finding: $line", severity="medium", type="bug")
+    done
+
+    # grep for known anti-patterns (e.g., hardcoded secrets, TODO markers)
+    grep -r "TODO|FIXME|XXX" --include="*.go" --include="*.sh" . 2>/dev/null | while read line; do
+      add_to_next_work("code marker: $line", severity="low", type="tech-debt")
+    done
+
+    # Mark sweep complete
+    touch .agents/evolve/last-sweep-date
+    log "Cycle-0 sweep complete. New findings added to next-work.jsonl"
+  fi
+
   # All goals pass — check harvested work from prior /rpi cycles
   if [ -f .agents/rpi/next-work.jsonl ]; then
     # Detect current repo for filtering
@@ -318,6 +378,53 @@ if evolve_state.max_cycles != Infinity and evolve_state.cycle >= evolve_state.ma
 
 This captures learnings from the ENTIRE evolution run (all cycles, all /rpi invocations) in one council review. The post-mortem harvests follow-up items into `next-work.jsonl`, feeding the next `/evolve` session.
 
+**Compute session fitness trajectory:**
+
+```bash
+# Check if both baseline and final snapshot exist
+if [ -f .agents/evolve/fitness-0-baseline.json ] && [ -f .agents/evolve/fitness-${CYCLE}.json ]; then
+  baseline = load(".agents/evolve/fitness-0-baseline.json")
+  final = load(".agents/evolve/fitness-${CYCLE}.json")
+
+  # Compute delta — goals that flipped between baseline and final
+  improved_count = 0
+  regressed_count = 0
+  unchanged_count = 0
+  delta_rows = []
+
+  for final_goal in final.goals:
+    baseline_goal = baseline.goals.find(g => g.id == final_goal.id)
+    baseline_result = baseline_goal ? baseline_goal.result : "unknown"
+    final_result = final_goal.result
+
+    if baseline_result == "fail" and final_result == "pass":
+      delta = "improved"
+      improved_count += 1
+    elif baseline_result == "pass" and final_result == "fail":
+      delta = "regressed"
+      regressed_count += 1
+    else:
+      delta = "unchanged"
+      unchanged_count += 1
+
+    delta_rows.append({goal_id: final_goal.id, baseline_result, final_result, delta})
+
+  # Write session-fitness-delta.md with trajectory table
+  cat > .agents/evolve/session-fitness-delta.md << EOF
+  # Session Fitness Trajectory
+
+  | goal_id | baseline_result | final_result | delta |
+  |---------|-----------------|--------------|-------|
+  $(for row in delta_rows: "| ${row.goal_id} | ${row.baseline_result} | ${row.final_result} | ${row.delta} |")
+
+  **Summary:** ${improved_count} improved, ${regressed_count} regressed, ${unchanged_count} unchanged
+  EOF
+
+  # Include delta summary in user-facing teardown report
+  log "Fitness trajectory: ${improved_count} improved, ${regressed_count} regressed, ${unchanged_count} unchanged"
+fi
+```
+
 **Then write session summary:**
 
 ```bash
@@ -394,6 +501,7 @@ rm .agents/evolve/STOP
 | `--max-cycles=N` | unlimited | Optional hard cap. Without this, loop runs forever. |
 | `--test-first` | off | Pass `--test-first` through to `/rpi` → `/crank` |
 | `--dry-run` | off | Measure fitness and show plan, don't execute |
+| `--skip-baseline` | off | Skip cycle-0 baseline sweep |
 
 ---
 
@@ -406,10 +514,14 @@ Read `references/goals-schema.md` for the GOALS.yaml format.
 | File | Purpose |
 |------|---------|
 | `GOALS.yaml` | Fitness goals (repo root) |
+| `.agents/evolve/fitness-0-baseline.json` | Cycle-0 baseline snapshot (comparison anchor) |
+| `.agents/evolve/cycle-0-report.md` | Baseline report (failing goals by weight) |
+| `.agents/evolve/last-sweep-date` | Timestamp of last comprehensive sweep (cycle-0 refresh gate) |
 | `.agents/evolve/fitness-{N}.json` | Pre-cycle fitness snapshot (continuous values) |
 | `.agents/evolve/fitness-{N}-post.json` | Post-cycle fitness snapshot (for regression comparison) |
 | `.agents/evolve/cycle-history.jsonl` | Cycle outcomes log (includes commit SHAs) |
 | `.agents/evolve/session-summary.md` | Session wrap-up |
+| `.agents/evolve/session-fitness-delta.md` | Session fitness trajectory (baseline to final delta) |
 | `.agents/evolve/STOP` | Local kill switch |
 | `.agents/evolve/KILLED.json` | Kill acknowledgment |
 | `~/.config/evolve/KILL` | External kill switch |

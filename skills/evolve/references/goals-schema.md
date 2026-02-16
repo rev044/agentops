@@ -54,3 +54,14 @@ Each cycle writes a fitness snapshot with **continuous values** (not just pass/f
 
 Pre-cycle snapshots: `fitness-{N}.json`
 Post-cycle snapshots: `fitness-{N}-post.json` (for full-fitness regression comparison)
+
+## Cycle-0 Baseline
+
+Before the first improvement cycle runs, the system captures a baseline fitness snapshot (`fitness-0-baseline.json`). This serves as the comparison anchor for measuring session-wide progress.
+
+The baseline includes:
+- **All goals** from GOALS.yaml, measured in their initial state
+- **Cycle-0 report** (`cycle-0-report.md`) — summary of which goals are failing and their weights
+- **No regression comparisons** — this is the starting point
+
+When the session ends (at Teardown), the system computes the **session fitness trajectory** by comparing the baseline against the final cycle snapshot. This produces `session-fitness-delta.md`, which shows which goals improved, regressed, or stayed unchanged over the entire /evolve session.

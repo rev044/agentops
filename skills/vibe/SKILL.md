@@ -132,10 +132,37 @@ Include failures in council packet as `context.metadata_failures` (MECHANICAL fi
 
 **Guard:** Only run when `.ol/config.yaml` exists AND `which ol` succeeds. Skip silently otherwise.
 
-If OL project detected: run `ol validate stage1 --quest <quest-id> --bead <bead-id> --worktree .`
-- **`passed: false`** → Auto-FAIL the vibe. Do NOT proceed to council.
-- **`passed: true`** → Include Stage1Result in council context. Proceed normally.
-- **Error/non-zero exit** → Note "SKIPPED (ol error)" in report. Proceed to council.
+**Implementation:**
+
+```bash
+# Run ol-validate.sh
+skills/vibe/scripts/ol-validate.sh
+ol_exit_code=$?
+
+case $ol_exit_code in
+  0)
+    # Passed: include the validation report in vibe output
+    echo "✅ Deterministic validation passed"
+    # Append the report section to council context and vibe report
+    ;;
+  1)
+    # Failed: abort vibe with FAIL verdict
+    echo "❌ Deterministic validation FAILED"
+    echo "VIBE FAILED — Olympus Stage1 validation did not pass"
+    exit 1
+    ;;
+  2)
+    # Skipped: note and continue
+    echo "⚠️ OL validation skipped"
+    # Continue to council
+    ;;
+esac
+```
+
+**Behavior:**
+- **Exit 0 (passed):** Include the validation report section in vibe output and council context. Proceed normally.
+- **Exit 1 (failed):** Auto-FAIL the vibe. Do NOT proceed to council.
+- **Exit 2 (skipped):** Note "OL validation skipped" in report. Proceed to council.
 
 ### Step 2.5: Codex Review (if available)
 

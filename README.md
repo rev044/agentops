@@ -318,7 +318,7 @@ Every skill, goal, and hook in AgentOps maps to one of four pillars:
 
 **Zero-Friction Workflow** — Start in 60 seconds. `/quickstart` runs a guided cycle on your actual codebase. `/implement` picks up a single issue end-to-end. `/handoff` preserves context across sessions. `/status` shows where you are and what to do next. No configuration required.
 
-These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 44 measurable goals that define what "healthy" means for the system. `/evolve` measures them all.
+These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 45 measurable goals that define what "healthy" means for the system. `/evolve` measures them all.
 
 ---
 

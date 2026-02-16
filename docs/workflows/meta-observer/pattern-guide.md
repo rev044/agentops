@@ -514,10 +514,10 @@ mcp__memory__add_observations({
 - Stigmergy Coordination (ant colonies)
 
 **Related Factors:**
-- Factor II: JIT Context Loading
-- Factor VI: Session Continuity
-- Factor VII: Intelligent Routing
-- Factor IX: Pattern Extraction
+- Factor II: Context Loading → The 40% Rule as Overload Prevention
+- Factor VI: Resume Work → Validation Continuity Across Sessions
+- Factor VII: Smart Routing → Directing Work to Appropriate Validation Paths
+- Factor IX: Mine Patterns → Learning What Passes Validation
 
 **Inspiration:**
 - Ant colony optimization

@@ -490,27 +490,10 @@ Ship it
 
 ---
 
-## Relationship to Other Skills
-
-| Skill | When | Purpose |
-|-------|------|---------|
-| `/pre-mortem` | Before implementation | Council validates plan |
-| `/vibe` | After coding | Council validates code |
-| `/post-mortem` | After shipping | Council validates + extract learnings |
-| `/retro` | Anytime | Extract learnings only |
-
----
-
-## Consolidation
-
-For conflict resolution between agent findings, follow the algorithm in `.agents/specs/conflict-resolution-algorithm.md`.
-
----
-
 ## See Also
 
 - `skills/council/SKILL.md` — Multi-model validation council
 - `skills/retro/SKILL.md` — Extract learnings
-- `skills/vibe/SKILL.md` — Council validates code
-- `skills/pre-mortem/SKILL.md` — Council validates plans
-- `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution algorithm
+- `skills/vibe/SKILL.md` — Council validates code (`/vibe` after coding)
+- `skills/pre-mortem/SKILL.md` — Council validates plans (before implementation)
+- `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution for agent findings
