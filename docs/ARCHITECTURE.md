@@ -35,6 +35,7 @@ AgentOps is a skills plugin that orchestrates context across agent windows and c
 │   ├── inbox/           # solo — Agent mail monitoring
 │   ├── release/         # solo — Pre-flight, changelog, tag
 │   ├── trace/           # solo — Trace design decisions
+│   ├── recover/         # solo — Post-compaction context recovery
 │   ├── beads/           # library — Issue tracking reference
 │   ├── standards/       # library — Coding standards
 │   ├── shared/          # library — Shared reference docs

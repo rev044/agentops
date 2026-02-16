@@ -34,6 +34,7 @@ Your coding agent gets smarter every time you use it. Automates context, validat
 │   ├── inbox/             # Agent mail monitoring
 │   ├── release/           # Pre-flight, changelog, tag
 │   ├── trace/             # Trace design decisions
+│   ├── recover/           # Post-compaction context recovery
 │   ├── beads/             # Issue tracking reference (internal)
 │   ├── standards/         # Coding standards (internal)
 │   ├── shared/            # Shared reference docs (internal)

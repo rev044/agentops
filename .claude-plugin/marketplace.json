@@ -5,13 +5,13 @@
     "email": "fullerbt@users.noreply.github.com"
   },
   "metadata": {
-    "description": "Your coding agent gets smarter every time you use it — 34 skills with Knowledge Flywheel",
+    "description": "Your coding agent gets smarter every time you use it — 35 skills with Knowledge Flywheel",
     "version": "2.8.0"
   },
   "plugins": [
     {
       "name": "agentops",
-      "description": "Your coding agent gets smarter every time you use it. 34 skills (24 user-facing, 10 internal) — validation, parallel execution, and knowledge that compounds.",
+      "description": "Your coding agent gets smarter every time you use it. 35 skills (25 user-facing, 10 internal) — validation, parallel execution, and knowledge that compounds.",
       "version": "2.8.0",
       "source": "./",
       "author": {

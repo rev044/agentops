@@ -228,6 +228,14 @@ Trace design decisions through knowledge artifacts.
 /trace "why did we choose Redis?"
 ```
 
+### /recover
+
+Post-compaction context recovery. Detects in-progress RPI and evolve sessions, loads knowledge, shows recent work and pending tasks.
+
+```bash
+/recover                     # Recover context after compaction
+```
+
 ### /evolve
 
 Autonomous fitness-scored improvement loop. Measures GOALS.yaml, fixes the worst gap, compounds via knowledge flywheel.

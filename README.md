@@ -364,6 +364,7 @@ These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 45 measurable goals
 | `/trace` | Trace design decisions through history |
 | `/handoff` | Structured session handoff |
 | `/inbox` | Agent Mail monitoring |
+| `/recover` | Post-compaction context recovery |
 
 <details>
 <summary>Internal skills (auto-loaded, 10 total)</summary>
