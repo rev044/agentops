@@ -63,6 +63,11 @@
           {
             "type": "command",
             "command": "command -v ao >/dev/null 2>&1 && { ao batch-feedback --quiet 2>/dev/null || { mkdir -p \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao batch-feedback\" >> \"$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.agents/ao/hook-errors.log\"; }; } || true"
+          },
+          {
+            "type": "command",
+            "command": "command -v ao >/dev/null 2>&1 && { REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .); mkdir -p \"$REPO_ROOT/.agents/vibecheck\"; ao vibe-check --json --repo \"$REPO_ROOT\" > \"$REPO_ROOT/.agents/vibecheck/$(date -u +%Y-%m-%dT%H%M%SZ).json\" 2>/dev/null || { mkdir -p \"$REPO_ROOT/.agents/ao\" && echo \"$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: ao vibe-check\" >> \"$REPO_ROOT/.agents/ao/hook-errors.log\"; }; } || true",
+            "timeout": 30
           }
         ]
       }

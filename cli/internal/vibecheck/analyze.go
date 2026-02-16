@@ -39,6 +39,9 @@ func Analyze(opts AnalyzeOptions) (*VibeCheckResult, error) {
 
 	// Run detectors to find issues
 	findings := RunDetectors(events)
+	if findings == nil {
+		findings = []Finding{}
+	}
 
 	// Convert metrics map to the VibeCheckResult format
 	metricsResult := make(map[string]float64)
