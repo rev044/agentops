@@ -20,7 +20,9 @@
 
 ---
 
-One command ships a feature end-to-end — researched, planned, validated by multiple AI models, implemented in parallel, and the system remembers what it learned for next time. The difference isn't smarter agents — it's controlling what context enters each agent's window at each phase, so every decision is made with the right information and nothing else. Every session compounds on the last. You stop managing your agent and start managing your roadmap.
+This started because I was hand-crafting every turn my coding agents took — writing the prompt, reviewing the output, feeding context back in, repeat. So I built the primitives: skills for each phase, hooks to enforce the workflow, a CLI to wire it together. Each piece works standalone. `/council` validates code on its own. `/research` explores a codebase on its own. You use the pieces you need, automate what hurts, and grow from there.
+
+Wire enough of them together and one command ships a feature end-to-end — researched, planned, validated by multiple AI models, implemented in parallel. The system remembers what it learned for next time. But you don't have to start there. Start with one skill, automate one thing that's slowing you down, and compose up.
 
 ---
 
