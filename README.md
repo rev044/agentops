@@ -108,6 +108,20 @@ Found 3 result(s) for: auth retry
    [candidate] Discussed retry budget per endpoint
 ```
 
+**From vision to town** (big goal → many small pieces):
+```
+> /product                    # define mission, personas, value props
+> /research "build auth system"
+> /plan "build auth system"   # → 8 issues, 3 waves
+
+> /evolve --max-cycles=3
+[cycle-1] /rpi "add user model + migrations" → 2 issues, 1 wave ✓
+[cycle-2] /rpi "add login/signup endpoints" → 3 issues, 1 wave ✓
+[cycle-3] /rpi "add JWT refresh + middleware" → 3 issues, 2 waves ✓
+[teardown] 9 learnings extracted. All goals met.
+```
+You define the town. The system builds it house by house — each cycle compounds on the last.
+
 **Council standalone** (no setup, no workflow):
 ```
 > /council validate this PR
