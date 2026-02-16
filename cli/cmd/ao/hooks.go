@@ -407,9 +407,15 @@ func copyDir(src, dst string) (int, error) {
 }
 
 // installFullHooks copies hook scripts and dependencies to ~/.agentops/ and returns
-// the install base path.
+// the install base path. Source directory should be a git-managed agentops checkout.
 func installFullHooks(sourceDir, installBase string) (int, error) {
 	copied := 0
+
+	// Verify source is within a git repository (integrity signal)
+	gitDir := filepath.Join(sourceDir, ".git")
+	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "warning: source directory %s is not a git root; hook integrity cannot be verified\n", sourceDir)
+	}
 
 	// Copy hook scripts
 	hooksDir := filepath.Join(sourceDir, "hooks")

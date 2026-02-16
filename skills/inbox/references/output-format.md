@@ -55,7 +55,7 @@ Format output as:
 # Output:
 # Agent Mail Inbox
 # Agent: boden
-# Project: /Users/fullerbt/gt/olympus
+# Project: ~/gt/olympus
 #
 # Pending Messages (2)
 # - PROGRESS from demigod-ol-527 (5m ago)

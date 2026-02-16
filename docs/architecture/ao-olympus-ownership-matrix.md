@@ -207,7 +207,7 @@ The split is successful when:
 
 - `docs/ol-bridge-contracts.md`
 - `docs/ARCHITECTURE.md`
-- `/Users/fullerbt/gt/olympus/crew/goku/docs/specs/index.md`
-- `/Users/fullerbt/gt/olympus/crew/goku/docs/specs/autonomy-runtime.md`
-- `/Users/fullerbt/gt/olympus/crew/goku/docs/specs/mt-olympus.md`
-- `/Users/fullerbt/gt/olympus/crew/goku/.agents/council/2026-02-12-council-ao-ownership-report.md`
+- `<olympus-root>/docs/specs/index.md`
+- `<olympus-root>/docs/specs/autonomy-runtime.md`
+- `<olympus-root>/docs/specs/mt-olympus.md`
+- `<olympus-root>/.agents/council/2026-02-12-council-ao-ownership-report.md`

@@ -123,12 +123,15 @@ spawn_agent() {
         sandbox_args=(--full-auto)
     fi
 
-    # Inject retry context if this is a retry
+    # Inject retry context if this is a retry (sanitize to prevent prompt injection)
     if [[ -n "$extra_context" ]]; then
+        # Strip control characters and limit length to prevent prompt manipulation
+        local sanitized_context
+        sanitized_context=$(printf '%s' "$extra_context" | tr -d '\000-\011\013-\037' | head -c 4096)
         prompt="${prompt}
 
 RETRY CONTEXT (attempt ${attempt}/${MAX_RETRIES}):
-${extra_context}"
+${sanitized_context}"
     fi
 
     local output_file="${agent_dir}/output.json"

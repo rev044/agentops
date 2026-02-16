@@ -1,6 +1,6 @@
 {
   "team_id": "test-run-001",
-  "repo_path": "/Users/fullerbt/gt/agentops/crew/nami",
+  "repo_path": ".",
   "agents": [
     {
       "name": "test-agent-1",

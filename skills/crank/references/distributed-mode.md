@@ -446,7 +446,7 @@ Falling back to local mode.
 # Output:
 # Distributed mode: Agent Mail orchestration enabled
 # Orchestrator ID: crank-ol527
-# Project: /Users/fullerbt/gt/olympus
+# Project: ~/gt/olympus
 #
 # Wave 1: Spawning 3 demigods...
 #   - /swarm --mode=distributed --bead-ids ol-527.1,ol-527.2,ol-527.3 --wait
