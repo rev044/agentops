@@ -55,7 +55,7 @@ brews:
     directory: Formula
     homepage: https://github.com/boshu2/agentops
     description: Knowledge Flywheel CLI for AI-assisted development
-    license: MIT
+    license: Apache-2.0
     install: |
       bin.install "ao"
     test: |
