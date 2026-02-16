@@ -15,6 +15,7 @@ import (
 
 // agentsDirs are all .agents/ subdirectories ao init creates.
 // Mirrors session-start.sh AGENTS_DIRS — keep in sync.
+// Note: .agents/ao/{sessions,index,provenance} are created separately via storage.Init().
 var agentsDirs = []string{
 	".agents/research",
 	".agents/products",
@@ -25,6 +26,7 @@ var agentsDirs = []string{
 	".agents/knowledge/pending",
 	".agents/plans",
 	".agents/rpi",
+	".agents/ao",
 }
 
 var (

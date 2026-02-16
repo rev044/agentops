@@ -411,10 +411,10 @@ func copyDir(src, dst string) (int, error) {
 func installFullHooks(sourceDir, installBase string) (int, error) {
 	copied := 0
 
-	// Verify source is within a git repository (integrity signal)
+	// Verify source is within a git repository (integrity requirement)
 	gitDir := filepath.Join(sourceDir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "warning: source directory %s is not a git root; hook integrity cannot be verified\n", sourceDir)
+		return 0, fmt.Errorf("source directory %s is not a git root; refusing to install unverified hooks (use --source-dir to specify a valid checkout)", sourceDir)
 	}
 
 	// Copy hook scripts

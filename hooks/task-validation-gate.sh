@@ -28,8 +28,8 @@ cd "$ROOT" 2>/dev/null || true
 run_restricted() {
     local cmd="$1"
 
-    # Block shell metacharacters — prevents injection via crafted metadata
-    if [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>] ]]; then
+    # Block shell metacharacters and control chars — prevents injection via crafted metadata
+    if [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>\'\"\\\n] ]]; then
         log_error "BLOCKED: shell metacharacters in command: $cmd"
         echo "VALIDATION BLOCKED: shell metacharacters not allowed in command" >&2
         exit 2

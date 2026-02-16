@@ -29,6 +29,8 @@ Thank you for your interest in contributing to AgentOps! This guide will help yo
 # Then clone your fork
 git clone https://github.com/YOUR_USERNAME/agentops.git
 cd agentops
+ao init          # Set up .agents/ dirs + .gitignore
+ao init --hooks  # Optional: register session hooks
 ```
 
 ## Ways to Contribute

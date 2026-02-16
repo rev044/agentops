@@ -34,12 +34,26 @@ func TestRunInitCreatesDirs(t *testing.T) {
 		}
 	}
 
-	// Verify .agents/ao subdirs
+	// Verify .agents/ao storage subdirs (created by storage.Init)
 	for _, sub := range []string{"sessions", "index", "provenance"} {
 		target := filepath.Join(tmp, ".agents/ao", sub)
 		if _, err := os.Stat(target); os.IsNotExist(err) {
 			t.Errorf("expected dir .agents/ao/%s to exist", sub)
 		}
+	}
+
+	// Verify total dir count matches expectation (agentsDirs + 3 storage subdirs)
+	// agentsDirs includes .agents/ao, storage.Init adds sessions/index/provenance under it
+	expectedDirs := len(agentsDirs) + 3 // +3 for ao/{sessions,index,provenance}
+	actualDirs := 0
+	filepath.Walk(filepath.Join(tmp, ".agents"), func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.IsDir() && path != filepath.Join(tmp, ".agents") {
+			actualDirs++
+		}
+		return nil
+	})
+	if actualDirs < expectedDirs {
+		t.Errorf("expected at least %d dirs under .agents/, got %d", expectedDirs, actualDirs)
 	}
 }
 
@@ -225,6 +239,33 @@ func TestNestedGitignoreContent(t *testing.T) {
 	}
 	if !strings.Contains(content, "!README.md") {
 		t.Error("expected .agents/.gitignore to contain !README.md")
+	}
+}
+
+func TestRunInitGitignoreNoTrailingNewline(t *testing.T) {
+	tmp := t.TempDir()
+	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	// Write file without trailing newline
+	os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte("node_modules/"), 0644)
+
+	orig, _ := os.Getwd()
+	defer os.Chdir(orig)
+	os.Chdir(tmp)
+
+	initStealth = false
+	initHooks = false
+	if err := runInit(initCmd, nil); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(tmp, ".gitignore"))
+	content := string(data)
+	// Should have newline between existing content and new entry
+	if strings.Contains(content, "node_modules/.agents/") {
+		t.Error("expected newline between existing content and .agents/ entry")
+	}
+	if !strings.Contains(content, ".agents/") {
+		t.Error("expected .gitignore to contain .agents/")
 	}
 }
 

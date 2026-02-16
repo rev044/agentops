@@ -42,11 +42,18 @@ esac
 # Resolve script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Read standards file
+# Read standards file (reject symlinks to prevent arbitrary file reads)
 STANDARDS_FILE="$SCRIPT_DIR/../skills/standards/references/${LANG}.md"
-if [ ! -f "$STANDARDS_FILE" ]; then
+if [ ! -f "$STANDARDS_FILE" ] || [ -L "$STANDARDS_FILE" ]; then
     exit 0
 fi
+
+# Verify resolved path is within expected directory
+RESOLVED=$(cd "$(dirname "$STANDARDS_FILE")" && pwd)/$(basename "$STANDARDS_FILE")
+case "$RESOLVED" in
+    */skills/standards/references/*) ;; # expected location
+    *) exit 0 ;;
+esac
 
 CONTENT=$(cat "$STANDARDS_FILE")
 
