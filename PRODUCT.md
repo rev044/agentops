@@ -37,6 +37,24 @@ AgentOps is a skills plugin that treats context quality as the primary lever for
 | Custom Prompt Engineering (.cursorrules, CLAUDE.md) | Flexible, version-controlled, lightweight | Static instructions don't compound. Our flywheel auto-extracts learnings and injects them back. `/post-mortem` proposes changes to the tools themselves. |
 | Agent Orchestrators (CrewAI, AutoGen, LangGraph) | Mature multi-language task scheduling | Those route work between agents but don't manage what's in each agent's context window. We treat context quality as the primary lever — fresh-context isolation per worker, phase-specific loading, knowledge quality gates. No external state backend — all learnings are git-tracked. |
 | CI/CD Quality Gates (GitHub Actions, pre-commit) | Automated, enforced, industry standard | Gates run after code is written. Ours run before coding (`/pre-mortem`) and before push (`/vibe`). Failures retry with context, not human escalation. |
+| Olympus (Mount Olympus) | Persistent daemon, context provenance, constraint injection (learnings become `*_test.go`), run ledger tracking every attempt | Complementary, not competing. AgentOps is the autonomous engine (skills, hooks, flywheel). Olympus is the power-user daemon layer that composes AgentOps for fully cross-session automation — nobody types `/rpi`, daemon polls and spawns. We stand alone; Olympus builds on top. |
+
+## Relationship to Olympus
+
+AgentOps is a complete, standalone system — autonomous within a session. You do not need Olympus to use AgentOps. The 35 skills, 12 hooks, knowledge flywheel, and RPI lifecycle work independently — `/rpi` ships features end-to-end, `/evolve` runs goal-driven improvement loops, and the flywheel compounds knowledge across sessions, all without any external daemon.
+
+**Olympus is the power-user layer for people who want to go further.**
+
+For users who've mastered AgentOps and want fully autonomous cross-session execution — no human types `/rpi`, no human opens Claude Code — Olympus provides:
+
+- **A persistent daemon** that polls for ready work, spawns agent sessions, and monitors context saturation without human intervention
+- **Context bundles with provenance** — hashable, diffable context assemblies that track exactly which learnings, specs, and prior failures were injected into each attempt
+- **A run ledger** — append-only evidence of every execution attempt, what context produced what result, feeding failure context into the next spawn automatically
+- **Constraint injection** — learnings compile to `*_test.go` files that fail the build, not markdown that might be ignored
+
+AgentOps is where you learn to be a context engineer. Olympus is what you build when you've mastered it and want the machine to run without you.
+
+**Repo:** [github.com/boshu2/olympus](https://github.com/boshu2/olympus)
 
 ## Design Principles
 

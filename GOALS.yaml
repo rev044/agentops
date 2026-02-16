@@ -8,7 +8,7 @@ pillars:
   - goal-driven-automation
   - zero-friction-workflow
 
-# Total: 45 goals (24 pillar + 21 infrastructure)
+# Total: 47 goals (26 pillar + 21 infrastructure)
 
 goals:
   # ============================================================================
@@ -134,6 +134,18 @@ goals:
   - id: implement-single-issue
     description: "/implement skill exists for single-issue execution"
     check: "test -f skills/implement/SKILL.md && grep -q '^name:' skills/implement/SKILL.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: product-olympus-relationship
+    description: "PRODUCT.md has 'Relationship to Olympus' section distinguishing standalone AgentOps from Olympus daemon layer"
+    check: "grep -q 'Relationship to Olympus' PRODUCT.md && grep -q 'autonomous within' PRODUCT.md && grep -q 'standalone' PRODUCT.md"
+    weight: 4
+    pillar: zero-friction-workflow
+
+  - id: product-olympus-in-landscape
+    description: "PRODUCT.md competitive landscape includes Olympus as complementary (not competing)"
+    check: "grep -q 'Olympus' PRODUCT.md && grep -q 'Complementary' PRODUCT.md"
     weight: 3
     pillar: zero-friction-workflow
 
