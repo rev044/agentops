@@ -5,7 +5,7 @@
 ### Your coding agent gets smarter every time you use it.
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
-[![Version](https://img.shields.io/badge/version-2.8.0-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.9.0-brightgreen)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-35-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
@@ -318,7 +318,7 @@ Every skill, goal, and hook in AgentOps maps to one of four pillars:
 
 **Zero-Friction Workflow** — Start in 60 seconds. `/quickstart` runs a guided cycle on your actual codebase. `/implement` picks up a single issue end-to-end. `/handoff` preserves context across sessions. `/status` shows where you are and what to do next. No configuration required.
 
-These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 45 measurable goals that define what "healthy" means for the system. `/evolve` measures them all.
+These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 47 measurable goals that define what "healthy" means for the system. `/evolve` measures them all.
 
 ---
 

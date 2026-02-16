@@ -8,11 +8,11 @@ pillars:
   - goal-driven-automation
   - zero-friction-workflow
 
-# Total: 47 goals (26 pillar + 21 infrastructure)
+# Total: 47 goals (22 pillar + 25 infrastructure)
 
 goals:
   # ============================================================================
-  # PILLAR GOALS (24 total)
+  # PILLAR GOALS (22 total)
   # ============================================================================
 
   # === Pillar: Knowledge Compounding (6 goals, weight 3-5) ===
@@ -53,7 +53,7 @@ goals:
     weight: 5
     pillar: knowledge-compounding
 
-  # === Pillar: Validated Acceleration (5 goals, weight 3-4) ===
+  # === Pillar: Validated Acceleration (4 goals, weight 3-4) ===
 
   - id: status-skill-shows-health
     description: "/status skill references knowledge health or flywheel metrics"
@@ -79,7 +79,7 @@ goals:
     weight: 3
     pillar: validated-acceleration
 
-  # === Pillar: Goal-Driven Automation (6 goals, weight 3-4) ===
+  # === Pillar: Goal-Driven Automation (5 goals, weight 3-4) ===
 
   - id: evolve-dormancy-messaging
     description: "/evolve skill documents dormancy as a valid success state"
@@ -111,7 +111,7 @@ goals:
     weight: 4
     pillar: goal-driven-automation
 
-  # === Pillar: Zero-Friction Workflow (6 goals, weight 3-4) ===
+  # === Pillar: Zero-Friction Workflow (7 goals, weight 3-4) ===
 
   - id: quickstart-under-5min
     description: "/quickstart skill promises value in under 5 minutes"
