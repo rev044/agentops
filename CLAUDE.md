@@ -9,7 +9,7 @@ Your coding agent gets smarter every time you use it. Automates context, validat
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest (v2.7.1)
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 35 skills (25 user-facing, 10 internal)
+├── skills/                # All 36 skills (26 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Hands-free epic execution
 │   ├── swarm/             # Parallel agent spawning

@@ -268,7 +268,7 @@ goals:
     weight: 2
 
   - id: behavioral-skill-contracts
-    description: "All 34 skills have behavioral validate.sh checks that pass"
+    description: "All skills have behavioral validate.sh checks that pass"
     check: "for d in skills/*/scripts/validate.sh; do \"$d\" >/dev/null 2>&1 || exit 1; done"
     weight: 2
 
