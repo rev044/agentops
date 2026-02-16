@@ -20,9 +20,17 @@
 
 ---
 
-This started because I was hand-crafting every turn my coding agents took — writing the prompt, reviewing the output, feeding context back in, repeat. So I built the primitives: skills for each phase, hooks to enforce the workflow, a CLI to wire it together. Each piece works standalone. `/council` validates code on its own. `/research` explores a codebase on its own. You use the pieces you need, automate what hurts, and grow from there.
+**Not another workflow tool.** SDD gives you a spec-first pipeline. GSD gives you a fast loop. Both forget everything when the session ends. AgentOps is different: it's composable primitives that remember what they learned.
 
-Wire enough of them together and one command ships a feature end-to-end — researched, planned, validated by multiple AI models, implemented in parallel. The system remembers what it learned for next time. But you don't have to start there. Start with one skill, automate one thing that's slowing you down, and compose up.
+This started because I was hand-crafting every turn my coding agents took — writing the prompt, reviewing the output, feeding context back in, repeat. So I built the pieces: a skill for research, a skill for validation, a skill for planning, hooks to enforce the workflow, a CLI to wire it together. Each piece works standalone — `/council` validates a PR, `/research` explores a codebase, `/vibe` checks code quality. You use what you need and skip the rest.
+
+What makes this different from "write spec → implement → check against spec → done":
+
+1. **It remembers across sessions.** The system extracts what worked, what failed, and what patterns emerged — then injects that knowledge into the next session. Session 10 is smarter than session 1 because it learned from 1–9.
+2. **It self-corrects.** Validation happens *before* coding (pre-mortem simulates failures on the plan) and *after* (multi-model council reviews the code). Failures retry automatically with context. No human escalation unless it fails 3 times.
+3. **It's composable, not prescribed.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
+
+[Detailed comparisons →](docs/comparisons/) · Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh).
 
 ---
 
@@ -132,22 +140,6 @@ You define the town. The system builds it house by house — each cycle compound
 ```
 
 </details>
-
----
-
-## What It Does (and what it doesn't)
-
-Other tools give you a workflow: write a spec, implement it, check against spec, done. That works for one session. AgentOps is different in three ways:
-
-1. **It remembers.** SDD specs are static documents. GSD forgets everything when the session ends. AgentOps extracts what worked, what failed, and what patterns emerged — then injects that knowledge into the next session automatically. Session 10 is meaningfully smarter than session 1. Not because you configured anything, but because the system learned from sessions 1–9.
-
-2. **It self-corrects.** Most tools validate after the fact — "does code match spec?" AgentOps validates *before* coding (`/pre-mortem` simulates failures on the plan) and *after* coding (`/vibe` runs multi-model council). When validation fails, the system retries with the failure context. No human escalation unless it fails 3 times.
-
-3. **It's composable, not prescribed.** SDD and GSD are workflows you follow top-to-bottom. AgentOps is primitives you wire together. Use `/council` alone to validate a PR. Use `/research` alone to explore a codebase. Use `/vibe` alone to check code quality. Or wire them all together with `/rpi` for the full lifecycle. You adopt the pieces that help and skip the rest.
-
-The end-to-end thing (`/rpi "goal"` → research → plan → pre-mortem → crank → vibe → post-mortem) is what you get when you compose all the primitives. But it's not the point — the point is that each piece works standalone, and the knowledge compounds across all of them.
-
-Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local. [Detailed comparisons →](docs/comparisons/)
 
 ---
 
