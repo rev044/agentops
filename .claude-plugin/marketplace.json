@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.",
-    "version": "2.9.0"
+    "version": "2.9.1"
   },
   "plugins": [
     {
       "name": "agentops",
       "description": "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.",
-      "version": "2.9.0",
+      "version": "2.9.1",
       "source": "./",
       "author": {
         "name": "Boden Fuller",

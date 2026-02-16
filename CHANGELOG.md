@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-02-16
+
+### Added
+
+- **Knowledge cache core** — `ao index` for citation-backed search index, `ao metrics cite-report` for citation health, `ao maturity --expire` for stale artifact cleanup. 530+ new test assertions.
+- **`/update` skill** — One-command skill reinstall (`npx skills@latest add boshu2/agentops --all -g`).
+- **`/evolve` enhancements** — Added references for artifacts and examples.
+
+### Changed
+
+- **README** — Added town planning example to See It Work section.
+- **License** — Corrected from MIT to Apache-2.0 in goreleaser and brew formula.
+- **Goals fitness** — Trimmed skills, hardened tests, improved docs across 6 epics.
+- **.agents/ directory** — Now gitignored; removed tracked session data and PII.
+
+### Fixed
+
+- **Hook security hardening** — Removed `npx` and `bash` from task-validation-gate allowlist (closed RCE vector), sourced hook-helpers.sh from plugin install dir instead of repo root (closed confused-deputy code execution), removed kill switch self-advertising from push-gate and pre-mortem-gate stderr, added `git restore` to dangerous-git-guard blocklist.
+- **Code injection via crafted filenames** — Hardened prescan.sh filename handling.
+- **Stale counts** — Corrected GOALS.yaml and README skill/goal counts.
+- **INDEX.md exclusion** — Excluded from learning-format-compliance goal check.
+
 ## [2.9.0] - 2026-02-16
 
 ### Added

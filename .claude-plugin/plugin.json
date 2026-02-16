@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/plugin-manifest.v1.schema.json",
   "name": "agentops",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.",
   "author": {
     "name": "Boden Fuller",
