@@ -189,16 +189,18 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 ## The Path
 
 ```
-/quickstart                          ← first session: guided tour on your codebase
+/quickstart                          ← Day 1: guided tour on your codebase (~10 min)
     │
-/council, /research, /vibe           ← use skills standalone, learn the pieces
+/council, /research, /vibe           ← Week 1: use skills standalone, learn the pieces
     │
-/rpi "goal"                          ← full lifecycle: research → ship → learn
+/rpi "goal"                          ← Week 2: full lifecycle — research → ship → learn
     │
-/evolve                              ← define goals, let the system improve itself
+GOALS.yaml + /evolve                 ← Ongoing: define fitness goals, the system compounds
 ```
 
 Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. Set `GOALS.yaml` and let `/evolve` compound from there.
+
+**Where does the knowledge live?** Everything the system learns is stored in `.agents/` — a git-tracked knowledge vault in your repo. Learnings, research artifacts, plans, fitness snapshots, and session handoffs all live there. Because it's git-tracked, knowledge survives across sessions, machines, and team members. You never configure it; skills read from and write to it automatically.
 
 ---
 

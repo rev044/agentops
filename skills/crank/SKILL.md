@@ -525,15 +525,16 @@ If all remaining issues are blocked (e.g., circular dependencies), crank outputs
 
 ## Troubleshooting
 
-See `skills/crank/references/troubleshooting.md` for common issues and solutions.
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "No ready issues found" | Epic has no children or all blocked | Run `/plan` first or check deps with `bd show <id>` |
+| "Global wave limit (50) reached" | Excessive retries or circular deps | Review `.agents/crank/wave-N-checkpoint.json`, fix blockers manually |
+| Wave vibe gate fails repeatedly | Workers producing non-conforming code | Check `.agents/council/` vibe reports, refine constraints |
+| Workers complete but files missing | Permission errors or wrong paths | Check swarm output files, verify write permissions |
+| RED Gate passes (tests don't fail) | Test wave workers wrote implementation | Re-run TEST WAVE with no-implementation-access prompt |
+| TaskList mode can't find epic | bd CLI required for beads tracking | Provide plan file (`.md`) instead, or install bd |
 
----
-
-## Distributed Mode: Agent Mail Orchestration (Experimental)
-
-> **Status: Experimental.** Local mode (TaskList + swarm) is the recommended execution method.
-
-**For distributed mode details (architecture, execution steps, Chiron pattern, file reservations, checkpoint handling), read `skills/crank/references/distributed-mode.md`.**
+See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 
 ---
 
