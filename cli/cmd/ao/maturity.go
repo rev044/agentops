@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -12,8 +15,10 @@ import (
 )
 
 var (
-	maturityApply bool
-	maturityScan  bool
+	maturityApply   bool
+	maturityScan    bool
+	maturityExpire  bool
+	maturityArchive bool
 )
 
 var maturityCmd = &cobra.Command{
@@ -47,6 +52,8 @@ func init() {
 	rootCmd.AddCommand(maturityCmd)
 	maturityCmd.Flags().BoolVar(&maturityApply, "apply", false, "Apply maturity transitions")
 	maturityCmd.Flags().BoolVar(&maturityScan, "scan", false, "Scan all learnings for pending transitions")
+	maturityCmd.Flags().BoolVar(&maturityExpire, "expire", false, "Scan for expired learnings")
+	maturityCmd.Flags().BoolVar(&maturityArchive, "archive", false, "Move expired files to archive (requires --expire)")
 }
 
 func runMaturity(cmd *cobra.Command, args []string) error {
@@ -59,6 +66,11 @@ func runMaturity(cmd *cobra.Command, args []string) error {
 	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
 		fmt.Println("No learnings directory found.")
 		return nil
+	}
+
+	// Expire mode: check for expired learnings
+	if maturityExpire {
+		return runMaturityExpire(cmd)
 	}
 
 	// Scan mode: check all learnings
@@ -192,6 +204,161 @@ func displayMaturityResult(r *ratchet.MaturityTransitionResult, applied bool) {
 	fmt.Printf("  Feedback:  %d total (helpful: %d, harmful: %d)\n",
 		r.RewardCount, r.HelpfulCount, r.HarmfulCount)
 	fmt.Printf("  Reason:    %s\n", r.Reason)
+}
+
+// expiryCategory tracks how a learning file is categorized for expiry.
+type expiryCategory struct {
+	active          []string
+	neverExpiring   []string
+	newlyExpired    []string
+	alreadyArchived []string
+}
+
+// parseFrontmatterFields extracts specific fields from YAML frontmatter in a markdown file.
+// Returns a map of field name to value for the requested fields.
+func parseFrontmatterFields(path string, fields ...string) (map[string]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	result := make(map[string]string)
+	scanner := bufio.NewScanner(f)
+	inFrontmatter := false
+	dashCount := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "---" {
+			dashCount++
+			if dashCount == 1 {
+				inFrontmatter = true
+				continue
+			}
+			if dashCount == 2 {
+				break
+			}
+		}
+
+		if inFrontmatter {
+			for _, field := range fields {
+				prefix := field + ":"
+				if strings.HasPrefix(trimmed, prefix) {
+					val := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
+					// Strip surrounding quotes if present
+					val = strings.Trim(val, "\"'")
+					result[field] = val
+				}
+			}
+		}
+	}
+
+	return result, scanner.Err()
+}
+
+func runMaturityExpire(cmd *cobra.Command) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	learningsDir := filepath.Join(cwd, ".agents", "learnings")
+	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
+		fmt.Println("No learnings directory found.")
+		return nil
+	}
+
+	cats := expiryCategory{}
+
+	entries, err := os.ReadDir(learningsDir)
+	if err != nil {
+		return fmt.Errorf("read learnings directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+
+		path := filepath.Join(learningsDir, entry.Name())
+		fields, err := parseFrontmatterFields(path, "valid_until", "expiry_status")
+		if err != nil {
+			VerbosePrintf("Warning: could not read %s: %v\n", entry.Name(), err)
+			cats.neverExpiring = append(cats.neverExpiring, entry.Name())
+			continue
+		}
+
+		// Check if already archived
+		if fields["expiry_status"] == "archived" {
+			cats.alreadyArchived = append(cats.alreadyArchived, entry.Name())
+			continue
+		}
+
+		validUntil, hasExpiry := fields["valid_until"]
+		if !hasExpiry || validUntil == "" {
+			cats.neverExpiring = append(cats.neverExpiring, entry.Name())
+			continue
+		}
+
+		// Parse date
+		expiry, parseErr := time.Parse("2006-01-02", validUntil)
+		if parseErr != nil {
+			expiry, parseErr = time.Parse(time.RFC3339, validUntil)
+		}
+		if parseErr != nil {
+			VerbosePrintf("Warning: malformed valid_until in %s: %s\n", entry.Name(), validUntil)
+			cats.neverExpiring = append(cats.neverExpiring, entry.Name())
+			continue
+		}
+
+		if time.Now().After(expiry) {
+			cats.newlyExpired = append(cats.newlyExpired, entry.Name())
+		} else {
+			cats.active = append(cats.active, entry.Name())
+		}
+	}
+
+	total := len(cats.active) + len(cats.neverExpiring) + len(cats.newlyExpired) + len(cats.alreadyArchived)
+
+	fmt.Println("=== Expiry Scan ===")
+	fmt.Printf("  Active:           %d\n", len(cats.active))
+	fmt.Printf("  Never-expiring:   %d (no valid_until field)\n", len(cats.neverExpiring))
+	fmt.Printf("  Newly expired:    %d\n", len(cats.newlyExpired))
+	fmt.Printf("  Already archived: %d\n", len(cats.alreadyArchived))
+	fmt.Printf("  Total:            %d\n", total)
+
+	// Archive expired files if requested
+	if maturityArchive && len(cats.newlyExpired) > 0 {
+		archiveDir := filepath.Join(cwd, ".agents", "archive", "learnings")
+
+		if GetDryRun() {
+			fmt.Println()
+			for _, name := range cats.newlyExpired {
+				fmt.Printf("[dry-run] Would archive: %s -> .agents/archive/learnings/%s\n", name, name)
+			}
+			return nil
+		}
+
+		if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+			return fmt.Errorf("create archive directory: %w", err)
+		}
+
+		fmt.Println()
+		for _, name := range cats.newlyExpired {
+			src := filepath.Join(learningsDir, name)
+			dst := filepath.Join(archiveDir, name)
+			if err := os.Rename(src, dst); err != nil {
+				fmt.Fprintf(os.Stderr, "Error moving %s: %v\n", name, err)
+				continue
+			}
+			fmt.Printf("Archived: %s -> .agents/archive/learnings/%s\n", name, name)
+		}
+	}
+
+	return nil
 }
 
 // antiPatternCmd lists and manages anti-patterns.
