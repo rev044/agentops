@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.3] - 2026-02-16
+
+### Changed
+
+- **Quickstart skill menu** — Added 10 missing skills (`/release`, `/rpi`, `/evolve`, `/status`, `/recover`, `/product`, `/codex-team`) to the onboarding orientation. New users now see all 26 user-facing skills.
+- **Using-agentops skill catalog** — Updated Available Skills table from 17 to all 26 user-facing skills with natural language triggers for each.
+- **Install instructions** — All `brew install` commands now include the Homebrew tap prefix (`boshu2/agentops`) so new users don't hit "formula not found". Updated `ao hooks install` references to `ao init --hooks`.
+- **Troubleshooting** — Fixed incorrect hooks.json path (was `.claude-plugin/hooks.json`, now `hooks/hooks.json`).
+
 ### Fixed
 
 - **Release pipeline empty body** — GoReleaser created an "untagged" release with empty body when a draft release already existed for the tag. Workflow now deletes any existing release before GoReleaser runs.
 - **Release skill skip draft creation** — `/release` no longer creates a draft GitHub Release via `gh release create`. GoReleaser handles release creation in CI; local drafts conflict with it.
+- **Goal count test** — `validate-goal-count.sh` no longer crashes when README doesn't contain a hardcoded goal count.
 
 ## [2.9.2] - 2026-02-16
 
