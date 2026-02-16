@@ -43,7 +43,7 @@ fi
 # Check for curated release notes (written by /release skill or manually).
 # These are plain-English highlights, not the raw changelog.
 CURATED_NOTES=""
-NOTES_FILE=$(find .agents/releases -name "*-v${VERSION}-notes.md" 2>/dev/null | head -1)
+NOTES_FILE=$(find .agents/releases -name "*-v${VERSION}-notes.md" 2>/dev/null | head -1 || true)
 if [[ -n "$NOTES_FILE" && -f "$NOTES_FILE" ]]; then
   CURATED_NOTES=$(cat "$NOTES_FILE")
   echo "Using curated release notes from $NOTES_FILE" >&2

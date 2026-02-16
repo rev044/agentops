@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dir list sync** — `ao init` and `session-start.sh` now create identical directory sets (added `.agents/plans/` and `.agents/rpi/`).
 - **Version badge** — README badge updated from 2.9.0 to 2.9.2.
 - **Release notes quality** — `extract-release-notes.sh` now requires a CHANGELOG entry (no more commit-dump fallback) and supports curated highlights from `.agents/releases/`.
+- **Release pipeline crash in CI** — `extract-release-notes.sh` failed with `set -euo pipefail` when `.agents/releases/` directory didn't exist (gitignored). Added `|| true` to the `find` pipeline.
 
 ### Changed
 
