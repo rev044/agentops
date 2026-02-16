@@ -8,7 +8,7 @@
 
 ## Tagline
 
-**Primary:** Your coding agent gets smarter every time you use it.
+**Primary:** The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.
 
 **Secondary:** Validation Built In, Not Bolted On
 

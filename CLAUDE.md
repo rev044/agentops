@@ -1,6 +1,6 @@
 # AgentOps
 
-Your coding agent gets smarter every time you use it. Automates context, validation, execution, and learning — each session compounds on every session before it.
+The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.
 
 ## Project Structure
 

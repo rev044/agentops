@@ -4,7 +4,9 @@
 
 # AgentOps
 
-### Your coding agent gets smarter every time you use it.
+### The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.
+
+*Context orchestration for every phase — research, planning, validation, execution.*
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.9.0-brightgreen)](CHANGELOG.md)

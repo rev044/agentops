@@ -1,7 +1,7 @@
 version: 2
 mission: "Make every coding agent session smarter than the last"
 vision: "You define what good looks like. Your agent handles the rest — and gets better at it every time."
-tagline: "Your coding agent gets smarter every time you use it."
+tagline: "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter."
 pillars:
   - knowledge-compounding
   - validated-acceleration
@@ -20,8 +20,8 @@ goals:
   # === Pillar: Knowledge Compounding (6 goals, weight 3-5) ===
 
   - id: readme-compounding-hero
-    description: "README hero tagline is 'Your coding agent gets smarter every time you use it'"
-    check: "head -10 README.md | grep -qi 'gets smarter every time you use it'"
+    description: "README hero tagline is 'The missing DevOps layer for coding agents'"
+    check: "head -10 README.md | grep -qi 'missing DevOps layer for coding agents'"
     weight: 5
     pillar: knowledge-compounding
 

@@ -5,13 +5,13 @@
     "email": "fullerbt@users.noreply.github.com"
   },
   "metadata": {
-    "description": "Your coding agent gets smarter every time you use it — 36 skills with Knowledge Flywheel",
+    "description": "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.",
     "version": "2.9.0"
   },
   "plugins": [
     {
       "name": "agentops",
-      "description": "Your coding agent gets smarter every time you use it. 36 skills (26 user-facing, 10 internal) — validation, parallel execution, and knowledge that compounds.",
+      "description": "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.",
       "version": "2.9.0",
       "source": "./",
       "author": {
