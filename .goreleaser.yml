@@ -25,30 +25,12 @@ checksum:
   algorithm: sha256
 
 changelog:
-  sort: asc
-  groups:
-    - title: "🚀 New Features"
-      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
-      order: 0
-    - title: "🐛 Bug Fixes"
-      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
-      order: 1
-    - title: "📚 Documentation"
-      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
-      order: 2
-    - title: "🔧 Other"
-      order: 999
-  filters:
-    exclude:
-      - '^Merge'
+  disable: true
 
 release:
-  header: |
-    `brew upgrade agentops` · [checksums](https://github.com/boshu2/agentops/releases/download/{{ .Tag }}/checksums.txt) · [verify provenance](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds)
-  footer: |
-    **Full Changelog**: https://github.com/boshu2/agentops/compare/{{ .PreviousTag }}...{{ .Tag }}
-
-    This release was planned, built, and validated by AgentOps agents. The flywheel turns.
+  # Release notes are generated from CHANGELOG.md by scripts/extract-release-notes.sh
+  # and passed via --release-notes in the workflow. GoReleaser's auto-changelog is disabled.
+  name_template: "{{ .Tag }}"
 
 brews:
   - name: agentops

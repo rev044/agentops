@@ -70,11 +70,19 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Building version: $VERSION"
 
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Find previous tag for changelog footer link
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${VERSION}$" | head -1)
+          chmod +x scripts/extract-release-notes.sh
+          scripts/extract-release-notes.sh "$VERSION" "$PREV_TAG"
+
       - name: Build with GoReleaser (skip publish)
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          args: release --clean --skip=publish
+          args: release --clean --skip=publish --release-notes=release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -203,13 +211,20 @@ jobs:
             done
           fi
 
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${VERSION}$" | head -1)
+          chmod +x scripts/extract-release-notes.sh
+          scripts/extract-release-notes.sh "$VERSION" "$PREV_TAG"
+
       - name: Publish with GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
           # GoReleaser v2 doesn't support --skip=build, so we do a full release
           # The build stage artifacts were just for validation
-          args: release --clean
+          args: release --clean --release-notes=release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
