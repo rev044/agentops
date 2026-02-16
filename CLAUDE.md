@@ -7,7 +7,7 @@ The missing DevOps layer for coding agents. Give it a goal, it ships validated c
 ```
 .
 ├── .claude-plugin/
-│   ├── plugin.json        # Plugin manifest (v2.7.1)
+│   ├── plugin.json        # Plugin manifest
 │   └── marketplace.json   # Marketplace metadata
 ├── skills/                # All 36 skills (26 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
@@ -106,6 +106,23 @@ mkdir -p skills/new-skill
 ```bash
 claude --plugin ./
 ```
+
+**Cut a release:**
+```bash
+/release <version>         # Changelog + version bumps + tag + draft GitHub Release
+git push origin main --tags  # CI handles build + publish
+```
+
+## Release Cadence
+
+**Weekly release train (Fridays).** One published release per week, max. Security hotfixes are the only same-day exception. GitHub notifies every watcher on every published release — there's no filtering — so batching matters.
+
+- Accumulate changes in `[Unreleased]` in CHANGELOG.md all week
+- Write curated release notes to `.agents/releases/` before tagging
+- No 1-commit releases for non-security fixes
+- Draft releases (`--draft`) don't notify anyone — use freely for CI testing
+
+See CONTRIBUTING.md for the full policy.
 
 **Update dependencies:**
 ```bash

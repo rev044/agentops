@@ -87,6 +87,7 @@ git branch --show-current         # show current branch
 | Version consistency | Compare versions across package files | Warn (show mismatches) |
 | Manifest versions sync | Compare `.claude-plugin/plugin.json` and `marketplace.json` versions | Warn (show mismatches) |
 | Commits since last tag | `git log --oneline <range>` | Block if empty — nothing to release |
+| Release cadence | Check date of last tag vs today | Warn if <7 days since last non-security release (see `references/release-cadence.md`) |
 
 **Test/lint detection:**
 

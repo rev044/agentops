@@ -94,3 +94,14 @@ mkdir -p .agents/releases
 Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` — this is the **public-facing** file used by `gh release create` and is what users see. It contains ONLY the Highlights + What's New + All Changes structure above, ending with a link to the full CHANGELOG.md. No internal metadata, no pre-flight results, no next steps, no issue IDs, no file paths.
 
 **Show the release notes to the user** as part of Step 8 review, alongside the changelog and version bumps.
+
+## How Release Notes Reach GitHub
+
+The CI release pipeline (`scripts/extract-release-notes.sh`) generates the GitHub Release body:
+
+1. It looks for curated notes at `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
+2. If found: curated highlights up top, full CHANGELOG section in a collapsible `<details>` block
+3. If not found: raw CHANGELOG section only (no commit dump — missing CHANGELOG entry is an error)
+4. GoReleaser consumes the generated `release-notes.md` via `--release-notes`
+
+**Always write curated notes before tagging.** The curated file is what makes the difference between a wall of jargon and a readable release page. The CHANGELOG is for contributors; the curated notes are for everyone else.
