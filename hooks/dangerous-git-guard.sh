@@ -21,6 +21,14 @@ COMMAND=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | 
 # Hot path: no git, no problem
 echo "$COMMAND" | grep -q "git" || exit 0
 
+# Warn if .agents/ files may be staged (never block — exit 0)
+if echo "$COMMAND" | grep -qE 'git\s+add' && echo "$COMMAND" | grep -qE '\.agents/|\s\.\s*$|\s-A'; then
+    echo "Warning: .agents/ files may be staged. These should typically be gitignored. Review: git status .agents/" >&2
+fi
+if echo "$COMMAND" | grep -qE 'git\s+commit' && git diff --cached --name-only 2>/dev/null | grep -q '^\.agents/'; then
+    echo "Warning: .agents/ files are staged for commit. Consider: git reset HEAD .agents/" >&2
+fi
+
 # Allow-list (checked before block-list)
 echo "$COMMAND" | grep -qE 'push.*--force-with-lease' && exit 0
 

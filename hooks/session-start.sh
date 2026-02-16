@@ -35,6 +35,37 @@ for dir in "${AGENTS_DIRS[@]}"; do
     fi
 done
 
+# Auto-gitignore .agents/ in consumer repos
+if [ "${AGENTOPS_GITIGNORE_AUTO:-1}" != "0" ] && [ -d "$ROOT/.git" ]; then
+    {
+        GITIGNORE="$ROOT/.gitignore"
+        if [ -f "$GITIGNORE" ]; then
+            if ! grep -q '\.agents/' "$GITIGNORE" 2>/dev/null; then
+                printf '\n# AgentOps session artifacts (auto-added)\n.agents/\n' >> "$GITIGNORE"
+                echo "Added .agents/ to .gitignore" >&2
+            fi
+        else
+            printf '# AgentOps session artifacts (auto-added)\n.agents/\n' > "$GITIGNORE"
+            echo "Created .gitignore with .agents/" >&2
+        fi
+    } 2>/dev/null || log_hook_fail "gitignore auto-setup"
+
+    # Warn if .agents/ files are already tracked despite .gitignore
+    if git -C "$ROOT" ls-files .agents/ 2>/dev/null | head -1 | grep -q .; then
+        echo "Warning: .agents/ files are tracked in git despite .gitignore. Run: git rm -r --cached .agents/" >&2
+    fi
+fi
+
+# Belt-and-suspenders: nested .agents/.gitignore
+if [ ! -f "$ROOT/.agents/.gitignore" ]; then
+    cat > "$ROOT/.agents/.gitignore" 2>/dev/null <<'NESTED_GITIGNORE'
+# Do not commit this directory — session artifacts, absolute paths, sensitive output.
+*
+!.gitignore
+!README.md
+NESTED_GITIGNORE
+fi
+
 # Environment manifest — capture tool presence and git state for council legibility
 {
   ENV_JSON="$ROOT/.agents/ao/environment.json"
