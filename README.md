@@ -145,16 +145,6 @@ Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any age
 
 ---
 
-## Who This Is For
-
-**Solo developers** who ship fast but skip validation — or burn hours doing it manually. AgentOps runs `/rpi` end-to-end so you get multi-model code review, retry-on-failure, and knowledge that persists across sessions. No team required.
-
-**Tech leads scaling agent work** across a backlog. `/crank` runs parallel waves with fresh context per worker. `/status` shows what's in flight. `/post-mortem` captures what the system learned so the next cycle doesn't repeat mistakes. You manage the roadmap, not the agents.
-
-**Quality-focused maintainers** who need high-confidence releases without manual regression hunting. `/pre-mortem` catches plan gaps before coding starts. `/vibe` validates code before push. The knowledge flywheel preserves institutional knowledge even when team members change.
-
----
-
 ## Install
 
 **Requires:** Node.js 18+ and a coding agent that supports [Skills](https://skills.sh) (Claude Code, Codex CLI, Cursor, Open Code).
