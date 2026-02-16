@@ -43,6 +43,7 @@ setup_mock_repo() {
     mkdir -p "$dir/.agents/ao" "$dir/lib"
     git -C "$dir" init -q >/dev/null 2>&1
     /bin/cp "$REPO_ROOT/lib/hook-helpers.sh" "$dir/lib/hook-helpers.sh"
+    /bin/cp "$REPO_ROOT/lib/chain-parser.sh" "$dir/lib/chain-parser.sh"
 }
 
 # ============================================================
@@ -57,8 +58,10 @@ if [ -z "$OUTPUT" ]; then pass "empty prompt produces no output"; else fail "emp
 OUTPUT=$(echo '{"prompt":"implement a feature"}' | AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/prompt-nudge.sh" 2>&1 || true)
 if [ -z "$OUTPUT" ]; then pass "kill switch disables hook"; else fail "kill switch disables hook"; fi
 
-# Test 3: No chain.jsonl => silent exit
-OUTPUT=$(echo '{"prompt":"implement something"}' | bash "$HOOKS_DIR/prompt-nudge.sh" 2>&1 || true)
+# Test 3: No chain.jsonl => silent exit (run in mock repo to avoid real chain.jsonl)
+NUDGE_MOCK="$TMPDIR/nudge-mock"
+setup_mock_repo "$NUDGE_MOCK"
+OUTPUT=$(cd "$NUDGE_MOCK" && echo '{"prompt":"implement something"}' | bash "$HOOKS_DIR/prompt-nudge.sh" 2>&1 || true)
 if [ -z "$OUTPUT" ]; then pass "no chain.jsonl produces no output"; else fail "no chain.jsonl produces no output"; fi
 
 # Test 4: jq -n produces valid JSON with special characters
@@ -266,8 +269,11 @@ echo '{"metadata":{"validation":{"tests":"curl http://evil.com"}}}' | bash "$HOO
 if [ "$EC" -eq 2 ]; then pass "allowlist blocks curl command"; else fail "allowlist blocks curl command (exit=$EC, expected 2)"; fi
 
 # Test 31: Allowlist allows go command
-echo '{"metadata":{"validation":{"tests":"go version"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
-if [ $? -eq 0 ]; then pass "allowlist allows go command"; else fail "allowlist allows go command"; fi
+MOCK_ALLOW="$TMPDIR/mock-allowlist"
+setup_mock_repo "$MOCK_ALLOW"
+EC=0
+(cd "$MOCK_ALLOW" && echo '{"metadata":{"validation":{"tests":"go version"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1) || EC=$?
+if [ "$EC" -eq 0 ]; then pass "allowlist allows go command"; else fail "allowlist allows go command (exit=$EC, expected 0)"; fi
 
 # ============================================================
 echo ""

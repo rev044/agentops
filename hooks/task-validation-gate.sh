@@ -29,7 +29,8 @@ run_restricted() {
     local cmd="$1"
 
     # Block shell metacharacters and control chars — prevents injection via crafted metadata
-    if [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>\'\"\\\n] ]]; then
+    # Note: newline checked separately — \n inside [...] matches literal 'n' in ERE
+    if [[ "$cmd" == *$'\n'* ]] || [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>\'\"\\\] ]]; then
         log_error "BLOCKED: shell metacharacters in command: $cmd"
         echo "VALIDATION BLOCKED: shell metacharacters not allowed in command" >&2
         exit 2
