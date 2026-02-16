@@ -38,19 +38,11 @@ coverage.xml
 # Generated reports
 reports/
 
-# Claude session artifacts (keep specs, pre-mortems, tooling structure)
-.agents/*
-!.agents/specs/
-!.agents/pre-mortems/
-!.agents/tooling/
-.agents/tooling/*
-!.agents/tooling/.gitkeep
+# Claude session artifacts
+.agents/
 
 # Runtime state
 state.json
-
-# CLI generated artifacts
-cli/.agents/
 
 # Go binaries (built locally)
 cli/ao
@@ -63,4 +55,3 @@ cli/cmd/ao/ao-test-bin
 .witness.pid
 .witness.heartbeat
 .witness/
-.agents/mail/
