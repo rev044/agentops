@@ -36,28 +36,9 @@ What makes this different from "write spec → implement → check against spec 
 
 ## See It Work
 
+**Use one piece.** No pipeline required:
 ```
-> /rpi "add rate limiting to the API"
-
-[research]    Exploring codebase... → .agents/research/rate-limiting.md
-[plan]        3 issues, 2 waves → epic ag-0057
-              Boundaries: 3 always · 2 ask-first · 2 never
-              Conformance: 4 verifiable assertions derived from spec
-[pre-mortem]  4 judges → Verdict: PASS (incl. spec-completeness)
-[crank]       Wave 1: ███ 2/2 · Wave 2: █ 1/1
-[vibe]        3 judges → Verdict: PASS
-[post-mortem] 3 learnings extracted → .agents/
-[flywheel]    Next: /rpi "add retry backoff to rate limiter"
-```
-
-You type one command and walk away. Come back, copy-paste the next command, walk away again.
-
-<details>
-<summary>More examples</summary>
-
-**Multi-model validation:**
-```
-> /council --deep validate the auth system
+> /council validate this PR
 
 [council] 3 judges spawned
 [judge-1] PASS — JWT implementation correct
@@ -65,6 +46,35 @@ You type one command and walk away. Come back, copy-paste the next command, walk
 [judge-3] PASS — refresh rotation implemented
 Consensus: WARN — add rate limiting before shipping
 ```
+
+**It remembers.** Three weeks later, different session:
+```
+> ao search "rate limiting"
+
+1. .agents/learnings/2026-01-28-rate-limiting.md  (score: 0.92)
+   [established] Token bucket with Redis — chose over sliding window for burst tolerance
+2. .agents/patterns/api-middleware.md  (score: 0.84)
+   Pattern: rate limit at middleware layer, not per-handler
+```
+Your agent reads these automatically at session start. No copy-paste, no "remember last time we..."
+
+**Wire it all together** when you're ready:
+```
+> /rpi "add retry backoff to rate limiter"
+
+[research]    Found 2 prior learnings on rate limiting (injected)
+[plan]        2 issues, 1 wave → epic ag-0058
+[pre-mortem]  4 judges → PASS (knew about Redis choice from prior session)
+[crank]       Wave 1: ██ 2/2
+[vibe]        3 judges → PASS
+[post-mortem] 2 new learnings → .agents/
+[flywheel]    Next: /rpi "add circuit breaker to external API calls"
+```
+
+Session 2 was faster and better because session 1's learnings were already in context. That's the flywheel.
+
+<details>
+<summary>More examples</summary>
 
 **Parallel agents with fresh context:**
 ```
@@ -95,29 +105,6 @@ Consensus: WARN — add rate limiting before shipping
 [teardown] /post-mortem → 5 learnings extracted
 ```
 
-**Search across knowledge and chat history:**
-```
-> ao search "mutex pattern"
-
-Found 4 result(s) for: mutex pattern
-
-1. .agents/learnings/2026-02-10-mutex-guard.md
-   [established] Use sync.Mutex guard pattern for concurrent map access
-2. .agents/sessions/2026-02-09-refactor.md
-   Discussed mutex vs channel approaches for worker pool
-3. .agents/patterns/concurrent-safety.md
-   Pattern: always defer mutex.Unlock() immediately after Lock()
-
-> ao search "auth retry" --cass    # session-aware, maturity-weighted
-
-Found 3 result(s) for: auth retry
-
-1. .agents/learnings/2026-02-12-auth-retry.md  (score: 0.92)
-   [established] Exponential backoff on 401 with token refresh
-2. .agents/sessions/2026-02-11-api-hardening.md  (score: 0.71)
-   [candidate] Discussed retry budget per endpoint
-```
-
 **From vision to town** (big goal → many small pieces):
 ```
 > /product                    # define mission, personas, value props
@@ -129,14 +116,6 @@ Found 3 result(s) for: auth retry
 [cycle-2] /rpi "add login/signup endpoints" → 3 issues, 1 wave ✓
 [cycle-3] /rpi "add JWT refresh + middleware" → 3 issues, 2 waves ✓
 [teardown] 9 learnings extracted. All goals met.
-```
-You define the town. The system builds it house by house — each cycle compounds on the last.
-
-**Council standalone** (no setup, no workflow):
-```
-> /council validate this PR
-> /council brainstorm caching strategies for the API
-> /council research Redis vs Memcached for our use case
 ```
 
 </details>
