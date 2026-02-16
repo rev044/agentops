@@ -135,15 +135,19 @@ You define the town. The system builds it house by house — each cycle compound
 
 ---
 
-## What It Does
+## What It Does (and what it doesn't)
 
-- **Ships features end-to-end with one command.** `/rpi "goal"` runs six phases hands-free — research, plan, pre-mortem, implement, validate, post-mortem. Or use any skill standalone: `/council validate this PR` works with zero setup.
-- **Catches bugs before they reach your branch.** Multi-model councils validate plans before coding (`/pre-mortem`) and code before shipping (`/vibe`). Failures retry with context — after 3 retries, the system surfaces the failure with full context for your decision.
-- **Gets better the more you use it.** Post-mortem extracts what worked, what didn't, and how to improve the tools themselves. Then it suggests the next `/rpi` command. The system improves its own process.
-- **Remembers everything across sessions.** Research loads prior knowledge. Each worker gets fresh context. Learnings persist in `.agents/` and git — no context resets between sessions. `ao search` finds knowledge across files and past chat history, with maturity-weighted ranking powered by [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search).
-- **Enforces its own workflow.** 12 hooks across 8 lifecycle events block bad pushes, enforce lead-only commits, gate `/crank` on `/pre-mortem`, and auto-inject language-specific standards. The system doesn't just suggest good practice — it requires it.
+Other tools give you a workflow: write a spec, implement it, check against spec, done. That works for one session. AgentOps is different in three ways:
 
-Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local.
+1. **It remembers.** SDD specs are static documents. GSD forgets everything when the session ends. AgentOps extracts what worked, what failed, and what patterns emerged — then injects that knowledge into the next session automatically. Session 10 is meaningfully smarter than session 1. Not because you configured anything, but because the system learned from sessions 1–9.
+
+2. **It self-corrects.** Most tools validate after the fact — "does code match spec?" AgentOps validates *before* coding (`/pre-mortem` simulates failures on the plan) and *after* coding (`/vibe` runs multi-model council). When validation fails, the system retries with the failure context. No human escalation unless it fails 3 times.
+
+3. **It's composable, not prescribed.** SDD and GSD are workflows you follow top-to-bottom. AgentOps is primitives you wire together. Use `/council` alone to validate a PR. Use `/research` alone to explore a codebase. Use `/vibe` alone to check code quality. Or wire them all together with `/rpi` for the full lifecycle. You adopt the pieces that help and skip the rest.
+
+The end-to-end thing (`/rpi "goal"` → research → plan → pre-mortem → crank → vibe → post-mortem) is what you get when you compose all the primitives. But it's not the point — the point is that each piece works standalone, and the knowledge compounds across all of them.
+
+Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh). All state is local. [Detailed comparisons →](docs/comparisons/)
 
 ---
 
