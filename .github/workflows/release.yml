@@ -197,18 +197,20 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Delete existing release assets (idempotent re-runs)
+      - name: Delete existing release (idempotent re-runs)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.build.outputs.version }}"
-          RELEASE_ID=$(gh api "repos/${{ github.repository }}/releases/tags/$VERSION" --jq '.id' 2>/dev/null || echo "")
-          if [[ -n "$RELEASE_ID" ]]; then
-            echo "Existing release found (id=$RELEASE_ID), deleting assets..."
-            gh api "repos/${{ github.repository }}/releases/$RELEASE_ID/assets" --jq '.[].id' | while read ASSET_ID; do
-              gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$ASSET_ID"
-              echo "  deleted asset $ASSET_ID"
-            done
+          # Delete any existing release for this tag (draft or published).
+          # GoReleaser must be the sole creator — an existing release causes
+          # it to create an "untagged" release with an empty body.
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Deleting existing release for $VERSION..."
+            gh release delete "$VERSION" --yes
+            echo "  deleted"
+          else
+            echo "No existing release for $VERSION"
           fi
 
       - name: Extract release notes from CHANGELOG.md

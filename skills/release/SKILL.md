@@ -1,6 +1,6 @@
 ---
 name: release
-description: 'Release your software. Pre-flight validation, changelog generation, version bumps, release commit, tag, draft GitHub Release. Boundary: everything up to the git tag. Triggers: "release", "cut a release", "prepare release", "release check".'
+description: 'Release your software. Pre-flight validation, changelog generation, version bumps, release commit, tag, curated release notes. Boundary: everything up to the git tag. Triggers: "release", "cut a release", "prepare release", "release check".'
 metadata:
   tier: solo
   dependencies: []
@@ -10,7 +10,7 @@ metadata:
 
 > **Purpose:** Take a project from "code is ready" to "tagged and ready to push."
 
-Pre-flight validation, changelog from git history, version bumps across package files, release commit, annotated tag, and optional draft GitHub Release. Everything is local and reversible. Publishing is CI's job.
+Pre-flight validation, changelog from git history, version bumps across package files, release commit, annotated tag, and curated release notes. Everything is local and reversible. Publishing (including the GitHub Release page) is CI's job.
 
 ---
 
@@ -21,7 +21,6 @@ Pre-flight validation, changelog from git history, version bumps across package 
 /release 1.7.0 --dry-run      # show what would happen, change nothing
 /release --check               # readiness validation only (GO/NO-GO)
 /release                       # suggest version from commit analysis
-/release 1.7.0 --no-gh-release # skip GitHub Release draft
 ```
 
 ---
@@ -34,7 +33,6 @@ Pre-flight validation, changelog from git history, version bumps across package 
 | `--check` | No | Readiness validation only — don't generate or write anything |
 | `--dry-run` | No | Show generated changelog + version bumps without writing |
 | `--skip-checks` | No | Skip pre-flight validation (tests, lint) |
-| `--no-gh-release` | No | Skip draft GitHub Release creation |
 | `--changelog-only` | No | Only update CHANGELOG.md — no version bumps, no commit, no tag |
 
 ---
@@ -45,7 +43,7 @@ Pre-flight validation, changelog from git history, version bumps across package 
 
 `/release [version]` — the complete local release workflow.
 
-Steps: pre-flight → changelog → release notes → version bump → user review → write → release commit → tag → draft GitHub Release → guidance.
+Steps: pre-flight → changelog → release notes → version bump → user review → write → release commit → tag → guidance.
 
 ### Check Mode
 
@@ -293,30 +291,18 @@ Read `references/release-notes.md` for the full release notes format, quality ba
 - Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
 - Show to the user as part of Step 8 review
 
-### Step 13: Draft GitHub Release
+### Step 13: GitHub Release (CI handles this)
 
-Unless `--no-gh-release` was passed, create a draft GitHub Release using the notes file written in Step 12.
+**Do NOT create a draft GitHub Release locally.** GoReleaser in CI is the sole release creator. A local `gh release create --draft` conflicts with GoReleaser and results in an empty release body.
 
-Check for `gh` CLI:
-```bash
-which gh
-```
+The curated release notes at `.agents/releases/YYYY-MM-DD-v<version>-notes.md` are committed to the repo. The CI pipeline (`scripts/extract-release-notes.sh`) reads them and passes them to GoReleaser via `--release-notes`.
 
-If available:
-```bash
-gh release create v<version> --draft --title "v<version>" --notes-file .agents/releases/YYYY-MM-DD-v<version>-notes.md
-```
-
-If the tag hasn't been pushed yet (common — we don't push), `gh release create` will fail. In that case, tell the user to push first, then create the release:
+Tell the user:
 
 ```
-Tag not pushed yet. After pushing, create the release with:
-  gh release create v<version> --draft --title "v<version>" --notes-file .agents/releases/YYYY-MM-DD-v<version>-notes.md
+Release notes written to .agents/releases/YYYY-MM-DD-v<version>-notes.md
+CI will use these as highlights on the GitHub Release page.
 ```
-
-Draft, not published — the user reviews and publishes from the GitHub UI or via `gh release edit v<version> --draft=false`.
-
-If `gh` is not available, tell the user the notes file is ready to paste into the GitHub Release page manually.
 
 ### Step 14: Post-release guidance
 
@@ -328,15 +314,16 @@ Release v1.7.0 prepared locally.
 Next steps:
   git push origin main --tags     # push commit + tag
 
-Your CI will handle: build, validate, publish
+CI will handle: build, validate, publish, GitHub Release page
   (detected: .github/workflows/release.yml, .goreleaser.yml)
+  Curated release notes: .agents/releases/YYYY-MM-DD-v1.7.0-notes.md
 ```
 
 If no CI detected:
 ```
 Next steps:
   git push origin main --tags     # push commit + tag
-  gh release edit v1.7.0 --draft=false  # publish the GitHub Release
+  gh release create v1.7.0 --title "v1.7.0" --notes-file .agents/releases/YYYY-MM-DD-v1.7.0-notes.md
 
 No release CI detected. Consider adding a workflow for automated publishing.
 ```
@@ -407,7 +394,7 @@ Then proceed with the normal workflow to populate the first versioned entry.
 - Version string bumps in package files
 - Release commit + annotated tag
 - Release notes (highlights + changelog) for GitHub Release page
-- Draft GitHub Release (default, opt-out with `--no-gh-release`)
+- Curated release notes for CI to publish on GitHub Release page
 - Post-release guidance
 - Audit trail
 
@@ -423,7 +410,7 @@ Everything this skill does is local and reversible:
 - Bad changelog → edit the file
 - Wrong version bump → `git reset HEAD~1`
 - Bad tag → `git tag -d v<version>`
-- Draft GitHub Release → delete from the UI
+- Bad release notes → edit `.agents/releases/*-notes.md` before push
 
 ---
 
@@ -455,7 +442,7 @@ Everything this skill does is local and reversible:
 6. Agent shows draft changelog and version diffs to user for review
 7. User approves. Agent writes CHANGELOG.md, updates version files
 8. Agent creates release commit and annotated tag (v1.7.0)
-9. Agent generates release notes and creates draft GitHub Release
+9. Agent generates curated release notes (CI uses them for GitHub Release page)
 10. Agent displays post-release guidance (push commands)
 
 **Result:** Local release fully prepared: changelog updated, versions bumped, tag created, draft release ready.
@@ -494,4 +481,4 @@ Everything this skill does is local and reversible:
 | Version mismatch warning | package.json shows 1.6.0, go shows 1.5.9 | Manually sync versions before release, or choose one as source of truth |
 | Tests fail during pre-flight | Breaking changes not caught earlier | Fix failing tests or use `--skip-checks` (not recommended) |
 | Dirty working tree warning | Uncommitted changes present | Commit or stash changes before release for clean state |
-| GitHub Release creation fails "tag not found" | Tag created locally but not pushed | Push tag first: `git push origin main --tags`, then retry `gh release create` |
+| GitHub Release page has empty body | GoReleaser conflicts with existing draft release | CI workflow deletes existing releases before GoReleaser runs; do NOT `gh release create` locally |

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release pipeline empty body** — GoReleaser created an "untagged" release with empty body when a draft release already existed for the tag. Workflow now deletes any existing release before GoReleaser runs.
+- **Release skill skip draft creation** — `/release` no longer creates a draft GitHub Release via `gh release create`. GoReleaser handles release creation in CI; local drafts conflict with it.
+
 ## [2.9.2] - 2026-02-16
 
 ### Added

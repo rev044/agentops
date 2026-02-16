@@ -91,7 +91,9 @@ loading reference docs only when needed.
 mkdir -p .agents/releases
 ```
 
-Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` — this is the **public-facing** file used by `gh release create` and is what users see. It contains ONLY the Highlights + What's New + All Changes structure above, ending with a link to the full CHANGELOG.md. No internal metadata, no pre-flight results, no next steps, no issue IDs, no file paths.
+Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md` — this is the **public-facing** file that CI uses for the GitHub Release page. It contains ONLY the Highlights + What's New + All Changes structure above, ending with a link to the full CHANGELOG.md. No internal metadata, no pre-flight results, no next steps, no issue IDs, no file paths.
+
+**IMPORTANT:** This file must be committed in the release commit (before tagging). CI checks out the tagged commit and reads this file from the repo. `.agents/releases/` must NOT be gitignored. If it is, CI falls back to CHANGELOG-only mode (no curated highlights).
 
 **Show the release notes to the user** as part of Step 8 review, alongside the changelog and version bumps.
 
