@@ -43,6 +43,8 @@ reports/
 
 # Runtime state
 state.json
+.runtime/
+.claude/memory.md
 
 # Go binaries (built locally)
 cli/ao

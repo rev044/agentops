@@ -188,6 +188,19 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 </details>
 
+<details>
+<summary><strong>Recommended .gitignore</strong></summary>
+
+AgentOps writes session artifacts, validation reports, and knowledge to `.agents/` in your repo. These files may contain absolute paths and sensitive tool output (e.g., gitleaks results). Add this to your `.gitignore`:
+
+```gitignore
+# AgentOps session artifacts
+.agents/
+.beads/
+```
+
+</details>
+
 ---
 
 ## The Path
@@ -204,7 +217,7 @@ GOALS.yaml + /evolve                 ← Ongoing: define fitness goals, the syst
 
 Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. Set `GOALS.yaml` and let `/evolve` compound from there.
 
-**Where does the knowledge live?** Everything the system learns is stored in `.agents/` — a git-tracked knowledge vault in your repo. Learnings, research artifacts, plans, fitness snapshots, and session handoffs all live there. Because it's git-tracked, knowledge survives across sessions, machines, and team members. You never configure it; skills read from and write to it automatically.
+**Where does the knowledge live?** Everything the system learns is stored in `.agents/` — a local knowledge vault in your repo. Learnings, research artifacts, plans, fitness snapshots, and session handoffs all live there. Knowledge survives across sessions automatically. You never configure it; skills read from and write to it automatically.
 
 ---
 
