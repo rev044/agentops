@@ -30,6 +30,9 @@ const (
 
 	// MaxSessionsToInject is the maximum number of recent sessions to summarize
 	MaxSessionsToInject = 5
+
+	// quarantineRelPath is the path to OL quarantine constraints relative to the .ol/ directory.
+	quarantineRelPath = "constraints/quarantine.json"
 )
 
 var (
@@ -358,7 +361,7 @@ func collectOLConstraints(cwd, query string) ([]olConstraint, error) {
 		return nil, nil // Not an Olympus project
 	}
 
-	quarantinePath := filepath.Join(olDir, "constraints", "quarantine.json")
+	quarantinePath := filepath.Join(olDir, quarantineRelPath)
 	data, err := os.ReadFile(quarantinePath)
 	if err != nil {
 		if os.IsNotExist(err) {

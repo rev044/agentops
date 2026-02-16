@@ -36,29 +36,21 @@ ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hook-helpers.sh
 . "$SCRIPT_DIR/../lib/hook-helpers.sh"
+# shellcheck source=../lib/chain-parser.sh
+. "$SCRIPT_DIR/../lib/chain-parser.sh"
 
 # Cold start: no chain = no enforcement
 [ ! -f "$ROOT/.agents/ao/chain.jsonl" ] && exit 0
 
 # Parse chain directly for speed (avoid spawning ao process)
-# Look for the latest vibe step entry
-# Schema naming: "gate" + "status" are CANONICAL (current schema)
-#                "step" + "locked" are LEGACY (preserved for backward compat with old chain.jsonl entries)
-VIBE_LINE=$(grep -E '"(step|gate)"[[:space:]]*:[[:space:]]*"vibe"' "$ROOT/.agents/ao/chain.jsonl" 2>/dev/null | tail -1)
+VIBE_LINE=$(chain_find_entry "$ROOT/.agents/ao/chain.jsonl" "vibe")
 
 LOG_DIR="$ROOT/.agents/ao"
 mkdir -p "$LOG_DIR" 2>/dev/null
 
 VIBE_DONE=false
-if [ -z "$VIBE_LINE" ]; then
-    # No vibe entry at all — vibe is pending, block
-    :
-else
-    # Check if vibe is locked or skipped
-    # CANONICAL: "status": "locked|skipped"  |  LEGACY: "locked": true
-    if echo "$VIBE_LINE" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"' || echo "$VIBE_LINE" | grep -qE '"locked"[[:space:]]*:[[:space:]]*true'; then
-        VIBE_DONE=true
-    fi
+if [ -n "$VIBE_LINE" ] && chain_is_done "$VIBE_LINE"; then
+    VIBE_DONE=true
 fi
 
 if [ "$VIBE_DONE" = "false" ]; then
@@ -81,19 +73,12 @@ fi
 
 # --- Post-mortem gate ---
 # If vibe exists, check that post-mortem is also done before allowing push
-# Schema naming: "gate" is CANONICAL, "step" is LEGACY (backward compat)
-PM_LINE=$(grep -E '"(step|gate)"[[:space:]]*:[[:space:]]*"post-mortem"' "$ROOT/.agents/ao/chain.jsonl" 2>/dev/null | tail -1)
+PM_LINE=$(chain_find_entry "$ROOT/.agents/ao/chain.jsonl" "post-mortem")
 
 if [ -z "$PM_LINE" ]; then
-    # Vibe exists but no post-mortem entry — block
     :
-else
-    # Check if post-mortem is locked or skipped
-    # CANONICAL: "status": "locked|skipped"  |  LEGACY: "locked": true
-    if echo "$PM_LINE" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"' || echo "$PM_LINE" | grep -qE '"locked"[[:space:]]*:[[:space:]]*true'; then
-        # Post-mortem done — allow push
-        exit 0
-    fi
+elif chain_is_done "$PM_LINE"; then
+    exit 0
 fi
 
 # Post-mortem not completed — block push

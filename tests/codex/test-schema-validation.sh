@@ -53,7 +53,7 @@ else
 fi
 
 # Test 5: Required fields at root
-REQUIRED='["verdict","confidence","key_insight","findings","recommendation"]'
+REQUIRED='["verdict","confidence","key_insight","findings","recommendation","schema_version"]'
 if jq -e --argjson expected "$REQUIRED" '.required | sort == ($expected | sort)' "$SCHEMA" > /dev/null 2>&1; then
     pass "Root required fields match"
 else
@@ -82,13 +82,14 @@ else
 fi
 
 # Test 9: Conforming sample validates structurally
-GOOD_SAMPLE='{"verdict":"PASS","confidence":"HIGH","key_insight":"test","findings":[{"severity":"minor","description":"test"}],"recommendation":"none"}'
+GOOD_SAMPLE='{"verdict":"PASS","confidence":"HIGH","key_insight":"test","findings":[{"severity":"minor","category":"style","description":"test","location":"test.go:1","recommendation":"none"}],"recommendation":"none","schema_version":2}'
 if echo "$GOOD_SAMPLE" | jq -e '
   .verdict as $v | .confidence as $c |
   ($v == "PASS" or $v == "WARN" or $v == "FAIL") and
   ($c == "HIGH" or $c == "MEDIUM" or $c == "LOW") and
   (.findings | type == "array") and
-  (.findings | all(.severity and .description))
+  (.findings | all(.severity and .category and .description and .location and .recommendation)) and
+  (.schema_version == 1 or .schema_version == 2)
 ' > /dev/null 2>&1; then
     pass "Conforming sample passes structural validation"
 else

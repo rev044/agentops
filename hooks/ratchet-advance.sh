@@ -66,6 +66,9 @@ fi
 
 # Idempotency: check if next step already recorded in chain.jsonl
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+# shellcheck source=../lib/chain-parser.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/../lib/chain-parser.sh"
 CHAIN="$ROOT/.agents/ao/chain.jsonl"
 if [ -f "$CHAIN" ]; then
     # Determine the next step NAME (not the skill name)
@@ -79,17 +82,9 @@ if [ -f "$CHAIN" ]; then
         *)           NEXT_STEP="" ;;
     esac
     if [ -n "$NEXT_STEP" ]; then
-        # Check both old ("gate") and new ("step") field names
-        if grep -qE "\"(step|gate)\"[[:space:]]*:[[:space:]]*\"${NEXT_STEP}\"" "$CHAIN" 2>/dev/null; then
-            ENTRY=$(grep -E "\"(step|gate)\"[[:space:]]*:[[:space:]]*\"${NEXT_STEP}\"" "$CHAIN" | tail -1)
-            # Old schema: "status": "locked" or "skipped"
-            if echo "$ENTRY" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(locked|skipped)"'; then
-                exit 0  # Already done, suppress
-            fi
-            # New schema: "locked": true
-            if echo "$ENTRY" | grep -qE '"locked"[[:space:]]*:[[:space:]]*true'; then
-                exit 0  # Already done, suppress
-            fi
+        ENTRY=$(chain_find_entry "$CHAIN" "$NEXT_STEP")
+        if [ -n "$ENTRY" ] && chain_is_done "$ENTRY"; then
+            exit 0  # Already done, suppress
         fi
     fi
 fi
