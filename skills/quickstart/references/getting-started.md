@@ -51,6 +51,9 @@ Based on what quickstart found, pick your next action:
 - **Ready to validate code?** Run `/vibe recent` for a full review
 - **Have a multi-step epic?** Run `/crank` for hands-free execution
 - **Want cross-model validation?** Run `/council --mixed` for Claude + Codex review
+- **Want to cut a release?** Run `/release` for changelog, version bumps, and tagging
+- **Want a full lifecycle?** Run `/rpi` for Research → Plan → Implement → Validate in one command
+- **Want persistent knowledge?** Install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao init --hooks`
 
 ## The RPI Lifecycle
 

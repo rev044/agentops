@@ -9,16 +9,19 @@
 # Verify hooks are installed
 ao hooks test
 
-# Check hooks.json exists and is valid
-cat .claude-plugin/hooks.json | jq . 2>/dev/null
+# Check hooks.json exists and is valid (hooks live in hooks/, not .claude-plugin/)
+cat hooks/hooks.json | jq . 2>/dev/null
+
+# Check settings.json for ao hooks
+cat ~/.claude/settings.json | jq '.hooks' 2>/dev/null
 
 # Verify plugin is loaded
 claude --plugin ./ --help
 ```
 
 **Fixes:**
-- Reinstall hooks: `ao hooks install`
-- Check that `.claude-plugin/hooks.json` is not malformed JSON
+- Reinstall hooks: `ao hooks install` (minimal) or `ao init --hooks --full` (all 8 events)
+- Check that `hooks/hooks.json` is not malformed JSON
 - Restart Claude Code after hook changes
 
 ## Skills Not Showing Up
@@ -49,16 +52,18 @@ head -5 skills/quickstart/SKILL.md
 
 **Installation:**
 ```bash
-# ao (AgentOps CLI)
+# ao (AgentOps CLI) — requires Homebrew tap first
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
-ao init
+ao init              # Create .agents/ dirs + .gitignore
+ao init --hooks      # Also install flywheel hooks (SessionStart + Stop)
 
 # bd (Beads issue tracking)
-brew install beads
+brew install boshu2/agentops/beads
 bd init --prefix <your-prefix>
 
 # gt (Gas Town workspace manager)
-brew install gastown
+brew install boshu2/agentops/gastown
 ```
 
 **Verify PATH:**
@@ -132,6 +137,6 @@ ao flywheel status
 ```
 
 **Fixes:**
-- Install ao: `brew install agentops && ao init`
-- Install hooks: `ao hooks install`
+- Install ao: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao init`
+- Install hooks: `ao init --hooks` (minimal) or `ao init --hooks --full` (all lifecycle events)
 - Verify inject runs on session start: check `hooks/session-start.sh`

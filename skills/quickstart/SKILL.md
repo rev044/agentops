@@ -229,13 +229,14 @@ Here's what else is available:
   IMPLEMENT                    VALIDATE                 COLLABORATE
   /implement  - execute task   /vibe      - code check  /council   - multi-model review
   /crank      - run full epic  /pre-mortem - plan check  /swarm     - parallel agents
-  /plan       - decompose work /post-mortem - wrap up    /handoff   - session handoff
+  /plan       - decompose work /post-mortem - wrap up    /codex-team - parallel Codex agents
+  /rpi        - full lifecycle /release   - tag release  /handoff   - session handoff
 
-  EXPLORE                      TRACK
-  /research   - deep dive      /knowledge - query learnings
-  /bug-hunt   - investigate    /inbox     - agent messages
-  /complexity - code metrics   /trace     - decision history
-  /doc        - generate docs  /retro     - extract learnings
+  EXPLORE                      TRACK                    META
+  /research   - deep dive      /knowledge - query learn  /status   - dashboard
+  /bug-hunt   - investigate    /inbox     - agent mail   /recover  - restore context
+  /complexity - code metrics   /trace     - decisions    /product  - product definition
+  /doc        - generate docs  /retro     - learnings    /evolve   - goal-driven loop
 ```
 
 ### Step 7: Suggest Next Steps
@@ -267,9 +268,9 @@ git rev-parse --is-inside-work-tree &>/dev/null && GIT_REPO=true || GIT_REPO=fal
 | Current State | Tier | Next Step |
 |---------------|------|-----------|
 | No git repo | — | "Initialize git with `git init` to unlock change tracking, `/vibe`, and full RPI workflow." |
-| Git repo, no `ao`, no `.agents/` | Tier 0 | "You're at Tier 0 — skills work standalone. When you want learnings to persist across sessions, install the `ao` CLI: `brew install agentops && ao hooks install`" |
-| `ao` installed, no `.agents/` yet | Tier 0+ | "Run `ao init` to create the `.agents/` directory. Then your knowledge flywheel starts capturing learnings automatically." |
-| `ao` + `.agents/`, no beads | Tier 1 | "Knowledge flywheel is active. When you have multi-issue epics, add beads for issue tracking: `brew install beads && bd init --prefix <your-prefix>`" |
+| Git repo, no `ao`, no `.agents/` | Tier 0 | "You're at Tier 0 — skills work standalone. When you want learnings to persist across sessions, install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao init --hooks`" |
+| `ao` installed, no `.agents/` yet | Tier 0+ | "Run `ao init` to create the `.agents/` directory and .gitignore. Add `--hooks` to also install flywheel hooks (SessionStart + Stop). Your knowledge flywheel starts capturing learnings automatically." |
+| `ao` + `.agents/`, no beads | Tier 1 | "Knowledge flywheel is active. When you have multi-issue epics, add beads for issue tracking: `brew install boshu2/agentops/beads && bd init --prefix <your-prefix>`" |
 | `ao` + beads, no Codex | Tier 2 | "Full RPI stack. Start with repo instructions (check `AGENTS.md` if present), then try `bd ready` (find work) or `/crank` (run an epic)." |
 | `ao` + beads + Codex | Tier 2+ | "Full stack with cross-vendor. Try `/council --mixed` for Claude + Codex consensus, or `/vibe --mixed` for cross-vendor code review." |
 

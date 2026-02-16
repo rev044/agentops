@@ -83,27 +83,38 @@ Research → Plan → Implement → Validate
 - Use `/swarm` directly for **parallel execution** without beads (TaskList only).
 - Use `/ratchet` to **gate/record progress** through RPI.
 
-## Available Skills
+## Available Skills (26 user-facing)
 
 | Skill | Purpose |
 |-------|---------|
+| `/quickstart` | Interactive onboarding — first RPI cycle in under 10 minutes |
+| `/status` | Single-screen dashboard of current work and suggested next action |
 | `/research` | Deep codebase exploration |
-| `/pre-mortem` | Failure simulation before implementing |
 | `/plan` | Epic decomposition into issues |
+| `/pre-mortem` | Failure simulation before implementing |
 | `/implement` | Execute single issue |
 | `/crank` | Autonomous epic loop (uses swarm for each wave) |
 | `/swarm` | Fresh-context parallel execution (Ralph pattern) |
-| `/vibe` | Code validation |
-| `/retro` | Extract learnings |
+| `/rpi` | Full RPI lifecycle orchestrator (research → plan → implement → validate) |
+| `/evolve` | Goal-driven fitness-scored improvement loop |
+| `/vibe` | Code validation (complexity + multi-model council) |
+| `/council` | Multi-model consensus review (validate, brainstorm, research) |
+| `/codex-team` | Parallel Codex agent execution |
+| `/retro` | Extract learnings from completed work |
 | `/post-mortem` | Full validation + knowledge extraction |
-| `/beads` | Issue tracking operations |
+| `/release` | Pre-flight, changelog, version bumps, tag |
 | `/bug-hunt` | Root cause analysis |
-| `/knowledge` | Query knowledge artifacts |
 | `/complexity` | Code complexity analysis |
 | `/doc` | Documentation generation |
-| `/provenance` | Trace artifact lineage to sources |
-| `/release` | Pre-flight, changelog, version bumps, tag |
+| `/product` | Interactive PRODUCT.md generation |
+| `/knowledge` | Query knowledge artifacts |
+| `/beads` | Issue tracking operations |
+| `/handoff` | Session handoff for continuation |
+| `/inbox` | Agent mail monitoring |
+| `/recover` | Post-compaction context recovery |
 | `/trace` | Trace design decisions through history |
+| `/provenance` | Trace artifact lineage to sources |
+| `/update` | Reinstall all AgentOps skills from latest source |
 
 ## Knowledge Flywheel
 
@@ -128,6 +139,14 @@ Skills auto-trigger from conversation:
 | "Where did this learning come from?" | `/provenance` |
 | "Cut a release" | `/release` |
 | "Are we ready to release?" | `/release --check` |
+| "What am I working on?" | `/status` |
+| "Get started" / "How do I start?" | `/quickstart` |
+| "Define the product" | `/product` |
+| "Run the full lifecycle" | `/rpi` |
+| "Improve toward goals" | `/evolve` |
+| "Where was I?" / "Lost context" | `/recover` |
+| "End session" / "Pick up later" | `/handoff` |
+| "Update skills" | `/update` |
 
 ## Issue Tracking
 
