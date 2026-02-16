@@ -64,8 +64,10 @@ fi
 # No evidence found — block
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
 ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+# Source hook-helpers from plugin install dir, not repo root (security: prevents malicious repo sourcing)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hook-helpers.sh
-. "$ROOT/lib/hook-helpers.sh"
+. "$SCRIPT_DIR/../lib/hook-helpers.sh"
 
 LOG_DIR="$ROOT/.agents/ao"
 mkdir -p "$LOG_DIR" 2>/dev/null
@@ -79,6 +81,5 @@ BLOCKED: Epic $EPIC_ID has $CHILD_COUNT issues. Pre-mortem is mandatory for 3+ i
 Options:
   1. /pre-mortem                         -- run pre-mortem validation
   2. /crank $EPIC_ID --skip-pre-mortem   -- bypass with justification
-  3. export AGENTOPS_SKIP_PRE_MORTEM_GATE=1  -- disable gate entirely
 EOMSG
 exit 2

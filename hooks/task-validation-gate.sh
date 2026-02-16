@@ -47,7 +47,9 @@ run_restricted() {
     fi
 
     # Strict allowlist of permitted binaries
-    local allowed="go pytest npm npx make bash"
+    # NOTE: npx removed (downloads+executes arbitrary npm packages = RCE)
+    # NOTE: bash removed (bash <script> bypasses -c block = arbitrary execution)
+    local allowed="go pytest npm make"
     local found=0
     for a in $allowed; do
         if [ "$binary" = "$a" ]; then
@@ -61,17 +63,6 @@ run_restricted() {
         exit 2
     fi
 
-    # Block bash -c (shell interpretation escape)
-    if [ "$binary" = "bash" ]; then
-        for arg in "${cmd_parts[@]:1}"; do
-            if [ "$arg" = "-c" ]; then
-                log_error "BLOCKED: bash -c not allowed: $cmd"
-                echo "VALIDATION BLOCKED: 'bash -c' not allowed (use direct commands)" >&2
-                exit 2
-            fi
-        done
-    fi
-
     # Execute as array — no shell interpretation
     "${cmd_parts[@]}" >/dev/null 2>&1
 }
@@ -81,9 +72,10 @@ log_error() {
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task-validation-gate: $1" >> "$ERROR_LOG" 2>/dev/null
 }
 
-# Source shared write_failure() from hook-helpers.sh
+# Source hook-helpers from plugin install dir, not repo root (security: prevents malicious repo sourcing)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hook-helpers.sh
-. "$ROOT/lib/hook-helpers.sh"
+. "$SCRIPT_DIR/../lib/hook-helpers.sh"
 
 # Resolve user-provided file paths to repo-rooted absolute paths.
 # Returns non-zero if path escapes ROOT or cannot be normalized.

@@ -32,8 +32,10 @@ if [ -z "$ROOT" ]; then
     exit 0
 fi
 ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+# Source hook-helpers from plugin install dir, not repo root (security: prevents malicious repo sourcing)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hook-helpers.sh
-. "$ROOT/lib/hook-helpers.sh"
+. "$SCRIPT_DIR/../lib/hook-helpers.sh"
 
 # Cold start: no chain = no enforcement
 [ ! -f "$ROOT/.agents/ao/chain.jsonl" ] && exit 0
@@ -68,8 +70,7 @@ if [ "$VIBE_DONE" = "false" ]; then
 Options:
   1. /vibe              -- full council validation
   2. /vibe --quick      -- fast inline check
-  3. ao ratchet skip vibe --reason \"<why>\"
-To disable all gates: export AGENTOPS_HOOKS_DISABLED=1"
+  3. ao ratchet skip vibe --reason \"<why>\""
     fi
 
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (vibe): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
@@ -102,8 +103,7 @@ else
     PM_MSG="BLOCKED: post-mortem not completed. Run /post-mortem to capture learnings before pushing.
 Options:
   1. /post-mortem          -- full council wrap-up
-  2. ao ratchet skip post-mortem --reason '<why>'
-To disable all gates: export AGENTOPS_HOOKS_DISABLED=1"
+  2. ao ratchet skip post-mortem --reason '<why>'"
 fi
 
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (post-mortem): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null

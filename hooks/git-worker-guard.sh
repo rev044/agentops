@@ -44,11 +44,13 @@ if [ "$BLOCKED" -eq 0 ]; then
     exit 0
 fi
 
-# Source shared helpers for structured failure output
+# Source hook-helpers from plugin install dir, not repo root (security: prevents malicious repo sourcing)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/hook-helpers.sh
+. "$SCRIPT_DIR/../lib/hook-helpers.sh"
+
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
-# shellcheck source=../lib/hook-helpers.sh
-. "$ROOT/lib/hook-helpers.sh"
 
 # Check agent identity via CLAUDE_AGENT_NAME
 if [ -n "$CLAUDE_AGENT_NAME" ]; then
