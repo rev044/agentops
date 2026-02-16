@@ -90,6 +90,7 @@ validate_message_freeze() {
 
 run_check "Link validation" bash "$REPO_ROOT/tests/docs/validate-links.sh"
 run_check "Skill count validation" bash "$REPO_ROOT/tests/docs/validate-skill-count.sh"
+run_check "Skill count sync check" bash "$REPO_ROOT/scripts/sync-skill-counts.sh" --check
 run_check "Release message freeze validation" validate_message_freeze
 
 if [[ "$errors" -gt 0 ]]; then
