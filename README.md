@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/assets/hero.jpg" alt="Context engineering — crafting what enters the window" width="700">
+
 # AgentOps
 
 ### Your coding agent gets smarter every time you use it.
