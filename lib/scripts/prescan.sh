@@ -166,16 +166,17 @@ fi
 # Python: Function length > 50 lines
 for file in $PY_FILES; do
   [ -f "$file" ] || continue
-  python3 -c "
-import ast
+  python3 -c '
+import ast, sys
+fname = sys.argv[1]
 try:
-    with open('$file') as f: tree = ast.parse(f.read())
+    with open(fname) as f: tree = ast.parse(f.read())
     for n in ast.walk(tree):
-        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and hasattr(n, 'end_lineno'):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and hasattr(n, "end_lineno"):
             lines = n.end_lineno - n.lineno + 1
-            if lines > 50: print(f'  - $file:{n.lineno}: {n.name}() is {lines} lines (py)')
+            if lines > 50: print(f"  - {fname}:{n.lineno}: {n.name}() is {lines} lines (py)")
 except: pass
-" 2>/dev/null || true
+' "$file" 2>/dev/null || true
 done
 
 # Go: Function length > 50 lines (simple heuristic)
@@ -207,19 +208,20 @@ echo "[P8] Cargo Cult Error Handling"
 # Python: except:pass, bare except
 for file in $PY_FILES; do
   [ -f "$file" ] || continue
-  python3 -c "
-import ast
+  python3 -c '
+import ast, sys
+fname = sys.argv[1]
 try:
-    with open('$file') as f: tree = ast.parse(f.read())
+    with open(fname) as f: tree = ast.parse(f.read())
     for n in ast.walk(tree):
         if isinstance(n, ast.Try):
             for h in n.handlers:
                 if len(h.body) == 1 and isinstance(h.body[0], ast.Pass):
-                    print(f'  - $file:{h.lineno}: except: pass (swallowed) (py)')
+                    print(f"  - {fname}:{h.lineno}: except: pass (swallowed) (py)")
                 if h.type is None:
-                    print(f'  - $file:{h.lineno}: bare except (catches SystemExit) (py)')
+                    print(f"  - {fname}:{h.lineno}: bare except (catches SystemExit) (py)")
 except: pass
-" 2>/dev/null || true
+' "$file" 2>/dev/null || true
 done
 
 # Bash: shellcheck for error handling issues
@@ -248,29 +250,30 @@ echo ""
 echo "[P9] Documentation Phantom"
 for file in $PY_FILES; do
   [ -f "$file" ] || continue
-  python3 -c "
-import ast, re
+  python3 -c '
+import ast, re, sys
+fname = sys.argv[1]
 try:
-    with open('$file') as f: src = f.read()
+    with open(fname) as f: src = f.read()
     tree = ast.parse(src)
     PATTERNS = [
-        (r'\bvalidates?\b', ['raise', 'ValueError', 'return False']),
-        (r'\bensures?\b', ['assert', 'raise']),
-        (r'\bencrypts?\b', ['crypto', 'cipher']),
-        (r'\bauthenticat', ['token', 'password']),
-        (r'\bsanitiz', ['escape', 'strip'])
+        (r"\bvalidates?\b", ["raise", "ValueError", "return False"]),
+        (r"\bensures?\b", ["assert", "raise"]),
+        (r"\bencrypts?\b", ["crypto", "cipher"]),
+        (r"\bauthenticat", ["token", "password"]),
+        (r"\bsanitiz", ["escape", "strip"])
     ]
     for n in ast.walk(tree):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if n.body and isinstance(n.body[0], ast.Expr) and isinstance(getattr(n.body[0], 'value', None), ast.Constant):
+            if n.body and isinstance(n.body[0], ast.Expr) and isinstance(getattr(n.body[0], "value", None), ast.Constant):
                 doc = str(n.body[0].value.value).lower()
-                fsrc = (ast.get_source_segment(src, n) or '').lower()
+                fsrc = (ast.get_source_segment(src, n) or "").lower()
                 for pat, impl in PATTERNS:
                     if re.search(pat, doc) and not any(i in fsrc for i in impl):
-                        print(f'  - $file:{n.lineno}: {n.name}() docstring mismatch')
+                        print(f"  - {fname}:{n.lineno}: {n.name}() docstring mismatch")
                         break
 except: pass
-" 2>/dev/null || true
+' "$file" 2>/dev/null || true
 done
 echo "  $P9_COUNT findings"
 
@@ -280,31 +283,32 @@ echo ""
 echo "[P12] Zombie Code"
 for file in $PY_FILES; do
   [ -f "$file" ] || continue
-  python3 -c "
-import ast
+  python3 -c '
+import ast, sys
+fname = sys.argv[1]
 try:
-    with open('$file') as f: src = f.read()
+    with open(fname) as f: src = f.read()
     tree = ast.parse(src)
     defined, called = set(), set()
     for n in ast.walk(tree):
-        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and not n.name.startswith('_'):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and not n.name.startswith("_"):
             defined.add(n.name)
         if isinstance(n, ast.Call):
             if isinstance(n.func, ast.Name): called.add(n.func.id)
             elif isinstance(n.func, ast.Attribute): called.add(n.func.attr)
-    for f in (defined - called):
-        if f not in ('main', 'setup', 'teardown') and not f.startswith('test_'):
-            print(f'  - $file: {f}() may be unused')
+    for fn in (defined - called):
+        if fn not in ("main", "setup", "teardown") and not fn.startswith("test_"):
+            print(f"  - {fname}: {fn}() may be unused")
     # Unreachable code
     for n in ast.walk(tree):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for i, s in enumerate(n.body[:-1]):
                 if isinstance(s, (ast.Return, ast.Raise)) and n.body[i+1:]:
                     nxt = n.body[i+1]
-                    if not (isinstance(nxt, ast.Expr) and isinstance(getattr(nxt, 'value', None), ast.Constant)):
-                        print(f'  - $file:{nxt.lineno}: Unreachable after return/raise')
+                    if not (isinstance(nxt, ast.Expr) and isinstance(getattr(nxt, "value", None), ast.Constant)):
+                        print(f"  - {fname}:{nxt.lineno}: Unreachable after return/raise")
 except: pass
-" 2>/dev/null || true
+' "$file" 2>/dev/null || true
 done
 echo "  $P12_COUNT findings"
 
