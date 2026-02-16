@@ -27,6 +27,7 @@ AgentOps is a skills plugin that treats context quality as the primary lever for
 - **Compound Intelligence Across Sessions** — Each session captures learnings that pass quality gates (scored on specificity, actionability, novelty, context, and confidence) into gold/silver/bronze tiers. Freshness decay ensures recent insights outweigh stale patterns. The system doesn't just remember — it curates.
 - **Ship With Confidence, Not Caution** — Least-privilege context loading gives each agent only the information relevant to its task, preventing context contamination. Parallel model validation and self-correcting workflows catch issues before deployment, letting teams move faster without sacrificing quality.
 - **Hands-Free Goal Achievement** — Spawn agents that work independently toward your goals (via `/evolve` and `/crank`), validate their work through multi-model consensus, and commit only when passing quality gates.
+- **Orchestration at Scale** — Big visions decompose into dependency-mapped waves of parallel workers, each running in fresh-context isolation. No subagent nesting required — workers are flat peers, not nested children. `/plan` creates the wave structure from dependencies; `/crank` executes it. The system handles coordination so you manage the roadmap, not the agents.
 - **Zero Setup, Zero Telemetry** — All state lives in git-tracked `.agents/` directories with no cloud dependency, giving teams full control and auditability while working across any coding agent runtime.
 
 ## Competitive Landscape

@@ -14,7 +14,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
-[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Vision to Execution](#from-vision-to-execution) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -325,6 +325,22 @@ Kill switch at any time: `echo "stop" > ~/.config/evolve/KILL`
 
 ---
 
+## From Vision to Execution
+
+One command ships a feature — but how do you go from "build an auth system" to "4 workers execute 6 issues across 2 waves in parallel"? You spend time upfront defining the town, then let the system build it house by house.
+
+1. **Define the vision** — What does "done" look like? `/product` captures mission and personas. `GOALS.yaml` defines measurable fitness checks.
+2. **Research the landscape** — `/research` explores your codebase, loads prior knowledge, and produces a grounded artifact with file-level citations.
+3. **Decompose into issues** — `/plan` breaks the vision into atomic tasks with explicit dependencies. Each issue is one worker's worth of work.
+4. **Dependencies create waves** — Issues that don't conflict run in parallel (Wave 1). Issues that depend on Wave 1 outputs form Wave 2. The wave structure emerges from the dependency graph, not manual ordering.
+5. **Fresh-context workers per wave** — `/crank` spawns workers for each wave. Every worker gets clean context — no bleed-through from prior waves. Workers are atomic: one task, one spawn, one result.
+6. **Validate and learn** — `/vibe` validates code with multi-model council. `/post-mortem` extracts learnings and suggests the next `/rpi` command.
+7. **Compound across cycles** — `/evolve` measures fitness against your goals and runs repeated `/rpi` cycles, each building on learnings from the last. The graph is always there — you're executing against it incrementally.
+
+The workflow section above shows *what* each skill does. This is *how to think about scale*: you're not building one house — you're planning a town, then letting the crew execute it wave by wave while the system tracks the master plan.
+
+---
+
 ## The Design: Four Pillars
 
 Every skill, goal, and hook in AgentOps maps to one of four pillars:
@@ -606,6 +622,19 @@ Run `/product` to generate a `PRODUCT.md` describing your mission, personas, and
 - **Quality pool can over-promote.** Context-specific patterns sometimes get promoted as general knowledge. Freshness decay helps but doesn't fully solve stale injection.
 - **Retry loops cap at 3.** If a council or crank wave fails three times, the system surfaces the failure to you rather than looping forever. This is intentional but means some edge cases need human judgment.
 - **Knowledge curation is imperfect.** Freshness decay prevents the worst staleness, but the scoring heuristics (specificity, actionability, novelty) are tuned for one author's workflow. Your mileage may vary.
+
+</details>
+
+<details>
+<summary><strong>How does AgentOps handle subagent nesting? (Workers spawning their own subagents)</strong></summary>
+
+Claude Code doesn't allow subagents to spawn their own subagents — nesting depth is capped at one level. AgentOps works around this three ways:
+
+- **Distributed mode** — `/swarm --mode=distributed` runs each agent as its own top-level Claude Code process in a separate tmux pane, coordinating through filesystem-based mailbox (Agent Mail). No nesting at all — every agent is a root process that can spawn whatever it wants.
+- **Teams as flat peers** — `TeamCreate` spawns agents as peers, not nested children. A researcher teammate can spawn its own Task sub-agents because the nesting depth resets at each peer.
+- **Wave-based execution** — `/crank` sidesteps the problem entirely. The orchestrator pre-plans waves of parallel work. Wave 1 workers run, complete, and write file artifacts. Wave 2 workers spawn fresh, read those artifacts. No nesting needed — workers are atomic (one task, one spawn, one result) and share work through the filesystem, not through parent context.
+
+Workers are intentionally atomic. Fresh-context isolation per worker prevents contamination between waves. If you need deeper parallelism, decompose into more granular issues — 5 issues across 2 waves becomes 10 issues across 3 waves with finer granularity.
 
 </details>
 
