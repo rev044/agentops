@@ -5,11 +5,13 @@
 ## Getting Started
 
 - [README](../README.md) — Project overview and quick start
+- [FAQ](FAQ.md) — Comparisons, limitations, subagent nesting, uninstall
 - [CONTRIBUTING](../CONTRIBUTING.md) — How to contribute
 - [CLAUDE.md](../CLAUDE.md) — Project instructions for AI agents
 
 ## Architecture
 
+- [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing
 - [Architecture](ARCHITECTURE.md) — System design and component overview
 - [AO-Olympus Ownership Matrix](architecture/ao-olympus-ownership-matrix.md) — Responsibility split for skills, runtime, and bridge contracts
 - [PDC Framework](architecture/pdc-framework.md) — Prevent, Detect, Correct quality control approach
