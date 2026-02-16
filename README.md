@@ -6,7 +6,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.8.0-brightgreen)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-34-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-35-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
@@ -156,7 +156,7 @@ ao hooks install        # Flywheel hooks (SessionStart + Stop)
 ao hooks install --full # All 12 hooks across 8 lifecycle events
 ```
 
-The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 34 skills work without it.
+The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 35 skills work without it.
 
 </details>
 
@@ -324,7 +324,7 @@ These pillars are codified in [`GOALS.yaml`](GOALS.yaml) — 45 measurable goals
 
 ## Skills
 
-34 skills total: 24 user-facing across three tiers, plus 10 internal skills that fire automatically.
+35 skills total: 25 user-facing across three tiers, plus 10 internal skills that fire automatically.
 
 ### Orchestration
 
