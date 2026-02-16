@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/plugin-manifest.v1.schema.json",
   "name": "agentops",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Your coding agent gets smarter every time you use it. Automates context, validation, execution, and learning — each session compounds on every session before it.",
   "author": {
     "name": "Boden Fuller",

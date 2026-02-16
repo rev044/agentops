@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-02-16
+
+### Added
+
+- **`/recover` skill** — Post-compaction context recovery. Detects in-progress RPI and evolve sessions, loads knowledge, shows recent work and pending tasks. Behavioral validation with 6 checks.
+- **`ao vibe-check` CLI command** — Full vibecheck Go package: timeline parser, 5 health metrics, 4 detectors (stagnation, thrashing, drift, regression), orchestrator, and Cobra command with `--json`/`--markdown`/`--since`/`--full` flags. 60+ tests. Session-end hook auto-captures vibe snapshots.
+- **`ao rpi status` CLI command** — Dashboard showing RPI phase progress, current state, and recent activity.
+- **`scripts/sync-skill-counts.sh`** — Single-source-of-truth skill count updater. Derives counts from disk + SKILL-TIERS.md, patches all 11 hardcoded locations across 6 files. Supports `--check` mode for CI dry-run. Integrated into doc-release-gate CI.
+- **`next-work.jsonl` schema v1.2** — Added `target_repo` field for cross-rig work harvesting.
+- **Git worktree isolation for `ao rpi phased`** — Each phase runs in its own worktree, preventing cross-phase contamination.
+- **Test infrastructure expansion** — CLI smoke tests, skill invocation tests, hook-chain tests, structural assertions, CLI coverage to 12 commands, shared test colors, binary caching, dynamic counts, integration test wiring.
+- **GOALS.yaml restructure** — Goal-count goal, release size cap, goal-count validator script.
+
+### Changed
+
+- **v3 roadmap** — Retro trajectory analysis documented future direction based on evolve session learnings.
+- **README** — Added worktree isolation to Phased RPI section.
+
+### Fixed
+
+- **Crank context explosion** — Replaced per-wave vibe gate (9,407 lines loaded per wave) with lightweight inline acceptance check. Worker results now write to disk instead of flooding orchestrator context.
+- **Skill count drift** — Updated all 11 locations for /recover addition (35 total: 25 user-facing, 10 internal). Created sync script to prevent recurrence.
+- **Shellcheck compliance** — Added directive to colors.sh (SC2148).
+- **CHANGELOG goal count** — Fixed active drift (42→44).
+- **Worktree merge retry** — Pre-merge dirty check now retries for parallel worktree merges.
+- **CLAUDECODE env var** — Stripped from `ao rpi phased` child sessions to prevent interference.
+
 ## [2.8.0] - 2026-02-15
 
 ### Added
