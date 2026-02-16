@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.2] - 2026-02-16
+
+### Added
+
+- **`ao init` consolidated entry point** — Single command to set up a repo for AgentOps: creates all `.agents/` directories, manages `.gitignore` (with `--stealth` for `.git/info/exclude`), and optionally registers hooks via `--hooks`. Idempotent, dry-run capable. 12 unit tests.
+- **Auto-gitignore `.agents/`** — Session-start hook automatically adds `.agents/` to `.gitignore` and creates a nested deny-all `.agents/.gitignore`. Dangerous-git-guard warns when `.agents/` files are staged.
+
+### Fixed
+
+- **Symlink file-read in standards-injector** — Rejects symlinked standards files and verifies resolved path stays within `skills/standards/references/`.
+- **Non-git source directory for hook install** — `ao hooks install --full` now errors (not warns) when source directory is not a git root.
+- **Command injection in task-validation-gate** — Blocked newlines and quotes in restricted command execution.
+- **Dir list sync** — `ao init` and `session-start.sh` now create identical directory sets (added `.agents/plans/` and `.agents/rpi/`).
+- **Version badge** — README badge updated from 2.9.0 to 2.9.2.
+- **Release notes quality** — `extract-release-notes.sh` now requires a CHANGELOG entry (no more commit-dump fallback) and supports curated highlights from `.agents/releases/`.
+
+### Changed
+
+- **CONTRIBUTING.md** — Added `ao init` to contributor setup instructions.
+
 ## [2.9.1] - 2026-02-16
 
 ### Added
