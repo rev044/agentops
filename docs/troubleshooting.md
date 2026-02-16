@@ -149,43 +149,43 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 
 ## ao doctor shows failures
 
-`ao doctor` runs 7 health checks. Here is how to fix each one.
+`ao doctor` runs 9 health checks. Here is how to fix each one.
 
 ### Required checks (failures make the result UNHEALTHY)
 
 | Check | What it verifies | How to fix |
 |-------|-----------------|------------|
-| **ao CLI** | The `ao` binary is running and reports its version. | Reinstall: `brew install boshu2/tap/ao` or build from `cli/`. |
-| **Hooks installed** | `~/.claude/settings.json` contains a `hooks` key with at least one hook configured. | See [Hooks aren't running](#hooks-arent-running) above. |
-| **Knowledge base** | The `.agents/ao/` directory exists in the current working directory. | Run `ao init` from your project root, or verify you are in the correct directory. |
+| **ao CLI** | The `ao` binary is running and reports its version. | Reinstall via Homebrew, or build from `cli/` (see `cli/README.md`). |
+| **Knowledge Base** | The `.agents/ao/` directory exists in the current working directory. | Run `ao init` from your project root, or verify you are in the correct directory. |
 | **Plugin** | The `skills/` directory exists and contains at least one subdirectory with a `SKILL.md` file. | See [Skills not showing up](#skills-not-showing-up) above. |
 
 ### Optional checks (warnings, result stays HEALTHY)
 
 | Check | What it verifies | How to fix |
 |-------|-----------------|------------|
-| **Codex CLI** | The `codex` binary is on your PATH. Needed for `--mixed` council mode. | Install Codex CLI and ensure it is in PATH. Requires an API account (not ChatGPT). |
-| **Bd CLI** | The `bd` binary is on your PATH. Needed for issue tracking. | Install: `brew install boshu2/tap/bd` |
-| **Knowledge pool** | At least one file exists in `.agents/learnings/` or `.agents/patterns/`. | Run `/retro` or `/forge` to extract learnings from your sessions. An empty pool is normal for new projects. |
+| **CLI Dependencies** | `gt` and `bd` are on your PATH (nice-to-have for multi-repo ops + beads issue tracking). | Install missing tools (e.g., `brew install gastown`, `brew install beads`). |
+| **Hook Coverage** | Claude Code hooks are configured (checks `~/.claude/hooks.json` first, then `~/.claude/settings.json`). | Run `ao hooks install` (or `ao hooks install --full`). |
+| **Knowledge Freshness** | At least one recent session exists under `.agents/ao/sessions/`. | After a session, run `ao forge transcript <path>` to ingest it. |
+| **Search Index** | A non-empty `.agents/ao/index.jsonl` exists for faster searches. | Run `ao search --rebuild-index`. |
+| **Flywheel Health** | At least one learning exists under `.agents/ao/learnings/` (or legacy `.agents/learnings/`). | Run `/retro` or `/forge` to extract learnings; empty is normal early on. |
+| **Codex CLI** | The `codex` binary is on your PATH (optional, used for `--mixed` validation modes). | Install Codex CLI and ensure it is on PATH. |
 
 ### Reading the output
 
 ```
-AgentOps Health Check
-=====================
-✓ ao CLI: v2.0.1
-✓ Hooks installed: 12 hooks configured
-✓ Knowledge base: .agents/ao initialized
-✓ Plugin: 32 skills found
-⚠ Codex CLI: not found (optional — needed for --mixed council)
-✓ Bd CLI: available
-⚠ Knowledge pool: empty (no learnings or patterns yet)
+ao doctor
+─────────
+✓ ao CLI              vX.Y.Z
+! Hook Coverage       No hooks found — run 'ao hooks install'
+✓ Knowledge Base      .agents/ao initialized
+✓ Plugin              36 skills found
+! Codex CLI           not found (optional — needed for --mixed council)
 
-Result: HEALTHY (2 optional warnings)
+7/9 checks passed, 2 warnings
 ```
 
 - `✓` = pass
-- `⚠` = warning (optional component missing or degraded)
+- `!` = warning (optional component missing or degraded)
 - `✗` = failure (required component missing or broken)
 
 Use `ao doctor --json` for machine-readable output.

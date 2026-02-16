@@ -148,6 +148,6 @@ The key: AgentOps' value is in the **knowledge layer**. If another tool handles 
 
 **Other tools optimize the session. AgentOps optimizes the journey.**
 
-[Back to README](../README.md)
+[Back to README](../../README.md)
 
 </div>

@@ -22,7 +22,7 @@ role_profile:
 
   # Artifacts organized by type
   artifacts:
-    commands:               # Slash commands (/prime, /validate, etc.)
+    commands:               # Slash commands (/research, /plan, /vibe, etc.)
       - path: string        # Relative to workspace root
         description: string
         token_cost: int     # Estimated tokens when loaded

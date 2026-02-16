@@ -7,7 +7,7 @@ This document describes the release process for the `ao` CLI and AgentOps plugin
 Releases are triggered by git tags and follow a 4-stage pipeline:
 
 ```
-git tag v2.3.0
+git tag vX.Y.Z
     ↓
 ┌──────────────────────────────────────────────────────┐
 │                release.yml workflow                  │
@@ -50,7 +50,7 @@ git tag v2.3.0
 Releases should contain **at most 15 commits** per minor version bump. v2.2.0 had 26 commits — too large to review, debug, or bisect effectively.
 
 If the commit count since the last tag exceeds 15:
-- Split into multiple releases (e.g., v2.3.0 for first batch, v2.3.1 for remainder)
+- Split into multiple releases (e.g., vX.Y.Z for first batch, vX.Y.(Z+1) for remainder)
 - Or ensure each commit is well-scoped and the changelog covers all changes
 
 Check commit count:
@@ -65,7 +65,7 @@ The pre-flight validation script (`scripts/validate-release.sh`) will warn (not 
 Follow [Keep a Changelog](https://keepachangelog.com/) format:
 
 ```markdown
-## [2.3.0] - 2026-02-10
+## [X.Y.Z] - YYYY-MM-DD
 
 ### Added
 - Feature description
@@ -85,10 +85,10 @@ git checkout main
 git pull
 
 # Create annotated tag
-git tag -a v2.3.0 -m "Release v2.3.0"
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
 
 # Push tag (triggers release workflow)
-git push origin v2.3.0
+git push origin vX.Y.Z
 ```
 
 ### 4. Monitor the Workflow
@@ -114,14 +114,14 @@ brew upgrade agentops
 
 # Verify version
 ao version
-# Should show: ao version 2.3.0
+# Should show: ao version X.Y.Z
 ```
 
 ### 6. Verify Integrity (checksums + provenance)
 
 ```bash
 # Download and verify checksums
-curl -sL https://github.com/boshu2/agentops/releases/download/v2.3.0/checksums.txt
+curl -sL https://github.com/boshu2/agentops/releases/download/vX.Y.Z/checksums.txt
 shasum -a 256 -c checksums.txt --ignore-missing
 
 # Verify SLSA provenance (requires gh CLI)
@@ -199,7 +199,7 @@ If validation fails, the release is NOT published. The tag exists but no release
 **To fix:**
 1. Identify the issue from the workflow logs
 2. Fix the code
-3. Delete the tag: `git tag -d v2.3.0 && git push origin :refs/tags/v2.3.0`
+3. Delete the tag: `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z`
 4. Create a new tag after fixing
 
 ### Publish Fails
@@ -225,7 +225,7 @@ If you need to re-run a release without pushing a new tag:
 
 1. Go to Actions → Release workflow
 2. Click "Run workflow"
-3. Enter the tag (e.g., `v2.3.0`)
+3. Enter the tag (e.g., `vX.Y.Z`)
 4. Optionally set `doc_release_freeze_override=true` and provide a reason
 5. Click "Run workflow"
 

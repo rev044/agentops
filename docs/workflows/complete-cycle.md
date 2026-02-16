@@ -138,7 +138,7 @@ Read CLAUDE.md                    # Reload primer context if needed
 
 **Commands:**
 ```bash
-/validate                         # Or /validate-multi for 3x speedup
+/vibe recent                      # Use --deep for more judges (or --quick for fast inline check)
 ```
 
 **Agents used:**
@@ -214,7 +214,7 @@ Read CLAUDE.md
 ```bash
 /implement --resume [topic]-implementation-progress
 # Complete implementation
-/validate
+/vibe recent
 /learn [topic]
 # Context: 40-70k total (20-35%)
 ```
@@ -310,7 +310,7 @@ Read CLAUDE.md
 # ✅ Create tests/cache_test.go
 # ✅ Validate: All tests pass
 #
-/validate
+/vibe recent
 # ✅ Syntax: PASSED
 # ✅ Tests: 48/48 passed, 89% coverage
 # ✅ Security: No issues

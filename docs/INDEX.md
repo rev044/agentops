@@ -147,5 +147,6 @@
 - [Reference](reference.md) — Deep documentation and pipeline details
 - [Releasing](RELEASING.md) — Release process for ao CLI and plugin
 - [Troubleshooting](troubleshooting.md) — Common issues and quick fixes
+- [Incident Runbook](INCIDENT-RUNBOOK.md) — Operational runbook for incidents and recovery
 - [Agent Mail](agent-mail.md) — MCP setup for distributed mode
 - [OL-AO Bridge Contracts](ol-bridge-contracts.md) — Olympus-AgentOps interchange formats

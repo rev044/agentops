@@ -91,7 +91,7 @@ Low Impact, High Effort → SKIP
 # For each improvement:
 /plan [improvement]
 /implement [improvement]-plan
-/validate
+/vibe recent
 /learn [improvement]
 ```
 
@@ -123,7 +123,7 @@ Low Impact, High Effort → SKIP
 # Phase 4: Improve
 /plan pre-commit-hook
 /implement pre-commit-hook-plan
-/validate
+/vibe recent
 /learn pre-commit-improvement
 # Result: 90% reduction in linting issues
 ```

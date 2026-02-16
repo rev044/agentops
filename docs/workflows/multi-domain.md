@@ -94,7 +94,7 @@ Read CLAUDE.md
 /research "create Kubernetes application"
 /plan k8s-app-research
 /implement k8s-app-plan
-/validate
+/vibe recent
 # ✅ App deployed successfully
 /bundle-save k8s-app-complete
 ```

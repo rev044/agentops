@@ -315,7 +315,7 @@ Everything else runs automatically. 73 commands total — full reference: [CLI C
 
 ## FAQ
 
-**No data leaves your machine.** All state lives in `.agents/` (local, git-tracked). No telemetry, no cloud. Works with Claude Code, Codex CLI, Cursor, Open Code — anything supporting [Skills](https://skills.sh).
+**No data leaves your machine.** All state lives in `.agents/` (local; git-ignored by default). No telemetry, no cloud. Works with Claude Code, Codex CLI, Cursor, Open Code — anything supporting [Skills](https://skills.sh).
 
 More questions: [docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
 

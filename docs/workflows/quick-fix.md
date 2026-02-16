@@ -61,7 +61,7 @@ Read CLAUDE.md-simple                     # Quick orientation
 
 **Commands:**
 ```bash
-/validate --quick                 # Fast syntax + test check
+/vibe --quick recent              # Fast inline check
 # Commit with message
 ```
 

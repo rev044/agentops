@@ -99,7 +99,7 @@ Read CLAUDE.md
 
 **Commands:**
 ```bash
-/validate
+/vibe recent
 /learn [issue]-fix
 ```
 
@@ -132,7 +132,7 @@ Read CLAUDE.md
 # Fix: Increase pool size to 100, add health checks
 
 # Phase 4: Verify
-/validate
+/vibe recent
 # ✅ Load test: No failures at 3x traffic
 /learn redis-pool-debugging
 # Pattern: Intermittent failures + time correlation = resource exhaustion

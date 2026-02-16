@@ -128,7 +128,10 @@ Each standard follows a consistent format:
 
 ---
 
-## Configuration Files
+## Common Configuration Files (Examples)
+
+These are common config files you may choose to add to a project that adopts these standards.
+AgentOps does not require them, and this repository does not ship every file listed below.
 
 | File | Purpose |
 |------|---------|
