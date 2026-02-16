@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **ao CLI improvements (ag-z9ok)** — 11-issue epic: generic worker pool for concurrent file processing, inverted search index, shared table formatter, CASS as default search mode, pool pagination (--offset/--limit), progress indicators for inject/search, dry-run flags for destructive pool operations, expanded doctor (9 health checks), unified status + flywheel display.
 - **README overhaul** — Dedicated ao CLI section, adoption path diagram, personas, 4 pillars framework, competitive comparison, /evolve expansion.
-- **Deliberation consensus alignment** — 4 pillars, new mission statement, 42 fitness goals in GOALS.yaml.
+- **Deliberation consensus alignment** — 4 pillars, new mission statement, 44 fitness goals in GOALS.yaml.
 
 ### Changed
 
