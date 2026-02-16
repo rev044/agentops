@@ -223,7 +223,7 @@ goals:
 
   - id: learning-format-compliance
     description: "All learnings conform to interchange spec (YAML frontmatter with id, type, created_at)"
-    check: "bash -c 'for f in $(ls .agents/learnings/*.md 2>/dev/null); do head -10 \"$f\" | grep -q \"^---\" && head -10 \"$f\" | grep -q \"^id:\" && head -10 \"$f\" | grep -q \"^type:\" && head -10 \"$f\" | grep -q \"^created_at:\" || { echo FAIL:$f; exit 1; }; done'"
+    check: "bash -c 'for f in $(ls .agents/learnings/*.md 2>/dev/null | grep -v INDEX.md); do head -10 \"$f\" | grep -q \"^---\" && head -10 \"$f\" | grep -q \"^id:\" && head -10 \"$f\" | grep -q \"^type:\" && head -10 \"$f\" | grep -q \"^created_at:\" || { echo FAIL:$f; exit 1; }; done'"
     weight: 2
 
   - id: council-schema-valid
