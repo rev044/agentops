@@ -137,11 +137,12 @@ Then open your coding agent and type `/quickstart`. That's it.
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-ao hooks install        # Flywheel hooks (SessionStart + Stop)
-ao hooks install --full # All 12 hooks across 8 lifecycle events
+ao init              # Directories + .gitignore (idempotent)
+ao init --hooks      # + flywheel hooks (SessionStart + Stop)
+ao init --hooks --full  # + all 12 hooks across 8 lifecycle events
 ```
 
-The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 36 skills work without it.
+The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. `ao init` is the canonical setup command — creates all `.agents/` directories, configures `.gitignore`, and optionally registers hooks. All 36 skills work without it.
 
 </details>
 
@@ -170,13 +171,12 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 </details>
 
 <details>
-<summary><strong>Recommended .gitignore</strong></summary>
+<summary><strong>.gitignore</strong></summary>
 
-AgentOps writes session artifacts, validation reports, and knowledge to `.agents/` in your repo. These files may contain absolute paths and sensitive tool output (e.g., gitleaks results). Add this to your `.gitignore`:
+`ao init` automatically adds `.agents/` to your `.gitignore`. If you prefer stealth mode (no `.gitignore` modification), use `ao init --stealth` to write to `.git/info/exclude` instead. The session-start hook also auto-adds the entry as a safety net.
 
+For `.beads/`, add manually if using beads issue tracking:
 ```gitignore
-# AgentOps session artifacts
-.agents/
 .beads/
 ```
 

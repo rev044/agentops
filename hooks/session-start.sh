@@ -25,8 +25,8 @@ log_hook_fail() {
 # Ensure relative paths and ao commands are rooted to the active repo.
 cd "$ROOT" 2>/dev/null || true
 
-# Create .agents directories if they don't exist
-AGENTS_DIRS=(".agents/research" ".agents/products" ".agents/retros" ".agents/learnings" ".agents/patterns" ".agents/council" ".agents/knowledge/pending" ".agents/ao")
+# Safety net — canonical setup is 'ao init'. This ensures dirs exist even if init wasn't run.
+AGENTS_DIRS=(".agents/research" ".agents/products" ".agents/retros" ".agents/learnings" ".agents/patterns" ".agents/council" ".agents/knowledge/pending" ".agents/plans" ".agents/rpi" ".agents/ao")
 
 for dir in "${AGENTS_DIRS[@]}"; do
     target_dir="$ROOT/$dir"
