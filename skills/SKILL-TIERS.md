@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (28)
+### User-Facing Skills (32)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -46,6 +46,10 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **trace** | solo | Trace design decisions |
 | **learn** | solo | Manual knowledge capture |
 | **reverse-engineer-rpi** | research | Reverse-engineer a product into feature catalog + code map + specs |
+| **readme** | solo | Gold-standard README generation with council validation |
+| **brainstorm** | solo | Structured idea exploration before planning |
+| **heal-skill** | solo | Detect and fix skill hygiene issues |
+| **converter** | solo | Cross-platform skill converter (Codex, Cursor) |
 | **update** | solo | Reinstall all AgentOps skills globally |
 
 ### Internal Skills (10) — `metadata.internal: true`

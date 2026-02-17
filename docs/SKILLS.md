@@ -1,8 +1,8 @@
 # Skills Reference
 
-Complete reference for all 38 AgentOps skills (29 user-facing + 10 internal).
+Complete reference for all 42 AgentOps skills (32 user-facing + 10 internal).
 
-**Behavioral Contracts:** All 39 skills have `scripts/validate.sh` with behavioral checks that verify key features remain documented. Run `skills/<name>/scripts/validate.sh` to validate any skill, or the GOALS.yaml `behavioral-skill-contracts` goal to validate all at once.
+**Behavioral Contracts:** All 42 skills have `scripts/validate.sh` with behavioral checks that verify key features remain documented. Run `skills/<name>/scripts/validate.sh` to validate any skill, or the GOALS.yaml `behavioral-skill-contracts` goal to validate all at once.
 
 ## Core Workflow Skills
 
@@ -35,6 +35,16 @@ Execute a single beads issue with full lifecycle.
 ```
 
 **Phases:** Context → Tests → Code → Validation → Commit
+
+### /brainstorm
+
+Structured idea exploration. Four phases: assess clarity, understand idea, explore approaches, capture design.
+
+```bash
+/brainstorm "add user authentication"
+```
+
+**Output:** `.agents/brainstorm/YYYY-MM-DD-<slug>.md`
 
 ### /rpi
 
@@ -256,12 +266,35 @@ Interactive PRODUCT.md generation. Interviews about mission, personas, value pro
 
 **Output:** `PRODUCT.md` in repo root
 
+### /heal-skill
+
+Detect and auto-fix skill hygiene issues (missing frontmatter, unlinked references, dead references).
+
+```bash
+/heal-skill --check                     # Report issues
+/heal-skill --fix                       # Auto-fix what's safe
+/heal-skill --check skills/council      # Check specific skill
+```
+
+**Checks:** MISSING_NAME, MISSING_DESC, NAME_MISMATCH, UNLINKED_REF, EMPTY_DIR, DEAD_REF
+
+### /converter
+
+Convert skills to other platforms (Codex, Cursor).
+
+```bash
+/converter skills/council codex          # Single skill to Codex format
+/converter --all cursor                  # All skills to Cursor .mdc format
+```
+
+**Targets:** codex (SKILL.md + prompt.md), cursor (.mdc + optional mcp.json), test (raw bundle)
+
 ### /update
 
 Reinstall all AgentOps skills globally from the latest source.
 
 ```bash
-/update                      # Reinstall all 36 skills
+/update                      # Reinstall all 42 skills
 ```
 
 ---

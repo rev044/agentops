@@ -83,13 +83,14 @@ Research → Plan → Implement → Validate
 - Use `/swarm` directly for **parallel execution** without beads (TaskList only).
 - Use `/ratchet` to **gate/record progress** through RPI.
 
-## Available Skills (29 user-facing)
+## Available Skills (32 user-facing)
 
 ## Core Skills (start here)
 
 | Skill | Purpose |
 |-------|---------|
 | `/research` | Deep codebase exploration |
+| `/brainstorm` | Structured idea exploration before planning |
 | `/plan` | Epic decomposition into issues |
 | `/implement` | Execute single issue |
 | `/vibe` | Code validation (complexity + multi-model council) |
@@ -126,6 +127,8 @@ Research → Plan → Implement → Validate
 | `/trace` | Trace design decisions through history |
 | `/provenance` | Trace artifact lineage to sources |
 | `/beads` | Issue tracking operations |
+| `/heal-skill` | Detect and fix skill hygiene issues |
+| `/converter` | Convert skills to Codex/Cursor formats |
 | `/update` | Reinstall all AgentOps skills from latest source |
 
 ## Knowledge Flywheel

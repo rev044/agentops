@@ -178,7 +178,7 @@ ao doctor
 ✓ ao CLI              vX.Y.Z
 ! Hook Coverage       No hooks found — run 'ao hooks install'
 ✓ Knowledge Base      .agents/ao initialized
-✓ Plugin              36 skills found
+✓ Plugin              42 skills found
 ! Codex CLI           not found (optional — needed for --mixed council)
 
 7/9 checks passed, 2 warnings

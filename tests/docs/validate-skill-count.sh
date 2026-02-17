@@ -21,7 +21,7 @@ extract_number() {
 
 # --- Actual counts from disk ---
 
-actual_total=$(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+actual_total=$(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -not -name '.*' | wc -l | tr -d ' ')
 
 # Count skills listed in SKILL-TIERS.md user-facing table (between "### User-Facing" and "### Internal")
 actual_user_facing=$(sed -n '/^### User-Facing/,/^### Internal/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
