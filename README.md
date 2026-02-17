@@ -40,14 +40,6 @@ If you've done agile, SCRUM, or any spec-driven workflow — you already know th
 
 What's new is that agents need it **automated**. A human developer carries context between sprints naturally. An agent doesn't — it gets a blank context window every session. AgentOps automates the feedback loop so the agent accumulates expertise the way a team does across sprints: learnings are extracted, quality-gated, and injected into the next session automatically.
 
-**What you're actually getting (why it's not a clone):**
-
-- **A pipeline, not a prompt pack.** Standard dev loop (research → plan → validate → build → review → learn) turned into composable skills that run the same way every time.
-- **Safety rails, not vibes.** Optional hooks add *rules* (validation gates, push blocking, regression auto-revert) so "we validated it" isn't a memory exercise.
-- **A flywheel, not storage.** Learnings are extracted into `.agents/`, scored, and re-injected so session N starts smarter than session 1 instead of starting from scratch.
-
-**Moat:** the advantage compounds. The loop generates artifacts and rules that create better future context, which produces better future artifacts. Copying any single piece (memory, orchestration, councils) doesn't recreate the system behavior.
-
 ---
 
 ## See It Work
