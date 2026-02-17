@@ -151,6 +151,7 @@ fi
 
 # Cleanup: keep last 5 snapshots, remove older
 if [[ -d "$SNAP_DIR" ]]; then
+  # shellcheck disable=SC2012
   ls -1t "$SNAP_DIR"/*.md 2>/dev/null | tail -n +6 | while read -r old; do
     rm -f "$old" 2>/dev/null
   done
