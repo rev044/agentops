@@ -8,7 +8,7 @@ pillars:
   - goal-driven-automation
   - zero-friction-workflow
 
-# Total: 50 goals (25 pillar + 25 infrastructure)
+# Total: 60 goals (25 pillar + 25 infrastructure + 10 cross-runtime)
 # Pillar goals define WHAT the system does (user-visible value).
 # Infrastructure goals define HOW the system stays healthy (build, test, docs).
 
@@ -317,3 +317,76 @@ goals:
     description: "README goal count matches actual GOALS.yaml goal count"
     check: "bash tests/docs/validate-goal-count.sh"
     weight: 2
+
+  # ============================================================================
+  # CROSS-RUNTIME COMPATIBILITY GOALS (10 total)
+  # Ensure skills work across Claude Code, Codex CLI, OpenCode, and Cursor.
+  # ============================================================================
+
+  # === Backend Detection (weight 4) — Skills detect and use correct runtime ===
+
+  - id: shared-backend-4tier
+    description: "Shared contract has 4-tier backend selection (Codex → Claude teams → OpenCode → Inline)"
+    check: "grep -q 'Codex experimental sub-agents' skills/shared/SKILL.md && grep -q 'Claude native teams' skills/shared/SKILL.md && grep -q 'OpenCode subagents' skills/shared/SKILL.md && grep -q 'Inline fallback' skills/shared/SKILL.md"
+    weight: 4
+    pillar: zero-friction-workflow
+
+  - id: shared-skill-chaining-contract
+    description: "Shared contract has cross-runtime skill chaining rules (Claude exec vs OpenCode read-only)"
+    check: "grep -q 'Skill Invocation Across Runtimes' skills/shared/SKILL.md && grep -qi 'read-only' skills/shared/SKILL.md && grep -q 'NEVER use slashcommand' skills/shared/SKILL.md"
+    weight: 4
+    pillar: zero-friction-workflow
+
+  - id: orchestration-skills-opencode-tier
+    description: "All orchestration skills include OpenCode in backend selection"
+    check: "grep -qi 'opencode' skills/council/SKILL.md && grep -qi 'opencode' skills/research/SKILL.md && grep -qi 'opencode' skills/swarm/SKILL.md && grep -qi 'opencode' skills/codex-team/SKILL.md && grep -qi 'opencode' skills/trace/SKILL.md"
+    weight: 4
+    pillar: zero-friction-workflow
+
+  # === OpenCode Plugin (weight 3-4) — Plugin bridge is functional ===
+
+  - id: opencode-plugin-exists
+    description: "OpenCode plugin exists with system transform and tool guards"
+    check: "test -f .opencode/plugins/agentops.js && grep -q 'chat.system.transform' .opencode/plugins/agentops.js && grep -q 'tool.execute.before' .opencode/plugins/agentops.js && grep -q 'tool.definition' .opencode/plugins/agentops.js"
+    weight: 4
+    pillar: zero-friction-workflow
+
+  - id: opencode-plugin-audit-hook
+    description: "OpenCode plugin has tool.execute.after audit logging"
+    check: "grep -q 'tool.execute.after' .opencode/plugins/agentops.js && grep -q 'audit' .opencode/plugins/agentops.js"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: opencode-plugin-compaction-hook
+    description: "OpenCode plugin has session.compacting hook for context preservation"
+    check: "grep -q 'session.compacting' .opencode/plugins/agentops.js && grep -q 'AgentOps' .opencode/plugins/agentops.js"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: opencode-plugin-syntax-valid
+    description: "OpenCode plugin passes Node.js syntax check"
+    check: "node -c .opencode/plugins/agentops.js 2>/dev/null"
+    weight: 4
+    pillar: zero-friction-workflow
+
+  - id: opencode-install-script
+    description: "OpenCode one-liner install script exists and is executable"
+    check: "test -x scripts/install-opencode.sh && grep -q 'curl' .opencode/INSTALL.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  # === Headless Test Harness (weight 3) — Can verify skills in OpenCode ===
+
+  - id: opencode-test-harness
+    description: "OpenCode headless test harness exists with tier support"
+    check: "test -x tests/opencode/run-headless-tests.sh && grep -q 'tier' tests/opencode/run-headless-tests.sh"
+    weight: 3
+    pillar: validated-acceleration
+
+  # === Universal Skill Format (weight 3) — Skills discoverable by all agents ===
+
+  - id: all-skills-have-frontmatter
+    description: "Every SKILL.md has YAML frontmatter with name and description (required by all runtimes)"
+    check: "bash -c 'for f in skills/*/SKILL.md; do head -5 \"$f\" | grep -q \"^---\" && head -10 \"$f\" | grep -q \"^name:\" && head -10 \"$f\" | grep -q \"^description:\" || { echo FAIL:$f; exit 1; }; done'"
+    weight: 3
+    pillar: zero-friction-workflow
