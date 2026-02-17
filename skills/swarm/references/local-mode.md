@@ -17,6 +17,61 @@
 mkdir -p .agents/swarm/results
 ```
 
+## Step 2b: Pre-Spawn Worktree Setup (Multi-Epic Waves)
+
+> **Skip this step** for single-epic waves or when `--no-worktrees` is set.
+> **Required** for multi-epic dispatch or when `--worktrees` is set.
+
+Evidence: shared-worktree multi-epic dispatch produced build breaks and algorithm duplication (`.agents/evolve/dispatch-comparison.md`).
+
+### Detection
+
+```bash
+# Multi-epic: check if tasks span more than one epic prefix
+# If wave tasks have subjects like "[ol-527] ..." and "[ol-531] ...", use worktrees.
+# Single-epic: tasks share one prefix (e.g., all ol-527.*) → shared worktree OK.
+```
+
+### Create Worktrees
+
+```bash
+# For each epic ID in the wave:
+git worktree add /tmp/swarm-<epic-id> -b swarm/<epic-id>
+```
+
+Track the mapping:
+```
+epic_worktrees = {
+  "<epic-id>": "/tmp/swarm-<epic-id>",
+  ...
+}
+```
+
+### Inject into Worker Prompts
+
+Each worker prompt must include:
+```
+WORKING DIRECTORY: /tmp/swarm-<epic-id>
+
+All file reads, writes, and edits MUST use absolute paths rooted at /tmp/swarm-<epic-id>.
+Do NOT operate on the main repo directly.
+Result file: write to <main-repo>/.agents/swarm/results/<task-id>.json (always main repo path).
+```
+
+### Merge-Back After Validation
+
+After each worker's task passes validation:
+```bash
+# From main repo:
+git merge --no-ff swarm/<epic-id> -m "chore: merge swarm/<epic-id>"
+git worktree remove /tmp/swarm-<epic-id>
+git branch -d swarm/<epic-id>
+```
+
+Merge order must respect task blockedBy dependencies.
+
+---
+
 ## Step 3: Select Backend + Spawn Workers
 
 Choose the local backend in this order:

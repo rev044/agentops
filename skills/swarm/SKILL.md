@@ -352,11 +352,121 @@ ol hero ratchet "$BEAD_ID" --quest "$QUEST_ID"
 
 ---
 
+## Worktree Isolation (Multi-Epic Dispatch)
+
+**Default behavior:** Workers share the current worktree (safe for single-epic waves).
+
+**When to use worktrees:** Activate worktree isolation when:
+- Dispatching workers across **multiple epics** (each epic touches different packages)
+- Wave has **>3 workers touching overlapping files** (detected via `git diff --name-only`)
+- Tasks span **independent branches** that shouldn't cross-contaminate
+
+Evidence: 4 parallel agents in shared worktree produced 1 build break and 1 algorithm duplication (see `.agents/evolve/dispatch-comparison.md`). Worktree isolation prevents collisions by construction.
+
+### Detection: Do I Need Worktrees?
+
+```bash
+# Heuristic: multi-epic = worktrees needed
+# Single epic with independent files = shared worktree OK
+
+# Check if tasks span multiple epics
+# e.g., task subjects contain different epic IDs (ol-527, ol-531, ...)
+# If yes: use worktrees
+# If no: proceed with default shared worktree
+```
+
+### Creation: One Worktree Per Epic
+
+Before spawning workers, create an isolated worktree per epic:
+
+```bash
+# For each epic ID in the wave:
+git worktree add /tmp/swarm-<epic-id> -b swarm/<epic-id>
+```
+
+Example for 3 epics:
+```bash
+git worktree add /tmp/swarm-ol-527 -b swarm/ol-527
+git worktree add /tmp/swarm-ol-531 -b swarm/ol-531
+git worktree add /tmp/swarm-ol-535 -b swarm/ol-535
+```
+
+Each worktree starts at HEAD of current branch. The worker branch (`swarm/<epic-id>`) is ephemeral — deleted after merge.
+
+### Worker Routing: Inject Worktree Path
+
+Pass the worktree path as the working directory in each worker prompt:
+
+```
+WORKING DIRECTORY: /tmp/swarm-<epic-id>
+
+All file reads, writes, and edits MUST use paths rooted at /tmp/swarm-<epic-id>.
+Do NOT operate on /path/to/main/repo directly.
+```
+
+Workers run in isolation — changes in one worktree cannot conflict with another.
+
+**Result file path:** Workers still write results to the main repo's `.agents/swarm/results/`:
+```bash
+# Worker writes to main repo result path (not the worktree)
+RESULT_DIR=/path/to/main/repo/.agents/swarm/results
+```
+
+The orchestrator path for `.agents/swarm/results/` is always the main repo, not the worktree.
+
+### Merge-Back: After Validation
+
+After a worker's task passes validation, merge the worktree branch back to main:
+
+```bash
+# From the main repo (not worktree)
+git merge --no-ff swarm/<epic-id> -m "chore: merge swarm/<epic-id> (epic <epic-id>)"
+```
+
+Merge order: respect task dependencies. If epic B blocked by epic A, merge A before B.
+
+**On merge conflict:** The team lead resolves conflicts manually. Workers must not merge — lead-only commit policy still applies.
+
+### Cleanup: Remove Worktrees After Merge
+
+```bash
+# After successful merge:
+git worktree remove /tmp/swarm-<epic-id>
+git branch -d swarm/<epic-id>
+```
+
+Run cleanup even on partial failures (same reaper pattern as team cleanup).
+
+### Full Pre-Spawn Sequence (Worktree Mode)
+
+```
+1. Detect: does this wave need worktrees? (multi-epic or file overlap)
+2. For each epic:
+   a. git worktree add /tmp/swarm-<epic-id> -b swarm/<epic-id>
+3. Spawn workers with worktree path injected into prompt
+4. Wait for completion (same as shared mode)
+5. Validate each worker's changes (run tests inside worktree)
+6. For each passing epic:
+   a. git merge --no-ff swarm/<epic-id>
+   b. git worktree remove /tmp/swarm-<epic-id>
+   c. git branch -d swarm/<epic-id>
+7. Commit all merged changes (team lead, sole committer)
+```
+
+### Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--worktrees` | Force worktree isolation for this wave | Off (auto-detect) |
+| `--no-worktrees` | Force shared worktree even for multi-epic | Off |
+
+---
+
 ## Troubleshooting
 
 ### Workers produce file conflicts
 Cause: Multiple workers editing the same file in parallel.
-Solution: Use wave decomposition to group workers by file scope. Homogeneous waves (all Go, all docs) prevent conflicts.
+Solution: Use worktree isolation (`--worktrees`) for multi-epic dispatch. For single-epic waves, use wave decomposition to group workers by file scope. Homogeneous waves (all Go, all docs) prevent conflicts.
 
 ### Team creation fails
 Cause: Stale team from prior session not cleaned up.
