@@ -20,6 +20,9 @@ Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ral
 - **Direct** - Create TaskList tasks, invoke `/swarm`
 - **Via Crank** - `/crank` creates tasks from beads, invokes `/swarm` for each wave
 
+> **Anti-Pattern: Do NOT use `Task(run_in_background=true)` for multi-agent work.**
+> Fire-and-forget background tasks have no messaging, no redirect, no graceful shutdown — only observe and kill. Always use `/swarm` which auto-selects native teams (with full coordination) or Codex sub-agents. See `skills/shared/SKILL.md` "Backend Capabilities Matrix" for the full comparison.
+
 ## Architecture (Mayor-First)
 
 ```
@@ -202,7 +205,17 @@ When `/crank` invokes `/swarm`: Crank bridges beads to TaskList, swarm executes 
 
 ## Distributed Mode
 
-**For the full distributed mode specification (tmux + Agent Mail, experimental), read `skills/swarm/references/distributed-mode.md`.**
+Use `--mode=distributed` when you need full agent orchestration beyond what local mode provides:
+
+- **Process isolation** — each worker runs in its own tmux session, not sharing the lead's process
+- **Crash recovery** — workers survive if the Mayor disconnects (tmux sessions persist)
+- **Agent Mail messaging** — bidirectional coordination (ACCEPTED, PROGRESS, DONE, HELP_REQUEST)
+- **File reservations** — conflict detection before workers edit shared files
+- **Debuggable** — `tmux attach -t <session>` to inspect stuck workers live
+
+**When to use:** Long-running work (>10 min), need to debug stuck workers, Mayor might disconnect, complex multi-file coordination. Local mode is faster to launch but provides less control.
+
+**For the full distributed mode specification, read `skills/swarm/references/distributed-mode.md`.**
 
 ---
 

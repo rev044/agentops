@@ -353,11 +353,13 @@ Results are written to `.agents/teams/<team_id>/`:
 
 ## Fallback
 
-If Codex is unavailable, use `/swarm` with Claude-native Task tool agents:
+If Codex is unavailable, delegate to `/swarm` which auto-selects the best available backend (native teams with messaging/redirect/graceful shutdown, or background tasks as last resort):
 
 ```
-Task(description="Fix task 1", subagent_type="general-purpose", run_in_background=true, prompt="...")
+Skill(skill="swarm")
 ```
+
+> **Anti-Pattern:** Do NOT use `Task(run_in_background=true)` directly. This creates fire-and-forget agents with no messaging, no redirect, and no graceful shutdown. `/swarm` provides proper backend detection and coordination. See `skills/shared/SKILL.md` for the backend capabilities matrix.
 
 ## Quick Reference
 
