@@ -364,6 +364,21 @@ After council verdict:
      ```
    - Tell user to fix issues and re-run /vibe, including the formatted findings as actionable guidance.
 
+### Step 10: Test Bead Cleanup
+
+After validation completes (regardless of verdict), clean up any stale test beads to prevent bead pollution:
+
+```bash
+# Test bead hygiene: close any beads created by test/validation runs
+if command -v bd &>/dev/null; then
+  test_beads=$(bd list --status=open 2>/dev/null | grep -iE "test bead|test quest|smoke test" | awk '{print $1}')
+  if [ -n "$test_beads" ]; then
+    echo "$test_beads" | xargs bd close 2>/dev/null || true
+    log "Cleaned up $(echo "$test_beads" | wc -l | tr -d ' ') test beads"
+  fi
+fi
+```
+
 ---
 
 ## Integration with Workflow

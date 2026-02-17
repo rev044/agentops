@@ -66,6 +66,26 @@ The baseline includes:
 
 When the session ends (at Teardown), the system computes the **session fitness trajectory** by comparing the baseline against the final cycle snapshot. This produces `session-fitness-delta.md`, which shows which goals improved, regressed, or stayed unchanged over the entire /evolve session.
 
+## Meta-Goals
+
+Meta-goals validate the validation system itself. Use them to prevent exception lists (allowlists, skip lists) from accumulating stale entries unnoticed.
+
+```yaml
+# Meta-goals validate the validation system itself
+goals:
+  - id: allowlist-hygiene
+    description: "Every dead-code allowlist entry should have 0 non-test callers"
+    check: "bash scripts/check-allowlist-hygiene.sh"
+    weight: 7
+
+  - id: skip-list-hygiene
+    description: "Every skip-list entry should still reference an existing test"
+    check: "bash scripts/check-skip-list-hygiene.sh"
+    weight: 5
+```
+
+**When to add a meta-goal:** After pruning any allowlist or exception list, always add a corresponding meta-goal that fails if entries have callers/references. Allowlists without meta-goals are technical debt magnets — they grow silently across epics.
+
 ## Maintaining GOALS.yaml
 
 Use `/goals` to maintain the fitness specification:

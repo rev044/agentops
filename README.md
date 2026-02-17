@@ -127,7 +127,9 @@ npx skills@latest add boshu2/agentops --all -g
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 ```
 
-Requires Node.js 18+. Then type `/quickstart` in your agent chat.
+`npx skills@latest ...` requires Node.js 18+ (for `npx`). The Homebrew `ao` CLI does not.
+
+Then type `/quickstart` in your agent chat.
 
 First run:
 - `.agents/` will appear in your repo after your first run (git-ignored by default).
@@ -144,6 +146,7 @@ claude plugin add boshu2/agentops
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
+cd /path/to/your/repo
 ao init --hooks --full
 ```
 

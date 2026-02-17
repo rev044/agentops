@@ -29,7 +29,8 @@ if command -v brew >/dev/null 2>&1; then
 
     # Step 3: Install hooks
     if command -v ao >/dev/null 2>&1; then
-        echo "Step 3/3: Installing hooks..."
+        echo "Step 3/3: Registering hooks..."
+        echo "Note: To create repo-local .agents/ scaffolding, run 'ao init' from your repo root."
         ao hooks install
 
         # Optional health check

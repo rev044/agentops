@@ -164,7 +164,7 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 | Check | What it verifies | How to fix |
 |-------|-----------------|------------|
 | **CLI Dependencies** | `gt` and `bd` are on your PATH (nice-to-have for multi-repo ops + beads issue tracking). | Install missing tools (e.g., `brew install gastown`, `brew install beads`). |
-| **Hook Coverage** | Claude Code hooks are configured (checks `~/.claude/hooks.json` first, then `~/.claude/settings.json`). | Run `ao hooks install` (or `ao hooks install --full`). |
+| **Hook Coverage** | Claude Code hooks are configured (checks `~/.claude/hooks.json` first, then `~/.claude/settings.json`). | From your repo root: run `ao init --hooks` (or `ao init --hooks --full`). Hooks-only: `ao hooks install`. |
 | **Knowledge Freshness** | At least one recent session exists under `.agents/ao/sessions/`. | After a session, run `ao forge transcript <path>` to ingest it. |
 | **Search Index** | A non-empty `.agents/ao/index.jsonl` exists for faster searches. | Run `ao search --rebuild-index`. |
 | **Flywheel Health** | At least one learning exists under `.agents/ao/learnings/` (or legacy `.agents/learnings/`). | Run `/retro` or `/forge` to extract learnings; empty is normal early on. |
@@ -175,13 +175,13 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 ```
 ao doctor
 ─────────
-✓ ao CLI              vX.Y.Z
-! Hook Coverage       No hooks found — run 'ao hooks install'
-✓ Knowledge Base      .agents/ao initialized
-✓ Plugin              42 skills found
-! Codex CLI           not found (optional — needed for --mixed council)
+ ✓ ao CLI              vX.Y.Z
+ ! Hook Coverage       No hooks found — run 'ao hooks install'
+ ✓ Knowledge Base      .agents/ao initialized
+ ✓ Plugin              skills found
+ ! Codex CLI           not found (optional — needed for --mixed council)
 
-7/9 checks passed, 2 warnings
+ 7/9 checks passed, 2 warnings
 ```
 
 - `✓` = pass

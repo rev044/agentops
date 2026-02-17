@@ -29,7 +29,7 @@ ao ratchet verify <epic>   # Verify completion
 The ao CLI integrates with the AgentOps Claude Code plugin:
 
 ```bash
-claude /plugin add boshu2/agentops
+claude plugin add boshu2/agentops
 ```
 
 ## Development

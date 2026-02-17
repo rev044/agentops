@@ -19,6 +19,19 @@ metadata:
 
 Thin fitness-scored loop over `/rpi`. The knowledge flywheel provides compounding — each cycle loads learnings from all prior cycles.
 
+## Compaction Resilience
+
+The evolve loop MUST survive context compaction. Every cycle commits its
+artifacts to git before proceeding. The `cycle-history.jsonl` file is the
+recovery point — on session restart, read it to determine cycle number
+and resume from Step 1.
+
+## Known Good Properties
+
+- Severity-based selection naturally orders: code health → architecture →
+  testing → documentation → cleanup. This is the correct ordering.
+  Do not add special-case logic to front-load doc fixes.
+
 **Dormancy is success.** When all goals pass and no harvested work remains, the system enters dormancy — a valid, healthy state. The system does not manufacture work to justify its existence. Nothing to do means everything is working.
 
 ## Quick Start
@@ -96,6 +109,18 @@ if ! [ -f .agents/evolve/fitness-0-baseline.json ]; then
   EOF
 
   log "Baseline captured: ${len(failing)}/${len(baseline.goals)} goals failing"
+fi
+
+# Wiring closure check: every check-*.sh must appear in GOALS.yaml
+unwired=$(comm -23 \
+  <(ls scripts/check-*.sh 2>/dev/null | xargs -I{} basename {} | sort) \
+  <(grep -oP 'scripts/check-\S+\.sh' GOALS.yaml | xargs -I{} basename {} | sort))
+if [ -n "$unwired" ]; then
+  for script in $unwired; do
+    add_to_next_work("Unwired script: $script — wire to GOALS.yaml or delete",
+                     severity="high", type="tech-debt")
+  done
+  log "Found $(echo "$unwired" | wc -l | tr -d ' ') unwired scripts — added to next-work"
 fi
 ```
 
@@ -198,10 +223,35 @@ if not failing_goals:
       add_to_next_work("code marker: $line", severity="low", type="tech-debt")
     done
 
+    # Coverage floor single-pass: scan ALL packages at once
+    # When discovering coverage floor gaps, process everything in one cycle.
+    if [ -f GOALS.yaml ] && grep -q "coverage-floor" GOALS.yaml; then
+      # Run coverage for ALL packages in a single pass
+      go test -cover ./... 2>/dev/null | grep -E "^ok|^FAIL" | while read line; do
+        pkg=$(echo "$line" | awk '{print $2}')
+        cov=$(echo "$line" | grep -oP '\d+\.\d+%' | tr -d '%')
+        if [ -n "$cov" ]; then
+          # Check if package has a floor in GOALS.yaml
+          # If not tracked, add it; if tracked with >3% headroom, tighten it
+          add_to_next_work("Coverage floor check: $pkg at ${cov}%",
+                           severity="medium", type="coverage-floor")
+        fi
+      done
+      log "Coverage floor single-pass complete for all packages"
+    fi
+
     # Mark sweep complete
     touch .agents/evolve/last-sweep-date
     log "Cycle-0 sweep complete. New findings added to next-work.jsonl"
   fi
+
+  # Coverage floor processing guidance:
+  # When the explore agent or sweep finds coverage floor headroom:
+  # - Run coverage for ALL packages in a single pass
+  # - Compare ALL floors to actual in one table
+  # - Tighten ALL floors with >3% headroom in a single cycle
+  # - Add ALL untracked packages in the same cycle
+  # Do NOT split floor-tightening across multiple cycles.
 
   # All goals pass — check harvested work from prior /rpi cycles
   if [ -f .agents/rpi/next-work.jsonl ]; then
@@ -239,6 +289,11 @@ if not failing_goals:
   # NOT stagnant yet — re-measure next cycle (external changes, new harvested work)
   log "Re-measuring next cycle in case conditions changed..."
   continue loop  # → Step 1 (kill switch check)
+
+# Meta-goal guidance: after pruning any allowlist, add a meta-goal that
+# prevents re-accumulation. The meta-goal should fail if allowlist entries
+# have callers. Allowlists without meta-goals are technical debt magnets.
+# See references/goals-schema.md for the meta-goal pattern.
 
 # We have failing goals — reset idle streak
 evolve_state.idle_streak = 0
@@ -351,8 +406,24 @@ if newly_failing:
 Append to `.agents/evolve/cycle-history.jsonl`:
 
 ```jsonl
-{"cycle": 1, "goal_id": "test-pass-rate", "result": "improved", "commit_sha": "abc1234", "timestamp": "2026-02-11T21:00:00Z"}
-{"cycle": 2, "goal_id": "doc-coverage", "result": "regressed", "commit_sha": "def5678", "reverted_to": "abc1234", "timestamp": "2026-02-11T21:30:00Z"}
+{"cycle": 1, "goal_id": "test-pass-rate", "result": "improved", "commit_sha": "abc1234", "goals_passing": 18, "goals_total": 23, "timestamp": "2026-02-11T21:00:00Z"}
+{"cycle": 2, "goal_id": "doc-coverage", "result": "regressed", "commit_sha": "def5678", "reverted_to": "abc1234", "goals_passing": 17, "goals_total": 23, "timestamp": "2026-02-11T21:30:00Z"}
+```
+
+**MANDATORY fields in every cycle log entry:**
+- `goals_passing`: count of goals with result "pass"
+- `goals_total`: total goals measured
+- `goals_added`: count of new goals added this cycle (0 if none)
+
+These enable fitness trajectory plotting across cycles.
+
+**Compaction-proofing: commit after every cycle.**
+Uncommitted state does not survive context compaction. ALWAYS commit cycle
+artifacts before starting the next cycle:
+
+```bash
+git add .agents/evolve/cycle-history.jsonl .agents/evolve/fitness-*.json
+git commit -m "evolve: cycle ${CYCLE} — ${selected.id} ${outcome}" --allow-empty
 ```
 
 ### Step 7: Loop or Stop

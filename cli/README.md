@@ -11,8 +11,8 @@ go install github.com/boshu2/agentops/cli/cmd/ao@latest
 ## Quick Start
 
 ```bash
-# Set up automatic knowledge flywheel
-ao hooks install
+# From your repo root: create `.agents/` + register hooks
+ao init --hooks
 
 # Verify installation
 ao hooks test
@@ -48,8 +48,12 @@ ao ratchet status           # View current progress
 ## Hooks Management
 
 ```bash
-ao hooks init      # Generate hooks configuration
-ao hooks install   # Install to Claude Code
+ao init --hooks        # Recommended: repo setup + hooks (SessionStart + Stop)
+ao init --hooks --full # Optional: all 8 lifecycle events
+
+# Lower-level (hooks only; does not create `.agents/`)
+ao hooks init          # Generate hooks configuration
+ao hooks install       # Install to Claude Code
 ao hooks show      # View current hooks
 ao hooks test      # Verify hooks work
 ```
