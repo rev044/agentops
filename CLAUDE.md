@@ -9,7 +9,7 @@ The missing DevOps layer for coding agents. Give it a goal, it ships validated c
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 37 skills (27 user-facing, 10 internal)
+├── skills/                # All 38 skills (28 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Hands-free epic execution
 │   ├── swarm/             # Parallel agent spawning
@@ -36,6 +36,8 @@ The missing DevOps layer for coding agents. Give it a goal, it ships validated c
 │   ├── trace/             # Trace design decisions
 │   ├── recover/           # Post-compaction context recovery
 │   ├── learn/             # Manual knowledge capture
+│   ├── reverse-engineer-rpi/  # Reverse-engineer existing RPI patterns
+│   ├── update/            # Reinstall AgentOps skills
 │   ├── beads/             # Issue tracking reference (internal)
 │   ├── standards/         # Coding standards (internal)
 │   ├── shared/            # Shared reference docs (internal)

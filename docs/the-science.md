@@ -1,6 +1,6 @@
 # The Science Behind AgentOps
 
-> **TL;DR:** Knowledge decays at 17%/week. If retrieval × usage > decay, knowledge compounds instead. That's the whole goal. Everything else is implementation.
+> **TL;DR:** One model of knowledge decay (Darr 1995) suggests ~17%/week without reinforcement. If retrieval × usage > decay, knowledge compounds instead. That's the whole goal. Everything else is implementation.
 
 ---
 

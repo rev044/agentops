@@ -108,14 +108,18 @@ def _copy_security_validators(output_dir: Path) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(prog="reverse_engineer_rpi.py")
     ap.add_argument("product_name")
-    ap.add_argument("--authorized", action="store_true", help="Required. Confirms explicit written authorization to analyze target.")
+    ap.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Required for binary analysis. Confirms explicit written authorization to analyze the target binary.",
+    )
 
     ap.add_argument("--docs-sitemap-url", default=None)
     ap.add_argument("--docs-features-prefix", default="docs/features/")
     ap.add_argument("--upstream-repo", default=None)
     ap.add_argument("--local-clone-dir", default=None)
     ap.add_argument("--output-dir", default=None)
-    ap.add_argument("--mode", default="binary", choices=["repo", "binary", "both"])
+    ap.add_argument("--mode", default="repo", choices=["repo", "binary", "both"])
     ap.add_argument("--binary-path", default=None)
 
     ap.add_argument("--security-audit", action="store_true")
@@ -135,9 +139,6 @@ def main() -> int:
     ap.add_argument("--beads", action="store_true", help="Optional: create bd epic/tasks for phases (requires bd).")
 
     args = ap.parse_args()
-
-    if not args.authorized:
-        _die("--authorized is required (hard guardrail)")
 
     product_slug = _slugify(args.product_name)
     local_clone_dir = Path(args.local_clone_dir or f".tmp/{product_slug}").resolve()
@@ -171,6 +172,22 @@ def main() -> int:
 
     docs_features_txt = output_dir / "docs-features.txt"
 
+    # Determine an analysis root for repo mode.
+    # Priority:
+    # 1) local_clone_dir if it looks like a git checkout already
+    # 2) git toplevel of the current working directory (if inside a repo)
+    # 3) local_clone_dir (created)
+    if args.mode in ("repo", "both"):
+        if (local_clone_dir / ".git").exists():
+            analysis_root = local_clone_dir
+        else:
+            try:
+                top = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+                if top:
+                    analysis_root = Path(top).resolve()
+            except Exception:
+                analysis_root = local_clone_dir
+
     # 1) Mechanical docs inventory (NO heavy crawling).
     if args.docs_sitemap_url:
         sitemap_xml = tmp_dir / f"{product_slug}-sitemap.xml"
@@ -192,11 +209,28 @@ def main() -> int:
         )
         docs_features_txt.write_text(docs_features, encoding="utf-8")
     else:
-        # No sitemap: write an empty docs list (inventory will note that this is binary-derived / incomplete).
-        docs_features_txt.write_text("", encoding="utf-8")
+        # No sitemap: for repo mode, inventory docs/features from the repo tree; otherwise empty.
+        if args.mode in ("repo", "both") and analysis_root.exists():
+            prefix_dir = args.docs_features_prefix.strip("/").rstrip("/")
+            base = analysis_root / prefix_dir
+            slugs: list[str] = []
+            if base.exists() and base.is_dir():
+                for p in sorted(base.rglob("*")):
+                    if not p.is_file():
+                        continue
+                    if p.suffix.lower() not in (".md", ".mdx"):
+                        continue
+                    rel = p.relative_to(analysis_root).as_posix()
+                    # Normalize to slug without extension to match sitemap-style slugs.
+                    slugs.append(rel[: -len(p.suffix)])
+            docs_features_txt.write_text("\n".join(slugs) + ("\n" if slugs else ""), encoding="utf-8")
+        else:
+            docs_features_txt.write_text("", encoding="utf-8")
 
     # 2) Binary analysis mode.
     if args.mode in ("binary", "both"):
+        if not args.authorized:
+            _die("--authorized is required for binary analysis (hard guardrail)")
         if not args.binary_path:
             _die("--binary-path is required when --mode includes binary")
         binary_path = Path(args.binary_path).expanduser().resolve()
@@ -258,7 +292,7 @@ def main() -> int:
     if args.mode in ("repo", "both"):
         if args.upstream_repo and not (local_clone_dir / ".git").exists():
             _run(["git", "clone", "--depth=1", args.upstream_repo, str(local_clone_dir)], check=True)
-        analysis_root = local_clone_dir
+            analysis_root = local_clone_dir
 
     # 4) Generate feature inventory (docs-first when available).
     inventory_md = output_dir / "feature-inventory.md"

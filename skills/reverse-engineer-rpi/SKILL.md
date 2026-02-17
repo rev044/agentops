@@ -33,6 +33,15 @@ python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py ao \
 
 If you do not have explicit written authorization to analyze that binary, do not run the above. Use the included demo fixture instead (see Self-Test below).
 
+Repo-only example (no binary required):
+
+```bash
+python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py cc-sdd \
+  --mode=repo \
+  --upstream-repo="https://github.com/gotalab/cc-sdd.git" \
+  --output-dir=".agents/research/cc-sdd/"
+```
+
 ## Invocation Contract
 
 Required:
@@ -54,7 +63,7 @@ Security audit flags (optional):
 - `--fuzz` (only if a safe harness exists; timeboxed)
 
 Mandatory guardrail flag:
-- `--authorized` (required; refuses to run without it)
+- `--authorized` (required for binary mode; refuses to run binary analysis without it)
 
 ## Script-Driven Workflow
 

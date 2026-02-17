@@ -9,25 +9,34 @@
 *Context orchestration for every phase — research, planning, validation, execution. Each session learns from the last, so your agent compounds knowledge over time.*
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[See It Work](#see-it-work) · [Install](#install) · [Fits With](#how-agentops-fits-with-other-tools) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-agent-orchestration) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-orchestration) · [Safety](#safety-gates) · [FAQ](#faq)
 
 </div>
 
 ---
 
+> [!IMPORTANT]
+> **No data leaves your machine.** All state lives in `.agents/` inside your repo (git-ignored by default). No telemetry, no cloud, no accounts. Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1`). The `ao` CLI is [open source](cli/) — audit it yourself. Apache-2.0.
+
 **Pick your runtime, one command:**
 
-| Runtime | Install |
-|---------|---------|
-| **Claude Code, Codex, Cursor** | `npx skills@latest add boshu2/agentops --all -g` |
-| **OpenCode** | `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh \| bash` |
+```bash
+# Claude Code, Codex CLI, Cursor (most users)
+npx skills@latest add boshu2/agentops --all -g
 
-Requires Node.js 18+. Then type `/quickstart` in your agent chat. Full lifecycle: `/rpi "your goal"`. Slash commands not appearing? Restart your agent, then `npx skills@latest update`. More install options: [Install](#install).
+# OpenCode
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
+```
 
-**No data leaves your machine.** All state lives in `.agents/` inside your repo (git-ignored by default). No telemetry, no cloud, no accounts. Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1`). Apache-2.0.
+Requires Node.js 18+. Then type `/quickstart` in your agent chat. Full lifecycle: `/rpi "your goal"`.
 
-If you use Claude Code, Codex, Cursor, or OpenCode and wish your agent remembered what it learned last session — this is for you.
+Slash commands not appearing? Restart your agent, then `npx skills@latest update`. More install options: [Install](#install).
+
+---
+
+If you use Claude Code, Codex CLI, Cursor, or OpenCode and wish your agent remembered what it learned last session — this is for you.
 
 **Every coding agent session starts at zero.** One model of knowledge decay ([Darr 1995](docs/the-science.md)) suggests ~17% loss per week without reinforcement — your mileage will vary, but the direction is real: without a feedback loop, agents don't accumulate expertise.
 
@@ -45,7 +54,7 @@ I come from DevOps, so I started treating my agent like a pipeline — isolated 
 
 ## See It Work
 
-**Use one piece.** No pipeline required:
+**Use one piece.** No pipeline required — all skills work standalone:
 ```text
 > /council validate this PR
 
@@ -60,14 +69,14 @@ Consensus: WARN — add rate limiting before shipping
 ```text
 > /knowledge "rate limiting"
 
-1. .agents/learnings/2026-01-28-rate-limiting.md  (score: 0.92)
+1. .agents/learnings/2026-01-28-rate-limiting.md
    [established] Token bucket with Redis — chose over sliding window for burst tolerance
-2. .agents/patterns/api-middleware.md  (score: 0.84)
+2. .agents/patterns/api-middleware.md
    Pattern: rate limit at middleware layer, not per-handler
 ```
-Your agent reads these automatically at session start. No copy-paste, no "remember last time we..." (You can also search with `ao search` if you install the [optional CLI](#the-ao-cli).)
+Your agent reads these automatically at session start. No copy-paste, no "remember last time we..."
 
-**Wire it all together** when you're ready:
+**Wire it all together** when you're ready — one command, all six phases:
 ```text
 > /rpi "add retry backoff to rate limiter"
 
@@ -114,34 +123,40 @@ Session 2 was faster and better because session 1's learnings were already in co
 [teardown] /post-mortem → 5 learnings extracted
 ```
 
-**From vision to town** (big goal → many small pieces):
-```text
-> /product                    # define mission, personas, value props
-> /research "build auth system"
-> /plan "build auth system"   # → 8 issues, 3 waves
-
-> /evolve --max-cycles=3
-[cycle-1] /rpi "add user model + migrations" → 2 issues, 1 wave ✓
-[cycle-2] /rpi "add login/signup endpoints" → 3 issues, 1 wave ✓
-[cycle-3] /rpi "add JWT refresh + middleware" → 3 issues, 2 waves ✓
-[teardown] 9 learnings extracted. All goals met.
-```
-
 </details>
 
 ---
 
 ## Install
 
-**Requires:** Node.js 18+ and a coding agent that supports [Skills](https://skills.sh) (Claude Code, Codex CLI, Cursor, Open Code).
+| Runtime | Status | Install method |
+|---------|:------:|----------------|
+| **Claude Code** | ✅ Best | Skills or plugin |
+| **Codex CLI** | ✅ Strong | Skills |
+| **Cursor** | ✅ Good | Skills |
+| **OpenCode** | ✅ Good | Install script |
+
+### Quick install
 
 ```bash
+# Most runtimes (Claude Code, Codex CLI, Cursor)
 npx skills@latest add boshu2/agentops --all -g
 ```
 
-This installs all 37 skills. Then type `/quickstart` in your agent chat. That's it.
+```bash
+# OpenCode
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
+```
 
-**What changes in your repo:** Skills install to `~/.claude/skills/` (global, outside your repo). If you later add the optional CLI + hooks, `ao init` creates a `.agents/` directory (git-ignored) for knowledge artifacts and registers hooks in `.claude/settings.json`. Nothing modifies your source code. Disable everything instantly: `AGENTOPS_HOOKS_DISABLED=1`.
+```bash
+# Claude Code plugin (alternative to skills)
+claude plugin add boshu2/agentops
+```
+
+This installs all 38 skills. Then type `/quickstart` in your agent chat. That's it.
+
+> [!NOTE]
+> **What changes in your repo:** Skills install to `~/.claude/skills/` (global, outside your repo). If you later add the optional CLI + hooks, `ao init` creates a `.agents/` directory (git-ignored) for knowledge artifacts and registers hooks in `.claude/settings.json`. The session-start hook also auto-appends `.agents/` to your project `.gitignore` on first run (`AGENTOPS_GITIGNORE_AUTO=0` to disable). Nothing modifies your source code. Disable all hooks instantly: `AGENTOPS_HOOKS_DISABLED=1`.
 
 <details>
 <summary>Full setup (CLI + hooks)</summary>
@@ -149,54 +164,22 @@ This installs all 37 skills. Then type `/quickstart` in your agent chat. That's 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
 ao init              # Directories + .gitignore (idempotent)
-ao init --hooks      # + minimal hooks (SessionStart + Stop only — 2/8 events)
-ao init --hooks --full  # + all 12 hook scripts across 8 lifecycle events (recommended)
+ao init --hooks      # + minimal hooks (SessionStart + Stop only)
+ao init --hooks --full  # + all 12 hooks across 8 lifecycle event types (recommended)
 ```
 
-The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 37 skills work without it.
+The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 38 skills work without it.
 
 </details>
 
 <details>
-<summary>OpenCode install</summary>
+<summary>OpenCode details</summary>
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
-```
-
-Installs the AgentOps plugin (7 hooks for tool enrichment, audit logging, and compaction resilience) and symlinks all 37 skills. Restart OpenCode after install. Full details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
-
-</details>
-
-<details>
-<summary>Other install methods</summary>
-
-**Claude Code plugin:** `claude plugin add boshu2/agentops`
-
-**Install script** (plugin + optional CLI + hooks): `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
+Installs the AgentOps plugin (7 hooks for tool enrichment, audit logging, and compaction resilience) and symlinks all 38 skills. Restart OpenCode after install. Full details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
 
 </details>
 
 Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
-
----
-
-## How AgentOps Fits With Other Tools
-
-These plugins aren't competitors — they're fellow experiments in making coding agents actually work. The whole point is to customize your workflow. Use pieces from any of them. Mix and match. None of these should feel like vendor lock-in.
-
-| Tool | What it does well | What AgentOps adds if you combine them |
-|------|-------------------|----------------------------------------|
-| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot in long sessions | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
-| **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured Plan→Work→Assess→Compound loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
-| **[cc-sdd](https://github.com/gotalab/cc-sdd)** | Spec-first discipline, multi-platform (Claude Code, Cursor, Codex, Gemini CLI) | Pre-mortem failure simulation on those specs, plus a knowledge flywheel that feeds learnings back automatically |
-| **[Deep Trilogy](https://github.com/piercelamb/deep-plan)** | Deep planning with external LLM review and checkpoint resumability | Parallel wave execution (`/crank`), cross-vendor orchestration (Claude + Codex judges), and automated post-mortem harvesting |
-| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled, zero dependencies | Auto-extracted learnings that compound — static instructions don't update themselves |
-| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced, runs on every push | Validation *before* coding (`/pre-mortem`) and *before* push (`/vibe`), not just after |
-
-You don't pick one. You build a workflow that fits how you think. If GSD's context management works for you, use it alongside AgentOps' cross-session memory. If Compound Engineer's loop is your thing, plug in `/council` for the review step. The skills are modular for exactly this reason.
-
-[Detailed comparisons →](docs/comparisons/)
 
 ---
 
@@ -220,25 +203,40 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 
 ## The Workflow
 
-**RPI = Research → Plan → Implement.** `/rpi "goal"` runs the full lifecycle (with pre-mortem, vibe, and post-mortem gates around implementation).
+**RPI = Research → Plan → Implement.** `/rpi "goal"` runs the full lifecycle with validation gates at each phase.
 
-1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
+```mermaid
+graph LR
+    A["Goal"] --> B["/research"]
+    B --> C["/plan"]
+    C --> D["/pre-mortem"]
+    D --> E["/crank"]
+    E --> F["/vibe"]
+    F --> G["/post-mortem"]
+    G -->|"learnings → .agents/"| H["Knowledge"]
+    H -->|"injected at session start"| A
 
-2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking) if `bd` is available; otherwise it still writes a plan artifact to `.agents/plans/`.
+    style A fill:#8b5cf6,color:#fff
+    style D fill:#f59e0b,color:#fff
+    style F fill:#10b981,color:#fff
+    style H fill:#3b82f6,color:#fff
+```
 
-3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
+| Phase | Skill | What happens |
+|-------|-------|-------------|
+| **Research** | `/research` | Explores your codebase, produces findings and recommendations |
+| **Plan** | `/plan` | Decomposes goal into issues with dependency waves and scope boundaries |
+| **Validate plan** | `/pre-mortem` | 4 judges simulate failures *before* you write code. FAIL → re-plan (max 3) |
+| **Implement** | `/crank` | Parallel agents in waves, fresh context per worker. Lead validates and commits |
+| **Validate code** | `/vibe` | 3 judges review the code. FAIL → re-crank with feedback (max 3) |
+| **Learn** | `/post-mortem` | Council validates, retro extracts learnings, suggests next `/rpi` command |
 
-4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Cross-cutting constraints from the plan are injected into every wave's validation pass. `--test-first` uses a spec-first TDD model — specs and tests before implementation in every wave. Lead validates and commits. Runs until every issue is closed.
+`/rpi "goal"` runs all six, end to end. Micro-epics (2 or fewer issues) auto-detect fast-path — inline validation instead of full council, ~15 min faster with no quality loss. Use `--interactive` for human gates at research and plan.
 
-5. **`/vibe`** — 3 judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
+<details>
+<summary>Phased RPI: Own Your Context Window</summary>
 
-6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes process improvements. **Suggests the next `/rpi` command.**
-
-`/rpi "goal"` runs all six, end to end (micro-epics of 2 or fewer issues auto-detect fast-path: inline validation instead of full council, ~15 min faster with no quality loss). Use `--interactive` if you want human gates at research and plan.
-
-### Phased RPI: Own Your Context Window
-
-For larger goals, `ao rpi phased "goal"` runs each phase in its own fresh Claude session — no context bleed between phases. Supports `--interactive` (human gates at research/plan), `--from=<phase>` (resume), and parallel worktrees.
+For larger goals, `ao rpi phased "goal"` runs each phase in its own fresh Claude session — no context bleed between phases. Supports `--interactive`, `--from=<phase>` (resume), and parallel worktrees.
 
 ```bash
 ao rpi phased "add rate limiting"      # Hands-free, fresh context per phase
@@ -248,37 +246,48 @@ ao rpi phased --from=crank "fix perf"  # Resume from any phase
 
 Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't.
 
+</details>
+
 ---
 
 ## The Flywheel
 
 Each session learns from every session before it. This is the part I'm most excited about.
 
-```text
-  /rpi "goal A"
-    │
-    ├── research → plan → pre-mortem → crank → vibe
-    │
-    ▼
-  /post-mortem
-    ├── council validates what shipped
-    ├── retro extracts what you learned
-    ├── proposes how to improve the skills   ← the tools get better
-    └── "Next: /rpi <enhancement>" ────┐
-                                       │
-  /rpi "goal B" ◄──────────────────────┘
-    │
-    └── ...repeat forever
+```mermaid
+graph TD
+    A["/rpi 'goal A'"] --> B["research → plan → pre-mortem → crank → vibe"]
+    B --> C["/post-mortem"]
+    C --> D["council validates what shipped"]
+    C --> E["retro extracts what you learned"]
+    C --> F["proposes how to improve the skills"]
+    C --> G["'Next: /rpi goal B'"]
+    G --> H["/rpi 'goal B'"]
+    H --> I["...smarter because it learned from A"]
+    I --> C
+
+    style A fill:#8b5cf6,color:#fff
+    style C fill:#3b82f6,color:#fff
+    style H fill:#8b5cf6,color:#fff
 ```
 
 Post-mortem analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The knowledge base grows with each cycle.
 
 Learnings pass quality gates (specificity, actionability, novelty) and land in gold/silver/bronze tiers. [MemRL](https://arxiv.org/abs/2502.06173)-inspired freshness decay ensures recent insights outweigh stale patterns.
 
-**The escape-velocity condition:** Knowledge either compounds or decays to zero — there's no stable middle. The math: `σ × ρ > δ` (retrieval effectiveness × usage rate > decay rate of 0.17/week). When true, each session makes the next one better. When false, everything erodes. The whole system is designed around staying above this threshold. [The math →](docs/the-science.md)
+<details>
+<summary>The Science: Why this works</summary>
+
+**The escape-velocity condition:** Knowledge either compounds or decays to zero — there's no stable middle. The math: `σ × ρ > δ` (retrieval effectiveness × usage rate > decay rate). When true, each session makes the next one better. When false, everything erodes. The whole system is designed around staying above this threshold.
+
+I built AgentOps on top of research I found useful: knowledge decay rates (Darr 1995), cognitive load theory (Sweller 1988, Liu et al. 2023), reinforcement learning for memory (MemRL 2025), and the Brownian Ratchet from thermodynamics. The escape-velocity condition is falsifiable — either your knowledge compounds or it doesn't.
+
+Deep dive: [docs/the-science.md](docs/the-science.md) — the math, the evidence, the citations.
+
+</details>
 
 <details>
-<summary><strong>Systems Leverage (Meadows)</strong></summary>
+<summary>Systems Leverage (Meadows)</summary>
 
 AgentOps is systems engineering. Donella Meadows' leverage points are a useful map: the highest leverage changes are not "tune a parameter" but "change how the system learns, adapts, and decides." AgentOps concentrates on the high-leverage end:
 
@@ -332,7 +341,7 @@ Each `/rpi` cycle is smarter than the last because it learned from every cycle b
 
 ## Skills
 
-37 skills: 27 user-facing, 10 internal (fire automatically). Start anywhere on this ladder — each level composes the ones below it.
+38 skills: 28 user-facing, 10 internal (fire automatically). Start anywhere on this ladder — each level composes the ones below it.
 
 | Scope | Skill | What it does |
 |-------|-------|-------------|
@@ -344,15 +353,13 @@ Each `/rpi` cycle is smarter than the last because it learned from every cycle b
 
 **Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
 
-Full reference with all 37 skills: [docs/SKILLS.md](docs/SKILLS.md)
-
-[Detailed comparisons →](docs/comparisons/)
+Full reference with all 38 skills: [docs/SKILLS.md](docs/SKILLS.md)
 
 ---
 
-## Cross-Runtime Agent Orchestration
+## Cross-Runtime Orchestration
 
-AgentOps doesn't lock you into one agent runtime — it orchestrates across them. Claude can lead a team of Codex workers. Codex judges can review Claude's output. A tmux swarm can run persistent workers that survive disconnects. Mix and match:
+AgentOps doesn't lock you into one agent runtime — it orchestrates across them. Claude can lead a team of Codex workers. Codex judges can review Claude's output. Mix and match:
 
 | Spawning Backend | How it works | Best for |
 |-----------------|-------------|----------|
@@ -365,7 +372,6 @@ AgentOps doesn't lock you into one agent runtime — it orchestrates across them
 - Have Claude plan and Codex implement (or vice versa)
 - Run a `/council` with 3 Claude judges and 3 Codex judges simultaneously (`--mixed`)
 - Spawn a distributed swarm that survives terminal disconnects
-- Use background tasks for quick parallel exploration, native teams for coordinated waves
 - Build your own orchestration patterns on top of these building blocks
 
 Take the pieces. Experiment. Create your own workflow. If you find something that works better, I'd love to hear about it.
@@ -378,31 +384,42 @@ Take the pieces. Experiment. Create your own workflow. If you find something tha
 
 ---
 
-## The Ratchet Guarantee
+## How AgentOps Fits With Other Tools
 
-The idea comes from thermodynamics: a [Brownian Ratchet](docs/the-science.md) gets forward movement from random motion by only allowing progress in one direction. Same thing here — parallel agents produce noisy output, councils filter it, ratchets lock the gains.
+These plugins aren't competitors — they're fellow experiments in making coding agents actually work. The whole point is to customize your workflow. Use pieces from any of them. Mix and match. None of these should feel like vendor lock-in.
 
-**Enforcement mechanisms (12 hooks across 8 lifecycle events):**
+| Tool | What it does well | What AgentOps adds if you combine them |
+|------|-------------------|----------------------------------------|
+| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot in long sessions | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
+| **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured Plan→Work→Assess→Compound loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
+| **[cc-sdd](https://github.com/gotalab/cc-sdd)** | Spec-first discipline, multi-platform (Claude Code, Cursor, Codex, Gemini CLI) | Pre-mortem failure simulation on those specs, plus a knowledge flywheel that feeds learnings back automatically |
+| **[Deep Trilogy](https://github.com/piercelamb/deep-plan)** | Deep planning with external LLM review and checkpoint resumability | Parallel wave execution (`/crank`), cross-vendor orchestration (Claude + Codex judges), and automated post-mortem harvesting |
+| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled, zero dependencies | Auto-extracted learnings that compound — static instructions don't update themselves |
+| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced, runs on every push | Validation *before* coding (`/pre-mortem`) and *before* push (`/vibe`), not just after |
 
-| Gate | What it does | Enforcement |
-|------|-------------|-------------|
-| **Push gate** | `git push` is physically blocked until `/vibe` passes | PostToolUse hook on git push |
-| **Pre-mortem gate** | `/crank` cannot start until `/pre-mortem` passes (3+ issue epics) | Task validation hook |
-| **Worker guard** | Workers write files but cannot `git commit` — lead-only commits | PostToolUse hook on git commit |
-| **Regression gate** | `/evolve` auto-reverts commits that cause passing goals to fail | Post-cycle measurement |
-| **Dangerous git guard** | `force-push`, `reset --hard`, `clean -f` blocked by default | PostToolUse hook on git |
+You don't pick one. You build a workflow that fits how you think.
 
-Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1`). Safety on by default, opt out when you want to.
-
-Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing.
+[Detailed comparisons →](docs/comparisons/)
 
 ---
 
-## The Science
+## Safety Gates
 
-I built AgentOps on top of research I found useful: knowledge decay rates (Darr 1995), cognitive load theory (Sweller 1988, Liu et al. 2023), reinforcement learning for memory (MemRL 2025), and the Brownian Ratchet from thermodynamics. The escape-velocity condition (`σ × ρ > δ`) is falsifiable — either your knowledge compounds or it doesn't.
+The idea comes from thermodynamics: a [Brownian Ratchet](docs/the-science.md) gets forward movement from random motion by only allowing progress in one direction. Same thing here — parallel agents produce noisy output, councils filter it, ratchets lock the gains.
 
-Deep dive: [docs/the-science.md](docs/the-science.md) — the math, the evidence, the citations.
+**Enforcement mechanisms (12 hooks across 8 lifecycle event types):**
+
+| Gate | What it does | Enforcement |
+|------|-------------|-------------|
+| **Push gate** | `git push` and `git tag` blocked until `/vibe` passes | PostToolUse hook |
+| **Pre-mortem gate** | `/crank` cannot start until `/pre-mortem` passes (3+ issue epics) | Task validation hook |
+| **Worker guard** | Workers write files but cannot `git commit` — lead-only commits | PostToolUse hook |
+| **Regression gate** | `/evolve` auto-reverts commits that cause passing goals to fail | Post-cycle measurement |
+| **Dangerous git guard** | `force-push`, `reset --hard`, `clean -f` blocked by default | PostToolUse hook |
+
+Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1` — set in your shell profile for persistent disable, or prefix any command for one-shot). Safety on by default, opt out when you want to.
+
+Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing.
 
 ---
 
@@ -412,7 +429,7 @@ Optional but recommended. The CLI is plumbing — skills and hooks call it autom
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-ao hooks install --full # All 12 hooks across 8 lifecycle events
+ao hooks install --full # All 12 hooks across 8 lifecycle event types
 ```
 
 **The three commands you'll actually type:**
