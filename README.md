@@ -42,10 +42,6 @@ What's new is that agents need it **automated**. A human developer carries conte
 
 **The fix:** apply DevOps' Three Ways to the agent loop, then compound memory between sessions.
 
-- **Flow**: turn goals into small issues and waves so work moves predictably.
-- **Feedback**: judge plans and code early (`/pre-mortem`, `/vibe`, `/council`) and optionally enforce it with gates/hooks.
-- **Continual learning**: extract learnings into `.agents/` and inject them next session (extract → score → inject).
-
 **The building blocks:** primitives you can mix and match into a custom pipeline that fits your workflow.
 
 - **A pipeline, not a prompt pack.** The standard dev loop (research → plan → validate → build → review → learn) packaged as composable skills.
