@@ -124,7 +124,12 @@ def main() -> int:
     ap.add_argument(
         "--materialize-archives",
         action="store_true",
-        help="Authorized-only: extract the best embedded ZIP candidate under local_clone_dir/extracted (do not commit).",
+        help="(Deprecated; now default in binary mode) Authorized-only: extract the best embedded ZIP candidate under local_clone_dir/extracted (do not commit).",
+    )
+    ap.add_argument(
+        "--no-materialize-archives",
+        action="store_true",
+        help="Authorized-only: skip extracting embedded ZIP candidates (index-only).",
     )
 
     ap.add_argument("--beads", action="store_true", help="Optional: create bd epic/tasks for phases (requires bd).")
@@ -227,7 +232,11 @@ def main() -> int:
             check=True,
         )
 
-        if args.materialize_archives:
+        # Default: materialize archives in binary mode (must-have workflow), unless explicitly disabled.
+        if args.no_materialize_archives and args.materialize_archives:
+            _die("flags conflict: --materialize-archives and --no-materialize-archives")
+
+        if not args.no_materialize_archives:
             extract_root = local_clone_dir / "extracted"
             _ensure_dirs([extract_root])
             _run(

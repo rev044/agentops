@@ -28,7 +28,6 @@ python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py ao \
   --authorized \
   --mode=binary \
   --binary-path="$(command -v ao)" \
-  --materialize-archives \
   --output-dir=".agents/research/ao/"
 ```
 
@@ -47,7 +46,7 @@ Optional:
 - `--output-dir` (default: `.agents/research/<product_name>/`)
 - `--mode` (default: `binary`; allowed: `repo|binary|both`)
 - `--binary-path` (required if `--mode` includes `binary`)
-- `--materialize-archives` (authorized-only; extracts best embedded ZIP candidate under `local_clone_dir/extracted/` for analysis; do not commit)
+- `--no-materialize-archives` (authorized-only; binary mode extracts embedded ZIPs by default; this disables extraction and keeps index-only)
 
 Security audit flags (optional):
 - `--security-audit` (enables security artifacts + gates)
