@@ -71,16 +71,53 @@ All orchestration skills that spawn parallel workers or judges MUST select backe
 
 1. **Codex experimental sub-agents** (when `spawn_agent` is available)
 2. **Claude native teams** (`TeamCreate` + `Task(team_name=...)` + `SendMessage`)
-3. **Background task fallback** (`Task(run_in_background=true)`)
+3. **OpenCode subagents** (when `skill` tool is read-only — see detection below)
+4. **Inline fallback** (no spawn capability — execute work in current turn)
 
-Use capability detection, not hardcoded agent assumptions. The same skill must run in both Claude and Codex sessions.
+Use capability detection, not hardcoded agent assumptions. The same skill must run across Claude Code, Codex, and OpenCode sessions.
 
-| Operation | Codex Sub-Agents | Claude Native Teams | Background Fallback |
-|-----------|------------------|---------------------|---------------------|
-| Spawn | `spawn_agent(message=...)` | `TeamCreate` + `Task(team_name=...)` | `Task(run_in_background=true)` |
-| Wait | `wait(ids=[...])` | Completion via `SendMessage` | `TaskOutput(..., block=true)` |
-| Retry/follow-up | `send_input(id=..., message=...)` | `SendMessage(type="message", ...)` | Re-spawn with revised prompt |
-| Cleanup | `close_agent(id=...)` | `shutdown_request` + `TeamDelete()` | None |
+**Detection heuristic:** If your `skill` tool loads content into context (returns `<skill_content>` blocks) rather than executing skills, you are in OpenCode. OpenCode has a `task` tool with built-in agent types: `general`, `explore`, `build`, `plan`.
+
+| Operation | Codex Sub-Agents | Claude Native Teams | OpenCode Subagents | Inline Fallback |
+|-----------|------------------|---------------------|--------------------|-----------------|
+| Spawn | `spawn_agent(message=...)` | `TeamCreate` + `Task(team_name=...)` | `task(subagent_type="general", prompt=...)` | Execute inline |
+| Spawn (read-only) | `spawn_agent(message=...)` | `Task(subagent_type="Explore")` | `task(subagent_type="explore", prompt=...)` | Execute inline |
+| Wait | `wait(ids=[...])` | Completion via `SendMessage` | Task returns result directly | N/A |
+| Retry/follow-up | `send_input(id=..., message=...)` | `SendMessage(type="message", ...)` | `task(task_id="<prior>", prompt=...)` | N/A |
+| Cleanup | `close_agent(id=...)` | `shutdown_request` + `TeamDelete()` | None (sub-sessions auto-terminate) | N/A |
+| Inter-agent messaging | `send_input` | `SendMessage` | Not available | N/A |
+| Debate (R2) | Supported | Supported | **Not supported** (no messaging) | N/A |
+
+**OpenCode limitations:**
+- No inter-agent messaging — workers run as independent sub-sessions
+- No debate mode (`--debate`) — requires messaging between judges
+- `--quick` (inline) mode works identically across all backends
+
+### Skill Invocation Across Runtimes
+
+Skills that chain to other skills (e.g., `/rpi` calls `/research`, `/vibe` calls `/council`) MUST handle runtime differences:
+
+| Runtime | Tool | Behavior | Pattern |
+|---------|------|----------|---------|
+| Claude Code | `Skill(skill="X", args="...")` | **Executable** — skill runs as a sub-invocation | `Skill(skill="council", args="--quick validate recent")` |
+| Codex | N/A | Skills not available — inline the logic or skip | Check if `Skill` tool exists before calling |
+| OpenCode | `skill` tool (read-only) | **Load-only** — returns `<skill_content>` blocks into context | Call `skill(skill="council")`, then follow the loaded instructions inline |
+
+**OpenCode skill chaining rules:**
+1. Call the `skill` tool to load the target skill's content into context
+2. Read and follow the loaded instructions directly — do NOT expect automatic execution
+3. **NEVER use slashcommand syntax** (e.g., `/council`) in OpenCode — it triggers a command lookup, not skill loading
+4. If the loaded skill references tools by Claude Code names, use OpenCode equivalents (see tool mapping below)
+
+**Cross-runtime tool mapping:**
+
+| Claude Code | OpenCode | Notes |
+|-------------|----------|-------|
+| `Task(subagent_type="...")` | `task(subagent_type="...")` | Same semantics, different casing |
+| `Skill(skill="X")` | `skill` tool (read-only) | Load content, then follow inline |
+| `AskUserQuestion` | `question` | Same purpose, different name |
+| `TodoWrite` | `todo` | Same purpose, different name |
+| `Read`, `Write`, `Edit`, `Bash`, `Glob`, `Grep` | Same names | Identical across runtimes |
 
 ### Rules
 

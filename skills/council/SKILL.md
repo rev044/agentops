@@ -53,9 +53,15 @@ Council must auto-select backend using capability detection:
 
 1. If `spawn_agent` is available, use **Codex experimental sub-agents**
 2. Else if `TeamCreate` is available, use **Claude native teams**
-3. Else use **Task(run_in_background=true)** fallback
+3. Else if `skill` tool is read-only (OpenCode), use **OpenCode subagents** — `task(subagent_type="general", description="Judge: <perspective>", prompt="<judge prompt>")`
+4. Else use **Task(run_in_background=true)** fallback
 
-This keeps `/council` universal across Claude and Codex sessions.
+This keeps `/council` universal across Claude, Codex, and OpenCode sessions.
+
+**OpenCode notes:**
+- No `SendMessage` equivalent → `--debate` mode unavailable in OpenCode (requires inter-agent messaging)
+- `--quick` (inline) mode works identically across all backends
+- See `skills/shared/SKILL.md` ("Runtime-Native Spawn Backend Selection") for the shared contract
 
 ## When to Use `--debate`
 

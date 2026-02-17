@@ -55,9 +55,15 @@ Use runtime capability detection, not hardcoded assumptions:
 
 1. If `spawn_agent` is available, use **Codex experimental sub-agents**
 2. Else if `TeamCreate` is available, use **Claude native teams**
-3. Else use **background task fallback** (`Task(run_in_background=true)`)
+3. Else if `skill` tool is read-only (OpenCode), use **OpenCode subagents** — `task(subagent_type="general", prompt="<worker prompt>")`
+4. Else use **background task fallback** (`Task(run_in_background=true)`)
 
 See `skills/shared/SKILL.md` ("Runtime-Native Spawn Backend Selection") for the shared contract used by all orchestration skills.
+
+**OpenCode notes:**
+- No team messaging — workers run as independent sub-sessions
+- Wave coordination: lead waits for each `task` result before starting next wave
+- No `SendMessage` → workers cannot report intermediate status
 
 ### Step 1: Ensure Tasks Exist
 

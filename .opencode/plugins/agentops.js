@@ -65,8 +65,25 @@ export const AgentOpsPlugin = async ({ client, directory }) => {
 When skills reference tools you don't have, substitute OpenCode equivalents:
 - \`TodoWrite\` → \`update_plan\`
 - \`Task\` tool with subagents → Use OpenCode's subagent system (@mention)
-- \`Skill\` tool → OpenCode's native \`skill\` tool
+- \`Skill\` tool → OpenCode's native \`skill\` tool (READ-ONLY — see below)
 - \`Read\`, \`Write\`, \`Edit\`, \`Bash\` → Your native tools
+- \`AskUserQuestion\` → Skip in headless mode, auto-proceed with defaults
+- \`TeamCreate\`, \`SendMessage\`, \`TaskCreate\`, \`TaskList\` → Not available; work inline
+
+**CRITICAL — Skill Chaining Rules:**
+OpenCode's \`skill\` tool is READ-ONLY. It loads skill content into your context. It does NOT execute skills.
+
+When a loaded skill tells you to invoke another skill (e.g., \`Skill(skill="council")\` or \`/council validate\`):
+1. Use the \`skill\` tool to LOAD that skill's content
+2. Then FOLLOW the loaded instructions INLINE in your current turn
+3. NEVER use the \`slashcommand\` tool to invoke a skill — this will crash
+
+Example — skill says \`Skill(skill="pre-mortem", args="--quick")\`:
+  ✅ CORRECT: Use skill tool to load "pre-mortem", then follow its --quick instructions inline
+  ❌ WRONG: Use slashcommand {"command":"pre-mortem"} — this crashes OpenCode
+
+When a skill references \`spawn_agent()\` or \`TeamCreate\` for parallel agents:
+  → These are not available. Execute the work serially in your current turn instead.
 
 **Skills location:**
 AgentOps skills are in \`${configDir}/skills/agentops/\`
@@ -89,6 +106,51 @@ ${toolMapping}
       const bootstrap = getBootstrapContent();
       if (bootstrap) {
         (output.system ||= []).push(bootstrap);
+      }
+    },
+
+    // Guard against OpenCode titlecase crash (sst/opencode#13933)
+    // When model calls `task` tool with undefined subagent_type, OpenCode's
+    // Locale.titlecase(undefined) crashes in the UI rendering layer.
+    // This hook fills in a default for the execution layer (rendering crash is upstream).
+    'tool.execute.before': async (input, output) => {
+      if (input.tool === 'task' && output.args) {
+        if (!output.args.subagent_type) {
+          output.args.subagent_type = output.args.subagent_type || 'general';
+        }
+      }
+    },
+
+    // Patch task tool description to prevent model from sending undefined subagent_type.
+    // The rendering crash in run.ts happens BEFORE tool.execute.before, so we must
+    // prevent the model from ever omitting subagent_type in the first place.
+    'tool.definition': async (input, output) => {
+      if (input.toolID === 'task') {
+        output.description = `CRITICAL: The "subagent_type" parameter is REQUIRED and MUST always be a non-empty string. ` +
+          `If you don't know what agent type to use, set subagent_type to "general". ` +
+          `NEVER omit subagent_type or set it to null/undefined — this will crash the application.\n\n` +
+          output.description;
+      }
+    },
+
+    // Intercept slashcommand calls to skills — redirect to skill tool loading
+    'command.execute.before': async (input, output) => {
+      // Known skill names that should be loaded via skill tool, not executed via slashcommand
+      const skillNames = [
+        'council', 'vibe', 'pre-mortem', 'post-mortem', 'retro', 'crank',
+        'swarm', 'research', 'plan', 'implement', 'rpi', 'status',
+        'complexity', 'knowledge', 'bug-hunt', 'doc', 'handoff', 'learn',
+        'release', 'product', 'quickstart', 'trace', 'inbox', 'recover',
+        'evolve', 'codex-team', 'beads', 'standards', 'inject', 'extract',
+        'forge', 'provenance', 'ratchet', 'flywheel', 'update', 'using-agentops'
+      ];
+
+      if (skillNames.includes(input.command)) {
+        // Rewrite to a system message telling the model to use skill tool instead
+        (output.parts ||= []).push({
+          type: 'text',
+          text: `⚠️ "${input.command}" is an AgentOps skill. Do NOT use slashcommand to invoke it — use the \`skill\` tool to load "${input.command}" content, then follow its instructions inline.`
+        });
       }
     }
   };

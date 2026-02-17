@@ -64,8 +64,9 @@ Before launching the explore agent, detect which backend is available:
 
 1. Check if `spawn_agent` is available → log `"Backend: codex-sub-agents"`
 2. Else check if `TeamCreate` is available → log `"Backend: claude-native-teams"`
-3. Else check if `Task` is available → log `"Backend: background-task-fallback"`
-4. Else → log `"Backend: inline (no spawn available)"`
+3. Else check if `skill` tool is read-only (OpenCode) → log `"Backend: opencode-subagents"`
+4. Else check if `Task` is available → log `"Backend: background-task-fallback"`
+5. Else → log `"Backend: inline (no spawn available)"`
 
 Record the selected backend — it will be included in the research output document for traceability.
 
@@ -77,7 +78,8 @@ Record the selected backend — it will be included in the research output docum
 
 1. If `spawn_agent` is available → **Codex sub-agent**
 2. Else if `TeamCreate` is available → **Claude native team** (Explore agent)
-3. Else → **Background task fallback**
+3. Else if `skill` tool is read-only (OpenCode) → **OpenCode subagent** — `task(subagent_type="explore", description="Research: <topic>", prompt="<explore prompt>")`
+4. Else → **Background task fallback**
 
 #### Exploration Prompt (all backends)
 

@@ -47,6 +47,8 @@ ELSE (keyword/concept):
 
 Launch 4 parallel search agents (CASS, Handoff, Git, Research) and wait for all to complete.
 
+**Backend:** Agents use `Task(subagent_type="Explore")` which maps to `task(subagent_type="explore")` in OpenCode. See `skills/shared/SKILL.md` ("Runtime-Native Spawn Backend Selection") for the shared contract.
+
 Read `references/discovery-patterns.md` for agent definitions and prompts.
 
 ### Step 2b: Git-Based Tracing (Commits/Refs)

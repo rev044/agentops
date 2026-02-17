@@ -23,9 +23,9 @@ The lead orchestrates, Codex agents execute. Each agent gets one focused task. T
 Select backend in this order:
 
 1. `spawn_agent` available -> **Codex experimental sub-agents** (preferred)
-2. Otherwise -> **Codex CLI via Bash** (`codex exec ...`)
-
-If neither is available, fall back to `/swarm`.
+2. Codex CLI available -> **Codex CLI via Bash** (`codex exec ...`)
+3. `skill` tool is read-only (OpenCode) -> **OpenCode subagents** — `task(subagent_type="general", prompt="<task prompt>")`
+4. None of the above -> fall back to `/swarm`
 
 ## Pre-Flight (CLI backend only)
 
