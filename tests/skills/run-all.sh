@@ -126,6 +126,23 @@ else
     echo -e "  ${YELLOW}⚠ lint-skills.sh not found${NC}"
 fi
 
+# Run alias collision detection
+echo ""
+echo -e "${BLUE}━━━ Alias Collision Detection ━━━${NC}"
+echo ""
+ALIAS_SCRIPT="$SCRIPT_DIR/check-alias-collisions.sh"
+if [ -f "$ALIAS_SCRIPT" ]; then
+    chmod +x "$ALIAS_SCRIPT"
+    if "$ALIAS_SCRIPT"; then
+        echo -e "  ${GREEN}✓ alias collision check passed${NC}"
+    else
+        echo -e "  ${RED}✗ alias collision check failed${NC}"
+        FAILED=$((FAILED + 1))
+    fi
+else
+    echo -e "  ${YELLOW}⚠ check-alias-collisions.sh not found${NC}"
+fi
+
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
 echo "║                       RESULTS                              ║"
