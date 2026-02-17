@@ -95,6 +95,29 @@ else
 fi
 ```
 
+### Step 4.5: Process Metrics (from skill telemetry)
+
+If `.agents/ao/skill-telemetry.jsonl` exists, include skill execution metrics in the health report:
+
+```bash
+if [ -f .agents/ao/skill-telemetry.jsonl ]; then
+  echo "=== Skill Telemetry Summary ==="
+  # Total skill invocations by skill name
+  echo "--- Invocations by Skill ---"
+  jq -s 'group_by(.skill) | map({skill: .[0].skill, count: length})' .agents/ao/skill-telemetry.jsonl 2>/dev/null || echo "No telemetry data"
+
+  # Average cycle time per skill (requires duration_ms field)
+  echo "--- Average Cycle Time ---"
+  jq -s 'group_by(.skill) | map({skill: .[0].skill, avg_duration_ms: (map(.duration_ms // 0) | add / length | round)})' .agents/ao/skill-telemetry.jsonl 2>/dev/null || echo "No duration data"
+
+  # Gate failure rates (count of events where verdict != PASS)
+  echo "--- Gate Failure Rates ---"
+  jq -s '[.[] | select(.verdict != null)] | group_by(.skill) | map({skill: .[0].skill, total: length, failures: [.[] | select(.verdict != "PASS")] | length})' .agents/ao/skill-telemetry.jsonl 2>/dev/null || echo "No verdict data"
+fi
+```
+
+Include these metrics in the health report (Step 6) under a `## Process Metrics` section when data is available.
+
 ### Step 5: Validate Artifact Consistency
 
 Cross-reference validation: scan knowledge artifacts for broken internal references.

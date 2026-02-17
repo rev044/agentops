@@ -93,6 +93,12 @@ if [ "$SKIP_BASELINE" = "true" ]; then
 fi
 
 if ! [ -f .agents/evolve/fitness-0-baseline.json ]; then
+  # **Preferred (when ao CLI available):**
+  if command -v ao &>/dev/null; then
+    ao goals measure --json > .agents/evolve/fitness-0-baseline.json
+  fi
+
+  # **Fallback (no ao CLI):**
   baseline = MEASURE_FITNESS()            # run every GOALS.yaml goal
   baseline.cycle = 0
   write ".agents/evolve/fitness-0-baseline.json" baseline
@@ -148,7 +154,18 @@ If either file exists, log reason and **stop immediately**. Do not proceed to me
 
 ### Step 2: Measure Fitness (MEASURE_FITNESS)
 
-Read `GOALS.yaml` from repo root. For each goal:
+Read `GOALS.yaml` from repo root.
+
+**Preferred (when ao CLI available):**
+```bash
+if command -v ao &>/dev/null; then
+  ao goals measure --json > .agents/evolve/fitness-${CYCLE}-snapshot.json
+fi
+```
+
+**Fallback (no ao CLI):**
+
+For each goal:
 
 ```bash
 # Run the check command
@@ -416,6 +433,11 @@ Append to `.agents/evolve/cycle-history.jsonl`:
 - `goals_added`: count of new goals added this cycle (0 if none)
 
 These enable fitness trajectory plotting across cycles.
+
+**Telemetry logging (end of each cycle):**
+```bash
+bash scripts/log-telemetry.sh evolve cycle-complete cycle=${CYCLE} score=${SCORE} goals_passing=${PASSING} goals_total=${TOTAL}
+```
 
 **Compaction-proofing: commit after every cycle.**
 Uncommitted state does not survive context compaction. ALWAYS commit cycle

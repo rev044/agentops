@@ -143,6 +143,8 @@ With `--interactive`, the research skill shows its human gate (AskUserQuestion).
 3. Ratchet checkpoint:
    ```bash
    ao ratchet record research 2>/dev/null || true
+   bash scripts/checkpoint-commit.sh rpi "phase-1" "research complete" 2>/dev/null || true
+   bash scripts/log-telemetry.sh rpi phase-complete phase=1 phase_name=research 2>/dev/null || true
    ```
 
 ### Phase 2: Plan
@@ -193,6 +195,8 @@ With `--interactive`, the plan skill shows its human gate. /rpi trusts the outco
 4. Ratchet checkpoint:
    ```bash
    ao ratchet record plan 2>/dev/null || true
+   bash scripts/checkpoint-commit.sh rpi "phase-2" "plan complete" 2>/dev/null || true
+   bash scripts/log-telemetry.sh rpi phase-complete phase=2 phase_name=plan 2>/dev/null || true
    ```
 
 ### Phase 3: Pre-mortem
@@ -217,6 +221,8 @@ Store verdict in `rpi_state.verdicts.pre_mortem`. Write phase summary to `.agent
 Ratchet checkpoint:
 ```bash
 ao ratchet record pre-mortem 2>/dev/null || true
+bash scripts/checkpoint-commit.sh rpi "phase-3" "pre-mortem complete" 2>/dev/null || true
+bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=pre-mortem 2>/dev/null || true
 ```
 
 ### Phase 4: Crank (Implementation)
@@ -240,6 +246,8 @@ Write phase summary to `.agents/rpi/phase-4-summary-YYYY-MM-DD-<goal-slug>.md`.
 Ratchet checkpoint:
 ```bash
 ao ratchet record implement 2>/dev/null || true
+bash scripts/checkpoint-commit.sh rpi "phase-4" "crank complete" 2>/dev/null || true
+bash scripts/log-telemetry.sh rpi phase-complete phase=4 phase_name=crank 2>/dev/null || true
 ```
 
 ### Phase 5: Final Vibe
@@ -262,6 +270,8 @@ Store verdict in `rpi_state.verdicts.vibe`. Write phase summary to `.agents/rpi/
 Ratchet checkpoint:
 ```bash
 ao ratchet record vibe 2>/dev/null || true
+bash scripts/checkpoint-commit.sh rpi "phase-5" "vibe complete" 2>/dev/null || true
+bash scripts/log-telemetry.sh rpi phase-complete phase=5 phase_name=vibe 2>/dev/null || true
 ```
 
 ### Phase 6: Post-mortem
@@ -278,6 +288,8 @@ Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after po
 1. Ratchet checkpoint (with cycle lineage):
    ```bash
    ao ratchet record post-mortem --cycle=<rpi_state.cycle> --parent-epic=<rpi_state.parent_epic> 2>/dev/null || true
+   bash scripts/checkpoint-commit.sh rpi "phase-6" "post-mortem complete" 2>/dev/null || true
+   bash scripts/log-telemetry.sh rpi phase-complete phase=6 phase_name=post-mortem 2>/dev/null || true
    ```
 
 Read `references/gate4-loop-and-spawn.md` for Gate 4 loop (`--loop`) and spawn-next work details.

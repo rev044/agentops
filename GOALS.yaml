@@ -443,3 +443,31 @@ goals:
     check: "bash -c 'for f in skills/*/SKILL.md; do head -5 \"$f\" | grep -q \"^---\" && head -10 \"$f\" | grep -q \"^name:\" && head -10 \"$f\" | grep -q \"^description:\" || { echo FAIL:$f; exit 1; }; done'"
     weight: 3
     pillar: zero-friction-workflow
+
+  # --- Meta-Goals (type: meta) ---
+  - id: wiring-closure
+    description: "All scripts, skills, and hooks are referenced by their parent registries"
+    check: "bash scripts/check-wiring-closure.sh"
+    weight: 6
+    type: meta
+    pillar: infrastructure
+
+  - id: telemetry-coverage
+    description: "Orchestration skills log to skill-telemetry.jsonl"
+    check: "grep -q 'log-telemetry.sh' skills/rpi/SKILL.md && grep -q 'log-telemetry.sh' skills/crank/SKILL.md && grep -q 'log-telemetry.sh' skills/evolve/SKILL.md"
+    weight: 5
+    type: meta
+    pillar: infrastructure
+
+  - id: compaction-proofing
+    description: "Orchestration skills commit checkpoints mid-workflow"
+    check: "grep -q 'checkpoint-commit.sh' skills/rpi/SKILL.md && grep -q 'checkpoint-commit.sh' skills/crank/SKILL.md"
+    weight: 5
+    type: meta
+    pillar: infrastructure
+
+  - id: ao-goals-builds
+    description: "ao goals subcommand compiles and runs"
+    check: "cd cli && go build -o /tmp/test-ao ./cmd/ao && /tmp/test-ao goals validate --json >/dev/null 2>&1"
+    weight: 5
+    pillar: infrastructure

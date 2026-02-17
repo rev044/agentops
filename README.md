@@ -107,11 +107,6 @@ Your agent reads these automatically at session start — no CLI required, just 
 
 ## Install
 
-Already installed from the commands above? Skip to [The Path](#the-path).
-
-> [!IMPORTANT]
-> **Local-only. No telemetry. No cloud. No accounts.** All state lives in `.agents/` inside your repo (git-ignored by default). Skills install globally outside your repo. Optional hooks register in your agent runtime settings — disable all instantly with `AGENTOPS_HOOKS_DISABLED=1`. Uninstall: `npx skills@latest remove boshu2/agentops -g`. Everything is [open source](cli/) — audit it yourself.
-
 ```bash
 # Claude Code, Codex CLI, Cursor (most users)
 npx skills@latest add boshu2/agentops --all -g
@@ -120,17 +115,10 @@ npx skills@latest add boshu2/agentops --all -g
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 ```
 
-`npx skills@latest ...` requires Node.js 18+ (for `npx`). The Homebrew `ao` CLI does not.
-
 Then type `/quickstart` in your agent chat.
 
-First run:
-- `.agents/` will appear in your repo after your first run (git-ignored by default).
-- `/quickstart` walks you through setup and verifies the basics.
-- `/knowledge` will be empty until you complete at least one full cycle (e.g. `/rpi`).
-
 ```bash
-# Claude Code plugin (alternative to skills)
+# Claude Code plugin (alternative)
 claude plugin add boshu2/agentops
 ```
 
@@ -155,16 +143,18 @@ Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and sym
 </details>
 
 <details>
-<summary><b>What it touches</b> — files, hooks, permissions</summary>
+<summary><b>Your data</b> — what it touches, where it lives, how to remove it</summary>
+
+**Local-only. No telemetry. No cloud. No accounts.**
 
 | What | Where | Reversible? |
 |------|-------|:-----------:|
 | Skills | Global skills dir (outside your repo; for Claude Code: `~/.claude/skills/`) | `npx skills@latest remove boshu2/agentops -g` |
-| Knowledge artifacts | `.agents/` in your repo (git-ignored) | `rm -rf .agents/` |
+| Knowledge artifacts | `.agents/` in your repo (git-ignored by default) | `rm -rf .agents/` |
 | Hook registration | `.claude/settings.json` | `ao hooks uninstall` or delete entries |
 | Git push gate | Pre-push hook (optional, only with CLI) | `AGENTOPS_HOOKS_DISABLED=1` |
 
-Nothing modifies your source code. Nothing phones home.
+Nothing modifies your source code. Nothing phones home. Everything is [open source](cli/) — audit it yourself.
 
 </details>
 
