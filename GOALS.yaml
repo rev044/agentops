@@ -8,7 +8,7 @@ pillars:
   - goal-driven-automation
   - zero-friction-workflow
 
-# Total: 65 goals (30 pillar + 25 infrastructure + 10 cross-runtime)
+# Total: 68 goals (30 pillar + 28 infrastructure + 10 cross-runtime)
 # Pillar goals define WHAT the system does (user-visible value).
 # Infrastructure goals define HOW the system stays healthy (build, test, docs).
 #
@@ -208,7 +208,7 @@ goals:
     pillar: zero-friction-workflow
 
   # ============================================================================
-  # INFRASTRUCTURE GOALS (25 total)
+  # INFRASTRUCTURE GOALS (28 total)
   # These are not tied to a pillar — they ensure the system itself is healthy.
   # Sub-categories below are ordered by severity (fix Critical before Hygiene).
   # ============================================================================
@@ -354,6 +354,21 @@ goals:
   - id: readme-goal-count
     description: "README goal count matches actual GOALS.yaml goal count"
     check: "bash tests/docs/validate-goal-count.sh"
+    weight: 2
+
+  - id: passive-citation-tracking
+    description: "PostToolUse(Read) hook records passive citations for .agents/ reads"
+    check: "grep -q '\"Read\"' hooks/hooks.json && grep -q 'passive_read' hooks/citation-tracker.sh"
+    weight: 2
+
+  - id: cache-eviction-wired
+    description: "SessionEnd eviction hook archives stale low-utility learnings"
+    check: "grep -q 'maturity --evict' hooks/hooks.json"
+    weight: 2
+
+  - id: flywheel-cache-health
+    description: "Flywheel skill reports cache hit rate and eviction metrics"
+    check: "grep -qi 'cite-report' skills/flywheel/SKILL.md && grep -qi 'eviction' skills/flywheel/SKILL.md"
     weight: 2
 
   # ============================================================================
