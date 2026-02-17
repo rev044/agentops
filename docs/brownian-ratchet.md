@@ -446,7 +446,7 @@ This is why `/post-mortem` is mandatory. Skipping it breaks the compounding.
 
 ## Validation Status
 
-**Epic:** [ol-rg3p](/.beads/issues/ol-rg3p) — Rigorous Flywheel Math Validation
+**Epic:** `ol-rg3p` — Rigorous Flywheel Math Validation (run `bd show ol-rg3p`)
 
 The core Knowledge Flywheel equation:
 

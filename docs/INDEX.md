@@ -8,11 +8,15 @@
 - [FAQ](FAQ.md) — Comparisons, limitations, subagent nesting, uninstall
 - [CONTRIBUTING](../CONTRIBUTING.md) — How to contribute
 - [CLAUDE.md](../CLAUDE.md) — Project instructions for AI agents
+- [AGENTS.md](../AGENTS.md) — Local agent instructions for this repo
+- [Changelog](../CHANGELOG.md) — Release history
+- [Security](../SECURITY.md) — Vulnerability reporting
 
 ## Architecture
 
 - [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing
 - [Architecture](ARCHITECTURE.md) — System design and component overview
+- [Architecture Folder Index](architecture/README.md) — Architecture subdocs overview
 - [AO-Olympus Ownership Matrix](architecture/ao-olympus-ownership-matrix.md) — Responsibility split for skills, runtime, and bridge contracts
 - [PDC Framework](architecture/pdc-framework.md) — Prevent, Detect, Correct quality control approach
 - [FAAFO Alignment](architecture/faafo-alignment.md) — FAAFO promise framework for vibe coding value
@@ -124,21 +128,25 @@
 
 ## Positioning
 
+- [Positioning Overview](positioning/README.md) — Product and messaging foundations
 - [DevOps for Vibe-Coding](positioning/devops-for-vibe-coding.md) — Strategic foundation document
 - [12 Factors Validation Lens](positioning/12-factors-validation-lens.md) — Shift-left validation for coding agents
 
 ## Plans
 
+- [Plans Overview](plans/README.md) — Time-stamped plans index
 - [Validated Release Pipeline](plans/2026-01-28-validated-release-pipeline.md) — Release pipeline design (2026-01-28)
 - [AO-Olympus Bridge Next Steps](plans/2026-02-13-ao-olympus-bridge-next-steps.md) — Follow-up work to make the AO↔OL bridge enforceable (2026-02-13)
 
 ## Templates
 
+- [Templates Overview](templates/README.md) — Templates index
 - [Workflow Template](templates/workflow.template.md) — Template for new workflows
 - [Agent Template](templates/agent.template.md) — Template for new agents
 - [Skill Template](templates/skill.template.md) — Template for new skills
 - [Command Template](templates/command.template.md) — Template for new commands
 - [Kernel Template](templates/kernel.template.md) — Template for new project kernels
+- [Product Template](PRODUCT-TEMPLATE.md) — Template for writing a PRODUCT.md
 
 ## Reference
 
