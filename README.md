@@ -346,6 +346,40 @@ Learnings pass quality gates (specificity, actionability, novelty) and land in g
 
 **The escape-velocity condition:** Knowledge either compounds or decays to zero — there's no stable middle. The math: `σ × ρ > δ` (retrieval effectiveness × usage rate > decay rate of 0.17/week). When true, each session makes the next one better. When false, everything erodes. The whole system is designed around staying above this threshold. [The math →](docs/the-science.md)
 
+### Systems Leverage (Meadows)
+
+AgentOps is systems engineering. Donella Meadows' leverage points are a useful map: the highest leverage changes are not "tune a parameter" but "change how the system learns, adapts, and decides." AgentOps concentrates on the high-leverage end:
+
+| Meadows leverage point (high leverage) | How AgentOps intervenes |
+|---|---|
+| **#6 Information flows** | Hooks + `ao search` + `.agents/` artifacts move validated prior decisions into the current context window automatically. |
+| **#5 Rules and constraints** | Ratchet gates (push gate, worker guard, pre-mortem gate) make "validated work" the default, not a suggestion. |
+| **#4 Self-organization** | Skills are modular, installable units; post-mortem generates process improvements and queues next work. |
+| **#3 Goals** | `GOALS.yaml` makes the objective function explicit and executable; `/evolve` optimizes toward it. |
+| **#2 Paradigms** | "Context quality is the primary lever" and "the cycle is the product" shift the work from prompt craft to workflow + feedback design. |
+| **#1 Transcend paradigms** | Cross-runtime orchestration (Claude, Codex, OpenCode) and graceful degradation keep the loop usable as tools/models change. |
+
+<details>
+<summary>Full Meadows leverage-point ladder (12 to 1)</summary>
+
+12. Constants, parameters, numbers
+11. Buffers and stabilizing stocks
+10. Material stocks and flows (structure)
+9. Delays
+8. Negative feedback loops
+7. Positive feedback loops
+6. Information flows
+5. Rules
+4. Self-organization
+3. Goals
+2. Paradigms
+1. Transcend paradigms
+
+<sub>Reference: Donella H. Meadows, "Places to Intervene in a System" (1999) / <em>Thinking in Systems</em> (2008).</sub>
+</details>
+
+AgentOps deliberately spends less energy on the low-leverage end (prompt knobs, bigger buffers, "just add context") because those gains do not compound. The bet is that changing the loop beats tuning the output.
+
 ### `/evolve`
 
 `/evolve` ties the whole thing together — a hands-free loop that ships validated code toward measurable goals.
