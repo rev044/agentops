@@ -13,6 +13,7 @@
 [![Skills](https://img.shields.io/badge/skills-37-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
+[![OpenCode](https://img.shields.io/badge/OpenCode-Plugin-orange)](https://opencode.ai)
 
 [See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
@@ -145,6 +146,21 @@ ao init --hooks --full  # + all 12 hooks across 8 lifecycle events
 ```
 
 The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. `ao init` is the canonical setup command — creates all `.agents/` directories, configures `.gitignore`, and optionally registers hooks. All 37 skills work without it.
+
+</details>
+
+<details>
+<summary>OpenCode install</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
+```
+
+This installs the AgentOps plugin (7 hooks for tool enrichment, audit logging, and compaction resilience) and symlinks all 37 skills. Restart OpenCode after install.
+
+**Key difference from Claude Code:** OpenCode's `skill` tool is **read-only** — it loads skill content into context instead of executing it. The plugin handles this automatically with prescriptive tool mapping so models like Devstral know exactly which tools to call for each skill.
+
+Full details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
 
 </details>
 
