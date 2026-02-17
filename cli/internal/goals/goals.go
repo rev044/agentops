@@ -54,9 +54,11 @@ func (e ValidationError) Error() string {
 	return fmt.Sprintf("goal %q field %q: %s", e.GoalID, e.Field, e.Message)
 }
 
-var kebabRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+// KebabRe matches kebab-case identifiers (e.g. "my-goal-id").
+var KebabRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
-var validTypes = map[GoalType]bool{
+// ValidTypes enumerates the allowed GoalType values.
+var ValidTypes = map[GoalType]bool{
 	GoalTypeHealth:       true,
 	GoalTypeArchitecture: true,
 	GoalTypeQuality:      true,
@@ -104,7 +106,7 @@ func ValidateGoals(gf *GoalFile) []ValidationError {
 			}
 			seen[g.ID] = true
 
-			if !kebabRe.MatchString(g.ID) {
+			if !KebabRe.MatchString(g.ID) {
 				errs = append(errs, ValidationError{GoalID: g.ID, Field: "id", Message: "must be kebab-case"})
 			}
 		}
@@ -118,7 +120,7 @@ func ValidateGoals(gf *GoalFile) []ValidationError {
 		if g.Weight < 1 || g.Weight > 10 {
 			errs = append(errs, ValidationError{GoalID: g.ID, Field: "weight", Message: "must be 1-10"})
 		}
-		if g.Type != "" && !validTypes[g.Type] {
+		if g.Type != "" && !ValidTypes[g.Type] {
 			errs = append(errs, ValidationError{GoalID: g.ID, Field: "type", Message: fmt.Sprintf("invalid type %q", g.Type)})
 		}
 	}
