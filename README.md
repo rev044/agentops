@@ -50,7 +50,15 @@ What makes this different from "write spec → implement → check against spec 
 2. **It self-corrects.** Validation happens *before* coding (pre-mortem simulates failures on the plan) and *after* (multi-model council reviews the code). Failures retry automatically with context. No human escalation unless it fails 3 times.
 3. **Every skill works standalone.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
 
-[Detailed comparisons →](docs/comparisons/) · Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh).
+[Detailed comparisons →](docs/comparisons/) · [Glossary →](docs/GLOSSARY.md) · [How it works →](docs/how-it-works.md)
+
+**Backend support (portable orchestration):**
+
+- **Claude Code:** best-in-class. Native teams + lifecycle hooks (AgentOps can enforce gates like "don't push without `/vibe`"). This is where the system feels most self-driving.
+- **Codex CLI:** no native hooks/teams. AgentOps still works (skills + artifacts + validation), and `/codex-team` approximates teams by spawning parallel Codex execution (sub-agents when available, otherwise `codex exec`).
+- **Open Code:** plugin support for OpenCode's read-only `skill` tool, with extra hooks for tool enrichment, audit logging, and compaction resilience. Great if you prefer OpenCode or self-hosted models.
+
+This repo distills the best parts of Gas Town dispatch and Ralph Loops (fresh context per wave) into skills, hooks, and filesystem artifacts you can run inside your agent.
 
 ---
 
@@ -212,8 +220,7 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 `ao init` automatically adds `.agents/` to your `.gitignore`. If you prefer stealth mode (no `.gitignore` modification), use `ao init --stealth` to write to `.git/info/exclude` instead. The session-start hook also auto-adds the entry as a safety net.
 
-For `.beads/`, add manually if using beads issue tracking:
-don’t gitignore it. It’s where issues live and should be committed.
+If you're using beads for issue tracking: do **not** add `.beads/` to `.gitignore` (it's where issues live and should be committed).
 
 </details>
 
@@ -239,9 +246,11 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 
 ## The Workflow
 
+**RPI = Research → Plan → Implement.** `/rpi "goal"` runs the full lifecycle (with pre-mortem, vibe, and post-mortem gates around implementation).
+
 1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
 
-2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking).
+2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking) if `bd` is available; otherwise it still writes a plan artifact to `.agents/plans/`.
 
 3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
 
