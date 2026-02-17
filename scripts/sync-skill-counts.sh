@@ -122,6 +122,26 @@ patch_file "$REPO_ROOT/.claude-plugin/marketplace.json" \
   "s/[0-9]* skills ([0-9]* user-facing, [0-9]* internal)/${TOTAL} skills (${USER_FACING} user-facing, ${INTERNAL} internal)/" \
   "marketplace.json plugin description"
 
+# README.md summary: "N skills: M user-facing, K internal"
+patch_file "$REPO_ROOT/README.md" \
+  "s/[0-9]* skills: [0-9]* user-facing, [0-9]* internal/${TOTAL} skills: ${USER_FACING} user-facing, ${INTERNAL} internal/" \
+  "README.md skills summary"
+
+# README.md reference: "all N skills:"
+patch_file "$REPO_ROOT/README.md" \
+  "s/all [0-9]* skills:/all ${TOTAL} skills:/" \
+  "README.md skills reference"
+
+# PRODUCT.md: "The N skills,"
+patch_file "$REPO_ROOT/PRODUCT.md" \
+  "s/The [0-9]* skills,/The ${TOTAL} skills,/" \
+  "PRODUCT.md skill count"
+
+# using-agentops/SKILL.md: "Available Skills (M user-facing)"
+patch_file "$REPO_ROOT/skills/using-agentops/SKILL.md" \
+  "s/Available Skills ([0-9]* user-facing)/Available Skills (${USER_FACING} user-facing)/" \
+  "using-agentops/SKILL.md user-facing count"
+
 echo ""
 
 # --- Verify with existing validator ---

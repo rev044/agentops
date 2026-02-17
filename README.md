@@ -275,7 +275,7 @@ You define the town. The system builds it house by house — each cycle compound
 
 ## Skills
 
-36 skills: 26 user-facing, 10 internal (fire automatically).
+37 skills: 27 user-facing, 10 internal (fire automatically).
 
 | | Key skills |
 |---|---|
@@ -283,7 +283,7 @@ You define the town. The system builds it house by house — each cycle compound
 | **Workflow** | `/research`, `/plan`, `/implement`, `/vibe` (validate code), `/pre-mortem` (validate plans), `/post-mortem` |
 | **Utilities** | `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff` |
 
-Full reference with all 36 skills: [docs/SKILLS.md](docs/SKILLS.md)
+Full reference with all 37 skills: [docs/SKILLS.md](docs/SKILLS.md)
 
 ---
 

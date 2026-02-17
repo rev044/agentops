@@ -130,6 +130,53 @@ if [[ "$readme_internal" != "NOT_FOUND" && "$readme_internal" -ne "$actual_inter
   errors=$((errors + 1))
 fi
 
+# --- Extract counts from README.md summary line ---
+
+# "37 skills: 27 user-facing, 10 internal"
+readme_summary_total=$(extract_number 's/^\([0-9][0-9]*\) skills: [0-9]* user-facing.*/\1/' "$REPO_ROOT/README.md")
+readme_summary_user=$(extract_number 's/.*[0-9]* skills: \([0-9][0-9]*\) user-facing.*/\1/' "$REPO_ROOT/README.md")
+
+echo "=== README.md summary claims ==="
+echo "  Summary total: $readme_summary_total"
+echo "  Summary user-facing: $readme_summary_user"
+echo ""
+
+if [[ "$readme_summary_total" != "NOT_FOUND" && "$readme_summary_total" -ne "$actual_total" ]]; then
+  echo "MISMATCH: README.md summary says $readme_summary_total total, actual is $actual_total"
+  errors=$((errors + 1))
+fi
+
+if [[ "$readme_summary_user" != "NOT_FOUND" && "$readme_summary_user" -ne "$actual_user_facing" ]]; then
+  echo "MISMATCH: README.md summary says $readme_summary_user user-facing, actual is $actual_user_facing"
+  errors=$((errors + 1))
+fi
+
+# --- Extract counts from PRODUCT.md ---
+
+product_total=$(extract_number 's/.*The \([0-9][0-9]*\) skills,.*/\1/' "$REPO_ROOT/PRODUCT.md")
+
+echo "=== PRODUCT.md claims ==="
+echo "  Total: $product_total"
+echo ""
+
+if [[ "$product_total" != "NOT_FOUND" && "$product_total" -ne "$actual_total" ]]; then
+  echo "MISMATCH: PRODUCT.md says $product_total total, actual is $actual_total"
+  errors=$((errors + 1))
+fi
+
+# --- Extract counts from using-agentops/SKILL.md ---
+
+agentops_user=$(extract_number 's/.*Available Skills (\([0-9][0-9]*\) user-facing).*/\1/' "$REPO_ROOT/skills/using-agentops/SKILL.md")
+
+echo "=== using-agentops/SKILL.md claims ==="
+echo "  User-facing: $agentops_user"
+echo ""
+
+if [[ "$agentops_user" != "NOT_FOUND" && "$agentops_user" -ne "$actual_user_facing" ]]; then
+  echo "MISMATCH: using-agentops/SKILL.md says $agentops_user user-facing, actual is $actual_user_facing"
+  errors=$((errors + 1))
+fi
+
 # --- Cross-file consistency ---
 
 echo "=== Cross-file consistency ==="
@@ -139,6 +186,8 @@ totals=()
 [[ "$claude_total" != "NOT_FOUND" ]] && totals+=("CLAUDE.md:$claude_total")
 [[ "$readme_badge_total" != "NOT_FOUND" ]] && totals+=("README-badge:$readme_badge_total")
 [[ "$readme_text_total" != "NOT_FOUND" ]] && totals+=("README-text:$readme_text_total")
+[[ "$readme_summary_total" != "NOT_FOUND" ]] && totals+=("README-summary:$readme_summary_total")
+[[ "$product_total" != "NOT_FOUND" ]] && totals+=("PRODUCT:$product_total")
 if [[ "$tiers_user_claim" != "NOT_FOUND" && "$tiers_internal_claim" != "NOT_FOUND" ]]; then
   totals+=("SKILL-TIERS-headers:$((tiers_user_claim + tiers_internal_claim))")
 fi
