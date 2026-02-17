@@ -86,7 +86,6 @@ Task(
   description="Explorer for Judge {N}: {SUB_QUESTION_SHORT}",
   subagent_type="Explore",
   model="sonnet",
-  run_in_background=true,
   prompt="{EXPLORER_PROMPT}"
 )
 ```

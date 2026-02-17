@@ -78,7 +78,7 @@ Choose the local backend in this order:
 
 1. `spawn_agent` available -> **Codex experimental sub-agents**
 2. `TeamCreate` available -> **Claude native teams**
-3. Otherwise -> **Task(run_in_background=true)** fallback
+3. Otherwise -> **Foreground `Task()`** (one-shot subagents, parallel via multiple calls)
 
 ### Codex backend (preferred when available)
 

@@ -6,7 +6,9 @@ Select backend in this order:
 
 1. `spawn_agent` available -> **Codex experimental sub-agents**
 2. `TeamCreate` available -> **Claude native teams**
-3. Otherwise -> **Task(run_in_background=true)** fallback
+3. Otherwise -> **Foreground `Task()`** (one-shot subagents, write to files)
+
+> **NEVER use `Task(run_in_background=true)` for Claude agents.** It causes instability. Use foreground `Task()` calls (parallel via multiple calls in one message) or native teams. `Bash(run_in_background=true)` for Codex CLI processes is fine.
 
 This keeps `/council` universal across Codex and Claude runtimes.
 
@@ -85,12 +87,19 @@ Judges join the team, write output files, and send completion messages to the te
 
 **Fallback (if native teams unavailable):**
 
+Spawn judges as foreground Task calls. Multiple Task calls in the same message run in parallel.
+
 ```
 Task(
   description="Council judge 1",
   subagent_type="general-purpose",
   model="opus",
-  run_in_background=true,
+  prompt="{JUDGE_PACKET}"
+)
+Task(
+  description="Council judge 2",
+  subagent_type="general-purpose",
+  model="opus",
   prompt="{JUDGE_PACKET}"
 )
 ```

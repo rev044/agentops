@@ -20,8 +20,8 @@ Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ral
 - **Direct** - Create TaskList tasks, invoke `/swarm`
 - **Via Crank** - `/crank` creates tasks from beads, invokes `/swarm` for each wave
 
-> **Anti-Pattern: Do NOT use `Task(run_in_background=true)` for multi-agent work.**
-> Fire-and-forget background tasks have no messaging, no redirect, no graceful shutdown — only observe and kill. Always use `/swarm` which auto-selects native teams (with full coordination) or Codex sub-agents. See `skills/shared/SKILL.md` "Backend Capabilities Matrix" for the full comparison.
+> **Anti-Pattern: Do NOT use `Task(run_in_background=true)` for Claude agents.**
+> Background tasks cause Claude instability — no messaging, no redirect, no graceful shutdown. Always use `/swarm` which auto-selects native teams or Codex sub-agents. Foreground `Task()` calls (parallel via multiple calls in one message) are the safe fallback. `Bash(run_in_background=true)` for Codex CLI processes is fine.
 
 ## Architecture (Mayor-First)
 
@@ -59,7 +59,7 @@ Use runtime capability detection, not hardcoded assumptions:
 1. If `spawn_agent` is available, use **Codex experimental sub-agents**
 2. Else if `TeamCreate` is available, use **Claude native teams**
 3. Else if `skill` tool is read-only (OpenCode), use **OpenCode subagents** — `task(subagent_type="general", prompt="<worker prompt>")`
-4. Else use **background task fallback** (`Task(run_in_background=true)`)
+4. Else use **foreground Task** (one-shot subagents, write to files, parallel via multiple calls)
 
 See `skills/shared/SKILL.md` ("Runtime-Native Spawn Backend Selection") for the shared contract used by all orchestration skills.
 
@@ -124,7 +124,7 @@ Mayor: "Let's build a user auth system"
 - **Thin results** - Workers write `.agents/swarm/results/<id>.json`, orchestrator reads files (NOT Task returns or SendMessage content)
 - **Retry via message/input** - Use `send_input` (Codex) or `SendMessage` (Claude) for coordination only
 - **Atomic execution** - Each worker works until task done
-- **Graceful fallback** - If richer APIs unavailable, fall back to `Task(run_in_background=true)`
+- **Graceful fallback** - If richer APIs unavailable, fall back to foreground `Task()` (parallel via multiple calls in one message)
 
 ## Workflow Integration
 

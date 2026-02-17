@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **README rewritten** — Lead with the problem ("agents forget between sessions"), acknowledge prior art, add trust block near install, collapse depth with details blocks. Terminal transcripts instead of assertions.
 - **Skill count** — 39 → 42 skills (32 user-facing, 10 internal). All counts synchronized across 8 files with CI validation.
 - **Council SKILL.md trimmed** — Consolidated named perspectives section to stay under 550-line limit. Preset details moved to `references/personas.md`.
+- **Council context budget** — Judges write full analysis to output files, send only `{verdict, confidence, file}` via message. Consolidation runs inline as team lead (no chairman agent). Debate R2 sends verdict summaries instead of full JSON.
+- **Background task ban** — `Task(run_in_background=true)` replaced with foreground `Task()` across council, swarm, research, shared, SKILL-TIERS, and validation-contract. Causes Claude instability. `Bash(run_in_background=true)` for Codex CLI processes unchanged.
+- **`reverse-engineer-rpi`** — Increased 1:1 fidelity for CLI and artifact surface matching.
 
 ### Fixed
 
@@ -32,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`brainstorm` trigger collision** — Added `brainstorm` overlap between `/brainstorm` and `/council brainstorm` to alias collision allowlist.
 - **`readme` skill missing from SKILL-TIERS.md** — Added to user-facing skills table.
 - **Validation test failures** — Fixed heal-skill example text triggering false-positive dead-ref detection, council line count exceeding limit.
+- **Council context explosion** — Spawning 7+ judges flooded lead's context window via SendMessage. Judges now send minimal 4-line completion signals.
 
 ## [2.9.3] - 2026-02-16
 

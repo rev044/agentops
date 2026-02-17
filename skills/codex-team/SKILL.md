@@ -359,7 +359,7 @@ If Codex is unavailable, delegate to `/swarm` which auto-selects the best availa
 Skill(skill="swarm")
 ```
 
-> **Anti-Pattern:** Do NOT use `Task(run_in_background=true)` directly. This creates fire-and-forget agents with no messaging, no redirect, and no graceful shutdown. `/swarm` provides proper backend detection and coordination. See `skills/shared/SKILL.md` for the backend capabilities matrix.
+> **Anti-Pattern:** Do NOT use `Task(run_in_background=true)` for Claude agents. Background tasks cause Claude instability. Use foreground `Task()` calls (parallel via multiple calls in one message) or native teams. `Bash(run_in_background=true)` for Codex CLI processes is fine.
 
 ## Quick Reference
 

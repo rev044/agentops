@@ -216,7 +216,7 @@ Supporting: provenance, trace, ratchet
 
 ```bash
 # Claude agents (via Task tool)
-Task(model="opus", run_in_background=true, prompt="...")
+Task(model="opus", prompt="...")
 
 # Codex agents (via Bash tool)
 codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o .agents/council/codex-output.md "..."

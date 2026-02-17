@@ -160,17 +160,18 @@ Parameters:
     <exploration prompt from above>
 ```
 
-#### Backend 3: Background Task Fallback
+#### Backend 3: Foreground Task Fallback
 
 ```
 Tool: Task
 Parameters:
   subagent_type: "general-purpose"
-  run_in_background: true
   description: "Research: <topic>"
   prompt: |
     <exploration prompt from above>
 ```
+
+Multiple Task calls in the same message run in parallel. Do NOT use `run_in_background=true`.
 
 Then retrieve results with `TaskOutput(task_id=..., block=true)`.
 

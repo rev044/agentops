@@ -50,7 +50,7 @@ Native teams consist of multiple independent capabilities. Each can degrade inde
 
 | Capability | API | Degraded Behavior |
 |------------|-----|-------------------|
-| Team lifecycle | `TeamCreate`, `TeamDelete` | Fall back to `Task(run_in_background=true)`. No team cleanup needed. |
+| Team lifecycle | `TeamCreate`, `TeamDelete` | Fall back to foreground `Task()` (parallel via multiple calls). No team cleanup needed. |
 | Directed messaging | `SendMessage(type="message")` | Cannot send follow-up instructions. Debate R2 unavailable. Workers run fire-and-forget. |
 | Broadcast | `SendMessage(type="broadcast")` | Cannot notify all workers. Use per-worker Task spawning instead. |
 | Shutdown coordination | `SendMessage(type="shutdown_request/response")` | Workers terminate on their own when done. No graceful shutdown. |

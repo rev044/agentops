@@ -54,7 +54,7 @@ Council must auto-select backend using capability detection:
 1. If `spawn_agent` is available, use **Codex experimental sub-agents**
 2. Else if `TeamCreate` is available, use **Claude native teams**
 3. Else if `skill` tool is read-only (OpenCode), use **OpenCode subagents** — `task(subagent_type="general", description="Judge: <perspective>", prompt="<judge prompt>")`
-4. Else use **Task(run_in_background=true)** fallback
+4. Else use **foreground Task** (one-shot subagents, write to files, return minimal signal)
 
 This keeps `/council` universal across Claude, Codex, and OpenCode sessions.
 
@@ -175,8 +175,8 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
 | All Codex CLI agents fail | Proceed with runtime-native judges only, note degradation |
 | All agents fail | Return error, suggest retry |
 | Codex CLI not installed | Skip Codex CLI judges, continue runtime-native mode (warn user) |
-| Codex sub-agents unavailable | Fall back to Claude teams |
-| Native teams unavailable | Fall back to `Task(run_in_background=true)` fire-and-forget |
+| Codex sub-agents unavailable | Fall back to Claude native teams |
+| Native teams unavailable | Fall back to foreground `Task()` one-shot subagents (write to files) |
 | Output dir missing | Create `.agents/council/` automatically |
 
 Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
@@ -185,7 +185,7 @@ Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
 
 ### Pre-Flight Checks
 
-1. **Runtime-native backend:** Select via capability detection (`spawn_agent` -> `TeamCreate` -> `Task(run_in_background=true)`).
+1. **Runtime-native backend:** Select via capability detection (`spawn_agent` -> `TeamCreate` -> foreground `Task()`).
 2. **Codex CLI judges (--mixed only):** Check `which codex`, test model availability, test `--output-schema` support. Downgrade mixed mode when unavailable.
 3. **Agent count:** Verify `judges * (1 + explorers) <= MAX_AGENTS (12)`
 4. **Output dir:** `mkdir -p .agents/council`
@@ -479,7 +479,7 @@ The `/judge` skill is deprecated. Use `/council`.
 Council uses runtime-native spawning as primary:
 - Codex sessions: experimental sub-agents (`spawn_agent`, `wait`, `send_input`, `close_agent`)
 - Claude sessions: native teams (`TeamCreate`, `SendMessage`, shared `TaskList`)
-- Fallback: `Task(run_in_background=true)`
+- Fallback: foreground `Task()` (one-shot, write to files)
 
 ### Deliberation Protocol
 
@@ -512,10 +512,11 @@ Without `--debate`, council is fully Ralph-compliant: each judge is a fresh spaw
 
 ### Fallback
 
-If runtime-native backend is unavailable, fall back to `Task(run_in_background=true)` fire-and-forget. In fallback mode:
-- `--debate` reverts to R2 re-spawning with truncated R1 verdicts
-- The debate report must include `**Fidelity:** degraded (fallback — R1 verdicts truncated for R2 re-spawn)` in the header so users know results may be lower fidelity
+If runtime-native backend is unavailable, fall back to foreground `Task()` one-shot subagents. Each judge runs as a regular Task call (NOT `run_in_background`), writes its output file, and returns a minimal completion signal. Spawn judges via multiple Task calls in the same message for parallelism. In fallback mode:
+- `--debate` is unavailable (no messaging channel). Fall back to single-round review with a note in the report.
 - Non-debate mode works identically (judges write files, team lead reads them)
+
+> **Anti-Pattern: Do NOT use `Task(run_in_background=true)` for Claude agents.** Background tasks cause Claude instability. Use foreground `Task()` calls (parallel via multiple calls in one message) or native teams. `Bash(run_in_background=true)` for Codex CLI processes is fine.
 
 ### Judge Naming
 

@@ -260,7 +260,6 @@ When retrying, include failure context in agent prompt:
 
 ```
 Task(
-  run_in_background=true,
   prompt="RETRY task #<id>: Previous attempt failed validation.
 
 ## Original Task
