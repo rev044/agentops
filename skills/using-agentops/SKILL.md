@@ -83,37 +83,49 @@ Research → Plan → Implement → Validate
 - Use `/swarm` directly for **parallel execution** without beads (TaskList only).
 - Use `/ratchet` to **gate/record progress** through RPI.
 
-## Available Skills (26 user-facing)
+## Available Skills (27 user-facing)
+
+## Core Skills (start here)
 
 | Skill | Purpose |
 |-------|---------|
-| `/quickstart` | Interactive onboarding — first RPI cycle in under 10 minutes |
-| `/status` | Single-screen dashboard of current work and suggested next action |
 | `/research` | Deep codebase exploration |
 | `/plan` | Epic decomposition into issues |
-| `/pre-mortem` | Failure simulation before implementing |
 | `/implement` | Execute single issue |
+| `/vibe` | Code validation (complexity + multi-model council) |
+| `/status` | Single-screen dashboard of current work and suggested next action |
+
+## Power Skills (when you're ready)
+
+| Skill | Purpose |
+|-------|---------|
+| `/council` | Multi-model consensus review (validate, brainstorm, research) |
+| `/pre-mortem` | Failure simulation before implementing |
+| `/post-mortem` | Full validation + knowledge extraction |
+| `/bug-hunt` | Root cause analysis |
+| `/release` | Pre-flight, changelog, version bumps, tag |
 | `/crank` | Autonomous epic loop (uses swarm for each wave) |
+| `/doc` | Documentation generation |
+| `/retro` | Extract learnings from completed work |
+| `/knowledge` | Query knowledge artifacts |
+| `/learn` | Capture knowledge manually into the flywheel |
+
+## Expert Skills (advanced workflows)
+
+| Skill | Purpose |
+|-------|---------|
 | `/swarm` | Fresh-context parallel execution (Ralph pattern) |
 | `/rpi` | Full RPI lifecycle orchestrator (research → plan → implement → validate) |
 | `/evolve` | Goal-driven fitness-scored improvement loop |
-| `/vibe` | Code validation (complexity + multi-model council) |
-| `/council` | Multi-model consensus review (validate, brainstorm, research) |
 | `/codex-team` | Parallel Codex agent execution |
-| `/retro` | Extract learnings from completed work |
-| `/post-mortem` | Full validation + knowledge extraction |
-| `/release` | Pre-flight, changelog, version bumps, tag |
-| `/bug-hunt` | Root cause analysis |
 | `/complexity` | Code complexity analysis |
-| `/doc` | Documentation generation |
 | `/product` | Interactive PRODUCT.md generation |
-| `/knowledge` | Query knowledge artifacts |
-| `/beads` | Issue tracking operations |
 | `/handoff` | Session handoff for continuation |
 | `/inbox` | Agent mail monitoring |
 | `/recover` | Post-compaction context recovery |
 | `/trace` | Trace design decisions through history |
 | `/provenance` | Trace artifact lineage to sources |
+| `/beads` | Issue tracking operations |
 | `/update` | Reinstall all AgentOps skills from latest source |
 
 ## Knowledge Flywheel
@@ -132,9 +144,14 @@ Skills auto-trigger from conversation:
 |----------|------|
 | "I need to understand how auth works" | `/research` |
 | "Check my code for issues" | `/vibe` |
+| "Review my code" | `/vibe` |
 | "What could go wrong with this?" | `/pre-mortem` |
 | "Let's execute this epic" | `/crank` |
+| "Execute this epic" | `/crank` |
 | "Spawn agents to work in parallel" | `/swarm` |
+| "Run tasks in parallel" | `/swarm` |
+| "Debug this" | `/bug-hunt` |
+| "Remember this" / "I learned something" | `/learn` |
 | "How did we decide on this?" | `/trace` |
 | "Where did this learning come from?" | `/provenance` |
 | "Cut a release" | `/release` |

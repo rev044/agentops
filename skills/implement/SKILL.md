@@ -1,6 +1,6 @@
 ---
 name: implement
-description: 'Execute a single beads issue with full lifecycle. Triggers: "implement", "work on task", "fix bug", "start feature", "pick up next issue".'
+description: 'Execute a single beads issue with full lifecycle. Triggers: "implement", "work on task", "fix bug", "build", "start feature", "pick up next issue".'
 metadata:
   tier: team
   dependencies:

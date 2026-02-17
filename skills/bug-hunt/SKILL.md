@@ -1,6 +1,6 @@
 ---
 name: bug-hunt
-description: 'Investigate suspected bugs with git archaeology and root cause analysis. Triggers: "bug", "broken", "doesn''t work", "failing", "investigate bug".'
+description: 'Investigate suspected bugs with git archaeology and root cause analysis. Triggers: "bug", "broken", "doesn''t work", "failing", "investigate bug", "debug", "find the bug", "troubleshoot".'
 metadata:
   tier: solo
   dependencies:

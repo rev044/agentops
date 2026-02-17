@@ -224,20 +224,17 @@ Tell the user: "This is what `/vibe` does — complexity analysis + multi-model 
 You've just completed a mini RPI cycle:
   Research → Plan → Validate
 
-Here's what else is available:
+CORE SKILLS (start here)
+/research   - explore and understand code
+/plan       - break down a goal into tasks
+/implement  - execute a single task
+/vibe       - review code quality
+/status     - see what you're working on
 
-  IMPLEMENT                    VALIDATE                 COLLABORATE
-  /implement  - execute task   /vibe      - code check  /council   - multi-model review
-  /crank      - run full epic  /pre-mortem - plan check  /swarm     - parallel agents
-  /plan       - decompose work /post-mortem - wrap up    /codex-team - parallel Codex agents
-  /rpi        - full lifecycle /release   - tag release  /handoff   - session handoff
-
-  EXPLORE                      TRACK                    META
-  /research   - deep dive      /knowledge - query learn  /status   - dashboard
-  /bug-hunt   - investigate    /inbox     - agent mail   /recover  - restore context
-  /complexity - code metrics   /trace     - decisions    /product  - product definition
-  /doc        - generate docs  /retro     - learnings    /evolve   - goal-driven loop
+Ready for more? Say "show all skills" or run /status for suggestions.
 ```
+
+For the complete catalog, use the Read tool on `skills/quickstart/references/full-catalog.md`.
 
 ### Step 7: Suggest Next Steps
 
