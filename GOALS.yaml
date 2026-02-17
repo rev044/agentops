@@ -8,13 +8,13 @@ pillars:
   - goal-driven-automation
   - zero-friction-workflow
 
-# Total: 47 goals (22 pillar + 25 infrastructure)
+# Total: 50 goals (25 pillar + 25 infrastructure)
 # Pillar goals define WHAT the system does (user-visible value).
 # Infrastructure goals define HOW the system stays healthy (build, test, docs).
 
 goals:
   # ============================================================================
-  # PILLAR GOALS (22 total)
+  # PILLAR GOALS (25 total)
   # ============================================================================
 
   # === Pillar: Knowledge Compounding (6 goals, weight 3-5) ===
@@ -113,7 +113,7 @@ goals:
     weight: 4
     pillar: goal-driven-automation
 
-  # === Pillar: Zero-Friction Workflow (7 goals, weight 3-4) ===
+  # === Pillar: Zero-Friction Workflow (10 goals, weight 3-4) ===
 
   - id: quickstart-under-5min
     description: "/quickstart skill promises value in under 5 minutes"
@@ -148,6 +148,24 @@ goals:
   - id: product-olympus-in-landscape
     description: "PRODUCT.md competitive landscape includes Olympus as complementary (not competing)"
     check: "grep -q 'Olympus' PRODUCT.md && grep -q 'Complementary' PRODUCT.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: quickstart-tiered-catalog
+    description: "Quickstart has tiered skill catalog (full catalog in references/, starter set in SKILL.md)"
+    check: "test -f skills/quickstart/references/full-catalog.md && grep -qi 'starter\\|core\\|begin\\|first' skills/quickstart/SKILL.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: verb-aliases-exist
+    description: "Core skills have verb aliases in descriptions (review→vibe, execute→crank, parallel→swarm)"
+    check: "grep -qi 'review\\|check' skills/vibe/SKILL.md && grep -qi 'execute\\|run epic' skills/crank/SKILL.md && grep -qi 'parallel\\|concurrent' skills/swarm/SKILL.md"
+    weight: 3
+    pillar: zero-friction-workflow
+
+  - id: learn-skill-exists
+    description: "/learn skill exists for manual knowledge capture into the flywheel"
+    check: "test -f skills/learn/SKILL.md && grep -q '^name:' skills/learn/SKILL.md"
     weight: 3
     pillar: zero-friction-workflow
 
