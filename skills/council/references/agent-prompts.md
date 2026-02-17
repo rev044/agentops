@@ -12,10 +12,11 @@ You are a teammate on team "{TEAM_NAME}".
 
 Instructions:
 1. Analyze the target thoroughly
-2. Write your analysis to: .agents/council/{OUTPUT_FILENAME}
+2. Write your FULL analysis to: .agents/council/{OUTPUT_FILENAME}
    - Start with a JSON code block matching the output_schema
    - Follow with Markdown explanation
-3. Send a message to the team lead with your verdict, confidence, and key insight
+   - ALL detailed findings, reasoning, and recommendations go in this file
+3. Send a SHORT completion signal to the team lead (see format below)
 4. You may receive follow-up messages (e.g., debate round 2). Process and respond.
 
 Your job is to find problems. A PASS with caveats is less valuable than a specific FAIL.
@@ -25,23 +26,29 @@ For every finding, include these structured remediation fields:
 - why: Root cause or rationale
 - ref: File path, spec anchor, or doc reference that supports this finding
 
-When sending your verdict to the team lead, use the structured envelope format.
-Your message MUST start with a JSON code block:
+CONTEXT BUDGET: Your message to the team lead must be MINIMAL to avoid exploding
+the lead's context window. Send ONLY the completion signal below — the lead reads
+your full analysis from the output file.
+
+Your message MUST be exactly this JSON block and nothing else:
 
 \`\`\`json
 {
   "type": "verdict",
-  "verdict": {
-    "value": "PASS | WARN | FAIL",
-    "confidence": "HIGH | MEDIUM | LOW",
-    "key_insight": "One sentence summary"
-  }
+  "verdict": "PASS | WARN | FAIL",
+  "confidence": "HIGH | MEDIUM | LOW",
+  "file": ".agents/council/{OUTPUT_FILENAME}"
 }
 \`\`\`
+
+Do NOT include key_insight, findings, or explanation in the message.
+Do NOT add prose before or after the JSON block.
+The lead reads your output file for all details.
 
 Rules:
 - Do NOT message other judges -- all communication through team lead
 - Do NOT access TaskList -- team lead manages task flow
+- Keep messages to lead MINIMAL -- file has the details
 ```
 
 ## Judge Agent Prompt -- With Perspectives (Preset or Custom)
@@ -63,29 +70,36 @@ For every finding, include these structured remediation fields:
 
 Instructions:
 1. Analyze the target from your perspective
-2. Write your analysis to: .agents/council/{OUTPUT_FILENAME}
+2. Write your FULL analysis to: .agents/council/{OUTPUT_FILENAME}
    - Start with a JSON code block matching the output_schema
    - Follow with Markdown explanation
-3. Send a message to the team lead with your verdict, confidence, and key insight
+   - ALL detailed findings, reasoning, and recommendations go in this file
+3. Send a SHORT completion signal to the team lead (see format below)
 4. You may receive follow-up messages (e.g., debate round 2). Process and respond.
 
-When sending your verdict to the team lead, use the structured envelope format.
-Your message MUST start with a JSON code block:
+CONTEXT BUDGET: Your message to the team lead must be MINIMAL to avoid exploding
+the lead's context window. Send ONLY the completion signal below — the lead reads
+your full analysis from the output file.
+
+Your message MUST be exactly this JSON block and nothing else:
 
 \`\`\`json
 {
   "type": "verdict",
-  "verdict": {
-    "value": "PASS | WARN | FAIL",
-    "confidence": "HIGH | MEDIUM | LOW",
-    "key_insight": "One sentence summary"
-  }
+  "verdict": "PASS | WARN | FAIL",
+  "confidence": "HIGH | MEDIUM | LOW",
+  "file": ".agents/council/{OUTPUT_FILENAME}"
 }
 \`\`\`
+
+Do NOT include key_insight, findings, or explanation in the message.
+Do NOT add prose before or after the JSON block.
+The lead reads your output file for all details.
 
 Rules:
 - Do NOT message other judges -- all communication through team lead
 - Do NOT access TaskList -- team lead manages task flow
+- Keep messages to lead MINIMAL -- file has the details
 ```
 
 ## Debate Round 2 Message (via SendMessage)
@@ -111,11 +125,13 @@ Before reviewing other judges' verdicts:
    in R1. "Judge 2 made a good point" is NOT sufficient. "Judge 2 found an unchecked
    error path at auth.py:45 that I missed" IS sufficient.
 
-Other judges' R1 verdicts:
+Other judges' R1 verdicts (SUMMARY ONLY — read their output files for full analysis):
 
 ### {OTHER_JUDGE_PERSPECTIVE}
-{FULL_JSON_VERDICT}
+Verdict: {VERDICT_VALUE} | Confidence: {CONFIDENCE} | File: {R1_OUTPUT_FILE}
 (repeat for each other judge)
+
+To review a judge's full reasoning, read their output file listed above.
 
 ## Debate Instructions
 
@@ -149,9 +165,21 @@ Do NOT change your verdict merely because others disagree.
 Do NOT defensively maintain without engaging with opposing arguments.
 
 Write revised verdict to: .agents/council/{R2_OUTPUT_FILENAME}
-Include "debate_notes" field in your JSON. Send completion message when done.
+Include "debate_notes" field in your JSON.
 
-Required JSON format:
+CONTEXT BUDGET: After writing your R2 file, send the SAME minimal completion signal
+as R1 — verdict, confidence, file path only. No prose, no findings in the message.
+
+\`\`\`json
+{
+  "type": "verdict",
+  "verdict": "PASS | WARN | FAIL",
+  "confidence": "HIGH | MEDIUM | LOW",
+  "file": ".agents/council/{R2_OUTPUT_FILENAME}"
+}
+\`\`\`
+
+Required JSON format for the OUTPUT FILE (not the message):
 
 {
   "verdict": "PASS | WARN | FAIL",
@@ -199,18 +227,18 @@ If `--technique` is used with a non-brainstorm task type (validate, research), e
 
 **Codex output format note:** When Codex judges used `--output-schema`, their output files are pure JSON (`.json` extension) conforming to `skills/council/schemas/verdict.json`. Parse directly with JSON. When fallback was used, output files are markdown (`.md` extension) with a JSON code block that must be extracted (current behavior). Check file extension to determine parse strategy.
 
-```
-You are the Council Chairman.
+The consolidation phase runs as the TEAM LEAD (this agent), NOT as a separate spawned agent.
+This avoids creating yet another context window. The lead reads each judge's output file
+directly using the Read tool, then synthesizes inline.
 
-You have received {N} judge reports from {VENDORS}.
+**Consolidation procedure:**
 
-## Judge Reports
+1. Collect the list of judge output files from their completion signals
+2. Read each file with the Read tool (one file at a time to manage context)
+3. Extract the JSON verdict block from each file
+4. Synthesize the final report
 
-{JUDGE_OUTPUTS_JSON}
-
-## Your Task
-
-Synthesize into a final council report. When judges have persona names (from presets), use those names in attribution (e.g., "**Red** (attacker) found...") instead of generic "Judge 1" labels.
+When synthesizing, follow these guidelines. When judges have persona names (from presets), use those names in attribution (e.g., "**Red** (attacker) found...") instead of generic "Judge 1" labels.
 
 Ensure all consolidated findings have fix/why/ref populated. If a judge omitted these fields, infer them from the judge's analysis. Use fallbacks:
 - fix = finding.fix || finding.recommendation || "No fix specified"

@@ -90,6 +90,16 @@ Natural language works — the skill infers task type from your prompt.
 
 ## Architecture
 
+### Context Budget Rule (CRITICAL)
+
+Judges write ALL analysis to output files. Messages to the lead contain ONLY a
+minimal completion signal: `{"type":"verdict","verdict":"...","confidence":"...","file":"..."}`.
+The lead reads output files during consolidation. This prevents N judges from
+exploding the lead's context window with N full reports via SendMessage.
+
+**Consolidation runs inline as the lead** — no separate chairman agent. The lead
+reads each judge's output file sequentially with the Read tool and synthesizes.
+
 ### Execution Flow
 
 ```
@@ -130,9 +140,9 @@ Natural language works — the skill infers task type from your prompt.
             └─────────────────┬─────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Phase 2: Consolidation (Team Lead)                             │
-│  - Receive completion from backend channel (wait/SendMessage)   │
-│  - Read all agent output files                                  │
+│  Phase 2: Consolidation (Team Lead — inline, no extra agent)    │
+│  - Receive MINIMAL completion signals (verdict + file path)     │
+│  - Read each judge's output file with Read tool                 │
 │  - If schema_version is missing from a judge's output, treat    │
 │    as version 0 (backward compatibility)                        │
 │  - Compute consensus verdict                                    │
@@ -347,7 +357,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 |----------|---------|-------------|
 | `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
 | `COUNCIL_CODEX_MODEL` | gpt-5.3-codex | Default Codex model for --mixed |
-| `COUNCIL_CLAUDE_MODEL` | opus | Claude model for agents |
+| `COUNCIL_CLAUDE_MODEL` | opus | Claude model for judges |
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
 | `COUNCIL_R2_TIMEOUT` | 90 | Maximum wait time for R2 debate completion after sending debate messages. Shorter than R1 since judges already have context. |

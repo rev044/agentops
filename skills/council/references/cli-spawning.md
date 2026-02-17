@@ -149,26 +149,32 @@ Bash(command="codex exec -s read-only -m gpt-5.3-codex -C \"$(pwd)\" --output-sc
 
 **Wait for completion:**
 
+Judges send a MINIMAL completion signal (verdict + confidence + file path only).
+The lead reads their output files for full analysis during consolidation.
+
 - Codex sub-agent backend: `wait(ids=[...])`
-- Claude teams backend: completion via `SendMessage`
-- Codex CLI judges: `TaskOutput(task_id="...", block=true)`
+- Claude teams backend: completion via `SendMessage` (minimal JSON signal)
+- Codex CLI judges: `TaskOutput(task_id="...", block=true)` — output file on disk
 
 ## Debate Round 2 (via send_input or SendMessage)
 
 **After R1 completes, send R2 instructions to existing judges (no re-spawn):**
+
+CONTEXT BUDGET: Send only verdict summaries (verdict + confidence + file path) of other
+judges, NOT their full JSON findings. Judges read other judges' files if they need detail.
 
 ```
 # Determine branch
 r1_unanimous = all R1 verdicts have same value
 
 # Codex backend:
-send_input(id="<judge-1-id>", message="## Debate Round 2 ... {OTHER_VERDICTS_JSON} ...")
+send_input(id="<judge-1-id>", message="## Debate Round 2\n\nOther judges' R1 verdicts:\n\njudge-2: WARN (HIGH) — file: .agents/council/...-claude-2.md\njudge-3: PASS (MEDIUM) — file: .agents/council/...-claude-3.md\n\nRead their files for full reasoning.\n\n{DEBATE_INSTRUCTIONS}")
 
 # Claude teams backend:
-SendMessage(type="message", recipient="judge-1", content="## Debate Round 2 ... {OTHER_VERDICTS_JSON} ...", summary="Debate R2: review other verdicts")
+SendMessage(type="message", recipient="judge-1", content="## Debate Round 2\n\nOther judges' R1 verdicts:\n\njudge-2: WARN (HIGH) — file: .agents/council/...-claude-2.md\njudge-3: PASS (MEDIUM) — file: .agents/council/...-claude-3.md\n\nRead their files for full reasoning.\n\n{DEBATE_INSTRUCTIONS}", summary="Debate R2: review other verdicts")
 ```
 
-Judges wake from idle, process R2, write R2 files, send completion message.
+Judges wake from idle, read other judges' files, process R2, write R2 files, send minimal completion signal.
 
 **R2 completion wait:** wait up to `COUNCIL_R2_TIMEOUT` (default 90s) using backend channel (`wait` or `SendMessage`). If a judge does not respond, read their R1 output file and use the R1 verdict for consolidation. Log: `Judge <name> R2 timeout -- using R1 verdict.`
 
