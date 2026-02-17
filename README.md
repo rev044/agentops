@@ -40,7 +40,11 @@ If you've done agile, SCRUM, or any spec-driven workflow — you already know th
 
 What's new is that agents need it **automated**. A human developer carries context between sprints naturally. An agent doesn't — it gets a blank context window every session. AgentOps automates the feedback loop so the agent accumulates expertise the way a team does across sprints: learnings are extracted, quality-gated, and injected into the next session automatically.
 
-**The fix:** apply DevOps' Three Ways (flow, feedback, continual learning) to every step of the agent loop, then compound memory between sessions (extract → score → inject).
+**The fix:** apply DevOps' Three Ways to the agent loop, then compound memory between sessions.
+
+- **Flow**: turn goals into small issues and waves so work moves predictably.
+- **Feedback**: judge plans and code early (`/pre-mortem`, `/vibe`, `/council`) and optionally enforce it with gates/hooks.
+- **Continual learning**: extract learnings into `.agents/` and inject them next session (extract → score → inject).
 
 **The building blocks:** primitives you can mix and match into a custom pipeline that fits your workflow.
 
