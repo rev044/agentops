@@ -8,10 +8,12 @@
 
 *Context orchestration for every phase — research, planning, validation, execution. Each session learns from the last, so your agent compounds knowledge over time.*
 
+[![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
+[![Skills](https://img.shields.io/badge/skills-38-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-orchestration) · [Safety](#safety-gates) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -204,57 +206,56 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 
 ## The Workflow
 
-**RPI = Research → Plan → Implement.** `/rpi "goal"` runs the full lifecycle with validation gates at each phase.
+1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
 
+2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking).
+
+3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
+
+4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Cross-cutting constraints from the plan are injected into every wave's validation pass. `--test-first` uses a spec-first TDD model — specs and tests before implementation in every wave. Lead validates and commits. Runs until every issue is closed.
+
+5. **`/vibe`** — 3 judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
+
+6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes process improvements. **Suggests the next `/rpi` command.**
+
+`/rpi "goal"` runs all six, end to end (micro-epics of 2 or fewer issues auto-detect fast-path: inline validation instead of full council, ~15 min faster with no quality loss). Use `--interactive` if you want human gates at research and plan.
+
+### Phased RPI: Own Your Context Window
+
+For larger goals, `ao rpi phased "goal"` runs each phase in its own fresh session — no context bleed between phases. Supports `--interactive` (human gates at research/plan), `--from=<phase>` (resume), and parallel worktrees.
+
+```bash
+ao rpi phased "add rate limiting"      # Hands-free, fresh context per phase
+ao rpi phased "add auth" &             # Run multiple in parallel (auto-worktrees)
+ao rpi phased --from=crank "fix perf"  # Resume from any phase
 ```
-  Goal ─→ /research ─→ /plan ─→ /pre-mortem ─→ /crank ─→ /vibe ─→ /post-mortem
-   ▲                                                                     │
-   │                      learnings → .agents/                           │
-   └─────────────────── injected at session start ◄──────────────────────┘
-```
 
-| Phase | Skill | What happens |
-|-------|-------|-------------|
-| **Research** | `/research` | Explores your codebase, produces findings and recommendations |
-| **Plan** | `/plan` | Decomposes goal into issues with dependency waves and scope boundaries |
-| **Validate plan** | `/pre-mortem` | 4 judges simulate failures *before* you write code. FAIL → re-plan (max 3) |
-| **Implement** | `/crank` | Parallel agents in waves, fresh context per worker. Lead validates and commits |
-| **Validate code** | `/vibe` | 3 judges review the code. FAIL → re-crank with feedback (max 3) |
-| **Learn** | `/post-mortem` | Council validates, retro extracts learnings, suggests next `/rpi` command |
-
-`/rpi "goal"` runs all six, end to end. Micro-epics (2 or fewer issues) auto-detect fast-path — inline validation instead of full council, ~15 min faster with no quality loss. Use `--interactive` for human gates at research and plan.
-
-<details>
-<summary><b>Phased RPI</b> — fresh context per phase, parallel worktrees</summary>
-<code>ao rpi phased "goal"</code> runs each phase in its own session — no context bleed. Supports <code>--from=&lt;phase&gt;</code> (resume) and parallel worktrees. Use <code>/rpi</code> when context fits in one session, phased when it doesn't.
-</details>
+Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't.
 
 ---
 
 ## The Flywheel
 
-Each session learns from every session before it. This is the part I'm most excited about.
+This is what makes AgentOps different. The system doesn't just run — it compounds.
 
 ```
   /rpi "goal A"
-       │
-       ▼
-  research → plan → pre-mortem → crank → vibe
-       │
-       ▼
+    │
+    ├── research → plan → pre-mortem → crank → vibe
+    │
+    ▼
   /post-mortem
-       ├── council validates what shipped
-       ├── retro extracts what you learned
-       ├── proposes how to improve the process
-       └── "Next: /rpi goal B"
-                │
-                ▼
-          /rpi "goal B"   ◄── smarter because it learned from A
-                │
-                └── ...loop
+    ├── council validates what shipped
+    ├── retro extracts what you learned
+    ├── proposes how to improve the skills   ← the tools get better
+    └── "Next: /rpi <enhancement>" ────┐
+                                       │
+  /rpi "goal B" ◄──────────────────────┘
+    │
+    └── ...repeat forever
 ```
 
-Post-mortem analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The knowledge base grows with each cycle.
+Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system grows its knowledge stock with each cycle.
 
 Learnings pass quality gates (specificity, actionability, novelty) and land in gold/silver/bronze tiers. [MemRL](https://arxiv.org/abs/2502.06173)-inspired freshness decay ensures recent insights outweigh stale patterns.
 
@@ -268,18 +269,9 @@ Knowledge either compounds or decays to zero. The math: <code>σ × ρ > δ</cod
 AgentOps concentrates on the high-leverage end of <a href="https://en.wikipedia.org/wiki/Twelve_leverage_points">Meadows' hierarchy</a>: information flows (#6 — hooks + <code>.agents/</code>), rules (#5 — ratchet gates), self-organization (#4 — modular skills + post-mortem harvesting), goals (#3 — <code>GOALS.yaml</code> + <code>/evolve</code>), paradigms (#2 — context quality as primary lever). The bet: changing the loop beats tuning the output.
 </details>
 
-### `/evolve`
+### Goal-Driven Mode: `/evolve`
 
-`/evolve` ties the whole thing together — a hands-free loop that ships validated code toward measurable goals.
-
-**How it works:**
-1. You define fitness goals in `GOALS.yaml` (test pass rate, doc coverage, complexity targets — anything measurable)
-2. `/evolve` measures all goals, selects the worst gap by weight, and runs a full `/rpi` lifecycle to fix it
-3. After each cycle, it re-measures **ALL** goals — not just the one it worked on
-4. Learnings from each cycle feed back into the flywheel before the next cycle starts
-5. It loops until every goal passes or you pull the kill switch
-
-Passing goals stay passing — if a cycle breaks something that was working, the commits get rolled back automatically.
+Define fitness goals in `GOALS.yaml`, then `/evolve` measures them, picks the worst gap, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
 
 ```yaml
 # GOALS.yaml — define goals, walk away
@@ -291,14 +283,15 @@ goals:
     weight: 10
 ```
 
-```text
-> /evolve --max-cycles=5
-
-# Kill switch (immediate stop after current cycle)
-> echo "stop" > ~/.config/evolve/KILL
-```
-
 Each `/rpi` cycle is smarter than the last because it learned from every cycle before it.
+
+---
+
+## From Vision to Execution
+
+`/product` defines the vision. `/research` explores the landscape. `/plan` decomposes into issues with dependency waves. `/crank` spawns fresh-context workers per wave. `/vibe` validates. `/post-mortem` extracts learnings and suggests the next `/rpi` command. `/evolve` loops until all `GOALS.yaml` fitness goals pass.
+
+You define the goal. The system builds it piece by piece — each cycle compounds on the last.
 
 ---
 
@@ -349,12 +342,16 @@ Take the pieces. Experiment. Create your own workflow. If you find something tha
 
 ## How AgentOps Fits With Other Tools
 
-These plugins aren't competitors — they're fellow experiments in making coding agents actually work. The whole point is to customize your workflow. Use pieces from any of them. Mix and match. None of these should feel like vendor lock-in.
+These aren't competitors — they're fellow experiments in making coding agents actually work. The whole point is to customize your workflow. Use pieces from any of them. Mix and match. None of these should feel like vendor lock-in.
 
-| Tool | What it does well | What AgentOps adds if you combine them |
-|------|-------------------|----------------------------------------|
-| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot in long sessions | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
-| **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured Plan→Work→Assess→Compound loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
+| Alternative | What it does well | Where AgentOps focuses differently |
+|-------------|-------------------|-------------------------------------|
+| **Direct agent use** (Claude Code, Cursor) | Full autonomy, simple | Adds cross-vendor councils, fresh-context waves, and cross-session memory |
+| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Adds auto-extracted learnings that compound — static instructions can't do that |
+| **Orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-agent task routing | Focuses on what's *in* each agent's context window, not just routing between them |
+| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced | Runs validation *before* coding (/pre-mortem) and *before* push (/vibe), not just after |
+| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
+| **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
 
 You don't pick one. You build a workflow that fits how you think.
 
@@ -362,21 +359,9 @@ You don't pick one. You build a workflow that fits how you think.
 
 ---
 
-## Safety Gates
+## How It Works
 
-The idea comes from thermodynamics: a [Brownian Ratchet](docs/the-science.md) gets forward movement from random motion by only allowing progress in one direction. Same thing here — parallel agents produce noisy output, councils filter it, ratchets lock the gains.
-
-**Enforcement mechanisms (12 hooks across 8 lifecycle event types):**
-
-| Gate | What it does | Enforcement |
-|------|-------------|-------------|
-| **Push gate** | `git push` and `git tag` blocked until `/vibe` passes | PostToolUse hook |
-| **Pre-mortem gate** | `/crank` cannot start until `/pre-mortem` passes (3+ issue epics) | Task validation hook |
-| **Worker guard** | Workers write files but cannot `git commit` — lead-only commits | PostToolUse hook |
-| **Regression gate** | `/evolve` auto-reverts commits that cause passing goals to fail | Post-cycle measurement |
-| **Dangerous git guard** | `force-push`, `reset --hard`, `clean -f` blocked by default | PostToolUse hook |
-
-Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1` — set in your shell profile for persistent disable, or prefix any command for one-shot). Safety on by default, opt out when you want to.
+Parallel agents produce noisy output; councils filter it; ratchets lock progress so it can never regress. Every worker gets fresh context — no bleed-through between waves. 12 hooks enforce the workflow automatically (kill switch: `AGENTOPS_HOOKS_DISABLED=1`).
 
 Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing.
 
@@ -404,7 +389,9 @@ Everything else runs automatically. Full reference: [CLI Commands](cli/docs/COMM
 
 ## FAQ
 
-[docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
+**No data leaves your machine.** All state lives in `.agents/` (local; git-ignored by default). No telemetry, no cloud. Works with Claude Code, Codex CLI, Cursor, OpenCode — anything supporting [Skills](https://skills.sh).
+
+More questions: [docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
 
 ---
 
