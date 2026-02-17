@@ -20,9 +20,11 @@
 
 ---
 
-**Not another workflow tool.** SDD gives you a spec-first pipeline. GSD gives you a fast loop. Both forget everything when the session ends. AgentOps is different: it's composable primitives that remember what they learned.
+**It's the context window, not the model.** When your agent does everything in one conversation, the window fills up with stuff it doesn't need by the time it's actually writing code. That's why results are inconsistent.
 
-This started because I was hand-crafting every turn my coding agents took — writing the prompt, reviewing the output, feeding context back in, repeat. So I built the pieces: a skill for research, a skill for validation, a skill for planning, hooks to enforce the workflow, a CLI to wire it together. Each piece works standalone — `/council` validates a PR, `/research` explores a codebase, `/vibe` checks code quality. You use what you need and skip the rest.
+I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session compounds on the last.
+
+A spec-first pipeline forgets everything when the session ends. A fast iteration loop does too. AgentOps is composable primitives that remember what they learned.
 
 What makes this different from "write spec → implement → check against spec → done":
 
