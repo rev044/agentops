@@ -6,7 +6,6 @@
 
 ### Coding agents forget everything between sessions. This fixes that.
 
-[![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-43-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
