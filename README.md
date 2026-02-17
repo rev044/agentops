@@ -10,13 +10,13 @@
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 
-[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-agent-orchestration) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Fits With](#how-agentops-fits-with-other-tools) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-agent-orchestration) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
 ---
 
-**Quickstart (TL;DR):**
+**Quickstart:**
 
 Skills install (start here):
 
@@ -153,6 +153,25 @@ Session 2 was faster and better because session 1's learnings were already in co
 ```
 
 </details>
+
+---
+
+## How AgentOps Fits With Other Tools
+
+These plugins aren't competitors — they're fellow experiments in making coding agents actually work. The whole point is to customize your workflow. Use pieces from any of them. Mix and match. None of these should feel like vendor lock-in.
+
+| Tool | What it does well | What AgentOps adds if you combine them |
+|------|-------------------|----------------------------------------|
+| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot in long sessions | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
+| **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured Plan→Work→Assess→Compound loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
+| **[cc-sdd](https://github.com/gotalab/cc-sdd)** | Spec-first discipline, multi-platform (Claude Code, Cursor, Codex, Gemini CLI) | Pre-mortem failure simulation on those specs, plus a knowledge flywheel that feeds learnings back automatically |
+| **[Deep Trilogy](https://github.com/piercelamb/deep-plan)** | Deep planning with external LLM review and checkpoint resumability | Parallel wave execution (`/crank`), cross-vendor orchestration (Claude + Codex judges), and automated post-mortem harvesting |
+| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled, zero dependencies | Auto-extracted learnings that compound — static instructions don't update themselves |
+| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced, runs on every push | Validation *before* coding (`/pre-mortem`) and *before* push (`/vibe`), not just after |
+
+You don't pick one. You build a workflow that fits how you think. If GSD's context management works for you, use it alongside AgentOps' cross-session memory. If Compound Engineer's loop is your thing, plug in `/council` for the review step. The skills are modular for exactly this reason.
+
+[Detailed comparisons →](docs/comparisons/)
 
 ---
 
@@ -377,15 +396,6 @@ Each `/rpi` cycle is smarter than the last because it learned from every cycle b
 **Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
 
 Full reference with all 37 skills: [docs/SKILLS.md](docs/SKILLS.md)
-
-### Why Not Just Use...
-
-| Alternative | What it does well | Where AgentOps focuses differently |
-|-------------|-------------------|-------------------|
-| **Direct agent use** (Claude Code, Cursor) | Full autonomy, simple | Adds cross-vendor councils, fresh-context waves, and cross-session memory |
-| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Adds auto-extracted learnings that compound — static instructions can't do that |
-| **Orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-agent task routing | Focuses on what's *in* each agent's context window, not just routing between them |
-| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced | Runs validation *before* coding (`/pre-mortem`) and *before* push (`/vibe`), not just after |
 
 [Detailed comparisons →](docs/comparisons/)
 
