@@ -53,7 +53,7 @@ Optional:
 - `--upstream-repo` (optional)
 - `--local-clone-dir` (default: `.tmp/<product_name>`)
 - `--output-dir` (default: `.agents/research/<product_name>/`)
-- `--mode` (default: `binary`; allowed: `repo|binary|both`)
+- `--mode` (default: `repo`; allowed: `repo|binary|both`)
 - `--binary-path` (required if `--mode` includes `binary`)
 - `--no-materialize-archives` (authorized-only; binary mode extracts embedded ZIPs by default; this disables extraction and keeps index-only)
 
@@ -91,6 +91,10 @@ Core outputs under `output_dir/`:
 Binary-mode extras:
 - `binary-analysis.md` (best-effort summary)
 - `binary-embedded-archives.md` (index only; no dumps)
+
+Repo-mode extras:
+- `spec-artifact-surface.md` (best-effort; template/manifest driven install surface)
+- `artifact-registry.json` (best-effort; hashed template inventory when manifests/templates exist)
 
 If `--security-audit`, also create `output_dir/security/`:
 - `threat-model.md`

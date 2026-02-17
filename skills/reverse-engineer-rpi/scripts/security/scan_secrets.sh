@@ -36,7 +36,15 @@ for pat in "${PATTERNS[@]}"; do
   # ripgrep is faster and supports PCRE2 with -P.
   if command -v rg >/dev/null 2>&1; then
     # Use '--' so patterns beginning with '-' are not treated as flags.
-    if rg -n -S -P --hidden --no-ignore --glob '!.git/**' --glob '!.tmp/**' -- "$pat" "$ROOT" >>"$TMP"; then
+    # Avoid self-matches: this validator embeds some of the patterns it is looking for.
+    if rg -n -S -P --hidden --no-ignore \
+      --glob '!.git/**' \
+      --glob '!.tmp/**' \
+      --glob '!**/security/scan-secrets.sh' \
+      --glob '!**/security/scan_secrets.sh' \
+      --glob '!**/security/validate-security-audit.sh' \
+      --glob '!**/security/generate-sbom.sh' \
+      -- "$pat" "$ROOT" >>"$TMP"; then
       FAIL=1
     fi
   else

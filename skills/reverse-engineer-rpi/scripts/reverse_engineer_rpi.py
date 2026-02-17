@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import hashlib
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -51,6 +54,470 @@ def _render_template(src: Path, dst: Path, vars: dict[str, str]) -> None:
     for k, v in vars.items():
         text = text.replace("{{" + k + "}}", v)
     dst.write_text(text, encoding="utf-8")
+
+
+def _read_text(p: Path) -> str:
+    return p.read_text(encoding="utf-8", errors="replace")
+
+
+def _extract_ts_backtick_const(src: Path, const_name: str) -> str | None:
+    # Best-effort: extract `const <name> = `...`;` blocks (common for CLI help text).
+    if not src.exists():
+        return None
+    text = _read_text(src)
+    m = re.search(
+        rf"\bconst\s+{re.escape(const_name)}\s*=\s*`([\s\S]*?)`;",
+        text,
+        flags=re.MULTILINE,
+    )
+    return m.group(1) if m else None
+
+
+def _extract_ts_string_const(src: Path, const_name: str) -> str | None:
+    if not src.exists():
+        return None
+    text = _read_text(src)
+    m = re.search(rf"\b{re.escape(const_name)}\s*=\s*'([^']*)';", text)
+    if m:
+        return m.group(1)
+    m = re.search(rf'\b{re.escape(const_name)}\s*=\s*"([^"]*)";', text)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _extract_agents_from_registry_ts(registry_ts: Path) -> tuple[list[str], list[str]] | None:
+    """
+    Best-effort parser for agent keys + alias flags from a TS registry.
+    Intended to resolve help text interpolations like `${agentKeys.join('|')}`.
+    """
+    if not registry_ts.exists():
+        return None
+
+    text = _read_text(registry_ts)
+    start = text.find("export const agentDefinitions")
+    if start < 0:
+        return None
+    tail = text[start:]
+
+    # Limit to the agentDefinitions object body to reduce false matches.
+    end = tail.find("} as const")
+    if end > 0:
+        tail = tail[:end]
+
+    agent_keys: list[str] = []
+    seen_keys: set[str] = set()
+
+    for line in tail.splitlines():
+        # Top-level agent keys in the registry are consistently 2-space indented. This avoids
+        # accidentally matching nested object keys like `layout:` or `commands:`.
+        m = re.match(r"^  (?:'([^']+)'|([A-Za-z0-9_-]+))\s*:\s*\{\s*$", line)
+        if not m:
+            continue
+        key = (m.group(1) or m.group(2) or "").strip()
+        if not key:
+            continue
+        if key not in seen_keys:
+            agent_keys.append(key)
+            seen_keys.add(key)
+
+    alias_flags: set[str] = set()
+    for m in re.finditer(r"aliasFlags:\s*\[([^\]]*)\]", tail, flags=re.MULTILINE):
+        blob = m.group(1)
+        for s in re.findall(r"'([^']+)'", blob):
+            alias_flags.add(s)
+        for s in re.findall(r"\"([^\"]+)\"", blob):
+            alias_flags.add(s)
+
+    return agent_keys, sorted(alias_flags)
+
+
+def _find_node_cli_package(repo_root: Path, product_slug: str, product_name: str) -> dict[str, object] | None:
+    # Detect Node CLI packages by locating a package.json with a "bin" field and matching name/bin key.
+    product_name_lc = product_name.strip().lower()
+    candidates: list[tuple[int, Path, dict[str, object]]] = []
+
+    for pkg_json in sorted(repo_root.rglob("package.json")):
+        if "node_modules" in pkg_json.parts:
+            continue
+        try:
+            data = json.loads(_read_text(pkg_json))
+        except Exception:
+            continue
+
+        bin_field = data.get("bin")
+        if not bin_field:
+            continue
+
+        name = str(data.get("name") or "")
+        score = 0
+        if name.lower() == product_slug or name.lower() == product_name_lc:
+            score += 100
+
+        # Normalize bin mapping.
+        bin_map: dict[str, str] = {}
+        if isinstance(bin_field, str):
+            if name:
+                bin_map[name] = bin_field
+        elif isinstance(bin_field, dict):
+            for k, v in bin_field.items():
+                if isinstance(k, str) and isinstance(v, str):
+                    bin_map[k] = v
+        if product_slug in bin_map:
+            score += 80
+        if product_name_lc in (k.lower() for k in bin_map.keys()):
+            score += 60
+
+        # Prefer shallower packages when score ties (often the main package vs nested deps).
+        depth = len(pkg_json.relative_to(repo_root).parts)
+        score -= depth
+
+        candidates.append((score, pkg_json, data))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda t: t[0], reverse=True)
+    score, pkg_json, data = candidates[0]
+
+    # Return a normalized payload for downstream rendering.
+    bin_field = data.get("bin")
+    bin_map: dict[str, str] = {}
+    if isinstance(bin_field, str):
+        name = str(data.get("name") or "")
+        if name:
+            bin_map[name] = bin_field
+    elif isinstance(bin_field, dict):
+        for k, v in bin_field.items():
+            if isinstance(k, str) and isinstance(v, str):
+                bin_map[k] = v
+
+    return {
+        "score": score,
+        "package_json": str(pkg_json),
+        "package_dir": str(pkg_json.parent),
+        "name": str(data.get("name") or ""),
+        "version": str(data.get("version") or ""),
+        "bin": bin_map,
+    }
+
+
+def _sha256_file(p: Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _render_placeholders(s: str, vars: dict[str, str]) -> str:
+    out = s
+    for k, v in vars.items():
+        out = out.replace("{{" + k + "}}", v)
+    return out
+
+
+def _write_cli_surface_spec(
+    output_dir: Path,
+    *,
+    product_name: str,
+    product_slug: str,
+    date: str,
+    analysis_root: Path,
+) -> bool:
+    """
+    Return True if a CLI was detected and spec-cli-surface.md was written.
+
+    Repo-mode only. This is best-effort and aims to capture a mechanically-verifiable contract:
+    - entrypoints (package.json bin)
+    - help/usage text (static extraction, with interpolation resolved when possible)
+    - config/env surface
+    """
+    if not analysis_root.exists():
+        return False
+
+    node_cli = _find_node_cli_package(analysis_root, product_slug, product_name)
+    if not node_cli:
+        return False
+
+    out = output_dir / "spec-cli-surface.md"
+    pkg_dir = Path(str(node_cli["package_dir"]))
+
+    pkg_json_rel = Path(str(node_cli["package_json"])).relative_to(analysis_root).as_posix()
+    src_index = pkg_dir / "src" / "index.ts"
+    src_cli = pkg_dir / "src" / "cli.ts"
+    src_store = pkg_dir / "src" / "cli" / "store.ts"
+    src_agents = pkg_dir / "src" / "agents" / "registry.ts"
+
+    help_text = _extract_ts_backtick_const(src_index, "helpText")
+    config_file = _extract_ts_string_const(src_store, "CONFIG_FILE")
+
+    # Resolve common interpolations in helpText for higher-fidelity output.
+    if help_text and src_agents.exists():
+        extracted = _extract_agents_from_registry_ts(src_agents)
+        if extracted:
+            agent_keys, alias_flags = extracted
+            if agent_keys:
+                help_text = help_text.replace("${agentKeys.join('|')}", "|".join(agent_keys))
+            alias_line = ""
+            if alias_flags:
+                alias_line = f"  {' | '.join(alias_flags)}  Agent alias flags\n"
+            help_text = help_text.replace("${agentAliasLine}", alias_line)
+
+    # Env vars: scan the src tree for process.env.<NAME> patterns.
+    env_vars: list[str] = []
+    src_root = pkg_dir / "src"
+    if src_root.exists():
+        pat = re.compile(r"\bprocess\.env\.([A-Z][A-Z0-9_]*)\b")
+        found = set()
+        for p in sorted(src_root.rglob("*")):
+            if not p.is_file() or p.suffix.lower() not in (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"):
+                continue
+            for m in pat.finditer(_read_text(p)):
+                found.add(m.group(1))
+        env_vars = sorted(found)
+
+    lines: list[str] = []
+    lines.append(f"# CLI Surface Spec: {product_name}")
+    lines.append("")
+    lines.append(f"- Date: {date}")
+    lines.append(f"- Analysis root: `{analysis_root}`")
+    lines.append("")
+    lines.append("## Entrypoints (Code-Proven)")
+    lines.append("")
+    lines.append(f"- Node package: `{pkg_dir.relative_to(analysis_root).as_posix()}`")
+    lines.append(f"- package.json: `{pkg_json_rel}`")
+    if node_cli.get("name"):
+        lines.append(f"- package name: `{node_cli['name']}`")
+    if node_cli.get("version"):
+        lines.append(f"- version: `{node_cli['version']}`")
+    lines.append("")
+    lines.append("### Binaries")
+    lines.append("")
+    bin_map = node_cli.get("bin") or {}
+    if isinstance(bin_map, dict) and bin_map:
+        for k in sorted(bin_map.keys()):
+            v = str(bin_map[k])
+            lines.append(f"- `{k}` -> `{v}`")
+    else:
+        lines.append("- _No `bin` mapping extracted (unexpected)._")
+
+    if src_cli.exists():
+        lines.append("")
+        lines.append("### Source Entry (Heuristic)")
+        lines.append("")
+        lines.append(f"- `{src_cli.relative_to(analysis_root).as_posix()}` (node shebang entry; typically calls `runCli`)")
+
+    lines.append("")
+    lines.append("## Usage / Help (Code-Proven Where Possible)")
+    lines.append("")
+    if help_text:
+        lines.append("```text")
+        lines.append(help_text.rstrip("\n"))
+        lines.append("```")
+        lines.append("")
+        lines.append("Evidence:")
+        lines.append(f"- `{src_index.relative_to(analysis_root).as_posix()}` (`helpText`)")
+    else:
+        lines.append("- _Help text not extracted (pattern not found)._")
+        lines.append("Evidence:")
+        lines.append(f"- `{src_index.relative_to(analysis_root).as_posix()}`")
+
+    lines.append("")
+    lines.append("## Config / Env (Code-Proven Where Possible)")
+    lines.append("")
+    wrote_any = False
+    if config_file:
+        lines.append(f"- User config file: `{config_file}` (loaded from CWD).")
+        lines.append(f"  Evidence: `{src_store.relative_to(analysis_root).as_posix()}`")
+        wrote_any = True
+    if env_vars:
+        lines.append(f"- Environment variables: `{', '.join(env_vars)}`")
+        lines.append(f"  Evidence: scan of `{src_root.relative_to(analysis_root).as_posix()}` for `process.env.<NAME>`.")
+        wrote_any = True
+    if not wrote_any:
+        lines.append("- _No config/env surface extracted._")
+
+    lines.append("")
+    lines.append("## Notes For 1:1 Fidelity")
+    lines.append("")
+    lines.append("- Treat `--help` output as the CLI contract; include it as a golden test fixture for regressions.")
+    lines.append("- If the repo does not ship built artifacts (ex: `dist/`), building may be required to execute the CLI directly.")
+
+    out.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return True
+
+
+def _write_artifact_surface_spec(
+    output_dir: Path,
+    *,
+    product_name: str,
+    product_slug: str,
+    date: str,
+    analysis_root: Path,
+) -> None:
+    """
+    Higher-fidelity extraction of "what the product writes/installs" for template-driven CLIs.
+
+    Emits:
+    - spec-artifact-surface.md (human summary)
+    - artifact-registry.json (machine-usable: manifests + template file hashes)
+    """
+    out_md = output_dir / "spec-artifact-surface.md"
+    out_json = output_dir / "artifact-registry.json"
+
+    if not analysis_root.exists():
+        out_md.write_text(
+            f"# Artifact Surface Spec: {product_name}\n\n- Date: {date}\n\n- _No repo content available to analyze._\n",
+            encoding="utf-8",
+        )
+        return
+
+    node_cli = _find_node_cli_package(analysis_root, product_slug, product_name)
+    if not node_cli:
+        out_md.write_text(
+            f"# Artifact Surface Spec: {product_name}\n\n- Date: {date}\n\n- _No Node CLI package detected; artifact extraction not implemented for this repo._\n",
+            encoding="utf-8",
+        )
+        return
+
+    pkg_dir = Path(str(node_cli["package_dir"]))
+    manifests_dir = pkg_dir / "templates" / "manifests"
+    if not manifests_dir.exists():
+        out_md.write_text(
+            f"# Artifact Surface Spec: {product_name}\n\n- Date: {date}\n\n"
+            f"- _No `templates/manifests/` directory found under `{pkg_dir.relative_to(analysis_root).as_posix()}`._\n",
+            encoding="utf-8",
+        )
+        return
+
+    manifest_files = sorted(manifests_dir.glob("*.json"))
+    manifests: list[dict[str, object]] = []
+    resolved_sources: list[dict[str, object]] = []
+
+    for mf in manifest_files:
+        try:
+            data = json.loads(_read_text(mf))
+        except Exception:
+            continue
+
+        agent = None
+        artifacts = data.get("artifacts") if isinstance(data, dict) else None
+        if isinstance(artifacts, list):
+            for a in artifacts:
+                if isinstance(a, dict):
+                    when = a.get("when")
+                    if isinstance(when, dict) and isinstance(when.get("agent"), str):
+                        agent = when.get("agent")
+                        break
+
+        manifests.append(
+            {
+                "path": mf.relative_to(analysis_root).as_posix(),
+                "agent": agent,
+                "raw": data,
+            }
+        )
+
+        # Build resolved source inventory (what files are copied from templates).
+        if not isinstance(artifacts, list):
+            continue
+
+        placeholder_vars = {"AGENT": agent} if isinstance(agent, str) else {}
+        for a in artifacts:
+            if not isinstance(a, dict):
+                continue
+            source = a.get("source")
+            if not isinstance(source, dict):
+                continue
+            stype = source.get("type")
+            if stype == "templateDir":
+                from_dir = source.get("fromDir")
+                if not isinstance(from_dir, str):
+                    continue
+                from_dir_res = _render_placeholders(from_dir, placeholder_vars) if placeholder_vars else from_dir
+                abs_from = pkg_dir / from_dir_res
+                if abs_from.exists() and abs_from.is_dir():
+                    for fp in sorted(abs_from.rglob("*")):
+                        if not fp.is_file():
+                            continue
+                        resolved_sources.append(
+                            {
+                                "manifest": mf.relative_to(analysis_root).as_posix(),
+                                "artifact_id": a.get("id"),
+                                "source_type": "templateDir",
+                                "from": from_dir_res,
+                                "file": fp.relative_to(pkg_dir).as_posix(),
+                                "sha256": _sha256_file(fp),
+                            }
+                        )
+            elif stype == "templateFile":
+                from_file = source.get("from")
+                if not isinstance(from_file, str):
+                    continue
+                from_file_res = _render_placeholders(from_file, placeholder_vars) if placeholder_vars else from_file
+                abs_from = pkg_dir / from_file_res
+                if abs_from.exists() and abs_from.is_file():
+                    resolved_sources.append(
+                        {
+                            "manifest": mf.relative_to(analysis_root).as_posix(),
+                            "artifact_id": a.get("id"),
+                            "source_type": "templateFile",
+                            "from": from_file_res,
+                            "file": abs_from.relative_to(pkg_dir).as_posix(),
+                            "sha256": _sha256_file(abs_from),
+                        }
+                    )
+
+    out_json.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "product_name": product_name,
+                "generated_at": date,
+                "analysis_root": str(analysis_root),
+                "node_package_dir": pkg_dir.relative_to(analysis_root).as_posix(),
+                "manifests": manifests,
+                "resolved_template_files": resolved_sources,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    lines: list[str] = []
+    lines.append(f"# Artifact Surface Spec: {product_name}")
+    lines.append("")
+    lines.append(f"- Date: {date}")
+    lines.append(f"- Analysis root: `{analysis_root}`")
+    lines.append(f"- Node package: `{pkg_dir.relative_to(analysis_root).as_posix()}`")
+    lines.append(f"- Manifests dir: `{manifests_dir.relative_to(analysis_root).as_posix()}`")
+    lines.append(f"- Machine registry: `{out_json.relative_to(output_dir).as_posix()}`")
+    lines.append("")
+    lines.append("## Manifest Inventory (Code-Proven)")
+    lines.append("")
+    if manifest_files:
+        for mf in manifest_files:
+            rel = mf.relative_to(analysis_root).as_posix()
+            agent = None
+            for m in manifests:
+                if m.get("path") == rel:
+                    agent = m.get("agent")
+                    break
+            agent_note = f" (agent={agent})" if agent else ""
+            lines.append(f"- `{rel}`{agent_note}")
+    else:
+        lines.append("- _No manifest JSON files found._")
+
+    lines.append("")
+    lines.append("## Template Source File Inventory (Hashed)")
+    lines.append("")
+    lines.append(f"- Files hashed: `{len(resolved_sources)}`")
+    lines.append("- Use `artifact-registry.json` as the source of truth for 1:1 template content equivalence.")
+
+    out_md.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
 def _write_wrapper_validate_feature_registry(output_dir: Path) -> None:
@@ -173,6 +640,13 @@ def main() -> int:
     docs_features_txt = output_dir / "docs-features.txt"
     effective_docs_prefix = args.docs_features_prefix
 
+    # Acquire code (repo mode): shallow clone if requested.
+    # NOTE: this must happen before docs inventory, otherwise docs/features extraction runs against an empty dir.
+    if args.mode in ("repo", "both"):
+        if args.upstream_repo and not (local_clone_dir / ".git").exists():
+            _run(["git", "clone", "--depth=1", args.upstream_repo, str(local_clone_dir)], check=True)
+            analysis_root = local_clone_dir
+
     # Determine an analysis root for repo mode.
     # Priority:
     # 1) local_clone_dir if it looks like a git checkout already
@@ -294,12 +768,6 @@ def main() -> int:
             if primary.exists():
                 analysis_root = Path(primary.read_text(encoding="utf-8").strip())
 
-    # 3) Acquire code (repo mode): shallow clone if requested.
-    if args.mode in ("repo", "both"):
-        if args.upstream_repo and not (local_clone_dir / ".git").exists():
-            _run(["git", "clone", "--depth=1", args.upstream_repo, str(local_clone_dir)], check=True)
-            analysis_root = local_clone_dir
-
     # 4) Generate feature inventory (docs-first when available).
     inventory_md = output_dir / "feature-inventory.md"
     _run(
@@ -357,19 +825,33 @@ def main() -> int:
     ]:
         _render_template(TEMPLATES_DIR / tmpl, output_dir / out_name, vars)
 
-    # CLI surface is optional; generate skeleton only if it looks like a CLI exists in repo mode.
-    cli_tmpl = TEMPLATES_DIR / "spec-cli-surface.md.tmpl"
+    # CLI surface is optional; only write spec-cli-surface.md if a CLI is detected.
     wrote_cli = False
-    if args.mode in ("repo", "both") and local_clone_dir.exists():
-        maybe_cli = any((local_clone_dir / p).exists() for p in ["cmd", "cli", "bin"]) or (local_clone_dir / "go.mod").exists()
-        if maybe_cli:
-            _render_template(cli_tmpl, output_dir / "spec-cli-surface.md", vars)
-            wrote_cli = True
+    if args.mode in ("repo", "both"):
+        wrote_cli = _write_cli_surface_spec(
+            output_dir,
+            product_name=args.product_name,
+            product_slug=product_slug,
+            date=vars["DATE"],
+            analysis_root=analysis_root,
+        )
+
     if not wrote_cli:
         # Required behavior: omit the file, but leave an explicit note somewhere deterministic.
         (output_dir / "spec-code-map.md").write_text(
-            (output_dir / "spec-code-map.md").read_text(encoding="utf-8") + "\n\n## CLI Surface\n\n_Omitted: no CLI surface detected (or mode did not include repo)._ \n",
+            (output_dir / "spec-code-map.md").read_text(encoding="utf-8")
+            + "\n\n## CLI Surface\n\n_Omitted: no CLI surface detected (or mode did not include repo)._ \n",
             encoding="utf-8",
+        )
+
+    # Artifact surface: best-effort extraction of what the product writes/installs (high-fidelity cloning aid).
+    if args.mode in ("repo", "both"):
+        _write_artifact_surface_spec(
+            output_dir,
+            product_name=args.product_name,
+            product_slug=product_slug,
+            date=vars["DATE"],
+            analysis_root=analysis_root,
         )
 
     # 7) Validation gate: produce a self-contained validator in the output dir and run it once.
