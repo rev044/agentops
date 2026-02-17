@@ -56,16 +56,7 @@ If you use Claude Code, Codex, Cursor, or OpenCode and wish your agent remembere
 
 **Every coding agent session starts at zero.** Knowledge decays at 17% per week without reinforcement ([Darr 1995](docs/the-science.md)). By week 4, half of what your agent learned is gone. By week 8, it's running on 22% of what it once knew.
 
-I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session could build on the last instead of starting over. Here's how it's been going:
-
-| Metric | Without AgentOps | With AgentOps |
-|--------|:---:|:---:|
-| Same-issue resolution | 45 min | **3 min (15x)** |
-| Token cost per issue | $2.40 | **$0.15 (16x)** |
-| Context collapse | ~65% at 60% load | **Eliminated** |
-| Pre-mortem ROI | — | **7 consecutive epics, 10/10 findings pre-code** |
-
-<sub>Source: [docs/the-science.md](docs/the-science.md) Part 8 (resolution, cost, context). Pre-mortem ROI from internal testing across 7 epics.</sub>
+I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session could build on the last instead of starting over.
 
 **What's worked for me:**
 
