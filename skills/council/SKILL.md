@@ -334,8 +334,8 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed). Subject to MAX_AGENTS=12 cap. |
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
-| `--technique=<name>` | Brainstorm technique (SCAMPER, six-hats, reverse). Only applicable to brainstorm mode. If omitted, unstructured brainstorm (current behavior). See `references/brainstorm-techniques.md`. |
-| `--profile=<name>` | Model quality profile (thorough, balanced, fast). Overridden by explicit `--count`, `--deep`, `--mixed`, or `COUNCIL_CLAUDE_MODEL` env var. See `references/model-profiles.md`. |
+| `--technique=<name>` | Brainstorm technique (scamper, six-hats, reverse). Case-insensitive. Only applicable to brainstorm mode — error if combined with validate/research. If omitted, unstructured brainstorm (current behavior). See `references/brainstorm-techniques.md`. |
+| `--profile=<name>` | Model quality profile (thorough, balanced, fast). Error if unrecognized name. Overridden by `COUNCIL_CLAUDE_MODEL` env var (highest priority), then by explicit `--count`/`--deep`/`--mixed`. See `references/model-profiles.md`. |
 
 ---
 

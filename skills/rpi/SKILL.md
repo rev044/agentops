@@ -171,11 +171,17 @@ With `--interactive`, the plan skill shows its human gate. /rpi trusts the outco
    ```bash
    ISSUE_COUNT=$(bd children <epic-id> 2>/dev/null | wc -l | tr -d ' ')
    WAVE_COUNT=<derived from dependency depth>
+   # Guard: if bd unavailable, ISSUE_COUNT=0 is misleading — default to medium
+   if ! command -v bd &>/dev/null; then
+     log "Warning: bd unavailable — defaulting complexity to medium"
+     rpi_state.complexity = "medium"  # skip auto-detection
+   fi
    ```
 
-   Compute complexity:
+   Compute complexity (skip if already set by bd-unavailable guard):
    - If `--fast-path` flag set → `rpi_state.complexity = "low"`
    - Else if `--deep` flag set → `rpi_state.complexity = "high"`
+   - **Error if both `--fast-path` and `--deep` are set** — mutually exclusive, exit with error
    - Else if ISSUE_COUNT <= 2 AND WAVE_COUNT == 1 → `rpi_state.complexity = "low"`
    - Else if ISSUE_COUNT >= 7 OR WAVE_COUNT >= 3 → `rpi_state.complexity = "high"`
    - Else → `rpi_state.complexity = "medium"`
@@ -293,8 +299,8 @@ Read `references/error-handling.md` for error handling details.
 | `--max-cycles=<n>` | `1` | Hard cap on total /rpi cycles when `--loop` is set (recommended: 3). |
 | `--spawn-next` | off | After post-mortem, read harvested next-work items and report suggested next `/rpi` command. Marks consumed entries. |
 | `--test-first` | off | Pass `--test-first` to `/crank` for spec-first TDD |
-| `--fast-path` | auto | Force low complexity (--quick for gates). Auto-detected when ≤2 issues and 1 wave. |
-| `--deep` | auto | Force high complexity (--deep on pre-mortem and vibe). Auto-detected when 7+ issues or 3+ waves. |
+| `--fast-path` | auto | Force low complexity (--quick for gates). Auto-detected when ≤2 issues and 1 wave. Incompatible with `--deep`. |
+| `--deep` | auto | Force high complexity (--deep on pre-mortem and vibe). Auto-detected when 7+ issues or 3+ waves. Incompatible with `--fast-path`. |
 | `--dry-run` | off | With `--spawn-next`: report items without marking consumed. Useful for testing the consumption flow. |
 
 ## Examples

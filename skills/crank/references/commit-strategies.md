@@ -37,7 +37,8 @@ Workers commit after their individual task passes validation.
 When a wave has 2+ workers modifying overlapping files, per-task commits are automatically disabled for that wave:
 
 1. Before wave start, check file boundaries from plan/task metadata
-2. If any file appears in 2+ workers' boundaries → fall back to wave-batch
+2. **If file boundaries are absent** for any worker in a multi-worker wave → fall back to wave-batch (safe default). Only allow per-task when ALL workers have explicit boundary declarations.
+3. If any file appears in 2+ workers' boundaries → fall back to wave-batch
 3. Log: "Per-task commits disabled for wave N (overlapping file boundaries: <files>). Using wave-batch."
 4. Record fallback in wave checkpoint JSON: `"commit_strategy": "wave-batch-fallback"`
 

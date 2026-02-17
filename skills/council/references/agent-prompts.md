@@ -193,7 +193,7 @@ Template:
 In addition to the technique framework above, also provide your independent creative analysis.
 ```
 
-If `--technique` is used with a non-brainstorm task type (validate, research), log a warning and ignore the flag.
+If `--technique` is used with a non-brainstorm task type (validate, research), exit with error: "Error: --technique is only applicable to brainstorm mode." This matches the --quick/--debate incompatibility pattern.
 
 ## Consolidation Prompt
 
