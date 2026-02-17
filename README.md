@@ -10,7 +10,7 @@
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 
-[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Orchestration](#cross-runtime-agent-orchestration) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -52,37 +52,28 @@ Next (full lifecycle):
 
 If slash commands don’t appear: restart your agent; then try `npx skills@latest update`. Optional CLI + hooks: see [Install](#install). Bigger goal? See [Phased RPI](#phased-rpi-own-your-context-window).
 
-**The context window determines quality.** When your agent does everything in one conversation, the window fills up with stuff it doesn't need by the time it's actually writing code. That's why results are inconsistent.
+**Every coding agent session starts at zero.** Knowledge decays at 17% per week without reinforcement ([Darr 1995](docs/the-science.md)). By week 4, half of what your agent learned is gone. By week 8, it's running on 22% of what it once knew.
 
-I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session compounds on the last.
+I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session could build on the last instead of starting over.
 
-A spec-first pipeline forgets everything when the session ends. A fast iteration loop does too. AgentOps is composable primitives that remember what they learned.
+**Measured results:**
 
-What makes this different from "write spec → implement → check against spec → done":
+| Metric | Without AgentOps | With AgentOps |
+|--------|:---:|:---:|
+| Same-issue resolution | 45 min | **3 min (15x)** |
+| Token cost per issue | $2.40 | **$0.15 (16x)** |
+| Context collapse | ~65% at 60% load | **Eliminated** |
+| Pre-mortem ROI | — | **7 consecutive epics, 10/10 findings pre-code** |
 
-1. **It remembers across sessions.** The system extracts what worked, what failed, and what patterns emerged — then injects that knowledge into the next session. Session 10 is smarter than session 1 because it learned from 1–9.
-2. **It self-corrects.** Validation happens *before* coding (pre-mortem simulates failures on the plan) and *after* (multi-model council reviews the code). Failures retry automatically with context. No human escalation unless it fails 3 times.
-3. **Every skill works standalone.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
+<sub>Source: [docs/the-science.md](docs/the-science.md) Part 8 (resolution, cost, context). Pre-mortem ROI from internal testing across 7 epics.</sub>
 
-[Detailed comparisons →](docs/comparisons/) · [Glossary →](docs/GLOSSARY.md) · [How it works →](docs/how-it-works.md)
+**What's worked for me:**
 
-**Backend support (portable orchestration):**
+1. **Cross-session memory.** The system extracts what worked, what failed, and what patterns emerged — then injects quality-gated knowledge into the next session. Session 10 is smarter than session 1 because it learned from 1–9. There's a [formal threshold](docs/the-science.md) for when this tips from decay to compounding.
+2. **Multi-model validation.** Pre-mortem simulates failures on the plan *before* coding. Council reviews the code *after* — Claude and Codex judges debating each other. Failures retry automatically with context.
+3. **Composable pieces.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
 
-- **Claude Code:** best-in-class. Native teams + lifecycle hooks (AgentOps can enforce gates like "don't push without `/vibe`"). This is where the system feels most self-driving.
-- **Codex CLI:** no native hooks/teams. AgentOps still works (skills + artifacts + validation), and `/codex-team` approximates teams by spawning parallel Codex execution (sub-agents when available, otherwise `codex exec`).
-- **Open Code:** plugin support for OpenCode's read-only `skill` tool, with extra hooks for tool enrichment, audit logging, and compaction resilience. Great if you prefer OpenCode or self-hosted models.
-
-This repo distills the best parts of Gas Town dispatch and Ralph Loops (fresh context per wave) into skills, hooks, and filesystem artifacts you can run inside your agent.
-
-**Distributed mode (`/swarm --mode=distributed`):** when you need full orchestration beyond local mode (tmux + Agent Mail).
-
-- **Process isolation**: each worker runs in its own tmux session (not sharing the lead's process)
-- **Crash recovery**: workers survive if the Mayor disconnects (tmux sessions persist)
-- **Agent Mail messaging**: ACCEPTED, PROGRESS, DONE, HELP_REQUEST
-- **File reservations**: conflict detection before workers edit shared files
-- **Debuggable**: `tmux attach -t <session>` to inspect stuck workers live
-
-When to use: long-running work (>10 min), you might disconnect, you need to debug stuck workers, or you need robust multi-file coordination. Full spec: `skills/swarm/references/distributed-mode.md` (and Agent Mail setup: `docs/agent-mail.md`).
+[Detailed comparisons →](docs/comparisons/) · [Glossary →](docs/GLOSSARY.md) · [How it works →](docs/how-it-works.md) · [The Science →](docs/the-science.md)
 
 ---
 
@@ -171,6 +162,34 @@ Session 2 was faster and better because session 1's learnings were already in co
 ```
 
 </details>
+
+---
+
+## Cross-Runtime Agent Orchestration
+
+AgentOps doesn't lock you into one agent runtime — it orchestrates across them. Claude can lead a team of Codex workers. Codex judges can review Claude's output. A tmux swarm can run persistent workers that survive disconnects. Mix and match:
+
+| Spawning Backend | How it works | Best for |
+|-----------------|-------------|----------|
+| **Native teams** | `TeamCreate` + `SendMessage` — built into Claude Code | Tight coordination, debate, real-time messaging |
+| **Background tasks** | `Task(run_in_background=true)` — fire-and-forget | Quick parallel work, no team overhead |
+| **Codex sub-agents** | `/codex-team` — Claude orchestrates Codex workers | Cross-vendor validation, GPT judges on Claude code |
+| **tmux + Agent Mail** | `/swarm --mode=distributed` — full process isolation | Long-running work, crash recovery, debugging stuck workers |
+
+**The primitives are composable.** The RPI workflow is how I use them. You can:
+- Have Claude plan and Codex implement (or vice versa)
+- Run a `/council` with 3 Claude judges and 3 Codex judges simultaneously (`--mixed`)
+- Spawn a distributed swarm that survives terminal disconnects
+- Use background tasks for quick parallel exploration, native teams for coordinated waves
+- Build your own orchestration patterns on top of these building blocks
+
+Take the pieces. Experiment. Create your own workflow. If you find something that works better, I'd love to hear about it.
+
+| Runtime | Support level | What works |
+|---------|:---:|-------------|
+| **Claude Code** | Best-in-class | Native teams + lifecycle hooks + full gate enforcement |
+| **Codex CLI** | Strong | Skills + artifacts + `/codex-team` parallel execution |
+| **OpenCode** | Good | Plugin with tool enrichment, audit logging, compaction resilience |
 
 ---
 
@@ -302,7 +321,7 @@ Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't
 
 ## The Flywheel
 
-This is what makes AgentOps different. Each session learns from every session before it.
+Each session learns from every session before it. This is the part I'm most excited about.
 
 ```text
   /rpi "goal A"
@@ -325,31 +344,88 @@ Post-mortem analyzes every learning from the retro, asks "what process would thi
 
 Learnings pass quality gates (specificity, actionability, novelty) and land in gold/silver/bronze tiers. [MemRL](https://arxiv.org/abs/2502.06173)-inspired freshness decay ensures recent insights outweigh stale patterns.
 
-### Goal-Driven Mode: `/evolve`
+**The escape-velocity condition:** Knowledge either compounds or decays to zero — there's no stable middle. The math: `σ × ρ > δ` (retrieval effectiveness × usage rate > decay rate of 0.17/week). When true, each session makes the next one better. When false, everything erodes. The whole system is designed around staying above this threshold. [The math →](docs/the-science.md)
 
-Define fitness goals in `GOALS.yaml`, then `/evolve` measures them, picks the worst gap, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
+### `/evolve`
+
+`/evolve` ties the whole thing together — a hands-free loop that ships validated code toward measurable goals.
+
+**How it works:**
+1. You define fitness goals in `GOALS.yaml` (test pass rate, doc coverage, complexity targets — anything measurable)
+2. `/evolve` measures all goals, selects the worst gap by weight, and runs a full `/rpi` lifecycle to fix it
+3. After each cycle, it re-measures **ALL** goals — not just the one it worked on
+4. Learnings from each cycle feed back into the flywheel before the next cycle starts
+5. It loops until every goal passes or you pull the kill switch
+
+Passing goals stay passing — if a cycle breaks something that was working, the commits get rolled back automatically.
+
+```bash
+# Define goals, walk away
+echo "test-pass-rate: {weight: 10, command: 'make test'}" > GOALS.yaml
+/evolve --max-cycles=5
+
+# Kill switch (immediate stop after current cycle)
+echo "stop" > ~/.config/evolve/KILL
+```
+
+Each `/rpi` cycle is smarter than the last because it learned from every cycle before it.
 
 ---
 
 ## Skills
 
-37 skills: 27 user-facing, 10 internal (fire automatically).
+37 skills: 27 user-facing, 10 internal (fire automatically). Start anywhere on this ladder — each level composes the ones below it.
 
-| | Key skills |
-|---|---|
-| **Orchestration** | `/rpi` (full lifecycle), `/council` (multi-model consensus), `/crank` (parallel waves), `/evolve` (goal-driven loop) |
-| **Workflow** | `/research`, `/plan`, `/implement`, `/vibe` (validate code), `/pre-mortem` (validate plans), `/post-mortem` |
-| **Utilities** | `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff` |
+| Scope | Skill | What it does |
+|-------|-------|-------------|
+| **Single review** | `/council` | Multiple judges (Claude + Codex) debate, surface disagreement, converge on a verdict |
+| **Single issue** | `/implement` | Full lifecycle for one task — research, plan, build, validate, learn |
+| **Multi-issue waves** | `/crank` | Parallel agents in dependency-ordered waves with fresh context per worker |
+| **Full lifecycle** | `/rpi` | Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem — one command, zero prompts |
+| **Hands-free loop** | `/evolve` | Measures fitness goals, picks the worst gap, ships a fix, rolls back regressions, repeats |
+
+**Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
 
 Full reference with all 37 skills: [docs/SKILLS.md](docs/SKILLS.md)
 
+### Why Not Just Use...
+
+| Alternative | What it does well | Where AgentOps focuses differently |
+|-------------|-------------------|-------------------|
+| **Direct agent use** (Claude Code, Cursor) | Full autonomy, simple | Adds cross-vendor councils, fresh-context waves, and cross-session memory |
+| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Adds auto-extracted learnings that compound — static instructions can't do that |
+| **Orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-agent task routing | Focuses on what's *in* each agent's context window, not just routing between them |
+| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced | Runs validation *before* coding (`/pre-mortem`) and *before* push (`/vibe`), not just after |
+
+[Detailed comparisons →](docs/comparisons/)
+
 ---
 
-## How It Works
+## The Ratchet Guarantee
 
-Parallel agents produce noisy output; councils filter it; ratchets lock progress so it can never regress. Every worker gets fresh context — no bleed-through between waves. 12 hooks enforce the workflow automatically (kill switch: `AGENTOPS_HOOKS_DISABLED=1`).
+The idea comes from thermodynamics: a [Brownian Ratchet](docs/the-science.md) gets forward movement from random motion by only allowing progress in one direction. Same thing here — parallel agents produce noisy output, councils filter it, ratchets lock the gains.
+
+**Enforcement mechanisms (12 hooks across 8 lifecycle events):**
+
+| Gate | What it does | Enforcement |
+|------|-------------|-------------|
+| **Push gate** | `git push` is physically blocked until `/vibe` passes | PostToolUse hook on git push |
+| **Pre-mortem gate** | `/crank` cannot start until `/pre-mortem` passes (3+ issue epics) | Task validation hook |
+| **Worker guard** | Workers write files but cannot `git commit` — lead-only commits | PostToolUse hook on git commit |
+| **Regression gate** | `/evolve` auto-reverts commits that cause passing goals to fail | Post-cycle measurement |
+| **Dangerous git guard** | `force-push`, `reset --hard`, `clean -f` blocked by default | PostToolUse hook on git |
+
+Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1`). Safety on by default, opt out when you want to.
 
 Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing.
+
+---
+
+## The Science
+
+I built AgentOps on top of research I found useful: knowledge decay rates (Darr 1995), cognitive load theory (Sweller 1988, Liu et al. 2023), reinforcement learning for memory (MemRL 2025), and the Brownian Ratchet from thermodynamics. The escape-velocity condition (`σ × ρ > δ`) is falsifiable — either your knowledge compounds or it doesn't.
+
+Deep dive: [docs/the-science.md](docs/the-science.md) — the math, the evidence, the citations.
 
 ---
 
