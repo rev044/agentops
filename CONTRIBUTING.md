@@ -30,7 +30,7 @@ Thank you for your interest in contributing to AgentOps! This guide will help yo
 git clone https://github.com/YOUR_USERNAME/agentops.git
 cd agentops
 ao init          # Set up .agents/ dirs + .gitignore
-ao init --hooks  # Optional: register session hooks
+ao init --hooks --full  # Optional: register all 8 lifecycle hooks
 ```
 
 ## Ways to Contribute

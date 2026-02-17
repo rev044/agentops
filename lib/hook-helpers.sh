@@ -27,7 +27,7 @@ write_failure() {
     mkdir -p "$_HOOK_HELPERS_ERROR_LOG_DIR" 2>/dev/null
 
     local task_subject="unknown"
-    if [ -n "${INPUT:-}" ]; then
+    if [ -n "${INPUT:-}" ] && command -v jq >/dev/null 2>&1; then
         task_subject=$(echo "$INPUT" | jq -r '.subject // "unknown"' 2>/dev/null) || true
         [ -z "$task_subject" ] || [ "$task_subject" = "null" ] && task_subject="unknown"
     fi

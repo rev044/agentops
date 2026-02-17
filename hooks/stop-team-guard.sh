@@ -39,6 +39,8 @@ cleanup_stale_teams() {
         has_live_pane=false
         if [ -n "$pane_ids" ]; then
             while IFS= read -r pane_id; do
+                # tmuxPaneId format: "session:window.pane" (e.g., "council-20260217:0.1")
+                # %%.*  strips ".pane" suffix → "session:window", which tmux has-session accepts
                 if tmux has-session -t "${pane_id%%.*}" 2>/dev/null; then
                     has_live_pane=true
                     break
@@ -89,6 +91,7 @@ while IFS= read -r cfg; do
     # Check if any pane is actually alive in tmux
     has_live_pane=false
     while IFS= read -r pane_id; do
+        # tmuxPaneId format: "session:window.pane" — %%.*  yields "session:window"
         if tmux has-session -t "${pane_id%%.*}" 2>/dev/null; then
             has_live_pane=true
             break

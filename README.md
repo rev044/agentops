@@ -8,13 +8,35 @@
 
 *Context orchestration for every phase — research, planning, validation, execution.*
 
-[![Version](https://img.shields.io/badge/version-2.9.3-8b5cf6)](CHANGELOG.md)
+[![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 
 [See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
 ---
+
+**Quickstart (TL;DR):**
+
+Requires: Node.js 18+.
+
+```bash
+npx skills@latest add boshu2/agentops --all -g
+```
+
+Then in your coding agent chat:
+
+```text
+/quickstart
+```
+
+Next (full lifecycle):
+
+```text
+/rpi "your goal"
+```
+
+If slash commands don’t appear: `npx skills@latest update`. Optional CLI + hooks: see [Install](#install). Bigger goal? See [Phased RPI](#phased-rpi-own-your-context-window).
 
 **The context window determines quality.** When your agent does everything in one conversation, the window fills up with stuff it doesn't need by the time it's actually writing code. That's why results are inconsistent.
 
@@ -35,7 +57,7 @@ What makes this different from "write spec → implement → check against spec 
 ## See It Work
 
 **Use one piece.** No pipeline required:
-```
+```text
 > /council validate this PR
 
 [council] 3 judges spawned
@@ -46,7 +68,7 @@ Consensus: WARN — add rate limiting before shipping
 ```
 
 **It remembers.** Three weeks later, different session:
-```
+```text
 > ao search "rate limiting"
 
 1. .agents/learnings/2026-01-28-rate-limiting.md  (score: 0.92)
@@ -57,7 +79,7 @@ Consensus: WARN — add rate limiting before shipping
 Your agent reads these automatically at session start. No copy-paste, no "remember last time we..."
 
 **Wire it all together** when you're ready:
-```
+```text
 > /rpi "add retry backoff to rate limiter"
 
 [research]    Found 2 prior learnings on rate limiting (injected)
@@ -75,7 +97,7 @@ Session 2 was faster and better because session 1's learnings were already in co
 <summary>More examples</summary>
 
 **Parallel agents with fresh context:**
-```
+```text
 > /crank ag-0042
 
 [crank] Epic: ag-0042 — 6 issues, 3 waves
@@ -87,7 +109,7 @@ Session 2 was faster and better because session 1's learnings were already in co
 ```
 
 **Goal-driven improvement loop:**
-```
+```text
 > /evolve --max-cycles=5
 
 [evolve] GOALS.yaml: 4 goals loaded
@@ -104,7 +126,7 @@ Session 2 was faster and better because session 1's learnings were already in co
 ```
 
 **From vision to town** (big goal → many small pieces):
-```
+```text
 > /product                    # define mission, personas, value props
 > /research "build auth system"
 > /plan "build auth system"   # → 8 issues, 3 waves
@@ -128,6 +150,8 @@ Session 2 was faster and better because session 1's learnings were already in co
 npx skills@latest add boshu2/agentops --all -g
 ```
 
+This installs all 37 skills. For lifecycle hooks (coding standards, git safety, task validation), see **Full setup** below.
+
 Then open your coding agent and type `/quickstart`. That's it.
 
 <details>
@@ -136,8 +160,8 @@ Then open your coding agent and type `/quickstart`. That's it.
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
 ao init              # Directories + .gitignore (idempotent)
-ao init --hooks      # + flywheel hooks (SessionStart + Stop)
-ao init --hooks --full  # + all 12 hooks across 8 lifecycle events
+ao init --hooks      # + minimal hooks (SessionStart + Stop only — 2/8 events)
+ao init --hooks --full  # + all 12 hook scripts across 8 lifecycle events (recommended)
 ```
 
 The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. `ao init` is the canonical setup command — creates all `.agents/` directories, configures `.gitignore`, and optionally registers hooks. All 37 skills work without it.
@@ -189,9 +213,7 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 `ao init` automatically adds `.agents/` to your `.gitignore`. If you prefer stealth mode (no `.gitignore` modification), use `ao init --stealth` to write to `.git/info/exclude` instead. The session-start hook also auto-adds the entry as a safety net.
 
 For `.beads/`, add manually if using beads issue tracking:
-```gitignore
-.beads/
-```
+don’t gitignore it. It’s where issues live and should be committed.
 
 </details>
 
@@ -199,7 +221,7 @@ For `.beads/`, add manually if using beads issue tracking:
 
 ## The Path
 
-```
+```text
 /quickstart                          ← Day 1: guided tour on your codebase (~10 min)
     │
 /council, /research, /vibe           ← Week 1: use skills standalone, learn the pieces
@@ -249,7 +271,7 @@ Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't
 
 This is what makes AgentOps different. Each session learns from every session before it.
 
-```
+```text
   /rpi "goal A"
     │
     ├── research → plan → pre-mortem → crank → vibe
@@ -340,6 +362,24 @@ More questions: [docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagen
 </details>
 
 ## Contributing
+
+<details>
+<summary><strong>Issue tracking (Beads / <code>bd</code>)</strong></summary>
+
+This repo tracks work in `.beads/` (git-native issues).
+
+```bash
+bd onboard                           # one-time setup for this repo
+bd ready                             # find available work
+bd show <id>                         # view issue details
+bd update <id> --status in_progress  # claim work
+bd close <id>                        # complete work
+bd sync                              # sync with git
+```
+
+More: [AGENTS.md](AGENTS.md)
+
+</details>
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). If AgentOps helped you ship something, post in [Discussions](https://github.com/boshu2/agentops?tab=discussions).
 

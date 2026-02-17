@@ -509,8 +509,19 @@ func runHooksInstall(cmd *cobra.Command, args []string) error {
 	// Generate hooks config
 	var newHooks *HooksConfig
 	if hooksFull {
-		// For --full, read hooks.json and rewrite paths to installed location
-		newHooks = generateHooksConfig()
+		// For --full, read hooks.json directly — error if not found
+		data, err := findHooksManifest()
+		if err != nil {
+			return fmt.Errorf("--full requires hooks.json but it was not found.\n"+
+				"Ensure you're in the agentops repo checkout, or run:\n"+
+				"  ao hooks install --source-dir /path/to/agentops\n\n"+
+				"Search paths: hooks/hooks.json, <ao-binary>/../hooks/hooks.json, ~/.agentops/hooks.json")
+		}
+		config, err := ReadHooksManifest(data)
+		if err != nil {
+			return fmt.Errorf("failed to parse hooks.json: %w", err)
+		}
+		newHooks = config
 		replacePluginRoot(newHooks, installBase)
 	} else {
 		// Default: minimal flywheel hooks only

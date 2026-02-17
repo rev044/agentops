@@ -1,7 +1,7 @@
 /**
  * AgentOps plugin for OpenCode.ai
  *
- * Hooks (9 active):
+ * Hooks (7 active):
  *   1. experimental.chat.system.transform — Bootstrap context + prescriptive skill-to-tool mapping
  *   2. tool.execute.before — Guard task tool crash (sst/opencode#13933)
  *   3. tool.definition — Enrich task + skill tool descriptions for Devstral
