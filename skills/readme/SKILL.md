@@ -32,7 +32,7 @@ These are non-negotiable. Every README this skill produces follows them.
 Bad: "A DevOps layer implementing the Three Ways for agent workflows."
 Good: "Coding agents forget everything between sessions. This fixes that."
 
-The reader should understand what pain you solve in one sentence. No jargon, no framework names, no theory. The problem is the hook.
+The reader should understand what pain you solve in one sentence. No jargon, no framework names, no theory. The problem is the hook. (Note: framework references like Three Ways and Meadows belong in the body as design rationale — just don't lead with them.)
 
 ### 2. Acknowledge prior art
 

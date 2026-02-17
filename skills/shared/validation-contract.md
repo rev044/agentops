@@ -256,11 +256,10 @@ Plan "Always" boundaries → Epic description → /crank extracts → TaskCreate
 
 ### Retry Context
 
-When retrying, include failure context in agent prompt:
+When retrying, include failure context in the agent's prompt:
 
 ```
-Task(
-  prompt="RETRY task #<id>: Previous attempt failed validation.
+RETRY task #<id>: Previous attempt failed validation.
 
 ## Original Task
 <original description>

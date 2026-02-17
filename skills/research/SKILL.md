@@ -133,51 +133,11 @@ Return a detailed report with:
 Cite specific file:line references for all claims.
 ```
 
-#### Backend 1: Codex Sub-Agents (`spawn_agent` available)
+#### Spawn Research Agents
 
-```
-agent_id = spawn_agent(message="""
-You are a codebase research agent. Your task:
+If your runtime supports spawning parallel subagents, spawn one or more research agents with the exploration prompt. Each agent explores independently and writes findings to `.agents/research/`.
 
-<exploration prompt from above>
-
-Use file reading, grep, and glob to explore the codebase at: <cwd>
-Write your findings as structured markdown.
-""")
-
-result = wait(ids=[agent_id])
-# Extract findings from result
-```
-
-#### Backend 2: Claude Native Teams (`TeamCreate` available)
-
-```
-Tool: Task
-Parameters:
-  subagent_type: "Explore"
-  description: "Research: <topic>"
-  prompt: |
-    <exploration prompt from above>
-```
-
-#### Backend 3: Foreground Task Fallback
-
-```
-Tool: Task
-Parameters:
-  subagent_type: "general-purpose"
-  description: "Research: <topic>"
-  prompt: |
-    <exploration prompt from above>
-```
-
-Multiple Task calls in the same message run in parallel. Do NOT use `run_in_background=true`.
-
-Then retrieve results with `TaskOutput(task_id=..., block=true)`.
-
-#### No Backend Available
-
-If none of the above are available, perform the exploration **inline** in the current session using Glob, Grep, and Read tools directly. Log: `"Note: No spawn backend available. Performing inline exploration."`
+If no multi-agent capability is available, perform the exploration **inline** in the current session using file reading, grep, and glob tools directly.
 
 ### Step 4: Validate Research Quality (Optional)
 

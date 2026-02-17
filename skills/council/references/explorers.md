@@ -79,16 +79,7 @@ Target: {TARGET}
 
 ## Explorer Execution
 
-Explorers are spawned as `Explore`-type subagents for speed:
-
-```
-Task(
-  description="Explorer for Judge {N}: {SUB_QUESTION_SHORT}",
-  subagent_type="Explore",
-  model="sonnet",
-  prompt="{EXPLORER_PROMPT}"
-)
-```
+Explorers are spawned as lightweight subagents optimized for search/read (not editing). Each explorer receives a sub-question and returns findings to its parent judge.
 
 **Model selection:** Explorers use `sonnet` by default (fast, good at search). Judges use `opus` (thorough analysis). Override with `--explorer-model=<model>`.
 

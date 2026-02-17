@@ -8,7 +8,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-42-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-43-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Skills](#skills) · [How It Works](#how-it-works) · [FAQ](#faq)
@@ -185,10 +185,12 @@ Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
     │
 /rpi "goal"                          ← Week 2: full lifecycle — research → ship → learn
     │
-GOALS.yaml + /evolve                 ← Ongoing: define fitness goals, let it run
+/product → /goals generate           ← Define what good looks like
+    │
+/evolve                              ← Ongoing: measure goals, fix gaps, compound
 ```
 
-Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end.
+Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. When you're ready for hands-free improvement: `/product` defines your mission and personas, `/goals generate` scans for fitness goals, and `/evolve` pursues them.
 
 ---
 
@@ -257,7 +259,7 @@ Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't
 <details>
 <summary><b>Goal-driven mode</b> — /evolve with GOALS.yaml</summary>
 
-Define fitness goals, then `/evolve` measures them, picks the worst gap, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. It commits locally — you control when to push. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
+Bootstrap with `/goals generate` — it scans your repo (PRODUCT.md, README, skills, tests) and proposes mechanically verifiable goals. Or write them by hand:
 
 ```yaml
 # GOALS.yaml
@@ -268,6 +270,10 @@ goals:
     check: "make test"
     weight: 10
 ```
+
+Then `/evolve` measures them, picks the worst gap, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. It commits locally — you control when to push. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
+
+Maintain over time: `/goals` shows pass/fail status, `/goals prune` finds stale or broken checks.
 
 </details>
 
@@ -286,17 +292,17 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## Skills
 
-42 skills: 32 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
+43 skills: 33 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
 
 | Scope | Skill | What it does |
 |-------|-------|-------------|
-| **Single review** | `/council` | Multiple judges (Claude + Codex) debate, surface disagreement, converge on a verdict |
+| **Single review** | `/council` | Multiple judges (Claude + Codex) debate, surface disagreement, converge on a verdict. Customize with `--preset=security-audit`, `--perspectives="a,b,c"`, or `--perspectives-file` |
 | **Single issue** | `/implement` | Full lifecycle for one task — research, plan, build, validate, learn |
 | **Multi-issue waves** | `/crank` | Parallel agents in dependency-ordered waves with fresh context per worker |
 | **Full lifecycle** | `/rpi` | Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem — one command |
 | **Hands-free loop** | `/evolve` | Measures fitness goals, picks the worst gap, ships a fix, rolls back regressions, repeats |
 
-**Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/readme`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
+**Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/product`, `/goals`, `/readme`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
 
 Full reference: [docs/SKILLS.md](docs/SKILLS.md)
 

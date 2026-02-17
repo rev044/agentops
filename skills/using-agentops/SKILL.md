@@ -83,7 +83,7 @@ Research → Plan → Implement → Validate
 - Use `/swarm` directly for **parallel execution** without beads (TaskList only).
 - Use `/ratchet` to **gate/record progress** through RPI.
 
-## Available Skills (32 user-facing)
+## Available Skills (33 user-facing)
 
 ## Core Skills (start here)
 

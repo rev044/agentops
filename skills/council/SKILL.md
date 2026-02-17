@@ -47,21 +47,15 @@ Council works independently — no RPI workflow, no ratchet chain, no `ao` CLI r
 /council --mixed recent            # runtime-native + Codex CLI
 ```
 
-### Spawn Backend Selection (MANDATORY)
+### Spawn Backend (MANDATORY)
 
-Council must auto-select backend using capability detection:
+Council requires a runtime that can **spawn parallel subagents** and (for `--debate`) **send messages between agents**. Use whatever multi-agent primitives your runtime provides. If no multi-agent capability is detected, fall back to `--quick` (inline single-agent).
 
-1. If `spawn_agent` is available, use **Codex experimental sub-agents**
-2. Else if `TeamCreate` is available, use **Claude native teams**
-3. Else if `skill` tool is read-only (OpenCode), use **OpenCode subagents** — `task(subagent_type="general", description="Judge: <perspective>", prompt="<judge prompt>")`
-4. Else use **foreground Task** (one-shot subagents, write to files, return minimal signal)
+**Required capabilities:**
+- **Spawn subagent** — create a parallel agent with a prompt (required for all modes except `--quick`)
+- **Agent messaging** — send a message to a specific agent (required for `--debate`)
 
-This keeps `/council` universal across Claude, Codex, and OpenCode sessions.
-
-**OpenCode notes:**
-- No `SendMessage` equivalent → `--debate` mode unavailable in OpenCode (requires inter-agent messaging)
-- `--quick` (inline) mode works identically across all backends
-- See `skills/shared/SKILL.md` ("Runtime-Native Spawn Backend Selection") for the shared contract
+Skills describe WHAT to do, not WHICH tool to call. See `skills/shared/SKILL.md` for the capability contract and `references/cli-spawning.md` for runtime-specific examples.
 
 ## When to Use `--debate`
 
@@ -174,9 +168,9 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
 | 1 of N agents times out | Proceed with N-1, note in report |
 | All Codex CLI agents fail | Proceed with runtime-native judges only, note degradation |
 | All agents fail | Return error, suggest retry |
-| Codex CLI not installed | Skip Codex CLI judges, continue runtime-native mode (warn user) |
-| Codex sub-agents unavailable | Fall back to Claude native teams |
-| Native teams unavailable | Fall back to foreground `Task()` one-shot subagents (write to files) |
+| Codex CLI not installed | Skip Codex CLI judges, continue with runtime judges only (warn user) |
+| No multi-agent capability | Fall back to `--quick` (inline single-agent review) |
+| No agent messaging | `--debate` unavailable, single-round review only |
 | Output dir missing | Create `.agents/council/` automatically |
 
 Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
@@ -185,10 +179,11 @@ Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
 
 ### Pre-Flight Checks
 
-1. **Runtime-native backend:** Select via capability detection (`spawn_agent` -> `TeamCreate` -> foreground `Task()`).
-2. **Codex CLI judges (--mixed only):** Check `which codex`, test model availability, test `--output-schema` support. Downgrade mixed mode when unavailable.
-3. **Agent count:** Verify `judges * (1 + explorers) <= MAX_AGENTS (12)`
-4. **Output dir:** `mkdir -p .agents/council`
+1. **Multi-agent capability:** Detect whether runtime supports spawning parallel subagents. If not, degrade to `--quick`.
+2. **Agent messaging:** Detect whether runtime supports agent-to-agent messaging. If not, disable `--debate`.
+3. **Codex CLI judges (--mixed only):** Check `which codex`, test model availability, test `--output-schema` support. Downgrade mixed mode when unavailable.
+4. **Agent count:** Verify `judges * (1 + explorers) <= MAX_AGENTS (12)`
+5. **Output dir:** `mkdir -p .agents/council`
 
 ---
 
@@ -474,29 +469,25 @@ The `/judge` skill is deprecated. Use `/council`.
 
 ---
 
-## Runtime-Native Architecture
+## Multi-Agent Architecture
 
-Council uses runtime-native spawning as primary:
-- Codex sessions: experimental sub-agents (`spawn_agent`, `wait`, `send_input`, `close_agent`)
-- Claude sessions: native teams (`TeamCreate`, `SendMessage`, shared `TaskList`)
-- Fallback: foreground `Task()` (one-shot, write to files)
+Council uses whatever multi-agent primitives your runtime provides. Each judge is a parallel subagent that writes output to a file and sends a minimal completion signal to the lead.
 
 ### Deliberation Protocol
 
 The `--debate` flag implements the **deliberation protocol** pattern:
 > Independent assessment → evidence exchange → position revision → convergence analysis
 
-Runtime-native backends make this pattern first-class:
-- **R1:** Judges spawn as sub-agents/teammates, assess independently, return verdicts to lead
-- **R2:** Team lead sends other judges' verdicts via `send_input` (Codex) or `SendMessage` (Claude). Judges wake from idle with full R1 context.
-- **Consolidation:** Team lead reads all output files, computes consensus
-- **Cleanup:** `close_agent` (Codex) or `shutdown_request` + `TeamDelete()` (Claude)
+- **R1:** Spawn judges as parallel subagents. Each assesses independently, writes verdict to file, signals completion.
+- **R2:** Lead sends other judges' verdict summaries to each judge via agent messaging. Judges revise and write R2 files.
+- **Consolidation:** Lead reads all output files, computes consensus.
+- **Cleanup:** Shut down judges via runtime's cleanup mechanism.
 
 ### Communication Rules
 
-- **Judges → team lead only.** Judges never message each other directly. This prevents anchoring.
-- **Team lead → judges.** Only the team lead sends follow-ups (`send_input` or `SendMessage`).
-- **No shared task mutation by judges.** Team lead manages coordination state.
+- **Judges → lead only.** Judges never message each other directly. This prevents anchoring.
+- **Lead → judges.** Only the lead sends follow-ups (for debate R2).
+- **No shared task mutation by judges.** Lead manages coordination state.
 
 ### Ralph Wiggum Compliance
 
@@ -506,17 +497,13 @@ Council maintains fresh-context isolation (Ralph Wiggum pattern) with one docume
 
 - Judges benefit from their own R1 analytical context (reasoning chain, not just the verdict JSON) when evaluating other judges' positions in R2
 - Re-spawning with only the verdict summary (~200 tokens) would lose the judge's working memory of WHY they reached their verdict
-- The exception is bounded: max 2 rounds, within one invocation, with explicit cleanup (close_agent or shutdown_request + TeamDelete)
+- The exception is bounded: max 2 rounds, within one invocation, with explicit cleanup
 
 Without `--debate`, council is fully Ralph-compliant: each judge is a fresh spawn, executes once, writes output, and terminates.
 
-### Fallback
+### Degradation
 
-If runtime-native backend is unavailable, fall back to foreground `Task()` one-shot subagents. Each judge runs as a regular Task call (NOT `run_in_background`), writes its output file, and returns a minimal completion signal. Spawn judges via multiple Task calls in the same message for parallelism. In fallback mode:
-- `--debate` is unavailable (no messaging channel). Fall back to single-round review with a note in the report.
-- Non-debate mode works identically (judges write files, team lead reads them)
-
-> **Anti-Pattern: Do NOT use `Task(run_in_background=true)` for Claude agents.** Background tasks cause Claude instability. Use foreground `Task()` calls (parallel via multiple calls in one message) or native teams. `Bash(run_in_background=true)` for Codex CLI processes is fine.
+If no multi-agent capability is detected, council falls back to `--quick` (inline single-agent review). If agent messaging is unavailable, `--debate` degrades to single-round review with a note in the report.
 
 ### Judge Naming
 

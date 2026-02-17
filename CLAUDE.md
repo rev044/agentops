@@ -9,7 +9,7 @@ The missing DevOps layer for coding agents. Give it a goal, it ships validated c
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 42 skills (32 user-facing, 10 internal)
+├── skills/                # All 43 skills (33 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Hands-free epic execution
 │   ├── swarm/             # Parallel agent spawning

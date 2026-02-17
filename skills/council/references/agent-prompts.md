@@ -47,7 +47,7 @@ The lead reads your output file for all details.
 
 Rules:
 - Do NOT message other judges -- all communication through team lead
-- Do NOT access TaskList -- team lead manages task flow
+- Do NOT access shared task state -- lead manages coordination
 - Keep messages to lead MINIMAL -- file has the details
 ```
 
@@ -98,11 +98,11 @@ The lead reads your output file for all details.
 
 Rules:
 - Do NOT message other judges -- all communication through team lead
-- Do NOT access TaskList -- team lead manages task flow
+- Do NOT access shared task state -- lead manages coordination
 - Keep messages to lead MINIMAL -- file has the details
 ```
 
-## Debate Round 2 Message (via SendMessage)
+## Debate Round 2 Message (via agent messaging)
 
 When `--debate` is active, the team lead sends this message to each judge after R1 completes. The judge already has its own R1 analysis in context (no truncation needed).
 

@@ -65,3 +65,10 @@ The baseline includes:
 - **No regression comparisons** — this is the starting point
 
 When the session ends (at Teardown), the system computes the **session fitness trajectory** by comparing the baseline against the final cycle snapshot. This produces `session-fitness-delta.md`, which shows which goals improved, regressed, or stayed unchanged over the entire /evolve session.
+
+## Maintaining GOALS.yaml
+
+Use `/goals` to maintain the fitness specification:
+- `/goals` — run all checks, report pass/fail by pillar
+- `/goals generate` — scan repo for uncovered areas, propose new goals
+- `/goals prune` — find stale/broken goals, propose removals or updates

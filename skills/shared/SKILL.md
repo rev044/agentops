@@ -40,43 +40,26 @@ fi
 | `bd` | Issue tracking unavailable | Use TaskList for tracking. Note "install bd for persistent issue tracking" |
 | `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/knowledge/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
-| `codex` | CLI missing or model unavailable | Fall back to runtime-native agents (Codex sub-agents if available, else Claude teams/task fallback). Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
+| `codex` | CLI missing or model unavailable | Fall back to runtime-native agents. Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
 | `cass` | Session search unavailable | Skip transcript search. Note "install cass for session history" |
-| Native teams | Any capability missing | See "Native Teams Capability Bundle" below for per-capability degradation |
 
-### Native Teams Capability Bundle
+### Required Multi-Agent Capabilities
 
-Native teams consist of multiple independent capabilities. Each can degrade independently:
+Council, swarm, and crank require a runtime that provides these capabilities. If a capability is missing, the corresponding feature degrades.
 
-| Capability | API | Degraded Behavior |
-|------------|-----|-------------------|
-| Team lifecycle | `TeamCreate`, `TeamDelete` | Fall back to foreground `Task()` (parallel via multiple calls). No team cleanup needed. |
-| Directed messaging | `SendMessage(type="message")` | Cannot send follow-up instructions. Debate R2 unavailable. Workers run fire-and-forget. |
-| Broadcast | `SendMessage(type="broadcast")` | Cannot notify all workers. Use per-worker Task spawning instead. |
-| Shutdown coordination | `SendMessage(type="shutdown_request/response")` | Workers terminate on their own when done. No graceful shutdown. |
-| Shared task list | `TaskList`, `TaskCreate`, `TaskUpdate` | Use in-memory tracking. Workers cannot see shared state. |
+| Capability | What it does | If missing |
+|------------|-------------|------------|
+| **Spawn subagent** | Create a parallel agent with a prompt | Cannot run multi-agent. Fall back to `--quick` (inline single-agent). |
+| **Agent-to-agent messaging** | Send a message to a specific agent | No debate R2. Workers run fire-and-forget. |
+| **Broadcast** | Message all agents at once | Per-agent messaging fallback. |
+| **Graceful shutdown** | Request an agent to terminate | Agents terminate on their own when done. |
+| **Shared task list** | Agents see shared work state | Lead tracks manually. |
 
-**Degradation matrix:**
+Every runtime maps these capabilities to its own API. Skills describe WHAT to do, not WHICH tool to call. See `references/cli-spawning.md` in council/swarm for runtime-specific examples.
 
-| Scenario | Team | Messaging | TaskList | Impact |
-|----------|------|-----------|----------|--------|
-| Full native teams | Yes | Yes | Yes | All features available |
-| TeamCreate fails | No | No | Yes | Fire-and-forget workers, no debate |
-| SendMessage fails | Yes | No | Yes | Workers isolated, no R2 debate |
-| TaskList fails | Yes | Yes | No | Lead tracks manually, workers report via message |
+### Backend Detection
 
-### Runtime-Native Spawn Backend Selection
-
-All orchestration skills that spawn parallel workers or judges MUST select backend in this order:
-
-1. **Codex experimental sub-agents** (when `spawn_agent` is available)
-2. **Claude native teams** (`TeamCreate` + `Task(team_name=...)` + `SendMessage`)
-3. **OpenCode subagents** (when `skill` tool is read-only — see detection below)
-4. **Inline fallback** (no spawn capability — execute work in current turn)
-
-Use capability detection, not hardcoded agent assumptions. The same skill must run across Claude Code, Codex, and OpenCode sessions.
-
-**Detection heuristic:** If your `skill` tool loads content into context (returns `<skill_content>` blocks) rather than executing skills, you are in OpenCode. OpenCode has a `task` tool with built-in agent types: `general`, `explore`, `build`, `plan`.
+Use capability detection at runtime, not hardcoded tool names. The same skill must work across any agent harness that provides multi-agent primitives. If no multi-agent capability is detected, degrade to single-agent inline mode (`--quick`).
 
 | Operation | Codex Sub-Agents | Claude Native Teams | OpenCode Subagents | Inline Fallback |
 |-----------|------------------|---------------------|--------------------|-----------------|

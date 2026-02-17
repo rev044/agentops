@@ -72,65 +72,26 @@ Merge order must respect task blockedBy dependencies.
 
 ---
 
-## Step 3: Select Backend + Spawn Workers
+## Step 3: Spawn Workers
 
-Choose the local backend in this order:
+Use whatever multi-agent primitives your runtime provides to spawn parallel workers. Each worker receives a pre-assigned task in its prompt.
 
-1. `spawn_agent` available -> **Codex experimental sub-agents**
-2. `TeamCreate` available -> **Claude native teams**
-3. Otherwise -> **Foreground `Task()`** (one-shot subagents, parallel via multiple calls)
+### Spawn Protocol
 
-### Codex backend (preferred when available)
+For each ready task:
 
-For each ready task, pre-assign and spawn a worker:
+1. **Pre-assign** — Mark the task owned by `worker-<task-id>` before spawning (prevents race conditions)
+2. **Spawn** — Create a parallel subagent with the worker prompt (see below)
+3. **Track** — Map `worker-<task-id>` to agent handle for waits/retries/cleanup
 
-```
-# 1. Pre-assign the task (deterministic, race-free)
-TaskUpdate(taskId="<id>", owner="worker-<task-id>", status="in_progress")
+All workers in a wave spawn in parallel. New team/agent-group per wave = fresh context (Ralph Wiggum preserved).
 
-# 2. Spawn Codex sub-agent for that task
-spawn_agent(
-  message="You are worker-<task-id>.
-Task #<id>: <subject>
-<description>
+### Worker Prompt Template
 
-Rules:
-- Work only this task
-- Do not commit
-- On completion, write your result to .agents/swarm/results/<task-id>.json:
-  {\"type\":\"completion\",\"issue_id\":\"<task-id>\",\"status\":\"done\",\"detail\":\"<one-line summary>\",\"artifacts\":[\"file1\",\"file2\"]}
-- If blocked, write:
-  {\"type\":\"blocked\",\"issue_id\":\"<task-id>\",\"status\":\"blocked\",\"detail\":\"<reason>\"}
-- Keep your final response under 50 tokens — the result file IS your report"
-)
-```
-
-Track `worker-<task-id> -> <agent-id>` mapping for waits/retries/cleanup.
-
-### Claude teams backend
-
-Create a team for this wave:
+Every worker receives this prompt (adapt to your runtime's spawn mechanism):
 
 ```
-TeamCreate(team_name="swarm-<epoch>")
-```
-
-Team naming: `swarm-<epoch>` (e.g., `swarm-1738857600`). New team per wave = fresh context per spawn (Ralph Wiggum preserved).
-
-**For each ready task, assign it to a worker BEFORE spawning:**
-
-```
-# 1. Pre-assign the task to the worker (deterministic, race-free)
-TaskUpdate(taskId="<id>", owner="worker-<task-id>", status="in_progress")
-
-# 2. Spawn the worker with the assignment baked into its prompt
-Task(
-  subagent_type="general-purpose",
-  model="opus",
-  team_name="swarm-<epoch>",
-  name="worker-<task-id>",
-  timeout=180000,  # 3 minutes per worker
-  prompt="You are Worker on swarm team \"swarm-<epoch>\".
+You are worker-<task-id>.
 
 Your Assignment: Task #<id>: <subject>
 <description>
@@ -138,30 +99,27 @@ Your Assignment: Task #<id>: <subject>
 Instructions:
 1. Execute your pre-assigned task independently — create/edit files as needed, verify your work
 2. Write your result to .agents/swarm/results/<task-id>.json (see format below)
-3. Mark complete: TaskUpdate(taskId=\"<id>\", status=\"completed\")
-4. Send a SHORT completion signal to team lead (under 100 tokens)
-5. If blocked, write blocked result to same path and message team lead
+3. Send a SHORT completion signal to the lead (under 100 tokens)
+4. If blocked, write blocked result to same path and signal the lead
 
-RESULT FILE FORMAT (MANDATORY — write this BEFORE sending any message):
+RESULT FILE FORMAT (MANDATORY — write this BEFORE sending any signal):
 
-On success, write to .agents/swarm/results/<task-id>.json:
-{\"type\":\"completion\",\"issue_id\":\"<task-id>\",\"status\":\"done\",\"detail\":\"<one-line summary max 100 chars>\",\"artifacts\":[\"path/to/file1\",\"path/to/file2\"]}
+On success:
+{"type":"completion","issue_id":"<task-id>","status":"done","detail":"<one-line summary max 100 chars>","artifacts":["path/to/file1","path/to/file2"]}
 
-If blocked, write to .agents/swarm/results/<task-id>.json:
-{\"type\":\"blocked\",\"issue_id\":\"<task-id>\",\"status\":\"blocked\",\"detail\":\"<reason max 200 chars>\"}
+If blocked:
+{"type":"blocked","issue_id":"<task-id>","status":"blocked","detail":"<reason max 200 chars>"}
 
 CONTEXT BUDGET RULE:
-Your SendMessage to the team lead must be under 100 tokens.
+Your message to the lead must be under 100 tokens.
 Do NOT include file contents, diffs, or detailed explanations in messages.
-The result JSON file IS your full report. The team lead reads the file, not your message.
+The result JSON file IS your full report. The lead reads the file, not your message.
 
 Rules:
 - Work only on YOUR pre-assigned task
-- Do NOT call TaskList or claim other tasks
+- Do NOT claim other tasks
 - Do NOT message other workers
-- Only update YOUR task status: in_progress → completed
-- Do NOT run git add, git commit, or git push. Write your files and report completion via SendMessage. The team lead will commit."
-)
+- Do NOT run git add, git commit, or git push — the lead commits
 ```
 
 ## Race Condition Prevention
@@ -193,30 +151,13 @@ Workers only transition their assigned task: in_progress -> completed.
 
 ## Step 4: Wait for Completion
 
-**Completion signals** (how you know workers are done):
-- Codex backend: `wait(ids=[...], timeout_ms=<worker-timeout>)`
-- Claude teams: workers send short completion signal via `SendMessage`
-- Fallback: `TaskOutput(..., block=true)` — acknowledge return, do NOT parse content
+Wait for all workers to signal completion using your runtime's wait mechanism. Workers write result files to disk and send a minimal signal.
 
-**Result data** (how you get work details — ALL backends):
-```bash
-# Read result files written by workers (thin JSON, ~200 bytes each)
-for task_id in <wave-task-ids>; do
-    if [ -f ".agents/swarm/results/${task_id}.json" ]; then
-        cat ".agents/swarm/results/${task_id}.json"
-    else
-        echo "WARNING: No result file for ${task_id}"
-    fi
-done
-```
+**Result data** — always read from disk, never from agent messages:
 
-**Why disk-based results:** Task tool returns and SendMessage content include the worker's FULL conversation (file reads, tool calls, reasoning). For 6 workers, that's 6 × 5-20K tokens flooding the orchestrator context. Result files are ~200 bytes each — 6 × 200 bytes = 1.2KB total.
+Check `.agents/swarm/results/<task-id>.json` for each worker. These are ~200 bytes each. Do NOT parse agent messages or return values for work details — they contain the worker's full conversation (5-20K tokens per worker) and will explode the lead's context.
 
-For Claude teams specifically:
-- Short messages arrive as conversation turns (under 100 tokens each)
-- Workers go idle after sending — this is normal, not an error
-- **CRITICAL**: Do NOT mark complete yet - validation required first
-- **CRITICAL**: Do NOT parse the SendMessage content for work details — read the result file instead
+**CRITICAL**: Do NOT mark complete yet — validation required first.
 
 ## Step 4a: Validate Before Accepting (MANDATORY)
 
@@ -264,22 +205,8 @@ For Claude teams specifically:
 
 4. **On validation FAIL:**
    - Increment retry count for task
-   - If retries < MAX_RETRIES (default: 3):
-     ```
-     # Codex backend: send follow-up to existing sub-agent
-     send_input(
-       id="<agent-id-for-task>",
-       message="Validation failed: <specific failure>. Fix and retry."
-     )
-
-     # Claude teams backend:
-     SendMessage(type="message", recipient="worker-<task-id>", content="Validation failed: <specific failure>. Fix and retry.", summary="Retry: validation failed")
-     ```
-   - If retries >= MAX_RETRIES:
-     ```
-     TaskUpdate(taskId="<id>", status="blocked")
-     # Escalate to user
-     ```
+   - If retries < MAX_RETRIES (default: 3): send a follow-up message to the worker via your runtime's messaging mechanism: "Validation failed: <specific failure>. Fix and retry."
+   - If retries >= MAX_RETRIES: mark task as blocked and escalate to user
 
 **Minimal validation (when no metadata):**
 
@@ -320,51 +247,29 @@ When workers complete AND pass validation:
 ## Step 5a: Cleanup
 
 After wave completes:
+
 ```bash
 # Clean up result files from this wave (prevent stale reads in next wave)
 rm -f .agents/swarm/results/*.json
 ```
 
-```
-# Codex backend: close all spawned workers
-close_agent(id="<agent-id-1>")
-close_agent(id="<agent-id-2>")
-
-# Claude teams backend:
-SendMessage(type="shutdown_request", recipient="worker-<task-id>", content="Wave complete")
-TeamDelete()
-```
-
-> **Note:** `TeamDelete()` applies only to Claude team backend. Codex backend requires explicit `close_agent()` for each spawned worker.
+Shut down all workers via your runtime's cleanup mechanism. Then clean up the agent group/team.
 
 ### Reaper Cleanup Pattern
 
-Team cleanup MUST succeed even on partial failures. Follow this sequence:
+Cleanup MUST succeed even on partial failures:
 
-1. **Attempt graceful shutdown/close:** `close_agent` (Codex) or `shutdown_request` (Claude)
-2. **Wait up to 30s** for shutdown_approved responses
-3. **If any worker doesn't respond:** Log warning, proceed anyway
-4. **Always cleanup backend resources** (`close_agent` or `TeamDelete`)
-5. **Cleanup must run even on partial failures**
+1. Request graceful shutdown for each worker
+2. Wait up to 30s for acknowledgment
+3. If any worker doesn't respond, log warning, proceed anyway
+4. Always run cleanup — lingering agents pollute future sessions
 
-**Failure modes and recovery:**
-
-| Failure | Behavior |
-|---------|----------|
-| Worker hangs (no response) | 30s timeout -> proceed with cleanup |
-| close/shutdown fails | Log warning -> continue cleanup |
-| TeamDelete fails | Log error -> team orphaned (manual cleanup: delete ~/.claude/teams/<name>/) |
-| close_agent fails | Log error -> leaked sub-agent handle (best effort close later) |
-| Lead crashes mid-swarm | Cleanup may be deferred to session end |
-
-**Never skip cleanup.** Lingering workers/teams pollute future sessions.
-
-### Team Timeout Configuration
+### Timeout Configuration
 
 | Timeout | Default | Description |
 |---------|---------|-------------|
 | Worker timeout | 180s | Max time for worker to complete its task |
-| Shutdown grace period | 30s | Time to wait for shutdown_approved |
+| Shutdown grace period | 30s | Time to wait for shutdown acknowledgment |
 | Wave timeout | 600s | Max time for entire wave before forced cleanup |
 
 ## Step 6: Repeat if Needed

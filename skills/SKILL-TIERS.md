@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (32)
+### User-Facing Skills (33)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -50,6 +50,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **brainstorm** | solo | Structured idea exploration before planning |
 | **heal-skill** | solo | Detect and fix skill hygiene issues |
 | **converter** | solo | Cross-platform skill converter (Codex, Cursor) |
+| **goals** | solo | Maintain GOALS.yaml fitness specification |
 | **update** | solo | Reinstall all AgentOps skills globally |
 
 ### Internal Skills (10) — `metadata.internal: true`
@@ -132,6 +133,7 @@ All validation skills depend on `/council`:
 | research | knowledge, inject | optional, optional |
 | retro | - | - |
 | standards | - | - |
+| **goals** | - | - (reads GOALS.yaml directly) |
 | **status** | - | - (all CLIs optional) |
 | **swarm** | implement, vibe | required, optional |
 | trace | provenance | alternative |
@@ -215,10 +217,10 @@ Supporting: provenance, trace, ratchet
 ### /council spawns both
 
 ```bash
-# Claude agents (via Task tool)
-Task(model="opus", prompt="...")
+# Runtime-native judges (spawn via whatever multi-agent primitive your runtime provides)
+# Each judge receives a prompt, writes output to .agents/council/, signals completion
 
-# Codex agents (via Bash tool)
+# Codex CLI judges (--mixed mode, via shell)
 codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o .agents/council/codex-output.md "..."
 ```
 

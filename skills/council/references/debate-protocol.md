@@ -33,23 +33,17 @@ Phase 3: Consolidation (uses R2 verdicts when --debate)
 Phase 4: shutdown_request each judge, TeamDelete()
 ```
 
-## Round 2 via SendMessage
+## Round 2 via Agent Messaging
 
-**Branch selection (team lead responsibility):**
+**Branch selection (lead responsibility):**
 ```
 r1_verdicts = [extract JSON verdict from each R1 output file]
 r1_unanimous = all verdicts have same verdict value (PASS/WARN/FAIL)
 
-For each judge in [judge-1, judge-2, judge-3...] (or [judge-{perspective}...] with presets):
+For each judge:
   other_verdicts = [v for v in r1_verdicts if v.judge != this_judge]
   branch = "agreed" if r1_unanimous else "disagreed"
-
-  SendMessage(
-    type="message",
-    recipient="judge-{perspective}",
-    content=build_r2_message(other_verdicts, branch),
-    summary="Debate R2: review other verdicts"
-  )
+  send message to judge with build_r2_message(other_verdicts, branch)
 ```
 
 **R2 message content:** See "Debate Round 2 Message" in `agent-prompts.md`.

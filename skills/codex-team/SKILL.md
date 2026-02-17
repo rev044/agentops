@@ -359,7 +359,7 @@ If Codex is unavailable, delegate to `/swarm` which auto-selects the best availa
 Skill(skill="swarm")
 ```
 
-> **Anti-Pattern:** Do NOT use `Task(run_in_background=true)` for Claude agents. Background tasks cause Claude instability. Use foreground `Task()` calls (parallel via multiple calls in one message) or native teams. `Bash(run_in_background=true)` for Codex CLI processes is fine.
+> **Note:** `/codex-team` runs Codex CLI processes as background shell commands — this is fine (separate OS processes). For Claude agent orchestration, use `/swarm` which uses your runtime's native multi-agent primitives.
 
 ## Quick Reference
 

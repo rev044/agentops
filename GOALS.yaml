@@ -8,16 +8,24 @@ pillars:
   - goal-driven-automation
   - zero-friction-workflow
 
-# Total: 60 goals (25 pillar + 25 infrastructure + 10 cross-runtime)
+# Total: 65 goals (30 pillar + 25 infrastructure + 10 cross-runtime)
 # Pillar goals define WHAT the system does (user-visible value).
 # Infrastructure goals define HOW the system stays healthy (build, test, docs).
+#
+# Theoretical foundation (4 pillars → product pillars):
+#   Systems Theory (Meadows)     → targets leverage points #3-#6
+#   DevOps (Three Ways)          → Flow → zero-friction-workflow, goal-driven-automation
+#                                  Feedback → validated-acceleration
+#                                  Learning → knowledge-compounding
+#   Brownian Ratchet             → chaos + filter + ratchet → validated-acceleration
+#   Knowledge Flywheel (σ×ρ > δ) → escape velocity → knowledge-compounding
 
 goals:
   # ============================================================================
   # PILLAR GOALS (25 total)
   # ============================================================================
 
-  # === Pillar: Knowledge Compounding (6 goals, weight 3-5) ===
+  # === Pillar: Knowledge Compounding (10 goals, weight 3-5) ===
 
   - id: readme-compounding-hero
     description: "README hero tagline is 'The missing DevOps layer for coding agents'"
@@ -55,7 +63,37 @@ goals:
     weight: 5
     pillar: knowledge-compounding
 
-  # === Pillar: Validated Acceleration (4 goals, weight 3-4) ===
+  - id: three-ways-in-readme
+    description: "README references DevOps Three Ways (flow, feedback, continual learning) as design foundation"
+    check: "grep -q 'Three Ways' README.md && grep -qi 'flow.*feedback.*learning\\|flow.*feedback.*continual' README.md"
+    weight: 4
+    pillar: knowledge-compounding
+
+  - id: meadows-in-readme
+    description: "README references Meadows' hierarchy as design rationale for targeting information flows and rules"
+    check: "grep -q 'Meadows' README.md && grep -q 'information flows' README.md"
+    weight: 4
+    pillar: knowledge-compounding
+
+  - id: brownian-ratchet-in-docs
+    description: "Brownian Ratchet is documented as a theoretical pillar (chaos + filter + ratchet = progress)"
+    check: "grep -q 'Brownian' README.md && test -f docs/brownian-ratchet.md && grep -qi 'chaos.*filter.*ratchet\\|filter.*ratchet\\|one-way gate' docs/brownian-ratchet.md"
+    weight: 4
+    pillar: validated-acceleration
+
+  - id: flywheel-escape-velocity-in-docs
+    description: "Knowledge Flywheel escape velocity condition is documented (σ×ρ > δ)"
+    check: "test -f docs/the-science.md && grep -q 'Escape Velocity' docs/the-science.md && grep -q 'retrieval.*usage.*decay\\|σ.*ρ.*δ' docs/the-science.md"
+    weight: 4
+    pillar: knowledge-compounding
+
+  - id: four-pillars-in-product
+    description: "PRODUCT.md Design Principles references all four theoretical pillars (Meadows, Three Ways, Brownian Ratchet, Knowledge Flywheel)"
+    check: "grep -q 'Meadows' PRODUCT.md && grep -q 'Three Ways' PRODUCT.md && grep -q 'Brownian' PRODUCT.md && grep -qi 'flywheel.*escape\\|escape velocity\\|Knowledge Flywheel' PRODUCT.md"
+    weight: 5
+    pillar: knowledge-compounding
+
+  # === Pillar: Validated Acceleration (5 goals, weight 3-4) ===
 
   - id: status-skill-shows-health
     description: "/status skill references knowledge health or flywheel metrics"

@@ -93,7 +93,7 @@ Two layers matter here:
 
 ## Relationship to Olympus
 
-AgentOps is a complete, standalone system — autonomous within a session. You do not need Olympus to use AgentOps. The 42 skills, 12 hooks, knowledge flywheel, and RPI lifecycle work independently — `/rpi` ships features end-to-end, `/evolve` runs goal-driven improvement loops, and the flywheel compounds knowledge across sessions, all without any external daemon.
+AgentOps is a complete, standalone system — autonomous within a session. You do not need Olympus to use AgentOps. The 43 skills, 12 hooks, knowledge flywheel, and RPI lifecycle work independently — `/rpi` ships features end-to-end, `/evolve` runs goal-driven improvement loops, and the flywheel compounds knowledge across sessions, all without any external daemon.
 
 **Olympus is the power-user layer for people who want to go further.**
 
@@ -109,6 +109,13 @@ AgentOps is where you learn to be a context engineer. Olympus is what you build 
 **Repo:** [github.com/boshu2/olympus](https://github.com/boshu2/olympus)
 
 ## Design Principles
+
+**Theoretical foundation — four pillars:**
+
+1. **[Systems theory (Meadows)](https://en.wikipedia.org/wiki/Twelve_leverage_points)** — Target the high-leverage end of the hierarchy: information flows (#6), rules (#5), self-organization (#4), goals (#3). Changing the loop beats tuning the output.
+2. **[DevOps (Three Ways)](docs/the-science.md#part-3-devops-foundation-the-three-ways)** — Flow, feedback, continual learning — applied to the agent loop instead of the deploy pipeline.
+3. **[Brownian Ratchet](docs/brownian-ratchet.md)** — Embrace agent variance, filter aggressively, ratchet successes. Chaos + filter + one-way gate = net forward progress.
+4. **[Knowledge Flywheel (escape velocity)](docs/the-science.md#the-escape-velocity-condition)** — If retrieval rate × usage rate exceeds decay rate (σ×ρ > δ), knowledge compounds. If not, it decays to zero. The flywheel exists to stay above that threshold.
 
 1. **Context quality determines output quality.** Every skill, hook, and flywheel component exists to ensure the right context is in the right window at the right time.
 2. **Least-privilege loading.** Agents receive only the context necessary for their task — phase-specific, role-scoped, freshness-weighted.
