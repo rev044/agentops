@@ -10,7 +10,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.9.3-brightgreen)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-36-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-37-7c3aed)](skills/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
 
@@ -144,7 +144,7 @@ ao init --hooks      # + flywheel hooks (SessionStart + Stop)
 ao init --hooks --full  # + all 12 hooks across 8 lifecycle events
 ```
 
-The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. `ao init` is the canonical setup command — creates all `.agents/` directories, configures `.gitignore`, and optionally registers hooks. All 36 skills work without it.
+The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. `ao init` is the canonical setup command — creates all `.agents/` directories, configures `.gitignore`, and optionally registers hooks. All 37 skills work without it.
 
 </details>
 
