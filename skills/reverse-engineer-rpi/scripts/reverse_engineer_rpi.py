@@ -171,6 +171,7 @@ def main() -> int:
         _run(["bd", "ready"], check=False)
 
     docs_features_txt = output_dir / "docs-features.txt"
+    effective_docs_prefix = args.docs_features_prefix
 
     # Determine an analysis root for repo mode.
     # Priority:
@@ -203,7 +204,7 @@ def main() -> int:
             [
                 str(SKILL_DIR / "scripts" / "extract_docs_features.sh"),
                 str(paths_txt),
-                args.docs_features_prefix,
+                effective_docs_prefix,
             ],
             text=True,
         )
@@ -211,7 +212,12 @@ def main() -> int:
     else:
         # No sitemap: for repo mode, inventory docs/features from the repo tree; otherwise empty.
         if args.mode in ("repo", "both") and analysis_root.exists():
-            prefix_dir = args.docs_features_prefix.strip("/").rstrip("/")
+            # If the user left the default and docs/features doesn't exist, fall back to docs/ for better UX.
+            if args.docs_features_prefix == "docs/features/":
+                if not (analysis_root / "docs" / "features").exists() and (analysis_root / "docs").exists():
+                    effective_docs_prefix = "docs/"
+
+            prefix_dir = effective_docs_prefix.strip("/").rstrip("/")
             base = analysis_root / prefix_dir
             slugs: list[str] = []
             if base.exists() and base.is_dir():
@@ -319,7 +325,7 @@ def main() -> int:
             "--product-name",
             args.product_name,
             "--docs-features-prefix",
-            args.docs_features_prefix,
+            effective_docs_prefix,
             "--docs-features",
             str(docs_features_txt),
             "--out",
