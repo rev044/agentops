@@ -10,19 +10,15 @@
 [![Skills](https://img.shields.io/badge/skills-43-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Skills](#skills) · [How It Works](#how-it-works) · [FAQ](#faq)
+[How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Skills](#skills) · [Deep Dive](#deep-dive) · [FAQ](#faq)
 
 </div>
 
 ---
 
-## The Problem
+## How It Works
 
-Every coding agent session starts from scratch. Your agent doesn't know what you decided last week, what patterns worked, or what failed. You re-explain the same context, re-discover the same bugs, re-make the same decisions.
-
-If you've done agile, SCRUM, or any spec-driven workflow — you already know the loop: iterative feedback loops with institutional memory. Research, plan, build, review, learn, repeat. None of that is new.
-
-What's new is that agents need it **automated**. A human developer carries context between sprints naturally. An agent doesn't — it gets a blank context window every session. AgentOps automates the feedback loop so the agent accumulates expertise the way a team does across sprints: learnings are extracted, quality-gated, and injected into the next session automatically.
+Coding agents get a blank context window every session. AgentOps automates the feedback loop so each session starts smarter than the last — learnings extracted, quality-gated, and re-injected automatically.
 
 **DevOps' Three Ways:** flow, feedback, continual learning. AgentOps applies them to the agent loop, then compounds memory between sessions.
 
@@ -31,8 +27,6 @@ What's new is that agents need it **automated**. A human developer carries conte
 - **Flow:** a pipeline, not a prompt pack. The standard dev loop (research → plan → validate → build → review → learn) packaged as composable skills.
 - **Feedback:** safety rails, not vibes. Optional hooks add enforceable rules (validation gates, push blocking, regression auto-revert).
 - **Learning:** a flywheel, not storage. Learnings are written to `.agents/`, scored, and re-injected so session N starts smarter than session 1.
-
-Example mix-and-match: run `/council validate <PR>` for one-off review, or `/rpi "goal"` for plan → ship → learn end-to-end.
 
 ---
 
@@ -196,7 +190,7 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 
 ---
 
-## How It Works
+## Deep Dive
 
 Standard iterative development — research, plan, validate, build, review, learn — automated for agents that can't carry context between sessions.
 
