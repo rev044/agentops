@@ -10,7 +10,7 @@
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 
-[See It Work](#see-it-work) · [Orchestration](#cross-runtime-agent-orchestration) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-agent-orchestration) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -52,11 +52,11 @@ Next (full lifecycle):
 
 If slash commands don’t appear: restart your agent; then try `npx skills@latest update`. Optional CLI + hooks: see [Install](#install). Bigger goal? See [Phased RPI](#phased-rpi-own-your-context-window).
 
+If you use Claude Code, Codex, Cursor, or OpenCode and wish your agent remembered what it learned last session — this is for you.
+
 **Every coding agent session starts at zero.** Knowledge decays at 17% per week without reinforcement ([Darr 1995](docs/the-science.md)). By week 4, half of what your agent learned is gone. By week 8, it's running on 22% of what it once knew.
 
-I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session could build on the last instead of starting over.
-
-**Measured results:**
+I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session could build on the last instead of starting over. Here's how it's been going:
 
 | Metric | Without AgentOps | With AgentOps |
 |--------|:---:|:---:|
@@ -69,7 +69,7 @@ I come from DevOps, so I started treating my agent like a pipeline — isolated 
 
 **What's worked for me:**
 
-1. **Cross-session memory.** The system extracts what worked, what failed, and what patterns emerged — then injects quality-gated knowledge into the next session. Session 10 is smarter than session 1 because it learned from 1–9. There's a [formal threshold](docs/the-science.md) for when this tips from decay to compounding.
+1. **Cross-session memory.** After each session, learnings are extracted, quality-gated, and injected into the next one automatically. There's a [formal threshold](docs/the-science.md) for when this tips from decay to compounding.
 2. **Multi-model validation.** Pre-mortem simulates failures on the plan *before* coding. Council reviews the code *after* — Claude and Codex judges debating each other. Failures retry automatically with context.
 3. **Composable pieces.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
 
@@ -165,34 +165,6 @@ Session 2 was faster and better because session 1's learnings were already in co
 
 ---
 
-## Cross-Runtime Agent Orchestration
-
-AgentOps doesn't lock you into one agent runtime — it orchestrates across them. Claude can lead a team of Codex workers. Codex judges can review Claude's output. A tmux swarm can run persistent workers that survive disconnects. Mix and match:
-
-| Spawning Backend | How it works | Best for |
-|-----------------|-------------|----------|
-| **Native teams** | `TeamCreate` + `SendMessage` — built into Claude Code | Tight coordination, debate, real-time messaging |
-| **Background tasks** | `Task(run_in_background=true)` — fire-and-forget | Quick parallel work, no team overhead |
-| **Codex sub-agents** | `/codex-team` — Claude orchestrates Codex workers | Cross-vendor validation, GPT judges on Claude code |
-| **tmux + Agent Mail** | `/swarm --mode=distributed` — full process isolation | Long-running work, crash recovery, debugging stuck workers |
-
-**The primitives are composable.** The RPI workflow is how I use them. You can:
-- Have Claude plan and Codex implement (or vice versa)
-- Run a `/council` with 3 Claude judges and 3 Codex judges simultaneously (`--mixed`)
-- Spawn a distributed swarm that survives terminal disconnects
-- Use background tasks for quick parallel exploration, native teams for coordinated waves
-- Build your own orchestration patterns on top of these building blocks
-
-Take the pieces. Experiment. Create your own workflow. If you find something that works better, I'd love to hear about it.
-
-| Runtime | Support level | What works |
-|---------|:---:|-------------|
-| **Claude Code** | Best-in-class | Native teams + lifecycle hooks + full gate enforcement |
-| **Codex CLI** | Strong | Skills + artifacts + `/codex-team` parallel execution |
-| **OpenCode** | Good | Plugin with tool enrichment, audit logging, compaction resilience |
-
----
-
 ## Install
 
 **Requires:** Node.js 18+ and a coding agent that supports [Skills](https://skills.sh) (Claude Code, Codex CLI, Cursor, Open Code).
@@ -212,7 +184,7 @@ Then open your coding agent and type `/quickstart`. That's it.
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
 ao init              # Directories + .gitignore (idempotent)
 ao init --hooks      # + minimal hooks (SessionStart + Stop only — 2/8 events)
-ao init --hooks --full  # + all 12 hook scripts across 8 lifecycle events (recommended)
+ao init --hooks --full  # + all 13 hook scripts across 8 lifecycle events (recommended)
 ```
 
 The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. `ao init` is the canonical setup command — creates all `.agents/` directories, configures `.gitignore`, and optionally registers hooks. All 37 skills work without it.
@@ -346,7 +318,8 @@ Learnings pass quality gates (specificity, actionability, novelty) and land in g
 
 **The escape-velocity condition:** Knowledge either compounds or decays to zero — there's no stable middle. The math: `σ × ρ > δ` (retrieval effectiveness × usage rate > decay rate of 0.17/week). When true, each session makes the next one better. When false, everything erodes. The whole system is designed around staying above this threshold. [The math →](docs/the-science.md)
 
-### Systems Leverage (Meadows)
+<details>
+<summary><strong>Systems Leverage (Meadows)</strong></summary>
 
 AgentOps is systems engineering. Donella Meadows' leverage points are a useful map: the highest leverage changes are not "tune a parameter" but "change how the system learns, adapts, and decides." AgentOps concentrates on the high-leverage end:
 
@@ -359,26 +332,10 @@ AgentOps is systems engineering. Donella Meadows' leverage points are a useful m
 | **#2 Paradigms** | "Context quality is the primary lever" and "the cycle is the product" shift the work from prompt craft to workflow + feedback design. |
 | **#1 Transcend paradigms** | Cross-runtime orchestration (Claude, Codex, OpenCode) and graceful degradation keep the loop usable as tools/models change. |
 
-<details>
-<summary>Full Meadows leverage-point ladder (12 to 1)</summary>
-
-12. Constants, parameters, numbers
-11. Buffers and stabilizing stocks
-10. Material stocks and flows (structure)
-9. Delays
-8. Negative feedback loops
-7. Positive feedback loops
-6. Information flows
-5. Rules
-4. Self-organization
-3. Goals
-2. Paradigms
-1. Transcend paradigms
+The bet is that changing the loop beats tuning the output.
 
 <sub>Reference: Donella H. Meadows, "Places to Intervene in a System" (1999) / <em>Thinking in Systems</em> (2008).</sub>
 </details>
-
-AgentOps deliberately spends less energy on the low-leverage end (prompt knobs, bigger buffers, "just add context") because those gains do not compound. The bet is that changing the loop beats tuning the output.
 
 ### `/evolve`
 
@@ -393,13 +350,21 @@ AgentOps deliberately spends less energy on the low-leverage end (prompt knobs, 
 
 Passing goals stay passing — if a cycle breaks something that was working, the commits get rolled back automatically.
 
-```bash
-# Define goals, walk away
-echo "test-pass-rate: {weight: 10, command: 'make test'}" > GOALS.yaml
-/evolve --max-cycles=5
+```yaml
+# GOALS.yaml — define goals, walk away
+version: 1
+goals:
+  - id: test-pass-rate
+    description: "All tests pass"
+    check: "make test"
+    weight: 10
+```
+
+```text
+> /evolve --max-cycles=5
 
 # Kill switch (immediate stop after current cycle)
-echo "stop" > ~/.config/evolve/KILL
+> echo "stop" > ~/.config/evolve/KILL
 ```
 
 Each `/rpi` cycle is smarter than the last because it learned from every cycle before it.
@@ -435,11 +400,39 @@ Full reference with all 37 skills: [docs/SKILLS.md](docs/SKILLS.md)
 
 ---
 
+## Cross-Runtime Agent Orchestration
+
+AgentOps doesn't lock you into one agent runtime — it orchestrates across them. Claude can lead a team of Codex workers. Codex judges can review Claude's output. A tmux swarm can run persistent workers that survive disconnects. Mix and match:
+
+| Spawning Backend | How it works | Best for |
+|-----------------|-------------|----------|
+| **Native teams** | `TeamCreate` + `SendMessage` — built into Claude Code | Tight coordination, debate, real-time messaging |
+| **Background tasks** | `Task(run_in_background=true)` — fire-and-forget | Quick parallel work, no team overhead |
+| **Codex sub-agents** | `/codex-team` — Claude orchestrates Codex workers | Cross-vendor validation, GPT judges on Claude code |
+| **tmux + Agent Mail** | `/swarm --mode=distributed` — full process isolation | Long-running work, crash recovery, debugging stuck workers |
+
+**The primitives are composable.** The RPI workflow is how I use them. You can:
+- Have Claude plan and Codex implement (or vice versa)
+- Run a `/council` with 3 Claude judges and 3 Codex judges simultaneously (`--mixed`)
+- Spawn a distributed swarm that survives terminal disconnects
+- Use background tasks for quick parallel exploration, native teams for coordinated waves
+- Build your own orchestration patterns on top of these building blocks
+
+Take the pieces. Experiment. Create your own workflow. If you find something that works better, I'd love to hear about it.
+
+| Runtime | Support level | What works |
+|---------|:---:|-------------|
+| **Claude Code** | Best-in-class | Native teams + lifecycle hooks + full gate enforcement |
+| **Codex CLI** | Strong | Skills + artifacts + `/codex-team` parallel execution |
+| **OpenCode** | Good | Plugin with tool enrichment, audit logging, compaction resilience |
+
+---
+
 ## The Ratchet Guarantee
 
 The idea comes from thermodynamics: a [Brownian Ratchet](docs/the-science.md) gets forward movement from random motion by only allowing progress in one direction. Same thing here — parallel agents produce noisy output, councils filter it, ratchets lock the gains.
 
-**Enforcement mechanisms (12 hooks across 8 lifecycle events):**
+**Enforcement mechanisms (13 hooks across 8 lifecycle events):**
 
 | Gate | What it does | Enforcement |
 |------|-------------|-------------|
@@ -469,7 +462,7 @@ Optional but recommended. The CLI is plumbing — skills and hooks call it autom
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-ao hooks install --full # All 12 hooks across 8 lifecycle events
+ao hooks install --full # All 13 hooks across 8 lifecycle events
 ```
 
 **The three commands you'll actually type:**
@@ -479,7 +472,7 @@ ao search "query"      # Search knowledge across files and chat history
 ao demo                # Interactive demo of capabilities
 ```
 
-Everything else runs automatically. 73 commands total — full reference: [CLI Commands](cli/docs/COMMANDS.md)
+Everything else runs automatically. Full reference: [CLI Commands](cli/docs/COMMANDS.md)
 
 ---
 
