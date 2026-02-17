@@ -384,8 +384,6 @@ These plugins aren't competitors — they're fellow experiments in making coding
 |------|-------------------|----------------------------------------|
 | **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot in long sessions | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
 | **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured Plan→Work→Assess→Compound loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
-| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled, zero dependencies | Auto-extracted learnings that compound — static instructions don't update themselves |
-| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced, runs on every push | Validation *before* coding (`/pre-mortem`) and *before* push (`/vibe`), not just after |
 
 You don't pick one. You build a workflow that fits how you think.
 
