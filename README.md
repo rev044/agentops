@@ -194,7 +194,7 @@ Standard iterative development — research, plan, validate, build, review, lear
     ├── extracts learnings → .agents/
     └── suggests next /rpi command ────┐
                                        │
-  /rpi "next goal" ◄──────────────────┘
+   /rpi "next goal" ◄──────────────────┘
 ```
 
 The post-mortem analyzes each learning, asks "what process would this improve?", and writes improvement proposals. It hands you a ready-to-copy `/rpi` command. Paste it, walk away.
