@@ -24,7 +24,7 @@ Coding agents get a blank context window every session. AgentOps automates the f
 
 **The building blocks:** primitives you can mix and match into a custom pipeline that fits your workflow.
 
-- **Flow:** a pipeline, not a prompt pack. The standard dev loop (research → plan → validate → build → review → learn) packaged as composable skills.
+- **Flow:** orchestration skills that move WIP through the system. Research → plan → validate → build → review → learn — single-piece flow, minimizing context switches.
 - **Feedback:** safety rails, not vibes. Optional hooks add enforceable rules (validation gates, push blocking, regression auto-revert).
 - **Learning:** a flywheel, not storage. Learnings are written to `.agents/`, scored, and re-injected so session N starts smarter than session 1.
 
