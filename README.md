@@ -40,7 +40,7 @@ If you use Claude Code, Codex CLI, Cursor, or OpenCode and wish your agent remem
 
 **Every coding agent session starts at zero.** One model of knowledge decay ([Darr 1995](docs/the-science.md)) suggests ~17% loss per week without reinforcement — your mileage will vary, but the direction is real: without a feedback loop, agents don't accumulate expertise.
 
-I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session could build on the last instead of starting over.
+I come from DevOps, so I applied the [Three Ways](https://itrevolution.com/articles/the-three-ways-principles-underpinning-devops/) to agent workflows: **Flow** — knowledge streams from session to forge to store to inject to the next session, no batching. **Feedback** — validation gates at every phase (pre-mortem on plans, council on code, ratchets that lock progress). **Continuous Learning** — retros extract patterns, post-mortems close the loop, failures become learnings instead of just incidents. That's the whole architecture: a pipeline with a knowledge flywheel on top, so each session builds on the last instead of starting over.
 
 **What's worked for me:**
 
