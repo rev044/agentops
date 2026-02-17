@@ -69,6 +69,29 @@ if [[ $skill_errors -eq 0 ]] && [[ $skill_count -gt 0 ]]; then
 fi
 
 # =============================================================================
+# Test 2b: Validate council/crank flag allowlists and contracts
+# =============================================================================
+log "Validating council/crank flag allowlists..."
+
+if [[ -x "$REPO_ROOT/tests/skills/validate-skill.sh" ]]; then
+    if bash "$REPO_ROOT/tests/skills/validate-skill.sh" council "$REPO_ROOT/skills" > /tmp/validate-council.log 2>&1; then
+        pass "council validate-skill checks passed"
+    else
+        fail "council validate-skill checks failed"
+        tail -n 30 /tmp/validate-council.log | sed 's/^/    /'
+    fi
+
+    if bash "$REPO_ROOT/tests/skills/validate-skill.sh" crank "$REPO_ROOT/skills" > /tmp/validate-crank.log 2>&1; then
+        pass "crank validate-skill checks passed"
+    else
+        fail "crank validate-skill checks failed"
+        tail -n 30 /tmp/validate-crank.log | sed 's/^/    /'
+    fi
+else
+    warn "tests/skills/validate-skill.sh missing or not executable"
+fi
+
+# =============================================================================
 # Test 3: Validate agents structure
 # =============================================================================
 log "Validating agents structure..."

@@ -242,6 +242,122 @@ validate_skill() {
         fi
     fi
 
+    # Test 4b: Skill-specific flag allowlist / contract validation (repo-local)
+    #
+    # These checks enforce that documented flag values stay in sync with their canonical reference docs,
+    # preventing silent drift where invalid values appear to "work" but are ignored/defaulted.
+    local skill_md
+    skill_md="$skill_dir/SKILL.md"
+
+    if [[ "$skill_name" == "council" ]]; then
+        local techniques_ref profiles_ref
+        techniques_ref="$skill_dir/references/brainstorm-techniques.md"
+        profiles_ref="$skill_dir/references/model-profiles.md"
+
+        # Extract allowlisted technique slugs from the canonical table in brainstorm-techniques.md
+        local allowed_techniques
+        if [[ -f "$techniques_ref" ]]; then
+            allowed_techniques="$(grep -E '^\|[[:space:]]*`[a-zA-Z0-9_-]+`[[:space:]]*\|' "$techniques_ref" 2>/dev/null | sed -E 's/^\|[[:space:]]*`([^`]+)`.*/\1/' | sort -u)"
+            if [[ -n "${allowed_techniques:-}" ]]; then
+                echo -e "  ${GREEN}✓${NC} Council: extracted technique allowlist from references"
+                local_checks=$((local_checks + 1))
+            else
+                echo -e "  ${RED}✗${NC} Council: extracted technique allowlist from references"
+                local_errors=$((local_errors + 1))
+                local_checks=$((local_checks + 1))
+            fi
+        else
+            echo -e "  ${RED}✗${NC} Council: references/brainstorm-techniques.md exists"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+
+        # Extract allowlisted profile slugs from model-profiles.md (first column backticks)
+        local allowed_profiles
+        if [[ -f "$profiles_ref" ]]; then
+            allowed_profiles="$(grep -E '^\|[[:space:]]*`[a-zA-Z0-9_-]+`[[:space:]]*\|' "$profiles_ref" 2>/dev/null | sed -E 's/^\|[[:space:]]*`([^`]+)`.*/\1/' | sort -u)"
+            if [[ -n "${allowed_profiles:-}" ]]; then
+                echo -e "  ${GREEN}✓${NC} Council: extracted profile allowlist from references"
+                local_checks=$((local_checks + 1))
+            else
+                echo -e "  ${RED}✗${NC} Council: extracted profile allowlist from references"
+                local_errors=$((local_errors + 1))
+                local_checks=$((local_checks + 1))
+            fi
+        else
+            echo -e "  ${RED}✗${NC} Council: references/model-profiles.md exists"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+
+        # Verify council SKILL.md documents allowlisted technique names in the --technique row
+        local technique_row documented_techniques
+        technique_row="$(grep -F '| `--technique=<name>` |' "$skill_md" 2>/dev/null | head -n 1 || true)"
+        if [[ -n "${technique_row:-}" ]]; then
+            documented_techniques="$(echo "$technique_row" | sed -n 's/.*technique (\([^)]*\)).*/\1/p' | tr ',' $'\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -E '^[a-zA-Z0-9_-]+$' | sort -u)"
+            if [[ -n "${documented_techniques:-}" ]] && [[ -n "${allowed_techniques:-}" ]] && diff -u <(echo "$allowed_techniques") <(echo "$documented_techniques") >/dev/null 2>&1; then
+                echo -e "  ${GREEN}✓${NC} Council: --technique allowlist matches references"
+                local_checks=$((local_checks + 1))
+            else
+                echo -e "  ${RED}✗${NC} Council: --technique allowlist matches references"
+                [[ -n "${allowed_techniques:-}" ]] && echo "    expected:" && echo "$allowed_techniques" | sed 's/^/      - /'
+                [[ -n "${documented_techniques:-}" ]] && echo "    documented:" && echo "$documented_techniques" | sed 's/^/      - /'
+                local_errors=$((local_errors + 1))
+                local_checks=$((local_checks + 1))
+            fi
+        else
+            echo -e "  ${RED}✗${NC} Council: documents --technique=<name> flag row"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+
+        # Verify council SKILL.md documents allowlisted profile names in the --profile row
+        local profile_row documented_profiles
+        profile_row="$(grep -F '| `--profile=<name>` |' "$skill_md" 2>/dev/null | head -n 1 || true)"
+        if [[ -n "${profile_row:-}" ]]; then
+            documented_profiles="$(echo "$profile_row" | sed -n 's/.*profile (\([^)]*\)).*/\1/p' | tr ',' $'\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -E '^[a-zA-Z0-9_-]+$' | sort -u)"
+            if [[ -n "${documented_profiles:-}" ]] && [[ -n "${allowed_profiles:-}" ]] && diff -u <(echo "$allowed_profiles") <(echo "$documented_profiles") >/dev/null 2>&1; then
+                echo -e "  ${GREEN}✓${NC} Council: --profile allowlist matches references"
+                local_checks=$((local_checks + 1))
+            else
+                echo -e "  ${RED}✗${NC} Council: --profile allowlist matches references"
+                [[ -n "${allowed_profiles:-}" ]] && echo "    expected:" && echo "$allowed_profiles" | sed 's/^/      - /'
+                [[ -n "${documented_profiles:-}" ]] && echo "    documented:" && echo "$documented_profiles" | sed 's/^/      - /'
+                local_errors=$((local_errors + 1))
+                local_checks=$((local_checks + 1))
+            fi
+        else
+            echo -e "  ${RED}✗${NC} Council: documents --profile=<name> flag row"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+    fi
+
+    if [[ "$skill_name" == "crank" ]]; then
+        local commit_ref
+        commit_ref="$skill_dir/references/commit-strategies.md"
+
+        local per_task_row
+        per_task_row="$(grep -F '| `--per-task-commits` |' "$skill_md" 2>/dev/null | head -n 1 || true)"
+        if [[ -n "${per_task_row:-}" ]] && echo "$per_task_row" | grep -q 'references/commit-strategies.md'; then
+            echo -e "  ${GREEN}✓${NC} Crank: --per-task-commits flag row references commit-strategies.md"
+            local_checks=$((local_checks + 1))
+        else
+            echo -e "  ${RED}✗${NC} Crank: --per-task-commits flag row references commit-strategies.md"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+
+        if [[ -f "$commit_ref" ]] && grep -q '^## wave-batch' "$commit_ref" && grep -q '^## per-task' "$commit_ref" && grep -q 'wave-batch-fallback' "$commit_ref"; then
+            echo -e "  ${GREEN}✓${NC} Crank: commit strategy contract strings present"
+            local_checks=$((local_checks + 1))
+        else
+            echo -e "  ${RED}✗${NC} Crank: commit strategy contract strings present"
+            local_errors=$((local_errors + 1))
+            local_checks=$((local_checks + 1))
+        fi
+    fi
+
     # Test 5: Run skill-specific validate.sh if present
     local validate_script="$skill_dir/scripts/validate.sh"
     if [ -f "$validate_script" ]; then

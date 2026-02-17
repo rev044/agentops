@@ -4,6 +4,16 @@ Structured techniques for `/council brainstorm` mode. Use `--technique=<name>` t
 
 When no technique is specified, brainstorm mode uses unstructured exploration (current behavior).
 
+## Technique Names
+
+Canonical allowlist for `--technique=<name>` (case-insensitive):
+
+| Name | Section |
+|------|---------|
+| `scamper` | SCAMPER |
+| `six-hats` | Six Thinking Hats |
+| `reverse` | Reverse Brainstorming |
+
 ## SCAMPER
 
 Systematic derivative generation. Each judge applies the SCAMPER framework to the brainstorm topic:
