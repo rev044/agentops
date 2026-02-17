@@ -13,14 +13,14 @@
 [![Skills](https://img.shields.io/badge/skills-38-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[See It Work](#see-it-work) · [The Flywheel](#the-flywheel) · [Install](#install) · [The Workflow](#the-workflow) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
 ---
 
 > [!IMPORTANT]
-> **No data leaves your machine.** All state lives in `.agents/` inside your repo (git-ignored by default). No telemetry, no cloud, no accounts. Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1`). The `ao` CLI is [open source](cli/) — audit it yourself. Apache-2.0.
+> **No data leaves your machine.** All state lives in `.agents/` inside your repo (git-ignored by default). No telemetry, no cloud, no accounts. Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1`). The `ao` CLI is [open source](cli/) — audit it yourself.
 
 **Pick your runtime, one command:**
 
@@ -44,22 +44,17 @@ If you use Claude Code, Codex CLI, Cursor, or OpenCode and wish your agent remem
 
 I come from DevOps, so I applied the [Three Ways](https://itrevolution.com/articles/the-three-ways-principles-underpinning-devops/) to agent workflows:
 
-- **Flow** — Knowledge streams from session to forge to store to the next session. No batching, just continuous context.
-- **Feedback** — Validation gates at every phase. Pre-mortems on plans, councils on code, ratchets that lock progress.
-- **Continuous Learning** — Retros extract patterns, post-mortems close the loop. Failures become permanent learnings, not one-off incidents.
+1. **Flow** — Knowledge streams from session to forge to store to the next session. No batching, just continuous context.
+2. **Feedback** — Validation gates at every phase. Pre-mortems on plans, councils on code, ratchets that lock progress.
+3. **Continuous Learning** — Retros extract patterns, post-mortems close the loop. Failures become permanent learnings, not one-off incidents.
 
 That's the architecture: a pipeline with a knowledge flywheel on top, so each session builds on the last.
 
 **What's worked for me:**
 
-1. **Cross-session memory**
-   After each session, learnings are extracted, quality-gated, and injected into the next one automatically. There's a [formal threshold](docs/the-science.md) for when this tips from decay to compounding.
-
-2. **Multi-model validation**
-   Pre-mortem simulates failures on the plan *before* coding. Council reviews the code *after* — Claude and Codex judges debating each other. Failures retry automatically with context.
-
-3. **Composable pieces**
-   Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
+- **Cross-session memory** — After each session, learnings are extracted, quality-gated, and injected into the next one automatically. There's a [formal threshold](docs/the-science.md) for when this tips from decay to compounding.
+- **Multi-model validation** — Pre-mortem simulates failures on the plan *before* coding. Council reviews the code *after* — Claude and Codex judges debating each other. Failures retry automatically with context.
+- **Composable pieces** — Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
 
 [Detailed comparisons →](docs/comparisons/) · [Glossary →](docs/GLOSSARY.md) · [How it works →](docs/how-it-works.md) · [The Science →](docs/the-science.md)
 
@@ -140,100 +135,6 @@ Session 2 was faster and better because session 1's learnings were already in co
 
 ---
 
-## Install
-
-| Runtime | Status | Install method |
-|---------|:------:|----------------|
-| **Claude Code** | ✅ Best | Skills or plugin |
-| **Codex CLI** | ✅ Strong | Skills |
-| **Cursor** | ✅ Good | Skills |
-| **OpenCode** | ✅ Good | Install script |
-
-### Quick install
-
-```bash
-# Most runtimes (Claude Code, Codex CLI, Cursor)
-npx skills@latest add boshu2/agentops --all -g
-```
-
-```bash
-# OpenCode
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
-```
-
-```bash
-# Claude Code plugin (alternative to skills)
-claude plugin add boshu2/agentops
-```
-
-This installs all 38 skills. Then type `/quickstart` in your agent chat. That's it.
-
-> [!NOTE]
-> **What changes in your repo:** Skills install to `~/.claude/skills/` (global, outside your repo). If you later add the optional CLI + hooks, `ao init` creates a `.agents/` directory (git-ignored) for knowledge artifacts and registers hooks in `.claude/settings.json`. The session-start hook also auto-appends `.agents/` to your project `.gitignore` on first run (`AGENTOPS_GITIGNORE_AUTO=0` to disable). Nothing modifies your source code. Disable all hooks instantly: `AGENTOPS_HOOKS_DISABLED=1`.
-
-<details>
-<summary><b>Full setup</b> — CLI + hooks (optional)</summary>
-<code>brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops</code><br>
-<code>ao init --hooks --full</code> — all 12 hooks across 8 lifecycle event types. Adds knowledge injection/extraction, ratchet gates, session lifecycle. All 38 skills work without it.
-</details>
-
-<details>
-<summary><b>OpenCode</b> — plugin + skills</summary>
-Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and symlinks all 38 skills. Restart OpenCode after install. Details: <a href=".opencode/INSTALL.md">.opencode/INSTALL.md</a>
-</details>
-
-Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
-
----
-
-## The Path
-
-```text
-/quickstart                          ← Day 1: guided tour on your codebase (~10 min)
-    │
-/council, /research, /vibe           ← Week 1: use skills standalone, learn the pieces
-    │
-/rpi "goal"                          ← Week 2: full lifecycle — research → ship → learn
-    │
-GOALS.yaml + /evolve                 ← Ongoing: define fitness goals, the system compounds
-```
-
-Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. Set `GOALS.yaml` and let `/evolve` compound from there.
-
-**Where does the knowledge live?** Everything the system learns is stored in `.agents/` — a local knowledge vault in your repo. Learnings, research artifacts, plans, fitness snapshots, and session handoffs all live there. Knowledge survives across sessions automatically. You never configure it; skills read from and write to it automatically.
-
----
-
-## The Workflow
-
-1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
-
-2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking).
-
-3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
-
-4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Cross-cutting constraints from the plan are injected into every wave's validation pass. `--test-first` uses a spec-first TDD model — specs and tests before implementation in every wave. Lead validates and commits. Runs until every issue is closed.
-
-5. **`/vibe`** — 3 judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
-
-6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes process improvements. **Suggests the next `/rpi` command.**
-
-`/rpi "goal"` runs all six, end to end (micro-epics of 2 or fewer issues auto-detect fast-path: inline validation instead of full council, ~15 min faster with no quality loss). Use `--interactive` if you want human gates at research and plan.
-
-### Phased RPI: Own Your Context Window
-
-For larger goals, `ao rpi phased "goal"` runs each phase in its own fresh session — no context bleed between phases. Supports `--interactive` (human gates at research/plan), `--from=<phase>` (resume), and parallel worktrees.
-
-```bash
-ao rpi phased "add rate limiting"      # Hands-free, fresh context per phase
-ao rpi phased "add auth" &             # Run multiple in parallel (auto-worktrees)
-ao rpi phased --from=crank "fix perf"  # Resume from any phase
-```
-
-Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't.
-
----
-
 ## The Flywheel
 
 This is what makes AgentOps different. The system doesn't just run — it compounds.
@@ -287,11 +188,74 @@ Each `/rpi` cycle is smarter than the last because it learned from every cycle b
 
 ---
 
-## From Vision to Execution
+## Install
 
-`/product` defines the vision. `/research` explores the landscape. `/plan` decomposes into issues with dependency waves. `/crank` spawns fresh-context workers per wave. `/vibe` validates. `/post-mortem` extracts learnings and suggests the next `/rpi` command. `/evolve` loops until all `GOALS.yaml` fitness goals pass.
+> [!NOTE]
+> **What changes in your repo:** Skills install to `~/.claude/skills/` (global, outside your repo). If you later add the optional CLI + hooks, `ao init` creates a `.agents/` directory (git-ignored) for knowledge artifacts and registers hooks in `.claude/settings.json`. Nothing modifies your source code. Disable all hooks instantly: `AGENTOPS_HOOKS_DISABLED=1`.
 
-You define the goal. The system builds it piece by piece — each cycle compounds on the last.
+```bash
+# Claude Code plugin (alternative to skills install at top of page)
+claude plugin add boshu2/agentops
+```
+
+<details>
+<summary><b>Full setup</b> — CLI + hooks (optional)</summary>
+<code>brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops</code><br>
+<code>ao init --hooks --full</code> — 12 hooks across 8 lifecycle event types. Adds knowledge injection/extraction, ratchet gates, session lifecycle. All skills work without it.
+</details>
+
+<details>
+<summary><b>OpenCode</b> — plugin + skills</summary>
+Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and symlinks all skills. Restart OpenCode after install. Details: <a href=".opencode/INSTALL.md">.opencode/INSTALL.md</a>
+</details>
+
+Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
+
+---
+
+## The Path
+
+```text
+/quickstart                          ← Day 1: guided tour on your codebase (~10 min)
+    │
+/council, /research, /vibe           ← Week 1: use skills standalone, learn the pieces
+    │
+/rpi "goal"                          ← Week 2: full lifecycle — research → ship → learn
+    │
+GOALS.yaml + /evolve                 ← Ongoing: define fitness goals, the system compounds
+```
+
+Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. Set `GOALS.yaml` and let `/evolve` compound from there.
+
+---
+
+## The Workflow
+
+1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
+
+2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives three-tier boundaries (Always / Ask First / Never) to prevent scope creep, and conformance checks — verifiable assertions generated from the spec itself. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking).
+
+3. **`/pre-mortem`** — 4 judges simulate failures before you write code, including a spec-completeness judge that validates plan boundaries and conformance checks. FAIL? Re-plan with feedback and try again (max 3).
+
+4. **`/crank`** — Spawns parallel agents in waves. Each worker gets fresh context. Cross-cutting constraints from the plan are injected into every wave's validation pass. `--test-first` uses a spec-first TDD model — specs and tests before implementation in every wave. Lead validates and commits. Runs until every issue is closed.
+
+5. **`/vibe`** — 3 judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
+
+6. **`/post-mortem`** — Council validates the implementation. Retro extracts learnings. Synthesizes process improvements. **Suggests the next `/rpi` command.**
+
+`/rpi "goal"` runs all six, end to end (micro-epics of 2 or fewer issues auto-detect fast-path: inline validation instead of full council, ~15 min faster with no quality loss). Use `--interactive` if you want human gates at research and plan.
+
+### Phased RPI: Own Your Context Window
+
+For larger goals, `ao rpi phased "goal"` runs each phase in its own fresh session — no context bleed between phases. Supports `--interactive` (human gates at research/plan), `--from=<phase>` (resume), and parallel worktrees.
+
+```bash
+ao rpi phased "add rate limiting"      # Hands-free, fresh context per phase
+ao rpi phased "add auth" &             # Run multiple in parallel (auto-worktrees)
+ao rpi phased --from=crank "fix perf"  # Resume from any phase
+```
+
+Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't.
 
 ---
 
@@ -332,12 +296,6 @@ AgentOps doesn't lock you into one agent runtime — it orchestrates across them
 
 Take the pieces. Experiment. Create your own workflow. If you find something that works better, I'd love to hear about it.
 
-| Runtime | Support level | What works |
-|---------|:---:|-------------|
-| **Claude Code** | Best-in-class | Native teams + lifecycle hooks + full gate enforcement |
-| **Codex CLI** | Strong | Skills + artifacts + `/codex-team` parallel execution |
-| **OpenCode** | Good | Plugin with tool enrichment, audit logging, compaction resilience |
-
 ---
 
 ## How AgentOps Fits With Other Tools
@@ -346,10 +304,6 @@ These aren't competitors — they're fellow experiments in making coding agents 
 
 | Alternative | What it does well | Where AgentOps focuses differently |
 |-------------|-------------------|-------------------------------------|
-| **Direct agent use** (Claude Code, Cursor) | Full autonomy, simple | Adds cross-vendor councils, fresh-context waves, and cross-session memory |
-| **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled | Adds auto-extracted learnings that compound — static instructions can't do that |
-| **Orchestrators** (CrewAI, AutoGen, LangGraph) | Multi-agent task routing | Focuses on what's *in* each agent's context window, not just routing between them |
-| **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced | Runs validation *before* coding (/pre-mortem) and *before* push (/vibe), not just after |
 | **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
 | **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
 
@@ -389,9 +343,7 @@ Everything else runs automatically. Full reference: [CLI Commands](cli/docs/COMM
 
 ## FAQ
 
-**No data leaves your machine.** All state lives in `.agents/` (local; git-ignored by default). No telemetry, no cloud. Works with Claude Code, Codex CLI, Cursor, OpenCode — anything supporting [Skills](https://skills.sh).
-
-More questions: [docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
+[docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
 
 ---
 
