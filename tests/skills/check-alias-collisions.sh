@@ -9,6 +9,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # Known intentional collisions (trigger|skill1|skill2 — sorted alpha)
 # These are semantic overlaps where multiple skills legitimately handle the same phrase.
 ALLOWLIST=(
+  "brainstorm|brainstorm|council"
   "is this ready|pre-mortem|vibe"
   "research|council|research"
   "where did this come from|provenance|trace"

@@ -75,9 +75,9 @@ One line per finding:
 [MISSING_NAME] skills/foo: No name field in frontmatter
 [MISSING_DESC] skills/foo: No description field in frontmatter
 [NAME_MISMATCH] skills/foo: Frontmatter name 'bar' != directory 'foo'
-[UNLINKED_REF] skills/foo: references/bar.md not linked in SKILL.md
+[UNLINKED_REF] skills/foo: refs/bar.md not linked in SKILL.md
 [EMPTY_DIR] skills/foo: Directory exists but no SKILL.md
-[DEAD_REF] skills/foo: SKILL.md references non-existent references/bar.md
+[DEAD_REF] skills/foo: SKILL.md links to non-existent refs/bar.md
 ```
 
 ---

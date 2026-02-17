@@ -264,74 +264,26 @@ If `.agents/ao/environment.json` exists, include it in the context packet so jud
 
 ## Named Perspectives
 
-Named perspectives assign each judge a specific viewpoint via its system prompt. The judge's perspective name and focus description are included in the council packet's `perspective` and `perspective_description` fields, and appear in the judge's output header for attribution.
-
-### Using `--perspectives`
-
-Pass a comma-separated list of perspective names. Each name becomes a judge viewpoint:
+Named perspectives assign each judge a specific viewpoint. Pass `--perspectives="a,b,c"` for free-form names, or `--perspectives-file=<path>` for YAML with focus descriptions:
 
 ```bash
 /council --perspectives="security-auditor,performance-critic,simplicity-advocate" validate src/auth/
-```
-
-This spawns 3 judges, each adopting the named viewpoint. Perspective names are free-form — use any descriptive name. The judge's system prompt instructs it to evaluate exclusively from that viewpoint.
-
-### Using `--perspectives-file`
-
-Load perspectives from a YAML file for richer definitions with focus descriptions:
-
-```bash
 /council --perspectives-file=.agents/perspectives/api-review.yaml validate src/api/
 ```
 
-**YAML format:**
+**YAML format** for `--perspectives-file`:
 
 ```yaml
 perspectives:
   - name: security-auditor
     focus: Find security vulnerabilities and trust boundary violations
   - name: performance-critic
-    focus: Identify performance bottlenecks, unnecessary allocations, and scaling risks
-  - name: simplicity-advocate
-    focus: Challenge unnecessary complexity, suggest simpler alternatives
-  - name: architecture-reviewer
-    focus: Evaluate structural decisions, coupling, cohesion, and extension points
+    focus: Identify performance bottlenecks and scaling risks
 ```
 
-Each entry's `name` maps to the judge's perspective label, and `focus` becomes the `perspective_description` in the council packet. If `focus` is omitted, the judge infers its focus from the perspective name.
+**Flag priority:** `--perspectives`/`--perspectives-file` override `--preset` perspectives. `--count` always overrides judge count. Without `--count`, judge count auto-escalates to match perspective count.
 
-### Flag Interaction
-
-| Flags Provided | Behavior |
-|----------------|----------|
-| Neither `--preset` nor `--perspectives`/`--perspectives-file` | Independent judges, no perspective labels |
-| `--preset=X` only | Judges use the preset's built-in perspectives |
-| `--perspectives=a,b,c` only | Judges use the specified named perspectives |
-| `--perspectives-file=<path>` only | Judges use perspectives from the YAML file |
-| `--preset=X` + `--perspectives=a,b,c` | **`--perspectives` wins** — overrides preset perspectives |
-| `--preset=X` + `--perspectives-file=<path>` | **`--perspectives-file` wins** — overrides preset perspectives |
-
-The `--count` flag always takes priority for judge count. Without `--count`, judge count auto-escalates to match the number of perspectives.
-
-### Built-in Perspective Presets
-
-The `doc-review` preset provides named perspectives for documentation review:
-
-| Preset | Perspectives | Best For |
-|--------|-------------|----------|
-| `doc-review` | clarity-editor, accuracy-verifier, completeness-auditor, audience-advocate | Documentation quality review |
-
-```bash
-/council --preset=doc-review validate docs/ARCHITECTURE.md
-/council --preset=code-review validate src/auth/jwt.py   # existing preset
-/council --preset=plan-review validate PLAN.md            # existing preset
-```
-
-All three review presets spawn 4 judges with named perspectives visible in their output:
-
-- **`code-review`** (existing): error-paths, api-surface, spec-compliance (3 judges)
-- **`plan-review`** (existing): missing-requirements, feasibility, scope, spec-completeness (4 judges)
-- **`doc-review`** (new): clarity-editor, accuracy-verifier, completeness-auditor, audience-advocate (4 judges)
+See [references/personas.md](references/personas.md) for all built-in presets and their perspective definitions.
 
 ---
 
