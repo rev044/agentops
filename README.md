@@ -35,8 +35,6 @@ What's new is that agents need it **automated**. A human developer carries conte
 
 Example mix-and-match: run `/council validate <PR>` for one-off review, or `/rpi "goal"` for plan → ship → learn end-to-end.
 
-Not for you if you want hosted/cloud memory and dashboards. AgentOps is local-first.
-
 ---
 
 ## See It Work
