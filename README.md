@@ -18,7 +18,7 @@
 ---
 
 > [!IMPORTANT]
-> **Local-only. No telemetry. No cloud. No accounts.** All state lives in `.agents/` inside your repo (git-ignored by default). Skills install to `~/.claude/skills/` (outside your repo). Optional hooks register in `.claude/settings.json` — disable all instantly with `AGENTOPS_HOOKS_DISABLED=1`. Uninstall: `npx skills remove agentops`. Everything is [open source](cli/) — audit it yourself.
+> **Local-only. No telemetry. No cloud. No accounts.** All state lives in `.agents/` inside your repo (git-ignored by default). Skills install globally (outside your repo; for Claude Code: `~/.claude/skills/`). Optional hooks register in `.claude/settings.json` — disable all instantly with `AGENTOPS_HOOKS_DISABLED=1`. Uninstall: `npx skills@latest remove boshu2/agentops -g`. Everything is [open source](cli/) — audit it yourself.
 
 ```bash
 # Claude Code, Codex CLI, Cursor (most users)
@@ -150,7 +150,7 @@ Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and sym
 
 | What | Where | Reversible? |
 |------|-------|:-----------:|
-| Skills | `~/.claude/skills/` (global, outside your repo) | `npx skills remove agentops` |
+| Skills | Global skills dir (outside your repo; for Claude Code: `~/.claude/skills/`) | `npx skills@latest remove boshu2/agentops -g` |
 | Knowledge artifacts | `.agents/` in your repo (git-ignored) | `rm -rf .agents/` |
 | Hook registration | `.claude/settings.json` | `ao hooks uninstall` or delete entries |
 | Git push gate | Pre-push hook (optional, only with CLI) | `AGENTOPS_HOOKS_DISABLED=1` |
