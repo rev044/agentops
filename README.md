@@ -29,9 +29,13 @@ What's new is that agents need it **automated**. A human developer carries conte
 
 **The building blocks:** primitives you can mix and match into a custom pipeline that fits your workflow.
 
-- **A pipeline, not a prompt pack.** The standard dev loop (research → plan → validate → build → review → learn) packaged as composable skills.
-- **Safety rails, not vibes.** Optional hooks add enforceable rules (validation gates, push blocking, regression auto-revert).
-- **A flywheel, not storage.** Learnings are written to `.agents/`, scored, and re-injected so session N starts smarter than session 1.
+- **Flow:** a pipeline, not a prompt pack. The standard dev loop (research → plan → validate → build → review → learn) packaged as composable skills.
+- **Feedback:** safety rails, not vibes. Optional hooks add enforceable rules (validation gates, push blocking, regression auto-revert).
+- **Learning:** a flywheel, not storage. Learnings are written to `.agents/`, scored, and re-injected so session N starts smarter than session 1.
+
+Example mix-and-match: run `/council validate <PR>` for one-off review, or `/rpi "goal"` for plan → ship → learn end-to-end.
+
+Not for you if you want hosted/cloud memory and dashboards. AgentOps is local-first.
 
 ---
 
@@ -115,7 +119,7 @@ Your agent reads these automatically at session start — no CLI required, just 
 Already installed from the commands above? Skip to [The Path](#the-path).
 
 > [!IMPORTANT]
-> **Local-only. No telemetry. No cloud. No accounts.** All state lives in `.agents/` inside your repo (git-ignored by default). Skills install globally (outside your repo; for Claude Code: `~/.claude/skills/`). Optional hooks register in `.claude/settings.json` — disable all instantly with `AGENTOPS_HOOKS_DISABLED=1`. Uninstall: `npx skills@latest remove boshu2/agentops -g`. Everything is [open source](cli/) — audit it yourself.
+> **Local-only. No telemetry. No cloud. No accounts.** All state lives in `.agents/` inside your repo (git-ignored by default). Skills install globally outside your repo. Optional hooks register in your agent runtime settings — disable all instantly with `AGENTOPS_HOOKS_DISABLED=1`. Uninstall: `npx skills@latest remove boshu2/agentops -g`. Everything is [open source](cli/) — audit it yourself.
 
 ```bash
 # Claude Code, Codex CLI, Cursor (most users)
@@ -126,6 +130,11 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 ```
 
 Requires Node.js 18+. Then type `/quickstart` in your agent chat.
+
+First run:
+- `.agents/` will appear in your repo after your first run (git-ignored by default).
+- `/quickstart` walks you through setup and verifies the basics.
+- `/knowledge` will be empty until you complete at least one full cycle (e.g. `/rpi`).
 
 ```bash
 # Claude Code plugin (alternative to skills)
