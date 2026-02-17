@@ -262,6 +262,79 @@ If `.agents/ao/environment.json` exists, include it in the context packet so jud
 
 ---
 
+## Named Perspectives
+
+Named perspectives assign each judge a specific viewpoint via its system prompt. The judge's perspective name and focus description are included in the council packet's `perspective` and `perspective_description` fields, and appear in the judge's output header for attribution.
+
+### Using `--perspectives`
+
+Pass a comma-separated list of perspective names. Each name becomes a judge viewpoint:
+
+```bash
+/council --perspectives="security-auditor,performance-critic,simplicity-advocate" validate src/auth/
+```
+
+This spawns 3 judges, each adopting the named viewpoint. Perspective names are free-form — use any descriptive name. The judge's system prompt instructs it to evaluate exclusively from that viewpoint.
+
+### Using `--perspectives-file`
+
+Load perspectives from a YAML file for richer definitions with focus descriptions:
+
+```bash
+/council --perspectives-file=.agents/perspectives/api-review.yaml validate src/api/
+```
+
+**YAML format:**
+
+```yaml
+perspectives:
+  - name: security-auditor
+    focus: Find security vulnerabilities and trust boundary violations
+  - name: performance-critic
+    focus: Identify performance bottlenecks, unnecessary allocations, and scaling risks
+  - name: simplicity-advocate
+    focus: Challenge unnecessary complexity, suggest simpler alternatives
+  - name: architecture-reviewer
+    focus: Evaluate structural decisions, coupling, cohesion, and extension points
+```
+
+Each entry's `name` maps to the judge's perspective label, and `focus` becomes the `perspective_description` in the council packet. If `focus` is omitted, the judge infers its focus from the perspective name.
+
+### Flag Interaction
+
+| Flags Provided | Behavior |
+|----------------|----------|
+| Neither `--preset` nor `--perspectives`/`--perspectives-file` | Independent judges, no perspective labels |
+| `--preset=X` only | Judges use the preset's built-in perspectives |
+| `--perspectives=a,b,c` only | Judges use the specified named perspectives |
+| `--perspectives-file=<path>` only | Judges use perspectives from the YAML file |
+| `--preset=X` + `--perspectives=a,b,c` | **`--perspectives` wins** — overrides preset perspectives |
+| `--preset=X` + `--perspectives-file=<path>` | **`--perspectives-file` wins** — overrides preset perspectives |
+
+The `--count` flag always takes priority for judge count. Without `--count`, judge count auto-escalates to match the number of perspectives.
+
+### Built-in Perspective Presets
+
+The `doc-review` preset provides named perspectives for documentation review:
+
+| Preset | Perspectives | Best For |
+|--------|-------------|----------|
+| `doc-review` | clarity-editor, accuracy-verifier, completeness-auditor, audience-advocate | Documentation quality review |
+
+```bash
+/council --preset=doc-review validate docs/ARCHITECTURE.md
+/council --preset=code-review validate src/auth/jwt.py   # existing preset
+/council --preset=plan-review validate PLAN.md            # existing preset
+```
+
+All three review presets spawn 4 judges with named perspectives visible in their output:
+
+- **`code-review`** (existing): error-paths, api-surface, spec-compliance (3 judges)
+- **`plan-review`** (existing): missing-requirements, feasibility, scope, spec-completeness (4 judges)
+- **`doc-review`** (new): clarity-editor, accuracy-verifier, completeness-auditor, audience-advocate (4 judges)
+
+---
+
 ## Explorer Sub-Agents
 
 > **Explorer Details:** Use `Read` tool on `skills/council/references/explorers.md` for explorer architecture, prompts, sub-question generation, and timeout configuration.
@@ -335,8 +408,9 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | `--mixed` | Add 3 Codex agents |
 | `--debate` | Enable adversarial debate round (2 rounds via backend messaging, same agents). Incompatible with `--quick`. |
 | `--timeout=N` | Override timeout in seconds (default: 120) |
-| `--perspectives="a,b,c"` | Custom perspective names |
-| `--preset=<name>` | Built-in persona preset (security-audit, architecture, research, ops, code-review, plan-review, retrospective, product, developer-experience) |
+| `--perspectives="a,b,c"` | Custom perspective names (each name sets the judge's system prompt to adopt that viewpoint) |
+| `--perspectives-file=<path>` | Load named perspectives from a YAML file (see Named Perspectives below) |
+| `--preset=<name>` | Built-in persona preset (security-audit, architecture, research, ops, code-review, plan-review, doc-review, retrospective, product, developer-experience) |
 | `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed). Subject to MAX_AGENTS=12 cap. |
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
@@ -359,6 +433,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 /council --mixed validate this plan                             # 3 Claude + 3 Codex
 /council --deep --explorers=3 research upgrade patterns         # 12 agents (3 judges x 4)
 /council --preset=security-audit --deep validate the API        # attacker, defender, compliance
+/council --preset=doc-review validate README.md                  # 4 doc judges with named perspectives
 /council brainstorm caching strategies for the API              # 2 judges explore options
 /council --technique=scamper brainstorm API improvements               # structured SCAMPER brainstorm
 /council --technique=six-hats brainstorm migration strategy            # parallel perspectives brainstorm
@@ -366,6 +441,9 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 /council --profile=fast validate recent                               # haiku, 2 judges, 60s timeout
 /council research Redis vs Memcached for session storage        # 2 judges assess trade-offs
 /council validate the implementation plan in PLAN.md            # structured plan feedback
+/council --preset=doc-review validate docs/ARCHITECTURE.md             # 4 doc review judges
+/council --perspectives="security-auditor,perf-critic" validate src/   # named perspectives
+/council --perspectives-file=.agents/perspectives/custom.yaml validate # perspectives from file
 ```
 
 ### Fast Single-Agent Validation

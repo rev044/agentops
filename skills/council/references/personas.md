@@ -49,6 +49,7 @@ Use `--preset=<name>` for common persona configurations:
 | `ops` | reliability, observability, incident-response | Operations review |
 | `code-review` | error-paths, api-surface, spec-compliance | Code validation (used by /vibe) |
 | `plan-review` | missing-requirements, feasibility, scope, spec-completeness | Plan validation (used by /pre-mortem) |
+| `doc-review` | clarity-editor, accuracy-verifier, completeness-auditor, audience-advocate | Documentation quality review |
 | `retrospective` | plan-compliance, tech-debt, learnings | Post-implementation review (used by /post-mortem) |
 | `product` | user-value, adoption-barriers, competitive-position | Product-market fit review (used by /pre-mortem when PRODUCT.md exists) |
 | `developer-experience` | api-clarity, error-experience, discoverability | Developer UX review (used by /vibe when PRODUCT.md exists) |
@@ -87,6 +88,10 @@ Use `--preset=<name>` for common persona configurations:
 | developer-experience | **Signal** | api-clarity |
 | developer-experience | **SOS** | error-experience |
 | developer-experience | **Beacon** | discoverability |
+| doc-review | **Clarity** | clarity-editor |
+| doc-review | **Accuracy** | accuracy-verifier |
+| doc-review | **Coverage** | completeness-auditor |
+| doc-review | **Audience** | audience-advocate |
 | research | **Wide** | breadth |
 | research | **Deep** | depth |
 | research | **Contrarian** | contrarian |
@@ -139,6 +144,12 @@ product:
   user-value:            {name: User}      "What user problem does this solve? Who benefits and how?"
   adoption-barriers:     {name: Friction}  "What makes this hard to discover, learn, or use? What's the friction?"
   competitive-position:  {name: Edge}      "How does this compare to alternatives? What's our differentiation?"
+
+doc-review:
+  clarity-editor:       {name: Clarity}   "Is every sentence unambiguous? Can a reader understand without re-reading? Where's the jargon?"
+  accuracy-verifier:    {name: Accuracy}  "Do code examples match the actual API? Are version numbers current? Do links resolve?"
+  completeness-auditor: {name: Coverage}  "What's documented but not explained? What's missing entirely? Are edge cases covered?"
+  audience-advocate:    {name: Audience}  "Who is the reader? Is the assumed knowledge level consistent? Would a newcomer get lost?"
 
 developer-experience:
   api-clarity:     {name: Signal}  "Is every public interface self-documenting? Can a user predict behavior from names alone?"
