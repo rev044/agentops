@@ -32,9 +32,14 @@ npx skills@latest add boshu2/agentops --all -g
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 ```
 
+<details>
+<summary><b>Post-install</b> — first steps and troubleshooting</summary>
+
 Requires Node.js 18+. Then type `/quickstart` in your agent chat. Full lifecycle: `/rpi "your goal"`.
 
 Slash commands not appearing? Restart your agent, then `npx skills@latest update`. More install options: [Install](#install).
+
+</details>
 
 ---
 
@@ -102,6 +107,8 @@ Session 2 was faster and better because session 1's learnings were already in co
 <details>
 <summary><b>More examples</b> — /crank, /evolve</summary>
 
+<br>
+
 **Parallel agents with fresh context:**
 ```text
 > /crank ag-0042
@@ -162,12 +169,20 @@ Learnings pass quality gates (specificity, actionability, novelty) and land in g
 
 <details>
 <summary><b>The Science</b> — escape-velocity condition, citations</summary>
-Knowledge either compounds or decays to zero. The math: <code>σ × ρ > δ</code> (retrieval × usage > decay). When true, each session makes the next one better. Built on: Darr 1995 (decay rates), Sweller 1988 (cognitive load), Liu et al. 2023 (lost-in-the-middle), MemRL 2025 (RL for memory), Brownian Ratchet (thermodynamics). Deep dive: <a href="docs/the-science.md">docs/the-science.md</a>
+
+Knowledge either compounds or decays to zero. The math: `σ × ρ > δ` (retrieval × usage > decay). When true, each session makes the next one better.
+
+Built on: Darr 1995 (decay rates), Sweller 1988 (cognitive load), Liu et al. 2023 (lost-in-the-middle), MemRL 2025 (RL for memory), Brownian Ratchet (thermodynamics). Deep dive: [docs/the-science.md](docs/the-science.md)
+
 </details>
 
 <details>
 <summary><b>Systems Leverage</b> — Meadows leverage points mapped to AgentOps</summary>
-AgentOps concentrates on the high-leverage end of <a href="https://en.wikipedia.org/wiki/Twelve_leverage_points">Meadows' hierarchy</a>: information flows (#6 — hooks + <code>.agents/</code>), rules (#5 — ratchet gates), self-organization (#4 — modular skills + post-mortem harvesting), goals (#3 — <code>GOALS.yaml</code> + <code>/evolve</code>), paradigms (#2 — context quality as primary lever). The bet: changing the loop beats tuning the output.
+
+AgentOps concentrates on the high-leverage end of [Meadows' hierarchy](https://en.wikipedia.org/wiki/Twelve_leverage_points): information flows (#6 — hooks + `.agents/`), rules (#5 — ratchet gates), self-organization (#4 — modular skills + post-mortem harvesting), goals (#3 — `GOALS.yaml` + `/evolve`), paradigms (#2 — context quality as primary lever).
+
+The bet: changing the loop beats tuning the output.
+
 </details>
 
 ### Goal-Driven Mode: `/evolve`
@@ -200,13 +215,21 @@ claude plugin add boshu2/agentops
 
 <details>
 <summary><b>Full setup</b> — CLI + hooks (optional)</summary>
-<code>brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops</code><br>
-<code>ao init --hooks --full</code> — 12 hooks across 8 lifecycle event types. Adds knowledge injection/extraction, ratchet gates, session lifecycle. All skills work without it.
+
+```bash
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
+ao init --hooks --full
+```
+
+12 hooks across 8 lifecycle event types. Adds knowledge injection/extraction, ratchet gates, session lifecycle. All skills work without it.
+
 </details>
 
 <details>
 <summary><b>OpenCode</b> — plugin + skills</summary>
-Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and symlinks all skills. Restart OpenCode after install. Details: <a href=".opencode/INSTALL.md">.opencode/INSTALL.md</a>
+
+Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and symlinks all skills. Restart OpenCode after install. Details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
+
 </details>
 
 Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
@@ -349,14 +372,18 @@ Everything else runs automatically. Full reference: [CLI Commands](cli/docs/COMM
 
 <details>
 <summary><b>Built on</b> — Ralph Wiggum, Multiclaude, beads, CASS, MemRL</summary>
-<a href="https://ghuntley.com/ralph/">Ralph Wiggum</a> (fresh context per agent) · <a href="https://github.com/dlorenc/multiclaude">Multiclaude</a> (validation gates) · <a href="https://github.com/steveyegge/beads">beads</a> (git-native issues) · <a href="https://github.com/Dicklesworthstone/coding_agent_session_search">CASS</a> (session search) · <a href="https://arxiv.org/abs/2502.06173">MemRL</a> (cross-session memory)
+
+[Ralph Wiggum](https://ghuntley.com/ralph/) (fresh context per agent) · [Multiclaude](https://github.com/dlorenc/multiclaude) (validation gates) · [beads](https://github.com/steveyegge/beads) (git-native issues) · [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) (session search) · [MemRL](https://arxiv.org/abs/2502.06173) (cross-session memory)
+
 </details>
 
 ## Contributing
 
 <details>
-<summary><b>Issue tracking</b> — Beads / <code>bd</code></summary>
-Git-native issues in <code>.beads/</code>. <code>bd onboard</code> (setup) · <code>bd ready</code> (find work) · <code>bd show &lt;id&gt;</code> · <code>bd close &lt;id&gt;</code> · <code>bd sync</code>. More: <a href="AGENTS.md">AGENTS.md</a>
+<summary><b>Issue tracking</b> — Beads / bd</summary>
+
+Git-native issues in `.beads/`. `bd onboard` (setup) · `bd ready` (find work) · `bd show <id>` · `bd close <id>` · `bd sync`. More: [AGENTS.md](AGENTS.md)
+
 </details>
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). If AgentOps helped you ship something, post in [Discussions](https://github.com/boshu2/agentops?tab=discussions).
