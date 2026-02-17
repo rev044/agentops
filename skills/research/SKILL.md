@@ -97,13 +97,21 @@ Tier 2 — Semantic Search (conceptual matches):
   mcp__smart-connections-work__lookup query="<topic>" limit=10
   Skip if: MCP not connected
 
+Tier 2.5 — Git History (recent changes and decision context):
+  git log --oneline -30 -- <topic-related-paths>   # scoped to relevant paths, cap 30 lines
+  git log --all --oneline --grep="<topic>" -10      # cap 10 matches
+  git blame <key-file> | grep -i "<topic>" | head -20  # cap 20 lines
+  Skip if: not a git repo, no relevant history, or <topic> too broad (>100 matches)
+  NEVER: git log on full repo without -- path filter (same principle as Tier 3 scoping)
+  NOTE: This is git commit history, not session history. For session/handoff history, use /trace.
+
 Tier 3 — Scoped Search (keyword precision):
   Grep("<topic>", path="<specific-dir>/")   # ALWAYS scope to a directory
   Glob("<specific-dir>/**/*.py")            # ALWAYS scope to a directory
   NEVER: Grep("<topic>") or Glob("**/*.py") on full repo — causes context overload
 
 Tier 4 — Source Code (verify from signposts):
-  Read files identified by Tiers 1-3
+  Read files identified by Tiers 1-3 (including git history leads from Tier 2.5)
   Use function/class names, not line numbers
 
 Tier 5 — Prior Knowledge (may be stale):

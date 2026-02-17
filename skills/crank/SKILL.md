@@ -60,6 +60,7 @@ Crank (orchestrator, TaskList mode)    Swarm (executor)
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--test-first` | off | Enable spec-first TDD: SPEC WAVE generates contracts, TEST WAVE generates failing tests, IMPL WAVES make tests pass |
+| `--per-task-commits` | off | Opt-in per-task commit strategy. Falls back to wave-batch when file boundaries overlap. See `references/commit-strategies.md`. |
 
 ## Global Limits
 
@@ -308,6 +309,8 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 
 ### Step 4: Execute Wave via Swarm
 
+**If `--per-task-commits` is set**, read `skills/crank/references/commit-strategies.md` for the parallel-wave guard and commit message format before spawning workers.
+
 **GREEN mode (--test-first only):** If `--test-first` is set and SPEC/TEST waves have completed, modify worker prompts for spec-eligible issues:
 - Include in each worker's TaskCreate: `"Failing tests exist at <test-file-paths>. Make them pass. Do NOT modify test files. See GREEN Mode rules in /implement SKILL.md."`
 - Workers receive: failing tests (immutable), contract, issue description
@@ -404,7 +407,8 @@ cat > ".agents/crank/wave-${wave}-checkpoint.json" <<EOF
   "tasks_failed": $(echo "$FAILED_IDS" | jq -R 'split(" ")'),
   "files_changed": $(git diff --name-only "${WAVE_START_SHA}..HEAD" | jq -R . | jq -s .),
   "git_sha": "$(git rev-parse HEAD)",
-  "acceptance_verdict": "<PASS|WARN|FAIL>"
+  "acceptance_verdict": "<PASS|WARN|FAIL>",
+  "commit_strategy": "<per-task|wave-batch|wave-batch-fallback>"
 }
 EOF
 ```
@@ -540,6 +544,7 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 
 ## References
 
+- **Commit strategies:** `skills/crank/references/commit-strategies.md`
 - **Wave patterns:** `skills/crank/references/wave-patterns.md`
 - **Team coordination:** `skills/crank/references/team-coordination.md`
 - **Failure recovery:** `skills/crank/references/failure-recovery.md`

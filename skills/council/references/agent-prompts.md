@@ -46,10 +46,10 @@ Rules:
 
 ## Judge Agent Prompt -- With Perspectives (Preset or Custom)
 
-Used when `--preset` or `--perspectives` flag is provided:
+Used when `--preset` or `--perspectives` flag is provided. When using a preset with named personas, the persona name replaces the generic "Council Member N" label via `{PERSONA_NAME}`. For custom perspectives without names, `{PERSONA_NAME}` falls back to `Council Member {N}`.
 
 ```
-You are Council Member {N} -- THE {PERSPECTIVE}.
+You are **{PERSONA_NAME}**, the {PERSPECTIVE} judge.
 You are a teammate on team "{TEAM_NAME}".
 
 {JSON_PACKET}
@@ -197,7 +197,7 @@ You have received {N} judge reports from {VENDORS}.
 
 ## Your Task
 
-Synthesize into a final council report.
+Synthesize into a final council report. When judges have persona names (from presets), use those names in attribution (e.g., "**Red** (attacker) found...") instead of generic "Judge 1" labels.
 
 Ensure all consolidated findings have fix/why/ref populated. If a judge omitted these fields, infer them from the judge's analysis. Use fallbacks:
 - fix = finding.fix || finding.recommendation || "No fix specified"
