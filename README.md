@@ -205,21 +205,11 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 
 **RPI = Research → Plan → Implement.** `/rpi "goal"` runs the full lifecycle with validation gates at each phase.
 
-```mermaid
-graph LR
-    A["Goal"] --> B["/research"]
-    B --> C["/plan"]
-    C --> D["/pre-mortem"]
-    D --> E["/crank"]
-    E --> F["/vibe"]
-    F --> G["/post-mortem"]
-    G -->|"learnings → .agents/"| H["Knowledge"]
-    H -->|"injected at session start"| A
-
-    style A fill:#8b5cf6,color:#fff
-    style D fill:#f59e0b,color:#fff
-    style F fill:#10b981,color:#fff
-    style H fill:#3b82f6,color:#fff
+```
+  Goal ─→ /research ─→ /plan ─→ /pre-mortem ─→ /crank ─→ /vibe ─→ /post-mortem
+   ▲                                                                     │
+   │                      learnings → .agents/                           │
+   └─────────────────── injected at session start ◄──────────────────────┘
 ```
 
 | Phase | Skill | What happens |
@@ -254,21 +244,23 @@ Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't
 
 Each session learns from every session before it. This is the part I'm most excited about.
 
-```mermaid
-graph TD
-    A["/rpi 'goal A'"] --> B["research → plan → pre-mortem → crank → vibe"]
-    B --> C["/post-mortem"]
-    C --> D["council validates what shipped"]
-    C --> E["retro extracts what you learned"]
-    C --> F["proposes how to improve the skills"]
-    C --> G["'Next: /rpi goal B'"]
-    G --> H["/rpi 'goal B'"]
-    H --> I["...smarter because it learned from A"]
-    I --> C
-
-    style A fill:#8b5cf6,color:#fff
-    style C fill:#3b82f6,color:#fff
-    style H fill:#8b5cf6,color:#fff
+```
+  /rpi "goal A"
+       │
+       ▼
+  research → plan → pre-mortem → crank → vibe
+       │
+       ▼
+  /post-mortem
+       ├── council validates what shipped
+       ├── retro extracts what you learned
+       ├── proposes how to improve the process
+       └── "Next: /rpi goal B"
+                │
+                ▼
+          /rpi "goal B"   ◄── smarter because it learned from A
+                │
+                └── ...loop
 ```
 
 Post-mortem analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The knowledge base grows with each cycle.
@@ -392,8 +384,6 @@ These plugins aren't competitors — they're fellow experiments in making coding
 |------|-------------------|----------------------------------------|
 | **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot in long sessions | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
 | **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured Plan→Work→Assess→Compound loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
-| **[cc-sdd](https://github.com/gotalab/cc-sdd)** | Spec-first discipline, multi-platform (Claude Code, Cursor, Codex, Gemini CLI) | Pre-mortem failure simulation on those specs, plus a knowledge flywheel that feeds learnings back automatically |
-| **[Deep Trilogy](https://github.com/piercelamb/deep-plan)** | Deep planning with external LLM review and checkpoint resumability | Parallel wave execution (`/crank`), cross-vendor orchestration (Claude + Codex judges), and automated post-mortem harvesting |
 | **Custom prompts** (.cursorrules, CLAUDE.md) | Flexible, version-controlled, zero dependencies | Auto-extracted learnings that compound — static instructions don't update themselves |
 | **CI/CD gates** (GitHub Actions, pre-commit) | Automated, enforced, runs on every push | Validation *before* coding (`/pre-mortem`) and *before* push (`/vibe`), not just after |
 
