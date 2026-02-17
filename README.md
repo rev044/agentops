@@ -8,11 +8,7 @@
 
 *Context orchestration for every phase — research, planning, validation, execution.*
 
-[![Version](https://img.shields.io/badge/version-2.9.3-brightgreen)](CHANGELOG.md)
-[![Claude](https://img.shields.io/badge/Claude-Compatible-blueviolet)](https://github.com/anthropics/claude-code)
-[![Codex](https://img.shields.io/badge/Codex-Compatible-green)](https://github.com/openai/codex)
-[![Cursor](https://img.shields.io/badge/Cursor-Compatible-blue)](https://cursor.com)
-[![OpenCode](https://img.shields.io/badge/OpenCode-Compatible-orange)](https://opencode.ai)
+[![Version](https://img.shields.io/badge/version-2.9.3-8b5cf6)](CHANGELOG.md)
 
 [See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
