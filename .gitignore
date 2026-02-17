@@ -51,6 +51,11 @@ state.json
 .runtime/
 .claude/memory.md
 
+# Local temp artifacts (generated during skill self-tests / hooks)
+.tmp/
+skills/.tmp/
+hook-output.txt
+
 # Go binaries (built locally)
 cli/ao
 cli/bin/ao

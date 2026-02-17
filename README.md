@@ -40,13 +40,24 @@ If you use Claude Code, Codex CLI, Cursor, or OpenCode and wish your agent remem
 
 **Every coding agent session starts at zero.** One model of knowledge decay ([Darr 1995](docs/the-science.md)) suggests ~17% loss per week without reinforcement — your mileage will vary, but the direction is real: without a feedback loop, agents don't accumulate expertise.
 
-I come from DevOps, so I applied the [Three Ways](https://itrevolution.com/articles/the-three-ways-principles-underpinning-devops/) to agent workflows: **Flow** — knowledge streams from session to forge to store to inject to the next session, no batching. **Feedback** — validation gates at every phase (pre-mortem on plans, council on code, ratchets that lock progress). **Continuous Learning** — retros extract patterns, post-mortems close the loop, failures become learnings instead of just incidents. That's the whole architecture: a pipeline with a knowledge flywheel on top, so each session builds on the last instead of starting over.
+I come from DevOps, so I applied the [Three Ways](https://itrevolution.com/articles/the-three-ways-principles-underpinning-devops/) to agent workflows:
+
+- **Flow** — Knowledge streams from session to forge to store to the next session. No batching, just continuous context.
+- **Feedback** — Validation gates at every phase. Pre-mortems on plans, councils on code, ratchets that lock progress.
+- **Continuous Learning** — Retros extract patterns, post-mortems close the loop. Failures become permanent learnings, not one-off incidents.
+
+That's the architecture: a pipeline with a knowledge flywheel on top, so each session builds on the last.
 
 **What's worked for me:**
 
-1. **Cross-session memory.** After each session, learnings are extracted, quality-gated, and injected into the next one automatically. There's a [formal threshold](docs/the-science.md) for when this tips from decay to compounding.
-2. **Multi-model validation.** Pre-mortem simulates failures on the plan *before* coding. Council reviews the code *after* — Claude and Codex judges debating each other. Failures retry automatically with context.
-3. **Composable pieces.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
+1. **Cross-session memory**
+   After each session, learnings are extracted, quality-gated, and injected into the next one automatically. There's a [formal threshold](docs/the-science.md) for when this tips from decay to compounding.
+
+2. **Multi-model validation**
+   Pre-mortem simulates failures on the plan *before* coding. Council reviews the code *after* — Claude and Codex judges debating each other. Failures retry automatically with context.
+
+3. **Composable pieces**
+   Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
 
 [Detailed comparisons →](docs/comparisons/) · [Glossary →](docs/GLOSSARY.md) · [How it works →](docs/how-it-works.md) · [The Science →](docs/the-science.md)
 
@@ -92,7 +103,7 @@ Your agent reads these automatically at session start. No copy-paste, no "rememb
 Session 2 was faster and better because session 1's learnings were already in context. That's the flywheel.
 
 <details>
-<summary>More examples</summary>
+<summary><b>More examples</b> — /crank, /evolve</summary>
 
 **Parallel agents with fresh context:**
 ```text
@@ -159,24 +170,14 @@ This installs all 38 skills. Then type `/quickstart` in your agent chat. That's 
 > **What changes in your repo:** Skills install to `~/.claude/skills/` (global, outside your repo). If you later add the optional CLI + hooks, `ao init` creates a `.agents/` directory (git-ignored) for knowledge artifacts and registers hooks in `.claude/settings.json`. The session-start hook also auto-appends `.agents/` to your project `.gitignore` on first run (`AGENTOPS_GITIGNORE_AUTO=0` to disable). Nothing modifies your source code. Disable all hooks instantly: `AGENTOPS_HOOKS_DISABLED=1`.
 
 <details>
-<summary>Full setup (CLI + hooks)</summary>
-
-```bash
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-ao init              # Directories + .gitignore (idempotent)
-ao init --hooks      # + minimal hooks (SessionStart + Stop only)
-ao init --hooks --full  # + all 12 hooks across 8 lifecycle event types (recommended)
-```
-
-The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 38 skills work without it.
-
+<summary><b>Full setup</b> — CLI + hooks (optional)</summary>
+<code>brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops</code><br>
+<code>ao init --hooks --full</code> — all 12 hooks across 8 lifecycle event types. Adds knowledge injection/extraction, ratchet gates, session lifecycle. All 38 skills work without it.
 </details>
 
 <details>
-<summary>OpenCode details</summary>
-
-Installs the AgentOps plugin (7 hooks for tool enrichment, audit logging, and compaction resilience) and symlinks all 38 skills. Restart OpenCode after install. Full details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
-
+<summary><b>OpenCode</b> — plugin + skills</summary>
+Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and symlinks all 38 skills. Restart OpenCode after install. Details: <a href=".opencode/INSTALL.md">.opencode/INSTALL.md</a>
 </details>
 
 Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
@@ -224,18 +225,8 @@ Start with `/quickstart`. Use individual skills when you need them. Graduate to 
 `/rpi "goal"` runs all six, end to end. Micro-epics (2 or fewer issues) auto-detect fast-path — inline validation instead of full council, ~15 min faster with no quality loss. Use `--interactive` for human gates at research and plan.
 
 <details>
-<summary>Phased RPI: Own Your Context Window</summary>
-
-For larger goals, `ao rpi phased "goal"` runs each phase in its own fresh Claude session — no context bleed between phases. Supports `--interactive`, `--from=<phase>` (resume), and parallel worktrees.
-
-```bash
-ao rpi phased "add rate limiting"      # Hands-free, fresh context per phase
-ao rpi phased "add auth" &             # Run multiple in parallel (auto-worktrees)
-ao rpi phased --from=crank "fix perf"  # Resume from any phase
-```
-
-Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't.
-
+<summary><b>Phased RPI</b> — fresh context per phase, parallel worktrees</summary>
+<code>ao rpi phased "goal"</code> runs each phase in its own session — no context bleed. Supports <code>--from=&lt;phase&gt;</code> (resume) and parallel worktrees. Use <code>/rpi</code> when context fits in one session, phased when it doesn't.
 </details>
 
 ---
@@ -268,33 +259,13 @@ Post-mortem analyzes every learning from the retro, asks "what process would thi
 Learnings pass quality gates (specificity, actionability, novelty) and land in gold/silver/bronze tiers. [MemRL](https://arxiv.org/abs/2502.06173)-inspired freshness decay ensures recent insights outweigh stale patterns.
 
 <details>
-<summary>The Science: Why this works</summary>
-
-**The escape-velocity condition:** Knowledge either compounds or decays to zero — there's no stable middle. The math: `σ × ρ > δ` (retrieval effectiveness × usage rate > decay rate). When true, each session makes the next one better. When false, everything erodes. The whole system is designed around staying above this threshold.
-
-I built AgentOps on top of research I found useful: knowledge decay rates (Darr 1995), cognitive load theory (Sweller 1988, Liu et al. 2023), reinforcement learning for memory (MemRL 2025), and the Brownian Ratchet from thermodynamics. The escape-velocity condition is falsifiable — either your knowledge compounds or it doesn't.
-
-Deep dive: [docs/the-science.md](docs/the-science.md) — the math, the evidence, the citations.
-
+<summary><b>The Science</b> — escape-velocity condition, citations</summary>
+Knowledge either compounds or decays to zero. The math: <code>σ × ρ > δ</code> (retrieval × usage > decay). When true, each session makes the next one better. Built on: Darr 1995 (decay rates), Sweller 1988 (cognitive load), Liu et al. 2023 (lost-in-the-middle), MemRL 2025 (RL for memory), Brownian Ratchet (thermodynamics). Deep dive: <a href="docs/the-science.md">docs/the-science.md</a>
 </details>
 
 <details>
-<summary>Systems Leverage (Meadows)</summary>
-
-AgentOps is systems engineering. Donella Meadows' leverage points are a useful map: the highest leverage changes are not "tune a parameter" but "change how the system learns, adapts, and decides." AgentOps concentrates on the high-leverage end:
-
-| Meadows leverage point (high leverage) | How AgentOps intervenes |
-|---|---|
-| **#6 Information flows** | Hooks + `ao search` + `.agents/` artifacts move validated prior decisions into the current context window automatically. |
-| **#5 Rules and constraints** | Ratchet gates (push gate, worker guard, pre-mortem gate) make "validated work" the default, not a suggestion. |
-| **#4 Self-organization** | Skills are modular, installable units; post-mortem generates process improvements and queues next work. |
-| **#3 Goals** | `GOALS.yaml` makes the objective function explicit and executable; `/evolve` optimizes toward it. |
-| **#2 Paradigms** | "Context quality is the primary lever" and "the cycle is the product" shift the work from prompt craft to workflow + feedback design. |
-| **#1 Transcend paradigms** | Cross-runtime orchestration (Claude, Codex, OpenCode) and graceful degradation keep the loop usable as tools/models change. |
-
-The bet is that changing the loop beats tuning the output.
-
-<sub>Reference: Donella H. Meadows, "Places to Intervene in a System" (1999) / <em>Thinking in Systems</em> (2008).</sub>
+<summary><b>Systems Leverage</b> — Meadows leverage points mapped to AgentOps</summary>
+AgentOps concentrates on the high-leverage end of <a href="https://en.wikipedia.org/wiki/Twelve_leverage_points">Meadows' hierarchy</a>: information flows (#6 — hooks + <code>.agents/</code>), rules (#5 — ratchet gates), self-organization (#4 — modular skills + post-mortem harvesting), goals (#3 — <code>GOALS.yaml</code> + <code>/evolve</code>), paradigms (#2 — context quality as primary lever). The bet: changing the loop beats tuning the output.
 </details>
 
 ### `/evolve`
@@ -438,36 +409,15 @@ Everything else runs automatically. Full reference: [CLI Commands](cli/docs/COMM
 ---
 
 <details>
-<summary><strong>Built on</strong></summary>
-
-| Project | Role |
-|---------|------|
-| [Ralph Wiggum pattern](https://ghuntley.com/ralph/) | Fresh context per agent — no bleed-through |
-| [Multiclaude](https://github.com/dlorenc/multiclaude) | Validation gates that lock — no regression |
-| [beads](https://github.com/steveyegge/beads) | Git-native issue tracking |
-| [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) | Unified search across coding agent chat histories |
-| [MemRL](https://arxiv.org/abs/2502.06173) | Two-phase retrieval for cross-session memory |
-
+<summary><b>Built on</b> — Ralph Wiggum, Multiclaude, beads, CASS, MemRL</summary>
+<a href="https://ghuntley.com/ralph/">Ralph Wiggum</a> (fresh context per agent) · <a href="https://github.com/dlorenc/multiclaude">Multiclaude</a> (validation gates) · <a href="https://github.com/steveyegge/beads">beads</a> (git-native issues) · <a href="https://github.com/Dicklesworthstone/coding_agent_session_search">CASS</a> (session search) · <a href="https://arxiv.org/abs/2502.06173">MemRL</a> (cross-session memory)
 </details>
 
 ## Contributing
 
 <details>
-<summary><strong>Issue tracking (Beads / <code>bd</code>)</strong></summary>
-
-This repo tracks work in `.beads/` (git-native issues).
-
-```bash
-bd onboard                           # one-time setup for this repo
-bd ready                             # find available work
-bd show <id>                         # view issue details
-bd update <id> --status in_progress  # claim work
-bd close <id>                        # complete work
-bd sync                              # sync with git
-```
-
-More: [AGENTS.md](AGENTS.md)
-
+<summary><b>Issue tracking</b> — Beads / <code>bd</code></summary>
+Git-native issues in <code>.beads/</code>. <code>bd onboard</code> (setup) · <code>bd ready</code> (find work) · <code>bd show &lt;id&gt;</code> · <code>bd close &lt;id&gt;</code> · <code>bd sync</code>. More: <a href="AGENTS.md">AGENTS.md</a>
 </details>
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). If AgentOps helped you ship something, post in [Discussions](https://github.com/boshu2/agentops?tab=discussions).
