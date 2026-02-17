@@ -18,10 +18,24 @@
 
 **Quickstart (TL;DR):**
 
-Requires: Node.js 18+.
+Recommended (skills install):
 
 ```bash
 npx skills@latest add boshu2/agentops --all -g
+```
+
+Requires: Node.js 18+.
+
+Optional: Claude Code plugin install (if you prefer that):
+
+```bash
+claude plugin add boshu2/agentops
+```
+
+Optional: OpenCode install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 ```
 
 Then in your coding agent chat:
@@ -36,7 +50,7 @@ Next (full lifecycle):
 /rpi "your goal"
 ```
 
-If slash commands don’t appear: `npx skills@latest update`. Optional CLI + hooks: see [Install](#install). Bigger goal? See [Phased RPI](#phased-rpi-own-your-context-window).
+If slash commands don’t appear: restart your agent; then try `npx skills@latest update`. Optional CLI + hooks: see [Install](#install). Bigger goal? See [Phased RPI](#phased-rpi-own-your-context-window).
 
 **The context window determines quality.** When your agent does everything in one conversation, the window fills up with stuff it doesn't need by the time it's actually writing code. That's why results are inconsistent.
 
