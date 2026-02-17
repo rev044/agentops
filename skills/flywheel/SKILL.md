@@ -65,6 +65,23 @@ find .agents/research/ -mtime -7 2>/dev/null | wc -l
 find .agents/ -name "*.md" -mtime +30 2>/dev/null | wc -l
 ```
 
+### Step 3.5: Check Cache Health
+
+```bash
+if command -v ao &>/dev/null; then
+  # Get citation report (cache metrics)
+  CITE_REPORT=$(ao metrics cite-report --json --days 30 2>/dev/null)
+  if [ -n "$CITE_REPORT" ]; then
+    HIT_RATE=$(echo "$CITE_REPORT" | jq -r '.hit_rate // "unknown"')
+    UNCITED=$(echo "$CITE_REPORT" | jq -r '.uncited_learnings // 0')
+    STALE_90D=$(echo "$CITE_REPORT" | jq -r '.staleness.days_90 // 0')
+    echo "Cache hit rate: $HIT_RATE"
+    echo "Uncited learnings: $UNCITED"
+    echo "Stale (90d uncited): $STALE_90D"
+  fi
+fi
+```
+
 ### Step 4: Check ao CLI Status
 
 ```bash
@@ -113,6 +130,12 @@ Health indicator: >90% = Healthy, 70-90% = Warning, <70% = Critical.
 - Consistency score: <percentage>%
 - Status: <Healthy/Warning/Critical>
 
+## Cache Health
+- Hit rate: <percentage>%
+- Uncited learnings: <count>
+- Stale (90d uncited): <count>
+- Status: <Healthy/Warning/Critical>
+
 ## Health Status
 <Healthy/Warning/Critical>
 
@@ -141,6 +164,34 @@ Tell the user:
 | Learnings/week | 3+ | 1-2 | 0 |
 | Stale artifacts | <20% | 20-50% | >50% |
 | Research/plan ratio | >0.5 | 0.2-0.5 | <0.2 |
+| Cache hit rate | >80% | 50-80% | <50% |
+
+## Cache Eviction
+
+The knowledge flywheel includes automated cache eviction to prevent unbounded growth:
+
+```
+Passive Read tracking → Confidence decay → Maturity scan → Archive
+```
+
+**How it works:**
+1. **Passive tracking** — PostToolUse(Read) hook records when learnings are accessed
+2. **Confidence decay** — Unused learnings lose confidence at 10%/week
+3. **Composite criteria** — Learnings are eviction candidates when ALL conditions met:
+   - Utility < 0.3 (low MemRL score)
+   - No citation in 90+ days
+   - Confidence < 0.2 (decayed from disuse)
+   - Not established maturity (proven knowledge is protected)
+4. **Archive** — Candidates move to `.agents/archive/learnings/` (never deleted)
+
+**Commands:**
+- `ao maturity --evict` — dry-run: show eviction candidates
+- `ao maturity --evict --archive` — execute: archive candidates
+- `ao metrics cite-report --days 30` — cache health report
+
+**Kill switches:**
+- `AGENTOPS_EVICTION_DISABLED=1` — disable SessionEnd auto-eviction
+- `AGENTOPS_PRUNE_AUTO=0` — disable SessionStart auto-pruning (default: off)
 
 ## Key Rules
 

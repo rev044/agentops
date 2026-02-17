@@ -124,6 +124,16 @@
             "timeout": 2
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/citation-tracker.sh",
+            "timeout": 2
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

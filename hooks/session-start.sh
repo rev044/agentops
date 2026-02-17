@@ -295,12 +295,19 @@ ${handoff_content}
     fi
 fi
 
-# Prune check (dry-run only — warns but never deletes)
+# Prune check — auto-execute when AGENTOPS_PRUNE_AUTO=1, otherwise dry-run only
 if [ "${AGENTOPS_HOOKS_DISABLED:-}" != "1" ] && [ -x "$PLUGIN_ROOT/scripts/prune-agents.sh" ]; then
     FCOUNT=$(find "$ROOT/.agents" -type f 2>/dev/null | wc -l | tr -d ' ')
     if [ "${FCOUNT:-0}" -gt 500 ]; then
-        "$PLUGIN_ROOT/scripts/prune-agents.sh" > "$AO_DIR/prune-dry-run.log" 2>&1 || true
-        echo "⚠️ .agents/ has $FCOUNT files. Prune preview: $AO_DIR/prune-dry-run.log" >&2
+        if [ "${AGENTOPS_PRUNE_AUTO:-}" = "1" ]; then
+            "$PLUGIN_ROOT/scripts/prune-agents.sh" --execute --quiet > "$AO_DIR/prune-auto.log" 2>&1 || true
+            echo "🗑️ .agents/ had $FCOUNT files. Auto-pruned. Log: $AO_DIR/prune-auto.log" >&2
+            echo "   Disable with: AGENTOPS_PRUNE_AUTO=0" >&2
+        else
+            "$PLUGIN_ROOT/scripts/prune-agents.sh" > "$AO_DIR/prune-dry-run.log" 2>&1 || true
+            echo "⚠️ .agents/ has $FCOUNT files. Prune preview: $AO_DIR/prune-dry-run.log" >&2
+            echo "   Enable auto-prune: AGENTOPS_PRUNE_AUTO=1" >&2
+        fi
     fi
 fi
 

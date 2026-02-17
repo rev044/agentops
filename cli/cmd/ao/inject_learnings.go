@@ -153,8 +153,24 @@ func applyConfidenceDecay(l learning, filePath string, now time.Time) learning {
 				VerbosePrintf("Applied confidence decay to %s: %.3f -> %.3f (%.1f weeks)\n",
 					l.ID, confidence, newConfidence, weeksSinceInteraction)
 
+				// Write back decayed confidence to file
+				data["confidence"] = newConfidence
+				data["last_decay_at"] = now.Format(time.RFC3339)
+
+				// Increment decay_count (default 0)
+				decayCount := 0.0
+				if dc, ok := data["decay_count"].(float64); ok {
+					decayCount = dc
+				}
+				data["decay_count"] = decayCount + 1
+
+				newJSON, marshalErr := json.Marshal(data)
+				if marshalErr == nil {
+					lines[0] = string(newJSON)
+					_ = os.WriteFile(filePath, []byte(strings.Join(lines, "\n")), 0644)
+				}
+
 				// Update the learning's composite score weight
-				// (actual file update happens in separate decay command)
 				l.Utility = l.Utility * (newConfidence / confidence)
 			}
 		}

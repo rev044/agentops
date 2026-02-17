@@ -4,6 +4,8 @@
 # Usage:
 #   ./scripts/prune-agents.sh              # Dry run (default) — show what would be deleted
 #   ./scripts/prune-agents.sh --execute    # Actually delete files
+#   ./scripts/prune-agents.sh --quiet      # Suppress per-file output (summary only)
+#   ./scripts/prune-agents.sh --execute --quiet  # Auto-prune with minimal output
 #
 # Policies defined in .agents/README.md ## Pruning section.
 # Never touches: learnings/, patterns/, plans/, research/, retros/ (knowledge assets)
@@ -15,13 +17,22 @@ DRY_RUN=true
 TOTAL_FILES=0
 TOTAL_BYTES=0
 
-if [[ "${1:-}" == "--execute" ]]; then
-    DRY_RUN=false
-    echo "=== EXECUTE MODE — files will be deleted ==="
-else
-    echo "=== DRY RUN — no files will be deleted (pass --execute to delete) ==="
+QUIET=false
+for arg in "$@"; do
+    case "$arg" in
+        --execute) DRY_RUN=false ;;
+        --quiet) QUIET=true ;;
+    esac
+done
+
+if [[ "$QUIET" == false ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "=== DRY RUN — no files will be deleted (pass --execute to delete) ==="
+    else
+        echo "=== EXECUTE MODE — files will be deleted ==="
+    fi
+    echo ""
 fi
-echo ""
 
 # Helper: list files to prune, sorted oldest first
 prune_keep_newest() {
@@ -37,12 +48,12 @@ prune_keep_newest() {
     count=$(find "$dir" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')
 
     if [[ "$count" -le "$keep" ]]; then
-        echo "[$label] $count files — within limit ($keep). Nothing to prune."
+        [[ "$QUIET" == false ]] && echo "[$label] $count files — within limit ($keep). Nothing to prune."
         return
     fi
 
     local to_delete=$((count - keep))
-    echo "[$label] $count files — keeping newest $keep, pruning $to_delete"
+    [[ "$QUIET" == false ]] && echo "[$label] $count files — keeping newest $keep, pruning $to_delete"
 
     # List oldest files first (by modification time)
     find "$dir" -maxdepth 1 -type f -print0 2>/dev/null \
@@ -54,10 +65,10 @@ prune_keep_newest() {
             TOTAL_BYTES=$((TOTAL_BYTES + size))
             TOTAL_FILES=$((TOTAL_FILES + 1))
             if [[ "$DRY_RUN" == true ]]; then
-                echo "  would delete: $f ($(numfmt_size "$size"))"
+                [[ "$QUIET" == false ]] && echo "  would delete: $f ($(numfmt_size "$size"))"
             else
                 rm -f "$f"
-                echo "  deleted: $f ($(numfmt_size "$size"))"
+                [[ "$QUIET" == false ]] && echo "  deleted: $f ($(numfmt_size "$size"))"
             fi
         done
 }
@@ -76,11 +87,11 @@ prune_older_than() {
     found=$(find "$dir" -maxdepth 1 -name "$pattern" -type f -mtime +"$days" 2>/dev/null | wc -l | tr -d ' ')
 
     if [[ "$found" -eq 0 ]]; then
-        echo "[$label] No files older than ${days}d matching '$pattern'. Nothing to prune."
+        [[ "$QUIET" == false ]] && echo "[$label] No files older than ${days}d matching '$pattern'. Nothing to prune."
         return
     fi
 
-    echo "[$label] $found files older than ${days}d"
+    [[ "$QUIET" == false ]] && echo "[$label] $found files older than ${days}d"
 
     find "$dir" -maxdepth 1 -name "$pattern" -type f -mtime +"$days" -print0 2>/dev/null \
         | while IFS= read -r -d '' f; do
@@ -89,10 +100,10 @@ prune_older_than() {
             TOTAL_BYTES=$((TOTAL_BYTES + size))
             TOTAL_FILES=$((TOTAL_FILES + 1))
             if [[ "$DRY_RUN" == true ]]; then
-                echo "  would delete: $f ($(numfmt_size "$size"))"
+                [[ "$QUIET" == false ]] && echo "  would delete: $f ($(numfmt_size "$size"))"
             else
                 rm -f "$f"
-                echo "  deleted: $f ($(numfmt_size "$size"))"
+                [[ "$QUIET" == false ]] && echo "  deleted: $f ($(numfmt_size "$size"))"
             fi
         done
 }
@@ -112,7 +123,7 @@ numfmt_size() {
 
 # --- Policy: council/ — keep last 30 ---
 prune_keep_newest "$AGENTS_DIR/council" 30 "council"
-echo ""
+[[ "$QUIET" == false ]] && echo ""
 
 # --- Policy: tooling/ — keep last run only (newest date prefix) ---
 if [[ -d "$AGENTS_DIR/tooling" ]]; then
@@ -122,39 +133,39 @@ if [[ -d "$AGENTS_DIR/tooling" ]]; then
         # Since tooling has no date-prefix convention, keep files from last 1 day
         old_tooling=$(find "$AGENTS_DIR/tooling" -maxdepth 1 -type f -mtime +1 2>/dev/null | wc -l | tr -d ' ')
         if [[ "$old_tooling" -gt 0 ]]; then
-            echo "[tooling] $tooling_count total files — $old_tooling older than 1 day"
+            [[ "$QUIET" == false ]] && echo "[tooling] $tooling_count total files — $old_tooling older than 1 day"
             find "$AGENTS_DIR/tooling" -maxdepth 1 -type f -mtime +1 -print0 2>/dev/null \
                 | while IFS= read -r -d '' f; do
                     size=$(stat -f%z "$f" 2>/dev/null || stat --format=%s "$f" 2>/dev/null || echo 0)
                     if [[ "$DRY_RUN" == true ]]; then
-                        echo "  would delete: $f"
+                        [[ "$QUIET" == false ]] && echo "  would delete: $f"
                     else
                         rm -f "$f"
-                        echo "  deleted: $f"
+                        [[ "$QUIET" == false ]] && echo "  deleted: $f"
                     fi
                 done
         else
-            echo "[tooling] $tooling_count files — all from recent run. Nothing to prune."
+            [[ "$QUIET" == false ]] && echo "[tooling] $tooling_count files — all from recent run. Nothing to prune."
         fi
     fi
 fi
-echo ""
+[[ "$QUIET" == false ]] && echo ""
 
 # --- Policy: knowledge/pending/ — older than 14 days ---
 prune_older_than "$AGENTS_DIR/knowledge/pending" 14 "*.md" "knowledge/pending"
-echo ""
+[[ "$QUIET" == false ]] && echo ""
 
 # --- Policy: rpi/ phase summaries — older than 30 days ---
 prune_older_than "$AGENTS_DIR/rpi" 30 "phase-*-summary-*" "rpi/phase-summaries"
-echo ""
+[[ "$QUIET" == false ]] && echo ""
 
 # --- Policy: ao/sessions/ — keep last 50 ---
 prune_keep_newest "$AGENTS_DIR/ao/sessions" 50 "ao/sessions"
-echo ""
+[[ "$QUIET" == false ]] && echo ""
 
 # --- Policy: handoff/ — keep last 10 ---
 prune_keep_newest "$AGENTS_DIR/handoff" 10 "handoff"
-echo ""
+[[ "$QUIET" == false ]] && echo ""
 
 # --- Summary ---
 echo "========================================"
@@ -165,8 +176,10 @@ else
     echo "PRUNE COMPLETE"
     echo "Files deleted: $TOTAL_FILES"
 fi
-echo ""
-echo "Protected directories (never pruned):"
-echo "  learnings/ patterns/ plans/ research/ retros/"
-echo ""
-echo "Recommendation: Add .agents/tooling/ to .gitignore (1.1GB of regenerable scanner output)"
+if [[ "$QUIET" == false ]]; then
+    echo ""
+    echo "Protected directories (never pruned):"
+    echo "  learnings/ patterns/ plans/ research/ retros/"
+    echo ""
+    echo "Recommendation: Add .agents/tooling/ to .gitignore (1.1GB of regenerable scanner output)"
+fi
