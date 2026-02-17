@@ -334,6 +334,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | `--count=N` | Override agent count per vendor (e.g., `--count=4` = 4 Claude, or 4+4 with --mixed). Subject to MAX_AGENTS=12 cap. |
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
+| `--technique=<name>` | Brainstorm technique (SCAMPER, six-hats, reverse). Only applicable to brainstorm mode. If omitted, unstructured brainstorm (current behavior). See `references/brainstorm-techniques.md`. |
 
 ---
 
@@ -352,6 +353,8 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 /council --deep --explorers=3 research upgrade patterns         # 12 agents (3 judges x 4)
 /council --preset=security-audit --deep validate the API        # attacker, defender, compliance
 /council brainstorm caching strategies for the API              # 2 judges explore options
+/council --technique=scamper brainstorm API improvements               # structured SCAMPER brainstorm
+/council --technique=six-hats brainstorm migration strategy            # parallel perspectives brainstorm
 /council research Redis vs Memcached for session storage        # 2 judges assess trade-offs
 /council validate the implementation plan in PLAN.md            # structured plan feedback
 ```

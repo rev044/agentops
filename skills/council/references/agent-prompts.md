@@ -182,6 +182,19 @@ Required JSON format:
 Then provide a Markdown explanation of your debate reasoning.
 ```
 
+## Brainstorm Technique Injection
+
+When `--technique` is specified, inject the technique's prompt template into each judge's instructions BEFORE the standard brainstorm prompt. The technique prompt is loaded from `references/brainstorm-techniques.md`.
+
+Template:
+```
+{TECHNIQUE_PROMPT_INJECTION}
+
+In addition to the technique framework above, also provide your independent creative analysis.
+```
+
+If `--technique` is used with a non-brainstorm task type (validate, research), log a warning and ignore the flag.
+
 ## Consolidation Prompt
 
 **Codex output format note:** When Codex judges used `--output-schema`, their output files are pure JSON (`.json` extension) conforming to `skills/council/schemas/verdict.json`. Parse directly with JSON. When fallback was used, output files are markdown (`.md` extension) with a JSON code block that must be extracted (current behavior). Check file extension to determine parse strategy.
