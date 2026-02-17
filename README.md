@@ -6,7 +6,7 @@
 
 ### The missing DevOps layer for coding agents. Give it a goal, it ships validated code — and remembers what worked.
 
-*Context orchestration for every phase — research, planning, validation, execution.*
+*Context orchestration for every phase — research, planning, validation, execution. Each session learns from the last, so your agent compounds knowledge over time.*
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 
@@ -18,7 +18,7 @@
 
 **Quickstart (TL;DR):**
 
-Recommended (skills install):
+Skills install (start here):
 
 ```bash
 npx skills@latest add boshu2/agentops --all -g
@@ -73,6 +73,16 @@ What makes this different from "write spec → implement → check against spec 
 - **Open Code:** plugin support for OpenCode's read-only `skill` tool, with extra hooks for tool enrichment, audit logging, and compaction resilience. Great if you prefer OpenCode or self-hosted models.
 
 This repo distills the best parts of Gas Town dispatch and Ralph Loops (fresh context per wave) into skills, hooks, and filesystem artifacts you can run inside your agent.
+
+**Distributed mode (`/swarm --mode=distributed`):** when you need full orchestration beyond local mode (tmux + Agent Mail).
+
+- **Process isolation**: each worker runs in its own tmux session (not sharing the lead's process)
+- **Crash recovery**: workers survive if the Mayor disconnects (tmux sessions persist)
+- **Agent Mail messaging**: ACCEPTED, PROGRESS, DONE, HELP_REQUEST
+- **File reservations**: conflict detection before workers edit shared files
+- **Debuggable**: `tmux attach -t <session>` to inspect stuck workers live
+
+When to use: long-running work (>10 min), you might disconnect, you need to debug stuck workers, or you need robust multi-file coordination. Full spec: `skills/swarm/references/distributed-mode.md` (and Agent Mail setup: `docs/agent-mail.md`).
 
 ---
 
