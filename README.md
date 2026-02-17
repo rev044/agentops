@@ -4,7 +4,7 @@
 
 # AgentOps
 
-### DevOps for coding agents. Give it a goal, it ships validated code — and remembers what worked.
+### The missing DevOps layer for coding agents. Give it a goal, it ships validated code — and remembers what worked.
 
 *Context orchestration for every phase — research, planning, validation, execution.*
 

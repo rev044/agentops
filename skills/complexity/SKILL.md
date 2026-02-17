@@ -3,7 +3,9 @@ name: complexity
 description: 'Analyze code complexity and find refactor targets using radon/gocyclo. Triggers: "complexity", "analyze complexity", "find complex code", "refactor targets", "cyclomatic complexity", "code metrics".'
 metadata:
   tier: solo
-  dependencies: []
+  dependencies:
+    - standards   # optional - loaded for code validation context
+    - doc         # optional - for documentation and non-code artifacts
 ---
 
 # Complexity Skill
