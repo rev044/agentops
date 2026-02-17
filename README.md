@@ -8,7 +8,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-39-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-42-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Skills](#skills) · [How It Works](#how-it-works) · [FAQ](#faq)
@@ -39,6 +39,8 @@ Every coding agent session starts from scratch. Your agent doesn't know what you
 If you've done agile, SCRUM, or any spec-driven workflow — you already know the fix: iterative feedback loops with institutional memory. Research, plan, build, review, learn, repeat. None of that is new.
 
 What's new is that agents need it **automated**. A human developer carries context between sprints naturally. An agent doesn't — it gets a blank context window every session. AgentOps automates the feedback loop so the agent accumulates expertise the way a team does across sprints: learnings are extracted, quality-gated, and injected into the next session automatically.
+
+**The fix:** apply DevOps' Three Ways (flow, feedback, continual learning) to every step of the agent loop, then compound memory between sessions (extract → score → inject).
 
 **The building blocks:** primitives you can mix and match into a custom pipeline that fits your workflow.
 
@@ -279,7 +281,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## Skills
 
-39 skills: 29 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
+42 skills: 32 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
 
 | Scope | Skill | What it does |
 |-------|-------|-------------|
