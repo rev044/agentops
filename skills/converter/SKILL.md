@@ -41,10 +41,12 @@ Transform the SkillBundle into the target platform's format:
 
 | Target | Output Format | Status |
 |--------|---------------|--------|
-| `codex` | Codex agents.md + instructions | Planned (ag-hm6.5) |
-| `cursor` | Cursor rules directory | Planned (ag-hm6.6) |
+| `codex` | Codex SKILL.md + prompt.md | Implemented |
+| `cursor` | Cursor .mdc rule + optional mcp.json | Implemented |
 
-Until a target adapter is implemented, the converter outputs the raw parsed SkillBundle as structured markdown for inspection.
+The Codex adapter produces a `SKILL.md` (body + inlined references + scripts as code blocks) and a `prompt.md` (Codex prompt referencing the skill). Descriptions are truncated to 1024 chars at a word boundary if needed.
+
+The Cursor adapter produces a `<name>.mdc` rule file with YAML frontmatter (`description`, `globs`, `alwaysApply: false`) and body content. References are inlined into the body, scripts are included as code blocks. Output is budget-fitted to 100KB max -- references are omitted largest-first if the total exceeds the limit. If the skill references MCP servers, a `mcp.json` stub is also generated.
 
 ### Stage 3: Write
 
@@ -74,8 +76,8 @@ bash skills/converter/scripts/convert.sh --all <target> [output-dir]
 
 ## Supported Targets
 
-- **codex** -- Convert to OpenAI Codex agent format (instructions file + metadata). See ag-hm6.5.
-- **cursor** -- Convert to Cursor rules format (`.cursor/rules/` directory layout). See ag-hm6.6.
+- **codex** -- Convert to OpenAI Codex format (SKILL.md + prompt.md). Output: `<dir>/SKILL.md` and `<dir>/prompt.md`.
+- **cursor** -- Convert to Cursor rules format (`.mdc` rule file + optional `mcp.json`). Output: `<dir>/<name>.mdc` and optionally `<dir>/mcp.json`.
 - **test** -- Emit the raw SkillBundle as structured markdown. Useful for debugging the parse stage.
 
 ## Extending

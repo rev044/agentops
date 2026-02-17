@@ -138,15 +138,163 @@ convert_test() {
   CONVERTED_FILENAME="bundle.md"
 }
 
-# Stub for future targets
+# Codex target: SKILL.md + prompt.md
+# Codex skills live at ~/.codex/skills/<name>/SKILL.md
+# Codex prompts live at ~/.codex/prompts/<name>.md
+# Description max 1024 chars, no hooks support, tool names pass through
 convert_codex() {
-  echo "WARN: codex adapter not yet implemented (ag-hm6.5). Falling back to test output." >&2
-  convert_test
+  local desc="$BUNDLE_DESC"
+
+  # Truncate description to 1024 chars at word boundary
+  if [[ ${#desc} -gt 1024 ]]; then
+    desc="${desc:0:1021}"
+    # Trim to last word boundary (space)
+    desc="${desc% *}..."
+  fi
+
+  # ── Build SKILL.md ──
+  local skill_md=""
+  skill_md+="# ${BUNDLE_NAME}"$'\n\n'
+  skill_md+="${desc}"$'\n\n'
+  skill_md+="${BUNDLE_BODY}"$'\n'
+
+  # Inline references as appended sections
+  if [[ ${#REF_NAMES[@]} -gt 0 ]]; then
+    skill_md+=$'\n'"---"$'\n\n'
+    skill_md+="## References"$'\n\n'
+    local i
+    for i in "${!REF_NAMES[@]}"; do
+      skill_md+="### ${REF_NAMES[$i]}"$'\n\n'
+      skill_md+="${REF_CONTENTS[$i]}"$'\n\n'
+    done
+  fi
+
+  # Inline scripts as code blocks
+  if [[ ${#SCRIPT_NAMES[@]} -gt 0 ]]; then
+    skill_md+=$'\n'"---"$'\n\n'
+    skill_md+="## Scripts"$'\n\n'
+    local i
+    for i in "${!SCRIPT_NAMES[@]}"; do
+      # Detect language from extension
+      local ext="${SCRIPT_NAMES[$i]##*.}"
+      local lang=""
+      case "$ext" in
+        sh|bash) lang="bash" ;;
+        py)      lang="python" ;;
+        js)      lang="javascript" ;;
+        ts)      lang="typescript" ;;
+        *)       lang="$ext" ;;
+      esac
+      skill_md+="### ${SCRIPT_NAMES[$i]}"$'\n\n'
+      skill_md+="\`\`\`${lang}"$'\n'
+      skill_md+="${SCRIPT_CONTENTS[$i]}"$'\n'
+      skill_md+="\`\`\`"$'\n\n'
+    done
+  fi
+
+  # ── Build prompt.md ──
+  local prompt_md=""
+  prompt_md+="# ${BUNDLE_NAME}"$'\n\n'
+  prompt_md+="${desc}"$'\n\n'
+  prompt_md+="## Instructions"$'\n\n'
+  prompt_md+="Load and follow the skill instructions from \`~/.codex/skills/${BUNDLE_NAME}/SKILL.md\`."$'\n'
+
+  # Set primary output (SKILL.md)
+  CONVERTED_OUTPUT="$skill_md"
+  CONVERTED_FILENAME="SKILL.md"
+
+  # Set secondary output (prompt.md)
+  CONVERTED_OUTPUT_2="$prompt_md"
+  CONVERTED_FILENAME_2="prompt.md"
 }
 
+# Cursor target: .mdc rule file with YAML frontmatter + optional mcp.json
+# Cursor rules format: .cursor/rules/<name>.mdc (Cursor 0.40+)
+# Max output size: 100KB (102400 bytes). References are budget-fitted.
+CURSOR_MAX_BYTES=102400
+
 convert_cursor() {
-  echo "WARN: cursor adapter not yet implemented (ag-hm6.6). Falling back to test output." >&2
-  convert_test
+  local out=""
+
+  # ── YAML frontmatter ──
+  out+="---"$'\n'
+  out+="description: ${BUNDLE_DESC}"$'\n'
+  out+="globs: "$'\n'
+  out+="alwaysApply: false"$'\n'
+  out+="---"$'\n\n'
+
+  # ── Body content ──
+  out+="${BUNDLE_BODY}"$'\n'
+
+  # ── Scripts as code blocks (included before references — smaller, higher value) ──
+  if [[ ${#SCRIPT_NAMES[@]} -gt 0 ]]; then
+    out+=$'\n'"## Scripts"$'\n\n'
+    local i
+    for i in "${!SCRIPT_NAMES[@]}"; do
+      local ext="${SCRIPT_NAMES[$i]##*.}"
+      local lang=""
+      case "$ext" in
+        sh|bash) lang="bash" ;;
+        py)      lang="python" ;;
+        js)      lang="javascript" ;;
+        ts)      lang="typescript" ;;
+        *)       lang="$ext" ;;
+      esac
+      out+="### ${SCRIPT_NAMES[$i]}"$'\n\n'
+      out+="\`\`\`${lang}"$'\n'
+      out+="${SCRIPT_CONTENTS[$i]}"$'\n'
+      out+="\`\`\`"$'\n\n'
+    done
+  fi
+
+  # ── Inline references (budget-fitted to stay under CURSOR_MAX_BYTES) ──
+  if [[ ${#REF_NAMES[@]} -gt 0 ]]; then
+    local current_size=${#out}
+    local budget=$(( CURSOR_MAX_BYTES - current_size - 200 ))  # 200 byte margin for section header + omission note
+    local ref_section=""
+    local omitted=0
+    local i
+
+    ref_section+=$'\n'"## References"$'\n\n'
+    for i in "${!REF_NAMES[@]}"; do
+      local entry=""
+      entry+="### ${REF_NAMES[$i]}"$'\n\n'
+      entry+="${REF_CONTENTS[$i]}"$'\n\n'
+      local entry_size=${#entry}
+
+      if [[ $budget -ge $entry_size ]]; then
+        ref_section+="$entry"
+        budget=$(( budget - entry_size ))
+      else
+        omitted=$(( omitted + 1 ))
+      fi
+    done
+
+    if [[ $omitted -gt 0 ]]; then
+      ref_section+="*${omitted} reference(s) omitted to stay under 100KB size limit.*"$'\n\n'
+      echo "WARN: ${BUNDLE_NAME}: omitted $omitted reference(s) to stay under 100KB" >&2
+    fi
+
+    out+="$ref_section"
+  fi
+
+  CONVERTED_OUTPUT="$out"
+  CONVERTED_FILENAME="${BUNDLE_NAME}.mdc"
+
+  # ── MCP detection: scan body + references for MCP server references ──
+  # If skill content references MCP servers, generate a stub mcp.json
+  local all_content="${BUNDLE_BODY}"
+  local i
+  for i in "${!REF_CONTENTS[@]}"; do
+    all_content+=$'\n'"${REF_CONTENTS[$i]}"
+  done
+
+  if echo "$all_content" | grep -qiE '(mcpServers|mcp_server|"mcp"|mcp\.json)'; then
+    CONVERTED_OUTPUT_2='{
+  "mcpServers": {}
+}'
+    CONVERTED_FILENAME_2="mcp.json"
+  fi
 }
 
 run_convert() {
@@ -172,6 +320,12 @@ write_output() {
 
   echo "$CONVERTED_OUTPUT" > "$output_dir/$CONVERTED_FILENAME"
   echo "OK: $output_dir/$CONVERTED_FILENAME"
+
+  # Write secondary output if present (e.g., codex prompt.md)
+  if [[ -n "${CONVERTED_OUTPUT_2:-}" && -n "${CONVERTED_FILENAME_2:-}" ]]; then
+    echo "$CONVERTED_OUTPUT_2" > "$output_dir/$CONVERTED_FILENAME_2"
+    echo "OK: $output_dir/$CONVERTED_FILENAME_2"
+  fi
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────
@@ -199,6 +353,12 @@ convert_one_skill() {
   elif [[ "$output_dir" != /* ]]; then
     output_dir="$REPO_ROOT/$output_dir"
   fi
+
+  # Reset output variables
+  CONVERTED_OUTPUT=""
+  CONVERTED_FILENAME=""
+  CONVERTED_OUTPUT_2=""
+  CONVERTED_FILENAME_2=""
 
   run_convert "$target"
   write_output "$output_dir"
