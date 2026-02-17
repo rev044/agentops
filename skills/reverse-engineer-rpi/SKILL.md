@@ -28,6 +28,7 @@ python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py ao \
   --authorized \
   --mode=binary \
   --binary-path="$(command -v ao)" \
+  --materialize-archives \
   --output-dir=".agents/research/ao/"
 ```
 
@@ -78,6 +79,10 @@ Core outputs under `output_dir/`:
 7. `spec-cli-surface.md` (only if a CLI exists; otherwise a note is written to `spec-code-map.md`)
 8. `spec-clone-vs-use.md`
 9. `spec-clone-mvp.md` (original MVP spec; do not copy from target)
+
+Binary-mode extras:
+- `binary-analysis.md` (best-effort summary)
+- `binary-embedded-archives.md` (index only; no dumps)
 
 If `--security-audit`, also create `output_dir/security/`:
 - `threat-model.md`

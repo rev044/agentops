@@ -69,6 +69,8 @@ python3 "$SKILL/scripts/reverse_engineer_rpi.py" demo \
   --mode=binary \
   --binary-path="$BIN" \
   --docs-sitemap-url="file://$SITEMAP" \
+  --materialize-archives \
+  --local-clone-dir="$TMP/local-demo" \
   --output-dir="$OUT1"
 
 python3 "$OUT1/validate-feature-registry.py"
@@ -79,6 +81,8 @@ python3 "$SKILL/scripts/reverse_engineer_rpi.py" demo \
   --binary-path="$BIN" \
   --docs-sitemap-url="file://$SITEMAP" \
   --output-dir="$OUT2" \
+  --materialize-archives \
+  --local-clone-dir="$TMP/local-demo" \
   --security-audit \
   --sbom
 

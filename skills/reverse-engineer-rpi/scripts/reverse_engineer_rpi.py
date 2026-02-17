@@ -208,6 +208,9 @@ def main() -> int:
             ],
             check=True,
         )
+        ba = tmp_dir / "binary" / "binary-analysis.md"
+        if ba.exists():
+            shutil.copyfile(ba, output_dir / "binary-analysis.md")
 
         # Embedded archive inventory (index only by default; does not dump content into output_dir).
         _run(
