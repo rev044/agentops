@@ -4,7 +4,7 @@
 
 # AgentOps
 
-### The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.
+### DevOps for coding agents. Give it a goal, it ships validated code — and remembers what worked.
 
 *Context orchestration for every phase — research, planning, validation, execution.*
 
@@ -20,7 +20,7 @@
 
 ---
 
-**It's the context window, not the model.** When your agent does everything in one conversation, the window fills up with stuff it doesn't need by the time it's actually writing code. That's why results are inconsistent.
+**The context window determines quality.** When your agent does everything in one conversation, the window fills up with stuff it doesn't need by the time it's actually writing code. That's why results are inconsistent.
 
 I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session compounds on the last.
 
@@ -30,7 +30,7 @@ What makes this different from "write spec → implement → check against spec 
 
 1. **It remembers across sessions.** The system extracts what worked, what failed, and what patterns emerged — then injects that knowledge into the next session. Session 10 is smarter than session 1 because it learned from 1–9.
 2. **It self-corrects.** Validation happens *before* coding (pre-mortem simulates failures on the plan) and *after* (multi-model council reviews the code). Failures retry automatically with context. No human escalation unless it fails 3 times.
-3. **It's composable, not prescribed.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
+3. **Every skill works standalone.** Use one skill or all of them. Wire them together when you're ready. `/rpi "goal"` runs the full lifecycle, but you don't have to start there.
 
 [Detailed comparisons →](docs/comparisons/) · Works with **Claude Code**, **Codex CLI**, **Cursor**, **Open Code** — any agent that supports [Skills](https://skills.sh).
 
@@ -236,7 +236,7 @@ Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't
 
 ## The Flywheel
 
-This is what makes AgentOps different. The system doesn't just run — it compounds.
+This is what makes AgentOps different. Each session learns from every session before it.
 
 ```
   /rpi "goal A"
@@ -255,21 +255,13 @@ This is what makes AgentOps different. The system doesn't just run — it compou
     └── ...repeat forever
 ```
 
-Post-mortem doesn't just wrap up. It analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The system grows its knowledge stock with each cycle.
+Post-mortem analyzes every learning from the retro, asks "what process would this improve?", and writes concrete improvement proposals. Then it hands you a ready-to-copy `/rpi` command targeting the highest-priority improvement. You come back, paste it, walk away. The knowledge base grows with each cycle.
 
 Learnings pass quality gates (specificity, actionability, novelty) and land in gold/silver/bronze tiers. [MemRL](https://arxiv.org/abs/2502.06173)-inspired freshness decay ensures recent insights outweigh stale patterns.
 
 ### Goal-Driven Mode: `/evolve`
 
 Define fitness goals in `GOALS.yaml`, then `/evolve` measures them, picks the worst gap, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
-
----
-
-## From Vision to Execution
-
-`/product` defines the vision. `/research` explores the landscape. `/plan` decomposes into issues with dependency waves. `/crank` spawns fresh-context workers per wave. `/vibe` validates. `/post-mortem` extracts learnings and suggests the next `/rpi` command. `/evolve` loops until all `GOALS.yaml` fitness goals pass.
-
-You define the town. The system builds it house by house — each cycle compounds on the last.
 
 ---
 
