@@ -230,15 +230,35 @@ CORE SKILLS (start here)
 /implement  - execute a single task
 /vibe       - review code quality
 /status     - see what you're working on
-
-Ready for more? Say "show all skills" or run /status for suggestions.
 ```
 
 For the complete catalog, use the Read tool on `skills/quickstart/references/full-catalog.md`.
 
-### Step 7: Suggest Next Steps
+### Step 7: The Path Forward
 
-Based on project state, suggest the most useful next action:
+Present the progression from standalone skills to hands-free improvement:
+
+```
+When you're comfortable with individual skills:
+
+  /rpi "goal"              ← full lifecycle: research → plan → validate → ship → learn
+                              One command does everything you just did, end to end.
+
+  /product                 ← define your mission, personas, and value props
+                              Creates PRODUCT.md — the identity your agent works from.
+
+  /goals generate          ← scan your repo and propose fitness goals
+                              Mechanically verifiable checks in GOALS.yaml.
+
+  /evolve                  ← measure goals, fix the worst gap, compound
+                              Hands-free improvement loop. Runs /rpi per gap,
+                              auto-reverts regressions, suggests next work.
+
+The path:
+  /quickstart → individual skills → /rpi → /product → /goals → /evolve
+```
+
+Then suggest the most useful immediate next action based on project state:
 
 | State | Suggestion |
 |-------|------------|
@@ -246,7 +266,7 @@ Based on project state, suggest the most useful next action:
 | Open issues/TODOs | "Try `/plan` to decompose a goal into trackable issues" |
 | Complex codebase, new to it | "Try `/research <area>` to understand a specific area" |
 | Bug reports or failures | "Try `/bug-hunt` to investigate systematically" |
-| Clean state, looking for work | "Try `/research` to find improvement opportunities" |
+| Clean state, looking for work | "Try `/rpi \"<improvement from mini-research>\"` to run the full lifecycle" |
 
 **Graduation hints** (state-aware, based on pre-flight + detection):
 
