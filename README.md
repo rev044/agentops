@@ -8,8 +8,9 @@
 
 *Context orchestration for every phase — research, planning, validation, execution.*
 
-[![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.9.3-brightgreen)](CHANGELOG.md)
+
+Claude · Codex · Cursor · OpenCode
 
 [See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
