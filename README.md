@@ -36,11 +36,11 @@ Requires Node.js 18+. Then type `/quickstart` in your agent chat.
 
 Every coding agent session starts from scratch. Your agent doesn't know what you decided last week, what patterns worked, or what failed. You re-explain the same context, re-discover the same bugs, re-make the same decisions.
 
-If you've done agile, SCRUM, or any spec-driven workflow — you already know the fix: iterative feedback loops with institutional memory. Research, plan, build, review, learn, repeat. None of that is new.
+If you've done agile, SCRUM, or any spec-driven workflow — you already know the loop: iterative feedback loops with institutional memory. Research, plan, build, review, learn, repeat. None of that is new.
 
 What's new is that agents need it **automated**. A human developer carries context between sprints naturally. An agent doesn't — it gets a blank context window every session. AgentOps automates the feedback loop so the agent accumulates expertise the way a team does across sprints: learnings are extracted, quality-gated, and injected into the next session automatically.
 
-**The fix:** apply DevOps' Three Ways to the agent loop, then compound memory between sessions.
+**DevOps' Three Ways:** flow, feedback, continual learning. AgentOps applies them to the agent loop, then compounds memory between sessions.
 
 **The building blocks:** primitives you can mix and match into a custom pipeline that fits your workflow.
 
