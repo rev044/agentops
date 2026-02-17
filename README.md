@@ -325,14 +325,21 @@ These are fellow experiments in making coding agents work. Use pieces from any o
 
 Optional. The CLI is plumbing — skills and hooks call it automatically. Install via the [Full setup](#install) section above.
 
-**The three commands you'll actually type:**
+**The killer feature:** run the full lifecycle from your terminal — no chat session required:
 ```bash
-ao rpi phased "goal"   # Full lifecycle, fresh context per phase
+ao rpi phased "add rate limiting"   # Spawns Claude, runs research → plan → ship → learn
+ao rpi phased "fix auth bug" &      # Run multiple in parallel (auto-worktrees)
+ao rpi phased --from=crank ag-058   # Resume from any phase
+```
+Each phase gets its own fresh context window. Walk away, come back to committed code + extracted learnings.
+
+**Other commands you'll use:**
+```bash
 ao search "query"      # Search knowledge across files and chat history
 ao demo                # Interactive demo
 ```
 
-Everything else runs automatically. Full reference: [CLI Commands](cli/docs/COMMANDS.md)
+Full reference: [CLI Commands](cli/docs/COMMANDS.md)
 
 ---
 
