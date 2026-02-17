@@ -10,13 +10,6 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/badge/version-2.9.3-brightgreen)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-37-7c3aed)](skills/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/anthropics/claude-code)
-[![Codex CLI](https://img.shields.io/badge/Codex_CLI-Compatible-green)](https://github.com/openai/codex)
-[![OpenCode](https://img.shields.io/badge/OpenCode-Plugin-orange)](https://opencode.ai)
-[![Cursor](https://img.shields.io/badge/Cursor-Compatible-blue)](https://cursor.com)
-[![Windsurf](https://img.shields.io/badge/Windsurf-Compatible-teal)](https://windsurf.com)
 
 [See It Work](#see-it-work) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
