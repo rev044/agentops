@@ -17,21 +17,6 @@
 
 ---
 
-> [!IMPORTANT]
-> **Local-only. No telemetry. No cloud. No accounts.** All state lives in `.agents/` inside your repo (git-ignored by default). Skills install globally (outside your repo; for Claude Code: `~/.claude/skills/`). Optional hooks register in `.claude/settings.json` — disable all instantly with `AGENTOPS_HOOKS_DISABLED=1`. Uninstall: `npx skills@latest remove boshu2/agentops -g`. Everything is [open source](cli/) — audit it yourself.
-
-```bash
-# Claude Code, Codex CLI, Cursor (most users)
-npx skills@latest add boshu2/agentops --all -g
-
-# OpenCode
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
-```
-
-Requires Node.js 18+. Then type `/quickstart` in your agent chat.
-
----
-
 ## The Problem
 
 Every coding agent session starts from scratch. Your agent doesn't know what you decided last week, what patterns worked, or what failed. You re-explain the same context, re-discover the same bugs, re-make the same decisions.
@@ -128,6 +113,19 @@ Your agent reads these automatically at session start — no CLI required, just 
 ## Install
 
 Already installed from the commands above? Skip to [The Path](#the-path).
+
+> [!IMPORTANT]
+> **Local-only. No telemetry. No cloud. No accounts.** All state lives in `.agents/` inside your repo (git-ignored by default). Skills install globally (outside your repo; for Claude Code: `~/.claude/skills/`). Optional hooks register in `.claude/settings.json` — disable all instantly with `AGENTOPS_HOOKS_DISABLED=1`. Uninstall: `npx skills@latest remove boshu2/agentops -g`. Everything is [open source](cli/) — audit it yourself.
+
+```bash
+# Claude Code, Codex CLI, Cursor (most users)
+npx skills@latest add boshu2/agentops --all -g
+
+# OpenCode
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
+```
+
+Requires Node.js 18+. Then type `/quickstart` in your agent chat.
 
 ```bash
 # Claude Code plugin (alternative to skills)
