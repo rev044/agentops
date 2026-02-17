@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (26)
+### User-Facing Skills (27)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -44,6 +44,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **product** | solo | Interactive PRODUCT.md generation |
 | **recover** | solo | Post-compaction context recovery |
 | **trace** | solo | Trace design decisions |
+| **learn** | solo | Manual knowledge capture |
 | **update** | solo | Reinstall all AgentOps skills globally |
 
 ### Internal Skills (10) — `metadata.internal: true`
