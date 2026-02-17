@@ -45,7 +45,7 @@ Verify by asking: "do you have agentops?"
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | Plugin (agentops.js) | `~/.config/opencode/plugins/` | 7 hooks: system prompt injection, tool enrichment, audit logging, CLI paths, compaction resilience |
-| Skills (37 total) | `~/.config/opencode/skills/agentops/` | Full AgentOps skill set (research, plan, council, vibe, crank, etc.) |
+| Skills (38 total) | `~/.config/opencode/skills/agentops/` | Full AgentOps skill set (research, plan, council, vibe, crank, etc.) |
 
 ## Plugin Hooks
 

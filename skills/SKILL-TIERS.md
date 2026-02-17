@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (27)
+### User-Facing Skills (28)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -45,6 +45,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **recover** | solo | Post-compaction context recovery |
 | **trace** | solo | Trace design decisions |
 | **learn** | solo | Manual knowledge capture |
+| **reverse-engineer-rpi** | research | Reverse-engineer a product into feature catalog + code map + specs |
 | **update** | solo | Reinstall all AgentOps skills globally |
 
 ### Internal Skills (10) — `metadata.internal: true`
@@ -123,6 +124,7 @@ All validation skills depend on `/council`:
 | **release** | - | - (standalone) |
 | ratchet | - | - |
 | **recover** | - | - (standalone) |
+| **reverse-engineer-rpi** | - | - (standalone, research tier) |
 | research | knowledge, inject | optional, optional |
 | retro | - | - |
 | standards | - | - |
