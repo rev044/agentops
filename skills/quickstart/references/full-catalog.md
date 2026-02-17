@@ -12,8 +12,10 @@ All 27 user-facing skills organized by category.
   /rpi        - full lifecycle /release   - tag release  /handoff   - session handoff
 
   EXPLORE                      TRACK                    META
-  /research   - deep dive      /knowledge - query learn  /status   - dashboard
-  /bug-hunt   - investigate    /inbox     - agent mail   /recover  - restore context
-  /complexity - code metrics   /trace     - decisions    /product  - product definition
-  /doc        - generate docs  /retro     - learnings    /evolve   - goal-driven loop
+  /research   - deep dive      /knowledge - query learn  /status    - dashboard
+  /bug-hunt   - investigate    /inbox     - agent mail   /recover   - restore context
+  /complexity - code metrics   /trace     - decisions    /product   - product definition
+  /doc        - generate docs  /retro     - learnings    /evolve    - goal-driven loop
+                               /learn     - capture know  /quickstart - onboarding
+                               /beads     - issue track   /update    - reinstall skills
 ```
