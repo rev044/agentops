@@ -12,8 +12,12 @@ This directory contains shared reference documents used by multiple skills:
 
 - `agent-mail-protocol.md` - Message protocol for distributed mode coordination
 - `validation-contract.md` - Verification requirements for accepting spawned work
+- `references/backend-claude-teams.md` - Concrete examples for Claude native teams (`TeamCreate` + `SendMessage`)
+- `references/backend-codex-subagents.md` - Concrete examples for Codex CLI and Codex sub-agents
+- `references/backend-background-tasks.md` - Fallback: `Task(run_in_background=true)`
+- `references/backend-inline.md` - Degraded single-agent mode (no spawn)
 
-These are **not directly invocable skills**. They are loaded by other skills (crank, swarm, inbox, implement) when needed for distributed mode operation.
+These are **not directly invocable skills**. They are loaded by other skills (council, crank, swarm, research, implement) when needed.
 
 ---
 
@@ -55,7 +59,16 @@ Council, swarm, and crank require a runtime that provides these capabilities. If
 | **Graceful shutdown** | Request an agent to terminate | Agents terminate on their own when done. |
 | **Shared task list** | Agents see shared work state | Lead tracks manually. |
 
-Every runtime maps these capabilities to its own API. Skills describe WHAT to do, not WHICH tool to call. See `references/cli-spawning.md` in council/swarm for runtime-specific examples.
+Every runtime maps these capabilities to its own API. Skills describe WHAT to do, not WHICH tool to call.
+
+**After detecting your backend (see Backend Detection below), load the matching reference for concrete tool call examples:**
+
+| Backend | Reference |
+|---------|-----------|
+| Claude Native Teams | `skills/shared/references/backend-claude-teams.md` |
+| Codex Sub-Agents / CLI | `skills/shared/references/backend-codex-subagents.md` |
+| Background Tasks (fallback) | `skills/shared/references/backend-background-tasks.md` |
+| Inline (no spawn) | `skills/shared/references/backend-inline.md` |
 
 ### Backend Detection
 

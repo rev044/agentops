@@ -70,6 +70,12 @@ Before launching the explore agent, detect which backend is available:
 
 Record the selected backend — it will be included in the research output document for traceability.
 
+**Read the matching backend reference for concrete tool call examples:**
+- Codex → `skills/shared/references/backend-codex-subagents.md`
+- Claude Native Teams → `skills/shared/references/backend-claude-teams.md`
+- Background Tasks → `skills/shared/references/backend-background-tasks.md`
+- Inline → `skills/shared/references/backend-inline.md`
+
 ### Step 3: Launch Explore Agent
 
 **YOU MUST DISPATCH AN EXPLORATION AGENT NOW.** Select the backend using capability detection:

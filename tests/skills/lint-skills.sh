@@ -162,11 +162,19 @@ for skill_dir in "$SKILLS_DIR"/*/; do
 
     # --- (f) Referenced files must exist ---
     # Match patterns like references/foo.md, references/bar-baz.md
-    ref_paths=$(grep -oE 'references/[A-Za-z0-9_.-]+(\.[a-z]+)?' "$skill_md" 2>/dev/null || true)
+    # Also handles cross-skill references like skills/shared/references/foo.md
+    ref_paths=$(grep -oE '(skills/[a-z-]+/)?references/[A-Za-z0-9_.-]+(\.[a-z]+)?' "$skill_md" 2>/dev/null || true)
     if [ -n "$ref_paths" ]; then
         while IFS= read -r ref; do
             [ -z "$ref" ] && continue
-            if [ ! -f "$skill_dir/$ref" ]; then
+            if [[ "$ref" == skills/* ]]; then
+                # Cross-skill reference — resolve from repo root
+                check_path="$REPO_ROOT/$ref"
+            else
+                # Local reference — resolve from skill directory
+                check_path="$skill_dir/$ref"
+            fi
+            if [ ! -f "$check_path" ]; then
                 fail "$skill_name" "referenced file '$ref' does not exist"
                 skill_ok=false
             fi

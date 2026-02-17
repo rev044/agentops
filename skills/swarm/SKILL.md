@@ -57,7 +57,15 @@ Use runtime capability detection, not hardcoded tool names. Swarm requires:
 - **Spawn parallel subagents** — create workers that run concurrently
 - **Agent messaging** (optional) — for coordination and retry
 
-See `skills/shared/SKILL.md` for the capability contract. See `references/local-mode.md` for runtime-specific examples.
+See `skills/shared/SKILL.md` for the capability contract.
+
+**After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
+- Claude Native Teams → `skills/shared/references/backend-claude-teams.md`
+- Codex Sub-Agents / CLI → `skills/shared/references/backend-codex-subagents.md`
+- Background Tasks → `skills/shared/references/backend-background-tasks.md`
+- Inline (no spawn) → `skills/shared/references/backend-inline.md`
+
+See also `references/local-mode.md` for swarm-specific execution details (worktrees, validation, git commit policy, wave repeat).
 
 ### Step 1: Ensure Tasks Exist
 

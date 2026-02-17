@@ -55,7 +55,15 @@ Council requires a runtime that can **spawn parallel subagents** and (for `--deb
 - **Spawn subagent** — create a parallel agent with a prompt (required for all modes except `--quick`)
 - **Agent messaging** — send a message to a specific agent (required for `--debate`)
 
-Skills describe WHAT to do, not WHICH tool to call. See `skills/shared/SKILL.md` for the capability contract and `references/cli-spawning.md` for runtime-specific examples.
+Skills describe WHAT to do, not WHICH tool to call. See `skills/shared/SKILL.md` for the capability contract.
+
+**After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
+- Claude Native Teams → `skills/shared/references/backend-claude-teams.md`
+- Codex Sub-Agents / CLI → `skills/shared/references/backend-codex-subagents.md`
+- Background Tasks → `skills/shared/references/backend-background-tasks.md`
+- Inline (`--quick`) → `skills/shared/references/backend-inline.md`
+
+See also `references/cli-spawning.md` for council-specific spawning flow (phases, timeouts, output collection).
 
 ## When to Use `--debate`
 
