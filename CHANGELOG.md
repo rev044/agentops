@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-02-17
+
+### Added
+
+- **`/brainstorm` skill** — Structured idea exploration before `/plan`. Four phases: assess clarity, understand the idea, explore approaches, capture design decisions. Output goes to `.agents/brainstorm/`.
+- **`/heal-skill` skill** — Automated skill hygiene checker. Detects missing frontmatter, name mismatches, unlinked references, dead references, and empty directories. Supports `--check` (report) and `--fix` (auto-repair) modes.
+- **`/converter` skill** — Cross-platform skill converter pipeline (parse → convert → write). Codex target produces `SKILL.md` + `prompt.md` with 1024-char description truncation. Cursor target produces `.mdc` rule files with 100KB budget-fitting and optional `mcp.json` for MCP-referencing skills. Test target dumps raw SkillBundle for inspection.
+- **`/readme` skill** — Gold-standard README generation with council validation.
+- **Named council perspectives** — `--perspectives="a,b,c"` for free-form judge viewpoints, `--perspectives-file=<path>` for YAML-defined perspectives with focus descriptions. Perspectives override presets when both are specified.
+- **`doc-review` council preset** — Four perspectives for documentation quality review: clarity-editor, accuracy-verifier, completeness-auditor, audience-advocate.
+- **PRODUCT.md** — Product definition document with mission, personas, value props, and roadmap.
+- **`reverse-engineer-rpi` skill** — Reverse-engineer a product into feature inventory, registry, code map, and specs. Supports repo mode, binary mode (with `--authorized` guard), and security audit mode.
+
+### Changed
+
+- **README rewritten** — Lead with the problem ("agents forget between sessions"), acknowledge prior art, add trust block near install, collapse depth with details blocks. Terminal transcripts instead of assertions.
+- **Skill count** — 39 → 42 skills (32 user-facing, 10 internal). All counts synchronized across 8 files with CI validation.
+- **Council SKILL.md trimmed** — Consolidated named perspectives section to stay under 550-line limit. Preset details moved to `references/personas.md`.
+
+### Fixed
+
+- **Skill count validator** — Excluded `.tmp` directories from `find` count to prevent test artifacts inflating totals.
+- **`brainstorm` trigger collision** — Added `brainstorm` overlap between `/brainstorm` and `/council brainstorm` to alias collision allowlist.
+- **`readme` skill missing from SKILL-TIERS.md** — Added to user-facing skills table.
+- **Validation test failures** — Fixed heal-skill example text triggering false-positive dead-ref detection, council line count exceeding limit.
+
 ## [2.9.3] - 2026-02-16
 
 ### Changed

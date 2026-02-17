@@ -5,14 +5,14 @@
     "email": "fullerbt@users.noreply.github.com"
   },
   "metadata": {
-    "description": "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.",
-    "version": "2.9.3"
+    "description": "DevOps for coding agents: local-first pipelines, safety rails, and a knowledge flywheel that compounds between sessions.",
+    "version": "2.10.0"
   },
   "plugins": [
     {
       "name": "agentops",
-      "description": "The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.",
-      "version": "2.9.3",
+      "description": "DevOps for coding agents: local-first pipelines, safety rails, and a knowledge flywheel that compounds between sessions.",
+      "version": "2.10.0",
       "source": "./",
       "author": {
         "name": "Boden Fuller",
