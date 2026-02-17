@@ -8,7 +8,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/boshu2/agentops?style=social)](https://github.com/boshu2/agentops)
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-38-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-39-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Skills](#skills) · [How It Works](#how-it-works) · [FAQ](#faq)
@@ -267,7 +267,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## Skills
 
-38 skills: 28 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
+39 skills: 29 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
 
 | Scope | Skill | What it does |
 |-------|-------|-------------|
@@ -277,7 +277,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 | **Full lifecycle** | `/rpi` | Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem — one command |
 | **Hands-free loop** | `/evolve` | Measures fitness goals, picks the worst gap, ships a fix, rolls back regressions, repeats |
 
-**Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
+**Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/readme`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
 
 Full reference: [docs/SKILLS.md](docs/SKILLS.md)
 
