@@ -49,7 +49,7 @@ The missing DevOps layer for coding agents. Give it a goal, it ships validated c
 ├── hooks/                 # Session and git hooks
 │   ├── hooks.json
 │   ├── session-start.sh
-│   └── ...                # 13 hook scripts total
+│   └── ...                # 12 hook scripts total
 ├── cli/                   # Go CLI (ao command)
 ├── lib/                   # Shared code
 │   ├── skills-core.js

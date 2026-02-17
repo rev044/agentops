@@ -10,51 +10,26 @@
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 
-[See It Work](#see-it-work) · [Fits With](#how-agentops-fits-with-other-tools) · [Install](#install) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-agent-orchestration) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[See It Work](#see-it-work) · [Install](#install) · [Fits With](#how-agentops-fits-with-other-tools) · [The Workflow](#the-workflow) · [The Flywheel](#the-flywheel) · [Skills](#skills) · [Orchestration](#cross-runtime-agent-orchestration) · [The Science](#the-science) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
 ---
 
-**Quickstart:**
+**Pick your runtime, one command:**
 
-Skills install (start here):
+| Runtime | Install |
+|---------|---------|
+| **Claude Code, Codex, Cursor** | `npx skills@latest add boshu2/agentops --all -g` |
+| **OpenCode** | `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh \| bash` |
 
-```bash
-npx skills@latest add boshu2/agentops --all -g
-```
+Requires Node.js 18+. Then type `/quickstart` in your agent chat. Full lifecycle: `/rpi "your goal"`. Slash commands not appearing? Restart your agent, then `npx skills@latest update`. More install options: [Install](#install).
 
-Requires: Node.js 18+.
-
-Optional: Claude Code plugin install (if you prefer that):
-
-```bash
-claude plugin add boshu2/agentops
-```
-
-Optional: OpenCode install:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
-```
-
-Then in your coding agent chat:
-
-```text
-/quickstart
-```
-
-Next (full lifecycle):
-
-```text
-/rpi "your goal"
-```
-
-If slash commands don’t appear: restart your agent; then try `npx skills@latest update`. Optional CLI + hooks: see [Install](#install). Bigger goal? See [Phased RPI](#phased-rpi-own-your-context-window).
+**No data leaves your machine.** All state lives in `.agents/` inside your repo (git-ignored by default). No telemetry, no cloud, no accounts. Every gate has a kill switch (`AGENTOPS_HOOKS_DISABLED=1`). Apache-2.0.
 
 If you use Claude Code, Codex, Cursor, or OpenCode and wish your agent remembered what it learned last session — this is for you.
 
-**Every coding agent session starts at zero.** Knowledge decays at 17% per week without reinforcement ([Darr 1995](docs/the-science.md)). By week 4, half of what your agent learned is gone. By week 8, it's running on 22% of what it once knew.
+**Every coding agent session starts at zero.** One model of knowledge decay ([Darr 1995](docs/the-science.md)) suggests ~17% loss per week without reinforcement — your mileage will vary, but the direction is real: without a feedback loop, agents don't accumulate expertise.
 
 I come from DevOps, so I started treating my agent like a pipeline — isolated stages, validated gates, fresh context at each phase. Then I built a knowledge flywheel on top so each session could build on the last instead of starting over.
 
@@ -83,14 +58,14 @@ Consensus: WARN — add rate limiting before shipping
 
 **It remembers.** Three weeks later, different session:
 ```text
-> ao search "rate limiting"
+> /knowledge "rate limiting"
 
 1. .agents/learnings/2026-01-28-rate-limiting.md  (score: 0.92)
    [established] Token bucket with Redis — chose over sliding window for burst tolerance
 2. .agents/patterns/api-middleware.md  (score: 0.84)
    Pattern: rate limit at middleware layer, not per-handler
 ```
-Your agent reads these automatically at session start. No copy-paste, no "remember last time we..."
+Your agent reads these automatically at session start. No copy-paste, no "remember last time we..." (You can also search with `ao search` if you install the [optional CLI](#the-ao-cli).)
 
 **Wire it all together** when you're ready:
 ```text
@@ -156,6 +131,56 @@ Session 2 was faster and better because session 1's learnings were already in co
 
 ---
 
+## Install
+
+**Requires:** Node.js 18+ and a coding agent that supports [Skills](https://skills.sh) (Claude Code, Codex CLI, Cursor, Open Code).
+
+```bash
+npx skills@latest add boshu2/agentops --all -g
+```
+
+This installs all 37 skills. Then type `/quickstart` in your agent chat. That's it.
+
+**What changes in your repo:** Skills install to `~/.claude/skills/` (global, outside your repo). If you later add the optional CLI + hooks, `ao init` creates a `.agents/` directory (git-ignored) for knowledge artifacts and registers hooks in `.claude/settings.json`. Nothing modifies your source code. Disable everything instantly: `AGENTOPS_HOOKS_DISABLED=1`.
+
+<details>
+<summary>Full setup (CLI + hooks)</summary>
+
+```bash
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
+ao init              # Directories + .gitignore (idempotent)
+ao init --hooks      # + minimal hooks (SessionStart + Stop only — 2/8 events)
+ao init --hooks --full  # + all 12 hook scripts across 8 lifecycle events (recommended)
+```
+
+The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. All 37 skills work without it.
+
+</details>
+
+<details>
+<summary>OpenCode install</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
+```
+
+Installs the AgentOps plugin (7 hooks for tool enrichment, audit logging, and compaction resilience) and symlinks all 37 skills. Restart OpenCode after install. Full details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
+
+</details>
+
+<details>
+<summary>Other install methods</summary>
+
+**Claude Code plugin:** `claude plugin add boshu2/agentops`
+
+**Install script** (plugin + optional CLI + hooks): `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
+
+</details>
+
+Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
+
+---
+
 ## How AgentOps Fits With Other Tools
 
 These plugins aren't competitors — they're fellow experiments in making coding agents actually work. The whole point is to customize your workflow. Use pieces from any of them. Mix and match. None of these should feel like vendor lock-in.
@@ -172,82 +197,6 @@ These plugins aren't competitors — they're fellow experiments in making coding
 You don't pick one. You build a workflow that fits how you think. If GSD's context management works for you, use it alongside AgentOps' cross-session memory. If Compound Engineer's loop is your thing, plug in `/council` for the review step. The skills are modular for exactly this reason.
 
 [Detailed comparisons →](docs/comparisons/)
-
----
-
-## Install
-
-**Requires:** Node.js 18+ and a coding agent that supports [Skills](https://skills.sh) (Claude Code, Codex CLI, Cursor, Open Code).
-
-```bash
-npx skills@latest add boshu2/agentops --all -g
-```
-
-This installs all 37 skills. For lifecycle hooks (coding standards, git safety, task validation), see **Full setup** below.
-
-Then open your coding agent and type `/quickstart`. That's it.
-
-<details>
-<summary>Full setup (CLI + hooks)</summary>
-
-```bash
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-ao init              # Directories + .gitignore (idempotent)
-ao init --hooks      # + minimal hooks (SessionStart + Stop only — 2/8 events)
-ao init --hooks --full  # + all 13 hook scripts across 8 lifecycle events (recommended)
-```
-
-The `ao` CLI adds automatic knowledge injection/extraction, ratchet gates, and session lifecycle. `ao init` is the canonical setup command — creates all `.agents/` directories, configures `.gitignore`, and optionally registers hooks. All 37 skills work without it.
-
-</details>
-
-<details>
-<summary>OpenCode install</summary>
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
-```
-
-This installs the AgentOps plugin (7 hooks for tool enrichment, audit logging, and compaction resilience) and symlinks all 37 skills. Restart OpenCode after install.
-
-**Key difference from Claude Code:** OpenCode's `skill` tool is **read-only** — it loads skill content into context instead of executing it. The plugin handles this automatically with prescriptive tool mapping so models like Devstral know exactly which tools to call for each skill.
-
-Full details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
-
-</details>
-
-<details>
-<summary>Other install methods</summary>
-
-**Claude Code plugin path:**
-```bash
-claude plugin add boshu2/agentops
-```
-
-**Install script** (plugin + optional CLI + hooks):
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
-```
-
-</details>
-
-<details>
-<summary>Troubleshooting</summary>
-
-If slash commands don't appear: `npx skills@latest update`
-
-More: [docs/troubleshooting.md](docs/troubleshooting.md)
-
-</details>
-
-<details>
-<summary><strong>.gitignore</strong></summary>
-
-`ao init` automatically adds `.agents/` to your `.gitignore`. If you prefer stealth mode (no `.gitignore` modification), use `ao init --stealth` to write to `.git/info/exclude` instead. The session-start hook also auto-adds the entry as a safety net.
-
-If you're using beads for issue tracking: do **not** add `.beads/` to `.gitignore` (it's where issues live and should be committed).
-
-</details>
 
 ---
 
@@ -433,7 +382,7 @@ Take the pieces. Experiment. Create your own workflow. If you find something tha
 
 The idea comes from thermodynamics: a [Brownian Ratchet](docs/the-science.md) gets forward movement from random motion by only allowing progress in one direction. Same thing here — parallel agents produce noisy output, councils filter it, ratchets lock the gains.
 
-**Enforcement mechanisms (13 hooks across 8 lifecycle events):**
+**Enforcement mechanisms (12 hooks across 8 lifecycle events):**
 
 | Gate | What it does | Enforcement |
 |------|-------------|-------------|
@@ -463,7 +412,7 @@ Optional but recommended. The CLI is plumbing — skills and hooks call it autom
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-ao hooks install --full # All 13 hooks across 8 lifecycle events
+ao hooks install --full # All 12 hooks across 8 lifecycle events
 ```
 
 **The three commands you'll actually type:**
@@ -479,9 +428,7 @@ Everything else runs automatically. Full reference: [CLI Commands](cli/docs/COMM
 
 ## FAQ
 
-**No data leaves your machine.** All state lives in `.agents/` (local; git-ignored by default). No telemetry, no cloud. Works with Claude Code, Codex CLI, Cursor, Open Code — anything supporting [Skills](https://skills.sh).
-
-More questions: [docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
+[docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
 
 ---
 
