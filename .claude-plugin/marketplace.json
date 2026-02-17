@@ -5,13 +5,13 @@
     "email": "fullerbt@users.noreply.github.com"
   },
   "metadata": {
-    "description": "DevOps for coding agents: local-first pipelines, safety rails, and a knowledge flywheel that compounds between sessions.",
+    "description": "The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions.",
     "version": "2.10.0"
   },
   "plugins": [
     {
       "name": "agentops",
-      "description": "DevOps for coding agents: local-first pipelines, safety rails, and a knowledge flywheel that compounds between sessions.",
+      "description": "The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions.",
       "version": "2.10.0",
       "source": "./",
       "author": {

@@ -2,7 +2,7 @@
   "$schema": "../schemas/plugin-manifest.v1.schema.json",
   "name": "agentops",
   "version": "2.10.0",
-  "description": "DevOps for coding agents: local-first pipelines, safety rails, and a knowledge flywheel that compounds between sessions.",
+  "description": "The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions.",
   "author": {
     "name": "Boden Fuller",
     "email": "fullerbt@users.noreply.github.com"

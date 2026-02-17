@@ -8,7 +8,7 @@
 
 ## Tagline
 
-**Primary:** The missing DevOps layer for coding agents. Give it a goal, it ships validated code and gets smarter.
+**Primary:** The missing DevOps layer for coding agents. Flow, feedback, and memory that compounds between sessions.
 
 **Secondary:** Validation Built In, Not Bolted On
 
