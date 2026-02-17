@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.1] - 2026-02-17
+
+### Added
+
+- **Backend reference docs** — Concrete tool call examples for each spawn backend: Claude native teams (`TeamCreate` + `SendMessage`), Codex sub-agents/CLI, background tasks fallback, and inline degraded mode. Shared at `skills/shared/references/backend-*.md`.
+
+### Changed
+
+- **README** — Reframed Flow as orchestration + single-piece flow, Feedback and Learning with Phoenix Project vibes, sell `ao rpi` phased as the killer feature. Streamlined install, condensed intro. Aligned tagline across all manifests.
+- **Quickstart** — Added rpi/product/goals/evolve progression to Step 7.
+- **Skills rewrite** — Runtime-agnostic capability contracts replace hardcoded tool names. Council, swarm, and research skills now load backend-specific references after detection.
+- **Goals skill** — New `ao goals` CLI commands wired into the skills layer.
+
+### Fixed
+
+- **Cross-skill reference linting** — `lint-skills.sh` now resolves `skills/*/references/` paths from repo root instead of failing on cross-skill references.
+- **Swarm validation** — Updated `validate.sh` to check for backend reference documentation pattern instead of requiring inline `TeamCreate`/`spawn_agent` strings.
+- **Council context explosion** — Banned background tasks, patched v2.10.0 release notes.
+- **Cache eviction** — Three-wave implementation: passive tracking with decay write-back, composite eviction criteria with cache health goals, SessionEnd hook wiring.
+- **Stars badge** — Fixed shields.io social variant rendering.
+
 ## [2.10.0] - 2026-02-17
 
 ### Added
