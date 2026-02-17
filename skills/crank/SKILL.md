@@ -309,8 +309,6 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 
 ### Step 4: Execute Wave via Swarm
 
-**If `--per-task-commits` is set**, read `skills/crank/references/commit-strategies.md` for the parallel-wave guard and commit message format before spawning workers.
-
 **GREEN mode (--test-first only):** If `--test-first` is set and SPEC/TEST waves have completed, modify worker prompts for spec-eligible issues:
 - Include in each worker's TaskCreate: `"Failing tests exist at <test-file-paths>. Make them pass. Do NOT modify test files. See GREEN Mode rules in /implement SKILL.md."`
 - Workers receive: failing tests (immutable), contract, issue description
@@ -544,7 +542,6 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 
 ## References
 
-- **Commit strategies:** `skills/crank/references/commit-strategies.md`
 - **Wave patterns:** `skills/crank/references/wave-patterns.md`
 - **Team coordination:** `skills/crank/references/team-coordination.md`
 - **Failure recovery:** `skills/crank/references/failure-recovery.md`

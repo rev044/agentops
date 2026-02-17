@@ -335,6 +335,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | `--explorers=N` | Explorer sub-agents per judge (default: 0, max: 5). Max effective value depends on judge count. Total agents capped at 12. |
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
 | `--technique=<name>` | Brainstorm technique (SCAMPER, six-hats, reverse). Only applicable to brainstorm mode. If omitted, unstructured brainstorm (current behavior). See `references/brainstorm-techniques.md`. |
+| `--profile=<name>` | Model quality profile (thorough, balanced, fast). Overridden by explicit `--count`, `--deep`, `--mixed`, or `COUNCIL_CLAUDE_MODEL` env var. See `references/model-profiles.md`. |
 
 ---
 
@@ -355,6 +356,8 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 /council brainstorm caching strategies for the API              # 2 judges explore options
 /council --technique=scamper brainstorm API improvements               # structured SCAMPER brainstorm
 /council --technique=six-hats brainstorm migration strategy            # parallel perspectives brainstorm
+/council --profile=thorough validate the security architecture       # opus, 3 judges, 120s timeout
+/council --profile=fast validate recent                               # haiku, 2 judges, 60s timeout
 /council research Redis vs Memcached for session storage        # 2 judges assess trade-offs
 /council validate the implementation plan in PLAN.md            # structured plan feedback
 ```
