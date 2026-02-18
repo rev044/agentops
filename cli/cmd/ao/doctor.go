@@ -371,20 +371,20 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dd", days)
 }
 
-// checkSearchIndex checks if .agents/ao/index.jsonl exists and counts terms.
+// checkSearchIndex checks if the search index exists and counts terms.
 func checkSearchIndex() doctorCheck {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return doctorCheck{Name: "Search Index", Status: "warn", Detail: "cannot determine working directory", Required: false}
 	}
 
-	indexPath := filepath.Join(cwd, storage.DefaultBaseDir, "index.jsonl")
+	indexPath := filepath.Join(cwd, IndexDir, IndexFileName)
 	info, err := os.Stat(indexPath)
 	if err != nil {
 		return doctorCheck{
 			Name:     "Search Index",
 			Status:   "warn",
-			Detail:   "No search index \u2014 run 'ao search --rebuild-index' for faster searches",
+			Detail:   "No search index \u2014 run 'ao store rebuild' for faster searches",
 			Required: false,
 		}
 	}
@@ -393,7 +393,7 @@ func checkSearchIndex() doctorCheck {
 		return doctorCheck{
 			Name:     "Search Index",
 			Status:   "warn",
-			Detail:   "Search index is empty \u2014 run 'ao search --rebuild-index'",
+			Detail:   "Search index is empty \u2014 run 'ao store rebuild'",
 			Required: false,
 		}
 	}
