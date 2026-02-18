@@ -32,9 +32,9 @@ assignees: ''
 
 **Who would benefit from this feature?**
 
-- [ ] All marketplace users
-- [ ] Plugin developers
-- [ ] Specific plugin users (which plugin?)
+- [ ] All AgentOps users
+- [ ] Skill developers
+- [ ] Specific skill users (which skill?)
 - [ ] Maintainers
 - [ ] Other: [specify]
 
@@ -70,8 +70,8 @@ assignees: ''
 
 **Would this require:**
 
-- [ ] Changes to marketplace.json schema
-- [ ] Changes to plugin.json schema
+- [ ] Changes to skill catalog schema
+- [ ] Changes to SKILL.md schema
 - [ ] New agent patterns
 - [ ] New command patterns
 - [ ] Documentation updates
@@ -97,8 +97,8 @@ assignees: ''
 
 **Impact on adoption:**
 
-- [ ] Would help me adopt the marketplace
-- [ ] Would help my team adopt the marketplace
+- [ ] Would help me adopt AgentOps
+- [ ] Would help my team adopt AgentOps
 - [ ] Would improve existing usage
 - [ ] Would enable new use cases
 
@@ -134,9 +134,9 @@ Blocks #[issue-number]
 
 ---
 
-**For Marketplace Maintainers:**
+**For AgentOps Maintainers:**
 
-- [ ] Feature is aligned with marketplace goals
+- [ ] Feature is aligned with AgentOps goals
 - [ ] Implementation approach feasible
 - [ ] Breaking changes acceptable (if any)
 - [ ] Community interest confirmed

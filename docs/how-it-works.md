@@ -6,6 +6,8 @@ Parallel agents produce noisy output; councils filter it; ratchets lock progress
 
 ## The Brownian Ratchet
 
+*A mechanism borrowed from molecular physics: random motion is captured by one-way gates, converting chaos into forward progress.*
+
 Chaos in, locked progress out.
 
 ```
@@ -22,6 +24,8 @@ Spawn parallel agents (chaos), validate with multi-model council (filter), merge
 See also: [Brownian Ratchet (deep dive)](brownian-ratchet.md)
 
 ## Ralph Loops — Fresh Context Every Wave
+
+*Named after Ralph Wiggum's "I'm helping!" -- each worker starts fresh with no memory of previous workers, ensuring complete isolation between waves.*
 
 ```
   Wave 1:  spawn 3 workers → write files → lead validates → lead commits
@@ -86,3 +90,4 @@ For repos over ~1500 files, `/rpi` uses deterministic shards to keep each worker
 - [Architecture](ARCHITECTURE.md) — System design and component overview
 - [Brownian Ratchet](brownian-ratchet.md) — AI-native development philosophy
 - [The Science](the-science.md) — Research behind knowledge decay and compounding
+- [Glossary](GLOSSARY.md) — Definitions of key terms and metaphors

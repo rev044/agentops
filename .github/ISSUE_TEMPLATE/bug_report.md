@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug or issue with the marketplace or a plugin
+about: Report a bug or issue with AgentOps or a skill
 title: '[BUG] '
 labels: bug, needs-triage
 assignees: ''
@@ -18,8 +18,8 @@ assignees: ''
 
 - **Claude Code Version:** [e.g., 1.0.0]
 - **Operating System:** [e.g., macOS 14.0, Ubuntu 22.04, Windows 11]
-- **Plugin Name:** [if bug is in a specific plugin]
-- **Plugin Version:** [e.g., 1.0.0]
+- **Skill Name:** [if bug is in a specific skill]
+- **Skill Version:** [e.g., 1.0.0]
 
 ## Reproduction Steps
 
@@ -61,19 +61,19 @@ If applicable, add screenshots to help explain your problem.
 
 [Attach screenshots]
 
-## Plugin Context
+## Skill Context
 
-**If this is a plugin-specific bug:**
+**If this is a skill-specific bug:**
 
-- **Plugin source:** [marketplace/local/git URL]
-- **Installation method:** [/plugin install command used]
-- **Dependencies installed:** [list other plugins]
+- **Skill source:** [AgentOps/local/git URL]
+- **Installation method:** [npx skills command used]
+- **Dependencies installed:** [list other skills]
 
 ## Attempted Solutions
 
 **Have you tried any solutions?**
 
-- [ ] Reinstalled the plugin
+- [ ] Reinstalled the skill
 - [ ] Checked documentation
 - [ ] Searched existing issues
 - [ ] Tested with minimal configuration
@@ -86,7 +86,7 @@ If applicable, add screenshots to help explain your problem.
 
 **How severe is this bug?**
 
-- [ ] Critical - Prevents any use of the marketplace
+- [ ] Critical - Prevents any use of AgentOps
 - [ ] High - Major functionality broken
 - [ ] Medium - Feature doesn't work as expected
 - [ ] Low - Minor inconvenience or cosmetic issue
@@ -94,7 +94,7 @@ If applicable, add screenshots to help explain your problem.
 **Who is affected?**
 
 - [ ] All users
-- [ ] Users of specific plugin
+- [ ] Users of specific skill
 - [ ] Users on specific OS
 - [ ] Only affects my setup
 
@@ -115,11 +115,11 @@ Add any other context about the problem here:
 
 ---
 
-**For Marketplace Maintainers:**
+**For AgentOps Maintainers:**
 
 - [ ] Reproduced the bug
 - [ ] Identified root cause
-- [ ] Assigned to correct plugin/component
+- [ ] Assigned to correct skill/component
 - [ ] Created fix plan
 - [ ] Fix implemented and tested
 - [ ] Ready to close

@@ -149,19 +149,19 @@ GITHUB_COM_TOKEN=$(gh auth token) renovate --platform=local
 
 ## Development Pitfalls
 
-These mistakes have been made repeatedly. Read before planning or implementing.
+Guidelines derived from production experience. Review before planning or implementing.
 
-1. **Verify mechanically before planning** — Never write counts like "11 missing" or "28 need X" without running the actual command first. Grep for ALL invocation sites; don't list known ones. Plans built on assumed data have caused 43% scope underestimation.
+1. **Verify mechanically before planning** — Never write counts like "11 missing" or "28 need X" without running the actual command first. Grep for ALL invocation sites; do not rely on known lists. Assumed data leads to significant scope underestimation.
 
 2. **Go tasks need test validation** — Always add `"tests": "go test ./..."` to task validation metadata. Check for `_test.go` existence when creating new `.go` files. Run `go build` after each wave, not just at the end.
 
-3. **TaskCreate AFTER TeamCreate** — Tasks created before spawning a team are invisible to teammates. Always: TeamCreate first, then TaskCreate. This has been re-learned 3 times.
+3. **TaskCreate AFTER TeamCreate** — Tasks created before spawning a team are invisible to teammates. Always create the team first, then create tasks. Violating this ordering silently drops work.
 
-4. **Lead-only commits in parallel work** — Workers write files but NEVER run `git add` or `git commit`. The team lead validates artifacts exist, then commits once after the wave. Worker commits are the dominant source of merge conflicts.
+4. **Lead-only commits in parallel work** — Workers write files but NEVER run `git add` or `git commit`. The team lead validates artifacts exist, then commits once after the wave. Worker commits cause merge conflicts in parallel execution.
 
-5. **Grep all call sites before changing signatures** — When a function signature changes, grep for ALL callers and update them in the same commit. Missed callers have broken `go build` repeatedly.
+5. **Grep all call sites before changing signatures** — When a function signature changes, grep for ALL callers and update them in the same commit. Missed callers break `go build`.
 
-6. **No hardcoded counts without CI assertions** — README badges, prose counts ("34 skills", "10 internal") drift immediately. Pair every count in prose with a validation script that fails when reality diverges. This CLAUDE.md itself has drifted multiple times.
+6. **No hardcoded counts without CI assertions** — README badges, prose counts ("34 skills", "10 internal") drift immediately. Pair every count in prose with a validation script that fails when reality diverges. Any file containing hardcoded counts is subject to this rule.
 
 7. **Validate full corpus, not date-scoped subsets** — Scoping checks to `2026-02-1*` or similar date ranges masks non-compliant files outside that range. Only use date filtering for reporting, never for validation gates.
 
