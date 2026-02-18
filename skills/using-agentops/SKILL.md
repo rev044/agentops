@@ -83,7 +83,7 @@ Research → Plan → Implement → Validate
 - Use `/swarm` directly for **parallel execution** without beads (TaskList only).
 - Use `/ratchet` to **gate/record progress** through RPI.
 
-## Available Skills (33 user-facing)
+## Available Skills (41 user-facing)
 
 ## Core Skills (start here)
 
@@ -119,6 +119,14 @@ Research → Plan → Implement → Validate
 | `/rpi` | Full RPI lifecycle orchestrator (research → plan → implement → validate) |
 | `/evolve` | Goal-driven fitness-scored improvement loop |
 | `/codex-team` | Parallel Codex agent execution |
+| `/openai-docs` | Official OpenAI docs lookup with citations |
+| `/oss-docs` | OSS documentation scaffold and audit |
+| `/pr-research` | Upstream repository research before contribution |
+| `/pr-plan` | External contribution planning |
+| `/pr-implement` | Fork-based PR implementation |
+| `/pr-validate` | PR-specific validation and isolation checks |
+| `/pr-prep` | PR preparation and structured body generation |
+| `/pr-retro` | Learn from PR outcomes |
 | `/complexity` | Code complexity analysis |
 | `/product` | Interactive PRODUCT.md generation |
 | `/handoff` | Session handoff for continuation |

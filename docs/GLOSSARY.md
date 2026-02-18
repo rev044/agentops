@@ -110,7 +110,7 @@ The full lifecycle workflow: Research the codebase, Plan by decomposing the goal
 ## S
 
 ### Skill
-A self-contained capability defined by a `SKILL.md` file with YAML frontmatter. Skills are the primary unit of functionality in AgentOps — each one has triggers, instructions, and optional reference docs loaded just-in-time. AgentOps ships 43 skills (33 user-facing, 10 internal). [Full documentation](SKILLS.md)
+A self-contained capability defined by a `SKILL.md` file with YAML frontmatter. Skills are the primary unit of functionality in AgentOps — each one has triggers, instructions, and optional reference docs loaded just-in-time. AgentOps ships 51 skills (41 user-facing, 10 internal). [Full documentation](SKILLS.md)
 
 ### Swarm
 A skill (`/swarm`) that spawns parallel worker agents with fresh context. Each wave gets a new team; the lead validates and commits. Workers never commit directly. [Full documentation](../skills/swarm/SKILL.md)

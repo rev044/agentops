@@ -91,7 +91,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
 
     # --- (d) Examples section required ---
     # User-facing skills: FAIL if missing. Internal skills: WARN if missing.
-    USER_FACING="beads bug-hunt codex-team complexity council crank doc evolve handoff implement inbox knowledge plan post-mortem pre-mortem product quickstart release research retro rpi status swarm trace vibe"
+    USER_FACING="beads bug-hunt codex-team complexity council crank doc evolve handoff implement inbox knowledge plan post-mortem pre-mortem product quickstart release research retro rpi status swarm trace vibe openai-docs oss-docs pr-research pr-plan pr-implement pr-validate pr-prep pr-retro"
     INTERNAL="extract flywheel forge inject provenance ratchet shared standards using-agentops"
 
     is_user_facing=false

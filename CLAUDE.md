@@ -9,11 +9,19 @@ The missing DevOps layer for coding agents. Flow, feedback, and memory that comp
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 43 skills (33 user-facing, 10 internal)
+├── skills/                # All 51 skills (41 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Hands-free epic execution
 │   ├── swarm/             # Parallel agent spawning
 │   ├── codex-team/        # Parallel Codex execution agents
+│   ├── openai-docs/       # OpenAI docs lookup with citations
+│   ├── pr-research/       # Upstream contribution research
+│   ├── pr-plan/           # External contribution planning
+│   ├── pr-implement/      # Fork-based PR implementation
+│   ├── pr-validate/       # PR-specific validation gates
+│   ├── pr-prep/           # PR prep and body generation
+│   ├── pr-retro/          # Contribution outcome retrospectives
+│   ├── oss-docs/          # OSS documentation scaffolding
 │   ├── rpi/               # Full RPI lifecycle orchestrator
 │   ├── evolve/            # Autonomous fitness-scored improvement loop
 │   ├── implement/         # Execute single issue

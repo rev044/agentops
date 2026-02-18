@@ -1,8 +1,8 @@
 # Skills Reference
 
-Complete reference for all 43 AgentOps skills (33 user-facing + 10 internal).
+Complete reference for all 51 AgentOps skills (41 user-facing + 10 internal).
 
-**Behavioral Contracts:** All 43 skills have `scripts/validate.sh` with behavioral checks that verify key features remain documented. Run `skills/<name>/scripts/validate.sh` to validate any skill, or the GOALS.yaml `behavioral-skill-contracts` goal to validate all at once.
+**Behavioral Contracts:** Most skills include `scripts/validate.sh` behavioral checks to verify key features remain documented. Run `skills/<name>/scripts/validate.sh` when present, or the GOALS.yaml `behavioral-skill-contracts` goal to validate the full covered set.
 
 ## Core Workflow Skills
 
@@ -289,12 +289,76 @@ Convert skills to other platforms (Codex, Cursor).
 
 **Targets:** codex (SKILL.md + prompt.md), cursor (.mdc + optional mcp.json), test (raw bundle)
 
+### /openai-docs
+
+Use official OpenAI docs MCP access for current API/platform guidance with citations.
+
+```bash
+/openai-docs "responses api tools"
+```
+
+### /oss-docs
+
+Scaffold and audit open-source documentation packs (README, CONTRIBUTING, changelog, AGENTS).
+
+```bash
+/oss-docs
+```
+
+### /pr-research
+
+Research upstream contribution conventions before implementing an external PR.
+
+```bash
+/pr-research https://github.com/org/repo
+```
+
+### /pr-plan
+
+Create a scoped contribution plan from PR research artifacts.
+
+```bash
+/pr-plan
+```
+
+### /pr-implement
+
+Execute fork-based contribution work with isolation checks.
+
+```bash
+/pr-implement
+```
+
+### /pr-validate
+
+Run PR-specific validation (scope creep, isolation, upstream alignment).
+
+```bash
+/pr-validate
+```
+
+### /pr-prep
+
+Prepare structured PR bodies with validation evidence.
+
+```bash
+/pr-prep
+```
+
+### /pr-retro
+
+Capture lessons from accepted/rejected PR outcomes.
+
+```bash
+/pr-retro
+```
+
 ### /update
 
 Reinstall all AgentOps skills globally from the latest source.
 
 ```bash
-/update                      # Reinstall all 42 skills
+/update                      # Reinstall all 51 skills
 ```
 
 ---

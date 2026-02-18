@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (33)
+### User-Facing Skills (41)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -23,8 +23,16 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **crank** | orchestration | Autonomous epic execution |
 | **swarm** | orchestration | Parallel agent spawning |
 | **codex-team** | orchestration | Spawn parallel Codex execution agents |
+| **openai-docs** | solo | Authoritative OpenAI docs lookup with citations |
 | **rpi** | orchestration | Full RPI lifecycle orchestrator (research → post-mortem) |
 | **evolve** | orchestration | Autonomous fitness-scored improvement loop |
+| **pr-research** | solo | Upstream repository research before contribution |
+| **pr-plan** | solo | Contribution planning for external PRs |
+| **pr-implement** | solo | Fork-based implementation for external PRs |
+| **pr-validate** | solo | PR-specific isolation and scope validation |
+| **pr-prep** | solo | PR preparation and structured PR body generation |
+| **pr-retro** | solo | Learn from accepted/rejected PR outcomes |
+| **oss-docs** | solo | Scaffold and audit OSS documentation packs |
 | **implement** | team | Execute single issue |
 | **quickstart** | solo | Interactive onboarding (mini RPI cycle) |
 | **status** | solo | Single-screen dashboard |
@@ -120,8 +128,16 @@ All validation skills depend on `/council`:
 | inbox | - | - |
 | inject | - | - |
 | knowledge | - | - |
+| **openai-docs** | - | - (standalone) |
 | **plan** | research, beads, pre-mortem, crank, implement | optional, optional, optional, optional, optional |
 | **product** | - | - (standalone) |
+| **pr-research** | - | - (standalone) |
+| **pr-plan** | pr-research | optional |
+| **pr-implement** | pr-plan, pr-validate | optional, optional |
+| **pr-validate** | - | - (standalone) |
+| **pr-prep** | pr-validate | optional |
+| **pr-retro** | pr-prep | optional |
+| **oss-docs** | doc | optional |
 | provenance | - | - |
 | **quickstart** | - | - (zero dependencies) |
 | **rpi** | research, plan, pre-mortem, crank, vibe, post-mortem, ratchet | all required |
