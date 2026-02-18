@@ -236,7 +236,7 @@ helm install <release> <repo>/<chart>
 | `image.tag` | Image tag | `latest` |
 | `replicas` | Pod replicas | `1` |
 
-See [values.yaml](values.yaml) for all options.
+See `values.yaml` for all options.
 
 ## Upgrading
 
@@ -330,7 +330,7 @@ result = client.do_something()
 
 ## API Documentation
 
-See [documentation](<readthedocs-url>) for complete API reference.
+See your hosted API documentation URL for complete API reference.
 ```
 
 ---
