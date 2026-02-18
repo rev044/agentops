@@ -23,7 +23,7 @@ Run `/council validate` on a plan or spec to get multi-model judgment before com
 /pre-mortem                                         # validates most recent plan
 /pre-mortem path/to/PLAN.md                         # validates specific plan
 /pre-mortem --quick path/to/PLAN.md                 # fast inline check, no spawning
-/pre-mortem --deep path/to/SPEC.md                  # 4 judges with plan-review preset
+/pre-mortem --deep path/to/SPEC.md                  # 4 judges (thorough review)
 /pre-mortem --mixed path/to/PLAN.md                 # cross-vendor (Claude + Codex)
 /pre-mortem --preset=architecture path/to/PLAN.md   # architecture-focused review
 /pre-mortem --explorers=3 path/to/SPEC.md           # deep investigation of plan
@@ -65,35 +65,40 @@ fi
 
 When `PRODUCT.md` exists in the project root AND the user did NOT pass an explicit `--preset` override:
 1. Read `PRODUCT.md` content and include in the council packet via `context.files`
-2. Replace the default council invocation (Step 2) with:
+2. Add a single consolidated `product` perspective to the council invocation:
    ```
-   /council --deep --preset=plan-review --perspectives="user-value,adoption-barriers,competitive-position" validate <plan-path>
+   /council --preset=plan-review --perspectives="product" validate <plan-path>
    ```
-3. Auto-escalation handles judge count (7 judges: 4 plan-review + 3 product)
+   This yields 3 judges total (2 plan-review + 1 product). The product judge covers user-value, adoption-barriers, and competitive-position in a single review.
+3. With `--deep`: 5 judges (4 plan-review + 1 product).
 
 When `PRODUCT.md` exists BUT the user passed an explicit `--preset`: skip product auto-include (user's explicit preset takes precedence).
 
-When `PRODUCT.md` does not exist: proceed to Step 2 unchanged (4 judges, plan-review only).
-
-**Cost note:** 7 judges vs 4 is intentional — product review merits thoroughness when product context is available. Product perspectives (user-value, adoption-barriers, competitive-position) catch requirements gaps that technical judges miss.
+When `PRODUCT.md` does not exist: proceed to Step 2 unchanged.
 
 > **Tip:** Create `PRODUCT.md` from `docs/PRODUCT-TEMPLATE.md` to enable product-aware plan validation.
 
 ### Step 2: Run Council Validation
 
-Run `/council` with the **plan-review** preset and always 4 judges (--deep):
+Run `/council` with the **plan-review** preset:
 
+```
+/council --preset=plan-review validate <plan-path>
+```
+
+**Default (2 judges with plan-review perspectives):**
+- `missing-requirements`: What's not in the spec that should be? What questions haven't been asked?
+- `feasibility`: What's technically hard or impossible here? What will take 3x longer than estimated?
+
+**With --deep (4 judges):**
 ```
 /council --deep --preset=plan-review validate <plan-path>
 ```
-
-**Default (4 judges with plan-review perspectives):**
-- `missing-requirements`: What's not in the spec that should be? What questions haven't been asked?
-- `feasibility`: What's technically hard or impossible here? What will take 3x longer than estimated?
+Adds:
 - `scope`: What's unnecessary? What's missing? Where will scope creep?
 - `spec-completeness`: Are boundaries defined? Do conformance checks cover all acceptance criteria? Is the plan mechanically verifiable?
 
-Pre-mortem always uses 4 judges (`--deep`) because plans deserve thorough review. The spec-completeness judge validates SDD patterns; for plans without boundaries/conformance sections, it issues WARN (not FAIL) for backward compatibility.
+Use `--deep` for high-stakes plans (migrations, security, multi-service). Default 2 judges is sufficient for most plans and keeps context manageable.
 
 **With --quick (inline, no spawning):**
 ```

@@ -179,13 +179,15 @@ else
 fi
 ```
 
-**If output exists**, include in council packet as additional context:
+**If output exists**, summarize and include in council packet (cap at 2000 chars to prevent context bloat):
 ```json
 "codex_review": {
   "source": "codex review --uncommitted",
-  "content": "<contents of .agents/council/codex-review-pre.md>"
+  "content": "<first 2000 chars of .agents/council/codex-review-pre.md>"
 }
 ```
+
+**IMPORTANT:** The raw codex review can be 50k+ chars. Including the full text in every judge's packet multiplies token cost by N judges. Truncate to the first 2000 chars (covers the summary and top findings). Judges can read the full file from disk if they need more detail.
 
 This gives council judges a Codex-generated review as pre-existing context — cheap, fast, diff-focused. It does NOT replace council judgment; it augments it.
 
@@ -213,9 +215,11 @@ fi
 
 When `PRODUCT.md` exists in the project root AND the user did NOT pass an explicit `--preset` override:
 1. Read `PRODUCT.md` content and include in the council packet via `context.files`
-2. Append DX perspectives to the council invocation in Step 4:
-   - **With spec (code-review preset active):** Add `--perspectives="api-clarity,error-experience,discoverability"` alongside code-review. Auto-escalation handles count (6 judges: 3 code-review + 3 DX).
-   - **Without spec (independent judges):** Add `--perspectives="api-clarity,error-experience,discoverability"`. Auto-escalation handles count (6 judges: 3 independent + 3 DX).
+2. Add a single consolidated `developer-experience` perspective to the council invocation:
+   - **With spec:** `/council --preset=code-review --perspectives="developer-experience" validate <target>` (3 judges: 2 code-review + 1 DX)
+   - **Without spec:** `/council --perspectives="developer-experience" validate <target>` (3 judges: 2 independent + 1 DX)
+   The DX judge covers api-clarity, error-experience, and discoverability in a single review.
+3. With `--deep`: adds 1 more judge per mode (4 judges total).
 
 When `PRODUCT.md` exists BUT the user passed an explicit `--preset`: skip DX auto-include (user's explicit preset takes precedence).
 
@@ -243,9 +247,9 @@ If a spec is found, include it in the council packet's `context.spec` field:
 
 ### Step 4: Run Council Validation
 
-**With spec found — use code-review preset (3 judges):**
+**With spec found — use code-review preset:**
 ```
-/council --deep --preset=code-review validate <target>
+/council --preset=code-review validate <target>
 ```
 - `error-paths`: Trace every error handling path. What's uncaught? What fails silently?
 - `api-surface`: Review every public interface. Is the contract clear? Breaking changes?
@@ -253,11 +257,11 @@ If a spec is found, include it in the council packet's `context.spec` field:
 
 The spec content is injected into the council packet context so the `spec-compliance` judge can compare implementation against it.
 
-**Without spec — 3 independent judges (no perspectives):**
+**Without spec — 2 independent judges (no perspectives):**
 ```
-/council --deep validate <target>
+/council validate <target>
 ```
-3 independent judges (no perspective labels). Vibe uses `--deep` by default (3 judges) for consistency with /pre-mortem and /post-mortem, but users can override with `--quick` (inline single-agent check) or `--mixed` (cross-vendor with Codex).
+2 independent judges (no perspective labels). Use `--deep` for 3 judges on high-stakes reviews. Override with `--quick` (inline single-agent check) or `--mixed` (cross-vendor with Codex).
 
 **Council receives:**
 - Files to review
@@ -317,9 +321,9 @@ Each judge reviews for:
 | Error-Paths | ... | ... (with spec — code-review preset) |
 | API-Surface | ... | ... (with spec — code-review preset) |
 | Spec-Compliance | ... | ... (with spec — code-review preset) |
-| Judge 1 | ... | ... (no spec — 3 independent judges) |
-| Judge 2 | ... | ... (no spec — 3 independent judges) |
-| Judge 3 | ... | ... (no spec — 3 independent judges) |
+| Judge 1 | ... | ... (no spec — 2 independent judges) |
+| Judge 2 | ... | ... (no spec — 2 independent judges) |
+| Judge 3 | ... | ... (no spec — 2 independent judges) |
 
 ## Shared Findings
 - ...
@@ -473,7 +477,7 @@ Both should pass before shipping.
 | Vibe returns PASS but constraint tests fail | Council LLMs miss mechanical violations | Check `.agents/council/<timestamp>-vibe-*.md` for constraint test results. Failed constraints override council PASS. Fix violations and re-run. |
 | Codex review skipped | Codex CLI not on PATH or no uncommitted changes | Install Codex CLI (`brew install codex`) or commit changes first. Vibe proceeds without codex review. |
 | "No modified files detected" | Clean working tree, no recent commits | Make changes or specify target path explicitly: `/vibe src/auth/`. |
-| Spec-compliance judge not spawned | No spec found in beads/plans | Reference bead ID in commit message or create plan doc in `.agents/plans/`. Without spec, vibe uses 3 independent judges. |
+| Spec-compliance judge not spawned | No spec found in beads/plans | Reference bead ID in commit message or create plan doc in `.agents/plans/`. Without spec, vibe uses 2 independent judges (3 with `--deep`). |
 
 ---
 

@@ -204,10 +204,12 @@ With `--interactive`, the plan skill shows its human gate. /rpi trusts the outco
 **Skip if:** `--from` is set to a later phase.
 
 ```
-Skill(skill="pre-mortem", args="--quick")   # if rpi_state.complexity == "low"
-Skill(skill="pre-mortem", args="--deep")    # if rpi_state.complexity == "high"
-Skill(skill="pre-mortem")                    # if rpi_state.complexity == "medium" (standard council)
+Skill(skill="pre-mortem", args="--quick")   # if rpi_state.complexity == "low" (inline, no spawning)
+Skill(skill="pre-mortem", args="--quick")   # if rpi_state.complexity == "medium" (inline, fast default)
+Skill(skill="pre-mortem")                    # if rpi_state.complexity == "high" (full 2-judge council)
 ```
+
+**Rationale:** Pre-mortem's `--quick` mode (inline single-agent structured review) catches the same class of plan bugs as full council at ~10% of the cost. Full council is reserved for high-complexity epics (7+ issues or 3+ waves) where the stakes justify multi-judge overhead. Use `--deep` explicitly for critical migrations or security plans.
 
 Pre-mortem auto-discovers the most recent plan. No args needed.
 
