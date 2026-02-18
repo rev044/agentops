@@ -464,30 +464,6 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ---
 
-## Relationship to CI/CD
-
-**Vibe runs:**
-- Complexity analysis (radon, gocyclo)
-- Council validation (multi-model judgment)
-
-**CI/CD runs:**
-- Linters
-- Tests
-- Security scanners
-- Build
-
-```
-Developer workflow:
-  /vibe recent → complexity + judgment
-
-CI/CD workflow:
-  git push → lint, test, scan → mechanical checks
-```
-
-Both should pass before shipping.
-
----
-
 ## Troubleshooting
 
 | Problem | Cause | Solution |
@@ -501,17 +477,8 @@ Both should pass before shipping.
 
 ---
 
-## Consolidation
-
-For conflict resolution between agent findings, follow the algorithm in `.agents/specs/conflict-resolution-algorithm.md`.
-
----
-
 ## See Also
 
 - `skills/council/SKILL.md` — Multi-model validation council
 - `skills/complexity/SKILL.md` — Standalone complexity analysis
-- `skills/pre-mortem/SKILL.md` — Council validates plans
-- `skills/post-mortem/SKILL.md` — Council validates completed work
-- `skills/standards/SKILL.md` — Language-specific coding standards
-- `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution algorithm
+- `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution between agent findings
