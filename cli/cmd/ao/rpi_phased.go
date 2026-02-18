@@ -310,6 +310,13 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		}()
 	}
 
+	// Ensure runID is always set (worktree path sets it, but --no-worktree skips that)
+	if state.RunID == "" {
+		b := make([]byte, 4)
+		_, _ = rand.Read(b)
+		state.RunID = hex.EncodeToString(b)
+	}
+
 	stateDir := filepath.Join(spawnCwd, ".agents", "rpi")
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
 		return fmt.Errorf("create state directory: %w", err)
@@ -814,6 +821,12 @@ const (
 // cmd.Dir is set to cwd for worktree isolation. GIT_DIR/GIT_WORK_TREE are
 // NOT set — git auto-discovers the repo from the working directory.
 func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
+	// Skip ntm when running inside a Claude agent session (non-interactive).
+	// ntm is for human-observable tmux sessions; agent-spawned runs should
+	// use direct exec to avoid interactive prompts and stdin issues.
+	if os.Getenv("CLAUDECODE") != "" || os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "" {
+		return spawnDirectFn(prompt, cwd)
+	}
 	// Check if ntm is available for observable sessions
 	ntmPath, ntmErr := lookPath("ntm")
 	if ntmErr == nil {
@@ -859,10 +872,10 @@ func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int) error
 	sendCmd := exec.Command(ntmPath, "send", sessionName, prompt)
 	sendCmd.Env = cleanEnvNoClaude()
 	if out, err := sendCmd.CombinedOutput(); err != nil {
-		fmt.Printf("ntm send failed: %s\n", string(out))
-		// Clean up session on failure
+		fmt.Printf("ntm send failed, falling back to direct exec: %s\n", string(out))
+		// Clean up session on failure and fall back
 		_ = exec.Command(ntmPath, "kill", sessionName).Run()
-		return fmt.Errorf("ntm send failed: %w", err)
+		return spawnDirectFn(prompt, cwd)
 	}
 
 	// Poll for session completion (agent exits when prompt completes)
