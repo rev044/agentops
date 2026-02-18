@@ -67,11 +67,14 @@ func runPoolIngest(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if len(files) == 0 {
-		// Nothing to do: silent success for hook friendliness.
+		fmt.Println("No new files to ingest")
 		return nil
 	}
 
 	res := poolIngestResult{FilesScanned: len(files)}
+
+	// Track files that were successfully processed (no read/add errors).
+	var processedFiles []string
 
 	for _, f := range files {
 		data, rerr := os.ReadFile(f)
@@ -85,6 +88,7 @@ func runPoolIngest(cmd *cobra.Command, args []string) error {
 		blocks := parseLearningBlocks(string(data))
 		res.CandidatesFound += len(blocks)
 
+		fileHadError := false
 		for _, b := range blocks {
 			cand, scoring, ok := buildCandidateFromLearningBlock(b, f, fileDate, sessionHint)
 			if !ok {
@@ -106,11 +110,31 @@ func runPoolIngest(cmd *cobra.Command, args []string) error {
 
 			if err := p.AddAt(cand, scoring, cand.ExtractedAt); err != nil {
 				res.Errors++
+				fileHadError = true
 				VerbosePrintf("Warning: add %s: %v\n", cand.ID, err)
 				continue
 			}
 			res.Added++
 			res.AddedIDs = append(res.AddedIDs, cand.ID)
+		}
+
+		if !fileHadError && !GetDryRun() {
+			processedFiles = append(processedFiles, f)
+		}
+	}
+
+	// Move successfully processed files to .agents/knowledge/processed/.
+	if len(processedFiles) > 0 {
+		processedDir := filepath.Join(cwd, ".agents", "knowledge", "processed")
+		if err := os.MkdirAll(processedDir, 0755); err != nil {
+			VerbosePrintf("Warning: create processed dir: %v\n", err)
+		} else {
+			for _, f := range processedFiles {
+				dst := filepath.Join(processedDir, filepath.Base(f))
+				if merr := os.Rename(f, dst); merr != nil {
+					VerbosePrintf("Warning: move %s to processed: %v\n", filepath.Base(f), merr)
+				}
+			}
 		}
 	}
 
