@@ -34,31 +34,32 @@ func init() {
 	phasedCmd := &cobra.Command{
 		Use:   "phased <goal>",
 		Short: "Run RPI with fresh Claude session per phase",
-		Long: `Orchestrate the full RPI lifecycle by spawning a fresh Claude session per phase.
+		Long: `Orchestrate the full RPI lifecycle using 3 consolidated phases.
 
 Each phase gets its own context window (Ralph Wiggum pattern):
-  1. Research  — explore codebase and prior knowledge
-  2. Plan      — decompose into trackable issues
-  3. Pre-mortem — validate plan with council
-  4. Crank     — autonomous implementation
-  5. Vibe      — validate with council
-  6. Post-mortem — extract learnings
+  1. Discovery       — research + plan + pre-mortem (shared context, prompt cache hot)
+  2. Implementation  — crank (fresh context for heavy work)
+  3. Validation      — vibe + post-mortem (fresh eyes, independent of implementer)
+
+This consolidation cuts cold starts from 6 to 3, keeps prompt cache warm
+within each phase, and preserves the key isolation boundary: the implementer
+session is never the validator session.
 
 Between phases, the CLI reads filesystem artifacts, constructs prompts
 via templates, and spawns the next session. Retry loops for gate failures
-are handled across session boundaries.
+are handled within the session (discovery) or across sessions (validation).
 
 Examples:
-  ao rpi phased "add user authentication"       # full lifecycle
-  ao rpi phased --from=crank "add auth"          # skip to crank (needs epic)
-  ao rpi phased --from=vibe                      # just validation + post-mortem
+  ao rpi phased "add user authentication"       # full lifecycle (3 sessions)
+  ao rpi phased --from=implementation "add auth" # skip to crank (needs epic)
+  ao rpi phased --from=validation                # just vibe + post-mortem
   ao rpi phased --dry-run "add auth"             # show prompts without spawning
   ao rpi phased --fast-path "fix typo"           # force --quick for gates`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runRPIPhased,
 	}
 
-	phasedCmd.Flags().StringVar(&phasedFrom, "from", "research", "Start from phase (research, plan, pre-mortem, crank, vibe, post-mortem)")
+	phasedCmd.Flags().StringVar(&phasedFrom, "from", "discovery", "Start from phase (discovery, implementation, validation)")
 	phasedCmd.Flags().BoolVar(&phasedTestFirst, "test-first", false, "Pass --test-first to /crank for spec-first TDD")
 	phasedCmd.Flags().BoolVar(&phasedFastPath, "fast-path", false, "Force fast path (--quick for gates)")
 	phasedCmd.Flags().BoolVar(&phasedInteractive, "interactive", false, "Enable human gates at research and plan phases")
@@ -77,12 +78,9 @@ type phase struct {
 }
 
 var phases = []phase{
-	{1, "research", "research"},
-	{2, "plan", "plan"},
-	{3, "pre-mortem", "pre-mortem"},
-	{4, "crank", "implement"},
-	{5, "vibe", "vibe"},
-	{6, "post-mortem", "post-mortem"},
+	{1, "discovery", "discovery"},
+	{2, "implementation", "implement"},
+	{3, "validation", "validation"},
 }
 
 // phasedState persists orchestrator state between phase spawns.
@@ -124,7 +122,7 @@ const phaseSummaryInstruction = `PHASE SUMMARY CONTRACT: Before finishing this s
 
 // contextDisciplineInstruction is prepended to every phase prompt to prevent compaction.
 // CONTEXT DISCIPLINE: This constant exists so the CLI can enforce context-aware behavior.
-const contextDisciplineInstruction = `CONTEXT DISCIPLINE: You are running inside ao rpi phased (phase {{.PhaseNum}} of 6). Each phase gets a FRESH context window. Stay disciplined:
+const contextDisciplineInstruction = `CONTEXT DISCIPLINE: You are running inside ao rpi phased (phase {{.PhaseNum}} of 3). Each phase gets a FRESH context window. Stay disciplined:
 - Do NOT accumulate large file contents in context. Read files with the Read tool JIT and extract only what you need.
 - Do NOT explore broadly when narrow exploration suffices. Be surgical.
 - Write findings, plans, and results to DISK (files in .agents/), not just in conversation.
@@ -135,32 +133,55 @@ const contextDisciplineInstruction = `CONTEXT DISCIPLINE: You are running inside
 
 // phaseContextBudgets provides phase-specific context guidance.
 var phaseContextBudgets = map[int]string{
-	1: "BUDGET: Limit codebase exploration to ~15 file reads. Write research findings to .agents/research/, not into conversation context.",
-	2: "BUDGET: Plan decomposition is lightweight. Write the plan document to .agents/plans/. Keep conversation focused on issue creation.",
-	3: "BUDGET: Pre-mortem invokes /council which manages its own agents. Your job: invoke, read the verdict file, done. Minimal context.",
-	4: "BUDGET (CRITICAL): Crank is the highest-risk phase for context. /crank spawns workers internally. Do NOT re-read worker output into your context. Trust /crank to manage its waves. Read only the completion status.",
-	5: "BUDGET: Vibe invokes /council. Your job: invoke, read the verdict file, done. Minimal context.",
-	6: "BUDGET: Post-mortem invokes /council + /retro. Your job: invoke both, read their output files, write summary. Minimal context.",
+	1: "BUDGET: This session runs research + plan + pre-mortem. Research: limit to ~15 file reads, write findings to .agents/research/. Plan: write to .agents/plans/, focus on issue creation. Pre-mortem: invoke /council, read the verdict, done. If pre-mortem FAILs, re-plan and re-run pre-mortem within this session (max 3 attempts).",
+	2: "BUDGET (CRITICAL): Crank is the highest-risk phase for context. /crank spawns workers internally. Do NOT re-read worker output into your context. Trust /crank to manage its waves. Read only the completion status.",
+	3: "BUDGET: This session runs vibe + post-mortem. Vibe: invoke /council on recent changes, read the verdict. Post-mortem: invoke /council + /retro, read output files, write summary. Minimal context for both.",
 }
 
 // phasePrompts defines Go templates for each phase's Claude invocation.
+// Phase 1 (discovery) chains research + plan + pre-mortem in a single session
+// for prompt cache reuse. Phase 2 (implementation) gets a fresh context window.
+// Phase 3 (validation) chains vibe + post-mortem with fresh eyes.
 var phasePrompts = map[int]string{
-	1: `/research "{{.Goal}}"{{if not .Interactive}} --auto{{end}}`,
-	2: `/plan "{{.Goal}}"{{if not .Interactive}} --auto{{end}}`,
-	3: `/pre-mortem{{if .FastPath}} --quick{{end}}`,
-	4: `/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}`,
-	5: `/vibe{{if .FastPath}} --quick{{end}} recent`,
-	6: `/post-mortem{{if .FastPath}} --quick{{end}} {{.EpicID}}`,
+	// Discovery: research → plan → pre-mortem (all in one session)
+	1: `Run these skills IN SEQUENCE. Do not skip any step.
+
+STEP 1 — Research:
+/research "{{.Goal}}"{{if not .Interactive}} --auto{{end}}
+
+STEP 2 — Plan:
+After research completes, run:
+/plan "{{.Goal}}"{{if not .Interactive}} --auto{{end}}
+
+STEP 3 — Pre-mortem:
+After plan completes, run:
+/pre-mortem{{if .FastPath}} --quick{{end}}
+
+If pre-mortem returns FAIL, re-run /plan with the findings and then /pre-mortem again. Max 3 total attempts. If still FAIL after 3 attempts, stop and report.
+If pre-mortem returns PASS or WARN, proceed.`,
+
+	// Implementation: crank (single skill, fresh context)
+	2: `/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}`,
+
+	// Validation: vibe → post-mortem (both in one session, fresh eyes)
+	3: `Run these skills IN SEQUENCE. Do not skip any step.
+
+STEP 1 — Vibe:
+/vibe{{if .FastPath}} --quick{{end}} recent
+
+If vibe returns FAIL, STOP and report the findings. Do NOT proceed to post-mortem.
+If vibe returns PASS or WARN, proceed.
+
+STEP 2 — Post-mortem:
+/post-mortem{{if .FastPath}} --quick{{end}} {{.EpicID}}`,
 }
 
 // retryPrompts defines templates for retry invocations with feedback context.
+// Phase 1 retries are handled WITHIN the session (the prompt instructs Claude to retry).
+// Phase 3 (validation) FAIL triggers a fresh phase 2 (implementation) session.
 var retryPrompts = map[int]string{
-	// Pre-mortem FAIL → re-plan with feedback
-	3: `/plan "{{.Goal}}" --auto` + "\n\n" +
-		`Pre-mortem FAIL (attempt {{.RetryAttempt}}/{{.MaxRetries}}). Address these findings:` + "\n" +
-		`{{range .Findings}}FINDING: {{.Description}} | FIX: {{.Fix}} | REF: {{.Ref}}` + "\n" + `{{end}}`,
-	// Vibe FAIL → re-crank with feedback
-	5: `/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}` + "\n\n" +
+	// Vibe FAIL → re-crank with feedback (spawns fresh implementation session)
+	3: `/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}` + "\n\n" +
 		`Vibe FAIL (attempt {{.RetryAttempt}}/{{.MaxRetries}}). Address these findings:` + "\n" +
 		`{{range .Findings}}FINDING: {{.Description}} | FIX: {{.Fix}} | REF: {{.Ref}}` + "\n" + `{{end}}`,
 }
@@ -190,19 +211,19 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 	// Determine start phase
 	startPhase := phaseNameToNum(phasedFrom)
 	if startPhase == 0 {
-		return fmt.Errorf("unknown phase: %q (valid: research, plan, pre-mortem, crank, vibe, post-mortem)", phasedFrom)
+		return fmt.Errorf("unknown phase: %q (valid: discovery, implementation, validation)", phasedFrom)
 	}
 
-	// For crank/vibe/post-mortem without goal, we need an epic ID
-	if startPhase >= 4 && goal == "" {
+	// For implementation/validation without goal, we need an epic ID from state
+	if startPhase >= 2 && goal == "" {
 		// Try to extract epic from existing state
-		state, err := loadPhasedState(cwd)
-		if err == nil && state.EpicID != "" {
-			goal = state.Goal
+		existing, err := loadPhasedState(cwd)
+		if err == nil && existing.EpicID != "" {
+			goal = existing.Goal
 		}
 	}
 
-	if goal == "" && startPhase <= 2 {
+	if goal == "" && startPhase <= 1 {
 		return fmt.Errorf("goal is required (provide as argument)")
 	}
 
@@ -308,15 +329,21 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 	// Register with agent mail for observability
 	registerRPIAgent(state.RunID)
 
+	// logAndFail logs an error to the orchestration log and returns it.
+	logAndFail := func(phaseName string, err error) error {
+		logPhaseTransition(logPath, state.RunID, phaseName, fmt.Sprintf("FATAL: %v", err))
+		return err
+	}
+
 	// Execute phases sequentially
-	for i := startPhase; i <= 6; i++ {
+	for i := startPhase; i <= len(phases); i++ {
 		p := phases[i-1]
 		fmt.Printf("\n--- Phase %d: %s ---\n", p.Num, p.Name)
 		state.Phase = i
 
 		prompt, err := buildPromptForPhase(spawnCwd, i, state, nil)
 		if err != nil {
-			return fmt.Errorf("build prompt for phase %d: %w", i, err)
+			return logAndFail(p.Name, fmt.Errorf("build prompt for phase %d: %w", i, err))
 		}
 
 		emitRPIStatus(state.RunID, p.Name, "started")
@@ -360,15 +387,15 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 			if retryErr, ok := err.(*gateFailError); ok {
 				retried, retryErr2 := handleGateRetry(spawnCwd, state, i, retryErr, logPath, spawnCwd)
 				if retryErr2 != nil {
-					return retryErr2
+					return logAndFail(p.Name, retryErr2)
 				}
 				if !retried {
-					return fmt.Errorf("phase %d (%s): gate failed after max retries", i, p.Name)
+					return logAndFail(p.Name, fmt.Errorf("phase %d (%s): gate failed after max retries", i, p.Name))
 				}
 				// Retry succeeded, continue to next phase
 				continue
 			}
-			return err
+			return logAndFail(p.Name, err)
 		}
 
 		// Check if phase triggered a handoff (context degradation detected)
@@ -423,14 +450,17 @@ func (e *gateFailError) Error() string {
 // postPhaseProcessing handles phase-specific post-processing.
 func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath string) error {
 	switch phaseNum {
-	case 2: // Plan — extract epic ID and detect fast path
+	case 1: // Discovery — extract epic ID, check pre-mortem verdict
+		// Extract epic ID (created by /plan within the discovery session)
 		epicID, err := extractEpicID()
 		if err != nil {
-			return fmt.Errorf("plan phase: could not extract epic ID (crank needs this): %w", err)
+			return fmt.Errorf("discovery phase: could not extract epic ID (implementation needs this): %w", err)
 		}
 		state.EpicID = epicID
 		fmt.Printf("Epic ID: %s\n", epicID)
+		logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("extracted epic: %s", epicID))
 
+		// Detect fast path
 		if !phasedFastPath {
 			fast, err := detectFastPath(state.EpicID)
 			if err != nil {
@@ -441,51 +471,70 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 			}
 		}
 
-	case 3: // Pre-mortem — check verdict
+		// Check pre-mortem verdict (run within the discovery session)
 		report, err := findLatestCouncilReport(cwd, "pre-mortem", time.Time{}, state.EpicID)
 		if err != nil {
-			return fmt.Errorf("pre-mortem phase: council report not found (phase may not have completed): %w", err)
+			// Pre-mortem may not have run if the session handled retries internally
+			// and ultimately gave up. Check if council report exists at all.
+			VerbosePrintf("Warning: pre-mortem council report not found (session may have handled retries internally): %v\n", err)
+		} else {
+			verdict, err := extractCouncilVerdict(report)
+			if err != nil {
+				VerbosePrintf("Warning: could not extract pre-mortem verdict: %v\n", err)
+			} else {
+				state.Verdicts["pre_mortem"] = verdict
+				fmt.Printf("Pre-mortem verdict: %s\n", verdict)
+				logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("pre-mortem verdict: %s", verdict))
+
+				if verdict == "FAIL" {
+					// Discovery session was instructed to retry internally.
+					// If we still see FAIL here, it means all retries failed.
+					findings, _ := extractCouncilFindings(report, 5)
+					return &gateFailError{Phase: 1, Verdict: verdict, Findings: findings, Report: report}
+				}
+			}
+		}
+
+	case 2: // Implementation — check crank completion via bd children
+		if state.EpicID != "" {
+			status, err := checkCrankCompletion(state.EpicID)
+			if err != nil {
+				VerbosePrintf("Warning: could not check crank completion (continuing to validation): %v\n", err)
+			} else {
+				fmt.Printf("Crank status: %s\n", status)
+				logPhaseTransition(logPath, state.RunID, "implementation", fmt.Sprintf("crank status: %s", status))
+				if status == "BLOCKED" || status == "PARTIAL" {
+					return &gateFailError{Phase: 2, Verdict: status, Report: "bd children " + state.EpicID}
+				}
+			}
+		}
+
+	case 3: // Validation — check vibe verdict
+		report, err := findLatestCouncilReport(cwd, "vibe", time.Time{}, state.EpicID)
+		if err != nil {
+			return fmt.Errorf("validation phase: vibe report not found (phase may not have completed): %w", err)
 		}
 		verdict, err := extractCouncilVerdict(report)
 		if err != nil {
-			return fmt.Errorf("pre-mortem phase: could not extract verdict from %s: %w", report, err)
+			return fmt.Errorf("validation phase: could not extract vibe verdict from %s: %w", report, err)
 		}
-		state.Verdicts["pre_mortem"] = verdict
-		fmt.Printf("Pre-mortem verdict: %s\n", verdict)
+		state.Verdicts["vibe"] = verdict
+		fmt.Printf("Vibe verdict: %s\n", verdict)
+		logPhaseTransition(logPath, state.RunID, "validation", fmt.Sprintf("vibe verdict: %s", verdict))
 
 		if verdict == "FAIL" {
 			findings, _ := extractCouncilFindings(report, 5)
 			return &gateFailError{Phase: 3, Verdict: verdict, Findings: findings, Report: report}
 		}
 
-	case 4: // Crank — check completion via bd children
-		if state.EpicID != "" {
-			status, err := checkCrankCompletion(state.EpicID)
-			if err != nil {
-				VerbosePrintf("Warning: could not check crank completion (continuing to vibe): %v\n", err)
-			} else {
-				fmt.Printf("Crank status: %s\n", status)
-				if status == "BLOCKED" || status == "PARTIAL" {
-					return &gateFailError{Phase: 4, Verdict: status, Report: "bd children " + state.EpicID}
-				}
+		// Also extract post-mortem verdict if available (non-blocking)
+		pmReport, err := findLatestCouncilReport(cwd, "post-mortem", time.Time{}, state.EpicID)
+		if err == nil {
+			pmVerdict, err := extractCouncilVerdict(pmReport)
+			if err == nil {
+				state.Verdicts["post_mortem"] = pmVerdict
+				fmt.Printf("Post-mortem verdict: %s\n", pmVerdict)
 			}
-		}
-
-	case 5: // Vibe — check verdict
-		report, err := findLatestCouncilReport(cwd, "vibe", time.Time{}, state.EpicID)
-		if err != nil {
-			return fmt.Errorf("vibe phase: council report not found (phase may not have completed): %w", err)
-		}
-		verdict, err := extractCouncilVerdict(report)
-		if err != nil {
-			return fmt.Errorf("vibe phase: could not extract verdict from %s: %w", report, err)
-		}
-		state.Verdicts["vibe"] = verdict
-		fmt.Printf("Vibe verdict: %s\n", verdict)
-
-		if verdict == "FAIL" {
-			findings, _ := extractCouncilFindings(report, 5)
-			return &gateFailError{Phase: 5, Verdict: verdict, Findings: findings, Report: report}
 		}
 	}
 
@@ -635,7 +684,7 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 	}
 
 	// 3. Cross-phase context for phases 3+ (goal, verdicts, prior summaries)
-	if phaseNum >= 3 {
+	if phaseNum >= 2 {
 		ctx := buildPhaseContext(cwd, state, phaseNum)
 		if ctx != "" {
 			prompt.WriteString(ctx)
@@ -798,7 +847,8 @@ func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int) error
 	fmt.Printf("ntm session: %s (attach with: ntm attach %s)\n", sessionName, sessionName)
 
 	// Spawn ntm session with one claude agent
-	spawnCmd := exec.Command(ntmPath, "spawn", sessionName, "--cc=1", "--no-user-pane", "--dir", cwd)
+	spawnCmd := exec.Command(ntmPath, "spawn", sessionName, "--cc=1", "--no-user")
+	spawnCmd.Dir = cwd
 	spawnCmd.Env = cleanEnvNoClaude()
 	if out, err := spawnCmd.CombinedOutput(); err != nil {
 		fmt.Printf("ntm spawn failed, falling back to direct exec: %s\n", string(out))
@@ -892,9 +942,10 @@ func buildAllPhases(phaseDefs []phase) []PhaseProgress {
 func cleanEnvNoClaude() []string {
 	var env []string
 	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "CLAUDECODE=") {
-			env = append(env, e)
+		if strings.HasPrefix(e, "CLAUDECODE=") || strings.HasPrefix(e, "CLAUDE_CODE_") {
+			continue
 		}
+		env = append(env, e)
 	}
 	return env
 }
@@ -1010,7 +1061,9 @@ func extractCouncilFindings(reportPath string, max int) ([]finding, error) {
 
 // --- Epic and completion helpers ---
 
-// extractEpicID finds the most recent open epic ID via bd CLI.
+// extractEpicID finds the most recently created open epic ID via bd CLI.
+// bd list returns epics in creation order; we take the LAST match so that
+// the epic just created by the plan phase is selected over older ones.
 func extractEpicID() (string, error) {
 	cmd := exec.Command("bd", "list", "--type", "epic", "--status", "open")
 	out, err := cmd.Output()
@@ -1019,11 +1072,12 @@ func extractEpicID() (string, error) {
 	}
 
 	re := regexp.MustCompile(`(ag-[a-z0-9]+)`)
-	matches := re.FindSubmatch(out)
-	if len(matches) < 2 {
+	allMatches := re.FindAllSubmatch(out, -1)
+	if len(allMatches) == 0 {
 		return "", fmt.Errorf("no epic found in bd list output")
 	}
-	return string(matches[1]), nil
+	// Last match = most recently created epic.
+	return string(allMatches[len(allMatches)-1][1]), nil
 }
 
 // detectFastPath checks if an epic is a micro-epic (≤2 issues, no blockers).
@@ -1128,30 +1182,35 @@ func writePhaseSummary(cwd string, state *phasedState, phaseNum int) {
 // generatePhaseSummary produces a concise summary of what a phase accomplished.
 func generatePhaseSummary(state *phasedState, phaseNum int) string {
 	switch phaseNum {
-	case 1: // Research
-		return fmt.Sprintf("Research completed for goal: %s\nSee .agents/research/ for findings.", state.Goal)
-	case 2: // Plan
-		summary := fmt.Sprintf("Plan completed. Epic: %s", state.EpicID)
-		if state.FastPath {
-			summary += " (micro-epic, fast path)"
+	case 1: // Discovery (research + plan + pre-mortem)
+		summary := fmt.Sprintf("Discovery completed for goal: %s\n", state.Goal)
+		summary += fmt.Sprintf("Research: see .agents/research/ for findings.\n")
+		if state.EpicID != "" {
+			summary += fmt.Sprintf("Plan: epic %s", state.EpicID)
+			if state.FastPath {
+				summary += " (micro-epic, fast path)"
+			}
+			summary += "\n"
+		}
+		verdict := state.Verdicts["pre_mortem"]
+		if verdict != "" {
+			summary += fmt.Sprintf("Pre-mortem verdict: %s\nSee .agents/council/*pre-mortem*.md for details.", verdict)
 		}
 		return summary
-	case 3: // Pre-mortem
-		verdict := state.Verdicts["pre_mortem"]
-		if verdict == "" {
-			verdict = "unknown"
-		}
-		return fmt.Sprintf("Pre-mortem verdict: %s\nSee .agents/council/*pre-mortem*.md for details.", verdict)
-	case 4: // Crank
+	case 2: // Implementation (crank)
 		return fmt.Sprintf("Crank completed for epic %s.\nCheck bd children %s for issue statuses.", state.EpicID, state.EpicID)
-	case 5: // Vibe
-		verdict := state.Verdicts["vibe"]
-		if verdict == "" {
-			verdict = "unknown"
+	case 3: // Validation (vibe + post-mortem)
+		summary := ""
+		vibeVerdict := state.Verdicts["vibe"]
+		if vibeVerdict != "" {
+			summary += fmt.Sprintf("Vibe verdict: %s\nSee .agents/council/*vibe*.md for details.\n", vibeVerdict)
 		}
-		return fmt.Sprintf("Vibe verdict: %s\nSee .agents/council/*vibe*.md for details.", verdict)
-	case 6: // Post-mortem
-		return fmt.Sprintf("Post-mortem completed for epic %s.\nSee .agents/council/*post-mortem*.md and .agents/learnings/ for extracted knowledge.", state.EpicID)
+		pmVerdict := state.Verdicts["post_mortem"]
+		if pmVerdict != "" {
+			summary += fmt.Sprintf("Post-mortem verdict: %s\n", pmVerdict)
+		}
+		summary += fmt.Sprintf("See .agents/council/*post-mortem*.md and .agents/learnings/ for extracted knowledge.")
+		return summary
 	}
 	return ""
 }
@@ -1165,7 +1224,7 @@ func handoffDetected(cwd string, phaseNum int) bool {
 
 // cleanPhaseSummaries removes stale phase summaries and handoffs from a prior run.
 func cleanPhaseSummaries(stateDir string) {
-	for i := 1; i <= 6; i++ {
+	for i := 1; i <= len(phases); i++ {
 		path := filepath.Join(stateDir, fmt.Sprintf("phase-%d-summary.md", i))
 		os.Remove(path) //nolint:errcheck
 		handoffPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-handoff.md", i))
@@ -1210,17 +1269,21 @@ func getCurrentBranch(repoRoot string) (string, error) {
 }
 
 // getRepoRoot returns the git repository root directory.
-func getRepoRoot() (string, error) {
+// dir sets the working directory for the git command; when empty, uses the process cwd.
+func getRepoRoot(dir string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), worktreeTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
+	if dir != "" {
+		cmd.Dir = dir
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return "", fmt.Errorf("git rev-parse timed out after %s", worktreeTimeout)
 		}
-		return "", fmt.Errorf("get repo root: %w", err)
+		return "", fmt.Errorf("not a git repository (run ao rpi phased from inside a git repo)")
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -1229,7 +1292,7 @@ func getRepoRoot() (string, error) {
 // Path: ../<repo-basename>-rpi-<runID>/
 // Branch: rpi/<runID>
 func createWorktree(cwd string) (worktreePath, runID string, err error) {
-	repoRoot, err := getRepoRoot()
+	repoRoot, err := getRepoRoot(cwd)
 	if err != nil {
 		return "", "", err
 	}
@@ -1504,18 +1567,23 @@ func deregisterRPIAgent(runID string) {
 func phaseNameToNum(name string) int {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	aliases := map[string]int{
+		// Canonical 3-phase names
+		"discovery":       1,
+		"implementation":  2,
+		"validation":      3,
+		// Backward-compatible aliases (old 6-phase names map to consolidated phases)
 		"research":    1,
-		"plan":        2,
-		"pre-mortem":  3,
-		"premortem":   3,
-		"pre_mortem":  3,
-		"crank":       4,
-		"implement":   4,
-		"vibe":        5,
-		"validate":    5,
-		"post-mortem": 6,
-		"postmortem":  6,
-		"post_mortem": 6,
+		"plan":        1,
+		"pre-mortem":  1,
+		"premortem":   1,
+		"pre_mortem":  1,
+		"crank":       2,
+		"implement":   2,
+		"vibe":        3,
+		"validate":    3,
+		"post-mortem": 3,
+		"postmortem":  3,
+		"post_mortem": 3,
 	}
 	return aliases[normalized]
 }

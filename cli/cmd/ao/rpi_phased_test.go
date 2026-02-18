@@ -134,58 +134,58 @@ func TestBuildPromptForPhase(t *testing.T) {
 		contains string
 	}{
 		{
-			name:     "research phase",
+			name:     "discovery phase contains research",
 			phase:    1,
 			state:    &phasedState{Goal: "add auth"},
 			contains: `/research "add auth" --auto`,
 		},
 		{
-			name:     "plan phase",
-			phase:    2,
+			name:     "discovery phase contains plan",
+			phase:    1,
 			state:    &phasedState{Goal: "add auth"},
 			contains: `/plan "add auth" --auto`,
 		},
 		{
-			name:     "pre-mortem normal",
-			phase:    3,
-			state:    &phasedState{},
+			name:     "discovery phase contains pre-mortem",
+			phase:    1,
+			state:    &phasedState{Goal: "add auth"},
 			contains: "/pre-mortem",
 		},
 		{
-			name:     "pre-mortem fast path",
-			phase:    3,
-			state:    &phasedState{FastPath: true},
+			name:     "discovery fast path",
+			phase:    1,
+			state:    &phasedState{Goal: "add auth", FastPath: true},
 			contains: "--quick",
 		},
 		{
-			name:     "crank with epic",
-			phase:    4,
+			name:     "implementation with epic",
+			phase:    2,
 			state:    &phasedState{EpicID: "ag-5k2"},
 			contains: "/crank ag-5k2",
 		},
 		{
-			name:     "crank with test-first",
-			phase:    4,
+			name:     "implementation with test-first",
+			phase:    2,
 			state:    &phasedState{EpicID: "ag-5k2", TestFirst: true},
 			contains: "--test-first",
 		},
 		{
-			name:     "vibe normal",
-			phase:    5,
-			state:    &phasedState{},
-			contains: "/vibe recent",
-		},
-		{
-			name:     "vibe fast path",
-			phase:    5,
-			state:    &phasedState{FastPath: true},
-			contains: "/vibe --quick recent",
-		},
-		{
-			name:     "post-mortem with epic",
-			phase:    6,
+			name:     "validation contains vibe",
+			phase:    3,
 			state:    &phasedState{EpicID: "ag-5k2"},
-			contains: "/post-mortem ag-5k2",
+			contains: "/vibe",
+		},
+		{
+			name:     "validation contains post-mortem",
+			phase:    3,
+			state:    &phasedState{EpicID: "ag-5k2"},
+			contains: "/post-mortem",
+		},
+		{
+			name:     "validation fast path vibe",
+			phase:    3,
+			state:    &phasedState{EpicID: "ag-5k2", FastPath: true},
+			contains: "/vibe --quick recent",
 		},
 	}
 
@@ -212,25 +212,26 @@ func TestBuildPromptForPhase_Retry(t *testing.T) {
 		Verdict: "FAIL",
 	}
 
-	// Pre-mortem retry → re-plan
+	// Vibe retry (phase 3) → re-crank
 	prompt, err := buildRetryPrompt("", 3, state, retryCtx)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !containsStr(prompt, "/plan") {
-		t.Errorf("pre-mortem retry should invoke /plan, got: %q", prompt)
-	}
-	if !containsStr(prompt, "Missing error handling") {
-		t.Errorf("retry prompt should contain finding description, got: %q", prompt)
-	}
-
-	// Vibe retry → re-crank
-	prompt, err = buildRetryPrompt("", 5, state, retryCtx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !containsStr(prompt, "/crank") {
 		t.Errorf("vibe retry should invoke /crank, got: %q", prompt)
+	}
+	if !containsStr(prompt, "Missing error handling") {
+		t.Errorf("retry prompt should contain finding description, got: %q", prompt)
+	}
+
+	// Phase 1 has no retry template (retries happen within the session)
+	// buildRetryPrompt should fall back to normal prompt
+	prompt, err = buildRetryPrompt("", 1, state, retryCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !containsStr(prompt, "/research") {
+		t.Errorf("phase 1 retry should fall back to normal prompt, got: %q", prompt)
 	}
 }
 
@@ -294,18 +295,24 @@ func TestPhaseNameToNum(t *testing.T) {
 		name     string
 		expected int
 	}{
+		// Canonical 3-phase names
+		{"discovery", 1},
+		{"implementation", 2},
+		{"validation", 3},
+		// Backward-compatible aliases
 		{"research", 1},
-		{"plan", 2},
-		{"pre-mortem", 3},
-		{"premortem", 3},
-		{"pre_mortem", 3},
-		{"crank", 4},
-		{"implement", 4},
-		{"vibe", 5},
-		{"validate", 5},
-		{"post-mortem", 6},
-		{"postmortem", 6},
-		{"post_mortem", 6},
+		{"plan", 1},
+		{"pre-mortem", 1},
+		{"premortem", 1},
+		{"pre_mortem", 1},
+		{"crank", 2},
+		{"implement", 2},
+		{"vibe", 3},
+		{"validate", 3},
+		{"post-mortem", 3},
+		{"postmortem", 3},
+		{"post_mortem", 3},
+		// Unknown
 		{"unknown", 0},
 		{"", 0},
 	}
@@ -564,7 +571,7 @@ func TestBuildPromptForPhase_Interactive(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !containsStr(prompt, "--auto") {
-		t.Errorf("non-interactive research prompt should contain --auto, got: %q", prompt)
+		t.Errorf("non-interactive discovery prompt should contain --auto, got: %q", prompt)
 	}
 
 	// Interactive — should NOT have --auto
@@ -574,16 +581,7 @@ func TestBuildPromptForPhase_Interactive(t *testing.T) {
 		t.Fatal(err)
 	}
 	if containsStr(prompt, "--auto") {
-		t.Errorf("interactive research prompt should not contain --auto, got: %q", prompt)
-	}
-
-	// Plan phase too
-	prompt, err = buildPromptForPhase("", 2, state, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if containsStr(prompt, "--auto") {
-		t.Errorf("interactive plan prompt should not contain --auto, got: %q", prompt)
+		t.Errorf("interactive discovery prompt should not contain --auto, got: %q", prompt)
 	}
 }
 
@@ -597,7 +595,7 @@ func TestBuildPhaseContext(t *testing.T) {
 		},
 	}
 
-	ctx := buildPhaseContext("", state, 4)
+	ctx := buildPhaseContext("", state, 2)
 	if !containsStr(ctx, "Goal: add user authentication") {
 		t.Errorf("context should contain goal, got: %q", ctx)
 	}
@@ -608,9 +606,9 @@ func TestBuildPhaseContext(t *testing.T) {
 		t.Errorf("context should have header, got: %q", ctx)
 	}
 
-	// Empty state
+	// Phase 1 with empty state — no context needed
 	emptyState := &phasedState{Verdicts: make(map[string]string)}
-	ctx = buildPhaseContext("", emptyState, 3)
+	ctx = buildPhaseContext("", emptyState, 1)
 	if ctx != "" {
 		t.Errorf("empty state should produce empty context, got: %q", ctx)
 	}
@@ -625,34 +623,34 @@ func TestBuildPromptForPhase_WithContext(t *testing.T) {
 		},
 	}
 
-	// Phase 4 (crank) should include context and summary instruction
-	prompt, err := buildPromptForPhase("", 4, state, nil)
+	// Phase 2 (implementation) should include context and summary instruction
+	prompt, err := buildPromptForPhase("", 2, state, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !containsStr(prompt, "/crank ag-5k2") {
-		t.Errorf("crank prompt missing command, got: %q", prompt)
+		t.Errorf("implementation prompt missing command, got: %q", prompt)
 	}
 	if !containsStr(prompt, "Goal: add auth") {
-		t.Errorf("crank prompt missing goal context, got: %q", prompt)
+		t.Errorf("implementation prompt missing goal context, got: %q", prompt)
 	}
 	if !containsStr(prompt, "pre-mortem verdict: PASS") {
-		t.Errorf("crank prompt missing verdict context, got: %q", prompt)
+		t.Errorf("implementation prompt missing verdict context, got: %q", prompt)
 	}
-	if !containsStr(prompt, "phase-4-summary.md") {
-		t.Errorf("crank prompt missing summary instruction, got: %q", prompt)
+	if !containsStr(prompt, "phase-2-summary.md") {
+		t.Errorf("implementation prompt missing summary instruction, got: %q", prompt)
 	}
 
-	// Phase 1 (research) should NOT include cross-phase context but SHOULD have summary instruction
+	// Phase 1 (discovery) should NOT include cross-phase context but SHOULD have summary instruction
 	prompt, err = buildPromptForPhase("", 1, state, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if containsStr(prompt, "RPI Context") {
-		t.Errorf("research prompt should not have context block, got: %q", prompt)
+		t.Errorf("discovery prompt should not have context block, got: %q", prompt)
 	}
 	if !containsStr(prompt, "phase-1-summary.md") {
-		t.Errorf("research prompt should have summary instruction, got: %q", prompt)
+		t.Errorf("discovery prompt should have summary instruction, got: %q", prompt)
 	}
 }
 
@@ -667,31 +665,31 @@ func TestGeneratePhaseSummary(t *testing.T) {
 		},
 	}
 
-	// Phase 1: research
+	// Phase 1: discovery (research + plan + pre-mortem)
 	s := generatePhaseSummary(state, 1)
 	if !containsStr(s, "add auth") {
-		t.Errorf("research summary missing goal, got: %q", s)
+		t.Errorf("discovery summary missing goal, got: %q", s)
 	}
-
-	// Phase 2: plan
-	s = generatePhaseSummary(state, 2)
 	if !containsStr(s, "ag-5k2") {
-		t.Errorf("plan summary missing epic, got: %q", s)
+		t.Errorf("discovery summary missing epic, got: %q", s)
+	}
+	if !containsStr(s, "WARN") {
+		t.Errorf("discovery summary missing pre-mortem verdict, got: %q", s)
 	}
 	if !containsStr(s, "fast path") {
-		t.Errorf("plan summary missing fast path, got: %q", s)
+		t.Errorf("discovery summary missing fast path, got: %q", s)
 	}
 
-	// Phase 3: pre-mortem
+	// Phase 2: implementation (crank)
+	s = generatePhaseSummary(state, 2)
+	if !containsStr(s, "ag-5k2") {
+		t.Errorf("implementation summary missing epic, got: %q", s)
+	}
+
+	// Phase 3: validation (vibe + post-mortem)
 	s = generatePhaseSummary(state, 3)
-	if !containsStr(s, "WARN") {
-		t.Errorf("pre-mortem summary missing verdict, got: %q", s)
-	}
-
-	// Phase 5: vibe
-	s = generatePhaseSummary(state, 5)
 	if !containsStr(s, "PASS") {
-		t.Errorf("vibe summary missing verdict, got: %q", s)
+		t.Errorf("validation summary missing vibe verdict, got: %q", s)
 	}
 }
 
@@ -703,19 +701,19 @@ func TestReadPhaseSummaries(t *testing.T) {
 	}
 
 	// Write summaries for phases 1 and 2
-	if err := os.WriteFile(filepath.Join(rpiDir, "phase-1-summary.md"), []byte("Research found X and Y"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-1-summary.md"), []byte("Discovery found X and Y"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(rpiDir, "phase-2-summary.md"), []byte("Plan created epic ag-test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-2-summary.md"), []byte("Crank completed epic ag-test"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Reading for phase 3 should get both
 	result := readPhaseSummaries(tmpDir, 3)
-	if !containsStr(result, "Research found X and Y") {
+	if !containsStr(result, "Discovery found X and Y") {
 		t.Errorf("should include phase 1 summary, got: %q", result)
 	}
-	if !containsStr(result, "Plan created epic ag-test") {
+	if !containsStr(result, "Crank completed epic ag-test") {
 		t.Errorf("should include phase 2 summary, got: %q", result)
 	}
 
@@ -727,10 +725,10 @@ func TestReadPhaseSummaries(t *testing.T) {
 
 	// Reading for phase 2 should get only phase 1
 	result = readPhaseSummaries(tmpDir, 2)
-	if !containsStr(result, "Research found X and Y") {
+	if !containsStr(result, "Discovery found X and Y") {
 		t.Errorf("should include phase 1 summary, got: %q", result)
 	}
-	if containsStr(result, "Plan created") {
+	if containsStr(result, "Crank completed") {
 		t.Errorf("should NOT include phase 2 summary, got: %q", result)
 	}
 }
@@ -744,9 +742,9 @@ func TestWritePhaseSummary(t *testing.T) {
 	}
 
 	// Fallback: no existing summary → writes mechanical one
-	writePhaseSummary(tmpDir, state, 3)
+	writePhaseSummary(tmpDir, state, 1)
 
-	path := filepath.Join(tmpDir, ".agents", "rpi", "phase-3-summary.md")
+	path := filepath.Join(tmpDir, ".agents", "rpi", "phase-1-summary.md")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("summary file not written: %v", err)
@@ -756,11 +754,11 @@ func TestWritePhaseSummary(t *testing.T) {
 	}
 
 	// Claude-written summary exists → don't overwrite
-	richSummary := "Research found JWT is best approach because stateless and fits API."
+	richSummary := "Discovery found JWT is best approach because stateless and fits API."
 	if err := os.WriteFile(path, []byte(richSummary), 0644); err != nil {
 		t.Fatal(err)
 	}
-	writePhaseSummary(tmpDir, state, 3) // should not overwrite
+	writePhaseSummary(tmpDir, state, 1) // should not overwrite
 	data, err = os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -803,8 +801,8 @@ func TestContextDisciplineInPrompt(t *testing.T) {
 		Attempts: make(map[string]int),
 	}
 
-	// Every phase should contain context discipline
-	for phaseNum := 1; phaseNum <= 6; phaseNum++ {
+	// Every phase (1-3) should contain context discipline
+	for phaseNum := 1; phaseNum <= 3; phaseNum++ {
 		prompt, err := buildPromptForPhase("", phaseNum, state, nil)
 		if err != nil {
 			t.Fatalf("phase %d: unexpected error: %v", phaseNum, err)
@@ -826,7 +824,7 @@ func TestContextDisciplineInPrompt(t *testing.T) {
 
 func TestContextDiscipline_PhaseSpecificBudgets(t *testing.T) {
 	// Verify each phase has a specific budget
-	for phaseNum := 1; phaseNum <= 6; phaseNum++ {
+	for phaseNum := 1; phaseNum <= 3; phaseNum++ {
 		budget, ok := phaseContextBudgets[phaseNum]
 		if !ok {
 			t.Errorf("phase %d: no context budget defined", phaseNum)
@@ -836,9 +834,9 @@ func TestContextDiscipline_PhaseSpecificBudgets(t *testing.T) {
 		}
 	}
 
-	// Phase 4 (crank) should have CRITICAL warning
-	if !containsStr(phaseContextBudgets[4], "CRITICAL") {
-		t.Error("phase 4 budget should contain CRITICAL warning")
+	// Phase 2 (implementation/crank) should have CRITICAL warning
+	if !containsStr(phaseContextBudgets[2], "CRITICAL") {
+		t.Error("phase 2 budget should contain CRITICAL warning")
 	}
 }
 
@@ -850,8 +848,8 @@ func TestContextDiscipline_PromptOrdering(t *testing.T) {
 		Attempts: make(map[string]int),
 	}
 
-	// Phase 4: check that discipline comes before skill invocation
-	prompt, err := buildPromptForPhase("", 4, state, nil)
+	// Phase 2: check that discipline comes before skill invocation
+	prompt, err := buildPromptForPhase("", 2, state, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -888,22 +886,22 @@ func TestHandoffDetection(t *testing.T) {
 	}
 
 	// No handoff file → not detected
-	if handoffDetected(tmpDir, 4) {
+	if handoffDetected(tmpDir, 2) {
 		t.Error("should not detect handoff when file doesn't exist")
 	}
 
 	// Write handoff file → detected
-	handoffPath := filepath.Join(rpiDir, "phase-4-handoff.md")
+	handoffPath := filepath.Join(rpiDir, "phase-2-handoff.md")
 	if err := os.WriteFile(handoffPath, []byte("# Handoff\nContext degraded."), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	if !handoffDetected(tmpDir, 4) {
+	if !handoffDetected(tmpDir, 2) {
 		t.Error("should detect handoff when file exists")
 	}
 
 	// Different phase → not detected
-	if handoffDetected(tmpDir, 3) {
+	if handoffDetected(tmpDir, 1) {
 		t.Error("should not detect handoff for different phase")
 	}
 }
@@ -950,7 +948,7 @@ func TestPromptBudgetEstimate(t *testing.T) {
 	}
 
 	// Every phase prompt should stay under 5000 chars (without summaries on disk)
-	for phaseNum := 1; phaseNum <= 6; phaseNum++ {
+	for phaseNum := 1; phaseNum <= 3; phaseNum++ {
 		prompt, err := buildPromptForPhase("", phaseNum, state, nil)
 		if err != nil {
 			t.Fatalf("phase %d: unexpected error: %v", phaseNum, err)
