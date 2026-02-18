@@ -925,6 +925,19 @@ def main() -> int:
         if ba.exists():
             shutil.copyfile(ba, output_dir / "binary-analysis.md")
 
+        # After analyze_binary.sh completes, run CLI help capture
+        capture_script = SKILL_DIR / "scripts" / "binary" / "capture_cli_help.sh"
+        if capture_script.exists():
+            _run(
+                ["bash", str(capture_script), str(binary_path), str(tmp_dir / "binary")],
+                check=False,  # best-effort
+            )
+            # Copy results to output dir if they exist
+            for fname in ("cli-help-tree.txt", "cli-commands.txt"):
+                src = tmp_dir / "binary" / fname
+                if src.exists():
+                    shutil.copyfile(src, output_dir / fname)
+
         # Embedded archive inventory (index only by default; does not dump content into output_dir).
         _run(
             [
