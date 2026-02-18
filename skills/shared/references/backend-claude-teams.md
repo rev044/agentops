@@ -101,7 +101,17 @@ When a teammate finishes, their message appears as a new conversation turn. The 
 Read(".agents/council/2026-02-17-auth-judge-1.md")
 ```
 
-**Timeout handling:** If a teammate goes idle without sending a completion signal within the expected timeout, check their result file — they may have written it but failed to message. If no result file exists, the agent likely failed silently.
+**Timeout handling (default: 120s per round, 90s for debate R2):**
+
+If a teammate goes idle without sending a completion signal:
+1. Check their result file — they may have written it but failed to message
+2. If result file exists → read it and proceed (the message was the only thing missing)
+3. If no result file → the agent failed silently. **Recovery:** proceed with N-1 judges/workers and note the failure in the report. For swarm workers, add the task back to the retry queue.
+4. Never wait indefinitely — after the timeout, move on
+
+See `skills/council/references/cli-spawning.md` for timeout configuration (`COUNCIL_TIMEOUT`, `COUNCIL_R2_TIMEOUT`).
+
+**Fallback:** If native teams fail at runtime despite passing detection (e.g., `TeamCreate` succeeds but `Task` spawning fails), fall back to background tasks. See `backend-background-tasks.md`.
 
 ---
 
@@ -119,6 +129,8 @@ SendMessage(
   summary="R2 debate instructions for judge-1"
 )
 ```
+
+**R2 timeout (default: 90s):** If a judge doesn't respond to R2 within `COUNCIL_R2_TIMEOUT`, use their R1 verdict for consolidation. See `skills/council/references/debate-protocol.md` for full timeout handling.
 
 ### Swarm Worker Retry
 
@@ -146,7 +158,9 @@ SendMessage(type="shutdown_request", recipient="judge-error-paths", content="Cou
 TeamDelete()
 ```
 
-**Reaper pattern:** If a teammate doesn't respond to shutdown within 30s, proceed anyway. `TeamDelete` will force-terminate remaining members.
+**Reaper pattern:** If a teammate doesn't respond to shutdown within 30s, proceed with `TeamDelete()` anyway.
+
+**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.claude/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
 
 ---
 
@@ -160,6 +174,7 @@ TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
+# If TeamDelete fails: rm -rf ~/.claude/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
 TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")
@@ -168,6 +183,8 @@ TeamDelete()
 ```
 
 This ensures each wave's workers start with clean context (no leftover state from prior waves).
+
+**If `TeamDelete` fails between waves**, the next `TeamCreate` may conflict. Always verify cleanup succeeded before creating the next wave team.
 
 ---
 

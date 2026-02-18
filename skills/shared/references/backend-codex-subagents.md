@@ -75,6 +75,8 @@ spawn_agent(message="You are worker-3.\n\nTask: Add password hashing\n...\n\nWri
 wait(ids=["agent-id-1", "agent-id-2"])
 ```
 
+**Timeout:** `wait()` blocks until completion. Set a timeout at the orchestration level (default: `COUNCIL_TIMEOUT=120s`). If an agent doesn't complete within the timeout, `close_agent` it and proceed with N-1 verdicts/workers.
+
 ### Message (retry/follow-up)
 
 ```
@@ -104,6 +106,8 @@ Bash(command='codex exec -s read-only -m gpt-5.3-codex -C "$(pwd)" --output-sche
 ```
 
 All four spawn in the **same message** — maximum parallelism.
+
+**Mixed mode quorum:** At least 1 judge from each vendor should respond for cross-vendor consensus. If all judges from one vendor fail, proceed as single-vendor council and note the degradation in the report.
 
 ---
 

@@ -78,13 +78,19 @@ TaskOutput(task_id="def-456", block=true, timeout=120000)
 TaskOutput(task_id="abc-123", block=false, timeout=5000)
 ```
 
-After `TaskOutput` returns, verify the agent wrote its result file:
+**After `TaskOutput` returns**, verify the agent wrote its result file:
 
 ```
 Read(".agents/council/2026-02-17-auth-judge-1.md")
 ```
 
-If the file doesn't exist, the agent failed silently.
+**Timeout behavior:** If `timeout` expires, `TaskOutput` returns with a timeout status — the agent may still be running. **Recovery:**
+1. Check result file — agent may have written it but not finished cleanly
+2. If result file exists → use it, `TaskStop` the agent
+3. If no result file → agent failed silently. For council: proceed with N-1 verdicts, note in report. For swarm: add task back to retry queue, re-spawn a fresh agent.
+4. Never assume `TaskOutput` completion means the result file was written — always verify
+
+**Fallback:** If background tasks fail despite detection, fall back to inline mode. See `backend-inline.md`.
 
 ---
 

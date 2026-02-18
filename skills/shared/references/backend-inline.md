@@ -40,6 +40,12 @@ Instead of parallel workers, execute each task sequentially:
 
 Same result files, same validation — just sequential.
 
+**Error handling:** If a task fails mid-execution:
+1. Write failure result to `.agents/swarm/results/<task-id>.json` with `"status": "blocked"`
+2. Check if downstream tasks depend on it (`blockedBy`)
+3. Skip blocked downstream tasks, mark as skipped
+4. Continue with independent tasks that don't depend on the failed one
+
 ---
 
 ## Research: Inline Exploration
