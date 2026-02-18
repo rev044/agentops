@@ -202,6 +202,138 @@ def _find_node_cli_package(repo_root: Path, product_slug: str, product_name: str
     }
 
 
+def _find_python_cli(repo_root: Path) -> dict[str, object] | None:
+    """Detect Python CLI packages via pyproject.toml or setup.cfg entry_points."""
+    result: dict[str, object] = {"language": "python", "bin": {}, "framework": None, "entry_module": None}
+
+    # Try pyproject.toml first (modern standard).
+    for pyproject in sorted(repo_root.rglob("pyproject.toml")):
+        if ".venv" in pyproject.parts or "node_modules" in pyproject.parts:
+            continue
+        text = _read_text(pyproject)
+        # [project.scripts] section (PEP 621).
+        m = re.search(r'\[project\.scripts\]\s*\n((?:[^\[].+\n)*)', text)
+        if m:
+            for line in m.group(1).strip().splitlines():
+                parts = line.split("=", 1)
+                if len(parts) == 2:
+                    name = parts[0].strip().strip('"').strip("'")
+                    entry = parts[1].strip().strip('"').strip("'")
+                    result["bin"][name] = entry  # type: ignore[index]
+                    if not result["entry_module"]:
+                        result["entry_module"] = entry.split(":")[0] if ":" in entry else entry
+        # [tool.poetry.scripts] section.
+        m2 = re.search(r'\[tool\.poetry\.scripts\]\s*\n((?:[^\[].+\n)*)', text)
+        if m2:
+            for line in m2.group(1).strip().splitlines():
+                parts = line.split("=", 1)
+                if len(parts) == 2:
+                    name = parts[0].strip().strip('"').strip("'")
+                    entry = parts[1].strip().strip('"').strip("'")
+                    result["bin"][name] = entry  # type: ignore[index]
+        if result["bin"]:
+            break
+
+    # Try setup.cfg if pyproject didn't find scripts.
+    if not result["bin"]:
+        for setup_cfg in sorted(repo_root.rglob("setup.cfg")):
+            if ".venv" in setup_cfg.parts:
+                continue
+            text = _read_text(setup_cfg)
+            m = re.search(r'\[options\.entry_points\]\s*\nconsole_scripts\s*=\s*\n((?:\s+.+\n)*)', text)
+            if m:
+                for line in m.group(1).strip().splitlines():
+                    parts = line.strip().split("=", 1)
+                    if len(parts) == 2:
+                        result["bin"][parts[0].strip()] = parts[1].strip()  # type: ignore[index]
+                if result["bin"]:
+                    break
+
+    if not result["bin"]:
+        return None
+
+    # Detect CLI framework via source scan (best-effort, cap file count).
+    scanned = 0
+    for py_file in sorted(repo_root.rglob("*.py")):
+        if ".venv" in py_file.parts or "node_modules" in py_file.parts:
+            continue
+        scanned += 1
+        if scanned > 200:
+            break
+        text = _read_text(py_file)
+        if "@click.command" in text or "@click.group" in text:
+            result["framework"] = "click"
+            break
+        if "typer.Typer" in text or "@app.command" in text:
+            result["framework"] = "typer"
+            break
+        if "ArgumentParser(" in text and "add_argument" in text:
+            result["framework"] = "argparse"
+
+    return result
+
+
+def _find_go_cli(repo_root: Path) -> dict[str, object] | None:
+    """Detect Go CLI packages via go.mod + main.go + flag/cobra usage."""
+    result: dict[str, object] = {"language": "go", "bin": {}, "framework": None, "module": None}
+
+    # Find go.mod for module name.
+    go_mod = repo_root / "go.mod"
+    if not go_mod.exists():
+        # Check one level deeper (monorepo).
+        for gm in sorted(repo_root.rglob("go.mod")):
+            go_mod = gm
+            break
+    if go_mod.exists():
+        text = _read_text(go_mod)
+        m = re.search(r'^module\s+(.+)$', text, re.MULTILINE)
+        if m:
+            result["module"] = m.group(1).strip()
+
+    # Find main.go files (entry points).
+    main_files: list[Path] = []
+    for mg in sorted(repo_root.rglob("main.go")):
+        if "vendor" in mg.parts or "testdata" in mg.parts:
+            continue
+        main_files.append(mg)
+
+    if not main_files and not result["module"]:
+        return None
+
+    # Derive binary names from cmd/ pattern or root main.go.
+    for mf in main_files:
+        rel = mf.relative_to(repo_root)
+        parts = rel.parts
+        if len(parts) >= 3 and parts[-3] == "cmd":
+            # cmd/<name>/main.go pattern.
+            result["bin"][parts[-2]] = str(rel)  # type: ignore[index]
+        elif len(parts) == 1:
+            # Root main.go — use module basename or directory name.
+            mod = str(result.get("module") or "")
+            name = mod.rsplit("/", 1)[-1] if mod else repo_root.name
+            result["bin"][name] = str(rel)  # type: ignore[index]
+
+    if not result["bin"]:
+        return None
+
+    # Detect CLI framework (cobra vs stdlib flag).
+    scanned = 0
+    for go_file in sorted(repo_root.rglob("*.go")):
+        if "vendor" in go_file.parts or "testdata" in go_file.parts:
+            continue
+        scanned += 1
+        if scanned > 200:
+            break
+        text = _read_text(go_file)
+        if "cobra.Command" in text or '"github.com/spf13/cobra"' in text:
+            result["framework"] = "cobra"
+            break
+        if "flag.String" in text or "flag.Bool" in text or "flag.Int" in text:
+            result["framework"] = "flag"
+
+    return result
+
+
 def _sha256_file(p: Path) -> str:
     h = hashlib.sha256()
     with p.open("rb") as f:
@@ -237,8 +369,49 @@ def _write_cli_surface_spec(
         return False
 
     node_cli = _find_node_cli_package(analysis_root, product_slug, product_name)
-    if not node_cli:
+    python_cli = _find_python_cli(analysis_root) if not node_cli else None
+    go_cli = _find_go_cli(analysis_root) if not node_cli and not python_cli else None
+
+    if not node_cli and not python_cli and not go_cli:
         return False
+
+    # If Python or Go CLI detected (non-Node), write a language-appropriate spec.
+    if python_cli or go_cli:
+        cli_info = python_cli or go_cli
+        assert cli_info is not None
+        out = output_dir / "spec-cli-surface.md"
+        lines: list[str] = []
+        lang = str(cli_info["language"]).capitalize()
+        lines.append(f"# CLI Surface Spec: {product_name}")
+        lines.append("")
+        lines.append(f"- Date: {date}")
+        lines.append(f"- Language: {lang}")
+        lines.append(f"- Analysis root: `{analysis_root}`")
+        if cli_info.get("framework"):
+            lines.append(f"- Framework: {cli_info['framework']}")
+        if cli_info.get("module"):
+            lines.append(f"- Module: `{cli_info['module']}`")
+        if cli_info.get("entry_module"):
+            lines.append(f"- Entry module: `{cli_info['entry_module']}`")
+        lines.append("")
+        lines.append("## Entrypoints (Code-Proven)")
+        lines.append("")
+        bin_map = cli_info.get("bin") or {}
+        if isinstance(bin_map, dict) and bin_map:
+            for k in sorted(bin_map.keys()):
+                lines.append(f"- `{k}` -> `{bin_map[k]}`")
+        else:
+            lines.append("- _No entrypoints extracted._")
+        lines.append("")
+        lines.append("## Notes For 1:1 Fidelity")
+        lines.append("")
+        lines.append("- Run `<binary> --help` to capture the full CLI contract as a golden test fixture.")
+        if lang == "Python":
+            lines.append("- For Click/Typer apps, consider `<binary> --help` per subcommand for full coverage.")
+        elif lang == "Go":
+            lines.append("- For Cobra apps, consider `<binary> help <subcommand>` for full coverage.")
+        out.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+        return True
 
     out = output_dir / "spec-cli-surface.md"
     pkg_dir = Path(str(node_cli["package_dir"]))
@@ -584,6 +757,7 @@ def main() -> int:
     ap.add_argument("--docs-sitemap-url", default=None)
     ap.add_argument("--docs-features-prefix", default="docs/features/")
     ap.add_argument("--upstream-repo", default=None)
+    ap.add_argument("--upstream-ref", default=None, help="Pin clone to a specific commit, tag, or branch. Records resolved SHA in clone-metadata.json.")
     ap.add_argument("--local-clone-dir", default=None)
     ap.add_argument("--output-dir", default=None)
     ap.add_argument("--mode", default="repo", choices=["repo", "binary", "both"])
@@ -644,7 +818,27 @@ def main() -> int:
     # NOTE: this must happen before docs inventory, otherwise docs/features extraction runs against an empty dir.
     if args.mode in ("repo", "both"):
         if args.upstream_repo and not (local_clone_dir / ".git").exists():
-            _run(["git", "clone", "--depth=1", args.upstream_repo, str(local_clone_dir)], check=True)
+            clone_cmd = ["git", "clone"]
+            if not args.upstream_ref:
+                clone_cmd.append("--depth=1")
+            clone_cmd.extend([args.upstream_repo, str(local_clone_dir)])
+            _run(clone_cmd, check=True)
+            if args.upstream_ref:
+                _run(["git", "-C", str(local_clone_dir), "fetch", "--depth=1", "origin", args.upstream_ref], check=True)
+                _run(["git", "-C", str(local_clone_dir), "checkout", "FETCH_HEAD"], check=True)
+            # Record clone metadata for reproducibility.
+            resolved_sha = subprocess.check_output(
+                ["git", "-C", str(local_clone_dir), "rev-parse", "HEAD"], text=True,
+            ).strip()
+            clone_meta = {
+                "upstream_repo": args.upstream_repo,
+                "upstream_ref": args.upstream_ref,
+                "resolved_commit": resolved_sha,
+                "clone_date": _today_ymd(),
+            }
+            (output_dir / "clone-metadata.json").write_text(
+                json.dumps(clone_meta, indent=2) + "\n", encoding="utf-8",
+            )
             analysis_root = local_clone_dir
 
     # Determine an analysis root for repo mode.

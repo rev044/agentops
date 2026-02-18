@@ -42,6 +42,16 @@ python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py cc-sdd \
   --output-dir=".agents/research/cc-sdd/"
 ```
 
+Pinned clone (reproducible):
+
+```bash
+python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py cc-sdd \
+  --mode=repo \
+  --upstream-repo="https://github.com/gotalab/cc-sdd.git" \
+  --upstream-ref=v1.0.0 \
+  --output-dir=".agents/research/cc-sdd/"
+```
+
 ## Invocation Contract
 
 Required:
@@ -51,6 +61,7 @@ Optional:
 - `--docs-sitemap-url` (recommended when available; supports `https://...` and `file:///...`)
 - `--docs-features-prefix` (default: `docs/features/`)
 - `--upstream-repo` (optional)
+- `--upstream-ref` (pin clone to a specific commit, tag, or branch; records resolved SHA in `clone-metadata.json`)
 - `--local-clone-dir` (default: `.tmp/<product_name>`)
 - `--output-dir` (default: `.agents/research/<product_name>/`)
 - `--mode` (default: `repo`; allowed: `repo|binary|both`)
@@ -84,9 +95,10 @@ Core outputs under `output_dir/`:
 4. `feature-catalog.md`
 5. `spec-architecture.md`
 6. `spec-code-map.md`
-7. `spec-cli-surface.md` (only if a CLI exists; otherwise a note is written to `spec-code-map.md`)
+7. `spec-cli-surface.md` (Node, Python, or Go CLI detected; otherwise a note is written to `spec-code-map.md`)
 8. `spec-clone-vs-use.md`
 9. `spec-clone-mvp.md` (original MVP spec; do not copy from target)
+10. `clone-metadata.json` (when `--upstream-repo` is used; records resolved commit SHA)
 
 Binary-mode extras:
 - `binary-analysis.md` (best-effort summary)

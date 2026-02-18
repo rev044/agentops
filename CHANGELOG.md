@@ -9,11 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.10.2] - 2026-02-18
 
+### Added
+
+- **`--upstream-ref` flag** (reverse-engineer-rpi) — Pin repo clones to a specific commit, tag, or branch. Emits `clone-metadata.json` with resolved SHA for reproducibility.
+- **Python CLI detection** (reverse-engineer-rpi) — Detects Click, argparse, and Typer CLIs via `pyproject.toml` (PEP 621 + Poetry) and `setup.cfg` entry_points.
+- **Go CLI detection** (reverse-engineer-rpi) — Detects Go CLIs via `go.mod` + `cmd/*/main.go` pattern with Cobra and stdlib flag framework detection.
+- **Self-test improvements** (reverse-engineer-rpi) — Negative test for invalid mode, upstream-ref pinning test with `file://` protocol, multi-language graceful degradation test.
+
 ### Changed
 
 - **Tuning defaults** — Sonnet default for judges and workers, opus reserved for leads. `--quick` default for all gates at low+medium complexity. Cap judges at 2, consolidate product to 1 judge, quick pre-mortem.
 - **`ao rpi phased`** — Consolidated from 6 phases to 3.
 - **Issue templates** — Professionalized docs, added glossary updates, modernized templates.
+- **reverse-engineer-rpi SKILL.md** — Documented `--upstream-ref`, `clone-metadata.json` output, Python/Go CLI detection, pinned clone example.
 
 ### Fixed
 
