@@ -10,7 +10,7 @@ AgentOps is a skills plugin that orchestrates context across agent windows and c
 .
 ├── .claude-plugin/
 │   └── plugin.json      # Plugin manifest
-├── skills/              # 42 skills (32 user-facing, 10 internal)
+├── skills/              # 43 skills (33 user-facing, 10 internal)
 │   ├── rpi/             # orchestration — Full RPI lifecycle orchestrator
 │   ├── council/         # orchestration — Multi-model validation (core primitive)
 │   ├── crank/           # orchestration — Autonomous epic execution
@@ -52,7 +52,7 @@ AgentOps is a skills plugin that orchestrates context across agent windows and c
 │   └── ...              # 12 hook scripts total
 ├── lib/                 # Shared code
 │   ├── skills-core.js
-│   └── scripts/prescan.sh
+│   └── scripts/team-runner.sh
 └── docs/                # Documentation
 ```
 

@@ -60,7 +60,7 @@ The missing DevOps layer for coding agents. Flow, feedback, and memory that comp
 │   ├── skills-core.js
 │   ├── hook-helpers.sh
 │   ├── schemas/           # JSON schemas (team-spec, worker-output)
-│   └── scripts/           # prescan.sh, team-runner.sh, watch-codex-stream.sh
+│   └── scripts/           # team-runner.sh, watch-codex-stream.sh
 ├── docs/                  # Documentation
 ├── tests/                 # Validation and smoke tests
 ├── .agents/               # Knowledge artifacts (generated)
