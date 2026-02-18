@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/boshu2/agentops/cli/embedded"
 	"github.com/spf13/cobra"
 )
 
@@ -261,7 +263,13 @@ func findHooksManifest() ([]byte, error) {
 			return data, nil
 		}
 	}
-	return nil, fmt.Errorf("hooks.json not found in any search path")
+
+	// Fallback: use hooks.json embedded in the binary
+	if len(embedded.HooksJSON) > 0 {
+		return embedded.HooksJSON, nil
+	}
+
+	return nil, fmt.Errorf("hooks.json not found in any search path or embedded data")
 }
 
 // replacePluginRoot replaces ${CLAUDE_PLUGIN_ROOT} in command strings with the given base path.
@@ -302,14 +310,24 @@ func generateMinimalHooksConfig() *HooksConfig {
 	}
 }
 
+// generateFullHooksConfig attempts to load the full hooks configuration from hooks.json
+// (filesystem or embedded). Returns the config and any error encountered.
+func generateFullHooksConfig() (*HooksConfig, error) {
+	data, err := findHooksManifest()
+	if err != nil {
+		return nil, fmt.Errorf("find hooks manifest: %w", err)
+	}
+	config, err := ReadHooksManifest(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse hooks manifest: %w", err)
+	}
+	return config, nil
+}
+
 // generateHooksConfig creates the ao hooks configuration.
 // Tries to read from hooks.json for full 8-event coverage; falls back to minimal (SessionStart + Stop).
 func generateHooksConfig() *HooksConfig {
-	data, err := findHooksManifest()
-	if err != nil {
-		return generateMinimalHooksConfig()
-	}
-	config, err := ReadHooksManifest(data)
+	config, err := generateFullHooksConfig()
 	if err != nil {
 		return generateMinimalHooksConfig()
 	}
@@ -467,6 +485,44 @@ func installFullHooks(sourceDir, installBase string) (int, error) {
 	return copied, nil
 }
 
+// installFullHooksFromEmbed extracts hook scripts and dependencies from the embedded filesystem
+// to the install base directory (typically ~/.agentops/). Used when no repo checkout is available.
+func installFullHooksFromEmbed(installBase string) (int, error) {
+	copied := 0
+
+	err := fs.WalkDir(embedded.HooksFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		dst := filepath.Join(installBase, path)
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return fmt.Errorf("mkdir for %s: %w", path, err)
+		}
+
+		data, err := embedded.HooksFS.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read embedded %s: %w", path, err)
+		}
+
+		perm := os.FileMode(0644)
+		if strings.HasSuffix(path, ".sh") {
+			perm = 0755
+		}
+
+		if err := os.WriteFile(dst, data, perm); err != nil {
+			return fmt.Errorf("write %s: %w", dst, err)
+		}
+		copied++
+		return nil
+	})
+
+	return copied, err
+}
+
 func runHooksInstall(cmd *cobra.Command, args []string) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -492,34 +548,37 @@ func runHooksInstall(cmd *cobra.Command, args []string) error {
 	if hooksFull {
 		sourceDir, err := resolveSourceDir()
 		if err != nil {
-			return err
-		}
-
-		if !hooksDryRun {
-			copied, err := installFullHooks(sourceDir, installBase)
-			if err != nil {
-				return fmt.Errorf("install scripts: %w", err)
+			// No repo checkout available — fall back to embedded files
+			if !hooksDryRun {
+				copied, embedErr := installFullHooksFromEmbed(installBase)
+				if embedErr != nil {
+					return fmt.Errorf("install from embedded: %w (repo resolve failed: %v)", embedErr, err)
+				}
+				fmt.Printf("Extracted %d embedded files to %s\n", copied, installBase)
+			} else {
+				fmt.Printf("[dry-run] Would extract embedded files to %s\n", installBase)
 			}
-			fmt.Printf("Copied %d files to %s\n", copied, installBase)
 		} else {
-			fmt.Printf("[dry-run] Would copy scripts to %s\n", installBase)
+			// Repo checkout available — copy from filesystem (dev override)
+			if !hooksDryRun {
+				copied, err := installFullHooks(sourceDir, installBase)
+				if err != nil {
+					return fmt.Errorf("install scripts: %w", err)
+				}
+				fmt.Printf("Copied %d files to %s\n", copied, installBase)
+			} else {
+				fmt.Printf("[dry-run] Would copy scripts to %s\n", installBase)
+			}
 		}
 	}
 
 	// Generate hooks config
 	var newHooks *HooksConfig
 	if hooksFull {
-		// For --full, read hooks.json directly — error if not found
-		data, err := findHooksManifest()
+		// For --full, load full hooks config (filesystem or embedded)
+		config, err := generateFullHooksConfig()
 		if err != nil {
-			return fmt.Errorf("--full requires hooks.json but it was not found.\n"+
-				"Ensure you're in the agentops repo checkout, or run:\n"+
-				"  ao hooks install --source-dir /path/to/agentops\n\n"+
-				"Search paths: hooks/hooks.json, <ao-binary>/../hooks/hooks.json, ~/.agentops/hooks.json")
-		}
-		config, err := ReadHooksManifest(data)
-		if err != nil {
-			return fmt.Errorf("failed to parse hooks.json: %w", err)
+			return fmt.Errorf("--full requires hooks.json: %w", err)
 		}
 		newHooks = config
 		replacePluginRoot(newHooks, installBase)

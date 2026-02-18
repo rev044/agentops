@@ -2,7 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/boshu2/agentops/cli/embedded"
 )
 
 func TestGenerateMinimalHooksConfig(t *testing.T) {
@@ -306,6 +310,93 @@ func TestBackwardsCompatDefaultInstall(t *testing.T) {
 	}
 	if len(hooks.TaskCompleted) > 0 {
 		t.Error("minimal config should not have TaskCompleted")
+	}
+}
+
+func TestReadEmbeddedHooks(t *testing.T) {
+	// Verify embedded hooks.json is present and parseable
+	if len(embedded.HooksJSON) == 0 {
+		t.Fatal("embedded.HooksJSON is empty")
+	}
+
+	config, err := ReadHooksManifest(embedded.HooksJSON)
+	if err != nil {
+		t.Fatalf("failed to parse embedded hooks.json: %v", err)
+	}
+
+	// Verify all 8 events have at least one hook group
+	for _, event := range AllEventNames() {
+		groups := config.GetEventGroups(event)
+		if len(groups) == 0 {
+			t.Errorf("embedded hooks.json: event %s has no hook groups", event)
+		}
+	}
+}
+
+func TestGenerateFullHooksConfig(t *testing.T) {
+	// generateFullHooksConfig should succeed (embedded fallback guarantees it)
+	config, err := generateFullHooksConfig()
+	if err != nil {
+		t.Fatalf("generateFullHooksConfig failed: %v", err)
+	}
+
+	// Should have all 8 events populated
+	for _, event := range AllEventNames() {
+		groups := config.GetEventGroups(event)
+		if len(groups) == 0 {
+			t.Errorf("full config: event %s has no hook groups", event)
+		}
+	}
+}
+
+func TestInstallFromEmbedded(t *testing.T) {
+	// Extract embedded files to a temp directory
+	tmpDir := t.TempDir()
+
+	copied, err := installFullHooksFromEmbed(tmpDir)
+	if err != nil {
+		t.Fatalf("installFullHooksFromEmbed failed: %v", err)
+	}
+
+	if copied == 0 {
+		t.Fatal("expected files to be extracted, got 0")
+	}
+
+	// Verify hooks.json was extracted
+	hooksJSON := filepath.Join(tmpDir, "hooks", "hooks.json")
+	if _, err := os.Stat(hooksJSON); err != nil {
+		t.Errorf("hooks.json not extracted: %v", err)
+	}
+
+	// Verify shell scripts are executable
+	entries, err := os.ReadDir(filepath.Join(tmpDir, "hooks"))
+	if err != nil {
+		t.Fatalf("read hooks dir: %v", err)
+	}
+
+	shCount := 0
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".sh" {
+			shCount++
+			info, err := e.Info()
+			if err != nil {
+				t.Errorf("stat %s: %v", e.Name(), err)
+				continue
+			}
+			if info.Mode()&0111 == 0 {
+				t.Errorf("%s is not executable (mode: %o)", e.Name(), info.Mode())
+			}
+		}
+	}
+
+	if shCount != 14 {
+		t.Errorf("expected 14 shell scripts, got %d", shCount)
+	}
+
+	// Verify hook-helpers.sh was extracted
+	helpers := filepath.Join(tmpDir, "lib", "hook-helpers.sh")
+	if _, err := os.Stat(helpers); err != nil {
+		t.Errorf("hook-helpers.sh not extracted: %v", err)
 	}
 }
 

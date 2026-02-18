@@ -42,6 +42,16 @@ jobs:
           chmod +x scripts/validate-hook-preflight.sh
           ./scripts/validate-hook-preflight.sh
 
+  embedded-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify embedded hooks are in sync
+        run: |
+          chmod +x scripts/validate-embedded-sync.sh
+          ./scripts/validate-embedded-sync.sh
+
   shellcheck:
     runs-on: ubuntu-latest
     steps:
