@@ -255,12 +255,14 @@ bash scripts/log-telemetry.sh rpi phase-complete phase=4 phase_name=crank 2>/dev
 ### Phase 5: Final Vibe
 
 ```
-Skill(skill="vibe", args="--quick recent")   # if rpi_state.complexity == "low"
-Skill(skill="vibe", args="--deep recent")    # if rpi_state.complexity == "high"
-Skill(skill="vibe", args="recent")            # if rpi_state.complexity == "medium" (standard council)
+Skill(skill="vibe", args="--quick recent")   # if rpi_state.complexity == "low" (inline, no spawning)
+Skill(skill="vibe", args="--quick recent")   # if rpi_state.complexity == "medium" (inline, fast default)
+Skill(skill="vibe", args="recent")            # if rpi_state.complexity == "high" (full 2-judge council)
 ```
 
-Vibe runs a full council on recent changes (cross-wave consistency check).
+**Rationale:** Vibe's `--quick` mode (inline single-agent review + complexity analysis) catches the same bugs at ~10% cost. Full council reserved for high-complexity epics. The complexity analysis and mechanical checks still run in --quick mode — only multi-agent spawning is skipped.
+
+Vibe runs complexity analysis + council on recent changes (cross-wave consistency check).
 
 **After vibe completes:** Extract verdict (PASS/WARN/FAIL) and apply gate logic. Read `references/gate-retry-logic.md` for detailed Vibe gate retry behavior.
 
@@ -279,10 +281,12 @@ bash scripts/log-telemetry.sh rpi phase-complete phase=5 phase_name=vibe 2>/dev/
 ### Phase 6: Post-mortem
 
 ```
-Skill(skill="post-mortem", args="--quick <epic-id>")   # if rpi_state.complexity == "low"
-Skill(skill="post-mortem", args="--deep <epic-id>")    # if rpi_state.complexity == "high"
-Skill(skill="post-mortem", args="<epic-id>")            # if rpi_state.complexity == "medium" (standard council)
+Skill(skill="post-mortem", args="--quick <epic-id>")   # if rpi_state.complexity == "low" (inline, no spawning)
+Skill(skill="post-mortem", args="--quick <epic-id>")   # if rpi_state.complexity == "medium" (inline, fast default)
+Skill(skill="post-mortem", args="<epic-id>")            # if rpi_state.complexity == "high" (full 2-judge council)
 ```
+
+**Rationale:** Post-mortem's primary value is the retro + flywheel feed, not the council verdict. `--quick` still extracts learnings and feeds the flywheel — it just skips multi-agent spawning. Full council reserved for high-complexity epics where cross-model consensus on lessons learned is worth the cost.
 
 Post-mortem runs council + retro + flywheel feed. By default, /rpi ends after post-mortem (enable Gate 4 loop via `--loop`).
 

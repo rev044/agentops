@@ -7,8 +7,10 @@ Automatic complexity detection determines the level of validation ceremony appli
 | Level | Issue Count | Wave Count | Ceremony |
 |-------|------------|------------|----------|
 | **low** | ≤2 | 1 | fast-path: `--quick` on pre-mortem, vibe, post-mortem |
-| **medium** | 3-6 | 1-2 | default: standard council on all gates |
-| **high** | 7+ OR 3+ waves | any | thorough: `--deep` on pre-mortem and vibe |
+| **medium** | 3-6 | 1-2 | lean: `--quick` on pre-mortem, vibe, post-mortem (same as low — inline review is sufficient for most work) |
+| **high** | 7+ OR 3+ waves | any | thorough: full council on pre-mortem and vibe, standard post-mortem |
+
+> **Design rationale (2026-02-18):** `--quick` (inline single-agent structured review) catches the same class of bugs as full multi-judge council at ~10% of the token cost. The value of multi-judge consensus scales with stakes, not linearly with issue count. Medium-complexity epics (3-6 issues) don't benefit enough from multi-agent spawning to justify the 5-10x cost multiplier. Full council is reserved for high-stakes work where cross-model disagreement has real ROI.
 
 ## Detection
 

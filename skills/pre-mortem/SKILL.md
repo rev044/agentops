@@ -46,7 +46,13 @@ ls -lt .agents/specs/ 2>/dev/null | head -3
 
 Use the most recent file. If nothing found, ask user.
 
+### Step 1.5: Fast Path (--quick mode)
+
+**If `--quick` flag is set**, skip Steps 1a and 1b (knowledge search, product context) and jump directly to Step 2 with `--quick`. The inline reviewer reads the plan directly — pre-processing inputs are for multi-judge council packets only.
+
 ### Step 1a: Search Knowledge Flywheel
+
+**Skip if `--quick`.**
 
 ```bash
 if command -v ao &>/dev/null; then
@@ -56,6 +62,8 @@ fi
 If ao returns prior plan review findings, include them as context for the council packet. Skip silently if ao is unavailable or returns no results.
 
 ### Step 1b: Check for Product Context
+
+**Skip if `--quick`.**
 
 ```bash
 if [ -f PRODUCT.md ]; then

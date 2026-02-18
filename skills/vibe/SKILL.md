@@ -53,6 +53,12 @@ If nothing found, ask user.
 Return immediately with: "PASS (no changes to review) — no modified files detected."
 Do NOT spawn agents for empty file lists.
 
+### Step 1.5: Fast Path (--quick mode)
+
+**If `--quick` flag is set**, skip Steps 2a–2e (constraint tests, metadata checks, OL validation, codex review, knowledge search, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
+
+**Why:** Steps 2a–2e add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
+
 ### Step 2: Run Complexity Analysis
 
 **Detect language and run appropriate tool:**
@@ -102,6 +108,8 @@ fi
 
 ### Step 2a: Run Constraint Tests
 
+**Skip if `--quick` (see Step 1.5).**
+
 **If the project has constraint tests, run them before council:**
 
 ```bash
@@ -120,6 +128,8 @@ Include constraint test results in the council packet context. Failed constraint
 
 ### Step 2b: Metadata Verification Checklist (MANDATORY)
 
+**Skip if `--quick` (see Step 1.5).**
+
 Run mechanical checks BEFORE council — catches errors LLMs estimate instead of measure:
 1. **File existence** — every path in `git diff --name-only HEAD~3` must exist on disk
 2. **Line counts** — if a file claims "N lines", verify with `wc -l`
@@ -129,6 +139,8 @@ Run mechanical checks BEFORE council — catches errors LLMs estimate instead of
 Include failures in council packet as `context.metadata_failures` (MECHANICAL findings). If all pass, note in report.
 
 ### Step 2c: Deterministic Validation (Olympus)
+
+**Skip if `--quick` (see Step 1.5).**
 
 **Guard:** Only run when `.ol/config.yaml` exists AND `which ol` succeeds. Skip silently otherwise.
 
@@ -166,6 +178,8 @@ esac
 
 ### Step 2.5: Codex Review (if available)
 
+**Skip if `--quick` (see Step 1.5).**
+
 Run a fast, diff-focused code review via Codex CLI before council:
 
 ```bash
@@ -198,6 +212,8 @@ This gives council judges a Codex-generated review as pre-existing context — c
 
 ### Step 2d: Search Knowledge Flywheel
 
+**Skip if `--quick` (see Step 1.5).**
+
 ```bash
 if command -v ao &>/dev/null; then
     ao search "code review findings <target>" 2>/dev/null | head -10
@@ -206,6 +222,8 @@ fi
 If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
 
 ### Step 2e: Check for Product Context
+
+**Skip if `--quick` (see Step 1.5).**
 
 ```bash
 if [ -f PRODUCT.md ]; then
@@ -228,6 +246,8 @@ When `PRODUCT.md` does not exist: proceed to Step 3 unchanged.
 > **Tip:** Create `PRODUCT.md` from `docs/PRODUCT-TEMPLATE.md` to enable developer-experience-aware code review.
 
 ### Step 3: Load the Spec (New)
+
+**Skip if `--quick` (see Step 1.5).**
 
 Before invoking council, try to find the relevant spec/bead:
 
