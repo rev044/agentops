@@ -349,6 +349,219 @@ def _render_placeholders(s: str, vars: dict[str, str]) -> str:
     return out
 
 
+def _enrich_registry_with_binary_evidence(
+    registry_yaml: Path,
+    tmp_dir: Path,
+    output_dir: Path,
+    *,
+    product_name: str,
+    date: str,
+) -> bool:
+    """Enrich feature-registry.yaml with binary string evidence.
+
+    Reads cli-commands.txt and binary strings to create evidence-backed groups.
+    Also generates binary-symbols.txt in the output dir.
+    Returns True if enrichment was applied.
+    """
+    commands_file = tmp_dir / "binary" / "cli-commands.txt"
+    strings_file = tmp_dir / "binary" / "strings.head.txt"
+    ba_file = tmp_dir / "binary" / "binary-analysis.md"
+
+    # Generate binary-symbols.txt from strings
+    full_strings = tmp_dir / "binary" / "strings.head.txt"
+    symbols_out = output_dir / "binary-symbols.txt"
+    if full_strings.exists() and not symbols_out.exists():
+        shutil.copyfile(full_strings, symbols_out)
+
+    # Gather command groups from cli-commands.txt
+    cmd_groups: dict[str, list[str]] = {}
+    if commands_file.exists():
+        for line in commands_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            group = parts[0]
+            cmd_groups.setdefault(group, []).append(line)
+
+    if not cmd_groups:
+        return False
+
+    # Try to load the existing registry (manual parse, no yaml dep)
+    reg: dict = {"groups": {}}
+    try:
+        text = registry_yaml.read_text(encoding="utf-8")
+        for raw_line in text.splitlines():
+            stripped = raw_line.strip()
+            if stripped.startswith("docs_features_prefix:"):
+                reg["docs_features_prefix"] = stripped.split(":", 1)[1].strip().strip("'\"")
+            elif stripped.startswith("docs_features:"):
+                reg.setdefault("docs_features", [])
+            elif raw_line.startswith("  - ") and "docs_features" in reg and "groups" not in text.split(raw_line)[0].rsplit("docs_features:", 1)[-1]:
+                reg.setdefault("docs_features", []).append(stripped[2:].strip().strip("'\""))
+        # Parse groups using the same logic as the validator
+        cur = None
+        in_groups = False
+        in_anchors = False
+        for raw_line in text.splitlines():
+            line = raw_line.rstrip()
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if line == "groups:":
+                in_groups = True
+                continue
+            if not in_groups:
+                continue
+            if line.startswith("  ") and not line.startswith("    ") and line.endswith(":"):
+                name = line.strip()[:-1]
+                cur = {"impl": None, "anchors": [], "notes": ""}
+                reg["groups"][name] = cur
+                in_anchors = False
+                continue
+            if cur is None:
+                continue
+            s = line.strip()
+            if s.startswith("impl:"):
+                cur["impl"] = s.split(":", 1)[1].strip()
+            elif s.startswith("anchors:"):
+                in_anchors = True
+                if s.endswith("[]"):
+                    cur["anchors"] = []
+            elif in_anchors and s.startswith("- "):
+                cur["anchors"].append(s[2:].strip().strip("'\""))
+            elif s.startswith("notes:"):
+                cur["notes"] = s.split(":", 1)[1].strip().strip("'\"")
+    except Exception:
+        return False
+
+    groups = reg.get("groups", {})
+
+    # Check if registry is already populated (has non-empty groups with notes)
+    has_content = any(g.get("notes") for g in groups.values()) if groups else False
+    if has_content:
+        # Already enriched or populated — don't overwrite
+        return False
+
+    # Build new groups from binary command data
+    new_groups: dict[str, dict] = {}
+    for grp_name, cmds in sorted(cmd_groups.items()):
+        slug = grp_name.replace("-", "_")
+        subcmds = [c for c in cmds if c != grp_name]
+        sub_str = ", ".join(subcmds) if subcmds else "no subcommands"
+        new_groups[slug] = {
+            "impl": "client",
+            "anchors": ["binary-symbols.txt"],
+            "notes": f"{grp_name} ({len(cmds)} commands: {sub_str})",
+        }
+
+    # Write registry in the manual format expected by validate_feature_registry.py
+    lines: list[str] = []
+    lines.append("schema_version: 1")
+    lines.append(f"product_name: {product_name!r}")
+    lines.append(f"generated_at: {date!r}")
+    lines.append(f"evidence_source: 'binary --help + string extraction'")
+    # Preserve docs_features_prefix if present
+    dfp = reg.get("docs_features_prefix", "docs/features/")
+    lines.append(f"docs_features_prefix: {dfp!r}")
+    # Preserve docs_features list if present
+    docs_feats = reg.get("docs_features", [])
+    if docs_feats:
+        lines.append("docs_features:")
+        for df in docs_feats:
+            lines.append(f"  - {df!r}")
+    lines.append("groups:")
+    for slug, grp in new_groups.items():
+        lines.append(f"  {slug}:")
+        lines.append(f"    impl: {grp['impl']}")
+        lines.append("    anchors:")
+        for a in grp["anchors"]:
+            lines.append(f"      - {a}")
+        lines.append(f"    notes: {grp['notes']!r}")
+
+    registry_yaml.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return True
+
+
+def _write_binary_cli_surface_spec(
+    output_dir: Path,
+    tmp_dir: Path,
+    *,
+    product_name: str,
+    date: str,
+) -> bool:
+    """Write spec-cli-surface.md from binary --help output or binary strings.
+
+    Returns True if a spec was written.
+    """
+    help_tree = tmp_dir / "binary" / "cli-help-tree.txt"
+    commands_file = tmp_dir / "binary" / "cli-commands.txt"
+    strings_file = tmp_dir / "binary" / "strings.head.txt"
+
+    lines: list[str] = []
+    lines.append(f"# CLI Surface Spec: {product_name}")
+    lines.append("")
+    lines.append(f"- Date: {date}")
+    lines.append("- Source: binary --help output" if help_tree.exists() else "- Source: binary string extraction")
+    lines.append("")
+
+    cmd_count = 0
+    if commands_file.exists():
+        cmds = [c.strip() for c in commands_file.read_text(encoding="utf-8").splitlines() if c.strip()]
+        cmd_count = len(cmds)
+
+    if help_tree.exists():
+        tree_text = help_tree.read_text(encoding="utf-8")
+        lines.append(f"## Command Count")
+        lines.append("")
+        lines.append(f"- **{cmd_count} commands** discovered via recursive `--help` execution")
+        lines.append("")
+
+        # Extract top-level commands and subcommands
+        if commands_file.exists():
+            top_level = sorted(set(c.split()[0] for c in cmds if c.strip()))
+            lines.append("## Top-Level Commands")
+            lines.append("")
+            lines.append("| Command | Subcommands |")
+            lines.append("|---------|-------------|")
+            for top in top_level:
+                subs = [c for c in cmds if c.startswith(top + " ") and c != top]
+                sub_names = [c.split(maxsplit=1)[1] if " " in c else "" for c in subs]
+                sub_str = ", ".join(f"`{s}`" for s in sub_names if s) if sub_names else "—"
+                lines.append(f"| `{top}` | {sub_str} |")
+            lines.append("")
+
+        lines.append("## Full Help Tree")
+        lines.append("")
+        lines.append("```")
+        # Truncate to avoid massive output
+        tree_lines = tree_text.splitlines()
+        if len(tree_lines) > 500:
+            lines.extend(tree_lines[:500])
+            lines.append(f"... ({len(tree_lines) - 500} more lines)")
+        else:
+            lines.extend(tree_lines)
+        lines.append("```")
+        lines.append("")
+    elif strings_file.exists():
+        # Fallback: extract command-like patterns from strings
+        raw = strings_file.read_text(encoding="utf-8", errors="replace")
+        usage_lines = [l.strip() for l in raw.splitlines() if "usage" in l.lower() or "Usage" in l]
+        lines.append("## CLI Surface (from binary strings, best-effort)")
+        lines.append("")
+        if usage_lines:
+            for u in usage_lines[:20]:
+                lines.append(f"- `{u[:200]}`")
+        else:
+            lines.append("_No usage patterns found in binary strings._")
+        lines.append("")
+    else:
+        return False
+
+    out = output_dir / "spec-cli-surface.md"
+    out.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return True
+
+
 def _write_cli_surface_spec(
     output_dir: Path,
     *,
@@ -1009,6 +1222,16 @@ def main() -> int:
         check=True,
     )
 
+    # 5b) Enrich registry with binary evidence when available.
+    if args.mode in ("binary", "both"):
+        _enrich_registry_with_binary_evidence(
+            registry_yaml,
+            tmp_dir,
+            output_dir,
+            product_name=args.product_name,
+            date=_today_ymd(),
+        )
+
     catalog_md = output_dir / "feature-catalog.md"
     _run(
         [
@@ -1041,6 +1264,14 @@ def main() -> int:
             product_slug=product_slug,
             date=vars["DATE"],
             analysis_root=analysis_root,
+        )
+
+    if not wrote_cli and args.mode in ("binary", "both"):
+        wrote_cli = _write_binary_cli_surface_spec(
+            output_dir,
+            tmp_dir,
+            product_name=args.product_name,
+            date=vars["DATE"],
         )
 
     if not wrote_cli:
