@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.2] - 2026-02-18
+
+### Changed
+
+- **Tuning defaults** — Sonnet default for judges and workers, opus reserved for leads. `--quick` default for all gates at low+medium complexity. Cap judges at 2, consolidate product to 1 judge, quick pre-mortem.
+- **`ao rpi phased`** — Consolidated from 6 phases to 3.
+- **Issue templates** — Professionalized docs, added glossary updates, modernized templates.
+
+### Fixed
+
+- **`ao rpi phased` spawning** — Reliability fix for agent sessions.
+- **Lint failures** — Resolved 3 lint failures, added lint hook and config tests.
+- **Tuning validation** — Added 33-assertion tuning defaults validation suite.
+
 ## [2.10.1] - 2026-02-17
 
 ### Added
