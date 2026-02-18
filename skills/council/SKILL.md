@@ -360,7 +360,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 |----------|---------|-------------|
 | `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
 | `COUNCIL_CODEX_MODEL` | gpt-5.3-codex | Default Codex model for --mixed |
-| `COUNCIL_CLAUDE_MODEL` | opus | Claude model for judges |
+| `COUNCIL_CLAUDE_MODEL` | sonnet | Claude model for judges (sonnet default — use opus for high-stakes via `--profile=thorough`) |
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
 | `COUNCIL_R2_TIMEOUT` | 90 | Maximum wait time for R2 debate completion after sending debate messages. Shorter than R1 since judges already have context. |

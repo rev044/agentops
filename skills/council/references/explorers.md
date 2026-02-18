@@ -81,7 +81,7 @@ Target: {TARGET}
 
 Explorers are spawned as lightweight subagents optimized for search/read (not editing). Each explorer receives a sub-question and returns findings to its parent judge.
 
-**Model selection:** Explorers use `sonnet` by default (fast, good at search). Judges use `opus` (thorough analysis). Override with `--explorer-model=<model>`.
+**Model selection:** Explorers use `sonnet` by default (fast, good at search). Judges also use `sonnet` by default (use `--profile=thorough` or `COUNCIL_CLAUDE_MODEL=opus` for high-stakes reviews). Override explorer model with `--explorer-model=<model>`.
 
 ## Sub-Question Generation
 

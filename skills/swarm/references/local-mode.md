@@ -76,6 +76,18 @@ Merge order must respect task blockedBy dependencies.
 
 Use whatever multi-agent primitives your runtime provides to spawn parallel workers. Each worker receives a pre-assigned task in its prompt.
 
+### Model Selection
+
+Workers should use **sonnet** (not opus) to minimize cost. The orchestrator (lead) stays on opus for coordination and validation.
+
+When spawning via the Task tool, pass `model: "sonnet"`. When spawning via native teams, teammates inherit from the session model unless overridden — set `COUNCIL_CLAUDE_MODEL=sonnet` or use `model: "sonnet"` in the Task call.
+
+| Role | Model | Rationale |
+|------|-------|-----------|
+| Lead/orchestrator | opus (session default) | Coordination, validation, state management |
+| Workers | sonnet | Focused single-task execution, 3-5x cheaper |
+| Explorers | sonnet | Read-only search tasks |
+
 ### Spawn Protocol
 
 For each ready task:

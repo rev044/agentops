@@ -102,7 +102,7 @@ Codex CLI processes run as background shell commands — this is fine (they're s
 
 | Vendor | Default | Override |
 |--------|---------|----------|
-| Claude | opus | `--claude-model=sonnet` |
+| Claude | sonnet | `--claude-model=opus` |
 | Codex | gpt-5.3-codex | `--codex-model=<model>` |
 
 ## Output Collection
