@@ -906,6 +906,130 @@ def _write_artifact_surface_spec(
     out_md.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
+def _write_comparison_report(
+    output_dir: Path,
+    tmp_dir: Path,
+    *,
+    product_name: str,
+    date: str,
+) -> bool:
+    """Write comparison-report.md contrasting binary vs repo analysis results.
+
+    Returns True if a report was written.
+    """
+    # --- Command discovery ---
+    binary_cmds: list[str] = []
+    commands_file = tmp_dir / "binary" / "cli-commands.txt"
+    if commands_file.exists():
+        binary_cmds = [c.strip() for c in commands_file.read_text(encoding="utf-8").splitlines() if c.strip()]
+
+    repo_cmds: list[str] = []
+    repo_cli_spec = output_dir / "spec-cli-surface.md"
+    if repo_cli_spec.exists():
+        # Extract command names from the table rows (| `cmd` | ... |)
+        text = repo_cli_spec.read_text(encoding="utf-8")
+        for m in re.finditer(r"^\|\s*`([^`]+)`\s*\|", text, re.MULTILINE):
+            cmd = m.group(1).strip()
+            if cmd and cmd not in ("Command",):
+                repo_cmds.append(cmd)
+
+    binary_set = set(binary_cmds)
+    repo_set = set(repo_cmds)
+    only_binary = sorted(binary_set - repo_set)
+    only_repo = sorted(repo_set - binary_set)
+    delta = len(binary_cmds) - len(repo_cmds)
+
+    # --- Registry groups ---
+    binary_groups = 0
+    repo_groups = 0
+    registry_yaml = output_dir / "feature-registry.yaml"
+    if registry_yaml.exists():
+        text = registry_yaml.read_text(encoding="utf-8")
+        in_groups = False
+        for raw_line in text.splitlines():
+            line = raw_line.rstrip()
+            if line == "groups:":
+                in_groups = True
+                continue
+            if not in_groups:
+                continue
+            # Group entries are 2-space indented, end with ':'
+            if line.startswith("  ") and not line.startswith("    ") and line.rstrip().endswith(":"):
+                # Determine source from notes field
+                binary_groups += 1
+
+        # For the comparison we count total groups; binary-enriched have "binary-symbols.txt" anchor
+        binary_enriched = 0
+        repo_scaffold = 0
+        for raw_line in text.splitlines():
+            stripped = raw_line.strip()
+            if stripped == "- binary-symbols.txt":
+                binary_enriched += 1
+
+        # Groups without binary anchor are repo-scaffolded
+        repo_scaffold = binary_groups - binary_enriched
+
+    # --- Coverage percentage ---
+    if repo_cmds:
+        coverage_pct = round(len(binary_set & repo_set) / len(repo_set) * 100)
+        coverage_line = f"Binary analysis found {coverage_pct}% of repo-discovered commands."
+    elif binary_cmds:
+        coverage_line = f"Binary analysis found {len(binary_cmds)} commands; repo analysis found none (no CLI detected in repo)."
+    else:
+        coverage_line = "Neither source discovered CLI commands."
+
+    # --- Write report ---
+    lines: list[str] = []
+    lines.append(f"# Comparison Report: {product_name}")
+    lines.append("")
+    lines.append(f"**Date:** {date}")
+    lines.append("**Mode:** both (binary + repo)")
+    lines.append("")
+    lines.append("## Command Discovery")
+    lines.append("")
+    lines.append("| Source | Commands Found |")
+    lines.append("|--------|---------------|")
+    lines.append(f"| Binary --help | {len(binary_cmds)} |")
+    lines.append(f"| Repo analysis | {len(repo_cmds)} |")
+    delta_str = f"+{delta}" if delta > 0 else str(delta)
+    lines.append(f"| Delta | {delta_str} |")
+    lines.append("")
+
+    lines.append("## Commands Only in Binary")
+    lines.append("")
+    if only_binary:
+        for cmd in only_binary:
+            lines.append(f"- `{cmd}`")
+    else:
+        lines.append("_None._")
+    lines.append("")
+
+    lines.append("## Commands Only in Repo")
+    lines.append("")
+    if only_repo:
+        for cmd in only_repo:
+            lines.append(f"- `{cmd}`")
+    else:
+        lines.append("_None._")
+    lines.append("")
+
+    lines.append("## Registry Groups")
+    lines.append("")
+    lines.append("| Source | Groups |")
+    lines.append("|--------|--------|")
+    lines.append(f"| Binary enriched | {binary_enriched} |")
+    lines.append(f"| Repo scaffold | {repo_scaffold} |")
+    lines.append("")
+
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(coverage_line)
+
+    out = output_dir / "comparison-report.md"
+    out.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return True
+
+
 def _write_wrapper_validate_feature_registry(output_dir: Path) -> None:
     wrapper = output_dir / "validate-feature-registry.py"
     wrapper.write_text(
@@ -1291,6 +1415,10 @@ def main() -> int:
             date=vars["DATE"],
             analysis_root=analysis_root,
         )
+
+    # 6b) Comparison report (binary vs repo) when both sources are available.
+    if args.mode == "both":
+        _write_comparison_report(output_dir, tmp_dir, product_name=args.product_name, date=_today_ymd())
 
     # 7) Validation gate: produce a self-contained validator in the output dir and run it once.
     _write_wrapper_validate_feature_registry(output_dir)

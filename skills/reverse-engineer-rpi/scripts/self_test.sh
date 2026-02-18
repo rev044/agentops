@@ -75,6 +75,42 @@ python3 "$SKILL/scripts/reverse_engineer_rpi.py" demo \
 
 python3 "$OUT1/validate-feature-registry.py"
 
+# --- Binary mode capability assertions ---
+
+echo "--- binary mode capability checks ---"
+
+# 1. Help capture output exists (may be empty if binary doesn't support --help)
+if [ ! -f "$OUT1/cli-commands.txt" ]; then
+  echo "FAIL: cli-commands.txt not created by binary mode" >&2
+  exit 1
+fi
+echo "OK: cli-commands.txt exists"
+
+# 2. CLI surface spec exists (generated from --help tree or binary strings fallback)
+if [ ! -f "$OUT1/spec-cli-surface.md" ]; then
+  echo "FAIL: spec-cli-surface.md not created by binary mode" >&2
+  exit 1
+fi
+echo "OK: spec-cli-surface.md exists"
+
+# 3. binary-symbols.txt exists
+if [ ! -f "$OUT1/binary-symbols.txt" ]; then
+  echo "FAIL: binary-symbols.txt not created by binary mode" >&2
+  exit 1
+fi
+echo "OK: binary-symbols.txt exists"
+
+# 4. Registry enrichment: if cli-commands.txt has content, groups should have impl: client
+if [ -s "$OUT1/cli-commands.txt" ]; then
+  if ! grep -q 'impl: client' "$OUT1/feature-registry.yaml"; then
+    echo "FAIL: feature-registry.yaml should contain 'impl: client' when CLI commands are found" >&2
+    exit 1
+  fi
+  echo "OK: feature-registry.yaml enriched with impl: client"
+else
+  echo "OK: cli-commands.txt empty (demo binary has no subcommands); skipping impl: client check"
+fi
+
 python3 "$SKILL/scripts/reverse_engineer_rpi.py" demo \
   --authorized \
   --mode=binary \
