@@ -97,26 +97,7 @@ fi
 
 ### Step 4.5: Process Metrics (from skill telemetry)
 
-If `.agents/ao/skill-telemetry.jsonl` exists, include skill execution metrics in the health report:
-
-```bash
-if [ -f .agents/ao/skill-telemetry.jsonl ]; then
-  echo "=== Skill Telemetry Summary ==="
-  # Total skill invocations by skill name
-  echo "--- Invocations by Skill ---"
-  jq -s 'group_by(.skill) | map({skill: .[0].skill, count: length})' .agents/ao/skill-telemetry.jsonl 2>/dev/null || echo "No telemetry data"
-
-  # Average cycle time per skill (requires duration_ms field)
-  echo "--- Average Cycle Time ---"
-  jq -s 'group_by(.skill) | map({skill: .[0].skill, avg_duration_ms: (map(.duration_ms // 0) | add / length | round)})' .agents/ao/skill-telemetry.jsonl 2>/dev/null || echo "No duration data"
-
-  # Gate failure rates (count of events where verdict != PASS)
-  echo "--- Gate Failure Rates ---"
-  jq -s '[.[] | select(.verdict != null)] | group_by(.skill) | map({skill: .[0].skill, total: length, failures: [.[] | select(.verdict != "PASS")] | length})' .agents/ao/skill-telemetry.jsonl 2>/dev/null || echo "No verdict data"
-fi
-```
-
-Include these metrics in the health report (Step 6) under a `## Process Metrics` section when data is available.
+If `.agents/ao/skill-telemetry.jsonl` exists, use `jq` to extract: invocations by skill, average cycle time per skill, gate failure rates. Include in health report (Step 6) under `## Process Metrics`.
 
 ### Step 5: Validate Artifact Consistency
 
@@ -191,30 +172,7 @@ Tell the user:
 
 ## Cache Eviction
 
-The knowledge flywheel includes automated cache eviction to prevent unbounded growth:
-
-```
-Passive Read tracking → Confidence decay → Maturity scan → Archive
-```
-
-**How it works:**
-1. **Passive tracking** — PostToolUse(Read) hook records when learnings are accessed
-2. **Confidence decay** — Unused learnings lose confidence at 10%/week
-3. **Composite criteria** — Learnings are eviction candidates when ALL conditions met:
-   - Utility < 0.3 (low MemRL score)
-   - No citation in 90+ days
-   - Confidence < 0.2 (decayed from disuse)
-   - Not established maturity (proven knowledge is protected)
-4. **Archive** — Candidates move to `.agents/archive/learnings/` (never deleted)
-
-**Commands:**
-- `ao maturity --evict` — dry-run: show eviction candidates
-- `ao maturity --evict --archive` — execute: archive candidates
-- `ao metrics cite-report --days 30` — cache health report
-
-**Kill switches:**
-- `AGENTOPS_EVICTION_DISABLED=1` — disable SessionEnd auto-eviction
-- `AGENTOPS_PRUNE_AUTO=0` — disable SessionStart auto-pruning (default: off)
+Read `references/cache-eviction.md` for the full eviction pipeline (passive tracking → confidence decay → maturity scan → archive).
 
 ## Key Rules
 
@@ -225,33 +183,9 @@ Passive Read tracking → Confidence decay → Maturity scan → Archive
 
 ## Examples
 
-### Status Check Invocation
+**User says:** `/flywheel` — Counts pool depths, checks recent activity, validates artifact consistency, writes health report to `.agents/flywheel-status.md`.
 
-**User says:** `/flywheel` or "check knowledge health"
-
-**What happens:**
-1. Agent counts artifacts in `.agents/learnings/`, `.agents/patterns/`, `.agents/research/`, `.agents/retros/`
-2. Agent checks recent activity with `find -mtime -7`
-3. Agent detects stale artifacts with `find -mtime +30`
-4. Agent calls `ao forge status` to check CLI state
-5. Agent validates artifact consistency (cross-references)
-6. Agent writes health report to `.agents/flywheel-status.md`
-7. Agent reports overall health, friction points, recommendations
-
-**Result:** Single-screen dashboard showing knowledge flywheel velocity, pool depths, and health status.
-
-### Automated Health Monitoring
-
-**Hook triggers:** Periodic check or after `/post-mortem`
-
-**What happens:**
-1. Hook calls flywheel skill to measure pools
-2. Agent compares current vs historical metrics
-3. Agent detects velocity drops (learnings/week < threshold)
-4. Agent flags friction points (e.g., stale artifacts >50%)
-5. Agent recommends actions to restore velocity
-
-**Result:** Proactive alerts when knowledge flywheel slows or stalls, enabling intervention before bottlenecks harden.
+**Hook trigger:** After `/post-mortem` — Compares current vs historical metrics, flags velocity drops and friction points.
 
 ## Troubleshooting
 

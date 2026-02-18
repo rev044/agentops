@@ -496,30 +496,13 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 
 **User says:** `/crank ag-m0r`
 
-**What happens:**
-1. Agent runs `ao inject` to load prior learnings, then `bd show ag-m0r` to get epic details
-2. Agent runs `bd ready` to find unblocked issues (wave 1)
-3. Agent creates TaskList from beads issues, invokes `/swarm` with runtime-native spawning
-4. Workers execute in parallel, write files, report completion via backend channel
-5. Team lead verifies outputs, runs wave acceptance check, commits if passing
-6. Agent loops to next wave until all issues closed
-7. Final batched vibe on all changes, then `ao forge transcript` to extract learnings
-
-**Result:** Fully autonomous epic execution with knowledge flywheel integration.
+Loads learnings (`ao inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `/swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
 
 ### Execute from Plan File (TaskList Mode)
 
 **User says:** `/crank .agents/plans/auth-refactor.md`
 
-**What happens:**
-1. Agent reads plan file, decomposes into TaskList tasks (one per distinct work item)
-2. Agent sets up dependencies via `TaskUpdate(addBlockedBy)`
-3. Agent invokes `/swarm` for wave 1 (unblocked tasks)
-4. Workers execute, team lead verifies and commits
-5. Agent loops through remaining waves until all tasks completed
-6. Final vibe on recent changes
-
-**Result:** Plan-driven execution without beads dependency.
+Reads plan file, decomposes into TaskList tasks with dependencies. Invokes `/swarm` per wave, lead verifies and commits. Loops until all tasks completed, then final vibe.
 
 ### Test-First Epic with Contract-Based TDD
 

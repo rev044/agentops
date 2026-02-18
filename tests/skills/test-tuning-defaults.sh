@@ -327,6 +327,87 @@ else
     fail "T27: Pre-mortem Step 1b should be marked 'Skip if --quick'"
 fi
 
+# ============================================================
+# Section 7: Cross-cutting timeout defaults
+# ============================================================
+echo ""
+echo "--- Section 7: Timeout Defaults ---"
+
+# T28: Council default timeout is 120s
+if grep -q 'COUNCIL_TIMEOUT.*120' "$REPO_ROOT/skills/council/SKILL.md"; then
+    pass "T28: Council default timeout is 120s"
+else
+    fail "T28: Council SKILL.md should define COUNCIL_TIMEOUT default as 120"
+fi
+
+# T29: Explorer timeout is 60s
+if grep -q 'COUNCIL_EXPLORER_TIMEOUT.*60' "$REPO_ROOT/skills/council/SKILL.md"; then
+    pass "T29: Explorer timeout is 60s"
+else
+    fail "T29: Council SKILL.md should define COUNCIL_EXPLORER_TIMEOUT default as 60"
+fi
+
+# T30: R2 debate timeout is 90s
+if grep -q 'COUNCIL_R2_TIMEOUT.*90' "$REPO_ROOT/skills/council/SKILL.md"; then
+    pass "T30: R2 debate timeout is 90s"
+else
+    fail "T30: Council SKILL.md should define COUNCIL_R2_TIMEOUT default as 90"
+fi
+
+# ============================================================
+# Section 8: RPI retry limits
+# ============================================================
+echo ""
+echo "--- Section 8: RPI Retry Limits ---"
+
+# T31: Pre-mortem retry limit is 3
+if grep -q 'max 3 total attempts' "$REPO_ROOT/skills/rpi/SKILL.md"; then
+    pass "T31: RPI pre-mortem retry limit is 3"
+else
+    fail "T31: RPI SKILL.md should specify 'max 3 total attempts' for pre-mortem"
+fi
+
+# T32: All 3 retry gates use same limit (3)
+retry_count=$(grep -c 'max 3 total attempts' "$REPO_ROOT/skills/rpi/SKILL.md")
+if [ "$retry_count" -ge 3 ]; then
+    pass "T32: All 3 RPI retry gates use 'max 3 total attempts' ($retry_count occurrences)"
+else
+    fail "T32: Expected 3+ retry gates with 'max 3 total attempts', found $retry_count"
+fi
+
+# ============================================================
+# Section 9: Codex model default
+# ============================================================
+echo ""
+echo "--- Section 9: Codex Model ---"
+
+# T33: Codex model is gpt-5.3-codex
+if grep -q 'gpt-5.3-codex' "$REPO_ROOT/skills/council/SKILL.md"; then
+    pass "T33: Council Codex model default is gpt-5.3-codex"
+else
+    fail "T33: Council SKILL.md should reference gpt-5.3-codex as Codex model"
+fi
+
+# ============================================================
+# Section 10: Output path consistency
+# ============================================================
+echo ""
+echo "--- Section 10: Output Paths ---"
+
+# T34: Council outputs to .agents/council/
+if grep -q '\.agents/council/' "$REPO_ROOT/skills/council/SKILL.md"; then
+    pass "T34: Council outputs to .agents/council/"
+else
+    fail "T34: Council SKILL.md should output to .agents/council/"
+fi
+
+# T35: Vibe outputs to .agents/council/ (same dir)
+if grep -q '\.agents/council/' "$REPO_ROOT/skills/vibe/SKILL.md"; then
+    pass "T35: Vibe outputs to .agents/council/"
+else
+    fail "T35: Vibe SKILL.md should output to .agents/council/"
+fi
+
 echo ""
 
 # --- Summary ---
