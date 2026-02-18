@@ -70,3 +70,8 @@ cli/.agents/
 .witness.pid
 .witness.heartbeat
 .witness/
+
+# Gas Town (added by gt)
+.claude/
+.logs/
+.beads/
