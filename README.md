@@ -71,9 +71,23 @@ Your agent reads these automatically at session start — no CLI required, just 
 ```
 
 <details>
-<summary><b>More examples</b> — /crank, /evolve</summary>
+<summary><b>More examples</b> — /crank, /evolve, session continuity</summary>
 
 <br>
+
+**Session continuity across compaction or restart:**
+```text
+> /handoff
+[handoff] Saved: 3 open issues, current branch, next action
+         Continuation prompt written to .agents/handoffs/
+
+--- next session ---
+
+> /recover
+[recover] Found in-progress epic ag-0058 (2/5 issues closed)
+          Branch: feature/rate-limiter
+          Next: /implement ag-0058.3
+```
 
 **Parallel agents with fresh context:**
 ```text
@@ -118,7 +132,7 @@ npx skills@latest add boshu2/agentops --all -g
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 ```
 
-**Works with:** Claude Code · Codex CLI · Cursor · OpenCode
+**Works with:** Claude Code · Codex CLI · Cursor · OpenCode — skills are portable across runtimes (`/converter` exports to native formats).
 
 Then type `/quickstart` in your agent chat.
 
@@ -195,7 +209,7 @@ This is DevOps thinking applied to agent work: the **Three Ways** as composable 
 
 - **Flow**: wave-based execution (`/crank`) + workflow orchestration (`/rpi`) to keep work moving.
 - **Feedback**: shift-left validation (`/pre-mortem`, `/vibe`, `/council`) plus optional gates/hooks to make feedback unavoidable.
-- **Continual learning**: post-mortems turn outcomes into reusable knowledge in `.agents/`, so the next session starts smarter.
+- **Continual learning**: post-mortems turn outcomes into reusable knowledge in `.agents/`, so the next session starts smarter. The concrete pipeline: session ends → transcript mined for learnings → next session injects them weighted by recency (stale insights decay automatically). `/flywheel` monitors health.
 
 ```
   /rpi "goal"
@@ -294,17 +308,20 @@ Skills span five tiers. Each level composes the ones below it.
 | **Single issue** | `/implement` | Full lifecycle for one task — research, plan, build, validate, learn |
 | **Multi-issue waves** | `/crank` | Parallel agents in dependency-ordered waves with fresh context per worker |
 | **Full lifecycle** | `/rpi` | Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem — one command |
+| **Parallel epics** | `/swarm` | Spawn a team to run multiple `/rpi` pipelines in parallel — each agent gets its own epic and fresh context |
 | **Hands-free loop** | `/evolve` | Measures fitness goals, picks the worst gap, ships a fix, rolls back regressions, repeats |
 
 **Supporting skills:**
 
 | | |
 |---|---|
-| **Orchestration** | `/research`, `/plan`, `/crank`, `/swarm` |
+| **Orchestration** | `/brainstorm`, `/research`, `/plan`, `/crank` |
 | **Validation** | `/vibe`, `/pre-mortem`, `/post-mortem`, `/council` |
-| **Knowledge** | `/knowledge`, `/handoff`, `/retro`, `/learn` |
+| **Knowledge** | `/knowledge`, `/learn`, `/retro`, `/flywheel` |
+| **Session continuity** | `/handoff`, `/recover` |
+| **Traceability** | `/trace`, `/provenance` |
 | **Product** | `/product`, `/goals`, `/release`, `/readme`, `/doc` |
-| **Utility** | `/status`, `/quickstart`, `/bug-hunt` |
+| **Utility** | `/status`, `/quickstart`, `/bug-hunt`, `/complexity` |
 
 Full reference: [docs/SKILLS.md](docs/SKILLS.md)
 
@@ -321,6 +338,8 @@ AgentOps orchestrates across runtimes. Claude can lead a team of Codex workers. 
 | **tmux + Agent Mail** | `/swarm --mode=distributed` — full process isolation | Long-running work, crash recovery |
 
 </details>
+
+Distributed mode workers survive disconnects — each runs in its own tmux session with crash recovery. `tmux attach` to debug live.
 
 ---
 
