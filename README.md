@@ -235,7 +235,8 @@ Learnings pass quality gates (specificity, actionability, novelty) and land in t
 ```bash
 ao rpi phased "add rate limiting"      # Hands-free, fresh context per phase
 ao rpi phased "add auth" &             # Run multiple in parallel (auto-worktrees)
-ao rpi phased --from=crank "fix perf"  # Resume from any phase
+ao rpi phased --from=implementation "fix perf"  # Resume at execution phase
+ao rpi status --watch                   # Monitor active phased runs
 ```
 
 Use `/rpi` when context fits in one session. Use `ao rpi phased` when it doesn't.
@@ -330,7 +331,8 @@ The `ao` CLI is Ralph loop orchestration from your terminal: phase-by-phase exec
 ```bash
 ao rpi phased "add rate limiting"   # Spawns Claude, runs research → plan → ship → learn
 ao rpi phased "fix auth bug" &      # Run multiple in parallel (auto-worktrees)
-ao rpi phased --from=crank ag-058   # Resume from any phase
+ao rpi phased --from=implementation ag-058   # Resume at execution phase
+ao rpi status --watch               # Monitor active phased runs
 ```
 The main advantage here is fresh context per phase: this enables multi-agent orchestration where one team executes loops via subagents/background tasks while another team monitors outcomes and intervenes when needed, and you can run many loops in parallel using native plumbing with the same end result.
 

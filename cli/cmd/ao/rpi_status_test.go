@@ -16,11 +16,12 @@ func TestRPIStatusDiscovery(t *testing.T) {
 	}
 
 	state := map[string]interface{}{
-		"run_id":     "abc123def456",
-		"goal":       "test goal",
-		"phase":      3,
-		"epic_id":    "ag-test",
-		"started_at": time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
+		"schema_version": 1,
+		"run_id":         "abc123def456",
+		"goal":           "test goal",
+		"phase":          2,
+		"epic_id":        "ag-test",
+		"started_at":     time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
 	}
 	data, _ := json.Marshal(state)
 	if err := os.WriteFile(filepath.Join(stateDir, "phased-state.json"), data, 0644); err != nil {
@@ -35,8 +36,8 @@ func TestRPIStatusDiscovery(t *testing.T) {
 	if run.RunID != "abc123def456" {
 		t.Errorf("expected run_id abc123def456, got %s", run.RunID)
 	}
-	if run.PhaseName != "pre-mortem" {
-		t.Errorf("expected phase pre-mortem, got %s", run.PhaseName)
+	if run.PhaseName != "implementation" {
+		t.Errorf("expected phase implementation, got %s", run.PhaseName)
 	}
 	if run.EpicID != "ag-test" {
 		t.Errorf("expected epic ag-test, got %s", run.EpicID)
@@ -44,7 +45,7 @@ func TestRPIStatusDiscovery(t *testing.T) {
 	if run.Goal != "test goal" {
 		t.Errorf("expected goal 'test goal', got %s", run.Goal)
 	}
-	// Without tmux, status should be "unknown" (phase 3 < 6, no tmux session)
+	// Without tmux, non-terminal phased runs are "unknown".
 	if run.Status != "unknown" {
 		t.Errorf("expected status 'unknown', got %s", run.Status)
 	}
@@ -76,16 +77,20 @@ func TestRPIStatusCorruptState(t *testing.T) {
 
 func TestRPIStatusPhaseNames(t *testing.T) {
 	tests := []struct {
+		schema   int
 		phase    int
 		expected string
 	}{
-		{1, "research"},
-		{2, "plan"},
-		{3, "pre-mortem"},
-		{4, "crank"},
-		{5, "vibe"},
-		{6, "post-mortem"},
-		{99, "phase-99"},
+		{1, 1, "discovery"},
+		{1, 2, "implementation"},
+		{1, 3, "validation"},
+		{1, 99, "phase-99"},
+		{0, 1, "research"},
+		{0, 2, "plan"},
+		{0, 3, "pre-mortem"},
+		{0, 4, "crank"},
+		{0, 5, "vibe"},
+		{0, 6, "post-mortem"},
 	}
 
 	for _, tt := range tests {
@@ -96,8 +101,9 @@ func TestRPIStatusPhaseNames(t *testing.T) {
 		}
 
 		state := map[string]interface{}{
-			"run_id": "test-run",
-			"phase":  tt.phase,
+			"schema_version": tt.schema,
+			"run_id":         "test-run",
+			"phase":          tt.phase,
 		}
 		data, _ := json.Marshal(state)
 		if err := os.WriteFile(filepath.Join(stateDir, "phased-state.json"), data, 0644); err != nil {
@@ -136,7 +142,7 @@ func TestRPIStatusEmptyRunID(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCompletedPhase6(t *testing.T) {
+func TestRPIStatusCompletedFinalPhase(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateDir := filepath.Join(tmpDir, ".agents", "rpi")
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
@@ -144,10 +150,11 @@ func TestRPIStatusCompletedPhase6(t *testing.T) {
 	}
 
 	state := map[string]interface{}{
-		"run_id":     "completed-run",
-		"goal":       "finished goal",
-		"phase":      6,
-		"started_at": time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
+		"schema_version": 1,
+		"run_id":         "completed-run",
+		"goal":           "finished goal",
+		"phase":          3,
+		"started_at":     time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
 	}
 	data, _ := json.Marshal(state)
 	if err := os.WriteFile(filepath.Join(stateDir, "phased-state.json"), data, 0644); err != nil {
@@ -159,7 +166,7 @@ func TestRPIStatusCompletedPhase6(t *testing.T) {
 		t.Fatal("expected loadRPIRun to return a run")
 	}
 	if run.Status != "completed" {
-		t.Errorf("expected status 'completed' for phase 6, got %s", run.Status)
+		t.Errorf("expected status 'completed' for terminal phase, got %s", run.Status)
 	}
 }
 
@@ -167,19 +174,22 @@ func TestRPIStatusDetermineRunStatus(t *testing.T) {
 	// No tmux in test environment, so all sessions are "not alive"
 	tests := []struct {
 		name     string
+		schema   int
 		phase    int
 		expected string
 	}{
-		{"phase 1 no tmux", 1, "unknown"},
-		{"phase 3 no tmux", 3, "unknown"},
-		{"phase 6 completed", 6, "completed"},
+		{"schema v1 phase 1 no tmux", 1, 1, "unknown"},
+		{"schema v1 phase 3 completed", 1, 3, "completed"},
+		{"legacy phase 3 no tmux", 0, 3, "unknown"},
+		{"legacy phase 6 completed", 0, 6, "completed"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			state := phasedState{
-				RunID: "test-run",
-				Phase: tt.phase,
+				SchemaVersion: tt.schema,
+				RunID:         "test-run",
+				Phase:         tt.phase,
 			}
 			status := determineRunStatus(state)
 			if status != tt.expected {
@@ -204,9 +214,10 @@ func TestRPIStatusSiblingDiscovery(t *testing.T) {
 
 	// Write state in cwd
 	cwdState := map[string]interface{}{
-		"run_id": "main-run",
-		"goal":   "main goal",
-		"phase":  2,
+		"schema_version": 1,
+		"run_id":         "main-run",
+		"goal":           "main goal",
+		"phase":          2,
 	}
 	cwdData, _ := json.Marshal(cwdState)
 	if err := os.WriteFile(filepath.Join(cwd, ".agents", "rpi", "phased-state.json"), cwdData, 0644); err != nil {
@@ -215,9 +226,10 @@ func TestRPIStatusSiblingDiscovery(t *testing.T) {
 
 	// Write state in sibling
 	sibState := map[string]interface{}{
-		"run_id": "sibling-run",
-		"goal":   "sibling goal",
-		"phase":  4,
+		"schema_version": 1,
+		"run_id":         "sibling-run",
+		"goal":           "sibling goal",
+		"phase":          3,
 	}
 	sibData, _ := json.Marshal(sibState)
 	if err := os.WriteFile(filepath.Join(sibling, ".agents", "rpi", "phased-state.json"), sibData, 0644); err != nil {
@@ -253,13 +265,12 @@ func TestRPIStatusParseLogNewFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "phased-orchestration.log")
 
-	logContent := `[2026-02-15T10:00:00Z] [abc123] start: goal="add user auth" from=research
-[2026-02-15T10:05:00Z] [abc123] research: completed in 5m0s
-[2026-02-15T10:10:00Z] [abc123] plan: completed in 5m0s
-[2026-02-15T10:15:00Z] [abc123] pre-mortem: completed in 5m0s
-[2026-02-15T10:25:00Z] [abc123] crank: completed in 10m0s
-[2026-02-15T10:30:00Z] [abc123] vibe: completed in 5m0s
-[2026-02-15T10:35:00Z] [abc123] post-mortem: completed in 5m0s
+	logContent := `[2026-02-15T10:00:00Z] [abc123] start: goal="add user auth" from=discovery
+[2026-02-15T10:05:00Z] [abc123] discovery: completed in 5m0s
+[2026-02-15T10:06:00Z] [abc123] discovery: pre-mortem verdict: PASS
+[2026-02-15T10:25:00Z] [abc123] implementation: completed in 19m0s
+[2026-02-15T10:30:00Z] [abc123] validation: vibe verdict: PASS
+[2026-02-15T10:35:00Z] [abc123] validation: completed in 10m0s
 [2026-02-15T10:35:00Z] [abc123] complete: epic=ag-test verdicts=map[pre_mortem:PASS vibe:PASS]
 `
 	if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
@@ -287,8 +298,8 @@ func TestRPIStatusParseLogNewFormat(t *testing.T) {
 	if run.EpicID != "ag-test" {
 		t.Errorf("expected epic ag-test, got %s", run.EpicID)
 	}
-	if len(run.Phases) != 8 {
-		t.Errorf("expected 8 phase entries, got %d", len(run.Phases))
+	if len(run.Phases) != 7 {
+		t.Errorf("expected 7 phase entries, got %d", len(run.Phases))
 	}
 	// Check verdicts
 	if run.Verdicts["pre_mortem"] != "PASS" {
@@ -308,7 +319,7 @@ func TestRPIStatusParseLogOldFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "phased-orchestration.log")
 
-	logContent := `[2026-02-15T09:00:00Z] start: goal="fix typo" from=research
+	logContent := `[2026-02-15T09:00:00Z] start: goal="fix typo" from=discovery
 [2026-02-15T09:02:00Z] research: completed in 2m0s
 [2026-02-15T09:04:00Z] plan: completed in 2m0s
 [2026-02-15T09:06:00Z] complete: epic=ag-typo verdicts=map[vibe:PASS]
@@ -341,11 +352,11 @@ func TestRPIStatusParseLogMultipleRuns(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "phased-orchestration.log")
 
-	logContent := `[2026-02-15T10:00:00Z] [run1] start: goal="first goal" from=research
-[2026-02-15T10:05:00Z] [run1] research: completed in 5m0s
-[2026-02-15T10:05:00Z] [run2] start: goal="second goal" from=research
+	logContent := `[2026-02-15T10:00:00Z] [run1] start: goal="first goal" from=discovery
+[2026-02-15T10:05:00Z] [run1] discovery: completed in 5m0s
+[2026-02-15T10:05:00Z] [run2] start: goal="second goal" from=discovery
 [2026-02-15T10:10:00Z] [run1] complete: epic=ag-first verdicts=map[]
-[2026-02-15T10:12:00Z] [run2] research: completed in 7m0s
+[2026-02-15T10:12:00Z] [run2] discovery: completed in 7m0s
 [2026-02-15T10:15:00Z] [run2] complete: epic=ag-second verdicts=map[vibe:WARN]
 `
 	if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
@@ -381,11 +392,11 @@ func TestRPIStatusParseLogRetries(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "phased-orchestration.log")
 
-	logContent := `[2026-02-15T10:00:00Z] [abc] start: goal="retry test" from=research
-[2026-02-15T10:05:00Z] [abc] research: completed in 5m0s
-[2026-02-15T10:10:00Z] [abc] pre-mortem: RETRY attempt 2/3
-[2026-02-15T10:15:00Z] [abc] pre-mortem: RETRY attempt 3/3
-[2026-02-15T10:20:00Z] [abc] pre-mortem: completed in 10m0s
+	logContent := `[2026-02-15T10:00:00Z] [abc] start: goal="retry test" from=discovery
+[2026-02-15T10:05:00Z] [abc] discovery: completed in 5m0s
+[2026-02-15T10:10:00Z] [abc] validation: RETRY attempt 2/3
+[2026-02-15T10:15:00Z] [abc] validation: RETRY attempt 3/3
+[2026-02-15T10:20:00Z] [abc] validation: completed in 10m0s
 [2026-02-15T10:25:00Z] [abc] complete: epic=ag-retry verdicts=map[pre_mortem:PASS]
 `
 	if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
@@ -401,8 +412,8 @@ func TestRPIStatusParseLogRetries(t *testing.T) {
 	}
 
 	run := runs[0]
-	if run.Retries["pre-mortem"] != 2 {
-		t.Errorf("expected 2 retries for pre-mortem, got %d", run.Retries["pre-mortem"])
+	if run.Retries["validation"] != 2 {
+		t.Errorf("expected 2 retries for validation, got %d", run.Retries["validation"])
 	}
 	if run.Status != "completed" {
 		t.Errorf("expected status completed, got %s", run.Status)
@@ -413,9 +424,9 @@ func TestRPIStatusParseLogFailed(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "phased-orchestration.log")
 
-	logContent := `[2026-02-15T10:00:00Z] [fail1] start: goal="failing run" from=research
-[2026-02-15T10:05:00Z] [fail1] research: completed in 5m0s
-[2026-02-15T10:10:00Z] [fail1] crank: FAILED: claude exited with code 1
+	logContent := `[2026-02-15T10:00:00Z] [fail1] start: goal="failing run" from=discovery
+[2026-02-15T10:05:00Z] [fail1] discovery: completed in 5m0s
+[2026-02-15T10:10:00Z] [fail1] implementation: FAILED: claude exited with code 1
 `
 	if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
 		t.Fatal(err)
@@ -463,7 +474,7 @@ func TestRPIStatusParseLogGarbageLines(t *testing.T) {
 
 	logContent := `this is not a log line
 also not valid
-[2026-02-15T10:00:00Z] [good] start: goal="valid" from=research
+[2026-02-15T10:00:00Z] [good] start: goal="valid" from=discovery
 random noise here
 [2026-02-15T10:05:00Z] [good] complete: epic=ag-good verdicts=map[]
 more garbage
@@ -489,8 +500,8 @@ func TestRPIStatusExtractGoalFromDetails(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{`goal="add auth" from=research`, "add auth"},
-		{`goal="" from=research`, ""},
+		{`goal="add auth" from=discovery`, "add auth"},
+		{`goal="" from=discovery`, ""},
 		{`just plain text`, "just plain text"},
 	}
 	for _, tt := range tests {
@@ -560,9 +571,9 @@ func TestRPIStatusParseLogRunningStatus(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "running.log")
 
-	logContent := `[2026-02-15T10:00:00Z] [active1] start: goal="in progress" from=research
-[2026-02-15T10:05:00Z] [active1] research: completed in 5m0s
-[2026-02-15T10:10:00Z] [active1] plan: completed in 5m0s
+	logContent := `[2026-02-15T10:00:00Z] [active1] start: goal="in progress" from=discovery
+[2026-02-15T10:05:00Z] [active1] discovery: completed in 5m0s
+[2026-02-15T10:10:00Z] [active1] implementation: completed in 5m0s
 `
 	if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
 		t.Fatal(err)
@@ -577,5 +588,33 @@ func TestRPIStatusParseLogRunningStatus(t *testing.T) {
 	}
 	if runs[0].Status != "running" {
 		t.Errorf("expected status 'running' for incomplete run, got %s", runs[0].Status)
+	}
+}
+
+func TestRPIStatusParseLogInlineVerdictsConsolidated(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "inline-verdicts.log")
+
+	logContent := `[2026-02-15T10:00:00Z] [v1] start: goal="inline verdicts" from=discovery
+[2026-02-15T10:05:00Z] [v1] discovery: pre-mortem verdict: WARN
+[2026-02-15T10:10:00Z] [v1] validation: vibe verdict: PASS
+[2026-02-15T10:15:00Z] [v1] complete: epic=ag-inline verdicts=map[]
+`
+	if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	runs, err := parseOrchestrationLog(logPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	if runs[0].Verdicts["pre_mortem"] != "WARN" {
+		t.Errorf("expected pre_mortem WARN, got %q", runs[0].Verdicts["pre_mortem"])
+	}
+	if runs[0].Verdicts["vibe"] != "PASS" {
+		t.Errorf("expected vibe PASS, got %q", runs[0].Verdicts["vibe"])
 	}
 }

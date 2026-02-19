@@ -59,7 +59,7 @@ Examples:
 		RunE: runRPIPhased,
 	}
 
-	phasedCmd.Flags().StringVar(&phasedFrom, "from", "discovery", "Start from phase (discovery, implementation, validation)")
+	phasedCmd.Flags().StringVar(&phasedFrom, "from", "discovery", "Start from phase (discovery, implementation, validation; aliases: research, plan, pre-mortem, crank, vibe, post-mortem)")
 	phasedCmd.Flags().BoolVar(&phasedTestFirst, "test-first", false, "Pass --test-first to /crank for spec-first TDD")
 	phasedCmd.Flags().BoolVar(&phasedFastPath, "fast-path", false, "Force fast path (--quick for gates)")
 	phasedCmd.Flags().BoolVar(&phasedInteractive, "interactive", false, "Enable human gates at research and plan phases")
@@ -331,6 +331,10 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
 	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
+	fmt.Println("Monitor in a second terminal: ao rpi status --watch")
+	if phasedLiveStatus {
+		fmt.Printf("Live phase status file: %s\n", filepath.Join(stateDir, "live-status.md"))
+	}
 	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, phasedFrom))
 
 	// Register with agent mail for observability
@@ -1576,14 +1580,14 @@ func deregisterRPIAgent(runID string) {
 
 // --- Phase name helpers ---
 
-// phaseNameToNum converts a phase name to its number (1-6).
+// phaseNameToNum converts a phase name to a consolidated phase number (1-3).
 func phaseNameToNum(name string) int {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	aliases := map[string]int{
 		// Canonical 3-phase names
-		"discovery":       1,
-		"implementation":  2,
-		"validation":      3,
+		"discovery":      1,
+		"implementation": 2,
+		"validation":     3,
 		// Backward-compatible aliases (old 6-phase names map to consolidated phases)
 		"research":    1,
 		"plan":        1,

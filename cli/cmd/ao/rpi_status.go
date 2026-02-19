@@ -325,10 +325,17 @@ func parseOrchestrationLog(logPath string) ([]rpiRun, error) {
 					}
 				}
 			}
-			// Extract verdict from phase details (e.g., "verdict: PASS")
-			if strings.Contains(phaseName, "pre-mortem") || strings.Contains(phaseName, "vibe") {
-				if v := extractInlineVerdict(details); v != "" {
-					run.Verdicts[phaseName] = v
+			// Extract inline verdicts from phase details (legacy + consolidated formats).
+			if v := extractInlineVerdict(details); v != "" {
+				lphase := strings.ToLower(phaseName)
+				ldetails := strings.ToLower(details)
+				switch {
+				case strings.Contains(lphase, "pre-mortem") || strings.Contains(ldetails, "pre-mortem verdict"):
+					run.Verdicts["pre_mortem"] = v
+				case strings.Contains(lphase, "vibe") || strings.Contains(ldetails, "vibe verdict"):
+					run.Verdicts["vibe"] = v
+				case strings.Contains(lphase, "post-mortem") || strings.Contains(ldetails, "post-mortem verdict"):
+					run.Verdicts["post_mortem"] = v
 				}
 			}
 		}
@@ -468,14 +475,7 @@ func loadRPIRun(dir string) (rpiRunInfo, bool) {
 		return rpiRunInfo{}, false
 	}
 
-	phaseNames := map[int]string{
-		1: "research", 2: "plan", 3: "pre-mortem",
-		4: "crank", 5: "vibe", 6: "post-mortem",
-	}
-	phaseName := phaseNames[state.Phase]
-	if phaseName == "" {
-		phaseName = fmt.Sprintf("phase-%d", state.Phase)
-	}
+	phaseName := displayPhaseName(state)
 
 	// Determine status via tmux session liveness
 	status := determineRunStatus(state)
@@ -502,15 +502,52 @@ func loadRPIRun(dir string) (rpiRunInfo, bool) {
 
 // determineRunStatus checks if a tmux session ao-rpi-<runID>-* exists.
 // Returns "running" if a matching tmux session is alive, "completed" if the
-// state file indicates all phases are done (phase 6), or "unknown" otherwise.
+// state file indicates all phases are done, or "unknown" otherwise.
 func determineRunStatus(state phasedState) string {
 	if checkTmuxSessionAlive(state.RunID) {
 		return "running"
 	}
-	if state.Phase >= 6 {
+	if state.Phase >= completedPhaseNumber(state) {
 		return "completed"
 	}
 	return "unknown"
+}
+
+func completedPhaseNumber(state phasedState) int {
+	// Schema v1+ uses consolidated phased orchestration: 1=discovery, 2=implementation, 3=validation.
+	if state.SchemaVersion >= 1 {
+		return 3
+	}
+	// Legacy phased state used six steps.
+	return 6
+}
+
+func displayPhaseName(state phasedState) string {
+	if state.SchemaVersion >= 1 {
+		phaseNames := map[int]string{
+			1: "discovery",
+			2: "implementation",
+			3: "validation",
+		}
+		if phaseName := phaseNames[state.Phase]; phaseName != "" {
+			return phaseName
+		}
+		return fmt.Sprintf("phase-%d", state.Phase)
+	}
+
+	// Legacy fallback (pre-consolidation).
+	legacyPhaseNames := map[int]string{
+		1: "research",
+		2: "plan",
+		3: "pre-mortem",
+		4: "crank",
+		5: "vibe",
+		6: "post-mortem",
+	}
+	if phaseName := legacyPhaseNames[state.Phase]; phaseName != "" {
+		return phaseName
+	}
+	return fmt.Sprintf("phase-%d", state.Phase)
 }
 
 // checkTmuxSessionAlive checks if any tmux session matching ao-rpi-<runID>-* exists.
