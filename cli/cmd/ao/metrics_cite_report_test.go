@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/types"
+	"github.com/spf13/cobra"
 )
 
 func writeCitationsJSONL(t *testing.T, dir string, events []types.CitationEvent) {
@@ -150,5 +152,82 @@ func TestCiteReportDaysFilter(t *testing.T) {
 	stats60 := filterCitationsForPeriod(citations, start60, now)
 	if len(stats60.citations) != 3 {
 		t.Errorf("60-day filter: expected 3, got %d", len(stats60.citations))
+	}
+}
+
+func TestRunMetricsCiteReport_RespectsGlobalOutputJSON(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now()
+	writeCitationsJSONL(t, dir, sampleCitations(now))
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	cmd := &cobra.Command{}
+	cmd.Flags().Int("days", 30, "Period in days")
+	cmd.Flags().Bool("json", false, "Output as JSON")
+
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := runMetricsCiteReport(cmd, nil); err != nil {
+		t.Fatalf("runMetricsCiteReport failed: %v", err)
+	}
+
+	var parsed citeReportData
+	if err := json.Unmarshal(out.Bytes(), &parsed); err != nil {
+		t.Fatalf("expected JSON output, got: %q (%v)", out.String(), err)
+	}
+	if parsed.TotalCitations == 0 {
+		t.Fatalf("expected citation report data, got zero citations")
+	}
+}
+
+func TestRunMetricsCiteReport_EmptyWithJSONOutput(t *testing.T) {
+	dir := t.TempDir()
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	cmd := &cobra.Command{}
+	cmd.Flags().Int("days", 30, "Period in days")
+	cmd.Flags().Bool("json", false, "Output as JSON")
+
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := runMetricsCiteReport(cmd, nil); err != nil {
+		t.Fatalf("runMetricsCiteReport failed: %v", err)
+	}
+
+	var parsed citeReportData
+	if err := json.Unmarshal(out.Bytes(), &parsed); err != nil {
+		t.Fatalf("expected JSON output for empty dataset, got: %q (%v)", out.String(), err)
+	}
+	if parsed.TotalCitations != 0 {
+		t.Fatalf("expected zero citations, got %d", parsed.TotalCitations)
+	}
+	if parsed.Staleness["90d"] != 0 {
+		t.Fatalf("expected zero stale artifacts for empty dataset, got %d", parsed.Staleness["90d"])
 	}
 }

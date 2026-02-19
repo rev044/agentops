@@ -30,17 +30,14 @@ Given `/flywheel`:
 ### Step 1: Measure Knowledge Pools
 
 ```bash
-# Count learnings
-LEARNINGS=$(ls .agents/learnings/ 2>/dev/null | wc -l)
+# Count top-level artifact files (avoid counting directories)
+LEARNINGS=$(find .agents/learnings -maxdepth 1 -type f 2>/dev/null | wc -l)
 
-# Count patterns
-PATTERNS=$(ls .agents/patterns/ 2>/dev/null | wc -l)
+PATTERNS=$(find .agents/patterns -maxdepth 1 -type f 2>/dev/null | wc -l)
 
-# Count research
-RESEARCH=$(ls .agents/research/ 2>/dev/null | wc -l)
+RESEARCH=$(find .agents/research -maxdepth 1 -type f 2>/dev/null | wc -l)
 
-# Count retros
-RETROS=$(ls .agents/retros/ 2>/dev/null | wc -l)
+RETROS=$(find .agents/retros -maxdepth 1 -type f 2>/dev/null | wc -l)
 
 echo "Learnings: $LEARNINGS"
 echo "Patterns: $PATTERNS"
@@ -52,10 +49,10 @@ echo "Retros: $RETROS"
 
 ```bash
 # Recent learnings (last 7 days)
-find .agents/learnings/ -mtime -7 2>/dev/null | wc -l
+find .agents/learnings -maxdepth 1 -type f -mtime -7 2>/dev/null | wc -l
 
 # Recent research
-find .agents/research/ -mtime -7 2>/dev/null | wc -l
+find .agents/research -maxdepth 1 -type f -mtime -7 2>/dev/null | wc -l
 ```
 
 ### Step 3: Detect Staleness
@@ -73,8 +70,8 @@ if command -v ao &>/dev/null; then
   CITE_REPORT=$(ao metrics cite-report --json --days 30 2>/dev/null)
   if [ -n "$CITE_REPORT" ]; then
     HIT_RATE=$(echo "$CITE_REPORT" | jq -r '.hit_rate // "unknown"')
-    UNCITED=$(echo "$CITE_REPORT" | jq -r '.uncited_learnings // 0')
-    STALE_90D=$(echo "$CITE_REPORT" | jq -r '.staleness.days_90 // 0')
+    UNCITED=$(echo "$CITE_REPORT" | jq -r '(.uncited_learnings // []) | length')
+    STALE_90D=$(echo "$CITE_REPORT" | jq -r '.staleness["90d"] // 0')
     echo "Cache hit rate: $HIT_RATE"
     echo "Uncited learnings: $UNCITED"
     echo "Stale (90d uncited): $STALE_90D"
@@ -86,7 +83,8 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao forge status 2>/dev/null || echo "ao forge status unavailable"
+  ao flywheel status 2>/dev/null || echo "ao flywheel status unavailable"
+  ao status 2>/dev/null || echo "ao status unavailable"
   ao maturity --scan 2>/dev/null || echo "ao maturity unavailable"
   ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
   ao badge 2>/dev/null || echo "ao badge unavailable"
@@ -102,7 +100,7 @@ If `.agents/ao/skill-telemetry.jsonl` exists, use `jq` to extract: invocations b
 ### Step 5: Validate Artifact Consistency
 
 Cross-reference validation: scan knowledge artifacts for broken internal references.
-Read `references/artifact-consistency.md` for validation details.
+Use `scripts/artifact-consistency.sh` (method documented in `references/artifact-consistency.md`).
 
 Health indicator: >90% = Healthy, 70-90% = Warning, <70% = Critical.
 

@@ -123,6 +123,41 @@ type periodCitationStats struct {
 	uniqueCited map[string]bool
 }
 
+// normalizeArtifactPath resolves citation/file paths to a stable absolute form.
+func normalizeArtifactPath(baseDir, artifactPath string) string {
+	if artifactPath == "" {
+		return ""
+	}
+	p := filepath.Clean(artifactPath)
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(baseDir, p)
+	}
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return filepath.Clean(p)
+	}
+	return filepath.Clean(abs)
+}
+
+func isRetrievableArtifactPath(baseDir, artifactPath string) bool {
+	p := filepath.ToSlash(normalizeArtifactPath(baseDir, artifactPath))
+	learningsRoot := filepath.ToSlash(filepath.Join(baseDir, ".agents", "learnings")) + "/"
+	patternsRoot := filepath.ToSlash(filepath.Join(baseDir, ".agents", "patterns")) + "/"
+	return strings.HasPrefix(p, learningsRoot) || strings.HasPrefix(p, patternsRoot)
+}
+
+func retrievableCitationStats(baseDir string, citations []types.CitationEvent) (uniqueCount, citationCount int) {
+	unique := make(map[string]bool)
+	for _, c := range citations {
+		if !isRetrievableArtifactPath(baseDir, c.ArtifactPath) {
+			continue
+		}
+		citationCount++
+		unique[normalizeArtifactPath(baseDir, c.ArtifactPath)] = true
+	}
+	return len(unique), citationCount
+}
+
 // filterCitationsForPeriod filters citations to a time period
 func filterCitationsForPeriod(citations []types.CitationEvent, start, end time.Time) periodCitationStats {
 	stats := periodCitationStats{
@@ -205,9 +240,13 @@ func computeMetrics(baseDir string, days int) (*types.FlywheelMetrics, error) {
 	// σ denominator: only count retrievable artifacts (learnings + patterns),
 	// not candidates, research, retros, or sessions which inject never retrieves.
 	retrievable := metrics.TierCounts["learning"] + metrics.TierCounts["pattern"]
+	retrievableUnique, retrievableCitations := retrievableCitationStats(baseDir, stats.citations)
 	metrics.Sigma, metrics.Rho = computeSigmaRho(
-		retrievable, metrics.UniqueCitedArtifacts, metrics.CitationsThisPeriod, days,
+		retrievable, retrievableUnique, retrievableCitations, days,
 	)
+	if metrics.Sigma > 1.0 {
+		metrics.Sigma = 1.0
+	}
 	metrics.SigmaRho = metrics.Sigma * metrics.Rho
 	metrics.Velocity = metrics.SigmaRho - metrics.Delta
 	metrics.AboveEscapeVelocity = metrics.SigmaRho > metrics.Delta
@@ -338,15 +377,21 @@ func countNewArtifacts(baseDir string, since time.Time) (int, error) {
 func countStaleArtifacts(baseDir string, citations []types.CitationEvent, staleDays int) (int, error) {
 	staleThreshold := time.Now().AddDate(0, 0, -staleDays)
 
-	// Build set of recently cited artifacts
-	recentlyCited := make(map[string]bool)
+	// Track last-cited time for each artifact.
+	lastCited := make(map[string]time.Time)
 	for _, c := range citations {
-		if c.CitedAt.After(staleThreshold) {
-			recentlyCited[c.ArtifactPath] = true
+		norm := normalizeArtifactPath(baseDir, c.ArtifactPath)
+		if norm == "" {
+			continue
+		}
+		if t, ok := lastCited[norm]; !ok || c.CitedAt.After(t) {
+			lastCited[norm] = c.CitedAt
 		}
 	}
 
-	// Count all artifacts, mark stale if not recently cited
+	// Count stale artifacts:
+	// - artifact file itself must be older than threshold
+	// - and either never cited or last citation older than threshold
 	staleCount := 0
 	dirs := []string{
 		filepath.Join(baseDir, ".agents", "learnings"),
@@ -364,9 +409,12 @@ func countStaleArtifacts(baseDir string, citations []types.CitationEvent, staleD
 			if !strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".jsonl") {
 				return nil
 			}
-			// Check if recently cited
-			absPath, _ := filepath.Abs(path)
-			if !recentlyCited[absPath] {
+			if info.ModTime().After(staleThreshold) {
+				return nil
+			}
+			norm := normalizeArtifactPath(baseDir, path)
+			last, ok := lastCited[norm]
+			if !ok || last.Before(staleThreshold) {
 				staleCount++
 			}
 			return nil

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -31,30 +32,30 @@ Shows:
 Examples:
   ao metrics cite-report
   ao metrics cite-report --days 90
-  ao metrics cite-report --json`,
+  ao metrics cite-report -o json`,
 		RunE: runMetricsCiteReport,
 	}
 	citeReportCmd.Flags().Int("days", 30, "Period in days")
-	citeReportCmd.Flags().Bool("json", false, "Output as JSON")
+	citeReportCmd.Flags().Bool("json", false, "Output as JSON (alias for -o json)")
 	metricsCmd.AddCommand(citeReportCmd)
 }
 
 // citeReportData holds the aggregated citation report.
 type citeReportData struct {
-	TotalCitations   int                `json:"total_citations"`
-	UniqueArtifacts  int                `json:"unique_artifacts"`
-	UniqueSessions   int                `json:"unique_sessions"`
-	HitRate          float64            `json:"hit_rate"`
-	HitCount         int                `json:"hit_count"`
-	TopArtifacts     []artifactCount    `json:"top_artifacts"`
-	UncitedLearnings []string           `json:"uncited_learnings,omitempty"`
-	Staleness        map[string]int     `json:"staleness"`
-	FeedbackTotal    int                `json:"feedback_total"`
-	FeedbackGiven    int                `json:"feedback_given"`
-	FeedbackRate     float64            `json:"feedback_rate"`
-	Days             int                `json:"days"`
-	PeriodStart      time.Time          `json:"period_start"`
-	PeriodEnd        time.Time          `json:"period_end"`
+	TotalCitations   int             `json:"total_citations"`
+	UniqueArtifacts  int             `json:"unique_artifacts"`
+	UniqueSessions   int             `json:"unique_sessions"`
+	HitRate          float64         `json:"hit_rate"`
+	HitCount         int             `json:"hit_count"`
+	TopArtifacts     []artifactCount `json:"top_artifacts"`
+	UncitedLearnings []string        `json:"uncited_learnings,omitempty"`
+	Staleness        map[string]int  `json:"staleness"`
+	FeedbackTotal    int             `json:"feedback_total"`
+	FeedbackGiven    int             `json:"feedback_given"`
+	FeedbackRate     float64         `json:"feedback_rate"`
+	Days             int             `json:"days"`
+	PeriodStart      time.Time       `json:"period_start"`
+	PeriodEnd        time.Time       `json:"period_end"`
 }
 
 type artifactCount struct {
@@ -64,7 +65,8 @@ type artifactCount struct {
 
 func runMetricsCiteReport(cmd *cobra.Command, args []string) error {
 	days, _ := cmd.Flags().GetInt("days")
-	jsonOutput, _ := cmd.Flags().GetBool("json")
+	jsonFlag, _ := cmd.Flags().GetBool("json")
+	jsonOutput := jsonFlag || GetOutput() == "json"
 
 	baseDir, err := os.Getwd()
 	if err != nil {
@@ -75,31 +77,32 @@ func runMetricsCiteReport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		VerbosePrintf("Warning: load citations: %v\n", err)
 	}
+	now := time.Now()
+	periodStart := now.AddDate(0, 0, -days)
 	if len(allCitations) == 0 {
-		fmt.Println("No citation data found.")
+		report := buildCiteReport(baseDir, nil, nil, days, periodStart, now)
+		if jsonOutput {
+			enc := json.NewEncoder(cmd.OutOrStdout())
+			enc.SetIndent("", "  ")
+			return enc.Encode(report)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), "No citation data found.")
 		return nil
 	}
 
-	now := time.Now()
-	periodStart := now.AddDate(0, 0, -days)
 	stats := filterCitationsForPeriod(allCitations, periodStart, now)
 	filtered := stats.citations
 
 	report := buildCiteReport(baseDir, filtered, allCitations, days, periodStart, now)
 
 	if jsonOutput {
-		enc := json.NewEncoder(GetOutput_writer())
+		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
 	}
 
-	printCiteReport(report)
+	printCiteReport(cmd.OutOrStdout(), report)
 	return nil
-}
-
-// GetOutput_writer returns os.Stdout (kept simple; JSON goes to stdout).
-func GetOutput_writer() *os.File {
-	return os.Stdout
 }
 
 func buildCiteReport(baseDir string, filtered []types.CitationEvent, all []types.CitationEvent, days int, start, end time.Time) citeReportData {
@@ -205,44 +208,44 @@ func buildCiteReport(baseDir string, filtered []types.CitationEvent, all []types
 	return report
 }
 
-func printCiteReport(r citeReportData) {
-	fmt.Println()
-	fmt.Println("Citation Report")
-	fmt.Println("===============")
-	fmt.Printf("Period: %s to %s (%d days)\n\n",
+func printCiteReport(w io.Writer, r citeReportData) {
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Citation Report")
+	fmt.Fprintln(w, "===============")
+	fmt.Fprintf(w, "Period: %s to %s (%d days)\n\n",
 		r.PeriodStart.Format("2006-01-02"),
 		r.PeriodEnd.Format("2006-01-02"),
 		r.Days)
 
-	fmt.Println("SUMMARY:")
-	fmt.Printf("  Total citations:     %d\n", r.TotalCitations)
-	fmt.Printf("  Unique artifacts:    %d\n", r.UniqueArtifacts)
-	fmt.Printf("  Unique sessions:     %d\n", r.UniqueSessions)
-	fmt.Printf("  Hit rate (2+ sess):  %.0f%% (%d/%d)\n", r.HitRate*100, r.HitCount, r.UniqueArtifacts)
-	fmt.Println()
+	fmt.Fprintln(w, "SUMMARY:")
+	fmt.Fprintf(w, "  Total citations:     %d\n", r.TotalCitations)
+	fmt.Fprintf(w, "  Unique artifacts:    %d\n", r.UniqueArtifacts)
+	fmt.Fprintf(w, "  Unique sessions:     %d\n", r.UniqueSessions)
+	fmt.Fprintf(w, "  Hit rate (2+ sess):  %.0f%% (%d/%d)\n", r.HitRate*100, r.HitCount, r.UniqueArtifacts)
+	fmt.Fprintln(w)
 
 	if len(r.TopArtifacts) > 0 {
-		fmt.Println("TOP CITED ARTIFACTS:")
+		fmt.Fprintln(w, "TOP CITED ARTIFACTS:")
 		for i, a := range r.TopArtifacts {
-			fmt.Printf("  %2d. %s (%d)\n", i+1, a.Path, a.Count)
+			fmt.Fprintf(w, "  %2d. %s (%d)\n", i+1, a.Path, a.Count)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 
 	if len(r.UncitedLearnings) > 0 {
-		fmt.Println("UNCITED LEARNINGS:")
+		fmt.Fprintln(w, "UNCITED LEARNINGS:")
 		for _, u := range r.UncitedLearnings {
-			fmt.Printf("  - %s\n", u)
+			fmt.Fprintf(w, "  - %s\n", u)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 
-	fmt.Println("STALENESS:")
+	fmt.Fprintln(w, "STALENESS:")
 	for _, d := range []string{"30d", "60d", "90d"} {
-		fmt.Printf("  Not cited in %s: %d\n", d, r.Staleness[d])
+		fmt.Fprintf(w, "  Not cited in %s: %d\n", d, r.Staleness[d])
 	}
-	fmt.Println()
+	fmt.Fprintln(w)
 
-	fmt.Println("FEEDBACK:")
-	fmt.Printf("  Closure rate: %.0f%% (%d/%d)\n", r.FeedbackRate*100, r.FeedbackGiven, r.FeedbackTotal)
+	fmt.Fprintln(w, "FEEDBACK:")
+	fmt.Fprintf(w, "  Closure rate: %.0f%% (%d/%d)\n", r.FeedbackRate*100, r.FeedbackGiven, r.FeedbackTotal)
 }

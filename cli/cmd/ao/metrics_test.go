@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -191,4 +194,127 @@ func containsLearningsPath(path string) bool {
 		}
 	}
 	return false
+}
+
+func TestCountStaleArtifacts(t *testing.T) {
+	baseDir := t.TempDir()
+	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
+	patternsDir := filepath.Join(baseDir, ".agents", "patterns")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(patternsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	oldTime := time.Now().AddDate(0, 0, -120)
+	newTime := time.Now().AddDate(0, 0, -1)
+
+	writeFileWithTime := func(path string, ts time.Time) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, ts, ts); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	oldUncited := filepath.Join(learningsDir, "old-uncited.md")
+	newUncited := filepath.Join(learningsDir, "new-uncited.md")
+	oldRecentlyCited := filepath.Join(learningsDir, "old-recently-cited.md")
+	oldCitedLongAgo := filepath.Join(patternsDir, "old-cited-long-ago.md")
+
+	writeFileWithTime(oldUncited, oldTime)
+	writeFileWithTime(newUncited, newTime)
+	writeFileWithTime(oldRecentlyCited, oldTime)
+	writeFileWithTime(oldCitedLongAgo, oldTime)
+
+	citations := []types.CitationEvent{
+		{
+			ArtifactPath: ".agents/learnings/old-recently-cited.md",
+			CitedAt:      time.Now().AddDate(0, 0, -5),
+		},
+		{
+			ArtifactPath: oldCitedLongAgo,
+			CitedAt:      time.Now().AddDate(0, 0, -100),
+		},
+	}
+
+	staleCount, err := countStaleArtifacts(baseDir, citations, 90)
+	if err != nil {
+		t.Fatalf("countStaleArtifacts failed: %v", err)
+	}
+	// old-uncited + old-cited-long-ago are stale.
+	if staleCount != 2 {
+		t.Fatalf("expected 2 stale artifacts, got %d", staleCount)
+	}
+}
+
+func TestComputeMetricsSigmaBounded(t *testing.T) {
+	baseDir := t.TempDir()
+	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
+	researchDir := filepath.Join(baseDir, ".agents", "research")
+	citationsDir := filepath.Join(baseDir, ".agents", "ao")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(citationsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	learningPath := filepath.Join(learningsDir, "L1.md")
+	researchPath := filepath.Join(researchDir, "R1.md")
+	if err := os.WriteFile(learningPath, []byte("# L1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(researchPath, []byte("# R1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	citations := []types.CitationEvent{
+		{
+			ArtifactPath: ".agents/learnings/L1.md",
+			SessionID:    "s1",
+			CitedAt:      time.Now().AddDate(0, 0, -1),
+		},
+		{
+			ArtifactPath: researchPath,
+			SessionID:    "s2",
+			CitedAt:      time.Now().AddDate(0, 0, -1),
+		},
+	}
+
+	f, err := os.Create(filepath.Join(citationsDir, "citations.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	enc := json.NewEncoder(f)
+	for _, c := range citations {
+		if err := enc.Encode(c); err != nil {
+			_ = f.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	metrics, err := computeMetrics(baseDir, 7)
+	if err != nil {
+		t.Fatalf("computeMetrics failed: %v", err)
+	}
+	if metrics.Sigma > 1.0 {
+		t.Fatalf("sigma must be <= 1.0, got %f", metrics.Sigma)
+	}
+	if metrics.Sigma < 0.99 {
+		t.Fatalf("expected sigma close to 1.0 for one retrievable cited artifact, got %f", metrics.Sigma)
+	}
+	// Keep visibility count unchanged (all unique cited artifacts in period).
+	if metrics.UniqueCitedArtifacts != 2 {
+		t.Fatalf("expected 2 unique cited artifacts in period, got %d", metrics.UniqueCitedArtifacts)
+	}
 }
