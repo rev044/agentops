@@ -179,6 +179,38 @@ Nothing modifies your source code. Nothing phones home. Everything is [open sour
 
 </details>
 
+<details>
+<summary><b>Configuration</b> — environment variables</summary>
+
+All optional. AgentOps works out of the box with no configuration.
+
+**Council / validation:**
+
+| Variable | Default | What it does |
+|----------|---------|-------------|
+| `COUNCIL_TIMEOUT` | 120 | Judge timeout in seconds |
+| `COUNCIL_CLAUDE_MODEL` | sonnet | Claude model for judges (`opus` for high-stakes) |
+| `COUNCIL_CODEX_MODEL` | (user's Codex default) | Override Codex model for `--mixed` |
+| `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
+| `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
+| `COUNCIL_R2_TIMEOUT` | 90 | Debate round 2 timeout in seconds |
+
+**Hooks:**
+
+| Variable | Default | What it does |
+|----------|---------|-------------|
+| `AGENTOPS_HOOKS_DISABLED` | 0 | `1` to disable all hooks (kill switch) |
+| `AGENTOPS_PRECOMPACT_DISABLED` | 0 | `1` to disable pre-compaction snapshot |
+| `AGENTOPS_TASK_VALIDATION_DISABLED` | 0 | `1` to disable task validation gate |
+| `AGENTOPS_SESSION_START_DISABLED` | 0 | `1` to disable session-start hook |
+| `AGENTOPS_EVICTION_DISABLED` | 0 | `1` to disable knowledge eviction |
+| `AGENTOPS_GITIGNORE_AUTO` | 1 | `0` to skip auto-adding `.agents/` to `.gitignore` |
+| `AGENTOPS_WORKER` | 0 | `1` to skip push gate (for worker agents) |
+
+Full reference with examples and precedence rules: [docs/ENV-VARS.md](docs/ENV-VARS.md)
+
+</details>
+
 Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ---
@@ -406,4 +438,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). If AgentOps helped you ship something, p
 
 ## License
 
-Apache-2.0 · [Docs](docs/INDEX.md) · [How It Works](docs/how-it-works.md) · [FAQ](docs/FAQ.md) · [Glossary](docs/GLOSSARY.md) · [Architecture](docs/ARCHITECTURE.md) · [CLI Reference](cli/docs/COMMANDS.md) · [Changelog](CHANGELOG.md)
+Apache-2.0 · [Docs](docs/INDEX.md) · [How It Works](docs/how-it-works.md) · [FAQ](docs/FAQ.md) · [Glossary](docs/GLOSSARY.md) · [Architecture](docs/ARCHITECTURE.md) · [Configuration](docs/ENV-VARS.md) · [CLI Reference](cli/docs/COMMANDS.md) · [Changelog](CHANGELOG.md)
