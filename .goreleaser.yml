@@ -6,7 +6,7 @@ builds:
     dir: cli
     hooks:
       pre:
-        - make sync-hooks
+        - make -C cli sync-hooks
     main: ./cmd/ao
     binary: ao
     goos:
