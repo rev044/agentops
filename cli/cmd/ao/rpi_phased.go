@@ -1288,10 +1288,16 @@ done:
 // external watchers (e.g. ao status) can tail the status file.
 // Stderr is passed through to os.Stderr for real-time error visibility.
 func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress) error {
+	// Snapshot configurable timeouts at function entry so watchdog goroutines do
+	// not race against test-time mutations of package-level knobs.
+	phaseTimeout := phasedPhaseTimeout
+	stallTimeout := phasedStallTimeout
+	checkInterval := stallCheckInterval
+
 	ctx := context.Background()
 	cancel := func() {}
-	if phasedPhaseTimeout > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), phasedPhaseTimeout)
+	if phaseTimeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), phaseTimeout)
 	}
 	defer cancel()
 
@@ -1305,9 +1311,9 @@ func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusP
 	defer stallCancel(nil)
 
 	// Start stall watchdog goroutine (if stall timeout is configured).
-	if phasedStallTimeout > 0 {
+	if stallTimeout > 0 {
 		go func() {
-			ticker := time.NewTicker(stallCheckInterval)
+			ticker := time.NewTicker(checkInterval)
 			defer ticker.Stop()
 			for {
 				select {
@@ -1315,8 +1321,8 @@ func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusP
 					return
 				case <-ticker.C:
 					last := time.Unix(0, lastActivityUnix.Load())
-					if time.Since(last) > phasedStallTimeout {
-						stallCancel(fmt.Errorf("stall detected: no stream activity for %s", phasedStallTimeout))
+					if time.Since(last) > stallTimeout {
+						stallCancel(fmt.Errorf("stall detected: no stream activity for %s", stallTimeout))
 						return
 					}
 				}
