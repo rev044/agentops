@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -396,5 +397,404 @@ func TestReadUnconsumedItems_RepoFilter_EmptyFilter(t *testing.T) {
 	}
 	if len(items) != 3 {
 		t.Fatalf("expected 3 items (no filter), got %d", len(items))
+	}
+}
+
+// ---- Queue mark semantics ----
+
+func writeJSONL(t *testing.T, path string, entries []nextWorkEntry) {
+	t.Helper()
+	var out strings.Builder
+	for _, e := range entries {
+		data, err := json.Marshal(e)
+		if err != nil {
+			t.Fatalf("marshal entry: %v", err)
+		}
+		out.Write(data)
+		out.WriteByte('\n')
+	}
+	if err := os.WriteFile(path, []byte(out.String()), 0644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+}
+
+func readJSONLEntries(t *testing.T, path string) []nextWorkEntry {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	var entries []nextWorkEntry
+	for _, line := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		var e nextWorkEntry
+		if err := json.Unmarshal([]byte(line), &e); err != nil {
+			t.Fatalf("unmarshal line: %v", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries
+}
+
+func TestQueueMarkConsumed_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-1", Timestamp: "2026-02-10T00:00:00Z", Items: []nextWorkItem{{Title: "Item 1", Severity: "high"}}, Consumed: false},
+		{SourceEpic: "ag-2", Timestamp: "2026-02-10T01:00:00Z", Items: []nextWorkItem{{Title: "Item 2", Severity: "low"}}, Consumed: false},
+	}
+	writeJSONL(t, path, entries)
+
+	if err := markEntryConsumed(path, 0, "test-runner"); err != nil {
+		t.Fatalf("markEntryConsumed: %v", err)
+	}
+
+	got := readJSONLEntries(t, path)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(got))
+	}
+	if !got[0].Consumed {
+		t.Errorf("entry 0: expected Consumed=true")
+	}
+	if got[0].ConsumedAt == nil {
+		t.Errorf("entry 0: expected ConsumedAt to be set")
+	}
+	if got[0].ConsumedBy == nil || *got[0].ConsumedBy != "test-runner" {
+		t.Errorf("entry 0: expected ConsumedBy=test-runner")
+	}
+	// Entry 1 should be untouched.
+	if got[1].Consumed {
+		t.Errorf("entry 1: should not be consumed")
+	}
+}
+
+func TestQueueMarkConsumed_SecondEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-1", Items: []nextWorkItem{{Title: "First"}}, Consumed: false},
+		{SourceEpic: "ag-2", Items: []nextWorkItem{{Title: "Second"}}, Consumed: false},
+	}
+	writeJSONL(t, path, entries)
+
+	if err := markEntryConsumed(path, 1, "loop"); err != nil {
+		t.Fatalf("markEntryConsumed: %v", err)
+	}
+
+	got := readJSONLEntries(t, path)
+	if got[0].Consumed {
+		t.Errorf("entry 0 should not be consumed")
+	}
+	if !got[1].Consumed {
+		t.Errorf("entry 1 should be consumed")
+	}
+}
+
+func TestQueueMarkFailed_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failing item"}}, Consumed: false},
+	}
+	writeJSONL(t, path, entries)
+
+	if err := markEntryFailed(path, 0); err != nil {
+		t.Fatalf("markEntryFailed: %v", err)
+	}
+
+	got := readJSONLEntries(t, path)
+	if got[0].Consumed {
+		t.Errorf("failed entry should not be marked consumed")
+	}
+	if got[0].FailedAt == nil {
+		t.Errorf("expected FailedAt to be set")
+	}
+}
+
+func TestQueueMarkFailed_Idempotent(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failing item"}}, Consumed: false},
+	}
+	writeJSONL(t, path, entries)
+
+	if err := markEntryFailed(path, 0); err != nil {
+		t.Fatalf("first markEntryFailed: %v", err)
+	}
+	first := readJSONLEntries(t, path)
+	firstTime := *first[0].FailedAt
+
+	// Mark again (idempotent - updates timestamp but remains non-consumed).
+	if err := markEntryFailed(path, 0); err != nil {
+		t.Fatalf("second markEntryFailed: %v", err)
+	}
+	second := readJSONLEntries(t, path)
+	if second[0].Consumed {
+		t.Errorf("should not be consumed after double-failure")
+	}
+	// Second call may update the timestamp; it should still be a valid timestamp.
+	if second[0].FailedAt == nil {
+		t.Errorf("FailedAt should still be set after second call")
+	}
+	_ = firstTime // both are valid
+}
+
+func TestQueueMarkConsumed_MissingFile(t *testing.T) {
+	// Missing file returns an error (callers distinguish missing queue from no-op).
+	err := markEntryConsumed("/nonexistent/path/next-work.jsonl", 0, "loop")
+	if err == nil {
+		t.Errorf("expected error for missing file, got nil")
+	}
+}
+
+func TestQueueMarkFailed_MissingFile(t *testing.T) {
+	// Missing file is a no-op for markEntryFailed (best-effort warning semantics).
+	err := markEntryFailed("/nonexistent/path/next-work.jsonl", 0)
+	if err != nil {
+		t.Errorf("expected nil error for missing file, got: %v", err)
+	}
+}
+
+// ---- readQueueEntries ----
+
+func TestReadQueueEntries_SkipsConsumed(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-1", Items: []nextWorkItem{{Title: "Consumed"}}, Consumed: true},
+		{SourceEpic: "ag-2", Items: []nextWorkItem{{Title: "Open"}}, Consumed: false},
+	}
+	writeJSONL(t, path, entries)
+
+	got, err := readQueueEntries(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(got))
+	}
+	if got[0].SourceEpic != "ag-2" {
+		t.Errorf("expected ag-2, got %q", got[0].SourceEpic)
+	}
+}
+
+func TestReadQueueEntries_SkipsFailed(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	failedAt := "2026-02-10T00:00:00Z"
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failed item"}}, Consumed: false, FailedAt: &failedAt},
+		{SourceEpic: "ag-open", Items: []nextWorkItem{{Title: "Open item"}}, Consumed: false},
+	}
+	writeJSONL(t, path, entries)
+
+	got, err := readQueueEntries(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry (failed skipped), got %d", len(got))
+	}
+	if got[0].SourceEpic != "ag-open" {
+		t.Errorf("expected ag-open, got %q", got[0].SourceEpic)
+	}
+}
+
+func TestReadQueueEntries_SkipsEmptyItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-empty", Items: []nextWorkItem{}, Consumed: false},
+		{SourceEpic: "ag-ok", Items: []nextWorkItem{{Title: "Has items"}}, Consumed: false},
+	}
+	writeJSONL(t, path, entries)
+
+	got, err := readQueueEntries(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry (empty-items skipped), got %d", len(got))
+	}
+	if got[0].SourceEpic != "ag-ok" {
+		t.Errorf("expected ag-ok, got %q", got[0].SourceEpic)
+	}
+}
+
+// ---- selectHighestSeverityEntry ----
+
+func TestSelectHighestSeverityEntry_Empty(t *testing.T) {
+	sel := selectHighestSeverityEntry(nil, "")
+	if sel != nil {
+		t.Errorf("expected nil for empty entries")
+	}
+}
+
+func TestSelectHighestSeverityEntry_PicksHighest(t *testing.T) {
+	entries := []nextWorkEntry{
+		{Items: []nextWorkItem{{Title: "Low item", Severity: "low"}}},
+		{Items: []nextWorkItem{{Title: "High item", Severity: "high"}}},
+		{Items: []nextWorkItem{{Title: "Medium item", Severity: "medium"}}},
+	}
+	sel := selectHighestSeverityEntry(entries, "")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "High item" {
+		t.Errorf("expected 'High item', got %q", sel.Item.Title)
+	}
+}
+
+func TestSelectHighestSeverityEntry_RepoFilter(t *testing.T) {
+	entries := []nextWorkEntry{
+		{Items: []nextWorkItem{
+			{Title: "For olympus", Severity: "high", TargetRepo: "olympus"},
+			{Title: "For agentops", Severity: "medium", TargetRepo: "agentops"},
+		}},
+	}
+	sel := selectHighestSeverityEntry(entries, "agentops")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "For agentops" {
+		t.Errorf("expected 'For agentops' (filtered by repo), got %q", sel.Item.Title)
+	}
+}
+
+func TestSelectHighestSeverityEntry_RepoFilter_NoneMatch(t *testing.T) {
+	entries := []nextWorkEntry{
+		{Items: []nextWorkItem{
+			{Title: "For olympus", Severity: "high", TargetRepo: "olympus"},
+		}},
+	}
+	sel := selectHighestSeverityEntry(entries, "agentops")
+	if sel != nil {
+		t.Errorf("expected nil (no matching items), got %+v", sel)
+	}
+}
+
+func TestSelectHighestSeverityEntry_EntryIndexCorrect(t *testing.T) {
+	entries := []nextWorkEntry{
+		{SourceEpic: "ag-0", Items: []nextWorkItem{{Title: "Entry 0", Severity: "low"}}},
+		{SourceEpic: "ag-1", Items: []nextWorkItem{{Title: "Entry 1", Severity: "high"}}},
+	}
+	sel := selectHighestSeverityEntry(entries, "")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.EntryIndex != 1 {
+		t.Errorf("expected EntryIndex=1 (high severity), got %d", sel.EntryIndex)
+	}
+}
+
+// ---- RPILoop dry-run ----
+
+func TestRPILoop_DryRun_ExplicitGoal(t *testing.T) {
+	// The loop should not call the phased engine in dry-run mode.
+	// It should print what it would do and return nil.
+	prevDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = prevDryRun }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 0
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	// Provide an explicit goal so we don't need a next-work.jsonl file.
+	err := runRPILoop(nil, []string{"test goal"})
+	if err != nil {
+		t.Errorf("expected nil error in dry-run, got: %v", err)
+	}
+}
+
+func TestRPILoop_DryRun_EmptyQueue(t *testing.T) {
+	prevDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = prevDryRun }()
+
+	// No next-work.jsonl in temp dir, so queue is empty.
+	// Loop should detect empty queue before dry-run branch is reached.
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	err := runRPILoop(nil, nil)
+	if err != nil {
+		t.Errorf("expected nil error for empty queue, got: %v", err)
+	}
+}
+
+func TestRPILoop_DryRun_FromQueue(t *testing.T) {
+	prevDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = prevDryRun }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 0
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	// Create a queue with one item.
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	entry := nextWorkEntry{
+		SourceEpic: "ag-dryrun",
+		Items:      []nextWorkItem{{Title: "Dry run goal", Severity: "high"}},
+		Consumed:   false,
+	}
+	data, _ := json.Marshal(entry)
+	queuePath := filepath.Join(rpiDir, "next-work.jsonl")
+	if err := os.WriteFile(queuePath, append(data, '\n'), 0644); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+
+	err := runRPILoop(nil, nil)
+	if err != nil {
+		t.Errorf("expected nil error in dry-run, got: %v", err)
+	}
+
+	// In dry-run, the queue entry should NOT be marked consumed.
+	after := readJSONLEntries(t, queuePath)
+	if after[0].Consumed {
+		t.Errorf("queue entry should not be consumed in dry-run mode")
+	}
+}
+
+// ---- phasedEngineOptions defaults ----
+
+func TestDefaultPhasedEngineOptions(t *testing.T) {
+	opts := defaultPhasedEngineOptions()
+	if opts.From != "discovery" {
+		t.Errorf("expected From=discovery, got %q", opts.From)
+	}
+	if opts.MaxRetries != 3 {
+		t.Errorf("expected MaxRetries=3, got %d", opts.MaxRetries)
+	}
+	if !opts.SwarmFirst {
+		t.Errorf("expected SwarmFirst=true")
+	}
+	if opts.PhaseTimeout == 0 {
+		t.Errorf("expected non-zero PhaseTimeout")
 	}
 }

@@ -2,10 +2,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"time"
@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	rpiMaxCycles int
+	rpiMaxCycles  int
+	rpiRepoFilter string
 )
 
 func init() {
@@ -23,24 +24,32 @@ func init() {
 		Short: "Run continuous RPI cycles from next-work queue",
 		Long: `Execute RPI cycles in a loop, consuming from next-work.jsonl.
 
-Each cycle spawns a fresh Claude session (Ralph Wiggum pattern):
+Each cycle drives a queue item through the full phased RPI engine:
   1. Read unconsumed items from .agents/rpi/next-work.jsonl
   2. Pick highest-severity item as goal (or use explicit goal)
-  3. Spawn: claude -p '/rpi "<goal>" --spawn-next'
-  4. Wait for completion
+  3. Run: ao rpi phased "<goal>" (discovery → implementation → validation)
+  4. Mark the consumed queue entry with a timestamp on success (or "failed" on error)
   5. Re-read next-work.jsonl (post-mortem may have harvested new items)
   6. Repeat until queue empty or max-cycles reached
+
+Queue semantics:
+  - An entry is only marked consumed after the phased engine completes without error.
+  - If the phased engine fails, the entry is marked with failed_at so it is
+    skipped on subsequent runs but remains recoverable (set consumed=false to retry).
+  - Already-consumed or already-failed entries are skipped (idempotent).
 
 Examples:
   ao rpi loop                          # consume from queue until stable
   ao rpi loop "improve test coverage"  # run one cycle with explicit goal
   ao rpi loop --max-cycles 3           # cap at 3 iterations
+  ao rpi loop --repo-filter agentops   # only process items targeting agentops
   ao rpi loop --dry-run                # show what would run`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runRPILoop,
 	}
 
 	loopCmd.Flags().IntVar(&rpiMaxCycles, "max-cycles", 0, "Maximum cycles (0 = unlimited, stop when queue empty)")
+	loopCmd.Flags().StringVar(&rpiRepoFilter, "repo-filter", "", "Only process queue items targeting this repo (empty = all)")
 
 	rpiCmd.AddCommand(loopCmd)
 }
@@ -53,6 +62,7 @@ type nextWorkEntry struct {
 	Consumed   bool           `json:"consumed"`
 	ConsumedBy *string        `json:"consumed_by"`
 	ConsumedAt *string        `json:"consumed_at"`
+	FailedAt   *string        `json:"failed_at,omitempty"`
 }
 
 // nextWorkItem represents a single harvested work item.
@@ -66,15 +76,17 @@ type nextWorkItem struct {
 	TargetRepo  string `json:"target_repo,omitempty"`
 }
 
+// queueSelection holds the selected item together with its source entry index
+// so the caller can mark the correct entry consumed/failed.
+type queueSelection struct {
+	Item       nextWorkItem
+	EntryIndex int // 0-based index into the entries slice returned by readQueueEntries
+}
+
 func runRPILoop(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
-	}
-
-	// Check claude is available
-	if _, err := exec.LookPath("claude"); err != nil {
-		return fmt.Errorf("claude CLI not found on PATH (required for spawning RPI sessions)")
 	}
 
 	// Parse explicit goal if provided
@@ -96,21 +108,24 @@ func runRPILoop(cmd *cobra.Command, args []string) error {
 
 		fmt.Printf("\n=== RPI Loop: Cycle %d ===\n", cycle)
 
-		// Determine goal for this cycle
+		// Determine goal and which queue entry to mark after completion.
 		goal := explicitGoal
+		var sel *queueSelection
+
 		if goal == "" {
-			// Read queue for unconsumed items
-			items, err := readUnconsumedItems(nextWorkPath, "")
+			// Read queue for unconsumed, non-failed entries.
+			entries, err := readQueueEntries(nextWorkPath)
 			if err != nil {
 				VerbosePrintf("Warning: %v\n", err)
 			}
 
-			if len(items) == 0 {
+			sel = selectHighestSeverityEntry(entries, rpiRepoFilter)
+			if sel == nil {
 				fmt.Println("No unconsumed work in queue. Flywheel stable.")
 				break
 			}
 
-			goal = selectHighestSeverityItem(items)
+			goal = sel.Item.Title
 			fmt.Printf("From queue: %s\n", goal)
 		}
 
@@ -119,30 +134,49 @@ func runRPILoop(cmd *cobra.Command, args []string) error {
 			break
 		}
 
-		// Build the /rpi command
-		rpiArg := fmt.Sprintf(`/rpi "%s" --spawn-next`, goal)
-
 		if GetDryRun() {
-			fmt.Printf("[dry-run] Would spawn: claude -p '%s'\n", rpiArg)
+			fmt.Printf("[dry-run] Would run phased engine for: %q\n", goal)
 			if explicitGoal == "" {
 				fmt.Println("[dry-run] Queue not consumed in dry-run. Showing first cycle only.")
 			}
 			break
-		} else {
-			fmt.Printf("Spawning: claude -p '%s'\n", rpiArg)
-			start := time.Now()
-
-			if err := spawnClaudeRPI(rpiArg); err != nil {
-				fmt.Printf("Cycle %d failed: %v\n", cycle, err)
-				fmt.Println("Stopping loop. Fix the issue and re-run ao rpi loop.")
-				return err
-			}
-
-			elapsed := time.Since(start).Round(time.Second)
-			fmt.Printf("Cycle %d completed in %s\n", cycle, elapsed)
 		}
 
-		// If explicit goal was provided, only run once
+		fmt.Printf("Running phased engine for: %q\n", goal)
+		start := time.Now()
+
+		opts := defaultPhasedEngineOptions()
+		phasedErr := runPhasedEngine(cwd, goal, opts)
+		elapsed := time.Since(start).Round(time.Second)
+
+		if phasedErr != nil {
+			fmt.Printf("Cycle %d failed after %s: %v\n", cycle, elapsed, phasedErr)
+
+			// Mark the queue entry as failed so it is not retried blindly.
+			if sel != nil {
+				if markErr := markEntryFailed(nextWorkPath, sel.EntryIndex); markErr != nil {
+					VerbosePrintf("Warning: could not mark queue entry as failed: %v\n", markErr)
+				} else {
+					fmt.Printf("Queue entry marked failed (set consumed=false to retry): %q\n", sel.Item.Title)
+				}
+			}
+
+			fmt.Println("Stopping loop. Fix the issue and re-run ao rpi loop.")
+			return phasedErr
+		}
+
+		fmt.Printf("Cycle %d completed in %s\n", cycle, elapsed)
+
+		// Mark the queue entry consumed after successful completion.
+		if sel != nil {
+			if markErr := markEntryConsumed(nextWorkPath, sel.EntryIndex, "ao-rpi-loop"); markErr != nil {
+				VerbosePrintf("Warning: could not mark queue entry as consumed: %v\n", markErr)
+			} else {
+				fmt.Printf("Queue entry consumed: %q\n", sel.Item.Title)
+			}
+		}
+
+		// If explicit goal was provided, only run once.
 		if explicitGoal != "" {
 			fmt.Println("Explicit goal completed.")
 			break
@@ -158,16 +192,37 @@ func runRPILoop(cmd *cobra.Command, args []string) error {
 // non-empty TargetRepo that is neither "*" nor equal to repoFilter are skipped.
 // Items without a TargetRepo (legacy) or with TargetRepo=="*" always pass.
 func readUnconsumedItems(path string, repoFilter string) ([]nextWorkItem, error) {
+	entries, err := readQueueEntries(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []nextWorkItem
+	for _, entry := range entries {
+		for _, item := range entry.Items {
+			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
+				continue
+			}
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
+
+// readQueueEntries reads next-work.jsonl and returns all unconsumed, non-failed
+// entries (with their 0-based index preserved for later marking). Malformed
+// lines are skipped with a verbose warning. Missing files return nil, nil.
+func readQueueEntries(path string) ([]nextWorkEntry, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil // No file = no items
+			return nil, nil
 		}
 		return nil, fmt.Errorf("open next-work.jsonl: %w", err)
 	}
 	defer f.Close()
 
-	var items []nextWorkItem
+	var entries []nextWorkEntry
 	scanner := bufio.NewScanner(f)
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
@@ -184,17 +239,169 @@ func readUnconsumedItems(path string, repoFilter string) ([]nextWorkItem, error)
 			continue
 		}
 
-		if !entry.Consumed && len(entry.Items) > 0 {
-			for _, item := range entry.Items {
-				if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
-					continue
-				}
-				items = append(items, item)
+		// Skip entries that are already consumed or previously failed.
+		if entry.Consumed || entry.FailedAt != nil {
+			continue
+		}
+		if len(entry.Items) == 0 {
+			continue
+		}
+
+		entries = append(entries, entry)
+	}
+
+	return entries, scanner.Err()
+}
+
+// selectHighestSeverityEntry picks the best item across all eligible entries.
+// It returns a queueSelection containing the winning item and its source entry
+// index within entries. Items filtered out by repoFilter are skipped.
+// Returns nil if no eligible items exist.
+func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *queueSelection {
+	type candidate struct {
+		item       nextWorkItem
+		entryIndex int
+		rank       int
+	}
+
+	var candidates []candidate
+	for i, entry := range entries {
+		for _, item := range entry.Items {
+			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
+				continue
 			}
+			candidates = append(candidates, candidate{item: item, entryIndex: i, rank: severityRank(item.Severity)})
 		}
 	}
 
-	return items, scanner.Err()
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].rank > candidates[j].rank
+	})
+
+	best := candidates[0]
+	return &queueSelection{Item: best.item, EntryIndex: best.entryIndex}
+}
+
+// rewriteNextWorkFile rewrites the JSONL file with updated entries applied via
+// the transform function. The transform receives a pointer to each parsed entry
+// so it can mutate individual fields. Entries that could not be parsed are
+// preserved verbatim. If the file does not exist, rewriteNextWorkFile is a no-op.
+func rewriteNextWorkFile(path string, transform func(idx int, entry *nextWorkEntry)) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read next-work.jsonl: %w", err)
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	var lines []string
+	idx := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			lines = append(lines, line)
+			continue
+		}
+
+		var entry nextWorkEntry
+		if jsonErr := json.Unmarshal([]byte(line), &entry); jsonErr != nil {
+			// Preserve malformed lines verbatim.
+			lines = append(lines, line)
+			idx++
+			continue
+		}
+
+		transform(idx, &entry)
+		rewritten, marshalErr := json.Marshal(entry)
+		if marshalErr != nil {
+			lines = append(lines, line)
+		} else {
+			lines = append(lines, string(rewritten))
+		}
+		idx++
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("scan next-work.jsonl: %w", err)
+	}
+
+	var out bytes.Buffer
+	for _, l := range lines {
+		out.WriteString(l)
+		out.WriteByte('\n')
+	}
+
+	return os.WriteFile(path, out.Bytes(), 0644)
+}
+
+// markEntryConsumed sets Consumed=true and ConsumedAt on the entry at entryIndex.
+// entryIndex is the 0-based index of the entry among all parseable lines in the file
+// (blank lines and malformed lines count toward the index but are not modified).
+//
+// Returns an error when the file does not exist so callers can distinguish a
+// missing-queue situation from a successful no-op.
+func markEntryConsumed(path string, entryIndex int, consumedBy string) error {
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("next-work.jsonl not found: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	parseable := -1
+	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
+		parseable++
+		if parseable != entryIndex {
+			return
+		}
+		entry.Consumed = true
+		entry.ConsumedAt = &now
+		entry.ConsumedBy = &consumedBy
+		entry.FailedAt = nil
+	})
+}
+
+// markItemConsumed marks the first entry matching sourceEpic in path as consumed.
+// Unlike markEntryConsumed (index-based), this function identifies entries by
+// source_epic field, making it safe to call with the epic ID from a run.
+//
+// Semantics:
+//   - Missing file: returns an error (caller should verify file exists before calling).
+//   - Wrong/no match: no-op (idempotent — safe to call even if already consumed).
+//   - Match: sets Consumed=true, ConsumedAt, and ConsumedBy=runID.
+func markItemConsumed(path, sourceEpic, runID string) error {
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("next-work.jsonl not found: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	return rewriteNextWorkFile(path, func(_ int, entry *nextWorkEntry) {
+		if entry.SourceEpic != sourceEpic {
+			return
+		}
+		entry.Consumed = true
+		entry.ConsumedAt = &now
+		entry.ConsumedBy = &runID
+		entry.FailedAt = nil
+	})
+}
+
+// markEntryFailed records a FailedAt timestamp on the entry at entryIndex without
+// setting Consumed. This leaves the entry recoverable: set consumed=false to retry.
+func markEntryFailed(path string, entryIndex int) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	parseable := -1
+	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
+		parseable++
+		if parseable != entryIndex {
+			return
+		}
+		entry.FailedAt = &now
+	})
 }
 
 // selectHighestSeverityItem returns the title of the highest-severity item.
@@ -222,13 +429,4 @@ func severityRank(s string) int {
 	default:
 		return 0
 	}
-}
-
-// spawnClaudeRPI spawns a fresh Claude session with /rpi.
-func spawnClaudeRPI(rpiArg string) error {
-	cmd := exec.Command("claude", "-p", rpiArg)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
 }

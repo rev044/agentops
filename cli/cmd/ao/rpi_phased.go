@@ -44,6 +44,96 @@ const (
 	failReasonUnknown phaseFailureReason = "unknown"
 )
 
+// phasedEngineOptions captures all configurable parameters for runPhasedEngine.
+// This allows the loop and other callers to invoke the phased engine programmatically
+// without depending on global cobra flag variables.
+type phasedEngineOptions struct {
+	From         string
+	FastPath     bool
+	TestFirst    bool
+	Interactive  bool
+	MaxRetries   int
+	PhaseTimeout time.Duration
+	StallTimeout time.Duration
+	NoWorktree   bool
+	LiveStatus   bool
+	SwarmFirst   bool
+}
+
+// defaultPhasedEngineOptions returns options matching the default cobra flag values.
+func defaultPhasedEngineOptions() phasedEngineOptions {
+	return phasedEngineOptions{
+		From:         "discovery",
+		MaxRetries:   3,
+		PhaseTimeout: 90 * time.Minute,
+		StallTimeout: 10 * time.Minute,
+		SwarmFirst:   true,
+	}
+}
+
+// runPhasedEngine runs the full phased RPI lifecycle for goal in cwd.
+// It is the programmatic entry point used by both the phased cobra command
+// and the loop command, ensuring both share the same runtime contracts.
+func runPhasedEngine(cwd, goal string, opts phasedEngineOptions) (retErr error) {
+	// Temporarily override package-level flag variables so the rest of the
+	// implementation (which still reads globals) behaves as requested.
+	// This is intentionally scoped: the loop restores them between cycles.
+	prevFrom := phasedFrom
+	prevFastPath := phasedFastPath
+	prevTestFirst := phasedTestFirst
+	prevInteractive := phasedInteractive
+	prevMaxRetries := phasedMaxRetries
+	prevPhaseTimeout := phasedPhaseTimeout
+	prevStallTimeout := phasedStallTimeout
+	prevNoWorktree := phasedNoWorktree
+	prevLiveStatus := phasedLiveStatus
+	prevSwarmFirst := phasedSwarmFirst
+	defer func() {
+		phasedFrom = prevFrom
+		phasedFastPath = prevFastPath
+		phasedTestFirst = prevTestFirst
+		phasedInteractive = prevInteractive
+		phasedMaxRetries = prevMaxRetries
+		phasedPhaseTimeout = prevPhaseTimeout
+		phasedStallTimeout = prevStallTimeout
+		phasedNoWorktree = prevNoWorktree
+		phasedLiveStatus = prevLiveStatus
+		phasedSwarmFirst = prevSwarmFirst
+	}()
+
+	phasedFrom = opts.From
+	phasedFastPath = opts.FastPath
+	phasedTestFirst = opts.TestFirst
+	phasedInteractive = opts.Interactive
+	phasedMaxRetries = opts.MaxRetries
+	phasedPhaseTimeout = opts.PhaseTimeout
+	phasedStallTimeout = opts.StallTimeout
+	phasedNoWorktree = opts.NoWorktree
+	phasedLiveStatus = opts.LiveStatus
+	phasedSwarmFirst = opts.SwarmFirst
+
+	// Temporarily change working directory so runRPIPhased's os.Getwd() call
+	// and all path resolution operate in the requested cwd.
+	origDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+	if cwd != "" && cwd != origDir {
+		if err := os.Chdir(cwd); err != nil {
+			return fmt.Errorf("chdir to %s: %w", cwd, err)
+		}
+		defer func() {
+			_ = os.Chdir(origDir)
+		}()
+	}
+
+	args := []string{goal}
+	if goal == "" {
+		args = nil
+	}
+	return runRPIPhased(nil, args)
+}
+
 func init() {
 	phasedCmd := &cobra.Command{
 		Use:   "phased <goal>",
