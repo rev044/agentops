@@ -1,6 +1,6 @@
 # The Science Behind AgentOps
 
-> **TL;DR:** One model of knowledge decay (Darr 1995) suggests ~17%/week without reinforcement. If retrieval × usage > decay, knowledge compounds instead. That's the whole goal. Everything else is implementation.
+> **TL;DR:** One model of knowledge decay (Darr 1995) suggests ~17%/week without reinforcement. Knowledge compounds when retrieval × usage beats decay and scale friction. Early growth can be exponential; long-run growth requires active limits-to-growth controls.
 
 ---
 
@@ -15,6 +15,18 @@ This wasn't designed in a vacuum. It came from years of connecting dots across f
 5. **Thermodynamics** — The Brownian Ratchet as progress model
 
 Each piece validated the intuition. The math fell out naturally.
+
+## Claim Status (So We Don't Overclaim)
+
+To make this model durable under critique, we separate claim types:
+
+| Tier | Claim Type | Standard of Evidence | Examples in this doc |
+|------|------------|----------------------|----------------------|
+| **A** | Established external evidence | Peer-reviewed or widely replicated findings | Forgetting curves, cognitive load limits, lost-in-the-middle behavior |
+| **B** | Internal empirical evidence | Reproducible internal measurements with clear methodology | Time-to-resolution deltas, token-cost deltas, reuse-rate trends |
+| **C** | Working hypothesis | Mechanistic proposal under active testing | Ratchet model details, exact operating point for `σ × ρ`, cross-project transfer effects |
+
+This document mixes all three tiers. The goal is to make each claim explicit, measurable, and falsifiable.
 
 ---
 
@@ -77,6 +89,15 @@ dK/dt = I(t) - δ·K + σ·ρ·K
 | `σ` | Retrieval effectiveness | When you search, do you find it? | "Found relevant learning 70% of the time" |
 | `ρ` | Citation rate | Do you actually use what you find? | "Used 30% of retrieved knowledge" |
 
+### Dimensional Check
+
+To keep this scientifically defensible:
+
+- `K` is measured in useful knowledge units (for example: validated learnings).
+- `I(t)` is knowledge units per week.
+- `δ`, `σ`, and `ρ` are rates/probabilities per week or per retrieval cycle.
+- All terms in `dK/dt` resolve to knowledge units per week.
+
 ### Breaking It Down
 
 **`I(t)`** — The input. You forge transcripts, extract learnings, write retros. Knowledge goes in.
@@ -91,21 +112,43 @@ When you retrieve knowledge (`σ`) and actually use it (`ρ`), two things happen
 
 The `·K` means it's proportional to how much you already have. More knowledge → more compounding.
 
+### System Dynamics Correction: Limits to Growth
+
+The baseline equation is structurally correct, but idealized. In real systems, reinforcing loops hit balancing loops at scale.
+
+A scale-aware form:
+
+```
+dK/dt = I(t) - δ·K + σ(K,t)·ρ·K - φ·K²
+
+where:
+σ(K,t) = σ_max / (1 + (K / Kσ)^n)
+```
+
+Interpretation:
+- `σ(K,t)` declines as the corpus grows unless retrieval/index quality improves.
+- `φ·K²` captures scale friction: indexing overhead, latency, noise, governance cost, and cognitive overhead.
+- `Kσ` is the knowledge scale where retrieval starts degrading materially.
+
+This adds the missing **Limits to Growth** balancing loop from System Dynamics.
+
 ### The Escape Velocity Condition
 
 Rearrange the equation at steady state:
 
 ```
-For knowledge to grow: σ·ρ·K > δ·K
+General growth condition:
+I(t) + K(σ·ρ - δ) > 0
 
-Simplify: σ × ρ > δ
+If I(t) ≈ 0 (self-sustaining mode): σ × ρ > δ
 
-In numbers: retrieval × usage > 0.17
+With scale friction:
+ρ·σ(K,t) > δ + φ·K - I(t)/K
 ```
 
-**That's it. That's the whole goal.**
+**Meaning:** early growth can be exponential, but long-run growth plateaus unless you actively prevent `σ` collapse and friction growth.
 
-If your retrieval effectiveness times your citation rate exceeds 0.17, you're compounding. If not, you're decaying to zero.
+If your retrieval effectiveness times your citation rate exceeds 0.17 in self-sustaining mode, you're compounding. If not, you either need fresh input `I(t)` or stronger controls to avoid stagnation.
 
 | Scenario | σ | ρ | σ × ρ | vs δ | Result |
 |----------|---|---|-------|------|--------|
@@ -115,6 +158,21 @@ If your retrieval effectiveness times your citation rate exceeds 0.17, you're co
 | **AgentOps target** | 0.7 | 0.3 | 0.21 | > 0.17 | **Compounding** |
 
 **The 0.04 margin matters.** Small edge, compounded over time, becomes massive.
+
+### Loop-Dominance Translation (System Dynamics)
+
+This model is a stock-and-flow system with competing loops:
+
+- `R1` reinforcing loop: retrieval -> usage -> stronger priors -> better future retrieval.
+- `B1` balancing loop: decay/staleness drains the stock.
+- `B2` balancing loop: scale friction reduces retrieval and increases operating cost as `K` grows.
+
+Expected phases:
+
+1. Bootstrap phase: `R1 > B1`, rapid gains.
+2. Flywheel phase: `R1 > B1 + B2`, compounding with healthy margins.
+3. Saturation risk: `B2` grows; gains flatten.
+4. Renewal phase: pruning, re-indexing, tiering, and stronger feedback push `R1` back above balancing loops.
 
 ---
 
@@ -238,7 +296,7 @@ End   │████████████████████│ High
 
 ---
 
-## Part 5: MemRL (The Proof)
+## Part 5: MemRL (Scale-Control Mechanism)
 
 **Citation:** Zhang, S., Wang, J., Zhou, R., et al. (2025). "MemRL: Self-Evolving Agents via Runtime Reinforcement Learning on Episodic Memory." *arXiv:2601.03192*. https://arxiv.org/abs/2601.03192
 
@@ -271,7 +329,7 @@ utility = (1 - α) × utility + α × 0.0  # Penalty
 score = z_norm(freshness) + λ × z_norm(utility)
 ```
 
-**The insight:** The system learns from feedback. Over time, useful knowledge rises. Noise sinks.
+**The insight:** The system learns from feedback. Over time, useful knowledge rises and noise sinks, which helps prevent `σ` from collapsing as `K` grows.
 
 ### How We Use It
 
@@ -284,7 +342,7 @@ ao feedback L12 0.0   # "This was irrelevant"
 # Future retrieval ranks by usefulness, not just recency
 ```
 
-**The math connection:** MemRL directly improves `σ` (retrieval effectiveness) by surfacing what actually helps.
+**The math connection:** MemRL is one practical control to keep `σ(K,t)` high enough to offset scale friction. It is a mechanism, not a guarantee.
 
 ---
 
@@ -337,10 +395,10 @@ Ratchet:
 **You can always add more chaos. You can't un-ratchet.**
 
 - Failed experiment? Try another. (Chaos is cheap.)
-- Merged code? It's permanent. (Ratchet holds.)
-- Stored learning? It compounds. (Progress locks.)
+- Merged code? It is hard to regress accidentally. (Ratchet holds.)
+- Stored learning? It compounds if retrieval quality stays high. (Progress can lock, but scale can still add drag.)
 
-This is why the flywheel only spins forward.
+This is why progress can be made one-way at the artifact level, while system-level growth still needs active scale management.
 
 ---
 
@@ -406,37 +464,86 @@ This is why the flywheel only spins forward.
 | DevOps | Flow, feedback, learning | `I(t)` — more knowledge in |
 | Cognitive | Optimal load | `σ` — better retrieval |
 | MemRL | Utility learning | `σ` — smarter retrieval |
+| Scale controls (tiering/pruning/indexing) | Limits-to-growth mitigation | Holds `σ(K,t)` up and `φ` down |
 | Ratchet | Lock progress | Prevents regression of `K` |
 
-**Every layer serves the equation.** There's no feature creep. It all points at `σ × ρ > δ`.
+**Every layer serves the equation.** The added constraint is explicit: long-run growth needs scale controls, not just early flywheel activation.
 
 ---
 
-## Part 8: The Evidence (Our Testing)
+## Part 8: Evidence (Internal Pilots, Not Causal Proof Yet)
 
-### What We've Measured
+### What We've Measured So Far
 
-| Metric | Without AgentOps | With AgentOps | Improvement |
-|--------|-----------------|---------------|-------------|
-| Same-issue resolution | 45 min | 3 min | 15x faster |
-| Token cost per issue | $2.40 | $0.15 | 16x cheaper |
-| Context collapse rate | ~65% at 60% load | 0% at 40% load | Eliminated |
-| Knowledge reuse | ~0% | ~15% (growing) | ∞ improvement |
+These are internal observations and should be read as **Tier B** evidence (operational telemetry, not randomized causal proof):
 
-### The Compounding Observation
+| Metric | Baseline (internal) | AgentOps condition (internal) | Direction |
+|--------|----------------------|-------------------------------|-----------|
+| Same-issue resolution | 45 min | 3 min | Faster |
+| Token cost per issue | $2.40 | $0.15 | Lower |
+| Context collapse rate | ~65% at 60% load | 0% at 40% load | Lower |
+| Knowledge reuse | ~0% | ~15% (growing) | Higher |
 
-After 30 days of use:
-- Session 1 on new topic: Full research (45 min)
-- Session 2 on same topic: Partial recall (15 min)
-- Session 3 on same topic: Near-instant (3 min)
+### Why This Is Not Yet "Proof"
 
-**This matches the theory.** Retrieval reinforces memory. Each use slows decay.
+- Baselines are historical, not fully randomized.
+- Team maturity and task mix can confound outcomes.
+- Some gains can come from process discipline independent of memory quality.
 
-### What We're Still Measuring
+### Evaluation Design to Make It Bulletproof
 
-- Long-term σ × ρ trends (are we staying above 0.17?)
-- Knowledge quality tiers (do learnings promote correctly?)
-- Cross-project transfer (does knowledge generalize?)
+For causal confidence, run a controlled protocol:
+
+1. Randomize comparable tasks across conditions (`memory-on`, `memory-off`, `memory-on + utility learning`).
+2. Pre-register primary metrics: resolution time, token cost, defect rate, reuse precision@k, and citation rate `ρ`.
+3. Track estimated decay `δ_t` and retrieval effectiveness `σ_t` weekly.
+4. Segment by corpus size (`K` buckets) to detect limits-to-growth behavior.
+5. Require out-of-sample replication across projects, not just one team.
+
+### Falsifiable Predictions
+
+The model should be treated as wrong if repeated experiments show:
+
+- `ρ·σ(K,t) <= δ + φ·K - I(t)/K` while performance still compounds.
+- Retrieval quality does not degrade with scale and no compensating controls are needed.
+- `memory-on + utility learning` does not outperform `memory-on` as `K` increases.
+- Gains disappear under simple task-randomized comparisons.
+
+---
+
+## Part 9: Limits to Growth and Control Policy
+
+System Dynamics says reinforcing loops eventually hit balancing loops. We model that explicitly and design around it.
+
+### Main Scale Risks
+
+| Risk | Loop Effect | Observable Symptom |
+|------|-------------|--------------------|
+| Corpus bloat | Lowers `σ(K,t)` | Falling precision@k, more irrelevant recalls |
+| Retrieval latency/cost | Raises effective `φ` | Slower sessions, rising token burn |
+| Quality drift | Raises effective `δ` | More stale/contradictory learnings |
+| Cognitive overload | Lowers `ρ` | Retrieved items cited less in final outputs |
+
+### Control Actions (Operational)
+
+| Control | Primary Variable | Practical Mechanism |
+|---------|------------------|---------------------|
+| Tiering + archival | `φ` down | Keep hot set small, cold set searchable |
+| Utility-based pruning | `σ` up, `δ` down | Remove low-value or stale memories |
+| Re-index + embedding refresh | `σ` up | Improve retrieval quality as schema evolves |
+| Citation incentives/UX | `ρ` up | Make reuse cheaper than re-derivation |
+| Drift audits | `δ` down | Detect and repair stale knowledge clusters |
+
+### Operating Rule
+
+Track loop dominance continuously:
+
+```
+health(t) = ρ·σ(K,t) - (δ + φ·K - I(t)/K)
+```
+
+If `health(t) > 0`, the system is in compounding mode.
+If `health(t) <= 0`, growth has hit limits and controls must be tightened.
 
 ---
 
@@ -445,14 +552,16 @@ After 30 days of use:
 Everything in AgentOps exists to achieve one thing:
 
 ```
+Short form (self-sustaining mode):
 σ × ρ > δ
 
-retrieval effectiveness × citation rate > decay rate
+Scale-aware form:
+ρ·σ(K,t) > δ + φ·K - I(t)/K
 ```
 
-When this is true, knowledge compounds. When it's false, knowledge decays to zero.
+When this is true, knowledge compounds. When it's false, growth stalls or reverses.
 
-**That's not philosophy. That's a differential equation.**
+**This is a control problem, not a slogan.** Reinforcing loops must stay stronger than balancing loops over time.
 
 Every feature, every skill, every CLI command serves this inequality:
 
@@ -462,10 +571,11 @@ Every feature, every skill, every CLI command serves this inequality:
 | `/inject` | Increases `σ` — better retrieval |
 | `/vibe`, `/pre-mortem` | Filter bad work before it wastes cycles |
 | `ao feedback` | Improves `σ` via utility learning |
+| Tiering/pruning/re-indexing | Prevents limits-to-growth collapse in `σ` and `φ` |
 | Ratchet chain | Prevents `K` from regressing |
 | 40% rule | Keeps `σ` high by avoiding lost-in-middle |
 
-**The goal is literally the math.** We just built a system that makes the math true.
+**The goal is the math, with explicit scale limits.** The system is only "bulletproof" if we measure loop dominance and adapt controls as `K` grows.
 
 ---
 
@@ -494,6 +604,7 @@ Every feature, every skill, every CLI command serves this inequality:
 
 ### Systems Dynamics
 - Meadows, D. H. (2008). *Thinking in Systems: A Primer*. Chelsea Green Publishing.
+- Meadows, D. H., Meadows, D. L., Randers, J., & Behrens, W. W. (1972). *The Limits to Growth*. Universe Books.
 
 ---
 
