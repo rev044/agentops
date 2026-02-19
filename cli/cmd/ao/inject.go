@@ -74,9 +74,13 @@ type learning struct {
 }
 
 type pattern struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	FilePath    string `json:"file_path,omitempty"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description"`
+	FilePath       string  `json:"file_path,omitempty"`
+	FreshnessScore float64 `json:"freshness_score,omitempty"`
+	AgeWeeks       float64 `json:"age_weeks,omitempty"`
+	Utility        float64 `json:"utility,omitempty"`
+	CompositeScore float64 `json:"composite_score,omitempty"`
 }
 
 type session struct {

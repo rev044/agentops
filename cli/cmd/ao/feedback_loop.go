@@ -94,7 +94,10 @@ func computeRewardFromTranscript(transcriptPath, sessionID string) (float64, err
 	if transcriptPath == "" {
 		homeDir, _ := os.UserHomeDir()
 		transcriptsDir := filepath.Join(homeDir, ".claude", "projects")
-		transcriptPath = findMostRecentTranscript(transcriptsDir)
+		transcriptPath = findTranscriptForSession(transcriptsDir, sessionID)
+		if transcriptPath == "" {
+			transcriptPath = findMostRecentTranscript(transcriptsDir)
+		}
 	}
 	if transcriptPath == "" {
 		return 0, fmt.Errorf("no transcript found; use --reward to specify manually")
@@ -209,6 +212,9 @@ func runFeedbackLoop(cmd *cobra.Command, args []string) error {
 	if err := writeFeedbackEvents(cwd, feedbackEvents); err != nil {
 		VerbosePrintf("Warning: failed to write feedback log: %v\n", err)
 	}
+	if err := markCitationFeedback(cwd, sessionID, reward, feedbackEvents); err != nil {
+		VerbosePrintf("Warning: failed to mark citation feedback metadata: %v\n", err)
+	}
 
 	// Output summary
 	return outputFeedbackSummary(sessionID, reward, len(sessionCitations), len(uniqueCitations), updatedCount, failedCount, feedbackEvents)
@@ -223,6 +229,70 @@ func resolveFeedbackLoopSessionID(sessionFlag string) (string, error) {
 		return "", fmt.Errorf("--session is required (or set CLAUDE_SESSION_ID)")
 	}
 	return canonicalSessionID(candidate), nil
+}
+
+func markCitationFeedback(baseDir, sessionID string, reward float64, events []FeedbackEvent) error {
+	citations, err := ratchet.LoadCitations(baseDir)
+	if err != nil {
+		return fmt.Errorf("load citations for feedback mark: %w", err)
+	}
+	if len(citations) == 0 {
+		return nil
+	}
+
+	eventByPath := make(map[string]FeedbackEvent, len(events))
+	for _, event := range events {
+		eventByPath[event.ArtifactPath] = event
+	}
+
+	updated := 0
+	now := time.Now()
+	for i := range citations {
+		if citations[i].SessionID != sessionID {
+			continue
+		}
+		citations[i].FeedbackGiven = true
+		citations[i].FeedbackReward = reward
+		citations[i].FeedbackAt = now
+		if event, ok := eventByPath[citations[i].ArtifactPath]; ok {
+			citations[i].UtilityBefore = event.UtilityBefore
+			citations[i].UtilityAfter = event.UtilityAfter
+		}
+		updated++
+	}
+	if updated == 0 {
+		return nil
+	}
+
+	return writeCitations(baseDir, citations)
+}
+
+func writeCitations(baseDir string, citations []types.CitationEvent) error {
+	citationsPath := filepath.Join(baseDir, ratchet.CitationsFilePath)
+	if err := os.MkdirAll(filepath.Dir(citationsPath), 0755); err != nil {
+		return fmt.Errorf("create citations directory: %w", err)
+	}
+
+	tmpPath := citationsPath + ".tmp"
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("create citations temp file: %w", err)
+	}
+
+	enc := json.NewEncoder(f)
+	for _, citation := range citations {
+		if err := enc.Encode(citation); err != nil {
+			_ = f.Close()
+			return fmt.Errorf("write citation event: %w", err)
+		}
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close citations temp file: %w", err)
+	}
+	if err := os.Rename(tmpPath, citationsPath); err != nil {
+		return fmt.Errorf("replace citations file: %w", err)
+	}
+	return nil
 }
 
 // outputFeedbackSummary outputs the feedback loop results.
@@ -371,6 +441,7 @@ func runBatchFeedback(cmd *cobra.Command, args []string) error {
 		// Set flags and run feedback loop
 		feedbackLoopSessionID = sessionID
 		feedbackLoopReward = -1 // Compute from transcript
+		feedbackLoopTranscript = ""
 
 		fmt.Printf("Processing session %s...\n", sessionID)
 		if err := runFeedbackLoop(cmd, nil); err != nil {

@@ -173,6 +173,49 @@ func TestFindMostRecentTranscript(t *testing.T) {
 	}
 }
 
+func TestFindTranscriptForSession(t *testing.T) {
+	tempDir := t.TempDir()
+
+	projectDir := filepath.Join(tempDir, "project-x")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("create project dir: %v", err)
+	}
+
+	otherPath := filepath.Join(projectDir, "other.jsonl")
+	matchPath := filepath.Join(projectDir, "match.jsonl")
+	if err := os.WriteFile(otherPath, []byte(`{"type":"user","sessionId":"other-session"}`), 0644); err != nil {
+		t.Fatalf("write other transcript: %v", err)
+	}
+	if err := os.WriteFile(matchPath, []byte(`{"type":"user","sessionId":"target-session"}`), 0644); err != nil {
+		t.Fatalf("write match transcript: %v", err)
+	}
+
+	found := findTranscriptForSession(tempDir, "target-session")
+	if found == "" {
+		t.Fatal("expected a matching transcript")
+	}
+	if filepath.Base(found) != "match.jsonl" {
+		t.Errorf("got %q, want match.jsonl", filepath.Base(found))
+	}
+}
+
+func TestTranscriptContainsSessionID(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "session.jsonl")
+	content := `{"type":"user","sessionId":"abc-123"}
+{"type":"assistant","message":{"content":"done"}}`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+
+	if !transcriptContainsSessionID(path, "abc-123") {
+		t.Fatal("expected transcriptContainsSessionID to return true")
+	}
+	if transcriptContainsSessionID(path, "missing-session") {
+		t.Fatal("expected transcriptContainsSessionID to return false")
+	}
+}
+
 func TestSignalWeights(t *testing.T) {
 	// Verify weights sum to <= 1.0 for positive signals
 	positiveSum := weightTestsPass + weightGitPush + weightGitCommit +

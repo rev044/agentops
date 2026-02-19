@@ -36,6 +36,29 @@ Release in defer to prevent deadlocks.
 		}
 	})
 
+	t.Run("front matter utility is parsed and skipped in description", func(t *testing.T) {
+		content := `---
+utility: 0.92
+---
+# High Utility Pattern
+
+Use this pattern first.
+`
+		path := filepath.Join(tmpDir, "high-utility.md")
+		os.WriteFile(path, []byte(content), 0644)
+
+		p, err := parsePatternFile(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if p.Utility != 0.92 {
+			t.Errorf("Utility = %f, want 0.92", p.Utility)
+		}
+		if p.Description == "utility: 0.92" {
+			t.Error("front matter leaked into description")
+		}
+	})
+
 	t.Run("no title uses filename", func(t *testing.T) {
 		content := `Some description without a heading.
 `
@@ -143,6 +166,24 @@ func TestCollectPatterns(t *testing.T) {
 		}
 		if got != nil {
 			t.Errorf("expected nil, got %v", got)
+		}
+	})
+
+	t.Run("ranks by utility when freshness is similar", func(t *testing.T) {
+		highUtilityPath := filepath.Join(patternsDir, "utility-high.md")
+		lowUtilityPath := filepath.Join(patternsDir, "utility-low.md")
+		os.WriteFile(highUtilityPath, []byte("---\nutility: 0.95\n---\n# High Utility\n\nHigh utility pattern."), 0644)
+		os.WriteFile(lowUtilityPath, []byte("---\nutility: 0.20\n---\n# Low Utility\n\nLow utility pattern."), 0644)
+
+		got, err := collectPatterns(tmpDir, "utility", 10)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) < 2 {
+			t.Fatalf("expected at least 2 utility patterns, got %d", len(got))
+		}
+		if got[0].Name != "High Utility" {
+			t.Errorf("expected highest-ranked utility pattern first, got %q", got[0].Name)
 		}
 	})
 }

@@ -155,37 +155,59 @@ func runFeedback(cmd *cobra.Command, args []string) error {
 
 // findLearningFile locates a learning file by ID.
 func findLearningFile(baseDir, learningID string) (string, error) {
-	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
+	searchDirs := []string{
+		filepath.Join(baseDir, ".agents", "learnings"),
+		filepath.Join(baseDir, ".agents", "patterns"),
+	}
 
 	// Try direct match with common extensions
 	extensions := []string{".jsonl", ".md", ".json"}
-	for _, ext := range extensions {
-		path := filepath.Join(learningsDir, learningID+ext)
+	for _, dirPath := range searchDirs {
+		for _, ext := range extensions {
+			path := filepath.Join(dirPath, learningID+ext)
+			if _, err := os.Stat(path); err == nil {
+				return path, nil
+			}
+		}
+	}
+
+	// Try without extension if ID already has one
+	for _, dirPath := range searchDirs {
+		path := filepath.Join(dirPath, learningID)
 		if _, err := os.Stat(path); err == nil {
 			return path, nil
 		}
 	}
 
-	// Try without extension if ID already has one
-	path := filepath.Join(learningsDir, learningID)
-	if _, err := os.Stat(path); err == nil {
-		return path, nil
-	}
-
 	// Search for files containing the ID
-	files, err := filepath.Glob(filepath.Join(learningsDir, "*"+learningID+"*"))
-	if err != nil {
-		return "", err
-	}
-	if len(files) > 0 {
-		return files[0], nil
+	for _, dirPath := range searchDirs {
+		files, err := filepath.Glob(filepath.Join(dirPath, "*"+learningID+"*"))
+		if err != nil {
+			return "", err
+		}
+		if len(files) > 0 {
+			return files[0], nil
+		}
 	}
 
-	// Walk up to rig root looking for .agents/learnings
+	// Walk up to rig root looking for .agents/learnings and .agents/patterns
 	dir := baseDir
 	for {
-		candidate := filepath.Join(dir, ".agents", "learnings")
-		if candidate != learningsDir {
+		candidates := []string{
+			filepath.Join(dir, ".agents", "learnings"),
+			filepath.Join(dir, ".agents", "patterns"),
+		}
+		for _, candidate := range candidates {
+			isCurrent := false
+			for _, current := range searchDirs {
+				if candidate == current {
+					isCurrent = true
+					break
+				}
+			}
+			if isCurrent {
+				continue
+			}
 			for _, ext := range extensions {
 				path := filepath.Join(candidate, learningID+ext)
 				if _, err := os.Stat(path); err == nil {

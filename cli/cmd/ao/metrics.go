@@ -591,27 +591,32 @@ func computeUtilityMetrics(baseDir string) utilityStats {
 	var stats utilityStats
 	var utilities []float64
 
-	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
-	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
-		return stats
+	artifactDirs := []string{
+		filepath.Join(baseDir, ".agents", "learnings"),
+		filepath.Join(baseDir, ".agents", "patterns"),
 	}
 
-	// Scan JSONL files for utility values
-	if err := filepath.Walk(learningsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(path, ".jsonl") {
-			return nil
+	for _, dir := range artifactDirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
 		}
 
-		utility := parseUtilityFromFile(path)
-		if utility > 0 {
-			utilities = append(utilities, utility)
+		if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil
+			}
+			if !strings.HasSuffix(path, ".jsonl") && !strings.HasSuffix(path, ".md") {
+				return nil
+			}
+
+			utility := parseUtilityFromFile(path)
+			if utility > 0 {
+				utilities = append(utilities, utility)
+			}
+			return nil
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", dir, err)
 		}
-		return nil
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to walk %s: %v\n", learningsDir, err)
 	}
 
 	if len(utilities) == 0 {
@@ -645,8 +650,32 @@ func computeUtilityMetrics(baseDir string) utilityStats {
 	return stats
 }
 
-// parseUtilityFromFile extracts utility value from a JSONL file.
+// parseUtilityFromFile extracts utility value from JSONL or markdown front matter.
 func parseUtilityFromFile(path string) float64 {
+	if strings.HasSuffix(path, ".md") {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return 0
+		}
+		lines := strings.Split(string(content), "\n")
+		if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+			return 0
+		}
+		for i := 1; i < len(lines); i++ {
+			line := strings.TrimSpace(lines[i])
+			if line == "---" {
+				break
+			}
+			if strings.HasPrefix(line, "utility:") {
+				var utility float64
+				if _, parseErr := fmt.Sscanf(line, "utility: %f", &utility); parseErr == nil {
+					return utility
+				}
+			}
+		}
+		return 0
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return 0
@@ -654,7 +683,6 @@ func parseUtilityFromFile(path string) float64 {
 	defer func() {
 		_ = f.Close() //nolint:errcheck // read-only utility parse, close error non-fatal
 	}()
-
 	scanner := bufio.NewScanner(f)
 	if scanner.Scan() {
 		var data map[string]interface{}

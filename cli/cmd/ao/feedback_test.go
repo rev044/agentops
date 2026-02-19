@@ -324,6 +324,10 @@ func TestFindLearningFile(t *testing.T) {
 	if err := os.MkdirAll(learningsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
+	patternsDir := filepath.Join(tmpDir, ".agents", "patterns")
+	if err := os.MkdirAll(patternsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create test files
 	testFiles := []string{"L001.jsonl", "L002.md", "learning-003.jsonl"}
@@ -332,6 +336,9 @@ func TestFindLearningFile(t *testing.T) {
 		if err := os.WriteFile(path, []byte(`{"id":"test"}`), 0644); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := os.WriteFile(filepath.Join(patternsDir, "retry-backoff.md"), []byte("# Retry Backoff"), 0644); err != nil {
+		t.Fatal(err)
 	}
 
 	tests := []struct {
@@ -356,6 +363,12 @@ func TestFindLearningFile(t *testing.T) {
 			name:       "find by partial match",
 			learningID: "003",
 			wantFile:   "learning-003.jsonl",
+			wantErr:    false,
+		},
+		{
+			name:       "find pattern by name",
+			learningID: "retry-backoff",
+			wantFile:   "retry-backoff.md",
 			wantErr:    false,
 		},
 		{

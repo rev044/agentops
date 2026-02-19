@@ -249,3 +249,105 @@ func TestFeedbackFilePath(t *testing.T) {
 		t.Errorf("FeedbackFilePath = %q, want %q", FeedbackFilePath, expected)
 	}
 }
+
+func TestMarkCitationFeedback(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionID := "session-target"
+	artifact1 := filepath.Join(tempDir, ".agents", "learnings", "L1.jsonl")
+	artifact2 := filepath.Join(tempDir, ".agents", "patterns", "P1.md")
+
+	citations := []types.CitationEvent{
+		{ArtifactPath: artifact1, SessionID: sessionID, CitedAt: time.Now(), CitationType: "retrieved"},
+		{ArtifactPath: artifact2, SessionID: sessionID, CitedAt: time.Now(), CitationType: "retrieved"},
+		{ArtifactPath: artifact1, SessionID: "other-session", CitedAt: time.Now(), CitationType: "retrieved"},
+	}
+	for _, c := range citations {
+		if err := ratchet.RecordCitation(tempDir, c); err != nil {
+			t.Fatalf("record citation: %v", err)
+		}
+	}
+
+	events := []FeedbackEvent{
+		{
+			SessionID:     sessionID,
+			ArtifactPath:  artifact1,
+			Reward:        0.9,
+			UtilityBefore: 0.5,
+			UtilityAfter:  0.54,
+			RecordedAt:    time.Now(),
+		},
+	}
+
+	if err := markCitationFeedback(tempDir, sessionID, 0.9, events); err != nil {
+		t.Fatalf("markCitationFeedback failed: %v", err)
+	}
+
+	updated, err := ratchet.LoadCitations(tempDir)
+	if err != nil {
+		t.Fatalf("load citations: %v", err)
+	}
+	if len(updated) != 3 {
+		t.Fatalf("expected 3 citations, got %d", len(updated))
+	}
+
+	targetMarked := 0
+	otherMarked := 0
+	for _, c := range updated {
+		if c.SessionID == sessionID {
+			if !c.FeedbackGiven {
+				t.Fatal("expected target session citation to be marked feedback_given")
+			}
+			if c.FeedbackReward != 0.9 {
+				t.Fatalf("FeedbackReward = %f, want 0.9", c.FeedbackReward)
+			}
+			targetMarked++
+		} else if c.FeedbackGiven {
+			otherMarked++
+		}
+		if c.SessionID == sessionID && c.ArtifactPath == artifact1 {
+			if c.UtilityBefore != 0.5 || c.UtilityAfter != 0.54 {
+				t.Fatalf("utility metadata mismatch: before=%f after=%f", c.UtilityBefore, c.UtilityAfter)
+			}
+		}
+	}
+	if targetMarked != 2 {
+		t.Fatalf("expected 2 target citations marked, got %d", targetMarked)
+	}
+	if otherMarked != 0 {
+		t.Fatalf("expected 0 non-target citations marked, got %d", otherMarked)
+	}
+}
+
+func TestComputeRewardFromTranscriptPrefersSessionMatch(t *testing.T) {
+	tempHome := t.TempDir()
+	t.Setenv("HOME", tempHome)
+
+	base := filepath.Join(tempHome, ".claude", "projects", "proj1")
+	if err := os.MkdirAll(base, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	nonMatchPath := filepath.Join(base, "newer.jsonl")
+	nonMatchContent := `{"type":"user","sessionId":"other-session"}
+{"type":"tool_result","content":"PASSED 10 tests"}
+{"type":"tool_result","content":"[main abc123] feat: test"}
+{"type":"tool_result","content":"Enumerating objects: 2, done.\nWriting objects: 100% (2/2), done."}`
+	if err := os.WriteFile(nonMatchPath, []byte(nonMatchContent), 0644); err != nil {
+		t.Fatalf("write non-match transcript: %v", err)
+	}
+
+	matchPath := filepath.Join(base, "older-match.jsonl")
+	matchContent := `{"type":"user","sessionId":"target-session"}
+{"type":"assistant","message":{"content":"hello"}}`
+	if err := os.WriteFile(matchPath, []byte(matchContent), 0644); err != nil {
+		t.Fatalf("write match transcript: %v", err)
+	}
+
+	reward, err := computeRewardFromTranscript("", "target-session")
+	if err != nil {
+		t.Fatalf("computeRewardFromTranscript failed: %v", err)
+	}
+	if reward > 0.4 {
+		t.Fatalf("expected low reward from matched transcript, got %.2f", reward)
+	}
+}

@@ -373,3 +373,60 @@ func findMostRecentTranscript(baseDir string) string {
 	}
 	return mostRecent
 }
+
+// findTranscriptForSession finds the newest transcript that contains the target session ID.
+func findTranscriptForSession(baseDir, sessionID string) string {
+	if strings.TrimSpace(sessionID) == "" {
+		return ""
+	}
+
+	var bestPath string
+	var bestModTime time.Time
+	err := filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".jsonl") {
+			return nil
+		}
+		if !transcriptContainsSessionID(path, sessionID) {
+			return nil
+		}
+		if info.ModTime().After(bestModTime) {
+			bestModTime = info.ModTime()
+			bestPath = path
+		}
+		return nil
+	})
+	if err != nil {
+		return ""
+	}
+	return bestPath
+}
+
+func transcriptContainsSessionID(path, sessionID string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer func() {
+		_ = f.Close() //nolint:errcheck // read-only check, close error non-fatal
+	}()
+
+	scanner := bufio.NewScanner(f)
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	lineCount := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, sessionID) || extractSessionID(line) == sessionID {
+			return true
+		}
+		lineCount++
+		if lineCount >= 5000 {
+			break
+		}
+	}
+	return false
+}
