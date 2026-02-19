@@ -4,7 +4,7 @@
 
 ### Coding agents forget everything between sessions. This fixes that.
 
-[How It Works](#how-it-works) · [Quickstart Path](#quickstart-path) · [Skill Router](#skill-router) · [Install](#install) · [See It Work](#see-it-work) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[How It Works](#how-it-works) · [See It Work](#see-it-work) · [Skill Router](#skill-router) · [Install](#install) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -28,9 +28,7 @@ Coding agents get a blank context window every session. AgentOps is a toolbox of
 
 ---
 
-## Quickstart Path
-
-Start here if you want value in under 10 minutes. This is the fastest way to use the toolbox.
+## See It Work
 
 ```text
 /quickstart                          ← Day 1: guided tour on your codebase (~10 min)
@@ -45,62 +43,7 @@ Start here if you want value in under 10 minutes. This is the fastest way to use
 /product → /goals → /evolve          ← Hands-free: define goals, fix gaps, compound
 ```
 
-Run `/quickstart`, then pick one real task with `/research`, `/council`, or `/vibe`. When you need parallelism, use `/swarm`. When you want the full pipeline, use `/rpi`.
-
-If you want a full workflow map first, run `/using-agentops` (auto-injected on session start, but runnable directly).
-
-## Skill Router
-
-Use this when you're not sure which skill to run.
-
-```text
-What are you trying to do?
-│
-├─ "Fix a bug"
-│   ├─ Know which file? ──────────► /implement <issue-id>
-│   └─ Need to investigate? ──────► /bug-hunt
-│
-├─ "Build a feature"
-│   ├─ Small (1-2 files) ─────────► /implement
-│   ├─ Medium (3-6 issues) ───────► /plan → /crank
-│   └─ Large (7+ issues) ─────────► /rpi (full pipeline)
-│
-├─ "Validate something"
-│   ├─ Code ready to ship? ───────► /vibe
-│   ├─ Plan ready to build? ──────► /pre-mortem
-│   ├─ Work ready to close? ──────► /post-mortem
-│   └─ Quick sanity check? ───────► /council --quick validate
-│
-├─ "Explore or research"
-│   ├─ Understand this codebase ──► /research
-│   ├─ Compare approaches ────────► /council research <topic>
-│   └─ Generate ideas ────────────► /brainstorm
-│
-├─ "Learn from past work"
-│   ├─ What do we know about X? ──► /knowledge <query>
-│   ├─ Save this insight ─────────► /learn "insight"
-│   └─ Run a retrospective ───────► /retro
-│
-├─ "Parallelize work"
-│   ├─ Multiple independent tasks ► /swarm
-│   └─ Full epic with waves ──────► /crank <epic-id>
-│
-├─ "Ship a release"
-│   └─ Changelog + tag ──────────► /release <version>
-│
-├─ "Session management"
-│   ├─ Where was I? ──────────────► /status
-│   ├─ Save for next session ─────► /handoff
-│   └─ Recover after compaction ──► /recover
-│
-└─ "First time here" ────────────► /quickstart
-```
-
----
-
-## See It Work
-
-**Session 1:** You implement rate limiting. Your agent makes decisions along the way.
+**Use one skill** — validate a PR:
 
 ```text
 > /council validate this PR
@@ -114,7 +57,7 @@ Consensus: WARN — add rate limiting to /login before shipping
 
 The council verdict, your decisions, and the patterns used are automatically written to `.agents/` — an append-only ledger. Nothing gets overwritten. Session ends, hooks extract learnings.
 
-**Session 5 (three weeks later):** Different task, but your agent already knows.
+**Knowledge compounds** — three weeks later, different task, but your agent already knows:
 
 ```text
 > /research "retry backoff strategies"
@@ -127,9 +70,9 @@ The council verdict, your decisions, and the patterns used are automatically wri
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
-Session 5 didn't start from scratch — it started with what session 1 learned. The [formal model](docs/the-science.md): if retrieval rate x usage rate > decay rate, knowledge compounds. Stale insights decay automatically.
+Session 5 didn't start from scratch — it started with what session 1 learned. Stale insights [decay automatically](docs/the-science.md).
 
-**Scale it up** when you want parallelism:
+**Parallelize anything** with `/swarm`:
 
 ```text
 > /swarm "research auth patterns, brainstorm rate limiting improvements"
@@ -141,7 +84,7 @@ Session 5 didn't start from scratch — it started with what session 1 learned. 
 [swarm] Complete — artifacts in .agents/
 ```
 
-Any skill can be parallelized with `/swarm`. Or chain the whole pipeline with one command:
+**Full pipeline** — one command, walk away:
 
 ```text
 > /rpi "add retry backoff to rate limiter"
@@ -240,6 +183,55 @@ One command does research through post-mortem. Comes back to committed code.
 Swarms full pipelines in parallel. Evolve measures goals and fixes gaps in a loop.
 
 </details>
+
+---
+
+## Skill Router
+
+Use this when you're not sure which skill to run.
+
+```text
+What are you trying to do?
+│
+├─ "Fix a bug"
+│   ├─ Know which file? ──────────► /implement <issue-id>
+│   └─ Need to investigate? ──────► /bug-hunt
+│
+├─ "Build a feature"
+│   ├─ Small (1-2 files) ─────────► /implement
+│   ├─ Medium (3-6 issues) ───────► /plan → /crank
+│   └─ Large (7+ issues) ─────────► /rpi (full pipeline)
+│
+├─ "Validate something"
+│   ├─ Code ready to ship? ───────► /vibe
+│   ├─ Plan ready to build? ──────► /pre-mortem
+│   ├─ Work ready to close? ──────► /post-mortem
+│   └─ Quick sanity check? ───────► /council --quick validate
+│
+├─ "Explore or research"
+│   ├─ Understand this codebase ──► /research
+│   ├─ Compare approaches ────────► /council research <topic>
+│   └─ Generate ideas ────────────► /brainstorm
+│
+├─ "Learn from past work"
+│   ├─ What do we know about X? ──► /knowledge <query>
+│   ├─ Save this insight ─────────► /learn "insight"
+│   └─ Run a retrospective ───────► /retro
+│
+├─ "Parallelize work"
+│   ├─ Multiple independent tasks ► /swarm
+│   └─ Full epic with waves ──────► /crank <epic-id>
+│
+├─ "Ship a release"
+│   └─ Changelog + tag ──────────► /release <version>
+│
+├─ "Session management"
+│   ├─ Where was I? ──────────────► /status
+│   ├─ Save for next session ─────► /handoff
+│   └─ Recover after compaction ──► /recover
+│
+└─ "First time here" ────────────► /quickstart
+```
 
 ---
 
