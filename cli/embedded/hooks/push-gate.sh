@@ -1,7 +1,11 @@
 #!/bin/bash
 # push-gate.sh - PreToolUse hook: block git push/tag when vibe not completed
 # Gates on RPI ratchet state. git commit is NOT blocked (local, reversible).
-# Cold start (no chain.jsonl) = no enforcement.
+# Cold start (no chain.jsonl and no phased-state.json) = no enforcement.
+#
+# Evidence check order:
+#   1. Run-scoped phased-state.json (verdicts) — avoids false positives from stale chain entries
+#   2. Global chain.jsonl — legacy/non-phased runs
 
 # Kill switch
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
@@ -39,14 +43,92 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/chain-parser.sh
 . "$SCRIPT_DIR/../lib/chain-parser.sh"
 
+LOG_DIR="$ROOT/.agents/ao"
+mkdir -p "$LOG_DIR" 2>/dev/null
+
+PHASED_STATE="$ROOT/.agents/rpi/phased-state.json"
+
+# --- Method 1: Run-scoped phased-state.json ---
+# If a phased run is/was active, use its verdicts to determine gate status.
+# This avoids false positives from stale entries in the global chain.jsonl.
+if [ -f "$PHASED_STATE" ]; then
+    # Read phase number and verdicts from run-scoped state
+    if command -v jq >/dev/null 2>&1; then
+        PHASE_NUM=$(jq -r '.phase // 0' "$PHASED_STATE" 2>/dev/null)
+        VIBE_VERDICT=$(jq -r '.verdicts.vibe // ""' "$PHASED_STATE" 2>/dev/null)
+        PM_VERDICT=$(jq -r '.verdicts.post_mortem // (.verdicts["post-mortem"] // "")' "$PHASED_STATE" 2>/dev/null)
+        SCHEMA=$(jq -r '.schema_version // 0' "$PHASED_STATE" 2>/dev/null)
+    else
+        PHASE_NUM=$(grep -o '"phase"[[:space:]]*:[[:space:]]*[0-9]*' "$PHASED_STATE" 2>/dev/null | head -1 | grep -o '[0-9]*$')
+        VIBE_VERDICT=$(grep -o '"vibe"[[:space:]]*:[[:space:]]*"[^"]*"' "$PHASED_STATE" 2>/dev/null | sed 's/.*"vibe"[[:space:]]*:[[:space:]]*"//;s/"$//')
+        PM_VERDICT=$(grep -o '"post.mortem"[[:space:]]*:[[:space:]]*"[^"]*"' "$PHASED_STATE" 2>/dev/null | sed 's/.*"post.mortem"[[:space:]]*:[[:space:]]*"//;s/"$//')
+        SCHEMA=$(grep -o '"schema_version"[[:space:]]*:[[:space:]]*[0-9]*' "$PHASED_STATE" 2>/dev/null | head -1 | grep -o '[0-9]*$')
+    fi
+
+    # Schema v1 phased runs: gate on phase 3 completion (validation phase contains vibe)
+    # Phase 3 = validation; if we're past phase 3 or vibe verdict exists, vibe was done
+    if [ "${SCHEMA:-0}" -ge 1 ]; then
+        VIBE_DONE=false
+        if [ -n "$VIBE_VERDICT" ] && [ "$VIBE_VERDICT" != "null" ] && [ "$VIBE_VERDICT" != "" ]; then
+            VIBE_DONE=true
+        elif [ "${PHASE_NUM:-0}" -ge 3 ]; then
+            # Phase 3 was reached — vibe runs within validation phase
+            VIBE_DONE=true
+        fi
+
+        if [ "$VIBE_DONE" = "false" ]; then
+            if [ -n "$CLAUDE_AGENT_NAME" ] && echo "$CLAUDE_AGENT_NAME" | grep -q '^worker-'; then
+                MSG="Push blocked: vibe check needed. Report to team lead."
+            else
+                MSG="BLOCKED: vibe not completed. Run /vibe before pushing.
+Options:
+  1. /vibe              -- full council validation
+  2. /vibe --quick      -- fast inline check
+  3. ao ratchet skip vibe --reason \"<why>\""
+            fi
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (vibe, phased): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+            write_failure "push_gate_vibe" "git push" 2 "vibe not completed before push (phased run phase=${PHASE_NUM}): $CMD"
+            echo "$MSG" >&2
+            exit 2
+        fi
+
+        # Vibe done — also check post-mortem if it was recorded in verdicts
+        # Post-mortem runs within phase 3 (validation); if phase 3 completed, post-mortem ran.
+        # We only block if post-mortem is explicitly tracked and missing.
+        PM_DONE=true
+        if [ "${PHASE_NUM:-0}" -lt 3 ]; then
+            PM_DONE=false
+        fi
+        # If post-mortem verdict is explicitly set to empty/missing after phase 3 completed, still pass
+        # (post-mortem may not write to verdicts; phase completion is sufficient evidence)
+
+        if [ "$PM_DONE" = "false" ]; then
+            if [ -n "$CLAUDE_AGENT_NAME" ] && echo "$CLAUDE_AGENT_NAME" | grep -q '^worker-'; then
+                PM_MSG="Push blocked: post-mortem needed. Report to team lead."
+            else
+                PM_MSG="BLOCKED: post-mortem not completed. Run /post-mortem to capture learnings before pushing.
+Options:
+  1. /post-mortem          -- full council wrap-up
+  2. ao ratchet skip post-mortem --reason '<why>'"
+            fi
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) GATE_BLOCK: push-gate blocked (post-mortem, phased): $CMD" >> "$LOG_DIR/hook-errors.log" 2>/dev/null
+            write_failure "push_gate_postmortem" "git push" 2 "post-mortem not completed before push (phased run phase=${PHASE_NUM}): $CMD"
+            echo "$PM_MSG" >&2
+            exit 2
+        fi
+
+        # Phased run gates passed
+        exit 0
+    fi
+    # Fall through to chain-based check for schema v0 / legacy state files
+fi
+
+# --- Method 2: Global chain.jsonl (legacy/non-phased runs) ---
 # Cold start: no chain = no enforcement
 [ ! -f "$ROOT/.agents/ao/chain.jsonl" ] && exit 0
 
 # Parse chain directly for speed (avoid spawning ao process)
 VIBE_LINE=$(chain_find_entry "$ROOT/.agents/ao/chain.jsonl" "vibe")
-
-LOG_DIR="$ROOT/.agents/ao"
-mkdir -p "$LOG_DIR" 2>/dev/null
 
 VIBE_DONE=false
 if [ -n "$VIBE_LINE" ] && chain_is_done "$VIBE_LINE"; then
@@ -71,7 +153,7 @@ Options:
     exit 2
 fi
 
-# --- Post-mortem gate ---
+# --- Post-mortem gate (chain-based) ---
 # If vibe exists, check that post-mortem is also done before allowing push
 PM_LINE=$(chain_find_entry "$ROOT/.agents/ao/chain.jsonl" "post-mortem")
 

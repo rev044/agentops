@@ -147,35 +147,6 @@ Every `/post-mortem` feeds back to `/research`:
 2. **Patterns** discovered → `.agents/patterns/`
 3. **Research** enriched → Future sessions benefit
 
-## Natural Language Triggers
-
-Skills auto-trigger from conversation:
-
-| Say This | Runs |
-|----------|------|
-| "I need to understand how auth works" | `/research` |
-| "Check my code for issues" | `/vibe` |
-| "Review my code" | `/vibe` |
-| "What could go wrong with this?" | `/pre-mortem` |
-| "Let's execute this epic" | `/crank` |
-| "Execute this epic" | `/crank` |
-| "Spawn agents to work in parallel" | `/swarm` |
-| "Run tasks in parallel" | `/swarm` |
-| "Debug this" | `/bug-hunt` |
-| "Remember this" / "I learned something" | `/learn` |
-| "How did we decide on this?" | `/trace` |
-| "Where did this learning come from?" | `/provenance` |
-| "Cut a release" | `/release` |
-| "Are we ready to release?" | `/release --check` |
-| "What am I working on?" | `/status` |
-| "Get started" / "How do I start?" | `/quickstart` |
-| "Define the product" | `/product` |
-| "Run the full lifecycle" | `/rpi` |
-| "Improve toward goals" | `/evolve` |
-| "Where was I?" / "Lost context" | `/recover` |
-| "End session" / "Pick up later" | `/handoff` |
-| "Update skills" | `/update` |
-
 ## Issue Tracking
 
 This workflow uses beads for git-native issue tracking:
