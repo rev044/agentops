@@ -8,7 +8,7 @@ metadata:
 
 # /quickstart — Get Started
 
-> **Purpose:** Walk a new user through their first Research-Plan-Implement cycle on their actual codebase. Under 10 minutes to first value.
+> **Purpose:** Walk a new user through the toolbox on their actual codebase. Under 10 minutes to first value. Show that skills are mix-and-match primitives, not a rigid pipeline — and that `/swarm` is the key multiplier.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -139,11 +139,18 @@ test -f AGENTS.md && echo "AGENTS.md found (repo-specific workflow)"
 Present this to the user:
 
 ```
-Welcome! Here are the 3 skills that matter most:
+Welcome! AgentOps gives your coding agent three things it doesn't have:
 
-  /research  — Deep dive into your codebase to understand it
-  /plan      — Break a goal into trackable issues
-  /vibe      — Validate code before shipping
+  Memory    — Every session extracts learnings into .agents/.
+              Next session, the best ones are injected automatically.
+              Session 50 knows what session 1 learned.
+
+  Judgment  — /council spawns independent judges (Claude + Codex)
+              to validate plans and code before shipping.
+
+  Skills    — Standalone primitives you use as-needed:
+              /research, /plan, /vibe, /brainstorm, and more.
+              Parallelize any of them with /swarm.
 
 Let's do a quick tour using YOUR code.
 ```
@@ -218,44 +225,92 @@ Perform a brief inline review (similar to `/council --quick`) of the most recent
 
 Tell the user: "This is what `/vibe` does — complexity analysis + multi-model council review. Use it before committing significant changes."
 
-### Step 6: Show Available Tools
+### Step 6: Show How It Fits Together
 
 ```
 You've just completed a mini RPI cycle:
   Research → Plan → Validate
 
-CORE SKILLS (start here)
-/research   - explore and understand code
-/plan       - break down a goal into tasks
-/implement  - execute a single task
-/vibe       - review code quality
-/status     - see what you're working on
+Those are independent skills. You can use any of them by itself,
+or compose them however you want. Here's how they relate:
+```
+
+Present the composition map — how skills call each other:
+
+```
+                          YOU
+                           │
+            ┌──────────────┼──────────────┐
+            │              │              │
+       use one skill    compose a few   /rpi "goal"
+       by itself        your way        full pipeline
+            │              │              │
+            ▼              ▼              ▼
+   ┌─────────────────────────────────────────────────────┐
+   │              HOW SKILLS COMPOSE                     │
+   │                                                     │
+   │  JUDGMENT (the foundation)                          │
+   │  /council ──────► spawns independent judges         │
+   │  /vibe ─────────► /complexity + /council            │
+   │  /pre-mortem ───► /council (simulate failures)      │
+   │  /post-mortem ──► /council + /retro                 │
+   │                                                     │
+   │  EXECUTION                                          │
+   │  /research ─────► may trigger /brainstorm           │
+   │  /plan ─────────► may call /pre-mortem to validate  │
+   │  /implement ────► /research + /plan + build + /vibe │
+   │  /crank ────────► /swarm ──► /implement (×N per     │
+   │                   wave, fresh context each)         │
+   │  /swarm ────────► parallelize any skill             │
+   │                                                     │
+   │  PIPELINE                                           │
+   │  /rpi chains:  research → plan → pre-mortem →       │
+   │                crank → vibe → post-mortem            │
+   │  /evolve loops /rpi against fitness goals            │
+   └─────────────────────────────────────────────────────┘
+            │
+            ▼
+   ┌─────────────────┐
+   │    .agents/     │  Append-only ledger.
+   │    learnings    │  Every session writes.
+   │    patterns     │  Freshness decay prunes.
+   │    decisions    │  Next session injects the best.
+   └─────────────────┘
+
+QUICK REFERENCE
+/research     explore and understand code
+/council      independent judges validate plans or code
+/vibe         code quality review (complexity + council)
+/plan         break down a goal into tasks
+/implement    execute a single task end-to-end
+/crank        run a multi-issue epic in parallel waves
+/swarm        parallelize any skill
+/rpi          full pipeline — one command
+/status       see what you're working on
 ```
 
 For the complete catalog, use the Read tool on `skills/quickstart/references/full-catalog.md`.
 
-### Step 7: The Path Forward
+### Step 7: What's Next
 
-Present the progression from standalone skills to hands-free improvement:
+Suggest the next skill to try based on what the user just saw:
 
 ```
-When you're comfortable with individual skills:
+Try one of the skills you just previewed — on real work:
 
-  /rpi "goal"              ← full lifecycle: research → plan → validate → ship → learn
-                              One command does everything you just did, end to end.
+  /research "something you're building this week"
+  /council validate a recent PR or plan
+  /vibe recent                              ← check your latest changes
 
-  /product                 ← define your mission, personas, and value props
-                              Creates PRODUCT.md — the identity your agent works from.
+When you want parallelism, /swarm multiplies any of them.
+When you want the full pipeline, /rpi chains them all:
 
-  /goals generate          ← scan your repo and propose fitness goals
-                              Mechanically verifiable checks in GOALS.yaml.
+  /rpi "goal"              ← research → plan → validate → ship → learn
+  ao rpi phased "goal"     ← same thing from the CLI, fresh context per phase
 
-  /evolve                  ← measure goals, fix the worst gap, compound
-                              Hands-free improvement loop. Runs /rpi per gap,
-                              auto-reverts regressions, suggests next work.
+Want hands-free improvement?
 
-The path:
-  /quickstart → individual skills → /rpi → /product → /goals → /evolve
+  /product → /goals generate → /evolve   ← define goals, fix gaps, compound
 ```
 
 Then suggest the most useful immediate next action based on project state:

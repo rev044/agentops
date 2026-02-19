@@ -7,65 +7,83 @@
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Toolbox](#the-toolbox) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
 <p align="center">
 <img src="docs/assets/swarm-6-rpi.png" alt="6 agents running full development cycles in parallel with validation gates and a coordinating team leader" width="800">
 <br>
-<i>Parallel agents. Fresh context each run. Councils judge plans before implementation and code after. Unskippable validation gates. Every session gets smarter.</i>
+<i>From goal to shipped code — agents research, plan, and implement in parallel. Councils validate before and after. Every learning feeds the next session.</i>
 </p>
 
 ---
 
 ## How It Works
 
-Coding agents get a blank context window every session. AgentOps automates the feedback loop so each session starts smarter than the last — learnings extracted, quality-gated, and re-injected automatically.
+Coding agents get a blank context window every session. AgentOps is a toolbox of primitives — pick the ones you need, skip the ones you don't. Every skill works standalone. Swarm any of them for parallelism. Chain them into a pipeline when you want structure. Knowledge compounds between sessions automatically.
 
-**DevOps' Three Ways:** flow, feedback, continual learning. AgentOps applies them to the agent loop, then compounds memory between sessions.
+**DevOps' Three Ways** — applied to the agent loop as composable primitives:
 
-**The building blocks:** primitives you can mix and match into a custom pipeline that fits your workflow.
-
-- **Flow:** orchestration skills that move WIP through the system. Research → plan → validate → build → review → learn — single-piece flow, minimizing context switches.
-- **Feedback:** shorten the feedback loop until defects can't survive it. Multi-model councils catch issues before code ships. Hooks make the rules unavoidable — validation gates, push blocking, regression auto-revert. Problems found Friday don't wait until Monday.
-- **Learning:** stop rediscovering what you already know. Every session extracts learnings, scores them, and re-injects them at the next session start. Knowledge compounds instead of decaying. Session 50 knows what session 1 learned the hard way.
+- **Flow** (`/research`, `/plan`, `/crank`, `/swarm`, `/rpi`): orchestration skills that move work through the system. Single-piece flow, minimizing context switches. Swarm parallelizes any skill; crank runs dependency-ordered waves; rpi chains the full pipeline.
+- **Feedback** (`/council`, `/vibe`, `/pre-mortem`, hooks): shorten the feedback loop until defects can't survive it. Independent judges catch issues before code ships. Hooks make the rules unavoidable — validation gates, push blocking, standards injection. Problems found Friday don't wait until Monday.
+- **Learning** (`.agents/`, `ao` CLI, `/retro`, `/knowledge`): stop rediscovering what you already know. Every session extracts learnings into an append-only ledger, scores them by freshness, and re-injects the best ones at next session start. Session 50 knows what session 1 learned the hard way.
 
 ---
 
 ## See It Work
 
-**Use one piece.** No pipeline required — every skill works standalone:
+**Session 1:** You implement rate limiting. Your agent makes decisions along the way.
+
 ```text
 > /council validate this PR
 
-[council] 3 judges spawned
-[judge-1] PASS — JWT implementation correct
-[judge-2] WARN — rate limiting missing on /login
-[judge-3] PASS — refresh rotation implemented
-Consensus: WARN — add rate limiting before shipping
+[council] 3 judges spawned (independent, no anchoring)
+[judge-1] PASS — token bucket implementation correct
+[judge-2] WARN — rate limiting missing on /login endpoint
+[judge-3] PASS — Redis integration follows middleware pattern
+Consensus: WARN — add rate limiting to /login before shipping
 ```
 
-**Three weeks later, different session:**
+The council verdict, your decisions, and the patterns used are automatically written to `.agents/` — an append-only ledger. Nothing gets overwritten. Session ends, hooks extract learnings.
+
+**Session 5 (three weeks later):** Different task, but your agent already knows.
+
 ```text
-> /knowledge "rate limiting"
+> /research "retry backoff strategies"
 
-1. .agents/learnings/2026-01-28-rate-limiting.md
-   [established] Token bucket with Redis — chose over sliding window for burst tolerance
-2. .agents/patterns/api-middleware.md
-   Pattern: rate limit at middleware layer, not per-handler
+[inject] 3 prior learnings loaded (freshness-weighted):
+  - Token bucket with Redis (established, high confidence)
+  - Rate limit at middleware layer, not per-handler (pattern)
+  - /login endpoint was missing rate limiting (decision)
+[research] Found prior art in your codebase + injected context
+           Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
-Your agent reads these automatically at session start — no CLI required, just skills + `.agents/`.
 
-**Wire it all together** when you're ready:
+Session 5 didn't start from scratch — it started with what session 1 learned. The [formal model](docs/the-science.md): if retrieval rate x usage rate > decay rate, knowledge compounds. Stale insights decay automatically.
+
+**Scale it up** when you want parallelism:
+
+```text
+> /swarm "research auth patterns, brainstorm rate limiting improvements"
+
+[swarm] 3 agents spawned — each gets fresh context
+[agent-1] /research auth — found JWT + session patterns, 2 prior learnings
+[agent-2] /research rate-limiting — found token bucket, middleware pattern
+[agent-3] /brainstorm improvements — 4 approaches ranked
+[swarm] Complete — artifacts in .agents/
+```
+
+Any skill can be parallelized with `/swarm`. Or chain the whole pipeline with one command:
+
 ```text
 > /rpi "add retry backoff to rate limiter"
 
-[research]    Found 2 prior learnings on rate limiting (injected)
+[research]    Found 3 prior learnings on rate limiting (injected)
 [plan]        2 issues, 1 wave → epic ag-0058
-[pre-mortem]  4 judges → PASS (knew about Redis choice from prior session)
-[crank]       Wave 1: ██ 2/2
-[vibe]        3 judges → PASS
+[pre-mortem]  Council validates plan → PASS (knew about Redis choice)
+[crank]       Parallel agents: Wave 1 ██ 2/2
+[vibe]        Council validates code → PASS
 [post-mortem] 2 new learnings → .agents/
 [flywheel]    Next: /rpi "add circuit breaker to external API calls"
 ```
@@ -120,6 +138,42 @@ Your agent reads these automatically at session start — no CLI required, just 
 
 </details>
 
+<details>
+<summary><b>Different developers, different setups</b> — use what fits your workflow</summary>
+
+<br>
+
+**The PR reviewer** — uses one skill, nothing else:
+```text
+> /council validate this PR
+Consensus: WARN — missing error handling in 2 locations
+```
+That's it. No pipeline, no setup, no commitment. One command, actionable feedback.
+
+**The team lead** — composes skills manually:
+```text
+> /research "performance bottlenecks in the API layer"
+> /plan "optimize database queries identified in research"
+> /council validate the plan
+```
+Picks skills as needed, stays in control of sequencing.
+
+**The solo dev** — runs the full pipeline, walks away:
+```text
+> /rpi "add user authentication"
+[6 phases run autonomously, learnings extracted]
+```
+One command does research through post-mortem. Comes back to committed code.
+
+**The platform team** — parallel agents, hands-free improvement:
+```text
+> /swarm "run /rpi on each of these 3 epics"
+> /evolve --max-cycles=5
+```
+Swarms full pipelines in parallel. Evolve measures goals and fixes gaps in a loop.
+
+</details>
+
 ---
 
 ## Install
@@ -144,7 +198,9 @@ claude plugin add boshu2/agentops
 `npx skills` installs skills into your agent's global skills directory. The plugin path registers AgentOps as a Claude Code plugin instead — same skills, different integration point. Most users should start with `npx skills`.
 
 <details>
-<summary><b>Full setup</b> — CLI + hooks (optional)</summary>
+<summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>
+
+Skills work standalone. The `ao` CLI powers the automated learning loop — knowledge extraction, injection with freshness decay, maturity lifecycle, and progress gates. Install it when you want knowledge to compound between sessions.
 
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
@@ -152,7 +208,16 @@ cd /path/to/your/repo
 ao init --hooks --full
 ```
 
-12 hooks across 8 lifecycle event types. Adds knowledge injection/extraction, validation gates, session lifecycle. All skills work without it.
+This installs 25+ hooks across 8 lifecycle event types:
+
+| Event | What happens |
+|-------|-------------|
+| **SessionStart** | Extract from prior session, inject top learnings (freshness-weighted), check progress gates |
+| **SessionEnd** | Mine transcript for knowledge, record session outcome, expire stale artifacts, evict dead knowledge |
+| **PreToolUse** | Inject coding standards before edits, gate dangerous git ops, validate before push |
+| **PostToolUse** | Advance progress ratchets, track citations |
+| **TaskCompleted** | Validate task output against acceptance criteria |
+| **Stop/PreCompact** | Close feedback loops, snapshot before compaction |
 
 </details>
 
@@ -162,9 +227,6 @@ ao init --hooks --full
 Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and symlinks all skills. Restart OpenCode after install. Details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
 
 </details>
-
-<details>
-<summary><b>Your data</b> — what it touches, where it lives, how to remove it</summary>
 
 **Local-only. No telemetry. No cloud. No accounts.**
 
@@ -176,8 +238,6 @@ Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and sym
 | Git push gate | Pre-push hook (optional, only with CLI) | `AGENTOPS_HOOKS_DISABLED=1` |
 
 Nothing modifies your source code. Nothing phones home. Everything is [open source](cli/) — audit it yourself.
-
-</details>
 
 <details>
 <summary><b>Configuration</b> — environment variables</summary>
@@ -215,21 +275,26 @@ Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ---
 
-## The Path
+## The Toolbox
+
+Every skill works standalone. Use one, compose a few, or run the full pipeline. You decide what fits your workflow.
 
 ```text
 /quickstart                          ← Day 1: guided tour on your codebase (~10 min)
     │
-/council, /research, /vibe           ← Week 1: use skills standalone
+/research, /council, /vibe           ← Use any skill by itself when you need it
     │
-/rpi "goal"                          ← Week 2: full lifecycle — research → ship → learn
+/swarm "research X, brainstorm Y"    ← Parallelize anything — any skill, in parallel
     │
-/product → /goals generate           ← Define what good looks like
+/rpi "goal"                          ← Full pipeline: research → plan → validate →
+    │                                    ship → learn — one command, walk away
     │
-/evolve                              ← Ongoing: measure goals, fix gaps, compound
+/product → /goals → /evolve          ← Hands-free: define goals, fix gaps, compound
 ```
 
-Start with `/quickstart`. Use individual skills when you need them. Graduate to `/rpi` for end-to-end. When you're ready for hands-free improvement: `/product` defines your mission and personas, `/goals generate` scans for fitness goals, and `/evolve` pursues them.
+Start with `/quickstart` to see it work on your code. Then use one skill on real work — `/research` to explore, `/council` to validate, `/vibe` to review. When you want parallelism, `/swarm` multiplies any skill. When you want the full pipeline, `/rpi` chains them all.
+
+The pieces compose naturally: council spawns parallel judges, crank uses swarm for parallel workers, research triggers brainstorm when it needs ideas. But you don't have to use any particular combination — pick what fits, skip what doesn't.
 
 ---
 
@@ -241,7 +306,25 @@ This is DevOps thinking applied to agent work: the **Three Ways** as composable 
 
 - **Flow**: wave-based execution (`/crank`) + workflow orchestration (`/rpi`) to keep work moving.
 - **Feedback**: shift-left validation (`/pre-mortem`, `/vibe`, `/council`) plus optional gates/hooks to make feedback unavoidable.
-- **Continual learning**: post-mortems turn outcomes into reusable knowledge in `.agents/`, so the next session starts smarter. The concrete pipeline: session ends → transcript mined for learnings → next session injects them weighted by recency (stale insights decay automatically). `/flywheel` monitors health.
+- **Continual learning**: post-mortems turn outcomes into reusable knowledge in `.agents/`, so the next session starts smarter. `/flywheel` monitors health.
+
+### The Knowledge Ledger
+
+`.agents/` is an append-only ledger with cache-like semantics. Nothing gets overwritten — every learning, council verdict, pattern, and decision is a new dated file. Freshness decay prunes what's stale. The cycle:
+
+```
+Session N ends
+    → ao forge: mine transcript for learnings, decisions, patterns
+    → ao maturity --expire: mark stale artifacts (freshness decay)
+    → ao maturity --evict: archive what's decayed past threshold
+
+Session N+1 starts
+    → ao inject --apply-decay: score all artifacts by recency,
+      inject top-N within token budget
+    → Agent starts with institutional knowledge, not a blank slate
+```
+
+Write once, score by freshness, inject the best, prune the rest. If `retrieval_rate × usage_rate > decay_rate`, knowledge compounds. If not, it decays to zero. The [formal model](docs/the-science.md) is cache eviction with a decay function instead of strict LRU.
 
 ```
   /rpi "goal"
@@ -332,28 +415,46 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## Skills
 
-Skills span five tiers. Each level composes the ones below it.
+Every skill works alone. Compose them however you want.
 
-| Scope | Skill | What it does |
-|-------|-------|-------------|
-| **Single review** | `/council` | Multiple judges (Claude + Codex) debate, surface disagreement, converge on a verdict. Customize with `--preset=security-audit`, `--perspectives="a,b,c"`, or `--perspectives-file` |
-| **Single issue** | `/implement` | Full lifecycle for one task — research, plan, build, validate, learn |
-| **Multi-issue waves** | `/crank` | Parallel agents in dependency-ordered waves with fresh context per worker |
-| **Full lifecycle** | `/rpi` | Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem — one command |
-| **Parallel epics** | `/swarm` | Spawn a team to run multiple `/rpi` pipelines in parallel — each agent gets its own epic and fresh context |
-| **Hands-free loop** | `/evolve` | Measures fitness goals, picks the worst gap, ships a fix, rolls back regressions, repeats |
+**Judgment** — the foundation everything validates against:
+
+| Skill | What it does |
+|-------|-------------|
+| `/council` | Independent judges (Claude + Codex) debate, surface disagreement, converge. `--preset=security-audit`, `--perspectives`, `--debate` for adversarial review |
+| `/vibe` | Code quality review — complexity analysis + council |
+| `/pre-mortem` | Validate plans before implementation — council simulates failures |
+| `/post-mortem` | Wrap up completed work — council validates + retro extracts learnings |
+
+**Execution** — research, plan, build, ship:
+
+| Skill | What it does |
+|-------|-------------|
+| `/research` | Deep codebase exploration — produces structured findings |
+| `/plan` | Decompose a goal into trackable issues with dependency waves |
+| `/implement` | Full lifecycle for one task — research, plan, build, validate, learn |
+| `/crank` | Parallel agents in dependency-ordered waves, fresh context per worker |
+| `/swarm` | Parallelize any skill — run research, brainstorms, implementations in parallel |
+| `/rpi` | Full pipeline: research → plan → pre-mortem → crank → vibe → post-mortem |
+| `/evolve` | Measure fitness goals, fix the worst gap, roll back regressions, loop |
+
+**Knowledge** — the flywheel that makes sessions compound:
+
+| Skill | What it does |
+|-------|-------------|
+| `/knowledge` | Query learnings, patterns, and decisions across `.agents/` |
+| `/learn` | Manually capture a decision, pattern, or lesson |
+| `/retro` | Extract learnings from completed work |
+| `/flywheel` | Monitor knowledge health — velocity, staleness, pool depths |
 
 **Supporting skills:**
 
 | | |
 |---|---|
-| **Orchestration** | `/brainstorm`, `/research`, `/plan`, `/crank` |
-| **Validation** | `/vibe`, `/pre-mortem`, `/post-mortem`, `/council` |
-| **Knowledge** | `/knowledge`, `/learn`, `/retro`, `/flywheel` |
-| **Session continuity** | `/handoff`, `/recover` |
+| **Session** | `/handoff`, `/recover`, `/status` |
 | **Traceability** | `/trace`, `/provenance` |
 | **Product** | `/product`, `/goals`, `/release`, `/readme`, `/doc` |
-| **Utility** | `/status`, `/quickstart`, `/bug-hunt`, `/complexity` |
+| **Utility** | `/quickstart`, `/brainstorm`, `/bug-hunt`, `/complexity` |
 
 Full reference: [docs/SKILLS.md](docs/SKILLS.md)
 
@@ -377,9 +478,7 @@ Distributed mode workers survive disconnects — each runs in its own tmux sessi
 
 ## The `ao` CLI
 
-Optional. If you already use skills directly in chat, you can skip it.
-
-The `ao` CLI runs the full RPI lifecycle from your terminal — no active chat session required. Each of the three phases (discovery, implementation, validation) gets its own fresh context window, so large goals don't hit context limits.
+Skills work standalone — no CLI required. The `ao` CLI adds two things: (1) the knowledge flywheel that makes sessions compound (extract, inject, decay, maturity), and (2) terminal-based RPI that runs without an active chat session. Each phase gets its own fresh context window, so large goals don't hit context limits.
 
 ```bash
 ao rpi phased "add rate limiting"              # 3 sessions: discover → build → validate
