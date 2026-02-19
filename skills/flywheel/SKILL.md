@@ -101,6 +101,7 @@ If `.agents/ao/skill-telemetry.jsonl` exists, use `jq` to extract: invocations b
 
 Cross-reference validation: scan knowledge artifacts for broken internal references.
 Use `scripts/artifact-consistency.sh` (method documented in `references/artifact-consistency.md`).
+Default allowlist lives at `references/artifact-consistency-allowlist.txt`; use `--no-allowlist` for a full raw audit.
 
 Health indicator: >90% = Healthy, 70-90% = Warning, <70% = Critical.
 

@@ -1,13 +1,105 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 VERBOSE=0
-if [[ "${1:-}" == "--verbose" ]]; then
-  VERBOSE=1
-  shift
+ROOT=".agents"
+ROOT_SET=0
+ALLOWLIST="${ARTIFACT_CONSISTENCY_ALLOWLIST:-$SCRIPT_DIR/../references/artifact-consistency-allowlist.txt}"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--verbose] [--allowlist <path> | --no-allowlist] [ROOT]
+
+Scans markdown files for .agents artifact references and reports consistency.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    --allowlist)
+      if [[ $# -lt 2 ]]; then
+        echo "ERROR: --allowlist requires a path" >&2
+        exit 2
+      fi
+      ALLOWLIST="$2"
+      shift 2
+      ;;
+    --no-allowlist)
+      ALLOWLIST=""
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "ERROR: unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if (( ROOT_SET )); then
+        echo "ERROR: unexpected argument: $1" >&2
+        usage >&2
+        exit 2
+      fi
+      ROOT="$1"
+      ROOT_SET=1
+      shift
+      ;;
+  esac
+done
+
+trim() {
+  sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'
+}
+
+declare -a ALLOW_SOURCE_PATTERNS=()
+declare -a ALLOW_TARGET_PATTERNS=()
+
+if [[ -n "$ALLOWLIST" ]]; then
+  if [[ ! -f "$ALLOWLIST" ]]; then
+    echo "ERROR: allowlist not found: $ALLOWLIST" >&2
+    exit 2
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(printf '%s' "$raw_line" | trim)"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+
+    source_pattern="*"
+    target_pattern="$line"
+    if [[ "$line" == *"->"* ]]; then
+      source_pattern="$(printf '%s' "${line%%->*}" | trim)"
+      target_pattern="$(printf '%s' "${line#*->}" | trim)"
+    fi
+
+    [[ -z "$source_pattern" || -z "$target_pattern" ]] && continue
+    ALLOW_SOURCE_PATTERNS+=("$source_pattern")
+    ALLOW_TARGET_PATTERNS+=("$target_pattern")
+  done < "$ALLOWLIST"
 fi
 
-ROOT="${1:-.agents}"
+is_allowlisted() {
+  local source_file="$1"
+  local target_ref="$2"
+  local i
+
+  for i in "${!ALLOW_SOURCE_PATTERNS[@]}"; do
+    if [[ "$source_file" == ${ALLOW_SOURCE_PATTERNS[$i]} ]] \
+      && [[ "$target_ref" == ${ALLOW_TARGET_PATTERNS[$i]} ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
 
 if [[ ! -d "$ROOT" ]]; then
   echo "TOTAL_REFS=0"
@@ -41,7 +133,7 @@ while IFS= read -r -d '' file; do
     [[ -z "$ref" ]] && continue
 
     # Skip template placeholders and non-literal paths.
-    if [[ "$ref" =~ YYYY|\<|\>|\{|\}|\* ]]; then
+    if [[ "$ref" =~ YYYY|\<|\>|\{|\}|\*|\.{3} ]]; then
       continue
     fi
 
@@ -50,6 +142,9 @@ while IFS= read -r -d '' file; do
     # Normalize leading ./, then check relative to repo root.
     normalized="${ref#./}"
     if [[ ! -f "$normalized" ]]; then
+      if is_allowlisted "$file" "$normalized"; then
+        continue
+      fi
       broken_refs=$((broken_refs + 1))
       if (( VERBOSE )); then
         broken_lines+=("$file -> $normalized")

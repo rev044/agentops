@@ -149,6 +149,17 @@ else
     skip "Token budget validation (script not found)"
 fi
 
+# Validate artifact-consistency behavior (static, no CLI needed)
+if [[ -f "$SCRIPT_DIR/skills/test-artifact-consistency.sh" ]]; then
+    if bash "$SCRIPT_DIR/skills/test-artifact-consistency.sh" > /dev/null 2>&1; then
+        pass "Artifact consistency behavior tests"
+    else
+        fail "Artifact consistency behavior tests"
+    fi
+else
+    skip "Artifact consistency behavior tests (script not found)"
+fi
+
 echo ""
 
 # =============================================================================
