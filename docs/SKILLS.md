@@ -11,6 +11,20 @@ Use this when you're not sure which skill to run. For a full workflow overview, 
 ```text
 What are you trying to do?
 │
+├─ "Not sure what to do yet"
+│   └─ Generate options first ─────► /brainstorm
+│
+├─ "I have an idea"
+│   └─ Understand code + context ──► /research
+│
+├─ "I know what I want to build"
+│   └─ Break it into issues ───────► /plan
+│
+├─ "Now build it"
+│   ├─ Small/single issue ─────────► /implement
+│   ├─ Multi-issue epic ───────────► /crank <epic-id>
+│   └─ Full flow in one command ───► /rpi "goal"
+│
 ├─ "Fix a bug"
 │   ├─ Already scoped? ────────────► /implement <issue-id>
 │   └─ Need to investigate? ───────► /bug-hunt

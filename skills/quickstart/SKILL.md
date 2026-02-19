@@ -291,6 +291,20 @@ QUICK REFERENCE
 INTENT ROUTER
 What are you trying to do?
 │
+├─ "Not sure what to do yet"
+│   └─ Generate options first ─────► /brainstorm
+│
+├─ "I have an idea"
+│   └─ Understand code + context ──► /research
+│
+├─ "I know what I want to build"
+│   └─ Break it into issues ───────► /plan
+│
+├─ "Now build it"
+│   ├─ Small/single issue ─────────► /implement
+│   ├─ Multi-issue epic ───────────► /crank <epic-id>
+│   └─ Full flow in one command ───► /rpi "goal"
+│
 ├─ "Fix a bug"
 │   ├─ Know which file? ──────────► /implement <issue-id>
 │   └─ Need to investigate? ──────► /bug-hunt

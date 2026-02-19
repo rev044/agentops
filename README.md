@@ -33,14 +33,17 @@ Coding agents get a blank context window every session. AgentOps is a toolbox of
 ```text
 /quickstart                          ← Day 1: guided tour on your codebase (~10 min)
     │
-/research, /council, /vibe           ← Use any skill by itself when you need it
+Not sure what to do?                 ─────────► /brainstorm
     │
-/swarm "research X, brainstorm Y"    ← Parallelize anything — any skill, in parallel
+Have an idea of what you want?       ─────────► /research
     │
-/rpi "goal"                          ← Full pipeline: research → plan → validate →
-    │                                    ship → learn — one command, walk away
+Ready to scope it cleanly?           ─────────► /plan
     │
-/product → /goals → /evolve          ← Hands-free: define goals, fix gaps, compound
+/implement (small) · /crank (epic)   ← Build and ship
+    │
+/vibe → /post-mortem                 ← Validate and learn
+    │
+/rpi "goal"                          ← One command for the full flow
 ```
 
 **Use one skill** — validate a PR:
@@ -192,6 +195,20 @@ Use this when you're not sure which skill to run.
 
 ```text
 What are you trying to do?
+│
+├─ "Not sure what to do yet"
+│   └─ Generate options first ─────► /brainstorm
+│
+├─ "I have an idea"
+│   └─ Understand code + context ──► /research
+│
+├─ "I know what I want to build"
+│   └─ Break it into issues ───────► /plan
+│
+├─ "Now build it"
+│   ├─ Small/single issue ─────────► /implement
+│   ├─ Multi-issue epic ───────────► /crank <epic-id>
+│   └─ Full flow in one command ───► /rpi "goal"
 │
 ├─ "Fix a bug"
 │   ├─ Know which file? ──────────► /implement <issue-id>
