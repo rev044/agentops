@@ -6,7 +6,9 @@
 # 1. Manifest schema conformance (versioned schemas)
 # 2. No symlinks (breaks GitHub install)
 # 3. SKILL.md frontmatter for all skills
-# 4. Actually loads with claude --plugin-dir
+# 4. Hook preflight checks
+# 5. Lightweight Go race tests for changed packages only
+# 6. Actually loads with claude --plugin-dir
 #
 # Install as pre-push hook:
 #   ln -sf ../../scripts/validate-local.sh .git/hooks/pre-push
@@ -125,6 +127,21 @@ fi
 echo ""
 
 # 7. Test actual load with Claude CLI (if available)
+echo "── Go Fast Race Check ──"
+if [[ -x "scripts/validate-go-fast.sh" ]]; then
+    if go_fast_output=$(./scripts/validate-go-fast.sh 2>&1); then
+        pass "Changed-scope Go race checks passed"
+        echo "$go_fast_output" | sed 's/^/    /'
+    else
+        fail "Changed-scope Go race checks failed"
+        echo "$go_fast_output" | sed 's/^/    /'
+    fi
+else
+    warn "Missing executable script: scripts/validate-go-fast.sh"
+fi
+echo ""
+
+# 8. Test actual load with Claude CLI (if available)
 echo "── Claude CLI ──"
 if command -v claude &>/dev/null; then
     load_output=$(timeout 10 claude --plugin-dir . --help 2>&1) || true
