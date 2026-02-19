@@ -1,6 +1,12 @@
 #!/bin/bash
 # pre-mortem-gate.sh - PreToolUse hook: block /crank when epic has 3+ issues and no pre-mortem
 # Evidence: 6/6 consecutive positive pre-mortem ROI across epics.
+#
+# Pre-mortem evidence is checked in order:
+#   1. Run-scoped phased-state.json (verdicts.pre_mortem) — avoids false positives from stale globals
+#   2. Run-scoped orchestration log  — inline verdict entries
+#   3. Council artifacts scoped to this epic or today — session-local fallback
+#   4. Ratchet chain (chain.jsonl)   — legacy/non-phased runs
 
 # Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
@@ -42,19 +48,56 @@ fi
 CHILD_COUNT=$(bd children "$EPIC_ID" 2>/dev/null | wc -l | tr -d ' ')
 [ "$CHILD_COUNT" -lt 3 ] && exit 0  # Less than 3 issues, no gate needed
 
-# Check for pre-mortem evidence (scoped to this epic)
-# Method 1: Council artifacts — match epic-specific pattern
-if ls .agents/council/*-pre-mortem-"$EPIC_ID"* >/dev/null 2>&1 || \
-   ls .agents/council/*-pre-mortem-"${EPIC_ID%%.*}"* >/dev/null 2>&1; then
+# --- Method 1: Run-scoped phased-state.json (canonical, avoids stale globals) ---
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
+PHASED_STATE="$ROOT/.agents/rpi/phased-state.json"
+
+if [ -f "$PHASED_STATE" ]; then
+    if command -v jq >/dev/null 2>&1; then
+        PM_VERDICT=$(jq -r '.verdicts.pre_mortem // ""' "$PHASED_STATE" 2>/dev/null)
+    else
+        PM_VERDICT=$(grep -o '"pre_mortem"[[:space:]]*:[[:space:]]*"[^"]*"' "$PHASED_STATE" 2>/dev/null | sed 's/.*"pre_mortem"[[:space:]]*:[[:space:]]*"//;s/"$//')
+    fi
+    if [ -n "$PM_VERDICT" ] && [ "$PM_VERDICT" != "null" ]; then
+        exit 0
+    fi
+
+    # Also check run_id to scope orchestration log search
+    if command -v jq >/dev/null 2>&1; then
+        RUN_ID=$(jq -r '.run_id // ""' "$PHASED_STATE" 2>/dev/null)
+    else
+        RUN_ID=$(grep -o '"run_id"[[:space:]]*:[[:space:]]*"[^"]*"' "$PHASED_STATE" 2>/dev/null | head -1 | sed 's/.*"run_id"[[:space:]]*:[[:space:]]*"//;s/"$//')
+    fi
+fi
+
+# --- Method 2: Run-scoped orchestration log ---
+LOG_FILE="$ROOT/.agents/rpi/phased-orchestration.log"
+if [ -f "$LOG_FILE" ] && [ -n "${RUN_ID:-}" ]; then
+    if grep -qE "\[${RUN_ID}\].*pre-mortem verdict:" "$LOG_FILE" 2>/dev/null; then
+        exit 0
+    fi
+elif [ -f "$LOG_FILE" ]; then
+    # No run_id: scan log for any recent pre-mortem verdict
+    TODAY=$(date +%Y-%m-%d)
+    if grep -qE "\[$TODAY" "$LOG_FILE" 2>/dev/null && grep -qE "pre-mortem verdict:" "$LOG_FILE" 2>/dev/null; then
+        exit 0
+    fi
+fi
+
+# --- Method 3: Council artifacts scoped to epic or today (session-local fallback) ---
+# Method 3a: Epic-scoped council artifact
+if ls "$ROOT/.agents/council/"*-pre-mortem-"$EPIC_ID"* >/dev/null 2>&1 || \
+   ls "$ROOT/.agents/council/"*-pre-mortem-"${EPIC_ID%%.*}"* >/dev/null 2>&1; then
     exit 0
 fi
-# Method 1b: Fallback — any pre-mortem from today (same session)
+# Method 3b: Any pre-mortem from today (same session)
 TODAY=$(date +%Y-%m-%d)
-if ls .agents/council/"$TODAY"-*pre-mortem* >/dev/null 2>&1; then
+if ls "$ROOT/.agents/council/$TODAY"-*pre-mortem* >/dev/null 2>&1; then
     exit 0
 fi
 
-# Method 2: Ratchet record
+# --- Method 4: Ratchet chain (legacy/non-phased runs) ---
 if command -v ao &>/dev/null; then
     if ao ratchet status -o json 2>/dev/null | grep -q '"pre-mortem"'; then
         exit 0
@@ -62,8 +105,6 @@ if command -v ao &>/dev/null; then
 fi
 
 # No evidence found — block
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
-ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 # Source hook-helpers from plugin install dir, not repo root (security: prevents malicious repo sourcing)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hook-helpers.sh

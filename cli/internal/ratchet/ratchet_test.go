@@ -624,6 +624,37 @@ func TestParseStepAliasesCompleteness(t *testing.T) {
 	}
 }
 
+// TestParseStepPhasedModeAliases verifies that the phased-mode canonical phase
+// names are accepted as ratchet step aliases so that hooks and tools can use
+// them directly without knowing the underlying ratchet step name.
+func TestParseStepPhasedModeAliases(t *testing.T) {
+	tests := []struct {
+		alias    string
+		wantStep Step
+	}{
+		// Phase-canonical names → ratchet steps
+		{"discovery", StepResearch},
+		{"validation", StepVibe},
+		// Existing aliases must still work
+		{"validate", StepVibe},
+		{"implement", StepImplement},
+		{"research", StepResearch},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.alias, func(t *testing.T) {
+			got := ParseStep(tt.alias)
+			if got == "" {
+				t.Errorf("ParseStep(%q) returned empty — phased-mode alias not registered", tt.alias)
+				return
+			}
+			if got != tt.wantStep {
+				t.Errorf("ParseStep(%q) = %q, want %q", tt.alias, got, tt.wantStep)
+			}
+		})
+	}
+}
+
 func TestParseStepCaseAndWhitespaceCombined(t *testing.T) {
 	// Combine case variation with whitespace
 	got := ParseStep("  RESEARCH  ")

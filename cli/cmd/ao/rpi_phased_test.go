@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/ratchet"
 )
 
 func TestExtractCouncilVerdict(t *testing.T) {
@@ -986,6 +988,64 @@ func TestPromptBudgetEstimate(t *testing.T) {
 		if len(prompt) > 5000 {
 			t.Errorf("phase %d: prompt is %d chars (max 5000 without summaries)", phaseNum, len(prompt))
 		}
+	}
+}
+
+// TestRatchetPhasedStepMapping verifies that each phase's Step field maps to a
+// valid, queryable ratchet step name.  This catches the bug where "discovery"
+// or "validation" (not recognised by ParseStep) were used as ratchet steps,
+// causing recordRatchetCheckpoint to silently fail.
+func TestRatchetPhasedStepMapping(t *testing.T) {
+	// Canonical mapping: phase name → expected canonical ratchet step
+	want := map[string]ratchet.Step{
+		"discovery":      ratchet.StepResearch,
+		"implementation": ratchet.StepImplement,
+		"validation":     ratchet.StepVibe,
+	}
+
+	for _, p := range phases {
+		t.Run(p.Name, func(t *testing.T) {
+			// The Step field must be a valid ratchet step name.
+			parsed := ratchet.ParseStep(p.Step)
+			if parsed == "" {
+				t.Errorf("phase %q has Step=%q which is not a valid ratchet step name", p.Name, p.Step)
+			}
+			// Verify it maps to the expected canonical step.
+			if expected, ok := want[p.Name]; ok {
+				if parsed != expected {
+					t.Errorf("phase %q: Step=%q parsed to %q, want %q", p.Name, p.Step, parsed, expected)
+				}
+			}
+		})
+	}
+}
+
+// TestRatchetPhasedAliases verifies that the phase-canonical names
+// ("discovery", "validation") are accepted as ratchet step aliases so that
+// ao ratchet record / skip commands can use them directly.
+func TestRatchetPhasedAliases(t *testing.T) {
+	tests := []struct {
+		alias    string
+		wantStep ratchet.Step
+	}{
+		{"discovery", ratchet.StepResearch},
+		{"validation", ratchet.StepVibe},
+		// Ensure existing canonical names still work
+		{"research", ratchet.StepResearch},
+		{"implement", ratchet.StepImplement},
+		{"validate", ratchet.StepVibe},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.alias, func(t *testing.T) {
+			got := ratchet.ParseStep(tt.alias)
+			if got == "" {
+				t.Errorf("ParseStep(%q) returned empty — alias not registered", tt.alias)
+			}
+			if got != tt.wantStep {
+				t.Errorf("ParseStep(%q) = %q, want %q", tt.alias, got, tt.wantStep)
+			}
+		})
 	}
 }
 

@@ -58,6 +58,10 @@ var stepAliases = map[string]Step{
 	"validate":  StepVibe,
 	"review":    StepPostMortem,
 	"execute":   StepCrank,
+
+	// Phased-mode canonical phase names → ratchet steps
+	"discovery":  StepResearch,  // Phase 1 (discovery) maps to research step
+	"validation": StepVibe,      // Phase 3 (validation) maps to vibe step
 }
 
 // ParseStep normalizes a step name to its canonical form.
