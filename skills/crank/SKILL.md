@@ -55,6 +55,8 @@ Crank (orchestrator, TaskList mode)    Swarm (executor)
 - **Crank** = Orchestration, epic/task lifecycle, knowledge flywheel
 - **Swarm** = Runtime-native parallel execution (Ralph Wiggum pattern via fresh worker set per wave)
 
+Ralph alignment source: `skills/shared/references/ralph-loop-contract.md` (fresh context, scheduler/worker split, disk-backed state, backpressure).
+
 ## Flags
 
 | Flag | Default | Description |

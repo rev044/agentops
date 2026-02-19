@@ -36,6 +36,8 @@ Every wave gets a fresh worker set. Every worker gets clean context. No bleed-th
 
 Supports both Codex sub-agents (`spawn_agent`) and Claude agent teams (`TeamCreate`).
 
+Operational contract reference: `skills/shared/references/ralph-loop-contract.md` (reverse-engineered from `ghuntley/how-to-ralph-wiggum` and mapped to AgentOps primitives).
+
 ## Agent Backends — Runtime-Native Orchestration
 
 Skills auto-select the best available backend:

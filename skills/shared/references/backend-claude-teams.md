@@ -8,7 +8,7 @@ Concrete tool calls for spawning agents using Claude Code native teams (`TeamCre
 
 ## Setup: Create Team
 
-Every spawn session starts by creating a team. One team per wave (fresh context = Ralph Wiggum preserved).
+Every spawn session starts by creating a team. One team per wave (fresh context = Ralph Wiggum preserved; see `skills/shared/references/ralph-loop-contract.md`).
 
 ```
 TeamCreate(team_name="council-20260217-auth", description="Council validation of auth module")

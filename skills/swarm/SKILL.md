@@ -189,6 +189,8 @@ Follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/): **fresh context
 - **Filesystem for EVERYTHING** - Code artifacts AND result status written to disk, not passed through context
 - **Backend messaging for signals only** - Short coordination signals (under 100 tokens), never work details
 
+Ralph alignment source: `skills/shared/references/ralph-loop-contract.md`.
+
 ## Integration with Crank
 
 When `/crank` invokes `/swarm`: Crank bridges beads to TaskList, swarm executes with fresh-context agents, crank syncs results back.

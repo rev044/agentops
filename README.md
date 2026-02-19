@@ -323,14 +323,17 @@ These are fellow experiments in making coding agents work. Use pieces from any o
 
 ## The `ao` CLI
 
-Optional. The CLI is plumbing — skills and hooks call it automatically. Install via the [Full setup](#install) section above.
+Optional. If you already use skills directly in chat, you can skip it.
+The `ao` CLI is Ralph loop orchestration from your terminal: phase-by-phase execution with fresh context per phase.
 
-**The killer feature:** run the full lifecycle from your terminal — no chat session required:
+**Core capability:** run the full lifecycle from your terminal — no active chat session required:
 ```bash
 ao rpi phased "add rate limiting"   # Spawns Claude, runs research → plan → ship → learn
 ao rpi phased "fix auth bug" &      # Run multiple in parallel (auto-worktrees)
 ao rpi phased --from=crank ag-058   # Resume from any phase
 ```
+The main advantage here is fresh context per phase: this enables multi-agent orchestration where one team executes loops via subagents/background tasks while another team monitors outcomes and intervenes when needed, and you can run many loops in parallel using native plumbing with the same end result.
+
 Each phase gets its own fresh context window. Walk away, come back to committed code + extracted learnings.
 
 **Other commands you'll use:**
