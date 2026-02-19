@@ -298,8 +298,13 @@ run_gitleaks() {
 
     if ! run_tool "gitleaks" gitleaks; then return 0; fi
 
-    # Run gitleaks (use --no-color to avoid ANSI codes, redirect stderr to file too)
-    if gitleaks detect --source="$REPO_ROOT" --no-git --no-color > "$output_file" 2>&1; then
+    # Use repo config if available, --no-color to avoid ANSI codes
+    local config_flag=()
+    if [[ -f "$REPO_ROOT/.gitleaks.toml" ]]; then
+        config_flag=(--config "$REPO_ROOT/.gitleaks.toml")
+    fi
+
+    if gitleaks detect --source="$REPO_ROOT" --no-git --no-color "${config_flag[@]}" > "$output_file" 2>&1; then
         echo "CLEAN" > "$output_file"
         TOOL_STATUS["gitleaks"]="pass"
     else

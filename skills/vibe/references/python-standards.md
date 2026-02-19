@@ -1006,8 +1006,8 @@ Never hardcode secrets in source code:
 
 ```python
 # DANGEROUS - Hardcoded secrets
-API_KEY = "sk-abc123secret"  # Leaked in git history forever
-db_url = "postgresql://admin:password@prod-db:5432/app"
+API_KEY = "REDACTED"  # Leaked in git history forever
+db_url = "postgresql://user:REDACTED@prod-db:5432/app"
 
 # SAFE - Environment variables
 import os
