@@ -21,6 +21,11 @@ var (
 	feedbackHarmful bool
 )
 
+const (
+	impliedHelpfulRewardThreshold = 0.8
+	impliedHarmfulRewardThreshold = 0.2
+)
+
 var feedbackCmd = &cobra.Command{
 	Use:   "feedback <learning-id>",
 	Short: "Record reward feedback for a learning",
@@ -246,14 +251,16 @@ func updateJSONLUtility(path string, reward, alpha float64) (oldUtility, newUtil
 	data["reward_count"] = rewardCount + 1
 	data["last_reward_at"] = time.Now().Format(time.RFC3339)
 
-	// CASS: Track helpful_count and harmful_count
-	if feedbackHelpful {
+	// CASS: Track helpful_count and harmful_count.
+	// Explicit CLI labels take precedence; otherwise infer coarse signal from reward bands.
+	incrementHelpful, incrementHarmful := counterDirectionFromFeedback(reward, feedbackHelpful, feedbackHarmful)
+	if incrementHelpful {
 		helpfulCount := 0
 		if hc, ok := data["helpful_count"].(float64); ok {
 			helpfulCount = int(hc)
 		}
 		data["helpful_count"] = helpfulCount + 1
-	} else if feedbackHarmful {
+	} else if incrementHarmful {
 		harmfulCount := 0
 		if hc, ok := data["harmful_count"].(float64); ok {
 			harmfulCount = int(hc)
@@ -277,6 +284,22 @@ func updateJSONLUtility(path string, reward, alpha float64) (oldUtility, newUtil
 	// Replace first line, keep the rest
 	lines[0] = string(newJSON)
 	return oldUtility, newUtility, os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+}
+
+func counterDirectionFromFeedback(reward float64, explicitHelpful, explicitHarmful bool) (helpful bool, harmful bool) {
+	if explicitHelpful {
+		return true, false
+	}
+	if explicitHarmful {
+		return false, true
+	}
+	if reward >= impliedHelpfulRewardThreshold {
+		return true, false
+	}
+	if reward <= impliedHarmfulRewardThreshold {
+		return false, true
+	}
+	return false, false
 }
 
 // updateMarkdownUtility updates utility in a markdown file with front matter.

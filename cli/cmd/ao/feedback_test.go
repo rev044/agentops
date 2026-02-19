@@ -134,6 +134,109 @@ func TestUpdateJSONLUtility(t *testing.T) {
 	}
 }
 
+func TestCounterDirectionFromFeedback(t *testing.T) {
+	tests := []struct {
+		name            string
+		reward          float64
+		explicitHelpful bool
+		explicitHarmful bool
+		wantHelpful     bool
+		wantHarmful     bool
+	}{
+		{
+			name:            "explicit helpful wins",
+			reward:          0.0,
+			explicitHelpful: true,
+			explicitHarmful: false,
+			wantHelpful:     true,
+			wantHarmful:     false,
+		},
+		{
+			name:            "explicit harmful wins",
+			reward:          1.0,
+			explicitHelpful: false,
+			explicitHarmful: true,
+			wantHelpful:     false,
+			wantHarmful:     true,
+		},
+		{
+			name:            "high reward implied helpful",
+			reward:          0.95,
+			explicitHelpful: false,
+			explicitHarmful: false,
+			wantHelpful:     true,
+			wantHarmful:     false,
+		},
+		{
+			name:            "low reward implied harmful",
+			reward:          0.05,
+			explicitHelpful: false,
+			explicitHarmful: false,
+			wantHelpful:     false,
+			wantHarmful:     true,
+		},
+		{
+			name:            "mid reward neutral",
+			reward:          0.5,
+			explicitHelpful: false,
+			explicitHarmful: false,
+			wantHelpful:     false,
+			wantHarmful:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotHelpful, gotHarmful := counterDirectionFromFeedback(tt.reward, tt.explicitHelpful, tt.explicitHarmful)
+			if gotHelpful != tt.wantHelpful || gotHarmful != tt.wantHarmful {
+				t.Errorf("counterDirectionFromFeedback(%v, %v, %v) = (%v, %v), want (%v, %v)",
+					tt.reward, tt.explicitHelpful, tt.explicitHarmful,
+					gotHelpful, gotHarmful, tt.wantHelpful, tt.wantHarmful)
+			}
+		})
+	}
+}
+
+func TestUpdateJSONLUtilityImpliedCounters(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "counter.jsonl")
+	content := `{"id":"L100","title":"Counter Test","utility":0.5}`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origHelpful := feedbackHelpful
+	origHarmful := feedbackHarmful
+	feedbackHelpful = false
+	feedbackHarmful = false
+	t.Cleanup(func() {
+		feedbackHelpful = origHelpful
+		feedbackHarmful = origHarmful
+	})
+
+	if _, _, err := updateJSONLUtility(path, 0.95, 0.1); err != nil {
+		t.Fatalf("high-reward update failed: %v", err)
+	}
+	if _, _, err := updateJSONLUtility(path, 0.05, 0.1); err != nil {
+		t.Fatalf("low-reward update failed: %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatal(err)
+	}
+	if got := int(data["helpful_count"].(float64)); got != 1 {
+		t.Errorf("helpful_count = %d, want 1", got)
+	}
+	if got := int(data["harmful_count"].(float64)); got != 1 {
+		t.Errorf("harmful_count = %d, want 1", got)
+	}
+}
+
 func TestUpdateMarkdownUtility(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "feedback_md_test")
 	if err != nil {

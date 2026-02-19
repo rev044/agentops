@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -182,6 +183,8 @@ func applyConfidenceDecay(l learning, filePath string, now time.Time) learning {
 // frontMatter holds parsed YAML front matter fields
 type frontMatter struct {
 	SupersededBy string
+	Utility      float64
+	HasUtility   bool
 }
 
 // parseFrontMatter extracts YAML front matter from markdown content
@@ -201,6 +204,13 @@ func parseFrontMatter(lines []string) (frontMatter, int) {
 		}
 		if strings.HasPrefix(line, "superseded_by:") || strings.HasPrefix(line, "superseded-by:") {
 			fm.SupersededBy = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+		}
+		if strings.HasPrefix(line, "utility:") {
+			utilityStr := strings.TrimSpace(strings.TrimPrefix(line, "utility:"))
+			if utility, err := strconv.ParseFloat(utilityStr, 64); err == nil && utility > 0 {
+				fm.Utility = utility
+				fm.HasUtility = true
+			}
 		}
 	}
 	return fm, endLine
@@ -251,6 +261,9 @@ func parseLearningFile(path string) (learning, error) {
 	if fm.SupersededBy != "" && fm.SupersededBy != "null" && fm.SupersededBy != "~" {
 		l.Superseded = true
 		return l, nil
+	}
+	if fm.HasUtility {
+		l.Utility = fm.Utility
 	}
 
 	// Parse body content

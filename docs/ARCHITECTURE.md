@@ -45,7 +45,7 @@ The meta-framework. [DevOps' Three Ways](https://itrevolution.com/articles/the-t
 
 **Feedback.** Shorten the feedback loop until defects can't survive it. Multi-model councils (`/council`) catch issues before code ships. Hooks make the rules unavoidable — validation gates, push blocking, regression auto-revert. Problems found Friday don't wait until Monday.
 
-**Continual Learning.** Stop rediscovering what you already know. Every session extracts learnings, scores them, and re-injects them at the next session start. Knowledge compounds instead of decaying. Session 50 knows what session 1 learned the hard way.
+**Continual Learning.** Stop rediscovering what you already know. Every session extracts learnings, scores them, and re-injects them at the next session start. Knowledge compounds when retrieval quality and usage stay ahead of decay and scale friction. Session 50 knows what session 1 learned the hard way.
 
 These three ways aren't aspirational — they're mechanically enforced through skills, hooks, and operational invariants.
 
@@ -220,7 +220,7 @@ Learnings re-enter future context windows through quality gates: 5-dimension sco
 
 Knowledge artifacts are the system's long-term memory. Future `/research` commands discover them via file pattern matching, semantic search (`ao forge`), or Smart Connections MCP (if available). Freshness decay ensures stale artifacts lose priority over time — the system forgets what's no longer relevant. Quality gates prevent low-confidence or context-specific learnings from polluting the shared knowledge base.
 
-Deep dive: [knowledge-flywheel.md](knowledge-flywheel.md) — flywheel mechanics. [the-science.md](the-science.md) — formal model, decay rates, escape velocity condition (σ·ρ·K > δ·K).
+Deep dive: [knowledge-flywheel.md](knowledge-flywheel.md) — flywheel mechanics. [the-science.md](the-science.md) — formal model, decay rates, limits to growth, and the scale-aware condition `ρ·σ(K,t) > δ + φ·K - I(t)/K`.
 
 ---
 

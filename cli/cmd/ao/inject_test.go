@@ -39,42 +39,64 @@ func TestParseFrontMatter(t *testing.T) {
 		name           string
 		lines          []string
 		wantSuperseded string
+		wantUtility    float64
+		wantHasUtility bool
 		wantEndLine    int
 	}{
 		{
 			name:           "no front matter",
 			lines:          []string{"# Title", "Content"},
 			wantSuperseded: "",
+			wantUtility:    0,
+			wantHasUtility: false,
 			wantEndLine:    0,
 		},
 		{
 			name:           "empty front matter",
 			lines:          []string{"---", "---", "# Title"},
 			wantSuperseded: "",
+			wantUtility:    0,
+			wantHasUtility: false,
 			wantEndLine:    2,
 		},
 		{
 			name:           "superseded_by set",
 			lines:          []string{"---", "superseded_by: L42", "---", "# Title"},
 			wantSuperseded: "L42",
+			wantUtility:    0,
+			wantHasUtility: false,
 			wantEndLine:    3,
 		},
 		{
 			name:           "superseded-by with dash",
 			lines:          []string{"---", "superseded-by: new-learning", "---"},
 			wantSuperseded: "new-learning",
+			wantUtility:    0,
+			wantHasUtility: false,
 			wantEndLine:    3,
 		},
 		{
 			name:           "superseded_by null",
 			lines:          []string{"---", "superseded_by: null", "---"},
 			wantSuperseded: "null",
+			wantUtility:    0,
+			wantHasUtility: false,
+			wantEndLine:    3,
+		},
+		{
+			name:           "utility in front matter",
+			lines:          []string{"---", "utility: 0.73", "---", "# Title"},
+			wantSuperseded: "",
+			wantUtility:    0.73,
+			wantHasUtility: true,
 			wantEndLine:    3,
 		},
 		{
 			name:           "empty lines slice",
 			lines:          []string{},
 			wantSuperseded: "",
+			wantUtility:    0,
+			wantHasUtility: false,
 			wantEndLine:    0,
 		},
 	}
@@ -85,6 +107,12 @@ func TestParseFrontMatter(t *testing.T) {
 			if fm.SupersededBy != tt.wantSuperseded {
 				t.Errorf("parseFrontMatter() supersededBy = %q, want %q",
 					fm.SupersededBy, tt.wantSuperseded)
+			}
+			if fm.HasUtility != tt.wantHasUtility {
+				t.Errorf("parseFrontMatter() hasUtility = %v, want %v", fm.HasUtility, tt.wantHasUtility)
+			}
+			if fm.Utility != tt.wantUtility {
+				t.Errorf("parseFrontMatter() utility = %f, want %f", fm.Utility, tt.wantUtility)
 			}
 			if endLine != tt.wantEndLine {
 				t.Errorf("parseFrontMatter() endLine = %d, want %d",
@@ -163,6 +191,7 @@ func TestParseLearningFile(t *testing.T) {
 	t.Run("regular markdown", func(t *testing.T) {
 		content := `---
 id: L42
+utility: 0.77
 ---
 # Test Learning
 
@@ -182,6 +211,9 @@ This is the summary content.
 		}
 		if l.Title != "Test Learning" {
 			t.Errorf("Title = %q, want %q", l.Title, "Test Learning")
+		}
+		if abs(l.Utility-0.77) > 0.001 {
+			t.Errorf("Utility = %f, want 0.77", l.Utility)
 		}
 	})
 

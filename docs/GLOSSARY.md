@@ -43,7 +43,7 @@ An internal skill that pulls learnings, patterns, and decisions from session tra
 The reconciliation engine that implements the Brownian Ratchet: **F**ind (read current state), **I**gnite (spawn parallel agents), **R**eap (harvest and validate results), **E**scalate (handle failures and blockers). Used by `/crank` for autonomous epic execution. [Full documentation](brownian-ratchet.md#the-fire-loop)
 
 ### Flywheel (Knowledge Flywheel)
-The automated loop that extracts learnings from completed work, scores them for quality, and re-injects them at the next session start. If retrieval and usage rate exceeds decay rate, knowledge compounds over time instead of being lost between sessions. [Full documentation](ARCHITECTURE.md#knowledge-flywheel) <!-- NOTE: Ensure ARCHITECTURE.md preserves the #knowledge-flywheel anchor target -->
+The automated loop that extracts learnings from completed work, scores them for quality, and re-injects them at the next session start. Knowledge compounds when retrieval and usage outpace decay and scale friction; otherwise it plateaus until controls improve. [Full documentation](ARCHITECTURE.md#knowledge-flywheel) <!-- NOTE: Ensure ARCHITECTURE.md preserves the #knowledge-flywheel anchor target -->
 
 ### Forge
 An internal skill that mines session transcripts for knowledge artifacts — decisions, patterns, failures, and fixes — and stores them in `.agents/`. [Full documentation](../skills/forge/SKILL.md)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -164,16 +165,15 @@ func processUniqueCitations(cwd, sessionID, transcriptPath string, citations []t
 }
 
 func runFeedbackLoop(cmd *cobra.Command, args []string) error {
-	if feedbackLoopSessionID == "" {
-		return fmt.Errorf("--session is required")
+	sessionID, err := resolveFeedbackLoopSessionID(feedbackLoopSessionID)
+	if err != nil {
+		return err
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
 	}
-
-	sessionID := canonicalSessionID(feedbackLoopSessionID)
 
 	if GetDryRun() {
 		fmt.Printf("[dry-run] Would process feedback loop for session: %s\n", sessionID)
@@ -212,6 +212,17 @@ func runFeedbackLoop(cmd *cobra.Command, args []string) error {
 
 	// Output summary
 	return outputFeedbackSummary(sessionID, reward, len(sessionCitations), len(uniqueCitations), updatedCount, failedCount, feedbackEvents)
+}
+
+func resolveFeedbackLoopSessionID(sessionFlag string) (string, error) {
+	candidate := strings.TrimSpace(sessionFlag)
+	if candidate == "" {
+		candidate = strings.TrimSpace(os.Getenv("CLAUDE_SESSION_ID"))
+	}
+	if candidate == "" {
+		return "", fmt.Errorf("--session is required (or set CLAUDE_SESSION_ID)")
+	}
+	return canonicalSessionID(candidate), nil
 }
 
 // outputFeedbackSummary outputs the feedback loop results.

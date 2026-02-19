@@ -11,6 +11,38 @@ import (
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
+func TestResolveFeedbackLoopSessionID(t *testing.T) {
+	t.Run("uses explicit flag", func(t *testing.T) {
+		t.Setenv("CLAUDE_SESSION_ID", "env-session")
+		got, err := resolveFeedbackLoopSessionID("flag-session")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "flag-session" {
+			t.Errorf("got %q, want %q", got, "flag-session")
+		}
+	})
+
+	t.Run("falls back to environment", func(t *testing.T) {
+		t.Setenv("CLAUDE_SESSION_ID", "env-session")
+		got, err := resolveFeedbackLoopSessionID("")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "env-session" {
+			t.Errorf("got %q, want %q", got, "env-session")
+		}
+	})
+
+	t.Run("errors when no session provided", func(t *testing.T) {
+		t.Setenv("CLAUDE_SESSION_ID", "")
+		_, err := resolveFeedbackLoopSessionID("")
+		if err == nil {
+			t.Fatal("expected error for empty session sources")
+		}
+	})
+}
+
 func TestWriteFeedbackEvents(t *testing.T) {
 	// Create temp directory
 	tempDir, err := os.MkdirTemp("", "feedback-test-*")

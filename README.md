@@ -377,7 +377,7 @@ Session N+1 starts
     → Agent starts with institutional knowledge, not a blank slate
 ```
 
-Write once, score by freshness, inject the best, prune the rest. If `retrieval_rate × usage_rate > decay_rate`, knowledge compounds. If not, it decays to zero. The [formal model](docs/the-science.md) is cache eviction with a decay function instead of strict LRU.
+Write once, score by freshness, inject the best, prune the rest. If `retrieval_rate × usage_rate` stays above decay and scale friction, knowledge compounds. If not, growth stalls unless fresh input or stronger controls are added. The [formal model](docs/the-science.md) is cache eviction with a decay function and limits-to-growth controls.
 
 ```
   /rpi "goal"
@@ -456,7 +456,7 @@ Maintain over time: `/goals` shows pass/fail status, `/goals prune` finds stale 
 <details>
 <summary><b>References</b> — science, systems theory, prior art</summary>
 
-Built on [Darr 1995](docs/the-science.md) (decay rates), Sweller 1988 (cognitive load), [Liu et al. 2023](docs/the-science.md) (lost-in-the-middle), [MemRL 2025](https://arxiv.org/abs/2502.06173) (RL for memory).
+Built on [Darr 1995](docs/the-science.md) (decay rates), Sweller 1988 (cognitive load), [Liu et al. 2023](docs/the-science.md) (lost-in-the-middle), [MemRL 2025](https://arxiv.org/abs/2601.03192) (RL for memory).
 
 AgentOps concentrates on the high-leverage end of [Meadows' hierarchy](https://en.wikipedia.org/wiki/Twelve_leverage_points): information flows (#6), rules (#5), self-organization (#4), goals (#3). The bet: changing the loop beats tuning the output.
 
@@ -593,7 +593,7 @@ These are fellow experiments in making coding agents work. Use pieces from any o
 <details>
 <summary><b>Built on</b> — Ralph Wiggum, Multiclaude, beads, CASS, MemRL</summary>
 
-[Ralph Wiggum](https://ghuntley.com/ralph/) (fresh context per agent) · [Multiclaude](https://github.com/dlorenc/multiclaude) (validation gates) · [beads](https://github.com/steveyegge/beads) (git-native issues) · [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) (session search) · [MemRL](https://arxiv.org/abs/2502.06173) (cross-session memory)
+[Ralph Wiggum](https://ghuntley.com/ralph/) (fresh context per agent) · [Multiclaude](https://github.com/dlorenc/multiclaude) (validation gates) · [beads](https://github.com/steveyegge/beads) (git-native issues) · [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) (session search) · [MemRL](https://arxiv.org/abs/2601.03192) (cross-session memory)
 
 </details>
 

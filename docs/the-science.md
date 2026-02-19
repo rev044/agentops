@@ -335,8 +335,8 @@ score = z_norm(freshness) + λ × z_norm(utility)
 
 ```bash
 # User gives feedback
-ao feedback L15 1.0   # "This learning was helpful"
-ao feedback L12 0.0   # "This was irrelevant"
+ao feedback L15 --reward 1.0   # "This learning was helpful"
+ao feedback L12 --reward 0.0   # "This was irrelevant"
 
 # System updates utility scores
 # Future retrieval ranks by usefulness, not just recency
