@@ -511,15 +511,16 @@ func countEstablished(dir string) int {
 }
 
 func checkSkills() doctorCheck {
-	cwd, err := os.Getwd()
+	// Skills are installed globally at ~/.claude/skills/, not in the local repo.
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return doctorCheck{Name: "Plugin", Status: "fail", Detail: "cannot determine working directory", Required: true}
+		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "cannot determine home directory", Required: false}
 	}
 
-	skillsDir := filepath.Join(cwd, "skills")
+	skillsDir := filepath.Join(home, ".claude", "skills")
 	entries, err := os.ReadDir(skillsDir)
 	if err != nil {
-		return doctorCheck{Name: "Plugin", Status: "fail", Detail: "skills directory not found", Required: true}
+		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "no skills installed — run 'npx skills@latest add <package> --all -g'", Required: false}
 	}
 
 	count := 0
@@ -534,14 +535,14 @@ func checkSkills() doctorCheck {
 	}
 
 	if count == 0 {
-		return doctorCheck{Name: "Plugin", Status: "fail", Detail: "no skills found", Required: true}
+		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "no skills found — run 'npx skills@latest add <package> --all -g'", Required: false}
 	}
 
 	return doctorCheck{
 		Name:     "Plugin",
 		Status:   "pass",
-		Detail:   fmt.Sprintf("%d skills found", count),
-		Required: true,
+		Detail:   fmt.Sprintf("%d skills found in ~/.claude/skills/", count),
+		Required: false,
 	}
 }
 
