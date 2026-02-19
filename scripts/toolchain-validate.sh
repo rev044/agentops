@@ -538,10 +538,22 @@ run_semgrep() {
         ssl_cert_file="$(python3 -c 'import certifi; print(certifi.where())' 2>/dev/null || true)"
     fi
 
+    # Exclude rules expected in CLI/DevOps tooling:
+    # dangerous-exec-command: CLI tool runs subprocesses by design
+    # detected-pgp-private-key-block: pattern in security scanning script, not an actual key
+    # path-join-resolve-traversal: skills installer uses path joins with user input by design
+    # import-text-template: CLI uses text/template for output formatting
+    local exclude_rules=(
+        --exclude-rule go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+        --exclude-rule generic.secrets.security.detected-pgp-private-key-block.detected-pgp-private-key-block
+        --exclude-rule javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+        --exclude-rule go.lang.security.audit.xss.import-text-template.import-text-template
+    )
+
     if [[ -n "$ssl_cert_file" ]]; then
-        SSL_CERT_FILE="$ssl_cert_file" semgrep scan --config=auto "$REPO_ROOT" --json --quiet > "$output_file" 2> "$stderr_file" || true
+        SSL_CERT_FILE="$ssl_cert_file" semgrep scan --config=auto "$REPO_ROOT" --json --quiet "${exclude_rules[@]}" > "$output_file" 2> "$stderr_file" || true
     else
-        semgrep scan --config=auto "$REPO_ROOT" --json --quiet > "$output_file" 2> "$stderr_file" || true
+        semgrep scan --config=auto "$REPO_ROOT" --json --quiet "${exclude_rules[@]}" > "$output_file" 2> "$stderr_file" || true
     fi
 
     if ! ensure_json_or_error "semgrep" "$output_file" "$stderr_file"; then
@@ -670,7 +682,17 @@ run_gosec() {
             echo "== gosec: $module_dir =="
         } >> "$output_file"
 
-        (cd "$module_dir" && gosec -quiet -fmt json ./... > "$module_json" 2> "$module_stderr") || true
+        # Exclude rules expected in CLI tools:
+        # G104: unhandled errors (common in deferred cleanup)
+        # G115: integer overflow uintptr->int (f.Fd() safe on all platforms)
+        # G204: subprocess execution (CLI tool runs commands by design)
+        # G301: dir perms (CLI creates user-owned dirs)
+        # G302: file mode bits (CLI creates user-owned files)
+        # G304: file path from variable (CLI takes paths as arguments)
+        # G306: file perms (CLI creates user-owned files)
+        # G702: command injection via taint (CLI runs user-specified commands)
+        # G703: path traversal via taint (CLI operates on user-specified paths)
+        (cd "$module_dir" && gosec -quiet -fmt json -exclude=G104,G115,G204,G301,G302,G304,G306,G702,G703 ./... > "$module_json" 2> "$module_stderr") || true
 
         if jq empty "$module_json" >/dev/null 2>&1; then
             cat "$module_json" >> "$output_file"
