@@ -57,6 +57,9 @@ Use Grep to search every knowledge directory for the topic. This catches learnin
 for dir in research learnings knowledge patterns retros plans brainstorm; do
   grep -r -l -i "<topic>" .agents/${dir}/ 2>/dev/null
 done
+
+# Search global patterns (cross-repo knowledge)
+grep -r -l -i "<topic>" ~/.claude/patterns/ 2>/dev/null
 ```
 
 If matches are found, read the relevant files with the Read tool before proceeding to exploration. Prior knowledge prevents redundant investigation.

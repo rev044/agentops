@@ -37,6 +37,50 @@ Or check the pending queue:
 cat .agents/ao/pending.jsonl 2>/dev/null | head -5
 ```
 
+### Step 1.5: Without ao CLI — Manual Extraction
+
+If ao CLI is not available, process the pending queue manually:
+
+```bash
+if ! command -v ao &>/dev/null; then
+  echo "ao CLI not available — running manual extraction"
+
+  # Check for pending queue
+  if [ -f .agents/ao/pending.jsonl ] && [ -s .agents/ao/pending.jsonl ]; then
+    echo "Found pending extractions:"
+    cat .agents/ao/pending.jsonl
+
+    # For each pending entry, check for corresponding forge output
+    # Forge outputs live in .agents/forge/
+    for forge_file in .agents/forge/*.md; do
+      [ -f "$forge_file" ] || continue
+      echo "Processing: $forge_file"
+    done
+  else
+    echo "No pending extractions found."
+  fi
+
+  # After processing, check .agents/forge/ for unprocessed candidates
+  FORGE_COUNT=$(ls .agents/forge/*.md 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$FORGE_COUNT" -gt 0 ]; then
+    echo "$FORGE_COUNT forge candidates found — review and extract learnings manually."
+    echo "For each candidate in .agents/forge/:"
+    echo "  1. Read the candidate file"
+    echo "  2. Extract actionable learnings using the template in Step 3"
+    echo "  3. Write to .agents/learnings/YYYY-MM-DD-<topic>.md"
+    echo "  4. High-confidence items (>= 0.7) can be promoted directly"
+  fi
+fi
+```
+
+For each forge candidate, extract learnings using the same template format defined in Step 3 of this skill. Write results to `.agents/learnings/`. After processing, clear the pending queue:
+
+```bash
+# Clear processed entries
+> .agents/ao/pending.jsonl
+echo "Pending queue cleared"
+```
+
 ### Step 2: Process Each Pending Item
 
 For each queued session:

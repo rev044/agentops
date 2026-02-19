@@ -76,6 +76,33 @@ if command -v ao &>/dev/null; then
     echo "Uncited learnings: $UNCITED"
     echo "Stale (90d uncited): $STALE_90D"
   fi
+else
+  # ao-free fallback: compute approximate metrics from files
+  echo "Cache health (ao-free fallback):"
+
+  # Learnings modified in last 30 days (active pool)
+  ACTIVE_30D=$(find .agents/learnings/ -name "*.md" -mtime -30 2>/dev/null | wc -l | tr -d ' ')
+  echo "Active learnings (30d): $ACTIVE_30D"
+
+  # Forge candidates awaiting promotion
+  FORGE_PENDING=$(ls .agents/forge/*.md 2>/dev/null | wc -l | tr -d ' ')
+  echo "Forge candidates pending: $FORGE_PENDING"
+
+  # Citation tracking (if citations.jsonl exists)
+  if [ -f .agents/ao/citations.jsonl ]; then
+    CITATION_COUNT=$(wc -l < .agents/ao/citations.jsonl | tr -d ' ')
+    UNIQUE_CITED=$(grep -o '"learning_file":"[^"]*"' .agents/ao/citations.jsonl 2>/dev/null | sort -u | wc -l | tr -d ' ')
+    echo "Total citations: $CITATION_COUNT"
+    echo "Unique learnings cited: $UNIQUE_CITED"
+  else
+    echo "No citation data (citations.jsonl not found)"
+  fi
+
+  # Session outcomes (if outcomes.jsonl exists)
+  if [ -f .agents/ao/outcomes.jsonl ]; then
+    OUTCOME_COUNT=$(wc -l < .agents/ao/outcomes.jsonl | tr -d ' ')
+    echo "Session outcomes recorded: $OUTCOME_COUNT"
+  fi
 fi
 ```
 
@@ -89,7 +116,21 @@ if command -v ao &>/dev/null; then
   ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
   ao badge 2>/dev/null || echo "ao badge unavailable"
 else
-  echo "ao CLI not available"
+  echo "ao CLI not available — using file-based metrics"
+
+  # Pool inventory
+  echo "Pool depths:"
+  for pool in learnings patterns forge knowledge research retros; do
+    COUNT=$(ls .agents/${pool}/*.md 2>/dev/null | wc -l | tr -d ' ')
+    echo "  $pool: $COUNT"
+  done
+
+  # Global patterns
+  GLOBAL_COUNT=$(ls ~/.claude/patterns/*.md 2>/dev/null | wc -l | tr -d ' ')
+  echo "  global patterns: $GLOBAL_COUNT"
+
+  # Check for promotion-ready learnings (see references/promotion-tiers.md)
+  echo "See: skills/flywheel/references/promotion-tiers.md for tier definitions"
 fi
 ```
 

@@ -152,8 +152,6 @@ See: `.agents/learnings/YYYY-MM-DD-<topic>.md`
 ### Step 7: Feed the Knowledge Flywheel (auto-extract)
 
 ```bash
-mkdir -p .agents/knowledge/pending
-
 # If ao available, index via forge and close feedback loop
 if command -v ao &>/dev/null; then
   ao forge index .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null
@@ -163,10 +161,18 @@ if command -v ao &>/dev/null; then
   ao task-feedback --quiet 2>/dev/null
   echo "Task feedback applied"
 else
-  # Fallback: copy learnings to pending for future import
-  cp .agents/learnings/YYYY-MM-DD-*.md .agents/knowledge/pending/ 2>/dev/null
-  echo "Note: ao CLI not installed. Learnings saved to .agents/knowledge/pending/"
-  echo "Install ao to enable automatic knowledge flywheel."
+  # Learnings are already written to .agents/learnings/ by Step 5.
+  # Without ao CLI, grep-based search in /research, /knowledge, and /inject
+  # will find them directly — no copy to pending needed.
+
+  # Build lightweight keyword index for faster search
+  mkdir -p .agents/ao
+  for f in .agents/learnings/YYYY-MM-DD-*.md; do
+    [ -f "$f" ] || continue
+    TITLE=$(head -1 "$f" | sed 's/^# //')
+    echo "{\"file\": \"$f\", \"title\": \"$TITLE\", \"keywords\": [], \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/search-index.jsonl
+  done
+  echo "Learnings indexed locally (ao CLI not available — grep-based search active)"
 fi
 ```
 
@@ -235,5 +241,5 @@ Future sessions start smarter because of your retrospective.
 |---------|-------|----------|
 | No recent activity found | Clean git history or work not committed yet | Ask user what to retrospect. Accept manual topic: `/retro "planning process improvements"`. Review uncommitted changes if needed. |
 | Learnings too generic | Insufficient analysis or surface-level review | Dig deeper into code changes. Ask "why" repeatedly. Ensure learnings are actionable (specific pattern, not vague principle). Check confidence level. |
-| ao forge index fails | ao CLI not installed or .agents/ structure wrong | Graceful fallback: copy to `.agents/knowledge/pending/` instead. Notify user ao not available. Learnings still saved, just not auto-indexed. |
+| ao forge index fails | ao CLI not installed or .agents/ structure wrong | Graceful fallback: index learnings locally to `.agents/ao/search-index.jsonl`. Notify user ao not available. Learnings still in `.agents/learnings/` and discoverable via grep-based search. |
 | Duplicate learnings extracted | Same insight from multiple sources | Deduplicate before writing. Check existing learnings with grep. Merge duplicates into single learning with multiple source citations. |

@@ -82,7 +82,29 @@ Look for these patterns in the transcript:
 ### Step 4: Index for Search
 
 ```bash
-ao forge index .agents/forge/YYYY-MM-DD-forge.md 2>/dev/null
+if command -v ao &>/dev/null; then
+  ao forge index .agents/forge/YYYY-MM-DD-forge.md 2>/dev/null
+else
+  # Without ao CLI: auto-promote high-confidence candidates to learnings
+  mkdir -p .agents/learnings .agents/ao
+  for f in .agents/forge/YYYY-MM-DD-*.md; do
+    [ -f "$f" ] || continue
+    # Extract confidence (numeric or categorical)
+    CONF=$(grep -i "confidence:" "$f" | head -1 | awk '{print $NF}')
+    # Normalize categorical to numeric: high=0.9, medium=0.6, low=0.3
+    case "$CONF" in
+      high) CONF_NUM=0.9 ;; medium) CONF_NUM=0.6 ;; low) CONF_NUM=0.3 ;; *) CONF_NUM=$CONF ;;
+    esac
+    # Auto-promote if confidence >= 0.7
+    if (( $(echo "$CONF_NUM >= 0.7" | bc -l) )); then
+      cp "$f" .agents/learnings/
+      TITLE=$(head -1 "$f" | sed 's/^# //')
+      echo "{\"file\": \".agents/learnings/$(basename $f)\", \"title\": \"$TITLE\", \"keywords\": [], \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/search-index.jsonl
+      echo "Auto-promoted (confidence $CONF): $(basename $f)"
+    fi
+  done
+  echo "Forge indexing complete (ao CLI not available — high-confidence candidates auto-promoted)"
+fi
 ```
 
 ### Step 5: Report Results
@@ -99,6 +121,7 @@ Forged candidates enter at Tier 0:
 Transcript → /forge → .agents/forge/ (Tier 0)
                            ↓
                    Human review or 2+ citations
+                   OR auto-promote (confidence >= 0.7, ao-free fallback)
                            ↓
                    .agents/learnings/ (Tier 1)
 ```

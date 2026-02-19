@@ -43,6 +43,9 @@ ls -lt .agents/patterns/ | head -5
 
 # Recent research
 ls -lt .agents/research/ | head -5
+
+# Global patterns (cross-repo knowledge)
+ls -lt ~/.claude/patterns/ 2>/dev/null | head -5
 ```
 
 ### Step 2: Read Relevant Files
@@ -56,6 +59,20 @@ Present the injected knowledge:
 - Patterns that may apply
 - Recent research on related topics
 
+### Step 4: Record Citations (Feedback Loop)
+
+After presenting injected knowledge, record which files were injected for the feedback loop:
+
+```bash
+mkdir -p .agents/ao
+# Record each injected learning file as a citation
+for injected_file in <list of files that were read and presented>; do
+  echo "{\"learning_file\": \"$injected_file\", \"timestamp\": \"$(date -Iseconds)\", \"session\": \"$(date +%Y-%m-%d)\"}" >> .agents/ao/citations.jsonl
+done
+```
+
+Citation tracking enables the feedback loop: learnings that are frequently cited get confidence boosts during `/post-mortem`, while uncited learnings decay faster.
+
 ## Knowledge Sources
 
 | Source | Location | Priority |
@@ -64,6 +81,7 @@ Present the injected knowledge:
 | Patterns | `.agents/patterns/` | High |
 | Research | `.agents/research/` | Medium |
 | Retros | `.agents/retros/` | Medium |
+| Global Patterns | `~/.claude/patterns/` | High |
 
 ## Decay Model
 

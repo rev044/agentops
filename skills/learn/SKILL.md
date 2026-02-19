@@ -12,6 +12,14 @@ metadata:
 
 Capture knowledge manually for future sessions. Fast path to feed the knowledge flywheel without running a full retrospective.
 
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--global` | off | Write to `~/.claude/patterns/` instead of `.agents/knowledge/`. Use for knowledge that applies across all projects. |
+
+> **When to use `--global`:** Use for knowledge that applies across all your projects (e.g., language patterns, tooling preferences, debugging techniques). Use default (no flag) for repo-specific knowledge (e.g., architecture decisions, local conventions).
+
 ## Execution Steps
 
 Given `/learn [content]`:
@@ -61,7 +69,12 @@ Create a slug from the content:
 # If file exists, append -2, -3, etc.
 slug="<generated-slug>"
 counter=2
-while [ -f ".agents/knowledge/$(date +%Y-%m-%d)-${slug}.md" ]; do
+if [[ "$GLOBAL" == "true" ]]; then
+  base_dir="$HOME/.claude/patterns"
+else
+  base_dir=".agents/knowledge"
+fi
+while [ -f "${base_dir}/$(date +%Y-%m-%d)-${slug}.md" ]; do
   slug="<generated-slug>-${counter}"
   ((counter++))
 done
@@ -70,12 +83,20 @@ done
 ### Step 4: Create Knowledge Directory
 
 ```bash
-mkdir -p .agents/knowledge
+# If --global: write to global patterns (cross-repo)
+# Otherwise: write to local knowledge (repo-specific)
+if [[ "$GLOBAL" == "true" ]]; then
+  mkdir -p ~/.claude/patterns
+else
+  mkdir -p .agents/knowledge
+fi
 ```
 
 ### Step 5: Write Knowledge File
 
-**Path:** `.agents/knowledge/YYYY-MM-DD-<slug>.md`
+**Path:**
+- Default: `.agents/knowledge/YYYY-MM-DD-<slug>.md`
+- With `--global`: `~/.claude/patterns/YYYY-MM-DD-<slug>.md`
 
 **Format:**
 ```markdown
@@ -122,6 +143,8 @@ fi
 ```
 
 **Do NOT auto-run `ao pool stage`.** The user should decide when to promote to the quality pool.
+
+**Note:** If `--global` is set, skip ao CLI integration. Global patterns are file-based only and are found via grep search in `/research`, `/knowledge`, and `/inject`.
 
 ### Step 7: Confirm to User
 

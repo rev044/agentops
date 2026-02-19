@@ -232,8 +232,6 @@ Example output:
 Post-mortem automatically feeds learnings into the flywheel:
 
 ```bash
-mkdir -p .agents/knowledge/pending
-
 if command -v ao &>/dev/null; then
   ao forge index .agents/learnings/ 2>/dev/null
   echo "Learnings indexed in knowledge flywheel"
@@ -250,9 +248,30 @@ if command -v ao &>/dev/null; then
   ao temper validate .agents/learnings/YYYY-MM-DD-*.md --quiet 2>/dev/null
   echo "Artifacts validated for tempering"
 else
-  # Retro already wrote to .agents/learnings/ — copy to pending for future import
-  cp .agents/learnings/YYYY-MM-DD-*.md .agents/knowledge/pending/ 2>/dev/null
-  echo "Note: Learnings saved to .agents/knowledge/pending/ (install ao for auto-indexing)"
+  # Learnings are already in .agents/learnings/ from /retro (Step 4).
+  # Without ao CLI, grep-based search in /research, /knowledge, and /inject
+  # will find them directly — no copy to pending needed.
+
+  # Feedback-loop fallback: update confidence for cited learnings
+  mkdir -p .agents/ao
+  if [ -f .agents/ao/citations.jsonl ]; then
+    echo "Processing citation feedback (ao-free fallback)..."
+    # Read cited learning files and boost confidence notation
+    while IFS= read -r line; do
+      CITED_FILE=$(echo "$line" | grep -o '"learning_file":"[^"]*"' | cut -d'"' -f4)
+      if [ -f "$CITED_FILE" ]; then
+        # Note: confidence boost tracked via citation count, not file modification
+        echo "Cited: $CITED_FILE"
+      fi
+    done < .agents/ao/citations.jsonl
+  fi
+
+  # Session-outcome fallback: record this session's outcome
+  EPIC_ID="<epic-id>"
+  echo "{\"epic\": \"$EPIC_ID\", \"verdict\": \"<council-verdict>\", \"cycle_time_minutes\": 0, \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/outcomes.jsonl
+
+  # Skip ao temper validate (no fallback needed — tempering is an optimization)
+  echo "Flywheel fed locally (ao CLI not available — learnings searchable via grep)"
 fi
 ```
 

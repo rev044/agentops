@@ -50,6 +50,15 @@ grep -r "<query>" .agents/plans/ 2>/dev/null | head -10
 grep -r "<query>" ~/.claude/plans/ 2>/dev/null | head -10
 ```
 
+### Step 3.5: Search Global Patterns
+
+```bash
+# Global patterns (cross-repo knowledge)
+grep -r "<query>" ~/.claude/patterns/ 2>/dev/null | head -10
+```
+
+Global patterns contain knowledge promoted from any repository via `/learn --global`. These are high-confidence, cross-project learnings.
+
 ### Step 4: Use Semantic Search (if MCP available)
 
 ```
@@ -90,6 +99,7 @@ Present the knowledge found:
 | Retros | `.agents/retros/` | Markdown |
 | Plans | `.agents/plans/` | Markdown |
 | Global Plans | `~/.claude/plans/` | Markdown |
+| Global Patterns | `~/.claude/patterns/` | Cross-repo reusable knowledge |
 
 ## Key Rules
 
