@@ -2,7 +2,7 @@
 name: update
 description: 'Reinstall all AgentOps skills globally from the latest source. Triggers: "update skills", "reinstall skills", "sync skills".'
 metadata:
-  tier: solo
+  tier: meta
   dependencies: []
 ---
 

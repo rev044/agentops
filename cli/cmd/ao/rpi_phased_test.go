@@ -1002,3 +1002,35 @@ func TestLogPhaseTransition(t *testing.T) {
 		t.Errorf("empty runID should not produce brackets, got: %s", content)
 	}
 }
+
+func TestLogPhaseTransition_MirrorsToLedgerAndCache(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, ".agents", "rpi", "phased-orchestration.log")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	logPhaseTransition(logPath, "run-ledger", "implementation", "started")
+
+	records, err := LoadRPILedgerRecords(tmpDir)
+	if err != nil {
+		t.Fatalf("load ledger records: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 ledger record, got %d", len(records))
+	}
+	if records[0].RunID != "run-ledger" {
+		t.Fatalf("unexpected run_id: %q", records[0].RunID)
+	}
+	if records[0].Phase != "implementation" {
+		t.Fatalf("unexpected phase: %q", records[0].Phase)
+	}
+	if records[0].Action != "started" {
+		t.Fatalf("unexpected action: %q", records[0].Action)
+	}
+
+	cachePath := filepath.Join(tmpDir, ".agents", "rpi", "runs", "run-ledger.json")
+	if _, err := os.Stat(cachePath); err != nil {
+		t.Fatalf("expected run cache at %s: %v", cachePath, err)
+	}
+}

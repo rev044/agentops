@@ -13,8 +13,8 @@ func TestWriteLiveStatus(t *testing.T) {
 	path := filepath.Join(dir, "live-status.md")
 
 	phases := []PhaseProgress{
-		{Name: "Research", Elapsed: 12 * time.Second, ToolCount: 5, Tokens: 1200, CostUSD: 0.0034},
-		{Name: "Plan", Elapsed: 3 * time.Second, ToolCount: 2, Tokens: 800, CostUSD: 0.0021},
+		{Name: "Research", Elapsed: 12 * time.Second, ToolCount: 5, Tokens: 1200, CostUSD: 0.0034, CurrentAction: "tool: Read", RetryCount: 1, LastError: "temporary timeout", LastUpdate: time.Now()},
+		{Name: "Plan", Elapsed: 3 * time.Second, ToolCount: 2, Tokens: 800, CostUSD: 0.0021, CurrentAction: "analyzing"},
 		{Name: "Implement", Elapsed: 0, ToolCount: 0, Tokens: 0, CostUSD: 0},
 	}
 
@@ -29,7 +29,7 @@ func TestWriteLiveStatus(t *testing.T) {
 	content := string(data)
 
 	// Verify header row exists
-	for _, col := range []string{"Phase", "Status", "Elapsed", "Tools", "Tokens", "Cost"} {
+	for _, col := range []string{"Phase", "Status", "Elapsed", "Tools", "Tokens", "Cost", "Action", "Retries", "Last Error", "Updated"} {
 		if !strings.Contains(content, col) {
 			t.Errorf("missing column header %q", col)
 		}
@@ -72,7 +72,7 @@ func TestLiveStatusFormat(t *testing.T) {
 	content := string(data)
 
 	// Must contain markdown table headers
-	expectedHeaders := []string{"Phase", "Status", "Elapsed", "Tools", "Tokens", "Cost"}
+	expectedHeaders := []string{"Phase", "Status", "Elapsed", "Tools", "Tokens", "Cost", "Action", "Retries", "Last Error", "Updated"}
 	for _, h := range expectedHeaders {
 		if !strings.Contains(content, h) {
 			t.Errorf("output missing expected header %q", h)

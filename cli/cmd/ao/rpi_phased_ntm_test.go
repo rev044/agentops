@@ -23,10 +23,12 @@ func TestSpawnClaudePhase_FallbackNoNtm(t *testing.T) {
 	// Track whether the direct spawn path was called.
 	directCalled := false
 	var capturedPrompt, capturedCwd string
-	spawnDirectFn = func(prompt, cwd string) error {
+	var capturedPhase int
+	spawnDirectFn = func(prompt, cwd string, phaseNum int) error {
 		directCalled = true
 		capturedPrompt = prompt
 		capturedCwd = cwd
+		capturedPhase = phaseNum
 		return nil
 	}
 
@@ -43,6 +45,9 @@ func TestSpawnClaudePhase_FallbackNoNtm(t *testing.T) {
 	}
 	if capturedCwd != cwd {
 		t.Errorf("expected cwd %q, got %q", cwd, capturedCwd)
+	}
+	if capturedPhase != 1 {
+		t.Errorf("expected phase %d, got %d", 1, capturedPhase)
 	}
 }
 
@@ -67,7 +72,7 @@ func TestSpawnClaudePhase_NtmAvailable(t *testing.T) {
 
 	// Track whether the direct path is called (it should be, as ntm spawn will fail).
 	directCalled := false
-	spawnDirectFn = func(prompt, cwd string) error {
+	spawnDirectFn = func(prompt, cwd string, phaseNum int) error {
 		directCalled = true
 		return nil
 	}
@@ -98,7 +103,7 @@ func TestSpawnClaudePhase_DirectError(t *testing.T) {
 	}
 
 	expectedErr := fmt.Errorf("claude process crashed")
-	spawnDirectFn = func(prompt, cwd string) error {
+	spawnDirectFn = func(prompt, cwd string, phaseNum int) error {
 		return expectedErr
 	}
 

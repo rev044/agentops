@@ -76,9 +76,15 @@ type rpiRunInfo struct {
 }
 
 type rpiStatusOutput struct {
-	Runs    []rpiRunInfo `json:"runs"`
-	LogRuns []rpiRun     `json:"log_runs,omitempty"`
-	Count   int          `json:"count"`
+	Runs         []rpiRunInfo         `json:"runs"`
+	LogRuns      []rpiRun             `json:"log_runs,omitempty"`
+	LiveStatuses []liveStatusSnapshot `json:"live_statuses,omitempty"`
+	Count        int                  `json:"count"`
+}
+
+type liveStatusSnapshot struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
 }
 
 func runRPIStatus(cmd *cobra.Command, args []string) error {
@@ -98,11 +104,13 @@ func runRPIStatusOnce() error {
 
 	// Parse orchestration logs for enriched data
 	logRuns := discoverLogRuns(cwd)
+	liveStatuses := discoverLiveStatuses(cwd)
 
 	output := rpiStatusOutput{
-		Runs:    runs,
-		LogRuns: logRuns,
-		Count:   len(runs),
+		Runs:         runs,
+		LogRuns:      logRuns,
+		LiveStatuses: liveStatuses,
+		Count:        len(runs),
 	}
 
 	if GetOutput() == "json" {
@@ -112,7 +120,7 @@ func runRPIStatusOnce() error {
 	}
 
 	// Table output: state-file runs
-	if len(runs) == 0 && len(logRuns) == 0 {
+	if len(runs) == 0 && len(logRuns) == 0 && len(liveStatuses) == 0 {
 		fmt.Println("No active RPI runs found.")
 		return nil
 	}
@@ -168,6 +176,18 @@ func runRPIStatusOnce() error {
 				lr.RunID, goal, lastPhase, status, retryStr, dur)
 		}
 		fmt.Printf("\n%d log run(s) found.\n", len(logRuns))
+	}
+
+	if len(liveStatuses) > 0 {
+		fmt.Println("\nLive Status Files")
+		fmt.Println(strings.Repeat("─", 100))
+		for _, ls := range liveStatuses {
+			path := ls.Path
+			if rel, err := filepath.Rel(cwd, ls.Path); err == nil {
+				path = rel
+			}
+			fmt.Printf("\n[%s]\n%s\n", path, strings.TrimSpace(ls.Content))
+		}
 	}
 
 	return nil
@@ -306,8 +326,8 @@ func parseOrchestrationLog(logPath string) ([]rpiRun, error) {
 			run.EpicID = extractEpicFromDetails(details)
 			extractVerdictsFromDetails(details, run.Verdicts)
 		default:
-			// Check for FAILED
-			if strings.HasPrefix(details, "FAILED:") {
+			// Check for terminal failure details.
+			if strings.HasPrefix(details, "FAILED:") || strings.HasPrefix(details, "FATAL:") {
 				run.Status = "failed"
 			}
 			// Check for RETRY
@@ -427,6 +447,41 @@ func discoverLogRuns(cwd string) []rpiRun {
 	}
 
 	return allRuns
+}
+
+func discoverLiveStatuses(cwd string) []liveStatusSnapshot {
+	var snapshots []liveStatusSnapshot
+	seen := make(map[string]struct{})
+
+	add := func(path string) {
+		if _, ok := seen[path]; ok {
+			return
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		seen[path] = struct{}{}
+		snapshots = append(snapshots, liveStatusSnapshot{
+			Path:    path,
+			Content: string(data),
+		})
+	}
+
+	// Current directory live-status.
+	add(filepath.Join(cwd, ".agents", "rpi", "live-status.md"))
+
+	// Sibling worktree live-status files.
+	parent := filepath.Dir(cwd)
+	pattern := filepath.Join(parent, "*-rpi-*", ".agents", "rpi", "live-status.md")
+	matches, err := filepath.Glob(pattern)
+	if err == nil {
+		for _, match := range matches {
+			add(match)
+		}
+	}
+
+	return snapshots
 }
 
 // --- State-file based discovery (existing) ---

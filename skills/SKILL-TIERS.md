@@ -4,94 +4,32 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Tier Values
 
-| Tier | Description | Examples |
-|------|-------------|----------|
-| **solo** | Standalone skills invoked directly by users | research, plan, vibe, implement |
-| **library** | Reference skills loaded JIT by other skills | beads, standards |
-| **orchestration** | Multi-skill coordinators that run other skills | crank, council |
-| **team** | Skills requiring human collaboration | implement (guided mode) |
-| **background** | Hook-triggered or automatic skills | inject, forge, extract |
-| **meta** | Skills about skills (documentation, validation) | using-agentops |
+Skills fall into three functional categories, plus infrastructure tiers for internal and library skills.
 
-## Current Skill Tiers
+| Tier | Category | Description | Examples |
+|------|----------|-------------|----------|
+| **judgment** | Judgment | Validation, review, and quality gates — council is the foundation | council, vibe, pre-mortem, post-mortem |
+| **execution** | Execution | Research, plan, build, ship — the work itself | research, plan, implement, crank, swarm, rpi |
+| **knowledge** | Knowledge | The flywheel — extract, store, query, inject learnings | knowledge, learn, retro, flywheel |
+| **product** | Execution | Define mission, goals, release, docs | product, goals, release, readme, doc |
+| **session** | Execution | Session continuity and status | handoff, recover, status, inbox |
+| **utility** | Execution | Standalone tools | quickstart, brainstorm, bug-hunt, complexity |
+| **contribute** | Execution | Upstream PR workflow | pr-research, pr-plan, pr-implement, pr-validate, pr-prep, pr-retro, oss-docs |
+| **cross-vendor** | Execution | Multi-runtime orchestration | codex-team, openai-docs, converter |
+| **library** | Internal | Reference skills loaded JIT by other skills | beads, standards, shared |
+| **background** | Internal | Hook-triggered or automatic skills | inject, extract, forge, provenance, ratchet |
+| **meta** | Internal | Skills about skills | using-agentops, heal-skill, update |
 
-### User-Facing Skills (42)
+## The Three Categories
 
-| Skill | Tier | Description |
-|-------|------|-------------|
-| **council** | orchestration | Multi-model validation (core primitive) |
-| **crank** | orchestration | Autonomous epic execution |
-| **swarm** | orchestration | Parallel agent spawning |
-| **codex-team** | orchestration | Spawn parallel Codex execution agents |
-| **openai-docs** | solo | Authoritative OpenAI docs lookup with citations |
-| **rpi** | orchestration | Full RPI lifecycle orchestrator (research → post-mortem) |
-| **evolve** | orchestration | Autonomous fitness-scored improvement loop |
-| **pr-research** | solo | Upstream repository research before contribution |
-| **pr-plan** | solo | Contribution planning for external PRs |
-| **pr-implement** | solo | Fork-based implementation for external PRs |
-| **pr-validate** | solo | PR-specific isolation and scope validation |
-| **pr-prep** | solo | PR preparation and structured PR body generation |
-| **pr-retro** | solo | Learn from accepted/rejected PR outcomes |
-| **oss-docs** | solo | Scaffold and audit OSS documentation packs |
-| **implement** | team | Execute single issue |
-| **quickstart** | solo | Interactive onboarding (mini RPI cycle) |
-| **status** | solo | Single-screen dashboard |
-| **research** | solo | Deep codebase exploration |
-| **plan** | solo | Decompose epics into issues |
-| **vibe** | solo | Complexity + council (validate code) |
-| **pre-mortem** | solo | Council on plans |
-| **post-mortem** | solo | Council + retro (wrap up work) |
-| **retro** | solo | Extract learnings |
-| **complexity** | solo | Cyclomatic analysis |
-| **knowledge** | solo | Query knowledge artifacts |
-| **bug-hunt** | solo | Investigate bugs |
-| **doc** | solo | Generate documentation |
-| **handoff** | solo | Session handoff |
-| **inbox** | solo | Agent mail monitoring |
-| **release** | solo | Pre-flight, changelog, version bumps, tag |
-| **security** | solo | Continuous security scanning and release gating |
-| **product** | solo | Interactive PRODUCT.md generation |
-| **recover** | solo | Post-compaction context recovery |
-| **trace** | solo | Trace design decisions |
-| **learn** | solo | Manual knowledge capture |
-| **reverse-engineer-rpi** | research | Reverse-engineer a product into feature catalog + code map + specs |
-| **readme** | solo | Gold-standard README generation with council validation |
-| **brainstorm** | solo | Structured idea exploration before planning |
-| **heal-skill** | solo | Detect and fix skill hygiene issues |
-| **converter** | solo | Cross-platform skill converter (Codex, Cursor) |
-| **goals** | solo | Maintain GOALS.yaml fitness specification |
-| **update** | solo | Reinstall all AgentOps skills globally |
+### Judgment — the foundation
 
-### Internal Skills (10) — `metadata.internal: true`
-
-These are hidden from interactive `npx skills add` discovery. They are loaded JIT
-by other skills via Read or auto-triggered by hooks. Not intended for direct user invocation.
-
-| Skill | Tier | Purpose |
-|-------|------|---------|
-| beads | library | Issue tracking reference (loaded by /implement, /plan) |
-| standards | library | Coding standards (loaded by /vibe, /implement, /doc) |
-| shared | library | Shared reference documents (distributed mode) |
-| inject | background | Load knowledge at session start (hook-triggered) |
-| extract | background | Extract from transcripts (hook-triggered) |
-| forge | background | Mine transcripts for knowledge |
-| provenance | background | Trace knowledge lineage |
-| ratchet | background | Progress gates |
-| flywheel | background | Knowledge health monitoring |
-| using-agentops | meta | AgentOps workflow guide (auto-injected) |
-
----
-
-## Skill Dependency Graph
-
-### Core Primitive: /council
-
-All validation skills depend on `/council`:
+Council is the core primitive. Every validation skill depends on it. Remove council and all quality gates break.
 
 ```
                          ┌──────────┐
-                         │ council  │  ← Multi-model judgment
-                         └────┬─────┘
+                         │ council  │  ← Core primitive: independent judges
+                         └────┬─────┘     debate and converge
                               │
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
@@ -106,6 +44,169 @@ All validation skills depend on `/council`:
                        │ complexity │         │  retro  │
                        └────────────┘         └─────────┘
 ```
+
+### Execution — the work
+
+Skills that move work through the system. Swarm parallelizes any of them. RPI chains them into a pipeline.
+
+```
+RESEARCH          PLAN              IMPLEMENT           VALIDATE
+────────          ────              ─────────           ────────
+
+┌──────────┐    ┌──────────┐      ┌───────────┐      ┌──────────┐
+│ research │───►│   plan   │─────►│ implement │─────►│   vibe   │
+└──────────┘    └────┬─────┘      └─────┬─────┘      └────┬─────┘
+                     │                  │                 │
+                     ▼                  │                 │
+               ┌────────────┐           │                 │
+               │ pre-mortem │           │                 │
+               │ (council)  │           │                 │
+               └────────────┘           │                 │
+                                        │                 │
+                                        ▼                 ▼
+                                   ┌─────────┐      ┌───────────┐
+                                   │  swarm  │      │complexity │
+                                   └────┬────┘      │ + council │
+                                        │          └───────────┘
+                                        ▼
+                                   ┌─────────┐
+                                   │  crank  │
+                                   └─────────┘
+
+POST-SHIP                             ONBOARDING / STATUS
+─────────                             ───────────────────
+
+┌─────────────┐                       ┌────────────┐
+│ post-mortem │                       │ quickstart │ (first-time tour)
+│ (council +  │                       └────────────┘
+│   retro)    │                       ┌────────────┐
+└──────┬──────┘                       │   status   │ (dashboard)
+       │                              └────────────┘
+       ▼
+┌─────────────┐
+│   release   │ (changelog, version bump, tag)
+└─────────────┘
+```
+
+### Knowledge — the flywheel
+
+Append-only ledger in `.agents/`. Every session writes. Freshness decay prunes. Next session injects the best. This is what makes sessions compound instead of starting from scratch.
+
+```
+┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐
+│ extract │────►│  forge  │────►│ knowledge│────►│  inject  │
+└─────────┘     └─────────┘     └──────────┘     └──────────┘
+     ▲                                                 │
+     │              ┌──────────┐                       │
+     └──────────────│ flywheel │◄──────────────────────┘
+                    └──────────┘
+
+User-facing: /knowledge, /learn, /retro, /flywheel
+Background:  inject, extract, forge, provenance, ratchet
+CLI:         ao inject, ao extract, ao forge, ao maturity
+```
+
+## Current Skill Tiers
+
+### User-Facing Skills (42)
+
+**Judgment:**
+
+| Skill | Tier | Description |
+|-------|------|-------------|
+| **council** | judgment | Multi-model validation (core primitive) — independent judges debate and converge |
+| **vibe** | judgment | Complexity analysis + council — code quality review |
+| **pre-mortem** | judgment | Council on plans — simulate failures before implementation |
+| **post-mortem** | judgment | Council + retro — validate completed work, extract learnings |
+
+**Execution:**
+
+| Skill | Tier | Description |
+|-------|------|-------------|
+| **research** | execution | Deep codebase exploration |
+| **brainstorm** | execution | Structured idea exploration before planning |
+| **plan** | execution | Decompose epics into issues with dependency waves |
+| **implement** | execution | Full lifecycle for one task |
+| **crank** | execution | Autonomous epic execution — parallel waves |
+| **swarm** | execution | Parallelize any skill — fresh context per agent |
+| **rpi** | execution | Full pipeline: research → plan → pre-mortem → crank → vibe → post-mortem |
+| **evolve** | execution | Autonomous fitness-scored improvement loop |
+| **bug-hunt** | execution | Investigate bugs with git archaeology |
+| **complexity** | execution | Cyclomatic complexity analysis |
+
+**Knowledge:**
+
+| Skill | Tier | Description |
+|-------|------|-------------|
+| **knowledge** | knowledge | Query learnings, patterns, and decisions across .agents/ |
+| **learn** | knowledge | Manually capture a decision, pattern, or lesson |
+| **retro** | knowledge | Extract learnings from completed work |
+| **trace** | knowledge | Trace design decisions through history |
+
+**Product & Release:**
+
+| Skill | Tier | Description |
+|-------|------|-------------|
+| **product** | product | Interactive PRODUCT.md generation |
+| **goals** | product | Maintain GOALS.yaml fitness specification |
+| **release** | product | Pre-flight, changelog, version bumps, tag |
+| **security** | product | Continuous security scanning and release gating |
+| **readme** | product | Gold-standard README generation with council validation |
+| **doc** | product | Generate documentation |
+
+**Session & Status:**
+
+| Skill | Tier | Description |
+|-------|------|-------------|
+| **handoff** | session | Session handoff — save context for next session |
+| **recover** | session | Post-compaction context recovery |
+| **status** | session | Single-screen dashboard |
+| **inbox** | session | Agent mail monitoring |
+| **quickstart** | session | Interactive onboarding |
+
+**Upstream Contributions:**
+
+| Skill | Tier | Description |
+|-------|------|-------------|
+| **pr-research** | contribute | Upstream repository research before contribution |
+| **pr-plan** | contribute | Contribution planning for external PRs |
+| **pr-implement** | contribute | Fork-based implementation for external PRs |
+| **pr-validate** | contribute | PR-specific isolation and scope validation |
+| **pr-prep** | contribute | PR preparation and structured PR body generation |
+| **pr-retro** | contribute | Learn from accepted/rejected PR outcomes |
+| **oss-docs** | contribute | Scaffold and audit OSS documentation packs |
+
+**Cross-Vendor & Meta:**
+
+| Skill | Tier | Description |
+|-------|------|-------------|
+| **codex-team** | cross-vendor | Spawn parallel Codex execution agents |
+| **openai-docs** | cross-vendor | Authoritative OpenAI docs lookup with citations |
+| **converter** | cross-vendor | Cross-platform skill converter (Codex, Cursor) |
+| **reverse-engineer-rpi** | execution | Reverse-engineer a product into feature catalog + code map + specs |
+| **heal-skill** | meta | Detect and fix skill hygiene issues |
+| **update** | meta | Reinstall all AgentOps skills globally |
+
+### Internal Skills (10) — `metadata.internal: true`
+
+Hidden from interactive `npx skills add` discovery. Loaded JIT by other skills via Read or auto-triggered by hooks.
+
+| Skill | Tier | Category | Purpose |
+|-------|------|----------|---------|
+| beads | library | Execution | Issue tracking reference (loaded by /implement, /plan) |
+| standards | library | Judgment | Coding standards (loaded by /vibe, /implement, /doc) |
+| shared | library | Execution | Shared reference documents (distributed mode) |
+| inject | background | Knowledge | Load knowledge at session start (hook-triggered) |
+| extract | background | Knowledge | Extract from transcripts (hook-triggered) |
+| forge | background | Knowledge | Mine transcripts for knowledge |
+| provenance | background | Knowledge | Trace knowledge lineage |
+| ratchet | background | Execution | Progress gates |
+| flywheel | background | Knowledge | Knowledge health monitoring |
+| using-agentops | meta | Meta | AgentOps workflow guide (auto-injected) |
+
+---
+
+## Skill Dependency Graph
 
 ### Dependency Table
 
@@ -147,7 +248,7 @@ All validation skills depend on `/council`:
 | **security** | - | - (standalone) |
 | ratchet | - | - |
 | **recover** | - | - (standalone) |
-| **reverse-engineer-rpi** | - | - (standalone, research tier) |
+| **reverse-engineer-rpi** | - | - (standalone) |
 | research | knowledge, inject | optional, optional |
 | retro | - | - |
 | standards | - | - |
@@ -157,61 +258,6 @@ All validation skills depend on `/council`:
 | trace | provenance | alternative |
 | **update** | - | - (standalone) |
 | using-agentops | - | - |
-
-### RPI Workflow
-
-```
-RESEARCH          PLAN              IMPLEMENT           VALIDATE
-────────          ────              ─────────           ────────
-
-┌──────────┐    ┌──────────┐      ┌───────────┐      ┌──────────┐
-│ research │───►│   plan   │─────►│ implement │─────►│   vibe   │
-└──────────┘    └────┬─────┘      └─────┬─────┘      └────┬─────┘
-                     │                  │                 │
-                     ▼                  │                 │
-               ┌────────────┐           │                 │
-               │ pre-mortem │           │                 │
-               │ (council)  │           │                 │
-               └────────────┘           │                 │
-                                        │                 │
-                                        ▼                 ▼
-                                   ┌─────────┐      ┌───────────┐
-                                   │  swarm  │      │complexity │
-                                   └────┬────┘      │ + council │
-                                        │          └───────────┘
-                                        ▼
-                                   ┌─────────┐
-                                   │  crank  │
-                                   └─────────┘
-
-POST-SHIP                             ONBOARDING / STATUS
-─────────                             ───────────────────
-
-┌─────────────┐                       ┌────────────┐
-│ post-mortem │                       │ quickstart │ (first-time tour)
-│ (council +  │                       └────────────┘
-│   retro)    │                       ┌────────────┐
-└──────┬──────┘                       │   status   │ (dashboard)
-       │                              └────────────┘
-       ▼
-┌─────────────┐
-│   release   │ (changelog, version bump, tag)
-└─────────────┘
-```
-
-### Knowledge Flywheel
-
-```
-┌─────────┐     ┌─────────┐     ┌──────────┐     ┌──────────┐
-│ extract │────►│  forge  │────►│ knowledge│────►│  inject  │
-└─────────┘     └─────────┘     └──────────┘     └──────────┘
-     ▲                                                 │
-     │              ┌──────────┐                       │
-     └──────────────│ flywheel │◄──────────────────────┘
-                    └──────────┘
-
-Supporting: provenance, trace, ratchet
-```
 
 ---
 
@@ -261,11 +307,11 @@ Individual judge outputs also go to `.agents/council/`:
 
 ---
 
----
-
 ## See Also
 
-- `skills/council/SKILL.md` — Core validation primitive
+- `skills/council/SKILL.md` — Core judgment primitive
 - `skills/vibe/SKILL.md` — Complexity + council for code
 - `skills/pre-mortem/SKILL.md` — Council for plans
 - `skills/post-mortem/SKILL.md` — Council + retro for wrap-up
+- `skills/swarm/SKILL.md` — Parallelize any skill
+- `skills/rpi/SKILL.md` — Full pipeline orchestrator

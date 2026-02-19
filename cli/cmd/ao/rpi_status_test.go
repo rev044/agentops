@@ -445,6 +445,58 @@ func TestRPIStatusParseLogFailed(t *testing.T) {
 	}
 }
 
+func TestRPIStatusParseLogFatal(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "phased-orchestration.log")
+
+	logContent := `[2026-02-15T10:00:00Z] [fatal1] start: goal="fatal run" from=discovery
+[2026-02-15T10:01:00Z] [fatal1] discovery: FATAL: build prompt failed
+`
+	if err := os.WriteFile(logPath, []byte(logContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	runs, err := parseOrchestrationLog(logPath)
+	if err != nil {
+		t.Fatalf("parseOrchestrationLog failed: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	if runs[0].Status != "failed" {
+		t.Errorf("expected status failed for FATAL details, got %s", runs[0].Status)
+	}
+}
+
+func TestDiscoverLiveStatuses(t *testing.T) {
+	parent := t.TempDir()
+	cwd := filepath.Join(parent, "repo")
+	sibling := filepath.Join(parent, "repo-rpi-1234")
+
+	for _, dir := range []string{
+		filepath.Join(cwd, ".agents", "rpi"),
+		filepath.Join(sibling, ".agents", "rpi"),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	mainPath := filepath.Join(cwd, ".agents", "rpi", "live-status.md")
+	if err := os.WriteFile(mainPath, []byte("# Live Status\nmain"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	siblingPath := filepath.Join(sibling, ".agents", "rpi", "live-status.md")
+	if err := os.WriteFile(siblingPath, []byte("# Live Status\nsibling"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := discoverLiveStatuses(cwd)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 live status snapshots, got %d", len(got))
+	}
+}
+
 func TestRPIStatusParseLogMissingFile(t *testing.T) {
 	_, err := parseOrchestrationLog("/nonexistent/path/log")
 	if err == nil {

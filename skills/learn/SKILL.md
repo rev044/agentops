@@ -2,7 +2,7 @@
 name: learn
 description: 'Capture knowledge manually into the flywheel. Save a decision, pattern, lesson, or constraint for future sessions. Triggers: "learn", "remember this", "save this insight", "I learned something", "note this pattern".'
 metadata:
-  tier: solo
+  tier: knowledge
   dependencies: []
 ---
 

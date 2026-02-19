@@ -2,7 +2,7 @@
 name: handoff
 description: 'Create structured handoff for session continuation. Triggers: handoff, pause, save context, end session, pick up later, continue later.'
 metadata:
-  tier: solo
+  tier: session
   dependencies:
     - retro  # optional - suggested for learnings extraction
 ---

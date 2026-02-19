@@ -34,6 +34,9 @@ func TestParseStreamEvents(t *testing.T) {
 	if progress.LastToolCall != "Read" {
 		t.Errorf("LastToolCall = %q, want %q", progress.LastToolCall, "Read")
 	}
+	if progress.CurrentAction != "result received" {
+		t.Errorf("CurrentAction = %q, want %q", progress.CurrentAction, "result received")
+	}
 	if progress.CostUSD != 0.042 {
 		t.Errorf("CostUSD = %f, want 0.042", progress.CostUSD)
 	}
@@ -42,6 +45,9 @@ func TestParseStreamEvents(t *testing.T) {
 	}
 	if progress.Elapsed.Milliseconds() != 12500 {
 		t.Errorf("Elapsed = %v, want 12500ms", progress.Elapsed)
+	}
+	if progress.LastUpdate.IsZero() {
+		t.Error("LastUpdate should be set")
 	}
 	if updates != 5 {
 		t.Errorf("onUpdate called %d times, want 5", updates)
@@ -57,6 +63,9 @@ func TestParseStreamEvents_SkipsMalformed(t *testing.T) {
 	}
 	if progress.SessionID != "s2" {
 		t.Errorf("SessionID = %q, want %q", progress.SessionID, "s2")
+	}
+	if progress.CurrentAction != "initialized" {
+		t.Errorf("CurrentAction = %q, want %q", progress.CurrentAction, "initialized")
 	}
 }
 
@@ -157,5 +166,25 @@ func TestCumulativeProgress(t *testing.T) {
 	// Plain assistant message doesn't increment tool count
 	if snapshots[4].ToolCount != 3 {
 		t.Errorf("snapshot[4].ToolCount = %d, want 3 (no tool in plain assistant)", snapshots[4].ToolCount)
+	}
+}
+
+func TestParseStreamEvents_LargeLine(t *testing.T) {
+	largeMsg := strings.Repeat("x", 2*1024*1024) // 2MB payload
+	input := strings.Join([]string{
+		`{"type":"init","session_id":"s-large","model":"claude-sonnet-4-20250514"}`,
+		`{"type":"assistant","message":"` + largeMsg + `"}`,
+		`{"type":"result","cost_usd":0.001,"num_turns":1,"duration_ms":1000}`,
+	}, "\n")
+
+	progress, err := ParseStreamEvents(strings.NewReader(input), nil)
+	if err != nil {
+		t.Fatalf("unexpected error for large stream line: %v", err)
+	}
+	if progress.SessionID != "s-large" {
+		t.Errorf("SessionID = %q, want %q", progress.SessionID, "s-large")
+	}
+	if progress.CurrentAction != "result received" {
+		t.Errorf("CurrentAction = %q, want %q", progress.CurrentAction, "result received")
 	}
 }

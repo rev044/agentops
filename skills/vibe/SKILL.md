@@ -2,7 +2,7 @@
 name: vibe
 description: 'Comprehensive code validation. Runs complexity analysis then multi-model council. Answer: Is this code ready to ship? Triggers: "vibe", "validate code", "check code", "review code", "code quality", "is this ready".'
 metadata:
-  tier: solo
+  tier: judgment
   dependencies:
     - council    # multi-model judgment
     - complexity # complexity analysis

@@ -2,7 +2,7 @@
 name: retro
 description: 'Extract learnings from completed work. Trigger phrases: "run a retrospective", "extract learnings", "what did we learn", "lessons learned", "capture lessons", "create a retro".'
 metadata:
-  tier: solo
+  tier: knowledge
   dependencies:
     - vibe  # optional - can receive --vibe-results
 ---

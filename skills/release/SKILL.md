@@ -2,7 +2,7 @@
 name: release
 description: 'Release your software. Pre-flight validation, changelog generation, version bumps, release commit, tag, curated release notes. Boundary: everything up to the git tag. Triggers: "release", "cut a release", "prepare release", "release check".'
 metadata:
-  tier: solo
+  tier: product
   dependencies: []
 ---
 

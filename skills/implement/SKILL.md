@@ -2,7 +2,7 @@
 name: implement
 description: 'Execute a single beads issue with full lifecycle. Triggers: "implement", "work on task", "fix bug", "build", "start feature", "pick up next issue".'
 metadata:
-  tier: team
+  tier: execution
   dependencies:
     - beads     # optional - for issue tracking via bd CLI
     - standards # loads language-specific standards

@@ -2,7 +2,7 @@
 name: readme
 description: 'Generate a gold-standard README for any project. Interviews you about the problem, generates a draft following battle-tested patterns, then council-validates it. Triggers: "readme", "write readme", "generate readme", "improve readme", "rewrite readme".'
 metadata:
-  tier: solo
+  tier: product
   dependencies:
     - council   # validates the draft
 ---

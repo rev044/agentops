@@ -2,7 +2,7 @@
 name: codex-team
 description: 'Use when you have 2+ tasks that Codex agents should execute. Runtime-native: Codex sub-agents when available, Codex CLI fallback otherwise. Handles file conflicts via merge/wave strategies. Triggers: "codex team", "spawn codex", "codex agents", "use codex for", "codex fix".'
 metadata:
-  tier: orchestration
+  tier: cross-vendor
 ---
 
 # Codex Team

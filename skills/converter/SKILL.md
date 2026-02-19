@@ -2,7 +2,7 @@
 name: converter
 description: 'Cross-platform skill converter. Parse AgentOps skills into a universal bundle format, then convert to target platforms (Codex, Cursor). Triggers: convert, converter, convert skill, export skill, cross-platform.'
 metadata:
-  tier: solo
+  tier: cross-vendor
   dependencies: []
 ---
 

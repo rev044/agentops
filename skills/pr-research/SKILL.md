@@ -10,7 +10,7 @@ compatibility: Requires git, gh CLI
 metadata:
   author: AI Platform Team
   version: "1.0.0"
-  tier: solo
+  tier: contribute
   internal: false
 allowed-tools: Read Write Bash Grep Glob
 ---

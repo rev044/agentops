@@ -2,7 +2,7 @@
 name: heal-skill
 description: 'Automated skill maintenance. Detects and fixes common skill issues: missing frontmatter, name mismatches, unlinked references, empty directories, dead references. Triggers: "heal-skill", "heal skill", "fix skills", "skill maintenance", "repair skills".'
 metadata:
-  tier: solo
+  tier: meta
   dependencies: []
 ---
 

@@ -5,7 +5,7 @@ description: >
   Triggers: reverse engineer product, catalog full feature set, docs->code mapping, feature inventory, code map, “Ralph loop”,
   SaaS boundary mapping, security audit reverse engineering, authorized binary analysis.
 metadata:
-  tier: research
+  tier: execution
   internal: false
 ---
 

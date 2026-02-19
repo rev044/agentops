@@ -9,7 +9,7 @@ compatibility: Requires git
 metadata:
   author: Gas Town
   version: "1.0.0"
-  tier: solo
+  tier: contribute
   internal: false
 allowed-tools: Read Write Edit Glob Grep Bash
 ---

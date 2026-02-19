@@ -2,7 +2,7 @@
 name: evolve
 description: Goal-driven fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi, compounds via knowledge flywheel.
 metadata:
-  tier: orchestration
+  tier: execution
   dependencies:
     - rpi         # required - executes each improvement cycle
     - post-mortem # required - auto-runs at teardown to harvest learnings

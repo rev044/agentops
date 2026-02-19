@@ -2,7 +2,7 @@
 name: council
 description: 'Multi-model consensus council for validation, research, and brainstorming. Spawns parallel judges with configurable perspectives and optional explorer sub-agents using runtime-native backends (Codex sub-agents or Claude teams). Modes: validate, brainstorm, research. Triggers: council, validate, brainstorm, critique, research, analyze, multi-model, consensus, get consensus, multi-perspective review.'
 metadata:
-  tier: orchestration
+  tier: judgment
   dependencies:
     - standards   # optional - loaded for code validation context
   replaces: judge

@@ -2,7 +2,7 @@
 name: research
 description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
 metadata:
-  tier: solo
+  tier: execution
   dependencies:
     - knowledge # optional - queries existing knowledge
     - inject    # optional - injects prior context

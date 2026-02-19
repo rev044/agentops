@@ -2,7 +2,7 @@
 name: swarm
 description: 'Spawn isolated agents for parallel task execution. Local mode auto-selects Codex sub-agents or Claude teams. Distributed mode uses tmux + Agent Mail (process isolation, persistence). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
 metadata:
-  tier: orchestration
+  tier: execution
   dependencies:
     - implement # required - executes `/implement <bead-id>` in distributed mode
     - vibe      # optional - integration with validation
