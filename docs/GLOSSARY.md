@@ -7,6 +7,9 @@ Project-specific terms used throughout AgentOps documentation.
 ### AgentOps
 A skills plugin that turns coding agents into autonomous software engineering systems. Provides the RPI workflow, knowledge flywheel, multi-model validation, and parallel execution — all with local-only state. [Full documentation](../README.md)
 
+### Atomic Work
+A unit of work with no shared mutable state with concurrent workers. Pure function model: input (issue spec + codebase snapshot) → output (patch + verification). This isolation property is what enables parallel wave execution — workers cannot interfere with each other. Enforced by fresh context per worker and lead-only commits.
+
 ## B
 
 ### Beads
@@ -36,8 +39,11 @@ An internal skill that pulls learnings, patterns, and decisions from session tra
 
 ## F
 
+### FIRE Loop
+The reconciliation engine that implements the Brownian Ratchet: **F**ind (read current state), **I**gnite (spawn parallel agents), **R**eap (harvest and validate results), **E**scalate (handle failures and blockers). Used by `/crank` for autonomous epic execution. [Full documentation](brownian-ratchet.md#the-fire-loop)
+
 ### Flywheel (Knowledge Flywheel)
-The automated loop that extracts learnings from completed work, scores them for quality, and re-injects them at the next session start. If retrieval and usage rate exceeds decay rate, knowledge compounds over time instead of being lost between sessions. [Full documentation](ARCHITECTURE.md#knowledge-flywheel)
+The automated loop that extracts learnings from completed work, scores them for quality, and re-injects them at the next session start. If retrieval and usage rate exceeds decay rate, knowledge compounds over time instead of being lost between sessions. [Full documentation](ARCHITECTURE.md#knowledge-flywheel) <!-- NOTE: Ensure ARCHITECTURE.md preserves the #knowledge-flywheel anchor target -->
 
 ### Forge
 An internal skill that mines session transcripts for knowledge artifacts — decisions, patterns, failures, and fixes — and stores them in `.agents/`. [Full documentation](../skills/forge/SKILL.md)
@@ -73,6 +79,11 @@ An agent in a council that evaluates work from a specific perspective (security,
 ### Level
 A learning progression stage (L1-L5) that indicates the maturity of a knowledge artifact, from raw observation to validated organizational knowledge. [Full documentation](ARCHITECTURE.md#knowledge-artifacts)
 
+## O
+
+### Operational Invariant
+A cross-cutting rule enforced by hooks that applies to all skills and agents. Examples: workers must not commit (lead-only), push blocked until /vibe passes, pre-mortem required for 3+ issue epics. Invariants are not guidelines — they are mechanically enforced. [Full documentation](ARCHITECTURE.md#operational-invariants)
+
 ## P
 
 ### Pool
@@ -92,8 +103,8 @@ An internal skill that traces the lineage and sources of knowledge artifacts —
 
 ## R
 
-### Ralph Loop (Ralph Wiggum Pattern)
-The practice of giving every worker agent a fresh context window instead of letting context accumulate across tasks. Named after the [Ralph Wiggum pattern](https://ghuntley.com/ralph/). Each wave spawns new workers with clean context, preventing bleed-through and contamination from prior work. [Full documentation](how-it-works.md#ralph-loops--fresh-context-every-wave)
+### Ralph Wiggum Pattern (Ralph Loop)
+The practice of giving every worker agent a fresh context window instead of letting context accumulate across tasks. Named after the [Ralph Wiggum pattern](https://ghuntley.com/ralph/). Each wave spawns new workers with clean context, preventing bleed-through and contamination from prior work. [Full documentation](how-it-works.md#ralph-wiggum-pattern--fresh-context-every-wave)
 
 ### Ratchet
 A mechanism that locks progress forward so it cannot regress. Once a gate is passed (e.g., vibe validation), the ratchet records that state and hooks enforce it going forward. Combined with the Brownian Ratchet execution model, this ensures quality only moves in one direction. [Full documentation](../skills/ratchet/SKILL.md)

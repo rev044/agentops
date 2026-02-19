@@ -44,3 +44,37 @@
 5. Agent completes 3 cycles (cap reached), runs post-mortem
 
 **Result:** Fitness regressions are auto-reverted, preventing compounding failures.
+
+## Parallel Goal Improvement
+
+**User says:** `/evolve --parallel`
+
+**What happens:**
+1. Agent checks kill switch (none found)
+2. Agent measures fitness against GOALS.yaml (4 of 7 goals failing)
+3. Agent selects top 3 independent failing goals by weight, filtered for independence via `select_parallel_goals`
+4. Agent creates TaskList tasks for each goal, sets up artifact isolation
+5. Agent invokes `/swarm --worktrees` — spawns 3 fresh-context workers in isolated worktrees
+6. Each worker runs a full `/rpi` cycle independently (research → plan → crank → vibe → post-mortem)
+7. `/swarm` completes — all 3 workers done, lead merges worktrees
+8. Agent re-measures ALL goals (single regression gate for entire wave)
+9. No regression detected — logs cycle with `goal_ids` array and `parallel: true`
+10. Next cycle: 1 remaining failing goal → sequential (only 1 goal, no parallelism needed)
+11. After all goals pass, checks harvested work, eventually stagnation → teardown
+
+**Result:** 3 goals fixed in ~1 cycle instead of 3 sequential cycles. ~3x speedup for independent goals. Each worker's /post-mortem feeds the knowledge flywheel independently.
+
+## Parallel with Regression Revert
+
+**User says:** `/evolve --parallel --max-cycles=2`
+
+**What happens:**
+1. Cycle 1: 3 parallel goals attempted via `/swarm --worktrees`
+2. Post-wave regression gate detects goal C started failing after goals A and B were improved
+3. Agent reverts entire parallel wave (all merged worktree commits) using `cycle_start_sha`
+4. Logs cycle with `result: "regressed"` and all 3 `goal_ids`
+5. Cycle 2: Agent retries — `select_parallel_goals` still selects same 3 (different check scripts)
+6. This time no regression — all 3 improvements are clean
+7. Max cycles reached (2), runs teardown with `/post-mortem`
+
+**Result:** Parallel regression detected and reverted cleanly. Entire wave rolled back as a unit. Retry in next cycle succeeds.

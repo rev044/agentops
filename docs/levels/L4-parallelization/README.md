@@ -57,7 +57,7 @@ These are easy to mix up:
 
 | You Want | Use | Notes |
 |----------|-----|------|
-| Fresh context per iteration (“Ralph loop”) | `/swarm` | Mayor owns the loop; each background agent is one atomic unit of work |
+| Fresh context per iteration (“Ralph Wiggum Pattern”) | `/swarm` | Mayor owns the loop; each background agent is one atomic unit of work |
 | “Do all issues until the epic is done” | `/crank` | Epic execution loop (usually beads-driven), not the Ralph pattern primitive |
 | RPI checkpoints (Research→Plan→Implement→Validate) | `/ratchet` | Gate/record progress; pair with `/crank` or `/swarm` for execution |
 

@@ -23,7 +23,7 @@ Spawn parallel agents (chaos), validate with multi-model council (filter), merge
 
 See also: [Brownian Ratchet (deep dive)](brownian-ratchet.md)
 
-## Ralph Loops — Fresh Context Every Wave
+## Ralph Wiggum Pattern — Fresh Context Every Wave
 
 *Named after Ralph Wiggum's "I'm helping!" -- each worker starts fresh with no memory of previous workers, ensuring complete isolation between waves.*
 

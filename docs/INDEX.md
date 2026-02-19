@@ -14,7 +14,7 @@
 
 ## Architecture
 
-- [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing
+- [How It Works](how-it-works.md) — Brownian Ratchet, Ralph Wiggum Pattern, agent backends, hooks, context windowing
 - [Architecture](ARCHITECTURE.md) — System design and component overview
 - [Architecture Folder Index](architecture/README.md) — Architecture subdocs overview
 - [AO-Olympus Ownership Matrix](architecture/ao-olympus-ownership-matrix.md) — Responsibility split for skills, runtime, and bridge contracts

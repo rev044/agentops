@@ -1,6 +1,6 @@
 ---
 name: evolve
-description: Goal-driven fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi, compounds via knowledge flywheel.
+description: Goal-driven fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi (or parallel /swarm of /rpi cycles), compounds via knowledge flywheel.
 metadata:
   tier: execution
   dependencies:
@@ -61,6 +61,8 @@ Parse flags:
 - `--max-cycles=N` (default: **unlimited**) — optional hard cap. Without this flag, the loop runs **forever** until kill switch or stagnation.
 - `--dry-run` — measure and report only, no execution
 - `--skip-baseline` — skip the Step 0.5 baseline sweep
+- `--parallel` — enable parallel goal execution via /swarm per cycle (default: off, sequential)
+- `--max-parallel=N` (default: **3**, cap: **5**) — max goals to improve in parallel per cycle. Only meaningful with `--parallel`.
 
 **Capture session-start SHA** (for multi-commit revert):
 ```bash
@@ -74,6 +76,8 @@ evolve_state = {
   max_cycles: <from flag, or Infinity if not set>,
   dry_run: <from flag, default false>,
   test_first: <from flag, default false>,
+  parallel: <from --parallel flag, default false>,
+  max_parallel: <from --max-parallel flag, default 3, cap 5>,
   session_start_sha: $SESSION_START_SHA,
   idle_streak: 0,         # consecutive cycles with nothing to do
   max_idle_streak: 3,     # stop after this many consecutive idle cycles
@@ -319,17 +323,41 @@ evolve_state.idle_streak = 0
 failing_goals.sort(by=weight, descending)
 
 # Simple strike check: skip goals that failed the last 3 consecutive cycles
+eligible_goals = []
 for goal in failing_goals:
   recent = last_3_cycles_for(goal.id)
   if all(r.result == "regressed" for r in recent):
     log "Skipping {goal.id}: regressed 3 consecutive cycles. Needs human attention."
     continue
-  selected = goal
-  break
+  eligible_goals.append(goal)
 
-if no goal selected:
+if not eligible_goals:
   log "All failing goals have regressed 3+ times. Human intervention needed."
   STOP → go to Teardown
+
+if evolve_state.parallel and len(eligible_goals) > 1:
+  # PARALLEL MODE: Select top N independent failing goals
+  selected_goals = select_parallel_goals(eligible_goals, max=evolve_state.max_parallel)
+
+  # select_parallel_goals logic:
+  # 1. Start with highest-weight eligible goal (already weight-sorted)
+  # 2. For each remaining goal:
+  #    a. Check if its check command references the same scripts/paths
+  #       as any already-selected goal (heuristic independence check)
+  #    b. If independent: add to selection (up to max_parallel)
+  #    c. If overlapping: skip (will be handled in next cycle)
+  # 3. This is a heuristic — true conflicts are caught by the regression
+  #    gate (Step 5), which reverts the entire parallel wave if any
+  #    goal regresses another.
+
+  log "Parallel mode: selected {len(selected_goals)} goals for this cycle"
+  for g in selected_goals:
+    log "  - [{g.weight}] {g.id}"
+
+  # Proceed to Step 4 (parallel execution)
+else:
+  # SEQUENTIAL MODE: Select single worst goal (existing behavior)
+  selected = eligible_goals[0]
 ```
 
 ### Step 4: Execute
@@ -354,14 +382,69 @@ if [ -f .agents/rpi/next-work.jsonl ]; then
 STOP → go to Teardown
 ```
 
-**Otherwise:** Run a full /rpi cycle on the selected goal.
+**Otherwise:** Run improvement cycle(s) on the selected goal(s).
 
 ```
-/rpi "Improve {selected.id}: {selected.description}" --auto --max-cycles=1 --test-first   # if --test-first set
-/rpi "Improve {selected.id}: {selected.description}" --auto --max-cycles=1                 # otherwise
+if evolve_state.parallel and len(selected_goals) > 1:
+  # PARALLEL EXECUTION: Use /swarm to run multiple /rpi cycles concurrently
+  log "Parallel execution: spawning /swarm for {len(selected_goals)} goals"
+
+  # Artifact isolation: each /rpi worker gets its own artifact directory
+  # to prevent collision on .agents/rpi/ state files
+  for goal in selected_goals:
+    mkdir -p .agents/evolve/parallel-rpi/{goal.id}
+
+  # Results directory
+  mkdir -p .agents/evolve/parallel-results
+
+  # Create TaskList tasks for each goal
+  for goal in selected_goals:
+    TaskCreate(
+      subject="Improve {goal.id}: {goal.description}",
+      description="""
+        You are improving a single fitness goal as part of a parallel /evolve cycle.
+
+        Run a full /rpi cycle:
+        /rpi "Improve {goal.id}: {goal.description}" --auto --max-cycles=1
+
+        Goal check command: {goal.check}
+        Current value: {goal.value}
+        Threshold: {goal.threshold}
+
+        IMPORTANT - Artifact isolation:
+        Set RPI_ARTIFACT_DIR=.agents/evolve/parallel-rpi/{goal.id}
+        Write all /rpi phase summaries and artifacts to that directory.
+
+        Write result summary to .agents/evolve/parallel-results/{goal.id}.md
+        Include: what changed, files modified, whether goal check now passes.
+      """,
+      activeForm="Improving {goal.id}"
+    )
+
+  # No dependencies between parallel goals (pre-filtered as independent)
+
+  # Invoke /swarm — uses worktree isolation to prevent git conflicts
+  # Each worker operates in its own worktree (/tmp/evolve-{goal.id})
+  # /swarm handles team creation, worker spawning, validation, cleanup
+  /swarm --worktrees
+
+  # After /swarm completes, read results from each worker
+  for goal in selected_goals:
+    if [ -f .agents/evolve/parallel-results/{goal.id}.md ]; then
+      result = read(".agents/evolve/parallel-results/{goal.id}.md")
+      log "Goal {goal.id}: completed"
+    else:
+      log "Goal {goal.id}: no result file (worker may have failed)"
+
+  # Proceed to Step 5 (regression gate applies to ALL parallel goals at once)
+
+else:
+  # SEQUENTIAL EXECUTION: Run a single /rpi cycle (existing behavior)
+  /rpi "Improve {selected.id}: {selected.description}" --auto --max-cycles=1 --test-first   # if --test-first set
+  /rpi "Improve {selected.id}: {selected.description}" --auto --max-cycles=1                 # otherwise
 ```
 
-This internally runs the full lifecycle:
+This internally runs the full lifecycle (per goal):
 - `/research` — understand the problem
 - `/plan` — decompose into issues
 - `/pre-mortem` — validate the plan
@@ -369,7 +452,9 @@ This internally runs the full lifecycle:
 - `/vibe` — validate the code
 - `/post-mortem` — extract learnings + `ao forge` (COMPOUNDING)
 
-**Wait for /rpi to complete before proceeding.**
+**Wait for all /rpi cycles to complete before proceeding to Step 5.**
+
+In parallel mode, each worker runs a complete /rpi cycle independently. The regression gate (Step 5) runs once after ALL parallel goals complete — not per-goal. See `references/parallel-execution.md` for architecture details.
 
 ### Step 5: Full-Fitness Regression Gate
 
@@ -386,34 +471,68 @@ pre_results = load("fitness-{CYCLE}.json")
 # Re-measure ALL goals (writes fitness-{CYCLE}-post.json)
 post_results = MEASURE_FITNESS()
 
-# Check the target goal
-if selected_goal.post_result == "pass":
-  outcome = "improved"
-else:
-  outcome = "unchanged"
+# PARALLEL MODE: handle multiple goals
+if evolve_state.parallel and len(selected_goals) > 1:
+  # Count how many target goals improved
+  improved = [g for g in selected_goals if post_results.find(g.id).result == "pass" and pre_results.find(g.id).result == "fail"]
+  unchanged = [g for g in selected_goals if post_results.find(g.id).result == pre_results.find(g.id).result]
 
-# FULL REGRESSION CHECK: compare ALL goals, not just the target
-newly_failing = []
-for goal in post_results.goals:
-  pre = pre_results.find(goal.id)
-  if pre.result == "pass" and goal.result == "fail":
-    newly_failing.append(goal.id)
+  # FULL REGRESSION CHECK: compare ALL goals (same as sequential)
+  newly_failing = []
+  for goal in post_results.goals:
+    pre = pre_results.find(goal.id)
+    if pre.result == "pass" and goal.result == "fail":
+      newly_failing.append(goal.id)
 
-if newly_failing:
-  outcome = "regressed"
-  log "REGRESSION: {newly_failing} started failing after fixing {selected.id}"
+  if newly_failing:
+    outcome = "regressed"
+    log "REGRESSION in parallel wave: {newly_failing} started failing"
+    log "Targeted goals: {[g.id for g in selected_goals]}"
 
-  # Multi-commit revert using cycle start SHA
-  cycle_start_sha = pre_results.cycle_start_sha
-  commit_count = $(git rev-list --count ${cycle_start_sha}..HEAD)
-  if commit_count == 0:
-    log "No commits to revert"
-  elif commit_count == 1:
-    git revert HEAD --no-edit
+    # Revert ALL commits since cycle start (entire parallel wave)
+    cycle_start_sha = pre_results.cycle_start_sha
+    commit_count = $(git rev-list --count ${cycle_start_sha}..HEAD)
+    if commit_count == 0:
+      log "No commits to revert"
+    elif commit_count == 1:
+      git revert HEAD --no-edit
+    else:
+      git revert --no-commit ${cycle_start_sha}..HEAD
+      git commit -m "revert: evolve cycle ${CYCLE} parallel wave regression in {newly_failing}"
+    log "Reverted entire parallel wave (${commit_count} commits). All {len(selected_goals)} goal improvements rolled back."
   else:
-    git revert --no-commit ${cycle_start_sha}..HEAD
-    git commit -m "revert: evolve cycle ${CYCLE} regression in {newly_failing}"
-  log "Reverted ${commit_count} commits. Moving to next goal."
+    outcome = "improved" if improved else "unchanged"
+    log "Parallel wave: {len(improved)} improved, {len(unchanged)} unchanged"
+
+else:
+  # SEQUENTIAL MODE: existing single-goal logic
+  if selected_goal.post_result == "pass":
+    outcome = "improved"
+  else:
+    outcome = "unchanged"
+
+  # FULL REGRESSION CHECK: compare ALL goals, not just the target
+  newly_failing = []
+  for goal in post_results.goals:
+    pre = pre_results.find(goal.id)
+    if pre.result == "pass" and goal.result == "fail":
+      newly_failing.append(goal.id)
+
+  if newly_failing:
+    outcome = "regressed"
+    log "REGRESSION: {newly_failing} started failing after fixing {selected.id}"
+
+    # Multi-commit revert using cycle start SHA
+    cycle_start_sha = pre_results.cycle_start_sha
+    commit_count = $(git rev-list --count ${cycle_start_sha}..HEAD)
+    if commit_count == 0:
+      log "No commits to revert"
+    elif commit_count == 1:
+      git revert HEAD --no-edit
+    else:
+      git revert --no-commit ${cycle_start_sha}..HEAD
+      git commit -m "revert: evolve cycle ${CYCLE} regression in {newly_failing}"
+    log "Reverted ${commit_count} commits. Moving to next goal."
 ```
 
 **Snapshot enforcement:** Validate `fitness-{CYCLE}-post.json` was written and is valid JSON before proceeding.
@@ -425,6 +544,11 @@ Append to `.agents/evolve/cycle-history.jsonl`:
 ```jsonl
 {"cycle": 1, "goal_id": "test-pass-rate", "result": "improved", "commit_sha": "abc1234", "goals_passing": 18, "goals_total": 23, "timestamp": "2026-02-11T21:00:00Z"}
 {"cycle": 2, "goal_id": "doc-coverage", "result": "regressed", "commit_sha": "def5678", "reverted_to": "abc1234", "goals_passing": 17, "goals_total": 23, "timestamp": "2026-02-11T21:30:00Z"}
+```
+
+For parallel cycles, use `goal_ids` array instead of single `goal_id`:
+```jsonl
+{"cycle": 3, "goal_ids": ["test-pass-rate", "doc-coverage", "lint-clean"], "result": "improved", "commit_sha": "ghi9012", "goals_passing": 22, "goals_total": 23, "goals_added": 0, "parallel": true, "timestamp": "2026-02-11T22:00:00Z"}
 ```
 
 **MANDATORY fields in every cycle log entry:**
@@ -445,7 +569,10 @@ artifacts before starting the next cycle:
 
 ```bash
 git add .agents/evolve/cycle-history.jsonl .agents/evolve/fitness-*.json
-git commit -m "evolve: cycle ${CYCLE} — ${selected.id} ${outcome}" --allow-empty
+if evolve_state.parallel and len(selected_goals) > 1:
+  git commit -m "evolve: cycle ${CYCLE} — parallel wave [${goal_ids}] ${outcome}" --allow-empty
+else:
+  git commit -m "evolve: cycle ${CYCLE} — ${selected.id} ${outcome}" --allow-empty
 ```
 
 ### Step 7: Loop or Stop
@@ -463,7 +590,100 @@ if evolve_state.max_cycles != Infinity and evolve_state.cycle >= evolve_state.ma
 
 ### Teardown
 
-Read `references/teardown.md` for the full teardown procedure: post-mortem on the full evolution session, fitness trajectory computation, and session summary generation.
+**Auto-run /post-mortem on the full evolution session:**
+
+```
+/post-mortem "evolve session: $CYCLE cycles, goals improved: X, harvested: Y"
+```
+
+This captures learnings from the ENTIRE evolution run (all cycles, all /rpi invocations) in one council review. The post-mortem harvests follow-up items into `next-work.jsonl`, feeding the next `/evolve` session.
+
+**Compute session fitness trajectory:**
+
+```bash
+# Check if both baseline and final snapshot exist
+if [ -f .agents/evolve/fitness-0-baseline.json ] && [ -f .agents/evolve/fitness-${CYCLE}.json ]; then
+  baseline = load(".agents/evolve/fitness-0-baseline.json")
+  final = load(".agents/evolve/fitness-${CYCLE}.json")
+
+  # Compute delta — goals that flipped between baseline and final
+  improved_count = 0
+  regressed_count = 0
+  unchanged_count = 0
+  delta_rows = []
+
+  for final_goal in final.goals:
+    baseline_goal = baseline.goals.find(g => g.id == final_goal.id)
+    baseline_result = baseline_goal ? baseline_goal.result : "unknown"
+    final_result = final_goal.result
+
+    if baseline_result == "fail" and final_result == "pass":
+      delta = "improved"
+      improved_count += 1
+    elif baseline_result == "pass" and final_result == "fail":
+      delta = "regressed"
+      regressed_count += 1
+    else:
+      delta = "unchanged"
+      unchanged_count += 1
+
+    delta_rows.append({goal_id: final_goal.id, baseline_result, final_result, delta})
+
+  # Write session-fitness-delta.md with trajectory table
+  cat > .agents/evolve/session-fitness-delta.md << EOF
+  # Session Fitness Trajectory
+
+  | goal_id | baseline_result | final_result | delta |
+  |---------|-----------------|--------------|-------|
+  $(for row in delta_rows: "| ${row.goal_id} | ${row.baseline_result} | ${row.final_result} | ${row.delta} |")
+
+  **Summary:** ${improved_count} improved, ${regressed_count} regressed, ${unchanged_count} unchanged
+  EOF
+
+  # Include delta summary in user-facing teardown report
+  log "Fitness trajectory: ${improved_count} improved, ${regressed_count} regressed, ${unchanged_count} unchanged"
+fi
+```
+
+**Then write session summary:**
+
+```bash
+cat > .agents/evolve/session-summary.md << EOF
+# /evolve Session Summary
+
+**Date:** $(date -Iseconds)
+**Cycles:** $CYCLE of $MAX_CYCLES
+**Goals measured:** $(wc -l < GOALS.yaml goals)
+
+## Cycle History
+$(cat .agents/evolve/cycle-history.jsonl)
+
+## Final Fitness
+$(cat .agents/evolve/fitness-${CYCLE}.json)
+
+## Post-Mortem
+<path to post-mortem report from above>
+
+## Next Steps
+- Run \`/evolve\` again to continue improving
+- Run \`/evolve --dry-run\` to check current fitness without executing
+- Create \`~/.config/evolve/KILL\` to prevent future runs
+- Create \`.agents/evolve/STOP\` for a one-time local stop
+EOF
+```
+
+Report to user:
+```
+## /evolve Complete
+
+Cycles: N of M
+Goals improved: X
+Goals regressed: Y (reverted)
+Goals unchanged: Z
+Post-mortem: <verdict> (see <report-path>)
+
+Run `/evolve` again to continue improving.
+```
 
 ---
 
@@ -502,6 +722,8 @@ rm .agents/evolve/STOP
 | `--test-first` | off | Pass `--test-first` through to `/rpi` → `/crank` |
 | `--dry-run` | off | Measure fitness and show plan, don't execute |
 | `--skip-baseline` | off | Skip cycle-0 baseline sweep |
+| `--parallel` | off | Enable parallel goal execution via /swarm per cycle |
+| `--max-parallel=N` | 3 | Max goals to fix in parallel (cap: 5). Only with `--parallel`. |
 
 ---
 

@@ -4,9 +4,6 @@
 
 ### Coding agents forget everything between sessions. This fixes that.
 
-[![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-
 [How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Toolbox](#the-toolbox) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
@@ -407,9 +404,28 @@ Built on [Darr 1995](docs/the-science.md) (decay rates), Sweller 1988 (cognitive
 
 AgentOps concentrates on the high-leverage end of [Meadows' hierarchy](https://en.wikipedia.org/wiki/Twelve_leverage_points): information flows (#6), rules (#5), self-organization (#4), goals (#3). The bet: changing the loop beats tuning the output.
 
-Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ralph Loops, agent backends, hooks, context windowing.
+Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ralph Wiggum Pattern, agent backends, hooks, context windowing.
 
 </details>
+
+---
+
+## Architecture
+
+Five pillars, one recursive shape. The same pattern — lead decomposes work, workers execute atomically, validation gates lock progress, next wave begins — repeats at every scale:
+
+```
+/implement ── one worker, one issue, one verify cycle
+    └── /crank ── waves of /implement (FIRE loop)
+        └── /rpi ── research → plan → crank → validate → learn
+            └── /evolve ── fitness-gated /rpi cycles
+```
+
+Each level treats the one below as a black box: spec in, validated result out. Workers get fresh context per wave ([Ralph Wiggum Pattern](https://ghuntley.com/ralph/)), never commit (lead-only), and communicate through the filesystem — not accumulated chat context. Parallel execution works because each unit of work is **atomic**: no shared mutable state with concurrent workers.
+
+Validation is mechanical, not advisory. [Multi-model councils](docs/ARCHITECTURE.md#pillar-2-brownian-ratchet) judge before and after implementation. [Hooks](docs/how-it-works.md) enforce gates — push blocked until `/vibe` passes, `/crank` blocked until `/pre-mortem` passes. The [knowledge flywheel](docs/ARCHITECTURE.md#pillar-4-knowledge-flywheel) extracts learnings, scores them, and re-injects them at session start so each cycle compounds.
+
+Full treatment: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — all five pillars, operational invariants, component overview.
 
 ---
 
