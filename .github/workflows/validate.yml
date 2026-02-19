@@ -144,6 +144,7 @@ jobs:
 
   security-toolchain-gate:
     runs-on: ubuntu-latest
+    continue-on-error: true  # Non-blocking until toolchain-validate.sh ships
     steps:
       - uses: actions/checkout@v6
 
@@ -329,7 +330,7 @@ jobs:
           echo "hook-preflight: ${{ needs.hook-preflight.result }}"
           echo "shellcheck: ${{ needs.shellcheck.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
-          echo "security-toolchain-gate: ${{ needs.security-toolchain-gate.result }}"
+          echo "security-toolchain-gate: ${{ needs.security-toolchain-gate.result }} (non-blocking)"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
           echo "go-build: ${{ needs.go-build.result }}"
           echo "e2e-install-test: ${{ needs.e2e-install-test.result }}"
@@ -339,7 +340,6 @@ jobs:
              [[ "${{ needs.hook-preflight.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
-             [[ "${{ needs.security-toolchain-gate.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-install-test.result }}" != "success" ]]; then

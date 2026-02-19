@@ -46,6 +46,7 @@ jobs:
   security-gate:
     runs-on: ubuntu-latest
     needs: doc-release-gate
+    continue-on-error: true  # Non-blocking until toolchain-validate.sh ships
     steps:
       - uses: actions/checkout@v6
 
@@ -80,7 +81,7 @@ jobs:
 
   # Stage 1: Build all binaries and generate artifacts
   build:
-    needs: [doc-release-gate, security-gate]
+    needs: [doc-release-gate]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
