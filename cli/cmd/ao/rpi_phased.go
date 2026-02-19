@@ -48,26 +48,30 @@ const (
 // This allows the loop and other callers to invoke the phased engine programmatically
 // without depending on global cobra flag variables.
 type phasedEngineOptions struct {
-	From         string
-	FastPath     bool
-	TestFirst    bool
-	Interactive  bool
-	MaxRetries   int
-	PhaseTimeout time.Duration
-	StallTimeout time.Duration
-	NoWorktree   bool
-	LiveStatus   bool
-	SwarmFirst   bool
+	From              string
+	FastPath          bool
+	TestFirst         bool
+	Interactive       bool
+	MaxRetries        int
+	PhaseTimeout      time.Duration
+	StallTimeout      time.Duration
+	NoWorktree        bool
+	LiveStatus        bool
+	SwarmFirst        bool
+	NtmPollInterval   time.Duration
+	StallCheckInterval time.Duration
 }
 
 // defaultPhasedEngineOptions returns options matching the default cobra flag values.
 func defaultPhasedEngineOptions() phasedEngineOptions {
 	return phasedEngineOptions{
-		From:         "discovery",
-		MaxRetries:   3,
-		PhaseTimeout: 90 * time.Minute,
-		StallTimeout: 10 * time.Minute,
-		SwarmFirst:   true,
+		From:               "discovery",
+		MaxRetries:         3,
+		PhaseTimeout:       90 * time.Minute,
+		StallTimeout:       10 * time.Minute,
+		SwarmFirst:         true,
+		NtmPollInterval:    5 * time.Second,
+		StallCheckInterval: 30 * time.Second,
 	}
 }
 
@@ -75,44 +79,7 @@ func defaultPhasedEngineOptions() phasedEngineOptions {
 // It is the programmatic entry point used by both the phased cobra command
 // and the loop command, ensuring both share the same runtime contracts.
 func runPhasedEngine(cwd, goal string, opts phasedEngineOptions) (retErr error) {
-	// Temporarily override package-level flag variables so the rest of the
-	// implementation (which still reads globals) behaves as requested.
-	// This is intentionally scoped: the loop restores them between cycles.
-	prevFrom := phasedFrom
-	prevFastPath := phasedFastPath
-	prevTestFirst := phasedTestFirst
-	prevInteractive := phasedInteractive
-	prevMaxRetries := phasedMaxRetries
-	prevPhaseTimeout := phasedPhaseTimeout
-	prevStallTimeout := phasedStallTimeout
-	prevNoWorktree := phasedNoWorktree
-	prevLiveStatus := phasedLiveStatus
-	prevSwarmFirst := phasedSwarmFirst
-	defer func() {
-		phasedFrom = prevFrom
-		phasedFastPath = prevFastPath
-		phasedTestFirst = prevTestFirst
-		phasedInteractive = prevInteractive
-		phasedMaxRetries = prevMaxRetries
-		phasedPhaseTimeout = prevPhaseTimeout
-		phasedStallTimeout = prevStallTimeout
-		phasedNoWorktree = prevNoWorktree
-		phasedLiveStatus = prevLiveStatus
-		phasedSwarmFirst = prevSwarmFirst
-	}()
-
-	phasedFrom = opts.From
-	phasedFastPath = opts.FastPath
-	phasedTestFirst = opts.TestFirst
-	phasedInteractive = opts.Interactive
-	phasedMaxRetries = opts.MaxRetries
-	phasedPhaseTimeout = opts.PhaseTimeout
-	phasedStallTimeout = opts.StallTimeout
-	phasedNoWorktree = opts.NoWorktree
-	phasedLiveStatus = opts.LiveStatus
-	phasedSwarmFirst = opts.SwarmFirst
-
-	// Temporarily change working directory so runRPIPhased's os.Getwd() call
+	// Temporarily change working directory so runRPIPhasedWithOpts's os.Getwd() call
 	// and all path resolution operate in the requested cwd.
 	origDir, err := os.Getwd()
 	if err != nil {
@@ -131,7 +98,7 @@ func runPhasedEngine(cwd, goal string, opts phasedEngineOptions) (retErr error) 
 	if goal == "" {
 		args = nil
 	}
-	return runRPIPhased(nil, args)
+	return runRPIPhasedWithOpts(opts, args)
 }
 
 func init() {
@@ -192,21 +159,23 @@ var phases = []phase{
 
 // phasedState persists orchestrator state between phase spawns.
 type phasedState struct {
-	SchemaVersion int               `json:"schema_version"`
-	Goal          string            `json:"goal"`
-	EpicID        string            `json:"epic_id,omitempty"`
-	Phase         int               `json:"phase"`
-	Cycle         int               `json:"cycle"`
-	ParentEpic    string            `json:"parent_epic,omitempty"`
-	FastPath      bool              `json:"fast_path"`
-	TestFirst     bool              `json:"test_first"`
-	SwarmFirst    bool              `json:"swarm_first"`
-	Verdicts      map[string]string `json:"verdicts"`
-	Attempts      map[string]int    `json:"attempts"`
-	StartedAt     string            `json:"started_at"`
-	WorktreePath  string            `json:"worktree_path,omitempty"`
-	RunID         string            `json:"run_id,omitempty"`
-	Backend       string            `json:"backend,omitempty"`
+	SchemaVersion int                  `json:"schema_version"`
+	Goal          string               `json:"goal"`
+	EpicID        string               `json:"epic_id,omitempty"`
+	Phase         int                  `json:"phase"`
+	StartPhase    int                  `json:"start_phase"`
+	Cycle         int                  `json:"cycle"`
+	ParentEpic    string               `json:"parent_epic,omitempty"`
+	FastPath      bool                 `json:"fast_path"`
+	TestFirst     bool                 `json:"test_first"`
+	SwarmFirst    bool                 `json:"swarm_first"`
+	Verdicts      map[string]string    `json:"verdicts"`
+	Attempts      map[string]int       `json:"attempts"`
+	StartedAt     string               `json:"started_at"`
+	WorktreePath  string               `json:"worktree_path,omitempty"`
+	RunID         string               `json:"run_id,omitempty"`
+	Backend       string               `json:"backend,omitempty"`
+	Opts          phasedEngineOptions  `json:"opts"`
 }
 
 // retryContext holds context for retrying a failed gate.
@@ -241,28 +210,38 @@ type PhaseExecutor interface {
 	Execute(prompt, cwd, runID string, phaseNum int) error
 }
 
-type directExecutor struct{}
+type directExecutor struct {
+	phaseTimeout time.Duration
+}
 
 func (d *directExecutor) Name() string { return "direct" }
 func (d *directExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
-	return spawnClaudeDirectImpl(prompt, cwd, phaseNum)
+	return spawnClaudeDirectImpl(prompt, cwd, phaseNum, d.phaseTimeout)
 }
 
-type ntmExecutor struct{ ntmPath string }
+type ntmExecutor struct {
+	ntmPath        string
+	phaseTimeout   time.Duration
+	stallTimeout   time.Duration
+	ntmPollInterval time.Duration
+}
 
 func (n *ntmExecutor) Name() string { return "ntm" }
 func (n *ntmExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
-	return spawnClaudePhaseNtm(n.ntmPath, prompt, cwd, runID, phaseNum)
+	return spawnClaudePhaseNtm(n.ntmPath, prompt, cwd, runID, phaseNum, n.phaseTimeout, n.stallTimeout, n.ntmPollInterval)
 }
 
 type streamExecutor struct {
-	statusPath string
-	allPhases  []PhaseProgress
+	statusPath         string
+	allPhases          []PhaseProgress
+	phaseTimeout       time.Duration
+	stallTimeout       time.Duration
+	stallCheckInterval time.Duration
 }
 
 func (s *streamExecutor) Name() string { return "stream" }
 func (s *streamExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
-	return spawnClaudePhaseWithStream(prompt, cwd, runID, phaseNum, s.statusPath, s.allPhases)
+	return spawnClaudePhaseWithStream(prompt, cwd, runID, phaseNum, s.statusPath, s.allPhases, s.phaseTimeout, s.stallTimeout, s.stallCheckInterval)
 }
 
 // backendCapabilities probes the runtime environment for executor prerequisites.
@@ -292,22 +271,35 @@ func probeBackendCapabilities(liveStatus bool) backendCapabilities {
 
 // selectExecutorFromCaps resolves an executor from pre-probed capabilities.
 // This is the deterministic core of backend selection — testable without env mutation.
+// opts provides timeout/interval values for the executors; use defaultPhasedEngineOptions()
+// when calling from tests that do not have a full opts available.
 //
 // Selection order (first match wins):
 //  1. stream  — caps.LiveStatusEnabled
 //  2. ntm     — caps.NtmPath non-empty and not in agent session
 //  3. direct  — unconditional fallback
-func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhases []PhaseProgress) (PhaseExecutor, string) {
+func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhases []PhaseProgress, opts phasedEngineOptions) (PhaseExecutor, string) {
 	if caps.LiveStatusEnabled {
-		return &streamExecutor{statusPath: statusPath, allPhases: allPhases}, "live-status enabled"
+		return &streamExecutor{
+			statusPath:         statusPath,
+			allPhases:          allPhases,
+			phaseTimeout:       opts.PhaseTimeout,
+			stallTimeout:       opts.StallTimeout,
+			stallCheckInterval: opts.StallCheckInterval,
+		}, "live-status enabled"
 	}
 	if caps.InAgentSession {
-		return &directExecutor{}, "agent session detected (CLAUDECODE/CLAUDE_CODE_ENTRYPOINT set) — ntm suppressed"
+		return &directExecutor{phaseTimeout: opts.PhaseTimeout}, "agent session detected (CLAUDECODE/CLAUDE_CODE_ENTRYPOINT set) — ntm suppressed"
 	}
 	if caps.NtmPath != "" {
-		return &ntmExecutor{ntmPath: caps.NtmPath}, fmt.Sprintf("ntm found at %s", caps.NtmPath)
+		return &ntmExecutor{
+			ntmPath:         caps.NtmPath,
+			phaseTimeout:    opts.PhaseTimeout,
+			stallTimeout:    opts.StallTimeout,
+			ntmPollInterval: opts.NtmPollInterval,
+		}, fmt.Sprintf("ntm found at %s", caps.NtmPath)
 	}
-	return &directExecutor{}, "ntm not found on PATH"
+	return &directExecutor{phaseTimeout: opts.PhaseTimeout}, "ntm not found on PATH"
 }
 
 // selectExecutor resolves the executor backend based on flags and environment.
@@ -316,14 +308,16 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 //
 // Selection order: stream (live-status) > ntm (interactive) > direct (fallback).
 func selectExecutor(statusPath string, allPhases []PhaseProgress) PhaseExecutor {
-	return selectExecutorWithLog(statusPath, allPhases, "", "")
+	return selectExecutorWithLog(statusPath, allPhases, "", "", false, defaultPhasedEngineOptions())
 }
 
-// selectExecutorWithLog is the log-aware variant used by runRPIPhased.
+// selectExecutorWithLog is the log-aware variant used by runRPIPhasedWithOpts.
 // logPath and runID are used to append the selection record to the orchestration log.
-func selectExecutorWithLog(statusPath string, allPhases []PhaseProgress, logPath, runID string) PhaseExecutor {
-	caps := probeBackendCapabilities(phasedLiveStatus)
-	executor, reason := selectExecutorFromCaps(caps, statusPath, allPhases)
+// liveStatus must be provided explicitly so the function does not read package globals.
+// opts provides timeout/interval values embedded into the returned executor.
+func selectExecutorWithLog(statusPath string, allPhases []PhaseProgress, logPath, runID string, liveStatus bool, opts phasedEngineOptions) PhaseExecutor {
+	caps := probeBackendCapabilities(liveStatus)
+	executor, reason := selectExecutorFromCaps(caps, statusPath, allPhases, opts)
 	msg := fmt.Sprintf("backend=%s reason=%q", executor.Name(), reason)
 	fmt.Printf("Executor backend: %s (%s)\n", executor.Name(), reason)
 	if logPath != "" {
@@ -427,7 +421,30 @@ var retryPrompts = map[int]string{
 		`{{range .Findings}}FINDING: {{.Description}} | FIX: {{.Fix}} | REF: {{.Ref}}` + "\n" + `{{end}}`,
 }
 
-func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
+// runRPIPhased is the cobra RunE handler for `ao rpi phased`.
+// It reads options from package-level cobra flag variables and delegates to runRPIPhasedWithOpts.
+func runRPIPhased(cmd *cobra.Command, args []string) error {
+	opts := phasedEngineOptions{
+		From:               phasedFrom,
+		FastPath:           phasedFastPath,
+		TestFirst:          phasedTestFirst,
+		Interactive:        phasedInteractive,
+		MaxRetries:         phasedMaxRetries,
+		PhaseTimeout:       phasedPhaseTimeout,
+		StallTimeout:       phasedStallTimeout,
+		NoWorktree:         phasedNoWorktree,
+		LiveStatus:         phasedLiveStatus,
+		SwarmFirst:         phasedSwarmFirst,
+		NtmPollInterval:    ntmPollInterval,
+		StallCheckInterval: stallCheckInterval,
+	}
+	return runRPIPhasedWithOpts(opts, args)
+}
+
+// runRPIPhasedWithOpts is the core implementation of the phased RPI lifecycle.
+// All configuration is read from opts; no package-level globals are read after
+// this point (except test-injection points: lookPath, spawnDirectFn, gtPath).
+func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
@@ -450,9 +467,9 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 	}
 
 	// Determine start phase
-	startPhase := phaseNameToNum(phasedFrom)
+	startPhase := phaseNameToNum(opts.From)
 	if startPhase == 0 {
-		return fmt.Errorf("unknown phase: %q (valid: discovery, implementation, validation)", phasedFrom)
+		return fmt.Errorf("unknown phase: %q (valid: discovery, implementation, validation)", opts.From)
 	}
 
 	// For implementation/validation without goal, we need an epic ID from state
@@ -473,13 +490,15 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 		SchemaVersion: 1,
 		Goal:          goal,
 		Phase:         startPhase,
+		StartPhase:    startPhase,
 		Cycle:         1,
-		FastPath:      phasedFastPath,
-		TestFirst:     phasedTestFirst,
-		SwarmFirst:    phasedSwarmFirst,
+		FastPath:      opts.FastPath,
+		TestFirst:     opts.TestFirst,
+		SwarmFirst:    opts.SwarmFirst,
 		Verdicts:      make(map[string]string),
 		Attempts:      make(map[string]int),
 		StartedAt:     time.Now().Format(time.RFC3339),
+		Opts:          opts,
 	}
 
 	// Try loading existing state for resume
@@ -487,8 +506,8 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 		existing, err := loadPhasedState(cwd)
 		if err == nil {
 			state.EpicID = existing.EpicID
-			state.FastPath = existing.FastPath || phasedFastPath
-			state.SwarmFirst = existing.SwarmFirst || phasedSwarmFirst
+			state.FastPath = existing.FastPath || opts.FastPath
+			state.SwarmFirst = existing.SwarmFirst || opts.SwarmFirst
 			if existing.Verdicts != nil {
 				state.Verdicts = existing.Verdicts
 			}
@@ -499,7 +518,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 				state.Goal = existing.Goal
 			}
 			// Resume: reuse existing worktree if still present.
-			if !phasedNoWorktree && existing.WorktreePath != "" {
+			if !opts.NoWorktree && existing.WorktreePath != "" {
 				if _, statErr := os.Stat(existing.WorktreePath); statErr == nil {
 					spawnCwd = existing.WorktreePath
 					state.WorktreePath = existing.WorktreePath
@@ -519,7 +538,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 	// Create worktree for isolation (unless resuming into existing one, or opted out).
 	cleanupSuccess := false
 	var worktreeRunID string
-	if !phasedNoWorktree && !GetDryRun() && state.WorktreePath == "" {
+	if !opts.NoWorktree && !GetDryRun() && state.WorktreePath == "" {
 		worktreePath, runID, wtErr := createWorktree(cwd)
 		if wtErr != nil {
 			return fmt.Errorf("create worktree: %w", wtErr)
@@ -590,14 +609,14 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
 	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
 	fmt.Println("Monitor in a second terminal: ao rpi status --watch")
-	if phasedLiveStatus {
+	if opts.LiveStatus {
 		allPhases = buildAllPhases(phases)
 		fmt.Printf("Live phase status file: %s\n", statusPath)
 		if err := WriteLiveStatus(statusPath, allPhases, startPhase-1); err != nil {
 			VerbosePrintf("Warning: could not initialize live status: %v\n", err)
 		}
 	}
-	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, phasedFrom))
+	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, opts.From))
 
 	// Register with agent mail for observability
 	registerRPIAgent(state.RunID)
@@ -614,7 +633,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 
 	// Resolve executor backend once for the entire run.
 	// selectExecutorWithLog records the selection and reason to the orchestration log.
-	executor := selectExecutorWithLog(statusPath, allPhases, logPath, state.RunID)
+	executor := selectExecutorWithLog(statusPath, allPhases, logPath, state.RunID, opts.LiveStatus, opts)
 	state.Backend = executor.Name()
 
 	// Execute phases sequentially
@@ -630,14 +649,14 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 
 		logPhaseTransition(logPath, state.RunID, p.Name, "started")
 		emitRPIStatus(state.RunID, p.Name, "started")
-		if phasedLiveStatus {
+		if opts.LiveStatus {
 			retryKey := fmt.Sprintf("phase_%d", i)
 			updateLivePhaseStatus(statusPath, allPhases, i, "starting", state.Attempts[retryKey], "")
 		}
 
 		if GetDryRun() {
 			fmt.Printf("[dry-run] Would spawn: claude -p '%s'\n", prompt)
-			if !phasedNoWorktree && i == startPhase {
+			if !opts.NoWorktree && i == startPhase {
 				runID := generateRunID()
 				fmt.Printf("[dry-run] Would create worktree: ../%s-rpi-%s/ (branch: rpi/%s)\n",
 					filepath.Base(cwd), runID, runID)
@@ -656,7 +675,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 
 		spawnErr := executor.Execute(prompt, spawnCwd, state.RunID, i)
 		if err := spawnErr; err != nil {
-			if phasedLiveStatus {
+			if opts.LiveStatus {
 				retryKey := fmt.Sprintf("phase_%d", i)
 				updateLivePhaseStatus(statusPath, allPhases, i, "failed", state.Attempts[retryKey], err.Error())
 			}
@@ -668,7 +687,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 		fmt.Printf("Phase %d completed in %s\n", i, elapsed)
 		logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("completed in %s", elapsed))
 		emitRPIStatus(state.RunID, p.Name, "completed")
-		if phasedLiveStatus {
+		if opts.LiveStatus {
 			retryKey := fmt.Sprintf("phase_%d", i)
 			updateLivePhaseStatus(statusPath, allPhases, i, "completed", state.Attempts[retryKey], "")
 		}
@@ -771,7 +790,7 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("extracted epic: %s", epicID))
 
 		// Detect fast path
-		if !phasedFastPath {
+		if !state.Opts.FastPath {
 			fast, err := detectFastPath(state.EpicID)
 			if err != nil {
 				VerbosePrintf("Warning: fast-path detection failed (continuing without): %v\n", err)
@@ -806,8 +825,10 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		}
 
 	case 2: // Implementation — check crank completion via bd children
-		if err := validatePriorPhaseResult(cwd, 1); err != nil {
-			VerbosePrintf("Warning: prior phase result validation: %v\n", err)
+		if state.StartPhase <= 1 {
+			if err := validatePriorPhaseResult(cwd, 1); err != nil {
+				return fmt.Errorf("phase %d prerequisite not met: %w", phaseNum, err)
+			}
 		}
 		if state.EpicID != "" {
 			status, err := checkCrankCompletion(state.EpicID)
@@ -823,8 +844,10 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 		}
 
 	case 3: // Validation — check vibe verdict
-		if err := validatePriorPhaseResult(cwd, 2); err != nil {
-			VerbosePrintf("Warning: prior phase result validation: %v\n", err)
+		if state.StartPhase <= 2 {
+			if err := validatePriorPhaseResult(cwd, 2); err != nil {
+				return fmt.Errorf("phase %d prerequisite not met: %w", phaseNum, err)
+			}
 		}
 		report, err := findLatestCouncilReport(cwd, "vibe", time.Time{}, state.EpicID)
 		if err != nil {
@@ -866,23 +889,23 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 
 	state.Attempts[attemptKey]++
 	attempt := state.Attempts[attemptKey]
-	if phasedLiveStatus {
+	if state.Opts.LiveStatus {
 		updateLivePhaseStatus(statusPath, allPhases, phaseNum, "retrying after "+gateErr.Verdict, attempt, "")
 	}
 
-	if attempt >= phasedMaxRetries {
+	if attempt >= state.Opts.MaxRetries {
 		msg := fmt.Sprintf("%s failed %d times. Last report: %s. Manual intervention needed.",
-			phaseName, phasedMaxRetries, gateErr.Report)
+			phaseName, state.Opts.MaxRetries, gateErr.Report)
 		fmt.Println(msg)
-		if phasedLiveStatus {
+		if state.Opts.LiveStatus {
 			updateLivePhaseStatus(statusPath, allPhases, phaseNum, "failed after retries", attempt, gateErr.Report)
 		}
 		logPhaseTransition(logPath, state.RunID, phaseName, msg)
 		return false, nil
 	}
 
-	fmt.Printf("%s: %s (attempt %d/%d) — retrying\n", phaseName, gateErr.Verdict, attempt, phasedMaxRetries)
-	logPhaseTransition(logPath, state.RunID, phaseName, fmt.Sprintf("RETRY attempt %d/%d verdict=%s report=%s", attempt, phasedMaxRetries, gateErr.Verdict, gateErr.Report))
+	fmt.Printf("%s: %s (attempt %d/%d) — retrying\n", phaseName, gateErr.Verdict, attempt, state.Opts.MaxRetries)
+	logPhaseTransition(logPath, state.RunID, phaseName, fmt.Sprintf("RETRY attempt %d/%d verdict=%s report=%s", attempt, state.Opts.MaxRetries, gateErr.Verdict, gateErr.Report))
 
 	// Build retry prompt
 	retryCtx := &retryContext{
@@ -903,11 +926,11 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 
 	// Spawn retry session
 	fmt.Printf("Spawning retry: claude -p '%s'\n", retryPrompt)
-	if phasedLiveStatus {
+	if state.Opts.LiveStatus {
 		updateLivePhaseStatus(statusPath, allPhases, phaseNum, "running retry prompt", attempt, "")
 	}
 	if err := executor.Execute(retryPrompt, spawnCwd, state.RunID, phaseNum); err != nil {
-		if phasedLiveStatus {
+		if state.Opts.LiveStatus {
 			updateLivePhaseStatus(statusPath, allPhases, phaseNum, "retry failed", attempt, err.Error())
 		}
 		return false, fmt.Errorf("retry failed: %w", err)
@@ -920,11 +943,11 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 	}
 
 	fmt.Printf("Re-running phase %d after retry\n", phaseNum)
-	if phasedLiveStatus {
+	if state.Opts.LiveStatus {
 		updateLivePhaseStatus(statusPath, allPhases, phaseNum, "re-running phase", attempt, "")
 	}
 	if err := executor.Execute(rerunPrompt, spawnCwd, state.RunID, phaseNum); err != nil {
-		if phasedLiveStatus {
+		if state.Opts.LiveStatus {
 			updateLivePhaseStatus(statusPath, allPhases, phaseNum, "rerun failed", attempt, err.Error())
 		}
 		return false, fmt.Errorf("rerun failed: %w", err)
@@ -938,7 +961,7 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 		}
 		return false, err
 	}
-	if phasedLiveStatus {
+	if state.Opts.LiveStatus {
 		updateLivePhaseStatus(statusPath, allPhases, phaseNum, "retry succeeded", attempt, "")
 	}
 
@@ -975,7 +998,7 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 		FastPath:      state.FastPath,
 		TestFirst:     state.TestFirst,
 		SwarmFirst:    state.SwarmFirst,
-		Interactive:   phasedInteractive,
+		Interactive:   state.Opts.Interactive,
 		PhaseNum:      phaseNum,
 		ContextBudget: budget,
 	}
@@ -1112,7 +1135,7 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 		FastPath:      state.FastPath,
 		TestFirst:     state.TestFirst,
 		RetryAttempt:  retryCtx.Attempt,
-		MaxRetries:    phasedMaxRetries,
+		MaxRetries:    state.Opts.MaxRetries,
 		Findings:      retryCtx.Findings,
 		PhaseNum:      phaseNum,
 		ContextBudget: phaseContextBudgets[phaseNum],
@@ -1166,6 +1189,11 @@ const (
 // nesting guard — these are independent sequential sessions, not nested.
 // cmd.Dir is set to cwd for worktree isolation. GIT_DIR/GIT_WORK_TREE are
 // NOT set — git auto-discovers the repo from the working directory.
+//
+// Note: this function reads the package-level globals ntmPollInterval and
+// phasedPhaseTimeout / phasedStallTimeout for timeout configuration. It is
+// used in tests (via spawnDirectFn injection) and the old direct-call path.
+// Production code should use a PhaseExecutor (selectExecutorFromCaps) instead.
 func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
 	// Skip ntm when running inside a Claude agent session (non-interactive).
 	// ntm is for human-observable tmux sessions; agent-spawned runs should
@@ -1176,17 +1204,18 @@ func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
 	// Check if ntm is available for observable sessions
 	ntmPath, ntmErr := lookPath("ntm")
 	if ntmErr == nil {
-		return spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID, phaseNum)
+		return spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID, phaseNum, phasedPhaseTimeout, phasedStallTimeout, ntmPollInterval)
 	}
 	return spawnDirectFn(prompt, cwd, phaseNum)
 }
 
 // spawnClaudeDirectImpl runs claude -p directly (fallback when ntm unavailable).
-func spawnClaudeDirectImpl(prompt, cwd string, phaseNum int) error {
+// phaseTimeout controls the maximum runtime; pass 0 to disable the timeout.
+func spawnClaudeDirectImpl(prompt, cwd string, phaseNum int, phaseTimeout time.Duration) error {
 	ctx := context.Background()
 	cancel := func() {}
-	if phasedPhaseTimeout > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), phasedPhaseTimeout)
+	if phaseTimeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), phaseTimeout)
 	}
 	defer cancel()
 
@@ -1198,7 +1227,7 @@ func spawnClaudeDirectImpl(prompt, cwd string, phaseNum int) error {
 	cmd.Env = cleanEnvNoClaude()
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return fmt.Errorf("phase %d timed out after %s (set --phase-timeout to increase)", phaseNum, phasedPhaseTimeout)
+		return fmt.Errorf("phase %d timed out after %s (set --phase-timeout to increase)", phaseNum, phaseTimeout)
 	}
 	if err == nil {
 		return nil
@@ -1211,7 +1240,9 @@ func spawnClaudeDirectImpl(prompt, cwd string, phaseNum int) error {
 
 // spawnClaudePhaseNtm wraps a claude session inside an ntm-managed tmux pane.
 // Session name: ao-rpi-<runID>-p<phaseNum>. Attach with: ntm attach <name>.
-func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int) error {
+// phaseTimeout, stallTimeout, and pollInterval are passed explicitly so the function
+// does not read package-level globals.
+func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int, phaseTimeout, stallTimeout, pollInterval time.Duration) error {
 	sessionName := fmt.Sprintf("ao-rpi-%s-p%d", runID, phaseNum)
 	fmt.Printf("ntm session: %s (attach with: ntm attach %s)\n", sessionName, sessionName)
 
@@ -1236,14 +1267,14 @@ func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int) error
 
 	// Poll for session completion (agent exits when prompt completes)
 	var timeout <-chan time.Time
-	if phasedPhaseTimeout > 0 {
-		timer := time.NewTimer(phasedPhaseTimeout)
+	if phaseTimeout > 0 {
+		timer := time.NewTimer(phaseTimeout)
 		defer timer.Stop()
 		timeout = timer.C
 	}
 
 	// Stall detection for ntm: track last pane content hash.
-	// If pane content doesn't change for phasedStallTimeout, declare stall.
+	// If pane content doesn't change for stallTimeout, declare stall.
 	var lastPaneContent string
 	lastContentChange := time.Now()
 
@@ -1251,32 +1282,33 @@ func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int) error
 		select {
 		case <-timeout:
 			_ = exec.Command(ntmPath, "kill", sessionName).Run() //nolint:errcheck
-			return fmt.Errorf("phase %d (%s) timed out after %s (set --phase-timeout to increase)", phaseNum, failReasonTimeout, phasedPhaseTimeout)
-		case <-time.After(ntmPollInterval):
+			return fmt.Errorf("phase %d (%s) timed out after %s (set --phase-timeout to increase)", phaseNum, failReasonTimeout, phaseTimeout)
+		case <-time.After(pollInterval):
 			checkCmd := exec.Command("tmux", "has-session", "-t", sessionName)
 			if err := checkCmd.Run(); err != nil {
 				// Session gone — agent completed
-				goto done
+				break
 			}
 
 			// Stall detection: capture pane content and compare.
-			if phasedStallTimeout > 0 {
+			if stallTimeout > 0 {
 				captureCmd := exec.Command("tmux", "capture-pane", "-t", sessionName, "-p")
 				if paneOut, captureErr := captureCmd.Output(); captureErr == nil {
 					currentContent := string(paneOut)
 					if currentContent != lastPaneContent {
 						lastPaneContent = currentContent
 						lastContentChange = time.Now()
-					} else if time.Since(lastContentChange) > phasedStallTimeout {
+					} else if time.Since(lastContentChange) > stallTimeout {
 						_ = exec.Command(ntmPath, "kill", sessionName).Run() //nolint:errcheck
-						return fmt.Errorf("phase %d (%s): stall detected: no pane activity for %s", phaseNum, failReasonStall, phasedStallTimeout)
+						return fmt.Errorf("phase %d (%s): stall detected: no pane activity for %s", phaseNum, failReasonStall, stallTimeout)
 					}
 				}
 			}
+			continue
 		}
+		break
 	}
 
-done:
 	// Clean up tmux session
 	_ = exec.Command(ntmPath, "kill", sessionName).Run()
 	return nil
@@ -1287,13 +1319,9 @@ done:
 // An onUpdate callback calls WriteLiveStatus after every parsed event so that
 // external watchers (e.g. ao status) can tail the status file.
 // Stderr is passed through to os.Stderr for real-time error visibility.
-func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress) error {
-	// Snapshot configurable timeouts at function entry so watchdog goroutines do
-	// not race against test-time mutations of package-level knobs.
-	phaseTimeout := phasedPhaseTimeout
-	stallTimeout := phasedStallTimeout
-	checkInterval := stallCheckInterval
-
+// phaseTimeout, stallTimeout, and checkInterval are passed explicitly so the function
+// does not read package-level globals.
+func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress, phaseTimeout, stallTimeout, checkInterval time.Duration) error {
 	ctx := context.Background()
 	cancel := func() {}
 	if phaseTimeout > 0 {
@@ -1377,7 +1405,7 @@ func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusP
 
 	// Classify failure reason.
 	if ctx.Err() == context.DeadlineExceeded {
-		return fmt.Errorf("phase %d (%s) timed out after %s (set --phase-timeout to increase)", phaseNum, failReasonTimeout, phasedPhaseTimeout)
+		return fmt.Errorf("phase %d (%s) timed out after %s (set --phase-timeout to increase)", phaseNum, failReasonTimeout, phaseTimeout)
 	}
 	if cause := context.Cause(stallCtx); cause != nil && stallCtx.Err() != nil && ctx.Err() == nil {
 		// Context was cancelled by stall watchdog, not by phase timeout.
@@ -2332,8 +2360,14 @@ func logFailureContext(logPath, runID, phase string, err error) {
 // lookPath is the function used to resolve binary paths. Package-level for testability.
 var lookPath = exec.LookPath
 
+// spawnClaudeDirectGlobal is the package-level wrapper for spawnClaudeDirectImpl that
+// reads phasedPhaseTimeout from the global (for spawnClaudePhase / spawnDirectFn fallback paths).
+func spawnClaudeDirectGlobal(prompt, cwd string, phaseNum int) error {
+	return spawnClaudeDirectImpl(prompt, cwd, phaseNum, phasedPhaseTimeout)
+}
+
 // spawnDirectFn is the function used to spawn claude directly. Package-level for testability.
-var spawnDirectFn = spawnClaudeDirectImpl
+var spawnDirectFn = spawnClaudeDirectGlobal
 
 // ntmPollInterval controls how frequently spawnClaudePhaseNtm checks session liveness.
 // Overridable in tests for fast-forward timing without needing a real tmux session.

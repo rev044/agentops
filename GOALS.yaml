@@ -216,7 +216,7 @@ goals:
     added: "2026-02-19"
   - id: go-cli-tests
     description: "Go CLI unit tests pass"
-    check: "cd cli && go test ./... >/dev/null 2>&1"
+    check: "cd cli && go test -race ./... >/dev/null 2>&1"
     weight: 5
     added: "2026-02-19"
   # === Important (weight 3-4) — Suite & safety ===
@@ -438,9 +438,27 @@ goals:
     added: "2026-02-19"
   # === Headless Test Harness (weight 3) — Can verify skills in OpenCode ===
   - id: opencode-test-harness
-    description: "OpenCode headless test harness exists with tier support"
-    check: "test -x tests/opencode/run-headless-tests.sh && grep -q 'tier' tests/opencode/run-headless-tests.sh"
+    description: "OpenCode headless test harness exists with tier and ratchet support"
+    check: "test -x tests/opencode/run-headless-tests.sh && grep -q 'tier' tests/opencode/run-headless-tests.sh && grep -q 'MAX_ATTEMPTS' tests/opencode/run-headless-tests.sh"
     weight: 3
+    pillar: validated-acceleration
+    added: "2026-02-19"
+  - id: opencode-assertions-framework
+    description: "OpenCode test assertion framework exists with per-skill validators"
+    check: "test -f tests/opencode/assertions.sh && test -f tests/opencode/skill-assertions.sh && grep -q 'assert_contains' tests/opencode/assertions.sh"
+    weight: 3
+    pillar: validated-acceleration
+    added: "2026-02-19"
+  - id: opencode-test-prompts-external
+    description: "OpenCode test prompts externalized to files for prompt tuning"
+    check: "test -d tests/opencode/prompts && ls tests/opencode/prompts/*.txt 2>/dev/null | wc -l | grep -qE '[5-9]|[1-9][0-9]'"
+    weight: 2
+    pillar: validated-acceleration
+    added: "2026-02-19"
+  - id: opencode-live-tier1
+    description: "At least 4/6 Tier 1 skills pass headless testing with 3 attempts"
+    check: "bash scripts/check-opencode-live.sh"
+    weight: 5
     pillar: validated-acceleration
     added: "2026-02-19"
   # === Universal Skill Format (weight 3) — Skills discoverable by all agents ===

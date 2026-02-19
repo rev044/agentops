@@ -38,7 +38,7 @@ func TestBackendSelectionDirect(t *testing.T) {
 		InAgentSession:    false,
 		NtmPath:           "", // ntm not available
 	}
-	exec, reason := selectExecutorFromCaps(caps, "", nil)
+	exec, reason := selectExecutorFromCaps(caps, "", nil, defaultPhasedEngineOptions())
 	if exec.Name() != "direct" {
 		t.Errorf("expected direct executor, got %q", exec.Name())
 	}
@@ -55,7 +55,7 @@ func TestBackendSelectionNtm(t *testing.T) {
 		InAgentSession:    false,
 		NtmPath:           "/usr/local/bin/ntm",
 	}
-	exec, reason := selectExecutorFromCaps(caps, "", nil)
+	exec, reason := selectExecutorFromCaps(caps, "", nil, defaultPhasedEngineOptions())
 	if exec.Name() != "ntm" {
 		t.Errorf("expected ntm executor, got %q", exec.Name())
 	}
@@ -72,7 +72,7 @@ func TestBackendSelectionStream(t *testing.T) {
 		InAgentSession:    false,
 		NtmPath:           "/usr/local/bin/ntm", // ntm available but should NOT win
 	}
-	exec, reason := selectExecutorFromCaps(caps, "/tmp/status.md", nil)
+	exec, reason := selectExecutorFromCaps(caps, "/tmp/status.md", nil, defaultPhasedEngineOptions())
 	if exec.Name() != "stream" {
 		t.Errorf("expected stream executor, got %q", exec.Name())
 	}
@@ -89,7 +89,7 @@ func TestBackendSelectionAgentSession(t *testing.T) {
 		InAgentSession:    true,
 		NtmPath:           "/usr/local/bin/ntm", // ntm found but suppressed
 	}
-	exec, reason := selectExecutorFromCaps(caps, "", nil)
+	exec, reason := selectExecutorFromCaps(caps, "", nil, defaultPhasedEngineOptions())
 	if exec.Name() != "direct" {
 		t.Errorf("expected direct executor in agent session, got %q", exec.Name())
 	}
@@ -106,7 +106,7 @@ func TestFallbackDirectWhenNtmAbsent(t *testing.T) {
 		InAgentSession:    false,
 		NtmPath:           "",
 	}
-	exec, reason := selectExecutorFromCaps(caps, "", nil)
+	exec, reason := selectExecutorFromCaps(caps, "", nil, defaultPhasedEngineOptions())
 	if exec.Name() != "direct" {
 		t.Fatalf("fallback should always be direct, got %q", exec.Name())
 	}
@@ -123,7 +123,7 @@ func TestFallbackAgentSessionOverridesNtm(t *testing.T) {
 		InAgentSession:    true,
 		NtmPath:           "/opt/homebrew/bin/ntm",
 	}
-	exec, reason := selectExecutorFromCaps(caps, "", nil)
+	exec, reason := selectExecutorFromCaps(caps, "", nil, defaultPhasedEngineOptions())
 	if exec.Name() != "direct" {
 		t.Fatalf("agent session should always fall back to direct, got %q", exec.Name())
 	}
@@ -225,16 +225,13 @@ func TestProbeBackendCapabilities_NtmProbe(t *testing.T) {
 // appends a backend-selection entry to the orchestration log.
 func TestSelectExecutorWithLog_LogsSelection(t *testing.T) {
 	origLookPath := lookPath
-	origLiveStatus := phasedLiveStatus
 	defer func() {
 		lookPath = origLookPath
-		phasedLiveStatus = origLiveStatus
 	}()
 
 	// Ensure reproducible selection: no ntm, no live-status, no agent session.
 	os.Unsetenv("CLAUDECODE")
 	os.Unsetenv("CLAUDE_CODE_ENTRYPOINT")
-	phasedLiveStatus = false
 	lookPath = func(name string) (string, error) {
 		return "", fmt.Errorf("not found: %s", name)
 	}
@@ -245,7 +242,7 @@ func TestSelectExecutorWithLog_LogsSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exec := selectExecutorWithLog("", nil, logPath, "test-run-id")
+	exec := selectExecutorWithLog("", nil, logPath, "test-run-id", false, defaultPhasedEngineOptions())
 	if exec.Name() != "direct" {
 		t.Errorf("expected direct, got %q", exec.Name())
 	}
@@ -267,19 +264,16 @@ func TestSelectExecutorWithLog_LogsSelection(t *testing.T) {
 // correctly when logPath is empty (no log writing, no panic).
 func TestSelectExecutorWithLog_NoLogPath(t *testing.T) {
 	origLookPath := lookPath
-	origLiveStatus := phasedLiveStatus
 	defer func() {
 		lookPath = origLookPath
-		phasedLiveStatus = origLiveStatus
 	}()
 
-	phasedLiveStatus = false
 	lookPath = func(name string) (string, error) {
 		return "", fmt.Errorf("not found: %s", name)
 	}
 
 	// Should not panic with empty logPath.
-	exec := selectExecutorWithLog("", nil, "", "")
+	exec := selectExecutorWithLog("", nil, "", "", false, defaultPhasedEngineOptions())
 	if exec == nil {
 		t.Fatal("executor should not be nil")
 	}
@@ -342,7 +336,7 @@ func TestBackendSelectionPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exec, reason := selectExecutorFromCaps(tt.caps, "/tmp/status.md", nil)
+			exec, reason := selectExecutorFromCaps(tt.caps, "/tmp/status.md", nil, defaultPhasedEngineOptions())
 			if exec.Name() != tt.wantBackend {
 				t.Errorf("backend = %q, want %q (reason: %q)", exec.Name(), tt.wantBackend, reason)
 			}

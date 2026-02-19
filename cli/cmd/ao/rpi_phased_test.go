@@ -591,14 +591,11 @@ func TestPhasedState_SchemaVersion(t *testing.T) {
 }
 
 func TestBuildPromptForPhase_Interactive(t *testing.T) {
-	// Save and restore global flag
-	orig := phasedInteractive
-	defer func() { phasedInteractive = orig }()
-
-	state := &phasedState{Goal: "add auth"}
-
 	// Default (non-interactive) — should have --auto
-	phasedInteractive = false
+	state := &phasedState{
+		Goal: "add auth",
+		Opts: phasedEngineOptions{Interactive: false},
+	}
 	prompt, err := buildPromptForPhase("", 1, state, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -608,7 +605,7 @@ func TestBuildPromptForPhase_Interactive(t *testing.T) {
 	}
 
 	// Interactive — should NOT have --auto
-	phasedInteractive = true
+	state.Opts.Interactive = true
 	prompt, err = buildPromptForPhase("", 1, state, nil)
 	if err != nil {
 		t.Fatal(err)

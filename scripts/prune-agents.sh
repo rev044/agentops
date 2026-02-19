@@ -167,6 +167,11 @@ prune_keep_newest "$AGENTS_DIR/ao/sessions" 50 "ao/sessions"
 prune_keep_newest "$AGENTS_DIR/handoff" 10 "handoff"
 [[ "$QUIET" == false ]] && echo ""
 
+# --- Policy: opencode-tests/ — logs older than 7 days ---
+prune_older_than "$AGENTS_DIR/opencode-tests" 7 "*.log" "opencode-tests"
+prune_older_than "$AGENTS_DIR/opencode-tests" 7 "*.txt" "opencode-tests/summaries"
+[[ "$QUIET" == false ]] && echo ""
+
 # --- Summary ---
 echo "========================================"
 if [[ "$DRY_RUN" == true ]]; then

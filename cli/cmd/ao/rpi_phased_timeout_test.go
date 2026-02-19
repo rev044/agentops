@@ -20,15 +20,10 @@ func writeFakeClaude(t *testing.T, script string) string {
 }
 
 func TestSpawnClaudeDirectImpl_TimesOut(t *testing.T) {
-	origTimeout := phasedPhaseTimeout
-	defer func() { phasedPhaseTimeout = origTimeout }()
-
-	phasedPhaseTimeout = 150 * time.Millisecond
-
 	binDir := writeFakeClaude(t, "#!/bin/sh\nsleep 5\n")
 	t.Setenv("PATH", binDir+":"+os.Getenv("PATH"))
 
-	err := spawnClaudeDirectImpl("test prompt", t.TempDir(), 2)
+	err := spawnClaudeDirectImpl("test prompt", t.TempDir(), 2, 150*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -38,11 +33,6 @@ func TestSpawnClaudeDirectImpl_TimesOut(t *testing.T) {
 }
 
 func TestSpawnClaudePhaseWithStream_TimesOut(t *testing.T) {
-	origTimeout := phasedPhaseTimeout
-	defer func() { phasedPhaseTimeout = origTimeout }()
-
-	phasedPhaseTimeout = 200 * time.Millisecond
-
 	binDir := writeFakeClaude(t, "#!/bin/sh\necho '{\"type\":\"init\",\"session_id\":\"s1\",\"model\":\"m\"}'\nsleep 5\n")
 	t.Setenv("PATH", binDir+":"+os.Getenv("PATH"))
 
@@ -50,7 +40,7 @@ func TestSpawnClaudePhaseWithStream_TimesOut(t *testing.T) {
 	statusPath := filepath.Join(tmpDir, "live-status.md")
 	allPhases := []PhaseProgress{{Name: "discovery", CurrentAction: "starting"}}
 
-	err := spawnClaudePhaseWithStream("test prompt", tmpDir, "run-1", 1, statusPath, allPhases)
+	err := spawnClaudePhaseWithStream("test prompt", tmpDir, "run-1", 1, statusPath, allPhases, 200*time.Millisecond, 0, 30*time.Second)
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -62,20 +52,8 @@ func TestSpawnClaudePhaseWithStream_TimesOut(t *testing.T) {
 // TestSpawnClaudePhaseWithStream_StallDetected verifies that the stream executor
 // fires the stall watchdog when no stream events are received within stallTimeout.
 func TestSpawnClaudePhaseWithStream_StallDetected(t *testing.T) {
-	origStall := phasedStallTimeout
-	origCheck := stallCheckInterval
-	origTimeout := phasedPhaseTimeout
-	defer func() {
-		phasedStallTimeout = origStall
-		stallCheckInterval = origCheck
-		phasedPhaseTimeout = origTimeout
-	}()
-
 	// Use a very short stall timeout with a matching check interval so the
 	// watchdog fires almost immediately after one tick.
-	phasedStallTimeout = 100 * time.Millisecond
-	stallCheckInterval = 50 * time.Millisecond
-	phasedPhaseTimeout = 0 // disable hard phase timeout so stall fires first
 
 	// Fake claude: emit one init event then hang — no further activity.
 	binDir := writeFakeClaude(t, "#!/bin/sh\necho '{\"type\":\"init\",\"session_id\":\"s1\",\"model\":\"m\"}'\nsleep 10\n")
@@ -85,7 +63,8 @@ func TestSpawnClaudePhaseWithStream_StallDetected(t *testing.T) {
 	statusPath := filepath.Join(tmpDir, "live-status.md")
 	allPhases := []PhaseProgress{{Name: "discovery", CurrentAction: "starting"}}
 
-	err := spawnClaudePhaseWithStream("test prompt", tmpDir, "run-stall", 1, statusPath, allPhases)
+	// phaseTimeout=0 disables hard timeout; stallTimeout=100ms with checkInterval=50ms fires quickly.
+	err := spawnClaudePhaseWithStream("test prompt", tmpDir, "run-stall", 1, statusPath, allPhases, 0, 100*time.Millisecond, 50*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected stall error")
 	}
@@ -99,17 +78,10 @@ func TestSpawnClaudePhaseWithStream_StallDetected(t *testing.T) {
 // spawn/send so the polling loop is entered, then a very short phase timeout
 // and a shortened poll interval so the timer fires quickly.
 func TestSpawnClaudePhaseNtm_TimesOut(t *testing.T) {
-	origTimeout := phasedPhaseTimeout
-	origPoll := ntmPollInterval
 	origDirect := spawnDirectFn
 	defer func() {
-		phasedPhaseTimeout = origTimeout
-		ntmPollInterval = origPoll
 		spawnDirectFn = origDirect
 	}()
-
-	phasedPhaseTimeout = 150 * time.Millisecond
-	ntmPollInterval = 50 * time.Millisecond
 
 	// spawnDirectFn must not be called — if the ntm path falls back we'd miss the test.
 	spawnDirectFn = func(prompt, cwd string, phaseNum int) error {
@@ -136,10 +108,10 @@ func TestSpawnClaudePhaseNtm_TimesOut(t *testing.T) {
 		t.Fatalf("write fake tmux: %v", err)
 	}
 
-	phasedStallTimeout = 0 // disable stall so only phase timeout fires
 	t.Setenv("PATH", tmpBin+":"+os.Getenv("PATH"))
 
-	err := spawnClaudePhaseNtm(fakentm, "test prompt", t.TempDir(), "run-ntm-timeout", 2)
+	// phaseTimeout=150ms, stallTimeout=0 (disabled), pollInterval=50ms.
+	err := spawnClaudePhaseNtm(fakentm, "test prompt", t.TempDir(), "run-ntm-timeout", 2, 150*time.Millisecond, 0, 50*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected timeout error from ntm executor")
 	}
@@ -154,20 +126,10 @@ func TestSpawnClaudePhaseNtm_TimesOut(t *testing.T) {
 // TestSpawnClaudePhaseNtm_StallDetected verifies the ntm executor returns a stall
 // error when pane content is static for longer than phasedStallTimeout.
 func TestSpawnClaudePhaseNtm_StallDetected(t *testing.T) {
-	origStall := phasedStallTimeout
-	origPoll := ntmPollInterval
-	origTimeout := phasedPhaseTimeout
 	origDirect := spawnDirectFn
 	defer func() {
-		phasedStallTimeout = origStall
-		ntmPollInterval = origPoll
-		phasedPhaseTimeout = origTimeout
 		spawnDirectFn = origDirect
 	}()
-
-	phasedStallTimeout = 80 * time.Millisecond
-	ntmPollInterval = 40 * time.Millisecond
-	phasedPhaseTimeout = 0 // disable hard timeout so stall fires first
 
 	spawnDirectFn = func(prompt, cwd string, phaseNum int) error {
 		t.Error("unexpected fallback to spawnDirectFn")
@@ -197,7 +159,8 @@ esac
 
 	t.Setenv("PATH", tmpBin+":"+os.Getenv("PATH"))
 
-	err := spawnClaudePhaseNtm(fakentm, "test prompt", t.TempDir(), "run-ntm-stall", 3)
+	// phaseTimeout=0 (disabled), stallTimeout=80ms, pollInterval=40ms.
+	err := spawnClaudePhaseNtm(fakentm, "test prompt", t.TempDir(), "run-ntm-stall", 3, 0, 80*time.Millisecond, 40*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected stall error from ntm executor")
 	}

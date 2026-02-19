@@ -173,16 +173,10 @@ func TestSwarmFirstStateRoundTrip_False(t *testing.T) {
 // This exercises the same code path as runRPIPhased's executor setup block.
 func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 	origLookPath := lookPath
-	origLiveStatus := phasedLiveStatus
-	origSwarmFirst := phasedSwarmFirst
 	defer func() {
 		lookPath = origLookPath
-		phasedLiveStatus = origLiveStatus
-		phasedSwarmFirst = origSwarmFirst
 	}()
 
-	phasedLiveStatus = false
-	phasedSwarmFirst = true
 	// Force direct backend: ntm not found, not in agent session.
 	lookPath = func(name string) (string, error) {
 		return "", fmt.Errorf("not found: %s", name)
@@ -196,7 +190,10 @@ func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := selectExecutorWithLog("", nil, logPath, "dryrun-run-id")
+	opts := defaultPhasedEngineOptions()
+	opts.LiveStatus = false
+	opts.SwarmFirst = true
+	executor := selectExecutorWithLog("", nil, logPath, "dryrun-run-id", false, opts)
 	if executor.Name() != "direct" {
 		t.Errorf("expected direct executor (no ntm available), got %q", executor.Name())
 	}
@@ -218,13 +215,10 @@ func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 // in the backend selection log entry, making each run's executor choice traceable.
 func TestRunRPIPhased_SwarmFirstBackendLogged(t *testing.T) {
 	origLookPath := lookPath
-	origLiveStatus := phasedLiveStatus
 	defer func() {
 		lookPath = origLookPath
-		phasedLiveStatus = origLiveStatus
 	}()
 
-	phasedLiveStatus = false
 	lookPath = func(name string) (string, error) {
 		return "", fmt.Errorf("not found: %s", name)
 	}
@@ -238,7 +232,9 @@ func TestRunRPIPhased_SwarmFirstBackendLogged(t *testing.T) {
 	}
 
 	runID := "swarm-test-run-id"
-	executor := selectExecutorWithLog("", nil, logPath, runID)
+	opts := defaultPhasedEngineOptions()
+	opts.LiveStatus = false
+	executor := selectExecutorWithLog("", nil, logPath, runID, false, opts)
 
 	if executor.Name() == "" {
 		t.Fatal("executor name must be non-empty")
@@ -265,28 +261,28 @@ func TestRunRPIPhased_SwarmFirstBackendLogged(t *testing.T) {
 // does: executor := selectExecutorWithLog(...); state.Backend = executor.Name()
 func TestRunRPIPhased_BackendStoredInState(t *testing.T) {
 	origLookPath := lookPath
-	origLiveStatus := phasedLiveStatus
 	defer func() {
 		lookPath = origLookPath
-		phasedLiveStatus = origLiveStatus
 	}()
 
-	phasedLiveStatus = false
 	lookPath = func(name string) (string, error) {
 		return "", fmt.Errorf("not found: %s", name)
 	}
 	os.Unsetenv("CLAUDECODE")
 	os.Unsetenv("CLAUDE_CODE_ENTRYPOINT")
 
+	opts := defaultPhasedEngineOptions()
+	opts.LiveStatus = false
 	state := &phasedState{
 		Goal:       "add feature",
 		SwarmFirst: true,
 		Verdicts:   make(map[string]string),
 		Attempts:   make(map[string]int),
+		Opts:       opts,
 	}
 
-	// Simulate what runRPIPhased does.
-	executor := selectExecutorWithLog("", nil, "", "")
+	// Simulate what runRPIPhasedWithOpts does.
+	executor := selectExecutorWithLog("", nil, "", "", false, opts)
 	state.Backend = executor.Name()
 
 	if state.Backend == "" {
@@ -334,26 +330,23 @@ func TestRetryWithBackendSemantics(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	retryOpts := defaultPhasedEngineOptions()
+	retryOpts.MaxRetries = 3
+	retryOpts.LiveStatus = false
+
 	state := &phasedState{
 		Goal:       "add auth",
 		EpicID:     "ag-test1",
+		StartPhase: 3, // simulate --from=vibe (no prior phase results)
 		SwarmFirst: true,
 		Verdicts:   make(map[string]string),
 		Attempts:   make(map[string]int),
 		Backend:    mockExec.Name(),
+		Opts:       retryOpts,
 	}
 
 	logPath := filepath.Join(rpiDir, "phased-orchestration.log")
 	statusPath := filepath.Join(rpiDir, "live-status.md")
-
-	orig := phasedMaxRetries
-	origLiveStatus := phasedLiveStatus
-	defer func() {
-		phasedMaxRetries = orig
-		phasedLiveStatus = origLiveStatus
-	}()
-	phasedMaxRetries = 3
-	phasedLiveStatus = false
 
 	// Gate failure that triggers retry.
 	gateErr := &gateFailError{
@@ -415,17 +408,18 @@ func TestRetryBackendPreservesExecutor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	state := &phasedState{
-		Goal:     "fix bug",
-		EpicID:   "ag-fix1",
-		Verdicts: make(map[string]string),
-		Attempts: make(map[string]int),
-		Backend:  primaryExec.Name(),
-	}
+	preserveOpts := defaultPhasedEngineOptions()
+	preserveOpts.MaxRetries = 3
 
-	orig := phasedMaxRetries
-	defer func() { phasedMaxRetries = orig }()
-	phasedMaxRetries = 3
+	state := &phasedState{
+		Goal:       "fix bug",
+		EpicID:     "ag-fix1",
+		StartPhase: 3, // simulate --from=vibe (no prior phase results)
+		Verdicts:   make(map[string]string),
+		Attempts:   make(map[string]int),
+		Backend:    primaryExec.Name(),
+		Opts:       preserveOpts,
+	}
 
 	logPath := filepath.Join(rpiDir, "phased-orchestration.log")
 	statusPath := filepath.Join(rpiDir, "live-status.md")
@@ -483,30 +477,30 @@ func TestSwarmFirstPhaseResultBackend(t *testing.T) {
 
 // TestSwarmFirstBackendInState verifies that phasedState.Backend is populated
 // from the executor name after selectExecutorWithLog is called, mirroring the
-// runRPIPhased assignment: state.Backend = executor.Name()
+// runRPIPhasedWithOpts assignment: state.Backend = executor.Name()
 func TestSwarmFirstBackendInState(t *testing.T) {
 	origLookPath := lookPath
-	origLiveStatus := phasedLiveStatus
 	defer func() {
 		lookPath = origLookPath
-		phasedLiveStatus = origLiveStatus
 	}()
 
-	phasedLiveStatus = false
 	lookPath = func(name string) (string, error) {
 		return "", fmt.Errorf("not found: %s", name)
 	}
 	os.Unsetenv("CLAUDECODE")
 	os.Unsetenv("CLAUDE_CODE_ENTRYPOINT")
 
+	stateOpts := defaultPhasedEngineOptions()
+	stateOpts.LiveStatus = false
 	state := &phasedState{
 		Goal:       "add feature",
 		SwarmFirst: true,
 		Verdicts:   make(map[string]string),
 		Attempts:   make(map[string]int),
+		Opts:       stateOpts,
 	}
 
-	executor := selectExecutorWithLog("", nil, "", "")
+	executor := selectExecutorWithLog("", nil, "", "", false, stateOpts)
 	state.Backend = executor.Name()
 
 	if state.Backend == "" {
