@@ -141,6 +141,19 @@ else
     fail "MemRL profile example missing required fields: $MEMRL_PROFILE"
 fi
 
+# Test 14: MemRL profile validates against MemRL schema via Ajv CLI
+# Note: ajv-cli supports draft-2019-09. We validate the same schema content
+# with a temporary draft-2019 meta-schema override for strict conformance checks.
+AJV_SCHEMA_TMP="$(mktemp /tmp/memrl-schema.XXXXXX.json)"
+jq '."$schema" = "https://json-schema.org/draft/2019-09/schema"' "$MEMRL_SCHEMA" > "$AJV_SCHEMA_TMP"
+
+if npx --yes ajv-cli@5.0.0 validate --spec=draft2019 -s "$AJV_SCHEMA_TMP" -d "$MEMRL_PROFILE" --errors=text > /dev/null 2>&1; then
+    pass "MemRL profile passes strict Ajv schema validation"
+else
+    fail "MemRL profile failed strict Ajv schema validation"
+fi
+rm -f "$AJV_SCHEMA_TMP"
+
 # Summary
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════${NC}"
