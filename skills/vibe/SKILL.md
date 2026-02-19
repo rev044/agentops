@@ -388,6 +388,42 @@ After council verdict:
      ```
    - Tell user to fix issues and re-run /vibe, including the formatted findings as actionable guidance.
 
+### Step 9.5: Feed Findings to Flywheel
+
+**If verdict is WARN or FAIL**, write top findings as a lightweight learning for future sessions:
+
+```bash
+if [[ "$VERDICT" == "WARN" || "$VERDICT" == "FAIL" ]]; then
+  mkdir -p .agents/learnings
+  LEARNING_FILE=".agents/learnings/$(date -u +%Y-%m-%d)-vibe-$(echo "$TARGET" | tr '/' '-' | head -c 40).md"
+  cat > "$LEARNING_FILE" <<EOF
+---
+type: anti-pattern
+source: vibe
+date: $(date -Iseconds)
+confidence: high
+---
+
+# Vibe findings: $TARGET
+
+$(for finding in "${TOP_FINDINGS[@]:0:3}"; do
+  echo "- **${finding.severity}:** ${finding.description} (${finding.location})"
+done)
+
+**Recommendation:** ${COUNCIL_RECOMMENDATION}
+EOF
+
+  # Index for flywheel if ao available
+  if command -v ao &>/dev/null; then
+    ao forge index "$LEARNING_FILE" 2>/dev/null || true
+  fi
+fi
+```
+
+**Why:** Vibe catches anti-patterns repeatedly across epics but they evaporate unless `/post-mortem` runs. This captures findings at the point of discovery — lightweight (one file write, no `/retro` invocation) and immediately available to future sessions via inject.
+
+**Skip if:** PASS verdict (nothing to learn from clean code).
+
 ### Step 10: Test Bead Cleanup
 
 After validation completes (regardless of verdict), clean up any stale test beads to prevent bead pollution:

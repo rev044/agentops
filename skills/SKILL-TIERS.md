@@ -106,6 +106,76 @@ Background:  inject, extract, forge, provenance, ratchet
 CLI:         ao inject, ao extract, ao forge, ao maturity
 ```
 
+## Which Skill Should I Use?
+
+Start here. Match your intent to a skill.
+
+```
+What are you trying to do?
+│
+├─ "Fix a bug"
+│   ├─ Know which file? ──────────► /implement <issue-id>
+│   └─ Need to investigate? ──────► /bug-hunt
+│
+├─ "Build a feature"
+│   ├─ Small (1-2 files) ─────────► /implement
+│   ├─ Medium (3-6 issues) ───────► /plan → /crank
+│   └─ Large (7+ issues) ─────────► /rpi (full pipeline)
+│
+├─ "Validate something"
+│   ├─ Code ready to ship? ───────► /vibe
+│   ├─ Plan ready to build? ──────► /pre-mortem
+│   ├─ Work ready to close? ──────► /post-mortem
+│   └─ Quick sanity check? ───────► /council --quick validate
+│
+├─ "Explore or research"
+│   ├─ Understand this codebase ──► /research
+│   ├─ Compare approaches ────────► /council research <topic>
+│   └─ Generate ideas ────────────► /brainstorm
+│
+├─ "Learn from past work"
+│   ├─ What do we know about X? ──► /knowledge <query>
+│   ├─ Save this insight ─────────► /learn "insight"
+│   ├─ Run a retrospective ───────► /retro
+│   └─ Trace a decision ─────────► /trace <concept>
+│
+├─ "Contribute upstream"
+│   └─ Full PR workflow ──────────► /pr-research → /pr-plan → /pr-implement
+│
+├─ "Ship a release"
+│   └─ Changelog + tag ──────────► /release <version>
+│
+├─ "Parallelize work"
+│   ├─ Multiple independent tasks ► /swarm
+│   ├─ Codex agents specifically ─► /codex-team
+│   └─ Full epic with waves ──────► /crank <epic-id>
+│
+├─ "Session management"
+│   ├─ Where was I? ──────────────► /status
+│   ├─ Save for next session ─────► /handoff
+│   └─ Recover after compaction ──► /recover
+│
+└─ "First time here"
+    └─ Interactive tour ──────────► /quickstart
+```
+
+### Composition patterns
+
+These are how skills chain in practice:
+
+| Pattern | Chain | When |
+|---------|-------|------|
+| **Quick fix** | `/implement` | One issue, clear scope |
+| **Validated fix** | `/implement` → `/vibe` | One issue, want confidence |
+| **Planned epic** | `/plan` → `/pre-mortem` → `/crank` → `/post-mortem` | Multi-issue, structured |
+| **Full pipeline** | `/rpi` (chains all above) | End-to-end, autonomous |
+| **Evolve loop** | `/evolve` (chains `/rpi` repeatedly) | Fitness-scored improvement |
+| **PR contribution** | `/pr-research` → `/pr-plan` → `/pr-implement` → `/pr-validate` → `/pr-prep` | External repo |
+| **Knowledge query** | `/knowledge` → `/research` (if gaps) | Understanding before building |
+| **Standalone review** | `/council validate <target>` | Ad-hoc multi-judge review |
+
+---
+
 ## Current Skill Tiers
 
 ### User-Facing Skills (42)
