@@ -543,11 +543,15 @@ run_semgrep() {
     # detected-pgp-private-key-block: pattern in security scanning script, not an actual key
     # path-join-resolve-traversal: skills installer uses path joins with user input by design
     # import-text-template: CLI uses text/template for output formatting
+    # unsafe-deserialization-interface: standard Go JSON unmarshal into interface{}
+    # dynamic-urllib-use-detected: reverse-engineer scripts fetch URLs by design
     local exclude_rules=(
         --exclude-rule go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
         --exclude-rule generic.secrets.security.detected-pgp-private-key-block.detected-pgp-private-key-block
         --exclude-rule javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         --exclude-rule go.lang.security.audit.xss.import-text-template.import-text-template
+        --exclude-rule go.lang.security.deserialization.unsafe-deserialization-interface.go-unsafe-deserialization-interface
+        --exclude-rule python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
     )
 
     if [[ -n "$ssl_cert_file" ]]; then
