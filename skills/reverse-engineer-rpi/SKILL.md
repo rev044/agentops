@@ -73,6 +73,139 @@ Security audit flags (optional):
 Mandatory guardrail flag:
 - `--authorized` (required for binary mode; refuses to run binary analysis without it)
 
+## Upstream Ref Pinning (`--upstream-ref`)
+
+Use `--upstream-ref` to pin a repo-mode clone to a specific commit, tag, or branch. This makes analysis reproducible and allows golden fixtures to be diffed against a known baseline.
+
+```bash
+# Pin to a tag (reproducible)
+python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py cc-sdd \
+  --mode=repo \
+  --upstream-repo="https://github.com/gotalab/cc-sdd.git" \
+  --upstream-ref=v1.0.0 \
+  --output-dir=".agents/research/cc-sdd/"
+
+# Pin to a specific commit SHA
+python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py cc-sdd \
+  --mode=repo \
+  --upstream-repo="https://github.com/gotalab/cc-sdd.git" \
+  --upstream-ref=abc1234 \
+  --output-dir=".agents/research/cc-sdd/"
+```
+
+When `--upstream-ref` is provided:
+
+- The clone is fetched with `git fetch --depth=1 origin <ref>` and checked out to `FETCH_HEAD`.
+- The resolved commit SHA is recorded in `output_dir/clone-metadata.json` for traceability.
+- Without `--upstream-ref`, a `--depth=1` shallow clone of the default branch HEAD is used instead.
+
+`clone-metadata.json` schema:
+
+```json
+{
+  "upstream_repo": "https://github.com/gotalab/cc-sdd.git",
+  "upstream_ref": "v1.0.0",
+  "resolved_commit": "<full SHA>",
+  "clone_date": "YYYY-MM-DD"
+}
+```
+
+## Contract JSON Outputs (`output_dir/contracts/`)
+
+Repo-mode analysis writes machine-checkable contract JSON under `output_dir/contracts/`. These files use only relative paths, sorted lists, and stable keys — no absolute paths, no run-specific timestamps — so they can be committed as golden fixtures and diffed across runs.
+
+**Primary contract file:** `output_dir/contracts/repo-contract.json`
+
+This file captures the mechanically-extracted CLI, config/env, and artifact surface of the target product. Fields include:
+
+| Field | Description |
+|-------|-------------|
+| `schema_version` | Integer; increment when field semantics change |
+| `product_name` | Product name as supplied to the script |
+| `upstream_commit` | Git HEAD SHA of the analysis root (when a git repo) |
+| `cli` | CLI surface: `bin` map, `help_text`, `framework`, `language` |
+| `config_env` | Config file path and env vars with per-var file evidence (relative paths, sorted) |
+| `artifact_io` | Manifest inventory and template file hashes (from `artifact-registry.json`) |
+| `schema_files` | Discovered schema-like files (JSON Schema, OpenAPI, protobuf, etc.) |
+
+Example `repo-contract.json` structure:
+
+```json
+{
+  "schema_version": 1,
+  "product_name": "cc-sdd",
+  "upstream_commit": "abc1234...",
+  "cli": {
+    "language": "node",
+    "framework": null,
+    "bin": { "cc-sdd": "dist/cli.js" },
+    "help_text": "Usage: cc-sdd [options] ..."
+  },
+  "config_env": {
+    "config_file": ".cc-sdd/config.json",
+    "env_vars": [
+      { "name": "CC_SDD_TOKEN", "evidence": ["src/config.ts"] }
+    ]
+  },
+  "artifact_io": {
+    "manifests": ["templates/manifests/default.json"],
+    "template_files": 12
+  },
+  "schema_files": []
+}
+```
+
+> Note: `output_dir/contracts/` is written by `--mode=repo` (or `--mode=both`). Binary-mode outputs (`binary-analysis.md`, `binary-symbols.txt`, etc.) remain directly under `output_dir/`.
+
+## Fixture Test Workflow
+
+Golden fixtures allow regression detection: commit a known-good `contracts/` snapshot alongside the pinned `clone-metadata.json`, then diff future runs against it.
+
+### Running Fixture Tests
+
+```bash
+bash skills/reverse-engineer-rpi/scripts/repo_fixture_test.sh
+```
+
+This script (implemented in ag-w77.3):
+
+1. Reads `skills/reverse-engineer-rpi/fixtures/cc-sdd/clone-metadata.json` to determine the pinned upstream ref.
+2. Runs `reverse_engineer_rpi.py` in repo mode with that ref into a temp output dir.
+3. Diffs the generated `contracts/repo-contract.json` against the committed golden fixture.
+4. Exits 0 if they match; exits non-zero with a unified diff if they drift.
+
+The test requires network access to clone the upstream repo.
+
+### Updating Fixtures
+
+When contracts legitimately change (new flags, new env vars, schema bumps), update the golden fixtures:
+
+```bash
+# 1. Re-run with the pinned ref to generate fresh contracts
+python3 skills/reverse-engineer-rpi/scripts/reverse_engineer_rpi.py cc-sdd \
+  --mode=repo \
+  --upstream-repo="https://github.com/gotalab/cc-sdd.git" \
+  --upstream-ref=<new-tag-or-sha> \
+  --output-dir=".tmp/cc-sdd-refresh/"
+
+# 2. Copy contracts into the fixture directory
+cp -r .tmp/cc-sdd-refresh/contracts/ \
+  skills/reverse-engineer-rpi/fixtures/cc-sdd/contracts/
+
+# 3. Update the pinned clone metadata
+cp .tmp/cc-sdd-refresh/clone-metadata.json \
+  skills/reverse-engineer-rpi/fixtures/cc-sdd/clone-metadata.json
+
+# 4. Commit the updated fixtures
+git add skills/reverse-engineer-rpi/fixtures/cc-sdd/
+git commit -m "fix(reverse-engineer-rpi): update cc-sdd golden fixtures to <new-tag-or-sha>"
+```
+
+Fixture files that must be committed for the test to pass:
+
+- `skills/reverse-engineer-rpi/fixtures/cc-sdd/clone-metadata.json`
+- `skills/reverse-engineer-rpi/fixtures/cc-sdd/contracts/repo-contract.json`
+
 ## Script-Driven Workflow
 
 Run:
