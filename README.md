@@ -15,7 +15,7 @@
 <p align="center">
 <img src="docs/assets/swarm-6-rpi.png" alt="6 agents running full development cycles in parallel with validation gates and a coordinating team leader" width="800">
 <br>
-<i>Parallel RPI pipelines. Fresh context each. Validation gates they can't skip. Every session learns from the last.</i>
+<i>Parallel agents. Fresh context each run. Councils judge plans before implementation and code after. Unskippable validation gates. Every session gets smarter.</i>
 </p>
 
 ---
