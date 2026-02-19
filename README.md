@@ -9,7 +9,7 @@
 </div>
 
 <p align="center">
-<img src="docs/assets/swarm-6-rpi.png" alt="6 agents running full development cycles in parallel with validation gates and a coordinating team leader" width="800">
+<img src="docs/assets/swarm-6-rpi.png" alt="Agents running full development cycles in parallel with validation gates and a coordinating team leader" width="800">
 <br>
 <i>From goal to shipped code — agents research, plan, and implement in parallel. Councils validate before and after. Every learning feeds the next session.</i>
 </p>
@@ -168,7 +168,7 @@ Picks skills as needed, stays in control of sequencing.
 **The solo dev** — runs the full pipeline, walks away:
 ```text
 > /rpi "add user authentication"
-[6 phases run autonomously, learnings extracted]
+[3 phases run autonomously, learnings extracted]
 ```
 One command does research through post-mortem. Comes back to committed code.
 
@@ -507,7 +507,7 @@ Every skill works alone. Compose them however you want.
 | `/implement` | Full lifecycle for one task — research, plan, build, validate, learn |
 | `/crank` | Parallel agents in dependency-ordered waves, fresh context per worker |
 | `/swarm` | Parallelize any skill — run research, brainstorms, implementations in parallel |
-| `/rpi` | Full pipeline: research → plan → pre-mortem → crank → vibe → post-mortem |
+| `/rpi` | Full pipeline: discovery (research + plan + pre-mortem) → implementation (crank) → validation (vibe + post-mortem) |
 | `/evolve` | Measure fitness goals, fix the worst gap, roll back regressions, loop |
 
 **Knowledge** — the flywheel that makes sessions compound:

@@ -109,14 +109,14 @@ Structured idea exploration. Four phases: assess clarity, understand idea, explo
 
 ### /rpi
 
-Full RPI lifecycle orchestrator. Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem in one command.
+Full RPI lifecycle orchestrator. Discovery → Implementation → Validation in one command.
 
 ```bash
 /rpi "Add user authentication"
 /rpi --auto --max-cycles=1    # fully autonomous single cycle
 ```
 
-**Phases:** Setup → Research → Plan → Pre-mortem gate → Crank → Vibe gate → Post-mortem
+**Phases:** Discovery (research + plan + pre-mortem) → Implementation (crank) → Validation (vibe + post-mortem)
 
 ### /crank
 

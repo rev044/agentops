@@ -85,7 +85,7 @@ type rpiRunInfo struct {
 type rpiStatusOutput struct {
 	Active       []rpiRunInfo         `json:"active"`
 	Historical   []rpiRunInfo         `json:"historical"`
-	Runs         []rpiRunInfo         `json:"runs"`         // combined, kept for back-compat
+	Runs         []rpiRunInfo         `json:"runs"` // combined, kept for back-compat
 	LogRuns      []rpiRun             `json:"log_runs,omitempty"`
 	LiveStatuses []liveStatusSnapshot `json:"live_statuses,omitempty"`
 	Count        int                  `json:"count"`
@@ -814,8 +814,8 @@ func checkTmuxSessionAlive(runID string) bool {
 	if runID == "" {
 		return false
 	}
-	// Try phases 1-6 for tmux session naming convention ao-rpi-<runID>-p<N>
-	for i := 1; i <= 6; i++ {
+	// Probe consolidated 3-phase session names: ao-rpi-<runID>-p<N>, N=1..3.
+	for i := 1; i <= 3; i++ {
 		sessionName := fmt.Sprintf("ao-rpi-%s-p%d", runID, i)
 		ctx, cancel := context.WithTimeout(context.Background(), tmuxProbeTimeout)
 		cmd := exec.CommandContext(ctx, "tmux", "has-session", "-t", sessionName)

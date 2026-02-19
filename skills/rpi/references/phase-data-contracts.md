@@ -1,12 +1,10 @@
 # Phase Data Contracts
 
-How each phase passes data to the next. Artifacts are filesystem-based; no in-memory coupling between phases.
+How each consolidated phase passes data to the next. Artifacts are filesystem-based; no in-memory coupling between phases.
 
 | Transition | Output | Extraction | Input to Next |
 |------------|--------|------------|---------------|
-| → Research | `.agents/research/YYYY-MM-DD-<slug>.md` | `ls -t .agents/research/ \| head -1` | /plan reads .agents/research/ automatically |
-| Research → Plan | Plan doc + bd epic | Most recent epic from `bd list --type epic` | epic-id stored in session state |
-| Plan → Pre-mortem | `.agents/plans/YYYY-MM-DD-<slug>.md` | /pre-mortem auto-discovers most recent plan | No args needed |
-| Pre-mortem → Crank | Council report with verdict | Grep verdict from council report | epic-id passed to /crank |
-| Crank → Vibe | Committed code + closed issues | Check `<promise>` tag | /vibe runs on recent changes |
-| Vibe → Post-mortem | Council report with verdict | Grep verdict from council report | epic-id passed to /post-mortem |
+| → Discovery | Research doc, plan doc, pre-mortem report, epic ID | Latest files in `.agents/research/`, `.agents/plans/`, `.agents/council/`; epic from `bd list --type epic --status open` | `epic_id`, `pre_mortem` verdict, and discovery summary are persisted in phased state |
+| Discovery → Implementation | Epic execution context + discovery summary | `phased-state.json` + `.agents/rpi/phase-1-summary.md` | `/crank <epic-id>` with prior-phase context |
+| Implementation → Validation | Completed/partial crank status + implementation summary | `bd children <epic-id>` + `.agents/rpi/phase-2-summary.md` | `/vibe` + `/post-mortem` with implementation context |
+| Validation → Next Cycle (optional) | Vibe/post-mortem verdicts + harvested follow-up work | Latest council reports + `.agents/rpi/next-work.jsonl` | Stop, loop (`--loop`), or suggest next `/rpi` (`--spawn-next`) |

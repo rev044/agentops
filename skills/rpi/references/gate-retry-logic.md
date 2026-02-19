@@ -36,11 +36,11 @@ Gate logic:
 
 Store verdict in `rpi_state.verdicts.pre_mortem`.
 
-## Crank Gate (Phase 4)
+## Implementation Gate (Phase 2)
 
 Check completion status from crank's output. Look for `<promise>` tags:
 
-- **`<promise>DONE</promise>`:** Proceed to Phase 5
+- **`<promise>DONE</promise>`:** Proceed to Validation (Phase 3)
 - **`<promise>BLOCKED</promise>`:** Retry (max 2 retries):
   1. Read crank output to extract block reason
   2. Log: "Crank: BLOCKED (attempt N/3) -- retrying with context"
@@ -54,7 +54,7 @@ Check completion status from crank's output. Look for `<promise>` tags:
   4. If still PARTIAL after 3 total attempts, stop with message:
      "Crank partial after 3 attempts. Remaining: <items>. Manual intervention needed."
 
-## Vibe Gate (Phase 5)
+## Validation Gate (Phase 3)
 
 Extract verdict from council report:
 

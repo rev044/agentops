@@ -33,7 +33,7 @@ Three principles drive every architectural decision:
 
 **Least-privilege context loading.** Each agent receives only the context necessary for its task. Research gets prior knowledge. Plan gets a 500-token research summary. Crank workers get fresh context per wave with zero bleed-through. Vibe gets recent changes only. Phase summaries compress output between phases to prevent signal-to-noise collapse. The context window is treated as a security boundary — nothing enters without scoping.
 
-**The cycle is the product.** No single skill is the value. The compounding loop — research, plan, validate, build, validate, learn, repeat — makes each successive context window smarter than the last. Post-mortem doesn't just extract learnings; it proposes the next cycle's work. The system feeds itself.
+**The cycle is the product.** No single skill is the value. The compounding loop — discovery, implementation, validation, learn, repeat — makes each successive context window smarter than the last. Post-mortem doesn't just extract learnings; it proposes the next cycle's work. The system feeds itself.
 
 ---
 
@@ -237,7 +237,7 @@ Level 1: /crank ──────── waves of /implement
 │        FIRE loop: Find → Ignite → Reap → Escalate
 │        Each wave spawns fresh workers in parallel.
 │
-Level 2: /rpi ────────── research → plan → pre-mortem → crank → vibe → post-mortem
+Level 2: /rpi ────────── discovery → implementation → validation
 │        Full lifecycle. Session IS the lead. Sub-skills manage own teams.
 │
 Level 3: /evolve ─────── fitness-gated /rpi cycles

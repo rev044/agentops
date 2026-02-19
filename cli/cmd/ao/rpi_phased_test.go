@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1046,6 +1047,162 @@ func TestRatchetPhasedAliases(t *testing.T) {
 				t.Errorf("ParseStep(%q) = %q, want %q", tt.alias, got, tt.wantStep)
 			}
 		})
+	}
+}
+
+func TestPostPhaseProcessing_Discovery(t *testing.T) {
+	tmpDir := t.TempDir()
+	councilDir := filepath.Join(tmpDir, ".agents", "council")
+	if err := os.MkdirAll(councilDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	reportPath := filepath.Join(councilDir, "2026-02-19-ag-new-pre-mortem.md")
+	report := "# Pre-mortem\n\n## Council Verdict: PASS\n"
+	if err := os.WriteFile(reportPath, []byte(report), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fakeBin := t.TempDir()
+	writeFakeBDScript(t, fakeBin)
+	t.Setenv("PATH", fakeBin+":"+os.Getenv("PATH"))
+
+	state := &phasedState{
+		Goal:     "add auth",
+		RunID:    "run-discovery",
+		Verdicts: make(map[string]string),
+		Attempts: make(map[string]int),
+	}
+
+	if err := postPhaseProcessing(tmpDir, state, 1, filepath.Join(tmpDir, "orchestration.log")); err != nil {
+		t.Fatalf("postPhaseProcessing(discovery): %v", err)
+	}
+	if state.EpicID != "ag-new" {
+		t.Fatalf("expected extracted epic ag-new, got %q", state.EpicID)
+	}
+	if got := state.Verdicts["pre_mortem"]; got != "PASS" {
+		t.Fatalf("expected pre_mortem verdict PASS, got %q", got)
+	}
+}
+
+func TestPostPhaseProcessing_Implementation(t *testing.T) {
+	tmpDir := t.TempDir()
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-1-result.json"), []byte(`{"status":"completed"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fakeBin := t.TempDir()
+	writeFakeBDScript(t, fakeBin)
+	t.Setenv("PATH", fakeBin+":"+os.Getenv("PATH"))
+
+	state := &phasedState{
+		EpicID:   "ag-new",
+		RunID:    "run-implementation",
+		Verdicts: make(map[string]string),
+		Attempts: make(map[string]int),
+	}
+
+	if err := postPhaseProcessing(tmpDir, state, 2, filepath.Join(tmpDir, "orchestration.log")); err != nil {
+		t.Fatalf("postPhaseProcessing(implementation): %v", err)
+	}
+}
+
+func TestPostPhaseProcessing_Validation(t *testing.T) {
+	tmpDir := t.TempDir()
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	councilDir := filepath.Join(tmpDir, ".agents", "council")
+	for _, dir := range []string{rpiDir, councilDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-2-result.json"), []byte(`{"status":"completed"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	vibeReport := "# Vibe\n\n## Council Verdict: PASS\n"
+	postMortemReport := "# Post-mortem\n\n## Council Verdict: WARN\n"
+	if err := os.WriteFile(filepath.Join(councilDir, "2026-02-19-ag-new-vibe.md"), []byte(vibeReport), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(councilDir, "2026-02-19-ag-new-post-mortem.md"), []byte(postMortemReport), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &phasedState{
+		EpicID:   "ag-new",
+		RunID:    "run-validation",
+		Verdicts: make(map[string]string),
+		Attempts: make(map[string]int),
+	}
+
+	if err := postPhaseProcessing(tmpDir, state, 3, filepath.Join(tmpDir, "orchestration.log")); err != nil {
+		t.Fatalf("postPhaseProcessing(validation): %v", err)
+	}
+	if got := state.Verdicts["vibe"]; got != "PASS" {
+		t.Fatalf("expected vibe verdict PASS, got %q", got)
+	}
+	if got := state.Verdicts["post_mortem"]; got != "WARN" {
+		t.Fatalf("expected post_mortem verdict WARN, got %q", got)
+	}
+}
+
+func TestNoWorktreeRunIDGeneration(t *testing.T) {
+	tmpDir := t.TempDir()
+	prevDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = prevDryRun }()
+
+	opts := defaultPhasedEngineOptions()
+	opts.NoWorktree = true
+	opts.SwarmFirst = false
+
+	if err := runPhasedEngine(tmpDir, "test goal", opts); err != nil {
+		t.Fatalf("runPhasedEngine --no-worktree --dry-run: %v", err)
+	}
+
+	logPath := filepath.Join(tmpDir, ".agents", "rpi", "phased-orchestration.log")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read orchestration log: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, `start: goal="test goal" from=discovery`) {
+		t.Fatalf("expected start entry in orchestration log, got: %s", content)
+	}
+	runIDPattern := regexp.MustCompile(`\[[0-9a-f]{8}\] start:`)
+	if !runIDPattern.MatchString(content) {
+		t.Fatalf("expected generated runID in start entry, got: %s", content)
+	}
+}
+
+func writeFakeBDScript(t *testing.T, dir string) {
+	t.Helper()
+	script := filepath.Join(dir, "bd")
+	content := `#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "${1:-}" = "list" ]; then
+  echo "ag-old [EPIC]"
+  echo "ag-new [EPIC]"
+  exit 0
+fi
+
+if [ "${1:-}" = "children" ]; then
+  echo "ag-new.1  closed  done"
+  echo "ag-new.2  closed  done"
+  exit 0
+fi
+
+echo "unsupported bd invocation: $*" >&2
+exit 1
+`
+	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
+		t.Fatalf("write fake bd script: %v", err)
 	}
 }
 

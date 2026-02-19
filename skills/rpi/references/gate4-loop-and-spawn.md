@@ -1,8 +1,8 @@
 # Gate 4 Loop and Spawn Next Work
 
-## Phase 6.5: Gate 4 Loop (Optional) -- Post-mortem to Spawn Another /rpi
+## Post-Validation Loop (Optional) -- Post-mortem to Spawn Another /rpi
 
-**Default behavior:** /rpi ends after Phase 6.
+**Default behavior:** /rpi ends after Validation (Phase 3).
 
 **Enable loop:** pass `--loop` (and optionally `--max-cycles=<n>`).
 
@@ -23,7 +23,7 @@
    ```
    If still FAIL after `--max-cycles` total cycles, stop and require manual intervention (file follow-up bd issues).
 
-## Phase 6.6: Spawn Next Work (Optional) -- Post-mortem to Queue Next RPI
+## Spawn Next Work (Optional) -- Post-mortem to Queue Next RPI
 
 **Enable:** pass `--spawn-next` flag.
 

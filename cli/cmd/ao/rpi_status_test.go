@@ -941,7 +941,7 @@ func TestRPIStatusRegistryDiscovery_EmptyDir(t *testing.T) {
 
 // TestCheckTmuxSessionAlive_Timeout verifies that checkTmuxSessionAlive does not
 // block indefinitely when tmux is unavailable or slow. The test measures elapsed
-// time and asserts it stays well below 30 seconds (6 phases x 2s timeout = 12s max).
+// time and asserts it stays well below 20 seconds (3 phases x 2s timeout = 6s max).
 func TestCheckTmuxSessionAlive_Timeout(t *testing.T) {
 	start := time.Now()
 	alive := checkTmuxSessionAlive("nonexistent-run-id-xyz")
@@ -950,9 +950,9 @@ func TestCheckTmuxSessionAlive_Timeout(t *testing.T) {
 	if alive {
 		t.Error("expected nonexistent session to not be alive")
 	}
-	// 6 phases x 2s timeout = 12s theoretical max; give generous headroom.
-	if elapsed > 30*time.Second {
-		t.Errorf("checkTmuxSessionAlive took too long: %v (expected < 30s)", elapsed)
+	// 3 phases x 2s timeout = 6s theoretical max; give generous headroom.
+	if elapsed > 20*time.Second {
+		t.Errorf("checkTmuxSessionAlive took too long: %v (expected < 20s)", elapsed)
 	}
 }
 
