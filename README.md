@@ -5,10 +5,9 @@
 ### Coding agents forget everything between sessions. This fixes that.
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-52-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Skills](#skills) · [Deep Dive](#deep-dive) · [FAQ](#faq)
+[How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -119,12 +118,16 @@ npx skills@latest add boshu2/agentops --all -g
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 ```
 
+**Works with:** Claude Code · Codex CLI · Cursor · OpenCode
+
 Then type `/quickstart` in your agent chat.
 
 ```bash
 # Claude Code plugin (alternative)
 claude plugin add boshu2/agentops
 ```
+
+`npx skills` installs skills into your agent's global skills directory. The plugin path registers AgentOps as a Claude Code plugin instead — same skills, different integration point. Most users should start with `npx skills`.
 
 <details>
 <summary><b>Full setup</b> — CLI + hooks (optional)</summary>
@@ -283,7 +286,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## Skills
 
-52 skills: 42 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
+Skills span five tiers. Each level composes the ones below it.
 
 | Scope | Skill | What it does |
 |-------|-------|-------------|
@@ -293,7 +296,15 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 | **Full lifecycle** | `/rpi` | Research → Plan → Pre-mortem → Crank → Vibe → Post-mortem — one command |
 | **Hands-free loop** | `/evolve` | Measures fitness goals, picks the worst gap, ships a fix, rolls back regressions, repeats |
 
-**Supporting skills:** `/research`, `/plan`, `/vibe`, `/pre-mortem`, `/post-mortem`, `/product`, `/goals`, `/readme`, `/status`, `/quickstart`, `/bug-hunt`, `/doc`, `/release`, `/knowledge`, `/handoff`
+**Supporting skills:**
+
+| | |
+|---|---|
+| **Orchestration** | `/research`, `/plan`, `/crank`, `/swarm` |
+| **Validation** | `/vibe`, `/pre-mortem`, `/post-mortem`, `/council` |
+| **Knowledge** | `/knowledge`, `/handoff`, `/retro`, `/learn` |
+| **Product** | `/product`, `/goals`, `/release`, `/readme`, `/doc` |
+| **Utility** | `/status`, `/quickstart`, `/bug-hunt` |
 
 Full reference: [docs/SKILLS.md](docs/SKILLS.md)
 
@@ -310,19 +321,6 @@ AgentOps orchestrates across runtimes. Claude can lead a team of Codex workers. 
 | **tmux + Agent Mail** | `/swarm --mode=distributed` — full process isolation | Long-running work, crash recovery |
 
 </details>
-
----
-
-## How AgentOps Fits With Other Tools
-
-These are fellow experiments in making coding agents work. Use pieces from any of them.
-
-| Alternative | What it does well | Where AgentOps focuses differently |
-|-------------|-------------------|-------------------------------------|
-| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
-| **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
-
-[Detailed comparisons →](docs/comparisons/)
 
 ---
 
@@ -347,6 +345,19 @@ ao demo                # Interactive demo
 ```
 
 Full reference: [CLI Commands](cli/docs/COMMANDS.md)
+
+---
+
+## How AgentOps Fits With Other Tools
+
+These are fellow experiments in making coding agents work. Use pieces from any of them.
+
+| Alternative | What it does well | Where AgentOps focuses differently |
+|-------------|-------------------|-------------------------------------|
+| **[GSD](https://github.com/glittercowboy/get-shit-done)** | Clean subagent spawning, fights context rot | Cross-session memory (GSD keeps context fresh *within* a session; AgentOps carries knowledge *between* sessions) |
+| **[Compound Engineer](https://github.com/EveryInc/compound-engineering-plugin)** | Knowledge compounding, structured loop | Multi-model councils and validation gates — independent judges debating before and after code ships |
+
+[Detailed comparisons →](docs/comparisons/)
 
 ---
 
