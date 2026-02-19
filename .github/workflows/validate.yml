@@ -163,7 +163,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install semgrep
           GOBIN=/usr/local/bin go install github.com/securego/gosec/v2/cmd/gosec@latest
-          GOBIN=/usr/local/bin go install github.com/zricethezav/gitleaks/v8/cmd/gitleaks@latest
+          GOBIN=/usr/local/bin go install github.com/zricethezav/gitleaks/v8@latest
 
       - name: Run security toolchain gate
         run: |
