@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Embedded hooks** — ao binary now ships hooks via Go `embed`, eliminating external hook file dependencies at runtime.
 - **reverse-engineer-rpi enhancements** — Comparison report generation, binary mode self-test assertions, binary CLI surface spec with registry enrichment, and `--help` capture for Go CLI detection.
 - **Codex/PR/OSS skills** — New `pr-research`, `pr-plan`, `pr-implement`, `pr-validate`, `pr-prep`, `pr-retro`, `oss-docs`, and `openai-docs` skills.
+- **`/security` skill** — Continuous security scanning and release gating with `security-gate.sh`.
 
 ### Fixed
 
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ao doctor` search index** — Fixed wrong path and remediation command for `checkSearchIndex`.
 - **`doctor_test.go`** — Search index test now uses `IndexDir`/`IndexFileName` constants instead of hardcoded paths.
 - **oss-docs** — Fixed broken links in reference template.
+- **Markdown standards** — Fixed example links that broke the doc-release link checker.
 
 ## [2.10.2] - 2026-02-18
 

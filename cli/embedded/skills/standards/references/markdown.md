@@ -28,6 +28,6 @@
 - 4-space indent also works (but fenced preferred)
 
 ## Links
-- Descriptive text: `[docs](url)` not `[click here](url)`
-- Relative paths for local: `[guide](./docs/guide.md)`
+- Descriptive text: `[docs](https://...)` not `[click here](https://...)`
+- Relative paths for local: `[guide](../path/to/file.md)`
 - Check links aren't broken
