@@ -108,7 +108,7 @@ Session 5 didn't start from scratch — it started with what session 1 learned. 
 </p>
 
 <details>
-<summary><b>More examples</b> — /crank, /evolve, session continuity</summary>
+<summary><b>More examples</b> — /evolve, session continuity</summary>
 
 <br>
 
@@ -124,18 +124,6 @@ Session 5 didn't start from scratch — it started with what session 1 learned. 
 [recover] Found in-progress epic ag-0058 (2/5 issues closed)
           Branch: feature/rate-limiter
           Next: /implement ag-0058.3
-```
-
-**Parallel agents with fresh context:**
-```text
-> /crank ag-0042
-
-[crank] Epic: ag-0042 — 6 issues, 3 waves
-[wave-1] ██████ 3/3 complete
-[wave-2] ████── 2/2 complete
-[wave-3] ██──── 1/1 complete
-[vibe] PASS — all gates locked
-[post-mortem] 4 learnings extracted
 ```
 
 **Goal-driven improvement loop:**
