@@ -163,8 +163,7 @@ if (!validate(data)) {
 }
 NODE
 
-npm --prefix "$AJV_TMP_DIR" init -y > /dev/null 2>&1
-npm --prefix "$AJV_TMP_DIR" install --silent ajv@8 ajv-formats@3 > /dev/null 2>&1
+npm --prefix "$AJV_TMP_DIR" install --silent --no-save ajv@8 ajv-formats@3 > /dev/null 2>&1
 
 if node "$AJV_VALIDATOR_SCRIPT" "$MEMRL_SCHEMA" "$MEMRL_PROFILE" > /dev/null 2>&1; then
     pass "MemRL profile passes strict Ajv schema validation"
