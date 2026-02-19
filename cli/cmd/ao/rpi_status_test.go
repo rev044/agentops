@@ -8,6 +8,41 @@ import (
 	"time"
 )
 
+// helper: write a run registry entry (state + optional heartbeat)
+type registryRunSpec struct {
+	runID    string
+	phase    int
+	schema   int
+	goal     string
+	hbAge    time.Duration // 0 = no heartbeat; negative = stale; positive = fresh
+	worktree string
+}
+
+func writeRegistryRun(t *testing.T, rootDir string, spec registryRunSpec) {
+	t.Helper()
+	runDir := filepath.Join(rootDir, ".agents", "rpi", "runs", spec.runID)
+	if err := os.MkdirAll(runDir, 0755); err != nil {
+		t.Fatalf("mkdir registry run dir: %v", err)
+	}
+	state := map[string]interface{}{
+		"schema_version": spec.schema,
+		"run_id":         spec.runID,
+		"goal":           spec.goal,
+		"phase":          spec.phase,
+		"started_at":     time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
+	}
+	data, _ := json.Marshal(state)
+	if err := os.WriteFile(filepath.Join(runDir, phasedStateFile), data, 0644); err != nil {
+		t.Fatalf("write registry state: %v", err)
+	}
+	if spec.hbAge != 0 {
+		ts := time.Now().Add(-spec.hbAge).UTC().Format(time.RFC3339Nano) + "\n"
+		if err := os.WriteFile(filepath.Join(runDir, "heartbeat.txt"), []byte(ts), 0644); err != nil {
+			t.Fatalf("write heartbeat: %v", err)
+		}
+	}
+}
+
 func TestRPIStatusDiscovery(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateDir := filepath.Join(tmpDir, ".agents", "rpi")
@@ -668,5 +703,469 @@ func TestRPIStatusParseLogInlineVerdictsConsolidated(t *testing.T) {
 	}
 	if runs[0].Verdicts["vibe"] != "PASS" {
 		t.Errorf("expected vibe PASS, got %q", runs[0].Verdicts["vibe"])
+	}
+}
+
+// --- Registry-first discovery tests ---
+
+// TestDiscoverRPIRuns_RegistryFirst verifies that discoverRPIRunsRegistryFirst
+// reads runs from .agents/rpi/runs/ (not just the flat state file).
+func TestDiscoverRPIRuns_RegistryFirst(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write two runs in the registry; fresh heartbeat makes first "active".
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "run-active",
+		phase:  2,
+		schema: 1,
+		goal:   "active goal",
+		hbAge:  1 * time.Minute, // fresh
+	})
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "run-hist",
+		phase:  3,
+		schema: 1,
+		goal:   "historical goal",
+		hbAge:  0, // no heartbeat => historical (completed phase)
+	})
+
+	active, historical := discoverRPIRunsRegistryFirst(tmpDir)
+
+	if len(active) != 1 {
+		t.Fatalf("expected 1 active run, got %d", len(active))
+	}
+	if active[0].RunID != "run-active" {
+		t.Errorf("expected active run-active, got %s", active[0].RunID)
+	}
+	if active[0].Status != "running" {
+		t.Errorf("expected active run status 'running', got %s", active[0].Status)
+	}
+
+	if len(historical) != 1 {
+		t.Fatalf("expected 1 historical run, got %d", len(historical))
+	}
+	if historical[0].RunID != "run-hist" {
+		t.Errorf("expected historical run-hist, got %s", historical[0].RunID)
+	}
+}
+
+// TestDiscoverRPIRuns_HeartbeatLiveness verifies that heartbeat age correctly
+// drives active vs historical classification.
+func TestDiscoverRPIRuns_HeartbeatLiveness(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Fresh heartbeat (1 min old) → active
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "fresh-hb",
+		phase:  1,
+		schema: 1,
+		hbAge:  1 * time.Minute,
+	})
+	// Stale heartbeat (10 min old) → historical (no tmux in test env)
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "stale-hb",
+		phase:  1,
+		schema: 1,
+		hbAge:  10 * time.Minute,
+	})
+
+	active, historical := discoverRPIRunsRegistryFirst(tmpDir)
+
+	foundActive := false
+	for _, r := range active {
+		if r.RunID == "fresh-hb" {
+			foundActive = true
+		}
+	}
+	if !foundActive {
+		t.Error("expected fresh-hb to be in active set")
+	}
+
+	foundHistorical := false
+	for _, r := range historical {
+		if r.RunID == "stale-hb" {
+			foundHistorical = true
+		}
+	}
+	if !foundHistorical {
+		t.Error("expected stale-hb to be in historical set")
+	}
+}
+
+// TestDiscoverRPIRuns_CompletedPhase verifies that a run at the terminal phase
+// is classified as "completed" even without a heartbeat.
+func TestDiscoverRPIRuns_CompletedPhase(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "done-run",
+		phase:  3,
+		schema: 1,
+		hbAge:  0, // no heartbeat
+	})
+
+	active, historical := discoverRPIRunsRegistryFirst(tmpDir)
+
+	if len(active) != 0 {
+		t.Errorf("completed run should not be active, got %d active", len(active))
+	}
+	if len(historical) != 1 {
+		t.Fatalf("expected 1 historical run, got %d", len(historical))
+	}
+	if historical[0].Status != "completed" {
+		t.Errorf("expected status 'completed', got %s", historical[0].Status)
+	}
+}
+
+// TestDiscoverRPIRuns_SiblingWorktrees verifies that sibling *-rpi-* worktrees
+// are discovered when scanning from cwd.
+func TestDiscoverRPIRuns_SiblingWorktrees(t *testing.T) {
+	parent := t.TempDir()
+	cwd := filepath.Join(parent, "myrepo")
+	sibling := filepath.Join(parent, "myrepo-rpi-abc")
+
+	for _, dir := range []string{cwd, sibling} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeRegistryRun(t, cwd, registryRunSpec{
+		runID:  "main-run",
+		phase:  1,
+		schema: 1,
+		hbAge:  2 * time.Minute, // active
+	})
+	writeRegistryRun(t, sibling, registryRunSpec{
+		runID:  "side-run",
+		phase:  3,
+		schema: 1,
+		hbAge:  0, // historical/completed
+	})
+
+	active, historical := discoverRPIRunsRegistryFirst(cwd)
+
+	foundMain, foundSide := false, false
+	for _, r := range active {
+		if r.RunID == "main-run" {
+			foundMain = true
+		}
+	}
+	for _, r := range historical {
+		if r.RunID == "side-run" {
+			foundSide = true
+		}
+	}
+	if !foundMain {
+		t.Error("expected main-run in active set")
+	}
+	if !foundSide {
+		t.Error("expected side-run in historical set")
+	}
+}
+
+// TestDiscoverRPIRuns_FallbackFlatState verifies that when the registry is empty,
+// discoverRPIRuns falls back to the flat phased-state.json.
+func TestDiscoverRPIRuns_FallbackFlatState(t *testing.T) {
+	tmpDir := t.TempDir()
+	stateDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	state := map[string]interface{}{
+		"schema_version": 1,
+		"run_id":         "legacy-run",
+		"goal":           "legacy goal",
+		"phase":          2,
+		"started_at":     time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
+	}
+	data, _ := json.Marshal(state)
+	if err := os.WriteFile(filepath.Join(stateDir, "phased-state.json"), data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	runs := discoverRPIRuns(tmpDir)
+	if len(runs) == 0 {
+		t.Fatal("expected at least 1 run from flat state fallback")
+	}
+	found := false
+	for _, r := range runs {
+		if r.RunID == "legacy-run" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected legacy-run in fallback results")
+	}
+}
+
+// TestRPIStatusRegistryDiscovery verifies that scanRegistryRuns reads all runs
+// in the .agents/rpi/runs/ directory correctly.
+func TestRPIStatusRegistryDiscovery(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	for _, spec := range []registryRunSpec{
+		{runID: "r1", phase: 1, schema: 1, goal: "first", hbAge: 30 * time.Second},
+		{runID: "r2", phase: 2, schema: 1, goal: "second", hbAge: 0},
+		{runID: "r3", phase: 3, schema: 1, goal: "third", hbAge: 0},
+	} {
+		writeRegistryRun(t, tmpDir, spec)
+	}
+
+	runs := scanRegistryRuns(tmpDir)
+	if len(runs) != 3 {
+		t.Fatalf("expected 3 runs from registry, got %d", len(runs))
+	}
+
+	found := make(map[string]bool)
+	for _, r := range runs {
+		found[r.RunID] = true
+	}
+	for _, id := range []string{"r1", "r2", "r3"} {
+		if !found[id] {
+			t.Errorf("expected run %s in registry scan results", id)
+		}
+	}
+}
+
+// TestRPIStatusRegistryDiscovery_EmptyDir verifies that scanRegistryRuns returns
+// nil when the runs directory does not exist.
+func TestRPIStatusRegistryDiscovery_EmptyDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	runs := scanRegistryRuns(tmpDir)
+	if len(runs) != 0 {
+		t.Errorf("expected 0 runs for empty dir, got %d", len(runs))
+	}
+}
+
+// TestCheckTmuxSessionAlive_Timeout verifies that checkTmuxSessionAlive does not
+// block indefinitely when tmux is unavailable or slow. The test measures elapsed
+// time and asserts it stays well below 30 seconds (6 phases x 2s timeout = 12s max).
+func TestCheckTmuxSessionAlive_Timeout(t *testing.T) {
+	start := time.Now()
+	alive := checkTmuxSessionAlive("nonexistent-run-id-xyz")
+	elapsed := time.Since(start)
+
+	if alive {
+		t.Error("expected nonexistent session to not be alive")
+	}
+	// 6 phases x 2s timeout = 12s theoretical max; give generous headroom.
+	if elapsed > 30*time.Second {
+		t.Errorf("checkTmuxSessionAlive took too long: %v (expected < 30s)", elapsed)
+	}
+}
+
+// TestCheckTmuxSessionAlive_EmptyRunID verifies that an empty runID returns false
+// immediately without probing tmux.
+func TestCheckTmuxSessionAlive_EmptyRunID(t *testing.T) {
+	start := time.Now()
+	alive := checkTmuxSessionAlive("")
+	elapsed := time.Since(start)
+
+	if alive {
+		t.Error("empty runID should return false")
+	}
+	if elapsed > 100*time.Millisecond {
+		t.Errorf("empty runID check was too slow: %v", elapsed)
+	}
+}
+
+// TestDetermineRunLiveness_FreshHeartbeat verifies that a fresh heartbeat
+// marks a run as alive without a tmux probe.
+func TestDetermineRunLiveness_FreshHeartbeat(t *testing.T) {
+	tmpDir := t.TempDir()
+	runID := "hb-live-test"
+
+	// Write a heartbeat just now.
+	updateRunHeartbeat(tmpDir, runID)
+
+	state := &phasedState{
+		SchemaVersion: 1,
+		RunID:         runID,
+		Phase:         2,
+	}
+
+	isActive, lastHB := determineRunLiveness(tmpDir, state)
+	if !isActive {
+		t.Error("expected run with fresh heartbeat to be active")
+	}
+	if lastHB.IsZero() {
+		t.Error("expected non-zero last heartbeat time")
+	}
+}
+
+// TestDetermineRunLiveness_NoHeartbeat verifies that without a heartbeat and
+// without a matching tmux session, the run is not active.
+func TestDetermineRunLiveness_NoHeartbeat(t *testing.T) {
+	tmpDir := t.TempDir()
+	state := &phasedState{
+		SchemaVersion: 1,
+		RunID:         "no-hb-no-tmux",
+		Phase:         2,
+	}
+
+	isActive, lastHB := determineRunLiveness(tmpDir, state)
+	if isActive {
+		t.Error("expected run without heartbeat or tmux to be inactive")
+	}
+	if !lastHB.IsZero() {
+		t.Errorf("expected zero last heartbeat, got %v", lastHB)
+	}
+}
+
+// TestLocateRunMetadata_RegistryFirst verifies that locateRunMetadata finds a
+// run in the registry directory before checking the flat state file.
+func TestLocateRunMetadata_RegistryFirst(t *testing.T) {
+	tmpDir := t.TempDir()
+	runID := "locate-test"
+
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  runID,
+		phase:  2,
+		schema: 1,
+		goal:   "registry goal",
+		hbAge:  0,
+	})
+
+	state, root, err := locateRunMetadata(tmpDir, runID)
+	if err != nil {
+		t.Fatalf("locateRunMetadata: %v", err)
+	}
+	if state.RunID != runID {
+		t.Errorf("expected RunID %s, got %s", runID, state.RunID)
+	}
+	if state.Goal != "registry goal" {
+		t.Errorf("expected goal 'registry goal', got %q", state.Goal)
+	}
+	if root != tmpDir {
+		t.Errorf("expected root %s, got %s", tmpDir, root)
+	}
+}
+
+// TestLocateRunMetadata_FlatFallback verifies that locateRunMetadata falls back
+// to the flat phased-state.json when the registry entry is absent.
+func TestLocateRunMetadata_FlatFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	runID := "flat-fallback"
+
+	stateDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	stateData := map[string]interface{}{
+		"schema_version": 1,
+		"run_id":         runID,
+		"goal":           "flat fallback goal",
+		"phase":          1,
+	}
+	data, _ := json.Marshal(stateData)
+	if err := os.WriteFile(filepath.Join(stateDir, phasedStateFile), data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	state, root, err := locateRunMetadata(tmpDir, runID)
+	if err != nil {
+		t.Fatalf("locateRunMetadata (flat fallback): %v", err)
+	}
+	if state.RunID != runID {
+		t.Errorf("expected RunID %s, got %s", runID, state.RunID)
+	}
+	if root != tmpDir {
+		t.Errorf("expected root %s, got %s", tmpDir, root)
+	}
+}
+
+// TestLocateRunMetadata_NotFound verifies that locateRunMetadata returns an error
+// when the run is not found in the registry or flat state.
+func TestLocateRunMetadata_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	_, _, err := locateRunMetadata(tmpDir, "nonexistent-run")
+	if err == nil {
+		t.Fatal("expected error for nonexistent run, got nil")
+	}
+}
+
+// TestLocateRunMetadata_WrongRunIDInFlat verifies that locateRunMetadata rejects
+// a flat state file whose run_id does not match the requested run ID.
+func TestLocateRunMetadata_WrongRunIDInFlat(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	stateDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	stateData := map[string]interface{}{
+		"schema_version": 1,
+		"run_id":         "different-run",
+		"goal":           "some goal",
+		"phase":          1,
+	}
+	data, _ := json.Marshal(stateData)
+	if err := os.WriteFile(filepath.Join(stateDir, phasedStateFile), data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := locateRunMetadata(tmpDir, "requested-run")
+	if err == nil {
+		t.Fatal("expected error when flat state run_id doesn't match requested run, got nil")
+	}
+}
+
+// TestRPIStatusActiveHistoricalSeparation verifies the full pipeline:
+// registry scan → active/historical separation → combined discoverRPIRuns result.
+func TestRPIStatusActiveHistoricalSeparation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "running-now",
+		phase:  2,
+		schema: 1,
+		goal:   "in progress",
+		hbAge:  90 * time.Second, // fresh (< 5 min)
+	})
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "done-already",
+		phase:  3,
+		schema: 1,
+		goal:   "completed work",
+		hbAge:  0, // no heartbeat, terminal phase
+	})
+	writeRegistryRun(t, tmpDir, registryRunSpec{
+		runID:  "interrupted",
+		phase:  1,
+		schema: 1,
+		goal:   "was interrupted",
+		hbAge:  60 * time.Minute, // very stale heartbeat (> 5 min)
+	})
+
+	active, historical := discoverRPIRunsRegistryFirst(tmpDir)
+
+	activeIDs := make(map[string]bool)
+	for _, r := range active {
+		activeIDs[r.RunID] = true
+	}
+	histIDs := make(map[string]bool)
+	for _, r := range historical {
+		histIDs[r.RunID] = true
+	}
+
+	if !activeIDs["running-now"] {
+		t.Error("expected running-now to be active")
+	}
+	if activeIDs["done-already"] {
+		t.Error("expected done-already NOT to be active (terminal phase)")
+	}
+	if activeIDs["interrupted"] {
+		t.Error("expected interrupted NOT to be active (stale heartbeat)")
+	}
+	if !histIDs["done-already"] {
+		t.Error("expected done-already to be historical")
+	}
+	if !histIDs["interrupted"] {
+		t.Error("expected interrupted to be historical")
 	}
 }

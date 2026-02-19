@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,8 +25,11 @@ func init() {
 		Short: "Show active RPI phased runs",
 		Long: `Display active and recent RPI phased runs.
 
-Scans for phased-state.json files in the current directory and sibling
-worktree directories. Cross-references tmux sessions for liveness.
+Uses the run registry at .agents/rpi/runs/ as the primary source of truth.
+Heartbeat files determine liveness (alive = heartbeat within last 5 minutes).
+Tmux sessions are only probed for runs that lack a recent heartbeat, with a
+bounded timeout to prevent blocking.
+
 Also parses orchestration logs for phase history, durations, and verdicts.
 
 Examples:
@@ -61,7 +65,7 @@ type rpiPhaseEntry struct {
 	Time    string `json:"time"`
 }
 
-// --- rpiRunInfo: state-file-based run data (existing) ---
+// --- rpiRunInfo: state-file-based run data ---
 
 type rpiRunInfo struct {
 	RunID     string `json:"run_id"`
@@ -73,10 +77,15 @@ type rpiRunInfo struct {
 	Worktree  string `json:"worktree,omitempty"`
 	StartedAt string `json:"started_at,omitempty"`
 	Elapsed   string `json:"elapsed,omitempty"`
+	// Liveness metadata (not shown in table, used for categorisation)
+	IsActive      bool      `json:"is_active"`
+	LastHeartbeat time.Time `json:"last_heartbeat,omitempty"`
 }
 
 type rpiStatusOutput struct {
-	Runs         []rpiRunInfo         `json:"runs"`
+	Active       []rpiRunInfo         `json:"active"`
+	Historical   []rpiRunInfo         `json:"historical"`
+	Runs         []rpiRunInfo         `json:"runs"`         // combined, kept for back-compat
 	LogRuns      []rpiRun             `json:"log_runs,omitempty"`
 	LiveStatuses []liveStatusSnapshot `json:"live_statuses,omitempty"`
 	Count        int                  `json:"count"`
@@ -86,6 +95,13 @@ type liveStatusSnapshot struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`
 }
+
+// heartbeatLiveThreshold is the maximum age of a heartbeat for a run to be
+// considered alive without probing tmux.
+const heartbeatLiveThreshold = 5 * time.Minute
+
+// tmuxProbeTimeout is the maximum time we will wait for a single tmux probe.
+const tmuxProbeTimeout = 2 * time.Second
 
 func runRPIStatus(cmd *cobra.Command, args []string) error {
 	if rpiStatusWatch {
@@ -100,17 +116,20 @@ func runRPIStatusOnce() error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	runs := discoverRPIRuns(cwd)
+	active, historical := discoverRPIRunsRegistryFirst(cwd)
+	allRuns := append(active, historical...)
 
 	// Parse orchestration logs for enriched data
 	logRuns := discoverLogRuns(cwd)
 	liveStatuses := discoverLiveStatuses(cwd)
 
 	output := rpiStatusOutput{
-		Runs:         runs,
+		Active:       active,
+		Historical:   historical,
+		Runs:         allRuns,
 		LogRuns:      logRuns,
 		LiveStatuses: liveStatuses,
-		Count:        len(runs),
+		Count:        len(allRuns),
 	}
 
 	if GetOutput() == "json" {
@@ -120,23 +139,44 @@ func runRPIStatusOnce() error {
 	}
 
 	// Table output: state-file runs
-	if len(runs) == 0 && len(logRuns) == 0 && len(liveStatuses) == 0 {
+	if len(allRuns) == 0 && len(logRuns) == 0 && len(liveStatuses) == 0 {
 		fmt.Println("No active RPI runs found.")
 		return nil
 	}
 
-	if len(runs) > 0 {
-		fmt.Printf("%-14s %-30s %-12s %-10s %s\n", "RUN-ID", "GOAL", "PHASE", "STATUS", "ELAPSED")
-		fmt.Println(strings.Repeat("─", 80))
-		for _, r := range runs {
+	// Active runs section
+	if len(active) > 0 {
+		fmt.Println("Active Runs")
+		fmt.Printf("%-14s %-30s %-14s %-10s %s\n", "RUN-ID", "GOAL", "PHASE", "STATUS", "ELAPSED")
+		fmt.Println(strings.Repeat("─", 82))
+		for _, r := range active {
 			goal := r.Goal
 			if len(goal) > 28 {
 				goal = goal[:25] + "..."
 			}
-			fmt.Printf("%-14s %-30s %-12s %-10s %s\n",
+			fmt.Printf("%-14s %-30s %-14s %-10s %s\n",
 				r.RunID, goal, r.PhaseName, r.Status, r.Elapsed)
 		}
-		fmt.Printf("\n%d active run(s) found.\n", len(runs))
+		fmt.Printf("\n%d active run(s) found.\n", len(active))
+	}
+
+	// Historical runs section
+	if len(historical) > 0 {
+		if len(active) > 0 {
+			fmt.Println()
+		}
+		fmt.Println("Historical Runs")
+		fmt.Printf("%-14s %-30s %-14s %-10s %s\n", "RUN-ID", "GOAL", "PHASE", "STATUS", "ELAPSED")
+		fmt.Println(strings.Repeat("─", 82))
+		for _, r := range historical {
+			goal := r.Goal
+			if len(goal) > 28 {
+				goal = goal[:25] + "..."
+			}
+			fmt.Printf("%-14s %-30s %-14s %-10s %s\n",
+				r.RunID, goal, r.PhaseName, r.Status, r.Elapsed)
+		}
+		fmt.Printf("\n%d historical run(s) found.\n", len(historical))
 	}
 
 	// Log history section
@@ -484,37 +524,202 @@ func discoverLiveStatuses(cwd string) []liveStatusSnapshot {
 	return snapshots
 }
 
-// --- State-file based discovery (existing) ---
+// --- Registry-first run discovery ---
 
+// discoverRPIRunsRegistryFirst is the primary discovery path.
+// It scans .agents/rpi/runs/ for all run directories, reads state and heartbeat
+// files, and uses heartbeat age to separate active from historical runs.
+// Tmux is only probed for runs that lack a recent heartbeat, with a bounded
+// per-probe timeout.
+//
+// Returns (active, historical) slices.
+func discoverRPIRunsRegistryFirst(cwd string) (active, historical []rpiRunInfo) {
+	// Collect all search roots: cwd + sibling worktrees.
+	roots := collectSearchRoots(cwd)
+
+	seen := make(map[string]struct{})
+	for _, root := range roots {
+		runs := scanRegistryRuns(root)
+		for _, r := range runs {
+			if _, ok := seen[r.RunID]; ok {
+				continue
+			}
+			seen[r.RunID] = struct{}{}
+			if r.IsActive {
+				active = append(active, r)
+			} else {
+				historical = append(historical, r)
+			}
+		}
+	}
+	return active, historical
+}
+
+// discoverRPIRuns is the legacy discovery function kept for backward
+// compatibility with existing tests.  It returns all runs (active + historical)
+// discovered via the registry-first path, falling back to the flat state file
+// when the registry is empty.
 func discoverRPIRuns(cwd string) []rpiRunInfo {
-	var runs []rpiRunInfo
-
-	// 1. Check current directory: .agents/rpi/phased-state.json
-	if run, ok := loadRPIRun(cwd); ok {
-		runs = append(runs, run)
+	active, historical := discoverRPIRunsRegistryFirst(cwd)
+	all := append(active, historical...)
+	if len(all) > 0 {
+		return all
 	}
 
-	// 2. Check sibling worktree directories: ../*-rpi-*/.agents/rpi/phased-state.json
+	// Fallback: flat phased-state.json (backward compatibility for pre-registry runs)
+	var fallback []rpiRunInfo
+	if run, ok := loadRPIRun(cwd); ok {
+		fallback = append(fallback, run)
+	}
 	parent := filepath.Dir(cwd)
 	pattern := filepath.Join(parent, "*-rpi-*", ".agents", "rpi", "phased-state.json")
 	matches, err := filepath.Glob(pattern)
 	if err == nil {
 		for _, match := range matches {
-			// Derive the worktree dir (3 levels up from phased-state.json)
 			wtDir := filepath.Dir(filepath.Dir(filepath.Dir(match)))
 			if wtDir == cwd {
-				continue // already checked
+				continue
 			}
 			if run, ok := loadRPIRun(wtDir); ok {
-				runs = append(runs, run)
+				fallback = append(fallback, run)
 			}
 		}
 	}
+	return fallback
+}
 
+// collectSearchRoots returns the cwd plus any sibling worktree directories
+// that match the *-rpi-* naming convention.
+func collectSearchRoots(cwd string) []string {
+	roots := []string{cwd}
+	parent := filepath.Dir(cwd)
+	pattern := filepath.Join(parent, "*-rpi-*")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return roots
+	}
+	for _, m := range matches {
+		info, err := os.Stat(m)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		if m == cwd {
+			continue
+		}
+		roots = append(roots, m)
+	}
+	return roots
+}
+
+// scanRegistryRuns reads all run directories under <root>/.agents/rpi/runs/
+// and returns rpiRunInfo for each valid run.
+func scanRegistryRuns(root string) []rpiRunInfo {
+	runsDir := filepath.Join(root, ".agents", "rpi", "runs")
+	entries, err := os.ReadDir(runsDir)
+	if err != nil {
+		// Directory may not exist yet; fall through silently.
+		return nil
+	}
+
+	var runs []rpiRunInfo
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		runID := entry.Name()
+		statePath := filepath.Join(runsDir, runID, phasedStateFile)
+		data, err := os.ReadFile(statePath)
+		if err != nil {
+			continue
+		}
+		state, err := parsePhasedState(data)
+		if err != nil || state.RunID == "" {
+			continue
+		}
+
+		// Determine liveness from heartbeat first, tmux as fallback.
+		isActive, lastHB := determineRunLiveness(root, state)
+
+		phaseName := displayPhaseName(*state)
+		status := classifyRunStatus(*state, isActive)
+
+		elapsed := ""
+		if state.StartedAt != "" {
+			if t, err := time.Parse(time.RFC3339, state.StartedAt); err == nil {
+				elapsed = time.Since(t).Truncate(time.Second).String()
+			}
+		}
+
+		runs = append(runs, rpiRunInfo{
+			RunID:         state.RunID,
+			Goal:          state.Goal,
+			Phase:         state.Phase,
+			PhaseName:     phaseName,
+			Status:        status,
+			EpicID:        state.EpicID,
+			Worktree:      root,
+			StartedAt:     state.StartedAt,
+			Elapsed:       elapsed,
+			IsActive:      isActive,
+			LastHeartbeat: lastHB,
+		})
+	}
 	return runs
 }
 
+// determineRunLiveness decides whether a run is alive.
+//
+// Priority:
+//  1. If heartbeat file exists and is recent (< heartbeatLiveThreshold), the run
+//     is alive without any tmux probe.
+//  2. If heartbeat is absent or stale, probe tmux with a bounded timeout.
+//  3. If neither heartbeat nor tmux session is found, the run is historical.
+//
+// Returns (isActive bool, lastHeartbeat time.Time).
+func determineRunLiveness(cwd string, state *phasedState) (bool, time.Time) {
+	hb := readRunHeartbeat(cwd, state.RunID)
+	if !hb.IsZero() && time.Since(hb) < heartbeatLiveThreshold {
+		// Recent heartbeat — alive without tmux probe.
+		return true, hb
+	}
+
+	// Heartbeat absent or stale: probe tmux with bounded timeout.
+	if checkTmuxSessionAlive(state.RunID) {
+		return true, hb
+	}
+
+	return false, hb
+}
+
+// classifyRunStatus derives a human-readable status string.
+// Uses liveness information and phase number.
+func classifyRunStatus(state phasedState, isActive bool) string {
+	if isActive {
+		return "running"
+	}
+	if state.Phase >= completedPhaseNumber(state) {
+		return "completed"
+	}
+	return "unknown"
+}
+
+// --- State-file based discovery (legacy, kept for backward compat) ---
+
 func loadRPIRun(dir string) (rpiRunInfo, bool) {
+	// Try registry-first: scan .agents/rpi/runs/ for the most recent run.
+	runs := scanRegistryRuns(dir)
+	if len(runs) > 0 {
+		// Return the most recently started run.
+		best := runs[0]
+		for _, r := range runs[1:] {
+			if r.StartedAt > best.StartedAt {
+				best = r
+			}
+		}
+		return best, true
+	}
+
+	// Fallback: flat phased-state.json for backward compatibility.
 	stateFile := filepath.Join(dir, ".agents", "rpi", "phased-state.json")
 	data, err := os.ReadFile(stateFile)
 	if err != nil {
@@ -532,8 +737,9 @@ func loadRPIRun(dir string) (rpiRunInfo, bool) {
 
 	phaseName := displayPhaseName(state)
 
-	// Determine status via tmux session liveness
-	status := determineRunStatus(state)
+	// Determine status via heartbeat + tmux session liveness.
+	isActive, lastHB := determineRunLiveness(dir, &state)
+	status := classifyRunStatus(state, isActive)
 
 	elapsed := ""
 	if state.StartedAt != "" {
@@ -543,15 +749,17 @@ func loadRPIRun(dir string) (rpiRunInfo, bool) {
 	}
 
 	return rpiRunInfo{
-		RunID:     state.RunID,
-		Goal:      state.Goal,
-		Phase:     state.Phase,
-		PhaseName: phaseName,
-		Status:    status,
-		EpicID:    state.EpicID,
-		Worktree:  dir,
-		StartedAt: state.StartedAt,
-		Elapsed:   elapsed,
+		RunID:         state.RunID,
+		Goal:          state.Goal,
+		Phase:         state.Phase,
+		PhaseName:     phaseName,
+		Status:        status,
+		EpicID:        state.EpicID,
+		Worktree:      dir,
+		StartedAt:     state.StartedAt,
+		Elapsed:       elapsed,
+		IsActive:      isActive,
+		LastHeartbeat: lastHB,
 	}, true
 }
 
@@ -559,13 +767,8 @@ func loadRPIRun(dir string) (rpiRunInfo, bool) {
 // Returns "running" if a matching tmux session is alive, "completed" if the
 // state file indicates all phases are done, or "unknown" otherwise.
 func determineRunStatus(state phasedState) string {
-	if checkTmuxSessionAlive(state.RunID) {
-		return "running"
-	}
-	if state.Phase >= completedPhaseNumber(state) {
-		return "completed"
-	}
-	return "unknown"
+	isActive, _ := determineRunLiveness("", &state)
+	return classifyRunStatus(state, isActive)
 }
 
 func completedPhaseNumber(state phasedState) int {
@@ -606,6 +809,7 @@ func displayPhaseName(state phasedState) string {
 }
 
 // checkTmuxSessionAlive checks if any tmux session matching ao-rpi-<runID>-* exists.
+// Each probe is bounded by tmuxProbeTimeout to prevent blocking indefinitely.
 func checkTmuxSessionAlive(runID string) bool {
 	if runID == "" {
 		return false
@@ -613,10 +817,52 @@ func checkTmuxSessionAlive(runID string) bool {
 	// Try phases 1-6 for tmux session naming convention ao-rpi-<runID>-p<N>
 	for i := 1; i <= 6; i++ {
 		sessionName := fmt.Sprintf("ao-rpi-%s-p%d", runID, i)
-		cmd := exec.Command("tmux", "has-session", "-t", sessionName)
-		if err := cmd.Run(); err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), tmuxProbeTimeout)
+		cmd := exec.CommandContext(ctx, "tmux", "has-session", "-t", sessionName)
+		err := cmd.Run()
+		cancel()
+		if err == nil {
 			return true
 		}
 	}
 	return false
+}
+
+// locateRunMetadata finds the phasedState for a given run ID.
+// It searches the run registry across cwd and sibling directories, then falls
+// back to the flat phased-state.json. This is used by resume to locate a run
+// without relying on cwd heuristics alone.
+func locateRunMetadata(cwd, runID string) (*phasedState, string, error) {
+	roots := collectSearchRoots(cwd)
+	for _, root := range roots {
+		registryDir := rpiRunRegistryDir(root, runID)
+		if registryDir == "" {
+			continue
+		}
+		statePath := filepath.Join(registryDir, phasedStateFile)
+		data, err := os.ReadFile(statePath)
+		if err != nil {
+			continue
+		}
+		state, err := parsePhasedState(data)
+		if err != nil || state.RunID != runID {
+			continue
+		}
+		return state, root, nil
+	}
+
+	// Fallback: flat phased-state.json in cwd (backward compatibility).
+	flatPath := filepath.Join(cwd, ".agents", "rpi", phasedStateFile)
+	data, err := os.ReadFile(flatPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("run %s not found in registry or flat state", runID)
+	}
+	state, err := parsePhasedState(data)
+	if err != nil {
+		return nil, "", fmt.Errorf("parse flat state for run %s: %w", runID, err)
+	}
+	if state.RunID != runID {
+		return nil, "", fmt.Errorf("run %s not found (flat state contains run %s)", runID, state.RunID)
+	}
+	return state, cwd, nil
 }
