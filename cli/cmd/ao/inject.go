@@ -177,6 +177,15 @@ func runInject(cmd *cobra.Command, args []string) error {
 	}
 	knowledge.Patterns = patterns
 
+	// Record citations for retrieved patterns (closes σ gap: patterns were retrieved but never cited)
+	if !injectNoCite && len(patterns) > 0 {
+		if err := recordPatternCitations(cwd, patterns, sessionID, query); err != nil {
+			VerbosePrintf("Warning: failed to record pattern citations: %v\n", err)
+		} else {
+			VerbosePrintf("Recorded %d pattern citations for session %s\n", len(patterns), sessionID)
+		}
+	}
+
 	// Search recent sessions
 	sessions, err := collectRecentSessions(cwd, query, MaxSessionsToInject)
 	if err != nil {
@@ -406,6 +415,26 @@ func recordCitations(baseDir string, learnings []learning, sessionID, query stri
 
 		if err := ratchet.RecordCitation(baseDir, event); err != nil {
 			return fmt.Errorf("record citation for %s: %w", l.ID, err)
+		}
+	}
+	return nil
+}
+
+// recordPatternCitations records citation events for retrieved patterns.
+func recordPatternCitations(baseDir string, patterns []pattern, sessionID, query string) error {
+	for _, p := range patterns {
+		if p.FilePath == "" {
+			continue
+		}
+		event := types.CitationEvent{
+			ArtifactPath: p.FilePath,
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: "retrieved",
+			Query:        query,
+		}
+		if err := ratchet.RecordCitation(baseDir, event); err != nil {
+			return fmt.Errorf("record citation for pattern %s: %w", p.Name, err)
 		}
 	}
 	return nil

@@ -202,8 +202,11 @@ func computeMetrics(baseDir string, days int) (*types.FlywheelMetrics, error) {
 	metrics.UniqueCitedArtifacts = len(stats.uniqueCited)
 
 	// Calculate σ and ρ
+	// σ denominator: only count retrievable artifacts (learnings + patterns),
+	// not candidates, research, retros, or sessions which inject never retrieves.
+	retrievable := metrics.TierCounts["learning"] + metrics.TierCounts["pattern"]
 	metrics.Sigma, metrics.Rho = computeSigmaRho(
-		metrics.TotalArtifacts, metrics.UniqueCitedArtifacts, metrics.CitationsThisPeriod, days,
+		retrievable, metrics.UniqueCitedArtifacts, metrics.CitationsThisPeriod, days,
 	)
 	metrics.SigmaRho = metrics.Sigma * metrics.Rho
 	metrics.Velocity = metrics.SigmaRho - metrics.Delta
