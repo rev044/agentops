@@ -235,6 +235,36 @@ func TestBuildPromptForPhase_Retry(t *testing.T) {
 	}
 }
 
+func TestBuildRetryPrompt_ContextDiscipline(t *testing.T) {
+	state := &phasedState{Goal: "add auth", EpicID: "ag-5k2"}
+	retryCtx := &retryContext{
+		Attempt: 1,
+		Findings: []finding{
+			{Description: "Missing error handling", Fix: "Add try-catch", Ref: "auth.go:42"},
+		},
+		Verdict: "FAIL",
+	}
+
+	// Phase 3 has a retry template (/crank re-invocation)
+	prompt, err := buildRetryPrompt("", 3, state, retryCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !containsStr(prompt, "CONTEXT DISCIPLINE") {
+		t.Errorf("retry prompt should contain CONTEXT DISCIPLINE, got: %q", prompt)
+	}
+	if !containsStr(prompt, "PHASE SUMMARY CONTRACT") {
+		t.Errorf("retry prompt should contain PHASE SUMMARY CONTRACT, got: %q", prompt)
+	}
+	if !containsStr(prompt, "phase 3 of 3") {
+		t.Errorf("retry prompt should contain 'phase 3 of 3' (PhaseNum rendered), got: %q", prompt)
+	}
+	if !containsStr(prompt, "/crank") {
+		t.Errorf("retry prompt should contain /crank (retry template rendered), got: %q", prompt)
+	}
+}
+
 func TestPhasedState_SaveLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateDir := filepath.Join(tmpDir, ".agents", "rpi")

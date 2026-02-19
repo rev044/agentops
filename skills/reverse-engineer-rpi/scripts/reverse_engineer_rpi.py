@@ -906,6 +906,281 @@ def _write_artifact_surface_spec(
     out_md.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
+def _get_upstream_commit(analysis_root: Path) -> str | None:
+    """Return the HEAD commit SHA if analysis_root is a git repo, else None."""
+    git_dir = analysis_root / ".git"
+    if not git_dir.exists():
+        return None
+    try:
+        sha = subprocess.check_output(
+            ["git", "-C", str(analysis_root), "rev-parse", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        return sha if sha else None
+    except Exception:
+        return None
+
+
+def _collect_env_vars_with_evidence(
+    analysis_root: Path,
+) -> list[dict[str, object]]:
+    """
+    Scan source files for environment variable references and return a sorted list
+    with per-var file evidence.  Covers:
+      - TypeScript/JavaScript: process.env.VAR_NAME
+      - Python: os.environ['VAR'] / os.environ.get('VAR') / os.getenv('VAR')
+      - Go: os.Getenv("VAR") / os.LookupEnv("VAR")
+      - Shell: $VAR_NAME (upper-snake only, cap at 300 files)
+    """
+    var_files: dict[str, set[str]] = {}
+
+    patterns: list[tuple[re.Pattern[str], set[str]]] = [
+        (re.compile(r"\bprocess\.env\.([A-Z][A-Z0-9_]+)\b"), {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}),
+        (re.compile(r"""os\.environ(?:\.get)?\s*\(\s*['"]([A-Z][A-Z0-9_]+)['"]\s*\)"""), {".py"}),
+        (re.compile(r"""\bos\.getenv\s*\(\s*['"]([A-Z][A-Z0-9_]+)['"]\s*\)"""), {".py"}),
+        (re.compile(r"""\bos\.(?:Getenv|LookupEnv)\s*\(\s*"([A-Z][A-Z0-9_]+)"\s*\)"""), {".go"}),
+        (re.compile(r'\$\{?([A-Z][A-Z0-9_]{2,})\}?'), {".sh", ".bash", ".env", ".envrc"}),
+    ]
+
+    scanned = 0
+    for p in sorted(analysis_root.rglob("*")):
+        if not p.is_file():
+            continue
+        # Skip irrelevant dirs
+        skip_dirs = {"node_modules", ".git", ".venv", "vendor", "testdata", "__pycache__"}
+        if any(part in skip_dirs for part in p.parts):
+            continue
+        suffix = p.suffix.lower()
+        matching_pats = [pat for pat, suffixes in patterns if suffix in suffixes]
+        if not matching_pats:
+            continue
+        scanned += 1
+        if scanned > 500:
+            break
+        try:
+            text = _read_text(p)
+        except Exception:
+            continue
+        rel = p.relative_to(analysis_root).as_posix()
+        for pat in matching_pats:
+            for m in pat.finditer(text):
+                name = m.group(1)
+                var_files.setdefault(name, set()).add(rel)
+
+    result: list[dict[str, object]] = []
+    for var_name in sorted(var_files.keys()):
+        result.append({
+            "name": var_name,
+            "files": sorted(var_files[var_name]),
+        })
+    return result
+
+
+def _collect_schema_files(analysis_root: Path) -> list[str]:
+    """
+    Return sorted relative paths of schema-like files in the repo.
+    Matches: *.schema.json, *schema*.json, openapi*.json/yaml, swagger*.json/yaml,
+             *.proto, *.avsc, *.thrift, graphql schema files.
+    """
+    schema_patterns = [
+        "**/*.schema.json",
+        "**/*schema*.json",
+        "**/openapi*.json",
+        "**/openapi*.yaml",
+        "**/openapi*.yml",
+        "**/swagger*.json",
+        "**/swagger*.yaml",
+        "**/swagger*.yml",
+        "**/*.proto",
+        "**/*.avsc",
+        "**/*.thrift",
+        "**/schema.graphql",
+        "**/*.graphql",
+    ]
+    skip_dirs = {"node_modules", ".git", ".venv", "vendor", "testdata", "__pycache__"}
+    found: set[str] = set()
+    for pattern in schema_patterns:
+        for p in analysis_root.glob(pattern):
+            if not p.is_file():
+                continue
+            if any(part in skip_dirs for part in p.relative_to(analysis_root).parts):
+                continue
+            found.add(p.relative_to(analysis_root).as_posix())
+    return sorted(found)
+
+
+def _collect_config_files(analysis_root: Path) -> list[str]:
+    """
+    Return sorted relative paths of config files commonly read at runtime.
+    Matches common config naming patterns at any depth (capped at 300 files).
+    """
+    config_name_patterns = re.compile(
+        r"^(config|configuration|settings|\.env|app\.config|appsettings"
+        r"|pyproject|setup\.cfg|cargo\.toml|go\.mod|tsconfig|jest\.config"
+        r"|webpack\.config|vite\.config|babel\.config|eslint.*|\.eslintrc.*"
+        r"|prettier.*|\.prettierrc.*)(\.(json|yaml|yml|toml|ini|cfg|js|ts|cjs|mjs))?$",
+        re.IGNORECASE,
+    )
+    skip_dirs = {"node_modules", ".git", ".venv", "vendor", "testdata", "__pycache__"}
+    found: set[str] = set()
+    count = 0
+    for p in sorted(analysis_root.rglob("*")):
+        if not p.is_file():
+            continue
+        if any(part in skip_dirs for part in p.relative_to(analysis_root).parts):
+            continue
+        if config_name_patterns.match(p.name):
+            found.add(p.relative_to(analysis_root).as_posix())
+            count += 1
+            if count >= 300:
+                break
+    return sorted(found)
+
+
+def _write_repo_contract_json(
+    output_dir: Path,
+    analysis_root: Path,
+    *,
+    product_name: str,
+    product_slug: str,
+) -> Path:
+    """
+    Write a deterministic, machine-checkable contract JSON to
+    output_dir/contracts/repo-contract.json.
+
+    Contract includes:
+    - upstream_commit (if analysis_root is a git repo)
+    - cli surface: bin map, help text (static extraction), config file, env vars with file evidence
+    - manifest inventory + template file hashes (from artifact-registry.json if present)
+    - schema-like files
+    - config files discovered in repo
+
+    No absolute paths, no dates — stable across runs on the same commit.
+    """
+    contracts_dir = output_dir / "contracts"
+    contracts_dir.mkdir(parents=True, exist_ok=True)
+    out_path = contracts_dir / "repo-contract.json"
+
+    contract: dict[str, object] = {
+        "schema_version": 1,
+        "product_name": product_name,
+    }
+
+    # upstream_commit
+    upstream_commit = _get_upstream_commit(analysis_root)
+    if upstream_commit:
+        contract["upstream_commit"] = upstream_commit
+
+    # --- CLI surface ---
+    cli_surface: dict[str, object] = {}
+
+    node_cli = _find_node_cli_package(analysis_root, product_slug, product_name)
+    python_cli_info = _find_python_cli(analysis_root) if node_cli is None else None
+    go_cli_info = _find_go_cli(analysis_root) if node_cli is None and python_cli_info is None else None
+
+    if node_cli:
+        pkg_dir = Path(str(node_cli["package_dir"]))
+        # bin map with relative paths
+        raw_bin = node_cli.get("bin") or {}
+        bin_map: dict[str, str] = {}
+        if isinstance(raw_bin, dict):
+            for k, v in raw_bin.items():
+                bin_map[k] = v
+        cli_surface["language"] = "node"
+        cli_surface["package_json"] = Path(str(node_cli["package_json"])).relative_to(analysis_root).as_posix()
+        cli_surface["package_dir"] = pkg_dir.relative_to(analysis_root).as_posix()
+        cli_surface["package_name"] = str(node_cli.get("name") or "")
+        cli_surface["bin"] = {k: bin_map[k] for k in sorted(bin_map)}
+
+        # Help text (static extraction)
+        src_index = pkg_dir / "src" / "index.ts"
+        src_agents = pkg_dir / "src" / "agents" / "registry.ts"
+        help_text = _extract_ts_backtick_const(src_index, "helpText")
+        if help_text and src_agents.exists():
+            extracted = _extract_agents_from_registry_ts(src_agents)
+            if extracted:
+                agent_keys, alias_flags = extracted
+                if agent_keys:
+                    help_text = help_text.replace("${agentKeys.join('|')}", "|".join(agent_keys))
+                alias_line = ""
+                if alias_flags:
+                    alias_line = f"  {' | '.join(alias_flags)}  Agent alias flags\n"
+                help_text = help_text.replace("${agentAliasLine}", alias_line)
+        if help_text is not None:
+            cli_surface["help_text"] = help_text
+            cli_surface["help_text_source"] = src_index.relative_to(analysis_root).as_posix() if src_index.exists() else None
+
+        # Config file from store.ts
+        src_store = pkg_dir / "src" / "cli" / "store.ts"
+        config_file = _extract_ts_string_const(src_store, "CONFIG_FILE")
+        if config_file:
+            cli_surface["config_file"] = config_file
+            cli_surface["config_file_source"] = src_store.relative_to(analysis_root).as_posix() if src_store.exists() else None
+
+    elif python_cli_info:
+        raw_bin_py = python_cli_info.get("bin") or {}
+        cli_surface["language"] = "python"
+        cli_surface["framework"] = python_cli_info.get("framework")
+        cli_surface["entry_module"] = python_cli_info.get("entry_module")
+        cli_surface["bin"] = {k: str(raw_bin_py[k]) for k in sorted(raw_bin_py)} if isinstance(raw_bin_py, dict) else {}
+
+    elif go_cli_info:
+        raw_bin_go = go_cli_info.get("bin") or {}
+        cli_surface["language"] = "go"
+        cli_surface["framework"] = go_cli_info.get("framework")
+        cli_surface["module"] = go_cli_info.get("module")
+        cli_surface["bin"] = {k: str(raw_bin_go[k]) for k in sorted(raw_bin_go)} if isinstance(raw_bin_go, dict) else {}
+
+    contract["cli"] = cli_surface
+
+    # --- Env vars with per-var file evidence ---
+    contract["env_vars"] = _collect_env_vars_with_evidence(analysis_root)
+
+    # --- Manifest inventory + template file hashes ---
+    artifact_registry_path = output_dir / "artifact-registry.json"
+    if artifact_registry_path.exists():
+        try:
+            artifact_data = json.loads(_read_text(artifact_registry_path))
+            manifests_raw = artifact_data.get("manifests") or []
+            template_files_raw = artifact_data.get("resolved_template_files") or []
+
+            # Manifests: keep only path and agent (drop raw JSON for contract stability)
+            manifests_clean: list[dict[str, object]] = []
+            for m in manifests_raw:
+                entry: dict[str, object] = {"path": m.get("path")}
+                if m.get("agent"):
+                    entry["agent"] = m["agent"]
+                manifests_clean.append(entry)
+
+            # Template files: keep path, sha256 (no absolute paths; already relative in artifact-registry)
+            template_hashes: list[dict[str, object]] = []
+            for tf in template_files_raw:
+                template_hashes.append({
+                    "file": tf.get("file"),
+                    "manifest": tf.get("manifest"),
+                    "sha256": tf.get("sha256"),
+                    "source_type": tf.get("source_type"),
+                })
+
+            contract["manifests"] = sorted(manifests_clean, key=lambda x: str(x.get("path", "")))
+            contract["template_files"] = sorted(template_hashes, key=lambda x: str(x.get("file", "")))
+        except Exception:
+            pass
+
+    # --- Schema-like files ---
+    contract["schema_files"] = _collect_schema_files(analysis_root)
+
+    # --- Config files ---
+    contract["config_files"] = _collect_config_files(analysis_root)
+
+    out_path.write_text(
+        json.dumps(contract, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return out_path
+
+
 def _write_comparison_report(
     output_dir: Path,
     tmp_dir: Path,
@@ -1416,7 +1691,16 @@ def main() -> int:
             analysis_root=analysis_root,
         )
 
-    # 6b) Comparison report (binary vs repo) when both sources are available.
+    # 6b) Deterministic repo-mode contract JSON (CLI/config/env + artifact I/O surface).
+    if args.mode in ("repo", "both"):
+        _write_repo_contract_json(
+            output_dir,
+            analysis_root,
+            product_name=args.product_name,
+            product_slug=product_slug,
+        )
+
+    # 6c) Comparison report (binary vs repo) when both sources are available.
     if args.mode == "both":
         _write_comparison_report(output_dir, tmp_dir, product_name=args.product_name, date=_today_ymd())
 
