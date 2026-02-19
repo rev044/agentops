@@ -264,7 +264,7 @@ func TestLoadForgedIndex(t *testing.T) {
 	}
 	for _, record := range records {
 		data, _ := json.Marshal(record)
-		f.Write(append(data, '\n'))
+		_, _ = f.Write(append(data, '\n'))
 	}
 	f.Close()
 

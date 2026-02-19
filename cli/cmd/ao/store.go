@@ -18,8 +18,7 @@ import (
 )
 
 var (
-	storeLimit   int
-	storeRebuild bool
+	storeLimit      int
 	storeCategorize bool
 )
 

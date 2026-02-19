@@ -555,12 +555,7 @@ func TestPhasedState_SchemaVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	state := &phasedState{
-		SchemaVersion: 1,
-		Goal:          "test",
-		Verdicts:      make(map[string]string),
-		Attempts:      make(map[string]int),
-	}
+	state := newTestPhasedState()
 
 	if err := savePhasedState(tmpDir, state); err != nil {
 		t.Fatalf("save error: %v", err)
@@ -592,10 +587,7 @@ func TestPhasedState_SchemaVersion(t *testing.T) {
 
 func TestBuildPromptForPhase_Interactive(t *testing.T) {
 	// Default (non-interactive) — should have --auto
-	state := &phasedState{
-		Goal: "add auth",
-		Opts: phasedEngineOptions{Interactive: false},
-	}
+	state := newTestPhasedState().WithGoal("add auth").WithOpts(phasedEngineOptions{Interactive: false})
 	prompt, err := buildPromptForPhase("", 1, state, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -617,13 +609,8 @@ func TestBuildPromptForPhase_Interactive(t *testing.T) {
 
 func TestBuildPhaseContext(t *testing.T) {
 	// With goal and verdicts
-	state := &phasedState{
-		Goal:   "add user authentication",
-		EpicID: "ag-5k2",
-		Verdicts: map[string]string{
-			"pre_mortem": "WARN",
-		},
-	}
+	state := newTestPhasedState().WithGoal("add user authentication").WithEpicID("ag-5k2")
+	state.Verdicts["pre_mortem"] = "WARN"
 
 	ctx := buildPhaseContext("", state, 2)
 	if !containsStr(ctx, "Goal: add user authentication") {
@@ -645,13 +632,8 @@ func TestBuildPhaseContext(t *testing.T) {
 }
 
 func TestBuildPromptForPhase_WithContext(t *testing.T) {
-	state := &phasedState{
-		Goal:   "add auth",
-		EpicID: "ag-5k2",
-		Verdicts: map[string]string{
-			"pre_mortem": "PASS",
-		},
-	}
+	state := newTestPhasedState().WithGoal("add auth").WithEpicID("ag-5k2")
+	state.Verdicts["pre_mortem"] = "PASS"
 
 	// Phase 2 (implementation) should include context and summary instruction
 	prompt, err := buildPromptForPhase("", 2, state, nil)
@@ -685,15 +667,9 @@ func TestBuildPromptForPhase_WithContext(t *testing.T) {
 }
 
 func TestGeneratePhaseSummary(t *testing.T) {
-	state := &phasedState{
-		Goal:     "add auth",
-		EpicID:   "ag-5k2",
-		FastPath: true,
-		Verdicts: map[string]string{
-			"pre_mortem": "WARN",
-			"vibe":       "PASS",
-		},
-	}
+	state := newTestPhasedState().WithGoal("add auth").WithEpicID("ag-5k2").WithFastPath(true)
+	state.Verdicts["pre_mortem"] = "WARN"
+	state.Verdicts["vibe"] = "PASS"
 
 	// Phase 1: discovery (research + plan + pre-mortem)
 	s := generatePhaseSummary(state, 1)
@@ -765,11 +741,8 @@ func TestReadPhaseSummaries(t *testing.T) {
 
 func TestWritePhaseSummary(t *testing.T) {
 	tmpDir := t.TempDir()
-	state := &phasedState{
-		Goal:     "add auth",
-		EpicID:   "ag-5k2",
-		Verdicts: map[string]string{"pre_mortem": "PASS"},
-	}
+	state := newTestPhasedState().WithGoal("add auth").WithEpicID("ag-5k2")
+	state.Verdicts["pre_mortem"] = "PASS"
 
 	// Fallback: no existing summary → writes mechanical one
 	writePhaseSummary(tmpDir, state, 1)
@@ -824,12 +797,7 @@ func TestCleanPhaseSummaries(t *testing.T) {
 }
 
 func TestContextDisciplineInPrompt(t *testing.T) {
-	state := &phasedState{
-		Goal:     "test goal",
-		EpicID:   "ag-test",
-		Verdicts: map[string]string{},
-		Attempts: make(map[string]int),
-	}
+	state := newTestPhasedState().WithEpicID("ag-test")
 
 	// Every phase (1-3) should contain context discipline
 	for phaseNum := 1; phaseNum <= 3; phaseNum++ {
@@ -871,12 +839,8 @@ func TestContextDiscipline_PhaseSpecificBudgets(t *testing.T) {
 }
 
 func TestContextDiscipline_PromptOrdering(t *testing.T) {
-	state := &phasedState{
-		Goal:     "test goal",
-		EpicID:   "ag-test",
-		Verdicts: map[string]string{"pre_mortem": "PASS"},
-		Attempts: make(map[string]int),
-	}
+	state := newTestPhasedState().WithEpicID("ag-test")
+	state.Verdicts["pre_mortem"] = "PASS"
 
 	// Phase 2: check that discipline comes before skill invocation
 	prompt, err := buildPromptForPhase("", 2, state, nil)
@@ -970,12 +934,9 @@ func TestCleanPhaseSummaries_AlsoRemovesHandoffs(t *testing.T) {
 }
 
 func TestPromptBudgetEstimate(t *testing.T) {
-	state := &phasedState{
-		Goal:     "test goal with a reasonable description of what needs to happen",
-		EpicID:   "ag-test",
-		Verdicts: map[string]string{"pre_mortem": "PASS", "vibe": "WARN"},
-		Attempts: make(map[string]int),
-	}
+	state := newTestPhasedState().WithGoal("test goal with a reasonable description of what needs to happen").WithEpicID("ag-test")
+	state.Verdicts["pre_mortem"] = "PASS"
+	state.Verdicts["vibe"] = "WARN"
 
 	// Every phase prompt should stay under 5000 chars (without summaries on disk)
 	for phaseNum := 1; phaseNum <= 3; phaseNum++ {
@@ -1064,12 +1025,7 @@ func TestPostPhaseProcessing_Discovery(t *testing.T) {
 	writeFakeBDScript(t, fakeBin)
 	t.Setenv("PATH", fakeBin+":"+os.Getenv("PATH"))
 
-	state := &phasedState{
-		Goal:     "add auth",
-		RunID:    "run-discovery",
-		Verdicts: make(map[string]string),
-		Attempts: make(map[string]int),
-	}
+	state := newTestPhasedState().WithGoal("add auth").WithRunID("run-discovery")
 
 	if err := postPhaseProcessing(tmpDir, state, 1, filepath.Join(tmpDir, "orchestration.log")); err != nil {
 		t.Fatalf("postPhaseProcessing(discovery): %v", err)
@@ -1096,12 +1052,7 @@ func TestPostPhaseProcessing_Implementation(t *testing.T) {
 	writeFakeBDScript(t, fakeBin)
 	t.Setenv("PATH", fakeBin+":"+os.Getenv("PATH"))
 
-	state := &phasedState{
-		EpicID:   "ag-new",
-		RunID:    "run-implementation",
-		Verdicts: make(map[string]string),
-		Attempts: make(map[string]int),
-	}
+	state := newTestPhasedState().WithEpicID("ag-new").WithRunID("run-implementation")
 
 	if err := postPhaseProcessing(tmpDir, state, 2, filepath.Join(tmpDir, "orchestration.log")); err != nil {
 		t.Fatalf("postPhaseProcessing(implementation): %v", err)
@@ -1130,12 +1081,7 @@ func TestPostPhaseProcessing_Validation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	state := &phasedState{
-		EpicID:   "ag-new",
-		RunID:    "run-validation",
-		Verdicts: make(map[string]string),
-		Attempts: make(map[string]int),
-	}
+	state := newTestPhasedState().WithEpicID("ag-new").WithRunID("run-validation")
 
 	if err := postPhaseProcessing(tmpDir, state, 3, filepath.Join(tmpDir, "orchestration.log")); err != nil {
 		t.Fatalf("postPhaseProcessing(validation): %v", err)

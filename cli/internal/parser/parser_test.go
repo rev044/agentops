@@ -802,9 +802,7 @@ func TestParser_ParseChannel_MalformedNotSkipped(t *testing.T) {
 	msgCh, errCh := p.ParseChannel(strings.NewReader(jsonl))
 
 	// Drain messages (should get 0 because error stops processing)
-	var msgs []types.TranscriptMessage
-	for msg := range msgCh {
-		msgs = append(msgs, msg)
+	for range msgCh {
 	}
 
 	err := <-errCh

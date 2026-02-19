@@ -231,11 +231,19 @@ func setupGitignore(cwd string, dryRun, stealth bool) error {
 		rf, err := os.Open(targetPath)
 		if err == nil {
 			buf := make([]byte, 1)
-			rf.Seek(-1, 2)
-			rf.Read(buf)
+			if _, err := rf.Seek(-1, 2); err != nil {
+				rf.Close()
+				return fmt.Errorf("seek %s: %w", targetPath, err)
+			}
+			if _, err := rf.Read(buf); err != nil {
+				rf.Close()
+				return fmt.Errorf("read last byte %s: %w", targetPath, err)
+			}
 			rf.Close()
 			if buf[0] != '\n' {
-				f.WriteString("\n")
+				if _, err := f.WriteString("\n"); err != nil {
+					return fmt.Errorf("write newline to %s: %w", targetPath, err)
+				}
 			}
 		}
 	}

@@ -10,12 +10,11 @@ import (
 
 // helper: write a run registry entry (state + optional heartbeat)
 type registryRunSpec struct {
-	runID    string
-	phase    int
-	schema   int
-	goal     string
-	hbAge    time.Duration // 0 = no heartbeat; negative = stale; positive = fresh
-	worktree string
+	runID  string
+	phase  int
+	schema int
+	goal   string
+	hbAge  time.Duration // 0 = no heartbeat; negative = stale; positive = fresh
 }
 
 func writeRegistryRun(t *testing.T, rootDir string, spec registryRunSpec) {

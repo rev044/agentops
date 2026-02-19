@@ -376,7 +376,9 @@ func TestSearchFilesNoData(t *testing.T) {
 	tmp := t.TempDir()
 	// Use an empty (but existing) directory — grep returns error for nonexistent dirs
 	emptyDir := filepath.Join(tmp, "sessions")
-	os.MkdirAll(emptyDir, 0755)
+	if err := os.MkdirAll(emptyDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	results, err := searchFiles("test", emptyDir, 10)
 	if err != nil {

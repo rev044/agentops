@@ -19,7 +19,9 @@ Release in defer to prevent deadlocks.
 ...
 `
 		path := filepath.Join(tmpDir, "mutex-guard.md")
-		os.WriteFile(path, []byte(content), 0644)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		p, err := parsePatternFile(path)
 		if err != nil {
@@ -63,7 +65,9 @@ Use this pattern first.
 		content := `Some description without a heading.
 `
 		path := filepath.Join(tmpDir, "no-title.md")
-		os.WriteFile(path, []byte(content), 0644)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		p, err := parsePatternFile(path)
 		if err != nil {
@@ -76,7 +80,9 @@ Use this pattern first.
 
 	t.Run("empty file", func(t *testing.T) {
 		path := filepath.Join(tmpDir, "empty.md")
-		os.WriteFile(path, []byte(""), 0644)
+		if err := os.WriteFile(path, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		p, err := parsePatternFile(path)
 		if err != nil {
@@ -96,7 +102,9 @@ Use this pattern first.
 The actual description starts here.
 `
 		path := filepath.Join(tmpDir, "titled.md")
-		os.WriteFile(path, []byte(content), 0644)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		p, err := parsePatternFile(path)
 		if err != nil {
@@ -123,10 +131,16 @@ func TestCollectPatterns(t *testing.T) {
 
 	// Create patterns directory
 	patternsDir := filepath.Join(tmpDir, ".agents", "patterns")
-	os.MkdirAll(patternsDir, 0755)
+	if err := os.MkdirAll(patternsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
-	os.WriteFile(filepath.Join(patternsDir, "mutex.md"), []byte("# Mutex Pattern\n\nUse mutex for shared state."), 0644)
-	os.WriteFile(filepath.Join(patternsDir, "pool.md"), []byte("# Connection Pooling\n\nPool database connections."), 0644)
+	if err := os.WriteFile(filepath.Join(patternsDir, "mutex.md"), []byte("# Mutex Pattern\n\nUse mutex for shared state."), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(patternsDir, "pool.md"), []byte("# Connection Pooling\n\nPool database connections."), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("collects all patterns", func(t *testing.T) {
 		got, err := collectPatterns(tmpDir, "", 10)

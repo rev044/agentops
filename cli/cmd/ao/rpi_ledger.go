@@ -192,12 +192,7 @@ func VerifyRPILedger(rootDir string) error {
 
 // appendRPILedgerEvent appends a single run event to the on-disk ledger.
 func appendRPILedgerEvent(rootDir string, event rpiLedgerEvent) (rpiLedgerRecord, error) {
-	return AppendRPILedgerRecord(rootDir, RPILedgerAppendInput{
-		RunID:   event.RunID,
-		Phase:   event.Phase,
-		Action:  event.Action,
-		Details: event.Details,
-	})
+	return AppendRPILedgerRecord(rootDir, RPILedgerAppendInput(event))
 }
 
 // verifyRPILedger verifies on-disk ledger integrity and reports the first

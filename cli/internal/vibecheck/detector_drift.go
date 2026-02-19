@@ -22,12 +22,6 @@ const driftMinEdits = 3
 // or config files (CLAUDE.md, SKILL.md, etc.), suggesting instructions are
 // being changed too often instead of stabilizing.
 func DetectInstructionDrift(events []TimelineEvent) []Finding {
-	// Count how many commits touch config files.
-	type configHit struct {
-		sha string
-		msg string
-	}
-
 	// Track per config-file-pattern how many commits touch it.
 	fileCounts := make(map[string]int)
 

@@ -31,7 +31,7 @@ func TestMaturityExpireScan(t *testing.T) {
 	if err := os.Chdir(tmp); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Reset flags
 	maturityArchive = false
@@ -58,7 +58,7 @@ func TestMaturityExpireArchive(t *testing.T) {
 	if err := os.Chdir(tmp); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	maturityArchive = true
 	maturityExpire = true
@@ -101,7 +101,7 @@ func TestMaturityExpireNoValidUntil(t *testing.T) {
 	if err := os.Chdir(tmp); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	maturityArchive = false
 	maturityExpire = true
@@ -128,7 +128,7 @@ func TestMaturityExpireMalformedYAML(t *testing.T) {
 	if err := os.Chdir(tmp); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	maturityArchive = false
 	maturityExpire = true

@@ -374,22 +374,6 @@ func markEntryConsumed(path string, entryIndex int, consumedBy string) error {
 //   - Missing file: returns an error (caller should verify file exists before calling).
 //   - Wrong/no match: no-op (idempotent — safe to call even if already consumed).
 //   - Match: sets Consumed=true, ConsumedAt, and ConsumedBy=runID.
-func markItemConsumed(path, sourceEpic, runID string) error {
-	if _, err := os.Stat(path); err != nil {
-		return fmt.Errorf("next-work.jsonl not found: %w", err)
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	return rewriteNextWorkFile(path, func(_ int, entry *nextWorkEntry) {
-		if entry.SourceEpic != sourceEpic {
-			return
-		}
-		entry.Consumed = true
-		entry.ConsumedAt = &now
-		entry.ConsumedBy = &runID
-		entry.FailedAt = nil
-	})
-}
-
 // markEntryFailed records a FailedAt timestamp on the entry at entryIndex without
 // setting Consumed. This leaves the entry recoverable: set consumed=false to retry.
 func markEntryFailed(path string, entryIndex int) error {

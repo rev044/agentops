@@ -61,11 +61,19 @@ func TestFindLastForgeTime(t *testing.T) {
 		tmp := t.TempDir()
 		retrosDir := filepath.Join(tmp, ".agents", "retros")
 		learningsDir := filepath.Join(tmp, ".agents", "learnings")
-		os.MkdirAll(retrosDir, 0755)
-		os.MkdirAll(learningsDir, 0755)
+		if err := os.MkdirAll(retrosDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(learningsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
 
-		os.WriteFile(filepath.Join(retrosDir, "retro-1.md"), []byte("retro"), 0644)
-		os.WriteFile(filepath.Join(learningsDir, "L1.md"), []byte("learning"), 0644)
+		if err := os.WriteFile(filepath.Join(retrosDir, "retro-1.md"), []byte("retro"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(learningsDir, "L1.md"), []byte("learning"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		result := findLastForgeTime(tmp)
 		if result.IsZero() {
@@ -79,8 +87,12 @@ func TestFindLastForgeTime(t *testing.T) {
 
 	t.Run("empty dirs return zero", func(t *testing.T) {
 		tmp := t.TempDir()
-		os.MkdirAll(filepath.Join(tmp, ".agents", "retros"), 0755)
-		os.MkdirAll(filepath.Join(tmp, ".agents", "learnings"), 0755)
+		if err := os.MkdirAll(filepath.Join(tmp, ".agents", "retros"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(tmp, ".agents", "learnings"), 0755); err != nil {
+			t.Fatal(err)
+		}
 
 		result := findLastForgeTime(tmp)
 		if !result.IsZero() {
@@ -99,7 +111,9 @@ func TestFindLastForgeTime(t *testing.T) {
 	t.Run("ignores subdirectories", func(t *testing.T) {
 		tmp := t.TempDir()
 		retrosDir := filepath.Join(tmp, ".agents", "retros")
-		os.MkdirAll(filepath.Join(retrosDir, "subdir"), 0755)
+		if err := os.MkdirAll(filepath.Join(retrosDir, "subdir"), 0755); err != nil {
+			t.Fatal(err)
+		}
 
 		result := findLastForgeTime(tmp)
 		if !result.IsZero() {

@@ -17,15 +17,21 @@ func TestFindAgentsSubdir(t *testing.T) {
 
 	// Create rig root with marker
 	rigRoot := filepath.Join(tmpDir, "myrig")
-	os.MkdirAll(filepath.Join(rigRoot, ".beads"), 0755)
+	if err := os.MkdirAll(filepath.Join(rigRoot, ".beads"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create .agents/learnings at rig root
 	learningsDir := filepath.Join(rigRoot, ".agents", "learnings")
-	os.MkdirAll(learningsDir, 0755)
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a nested work dir
 	workDir := filepath.Join(rigRoot, "crew", "worker")
-	os.MkdirAll(workDir, 0755)
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("finds subdir walking up", func(t *testing.T) {
 		got := findAgentsSubdir(workDir, "learnings")
@@ -43,7 +49,9 @@ func TestFindAgentsSubdir(t *testing.T) {
 
 	t.Run("stops at rig root", func(t *testing.T) {
 		// Create agents dir above rig root - should not be found
-		os.MkdirAll(filepath.Join(tmpDir, ".agents", "patterns"), 0755)
+		if err := os.MkdirAll(filepath.Join(tmpDir, ".agents", "patterns"), 0755); err != nil {
+			t.Fatal(err)
+		}
 		got := findAgentsSubdir(workDir, "patterns")
 		if got != "" {
 			t.Errorf("findAgentsSubdir() = %q, want empty (should stop at rig root)", got)
@@ -220,7 +228,9 @@ func TestCollectOLConstraints(t *testing.T) {
 	})
 
 	t.Run("no quarantine.json returns nil", func(t *testing.T) {
-		os.MkdirAll(filepath.Join(tmpDir, ".ol", "constraints"), 0755)
+		if err := os.MkdirAll(filepath.Join(tmpDir, ".ol", "constraints"), 0755); err != nil {
+			t.Fatal(err)
+		}
 		got, err := collectOLConstraints(tmpDir, "")
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -237,8 +247,12 @@ func TestCollectOLConstraints(t *testing.T) {
 	}
 	data, _ := json.Marshal(constraints)
 	quarantinePath := filepath.Join(tmpDir, ".ol", "constraints", "quarantine.json")
-	os.MkdirAll(filepath.Dir(quarantinePath), 0755)
-	os.WriteFile(quarantinePath, data, 0644)
+	if err := os.MkdirAll(filepath.Dir(quarantinePath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(quarantinePath, data, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("loads all constraints without query", func(t *testing.T) {
 		got, err := collectOLConstraints(tmpDir, "")
@@ -276,8 +290,12 @@ func TestCollectOLConstraints(t *testing.T) {
 	t.Run("invalid JSON", func(t *testing.T) {
 		badDir := t.TempDir()
 		badPath := filepath.Join(badDir, ".ol", "constraints", "quarantine.json")
-		os.MkdirAll(filepath.Dir(badPath), 0755)
-		os.WriteFile(badPath, []byte("not json"), 0644)
+		if err := os.MkdirAll(filepath.Dir(badPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(badPath, []byte("not json"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		_, err := collectOLConstraints(badDir, "")
 		if err == nil {
@@ -291,14 +309,18 @@ func TestCollectLearnings(t *testing.T) {
 
 	// Create .agents/learnings/ directory
 	learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
-	os.MkdirAll(learningsDir, 0755)
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create markdown learning
 	mdContent := `# Mutex Pattern
 
 Always use sync.Mutex for shared state access.
 `
-	os.WriteFile(filepath.Join(learningsDir, "mutex.md"), []byte(mdContent), 0644)
+	if err := os.WriteFile(filepath.Join(learningsDir, "mutex.md"), []byte(mdContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create JSONL learning
 	jsonlData := map[string]interface{}{
@@ -308,7 +330,9 @@ Always use sync.Mutex for shared state access.
 		"utility": 0.8,
 	}
 	line, _ := json.Marshal(jsonlData)
-	os.WriteFile(filepath.Join(learningsDir, "db.jsonl"), line, 0644)
+	if err := os.WriteFile(filepath.Join(learningsDir, "db.jsonl"), line, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create superseded learning
 	supersededContent := `---
@@ -316,7 +340,9 @@ superseded_by: L99
 ---
 # Old Learning
 `
-	os.WriteFile(filepath.Join(learningsDir, "old.md"), []byte(supersededContent), 0644)
+	if err := os.WriteFile(filepath.Join(learningsDir, "old.md"), []byte(supersededContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("collects non-superseded learnings", func(t *testing.T) {
 		got, err := collectLearnings(tmpDir, "", 10)
@@ -390,7 +416,9 @@ func TestParseLearningJSONL(t *testing.T) {
 		}
 		line, _ := json.Marshal(data)
 		path := filepath.Join(tmpDir, "basic.jsonl")
-		os.WriteFile(path, line, 0644)
+		if err := os.WriteFile(path, line, 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		l, err := parseLearningJSONL(path)
 		if err != nil {
@@ -415,7 +443,9 @@ func TestParseLearningJSONL(t *testing.T) {
 		}
 		line, _ := json.Marshal(data)
 		path := filepath.Join(tmpDir, "superseded.jsonl")
-		os.WriteFile(path, line, 0644)
+		if err := os.WriteFile(path, line, 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		l, err := parseLearningJSONL(path)
 		if err != nil {
@@ -434,7 +464,9 @@ func TestParseLearningJSONL(t *testing.T) {
 		}
 		line, _ := json.Marshal(data)
 		path := filepath.Join(tmpDir, "content.jsonl")
-		os.WriteFile(path, line, 0644)
+		if err := os.WriteFile(path, line, 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		l, err := parseLearningJSONL(path)
 		if err != nil {
@@ -452,7 +484,9 @@ func TestParseLearningJSONL(t *testing.T) {
 		}
 		line, _ := json.Marshal(data)
 		path := filepath.Join(tmpDir, "no-utility.jsonl")
-		os.WriteFile(path, line, 0644)
+		if err := os.WriteFile(path, line, 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		l, err := parseLearningJSONL(path)
 		if err != nil {
@@ -472,7 +506,9 @@ func TestParseLearningJSONL(t *testing.T) {
 
 	t.Run("invalid JSON", func(t *testing.T) {
 		path := filepath.Join(tmpDir, "bad.jsonl")
-		os.WriteFile(path, []byte("not valid json"), 0644)
+		if err := os.WriteFile(path, []byte("not valid json"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		l, err := parseLearningJSONL(path)
 		if err != nil {

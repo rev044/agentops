@@ -1790,7 +1790,7 @@ func generatePhaseSummary(state *phasedState, phaseNum int) string {
 	switch phaseNum {
 	case 1: // Discovery (research + plan + pre-mortem)
 		summary := fmt.Sprintf("Discovery completed for goal: %s\n", state.Goal)
-		summary += fmt.Sprintf("Research: see .agents/research/ for findings.\n")
+		summary += "Research: see .agents/research/ for findings.\n"
 		if state.EpicID != "" {
 			summary += fmt.Sprintf("Plan: epic %s", state.EpicID)
 			if state.FastPath {
@@ -1815,7 +1815,7 @@ func generatePhaseSummary(state *phasedState, phaseNum int) string {
 		if pmVerdict != "" {
 			summary += fmt.Sprintf("Post-mortem verdict: %s\n", pmVerdict)
 		}
-		summary += fmt.Sprintf("See .agents/council/*post-mortem*.md and .agents/learnings/ for extracted knowledge.")
+		summary += "See .agents/council/*post-mortem*.md and .agents/learnings/ for extracted knowledge."
 		return summary
 	}
 	return ""

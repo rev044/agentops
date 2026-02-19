@@ -110,16 +110,7 @@ func TestSwarmFirstStateRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	state := &phasedState{
-		SchemaVersion: 1,
-		Goal:          "add auth",
-		Phase:         1,
-		Cycle:         1,
-		SwarmFirst:    true,
-		Verdicts:      make(map[string]string),
-		Attempts:      make(map[string]int),
-		StartedAt:     "2026-02-19T00:00:00Z",
-	}
+	state := newTestPhasedState().WithGoal("add auth").WithSwarmFirst(true)
 
 	if err := savePhasedState(tmpDir, state); err != nil {
 		t.Fatalf("save: %v", err)
@@ -143,16 +134,7 @@ func TestSwarmFirstStateRoundTrip_False(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	state := &phasedState{
-		SchemaVersion: 1,
-		Goal:          "fix typo",
-		Phase:         1,
-		Cycle:         1,
-		SwarmFirst:    false,
-		Verdicts:      make(map[string]string),
-		Attempts:      make(map[string]int),
-		StartedAt:     "2026-02-19T00:00:00Z",
-	}
+	state := newTestPhasedState().WithGoal("fix typo").WithSwarmFirst(false)
 
 	if err := savePhasedState(tmpDir, state); err != nil {
 		t.Fatalf("save: %v", err)
@@ -273,13 +255,7 @@ func TestRunRPIPhased_BackendStoredInState(t *testing.T) {
 
 	opts := defaultPhasedEngineOptions()
 	opts.LiveStatus = false
-	state := &phasedState{
-		Goal:       "add feature",
-		SwarmFirst: true,
-		Verdicts:   make(map[string]string),
-		Attempts:   make(map[string]int),
-		Opts:       opts,
-	}
+	state := newTestPhasedState().WithGoal("add feature").WithSwarmFirst(true).WithOpts(opts)
 
 	// Simulate what runRPIPhasedWithOpts does.
 	executor := selectExecutorWithLog("", nil, "", "", false, opts)
@@ -334,16 +310,10 @@ func TestRetryWithBackendSemantics(t *testing.T) {
 	retryOpts.MaxRetries = 3
 	retryOpts.LiveStatus = false
 
-	state := &phasedState{
-		Goal:       "add auth",
-		EpicID:     "ag-test1",
-		StartPhase: 3, // simulate --from=vibe (no prior phase results)
-		SwarmFirst: true,
-		Verdicts:   make(map[string]string),
-		Attempts:   make(map[string]int),
-		Backend:    mockExec.Name(),
-		Opts:       retryOpts,
-	}
+	state := newTestPhasedState().WithGoal("add auth").WithEpicID("ag-test1").WithSwarmFirst(true).WithOpts(retryOpts)
+	state.Phase = 0      // not yet started
+	state.StartPhase = 3 // simulate --from=vibe (no prior phase results)
+	state.Backend = mockExec.Name()
 
 	logPath := filepath.Join(rpiDir, "phased-orchestration.log")
 	statusPath := filepath.Join(rpiDir, "live-status.md")
@@ -411,15 +381,10 @@ func TestRetryBackendPreservesExecutor(t *testing.T) {
 	preserveOpts := defaultPhasedEngineOptions()
 	preserveOpts.MaxRetries = 3
 
-	state := &phasedState{
-		Goal:       "fix bug",
-		EpicID:     "ag-fix1",
-		StartPhase: 3, // simulate --from=vibe (no prior phase results)
-		Verdicts:   make(map[string]string),
-		Attempts:   make(map[string]int),
-		Backend:    primaryExec.Name(),
-		Opts:       preserveOpts,
-	}
+	state := newTestPhasedState().WithGoal("fix bug").WithEpicID("ag-fix1").WithOpts(preserveOpts)
+	state.Phase = 0      // not yet started
+	state.StartPhase = 3 // simulate --from=vibe (no prior phase results)
+	state.Backend = primaryExec.Name()
 
 	logPath := filepath.Join(rpiDir, "phased-orchestration.log")
 	statusPath := filepath.Join(rpiDir, "live-status.md")
@@ -492,13 +457,7 @@ func TestSwarmFirstBackendInState(t *testing.T) {
 
 	stateOpts := defaultPhasedEngineOptions()
 	stateOpts.LiveStatus = false
-	state := &phasedState{
-		Goal:       "add feature",
-		SwarmFirst: true,
-		Verdicts:   make(map[string]string),
-		Attempts:   make(map[string]int),
-		Opts:       stateOpts,
-	}
+	state := newTestPhasedState().WithGoal("add feature").WithSwarmFirst(true).WithOpts(stateOpts)
 
 	executor := selectExecutorWithLog("", nil, "", "", false, stateOpts)
 	state.Backend = executor.Name()

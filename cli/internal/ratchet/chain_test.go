@@ -29,11 +29,11 @@ func writeJSONLChain(t *testing.T, dir string, id string, epicID string, entries
 		EpicID  string    `json:"epic_id,omitempty"`
 	}{ID: id, Started: time.Now(), EpicID: epicID}
 	line, _ := json.Marshal(meta)
-	f.Write(append(line, '\n'))
+	_, _ = f.Write(append(line, '\n'))
 
 	for _, e := range entries {
 		line, _ := json.Marshal(e)
-		f.Write(append(line, '\n'))
+		_, _ = f.Write(append(line, '\n'))
 	}
 	return path
 }
@@ -159,7 +159,7 @@ func TestLoadChainEmptyJSONL(t *testing.T) {
 		Started time.Time `json:"started"`
 	}{ID: "empty-chain", Started: time.Now()}
 	line, _ := json.Marshal(meta)
-	f.Write(append(line, '\n'))
+	_, _ = f.Write(append(line, '\n'))
 	f.Close()
 
 	chain, err := LoadChain(tmp)

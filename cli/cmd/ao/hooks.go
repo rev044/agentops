@@ -109,7 +109,6 @@ func (c *HooksConfig) SetEventGroups(event string, groups []HookGroup) {
 type ClaudeSettings struct {
 	Hooks   *HooksConfig           `json:"hooks,omitempty"`
 	Other   map[string]interface{} `json:"-"` // Preserve other settings
-	rawJSON map[string]interface{}
 }
 
 var hooksCmd = &cobra.Command{
@@ -449,7 +448,9 @@ func installFullHooks(sourceDir, installBase string) (int, error) {
 				return copied, fmt.Errorf("copy %s: %w", e.Name(), err)
 			}
 			// Make executable
-			os.Chmod(dst, 0755)
+			if err := os.Chmod(dst, 0755); err != nil {
+				return copied, fmt.Errorf("chmod %s: %w", e.Name(), err)
+			}
 			copied++
 		}
 	}

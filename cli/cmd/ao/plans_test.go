@@ -238,7 +238,9 @@ func TestLoadManifest(t *testing.T) {
 
 	t.Run("empty file", func(t *testing.T) {
 		emptyPath := filepath.Join(tmpDir, "empty.jsonl")
-		os.WriteFile(emptyPath, []byte(""), 0644)
+		if err := os.WriteFile(emptyPath, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		entries, err := loadManifest(emptyPath)
 		if err != nil {
@@ -254,7 +256,9 @@ func TestLoadManifest(t *testing.T) {
 		entry := types.PlanManifestEntry{Path: "/valid.md", PlanName: "valid"}
 		line, _ := json.Marshal(entry)
 		content := string(line) + "\nnot json\n" + string(line) + "\n"
-		os.WriteFile(mixedPath, []byte(content), 0644)
+		if err := os.WriteFile(mixedPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		entries, err := loadManifest(mixedPath)
 		if err != nil {

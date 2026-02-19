@@ -11,18 +11,21 @@ import (
 func TestRunInitCreatesDirs(t *testing.T) {
 	tmp := t.TempDir()
 	// Create a fake .git so it's treated as a git repo
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
-	cmd := initCmd
-	cmd.Flags().Set("dry-run", "false")
+	dryRun = false
 	initStealth = false
 	initHooks = false
 
-	if err := runInit(cmd, nil); err != nil {
+	if err := runInit(initCmd, nil); err != nil {
 		t.Fatalf("runInit: %v", err)
 	}
 
@@ -46,7 +49,7 @@ func TestRunInitCreatesDirs(t *testing.T) {
 	// agentsDirs includes .agents/ao, storage.Init adds sessions/index/provenance under it
 	expectedDirs := len(agentsDirs) + 3 // +3 for ao/{sessions,index,provenance}
 	actualDirs := 0
-	filepath.Walk(filepath.Join(tmp, ".agents"), func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(filepath.Join(tmp, ".agents"), func(path string, info os.FileInfo, err error) error {
 		if err == nil && info.IsDir() && path != filepath.Join(tmp, ".agents") {
 			actualDirs++
 		}
@@ -59,12 +62,18 @@ func TestRunInitCreatesDirs(t *testing.T) {
 
 func TestRunInitGitignoreAppend(t *testing.T) {
 	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
-	os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte("node_modules/\n"), 0644)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte("node_modules/\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = false
 	initHooks = false
@@ -83,11 +92,15 @@ func TestRunInitGitignoreAppend(t *testing.T) {
 
 func TestRunInitGitignoreCreate(t *testing.T) {
 	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = false
 	initHooks = false
@@ -106,11 +119,15 @@ func TestRunInitGitignoreCreate(t *testing.T) {
 
 func TestRunInitIdempotent(t *testing.T) {
 	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = false
 	initHooks = false
@@ -136,8 +153,10 @@ func TestRunInitNonGitRepo(t *testing.T) {
 	// No .git directory
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = false
 	initHooks = false
@@ -160,11 +179,15 @@ func TestRunInitNonGitRepo(t *testing.T) {
 
 func TestRunInitStealth(t *testing.T) {
 	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, ".git", "info"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git", "info"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = true
 	initHooks = false
@@ -189,11 +212,15 @@ func TestRunInitStealth(t *testing.T) {
 
 func TestRunInitDryRun(t *testing.T) {
 	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = false
 	initHooks = false
@@ -214,11 +241,15 @@ func TestRunInitDryRun(t *testing.T) {
 
 func TestNestedGitignoreContent(t *testing.T) {
 	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = false
 	initHooks = false
@@ -244,13 +275,19 @@ func TestNestedGitignoreContent(t *testing.T) {
 
 func TestRunInitGitignoreNoTrailingNewline(t *testing.T) {
 	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	// Write file without trailing newline
-	os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte("node_modules/"), 0644)
+	if err := os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte("node_modules/"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(orig) }()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
 
 	initStealth = false
 	initHooks = false
@@ -272,7 +309,9 @@ func TestRunInitGitignoreNoTrailingNewline(t *testing.T) {
 func TestFileContainsLine(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "test.txt")
-	os.WriteFile(path, []byte("foo\n.agents/\nbar\n"), 0644)
+	if err := os.WriteFile(path, []byte("foo\n.agents/\nbar\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	if !fileContainsLine(path, ".agents/") {
 		t.Error("expected to find .agents/")
@@ -290,7 +329,9 @@ func TestIsGitRepository(t *testing.T) {
 	if isGitRepository(tmp) {
 		t.Error("expected false for non-git dir")
 	}
-	os.MkdirAll(filepath.Join(tmp, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	if !isGitRepository(tmp) {
 		t.Error("expected true for git dir")
 	}

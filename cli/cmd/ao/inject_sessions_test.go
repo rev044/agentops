@@ -16,7 +16,9 @@ func TestParseSessionFile(t *testing.T) {
 		}
 		line, _ := json.Marshal(data)
 		path := filepath.Join(tmpDir, "session1.jsonl")
-		os.WriteFile(path, line, 0644)
+		if err := os.WriteFile(path, line, 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		s, err := parseSessionFile(path)
 		if err != nil {
@@ -36,7 +38,9 @@ func TestParseSessionFile(t *testing.T) {
 Implemented new database migration system.
 `
 		path := filepath.Join(tmpDir, "session2.md")
-		os.WriteFile(path, []byte(content), 0644)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		s, err := parseSessionFile(path)
 		if err != nil {
@@ -49,7 +53,9 @@ Implemented new database migration system.
 
 	t.Run("empty markdown", func(t *testing.T) {
 		path := filepath.Join(tmpDir, "empty.md")
-		os.WriteFile(path, []byte("# Title\n---\n"), 0644)
+		if err := os.WriteFile(path, []byte("# Title\n---\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		s, err := parseSessionFile(path)
 		if err != nil {
@@ -69,7 +75,9 @@ Implemented new database migration system.
 
 	t.Run("invalid JSONL", func(t *testing.T) {
 		path := filepath.Join(tmpDir, "bad.jsonl")
-		os.WriteFile(path, []byte("not json"), 0644)
+		if err := os.WriteFile(path, []byte("not json"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		s, err := parseSessionFile(path)
 		if err != nil {
@@ -91,7 +99,9 @@ Implemented new database migration system.
 		}
 		line, _ := json.Marshal(data)
 		path := filepath.Join(tmpDir, "long.jsonl")
-		os.WriteFile(path, line, 0644)
+		if err := os.WriteFile(path, line, 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		s, err := parseSessionFile(path)
 		if err != nil {
@@ -108,17 +118,25 @@ func TestCollectRecentSessions(t *testing.T) {
 
 	// Create sessions directory
 	sessionsDir := filepath.Join(tmpDir, ".agents", "ao", "sessions")
-	os.MkdirAll(sessionsDir, 0755)
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	data1 := map[string]interface{}{"summary": "Auth work"}
 	line1, _ := json.Marshal(data1)
-	os.WriteFile(filepath.Join(sessionsDir, "s1.jsonl"), line1, 0644)
+	if err := os.WriteFile(filepath.Join(sessionsDir, "s1.jsonl"), line1, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	data2 := map[string]interface{}{"summary": "Database migration"}
 	line2, _ := json.Marshal(data2)
-	os.WriteFile(filepath.Join(sessionsDir, "s2.jsonl"), line2, 0644)
+	if err := os.WriteFile(filepath.Join(sessionsDir, "s2.jsonl"), line2, 0644); err != nil {
+		t.Fatal(err)
+	}
 
-	os.WriteFile(filepath.Join(sessionsDir, "s3.md"), []byte("# Summary\n\nWorked on testing"), 0644)
+	if err := os.WriteFile(filepath.Join(sessionsDir, "s3.md"), []byte("# Summary\n\nWorked on testing"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("collects all sessions", func(t *testing.T) {
 		got, err := collectRecentSessions(tmpDir, "", 10)

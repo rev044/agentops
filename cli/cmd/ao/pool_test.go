@@ -25,7 +25,9 @@ func TestPoolListEmpty(t *testing.T) {
 func TestPoolStagePromoteWorkflow(t *testing.T) {
 	tmp := t.TempDir()
 	// Create learnings dir for promote target
-	os.MkdirAll(tmp+"/.agents/learnings", 0755)
+	if err := os.MkdirAll(tmp+"/.agents/learnings", 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	p := pool.NewPool(tmp)
 

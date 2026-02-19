@@ -51,7 +51,9 @@ func TestCiteReportHumanOutput(t *testing.T) {
 	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	os.WriteFile(filepath.Join(learningsDir, "uncited.md"), []byte("# Uncited"), 0o644)
+	if err := os.WriteFile(filepath.Join(learningsDir, "uncited.md"), []byte("# Uncited"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	start := now.AddDate(0, 0, -30)
 	stats := filterCitationsForPeriod(citations, start, now)

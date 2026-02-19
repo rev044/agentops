@@ -68,11 +68,21 @@ Content here.
 func TestExpandDirectoryFlat(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.WriteFile(filepath.Join(tmpDir, "a.md"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "b.jsonl"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "c.txt"), []byte("test"), 0644)
-	os.MkdirAll(filepath.Join(tmpDir, "subdir"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "subdir", "d.md"), []byte("test"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "a.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "b.jsonl"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "c.txt"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, "subdir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "subdir", "d.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	got := expandDirectoryFlat(tmpDir)
 	if len(got) != 2 {
@@ -83,10 +93,18 @@ func TestExpandDirectoryFlat(t *testing.T) {
 func TestExpandDirectoryRecursive(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.WriteFile(filepath.Join(tmpDir, "a.md"), []byte("test"), 0644)
-	os.MkdirAll(filepath.Join(tmpDir, "sub"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "sub", "b.jsonl"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "sub", "c.txt"), []byte("test"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "a.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, "sub"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "sub", "b.jsonl"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "sub", "c.txt"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	got, err := expandDirectoryRecursive(tmpDir, tmpDir)
 	if err != nil {
@@ -103,7 +121,9 @@ func TestParseJSONLMetadata(t *testing.T) {
 	t.Run("valid JSONL", func(t *testing.T) {
 		content := `{"id":"L42","maturity":"established","utility":0.85,"confidence":0.9,"reward_count":5}`
 		path := filepath.Join(tmpDir, "valid.jsonl")
-		os.WriteFile(path, []byte(content), 0644)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		meta := &artifactMetadata{}
 		err := parseJSONLMetadata(path, meta)
@@ -131,7 +151,9 @@ func TestParseJSONLMetadata(t *testing.T) {
 
 	t.Run("empty file", func(t *testing.T) {
 		path := filepath.Join(tmpDir, "empty.jsonl")
-		os.WriteFile(path, []byte(""), 0644)
+		if err := os.WriteFile(path, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		meta := &artifactMetadata{}
 		err := parseJSONLMetadata(path, meta)

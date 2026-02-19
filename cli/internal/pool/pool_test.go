@@ -1117,8 +1117,12 @@ func TestPoolScanDirectorySkipsNonJSON(t *testing.T) {
 
 	// Write a non-JSON file and a subdirectory to the pending dir
 	pendingDir := filepath.Join(p.PoolPath, PendingDir)
-	os.WriteFile(filepath.Join(pendingDir, "readme.txt"), []byte("not json"), 0600)
-	os.MkdirAll(filepath.Join(pendingDir, "subdir"), 0700)
+	if err := os.WriteFile(filepath.Join(pendingDir, "readme.txt"), []byte("not json"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(pendingDir, "subdir"), 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	entries, err := p.List(ListOptions{Status: types.PoolStatusPending})
 	if err != nil {
@@ -1138,7 +1142,9 @@ func TestPoolScanDirectorySkipsMalformedJSON(t *testing.T) {
 
 	// Write a malformed JSON file
 	pendingDir := filepath.Join(p.PoolPath, PendingDir)
-	os.WriteFile(filepath.Join(pendingDir, "bad.json"), []byte("{invalid json"), 0600)
+	if err := os.WriteFile(filepath.Join(pendingDir, "bad.json"), []byte("{invalid json"), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	// Add a valid entry
 	candidate := types.Candidate{ID: "good-entry", Tier: types.TierSilver, Content: "good"}

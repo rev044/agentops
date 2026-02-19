@@ -1,10 +1,5 @@
 package vibecheck
 
-import (
-	"fmt"
-	"time"
-)
-
 // MetricVelocity computes development pace as commits per day.
 // Threshold: 3+ commits/day = good (passed).
 func MetricVelocity(events []TimelineEvent) Metric {
@@ -47,17 +42,3 @@ func MetricVelocity(events []TimelineEvent) Metric {
 	}
 }
 
-// velocityDescription returns a human-readable description for a velocity value.
-func velocityDescription(v float64) string {
-	return fmt.Sprintf("%.1f commits/day", v)
-}
-
-// velocityDays returns the number of distinct calendar days with commits.
-func velocityDays(events []TimelineEvent) int {
-	seen := make(map[string]bool)
-	for _, e := range events {
-		day := e.Timestamp.Format(time.DateOnly)
-		seen[day] = true
-	}
-	return len(seen)
-}

@@ -45,8 +45,10 @@ func TestExtractSingleEntry(t *testing.T) {
 
 	// Change to temp dir
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Run extract (without --all)
 	extractAll = false
@@ -89,8 +91,10 @@ func TestExtractAllSuccess(t *testing.T) {
 	}
 
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Run with --all
 	extractAll = true
@@ -120,8 +124,10 @@ func TestExtractAllEmpty(t *testing.T) {
 	}
 
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
 
 	extractAll = true
 	if err := runExtract(nil, nil); err != nil {
@@ -144,8 +150,10 @@ func TestExtractAllDryRun(t *testing.T) {
 	}
 
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Enable dry-run
 	dryRun = true
@@ -182,8 +190,10 @@ func TestExtractAllJSON(t *testing.T) {
 	}
 
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Capture stdout to verify JSON output
 	output = "json"
@@ -210,8 +220,10 @@ func TestExtractNoFile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Should succeed silently (no error)
 	if err := runExtract(nil, nil); err != nil {
@@ -233,8 +245,10 @@ func TestExtractClear(t *testing.T) {
 	}
 
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(tempDir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
 
 	extractClear = true
 	defer func() { extractClear = false }()
@@ -265,7 +279,7 @@ func TestReadPendingExtractions(t *testing.T) {
 
 	// Add a malformed line
 	f, _ := os.OpenFile(pendingPath, os.O_APPEND|os.O_WRONLY, 0600)
-	f.WriteString("invalid json\n")
+	_, _ = f.WriteString("invalid json\n")
 	f.Close()
 
 	// Read and verify

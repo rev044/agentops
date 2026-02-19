@@ -346,9 +346,10 @@ func TestCompositeScoringZNormalization(t *testing.T) {
 	applyCompositeScoring(learnings, 0.5)
 
 	// All learnings should have composite scores set
+	// Verify all learnings have composite scores computed.
 	for _, l := range learnings {
-		if l.CompositeScore == 0 && l.FreshnessScore != 0.6 { // 0.6 is the mean, might be ~0
-			// At least verify scores are computed
+		if l.CompositeScore == 0 && l.FreshnessScore != 0.6 {
+			t.Errorf("expected non-zero composite score for learning %s (freshness=%v)", l.ID, l.FreshnessScore)
 		}
 	}
 

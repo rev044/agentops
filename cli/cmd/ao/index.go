@@ -365,21 +365,6 @@ func writeIndex(dirPath, relDir string, entries []indexEntry, dryRun bool) error
 	return os.WriteFile(indexPath, []byte(sb.String()), 0644)
 }
 
-// generateIndexContent produces the INDEX.md content string for comparison.
-func generateIndexContent(dirName string, entries []indexEntry) string {
-	today := time.Now().Format("2006-01-02")
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# Index: %s\n\n", dirName))
-	sb.WriteString(fmt.Sprintf("> Last rebuilt: %s | %d entries\n\n", today, len(entries)))
-	sb.WriteString("## Entries\n\n")
-	sb.WriteString("| File | Date | Summary | Tags |\n")
-	sb.WriteString("|------|------|---------|------|\n")
-	for _, e := range entries {
-		sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", e.Filename, e.Date, e.Summary, e.Tags))
-	}
-	return sb.String()
-}
-
 // checkIndex verifies INDEX.md is current by comparing file lists.
 func checkIndex(dirPath, relDir string, entries []indexEntry) (bool, string) {
 	indexPath := filepath.Join(dirPath, "INDEX.md")

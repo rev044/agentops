@@ -99,9 +99,15 @@ func TestCountFiles(t *testing.T) {
 	})
 
 	t.Run("with files", func(t *testing.T) {
-		os.WriteFile(filepath.Join(tmpDir, "a.md"), []byte("test"), 0644)
-		os.WriteFile(filepath.Join(tmpDir, "b.md"), []byte("test"), 0644)
-		os.MkdirAll(filepath.Join(tmpDir, "subdir"), 0755)
+		if err := os.WriteFile(filepath.Join(tmpDir, "a.md"), []byte("test"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(tmpDir, "b.md"), []byte("test"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(tmpDir, "subdir"), 0755); err != nil {
+			t.Fatal(err)
+		}
 
 		got := countFiles(tmpDir)
 		if got != 2 {
@@ -137,7 +143,9 @@ func chdirTemp(t *testing.T) string {
 func TestCheckKnowledgeBase(t *testing.T) {
 	t.Run("initialized", func(t *testing.T) {
 		tmp := chdirTemp(t)
-		os.MkdirAll(filepath.Join(tmp, ".agents", "ao"), 0755)
+		if err := os.MkdirAll(filepath.Join(tmp, ".agents", "ao"), 0755); err != nil {
+			t.Fatal(err)
+		}
 		result := checkKnowledgeBase()
 		if result.Status != "pass" {
 			t.Errorf("status=%q, want pass (detail: %s)", result.Status, result.Detail)
@@ -157,8 +165,12 @@ func TestCheckKnowledgeFreshness(t *testing.T) {
 	t.Run("recent session", func(t *testing.T) {
 		tmp := chdirTemp(t)
 		sessDir := filepath.Join(tmp, ".agents", "ao", "sessions")
-		os.MkdirAll(sessDir, 0755)
-		os.WriteFile(filepath.Join(sessDir, "session-1.md"), []byte("recent"), 0644)
+		if err := os.MkdirAll(sessDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(sessDir, "session-1.md"), []byte("recent"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		result := checkKnowledgeFreshness()
 		if result.Status != "pass" {
@@ -168,7 +180,9 @@ func TestCheckKnowledgeFreshness(t *testing.T) {
 
 	t.Run("no sessions", func(t *testing.T) {
 		tmp := chdirTemp(t)
-		os.MkdirAll(filepath.Join(tmp, ".agents", "ao", "sessions"), 0755)
+		if err := os.MkdirAll(filepath.Join(tmp, ".agents", "ao", "sessions"), 0755); err != nil {
+			t.Fatal(err)
+		}
 
 		result := checkKnowledgeFreshness()
 		if result.Status != "warn" {
@@ -189,8 +203,12 @@ func TestCheckSearchIndex(t *testing.T) {
 	t.Run("index exists with content", func(t *testing.T) {
 		tmp := chdirTemp(t)
 		indexDir := filepath.Join(tmp, IndexDir)
-		os.MkdirAll(indexDir, 0755)
-		os.WriteFile(filepath.Join(indexDir, IndexFileName), []byte("{\"term\":\"hello\"}\n{\"term\":\"world\"}\n"), 0644)
+		if err := os.MkdirAll(indexDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(indexDir, IndexFileName), []byte("{\"term\":\"hello\"}\n{\"term\":\"world\"}\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		result := checkSearchIndex()
 		if result.Status != "pass" {
@@ -201,8 +219,12 @@ func TestCheckSearchIndex(t *testing.T) {
 	t.Run("empty index", func(t *testing.T) {
 		tmp := chdirTemp(t)
 		indexDir := filepath.Join(tmp, IndexDir)
-		os.MkdirAll(indexDir, 0755)
-		os.WriteFile(filepath.Join(indexDir, IndexFileName), []byte(""), 0644)
+		if err := os.MkdirAll(indexDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(indexDir, IndexFileName), []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		result := checkSearchIndex()
 		if result.Status != "warn" {
@@ -223,9 +245,15 @@ func TestCheckFlywheelHealth(t *testing.T) {
 	t.Run("with learnings", func(t *testing.T) {
 		tmp := chdirTemp(t)
 		learningsDir := filepath.Join(tmp, ".agents", "ao", "learnings")
-		os.MkdirAll(learningsDir, 0755)
-		os.WriteFile(filepath.Join(learningsDir, "L1.md"), []byte("learning 1"), 0644)
-		os.WriteFile(filepath.Join(learningsDir, "L2.md"), []byte("learning 2"), 0644)
+		if err := os.MkdirAll(learningsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(learningsDir, "L1.md"), []byte("learning 1"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(learningsDir, "L2.md"), []byte("learning 2"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		result := checkFlywheelHealth()
 		if result.Status != "pass" {
@@ -244,8 +272,12 @@ func TestCheckFlywheelHealth(t *testing.T) {
 	t.Run("alt path learnings", func(t *testing.T) {
 		tmp := chdirTemp(t)
 		altDir := filepath.Join(tmp, ".agents", "learnings")
-		os.MkdirAll(altDir, 0755)
-		os.WriteFile(filepath.Join(altDir, "L1.md"), []byte("learning"), 0644)
+		if err := os.MkdirAll(altDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(altDir, "L1.md"), []byte("learning"), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		result := checkFlywheelHealth()
 		if result.Status != "pass" {
@@ -304,7 +336,9 @@ func TestCountFileLines(t *testing.T) {
 
 	t.Run("file with lines", func(t *testing.T) {
 		path := filepath.Join(tmp, "test.jsonl")
-		os.WriteFile(path, []byte("{\"a\":1}\n{\"b\":2}\n{\"c\":3}\n"), 0644)
+		if err := os.WriteFile(path, []byte("{\"a\":1}\n{\"b\":2}\n{\"c\":3}\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
 		got := countFileLines(path)
 		if got != 3 {
 			t.Errorf("countFileLines() = %d, want 3", got)
@@ -313,7 +347,9 @@ func TestCountFileLines(t *testing.T) {
 
 	t.Run("empty file", func(t *testing.T) {
 		path := filepath.Join(tmp, "empty.jsonl")
-		os.WriteFile(path, []byte(""), 0644)
+		if err := os.WriteFile(path, []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
 		got := countFileLines(path)
 		if got != 0 {
 			t.Errorf("countFileLines() = %d, want 0", got)
@@ -329,7 +365,9 @@ func TestCountFileLines(t *testing.T) {
 
 	t.Run("blank lines ignored", func(t *testing.T) {
 		path := filepath.Join(tmp, "blanks.jsonl")
-		os.WriteFile(path, []byte("line1\n\n  \nline2\n"), 0644)
+		if err := os.WriteFile(path, []byte("line1\n\n  \nline2\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
 		got := countFileLines(path)
 		if got != 2 {
 			t.Errorf("countFileLines() = %d, want 2", got)
