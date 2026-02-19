@@ -1,9 +1,6 @@
 ---
 name: pr-prep
-description: >
-  PR preparation with git archaeology, test validation, and structured PR body
-  generation. INCLUDES MANDATORY USER REVIEW GATE before submission. Use for
-  "prepare PR", "PR prep", "submit PR", or "create PR".
+description: 'PR preparation: git archaeology, test validation, structured PR body generation. Mandatory user review gate before submission. Triggers: "prepare PR", "PR prep", "submit PR", "create PR body", "write PR description".'
 license: MIT
 compatibility: Requires git, gh CLI
 metadata:

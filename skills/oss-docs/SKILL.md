@@ -1,9 +1,6 @@
 ---
 name: oss-docs
-description: >
-  Scaffold and audit OSS documentation for open source projects. Use for
-  "add OSS docs", "create README", "setup contributing", "add changelog",
-  "prepare for open source", or "add AGENTS.md".
+description: 'Scaffold and audit OSS documentation packs for open source projects. Triggers: "add OSS docs", "setup contributing guide", "add changelog", "prepare for open source", "add AGENTS.md", "OSS documentation".'
 license: MIT
 compatibility: Requires git
 metadata:

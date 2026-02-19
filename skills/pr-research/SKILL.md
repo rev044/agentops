@@ -1,10 +1,6 @@
 ---
 name: pr-research
-description: >
-  Systematic upstream codebase exploration for open source contribution.
-  Outputs research artifact with contribution guidelines, PR patterns, and
-  maintainer expectations. Use for "pr research", "upstream research", or
-  "contribution research".
+description: 'Upstream codebase exploration for open source contribution. Outputs contribution guidelines, PR patterns, and maintainer expectations. Triggers: "pr research", "upstream research", "contribution research", "explore upstream repo".'
 license: MIT
 compatibility: Requires git, gh CLI
 metadata:

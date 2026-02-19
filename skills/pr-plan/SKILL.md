@@ -1,9 +1,6 @@
 ---
 name: pr-plan
-description: >
-  Strategic contribution planning for open source PRs. Takes pr-research output
-  and produces plan with scope, acceptance criteria, and risk assessment. Use for
-  "pr plan", "contribution plan", or "plan PR".
+description: 'Plan an open source PR contribution. Takes pr-research output and produces scope, acceptance criteria, and risk assessment. Triggers: "pr plan", "contribution plan", "plan PR", "plan contribution".'
 license: MIT
 compatibility: Requires git, gh CLI
 metadata:

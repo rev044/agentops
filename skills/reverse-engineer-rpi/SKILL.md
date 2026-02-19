@@ -1,9 +1,6 @@
 ---
 name: reverse-engineer-rpi
-description: >
-  Reverse-engineer a product into a mechanically verifiable feature catalog + code map + specs using an RPI-style loop.
-  Triggers: reverse engineer product, catalog full feature set, docs->code mapping, feature inventory, code map, “Ralph loop”,
-  SaaS boundary mapping, security audit reverse engineering, authorized binary analysis.
+description: 'Reverse-engineer a product into a feature catalog, code map, and specs. Uses RPI-style loop with verification gates. Triggers: “reverse engineer”, “catalog features”, “feature inventory”, “code map”, “docs to code mapping”, “binary analysis”.'
 metadata:
   tier: execution
   internal: false

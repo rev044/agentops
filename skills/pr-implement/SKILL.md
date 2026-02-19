@@ -1,9 +1,6 @@
 ---
 name: pr-implement
-description: >
-  Fork-based implementation with isolation check. Runs isolation check before
-  starting work. Use for "implement PR", "implement contribution", or
-  "fork implementation".
+description: 'Fork-based PR implementation with isolation check. Runs isolation check before starting work. Triggers: "implement PR", "implement contribution", "fork implementation", "code the PR".'
 license: MIT
 compatibility: Requires git, gh CLI
 metadata:
