@@ -48,15 +48,18 @@ ao inject "<topic>" 2>/dev/null || echo "ao not available, skipping knowledge in
 - Known patterns or anti-patterns
 - Lessons learned from similar investigations
 
-**Search local research artifacts:**
+**Search ALL local knowledge locations by content (not just filename):**
+
+Use Grep to search every knowledge directory for the topic. This catches learnings from `/learn`, retros, brainstorms, and plans — not just research artifacts.
+
 ```bash
-ls -la .agents/research/ 2>/dev/null | grep -i "<topic>" || echo "No prior research found"
+# Search all knowledge locations by content
+for dir in research learnings knowledge patterns retros plans brainstorm; do
+  grep -r -l -i "<topic>" .agents/${dir}/ 2>/dev/null
+done
 ```
 
-Also use Grep to search `.agents/` for related content. Check TEMPERED learnings:
-```bash
-ls -la .agents/learnings/ .agents/patterns/ 2>/dev/null | head -10
-```
+If matches are found, read the relevant files with the Read tool before proceeding to exploration. Prior knowledge prevents redundant investigation.
 
 ### Step 2.5: Pre-Flight — Detect Spawn Backend
 
@@ -123,8 +126,11 @@ Tier 4 — Source Code (verify from signposts):
   Use function/class names, not line numbers
 
 Tier 5 — Prior Knowledge (may be stale):
-  ls .agents/research/ | grep -i "<topic>"
-  Cross-check findings against current source
+  Search ALL .agents/ knowledge dirs by content:
+    for dir in research learnings knowledge patterns retros plans brainstorm; do
+      grep -r -l -i "<topic>" .agents/${dir}/ 2>/dev/null
+    done
+  Read matched files. Cross-check findings against current source.
 
 Tier 6 — External Docs (last resort):
   WebSearch for external APIs or standards
