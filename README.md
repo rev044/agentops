@@ -132,6 +132,12 @@ Session 5 didn't start from scratch — it started with what session 1 learned. 
 [post-mortem] 4 learnings extracted
 ```
 
+<p align="center">
+<img src="docs/assets/crank-3-parallel-epics.png" alt="Completed crank run with 3 parallel epics and 15 issues shipped in 5 waves" width="800">
+<br>
+<i>AgentOps building AgentOps: completed `/crank` across 3 parallel epics (15 issues, 5 waves, 0 regressions).</i>
+</p>
+
 **Goal-driven improvement loop:**
 ```text
 > /evolve --max-cycles=5
