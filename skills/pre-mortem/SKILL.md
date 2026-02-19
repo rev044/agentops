@@ -20,10 +20,9 @@ Run `/council validate` on a plan or spec to get multi-model judgment before com
 ## Quick Start
 
 ```bash
-/pre-mortem                                         # validates most recent plan
-/pre-mortem path/to/PLAN.md                         # validates specific plan
-/pre-mortem --quick path/to/PLAN.md                 # fast inline check, no spawning
-/pre-mortem --deep path/to/SPEC.md                  # 4 judges (thorough review)
+/pre-mortem                                         # validates most recent plan (inline, no spawning)
+/pre-mortem path/to/PLAN.md                         # validates specific plan (inline)
+/pre-mortem --deep path/to/SPEC.md                  # 4 judges (thorough review, spawns agents)
 /pre-mortem --mixed path/to/PLAN.md                 # cross-vendor (Claude + Codex)
 /pre-mortem --preset=architecture path/to/PLAN.md   # architecture-focused review
 /pre-mortem --explorers=3 path/to/SPEC.md           # deep investigation of plan
@@ -46,13 +45,17 @@ ls -lt .agents/specs/ 2>/dev/null | head -3
 
 Use the most recent file. If nothing found, ask user.
 
-### Step 1.5: Fast Path (--quick mode)
+### Step 1.5: Default Inline Mode
 
-**If `--quick` flag is set**, skip Steps 1a and 1b (knowledge search, product context) and jump directly to Step 2 with `--quick`. The inline reviewer reads the plan directly — pre-processing inputs are for multi-judge council packets only.
+**By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).
+
+**Skip Steps 1a and 1b** (knowledge search, product context) unless `--deep`, `--mixed`, `--debate`, or `--explorers` is set. These pre-processing steps are for multi-judge council packets only.
+
+To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (cross-vendor).
 
 ### Step 1a: Search Knowledge Flywheel
 
-**Skip if `--quick`.**
+**Skip unless `--deep`, `--mixed`, or `--debate`.**
 
 ```bash
 if command -v ao &>/dev/null; then
@@ -63,7 +66,7 @@ If ao returns prior plan review findings, include them as context for the counci
 
 ### Step 1b: Check for Product Context
 
-**Skip if `--quick`.**
+**Skip unless `--deep`, `--mixed`, or `--debate`.**
 
 ```bash
 if [ -f PRODUCT.md ]; then
@@ -88,31 +91,23 @@ When `PRODUCT.md` does not exist: proceed to Step 2 unchanged.
 
 ### Step 2: Run Council Validation
 
-Run `/council` with the **plan-review** preset:
-
-```
-/council --preset=plan-review validate <plan-path>
-```
-
-**Default (2 judges with plan-review perspectives):**
-- `missing-requirements`: What's not in the spec that should be? What questions haven't been asked?
-- `feasibility`: What's technically hard or impossible here? What will take 3x longer than estimated?
-
-**With --deep (4 judges):**
-```
-/council --deep --preset=plan-review validate <plan-path>
-```
-Adds:
-- `scope`: What's unnecessary? What's missing? Where will scope creep?
-- `spec-completeness`: Are boundaries defined? Do conformance checks cover all acceptance criteria? Is the plan mechanically verifiable?
-
-Use `--deep` for high-stakes plans (migrations, security, multi-service). Default 2 judges is sufficient for most plans and keeps context manageable.
-
-**With --quick (inline, no spawning):**
+**Default (inline, no spawning):**
 ```
 /council --quick validate <plan-path>
 ```
-Single-agent structured review. Fast sanity check before committing to full council.
+Single-agent structured review. Catches real implementation issues at ~10% of full council cost. Sufficient for most plans (proven across 6+ epics).
+
+**With --deep (4 judges with plan-review perspectives):**
+```
+/council --deep --preset=plan-review validate <plan-path>
+```
+Spawns 4 judges:
+- `missing-requirements`: What's not in the spec that should be? What questions haven't been asked?
+- `feasibility`: What's technically hard or impossible here? What will take 3x longer than estimated?
+- `scope`: What's unnecessary? What's missing? Where will scope creep?
+- `spec-completeness`: Are boundaries defined? Do conformance checks cover all acceptance criteria? Is the plan mechanically verifiable?
+
+Use `--deep` for high-stakes plans (migrations, security, multi-service, 7+ issues).
 
 **With --mixed (cross-vendor):**
 ```
@@ -213,18 +208,18 @@ Tell the user:
 
 ## Examples
 
-### Validate a Plan
+### Validate a Plan (Default — Inline)
 
 **User says:** `/pre-mortem .agents/plans/2026-02-05-auth-system.md`
 
 **What happens:**
 1. Agent reads the auth system plan
-2. Runs `/council --deep --preset=plan-review validate <plan-path>`
-3. 4 judges (missing-requirements, feasibility, scope, spec-completeness) review
-4. Council verdict: WARN (missing error handling for token expiry)
+2. Runs `/council --quick validate <plan-path>` (inline, no spawning)
+3. Single-agent structured review finds missing error handling for token expiry
+4. Council verdict: WARN
 5. Output written to `.agents/council/2026-02-13-pre-mortem-auth-system.md`
 
-**Result:** Pre-mortem report with actionable concerns before implementation starts.
+**Result:** Fast pre-mortem report with actionable concerns. Use `--deep` for high-stakes plans needing multi-judge consensus.
 
 ### Cross-Vendor Plan Validation
 
@@ -244,10 +239,23 @@ Tell the user:
 **What happens:**
 1. Agent scans `.agents/plans/` for most recent plan
 2. Finds `2026-02-13-add-caching-layer.md`
-3. Runs council validation automatically
+3. Runs inline council validation (no spawning, ~10% of full council cost)
 4. Records ratchet progress
 
 **Result:** Frictionless validation of most recent planning work.
+
+### Deep Review for High-Stakes Plan
+
+**User says:** `/pre-mortem --deep .agents/plans/2026-02-05-migration-plan.md`
+
+**What happens:**
+1. Agent reads the migration plan
+2. Searches knowledge flywheel for prior migration learnings
+3. Checks PRODUCT.md for product context
+4. Runs `/council --deep --preset=plan-review validate <plan-path>` (4 judges)
+5. Council verdict with multi-perspective consensus
+
+**Result:** Thorough multi-judge review for plans where the stakes justify spawning agents.
 
 ## Troubleshooting
 
