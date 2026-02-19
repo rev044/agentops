@@ -4,7 +4,7 @@
 
 ### Coding agents forget everything between sessions. This fixes that.
 
-[How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Toolbox](#the-toolbox) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
+[How It Works](#how-it-works) · [Quickstart Path](#quickstart-path) · [Skill Router](#skill-router) · [Install](#install) · [See It Work](#see-it-work) · [Deep Dive](#deep-dive) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq)
 
 </div>
 
@@ -25,6 +25,76 @@ Coding agents get a blank context window every session. AgentOps is a toolbox of
 - **Flow** (`/research`, `/plan`, `/crank`, `/swarm`, `/rpi`): orchestration skills that move work through the system. Single-piece flow, minimizing context switches. Swarm parallelizes any skill; crank runs dependency-ordered waves; rpi chains the full pipeline.
 - **Feedback** (`/council`, `/vibe`, `/pre-mortem`, hooks): shorten the feedback loop until defects can't survive it. Independent judges catch issues before code ships. Hooks make the rules unavoidable — validation gates, push blocking, standards injection. Problems found Friday don't wait until Monday.
 - **Learning** (`.agents/`, `ao` CLI, `/retro`, `/knowledge`): stop rediscovering what you already know. Every session extracts learnings into an append-only ledger, scores them by freshness, and re-injects the best ones at next session start. Session 50 knows what session 1 learned the hard way.
+
+---
+
+## Quickstart Path
+
+Start here if you want value in under 10 minutes. This is the fastest way to use the toolbox.
+
+```text
+/quickstart                          ← Day 1: guided tour on your codebase (~10 min)
+    │
+/research, /council, /vibe           ← Use any skill by itself when you need it
+    │
+/swarm "research X, brainstorm Y"    ← Parallelize anything — any skill, in parallel
+    │
+/rpi "goal"                          ← Full pipeline: research → plan → validate →
+    │                                    ship → learn — one command, walk away
+    │
+/product → /goals → /evolve          ← Hands-free: define goals, fix gaps, compound
+```
+
+Run `/quickstart`, then pick one real task with `/research`, `/council`, or `/vibe`. When you need parallelism, use `/swarm`. When you want the full pipeline, use `/rpi`.
+
+If you want a full workflow map first, run `/using-agentops` (auto-injected on session start, but runnable directly).
+
+## Skill Router
+
+Use this when you're not sure which skill to run.
+
+```text
+What are you trying to do?
+│
+├─ "Fix a bug"
+│   ├─ Know which file? ──────────► /implement <issue-id>
+│   └─ Need to investigate? ──────► /bug-hunt
+│
+├─ "Build a feature"
+│   ├─ Small (1-2 files) ─────────► /implement
+│   ├─ Medium (3-6 issues) ───────► /plan → /crank
+│   └─ Large (7+ issues) ─────────► /rpi (full pipeline)
+│
+├─ "Validate something"
+│   ├─ Code ready to ship? ───────► /vibe
+│   ├─ Plan ready to build? ──────► /pre-mortem
+│   ├─ Work ready to close? ──────► /post-mortem
+│   └─ Quick sanity check? ───────► /council --quick validate
+│
+├─ "Explore or research"
+│   ├─ Understand this codebase ──► /research
+│   ├─ Compare approaches ────────► /council research <topic>
+│   └─ Generate ideas ────────────► /brainstorm
+│
+├─ "Learn from past work"
+│   ├─ What do we know about X? ──► /knowledge <query>
+│   ├─ Save this insight ─────────► /learn "insight"
+│   └─ Run a retrospective ───────► /retro
+│
+├─ "Parallelize work"
+│   ├─ Multiple independent tasks ► /swarm
+│   └─ Full epic with waves ──────► /crank <epic-id>
+│
+├─ "Ship a release"
+│   └─ Changelog + tag ──────────► /release <version>
+│
+├─ "Session management"
+│   ├─ Where was I? ──────────────► /status
+│   ├─ Save for next session ─────► /handoff
+│   └─ Recover after compaction ──► /recover
+│
+└─ "First time here" ────────────► /quickstart
+```
 
 ---
 
@@ -175,6 +245,12 @@ Swarms full pipelines in parallel. Evolve measures goals and fixes gaps in a loo
 
 ## Install
 
+**Requirements**
+
+- `node` 18+ (for `npx skills`) and `git`
+- One supported runtime: Claude Code, Codex CLI, Cursor, or OpenCode
+- Optional for `ao` CLI install path shown below: Homebrew (`brew`)
+
 ```bash
 # Claude Code, Codex CLI, Cursor (most users)
 npx skills@latest add boshu2/agentops --all -g
@@ -205,7 +281,7 @@ cd /path/to/your/repo
 ao init --hooks --full
 ```
 
-This installs 25+ hooks across 8 lifecycle event types:
+This installs 25+ hooks across core lifecycle events:
 
 | Event | What happens |
 |-------|-------------|
@@ -272,29 +348,6 @@ Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ---
 
-## The Toolbox
-
-Every skill works standalone. Use one, compose a few, or run the full pipeline. You decide what fits your workflow.
-
-```text
-/quickstart                          ← Day 1: guided tour on your codebase (~10 min)
-    │
-/research, /council, /vibe           ← Use any skill by itself when you need it
-    │
-/swarm "research X, brainstorm Y"    ← Parallelize anything — any skill, in parallel
-    │
-/rpi "goal"                          ← Full pipeline: research → plan → validate →
-    │                                    ship → learn — one command, walk away
-    │
-/product → /goals → /evolve          ← Hands-free: define goals, fix gaps, compound
-```
-
-Start with `/quickstart` to see it work on your code. Then use one skill on real work — `/research` to explore, `/council` to validate, `/vibe` to review. When you want parallelism, `/swarm` multiplies any skill. When you want the full pipeline, `/rpi` chains them all.
-
-The pieces compose naturally: council spawns parallel judges, crank uses swarm for parallel workers, research triggers brainstorm when it needs ideas. But you don't have to use any particular combination — pick what fits, skip what doesn't.
-
----
-
 ## Deep Dive
 
 Standard iterative development — research, plan, validate, build, review, learn — automated for agents that can't carry context between sessions.
@@ -339,7 +392,7 @@ Write once, score by freshness, inject the best, prune the rest. If `retrieval_r
 
 The post-mortem analyzes each learning, asks "what process would this improve?", and writes improvement proposals. It hands you a ready-to-copy `/rpi` command. Paste it, walk away.
 
-Learnings pass quality gates (specificity, actionability, novelty) and land in tiered pools. Freshness decay ensures recent insights outweigh stale patterns. The [formal model](docs/the-science.md) is straightforward: if retrieval rate × usage rate exceeds decay rate, knowledge compounds. If not, it decays to zero.
+Learnings pass quality gates (specificity, actionability, novelty) and land in tiered pools. Freshness decay ensures recent insights outweigh stale patterns.
 
 <details>
 <summary><b>Phase details</b> — what each step does</summary>
@@ -467,6 +520,7 @@ Every skill works alone. Compose them however you want.
 
 | | |
 |---|---|
+| **Onboarding** | `/quickstart`, `/using-agentops` |
 | **Session** | `/handoff`, `/recover`, `/status` |
 | **Traceability** | `/trace`, `/provenance` |
 | **Product** | `/product`, `/goals`, `/release`, `/readme`, `/doc` |
