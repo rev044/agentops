@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="docs/assets/hero.jpg" alt="Context engineering — crafting what enters the window" width="700">
-
 # AgentOps
 
 ### Coding agents forget everything between sessions. This fixes that.
@@ -325,20 +323,18 @@ These are fellow experiments in making coding agents work. Use pieces from any o
 ## The `ao` CLI
 
 Optional. If you already use skills directly in chat, you can skip it.
-The `ao` CLI is Ralph loop orchestration from your terminal: phase-by-phase execution with fresh context per phase.
 
-**Core capability:** run the full lifecycle from your terminal — no active chat session required:
+The `ao` CLI runs the full RPI lifecycle from your terminal — no active chat session required. Each of the three phases (discovery, implementation, validation) gets its own fresh context window, so large goals don't hit context limits.
+
 ```bash
-ao rpi phased "add rate limiting"   # Spawns Claude, runs research → plan → ship → learn
-ao rpi phased "fix auth bug" &      # Run multiple in parallel (auto-worktrees)
-ao rpi phased --from=implementation ag-058   # Resume at execution phase
-ao rpi status --watch               # Monitor active phased runs
+ao rpi phased "add rate limiting"              # 3 sessions: discover → build → validate
+ao rpi phased "fix auth bug" &                 # Run multiple in parallel (auto-worktrees)
+ao rpi phased --from=implementation "ag-058"   # Resume at build phase
+ao rpi status --watch                          # Monitor active runs
 ```
-The main advantage here is fresh context per phase: this enables multi-agent orchestration where one team executes loops via subagents/background tasks while another team monitors outcomes and intervenes when needed, and you can run many loops in parallel using native plumbing with the same end result.
 
-Each phase gets its own fresh context window. Walk away, come back to committed code + extracted learnings.
+Walk away, come back to committed code + extracted learnings.
 
-**Other commands you'll use:**
 ```bash
 ao search "query"      # Search knowledge across files and chat history
 ao demo                # Interactive demo
