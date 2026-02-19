@@ -158,3 +158,6 @@
 - [Incident Runbook](INCIDENT-RUNBOOK.md) — Operational runbook for incidents and recovery
 - [Agent Mail](agent-mail.md) — MCP setup for distributed mode
 - [OL-AO Bridge Contracts](ol-bridge-contracts.md) — Olympus-AgentOps interchange formats
+- [MemRL Policy Integration](contracts/memrl-policy-integration.md) — AO-exported deterministic MemRL policy contract for Olympus hooks
+- [MemRL Policy Schema](contracts/memrl-policy.schema.json) — Machine-readable schema for MemRL policy package
+- [MemRL Policy Example Profile](contracts/memrl-policy.profile.example.json) — Example deterministic policy profile

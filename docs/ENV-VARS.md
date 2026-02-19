@@ -27,6 +27,14 @@ The `--profile` flag sets `COUNCIL_CLAUDE_MODEL`, judge count, and timeout as a 
 
 Explicit env vars override profiles: `COUNCIL_CLAUDE_MODEL=opus` beats `--profile=fast`.
 
+## MemRL Policy
+
+These control deterministic MemRL policy evaluation in retry/escalation paths.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MEMRL_MODE` | `off` | MemRL policy mode: `off` (strict legacy parity), `observe` (evaluate + audit without enforcement), `enforce` (evaluate + enforce `retry|escalate` decision). |
+
 ## Hooks
 
 These control the optional hook system installed via `ao init --hooks`. Each hook checks `AGENTOPS_HOOKS_DISABLED` first (global kill switch), then its own variable.

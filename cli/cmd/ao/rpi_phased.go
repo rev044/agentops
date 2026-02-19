@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 var (
@@ -48,17 +50,17 @@ const (
 // This allows the loop and other callers to invoke the phased engine programmatically
 // without depending on global cobra flag variables.
 type phasedEngineOptions struct {
-	From              string
-	FastPath          bool
-	TestFirst         bool
-	Interactive       bool
-	MaxRetries        int
-	PhaseTimeout      time.Duration
-	StallTimeout      time.Duration
-	NoWorktree        bool
-	LiveStatus        bool
-	SwarmFirst        bool
-	NtmPollInterval   time.Duration
+	From               string
+	FastPath           bool
+	TestFirst          bool
+	Interactive        bool
+	MaxRetries         int
+	PhaseTimeout       time.Duration
+	StallTimeout       time.Duration
+	NoWorktree         bool
+	LiveStatus         bool
+	SwarmFirst         bool
+	NtmPollInterval    time.Duration
 	StallCheckInterval time.Duration
 }
 
@@ -159,23 +161,23 @@ var phases = []phase{
 
 // phasedState persists orchestrator state between phase spawns.
 type phasedState struct {
-	SchemaVersion int                  `json:"schema_version"`
-	Goal          string               `json:"goal"`
-	EpicID        string               `json:"epic_id,omitempty"`
-	Phase         int                  `json:"phase"`
-	StartPhase    int                  `json:"start_phase"`
-	Cycle         int                  `json:"cycle"`
-	ParentEpic    string               `json:"parent_epic,omitempty"`
-	FastPath      bool                 `json:"fast_path"`
-	TestFirst     bool                 `json:"test_first"`
-	SwarmFirst    bool                 `json:"swarm_first"`
-	Verdicts      map[string]string    `json:"verdicts"`
-	Attempts      map[string]int       `json:"attempts"`
-	StartedAt     string               `json:"started_at"`
-	WorktreePath  string               `json:"worktree_path,omitempty"`
-	RunID         string               `json:"run_id,omitempty"`
-	Backend       string               `json:"backend,omitempty"`
-	Opts          phasedEngineOptions  `json:"opts"`
+	SchemaVersion int                 `json:"schema_version"`
+	Goal          string              `json:"goal"`
+	EpicID        string              `json:"epic_id,omitempty"`
+	Phase         int                 `json:"phase"`
+	StartPhase    int                 `json:"start_phase"`
+	Cycle         int                 `json:"cycle"`
+	ParentEpic    string              `json:"parent_epic,omitempty"`
+	FastPath      bool                `json:"fast_path"`
+	TestFirst     bool                `json:"test_first"`
+	SwarmFirst    bool                `json:"swarm_first"`
+	Verdicts      map[string]string   `json:"verdicts"`
+	Attempts      map[string]int      `json:"attempts"`
+	StartedAt     string              `json:"started_at"`
+	WorktreePath  string              `json:"worktree_path,omitempty"`
+	RunID         string              `json:"run_id,omitempty"`
+	Backend       string              `json:"backend,omitempty"`
+	Opts          phasedEngineOptions `json:"opts"`
 }
 
 // retryContext holds context for retrying a failed gate.
@@ -220,9 +222,9 @@ func (d *directExecutor) Execute(prompt, cwd, runID string, phaseNum int) error 
 }
 
 type ntmExecutor struct {
-	ntmPath        string
-	phaseTimeout   time.Duration
-	stallTimeout   time.Duration
+	ntmPath         string
+	phaseTimeout    time.Duration
+	stallTimeout    time.Duration
 	ntmPollInterval time.Duration
 }
 
@@ -881,6 +883,67 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 	return nil
 }
 
+func legacyGateAction(attempt, maxRetries int) types.MemRLAction {
+	if attempt >= maxRetries {
+		return types.MemRLActionEscalate
+	}
+	return types.MemRLActionRetry
+}
+
+func classifyGateFailureClass(phaseNum int, gateErr *gateFailError) types.MemRLFailureClass {
+	if gateErr == nil {
+		return ""
+	}
+	verdict := strings.ToUpper(strings.TrimSpace(gateErr.Verdict))
+	switch phaseNum {
+	case 1:
+		if verdict == "FAIL" {
+			return types.MemRLFailureClassPreMortemFail
+		}
+	case 2:
+		switch verdict {
+		case "BLOCKED":
+			return types.MemRLFailureClassCrankBlocked
+		case "PARTIAL":
+			return types.MemRLFailureClassCrankPartial
+		}
+	case 3:
+		if verdict == "FAIL" {
+			return types.MemRLFailureClassVibeFail
+		}
+	}
+	switch verdict {
+	case string(failReasonTimeout):
+		return types.MemRLFailureClassPhaseTimeout
+	case string(failReasonStall):
+		return types.MemRLFailureClassPhaseStall
+	case string(failReasonExit):
+		return types.MemRLFailureClassPhaseExitError
+	default:
+		return types.MemRLFailureClass(strings.ToLower(verdict))
+	}
+}
+
+func resolveGateRetryAction(state *phasedState, phaseNum int, gateErr *gateFailError, attempt int) (types.MemRLAction, types.MemRLPolicyDecision) {
+	mode := types.GetMemRLMode()
+	failureClass := classifyGateFailureClass(phaseNum, gateErr)
+	metadataPresent := gateErr != nil && strings.TrimSpace(gateErr.Verdict) != ""
+
+	decision := types.EvaluateDefaultMemRLPolicy(types.MemRLPolicyInput{
+		Mode:            mode,
+		FailureClass:    failureClass,
+		Attempt:         attempt,
+		MaxAttempts:     state.Opts.MaxRetries,
+		MetadataPresent: metadataPresent,
+	})
+
+	legacy := legacyGateAction(attempt, state.Opts.MaxRetries)
+	if mode == types.MemRLModeEnforce {
+		return decision.Action, decision
+	}
+	return legacy, decision
+}
+
 // handleGateRetry manages retry logic for failed gates.
 // spawnCwd is the working directory for spawned claude sessions (may be worktree).
 func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gateFailError, logPath string, spawnCwd string, statusPath string, allPhases []PhaseProgress, executor PhaseExecutor) (bool, error) {
@@ -893,9 +956,35 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 		updateLivePhaseStatus(statusPath, allPhases, phaseNum, "retrying after "+gateErr.Verdict, attempt, "")
 	}
 
-	if attempt >= state.Opts.MaxRetries {
-		msg := fmt.Sprintf("%s failed %d times. Last report: %s. Manual intervention needed.",
-			phaseName, state.Opts.MaxRetries, gateErr.Report)
+	action, decision := resolveGateRetryAction(state, phaseNum, gateErr, attempt)
+	if decision.Mode != types.MemRLModeOff {
+		logPhaseTransition(
+			logPath,
+			state.RunID,
+			phaseName,
+			fmt.Sprintf(
+				"memrl policy mode=%s failure_class=%s attempt_bucket=%s policy_action=%s selected_action=%s rule=%s",
+				decision.Mode,
+				decision.FailureClass,
+				decision.AttemptBucket,
+				decision.Action,
+				action,
+				decision.RuleID,
+			),
+		)
+	}
+
+	if action == types.MemRLActionEscalate {
+		msg := fmt.Sprintf(
+			"%s escalated (mode=%s, action=%s, rule=%s, attempt=%d/%d). Last report: %s. Manual intervention needed.",
+			phaseName,
+			decision.Mode,
+			action,
+			decision.RuleID,
+			attempt,
+			state.Opts.MaxRetries,
+			gateErr.Report,
+		)
 		fmt.Println(msg)
 		if state.Opts.LiveStatus {
 			updateLivePhaseStatus(statusPath, allPhases, phaseNum, "failed after retries", attempt, gateErr.Report)

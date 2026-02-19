@@ -7,6 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SCHEMA="$REPO_ROOT/skills/council/schemas/verdict.json"
+MEMRL_SCHEMA="$REPO_ROOT/docs/contracts/memrl-policy.schema.json"
+MEMRL_PROFILE="$REPO_ROOT/docs/contracts/memrl-policy.profile.example.json"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -104,6 +106,39 @@ if echo "$BAD_SAMPLE" | jq -e '
     fail "Non-conforming sample should have been rejected (missing fields)"
 else
     pass "Non-conforming sample correctly rejected (missing fields)"
+fi
+
+# Test 11: MemRL schema exists and is valid JSON
+if [[ -f "$MEMRL_SCHEMA" ]] && jq empty "$MEMRL_SCHEMA" 2>/dev/null; then
+    pass "MemRL policy schema exists and is valid JSON"
+else
+    fail "MemRL policy schema missing or invalid JSON: $MEMRL_SCHEMA"
+fi
+
+# Test 12: MemRL schema enforces retry|escalate actions
+if jq -e '
+  .properties.rules.items.properties.action.enum == ["retry","escalate"] and
+  .properties.unknown_failure_class_action.enum == ["retry","escalate"] and
+  .properties.missing_metadata_action.enum == ["retry","escalate"]
+' "$MEMRL_SCHEMA" > /dev/null 2>&1; then
+    pass "MemRL schema constrains actions to retry|escalate"
+else
+    fail "MemRL schema action constraints mismatch"
+fi
+
+# Test 13: MemRL profile exists, valid JSON, and shape conforms to schema-required fields
+if [[ -f "$MEMRL_PROFILE" ]] && jq -e '
+  .schema_version == 1 and
+  (.default_mode == "off" or .default_mode == "observe" or .default_mode == "enforce") and
+  (.unknown_failure_class_action == "retry" or .unknown_failure_class_action == "escalate") and
+  (.missing_metadata_action == "retry" or .missing_metadata_action == "escalate") and
+  (.tie_break_rules | type == "array" and length >= 1) and
+  (.rules | type == "array" and length >= 1) and
+  (.rollback_matrix | type == "array" and length >= 1)
+' "$MEMRL_PROFILE" > /dev/null 2>&1; then
+    pass "MemRL profile example has required deterministic policy fields"
+else
+    fail "MemRL profile example missing required fields: $MEMRL_PROFILE"
 fi
 
 # Summary

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // ─── gateFailError ────────────────────────────────────────────────────────────
@@ -640,6 +642,57 @@ func TestHandleGateRetry_ExhaustsRetries(t *testing.T) {
 	}
 	if executor.execCount > 0 {
 		t.Errorf("executor should not be called when retries exhausted, called %d times", executor.execCount)
+	}
+}
+
+func TestResolveGateRetryAction_ModeOffParity(t *testing.T) {
+	t.Setenv(types.MemRLModeEnvVar, string(types.MemRLModeOff))
+
+	state := &phasedState{
+		Opts: phasedEngineOptions{
+			MaxRetries: 3,
+		},
+	}
+	gateErr := &gateFailError{
+		Phase:   3,
+		Verdict: "FAIL",
+		Report:  "vibe.md",
+	}
+
+	action1, decision1 := resolveGateRetryAction(state, 3, gateErr, 1)
+	if action1 != types.MemRLActionRetry {
+		t.Fatalf("mode=off attempt=1 action=%q, want retry", action1)
+	}
+	if decision1.Mode != types.MemRLModeOff {
+		t.Fatalf("mode=off decision mode=%q, want off", decision1.Mode)
+	}
+
+	action3, _ := resolveGateRetryAction(state, 3, gateErr, 3)
+	if action3 != types.MemRLActionEscalate {
+		t.Fatalf("mode=off attempt=max action=%q, want escalate", action3)
+	}
+}
+
+func TestResolveGateRetryAction_EnforceCrankBlockedEscalatesEarly(t *testing.T) {
+	t.Setenv(types.MemRLModeEnvVar, string(types.MemRLModeEnforce))
+
+	state := &phasedState{
+		Opts: phasedEngineOptions{
+			MaxRetries: 3,
+		},
+	}
+	gateErr := &gateFailError{
+		Phase:   2,
+		Verdict: "BLOCKED",
+		Report:  "crank.md",
+	}
+
+	action, decision := resolveGateRetryAction(state, 2, gateErr, 1)
+	if action != types.MemRLActionEscalate {
+		t.Fatalf("mode=enforce crank BLOCKED attempt=1 action=%q, want escalate", action)
+	}
+	if decision.RuleID == "" {
+		t.Fatal("expected enforce decision to include matching rule_id")
 	}
 }
 

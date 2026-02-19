@@ -112,6 +112,24 @@ Validation / default rules (normative):
 
 On rejection, the receiver MUST emit an `OBSERVABILITY_EVENTS` error and fail closed (no checkpoint mutation).
 
+### 0.6 MemRL Policy Package (AO Export)
+
+AgentOps now exports a deterministic MemRL policy package that Olympus can consume as static contract artifacts:
+
+- `docs/contracts/memrl-policy.schema.json`
+- `docs/contracts/memrl-policy.profile.example.json`
+- `docs/contracts/memrl-policy-integration.md`
+
+The policy package defines:
+
+- canonical `memrl_mode` contract: `off|observe|enforce`
+- deterministic truth table: `memrl_mode × failure_class × attempt_bucket -> action`
+- action set restricted to `retry|escalate`
+- explicit unknown/missing/tie-break/default behavior
+- rollback matrix with mechanical triggers and verification commands
+
+Status: AO-side export is implemented. Olympus-side envelope/runtime enforcement remains `SPEC_ONLY` until Olympus adds schema-enforced consumption in code with conformance tests.
+
 ## 1. Learning Interchange Format
 
 ### OL → AO (harvest → forge)
@@ -282,6 +300,16 @@ ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
 | `ol harvest --format=ao` not supported | Manual file copy from `.agents/learnings/` |
 | `ao inject --ol-constraints` not supported | Skip constraint injection |
 | `.ol/` directory missing | Not an Olympus project, skip all OL features |
+
+### 3.5 MemRL Policy Migration
+
+Roll out MemRL policy integration in deterministic stages:
+
+1. `MEMRL_MODE=off` (strict parity with legacy retry behavior)
+2. `MEMRL_MODE=observe` (audit decisions, no enforcement)
+3. `MEMRL_MODE=enforce` (enforce policy action)
+
+Rollback is mechanical via `rollback_matrix` triggers in the policy profile. If any trigger fires, demote mode (`enforce -> observe -> off`) and verify using the trigger's verification command.
 
 ## 4. Validation Result Format
 
