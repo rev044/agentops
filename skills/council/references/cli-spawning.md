@@ -77,13 +77,15 @@ For cross-vendor consensus, run Codex CLI processes alongside runtime-native jud
 
 ```bash
 # With structured output (preferred)
-codex exec -s read-only -m gpt-5.3-codex -C "$(pwd)" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-{N}.json "{PACKET}"
+codex exec -s read-only -C "$(pwd)" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-{N}.json "{PACKET}"
 
 # Fallback (if --output-schema unsupported)
-codex exec --full-auto -m gpt-5.3-codex -C "$(pwd)" -o .agents/council/codex-{N}.md "{PACKET}"
+codex exec --full-auto -C "$(pwd)" -o .agents/council/codex-{N}.md "{PACKET}"
 ```
 
-Flag order: `-s`/`--full-auto` → `-m` → `-C` → `--output-schema` → `-o` → prompt.
+Uses the user's default Codex model. Only pass `-m` if `COUNCIL_CODEX_MODEL` is explicitly set.
+
+Flag order: `-s`/`--full-auto` → `-C` → `--output-schema` → `-o` → prompt (add `-m` before `-C` only if overriding model).
 
 **Valid flags:** `--full-auto`, `-s`, `-m`, `-C`, `--output-schema`, `-o`, `--add-dir`
 **Invalid flags:** `-q` (doesn't exist), `--quiet` (doesn't exist)
@@ -103,7 +105,7 @@ Codex CLI processes run as background shell commands — this is fine (they're s
 | Vendor | Default | Override |
 |--------|---------|----------|
 | Claude | sonnet | `--claude-model=opus` |
-| Codex | gpt-5.3-codex | `--codex-model=<model>` |
+| Codex | (user's default) | `--codex-model=<model>` or `COUNCIL_CODEX_MODEL` env var |
 
 ## Output Collection
 

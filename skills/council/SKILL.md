@@ -359,7 +359,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
-| `COUNCIL_CODEX_MODEL` | gpt-5.3-codex | Default Codex model for --mixed |
+| `COUNCIL_CODEX_MODEL` | (user's default) | Override Codex model for --mixed. Omit `-m` flag to use the user's configured default. |
 | `COUNCIL_CLAUDE_MODEL` | sonnet | Claude model for judges (sonnet default — use opus for high-stakes via `--profile=thorough`) |
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
@@ -457,7 +457,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | "Error: --quick and --debate are incompatible" | Both flags passed together | Use `--quick` for fast inline check OR `--debate` for multi-round review, not both |
 | "Error: --debate is only supported with validate mode" | Debate flag used with brainstorm/research | Remove `--debate` or switch to validate mode — brainstorming/research have no PASS/FAIL verdicts |
 | Council spawns fewer agents than expected | `--explorers=N` exceeds MAX_AGENTS (12) | Agent auto-scales judge count. Check report header for actual judge count. Reduce `--explorers` or use `--count` to manually set judges |
-| Codex judges skipped in --mixed mode | Codex CLI not on PATH or gpt-5.3-codex unavailable | Install Codex CLI (`brew install codex`) or use ChatGPT API account. Fallback to runtime-native judges only. |
+| Codex judges skipped in --mixed mode | Codex CLI not on PATH | Install Codex CLI (`brew install codex`). Model uses user's configured default — no specific model required. |
 | No output files in `.agents/council/` | Permission error or disk full | Check directory permissions with `ls -ld .agents/council/`. Council auto-creates missing dirs. |
 | Agent timeout after 120s | Slow file reads or network issues | Increase timeout with `--timeout=300` or check `COUNCIL_TIMEOUT` env var. Default: 120s. |
 
