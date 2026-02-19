@@ -422,6 +422,10 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 		}
 	}
 
+	// logPath is declared here so it is in scope for the deferred worktree cleanup
+	// closure below, which logs cleanup failures once logPath is assigned later.
+	var logPath string
+
 	// Create worktree for isolation (unless resuming into existing one, or opted out).
 	cleanupSuccess := false
 	var worktreeRunID string
@@ -459,7 +463,11 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 					}
 				} else {
 					if rmErr := removeWorktree(originalCwd, worktreePath, worktreeRunID); rmErr != nil {
-						fmt.Fprintf(os.Stderr, "Cleanup warning: %v\n", rmErr)
+						fmt.Fprintf(os.Stderr, "Cleanup failed: %v\nWorktree may require manual removal: %s\n", rmErr, worktreePath)
+						logFailureContext(logPath, state.RunID, "cleanup", rmErr)
+						if retErr == nil {
+							retErr = fmt.Errorf("worktree cleanup failed: %w", rmErr)
+						}
 					}
 				}
 			} else {
@@ -480,7 +488,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 		return fmt.Errorf("create state directory: %w", err)
 	}
 
-	logPath := filepath.Join(stateDir, "phased-orchestration.log")
+	logPath = filepath.Join(stateDir, "phased-orchestration.log")
 	statusPath := filepath.Join(stateDir, "live-status.md")
 	var allPhases []PhaseProgress
 
@@ -1154,7 +1162,7 @@ func spawnClaudePhaseNtm(ntmPath, prompt, cwd, runID string, phaseNum int) error
 		case <-timeout:
 			_ = exec.Command(ntmPath, "kill", sessionName).Run() //nolint:errcheck
 			return fmt.Errorf("phase %d (%s) timed out after %s (set --phase-timeout to increase)", phaseNum, failReasonTimeout, phasedPhaseTimeout)
-		case <-time.After(5 * time.Second):
+		case <-time.After(ntmPollInterval):
 			checkCmd := exec.Command("tmux", "has-session", "-t", sessionName)
 			if err := checkCmd.Run(); err != nil {
 				// Session gone — agent completed
@@ -1209,7 +1217,7 @@ func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusP
 	// Start stall watchdog goroutine (if stall timeout is configured).
 	if phasedStallTimeout > 0 {
 		go func() {
-			ticker := time.NewTicker(30 * time.Second)
+			ticker := time.NewTicker(stallCheckInterval)
 			defer ticker.Stop()
 			for {
 				select {
@@ -2230,6 +2238,14 @@ var lookPath = exec.LookPath
 
 // spawnDirectFn is the function used to spawn claude directly. Package-level for testability.
 var spawnDirectFn = spawnClaudeDirectImpl
+
+// ntmPollInterval controls how frequently spawnClaudePhaseNtm checks session liveness.
+// Overridable in tests for fast-forward timing without needing a real tmux session.
+var ntmPollInterval = 5 * time.Second
+
+// stallCheckInterval controls how frequently the stall watchdog goroutine fires in
+// spawnClaudePhaseWithStream. Overridable in tests to exercise stall detection quickly.
+var stallCheckInterval = 30 * time.Second
 
 // gtPath caches the resolved path to the gt binary, or empty string if not found.
 var gtPath string
