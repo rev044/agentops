@@ -12,18 +12,11 @@
 
 </div>
 
-<div align="center">
+<p align="center">
+<img src="docs/assets/swarm-6-rpi.png" alt="6 agents running full development cycles in parallel with validation gates and a coordinating team leader" width="800">
 <br>
-<img src="docs/assets/swarm-6-rpi.png" alt="6 agents running full RPI development cycles in parallel — DevOps primitives, validation gates, knowledge flywheel, and human oversight composing into trusted autonomous execution" width="800">
-<br>
-<i>DevOps primitives, validation gates, a knowledge flywheel, hooks, and a CLI — composed into something you can actually trust.</i>
-<br>
-<sub>6 agents, each with <a href="https://ghuntley.com/ralph/">fresh context</a>, running full research → plan → implement cycles on independent epics.
-Multi-model <a href="#skills">councils</a> gate every phase. Failures auto-retry. Regressions auto-revert. Hooks make the rules unavoidable.
-A team leader coordinates. The human nudges from one terminal — or walks away.
-Every session extracts learnings. The next session starts smarter. 50 files changed.</sub>
-<br><br>
-</div>
+<i>6 agents. Fresh context each. Validation gates they can't skip. Every session learns from the last.</i>
+</p>
 
 ---
 
