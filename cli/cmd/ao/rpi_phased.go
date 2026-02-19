@@ -95,9 +95,9 @@ type phase struct {
 }
 
 var phases = []phase{
-	{1, "discovery", "discovery"},
+	{1, "discovery", "research"},
 	{2, "implementation", "implement"},
-	{3, "validation", "validation"},
+	{3, "validation", "validate"},
 }
 
 // phasedState persists orchestrator state between phase spawns.
@@ -134,10 +134,20 @@ type finding struct {
 }
 
 // PhaseExecutor abstracts the backend used to run a single phase session.
+//
+// Selection policy (deterministic, logged):
+//
+//	stream  — selected when --live-status is enabled; requires stream-json support.
+//	ntm     — selected when ntm is on PATH and NOT running inside a Claude agent
+//	          session (CLAUDECODE or CLAUDE_CODE_ENTRYPOINT env vars absent).
+//	direct  — fallback when stream and ntm are both unavailable or suppressed.
+//
+// The chosen backend is recorded in phasedState.Backend, emitted to stdout, and
+// appended to the orchestration log so every run has a traceable selection record.
 type PhaseExecutor interface {
-	// Name returns the backend identifier (e.g., "direct", "ntm", "stream").
+	// Name returns the backend identifier ("direct", "ntm", or "stream").
 	Name() string
-	// Execute runs the phase and blocks until completion.
+	// Execute runs the phase prompt and blocks until the session completes.
 	Execute(prompt, cwd, runID string, phaseNum int) error
 }
 
@@ -165,23 +175,71 @@ func (s *streamExecutor) Execute(prompt, cwd, runID string, phaseNum int) error 
 	return spawnClaudePhaseWithStream(prompt, cwd, runID, phaseNum, s.statusPath, s.allPhases)
 }
 
+// backendCapabilities probes the runtime environment for executor prerequisites.
+// All fields are populated by probeBackendCapabilities.
+type backendCapabilities struct {
+	// LiveStatusEnabled is true when --live-status flag is set.
+	LiveStatusEnabled bool
+	// InAgentSession is true when running inside a Claude agent session.
+	// ntm is suppressed in agent sessions to avoid interactive prompts.
+	InAgentSession bool
+	// NtmPath is the resolved path to the ntm binary, or empty if not found.
+	NtmPath string
+}
+
+// probeBackendCapabilities detects available backends in the current environment.
+// It is a pure function (no side effects) to keep selectExecutor testable.
+func probeBackendCapabilities(liveStatus bool) backendCapabilities {
+	caps := backendCapabilities{
+		LiveStatusEnabled: liveStatus,
+		InAgentSession:    os.Getenv("CLAUDECODE") != "" || os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "",
+	}
+	if !caps.InAgentSession {
+		caps.NtmPath, _ = lookPath("ntm")
+	}
+	return caps
+}
+
+// selectExecutorFromCaps resolves an executor from pre-probed capabilities.
+// This is the deterministic core of backend selection — testable without env mutation.
+//
+// Selection order (first match wins):
+//  1. stream  — caps.LiveStatusEnabled
+//  2. ntm     — caps.NtmPath non-empty and not in agent session
+//  3. direct  — unconditional fallback
+func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhases []PhaseProgress) (PhaseExecutor, string) {
+	if caps.LiveStatusEnabled {
+		return &streamExecutor{statusPath: statusPath, allPhases: allPhases}, "live-status enabled"
+	}
+	if caps.InAgentSession {
+		return &directExecutor{}, "agent session detected (CLAUDECODE/CLAUDE_CODE_ENTRYPOINT set) — ntm suppressed"
+	}
+	if caps.NtmPath != "" {
+		return &ntmExecutor{ntmPath: caps.NtmPath}, fmt.Sprintf("ntm found at %s", caps.NtmPath)
+	}
+	return &directExecutor{}, "ntm not found on PATH"
+}
+
 // selectExecutor resolves the executor backend based on flags and environment.
-// Selection order: stream (if live-status enabled) > ntm (if available and not in agent) > direct.
-// The backend name is logged for observability.
+// The selection policy, chosen backend, and reason are logged to logPath for
+// observability. Pass an empty logPath to skip log writing (e.g., in tests).
+//
+// Selection order: stream (live-status) > ntm (interactive) > direct (fallback).
 func selectExecutor(statusPath string, allPhases []PhaseProgress) PhaseExecutor {
-	// If live status is enabled, use stream executor
-	if phasedLiveStatus {
-		return &streamExecutor{statusPath: statusPath, allPhases: allPhases}
+	return selectExecutorWithLog(statusPath, allPhases, "", "")
+}
+
+// selectExecutorWithLog is the log-aware variant used by runRPIPhased.
+// logPath and runID are used to append the selection record to the orchestration log.
+func selectExecutorWithLog(statusPath string, allPhases []PhaseProgress, logPath, runID string) PhaseExecutor {
+	caps := probeBackendCapabilities(phasedLiveStatus)
+	executor, reason := selectExecutorFromCaps(caps, statusPath, allPhases)
+	msg := fmt.Sprintf("backend=%s reason=%q", executor.Name(), reason)
+	fmt.Printf("Executor backend: %s (%s)\n", executor.Name(), reason)
+	if logPath != "" {
+		logPhaseTransition(logPath, runID, "backend-selection", msg)
 	}
-	// Skip ntm in agent sessions
-	if os.Getenv("CLAUDECODE") != "" || os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "" {
-		return &directExecutor{}
-	}
-	// Try ntm
-	if ntmPath, err := lookPath("ntm"); err == nil {
-		return &ntmExecutor{ntmPath: ntmPath}
-	}
-	return &directExecutor{}
+	return executor
 }
 
 // phaseSummaryInstruction is prepended to each phase prompt so Claude writes a rich summary.
@@ -457,9 +515,9 @@ func runRPIPhased(cmd *cobra.Command, args []string) (retErr error) {
 	}
 
 	// Resolve executor backend once for the entire run.
-	executor := selectExecutor(statusPath, allPhases)
+	// selectExecutorWithLog records the selection and reason to the orchestration log.
+	executor := selectExecutorWithLog(statusPath, allPhases, logPath, state.RunID)
 	state.Backend = executor.Name()
-	fmt.Printf("Executor backend: %s\n", executor.Name())
 
 	// Execute phases sequentially
 	for i := startPhase; i <= len(phases); i++ {
