@@ -188,9 +188,9 @@ func TestCheckKnowledgeFreshness(t *testing.T) {
 func TestCheckSearchIndex(t *testing.T) {
 	t.Run("index exists with content", func(t *testing.T) {
 		tmp := chdirTemp(t)
-		indexDir := filepath.Join(tmp, ".agents", "ao")
+		indexDir := filepath.Join(tmp, IndexDir)
 		os.MkdirAll(indexDir, 0755)
-		os.WriteFile(filepath.Join(indexDir, "index.jsonl"), []byte("{\"term\":\"hello\"}\n{\"term\":\"world\"}\n"), 0644)
+		os.WriteFile(filepath.Join(indexDir, IndexFileName), []byte("{\"term\":\"hello\"}\n{\"term\":\"world\"}\n"), 0644)
 
 		result := checkSearchIndex()
 		if result.Status != "pass" {
@@ -200,9 +200,9 @@ func TestCheckSearchIndex(t *testing.T) {
 
 	t.Run("empty index", func(t *testing.T) {
 		tmp := chdirTemp(t)
-		indexDir := filepath.Join(tmp, ".agents", "ao")
+		indexDir := filepath.Join(tmp, IndexDir)
 		os.MkdirAll(indexDir, 0755)
-		os.WriteFile(filepath.Join(indexDir, "index.jsonl"), []byte(""), 0644)
+		os.WriteFile(filepath.Join(indexDir, IndexFileName), []byte(""), 0644)
 
 		result := checkSearchIndex()
 		if result.Status != "warn" {
