@@ -239,6 +239,26 @@ goals:
     check: "./scripts/validate-hook-preflight.sh >/dev/null 2>&1"
     weight: 4
 
+  - id: toolchain-security-gate
+    description: "Unified security gate script is executable and testable"
+    check: "test -x scripts/security-gate.sh && bash tests/scripts/test-security-gate.sh >/dev/null 2>&1"
+    weight: 4
+
+  - id: ci-security-toolchain-gate
+    description: "Validate workflow enforces security toolchain gate"
+    check: "grep -q 'security-toolchain-gate' .github/workflows/validate.yml && grep -q 'scripts/security-gate.sh' .github/workflows/validate.yml"
+    weight: 4
+
+  - id: release-security-gate
+    description: "Release workflow requires security gate before build/publish"
+    check: "grep -q '^  security-gate:' .github/workflows/release.yml && grep -q 'needs: \\[doc-release-gate, security-gate\\]' .github/workflows/release.yml && grep -q 'scripts/security-gate.sh' .github/workflows/release.yml"
+    weight: 4
+
+  - id: nightly-security-toolchain
+    description: "Nightly workflow runs security toolchain checks"
+    check: "grep -q '^  security-toolchain:' .github/workflows/nightly.yml && grep -q 'scripts/security-gate.sh' .github/workflows/nightly.yml"
+    weight: 3
+
   - id: smoke-tests
     description: "Smoke tests pass (toolchain, skills, manifests)"
     check: "./tests/smoke-test.sh"

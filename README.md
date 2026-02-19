@@ -7,7 +7,7 @@
 ### Coding agents forget everything between sessions. This fixes that.
 
 [![Version](https://img.shields.io/github/v/tag/boshu2/agentops?display_name=tag&sort=semver&label=version&color=8b5cf6)](CHANGELOG.md)
-[![Skills](https://img.shields.io/badge/skills-51-7c3aed)](skills/)
+[![Skills](https://img.shields.io/badge/skills-52-7c3aed)](skills/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 [How It Works](#how-it-works) · [See It Work](#see-it-work) · [Install](#install) · [The Path](#the-path) · [Skills](#skills) · [Deep Dive](#deep-dive) · [FAQ](#faq)
@@ -278,7 +278,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## Skills
 
-51 skills: 41 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
+52 skills: 42 user-facing, 10 internal (fire automatically). Each level composes the ones below it.
 
 | Scope | Skill | What it does |
 |-------|-------|-------------|

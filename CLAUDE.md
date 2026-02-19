@@ -9,7 +9,7 @@ The missing DevOps layer for coding agents. Flow, feedback, and memory that comp
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin manifest
 │   └── marketplace.json   # Marketplace metadata
-├── skills/                # All 51 skills (41 user-facing, 10 internal)
+├── skills/                # All 52 skills (42 user-facing, 10 internal)
 │   ├── council/           # Multi-model validation (core primitive)
 │   ├── crank/             # Hands-free epic execution
 │   ├── swarm/             # Parallel agent spawning

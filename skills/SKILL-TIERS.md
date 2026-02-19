@@ -15,7 +15,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 
 ## Current Skill Tiers
 
-### User-Facing Skills (41)
+### User-Facing Skills (42)
 
 | Skill | Tier | Description |
 |-------|------|-------------|
@@ -49,6 +49,7 @@ This document defines the `tier` field used in skill frontmatter to categorize s
 | **handoff** | solo | Session handoff |
 | **inbox** | solo | Agent mail monitoring |
 | **release** | solo | Pre-flight, changelog, version bumps, tag |
+| **security** | solo | Continuous security scanning and release gating |
 | **product** | solo | Interactive PRODUCT.md generation |
 | **recover** | solo | Post-compaction context recovery |
 | **trace** | solo | Trace design decisions |
@@ -143,6 +144,7 @@ All validation skills depend on `/council`:
 | **rpi** | research, plan, pre-mortem, crank, vibe, post-mortem, ratchet | all required |
 | **evolve** | rpi | required (rpi pulls in all sub-skills) |
 | **release** | - | - (standalone) |
+| **security** | - | - (standalone) |
 | ratchet | - | - |
 | **recover** | - | - (standalone) |
 | **reverse-engineer-rpi** | - | - (standalone, research tier) |
