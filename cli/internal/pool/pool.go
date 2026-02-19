@@ -5,6 +5,7 @@ package pool
 import (
 	"bufio"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -397,14 +398,20 @@ func (p *Pool) Promote(candidateID string) (string, error) {
 		return "", fmt.Errorf("create destination: %w", err)
 	}
 
-	// Generate artifact filename
+	// Generate artifact filename using full candidate ID to avoid collisions.
+	// Previous truncation to 8 chars caused all candidates with shared prefixes
+	// (e.g., "pend-202...") to overwrite each other — data loss bug.
 	timestamp := time.Now().Format("2006-01-02")
-	shortID := candidateID
-	if len(shortID) > 8 {
-		shortID = shortID[:8]
-	}
-	artifactName := fmt.Sprintf("%s-%s.md", timestamp, shortID)
+	artifactName := fmt.Sprintf("%s-%s.md", timestamp, candidateID)
 	artifactPath := filepath.Join(destDir, artifactName)
+
+	// Guard against unlikely collisions (same ID promoted twice in one day).
+	if _, err := os.Stat(artifactPath); err == nil {
+		h := sha256.Sum256([]byte(candidateID + time.Now().String()))
+		suffix := hex.EncodeToString(h[:4])
+		artifactName = fmt.Sprintf("%s-%s-%s.md", timestamp, candidateID, suffix)
+		artifactPath = filepath.Join(destDir, artifactName)
+	}
 
 	// Write artifact as markdown
 	if err := p.writeArtifact(artifactPath, entry); err != nil {
