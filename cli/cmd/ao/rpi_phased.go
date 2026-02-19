@@ -934,21 +934,25 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 	}
 
 	data := struct {
-		Goal         string
-		EpicID       string
-		FastPath     bool
-		TestFirst    bool
-		RetryAttempt int
-		MaxRetries   int
-		Findings     []finding
+		Goal          string
+		EpicID        string
+		FastPath      bool
+		TestFirst     bool
+		RetryAttempt  int
+		MaxRetries    int
+		Findings      []finding
+		PhaseNum      int
+		ContextBudget string
 	}{
-		Goal:         state.Goal,
-		EpicID:       state.EpicID,
-		FastPath:     state.FastPath,
-		TestFirst:    state.TestFirst,
-		RetryAttempt: retryCtx.Attempt,
-		MaxRetries:   phasedMaxRetries,
-		Findings:     retryCtx.Findings,
+		Goal:          state.Goal,
+		EpicID:        state.EpicID,
+		FastPath:      state.FastPath,
+		TestFirst:     state.TestFirst,
+		RetryAttempt:  retryCtx.Attempt,
+		MaxRetries:    phasedMaxRetries,
+		Findings:      retryCtx.Findings,
+		PhaseNum:      phaseNum,
+		ContextBudget: phaseContextBudgets[phaseNum],
 	}
 
 	var buf strings.Builder
@@ -956,7 +960,32 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 		return "", fmt.Errorf("execute retry template: %w", err)
 	}
 
-	return buf.String(), nil
+	skillInvocation := buf.String()
+
+	// Build prompt: context discipline and summary contract first (survive compaction),
+	// then the retry skill invocation.
+	var prompt strings.Builder
+
+	// 1. Context discipline instruction (first — survives compaction)
+	disciplineTmpl, err := template.New("discipline").Parse(contextDisciplineInstruction)
+	if err == nil {
+		if err := disciplineTmpl.Execute(&prompt, data); err != nil {
+			VerbosePrintf("Warning: could not render context discipline instruction: %v\n", err)
+		}
+	}
+
+	// 2. Summary instruction
+	summaryTmpl, err := template.New("summary").Parse(phaseSummaryInstruction)
+	if err == nil {
+		if err := summaryTmpl.Execute(&prompt, data); err != nil {
+			VerbosePrintf("Warning: could not render summary instruction: %v\n", err)
+		}
+	}
+
+	// 3. Retry skill invocation (last — the actual command with findings)
+	prompt.WriteString(skillInvocation)
+
+	return prompt.String(), nil
 }
 
 // Exit codes for phased orchestration.
@@ -1733,6 +1762,11 @@ func removeWorktree(repoRoot, worktreePath, runID string) error {
 
 // --- Phase result artifacts ---
 
+// phaseResultFileFmt is the filename pattern for per-phase result artifacts.
+// Each phase writes "phase-{N}-result.json" to .agents/rpi/.
+// Contract: docs/contracts/rpi-phase-result.schema.json
+const phaseResultFileFmt = "phase-%d-result.json"
+
 // phaseResult is a structured artifact written after each phase completes or fails.
 // Schema: docs/contracts/rpi-phase-result.schema.json
 type phaseResult struct {
@@ -1751,7 +1785,7 @@ type phaseResult struct {
 	DurationSeconds float64           `json:"duration_seconds,omitempty"`
 }
 
-// writePhaseResult writes a phase-{N}-result.json file atomically (write to .tmp, rename).
+// writePhaseResult writes a phase-result.json artifact (named phase-{N}-result.json) atomically (write to .tmp, rename).
 func writePhaseResult(cwd string, result *phaseResult) error {
 	stateDir := filepath.Join(cwd, ".agents", "rpi")
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
@@ -1763,7 +1797,7 @@ func writePhaseResult(cwd string, result *phaseResult) error {
 		return fmt.Errorf("marshal phase result: %w", err)
 	}
 
-	finalPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-result.json", result.Phase))
+	finalPath := filepath.Join(stateDir, fmt.Sprintf(phaseResultFileFmt, result.Phase))
 	tmpPath := finalPath + ".tmp"
 
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
@@ -1781,7 +1815,7 @@ func writePhaseResult(cwd string, result *phaseResult) error {
 // validatePriorPhaseResult checks that phase-{expectedPhase}-result.json exists
 // and has status "completed". Called at the start of phases 2 and 3.
 func validatePriorPhaseResult(cwd string, expectedPhase int) error {
-	resultPath := filepath.Join(cwd, ".agents", "rpi", fmt.Sprintf("phase-%d-result.json", expectedPhase))
+	resultPath := filepath.Join(cwd, ".agents", "rpi", fmt.Sprintf(phaseResultFileFmt, expectedPhase))
 	data, err := os.ReadFile(resultPath)
 	if err != nil {
 		return fmt.Errorf("prior phase %d result not found at %s: %w", expectedPhase, resultPath, err)
