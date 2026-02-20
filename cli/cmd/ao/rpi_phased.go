@@ -443,13 +443,11 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 	return runRPIPhasedWithOpts(opts, args)
 }
 
-// runRPIPhasedWithOpts is the core implementation of the phased RPI lifecycle.
-// All configuration is read from opts; no package-level globals are read after
-// this point (except test-injection points: lookPath, spawnDirectFn, gtPath).
-func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error) {
-	cwd, err := os.Getwd()
+// validatePhasedInput checks preconditions and parses arguments for phased RPI.
+func validatePhasedInput(args []string, opts phasedEngineOptions) (cwd, goal string, startPhase int, err error) {
+	cwd, err = os.Getwd()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return "", "", 0, fmt.Errorf("get working directory: %w", err)
 	}
 
 	// Pre-flight: check claude on PATH (skip in dry-run mode).
@@ -457,41 +455,41 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 	// claude CLI is unavailable.
 	if !GetDryRun() {
 		if _, err := exec.LookPath("claude"); err != nil {
-			return fmt.Errorf("claude CLI not found on PATH (required for spawning phase sessions)")
+			return "", "", 0, fmt.Errorf("claude CLI not found on PATH (required for spawning phase sessions)")
 		}
 	}
 
-	originalCwd := cwd
-	// spawnCwd tracks the directory for spawning claude sessions.
-	// When worktree is active, this is the worktree path; otherwise, it's cwd.
-	spawnCwd := cwd
-
-	// Parse goal
-	goal := ""
 	if len(args) > 0 {
 		goal = args[0]
 	}
 
-	// Determine start phase
-	startPhase := phaseNameToNum(opts.From)
+	startPhase = phaseNameToNum(opts.From)
 	if startPhase == 0 {
-		return fmt.Errorf("unknown phase: %q (valid: discovery, implementation, validation)", opts.From)
+		return "", "", 0, fmt.Errorf("unknown phase: %q (valid: discovery, implementation, validation)", opts.From)
 	}
 
-	// For implementation/validation without goal, we need an epic ID from state
 	if startPhase >= 2 && goal == "" {
-		// Try to extract epic from existing state
-		existing, err := loadPhasedState(cwd)
-		if err == nil && existing.EpicID != "" {
+		existing, loadErr := loadPhasedState(cwd)
+		if loadErr == nil && existing.EpicID != "" {
 			goal = existing.Goal
 		}
 	}
 
 	if goal == "" && startPhase <= 1 {
-		return fmt.Errorf("goal is required (provide as argument)")
+		return "", "", 0, fmt.Errorf("goal is required (provide as argument)")
 	}
 
-	// Initialize state
+	return cwd, goal, startPhase, nil
+}
+
+// runRPIPhasedWithOpts is the core implementation of the phased RPI lifecycle.
+// All configuration is read from opts; no package-level globals are read after
+// this point (except test-injection points: lookPath, spawnDirectFn, gtPath).
+// initOrResumeState builds a fresh phasedState or resumes from a prior run.
+// Returns the state and the effective spawnCwd (may differ from cwd if a
+// worktree is being resumed).
+func initOrResumeState(cwd, goal string, startPhase int, opts phasedEngineOptions) (*phasedState, string, error) {
+	spawnCwd := cwd
 	state := &phasedState{
 		SchemaVersion: 1,
 		Goal:          goal,
@@ -507,7 +505,6 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 		Opts:          opts,
 	}
 
-	// Try loading existing state for resume
 	if startPhase > 1 {
 		existing, err := loadPhasedState(cwd)
 		if err == nil {
@@ -523,7 +520,6 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 			if goal == "" {
 				state.Goal = existing.Goal
 			}
-			// Resume: reuse existing worktree if still present.
 			if !opts.NoWorktree && existing.WorktreePath != "" {
 				if _, statErr := os.Stat(existing.WorktreePath); statErr == nil {
 					spawnCwd = existing.WorktreePath
@@ -531,14 +527,194 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 					state.RunID = existing.RunID
 					fmt.Printf("Resuming in existing worktree: %s\n", spawnCwd)
 				} else {
-					return fmt.Errorf("worktree %s from previous run no longer exists (was it removed?)", existing.WorktreePath)
+					return nil, "", fmt.Errorf("worktree %s from previous run no longer exists (was it removed?)", existing.WorktreePath)
 				}
 			}
 		}
 	}
 
-	// logPath is declared here so it is in scope for the deferred worktree cleanup
-	// closure below, which logs cleanup failures once logPath is assigned later.
+	return state, spawnCwd, nil
+}
+
+// setupRuntimeEnv ensures the RunID is set, creates the state directory,
+// cleans stale summaries on fresh starts, and initializes live-status reporting.
+func setupRuntimeEnv(spawnCwd string, startPhase int, state *phasedState, opts phasedEngineOptions) (logPath, statusPath string, allPhases []PhaseProgress, err error) {
+	if state.RunID == "" {
+		b := make([]byte, 4)
+		_, _ = rand.Read(b)
+		state.RunID = hex.EncodeToString(b)
+	}
+
+	stateDir := filepath.Join(spawnCwd, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		return "", "", nil, fmt.Errorf("create state directory: %w", err)
+	}
+
+	logPath = filepath.Join(stateDir, "phased-orchestration.log")
+	statusPath = filepath.Join(stateDir, "live-status.md")
+
+	if startPhase == 1 {
+		cleanPhaseSummaries(stateDir)
+	}
+
+	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
+	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
+	fmt.Println("Monitor in a second terminal: ao rpi status --watch")
+	if opts.LiveStatus {
+		allPhases = buildAllPhases(phases)
+		fmt.Printf("Live phase status file: %s\n", statusPath)
+		if err := WriteLiveStatus(statusPath, allPhases, startPhase-1); err != nil {
+			VerbosePrintf("Warning: could not initialize live status: %v\n", err)
+		}
+	}
+	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, opts.From))
+
+	return logPath, statusPath, allPhases, nil
+}
+
+// worktreeCleanup merges and removes a worktree on success, or preserves it
+// for debugging on failure. Returns an error only if merge or removal fails.
+func worktreeCleanup(originalCwd, worktreePath, worktreeRunID, logPath, runID string, cleanupSuccess bool) error {
+	if !cleanupSuccess {
+		fmt.Fprintf(os.Stderr, "Worktree preserved for debugging: %s\n", worktreePath)
+		return nil
+	}
+
+	if mergeErr := mergeWorktree(originalCwd, worktreeRunID); mergeErr != nil {
+		fmt.Fprintf(os.Stderr, "Merge failed: %v\nWorktree preserved at: %s\n", mergeErr, worktreePath)
+		return fmt.Errorf("worktree merge failed: %w", mergeErr)
+	}
+
+	if rmErr := removeWorktree(originalCwd, worktreePath, worktreeRunID); rmErr != nil {
+		fmt.Fprintf(os.Stderr, "Cleanup failed: %v\nWorktree may require manual removal: %s\n", rmErr, worktreePath)
+		logFailureContext(logPath, runID, "cleanup", rmErr)
+		return fmt.Errorf("worktree cleanup failed: %w", rmErr)
+	}
+
+	return nil
+}
+
+// executeSinglePhase runs one phase of the RPI lifecycle: builds prompt,
+// executes via the backend, handles errors/retries, writes artifacts, and saves
+// state. Returns (true, nil) when a gate retry succeeded and the caller should
+// skip to the next iteration.
+func executeSinglePhase(
+	p phase, i, startPhase int,
+	cwd, spawnCwd string,
+	state *phasedState,
+	opts phasedEngineOptions,
+	executor PhaseExecutor,
+	logPath, statusPath string,
+	allPhases []PhaseProgress,
+	logAndFail func(string, error) error,
+) (retry bool, _ error) {
+	prompt, err := buildPromptForPhase(spawnCwd, i, state, nil)
+	if err != nil {
+		return false, logAndFail(p.Name, fmt.Errorf("build prompt for phase %d: %w", i, err))
+	}
+
+	logPhaseTransition(logPath, state.RunID, p.Name, "started")
+	emitRPIStatus(state.RunID, p.Name, "started")
+	if opts.LiveStatus {
+		retryKey := fmt.Sprintf("phase_%d", i)
+		updateLivePhaseStatus(statusPath, allPhases, i, "starting", state.Attempts[retryKey], "")
+	}
+
+	if GetDryRun() {
+		fmt.Printf("[dry-run] Would spawn: claude -p '%s'\n", prompt)
+		if !opts.NoWorktree && i == startPhase {
+			runID := generateRunID()
+			fmt.Printf("[dry-run] Would create worktree: ../%s-rpi-%s/ (branch: rpi/%s)\n",
+				filepath.Base(cwd), runID, runID)
+		}
+		logPhaseTransition(logPath, state.RunID, p.Name, "dry-run")
+		return false, nil
+	}
+
+	fmt.Printf("Spawning: claude -p '%s'\n", prompt)
+	start := time.Now()
+	updateRunHeartbeat(spawnCwd, state.RunID)
+
+	if spawnErr := executor.Execute(prompt, spawnCwd, state.RunID, i); spawnErr != nil {
+		if opts.LiveStatus {
+			retryKey := fmt.Sprintf("phase_%d", i)
+			updateLivePhaseStatus(statusPath, allPhases, i, "failed", state.Attempts[retryKey], spawnErr.Error())
+		}
+		logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("FAILED: %v", spawnErr))
+		return false, fmt.Errorf("phase %d (%s) failed: %w", i, p.Name, spawnErr)
+	}
+
+	elapsed := time.Since(start).Round(time.Second)
+	fmt.Printf("Phase %d completed in %s\n", i, elapsed)
+	logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("completed in %s", elapsed))
+	emitRPIStatus(state.RunID, p.Name, "completed")
+	if opts.LiveStatus {
+		retryKey := fmt.Sprintf("phase_%d", i)
+		updateLivePhaseStatus(statusPath, allPhases, i, "completed", state.Attempts[retryKey], "")
+	}
+
+	retryKey := fmt.Sprintf("phase_%d", i)
+	pr := &phaseResult{
+		SchemaVersion:   1,
+		RunID:           state.RunID,
+		Phase:           i,
+		PhaseName:       p.Name,
+		Status:          "completed",
+		Retries:         state.Attempts[retryKey],
+		Verdicts:        state.Verdicts,
+		StartedAt:       start.Format(time.RFC3339),
+		CompletedAt:     time.Now().Format(time.RFC3339),
+		DurationSeconds: elapsed.Seconds(),
+	}
+	if err := writePhaseResult(spawnCwd, pr); err != nil {
+		VerbosePrintf("Warning: could not write phase result: %v\n", err)
+	}
+
+	updateRunHeartbeat(spawnCwd, state.RunID)
+
+	if err := postPhaseProcessing(spawnCwd, state, i, logPath); err != nil {
+		if retryErr, ok := err.(*gateFailError); ok {
+			retried, retryErr2 := handleGateRetry(spawnCwd, state, i, retryErr, logPath, spawnCwd, statusPath, allPhases, executor)
+			if retryErr2 != nil {
+				return false, logAndFail(p.Name, retryErr2)
+			}
+			if !retried {
+				return false, logAndFail(p.Name, fmt.Errorf("phase %d (%s): gate failed after max retries", i, p.Name))
+			}
+			return true, nil
+		}
+		return false, logAndFail(p.Name, err)
+	}
+
+	if handoffDetected(spawnCwd, i) {
+		fmt.Printf("Phase %d: handoff detected — phase reported context degradation\n", i)
+		logPhaseTransition(logPath, state.RunID, p.Name, "HANDOFF detected — context degradation")
+	}
+
+	writePhaseSummary(spawnCwd, state, i)
+	recordRatchetCheckpoint(p.Step)
+
+	if err := savePhasedState(spawnCwd, state); err != nil {
+		VerbosePrintf("Warning: could not save state: %v\n", err)
+	}
+
+	return false, nil
+}
+
+func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error) {
+	cwd, goal, startPhase, err := validatePhasedInput(args, opts)
+	if err != nil {
+		return err
+	}
+
+	originalCwd := cwd
+
+	state, spawnCwd, err := initOrResumeState(cwd, goal, startPhase, opts)
+	if err != nil {
+		return err
+	}
+
+	// logPath is declared here so it is in scope for the deferred worktree cleanup.
 	var logPath string
 
 	// Create worktree for isolation (unless resuming into existing one, or opted out).
@@ -555,7 +731,6 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 		state.RunID = runID
 		fmt.Printf("Worktree created: %s (branch: rpi/%s)\n", worktreePath, runID)
 
-		// Signal handler: preserve worktree on interruption.
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		go func() {
@@ -568,61 +743,16 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 		defer func() {
 			signal.Stop(sigCh)
 			close(sigCh)
-			if cleanupSuccess {
-				if mergeErr := mergeWorktree(originalCwd, worktreeRunID); mergeErr != nil {
-					fmt.Fprintf(os.Stderr, "Merge failed: %v\nWorktree preserved at: %s\n", mergeErr, worktreePath)
-					// Propagate merge failure as the command's exit code
-					// only if the main flow succeeded (retErr is nil).
-					if retErr == nil {
-						retErr = fmt.Errorf("worktree merge failed: %w", mergeErr)
-					}
-				} else {
-					if rmErr := removeWorktree(originalCwd, worktreePath, worktreeRunID); rmErr != nil {
-						fmt.Fprintf(os.Stderr, "Cleanup failed: %v\nWorktree may require manual removal: %s\n", rmErr, worktreePath)
-						logFailureContext(logPath, state.RunID, "cleanup", rmErr)
-						if retErr == nil {
-							retErr = fmt.Errorf("worktree cleanup failed: %w", rmErr)
-						}
-					}
-				}
-			} else {
-				fmt.Fprintf(os.Stderr, "Worktree preserved for debugging: %s\n", worktreePath)
+			if cleanupErr := worktreeCleanup(originalCwd, worktreePath, worktreeRunID, logPath, state.RunID, cleanupSuccess); cleanupErr != nil && retErr == nil {
+				retErr = cleanupErr
 			}
 		}()
 	}
 
-	// Ensure runID is always set (worktree path sets it, but --no-worktree skips that)
-	if state.RunID == "" {
-		b := make([]byte, 4)
-		_, _ = rand.Read(b)
-		state.RunID = hex.EncodeToString(b)
+	logPath, statusPath, allPhases, err := setupRuntimeEnv(spawnCwd, startPhase, state, opts)
+	if err != nil {
+		return err
 	}
-
-	stateDir := filepath.Join(spawnCwd, ".agents", "rpi")
-	if err := os.MkdirAll(stateDir, 0755); err != nil {
-		return fmt.Errorf("create state directory: %w", err)
-	}
-
-	logPath = filepath.Join(stateDir, "phased-orchestration.log")
-	statusPath := filepath.Join(stateDir, "live-status.md")
-	var allPhases []PhaseProgress
-
-	// Clean stale phase summaries from prior runs (only on fresh start)
-	if startPhase == 1 {
-		cleanPhaseSummaries(stateDir)
-	}
-
-	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
-	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
-	fmt.Println("Monitor in a second terminal: ao rpi status --watch")
-	if opts.LiveStatus {
-		allPhases = buildAllPhases(phases)
-		fmt.Printf("Live phase status file: %s\n", statusPath)
-		if err := WriteLiveStatus(statusPath, allPhases, startPhase-1); err != nil {
-			VerbosePrintf("Warning: could not initialize live status: %v\n", err)
-		}
-	}
-	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s", state.Goal, opts.From))
 
 	// Register with agent mail for observability
 	registerRPIAgent(state.RunID)
@@ -648,110 +778,9 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 		fmt.Printf("\n--- Phase %d: %s ---\n", p.Num, p.Name)
 		state.Phase = i
 
-		prompt, err := buildPromptForPhase(spawnCwd, i, state, nil)
+		_, err := executeSinglePhase(p, i, startPhase, cwd, spawnCwd, state, opts, executor, logPath, statusPath, allPhases, logAndFail)
 		if err != nil {
-			return logAndFail(p.Name, fmt.Errorf("build prompt for phase %d: %w", i, err))
-		}
-
-		logPhaseTransition(logPath, state.RunID, p.Name, "started")
-		emitRPIStatus(state.RunID, p.Name, "started")
-		if opts.LiveStatus {
-			retryKey := fmt.Sprintf("phase_%d", i)
-			updateLivePhaseStatus(statusPath, allPhases, i, "starting", state.Attempts[retryKey], "")
-		}
-
-		if GetDryRun() {
-			fmt.Printf("[dry-run] Would spawn: claude -p '%s'\n", prompt)
-			if !opts.NoWorktree && i == startPhase {
-				runID := generateRunID()
-				fmt.Printf("[dry-run] Would create worktree: ../%s-rpi-%s/ (branch: rpi/%s)\n",
-					filepath.Base(cwd), runID, runID)
-			}
-			logPhaseTransition(logPath, state.RunID, p.Name, "dry-run")
-			continue
-		}
-
-		// Spawn phase session
-		fmt.Printf("Spawning: claude -p '%s'\n", prompt)
-		start := time.Now()
-
-		// Record heartbeat at phase start so the registry reflects that the run
-		// is active even before the executor returns.
-		updateRunHeartbeat(spawnCwd, state.RunID)
-
-		spawnErr := executor.Execute(prompt, spawnCwd, state.RunID, i)
-		if err := spawnErr; err != nil {
-			if opts.LiveStatus {
-				retryKey := fmt.Sprintf("phase_%d", i)
-				updateLivePhaseStatus(statusPath, allPhases, i, "failed", state.Attempts[retryKey], err.Error())
-			}
-			logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("FAILED: %v", err))
-			return fmt.Errorf("phase %d (%s) failed: %w", i, p.Name, err)
-		}
-
-		elapsed := time.Since(start).Round(time.Second)
-		fmt.Printf("Phase %d completed in %s\n", i, elapsed)
-		logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("completed in %s", elapsed))
-		emitRPIStatus(state.RunID, p.Name, "completed")
-		if opts.LiveStatus {
-			retryKey := fmt.Sprintf("phase_%d", i)
-			updateLivePhaseStatus(statusPath, allPhases, i, "completed", state.Attempts[retryKey], "")
-		}
-
-		// Write phase result artifact
-		retryKey := fmt.Sprintf("phase_%d", i)
-		pr := &phaseResult{
-			SchemaVersion:   1,
-			RunID:           state.RunID,
-			Phase:           i,
-			PhaseName:       p.Name,
-			Status:          "completed",
-			Retries:         state.Attempts[retryKey],
-			Verdicts:        state.Verdicts,
-			StartedAt:       start.Format(time.RFC3339),
-			CompletedAt:     time.Now().Format(time.RFC3339),
-			DurationSeconds: elapsed.Seconds(),
-		}
-		if err := writePhaseResult(spawnCwd, pr); err != nil {
-			VerbosePrintf("Warning: could not write phase result: %v\n", err)
-		}
-
-		// Update heartbeat after phase completes to record the last active timestamp.
-		updateRunHeartbeat(spawnCwd, state.RunID)
-
-		// Post-phase processing
-		if err := postPhaseProcessing(spawnCwd, state, i, logPath); err != nil {
-			// Check if it's a gate failure that needs retry
-			if retryErr, ok := err.(*gateFailError); ok {
-				retried, retryErr2 := handleGateRetry(spawnCwd, state, i, retryErr, logPath, spawnCwd, statusPath, allPhases, executor)
-				if retryErr2 != nil {
-					return logAndFail(p.Name, retryErr2)
-				}
-				if !retried {
-					return logAndFail(p.Name, fmt.Errorf("phase %d (%s): gate failed after max retries", i, p.Name))
-				}
-				// Retry succeeded, continue to next phase
-				continue
-			}
-			return logAndFail(p.Name, err)
-		}
-
-		// Check if phase triggered a handoff (context degradation detected)
-		if handoffDetected(spawnCwd, i) {
-			fmt.Printf("Phase %d: handoff detected — phase reported context degradation\n", i)
-			logPhaseTransition(logPath, state.RunID, p.Name, "HANDOFF detected — context degradation")
-			// Continue to next phase (fresh session will pick up from handoff)
-		}
-
-		// Write phase summary for next phase's context
-		writePhaseSummary(spawnCwd, state, i)
-
-		// Record ratchet checkpoint
-		recordRatchetCheckpoint(p.Step)
-
-		// Save state
-		if err := savePhasedState(spawnCwd, state); err != nil {
-			VerbosePrintf("Warning: could not save state: %v\n", err)
+			return err
 		}
 	}
 

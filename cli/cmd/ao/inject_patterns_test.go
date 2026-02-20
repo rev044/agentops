@@ -47,7 +47,9 @@ utility: 0.92
 Use this pattern first.
 `
 		path := filepath.Join(tmpDir, "high-utility.md")
-		os.WriteFile(path, []byte(content), 0644)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		p, err := parsePatternFile(path)
 		if err != nil {
@@ -186,8 +188,12 @@ func TestCollectPatterns(t *testing.T) {
 	t.Run("ranks by utility when freshness is similar", func(t *testing.T) {
 		highUtilityPath := filepath.Join(patternsDir, "utility-high.md")
 		lowUtilityPath := filepath.Join(patternsDir, "utility-low.md")
-		os.WriteFile(highUtilityPath, []byte("---\nutility: 0.95\n---\n# High Utility\n\nHigh utility pattern."), 0644)
-		os.WriteFile(lowUtilityPath, []byte("---\nutility: 0.20\n---\n# Low Utility\n\nLow utility pattern."), 0644)
+		if err := os.WriteFile(highUtilityPath, []byte("---\nutility: 0.95\n---\n# High Utility\n\nHigh utility pattern."), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(lowUtilityPath, []byte("---\nutility: 0.20\n---\n# Low Utility\n\nLow utility pattern."), 0644); err != nil {
+			t.Fatal(err)
+		}
 
 		got, err := collectPatterns(tmpDir, "utility", 10)
 		if err != nil {
