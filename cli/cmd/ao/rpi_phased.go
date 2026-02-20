@@ -452,9 +452,13 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	// Pre-flight: check claude on PATH
-	if _, err := exec.LookPath("claude"); err != nil {
-		return fmt.Errorf("claude CLI not found on PATH (required for spawning phase sessions)")
+	// Pre-flight: check claude on PATH (skip in dry-run mode).
+	// Dry-run never spawns phase sessions and should remain CI-safe even when
+	// claude CLI is unavailable.
+	if !GetDryRun() {
+		if _, err := exec.LookPath("claude"); err != nil {
+			return fmt.Errorf("claude CLI not found on PATH (required for spawning phase sessions)")
+		}
 	}
 
 	originalCwd := cwd
