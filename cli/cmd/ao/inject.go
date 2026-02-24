@@ -553,6 +553,9 @@ func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
 
 // truncateText truncates a string to max length with ellipsis
 func truncateText(s string, maxLen int) string {
+	if maxLen < 4 {
+		return s
+	}
 	if len(s) <= maxLen {
 		return s
 	}

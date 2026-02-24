@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,14 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
+
+// curateOutWriter returns cmd.OutOrStdout() when cmd is non-nil, otherwise os.Stdout.
+func curateOutWriter(cmd *cobra.Command) io.Writer {
+	if cmd != nil {
+		return cmd.OutOrStdout()
+	}
+	return os.Stdout
+}
 
 // validArtifactTypes enumerates the allowed artifact type values.
 var validArtifactTypes = map[string]bool{
@@ -158,7 +167,7 @@ func resolveCurateGoalsFile() (string, error) {
 
 // generateArtifactID creates a unique ID based on artifact type, date, and content hash.
 func generateArtifactID(artifactType, date, content string) string {
-	prefix := artifactType[:4] // "lear", "deci", "fail", "patt"
+	var prefix string
 	if artifactType == "learning" {
 		prefix = "learn"
 	} else if artifactType == "decision" {
@@ -254,7 +263,7 @@ func runCurateCatalog(cmd *cobra.Command, args []string) error {
 
 	// Output
 	if GetOutput() == "json" {
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(curateOutWriter(cmd))
 		enc.SetIndent("", "  ")
 		return enc.Encode(artifact)
 	}
@@ -276,7 +285,7 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 		// If no goals file, report zero gates
 		if GetOutput() == "json" {
 			result.Verified = true
-			enc := json.NewEncoder(os.Stdout)
+			enc := json.NewEncoder(curateOutWriter(cmd))
 			enc.SetIndent("", "  ")
 			return enc.Encode(result)
 		}
@@ -287,8 +296,8 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 	gf, err := goals.LoadGoals(goalsPath)
 	if err != nil {
 		if GetOutput() == "json" {
-			result.Verified = true
-			enc := json.NewEncoder(os.Stdout)
+			result.Verified = false
+			enc := json.NewEncoder(curateOutWriter(cmd))
 			enc.SetIndent("", "  ")
 			return enc.Encode(result)
 		}
@@ -317,37 +326,11 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 
 	// Load baseline and compare for regressions
 	baselineDir := ".agents/ao/baselines"
-	baseline, baseErr := goals.LoadLatestSnapshot(baselineDir)
-	if baseErr == nil {
-		// Apply --since filter if provided
-		applyFilter := true
-		if curateVerifySince != "" {
-			dur, parseErr := parseDuration(curateVerifySince)
-			if parseErr != nil {
-				return fmt.Errorf("invalid --since value %q: %w", curateVerifySince, parseErr)
-			}
-			cutoff := time.Now().Add(-dur)
-			// Parse baseline timestamp
-			if ts, tsErr := time.Parse(time.RFC3339, baseline.Timestamp); tsErr == nil {
-				if ts.Before(cutoff) {
-					applyFilter = false
-				}
-			} else if ts, tsErr := time.Parse("2006-01-02T15:04:05.000", baseline.Timestamp); tsErr == nil {
-				if ts.Before(cutoff) {
-					applyFilter = false
-				}
-			}
-		}
-
-		if applyFilter {
-			drifts := goals.ComputeDrift(baseline, snap)
-			for _, d := range drifts {
-				if d.Delta == "regressed" {
-					result.Regressions = append(result.Regressions, d.GoalID)
-				}
-			}
-		}
+	regressions, regErr := detectVerifyRegressions(baselineDir, snap)
+	if regErr != nil {
+		return regErr
 	}
+	result.Regressions = append(result.Regressions, regressions...)
 
 	result.Verified = len(result.Regressions) == 0 && result.GatesFailed == 0
 
@@ -358,7 +341,7 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 
 	// Output
 	if GetOutput() == "json" {
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(curateOutWriter(cmd))
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 	}
@@ -374,6 +357,78 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// detectVerifyRegressions loads the latest baseline and compares against a snapshot,
+// respecting the --since filter. Returns regressed goal IDs.
+func detectVerifyRegressions(baselineDir string, snap *goals.Snapshot) ([]string, error) {
+	baseline, baseErr := goals.LoadLatestSnapshot(baselineDir)
+	if baseErr != nil {
+		return nil, nil
+	}
+
+	applyFilter := true
+	if curateVerifySince != "" {
+		dur, parseErr := parseDuration(curateVerifySince)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid --since value %q: %w", curateVerifySince, parseErr)
+		}
+		if dur < 0 {
+			return nil, fmt.Errorf("--since value must be positive: %q", curateVerifySince)
+		}
+		cutoff := time.Now().Add(-dur)
+		if ts, tsErr := time.Parse(time.RFC3339, baseline.Timestamp); tsErr == nil {
+			if ts.Before(cutoff) {
+				applyFilter = false
+			}
+		} else if ts, tsErr := time.Parse("2006-01-02T15:04:05.000", baseline.Timestamp); tsErr == nil {
+			if ts.Before(cutoff) {
+				applyFilter = false
+			}
+		}
+	}
+
+	if !applyFilter {
+		return nil, nil
+	}
+
+	var regressions []string
+	drifts := goals.ComputeDrift(baseline, snap)
+	for _, d := range drifts {
+		if d.Delta == "regressed" {
+			regressions = append(regressions, d.GoalID)
+		}
+	}
+	return regressions, nil
+}
+
+// countArtifactsInDir reads JSON artifacts from a directory and returns counts by type and the latest CuratedAt time.
+func countArtifactsInDir(dir string) (counts map[string]int, latest time.Time) {
+	counts = make(map[string]int)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return counts, latest
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		data, readErr := os.ReadFile(filepath.Join(dir, e.Name()))
+		if readErr != nil {
+			continue
+		}
+		var a curateArtifact
+		if json.Unmarshal(data, &a) != nil {
+			continue
+		}
+		counts[a.Type]++
+		if t, err := time.Parse(time.RFC3339, a.CuratedAt); err == nil {
+			if t.After(latest) {
+				latest = t
+			}
+		}
+	}
+	return counts, latest
+}
+
 func runCurateStatus(cmd *cobra.Command, args []string) error {
 	result := curateStatusResult{}
 
@@ -383,57 +438,18 @@ func runCurateStatus(cmd *cobra.Command, args []string) error {
 
 	var latestCatalog time.Time
 
-	if entries, err := os.ReadDir(learningsDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-				continue
-			}
-			data, readErr := os.ReadFile(filepath.Join(learningsDir, e.Name()))
-			if readErr != nil {
-				continue
-			}
-			var a curateArtifact
-			if json.Unmarshal(data, &a) != nil {
-				continue
-			}
-			switch a.Type {
-			case "learning":
-				result.Learnings++
-			case "decision":
-				result.Decisions++
-			case "failure":
-				result.Failures++
-			}
-			if t, err := time.Parse(time.RFC3339, a.CuratedAt); err == nil {
-				if t.After(latestCatalog) {
-					latestCatalog = t
-				}
-			}
-		}
+	learningsCounts, learningsLatest := countArtifactsInDir(learningsDir)
+	result.Learnings = learningsCounts["learning"]
+	result.Decisions = learningsCounts["decision"]
+	result.Failures = learningsCounts["failure"]
+	if learningsLatest.After(latestCatalog) {
+		latestCatalog = learningsLatest
 	}
 
-	if entries, err := os.ReadDir(patternsDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-				continue
-			}
-			data, readErr := os.ReadFile(filepath.Join(patternsDir, e.Name()))
-			if readErr != nil {
-				continue
-			}
-			var a curateArtifact
-			if json.Unmarshal(data, &a) != nil {
-				continue
-			}
-			if a.Type == "pattern" {
-				result.Patterns++
-			}
-			if t, err := time.Parse(time.RFC3339, a.CuratedAt); err == nil {
-				if t.After(latestCatalog) {
-					latestCatalog = t
-				}
-			}
-		}
+	patternsCounts, patternsLatest := countArtifactsInDir(patternsDir)
+	result.Patterns = patternsCounts["pattern"]
+	if patternsLatest.After(latestCatalog) {
+		latestCatalog = patternsLatest
 	}
 
 	result.Total = result.Learnings + result.Decisions + result.Failures + result.Patterns
@@ -475,7 +491,7 @@ func runCurateStatus(cmd *cobra.Command, args []string) error {
 
 	// Output
 	if GetOutput() == "json" {
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(curateOutWriter(cmd))
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 	}

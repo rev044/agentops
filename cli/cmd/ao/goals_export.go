@@ -21,7 +21,7 @@ var goalsExportCmd = &cobra.Command{
 		snap, err := goals.LoadLatestSnapshot(snapDir)
 		if err != nil {
 			// No snapshots — measure fresh
-			gf, loadErr := goals.LoadGoals(goalsFile)
+			gf, loadErr := goals.LoadGoals(resolveGoalsFile())
 			if loadErr != nil {
 				return fmt.Errorf("loading goals: %w", loadErr)
 			}

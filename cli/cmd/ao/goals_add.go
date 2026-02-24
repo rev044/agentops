@@ -35,7 +35,7 @@ var goalsAddCmd = &cobra.Command{
 		}
 
 		// Load existing goals to check for duplicates.
-		gf, err := goals.LoadGoals(goalsFile)
+		gf, err := goals.LoadGoals(resolveGoalsFile())
 		if err != nil {
 			return fmt.Errorf("loading goals: %w", err)
 		}
@@ -82,7 +82,7 @@ var goalsAddCmd = &cobra.Command{
 		// Format-aware writeback
 		if gf.Format == "md" {
 			content := goals.RenderGoalsMD(gf)
-			actualPath := goals.ResolveGoalsPath(goalsFile)
+			actualPath := goals.ResolveGoalsPath(resolveGoalsFile())
 			if err := os.WriteFile(actualPath, []byte(content), 0o644); err != nil {
 				return fmt.Errorf("writing goals: %w", err)
 			}
@@ -91,7 +91,7 @@ var goalsAddCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("marshaling goals: %w", err)
 			}
-			if err := os.WriteFile(goalsFile, data, 0o644); err != nil {
+			if err := os.WriteFile(resolveGoalsFile(), data, 0o644); err != nil {
 				return fmt.Errorf("writing goals: %w", err)
 			}
 		}

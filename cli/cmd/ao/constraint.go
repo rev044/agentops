@@ -60,6 +60,9 @@ func loadConstraintIndex() (*constraintIndex, error) {
 	path := constraintIndexPath()
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("no constraints found — run constraint-compiler.sh first")
+		}
 		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 	var idx constraintIndex
@@ -168,7 +171,7 @@ var constraintReviewCmd = &cobra.Command{
 		}
 
 		cutoff := time.Now().AddDate(0, 0, -90)
-		var stale []constraintEntry
+		stale := []constraintEntry{}
 
 		for _, c := range idx.Constraints {
 			if c.Status == "retired" {

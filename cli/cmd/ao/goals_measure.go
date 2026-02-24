@@ -21,7 +21,7 @@ var goalsMeasureCmd = &cobra.Command{
 	Short:   "Run goal checks and produce a snapshot",
 	GroupID: "measurement",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		gf, err := goals.LoadGoals(goalsFile)
+		gf, err := goals.LoadGoals(resolveGoalsFile())
 		if err != nil {
 			return fmt.Errorf("loading goals: %w", err)
 		}

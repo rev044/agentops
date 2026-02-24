@@ -82,7 +82,7 @@ single Markdown briefing document. Secrets are redacted before output.
 Examples:
   ao context assemble --task="Implement auth middleware"
   ao context assemble --task="Fix rate limiter" --max-chars=20000
-  ao context assemble --task="Add tests" --output=briefing.md --json`,
+  ao context assemble --task="Add tests" --output=briefing.md`,
 		RunE: runContextAssemble,
 	}
 	assembleCmd.Flags().StringVar(&assembleTask, "task", "", "Task description (required)")
@@ -273,6 +273,9 @@ func gatherHistory(cwd string, budget int) string {
 			allLines = append(allLines, line)
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		VerbosePrintf("Warning: reading cycle history: %v\n", err)
+	}
 
 	// Keep last maxHistoryEntries entries.
 	start := 0
@@ -408,6 +411,7 @@ func readIntelDir(dir, kind string) []intelEntry {
 		}
 		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
+			VerbosePrintf("Warning: read intel %s: %v\n", name, err)
 			continue
 		}
 
@@ -454,6 +458,9 @@ func formatTaskSection(task string, budget int) string {
 // --- char budget enforcement ---
 
 func truncateToCharBudget(content string, budget int) string {
+	if budget <= 0 {
+		return ""
+	}
 	if len(content) <= budget {
 		return content
 	}

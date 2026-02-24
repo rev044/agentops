@@ -448,6 +448,7 @@ func parseLearningJSONL(path string) (learning, error) {
 
 	var data map[string]any
 	if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
+		VerbosePrintf("Warning: parse JSONL %s: %v\n", path, err)
 		return l, nil
 	}
 

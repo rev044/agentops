@@ -1,6 +1,10 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"os"
+
+	"github.com/spf13/cobra"
+)
 
 var goalsCmd = &cobra.Command{
 	Use:   "goals",
@@ -30,7 +34,7 @@ Management:
 
 // Shared flags
 var (
-	goalsFile    string // --file, default "GOALS.yaml"
+	goalsFile    string // --file, auto-detects GOALS.md then GOALS.yaml
 	goalsJSON    bool   // --json
 	goalsTimeout int    // --timeout in seconds, default 120
 )
@@ -41,9 +45,24 @@ func init() {
 		&cobra.Group{ID: "analysis", Title: "Analysis:"},
 		&cobra.Group{ID: "management", Title: "Management:"},
 	)
-	goalsCmd.PersistentFlags().StringVar(&goalsFile, "file", "GOALS.yaml", "Path to goals file")
+	goalsCmd.PersistentFlags().StringVar(&goalsFile, "file", "", "Path to goals file (auto-detects GOALS.md then GOALS.yaml)")
 	goalsCmd.PersistentFlags().BoolVar(&goalsJSON, "json", false, "Output as JSON")
 	goalsCmd.PersistentFlags().IntVar(&goalsTimeout, "timeout", 120, "Check timeout in seconds")
 	goalsCmd.GroupID = "workflow"
 	rootCmd.AddCommand(goalsCmd)
+}
+
+// resolveGoalsFile returns the goals file path, auto-detecting if not explicitly set.
+func resolveGoalsFile() string {
+	if goalsFile != "" {
+		return goalsFile
+	}
+	// Prefer GOALS.md (v4), fall back to GOALS.yaml
+	if info, err := os.Stat("GOALS.md"); err == nil && !info.IsDir() {
+		return "GOALS.md"
+	}
+	if info, err := os.Stat("GOALS.yaml"); err == nil && !info.IsDir() {
+		return "GOALS.yaml"
+	}
+	return "GOALS.md" // Default for new projects
 }

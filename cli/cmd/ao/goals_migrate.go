@@ -44,7 +44,7 @@ Examples:
 }
 
 func runGoalsMigrate(cmd *cobra.Command, args []string) error {
-	path := goalsFile
+	path := resolveGoalsFile()
 
 	// Read and parse the file (LoadGoals now accepts v1)
 	gf, err := goals.LoadGoals(path)

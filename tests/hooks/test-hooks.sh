@@ -88,7 +88,7 @@ echo "=== session-start.sh / precompact-snapshot.sh ==="
 # since ao extract may emit non-JSON to stdout before the hook's JSON)
 SESSION_RAW=$(bash "$HOOKS_DIR/session-start.sh" 2>/dev/null || true)
 # Extract the last valid JSON block by finding the final { ... } spanning multiple lines
-SESSION_JSON=$(echo "$SESSION_RAW" | awk '/^[[:space:]]*\{/{found=1; buf=""} found{buf=buf $0 "\n"} /^[[:space:]]*\}/{if(found) last=buf; found=0} END{printf "%s", last}')
+SESSION_JSON=$(echo "$SESSION_RAW" | LC_ALL=C awk '/^[[:space:]]*\{/{found=1; buf=""} found{buf=buf $0 "\n"} /^[[:space:]]*\}/{if(found) last=buf; found=0} END{printf "%s", last}')
 if echo "$SESSION_JSON" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null 2>&1; then
     pass "session-start emits SessionStart JSON"
 else
@@ -1097,6 +1097,82 @@ if [ "$EC" -eq 0 ]; then pass "ao-task-sync kill switch"; else fail "ao-task-syn
 EC=0
 PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-task-sync.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 0 ]; then pass "ao-task-sync fail-open without ao"; else fail "ao-task-sync fail-open without ao"; fi
+
+echo ""
+echo "=== constraint-compiler.sh ==="
+# ============================================================
+
+# Test: missing arguments prints usage and fails
+MOCK_CONSTRAINT_ARG="$TMPDIR/mock-constraint-missing-arg"
+mkdir -p "$MOCK_CONSTRAINT_ARG"
+git -C "$MOCK_CONSTRAINT_ARG" init -q >/dev/null 2>&1
+EC=0
+(
+    cd "$MOCK_CONSTRAINT_ARG"
+    bash "$HOOKS_DIR/constraint-compiler.sh" >/dev/null 2>&1
+) || EC=$?
+if [ "$EC" -eq 1 ]; then
+    pass "constraint-compiler requires learning path argument"
+else
+    fail "constraint-compiler requires learning path argument"
+fi
+
+# Test: tagged constraint learning generates constraint file and index
+MOCK_CONSTRAINT="$TMPDIR/mock-constraint-constraint-tag"
+mkdir -p "$MOCK_CONSTRAINT"
+git -C "$MOCK_CONSTRAINT" init -q >/dev/null 2>&1
+cat > "$MOCK_CONSTRAINT/learn-constraint.md" <<'EOF'
+---
+title: Constraint rule
+id: learn-constraint
+date: 2026-02-24
+tags: [constraint, reliability]
+---
+
+This learning describes a guardrail to prevent direct bypass of safety checks.
+EOF
+cd "$MOCK_CONSTRAINT"
+OUTPUT=$(bash "$HOOKS_DIR/constraint-compiler.sh" "$MOCK_CONSTRAINT/learn-constraint.md" 2>&1 || true)
+if echo "$OUTPUT" | grep -q "Generated constraint template"; then
+    pass "constraint-compiler generates template for tagged learning"
+else
+    fail "constraint-compiler generates template for tagged learning"
+fi
+if [ -x "$MOCK_CONSTRAINT/.agents/constraints/learn-constraint.sh" ]; then
+    pass "constraint-compiler writes compiled constraint file"
+else
+    fail "constraint-compiler writes compiled constraint file"
+fi
+if [ -f "$MOCK_CONSTRAINT/.agents/constraints/index.json" ]; then
+    pass "constraint-compiler updates constraint index"
+else
+    fail "constraint-compiler updates constraint index"
+fi
+
+# Test: non-constraint learning skips without generating template
+cat > "$MOCK_CONSTRAINT/learn-note.md" <<'EOF'
+---
+title: Regular note
+id: learn-note
+tags: [note]
+---
+
+This learning is not a constraint.
+EOF
+(
+    cd "$MOCK_CONSTRAINT"
+    OUTPUT2=$(bash "$HOOKS_DIR/constraint-compiler.sh" "$MOCK_CONSTRAINT/learn-note.md" 2>&1 || true)
+    if echo "$OUTPUT2" | grep -q "SKIP: Learning 'learn-note'"; then
+        :
+    else
+        :
+    fi
+) || true
+if [ ! -f "$MOCK_CONSTRAINT/.agents/constraints/learn-note.sh" ]; then
+    pass "constraint-compiler skips non-constraint learning"
+else
+    fail "constraint-compiler skips non-constraint learning"
+fi
 
 # ============================================================
 echo ""

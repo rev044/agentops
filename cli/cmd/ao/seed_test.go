@@ -177,6 +177,64 @@ func TestSeed_DryRun(t *testing.T) {
 	}
 }
 
+func TestSeed_DryRun_JSON(t *testing.T) {
+	tmp := t.TempDir()
+
+	dryRun = true
+	seedForce = false
+	seedTemplate = "generic"
+	output = "json"
+	defer func() {
+		dryRun = false
+		output = "table"
+	}()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runSeed(seedCmd, []string{tmp})
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("runSeed dry-run JSON: %v", err)
+	}
+
+	buf := make([]byte, 65536)
+	n, _ := r.Read(buf)
+	r.Close()
+
+	// dry-run prints [dry-run] messages before JSON; find the JSON object
+	raw := string(buf[:n])
+	jsonStart := strings.Index(raw, "{")
+	if jsonStart < 0 {
+		t.Fatalf("no JSON object in output:\n%s", raw)
+	}
+
+	var result seedResult
+	if err := json.Unmarshal([]byte(raw[jsonStart:]), &result); err != nil {
+		t.Fatalf("parse JSON output: %v\nraw: %s", err, raw[jsonStart:])
+	}
+
+	if !result.DryRun {
+		t.Error("expected DryRun=true in JSON output")
+	}
+	if result.Template != "generic" {
+		t.Errorf("expected template 'generic', got %s", result.Template)
+	}
+
+	// No files should be created in dry-run
+	if _, err := os.Stat(filepath.Join(tmp, "GOALS.md")); err == nil {
+		t.Error("expected GOALS.md NOT to exist in dry-run")
+	}
+	if _, err := os.Stat(filepath.Join(tmp, "CLAUDE.md")); err == nil {
+		t.Error("expected CLAUDE.md NOT to exist in dry-run")
+	}
+}
+
 func TestSeed_BootstrapLearning(t *testing.T) {
 	tmp := t.TempDir()
 

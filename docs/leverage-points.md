@@ -398,13 +398,13 @@ Each term maps to specific leverage points:
 | #8 (B1 loop) | Freshness decay is the primary balancing loop draining the stock |
 | #9 (Delays) | Maturity lifecycle and expiry TTL control how quickly decay acts |
 
-### sigma(K,t) * rho * K — Compounding Term
+### sigma(K,t) × rho × K — Compounding Term
 
 | Leverage Point | How it affects compounding |
 |----------------|---------------------------|
 | #6 (Info flows) | Least-privilege loading, phase scoping, and context assembly determine what gets retrieved (sigma) |
 | #8 (B2 via MemRL) | Utility scoring (`ao feedback`) adjusts retrieval priority, preventing sigma collapse at scale |
-| #7 (R1 loop) | This IS the R1 loop. Retrieval * usage * existing stock = compound growth |
+| #7 (R1 loop) | This IS the R1 loop. Retrieval × usage × existing stock = compound growth |
 | #5 (Rules) | Hooks enforce the extract-inject cycle that keeps sigma and rho nonzero |
 
 ### phi * K^2 — Scale Friction

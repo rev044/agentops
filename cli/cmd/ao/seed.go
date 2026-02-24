@@ -118,7 +118,7 @@ func runSeed(cmd *cobra.Command, args []string) error {
 	result := seedResult{
 		Path:     absPath,
 		Template: template,
-		DryRun:   dryRun,
+		DryRun:   GetDryRun(),
 	}
 
 	// Step 1: Create .agents/ directory structure
@@ -142,13 +142,13 @@ func runSeed(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output
-	if output == "json" {
+	if GetOutput() == "json" {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 	}
 
-	if dryRun {
+	if GetDryRun() {
 		fmt.Println("Dry run complete. No files were created.")
 	} else {
 		fmt.Printf("Seeded %s with template %q\n", absPath, template)
@@ -204,10 +204,13 @@ func seedCreateAgentsDirs(root string, result *seedResult) error {
 	// Use the same directory list as ao init for consistency
 	for _, dir := range agentsDirs {
 		target := filepath.Join(root, dir)
-		if dryRun {
+		if GetDryRun() {
 			if _, err := os.Stat(target); os.IsNotExist(err) {
 				fmt.Printf("[dry-run] Would create %s/\n", dir)
 				result.Created = append(result.Created, dir+"/")
+			} else {
+				fmt.Printf("[dry-run] Already exists: %s/\n", dir)
+				result.Skipped = append(result.Skipped, dir+"/")
 			}
 			continue
 		}
@@ -225,7 +228,7 @@ func seedCreateGoals(root string, template string, result *seedResult) error {
 
 	// Check if already exists
 	if _, err := os.Stat(goalsPath); err == nil && !seedForce {
-		if dryRun {
+		if GetDryRun() {
 			fmt.Println("[dry-run] Would skip GOALS.md (already exists)")
 		}
 		result.Skipped = append(result.Skipped, "GOALS.md")
@@ -240,7 +243,7 @@ func seedCreateGoals(root string, template string, result *seedResult) error {
 
 	content := goals.RenderGoalsMD(gf)
 
-	if dryRun {
+	if GetDryRun() {
 		fmt.Printf("[dry-run] Would create GOALS.md (template: %s, %d gates)\n", template, len(gf.Goals))
 		result.Created = append(result.Created, "GOALS.md")
 		return nil
@@ -345,7 +348,7 @@ func seedCreateBootstrapLearning(root string, template string, result *seedResul
 
 	// Check if already exists
 	if _, err := os.Stat(learningPath); err == nil && !seedForce {
-		if dryRun {
+		if GetDryRun() {
 			fmt.Printf("[dry-run] Would skip %s (already exists)\n", relPath)
 		}
 		result.Skipped = append(result.Skipped, relPath)
@@ -376,7 +379,7 @@ Adopted AgentOps knowledge compounding workflow:
 - Run `+"`ao forge`"+` at session end to extract learnings
 `, dateStr, dateStr, template)
 
-	if dryRun {
+	if GetDryRun() {
 		fmt.Printf("[dry-run] Would create %s\n", relPath)
 		result.Created = append(result.Created, relPath)
 		return nil
@@ -418,7 +421,7 @@ func seedAppendClaudeMD(root string, result *seedResult) error {
 	if data, err := os.ReadFile(claudePath); err == nil {
 		if strings.Contains(string(data), claudeMDSeedMarker) {
 			if !seedForce {
-				if dryRun {
+				if GetDryRun() {
 					fmt.Println("[dry-run] Would skip CLAUDE.md (seed section already present)")
 				}
 				result.Skipped = append(result.Skipped, "CLAUDE.md (seed section)")
@@ -427,7 +430,7 @@ func seedAppendClaudeMD(root string, result *seedResult) error {
 		}
 	}
 
-	if dryRun {
+	if GetDryRun() {
 		if _, err := os.Stat(claudePath); os.IsNotExist(err) {
 			fmt.Println("[dry-run] Would create CLAUDE.md with seed section")
 			result.Created = append(result.Created, "CLAUDE.md")

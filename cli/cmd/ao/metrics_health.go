@@ -246,6 +246,8 @@ func countFilesInDir(dir string) int {
 	count += len(mdFiles)
 	jsonlFiles, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
 	count += len(jsonlFiles)
+	jsonFiles, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	count += len(jsonFiles)
 	return count
 }
 
@@ -264,7 +266,7 @@ func computeHealthDelta(baseDir string) float64 {
 		if err != nil || info.IsDir() {
 			return nil
 		}
-		if !strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".jsonl") {
+		if !strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".jsonl") && !strings.HasSuffix(path, ".json") {
 			return nil
 		}
 		age := now.Sub(info.ModTime()).Hours() / 24.0
@@ -303,7 +305,11 @@ func countConstraints(baseDir string) int {
 	yamlFiles, _ := filepath.Glob(filepath.Join(constraintsDir, "*.yaml"))
 	count += len(yamlFiles)
 	jsonFiles, _ := filepath.Glob(filepath.Join(constraintsDir, "*.json"))
-	count += len(jsonFiles)
+	for _, f := range jsonFiles {
+		if filepath.Base(f) != "index.json" {
+			count++
+		}
+	}
 	return count
 }
 
@@ -369,6 +375,9 @@ func loadCycleHistory(baseDir string) []map[string]any {
 		if err := json.Unmarshal(scanner.Bytes(), &entry); err == nil {
 			entries = append(entries, entry)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		VerbosePrintf("Warning: reading cycle history: %v\n", err)
 	}
 	return entries
 }

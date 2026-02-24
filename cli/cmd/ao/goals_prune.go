@@ -30,9 +30,10 @@ var goalsPruneCmd = &cobra.Command{
 	Short:   "Remove goals referencing nonexistent files",
 	GroupID: "management",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resolvedPath := goals.ResolveGoalsPath(goalsFile)
+		resolved := resolveGoalsFile()
+		resolvedPath := goals.ResolveGoalsPath(resolved)
 
-		gf, err := goals.LoadGoals(goalsFile)
+		gf, err := goals.LoadGoals(resolved)
 		if err != nil {
 			return fmt.Errorf("loading goals: %w", err)
 		}

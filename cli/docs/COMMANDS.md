@@ -72,6 +72,24 @@ ao quick-start [flags]
 
 ---
 
+### `ao seed`
+
+Plant the AgentOps seed in any repository.
+
+```
+ao seed [path] [flags]
+```
+
+**Flags:**
+
+```
+      --force             Overwrite existing seed files
+  -h, --help              help for seed
+      --template string   Goal template: go-cli, python-lib, web-app, rust-cli, generic (default: auto-detect)
+```
+
+---
+
 ### `ao badge`
 
 Display a visual badge showing knowledge flywheel health status.
@@ -442,7 +460,7 @@ ao goals [command]
 **Flags:**
 
 ```
-      --file string   Path to goals file (default "GOALS.yaml")
+      --file string   Path to goals file (auto-detects GOALS.md then GOALS.yaml)
   -h, --help          help for goals
       --json          Output as JSON
       --timeout int   Check timeout in seconds (default 120)
@@ -536,6 +554,7 @@ ao goals init [flags]
 ```
   -h, --help              help for init
       --non-interactive   Use defaults without prompting
+      --template string   Goal template (go-cli, python-lib, web-app, rust-cli, generic)
 ```
 
 #### `ao goals meta`
@@ -1200,6 +1219,93 @@ ao anti-patterns [flags]
 
 ---
 
+### `ao constraint`
+
+Manage constraints compiled from high-scoring learnings.
+
+```
+ao constraint [command]
+```
+
+**Subcommands:**
+
+#### `ao constraint activate`
+
+Change constraint status from draft to active
+
+```
+ao constraint activate <id> [flags]
+```
+
+#### `ao constraint list`
+
+List all constraints with status
+
+```
+ao constraint list [flags]
+```
+
+#### `ao constraint retire`
+
+Change constraint status from active to retired
+
+```
+ao constraint retire <id> [flags]
+```
+
+#### `ao constraint review`
+
+List constraints compiled >90 days ago without recent citation
+
+```
+ao constraint review [flags]
+```
+
+---
+
+### `ao curate`
+
+Curate manages the knowledge curation pipeline: catalog artifacts,
+
+```
+ao curate [command]
+```
+
+**Subcommands:**
+
+#### `ao curate catalog`
+
+Catalog a knowledge artifact
+
+```
+ao curate catalog <path> [flags]
+```
+
+#### `ao curate status`
+
+Show curation pipeline status
+
+```
+ao curate status [flags]
+```
+
+#### `ao curate verify`
+
+Verify gate health against baselines
+
+```
+ao curate verify [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help           help for verify
+      --since string   Filter to changes within duration (e.g. 24h, 7d)
+```
+
+---
+
 ### `ao flywheel`
 
 Knowledge flywheel operations and status.
@@ -1353,6 +1459,14 @@ ao metrics cite-report [flags]
       --days int   Period in days (default 30)
   -h, --help       help for cite-report
       --json       Output as JSON
+```
+
+#### `ao metrics health`
+
+Display flywheel health metrics including escape velocity status.
+
+```
+ao metrics health [flags]
 ```
 
 #### `ao metrics report`

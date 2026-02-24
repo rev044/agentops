@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,93 @@ func writeHealthCitations(t *testing.T, dir string, events []types.CitationEvent
 		if err := enc.Encode(e); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestMetricsHealth_EmptyInputPaths(t *testing.T) {
+	dir := t.TempDir()
+
+	hm, err := computeHealthMetrics(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if hm.Sigma != 0 {
+		t.Errorf("expected sigma=0, got %f", hm.Sigma)
+	}
+	if hm.Rho != 0 {
+		t.Errorf("expected rho=0, got %f", hm.Rho)
+	}
+	if hm.Delta != 0 {
+		t.Errorf("expected delta=0, got %f", hm.Delta)
+	}
+	if hm.EscapeVelocity {
+		t.Error("expected escape_velocity=false for empty input path")
+	}
+	if hm.KnowledgeStock.Total != 0 {
+		t.Errorf("expected knowledge_stock.total=0, got %d", hm.KnowledgeStock.Total)
+	}
+	if hm.LoopDominance.Dominant != "B1" {
+		t.Errorf("expected loop_dominance.dominant=B1, got %s", hm.LoopDominance.Dominant)
+	}
+}
+
+func TestMetricsHealth_DirtyArtifactPaths(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	now := time.Now()
+
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	patternsDir := filepath.Join(dir, ".agents", "patterns")
+	if err := os.WriteFile(filepath.Join(learningsDir, "kept.md"), []byte("# Kept"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, "junk.txt"), []byte("junk"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(patternsDir, "pattern.jsonl"), []byte("[]"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	writeHealthCitations(t, dir, []types.CitationEvent{
+		{
+			ArtifactPath: filepath.Join(dir, ".agents", "learnings", "kept.md"),
+			SessionID:    "session-1",
+			CitedAt:      now.Add(-time.Hour),
+			CitationType: "reference",
+		},
+		{
+			ArtifactPath: filepath.Join(dir, ".agents", "learnings", "missing.md"),
+			SessionID:    "session-1",
+			CitedAt:      now.Add(-2 * time.Hour),
+			CitationType: "reference",
+		},
+		{
+			ArtifactPath: filepath.Join(learningsDir, "junk.txt"),
+			SessionID:    "session-2",
+			CitedAt:      now.Add(-3 * time.Hour),
+			CitationType: "reference",
+		},
+		{
+			ArtifactPath: filepath.Join(dir, ".agents", "evolve", "ignore-me.md"),
+			SessionID:    "session-3",
+			CitedAt:      now.Add(-4 * time.Hour),
+			CitationType: "reference",
+		},
+	})
+
+	hm, err := computeHealthMetrics(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Total retrievable artifacts: kept.md + pattern.jsonl = 2.
+	// Citations include kept.md, missing.md, and junk.txt from retrievable dirs,
+	// plus one non-retrievable path in .agents/evolve.
+	if hm.Sigma < 0.99 || hm.Sigma > 1.01 {
+		t.Errorf("expected sigma~1.0 from retrievable citations, got %f", hm.Sigma)
+	}
+	if hm.Rho < 1.49 || hm.Rho > 1.51 {
+		t.Errorf("expected rho~1.5 with 3 retrievable citations over 2 total artifacts, got %f", hm.Rho)
 	}
 }
 
@@ -281,6 +369,128 @@ func TestMetricsHealth_JSONOutput(t *testing.T) {
 	}
 }
 
+func TestMetricsHealth_PrintPath(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	now := time.Now()
+
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	if err := os.WriteFile(filepath.Join(learningsDir, "print.md"), []byte("# Print"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeHealthCitations(t, dir, []types.CitationEvent{
+		{
+			ArtifactPath: filepath.Join(learningsDir, "print.md"),
+			SessionID:    "s1",
+			CitedAt:      now,
+		},
+	})
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := runMetricsHealth(cmd, nil); err != nil {
+		t.Fatalf("runMetricsHealth failed: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "Flywheel Health") {
+		t.Fatalf("expected table output containing Flywheel Health, got %q", got)
+	}
+	if !strings.Contains(got, "LOOP DOMINANCE:") {
+		t.Fatalf("expected LOOP DOMINANCE section, got %q", got)
+	}
+	if strings.HasPrefix(strings.TrimSpace(got), "{") {
+		t.Fatalf("expected text output, got JSON-like output %q", got)
+	}
+}
+
+func TestMetricsHealth_TablelessRun(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	if err := os.WriteFile(filepath.Join(learningsDir, "print.jsonl"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	oldOutput := output
+	defer func() { output = oldOutput }()
+	cmd := &cobra.Command{}
+
+	output = "json"
+	var jsonOut bytes.Buffer
+	cmd.SetOut(&jsonOut)
+	if err := runMetricsHealth(cmd, nil); err != nil {
+		t.Fatalf("runMetricsHealth json failed: %v", err)
+	}
+	raw := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(jsonOut.Bytes(), &raw); err != nil {
+		t.Fatalf("expected valid JSON output: %v", err)
+	}
+	if _, ok := raw["escape_velocity"]; !ok {
+		t.Fatalf("expected escape_velocity field in JSON output")
+	}
+
+	output = "table"
+	var tableOut bytes.Buffer
+	cmd.SetOut(&tableOut)
+	if err := runMetricsHealth(cmd, nil); err != nil {
+		t.Fatalf("runMetricsHealth table failed: %v", err)
+	}
+	if !strings.Contains(tableOut.String(), "RETRIEVAL:") {
+		t.Fatalf("expected table output, got: %q", tableOut.String())
+	}
+}
+
+func TestMetricsHealth_LoadCycleHistory(t *testing.T) {
+	dir := t.TempDir()
+	evolveDir := filepath.Join(dir, ".agents", "evolve")
+	if err := os.MkdirAll(evolveDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	historyPath := filepath.Join(evolveDir, "cycle-history.jsonl")
+	data := `{"cycle":1,"status":"pass"}` + "\n" + "invalid-json" + "\n" + `{"cycle":2,"status":"fail"}` + "\n"
+	if err := os.WriteFile(historyPath, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := loadCycleHistory(dir)
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 parseable entries, got %d", len(entries))
+	}
+}
+
+func TestMetricsHealth_LoadCycleHistoryMissingFile(t *testing.T) {
+	if got := loadCycleHistory(t.TempDir()); got != nil {
+		t.Fatalf("expected nil history for missing file, got %v", got)
+	}
+}
+
 func TestComputeLoopDominance_StaleUsesNinetyDayWindow(t *testing.T) {
 	dir := setupHealthTestDir(t)
 	learningsDir := filepath.Join(dir, ".agents", "learnings")
@@ -307,5 +517,61 @@ func TestComputeLoopDominance_StaleUsesNinetyDayWindow(t *testing.T) {
 	ld := computeLoopDominance(dir, citations)
 	if ld.B1 != 0 {
 		t.Fatalf("expected B1=0 for 60-day-old uncited learning with 90-day stale threshold, got %f", ld.B1)
+	}
+}
+
+func TestComputeLoopDominance_StaleAndNewBoundaries(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	now := time.Now()
+
+	recent1 := filepath.Join(learningsDir, "recent-1.md")
+	recent2 := filepath.Join(learningsDir, "recent-2.md")
+	stale1 := filepath.Join(learningsDir, "stale-1.md")
+	stale2 := filepath.Join(learningsDir, "stale-2.md")
+	stale3 := filepath.Join(learningsDir, "stale-3.md")
+
+	for _, path := range []string{recent1, recent2, stale1, stale2, stale3} {
+		if err := os.WriteFile(path, []byte("# artifact"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{stale1, stale2, stale3} {
+		staleTime := now.AddDate(0, 0, -120)
+		if err := os.Chtimes(path, staleTime, staleTime); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	citations := []types.CitationEvent{
+		{
+			ArtifactPath: recent1,
+			SessionID:    "session-1",
+			CitedAt:      now,
+		},
+		{
+			ArtifactPath: recent2,
+			SessionID:    "session-2",
+			CitedAt:      now,
+		},
+	}
+
+	ldMixed := computeLoopDominance(dir, citations)
+	if ldMixed.R1 != 1 {
+		t.Fatalf("expected R1=1 for 2 recent artifacts over 2 sessions, got %f", ldMixed.R1)
+	}
+	if ldMixed.B1 != 1.5 {
+		t.Fatalf("expected B1=1.5 for mixed stale/new boundary case, got %f", ldMixed.B1)
+	}
+	if ldMixed.Dominant != "B1" {
+		t.Fatalf("expected dominant=B1, got %s", ldMixed.Dominant)
+	}
+
+	ldZero := computeLoopDominance(dir, nil)
+	if ldZero.Dominant != "B1" {
+		t.Fatalf("expected zero-session dominant=B1, got %s", ldZero.Dominant)
+	}
+	if ldZero.R1 != 0 || ldZero.B1 != 0 {
+		t.Fatalf("expected zero-session R1/B1=0, got R1=%f B1=%f", ldZero.R1, ldZero.B1)
 	}
 }

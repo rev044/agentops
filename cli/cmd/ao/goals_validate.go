@@ -29,7 +29,7 @@ var goalsValidateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		result := validateResult{}
 
-		gf, err := goals.LoadGoals(goalsFile)
+		gf, err := goals.LoadGoals(resolveGoalsFile())
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("load: %v", err))
 			return outputValidateResult(result)

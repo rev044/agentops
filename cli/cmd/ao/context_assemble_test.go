@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestContextAssemble_FiveSections(t *testing.T) {
@@ -332,5 +335,148 @@ func TestContextAssemble_ReadIntelDirReadsJSONFiles(t *testing.T) {
 	}
 	if !strings.Contains(intelContent, "pattern") {
 		t.Error("INTEL section should include pattern JSON artifacts")
+	}
+}
+
+func TestContextAssemble_CommandWritesBriefingAndManifest(t *testing.T) {
+	tmp := t.TempDir()
+
+	goalsPath := filepath.Join(tmp, "GOALS.md")
+	if err := os.WriteFile(goalsPath, []byte("# GOALS\n\n## Mission\nSmoke"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	evolveDir := filepath.Join(tmp, ".agents", "evolve")
+	if err := os.MkdirAll(evolveDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(evolveDir, "cycle-history.jsonl"), []byte(`{"cycle":1,"status":"pass"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	learnDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learnDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learnDir, "learn.md"), []byte("# Learn"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	outPath := filepath.Join(tmp, ".agents", "rpi", "smoke-briefing.md")
+	oldTask := assembleTask
+	oldMax := assembleMaxChars
+	oldOutput := assembleOutput
+	oldMode := output
+
+	assembleTask = "Smoke task"
+	assembleMaxChars = 12000
+	assembleOutput = outPath
+	output = "table"
+	defer func() {
+		assembleTask = oldTask
+		assembleMaxChars = oldMax
+		assembleOutput = oldOutput
+		output = oldMode
+	}()
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := runContextAssemble(cmd, nil); err != nil {
+		t.Fatalf("runContextAssemble failed: %v", err)
+	}
+
+	briefingPath := outPath
+	data, err := os.ReadFile(briefingPath)
+	if err != nil {
+		t.Fatalf("expected briefing file %s to exist: %v", briefingPath, err)
+	}
+	if !strings.Contains(string(data), "# Context Briefing") {
+		t.Fatal("expected briefing markdown header")
+	}
+	if !strings.Contains(out.String(), "Briefing written to") {
+		t.Error("expected command to print writing confirmation")
+	}
+	if !strings.Contains(string(data), "Smoke task") {
+		t.Error("expected task content in generated briefing")
+	}
+
+	injectDir := filepath.Join(tmp, ".agents", "ao", "injections")
+	manifestEntries, err := os.ReadDir(injectDir)
+	if err != nil {
+		t.Fatalf("expected injections directory to exist: %v", err)
+	}
+	if len(manifestEntries) == 0 {
+		t.Fatal("expected at least one provenance manifest file")
+	}
+}
+
+func TestContextAssemble_CommandOutputsJSON(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, ".agents", "learnings"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".agents", "learnings", "learn.md"), []byte("# Learn"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	outPath := filepath.Join(tmp, ".agents", "rpi", "smoke-briefing.json")
+	oldTask := assembleTask
+	oldMax := assembleMaxChars
+	oldOutput := assembleOutput
+	oldMode := output
+
+	assembleTask = "Smoke JSON task"
+	assembleMaxChars = 12000
+	assembleOutput = outPath
+	output = "json"
+	defer func() {
+		assembleTask = oldTask
+		assembleMaxChars = oldMax
+		assembleOutput = oldOutput
+		output = oldMode
+	}()
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := runContextAssemble(cmd, nil); err != nil {
+		t.Fatalf("runContextAssemble failed: %v", err)
+	}
+
+	var parsed assembleJSONOutput
+	if err := json.Unmarshal(out.Bytes(), &parsed); err != nil {
+		t.Fatalf("expected valid JSON output: %v", err)
+	}
+	if parsed.OutputPath != outPath {
+		t.Fatalf("expected output_path=%q, got=%q", outPath, parsed.OutputPath)
+	}
+	if parsed.TotalChars <= 0 {
+		t.Error("expected total_chars > 0")
+	}
+	if len(parsed.Sections) != 5 {
+		t.Fatalf("expected 5 sections, got %d", len(parsed.Sections))
 	}
 }

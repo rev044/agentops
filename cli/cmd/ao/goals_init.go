@@ -44,17 +44,18 @@ var goalsInitCmd = &cobra.Command{
 	Short:   "Bootstrap a new GOALS.md file",
 	GroupID: "management",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resolvedPath := goals.ResolveGoalsPath(goalsFile)
+		resolved := resolveGoalsFile()
+		resolvedPath := goals.ResolveGoalsPath(resolved)
 
 		// Check if the resolved path already exists
 		if _, err := os.Stat(resolvedPath); err == nil {
 			return fmt.Errorf("goals file already exists: %s", resolvedPath)
 		}
 
-		// Also check the literal goalsFile path if different
-		if resolvedPath != goalsFile {
-			if _, err := os.Stat(goalsFile); err == nil {
-				return fmt.Errorf("goals file already exists: %s", goalsFile)
+		// Also check the literal resolved path if different
+		if resolvedPath != resolved {
+			if _, err := os.Stat(resolved); err == nil {
+				return fmt.Errorf("goals file already exists: %s", resolved)
 			}
 		}
 

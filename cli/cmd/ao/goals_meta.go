@@ -15,7 +15,7 @@ var goalsMetaCmd = &cobra.Command{
 	Short:   "Run and report meta-goals only",
 	GroupID: "management",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		gf, err := goals.LoadGoals(goalsFile)
+		gf, err := goals.LoadGoals(resolveGoalsFile())
 		if err != nil {
 			return fmt.Errorf("loading goals: %w", err)
 		}

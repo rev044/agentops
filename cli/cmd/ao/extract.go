@@ -188,6 +188,9 @@ func processAllExtractions(pending []PendingExtraction, cwd string) []string {
 	var processed []string
 	for i, extraction := range pending {
 		VerbosePrintf("Processing %d/%d: %s\n", i+1, len(pending), extraction.SessionID)
+		if extractBead != "" && extraction.BeadID == "" {
+			extraction.BeadID = extractBead
+		}
 		outputExtractionPrompt(extraction, cwd, extractMaxContent)
 		processed = append(processed, extraction.SessionID)
 	}
@@ -250,8 +253,8 @@ func rewritePendingFile(pendingPath string, entries []PendingExtraction) error {
 		return fmt.Errorf("create directory: %w", err)
 	}
 
-	// Open file with exclusive lock
-	f, err := os.OpenFile(pendingPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	// Open file WITHOUT truncation — truncate after acquiring lock
+	f, err := os.OpenFile(pendingPath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return fmt.Errorf("open pending file: %w", err)
 	}
@@ -266,6 +269,14 @@ func rewritePendingFile(pendingPath string, entries []PendingExtraction) error {
 	defer func() {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 	}()
+
+	// NOW truncate after we hold the lock
+	if err := f.Truncate(0); err != nil {
+		return fmt.Errorf("truncate pending file: %w", err)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return fmt.Errorf("seek pending file: %w", err)
+	}
 
 	// Write each entry as JSONL
 	for _, entry := range entries {
@@ -409,6 +420,9 @@ func outputExtractionPrompt(extraction PendingExtraction, cwd string, maxContent
 }
 
 func truncateForPrompt(s string, maxLen int) string {
+	if maxLen < 4 {
+		return s
+	}
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.Join(strings.Fields(s), " ") // Normalize whitespace
 	if len(s) <= maxLen {

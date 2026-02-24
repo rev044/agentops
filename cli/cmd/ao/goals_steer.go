@@ -230,8 +230,9 @@ var goalsSteerPrioritizeCmd = &cobra.Command{
 
 // loadMDGoals loads goals and validates the format is markdown.
 func loadMDGoals() (*goals.GoalFile, string, error) {
-	resolvedPath := goals.ResolveGoalsPath(goalsFile)
-	gf, err := goals.LoadGoals(goalsFile)
+	resolved := resolveGoalsFile()
+	resolvedPath := goals.ResolveGoalsPath(resolved)
+	gf, err := goals.LoadGoals(resolved)
 	if err != nil {
 		return nil, "", fmt.Errorf("loading goals: %w", err)
 	}
