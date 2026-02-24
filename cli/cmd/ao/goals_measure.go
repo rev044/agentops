@@ -26,10 +26,16 @@ var goalsMeasureCmd = &cobra.Command{
 			return fmt.Errorf("loading goals: %w", err)
 		}
 
-		// Early exit: output directives as JSON and skip gate checks
+		// Early exit: output directives as JSON and skip gate checks.
+		// Directives are only available in GOALS.md (version 4) format;
+		// YAML files have no directives section and silently return empty.
 		if goalsMeasureDirectives {
 			if goalsMeasureGoalID != "" {
 				return fmt.Errorf("--directives and --goal cannot be combined")
+			}
+			if gf.Format != "md" {
+				fmt.Fprintln(os.Stderr, "Warning: --directives requires GOALS.md format. Run 'ao goals migrate --to-md' to convert.")
+				return nil
 			}
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")

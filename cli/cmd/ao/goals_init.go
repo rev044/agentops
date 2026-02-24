@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,8 +46,11 @@ var goalsInitCmd = &cobra.Command{
 			}
 		}
 
-		// Auto-detect gates
-		detectedGoals := detectGates()
+		// Auto-detect gates using the project root derived from the resolved
+		// goals file path. This ensures gate detection works correctly even
+		// when ao is invoked from a subdirectory or with an explicit --file path.
+		projectRoot := filepath.Dir(resolvedPath)
+		detectedGoals := detectGates(projectRoot)
 		gf.Goals = append(gf.Goals, detectedGoals...)
 
 		if goalsJSON {
@@ -101,7 +105,10 @@ func buildDefaultGoalFile() *goals.GoalFile {
 	}
 }
 
-func buildInteractiveGoalFile(r *os.File) (*goals.GoalFile, error) {
+// buildInteractiveGoalFile prompts the user for goal file fields via the given
+// io.Reader. Accepting io.Reader (rather than *os.File) enables testing with
+// strings.NewReader or bytes.Buffer without requiring real file descriptors.
+func buildInteractiveGoalFile(r io.Reader) (*goals.GoalFile, error) {
 	scanner := bufio.NewScanner(r)
 
 	mission, err := prompt(scanner, "Mission (one sentence): ")
@@ -163,11 +170,20 @@ func buildInteractiveGoalFile(r *os.File) (*goals.GoalFile, error) {
 	}, nil
 }
 
-// detectGates checks for common project files and returns matching gate goals.
-func detectGates() []goals.Goal {
+// detectGates checks for common project files relative to projectRoot and
+// returns matching gate goals. The projectRoot is derived from the resolved
+// goals file path so that detection works correctly regardless of the current
+// working directory.
+func detectGates(projectRoot string) []goals.Goal {
 	var detected []goals.Goal
 
-	if _, err := os.Stat("go.mod"); err == nil {
+	// stat is a helper that checks for a file relative to the project root.
+	stat := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(projectRoot, rel))
+		return err == nil
+	}
+
+	if stat("go.mod") {
 		detected = append(detected, goals.Goal{
 			ID:          "go-build",
 			Description: "Go project builds cleanly",
@@ -185,9 +201,9 @@ func detectGates() []goals.Goal {
 	}
 
 	// Check for cli/go.mod as well (nested Go project)
-	if _, err := os.Stat("cli/go.mod"); err == nil {
+	if stat("cli/go.mod") {
 		// Only add if we didn't already detect top-level go.mod
-		if _, err := os.Stat("go.mod"); err != nil {
+		if !stat("go.mod") {
 			detected = append(detected, goals.Goal{
 				ID:          "go-build",
 				Description: "Go project builds cleanly",
@@ -205,7 +221,7 @@ func detectGates() []goals.Goal {
 		}
 	}
 
-	if _, err := os.Stat("package.json"); err == nil {
+	if stat("package.json") {
 		detected = append(detected, goals.Goal{
 			ID:          "npm-test",
 			Description: "npm tests pass",
@@ -215,7 +231,7 @@ func detectGates() []goals.Goal {
 		})
 	}
 
-	if _, err := os.Stat("Cargo.toml"); err == nil {
+	if stat("Cargo.toml") {
 		detected = append(detected, goals.Goal{
 			ID:          "cargo-test",
 			Description: "Cargo tests pass",
@@ -225,7 +241,7 @@ func detectGates() []goals.Goal {
 		})
 	}
 
-	if _, err := os.Stat("pyproject.toml"); err == nil {
+	if stat("pyproject.toml") {
 		detected = append(detected, goals.Goal{
 			ID:          "python-test",
 			Description: "Python tests pass",
@@ -235,7 +251,7 @@ func detectGates() []goals.Goal {
 		})
 	}
 
-	if _, err := os.Stat("Makefile"); err == nil {
+	if stat("Makefile") {
 		detected = append(detected, goals.Goal{
 			ID:          "make-build",
 			Description: "Make build succeeds",

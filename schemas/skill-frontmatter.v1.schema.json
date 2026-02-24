@@ -11,7 +11,7 @@
     "metadata": {
       "type": "object",
       "properties": {
-        "tier": { "type": "string", "enum": ["judgment", "execution", "library", "session", "product", "contribute", "meta", "background", "orchestration"] },
+        "tier": { "type": "string", "enum": ["judgment", "execution", "library", "session", "product", "contribute", "meta", "background", "orchestration", "cross-vendor", "knowledge"] },
         "dependencies": { "type": "array" },
         "internal": { "type": "boolean" },
         "version": { "type": "string" },
@@ -22,7 +22,12 @@
     },
     "user-invocable": { "type": "boolean" },
     "context": { "type": "string" },
-    "allowed-tools": { "type": "array", "items": { "type": "string" } },
+    "allowed-tools": {
+      "oneOf": [
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "string" }
+      ]
+    },
     "license": { "type": "string" },
     "compatibility": { "type": "string" },
     "model": { "type": "string", "description": "Preferred model for skill execution (e.g., haiku, sonnet)" }

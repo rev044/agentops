@@ -229,6 +229,29 @@ jobs:
           chmod +x skills/heal-skill/scripts/heal.sh
           bash skills/heal-skill/scripts/heal.sh --strict
 
+  skill-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install jsonschema
+        run: pip install jsonschema pyyaml
+
+      - name: Validate SKILL.md frontmatter against schema
+        run: |
+          chmod +x scripts/validate-skill-schema.sh
+          ./scripts/validate-skill-schema.sh --verbose
+
   contract-compatibility-gate:
     runs-on: ubuntu-latest
     steps:
@@ -445,7 +468,7 @@ jobs:
           ./tests/e2e-install-test.sh
 
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, contract-compatibility-gate, plugin-load-test, go-build, e2e-install-test]
+    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, plugin-load-test, go-build, e2e-install-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -462,6 +485,7 @@ jobs:
           echo "security-scan: ${{ needs.security-scan.result }}"
           echo "security-toolchain-gate: ${{ needs.security-toolchain-gate.result }}"
           echo "skill-integrity: ${{ needs.skill-integrity.result }}"
+          echo "skill-schema: ${{ needs.skill-schema.result }}"
           echo "contract-compatibility-gate: ${{ needs.contract-compatibility-gate.result }}"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
           echo "go-build: ${{ needs.go-build.result }}"
@@ -477,6 +501,7 @@ jobs:
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
              [[ "${{ needs.security-toolchain-gate.result }}" != "success" ]] || \
              [[ "${{ needs.skill-integrity.result }}" != "success" ]] || \
+             [[ "${{ needs.skill-schema.result }}" != "success" ]] || \
              [[ "${{ needs.contract-compatibility-gate.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \

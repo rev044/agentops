@@ -16,21 +16,27 @@ var migrateToMD bool
 func init() {
 	migrateCmd := &cobra.Command{
 		Use:     "migrate",
-		Short:   "Migrate GOALS.yaml to latest version",
+		Short:   "Migrate goals to latest format",
 		Aliases: []string{"mg"},
 		GroupID: "management",
-		Long: `Migrate a version 1 GOALS.yaml to version 2 format.
+		Long: `Migrate goals between formats.
 
-Adds default values for fields introduced in v2:
+Without flags, migrates GOALS.yaml from version 1 to version 2:
   - Sets version to 2
   - Adds mission field if missing
   - Sets goal type to "health" for goals without a type
+  - Backs up original to GOALS.yaml.v1.bak
 
-The original file is backed up to GOALS.yaml.v1.bak before overwriting.
+With --to-md, converts GOALS.yaml to GOALS.md (version 4):
+  - Carries over mission and all gates
+  - Groups goals by pillar to generate directives
+  - Adds default north/anti stars
+  - Preserves original YAML file
 
 Examples:
-  ao goals migrate
-  ao goals migrate --file custom-goals.yaml`,
+  ao goals migrate                       # v1 YAML → v2 YAML
+  ao goals migrate --to-md               # YAML → GOALS.md
+  ao goals migrate --to-md --file g.yaml # Custom source file`,
 		RunE: runGoalsMigrate,
 	}
 	migrateCmd.Flags().BoolVar(&migrateToMD, "to-md", false, "Convert GOALS.yaml to GOALS.md format")
@@ -51,20 +57,29 @@ func runGoalsMigrate(cmd *cobra.Command, args []string) error {
 			fmt.Println("Already in GOALS.md format — no migration needed.")
 			return nil
 		}
-		// Copy existing fields
 		gf.Format = "md"
 		gf.Version = 4
 		if gf.Mission == "" {
 			gf.Mission = "Project fitness goals"
 		}
-		// Add a default directive if none exist
+		// Generate directives from pillar groups
 		if len(gf.Directives) == 0 {
-			gf.Directives = []goals.Directive{
-				{Number: 1, Title: "Improve project quality", Description: "Focus on the highest-impact improvements.", Steer: "increase"},
+			gf.Directives = directivesFromPillars(gf.Goals)
+		}
+		// Add default north/anti stars if empty
+		if len(gf.NorthStars) == 0 {
+			gf.NorthStars = []string{
+				"Every check passes before changes reach users",
+				"Validation catches regressions automatically",
+			}
+		}
+		if len(gf.AntiStars) == 0 {
+			gf.AntiStars = []string{
+				"Untested changes reaching main",
+				"Goals that are trivially true or test implementation details",
 			}
 		}
 		content := goals.RenderGoalsMD(gf)
-		// Compute GOALS.md path in same directory
 		mdPath := filepath.Join(filepath.Dir(path), "GOALS.md")
 		if err := os.WriteFile(mdPath, []byte(content), 0o644); err != nil {
 			return fmt.Errorf("writing GOALS.md: %w", err)
@@ -104,4 +119,37 @@ func runGoalsMigrate(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Migrated %s from version 1 to version 2.\n", path)
 	return nil
+}
+
+// directivesFromPillars generates directives from existing goal pillar groupings.
+// Each unique pillar becomes a directive. Goals without a pillar are skipped.
+// If no pillars exist, returns a single generic directive.
+func directivesFromPillars(gs []goals.Goal) []goals.Directive {
+	seen := map[string]bool{}
+	var pillars []string
+	for _, g := range gs {
+		p := g.Pillar
+		if p == "" {
+			continue
+		}
+		if !seen[p] {
+			seen[p] = true
+			pillars = append(pillars, p)
+		}
+	}
+	if len(pillars) == 0 {
+		return []goals.Directive{
+			{Number: 1, Title: "Improve project quality", Description: "Focus on the highest-impact improvements.", Steer: "increase"},
+		}
+	}
+	dirs := make([]goals.Directive, len(pillars))
+	for i, p := range pillars {
+		dirs[i] = goals.Directive{
+			Number:      i + 1,
+			Title:       "Strengthen " + p,
+			Description: fmt.Sprintf("Improve goals in the %s pillar.", p),
+			Steer:       "increase",
+		}
+	}
+	return dirs
 }

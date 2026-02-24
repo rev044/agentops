@@ -33,7 +33,7 @@ Given `/forge [path]`:
 **With ao CLI:**
 ```bash
 # Mine recent sessions
-ao forge --recent
+ao forge transcript --last-session
 
 # Mine specific transcript
 ao forge transcript <path>
@@ -154,7 +154,7 @@ Transcript → /forge → .agents/forge/ (Tier 0)
 **User says:** `/forge <path>` or "mine this transcript for knowledge"
 
 **What happens:**
-1. Agent identifies transcript path or uses `ao forge --recent`
+1. Agent identifies transcript path or uses `ao forge transcript --last-session`
 2. Agent scans transcript for knowledge patterns (decisions, learnings, failures, patterns)
 3. Agent scores each extraction by confidence (0.0-1.0)
 4. Agent writes candidates to `.agents/forge/YYYY-MM-DD-forge.md`
