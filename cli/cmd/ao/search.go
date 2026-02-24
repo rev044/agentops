@@ -84,6 +84,9 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	// Check if sessions directory exists
 	if _, err := os.Stat(sessionsDir); os.IsNotExist(err) {
+		if GetOutput() == "json" {
+			return outputSearchResults(query, []searchResult{})
+		}
 		fmt.Println("No AgentOps data found.")
 		fmt.Println("Run 'ao init' and 'ao forge transcript <path>' first.")
 		return nil
@@ -94,14 +97,17 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("search failed: %w", err)
 	}
 
-	if len(results) == 0 {
-		fmt.Printf("No results found for: %s\n", query)
-		return nil
-	}
-
 	// Filter by type if specified
 	if searchType != "" {
 		results = filterByType(results, searchType)
+	}
+
+	if len(results) == 0 {
+		if GetOutput() == "json" {
+			return outputSearchResults(query, []searchResult{})
+		}
+		fmt.Printf("No results found for: %s\n", query)
+		return nil
 	}
 
 	// Limit results
@@ -114,6 +120,9 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 func outputSearchResults(query string, results []searchResult) error {
 	if GetOutput() == "json" {
+		if results == nil {
+			results = []searchResult{}
+		}
 		data, err := json.MarshalIndent(results, "", "  ")
 		if err != nil {
 			return fmt.Errorf("marshal search results: %w", err)

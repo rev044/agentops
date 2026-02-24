@@ -39,7 +39,7 @@ func TestComputeResult(t *testing.T) {
 				{Name: "a", Status: "pass", Required: true},
 				{Name: "b", Status: "warn", Required: false},
 			},
-			wantResult: "HEALTHY",
+			wantResult: "DEGRADED",
 			wantFails:  false,
 		},
 		{

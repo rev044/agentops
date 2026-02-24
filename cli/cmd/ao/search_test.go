@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -62,6 +63,138 @@ func TestFilterByType(t *testing.T) {
 				t.Errorf("filterByType(%q) returned %d results, want %d", tt.filterType, len(got), tt.wantCount)
 			}
 		})
+	}
+}
+
+func TestOutputSearchResults_JSONEmptyResults(t *testing.T) {
+	prevOutput := output
+	output = "json"
+	t.Cleanup(func() { output = prevOutput })
+
+	out := captureJSONStdout(t, func() {
+		if err := outputSearchResults("session", nil); err != nil {
+			t.Fatalf("outputSearchResults() error = %v", err)
+		}
+	})
+
+	out = strings.TrimSpace(out)
+	if out != "[]" {
+		t.Fatalf("expected output [] for empty JSON results, got %q", out)
+	}
+
+	var results []searchResult
+	if err := json.Unmarshal([]byte(out), &results); err != nil {
+		t.Fatalf("failed to parse JSON output %q: %v", out, err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results from outputSearchResults(), got %d", len(results))
+	}
+}
+
+func TestRunSearch_JSONNoResultsAfterTypeFilter(t *testing.T) {
+	tmp := t.TempDir()
+
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prevWD) })
+
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	sessionPath := filepath.Join(sessionsDir, "session-sample.md")
+	if err := os.WriteFile(sessionPath, []byte("Session about mutex patterns"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	prevOutput := output
+	prevDryRun := dryRun
+	prevSearchType := searchType
+	prevSearchLimit := searchLimit
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	output = "json"
+	dryRun = false
+	searchType = "decisions"
+	searchLimit = 10
+	searchUseSC = false
+	searchUseCASS = false
+	t.Cleanup(func() {
+		output = prevOutput
+		dryRun = prevDryRun
+		searchType = prevSearchType
+		searchLimit = prevSearchLimit
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+	})
+
+	out := captureJSONStdout(t, func() {
+		if err := runSearch(searchCmd, []string{"mutex"}); err != nil {
+			t.Fatalf("runSearch() error = %v", err)
+		}
+	})
+
+	out = strings.TrimSpace(out)
+	var results []searchResult
+	if err := json.Unmarshal([]byte(out), &results); err != nil {
+		t.Fatalf("expected JSON array, got %q: %v", out, err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results after type filter, got %d", len(results))
+	}
+}
+
+func TestRunSearch_JSONNoDataDirReturnsEmptyArray(t *testing.T) {
+	tmp := t.TempDir()
+
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prevWD) })
+
+	prevOutput := output
+	prevDryRun := dryRun
+	prevSearchType := searchType
+	prevSearchLimit := searchLimit
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	output = "json"
+	dryRun = false
+	searchType = ""
+	searchLimit = 10
+	searchUseSC = false
+	searchUseCASS = false
+	t.Cleanup(func() {
+		output = prevOutput
+		dryRun = prevDryRun
+		searchType = prevSearchType
+		searchLimit = prevSearchLimit
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+	})
+
+	out := captureJSONStdout(t, func() {
+		if err := runSearch(searchCmd, []string{"mutex"}); err != nil {
+			t.Fatalf("runSearch() error = %v", err)
+		}
+	})
+
+	out = strings.TrimSpace(out)
+	var results []searchResult
+	if err := json.Unmarshal([]byte(out), &results); err != nil {
+		t.Fatalf("expected JSON array, got %q: %v", out, err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results for missing data dir, got %d", len(results))
 	}
 }
 

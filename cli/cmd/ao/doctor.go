@@ -764,6 +764,8 @@ func computeResult(checks []doctorCheck) doctorOutput {
 	result := "HEALTHY"
 	if fails > 0 {
 		result = "UNHEALTHY"
+	} else if warns > 0 {
+		result = "DEGRADED"
 	}
 
 	return doctorOutput{
