@@ -163,6 +163,7 @@ TaskUpdate(taskId="2", addBlockedBy=["1"])
 |-----------|-------------|---------|
 | `--max-workers=N` | Max concurrent workers | 5 |
 | `--from-wave <json-file>` | Load wave from OL hero hunt output (see OL Wave Integration) | - |
+| `--per-task-commits` | Commit per task instead of per wave (for attribution/audit) | Off (per-wave) |
 
 ## When to Use Swarm
 
@@ -347,6 +348,27 @@ ol hero ratchet "$BEAD_ID" --quest "$QUEST_ID"
 
 In Claude runtime, first verify teammate profiles with `claude agents` and use agent definitions with `isolation: worktree` for write-heavy parallel waves. If native isolation is unavailable, use manual `git worktree` fallback below.
 
+### Isolation Semantics Per Spawn Backend
+
+| Backend | Isolation Mechanism | How It Works |
+|---------|-------------------|--------------|
+| **Claude teams** (`Task` with `team_name`) | `isolation: worktree` in agent definition | Runtime creates an isolated git worktree per teammate; changes are invisible to other agents and the main tree until merged |
+| **Background tasks** (`Task` with `run_in_background`) | `isolation: worktree` in agent definition | Same worktree isolation as teams; each background agent gets its own worktree |
+| **Inline** (no spawn) | None | Operates directly on the main working tree; no isolation possible |
+
+**Key diagnostic:** When `isolation: worktree` is specified but worker changes appear in the main working tree (no separate worktree path in the Task result), **isolation did NOT engage**. This is a silent failure — the runtime accepted the parameter but did not create a worktree.
+
+### Post-Spawn Isolation Verification
+
+After spawning workers with `isolation: worktree`, the lead MUST verify isolation engaged:
+
+1. **Check Task result** for a `worktreePath` field. If present, isolation is active.
+2. **If `worktreePath` is absent** but `isolation: worktree` was specified:
+   - Log warning: "Isolation did not engage for worker-N. Changes may be in main working tree."
+   - **For waves with 2+ workers touching overlapping files:** abort the wave, fall back to serial execution to prevent conflicts.
+   - **For waves with fully independent file sets:** may proceed with caution, but monitor for conflicts.
+3. **If isolation consistently fails:** fall back to manual `git worktree` creation (see below) or switch to serial inline execution.
+
 **When to use worktrees:** Activate worktree isolation when:
 - Dispatching workers across **multiple epics** (each epic touches different packages)
 - Wave has **>3 workers touching overlapping files** (detected via `git diff --name-only`)
@@ -454,6 +476,10 @@ Run cleanup even on partial failures (same reaper pattern as team cleanup).
 ---
 
 ## Troubleshooting
+
+### Worktree isolation did not engage
+Cause: `isolation: worktree` was specified but the Task result has no `worktreePath` — worker changes land in the main tree.
+Solution: Verify agent definitions include `isolation: worktree`. If the runtime does not support declarative isolation, fall back to manual `git worktree add` (see Worktree Isolation section). For overlapping-file waves, abort and switch to serial execution.
 
 ### Workers produce file conflicts
 Cause: Multiple workers editing the same file in parallel.

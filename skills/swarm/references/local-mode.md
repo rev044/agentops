@@ -192,6 +192,31 @@ Workers only transition their assigned task: in_progress -> completed.
 **Worker instructions:** Include in every worker prompt:
 "Do NOT run git add, git commit, or git push. Write your result to .agents/swarm/results/<task-id>.json, then send a short signal (under 100 tokens) via your runtime channel. The team lead reads result files, not messages."
 
+### Wave Commit Cadence
+
+**Best practice: one commit per completed wave** (not one massive commit for the entire swarm run).
+
+| Cadence | When to use | Commit message format |
+|---------|-------------|----------------------|
+| **Per wave** (default) | Standard swarm execution | `chore(wave-N): close ag-xxxx, ag-yyyy` |
+| **Per task** (`--per-task-commits`) | When per-task attribution is required (audits, blame tracking) | `chore(ag-xxxx): <task subject>` |
+| **End of swarm** | Never recommended — loses wave attribution and makes rollback harder | - |
+
+**Why per-wave:** Each wave is an atomic unit of parallel work. A single commit per wave provides:
+- Clean rollback boundary (revert one wave without touching others)
+- Clear attribution of which wave introduced a change
+- Issue IDs in commit message for traceability
+
+**Commit message convention:**
+```
+chore(wave-1): close ag-1234, ag-1235
+
+- ag-1234: Add authentication middleware
+- ag-1235: Create user model schema
+```
+
+The lead commits after all tasks in a wave pass validation (Step 4a), before spawning the next wave.
+
 ## Step 4: Wait for Completion
 
 Wait for all workers to signal completion using your runtime's wait mechanism. Workers write result files to disk and send a minimal signal.
