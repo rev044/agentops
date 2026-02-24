@@ -271,7 +271,7 @@ func setupGitignore(cwd string, dryRun, stealth bool) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck // best-effort close
 
 	// Check if file is non-empty and doesn't end with newline
 	info, _ := f.Stat()

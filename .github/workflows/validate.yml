@@ -180,7 +180,6 @@ jobs:
 
   security-toolchain-gate:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
 
@@ -461,7 +460,7 @@ jobs:
           echo "shellcheck: ${{ needs.shellcheck.result }}"
           echo "markdownlint: ${{ needs.markdownlint.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
-          echo "security-toolchain-gate: ${{ needs.security-toolchain-gate.result }} (non-blocking)"
+          echo "security-toolchain-gate: ${{ needs.security-toolchain-gate.result }}"
           echo "skill-integrity: ${{ needs.skill-integrity.result }}"
           echo "contract-compatibility-gate: ${{ needs.contract-compatibility-gate.result }}"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
@@ -476,7 +475,9 @@ jobs:
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
              [[ "${{ needs.markdownlint.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
+             [[ "${{ needs.security-toolchain-gate.result }}" != "success" ]] || \
              [[ "${{ needs.skill-integrity.result }}" != "success" ]] || \
+             [[ "${{ needs.contract-compatibility-gate.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-install-test.result }}" != "success" ]]; then

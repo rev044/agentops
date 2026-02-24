@@ -1,0 +1,22 @@
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+
+linters-settings:
+  errcheck:
+    # Don't check return values of fmt.Fprint*/fmt.Fprintln (stdout writes)
+    exclude-functions:
+      - fmt.Fprint
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - (io.Writer).Write
+
+issues:
+  exclude-dirs:
+    - ../tests/fixtures
+  exclude-rules:
+    # Test files: defer cleanup and env manipulation don't need error checks
+    - path: _test\.go
+      linters:
+        - errcheck

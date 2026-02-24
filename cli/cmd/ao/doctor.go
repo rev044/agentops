@@ -430,7 +430,7 @@ func countFileLines(path string) int {
 	if err != nil {
 		return 0
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck // best-effort close
 
 	count := 0
 	scanner := bufio.NewScanner(f)

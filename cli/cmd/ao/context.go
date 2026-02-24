@@ -552,9 +552,9 @@ func renderHandoffMarkdown(now time.Time, status contextSessionStatus, usage tra
 	b.WriteString("\n\n")
 
 	b.WriteString("## Assignment\n")
-	b.WriteString(fmt.Sprintf("- agent: %s\n", displayOrDash(status.AgentName)))
-	b.WriteString(fmt.Sprintf("- role: %s\n", displayOrDash(status.AgentRole)))
-	b.WriteString(fmt.Sprintf("- team: %s\n", displayOrDash(status.TeamName)))
+	fmt.Fprintf(&b, "- agent: %s\n", displayOrDash(status.AgentName))
+	fmt.Fprintf(&b, "- role: %s\n", displayOrDash(status.AgentRole))
+	fmt.Fprintf(&b, "- team: %s\n", displayOrDash(status.TeamName))
 	b.WriteString(fmt.Sprintf("- issue: %s\n", displayOrDash(status.IssueID)))
 	b.WriteString(fmt.Sprintf("- tmux target: %s\n\n", displayOrDash(status.TmuxTarget)))
 

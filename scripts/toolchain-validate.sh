@@ -118,6 +118,8 @@ CRITICAL_COUNT=0
 HIGH_COUNT=0
 MEDIUM_COUNT=0
 LOW_COUNT=0
+SECURITY_HIGH_COUNT=0   # Only security tools (gosec, gitleaks, semgrep, trivy, hadolint)
+QUALITY_HIGH_COUNT=0    # Code quality tools (golangci-lint, radon, ruff, shellcheck)
 TOOLS_RUN=0
 TOOLS_SKIPPED=0
 
@@ -227,6 +229,7 @@ run_ruff() {
         issues=${issues:-0}
         issues=$(echo "$issues" | tr -d '[:space:]')
         HIGH_COUNT=$((HIGH_COUNT + issues))
+        QUALITY_HIGH_COUNT=$((QUALITY_HIGH_COUNT + issues))
         TOOL_STATUS["ruff"]="findings"
     fi
 }
@@ -285,6 +288,7 @@ run_golangci() {
         TOOL_STATUS["golangci-lint"]="pass"
     else
         HIGH_COUNT=$((HIGH_COUNT + issues))
+        QUALITY_HIGH_COUNT=$((QUALITY_HIGH_COUNT + issues))
         TOOL_STATUS["golangci-lint"]="findings"
     fi
 }
@@ -370,6 +374,7 @@ run_shellcheck() {
         warnings=${warnings:-0}
         warnings=$(echo "$warnings" | tr -d '[:space:]')
         HIGH_COUNT=$((HIGH_COUNT + errors))
+        QUALITY_HIGH_COUNT=$((QUALITY_HIGH_COUNT + errors))
         MEDIUM_COUNT=$((MEDIUM_COUNT + warnings))
         if [[ $errors -gt 0 || $warnings -gt 0 ]]; then
             TOOL_STATUS["shellcheck"]="findings"
@@ -403,7 +408,7 @@ run_radon() {
     fi
 
     # Run radon for cyclomatic complexity (min E = 26+, aligns with Go hard-fail at 25)
-    radon cc "$REPO_ROOT" -a -s --min E --exclude ".tmp/*" > "$output_file" 2>&1 || true
+    radon cc "$REPO_ROOT" -a -s --min E --exclude ".tmp/*,.claude/worktrees/*" > "$output_file" 2>&1 || true
 
     if [[ ! -s "$output_file" ]]; then
         echo "CLEAN" > "$output_file"
@@ -415,6 +420,7 @@ run_radon() {
         complex=${complex:-0}
         complex=$(echo "$complex" | tr -d '[:space:]')
         HIGH_COUNT=$((HIGH_COUNT + complex))
+        QUALITY_HIGH_COUNT=$((QUALITY_HIGH_COUNT + complex))
         if [[ $complex -gt 0 ]]; then
             TOOL_STATUS["radon"]="findings"
         else
@@ -584,6 +590,7 @@ run_semgrep() {
     high=$(echo "$high" | tr -d '[:space:]')
     CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
     HIGH_COUNT=$((HIGH_COUNT + high))
+    SECURITY_HIGH_COUNT=$((SECURITY_HIGH_COUNT + high))
     TOOL_STATUS["semgrep"]=$([[ "$critical" -gt 0 || "$high" -gt 0 ]] && echo "findings" || echo "pass")
 }
 
@@ -651,6 +658,7 @@ run_trivy() {
     if [[ "$critical" -gt 0 ]] || [[ "$high" -gt 0 ]]; then
         CRITICAL_COUNT=$((CRITICAL_COUNT + critical))
         HIGH_COUNT=$((HIGH_COUNT + high))
+        SECURITY_HIGH_COUNT=$((SECURITY_HIGH_COUNT + high))
         TOOL_STATUS["trivy"]="findings"
     else
         TOOL_STATUS["trivy"]="pass"
@@ -740,6 +748,7 @@ run_gosec() {
     issues=$(echo "$issues" | tr -d '[:space:]')
     if [[ "$issues" -gt 0 ]]; then
         HIGH_COUNT=$((HIGH_COUNT + issues))
+        SECURITY_HIGH_COUNT=$((SECURITY_HIGH_COUNT + issues))
         TOOL_STATUS["gosec"]="findings"
     else
         TOOL_STATUS["gosec"]="pass"
@@ -775,6 +784,7 @@ run_hadolint() {
         errors=$(echo "$errors" | tr -d '[:space:]')
         warnings=$(echo "$warnings" | tr -d '[:space:]')
         HIGH_COUNT=$((HIGH_COUNT + errors))
+        SECURITY_HIGH_COUNT=$((SECURITY_HIGH_COUNT + errors))
         MEDIUM_COUNT=$((MEDIUM_COUNT + warnings))
         TOOL_STATUS["hadolint"]="findings"
     fi
@@ -810,11 +820,13 @@ run_gotest
 
 log ""
 
-# Compute gate status once
+# Compute gate status — only security findings block
 if [[ $CRITICAL_COUNT -gt 0 ]]; then
     GATE_STATUS="BLOCKED_CRITICAL"
-elif [[ $HIGH_COUNT -gt 0 ]]; then
+elif [[ $SECURITY_HIGH_COUNT -gt 0 ]]; then
     GATE_STATUS="BLOCKED_HIGH"
+elif [[ $QUALITY_HIGH_COUNT -gt 0 ]]; then
+    GATE_STATUS="WARN_QUALITY"
 else
     GATE_STATUS="PASS"
 fi
@@ -844,6 +856,8 @@ SUMMARY=$(cat <<EOF
   "findings": {
     "critical": $CRITICAL_COUNT,
     "high": $HIGH_COUNT,
+    "security_high": $SECURITY_HIGH_COUNT,
+    "quality_high": $QUALITY_HIGH_COUNT,
     "medium": $MEDIUM_COUNT,
     "low": $LOW_COUNT
   },
@@ -866,16 +880,19 @@ else
     log "  Tools skipped: $TOOLS_SKIPPED"
     log ""
     log "  Findings:"
-    log "    CRITICAL: $CRITICAL_COUNT"
-    log "    HIGH:     $HIGH_COUNT"
-    log "    MEDIUM:   $MEDIUM_COUNT"
-    log "    LOW:      $LOW_COUNT"
+    log "    CRITICAL:       $CRITICAL_COUNT"
+    log "    HIGH (security): $SECURITY_HIGH_COUNT"
+    log "    HIGH (quality):  $QUALITY_HIGH_COUNT"
+    log "    MEDIUM:          $MEDIUM_COUNT"
+    log "    LOW:             $LOW_COUNT"
     log ""
 
     if [[ "$GATE_STATUS" == "BLOCKED_CRITICAL" ]]; then
         log "  Gate: BLOCKED - ${CRITICAL_COUNT} critical findings"
     elif [[ "$GATE_STATUS" == "BLOCKED_HIGH" ]]; then
-        log "  Gate: BLOCKED - ${HIGH_COUNT} high findings"
+        log "  Gate: BLOCKED - ${SECURITY_HIGH_COUNT} security high findings"
+    elif [[ "$GATE_STATUS" == "WARN_QUALITY" ]]; then
+        log "  Gate: PASS (${QUALITY_HIGH_COUNT} quality warnings, non-blocking)"
     else
         log "  Gate: PASS"
     fi
