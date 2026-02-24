@@ -26,6 +26,8 @@ SKIP_E2E_INSTALL=false
 SECURITY_MODE="full"
 FAST_MODE=false
 
+USER_MAX_JOBS=""
+
 usage() {
     cat <<'USAGE'
 Usage: scripts/ci-local-release.sh [options]
@@ -34,6 +36,7 @@ Options:
   --fast               Skip heavy checks (race tests, security gate, SBOM, hook integration)
   --skip-e2e-install   Skip tests/e2e-install-test.sh
   --security-mode      quick|full (default: full)
+  --jobs N             Max parallel jobs (default: half CPU cores, min 4)
   -h, --help           Show this help
 USAGE
 }
@@ -50,6 +53,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --security-mode)
             SECURITY_MODE="${2:-}"
+            shift 2
+            ;;
+        --jobs)
+            USER_MAX_JOBS="${2:-}"
             shift 2
             ;;
         -h|--help)
@@ -96,14 +103,61 @@ run_step() {
 # --- Parallel step infrastructure ---
 # Each parallel step writes its exit code to a temp file.
 # After wait, we collect results.
+# Concurrency is capped at MAX_JOBS to avoid CPU saturation.
 
 PARALLEL_DIR="$(mktemp -d)"
+ALL_PIDS=()     # every PID ever spawned (for cleanup)
 PARALLEL_PIDS=()
 PARALLEL_NAMES=()
+
+# Cap parallel jobs: half the cores or 4, whichever is larger.
+if command -v sysctl >/dev/null 2>&1; then
+    _NCPU=$(sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
+elif [[ -f /proc/cpuinfo ]]; then
+    _NCPU=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 4)
+else
+    _NCPU=4
+fi
+MAX_JOBS=$(( _NCPU / 2 ))
+[[ "$MAX_JOBS" -lt 4 ]] && MAX_JOBS=4
+if [[ -n "$USER_MAX_JOBS" ]]; then
+    MAX_JOBS="$USER_MAX_JOBS"
+fi
+
+# --- Cleanup trap: kill leaked children and temp dirs ---
+cleanup() {
+    local sig="${1:-EXIT}"
+    # Kill any surviving background PIDs
+    for pid in "${ALL_PIDS[@]}"; do
+        kill "$pid" 2>/dev/null && wait "$pid" 2>/dev/null || true
+    done
+    rm -rf "$PARALLEL_DIR"
+    if [[ "$sig" != "EXIT" ]]; then
+        echo ""
+        echo -e "${RED}  Interrupted — cleaned up ${#ALL_PIDS[@]} background job(s)${NC}"
+        exit 130
+    fi
+}
+trap 'cleanup INT'  INT
+trap 'cleanup TERM' TERM
+trap 'cleanup EXIT' EXIT
+
+# _throttle waits until fewer than MAX_JOBS are running.
+_throttle() {
+    while true; do
+        local running=0
+        for pid in "${PARALLEL_PIDS[@]}"; do
+            kill -0 "$pid" 2>/dev/null && running=$((running + 1))
+        done
+        [[ "$running" -lt "$MAX_JOBS" ]] && break
+        sleep 0.2
+    done
+}
 
 run_step_bg() {
     local name="$1"
     shift
+    _throttle
     local slug
     slug="$(echo "$name" | tr ' /' '__' | tr -cd 'A-Za-z0-9_-')"
     (
@@ -111,11 +165,12 @@ run_step_bg() {
         echo $? > "$PARALLEL_DIR/${slug}.rc"
     ) &
     PARALLEL_PIDS+=($!)
+    ALL_PIDS+=($!)
     PARALLEL_NAMES+=("$name|$slug")
 }
 
 collect_parallel() {
-    # Wait for all background jobs
+    # Wait for all background jobs in this batch
     for pid in "${PARALLEL_PIDS[@]}"; do
         wait "$pid" 2>/dev/null || true
     done
@@ -298,7 +353,9 @@ check_manifest_version_consistency() {
 run_go_build_and_tests() {
     (
         cd cli
-        go test -race -coverprofile=coverage.out -covermode=atomic ./... -v
+        go build ./cmd/ao/
+        go vet ./...
+        go test -race -coverprofile=coverage.out -covermode=atomic -count=1 ./...
         go tool cover -func=coverage.out | tail -1
     )
 }
@@ -413,6 +470,7 @@ else
 fi
 echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo "Artifacts: $ARTIFACT_DIR"
+echo "Max parallel jobs: $MAX_JOBS"
 
 # ── Phase 1: Quick sequential checks (must pass before heavy work) ──
 
@@ -497,12 +555,10 @@ if [[ "$errors" -gt 0 ]]; then
     echo -e "${RED}  LOCAL CI FAILED ($errors failing check(s)) [${ELAPSED}s]${NC}"
     echo "  Scan/SBOM artifacts: $ARTIFACT_DIR"
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
-    rm -rf "$PARALLEL_DIR"
     exit 1
 fi
 
 echo -e "${GREEN}  LOCAL CI PASSED [${ELAPSED}s]${NC}"
 echo "  Scan/SBOM artifacts: $ARTIFACT_DIR"
 echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
-rm -rf "$PARALLEL_DIR"
 exit 0
