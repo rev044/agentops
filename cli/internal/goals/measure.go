@@ -1,19 +1,24 @@
 package goals
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 // Measurement captures the result of running a single goal's check command.
 type Measurement struct {
 	GoalID    string   `json:"goal_id"`
-	Result    string   `json:"result"` // "pass", "fail", "skip", "error"
+	Result    string   `json:"result"` // "pass", "fail", "skip"
 	Value     *float64 `json:"value,omitempty"`
 	Threshold *float64 `json:"threshold,omitempty"`
 	Duration  float64  `json:"duration_s"`
@@ -33,11 +38,13 @@ func classifyResult(ctxErr, cmdErr error) string {
 	}
 }
 
-// truncateOutput limits output to 500 characters and trims whitespace.
+// truncateOutput limits output to 500 runes and trims whitespace.
+// Uses rune-aware truncation to avoid splitting multi-byte UTF-8 characters.
 func truncateOutput(raw []byte) string {
 	s := string(raw)
-	if len(s) > 500 {
-		s = s[:500]
+	if utf8.RuneCountInString(s) > 500 {
+		runes := []rune(s)
+		s = string(runes[:500])
 	}
 	return strings.TrimSpace(s)
 }
@@ -54,6 +61,38 @@ func applyContinuousMetric(m *Measurement, goal Goal) {
 	}
 }
 
+// childGroups tracks process group IDs of running gate commands so they can
+// be killed if the parent process receives a signal.
+var childGroups struct {
+	mu   sync.Mutex
+	pids map[int]struct{}
+}
+
+func trackChild(pid int) {
+	childGroups.mu.Lock()
+	defer childGroups.mu.Unlock()
+	if childGroups.pids == nil {
+		childGroups.pids = make(map[int]struct{})
+	}
+	childGroups.pids[pid] = struct{}{}
+}
+
+func untrackChild(pid int) {
+	childGroups.mu.Lock()
+	defer childGroups.mu.Unlock()
+	delete(childGroups.pids, pid)
+}
+
+func killAllChildren() {
+	childGroups.mu.Lock()
+	defer childGroups.mu.Unlock()
+	for pid := range childGroups.pids {
+		// Kill the entire process group (negative PID).
+		_ = syscall.Kill(-pid, syscall.SIGKILL)
+	}
+	childGroups.pids = nil
+}
+
 // MeasureOne runs a single goal's check command and returns a Measurement.
 // Exit 0 = pass, non-zero = fail, context deadline exceeded = skip.
 // Uses process groups so child processes are killed on timeout.
@@ -67,9 +106,26 @@ func MeasureOne(goal Goal, timeout time.Duration) Measurement {
 	cmd := exec.CommandContext(ctx, "bash", "-c", goal.Check)
 	configureProcGroup(cmd)
 	cmd.WaitDelay = 3 * time.Second
-	out, err := cmd.CombinedOutput()
+
+	// Capture combined stdout+stderr via buffer so we can track the PID
+	// between Start and Wait for signal-based cleanup.
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	if err := cmd.Start(); err != nil {
+		m.Duration = time.Since(start).Seconds()
+		m.Result = resultFail
+		m.Output = err.Error()
+		return m
+	}
+
+	trackChild(cmd.Process.Pid)
+	err := cmd.Wait()
+	untrackChild(cmd.Process.Pid)
+
 	m.Duration = time.Since(start).Seconds()
-	m.Output = truncateOutput(out)
+	m.Output = truncateOutput(buf.Bytes())
 	m.Result = classifyResult(ctx.Err(), err)
 	applyContinuousMetric(&m, goal)
 	return m
@@ -91,7 +147,20 @@ func Measure(gf *GoalFile, timeout time.Duration) *Snapshot {
 const maxParallelGoals = 2
 
 // runGoals executes meta-goals first (sequential), then non-meta goals (parallel).
+// Installs a signal handler to kill all child process groups on SIGINT/SIGTERM.
 func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
+	// Install signal handler to kill children on interrupt.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+
+	go func() {
+		if _, ok := <-sigCh; ok {
+			killAllChildren()
+			os.Exit(130) // 128 + SIGINT(2)
+		}
+	}()
+
 	// Phase 1: meta-goals run sequentially (they may affect non-meta goals).
 	var measurements []Measurement
 	for _, g := range allGoals {
@@ -135,14 +204,14 @@ func computeSummary(measurements []Measurement) SnapshotSummary {
 	var weightedPass, weightedTotal int
 	for _, m := range measurements {
 		switch m.Result {
-		case "pass":
+		case resultPass:
 			summary.Passing++
 			weightedPass += m.Weight
 			weightedTotal += m.Weight
-		case "fail", "error":
+		case resultFail:
 			summary.Failing++
 			weightedTotal += m.Weight
-		case "skip":
+		case resultSkip:
 			summary.Skipped++
 		}
 	}

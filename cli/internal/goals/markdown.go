@@ -181,9 +181,8 @@ func parseDirectives(lines []string) ([]Directive, error) {
 				current.Steer = steerVal
 				continue
 			}
-			if trimmed != "" {
-				bodyLines = append(bodyLines, trimmed)
-			}
+			// Preserve empty lines between paragraphs in directive body.
+			bodyLines = append(bodyLines, trimmed)
 		}
 	}
 

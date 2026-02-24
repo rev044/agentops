@@ -183,42 +183,39 @@ func detectGates(projectRoot string) []goals.Goal {
 		return err == nil
 	}
 
-	if stat("go.mod") {
+	switch {
+	case stat("cli/go.mod"):
+		// Nested Go project in cli/ subdirectory
 		detected = append(detected, goals.Goal{
 			ID:          "go-build",
 			Description: "Go project builds cleanly",
-			Check:       "cd cli && make build",
+			Check:       "cd cli && go build ./...",
 			Weight:      5,
 			Type:        goals.GoalTypeHealth,
 		})
 		detected = append(detected, goals.Goal{
 			ID:          "go-test",
 			Description: "Go tests pass",
-			Check:       "cd cli && make test",
+			Check:       "cd cli && go test ./...",
 			Weight:      5,
 			Type:        goals.GoalTypeHealth,
 		})
-	}
-
-	// Check for cli/go.mod as well (nested Go project)
-	if stat("cli/go.mod") {
-		// Only add if we didn't already detect top-level go.mod
-		if !stat("go.mod") {
-			detected = append(detected, goals.Goal{
-				ID:          "go-build",
-				Description: "Go project builds cleanly",
-				Check:       "cd cli && make build",
-				Weight:      5,
-				Type:        goals.GoalTypeHealth,
-			})
-			detected = append(detected, goals.Goal{
-				ID:          "go-test",
-				Description: "Go tests pass",
-				Check:       "cd cli && make test",
-				Weight:      5,
-				Type:        goals.GoalTypeHealth,
-			})
-		}
+	case stat("go.mod"):
+		// Root-level Go project
+		detected = append(detected, goals.Goal{
+			ID:          "go-build",
+			Description: "Go project builds cleanly",
+			Check:       "go build ./...",
+			Weight:      5,
+			Type:        goals.GoalTypeHealth,
+		})
+		detected = append(detected, goals.Goal{
+			ID:          "go-test",
+			Description: "Go tests pass",
+			Check:       "go test ./...",
+			Weight:      5,
+			Type:        goals.GoalTypeHealth,
+		})
 	}
 
 	if stat("package.json") {
