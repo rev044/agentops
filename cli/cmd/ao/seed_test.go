@@ -549,3 +549,25 @@ func TestDetectTemplate(t *testing.T) {
 		})
 	}
 }
+
+func TestValidTemplatesMatchEmbeddedTemplates(t *testing.T) {
+	templatesDir := filepath.Join("..", "..", "embedded", "templates")
+	entries, err := os.ReadDir(templatesDir)
+	if err != nil {
+		t.Fatalf("read templates dir %s: %v", templatesDir, err)
+	}
+
+	available := map[string]bool{}
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasSuffix(name, ".yaml") {
+			available[strings.TrimSuffix(name, ".yaml")] = true
+		}
+	}
+
+	for template := range validTemplates {
+		if !available[template] {
+			t.Errorf("validTemplates map contains %q but templates/%q.yaml is missing", template, template)
+		}
+	}
+}
