@@ -34,7 +34,7 @@ func SaveSnapshot(s *Snapshot, dir string) (string, error) {
 		return "", fmt.Errorf("creating snapshot dir: %w", err)
 	}
 
-	ts := time.Now().UTC().Format("2006-01-02T15-04-05")
+	ts := time.Now().UTC().Format("2006-01-02T15-04-05.000")
 	filename := filepath.Join(dir, ts+".json")
 
 	data, err := json.MarshalIndent(s, "", "  ")

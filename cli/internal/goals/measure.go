@@ -83,15 +83,8 @@ func untrackChild(pid int) {
 	delete(childGroups.pids, pid)
 }
 
-func killAllChildren() {
-	childGroups.mu.Lock()
-	defer childGroups.mu.Unlock()
-	for pid := range childGroups.pids {
-		// Kill the entire process group (negative PID).
-		_ = syscall.Kill(-pid, syscall.SIGKILL)
-	}
-	childGroups.pids = nil
-}
+// killAllChildren is implemented in measure_unix.go and measure_windows.go
+// using platform-specific process termination (POSIX signals vs taskkill).
 
 // MeasureOne runs a single goal's check command and returns a Measurement.
 // Exit 0 = pass, non-zero = fail, context deadline exceeded = skip.

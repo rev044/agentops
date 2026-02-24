@@ -181,8 +181,10 @@ func parseDirectives(lines []string) ([]Directive, error) {
 				current.Steer = steerVal
 				continue
 			}
-			// Preserve empty lines between paragraphs in directive body.
-			bodyLines = append(bodyLines, trimmed)
+			// Preserve raw line content (including indentation) for directive body.
+			// flushCurrent applies TrimSpace to the joined result, which strips
+			// leading/trailing blank lines while keeping internal formatting.
+			bodyLines = append(bodyLines, lines[i])
 		}
 	}
 

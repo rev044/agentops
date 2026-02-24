@@ -154,6 +154,24 @@ func TestParseDirectives_CaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestParseDirectives_PreservesIndentation(t *testing.T) {
+	input := "## Directives\n\n### 1. Indented Body\n\nPlain text.\n\n  - list item one\n  - list item two\n\n    code block\n\n**Steer:** increase\n\n## Gates\n"
+	directives, err := parseDirectives(strings.Split(input, "\n"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(directives) != 1 {
+		t.Fatalf("directives = %d, want 1", len(directives))
+	}
+	desc := directives[0].Description
+	if !strings.Contains(desc, "  - list item one") {
+		t.Errorf("indentation lost in list item, got: %q", desc)
+	}
+	if !strings.Contains(desc, "    code block") {
+		t.Errorf("indentation lost in code block, got: %q", desc)
+	}
+}
+
 func TestParseDirectives_Missing(t *testing.T) {
 	input := "## Gates\n\n| ID | Check | Weight | Description |\n"
 	directives, err := parseDirectives(strings.Split(input, "\n"))

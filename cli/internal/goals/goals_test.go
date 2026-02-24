@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -185,8 +186,8 @@ func TestValidationError_Error(t *testing.T) {
 	}
 	// Should contain the goal ID, field, and message
 	for _, substr := range []string{"my-goal", "check", "required"} {
-		if len(msg) == 0 {
-			t.Errorf("Error() missing substring %q", substr)
+		if !strings.Contains(msg, substr) {
+			t.Errorf("Error() missing substring %q in %q", substr, msg)
 		}
 	}
 }

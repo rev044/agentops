@@ -16,3 +16,13 @@ func configureProcGroup(cmd *exec.Cmd) {
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 }
+
+// killAllChildren sends SIGKILL to all tracked child process groups.
+func killAllChildren() {
+	childGroups.mu.Lock()
+	defer childGroups.mu.Unlock()
+	for pid := range childGroups.pids {
+		_ = syscall.Kill(-pid, syscall.SIGKILL)
+	}
+	childGroups.pids = nil
+}
