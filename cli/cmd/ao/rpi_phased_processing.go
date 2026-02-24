@@ -46,13 +46,20 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error {
 	epicID, err := extractEpicID(state.Opts.BDCommand)
 	if err != nil {
-		// Fallback: discover plan file when bd has no epic
+		// Fallback 1: discover plan file when bd has no epic
 		planPath, planErr := discoverPlanFile(cwd)
-		if planErr != nil {
-			return fmt.Errorf("discovery phase: no epic ID and no plan file found: bd error: %w, plan error: %v", err, planErr)
+		if planErr == nil {
+			epicID = planFileEpicPrefix + planPath
+			fmt.Printf("Plan-file fallback: using %s as epic ID\n", planPath)
+		} else {
+			// Fallback 2: any open issue (handles small-scope tasks that aren't epics)
+			issueID, issueErr := extractAnyOpenIssueID(state.Opts.BDCommand)
+			if issueErr != nil {
+				return fmt.Errorf("discovery phase: could not find epic, plan file, or open issue: %w", err)
+			}
+			epicID = issueID
+			fmt.Printf("Single-issue fallback: using %s (not an epic)\n", epicID)
 		}
-		epicID = planFileEpicPrefix + planPath
-		fmt.Printf("Plan-file fallback: using %s as epic ID\n", planPath)
 	}
 	state.EpicID = epicID
 	fmt.Printf("Epic ID: %s\n", epicID)
@@ -551,6 +558,18 @@ func extractEpicID(bdCommand string) (string, error) {
 		return "", fmt.Errorf("bd list: %w", err)
 	}
 	return parseLatestEpicIDFromText(string(out))
+}
+
+// extractAnyOpenIssueID finds the most recently created open issue of any type.
+// Used as a fallback when no epic exists (e.g., small-scope work created as a task).
+func extractAnyOpenIssueID(bdCommand string) (string, error) {
+	command := effectiveBDCommand(bdCommand)
+	cmd := exec.Command(command, "list", "--status", "open", "--json")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("bd list (any type): %w", err)
+	}
+	return parseLatestEpicIDFromJSON(out)
 }
 
 func parseLatestEpicIDFromJSON(data []byte) (string, error) {

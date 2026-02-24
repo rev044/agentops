@@ -546,6 +546,16 @@ func TestParseLatestEpicIDFromJSON(t *testing.T) {
 			want:  "bd-11",
 		},
 		{
+			name:  "single task (non-epic fallback scenario)",
+			input: `[{"id":"jo-qqq"}]`,
+			want:  "jo-qqq",
+		},
+		{
+			name:  "mixed types returns last",
+			input: `[{"id":"ag-a1"},{"id":"jo-qqq"},{"id":"test-85b"}]`,
+			want:  "test-85b",
+		},
+		{
 			name:    "empty list",
 			input:   `[]`,
 			wantErr: true,
@@ -1394,5 +1404,222 @@ func TestLogPhaseTransition_MirrorsToLedgerAndCache(t *testing.T) {
 	cachePath := filepath.Join(tmpDir, ".agents", "rpi", "runs", "run-ledger.json")
 	if _, err := os.Stat(cachePath); err != nil {
 		t.Fatalf("expected run cache at %s: %v", cachePath, err)
+	}
+}
+
+// --- writePhaseResult + validatePriorPhaseResult ---
+
+func TestWritePhaseResult(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	result := &phaseResult{
+		SchemaVersion: 1,
+		RunID:         "test-run",
+		Phase:         1,
+		PhaseName:     "discovery",
+		Status:        "completed",
+		Artifacts: map[string]string{
+			"plan": ".agents/plans/test-plan.md",
+		},
+		Verdicts: map[string]string{
+			"pre_mortem": "PASS",
+		},
+		StartedAt:       "2026-02-24T10:00:00Z",
+		CompletedAt:     "2026-02-24T10:05:00Z",
+		DurationSeconds: 300,
+	}
+
+	if err := writePhaseResult(tmpDir, result); err != nil {
+		t.Fatalf("writePhaseResult: %v", err)
+	}
+
+	// Verify file exists at expected path
+	path := filepath.Join(tmpDir, ".agents", "rpi", fmt.Sprintf(phaseResultFileFmt, 1))
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read phase result: %v", err)
+	}
+
+	// Verify JSON round-trips correctly
+	var loaded phaseResult
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		t.Fatalf("unmarshal phase result: %v", err)
+	}
+	if loaded.Phase != 1 {
+		t.Errorf("phase = %d, want 1", loaded.Phase)
+	}
+	if loaded.Status != "completed" {
+		t.Errorf("status = %q, want %q", loaded.Status, "completed")
+	}
+	if loaded.PhaseName != "discovery" {
+		t.Errorf("phase_name = %q, want %q", loaded.PhaseName, "discovery")
+	}
+	if loaded.Verdicts["pre_mortem"] != "PASS" {
+		t.Errorf("verdicts[pre_mortem] = %q, want %q", loaded.Verdicts["pre_mortem"], "PASS")
+	}
+}
+
+func TestValidatePriorPhaseResult(t *testing.T) {
+	tests := []struct {
+		name    string
+		phase   int
+		result  *phaseResult
+		wantErr bool
+	}{
+		{
+			name:  "valid completed phase",
+			phase: 1,
+			result: &phaseResult{
+				Phase:  1,
+				Status: "completed",
+			},
+		},
+		{
+			name:    "failed status rejects",
+			phase:   1,
+			result:  &phaseResult{Phase: 1, Status: "failed"},
+			wantErr: true,
+		},
+		{
+			name:    "empty status rejects",
+			phase:   1,
+			result:  &phaseResult{Phase: 1, Status: ""},
+			wantErr: true,
+		},
+		{
+			name:    "missing file rejects",
+			phase:   2,
+			result:  nil, // don't write anything
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			if tt.result != nil {
+				if err := writePhaseResult(tmpDir, tt.result); err != nil {
+					t.Fatalf("writePhaseResult: %v", err)
+				}
+			}
+
+			err := validatePriorPhaseResult(tmpDir, tt.phase)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// --- updateRunHeartbeat + readRunHeartbeat ---
+
+func TestRunHeartbeat(t *testing.T) {
+	tmpDir := t.TempDir()
+	runID := "test-heartbeat-run"
+
+	// No heartbeat yet — should return zero time
+	ts := readRunHeartbeat(tmpDir, runID)
+	if !ts.IsZero() {
+		t.Fatalf("expected zero time for missing heartbeat, got %v", ts)
+	}
+
+	// Write heartbeat
+	updateRunHeartbeat(tmpDir, runID)
+
+	// Read it back
+	ts = readRunHeartbeat(tmpDir, runID)
+	if ts.IsZero() {
+		t.Fatal("expected non-zero time after heartbeat update")
+	}
+	if time.Since(ts) > 10*time.Second {
+		t.Fatalf("heartbeat timestamp too old: %v", ts)
+	}
+}
+
+func TestRunHeartbeat_EmptyRunID(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Should be a no-op, not panic
+	updateRunHeartbeat(tmpDir, "")
+	ts := readRunHeartbeat(tmpDir, "")
+	if !ts.IsZero() {
+		t.Fatalf("expected zero time for empty runID, got %v", ts)
+	}
+}
+
+// --- deriveRepoRootFromRPIOrchestrationLog ---
+
+func TestDeriveRepoRootFromRPIOrchestrationLog(t *testing.T) {
+	tests := []struct {
+		name    string
+		logPath string
+		want    string
+		wantOK  bool
+	}{
+		{
+			name:    "valid rpi log path",
+			logPath: "/home/user/project/.agents/rpi/orchestration.log",
+			want:    "/home/user/project",
+			wantOK:  true,
+		},
+		{
+			name:    "nested project path",
+			logPath: "/tmp/worktree/.agents/rpi/run-log.jsonl",
+			want:    "/tmp/worktree",
+			wantOK:  true,
+		},
+		{
+			name:    "not in rpi dir",
+			logPath: "/home/user/project/.agents/council/report.md",
+			want:    "",
+			wantOK:  false,
+		},
+		{
+			name:    "not in .agents dir",
+			logPath: "/home/user/project/rpi/log.txt",
+			want:    "",
+			wantOK:  false,
+		},
+		{
+			name:    "bare filename",
+			logPath: "orchestration.log",
+			want:    "",
+			wantOK:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := deriveRepoRootFromRPIOrchestrationLog(tt.logPath)
+			if ok != tt.wantOK {
+				t.Errorf("ok = %v, want %v", ok, tt.wantOK)
+			}
+			if got != tt.want {
+				t.Errorf("got = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- rpiRunRegistryDir ---
+
+func TestRpiRunRegistryDir(t *testing.T) {
+	got := rpiRunRegistryDir("/home/user/project", "run-abc123")
+	want := filepath.Join("/home/user/project", ".agents", "rpi", "runs", "run-abc123")
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+
+	// Empty runID returns empty
+	got = rpiRunRegistryDir("/home/user/project", "")
+	if got != "" {
+		t.Errorf("expected empty for empty runID, got %q", got)
 	}
 }
