@@ -11,10 +11,11 @@ import (
 
 var (
 	// Global flags
-	dryRun  bool
-	verbose bool
-	output  string
-	cfgFile string
+	dryRun   bool
+	verbose  bool
+	output   string
+	jsonFlag bool
+	cfgFile  string
 )
 
 // rootCmd represents the base command when called without any subcommands.
@@ -32,6 +33,9 @@ The Knowledge Flywheel:
 Use "ao <command> --help" for more information about a command.`,
 	SilenceUsage: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if jsonFlag {
+			output = "json"
+		}
 		syncConfigFlagToEnv()
 	},
 }
@@ -58,6 +62,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Show what would happen without executing")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "table", "Output format (json, table, yaml)")
+	rootCmd.PersistentFlags().BoolVar(&jsonFlag, "json", false, "Output as JSON (shorthand for -o json)")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.agentops/config.yaml)")
 }
 

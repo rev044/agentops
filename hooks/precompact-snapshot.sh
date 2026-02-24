@@ -122,7 +122,7 @@ HANDOFF_TS_SAFE=$(date -u +%Y%m%dT%H%M%SZ)
 HANDOFF_FILE="$HANDOFF_DIR/auto-${HANDOFF_TS_SAFE}.md"
 
 # Gather handoff data (all with 1s timeout to stay under 2s budget)
-RATCHET_STATE=$(timeout_run 1 ao ratchet status -o json 2>/dev/null || echo "")
+RATCHET_STATE=$(timeout_run 1 ao ratchet status --json 2>/dev/null || echo "")
 ACTIVE_BEAD=$(timeout_run 1 bd current 2>/dev/null || echo "")
 MODIFIED_FILES=$(git diff --name-only HEAD 2>/dev/null | head -20)
 

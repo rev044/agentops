@@ -33,11 +33,11 @@ Shows:
 Examples:
   ao metrics cite-report
   ao metrics cite-report --days 90
-  ao metrics cite-report -o json`,
+  ao metrics cite-report --json`,
 		RunE: runMetricsCiteReport,
 	}
 	citeReportCmd.Flags().Int("days", 30, "Period in days")
-	citeReportCmd.Flags().Bool("json", false, "Output as JSON (alias for -o json)")
+	citeReportCmd.Flags().Bool("json", false, "Output as JSON")
 	metricsCmd.AddCommand(citeReportCmd)
 }
 

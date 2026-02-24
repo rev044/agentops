@@ -47,7 +47,7 @@ AUTO_RESTART_STALE="${AGENTOPS_CONTEXT_GUARD_AUTO_RESTART_STALE:-0}"
 STRICT_MODE="${AGENTOPS_CONTEXT_GUARD_STRICT:-0}"
 
 AGENT_NAME="${CLAUDE_AGENT_NAME:-}"
-AO_ARGS=(context guard --session "$SESSION_ID" --max-tokens "$MAX_TOKENS" --watchdog-minutes "$WATCHDOG_MINUTES" -o json)
+AO_ARGS=(context guard --session "$SESSION_ID" --max-tokens "$MAX_TOKENS" --watchdog-minutes "$WATCHDOG_MINUTES" --json)
 [ -n "$PROMPT" ] && AO_ARGS+=(--prompt "$PROMPT")
 [ -n "$AGENT_NAME" ] && AO_ARGS+=(--agent-name "$AGENT_NAME")
 [ "$WRITE_HANDOFF" = "1" ] && AO_ARGS+=(--write-handoff)

@@ -175,7 +175,7 @@ func TestExtractAllDryRun(t *testing.T) {
 	}
 }
 
-// TestExtractAllJSON tests --all with -o json output.
+// TestExtractAllJSON tests --all with --json output.
 func TestExtractAllJSON(t *testing.T) {
 	tempDir := t.TempDir()
 	pendingPath := filepath.Join(tempDir, storage.DefaultBaseDir, "pending.jsonl")
@@ -201,7 +201,7 @@ func TestExtractAllJSON(t *testing.T) {
 	defer func() { output = "table" }()
 
 	if err := runExtract(nil, nil); err != nil {
-		t.Fatalf("runExtract --all -o json failed: %v", err)
+		t.Fatalf("runExtract --all --json failed: %v", err)
 	}
 
 	// Verify file was processed

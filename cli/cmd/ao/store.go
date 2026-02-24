@@ -133,7 +133,7 @@ Returns results ranked by relevance with snippets.
 Examples:
   ao store search "mutex pattern"
   ao store search "error handling" --limit 5
-  ao store search "authentication" -o json`,
+  ao store search "authentication" --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: runStoreSearch,
 	}
@@ -174,7 +174,7 @@ Shows:
 
 Examples:
   ao store stats
-  ao store stats -o json`,
+  ao store stats --json`,
 		RunE: runStoreStats,
 	}
 	storeCmd.AddCommand(statsCmd)

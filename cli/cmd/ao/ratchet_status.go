@@ -26,7 +26,7 @@ Shows all steps and their status (pending, in_progress, locked, skipped).
 Examples:
   ao ratchet status
   ao ratchet status --epic ol-0001
-  ao ratchet status -o json`,
+  ao ratchet status --json`,
 		RunE: runRatchetStatus,
 	}
 	statusSubCmd.Flags().StringVar(&ratchetEpicID, "epic", "", "Filter by epic ID")

@@ -61,7 +61,7 @@ Examples:
   ao extract                    # Process most recent pending extraction
   ao extract --all              # Process all pending extractions
   ao extract --all --dry-run    # Preview what would be processed
-  ao extract --all -o json      # Process all with JSON output
+  ao extract --all --json      # Process all with JSON output
   ao extract --clear            # Clear pending queue without processing
   ao extract --max-content 4000 # Limit content size`,
 	RunE: runExtract,

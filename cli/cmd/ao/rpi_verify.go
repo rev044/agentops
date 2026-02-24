@@ -22,7 +22,7 @@ Checks the ledger chain for corruption and reports a concise PASS/FAIL summary.
 
 Examples:
   ao rpi verify
-  ao rpi verify -o json`,
+  ao rpi verify --json`,
 		RunE: runRPIVerify,
 	}
 	rpiCmd.AddCommand(verifyCmd)

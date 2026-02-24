@@ -29,7 +29,7 @@ Examples:
   ao session close
   ao session close --session abc123
   ao session close --dry-run
-  ao session close -o json`,
+  ao session close --json`,
 }
 
 var sessionCloseSessionID string
@@ -51,7 +51,7 @@ Examples:
   ao session close                        # Close most recent session
   ao session close --session abc123       # Close specific session
   ao session close --dry-run              # Preview what would happen
-  ao session close -o json                # Structured output`,
+  ao session close --json                # Structured output`,
 	RunE: runSessionClose,
 }
 

@@ -43,7 +43,7 @@ Files already in pending/processed are not scanned by this command.
 Examples:
   ao pool migrate-legacy
   ao pool migrate-legacy --source-dir .agents/knowledge --pending-dir .agents/knowledge/pending
-  ao pool migrate-legacy --dry-run -o json`,
+  ao pool migrate-legacy --dry-run --json`,
 	RunE: runPoolMigrateLegacy,
 }
 

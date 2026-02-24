@@ -28,7 +28,7 @@ Shows:
 
 Examples:
   ao status
-  ao status -o json`,
+  ao status --json`,
 	RunE: runStatus,
 }
 

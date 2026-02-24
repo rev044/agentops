@@ -49,7 +49,7 @@ Designed to be safe for hooks with --quiet.
 Examples:
   ao flywheel close-loop
   ao flywheel close-loop --threshold 24h --pending-dir .agents/knowledge/pending
-  ao flywheel close-loop -o json
+  ao flywheel close-loop --json
   ao flywheel close-loop --dry-run`,
 	RunE: runFlywheelCloseLoop,
 }

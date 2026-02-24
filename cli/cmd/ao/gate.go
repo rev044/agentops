@@ -44,7 +44,7 @@ Highlights items approaching 24h auto-promote threshold.
 
 Examples:
   ao gate pending
-  ao gate pending -o json`,
+  ao gate pending --json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if GetDryRun() {
 			fmt.Println("[dry-run] Would list pending gate reviews")

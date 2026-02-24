@@ -34,7 +34,7 @@ Also parses orchestration logs for phase history, durations, and verdicts.
 
 Examples:
   ao rpi status
-  ao rpi status -o json
+  ao rpi status --json
   ao rpi status --watch`,
 		RunE: runRPIStatus,
 	}

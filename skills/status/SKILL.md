@@ -45,8 +45,8 @@ fi
 
 # Ratchet status via CLI
 if command -v ao &>/dev/null; then
-  ao ratchet status -o json 2>/dev/null || echo "RATCHET_UNAVAILABLE"
-  ao task-status -o json 2>/dev/null || echo "TASK_STATUS_UNAVAILABLE"
+  ao ratchet status --json 2>/dev/null || echo "RATCHET_UNAVAILABLE"
+  ao task-status --json 2>/dev/null || echo "TASK_STATUS_UNAVAILABLE"
 fi
 ```
 
@@ -195,7 +195,7 @@ Evaluate state top-to-bottom. Use the FIRST matching condition:
 | 8 | Implementation done, no vibe | "Run `/vibe` for final code validation" |
 | 9 | Recent WARN/FAIL verdict | "Address findings in `<report-path>`, then re-run `/vibe`" |
 | 10 | Vibe passed, no post-mortem | "Run `/post-mortem` to extract learnings and complete the cycle" |
-| 11 | Pending knowledge items | "Promote learnings: `ao pool list --status pending -o json`, then `ao pool stage <id>` and `ao pool promote <id>`" |
+| 11 | Pending knowledge items | "Promote learnings: `ao pool list --status pending --json`, then `ao pool stage <id>` and `ao pool promote <id>`" |
 | 12 | Clean state, nothing pending | "All clear. Start with `/research` or `/plan` to find new work" |
 
 ### Step 4: JSON Output (--json flag)

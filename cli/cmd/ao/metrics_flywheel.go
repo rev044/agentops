@@ -28,7 +28,7 @@ Commands:
 
 Examples:
   ao flywheel status
-  ao flywheel status -o json`,
+  ao flywheel status --json`,
 }
 
 func init() {
@@ -51,7 +51,7 @@ Shows:
 Examples:
   ao flywheel status
   ao flywheel status --days 30
-  ao flywheel status -o json`,
+  ao flywheel status --json`,
 		RunE: runFlywheelStatus,
 	}
 	statusCmd.Flags().IntVar(&metricsDays, "days", 7, "Period in days for metrics calculation")

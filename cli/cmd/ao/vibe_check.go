@@ -40,7 +40,7 @@ Output modes:
 Examples:
   ao vibe-check
   ao vibe-check --since 30d
-  ao vibe-check --repo /path/to/repo -o json
+  ao vibe-check --repo /path/to/repo --json
   ao vibe-check --markdown --full`,
 	RunE: runVibeCheck,
 }

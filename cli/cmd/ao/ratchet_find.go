@@ -23,7 +23,7 @@ Warns about duplicates found in multiple locations.
 Examples:
   ao ratchet find "research/*.md"
   ao ratchet find "specs/*-v2.md"
-  ao ratchet find "learnings/*.md" -o json`,
+  ao ratchet find "learnings/*.md" --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: runRatchetFind,
 	}

@@ -10,7 +10,7 @@
 # Check if ao CLI is available
 if command -v ao &>/dev/null; then
   # Check if research and plan phases completed
-  RATCHET_STATUS=$(ao ratchet status -o json 2>/dev/null || echo '{}')
+  RATCHET_STATUS=$(ao ratchet status --json 2>/dev/null || echo '{}')
   RESEARCH_DONE=$(echo "$RATCHET_STATUS" | jq -r '.research.completed // false')
   PLAN_DONE=$(echo "$RATCHET_STATUS" | jq -r '.plan.completed // false')
 
@@ -42,7 +42,7 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  RATCHET_JSON=$(ao ratchet status -o json 2>/dev/null || echo '{}')
+  RATCHET_JSON=$(ao ratchet status --json 2>/dev/null || echo '{}')
   PRE_MORTEM_STATUS=$(echo "$RATCHET_JSON" | jq -r '.steps[]? | select(.name == "pre-mortem") | .status // "none"')
   PLAN_EXISTS=$(ls .agents/plans/*.md 2>/dev/null | head -1)
 

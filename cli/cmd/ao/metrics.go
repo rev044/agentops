@@ -65,7 +65,7 @@ Output is saved to .agents/ao/metrics/baseline-YYYY-MM-DD.json
 Examples:
   ao metrics baseline
   ao metrics baseline --days 7
-  ao metrics baseline -o json`,
+  ao metrics baseline --json`,
 		RunE: runMetricsBaseline,
 	}
 	baselineCmd.Flags().IntVar(&metricsDays, "days", 7, "Period in days for metrics calculation")
@@ -87,7 +87,7 @@ Shows:
 Examples:
   ao metrics report
   ao metrics report --days 30
-  ao metrics report -o json`,
+  ao metrics report --json`,
 		RunE: runMetricsReport,
 	}
 	reportCmd.Flags().IntVar(&metricsDays, "days", 7, "Period in days for metrics calculation")

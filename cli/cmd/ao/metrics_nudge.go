@@ -30,7 +30,7 @@ Designed for session-start.sh to provide contextual nudges in a single call.
 
 Examples:
   ao flywheel nudge
-  ao flywheel nudge -o json
+  ao flywheel nudge --json
   ao flywheel nudge -o table`,
 	RunE: runNudge,
 }

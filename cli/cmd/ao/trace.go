@@ -27,7 +27,7 @@ that was processed to create it.
 Examples:
   ao trace .agents/ao/sessions/2026-01-20-my-session.md
   ao trace .agents/ao/sessions/*.md --graph
-  ao trace session-abc123 -o json`,
+  ao trace session-abc123 --json`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runTrace,
 }

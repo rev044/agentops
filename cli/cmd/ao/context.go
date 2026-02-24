@@ -151,7 +151,7 @@ sessions into OPTIMAL, WARNING, or CRITICAL with watchdog actions.
 
 Examples:
   ao context status
-  ao context status -o json`,
+  ao context status --json`,
 		RunE: runContextStatus,
 	}
 	statusCmd.Flags().IntVar(&contextWatchdogMinute, "watchdog-minutes", defaultWatchdogMinutes, "Mark sessions stale after N minutes without telemetry updates")
@@ -164,7 +164,7 @@ and optionally write a one-shot auto-handoff marker on CRITICAL.
 
 Examples:
   ao context guard
-  ao context guard --session <id> --write-handoff -o json`,
+  ao context guard --session <id> --write-handoff --json`,
 		RunE: runContextGuard,
 	}
 	guardCmd.Flags().StringVar(&contextSessionID, "session", "", "Session ID (default: $CLAUDE_SESSION_ID)")

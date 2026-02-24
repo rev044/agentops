@@ -130,7 +130,7 @@ Shows:
 
 Examples:
   ao temper status
-  ao temper status -o json
+  ao temper status --json
   ao temper status --verbose`,
 		RunE: runTemperStatus,
 	}

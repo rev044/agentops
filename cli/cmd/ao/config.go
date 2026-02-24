@@ -43,7 +43,7 @@ Environment variables:
 
 Examples:
   ao config --show           # Show resolved configuration
-  ao config --show -o json   # Output as JSON`,
+  ao config --show --json   # Output as JSON`,
 	RunE: runConfig,
 }
 

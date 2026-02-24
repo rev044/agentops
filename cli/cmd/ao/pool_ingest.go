@@ -48,7 +48,7 @@ Examples:
   ao pool ingest
   ao pool ingest --dir .agents/knowledge/pending
   ao pool ingest .agents/knowledge/pending/*.md
-  ao pool ingest --dry-run -o json`,
+  ao pool ingest --dry-run --json`,
 	RunE: runPoolIngest,
 }
 

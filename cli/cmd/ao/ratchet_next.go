@@ -45,7 +45,7 @@ ratchet chain state. Returns "complete" if all steps are locked.
 
 Examples:
   ao ratchet next
-  ao ratchet next -o json
+  ao ratchet next --json
   ao ratchet next --epic ol-0001`,
 		RunE: runRatchetNext,
 	}
