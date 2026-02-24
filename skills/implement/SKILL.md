@@ -88,6 +88,38 @@ Based on the context gathered:
 3. **Follow existing patterns** in the codebase
 4. **Keep changes minimal** - don't over-engineer
 
+### Step 4a: Build Verification (CLI repos only)
+
+If the project has a Go `cmd/` directory or a Makefile with a `build` target, run build verification before proceeding to tests:
+
+```bash
+# Detect CLI repo
+if [ -f go.mod ] && ls cmd/*/main.go &>/dev/null; then
+    echo "CLI repo detected — running build verification..."
+
+    # Build
+    go build ./cmd/... 2>&1
+    if [ $? -ne 0 ]; then
+        echo "BUILD FAILED — fix compilation errors before proceeding"
+        # Do NOT proceed to Step 5
+    fi
+
+    # Vet
+    go vet ./cmd/... 2>&1
+
+    # Smoke test: run the binary with --help
+    BINARY=$(ls -t cmd/*/main.go | head -1 | xargs dirname | xargs basename)
+    if [ -f "bin/$BINARY" ]; then
+        ./bin/$BINARY --help > /dev/null 2>&1
+        echo "Smoke test: $BINARY --help passed"
+    fi
+fi
+```
+
+**If build fails:** Fix compilation errors and re-run before proceeding. Do NOT skip to verification with a broken build.
+
+**If not a CLI repo:** This step is a no-op — proceed directly to Step 5.
+
 ### Step 5: Verify the Change
 
 **Success Criteria (all must pass):**

@@ -321,6 +321,23 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 - Workers follow GREEN Mode rules from `/implement` SKILL.md
 - Docs/chore/ci issues (skipped by SPEC/TEST waves) use standard worker prompts unchanged
 
+**File manifests (REQUIRED):** Include a `metadata.files` array in every TaskCreate listing the files that worker will modify. This feeds into swarm's pre-spawn conflict detection -- two workers claiming the same file in the same wave get serialized or worktree-isolated automatically. Derive file lists from the issue description, plan, or codebase exploration during planning.
+
+```
+TaskCreate(
+  subject="ag-1234: Add auth middleware",
+  description="...",
+  activeForm="Implementing ag-1234",
+  metadata={
+    "files": ["src/middleware/auth.py", "tests/test_auth.py"],
+    "validation": {
+      "tests": "pytest tests/test_auth.py -v",
+      "files_exist": ["src/middleware/auth.py", "tests/test_auth.py"]
+    }
+  }
+)
+```
+
 **BEFORE each wave:**
 ```bash
 wave=$((wave + 1))

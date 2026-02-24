@@ -1,235 +1,169 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-# cherry-pick-wave.sh
-# Automates cherry-picking commits from worktree agent branches onto the current branch.
-#
+# cherry-pick-wave.sh — Cherry-pick commits from swarm worktrees to current branch.
 # Usage:
-#   cherry-pick-wave.sh [--dry-run] <worktree-path> [worktree-path...]
-#   cherry-pick-wave.sh --help
-#
-# Options:
-#   --dry-run   Show what would be cherry-picked without making any changes
-#   --help      Show this help message
-#
-# Exit codes:
-#   0 = all cherry-picks succeeded (or dry-run completed)
-#   1 = one or more cherry-picks failed or conflicts encountered
+#   cherry-pick-wave.sh                      # cherry-pick from all agent worktrees
+#   cherry-pick-wave.sh --dry-run            # preview only
+#   cherry-pick-wave.sh --pattern "swarm-*"  # custom worktree name pattern
+#   cherry-pick-wave.sh --cleanup-only       # remove worktrees without cherry-picking
+#   cherry-pick-wave.sh --yes                # skip confirmation prompt
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DRY_RUN=false; CLEANUP_ONLY=false; YES=false; PATTERN="agent-*"
+WT_BASE="$REPO_ROOT/.claude/worktrees"
 
-# ── Globals ──────────────────────────────────────────────────────────────────
-DRY_RUN=false
-WORKTREE_PATHS=()
-
-TOTAL_COMMITS=0
-TOTAL_WORKTREES=0
-FAILED_WORKTREES=()
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-usage() {
-  cat <<'EOF'
-Usage: cherry-pick-wave.sh [--dry-run] <worktree-path> [worktree-path...]
-
-Cherry-pick commits from one or more worktree agent branches onto the current branch.
-
+usage() { cat <<'EOF'
+Usage: cherry-pick-wave.sh [OPTIONS]
 Options:
-  --dry-run   Show what would be cherry-picked without making any changes
-  --help      Show this help message
-
-Arguments:
-  worktree-path   Path to a git worktree directory (one or more)
-
-Examples:
-  # Cherry-pick from a single worktree
-  cherry-pick-wave.sh .claude/worktrees/agent-abc123
-
-  # Cherry-pick from multiple worktrees
-  cherry-pick-wave.sh .claude/worktrees/agent-abc123 .claude/worktrees/agent-def456
-
-  # Preview without applying
-  cherry-pick-wave.sh --dry-run .claude/worktrees/agent-abc123
-
-Exit codes:
-  0 = all cherry-picks succeeded (or dry-run completed)
-  1 = one or more cherry-picks failed or conflicts encountered
+  --dry-run        Show what would be cherry-picked without making changes
+  --pattern PAT    Glob pattern for worktree dirs (default: "agent-*")
+  --cleanup-only   Remove worktrees without cherry-picking
+  --yes            Skip confirmation prompt
+  --help           Show this help message
 EOF
 }
 
-log_info()  { echo "[INFO]  $*"; }
-log_warn()  { echo "[WARN]  $*" >&2; }
-log_error() { echo "[ERROR] $*" >&2; }
+die() { echo "ERROR: $*" >&2; exit 1; }
 
-# Resolve an absolute path, following symlinks where possible
-resolve_path() {
-  local p="$1"
-  if command -v realpath &>/dev/null; then
-    realpath -m "$p" 2>/dev/null || echo "$p"
-  else
-    cd "$p" 2>/dev/null && pwd || echo "$p"
-  fi
+changed_files_summary() {
+  git -C "$REPO_ROOT" diff-tree --no-commit-id --name-only -r "$1" 2>/dev/null \
+    | sed 's|.*/||' | head -5 | paste -sd', ' -
 }
 
-# ── Argument Parsing ──────────────────────────────────────────────────────────
-if [[ $# -eq 0 ]]; then
-  usage
-  exit 1
-fi
+confirm() {
+  [[ "$YES" == "true" ]] && return 0
+  printf "%s [y/N] " "$1"; read -r ans; [[ "$ans" =~ ^[Yy] ]]
+}
 
+remove_worktrees() {
+  echo "Cleaning up worktrees..."
+  for i in "${!WT_NAMES[@]}"; do
+    local wt="${WORKTREES[$i]}" name="${WT_NAMES[$i]}" c="${WT_COMMITS[$i]}"
+    git -C "$REPO_ROOT" worktree remove --force "$wt" 2>/dev/null || rm -rf "$wt"
+    [[ "$c" -gt 0 ]] && echo "  Removed $name" || echo "  Removed $name (no changes)"
+  done
+  git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+}
+
+# ── Argument Parsing ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dry-run)
-      DRY_RUN=true
-      shift
-      ;;
-    --help|-h)
-      usage
-      exit 0
-      ;;
-    -*)
-      log_error "Unknown option: $1"
-      usage
-      exit 1
-      ;;
-    *)
-      WORKTREE_PATHS+=("$1")
-      shift
-      ;;
+    --dry-run)      DRY_RUN=true; shift ;;
+    --cleanup-only) CLEANUP_ONLY=true; shift ;;
+    --yes|-y)       YES=true; shift ;;
+    --pattern)      PATTERN="${2:?--pattern requires a value}"; shift 2 ;;
+    --help|-h)      usage; exit 0 ;;
+    *)              die "Unknown option: $1" ;;
   esac
 done
 
-if [[ ${#WORKTREE_PATHS[@]} -eq 0 ]]; then
-  log_error "No worktree paths provided."
-  usage
-  exit 1
+# ── Pre-flight ───────────────────────────────────────────────────────────────
+git -C "$REPO_ROOT" rev-parse --is-inside-work-tree &>/dev/null \
+  || die "Not inside a git repository: $REPO_ROOT"
+if [[ "$DRY_RUN" != "true" ]] && [[ "$CLEANUP_ONLY" != "true" ]]; then
+  if ! git -C "$REPO_ROOT" diff --quiet 2>/dev/null \
+     || ! git -C "$REPO_ROOT" diff --cached --quiet 2>/dev/null; then
+    die "Current branch has uncommitted changes. Commit or stash first."
+  fi
 fi
-
-# ── Validate we are inside a git repo ─────────────────────────────────────────
-if ! git -C "$REPO_ROOT" rev-parse --is-inside-work-tree &>/dev/null; then
-  log_error "Not inside a git repository: $REPO_ROOT"
-  exit 1
-fi
-
 CURRENT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
-log_info "Current branch: $CURRENT_BRANCH"
 
-if [[ "$DRY_RUN" == "true" ]]; then
-  log_info "Dry-run mode — no commits will be applied."
+# ── Discover worktrees ───────────────────────────────────────────────────────
+WORKTREES=()
+if [[ -d "$WT_BASE" ]]; then
+  for d in "$WT_BASE"/$PATTERN; do [[ -d "$d" ]] && WORKTREES+=("$d"); done
+fi
+if [[ ${#WORKTREES[@]} -eq 0 ]]; then
+  echo "No worktrees found matching '$PATTERN' in $WT_BASE"; exit 0
 fi
 
-# ── Per-worktree processing ───────────────────────────────────────────────────
-process_worktree() {
-  local wt_path="$1"
-  local wt_abs
+# ── Analyze each worktree ────────────────────────────────────────────────────
+declare -a WT_NAMES=() WT_BRANCHES=() WT_COMMITS=() WT_SUMMARIES=()
+TOTAL_COMMITS=0; HAS_CHANGES=0
 
-  wt_abs="$(resolve_path "$wt_path")"
-
-  if [[ ! -d "$wt_abs" ]]; then
-    log_error "Worktree path does not exist: $wt_abs"
-    FAILED_WORKTREES+=("$wt_abs (path not found)")
-    return 1
+for wt in "${WORKTREES[@]}"; do
+  name="$(basename "$wt")"; WT_NAMES+=("$name")
+  branch=""
+  if git -C "$wt" rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+    branch="$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
   fi
-
-  # Verify it is a registered git worktree
-  local wt_branch
-  wt_branch="$(git -C "$REPO_ROOT" worktree list --porcelain \
-    | awk -v wp="$wt_abs" '
-        /^worktree / { cur=$2 }
-        /^branch /   { if (cur == wp) { sub(/^refs\/heads\//, "", $2); print $2; exit } }
-      ')"
-
-  if [[ -z "$wt_branch" ]]; then
-    # Fallback: ask the worktree itself
-    if git -C "$wt_abs" rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
-      wt_branch="$(git -C "$wt_abs" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-    fi
+  WT_BRANCHES+=("$branch")
+  if [[ -z "$branch" ]]; then
+    WT_COMMITS+=("0"); WT_SUMMARIES+=("branch unknown"); continue
   fi
-
-  if [[ -z "$wt_branch" ]]; then
-    log_error "Could not determine branch for worktree: $wt_abs"
-    FAILED_WORKTREES+=("$wt_abs (branch unknown)")
-    return 1
+  merge_base="$(git -C "$REPO_ROOT" merge-base "$CURRENT_BRANCH" "$branch" 2>/dev/null || true)"
+  if [[ -z "$merge_base" ]]; then
+    WT_COMMITS+=("0"); WT_SUMMARIES+=("no merge-base"); continue
   fi
-
-  log_info "Worktree: $wt_abs  ->  branch: $wt_branch"
-
-  # Find the merge-base between the worktree branch and the current branch
-  local merge_base
-  if ! merge_base="$(git -C "$REPO_ROOT" merge-base "$CURRENT_BRANCH" "$wt_branch" 2>/dev/null)"; then
-    log_error "Cannot find merge-base between '$CURRENT_BRANCH' and '$wt_branch' for worktree: $wt_abs"
-    FAILED_WORKTREES+=("$wt_abs (no merge-base)")
-    return 1
+  shas="$(git -C "$REPO_ROOT" rev-list --reverse "${merge_base}..${branch}" 2>/dev/null || true)"
+  count=0; files=""
+  if [[ -n "$shas" ]]; then
+    count="$(echo "$shas" | wc -l | tr -d ' ')"
+    files="$(for sha in $shas; do changed_files_summary "$sha"; done \
+      | tr ',' '\n' | sort -u | head -5 | paste -sd', ' -)"
   fi
-
-  # Commits on the worktree branch that are NOT on the current branch
-  local commits
-  commits="$(git -C "$REPO_ROOT" log --oneline --reverse \
-    "${merge_base}..${wt_branch}" 2>/dev/null || true)"
-
-  if [[ -z "$commits" ]]; then
-    log_info "  No new commits on $wt_branch since branch point — skipping."
-    return 0
+  WT_COMMITS+=("$count")
+  if [[ "$count" -gt 0 ]]; then
+    WT_SUMMARIES+=("$files"); TOTAL_COMMITS=$((TOTAL_COMMITS + count)); HAS_CHANGES=$((HAS_CHANGES + 1))
+  else
+    WT_SUMMARIES+=("no changes")
   fi
-
-  local commit_count
-  commit_count="$(echo "$commits" | wc -l | tr -d ' ')"
-  log_info "  Found $commit_count commit(s) to cherry-pick:"
-
-  while IFS= read -r line; do
-    log_info "    $line"
-  done <<< "$commits"
-
-  if [[ "$DRY_RUN" == "true" ]]; then
-    TOTAL_COMMITS=$(( TOTAL_COMMITS + commit_count ))
-    TOTAL_WORKTREES=$(( TOTAL_WORKTREES + 1 ))
-    return 0
-  fi
-
-  # Apply commits one by one for precise conflict reporting
-  local sha subject
-  while IFS= read -r line; do
-    sha="${line%% *}"
-    subject="${line#* }"
-
-    log_info "  Applying: $sha $subject"
-
-    if ! git -C "$REPO_ROOT" cherry-pick "$sha" 2>&1; then
-      log_error "  Conflict on commit $sha ('$subject') from worktree: $wt_abs"
-      log_info  "  Aborting cherry-pick for this worktree."
-      git -C "$REPO_ROOT" cherry-pick --abort 2>/dev/null || true
-      FAILED_WORKTREES+=("$wt_abs (conflict at $sha)")
-      return 1
-    fi
-  done <<< "$commits"
-
-  log_info "  Successfully applied $commit_count commit(s) from $wt_branch."
-  TOTAL_COMMITS=$(( TOTAL_COMMITS + commit_count ))
-  TOTAL_WORKTREES=$(( TOTAL_WORKTREES + 1 ))
-}
-
-# ── Main Loop ─────────────────────────────────────────────────────────────────
-for wt in "${WORKTREE_PATHS[@]}"; do
-  process_worktree "$wt" || true  # collect failures, keep going
 done
 
-# ── Summary ───────────────────────────────────────────────────────────────────
+# ── Display summary ──────────────────────────────────────────────────────────
+echo "Found ${#WORKTREES[@]} worktrees with commits:"
+for i in "${!WT_NAMES[@]}"; do
+  c="${WT_COMMITS[$i]}"; s="${WT_SUMMARIES[$i]}"
+  [[ "$c" -gt 0 ]] \
+    && echo "  ${WT_NAMES[$i]}: $c commit(s) ($s)" \
+    || echo "  ${WT_NAMES[$i]}: 0 commits ($s)"
+done
 echo ""
-echo "─────────────────────────────────────────────"
+
+# ── Cleanup-only mode ────────────────────────────────────────────────────────
+if [[ "$CLEANUP_ONLY" == "true" ]]; then
+  if [[ "$DRY_RUN" == "true" ]]; then
+    echo "Dry run: would remove ${#WORKTREES[@]} worktree(s)."; exit 0
+  fi
+  confirm "Remove ${#WORKTREES[@]} worktree(s)?" || { echo "Aborted."; exit 0; }
+  remove_worktrees; echo "Done."; exit 0
+fi
+
+# ── Dry-run / no-work exit ───────────────────────────────────────────────────
 if [[ "$DRY_RUN" == "true" ]]; then
-  echo "DRY RUN complete: would cherry-pick $TOTAL_COMMITS commits from $TOTAL_WORKTREES worktree(s)."
-else
-  echo "Cherry-picked $TOTAL_COMMITS commits from $TOTAL_WORKTREES worktree(s)."
+  echo "Dry run: would cherry-pick $TOTAL_COMMITS commit(s) from $HAS_CHANGES worktree(s)."
+  exit 0
 fi
+if [[ "$TOTAL_COMMITS" -eq 0 ]]; then echo "No commits to cherry-pick."; exit 0; fi
 
-if [[ ${#FAILED_WORKTREES[@]} -gt 0 ]]; then
-  echo "Failed worktrees (${#FAILED_WORKTREES[@]}):"
-  for fw in "${FAILED_WORKTREES[@]}"; do
-    echo "  - $fw"
+# ── Confirm & cherry-pick ────────────────────────────────────────────────────
+confirm "Cherry-pick $TOTAL_COMMITS commit(s) from $HAS_CHANGES worktree(s)?" \
+  || { echo "Aborted."; exit 0; }
+
+echo "Cherry-picking..."
+picked=0; step=0
+for i in "${!WT_NAMES[@]}"; do
+  [[ "${WT_COMMITS[$i]}" -gt 0 ]] || continue
+  step=$((step + 1))
+  name="${WT_NAMES[$i]}"; branch="${WT_BRANCHES[$i]}"
+  merge_base="$(git -C "$REPO_ROOT" merge-base "$CURRENT_BRANCH" "$branch")"
+  shas="$(git -C "$REPO_ROOT" rev-list --reverse "${merge_base}..${branch}")"
+  for sha in $shas; do
+    if ! git -C "$REPO_ROOT" cherry-pick "$sha" 2>&1; then
+      git -C "$REPO_ROOT" cherry-pick --abort 2>/dev/null || true
+      echo ""; echo "CONFLICT in $name at commit $sha"
+      echo "To resolve manually:"
+      echo "  cd $REPO_ROOT"
+      echo "  git cherry-pick $sha"
+      echo "  # fix conflicts, then: git cherry-pick --continue"
+      exit 1
+    fi
+    picked=$((picked + 1))
   done
-  echo "─────────────────────────────────────────────"
-  exit 1
-fi
+  echo "  [$step/$HAS_CHANGES] $name: OK"
+done
 
-echo "─────────────────────────────────────────────"
-exit 0
+# ── Post cherry-pick cleanup ─────────────────────────────────────────────────
+echo ""; remove_worktrees
+echo ""; echo "Done: $picked commit(s) cherry-picked from $HAS_CHANGES worktree(s)."

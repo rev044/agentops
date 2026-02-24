@@ -156,7 +156,14 @@ files_exist:
   - <expected-output-file-2>
 ```
 ",
-  activeForm="Implementing <issue-id>"
+  activeForm="Implementing <issue-id>",
+  metadata={
+    "files": ["<expected-modified-file-1>", "<expected-modified-file-2>"],
+    "validation": {
+      "tests": "<test-command>",
+      "files_exist": ["<expected-output-file-1>"]
+    }
+  }
 )
 ```
 
@@ -185,6 +192,12 @@ files_exist:
   - TEST: contract only, codebase structure (not implementations)
   - GREEN: failing tests (immutable), contract, issue description
   - IMPL: full codebase access, issue description
+
+- **File manifests (`metadata.files`):**
+  - **Required** for all TaskCreate entries — list every file the worker will modify
+  - Swarm uses manifests for pre-spawn conflict detection (overlapping files = serialize or isolate)
+  - Workers receive the manifest in their prompt and must stay within it
+  - Derive from issue description, plan, or codebase exploration during planning
 
 - **Category-based skipping:**
   - docs/chore/ci issues bypass SPEC and TEST waves

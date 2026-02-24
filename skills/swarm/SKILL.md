@@ -70,8 +70,27 @@ See also `references/local-mode.md` for swarm-specific execution details (worktr
 Use TaskList to see current tasks. If none, create them:
 
 ```
-TaskCreate(subject="Implement feature X", description="Full details...")
+TaskCreate(subject="Implement feature X", description="Full details...",
+  metadata={"files": ["src/feature_x.py", "tests/test_feature_x.py"], "validation": {...}})
 TaskUpdate(taskId="2", addBlockedBy=["1"])  # Add dependencies after creation
+```
+
+#### File Manifest
+
+Every TaskCreate **must** include a `metadata.files` array listing the files that worker is expected to modify. This enables mechanical conflict detection before spawning a wave.
+
+- Pull file lists from the plan, issue description, or codebase exploration during planning.
+- If you cannot enumerate files yet, add a planning step to identify them before spawning workers. An empty or missing manifest signals the need for more planning, not unconstrained workers.
+- Workers receive the manifest in their prompt and are instructed to stay within it (see `references/local-mode.md` worker prompt template).
+
+```json
+{
+  "files": ["cli/cmd/ao/goals.go", "cli/cmd/ao/goals_test.go"],
+  "validation": {
+    "tests": "go test ./cli/cmd/ao/...",
+    "files_exist": ["cli/cmd/ao/goals.go"]
+  }
+}
 ```
 
 ### Step 2: Identify Wave
@@ -81,6 +100,26 @@ Find tasks that are:
 - No blockedBy (or all blockers completed)
 
 These can run in parallel.
+
+#### Pre-Spawn Conflict Check
+
+Before spawning a wave, scan all worker file manifests for overlapping files:
+
+```
+wave_tasks = [tasks with status=pending and no blockers]
+all_files = {}
+for task in wave_tasks:
+    for f in task.metadata.files:
+        if f in all_files:
+            CONFLICT: f is claimed by both all_files[f] and task.id
+        all_files[f] = task.id
+```
+
+**On conflict detection:**
+- **Serialize** the conflicting workers into separate sub-waves (preferred -- simplest fix), OR
+- **Isolate** them with worktree isolation (`--worktrees`) so each operates on a separate branch.
+
+Do not spawn workers with overlapping file manifests into the same shared-worktree wave. This is the primary cause of build breaks and merge conflicts in parallel execution.
 
 ### Steps 3-6: Spawn Workers, Validate, Finalize
 
