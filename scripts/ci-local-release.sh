@@ -428,7 +428,7 @@ run_step_bg "Hook preflight" ./scripts/validate-hook-preflight.sh
 run_step_bg "Embedded sync check" ./scripts/validate-embedded-sync.sh
 run_step_bg "Secret pattern scan" run_security_scan_patterns
 run_step_bg "Dangerous shell pattern scan" run_dangerous_pattern_scan
-run_step_bg "Skill flag cross-refs" bash scripts/check-skill-flag-refs.sh
+run_step_bg "Skill flag cross-refs" ./scripts/check-skill-flag-refs.sh
 
 collect_parallel
 

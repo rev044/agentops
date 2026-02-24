@@ -183,6 +183,12 @@ func TestBuildInteractiveGoalFile_CustomInput(t *testing.T) {
 	if len(gf.AntiStars) != 2 {
 		t.Fatalf("AntiStars = %d, want 2", len(gf.AntiStars))
 	}
+	if gf.AntiStars[0] != "Manual releases" {
+		t.Errorf("AntiStars[0] = %q", gf.AntiStars[0])
+	}
+	if gf.AntiStars[1] != "Untested code" {
+		t.Errorf("AntiStars[1] = %q", gf.AntiStars[1])
+	}
 	if len(gf.Directives) != 1 {
 		t.Fatalf("Directives = %d, want 1", len(gf.Directives))
 	}
@@ -193,8 +199,8 @@ func TestBuildInteractiveGoalFile_CustomInput(t *testing.T) {
 		t.Errorf("Directive description = %q", gf.Directives[0].Description)
 	}
 
-	// Verify it's a valid GoalFile
-	errs := goals.ValidateGoals(gf)
 	// ValidateGoals checks gates, not metadata — no errors expected for an empty-gates file.
-	_ = errs
+	if errs := goals.ValidateGoals(gf); len(errs) != 0 {
+		t.Errorf("expected 0 validation errors, got %d: %v", len(errs), errs)
+	}
 }

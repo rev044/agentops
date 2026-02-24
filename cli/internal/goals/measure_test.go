@@ -52,19 +52,14 @@ func TestMeasureOne_Timeout(t *testing.T) {
 }
 
 func TestMeasureOne_OutputTruncated(t *testing.T) {
-	// Generate output > 500 chars
-	longOutput := "echo '" + string(make([]byte, 600)) + "'"
 	goal := Goal{
 		ID:     "test-truncate",
-		Check:  "python3 -c \"print('A'*600)\" 2>/dev/null || printf '%0.s A' {1..600}",
+		Check:  "printf '%600s' | tr ' ' 'A'",
 		Weight: 1,
 	}
-	// Use a simpler approach: just produce long output
-	goal.Check = "printf '%600s' | tr ' ' 'A'"
 	m := MeasureOne(goal, 5*time.Second)
-	_ = longOutput
-	if len(m.Output) > 500 {
-		t.Errorf("output should be truncated to 500 chars, got %d", len(m.Output))
+	if len([]rune(m.Output)) > 500 {
+		t.Errorf("output should be truncated to 500 runes, got %d", len([]rune(m.Output)))
 	}
 }
 
@@ -112,9 +107,6 @@ func TestMeasureOne_ContinuousMetric_NonNumericOutput(t *testing.T) {
 }
 
 func TestMeasure_MetaGoalsRunFirst(t *testing.T) {
-	var order []string
-	// We can't inject ordering directly, but we can verify meta goals appear first
-	// in the returned measurements.
 	gf := &GoalFile{
 		Version: 2,
 		Goals: []Goal{
@@ -131,7 +123,6 @@ func TestMeasure_MetaGoalsRunFirst(t *testing.T) {
 	if snap.Goals[0].GoalID != "meta-1" {
 		t.Errorf("expected meta-1 first, got %q", snap.Goals[0].GoalID)
 	}
-	_ = order
 }
 
 func TestMeasure_SummaryCorrect(t *testing.T) {

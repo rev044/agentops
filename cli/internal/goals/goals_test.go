@@ -374,3 +374,42 @@ goals:
 		_, _ = LoadGoals(path)
 	}
 }
+
+func TestMigrateV1ToV2_SetsVersionAndMission(t *testing.T) {
+	gf := &GoalFile{Version: 1, Goals: []Goal{
+		{ID: "g1", Check: "true", Weight: 1},
+	}}
+	MigrateV1ToV2(gf)
+	if gf.Version != 2 {
+		t.Errorf("Version = %d, want 2", gf.Version)
+	}
+	if gf.Mission != "Project fitness goals" {
+		t.Errorf("Mission = %q, want default", gf.Mission)
+	}
+	// Goals without type should get default health type
+	if gf.Goals[0].Type != GoalTypeHealth {
+		t.Errorf("Goal type = %q, want health", gf.Goals[0].Type)
+	}
+}
+
+func TestMigrateV1ToV2_PreservesMission(t *testing.T) {
+	gf := &GoalFile{Version: 1, Mission: "Custom mission"}
+	MigrateV1ToV2(gf)
+	if gf.Mission != "Custom mission" {
+		t.Errorf("Mission = %q, want preserved custom", gf.Mission)
+	}
+}
+
+func TestKillAllChildren_EmptyAndNilMap(t *testing.T) {
+	// Should not panic when pids map is nil
+	childGroups.mu.Lock()
+	childGroups.pids = nil
+	childGroups.mu.Unlock()
+	killAllChildren() // nil map
+
+	// Should not panic when pids map is empty
+	childGroups.mu.Lock()
+	childGroups.pids = make(map[int]struct{})
+	childGroups.mu.Unlock()
+	killAllChildren() // empty map
+}

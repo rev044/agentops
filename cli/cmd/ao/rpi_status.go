@@ -282,7 +282,10 @@ func joinVerdicts(verdicts map[string]string) string {
 func runRPIStatusWatch() error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigCh)
+	defer func() {
+		signal.Stop(sigCh)
+		close(sigCh)
+	}()
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()

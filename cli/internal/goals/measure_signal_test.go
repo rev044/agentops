@@ -4,43 +4,26 @@ package goals
 
 import (
 	"os/exec"
-	"runtime"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 )
 
 func TestRunGoals_GoroutineLeak(t *testing.T) {
-	// Call Measure multiple times and verify goroutine count doesn't grow.
 	// The bug: runGoals spawns a goroutine listening on sigCh but never
 	// closes sigCh after signal.Stop, so the goroutine leaks on every call.
+	// Before the fix, each Measure() call leaks 1 goroutine.
+	defer goleak.VerifyNone(t)
 
-	// Warm up — let runtime settle.
 	gf := &GoalFile{
 		Version: 2,
 		Goals: []Goal{
 			{ID: "leak-test", Check: "true", Weight: 1, Type: GoalTypeHealth},
 		},
 	}
-	Measure(gf, 5*time.Second)
-	runtime.GC()
-	time.Sleep(50 * time.Millisecond)
-
-	baseline := runtime.NumGoroutine()
-
-	const iterations = 5
-	for i := 0; i < iterations; i++ {
+	for i := 0; i < 5; i++ {
 		Measure(gf, 5*time.Second)
-	}
-
-	runtime.GC()
-	time.Sleep(50 * time.Millisecond)
-	after := runtime.NumGoroutine()
-
-	// Allow 1 goroutine of slack for runtime jitter, but not 5.
-	// Before the fix, each Measure() call leaks 1 goroutine.
-	if after > baseline+2 {
-		t.Errorf("goroutine leak: baseline=%d, after %d iterations=%d (delta=%d, want <=2)",
-			baseline, iterations, after, after-baseline)
 	}
 }
 
