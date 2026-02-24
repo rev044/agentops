@@ -560,12 +560,25 @@ func extractEpicID(bdCommand string) (string, error) {
 	return parseLatestEpicIDFromText(string(out))
 }
 
-// extractAnyOpenIssueID finds the most recently created open issue of any type.
-// Used as a fallback when no epic exists (e.g., small-scope work created as a task).
+// extractAnyOpenIssueID finds the most recently created open issue, preferring epics.
+// It first tries --type epic to avoid selecting a non-epic issue that would cause
+// checkCrankCompletion to return false DONE (bd children returns empty for non-epics).
+// Falls back to any open issue when no epic exists (e.g., small-scope work created as a task).
 func extractAnyOpenIssueID(bdCommand string) (string, error) {
 	command := effectiveBDCommand(bdCommand)
-	cmd := exec.Command(command, "list", "--status", "open", "--json")
+
+	// Prefer epic-type issues to avoid false DONE from empty bd children output.
+	cmd := exec.Command(command, "list", "--type", "epic", "--status", "open", "--json")
 	out, err := cmd.Output()
+	if err == nil {
+		if id, parseErr := parseLatestEpicIDFromJSON(out); parseErr == nil {
+			return id, nil
+		}
+	}
+
+	// Fallback: any open issue (handles small-scope tasks that aren't epics).
+	cmd = exec.Command(command, "list", "--status", "open", "--json")
+	out, err = cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("bd list (any type): %w", err)
 	}

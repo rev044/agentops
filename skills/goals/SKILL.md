@@ -1,6 +1,6 @@
 ---
 name: goals
-description: 'Maintain GOALS.yaml fitness specification. Generate new goals from repo state, prune stale goals, update drifted checks. Triggers: "goals", "goal status", "show goals", "generate goals", "add goals", "prune goals", "update goals", "clean goals".'
+description: 'Maintain GOALS.yaml and GOALS.md fitness specifications. Measure fitness, manage directives, track drift, add/prune goals. Triggers: "goals", "goal status", "show goals", "add goals", "prune goals", "clean goals", "goal drift", "goal history", "export goals", "meta goals", "migrate goals".'
 skill_api_version: 1
 metadata:
   tier: product
@@ -19,8 +19,14 @@ metadata:
 /goals                    # Measure fitness (default)
 /goals init               # Bootstrap GOALS.md interactively
 /goals steer              # Manage directives
+/goals add                # Add a new goal
+/goals drift              # Compare snapshots for regressions
+/goals history            # Show measurement history
+/goals export             # Export snapshot as JSON for CI
+/goals meta               # Run meta-goals only
 /goals validate           # Validate structure
 /goals prune              # Remove stale gates
+/goals migrate            # Migrate YAML to Markdown
 ```
 
 ## Format Support
@@ -32,17 +38,23 @@ metadata:
 
 When both files exist, GOALS.md takes precedence.
 
-## Mode Selection (5 OODA Verbs)
+## Mode Selection
 
 Parse the user's input:
 
-| Input | Mode | OODA Phase |
-|-------|------|------------|
-| `/goals`, `/goals measure`, "goal status" | **measure** | Observe |
-| `/goals init`, "bootstrap goals" | **init** | — |
-| `/goals steer`, "manage directives" | **steer** | Orient/Decide |
-| `/goals validate`, "validate goals" | **validate** | — |
-| `/goals prune`, "prune goals", "clean goals" | **prune** | — |
+| Input | Mode | CLI Command |
+|-------|------|-------------|
+| `/goals`, `/goals measure`, "goal status" | **measure** | `ao goals measure` |
+| `/goals init`, "bootstrap goals" | **init** | `ao goals init` |
+| `/goals steer`, "manage directives" | **steer** | `ao goals steer` |
+| `/goals add`, "add goal" | **add** | `ao goals add` |
+| `/goals drift`, "goal drift" | **drift** | `ao goals drift` |
+| `/goals history`, "goal history" | **history** | `ao goals history` |
+| `/goals export`, "export goals" | **export** | `ao goals export` |
+| `/goals meta`, "meta goals" | **meta** | `ao goals meta` |
+| `/goals validate`, "validate goals" | **validate** | `ao goals validate` |
+| `/goals prune`, "prune goals", "clean goals" | **prune** | `ao goals prune` |
+| `/goals migrate`, "migrate goals" | **migrate** | `ao goals migrate` |
 
 ## Measure Mode (default) — Observe
 
@@ -118,6 +130,69 @@ ao goals steer remove 3
 ao goals steer prioritize 2 1
 ```
 
+## Add Mode
+
+Add a single goal to the goals file. Format-aware — writes to GOALS.yaml or GOALS.md depending on which format is detected.
+
+```bash
+ao goals add <id> <check-command> --weight=5 --description="..." --type=health
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--weight` | 5 | Goal weight (1-10) |
+| `--description` | — | Human-readable description |
+| `--type` | — | Goal type (health, architecture, quality, meta) |
+
+Example:
+```bash
+ao goals add go-coverage-floor "bash scripts/check-coverage.sh" --weight=3 --description="Go test coverage above 60%"
+```
+
+## Drift Mode
+
+Compare the latest measurement snapshot against a previous one to detect regressions.
+
+```bash
+ao goals drift                    # Compare latest vs previous snapshot
+ao goals drift --since 2026-02-20  # Compare against a specific date
+```
+
+Reports which goals improved, regressed, or stayed unchanged.
+
+## History Mode
+
+Show measurement history over time for all goals or a specific goal.
+
+```bash
+ao goals history                        # All goals, all time
+ao goals history --goal go-coverage     # Single goal
+ao goals history --since 2026-02-01     # Since a specific date
+ao goals history --goal go-coverage --since 2026-02-01  # Combined
+```
+
+Useful for spotting trends and identifying oscillating goals.
+
+## Export Mode
+
+Export the latest fitness snapshot as JSON for CI consumption or external tooling.
+
+```bash
+ao goals export
+```
+
+Outputs the snapshot to stdout in the fitness snapshot schema (see `references/goals-schema.md`).
+
+## Meta Mode
+
+Run only meta-goals (goals that validate the validation system itself). Useful for checking allowlist hygiene, skip-list freshness, and other self-referential checks.
+
+```bash
+ao goals meta --json
+```
+
+See `references/goals-schema.md` for the meta-goal pattern.
+
 ## Validate Mode
 
 ```bash
@@ -134,6 +209,17 @@ ao goals prune              # Remove stale gates
 ```
 
 Identifies gates whose check commands reference nonexistent paths. Removes them and re-renders the file.
+
+## Migrate Mode
+
+Convert between goal file formats.
+
+```bash
+ao goals migrate --to-md      # Convert GOALS.yaml → GOALS.md
+ao goals migrate               # Migrate GOALS.yaml to latest YAML version
+```
+
+The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, and converts existing goals into the Gates table format. The original YAML file is backed up.
 
 ## Examples
 
@@ -159,6 +245,27 @@ Identifies gates whose check commands reference nonexistent paths. Removes them 
 
 **Result:** New GOALS.md ready for `/evolve` consumption.
 
+### Tracking regressions across releases
+
+**User says:** `/goals drift --since 2026-02-20`
+
+**What happens:**
+1. Runs `ao goals drift --since 2026-02-20`
+2. Compares current snapshot against the one from that date
+3. Reports improved/regressed/unchanged goals
+
+**Result:** Regression report highlighting which goals changed direction.
+
+### Adding a new goal after a post-mortem
+
+**User says:** `/goals add go-parser-fuzz "cd cli && go test -fuzz=. ./internal/goals/ -fuzztime=10s" --weight=3 --description="Markdown parser survives fuzz testing"`
+
+**What happens:**
+1. Runs `ao goals add` with the provided arguments
+2. Writes the new goal in the correct format (YAML or Markdown)
+
+**Result:** New goal added, measurable on next `/goals` run.
+
 ## Troubleshooting
 
 | Problem | Cause | Solution |
@@ -167,6 +274,8 @@ Identifies gates whose check commands reference nonexistent paths. Removes them 
 | "directives require GOALS.md format" | Tried steer on YAML file | Run `ao goals migrate --to-md` first |
 | No directives in measure output | GOALS.yaml doesn't support directives | Migrate to GOALS.md with `ao goals migrate --to-md` |
 | Gates referencing deleted scripts | Scripts were renamed or removed | Run `/goals prune` to clean up |
+| Drift shows no history | No prior snapshots saved | Run `ao goals measure` at least twice first |
+| Export returns empty | No snapshot file exists | Run `ao goals measure` to create initial snapshot |
 
 ## See Also
 
