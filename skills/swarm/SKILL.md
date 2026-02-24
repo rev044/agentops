@@ -125,6 +125,8 @@ Do not spawn workers with overlapping file manifests into the same shared-worktr
 
 **For detailed local mode execution (team creation, worker spawning, race condition prevention, git commit policy, validation contract, cleanup, and repeat logic), read `skills/swarm/references/local-mode.md`.**
 
+> **Platform pitfalls:** Include relevant pitfalls from `references/worker-pitfalls.md` in worker prompts for the target language/platform. For example, inject the Bash section for shell script tasks, the Go section for Go tasks, etc. This prevents common worker failures from known platform gotchas.
+
 ## Example Flow
 
 ```
@@ -554,3 +556,4 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 - [references/local-mode.md](references/local-mode.md)
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/validation-contract.md](references/validation-contract.md)
+- [references/worker-pitfalls.md](references/worker-pitfalls.md)

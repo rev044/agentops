@@ -7,6 +7,7 @@ metadata:
   dependencies:
     - council    # multi-model judgment
     - complexity # complexity analysis
+    - bug-hunt   # proactive code audit
     - standards  # loaded for language-specific context
 ---
 
@@ -14,9 +15,10 @@ metadata:
 
 > **Purpose:** Is this code ready to ship?
 
-Two steps:
+Three steps:
 1. **Complexity analysis** — Find hotspots (radon, gocyclo)
-2. **Council validation** — Multi-model judgment
+2. **Bug hunt audit** — Systematic sweep for concrete bugs
+3. **Council validation** — Multi-model judgment
 
 ---
 
@@ -56,9 +58,9 @@ Do NOT spawn agents for empty file lists.
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2a–2e (constraint tests, metadata checks, OL validation, codex review, knowledge search, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2a–2f (constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
-**Why:** Steps 2a–2e add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
+**Why:** Steps 2a–2f add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
 
 ### Step 2: Run Complexity Analysis
 
@@ -222,7 +224,36 @@ fi
 ```
 If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
 
-### Step 2e: Check for Product Context
+### Step 2e: Bug Hunt Audit
+
+**Skip if `--quick` (see Step 1.5).**
+
+Run a proactive bug hunt on the target files before council review:
+
+```
+/bug-hunt --audit <target>
+```
+
+If bug-hunt produces findings, include them in the council packet as `context.bug_hunt`:
+```json
+"bug_hunt": {
+  "source": "/bug-hunt --audit",
+  "findings_count": 3,
+  "high": 1,
+  "medium": 1,
+  "low": 1,
+  "summary": "<first 2000 chars of bug hunt report>"
+}
+```
+
+**Why:** Bug hunt catches concrete line-level bugs (resource leaks, truncation errors, dead code) that council judges — reviewing holistically — often miss. Proven: goals code audit found 5 real bugs with 0 hypothesis failures by systematic reading.
+
+**Skip conditions:**
+- `--quick` mode → skip (fast path)
+- No source files in target → skip (nothing to audit)
+- Target is non-code (pure docs/config) → skip
+
+### Step 2f: Check for Product Context
 
 **Skip if `--quick` (see Step 1.5).**
 
@@ -454,6 +485,7 @@ fi
 /vibe                      ← You are here
     │
     ├── Complexity analysis (find hotspots)
+    ├── Bug hunt audit (find concrete bugs)
     └── Council validation (multi-model judgment)
     │
     ├── PASS → ship it
@@ -525,6 +557,7 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 - `skills/council/SKILL.md` — Multi-model validation council
 - `skills/complexity/SKILL.md` — Standalone complexity analysis
+- `skills/bug-hunt/SKILL.md` — Proactive code audit and bug investigation
 - `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution between agent findings
 
 ## Reference Documents

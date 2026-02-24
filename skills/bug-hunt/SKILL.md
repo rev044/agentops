@@ -1,6 +1,6 @@
 ---
 name: bug-hunt
-description: 'Investigate suspected bugs with git archaeology and root cause analysis. Triggers: "bug", "broken", "doesn''t work", "failing", "investigate bug", "debug", "find the bug", "troubleshoot".'
+description: 'Investigate suspected bugs or run proactive code audits. Triggers: "bug", "broken", "doesn''t work", "failing", "investigate bug", "debug", "find the bug", "troubleshoot", "audit code", "find bugs in", "code audit", "hunt bugs".'
 skill_api_version: 1
 metadata:
   tier: execution
@@ -14,13 +14,24 @@ metadata:
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-Systematic investigation to find root cause and design a complete fix.
+Systematic investigation to find root cause and design a complete fix — or proactive audit to find hidden bugs before they bite.
 
 **Requires:**
 - session-start.sh has executed (creates `.agents/` directories for output)
 - bd CLI (beads) for issue tracking if creating follow-up issues
 
-## The 4-Phase Structure
+## Modes
+
+| Mode | Invocation | When |
+|------|------------|------|
+| **Investigation** | `/bug-hunt <symptom>` | You have a known bug or failure |
+| **Audit** | `/bug-hunt --audit <scope>` | Proactive sweep for hidden bugs |
+
+Investigation mode uses the 4-phase structure below. Audit mode uses systematic read-and-classify — see [Audit Mode](#audit-mode).
+
+---
+
+## The 4-Phase Structure (Investigation Mode)
 
 | Phase | Focus | Output |
 |-------|-------|--------|
@@ -162,6 +173,77 @@ Run the failing test - it should now pass.
 
 ---
 
+## Audit Mode
+
+When invoked with `--audit`, bug-hunt switches to a proactive sweep. No symptom needed — you're hunting for bugs that haven't been reported yet.
+
+```bash
+/bug-hunt --audit cli/internal/goals/     # audit a package
+/bug-hunt --audit src/auth/               # audit a directory
+/bug-hunt --audit .                        # audit recent changes in repo
+```
+
+### Audit Step 1: Scope
+
+Identify target files from the scope argument:
+
+```bash
+# Find source files in scope
+find <scope> -name "*.go" -o -name "*.py" -o -name "*.ts" -o -name "*.rs" | head -50
+```
+
+If scope is `.` or broad (>50 files), narrow to recently changed files:
+
+```bash
+git log --since="2 weeks ago" --name-only --pretty=format: -- <scope> | sort -u | head -30
+```
+
+### Audit Step 2: Systematic Read
+
+Read **every file** in scope line by line. For each file, check:
+
+| Category | What to Look For |
+|----------|-----------------|
+| **Resource Leaks** | Unclosed handles, orphaned processes, missing cleanup/defer |
+| **String Safety** | Byte-level truncation of UTF-8, unsanitized input |
+| **Dead Code** | Unreachable branches, unused constants, shadowed variables |
+| **Hardcoded Values** | Paths, URLs, repo-specific assumptions that won't work elsewhere |
+| **Edge Cases** | Empty input, nil/zero values, boundary conditions |
+| **Concurrency** | Unprotected shared state, goroutine leaks, missing signal handlers |
+| **Error Handling** | Swallowed errors, missing context, wrong error types |
+
+**Key discipline:** Read line by line. Do not skim. The proven methodology (5 bugs found, 0 hypothesis failures) came from careful reading, not heuristic scanning.
+
+**USE THE TASK TOOL** (subagent_type: "Explore") for large scopes — split files across parallel agents.
+
+### Audit Step 3: Classify Findings
+
+For each finding, assign severity:
+
+| Severity | Criteria | Examples |
+|----------|----------|---------|
+| **HIGH** | Data loss, security, resource leak, process orphaning | Zombie processes, SQL injection, file handle leak |
+| **MEDIUM** | Wrong output, incorrect defaults, silent data corruption | UTF-8 truncation, hardcoded paths, wrong error code |
+| **LOW** | Dead code, cosmetic, minor inconsistency | Unreachable branch, unused import, style violation |
+
+### Audit Step 4: Write Audit Report
+
+**For audit report format, read `skills/bug-hunt/references/audit-report-template.md`.**
+
+Write to `.agents/research/YYYY-MM-DD-bug-<scope-slug>.md`.
+
+Report to user with a summary table:
+
+```
+| # | Bug | Severity | File | Fix |
+|---|-----|----------|------|-----|
+| 1 | <description> | HIGH | <file:line> | <proposed fix> |
+```
+
+Include failure count (hypothesis tests that didn't confirm). Zero failures = clean audit.
+
+---
+
 ## Step 5: Write Bug Report
 
 **For bug report template, read `skills/bug-hunt/references/bug-report-template.md`.**
@@ -228,6 +310,19 @@ Common bug patterns to check:
 
 **Result:** Regression traced to commit abc1234, type conversion error fixed at root cause in validation logic.
 
+### Proactive Code Audit
+
+**User says:** `/bug-hunt --audit cli/internal/goals/`
+
+**What happens:**
+1. Agent scopes to all `.go` files in the goals package
+2. Agent reads each file line by line, checking for resource leaks, string safety, dead code, etc.
+3. Agent finds 5 bugs: zombie process groups (HIGH), UTF-8 truncation (MEDIUM), hardcoded paths (MEDIUM), lost paragraph breaks (LOW), dead branch (LOW)
+4. All findings confirmed on first pass — 0 hypothesis failures
+5. Audit report written to `.agents/research/2026-02-24-bug-goals-go.md`
+
+**Result:** 5 concrete bugs with severity, file:line, and proposed fix — ready for implementation without debugging.
+
 ## Troubleshooting
 
 | Problem | Cause | Solution |
@@ -239,5 +334,6 @@ Common bug patterns to check:
 
 ## Reference Documents
 
+- [references/audit-report-template.md](references/audit-report-template.md)
 - [references/bug-report-template.md](references/bug-report-template.md)
 - [references/failure-categories.md](references/failure-categories.md)
