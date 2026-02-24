@@ -87,7 +87,8 @@ func Measure(gf *GoalFile, timeout time.Duration) *Snapshot {
 }
 
 // maxParallelGoals limits concurrent goal checks to avoid resource contention.
-const maxParallelGoals = 4
+// Keep low — heavy gates (go test, go build) compete for CPU.
+const maxParallelGoals = 2
 
 // runGoals executes meta-goals first (sequential), then non-meta goals (parallel).
 func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
