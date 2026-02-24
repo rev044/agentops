@@ -17,9 +17,12 @@ Capture knowledge manually for future sessions. Fast path to feed the knowledge 
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--global` | off | Write to `~/.claude/patterns/` instead of `.agents/knowledge/pending/`. Use for knowledge that applies across all projects. |
+| `--global` | off | Write to `~/.agents/learnings/` instead of `.agents/knowledge/pending/`. Use for knowledge that applies across all projects. |
+| `--promote` | off | Promote a local learning to global. Reads local file, abstracts repo context, writes to `~/.agents/learnings/`, marks local with `promoted_to:`. |
 
 > **When to use `--global`:** Use for knowledge that applies across all your projects (e.g., language patterns, tooling preferences, debugging techniques). Use default (no flag) for repo-specific knowledge (e.g., architecture decisions, local conventions).
+>
+> **When to use `--promote`:** Use when an existing local learning turns out to be transferable. The skill reads the local file, rewrites it to remove repo-specific references, writes the abstracted version to `~/.agents/learnings/`, and marks the local copy with `promoted_to:` frontmatter so `ao inject` skips it.
 
 ## Execution Steps
 
@@ -71,7 +74,7 @@ Create a slug from the content:
 slug="<generated-slug>"
 counter=2
 if [[ "$GLOBAL" == "true" ]]; then
-  base_dir="$HOME/.claude/patterns"
+  base_dir="$HOME/.agents/learnings"
 else
   base_dir=".agents/knowledge/pending"
 fi
@@ -87,7 +90,7 @@ done
 # If --global: write to global patterns (cross-repo)
 # Otherwise: write to local knowledge (repo-specific)
 if [[ "$GLOBAL" == "true" ]]; then
-  mkdir -p ~/.claude/patterns
+  mkdir -p ~/.agents/learnings
 else
   mkdir -p .agents/knowledge/pending
 fi
@@ -97,7 +100,7 @@ fi
 
 **Path:**
 - Default: `.agents/knowledge/pending/YYYY-MM-DD-<slug>.md`
-- With `--global`: `~/.claude/patterns/YYYY-MM-DD-<slug>.md`
+- With `--global`: `~/.agents/learnings/YYYY-MM-DD-<slug>.md`
 
 **Format:**
 ```markdown
@@ -146,6 +149,40 @@ Key advantage: smoother user experience during brief bursts.
 Manual capture via /learn
 ```
 
+### Step 5.5: Abstraction Lint Check (global writes only)
+
+**If `--global` or `--promote`:** After writing the file, grep for repo-specific indicators:
+
+```bash
+file="<path-to-written-file>"
+leaks=""
+leaks+=$(grep -iEn '(internal/|cmd/|\.go:|/pkg/|/src/|AGENTS\.md|CLAUDE\.md)' "$file" 2>/dev/null)
+leaks+=$(grep -En '[A-Z][a-z]+[A-Z][a-z]+\.(go|py|ts|rs)' "$file" 2>/dev/null)
+leaks+=$(grep -En '\./[a-z]+/' "$file" 2>/dev/null)
+```
+
+If any matches found: **WARN** the user by showing the matched lines and asking whether to proceed or revise. This does NOT block — it catches obvious repo-specific references like `athena/internal/validate/audit.go:32`.
+
+If no matches: proceed silently.
+
+### Step 5.6: Promote Flow (--promote only)
+
+Given `/learn --promote <path-to-local-learning>`:
+
+1. **Read** the local learning file
+2. **Rewrite** content to remove repo-specific references (file paths, function names, package names, internal architecture). Preserve the core insight.
+3. **Generate slug** from the abstracted content
+4. **Write** abstracted version to `~/.agents/learnings/YYYY-MM-DD-<slug>.md`
+5. **Run abstraction lint check** (Step 5.5)
+6. **Add `promoted_to:` frontmatter** to the local file:
+   ```yaml
+   ---
+   promoted_to: ~/.agents/learnings/YYYY-MM-DD-<slug>.md
+   ---
+   ```
+   `ao inject` skips learnings with `promoted_to:` set, preventing double-counting.
+7. **Confirm:** "Promoted to global: `~/.agents/learnings/YYYY-MM-DD-<slug>.md`"
+
 ### Step 6: Integrate with ao CLI (if available)
 
 Check if ao is installed:
@@ -169,7 +206,7 @@ fi
 
 **Do NOT auto-run promotion commands.** The user should decide when to stage/promote.
 
-**Note:** If `--global` is set, skip ao CLI integration. Global patterns are file-based only and are found via grep search in `/research`, `/knowledge`, and `/inject`.
+**Note:** If `--global` or `--promote` is set, skip ao CLI integration. Global learnings are discovered directly by `ao inject` from `~/.agents/learnings/`.
 
 ### Step 7: Confirm to User
 

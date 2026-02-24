@@ -15,7 +15,10 @@ import (
 // enrichPatternFreshness sets age, freshness, and default utility on a pattern
 // based on the file's modification time.
 func enrichPatternFreshness(p *pattern, file string, now time.Time) {
-	info, _ := os.Stat(file)
+	info, statErr := os.Stat(file)
+	if statErr != nil {
+		VerbosePrintf("Warning: stat %s: %v\n", file, statErr)
+	}
 	if info != nil {
 		ageHours := now.Sub(info.ModTime()).Hours()
 		p.AgeWeeks = ageHours / (24 * 7)
@@ -38,36 +41,71 @@ func patternMatchesQuery(p pattern, queryLower string) bool {
 	return strings.Contains(content, queryLower)
 }
 
-// collectPatterns finds patterns from .agents/patterns/
-func collectPatterns(cwd, query string, limit int) ([]pattern, error) {
+// collectPatterns finds patterns from .agents/patterns/ and optionally ~/.agents/patterns/.
+// Global patterns receive a post-scoring weight penalty (globalWeight, default 0.8).
+func collectPatterns(cwd, query string, limit int, globalDir string, globalWeight float64) ([]pattern, error) {
 	patternsDir := filepath.Join(cwd, ".agents", "patterns")
 	if _, err := os.Stat(patternsDir); os.IsNotExist(err) {
 		patternsDir = findAgentsSubdir(cwd, "patterns")
-		if patternsDir == "" {
-			return nil, nil
-		}
 	}
 
-	files, err := filepath.Glob(filepath.Join(patternsDir, "*.md"))
-	if err != nil {
-		return nil, err
-	}
-
-	patterns := make([]pattern, 0, len(files))
+	patterns := make([]pattern, 0)
 	queryLower := strings.ToLower(query)
 	now := time.Now()
 
-	for _, file := range files {
-		p, err := parsePatternFile(file)
+	// Collect local patterns
+	if patternsDir != "" {
+		files, err := filepath.Glob(filepath.Join(patternsDir, "*.md"))
 		if err != nil {
-			continue
+			return nil, err
 		}
-		enrichPatternFreshness(&p, file, now)
+		for _, file := range files {
+			p, err := parsePatternFile(file)
+			if err != nil {
+				continue
+			}
+			enrichPatternFreshness(&p, file, now)
+			if !patternMatchesQuery(p, queryLower) {
+				continue
+			}
+			patterns = append(patterns, p)
+		}
+	}
 
-		if !patternMatchesQuery(p, queryLower) {
-			continue
+	// Build set of local file paths for dedup against global
+	localPaths := make(map[string]bool)
+	if patternsDir != "" {
+		localFiles, _ := filepath.Glob(filepath.Join(patternsDir, "*.md"))
+		for _, f := range localFiles {
+			if abs, err := filepath.Abs(f); err == nil {
+				localPaths[abs] = true
+			}
 		}
-		patterns = append(patterns, p)
+	}
+
+	// Collect global patterns (cross-repo knowledge)
+	if globalDir != "" {
+		globalFiles, _ := filepath.Glob(filepath.Join(globalDir, "*.md"))
+		for _, file := range globalFiles {
+			// Skip if already found in local collection (prevents duplicates)
+			if abs, err := filepath.Abs(file); err == nil && localPaths[abs] {
+				continue
+			}
+			p, err := parsePatternFile(file)
+			if err != nil {
+				continue
+			}
+			enrichPatternFreshness(&p, file, now)
+			if !patternMatchesQuery(p, queryLower) {
+				continue
+			}
+			p.Global = true
+			patterns = append(patterns, p)
+		}
+	}
+
+	if len(patterns) == 0 {
+		return nil, nil
 	}
 
 	items := make([]scorable, len(patterns))
@@ -75,6 +113,16 @@ func collectPatterns(cwd, query string, limit int) ([]pattern, error) {
 		items[i] = &patterns[i]
 	}
 	applyCompositeScoringTo(items, types.DefaultLambda)
+
+	// Apply global weight penalty post-scoring
+	if globalWeight > 0 && globalWeight < 1.0 {
+		for i := range patterns {
+			if patterns[i].Global {
+				patterns[i].CompositeScore *= globalWeight
+			}
+		}
+	}
+
 	slices.SortFunc(patterns, func(a, b pattern) int {
 		return cmp.Compare(b.CompositeScore, a.CompositeScore)
 	})

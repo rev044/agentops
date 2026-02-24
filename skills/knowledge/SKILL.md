@@ -62,6 +62,22 @@ grep -r "<query>" ~/.claude/patterns/ 2>/dev/null | head -10
 
 Global patterns contain knowledge promoted from any repository via `/learn --global`. These are high-confidence, cross-project learnings.
 
+### Step 3.6: Search Global Learnings
+
+```bash
+# Global learnings (cross-repo abstracted knowledge)
+grep -r "<query>" ~/.agents/learnings/ 2>/dev/null | head -10
+```
+
+Global learnings are abstracted, transferable insights promoted from repo-specific learnings via `/learn --promote` or classified as cross-cutting by `/retro`.
+
+### Step 3.7: Search Global Patterns (new location)
+
+```bash
+# Global patterns (new location, cross-repo)
+grep -r "<query>" ~/.agents/patterns/ 2>/dev/null | head -10
+```
+
 ### Step 4: Use Semantic Search (if MCP available)
 
 ```
@@ -102,7 +118,9 @@ Present the knowledge found:
 | Retros | `.agents/retros/` | Markdown |
 | Plans | `.agents/plans/` | Markdown |
 | Global Plans | `~/.claude/plans/` | Markdown |
-| Global Patterns | `~/.claude/patterns/` | Cross-repo reusable knowledge |
+| Global Learnings | `~/.agents/learnings/` | Cross-repo abstracted learnings |
+| Global Patterns | `~/.agents/patterns/` | Cross-repo reusable patterns |
+| Legacy Patterns | `~/.claude/patterns/` | Read-only fallback (deprecated for writes) |
 
 ## Key Rules
 

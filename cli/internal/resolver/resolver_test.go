@@ -231,3 +231,72 @@ func TestFileResolver_DiscoverAll_Empty(t *testing.T) {
 		t.Errorf("DiscoverAll() on empty dir returned %d files, want 0", len(files))
 	}
 }
+
+func TestDiscoverAll_WithGlobalDirs(t *testing.T) {
+	// Set up local repo with one learning
+	root := t.TempDir()
+	localDir := filepath.Join(root, ".agents", "learnings")
+	if err := os.MkdirAll(localDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(localDir, "local.md"), []byte("# Local"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up global dir with one learning
+	globalDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(globalDir, "global.md"), []byte("# Global"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewFileResolverWithGlobal(root, []string{globalDir})
+	files, err := r.DiscoverAll()
+	if err != nil {
+		t.Fatalf("DiscoverAll() error = %v", err)
+	}
+
+	if len(files) != 2 {
+		t.Errorf("DiscoverAll() returned %d files, want 2", len(files))
+	}
+
+	// Verify both local and global files found
+	hasLocal, hasGlobal := false, false
+	for _, f := range files {
+		if filepath.Base(f) == "local.md" {
+			hasLocal = true
+		}
+		if filepath.Base(f) == "global.md" {
+			hasGlobal = true
+		}
+	}
+	if !hasLocal {
+		t.Error("DiscoverAll() missing local file")
+	}
+	if !hasGlobal {
+		t.Error("DiscoverAll() missing global file")
+	}
+}
+
+func TestResolve_FallsBackToGlobal(t *testing.T) {
+	// Local repo with no learnings
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".agents", "learnings"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Global dir with the learning we want
+	globalDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(globalDir, "target.md"), []byte("# Target"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewFileResolverWithGlobal(root, []string{globalDir})
+	path, err := r.Resolve("target")
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+
+	if filepath.Base(path) != "target.md" {
+		t.Errorf("Resolve() = %q, want target.md", path)
+	}
+}

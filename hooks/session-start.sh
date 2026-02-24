@@ -33,7 +33,10 @@ run_ao_quick() {
 
 cd "$ROOT" 2>/dev/null || true
 
-# Ensure .agents/ directories exist
+# Ensure global .agents/ directories exist (cross-repo knowledge)
+mkdir -p "$HOME/.agents/learnings" "$HOME/.agents/patterns" 2>/dev/null
+
+# Ensure local .agents/ directories exist
 for dir in .agents/research .agents/products .agents/retros .agents/learnings \
            .agents/patterns .agents/council .agents/knowledge/pending \
            .agents/plans .agents/rpi .agents/ao; do

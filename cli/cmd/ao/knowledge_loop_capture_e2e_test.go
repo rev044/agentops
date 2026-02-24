@@ -80,7 +80,7 @@ Use command -v before assuming a binary is missing from PATH.
 	}
 	artifactPath := autoRes.Artifacts[0]
 
-	learnings, err := collectLearnings(tmp, "tool", 10)
+	learnings, err := collectLearnings(tmp, "tool", 10, "", 0)
 	if err != nil {
 		t.Fatalf("collect learnings: %v", err)
 	}

@@ -30,16 +30,14 @@ func sanitizeSourcePhase(phase string) string {
 	return ""
 }
 
-// collectLearnings finds recent learnings from .agents/learnings/
+// collectLearnings finds recent learnings from .agents/learnings/ and optionally ~/.agents/learnings/.
 // Implements MemRL Two-Phase retrieval: Phase A (similarity/freshness) + Phase B (utility-weighted)
-// With CASS integration: applies confidence decay when --apply-decay is set
-func collectLearnings(cwd, query string, limit int) ([]learning, error) {
+// With CASS integration: applies confidence decay when --apply-decay is set.
+// Global learnings receive a post-scoring weight penalty (globalWeight, default 0.8).
+func collectLearnings(cwd, query string, limit int, globalDir string, globalWeight float64) ([]learning, error) {
 	files, err := findLearningFiles(cwd)
 	if err != nil {
 		return nil, err
-	}
-	if len(files) == 0 {
-		return nil, nil
 	}
 
 	now := time.Now()
@@ -54,12 +52,64 @@ func collectLearnings(cwd, query string, limit int) ([]learning, error) {
 		learnings = append(learnings, l)
 	}
 
+	// Build set of local file paths for dedup against global
+	localPaths := make(map[string]bool, len(files))
+	for _, f := range files {
+		if abs, err := filepath.Abs(f); err == nil {
+			localPaths[abs] = true
+		}
+	}
+
+	// Collect global learnings (cross-repo knowledge)
+	if globalDir != "" {
+		globalFiles := globLearningFiles(globalDir)
+		for _, file := range globalFiles {
+			// Skip if already found in local collection (prevents duplicates)
+			if abs, err := filepath.Abs(file); err == nil && localPaths[abs] {
+				continue
+			}
+			l, ok := processLearningFile(file, queryLower, now)
+			if !ok {
+				continue
+			}
+			l.Global = true
+			learnings = append(learnings, l)
+		}
+	}
+
+	if len(learnings) == 0 {
+		return nil, nil
+	}
+
 	rankLearnings(learnings)
+
+	// Apply global weight penalty post-scoring
+	if globalWeight > 0 && globalWeight < 1.0 {
+		for i := range learnings {
+			if learnings[i].Global {
+				learnings[i].CompositeScore *= globalWeight
+			}
+		}
+		// Re-sort after weight adjustment
+		slices.SortFunc(learnings, func(a, b learning) int {
+			return cmp.Compare(b.CompositeScore, a.CompositeScore)
+		})
+	}
 
 	if len(learnings) > limit {
 		learnings = learnings[:limit]
 	}
 	return learnings, nil
+}
+
+// globLearningFiles returns *.md and *.jsonl files in a single directory (no rig-root walk).
+func globLearningFiles(dir string) []string {
+	var files []string
+	for _, ext := range []string{"*.md", "*.jsonl"} {
+		matches, _ := filepath.Glob(filepath.Join(dir, ext))
+		files = append(files, matches...)
+	}
+	return files
 }
 
 // findLearningFiles discovers .md and .jsonl files in the learnings directory.
@@ -96,8 +146,11 @@ func processLearningFile(file, queryLower string, now time.Time) (learning, bool
 
 // applyFreshnessScore sets the freshness score on a learning based on file modification time.
 func applyFreshnessScore(l *learning, file string, now time.Time) {
-	info, _ := os.Stat(file)
+	info, statErr := os.Stat(file)
 	if info == nil {
+		if statErr != nil {
+			VerbosePrintf("Warning: stat %s: %v\n", file, statErr)
+		}
 		l.FreshnessScore = 0.5
 		return
 	}
@@ -160,7 +213,9 @@ func applyConfidenceDecay(l learning, filePath string, now time.Time) learning {
 	writeDecayFields(data, newConfidence, now)
 	if newJSON, marshalErr := json.Marshal(data); marshalErr == nil {
 		lines[0] = string(newJSON)
-		_ = os.WriteFile(filePath, []byte(strings.Join(lines, "\n")), 0644)
+		if writeErr := atomicWriteFile(filePath, []byte(strings.Join(lines, "\n")), 0644); writeErr != nil {
+			VerbosePrintf("Warning: failed to write decay for %s: %v\n", l.ID, writeErr)
+		}
 	}
 
 	l.Utility *= newConfidence / confidence
@@ -211,6 +266,7 @@ func writeDecayFields(data map[string]any, newConfidence float64, now time.Time)
 // frontMatter holds parsed YAML front matter fields
 type frontMatter struct {
 	SupersededBy string
+	PromotedTo   string
 	Utility      float64
 	HasUtility   bool
 	SourceBead   string
@@ -240,6 +296,8 @@ func parseFrontMatterLine(line string, fm *frontMatter) {
 	switch {
 	case strings.HasPrefix(line, "superseded_by:"), strings.HasPrefix(line, "superseded-by:"):
 		fm.SupersededBy = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+	case strings.HasPrefix(line, "promoted_to:"), strings.HasPrefix(line, "promoted-to:"):
+		fm.PromotedTo = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
 	case strings.HasPrefix(line, "utility:"):
 		utilityStr := strings.TrimSpace(strings.TrimPrefix(line, "utility:"))
 		if utility, err := strconv.ParseFloat(utilityStr, 64); err == nil && utility > 0 {
@@ -279,6 +337,11 @@ func isSuperseded(fm frontMatter) bool {
 	return fm.SupersededBy != "" && fm.SupersededBy != "null" && fm.SupersededBy != "~"
 }
 
+// isPromoted returns true if the learning was promoted to a global location.
+func isPromoted(fm frontMatter) bool {
+	return fm.PromotedTo != "" && fm.PromotedTo != "null" && fm.PromotedTo != "~"
+}
+
 // parseLearningBody extracts title and ID from markdown body lines into l.
 func parseLearningBody(lines []string, start int, l *learning) {
 	defaultID := filepath.Base(l.Source)
@@ -314,6 +377,10 @@ func parseLearningFile(path string) (learning, error) {
 
 	if isSuperseded(fm) {
 		l.Superseded = true
+		return l, nil
+	}
+	if isPromoted(fm) {
+		l.Superseded = true // reuse existing skip mechanism
 		return l, nil
 	}
 	if fm.HasUtility {

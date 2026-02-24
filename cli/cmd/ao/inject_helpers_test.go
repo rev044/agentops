@@ -351,7 +351,7 @@ superseded_by: L99
 	}
 
 	t.Run("collects non-superseded learnings", func(t *testing.T) {
-		got, err := collectLearnings(tmpDir, "", 10)
+		got, err := collectLearnings(tmpDir, "", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -365,7 +365,7 @@ superseded_by: L99
 	})
 
 	t.Run("filters by query", func(t *testing.T) {
-		got, err := collectLearnings(tmpDir, "mutex", 10)
+		got, err := collectLearnings(tmpDir, "mutex", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -375,7 +375,7 @@ superseded_by: L99
 	})
 
 	t.Run("respects limit", func(t *testing.T) {
-		got, err := collectLearnings(tmpDir, "", 1)
+		got, err := collectLearnings(tmpDir, "", 1, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -386,7 +386,7 @@ superseded_by: L99
 
 	t.Run("no learnings directory", func(t *testing.T) {
 		emptyDir := t.TempDir()
-		got, err := collectLearnings(emptyDir, "", 10)
+		got, err := collectLearnings(emptyDir, "", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -396,7 +396,7 @@ superseded_by: L99
 	})
 
 	t.Run("learnings sorted by composite score", func(t *testing.T) {
-		got, err := collectLearnings(tmpDir, "", 10)
+		got, err := collectLearnings(tmpDir, "", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

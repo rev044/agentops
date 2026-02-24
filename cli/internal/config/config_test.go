@@ -1475,3 +1475,68 @@ func BenchmarkMerge(b *testing.B) {
 		merge(&dst, overlay)
 	}
 }
+
+func TestDefault_GlobalPaths(t *testing.T) {
+	cfg := Default()
+	homeDir, _ := os.UserHomeDir()
+
+	wantLearnings := filepath.Join(homeDir, ".agents", "learnings")
+	if cfg.Paths.GlobalLearningsDir != wantLearnings {
+		t.Errorf("Default Paths.GlobalLearningsDir = %q, want %q", cfg.Paths.GlobalLearningsDir, wantLearnings)
+	}
+
+	wantPatterns := filepath.Join(homeDir, ".agents", "patterns")
+	if cfg.Paths.GlobalPatternsDir != wantPatterns {
+		t.Errorf("Default Paths.GlobalPatternsDir = %q, want %q", cfg.Paths.GlobalPatternsDir, wantPatterns)
+	}
+
+	if cfg.Paths.GlobalWeight != 0.8 {
+		t.Errorf("Default Paths.GlobalWeight = %f, want 0.8", cfg.Paths.GlobalWeight)
+	}
+}
+
+func TestMerge_GlobalPaths(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Paths: PathsConfig{
+			GlobalLearningsDir: "/custom/learnings",
+			GlobalPatternsDir:  "/custom/patterns",
+		},
+	}
+
+	result := merge(dst, src)
+
+	if result.Paths.GlobalLearningsDir != "/custom/learnings" {
+		t.Errorf("merge GlobalLearningsDir = %q, want %q", result.Paths.GlobalLearningsDir, "/custom/learnings")
+	}
+	if result.Paths.GlobalPatternsDir != "/custom/patterns" {
+		t.Errorf("merge GlobalPatternsDir = %q, want %q", result.Paths.GlobalPatternsDir, "/custom/patterns")
+	}
+}
+
+func TestMerge_GlobalWeight(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Paths: PathsConfig{
+			GlobalWeight: 0.5,
+		},
+	}
+
+	result := merge(dst, src)
+
+	if result.Paths.GlobalWeight != 0.5 {
+		t.Errorf("merge GlobalWeight = %f, want 0.5", result.Paths.GlobalWeight)
+	}
+
+	// Zero value should NOT overwrite
+	dst2 := Default()
+	src2 := &Config{
+		Paths: PathsConfig{
+			GlobalWeight: 0,
+		},
+	}
+	result2 := merge(dst2, src2)
+	if result2.Paths.GlobalWeight != 0.8 {
+		t.Errorf("merge GlobalWeight with zero = %f, want 0.8 (preserved)", result2.Paths.GlobalWeight)
+	}
+}

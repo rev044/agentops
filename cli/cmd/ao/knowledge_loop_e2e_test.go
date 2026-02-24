@@ -116,7 +116,7 @@ This ensures all goroutines clean up properly on shutdown.
 	// ========================================
 	t.Run("Inject", func(t *testing.T) {
 		// Test collectLearnings function
-		learnings, err := collectLearnings(tempDir, "context", 10)
+		learnings, err := collectLearnings(tempDir, "context", 10, "", 0)
 		if err != nil {
 			t.Fatalf("collectLearnings: %v", err)
 		}
@@ -138,7 +138,7 @@ This ensures all goroutines clean up properly on shutdown.
 		}
 
 		// Test collectPatterns function
-		patterns, err := collectPatterns(tempDir, "shutdown", 5)
+		patterns, err := collectPatterns(tempDir, "shutdown", 5, "", 0)
 		if err != nil {
 			t.Fatalf("collectPatterns: %v", err)
 		}

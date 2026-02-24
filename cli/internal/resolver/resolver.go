@@ -16,12 +16,18 @@ type LearningResolver interface {
 
 // FileResolver resolves learnings by searching the filesystem.
 type FileResolver struct {
-	Root string // project root (where .agents/ lives)
+	Root       string   // project root (where .agents/ lives)
+	GlobalDirs []string // additional global directories to search (e.g. ~/.agents/learnings)
 }
 
 // NewFileResolver creates a FileResolver rooted at the given directory.
 func NewFileResolver(root string) *FileResolver {
 	return &FileResolver{Root: root}
+}
+
+// NewFileResolverWithGlobal creates a FileResolver that also searches global directories.
+func NewFileResolverWithGlobal(root string, globalDirs []string) *FileResolver {
+	return &FileResolver{Root: root, GlobalDirs: globalDirs}
 }
 
 // extensions lists the file extensions to probe when searching for learnings.
@@ -89,6 +95,13 @@ func (r *FileResolver) Resolve(id string) (string, error) {
 		}
 	}
 
+	// Search global directories (cross-repo knowledge)
+	for _, dir := range r.GlobalDirs {
+		if p := probeWithExtensions(dir, normalized); p != "" {
+			return p, nil
+		}
+	}
+
 	return "", fmt.Errorf("learning not found: %s", id)
 }
 
@@ -129,6 +142,11 @@ func (r *FileResolver) DiscoverAll() ([]string, error) {
 		for _, d := range buildAgentsDirs(dir) {
 			collect(d)
 		}
+	}
+
+	// Search global directories (cross-repo knowledge)
+	for _, d := range r.GlobalDirs {
+		collect(d)
 	}
 
 	return allFiles, nil

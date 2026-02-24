@@ -52,12 +52,13 @@ func TestMaturity_applyCompositeScoringTo(t *testing.T) {
 		// Should not panic
 	})
 
-	t.Run("single item gets zero z-score", func(t *testing.T) {
+	t.Run("single item gets raw weighted score", func(t *testing.T) {
 		l := &learning{FreshnessScore: 0.8, Utility: 0.6}
 		applyCompositeScoringTo([]scorable{l}, 0.5)
-		// With a single item, z-scores are 0/0.001 ≈ 0
-		if math.Abs(l.CompositeScore) > 1.0 {
-			t.Errorf("single item composite = %f, expected near 0", l.CompositeScore)
+		// With N < 3, uses raw weighted score: freshness + lambda*utility = 0.8 + 0.5*0.6 = 1.1
+		expected := 0.8 + 0.5*0.6
+		if math.Abs(l.CompositeScore-expected) > 0.01 {
+			t.Errorf("single item composite = %f, expected %f", l.CompositeScore, expected)
 		}
 	})
 
@@ -77,7 +78,7 @@ func TestMaturity_applyCompositeScoringTo(t *testing.T) {
 	t.Run("pattern type works too", func(t *testing.T) {
 		p := &pattern{FreshnessScore: 0.7, Utility: 0.8}
 		applyCompositeScoringTo([]scorable{p}, 1.0)
-		// Single item → z-score is 0; just verify no panic with pattern type.
+		// Single item → raw weighted score (N < 3 bypass); verify no panic with pattern type.
 		_ = p.CompositeScore // use the variable to prove scoring ran
 	})
 

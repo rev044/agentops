@@ -520,6 +520,274 @@ func TestConfidenceDecayRate(t *testing.T) {
 	}
 }
 
+// TestParseFrontMatterPromotedTo verifies promoted_to and promoted-to parsing.
+func TestParseFrontMatterPromotedTo(t *testing.T) {
+	tests := []struct {
+		name       string
+		lines      []string
+		wantPromTo string
+	}{
+		{
+			name:       "promoted_to with underscore",
+			lines:      []string{"---", "promoted_to: ~/.agents/learnings/global-auth.md", "---"},
+			wantPromTo: "~/.agents/learnings/global-auth.md",
+		},
+		{
+			name:       "promoted-to with dash",
+			lines:      []string{"---", "promoted-to: ~/.agents/learnings/global-auth.md", "---"},
+			wantPromTo: "~/.agents/learnings/global-auth.md",
+		},
+		{
+			name:       "promoted_to null",
+			lines:      []string{"---", "promoted_to: null", "---"},
+			wantPromTo: "null",
+		},
+		{
+			name:       "no promoted_to",
+			lines:      []string{"---", "utility: 0.7", "---"},
+			wantPromTo: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fm, _ := parseFrontMatter(tt.lines)
+			if fm.PromotedTo != tt.wantPromTo {
+				t.Errorf("parseFrontMatter() PromotedTo = %q, want %q", fm.PromotedTo, tt.wantPromTo)
+			}
+		})
+	}
+}
+
+// TestIsPromoted verifies promoted detection including null/tilde filtering.
+func TestIsPromoted(t *testing.T) {
+	tests := []struct {
+		name string
+		fm   frontMatter
+		want bool
+	}{
+		{"promoted", frontMatter{PromotedTo: "~/.agents/learnings/foo.md"}, true},
+		{"null", frontMatter{PromotedTo: "null"}, false},
+		{"tilde", frontMatter{PromotedTo: "~"}, false},
+		{"empty", frontMatter{PromotedTo: ""}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isPromoted(tt.fm); got != tt.want {
+				t.Errorf("isPromoted() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestParseLearningFileSkipsPromoted verifies promoted files are skipped via Superseded flag.
+func TestParseLearningFileSkipsPromoted(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "inject_promoted_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	}()
+
+	content := "---\npromoted_to: ~/.agents/learnings/global-auth.md\n---\n# Auth Pattern\n\nLocal auth learning.\n"
+	path := filepath.Join(tmpDir, "promoted-learning.md")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	l, err := parseLearningFile(path)
+	if err != nil {
+		t.Errorf("parseLearningFile() error = %v", err)
+	}
+	if !l.Superseded {
+		t.Error("expected promoted learning to have Superseded = true")
+	}
+}
+
+// TestCollectLearningsGlobalDir verifies global learnings are collected and flagged.
+func TestCollectLearningsGlobalDir(t *testing.T) {
+	// Create local learnings dir with .agents/learnings structure
+	localDir, err := os.MkdirTemp("", "inject_local_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(localDir) //nolint:errcheck // test cleanup
+	}()
+
+	localLearningsDir := filepath.Join(localDir, ".agents", "learnings")
+	if err := os.MkdirAll(localLearningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	localContent := "---\nutility: 0.8\n---\n# Local Learning\n\nThis is local.\n"
+	if err := os.WriteFile(filepath.Join(localLearningsDir, "local.md"), []byte(localContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create global learnings dir
+	globalDir, err := os.MkdirTemp("", "inject_global_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(globalDir) //nolint:errcheck // test cleanup
+	}()
+
+	globalContent := "---\nutility: 0.7\n---\n# Global Learning\n\nCross-repo knowledge.\n"
+	if err := os.WriteFile(filepath.Join(globalDir, "global.md"), []byte(globalContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	learnings, err := collectLearnings(localDir, "", 10, globalDir, 0.8)
+	if err != nil {
+		t.Fatalf("collectLearnings() error = %v", err)
+	}
+	if len(learnings) != 2 {
+		t.Fatalf("expected 2 learnings, got %d", len(learnings))
+	}
+
+	// Verify one is global and one is not
+	var foundLocal, foundGlobal bool
+	for _, l := range learnings {
+		if l.Global {
+			foundGlobal = true
+		} else {
+			foundLocal = true
+		}
+	}
+	if !foundLocal {
+		t.Error("expected to find a local learning")
+	}
+	if !foundGlobal {
+		t.Error("expected to find a global learning")
+	}
+}
+
+// TestCollectLearningsGlobalWeight verifies global weight penalty reduces global scores.
+func TestCollectLearningsGlobalWeight(t *testing.T) {
+	// Create local learnings dir with multiple files for z-normalization spread
+	localDir, err := os.MkdirTemp("", "inject_weight_local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(localDir) //nolint:errcheck // test cleanup
+	}()
+
+	localLearningsDir := filepath.Join(localDir, ".agents", "learnings")
+	if err := os.MkdirAll(localLearningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Create 3 local learnings with varying utility for z-norm spread
+	for _, item := range []struct{ name, utility string }{
+		{"local-high.md", "0.9"},
+		{"local-mid.md", "0.7"},
+		{"local-low.md", "0.4"},
+	} {
+		content := "---\nutility: " + item.utility + "\n---\n# " + item.name + "\n\nLocal content.\n"
+		if err := os.WriteFile(filepath.Join(localLearningsDir, item.name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create global learnings dir with high utility (should still score lower after penalty)
+	globalDir, err := os.MkdirTemp("", "inject_weight_global")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(globalDir) //nolint:errcheck // test cleanup
+	}()
+
+	globalContent := "---\nutility: 0.9\n---\n# Global High\n\nGlobal content.\n"
+	if err := os.WriteFile(filepath.Join(globalDir, "global-high.md"), []byte(globalContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	learnings, err := collectLearnings(localDir, "", 10, globalDir, 0.8)
+	if err != nil {
+		t.Fatalf("collectLearnings() error = %v", err)
+	}
+
+	// Find the local-high and global-high scores (both utility 0.9, same freshness)
+	var localHighScore, globalHighScore float64
+	for _, l := range learnings {
+		if l.Global && l.Title == "global-high.md" {
+			globalHighScore = l.CompositeScore
+		}
+		if !l.Global && l.Title == "local-high.md" {
+			localHighScore = l.CompositeScore
+		}
+	}
+
+	// Global item with same utility should score strictly lower due to 0.8 weight penalty
+	if globalHighScore >= localHighScore {
+		t.Errorf("global score (%.4f) should be less than local score (%.4f) due to weight penalty",
+			globalHighScore, localHighScore)
+		for _, l := range learnings {
+			t.Logf("  %s (global=%v): composite=%.4f utility=%.2f freshness=%.2f",
+				l.Title, l.Global, l.CompositeScore, l.Utility, l.FreshnessScore)
+		}
+	}
+}
+
+// TestCollectPatternsGlobalDir verifies global patterns are collected and flagged.
+func TestCollectPatternsGlobalDir(t *testing.T) {
+	// Create local patterns dir
+	localDir, err := os.MkdirTemp("", "patterns_local_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(localDir) //nolint:errcheck // test cleanup
+	}()
+
+	localPatternsDir := filepath.Join(localDir, ".agents", "patterns")
+	if err := os.MkdirAll(localPatternsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(localPatternsDir, "local-pattern.md"), []byte("# Local Pattern\n\nLocal description.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create global patterns dir
+	globalDir, err := os.MkdirTemp("", "patterns_global_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = os.RemoveAll(globalDir) //nolint:errcheck // test cleanup
+	}()
+
+	if err := os.WriteFile(filepath.Join(globalDir, "global-pattern.md"), []byte("# Global Pattern\n\nCross-repo pattern.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	patterns, err := collectPatterns(localDir, "", 10, globalDir, 0.8)
+	if err != nil {
+		t.Fatalf("collectPatterns() error = %v", err)
+	}
+	if len(patterns) != 2 {
+		t.Fatalf("expected 2 patterns, got %d", len(patterns))
+	}
+
+	var foundLocal, foundGlobal bool
+	for _, p := range patterns {
+		if p.Global {
+			foundGlobal = true
+		} else {
+			foundLocal = true
+		}
+	}
+	if !foundLocal {
+		t.Error("expected to find a local pattern")
+	}
+	if !foundGlobal {
+		t.Error("expected to find a global pattern")
+	}
+}
+
 // TestConfidenceDecayFloor verifies that confidence decay respects the minimum of 0.1.
 func TestConfidenceDecayFloor(t *testing.T) {
 	tests := []struct {

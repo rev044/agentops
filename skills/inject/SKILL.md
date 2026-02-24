@@ -61,7 +61,13 @@ ls -lt .agents/patterns/ | head -5
 # Recent research
 ls -lt .agents/research/ | head -5
 
-# Global patterns (cross-repo knowledge)
+# Global learnings (cross-repo knowledge)
+ls -lt ~/.agents/learnings/ 2>/dev/null | head -5
+
+# Global patterns (cross-repo patterns)
+ls -lt ~/.agents/patterns/ 2>/dev/null | head -5
+
+# Legacy patterns (read-only fallback, no new writes)
 ls -lt ~/.claude/patterns/ 2>/dev/null | head -5
 ```
 
@@ -92,13 +98,15 @@ Citation tracking enables the feedback loop: learnings that are frequently cited
 
 ## Knowledge Sources
 
-| Source | Location | Priority |
-|--------|----------|----------|
-| Learnings | `.agents/learnings/` | High |
-| Patterns | `.agents/patterns/` | High |
-| Research | `.agents/research/` | Medium |
-| Retros | `.agents/retros/` | Medium |
-| Global Patterns | `~/.claude/patterns/` | High |
+| Source | Location | Priority | Weight |
+|--------|----------|----------|--------|
+| Learnings | `.agents/learnings/` | High | 1.0 |
+| Patterns | `.agents/patterns/` | High | 1.0 |
+| Global Learnings | `~/.agents/learnings/` | High | 0.8 (configurable) |
+| Global Patterns | `~/.agents/patterns/` | High | 0.8 (configurable) |
+| Research | `.agents/research/` | Medium | — |
+| Retros | `.agents/retros/` | Medium | — |
+| Legacy Patterns | `~/.claude/patterns/` | Low | 0.6 (read-only, no new writes) |
 
 ## Decay Model
 

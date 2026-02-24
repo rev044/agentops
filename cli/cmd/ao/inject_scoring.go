@@ -37,6 +37,15 @@ func applyCompositeScoringTo(items []scorable, lambda float64) {
 		return
 	}
 
+	// With fewer than 3 items, z-normalization is statistically meaningless
+	// (produces near-zero scores). Use raw weighted scores instead.
+	if len(items) < 3 {
+		for _, item := range items {
+			item.setComposite(item.getFreshness() + lambda*item.getUtility())
+		}
+		return
+	}
+
 	// Calculate means for z-normalization
 	var sumF, sumU float64
 	for _, item := range items {

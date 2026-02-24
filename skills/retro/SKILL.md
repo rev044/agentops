@@ -119,6 +119,30 @@ For each learning, capture:
 ...
 ```
 
+### Step 5.5: Classify Learning Scope
+
+For each learning extracted in Step 5, classify:
+
+**Question:** "Does this learning reference specific files, packages, or architecture in THIS repo? Or is it a transferable pattern that helps any project?"
+
+- **Repo-specific** → Write to `.agents/learnings/` (existing behavior from Step 5). Use `git rev-parse --show-toplevel` to resolve repo root — never write relative to cwd.
+- **Cross-cutting/transferable** → Rewrite to remove repo-specific context (file paths, function names, package names), then:
+  1. Write abstracted version to `~/.agents/learnings/YYYY-MM-DD-<slug>.md` (NOT local — one copy only)
+  2. Run abstraction lint check:
+     ```bash
+     file="<path-to-written-global-file>"
+     grep -iEn '(internal/|cmd/|\.go:|/pkg/|/src/|AGENTS\.md|CLAUDE\.md)' "$file" 2>/dev/null
+     grep -En '[A-Z][a-z]+[A-Z][a-z]+\.(go|py|ts|rs)' "$file" 2>/dev/null
+     grep -En '\./[a-z]+/' "$file" 2>/dev/null
+     ```
+     If matches: WARN user with matched lines, ask to proceed or revise. Never block the write.
+
+**Note:** Each learning goes to ONE location (local or global). No `promoted_to` needed — there's no local copy to mark when `/retro` writes directly to global.
+
+**Example abstraction:**
+- Local: "Athena's validate package needs O_CREATE|O_EXCL for atomic claims because Zeus spawns concurrent workers"
+- Global: "Use O_CREATE|O_EXCL for atomic file creation when multiple processes may race on the same path"
+
 ### Step 6: Write Retro Summary
 
 **Write to:** `.agents/retros/YYYY-MM-DD-<topic>.md`

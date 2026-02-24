@@ -105,6 +105,19 @@ type PathsConfig struct {
 	// TranscriptsDir is where Claude transcripts are located.
 	// Default: ~/.claude/projects
 	TranscriptsDir string `yaml:"transcripts_dir" json:"transcripts_dir"`
+
+	// GlobalLearningsDir is where cross-repo learnings are stored.
+	// Default: ~/.agents/learnings
+	GlobalLearningsDir string `yaml:"global_learnings_dir" json:"global_learnings_dir"`
+
+	// GlobalPatternsDir is where cross-repo patterns are stored.
+	// Default: ~/.agents/patterns
+	GlobalPatternsDir string `yaml:"global_patterns_dir" json:"global_patterns_dir"`
+
+	// GlobalWeight is the rank multiplier for global results (0.0-1.0).
+	// Applied AFTER composite scoring. Lower values make local results win more aggressively.
+	// Default: 0.8
+	GlobalWeight float64 `yaml:"global_weight" json:"global_weight"`
 }
 
 // ForgeConfig holds forge-specific settings.
@@ -169,7 +182,10 @@ func Default() *Config {
 			PlansDir:       ".agents/plans",
 			ClaudePlansDir: filepath.Join(homeDir, ".claude", "plans"),
 			CitationsFile:  ".agents/ao/citations.jsonl",
-			TranscriptsDir: filepath.Join(homeDir, ".claude", "projects"),
+			TranscriptsDir:     filepath.Join(homeDir, ".claude", "projects"),
+			GlobalLearningsDir: filepath.Join(homeDir, ".agents", "learnings"),
+			GlobalPatternsDir:  filepath.Join(homeDir, ".agents", "patterns"),
+			GlobalWeight:       0.8,
 		},
 	}
 }
@@ -362,6 +378,11 @@ func mergePaths(dst, src *PathsConfig) {
 	mergeStr(&dst.ClaudePlansDir, src.ClaudePlansDir)
 	mergeStr(&dst.CitationsFile, src.CitationsFile)
 	mergeStr(&dst.TranscriptsDir, src.TranscriptsDir)
+	mergeStr(&dst.GlobalLearningsDir, src.GlobalLearningsDir)
+	mergeStr(&dst.GlobalPatternsDir, src.GlobalPatternsDir)
+	if src.GlobalWeight > 0 {
+		dst.GlobalWeight = src.GlobalWeight
+	}
 }
 
 // Source represents where a config value came from.

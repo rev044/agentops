@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/config"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -77,6 +78,7 @@ type learning struct {
 	Utility        float64 `json:"utility,omitempty"`         // MemRL utility value
 	CompositeScore float64 `json:"composite_score,omitempty"` // Two-Phase ranking score
 	Superseded     bool    `json:"-"`                         // Internal flag - not serialized
+	Global         bool    `json:"-"`                         // Internal flag: from global dir
 }
 
 type pattern struct {
@@ -87,6 +89,7 @@ type pattern struct {
 	AgeWeeks       float64 `json:"age_weeks,omitempty"`
 	Utility        float64 `json:"utility,omitempty"`
 	CompositeScore float64 `json:"composite_score,omitempty"`
+	Global         bool    `json:"-"` // Internal flag: from global dir
 }
 
 type session struct {
@@ -149,6 +152,11 @@ func runInject(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
+	cfg, cfgErr := config.Load(nil)
+	if cfgErr != nil {
+		VerbosePrintf("Warning: config load: %v (using defaults)\n", cfgErr)
+	}
+
 	// Resolve bead context for work-scoped injection
 	var beadCtx *BeadContext
 	if injectBead != "" {
@@ -157,7 +165,7 @@ func runInject(cmd *cobra.Command, args []string) error {
 	}
 
 	sessionID := canonicalSessionID(injectSessionID)
-	knowledge := gatherKnowledge(cwd, query, sessionID)
+	knowledge := gatherKnowledge(cwd, query, sessionID, cfg)
 	knowledge.BeadID = injectBead
 
 	// Apply bead-scoped boosting after composite scoring
@@ -210,14 +218,23 @@ func printInjectDryRun(query string) {
 }
 
 // gatherKnowledge collects all knowledge sources and records citations.
-func gatherKnowledge(cwd, query, sessionID string) *injectedKnowledge {
+func gatherKnowledge(cwd, query, sessionID string, cfg *config.Config) *injectedKnowledge {
 	knowledge := &injectedKnowledge{
 		Timestamp: time.Now(),
 		Query:     query,
 	}
 
-	knowledge.Learnings = gatherLearnings(cwd, query, sessionID)
-	knowledge.Patterns = gatherPatterns(cwd, query, sessionID)
+	globalLearningsDir := ""
+	globalPatternsDir := ""
+	globalWeight := 0.8
+	if cfg != nil {
+		globalLearningsDir = cfg.Paths.GlobalLearningsDir
+		globalPatternsDir = cfg.Paths.GlobalPatternsDir
+		globalWeight = cfg.Paths.GlobalWeight
+	}
+
+	knowledge.Learnings = gatherLearnings(cwd, query, sessionID, globalLearningsDir, globalWeight)
+	knowledge.Patterns = gatherPatterns(cwd, query, sessionID, globalPatternsDir, globalWeight)
 	knowledge.Sessions = gatherSessions(cwd, query)
 	knowledge.OLConstraints = gatherOLConstraints(cwd, query)
 
@@ -225,8 +242,8 @@ func gatherKnowledge(cwd, query, sessionID string) *injectedKnowledge {
 }
 
 // gatherLearnings collects learnings and records their citations.
-func gatherLearnings(cwd, query, sessionID string) []learning {
-	learnings, err := collectLearnings(cwd, query, MaxLearningsToInject)
+func gatherLearnings(cwd, query, sessionID, globalDir string, globalWeight float64) []learning {
+	learnings, err := collectLearnings(cwd, query, MaxLearningsToInject, globalDir, globalWeight)
 	if err != nil {
 		VerbosePrintf("Warning: failed to collect learnings: %v\n", err)
 	}
@@ -244,8 +261,8 @@ func gatherLearnings(cwd, query, sessionID string) []learning {
 }
 
 // gatherPatterns collects patterns and records their citations.
-func gatherPatterns(cwd, query, sessionID string) []pattern {
-	patterns, err := collectPatterns(cwd, query, MaxPatternsToInject)
+func gatherPatterns(cwd, query, sessionID, globalDir string, globalWeight float64) []pattern {
+	patterns, err := collectPatterns(cwd, query, MaxPatternsToInject, globalDir, globalWeight)
 	if err != nil {
 		VerbosePrintf("Warning: failed to collect patterns: %v\n", err)
 	}
@@ -391,7 +408,7 @@ func resortLearnings(learnings []learning) {
 // formatKnowledgeMarkdown formats knowledge as markdown
 func formatKnowledgeMarkdown(k *injectedKnowledge) string {
 	var sb strings.Builder
-	sb.WriteString("## Injected Knowledge (ol inject)\n\n")
+	sb.WriteString("## Injected Knowledge (ao inject)\n\n")
 	writePredecessorSection(&sb, k.Predecessor)
 	writeLearningsSection(&sb, k.Learnings)
 	writePatternsSection(&sb, k.Patterns)
@@ -507,6 +524,31 @@ func trimToCharBudget(output string, budget int) string {
 
 	result.WriteString("\n*[truncated to fit token budget]*\n")
 	return result.String()
+}
+
+// atomicWriteFile writes data to a temp file then renames into place,
+// preventing corruption from crashes or concurrent writes.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".ao-tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := os.Chmod(tmpName, perm); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	return os.Rename(tmpName, path)
 }
 
 // truncateText truncates a string to max length with ellipsis

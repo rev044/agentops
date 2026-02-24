@@ -145,7 +145,7 @@ func TestCollectPatterns(t *testing.T) {
 	}
 
 	t.Run("collects all patterns", func(t *testing.T) {
-		got, err := collectPatterns(tmpDir, "", 10)
+		got, err := collectPatterns(tmpDir, "", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -155,7 +155,7 @@ func TestCollectPatterns(t *testing.T) {
 	})
 
 	t.Run("filters by query", func(t *testing.T) {
-		got, err := collectPatterns(tmpDir, "mutex", 10)
+		got, err := collectPatterns(tmpDir, "mutex", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -165,7 +165,7 @@ func TestCollectPatterns(t *testing.T) {
 	})
 
 	t.Run("respects limit", func(t *testing.T) {
-		got, err := collectPatterns(tmpDir, "", 1)
+		got, err := collectPatterns(tmpDir, "", 1, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -176,7 +176,7 @@ func TestCollectPatterns(t *testing.T) {
 
 	t.Run("no patterns directory", func(t *testing.T) {
 		emptyDir := t.TempDir()
-		got, err := collectPatterns(emptyDir, "", 10)
+		got, err := collectPatterns(emptyDir, "", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -195,7 +195,7 @@ func TestCollectPatterns(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		got, err := collectPatterns(tmpDir, "utility", 10)
+		got, err := collectPatterns(tmpDir, "utility", 10, "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
