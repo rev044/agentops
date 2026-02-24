@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Work-scoped knowledge injection: `ao inject --bead <id>` boosts learnings tagged with the active bead
+- Predecessor context injection: `ao inject --predecessor <handoff-path>` surfaces structured handoff context
+- Learning schema extended with `source_bead` and `source_phase` fields for work-context tracking
+- `ao extract --bead <id>` tags extracted learnings with the active bead ID
+- Citation-to-utility feedback pipeline in flywheel close-loop (stage 5)
+- Bead metadata resolver reads from env vars (`HOOK_BEAD_TITLE`, `HOOK_BEAD_LABELS`) or cache file
+- SessionStart hook auto-wires `--bead` and `--predecessor` when Gas Town env vars are available
+- Type 3 setup hook template: `hooks/examples/50-agentops-bootstrap.sh`
+
 ## [2.17.0] - 2026-02-24
 
 ### Added

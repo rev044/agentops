@@ -24,6 +24,7 @@ type PendingExtraction struct {
 	Decisions      []string  `json:"decisions,omitempty"`
 	Knowledge      []string  `json:"knowledge,omitempty"`
 	QueuedAt       time.Time `json:"queued_at"`
+	BeadID         string    `json:"bead_id,omitempty"` // Bead being worked on when session was queued
 }
 
 // ExtractBatchResult holds results from batch extraction.
@@ -38,6 +39,7 @@ var (
 	extractMaxContent int
 	extractClear      bool
 	extractAll        bool
+	extractBead       string
 )
 
 var extractCmd = &cobra.Command{
@@ -72,6 +74,7 @@ func init() {
 	extractCmd.Flags().IntVar(&extractMaxContent, "max-content", 3000, "Maximum characters of session content to include")
 	extractCmd.Flags().BoolVar(&extractClear, "clear", false, "Clear pending queue without processing")
 	extractCmd.Flags().BoolVar(&extractAll, "all", false, "Process all pending entries")
+	extractCmd.Flags().StringVar(&extractBead, "bead", "", "Bead ID to tag extracted learnings with")
 }
 
 func runExtract(cmd *cobra.Command, args []string) error {
@@ -126,6 +129,9 @@ func clearPendingFile(pendingPath string, count int) error {
 // extractMostRecent processes only the last pending entry and removes it.
 func extractMostRecent(pendingPath string, pending []PendingExtraction, cwd string) error {
 	extraction := pending[len(pending)-1]
+	if extractBead != "" && extraction.BeadID == "" {
+		extraction.BeadID = extractBead
+	}
 	outputExtractionPrompt(extraction, cwd, extractMaxContent)
 	if err := removePendingEntry(pendingPath, pending, len(pending)-1); err != nil {
 		VerbosePrintf("Warning: failed to update pending file: %v\n", err)
@@ -372,6 +378,12 @@ func outputExtractionPrompt(extraction PendingExtraction, cwd string, maxContent
 	fmt.Println("category: architecture   # architecture | debugging | process | testing | security")
 	fmt.Println("confidence: high         # high | medium | low")
 	fmt.Printf("source_session: \"%s\"\n", extraction.SessionID)
+	if extraction.BeadID != "" {
+		fmt.Printf("source_bead: \"%s\"\n", extraction.BeadID)
+	} else {
+		fmt.Println("source_bead: \"\"           # bead ID if working on a tracked issue")
+	}
+	fmt.Println("source_phase: \"\"          # research | plan | implement | validate")
 	fmt.Println("---")
 	fmt.Println()
 	fmt.Println("# Learning: [Short Title]")

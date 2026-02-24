@@ -445,7 +445,7 @@ ao goals [command]
       --file string   Path to goals file (default "GOALS.yaml")
   -h, --help          help for goals
       --json          Output as JSON
-      --timeout int   Check timeout in seconds (default 30)
+      --timeout int   Check timeout in seconds (default 120)
 ```
 
 **Subcommands:**
@@ -1263,13 +1263,15 @@ ao inject [context] [flags]
 **Flags:**
 
 ```
-      --apply-decay      Apply confidence decay before ranking
-      --context string   Context query for filtering (alternative to positional arg)
-      --format string    Output format: markdown, json (default "markdown")
-  -h, --help             help for inject
-      --max-tokens int   Maximum tokens to output (default 1500)
-      --no-cite          Disable citation recording
-      --session string   Session ID for citation tracking (auto-generated if empty)
+      --apply-decay          Apply confidence decay before ranking
+      --bead string          Bead ID for work-scoped knowledge injection
+      --context string       Context query for filtering (alternative to positional arg)
+      --format string        Output format: markdown, json (default "markdown")
+  -h, --help                 help for inject
+      --max-tokens int       Maximum tokens to output (default 1500)
+      --no-cite              Disable citation recording
+      --predecessor string   Path to predecessor handoff file for context injection
+      --session string       Session ID for citation tracking (auto-generated if empty)
 ```
 
 ---
@@ -1399,6 +1401,7 @@ ao extract [flags]
 
 ```
       --all               Process all pending entries
+      --bead string       Bead ID to tag extracted learnings with
       --clear             Clear pending queue without processing
   -h, --help              help for extract
       --max-content int   Maximum characters of session content to include (default 3000)

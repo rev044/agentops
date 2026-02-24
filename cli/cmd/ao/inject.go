@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,12 +36,14 @@ const (
 )
 
 var (
-	injectMaxTokens  int
-	injectContext    string
-	injectFormat     string
-	injectSessionID  string
-	injectNoCite     bool
-	injectApplyDecay bool
+	injectMaxTokens   int
+	injectContext     string
+	injectFormat      string
+	injectSessionID   string
+	injectNoCite      bool
+	injectApplyDecay  bool
+	injectBead        string
+	injectPredecessor string
 )
 
 type olConstraint struct {
@@ -52,12 +55,14 @@ type olConstraint struct {
 }
 
 type injectedKnowledge struct {
-	Learnings     []learning     `json:"learnings,omitempty"`
-	Patterns      []pattern      `json:"patterns,omitempty"`
-	Sessions      []session      `json:"sessions,omitempty"`
-	OLConstraints []olConstraint `json:"ol_constraints,omitempty"`
-	Timestamp     time.Time      `json:"timestamp"`
-	Query         string         `json:"query,omitempty"`
+	Predecessor   *predecessorContext `json:"predecessor,omitempty"`
+	Learnings     []learning          `json:"learnings,omitempty"`
+	Patterns      []pattern           `json:"patterns,omitempty"`
+	Sessions      []session           `json:"sessions,omitempty"`
+	OLConstraints []olConstraint      `json:"ol_constraints,omitempty"`
+	Timestamp     time.Time           `json:"timestamp"`
+	Query         string              `json:"query,omitempty"`
+	BeadID        string              `json:"bead_id,omitempty"`
 }
 
 type learning struct {
@@ -65,6 +70,8 @@ type learning struct {
 	Title          string  `json:"title"`
 	Summary        string  `json:"summary"`
 	Source         string  `json:"source,omitempty"`
+	SourceBead     string  `json:"source_bead,omitempty"`     // Bead ID that produced this learning
+	SourcePhase    string  `json:"source_phase,omitempty"`    // RPI phase (research|plan|implement|validate)
 	FreshnessScore float64 `json:"freshness_score,omitempty"`
 	AgeWeeks       float64 `json:"age_weeks,omitempty"`
 	Utility        float64 `json:"utility,omitempty"`         // MemRL utility value
@@ -109,7 +116,9 @@ Examples:
   ao inject --max-tokens 2000   # Larger budget
   ao inject --format json       # JSON output
   ao inject --no-cite           # Skip citation recording
-  ao inject --apply-decay       # Apply confidence decay before ranking`,
+  ao inject --apply-decay       # Apply confidence decay before ranking
+  ao inject --bead ag-7abc      # Work-scoped injection for bead
+  ao inject --predecessor /path/to/handoff.md  # Include predecessor context`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runInject,
 }
@@ -123,6 +132,8 @@ func init() {
 	injectCmd.Flags().StringVar(&injectSessionID, "session", "", "Session ID for citation tracking (auto-generated if empty)")
 	injectCmd.Flags().BoolVar(&injectNoCite, "no-cite", false, "Disable citation recording")
 	injectCmd.Flags().BoolVar(&injectApplyDecay, "apply-decay", false, "Apply confidence decay before ranking")
+	injectCmd.Flags().StringVar(&injectBead, "bead", "", "Bead ID for work-scoped knowledge injection")
+	injectCmd.Flags().StringVar(&injectPredecessor, "predecessor", "", "Path to predecessor handoff file for context injection")
 }
 
 func runInject(cmd *cobra.Command, args []string) error {
@@ -138,8 +149,30 @@ func runInject(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
+	// Resolve bead context for work-scoped injection
+	var beadCtx *BeadContext
+	if injectBead != "" {
+		beadCtx = resolveBeadContext(injectBead, cwd)
+		VerbosePrintf("Bead context: id=%s title=%q labels=%v\n", injectBead, beadCtx.Title, beadCtx.Labels)
+	}
+
 	sessionID := canonicalSessionID(injectSessionID)
 	knowledge := gatherKnowledge(cwd, query, sessionID)
+	knowledge.BeadID = injectBead
+
+	// Apply bead-scoped boosting after composite scoring
+	if beadCtx != nil {
+		for i := range knowledge.Learnings {
+			applyBeadBoost(&knowledge.Learnings[i], beadCtx)
+		}
+		// Re-sort by boosted score
+		resortLearnings(knowledge.Learnings)
+	}
+
+	// Load predecessor context
+	if injectPredecessor != "" {
+		knowledge.Predecessor = parsePredecessorFile(injectPredecessor)
+	}
 
 	output, err := renderKnowledge(knowledge, injectFormat)
 	if err != nil {
@@ -342,19 +375,61 @@ func writeConstraintsSection(sb *strings.Builder, constraints []olConstraint) {
 	sb.WriteString("\n")
 }
 
+// resortLearnings re-sorts learnings by CompositeScore after bead boosting.
+func resortLearnings(learnings []learning) {
+	slices.SortFunc(learnings, func(a, b learning) int {
+		if a.CompositeScore > b.CompositeScore {
+			return -1
+		}
+		if a.CompositeScore < b.CompositeScore {
+			return 1
+		}
+		return 0
+	})
+}
+
 // formatKnowledgeMarkdown formats knowledge as markdown
 func formatKnowledgeMarkdown(k *injectedKnowledge) string {
 	var sb strings.Builder
 	sb.WriteString("## Injected Knowledge (ol inject)\n\n")
+	writePredecessorSection(&sb, k.Predecessor)
 	writeLearningsSection(&sb, k.Learnings)
 	writePatternsSection(&sb, k.Patterns)
 	writeSessionsSection(&sb, k.Sessions)
 	writeConstraintsSection(&sb, k.OLConstraints)
-	if len(k.Learnings) == 0 && len(k.Patterns) == 0 && len(k.Sessions) == 0 && len(k.OLConstraints) == 0 {
+	if k.Predecessor == nil && len(k.Learnings) == 0 && len(k.Patterns) == 0 && len(k.Sessions) == 0 && len(k.OLConstraints) == 0 {
 		sb.WriteString("*No prior knowledge found.*\n\n")
 	}
 	sb.WriteString(fmt.Sprintf("*Last injection: %s*\n", k.Timestamp.Format(time.RFC3339)))
 	return sb.String()
+}
+
+// writePredecessorSection writes the predecessor context block.
+func writePredecessorSection(sb *strings.Builder, pred *predecessorContext) {
+	if pred == nil {
+		return
+	}
+	sb.WriteString("### Predecessor Context")
+	if pred.SessionAge != "" {
+		sb.WriteString(fmt.Sprintf(" (%s ago)", pred.SessionAge))
+	}
+	sb.WriteString("\n")
+	if pred.WorkingOn != "" {
+		sb.WriteString(fmt.Sprintf("- **Working on:** %s\n", pred.WorkingOn))
+	}
+	if pred.Progress != "" {
+		sb.WriteString(fmt.Sprintf("- **Progress:** %s\n", pred.Progress))
+	}
+	if pred.Blocker != "" {
+		sb.WriteString(fmt.Sprintf("- **Blocker:** %s\n", pred.Blocker))
+	}
+	if pred.NextStep != "" {
+		sb.WriteString(fmt.Sprintf("- **Next step:** %s\n", pred.NextStep))
+	}
+	if pred.RawSummary != "" && pred.Progress == "" {
+		sb.WriteString(fmt.Sprintf("- %s\n", pred.RawSummary))
+	}
+	sb.WriteString("\n")
 }
 
 // trimJSONToCharBudget truncates JSON output by progressively removing items

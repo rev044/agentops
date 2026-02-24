@@ -35,6 +35,11 @@ type flywheelCloseLoopResult struct {
 		Indexed    int    `json:"indexed"`
 		IndexPath  string `json:"index_path,omitempty"`
 	} `json:"store"`
+	CitationFeedback struct {
+		Processed int `json:"processed"`
+		Rewarded  int `json:"rewarded"`
+		Skipped   int `json:"skipped"`
+	} `json:"citation_feedback"`
 }
 
 var flywheelCloseLoopCmd = &cobra.Command{
@@ -111,6 +116,12 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 	result.Store.Indexed = indexed
 	result.Store.IndexPath = indexPath
 
+	// 5) citation-to-utility feedback: process unprocessed citations
+	processed, rewarded, skipped := processCitationFeedback(cwd)
+	result.CitationFeedback.Processed = processed
+	result.CitationFeedback.Rewarded = rewarded
+	result.CitationFeedback.Skipped = skipped
+
 	return outputFlywheelCloseLoopResult(result)
 }
 
@@ -132,6 +143,8 @@ func outputFlywheelCloseLoopResult(res flywheelCloseLoopResult) error {
 		fmt.Printf("Auto-promote: promoted=%d (threshold=%s)\n", res.AutoPromote.Promoted, res.AutoPromote.Threshold)
 		fmt.Printf("Anti-patterns: promoted=%d (eligible=%d)\n", res.AntiPattern.Promoted, res.AntiPattern.Eligible)
 		fmt.Printf("Store: indexed=%d (categorize=%v)\n", res.Store.Indexed, res.Store.Categorize)
+		fmt.Printf("Citation feedback: processed=%d (rewarded=%d, skipped=%d)\n",
+			res.CitationFeedback.Processed, res.CitationFeedback.Rewarded, res.CitationFeedback.Skipped)
 		fmt.Println()
 		return nil
 	}

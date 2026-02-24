@@ -60,8 +60,25 @@ fi
 
 # Flywheel: extract pending queue + inject prior knowledge
 if command -v ao &>/dev/null; then
-    run_ao_quick 5 extract || log_hook_fail "ao extract"
-    run_ao_quick 5 inject --apply-decay --format markdown --max-tokens 1000 || log_hook_fail "ao inject"
+    # Build bead context flags from Gas Town env vars (optional)
+    INJECT_EXTRA_FLAGS=()
+    if [ -n "${HOOK_BEAD:-}" ]; then
+        INJECT_EXTRA_FLAGS+=(--bead "$HOOK_BEAD")
+        run_ao_quick 5 extract --bead "$HOOK_BEAD" || log_hook_fail "ao extract --bead"
+    else
+        run_ao_quick 5 extract || log_hook_fail "ao extract"
+    fi
+
+    # Find most recent predecessor handoff file (optional)
+    PREDECESSOR_FILE="${GT_PREDECESSOR_HANDOFF:-}"
+    if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
+        PREDECESSOR_FILE=$(ls -t "$ROOT/.agents/handoff/"*.md 2>/dev/null | head -1)
+    fi
+    if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
+        INJECT_EXTRA_FLAGS+=(--predecessor "$PREDECESSOR_FILE")
+    fi
+
+    run_ao_quick 5 inject --apply-decay --format markdown --max-tokens 1000 "${INJECT_EXTRA_FLAGS[@]}" || log_hook_fail "ao inject"
 fi
 
 # Inject using-agentops skill context

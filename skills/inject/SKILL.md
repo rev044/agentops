@@ -19,10 +19,25 @@ Inject relevant prior knowledge into the current session.
 
 The SessionStart hook runs:
 ```bash
-ao inject --apply-decay --format markdown --max-tokens 1000
+ao inject --apply-decay --format markdown --max-tokens 1000 \
+  [--bead <bead-id>] [--predecessor <handoff-path>]
 ```
 
 This searches for relevant knowledge and injects it into context.
+
+### Work-Scoped Injection
+
+When `--bead` is provided (via `HOOK_BEAD` env var from Gas Town):
+- Learnings tagged with the same bead ID get a 1.5x score boost
+- Learnings matching bead labels get a 1.2x boost
+- Untagged learnings still appear but ranked lower
+
+### Predecessor Context
+
+When `--predecessor` is provided (path to a handoff file):
+- Extracts structured context: progress, blockers, next steps
+- Injected as "Predecessor Context" section before learnings
+- Supports explicit handoffs, auto-handoffs, and pre-compact snapshots
 
 ## Manual Execution
 

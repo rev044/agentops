@@ -16,6 +16,20 @@ import (
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
+// validPhases is the set of canonical RPI phase values for source_phase.
+var validPhases = map[string]bool{
+	"research": true, "plan": true, "implement": true, "validate": true,
+}
+
+// sanitizeSourcePhase returns the phase if valid, or empty string if not.
+func sanitizeSourcePhase(phase string) string {
+	p := strings.ToLower(strings.TrimSpace(phase))
+	if validPhases[p] {
+		return p
+	}
+	return ""
+}
+
 // collectLearnings finds recent learnings from .agents/learnings/
 // Implements MemRL Two-Phase retrieval: Phase A (similarity/freshness) + Phase B (utility-weighted)
 // With CASS integration: applies confidence decay when --apply-decay is set
@@ -199,6 +213,8 @@ type frontMatter struct {
 	SupersededBy string
 	Utility      float64
 	HasUtility   bool
+	SourceBead   string
+	SourcePhase  string
 }
 
 // parseFrontMatter extracts YAML front matter from markdown content
@@ -230,6 +246,10 @@ func parseFrontMatterLine(line string, fm *frontMatter) {
 			fm.Utility = utility
 			fm.HasUtility = true
 		}
+	case strings.HasPrefix(line, "source_bead:"), strings.HasPrefix(line, "source-bead:"):
+		fm.SourceBead = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+	case strings.HasPrefix(line, "source_phase:"), strings.HasPrefix(line, "source-phase:"):
+		fm.SourcePhase = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
 	}
 }
 
@@ -299,6 +319,8 @@ func parseLearningFile(path string) (learning, error) {
 	if fm.HasUtility {
 		l.Utility = fm.Utility
 	}
+	l.SourceBead = fm.SourceBead
+	l.SourcePhase = sanitizeSourcePhase(fm.SourcePhase)
 
 	parseLearningBody(lines, contentStart, &l)
 	l.Summary = extractSummary(lines, contentStart)
@@ -326,6 +348,12 @@ func populateLearningFromJSON(data map[string]any, l *learning) {
 	}
 	if utility, ok := data["utility"].(float64); ok && utility > 0 {
 		l.Utility = utility
+	}
+	if sb, ok := data["source_bead"].(string); ok {
+		l.SourceBead = sb
+	}
+	if sp, ok := data["source_phase"].(string); ok {
+		l.SourcePhase = sanitizeSourcePhase(sp)
 	}
 }
 
