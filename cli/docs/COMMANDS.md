@@ -482,13 +482,6 @@ Compare snapshots for regressions
 ao goals drift [flags]
 ```
 
-**Flags:**
-
-```
-  -h, --help           help for drift
-      --since string   Compare against snapshot from this date (YYYY-MM-DD)
-```
-
 #### `ao goals export`
 
 Export latest snapshot as JSON (for CI)
@@ -555,7 +548,7 @@ ao goals meta [flags]
 
 #### `ao goals migrate`
 
-Migrate a version 1 GOALS.yaml to version 2 format.
+Migrate goals between formats.
 
 ```
 ao goals migrate [flags]
@@ -1390,6 +1383,25 @@ ao trace <artifact-path> [flags]
 ```
       --graph   Show ASCII provenance graph
   -h, --help    help for trace
+```
+
+---
+
+### `ao extract`
+
+Check for pending session extractions and output a prompt for Claude to process.
+
+```
+ao extract [flags]
+```
+
+**Flags:**
+
+```
+      --all               Process all pending entries
+      --clear             Clear pending queue without processing
+  -h, --help              help for extract
+      --max-content int   Maximum characters of session content to include (default 3000)
 ```
 
 ---
