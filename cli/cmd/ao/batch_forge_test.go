@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -442,5 +443,91 @@ func TestBatchForgeResult(t *testing.T) {
 	}
 	if len(decoded.Paths) != len(result.Paths) {
 		t.Errorf("expected %d paths, got %d", len(result.Paths), len(decoded.Paths))
+	}
+}
+
+func TestLoadAndFilterTranscripts_RespectsForgedIndex(t *testing.T) {
+	tmpDir := t.TempDir()
+	transcriptDir := filepath.Join(tmpDir, "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	transcriptPath := filepath.Join(transcriptDir, "session.jsonl")
+	content := `{"role":"user","content":"this transcript has enough content to exceed one hundred bytes for candidate detection"}
+{"role":"assistant","content":"batch forging should discover this file and then skip it once indexed as forged"}`
+	if err := os.WriteFile(transcriptPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	unforged, skipped, forgedIndexPath, err := loadAndFilterTranscripts(tmpDir, transcriptDir, 0)
+	if err != nil {
+		t.Fatalf("loadAndFilterTranscripts first run: %v", err)
+	}
+	if len(unforged) != 1 || skipped != 0 {
+		t.Fatalf("expected one unforged transcript on first run, got len=%d skipped=%d", len(unforged), skipped)
+	}
+	if !strings.HasSuffix(forgedIndexPath, filepath.Join(".agents", "ao", "forged.jsonl")) {
+		t.Fatalf("unexpected forged index path: %s", forgedIndexPath)
+	}
+
+	if err := appendForgedRecord(forgedIndexPath, ForgedRecord{
+		Path:     transcriptPath,
+		ForgedAt: time.Now(),
+		Session:  "session-1",
+	}); err != nil {
+		t.Fatalf("appendForgedRecord: %v", err)
+	}
+
+	unforged, skipped, _, err = loadAndFilterTranscripts(tmpDir, transcriptDir, 0)
+	if err != nil {
+		t.Fatalf("loadAndFilterTranscripts second run: %v", err)
+	}
+	if len(unforged) != 0 || skipped != 1 {
+		t.Fatalf("expected transcript to be skipped after forge index update, got len=%d skipped=%d", len(unforged), skipped)
+	}
+}
+
+func TestRunForgeBatch_NoPendingTranscripts(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	oldBatchDir, oldBatchMax, oldBatchExtract := batchDir, batchMax, batchExtract
+	oldOutput := output
+	batchDir = filepath.Join(tmpDir, "empty-transcripts")
+	batchMax = 0
+	batchExtract = false
+	output = "text"
+	t.Cleanup(func() {
+		batchDir, batchMax, batchExtract = oldBatchDir, oldBatchMax, oldBatchExtract
+		output = oldOutput
+	})
+
+	if err := os.MkdirAll(batchDir, 0o755); err != nil {
+		t.Fatalf("mkdir batch dir: %v", err)
+	}
+
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	err = runForgeBatch(nil, nil)
+	w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("runForgeBatch: %v", err)
+	}
+
+	var buf [1024]byte
+	n, _ := r.Read(buf[:])
+	r.Close()
+	if !strings.Contains(string(buf[:n]), "No pending transcripts found.") {
+		t.Fatalf("expected no-pending message, got: %s", string(buf[:n]))
 	}
 }

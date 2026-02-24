@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -360,5 +361,164 @@ func TestCurate_Status_EmptyRepo(t *testing.T) {
 	}
 	if result.PendingVerify != 0 {
 		t.Errorf("expected pending_verify=0, got %d", result.PendingVerify)
+	}
+}
+
+func TestCurateVerify_GoalsMDFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	goalsMD := `# Goals
+
+## Mission
+Curate verify fallback test
+
+## Gates
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| always-pass | ` + "`true`" + ` | 1 | always passes |
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "GOALS.md"), []byte(goalsMD), 0o644); err != nil {
+		t.Fatalf("write GOALS.md: %v", err)
+	}
+
+	origOutput := output
+	output = "json"
+	t.Cleanup(func() { output = origOutput })
+
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	err = runCurateVerify(nil, nil)
+	w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("runCurateVerify: %v", err)
+	}
+
+	var buf [4096]byte
+	n, _ := r.Read(buf[:])
+	r.Close()
+
+	var result curateVerifyResult
+	if err := json.Unmarshal(buf[:n], &result); err != nil {
+		t.Fatalf("unmarshal result: %v (raw: %s)", err, string(buf[:n]))
+	}
+	if !result.Verified {
+		t.Fatalf("expected verified=true, got false (%+v)", result)
+	}
+	if result.GatesPassed < 1 {
+		t.Fatalf("expected at least one gate passed, got %d", result.GatesPassed)
+	}
+}
+
+func TestCurateParseFrontmatter_YAMLMultiline(t *testing.T) {
+	input := `---
+type: learning
+date: 2026-02-24
+content: |
+  line one
+  line two
+tags:
+  - constraint
+  - parser
+---
+Body fallback content
+`
+
+	fm, body := curateParseFrontmatter(input)
+
+	if got := curateFrontmatterString(fm, "type"); got != "learning" {
+		t.Fatalf("type = %q, want learning", got)
+	}
+	if got := curateFrontmatterString(fm, "date"); got != "2026-02-24" {
+		t.Fatalf("date = %q, want 2026-02-24", got)
+	}
+	if got := curateFrontmatterString(fm, "content"); !strings.Contains(got, "line one") || !strings.Contains(got, "line two") {
+		t.Fatalf("expected multiline content in frontmatter, got %q", got)
+	}
+	if body != "Body fallback content" {
+		t.Fatalf("body = %q, want %q", body, "Body fallback content")
+	}
+}
+
+func TestCuratePipeline_CatalogAssembleVerify(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	goalsMD := `# Goals
+
+## Mission
+Pipeline integration
+
+## Gates
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| always-pass | ` + "`true`" + ` | 1 | always passes |
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "GOALS.md"), []byte(goalsMD), 0o644); err != nil {
+		t.Fatalf("write GOALS.md: %v", err)
+	}
+
+	artifact := `---
+type: learning
+date: 2026-02-24
+---
+Context assembly should read curated JSON artifacts.
+`
+	artifactPath := filepath.Join(tmpDir, "pipeline-learning.md")
+	if err := os.WriteFile(artifactPath, []byte(artifact), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+	if err := runCurateCatalog(nil, []string{artifactPath}); err != nil {
+		t.Fatalf("runCurateCatalog: %v", err)
+	}
+
+	sections := assembleSections(tmpDir, "Read curated artifacts", defaultAssembleMaxChars)
+	if len(sections) != 5 {
+		t.Fatalf("expected 5 sections, got %d", len(sections))
+	}
+	if !strings.Contains(sections[2].Content, "Context assembly should read curated JSON artifacts.") {
+		t.Fatalf("INTEL section did not include curated learning content: %s", sections[2].Content)
+	}
+
+	origOutput := output
+	output = "json"
+	t.Cleanup(func() { output = origOutput })
+
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	err = runCurateVerify(nil, nil)
+	w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("runCurateVerify: %v", err)
+	}
+
+	var buf [4096]byte
+	n, _ := r.Read(buf[:])
+	r.Close()
+
+	var result curateVerifyResult
+	if err := json.Unmarshal(buf[:n], &result); err != nil {
+		t.Fatalf("unmarshal result: %v (raw: %s)", err, string(buf[:n]))
+	}
+	if !result.Verified {
+		t.Fatalf("expected verified=true in pipeline path, got false (%+v)", result)
 	}
 }

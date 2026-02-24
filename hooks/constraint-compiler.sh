@@ -176,26 +176,69 @@ echo "Generated constraint template: $CONSTRAINT_FILE"
 # Update index.json (create or merge)
 ##############################################################################
 
-NEW_ENTRY="{\"id\":\"${LEARNING_ID}\",\"title\":\"${TITLE}\",\"source\":\"${LEARNING_PATH}\",\"status\":\"draft\",\"compiled_at\":\"${COMPILED_DATE}\",\"file\":\".agents/constraints/${LEARNING_ID}.sh\"}"
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+NEW_ENTRY="$(printf '{"id":"%s","title":"%s","source":"%s","status":"draft","compiled_at":"%s","file":"%s"}' \
+    "$(json_escape "$LEARNING_ID")" \
+    "$(json_escape "$TITLE")" \
+    "$(json_escape "$LEARNING_PATH")" \
+    "$(json_escape "$COMPILED_DATE")" \
+    "$(json_escape ".agents/constraints/${LEARNING_ID}.sh")")"
+PENDING_INDEX_FILE="$CONSTRAINT_DIR/index.pending.jsonl"
 
 if [ -f "$INDEX_FILE" ]; then
     # Check if jq is available for safe JSON manipulation
     if command -v jq >/dev/null 2>&1; then
         # Remove existing entry with same ID, then append new one
-        UPDATED="$(jq --argjson entry "$NEW_ENTRY" '
-            .constraints = [.constraints[] | select(.id != $entry.id)] + [$entry]
+        UPDATED="$(jq --arg id "$LEARNING_ID" \
+                      --arg title "$TITLE" \
+                      --arg source "$LEARNING_PATH" \
+                      --arg compiled "$COMPILED_DATE" \
+                      --arg file ".agents/constraints/${LEARNING_ID}.sh" '
+            .schema_version = (.schema_version // 1)
+            | .constraints = ((.constraints // []) | map(select(.id != $id)) + [{
+                id: $id,
+                title: $title,
+                source: $source,
+                status: "draft",
+                compiled_at: $compiled,
+                file: $file
+            }])
         ' "$INDEX_FILE")"
         printf '%s\n' "$UPDATED" > "$INDEX_FILE"
     else
-        # Fallback: rewrite index with just this entry (safe but loses others)
-        # This path should be rare — jq is expected in the environment.
-        echo "WARNING: jq not found, rewriting index with single entry" >&2
-        printf '{"schema_version":1,"constraints":[%s]}\n' "$NEW_ENTRY" > "$INDEX_FILE"
+        # Non-destructive fallback: keep existing index and queue a pending update.
+        printf '%s\n' "$NEW_ENTRY" >> "$PENDING_INDEX_FILE"
+        echo "WARNING: jq not found, preserving existing index and queueing update in $PENDING_INDEX_FILE" >&2
     fi
 else
     # Create fresh index
     if command -v jq >/dev/null 2>&1; then
-        printf '{"schema_version":1,"constraints":[%s]}\n' "$NEW_ENTRY" | jq '.' > "$INDEX_FILE"
+        jq -n --arg id "$LEARNING_ID" \
+              --arg title "$TITLE" \
+              --arg source "$LEARNING_PATH" \
+              --arg compiled "$COMPILED_DATE" \
+              --arg file ".agents/constraints/${LEARNING_ID}.sh" '
+            {
+              schema_version: 1,
+              constraints: [{
+                id: $id,
+                title: $title,
+                source: $source,
+                status: "draft",
+                compiled_at: $compiled,
+                file: $file
+              }]
+            }
+        ' > "$INDEX_FILE"
     else
         printf '{"schema_version":1,"constraints":[%s]}\n' "$NEW_ENTRY" > "$INDEX_FILE"
     fi

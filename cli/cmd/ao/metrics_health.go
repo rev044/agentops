@@ -320,13 +320,15 @@ func computeLoopDominance(baseDir string, citations []types.CitationEvent) loopD
 	// R1: new learnings per session
 	// Count learnings created in the last 30 days as a proxy
 	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
-	since := time.Now().AddDate(0, 0, -30)
-	newLearnings, _ := countNewArtifactsInDir(learningsDir, since)
+	now := time.Now()
+	newSince := now.AddDate(0, 0, -30)
+	newLearnings, _ := countNewArtifactsInDir(learningsDir, newSince)
 	ld.R1 = float64(newLearnings) / float64(sessionCount)
 
 	// B1: decayed learnings per session
 	// Use stale artifacts (90d+ uncited) as a proxy for decay
-	staleLearnings := countStaleInDir(baseDir, learningsDir, since, buildLastCitedMap(baseDir, citations))
+	staleSince := now.AddDate(0, 0, -90)
+	staleLearnings := countStaleInDir(baseDir, learningsDir, staleSince, buildLastCitedMap(baseDir, citations))
 	ld.B1 = float64(staleLearnings) / float64(sessionCount)
 
 	if ld.R1 > ld.B1 {

@@ -26,8 +26,6 @@ type constraintEntry struct {
 	File       string `json:"file"`
 }
 
-var constraintJSON bool
-
 var constraintCmd = &cobra.Command{
 	Use:   "constraint",
 	Short: "Manage compiled constraints",
@@ -45,7 +43,6 @@ Subcommands:
 }
 
 func init() {
-	constraintCmd.PersistentFlags().BoolVar(&constraintJSON, "json", false, "Output as JSON")
 	rootCmd.AddCommand(constraintCmd)
 	constraintCmd.AddCommand(constraintActivateCmd)
 	constraintCmd.AddCommand(constraintRetireCmd)
@@ -80,7 +77,7 @@ func saveConstraintIndex(idx *constraintIndex) error {
 		return fmt.Errorf("marshalling index: %w", err)
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 // findConstraint locates a constraint by ID and returns its pointer.
@@ -116,7 +113,7 @@ var constraintActivateCmd = &cobra.Command{
 		if err := saveConstraintIndex(idx); err != nil {
 			return err
 		}
-		if constraintJSON {
+		if GetOutput() == "json" {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			return enc.Encode(c)
@@ -149,7 +146,7 @@ var constraintRetireCmd = &cobra.Command{
 		if err := saveConstraintIndex(idx); err != nil {
 			return err
 		}
-		if constraintJSON {
+		if GetOutput() == "json" {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			return enc.Encode(c)
@@ -190,7 +187,7 @@ var constraintReviewCmd = &cobra.Command{
 			}
 		}
 
-		if constraintJSON {
+		if GetOutput() == "json" {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			return enc.Encode(stale)
@@ -234,7 +231,7 @@ var constraintListCmd = &cobra.Command{
 			return err
 		}
 
-		if constraintJSON {
+		if GetOutput() == "json" {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			return enc.Encode(idx.Constraints)

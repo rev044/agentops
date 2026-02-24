@@ -38,6 +38,19 @@ Use this checklist to mechanically verify implementation against plan.
 | Partial impl | Tests exist but don't cover edge cases | Document gap |
 | Scope change | Plan said X, we built Y instead | Document rationale |
 
+## Command-Surface Parity Addendum (CLI repos)
+
+When plan scope includes `cli/cmd/ao/*.go` changes, add this parity table:
+
+| Command File | Tested Run-path Evidence | Intentionally Uncovered? | Follow-up Issue |
+|---|---|---|---|
+| cli/cmd/ao/<command>.go | TestName / file:line | yes/no | ag-xxxx (if yes) |
+
+Rules:
+- Every modified command file must have either tested run-path evidence or an intentional-uncovered entry.
+- "Intentionally uncovered" requires a concrete follow-up issue ID.
+- Do not close plan-compliance as PASS when command-surface rows are missing.
+
 ## Example
 
 From a real plan:

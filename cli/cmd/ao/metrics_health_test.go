@@ -280,3 +280,32 @@ func TestMetricsHealth_JSONOutput(t *testing.T) {
 		t.Error("expected loop_dominance field in JSON output")
 	}
 }
+
+func TestComputeLoopDominance_StaleUsesNinetyDayWindow(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+
+	oldPath := filepath.Join(learningsDir, "old-60d.md")
+	if err := os.WriteFile(oldPath, []byte("# Old learning"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().AddDate(0, 0, -60)
+	if err := os.Chtimes(oldPath, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	citations := []types.CitationEvent{
+		{
+			ArtifactPath: filepath.Join(dir, ".agents", "learnings", "recent.md"),
+			SessionID:    "session-1",
+			CitedAt:      time.Now(),
+			CitationType: "reference",
+		},
+	}
+	writeHealthCitations(t, dir, citations)
+
+	ld := computeLoopDominance(dir, citations)
+	if ld.B1 != 0 {
+		t.Fatalf("expected B1=0 for 60-day-old uncited learning with 90-day stale threshold, got %f", ld.B1)
+	}
+}

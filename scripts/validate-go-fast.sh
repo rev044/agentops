@@ -126,6 +126,7 @@ tmp_json="$(mktemp)"
 trap 'rm -f "$tmp_files" "$tmp_pairs" "$tmp_unique" "$tmp_json"' EXIT
 
 race_exit=0
+fallback_hits=0
 
 while IFS=$'\t' read -r module_root _; do
     [[ -z "$module_root" ]] && continue
@@ -147,6 +148,21 @@ while IFS=$'\t' read -r module_root _; do
         go test -race -count=1 -json "${patterns[@]}" 2>&1
     ) > "$tmp_json" || race_exit=$?
 
+    # CI/provisioning fallback: retry serially when the first run fails due to
+    # fork/resource limits rather than test logic failures.
+    if [[ "$race_exit" -ne 0 ]] && grep -Eqi 'resource temporarily unavailable|cannot allocate memory|failed to create new os thread|newosproc|fork/exec' "$tmp_json"; then
+        echo "  INFO: fork/resource failure detected; retrying serial mode (-p 1)"
+        if (
+            cd "$module_root"
+            go test -race -count=1 -json -p 1 "${patterns[@]}" 2>&1
+        ) > "$tmp_json"; then
+            race_exit=0
+            fallback_hits=$((fallback_hits + 1))
+        else
+            race_exit=$?
+        fi
+    fi
+
     # Display human-readable summary from JSON output.
     if [[ -s "$tmp_json" ]]; then
         # Show pass/fail lines for each package.
@@ -154,9 +170,14 @@ while IFS=$'\t' read -r module_root _; do
             action="$(printf '%s' "$line" | jq -r '.Action // empty' 2>/dev/null)" || continue
             pkg="$(printf '%s' "$line" | jq -r '.Package // empty' 2>/dev/null)" || continue
             elapsed="$(printf '%s' "$line" | jq -r '.Elapsed // empty' 2>/dev/null)" || continue
+            test_name="$(printf '%s' "$line" | jq -r '.Test // empty' 2>/dev/null)" || continue
 
             case "$action" in
                 pass|fail)
+                    # Skip per-test events; only summarize package-level pass/fail.
+                    if [[ -n "$test_name" ]]; then
+                        continue
+                    fi
                     if [[ -n "$elapsed" && -n "$pkg" ]]; then
                         status_label="ok"
                         [[ "$action" == "fail" ]] && status_label="FAIL"
@@ -196,4 +217,7 @@ while IFS=$'\t' read -r module_root _; do
 done < <(cut -f1 "$tmp_unique" | sort -u)
 
 echo ""
+if [[ "$fallback_hits" -gt 0 ]]; then
+    echo "INFO: serial fallback used for $fallback_hits module(s)"
+fi
 echo "PASS: lightweight Go race checks succeeded"

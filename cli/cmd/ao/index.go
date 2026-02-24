@@ -118,7 +118,8 @@ func processAllIndexDirs(cwd string, dirs []string, checkMode, quiet bool) ([]in
 
 func runIndex(cmd *cobra.Command, args []string) error {
 	checkMode, _ := cmd.Flags().GetBool("check")
-	jsonMode, _ := cmd.Flags().GetBool("json")
+	localJSONMode, _ := cmd.Flags().GetBool("json")
+	jsonMode := localJSONMode || GetOutput() == "json"
 	dirFlag, _ := cmd.Flags().GetString("dir")
 	quiet, _ := cmd.Flags().GetBool("quiet")
 

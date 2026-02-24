@@ -49,5 +49,6 @@ Two functions exceed CC 20 (runRPIParallel at 35, parseGatesTable at 27). Split 
 | go-complexity-ceiling | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/ --threshold 36` | 6 | No Go function in cli/ exceeds CC 35 (ratchet — Directive 3 drives reduction) |
 | go-internal-complexity | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/internal/ --threshold 28` | 5 | No function in cli/internal/ exceeds CC 27 (ratchet — Directive 3 drives reduction) |
 | go-coverage-floor | `cd cli && timeout 120 go test -cover ./... 2>&1 \| grep '^ok' \| sed -n 's/.*coverage: \([0-9.]*\)%.*/\1/p' \| awk '{s+=$1;n++} END{if(n>0 && s/n>=80) exit 0; else exit 1}'` | 4 | Average test coverage stays above 80% |
+| cmd-ao-coverage-floor | `bash scripts/check-cmdao-coverage-floor.sh` | 6 | cmd/ao coverage floor and zero-coverage regression threshold are enforced |
 | security-gate | `test -x scripts/security-gate.sh && timeout 60 bash tests/scripts/test-security-gate.sh` | 6 | Security toolchain gate is executable and passes |
 | goals-validate | `bash -c 'cd cli && go build -o /tmp/ao-goals-val ./cmd/ao && cd .. && /tmp/ao-goals-val goals validate --json 2>/dev/null \| jq -e ".valid == true"'` | 5 | GOALS.md parses and validates without structural errors |

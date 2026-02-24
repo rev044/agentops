@@ -12,6 +12,7 @@ import (
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // validArtifactTypes enumerates the allowed artifact type values.
@@ -43,14 +44,14 @@ type curateVerifyResult struct {
 
 // curateStatusResult holds the output of a status query.
 type curateStatusResult struct {
-	Learnings        int    `json:"learnings"`
-	Decisions        int    `json:"decisions"`
-	Failures         int    `json:"failures"`
-	Patterns         int    `json:"patterns"`
-	Total            int    `json:"total"`
-	LastCatalogAt    string `json:"last_catalog_at,omitempty"`
-	LastVerifyAt     string `json:"last_verify_at,omitempty"`
-	PendingVerify    int    `json:"pending_verify"`
+	Learnings     int    `json:"learnings"`
+	Decisions     int    `json:"decisions"`
+	Failures      int    `json:"failures"`
+	Patterns      int    `json:"patterns"`
+	Total         int    `json:"total"`
+	LastCatalogAt string `json:"last_catalog_at,omitempty"`
+	LastVerifyAt  string `json:"last_verify_at,omitempty"`
+	PendingVerify int    `json:"pending_verify"`
 }
 
 var curateVerifySince string
@@ -100,8 +101,8 @@ func init() {
 // curateParseFrontmatter extracts YAML frontmatter key-value pairs from a
 // markdown document delimited by --- lines. Returns the frontmatter map and
 // the body content below the closing delimiter.
-func curateParseFrontmatter(data string) (map[string]string, string) {
-	fm := make(map[string]string)
+func curateParseFrontmatter(data string) (map[string]any, string) {
+	fm := make(map[string]any)
 
 	lines := strings.Split(data, "\n")
 	if len(lines) < 3 || strings.TrimSpace(lines[0]) != "---" {
@@ -120,20 +121,39 @@ func curateParseFrontmatter(data string) (map[string]string, string) {
 		return fm, data
 	}
 
-	// Parse key: value pairs between delimiters
-	for _, line := range lines[1:closeIdx] {
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			val := strings.TrimSpace(parts[1])
-			if key != "" {
-				fm[key] = val
-			}
-		}
+	fmText := strings.Join(lines[1:closeIdx], "\n")
+	if err := yaml.Unmarshal([]byte(fmText), &fm); err != nil {
+		// Frontmatter delimiter exists but YAML is malformed; fall back to body-only.
+		return make(map[string]any), strings.TrimSpace(strings.Join(lines[closeIdx+1:], "\n"))
 	}
 
 	body := strings.Join(lines[closeIdx+1:], "\n")
 	return fm, strings.TrimSpace(body)
+}
+
+func curateFrontmatterString(fm map[string]any, key string) string {
+	v, ok := fm[key]
+	if !ok || v == nil {
+		return ""
+	}
+	switch typed := v.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case time.Time:
+		return typed.UTC().Format("2006-01-02")
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", typed))
+	}
+}
+
+func resolveCurateGoalsFile() (string, error) {
+	candidates := []string{"GOALS.md", "GOALS.yaml", "GOALS.yml"}
+	for _, path := range candidates {
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path, nil
+		}
+	}
+	return "", os.ErrNotExist
 }
 
 // generateArtifactID creates a unique ID based on artifact type, date, and content hash.
@@ -174,7 +194,7 @@ func runCurateCatalog(cmd *cobra.Command, args []string) error {
 	fm, body := curateParseFrontmatter(string(data))
 
 	// Validate required fields
-	artifactType := fm["type"]
+	artifactType := curateFrontmatterString(fm, "type")
 	if artifactType == "" {
 		return fmt.Errorf("artifact missing required 'type' field in frontmatter")
 	}
@@ -185,19 +205,19 @@ func runCurateCatalog(cmd *cobra.Command, args []string) error {
 
 	content := body
 	if content == "" {
-		content = fm["content"]
+		content = curateFrontmatterString(fm, "content")
 	}
 	if content == "" {
 		return fmt.Errorf("artifact has no content (empty body and no 'content' frontmatter field)")
 	}
 
-	date := fm["date"]
+	date := curateFrontmatterString(fm, "date")
 	if date == "" {
 		date = time.Now().UTC().Format("2006-01-02")
 	}
 
 	// Assign ID if missing
-	id := fm["id"]
+	id := curateFrontmatterString(fm, "id")
 	if id == "" {
 		id = generateArtifactID(artifactType, date, content)
 	}
@@ -251,8 +271,8 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load goals and measure
-	gf, err := goals.LoadGoals("GOALS.yaml")
-	if err != nil {
+	goalsPath, resolveErr := resolveCurateGoalsFile()
+	if resolveErr != nil {
 		// If no goals file, report zero gates
 		if GetOutput() == "json" {
 			result.Verified = true
@@ -261,6 +281,18 @@ func runCurateVerify(cmd *cobra.Command, args []string) error {
 			return enc.Encode(result)
 		}
 		fmt.Println("No GOALS file found — nothing to verify")
+		return nil
+	}
+
+	gf, err := goals.LoadGoals(goalsPath)
+	if err != nil {
+		if GetOutput() == "json" {
+			result.Verified = true
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(result)
+		}
+		fmt.Printf("Could not load goals from %s — nothing to verify\n", goalsPath)
 		return nil
 	}
 

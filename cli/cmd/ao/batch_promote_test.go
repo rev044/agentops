@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -247,6 +248,98 @@ func TestOutputBatchResult(t *testing.T) {
 	err := outputBatchResult(result)
 	if err != nil {
 		t.Errorf("outputBatchResult: %v", err)
+	}
+}
+
+func TestRunBatchPromote_NoPendingCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	oldOutput := output
+	output = "text"
+	oldMinAge := batchPromoteMinAge
+	oldForce := batchPromoteForce
+	batchPromoteMinAge = "24h"
+	batchPromoteForce = false
+	t.Cleanup(func() {
+		output = oldOutput
+		batchPromoteMinAge = oldMinAge
+		batchPromoteForce = oldForce
+	})
+
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	err = runBatchPromote(nil, nil)
+	w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("runBatchPromote: %v", err)
+	}
+
+	var buf [512]byte
+	n, _ := r.Read(buf[:])
+	r.Close()
+	if !strings.Contains(string(buf[:n]), "No pending candidates found") {
+		t.Fatalf("expected no-pending message, got: %s", string(buf[:n]))
+	}
+}
+
+func TestTryPromoteEntry_RecordsSkipOnError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := pool.NewPool(tmpDir)
+	result := &batchPromoteResult{}
+	entry := pool.PoolEntry{
+		PoolEntry: types.PoolEntry{
+			Candidate: types.Candidate{ID: "missing-candidate"},
+		},
+	}
+
+	err := tryPromoteEntry(p, entry, result)
+	if err == nil {
+		t.Fatal("expected promotion error for missing candidate")
+	}
+	if result.Skipped != 1 {
+		t.Fatalf("expected skipped=1, got %d", result.Skipped)
+	}
+	if len(result.Reasons) != 1 || !strings.Contains(result.Reasons[0].Reason, "error:") {
+		t.Fatalf("expected error reason recorded, got %+v", result.Reasons)
+	}
+}
+
+func TestProcessPromotionCandidate_TooYoungSkips(t *testing.T) {
+	oldForce := batchPromoteForce
+	batchPromoteForce = false
+	t.Cleanup(func() { batchPromoteForce = oldForce })
+
+	result := &batchPromoteResult{}
+	entry := pool.PoolEntry{
+		PoolEntry: types.PoolEntry{
+			Candidate: types.Candidate{
+				ID:      "cand-too-young",
+				Content: "some content",
+			},
+		},
+		Age:       1 * time.Hour,
+		AgeString: "1h",
+	}
+
+	promoted := processPromotionCandidate(nil, entry, t.TempDir(), 24*time.Hour, map[string]int{}, map[string]bool{}, result)
+	if promoted {
+		t.Fatal("expected non-promoted candidate for too-young entry")
+	}
+	if result.Skipped != 1 {
+		t.Fatalf("expected skipped=1, got %d", result.Skipped)
+	}
+	if len(result.Reasons) != 1 || !strings.Contains(result.Reasons[0].Reason, "too young") {
+		t.Fatalf("expected too-young reason, got %+v", result.Reasons)
 	}
 }
 

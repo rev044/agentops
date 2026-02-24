@@ -33,8 +33,24 @@ For each **spec-eligible** issue (feature/bugfix/refactor):
 3. **Worker receives:** Issue description, plan boundaries, contract template, codebase access (read-only)
 4. **Validation:** files_exist + content_check for `## Invariants` AND `## Test Cases`
 5. **Lead commits** all specs after validation: `git add .agents/specs/ && git commit -m "spec: contracts for <issue-ids>"`
+6. **Wave 1 consistency checklist (MANDATORY):** run `skills/crank/references/wave1-spec-consistency-checklist.md` across the full SPEC wave set before advancing to TEST WAVE.
 
 **Category-based skip:** Issues categorized as docs/chore/ci bypass SPEC and TEST waves entirely and proceed directly to standard implementation waves.
+
+### Wave 1 Consistency Gate
+
+Run the checklist once per SPEC wave:
+
+```bash
+# Mechanical gate: all contracts in this wave satisfy checklist criteria
+# (frontmatter completeness, invariant/test-case minimums, and consistency checks)
+cat skills/crank/references/wave1-spec-consistency-checklist.md
+```
+
+If any checklist item fails:
+1. Re-run SPEC worker(s) for affected issue(s)
+2. Re-validate the full SPEC wave
+3. Do not start TEST WAVE until checklist passes
 
 ### SPEC WAVE BLOCKED Recovery
 

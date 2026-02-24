@@ -429,6 +429,7 @@ run_step_bg "Embedded sync check" ./scripts/validate-embedded-sync.sh
 run_step_bg "Secret pattern scan" run_security_scan_patterns
 run_step_bg "Dangerous shell pattern scan" run_dangerous_pattern_scan
 run_step_bg "Skill flag cross-refs" ./scripts/check-skill-flag-refs.sh
+run_step_bg "Command/test pairing gate" ./scripts/check-go-command-test-pair.sh
 
 collect_parallel
 
@@ -439,6 +440,9 @@ run_step_bg "ShellCheck" run_shellcheck
 run_step_bg "Markdownlint" run_markdownlint
 run_step_bg "Smoke tests" ./tests/smoke-test.sh --verbose
 run_step_bg "CLI integration smoke tests" ./tests/integration/test-cli-commands.sh
+run_step_bg "Command/test pairing gate tests" ./tests/scripts/test-go-command-test-pair.sh
+run_step_bg "Constraint compiler BATS wrapper" ./tests/hooks/test-constraint-compiler.sh
+run_step_bg "cmd/ao coverage floor gate" ./scripts/check-cmdao-coverage-floor.sh
 
 collect_parallel
 

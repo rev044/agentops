@@ -294,7 +294,8 @@ For each spec-eligible issue (feature/bug/task):
 2. Worker receives: issue description, plan boundaries, contract template (`skills/crank/references/contract-template.md`), codebase access (read-only)
 3. Worker generates: `.agents/specs/contract-<issue-id>.md`
 4. **Validation:** files_exist + content_check for `## Invariants` AND `## Test Cases`
-5. Lead commits all specs after validation
+5. **Wave 1 spec consistency checklist (MANDATORY):** run `skills/crank/references/wave1-spec-consistency-checklist.md` across all contracts in this wave. If any item fails, re-run SPEC workers for affected issues and do NOT proceed to TEST WAVE.
+6. Lead commits all specs after validation
 
 For BLOCKED recovery and full worker prompt, read `skills/crank/references/test-first-mode.md`.
 
@@ -577,4 +578,5 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 - [references/team-coordination.md](references/team-coordination.md)
 - [references/test-first-mode.md](references/test-first-mode.md)
 - [references/troubleshooting.md](references/troubleshooting.md)
+- [references/wave1-spec-consistency-checklist.md](references/wave1-spec-consistency-checklist.md)
 - [references/wave-patterns.md](references/wave-patterns.md)

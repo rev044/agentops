@@ -38,6 +38,13 @@ func TestConstraintLoadSaveFindRoundTrip(t *testing.T) {
 	if err := saveConstraintIndex(idx); err != nil {
 		t.Fatalf("saveConstraintIndex: %v", err)
 	}
+	info, err := os.Stat(constraintIndexPath())
+	if err != nil {
+		t.Fatalf("stat index: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("index mode = %o, want 600", got)
+	}
 
 	got, err := loadConstraintIndex()
 	if err != nil {
@@ -77,9 +84,9 @@ func TestConstraintActivateDraft(t *testing.T) {
 		t.Fatalf("saveConstraintIndex: %v", err)
 	}
 
-	oldJSON := constraintJSON
-	constraintJSON = false
-	t.Cleanup(func() { constraintJSON = oldJSON })
+	oldOutput := output
+	output = "text"
+	t.Cleanup(func() { output = oldOutput })
 
 	stdout, err := captureStdout(t, func() error {
 		return constraintActivateCmd.RunE(constraintActivateCmd, []string{"c-1"})
@@ -116,9 +123,9 @@ func TestConstraintRetireActive(t *testing.T) {
 		t.Fatalf("saveConstraintIndex: %v", err)
 	}
 
-	oldJSON := constraintJSON
-	constraintJSON = false
-	t.Cleanup(func() { constraintJSON = oldJSON })
+	oldOutput := output
+	output = "text"
+	t.Cleanup(func() { output = oldOutput })
 
 	stdout, err := captureStdout(t, func() error {
 		return constraintRetireCmd.RunE(constraintRetireCmd, []string{"c-1"})
@@ -150,9 +157,9 @@ func TestConstraintListAndReviewNoConstraints(t *testing.T) {
 		t.Fatalf("saveConstraintIndex: %v", err)
 	}
 
-	oldJSON := constraintJSON
-	constraintJSON = false
-	t.Cleanup(func() { constraintJSON = oldJSON })
+	oldOutput := output
+	output = "text"
+	t.Cleanup(func() { output = oldOutput })
 
 	listOut, err := captureStdout(t, func() error {
 		return constraintListCmd.RunE(constraintListCmd, nil)
@@ -181,9 +188,9 @@ func TestConstraintActivateJSONAndReviewStale(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(oldWD) })
 	mkdirConstraintsDir(t)
 
-	oldJSON := constraintJSON
-	constraintJSON = true
-	t.Cleanup(func() { constraintJSON = oldJSON })
+	oldOutput := output
+	output = "json"
+	t.Cleanup(func() { output = oldOutput })
 
 	stale := &constraintIndex{
 		SchemaVersion: 1,
@@ -278,23 +285,23 @@ func TestConstraintReviewJSONRoundTrip(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(oldWD) })
 	mkdirConstraintsDir(t)
 
-	oldJSON := constraintJSON
-	constraintJSON = true
-	t.Cleanup(func() { constraintJSON = oldJSON })
+	oldOutput := output
+	output = "json"
+	t.Cleanup(func() { output = oldOutput })
 
 	idx := &constraintIndex{
 		SchemaVersion: 1,
 		Constraints: []constraintEntry{
 			{
-				ID:     "c-1",
-				Title:  "Recent",
-				Status: "draft",
+				ID:         "c-1",
+				Title:      "Recent",
+				Status:     "draft",
 				CompiledAt: time.Now().Format(time.RFC3339),
 			},
 			{
-				ID:     "c-2",
-				Title:  "Old",
-				Status: "active",
+				ID:         "c-2",
+				Title:      "Old",
+				Status:     "active",
 				CompiledAt: time.Now().AddDate(0, 0, -100).Format(time.RFC3339),
 			},
 		},

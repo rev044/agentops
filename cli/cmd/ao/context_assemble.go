@@ -2,12 +2,14 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -134,7 +136,7 @@ func runContextAssemble(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output.
-	if jsonFlag {
+	if GetOutput() == "json" {
 		return outputAssembleJSON(cmd, outPath, sections)
 	}
 
@@ -322,14 +324,8 @@ func gatherIntel(cwd, task string, budget int) string {
 	var sb strings.Builder
 	sb.WriteString("## INTEL\n\n")
 
-	// Collect from .agents/learnings/ and .agents/patterns/.
-	var allEntries []intelEntry
-
-	learningsDir := filepath.Join(cwd, ".agents", "learnings")
-	allEntries = append(allEntries, readIntelDir(learningsDir, "learning")...)
-
-	patternsDir := filepath.Join(cwd, ".agents", "patterns")
-	allEntries = append(allEntries, readIntelDir(patternsDir, "pattern")...)
+	// Collect from .agents/learnings/ and .agents/patterns/ in one combined pass.
+	allEntries := collectIntelEntries(cwd)
 
 	if len(allEntries) == 0 {
 		sb.WriteString("_No learnings or patterns found._\n")
@@ -378,6 +374,25 @@ type intelEntry struct {
 	kind    string // "learning" or "pattern"
 }
 
+func collectIntelEntries(cwd string) []intelEntry {
+	dirs := []struct {
+		path string
+		kind string
+	}{
+		{path: filepath.Join(cwd, ".agents", "learnings"), kind: "learning"},
+		{path: filepath.Join(cwd, ".agents", "patterns"), kind: "pattern"},
+	}
+
+	combined := make([]intelEntry, 0, 64)
+	for _, spec := range dirs {
+		combined = append(combined, readIntelDir(spec.path, spec.kind)...)
+	}
+	slices.SortFunc(combined, func(a, b intelEntry) int {
+		return cmp.Compare(a.title, b.title)
+	})
+	return combined
+}
+
 func readIntelDir(dir, kind string) []intelEntry {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -395,14 +410,37 @@ func readIntelDir(dir, kind string) []intelEntry {
 		if err != nil {
 			continue
 		}
+
+		content := strings.TrimSpace(string(data))
+		if strings.HasSuffix(lowerName, ".json") {
+			content = extractIntelJSONContent(data)
+		}
+
 		title := strings.TrimSuffix(name, filepath.Ext(name))
 		result = append(result, intelEntry{
 			title:   title,
-			content: strings.TrimSpace(string(data)),
+			content: content,
 			kind:    kind,
 		})
 	}
 	return result
+}
+
+func extractIntelJSONContent(data []byte) string {
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return strings.TrimSpace(string(data))
+	}
+
+	for _, key := range []string{"content", "pattern", "summary", "description", "title"} {
+		if v, ok := decoded[key]; ok && v != nil {
+			s := strings.TrimSpace(fmt.Sprintf("%v", v))
+			if s != "" {
+				return s
+			}
+		}
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func formatTaskSection(task string, budget int) string {

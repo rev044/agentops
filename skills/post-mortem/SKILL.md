@@ -44,6 +44,30 @@ Before proceeding, verify:
 2. **Work was done:** `git log --oneline -1 2>/dev/null` — if empty, error: "No commits found. Run /implement first."
 3. **Epic context:** If epic ID provided, verify it has closed children. If 0 closed children, error: "No completed work to review."
 
+### Step 0.4: Reference Existence Preflight (MANDATORY)
+
+Before Step 0.5 and Step 2.5, verify required reference docs exist:
+
+```bash
+REQUIRED_REFS=(
+  "skills/post-mortem/references/checkpoint-policy.md"
+  "skills/post-mortem/references/metadata-verification.md"
+)
+
+missing=0
+for ref in "${REQUIRED_REFS[@]}"; do
+  if [ ! -f "$ref" ]; then
+    echo "WARN: missing required reference: $ref"
+    missing=$((missing + 1))
+  fi
+done
+
+if [ "$missing" -gt 0 ]; then
+  echo "WARN: post-mortem reference preflight incomplete (${missing} missing)."
+  echo "Add these as checkpoint warnings in council context and proceed only if intentionally deferred."
+fi
+```
+
 ### Step 0.5: Checkpoint-Policy Preflight (MANDATORY)
 
 Read `references/checkpoint-policy.md` for the full checkpoint-policy preflight procedure. It validates the ratchet chain, checks artifact availability, and runs idempotency checks. BLOCK on prior FAIL verdicts; WARN on everything else.
@@ -215,6 +239,26 @@ This produces draft constraint templates in `.agents/constraints/` that can late
 |---|------|-------------|----------|---------|--------|----------|
 | 1 | repo / execution / ci-automation | ... | P0/P1/P2 | now/next-cycle/later | S/M/L | ... |
 
+## Prior Findings Resolution Tracking
+
+| Metric | Value |
+|---|---|
+| Backlog entries analyzed | ... |
+| Prior findings total | ... |
+| Resolved findings | ... |
+| Unresolved findings | ... |
+| Resolution rate | ...% |
+
+| Source Epic | Findings | Resolved | Unresolved | Resolution Rate |
+|---|---:|---:|---:|---:|
+| ... | ... | ... | ... | ...% |
+
+## Command-Surface Parity Checklist
+
+| Command File | Run-path Covered by Test? | Evidence (file:line or test name) | Intentionally Uncovered? | Reason |
+|---|---|---|---|---|
+| cli/cmd/ao/<command>.go | yes/no | ... | yes/no | ... |
+
 ### Recommended Next /rpi
 /rpi "<highest-value improvement>"
 
@@ -266,6 +310,66 @@ Example output:
 ### Recommended Next /rpi
 /rpi "<highest-value improvement>"
 ```
+
+### Step 5.6: Prior-Findings Resolution Tracking (MANDATORY)
+
+After Step 5.5, compute and include prior-findings resolution tracking from `.agents/rpi/next-work.jsonl`:
+
+```bash
+NEXT_WORK=".agents/rpi/next-work.jsonl"
+
+if [ -f "$NEXT_WORK" ]; then
+  totals=$(jq -Rs '
+    split("\n")
+    | map(select(length>0) | fromjson)
+    | reduce .[] as $e (
+        {entries:0,total:0,resolved:0};
+        .entries += 1
+        | .total += ($e.items | length)
+        | .resolved += (if ($e.consumed // false) then ($e.items | length) else 0 end)
+      )
+    | .unresolved = (.total - .resolved)
+    | .rate = (if .total > 0 then ((.resolved * 10000 / .total) | round / 100) else 0 end)
+  ' "$NEXT_WORK")
+
+  per_source=$(jq -Rs '
+    split("\n")
+    | map(select(length>0) | fromjson)
+    | map({
+        source_epic,
+        total: (.items | length),
+        resolved: (if (.consumed // false) then (.items | length) else 0 end)
+      })
+    | group_by(.source_epic)
+    | map({
+        source_epic: .[0].source_epic,
+        total: (map(.total) | add),
+        resolved: (map(.resolved) | add),
+        unresolved: ((map(.total) | add) - (map(.resolved) | add)),
+        rate: (if (map(.total) | add) > 0
+          then (((map(.resolved) | add) * 10000 / (map(.total) | add)) | round / 100)
+          else 0 end)
+      })
+  ' "$NEXT_WORK")
+
+  echo "Prior findings totals: $totals"
+  echo "Prior findings by source epic: $per_source"
+else
+  echo "No next-work.jsonl found; resolution tracking unavailable."
+fi
+```
+
+Write the totals and per-source rows into `## Prior Findings Resolution Tracking` in the post-mortem report.
+
+### Step 5.7: Command-Surface Parity Gate (MANDATORY)
+
+Before marking post-mortem complete, enforce command-surface parity for modified CLI commands:
+
+1. Identify modified command files under `cli/cmd/ao/` from the reviewed scope.
+2. For each file, record at least one tested run-path (unit/integration/e2e) in `## Command-Surface Parity Checklist`.
+3. Any intentionally uncovered command family must be explicitly listed with a reason and follow-up item.
+
+If any modified command file is missing both coverage evidence and an intentional-uncovered rationale, post-mortem cannot be marked complete.
 
 ### Step 6: Feed the Knowledge Flywheel
 

@@ -8,8 +8,10 @@
 # Checks:
 #   1. Go build + vet (if cli/ changed)
 #   2. Go race tests on changed packages (via validate-go-fast.sh)
-#   3. Embedded hooks sync (cli/embedded/ matches hooks/)
-#   4. Skill count sync
+#   3. Command/test pairing for cli/cmd/ao Go changes
+#   4. cmd/ao coverage floor gate
+#   5. Embedded hooks sync (cli/embedded/ matches hooks/)
+#   6. Skill count sync
 #
 # Usage:
 #   scripts/pre-push-gate.sh          # Run directly
@@ -51,10 +53,43 @@ if command -v go >/dev/null 2>&1 && [[ -f cli/go.mod ]]; then
     fi
 fi
 
-# --- 2. Go race tests — skipped locally, CI runs them ---
-pass "go test -race (deferred to CI)"
+# --- 2. Go race tests on changed scope ---
+if [[ -x scripts/validate-go-fast.sh ]]; then
+    if go_fast_output="$(scripts/validate-go-fast.sh 2>&1)"; then
+        pass "go test -race (changed scope)"
+    else
+        fail "go test -race (changed scope)"
+        echo "$go_fast_output" | sed 's/^/    /'
+    fi
+else
+    fail "missing executable: scripts/validate-go-fast.sh"
+fi
 
-# --- 3. Embedded hooks sync ---
+# --- 3. Command/test pairing for command-surface changes ---
+if [[ -x scripts/check-go-command-test-pair.sh ]]; then
+    if pair_output="$(scripts/check-go-command-test-pair.sh 2>&1)"; then
+        pass "command/test pairing"
+    else
+        fail "command/test pairing"
+        echo "$pair_output" | sed 's/^/    /'
+    fi
+else
+    fail "missing executable: scripts/check-go-command-test-pair.sh"
+fi
+
+# --- 4. Embedded hooks sync ---
+if [[ -x scripts/check-cmdao-coverage-floor.sh ]]; then
+    if coverage_output="$(scripts/check-cmdao-coverage-floor.sh 2>&1)"; then
+        pass "cmd/ao coverage floor"
+    else
+        fail "cmd/ao coverage floor"
+        echo "$coverage_output" | sed 's/^/    /'
+    fi
+else
+    fail "missing executable: scripts/check-cmdao-coverage-floor.sh"
+fi
+
+# --- 5. Embedded hooks sync ---
 stale=0
 for src in hooks/session-start.sh hooks/hooks.json; do
     embedded="cli/embedded/$src"
@@ -71,7 +106,7 @@ else
     pass "embedded hooks in sync"
 fi
 
-# --- 4. Skill count sync ---
+# --- 6. Skill count sync ---
 if [[ -x scripts/sync-skill-counts.sh ]]; then
     if scripts/sync-skill-counts.sh --check >/dev/null 2>&1; then
         pass "skill counts in sync"
