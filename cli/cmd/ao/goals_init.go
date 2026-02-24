@@ -5,15 +5,39 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/boshu2/agentops/cli/embedded"
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var goalsInitNonInteractive bool
+var goalsInitTemplate string
+
+// validTemplateNames lists the recognised --template values.
+var validTemplateNames = []string{"go-cli", "python-lib", "web-app", "generic"}
+
+// goalTemplate is the YAML structure of an embedded template file.
+type goalTemplate struct {
+	Name        string             `yaml:"name"`
+	Description string             `yaml:"description"`
+	Directives  []string           `yaml:"directives"`
+	Gates       []goalTemplateGate `yaml:"gates"`
+}
+
+// goalTemplateGate mirrors a single gate entry in a template YAML file.
+type goalTemplateGate struct {
+	ID          string `yaml:"id"`
+	Description string `yaml:"description"`
+	Check       string `yaml:"check"`
+	Weight      int    `yaml:"weight"`
+	Type        string `yaml:"type"`
+}
 
 var goalsInitCmd = &cobra.Command{
 	Use:     "init",
@@ -34,6 +58,23 @@ var goalsInitCmd = &cobra.Command{
 			}
 		}
 
+		// Resolve the template name: explicit flag > auto-detect > ""
+		projectRoot := filepath.Dir(resolvedPath)
+		tmplName := goalsInitTemplate
+		if tmplName == "" {
+			tmplName = autoDetectTemplate(projectRoot)
+		}
+
+		// Load template gates (if any template was resolved).
+		var tmpl *goalTemplate
+		if tmplName != "" {
+			var err error
+			tmpl, err = loadTemplate(tmplName)
+			if err != nil {
+				return fmt.Errorf("loading template %q: %w", tmplName, err)
+			}
+		}
+
 		var gf *goals.GoalFile
 
 		if goalsInitNonInteractive {
@@ -46,12 +87,14 @@ var goalsInitCmd = &cobra.Command{
 			}
 		}
 
-		// Auto-detect gates using the project root derived from the resolved
-		// goals file path. This ensures gate detection works correctly even
-		// when ao is invoked from a subdirectory or with an explicit --file path.
-		projectRoot := filepath.Dir(resolvedPath)
-		detectedGoals := detectGates(projectRoot)
-		gf.Goals = append(gf.Goals, detectedGoals...)
+		// Populate gates: template gates take priority when a template is
+		// loaded; otherwise fall back to the existing auto-detect logic.
+		if tmpl != nil {
+			gf.Goals = append(gf.Goals, templateGatesToGoals(tmpl)...)
+		} else {
+			detectedGoals := detectGates(projectRoot)
+			gf.Goals = append(gf.Goals, detectedGoals...)
+		}
 
 		if goalsJSON {
 			enc := json.NewEncoder(os.Stdout)
@@ -295,7 +338,57 @@ func currentDir() string {
 	return dir
 }
 
+// loadTemplate reads a named template from the embedded TemplatesFS.
+func loadTemplate(name string) (*goalTemplate, error) {
+	path := filepath.Join("templates", name+".yaml")
+	data, err := fs.ReadFile(embedded.TemplatesFS, path)
+	if err != nil {
+		return nil, fmt.Errorf("template %q not found: %w", name, err)
+	}
+	var tmpl goalTemplate
+	if err := yaml.Unmarshal(data, &tmpl); err != nil {
+		return nil, fmt.Errorf("parsing template %q: %w", name, err)
+	}
+	return &tmpl, nil
+}
+
+// templateGatesToGoals converts template gates into goals.Goal values.
+func templateGatesToGoals(tmpl *goalTemplate) []goals.Goal {
+	out := make([]goals.Goal, 0, len(tmpl.Gates))
+	for _, g := range tmpl.Gates {
+		out = append(out, goals.Goal{
+			ID:          g.ID,
+			Description: g.Description,
+			Check:       g.Check,
+			Weight:      g.Weight,
+			Type:        goals.GoalType(g.Type),
+		})
+	}
+	return out
+}
+
+// autoDetectTemplate chooses a template name based on project marker files.
+// Returns "" if no recognisable project type is found.
+func autoDetectTemplate(projectRoot string) string {
+	stat := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(projectRoot, rel))
+		return err == nil
+	}
+
+	switch {
+	case stat("go.mod") || stat("cli/go.mod"):
+		return "go-cli"
+	case stat("package.json"):
+		return "web-app"
+	case stat("pyproject.toml"):
+		return "python-lib"
+	default:
+		return ""
+	}
+}
+
 func init() {
 	goalsInitCmd.Flags().BoolVar(&goalsInitNonInteractive, "non-interactive", false, "Use defaults without prompting")
+	goalsInitCmd.Flags().StringVar(&goalsInitTemplate, "template", "", "Goal template (go-cli, python-lib, web-app, generic)")
 	goalsCmd.AddCommand(goalsInitCmd)
 }

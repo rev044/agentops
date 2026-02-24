@@ -15,3 +15,8 @@ var HooksJSON []byte
 //
 //go:embed all:hooks all:lib all:skills
 var HooksFS embed.FS
+
+// TemplatesFS contains embedded goal template YAML files for ao goals init.
+//
+//go:embed all:templates
+var TemplatesFS embed.FS

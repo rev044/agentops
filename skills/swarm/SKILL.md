@@ -93,6 +93,16 @@ Every TaskCreate **must** include a `metadata.files` array listing the files tha
 }
 ```
 
+### Step 1a: Build Context Briefing (Before Worker Dispatch)
+
+```bash
+if command -v ao &>/dev/null; then
+    ao context assemble --task='<swarm objective or wave description>'
+fi
+```
+
+This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's TaskCreate description so workers start with full project context.
+
 ### Step 2: Identify Wave
 
 Find tasks that are:

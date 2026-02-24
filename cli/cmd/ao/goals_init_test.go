@@ -204,3 +204,145 @@ func TestBuildInteractiveGoalFile_CustomInput(t *testing.T) {
 		t.Errorf("expected 0 validation errors, got %d: %v", len(errs), errs)
 	}
 }
+
+// --- Template tests ---
+
+func TestGoalsInit_Template_GoCLI(t *testing.T) {
+	tmpl, err := loadTemplate("go-cli")
+	if err != nil {
+		t.Fatalf("loadTemplate(go-cli): %v", err)
+	}
+
+	if tmpl.Name != "go-cli" {
+		t.Errorf("Name = %q, want go-cli", tmpl.Name)
+	}
+	if len(tmpl.Gates) < 3 {
+		t.Fatalf("expected >=3 gates in go-cli template, got %d", len(tmpl.Gates))
+	}
+
+	converted := templateGatesToGoals(tmpl)
+	ids := map[string]bool{}
+	for _, g := range converted {
+		ids[g.ID] = true
+		if g.Type == "" {
+			t.Errorf("gate %q has empty Type", g.ID)
+		}
+	}
+
+	for _, expected := range []string{"go-build", "go-test", "go-vet"} {
+		if !ids[expected] {
+			t.Errorf("missing expected gate %q in go-cli template", expected)
+		}
+	}
+}
+
+func TestGoalsInit_Template_NonInteractive(t *testing.T) {
+	// Simulate --non-interactive + --template=go-cli: build default goal file,
+	// then append template gates instead of auto-detected gates.
+	gf := buildDefaultGoalFile()
+
+	tmpl, err := loadTemplate("go-cli")
+	if err != nil {
+		t.Fatalf("loadTemplate: %v", err)
+	}
+	gf.Goals = append(gf.Goals, templateGatesToGoals(tmpl)...)
+
+	// Verify the goal file has the expected structure.
+	if gf.Version != 4 {
+		t.Errorf("Version = %d, want 4", gf.Version)
+	}
+	if len(gf.Goals) != 3 {
+		t.Errorf("Goals = %d, want 3 (go-build, go-test, go-vet)", len(gf.Goals))
+	}
+
+	// Render to markdown and verify it produces valid output.
+	content := goals.RenderGoalsMD(gf)
+	if !strings.Contains(content, "go-build") {
+		t.Error("rendered markdown missing go-build gate")
+	}
+	if !strings.Contains(content, "go vet") {
+		t.Error("rendered markdown missing go-vet check command")
+	}
+}
+
+func TestGoalsInit_AutoDetect(t *testing.T) {
+	tests := []struct {
+		name     string
+		files    map[string]string // relative path → content
+		wantTmpl string
+	}{
+		{
+			name:     "go.mod → go-cli",
+			files:    map[string]string{"go.mod": "module test\n"},
+			wantTmpl: "go-cli",
+		},
+		{
+			name:     "cli/go.mod → go-cli",
+			files:    map[string]string{"cli/go.mod": "module test/cli\n"},
+			wantTmpl: "go-cli",
+		},
+		{
+			name:     "package.json → web-app",
+			files:    map[string]string{"package.json": "{}"},
+			wantTmpl: "web-app",
+		},
+		{
+			name:     "pyproject.toml → python-lib",
+			files:    map[string]string{"pyproject.toml": "[project]\n"},
+			wantTmpl: "python-lib",
+		},
+		{
+			name:     "empty → no template",
+			files:    map[string]string{},
+			wantTmpl: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			for rel, content := range tt.files {
+				full := filepath.Join(root, rel)
+				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			got := autoDetectTemplate(root)
+			if got != tt.wantTmpl {
+				t.Errorf("autoDetectTemplate() = %q, want %q", got, tt.wantTmpl)
+			}
+		})
+	}
+}
+
+func TestGoalsInit_LoadTemplate_AllValid(t *testing.T) {
+	// Verify all four templates load and parse without error.
+	for _, name := range validTemplateNames {
+		t.Run(name, func(t *testing.T) {
+			tmpl, err := loadTemplate(name)
+			if err != nil {
+				t.Fatalf("loadTemplate(%q): %v", name, err)
+			}
+			if tmpl.Name != name {
+				t.Errorf("Name = %q, want %q", tmpl.Name, name)
+			}
+			if len(tmpl.Gates) == 0 {
+				t.Error("expected at least one gate")
+			}
+			if len(tmpl.Directives) == 0 {
+				t.Error("expected at least one directive")
+			}
+		})
+	}
+}
+
+func TestGoalsInit_LoadTemplate_Invalid(t *testing.T) {
+	_, err := loadTemplate("nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent template, got nil")
+	}
+}

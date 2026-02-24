@@ -313,6 +313,16 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 
 **Summary:** SPEC WAVE generates contracts from issues → TEST WAVE generates failing tests from contracts → RED Gate verifies all new tests fail before proceeding. Docs/chore/ci issues bypass both waves.
 
+### Step 3b.1: Build Context Briefing (Before Worker Dispatch)
+
+```bash
+if command -v ao &>/dev/null; then
+    ao context assemble --task='<epic title>: wave $wave'
+fi
+```
+
+This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's TaskCreate description so workers start with full project context.
+
 ### Step 4: Execute Wave via Swarm
 
 **GREEN mode (--test-first only):** If `--test-first` is set and SPEC/TEST waves have completed, modify worker prompts for spec-eligible issues:

@@ -49,6 +49,16 @@ bd ready 2>/dev/null | head -3
 bd update <issue-id> --status in_progress 2>/dev/null
 ```
 
+### Step 2a: Build Context Briefing
+
+```bash
+if command -v ao &>/dev/null; then
+    ao context assemble --task='<issue title and description>'
+fi
+```
+
+This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Read it before gathering additional context.
+
 ### Step 3: Gather Context
 
 **USE THE TASK TOOL** to explore relevant code:

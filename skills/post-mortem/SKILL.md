@@ -152,6 +152,20 @@ Run `/retro` to capture what we learned:
 
 Post-mortem always completes if council succeeds. Retro is optional enrichment.
 
+### Step 4.5: Compile Constraint Templates
+
+For each extracted learning scoring >= 4/5 on actionability AND tagged "constraint" or "anti-pattern", run `bash hooks/constraint-compiler.sh <learning-path>` to generate a constraint template.
+
+```bash
+# Compile high-scoring constraint/anti-pattern learnings into enforcement templates
+for f in .agents/learnings/YYYY-MM-DD-*.md; do
+    [ -f "$f" ] || continue
+    bash hooks/constraint-compiler.sh "$f" 2>/dev/null || true
+done
+```
+
+This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`.
+
 ### Step 5: Write Post-Mortem Report
 
 **Write to:** `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`

@@ -142,6 +142,19 @@ For each learning extracted in Step 5, classify:
 **Example abstraction:**
 - Local: "Athena's validate package needs O_CREATE|O_EXCL for atomic claims because Zeus spawns concurrent workers"
 - Global: "Use O_CREATE|O_EXCL for atomic file creation when multiple processes may race on the same path"
+### Step 5.6: Compile Constraint Templates
+
+For each extracted learning scoring >= 4/5 on actionability AND tagged "constraint" or "anti-pattern", run `bash hooks/constraint-compiler.sh <learning-path>` to generate a constraint template.
+
+```bash
+# Compile high-scoring constraint/anti-pattern learnings into enforcement templates
+for f in .agents/learnings/YYYY-MM-DD-*.md; do
+    [ -f "$f" ] || continue
+    bash hooks/constraint-compiler.sh "$f" 2>/dev/null || true
+done
+```
+
+This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`.
 
 ### Step 6: Write Retro Summary
 
