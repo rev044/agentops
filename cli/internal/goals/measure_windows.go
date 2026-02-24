@@ -17,6 +17,9 @@ func configureProcGroup(cmd *exec.Cmd) {
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 	}
 	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
 		return killProcessTree(cmd.Process.Pid)
 	}
 }

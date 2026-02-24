@@ -193,6 +193,32 @@ func TestMeasure_EmptyGoals(t *testing.T) {
 	}
 }
 
+func TestTruncateOutput_MultiByteRunes(t *testing.T) {
+	// 501 copies of '世' (3 bytes each = 1503 bytes).
+	// truncateOutput should limit to 500 runes, not 500 bytes.
+	runes := make([]rune, 501)
+	for i := range runes {
+		runes[i] = '世'
+	}
+	input := []byte(string(runes))
+
+	result := truncateOutput(input)
+	runeCount := len([]rune(result))
+	if runeCount > 500 {
+		t.Errorf("expected <=500 runes, got %d", runeCount)
+	}
+	if runeCount < 500 {
+		t.Errorf("expected exactly 500 runes (not fewer), got %d", runeCount)
+	}
+	// Verify the result is valid UTF-8 (no mid-rune truncation).
+	for i, r := range result {
+		if r == '\uFFFD' {
+			t.Errorf("invalid UTF-8 at byte %d (replacement character found)", i)
+			break
+		}
+	}
+}
+
 func TestGitSHA_OutsideGitRepo(t *testing.T) {
 	// Exercise the gitSHA error path (line 120-122).
 	// Change to a temp dir that is NOT a git repo, call gitSHA, then restore.

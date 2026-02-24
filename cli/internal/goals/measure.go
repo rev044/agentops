@@ -145,7 +145,10 @@ func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
 	// Install signal handler to kill children on interrupt.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigCh)
+	defer func() {
+		signal.Stop(sigCh)
+		close(sigCh)
+	}()
 
 	go func() {
 		if _, ok := <-sigCh; ok {

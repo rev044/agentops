@@ -12,6 +12,9 @@ import (
 func configureProcGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
 		// Kill the entire process group, not just the parent.
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
