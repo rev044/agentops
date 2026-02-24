@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.1] - 2026-02-24
+
+### Added
+
+- **`ao rpi parallel` command** — Parallel task execution for RPI workflows with configurable worker count and timeout
+- **`--json` persistent flag** on root command — Shorthand for `-o json` across all ao commands, matching bd CLI convention
+
+### Fixed
+
+- **`-o json` → `--json` standardized** across 25 Go files, 7 hooks, and skill docs for consistency with bd CLI
+- **Security toolchain gate** — Split security/quality finding counts; security findings now block CI, quality findings are non-blocking warnings
+- **Stale worktree inflation** — Security scans excluded `.claude/worktrees/` to prevent duplicate findings
+- **staticcheck QF1012** — `WriteString(Sprintf)` → `Fprintf` in context.go
+- **errcheck findings** — Added `.golangci.yml` with exclusions for fmt.Fprint* and test files
+
+## [2.16.0] - 2026-02-23
+
+### Added
+
+- **Heal-skill checks 7–10** with `--strict` CI gate for automated skill structural integrity
+- **Fixture-based regression and parity tests** for CLI commands
+- **6-phase E2E validation** for RPI orchestrator (pre-mortem, crank, gate retry, promise tags, complexity scaling, phase summaries)
+- **Goal failure taxonomy script** and supporting tests
+- **Evolve reliability scaffolding** — Timeout and telemetry hardening for crank/evolve waves
+- **Oscillation detection** for evolve loop idle prevention
+
+### Changed
+
+- **116 evolve cycles landed** — Automated improvement across test coverage, complexity, idioms, and compliance
+- **PR template trimmed** from 280 lines to 15 lines
+
+### Fixed
+
+- **8 CLI commands** — Pool list `--wide`, pool show prefix matching, consistent artifact counts, vibe-check double multiplication, symlink skill detection, learnings frontmatter ID resolution, JSON truncation at clean boundaries, misleading hook event count (#41–#48)
+- **Goals v1 migration** — Accept v1 GOALS.yaml with deprecation warning, add `goals migrate`
+- **15+ missing skills** added to using-agentops catalog tables
+- **Skill integrity** — 136 findings resolved across all skills (dead refs, path corrections, missing sections)
+- **Security toolchain** — 96 findings resolved across Go, Python, and Docker
+- **CI pipeline** — Contract-compatibility gate rewritten with dynamic discovery, symlinks replaced with copies
+- **Stale distributed-mode check** removed from swarm validate.sh
+- **Evolve oscillation** — TodoWrite→Task tools migration, wiring check-contract-compatibility into GOALS.yaml
+
 ## [2.15.3] - 2026-02-22
 
 ### Fixed
