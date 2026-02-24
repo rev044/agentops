@@ -128,7 +128,7 @@ When GOALS.md is detected, evolve uses the directive-based cascade (Step 3.1):
 3. If gap found → generates work item from directive description + steer
 4. Directive becomes the work source for the cycle
 
-The `--no-directives` flag skips directive assessment (backward compatibility).
+When `--beads-only` is passed, directive assessment is skipped entirely.
 
 ### Format Detection
 

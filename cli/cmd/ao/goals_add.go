@@ -22,7 +22,7 @@ var (
 var goalsAddCmd = &cobra.Command{
 	Use:     "add <id> <check-command>",
 	Aliases: []string{"a"},
-	Short:   "Add a new goal to GOALS.yaml",
+	Short:   "Add a new goal",
 	GroupID: "management",
 	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {

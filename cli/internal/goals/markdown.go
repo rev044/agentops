@@ -297,14 +297,24 @@ func parseGatesTable(lines []string) ([]Goal, error) {
 }
 
 // splitTableRow splits a markdown table row into cells, stripping outer pipes.
+// Escaped pipes (\|) within cell content are preserved during splitting and then
+// unescaped to literal | after the split.
 func splitTableRow(row string) []string {
 	// Remove leading/trailing whitespace and pipes
 	row = strings.TrimSpace(row)
 	row = strings.Trim(row, "|")
+
+	// Split on unescaped pipe characters. We use a placeholder to preserve \|
+	// sequences during the split, then restore them as literal |.
+	const placeholder = "\x00PIPE\x00"
+	row = strings.ReplaceAll(row, `\|`, placeholder)
 	parts := strings.Split(row, "|")
 	cells := make([]string, len(parts))
 	for i, p := range parts {
-		cells[i] = strings.TrimSpace(p)
+		cell := strings.TrimSpace(p)
+		// Unescape \| back to |
+		cell = strings.ReplaceAll(cell, placeholder, "|")
+		cells[i] = cell
 	}
 	return cells
 }
