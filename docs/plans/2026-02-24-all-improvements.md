@@ -1,25 +1,27 @@
 # Plan: Extract all unconsumed improvements (2026-02-24 snapshot)
 
 **Date:** 2026-02-24
-**Source artifacts:** `.agents/rpi/next-work.jsonl` (unconsumed entries), `.agents/council/2026-02-24-post-mortem-recent.md`
+**Source artifact:** `.agents/rpi/next-work.jsonl` (all `consumed:false` entries)
 **Status:** Extraction-only phase (no code changes applied yet)
 
 ## Baseline Audit
 
 | Metric | Command | Result |
 |---|---|---|
-| Unconsumed backlog items in `next-work.jsonl` | `jq -s '[.[] | select(.consumed==false) | .items[]] | length' .agents/rpi/next-work.jsonl` | 21 |
-| Unconsumed items by source epic | `jq -s '[.[] | select(.consumed==false) | .source_epic as $epic | .items[] | {epic: $epic}] | group_by(.epic) | map({epic: .[0].epic, count: length})' .agents/rpi/next-work.jsonl` | 230413f-tdd-hardening: 6, ag-poz: 10, recent: 5 |
-| Unconsumed items by severity | `jq -s '[.[] | select(.consumed==false) | .items[] | {severity: .severity}] | group_by(.severity) | map({severity: .[0].severity, count: length})' .agents/rpi/next-work.jsonl` | high: 6, medium: 10, low: 5 |
-| Unconsumed items by `target_repo` | `jq -s '[.[] | select(.consumed==false) | .items[] | {target_repo: .target_repo}] | group_by(.target_repo) | map({target_repo: .[0].target_repo, count: length})' .agents/rpi/next-work.jsonl` | agentops: 9, nami: 8, `*`: 4 |
+| Total extraction items | n/a | 29 |
+| Unconsumed backlog items in `next-work.jsonl` | `jq -R -s 'split("\n") | map(select(length>0) | fromjson | select(.consumed==false) as $e | .items[] | . + {source_epic: $e.source_epic}) | length' .agents/rpi/next-work.jsonl` | 29 |
+| Unconsumed items by source epic | `jq -R -s 'split("\n") | map(select(length>0) | fromjson | select(.consumed==false) as $e | .items[] | . + {source_epic: $e.source_epic}) | group_by(.source_epic) | map({source_epic: .[0].source_epic, count: length})' .agents/rpi/next-work.jsonl` | 230413f-tdd-hardening: 6, ag-poz: 10, post-mortem-all-since-v2.17: 8, recent: 5 |
+| Included historical backlog additions | n/a | `post-mortem-all-since-v2.17` (8) |
+| Items by severity (combined) | n/a | high: 8, medium: 14, low: 7 |
+| Items by `target_repo` (combined) | n/a | agentops: 9, nami: 14, `*`: 6 |
 
 ## Baseline constraints and scope
 
-- This extract is intentionally broad and includes everything still marked `consumed: false`.
+- This extract includes all unconsumed backlog items from `.agents/rpi/next-work.jsonl`: 29 total (including the 8 requested historical items represented by `post-mortem-all-since-v2.17`).
 - `.agents` is excluded from git; this plan is tracked in `docs/plans` for portability.
 - No validation gates have been run in this extraction pass.
 
-## Extraction Scope: 21 unconsumed improvements
+## Extraction Scope: 29 improvements
 
 ### Source epic: `230413f-tdd-hardening` (6)
 
@@ -28,110 +30,104 @@
 | 1 | Clean dead code in `measure_test.go` | tech-debt | medium | council-finding | `agentops` | Remove longOutput/order variables and fix byte-vs-rune assertion in `TestMeasureOne_OutputTruncated`. |
 | 2 | Add `goleak` for goroutine leak detection | improvement | medium | retro-learning | `agentops` | Replace `runtime.NumGoroutine+sleep` heuristic in leak tests. |
 | 3 | Assert AntiStars values in `goals_init_test.go` | tech-debt | low | council-finding | `agentops` | Add assertions for `AntiStars[0]` and `AntiStars[1]`. |
-| 4 | Fix `ci-local-release.sh` invocation inconsistency | tech-debt | low | council-finding | `agentops` | Use `./scripts/check-skill-flag-refs.sh` in `scripts/ci-local-release.sh`. |
+| 4 | Fix `ci-local-release.sh` invocation inconsistency | tech-debt | low | council-finding | `agentops` | Use `./scripts/check-skill-flag-refs.sh` for consistency. |
 | 5 | Add `MigrateV1ToV2` and `killAllChildren` package-level tests | improvement | medium | retro-learning | `agentops` | 0% coverage functions in `cli/internal/goals`. |
-| 6 | Audit signal.Notify sites for goroutine leak | improvement | medium | retro-pattern | `agentops` | Ensure all `signal.Notify` sites follow deterministic teardown patterns. |
+| 6 | Audit signal.Notify sites for goroutine leak | improvement | medium | retro-pattern | `agentops` | Generalize cleanup pattern used by one confirmed leak fix. |
 
 ### Source epic: `ag-poz` (10)
 
 | # | Title | Type | Severity | Source | Target | Evidence |
 |---|---|---|---|---|---|---|
-| 7 | Create `rust-cli.yaml` embedded template | tech-debt | high | council-finding | `nami` | `seed.go` recognizes template but file missing in `cli/embedded/templates/`. |
-| 8 | Fix context_assemble `readIntelDir` to read `.json` files | tech-debt | high | council-finding | `nami` | Curated `.agents/learnings/` artifacts are `.json`, ignored by current collector. |
-| 9 | Fix curate verify GOALS.md fallback | tech-debt | high | council-finding | `nami` | `runCurateVerify` hardcodes `GOALS.yaml`; fresh repos use `GOALS.md`. |
-| 10 | Add wiring integration test `seed->curate->assemble->verify` | improvement | high | council-finding | `nami` | No pipeline test exists for this full flow. |
-| 11 | Extract shared `detectTemplate` function | tech-debt | medium | council-finding | `nami` | `seed.go` and `goals_init.go` diverge. |
-| 12 | Fix shell injection in `constraint-compiler.sh` JSON construction | tech-debt | medium | council-finding | `nami` | `TITLE`/`SUMMARY` interpolation without escaping in JSON literal path. |
-| 13 | Fix jq-less fallback data loss in `constraint-compiler.sh` | tech-debt | medium | council-finding | `nami` | Fallback path overwrites index instead of merging entries. |
-| 14 | Migrate `constraint.go` to root-level `GetOutput()` | tech-debt | low | council-finding | `nami` | `ao constraint list -o json` currently bypassed. |
-| 15 | Require test file in same commit as command file | process-improvement | medium | retro-learning | `*` | Process policy to prevent Go command coverage regressions. |
-| 16 | Formalize Wave 1 spec consistency checklist | process-improvement | low | retro-pattern | `*` | Make W1 consistency check explicit and tracked. |
+| 7 | Create `rust-cli.yaml` embedded template | tech-debt | high | council-finding | `nami` | `seed.go` lists rust-cli as template but `cli/embedded/templates/rust-cli.yaml` is missing. |
+| 8 | Fix context_assemble `readIntelDir` to read `.json` files | tech-debt | high | council-finding | `nami` | Curated artifacts written to `.json` are currently invisible to context assembly. |
+| 9 | Fix curate verify GOALS.md fallback | tech-debt | high | council-finding | `nami` | `runCurateVerify` hardcodes `GOALS.yaml`, breaking fresh repos with `GOALS.md`. |
+| 10 | Add wiring integration test seed->curate->assemble->verify | improvement | high | council-finding | `nami` | No end-to-end test validates full pipeline. |
+| 11 | Extract shared detectTemplate function | tech-debt | medium | council-finding | `nami` | `seed.go` and `goals_init.go` diverge on detection semantics. |
+| 12 | Fix shell injection in `constraint-compiler.sh` JSON construction | tech-debt | medium | council-finding | `nami` | Unescaped TITLE/SUMMARY interpolation in JSON literal. |
+| 13 | Fix jq-less fallback data loss in `constraint-compiler.sh` | tech-debt | medium | council-finding | `nami` | Fallback overwrite path currently drops existing constraints index. |
+| 14 | Migrate `constraint.go` to root-level `GetOutput()` | tech-debt | low | council-finding | `nami` | `ao constraint list -o json` does not use unified output mode. |
+| 15 | Require test file in same commit as command file | process-improvement | medium | retro-learning | `*` | Add process rule to prevent command-file coverage gaps. |
+| 16 | Formalize Wave 1 spec consistency checklist | process-improvement | low | retro-pattern | `*` | Wave 1 checklist is currently implicit and inconsistently enforced. |
 
-#### Explicit inclusion note (from your latest payload)
+### Source epic: `post-mortem-all-since-v2.17` (8)
 
-The following 10 items were explicitly provided in your latest next-work payload and are intentionally included in this extraction:
-
-1) Create `rust-cli.yaml` embedded template  
-2) Fix context_assemble `readIntelDir` to read `.json` files  
-3) Fix curate verify GOALS.md fallback  
-4) Add wiring integration test seed->curate->assemble->verify  
-5) Extract shared `detectTemplate` function  
-6) Fix shell injection in `constraint-compiler.sh` JSON construction  
-7) Fix jq-less fallback data loss in `constraint-compiler.sh`  
-8) Migrate `constraint.go` to root-level `GetOutput()`  
-9) Require test file in same commit as command file  
-10) Formalize Wave 1 spec consistency checklist  
+| # | Title | Type | Severity | Source | Target | Evidence |
+|---|---|---|---|---|---|---|
+| 17 | Fix metrics_health computeLoopDominance stale threshold (30d->90d) | tech-debt | high | council-finding | `nami` | Stale threshold logic appears inverted in health metric retention handling. |
+| 18 | Fix constraint.go file permissions to 0600 | tech-debt | high | council-finding | `nami` | File permissions for generated constraints are inconsistent with policy. |
+| 19 | Add curateParseFrontmatter YAML library parsing | tech-debt | medium | council-finding | `nami` | Current parser risks malformed data handling for frontmatter. |
+| 20 | Add BATS tests for `constraint-compiler.sh` | improvement | medium | council-finding | `nami` | No test coverage for this shell script path. |
+| 21 | Establish prior-findings resolution tracking across releases | process-improvement | medium | retro-learning | `*` | Current prior-findings resolution rate (17%) is unsustainable. |
+| 22 | Add template-existence lint test for validTemplates maps | process-improvement | medium | retro-pattern | `*` | Template map mismatch anti-pattern can go undetected. |
+| 23 | Fix readIntelDir I/O efficiency (single pass batch read) | improvement | low | council-finding | `nami` | Current approach scales poorly with large file sets. |
+| 24 | Standardize JSON output flag across all commands | tech-debt | low | council-finding | `nami` | Inconsistent `json` output flag behavior across 5+ command paths. |
 
 ### Source epic: `recent` (5)
 
 | # | Title | Type | Severity | Source | Target | Evidence |
 |---|---|---|---|---|---|---|
-| 17 | Raise cmd/ao coverage floor and block regressions | tech-debt | high | council-finding | `agentops` | 961 zero-coverage functions, 103 files with 0% in `cmd/ao` (62.1%). |
-| 18 | Add handler tests for batch_forge and batch_promote command paths | improvement | high | retro-pattern | `agentops` | 0% coverage for `runForgeBatch`, `loadAndFilterTranscripts`, `runBatchPromote`, `tryPromoteEntry`, `processPromotionCandidate`. |
-| 19 | Require command-surface parity completion checklist before closing cycles | process-improvement | medium | retro-learning | `*` | Prevent false-close of cycles when broad command surface remains untested. |
-| 20 | Add CI fallback mode for fork-sensitive Go suites | process-improvement | medium | retro-pattern | `*` | Keep validation deterministic when parallel jobs false-fail due env limits. |
-| 21 | Add preflight existence checks for `checkpoint-policy` and `metadata-verification` docs | process-improvement | low | retro-learning | `agentops` | `/post-mortem` preflight currently blocked by missing references. |
+| 25 | Raise cmd/ao coverage floor and block regressions | tech-debt | high | council-finding | `agentops` | cmd/ao has ~961 zero-coverage functions and ~62.1% coverage. |
+| 26 | Add handler tests for batch_forge and batch_promote command paths | improvement | high | retro-pattern | `agentops` | `runForgeBatch`, `loadAndFilterTranscripts`, `runBatchPromote`, `tryPromoteEntry`, `processPromotionCandidate` are untested. |
+| 27 | Require command-surface parity completion checklist before closing cycles | process-improvement | medium | retro-learning | `*` | Coverage for command command-surface still broad despite narrowed closure check. |
+| 28 | Add CI fallback mode for fork-sensitive Go suites | process-improvement | medium | retro-pattern | `*` | Parallel suite instability should auto-fallback to serial mode. |
+| 29 | Add preflight existence checks for checkpoint-policy and metadata-verification docs | process-improvement | low | retro-learning | `agentops` | Post-mortem preflight references absent files in this repo. |
 
 ## Files likely touched (inventory)
 
 | File | Expected change |
 |---|---|
-| `cli/internal/goals/measure.go` | `signal.Notify` lifecycle handling pattern review (potential goroutine leak hardening). |
-| `cli/internal/goals/measure_unix.go` | package-level tests for `killAllChildren`, nil-map guard behavior. |
-| `cli/internal/goals/goals.go` | testability and coverage-oriented tests for `MigrateV1ToV2`. |
-| `cli/internal/goals/goals_test.go` | new assertions for `AntiStars`, `MigrateV1ToV2` coverage. |
-| `cli/internal/goals/measure_test.go` | dead code cleanup and `goleak` migration for goroutine leak tests. |
-| `cli/cmd/ao/goals_init_test.go` | explicit `AntiStars` value assertions. |
-| `scripts/ci-local-release.sh` | invocation normalization for nested script checks. |
-| `scripts/check-skill-flag-refs.sh` | call-site compatibility if script path expectations are updated. |
-| `scripts/validate-go-fast.sh` | `cmd/ao` coverage floor and zero-coverage handler gate. |
-| `scripts/pre-push-gate.sh` | optional fork-fallback mode + cmd/ao floor invocation path. |
-| `cli/embedded/templates/rust-cli.yaml` | add missing rust template asset. |
-| `cli/cmd/ao/seed.go` | template discovery normalization and Rust detection behavior. |
-| `cli/cmd/ao/goals_init.go` | shared template detection path with `seed.go`. |
-| `cli/cmd/ao/context_assemble.go` | include `.json` artifacts in `readIntelDir`. |
-| `cli/cmd/ao/curate.go` | GOALS.md fallback for verify flow. |
-| `cli/cmd/ao/seed_test.go` | full pipeline integration assertions for seed→curate→assemble→verify. |
-| `cli/cmd/ao/constraint.go` | consolidate output selection with root json flag path (`GetOutput()`). |
-| `scripts/constraint-compiler.sh` | JSON-safe interpolation and jq-less merge-safe append behavior. |
-| `skills/post-mortem/SKILL.md` | optional preflight for required docs with WARN-to-block semantics. |
-| `skills/skill-name/SKILL.md` entries requiring W1/Wclose checks | add explicit file/test commitment rules where applicable. |
+| `cli/internal/goals/measure.go` | Review and harden `signal.Notify` lifecycle handling where applicable. |
+| `cli/internal/goals/measure_unix.go` | Add package-level tests for `killAllChildren`, including nil-map guard. |
+| `cli/internal/goals/goals.go` | Add `MigrateV1ToV2` tests. |
+| `cli/internal/goals/goals_test.go` | Add `AntiStars` value assertions. |
+| `cli/internal/goals/measure_test.go` | Remove dead test code and migrate to `goleak`. |
+| `cli/cmd/ao/goals_init_test.go` | Add explicit `AntiStars` value assertions. |
+| `scripts/ci-local-release.sh` | Inconsistency fix for `check-skill-flag-refs.sh` invocation and related script checks. |
+| `scripts/check-skill-flag-refs.sh` | Adjust path/call expectations if changed by the release gate. |
+| `cli/embedded/templates/rust-cli.yaml` | Add missing rust template asset. |
+| `cli/cmd/ao/seed.go` | Normalize template discovery and avoid cross-reference drift. |
+| `cli/cmd/ao/constraint.go` | Template and output-mode harmonization for constraint command behaviors. |
+| `cli/cmd/ao/context_assemble.go` | Include `.json` files and improve `readIntelDir` performance. |
+| `cli/cmd/ao/curate.go` | Fix GOALS.md fallback and parse frontmatter via YAML library. |
+| `cli/cmd/ao/metrics_health.go` | Fix computeLoopDominance stale threshold and JSON output consistency in metrics. |
+| `scripts/constraint-compiler.sh` | Escape JSON-safe values and keep jq-less merge behavior. |
+| `tests/constraint-compiler.bats` | Add BATS-backed coverage for `constraint-compiler.sh` behavior. |
+| `skills/post-mortem/SKILL.md` | Add prior-findings resolution metadata checks. |
+| `scripts/pre-push-gate.sh` | Add fork-safe fallback and command-surface completion checks. |
 
 ## Implementation waves (recommended)
 
 ### Wave 1: Stability gates and immediate risk reduction
-- Item 17 — cmd/ao coverage floor gate
-- Item 18 — batch command handler tests
+- Item 25 — cmd/ao coverage floor gate
+- Item 26 — batch handler tests
 - Item 4 — `ci-local-release.sh` path consistency
-- Item 21 — post-mortem missing-doc preflight
-- Item 15 — required test-file-in-command-commit rule (policy)
+- Item 29 — post-mortem missing-doc preflight
+- Item 15 — required test-file-in-command commit rule
 
 ### Wave 2: Pipeline reliability and correctness
-- Item 12, 13 — `constraint-compiler.sh` robustness
-- Item 14 — `constraint.go` output path normalization
-- Item 10 — seed→curate pipeline integration test
-- Items 7, 8, 9, 11 — template/context/verify alignment in `nami` CLI flows
+- Item 12, 13, 20 — `constraint-compiler.sh` hardening and test coverage
+- Item 14 — `constraint.go` output mode normalization
+- Item 10 — seed→curate→assemble→verify pipeline test
+- Items 7, 8, 9, 11, 14, 18, 19, 23, 24 — template/context/verify/metrics/permissions/capability alignment in `nami` CLI flows
 
-### Wave 3: Coverage depth and leakage cleanup
-- Item 1, 2, 3, 5, 6 — goals/goals package coverage and signal/goroutine hygiene
-- Item 20 — CI fork-fallback execution strategy
-- Item 19, 16 — close-check and Wave 1 consistency controls
+### Wave 3: Coverage depth and process hardening
+- Item 1, 2, 3, 5, 6 — goals package reliability and goroutine hygiene
+- Item 27, 16, 21, 22 — closure + consistency + findings tracking gates
 
 ## Dependency rationale
 
-- Process-gate hardening (Wave 1) blocks completion signals and should be in place before declaring further technical debt work complete.
-- `nami` CLI correctness items (Wave 2) are grouped to avoid partial delivery of seed/curate behavior.
-- Package-level reliability and test hardening (Wave 3) can proceed in parallel once major surface gates are enforceable.
+- Process gates (Wave 1) are prerequisites for claiming completion of surface-level items in Waves 2 and 3.
+- `nami` corrections are grouped to avoid partial delivery on the template/curate/mutation pipeline.
+- Coverage and leak hardening (Wave 3) can run in parallel once gating and pipeline consistency are established.
 
 ## Suggested first commands to start execution
 
-1. `jq -s '[.[] | select(.consumed==false) | .items[]] | length' .agents/rpi/next-work.jsonl`
-2. `go test ./cli/internal/... -run TestMeasure -v`
-3. `bash scripts/validate-go-fast.sh`
-4. `bash scripts/pre-push-gate.sh`
+1. `jq -R -s 'split("\n") | map(select(length>0) | fromjson | select(.consumed==false) as $e | .items[] | . + {source_epic: $e.source_epic}) | length' .agents/rpi/next-work.jsonl`
+2. `jq -R -s 'split("\n") | map(select(length>0) | fromjson | select(.consumed==false) | .items[] | {title}' .agents/rpi/next-work.jsonl | sort`
+3. `bash scripts/ci-local-release.sh`
 
 ## Tracking
 
 - Source backlog is `.agents/rpi/next-work.jsonl`.
-- `consumed` flags still `false` for all 21 items above.
-- Next expected transition: materialize each row above into actionable implementation tasks with acceptance checks.
+- `consumed` flags remain `false` for all 29 items until implementation closes them.
+- Next transition: materialize each row above into actionable implementation tasks with acceptance checks.
