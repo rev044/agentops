@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-02-24
+
+### Added
+- GOALS.md (v4) OODA-driven intent layer — markdown-based goals format with mission, north/anti stars, and steerable directives
+- `ao goals init` interactive GOALS.md bootstrap with `--non-interactive` mode
+- `ao goals steer` command to add, remove, and prioritize directives
+- `ao goals prune` command to remove stale gates referencing missing paths
+- `ao goals migrate --to-md` converter from GOALS.yaml to GOALS.md format
+- `ao goals measure --directives` JSON output of active directives
+- `ao goals validate` reports format and directive count
+- Format-aware `ao goals add` writeback (auto-detects md or yaml)
+- Go markdown parser library with case-insensitive heading matching and round-trip rendering (26 tests)
+- `/goals` skill rewritten with 5 OODA verbs (init/measure/steer/validate/prune)
+- `/evolve` Step 3 rewritten with directive-based cascade for idle reduction
+
+### Fixed
+- `ao rpi` falls back to any open issue when no epic exists (#50)
+- RPI phased processing tests added (~230 lines) for writePhaseResult, validatePriorPhaseResult, heartbeat, and registry directory
+
 ## [2.16.0] - 2026-02-23
 
 ### Added
