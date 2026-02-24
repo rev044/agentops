@@ -47,6 +47,21 @@
 | 15 | Require test file in same commit as command file | process-improvement | medium | retro-learning | `*` | Process policy to prevent Go command coverage regressions. |
 | 16 | Formalize Wave 1 spec consistency checklist | process-improvement | low | retro-pattern | `*` | Make W1 consistency check explicit and tracked. |
 
+#### Explicit inclusion note (from your latest payload)
+
+The following 10 items were explicitly provided in your latest next-work payload and are intentionally included in this extraction:
+
+1) Create `rust-cli.yaml` embedded template  
+2) Fix context_assemble `readIntelDir` to read `.json` files  
+3) Fix curate verify GOALS.md fallback  
+4) Add wiring integration test seed->curate->assemble->verify  
+5) Extract shared `detectTemplate` function  
+6) Fix shell injection in `constraint-compiler.sh` JSON construction  
+7) Fix jq-less fallback data loss in `constraint-compiler.sh`  
+8) Migrate `constraint.go` to root-level `GetOutput()`  
+9) Require test file in same commit as command file  
+10) Formalize Wave 1 spec consistency checklist  
+
 ### Source epic: `recent` (5)
 
 | # | Title | Type | Severity | Source | Target | Evidence |
