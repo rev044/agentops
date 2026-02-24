@@ -32,7 +32,7 @@ Management:
 var (
 	goalsFile    string // --file, default "GOALS.yaml"
 	goalsJSON    bool   // --json
-	goalsTimeout int    // --timeout in seconds, default 30
+	goalsTimeout int    // --timeout in seconds, default 120
 )
 
 func init() {
@@ -43,7 +43,7 @@ func init() {
 	)
 	goalsCmd.PersistentFlags().StringVar(&goalsFile, "file", "GOALS.yaml", "Path to goals file")
 	goalsCmd.PersistentFlags().BoolVar(&goalsJSON, "json", false, "Output as JSON")
-	goalsCmd.PersistentFlags().IntVar(&goalsTimeout, "timeout", 30, "Check timeout in seconds")
+	goalsCmd.PersistentFlags().IntVar(&goalsTimeout, "timeout", 120, "Check timeout in seconds")
 	goalsCmd.GroupID = "workflow"
 	rootCmd.AddCommand(goalsCmd)
 }

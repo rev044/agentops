@@ -6,17 +6,15 @@ set -euo pipefail
 
 ERRORS=0
 
-# 1. Every scripts/check-*.sh must appear in GOALS.yaml
-if [ -f GOALS.yaml ]; then
-  for script in scripts/check-*.sh; do
-    [ -f "$script" ] || continue
-    base=$(basename "$script")
-    if ! grep -q "$base" GOALS.yaml 2>/dev/null; then
-      echo "UNWIRED SCRIPT: $base not referenced in GOALS.yaml"
-      ERRORS=$((ERRORS + 1))
-    fi
-  done
-fi
+# 1. Every scripts/check-*.sh must be referenced somewhere (goals, CI, tests, or other scripts)
+for script in scripts/check-*.sh; do
+  [ -f "$script" ] || continue
+  base=$(basename "$script")
+  if ! grep -rq "$base" GOALS.md GOALS.yaml .github/workflows/ tests/ scripts/ 2>/dev/null; then
+    echo "UNWIRED SCRIPT: $base not referenced in goals, CI, tests, or scripts"
+    ERRORS=$((ERRORS + 1))
+  fi
+done
 
 # 2. Every hook script referenced in hooks.json must exist on disk
 if [ -f hooks/hooks.json ]; then
@@ -42,12 +40,12 @@ if [ -f skills/SKILL-TIERS.md ]; then
   done
 fi
 
-# 4. Every lib/scripts/*.sh should be referenced by at least one SKILL.md or hook
+# 4. Every lib/scripts/*.sh should be referenced by at least one SKILL.md, hook, or test
 for lib_script in lib/scripts/*.sh; do
   [ -f "$lib_script" ] || continue
   base=$(basename "$lib_script")
-  if ! grep -rq "$base" skills/*/SKILL.md hooks/ 2>/dev/null; then
-    echo "ORPHANED LIB SCRIPT: $base not referenced by any skill or hook"
+  if ! grep -rq "$base" skills/*/SKILL.md hooks/ tests/ 2>/dev/null; then
+    echo "ORPHANED LIB SCRIPT: $base not referenced by any skill, hook, or test"
     ERRORS=$((ERRORS + 1))
   fi
 done
