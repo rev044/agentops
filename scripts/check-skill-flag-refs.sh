@@ -60,6 +60,9 @@ ALLOWLIST=(
   # /evolve parse-level flags (not ao CLI flags)
   # /rpi skill-level flags (not ao CLI flags)
   "from"
+  # /learn skill-level flags (global tier targeting)
+  "global"
+  "promote"
 )
 
 # Build a lookup set from the allowlist
