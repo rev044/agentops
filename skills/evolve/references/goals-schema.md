@@ -92,3 +92,44 @@ Use `/goals` to maintain the fitness specification:
 - `/goals` — run all checks, report pass/fail by pillar
 - `/goals generate` — scan repo for uncovered areas, propose new goals
 - `/goals prune` — find stale/broken goals, propose removals or updates
+
+## GOALS.md Format (Version 4)
+
+GOALS.md extends the YAML format with strategic intent:
+
+```markdown
+# Goals
+
+<Mission statement>
+
+## North Stars
+- <Aspiration>
+
+## Anti Stars
+- <What to avoid>
+
+## Directives
+
+### 1. <Title>
+<Description>
+**Steer:** increase | decrease | hold | explore
+
+## Gates
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| id | `command` | N | Description |
+```
+
+### Evolve Integration
+
+When GOALS.md is detected, evolve uses the directive-based cascade (Step 3.1):
+1. `ao goals measure --directives` returns the directive list as JSON
+2. Top-priority directive (lowest number) is assessed for gaps
+3. If gap found → generates work item from directive description + steer
+4. Directive becomes the work source for the cycle
+
+The `--no-directives` flag skips directive assessment (backward compatibility).
+
+### Format Detection
+
+`ao goals measure` auto-detects format. When both GOALS.yaml and GOALS.md exist, GOALS.md takes precedence.

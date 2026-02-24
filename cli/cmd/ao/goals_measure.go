@@ -10,7 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var goalsMeasureGoalID string
+var (
+	goalsMeasureGoalID     string
+	goalsMeasureDirectives bool
+)
 
 var goalsMeasureCmd = &cobra.Command{
 	Use:     "measure",
@@ -21,6 +24,16 @@ var goalsMeasureCmd = &cobra.Command{
 		gf, err := goals.LoadGoals(goalsFile)
 		if err != nil {
 			return fmt.Errorf("loading goals: %w", err)
+		}
+
+		// Early exit: output directives as JSON and skip gate checks
+		if goalsMeasureDirectives {
+			if goalsMeasureGoalID != "" {
+				return fmt.Errorf("--directives and --goal cannot be combined")
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(gf.Directives)
 		}
 
 		if errs := goals.ValidateGoals(gf); len(errs) > 0 {
@@ -83,5 +96,6 @@ var goalsMeasureCmd = &cobra.Command{
 
 func init() {
 	goalsMeasureCmd.Flags().StringVar(&goalsMeasureGoalID, "goal", "", "Measure a single goal by ID")
+	goalsMeasureCmd.Flags().BoolVar(&goalsMeasureDirectives, "directives", false, "Output directives as JSON (skip gate checks)")
 	goalsCmd.AddCommand(goalsMeasureCmd)
 }

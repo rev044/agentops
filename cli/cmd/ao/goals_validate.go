@@ -12,11 +12,13 @@ import (
 )
 
 type validateResult struct {
-	Valid     bool     `json:"valid"`
-	Errors    []string `json:"errors,omitempty"`
-	Warnings  []string `json:"warnings,omitempty"`
-	GoalCount int      `json:"goal_count"`
-	Version   int      `json:"version"`
+	Valid      bool     `json:"valid"`
+	Errors     []string `json:"errors,omitempty"`
+	Warnings   []string `json:"warnings,omitempty"`
+	GoalCount  int      `json:"goal_count"`
+	Version    int      `json:"version"`
+	Format     string   `json:"format"`
+	Directives int      `json:"directives"`
 }
 
 var goalsValidateCmd = &cobra.Command{
@@ -35,6 +37,21 @@ var goalsValidateCmd = &cobra.Command{
 
 		result.Version = gf.Version
 		result.GoalCount = len(gf.Goals)
+		result.Format = gf.Format
+		result.Directives = len(gf.Directives)
+
+		// Markdown-specific warnings
+		if gf.Format == "md" && gf.Mission == "" {
+			result.Warnings = append(result.Warnings, "empty mission")
+		}
+		if gf.Format == "md" && len(gf.Directives) == 0 {
+			result.Warnings = append(result.Warnings, "no directives defined")
+		}
+		for _, d := range gf.Directives {
+			if d.Steer == "" {
+				result.Warnings = append(result.Warnings, fmt.Sprintf("directive %d %q: missing steer", d.Number, d.Title))
+			}
+		}
 
 		// Structural validation
 		if errs := goals.ValidateGoals(gf); len(errs) > 0 {
@@ -85,7 +102,10 @@ func outputValidateResult(result validateResult) error {
 	}
 
 	if result.Valid {
-		fmt.Printf("VALID: %d goals, version %d\n", result.GoalCount, result.Version)
+		fmt.Printf("VALID: %d goals, version %d, format %s\n", result.GoalCount, result.Version, result.Format)
+		if result.Directives > 0 {
+			fmt.Printf("  Directives: %d\n", result.Directives)
+		}
 	} else {
 		fmt.Printf("INVALID: %d errors\n", len(result.Errors))
 	}

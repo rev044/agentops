@@ -259,6 +259,88 @@ func TestValidateGoals_InvalidIDFormat(t *testing.T) {
 	}
 }
 
+// --- Format Detection ---
+
+func TestDetectFormat_MDExtension(t *testing.T) {
+	f := DetectFormat("GOALS.md")
+	if f != "md" {
+		t.Errorf("DetectFormat(GOALS.md) = %q, want %q", f, "md")
+	}
+}
+
+func TestDetectFormat_YAMLExtension(t *testing.T) {
+	dir := t.TempDir()
+	// No GOALS.md present → should return yaml
+	f := DetectFormat(filepath.Join(dir, "GOALS.yaml"))
+	if f != "yaml" {
+		t.Errorf("DetectFormat(GOALS.yaml) = %q, want %q", f, "yaml")
+	}
+}
+
+func TestDetectFormat_DefaultWithMDPresent(t *testing.T) {
+	dir := t.TempDir()
+	// Create GOALS.md alongside
+	if err := os.WriteFile(filepath.Join(dir, "GOALS.md"), []byte("# Goals\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f := DetectFormat(filepath.Join(dir, "GOALS.yaml"))
+	if f != "md" {
+		t.Errorf("DetectFormat with GOALS.md present = %q, want %q", f, "md")
+	}
+}
+
+func TestDetectFormat_DefaultWithoutMD(t *testing.T) {
+	dir := t.TempDir()
+	f := DetectFormat(filepath.Join(dir, "GOALS.yaml"))
+	if f != "yaml" {
+		t.Errorf("DetectFormat without GOALS.md = %q, want %q", f, "yaml")
+	}
+}
+
+func TestLoadGoals_Markdown(t *testing.T) {
+	gf, err := LoadGoals(testdataPath("valid_goals.md"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gf.Version != 4 {
+		t.Errorf("version = %d, want 4", gf.Version)
+	}
+	if gf.Format != "md" {
+		t.Errorf("format = %q, want %q", gf.Format, "md")
+	}
+	if len(gf.Goals) != 2 {
+		t.Errorf("goals = %d, want 2", len(gf.Goals))
+	}
+	if len(gf.Directives) != 2 {
+		t.Errorf("directives = %d, want 2", len(gf.Directives))
+	}
+	// Verify goal types are defaulted
+	for i, g := range gf.Goals {
+		if g.Type != GoalTypeHealth {
+			t.Errorf("goal[%d].Type = %q, want %q", i, g.Type, GoalTypeHealth)
+		}
+	}
+}
+
+func TestResolveGoalsPath_MDPresent(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "GOALS.md"), []byte("# Goals\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := ResolveGoalsPath(filepath.Join(dir, "GOALS.yaml"))
+	want := filepath.Join(dir, "GOALS.md")
+	if path != want {
+		t.Errorf("ResolveGoalsPath = %q, want %q", path, want)
+	}
+}
+
+func TestResolveGoalsPath_MDDirect(t *testing.T) {
+	path := ResolveGoalsPath("/some/path/GOALS.md")
+	if path != "/some/path/GOALS.md" {
+		t.Errorf("ResolveGoalsPath = %q, want original path", path)
+	}
+}
+
 // --- Benchmarks ---
 
 func BenchmarkLoadGoals(b *testing.B) {

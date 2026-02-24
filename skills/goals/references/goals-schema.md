@@ -92,3 +92,74 @@ Use `/goals` to maintain the fitness specification:
 - `/goals` — run all checks, report pass/fail by pillar
 - `/goals generate` — scan repo for uncovered areas, propose new goals
 - `/goals prune` — find stale/broken goals, propose removals or updates
+
+## GOALS.md Format (Version 4)
+
+GOALS.md extends the YAML format with strategic intent sections:
+
+```markdown
+# Goals
+
+<Mission statement — one sentence>
+
+## North Stars
+
+- <Aspiration 1>
+- <Aspiration 2>
+
+## Anti Stars
+
+- <What we explicitly avoid>
+
+## Directives
+
+### 1. <Title>
+
+<Description of the strategic intent>
+
+**Steer:** increase | decrease | hold | explore
+
+### 2. <Title>
+
+<Description>
+
+**Steer:** <direction>
+
+## Gates
+
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| build-passing | `cd cli && make build` | 8 | CLI builds without errors |
+| test-passing | `cd cli && make test` | 7 | All unit tests pass |
+```
+
+### Key Differences from YAML
+
+| Feature | YAML (v1-3) | Markdown (v4) |
+|---------|-------------|---------------|
+| Goals/Gates | `goals:` array | `## Gates` table |
+| Mission | `mission:` field | First paragraph after `# Goals` |
+| Directives | Not supported | `## Directives` section |
+| North/Anti Stars | Not supported | `## North Stars` / `## Anti Stars` |
+| Version | `version: N` | Implicit (always 4) |
+
+### CLI Commands
+
+```bash
+ao goals measure                  # Measure gates (both formats)
+ao goals measure --directives     # Output directives as JSON
+ao goals validate                 # Validate structure
+ao goals init                     # Bootstrap GOALS.md interactively
+ao goals steer add <title>        # Add directive
+ao goals steer remove <number>    # Remove directive
+ao goals steer prioritize <n> <p> # Reorder directive
+ao goals migrate --to-md          # Convert YAML → Markdown
+ao goals prune                    # Remove stale gates
+```
+
+### Format Auto-Detection
+
+`LoadGoals()` auto-detects format:
+1. `.md` extension → markdown parser
+2. `.yaml`/`.yml` extension → check if `GOALS.md` exists alongside → prefer markdown
+3. Default `GOALS.yaml` path → check if `GOALS.md` exists → prefer markdown

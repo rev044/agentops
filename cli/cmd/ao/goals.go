@@ -7,9 +7,12 @@ var goalsCmd = &cobra.Command{
 	Short: "Fitness goal measurement and validation",
 	Long: `Track, measure, and validate project fitness goals.
 
+Supports both GOALS.yaml (versions 1-3) and GOALS.md (version 4) formats.
+When both exist, GOALS.md takes precedence.
+
 Measurement:
   measure (m)   Run goal checks and produce a snapshot
-  validate (v)  Validate GOALS.yaml structure and wiring
+  validate (v)  Validate goals structure and wiring
 
 Analysis:
   drift (d)     Compare snapshots for regressions
@@ -17,7 +20,11 @@ Analysis:
   export (e)    Export latest snapshot as JSON
 
 Management:
-  add (a)       Add a new goal to GOALS.yaml
+  init          Bootstrap a new GOALS.md interactively
+  add (a)       Add a new goal
+  steer         Manage directives (add/remove/prioritize)
+  prune (p)     Remove stale gates
+  migrate (mg)  Migrate between formats
   meta          Run and report meta-goals only`,
 }
 

@@ -115,11 +115,12 @@ This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is un
 
 ### Step 3: Select Work
 
-**Priority 1 — Failing goals** (skip if `--beads-only`):
+**Step 3.0: Emergency gates** (skip if `--beads-only`):
 ```bash
-FAILING=$(jq -r '.goals[] | select(.result=="fail") | .id' .agents/evolve/fitness-latest.json | head -1)
+# Check for failing gates with weight >= 5
+FAILING=$(jq -r '.goals[] | select(.result=="fail" and .weight>=5) | .id' .agents/evolve/fitness-latest.json | head -1)
 ```
-Pick the highest-weight failing goal. Skip goals that regressed 3 consecutive cycles.
+Pick highest-weight failing goal. Skip quarantined goals (oscillation ≥ 3).
 
 **Oscillation check:** Before working a failing goal, check if it has oscillated (improved→fail transitions ≥ 3 times in cycle-history.jsonl). If so, quarantine it and try the next failing goal. See `references/oscillation.md`.
 ```bash
@@ -128,41 +129,52 @@ OSC_COUNT=$(jq -r "select(.target==\"$FAILING\") | .result" .agents/evolve/cycle
   | awk 'prev=="improved" && $0=="fail" {count++} {prev=$0} END {print count+0}')
 if [ "$OSC_COUNT" -ge 3 ]; then
   QUARANTINED_GOALS[$FAILING]=true
-  # Log quarantine and try next failing goal
   echo "{\"cycle\":${CYCLE},\"target\":\"${FAILING}\",\"result\":\"quarantined\",\"oscillations\":${OSC_COUNT},\"timestamp\":\"$(date -Iseconds)\"}" >> .agents/evolve/cycle-history.jsonl
 fi
 ```
 
-**Priority 2 — Open beads** (when all goals pass or `--beads-only`):
+**Step 3.1: Directive gap** (skip if `--beads-only` or `--no-directives`):
+```bash
+# Get directives from GOALS.md
+DIRECTIVES=$(ao goals measure --directives 2>/dev/null)
+```
+If directives exist, assess the top-priority directive (lowest number, non-quarantined):
+- Check git log for recent commits addressing it
+- If gap detected → generate `suggested_work` description from the directive
+- Use this as the work item for Step 4
+
+**Step 3.2: Harvested work** from `.agents/rpi/next-work.jsonl` (unconsumed entries).
+
+**Step 3.3: Open beads**:
 ```bash
 READY_ISSUE=$(bd ready -n 1 2>/dev/null | head -1 | awk '{print $2}')
 ```
-Pick the highest-priority unblocked issue. Use `bd show $READY_ISSUE` for details.
-If `bd ready` fails or returns empty, fall through to Priority 3. Do not treat bd failure as idle.
+Pick highest-priority unblocked issue. If `bd ready` fails or returns empty, fall through. Do not treat bd failure as idle.
 
-**Priority 3 — Harvested work** from `.agents/rpi/next-work.jsonl` (unconsumed entries).
+**Step 3.4: Next directive** — assess priority 2, 3, etc. directives for gaps.
 
-**Quality mode (`--quality`)** — reversed priority cascade:
+**Step 3.5: Lower-weight failing gates** — failing goals with weight < 5.
 
-Priority 1 — Unconsumed high-severity post-mortem findings:
+**Quality mode (`--quality`)** — inverted cascade (findings before directives):
+
+Step 3.0q: Unconsumed high-severity post-mortem findings:
 ```bash
 HIGH=$(jq -r 'select(.consumed==false) | .items[] | select(.severity=="high") | .title' \
   .agents/rpi/next-work.jsonl 2>/dev/null | head -1)
 ```
 
-Priority 2 — Unconsumed medium-severity findings:
-```bash
-MEDIUM=$(jq -r 'select(.consumed==false) | .items[] | select(.severity=="medium") | .title' \
-  .agents/rpi/next-work.jsonl 2>/dev/null | head -1)
-```
+Step 3.1q: Unconsumed medium-severity findings.
 
-Priority 3 — Failing GOALS.yaml goals (standard behavior)
+Step 3.2q: Emergency gates (weight >= 5).
 
-Priority 4 — Open beads (`bd ready`)
+Step 3.3q: Top directive gap.
 
-This inverts the standard cascade: findings BEFORE goals.
-Rationale: harvested work has 100% first-attempt success rate (measured across 15 items in production).
-Standard mode reaches harvested work at Priority 3 — after all goals pass. Quality mode puts it first.
+Step 3.4q: Open beads (`bd ready`).
+
+Step 3.5q: Next directive.
+
+This inverts the standard cascade: findings BEFORE goals and directives.
+Rationale: harvested work has 100% first-attempt success rate.
 
 When evolve picks a finding, mark it consumed in next-work.jsonl:
 - Set `consumed: true`, `consumed_by: "evolve-quality:cycle-N"`, `consumed_at: "<timestamp>"`
@@ -186,7 +198,7 @@ fi
 
 If IDLE_STREAK < 2: this is idle cycle 1 or 2. Go to Step 6 (idle path).
 
-A cycle is idle if NO work source returned actionable work (all goals pass or quarantined, bd empty/unavailable, no harvested work). A cycle that targeted an oscillating goal and skipped it counts as idle.
+A cycle is idle if NO work source returned actionable work. A cycle that targeted an oscillating goal and skipped it counts as idle.
 
 If `--dry-run`: report what would be worked on and go to Teardown.
 

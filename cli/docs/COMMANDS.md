@@ -461,6 +461,7 @@ ao goals measure [flags]
 **Flags:**
 
 ```
+      --directives    Output directives as JSON (skip gate checks)
       --goal string   Measure a single goal by ID
   -h, --help          help for measure
 ```
@@ -529,6 +530,21 @@ ao goals add <id> <check-command> [flags]
       --weight int           Goal weight (1-10) (default 5)
 ```
 
+#### `ao goals init`
+
+Bootstrap a new GOALS.md file
+
+```
+ao goals init [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help              help for init
+      --non-interactive   Use defaults without prompting
+```
+
 #### `ao goals meta`
 
 Run and report meta-goals only
@@ -543,6 +559,29 @@ Migrate a version 1 GOALS.yaml to version 2 format.
 
 ```
 ao goals migrate [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help    help for migrate
+      --to-md   Convert GOALS.yaml to GOALS.md format
+```
+
+#### `ao goals prune`
+
+Remove goals referencing nonexistent files
+
+```
+ao goals prune [flags]
+```
+
+#### `ao goals steer`
+
+Manage directives
+
+```
+ao goals steer [command]
 ```
 
 ---

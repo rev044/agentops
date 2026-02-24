@@ -68,3 +68,30 @@ Escape velocity condition: `signal_rate x retrieval_rate > decay_rate` (informal
 - Prefix with domain: `readme-`, `go-`, `skill-`, `hook-`
 - Keep under 40 characters
 - Must be unique across all goals
+
+## Directive Quality Criteria
+
+When generating or evaluating directives for GOALS.md:
+
+1. **Actionable** — Describes work that can be decomposed into issues. "Expand test coverage" not "Be better at testing."
+2. **Steerable** — Has a clear direction (increase/decrease/hold/explore). If you can't assign a steer, it's too vague.
+3. **Measurable progress** — You can tell whether work addressed it (even if not fully completed).
+4. **Not a gate** — Directives describe intent, not pass/fail thresholds. "Reduce complexity" is a directive; "complexity < 15" is a gate.
+5. **Prioritized** — Lower number = higher priority. Directive 1 is worked before directive 2.
+
+### Steer Values
+
+| Steer | Meaning | Example |
+|-------|---------|---------|
+| `increase` | Do more of this | "Expand test coverage" |
+| `decrease` | Reduce this | "Reduce complexity budget" |
+| `hold` | Maintain current level | "Keep API compatibility" |
+| `explore` | Investigate options | "Evaluate new CI provider" |
+
+### Directive-Gate Relationship
+
+Directives generate gates over time:
+- Directive "Expand test coverage" → Gate `test-coverage-floor` (check: coverage > 80%)
+- Directive "Reduce complexity" → Gate `complexity-budget` (check: gocyclo -over 15 = 0 findings)
+
+When a directive is fully addressed (gate exists and passes), consider removing the directive and keeping the gate.

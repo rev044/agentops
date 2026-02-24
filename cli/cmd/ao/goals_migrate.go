@@ -3,12 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/boshu2/agentops/cli/internal/goals"
 )
+
+var migrateToMD bool
 
 func init() {
 	migrateCmd := &cobra.Command{
@@ -30,6 +33,7 @@ Examples:
   ao goals migrate --file custom-goals.yaml`,
 		RunE: runGoalsMigrate,
 	}
+	migrateCmd.Flags().BoolVar(&migrateToMD, "to-md", false, "Convert GOALS.yaml to GOALS.md format")
 	goalsCmd.AddCommand(migrateCmd)
 }
 
@@ -40,6 +44,34 @@ func runGoalsMigrate(cmd *cobra.Command, args []string) error {
 	gf, err := goals.LoadGoals(path)
 	if err != nil {
 		return fmt.Errorf("load goals: %w", err)
+	}
+
+	if migrateToMD {
+		if gf.Format == "md" {
+			fmt.Println("Already in GOALS.md format — no migration needed.")
+			return nil
+		}
+		// Copy existing fields
+		gf.Format = "md"
+		gf.Version = 4
+		if gf.Mission == "" {
+			gf.Mission = "Project fitness goals"
+		}
+		// Add a default directive if none exist
+		if len(gf.Directives) == 0 {
+			gf.Directives = []goals.Directive{
+				{Number: 1, Title: "Improve project quality", Description: "Focus on the highest-impact improvements.", Steer: "increase"},
+			}
+		}
+		content := goals.RenderGoalsMD(gf)
+		// Compute GOALS.md path in same directory
+		mdPath := filepath.Join(filepath.Dir(path), "GOALS.md")
+		if err := os.WriteFile(mdPath, []byte(content), 0o644); err != nil {
+			return fmt.Errorf("writing GOALS.md: %w", err)
+		}
+		fmt.Printf("Migrated %s → %s (GOALS.md format, version 4)\n", path, mdPath)
+		fmt.Println("Original YAML file preserved. Delete it manually when ready.")
+		return nil
 	}
 
 	if gf.Version >= 2 {

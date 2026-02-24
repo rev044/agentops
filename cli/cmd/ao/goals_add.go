@@ -78,12 +78,22 @@ var goalsAddCmd = &cobra.Command{
 
 		// Append to GoalFile and write back.
 		gf.Goals = append(gf.Goals, newGoal)
-		data, err := yaml.Marshal(gf)
-		if err != nil {
-			return fmt.Errorf("marshaling goals: %w", err)
-		}
-		if err := os.WriteFile(goalsFile, data, 0o644); err != nil {
-			return fmt.Errorf("writing goals: %w", err)
+
+		// Format-aware writeback
+		if gf.Format == "md" {
+			content := goals.RenderGoalsMD(gf)
+			actualPath := goals.ResolveGoalsPath(goalsFile)
+			if err := os.WriteFile(actualPath, []byte(content), 0o644); err != nil {
+				return fmt.Errorf("writing goals: %w", err)
+			}
+		} else {
+			data, err := yaml.Marshal(gf)
+			if err != nil {
+				return fmt.Errorf("marshaling goals: %w", err)
+			}
+			if err := os.WriteFile(goalsFile, data, 0o644); err != nil {
+				return fmt.Errorf("writing goals: %w", err)
+			}
 		}
 
 		fmt.Printf("Added goal %q (type: %s, weight: %d)\n", id, goalType, goalsAddWeight)

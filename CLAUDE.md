@@ -141,3 +141,12 @@ Releases are automated via GoReleaser + GitHub Actions:
 The workflow builds cross-platform binaries, creates the GitHub release, updates the Homebrew tap (`boshu2/homebrew-agentops`), generates SBOM + security report, and attests SLSA provenance.
 
 **Always run `scripts/ci-local-release.sh` before tagging.**
+
+## Agent Goals
+
+GOALS.md is the strategic intent layer consumed by `/evolve` and `/goals`:
+- `ao goals measure` — fitness gate checks
+- `ao goals measure --directives` — list strategic directives as JSON
+- `ao goals steer add/remove/prioritize` — manage directives
+- `ao goals init` — bootstrap GOALS.md interactively
+- `ao goals migrate --to-md` — convert GOALS.yaml → GOALS.md

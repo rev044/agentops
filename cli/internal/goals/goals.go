@@ -1,11 +1,13 @@
-// Package goals manages GOALS.yaml fitness specifications, including loading,
-// validation, drift detection, and historical measurement snapshots.
+// Package goals manages GOALS.yaml and GOALS.md fitness specifications,
+// including loading, validation, drift detection, and historical measurement snapshots.
 package goals
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -38,11 +40,23 @@ type Goal struct {
 	Tags        []string          `yaml:"tags,omitempty"`
 }
 
-// GoalFile is the top-level structure of a goals YAML file.
+// Directive represents a strategic intent directive (GOALS.md only).
+type Directive struct {
+	Number      int    `json:"number" yaml:"-"`
+	Title       string `json:"title" yaml:"-"`
+	Description string `json:"description" yaml:"-"`
+	Steer       string `json:"steer" yaml:"-"`
+}
+
+// GoalFile is the top-level structure of a goals file (YAML or Markdown).
 type GoalFile struct {
-	Version int    `yaml:"version"`
-	Mission string `yaml:"mission,omitempty"`
-	Goals   []Goal `yaml:"goals"`
+	Version    int         `yaml:"version" json:"version"`
+	Mission    string      `yaml:"mission,omitempty" json:"mission,omitempty"`
+	Goals      []Goal      `yaml:"goals" json:"goals"`
+	Format     string      `yaml:"-" json:"format,omitempty"`
+	NorthStars []string    `yaml:"-" json:"north_stars,omitempty"`
+	AntiStars  []string    `yaml:"-" json:"anti_stars,omitempty"`
+	Directives []Directive `yaml:"-" json:"directives,omitempty"`
 }
 
 // ValidationError describes a validation problem with a specific goal field.
@@ -76,10 +90,64 @@ func defaultGoalTypes(goals []Goal) {
 	}
 }
 
-// LoadGoals reads and parses a goals YAML file.
-// Accepts version 1, 2, or 3. Version 1 is accepted with a deprecation warning.
+// DetectFormat determines the goals file format from path and filesystem context.
+// Returns "md" for markdown files, "yaml" for YAML files.
+// If the path is "GOALS.yaml" (default) and a GOALS.md exists in the same directory,
+// returns "md" to prefer the markdown format.
+func DetectFormat(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".md" {
+		return "md"
+	}
+	if ext == ".yaml" || ext == ".yml" {
+		// Check if a GOALS.md exists alongside the YAML file
+		dir := filepath.Dir(path)
+		mdPath := filepath.Join(dir, "GOALS.md")
+		if _, err := os.Stat(mdPath); err == nil {
+			return "md"
+		}
+		return "yaml"
+	}
+	// No extension or unknown — check for GOALS.md in same dir
+	dir := filepath.Dir(path)
+	mdPath := filepath.Join(dir, "GOALS.md")
+	if _, err := os.Stat(mdPath); err == nil {
+		return "md"
+	}
+	return "yaml"
+}
+
+// ResolveGoalsPath returns the actual file path based on format detection.
+// If the detected format is "md" but the given path is not a .md file,
+// it returns the GOALS.md path in the same directory.
+func ResolveGoalsPath(path string) string {
+	format := DetectFormat(path)
+	if format == "md" && strings.ToLower(filepath.Ext(path)) != ".md" {
+		return filepath.Join(filepath.Dir(path), "GOALS.md")
+	}
+	return path
+}
+
+// LoadGoals reads and parses a goals file (YAML or Markdown).
+// Accepts YAML versions 1, 2, or 3. Markdown files use version 4.
+// Version 1 is accepted with a deprecation warning.
 // Defaults Goal.Type to "health" if empty.
 func LoadGoals(path string) (*GoalFile, error) {
+	format := DetectFormat(path)
+	if format == "md" {
+		actualPath := ResolveGoalsPath(path)
+		data, err := os.ReadFile(actualPath)
+		if err != nil {
+			return nil, err
+		}
+		gf, err := ParseMarkdownGoals(data)
+		if err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", actualPath, err)
+		}
+		defaultGoalTypes(gf.Goals)
+		return gf, nil
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -98,6 +166,7 @@ func LoadGoals(path string) (*GoalFile, error) {
 		fmt.Fprintf(os.Stderr, "WARNING: %s uses version 1 (deprecated). Run 'ao goals migrate' to upgrade to version 2.\n", path)
 	}
 
+	gf.Format = "yaml"
 	defaultGoalTypes(gf.Goals)
 	return &gf, nil
 }
