@@ -207,7 +207,7 @@ This is what the whole system builds toward. Every skill — research, planning,
 [cycle-60-95] Complexity annihilation: zero functions >= 8
               (was dozens >= 20 — extracted helpers, tested independently)
 [cycle-96-116] Modernization: sentinel errors, exhaustive switches,
-              Go 1.23 idioms (slices, cmp.Or, range-over-int)
+              Go 1.26-compatible idioms (slices, cmp.Or, range-over-int)
 
 [teardown]    203 files changed, 20K+ lines, 116 cycles
               All tests pass. Go vet clean. Avg coverage 97%.
@@ -216,12 +216,6 @@ This is what the whole system builds toward. Every skill — research, planning,
 ```
 
 That ran overnight — ~7 hours, unattended, on this repo. Every cycle committed with a traceable message. Regression gates auto-reverted anything that broke a previously-passing goal. The agent built its own safety net first (tests), then used that safety net to refactor aggressively (complexity), then polished (modernization). Nobody told it to do that — severity-based goal selection naturally produces the correct ordering.
-
-<p align="center">
-<img src="docs/assets/crank-3-parallel-epics.png" alt="Completed crank run with 3 parallel epics and 15 issues shipped in 5 waves" width="800">
-<br>
-<i>AgentOps building AgentOps: `/crank` across 3 parallel epics (15 issues, 5 waves, 0 regressions).</i>
-</p>
 
 <details>
 <summary><b>More examples</b> — swarm, session continuity, different workflows</summary>
@@ -420,6 +414,41 @@ Learnings pass quality gates (specificity, actionability, novelty) and land in t
 </details>
 
 <details>
+<summary><b>Parallel RPI</b> — run N epics concurrently in isolated worktrees</summary>
+
+`ao rpi parallel` runs multiple epics at the same time, each in its own git worktree. Every epic gets a full 3-phase RPI lifecycle (discovery → implementation → validation) with zero cross-contamination, then merges back sequentially.
+
+```
+ao rpi parallel --manifest epics.json        # Named epics with merge order
+ao rpi parallel "add auth" "add logging"     # Inline goals (auto-named)
+ao rpi parallel --no-merge --manifest m.json # Leave worktrees for manual review
+```
+
+```
+                   ao rpi parallel
+                         │
+         ┌───────────────┼───────────────┐
+         ▼               ▼               ▼
+   ┌───────────┐   ┌───────────┐   ┌───────────┐
+   │ worktree  │   │ worktree  │   │ worktree  │
+   │  epic/A   │   │  epic/B   │   │  epic/C   │
+   ├───────────┤   ├───────────┤   ├───────────┤
+   │ 1 discover│   │ 1 discover│   │ 1 discover│
+   │ 2 build   │   │ 2 build   │   │ 2 build   │
+   │ 3 validate│   │ 3 validate│   │ 3 validate│
+   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
+         └───────────────┼───────────────┘
+                         ▼
+            merge  A → B → C  (in order)
+                         │
+                   gate script (CI)
+```
+
+Each phase spawns a fresh Claude session — no context bleed. Worktree isolation means parallel epics can touch the same files without conflicts. The merge order is configurable (manifest `merge_order` or `--merge-order` flag) so dependency-heavy epics land first.
+
+</details>
+
+<details>
 <summary><b>Setting up /evolve</b> — GOALS.yaml and the fitness loop</summary>
 
 Bootstrap with `/goals generate` — it scans your repo (PRODUCT.md, README, skills, tests) and proposes mechanically verifiable goals. Or write them by hand:
@@ -463,6 +492,7 @@ Skills work standalone — no CLI required. The `ao` CLI adds two things: (1) th
 ao rpi loop --supervisor --max-cycles 1        # Canonical autonomous cycle (policy-gated landing)
 ao rpi loop --supervisor "fix auth bug"        # Single explicit-goal supervised cycle
 ao rpi phased --from=implementation "ag-058"   # Resume a specific phased run at build phase
+ao rpi parallel --manifest epics.json          # Run N epics concurrently in isolated worktrees
 ao rpi status --watch                          # Monitor active/terminal runs
 ```
 

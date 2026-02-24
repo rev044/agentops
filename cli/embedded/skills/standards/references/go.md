@@ -2,7 +2,7 @@
 
 ## Target Version
 
-Detect from `go.mod`. Use all features up to and including that version. Never use features from newer versions. Current project target: **Go 1.23**.
+Detect from `go.mod`. Use all features up to and including that version. Never use features from newer versions. Current project target: **Go 1.26**.
 
 ## Required
 
@@ -133,7 +133,7 @@ May eliminate the need for third-party routers for simple APIs.
 
 ## Future Features (Go 1.24+)
 
-These are NOT available at Go 1.23. Versions 1.24 and 1.25 are released; 1.26+ entries are proposals pending release. Document for upgrade readiness.
+This section tracks features by first-supported Go version and can be used to plan future target upgrades.
 
 | Feature | Version | What It Replaces |
 |---------|---------|------------------|

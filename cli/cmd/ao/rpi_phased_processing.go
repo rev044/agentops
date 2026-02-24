@@ -46,13 +46,19 @@ func postPhaseProcessing(cwd string, state *phasedState, phaseNum int, logPath s
 func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error {
 	epicID, err := extractEpicID(state.Opts.BDCommand)
 	if err != nil {
-		return fmt.Errorf("discovery phase: could not extract epic ID (implementation needs this): %w", err)
+		// Fallback: discover plan file when bd has no epic
+		planPath, planErr := discoverPlanFile(cwd)
+		if planErr != nil {
+			return fmt.Errorf("discovery phase: no epic ID and no plan file found: bd error: %w, plan error: %v", err, planErr)
+		}
+		epicID = planFileEpicPrefix + planPath
+		fmt.Printf("Plan-file fallback: using %s as epic ID\n", planPath)
 	}
 	state.EpicID = epicID
 	fmt.Printf("Epic ID: %s\n", epicID)
 	logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("extracted epic: %s", epicID))
 
-	if !state.Opts.FastPath {
+	if !state.Opts.FastPath && !isPlanFileEpic(epicID) {
 		fast, err := detectFastPath(state.EpicID, state.Opts.BDCommand)
 		if err != nil {
 			VerbosePrintf("Warning: fast-path detection failed (continuing without): %v\n", err)
@@ -62,7 +68,12 @@ func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error
 		}
 	}
 
-	report, err := findLatestCouncilReport(cwd, "pre-mortem", time.Time{}, state.EpicID)
+	// For plan-file epics, don't try to match epic ID in council report filenames
+	councilEpicID := state.EpicID
+	if isPlanFileEpic(state.EpicID) {
+		councilEpicID = ""
+	}
+	report, err := findLatestCouncilReport(cwd, "pre-mortem", time.Time{}, councilEpicID)
 	if err != nil {
 		// Pre-mortem may not have run if the session handled retries internally
 		// and ultimately gave up. Check if council report exists at all.
@@ -96,6 +107,10 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 		}
 	}
 	if state.EpicID == "" {
+		return nil
+	}
+	// Plan-file mode: skip bd-dependent completion check
+	if isPlanFileEpic(state.EpicID) {
 		return nil
 	}
 	status, err := checkCrankCompletion(state.EpicID, state.Opts.BDCommand)
@@ -460,6 +475,52 @@ func extractCouncilFindings(reportPath string, max int) ([]finding, error) {
 	}
 
 	return findings, nil
+}
+
+// --- Plan-file fallback helpers ---
+
+const planFileEpicPrefix = "plan:"
+
+// isPlanFileEpic returns true when the epic ID is a plan-file sentinel.
+func isPlanFileEpic(epicID string) bool {
+	return strings.HasPrefix(epicID, planFileEpicPrefix)
+}
+
+// planFileFromEpic extracts the plan file path from a plan-file epic sentinel.
+func planFileFromEpic(epicID string) string {
+	return strings.TrimPrefix(epicID, planFileEpicPrefix)
+}
+
+// discoverPlanFile scans .agents/plans/ for the most recently modified .md file
+// and returns its path relative to cwd.
+func discoverPlanFile(cwd string) (string, error) {
+	plansDir := filepath.Join(cwd, ".agents", "plans")
+	entries, err := os.ReadDir(plansDir)
+	if err != nil {
+		return "", fmt.Errorf("read plans directory: %w", err)
+	}
+
+	var latestPath string
+	var latestMod time.Time
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if latestPath == "" || info.ModTime().After(latestMod) {
+			latestPath = filepath.Join(".agents", "plans", entry.Name())
+			latestMod = info.ModTime()
+		}
+	}
+
+	if latestPath == "" {
+		return "", fmt.Errorf("no .md files found in %s", plansDir)
+	}
+
+	return latestPath, nil
 }
 
 // --- Epic and completion helpers ---

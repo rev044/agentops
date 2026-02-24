@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Repo root decluttered** — Moved CHANGELOG, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY into `docs/`. All cross-references updated across 15 files.
-- **Evolve cycles 5–116 landed** — Zero functions at complexity >= 8, coverage 95%+ across all internal packages, sentinel errors and benchmarks in all 15 packages, Go 1.23 idiom modernization (slices, cmp.Or, range-over-int, CutPrefix), exhaustive switches, errorlint/gocritic compliance.
+- **Evolve cycles 5–116 landed** — Zero functions at complexity >= 8, coverage 95%+ across all internal packages, sentinel errors and benchmarks in all 15 packages, modern Go idiom modernization (slices, cmp.Or, range-over-int, CutPrefix), exhaustive switches, errorlint/gocritic compliance.
 - **CI hardened** — Embedded sync path fix, security scan false positive exclusions (`_test.go`, `.claude/`), security toolchain gate made non-blocking, local CI gate secret scan and tool requirements fixed.
 - **Git author corrected** — Rewrote 157 commits from stale `Test User` to correct identity.
 
@@ -70,16 +70,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Two-tier execution mode taxonomy** — Skills now follow an explicit orchestrator/worker fork classification. Orchestrators (evolve, rpi, crank, vibe, post-mortem) stay in the main session for visibility. Worker spawners (council, codex-team) fork into subagents. Documented in `SKILL-TIERS.md` and `skill-structure.md`.
-- **116 evolve cycles** — Automated improvement loop ran 116 cycles, delivering: test coverage from ~70% to 95%+ across all packages, zero functions at complexity >= 8, sentinel errors in all packages, benchmarks in all 15 packages, Go 1.23 idiom modernization (slices, cmp.Or, range-over-int, CutPrefix), exhaustive switch statements, and consistent errorlint/gocritic compliance.
+- **116 evolve cycles** — Automated improvement loop ran 116 cycles, delivering: test coverage from ~70% to 95%+ across all packages, zero functions at complexity >= 8, sentinel errors in all packages, benchmarks in all 15 packages, modern Go idiom modernization (slices, cmp.Or, range-over-int, CutPrefix), exhaustive switch statements, and consistent errorlint/gocritic compliance.
 - **RPI control plane hardening** — Integration tests for RPI orchestrator, supervisor determinism, recovery edges, and detached-HEAD healing. Branch pruning controls to prevent worktree sprawl.
 - **Pre-commit/pre-push gates** — Go build gate on commit, full validation gate (build + vet + test + hooks + skill counts) on push.
-- **Go modern idiom catalog** — Standards updated with JetBrains-sourced Go 1.21–1.23 idiom catalog covering slices, maps, cmp, slog, and range patterns.
+- **Go modern idiom catalog** — Standards updated with a JetBrains-sourced Go idiom catalog covering slices, maps, cmp, slog, and range patterns.
 - **Validation scripts** — Added `check-evolve-cycle-logging.sh`, `check-go-absolute-complexity.sh`, `check-go-per-package-coverage.sh` for CI and evolve goal measurement.
 
 ### Changed
 
 - **Fork classification corrected** — Removed `context: fork` from evolve, crank, and post-mortem (orchestrators that were invisibly forking). Added `context: fork` to codex-team (worker spawner that should fork). Council retains `context: fork` (correct).
-- **Go modernized to 1.23 idioms** — Replaced `sort.Slice` with `slices.SortFunc`, `interface{}` with `any` (280+ occurrences), `strings.HasPrefix`+slice with `strings.CutPrefix`, added `cmp.Or` for defaults, range-over-int for counting loops.
+- **Go modernized with current idioms** — Replaced `sort.Slice` with `slices.SortFunc`, `interface{}` with `any` (280+ occurrences), `strings.HasPrefix`+slice with `strings.CutPrefix`, added `cmp.Or` for defaults, range-over-int for counting loops.
 - **Top 5 cmd/ao complexity reduced 82.7%** — Extracted helpers from the 5 highest-complexity functions: `runRPILoop` (37→9), `spawnRuntimePhaseWithStream` (32→3), `resolveLoopSupervisorConfig` (32→5), `executeRPICleanup` (28→4), `runBatchFeedback` (27→6). Aggregate 156→27.
 - **Goals pruned 83 to 25** — Removed stale/redundant goals, added trust-and-prove track specs.
 - **RPI loop supervisor hardened** — Failure policy, cycle retries, lease-based locking, stale worktree auto-cleanup, landing policy controls.
@@ -716,7 +716,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `eval()` with restricted execution in task-validation-gate.sh (command injection vulnerability)
 - Add missing kill switch (`AGENTOPS_HOOKS_DISABLED`) to standards-injector.sh
 - Remove `set -euo pipefail` from session-start.sh (hooks must fail open)
-- Fix `--format=oneline` → `-o json` for `ao ratchet status` (flag doesn't exist)
+- Fix `--format=oneline` → `--json` for `ao ratchet status` (flag doesn't exist)
 - Fix relative `.agents/ao` path → `git rev-parse --show-toplevel` for correct root detection
 - Replace PostToolUse comment-checker with PreToolUse standards-injector (better timing)
 - Add failure logging to all ao commands in hooks.json (was bare `|| true`)

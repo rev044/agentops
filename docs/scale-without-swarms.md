@@ -111,7 +111,7 @@ One `/evolve` run on this repo: **116 cycles, ~7 hours, unattended, zero regress
 What it shipped:
 - Test coverage: ~85% → ~97% across 203 files
 - Complex functions (cyclomatic complexity >= 8): dozens → zero
-- Modern Go idioms: sentinel errors, exhaustive switches, Go 1.23 slices/cmp.Or/range-over-int
+- Modern Go idioms: sentinel errors, exhaustive switches, Go 1.26-compatible slices/cmp.Or/range-over-int
 - 132 commits, each traceable, each regression-gated
 
 No human intervention during the run. Every cycle picked the worst remaining gap by weight, ran `/rpi` to fix it, validated nothing regressed, extracted learnings, and looped.

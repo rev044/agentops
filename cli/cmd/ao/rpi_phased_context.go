@@ -172,7 +172,8 @@ If pre-mortem returns FAIL, re-run /plan with the findings and then /pre-mortem 
 - Run implementation with swarm-managed waves by default (lead + worker teams).
 - Prefer crank paths that delegate to /swarm for wave execution.
 
-{{end}}/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}`,
+{{end}}{{if .PlanFileMode}}PLAN-FILE MODE: No beads epic exists. Use TaskList for issue tracking.
+/crank {{.PlanFilePath}}{{if .TestFirst}} --test-first{{end}}{{else}}/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}{{end}}`,
 
 	// Validation: vibe → post-mortem (both in one session, fresh eyes)
 	3: `{{if .SwarmFirst}}SWARM-FIRST EXECUTION CONTRACT:
@@ -192,7 +193,7 @@ If vibe returns PASS or WARN, proceed.
 STEP 2 — Post-mortem:
 {{if .SwarmFirst}}Prefer: execute post-mortem using /swarm-driven retro workers.
 Fallback direct command:
-{{end}}/post-mortem{{if .FastPath}} --quick{{end}} {{.EpicID}}`,
+{{end}}{{if .PlanFileMode}}/post-mortem --quick recent{{else}}/post-mortem{{if .FastPath}} --quick{{end}} {{.EpicID}}{{end}}`,
 }
 
 // retryContextDisciplineInstruction is appended to retry prompts to prevent
@@ -208,7 +209,7 @@ const retryPhaseSummaryInstruction = `Include a brief summary of prior phase out
 // Phase 3 (validation) FAIL triggers a fresh phase 2 (implementation) session.
 var retryPrompts = map[int]string{
 	// Vibe FAIL → re-crank with feedback (spawns fresh implementation session)
-	3: `/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}` + "\n\n" +
+	3: `{{if .PlanFileMode}}/crank {{.PlanFilePath}}{{if .TestFirst}} --test-first{{end}}{{else}}/crank {{.EpicID}}{{if .TestFirst}} --test-first{{end}}{{end}}` + "\n\n" +
 		`Vibe FAIL (attempt {{.RetryAttempt}}/{{.MaxRetries}}). Address these findings:` + "\n" +
 		`{{range .Findings}}FINDING: {{.Description}} | FIX: {{.Fix}} | REF: {{.Ref}}` + "\n" + `{{end}}`,
 }
@@ -298,6 +299,8 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 		Interactive   bool
 		PhaseNum      int
 		ContextBudget string
+		PlanFileMode  bool
+		PlanFilePath  string
 	}{
 		Goal:          state.Goal,
 		EpicID:        state.EpicID,
@@ -307,6 +310,8 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 		Interactive:   state.Opts.Interactive,
 		PhaseNum:      phaseNum,
 		ContextBudget: phaseContextBudgets[phaseNum],
+		PlanFileMode:  isPlanFileEpic(state.EpicID),
+		PlanFilePath:  planFileFromEpic(state.EpicID),
 	}
 
 	var buf strings.Builder
@@ -414,6 +419,8 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 		Findings      []finding
 		PhaseNum      int
 		ContextBudget string
+		PlanFileMode  bool
+		PlanFilePath  string
 	}{
 		Goal:          state.Goal,
 		EpicID:        state.EpicID,
@@ -424,6 +431,8 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 		Findings:      retryCtx.Findings,
 		PhaseNum:      phaseNum,
 		ContextBudget: phaseContextBudgets[phaseNum],
+		PlanFileMode:  isPlanFileEpic(state.EpicID),
+		PlanFilePath:  planFileFromEpic(state.EpicID),
 	}
 
 	var buf strings.Builder

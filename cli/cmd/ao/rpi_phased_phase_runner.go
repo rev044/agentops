@@ -166,7 +166,11 @@ func writeFinalPhasedReport(state *phasedState, logPath string) {
 	fmt.Printf("\n=== RPI Phased Complete ===\n")
 	fmt.Printf("Goal: %s\n", state.Goal)
 	if state.EpicID != "" {
-		fmt.Printf("Epic: %s\n", state.EpicID)
+		if isPlanFileEpic(state.EpicID) {
+			fmt.Printf("Plan file: %s\n", planFileFromEpic(state.EpicID))
+		} else {
+			fmt.Printf("Epic: %s\n", state.EpicID)
+		}
 	}
 	fmt.Printf("Verdicts: %v\n", state.Verdicts)
 	logPhaseTransition(logPath, state.RunID, "complete", fmt.Sprintf("epic=%s verdicts=%v", state.EpicID, state.Verdicts))
