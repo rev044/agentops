@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+// escapeMDCell escapes pipe characters in markdown table cell content so that
+// they do not break the table structure. A literal | is replaced with \|.
+func escapeMDCell(s string) string {
+	return strings.ReplaceAll(s, "|", `\|`)
+}
+
 // RenderGoalsMD produces a well-formatted GOALS.md string from a GoalFile.
 func RenderGoalsMD(gf *GoalFile) string {
 	var b strings.Builder
@@ -53,7 +59,7 @@ func RenderGoalsMD(gf *GoalFile) string {
 		b.WriteString("| ID | Check | Weight | Description |\n")
 		b.WriteString("|----|-------|--------|-------------|\n")
 		for _, g := range gf.Goals {
-			fmt.Fprintf(&b, "| %s | `%s` | %d | %s |\n", g.ID, g.Check, g.Weight, g.Description)
+			fmt.Fprintf(&b, "| %s | `%s` | %d | %s |\n", escapeMDCell(g.ID), escapeMDCell(g.Check), g.Weight, escapeMDCell(g.Description))
 		}
 	}
 

@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var goalsDriftSince string
-
 var goalsDriftCmd = &cobra.Command{
 	Use:     "drift",
 	Aliases: []string{"d"},
@@ -92,6 +90,5 @@ var goalsDriftCmd = &cobra.Command{
 }
 
 func init() {
-	goalsDriftCmd.Flags().StringVar(&goalsDriftSince, "since", "", "Compare against snapshot from this date (YYYY-MM-DD)")
 	goalsCmd.AddCommand(goalsDriftCmd)
 }

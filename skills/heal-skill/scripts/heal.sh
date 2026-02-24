@@ -263,7 +263,7 @@ for skill_dir in "${TARGETS[@]}"; do
         echo "  [WARN] Cannot auto-fix DEAD_REF -- manually remove or create $ref_path"
       fi
     fi
-  done < <(awk '/^```/{skip=!skip; next} !skip{print}' "$skill_md" | grep -oE 'references/[A-Za-z0-9_.-]+\.md' 2>/dev/null | sort -u || true)
+  done < <(awk 'BEGIN{skip=0} /^```/{skip=1-skip; next} skip==0{print}' "$skill_md" | grep -oE 'references/[A-Za-z0-9_.-]+\.md' 2>/dev/null | sort -u || true)
 
   # Check 7: Script reference integrity
   # Strip fenced code blocks before scanning to avoid false positives from examples
@@ -272,7 +272,7 @@ for skill_dir in "${TARGETS[@]}"; do
     if [[ ! -f "$skill_dir/$ref" ]]; then
       report "SCRIPT_REF_MISSING" "$skill_dir" "references $ref but file not found"
     fi
-  done < <(awk '/^```/{skip=!skip; next} !skip{print}' "$skill_md" | grep -oE '\bscripts/[a-zA-Z0-9_-]+\.[a-z]+' 2>/dev/null | sort -u || true)
+  done < <(awk 'BEGIN{skip=0} /^```/{skip=1-skip; next} skip==0{print}' "$skill_md" | grep -oE '\bscripts/[a-zA-Z0-9_-]+\.[a-z]+' 2>/dev/null | sort -u || true)
 
   # Check 8: CLI command validation (only if ao is on PATH)
   if command -v ao >/dev/null 2>&1; then
@@ -296,7 +296,7 @@ for skill_dir in "${TARGETS[@]}"; do
     if [[ ! -d "$SKILLS_ROOT/$ref" ]]; then
       report "DEAD_XREF" "$skill_dir" "references /$ref but skill directory not found"
     fi
-  done < <(awk '/^```/{skip=!skip; next} !skip{print}' "$skill_md" | grep -oE '`/[a-z][-a-z]*`' 2>/dev/null | sed 's/`//g; s|^/||' | sort -u || true)
+  done < <(awk 'BEGIN{skip=0} /^```/{skip=1-skip; next} skip==0{print}' "$skill_md" | grep -oE '`/[a-z][-a-z]*`' 2>/dev/null | sed 's/`//g; s|^/||' | sort -u || true)
 
 done
 

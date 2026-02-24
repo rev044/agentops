@@ -203,6 +203,43 @@ DOC_COMMANDS
           echo '```'
           echo ""
         fi
+
+        local subsub_cmds
+        subsub_cmds="$(echo "$sub_help" | extract_commands | grep -v '^$' || true)"
+        if [[ -n "$subsub_cmds" ]]; then
+          for subsub in $subsub_cmds; do
+            local subsub_help
+            subsub_help="$("$AO_BIN" "$cmd" "$sub" "$subsub" --help 2>&1 || true)"
+
+            local subsub_desc
+            subsub_desc="$(echo "$subsub_help" | head -n1)"
+
+            echo "##### \`ao ${cmd} ${sub} ${subsub}\`"
+            echo ""
+            echo "$subsub_desc"
+            echo ""
+
+            local subsub_usage
+            subsub_usage="$(echo "$subsub_help" | extract_usage || true)"
+            if [[ -n "$subsub_usage" ]]; then
+              echo '```'
+              echo "$subsub_usage"
+              echo '```'
+              echo ""
+            fi
+
+            local subsub_flags
+            subsub_flags="$(echo "$subsub_help" | extract_flags || true)"
+            if echo "$subsub_flags" | has_non_help_flags >/dev/null 2>&1; then
+              echo "**Flags:**"
+              echo ""
+              echo '```'
+              echo "$subsub_flags"
+              echo '```'
+              echo ""
+            fi
+          done
+        fi
       done
     fi
 

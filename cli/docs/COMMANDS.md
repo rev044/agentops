@@ -515,7 +515,7 @@ ao goals history [flags]
 
 #### `ao goals add`
 
-Add a new goal to GOALS.yaml
+Add a new goal
 
 ```
 ao goals add <id> <check-command> [flags]
@@ -582,6 +582,38 @@ Manage directives
 
 ```
 ao goals steer [command]
+```
+
+##### `ao goals steer add`
+
+Add a new directive
+
+```
+ao goals steer add <title> [flags]
+```
+
+**Flags:**
+
+```
+      --description string   Directive description (required)
+  -h, --help                 help for add
+      --steer string         Steer direction (increase, decrease, hold, explore) (default "increase")
+```
+
+##### `ao goals steer prioritize`
+
+Move a directive to a new position
+
+```
+ao goals steer prioritize <number> <new-position> [flags]
+```
+
+##### `ao goals steer remove`
+
+Remove a directive by number
+
+```
+ao goals steer remove <number> [flags]
 ```
 
 ---

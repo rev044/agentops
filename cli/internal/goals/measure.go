@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -66,11 +65,7 @@ func MeasureOne(goal Goal, timeout time.Duration) Measurement {
 
 	start := time.Now()
 	cmd := exec.CommandContext(ctx, "bash", "-c", goal.Check)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		// Kill the entire process group, not just the parent.
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
+	configureProcGroup(cmd)
 	cmd.WaitDelay = 3 * time.Second
 	out, err := cmd.CombinedOutput()
 	m.Duration = time.Since(start).Seconds()

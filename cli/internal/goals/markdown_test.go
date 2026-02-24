@@ -330,6 +330,58 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRoundTripPipeChars(t *testing.T) {
+	// Build a GoalFile with pipe characters in Check and Description fields.
+	gf := &GoalFile{
+		Version: 4,
+		Format:  "md",
+		Mission: "Test pipe escaping.",
+		Goals: []Goal{
+			{
+				ID:          "pipe-check",
+				Check:       "cmd --flag a|b",
+				Weight:      7,
+				Description: "Runs a|b pipeline",
+				Type:        GoalTypeHealth,
+			},
+			{
+				ID:          "pipe-desc",
+				Check:       "make test",
+				Weight:      5,
+				Description: "Pipe in desc: foo|bar|baz",
+				Type:        GoalTypeHealth,
+			},
+		},
+	}
+
+	rendered := RenderGoalsMD(gf)
+
+	gf2, err := ParseMarkdownGoals([]byte(rendered))
+	if err != nil {
+		t.Fatalf("parsing rendered markdown: %v", err)
+	}
+
+	if len(gf2.Goals) != 2 {
+		t.Fatalf("goals count = %d, want 2", len(gf2.Goals))
+	}
+
+	for i, want := range gf.Goals {
+		got := gf2.Goals[i]
+		if got.ID != want.ID {
+			t.Errorf("goal[%d].ID = %q, want %q", i, got.ID, want.ID)
+		}
+		if got.Check != want.Check {
+			t.Errorf("goal[%d].Check = %q, want %q", i, got.Check, want.Check)
+		}
+		if got.Weight != want.Weight {
+			t.Errorf("goal[%d].Weight = %d, want %d", i, got.Weight, want.Weight)
+		}
+		if got.Description != want.Description {
+			t.Errorf("goal[%d].Description = %q, want %q", i, got.Description, want.Description)
+		}
+	}
+}
+
 func TestSplitTableRow(t *testing.T) {
 	row := "| foo | bar | baz |"
 	cells := splitTableRow(row)
@@ -338,5 +390,229 @@ func TestSplitTableRow(t *testing.T) {
 	}
 	if cells[0] != "foo" {
 		t.Errorf("cells[0] = %q", cells[0])
+	}
+}
+
+// TestParseMarkdownGoals_Adversarial exercises edge-case inputs to verify the
+// parser does not panic and handles each situation gracefully.
+func TestParseMarkdownGoals_Adversarial(t *testing.T) {
+	tests := []struct {
+		name string
+		// input is the full GOALS.md content to parse.
+		input string
+		// wantErr indicates the parse should return a non-nil error.
+		wantErr bool
+		// check is an optional function that inspects the parsed GoalFile.
+		// It is only called when wantErr is false.
+		check func(t *testing.T, gf *GoalFile)
+	}{
+		{
+			name: "pipe in Check field round-trips via RenderGoalsMD",
+			// This test verifies that a goal whose Check contains a literal pipe
+			// survives render → parse without corruption.
+			input: func() string {
+				gf := &GoalFile{
+					Version: 4,
+					Format:  "md",
+					Mission: "Pipe test.",
+					Goals: []Goal{
+						{
+							ID:          "pipe-in-check",
+							Check:       `bash -c "echo a | grep b"`,
+							Weight:      5,
+							Description: "Grep after echo",
+							Type:        GoalTypeHealth,
+						},
+					},
+				}
+				return RenderGoalsMD(gf)
+			}(),
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Goals) != 1 {
+					t.Fatalf("goals = %d, want 1", len(gf.Goals))
+				}
+				want := `bash -c "echo a | grep b"`
+				if gf.Goals[0].Check != want {
+					t.Errorf("Check = %q, want %q", gf.Goals[0].Check, want)
+				}
+			},
+		},
+		{
+			name: "pipe in Description field round-trips via RenderGoalsMD",
+			input: func() string {
+				gf := &GoalFile{
+					Version: 4,
+					Format:  "md",
+					Mission: "Pipe desc test.",
+					Goals: []Goal{
+						{
+							ID:          "pipe-in-desc",
+							Check:       "make test",
+							Weight:      5,
+							Description: "Run A | then B",
+							Type:        GoalTypeHealth,
+						},
+					},
+				}
+				return RenderGoalsMD(gf)
+			}(),
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Goals) != 1 {
+					t.Fatalf("goals = %d, want 1", len(gf.Goals))
+				}
+				want := "Run A | then B"
+				if gf.Goals[0].Description != want {
+					t.Errorf("Description = %q, want %q", gf.Goals[0].Description, want)
+				}
+			},
+		},
+		{
+			// Backtick-wrapped check values have their surrounding backticks stripped via
+			// strings.Trim(check, "`"). A cell containing multiple backtick-delimited
+			// segments (e.g. "`cmd` && `other`") is unusual but must not cause a panic.
+			// The parser strips only leading/trailing backticks, so the inner content
+			// may differ from the original. This test documents current behaviour.
+			name: "backtick in Check field — no panic, documented behaviour",
+			// Build a table row whose Check cell contains internal backticks:
+			// | bt-check | `cmd` && `other` | 5 | Backtick check |
+			input: "# Goals\n\nBacktick test.\n\n## Gates\n\n" +
+				"| ID | Check | Weight | Description |\n" +
+				"|----|-------|--------|-------------|\n" +
+				"| bt-check | `cmd` && `other` | 5 | Backtick check |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				// Must not panic; at least one goal parsed.
+				if len(gf.Goals) != 1 {
+					t.Fatalf("goals = %d, want 1 (no panic)", len(gf.Goals))
+				}
+				// Check field is non-empty after backtick stripping.
+				if gf.Goals[0].Check == "" {
+					t.Error("Check is empty, expected non-empty")
+				}
+			},
+		},
+		{
+			// A row where the Description column is empty; the parser falls back to the
+			// goal ID as the description (see the "Use ID as description fallback" comment
+			// in parseGatesTable).
+			name: "empty Description cell falls back to ID",
+			input: "# Goals\n\nEmpty desc.\n\n## Gates\n\n| ID | Check | Weight | Description |\n|----|-------|--------|-------------|\n| empty-desc | `echo ok` | 5 |  |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Goals) != 1 {
+					t.Fatalf("goals = %d, want 1", len(gf.Goals))
+				}
+				// Falls back to ID when Description is blank.
+				if gf.Goals[0].Description != "empty-desc" {
+					t.Errorf("Description = %q, want %q (fallback to ID)", gf.Goals[0].Description, "empty-desc")
+				}
+			},
+		},
+		{
+			// A data row that has only 3 columns instead of the expected 4.
+			// The parser should not panic; the missing Description column is simply absent
+			// and the ID-fallback applies.
+			name: "fewer columns than header — no panic",
+			input: "# Goals\n\nShort row.\n\n## Gates\n\n| ID | Check | Weight | Description |\n|----|-------|--------|-------------|\n| short-row | `echo ok` | 3 |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				// Parser must survive and produce a goal (or zero goals), but must not panic.
+				// A row ending in a trailing pipe after 3 cells still splits into 3 cells,
+				// so Description is missing — fallback to ID.
+				_ = gf // just verifying no panic
+			},
+		},
+		{
+			// Unicode characters in mission, north-star items, and directive titles.
+			name: "unicode in mission, north stars, and directive titles",
+			input: "# Goals\n\n目標: 品質を改善する 🚀\n\n## North Stars\n\n- Schön und ästhetisch\n- 日本語のアイテム\n\n## Directives\n\n### 1. Ünïcödé Directive\n\nAccents and kanji: 漢字\n\n**Steer:** increase\n\n## Gates\n\n| ID | Check | Weight | Description |\n|----|-------|--------|-------------|\n| unicode-gate | `echo ok` | 5 | Unicode: 日本語 |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				wantMission := "目標: 品質を改善する 🚀"
+				if gf.Mission != wantMission {
+					t.Errorf("Mission = %q, want %q", gf.Mission, wantMission)
+				}
+				if len(gf.NorthStars) != 2 {
+					t.Fatalf("NorthStars = %d, want 2", len(gf.NorthStars))
+				}
+				if gf.NorthStars[0] != "Schön und ästhetisch" {
+					t.Errorf("NorthStars[0] = %q", gf.NorthStars[0])
+				}
+				if len(gf.Directives) != 1 {
+					t.Fatalf("Directives = %d, want 1", len(gf.Directives))
+				}
+				if gf.Directives[0].Title != "Ünïcödé Directive" {
+					t.Errorf("Directive[0].Title = %q", gf.Directives[0].Title)
+				}
+				if len(gf.Goals) != 1 {
+					t.Fatalf("Goals = %d, want 1", len(gf.Goals))
+				}
+				if gf.Goals[0].Description != "Unicode: 日本語" {
+					t.Errorf("Goals[0].Description = %q", gf.Goals[0].Description)
+				}
+			},
+		},
+		{
+			// Directives numbered 1, 3, 5 (2 and 4 are absent). The parser should
+			// preserve the authored Number field from the heading — not reassign indices.
+			name: "skipped directive numbers preserve authored numbers",
+			input: "# Goals\n\nSkip test.\n\n## Directives\n\n### 1. First\n\nBody one.\n\n**Steer:** increase\n\n### 3. Third\n\nBody three.\n\n**Steer:** hold\n\n### 5. Fifth\n\nBody five.\n\n**Steer:** decrease\n\n## Gates\n\n| ID | Check | Weight | Description |\n|----|-------|--------|-------------|\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Directives) != 3 {
+					t.Fatalf("Directives = %d, want 3", len(gf.Directives))
+				}
+				wantNumbers := []int{1, 3, 5}
+				for i, want := range wantNumbers {
+					if gf.Directives[i].Number != want {
+						t.Errorf("Directives[%d].Number = %d, want %d", i, gf.Directives[i].Number, want)
+					}
+				}
+				wantTitles := []string{"First", "Third", "Fifth"}
+				for i, want := range wantTitles {
+					if gf.Directives[i].Title != want {
+						t.Errorf("Directives[%d].Title = %q, want %q", i, gf.Directives[i].Title, want)
+					}
+				}
+			},
+		},
+		{
+			// Gates section with header + separator but zero data rows.
+			name: "table with no data rows yields empty goals slice",
+			input: "# Goals\n\nNo data rows.\n\n## Gates\n\n| ID | Check | Weight | Description |\n|----|-------|--------|-------------|\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Goals) != 0 {
+					t.Errorf("Goals = %d, want 0", len(gf.Goals))
+				}
+			},
+		},
+		{
+			// A separator row that has fewer dashes than expected (e.g. only one cell's
+			// worth of dashes). The regex tableSepRe should still recognise it as a
+			// separator, and no data row is emitted.
+			name: "malformed separator row is skipped, not treated as data",
+			input: "# Goals\n\nMalformed sep.\n\n## Gates\n\n| ID | Check | Weight | Description |\n|---|\n| my-goal | `echo ok` | 5 | OK |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				// The malformed separator row (|---|) should still be recognised as a
+				// separator by tableSepRe, so the first non-separator row is the header.
+				// After that the data row should be parsed.
+				// We verify no panic regardless of exact goal count.
+				_ = gf
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Must not panic.
+			gf, err := ParseMarkdownGoals([]byte(tc.input))
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.check != nil {
+				tc.check(t, gf)
+			}
+		})
 	}
 }

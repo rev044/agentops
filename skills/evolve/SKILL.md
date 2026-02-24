@@ -133,7 +133,7 @@ if [ "$OSC_COUNT" -ge 3 ]; then
 fi
 ```
 
-**Step 3.1: Directive gap** (skip if `--beads-only` or `--no-directives`):
+**Step 3.1: Directive gap** (skip if `--beads-only`):
 ```bash
 # Get directives from GOALS.md
 DIRECTIVES=$(ao goals measure --directives 2>/dev/null)
