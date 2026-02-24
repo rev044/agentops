@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
+
+	"github.com/boshu2/agentops/cli/embedded"
 )
 
 func TestSeed_CreatesAgentsDir(t *testing.T) {
@@ -387,6 +390,28 @@ func TestSeed_InvalidTemplate(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown template") {
 		t.Errorf("expected 'unknown template' error, got: %v", err)
+	}
+}
+
+func TestSeed_ValidTemplatesHaveEmbeddedFiles(t *testing.T) {
+	if err := validateTemplateMapEntries(validTemplates, embedded.TemplatesFS); err != nil {
+		t.Fatalf("validTemplates drifted from embedded templates: %v", err)
+	}
+}
+
+func TestSeed_ValidTemplatesDetectMissingEmbeddedFile(t *testing.T) {
+	err := validateTemplateMapEntries(
+		map[string]bool{"missing-template": true},
+		fstest.MapFS{},
+	)
+	if err == nil {
+		t.Fatal("expected missing template error, got nil")
+	}
+	if !strings.Contains(err.Error(), "missing-template") {
+		t.Fatalf("expected missing template name in error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "templates/missing-template.yaml") {
+		t.Fatalf("expected missing template path in error, got: %v", err)
 	}
 }
 

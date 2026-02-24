@@ -20,7 +20,7 @@ var goalsInitNonInteractive bool
 var goalsInitTemplate string
 
 // validTemplateNames lists the recognised --template values.
-var validTemplateNames = []string{"go-cli", "python-lib", "web-app", "generic"}
+var validTemplateNames = []string{"go-cli", "python-lib", "web-app", "rust-cli", "generic"}
 
 // goalTemplate is the YAML structure of an embedded template file.
 type goalTemplate struct {
@@ -370,25 +370,15 @@ func templateGatesToGoals(tmpl *goalTemplate) []goals.Goal {
 // autoDetectTemplate chooses a template name based on project marker files.
 // Returns "" if no recognisable project type is found.
 func autoDetectTemplate(projectRoot string) string {
-	stat := func(rel string) bool {
-		_, err := os.Stat(filepath.Join(projectRoot, rel))
-		return err == nil
-	}
-
-	switch {
-	case stat("go.mod") || stat("cli/go.mod"):
-		return "go-cli"
-	case stat("package.json"):
-		return "web-app"
-	case stat("pyproject.toml"):
-		return "python-lib"
-	default:
+	detected := detectTemplateFromProjectRoot(projectRoot)
+	if detected == "generic" {
 		return ""
 	}
+	return detected
 }
 
 func init() {
 	goalsInitCmd.Flags().BoolVar(&goalsInitNonInteractive, "non-interactive", false, "Use defaults without prompting")
-	goalsInitCmd.Flags().StringVar(&goalsInitTemplate, "template", "", "Goal template (go-cli, python-lib, web-app, generic)")
+	goalsInitCmd.Flags().StringVar(&goalsInitTemplate, "template", "", "Goal template (go-cli, python-lib, web-app, rust-cli, generic)")
 	goalsCmd.AddCommand(goalsInitCmd)
 }

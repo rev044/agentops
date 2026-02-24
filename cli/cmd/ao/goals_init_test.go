@@ -292,6 +292,11 @@ func TestGoalsInit_AutoDetect(t *testing.T) {
 			wantTmpl: "python-lib",
 		},
 		{
+			name:     "Cargo.toml → rust-cli",
+			files:    map[string]string{"Cargo.toml": "[package]\n"},
+			wantTmpl: "rust-cli",
+		},
+		{
 			name:     "empty → no template",
 			files:    map[string]string{},
 			wantTmpl: "",
@@ -320,7 +325,7 @@ func TestGoalsInit_AutoDetect(t *testing.T) {
 }
 
 func TestGoalsInit_LoadTemplate_AllValid(t *testing.T) {
-	// Verify all four templates load and parse without error.
+	// Verify all templates load and parse without error.
 	for _, name := range validTemplateNames {
 		t.Run(name, func(t *testing.T) {
 			tmpl, err := loadTemplate(name)

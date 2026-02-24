@@ -302,3 +302,35 @@ func TestContextAssemble_JSONOutput(t *testing.T) {
 		}
 	}
 }
+
+func TestContextAssemble_ReadIntelDirReadsJSONFiles(t *testing.T) {
+	tmp := t.TempDir()
+	learnDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learnDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	patternDir := filepath.Join(tmp, ".agents", "patterns")
+	if err := os.MkdirAll(patternDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(learnDir, "from-md.md"), []byte("# Markdown learning"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learnDir, "from-json.json"), []byte(`{"content":"json learning"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(patternDir, "pattern.json"), []byte(`{"pattern":"go"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	sections := assembleSections(tmp, "Include JSON artifacts", defaultAssembleMaxChars)
+	intelContent := sections[2].Content
+
+	if !strings.Contains(intelContent, "from-md") || !strings.Contains(intelContent, "from-json") {
+		t.Error("INTEL section should include both markdown and json learnings")
+	}
+	if !strings.Contains(intelContent, "pattern") {
+		t.Error("INTEL section should include pattern JSON artifacts")
+	}
+}

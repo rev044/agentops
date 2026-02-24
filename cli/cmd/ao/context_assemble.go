@@ -386,14 +386,16 @@ func readIntelDir(dir, kind string) []intelEntry {
 
 	var result []intelEntry
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+		name := e.Name()
+		lowerName := strings.ToLower(name)
+		if e.IsDir() || !(strings.HasSuffix(lowerName, ".md") || strings.HasSuffix(lowerName, ".json")) {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			continue
 		}
-		title := strings.TrimSuffix(e.Name(), ".md")
+		title := strings.TrimSuffix(name, filepath.Ext(name))
 		result = append(result, intelEntry{
 			title:   title,
 			content: strings.TrimSpace(string(data)),
@@ -532,10 +534,10 @@ func composeBriefingMarkdown(sections []assembledSection) string {
 // --- provenance manifest ---
 
 type provenanceManifest struct {
-	Timestamp string             `json:"timestamp"`
-	OutputPath string            `json:"output_path"`
-	Task       string            `json:"task"`
-	MaxChars   int               `json:"max_chars"`
+	Timestamp  string             `json:"timestamp"`
+	OutputPath string             `json:"output_path"`
+	Task       string             `json:"task"`
+	MaxChars   int                `json:"max_chars"`
 	Sections   []assembledSection `json:"sections"`
 }
 

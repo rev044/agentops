@@ -2,12 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/boshu2/agentops/cli/embedded"
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
 )
@@ -70,14 +74,18 @@ var validTemplates = map[string]bool{
 
 // seedResult holds structured output for --json mode.
 type seedResult struct {
-	Path      string   `json:"path"`
-	Template  string   `json:"template"`
-	Created   []string `json:"created"`
-	Skipped   []string `json:"skipped"`
-	DryRun    bool     `json:"dry_run"`
+	Path     string   `json:"path"`
+	Template string   `json:"template"`
+	Created  []string `json:"created"`
+	Skipped  []string `json:"skipped"`
+	DryRun   bool     `json:"dry_run"`
 }
 
 func runSeed(cmd *cobra.Command, args []string) error {
+	if err := validateTemplateMapEntries(validTemplates, embedded.TemplatesFS); err != nil {
+		return err
+	}
+
 	targetPath := "."
 	if len(args) > 0 {
 		targetPath = args[0]
@@ -164,25 +172,31 @@ func runSeed(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// detectTemplate inspects project files to determine the best template.
-func detectTemplate(root string) string {
-	stat := func(rel string) bool {
-		_, err := os.Stat(filepath.Join(root, rel))
-		return err == nil
+func validateTemplateMapEntries(templates map[string]bool, templatesFS fs.FS) error {
+	names := make([]string, 0, len(templates))
+	for name, enabled := range templates {
+		if enabled {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		path := filepath.Join("templates", name+".yaml")
+		if _, err := fs.Stat(templatesFS, path); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("template %q missing embedded file %s", name, path)
+			}
+			return fmt.Errorf("validate embedded template %q (%s): %w", name, path, err)
+		}
 	}
 
-	switch {
-	case stat("go.mod") || stat("cli/go.mod"):
-		return "go-cli"
-	case stat("package.json"):
-		return "web-app"
-	case stat("pyproject.toml"):
-		return "python-lib"
-	case stat("Cargo.toml"):
-		return "rust-cli"
-	default:
-		return "generic"
-	}
+	return nil
+}
+
+// detectTemplate inspects project files to determine the best template.
+func detectTemplate(root string) string {
+	return detectTemplateFromProjectRoot(root)
 }
 
 // seedCreateAgentsDirs creates the .agents/ directory structure.
