@@ -151,6 +151,7 @@ run_tool() {
 discover_go_modules() {
     find "$REPO_ROOT" -name go.mod -type f \
         ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/.git/*" \
+        ! -path "*/.claude/worktrees/*" \
         -print0 2>/dev/null | xargs -0 -n1 dirname 2>/dev/null || true
 }
 
@@ -343,7 +344,7 @@ run_shellcheck() {
     if [[ "$GATE" == "true" ]] && [[ "${#TARGET_FILES[@]}" -gt 0 ]]; then
         scripts="$(printf "%s\n" "${TARGET_FILES[@]}" | grep -E '\\.sh$' || true)"
     else
-        scripts="$(find "$REPO_ROOT" -name "*.sh" -type f ! -path "*/.git/*" 2>/dev/null || true)"
+        scripts="$(find "$REPO_ROOT" -name "*.sh" -type f ! -path "*/.git/*" ! -path "*/.claude/worktrees/*" 2>/dev/null || true)"
     fi
 
     if [[ -z "$scripts" ]]; then
@@ -755,7 +756,8 @@ run_hadolint() {
 
     local dockerfiles
     dockerfiles=$(find "$REPO_ROOT" -name "Dockerfile*" -type f \
-        ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/.git/*" 2>/dev/null)
+        ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/.git/*" \
+        ! -path "*/.claude/worktrees/*" 2>/dev/null)
     if [[ -z "$dockerfiles" ]]; then
         echo "NO_DOCKERFILES" > "$output_file"
         TOOL_STATUS["hadolint"]="skipped"

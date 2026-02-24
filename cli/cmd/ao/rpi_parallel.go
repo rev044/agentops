@@ -525,7 +525,7 @@ func tmuxPaneIsDead(tmuxCmd, target string) (bool, int) {
 	if len(fields) >= 1 && fields[0] == "1" {
 		exitCode := 0
 		if len(fields) >= 2 {
-			fmt.Sscanf(fields[1], "%d", &exitCode)
+			_, _ = fmt.Sscanf(fields[1], "%d", &exitCode)
 		}
 		return true, exitCode
 	}
