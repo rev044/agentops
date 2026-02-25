@@ -315,35 +315,24 @@ func updateJSONLFirstLine(path string, updates map[string]any) error {
 	return nil
 }
 
-// updateMarkdownFrontMatter reads a .md file, finds YAML front matter boundaries,
-// updates/adds fields, and writes the file back.
-func updateMarkdownFrontMatter(path string, updates map[string]any) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read learning for update: %w", err)
-	}
-
-	lines := strings.Split(string(content), "\n")
+// parseFrontMatterBounds locates the opening and closing --- delimiters in a
+// set of lines. It returns the index of the closing delimiter or an error if
+// the front matter is missing or malformed.
+func parseFrontMatterBounds(lines []string) (int, error) {
 	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return fmt.Errorf("no front matter in %s", path)
+		return -1, fmt.Errorf("no front matter found")
 	}
-
-	// Find closing ---
-	endIdx := -1
 	for i := 1; i < len(lines); i++ {
 		if strings.TrimSpace(lines[i]) == "---" {
-			endIdx = i
-			break
+			return i, nil
 		}
 	}
-	if endIdx == -1 {
-		return fmt.Errorf("malformed front matter: no closing ---")
-	}
+	return -1, fmt.Errorf("malformed front matter: no closing ---")
+}
 
-	// Update or add fields in front matter lines
-	fmLines := make([]string, endIdx-1)
-	copy(fmLines, lines[1:endIdx])
-
+// updateOrAddFrontMatterFields updates existing fields or appends new ones to
+// the given front matter lines.
+func updateOrAddFrontMatterFields(fmLines []string, updates map[string]any) []string {
 	for key, value := range updates {
 		found := false
 		for i, line := range fmLines {
@@ -357,8 +346,12 @@ func updateMarkdownFrontMatter(path string, updates map[string]any) error {
 			fmLines = append(fmLines, fmt.Sprintf("%s: %v", key, value))
 		}
 	}
+	return fmLines
+}
 
-	// Rebuild file
+// rebuildMarkdownFile reassembles a markdown file from front matter lines and
+// the body lines that follow the closing delimiter.
+func rebuildMarkdownFile(fmLines []string, bodyLines []string) string {
 	var sb strings.Builder
 	sb.WriteString("---\n")
 	for _, line := range fmLines {
@@ -366,14 +359,35 @@ func updateMarkdownFrontMatter(path string, updates map[string]any) error {
 		sb.WriteString("\n")
 	}
 	sb.WriteString("---\n")
-	for i := endIdx + 1; i < len(lines); i++ {
-		sb.WriteString(lines[i])
-		if i < len(lines)-1 {
+	for i, line := range bodyLines {
+		sb.WriteString(line)
+		if i < len(bodyLines)-1 {
 			sb.WriteString("\n")
 		}
 	}
+	return sb.String()
+}
 
-	if err := os.WriteFile(path, []byte(sb.String()), 0o600); err != nil {
+// updateMarkdownFrontMatter reads a .md file, finds YAML front matter boundaries,
+// updates/adds fields, and writes the file back.
+func updateMarkdownFrontMatter(path string, updates map[string]any) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read learning for update: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	endIdx, err := parseFrontMatterBounds(lines)
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+
+	fmLines := make([]string, endIdx-1)
+	copy(fmLines, lines[1:endIdx])
+	fmLines = updateOrAddFrontMatterFields(fmLines, updates)
+
+	result := rebuildMarkdownFile(fmLines, lines[endIdx+1:])
+	if err := os.WriteFile(path, []byte(result), 0o600); err != nil {
 		return fmt.Errorf("write updated learning: %w", err)
 	}
 	return nil

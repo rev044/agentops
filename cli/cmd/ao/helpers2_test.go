@@ -819,44 +819,6 @@ func TestHelper2_supervisorLeaseMetadataExpired(t *testing.T) {
 // flywheel_close_loop.go: filterAntiPatternTransitions
 // ---------------------------------------------------------------------------
 
-func TestHelper2_filterAntiPatternTransitions(t *testing.T) {
-	results := []*ratchet.MaturityTransitionResult{
-		{LearningID: "L001", NewMaturity: types.MaturityAntiPattern, Transitioned: true},
-		{LearningID: "L002", NewMaturity: types.MaturityCandidate, Transitioned: true},
-		{LearningID: "L003", NewMaturity: types.MaturityAntiPattern, Transitioned: true},
-		{LearningID: "L004", NewMaturity: types.MaturityEstablished, Transitioned: true},
-	}
-
-	filtered := filterAntiPatternTransitions(results)
-	if len(filtered) != 2 {
-		t.Fatalf("expected 2 anti-pattern transitions, got %d", len(filtered))
-	}
-	if filtered[0].LearningID != "L001" {
-		t.Fatalf("expected L001, got %s", filtered[0].LearningID)
-	}
-	if filtered[1].LearningID != "L003" {
-		t.Fatalf("expected L003, got %s", filtered[1].LearningID)
-	}
-}
-
-func TestHelper2_filterAntiPatternTransitions_empty(t *testing.T) {
-	filtered := filterAntiPatternTransitions(nil)
-	if filtered != nil {
-		t.Fatalf("expected nil, got %v", filtered)
-	}
-}
-
-func TestHelper2_filterAntiPatternTransitions_noneMatch(t *testing.T) {
-	results := []*ratchet.MaturityTransitionResult{
-		{LearningID: "L001", NewMaturity: types.MaturityCandidate},
-		{LearningID: "L002", NewMaturity: types.MaturityEstablished},
-	}
-	filtered := filterAntiPatternTransitions(results)
-	if filtered != nil {
-		t.Fatalf("expected nil when no matches, got %v", filtered)
-	}
-}
-
 // ---------------------------------------------------------------------------
 // flywheel_close_loop.go: loadExistingIndexEntries
 // ---------------------------------------------------------------------------

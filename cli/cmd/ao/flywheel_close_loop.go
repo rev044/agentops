@@ -315,58 +315,6 @@ func applyAllMaturityTransitions(cwd string) (maturityTransitionSummary, error) 
 	return summary, nil
 }
 
-func filterAntiPatternTransitions(results []*ratchet.MaturityTransitionResult) []*ratchet.MaturityTransitionResult {
-	var filtered []*ratchet.MaturityTransitionResult
-	for _, r := range results {
-		if r.NewMaturity == types.MaturityAntiPattern {
-			filtered = append(filtered, r)
-		}
-	}
-	return filtered
-}
-
-func applyAntiPatternPromotions(baseDir string, promotions []*ratchet.MaturityTransitionResult) (int, []string) {
-	var promoted int
-	var changedPaths []string
-	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
-	for _, r := range promotions {
-		learningPath, ferr := findLearningFile(filepath.Dir(learningsDir), r.LearningID)
-		if ferr != nil {
-			continue
-		}
-		applyResult, aerr := ratchet.ApplyMaturityTransition(learningPath)
-		if aerr != nil {
-			continue
-		}
-		if applyResult.Transitioned && applyResult.NewMaturity == types.MaturityAntiPattern {
-			promoted++
-			changedPaths = append(changedPaths, learningPath)
-		}
-	}
-	return promoted, changedPaths
-}
-
-func promoteAntiPatternsForCloseLoop(cwd string) (eligible int, promoted int, changedPaths []string, err error) {
-	learningsDir := filepath.Join(cwd, ".agents", "learnings")
-	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
-		return 0, 0, nil, nil
-	}
-
-	results, err := ratchet.ScanForMaturityTransitions(learningsDir)
-	if err != nil {
-		return 0, 0, nil, fmt.Errorf("scan transitions: %w", err)
-	}
-
-	antiPatternPromotions := filterAntiPatternTransitions(results)
-	eligible = len(antiPatternPromotions)
-	if eligible == 0 || GetDryRun() {
-		return eligible, 0, nil, nil
-	}
-
-	promoted, changedPaths = applyAntiPatternPromotions(cwd, antiPatternPromotions)
-	return eligible, promoted, changedPaths, nil
-}
-
 // loadExistingIndexEntries reads existing entries from a JSONL index file (best-effort).
 func loadExistingIndexEntries(indexPath string) map[string]IndexEntry {
 	existing := make(map[string]IndexEntry)

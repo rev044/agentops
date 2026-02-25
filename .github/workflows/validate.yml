@@ -262,6 +262,16 @@ jobs:
           chmod +x scripts/check-contract-compatibility.sh
           ./scripts/check-contract-compatibility.sh
 
+  memrl-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check MemRL feedback loop wiring
+        run: |
+          chmod +x scripts/check-memrl-health.sh
+          ./scripts/check-memrl-health.sh
+
   plugin-load-test:
     runs-on: ubuntu-latest
     steps:
@@ -468,7 +478,7 @@ jobs:
           ./tests/e2e-install-test.sh
 
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, plugin-load-test, go-build, e2e-install-test]
+    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, e2e-install-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -487,6 +497,7 @@ jobs:
           echo "skill-integrity: ${{ needs.skill-integrity.result }}"
           echo "skill-schema: ${{ needs.skill-schema.result }}"
           echo "contract-compatibility-gate: ${{ needs.contract-compatibility-gate.result }}"
+          echo "memrl-health: ${{ needs.memrl-health.result }}"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
           echo "go-build: ${{ needs.go-build.result }}"
           echo "e2e-install-test: ${{ needs.e2e-install-test.result }}"
@@ -503,6 +514,7 @@ jobs:
              [[ "${{ needs.skill-integrity.result }}" != "success" ]] || \
              [[ "${{ needs.skill-schema.result }}" != "success" ]] || \
              [[ "${{ needs.contract-compatibility-gate.result }}" != "success" ]] || \
+             [[ "${{ needs.memrl-health.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-install-test.result }}" != "success" ]]; then

@@ -123,6 +123,88 @@ func TestRunDedup_NoDuplicates(t *testing.T) {
 	}
 }
 
+func TestRunDedup_IncludesPatterns(t *testing.T) {
+	// Create temp directory with both learnings and patterns
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	patternsDir := filepath.Join(tmp, ".agents", "patterns")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatalf("creating learnings dir: %v", err)
+	}
+	if err := os.MkdirAll(patternsDir, 0o755); err != nil {
+		t.Fatalf("creating patterns dir: %v", err)
+	}
+
+	// Write one file in learnings and one in patterns with same body, different frontmatter
+	learningFile := filepath.Join(learningsDir, "learn-mutex.md")
+	patternFile := filepath.Join(patternsDir, "pattern-mutex.md")
+
+	if err := os.WriteFile(learningFile, []byte("---\ntitle: Mutex Learning\ndate: 2026-01-10\n---\nAlways use mutex for shared state."), 0o644); err != nil {
+		t.Fatalf("writing learning file: %v", err)
+	}
+	if err := os.WriteFile(patternFile, []byte("---\ntitle: Mutex Pattern\ndate: 2026-02-20\n---\nAlways use mutex for shared state."), 0o644); err != nil {
+		t.Fatalf("writing pattern file: %v", err)
+	}
+
+	// Change to temp dir for the command
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	// Force JSON output
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+
+	// Capture stdout
+	r, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+
+	err := runDedup(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+
+	if err != nil {
+		t.Fatalf("runDedup returned error: %v", err)
+	}
+
+	var result DedupResult
+	if decErr := json.NewDecoder(r).Decode(&result); decErr != nil {
+		t.Fatalf("decoding JSON output: %v", decErr)
+	}
+
+	if result.TotalFiles != 2 {
+		t.Errorf("TotalFiles = %d, want 2", result.TotalFiles)
+	}
+	if result.DuplicateGroups != 1 {
+		t.Errorf("DuplicateGroups = %d, want 1", result.DuplicateGroups)
+	}
+	if result.DuplicateFiles != 2 {
+		t.Errorf("DuplicateFiles = %d, want 2", result.DuplicateFiles)
+	}
+	if len(result.Groups) != 1 {
+		t.Fatalf("len(Groups) = %d, want 1", len(result.Groups))
+	}
+	// Verify files come from different directories
+	hasLearning := false
+	hasPattern := false
+	for _, f := range result.Groups[0].Files {
+		if filepath.Dir(f) == filepath.Join(".agents", "learnings") {
+			hasLearning = true
+		}
+		if filepath.Dir(f) == filepath.Join(".agents", "patterns") {
+			hasPattern = true
+		}
+	}
+	if !hasLearning || !hasPattern {
+		t.Errorf("expected files from both learnings and patterns dirs, got: %v", result.Groups[0].Files)
+	}
+}
+
 func TestRunDedup_FindsDuplicates(t *testing.T) {
 	// Create temp directory structure
 	tmp := t.TempDir()
@@ -187,5 +269,123 @@ func TestRunDedup_FindsDuplicates(t *testing.T) {
 	}
 	if result.Groups[0].Count != 2 {
 		t.Errorf("Groups[0].Count = %d, want 2", result.Groups[0].Count)
+	}
+}
+
+func TestRunDedup_MergeKeepsHighestUtility(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatalf("creating learnings dir: %v", err)
+	}
+
+	// Two files with identical body but different utility values
+	highFile := filepath.Join(learningsDir, "learn-high.md")
+	lowFile := filepath.Join(learningsDir, "learn-low.md")
+
+	if err := os.WriteFile(highFile, []byte("---\ntitle: High Utility\nutility: 0.9\n---\nAlways use mutex for shared state."), 0o644); err != nil {
+		t.Fatalf("writing high file: %v", err)
+	}
+	if err := os.WriteFile(lowFile, []byte("---\ntitle: Low Utility\nutility: 0.3\n---\nAlways use mutex for shared state."), 0o644); err != nil {
+		t.Fatalf("writing low file: %v", err)
+	}
+
+	// Change to temp dir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	// Enable merge flag, disable dry-run
+	origMerge := dedupMerge
+	dedupMerge = true
+	defer func() { dedupMerge = origMerge }()
+
+	origDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = origDryRun }()
+
+	// Capture stdout (merge prints to stdout)
+	_, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+
+	err := runDedup(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+
+	if err != nil {
+		t.Fatalf("runDedup --merge returned error: %v", err)
+	}
+
+	// Verify: high-utility file should still exist
+	if _, statErr := os.Stat(highFile); os.IsNotExist(statErr) {
+		t.Errorf("high-utility file was removed, should have been kept: %s", highFile)
+	}
+
+	// Verify: low-utility file should be gone from original location
+	if _, statErr := os.Stat(lowFile); !os.IsNotExist(statErr) {
+		t.Errorf("low-utility file still exists at original location, should have been archived: %s", lowFile)
+	}
+
+	// Verify: low-utility file should be in archive
+	archivePath := filepath.Join(tmp, ".agents", "archive", "dedup", "learn-low.md")
+	if _, statErr := os.Stat(archivePath); os.IsNotExist(statErr) {
+		t.Errorf("low-utility file not found in archive: %s", archivePath)
+	}
+}
+
+func TestReadUtilityFromFile_Markdown(t *testing.T) {
+	tmp := t.TempDir()
+
+	// File with utility in frontmatter
+	withUtility := filepath.Join(tmp, "with-utility.md")
+	if err := os.WriteFile(withUtility, []byte("---\ntitle: Test\nutility: 0.8\n---\nBody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readUtilityFromFile(withUtility); got != 0.8 {
+		t.Errorf("readUtilityFromFile(with utility) = %f, want 0.8", got)
+	}
+
+	// File without utility
+	noUtility := filepath.Join(tmp, "no-utility.md")
+	if err := os.WriteFile(noUtility, []byte("---\ntitle: Test\n---\nBody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readUtilityFromFile(noUtility); got != 0.5 {
+		t.Errorf("readUtilityFromFile(no utility) = %f, want 0.5", got)
+	}
+
+	// File with no frontmatter
+	noFM := filepath.Join(tmp, "no-fm.md")
+	if err := os.WriteFile(noFM, []byte("Just plain content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readUtilityFromFile(noFM); got != 0.5 {
+		t.Errorf("readUtilityFromFile(no frontmatter) = %f, want 0.5", got)
+	}
+}
+
+func TestReadUtilityFromFile_JSONL(t *testing.T) {
+	tmp := t.TempDir()
+
+	// JSONL with utility as number
+	withUtility := filepath.Join(tmp, "with-utility.jsonl")
+	if err := os.WriteFile(withUtility, []byte(`{"content":"test","utility":0.7}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readUtilityFromFile(withUtility); got != 0.7 {
+		t.Errorf("readUtilityFromFile(jsonl with utility) = %f, want 0.7", got)
+	}
+
+	// JSONL without utility
+	noUtility := filepath.Join(tmp, "no-utility.jsonl")
+	if err := os.WriteFile(noUtility, []byte(`{"content":"test"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readUtilityFromFile(noUtility); got != 0.5 {
+		t.Errorf("readUtilityFromFile(jsonl no utility) = %f, want 0.5", got)
 	}
 }
