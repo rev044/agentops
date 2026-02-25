@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SessionEnd hook now gates notebook update and memory sync on successful forge
 - Type 3 setup hook template: `hooks/examples/50-agentops-bootstrap.sh`
 - Constraint compiler hook: `hooks/constraint-compiler.sh`
+- Codex-native skill format (`skills-codex/`) with install and sync scripts for cross-runtime skill delivery
+- Comprehensive cmd/ao test coverage push — 500+ tests across 5 waves reaching 79.2% statement coverage (13 untestable functions excluded)
 
 ### Changed
 - SessionStart hook default mode changed from full inject to `manual` (pointer-only context, MEMORY.md auto-loaded by Claude Code)
@@ -57,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ao rpi status` goroutine leak fix — signal channel properly cleaned up
 - Inline rune truncation in `formatMemoryEntry` replaced with shared `truncateText`
 - 6 new tests for dedup, ambiguity detection, iteration cap, duplicate markers
+- Cobra pflag state pollution between test invocations — explicit flag reset in `executeCommand()` helper
+- Goals validate.sh outdated checks and missing validate.sh for 7 skills
+- 10 tech debt findings from ag-8km+ag-chm post-mortem (stale nudge, scanner, docs)
+- ao binary codesigned with stable Mach-O identifier
+- Hook integration tests updated — removed 8 stale standalone ao-* hook tests consolidated into session-end-maintenance.sh
 
 ## [2.17.0] - 2026-02-24
 

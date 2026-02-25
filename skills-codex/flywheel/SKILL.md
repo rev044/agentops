@@ -244,6 +244,7 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 
 ### artifact-consistency-allowlist.txt
 
+```text
 # Artifact consistency allowlist
 #
 # Format:
@@ -272,6 +273,7 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 * -> .agents/*/...*
 * -> .agents/*/foo.*
 * -> .agents/handoff/auto-99999999T999999Z.md
+```
 
 ### artifact-consistency.md
 

@@ -963,35 +963,9 @@ else
     fail "ao-agents-check.sh removed from hooks.json"
 fi
 
-# ============================================================
-echo ""
-echo "=== ao-extract.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-extract
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-extract.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-extract kill switch"; else fail "ao-extract kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-extract.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-extract fail-open without ao"; else fail "ao-extract fail-open without ao"; fi
-
-# ============================================================
-echo ""
-echo "=== ao-feedback-loop.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-feedback-loop
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-feedback-loop.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-feedback-loop kill switch"; else fail "ao-feedback-loop kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-feedback-loop.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-feedback-loop fail-open without ao"; else fail "ao-feedback-loop fail-open without ao"; fi
+# ao-extract, ao-feedback-loop, ao-forge, ao-inject, ao-maturity-scan,
+# ao-ratchet-status, ao-session-outcome, ao-task-sync were consolidated
+# into session-end-maintenance.sh inline commands. Standalone scripts removed.
 
 # ============================================================
 echo ""
@@ -1008,95 +982,9 @@ EC=0
 PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-flywheel-close.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 0 ]; then pass "ao-flywheel-close fail-open without ao"; else fail "ao-flywheel-close fail-open without ao"; fi
 
-# ============================================================
-echo ""
-echo "=== ao-forge.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-forge
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-forge.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-forge kill switch"; else fail "ao-forge kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-forge.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-forge fail-open without ao"; else fail "ao-forge fail-open without ao"; fi
-
-# ============================================================
-echo ""
-echo "=== ao-inject.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-inject
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-inject.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-inject kill switch"; else fail "ao-inject kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-inject.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-inject fail-open without ao"; else fail "ao-inject fail-open without ao"; fi
-
-# ============================================================
-echo ""
-echo "=== ao-maturity-scan.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-maturity-scan
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-maturity-scan.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-maturity-scan kill switch"; else fail "ao-maturity-scan kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-maturity-scan.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-maturity-scan fail-open without ao"; else fail "ao-maturity-scan fail-open without ao"; fi
-
-# ============================================================
-echo ""
-echo "=== ao-ratchet-status.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-ratchet-status
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-ratchet-status.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-ratchet-status kill switch"; else fail "ao-ratchet-status kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-ratchet-status.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-ratchet-status fail-open without ao"; else fail "ao-ratchet-status fail-open without ao"; fi
-
-# ============================================================
-echo ""
-echo "=== ao-session-outcome.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-session-outcome
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-session-outcome.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-session-outcome kill switch"; else fail "ao-session-outcome kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-session-outcome.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-session-outcome fail-open without ao"; else fail "ao-session-outcome fail-open without ao"; fi
-
-# ============================================================
-echo ""
-echo "=== ao-task-sync.sh ==="
-# ============================================================
-
-# Test: kill switch suppresses ao-task-sync
-EC=0
-AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/ao-task-sync.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-task-sync kill switch"; else fail "ao-task-sync kill switch"; fi
-
-# Test: fail-open without ao
-EC=0
-PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-task-sync.sh" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -eq 0 ]; then pass "ao-task-sync fail-open without ao"; else fail "ao-task-sync fail-open without ao"; fi
+# ao-forge, ao-inject, ao-maturity-scan, ao-ratchet-status, ao-session-outcome,
+# ao-task-sync standalone scripts were consolidated into session-end-maintenance.sh.
+# Delegation tests below verify the embedded hooks still delegate correctly.
 
 # ============================================================
 echo ""
