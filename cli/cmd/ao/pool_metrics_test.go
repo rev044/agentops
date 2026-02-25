@@ -1238,7 +1238,7 @@ func TestPoolMigrate_migrateLegacyKnowledgeFiles(t *testing.T) {
 // metrics.go — computeSigmaRho
 // ===========================================================================
 
-func TestMetrics_computeSigmaRho(t *testing.T) {
+func TestPoolMetrics_computeSigmaRho(t *testing.T) {
 	tests := []struct {
 		name            string
 		totalArtifacts  int
@@ -1292,7 +1292,7 @@ func TestMetrics_computeSigmaRho(t *testing.T) {
 // metrics.go — filterCitationsForPeriod
 // ===========================================================================
 
-func TestMetrics_filterCitationsForPeriod(t *testing.T) {
+func TestPoolMetrics_filterCitationsForPeriod(t *testing.T) {
 	baseTime := time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC)
 	citations := []types.CitationEvent{
 		{ArtifactPath: "/a.md", CitedAt: baseTime.Add(-48 * time.Hour)},
@@ -1318,7 +1318,7 @@ func TestMetrics_filterCitationsForPeriod(t *testing.T) {
 // metrics.go — countBypassCitations
 // ===========================================================================
 
-func TestMetrics_countBypassCitations(t *testing.T) {
+func TestPoolMetrics_countBypassCitations(t *testing.T) {
 	citations := []types.CitationEvent{
 		{CitationType: "reference", ArtifactPath: "/a.md"},
 		{CitationType: "bypass", ArtifactPath: "/b.md"},
@@ -1336,7 +1336,7 @@ func TestMetrics_countBypassCitations(t *testing.T) {
 // metrics.go — isKnowledgeFile
 // ===========================================================================
 
-func TestMetrics_isKnowledgeFile(t *testing.T) {
+func TestPoolMetrics_isKnowledgeFile(t *testing.T) {
 	tests := []struct {
 		path string
 		want bool
@@ -1363,7 +1363,7 @@ func TestMetrics_isKnowledgeFile(t *testing.T) {
 // metrics.go — isStaleArtifact
 // ===========================================================================
 
-func TestMetrics_isStaleArtifact(t *testing.T) {
+func TestPoolMetrics_isStaleArtifact(t *testing.T) {
 	staleThreshold := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
@@ -1412,7 +1412,7 @@ func TestMetrics_isStaleArtifact(t *testing.T) {
 // metrics.go — buildLastCitedMap
 // ===========================================================================
 
-func TestMetrics_buildLastCitedMap(t *testing.T) {
+func TestPoolMetrics_buildLastCitedMap(t *testing.T) {
 	t1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
 	t3 := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -1446,7 +1446,7 @@ func TestMetrics_buildLastCitedMap(t *testing.T) {
 // metrics.go — computeUtilityStats
 // ===========================================================================
 
-func TestMetrics_computeUtilityStats(t *testing.T) {
+func TestPoolMetrics_computeUtilityStats(t *testing.T) {
 	tests := []struct {
 		name      string
 		values    []float64
@@ -1564,7 +1564,7 @@ func TestMetrics_parseUtilityFromFile(t *testing.T) {
 // metrics.go — parseUtilityFromMarkdown
 // ===========================================================================
 
-func TestMetrics_parseUtilityFromMarkdown(t *testing.T) {
+func TestPoolMetrics_parseUtilityFromMarkdown(t *testing.T) {
 	dir := t.TempDir()
 
 	tests := []struct {
@@ -1612,7 +1612,7 @@ func TestMetrics_parseUtilityFromMarkdown(t *testing.T) {
 // metrics.go — parseUtilityFromJSONL
 // ===========================================================================
 
-func TestMetrics_parseUtilityFromJSONL(t *testing.T) {
+func TestPoolMetrics_parseUtilityFromJSONL(t *testing.T) {
 	dir := t.TempDir()
 
 	tests := []struct {
@@ -1660,7 +1660,7 @@ func TestMetrics_parseUtilityFromJSONL(t *testing.T) {
 // metrics.go — isRetrievableArtifactPath
 // ===========================================================================
 
-func TestMetrics_isRetrievableArtifactPath(t *testing.T) {
+func TestPoolMetrics_isRetrievableArtifactPath(t *testing.T) {
 	baseDir := "/project"
 
 	tests := []struct {
