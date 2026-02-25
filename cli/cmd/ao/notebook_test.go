@@ -359,3 +359,68 @@ func TestReadLatestPendingEntry(t *testing.T) {
 		t.Errorf("SessionID = %q, want %q", got.SessionID, "new")
 	}
 }
+
+func TestParseSectionsFromString_Empty(t *testing.T) {
+	sections := parseSectionsFromString("")
+	if len(sections) != 0 {
+		t.Errorf("expected 0 sections for empty input, got %d", len(sections))
+	}
+}
+
+func TestParseSectionsFromString_NoHeadings(t *testing.T) {
+	sections := parseSectionsFromString("just text\nno headings here")
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 preamble section, got %d", len(sections))
+	}
+	if sections[0].Heading != "" {
+		t.Errorf("expected empty heading for preamble, got %q", sections[0].Heading)
+	}
+}
+
+func TestUpsertLastSession_RemovesDuplicates(t *testing.T) {
+	sections := []notebookSection{
+		{Heading: "# Memory", Lines: []string{""}},
+		{Heading: "## Last Session", Lines: []string{"- old data 1", ""}},
+		{Heading: "## Patterns", Lines: []string{"- pattern", ""}},
+		{Heading: "## Last Session", Lines: []string{"- old data 2 (duplicate)", ""}},
+	}
+
+	newSession := notebookSection{
+		Heading: "## Last Session",
+		Lines:   []string{"- new data", ""},
+	}
+
+	result := upsertLastSession(sections, newSession)
+
+	// Should have 3 sections (no duplicate Last Session)
+	count := 0
+	for _, s := range result {
+		if s.Heading == "## Last Session" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected exactly 1 Last Session section, got %d", count)
+	}
+	if len(result) != 3 {
+		t.Errorf("expected 3 sections total, got %d", len(result))
+	}
+}
+
+func TestPruneNotebook_SmallSections(t *testing.T) {
+	// Test that pruning works even when all sections have <= 2 lines
+	sections := []notebookSection{
+		{Heading: "# Title", Lines: []string{""}},
+		{Heading: "## Last Session", Lines: []string{"- date", ""}},
+		{Heading: "## A", Lines: []string{"- a1", "- a2"}},
+		{Heading: "## B", Lines: []string{"- b1", "- b2"}},
+		{Heading: "## C", Lines: []string{"- c1", "- c2"}},
+	}
+
+	result := pruneNotebook(sections, 10)
+	total := totalLines(result)
+
+	if total > 10 {
+		t.Errorf("pruneNotebook result has %d lines, want <= 10", total)
+	}
+}

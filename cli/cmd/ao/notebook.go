@@ -138,8 +138,21 @@ func findMemoryFile(cwd string) (string, error) {
 		return "", fmt.Errorf("no MEMORY.md found")
 	}
 
-	// Look for a project dir whose name contains the last path component
+	// Prefer exact suffix match first (avoids matching "cli" in unrelated projects)
 	lastComponent := filepath.Base(cwd)
+	suffix := "-" + lastComponent
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(e.Name(), suffix) {
+			candidate := filepath.Join(projectsDir, e.Name(), "memory", "MEMORY.md")
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate, nil
+			}
+		}
+	}
+	// Broader fallback: contains the last path component
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -194,12 +207,19 @@ func parseNotebookSections(path string) ([]notebookSection, error) {
 
 // parseSectionsFromString splits markdown content into sections by ## headings.
 func parseSectionsFromString(content string) []notebookSection {
-	lines := strings.Split(content, "\n")
+	trimmed := strings.TrimRight(content, "\n")
+	if trimmed == "" {
+		return nil
+	}
+	lines := strings.Split(trimmed, "\n")
 	var sections []notebookSection
 	var current *notebookSection
 
-	for _, line := range lines {
-		if strings.HasPrefix(line, "## ") || strings.HasPrefix(line, "# ") {
+	for i, line := range lines {
+		// Only treat lines as headings if they start with # or ## AND
+		// are preceded by a blank line (or are the first line)
+		prevBlank := i == 0 || strings.TrimSpace(lines[i-1]) == ""
+		if (strings.HasPrefix(line, "## ") || strings.HasPrefix(line, "# ")) && prevBlank {
 			if current != nil {
 				sections = append(sections, *current)
 			}
@@ -254,9 +274,13 @@ func buildLastSessionSection(entry *pendingEntry) notebookSection {
 	for _, k := range entry.Knowledge {
 		kLower := strings.ToLower(k)
 		switch {
-		case strings.Contains(kLower, "next") || strings.Contains(kLower, "todo") || strings.Contains(kLower, "follow-up"):
+		case strings.HasPrefix(kLower, "next:") || strings.HasPrefix(kLower, "next ") ||
+			strings.HasPrefix(kLower, "todo:") || strings.HasPrefix(kLower, "todo ") ||
+			strings.HasPrefix(kLower, "follow-up:") || strings.HasPrefix(kLower, "follow-up "):
 			next = append(next, k)
-		case strings.Contains(kLower, "worked") || strings.Contains(kLower, "success") || strings.Contains(kLower, "resolved"):
+		case strings.HasPrefix(kLower, "worked:") || strings.HasPrefix(kLower, "worked ") ||
+			strings.HasPrefix(kLower, "success:") || strings.HasPrefix(kLower, "success ") ||
+			strings.HasPrefix(kLower, "resolved:") || strings.HasPrefix(kLower, "resolved "):
 			worked = append(worked, k)
 		default:
 			other = append(other, k)
@@ -295,11 +319,18 @@ func buildLastSessionSection(entry *pendingEntry) notebookSection {
 // upsertLastSession replaces an existing "Last Session" section or inserts one
 // right after the title (first # heading or preamble).
 func upsertLastSession(sections []notebookSection, lastSession notebookSection) []notebookSection {
-	// Find and replace existing Last Session
+	// Find and replace existing Last Session, removing any duplicates
 	for i, s := range sections {
 		if s.Heading == "## Last Session" {
 			sections[i] = lastSession
-			return sections
+			// Remove any further duplicates
+			result := sections[:i+1]
+			for _, rem := range sections[i+1:] {
+				if rem.Heading != "## Last Session" {
+					result = append(result, rem)
+				}
+			}
+			return result
 		}
 	}
 
@@ -335,8 +366,8 @@ func pruneNotebook(sections []notebookSection, maxLines int) []notebookSection {
 			}
 		}
 
-		if longestIdx < 0 || longestLen <= 2 {
-			break // nothing left to prune
+		if longestIdx < 0 || longestLen == 0 {
+			break // truly nothing left to prune
 		}
 
 		// Remove the last non-empty line from the longest section
