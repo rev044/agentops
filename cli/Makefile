@@ -5,6 +5,7 @@ BINARY_NAME=ao
 BUILD_DIR=bin
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
+IDENTIFIER=com.12factoragentops.ao
 
 # Default target
 all: build
@@ -21,6 +22,9 @@ sync-hooks:
 build: sync-hooks
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/ao
+ifeq ($(shell uname -s),Darwin)
+	codesign -f -s - -i $(IDENTIFIER) $(BUILD_DIR)/$(BINARY_NAME)
+endif
 
 # Run tests
 test:
@@ -43,6 +47,10 @@ clean:
 # Install to GOPATH/bin
 install:
 	go install $(LDFLAGS) ./cmd/ao
+ifeq ($(shell uname -s),Darwin)
+	@GOBIN=$$(go env GOBIN); [ -z "$$GOBIN" ] && GOBIN=$$(go env GOPATH)/bin; \
+	codesign -f -s - -i $(IDENTIFIER) "$$GOBIN/$(BINARY_NAME)"
+endif
 
 # Run the binary
 run: build

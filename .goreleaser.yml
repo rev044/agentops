@@ -43,6 +43,8 @@ brews:
     license: Apache-2.0
     install: |
       bin.install "ao"
+    post_install: |
+      system "codesign", "-f", "-s", "-", "-i", "com.12factoragentops.ao", "#{bin}/ao" if OS.mac?
     test: |
       system "#{bin}/ao version"
     repository:
