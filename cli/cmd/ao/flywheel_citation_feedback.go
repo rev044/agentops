@@ -70,6 +70,11 @@ func processCitationFeedback(cwd string) (int, int, int) {
 			continue
 		}
 
+		// Upgrade citation_type from "retrieved" to "applied" on positive feedback
+		if reward >= 0.6 {
+			upgradeCitationType(citations, c.ArtifactPath)
+		}
+
 		feedbackEvents = append(feedbackEvents, FeedbackEvent{
 			SessionID:     sessionID,
 			ArtifactPath:  path,
@@ -103,6 +108,16 @@ func extractLearningID(artifactPath string) string {
 		}
 	}
 	return filepath.Base(artifactPath)
+}
+
+// upgradeCitationType marks citations for the given artifact as "applied"
+// when the session provided positive feedback (reward >= 0.6).
+func upgradeCitationType(citations []types.CitationEvent, artifactPath string) {
+	for i := range citations {
+		if citations[i].ArtifactPath == artifactPath && citations[i].CitationType == "retrieved" {
+			citations[i].CitationType = "applied"
+		}
+	}
 }
 
 // markCitationsFeedbackGiven rewrites citations.jsonl with FeedbackGiven=true for all entries.

@@ -78,6 +78,7 @@ type learning struct {
 	AgeWeeks       float64 `json:"age_weeks,omitempty"`
 	Utility        float64 `json:"utility,omitempty"`         // MemRL utility value
 	CompositeScore float64 `json:"composite_score,omitempty"` // Two-Phase ranking score
+	Maturity       string  `json:"maturity,omitempty"`        // CASS maturity level
 	Superseded     bool    `json:"-"`                         // Internal flag - not serialized
 	Global         bool    `json:"-"`                         // Internal flag: from global dir
 }

@@ -4,6 +4,8 @@
 # Kill switch
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
 AO_DIR="$ROOT/.agents/ao"
@@ -32,6 +34,14 @@ run_maintenance() {
     if [ "${AGENTOPS_EVICTION_DISABLED:-0}" != "1" ]; then
         run_ao_quick 4 maturity --expire --archive || true
         run_ao_quick 4 maturity --evict --archive || true
+    fi
+
+    # Auto-prune .agents/ (opt-in via AGENTOPS_AUTO_PRUNE=1)
+    if [ "${AGENTOPS_AUTO_PRUNE:-0}" = "1" ]; then
+        PRUNE_SCRIPT="${PLUGIN_ROOT}/scripts/prune-agents.sh"
+        if [ -x "$PRUNE_SCRIPT" ]; then
+            "$AO_TIMEOUT_BIN" 5 bash "$PRUNE_SCRIPT" --quiet 2>/dev/null || true
+        fi
     fi
 }
 

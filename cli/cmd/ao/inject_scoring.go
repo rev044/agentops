@@ -7,15 +7,35 @@ import "math"
 type scorable interface {
 	getFreshness() float64
 	getUtility() float64
+	getMaturity() string
 	setComposite(float64)
 }
 
 func (l *learning) getFreshness() float64  { return l.FreshnessScore }
 func (l *learning) getUtility() float64    { return l.Utility }
+func (l *learning) getMaturity() string    { return l.Maturity }
 func (l *learning) setComposite(v float64) { l.CompositeScore = v }
 func (p *pattern) getFreshness() float64   { return p.FreshnessScore }
 func (p *pattern) getUtility() float64     { return p.Utility }
+func (p *pattern) getMaturity() string     { return "" }
 func (p *pattern) setComposite(v float64)  { p.CompositeScore = v }
+
+// injectMaturityWeights maps CASS maturity levels to scoring multipliers.
+// Slightly softer than search.go weights (1.5/0.3) since inject has smaller pools.
+var injectMaturityWeights = map[string]float64{
+	"established":  1.3,
+	"candidate":    1.1,
+	"provisional":  1.0,
+	"anti-pattern": 0.4,
+}
+
+// maturityWeight returns the scoring multiplier for a CASS maturity level.
+func maturityWeight(maturity string) float64 {
+	if w, found := injectMaturityWeights[maturity]; found {
+		return w
+	}
+	return 1.0
+}
 
 // freshnessScore calculates decay-adjusted score: exp(-ageWeeks * decayRate)
 // Based on knowledge decay rate δ = 0.17/week (Darr et al.)
@@ -30,8 +50,8 @@ func freshnessScore(ageWeeks float64) float64 {
 }
 
 // applyCompositeScoringTo implements MemRL Two-Phase scoring for any scorable slice.
-// Score = z_norm(freshness) + λ × z_norm(utility)
-// This combines recency (Phase A) with learned utility (Phase B).
+// Score = (z_norm(freshness) + λ × z_norm(utility)) × maturityWeight
+// This combines recency (Phase A) with learned utility (Phase B) and CASS maturity.
 func applyCompositeScoringTo(items []scorable, lambda float64) {
 	if len(items) == 0 {
 		return
@@ -41,7 +61,8 @@ func applyCompositeScoringTo(items []scorable, lambda float64) {
 	// (produces near-zero scores). Use raw weighted scores instead.
 	if len(items) < 3 {
 		for _, item := range items {
-			item.setComposite(item.getFreshness() + lambda*item.getUtility())
+			score := item.getFreshness() + lambda*item.getUtility()
+			item.setComposite(score * maturityWeight(item.getMaturity()))
 		}
 		return
 	}
@@ -75,10 +96,11 @@ func applyCompositeScoringTo(items []scorable, lambda float64) {
 		stdU = 0.001
 	}
 
-	// Apply z-normalization and calculate composite scores
+	// Apply z-normalization, then maturity weight
 	for _, item := range items {
 		zFresh := (item.getFreshness() - meanF) / stdF
 		zUtility := (item.getUtility() - meanU) / stdU
-		item.setComposite(zFresh + lambda*zUtility)
+		score := zFresh + lambda*zUtility
+		item.setComposite(score * maturityWeight(item.getMaturity()))
 	}
 }

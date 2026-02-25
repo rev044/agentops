@@ -434,6 +434,9 @@ func populateLearningFromJSON(data map[string]any, l *learning) {
 	if sp, ok := data["source_phase"].(string); ok {
 		l.SourcePhase = sanitizeSourcePhase(sp)
 	}
+	if m, ok := data["maturity"].(string); ok {
+		l.Maturity = m
+	}
 }
 
 // parseLearningJSONL extracts learning from JSONL file

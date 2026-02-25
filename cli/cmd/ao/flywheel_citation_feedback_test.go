@@ -294,6 +294,50 @@ func TestProcessCitationFeedback_WritesFeedbackEvents(t *testing.T) {
 	}
 }
 
+func TestUpgradeCitationType_PositiveReward(t *testing.T) {
+	citations := []types.CitationEvent{
+		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "retrieved"},
+		{ArtifactPath: "/repo/.agents/learnings/b.md", CitationType: "retrieved"},
+	}
+	upgradeCitationType(citations, "/repo/.agents/learnings/a.md")
+	if citations[0].CitationType != "applied" {
+		t.Errorf("expected 'applied', got %q", citations[0].CitationType)
+	}
+	if citations[1].CitationType != "retrieved" {
+		t.Errorf("expected b to remain 'retrieved', got %q", citations[1].CitationType)
+	}
+}
+
+func TestUpgradeCitationType_AlreadyApplied(t *testing.T) {
+	citations := []types.CitationEvent{
+		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "applied"},
+	}
+	upgradeCitationType(citations, "/repo/.agents/learnings/a.md")
+	if citations[0].CitationType != "applied" {
+		t.Errorf("expected 'applied' unchanged, got %q", citations[0].CitationType)
+	}
+}
+
+func TestUpgradeCitationType_ReferenceUnchanged(t *testing.T) {
+	citations := []types.CitationEvent{
+		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "reference"},
+	}
+	upgradeCitationType(citations, "/repo/.agents/learnings/a.md")
+	if citations[0].CitationType != "reference" {
+		t.Errorf("expected 'reference' unchanged, got %q", citations[0].CitationType)
+	}
+}
+
+func TestUpgradeCitationType_NoMatch(t *testing.T) {
+	citations := []types.CitationEvent{
+		{ArtifactPath: "/repo/.agents/learnings/a.md", CitationType: "retrieved"},
+	}
+	upgradeCitationType(citations, "/repo/.agents/learnings/other.md")
+	if citations[0].CitationType != "retrieved" {
+		t.Errorf("expected 'retrieved' unchanged, got %q", citations[0].CitationType)
+	}
+}
+
 func TestComputeSessionRewardForCloseLoop_NoTranscript(t *testing.T) {
 	// Override HOME to an empty temp dir so no transcripts are found.
 	fakeHome := filepath.Join(t.TempDir(), "emptyhome")
