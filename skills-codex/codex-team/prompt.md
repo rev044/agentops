@@ -1,0 +1,8 @@
+# codex-team
+
+Use when you have 2+ tasks that Codex agents should execute. Runtime-native: Codex sub-agents when available, Codex CLI fallback otherwise. Handles file conflicts via merge/wave strategies. Triggers: "codex team", "spawn codex", "codex agents", "use codex for", "codex fix".
+
+## Instructions
+
+Load and follow the skill instructions from `~/.codex/skills/codex-team/SKILL.md`.
+

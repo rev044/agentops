@@ -1,0 +1,8 @@
+# security-suite
+
+Composable binary security suite for static analysis, dynamic tracing, contract capture, baseline drift, and policy gating. Triggers: "binary security", "reverse engineer binary", "black-box binary test", "behavioral trace", "baseline diff", "security suite".
+
+## Instructions
+
+Load and follow the skill instructions from `~/.codex/skills/security-suite/SKILL.md`.
+
