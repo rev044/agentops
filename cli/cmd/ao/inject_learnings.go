@@ -311,18 +311,30 @@ func parseFrontMatterLine(line string, fm *frontMatter) {
 	}
 }
 
-// extractSummary finds the first paragraph after headings
+// isInlineMetadata returns true for lines like "**ID**: L1" or "**Category**: process"
+// that are formatting artifacts from older learning/pattern file formats, not actual content.
+func isInlineMetadata(line string) bool {
+	for _, field := range []string{"ID", "Category", "Confidence", "Date", "Source", "Type", "Status"} {
+		if strings.HasPrefix(line, "**"+field+"**:") || strings.HasPrefix(line, "**"+field+":**") {
+			return true
+		}
+	}
+	return false
+}
+
+// extractSummary finds the first content paragraph after headings,
+// skipping inline metadata lines like "**ID**: L1".
 func extractSummary(lines []string, startIdx int) string {
 	for i := startIdx; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "---") {
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "---") || isInlineMetadata(line) {
 			continue
 		}
 		// Take first paragraph (up to 3 lines)
 		summary := line
 		for j := i + 1; j < len(lines) && j < i+3; j++ {
 			nextLine := strings.TrimSpace(lines[j])
-			if nextLine == "" || strings.HasPrefix(nextLine, "#") {
+			if nextLine == "" || strings.HasPrefix(nextLine, "#") || isInlineMetadata(nextLine) {
 				break
 			}
 			summary += " " + nextLine

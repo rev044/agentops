@@ -114,10 +114,14 @@ else
     using_agentops_hint="(AgentOps skill content unavailable at ${SKILL_FILE})"
 fi
 
-MAX_INJECT_CHARS=6000
+MAX_INJECT_CHARS=4000
 if [ -n "$INJECTED_KNOWLEDGE" ] && [ "${#INJECTED_KNOWLEDGE}" -gt "$MAX_INJECT_CHARS" ]; then
-    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE:0:$MAX_INJECT_CHARS}
-...[truncated by session-start hook]"
+    # Truncate at last newline within budget (never mid-line)
+    trimmed="${INJECTED_KNOWLEDGE:0:$MAX_INJECT_CHARS}"
+    INJECTED_KNOWLEDGE="${trimmed%
+*}
+
+*[truncated by session-start hook]*"
 fi
 
 if [ -n "$INJECTED_KNOWLEDGE" ]; then

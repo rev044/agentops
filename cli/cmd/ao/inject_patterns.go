@@ -196,9 +196,9 @@ func assembleDescriptionFrom(lines []string, i int) string {
 }
 
 // isContentLine returns true if the trimmed line is a non-empty body line
-// (not a heading or frontmatter delimiter).
+// (not a heading, frontmatter delimiter, or inline metadata).
 func isContentLine(line string) bool {
-	return line != "" && !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "---")
+	return line != "" && !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "---") && !isInlineMetadata(line)
 }
 
 // extractPatternNameAndDescription scans content lines for title and description.

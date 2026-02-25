@@ -307,6 +307,85 @@ func TestCollectOLConstraints(t *testing.T) {
 	})
 }
 
+func TestIsInlineMetadata(t *testing.T) {
+	tests := []struct {
+		line string
+		want bool
+	}{
+		{"**ID**: L1", true},
+		{"**Category**: process", true},
+		{"**Confidence**: high", true},
+		{"**Date**: 2026-02-22", true},
+		{"**Source**: session abc", true},
+		{"**Type**: learning", true},
+		{"This is actual content.", false},
+		{"Use **bold** in content.", false},
+		{"**Unknown**: value", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			got := isInlineMetadata(tt.line)
+			if got != tt.want {
+				t.Errorf("isInlineMetadata(%q) = %v, want %v", tt.line, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractSummary_SkipsInlineMetadata(t *testing.T) {
+	t.Run("skips metadata lines to find actual content", func(t *testing.T) {
+		lines := []string{
+			"---",
+			"id: learn-001",
+			"---",
+			"# Learning: Test Title",
+			"",
+			"**ID**: L1",
+			"**Category**: process",
+			"**Confidence**: high",
+			"",
+			"## What We Learned",
+			"",
+			"The actual insight is here.",
+		}
+		// startIdx=3 (after frontmatter, parseFrontMatter would return this)
+		got := extractSummary(lines, 3)
+		if got != "The actual insight is here." {
+			t.Errorf("extractSummary() = %q, want %q", got, "The actual insight is here.")
+		}
+	})
+
+	t.Run("returns content when no metadata lines present", func(t *testing.T) {
+		lines := []string{
+			"# Learning: Direct Title",
+			"",
+			"Direct content without metadata.",
+		}
+		got := extractSummary(lines, 0)
+		if got != "Direct content without metadata." {
+			t.Errorf("extractSummary() = %q, want %q", got, "Direct content without metadata.")
+		}
+	})
+
+	t.Run("multi-line paragraph after metadata", func(t *testing.T) {
+		lines := []string{
+			"# Title",
+			"**ID**: L1",
+			"**Category**: testing",
+			"",
+			"## What We Learned",
+			"",
+			"First sentence of insight.",
+			"Second sentence continues.",
+		}
+		got := extractSummary(lines, 0)
+		if got != "First sentence of insight. Second sentence continues." {
+			t.Errorf("extractSummary() = %q, want %q", got, "First sentence of insight. Second sentence continues.")
+		}
+	})
+}
+
 func TestCollectLearnings(t *testing.T) {
 	tmpDir := t.TempDir()
 

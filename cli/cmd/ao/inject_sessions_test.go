@@ -51,6 +51,22 @@ Implemented new database migration system.
 		}
 	})
 
+	t.Run("markdown with YAML frontmatter", func(t *testing.T) {
+		content := "---\nutility: 0.50\nlast_reward: 0.35\nreward_count: 1\n---\n\n# Session\n\nActual session content here.\n"
+		path := filepath.Join(tmpDir, "frontmatter.md")
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		s, err := parseSessionFile(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if s.Summary != "Actual session content here." {
+			t.Errorf("Summary = %q, want %q (should skip frontmatter)", s.Summary, "Actual session content here.")
+		}
+	})
+
 	t.Run("empty markdown", func(t *testing.T) {
 		path := filepath.Join(tmpDir, "empty.md")
 		if err := os.WriteFile(path, []byte("# Title\n---\n"), 0644); err != nil {
@@ -111,6 +127,50 @@ Implemented new database migration system.
 			t.Errorf("Summary length = %d, want at most 153 (truncated)", len(s.Summary))
 		}
 	})
+}
+
+func TestCollectSessionFiles_DeduplicatesPairs(t *testing.T) {
+	sessionsDir := t.TempDir()
+
+	// Create a .jsonl + .md pair for the same stem
+	jsonlData, _ := json.Marshal(map[string]any{"summary": "paired session"})
+	if err := os.WriteFile(filepath.Join(sessionsDir, "session-abc.jsonl"), jsonlData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sessionsDir, "session-abc.md"), []byte("# Summary\n\nPaired session md"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a .md-only file (no matching .jsonl)
+	if err := os.WriteFile(filepath.Join(sessionsDir, "session-only-md.md"), []byte("# Summary\n\nMd only"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a .jsonl-only file (no matching .md)
+	jsonlOnly, _ := json.Marshal(map[string]any{"summary": "jsonl only"})
+	if err := os.WriteFile(filepath.Join(sessionsDir, "session-only-jsonl.jsonl"), jsonlOnly, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := collectSessionFiles(sessionsDir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Expect 3 files: session-abc.jsonl (not .md), session-only-md.md, session-only-jsonl.jsonl
+	if len(files) != 3 {
+		t.Errorf("got %d files, want 3 (deduplicated pair + 2 singles)", len(files))
+		for _, f := range files {
+			t.Logf("  %s", filepath.Base(f))
+		}
+	}
+
+	// Verify the paired .md was excluded
+	for _, f := range files {
+		if filepath.Base(f) == "session-abc.md" {
+			t.Error("session-abc.md should be excluded (paired with .jsonl)")
+		}
+	}
 }
 
 func TestCollectRecentSessions(t *testing.T) {

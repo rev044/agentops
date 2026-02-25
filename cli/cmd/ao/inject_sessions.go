@@ -11,13 +11,27 @@ import (
 
 // collectSessionFiles gathers .jsonl and .md files from the sessions directory,
 // sorted by modification time (newest first).
+// When both .jsonl and .md exist for the same stem, only the .jsonl is kept
+// (richer structured data) to avoid duplicate session entries.
 func collectSessionFiles(sessionsDir string) ([]string, error) {
-	files, err := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
+	jsonlFiles, err := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
 	if err != nil {
 		return nil, err
 	}
 	mdFiles, _ := filepath.Glob(filepath.Join(sessionsDir, "*.md"))
-	files = append(files, mdFiles...)
+
+	// Deduplicate: prefer .jsonl over .md when both exist for the same stem
+	stemSet := make(map[string]bool, len(jsonlFiles))
+	for _, f := range jsonlFiles {
+		stemSet[strings.TrimSuffix(f, ".jsonl")] = true
+	}
+	files := append([]string(nil), jsonlFiles...)
+	for _, f := range mdFiles {
+		stem := strings.TrimSuffix(f, ".md")
+		if !stemSet[stem] {
+			files = append(files, f)
+		}
+	}
 
 	slices.SortFunc(files, func(a, b string) int {
 		infoA, _ := os.Stat(a)
@@ -89,16 +103,32 @@ func parseJSONLSessionSummary(path string) (string, error) {
 }
 
 // parseMarkdownSessionSummary extracts the first content paragraph from a
-// markdown file, skipping headings and frontmatter delimiters.
+// markdown file, skipping YAML frontmatter blocks and headings.
 func parseMarkdownSessionSummary(path string) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
+	inFrontmatter := false
+	frontmatterDone := false
 	for _, line := range strings.Split(string(content), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" && !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "---") {
-			return truncateText(line, 150), nil
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "---" {
+			if !inFrontmatter && !frontmatterDone {
+				inFrontmatter = true
+				continue
+			}
+			if inFrontmatter {
+				inFrontmatter = false
+				frontmatterDone = true
+				continue
+			}
+		}
+		if inFrontmatter {
+			continue
+		}
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			return truncateText(trimmed, 150), nil
 		}
 	}
 	return "", nil
