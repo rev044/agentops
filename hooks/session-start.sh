@@ -82,11 +82,28 @@ if command -v ao &>/dev/null; then
         INJECT_EXTRA_FLAGS+=(--predecessor "$PREDECESSOR_FILE")
     fi
 
-    # Two-phase injection: index-only mode sends compact table (~200 tokens)
-    # instead of full content (~800 tokens). Agent uses `ao lookup` on-demand.
-    # Feature flag: AGENTOPS_INDEX_INJECT=1 enables index-only mode.
+    # Notebook-aware injection: when MEMORY.md exists and is fresh, shrink
+    # injection to predecessor+bead context only (~400 tokens). MEMORY.md is
+    # auto-loaded by Claude Code — no need to duplicate flywheel content.
+    # Without MEMORY.md, fall back to full injection for cold-start experience.
+    NOTEBOOK_LEAN_MODE=0
+    MEMORY_DIR="$HOME/.claude/projects"
+    if [ -d "$MEMORY_DIR" ]; then
+        PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
+        MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
+        if [ -f "$MEMORY_FILE" ]; then
+            MEMORY_AGE_DAYS=$(( ($(date +%s) - $(stat -f %m "$MEMORY_FILE" 2>/dev/null || stat -c %Y "$MEMORY_FILE" 2>/dev/null || echo 0)) / 86400 ))
+            if [ "$MEMORY_AGE_DAYS" -le 7 ]; then
+                NOTEBOOK_LEAN_MODE=1
+            fi
+        fi
+    fi
+
     INJECT_MODE_FLAGS=(--apply-decay --format markdown)
-    if [ "${AGENTOPS_INDEX_INJECT:-0}" = "1" ]; then
+    if [ "$NOTEBOOK_LEAN_MODE" = "1" ]; then
+        # Lean mode: MEMORY.md carries context, inject only predecessor+bead
+        INJECT_MODE_FLAGS+=(--max-tokens 400)
+    elif [ "${AGENTOPS_INDEX_INJECT:-0}" = "1" ]; then
         INJECT_MODE_FLAGS+=(--index-only --max-tokens 400)
     else
         INJECT_MODE_FLAGS+=(--max-tokens 800)
@@ -114,7 +131,12 @@ else
     using_agentops_hint="(AgentOps skill content unavailable at ${SKILL_FILE})"
 fi
 
-MAX_INJECT_CHARS=4000
+# Notebook lean mode: MEMORY.md auto-loaded → shrink injection budget
+if [ "${NOTEBOOK_LEAN_MODE:-0}" = "1" ]; then
+    MAX_INJECT_CHARS=1500
+else
+    MAX_INJECT_CHARS=4000
+fi
 if [ -n "$INJECTED_KNOWLEDGE" ] && [ "${#INJECTED_KNOWLEDGE}" -gt "$MAX_INJECT_CHARS" ]; then
     # Truncate at last newline within budget (never mid-line)
     trimmed="${INJECTED_KNOWLEDGE:0:$MAX_INJECT_CHARS}"
@@ -122,6 +144,13 @@ if [ -n "$INJECTED_KNOWLEDGE" ] && [ "${#INJECTED_KNOWLEDGE}" -gt "$MAX_INJECT_C
 *}
 
 *[truncated by session-start hook]*"
+fi
+
+# Nudge agent if MEMORY.md is stale or missing
+if [ -n "${MEMORY_FILE:-}" ] && [ -f "$MEMORY_FILE" ] && [ "${MEMORY_AGE_DAYS:-0}" -gt 7 ]; then
+    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
+
+*Note: Your MEMORY.md hasn't been updated in ${MEMORY_AGE_DAYS} days. Consider running \`ao notebook update\` or updating it manually.*"
 fi
 
 if [ -n "$INJECTED_KNOWLEDGE" ]; then

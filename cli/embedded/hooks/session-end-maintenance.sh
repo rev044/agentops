@@ -29,6 +29,7 @@ run_maintenance() {
     command -v ao >/dev/null 2>&1 || return 0
 
     run_ao_quick 6 forge transcript --last-session --queue --quiet || true
+    run_ao_quick 8 notebook update --quiet || true
     run_ao_quick 4 maturity --scan --apply || true
 
     if [ "${AGENTOPS_EVICTION_DISABLED:-0}" != "1" ]; then

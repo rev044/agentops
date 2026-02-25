@@ -1,0 +1,382 @@
+package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
+)
+
+var (
+	notebookMemoryFile string
+	notebookQuiet      bool
+	notebookMaxLines   int
+)
+
+// notebookCmd is the parent for notebook-related subcommands.
+var notebookCmd = &cobra.Command{
+	Use:   "notebook",
+	Short: "Manage the session notebook (MEMORY.md)",
+}
+
+// notebookUpdateCmd distills session insights into MEMORY.md.
+var notebookUpdateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Update MEMORY.md with latest session insights",
+	Long: `Reads the most recent forge output (pending.jsonl) and updates MEMORY.md
+with a "Last Session" section containing summary, decisions, and next steps.
+
+Stays within the configured line budget (default 190) by pruning stale entries
+from the longest sections first.`,
+	RunE: runNotebookUpdate,
+}
+
+func init() {
+	notebookUpdateCmd.Flags().StringVar(&notebookMemoryFile, "memory-file", "", "Path to MEMORY.md (auto-detected if omitted)")
+	notebookUpdateCmd.Flags().BoolVar(&notebookQuiet, "quiet", false, "Suppress output (for hooks)")
+	notebookUpdateCmd.Flags().IntVar(&notebookMaxLines, "max-lines", 190, "Maximum lines in MEMORY.md")
+
+	notebookCmd.AddCommand(notebookUpdateCmd)
+	notebookCmd.GroupID = "knowledge"
+	rootCmd.AddCommand(notebookCmd)
+}
+
+// pendingEntry represents one entry from pending.jsonl (forge output).
+type pendingEntry struct {
+	SessionID      string   `json:"session_id"`
+	Summary        string   `json:"summary"`
+	Decisions      []string `json:"decisions,omitempty"`
+	Knowledge      []string `json:"knowledge,omitempty"`
+	QueuedAt       time.Time `json:"queued_at"`
+}
+
+// notebookSection represents a parsed section of MEMORY.md.
+type notebookSection struct {
+	Heading string
+	Lines   []string // lines of content (not including the heading)
+}
+
+func runNotebookUpdate(cmd *cobra.Command, args []string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	// Step 1: Find MEMORY.md
+	memoryFile := notebookMemoryFile
+	if memoryFile == "" {
+		memoryFile, err = findMemoryFile(cwd)
+		if err != nil {
+			if !notebookQuiet {
+				fmt.Println("No MEMORY.md found — skipping notebook update.")
+			}
+			return nil // graceful skip, not an error
+		}
+	}
+
+	// Step 2: Read latest pending entry
+	entry, err := readLatestPendingEntry(cwd)
+	if err != nil || entry == nil {
+		if !notebookQuiet {
+			VerbosePrintf("No pending session data — nothing to update.\n")
+		}
+		return nil // no-op when no pending sessions
+	}
+
+	// Step 3: Read current MEMORY.md
+	sections, err := parseNotebookSections(memoryFile)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("parse MEMORY.md: %w", err)
+	}
+
+	// Step 4: Build "Last Session" section
+	lastSession := buildLastSessionSection(entry)
+
+	// Step 5: Replace or insert "Last Session" at the top (after title)
+	sections = upsertLastSession(sections, lastSession)
+
+	// Step 6: Prune to stay under budget
+	sections = pruneNotebook(sections, notebookMaxLines)
+
+	// Step 7: Write back atomically
+	content := renderNotebook(sections)
+	if err := atomicWriteFile(memoryFile, []byte(content), 0644); err != nil {
+		return fmt.Errorf("write MEMORY.md: %w", err)
+	}
+
+	if !notebookQuiet {
+		lineCount := strings.Count(content, "\n")
+		fmt.Printf("Updated %s (%d lines)\n", memoryFile, lineCount)
+	}
+
+	return nil
+}
+
+// findMemoryFile locates the Claude Code project MEMORY.md for the given cwd.
+func findMemoryFile(cwd string) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("get home directory: %w", err)
+	}
+
+	// Convention: ~/.claude/projects/-<path-with-dashes>/memory/MEMORY.md
+	normalizedPath := strings.ReplaceAll(cwd, "/", "-")
+	memoryFile := filepath.Join(homeDir, ".claude", "projects", normalizedPath, "memory", "MEMORY.md")
+	if _, err := os.Stat(memoryFile); err == nil {
+		return memoryFile, nil
+	}
+
+	// Fallback: search for any matching project memory directory
+	projectsDir := filepath.Join(homeDir, ".claude", "projects")
+	entries, err := os.ReadDir(projectsDir)
+	if err != nil {
+		return "", fmt.Errorf("no MEMORY.md found")
+	}
+
+	// Look for a project dir whose name contains the last path component
+	lastComponent := filepath.Base(cwd)
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if strings.Contains(e.Name(), lastComponent) {
+			candidate := filepath.Join(projectsDir, e.Name(), "memory", "MEMORY.md")
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no MEMORY.md found for %s", cwd)
+}
+
+// readLatestPendingEntry reads the most recent entry from pending.jsonl.
+func readLatestPendingEntry(cwd string) (*pendingEntry, error) {
+	pendingPath := filepath.Join(cwd, ".agents", "ao", "pending.jsonl")
+	f, err := os.Open(pendingPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var latest *pendingEntry
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024) // 256KB line buffer
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var entry pendingEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue // skip malformed lines
+		}
+		latest = &entry // last valid entry wins (most recent)
+	}
+
+	return latest, scanner.Err()
+}
+
+// parseNotebookSections reads MEMORY.md and splits it into sections by ## headings.
+func parseNotebookSections(path string) ([]notebookSection, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseSectionsFromString(string(data)), nil
+}
+
+// parseSectionsFromString splits markdown content into sections by ## headings.
+func parseSectionsFromString(content string) []notebookSection {
+	lines := strings.Split(content, "\n")
+	var sections []notebookSection
+	var current *notebookSection
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "## ") || strings.HasPrefix(line, "# ") {
+			if current != nil {
+				sections = append(sections, *current)
+			}
+			current = &notebookSection{
+				Heading: line,
+				Lines:   nil,
+			}
+		} else if current != nil {
+			current.Lines = append(current.Lines, line)
+		} else {
+			// Lines before the first heading go into a preamble section
+			if len(sections) == 0 {
+				current = &notebookSection{Heading: "", Lines: nil}
+			}
+			if current != nil {
+				current.Lines = append(current.Lines, line)
+			}
+		}
+	}
+	if current != nil {
+		sections = append(sections, *current)
+	}
+
+	return sections
+}
+
+// buildLastSessionSection creates the "Last Session" content from a pending entry.
+func buildLastSessionSection(entry *pendingEntry) notebookSection {
+	var lines []string
+
+	date := entry.QueuedAt.Format("2006-01-02")
+	if entry.QueuedAt.IsZero() {
+		date = time.Now().Format("2006-01-02")
+	}
+
+	lines = append(lines, fmt.Sprintf("- **Date:** %s", date))
+
+	if entry.Summary != "" {
+		summary := truncateText(entry.Summary, 200)
+		lines = append(lines, fmt.Sprintf("- **Summary:** %s", summary))
+	}
+
+	if len(entry.Decisions) > 0 {
+		lines = append(lines, "- **Key decisions:**")
+		for _, d := range entry.Decisions {
+			lines = append(lines, fmt.Sprintf("  - %s", truncateText(d, 150)))
+		}
+	}
+
+	// Categorize knowledge items
+	var worked, next, other []string
+	for _, k := range entry.Knowledge {
+		kLower := strings.ToLower(k)
+		switch {
+		case strings.Contains(kLower, "next") || strings.Contains(kLower, "todo") || strings.Contains(kLower, "follow-up"):
+			next = append(next, k)
+		case strings.Contains(kLower, "worked") || strings.Contains(kLower, "success") || strings.Contains(kLower, "resolved"):
+			worked = append(worked, k)
+		default:
+			other = append(other, k)
+		}
+	}
+
+	if len(worked) > 0 {
+		lines = append(lines, "- **What worked:**")
+		for _, w := range worked {
+			lines = append(lines, fmt.Sprintf("  - %s", truncateText(w, 150)))
+		}
+	}
+
+	if len(next) > 0 {
+		lines = append(lines, "- **Next:**")
+		for _, n := range next {
+			lines = append(lines, fmt.Sprintf("  - %s", truncateText(n, 150)))
+		}
+	}
+
+	if len(other) > 0 {
+		lines = append(lines, "- **Insights:**")
+		for _, o := range other {
+			lines = append(lines, fmt.Sprintf("  - %s", truncateText(o, 150)))
+		}
+	}
+
+	lines = append(lines, "")
+
+	return notebookSection{
+		Heading: "## Last Session",
+		Lines:   lines,
+	}
+}
+
+// upsertLastSession replaces an existing "Last Session" section or inserts one
+// right after the title (first # heading or preamble).
+func upsertLastSession(sections []notebookSection, lastSession notebookSection) []notebookSection {
+	// Find and replace existing Last Session
+	for i, s := range sections {
+		if s.Heading == "## Last Session" {
+			sections[i] = lastSession
+			return sections
+		}
+	}
+
+	// Insert after the first section (title/preamble)
+	if len(sections) == 0 {
+		return []notebookSection{lastSession}
+	}
+
+	result := make([]notebookSection, 0, len(sections)+1)
+	result = append(result, sections[0])
+	result = append(result, lastSession)
+	result = append(result, sections[1:]...)
+	return result
+}
+
+// pruneNotebook trims the longest sections to stay under the line budget.
+func pruneNotebook(sections []notebookSection, maxLines int) []notebookSection {
+	for totalLines(sections) > maxLines {
+		// Find the longest content section (skip preamble and Last Session)
+		longestIdx := -1
+		longestLen := 0
+		for i, s := range sections {
+			if s.Heading == "" || s.Heading == "## Last Session" {
+				continue // don't prune preamble or Last Session
+			}
+			if strings.HasPrefix(s.Heading, "# ") && !strings.HasPrefix(s.Heading, "## ") {
+				continue // don't prune the title
+			}
+			contentLen := len(s.Lines)
+			if contentLen > longestLen {
+				longestLen = contentLen
+				longestIdx = i
+			}
+		}
+
+		if longestIdx < 0 || longestLen <= 2 {
+			break // nothing left to prune
+		}
+
+		// Remove the last non-empty line from the longest section
+		lines := sections[longestIdx].Lines
+		for j := len(lines) - 1; j >= 0; j-- {
+			if strings.TrimSpace(lines[j]) != "" {
+				sections[longestIdx].Lines = append(lines[:j], lines[j+1:]...)
+				break
+			}
+		}
+	}
+
+	return sections
+}
+
+// totalLines counts the total lines across all sections.
+func totalLines(sections []notebookSection) int {
+	count := 0
+	for _, s := range sections {
+		if s.Heading != "" {
+			count++ // heading line
+		}
+		count += len(s.Lines)
+	}
+	return count
+}
+
+// renderNotebook produces the final MEMORY.md content from sections.
+func renderNotebook(sections []notebookSection) string {
+	var b strings.Builder
+	for _, s := range sections {
+		if s.Heading != "" {
+			b.WriteString(s.Heading)
+			b.WriteString("\n")
+		}
+		for _, line := range s.Lines {
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+	}
+	// Trim trailing whitespace to ensure idempotency on re-parse
+	return strings.TrimRight(b.String(), "\n") + "\n"
+}
