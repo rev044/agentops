@@ -1,0 +1,851 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/boshu2/agentops/cli/internal/taxonomy"
+	"github.com/boshu2/agentops/cli/internal/types"
+)
+
+// ---------------------------------------------------------------------------
+// slugify
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_Slugify(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "simple lowercase", input: "hello-world", want: "hello-world"},
+		{name: "uppercase converted", input: "Hello-World", want: "hello-world"},
+		{name: "spaces become dashes", input: "hello world", want: "hello-world"},
+		{name: "special chars become dashes", input: "hello@world#2024", want: "hello-world-2024"},
+		{name: "consecutive special chars single dash", input: "hello!!!world", want: "hello-world"},
+		{name: "leading special trimmed", input: "---hello", want: "hello"},
+		{name: "trailing special trimmed", input: "hello---", want: "hello"},
+		{name: "empty returns cand", input: "", want: "cand"},
+		{name: "only special chars returns cand", input: "!@#$%", want: "cand"},
+		{name: "digits preserved", input: "test123abc", want: "test123abc"},
+		{name: "long string kept", input: strings.Repeat("a", 200), want: strings.Repeat("a", 200)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := slugify(tt.input)
+			if got != tt.want {
+				t.Errorf("slugify(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// isSlugAlphanumeric
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_IsSlugAlphanumeric(t *testing.T) {
+	tests := []struct {
+		r    rune
+		want bool
+	}{
+		{'a', true},
+		{'z', true},
+		{'0', true},
+		{'9', true},
+		{'A', false}, // uppercase not alphanumeric in slug context
+		{'-', false},
+		{' ', false},
+		{'_', false},
+	}
+	for _, tt := range tests {
+		got := isSlugAlphanumeric(tt.r)
+		if got != tt.want {
+			t.Errorf("isSlugAlphanumeric(%q) = %v, want %v", tt.r, got, tt.want)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// computeSpecificityScore
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ComputeSpecificityScore(t *testing.T) {
+	t.Run("baseline plain text", func(t *testing.T) {
+		body := "Plain text without any code or numbers."
+		lower := strings.ToLower(body)
+		score := computeSpecificityScore(body, lower)
+		if score < 0.4 || score > 0.5 {
+			t.Errorf("baseline score = %v, want ~0.4", score)
+		}
+	})
+
+	t.Run("backtick boosts score", func(t *testing.T) {
+		body := "Use `go build` to compile."
+		lower := strings.ToLower(body)
+		score := computeSpecificityScore(body, lower)
+		if score < 0.6 {
+			t.Errorf("backtick score = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("digits boost score", func(t *testing.T) {
+		body := "The value should be 42."
+		lower := strings.ToLower(body)
+		score := computeSpecificityScore(body, lower)
+		if score < 0.6 {
+			t.Errorf("digits score = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("filename boosts score", func(t *testing.T) {
+		body := "Edit cli/cmd/ao/main.go to fix."
+		lower := strings.ToLower(body)
+		score := computeSpecificityScore(body, lower)
+		if score < 0.6 {
+			t.Errorf("filename score = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("line reference boosts score", func(t *testing.T) {
+		body := "See line 42 for the issue."
+		lower := strings.ToLower(body)
+		score := computeSpecificityScore(body, lower)
+		if score < 0.6 {
+			t.Errorf("line ref score = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("all boosts capped at 1.0", func(t *testing.T) {
+		body := "```go\nfmt.Println(\"hello\")\n```\nValue is 42 on line 5 in main.go"
+		lower := strings.ToLower(body)
+		score := computeSpecificityScore(body, lower)
+		if score > 1.0 {
+			t.Errorf("score = %v, want <= 1.0", score)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// computeActionabilityScore
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ComputeActionabilityScore(t *testing.T) {
+	t.Run("baseline plain text", func(t *testing.T) {
+		score := computeActionabilityScore("Plain text here.")
+		if score < 0.4 || score > 0.5 {
+			t.Errorf("baseline = %v, want ~0.4", score)
+		}
+	})
+
+	t.Run("list items boost", func(t *testing.T) {
+		score := computeActionabilityScore("Steps:\n- Step one\n- Step two\n")
+		if score < 0.6 {
+			t.Errorf("list score = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("action verbs boost", func(t *testing.T) {
+		score := computeActionabilityScore("Run go build to ensure it compiles.")
+		if score < 0.6 {
+			t.Errorf("verbs score = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("code block boosts", func(t *testing.T) {
+		score := computeActionabilityScore("Use this:\n```\ngo test ./...\n```\n")
+		if score < 0.6 {
+			t.Errorf("code block score = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("capped at 1.0", func(t *testing.T) {
+		body := "- Run this. Must fix.\n```\ncommand\n```\n- Add check.\n"
+		score := computeActionabilityScore(body)
+		if score > 1.0 {
+			t.Errorf("score = %v, want <= 1.0", score)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// computeNoveltyScore
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ComputeNoveltyScore(t *testing.T) {
+	t.Run("medium length baseline", func(t *testing.T) {
+		body := strings.Repeat("word ", 60) // ~300 chars
+		score := computeNoveltyScore(body)
+		if score < 0.4 || score > 0.6 {
+			t.Errorf("baseline = %v, want ~0.5", score)
+		}
+	})
+
+	t.Run("long body boosts", func(t *testing.T) {
+		body := strings.Repeat("word ", 200) // ~1000 chars
+		score := computeNoveltyScore(body)
+		if score < 0.5 {
+			t.Errorf("long body = %v, want >= 0.5", score)
+		}
+	})
+
+	t.Run("short body penalized", func(t *testing.T) {
+		score := computeNoveltyScore("short")
+		if score > 0.5 {
+			t.Errorf("short body = %v, want <= 0.5", score)
+		}
+	})
+
+	t.Run("clamped to [0, 1]", func(t *testing.T) {
+		score := computeNoveltyScore("")
+		if score < 0.0 || score > 1.0 {
+			t.Errorf("score = %v, want in [0, 1]", score)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// computeContextScore
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ComputeContextScore(t *testing.T) {
+	t.Run("baseline", func(t *testing.T) {
+		score := computeContextScore("plain content")
+		if score < 0.4 || score > 0.6 {
+			t.Errorf("baseline = %v, want ~0.5", score)
+		}
+	})
+
+	t.Run("source section boosts", func(t *testing.T) {
+		score := computeContextScore("content\n## source\nsession xyz")
+		if score < 0.6 {
+			t.Errorf("source section = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("bold source boosts", func(t *testing.T) {
+		score := computeContextScore("**source**: session xyz")
+		if score < 0.6 {
+			t.Errorf("bold source = %v, want >= 0.6", score)
+		}
+	})
+
+	t.Run("why it matters boosts", func(t *testing.T) {
+		score := computeContextScore("## why it matters\nimportant stuff")
+		if score < 0.5 {
+			t.Errorf("why it matters = %v, want >= 0.5", score)
+		}
+	})
+
+	t.Run("capped at 1.0", func(t *testing.T) {
+		score := computeContextScore("## source\n**source**: x\n## why it matters\ny")
+		if score > 1.0 {
+			t.Errorf("score = %v, want <= 1.0", score)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// rubricWeightedSum
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_RubricWeightedSum(t *testing.T) {
+	rubric := types.RubricScores{
+		Specificity:   1.0,
+		Actionability: 1.0,
+		Novelty:       1.0,
+		Context:       1.0,
+		Confidence:    1.0,
+	}
+	w := taxonomy.DefaultRubricWeights
+	sum := rubricWeightedSum(rubric, w)
+	// Sum of all weights should be ~1.0
+	expectedSum := w.Specificity + w.Actionability + w.Novelty + w.Context + w.Confidence
+	if sum < expectedSum-0.01 || sum > expectedSum+0.01 {
+		t.Errorf("rubricWeightedSum = %v, want ~%v", sum, expectedSum)
+	}
+
+	// All zeros
+	zero := types.RubricScores{}
+	if rubricWeightedSum(zero, w) != 0.0 {
+		t.Error("expected 0 for zero rubric")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// buildCandidateFromLearningBlock
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_BuildCandidateFromLearningBlock(t *testing.T) {
+	fileDate := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
+
+	t.Run("valid block produces candidate", func(t *testing.T) {
+		b := learningBlock{
+			Title:      "Test Learning",
+			ID:         "L1",
+			Category:   "process",
+			Confidence: "high",
+			Body:       "## What We Learned\n\nRun go test before commit.\n",
+		}
+		cand, scoring, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if cand.ID == "" {
+			t.Error("expected non-empty ID")
+		}
+		if cand.Type != types.KnowledgeTypeLearning {
+			t.Errorf("Type = %q, want %q", cand.Type, types.KnowledgeTypeLearning)
+		}
+		if cand.RawScore <= 0 || cand.RawScore > 1.0 {
+			t.Errorf("RawScore = %v, want (0, 1]", cand.RawScore)
+		}
+		if scoring.RawScore != cand.RawScore {
+			t.Errorf("scoring.RawScore = %v, want %v", scoring.RawScore, cand.RawScore)
+		}
+		if scoring.GateRequired && cand.Tier == "" {
+			t.Error("if gate required, tier should be set")
+		}
+		if cand.Maturity != types.MaturityProvisional {
+			t.Errorf("Maturity = %q, want %q", cand.Maturity, types.MaturityProvisional)
+		}
+		if cand.ExtractedAt != fileDate {
+			t.Errorf("ExtractedAt = %v, want %v", cand.ExtractedAt, fileDate)
+		}
+	})
+
+	t.Run("empty title returns not ok", func(t *testing.T) {
+		b := learningBlock{Title: "", Body: "some body"}
+		_, _, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if ok {
+			t.Error("expected ok=false for empty title")
+		}
+	})
+
+	t.Run("empty body returns not ok", func(t *testing.T) {
+		b := learningBlock{Title: "Title", Body: ""}
+		_, _, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if ok {
+			t.Error("expected ok=false for empty body")
+		}
+	})
+
+	t.Run("whitespace-only title returns not ok", func(t *testing.T) {
+		b := learningBlock{Title: "   ", Body: "some body"}
+		_, _, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if ok {
+			t.Error("expected ok=false for whitespace-only title")
+		}
+	})
+
+	t.Run("high confidence boosts raw score", func(t *testing.T) {
+		bHigh := learningBlock{Title: "Test", ID: "L1", Confidence: "high", Body: "Some body content here."}
+		bLow := learningBlock{Title: "Test", ID: "L2", Confidence: "low", Body: "Some body content here."}
+		candHigh, _, _ := buildCandidateFromLearningBlock(bHigh, "/test/file.md", fileDate, "ag-xyz")
+		candLow, _, _ := buildCandidateFromLearningBlock(bLow, "/test/file.md", fileDate, "ag-xyz")
+		if candHigh.RawScore <= candLow.RawScore {
+			t.Errorf("high confidence score %v should be > low confidence score %v", candHigh.RawScore, candLow.RawScore)
+		}
+	})
+
+	t.Run("long ID gets truncated with hash", func(t *testing.T) {
+		longID := strings.Repeat("x", 200)
+		b := learningBlock{Title: "Test", ID: longID, Confidence: "medium", Body: "Some learning body."}
+		cand, _, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if len(cand.ID) > 120 {
+			t.Errorf("ID length = %d, want <= 120", len(cand.ID))
+		}
+	})
+
+	t.Run("metadata populated", func(t *testing.T) {
+		b := learningBlock{Title: "Test", ID: "L1", Category: "process", Confidence: "high", Body: "Body text."}
+		cand, _, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if cand.Metadata == nil {
+			t.Fatal("expected non-nil Metadata")
+		}
+		if cand.Metadata["pending_category"] != "process" {
+			t.Errorf("pending_category = %v, want %q", cand.Metadata["pending_category"], "process")
+		}
+		if cand.Metadata["pending_confidence"] != "high" {
+			t.Errorf("pending_confidence = %v, want %q", cand.Metadata["pending_confidence"], "high")
+		}
+		if cand.Metadata["pending_title"] != "Test" {
+			t.Errorf("pending_title = %v, want %q", cand.Metadata["pending_title"], "Test")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// parseLearningBlocks edge cases
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ParseLearningBlocks(t *testing.T) {
+	t.Run("no learning headers returns nil", func(t *testing.T) {
+		md := "# Some Other Document\n\nNo learning blocks here.\n"
+		blocks := parseLearningBlocks(md)
+		if len(blocks) != 0 {
+			t.Errorf("expected 0 blocks, got %d", len(blocks))
+		}
+	})
+
+	t.Run("single block", func(t *testing.T) {
+		md := "# Learning: Single Block\n\n**ID**: L1\n**Category**: process\n**Confidence**: medium\n\nContent.\n"
+		blocks := parseLearningBlocks(md)
+		if len(blocks) != 1 {
+			t.Fatalf("expected 1 block, got %d", len(blocks))
+		}
+		if blocks[0].Title != "Single Block" {
+			t.Errorf("Title = %q, want %q", blocks[0].Title, "Single Block")
+		}
+		if blocks[0].ID != "L1" {
+			t.Errorf("ID = %q, want %q", blocks[0].ID, "L1")
+		}
+	})
+
+	t.Run("three blocks", func(t *testing.T) {
+		md := "# Learning: A\n\n**ID**: L1\n\nBody A.\n\n# Learning: B\n\n**ID**: L2\n\nBody B.\n\n# Learning: C\n\n**ID**: L3\n\nBody C.\n"
+		blocks := parseLearningBlocks(md)
+		if len(blocks) != 3 {
+			t.Errorf("expected 3 blocks, got %d", len(blocks))
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// parseYAMLFrontmatter
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ParseYAMLFrontmatter(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want map[string]string
+	}{
+		{
+			name: "simple key-value pairs",
+			raw:  "type: learning\nsource: manual\ndate: 2026-01-01",
+			want: map[string]string{"type": "learning", "source": "manual", "date": "2026-01-01"},
+		},
+		{
+			name: "quoted values stripped",
+			raw:  `type: "learning"`,
+			want: map[string]string{"type": "learning"},
+		},
+		{
+			name: "single quoted values stripped",
+			raw:  `type: 'learning'`,
+			want: map[string]string{"type": "learning"},
+		},
+		{
+			name: "comment lines skipped",
+			raw:  "# comment\ntype: learning",
+			want: map[string]string{"type": "learning"},
+		},
+		{
+			name: "empty lines skipped",
+			raw:  "\n\ntype: learning\n\n",
+			want: map[string]string{"type": "learning"},
+		},
+		{
+			name: "no colon lines skipped",
+			raw:  "nocolon",
+			want: map[string]string{},
+		},
+		{
+			name: "empty string",
+			raw:  "",
+			want: map[string]string{},
+		},
+		{
+			name: "keys lowercased",
+			raw:  "Type: LEARNING",
+			want: map[string]string{"type": "LEARNING"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseYAMLFrontmatter(tt.raw)
+			for k, v := range tt.want {
+				if got[k] != v {
+					t.Errorf("key %q = %q, want %q", k, got[k], v)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("len = %d, want %d; got %v", len(got), len(tt.want), got)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// extractFirstHeadingText
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ExtractFirstHeadingText(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "heading with hash", body: "# My Title\n\nContent", want: "My Title"},
+		{name: "plain first line", body: "First line\nSecond line", want: "First line"},
+		{name: "empty lines then content", body: "\n\n\nContent", want: "Content"},
+		{name: "all empty", body: "\n\n\n", want: ""},
+		{name: "hash only", body: "#\n", want: ""},
+		{name: "multi-hash heading strips one hash", body: "## Subtitle", want: "# Subtitle"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractFirstHeadingText(tt.body)
+			if got != tt.want {
+				t.Errorf("extractFirstHeadingText = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// parseLegacyFrontmatterLearning
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ParseLegacyFrontmatterLearning(t *testing.T) {
+	t.Run("valid legacy learning", func(t *testing.T) {
+		md := "---\ntype: learning\nsource: manual\ndate: 2026-02-20\n---\n\n# Fix PATH issue\n\nDetails here.\n"
+		block, ok := parseLegacyFrontmatterLearning(md)
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if block.Category != "learning" {
+			t.Errorf("Category = %q, want %q", block.Category, "learning")
+		}
+		if block.Confidence != "medium" {
+			t.Errorf("Confidence = %q, want %q", block.Confidence, "medium")
+		}
+		if block.Title == "" {
+			t.Error("expected non-empty title")
+		}
+	})
+
+	t.Run("no frontmatter returns false", func(t *testing.T) {
+		_, ok := parseLegacyFrontmatterLearning("# Just a document\n\nContent.\n")
+		if ok {
+			t.Error("expected ok=false without frontmatter")
+		}
+	})
+
+	t.Run("no type field returns false", func(t *testing.T) {
+		md := "---\nsource: manual\n---\n\n# Title\n\nContent.\n"
+		_, ok := parseLegacyFrontmatterLearning(md)
+		if ok {
+			t.Error("expected ok=false without type field")
+		}
+	})
+
+	t.Run("empty body after frontmatter returns false", func(t *testing.T) {
+		md := "---\ntype: learning\n---\n"
+		_, ok := parseLegacyFrontmatterLearning(md)
+		if ok {
+			t.Error("expected ok=false with empty body")
+		}
+	})
+
+	t.Run("body with no heading text returns false", func(t *testing.T) {
+		md := "---\ntype: learning\n---\n\n\n\n"
+		_, ok := parseLegacyFrontmatterLearning(md)
+		if ok {
+			t.Error("expected ok=false with no heading text")
+		}
+	})
+
+	t.Run("id from frontmatter", func(t *testing.T) {
+		md := "---\ntype: learning\nid: custom-id\n---\n\n# Title\n\nBody.\n"
+		block, ok := parseLegacyFrontmatterLearning(md)
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if block.ID != "custom-id" {
+			t.Errorf("ID = %q, want %q", block.ID, "custom-id")
+		}
+	})
+
+	t.Run("confidence from frontmatter", func(t *testing.T) {
+		md := "---\ntype: learning\nconfidence: high\n---\n\n# Title\n\nBody.\n"
+		block, ok := parseLegacyFrontmatterLearning(md)
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if block.Confidence != "high" {
+			t.Errorf("Confidence = %q, want %q", block.Confidence, "high")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// dateFromFrontmatter
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_DateFromFrontmatter(t *testing.T) {
+	t.Run("valid date", func(t *testing.T) {
+		md := "---\ndate: 2026-03-15\n---\n# Content"
+		d, ok := dateFromFrontmatter(md, "")
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if d.Year() != 2026 || d.Month() != 3 || d.Day() != 15 {
+			t.Errorf("date = %v, want 2026-03-15", d)
+		}
+	})
+
+	t.Run("no frontmatter returns false", func(t *testing.T) {
+		_, ok := dateFromFrontmatter("# No frontmatter", "")
+		if ok {
+			t.Error("expected ok=false")
+		}
+	})
+
+	t.Run("frontmatter without date returns false", func(t *testing.T) {
+		md := "---\ntype: learning\n---\n# Content"
+		_, ok := dateFromFrontmatter(md, "")
+		if ok {
+			t.Error("expected ok=false")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// dateFromMarkdownField
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_DateFromMarkdownField(t *testing.T) {
+	t.Run("valid date field", func(t *testing.T) {
+		md := "# Doc\n\n**Date**: 2026-05-20\n\nContent"
+		d, ok := dateFromMarkdownField(md, "")
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if d.Year() != 2026 || d.Month() != 5 || d.Day() != 20 {
+			t.Errorf("date = %v, want 2026-05-20", d)
+		}
+	})
+
+	t.Run("no date field returns false", func(t *testing.T) {
+		_, ok := dateFromMarkdownField("# No date here", "")
+		if ok {
+			t.Error("expected ok=false")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// dateFromFilenamePrefix
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_DateFromFilenamePrefix(t *testing.T) {
+	t.Run("valid prefix", func(t *testing.T) {
+		d, ok := dateFromFilenamePrefix("", "/path/2026-01-15-test.md")
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if d.Year() != 2026 || d.Month() != 1 || d.Day() != 15 {
+			t.Errorf("date = %v, want 2026-01-15", d)
+		}
+	})
+
+	t.Run("short filename returns false", func(t *testing.T) {
+		_, ok := dateFromFilenamePrefix("", "/path/test.md")
+		if ok {
+			t.Error("expected ok=false for short filename")
+		}
+	})
+
+	t.Run("non-date prefix returns false", func(t *testing.T) {
+		_, ok := dateFromFilenamePrefix("", "/path/not-a-date-x.md")
+		if ok {
+			t.Error("expected ok=false for non-date prefix")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// dateFromFileMtime
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_DateFromFileMtime(t *testing.T) {
+	t.Run("existing file returns mtime", func(t *testing.T) {
+		tmp := t.TempDir()
+		path := filepath.Join(tmp, "test.md")
+		if err := os.WriteFile(path, []byte("test"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		d, ok := dateFromFileMtime("", path)
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if d.IsZero() {
+			t.Error("expected non-zero date")
+		}
+	})
+
+	t.Run("nonexistent file returns false", func(t *testing.T) {
+		_, ok := dateFromFileMtime("", "/nonexistent/file.md")
+		if ok {
+			t.Error("expected ok=false for nonexistent file")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// extractSessionHint
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ExtractSessionHint(t *testing.T) {
+	t.Run("finds session ID in content", func(t *testing.T) {
+		md := "Session ag-abc123 was productive.\n"
+		hint := extractSessionHint(md, "/test/file.md")
+		if hint != "ag-abc123" {
+			t.Errorf("hint = %q, want %q", hint, "ag-abc123")
+		}
+	})
+
+	t.Run("no session ID falls back to filename", func(t *testing.T) {
+		md := "No session ID here.\n"
+		hint := extractSessionHint(md, "/test/my-learning.md")
+		if hint != "my-learning" {
+			t.Errorf("hint = %q, want %q", hint, "my-learning")
+		}
+	})
+
+	t.Run("long content only checks first 2KB", func(t *testing.T) {
+		md := strings.Repeat("x", 3000) + "ag-late"
+		hint := extractSessionHint(md, "/test/file.md")
+		// Should not find "ag-late" past 2KB
+		if hint == "ag-late" {
+			t.Error("should not find session hint beyond 2KB")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// resolveIngestFiles
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_ResolveIngestFiles(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create files
+	dir := filepath.Join(tmp, ".agents", "knowledge", "pending")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "b.md"), []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("with explicit args", func(t *testing.T) {
+		files, err := resolveIngestFiles(tmp, "", []string{filepath.Join(dir, "a.md")})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(files) != 1 {
+			t.Errorf("expected 1 file, got %d", len(files))
+		}
+	})
+
+	t.Run("deduplicates", func(t *testing.T) {
+		path := filepath.Join(dir, "a.md")
+		files, err := resolveIngestFiles(tmp, "", []string{path, path})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(files) != 1 {
+			t.Errorf("expected 1 file (deduped), got %d", len(files))
+		}
+	})
+
+	t.Run("relative paths resolved", func(t *testing.T) {
+		files, err := resolveIngestFiles(tmp, "", []string{".agents/knowledge/pending/a.md"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(files) != 1 {
+			t.Errorf("expected 1 file, got %d", len(files))
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// moveIngestedFiles
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_MoveIngestedFiles(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create source files
+	srcDir := filepath.Join(tmp, ".agents", "knowledge", "pending")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	srcFile := filepath.Join(srcDir, "test.md")
+	if err := os.WriteFile(srcFile, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	moveIngestedFiles(tmp, []string{srcFile})
+
+	// Source should be gone
+	if _, err := os.Stat(srcFile); !os.IsNotExist(err) {
+		t.Error("expected source file to be moved")
+	}
+
+	// Should be in processed dir
+	dstFile := filepath.Join(tmp, ".agents", "knowledge", "processed", "test.md")
+	if _, err := os.Stat(dstFile); err != nil {
+		t.Errorf("expected file in processed dir: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputPoolIngestResult (smoke test)
+// ---------------------------------------------------------------------------
+
+func TestPoolIngestCoverage_OutputPoolIngestResult(t *testing.T) {
+	t.Run("text output", func(t *testing.T) {
+		res := poolIngestResult{
+			FilesScanned:     3,
+			CandidatesFound:  5,
+			Added:            2,
+			SkippedExisting:  1,
+			SkippedMalformed: 1,
+			Errors:           1,
+		}
+		if err := outputPoolIngestResult(res); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("text output no skips no errors", func(t *testing.T) {
+		res := poolIngestResult{
+			FilesScanned:    1,
+			CandidatesFound: 1,
+			Added:           1,
+		}
+		if err := outputPoolIngestResult(res); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
