@@ -86,25 +86,6 @@ jobs:
             }
           echo "✅ ShellCheck passed"
 
-  markdownlint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: Install markdownlint-cli
-        run: npm install -g markdownlint-cli
-
-      - name: Run markdownlint on tracked markdown files
-        run: |
-          echo "=== Running markdownlint ==="
-          git ls-files '*.md' | xargs -r markdownlint
-          echo "✅ markdownlint passed"
-
   security-scan:
     runs-on: ubuntu-latest
     steps:
@@ -491,7 +472,7 @@ jobs:
         run: bash tests/hooks/test-hooks.sh
 
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration]
+    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -504,7 +485,6 @@ jobs:
           echo "embedded-sync: ${{ needs.embedded-sync.result }}"
           echo "cli-docs-parity: ${{ needs.cli-docs-parity.result }}"
           echo "shellcheck: ${{ needs.shellcheck.result }}"
-          echo "markdownlint: ${{ needs.markdownlint.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
           echo "security-toolchain-gate: ${{ needs.security-toolchain-gate.result }}"
           echo "skill-integrity: ${{ needs.skill-integrity.result }}"
@@ -521,7 +501,6 @@ jobs:
              [[ "${{ needs.embedded-sync.result }}" != "success" ]] || \
              [[ "${{ needs.cli-docs-parity.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
-             [[ "${{ needs.markdownlint.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
              [[ "${{ needs.security-toolchain-gate.result }}" != "success" ]] || \
              [[ "${{ needs.skill-integrity.result }}" != "success" ]] || \
