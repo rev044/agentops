@@ -477,8 +477,39 @@ jobs:
           chmod +x tests/e2e-install-test.sh
           ./tests/e2e-install-test.sh
 
+  cli-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - name: Build ao CLI
+        run: cd cli && make build
+
+      - name: Run CLI commands integration test
+        run: bash tests/integration/test-cli-commands.sh
+
+      - name: Run v2.18 commands integration test
+        run: bash tests/integration/test-v218-commands.sh
+
+      - name: Run hook lifecycle test
+        run: bash tests/hooks/test-hook-lifecycle.sh
+
+      - name: Run release smoke test
+        run: bash scripts/release-smoke-test.sh --skip-build
+
+      - name: Copy embedded ao hooks for test-hooks compatibility
+        run: cp cli/embedded/hooks/ao-*.sh hooks/
+
+      - name: Run hook integration tests
+        run: bash tests/hooks/test-hooks.sh
+
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, e2e-install-test]
+    needs: [doc-release-gate, smoke-test, hook-preflight, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, e2e-install-test, cli-integration]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -501,6 +532,7 @@ jobs:
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
           echo "go-build: ${{ needs.go-build.result }}"
           echo "e2e-install-test: ${{ needs.e2e-install-test.result }}"
+          echo "cli-integration: ${{ needs.cli-integration.result }}"
 
           if [[ "${{ needs.doc-release-gate.result }}" != "success" ]] || \
              [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
@@ -517,7 +549,8 @@ jobs:
              [[ "${{ needs.memrl-health.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e-install-test.result }}" != "success" ]]; then
+             [[ "${{ needs.e2e-install-test.result }}" != "success" ]] || \
+             [[ "${{ needs.cli-integration.result }}" != "success" ]]; then
             echo ""
             echo "❌ Some checks failed"
             exit 1

@@ -532,6 +532,7 @@ fi
 
 run_step_bg "Hook install smoke (minimal + full)" run_hooks_install_smoke
 run_step_bg "ao init --hooks + ao rpi smoke" run_init_hooks_rpi_smoke
+run_step_bg "Release smoke test (all commands)" ./scripts/release-smoke-test.sh --skip-build
 
 collect_parallel
 
