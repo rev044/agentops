@@ -595,6 +595,17 @@ func TestResolveNotebookSource_SessionsPreferred(t *testing.T) {
 	}
 }
 
+func TestResolveNotebookSource_InvalidSource(t *testing.T) {
+	tmp := t.TempDir()
+	_, err := resolveNotebookSource(tmp, "garbage")
+	if err == nil {
+		t.Error("expected error for unknown source value")
+	}
+	if !strings.Contains(err.Error(), "unknown source") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestPruneNotebook_SmallSections(t *testing.T) {
 	// Test that pruning works even when all sections have <= 2 lines
 	sections := []notebookSection{

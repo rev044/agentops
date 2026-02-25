@@ -21,7 +21,12 @@ In the default `manual` startup mode, MEMORY.md is auto-loaded by Claude Code an
 
 In `lean` or `legacy` startup modes (set via `AGENTOPS_STARTUP_CONTEXT_MODE`), the SessionStart hook runs:
 ```bash
-ao inject --apply-decay --format markdown --max-tokens 1000 \
+# lean mode (MEMORY.md fresh): 400 tokens
+ao inject --apply-decay --format markdown --max-tokens 400 \
+  [--bead <bead-id>] [--predecessor <handoff-path>]
+
+# legacy mode: 800 tokens
+ao inject --apply-decay --format markdown --max-tokens 800 \
   [--bead <bead-id>] [--predecessor <handoff-path>]
 ```
 
@@ -128,7 +133,7 @@ Knowledge relevance decays over time (~17%/week). More recent learnings are weig
 **Hook triggers:** `session-start.sh` runs at session start with `AGENTOPS_STARTUP_CONTEXT_MODE=lean` or `legacy`
 
 **What happens:**
-1. Hook calls `ao inject --apply-decay --format markdown --max-tokens 1000`
+1. Hook calls `ao inject --apply-decay --format markdown --max-tokens 400` (lean) or `--max-tokens 800` (legacy)
 2. CLI searches `.agents/learnings/`, `.agents/patterns/`, `.agents/research/` for relevant artifacts
 3. CLI applies recency-weighted decay (~17%/week) to rank results
 4. CLI outputs top-ranked knowledge as markdown within token budget

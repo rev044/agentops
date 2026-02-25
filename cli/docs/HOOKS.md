@@ -154,34 +154,29 @@ Note: this is a minimal example. `ao hooks install` is recommended for full cove
 
 ## Customization
 
-### Token Budget
+### Startup Context Mode
 
-Adjust the SessionStart injection budget:
+Control what happens at session start via environment variable:
 
-```json
-{
-  "command": ["bash", "-c", "ao inject --apply-decay --max-tokens 2000 2>/dev/null || true"]
-}
+```bash
+# Default — MEMORY.md auto-loaded, no extract/inject (lightest)
+AGENTOPS_STARTUP_CONTEXT_MODE=manual claude
+
+# Extract + inject with reduced budget (lean injection alongside MEMORY.md)
+AGENTOPS_STARTUP_CONTEXT_MODE=lean claude
+
+# Full extract + inject (pre-notebook backward compatibility)
+AGENTOPS_STARTUP_CONTEXT_MODE=legacy claude
 ```
 
-### Context Query
+### On-Demand Knowledge Retrieval
 
-Filter injected knowledge by topic:
+In `manual` mode, use CLI commands for on-demand knowledge retrieval:
 
-```json
-{
-  "command": ["bash", "-c", "ao inject --apply-decay --context 'kubernetes' 2>/dev/null || true"]
-}
-```
-
-### Disable Citation Tracking
-
-Skip recording which learnings were retrieved:
-
-```json
-{
-  "command": ["bash", "-c", "ao inject --apply-decay --no-cite 2>/dev/null || true"]
-}
+```bash
+ao search "authentication"     # Search knowledge by keyword
+ao lookup --query "auth flow"  # Relevance-ranked lookup
+ao inject --max-tokens 1000    # Manual knowledge injection
 ```
 
 ## Troubleshooting

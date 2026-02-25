@@ -311,6 +311,7 @@ func readSessionByID(cwd string, id string) (*pendingEntry, error) {
 }
 
 // readSessionFile reads a single session JSONL file and maps it to pendingEntry.
+// Session JSONL files are single-record (one JSON object per file).
 func readSessionFile(path string) (*pendingEntry, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -330,6 +331,9 @@ func readSessionFile(path string) (*pendingEntry, error) {
 			return nil, fmt.Errorf("parse session file %s: %w", path, err)
 		}
 		return entry.toPendingEntry(), nil
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read session file %s: %w", path, err)
 	}
 	return nil, fmt.Errorf("empty session file: %s", path)
 }

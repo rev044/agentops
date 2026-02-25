@@ -72,6 +72,18 @@ fi
 INJECTED_KNOWLEDGE=""
 NOTEBOOK_LEAN_MODE=0
 
+# Derive MEMORY.md path once (used for stale nudge in all modes)
+MEMORY_DIR="$HOME/.claude/projects"
+PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
+MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
+MEMORY_AGE_DAYS=0
+if [ -f "$MEMORY_FILE" ]; then
+    MTIME=$(stat -f %m "$MEMORY_FILE" 2>/dev/null || stat -c %Y "$MEMORY_FILE" 2>/dev/null || echo "")
+    if [ -n "$MTIME" ]; then
+        MEMORY_AGE_DAYS=$(( ($(date +%s) - MTIME) / 86400 ))
+    fi
+fi
+
 # Predecessor handoff discovery (used in all modes)
 PREDECESSOR_FILE="${GT_PREDECESSOR_HANDOFF:-}"
 if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
@@ -104,21 +116,8 @@ elif command -v ao &>/dev/null; then
     fi
 
     # Notebook-aware lean injection (skip in legacy mode)
-    MEMORY_DIR="$HOME/.claude/projects"
-    if [ "$STARTUP_MODE" != "legacy" ] && [ -d "$MEMORY_DIR" ]; then
-        PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
-        MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
-        if [ -f "$MEMORY_FILE" ]; then
-            MTIME=$(stat -f %m "$MEMORY_FILE" 2>/dev/null || stat -c %Y "$MEMORY_FILE" 2>/dev/null || echo "")
-            if [ -n "$MTIME" ]; then
-                MEMORY_AGE_DAYS=$(( ($(date +%s) - MTIME) / 86400 ))
-            else
-                MEMORY_AGE_DAYS=0  # stat failed but file exists — assume fresh
-            fi
-            if [ "$MEMORY_AGE_DAYS" -le 7 ]; then
-                NOTEBOOK_LEAN_MODE=1
-            fi
-        fi
+    if [ "$STARTUP_MODE" != "legacy" ] && [ -f "$MEMORY_FILE" ] && [ "$MEMORY_AGE_DAYS" -le 7 ]; then
+        NOTEBOOK_LEAN_MODE=1
     fi
 
     INJECT_MODE_FLAGS=(--apply-decay --format markdown)
