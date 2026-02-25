@@ -67,7 +67,7 @@ func init() {
 	initCmd.Flags().BoolVar(&initStealth, "stealth", false, "Use .git/info/exclude instead of .gitignore")
 	initCmd.Flags().BoolVar(&initHooks, "hooks", false, "Also register hooks (full 12-event coverage by default; equivalent to ao hooks install --full)")
 	initCmd.Flags().BoolVar(&initFull, "full", false, "With --hooks, explicitly request full coverage (legacy explicit flag)")
-	initCmd.Flags().BoolVar(&initMinimalHooks, "minimal-hooks", false, "With --hooks, install only SessionStart + Stop hooks")
+	initCmd.Flags().BoolVar(&initMinimalHooks, "minimal-hooks", false, "With --hooks, install SessionStart + SessionEnd + Stop hooks (lightweight)")
 	initCmd.GroupID = "start"
 	rootCmd.AddCommand(initCmd)
 }

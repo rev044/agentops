@@ -16,50 +16,50 @@ func TestGenerateMinimalHooksConfig(t *testing.T) {
 	if len(hooks.SessionStart) == 0 {
 		t.Error("expected SessionStart hooks, got none")
 	}
+	if len(hooks.SessionEnd) == 0 {
+		t.Error("expected SessionEnd hooks, got none")
+	}
 	if len(hooks.Stop) == 0 {
 		t.Error("expected Stop hooks, got none")
 	}
 
-	// Verify SessionStart contains ao extract + ao inject
+	// Verify SessionStart uses script path
 	found := false
 	for _, g := range hooks.SessionStart {
 		for _, h := range g.Hooks {
-			if h.Type == "command" && strings.Contains(h.Command, "ao extract") && strings.Contains(h.Command, "ao inject") {
+			if h.Type == "command" && strings.Contains(h.Command, "session-start.sh") {
 				found = true
 			}
 		}
 	}
 	if !found {
-		t.Error("expected ao extract + ao inject command in SessionStart hooks")
+		t.Error("expected session-start.sh script path in SessionStart hooks")
 	}
 
-	// Verify SessionEnd contains ao forge + ao maturity
-	if len(hooks.SessionEnd) == 0 {
-		t.Error("expected SessionEnd hooks, got none")
-	}
+	// Verify SessionEnd uses script path
 	found = false
 	for _, g := range hooks.SessionEnd {
 		for _, h := range g.Hooks {
-			if h.Type == "command" && strings.Contains(h.Command, "ao forge") && strings.Contains(h.Command, "ao maturity") {
+			if h.Type == "command" && strings.Contains(h.Command, "session-end-maintenance.sh") {
 				found = true
 			}
 		}
 	}
 	if !found {
-		t.Error("expected ao forge + ao maturity command in SessionEnd hooks")
+		t.Error("expected session-end-maintenance.sh script path in SessionEnd hooks")
 	}
 
-	// Verify Stop contains ao flywheel close-loop
+	// Verify Stop uses script path
 	found = false
 	for _, g := range hooks.Stop {
 		for _, h := range g.Hooks {
-			if h.Type == "command" && strings.Contains(h.Command, "ao flywheel close-loop") {
+			if h.Type == "command" && strings.Contains(h.Command, "ao-flywheel-close.sh") {
 				found = true
 			}
 		}
 	}
 	if !found {
-		t.Error("expected ao flywheel close-loop command in Stop hooks")
+		t.Error("expected ao-flywheel-close.sh script path in Stop hooks")
 	}
 }
 
@@ -339,10 +339,13 @@ func TestHookGroupContainsAoForInstalledScriptPaths(t *testing.T) {
 }
 
 func TestBackwardsCompatDefaultInstall(t *testing.T) {
-	// generateMinimalHooksConfig should ALWAYS return SessionStart + Stop
+	// generateMinimalHooksConfig should ALWAYS return SessionStart + SessionEnd + Stop
 	hooks := generateMinimalHooksConfig()
 	if len(hooks.SessionStart) == 0 {
 		t.Error("minimal config missing SessionStart")
+	}
+	if len(hooks.SessionEnd) == 0 {
+		t.Error("minimal config missing SessionEnd")
 	}
 	if len(hooks.Stop) == 0 {
 		t.Error("minimal config missing Stop")

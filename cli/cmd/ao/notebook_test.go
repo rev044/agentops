@@ -435,6 +435,166 @@ func TestNotebookCursor_SkipsDuplicate(t *testing.T) {
 	}
 }
 
+func TestReadLatestSessionEntry_HappyPath(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create two session files — should read the latest by filename sort
+	old := `{"session_id":"old-001","date":"2026-02-24T10:00:00Z","summary":"old session","decisions":["d1"],"knowledge":["k1"]}`
+	new := `{"session_id":"new-002","date":"2026-02-25T10:00:00Z","summary":"new session","decisions":["d2"],"knowledge":["k2"]}`
+
+	if err := os.WriteFile(filepath.Join(sessionsDir, "2026-02-24-old-session-old-001.jsonl"), []byte(old+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sessionsDir, "2026-02-25-new-session-new-002.jsonl"), []byte(new+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Also create a .md file that should be ignored
+	if err := os.WriteFile(filepath.Join(sessionsDir, "2026-02-25-some-session-abc1234.md"), []byte("# ignored"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	entry, err := readLatestSessionEntry(tmp)
+	if err != nil {
+		t.Fatalf("readLatestSessionEntry error: %v", err)
+	}
+	if entry == nil {
+		t.Fatal("expected non-nil entry")
+	}
+	if entry.SessionID != "new-002" {
+		t.Errorf("SessionID = %q, want %q", entry.SessionID, "new-002")
+	}
+	if entry.Summary != "new session" {
+		t.Errorf("Summary = %q, want %q", entry.Summary, "new session")
+	}
+	if entry.QueuedAt.IsZero() {
+		t.Error("QueuedAt should be mapped from session Date")
+	}
+}
+
+func TestReadLatestSessionEntry_Empty(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	entry, err := readLatestSessionEntry(tmp)
+	if entry != nil {
+		t.Errorf("expected nil entry for empty dir, got %+v", entry)
+	}
+	if err == nil {
+		t.Error("expected error for empty sessions dir")
+	}
+}
+
+func TestReadLatestSessionEntry_NoDir(t *testing.T) {
+	tmp := t.TempDir()
+	entry, err := readLatestSessionEntry(tmp)
+	if entry != nil {
+		t.Errorf("expected nil entry, got %+v", entry)
+	}
+	if err == nil {
+		t.Error("expected error when sessions dir doesn't exist")
+	}
+}
+
+func TestReadSessionByID_Found(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	data := `{"session_id":"abc1234","date":"2026-02-25T10:00:00Z","summary":"target session"}`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "2026-02-25-target-session-abc1234.jsonl"), []byte(data+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	entry, err := readSessionByID(tmp, "abc1234")
+	if err != nil {
+		t.Fatalf("readSessionByID error: %v", err)
+	}
+	if entry == nil {
+		t.Fatal("expected non-nil entry")
+	}
+	if entry.SessionID != "abc1234" {
+		t.Errorf("SessionID = %q, want %q", entry.SessionID, "abc1234")
+	}
+}
+
+func TestReadSessionByID_NotFound(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := readSessionByID(tmp, "nonexistent")
+	if err == nil {
+		t.Error("expected error for missing session ID")
+	}
+}
+
+func TestResolveNotebookSource_AutoFallback(t *testing.T) {
+	tmp := t.TempDir()
+
+	// No sessions dir, but has pending.jsonl
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	if err := os.MkdirAll(aoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	data := `{"session_id":"pending-1","summary":"from pending"}`
+	if err := os.WriteFile(filepath.Join(aoDir, "pending.jsonl"), []byte(data+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	entry, err := resolveNotebookSource(tmp, "auto")
+	if err != nil {
+		t.Fatalf("resolveNotebookSource auto error: %v", err)
+	}
+	if entry == nil {
+		t.Fatal("expected non-nil entry from pending fallback")
+	}
+	if entry.SessionID != "pending-1" {
+		t.Errorf("SessionID = %q, want %q (should fall back to pending)", entry.SessionID, "pending-1")
+	}
+}
+
+func TestResolveNotebookSource_SessionsPreferred(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Both sessions and pending exist — sessions should win
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	sessionData := `{"session_id":"session-1","date":"2026-02-25T10:00:00Z","summary":"from sessions"}`
+	if err := os.WriteFile(filepath.Join(sessionsDir, "2026-02-25-test-session-session.jsonl"), []byte(sessionData+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	pendingData := `{"session_id":"pending-1","summary":"from pending"}`
+	if err := os.WriteFile(filepath.Join(aoDir, "pending.jsonl"), []byte(pendingData+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	entry, err := resolveNotebookSource(tmp, "auto")
+	if err != nil {
+		t.Fatalf("resolveNotebookSource auto error: %v", err)
+	}
+	if entry == nil {
+		t.Fatal("expected non-nil entry")
+	}
+	if entry.SessionID != "session-1" {
+		t.Errorf("SessionID = %q, want %q (sessions should be preferred)", entry.SessionID, "session-1")
+	}
+}
+
 func TestPruneNotebook_SmallSections(t *testing.T) {
 	// Test that pruning works even when all sections have <= 2 lines
 	sections := []notebookSection{

@@ -48,7 +48,7 @@ ao init [flags]
       --full            With --hooks, explicitly request full coverage (legacy explicit flag)
   -h, --help            help for init
       --hooks           Also register hooks (full 12-event coverage by default; equivalent to ao hooks install --full)
-      --minimal-hooks   With --hooks, install only SessionStart + Stop hooks
+      --minimal-hooks   With --hooks, install SessionStart + SessionEnd + Stop hooks (lightweight)
       --stealth         Use .git/info/exclude instead of .gitignore
 ```
 
@@ -1548,7 +1548,7 @@ ao notebook [command]
 
 #### `ao notebook update`
 
-Reads the most recent forge output (pending.jsonl) and updates MEMORY.md
+Reads the most recent session data and updates MEMORY.md with a "Last Session"
 
 ```
 ao notebook update [flags]
@@ -1561,6 +1561,8 @@ ao notebook update [flags]
       --max-lines int        Maximum lines in MEMORY.md (default 190)
       --memory-file string   Path to MEMORY.md (auto-detected if omitted)
       --quiet                Suppress output (for hooks)
+      --session string       Specific session ID to update from
+      --source string        Source: auto|sessions|pending (default "auto")
 ```
 
 ---

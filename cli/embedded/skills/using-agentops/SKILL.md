@@ -176,18 +176,18 @@ bd sync               # Sync with git
 
 ## Examples
 
-### SessionStart Auto-Injection
+### SessionStart Context Loading
 
 **Hook triggers:** `session-start.sh` runs at session start
 
 **What happens:**
-1. Hook injects this skill automatically into session context
-2. Agent loads RPI workflow overview, phase-to-skill mapping, trigger patterns
-3. Agent understands available skills without user prompting
-4. User says "check my code" → agent recognizes `/vibe` trigger naturally
-5. Agent executes skill using workflow knowledge from this reference
+1. In `manual` mode (default): MEMORY.md is auto-loaded by Claude Code; hook emits a pointer to on-demand retrieval (`ao search`, `ao lookup`)
+2. In `lean`/`legacy` modes: hook extracts pending knowledge and injects prior learnings
+3. Hook injects this skill automatically into session context
+4. Agent loads RPI workflow overview, phase-to-skill mapping, trigger patterns
+5. User says "check my code" → agent recognizes `/vibe` trigger naturally
 
-**Result:** Agent knows the full skill catalog and workflow from session start, enabling natural language skill invocation.
+**Result:** Agent knows the full skill catalog and workflow from session start. Knowledge retrieval is on-demand by default (MEMORY.md + `ao search`), with opt-in startup injection via `AGENTOPS_STARTUP_CONTEXT_MODE=lean`.
 
 ### Workflow Reference During Planning
 

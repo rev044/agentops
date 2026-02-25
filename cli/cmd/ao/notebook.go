@@ -16,6 +16,8 @@ var (
 	notebookMemoryFile string
 	notebookQuiet      bool
 	notebookMaxLines   int
+	notebookSource     string
+	notebookSessionID  string
 )
 
 // notebookCmd is the parent for notebook-related subcommands.
@@ -28,8 +30,12 @@ var notebookCmd = &cobra.Command{
 var notebookUpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update MEMORY.md with latest session insights",
-	Long: `Reads the most recent forge output (pending.jsonl) and updates MEMORY.md
-with a "Last Session" section containing summary, decisions, and next steps.
+	Long: `Reads the most recent session data and updates MEMORY.md with a "Last Session"
+section containing summary, decisions, and next steps.
+
+Source priority (--source auto): session artifacts (.agents/ao/sessions/*.jsonl)
+first, then pending.jsonl as fallback. Use --source sessions or --source pending
+to force a specific source.
 
 Stays within the configured line budget (default 190) by pruning stale entries
 from the longest sections first.`,
@@ -40,6 +46,8 @@ func init() {
 	notebookUpdateCmd.Flags().StringVar(&notebookMemoryFile, "memory-file", "", "Path to MEMORY.md (auto-detected if omitted)")
 	notebookUpdateCmd.Flags().BoolVar(&notebookQuiet, "quiet", false, "Suppress output (for hooks)")
 	notebookUpdateCmd.Flags().IntVar(&notebookMaxLines, "max-lines", 190, "Maximum lines in MEMORY.md")
+	notebookUpdateCmd.Flags().StringVar(&notebookSource, "source", "auto", "Source: auto|sessions|pending")
+	notebookUpdateCmd.Flags().StringVar(&notebookSessionID, "session", "", "Specific session ID to update from")
 
 	notebookCmd.AddCommand(notebookUpdateCmd)
 	notebookCmd.GroupID = "knowledge"
@@ -79,13 +87,24 @@ func runNotebookUpdate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Step 2: Read latest pending entry
-	entry, err := readLatestPendingEntry(cwd)
-	if err != nil || entry == nil {
-		if !notebookQuiet {
-			VerbosePrintf("No pending session data — nothing to update.\n")
+	// Step 2: Read latest session entry (source priority: --session > --source)
+	var entry *pendingEntry
+	if notebookSessionID != "" {
+		entry, err = readSessionByID(cwd, notebookSessionID)
+		if err != nil || entry == nil {
+			if !notebookQuiet {
+				VerbosePrintf("Session %s not found.\n", notebookSessionID)
+			}
+			return nil
 		}
-		return nil // no-op when no pending sessions
+	} else {
+		entry, err = resolveNotebookSource(cwd, notebookSource)
+		if err != nil || entry == nil {
+			if !notebookQuiet {
+				VerbosePrintf("No session data — nothing to update.\n")
+			}
+			return nil
+		}
 	}
 
 	// Step 2.5: Skip if this entry was already processed (prevent replay)
@@ -205,6 +224,114 @@ func readLatestPendingEntry(cwd string) (*pendingEntry, error) {
 	}
 
 	return latest, scanner.Err()
+}
+
+// sessionEntry is used to unmarshal session JSONL files from .agents/ao/sessions/.
+type sessionEntry struct {
+	SessionID string    `json:"session_id"`
+	Date      time.Time `json:"date"`
+	Summary   string    `json:"summary,omitempty"`
+	Decisions []string  `json:"decisions,omitempty"`
+	Knowledge []string  `json:"knowledge,omitempty"`
+}
+
+func (s *sessionEntry) toPendingEntry() *pendingEntry {
+	return &pendingEntry{
+		SessionID: s.SessionID,
+		Summary:   s.Summary,
+		Decisions: s.Decisions,
+		Knowledge: s.Knowledge,
+		QueuedAt:  s.Date,
+	}
+}
+
+// resolveNotebookSource reads session data using the specified source strategy.
+func resolveNotebookSource(cwd string, source string) (*pendingEntry, error) {
+	switch source {
+	case "sessions":
+		return readLatestSessionEntry(cwd)
+	case "pending":
+		return readLatestPendingEntry(cwd)
+	case "auto":
+		entry, err := readLatestSessionEntry(cwd)
+		if entry != nil && err == nil {
+			return entry, nil
+		}
+		return readLatestPendingEntry(cwd)
+	default:
+		return nil, fmt.Errorf("unknown source: %s (use auto, sessions, or pending)", source)
+	}
+}
+
+// readLatestSessionEntry reads the most recent session from .agents/ao/sessions/*.jsonl.
+func readLatestSessionEntry(cwd string) (*pendingEntry, error) {
+	sessionsDir := filepath.Join(cwd, ".agents", "ao", "sessions")
+	entries, err := os.ReadDir(sessionsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter for .jsonl files and find the latest (date-prefixed names sort chronologically)
+	var latest string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if filepath.Ext(e.Name()) != ".jsonl" {
+			continue
+		}
+		if e.Name() > latest {
+			latest = e.Name()
+		}
+	}
+	if latest == "" {
+		return nil, fmt.Errorf("no session files found in %s", sessionsDir)
+	}
+
+	return readSessionFile(filepath.Join(sessionsDir, latest))
+}
+
+// readSessionByID finds and reads a specific session by ID prefix.
+func readSessionByID(cwd string, id string) (*pendingEntry, error) {
+	sessionsDir := filepath.Join(cwd, ".agents", "ao", "sessions")
+	entries, err := os.ReadDir(sessionsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".jsonl" {
+			continue
+		}
+		if strings.Contains(e.Name(), id) {
+			return readSessionFile(filepath.Join(sessionsDir, e.Name()))
+		}
+	}
+	return nil, fmt.Errorf("session %s not found", id)
+}
+
+// readSessionFile reads a single session JSONL file and maps it to pendingEntry.
+func readSessionFile(path string) (*pendingEntry, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
+	if scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			return nil, fmt.Errorf("empty session file: %s", path)
+		}
+		var entry sessionEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			return nil, fmt.Errorf("parse session file %s: %w", path, err)
+		}
+		return entry.toPendingEntry(), nil
+	}
+	return nil, fmt.Errorf("empty session file: %s", path)
 }
 
 // parseNotebookSections reads MEMORY.md and splits it into sections by ## headings.

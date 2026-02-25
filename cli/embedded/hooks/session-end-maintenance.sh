@@ -28,7 +28,7 @@ run_ao_quick() {
 run_maintenance() {
     command -v ao >/dev/null 2>&1 || return 0
 
-    if run_ao_quick 6 forge transcript --last-session --queue --quiet; then
+    if run_ao_quick 6 forge transcript --last-session --quiet; then
         run_ao_quick 8 notebook update --quiet || true
     fi
     run_ao_quick 4 maturity --scan --apply || true

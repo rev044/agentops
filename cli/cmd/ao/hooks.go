@@ -291,26 +291,27 @@ func replacePluginRoot(config *HooksConfig, basePath string) {
 }
 
 // generateMinimalHooksConfig returns the bare-minimum flywheel config (SessionStart + SessionEnd + Stop).
+// Uses script-based commands matching the full mode pattern for consistency.
 func generateMinimalHooksConfig() *HooksConfig {
 	return &HooksConfig{
 		SessionStart: []HookGroup{
 			{
 				Hooks: []HookEntry{
-					{Type: "command", Command: "ao extract 2>/dev/null; ao inject --apply-decay --max-tokens 1500 2>/dev/null || true"},
+					{Type: "command", Command: "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"},
 				},
 			},
 		},
 		SessionEnd: []HookGroup{
 			{
 				Hooks: []HookEntry{
-					{Type: "command", Command: "ao forge transcript --last-session --quiet --queue 2>/dev/null; ao maturity --scan 2>/dev/null; ao maturity --expire --archive 2>/dev/null; ao maturity --evict --archive 2>/dev/null || true", Timeout: 35},
+					{Type: "command", Command: "${CLAUDE_PLUGIN_ROOT}/hooks/session-end-maintenance.sh", Timeout: 35},
 				},
 			},
 		},
 		Stop: []HookGroup{
 			{
 				Hooks: []HookEntry{
-					{Type: "command", Command: "ao flywheel close-loop --quiet 2>/dev/null || true", Timeout: 15},
+					{Type: "command", Command: "${CLAUDE_PLUGIN_ROOT}/hooks/ao-flywheel-close.sh", Timeout: 15},
 				},
 			},
 		},
@@ -357,21 +358,14 @@ func runHooksInit(cmd *cobra.Command, args []string) error {
 		fmt.Println(string(data))
 
 	case "shell":
-		fmt.Println("# SessionStart hook (extract pending + inject knowledge)")
+		fmt.Println("# SessionStart hook (startup context + optional inject)")
 		fmt.Printf("# %s\n", hooks.SessionStart[0].Hooks[0].Command)
-		fmt.Println("ao extract")
-		fmt.Println("ao inject --apply-decay --max-tokens 1500")
 		fmt.Println()
-		fmt.Println("# SessionEnd hook (forge learnings + maturity)")
+		fmt.Println("# SessionEnd hook (forge + notebook update + maturity)")
 		fmt.Printf("# %s\n", hooks.SessionEnd[0].Hooks[0].Command)
-		fmt.Println("ao forge transcript --last-session --quiet --queue")
-		fmt.Println("ao maturity --scan")
-		fmt.Println("ao maturity --expire --archive")
-		fmt.Println("ao maturity --evict --archive")
 		fmt.Println()
 		fmt.Println("# Stop hook (close flywheel)")
 		fmt.Printf("# %s\n", hooks.Stop[0].Hooks[0].Command)
-		fmt.Println("ao flywheel close-loop --quiet")
 
 	default:
 		return fmt.Errorf("unknown format: %s (use json or shell)", hooksOutputFormat)
@@ -619,7 +613,9 @@ func installFullHookScripts(installBase string) error {
 
 func generateHooksForInstall(installBase string) (*HooksConfig, []string, error) {
 	if !hooksFull {
-		return generateMinimalHooksConfig(), []string{"SessionStart", "Stop"}, nil
+		config := generateMinimalHooksConfig()
+		replacePluginRoot(config, installBase)
+		return config, []string{"SessionStart", "SessionEnd", "Stop"}, nil
 	}
 
 	config, err := generateFullHooksConfig()

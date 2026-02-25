@@ -19,15 +19,15 @@ ao hooks show
 
 ### SessionStart Hook
 
-When you start a Claude Code session:
+When you start a Claude Code session, behavior depends on `AGENTOPS_STARTUP_CONTEXT_MODE`:
 
-1. **Confidence decay** is applied to stale learnings (10%/week decay rate)
-2. **Knowledge injection** delivers relevant context:
-   - Recent learnings from `.agents/learnings/`
-   - Active patterns from `.agents/patterns/`
-   - Recent session summaries
+**`manual` (default):** MEMORY.md is auto-loaded by Claude Code. The hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`). No `ao extract` or `ao inject` runs. This is the lightest startup path.
 
-The injection is weighted by:
+**`lean`:** Runs `ao extract` + `ao inject` with a reduced token budget (400 tokens when MEMORY.md is fresh). Useful when you want automatic knowledge injection alongside MEMORY.md.
+
+**`legacy`:** Runs `ao extract` + `ao inject` with full token budget (800 tokens). Pre-notebook behavior for backward compatibility.
+
+In `lean`/`legacy` modes, injection is weighted by:
 - **Freshness**: More recent = higher score
 - **Utility**: Learnings that led to successful outcomes score higher
 - **Maturity**: Established learnings weighted over provisional ones
@@ -98,7 +98,7 @@ ao hooks install --dry-run
 # Overwrite existing ao hooks explicitly
 ao hooks install --force
 
-# Optional: install lightweight mode only (SessionStart + Stop)
+# Optional: install lightweight mode (SessionStart + SessionEnd + Stop)
 ao hooks install --minimal
 ```
 
@@ -125,7 +125,7 @@ ao hooks test --dry-run
 ## Manual Configuration
 
 If you prefer manual setup, add this to `~/.claude/settings.json`.
-Note: this is a minimal example. `ao hooks install --full` is recommended for full 12-event coverage.
+Note: this is a minimal example. `ao hooks install` is recommended for full coverage.
 
 ```json
 {
@@ -133,13 +133,19 @@ Note: this is a minimal example. `ao hooks install --full` is recommended for fu
     "SessionStart": [
       {
         "matcher": "",
-        "command": ["bash", "-c", "ao inject --apply-decay --max-tokens 1500 2>/dev/null || true"]
+        "command": ["bash", "-c", "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "command": ["bash", "-c", "${CLAUDE_PLUGIN_ROOT}/hooks/session-end-maintenance.sh"]
       }
     ],
     "Stop": [
       {
         "matcher": "",
-        "command": ["bash", "-c", "ao forge transcript --last-session --quiet --queue 2>/dev/null; ao task-sync --promote 2>/dev/null || true"]
+        "command": ["bash", "-c", "${CLAUDE_PLUGIN_ROOT}/hooks/ao-flywheel-close.sh"]
       }
     ]
   }

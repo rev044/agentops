@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # AgentOps Session Start Hook (minimal flywheel)
-# Creates .agents/ directories, runs extract+inject, injects skill context.
+# Creates .agents/ directories, optionally runs extract+inject, injects skill context.
+#
+# Startup modes (AGENTOPS_STARTUP_CONTEXT_MODE):
+#   manual  (default) — MEMORY.md auto-loaded by Claude Code; emit pointer only, no extract/inject
+#   lean    — extract + lean inject (shrinks when MEMORY.md is fresh)
+#   legacy  — extract + full inject (pre-notebook behavior)
 
 # Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_SESSION_START_DISABLED:-}" = "1" ] && exit 0
+
+STARTUP_MODE="${AGENTOPS_STARTUP_CONTEXT_MODE:-manual}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -61,10 +68,29 @@ if [ ! -f "$ROOT/.agents/.gitignore" ]; then
 EOF
 fi
 
-# Flywheel: extract pending queue + inject prior knowledge
+# Flywheel behavior depends on startup mode
 INJECTED_KNOWLEDGE=""
-if command -v ao &>/dev/null; then
-    # Build bead context flags from Gas Town env vars (optional)
+NOTEBOOK_LEAN_MODE=0
+
+# Predecessor handoff discovery (used in all modes)
+PREDECESSOR_FILE="${GT_PREDECESSOR_HANDOFF:-}"
+if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
+    PREDECESSOR_FILE=$(ls -t "$ROOT/.agents/handoff/"*.md 2>/dev/null | head -1)
+fi
+
+if [ "$STARTUP_MODE" = "manual" ]; then
+    # Manual mode (default): MEMORY.md is auto-loaded by Claude Code.
+    # No extract/inject — emit pointer-only context for JIT retrieval.
+    MANUAL_CTX="MEMORY.md is auto-loaded by Claude Code for this project.
+For on-demand retrieval: \`ao search \"<query>\"\` or \`ao lookup --query \"<query>\"\`"
+    if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
+        MANUAL_CTX="${MANUAL_CTX}
+Predecessor handoff: ${PREDECESSOR_FILE}"
+    fi
+    INJECTED_KNOWLEDGE="$MANUAL_CTX"
+
+elif command -v ao &>/dev/null; then
+    # Lean/legacy mode: extract pending queue + inject prior knowledge
     INJECT_EXTRA_FLAGS=()
     if [ -n "${HOOK_BEAD:-}" ]; then
         INJECT_EXTRA_FLAGS+=(--bead "$HOOK_BEAD")
@@ -73,22 +99,13 @@ if command -v ao &>/dev/null; then
         run_ao_quick 5 extract || log_hook_fail "ao extract"
     fi
 
-    # Find most recent predecessor handoff file (optional)
-    PREDECESSOR_FILE="${GT_PREDECESSOR_HANDOFF:-}"
-    if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
-        PREDECESSOR_FILE=$(ls -t "$ROOT/.agents/handoff/"*.md 2>/dev/null | head -1)
-    fi
     if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
         INJECT_EXTRA_FLAGS+=(--predecessor "$PREDECESSOR_FILE")
     fi
 
-    # Notebook-aware injection: when MEMORY.md exists and is fresh, shrink
-    # injection to predecessor+bead context only (~400 tokens). MEMORY.md is
-    # auto-loaded by Claude Code — no need to duplicate flywheel content.
-    # Without MEMORY.md, fall back to full injection for cold-start experience.
-    NOTEBOOK_LEAN_MODE=0
+    # Notebook-aware lean injection (skip in legacy mode)
     MEMORY_DIR="$HOME/.claude/projects"
-    if [ -d "$MEMORY_DIR" ]; then
+    if [ "$STARTUP_MODE" != "legacy" ] && [ -d "$MEMORY_DIR" ]; then
         PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
         MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
         if [ -f "$MEMORY_FILE" ]; then
@@ -106,7 +123,6 @@ if command -v ao &>/dev/null; then
 
     INJECT_MODE_FLAGS=(--apply-decay --format markdown)
     if [ "$NOTEBOOK_LEAN_MODE" = "1" ]; then
-        # Lean mode: MEMORY.md carries context, inject only predecessor+bead
         INJECT_MODE_FLAGS+=(--max-tokens 400)
     elif [ "${AGENTOPS_INDEX_INJECT:-0}" = "1" ]; then
         INJECT_MODE_FLAGS+=(--index-only --max-tokens 400)

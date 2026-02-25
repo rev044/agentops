@@ -11,13 +11,15 @@ metadata:
 
 # Inject Skill
 
-**Typically runs automatically via SessionStart hook.**
+**On-demand knowledge retrieval. Not run automatically at startup (since ag-8km).**
 
 Inject relevant prior knowledge into the current session.
 
 ## How It Works
 
-The SessionStart hook runs:
+In the default `manual` startup mode, MEMORY.md is auto-loaded by Claude Code and no startup injection occurs. Use `/inject` or `ao inject` for on-demand retrieval when you need deeper context.
+
+In `lean` or `legacy` startup modes (set via `AGENTOPS_STARTUP_CONTEXT_MODE`), the SessionStart hook runs:
 ```bash
 ao inject --apply-decay --format markdown --max-tokens 1000 \
   [--bead <bead-id>] [--predecessor <handoff-path>]
@@ -121,9 +123,9 @@ Knowledge relevance decays over time (~17%/week). More recent learnings are weig
 
 ## Examples
 
-### SessionStart Hook Invocation
+### SessionStart Hook Invocation (lean/legacy modes only)
 
-**Hook triggers:** `session-start.sh` runs at session start
+**Hook triggers:** `session-start.sh` runs at session start with `AGENTOPS_STARTUP_CONTEXT_MODE=lean` or `legacy`
 
 **What happens:**
 1. Hook calls `ao inject --apply-decay --format markdown --max-tokens 1000`
@@ -133,6 +135,8 @@ Knowledge relevance decays over time (~17%/week). More recent learnings are weig
 5. Agent presents injected knowledge in session context
 
 **Result:** Prior learnings, patterns, research automatically available at session start without manual lookup.
+
+**Note:** In the default `manual` mode, MEMORY.md is auto-loaded by Claude Code and this hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`).
 
 ### Manual Context Injection
 
