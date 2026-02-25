@@ -1,10 +1,16 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 // writeTestMDLearning creates a markdown learning file with YAML front matter.
@@ -214,4 +220,269 @@ func TestApplyAllMaturityTransitions_MixedTransitions(t *testing.T) {
 	if !strings.Contains(string(badData), "maturity: anti-pattern") {
 		t.Errorf("bad-learn should be anti-pattern, got:\n%s", string(badData))
 	}
+}
+
+func TestCloseLoop_AppliesAllTransitions(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	// Create a .md learning with high utility that should promote from provisional to candidate.
+	// Transition requires utility >= 0.7 AND reward_count >= 3.
+	path := writeTestMDLearning(t, learningsDir, "test-learn-e2e-001.md", map[string]string{
+		"id":            "test-learn-e2e-001",
+		"maturity":      "provisional",
+		"utility":       "0.85",
+		"reward_count":  "5",
+		"confidence":    "0.8",
+		"helpful_count": "4",
+		"harmful_count": "0",
+	}, "# Test Learning\nThis learning has high utility and should promote to candidate.\n")
+
+	summary, err := applyAllMaturityTransitions(tmp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if summary.Applied < 1 {
+		t.Errorf("Applied = %d, want >= 1", summary.Applied)
+	}
+
+	// Verify the file now contains maturity: candidate
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "maturity: candidate") {
+		t.Errorf("expected maturity: candidate in file, got:\n%s", content)
+	}
+}
+
+func TestCloseLoop_IntegrationEndToEnd(t *testing.T) {
+	tmp := t.TempDir()
+
+	// 1. Create the learning file
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatalf("mkdir learnings: %v", err)
+	}
+
+	learningPath := writeTestMDLearning(t, learningsDir, "e2e-test-learning.md", map[string]string{
+		"id":            "e2e-test-learning",
+		"utility":       "0.6000",
+		"reward_count":  "3",
+		"last_reward":   "0.70",
+		"last_reward_at": "2026-02-24T00:00:00Z",
+		"maturity":      "provisional",
+		"helpful_count": "2",
+		"harmful_count": "0",
+		"confidence":    "0.3750",
+	}, "# E2E Test Learning\nThis is an end-to-end test learning to verify the feedback loop.\n")
+
+	// 2. Write a citation for this learning
+	citation := types.CitationEvent{
+		SessionID:     "e2e-test-session",
+		ArtifactPath:  ".agents/learnings/e2e-test-learning.md",
+		CitationType:  "retrieved",
+		CitedAt:       time.Date(2026, 2, 24, 12, 0, 0, 0, time.UTC),
+		FeedbackGiven: false,
+	}
+	citationData, err := json.Marshal(citation)
+	if err != nil {
+		t.Fatalf("marshal citation: %v", err)
+	}
+	citationsPath := filepath.Join(tmp, ".agents", "ao", "citations.jsonl")
+	if err := os.MkdirAll(filepath.Dir(citationsPath), 0755); err != nil {
+		t.Fatalf("mkdir citations: %v", err)
+	}
+	if err := os.WriteFile(citationsPath, append(citationData, '\n'), 0600); err != nil {
+		t.Fatalf("write citations: %v", err)
+	}
+
+	// 3. Override HOME so computeSessionRewardForCloseLoop can't find real transcripts
+	//    and falls back to 0.5 (neutral reward).
+	t.Setenv("HOME", tmp)
+
+	// 4. Call processCitationFeedback
+	total, rewarded, skipped := processCitationFeedback(tmp)
+
+	// 5. Verify return values
+	if total != 1 {
+		t.Errorf("total = %d, want 1", total)
+	}
+	if rewarded != 1 {
+		t.Errorf("rewarded = %d, want 1", rewarded)
+	}
+	if skipped != 0 {
+		t.Errorf("skipped = %d, want 0", skipped)
+	}
+
+	// 6. Verify utility updated via EMA with fallback reward=0.5
+	//    Expected: (1-0.1)*0.6 + 0.1*0.5 = 0.54 + 0.05 = 0.59
+	data, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatalf("read learning: %v", err)
+	}
+	content := string(data)
+
+	// Parse utility from frontmatter
+	utilityVal := parseFrontMatterFloat(content, "utility")
+	expectedUtility := 0.59
+	if math.Abs(utilityVal-expectedUtility) > 0.01 {
+		t.Errorf("utility = %.4f, want approximately %.2f (tolerance 0.01)", utilityVal, expectedUtility)
+	}
+
+	// 7. Verify reward_count incremented from 3 to 4
+	if !strings.Contains(content, "reward_count: 4") {
+		t.Errorf("expected reward_count: 4 in file, got:\n%s", content)
+	}
+
+	// 8. Verify feedback.jsonl was written
+	feedbackPath := filepath.Join(tmp, ".agents", "ao", "feedback.jsonl")
+	feedbackData, err := os.ReadFile(feedbackPath)
+	if err != nil {
+		t.Fatalf("read feedback.jsonl: %v", err)
+	}
+	feedbackContent := string(feedbackData)
+	if feedbackContent == "" {
+		t.Fatal("feedback.jsonl is empty")
+	}
+
+	// Parse the first feedback event
+	var fe FeedbackEvent
+	if err := json.Unmarshal([]byte(strings.Split(feedbackContent, "\n")[0]), &fe); err != nil {
+		t.Fatalf("parse feedback event: %v", err)
+	}
+
+	if fe.SessionID == "" {
+		t.Error("feedback event session_id is empty")
+	}
+	if !strings.Contains(fe.ArtifactPath, "e2e-test-learning") {
+		t.Errorf("feedback event artifact_path = %q, want to contain 'e2e-test-learning'", fe.ArtifactPath)
+	}
+	if math.Abs(fe.Reward-0.5) > 0.01 {
+		t.Errorf("feedback event reward = %.4f, want approximately 0.5", fe.Reward)
+	}
+	if math.Abs(fe.UtilityBefore-0.6) > 0.01 {
+		t.Errorf("feedback event utility_before = %.4f, want approximately 0.6", fe.UtilityBefore)
+	}
+	if math.Abs(fe.UtilityAfter-0.59) > 0.01 {
+		t.Errorf("feedback event utility_after = %.4f, want approximately 0.59", fe.UtilityAfter)
+	}
+	if fe.Alpha != 0.1 {
+		t.Errorf("feedback event alpha = %.4f, want 0.1", fe.Alpha)
+	}
+}
+
+func TestCloseLoop_CitationFeedbackWithMaturityTransition(t *testing.T) {
+	tmp := t.TempDir()
+
+	// 1. Create a .md learning with utility=0.68, reward_count=2, maturity=provisional
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatalf("mkdir learnings: %v", err)
+	}
+
+	learningPath := writeTestMDLearning(t, learningsDir, "transition-test-learning.md", map[string]string{
+		"id":            "transition-test-learning",
+		"utility":       "0.68",
+		"reward_count":  "2",
+		"maturity":      "provisional",
+		"helpful_count": "2",
+		"harmful_count": "0",
+		"confidence":    "0.3",
+	}, "# Transition Test Learning\nThis learning will be manually pushed to candidate threshold.\n")
+
+	// 2. Write a citation for it
+	citation := types.CitationEvent{
+		SessionID:     "transition-test-session",
+		ArtifactPath:  ".agents/learnings/transition-test-learning.md",
+		CitationType:  "retrieved",
+		CitedAt:       time.Date(2026, 2, 24, 12, 0, 0, 0, time.UTC),
+		FeedbackGiven: false,
+	}
+	citationData, err := json.Marshal(citation)
+	if err != nil {
+		t.Fatalf("marshal citation: %v", err)
+	}
+	citationsPath := filepath.Join(tmp, ".agents", "ao", "citations.jsonl")
+	if err := os.MkdirAll(filepath.Dir(citationsPath), 0755); err != nil {
+		t.Fatalf("mkdir citations: %v", err)
+	}
+	if err := os.WriteFile(citationsPath, append(citationData, '\n'), 0600); err != nil {
+		t.Fatalf("write citations: %v", err)
+	}
+
+	// 3. Override HOME (no transcripts -> fallback reward 0.5)
+	t.Setenv("HOME", tmp)
+
+	// 4. Call processCitationFeedback — utility ~= (0.9)*0.68 + (0.1)*0.5 = 0.662
+	total, rewarded, skipped := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 1 || skipped != 0 {
+		t.Errorf("processCitationFeedback = (%d, %d, %d), want (1, 1, 0)", total, rewarded, skipped)
+	}
+
+	// Verify utility is around 0.662 (still below 0.7 threshold for promotion)
+	data, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatalf("read learning: %v", err)
+	}
+	utilityAfterFeedback := parseFrontMatterFloat(string(data), "utility")
+	if math.Abs(utilityAfterFeedback-0.662) > 0.01 {
+		t.Errorf("utility after feedback = %.4f, want approximately 0.662", utilityAfterFeedback)
+	}
+
+	// 5. Now manually update utility to 0.75 and reward_count to 4
+	//    (simulating multiple successful sessions that pushed utility above threshold)
+	updatedContent := string(data)
+	updatedContent = replaceFrontMatterField(updatedContent, "utility", "0.7500")
+	updatedContent = replaceFrontMatterField(updatedContent, "reward_count", "4")
+	if err := os.WriteFile(learningPath, []byte(updatedContent), 0644); err != nil {
+		t.Fatalf("write updated learning: %v", err)
+	}
+
+	// 6. Call applyAllMaturityTransitions
+	summary, err := applyAllMaturityTransitions(tmp)
+	if err != nil {
+		t.Fatalf("applyAllMaturityTransitions error: %v", err)
+	}
+
+	// 7. Verify the learning transitioned from provisional to candidate
+	finalData, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatalf("read final learning: %v", err)
+	}
+	finalContent := string(finalData)
+	if !strings.Contains(finalContent, "maturity: candidate") {
+		t.Errorf("expected maturity: candidate after transition, got:\n%s", finalContent)
+	}
+	if summary.Applied < 1 {
+		t.Errorf("Applied = %d, want >= 1", summary.Applied)
+	}
+}
+
+// parseFrontMatterFloat extracts a float value from YAML front matter in a markdown string.
+func parseFrontMatterFloat(content, field string) float64 {
+	var val float64
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, field+":") {
+			_, _ = fmt.Sscanf(line, field+": %f", &val)
+			return val
+		}
+	}
+	return val
+}
+
+// replaceFrontMatterField replaces a front matter field value in a markdown string.
+func replaceFrontMatterField(content, field, newValue string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, field+":") {
+			lines[i] = fmt.Sprintf("%s: %s", field, newValue)
+			break
+		}
+	}
+	return strings.Join(lines, "\n")
 }
