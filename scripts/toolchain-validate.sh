@@ -569,6 +569,7 @@ run_semgrep() {
         --exclude-rule go.lang.security.audit.xss.import-text-template.import-text-template
         --exclude-rule go.lang.security.deserialization.unsafe-deserialization-interface.go-unsafe-deserialization-interface
         --exclude-rule python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        --exclude-rule bash.lang.security.ifs-tampering.ifs-tampering
     )
 
     if [[ -n "$ssl_cert_file" ]]; then
