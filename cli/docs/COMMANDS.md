@@ -1453,6 +1453,35 @@ ao maturity [learning-id] [flags]
 
 ---
 
+### `ao memory`
+
+Manage repo-root MEMORY.md for cross-runtime access
+
+```
+ao memory [command]
+```
+
+**Subcommands:**
+
+#### `ao memory sync`
+
+Write recent session history to a repo-root MEMORY.md with managed block markers.
+
+```
+ao memory sync [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help              help for sync
+      --max-entries int   Maximum session entries to keep (default 10)
+      --output string     Output path (default: MEMORY.md in repo root)
+      --quiet             Suppress output
+```
+
+---
+
 ### `ao metrics`
 
 Track and report on knowledge flywheel metrics.

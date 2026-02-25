@@ -32,13 +32,20 @@ In `lean`/`legacy` modes, injection is weighted by:
 - **Utility**: Learnings that led to successful outcomes score higher
 - **Maturity**: Established learnings weighted over provisional ones
 
+### SessionEnd Hook
+
+When a Claude Code session ends:
+
+1. **Learning extraction** via `ao forge transcript --last-session`
+2. **Notebook update** via `ao notebook update` (updates Claude Code MEMORY.md)
+3. **Repo-root sync** via `ao memory sync` (opt-in, set `AGENTOPS_MEMORY_SYNC=1`)
+4. **Maturity maintenance** applies maturity scoring and eviction
+
 ### Stop Hook
 
-When your session ends:
+When your session stops:
 
-1. **Learning extraction** from the completed session transcript
-2. **Task sync** promotes completed tasks to higher maturity levels
-3. **Feedback loop** updates utility scores based on session outcome
+1. **Flywheel close** via `ao flywheel close-loop`
 
 ### CPU Safety Guardrails
 
