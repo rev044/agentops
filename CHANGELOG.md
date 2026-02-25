@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.1] - 2026-02-25
+
+### Changed
+- SessionStart hook default mode changed from `manual` to `lean` — flywheel injection now fires every session
+- Auto-prune enabled by default (`AGENTOPS_AUTO_PRUNE` defaults to `1`, opt-out via `=0`)
+- Anti-pattern detection threshold lowered from `harmful_count >= 5` to `>= 3`
+- Eviction confidence threshold relaxed from `< 0.2` to `< 0.3`
+- Maturity promotion threshold in `--help` text synced with code (`0.7` → `0.55`)
+
+### Fixed
+- Empty learnings no longer inflate flywheel metrics — extract prompt skips empty files, pool ingest rejects "no significant learnings" stubs
+- `ao pool ingest` now runs automatically in session-end hook after forge (was manual-only)
+- 8 stale doc/comment references to old thresholds updated across hooks, ENV-VARS.md, HOOKS.md, using-agentops skill
+- 13 empty stub learnings removed from `.agents/learnings/`
+
 ## [2.18.0] - 2026-02-25
 
 ### Added
@@ -30,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bead metadata resolver reads from env vars (`HOOK_BEAD_TITLE`, `HOOK_BEAD_LABELS`) or cache file
 - Goal templates embedded in binary (go-cli, python-lib, web-app, rust-cli, generic) for `ao goals init --template` and `ao seed`
 - Platform-specific process-group isolation for goal check timeouts (Unix: SIGKILL pgid, Windows: taskkill /T)
-- SessionStart hook rewritten with 3 startup modes: manual (default), lean, legacy — via `AGENTOPS_STARTUP_CONTEXT_MODE`
+- SessionStart hook rewritten with 3 startup modes: lean (default), manual, legacy — via `AGENTOPS_STARTUP_CONTEXT_MODE`
 - SessionEnd hook now gates notebook update and memory sync on successful forge
 - Type 3 setup hook template: `hooks/examples/50-agentops-bootstrap.sh`
 - Constraint compiler hook: `hooks/constraint-compiler.sh`
@@ -38,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive cmd/ao test coverage push — 500+ tests across 5 waves reaching 79.2% statement coverage (13 untestable functions excluded)
 
 ### Changed
-- SessionStart hook default mode changed from full inject to `manual` (pointer-only context, MEMORY.md auto-loaded by Claude Code)
+- SessionStart hook default mode changed from full inject to `lean` (extract + lean inject, shrinks when MEMORY.md is fresh)
 - `ao flywheel close-loop` now applies ALL maturity transitions (not just anti-pattern)
 - `ao hooks` generated config uses script-based commands instead of inline ao invocations
 - `ao rpi` prefers epic-type issues before falling back to any open issue
