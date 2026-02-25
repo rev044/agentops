@@ -183,19 +183,6 @@ func findMemoryFile(cwd string) (string, error) {
 			}
 		}
 	}
-	// Broader fallback: contains the last path component
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		if strings.Contains(e.Name(), lastComponent) {
-			candidate := filepath.Join(projectsDir, e.Name(), "memory", "MEMORY.md")
-			if _, err := os.Stat(candidate); err == nil {
-				return candidate, nil
-			}
-		}
-	}
-
 	return "", fmt.Errorf("no MEMORY.md found for %s", cwd)
 }
 
@@ -292,6 +279,7 @@ func readLatestSessionEntry(cwd string) (*pendingEntry, error) {
 }
 
 // readSessionByID finds and reads a specific session by ID prefix.
+// Detects ambiguous matches and returns an error if multiple files match.
 func readSessionByID(cwd string, id string) (*pendingEntry, error) {
 	sessionsDir := filepath.Join(cwd, ".agents", "ao", "sessions")
 	entries, err := os.ReadDir(sessionsDir)
@@ -299,15 +287,22 @@ func readSessionByID(cwd string, id string) (*pendingEntry, error) {
 		return nil, err
 	}
 
+	var matches []string
 	for _, e := range entries {
 		if e.IsDir() || filepath.Ext(e.Name()) != ".jsonl" {
 			continue
 		}
 		if strings.Contains(e.Name(), id) {
-			return readSessionFile(filepath.Join(sessionsDir, e.Name()))
+			matches = append(matches, e.Name())
 		}
 	}
-	return nil, fmt.Errorf("session %s not found", id)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("session %s not found", id)
+	}
+	if len(matches) > 1 {
+		return nil, fmt.Errorf("ambiguous session ID %s matches %d files", id, len(matches))
+	}
+	return readSessionFile(filepath.Join(sessionsDir, matches[0]))
 }
 
 // readSessionFile reads a single session JSONL file and maps it to pendingEntry.
@@ -490,8 +485,12 @@ func upsertLastSession(sections []notebookSection, lastSession notebookSection) 
 }
 
 // pruneNotebook trims the longest sections to stay under the line budget.
+// Iteration is capped to prevent runaway loops when sections resist pruning.
 func pruneNotebook(sections []notebookSection, maxLines int) []notebookSection {
-	for totalLines(sections) > maxLines {
+	const maxIterations = 100
+	iteration := 0
+	for totalLines(sections) > maxLines && iteration < maxIterations {
+		iteration++
 		// Find the longest content section (skip preamble and Last Session)
 		longestIdx := -1
 		longestLen := 0

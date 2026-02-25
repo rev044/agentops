@@ -30,11 +30,12 @@ run_maintenance() {
 
     if run_ao_quick 6 forge transcript --last-session --quiet; then
         run_ao_quick 8 notebook update --quiet || true
-    fi
 
-    # Sync to repo-root MEMORY.md (opt-in via AGENTOPS_MEMORY_SYNC=1)
-    if [ "${AGENTOPS_MEMORY_SYNC:-0}" = "1" ]; then
-        run_ao_quick 10 memory sync --quiet || true
+        # Sync to repo-root MEMORY.md (opt-in via AGENTOPS_MEMORY_SYNC=1)
+        # Only runs after successful forge — no point syncing stale data
+        if [ "${AGENTOPS_MEMORY_SYNC:-0}" = "1" ]; then
+            run_ao_quick 10 memory sync --quiet || true
+        fi
     fi
 
     run_ao_quick 4 maturity --scan --apply || true

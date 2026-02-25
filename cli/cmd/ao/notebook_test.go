@@ -539,6 +539,47 @@ func TestReadSessionByID_NotFound(t *testing.T) {
 	}
 }
 
+func TestReadSessionByID_Ambiguous(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create two files that both match the ID substring "abc"
+	data1 := `{"session_id":"abc1111","date":"2026-02-25T10:00:00Z","summary":"session 1"}`
+	data2 := `{"session_id":"abc2222","date":"2026-02-25T11:00:00Z","summary":"session 2"}`
+	os.WriteFile(filepath.Join(sessionsDir, "2026-02-25-session-abc1111.jsonl"), []byte(data1+"\n"), 0644)
+	os.WriteFile(filepath.Join(sessionsDir, "2026-02-25-session-abc2222.jsonl"), []byte(data2+"\n"), 0644)
+
+	_, err := readSessionByID(tmp, "abc")
+	if err == nil {
+		t.Fatal("expected error for ambiguous session ID")
+	}
+	if !strings.Contains(err.Error(), "ambiguous") {
+		t.Errorf("error should mention ambiguity, got: %v", err)
+	}
+}
+
+func TestPruneNotebook_IterationCap(t *testing.T) {
+	// Create sections that resist pruning — all protected types
+	sections := []notebookSection{
+		{Heading: "# My Notebook", Lines: []string{"", "Main content"}},
+		{Heading: "## Last Session", Lines: make([]string, 500)},
+	}
+	// Fill Last Session with non-empty lines
+	for i := range sections[1].Lines {
+		sections[1].Lines[i] = "line"
+	}
+
+	// With only protected sections, pruning can't make progress but should not loop forever
+	result := pruneNotebook(sections, 10)
+	// Should return without infinite loop — the iteration cap prevents it
+	if result == nil {
+		t.Error("pruneNotebook should return sections even when it can't prune")
+	}
+}
+
 func TestResolveNotebookSource_AutoFallback(t *testing.T) {
 	tmp := t.TempDir()
 

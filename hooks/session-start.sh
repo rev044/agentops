@@ -76,7 +76,7 @@ NOTEBOOK_LEAN_MODE=0
 MEMORY_DIR="$HOME/.claude/projects"
 PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
 MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
-MEMORY_AGE_DAYS=0
+MEMORY_AGE_DAYS=-1
 if [ -f "$MEMORY_FILE" ]; then
     MTIME=$(stat -f %m "$MEMORY_FILE" 2>/dev/null || stat -c %Y "$MEMORY_FILE" 2>/dev/null || echo "")
     if [ -n "$MTIME" ]; then
@@ -116,7 +116,7 @@ elif command -v ao &>/dev/null; then
     fi
 
     # Notebook-aware lean injection (skip in legacy mode)
-    if [ "$STARTUP_MODE" != "legacy" ] && [ -f "$MEMORY_FILE" ] && [ "$MEMORY_AGE_DAYS" -le 7 ]; then
+    if [ "$STARTUP_MODE" != "legacy" ] && [ -f "$MEMORY_FILE" ] && [ "$MEMORY_AGE_DAYS" -ge 0 ] && [ "$MEMORY_AGE_DAYS" -le 7 ]; then
         NOTEBOOK_LEAN_MODE=1
     fi
 

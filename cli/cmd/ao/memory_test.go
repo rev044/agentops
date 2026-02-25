@@ -232,33 +232,117 @@ func TestAssembleManagedFile_PreservesManualContent(t *testing.T) {
 	}
 }
 
-func TestMemorySync_DedupBySessionID(t *testing.T) {
-	managed := `
-- **[2026-02-25]** (abc1234) Already present
-- **[2026-02-24]** (def5678) Also present
-`
-	existingIDs := extractSessionIDs(managed)
+func TestSyncMemory_DedupOnSecondSync(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	os.MkdirAll(sessionsDir, 0755)
 
-	entry := &pendingEntry{
-		SessionID: "abc1234xxx",
-		Summary:   "New work",
-		QueuedAt:  time.Date(2026, 2, 25, 10, 0, 0, 0, time.UTC),
+	// Create 2 session files
+	for i, id := range []string{"aaa1111", "bbb2222"} {
+		entry := map[string]any{
+			"session_id": id,
+			"date":       time.Date(2026, 2, 24+i, 10, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			"summary":    fmt.Sprintf("Session %d work", i),
+		}
+		data, _ := json.Marshal(entry)
+		name := fmt.Sprintf("2026-02-%02d-test-%s.jsonl", 24+i, id[:7])
+		os.WriteFile(filepath.Join(sessionsDir, name), data, 0644)
 	}
-	formatted := formatMemoryEntry(entry)
 
-	// abc1234 (7 chars) matches existing "abc1234"
-	if existingIDs["abc1234"] {
-		// This should be deduped — the ID is truncated to 7 chars
-		id := entry.SessionID
-		if len(id) > 7 {
-			id = id[:7]
-		}
-		if existingIDs[id] {
-			formatted = "" // simulate dedup
-		}
+	outputPath := filepath.Join(tmp, "MEMORY.md")
+
+	// First sync
+	if err := syncMemory(tmp, outputPath, 10, true); err != nil {
+		t.Fatalf("first sync: %v", err)
 	}
-	if formatted != "" {
-		t.Error("should dedup entry with matching session ID prefix")
+
+	// Read output after first sync
+	data1, _ := os.ReadFile(outputPath)
+	count1 := strings.Count(string(data1), "aaa1111")
+	if count1 != 1 {
+		t.Fatalf("after first sync: expected 1 occurrence of aaa1111, got %d", count1)
+	}
+
+	// Second sync (same sessions) — should NOT duplicate
+	if err := syncMemory(tmp, outputPath, 10, true); err != nil {
+		t.Fatalf("second sync: %v", err)
+	}
+
+	data2, _ := os.ReadFile(outputPath)
+	count2 := strings.Count(string(data2), "aaa1111")
+	if count2 != 1 {
+		t.Errorf("after second sync: expected 1 occurrence of aaa1111, got %d (dedup failed)", count2)
+	}
+	count2b := strings.Count(string(data2), "bbb2222")
+	if count2b != 1 {
+		t.Errorf("after second sync: expected 1 occurrence of bbb2222, got %d (dedup failed)", count2b)
+	}
+}
+
+func TestSyncMemory_PreservesManualContent(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	os.MkdirAll(sessionsDir, 0755)
+
+	entry := map[string]any{
+		"session_id": "aaa1111",
+		"date":       time.Date(2026, 2, 25, 10, 0, 0, 0, time.UTC).Format(time.RFC3339),
+		"summary":    "Test session",
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(filepath.Join(sessionsDir, "2026-02-25-test-aaa1111.jsonl"), data, 0644)
+
+	outputPath := filepath.Join(tmp, "MEMORY.md")
+	os.WriteFile(outputPath, []byte("# My Notes\n\nManual content here.\n"), 0644)
+
+	if err := syncMemory(tmp, outputPath, 10, true); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+
+	result, _ := os.ReadFile(outputPath)
+	resultStr := string(result)
+
+	if !strings.Contains(resultStr, "Manual content here.") {
+		t.Error("should preserve manual content")
+	}
+	if !strings.Contains(resultStr, "aaa1111") {
+		t.Error("should contain session entry")
+	}
+	if !strings.Contains(resultStr, memoryBlockStart) {
+		t.Error("should contain managed block markers")
+	}
+}
+
+func TestSyncMemory_NoSessions(t *testing.T) {
+	tmp := t.TempDir()
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	os.MkdirAll(sessionsDir, 0755)
+
+	outputPath := filepath.Join(tmp, "MEMORY.md")
+
+	if err := syncMemory(tmp, outputPath, 10, true); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+
+	// Should not create file when no sessions exist
+	if _, err := os.Stat(outputPath); err == nil {
+		t.Error("should not create output file when no sessions exist")
+	}
+}
+
+func TestParseManagedBlock_DuplicateMarkers(t *testing.T) {
+	// Two start markers — should refuse to parse to avoid data loss
+	content := "# Header\n" + memoryBlockStart + "\nentry1\n" + memoryBlockEnd + "\nMiddle\n" + memoryBlockStart + "\nentry2\n" + memoryBlockEnd + "\n"
+	before, managed, after := parseManagedBlock(content)
+
+	if before != content {
+		t.Error("duplicate markers: before should be entire content")
+	}
+	if managed != "" {
+		t.Error("duplicate markers: managed should be empty")
+	}
+	if after != "" {
+		t.Error("duplicate markers: after should be empty")
 	}
 }
 

@@ -66,13 +66,18 @@ func runMemorySync(cmd *cobra.Command, args []string) error {
 		outputPath = filepath.Join(root, "MEMORY.md")
 	}
 
+	return syncMemory(cwd, outputPath, memorySyncMaxEntries, memorySyncQuiet)
+}
+
+// syncMemory is the testable core of memory sync, free of Cobra global state.
+func syncMemory(cwd, outputPath string, maxEntries int, quiet bool) error {
 	// Read recent sessions
-	entries, err := readNLatestSessionEntries(cwd, memorySyncMaxEntries)
+	entries, err := readNLatestSessionEntries(cwd, maxEntries)
 	if err != nil {
 		return fmt.Errorf("read sessions: %w", err)
 	}
 	if len(entries) == 0 {
-		if !memorySyncQuiet {
+		if !quiet {
 			VerbosePrintf("No session data available for memory sync\n")
 		}
 		return nil
@@ -107,8 +112,8 @@ func runMemorySync(cmd *cobra.Command, args []string) error {
 	allEntries := append(newEntries, existingEntries...)
 
 	// Trim to max
-	if len(allEntries) > memorySyncMaxEntries {
-		allEntries = allEntries[:memorySyncMaxEntries]
+	if len(allEntries) > maxEntries {
+		allEntries = allEntries[:maxEntries]
 	}
 
 	// Build output
@@ -124,7 +129,7 @@ func runMemorySync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("write %s: %w", outputPath, err)
 	}
 
-	if !memorySyncQuiet {
+	if !quiet {
 		fmt.Printf("Synced %d session(s) to %s\n", len(allEntries), outputPath)
 	}
 	return nil
@@ -154,12 +159,17 @@ func readNLatestSessionEntries(cwd string, maxCount int) ([]*pendingEntry, error
 	}
 
 	var results []*pendingEntry
+	var skipped int
 	for _, name := range jsonlFiles {
 		entry, err := readSessionFile(filepath.Join(sessionsDir, name))
 		if err != nil {
-			continue // skip unreadable files
+			skipped++
+			continue
 		}
 		results = append(results, entry)
+	}
+	if skipped > 0 {
+		VerbosePrintf("warning: skipped %d unreadable session file(s)\n", skipped)
 	}
 	return results, nil
 }
@@ -176,6 +186,10 @@ func parseManagedBlock(content string) (before, managed, after string) {
 		return content, "", ""
 	}
 	if endIdx <= startIdx {
+		return content, "", ""
+	}
+	// Ambiguous: multiple markers found — treat as no block to avoid data loss
+	if strings.Count(content, memoryBlockStart) > 1 || strings.Count(content, memoryBlockEnd) > 1 {
 		return content, "", ""
 	}
 
@@ -233,11 +247,8 @@ func formatMemoryEntry(entry *pendingEntry) string {
 	}
 	// Strip newlines from summary
 	summary = strings.ReplaceAll(summary, "\n", " ")
-	// Truncate long summaries (rune-safe for multi-byte UTF-8)
-	runes := []rune(summary)
-	if len(runes) > 200 {
-		summary = string(runes[:197]) + "..."
-	}
+	// Truncate long summaries (uses rune-safe truncateText from inject.go)
+	summary = truncateText(summary, 200)
 
 	return fmt.Sprintf("- **[%s]** (%s) %s", date, id, summary)
 }
