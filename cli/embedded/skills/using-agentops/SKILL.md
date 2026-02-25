@@ -26,6 +26,8 @@ Research → Plan → Implement → Validate
 ```bash
 /research <topic>      # Deep codebase exploration
 /knowledge <query>     # Query existing knowledge
+ao lookup <id>         # Pull full content of specific learning
+ao lookup --query "x"  # Search knowledge by relevance
 ```
 
 **Output:** `.agents/research/<topic>.md`

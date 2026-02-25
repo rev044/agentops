@@ -99,10 +99,11 @@ Given `/crank [epic-id | plan-file.md | "description"]`:
 **Search for relevant learnings before starting the epic:**
 
 ```bash
-# If ao CLI available, inject prior knowledge about epic execution
+# If ao CLI available, pull relevant knowledge for this epic
 if command -v ao &>/dev/null; then
-    # Search for relevant learnings
-    ao search "epic execution implementation patterns" 2>/dev/null | head -20
+    # Pull knowledge scoped to the epic
+    ao lookup --query "<epic-title>" --limit 5 2>/dev/null || \
+      ao search "epic execution implementation patterns" 2>/dev/null | head -20
 
     # Check flywheel status
     ao flywheel status 2>/dev/null

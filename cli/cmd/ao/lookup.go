@@ -1,0 +1,391 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
+
+	"github.com/boshu2/agentops/cli/internal/config"
+	"github.com/boshu2/agentops/cli/internal/ratchet"
+	"github.com/boshu2/agentops/cli/internal/types"
+)
+
+var (
+	lookupQuery     string
+	lookupLimit     int
+	lookupBead      string
+	lookupJSON      bool
+	lookupNoCite    bool
+	lookupSessionID string
+)
+
+var lookupCmd = &cobra.Command{
+	Use:   "lookup [id]",
+	Short: "Retrieve specific knowledge artifacts by ID or query",
+	Long: `Lookup retrieves full content of specific knowledge artifacts.
+
+This is the Phase 2 complement to 'ao inject --index-only'. After seeing
+the compact knowledge index at session start, use lookup to pull full
+content for items relevant to your current task.
+
+Modes:
+  ao lookup <id>                    # Fetch one learning by ID
+  ao lookup --query "topic"         # Top matches by relevance
+  ao lookup --bead ag-xyz           # Learnings from bead lineage
+
+Examples:
+  ao lookup learn-2026-02-22-cross-lang
+  ao lookup --query "authentication" --limit 5
+  ao lookup --bead ag-mrr
+  ao lookup --query "anti-patterns" --json`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runLookup,
+}
+
+func init() {
+	lookupCmd.GroupID = "knowledge"
+	rootCmd.AddCommand(lookupCmd)
+	lookupCmd.Flags().StringVar(&lookupQuery, "query", "", "Search query for relevance matching")
+	lookupCmd.Flags().IntVar(&lookupLimit, "limit", 3, "Maximum results to return")
+	lookupCmd.Flags().StringVar(&lookupBead, "bead", "", "Filter by source bead ID")
+	lookupCmd.Flags().BoolVar(&lookupJSON, "json", false, "JSON output")
+	lookupCmd.Flags().BoolVar(&lookupNoCite, "no-cite", false, "Skip citation recording")
+	lookupCmd.Flags().StringVar(&lookupSessionID, "session", "", "Session ID for citation tracking")
+}
+
+func runLookup(cmd *cobra.Command, args []string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	cfg, cfgErr := config.Load(nil)
+	if cfgErr != nil {
+		VerbosePrintf("Warning: config load: %v (using defaults)\n", cfgErr)
+	}
+
+	// Mode 1: Lookup by ID
+	if len(args) > 0 {
+		return lookupByID(cwd, args[0], cfg)
+	}
+
+	// Mode 2 or 3: Query-based or bead-based
+	if lookupQuery == "" && lookupBead == "" {
+		return fmt.Errorf("provide an ID argument, --query, or --bead flag")
+	}
+
+	return lookupByQuery(cwd, cfg)
+}
+
+// lookupByID searches all learning and pattern files for a matching ID.
+func lookupByID(cwd, id string, cfg *config.Config) error {
+	globalLearningsDir := ""
+	globalPatternsDir := ""
+	if cfg != nil {
+		globalLearningsDir = cfg.Paths.GlobalLearningsDir
+		globalPatternsDir = cfg.Paths.GlobalPatternsDir
+	}
+
+	// Search learnings
+	learnings, _ := collectLearnings(cwd, "", MaxLearningsToInject*5, globalLearningsDir, 1.0)
+	for _, l := range learnings {
+		if matchesID(l.ID, l.Source, id) {
+			return outputLearning(cwd, l)
+		}
+	}
+
+	// Search patterns
+	patterns, _ := collectPatterns(cwd, "", MaxPatternsToInject*5, globalPatternsDir, 1.0)
+	for _, p := range patterns {
+		if matchesID(p.Name, p.FilePath, id) {
+			return outputPattern(cwd, p)
+		}
+	}
+
+	return fmt.Errorf("no artifact found matching ID: %s", id)
+}
+
+// matchesID checks if the given id matches the item's ID, name, or filename.
+func matchesID(itemID, filePath, searchID string) bool {
+	searchLower := strings.ToLower(searchID)
+	if strings.ToLower(itemID) == searchLower {
+		return true
+	}
+	if filePath != "" {
+		base := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+		if strings.ToLower(base) == searchLower {
+			return true
+		}
+		// Also check if the filename contains the search ID
+		if strings.Contains(strings.ToLower(base), searchLower) {
+			return true
+		}
+	}
+	return false
+}
+
+// lookupByQuery uses the existing collectors with query filtering.
+func lookupByQuery(cwd string, cfg *config.Config) error {
+	globalLearningsDir := ""
+	globalPatternsDir := ""
+	globalWeight := 0.8
+	if cfg != nil {
+		globalLearningsDir = cfg.Paths.GlobalLearningsDir
+		globalPatternsDir = cfg.Paths.GlobalPatternsDir
+		globalWeight = cfg.Paths.GlobalWeight
+	}
+
+	query := lookupQuery
+	limit := lookupLimit
+
+	// Collect and score learnings
+	learnings, _ := collectLearnings(cwd, query, limit*3, globalLearningsDir, globalWeight)
+
+	// Apply bead filter if specified
+	if lookupBead != "" {
+		learnings = filterByBead(learnings, lookupBead)
+	}
+
+	// Collect and score patterns
+	patterns, _ := collectPatterns(cwd, query, limit, globalPatternsDir, globalWeight)
+
+	// Trim to limit
+	if len(learnings) > limit {
+		learnings = learnings[:limit]
+	}
+
+	// Record citations
+	if !lookupNoCite && (len(learnings) > 0 || len(patterns) > 0) {
+		sessionID := canonicalSessionID(lookupSessionID)
+		citationQuery := query
+		if citationQuery == "" {
+			citationQuery = lookupBead
+		}
+		recordLookupCitations(cwd, learnings, patterns, sessionID, citationQuery)
+	}
+
+	return outputResults(cwd, learnings, patterns)
+}
+
+// filterByBead keeps only learnings whose SourceBead matches the given bead ID.
+func filterByBead(learnings []learning, beadID string) []learning {
+	beadLower := strings.ToLower(beadID)
+	var filtered []learning
+	for _, l := range learnings {
+		if strings.ToLower(l.SourceBead) == beadLower {
+			filtered = append(filtered, l)
+		}
+	}
+	return filtered
+}
+
+// outputLearning renders a single learning result.
+func outputLearning(cwd string, l learning) error {
+	if lookupJSON {
+		return outputJSON(l)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("## %s\n\n", l.ID))
+	sb.WriteString(fmt.Sprintf("**%s**\n", l.Title))
+	sb.WriteString(fmt.Sprintf("Utility: %.2f | Age: %s | Score: %.2f\n\n",
+		l.Utility, formatLookupAge(l.AgeWeeks), l.CompositeScore))
+	if l.Summary != "" {
+		sb.WriteString(l.Summary + "\n\n")
+	}
+
+	// Read full file content if available
+	if l.Source != "" {
+		content, err := os.ReadFile(l.Source)
+		if err == nil {
+			sb.WriteString("---\n")
+			sb.WriteString(string(content))
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("\nSource: %s\n", relPath(cwd, l.Source)))
+	if l.SourceBead != "" {
+		sb.WriteString(fmt.Sprintf("Source bead: %s", l.SourceBead))
+		if l.SourcePhase != "" {
+			sb.WriteString(fmt.Sprintf(" | Phase: %s", l.SourcePhase))
+		}
+		sb.WriteString("\n")
+	}
+
+	fmt.Println(sb.String())
+
+	// Record citation for single lookup
+	if !lookupNoCite && l.Source != "" {
+		sessionID := canonicalSessionID(lookupSessionID)
+		event := types.CitationEvent{
+			ArtifactPath: canonicalArtifactPath(cwd, l.Source),
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: "pulled",
+			Query:        l.ID,
+		}
+		if err := ratchet.RecordCitation(cwd, event); err != nil {
+			VerbosePrintf("Warning: failed to record citation: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// outputPattern renders a single pattern result.
+func outputPattern(cwd string, p pattern) error {
+	if lookupJSON {
+		return outputJSON(p)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("## %s\n\n", p.Name))
+	if p.Description != "" {
+		sb.WriteString(p.Description + "\n\n")
+	}
+	sb.WriteString(fmt.Sprintf("Utility: %.2f | Age: %s | Score: %.2f\n\n",
+		p.Utility, formatLookupAge(p.AgeWeeks), p.CompositeScore))
+
+	if p.FilePath != "" {
+		content, err := os.ReadFile(p.FilePath)
+		if err == nil {
+			sb.WriteString("---\n")
+			sb.WriteString(string(content))
+		}
+		sb.WriteString(fmt.Sprintf("\nSource: %s\n", relPath(cwd, p.FilePath)))
+	}
+
+	fmt.Println(sb.String())
+
+	if !lookupNoCite && p.FilePath != "" {
+		sessionID := canonicalSessionID(lookupSessionID)
+		event := types.CitationEvent{
+			ArtifactPath: canonicalArtifactPath(cwd, p.FilePath),
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: "pulled",
+			Query:        p.Name,
+		}
+		if err := ratchet.RecordCitation(cwd, event); err != nil {
+			VerbosePrintf("Warning: failed to record citation: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// outputResults renders multiple learnings and patterns.
+func outputResults(cwd string, learnings []learning, patterns []pattern) error {
+	if lookupJSON {
+		result := struct {
+			Learnings []learning `json:"learnings"`
+			Patterns  []pattern  `json:"patterns"`
+		}{
+			Learnings: learnings,
+			Patterns:  patterns,
+		}
+		return outputJSON(result)
+	}
+
+	if len(learnings) == 0 && len(patterns) == 0 {
+		fmt.Println("No matching artifacts found.")
+		return nil
+	}
+
+	for _, l := range learnings {
+		fmt.Printf("## %s\n\n", l.ID)
+		fmt.Printf("**%s**\n", l.Title)
+		fmt.Printf("Utility: %.2f | Age: %s | Score: %.2f\n",
+			l.Utility, formatLookupAge(l.AgeWeeks), l.CompositeScore)
+		if l.Summary != "" {
+			fmt.Printf("%s\n", l.Summary)
+		}
+		fmt.Printf("Source: %s\n\n", relPath(cwd, l.Source))
+	}
+
+	for _, p := range patterns {
+		fmt.Printf("## %s\n\n", p.Name)
+		if p.Description != "" {
+			fmt.Printf("%s\n", p.Description)
+		}
+		fmt.Printf("Score: %.2f\n", p.CompositeScore)
+		if p.FilePath != "" {
+			fmt.Printf("Source: %s\n", relPath(cwd, p.FilePath))
+		}
+		fmt.Println()
+	}
+
+	return nil
+}
+
+// outputJSON marshals any value to indented JSON and prints it.
+func outputJSON(v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal json: %w", err)
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+// relPath returns a relative path from cwd, or the original if it fails.
+func relPath(cwd, path string) string {
+	if rel, err := filepath.Rel(cwd, path); err == nil {
+		return rel
+	}
+	return path
+}
+
+// formatLookupAge formats age in weeks as human-readable.
+func formatLookupAge(ageWeeks float64) string {
+	if ageWeeks < 0.14 {
+		return "<1d"
+	}
+	days := ageWeeks * 7
+	if days < 7 {
+		return fmt.Sprintf("%.0fd", days)
+	}
+	if days < 30 {
+		return fmt.Sprintf("%.0fw", ageWeeks)
+	}
+	return fmt.Sprintf("%.0fmo", days/30)
+}
+
+// recordLookupCitations records "pulled" citations for lookup results.
+func recordLookupCitations(cwd string, learnings []learning, patterns []pattern, sessionID, query string) {
+	for _, l := range learnings {
+		if l.Source == "" {
+			continue
+		}
+		event := types.CitationEvent{
+			ArtifactPath: canonicalArtifactPath(cwd, l.Source),
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: "pulled",
+			Query:        query,
+		}
+		if err := ratchet.RecordCitation(cwd, event); err != nil {
+			VerbosePrintf("Warning: record citation for %s: %v\n", l.ID, err)
+		}
+	}
+	for _, p := range patterns {
+		if p.FilePath == "" {
+			continue
+		}
+		event := types.CitationEvent{
+			ArtifactPath: canonicalArtifactPath(cwd, p.FilePath),
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: "pulled",
+			Query:        query,
+		}
+		if err := ratchet.RecordCitation(cwd, event); err != nil {
+			VerbosePrintf("Warning: record citation for %s: %v\n", p.Name, err)
+		}
+	}
+}

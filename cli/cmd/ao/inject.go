@@ -45,6 +45,7 @@ var (
 	injectApplyDecay  bool
 	injectBead        string
 	injectPredecessor string
+	injectIndexOnly   bool
 )
 
 type olConstraint struct {
@@ -137,6 +138,7 @@ func init() {
 	injectCmd.Flags().BoolVar(&injectApplyDecay, "apply-decay", false, "Apply confidence decay before ranking")
 	injectCmd.Flags().StringVar(&injectBead, "bead", "", "Bead ID for work-scoped knowledge injection")
 	injectCmd.Flags().StringVar(&injectPredecessor, "predecessor", "", "Path to predecessor handoff file for context injection")
+	injectCmd.Flags().BoolVar(&injectIndexOnly, "index-only", false, "Output compact knowledge index table instead of full content")
 }
 
 func runInject(cmd *cobra.Command, args []string) error {
@@ -182,9 +184,15 @@ func runInject(cmd *cobra.Command, args []string) error {
 		knowledge.Predecessor = parsePredecessorFile(injectPredecessor)
 	}
 
-	output, err := renderKnowledge(knowledge, injectFormat)
-	if err != nil {
-		return err
+	var output string
+	if injectIndexOnly {
+		output = renderKnowledgeIndex(knowledge)
+	} else {
+		var renderErr error
+		output, renderErr = renderKnowledge(knowledge, injectFormat)
+		if renderErr != nil {
+			return renderErr
+		}
 	}
 
 	charBudget := injectMaxTokens * InjectCharsPerToken

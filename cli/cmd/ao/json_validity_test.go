@@ -107,34 +107,6 @@ goals:
 	return path
 }
 
-// writeGoalsMD creates a minimal GOALS.md for testing in dir.
-func writeGoalsMD(t *testing.T, dir string) string {
-	t.Helper()
-	gf := &goals.GoalFile{
-		Version: 4,
-		Format:  "md",
-		Mission: "Test project fitness goals",
-		NorthStars: []string{
-			"All checks pass",
-		},
-		AntiStars: []string{
-			"Untested code on main",
-		},
-		Directives: []goals.Directive{
-			{Number: 1, Title: "Establish baseline", Description: "Get everything green", Steer: "increase"},
-		},
-		Goals: []goals.Goal{
-			{ID: "test-gate", Description: "Echo gate", Check: "echo ok", Weight: 5, Type: goals.GoalTypeHealth},
-		},
-	}
-	content := goals.RenderGoalsMD(gf)
-	path := filepath.Join(dir, "GOALS.md")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write GOALS.md: %v", err)
-	}
-	return path
-}
-
 // setupPoolWithCandidate creates a pool directory and adds one candidate.
 func setupPoolWithCandidate(t *testing.T, dir string) *pool.Pool {
 	t.Helper()
@@ -152,52 +124,6 @@ func setupPoolWithCandidate(t *testing.T, dir string) *pool.Pool {
 		t.Fatalf("pool add: %v", err)
 	}
 	return p
-}
-
-// setupRatchetChain creates a minimal chain.jsonl for testing.
-func setupRatchetChain(t *testing.T, dir string) {
-	t.Helper()
-	chainDir := filepath.Join(dir, ".agents", "ao")
-	if err := os.MkdirAll(chainDir, 0o755); err != nil {
-		t.Fatalf("mkdir chain dir: %v", err)
-	}
-
-	entry := ratchet.ChainEntry{
-		Step:      ratchet.StepResearch,
-		Locked:    true,
-		Input:     "research-request",
-		Output:    ".agents/research/findings.md",
-		Timestamp: time.Now(),
-		Location:  dir,
-	}
-
-	data, err := json.Marshal(entry)
-	if err != nil {
-		t.Fatalf("marshal chain entry: %v", err)
-	}
-	chainPath := filepath.Join(chainDir, "chain.jsonl")
-	if err := os.WriteFile(chainPath, append(data, '\n'), 0o644); err != nil {
-		t.Fatalf("write chain: %v", err)
-	}
-}
-
-// setupAgentsDirs creates the standard .agents directory structure.
-func setupAgentsDirs(t *testing.T, dir string) {
-	t.Helper()
-	dirs := []string{
-		".agents/learnings",
-		".agents/patterns",
-		".agents/retros",
-		".agents/research",
-		".agents/ao/sessions",
-		".agents/ao/index",
-		".agents/pool/pending",
-	}
-	for _, d := range dirs {
-		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", d, err)
-		}
-	}
 }
 
 // ---------------------------------------------------------------------------

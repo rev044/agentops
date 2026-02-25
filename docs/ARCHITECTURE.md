@@ -209,7 +209,11 @@ Every `/post-mortem` feeds back into the next `/rpi` cycle:
 
 ### Quality Gates
 
-Learnings re-enter future context windows through quality gates: 5-dimension scoring (specificity, actionability, novelty, context, confidence) into gold/silver/bronze tiers. Freshness decay (MemRL two-phase retrieval, delta=0.17/week from [Darr 1995](the-science.md)) ensures stale knowledge loses priority automatically. The flywheel is curation, not just storage.
+Learnings re-enter future context windows through quality gates: 5-dimension scoring (specificity, actionability, novelty, context, confidence) into gold/silver/bronze tiers. Two decay rates ensure stale knowledge loses priority automatically:
+- **Knowledge freshness** (delta=0.17/week from [Darr 1995](the-science.md)): how quickly a learning loses relevance
+- **Confidence decay** (0.10/week): how quickly certainty erodes without reinforcing feedback
+
+The flywheel is curation, not just storage.
 
 ### Knowledge Artifacts
 
@@ -402,12 +406,38 @@ For full workflow orchestration, skills integrate with the ao CLI:
 
 ---
 
-## Session Hook
+## Session Hooks
+
+Three hooks form the knowledge flywheel's mechanical backbone:
+
+### SessionStart — "Check your mail first"
 
 On session start, `hooks/session-start.sh`:
-1. Creates `.agents/` directories if missing
-2. Injects `using-agentops` skill content as context
-3. Outputs JSON with `additionalContext` for compatible agent runtimes
+1. Creates `.agents/` directories if missing (local + global `~/.agents/`)
+2. Runs `ao extract` to process any pending knowledge queue
+3. Runs `ao inject --apply-decay --max-tokens 1000` to load context:
+   - **Local** `.agents/learnings/` and `.agents/patterns/` (1.0x weight)
+   - **Global** `~/.agents/learnings/` and `~/.agents/patterns/` (0.8x weight, cross-repo)
+   - **Work-scoped boost**: if `HOOK_BEAD` is set (active issue), matching learnings get 1.5x
+   - **Predecessor context**: if `.agents/handoff/` contains a handoff, injects what the previous session was working on (~200 tokens)
+   - **Two-phase MemRL ranking**: Phase A scores by similarity + freshness, Phase B by utility + composite. Result: the most recent, most relevant learnings from *this repo* surface first
+4. Injects `using-agentops` skill content as context
+5. Outputs JSON with `additionalContext` for compatible agent runtimes
+
+The injection is intentionally lightweight (~1000 tokens). The agent gets the freshest context automatically; if the task needs more, it searches `.agents/` on demand.
+
+### SessionEnd — Extract and prune
+
+On session end, `hooks/session-end-maintenance.sh` (35s timeout):
+1. `ao forge transcript --last-session --queue` — mine transcript for learnings
+2. `ao maturity --scan` — identify artifacts ready for promotion
+3. `ao maturity --expire --archive` — mark stale artifacts (freshness decay ~17%/week)
+4. `ao maturity --evict --archive` — archive what's decayed past threshold
+
+### Stop — Close the loop
+
+On stop, `hooks/ao-flywheel-close.sh` (15s timeout):
+1. `ao flywheel close-loop` — record session completion, trigger deferred promotion
 
 ---
 

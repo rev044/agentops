@@ -103,9 +103,11 @@ This installs 3 hooks — the bare minimum for the knowledge flywheel:
 
 | Event | What happens |
 |-------|-------------|
-| **SessionStart** | Extract pending queue, inject top learnings (freshness-weighted) |
+| **SessionStart** | Check your mail first: extract pending queue, then inject the freshest learnings from this repo (and global `~/.agents/` for cross-repo knowledge). Most recent lessons rank highest — what the last agent learned is what you see first. Lightweight by design (~1000 tokens); agents search `.agents/` for more when the task demands it. |
 | **SessionEnd** | Mine transcript for knowledge (`ao forge`), expire/evict stale artifacts (`ao maturity`) |
 | **Stop** | Close the feedback loop (`ao flywheel close-loop`) |
+
+The injection is freshness-first: recent learnings from *this repo* outweigh older or cross-repo knowledge. Work-scoped context (active issue via `--bead`) gets a 1.5x boost. Predecessor handoff context (what the previous session was working on) is injected automatically when available. The goal: every session starts where the last one left off — not from scratch, and not with random noise.
 
 </details>
 
@@ -358,14 +360,25 @@ How the knowledge system and pipeline phases work under the hood.
 ```
 Session N ends
     → ao forge: mine transcript for learnings, decisions, patterns
-    → ao maturity --expire: mark stale artifacts (freshness decay)
+    → ao maturity --expire: mark stale artifacts (freshness decay ~17%/week)
     → ao maturity --evict: archive what's decayed past threshold
 
 Session N+1 starts
-    → ao inject --apply-decay: score all artifacts by recency,
-      inject top-N within token budget
-    → Agent starts with institutional knowledge, not a blank slate
+    → ao inject --apply-decay: score artifacts by recency + utility
+      ├── Local .agents/ learnings & patterns (1.0x weight)
+      ├── Global ~/.agents/ cross-repo knowledge (0.8x weight)
+      ├── Work-scoped boost: active issue gets 1.5x (--bead)
+      ├── Predecessor handoff: what the last session was doing (--predecessor)
+      └── Trim to ~1000 tokens — lightweight, not encyclopedic
+    → Agent starts where the last one left off
 ```
+
+The injection philosophy: **check your mail, then get to work.** Every agent's first act is loading the freshest context from this repo — what the last agent learned, what's in progress, what patterns have been established. It's a small, curated packet — not a data dump. If the task needs deeper knowledge, the agent searches `.agents/` on demand.
+
+Three knowledge tiers feed the injection:
+- **Local** (`.agents/`): this repo's learnings and patterns — highest priority
+- **Global** (`~/.agents/`): cross-repo knowledge that compounds across all your projects
+- **Legacy** (`~/.claude/patterns/`): read-only, lowest weight — for backward compatibility
 
 Write once, score by freshness, inject the best, prune the rest. If `retrieval_rate × usage_rate` stays above decay and scale friction, knowledge compounds. If not, growth stalls unless fresh input or stronger controls are added. The [formal model](docs/the-science.md) is cache eviction with a decay function and limits-to-growth controls.
 
@@ -449,19 +462,25 @@ Each phase spawns a fresh Claude session — no context bleed. Worktree isolatio
 </details>
 
 <details>
-<summary><b>Setting up /evolve</b> — GOALS.yaml and the fitness loop</summary>
+<summary><b>Setting up /evolve</b> — GOALS.md and the fitness loop</summary>
 
-Bootstrap with `/goals generate` — it scans your repo (PRODUCT.md, README, skills, tests) and proposes mechanically verifiable goals. Or write them by hand:
+Bootstrap with `ao goals init` — it interviews you about your repo and generates mechanically verifiable goals. Or write them by hand:
 
-```yaml
-# GOALS.yaml
-version: 1
-goals:
-  - id: test-pass-rate
-    description: "All tests pass"
-    check: "make test"
-    weight: 10
+```markdown
+# GOALS.md
+
+## test-pass-rate
+- **check:** `make test`
+- **weight:** 10
+All tests pass.
+
+## code-complexity
+- **check:** `gocyclo -over 15 ./...`
+- **weight:** 6
+No function exceeds cyclomatic complexity 15.
 ```
+
+Migrating from GOALS.yaml? Run `ao goals migrate --to-md`. Manage goals with `ao goals steer add/remove/prioritize` and prune stale ones with `ao goals prune`.
 
 `/evolve` measures them, picks the worst gap by weight, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. It commits locally — you control when to push. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
 

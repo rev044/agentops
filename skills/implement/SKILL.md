@@ -29,6 +29,13 @@ Given `/implement <issue-id-or-description>`:
 
 **For ratchet gate checks and pre-mortem gate details, read `skills/implement/references/gate-checks.md`.**
 
+### Step 0.5: Pull Relevant Knowledge
+
+```bash
+# Pull knowledge scoped to this issue (if ao available)
+ao lookup --bead <issue-id> --limit 3 2>/dev/null || true
+```
+
 ### Step 1: Get Issue Details
 
 **If beads issue ID provided** (e.g., `gt-123`):

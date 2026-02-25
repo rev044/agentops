@@ -62,6 +62,7 @@ EOF
 fi
 
 # Flywheel: extract pending queue + inject prior knowledge
+INJECTED_KNOWLEDGE=""
 if command -v ao &>/dev/null; then
     # Build bead context flags from Gas Town env vars (optional)
     INJECT_EXTRA_FLAGS=()
@@ -81,24 +82,62 @@ if command -v ao &>/dev/null; then
         INJECT_EXTRA_FLAGS+=(--predecessor "$PREDECESSOR_FILE")
     fi
 
-    run_ao_quick 5 inject --apply-decay --format markdown --max-tokens 1000 "${INJECT_EXTRA_FLAGS[@]}" || log_hook_fail "ao inject"
+    # Two-phase injection: index-only mode sends compact table (~200 tokens)
+    # instead of full content (~800 tokens). Agent uses `ao lookup` on-demand.
+    # Feature flag: AGENTOPS_INDEX_INJECT=1 enables index-only mode.
+    INJECT_MODE_FLAGS=(--apply-decay --format markdown)
+    if [ "${AGENTOPS_INDEX_INJECT:-0}" = "1" ]; then
+        INJECT_MODE_FLAGS+=(--index-only --max-tokens 400)
+    else
+        INJECT_MODE_FLAGS+=(--max-tokens 800)
+    fi
+
+    # Use bead title as query for relevance-scoped injection
+    if [ -n "${HOOK_BEAD:-}" ] && command -v bd &>/dev/null; then
+        BEAD_TITLE=$("$AO_TIMEOUT_BIN" 3 bd show "$HOOK_BEAD" --json 2>/dev/null | jq -r '.title // empty' 2>/dev/null || true)
+        if [ -n "$BEAD_TITLE" ]; then
+            INJECT_EXTRA_FLAGS+=("$BEAD_TITLE")
+        fi
+    fi
+
+    if ! INJECTED_KNOWLEDGE="$(run_ao_quick 5 inject "${INJECT_MODE_FLAGS[@]}" "${INJECT_EXTRA_FLAGS[@]}")"; then
+        log_hook_fail "ao inject"
+        INJECTED_KNOWLEDGE=""
+    fi
 fi
 
-# Inject using-agentops skill context
+# Keep startup context lean: inject only fresh flywheel knowledge and a short skill pointer.
 SKILL_FILE="${PLUGIN_ROOT}/skills/using-agentops/SKILL.md"
 if [ -f "$SKILL_FILE" ]; then
-    using_agentops_content=$(cat "$SKILL_FILE")
+    using_agentops_hint="AgentOps workflow context is available. Use the Skill tool to read ${SKILL_FILE} when needed."
 else
-    using_agentops_content="(AgentOps skill content unavailable)"
+    using_agentops_hint="(AgentOps skill content unavailable at ${SKILL_FILE})"
 fi
 
-full_content="<EXTREMELY_IMPORTANT>
-You have AgentOps superpowers.
+MAX_INJECT_CHARS=6000
+if [ -n "$INJECTED_KNOWLEDGE" ] && [ "${#INJECTED_KNOWLEDGE}" -gt "$MAX_INJECT_CHARS" ]; then
+    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE:0:$MAX_INJECT_CHARS}
+...[truncated by session-start hook]"
+fi
 
-**Below is the full content of your 'agentops:using-agentops' skill - your introduction to using AgentOps skills. For all other skills, use the 'Skill' tool:**
+if [ -n "$INJECTED_KNOWLEDGE" ]; then
+    full_content=$(cat <<HOOKCTX
+<AGENTOPS_CONTEXT>
+${INJECTED_KNOWLEDGE}
 
-${using_agentops_content}
-</EXTREMELY_IMPORTANT>"
+${using_agentops_hint}
+</AGENTOPS_CONTEXT>
+HOOKCTX
+)
+else
+    full_content=$(cat <<HOOKCTX
+<AGENTOPS_CONTEXT>
+No prior flywheel knowledge was injected for this session.
+${using_agentops_hint}
+</AGENTOPS_CONTEXT>
+HOOKCTX
+)
+fi
 
 if command -v jq &>/dev/null; then
     additional_context=$(printf '%s' "$full_content" | jq -Rs '.')

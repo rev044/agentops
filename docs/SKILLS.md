@@ -411,7 +411,7 @@ Capture lessons from accepted/rejected PR outcomes.
 Reinstall all AgentOps skills globally from the latest source.
 
 ```bash
-/update                      # Reinstall all 51 skills
+/update                      # Reinstall all 53 skills
 ```
 
 ---

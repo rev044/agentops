@@ -38,11 +38,10 @@ mkdir -p .agents/research
 **First, search and inject existing knowledge (if ao available):**
 
 ```bash
-# Search knowledge base for relevant learnings, patterns, and prior research
-ao search "<topic>" 2>/dev/null || echo "ao not available, skipping knowledge search"
-
-# Inject relevant context into this session
-ao inject "<topic>" 2>/dev/null || echo "ao not available, skipping knowledge injection"
+# Pull relevant prior knowledge for this topic
+ao lookup --query "<topic>" --limit 5 2>/dev/null || \
+  ao search "<topic>" 2>/dev/null || \
+  echo "ao not available, skipping knowledge search"
 ```
 
 **Review ao search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:

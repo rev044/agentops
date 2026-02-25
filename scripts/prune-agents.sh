@@ -169,6 +169,77 @@ prune_older_than "$AGENTS_DIR/opencode-tests" 7 "*.txt" "opencode-tests/summarie
 prune_keep_newest "$AGENTS_DIR/ao/subagent-outputs" 50 "ao/subagent-outputs"
 [[ "$QUIET" == false ]] && echo ""
 
+# --- Policy: releases/local-ci/ — keep last 3 runs ---
+# Local CI validation runs dump ~2GB each (scanner output, SBOMs, etc.)
+if [[ -d "$AGENTS_DIR/releases/local-ci" ]]; then
+    ci_runs=$(find "$AGENTS_DIR/releases/local-ci" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    keep_ci=3
+    if [[ "$ci_runs" -gt "$keep_ci" ]]; then
+        to_delete_ci=$((ci_runs - keep_ci))
+        [[ "$QUIET" == false ]] && echo "[releases/local-ci] $ci_runs runs — keeping newest $keep_ci, pruning $to_delete_ci"
+        find "$AGENTS_DIR/releases/local-ci" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null \
+            | xargs -0 ls -dt 2>/dev/null \
+            | tail -n "$to_delete_ci" \
+            | while read -r d; do
+                local_size=$(du -sk "$d" 2>/dev/null | cut -f1 || echo 0)
+                TOTAL_FILES=$((TOTAL_FILES + 1))
+                if [[ "$DRY_RUN" == true ]]; then
+                    [[ "$QUIET" == false ]] && echo "  would delete: $d (~${local_size}KB)"
+                else
+                    rm -rf "$d"
+                    [[ "$QUIET" == false ]] && echo "  deleted: $d (~${local_size}KB)"
+                fi
+            done
+    else
+        [[ "$QUIET" == false ]] && echo "[releases/local-ci] $ci_runs runs — within limit ($keep_ci). Nothing to prune."
+    fi
+fi
+[[ "$QUIET" == false ]] && echo ""
+
+# --- Policy: evolve/ — keep last 20 cycle files ---
+prune_keep_newest "$AGENTS_DIR/evolve" 20 "evolve"
+[[ "$QUIET" == false ]] && echo ""
+
+# --- Policy: vibe/ vibecheck/ — keep last 20 ---
+prune_keep_newest "$AGENTS_DIR/vibe" 20 "vibe"
+prune_keep_newest "$AGENTS_DIR/vibecheck" 20 "vibecheck"
+[[ "$QUIET" == false ]] && echo ""
+
+# --- Policy: brainstorm/ — keep last 10 ---
+prune_keep_newest "$AGENTS_DIR/brainstorm" 10 "brainstorm"
+[[ "$QUIET" == false ]] && echo ""
+
+# --- Policy: compaction-snapshots/ — older than 7 days ---
+prune_older_than "$AGENTS_DIR/compaction-snapshots" 7 "*.md" "compaction-snapshots"
+[[ "$QUIET" == false ]] && echo ""
+
+# --- Policy: crank/ swarm/ — keep last 10 ---
+prune_keep_newest "$AGENTS_DIR/crank" 10 "crank"
+prune_keep_newest "$AGENTS_DIR/swarm" 10 "swarm"
+[[ "$QUIET" == false ]] && echo ""
+
+# --- Policy: status dashboards — keep last 5 ---
+if [[ -d "$AGENTS_DIR" ]]; then
+    dashboard_count=$(find "$AGENTS_DIR" -maxdepth 1 -name "status-dashboard*" -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$dashboard_count" -gt 5 ]]; then
+        to_delete_dash=$((dashboard_count - 5))
+        [[ "$QUIET" == false ]] && echo "[status-dashboards] $dashboard_count files — keeping newest 5, pruning $to_delete_dash"
+        find "$AGENTS_DIR" -maxdepth 1 -name "status-dashboard*" -type f -print0 2>/dev/null \
+            | xargs -0 ls -t 2>/dev/null \
+            | tail -n "$to_delete_dash" \
+            | while read -r f; do
+                if [[ "$DRY_RUN" == true ]]; then
+                    [[ "$QUIET" == false ]] && echo "  would delete: $f"
+                else
+                    rm -f "$f"
+                    [[ "$QUIET" == false ]] && echo "  deleted: $f"
+                fi
+                TOTAL_FILES=$((TOTAL_FILES + 1))
+            done
+    fi
+fi
+[[ "$QUIET" == false ]] && echo ""
+
 # --- Policy: archived-worktrees/ — older than 7 days ---
 if [[ -d "$AGENTS_DIR/archived-worktrees" ]]; then
     old_wt=$(find "$AGENTS_DIR/archived-worktrees" -maxdepth 1 -mindepth 1 -type d -mtime +7 2>/dev/null | wc -l | tr -d ' ')
