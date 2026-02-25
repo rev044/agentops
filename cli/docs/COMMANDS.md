@@ -1443,12 +1443,14 @@ ao maturity [learning-id] [flags]
 **Flags:**
 
 ```
-      --apply     Apply maturity transitions
-      --archive   Move expired/evicted files to archive (requires --expire or --evict)
-      --evict     Identify eviction candidates (composite criteria)
-      --expire    Scan for expired learnings
-  -h, --help      help for maturity
-      --scan      Scan all learnings for pending transitions
+      --apply         Apply maturity transitions
+      --archive       Move expired/evicted files to archive (requires --expire or --evict)
+      --evict         Identify eviction candidates (composite criteria)
+      --expire        Scan for expired learnings
+  -h, --help          help for maturity
+      --migrate-md    Add default frontmatter to .md learnings missing utility field
+      --recalibrate   Reset utility to 0.5 for all learnings
+      --scan          Scan all learnings for pending transitions
 ```
 
 ---
