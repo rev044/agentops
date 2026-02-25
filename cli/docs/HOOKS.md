@@ -21,9 +21,9 @@ ao hooks show
 
 When you start a Claude Code session, behavior depends on `AGENTOPS_STARTUP_CONTEXT_MODE`:
 
-**`lean` (default):** Runs `ao extract` + `ao inject` with a reduced token budget (400 tokens when MEMORY.md is fresh). Provides automatic knowledge injection alongside MEMORY.md.
+**`manual` (default):** MEMORY.md is auto-loaded by Claude Code. The hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`). No `ao extract` or `ao inject` runs. This is the lightest startup path.
 
-**`manual`:** MEMORY.md is auto-loaded by Claude Code. The hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`). No `ao extract` or `ao inject` runs. This is the lightest startup path.
+**`lean`:** Runs `ao extract` + `ao inject` with a reduced token budget (400 tokens when MEMORY.md is fresh). Provides automatic knowledge injection alongside MEMORY.md. Use `AGENTOPS_STARTUP_LEGACY_INJECT=1` to force this mode.
 
 **`legacy`:** Runs `ao extract` + `ao inject` with full token budget (800 tokens). Pre-notebook behavior for backward compatibility.
 

@@ -464,7 +464,7 @@ When all issues complete, run ONE comprehensive vibe on recent changes. Fix CRIT
 
 ### Step 8: Extract Learnings (ao Integration)
 
-If ao CLI available: run `ao forge transcript`, `ao flywheel status`, and `ao pool list --tier=pending` to extract and review learnings. If ao unavailable, skip and recommend `/post-mortem` manually.
+If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `/post-mortem` manually.
 
 ### Step 9: Report Completion
 

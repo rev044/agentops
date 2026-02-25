@@ -65,7 +65,7 @@ var (
 )
 
 func init() {
-	feedbackLoopCmd.Hidden = true
+	feedbackLoopCmd.Hidden = false
 	rootCmd.AddCommand(feedbackLoopCmd)
 	feedbackLoopCmd.Flags().StringVar(&feedbackLoopSessionID, "session", "", "Session ID to process")
 	feedbackLoopCmd.Flags().Float64Var(&feedbackLoopReward, "reward", -1, "Override reward value (0.0-1.0); -1 = compute from transcript")

@@ -383,6 +383,11 @@ if command -v ao &>/dev/null; then
   # Validate and lock artifacts that passed council review
   ao temper validate .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
   echo "Artifacts validated for tempering"
+
+  # Close session and trigger full flywheel close-loop (includes adaptive feedback)
+  ao session close 2>/dev/null || true
+  ao flywheel close-loop --quiet 2>/dev/null || true
+  echo "Session closed, flywheel loop triggered"
 else
   # Learnings are already in .agents/learnings/ from /retro (Step 4).
   # Without ao CLI, grep-based search in /research, /knowledge, and /inject

@@ -52,6 +52,10 @@ run_maintenance() {
 
     run_ao_quick 4 maturity --scan --apply || true
 
+    # Knowledge maintenance: deduplicate and detect contradictions
+    run_ao_quick 4 dedup --merge || true
+    run_ao_quick 4 contradict || true
+
     if [ "${AGENTOPS_EVICTION_DISABLED:-0}" != "1" ]; then
         run_ao_quick 4 maturity --expire --archive || true
         run_ao_quick 4 maturity --evict --archive || true

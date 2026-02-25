@@ -227,7 +227,7 @@ Write this into the retro file under:
 ### Step 7: Feed the Knowledge Flywheel (auto-extract)
 
 ```bash
-# If ao available, index via forge and apply task feedback
+# If ao available, index via forge, close session, and trigger flywheel
 if command -v ao &>/dev/null; then
   ao forge markdown .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null
   echo "Learnings indexed in knowledge flywheel"
@@ -235,6 +235,17 @@ if command -v ao &>/dev/null; then
   # Apply feedback from completed tasks to associated learnings
   ao task-feedback 2>/dev/null
   echo "Task feedback applied"
+
+  # Close session and trigger full flywheel close-loop
+  ao session close 2>/dev/null || true
+  ao flywheel close-loop --quiet 2>/dev/null || true
+  echo "Session closed, flywheel loop triggered"
+
+  # Sync insights to MEMORY.md immediately (don't wait for session end)
+  ao notebook update --quiet 2>/dev/null || true
+
+  # Flag stale constraints for retirement
+  ao constraint review 2>/dev/null || true
 else
   # Learnings are already written to .agents/learnings/ by Step 5.
   # Without ao CLI, grep-based search in /research, /knowledge, and /inject
