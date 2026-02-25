@@ -23,13 +23,19 @@ If you spawn into this repo without context, do this first:
 Use the [skills.sh](https://skills.sh/) npm package to install AgentOps skills for any agent:
 
 ```bash
-# Install for all supported agents
-npx skills@latest add boshu2/agentops --all -g
+# Claude Code: use Claude plugin install path (not npx)
+claude plugin marketplace add boshu2/agentops
+claude plugin install agentops@agentops-marketplace
 
-# Install for specific agents
-npx skills@latest add boshu2/agentops -g -a codex -s '*' -y
-npx skills@latest add boshu2/agentops -g -a opencode -s '*' -y
-npx skills@latest add boshu2/agentops -g -a cursor -s '*' -y
+# Codex: use Codex-native installer (repo-local script)
+bash scripts/install-codex-native-skills.sh
+
+# OpenCode: use OpenCode installer script
+bash scripts/install-opencode.sh
+
+# Other agents (for example Cursor): install only selected skills
+npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
+npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
 
 # Update all installed skills
 npx skills@latest update

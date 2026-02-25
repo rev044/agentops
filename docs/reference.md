@@ -185,17 +185,20 @@ claude plugin install agentops@agentops-marketplace
 claude plugin update agentops
 ```
 
-### Per-Agent Install (non-Claude runtimes)
+### Per-Runtime Install (non-Claude plugin path)
 
 ```bash
-# Codex
-npx skills@latest add boshu2/agentops -g -a codex -s '*' -y
+# Codex (Codex-native formatting)
+git clone https://github.com/boshu2/agentops.git
+cd agentops
+bash scripts/install-codex-native-skills.sh
 
 # OpenCode
-npx skills@latest add boshu2/agentops -g -a opencode -s '*' -y
+bash scripts/install-opencode.sh
 
-# Cursor
-npx skills@latest add boshu2/agentops -g -a cursor -s '*' -y
+# Other agents (example: Cursor)
+npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
+npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
 
 # Update all
 npx skills@latest update

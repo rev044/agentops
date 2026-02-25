@@ -93,9 +93,9 @@ The `ao doctor` "Plugin" check scans the `skills/` directory for subdirectories 
    ao hooks test
    ```
 
-For Codex/Cursor/OpenCode, use the `npx skills@latest add boshu2/agentops --all -g` install path instead of Claude plugin commands.
+For Codex, use `bash scripts/install-codex-native-skills.sh`. For OpenCode, use `bash scripts/install-opencode.sh`. For other Skills-compatible agents (for example Cursor), use agent-specific `npx skills` commands with explicit skill selection: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`.
 
-### `npx skills` update issues (Codex/Cursor/OpenCode)
+### `npx skills` update issues (non-Claude/non-Codex/non-OpenCode)
 
 **Symptoms:**
 
@@ -110,7 +110,7 @@ For Codex/Cursor/OpenCode, use the `npx skills@latest add boshu2/agentops --all 
    ```
 2. If specific skills still fail, reinstall each failed skill directly:
    ```bash
-   npx skills@latest add boshu2/agentops -g -a codex -s <skill-name> -y
+   npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
    ```
 3. Re-run update to verify a clean state:
    ```bash

@@ -295,7 +295,11 @@ Review timeline:
 
 Once merged:
 - Your skill is available in the plugin
-- Users can install with: `npx skills@latest add boshu2/agentops --all -g`
+- Users install by runtime:
+  - Claude Code: `claude plugin install agentops@agentops-marketplace`
+  - Codex: `bash scripts/install-codex-native-skills.sh`
+  - OpenCode: `bash scripts/install-opencode.sh`
+  - Other agents: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`
 - You'll be credited as author
 
 ## Release Cadence

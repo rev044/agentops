@@ -83,11 +83,13 @@ rm -rf ~/.claude/skills/agentops
 # Remove any symlinks (known failure: npx skills can't write through symlinks)
 find ~/.claude/skills -maxdepth 1 -type l -delete
 
-# Reinstall from latest (if latest is fixed)
-npx skills@latest add boshu2/agentops --all -g
+# Reinstall from latest Claude plugin
+claude plugin marketplace update agentops-marketplace
+claude plugin install agentops@agentops-marketplace
 
-# OR pin to a specific tag
-npx skills@latest add boshu2/agentops@v2.5.0 --all -g
+# OR reinstall marketplace + plugin
+claude plugin marketplace add boshu2/agentops
+claude plugin install agentops@agentops-marketplace
 ```
 
 ### Fix: Nuke and reinstall (if pinning doesn't work)
@@ -97,8 +99,9 @@ npx skills@latest add boshu2/agentops@v2.5.0 --all -g
 rm -rf ~/.claude/skills/agentops
 rm -rf ~/.claude/plugins/marketplaces/agentops-marketplace
 
-# Reinstall
-npx skills@latest add boshu2/agentops --all -g
+# Reinstall plugin
+claude plugin marketplace add boshu2/agentops
+claude plugin install agentops@agentops-marketplace
 ```
 
 ### Re-enable hooks after fix
@@ -252,14 +255,12 @@ exit 0  # TEMPORARY: disabled during incident\
 
 ## 5. Rollback Options
 
-### Option A: Reinstall from a specific git tag
+### Option A: Reinstall latest Claude plugin
 
 ```bash
-# List available tags
-gh release list -R boshu2/agentops --limit 10
-
-# Install a specific version
-npx skills@latest add boshu2/agentops@v2.5.0 --all -g
+# Refresh marketplace source and reinstall plugin
+claude plugin marketplace update agentops-marketplace
+claude plugin install agentops@agentops-marketplace
 ```
 
 ### Option B: Pin to a specific commit
@@ -284,8 +285,8 @@ cd ~/.claude/plugins/marketplaces/agentops-marketplace
 git log --oneline -10   # find a good state
 git checkout <good-sha>
 
-# Then reinstall from cache
-npx skills@latest add boshu2/agentops --all -g
+# Then reinstall plugin from marketplace source
+claude plugin install agentops@agentops-marketplace
 ```
 
 ### Option D: Nuclear reinstall
@@ -299,8 +300,9 @@ find ~/.claude/skills -maxdepth 1 -type l -delete   # remove symlinks
 # Clear any cached state
 rm -rf ~/.config/evolve/KILL 2>/dev/null
 
-# Fresh install
-npx skills@latest add boshu2/agentops --all -g
+# Fresh install (plugin path)
+claude plugin marketplace add boshu2/agentops
+claude plugin install agentops@agentops-marketplace
 
 # Verify
 cat ~/.claude/skills/agentops/.claude-plugin/plugin.json | jq -r '.version'
@@ -424,8 +426,8 @@ STOP EVERYTHING:     export AGENTOPS_HOOKS_DISABLED=1
 STOP EVOLVE:         echo "stop" > ~/.config/evolve/KILL
 CHECK HOOK ERRORS:   cat .agents/ao/hook-errors.log | tail -20
 TEST HOOKS:          for h in hooks/*.sh; do bash -n "$h"; done
-REINSTALL:           npx skills@latest add boshu2/agentops --all -g
-NUCLEAR REINSTALL:   rm -rf ~/.claude/skills/agentops && npx skills@latest add boshu2/agentops --all -g
+REINSTALL:           claude plugin marketplace update agentops-marketplace && claude plugin install agentops@agentops-marketplace
+NUCLEAR REINSTALL:   rm -rf ~/.claude/skills/agentops ~/.claude/plugins/marketplaces/agentops-marketplace && claude plugin marketplace add boshu2/agentops && claude plugin install agentops@agentops-marketplace
 REVERT EVOLVE:       git revert --no-commit <good-sha>..HEAD && git commit -m "revert: evolve incident"
 VERSION CHECK:       jq -r '.version' ~/.claude/skills/agentops/.claude-plugin/plugin.json
 ```

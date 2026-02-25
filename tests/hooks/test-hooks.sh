@@ -1098,6 +1098,150 @@ EC=0
 PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ao-task-sync.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 0 ]; then pass "ao-task-sync fail-open without ao"; else fail "ao-task-sync fail-open without ao"; fi
 
+# ============================================================
+echo ""
+echo "=== ao-* Delegation Verification (Embedded Hooks) ==="
+# ============================================================
+
+# These tests create a mock 'ao' binary that records invocations,
+# then fire each ao-* wrapper hook with the mock on PATH to verify
+# the correct ao subcommand was called.
+
+EMBEDDED_HOOKS_DIR="$REPO_ROOT/cli/embedded/hooks"
+AO_MOCK_DIR="$TMPDIR/ao-mock-bin"
+AO_MOCK_LOG="$TMPDIR/ao-mock-invocations.log"
+mkdir -p "$AO_MOCK_DIR"
+
+# Create mock ao binary that logs all invocations
+cat > "$AO_MOCK_DIR/ao" <<'MOCK_EOF'
+#!/bin/bash
+# Mock ao binary: records invocation to log file
+LOG_FILE="${AO_MOCK_LOG:-/tmp/ao-mock-invocations.log}"
+echo "$@" >> "$LOG_FILE"
+exit 0
+MOCK_EOF
+chmod +x "$AO_MOCK_DIR/ao"
+
+# Helper: run an embedded ao-* hook with mock ao and check subcommand
+test_ao_delegation() {
+    local hook_name="$1"
+    local expected_pattern="$2"
+    local hook_path="$EMBEDDED_HOOKS_DIR/$hook_name"
+
+    if [ ! -f "$hook_path" ]; then
+        fail "$hook_name delegation: hook file not found"
+        return
+    fi
+
+    # Clear log
+    : > "$AO_MOCK_LOG"
+
+    # Run hook with mock ao on PATH
+    EC=0
+    PATH="$AO_MOCK_DIR:/usr/bin:/bin" \
+        AO_MOCK_LOG="$AO_MOCK_LOG" \
+        CLAUDE_SESSION_ID="delegation-test" \
+        bash "$hook_path" >/dev/null 2>&1 || EC=$?
+
+    if [ $EC -ne 0 ]; then
+        fail "$hook_name delegation: exit code $EC"
+        return
+    fi
+
+    # Check that mock ao was called with expected subcommand
+    if [ -s "$AO_MOCK_LOG" ]; then
+        if grep -qE "$expected_pattern" "$AO_MOCK_LOG"; then
+            pass "$hook_name delegates to: $expected_pattern"
+        else
+            GOT=$(head -1 "$AO_MOCK_LOG")
+            fail "$hook_name delegation: expected '$expected_pattern', got '$GOT'"
+        fi
+    else
+        fail "$hook_name delegation: ao was not called"
+    fi
+}
+
+test_ao_delegation "ao-extract.sh" "^extract"
+test_ao_delegation "ao-feedback-loop.sh" "^feedback-loop"
+test_ao_delegation "ao-flywheel-close.sh" "^flywheel close-loop"
+test_ao_delegation "ao-forge.sh" "^forge transcript"
+test_ao_delegation "ao-inject.sh" "^inject"
+test_ao_delegation "ao-maturity-scan.sh" "^maturity --scan"
+test_ao_delegation "ao-ratchet-status.sh" "^ratchet status"
+test_ao_delegation "ao-session-outcome.sh" "^session-outcome"
+test_ao_delegation "ao-task-sync.sh" "^task-sync"
+
+# Verify delegation hooks log failures to hook-errors.log
+echo ""
+echo "--- ao-* error logging ---"
+
+# Create a mock ao that fails
+AO_FAIL_DIR="$TMPDIR/ao-fail-bin"
+mkdir -p "$AO_FAIL_DIR"
+cat > "$AO_FAIL_DIR/ao" <<'FAIL_EOF'
+#!/bin/bash
+exit 1
+FAIL_EOF
+chmod +x "$AO_FAIL_DIR/ao"
+
+# Test error logging for one representative hook
+FAIL_TEST_DIR="$TMPDIR/ao-fail-test"
+mkdir -p "$FAIL_TEST_DIR/.agents/ao"
+git -C "$FAIL_TEST_DIR" init -q >/dev/null 2>&1
+
+if [ -f "$EMBEDDED_HOOKS_DIR/ao-extract.sh" ]; then
+    (
+        cd "$FAIL_TEST_DIR"
+        PATH="$AO_FAIL_DIR:/usr/bin:/bin" bash "$EMBEDDED_HOOKS_DIR/ao-extract.sh" >/dev/null 2>&1 || true
+    )
+    if [ -f "$FAIL_TEST_DIR/.agents/ao/hook-errors.log" ]; then
+        if grep -q "HOOK_FAIL.*extract" "$FAIL_TEST_DIR/.agents/ao/hook-errors.log"; then
+            pass "ao-extract logs failure to hook-errors.log"
+        else
+            fail "ao-extract logs failure to hook-errors.log"
+        fi
+    else
+        fail "ao-extract creates hook-errors.log on failure"
+    fi
+fi
+
+# Verify kill switch works for all embedded ao-* hooks
+echo ""
+echo "--- ao-* embedded kill switch ---"
+
+AO_EMBEDDED_WRAPPERS=(
+    "ao-extract.sh"
+    "ao-feedback-loop.sh"
+    "ao-flywheel-close.sh"
+    "ao-forge.sh"
+    "ao-inject.sh"
+    "ao-maturity-scan.sh"
+    "ao-ratchet-status.sh"
+    "ao-session-outcome.sh"
+    "ao-task-sync.sh"
+)
+
+for wrapper in "${AO_EMBEDDED_WRAPPERS[@]}"; do
+    WRAPPER_PATH="$EMBEDDED_HOOKS_DIR/$wrapper"
+    if [ -f "$WRAPPER_PATH" ]; then
+        # Clear mock log
+        : > "$AO_MOCK_LOG"
+        EC=0
+        PATH="$AO_MOCK_DIR:/usr/bin:/bin" \
+            AO_MOCK_LOG="$AO_MOCK_LOG" \
+            AGENTOPS_HOOKS_DISABLED=1 \
+            bash "$WRAPPER_PATH" >/dev/null 2>&1 || EC=$?
+
+        if [ $EC -eq 0 ] && [ ! -s "$AO_MOCK_LOG" ]; then
+            pass "$wrapper: kill switch prevents ao call"
+        elif [ $EC -eq 0 ]; then
+            fail "$wrapper: kill switch did not prevent ao call"
+        else
+            fail "$wrapper: kill switch exit code $EC"
+        fi
+    fi
+done
+
 echo ""
 echo "=== constraint-compiler.sh ==="
 # ============================================================

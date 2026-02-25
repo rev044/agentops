@@ -68,18 +68,25 @@ Session 5 didn't start from scratch — it started with what session 1 learned. 
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI / Cursor
-npx skills@latest add boshu2/agentops --all -g
+# Codex CLI (Codex-native formatting)
+git clone https://github.com/boshu2/agentops.git
+cd agentops
+bash scripts/install-codex-native-skills.sh
 
 # OpenCode
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
+
+# Other Skills-compatible agents (agent-specific, install only what you need)
+npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
+# Example (Cursor):
+npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
 ```
 
 Then type `/quickstart` in your agent chat. Not sure which skill to run? See the **[Skill Router](docs/SKILL-ROUTER.md)**.
 
 For Claude plugin installs, skills are available immediately after plugin install/update (restart Claude Code if prompted). To enable hooks and flywheel automation, install the `ao` CLI and run `ao init --hooks` in each repo.
 
-`claude plugin install` is the primary path for Claude Code. `npx skills` remains the cross-agent install path for Codex CLI, Cursor, and mixed-runtime setups.
+`claude plugin install` is the primary path for Claude Code. Codex users should use `scripts/install-codex-native-skills.sh` for Codex-specific command syntax (`$skill` references). OpenCode uses `scripts/install-opencode.sh`. `npx skills` is for other agents (for example Cursor) with explicit `-a <agent>` and `-s <skill-name>` selection.
 
 <details>
 <summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>

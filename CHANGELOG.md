@@ -7,15 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-02-25
+
 ### Added
+- `ao notebook update` command — compound MEMORY.md loop that merges latest session insights into structured sections
+- `ao memory sync` command — sync session history to repo-root MEMORY.md with managed block markers for cross-runtime access (Codex, OpenCode)
+- `ao seed` command — plant AgentOps in any repository with auto-detected templates (go-cli, python-lib, web-app, rust-cli, generic)
+- `ao lookup` command — retrieve specific knowledge artifacts by ID or relevance query (two-phase complement to `ao inject --index-only`)
+- `ao constraint` command family — manage compiled constraints (list, activate, retire, review)
+- `ao curate` command family — curation pipeline operations (catalog, verify, status)
+- `ao dedup` command — detect near-duplicate learnings with optional `--merge` auto-resolution
+- `ao contradict` command — detect potentially contradictory learnings
+- `ao metrics health` subcommand — flywheel health metrics (sigma, rho, delta, escape velocity)
+- `ao context assemble` command — build 5-section context packet briefings for tasks
 - Work-scoped knowledge injection: `ao inject --bead <id>` boosts learnings tagged with the active bead
 - Predecessor context injection: `ao inject --predecessor <handoff-path>` surfaces structured handoff context
+- Compact knowledge index: `ao inject --index-only` outputs ~200 token index table for JIT retrieval
 - Learning schema extended with `source_bead` and `source_phase` fields for work-context tracking
 - `ao extract --bead <id>` tags extracted learnings with the active bead ID
 - Citation-to-utility feedback pipeline in flywheel close-loop (stage 5)
+- Global `~/.agents/` knowledge tier for cross-repo learning sharing (0.8 weight penalty, deduped)
 - Bead metadata resolver reads from env vars (`HOOK_BEAD_TITLE`, `HOOK_BEAD_LABELS`) or cache file
-- SessionStart hook auto-wires `--bead` and `--predecessor` when Gas Town env vars are available
+- Goal templates embedded in binary (go-cli, python-lib, web-app, rust-cli, generic) for `ao goals init --template` and `ao seed`
+- Platform-specific process-group isolation for goal check timeouts (Unix: SIGKILL pgid, Windows: taskkill /T)
+- SessionStart hook rewritten with 3 startup modes: manual (default), lean, legacy — via `AGENTOPS_STARTUP_CONTEXT_MODE`
+- SessionEnd hook now gates notebook update and memory sync on successful forge
 - Type 3 setup hook template: `hooks/examples/50-agentops-bootstrap.sh`
+- Constraint compiler hook: `hooks/constraint-compiler.sh`
+
+### Changed
+- SessionStart hook default mode changed from full inject to `manual` (pointer-only context, MEMORY.md auto-loaded by Claude Code)
+- `ao flywheel close-loop` now applies ALL maturity transitions (not just anti-pattern)
+- `ao hooks` generated config uses script-based commands instead of inline ao invocations
+- `ao rpi` prefers epic-type issues before falling back to any open issue
+
+### Fixed
+- `truncateText` now uses rune-safe `[]rune` slicing to avoid breaking multi-byte UTF-8 characters
+- `syncMemory` extracted from Cobra handler for testability
+- `parseManagedBlock` detects duplicate markers and refuses to parse (prevents data loss)
+- `readNLatestSessionEntries` warns on skipped unreadable session files
+- `readSessionByID` detects ambiguous matches and returns error instead of first substring match
+- `findMemoryFile` broad contains-fallback removed (was matching wrong projects)
+- `pruneNotebook` iteration capped at 100 to prevent runaway loops
+- `MEMORY_AGE_DAYS` sentinel initialized to -1 (was 0, causing false lean-mode activation when file missing)
+- Lean-mode guard now requires `MEMORY_AGE_DAYS >= 0` before comparing freshness
+- Memory sync moved inside forge success gate in session-end hook
+- `ao search --json` returns `[]` (empty JSON array) when no results, instead of human-readable text
+- `ao doctor` returns `DEGRADED` status for warnings without failures (previously only HEALTHY/UNHEALTHY)
+- `ao rpi status` goroutine leak fix — signal channel properly cleaned up
+- Inline rune truncation in `formatMemoryEntry` replaced with shared `truncateText`
+- 6 new tests for dedup, ambiguity detection, iteration cap, duplicate markers
 
 ## [2.17.0] - 2026-02-24
 

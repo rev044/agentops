@@ -444,7 +444,18 @@ On stop, `hooks/ao-flywheel-close.sh` (15s timeout):
 ## Installation
 
 ```bash
-npx skills@latest add boshu2/agentops --all -g
+# Claude Code (plugin path)
+claude plugin marketplace add boshu2/agentops
+claude plugin install agentops@agentops-marketplace
+
+# Codex (Codex-native skills)
+bash scripts/install-codex-native-skills.sh
+
+# OpenCode
+bash scripts/install-opencode.sh
+
+# Other agents (example)
+npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
 ```
 
 Optional:

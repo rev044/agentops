@@ -6,6 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SKILL_PATTERN=""
 
 # ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -25,6 +26,52 @@ Examples:
   bash skills/converter/scripts/convert.sh skills/vibe test /tmp/out
 EOF
   exit 1
+}
+
+yaml_escape_single_quote() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+
+# Build an alternation regex for all known skill names.
+load_skill_pattern() {
+  local names=()
+  local d
+  for d in "$REPO_ROOT"/skills/*/; do
+    [[ -f "$d/SKILL.md" ]] || continue
+    names+=("$(basename "$d")")
+  done
+
+  if [[ ${#names[@]} -eq 0 ]]; then
+    SKILL_PATTERN=""
+    return
+  fi
+
+  local escaped=()
+  local name
+  for name in "${names[@]}"; do
+    escaped+=("$(printf '%s' "$name" | sed -E 's/[][(){}.^$*+?|\\-]/\\&/g')")
+  done
+  SKILL_PATTERN="$(IFS='|'; printf '%s' "${escaped[*]}")"
+}
+
+# Rewrite Claude-style slash command references to Codex-style dollar references.
+# Example: /plan -> $plan (for known skill names only).
+codex_rewrite_text() {
+  local input="$1"
+  local output="$input"
+
+  if [[ -n "$SKILL_PATTERN" ]]; then
+    output="$(printf '%s' "$output" | SKILL_PATTERN="$SKILL_PATTERN" perl -0pe '
+      my $pattern = qr/$ENV{SKILL_PATTERN}/;
+      s{(?<![A-Za-z0-9_/])/($pattern)(?![A-Za-z0-9-])}{\$$1}g;
+    ')"
+  fi
+
+  output="$(printf '%s' "$output" | perl -0pe '
+    s/\bClaude Code\b/Codex/g;
+    s{~/.claude/skills}{~/.codex/skills}g;
+  ')"
+  printf '%s' "$output"
 }
 
 # ─── Stage 1: Parse ───────────────────────────────────────────────────
@@ -144,6 +191,8 @@ convert_test() {
 # Description max 1024 chars, no hooks support, tool names pass through
 convert_codex() {
   local desc="$BUNDLE_DESC"
+  local body
+  body="$(codex_rewrite_text "$BUNDLE_BODY")"
 
   # Truncate description to 1024 chars at word boundary
   if [[ ${#desc} -gt 1024 ]]; then
@@ -151,12 +200,17 @@ convert_codex() {
     # Trim to last word boundary (space)
     desc="${desc% *}..."
   fi
+  desc="$(codex_rewrite_text "$desc")"
+  local desc_escaped
+  desc_escaped="$(yaml_escape_single_quote "$desc")"
 
   # ── Build SKILL.md ──
   local skill_md=""
-  skill_md+="# ${BUNDLE_NAME}"$'\n\n'
-  skill_md+="${desc}"$'\n\n'
-  skill_md+="${BUNDLE_BODY}"$'\n'
+  skill_md+="---"$'\n'
+  skill_md+="name: ${BUNDLE_NAME}"$'\n'
+  skill_md+="description: '${desc_escaped}'"$'\n'
+  skill_md+="---"$'\n\n'
+  skill_md+="${body}"$'\n'
 
   # Inline references as appended sections
   if [[ ${#REF_NAMES[@]} -gt 0 ]]; then
@@ -165,7 +219,7 @@ convert_codex() {
     local i
     for i in "${!REF_NAMES[@]}"; do
       skill_md+="### ${REF_NAMES[$i]}"$'\n\n'
-      skill_md+="${REF_CONTENTS[$i]}"$'\n\n'
+      skill_md+="$(codex_rewrite_text "${REF_CONTENTS[$i]}")"$'\n\n'
     done
   fi
 
@@ -187,7 +241,7 @@ convert_codex() {
       esac
       skill_md+="### ${SCRIPT_NAMES[$i]}"$'\n\n'
       skill_md+="\`\`\`${lang}"$'\n'
-      skill_md+="${SCRIPT_CONTENTS[$i]}"$'\n'
+      skill_md+="$(codex_rewrite_text "${SCRIPT_CONTENTS[$i]}")"$'\n'
       skill_md+="\`\`\`"$'\n\n'
     done
   fi
@@ -370,6 +424,8 @@ main() {
   local skill_dir_or_flag="$1"
   local target="$2"
   local output_dir="${3:-}"
+
+  load_skill_pattern
 
   if [[ "$skill_dir_or_flag" == "--all" ]]; then
     local skills_root="$REPO_ROOT/skills"
