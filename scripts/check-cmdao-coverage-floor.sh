@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI_DIR="$REPO_ROOT/cli"
 
-FLOOR="${CMD_AO_COVERAGE_FLOOR:-62.0}"
-MAX_ZERO="${CMD_AO_ZERO_COVERAGE_MAX:-961}"
+FLOOR="${CMD_AO_COVERAGE_FLOOR:-69.0}"
+MAX_ZERO="${CMD_AO_ZERO_COVERAGE_MAX:-960}"
 
 if ! command -v go >/dev/null 2>&1; then
   echo "SKIP: go is not installed"
