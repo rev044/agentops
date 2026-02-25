@@ -905,8 +905,8 @@ func TestConstants(t *testing.T) {
 	if KnowledgeTierEnvVar != "KNOWLEDGE_TIER" {
 		t.Errorf("KnowledgeTierEnvVar = %q, want %q", KnowledgeTierEnvVar, "KNOWLEDGE_TIER")
 	}
-	if MaturityPromotionThreshold != 0.7 {
-		t.Errorf("MaturityPromotionThreshold = %f, want 0.7", MaturityPromotionThreshold)
+	if MaturityPromotionThreshold != 0.55 {
+		t.Errorf("MaturityPromotionThreshold = %f, want 0.55", MaturityPromotionThreshold)
 	}
 	if MaturityDemotionThreshold != 0.3 {
 		t.Errorf("MaturityDemotionThreshold = %f, want 0.3", MaturityDemotionThreshold)

@@ -13,14 +13,17 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/boshu2/agentops/cli/internal/ratchet"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 var (
-	maturityApply   bool
-	maturityScan    bool
-	maturityExpire  bool
-	maturityArchive bool
-	maturityEvict   bool
+	maturityApply       bool
+	maturityScan        bool
+	maturityExpire      bool
+	maturityArchive     bool
+	maturityEvict       bool
+	maturityMigrateMd   bool
+	maturityRecalibrate bool
 )
 
 var maturityCmd = &cobra.Command{
@@ -58,6 +61,8 @@ func init() {
 	maturityCmd.Flags().BoolVar(&maturityExpire, "expire", false, "Scan for expired learnings")
 	maturityCmd.Flags().BoolVar(&maturityArchive, "archive", false, "Move expired/evicted files to archive (requires --expire or --evict)")
 	maturityCmd.Flags().BoolVar(&maturityEvict, "evict", false, "Identify eviction candidates (composite criteria)")
+	maturityCmd.Flags().BoolVar(&maturityMigrateMd, "migrate-md", false, "Add default frontmatter to .md learnings missing utility field")
+	maturityCmd.Flags().BoolVar(&maturityRecalibrate, "recalibrate", false, "Reset utility to 0.5 for all learnings")
 }
 
 func runMaturitySingle(cwd string, learningID string) error {
@@ -109,6 +114,10 @@ func runMaturity(cmd *cobra.Command, args []string) error {
 	}
 
 	switch {
+	case maturityMigrateMd:
+		return runMaturityMigrateMd(learningsDir)
+	case maturityRecalibrate:
+		return runMaturityRecalibrate(learningsDir)
 	case maturityEvict:
 		return runMaturityEvict(cmd)
 	case maturityExpire:
@@ -120,6 +129,120 @@ func runMaturity(cmd *cobra.Command, args []string) error {
 	default:
 		return runMaturitySingle(cwd, args[0])
 	}
+}
+
+// runMaturityMigrateMd adds default frontmatter to .md learnings that lack a utility field.
+func runMaturityMigrateMd(learningsDir string) error {
+	files, err := ratchet.GlobLearningFiles(learningsDir)
+	if err != nil {
+		return fmt.Errorf("glob learnings: %w", err)
+	}
+
+	// Filter to .md files only
+	var mdFiles []string
+	for _, f := range files {
+		if strings.HasSuffix(f, ".md") {
+			mdFiles = append(mdFiles, f)
+		}
+	}
+
+	migrated := 0
+	for _, file := range mdFiles {
+		fields, err := parseFrontmatterFields(file, "utility")
+		if err != nil {
+			VerbosePrintf("Warning: could not read %s: %v\n", filepath.Base(file), err)
+			continue
+		}
+
+		if fields["utility"] != "" {
+			continue
+		}
+
+		// Check if file has frontmatter at all
+		content, err := os.ReadFile(file)
+		if err != nil {
+			VerbosePrintf("Warning: could not read %s: %v\n", filepath.Base(file), err)
+			continue
+		}
+
+		text := string(content)
+		hasFrontMatter := strings.HasPrefix(strings.TrimSpace(text), "---")
+
+		if hasFrontMatter {
+			// Has frontmatter but no utility — inject fields via updateFrontMatterFields
+			lines := strings.Split(text, "\n")
+			endIdx := -1
+			for i := 1; i < len(lines); i++ {
+				if strings.TrimSpace(lines[i]) == "---" {
+					endIdx = i
+					break
+				}
+			}
+			if endIdx == -1 {
+				VerbosePrintf("Warning: malformed frontmatter in %s\n", filepath.Base(file))
+				continue
+			}
+
+			fmLines := lines[1:endIdx]
+			fields := map[string]string{
+				"utility":       fmt.Sprintf("%.4f", types.InitialUtility),
+				"maturity":      "provisional",
+				"confidence":    "0.0000",
+				"reward_count":  "0",
+				"helpful_count": "0",
+				"harmful_count": "0",
+			}
+			updatedFM := updateFrontMatterFields(fmLines, fields)
+			rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
+			if err := os.WriteFile(file, []byte(rebuilt), 0644); err != nil {
+				VerbosePrintf("Warning: could not write %s: %v\n", filepath.Base(file), err)
+				continue
+			}
+		} else {
+			// No frontmatter at all — prepend it
+			var sb strings.Builder
+			sb.WriteString("---\n")
+			sb.WriteString(fmt.Sprintf("utility: %.4f\n", types.InitialUtility))
+			sb.WriteString("maturity: provisional\n")
+			sb.WriteString("confidence: 0.0000\n")
+			sb.WriteString("reward_count: 0\n")
+			sb.WriteString("helpful_count: 0\n")
+			sb.WriteString("harmful_count: 0\n")
+			sb.WriteString("---\n")
+			sb.WriteString(text)
+			if err := os.WriteFile(file, []byte(sb.String()), 0644); err != nil {
+				VerbosePrintf("Warning: could not write %s: %v\n", filepath.Base(file), err)
+				continue
+			}
+		}
+		migrated++
+	}
+
+	fmt.Printf("Migrated %d of %d .md learnings\n", migrated, len(mdFiles))
+	return nil
+}
+
+// runMaturityRecalibrate resets utility to InitialUtility (0.5) for all learnings.
+func runMaturityRecalibrate(learningsDir string) error {
+	files, err := ratchet.GlobLearningFiles(learningsDir)
+	if err != nil {
+		return fmt.Errorf("glob learnings: %w", err)
+	}
+
+	recalibrated := 0
+	for _, file := range files {
+		// updateLearningUtility with alpha=1.0 and reward=InitialUtility
+		// yields: new = (1-1.0)*old + 1.0*0.5 = 0.5
+		_, _, err := updateLearningUtility(file, types.InitialUtility, 1.0)
+		if err != nil {
+			VerbosePrintf("Warning: could not recalibrate %s: %v\n", filepath.Base(file), err)
+			continue
+		}
+		recalibrated++
+	}
+
+	fmt.Printf("Recalibrated %d learnings (utility reset to %.1f)\n", recalibrated, types.InitialUtility)
+	return nil
 }
 
 func displayMaturityDistribution(dist *ratchet.MaturityDistribution) {

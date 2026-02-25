@@ -427,7 +427,7 @@ const (
 // CASS maturity thresholds and parameters
 const (
 	// MaturityPromotionThreshold is the utility value needed to advance maturity.
-	MaturityPromotionThreshold = 0.7
+	MaturityPromotionThreshold = 0.55
 
 	// MaturityDemotionThreshold is the utility value below which demotion occurs.
 	MaturityDemotionThreshold = 0.3

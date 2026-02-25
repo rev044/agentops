@@ -122,6 +122,9 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 	result.CitationFeedback.Rewarded = rewarded
 	result.CitationFeedback.Skipped = skipped
 
+	// 6) auto-promote learnings whose utility was bumped by citation feedback
+	promoteCitedLearnings(cwd, flywheelCloseLoopQuiet)
+
 	return outputFlywheelCloseLoopResult(result)
 }
 

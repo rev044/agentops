@@ -49,8 +49,8 @@ type MaturityTransitionResult struct {
 
 // CheckMaturityTransition evaluates if a learning should transition to a new maturity level.
 // Transition rules:
-//   - provisional → candidate: utility >= 0.7 AND reward_count >= 3
-//   - candidate → established: utility >= 0.7 AND reward_count >= 5 AND helpful_count > harmful_count
+//   - provisional → candidate: utility >= threshold AND reward_count >= 3
+//   - candidate → established: utility >= threshold AND reward_count >= 5 AND (helpful_count > harmful_count OR reward_count >= 10)
 //   - any → anti-pattern: utility <= 0.2 AND harmful_count >= 5
 //   - established → candidate: utility < 0.5 (demotion)
 //   - candidate → provisional: utility < 0.3 (demotion)
@@ -167,11 +167,18 @@ func applyProvisionalTransition(result *MaturityTransitionResult) {
 }
 
 func applyCandidateTransition(result *MaturityTransitionResult) {
-	if result.Utility >= types.MaturityPromotionThreshold && result.RewardCount >= 5 && result.HelpfulCount > result.HarmfulCount {
+	helpfulSignal := result.HelpfulCount > result.HarmfulCount
+	implicitHelpful := result.RewardCount >= 10
+	if result.Utility >= types.MaturityPromotionThreshold && result.RewardCount >= 5 && (helpfulSignal || implicitHelpful) {
 		result.NewMaturity = types.MaturityEstablished
 		result.Transitioned = true
-		result.Reason = fmt.Sprintf("utility %.2f >= %.2f, reward_count %d >= 5, helpful > harmful (%d > %d)",
-			result.Utility, types.MaturityPromotionThreshold, result.RewardCount, result.HelpfulCount, result.HarmfulCount)
+		if implicitHelpful && !helpfulSignal {
+			result.Reason = fmt.Sprintf("utility %.2f >= %.2f, reward_count %d >= 10 (implicit helpful signal)",
+				result.Utility, types.MaturityPromotionThreshold, result.RewardCount)
+		} else {
+			result.Reason = fmt.Sprintf("utility %.2f >= %.2f, reward_count %d >= 5, helpful > harmful (%d > %d)",
+				result.Utility, types.MaturityPromotionThreshold, result.RewardCount, result.HelpfulCount, result.HarmfulCount)
+		}
 		return
 	}
 

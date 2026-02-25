@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,4 +181,57 @@ func computeSessionRewardForCloseLoop(cwd string) (float64, error) {
 		return types.InitialUtility, nil
 	}
 	return outcome.Reward, nil
+}
+
+// promoteCitedLearnings reads the feedback log and attempts maturity promotion
+// on each learning that received citation feedback. This ensures learnings whose
+// utility was just bumped by citation feedback get promoted in the same close-loop
+// cycle rather than waiting for the next run.
+// Returns the number of learnings that transitioned.
+func promoteCitedLearnings(cwd string, quiet bool) int {
+	if GetDryRun() {
+		return 0
+	}
+
+	feedbackPath := filepath.Join(cwd, FeedbackFilePath)
+	data, err := os.ReadFile(feedbackPath)
+	if err != nil {
+		return 0
+	}
+
+	// Collect unique artifact paths from recent feedback events
+	seen := make(map[string]bool)
+	var paths []string
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if line == "" {
+			continue
+		}
+		var evt FeedbackEvent
+		if err := json.Unmarshal([]byte(line), &evt); err != nil {
+			continue
+		}
+		if evt.ArtifactPath == "" || seen[evt.ArtifactPath] {
+			continue
+		}
+		seen[evt.ArtifactPath] = true
+		paths = append(paths, evt.ArtifactPath)
+	}
+
+	promoted := 0
+	for _, p := range paths {
+		result, err := ratchet.ApplyMaturityTransition(p)
+		if err != nil {
+			continue
+		}
+		if result.Transitioned {
+			promoted++
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "  maturity: %s → %s (%s)\n", result.OldMaturity, result.NewMaturity, filepath.Base(p))
+			}
+		}
+	}
+	if promoted > 0 && !quiet {
+		fmt.Fprintf(os.Stderr, "Promoted %d learnings\n", promoted)
+	}
+	return promoted
 }
