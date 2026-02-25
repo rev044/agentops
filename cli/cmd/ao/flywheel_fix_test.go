@@ -242,3 +242,155 @@ func TestFilterMemoryDuplicates_NoMemoryFile(t *testing.T) {
 		t.Errorf("with no MEMORY.md, expected all %d learnings returned, got %d", len(learnings), len(filtered))
 	}
 }
+
+// --- Phase 2: Lowered threshold and implicit helpful tests ---
+
+func TestMaturityPromotion_LoweredThreshold(t *testing.T) {
+	// Test that the lowered threshold (0.55) is used for provisional -> candidate promotion.
+	// utility=0.56 is above the new 0.55 threshold but below the old 0.7 threshold.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-lowered.jsonl")
+	os.WriteFile(path, []byte(`{"utility":0.56,"reward_count":5,"maturity":"provisional","confidence":0.5}`+"\n"), 0644)
+
+	result, err := ratchet.CheckMaturityTransition(path)
+	if err != nil {
+		t.Fatalf("CheckMaturityTransition: %v", err)
+	}
+	if !result.Transitioned {
+		t.Errorf("expected Transitioned=true, got false (reason: %s)", result.Reason)
+	}
+	if result.NewMaturity != types.MaturityCandidate {
+		t.Errorf("expected NewMaturity=candidate, got %s", result.NewMaturity)
+	}
+}
+
+func TestMaturityPromotion_OldThresholdNoLongerRequired(t *testing.T) {
+	// Test that utility=0.60 (above 0.55 but below old 0.7) gets promoted.
+	// This confirms the threshold lowering works.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-old-threshold.jsonl")
+	os.WriteFile(path, []byte(`{"utility":0.60,"reward_count":5,"maturity":"provisional","confidence":0.5}`+"\n"), 0644)
+
+	result, err := ratchet.CheckMaturityTransition(path)
+	if err != nil {
+		t.Fatalf("CheckMaturityTransition: %v", err)
+	}
+	if !result.Transitioned {
+		t.Errorf("expected Transitioned=true for utility=0.60 (above 0.55), got false (reason: %s)", result.Reason)
+	}
+	if result.NewMaturity != types.MaturityCandidate {
+		t.Errorf("expected NewMaturity=candidate, got %s", result.NewMaturity)
+	}
+}
+
+func TestMaturityPromotion_ImplicitHelpfulSignal(t *testing.T) {
+	// Test that high citation count (reward_count >= 10) triggers implicit helpful signal
+	// for candidate -> established promotion, bypassing the explicit helpful_count requirement.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-implicit.jsonl")
+	os.WriteFile(path, []byte(`{"utility":0.56,"reward_count":15,"maturity":"candidate","helpful_count":0,"harmful_count":0,"confidence":0.7}`+"\n"), 0644)
+
+	result, err := ratchet.CheckMaturityTransition(path)
+	if err != nil {
+		t.Fatalf("CheckMaturityTransition: %v", err)
+	}
+	if !result.Transitioned {
+		t.Errorf("expected Transitioned=true (implicit helpful via reward_count>=10), got false (reason: %s)", result.Reason)
+	}
+	if result.NewMaturity != types.MaturityEstablished {
+		t.Errorf("expected NewMaturity=established, got %s", result.NewMaturity)
+	}
+	// Verify the reason mentions implicit helpful signal
+	if !strings.Contains(result.Reason, "implicit helpful") {
+		t.Errorf("expected reason to mention 'implicit helpful', got: %s", result.Reason)
+	}
+}
+
+func TestMaturityPromotion_LowCitationsNoImplicitHelpful(t *testing.T) {
+	// Test that reward_count=5 (< 10) does NOT trigger implicit helpful signal.
+	// With helpful_count=0 and harmful_count=0, helpful > harmful is false,
+	// so the candidate should NOT be promoted to established.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-no-implicit.jsonl")
+	os.WriteFile(path, []byte(`{"utility":0.56,"reward_count":5,"maturity":"candidate","helpful_count":0,"harmful_count":0,"confidence":0.5}`+"\n"), 0644)
+
+	result, err := ratchet.CheckMaturityTransition(path)
+	if err != nil {
+		t.Fatalf("CheckMaturityTransition: %v", err)
+	}
+	if result.Transitioned {
+		t.Errorf("expected Transitioned=false (reward_count=5 < 10, no helpful signal), got true (new maturity: %s, reason: %s)",
+			result.NewMaturity, result.Reason)
+	}
+}
+
+func TestMigrateMd_Integration(t *testing.T) {
+	// Test the migrate-md components: a bare .md file with no frontmatter
+	// should return empty utility from parseFrontmatterFields, and after
+	// manually adding frontmatter the utility field should be present.
+	dir := t.TempDir()
+
+	// Create a bare .md file (no frontmatter)
+	barePath := filepath.Join(dir, "bare.md")
+	os.WriteFile(barePath, []byte("# A Learning\nSome content here.\n"), 0644)
+
+	// parseFrontmatterFields should return empty for utility
+	fields, err := parseFrontmatterFields(barePath, "utility")
+	if err != nil {
+		t.Fatalf("parseFrontmatterFields on bare file: %v", err)
+	}
+	if fields["utility"] != "" {
+		t.Errorf("expected empty utility for bare .md, got %q", fields["utility"])
+	}
+
+	// Create a .md file with existing frontmatter that already has utility
+	existingPath := filepath.Join(dir, "existing.md")
+	os.WriteFile(existingPath, []byte("---\nutility: 0.7500\nmaturity: candidate\n---\n# Existing Learning\n"), 0644)
+
+	existingFields, err := parseFrontmatterFields(existingPath, "utility")
+	if err != nil {
+		t.Fatalf("parseFrontmatterFields on existing file: %v", err)
+	}
+	if existingFields["utility"] != "0.7500" {
+		t.Errorf("expected utility=0.7500 for existing .md, got %q", existingFields["utility"])
+	}
+
+	// Simulate migrate-md: manually prepend frontmatter to the bare file
+	bareContent, _ := os.ReadFile(barePath)
+	migrated := "---\nutility: 0.5000\nmaturity: provisional\nconfidence: 0.0000\nreward_count: 0\nhelpful_count: 0\nharmful_count: 0\n---\n" + string(bareContent)
+	os.WriteFile(barePath, []byte(migrated), 0644)
+
+	// Now parseFrontmatterFields should find utility
+	migratedFields, err := parseFrontmatterFields(barePath, "utility")
+	if err != nil {
+		t.Fatalf("parseFrontmatterFields after migration: %v", err)
+	}
+	if migratedFields["utility"] != "0.5000" {
+		t.Errorf("expected utility=0.5000 after migration, got %q", migratedFields["utility"])
+	}
+}
+
+func TestRecalibrate_ResetsUtility(t *testing.T) {
+	// Test that recalibration resets an inflated utility to 0.5 by using alpha=1.0.
+	// EMA formula: new = (1-1.0)*0.85 + 1.0*0.5 = 0.5
+	dir := t.TempDir()
+	path := filepath.Join(dir, "inflated.jsonl")
+	os.WriteFile(path, []byte(`{"utility":0.85,"reward_count":10,"maturity":"established","confidence":0.8}`+"\n"), 0644)
+
+	oldUtility, newUtility, err := updateLearningUtility(path, types.InitialUtility, 1.0)
+	if err != nil {
+		t.Fatalf("updateLearningUtility: %v", err)
+	}
+	if math.Abs(oldUtility-0.85) > 0.001 {
+		t.Errorf("oldUtility = %f, want 0.85", oldUtility)
+	}
+	if math.Abs(newUtility-types.InitialUtility) > 0.001 {
+		t.Errorf("newUtility = %f, want %f (InitialUtility)", newUtility, types.InitialUtility)
+	}
+
+	// Verify by reading back the file
+	content, _ := os.ReadFile(path)
+	if !strings.Contains(string(content), `"utility":0.5`) {
+		t.Errorf("written file does not contain utility=0.5, got: %s", string(content))
+	}
+}
