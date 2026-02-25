@@ -277,7 +277,7 @@ func TestCheckMaturityTransition_AntiPatternPriority(t *testing.T) {
 			data: map[string]any{
 				"maturity":      "provisional",
 				"utility":       0.1,
-				"harmful_count": 4.0,
+				"harmful_count": 2.0,
 			},
 			wantTransit: false,
 			wantNew:     types.MaturityProvisional,

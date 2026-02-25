@@ -917,8 +917,8 @@ func TestConstants(t *testing.T) {
 	if MinFeedbackForPromotion != 3 {
 		t.Errorf("MinFeedbackForPromotion = %d, want 3", MinFeedbackForPromotion)
 	}
-	if MinFeedbackForAntiPattern != 5 {
-		t.Errorf("MinFeedbackForAntiPattern = %d, want 5", MinFeedbackForAntiPattern)
+	if MinFeedbackForAntiPattern != 3 {
+		t.Errorf("MinFeedbackForAntiPattern = %d, want 3", MinFeedbackForAntiPattern)
 	}
 	if ConfidenceDecayRate != 0.1 {
 		t.Errorf("ConfidenceDecayRate = %f, want 0.1", ConfidenceDecayRate)

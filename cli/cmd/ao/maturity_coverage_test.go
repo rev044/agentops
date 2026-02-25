@@ -178,7 +178,7 @@ func TestMaturity_isEvictionEligible(t *testing.T) {
 		{"high confidence not eligible", 0.1, 0.5, "provisional", false},
 		{"all criteria met", 0.1, 0.1, "provisional", true},
 		{"boundary utility 0.3", 0.3, 0.1, "provisional", false},
-		{"boundary confidence 0.2", 0.1, 0.2, "provisional", false},
+		{"boundary confidence 0.3", 0.1, 0.3, "provisional", false},
 		{"candidate eligible", 0.1, 0.1, "candidate", true},
 		{"anti-pattern eligible", 0.1, 0.1, "anti-pattern", true},
 	}

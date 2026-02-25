@@ -30,6 +30,7 @@ run_maintenance() {
 
     FORGE_STATUS=0
     if run_ao_quick 6 forge transcript --last-session --quiet; then
+        run_ao_quick 6 pool ingest --quiet || true
         run_ao_quick 8 notebook update --quiet || true
 
         # Sync to repo-root MEMORY.md (opt-in via AGENTOPS_MEMORY_SYNC=1)
@@ -57,7 +58,7 @@ run_maintenance() {
     fi
 
     # Auto-prune .agents/ (opt-in via AGENTOPS_AUTO_PRUNE=1)
-    if [ "${AGENTOPS_AUTO_PRUNE:-0}" = "1" ]; then
+    if [ "${AGENTOPS_AUTO_PRUNE:-1}" = "1" ]; then
         PRUNE_SCRIPT="${PLUGIN_ROOT}/scripts/prune-agents.sh"
         if [ -x "$PRUNE_SCRIPT" ]; then
             "$AO_TIMEOUT_BIN" 5 bash "$PRUNE_SCRIPT" --quiet 2>/dev/null || true

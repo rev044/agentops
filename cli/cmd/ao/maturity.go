@@ -38,9 +38,9 @@ Learnings progress through maturity stages based on feedback:
   anti-pattern → Consistently harmful, surfaced as what NOT to do
 
 Transition Rules:
-  provisional → candidate:    utility >= 0.7 AND reward_count >= 3
-  candidate → established:    utility >= 0.7 AND reward_count >= 5 AND helpful > harmful
-  any → anti-pattern:         utility <= 0.2 AND harmful_count >= 5
+  provisional → candidate:    utility >= 0.55 AND reward_count >= 3
+  candidate → established:    utility >= 0.55 AND reward_count >= 5 AND helpful > harmful
+  any → anti-pattern:         utility <= 0.2 AND harmful_count >= 3
   established → candidate:    utility < 0.5 (demotion)
   candidate → provisional:    utility < 0.3 (demotion)
 
@@ -655,7 +655,7 @@ func isEvictionEligible(utility, confidence float64, maturity string) bool {
 	if utility >= 0.3 {
 		return false
 	}
-	return confidence < 0.2
+	return confidence < 0.3
 }
 
 func evictionCitationStatus(file string, lastCited map[string]time.Time, cutoff time.Time) (string, bool) {
@@ -686,7 +686,7 @@ func reportEvictionCandidates(files []string, candidates []evictionCandidate) (b
 		return false, enc.Encode(candidates)
 	}
 
-	fmt.Println("Candidates (utility < 0.3, confidence < 0.2, not cited in 90d, not established):")
+	fmt.Println("Candidates (utility < 0.3, confidence < 0.3, not cited in 90d, not established):")
 	for _, c := range candidates {
 		fmt.Printf("  %s  utility=%.3f  confidence=%.3f  maturity=%s  last_cited=%s\n",
 			c.Name, c.Utility, c.Confidence, c.Maturity, c.LastCited)
@@ -748,7 +748,7 @@ var antiPatternCmd = &cobra.Command{
 	Long: `List learnings that have been marked as anti-patterns.
 
 Anti-patterns are learnings that have received consistent harmful feedback
-(utility <= 0.2 and harmful_count >= 5). They are surfaced to agents as
+(utility <= 0.2 and harmful_count >= 3). They are surfaced to agents as
 examples of what NOT to do.
 
 Examples:
@@ -818,7 +818,7 @@ var promoteAntiPatternsCmd = &cobra.Command{
 
 A learning becomes an anti-pattern when:
   - utility <= 0.2 (consistently not helpful)
-  - harmful_count >= 5 (multiple negative feedback events)
+  - harmful_count >= 3 (multiple negative feedback events)
 
 This is useful for batch processing to identify and mark anti-patterns
 that should be surfaced as "what NOT to do".

@@ -3,15 +3,15 @@
 # Creates .agents/ directories, optionally runs extract+inject, injects skill context.
 #
 # Startup modes (AGENTOPS_STARTUP_CONTEXT_MODE):
-#   manual  (default) — MEMORY.md auto-loaded by Claude Code; emit pointer only, no extract/inject
-#   lean    — extract + lean inject (shrinks when MEMORY.md is fresh)
+#   manual  — MEMORY.md auto-loaded by Claude Code; emit pointer only, no extract/inject
+#   lean    (default) — extract + lean inject (shrinks when MEMORY.md is fresh)
 #   legacy  — extract + full inject (pre-notebook behavior)
 
 # Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_SESSION_START_DISABLED:-}" = "1" ] && exit 0
 
-STARTUP_MODE="${AGENTOPS_STARTUP_CONTEXT_MODE:-manual}"
+STARTUP_MODE="${AGENTOPS_STARTUP_CONTEXT_MODE:-lean}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"

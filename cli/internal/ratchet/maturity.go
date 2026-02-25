@@ -51,7 +51,7 @@ type MaturityTransitionResult struct {
 // Transition rules:
 //   - provisional → candidate: utility >= threshold AND reward_count >= 3
 //   - candidate → established: utility >= threshold AND reward_count >= 5 AND (helpful_count > harmful_count OR reward_count >= 10)
-//   - any → anti-pattern: utility <= 0.2 AND harmful_count >= 5
+//   - any → anti-pattern: utility <= 0.2 AND harmful_count >= 3
 //   - established → candidate: utility < 0.5 (demotion)
 //   - candidate → provisional: utility < 0.3 (demotion)
 func CheckMaturityTransition(learningPath string) (*MaturityTransitionResult, error) {

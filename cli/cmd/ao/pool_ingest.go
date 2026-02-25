@@ -430,6 +430,10 @@ func buildCandidateFromLearningBlock(b learningBlock, srcPath string, fileDate t
 	if strings.TrimSpace(b.Title) == "" || strings.TrimSpace(b.Body) == "" {
 		return types.Candidate{}, types.Scoring{}, false
 	}
+	// Reject stub learnings that slipped through with no real content.
+	if strings.Contains(strings.ToLower(b.Body), "no significant learnings") {
+		return types.Candidate{}, types.Scoring{}, false
+	}
 
 	// Stable ID: prefer (file base + learning ID). Otherwise fall back to a content hash.
 	base := strings.TrimSuffix(filepath.Base(srcPath), filepath.Ext(srcPath))

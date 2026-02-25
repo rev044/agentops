@@ -440,7 +440,7 @@ const (
 	MinFeedbackForPromotion = 3
 
 	// MinFeedbackForAntiPattern is the minimum feedback count to mark as anti-pattern.
-	MinFeedbackForAntiPattern = 5
+	MinFeedbackForAntiPattern = 3
 
 	// ConfidenceDecayRate is the weekly decay rate for confidence (0.1 = 10%/week).
 	// Lower than knowledge decay (0.17) because confidence decays slower.

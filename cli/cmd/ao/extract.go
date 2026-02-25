@@ -413,7 +413,7 @@ func outputExtractionPrompt(extraction PendingExtraction, cwd string, maxContent
 	fmt.Println("- Only extract learnings that would help **future sessions**")
 	fmt.Println("- Skip trivial or context-specific details")
 	fmt.Println("- Focus on: debugging insights, architectural decisions, process improvements")
-	fmt.Println("- If nothing worth extracting, create the file with a note: \"No significant learnings from this session.\"")
+	fmt.Println("- If nothing worth extracting, do NOT create any file. Simply skip extraction entirely.")
 	fmt.Println()
 	fmt.Println("**After writing the file, continue with your normal work.**")
 	fmt.Println("---")
