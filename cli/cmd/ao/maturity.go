@@ -229,6 +229,11 @@ func runMaturityRecalibrate(learningsDir string) error {
 		return fmt.Errorf("glob learnings: %w", err)
 	}
 
+	if GetDryRun() {
+		fmt.Printf("[dry-run] Would recalibrate %d learnings (utility reset to %.1f)\n", len(files), types.InitialUtility)
+		return nil
+	}
+
 	recalibrated := 0
 	for _, file := range files {
 		// updateLearningUtility with alpha=1.0 and reward=InitialUtility

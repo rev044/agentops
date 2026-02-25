@@ -460,6 +460,8 @@ After completing a wave, check for newly unblocked issues (beads: `bd ready`, Ta
 
 When all issues complete, run ONE comprehensive vibe on recent changes. Fix CRITICAL issues before completion.
 
+If hooks or `lib/hook-helpers.sh` were modified, verify embedded copies are in sync: `cd cli && make sync-hooks`.
+
 **For detailed validation steps, read `skills/crank/references/failure-recovery.md`.**
 
 ### Step 8: Extract Learnings (ao Integration)
