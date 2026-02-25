@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/boshu2/agentops/cli/internal/types"
@@ -307,6 +309,197 @@ utility: 0.7
 				t.Errorf("newUtility = %v, want %v", newUtility, tt.wantNewUtility)
 			}
 		})
+	}
+}
+
+func TestUpdateMarkdownUtility_TracksHelpfulCount(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "helpful.md")
+	content := `---
+utility: 0.5
+reward_count: 2
+---
+# Test Learning`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origHelpful := feedbackHelpful
+	origHarmful := feedbackHarmful
+	feedbackHelpful = false
+	feedbackHarmful = false
+	t.Cleanup(func() {
+		feedbackHelpful = origHelpful
+		feedbackHarmful = origHarmful
+	})
+
+	// reward=0.95 is above 0.8 threshold → implied helpful
+	if _, _, err := updateMarkdownUtility(path, 0.95, 0.1); err != nil {
+		t.Fatalf("updateMarkdownUtility() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	if !strings.Contains(text, "helpful_count: 1") {
+		t.Errorf("expected helpful_count: 1 in front matter, got:\n%s", text)
+	}
+	// Should NOT contain harmful_count since reward was high
+	if strings.Contains(text, "harmful_count:") {
+		t.Errorf("unexpected harmful_count in front matter for helpful reward, got:\n%s", text)
+	}
+}
+
+func TestUpdateMarkdownUtility_TracksHarmfulCount(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "harmful.md")
+	content := `---
+utility: 0.5
+reward_count: 2
+---
+# Test Learning`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origHelpful := feedbackHelpful
+	origHarmful := feedbackHarmful
+	feedbackHelpful = false
+	feedbackHarmful = false
+	t.Cleanup(func() {
+		feedbackHelpful = origHelpful
+		feedbackHarmful = origHarmful
+	})
+
+	// reward=0.05 is below 0.2 threshold → implied harmful
+	if _, _, err := updateMarkdownUtility(path, 0.05, 0.1); err != nil {
+		t.Fatalf("updateMarkdownUtility() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	if !strings.Contains(text, "harmful_count: 1") {
+		t.Errorf("expected harmful_count: 1 in front matter, got:\n%s", text)
+	}
+	// Should NOT contain helpful_count since reward was low
+	if strings.Contains(text, "helpful_count:") {
+		t.Errorf("unexpected helpful_count in front matter for harmful reward, got:\n%s", text)
+	}
+}
+
+func TestUpdateMarkdownUtility_TracksConfidence(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "confidence.md")
+	content := `---
+utility: 0.5
+reward_count: 4
+---
+# Test Learning`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origHelpful := feedbackHelpful
+	origHarmful := feedbackHarmful
+	feedbackHelpful = false
+	feedbackHarmful = false
+	t.Cleanup(func() {
+		feedbackHelpful = origHelpful
+		feedbackHarmful = origHarmful
+	})
+
+	if _, _, err := updateMarkdownUtility(path, 0.5, 0.1); err != nil {
+		t.Fatalf("updateMarkdownUtility() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	if !strings.Contains(text, "confidence:") {
+		t.Fatalf("expected confidence field in front matter, got:\n%s", text)
+	}
+
+	// reward_count was 4, now 5. confidence = 1 - 1/(1+5/5.0) = 1 - 1/2 = 0.5
+	// Parse the confidence value from the file
+	lines := strings.Split(text, "\n")
+	var confidence float64
+	found := false
+	for _, line := range lines {
+		if strings.HasPrefix(line, "confidence:") {
+			if _, err := fmt.Sscanf(line, "confidence: %f", &confidence); err == nil {
+				found = true
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("could not parse confidence from front matter")
+	}
+	// Expected: 1 - 1/(1 + 5/5.0) = 0.5
+	if abs(confidence-0.5) > 0.01 {
+		t.Errorf("confidence = %.4f, want ~0.5", confidence)
+	}
+}
+
+func TestUpdateMarkdownUtility_PreservesExistingFrontMatter(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "preserve.md")
+	content := `---
+id: test-001
+category: debugging
+utility: 0.5
+reward_count: 2
+---
+# Test Learning
+
+Some body content.`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origHelpful := feedbackHelpful
+	origHarmful := feedbackHarmful
+	feedbackHelpful = false
+	feedbackHarmful = false
+	t.Cleanup(func() {
+		feedbackHelpful = origHelpful
+		feedbackHarmful = origHarmful
+	})
+
+	if _, _, err := updateMarkdownUtility(path, 0.8, 0.1); err != nil {
+		t.Fatalf("updateMarkdownUtility() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+
+	// Verify original fields are preserved
+	if !strings.Contains(text, "id: test-001") {
+		t.Errorf("expected id: test-001 preserved, got:\n%s", text)
+	}
+	if !strings.Contains(text, "category: debugging") {
+		t.Errorf("expected category: debugging preserved, got:\n%s", text)
+	}
+	// Verify body content is preserved
+	if !strings.Contains(text, "Some body content.") {
+		t.Errorf("expected body content preserved, got:\n%s", text)
+	}
+	// Verify new MemRL fields were added
+	if !strings.Contains(text, "confidence:") {
+		t.Errorf("expected confidence field added, got:\n%s", text)
+	}
+	if !strings.Contains(text, "last_decay_at:") {
+		t.Errorf("expected last_decay_at field added, got:\n%s", text)
 	}
 }
 

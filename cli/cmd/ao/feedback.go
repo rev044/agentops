@@ -324,12 +324,28 @@ func updateMarkdownUtility(path string, reward, alpha float64) (oldUtility, newU
 		oldUtility = oldU
 		newUtility = (1-alpha)*oldUtility + alpha*reward
 
-		updatedFM := updateFrontMatterFields(lines[1:endIdx], map[string]string{
+		fmLines := lines[1:endIdx]
+		newRewardCountStr := incrementRewardCount(fmLines)
+		newRewardCount := parseFrontMatterInt(fmLines, "reward_count") + 1
+		confidence := 1.0 - (1.0 / (1.0 + float64(newRewardCount)/5.0))
+
+		fields := map[string]string{
 			"utility":        fmt.Sprintf("%.4f", newUtility),
 			"last_reward":    fmt.Sprintf("%.2f", reward),
-			"reward_count":   incrementRewardCount(lines[1:endIdx]),
+			"reward_count":   newRewardCountStr,
 			"last_reward_at": time.Now().Format(time.RFC3339),
-		})
+			"confidence":     fmt.Sprintf("%.4f", confidence),
+			"last_decay_at":  time.Now().Format(time.RFC3339),
+		}
+
+		incrementHelpful, incrementHarmful := counterDirectionFromFeedback(reward, feedbackHelpful, feedbackHarmful)
+		if incrementHelpful {
+			fields["helpful_count"] = incrementFMCount(fmLines, "helpful_count")
+		} else if incrementHarmful {
+			fields["harmful_count"] = incrementFMCount(fmLines, "harmful_count")
+		}
+
+		updatedFM := updateFrontMatterFields(fmLines, fields)
 
 		rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
 		return oldUtility, newUtility, os.WriteFile(path, []byte(rebuilt), 0644)
@@ -391,6 +407,24 @@ func incrementRewardCount(lines []string) string {
 		}
 	}
 	return fmt.Sprintf("%d", count+1)
+}
+
+// parseFrontMatterInt scans front matter lines for a named integer field.
+func parseFrontMatterInt(lines []string, field string) int {
+	val := 0
+	prefix := field + ":"
+	for _, line := range lines {
+		if strings.HasPrefix(line, prefix) {
+			_, _ = fmt.Sscanf(line, field+": %d", &val) //nolint:errcheck // best effort parse
+			break
+		}
+	}
+	return val
+}
+
+// incrementFMCount parses the current int value for a field and returns the incremented value as a string.
+func incrementFMCount(lines []string, field string) string {
+	return fmt.Sprintf("%d", parseFrontMatterInt(lines, field)+1)
 }
 
 // migrateCmd adds utility field to learnings without it.

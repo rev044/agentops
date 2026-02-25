@@ -3,7 +3,6 @@
 package ratchet
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/types"
+	"gopkg.in/yaml.v3"
 )
 
 // MaturityTransitionResult contains the result of a maturity transition check.
@@ -80,11 +80,35 @@ func readLearningData(learningPath string) (map[string]any, error) {
 		return nil, ErrEmptyLearningFile
 	}
 
+	// Try JSONL first (existing behavior)
 	var data map[string]any
-	if err := json.Unmarshal([]byte(lines[0]), &data); err != nil {
-		return nil, fmt.Errorf("parse learning: %w", err)
+	if err := json.Unmarshal([]byte(lines[0]), &data); err == nil {
+		return data, nil
 	}
 
+	// Fallback: YAML front matter (--- delimited)
+	if strings.TrimSpace(lines[0]) == "---" {
+		return parseYAMLFrontMatter(lines)
+	}
+
+	return nil, fmt.Errorf("parse learning: unsupported format")
+}
+
+func parseYAMLFrontMatter(lines []string) (map[string]any, error) {
+	var yamlLines []string
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			break
+		}
+		yamlLines = append(yamlLines, lines[i])
+	}
+	if len(yamlLines) == 0 {
+		return nil, fmt.Errorf("parse YAML front matter: empty")
+	}
+	var data map[string]any
+	if err := yaml.Unmarshal([]byte(strings.Join(yamlLines, "\n")), &data); err != nil {
+		return nil, fmt.Errorf("parse YAML front matter: %w", err)
+	}
 	return data, nil
 }
 
@@ -198,19 +222,32 @@ func stringFromData(data map[string]any, key, defaultValue string, requireNonEmp
 }
 
 func floatFromData(data map[string]any, key string, defaultValue float64) float64 {
-	value, ok := data[key].(float64)
-	if !ok {
+	switch v := data[key].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	default:
 		return defaultValue
 	}
-	return value
 }
 
 func intFromData(data map[string]any, key string) int {
-	value, ok := data[key].(float64)
-	if !ok {
+	switch v := data[key].(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	default:
 		return 0
 	}
-	return int(value)
+}
+
+// globLearningFiles returns all .jsonl and .md files in the given directory.
+func globLearningFiles(dir string) ([]string, error) {
+	jsonl, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	md, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+	return append(jsonl, md...), nil
 }
 
 // ApplyMaturityTransition checks and applies a maturity transition to a learning file.
@@ -230,11 +267,11 @@ func ApplyMaturityTransition(learningPath string) (*MaturityTransitionResult, er
 		"maturity_changed_at": time.Now().Format(time.RFC3339),
 		"maturity_reason":     result.Reason,
 	}
-	if err := updateJSONLFirstLine(learningPath, updates); err != nil {
-		return nil, err
-	}
 
-	return result, nil
+	if strings.HasSuffix(learningPath, ".md") {
+		return result, updateMarkdownFrontMatter(learningPath, updates)
+	}
+	return result, updateJSONLFirstLine(learningPath, updates)
 }
 
 // mergeJSONData unmarshals firstLine as JSON, merges updates into it, and returns re-marshaled JSON.
@@ -278,9 +315,73 @@ func updateJSONLFirstLine(path string, updates map[string]any) error {
 	return nil
 }
 
+// updateMarkdownFrontMatter reads a .md file, finds YAML front matter boundaries,
+// updates/adds fields, and writes the file back.
+func updateMarkdownFrontMatter(path string, updates map[string]any) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read learning for update: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return fmt.Errorf("no front matter in %s", path)
+	}
+
+	// Find closing ---
+	endIdx := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			endIdx = i
+			break
+		}
+	}
+	if endIdx == -1 {
+		return fmt.Errorf("malformed front matter: no closing ---")
+	}
+
+	// Update or add fields in front matter lines
+	fmLines := make([]string, endIdx-1)
+	copy(fmLines, lines[1:endIdx])
+
+	for key, value := range updates {
+		found := false
+		for i, line := range fmLines {
+			if strings.HasPrefix(line, key+":") {
+				fmLines[i] = fmt.Sprintf("%s: %v", key, value)
+				found = true
+				break
+			}
+		}
+		if !found {
+			fmLines = append(fmLines, fmt.Sprintf("%s: %v", key, value))
+		}
+	}
+
+	// Rebuild file
+	var sb strings.Builder
+	sb.WriteString("---\n")
+	for _, line := range fmLines {
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("---\n")
+	for i := endIdx + 1; i < len(lines); i++ {
+		sb.WriteString(lines[i])
+		if i < len(lines)-1 {
+			sb.WriteString("\n")
+		}
+	}
+
+	if err := os.WriteFile(path, []byte(sb.String()), 0o600); err != nil {
+		return fmt.Errorf("write updated learning: %w", err)
+	}
+	return nil
+}
+
 // ScanForMaturityTransitions scans a learnings directory and returns all pending transitions.
 func ScanForMaturityTransitions(learningsDir string) ([]*MaturityTransitionResult, error) {
-	files, err := filepath.Glob(filepath.Join(learningsDir, "*.jsonl"))
+	files, err := globLearningFiles(learningsDir)
 	if err != nil {
 		return nil, fmt.Errorf("glob learnings: %w", err)
 	}
@@ -302,10 +403,10 @@ func ScanForMaturityTransitions(learningsDir string) ([]*MaturityTransitionResul
 	return results, nil
 }
 
-// filterLearningsByMaturity returns JSONL file paths whose first line has
-// the specified maturity value.
+// filterLearningsByMaturity returns learning file paths (JSONL or MD) whose
+// metadata has the specified maturity value.
 func filterLearningsByMaturity(learningsDir string, target types.Maturity) ([]string, error) {
-	files, err := filepath.Glob(filepath.Join(learningsDir, "*.jsonl"))
+	files, err := globLearningFiles(learningsDir)
 	if err != nil {
 		return nil, fmt.Errorf("glob learnings: %w", err)
 	}
@@ -319,23 +420,11 @@ func filterLearningsByMaturity(learningsDir string, target types.Maturity) ([]st
 	return result, nil
 }
 
-// readFirstLineMaturity reads the first JSON line of a JSONL file and returns
-// its "maturity" field value, or "" on any error.
+// readFirstLineMaturity reads the metadata of a learning file (JSONL or MD)
+// and returns its "maturity" field value, or "" on any error.
 func readFirstLineMaturity(path string) string {
-	f, err := os.Open(path)
+	data, err := readLearningData(path)
 	if err != nil {
-		return ""
-	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only
-	}()
-
-	scanner := bufio.NewScanner(f)
-	if !scanner.Scan() {
-		return ""
-	}
-	var data map[string]any
-	if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
 		return ""
 	}
 	maturity, _ := data["maturity"].(string)
@@ -363,46 +452,27 @@ type MaturityDistribution struct {
 }
 
 // GetMaturityDistribution returns the distribution of learnings across maturity levels.
-// Counts both .jsonl files (with full metadata) and .md files (classified as provisional).
+// Counts both .jsonl and .md files with proper metadata parsing.
 func GetMaturityDistribution(learningsDir string) (*MaturityDistribution, error) {
-	jsonlFiles, err := filepath.Glob(filepath.Join(learningsDir, "*.jsonl"))
+	files, err := globLearningFiles(learningsDir)
 	if err != nil {
 		return nil, fmt.Errorf("glob learnings: %w", err)
 	}
 
 	dist := &MaturityDistribution{}
-	for _, file := range jsonlFiles {
+	for _, file := range files {
 		classifyLearningFile(file, dist)
-	}
-
-	// Count .md learnings (no JSONL metadata → provisional by default)
-	mdFiles, err := filepath.Glob(filepath.Join(learningsDir, "*.md"))
-	if err != nil {
-		return dist, nil
-	}
-	for range mdFiles {
-		dist.Provisional++
-		dist.Total++
 	}
 
 	return dist, nil
 }
 
-// classifyLearningFile reads the first line of a JSONL file and updates the distribution.
+// classifyLearningFile reads the metadata of a learning file (JSONL or MD) and
+// updates the distribution.
 func classifyLearningFile(file string, dist *MaturityDistribution) {
-	f, err := os.Open(file)
+	data, err := readLearningData(file)
 	if err != nil {
-		return
-	}
-	defer f.Close() //nolint:errcheck // read-only
-
-	scanner := bufio.NewScanner(f)
-	if !scanner.Scan() {
-		return
-	}
-
-	var data map[string]any
-	if err := json.Unmarshal(scanner.Bytes(), &data); err != nil {
+		// Can't parse = unknown
 		dist.Unknown++
 		dist.Total++
 		return

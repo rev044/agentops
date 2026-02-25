@@ -3,6 +3,7 @@ package ratchet
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -883,9 +884,15 @@ func TestGetMaturityDistribution_UnreadableFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Only the readable file should be counted
-	if dist.Total != 1 {
-		t.Errorf("Total = %d, want 1 (skipping unreadable)", dist.Total)
+	// Readable file counted as provisional, unreadable counted as unknown
+	if dist.Provisional != 1 {
+		t.Errorf("Provisional = %d, want 1", dist.Provisional)
+	}
+	if dist.Unknown != 1 {
+		t.Errorf("Unknown = %d, want 1 (unreadable file)", dist.Unknown)
+	}
+	if dist.Total != 2 {
+		t.Errorf("Total = %d, want 2 (1 readable + 1 unreadable)", dist.Total)
 	}
 }
 
@@ -1195,7 +1202,6 @@ func TestClassifyLearningFile_BadJSON(t *testing.T) {
 }
 
 func TestClassifyLearningFile_EmptyFile(t *testing.T) {
-	// Exercise line 381-383: scanner.Scan() returns false on empty file.
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "empty.jsonl")
 	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
@@ -1204,19 +1210,24 @@ func TestClassifyLearningFile_EmptyFile(t *testing.T) {
 
 	dist := &MaturityDistribution{}
 	classifyLearningFile(path, dist)
-	// Empty file: scanner.Scan returns false, function returns early.
-	// No counts should be incremented.
-	if dist.Total != 0 {
-		t.Errorf("expected Total=0 for empty file, got %d", dist.Total)
+	// Empty file: readLearningData returns error, counts as unknown.
+	if dist.Unknown != 1 {
+		t.Errorf("expected Unknown=1 for empty file, got %d", dist.Unknown)
+	}
+	if dist.Total != 1 {
+		t.Errorf("expected Total=1 for empty file, got %d", dist.Total)
 	}
 }
 
 func TestClassifyLearningFile_NonexistentFile(t *testing.T) {
-	// Exercise line 375-377: os.Open fails, function returns early.
+	// readLearningData returns error for nonexistent file, counts as unknown.
 	dist := &MaturityDistribution{}
 	classifyLearningFile("/nonexistent/file.jsonl", dist)
-	if dist.Total != 0 {
-		t.Errorf("expected Total=0 for nonexistent file, got %d", dist.Total)
+	if dist.Unknown != 1 {
+		t.Errorf("expected Unknown=1 for nonexistent file, got %d", dist.Unknown)
+	}
+	if dist.Total != 1 {
+		t.Errorf("expected Total=1 for nonexistent file, got %d", dist.Total)
 	}
 }
 
@@ -1232,4 +1243,263 @@ func containsSubstr(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// writeMDLearning is a test helper that writes a .md learning file with YAML frontmatter.
+func writeMDLearning(t *testing.T, dir, name string, frontMatter map[string]string, body string) string {
+	t.Helper()
+	var sb strings.Builder
+	sb.WriteString("---\n")
+	for k, v := range frontMatter {
+		sb.WriteString(fmt.Sprintf("%s: %s\n", k, v))
+	}
+	sb.WriteString("---\n")
+	sb.WriteString(body)
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(sb.String()), 0644); err != nil {
+		t.Fatalf("write md learning: %v", err)
+	}
+	return path
+}
+
+func TestReadLearningData_YAMLFrontMatter(t *testing.T) {
+	dir := t.TempDir()
+	path := writeMDLearning(t, dir, "test.md", map[string]string{
+		"id":           "learn-yaml-001",
+		"utility":      "0.85",
+		"maturity":     "provisional",
+		"reward_count": "4",
+	}, "# Some Learning\n\nBody text here.\n")
+
+	data, err := readLearningData(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	id, ok := data["id"].(string)
+	if !ok || id != "learn-yaml-001" {
+		t.Errorf("id = %v, want %q", data["id"], "learn-yaml-001")
+	}
+	maturity, ok := data["maturity"].(string)
+	if !ok || maturity != "provisional" {
+		t.Errorf("maturity = %v, want %q", data["maturity"], "provisional")
+	}
+	// YAML unmarshals numbers — utility as float64, reward_count as int
+	utility := floatFromData(data, "utility", 0)
+	if utility != 0.85 {
+		t.Errorf("utility = %v, want 0.85", utility)
+	}
+	rewardCount := intFromData(data, "reward_count")
+	if rewardCount != 4 {
+		t.Errorf("reward_count = %v, want 4", rewardCount)
+	}
+}
+
+func TestCheckMaturityTransition_MDFile(t *testing.T) {
+	dir := t.TempDir()
+	path := writeMDLearning(t, dir, "promote.md", map[string]string{
+		"id":           "md-promote",
+		"maturity":     "provisional",
+		"utility":      "0.8",
+		"reward_count": "4",
+	}, "# Learning\n")
+
+	result, err := CheckMaturityTransition(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Transitioned {
+		t.Error("expected transition from provisional to candidate")
+	}
+	if result.NewMaturity != types.MaturityCandidate {
+		t.Errorf("NewMaturity = %q, want %q", result.NewMaturity, types.MaturityCandidate)
+	}
+	if result.OldMaturity != types.MaturityProvisional {
+		t.Errorf("OldMaturity = %q, want %q", result.OldMaturity, types.MaturityProvisional)
+	}
+}
+
+func TestScanForMaturityTransitions_IncludesMD(t *testing.T) {
+	dir := t.TempDir()
+
+	// JSONL file that would transition (provisional -> candidate)
+	writeLearning(t, dir, "promote.jsonl", map[string]any{
+		"id":           "jsonl-promote",
+		"maturity":     "provisional",
+		"utility":      0.8,
+		"reward_count": 4.0,
+	})
+
+	// JSONL file that would NOT transition
+	writeLearning(t, dir, "stay.jsonl", map[string]any{
+		"id":       "jsonl-stay",
+		"maturity": "provisional",
+		"utility":  0.4,
+	})
+
+	// MD file that would transition (provisional -> candidate)
+	writeMDLearning(t, dir, "promote.md", map[string]string{
+		"id":           "md-promote",
+		"maturity":     "provisional",
+		"utility":      "0.9",
+		"reward_count": "5",
+	}, "# Learning\n")
+
+	// MD file that would NOT transition
+	writeMDLearning(t, dir, "stay.md", map[string]string{
+		"id":       "md-stay",
+		"maturity": "provisional",
+		"utility":  "0.3",
+	}, "# Learning\n")
+
+	results, err := ScanForMaturityTransitions(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("got %d results, want 2 (1 jsonl + 1 md)", len(results))
+	}
+
+	// Verify both transitioned results are present
+	ids := make(map[string]bool)
+	for _, r := range results {
+		if !r.Transitioned {
+			t.Errorf("result for %q should have Transitioned=true", r.LearningID)
+		}
+		ids[r.LearningID] = true
+	}
+	if !ids["jsonl-promote"] {
+		t.Error("expected jsonl-promote in results")
+	}
+	if !ids["md-promote"] {
+		t.Error("expected md-promote in results")
+	}
+}
+
+func TestApplyMaturityTransition_MDFile(t *testing.T) {
+	dir := t.TempDir()
+	path := writeMDLearning(t, dir, "promote.md", map[string]string{
+		"id":           "md-apply",
+		"maturity":     "provisional",
+		"utility":      "0.8",
+		"reward_count": "4",
+	}, "# Learning\n\nBody text.\n")
+
+	result, err := ApplyMaturityTransition(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Transitioned {
+		t.Fatal("expected transition")
+	}
+	if result.NewMaturity != types.MaturityCandidate {
+		t.Errorf("NewMaturity = %q, want %q", result.NewMaturity, types.MaturityCandidate)
+	}
+
+	// Verify the file was updated with new frontmatter
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read updated file: %v", err)
+	}
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "maturity: candidate") {
+		t.Errorf("expected 'maturity: candidate' in updated file, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "maturity_changed_at:") {
+		t.Error("expected maturity_changed_at in updated file")
+	}
+	if !strings.Contains(contentStr, "maturity_reason:") {
+		t.Error("expected maturity_reason in updated file")
+	}
+	// Verify body is preserved
+	if !strings.Contains(contentStr, "Body text.") {
+		t.Error("expected body text preserved after front matter update")
+	}
+}
+
+func TestGetMaturityDistribution_MDFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	// MD files with different maturity values
+	writeMDLearning(t, dir, "prov.md", map[string]string{
+		"maturity": "provisional",
+	}, "")
+	writeMDLearning(t, dir, "cand.md", map[string]string{
+		"maturity": "candidate",
+	}, "")
+	writeMDLearning(t, dir, "est.md", map[string]string{
+		"maturity": "established",
+	}, "")
+	writeMDLearning(t, dir, "anti.md", map[string]string{
+		"maturity": "anti-pattern",
+	}, "")
+
+	dist, err := GetMaturityDistribution(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if dist.Provisional != 1 {
+		t.Errorf("Provisional = %d, want 1", dist.Provisional)
+	}
+	if dist.Candidate != 1 {
+		t.Errorf("Candidate = %d, want 1", dist.Candidate)
+	}
+	if dist.Established != 1 {
+		t.Errorf("Established = %d, want 1", dist.Established)
+	}
+	if dist.AntiPattern != 1 {
+		t.Errorf("AntiPattern = %d, want 1", dist.AntiPattern)
+	}
+	if dist.Total != 4 {
+		t.Errorf("Total = %d, want 4", dist.Total)
+	}
+}
+
+func TestFilterLearningsByMaturity_IncludesMD(t *testing.T) {
+	dir := t.TempDir()
+
+	// JSONL files
+	writeLearning(t, dir, "est1.jsonl", map[string]any{
+		"maturity": "established",
+	})
+	writeLearning(t, dir, "prov1.jsonl", map[string]any{
+		"maturity": "provisional",
+	})
+
+	// MD files
+	writeMDLearning(t, dir, "est2.md", map[string]string{
+		"maturity": "established",
+	}, "")
+	writeMDLearning(t, dir, "cand1.md", map[string]string{
+		"maturity": "candidate",
+	}, "")
+
+	results, err := filterLearningsByMaturity(dir, types.MaturityEstablished)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("got %d results, want 2 (1 jsonl + 1 md)", len(results))
+	}
+
+	// Verify both established files are found
+	hasJSONL := false
+	hasMD := false
+	for _, r := range results {
+		if strings.HasSuffix(r, ".jsonl") {
+			hasJSONL = true
+		}
+		if strings.HasSuffix(r, ".md") {
+			hasMD = true
+		}
+	}
+	if !hasJSONL {
+		t.Error("expected .jsonl file in established results")
+	}
+	if !hasMD {
+		t.Error("expected .md file in established results")
+	}
 }
