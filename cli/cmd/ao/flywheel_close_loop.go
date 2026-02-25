@@ -96,18 +96,18 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// 3) promote anti-patterns
-	antiEligible, antiPromoted, antiPaths, err := promoteAntiPatternsForCloseLoop(cwd)
+	// 3) apply ALL maturity transitions (not just anti-patterns)
+	maturityResult, err := applyAllMaturityTransitions(cwd)
 	if err != nil {
 		return err
 	}
-	result.AntiPattern.Eligible = antiEligible
-	result.AntiPattern.Promoted = antiPromoted
-	result.AntiPattern.Paths = antiPaths
+	result.AntiPattern.Eligible = maturityResult.Total
+	result.AntiPattern.Promoted = maturityResult.Applied
+	result.AntiPattern.Paths = maturityResult.ChangedPaths
 
 	// 4) store index (categorize) for newly created/changed artifacts
 	pathsToIndex := append([]string{}, result.AutoPromote.Artifacts...)
-	pathsToIndex = append(pathsToIndex, antiPaths...)
+	pathsToIndex = append(pathsToIndex, maturityResult.ChangedPaths...)
 	result.Store.Categorize = true
 	indexed, indexPath, err := storeIndexUpsert(cwd, pathsToIndex, true)
 	if err != nil {
@@ -271,6 +271,48 @@ func autoPromoteAndPromoteToArtifacts(p *pool.Pool, threshold time.Duration, inc
 	}
 
 	return result, nil
+}
+
+// maturityTransitionSummary holds the results of applying all maturity transitions.
+type maturityTransitionSummary struct {
+	Total        int      `json:"total"`
+	Applied      int      `json:"applied"`
+	ChangedPaths []string `json:"changed_paths,omitempty"`
+}
+
+// applyAllMaturityTransitions scans learnings and applies all pending maturity transitions.
+func applyAllMaturityTransitions(cwd string) (maturityTransitionSummary, error) {
+	learningsDir := filepath.Join(cwd, ".agents", "learnings")
+	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
+		return maturityTransitionSummary{}, nil
+	}
+
+	results, err := ratchet.ScanForMaturityTransitions(learningsDir)
+	if err != nil {
+		return maturityTransitionSummary{}, fmt.Errorf("scan transitions: %w", err)
+	}
+
+	summary := maturityTransitionSummary{Total: len(results)}
+	if len(results) == 0 || GetDryRun() {
+		return summary, nil
+	}
+
+	for _, r := range results {
+		learningPath, ferr := findLearningFile(filepath.Dir(learningsDir), r.LearningID)
+		if ferr != nil {
+			continue
+		}
+		applied, aerr := ratchet.ApplyMaturityTransition(learningPath)
+		if aerr != nil {
+			continue
+		}
+		if applied.Transitioned {
+			summary.Applied++
+			summary.ChangedPaths = append(summary.ChangedPaths, learningPath)
+		}
+	}
+
+	return summary, nil
 }
 
 func filterAntiPatternTransitions(results []*ratchet.MaturityTransitionResult) []*ratchet.MaturityTransitionResult {

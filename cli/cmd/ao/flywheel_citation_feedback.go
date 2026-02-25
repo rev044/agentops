@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/resolver"
@@ -41,8 +43,16 @@ func processCitationFeedback(cwd string) (int, int, int) {
 		return 0, 0, 0
 	}
 
+	// Compute adaptive reward from most recent transcript
+	reward, err := computeSessionRewardForCloseLoop(cwd)
+	if err != nil {
+		reward = types.InitialUtility // Fallback to 0.5 (neutral), NOT 1.0
+	}
+
 	res := resolver.NewFileResolver(cwd)
 	var rewarded, skipped int
+	sessionID := canonicalSessionID("")
+	var feedbackEvents []FeedbackEvent
 
 	for _, c := range unique {
 		// Resolve the artifact to a file path
@@ -53,13 +63,28 @@ func processCitationFeedback(cwd string) (int, int, int) {
 			continue
 		}
 
-		// Apply positive reward (helpful citation)
-		_, _, err = updateLearningUtility(path, 1.0, types.DefaultAlpha)
+		// Apply adaptive reward (transcript-derived or fallback)
+		oldUtility, newUtility, err := updateLearningUtility(path, reward, types.DefaultAlpha)
 		if err != nil {
 			skipped++
 			continue
 		}
+
+		feedbackEvents = append(feedbackEvents, FeedbackEvent{
+			SessionID:     sessionID,
+			ArtifactPath:  path,
+			Reward:        reward,
+			UtilityBefore: oldUtility,
+			UtilityAfter:  newUtility,
+			Alpha:         types.DefaultAlpha,
+			RecordedAt:    time.Now(),
+		})
 		rewarded++
+	}
+
+	// Write audit trail
+	if len(feedbackEvents) > 0 {
+		_ = writeFeedbackEvents(cwd, feedbackEvents)
 	}
 
 	// Mark all citations as feedback-given by rewriting the file
@@ -100,4 +125,22 @@ func markCitationsFeedbackGiven(citationsPath string, citations []types.Citation
 	if err := os.WriteFile(citationsPath, []byte(content), 0600); err != nil {
 		VerbosePrintf("Warning: failed to write citations feedback: %v\n", err)
 	}
+}
+
+// computeSessionRewardForCloseLoop finds the most recent transcript and computes reward.
+func computeSessionRewardForCloseLoop(cwd string) (float64, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return 0, fmt.Errorf("get home directory: %w", err)
+	}
+	transcriptsDir := filepath.Join(homeDir, ".claude", "projects")
+	transcriptPath := findMostRecentTranscript(transcriptsDir)
+	if transcriptPath == "" {
+		return 0, fmt.Errorf("no transcript found")
+	}
+	outcome, err := analyzeTranscript(transcriptPath, "")
+	if err != nil {
+		return 0, fmt.Errorf("analyze transcript: %w", err)
+	}
+	return outcome.Reward, nil
 }

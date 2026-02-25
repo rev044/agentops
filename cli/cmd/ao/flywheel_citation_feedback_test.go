@@ -129,3 +129,181 @@ func TestProcessCitationFeedback_AllAlreadyProcessed(t *testing.T) {
 		t.Errorf("expected (0,0,0) for all-processed, got (%d,%d,%d)", total, rewarded, skipped)
 	}
 }
+
+func TestProcessCitationFeedback_UsesAdaptiveReward(t *testing.T) {
+	// Setup: temp dir with citations and a learning file.
+	// Override HOME so computeSessionRewardForCloseLoop finds no transcripts,
+	// causing reward to fall back to 0.5 (InitialUtility).
+	// With EMA: new = (1-0.1)*0.5 + 0.1*0.5 = 0.5 (unchanged).
+	// If the old hardcoded 1.0 were used: new = (1-0.1)*0.5 + 0.1*1.0 = 0.55.
+	tmp := t.TempDir()
+
+	// Isolate from real transcripts by overriding HOME
+	fakeHome := filepath.Join(tmp, "fakehome")
+	if err := os.MkdirAll(fakeHome, 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", fakeHome)
+
+	// Create .agents/ao/ for citations
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	if err := os.MkdirAll(aoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create .agents/learnings/ with a learning file (JSONL format)
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	learningPath := filepath.Join(learningsDir, "test-learning.jsonl")
+	learningContent := `{"id":"test-learning","title":"Test Learning","utility":0.5}`
+	if err := os.WriteFile(learningPath, []byte(learningContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write an unprocessed citation pointing at the learning
+	citations := []types.CitationEvent{
+		{ArtifactPath: ".agents/learnings/test-learning.jsonl", FeedbackGiven: false},
+	}
+	var citationLines []string
+	for _, c := range citations {
+		data, _ := json.Marshal(c)
+		citationLines = append(citationLines, string(data))
+	}
+	citationsContent := strings.Join(citationLines, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(aoDir, "citations.jsonl"), []byte(citationsContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	total, rewarded, skipped := processCitationFeedback(tmp)
+	if total != 1 {
+		t.Errorf("expected total=1, got %d", total)
+	}
+	if rewarded != 1 {
+		t.Errorf("expected rewarded=1, got %d", rewarded)
+	}
+	if skipped != 0 {
+		t.Errorf("expected skipped=0, got %d", skipped)
+	}
+
+	// Verify the learning's utility was updated with fallback reward (0.5), NOT 1.0.
+	// EMA with reward=0.5, alpha=0.1, old=0.5: new = 0.9*0.5 + 0.1*0.5 = 0.5
+	updatedData, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatalf("failed to read updated learning: %v", err)
+	}
+
+	var parsed map[string]any
+	firstLine := strings.Split(string(updatedData), "\n")[0]
+	if err := json.Unmarshal([]byte(firstLine), &parsed); err != nil {
+		t.Fatalf("failed to parse updated learning: %v", err)
+	}
+
+	utility, ok := parsed["utility"].(float64)
+	if !ok {
+		t.Fatal("utility field not found in updated learning")
+	}
+	// With fallback reward 0.5, utility should remain 0.5 (unchanged).
+	// With old hardcoded 1.0, it would be 0.55.
+	if utility > 0.501 || utility < 0.499 {
+		t.Errorf("utility = %f, want ~0.5 (fallback adaptive reward); if 0.55, hardcoded 1.0 is still in use", utility)
+	}
+}
+
+func TestProcessCitationFeedback_WritesFeedbackEvents(t *testing.T) {
+	// Verify that processCitationFeedback writes FeedbackEvent entries to feedback.jsonl.
+	tmp := t.TempDir()
+
+	// Isolate from real transcripts by overriding HOME
+	fakeHome := filepath.Join(tmp, "fakehome")
+	if err := os.MkdirAll(fakeHome, 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", fakeHome)
+
+	// Create .agents/ao/ for citations
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	if err := os.MkdirAll(aoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a learning file
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	learningPath := filepath.Join(learningsDir, "fb-test.jsonl")
+	if err := os.WriteFile(learningPath, []byte(`{"id":"fb-test","title":"Feedback Test","utility":0.6}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write an unprocessed citation
+	citations := []types.CitationEvent{
+		{ArtifactPath: ".agents/learnings/fb-test.jsonl", FeedbackGiven: false},
+	}
+	var citationLines []string
+	for _, c := range citations {
+		data, _ := json.Marshal(c)
+		citationLines = append(citationLines, string(data))
+	}
+	if err := os.WriteFile(filepath.Join(aoDir, "citations.jsonl"), []byte(strings.Join(citationLines, "\n")+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	total, rewarded, _ := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 1 {
+		t.Fatalf("expected (1,1,_), got (%d,%d,_)", total, rewarded)
+	}
+
+	// Verify feedback.jsonl was written
+	feedbackPath := filepath.Join(tmp, ".agents", "ao", "feedback.jsonl")
+	feedbackData, err := os.ReadFile(feedbackPath)
+	if err != nil {
+		t.Fatalf("feedback.jsonl not created: %v", err)
+	}
+
+	feedbackLines := strings.Split(strings.TrimSpace(string(feedbackData)), "\n")
+	if len(feedbackLines) == 0 {
+		t.Fatal("feedback.jsonl is empty")
+	}
+
+	var event FeedbackEvent
+	if err := json.Unmarshal([]byte(feedbackLines[0]), &event); err != nil {
+		t.Fatalf("failed to parse FeedbackEvent: %v", err)
+	}
+
+	if event.SessionID == "" {
+		t.Error("FeedbackEvent.SessionID is empty")
+	}
+	if event.ArtifactPath == "" {
+		t.Error("FeedbackEvent.ArtifactPath is empty")
+	}
+	if event.UtilityBefore < 0.001 {
+		t.Errorf("FeedbackEvent.UtilityBefore = %f, expected non-zero", event.UtilityBefore)
+	}
+	if event.Alpha != types.DefaultAlpha {
+		t.Errorf("FeedbackEvent.Alpha = %f, want %f", event.Alpha, types.DefaultAlpha)
+	}
+	if event.RecordedAt.IsZero() {
+		t.Error("FeedbackEvent.RecordedAt is zero")
+	}
+	// Reward should be the fallback (0.5) since no transcript exists with fake HOME
+	if event.Reward < 0.499 || event.Reward > 0.501 {
+		t.Errorf("FeedbackEvent.Reward = %f, want ~0.5 (fallback)", event.Reward)
+	}
+}
+
+func TestComputeSessionRewardForCloseLoop_NoTranscript(t *testing.T) {
+	// Override HOME to an empty temp dir so no transcripts are found.
+	fakeHome := filepath.Join(t.TempDir(), "emptyhome")
+	if err := os.MkdirAll(fakeHome, 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", fakeHome)
+
+	_, err := computeSessionRewardForCloseLoop(t.TempDir())
+	if err == nil {
+		t.Error("expected error when no transcript exists, got nil")
+	}
+}
