@@ -1307,7 +1307,7 @@ func TestJSONValidity_MaturityScan(t *testing.T) {
 			"harmful_count":   1,
 			"confidence":      0.85,
 			"feedback_count":  5,
-			"transition_rule": "utility >= 0.7 AND reward_count >= 3",
+			"transition_rule": "utility >= 0.55 AND reward_count >= 3",
 		},
 	}
 

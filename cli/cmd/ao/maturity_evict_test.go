@@ -54,7 +54,7 @@ func TestEvictIdentifiesCandidate(t *testing.T) {
 	}
 
 	// Create a learning that meets ALL 4 eviction criteria:
-	// utility < 0.3, confidence < 0.2, not established, no recent citation
+	// utility < 0.3, confidence < 0.3, not established, no recent citation
 	createTestLearningJSONL(t, learningsDir, "stale.jsonl", map[string]any{
 		"id":         "L-stale",
 		"utility":    0.1,

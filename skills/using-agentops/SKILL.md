@@ -181,13 +181,13 @@ bd sync               # Sync with git
 **Hook triggers:** `session-start.sh` runs at session start
 
 **What happens:**
-1. In `manual` mode (default): MEMORY.md is auto-loaded by Claude Code; hook emits a pointer to on-demand retrieval (`ao search`, `ao lookup`)
-2. In `lean`/`legacy` modes: hook extracts pending knowledge and injects prior learnings
+1. In `lean` mode (default): hook extracts pending knowledge and injects prior learnings with a reduced token budget
+2. In `manual` mode: MEMORY.md is auto-loaded by Claude Code; hook emits a pointer to on-demand retrieval (`ao search`, `ao lookup`)
 3. Hook injects this skill automatically into session context
 4. Agent loads RPI workflow overview, phase-to-skill mapping, trigger patterns
 5. User says "check my code" → agent recognizes `/vibe` trigger naturally
 
-**Result:** Agent knows the full skill catalog and workflow from session start. Knowledge retrieval is on-demand by default (MEMORY.md + `ao search`), with opt-in startup injection via `AGENTOPS_STARTUP_CONTEXT_MODE=lean`.
+**Result:** Agent knows the full skill catalog and workflow from session start. Knowledge injection runs automatically by default (`lean` mode). Set `AGENTOPS_STARTUP_CONTEXT_MODE=manual` for on-demand retrieval only (MEMORY.md + `ao search`).
 
 ### Workflow Reference During Planning
 

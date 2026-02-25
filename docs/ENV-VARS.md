@@ -58,10 +58,11 @@ These control the optional hook system installed via `ao init --hooks`. Each hoo
 |----------|---------|-------------|
 | `AGENTOPS_HOOKS_DISABLED` | `0` | Set to `1` to disable **all** hooks at once. Global kill switch. Useful for debugging or when hooks interfere with a specific workflow. |
 | `AGENTOPS_SESSION_START_DISABLED` | `0` | Set to `1` to disable the session-start hook entirely. |
-| `AGENTOPS_STARTUP_CONTEXT_MODE` | `manual` | Controls SessionStart behavior: `manual` (default — MEMORY.md auto-loaded, no extract/inject), `lean` (extract + inject with reduced budget), `legacy` (extract + inject with full budget). |
+| `AGENTOPS_STARTUP_CONTEXT_MODE` | `lean` | Controls SessionStart behavior: `lean` (default — extract + inject with reduced budget), `manual` (MEMORY.md auto-loaded, no extract/inject), `legacy` (extract + inject with full budget). |
 | `AGENTOPS_MEMORY_SYNC` | `0` | Set to `1` to enable repo-root MEMORY.md sync at SessionEnd. Writes session history with managed block markers for cross-runtime access (Codex, OpenCode). |
 | `AGENTOPS_EVICTION_DISABLED` | `0` | Set to `1` to disable knowledge eviction. Eviction removes stale learnings that have decayed below the retention threshold. Disable if you want to keep all learnings indefinitely. |
 | `AGENTOPS_GITIGNORE_AUTO` | `1` | Set to `0` to prevent the session-start hook from auto-adding `.agents/` to `.gitignore`. Useful if you want to commit knowledge artifacts to your repo. |
+| `AGENTOPS_AUTO_PRUNE` | `1` | Set to `0` to disable automatic `.agents/` directory pruning at session end. Pruning removes stale lock files and empty directories to keep the workspace clean. |
 
 ### Usage Examples
 

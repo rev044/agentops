@@ -21,9 +21,9 @@ ao hooks show
 
 When you start a Claude Code session, behavior depends on `AGENTOPS_STARTUP_CONTEXT_MODE`:
 
-**`manual` (default):** MEMORY.md is auto-loaded by Claude Code. The hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`). No `ao extract` or `ao inject` runs. This is the lightest startup path.
+**`lean` (default):** Runs `ao extract` + `ao inject` with a reduced token budget (400 tokens when MEMORY.md is fresh). Provides automatic knowledge injection alongside MEMORY.md.
 
-**`lean`:** Runs `ao extract` + `ao inject` with a reduced token budget (400 tokens when MEMORY.md is fresh). Useful when you want automatic knowledge injection alongside MEMORY.md.
+**`manual`:** MEMORY.md is auto-loaded by Claude Code. The hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`). No `ao extract` or `ao inject` runs. This is the lightest startup path.
 
 **`legacy`:** Runs `ao extract` + `ao inject` with full token budget (800 tokens). Pre-notebook behavior for backward compatibility.
 
@@ -166,11 +166,11 @@ Note: this is a minimal example. `ao hooks install` is recommended for full cove
 Control what happens at session start via environment variable:
 
 ```bash
-# Default — MEMORY.md auto-loaded, no extract/inject (lightest)
-AGENTOPS_STARTUP_CONTEXT_MODE=manual claude
-
-# Extract + inject with reduced budget (lean injection alongside MEMORY.md)
+# Default — extract + inject with reduced budget (lean injection alongside MEMORY.md)
 AGENTOPS_STARTUP_CONTEXT_MODE=lean claude
+
+# MEMORY.md auto-loaded, no extract/inject (lightest)
+AGENTOPS_STARTUP_CONTEXT_MODE=manual claude
 
 # Full extract + inject (pre-notebook backward compatibility)
 AGENTOPS_STARTUP_CONTEXT_MODE=legacy claude

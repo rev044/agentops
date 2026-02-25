@@ -918,7 +918,7 @@ func TestApplyMaturityTransition_PromoteProvisionalToCandidate(t *testing.T) {
 	learningPath := filepath.Join(tmpDir, "learn-test.jsonl")
 
 	// Create learning that meets promotion criteria:
-	// utility >= 0.7, reward_count >= 3
+	// utility >= 0.55, reward_count >= 3
 	learning := `{"id":"L1","maturity":"provisional","utility":0.8,"reward_count":5,"confidence":0.9}`
 	if err := os.WriteFile(learningPath, []byte(learning+"\n"), 0644); err != nil {
 		t.Fatal(err)

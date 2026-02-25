@@ -999,7 +999,7 @@ func TestHelper2_isEvictionEligible(t *testing.T) {
 		{"eligible candidate", 0.2, 0.1, "candidate", true},
 		{"boundary utility 0.3", 0.3, 0.1, "provisional", false},
 		{"boundary confidence 0.3", 0.1, 0.3, "provisional", false},
-		{"just under thresholds", 0.29, 0.19, "candidate", true},
+		{"just under thresholds", 0.29, 0.29, "candidate", true},
 	}
 
 	for _, tt := range tests {

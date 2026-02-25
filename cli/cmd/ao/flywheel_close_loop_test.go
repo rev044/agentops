@@ -74,7 +74,7 @@ func TestApplyAllMaturityTransitions_AppliesPromotion(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	// provisional -> candidate requires utility >= 0.7 AND reward_count >= 3
+	// provisional -> candidate requires utility >= 0.55 AND reward_count >= 3
 	path := writeTestMDLearning(t, learningsDir, "test-learn.md", map[string]string{
 		"id":           "test-learn",
 		"maturity":     "provisional",
@@ -112,7 +112,7 @@ func TestApplyAllMaturityTransitions_AppliesAntiPattern(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	// anti-pattern requires utility <= 0.2 AND harmful_count >= 5
+	// anti-pattern requires utility <= 0.2 AND harmful_count >= 3
 	path := writeTestMDLearning(t, learningsDir, "bad-learn.md", map[string]string{
 		"id":            "bad-learn",
 		"maturity":      "provisional",
@@ -150,7 +150,7 @@ func TestApplyAllMaturityTransitions_MixedTransitions(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	// 1. Should promote: provisional -> candidate (utility >= 0.7, reward_count >= 3)
+	// 1. Should promote: provisional -> candidate (utility >= 0.55, reward_count >= 3)
 	writeTestMDLearning(t, learningsDir, "good-learn.md", map[string]string{
 		"id":           "good-learn",
 		"maturity":     "provisional",
@@ -168,7 +168,7 @@ func TestApplyAllMaturityTransitions_MixedTransitions(t *testing.T) {
 		"confidence":   "0.6",
 	}, "# Mid Learning\nAverage content.\n")
 
-	// 3. Should become anti-pattern: utility <= 0.2, harmful_count >= 5
+	// 3. Should become anti-pattern: utility <= 0.2, harmful_count >= 3
 	writeTestMDLearning(t, learningsDir, "bad-learn.md", map[string]string{
 		"id":            "bad-learn",
 		"maturity":      "provisional",
@@ -230,7 +230,7 @@ func TestCloseLoop_AppliesAllTransitions(t *testing.T) {
 	}
 
 	// Create a .md learning with high utility that should promote from provisional to candidate.
-	// Transition requires utility >= 0.7 AND reward_count >= 3.
+	// Transition requires utility >= 0.55 AND reward_count >= 3.
 	path := writeTestMDLearning(t, learningsDir, "test-learn-e2e-001.md", map[string]string{
 		"id":            "test-learn-e2e-001",
 		"maturity":      "provisional",
@@ -429,7 +429,7 @@ func TestCloseLoop_CitationFeedbackWithMaturityTransition(t *testing.T) {
 		t.Errorf("processCitationFeedback = (%d, %d, %d), want (1, 1, 0)", total, rewarded, skipped)
 	}
 
-	// Verify utility moved with annealed alpha (still below 0.7 threshold for promotion)
+	// Verify utility moved with annealed alpha (still below 0.55 threshold for promotion)
 	expectedAlphaT := annealedAlpha(types.DefaultAlpha, 2)
 	expectedUtilityT := 0.68 + expectedAlphaT*(0.5-0.68)
 	data, err := os.ReadFile(learningPath)

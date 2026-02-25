@@ -57,7 +57,7 @@ run_maintenance() {
         run_ao_quick 4 maturity --evict --archive || true
     fi
 
-    # Auto-prune .agents/ (opt-in via AGENTOPS_AUTO_PRUNE=1)
+    # Auto-prune .agents/ (opt-out via AGENTOPS_AUTO_PRUNE=0)
     if [ "${AGENTOPS_AUTO_PRUNE:-1}" = "1" ]; then
         PRUNE_SCRIPT="${PLUGIN_ROOT}/scripts/prune-agents.sh"
         if [ -x "$PRUNE_SCRIPT" ]; then

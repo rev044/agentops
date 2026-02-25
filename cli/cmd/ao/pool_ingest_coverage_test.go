@@ -342,6 +342,18 @@ func TestPoolIngestCoverage_BuildCandidateFromLearningBlock(t *testing.T) {
 		}
 	})
 
+	t.Run("stub 'no significant learnings' body returns not ok", func(t *testing.T) {
+		b := learningBlock{
+			Title: "Session Summary",
+			ID:    "L-stub",
+			Body:  "No significant learnings from this session.",
+		}
+		_, _, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if ok {
+			t.Error("expected ok=false for stub 'no significant learnings' body")
+		}
+	})
+
 	t.Run("high confidence boosts raw score", func(t *testing.T) {
 		bHigh := learningBlock{Title: "Test", ID: "L1", Confidence: "high", Body: "Some body content here."}
 		bLow := learningBlock{Title: "Test", ID: "L2", Confidence: "low", Body: "Some body content here."}
