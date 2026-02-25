@@ -282,8 +282,10 @@ func TestProcessCitationFeedback_WritesFeedbackEvents(t *testing.T) {
 	if event.UtilityBefore < 0.001 {
 		t.Errorf("FeedbackEvent.UtilityBefore = %f, expected non-zero", event.UtilityBefore)
 	}
-	if event.Alpha != types.DefaultAlpha {
-		t.Errorf("FeedbackEvent.Alpha = %f, want %f", event.Alpha, types.DefaultAlpha)
+	// For a new learning (0 reward_count), annealed alpha = DefaultAlpha * 3.0
+	expectedAlpha := annealedAlpha(types.DefaultAlpha, 0)
+	if event.Alpha != expectedAlpha {
+		t.Errorf("FeedbackEvent.Alpha = %f, want %f (annealed)", event.Alpha, expectedAlpha)
 	}
 	if event.RecordedAt.IsZero() {
 		t.Error("FeedbackEvent.RecordedAt is zero")
@@ -346,8 +348,12 @@ func TestComputeSessionRewardForCloseLoop_NoTranscript(t *testing.T) {
 	}
 	t.Setenv("HOME", fakeHome)
 
-	_, err := computeSessionRewardForCloseLoop(t.TempDir())
-	if err == nil {
-		t.Error("expected error when no transcript exists, got nil")
+	// With no outcome file and no transcript, should return InitialUtility (neutral fallback)
+	reward, err := computeSessionRewardForCloseLoop(t.TempDir())
+	if err != nil {
+		t.Errorf("expected nil error for graceful fallback, got: %v", err)
+	}
+	if reward != 0.5 {
+		t.Errorf("expected InitialUtility (0.5) as fallback, got: %v", reward)
 	}
 }

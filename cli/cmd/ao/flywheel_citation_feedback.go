@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,8 +62,12 @@ func processCitationFeedback(cwd string) (int, int, int) {
 			continue
 		}
 
+		// Compute annealed alpha based on citation count
+		rewardCount := getLearningRewardCount(path)
+		alpha := annealedAlpha(types.DefaultAlpha, rewardCount)
+
 		// Apply adaptive reward (transcript-derived or fallback)
-		oldUtility, newUtility, err := updateLearningUtility(path, reward, types.DefaultAlpha)
+		oldUtility, newUtility, err := updateLearningUtility(path, reward, alpha)
 		if err != nil {
 			skipped++
 			continue
@@ -81,7 +84,7 @@ func processCitationFeedback(cwd string) (int, int, int) {
 			Reward:        reward,
 			UtilityBefore: oldUtility,
 			UtilityAfter:  newUtility,
-			Alpha:         types.DefaultAlpha,
+			Alpha:         alpha,
 			RecordedAt:    time.Now(),
 		})
 		rewarded++
@@ -142,20 +145,39 @@ func markCitationsFeedbackGiven(citationsPath string, citations []types.Citation
 	}
 }
 
-// computeSessionRewardForCloseLoop finds the most recent transcript and computes reward.
+// computeSessionRewardForCloseLoop checks for a binary session outcome file first,
+// then falls back to transcript analysis.
 func computeSessionRewardForCloseLoop(cwd string) (float64, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return 0, fmt.Errorf("get home directory: %w", err)
+	// Try session outcome file first (binary, reliable)
+	outcomePath := filepath.Join(cwd, ".agents", "ao", "last-session-outcome.json")
+	if data, err := os.ReadFile(outcomePath); err == nil {
+		var outcome struct {
+			Outcome string `json:"outcome"`
+		}
+		if json.Unmarshal(data, &outcome) == nil {
+			switch outcome.Outcome {
+			case "success":
+				return 0.8, nil
+			case "failure":
+				return 0.2, nil
+			case "abandoned":
+				return 0.4, nil
+			}
+		}
+	}
+	// Fallback to transcript analysis (existing behavior)
+	homeDir, _ := os.UserHomeDir()
+	if homeDir == "" {
+		return types.InitialUtility, nil
 	}
 	transcriptsDir := filepath.Join(homeDir, ".claude", "projects")
 	transcriptPath := findMostRecentTranscript(transcriptsDir)
 	if transcriptPath == "" {
-		return 0, fmt.Errorf("no transcript found")
+		return types.InitialUtility, nil
 	}
 	outcome, err := analyzeTranscript(transcriptPath, "")
 	if err != nil {
-		return 0, fmt.Errorf("analyze transcript: %w", err)
+		return types.InitialUtility, nil
 	}
 	return outcome.Reward, nil
 }

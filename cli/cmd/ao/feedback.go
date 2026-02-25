@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/resolver"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -491,7 +492,7 @@ func runMigrate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	files, err := filepath.Glob(filepath.Join(learningsDir, "*.jsonl"))
+	files, err := ratchet.GlobLearningFiles(learningsDir)
 	if err != nil {
 		return err
 	}

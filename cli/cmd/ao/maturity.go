@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -424,7 +425,7 @@ func runMaturityEvict(cmd *cobra.Command) error {
 	}
 
 	lastCited := buildCitationMap(cwd)
-	files, err := filepath.Glob(filepath.Join(learningsDir, "*.jsonl"))
+	files, err := ratchet.GlobLearningFiles(learningsDir)
 	if err != nil {
 		return fmt.Errorf("glob learnings: %w", err)
 	}
@@ -455,7 +456,7 @@ func collectEvictionCandidates(baseDir string, files []string, lastCited map[str
 }
 
 func buildEvictionCandidate(baseDir, file string, lastCited map[string]time.Time, cutoff time.Time) (evictionCandidate, bool) {
-	data, ok := readLearningJSONLData(file)
+	data, ok := readLearningData(file)
 	if !ok {
 		return evictionCandidate{}, false
 	}
@@ -499,6 +500,29 @@ func readLearningJSONLData(file string) (map[string]any, bool) {
 	}
 
 	return data, true
+}
+
+// readLearningData dispatches to the appropriate reader based on file extension.
+// Returns metadata map and true if data was successfully read.
+func readLearningData(file string) (map[string]any, bool) {
+	if strings.HasSuffix(file, ".jsonl") {
+		return readLearningJSONLData(file)
+	}
+	// For .md: parse frontmatter fields
+	fields, err := parseFrontmatterFields(file, "utility", "confidence", "maturity",
+		"helpful_count", "harmful_count", "reward_count")
+	if err != nil {
+		return nil, false
+	}
+	data := make(map[string]any)
+	for k, v := range fields {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			data[k] = f
+		} else {
+			data[k] = v
+		}
+	}
+	return data, len(data) > 0
 }
 
 func isEvictionEligible(utility, confidence float64, maturity string) bool {

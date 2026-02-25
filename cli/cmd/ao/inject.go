@@ -171,6 +171,9 @@ func runInject(cmd *cobra.Command, args []string) error {
 	knowledge := gatherKnowledge(cwd, query, sessionID, cfg)
 	knowledge.BeadID = injectBead
 
+	// Dedup: skip learnings whose title already appears in MEMORY.md
+	knowledge.Learnings = filterMemoryDuplicates(cwd, knowledge.Learnings)
+
 	// Apply bead-scoped boosting after composite scoring
 	if beadCtx != nil {
 		for i := range knowledge.Learnings {
@@ -412,6 +415,34 @@ func resortLearnings(learnings []learning) {
 		}
 		return 0
 	})
+}
+
+// filterMemoryDuplicates removes learnings whose Title or ID already appears in MEMORY.md.
+// Uses exact title/ID match to avoid false positives.
+func filterMemoryDuplicates(cwd string, learnings []learning) []learning {
+	memoryFile, err := findMemoryFile(cwd)
+	if err != nil {
+		return learnings // no MEMORY.md = no dedup
+	}
+	content, err := os.ReadFile(memoryFile)
+	if err != nil {
+		return learnings
+	}
+	memoryText := string(content)
+
+	filtered := make([]learning, 0, len(learnings))
+	for _, l := range learnings {
+		// Skip if learning ID appears verbatim in MEMORY.md
+		if l.ID != "" && strings.Contains(memoryText, l.ID) {
+			continue
+		}
+		// Skip if learning Title appears verbatim in MEMORY.md
+		if l.Title != "" && strings.Contains(memoryText, l.Title) {
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+	return filtered
 }
 
 // formatKnowledgeMarkdown formats knowledge as markdown

@@ -243,8 +243,8 @@ func intFromData(data map[string]any, key string) int {
 	}
 }
 
-// globLearningFiles returns all .jsonl and .md files in the given directory.
-func globLearningFiles(dir string) ([]string, error) {
+// GlobLearningFiles returns all .jsonl and .md files in the given directory.
+func GlobLearningFiles(dir string) ([]string, error) {
 	jsonl, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
 	md, _ := filepath.Glob(filepath.Join(dir, "*.md"))
 	return append(jsonl, md...), nil
@@ -395,7 +395,7 @@ func updateMarkdownFrontMatter(path string, updates map[string]any) error {
 
 // ScanForMaturityTransitions scans a learnings directory and returns all pending transitions.
 func ScanForMaturityTransitions(learningsDir string) ([]*MaturityTransitionResult, error) {
-	files, err := globLearningFiles(learningsDir)
+	files, err := GlobLearningFiles(learningsDir)
 	if err != nil {
 		return nil, fmt.Errorf("glob learnings: %w", err)
 	}
@@ -420,7 +420,7 @@ func ScanForMaturityTransitions(learningsDir string) ([]*MaturityTransitionResul
 // filterLearningsByMaturity returns learning file paths (JSONL or MD) whose
 // metadata has the specified maturity value.
 func filterLearningsByMaturity(learningsDir string, target types.Maturity) ([]string, error) {
-	files, err := globLearningFiles(learningsDir)
+	files, err := GlobLearningFiles(learningsDir)
 	if err != nil {
 		return nil, fmt.Errorf("glob learnings: %w", err)
 	}
@@ -468,7 +468,7 @@ type MaturityDistribution struct {
 // GetMaturityDistribution returns the distribution of learnings across maturity levels.
 // Counts both .jsonl and .md files with proper metadata parsing.
 func GetMaturityDistribution(learningsDir string) (*MaturityDistribution, error) {
-	files, err := globLearningFiles(learningsDir)
+	files, err := GlobLearningFiles(learningsDir)
 	if err != nil {
 		return nil, fmt.Errorf("glob learnings: %w", err)
 	}

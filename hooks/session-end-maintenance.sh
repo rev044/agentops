@@ -28,6 +28,7 @@ run_ao_quick() {
 run_maintenance() {
     command -v ao >/dev/null 2>&1 || return 0
 
+    FORGE_STATUS=0
     if run_ao_quick 6 forge transcript --last-session --quiet; then
         run_ao_quick 8 notebook update --quiet || true
 
@@ -36,6 +37,16 @@ run_maintenance() {
         if [ "${AGENTOPS_MEMORY_SYNC:-0}" = "1" ]; then
             run_ao_quick 10 memory sync --quiet || true
         fi
+    else
+        FORGE_STATUS=1
+    fi
+
+    # Write session outcome for binary reward signal (used by flywheel close-loop)
+    OUTCOME_FILE="$AO_DIR/last-session-outcome.json"
+    if [ "$FORGE_STATUS" -eq 0 ]; then
+        printf '{"outcome":"success","written_at":"%s"}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$OUTCOME_FILE" 2>/dev/null || true
+    else
+        printf '{"outcome":"failure","written_at":"%s"}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$OUTCOME_FILE" 2>/dev/null || true
     fi
 
     run_ao_quick 4 maturity --scan --apply || true

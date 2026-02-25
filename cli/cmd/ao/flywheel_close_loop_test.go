@@ -328,10 +328,13 @@ func TestCloseLoop_IntegrationEndToEnd(t *testing.T) {
 	content := string(data)
 
 	// Parse utility from frontmatter
+	// With annealed alpha (reward_count=3): alpha = 0.1 * 3.0 * exp(-0.3) ≈ 0.2222
+	// new = 0.6 + 0.2222 * (0.5 - 0.6) ≈ 0.5778
 	utilityVal := parseFrontMatterFloat(content, "utility")
-	expectedUtility := 0.59
+	expectedAlpha := annealedAlpha(types.DefaultAlpha, 3)
+	expectedUtility := 0.6 + expectedAlpha*(0.5-0.6)
 	if math.Abs(utilityVal-expectedUtility) > 0.01 {
-		t.Errorf("utility = %.4f, want approximately %.2f (tolerance 0.01)", utilityVal, expectedUtility)
+		t.Errorf("utility = %.4f, want approximately %.4f (tolerance 0.01)", utilityVal, expectedUtility)
 	}
 
 	// 7. Verify reward_count incremented from 3 to 4
@@ -368,11 +371,11 @@ func TestCloseLoop_IntegrationEndToEnd(t *testing.T) {
 	if math.Abs(fe.UtilityBefore-0.6) > 0.01 {
 		t.Errorf("feedback event utility_before = %.4f, want approximately 0.6", fe.UtilityBefore)
 	}
-	if math.Abs(fe.UtilityAfter-0.59) > 0.01 {
-		t.Errorf("feedback event utility_after = %.4f, want approximately 0.59", fe.UtilityAfter)
+	if math.Abs(fe.UtilityAfter-expectedUtility) > 0.01 {
+		t.Errorf("feedback event utility_after = %.4f, want approximately %.4f", fe.UtilityAfter, expectedUtility)
 	}
-	if fe.Alpha != 0.1 {
-		t.Errorf("feedback event alpha = %.4f, want 0.1", fe.Alpha)
+	if math.Abs(fe.Alpha-expectedAlpha) > 0.001 {
+		t.Errorf("feedback event alpha = %.4f, want %.4f (annealed)", fe.Alpha, expectedAlpha)
 	}
 }
 
@@ -418,20 +421,24 @@ func TestCloseLoop_CitationFeedbackWithMaturityTransition(t *testing.T) {
 	// 3. Override HOME (no transcripts -> fallback reward 0.5)
 	t.Setenv("HOME", tmp)
 
-	// 4. Call processCitationFeedback — utility ~= (0.9)*0.68 + (0.1)*0.5 = 0.662
+	// 4. Call processCitationFeedback — with annealed alpha (reward_count=2):
+	// alpha = 0.1 * 3.0 * exp(-0.2) ≈ 0.2456
+	// new = 0.68 + 0.2456 * (0.5 - 0.68) ≈ 0.6358
 	total, rewarded, skipped := processCitationFeedback(tmp)
 	if total != 1 || rewarded != 1 || skipped != 0 {
 		t.Errorf("processCitationFeedback = (%d, %d, %d), want (1, 1, 0)", total, rewarded, skipped)
 	}
 
-	// Verify utility is around 0.662 (still below 0.7 threshold for promotion)
+	// Verify utility moved with annealed alpha (still below 0.7 threshold for promotion)
+	expectedAlphaT := annealedAlpha(types.DefaultAlpha, 2)
+	expectedUtilityT := 0.68 + expectedAlphaT*(0.5-0.68)
 	data, err := os.ReadFile(learningPath)
 	if err != nil {
 		t.Fatalf("read learning: %v", err)
 	}
 	utilityAfterFeedback := parseFrontMatterFloat(string(data), "utility")
-	if math.Abs(utilityAfterFeedback-0.662) > 0.01 {
-		t.Errorf("utility after feedback = %.4f, want approximately 0.662", utilityAfterFeedback)
+	if math.Abs(utilityAfterFeedback-expectedUtilityT) > 0.01 {
+		t.Errorf("utility after feedback = %.4f, want approximately %.4f", utilityAfterFeedback, expectedUtilityT)
 	}
 
 	// 5. Now manually update utility to 0.75 and reward_count to 4

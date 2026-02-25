@@ -4,9 +4,11 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -70,6 +72,39 @@ func init() {
 	feedbackLoopCmd.Flags().StringVar(&feedbackLoopTranscript, "transcript", "", "Path to transcript for reward computation")
 	feedbackLoopCmd.Flags().Float64Var(&feedbackLoopAlpha, "alpha", types.DefaultAlpha, "EMA learning rate")
 	feedbackLoopCmd.Flags().StringVar(&feedbackLoopCitationType, "citation-type", "retrieved", "Filter citations by type (retrieved, applied, all)")
+}
+
+// annealedAlpha computes a decaying learning rate.
+// Starts at 3*baseAlpha for new learnings, decays toward baseAlpha/10 floor.
+func annealedAlpha(baseAlpha float64, citationCount int) float64 {
+	alpha := (baseAlpha * 3.0) * math.Exp(-float64(citationCount)*0.1)
+	floor := baseAlpha / 10.0
+	if alpha < floor {
+		return floor
+	}
+	return alpha
+}
+
+// getLearningRewardCount reads the reward_count from a learning file.
+func getLearningRewardCount(path string) int {
+	if strings.HasSuffix(path, ".jsonl") {
+		data, ok := readLearningJSONLData(path)
+		if !ok {
+			return 0
+		}
+		if rc, ok := data["reward_count"].(float64); ok {
+			return int(rc)
+		}
+		return 0
+	}
+	fields, err := parseFrontmatterFields(path, "reward_count")
+	if err != nil {
+		return 0
+	}
+	if rc, err := strconv.Atoi(fields["reward_count"]); err == nil {
+		return rc
+	}
+	return 0
 }
 
 // loadSessionCitations loads and filters citations for a session.
