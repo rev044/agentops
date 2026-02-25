@@ -92,7 +92,12 @@ if command -v ao &>/dev/null; then
         PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
         MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
         if [ -f "$MEMORY_FILE" ]; then
-            MEMORY_AGE_DAYS=$(( ($(date +%s) - $(stat -f %m "$MEMORY_FILE" 2>/dev/null || stat -c %Y "$MEMORY_FILE" 2>/dev/null || echo 0)) / 86400 ))
+            MTIME=$(stat -f %m "$MEMORY_FILE" 2>/dev/null || stat -c %Y "$MEMORY_FILE" 2>/dev/null || echo "")
+            if [ -n "$MTIME" ]; then
+                MEMORY_AGE_DAYS=$(( ($(date +%s) - MTIME) / 86400 ))
+            else
+                MEMORY_AGE_DAYS=0  # stat failed but file exists — assume fresh
+            fi
             if [ "$MEMORY_AGE_DAYS" -le 7 ]; then
                 NOTEBOOK_LEAN_MODE=1
             fi

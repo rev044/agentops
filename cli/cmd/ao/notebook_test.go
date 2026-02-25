@@ -407,6 +407,34 @@ func TestUpsertLastSession_RemovesDuplicates(t *testing.T) {
 	}
 }
 
+func TestNotebookCursor_SkipsDuplicate(t *testing.T) {
+	tmp := t.TempDir()
+	cursorPath := filepath.Join(tmp, "notebook-cursor.json")
+
+	// Write cursor with a session ID
+	if err := writeNotebookCursor(cursorPath, "session-abc"); err != nil {
+		t.Fatalf("writeNotebookCursor failed: %v", err)
+	}
+
+	// Read it back
+	got, err := readNotebookCursor(cursorPath)
+	if err != nil {
+		t.Fatalf("readNotebookCursor failed: %v", err)
+	}
+	if got != "session-abc" {
+		t.Errorf("cursor session_id = %q, want %q", got, "session-abc")
+	}
+
+	// Non-existent cursor returns empty
+	got2, err := readNotebookCursor(filepath.Join(tmp, "nonexistent.json"))
+	if err == nil {
+		t.Error("expected error for nonexistent cursor")
+	}
+	if got2 != "" {
+		t.Errorf("expected empty string for missing cursor, got %q", got2)
+	}
+}
+
 func TestPruneNotebook_SmallSections(t *testing.T) {
 	// Test that pruning works even when all sections have <= 2 lines
 	sections := []notebookSection{

@@ -1536,6 +1536,35 @@ ao metrics report [flags]
 
 ---
 
+### `ao notebook`
+
+Manage the session notebook (MEMORY.md)
+
+```
+ao notebook [command]
+```
+
+**Subcommands:**
+
+#### `ao notebook update`
+
+Reads the most recent forge output (pending.jsonl) and updates MEMORY.md
+
+```
+ao notebook update [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help                 help for update
+      --max-lines int        Maximum lines in MEMORY.md (default 190)
+      --memory-file string   Path to MEMORY.md (auto-detected if omitted)
+      --quiet                Suppress output (for hooks)
+```
+
+---
+
 ### `ao trace`
 
 Trace the provenance of an artifact back to its source transcript.

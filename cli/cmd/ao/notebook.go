@@ -88,6 +88,13 @@ func runNotebookUpdate(cmd *cobra.Command, args []string) error {
 		return nil // no-op when no pending sessions
 	}
 
+	// Step 2.5: Skip if this entry was already processed (prevent replay)
+	cursorPath := filepath.Join(cwd, ".agents", "ao", "notebook-cursor.json")
+	if lastID, _ := readNotebookCursor(cursorPath); lastID == entry.SessionID && entry.SessionID != "" {
+		VerbosePrintf("Session %s already processed — skipping.\n", entry.SessionID)
+		return nil
+	}
+
 	// Step 3: Read current MEMORY.md
 	sections, err := parseNotebookSections(memoryFile)
 	if err != nil && !os.IsNotExist(err) {
@@ -107,6 +114,11 @@ func runNotebookUpdate(cmd *cobra.Command, args []string) error {
 	content := renderNotebook(sections)
 	if err := atomicWriteFile(memoryFile, []byte(content), 0644); err != nil {
 		return fmt.Errorf("write MEMORY.md: %w", err)
+	}
+
+	// Step 8: Record cursor so we don't replay this entry
+	if entry.SessionID != "" {
+		_ = writeNotebookCursor(cursorPath, entry.SessionID)
 	}
 
 	if !notebookQuiet {
@@ -410,4 +422,34 @@ func renderNotebook(sections []notebookSection) string {
 	}
 	// Trim trailing whitespace to ensure idempotency on re-parse
 	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+// readNotebookCursor reads the last-processed session ID from the cursor file.
+func readNotebookCursor(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	var cursor struct {
+		SessionID string `json:"session_id"`
+	}
+	if err := json.Unmarshal(data, &cursor); err != nil {
+		return "", err
+	}
+	return cursor.SessionID, nil
+}
+
+// writeNotebookCursor writes the last-processed session ID to the cursor file.
+func writeNotebookCursor(path string, sessionID string) error {
+	data, err := json.Marshal(struct {
+		SessionID string `json:"session_id"`
+		UpdatedAt string `json:"updated_at"`
+	}{
+		SessionID: sessionID,
+		UpdatedAt: time.Now().Format(time.RFC3339),
+	})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0644)
 }
