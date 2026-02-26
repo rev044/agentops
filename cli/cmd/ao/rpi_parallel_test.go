@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -184,5 +186,219 @@ func TestTmuxPaneIsDead_Parsing(t *testing.T) {
 	}
 	if code != 1 {
 		t.Errorf("expected exitCode=1, got %d", code)
+	}
+}
+
+// --- Tests for extracted helpers ---
+
+func TestValidateParallelPrereqs_NoArgs(t *testing.T) {
+	// With no args and no manifest, validateParallelPrereqs should return an error.
+	old := parallelManifest
+	parallelManifest = ""
+	defer func() { parallelManifest = old }()
+
+	_, _, _, err := validateParallelPrereqs(nil)
+	if err == nil {
+		t.Fatal("expected error for empty args with no manifest, got nil")
+	}
+	if got := err.Error(); got != "no epics to run (provide goals as arguments or use --manifest)" {
+		t.Errorf("unexpected error message: %s", got)
+	}
+}
+
+func TestValidateParallelPrereqs_EmptySlice(t *testing.T) {
+	old := parallelManifest
+	parallelManifest = ""
+	defer func() { parallelManifest = old }()
+
+	_, _, _, err := validateParallelPrereqs([]string{})
+	if err == nil {
+		t.Fatal("expected error for empty slice, got nil")
+	}
+}
+
+func TestCreateParallelWorktrees_CreatesAndCleansUp(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Initialize a git repo in the temp dir with an initial commit.
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmpDir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %s: %v", args, string(out), err)
+		}
+	}
+	runGit("init")
+	runGit("config", "user.email", "test@test.com")
+	runGit("config", "user.name", "Test")
+
+	// Create initial commit (required for worktree add).
+	readmePath := filepath.Join(tmpDir, "README.md")
+	if err := os.WriteFile(readmePath, []byte("test"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit("add", "README.md")
+	runGit("commit", "-m", "init")
+
+	// Must chdir to the git repo since createParallelWorktrees
+	// runs git commands relative to CWD.
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	epics := []parallelEpic{
+		{Name: "wt-alpha", Goal: "do alpha"},
+		{Name: "wt-beta", Goal: "do beta"},
+	}
+
+	worktrees, err := createParallelWorktrees(tmpDir, epics)
+	if err != nil {
+		t.Fatalf("createParallelWorktrees: %v", err)
+	}
+	if len(worktrees) != 2 {
+		t.Fatalf("expected 2 worktrees, got %d", len(worktrees))
+	}
+
+	// Verify worktree paths exist.
+	for i, wt := range worktrees {
+		if _, err := os.Stat(wt.path); os.IsNotExist(err) {
+			t.Errorf("worktree %d path does not exist: %s", i, wt.path)
+		}
+		expectedBranch := "epic/" + epics[i].Name
+		if wt.branch != expectedBranch {
+			t.Errorf("worktree %d branch = %q, want %q", i, wt.branch, expectedBranch)
+		}
+	}
+
+	// Clean up worktrees (so t.TempDir cleanup works).
+	for _, wt := range worktrees {
+		cmd := exec.Command("git", "worktree", "remove", "--force", wt.path)
+		cmd.Dir = tmpDir
+		_ = cmd.Run()
+		cmd = exec.Command("git", "branch", "-D", wt.branch)
+		cmd.Dir = tmpDir
+		_ = cmd.Run()
+	}
+}
+
+func TestMergeParallelWorktrees_SkipsFailedEpics(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Initialize git repo.
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmpDir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %s: %v", args, string(out), err)
+		}
+	}
+	runGit("init")
+	runGit("config", "user.email", "test@test.com")
+	runGit("config", "user.name", "Test")
+
+	readmePath := filepath.Join(tmpDir, "README.md")
+	if err := os.WriteFile(readmePath, []byte("base"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit("add", "README.md")
+	runGit("commit", "-m", "init")
+
+	// Create a branch with a commit to merge.
+	runGit("checkout", "-b", "epic/alpha")
+	alphaFile := filepath.Join(tmpDir, "alpha.txt")
+	if err := os.WriteFile(alphaFile, []byte("alpha"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit("add", "alpha.txt")
+	runGit("commit", "-m", "alpha work")
+	runGit("checkout", "main")
+
+	// Reset merge-order global.
+	old := parallelMergeOrder
+	parallelMergeOrder = ""
+	defer func() { parallelMergeOrder = old }()
+
+	epics := []parallelEpic{
+		{Name: "alpha", Goal: "do alpha", MergeOrder: 1},
+		{Name: "beta", Goal: "do beta", MergeOrder: 2},
+	}
+	results := []parallelResult{
+		{Epic: epics[0], Success: true},
+		{Epic: epics[1], Success: false, Error: fmt.Errorf("beta failed")},
+	}
+	worktrees := []worktreeInfo{
+		{path: filepath.Join(tmpDir, ".wt", "alpha"), branch: "epic/alpha"},
+		{path: filepath.Join(tmpDir, ".wt", "beta"), branch: "epic/beta"},
+	}
+
+	// Change to tmpDir so git merge runs in the right repo.
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	mergedCount, err := mergeParallelWorktrees(epics, results, worktrees)
+	if err != nil {
+		t.Fatalf("mergeParallelWorktrees: %v", err)
+	}
+	if mergedCount != 1 {
+		t.Errorf("expected 1 merged, got %d", mergedCount)
+	}
+}
+
+func TestSetupTmuxSession_NotRequested(t *testing.T) {
+	// When parallelTmux is false, setupTmuxSession should return empty string and no error.
+	old := parallelTmux
+	parallelTmux = false
+	defer func() { parallelTmux = old }()
+
+	tmuxCmd, err := setupTmuxSession("test-session")
+	if err != nil {
+		t.Fatalf("setupTmuxSession: %v", err)
+	}
+	if tmuxCmd != "" {
+		t.Errorf("expected empty tmuxCmd, got %q", tmuxCmd)
+	}
+}
+
+func TestReportParallelResults_AllSuccess(t *testing.T) {
+	results := []parallelResult{
+		{Epic: parallelEpic{Name: "a"}, Success: true, CommitSHA: "abc1234", Duration: 0},
+		{Epic: parallelEpic{Name: "b"}, Success: true, CommitSHA: "def5678", Duration: 0},
+	}
+	epics := []parallelEpic{{Name: "a"}, {Name: "b"}}
+
+	allOK := reportParallelResults(results, epics, false, "", "")
+	if !allOK {
+		t.Error("expected allSuccess=true when all results succeed")
+	}
+}
+
+func TestReportParallelResults_SomeFailed(t *testing.T) {
+	results := []parallelResult{
+		{Epic: parallelEpic{Name: "a"}, Success: true},
+		{Epic: parallelEpic{Name: "b"}, Success: false, Error: fmt.Errorf("failed"), LogFile: "/tmp/b.log"},
+	}
+	epics := []parallelEpic{{Name: "a"}, {Name: "b"}}
+
+	allOK := reportParallelResults(results, epics, false, "", "")
+	if allOK {
+		t.Error("expected allSuccess=false when some results failed")
+	}
+}
+
+func TestSpawnParallelEpics_ArgumentConstruction(t *testing.T) {
+	// spawnParallelEpics uses goroutines internally. We verify it returns
+	// results of the right length even with an empty epic list.
+	results := spawnParallelEpics(nil, nil, "echo", t.TempDir(), "", "", 1)
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for nil epics, got %d", len(results))
 	}
 }
