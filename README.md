@@ -84,9 +84,14 @@ npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
 
 Then type `/quickstart` in your agent chat. Not sure which skill to run? See the **[Skill Router](docs/SKILL-ROUTER.md)**.
 
-For Claude plugin installs, skills are available immediately after plugin install/update (restart Claude Code if prompted). To enable hooks and flywheel automation, install the `ao` CLI and run `ao init --hooks` in each repo.
+For Claude plugin installs, skills are available immediately after plugin install/update (restart Claude Code if prompted). To enable hooks and flywheel automation, install the `ao` CLI and run `ao init --hooks` in each repo. To plant AgentOps in a new repo with auto-detected templates:
 
-`claude plugin install` is the primary path for Claude Code. Codex users should use `scripts/install-codex-native-skills.sh` for Codex-specific command syntax (`$skill` references). OpenCode uses `scripts/install-opencode.sh`. `npx skills` is for other agents (for example Cursor) with explicit `-a <agent>` and `-s <skill-name>` selection.
+```bash
+ao seed         # Detects project type (go-cli, python-lib, web-app, rust-cli, generic)
+                # Creates .agents/, MEMORY.md, GOALS.md, hooks — ready in one command
+```
+
+`claude plugin install` is the primary path for Claude Code. Codex users should use `scripts/install-codex-native-skills.sh` for Codex-native command syntax (`$skill` references, installed to `skills-codex/`). OpenCode uses `scripts/install-opencode.sh`. `npx skills` is for other agents (for example Cursor) with explicit `-a <agent>` and `-s <skill-name>` selection.
 
 <details>
 <summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>
@@ -110,9 +115,9 @@ This installs 3 hooks — the bare minimum for the knowledge flywheel:
 
 | Event | What happens |
 |-------|-------------|
-| **SessionStart** | Check your mail first: extract pending queue, then inject the freshest learnings from this repo (and global `~/.agents/` for cross-repo knowledge). Most recent lessons rank highest — what the last agent learned is what you see first. Lightweight by design (~1000 tokens); agents search `.agents/` for more when the task demands it. |
-| **SessionEnd** | Mine transcript for knowledge (`ao forge`), expire/evict stale artifacts (`ao maturity`) |
-| **Stop** | Close the feedback loop (`ao flywheel close-loop`) |
+| **SessionStart** | Lean mode (default): extract pending queue, inject the freshest learnings from this repo and global `~/.agents/`. Shrinks automatically when MEMORY.md is fresh. Three modes via `AGENTOPS_STARTUP_CONTEXT_MODE`: `lean` (default), `manual`, `legacy`. |
+| **SessionEnd** | Mine transcript for knowledge (`ao forge`), auto-prune empty stubs, update MEMORY.md (`ao notebook update`), sync cross-runtime memory (`ao memory sync`), expire/evict stale artifacts (`ao maturity`) |
+| **Stop** | Close the feedback loop (`ao flywheel close-loop`) — citation-to-utility feedback, maturity transitions |
 
 The injection is freshness-first: recent learnings from *this repo* outweigh older or cross-repo knowledge. Work-scoped context (active issue via `--bead`) gets a 1.5x boost. Predecessor handoff context (what the previous session was working on) is injected automatically when available. The goal: every session starts where the last one left off — not from scratch, and not with random noise.
 
@@ -147,6 +152,8 @@ All optional. AgentOps works out of the box with no configuration.
 |----------|---------|-------------|
 | `AGENTOPS_HOOKS_DISABLED` | 0 | `1` to disable all hooks (kill switch) |
 | `AGENTOPS_SESSION_START_DISABLED` | 0 | `1` to disable session-start hook |
+| `AGENTOPS_STARTUP_CONTEXT_MODE` | `lean` | Startup mode: `lean` (default, auto-shrinks), `manual`, `legacy` |
+| `AGENTOPS_AUTO_PRUNE` | 1 | `0` to disable automatic empty-learning pruning |
 | `AGENTOPS_EVICTION_DISABLED` | 0 | `1` to disable knowledge eviction |
 | `AGENTOPS_GITIGNORE_AUTO` | 1 | `0` to skip auto-adding `.agents/` to `.gitignore` |
 
@@ -367,11 +374,14 @@ How the knowledge system and pipeline phases work under the hood.
 ```
 Session N ends
     → ao forge: mine transcript for learnings, decisions, patterns
+    → ao notebook update: merge insights into MEMORY.md
+    → ao memory sync: sync to repo-root MEMORY.md (cross-runtime)
     → ao maturity --expire: mark stale artifacts (freshness decay ~17%/week)
     → ao maturity --evict: archive what's decayed past threshold
+    → ao feedback-loop: citation-to-utility feedback (MemRL)
 
 Session N+1 starts
-    → ao inject --apply-decay: score artifacts by recency + utility
+    → ao inject (lean mode): score artifacts by recency + utility
       ├── Local .agents/ learnings & patterns (1.0x weight)
       ├── Global ~/.agents/ cross-repo knowledge (0.8x weight)
       ├── Work-scoped boost: active issue gets 1.5x (--bead)
@@ -515,6 +525,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 Skills work standalone — no CLI required. The `ao` CLI adds two things: (1) the knowledge flywheel that makes sessions compound (extract, inject, decay, maturity), and (2) terminal-based RPI that runs without an active chat session. Each phase gets its own fresh context window, so large goals don't hit context limits.
 
 ```bash
+ao seed                                        # Plant AgentOps in any repo (auto-detects project type)
 ao rpi loop --supervisor --max-cycles 1        # Canonical autonomous cycle (policy-gated landing)
 ao rpi loop --supervisor "fix auth bug"        # Single explicit-goal supervised cycle
 ao rpi phased --from=implementation "ag-058"   # Resume a specific phased run at build phase
@@ -527,8 +538,16 @@ Walk away, come back to committed code + extracted learnings.
 Supervisor determinism contract: task failures mark queue entries failed, infrastructure failures leave queue entries retryable, and `ao rpi cancel` ignores stale supervisor lease metadata. For recovery/hygiene, pair `ao rpi cancel` with `ao rpi cleanup --all --prune-worktrees --prune-branches`.
 
 ```bash
-ao search "query"      # Search knowledge across files and chat history
-ao demo                # Interactive demo
+ao search "query"              # Search knowledge across files and chat history
+ao lookup --query "topic"      # Retrieve specific knowledge artifacts by ID or relevance
+ao notebook update             # Merge latest session insights into MEMORY.md
+ao memory sync                 # Sync session history to MEMORY.md (cross-runtime: Codex, OpenCode)
+ao context assemble            # Build 5-section context briefing for a task
+ao feedback-loop               # Close the MemRL feedback loop (citation → utility → maturity)
+ao metrics health              # Flywheel health: sigma, rho, delta, escape velocity
+ao dedup                       # Detect near-duplicate learnings (--merge for auto-resolution)
+ao contradict                  # Detect potentially contradictory learnings
+ao demo                        # Interactive demo
 ```
 
 Full reference: [CLI Commands](cli/docs/COMMANDS.md)
