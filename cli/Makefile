@@ -44,13 +44,10 @@ clean:
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
 
-# Install to GOPATH/bin
-install:
-	go install $(LDFLAGS) ./cmd/ao
-ifeq ($(shell uname -s),Darwin)
+# Install to GOPATH/bin (builds first to ensure embedded files are synced)
+install: build
 	@GOBIN=$$(go env GOBIN); [ -z "$$GOBIN" ] && GOBIN=$$(go env GOPATH)/bin; \
-	codesign -f -s - -i $(IDENTIFIER) "$$GOBIN/$(BINARY_NAME)"
-endif
+	/bin/cp $(BUILD_DIR)/$(BINARY_NAME) "$$GOBIN/$(BINARY_NAME)"
 
 # Run the binary
 run: build

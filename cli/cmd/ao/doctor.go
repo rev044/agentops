@@ -55,7 +55,7 @@ type doctorOutput struct {
 // gatherDoctorChecks runs all doctor checks and returns the results.
 func gatherDoctorChecks() []doctorCheck {
 	return []doctorCheck{
-		{Name: "ao CLI", Status: "pass", Detail: fmt.Sprintf("v%s", version), Required: true},
+		{Name: "ao CLI", Status: "pass", Detail: formatVersion(version), Required: true},
 		checkCLIDependencies(),
 		checkHookCoverage(),
 		checkKnowledgeBase(),
@@ -390,6 +390,14 @@ func checkKnowledgeFreshness() doctorCheck {
 	}
 }
 
+// formatVersion ensures the version string has exactly one "v" prefix.
+func formatVersion(v string) string {
+	if strings.HasPrefix(v, "v") {
+		return v
+	}
+	return "v" + v
+}
+
 // formatDuration produces a human-readable duration string like "2h", "5d", "3m".
 func formatDuration(d time.Duration) string {
 	if d < time.Minute {
@@ -418,7 +426,7 @@ func checkSearchIndex() doctorCheck {
 		return doctorCheck{
 			Name:     "Search Index",
 			Status:   "warn",
-			Detail:   "No search index \u2014 run 'ao store rebuild' for faster searches",
+			Detail:   "No search index \u2014 run 'ao know store rebuild' for faster searches",
 			Required: false,
 		}
 	}
@@ -427,7 +435,7 @@ func checkSearchIndex() doctorCheck {
 		return doctorCheck{
 			Name:     "Search Index",
 			Status:   "warn",
-			Detail:   "Search index is empty \u2014 run 'ao store rebuild'",
+			Detail:   "Search index is empty \u2014 run 'ao know store rebuild'",
 			Required: false,
 		}
 	}
@@ -554,6 +562,7 @@ func checkSkills() doctorCheck {
 	}
 
 	skillsDirs := []string{
+		filepath.Join(home, ".codex", "skills"),
 		filepath.Join(home, ".claude", "skills"),
 		filepath.Join(home, ".agents", "skills"),
 	}
@@ -607,12 +616,17 @@ func findHealScript() string {
 		return ""
 	}
 
-	// 2. Installed via npx skills
+	// 2. Installed via npx skills (Codex-native location)
+	if p := filepath.Join(home, ".codex", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
+		return p
+	}
+
+	// 3. Installed via npx skills (Claude location)
 	if p := filepath.Join(home, ".claude", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
 		return p
 	}
 
-	// 3. Alt install location
+	// 4. Alt install location
 	if p := filepath.Join(home, ".agents", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
 		return p
 	}
