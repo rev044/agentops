@@ -14,6 +14,63 @@ metadata:
 
 Extract learnings from completed work, propose proactive improvements, and feed the knowledge flywheel.
 
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--quick "text"` | off | Quick-capture a single learning directly to `.agents/learnings/` without running a full retrospective. Replaces the old `/learn` skill. |
+| `--vibe-results <path>` | off | Incorporate validation findings from a prior `/vibe` run |
+
+## Quick Mode
+
+Given `/retro --quick "insight text"`:
+
+### Quick Step 1: Generate Slug
+
+Create a slug from the content: first meaningful words, lowercase, hyphens, max 50 chars.
+
+### Quick Step 2: Write Learning Directly
+
+**Write to:** `.agents/learnings/YYYY-MM-DD-quick-<slug>.md`
+
+```markdown
+---
+type: learning
+source: retro-quick
+date: YYYY-MM-DD
+---
+
+# Learning: <Short Title>
+
+**Category**: <auto-classify: debugging|architecture|process|testing|security>
+**Confidence**: medium
+
+## What We Learned
+
+<user's insight text>
+
+## Source
+
+Quick capture via `/retro --quick`
+```
+
+This skips the pool pipeline — writes directly to learnings, not `.agents/knowledge/pending/`.
+
+### Quick Step 3: Confirm
+
+```
+Learned: <one-line summary>
+Saved to: .agents/learnings/YYYY-MM-DD-quick-<slug>.md
+
+For deeper reflection, use `/retro` without --quick.
+```
+
+**Done.** Return immediately after confirmation.
+
+---
+
+## Full Retrospective
+
 ## Execution Steps
 
 Given `/retro [topic] [--vibe-results <path>]`:

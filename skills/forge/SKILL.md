@@ -24,6 +24,55 @@ ao forge transcript --last-session --queue --quiet
 
 This queues the session for knowledge extraction.
 
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--promote` | off | Process pending extractions from `.agents/knowledge/pending/` and promote to `.agents/learnings/`. Replaces the old `/extract` skill. |
+
+## Promote Mode
+
+Given `/forge --promote`:
+
+### Promote Step 1: Find Pending Files
+
+```bash
+ls -lt .agents/knowledge/pending/*.md 2>/dev/null
+ls -lt .agents/ao/pending.jsonl 2>/dev/null
+```
+
+If no pending files found, report "No pending extractions" and exit.
+
+### Promote Step 2: Process Each Pending File
+
+For each file in `.agents/knowledge/pending/`:
+1. Read the file content
+2. Validate it has required fields (`# Learning:`, `**Category**:`, `**Confidence**:`)
+3. Copy to `.agents/learnings/` (preserving filename)
+4. Remove the source file from `.agents/knowledge/pending/`
+
+### Promote Step 3: Process Pending Queue
+
+```bash
+if [ -f .agents/ao/pending.jsonl ] && [ -s .agents/ao/pending.jsonl ]; then
+  # Process each queued session
+  cat .agents/ao/pending.jsonl
+  # After processing, clear the queue
+  > .agents/ao/pending.jsonl
+fi
+```
+
+### Promote Step 4: Report
+
+```
+Promoted N learnings from pending → .agents/learnings/
+Queue cleared.
+```
+
+**Done.** Return immediately after reporting.
+
+---
+
 ## Manual Execution
 
 Given `/forge [path]`:
