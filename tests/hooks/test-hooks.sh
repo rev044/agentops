@@ -1083,7 +1083,7 @@ if [ -f "$EMBEDDED_HOOKS_DIR/ao-extract.sh" ]; then
         PATH="$AO_FAIL_DIR:/usr/bin:/bin" bash "$EMBEDDED_HOOKS_DIR/ao-extract.sh" >/dev/null 2>&1 || true
     )
     if [ -f "$FAIL_TEST_DIR/.agents/ao/hook-errors.log" ]; then
-        if grep -q "HOOK_FAIL.*extract" "$FAIL_TEST_DIR/.agents/ao/hook-errors.log"; then
+        if grep -q "HOOK_FAIL.*forge transcript" "$FAIL_TEST_DIR/.agents/ao/hook-errors.log"; then
             pass "ao-extract logs failure to hook-errors.log"
         else
             fail "ao-extract logs failure to hook-errors.log"
