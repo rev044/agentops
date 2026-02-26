@@ -45,7 +45,7 @@
 | 11 | Extract shared detectTemplate function | tech-debt | medium | council-finding | `nami` | `seed.go` and `goals_init.go` diverge on detection semantics. |
 | 12 | Fix shell injection in `constraint-compiler.sh` JSON construction | tech-debt | medium | council-finding | `nami` | Unescaped TITLE/SUMMARY interpolation in JSON literal. |
 | 13 | Fix jq-less fallback data loss in `constraint-compiler.sh` | tech-debt | medium | council-finding | `nami` | Fallback overwrite path currently drops existing constraints index. |
-| 14 | Migrate `constraint.go` to root-level `GetOutput()` | tech-debt | low | council-finding | `nami` | `ao constraint list -o json` does not use unified output mode. |
+| 14 | Migrate `constraint.go` to root-level `GetOutput()` | tech-debt | low | council-finding | `nami` | `ao quality constraint list -o json` does not use unified output mode. |
 | 15 | Require test file in same commit as command file | process-improvement | medium | retro-learning | `*` | Add process rule to prevent command-file coverage gaps. |
 | 16 | Formalize Wave 1 spec consistency checklist | process-improvement | low | retro-pattern | `*` | Wave 1 checklist is currently implicit and inconsistently enforced. |
 

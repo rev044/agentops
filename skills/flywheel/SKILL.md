@@ -117,13 +117,13 @@ if command -v ao &>/dev/null; then
   ao status 2>/dev/null || echo "ao status unavailable"
   ao quality maturity --scan 2>/dev/null || echo "ao quality maturity unavailable"
   ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
-  ao badge 2>/dev/null || echo "ao badge unavailable"
+  ao quality badge 2>/dev/null || echo "ao quality badge unavailable"
 
   # Knowledge maintenance
-  ao dedup --merge 2>/dev/null || true
-  ao contradict 2>/dev/null || true
+  ao quality dedup --merge 2>/dev/null || true
+  ao quality contradict 2>/dev/null || true
   ao quality constraint review 2>/dev/null || true
-  ao curate status 2>/dev/null || true
+  ao quality curate status 2>/dev/null || true
   ao quality metrics health 2>/dev/null || true
   ao quality metrics cite-report --days 30 2>/dev/null || true
 

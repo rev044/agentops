@@ -7,12 +7,12 @@
 **Checks:**
 ```bash
 # Verify hooks are installed
-ao hooks test
+ao settings hooks test
 
 # Check hooks.json exists and is valid (hooks live in hooks/, not .claude-plugin/)
 cat hooks/hooks.json | jq . 2>/dev/null
 
-# Check settings.json for ao hooks
+# Check settings.json for ao settings hooks
 cat ~/.claude/settings.json | jq '.hooks' 2>/dev/null
 
 # Verify plugin is loaded
@@ -20,7 +20,7 @@ claude --plugin ./ --help
 ```
 
 **Fixes:**
-- Reinstall hooks: `ao hooks install` (minimal) or `ao init --hooks --full` (all 8 events)
+- Reinstall hooks: `ao settings hooks install` (minimal) or `ao start init --hooks --full` (all 8 events)
 - Check that `hooks/hooks.json` is not malformed JSON
 - Restart Claude Code after hook changes
 
@@ -55,8 +55,8 @@ head -5 skills/quickstart/SKILL.md
 # ao (AgentOps CLI) — requires Homebrew tap first
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
-ao init              # Create .agents/ dirs + .gitignore
-ao init --hooks      # Also install flywheel hooks (SessionStart + Stop)
+ao start init              # Create .agents/ dirs + .gitignore
+ao start init --hooks      # Also install flywheel hooks (SessionStart + Stop)
 
 # bd (Beads issue tracking)
 brew install boshu2/agentops/beads
@@ -133,10 +133,10 @@ which ao
 ls .agents/
 
 # Check flywheel health
-ao flywheel status
+ao quality flywheel status
 ```
 
 **Fixes:**
-- Install ao: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao init`
-- Install hooks: `ao init --hooks` (minimal) or `ao init --hooks --full` (all lifecycle events)
+- Install ao: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao start init`
+- Install hooks: `ao start init --hooks` (minimal) or `ao start init --hooks --full` (all lifecycle events)
 - Verify inject runs on session start: check `hooks/session-start.sh`

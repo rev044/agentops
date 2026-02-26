@@ -422,7 +422,7 @@ These fire automatically and are not directly invoked:
 
 | Skill | Purpose |
 |-------|---------|
-| `inject` | Load knowledge at session start (`ao inject`) |
+| `inject` | Load knowledge at session start (`ao know inject`) |
 | `extract` | Extract decisions/learnings from transcripts |
 | `forge` | Mine transcripts for knowledge artifacts |
 | `ratchet` | Progress gates for RPI workflow |
@@ -470,8 +470,8 @@ Skills integrate with the ao CLI for orchestration:
 
 | Skill | ao CLI Command |
 |-------|----------------|
-| `/research` | `ao forge search` |
-| `/retro` | `ao forge index` |
-| `/post-mortem` | `ao ratchet record` |
-| `/implement` | `ao ratchet claim/record` |
-| `/crank` | `ao ratchet verify` |
+| `/research` | `ao know forge search` |
+| `/retro` | `ao know forge index` |
+| `/post-mortem` | `ao work ratchet record` |
+| `/implement` | `ao work ratchet claim/record` |
+| `/crank` | `ao work ratchet verify` |

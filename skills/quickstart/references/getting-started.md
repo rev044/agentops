@@ -53,7 +53,7 @@ Based on what quickstart found, pick your next action:
 - **Want cross-model validation?** Run `/council --mixed` for Claude + Codex review
 - **Want to cut a release?** Run `/release` for changelog, version bumps, and tagging
 - **Want a full lifecycle?** Run `/rpi` for Research → Plan → Implement → Validate in one command
-- **Want persistent knowledge?** Install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao init --hooks`
+- **Want persistent knowledge?** Install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao start init --hooks`
 
 ## The RPI Lifecycle
 

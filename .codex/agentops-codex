@@ -12,6 +12,7 @@ const agentopsSkillsDir = path.join(homeDir, '.codex', 'agentops', 'skills');
 const personalSkillsDir = path.join(homeDir, '.codex', 'skills');
 const bootstrapFile = path.join(homeDir, '.codex', 'agentops', '.codex', 'agentops-bootstrap.md');
 const agentopsRepoDir = path.join(homeDir, '.codex', 'agentops');
+const agentopsGitDir = path.join(agentopsRepoDir, '.git');
 const installMetadataFile = path.join(homeDir, '.codex', '.agentops-codex-install.json');
 const defaultStaleDays = 14;
 const fallbackUpdateCommand = 'curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash';
@@ -126,11 +127,11 @@ function runBootstrap() {
     maybeWarnStaleSkills();
 
     // Check for updates (with timeout protection)
-    if (skillsCore.checkForUpdates(agentopsRepoDir)) {
+    if (fs.existsSync(agentopsGitDir) && skillsCore.checkForUpdates(agentopsRepoDir)) {
         console.log('## Update Available');
         console.log('');
         console.log('Your AgentOps installation is behind the latest version.');
-        console.log('To update, run: `cd ~/.codex/agentops && git pull`');
+        console.log(`To update, run: \`${fallbackUpdateCommand}\``);
         console.log('');
         console.log('---');
         console.log('');

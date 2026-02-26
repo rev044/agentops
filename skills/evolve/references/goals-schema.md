@@ -123,7 +123,7 @@ GOALS.md extends the YAML format with strategic intent:
 ### Evolve Integration
 
 When GOALS.md is detected, evolve uses the directive-based cascade (Step 3.1):
-1. `ao goals measure --directives` returns the directive list as JSON
+1. `ao work goals measure --directives` returns the directive list as JSON
 2. Top-priority directive (lowest number) is assessed for gaps
 3. If gap found → generates work item from directive description + steer
 4. Directive becomes the work source for the cycle
@@ -132,4 +132,4 @@ When `--beads-only` is passed, directive assessment is skipped entirely.
 
 ### Format Detection
 
-`ao goals measure` auto-detects format. When both GOALS.yaml and GOALS.md exist, GOALS.md takes precedence.
+`ao work goals measure` auto-detects format. When both GOALS.yaml and GOALS.md exist, GOALS.md takes precedence.

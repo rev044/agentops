@@ -12,19 +12,19 @@ Three repositories converge into a single product surface:
 | **Gas Town** (`gt`) | Upstream workspace manager. Multi-agent coordination, rig registry, dispatch. Consumes `ao` as a tool. | Active (upstream) |
 | **Olympus** (`ol`) | Archived. Patterns extracted into `ao` (context compilation, constraint injection, run ledger concepts). Bridge contracts preserved as spec for future power-user layer. | Archived |
 
-**Why:** Olympus was the power-user daemon layer (persistent scheduling, cryptographic lineage, fleet orchestration). But `ao rpi loop --supervisor` already provides daemonless autonomous execution, and the bridge contracts (INVOCATION_ENVELOPE, STATE_CHECKPOINT_HANDOFF, OBSERVABILITY_EVENTS) are SPEC_ONLY with no envelope enforcement. The Olympus ambition survives as patterns inside `ao`, not as a separate system that must be maintained.
+**Why:** Olympus was the power-user daemon layer (persistent scheduling, cryptographic lineage, fleet orchestration). But `ao work rpi loop --supervisor` already provides daemonless autonomous execution, and the bridge contracts (INVOCATION_ENVELOPE, STATE_CHECKPOINT_HANDOFF, OBSERVABILITY_EVENTS) are SPEC_ONLY with no envelope enforcement. The Olympus ambition survives as patterns inside `ao`, not as a separate system that must be maintained.
 
 **What was preserved from Olympus:**
 
 | Pattern | Where it lives now | What it does |
 |---------|--------------------|--------------|
-| Agent adapter interface | `ao rpi` backend detection (Claude teams, Codex sub-agents, background tasks) | Runtime-agnostic agent spawning |
+| Agent adapter interface | `ao work rpi` backend detection (Claude teams, Codex sub-agents, background tasks) | Runtime-agnostic agent spawning |
 | Forensic evidence | `.agents/ao/sessions/` JSONL + `cycle-history.jsonl` | Append-only audit trail per session and cycle |
-| Terminal reasons | `ao rpi status` terminal state codes (completed, failed, cancelled, stalled) | Unambiguous run termination semantics |
+| Terminal reasons | `ao work rpi status` terminal state codes (completed, failed, cancelled, stalled) | Unambiguous run termination semantics |
 | SSH transport concept | Deferred; Gas Town `gt sling` handles remote dispatch | Cross-machine agent execution |
 | Controller guardrails | Kill switches (`AGENTOPS_HOOKS_DISABLED`, evolve kill file), regression gates, max-cycle limits | Safety boundaries for autonomous loops |
 | Wave computation | `/crank` FIRE loop with dependency-ordered wave decomposition | Parallel execution with structural ordering |
-| Sente scoring | `ao goals measure` severity-weighted goal selection | Priority by worst gap, not arbitrary ordering |
+| Sente scoring | `ao work goals measure` severity-weighted goal selection | Priority by worst gap, not arbitrary ordering |
 
 ---
 
@@ -39,9 +39,9 @@ dK/dt = I(t) - d*K + s*r*K - f*K^2
 | Symbol | Meaning | AgentOps mechanism |
 |--------|---------|-------------------|
 | `K` | Knowledge stock (validated learnings, patterns, decisions) | `.agents/` corpus |
-| `I(t)` | Input rate (new knowledge per cycle) | `ao forge`, `/retro`, `/post-mortem` |
-| `d` | Decay rate (~17%/week without reinforcement, Darr 1995) | `ao maturity --expire` |
-| `s` | Retrieval effectiveness (do you find what you need?) | `ao inject` freshness-weighted scoring, `ao search` |
+| `I(t)` | Input rate (new knowledge per cycle) | `ao know forge`, `/retro`, `/post-mortem` |
+| `d` | Decay rate (~17%/week without reinforcement, Darr 1995) | `ao quality maturity --expire` |
+| `s` | Retrieval effectiveness (do you find what you need?) | `ao know inject` freshness-weighted scoring, `ao know search` |
 | `r` | Citation rate (do you use what you find?) | Knowledge reuse in research/plan phases |
 | `f` | Scale friction (indexing overhead, noise, governance cost) | Tiering, pruning, utility scoring (MemRL) |
 
@@ -63,10 +63,10 @@ Donella Meadows ranked intervention points in complex systems from least to most
 | 9 | Delays | Freshness decay intervals, maturity lifecycle (expire/evict), stale run TTL | Controls lag between `I(t)` and usable `K` |
 | 8 | Balancing feedback loops | Regression gates auto-revert bad cycles, council FAIL blocks merge, push gate blocks unvalidated code | Prevents `K` regression |
 | 7 | Reinforcing feedback loops | Knowledge flywheel (session N learnings feed session N+1), citation-based utility scoring (MemRL) | The `s*r*K` compounding term |
-| 6 | Information flows | `ao inject` (knowledge into context), `ao forge` (experience out of sessions), hook nudges, briefing packets | Increases `s` by getting right knowledge to right window |
+| 6 | Information flows | `ao know inject` (knowledge into context), `ao know forge` (experience out of sessions), hook nudges, briefing packets | Increases `s` by getting right knowledge to right window |
 | 5 | Rules | Hooks (3 active lifecycle events in `hooks/hooks.json`), validation gates, worker-guard (lead-only commit), dangerous-git guard, pre-mortem gate | Structural enforcement. Rules cannot be forgotten or ignored. |
 | 4 | Self-organization | `/evolve` fitness loop (measure-fix-validate-learn-repeat), constraint compiler (learnings become structural rules), progressive skill revelation | The system improves its own rules based on experience |
-| 3 | Goals | `GOALS.md` with mechanically verifiable gates, `ao goals measure`, severity-weighted selection, North Stars and Anti Stars | System intent. What the system optimizes toward. |
+| 3 | Goals | `GOALS.md` with mechanically verifiable gates, `ao work goals measure`, severity-weighted selection, North Stars and Anti Stars | System intent. What the system optimizes toward. |
 | 2 | Mindset/paradigm | The 6 paradigm shifts below | How the builder thinks about agent systems |
 | 1 | Transcending paradigms | The seed itself. Same starting conditions produce different systems depending on the fitness landscape. | The product is the seed, not the tree. |
 
@@ -101,7 +101,7 @@ AgentOps: 12 hook lifecycle events that fire automatically on session start, too
 ### 5. From "knowledge is hoarded" to "knowledge is flowing" (Flywheel)
 
 Traditional: knowledge lives in individual context windows and dies when the session ends.
-AgentOps: knowledge is extracted (`ao forge`), quality-gated (specificity, actionability, novelty scoring), tiered (gold/silver/bronze), freshness-decayed, and re-injected at the next session start (`ao inject`). The flywheel makes session 50 know what session 1 learned. Knowledge that is not retrieved and used decays. Knowledge that compounds survives.
+AgentOps: knowledge is extracted (`ao know forge`), quality-gated (specificity, actionability, novelty scoring), tiered (gold/silver/bronze), freshness-decayed, and re-injected at the next session start (`ao know inject`). The flywheel makes session 50 know what session 1 learned. Knowledge that is not retrieved and used decays. Knowledge that compounds survives.
 
 ### 6. From "designed systems" to "evolved systems" (The Seed)
 

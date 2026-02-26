@@ -4,19 +4,12 @@ Quick setup to enable AgentOps skills in Codex.
 
 ## Installation
 
-1. **Clone AgentOps repository**:
+1. **Run the Codex installer**:
    ```bash
-   mkdir -p ~/.codex/agentops
-   cd ~/.codex/agentops
-   git clone https://github.com/boshu2/agentops.git .
+   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
    ```
 
-2. **Create personal skills directory**:
-   ```bash
-   mkdir -p ~/.codex/skills
-   ```
-
-3. **Update ~/.codex/AGENTS.md** to include this AgentOps section:
+2. **Update ~/.codex/AGENTS.md** to include this AgentOps section:
    ```markdown
    ## AgentOps System
 

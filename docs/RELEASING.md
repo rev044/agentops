@@ -14,7 +14,7 @@ git tag vX.Y.Z
 ├──────────────────────────────────────────────────────┤
 │  ./scripts/ci-local-release.sh                      │
 │  - validation + tests + smoke checks                │
-│  - hook install + ao rpi smoke                      │
+│  - hook install + ao work rpi smoke                      │
 │  - SBOM + security report artifacts                 │
 └──────────────────────────────────────────────────────┘
                          ↓
@@ -154,7 +154,7 @@ Release validation is local-first and enforced by:
 ./scripts/ci-local-release.sh
 ```
 
-This local gate runs doc checks, manifest/schema checks, smoke/integration checks, hook and `ao rpi` smoke paths, binary validation, SBOM generation, and security scans.
+This local gate runs doc checks, manifest/schema checks, smoke/integration checks, hook and `ao work rpi` smoke paths, binary validation, SBOM generation, and security scans.
 
 ## Failure Modes
 

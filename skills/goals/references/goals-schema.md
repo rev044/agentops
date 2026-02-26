@@ -146,15 +146,15 @@ GOALS.md extends the YAML format with strategic intent sections:
 ### CLI Commands
 
 ```bash
-ao goals measure                  # Measure gates (both formats)
-ao goals measure --directives     # Output directives as JSON
-ao goals validate                 # Validate structure
-ao goals init                     # Bootstrap GOALS.md interactively
-ao goals steer add <title>        # Add directive
-ao goals steer remove <number>    # Remove directive
-ao goals steer prioritize <n> <p> # Reorder directive
-ao goals migrate --to-md          # Convert YAML → Markdown
-ao goals prune                    # Remove stale gates
+ao work goals measure                  # Measure gates (both formats)
+ao work goals measure --directives     # Output directives as JSON
+ao work goals validate                 # Validate structure
+ao work goals init                     # Bootstrap GOALS.md interactively
+ao work goals steer add <title>        # Add directive
+ao work goals steer remove <number>    # Remove directive
+ao work goals steer prioritize <n> <p> # Reorder directive
+ao work goals migrate --to-md          # Convert YAML → Markdown
+ao work goals prune                    # Remove stale gates
 ```
 
 ### Format Auto-Detection

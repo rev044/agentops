@@ -12,7 +12,7 @@ schema_version: 1
 
 ## Overview
 
-A context packet is the structured payload assembled by `ao inject` and delivered into an agent's context window at session start. It replaces the current raw knowledge dump with a purpose-built artifact containing exactly what an agent needs to do its work — no more, no less.
+A context packet is the structured payload assembled by `ao know inject` and delivered into an agent's context window at session start. It replaces the current raw knowledge dump with a purpose-built artifact containing exactly what an agent needs to do its work — no more, no less.
 
 The packet has five sections, each with a defined character budget, content source, and eviction priority. The total budget is ~28K characters (~7K tokens at `InjectCharsPerToken = 4`), which leaves 90%+ of the context window available for actual work.
 
@@ -72,7 +72,7 @@ Fitness spec for this repository. Your work must not regress these gates.
 ## GOALS
 
 No fitness goals defined for this repository.
-Run `ao goals init` to bootstrap GOALS.md, or this is the first cycle.
+Run `ao work goals init` to bootstrap GOALS.md, or this is the first cycle.
 ```
 
 ---
@@ -150,7 +150,7 @@ Future sessions will see what you did and how it went.
 ```
 
 **Assembly rules:**
-1. The `--context` query (or positional argument to `ao inject`) filters learnings and patterns by substring match against the agent's task description.
+1. The `--context` query (or positional argument to `ao know inject`) filters learnings and patterns by substring match against the agent's task description.
 2. Learnings are ranked by composite score (freshness * utility, Two-Phase MemRL retrieval). Maximum 10 learnings.
 3. Patterns are ranked by composite score. Maximum 5 patterns.
 4. Olympus constraints are included unfiltered (they are always relevant as hard boundaries).
@@ -241,9 +241,9 @@ Use `/plan` to decompose work into tracked issues, or work ad-hoc.
 3. High-quality learnings are injected into future sessions automatically.
 
 ### Updating the Ratchet
-1. Gate passes are recorded via `ao ratchet record`.
+1. Gate passes are recorded via `ao work ratchet record`.
 2. The ratchet chain in `.agents/ao/chain.jsonl` is append-only.
-3. Never manually edit chain.jsonl — use `ao ratchet` subcommands.
+3. Never manually edit chain.jsonl — use `ao work ratchet` subcommands.
 
 ### Handoff
 1. If your session ends before work is complete, the precompact-snapshot
@@ -252,7 +252,7 @@ Use `/plan` to decompose work into tracked issues, or work ad-hoc.
 3. Write a brief summary of where you stopped and what remains.
 ```
 
-**Assembly rules:** PROTOCOL is assembled from a static template that varies only by repo configuration (e.g., whether hooks are installed, whether `ao` CLI is available). It is generated once at `ao init` time and updated when hooks change.
+**Assembly rules:** PROTOCOL is assembled from a static template that varies only by repo configuration (e.g., whether hooks are installed, whether `ao` CLI is available). It is generated once at `ao start init` time and updated when hooks change.
 
 **Truncation behavior:** PROTOCOL is never truncated. It is the smallest section and contains operational safety instructions. Removing any part risks agents not persisting their work correctly.
 
@@ -346,7 +346,7 @@ Before assembly, each section's raw content passes through a redaction gate. The
 The complete assembly flow from invocation to output:
 
 ```
-ao inject [--context="<query>"] [--max-tokens=N]
+ao know inject [--context="<query>"] [--max-tokens=N]
   │
   ├─ 1. Resolve query (positional arg or --context flag)
   │
@@ -420,21 +420,21 @@ This provenance record enables:
 
 ---
 
-## Evolution of `ao inject`
+## Evolution of `ao know inject`
 
-The current `ao inject` (as of `inject.go`) outputs a flat knowledge dump: learnings, patterns, sessions, and OL constraints rendered as markdown or JSON. The context packet evolves this in three phases:
+The current `ao know inject` (as of `inject.go`) outputs a flat knowledge dump: learnings, patterns, sessions, and OL constraints rendered as markdown or JSON. The context packet evolves this in three phases:
 
 ### Phase 1: Structured Sections (non-breaking)
 
-Add `--packet` flag to `ao inject`. When set, output is organized into the five sections defined above instead of the current flat format. Without `--packet`, behavior is unchanged.
+Add `--packet` flag to `ao know inject`. When set, output is organized into the five sections defined above instead of the current flat format. Without `--packet`, behavior is unchanged.
 
 ```bash
 # Current (unchanged):
-ao inject "authentication"
+ao know inject "authentication"
 
 # New:
-ao inject --packet "authentication"
-ao inject --packet --max-tokens 7000 "authentication"
+ao know inject --packet "authentication"
+ao know inject --packet --max-tokens 7000 "authentication"
 ```
 
 The `--packet` flag activates:
@@ -450,12 +450,12 @@ Wire the GOALS and TASK sections into the packet assembler:
 - TASK: accept a `--task` flag or `--bead` flag that pulls the bead description.
 
 ```bash
-ao inject --packet --bead ag-poz.2 "authentication"
+ao know inject --packet --bead ag-poz.2 "authentication"
 ```
 
 ### Phase 3: Default Packet Mode
 
-Once validated in production, `--packet` becomes the default. The old flat format is available via `--legacy`. The session-start hook (`hooks/session-start.sh`) is updated to call `ao inject --packet` instead of `ao inject`.
+Once validated in production, `--packet` becomes the default. The old flat format is available via `--legacy`. The session-start hook (`hooks/session-start.sh`) is updated to call `ao know inject --packet` instead of `ao know inject`.
 
 ### Backward Compatibility
 
@@ -473,7 +473,7 @@ The context packet degrades gracefully when sources are missing. No section prod
 | Condition | Affected Sections | Behavior |
 |-----------|-------------------|----------|
 | New repo, no `.agents/` | ALL | Each section shows "No prior data" note. PROTOCOL uses minimal template. |
-| No `GOALS.md` or `GOALS.yaml` | GOALS | "No fitness goals defined. Run `ao goals init`." |
+| No `GOALS.md` or `GOALS.yaml` | GOALS | "No fitness goals defined. Run `ao work goals init`." |
 | No `cycle-history.jsonl` | HISTORY (cycles) | Cycles sub-section omitted. Sessions and chain still shown if available. |
 | No `.agents/ao/sessions/` | HISTORY (sessions) | Sessions sub-section omitted. |
 | No `.agents/ao/chain.jsonl` | HISTORY (chain) | Chain sub-section omitted. |
@@ -491,7 +491,7 @@ The context packet unifies and structures what multiple components already provi
 
 | Component | Current Role | Context Packet Role |
 |-----------|-------------|---------------------|
-| `ao inject` (`inject.go`) | Flat knowledge dump | Becomes the packet assembler |
+| `ao know inject` (`inject.go`) | Flat knowledge dump | Becomes the packet assembler |
 | `goals.LoadGoals()` | Fitness measurement | Feeds GOALS section |
 | `collectLearnings()` | MemRL retrieval | Feeds INTEL section (learnings) |
 | `collectPatterns()` | Pattern retrieval | Feeds INTEL section (patterns) |
@@ -499,7 +499,7 @@ The context packet unifies and structures what multiple components already provi
 | `collectRecentSessions()` | Session history | Feeds HISTORY section (sessions) |
 | `ratchet.LoadChain()` | Provenance chain | Feeds HISTORY section (chain) |
 | `recordCitations()` | Citation tracking | Provenance tracking (injection-log.jsonl) |
-| `hooks/session-start.sh` | Session initialization | Calls `ao inject --packet` |
+| `hooks/session-start.sh` | Session initialization | Calls `ao know inject --packet` |
 | Memory packets (`memory-packet.v1.schema.json`) | Boundary-memory for handoff | Orthogonal — handoff packets are emitted at session END; context packets are assembled at session START |
 
 ---
@@ -510,5 +510,5 @@ The context packet unifies and structures what multiple components already provi
 - [Knowledge Flywheel](knowledge-flywheel.md) — How learnings compound across sessions
 - [How It Works](how-it-works.md) — Context windowing, Brownian Ratchet, Ralph Wiggum
 - [The Science](the-science.md) — Freshness decay model, MemRL two-phase retrieval
-- [CLI Reference](../cli/docs/COMMANDS.md) — `ao inject` command documentation
+- [CLI Reference](../cli/docs/COMMANDS.md) — `ao know inject` command documentation
 - [OL-AO Bridge Contracts](ol-bridge-contracts.md) — Olympus constraint interchange

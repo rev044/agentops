@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-codex.sh — Install AgentOps skills for Codex CLI
+# install-codex.sh — Install AgentOps Codex-native skills (no repo clone)
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh -o /tmp/install-codex.sh
@@ -8,12 +8,13 @@
 #   ./scripts/install-codex.sh
 #
 # What it does:
-#   1. Shallow-clones agentops repo (or pulls if exists)
-#   2. Symlinks pre-built Codex-native skills into ~/.codex/skills/
-#   3. Verifies installation
+#   1. Downloads a temporary AgentOps archive (no local git clone)
+#   2. Installs runtime helper files into ~/.codex/agentops/
+#   3. Installs pre-built Codex-native skills into ~/.codex/agentops/skills/
+#   4. Writes local install metadata for stale-skill reminders
 #
 # To update later:
-#   cd ~/.codex/agentops && git pull
+#   re-run this installer
 
 set -euo pipefail
 
@@ -29,12 +30,22 @@ fail()  { echo -e "${RED}✗${NC} $*"; exit 1; }
 
 CODEX_DIR="${HOME}/.codex"
 AGENTOPS_DIR="${CODEX_DIR}/agentops"
-SKILLS_DST="${CODEX_DIR}/skills"
+RUNTIME_DOT_CODEX="${AGENTOPS_DIR}/.codex"
+RUNTIME_LIB_DIR="${AGENTOPS_DIR}/lib"
+SKILLS_DST="${AGENTOPS_DIR}/skills"
+LEGACY_PERSONAL_SKILLS="${CODEX_DIR}/skills"
 INSTALL_META="${CODEX_DIR}/.agentops-codex-install.json"
-REPO_URL="https://github.com/boshu2/agentops.git"
+ARCHIVE_URL="https://codeload.github.com/boshu2/agentops/tar.gz/refs/heads/main"
+UPDATE_CMD="curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
 
 echo "Installing AgentOps for Codex CLI..."
 echo ""
+
+for cmd in curl tar; do
+  if ! command -v "$cmd" &>/dev/null; then
+    fail "Missing required command: $cmd"
+  fi
+done
 
 # Step 1: Check Codex is installed
 if ! command -v codex &>/dev/null; then
@@ -42,53 +53,87 @@ if ! command -v codex &>/dev/null; then
   warn "Continuing anyway — skills will be ready when Codex is installed."
 fi
 
-# Step 2: Clone or update repo
-if [ -d "$AGENTOPS_DIR/.git" ]; then
-  info "AgentOps repo exists, pulling latest..."
-  git -C "$AGENTOPS_DIR" pull --ff-only 2>/dev/null || warn "git pull failed — using existing version"
-else
-  info "Cloning AgentOps..."
-  mkdir -p "$(dirname "$AGENTOPS_DIR")"
-  git clone --depth 1 "$REPO_URL" "$AGENTOPS_DIR"
-fi
+# Step 2: Download temporary archive (no persistent clone)
+TMP_DIR="$(mktemp -d)"
+cleanup() { rm -rf "$TMP_DIR"; }
+trap cleanup EXIT
 
-# Step 3: Verify pre-built Codex skills exist
-SKILLS_SRC="$AGENTOPS_DIR/skills-codex"
-if [ ! -d "$SKILLS_SRC" ]; then
-  fail "Pre-built Codex skills not found at $SKILLS_SRC"
-fi
+ARCHIVE_FILE="${TMP_DIR}/agentops.tar.gz"
+info "Downloading AgentOps bundle..."
+curl -fsSL "$ARCHIVE_URL" -o "$ARCHIVE_FILE"
 
-# Step 4: Symlink skills into ~/.codex/skills/
+ARCHIVE_ROOT="$(tar -tzf "$ARCHIVE_FILE" | head -1 | cut -d/ -f1)"
+[ -n "$ARCHIVE_ROOT" ] || fail "Could not determine archive root directory"
+tar -xzf "$ARCHIVE_FILE" -C "$TMP_DIR"
+SRC_ROOT="${TMP_DIR}/${ARCHIVE_ROOT}"
+
+# Step 3: Resolve bundle sources
+SKILLS_SRC="${SRC_ROOT}/skills-codex"
+HELPER_SRC="${SRC_ROOT}/.codex/agentops-codex"
+BOOTSTRAP_SRC="${SRC_ROOT}/.codex/agentops-bootstrap.md"
+CORE_SRC="${SRC_ROOT}/lib/skills-core.js"
+[ -d "$SKILLS_SRC" ] || fail "Pre-built Codex skills not found in bundle"
+[ -f "$HELPER_SRC" ] || fail "Missing agentops-codex helper in bundle"
+[ -f "$BOOTSTRAP_SRC" ] || fail "Missing bootstrap instructions in bundle"
+[ -f "$CORE_SRC" ] || fail "Missing shared skills core in bundle"
+
+# Step 4: Install runtime helper files
+mkdir -p "$RUNTIME_DOT_CODEX" "$RUNTIME_LIB_DIR"
+cp "$HELPER_SRC" "${RUNTIME_DOT_CODEX}/agentops-codex"
+chmod +x "${RUNTIME_DOT_CODEX}/agentops-codex"
+cp "$BOOTSTRAP_SRC" "${RUNTIME_DOT_CODEX}/agentops-bootstrap.md"
+cp "$CORE_SRC" "${RUNTIME_LIB_DIR}/skills-core.js"
+info "Installed runtime helper files to $AGENTOPS_DIR"
+
+# Step 5: Install codex-native skills into ~/.codex/agentops/skills
+rm -rf "$SKILLS_DST"
 mkdir -p "$SKILLS_DST"
-
 linked=0
 for skill_dir in "$SKILLS_SRC"/*/; do
   [ -d "$skill_dir" ] || continue
   skill_name="$(basename "$skill_dir")"
-  dst="$SKILLS_DST/$skill_name"
-  rm -rf "$dst"
-  ln -s "${skill_dir%/}" "$dst"
+  cp -R "$skill_dir" "${SKILLS_DST}/${skill_name}"
   linked=$((linked + 1))
 done
+info "Installed $linked Codex-native skills"
 
-# Step 5: Verify
+# Step 6: Remove legacy symlinked installs from ~/.codex/skills when present
+legacy_removed=0
+if [ -d "$LEGACY_PERSONAL_SKILLS" ]; then
+  for skill_dir in "$SKILLS_SRC"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name="$(basename "$skill_dir")"
+    legacy_path="${LEGACY_PERSONAL_SKILLS}/${skill_name}"
+    if [ -L "$legacy_path" ]; then
+      link_target="$(readlink "$legacy_path" || true)"
+      case "$link_target" in
+        *"/.codex/agentops/skills-codex/"*|*"/.codex/agentops/skills-codex")
+          rm -f "$legacy_path"
+          legacy_removed=$((legacy_removed + 1))
+          ;;
+      esac
+    fi
+  done
+fi
+if [ "$legacy_removed" -gt 0 ]; then
+  info "Removed $legacy_removed legacy symlink(s) from $LEGACY_PERSONAL_SKILLS"
+fi
+
+# Step 7: Verify
 echo ""
-SKILL_COUNT=$(find -L "$SKILLS_DST" -name "SKILL.md" -maxdepth 2 2>/dev/null | wc -l | tr -d ' ')
+SKILL_COUNT=$(find "$SKILLS_DST" -name "SKILL.md" -maxdepth 2 2>/dev/null | wc -l | tr -d ' ')
 info "Installation complete!"
 echo "  Skills: $SKILLS_DST ($SKILL_COUNT skills)"
 
-# Step 6: Write local install metadata for stale-skill reminders (no telemetry)
+# Step 8: Write local install metadata for stale-skill reminders (no telemetry)
 INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-VERSION="unknown"
-if git -C "$AGENTOPS_DIR" rev-parse --short HEAD >/dev/null 2>&1; then
-  VERSION="$(git -C "$AGENTOPS_DIR" rev-parse --short HEAD)"
-fi
+VERSION="main"
 cat > "$INSTALL_META" <<EOF
 {
   "installed_at": "$INSTALLED_AT",
   "source": "install-codex.sh",
   "version": "$VERSION",
-  "update_command": "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+  "update_command": "$UPDATE_CMD"
 }
 EOF
 info "Install metadata written: $INSTALL_META"
@@ -96,4 +141,4 @@ echo ""
 echo "Restart Codex to activate."
 echo ""
 echo "To update later:"
-echo "  cd $AGENTOPS_DIR && git pull"
+echo "  $UPDATE_CMD"

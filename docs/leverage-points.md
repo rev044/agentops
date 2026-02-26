@@ -16,14 +16,14 @@
 
 | Parameter | Value | Where defined |
 |-----------|-------|---------------|
-| Decay rate (delta) | 0.17/week | Darr (1995); used in `ao metrics health` (`cli/cmd/ao/metrics_health.go`) |
-| Retrieval target (sigma) | 0.7 | `ao metrics health` escape velocity threshold |
-| Citation target (rho) | 0.3 | `ao metrics health` escape velocity threshold |
+| Decay rate (delta) | 0.17/week | Darr (1995); used in `ao quality metrics health` (`cli/cmd/ao/metrics_health.go`) |
+| Retrieval target (sigma) | 0.7 | `ao quality metrics health` escape velocity threshold |
+| Citation target (rho) | 0.3 | `ao quality metrics health` escape velocity threshold |
 | Context load ceiling | 40% of window | Hook enforcement (35% warn, 40% hard stop) |
 | Summary budget | 500 tokens | Briefing packet assembly (`ao context assemble`) |
 | Max waves per epic | 50 | `/crank` FIRE loop global limit |
 | Max retries per gate | 3 | Gate retry logic in validation hooks |
-| Confidence decay | 10%/week | Learning freshness scoring in `ao inject` |
+| Confidence decay | 10%/week | Learning freshness scoring in `ao know inject` |
 | Circuit breaker | 60 minutes | `/evolve` stops if no productive cycle in 60 min |
 
 **dK/dt mapping:** These tune `delta`, `phi`, and the operating bounds of `sigma`. Changing them shifts the curve; it does not change the shape of the system.
@@ -41,11 +41,11 @@
 - **Context guard** — 35% warn threshold, 40% hard stop. Prevents the "lost in the middle" retrieval collapse (Liu et al. 2023). Implemented in session-start hook and context assembly.
 - **Knowledge tiering** — Gold/silver/bronze tiers in `.agents/learnings/`. Gold learnings are always injected; bronze are available but not proactively loaded. Controls the hot-set size.
 - **Idle streak detection** — `/evolve` tracks consecutive idle cycles from `cycle-history.jsonl`. At threshold, the system stops rather than wasting cycles. This is a buffer against runaway autonomous loops.
-- **`.agents/` corpus size** — The physical K stock. Tiering and pruning (`ao maturity --expire`) prevent the buffer from growing past the point where retrieval degrades.
+- **`.agents/` corpus size** — The physical K stock. Tiering and pruning (`ao quality maturity --expire`) prevent the buffer from growing past the point where retrieval degrades.
 
 **dK/dt mapping:** Bounds `K` to prevent `sigma(K,t)` collapse. The context guard specifically prevents the buffer from becoming so large that information is lost in the middle.
 
-**Status:** Implemented. Context guard and tiering are active. Corpus size monitoring via `ao metrics health` knowledge_stock.
+**Status:** Implemented. Context guard and tiering are active. Corpus size monitoring via `ao quality metrics health` knowledge_stock.
 
 ---
 
@@ -59,7 +59,7 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 
 ```
 .agents/
-  learnings/     -- I(t) deposits here via ao forge
+  learnings/     -- I(t) deposits here via ao know forge
   patterns/      -- Reusable solutions extracted from learnings
   constraints/   -- Compiled rules (constraint-compiler.sh)
   retros/        -- Retrospective summaries
@@ -70,9 +70,9 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 ```
 
 **Flows:**
-- **Inflow:** `ao forge` (session learnings), `/retro`, `/post-mortem` deposit into `I(t)`
-- **Outflow (decay):** `ao maturity --expire` removes stale artifacts, freshness scoring deprioritizes old knowledge
-- **Reinforcement:** `ao inject` retrieves from stock, citation tracking records usage, MemRL utility scoring adjusts future retrieval priority
+- **Inflow:** `ao know forge` (session learnings), `/retro`, `/post-mortem` deposit into `I(t)`
+- **Outflow (decay):** `ao quality maturity --expire` removes stale artifacts, freshness scoring deprioritizes old knowledge
+- **Reinforcement:** `ao know inject` retrieves from stock, citation tracking records usage, MemRL utility scoring adjusts future retrieval priority
 - **Friction:** As `K` grows, retrieval quality degrades without active scale controls (tiering, pruning, re-indexing)
 
 **dK/dt mapping:** This IS the physical equation. `K` = `.agents/` corpus. `I(t)` = forge inflow. `delta * K` = expiry outflow. `sigma * rho * K` = retrieval-citation compounding. `phi * K^2` = scale friction.
@@ -91,7 +91,7 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 - **Circuit breaker (60 min)** — `/evolve` stops if no productive cycle occurred in the last 60 minutes. This prevents the system from oscillating between idle cycles indefinitely. Implemented as a timestamp check against `cycle-history.jsonl`.
 - **Confidence decay (10%/week)** — Learning freshness scores decay over time, creating a delay between when knowledge was created and when it becomes effectively invisible to retrieval. This matches Ebbinghaus's forgetting curve.
 - **Stale run TTL** — Sessions that do not close cleanly have their state cleaned up by the pending-cleaner hook after a timeout. Prevents stale state from contaminating future sessions.
-- **Maturity lifecycle** — `ao maturity --expire` implements time-delayed eviction. Knowledge that is not retrieved within its TTL decays out of the active set.
+- **Maturity lifecycle** — `ao quality maturity --expire` implements time-delayed eviction. Knowledge that is not retrieved within its TTL decays out of the active set.
 
 **dK/dt mapping:** Controls the lag between `I(t)` and usable `K`. Phase boundaries create healthy delays (validation before deployment). Confidence decay and maturity lifecycle create the `delta * K` drain term.
 
@@ -107,9 +107,9 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 
 | Loop | Mechanism | What it balances | Files/commands |
 |------|-----------|------------------|----------------|
-| **B1: Freshness decay** | Knowledge decays at ~17%/week without retrieval | Prevents stale knowledge from polluting decisions | `ao maturity --expire`, freshness scoring in `ao inject` |
+| **B1: Freshness decay** | Knowledge decays at ~17%/week without retrieval | Prevents stale knowledge from polluting decisions | `ao quality maturity --expire`, freshness scoring in `ao know inject` |
 | **B2: Scale friction** | As K grows, retrieval quality degrades and governance cost rises | Prevents corpus bloat from collapsing sigma | Tiering, pruning, MemRL utility scoring (`ao feedback`) |
-| **Regression gates** | `/evolve` snapshots fitness before each cycle; regression = automatic revert | Prevents improvement cycles from making things worse | `ao goals measure`, fitness snapshot comparison |
+| **Regression gates** | `/evolve` snapshots fitness before each cycle; regression = automatic revert | Prevents improvement cycles from making things worse | `ao work goals measure`, fitness snapshot comparison |
 | **Council FAIL** | Multi-model council returns FAIL verdict; blocks merge | Prevents bad code from locking into ratchet | `/vibe`, `/council` verdicts in `.agents/council/` |
 | **Push gate** | Hook blocks `git push` if `/vibe` has not passed | Prevents unvalidated code from reaching main | `hooks/push-gate.sh` |
 | **Pre-mortem gate** | Hook blocks `/crank` if `/pre-mortem` has not passed | Prevents implementation of unvetted plans | `hooks/pre-mortem-gate.sh` |
@@ -119,7 +119,7 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 - B2 creates the `phi * K^2` term — the scale friction that grows superlinearly with knowledge stock.
 - Regression gates, council FAIL, and push gate prevent negative `dK/dt` spikes (regressions that would destroy validated knowledge).
 
-**How `ao metrics health` maps:** `delta` (average learning age) measures B1 drain pressure. When `delta` is high, more knowledge is old and decay is winning. The `loop_dominance` field shows `B1` (decayed/session) directly. When `B1 > R1`, the system reports `dominant: "B1"` — balancing loops are winning.
+**How `ao quality metrics health` maps:** `delta` (average learning age) measures B1 drain pressure. When `delta` is high, more knowledge is old and decay is winning. The `loop_dominance` field shows `B1` (decayed/session) directly. When `B1 > R1`, the system reports `dominant: "B1"` — balancing loops are winning.
 
 **Status:** Implemented. All six balancing loops are active and mechanically enforced.
 
@@ -134,7 +134,7 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 **R1: The Knowledge Flywheel**
 
 ```
-retrieve (ao inject)
+retrieve (ao know inject)
     |
     v
 use in session (citation)
@@ -145,10 +145,10 @@ stronger priors (reinforced knowledge survives decay)
     v
 better future retrieval (higher utility scores)
     |
-    +---> ao forge extracts new learnings
+    +---> ao know forge extracts new learnings
     |         |
     v         v
-retrieve (ao inject) ... [loop repeats]
+retrieve (ao know inject) ... [loop repeats]
 ```
 
 This is the `sigma * rho * K` compounding term. Each retrieval-and-use cycle:
@@ -159,7 +159,7 @@ This is the `sigma * rho * K` compounding term. Each retrieval-and-use cycle:
 
 The `* K` multiplier means it is proportional to existing stock. More knowledge, more compounding — until scale friction (B2) intervenes.
 
-**How `ao metrics health` maps:**
+**How `ao quality metrics health` maps:**
 - `sigma` (retrieval effectiveness) measures R1's input quality — are you finding what you need?
 - `rho` (citation rate) measures R1's conversion — are you using what you find?
 - `sigma * rho` is the compound rate. Target: 0.21 (0.7 x 0.3).
@@ -169,7 +169,7 @@ The `* K` multiplier means it is proportional to existing stock. More knowledge,
 
 When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. This is the system's primary health indicator.
 
-**Status:** Implemented. The flywheel is the core product mechanism. `ao metrics health` provides real-time R1/B1 visibility.
+**Status:** Implemented. The flywheel is the core product mechanism. `ao quality metrics health` provides real-time R1/B1 visibility.
 
 ---
 
@@ -181,8 +181,8 @@ When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. 
 
 | Flow | From | To | Mechanism | Why it matters |
 |------|------|----|-----------|----------------|
-| Knowledge injection | `.agents/learnings/` | Session context | `ao inject` (freshness-weighted, utility-scored) | Session N knows what session 1 learned |
-| Knowledge extraction | Session output | `.agents/learnings/` | `ao forge` (hook-enforced at session end) | Experience survives session death |
+| Knowledge injection | `.agents/learnings/` | Session context | `ao know inject` (freshness-weighted, utility-scored) | Session N knows what session 1 learned |
+| Knowledge extraction | Session output | `.agents/learnings/` | `ao know forge` (hook-enforced at session end) | Experience survives session death |
 | Briefing packets | Prior research/plans | Agent context | `ao context assemble` (500-token summaries) | Right information, right phase, right agent |
 | Least-privilege loading | Full knowledge stock | Filtered subset | Phase-based and role-based filtering | Prevents lost-in-the-middle; context as security boundary |
 | Ralph Wiggum | Previous wave state | New wave workers | Fresh context per wave (zero bleed-through) | Workers reason from clean state, not accumulated garbage |
@@ -193,7 +193,7 @@ When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. 
 
 **dK/dt mapping:** Directly increases `sigma` by getting the right knowledge to the right window at the right time. Also increases `rho` by making retrieved knowledge more relevant to the current task (phase scoping reduces noise).
 
-**Status:** Implemented. All seven information flows are active. `ao context assemble` and `ao inject` are the primary delivery mechanisms.
+**Status:** Implemented. All seven information flows are active. `ao context assemble` and `ao know inject` are the primary delivery mechanisms.
 
 ---
 
@@ -264,7 +264,7 @@ The same shape at every scale (function, issue, epic, repository) means rules at
 | `/forge` pattern extraction | Knowledge taxonomy | Extracts reusable patterns from sessions. The pattern library grows and changes shape based on what the system encounters. |
 | Skill composition | Capability surface | Skills chain: `/research` -> `/plan` -> `/pre-mortem` -> `/crank` -> `/vibe` -> `/post-mortem`. The chain is fixed but each skill adapts its behavior to its inputs. |
 | Progressive skill revelation | User-visible surface | New users see 8 starter skills. The remaining skills reveal as the user grows. The system's visible complexity adapts to the user's readiness. |
-| Severity-weighted goal selection | Priority ordering | `ao goals measure` scores all goals by weight. `/evolve` works the highest-weight failure first. The priority order changes every cycle based on measurement. |
+| Severity-weighted goal selection | Priority ordering | `ao work goals measure` scores all goals by weight. `/evolve` works the highest-weight failure first. The priority order changes every cycle based on measurement. |
 
 **The constraint compiler deserves emphasis.** It is the mechanism that converts #7 (reinforcing feedback — learnings) into #5 (rules — constraints). When a learning scores high enough and carries the right tags, it stops being advice and becomes structure. This is how the system literally rewrites its own rules based on experience.
 
@@ -297,15 +297,15 @@ The same shape at every scale (function, issue, epic, repository) means rules at
 **Key properties:**
 - Gates have shell commands that exit 0 (pass) or non-zero (fail). Binary, not subjective.
 - Weight determines severity. Higher weight = higher priority when multiple gates fail.
-- `ao goals measure` runs all gates, reports status, feeds `/evolve` cycle selection.
-- `ao goals steer add/remove/prioritize` manages directives.
+- `ao work goals measure` runs all gates, reports status, feeds `/evolve` cycle selection.
+- `ao work goals steer add/remove/prioritize` manages directives.
 - The meta-goal `sigma * rho > delta` is the escape velocity condition — the system's implicit goal across all repos.
 
 **The dormancy-is-success property:** A well-evolved system has all gates passing. `/evolve` finds nothing to fix. This is not stagnation — it is the designed end state. The system worked itself out of a job for the current goal set. New goals restart the cycle.
 
 **dK/dt mapping:** Goals define what `I(t)` should target. Without goals, forge input is random — every session produces knowledge, but no session produces knowledge that serves a coherent direction. Goals make the input term directional.
 
-**Status:** Implemented. `ao goals init`, `ao goals measure`, `ao goals steer` are all active.
+**Status:** Implemented. `ao work goals init`, `ao work goals measure`, `ao work goals steer` are all active.
 
 ---
 
@@ -381,7 +381,7 @@ Each term maps to specific leverage points:
 |----------------|---------------------|
 | #12 (Parameters) | Token budgets and summary lengths bound how much can be forged per session |
 | #7 (R1 loop) | The flywheel's reinforcing loop means each retrieval-use cycle generates new learnings, increasing I(t) |
-| #6 (Info flows) | `ao forge` extracts knowledge at session end; `ao context assemble` ensures research findings reach planners |
+| #6 (Info flows) | `ao know forge` extracts knowledge at session end; `ao context assemble` ensures research findings reach planners |
 
 ### delta * K — Decay Drain
 
@@ -410,12 +410,12 @@ Each term maps to specific leverage points:
 
 ---
 
-## How `ao metrics health` Maps to #7 and #8
+## How `ao quality metrics health` Maps to #7 and #8
 
-The `ao metrics health` command (implemented in `cli/cmd/ao/metrics_health.go`) is a direct instrument panel for leverage points #7 and #8.
+The `ao quality metrics health` command (implemented in `cli/cmd/ao/metrics_health.go`) is a direct instrument panel for leverage points #7 and #8.
 
 ```
-$ ao metrics health
+$ ao quality metrics health
 
 Flywheel Health
 ===============
@@ -464,7 +464,7 @@ What is missing from the Meadows mapping and what would close each gap.
 |---|----------------|-----|---------------------|
 | 12 | Parameters | Parameter sensitivity analysis not performed | Run controlled experiments varying delta, sigma, rho targets; measure effect on dK/dt |
 | 11 | Buffers | No dynamic buffer sizing | Adaptive context guard that adjusts the 40% threshold based on measured retrieval accuracy |
-| 10 | Stock-and-flow | No real-time flow visualization | A `ao metrics flow` command showing I(t), decay rate, and compound rate as a time series |
+| 10 | Stock-and-flow | No real-time flow visualization | A `ao quality metrics flow` command showing I(t), decay rate, and compound rate as a time series |
 | 9 | Delays | Phase boundary delays are fixed | Adaptive delays — skip pre-mortem for trivial changes, enforce deeper review for high-risk ones |
 | 8 | B loops | B2 (scale friction) is monitored but not auto-controlled | Auto-trigger pruning when precision@k drops below threshold |
 | 7 | R1 loop | No cross-project R1 | Knowledge compounding across repos (not just within one). Transfer learning for agent knowledge. |

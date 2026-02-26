@@ -214,8 +214,8 @@ go install github.com/boshu2/agentops/cli/cmd/ao@latest
 
 # From your repo root: create `.agents/` + enable auto-hooks (Claude Code)
 cd /path/to/your/repo
-ao init --hooks
-ao hooks test
+ao start init --hooks
+ao settings hooks test
 ```
 
 > **Note:** There's a [known bug](https://github.com/anthropics/claude-code/issues/15178) where plugin skills don't appear when pressing `/`. Skills still work — just type them directly.
@@ -253,17 +253,17 @@ More tools = more coverage. But even with zero tools installed, the workflow sti
 The `ao` CLI handles knowledge persistence with MemRL two-phase retrieval, confidence decay (stale knowledge ages out), and citation-tracked provenance so you can trace learnings back to the session that produced them.
 
 ```bash
-ao quick-start --minimal  # Create .agents/ structure (or use /quickstart skill)
-ao init --hooks           # Recommended: create `.agents/` + install minimal hooks
-ao hooks install          # Hooks only (does not create `.agents/`)
-ao hooks test             # Verify hooks are working
-ao inject [topic]         # Load prior knowledge (auto at session start)
-ao search "query"         # Semantic search across learnings
-ao flywheel status        # Knowledge growth rate, escape velocity
-ao metrics report         # Flywheel health dashboard
-ao forge transcript       # Extract learnings from session transcripts
-ao ratchet status         # RPI progress gates (Research → Plan → Implement → Validate)
-ao pool list              # Show knowledge by quality tier
+ao start quick-start --minimal  # Create .agents/ structure (or use /quickstart skill)
+ao start init --hooks           # Recommended: create `.agents/` + install minimal hooks
+ao settings hooks install          # Hooks only (does not create `.agents/`)
+ao settings hooks test             # Verify hooks are working
+ao know inject [topic]         # Load prior knowledge (auto at session start)
+ao know search "query"         # Semantic search across learnings
+ao quality flywheel status        # Knowledge growth rate, escape velocity
+ao quality metrics report         # Flywheel health dashboard
+ao know forge transcript       # Extract learnings from session transcripts
+ao work ratchet status         # RPI progress gates (Research → Plan → Implement → Validate)
+ao quality pool list              # Show knowledge by quality tier
 ```
 
 ---
