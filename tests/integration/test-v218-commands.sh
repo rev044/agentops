@@ -251,7 +251,7 @@ echo ""
 
 # ---- quality constraint list ----
 echo "--- quality constraint list ---"
-CONSTRAINT_OUT=$("$TMPBIN" quality constraint list 2>&1) || CONSTRAINT_RC=$?
+CONSTRAINT_OUT=$("$TMPBIN" constraint list 2>&1) || CONSTRAINT_RC=$?
 CONSTRAINT_RC="${CONSTRAINT_RC:-0}"
 if [ "$CONSTRAINT_RC" -eq 0 ] || { [ "$CONSTRAINT_RC" -eq 1 ] && echo "$CONSTRAINT_OUT" | grep -qi "no constraints found"; }; then
     pass "quality constraint list returns expected status"
@@ -261,7 +261,7 @@ else
 fi
 
 # ---- quality constraint list --json ----
-CONSTRAINT_JSON=$("$TMPBIN" quality constraint list --json 2>&1) || true
+CONSTRAINT_JSON=$("$TMPBIN" constraint list --json 2>&1) || true
 if echo "$CONSTRAINT_JSON" | jq . >/dev/null 2>&1; then
     pass "quality constraint list --json returns valid JSON"
 elif echo "$CONSTRAINT_JSON" | grep -qi "no constraints found"; then
@@ -275,69 +275,69 @@ fi
 echo ""
 echo "--- contradict ---"
 test_cmd "contradict (with learnings)" 0 "" \
-    "$TMPBIN" quality contradict
+    "$TMPBIN" contradict
 
 # ---- curate status ----
 echo ""
 echo "--- curate status ---"
 test_cmd "curate status" 0 "Curation|Learnings|learnings|Total|total" \
-    "$TMPBIN" quality curate status
+    "$TMPBIN" curate status
 
 # ---- curate verify ----
 echo ""
 echo "--- curate verify ---"
 # curate verify checks goals, may say "No GOALS" which is fine
 test_cmd "curate verify" 0 "" \
-    "$TMPBIN" quality curate verify
+    "$TMPBIN" curate verify
 
 # ---- dedup ----
 echo ""
 echo "--- dedup ---"
 # With two similar learnings, dedup should find near-duplicates or report none
 test_cmd "dedup" 0 "" \
-    "$TMPBIN" quality dedup
+    "$TMPBIN" dedup
 
 # ---- dedup --merge ----
 echo ""
 echo "--- dedup --merge ---"
 test_cmd "dedup --merge (dry-run behavior)" 0 "" \
-    "$TMPBIN" quality dedup --merge
+    "$TMPBIN" dedup --merge
 
 # ---- lookup --query ----
 echo ""
 echo "--- lookup ---"
 test_cmd "lookup --query guard" 0 "" \
-    "$TMPBIN" know lookup --query "guard clause"
+    "$TMPBIN" lookup --query "guard clause"
 
 # ---- memory sync ----
 echo ""
 echo "--- memory sync ---"
 test_cmd "memory sync" 0 "" \
-    "$TMPBIN" settings memory sync
+    "$TMPBIN" memory sync
 
 # ---- notebook update ----
 echo ""
 echo "--- notebook update ---"
 test_cmd "notebook update" 0 "" \
-    "$TMPBIN" settings notebook update
+    "$TMPBIN" notebook update
 
 # ---- seed --help ----
 echo ""
 echo "--- seed ---"
 test_cmd "seed --help" 0 "seed|plant|repository|template" \
-    "$TMPBIN" start seed --help
+    "$TMPBIN" seed --help
 
 # ---- metrics health ----
 echo ""
 echo "--- metrics health ---"
 test_cmd "metrics health" 0 "Flywheel|Health|sigma|rho|RETRIEVAL|retrieval" \
-    "$TMPBIN" quality metrics health
+    "$TMPBIN" metrics health
 
 # ---- context assemble --help ----
 echo ""
 echo "--- context assemble ---"
 test_cmd "context assemble --help" 0 "assemble|GOALS|TASK|briefing|Assemble" \
-    "$TMPBIN" work context assemble --help
+    "$TMPBIN" context assemble --help
 
 # ============================================================
 echo ""
@@ -363,7 +363,7 @@ fi
 # search --json empty case
 echo ""
 echo "--- search --json empty ---"
-SEARCH_OUTPUT=$("$TMPBIN" know search --json "zzz_nonexistent_query_xyz" 2>&1) || true
+SEARCH_OUTPUT=$("$TMPBIN" search --json "zzz_nonexistent_query_xyz" 2>&1) || true
 if [ "$SEARCH_OUTPUT" = "[]" ]; then
     pass "search --json empty case returns []"
 elif echo "$SEARCH_OUTPUT" | jq -e 'type == "array"' >/dev/null 2>&1; then
@@ -375,7 +375,7 @@ fi
 # search --json with content
 echo ""
 echo "--- search --json with match ---"
-SEARCH_MATCH=$("$TMPBIN" know search --json "guard clause" 2>&1) || true
+SEARCH_MATCH=$("$TMPBIN" search --json "guard clause" 2>&1) || true
 if echo "$SEARCH_MATCH" | jq -e 'type == "array"' >/dev/null 2>&1; then
     pass "search --json returns JSON array"
 else
@@ -385,7 +385,7 @@ fi
 # curate status --json (if supported)
 echo ""
 echo "--- curate status --json ---"
-CURATE_JSON=$("$TMPBIN" quality curate status --json 2>&1) || true
+CURATE_JSON=$("$TMPBIN" curate status --json 2>&1) || true
 if echo "$CURATE_JSON" | jq . >/dev/null 2>&1; then
     pass "curate status --json returns valid JSON"
 else
@@ -396,7 +396,7 @@ fi
 # metrics health --json
 echo ""
 echo "--- metrics health --json ---"
-METRICS_JSON=$("$TMPBIN" quality metrics health --json 2>&1) || true
+METRICS_JSON=$("$TMPBIN" metrics health --json 2>&1) || true
 if echo "$METRICS_JSON" | jq . >/dev/null 2>&1; then
     pass "metrics health --json returns valid JSON"
 else
