@@ -42,15 +42,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-
-      - name: Run validation
+      - name: Run smoke tests
         run: |
-          chmod +x tests/marketplace-e2e-test.sh
-          ./tests/marketplace-e2e-test.sh --verbose
+          chmod +x tests/smoke-test.sh
+          ./tests/smoke-test.sh --verbose
+
+      - name: Run docs release gate
+        run: |
+          chmod +x tests/docs/validate-doc-release.sh
+          ./tests/docs/validate-doc-release.sh
+
+      - name: Validate hooks/docs parity
+        run: |
+          chmod +x scripts/validate-hooks-doc-parity.sh
+          ./scripts/validate-hooks-doc-parity.sh
 
   security-toolchain:
     name: Security Toolchain

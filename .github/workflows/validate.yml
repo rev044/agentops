@@ -106,6 +106,17 @@ jobs:
             }
           echo "✅ ShellCheck passed"
 
+  markdownlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: |
+            **/*.md
+
   security-scan:
     runs-on: ubuntu-latest
     steps:
@@ -167,6 +178,7 @@ jobs:
                 --exclude-dir=cli/testdata \
                 --exclude="install-opencode.sh" \
                 --exclude="install-codex.sh" \
+                --exclude="install-codex-native-skills.sh" \
                 --exclude="ci-local-release.sh" \
                 . 2>/dev/null; then
               echo "Found: $pattern"
@@ -254,6 +266,54 @@ jobs:
         run: |
           chmod +x scripts/validate-skill-schema.sh
           ./scripts/validate-skill-schema.sh --verbose
+
+  skill-dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate skill dependency references resolve
+        run: |
+          python3 - <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          skills_dir = Path("skills")
+          skills = {
+              p.name for p in skills_dir.iterdir()
+              if p.is_dir() and (p / "SKILL.md").exists()
+          }
+
+          missing = []
+          for skill in sorted(skills):
+              content = (skills_dir / skill / "SKILL.md").read_text(encoding="utf-8")
+              match = re.match(r"^---\n(.*?)\n---\n", content, re.S)
+              if not match:
+                  continue
+
+              in_dependencies = False
+              for line in match.group(1).splitlines():
+                  stripped = line.strip()
+                  if stripped.startswith("dependencies:"):
+                      in_dependencies = True
+                      continue
+                  if in_dependencies and stripped.startswith("- "):
+                      dep = stripped[2:].split("#", 1)[0].strip().strip('"').strip("'")
+                      if dep and dep not in skills:
+                          missing.append((skill, dep))
+                      continue
+                  if in_dependencies and stripped and not stripped.startswith("-"):
+                      in_dependencies = False
+
+          if missing:
+              print("Unresolved skill dependencies:")
+              for skill, dep in missing:
+                  print(f"  - {skill} -> {dep}")
+              sys.exit(1)
+
+          print(f"Skill dependencies resolved: {len(skills)} skills checked.")
+          PY
 
   contract-compatibility-gate:
     runs-on: ubuntu-latest
@@ -494,7 +554,7 @@ jobs:
         run: bash tests/hooks/test-hooks.sh
 
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, embedded-sync, cli-docs-parity, shellcheck, security-scan, security-toolchain-gate, skill-integrity, skill-schema, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration]
+    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -509,10 +569,12 @@ jobs:
           echo "embedded-sync: ${{ needs.embedded-sync.result }}"
           echo "cli-docs-parity: ${{ needs.cli-docs-parity.result }}"
           echo "shellcheck: ${{ needs.shellcheck.result }}"
+          echo "markdownlint: ${{ needs.markdownlint.result }}"
           echo "security-scan: ${{ needs.security-scan.result }}"
           echo "security-toolchain-gate: ${{ needs.security-toolchain-gate.result }}"
           echo "skill-integrity: ${{ needs.skill-integrity.result }}"
           echo "skill-schema: ${{ needs.skill-schema.result }}"
+          echo "skill-dependency-check: ${{ needs.skill-dependency-check.result }}"
           echo "contract-compatibility-gate: ${{ needs.contract-compatibility-gate.result }}"
           echo "memrl-health: ${{ needs.memrl-health.result }}"
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
@@ -527,9 +589,11 @@ jobs:
              [[ "${{ needs.embedded-sync.result }}" != "success" ]] || \
              [[ "${{ needs.cli-docs-parity.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
+             [[ "${{ needs.markdownlint.result }}" != "success" ]] || \
              [[ "${{ needs.security-scan.result }}" != "success" ]] || \
              [[ "${{ needs.skill-integrity.result }}" != "success" ]] || \
              [[ "${{ needs.skill-schema.result }}" != "success" ]] || \
+             [[ "${{ needs.skill-dependency-check.result }}" != "success" ]] || \
              [[ "${{ needs.contract-compatibility-gate.result }}" != "success" ]] || \
              [[ "${{ needs.memrl-health.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \

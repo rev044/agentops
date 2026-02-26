@@ -6,7 +6,6 @@ allowed-tools: Read, Grep, Glob, Bash
 metadata:
   tier: execution
   dependencies:
-    - knowledge # optional - queries existing knowledge
     - inject    # optional - injects prior context
 ---
 
