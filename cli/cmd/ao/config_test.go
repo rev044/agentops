@@ -1,0 +1,201 @@
+package main
+
+import (
+	"encoding/json"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/boshu2/agentops/cli/internal/config"
+	"github.com/spf13/cobra"
+)
+
+func TestRunConfig_NoFlags_ShowsHelp(t *testing.T) {
+	// When configShow is false, runConfig should call cmd.Help()
+	oldShow := configShow
+	configShow = false
+	defer func() { configShow = oldShow }()
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&strings.Builder{})
+
+	// cmd.Help() returns nil, so this should succeed
+	if err := runConfig(cmd, nil); err != nil {
+		t.Fatalf("runConfig without --show: %v", err)
+	}
+}
+
+func TestRunConfig_ShowJSON(t *testing.T) {
+	oldShow := configShow
+	configShow = true
+	defer func() { configShow = oldShow }()
+
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfig(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfig --show --json: %v", err)
+	}
+
+	var parsed config.ResolvedConfig
+	if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+		t.Fatalf("expected valid JSON, got: %q (%v)", stdout, err)
+	}
+
+	// Verify key fields are present
+	if parsed.Output.Value == nil {
+		t.Error("expected output value in resolved config")
+	}
+}
+
+func TestRunConfig_ShowTable(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	oldShow := configShow
+	configShow = true
+	defer func() { configShow = oldShow }()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfig(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfig --show: %v", err)
+	}
+
+	if !strings.Contains(stdout, "AgentOps Configuration") {
+		t.Errorf("expected 'AgentOps Configuration' header, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "Resolved values:") {
+		t.Errorf("expected 'Resolved values:' section, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "output:") {
+		t.Errorf("expected 'output:' in resolved values, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "Environment variables") {
+		t.Errorf("expected 'Environment variables' section, got: %q", stdout)
+	}
+}
+
+func TestRunConfig_ShowTable_NoConfigFiles(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	oldShow := configShow
+	configShow = true
+	defer func() { configShow = oldShow }()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfig(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfig: %v", err)
+	}
+
+	// With no config files, should show "not found" markers
+	if !strings.Contains(stdout, "not found") {
+		t.Errorf("expected 'not found' markers for missing config files, got: %q", stdout)
+	}
+}
+
+func TestRunConfig_ShowTable_WithEnvVars(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	t.Setenv("AGENTOPS_OUTPUT", "json")
+
+	oldShow := configShow
+	configShow = true
+	defer func() { configShow = oldShow }()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfig(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfig: %v", err)
+	}
+
+	if !strings.Contains(stdout, "AGENTOPS_OUTPUT=json") {
+		t.Errorf("expected AGENTOPS_OUTPUT=json in output, got: %q", stdout)
+	}
+}
+
+func TestRunConfig_ShowTable_NoEnvVars(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	// Clear all known env vars
+	for _, env := range []string{
+		"AGENTOPS_CONFIG", "AGENTOPS_OUTPUT", "AGENTOPS_BASE_DIR",
+		"AGENTOPS_VERBOSE", "AGENTOPS_NO_SC", "AGENTOPS_RPI_WORKTREE_MODE",
+		"AGENTOPS_RPI_RUNTIME", "AGENTOPS_RPI_RUNTIME_MODE",
+		"AGENTOPS_RPI_RUNTIME_COMMAND", "AGENTOPS_RPI_AO_COMMAND",
+		"AGENTOPS_RPI_BD_COMMAND", "AGENTOPS_RPI_TMUX_COMMAND",
+		"AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD",
+	} {
+		t.Setenv(env, "")
+	}
+
+	oldShow := configShow
+	configShow = true
+	defer func() { configShow = oldShow }()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfig(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfig: %v", err)
+	}
+
+	if !strings.Contains(stdout, "(none set)") {
+		t.Errorf("expected '(none set)' for no env vars, got: %q", stdout)
+	}
+}
