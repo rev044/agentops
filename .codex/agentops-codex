@@ -127,7 +127,9 @@ function runBootstrap() {
     maybeWarnStaleSkills();
 
     // Check for updates (with timeout protection)
-    if (fs.existsSync(agentopsGitDir) && skillsCore.checkForUpdates(agentopsRepoDir)) {
+    const metadata = readInstallMetadata();
+    const isBundleInstall = metadata && metadata.source === 'install-codex.sh';
+    if (!isBundleInstall && fs.existsSync(agentopsGitDir) && skillsCore.checkForUpdates(agentopsRepoDir)) {
         console.log('## Update Available');
         console.log('');
         console.log('Your AgentOps installation is behind the latest version.');
