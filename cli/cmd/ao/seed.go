@@ -30,7 +30,7 @@ This creates:
   .agents/          Directory structure for knowledge artifacts
   GOALS.md          Fitness goals (auto-detected or from template)
   Bootstrap learning  Initial learning artifact in .agents/learnings/
-  CLAUDE.md section   Instructions to run ao inject/forge
+  CLAUDE.md section   Knowledge flywheel instructions
 
 What it does NOT create:
   Hooks              Use "ao init --hooks" for hook registration
@@ -126,6 +126,18 @@ func runSeed(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Step 1.5: Git protection + storage init (reuse shared functions from ao init)
+	isGitRepo := isGitRepository(absPath)
+	if err := setupGitProtection(absPath, isGitRepo); err != nil {
+		return err
+	}
+	if err := ensureNestedAgentsGitignore(absPath); err != nil {
+		return err
+	}
+	if err := initStorage(absPath); err != nil {
+		return err
+	}
+
 	// Step 2: Create GOALS.md
 	if err := seedCreateGoals(absPath, template, &result); err != nil {
 		return err
@@ -166,7 +178,7 @@ func runSeed(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Println("\nNext steps:")
 		fmt.Println("  ao init --hooks    # Register session hooks")
-		fmt.Println("  ao inject          # Load prior knowledge")
+		fmt.Println("  ao flywheel status # Verify flywheel health")
 	}
 
 	return nil
@@ -375,8 +387,8 @@ Adopted AgentOps knowledge compounding workflow:
 ## Next Steps
 
 - Run `+"`ao init --hooks`"+` to register session hooks
-- Run `+"`ao inject`"+` at session start to load prior knowledge
-- Run `+"`ao forge`"+` at session end to extract learnings
+- Knowledge compounds automatically — MEMORY.md updates after each session
+- Run `+"`ao flywheel status`"+` to check flywheel health
 `, dateStr, dateStr, template)
 
 	if GetDryRun() {
@@ -399,27 +411,50 @@ Adopted AgentOps knowledge compounding workflow:
 
 // claudeMDSeedSection is the section appended to CLAUDE.md by ao seed.
 const claudeMDSeedSection = `
-## AgentOps Session Protocol
+## AgentOps Knowledge Flywheel
+
+Knowledge compounds automatically across sessions:
+
+- **MEMORY.md** is auto-loaded by your AI coding tool every session
+- **Session hooks** extract learnings, update MEMORY.md, and prune stale knowledge
+- **Skills** invoke flywheel commands at the right moments (no manual ao commands needed)
+
+Verify the flywheel any time:
 
 ` + "```bash" + `
-# Session start — load prior knowledge
-ao inject
-
-# Session end — extract learnings
-ao forge
+ao flywheel status    # escape velocity check
+ao status             # current knowledge inventory
 ` + "```" + `
 `
 
 // claudeMDSeedMarker is used to detect if the seed section was already added.
-const claudeMDSeedMarker = "## AgentOps Session Protocol"
+// Also checks legacy marker for backward compatibility with older seeds.
+const claudeMDSeedMarker = "## AgentOps Knowledge Flywheel"
+const claudeMDSeedMarkerLegacy = "## AgentOps Session Protocol"
+
+// hasSeedMarker returns true if content contains the current or legacy seed marker.
+func hasSeedMarker(content string) bool {
+	return strings.Contains(content, claudeMDSeedMarker) || strings.Contains(content, claudeMDSeedMarkerLegacy)
+}
+
+// findSeedMarker returns the marker string found in content (current or legacy), or empty string.
+func findSeedMarker(content string) string {
+	if strings.Contains(content, claudeMDSeedMarker) {
+		return claudeMDSeedMarker
+	}
+	if strings.Contains(content, claudeMDSeedMarkerLegacy) {
+		return claudeMDSeedMarkerLegacy
+	}
+	return ""
+}
 
 // seedAppendClaudeMD appends the seed section to CLAUDE.md (creating it if absent).
 func seedAppendClaudeMD(root string, result *seedResult) error {
 	claudePath := filepath.Join(root, "CLAUDE.md")
 
-	// Check if file exists and already has the seed section
+	// Check if file exists and already has the seed section (current or legacy)
 	if data, err := os.ReadFile(claudePath); err == nil {
-		if strings.Contains(string(data), claudeMDSeedMarker) {
+		if hasSeedMarker(string(data)) {
 			if !seedForce {
 				if GetDryRun() {
 					fmt.Println("[dry-run] Would skip CLAUDE.md (seed section already present)")
@@ -459,18 +494,18 @@ func seedAppendClaudeMD(root string, result *seedResult) error {
 		return fmt.Errorf("read CLAUDE.md: %w", err)
 	}
 
-	if strings.Contains(string(data), claudeMDSeedMarker) && !seedForce {
+	if hasSeedMarker(string(data)) && !seedForce {
 		result.Skipped = append(result.Skipped, "CLAUDE.md (seed section)")
 		return nil
 	}
 
 	// If forcing, remove old section before appending new one
 	content := string(data)
-	if seedForce && strings.Contains(content, claudeMDSeedMarker) {
+	if marker := findSeedMarker(content); seedForce && marker != "" {
 		// Remove the old seed section (from marker to next ## or end of file)
-		idx := strings.Index(content, claudeMDSeedMarker)
+		idx := strings.Index(content, marker)
 		before := content[:idx]
-		after := content[idx+len(claudeMDSeedMarker):]
+		after := content[idx+len(marker):]
 		// Find next section header
 		if nextIdx := strings.Index(after, "\n## "); nextIdx >= 0 {
 			after = after[nextIdx:]

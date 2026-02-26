@@ -33,6 +33,51 @@ func TestSeed_CreatesAgentsDir(t *testing.T) {
 	}
 }
 
+func TestSeed_CreatesGitignore(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create a git repo so git protection runs
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	dryRun = false
+	seedForce = false
+	seedTemplate = "generic"
+	output = "table"
+
+	if err := runSeed(seedCmd, []string{tmp}); err != nil {
+		t.Fatalf("runSeed: %v", err)
+	}
+
+	// Verify .agents/.gitignore was created
+	gitignorePath := filepath.Join(tmp, ".agents", ".gitignore")
+	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
+		t.Error("expected .agents/.gitignore to be created by seed")
+	}
+}
+
+func TestSeed_CreatesStorageDirs(t *testing.T) {
+	tmp := t.TempDir()
+
+	dryRun = false
+	seedForce = false
+	seedTemplate = "generic"
+	output = "table"
+
+	if err := runSeed(seedCmd, []string{tmp}); err != nil {
+		t.Fatalf("runSeed: %v", err)
+	}
+
+	// Verify storage subdirs created by initStorage
+	for _, subdir := range []string{"sessions", "index", "provenance"} {
+		target := filepath.Join(tmp, ".agents", "ao", subdir)
+		if _, err := os.Stat(target); os.IsNotExist(err) {
+			t.Errorf("expected .agents/ao/%s to be created by seed", subdir)
+		}
+	}
+}
+
 func TestSeed_CreatesGoals(t *testing.T) {
 	tmp := t.TempDir()
 
@@ -207,9 +252,11 @@ func TestSeed_DryRun_JSON(t *testing.T) {
 	n, _ := r.Read(buf)
 	r.Close()
 
-	// dry-run prints [dry-run] messages before JSON; find the JSON object
+	// dry-run prints [dry-run] messages before JSON; find the actual JSON object.
+	// Init functions may print braces (e.g. {sessions,...}), so search backwards
+	// from the end for the last top-level '{' which is the JSON envelope.
 	raw := string(buf[:n])
-	jsonStart := strings.Index(raw, "{")
+	jsonStart := strings.LastIndex(raw, "{\n")
 	if jsonStart < 0 {
 		t.Fatalf("no JSON object in output:\n%s", raw)
 	}
@@ -349,11 +396,11 @@ func TestSeed_ClaudeMDCreated(t *testing.T) {
 	}
 
 	content := string(data)
-	if !strings.Contains(content, "ao inject") {
-		t.Error("expected CLAUDE.md to contain 'ao inject' instruction")
+	if !strings.Contains(content, "ao flywheel status") {
+		t.Error("expected CLAUDE.md to contain 'ao flywheel status' instruction")
 	}
-	if !strings.Contains(content, "ao forge") {
-		t.Error("expected CLAUDE.md to contain 'ao forge' instruction")
+	if !strings.Contains(content, "MEMORY.md") {
+		t.Error("expected CLAUDE.md to contain MEMORY.md reference")
 	}
 	if !strings.Contains(content, claudeMDSeedMarker) {
 		t.Error("expected CLAUDE.md to contain seed section marker")
