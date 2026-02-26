@@ -102,6 +102,20 @@ find skills -type l  # must be empty — zero symlinks allowed
 scripts/ci-local-release.sh
 ```
 
+### CLI Skill-Map Refresh
+
+After changing `ao` command usage in any of these locations, refresh [`docs/cli-skills-map.md`](docs/cli-skills-map.md):
+
+- `skills/*/SKILL.md`
+- `skills-codex/*/SKILL.md`
+- `hooks/*.sh`
+- `hooks/hooks.json`
+
+Process:
+1. Update this map from current sources.
+2. Run `bash scripts/validate-hooks-doc-parity.sh`.
+3. Run `bash tests/docs/validate-doc-release.sh` and `bash tests/docs/validate-skill-count.sh` before pushing.
+
 ### CI Jobs and What They Check
 
 | Job | What it validates | Common failure |
