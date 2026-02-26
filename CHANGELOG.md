@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.2] - 2026-02-25
+
+### Fixed
+- `ao seed` now creates `.gitignore` and storage directories — reuses `setupGitProtection`, `ensureNestedAgentsGitignore`, and `initStorage` from `ao init`
+- `ao seed` text updated from stale `ao inject`/`ao forge` to current MEMORY.md + session hooks paradigm
+- MemRL feedback loop closed — `ao feedback-loop` command wired, `ao maturity --recalibrate` dry-run guard added
+- Quickstart skill updated to reference `ao seed` and current flywheel docs
+- CLI reference regenerated after `ao feedback-loop` and seed help text changes
+
+### Changed
+- `.agents/` session artifacts removed from git tracking
+- PRODUCT.md updated — Olympus section removed, value props and skill tier counts corrected
+- GOALS.md coverage directive updated to measured 78.8% (target 85%)
+
 ## [2.18.1] - 2026-02-25
 
 ### Changed
