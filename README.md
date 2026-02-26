@@ -80,7 +80,7 @@ npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
 npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
 ```
 
-Codex includes a local stale-skills reminder in `agentops-codex bootstrap` and `agentops-codex use-skill` (default: 14 days, no telemetry). Re-run the installer when prompted.
+Codex install path is native: skills are installed directly to `~/.codex/skills`. Re-run the installer regularly after new releases.
 
 Then type `/quickstart` in your agent chat. Not sure which skill to run? See the **[Skill Router](docs/SKILL-ROUTER.md)**.
 
@@ -91,8 +91,7 @@ ao start seed         # Detects project type (go-cli, python-lib, web-app, rust-
                 # Creates .agents/, MEMORY.md, GOALS.md, hooks — ready in one command
 ```
 
-`claude plugin install` is the primary path for Claude Code. Codex users should use `scripts/install-codex-native-skills.sh` for Codex-native command syntax (`$skill` references, installed to `skills-codex/`). OpenCode uses `scripts/install-opencode.sh`. `npx skills` is for other agents (for example Cursor) with explicit `-a <agent>` and `-s <skill-name>` selection.
-`install-codex.sh` is the end-user Codex path and installs without cloning the full repo (download-and-install bundle). `install-codex-native-skills.sh` is for local repo development workflows.
+`claude plugin install` is the primary path for Claude Code. Codex users should use `install-codex.sh`, which installs Codex-native skills directly into `~/.codex/skills` (no repo clone). OpenCode uses `scripts/install-opencode.sh`. `npx skills` is for other agents (for example Cursor) with explicit `-a <agent>` and `-s <skill-name>` selection.
 
 <details>
 <summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>

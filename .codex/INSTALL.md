@@ -1,44 +1,31 @@
 # Installing AgentOps for Codex
 
-Quick setup to enable AgentOps skills in Codex.
+AgentOps Codex skills install directly into Codex's native skills directory.
 
 ## Installation
 
-1. **Run the Codex installer**:
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
-   ```
+Run:
 
-2. **Update ~/.codex/AGENTS.md** to include this AgentOps section:
-   ```markdown
-   ## AgentOps System
-
-   <EXTREMELY_IMPORTANT>
-   You have AgentOps superpowers. AgentOps teaches you skills for AI-assisted development workflows. RIGHT NOW run: `~/.codex/agentops/.codex/agentops-codex bootstrap` and follow the instructions it returns.
-   </EXTREMELY_IMPORTANT>
-   ```
-
-## Verification
-
-Test the installation:
-```bash
-~/.codex/agentops/.codex/agentops-codex bootstrap
-```
-
-You should see skill listings and bootstrap instructions. The system is now ready for use.
-If skills become stale, rerun:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 ```
-`agentops-codex` shows a local reminder when skills are old (default threshold: 14 days).
 
-## Codex Session-End Equivalent
-
-Claude plugin hooks (`hooks/hooks.json`) are not consumed by Codex. Use this command at the end of a Codex session:
+This installs skills to:
 
 ```bash
-~/.codex/agentops/.codex/agentops-codex session-end
+~/.codex/skills
 ```
 
-It runs the same flywheel close-loop used by the Claude Stop hook:
-`ao flywheel close-loop --quiet` (with failure logging to `.agents/ao/hook-errors.log`).
+## Verification
+
+You should see AgentOps skills as normal native Codex skills in your next session.
+
+## Update policy
+
+AgentOps updates frequently. Codex does not currently provide a universal auto-update channel for this style of skill install.
+
+Re-run the installer regularly, especially after new releases:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
+```
