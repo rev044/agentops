@@ -2,7 +2,8 @@
 # install-codex.sh — Install AgentOps skills for Codex CLI
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh -o /tmp/install-codex.sh
+#   bash /tmp/install-codex.sh
 #   # or
 #   ./scripts/install-codex.sh
 #

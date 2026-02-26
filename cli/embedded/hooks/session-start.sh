@@ -110,9 +110,9 @@ elif command -v ao &>/dev/null; then
     INJECT_EXTRA_FLAGS=()
     if [ -n "${HOOK_BEAD:-}" ]; then
         INJECT_EXTRA_FLAGS+=(--bead "$HOOK_BEAD")
-        run_ao_quick 5 extract --bead "$HOOK_BEAD" || log_hook_fail "ao extract --bead"
+        run_ao_quick 5 know forge --promote --bead "$HOOK_BEAD" || log_hook_fail "ao know forge --promote --bead"
     else
-        run_ao_quick 5 extract || log_hook_fail "ao extract"
+        run_ao_quick 5 know forge --promote || log_hook_fail "ao know forge --promote"
     fi
 
     if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then

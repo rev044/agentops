@@ -545,7 +545,7 @@ OUTPUT=$(echo '{"tool_input":{"command":"go test ./..."},"tool_response":{"exit_
 if [ -z "$OUTPUT" ]; then pass "ratchet-advance ignores non-ratchet command"; else fail "ratchet-advance ignores non-ratchet command"; fi
 
 # Test: Failed ratchet record => silent exit
-OUTPUT=$(echo '{"tool_input":{"command":"ao ratchet record research"},"tool_response":{"exit_code":1}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>&1 || true)
+OUTPUT=$(echo '{"tool_input":{"command":"ao work ratchet record research"},"tool_response":{"exit_code":1}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>&1 || true)
 if [ -z "$OUTPUT" ]; then pass "ratchet-advance ignores failed record"; else fail "ratchet-advance ignores failed record"; fi
 
 # Test: Successful research record => suggests next step (fallback mode, ao unavailable)
@@ -553,7 +553,7 @@ if [ -z "$OUTPUT" ]; then pass "ratchet-advance ignores failed record"; else fai
 MOCK_RATCHET="$TMPDIR/mock-ratchet"
 mkdir -p "$MOCK_RATCHET/.agents/ao"
 git -C "$MOCK_RATCHET" init -q >/dev/null 2>&1
-OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao ratchet record research"},"tool_response":{"exit_code":0}}' | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
+OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao work ratchet record research"},"tool_response":{"exit_code":0}}' | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
 if echo "$OUTPUT" | grep -q "/plan"; then
     pass "research record suggests /plan (fallback)"
 else
@@ -561,7 +561,7 @@ else
 fi
 
 # Test: Successful vibe record => suggests /post-mortem (fallback mode)
-OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao ratchet record vibe"},"tool_response":{"exit_code":0}}' | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
+OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao work ratchet record vibe"},"tool_response":{"exit_code":0}}' | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
 if echo "$OUTPUT" | grep -q "/post-mortem"; then
     pass "vibe record suggests /post-mortem (fallback)"
 else
@@ -569,7 +569,7 @@ else
 fi
 
 # Test: post-mortem record => cycle complete (fallback mode)
-OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao ratchet record post-mortem"},"tool_response":{"exit_code":0}}' | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
+OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao work ratchet record post-mortem"},"tool_response":{"exit_code":0}}' | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
 if echo "$OUTPUT" | grep -qi "complete"; then
     pass "post-mortem record says cycle complete (fallback)"
 else
@@ -577,7 +577,7 @@ else
 fi
 
 # Test: With ao available, still emits a suggestion (integration)
-OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao ratchet record research"},"tool_response":{"exit_code":0}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
+OUTPUT=$(cd "$MOCK_RATCHET" && echo '{"tool_input":{"command":"ao work ratchet record research"},"tool_response":{"exit_code":0}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
 if echo "$OUTPUT" | jq -e '.hookSpecificOutput.additionalContext' >/dev/null 2>&1; then
     pass "ratchet-advance emits valid JSON with ao"
 else
@@ -597,7 +597,7 @@ else
 fi
 
 # Test: Kill switch (AGENTOPS_AUTOCHAIN=0)
-OUTPUT=$(echo '{"tool_input":{"command":"ao ratchet record research"},"tool_response":{"exit_code":0}}' | AGENTOPS_AUTOCHAIN=0 bash "$HOOKS_DIR/ratchet-advance.sh" 2>&1 || true)
+OUTPUT=$(echo '{"tool_input":{"command":"ao work ratchet record research"},"tool_response":{"exit_code":0}}' | AGENTOPS_AUTOCHAIN=0 bash "$HOOKS_DIR/ratchet-advance.sh" 2>&1 || true)
 if [ -z "$OUTPUT" ]; then pass "ratchet-advance AUTOCHAIN kill switch"; else fail "ratchet-advance AUTOCHAIN kill switch"; fi
 
 # Test: Idempotency — suppresses if next step already in chain
@@ -605,14 +605,14 @@ MOCK_IDEMP="$TMPDIR/mock-idemp"
 mkdir -p "$MOCK_IDEMP/.agents/ao"
 git -C "$MOCK_IDEMP" init -q >/dev/null 2>&1
 echo '{"gate":"plan","status":"locked"}' > "$MOCK_IDEMP/.agents/ao/chain.jsonl"
-OUTPUT=$(cd "$MOCK_IDEMP" && echo '{"tool_input":{"command":"ao ratchet record research"},"tool_response":{"exit_code":0}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
+OUTPUT=$(cd "$MOCK_IDEMP" && echo '{"tool_input":{"command":"ao work ratchet record research"},"tool_response":{"exit_code":0}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
 if [ -z "$OUTPUT" ]; then pass "ratchet-advance suppresses when next step done"; else fail "ratchet-advance suppresses when next step done"; fi
 
 # Test: Extracts --output artifact
 MOCK_ART="$TMPDIR/mock-artifact"
 mkdir -p "$MOCK_ART/.agents/ao"
 git -C "$MOCK_ART" init -q >/dev/null 2>&1
-OUTPUT=$(cd "$MOCK_ART" && echo '{"tool_input":{"command":"ao ratchet record plan --output .agents/plan.md"},"tool_response":{"exit_code":0}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
+OUTPUT=$(cd "$MOCK_ART" && echo '{"tool_input":{"command":"ao work ratchet record plan --output .agents/plan.md"},"tool_response":{"exit_code":0}}' | bash "$HOOKS_DIR/ratchet-advance.sh" 2>/dev/null || true)
 if echo "$OUTPUT" | grep -q ".agents/plan.md"; then
     pass "ratchet-advance includes artifact path"
 else
@@ -1050,14 +1050,14 @@ test_ao_delegation() {
 }
 
 test_ao_delegation "ao-extract.sh" "^extract"
-test_ao_delegation "ao-feedback-loop.sh" "^feedback-loop"
-test_ao_delegation "ao-flywheel-close.sh" "^flywheel close-loop"
-test_ao_delegation "ao-forge.sh" "^forge transcript"
-test_ao_delegation "ao-inject.sh" "^inject"
-test_ao_delegation "ao-maturity-scan.sh" "^maturity --scan"
-test_ao_delegation "ao-ratchet-status.sh" "^ratchet status"
-test_ao_delegation "ao-session-outcome.sh" "^session-outcome"
-test_ao_delegation "ao-task-sync.sh" "^task-sync"
+test_ao_delegation "ao-feedback-loop.sh" "^work feedback-loop"
+test_ao_delegation "ao-flywheel-close.sh" "^quality flywheel close-loop"
+test_ao_delegation "ao-forge.sh" "^know forge transcript"
+test_ao_delegation "ao-inject.sh" "^know inject"
+test_ao_delegation "ao-maturity-scan.sh" "^quality maturity --scan"
+test_ao_delegation "ao-ratchet-status.sh" "^work ratchet status"
+test_ao_delegation "ao-session-outcome.sh" "^know session-outcome"
+test_ao_delegation "ao-task-sync.sh" "^work task-sync"
 
 # Verify delegation hooks log failures to hook-errors.log
 echo ""

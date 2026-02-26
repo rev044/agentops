@@ -156,6 +156,7 @@
 
 - [Glossary](GLOSSARY.md) — Definitions of domain-specific terms (Beads, Brownian Ratchet, RPI, etc.)
 - [CLI Reference](../cli/docs/COMMANDS.md) — Complete `ao` command reference
+- [CLI ↔ Skills/Hooks Map](cli-skills-map.md) — Which commands are called by which skills and hooks
 - [Reference](reference.md) — Deep documentation and pipeline details
 - [Releasing](RELEASING.md) — Release process for ao CLI and plugin
 - [Troubleshooting](troubleshooting.md) — Common issues and quick fixes

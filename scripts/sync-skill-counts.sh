@@ -7,26 +7,42 @@
 #   --check   Dry-run: report mismatches without modifying files (exit 1 if any)
 set -euo pipefail
 
+export LC_ALL=C
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHECK_ONLY=false
-[[ "${1:-}" == "--check" ]] && CHECK_ONLY=true
+changes=0
+errors=0
+
+if [[ "${1:-}" == "--check" ]]; then
+  CHECK_ONLY=true
+elif [[ $# -gt 0 ]]; then
+  echo "ERROR: unknown argument '$1'"
+  echo "Usage: scripts/sync-skill-counts.sh [--check]"
+  exit 2
+fi
 
 # --- Derive truth from disk ---
 
-TOTAL=$(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+TOTAL=$(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -not -name '.*' | wc -l | tr -d ' ')
 
-USER_FACING=$(sed -n '/^### User-Facing/,/^### Internal/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
+USER_FACING=$(sed -n '/^### User-Facing Skills/,/^### Internal Skills/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
   | grep -c '^| \*\*')
 
-INTERNAL=$(sed -n '/^### Internal Skills/,/^---$/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
-  | grep -c '^| ' || echo 0)
-INTERNAL=$((INTERNAL - 1))  # subtract header row
+INTERNAL_ROWS=$(sed -n '/^### Internal Skills/,/^---$/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
+  | grep -c '^| ')
+INTERNAL=$((INTERNAL_ROWS - 1))  # subtract header row
 
 echo "Skill counts from disk:"
 echo "  Total:       $TOTAL"
 echo "  User-facing: $USER_FACING"
 echo "  Internal:    $INTERNAL"
 echo ""
+
+if [[ "$INTERNAL_ROWS" -lt 1 ]]; then
+  echo "ERROR: SKILL-TIERS.md internal table header row not found"
+  exit 1
+fi
 
 if [[ $((USER_FACING + INTERNAL)) -ne "$TOTAL" ]]; then
   echo "ERROR: SKILL-TIERS.md tables ($((USER_FACING + INTERNAL))) != directories ($TOTAL)"
@@ -35,112 +51,103 @@ if [[ $((USER_FACING + INTERNAL)) -ne "$TOTAL" ]]; then
 fi
 
 # --- Define all patch targets ---
-changes=0
 
 patch_file() {
-  local file="$1" pattern="$2" desc="$3"
+  local file="$1"
+  local match_regex="$2"
+  local sed_expr="$3"
+  local desc="$4"
+  local match_count
+  local tmp_file
+
   if [[ ! -f "$file" ]]; then
-    echo "SKIP: $file (not found)"
+    echo "ERROR: $desc file not found: $file"
+    errors=$((errors + 1))
     return
   fi
+
+  match_count=$(grep -E -c "$match_regex" "$file" || true)
+  if [[ "$match_count" -eq 0 ]]; then
+    echo "ERROR: $desc pattern not found (fail-closed)"
+    echo "       file: $file"
+    echo "       match: $match_regex"
+    errors=$((errors + 1))
+    return
+  fi
+  if [[ "$match_count" -gt 1 ]]; then
+    echo "ERROR: $desc pattern matched $match_count lines (expected exactly 1)"
+    echo "       file: $file"
+    echo "       match: $match_regex"
+    errors=$((errors + 1))
+    return
+  fi
+
+  tmp_file=$(mktemp)
+  sed -E "$sed_expr" "$file" > "$tmp_file"
+
   if $CHECK_ONLY; then
-    # Apply the sed pattern to a copy and compare — if output differs, there's drift
-    local patched
-    patched=$(sed "$pattern" "$file")
-    if [[ "$patched" == "$(cat "$file")" ]]; then
+    if cmp -s "$file" "$tmp_file"; then
       echo "OK:   $desc"
     else
       echo "DRIFT: $desc"
       changes=$((changes + 1))
     fi
+    rm -f "$tmp_file"
     return
   fi
-  local before after
-  before=$(md5 -q "$file" 2>/dev/null || md5sum "$file" | cut -d' ' -f1)
-  sed -i '' "$pattern" "$file" 2>/dev/null || sed -i "$pattern" "$file"
-  after=$(md5 -q "$file" 2>/dev/null || md5sum "$file" | cut -d' ' -f1)
-  if [[ "$before" != "$after" ]]; then
-    echo "UPDATED: $desc"
-    changes=$((changes + 1))
-  else
+
+  if cmp -s "$file" "$tmp_file"; then
     echo "OK:      $desc"
+    rm -f "$tmp_file"
+    return
   fi
+
+  mv "$tmp_file" "$file"
+  echo "UPDATED: $desc"
+  changes=$((changes + 1))
 }
 
 # SKILL-TIERS.md header counts
 patch_file "$REPO_ROOT/skills/SKILL-TIERS.md" \
-  "s/### User-Facing Skills ([0-9]*)/### User-Facing Skills ($USER_FACING)/" \
+  '^### User-Facing Skills \([0-9]+\)' \
+  "s|^### User-Facing Skills \\([0-9]+\\)|### User-Facing Skills (${USER_FACING})|" \
   "SKILL-TIERS.md user-facing header"
 
 patch_file "$REPO_ROOT/skills/SKILL-TIERS.md" \
-  "s/### Internal Skills ([0-9]*)/### Internal Skills ($INTERNAL)/" \
+  '^### Internal Skills \([0-9]+\)' \
+  "s|^### Internal Skills \\([0-9]+\\)|### Internal Skills (${INTERNAL})|" \
   "SKILL-TIERS.md internal header"
 
-# CLAUDE.md: "All N skills (M user-facing, K internal)"
-patch_file "$REPO_ROOT/CLAUDE.md" \
-  "s/All [0-9]* skills ([0-9]* user-facing, [0-9]* internal)/All $TOTAL skills ($USER_FACING user-facing, $INTERNAL internal)/" \
-  "CLAUDE.md skill counts"
-
-# README.md badge: "skills-N-"
-patch_file "$REPO_ROOT/README.md" \
-  "s/skills-[0-9]*-/skills-${TOTAL}-/" \
-  "README.md badge"
-
-# README.md text: "N skills total: M user-facing across three tiers, plus K internal"
-patch_file "$REPO_ROOT/README.md" \
-  "s/[0-9]* skills total: [0-9]* user-facing across three tiers, plus [0-9]* internal/${TOTAL} skills total: ${USER_FACING} user-facing across three tiers, plus ${INTERNAL} internal/" \
-  "README.md text count"
-
-# README.md: "All N skills work without it"
-patch_file "$REPO_ROOT/README.md" \
-  "s/All [0-9]* skills work without it/All ${TOTAL} skills work without it/" \
-  "README.md ao CLI sentence"
-
-# docs/SKILLS.md header: "all N AgentOps skills (M user-facing + K internal)"
+# docs/SKILLS.md: "all N AgentOps skills (M user-facing + K internal)"
 patch_file "$REPO_ROOT/docs/SKILLS.md" \
-  "s/all [0-9]* AgentOps skills ([0-9]* user-facing + [0-9]* internal)/all ${TOTAL} AgentOps skills (${USER_FACING} user-facing + ${INTERNAL} internal)/" \
+  '^Complete reference for all [0-9]+ AgentOps skills \([0-9]+ user-facing [+] [0-9]+ internal\)\.$' \
+  "s|^Complete reference for all [0-9]+ AgentOps skills \\([0-9]+ user-facing [+] [0-9]+ internal\\)\\.$|Complete reference for all ${TOTAL} AgentOps skills (${USER_FACING} user-facing + ${INTERNAL} internal).|" \
   "docs/SKILLS.md header"
 
-# docs/SKILLS.md behavioral: "All N skills have"
+# docs/SKILLS.md command: "/update  # Reinstall all N skills"
 patch_file "$REPO_ROOT/docs/SKILLS.md" \
-  "s/All [0-9]* skills have/All ${TOTAL} skills have/" \
-  "docs/SKILLS.md behavioral line"
+  '^/update[[:space:]]+# Reinstall all [0-9]+ skills$' \
+  "s|^(/update[[:space:]]+# Reinstall all )[0-9]+( skills)$|\\1${TOTAL}\\2|" \
+  "docs/SKILLS.md /update command"
 
-# docs/ARCHITECTURE.md: "N skills (M user-facing, K internal)"
+# docs/ARCHITECTURE.md: "skills/ # N skills (M user-facing, K internal)"
 patch_file "$REPO_ROOT/docs/ARCHITECTURE.md" \
-  "s/[0-9]* skills ([0-9]* user-facing, [0-9]* internal)/${TOTAL} skills (${USER_FACING} user-facing, ${INTERNAL} internal)/" \
-  "docs/ARCHITECTURE.md"
+  'skills/[[:space:]]+# [0-9]+ skills \([0-9]+ user-facing, [0-9]+ internal\)$' \
+  "s|(skills/[[:space:]]+# )[0-9]+ skills \\([0-9]+ user-facing, [0-9]+ internal\\)$|\\1${TOTAL} skills (${USER_FACING} user-facing, ${INTERNAL} internal)|" \
+  "docs/ARCHITECTURE.md skills tree"
 
-# marketplace.json: two description fields with skill counts
-patch_file "$REPO_ROOT/.claude-plugin/marketplace.json" \
-  "s/[0-9]* skills with Knowledge Flywheel/${TOTAL} skills with Knowledge Flywheel/" \
-  "marketplace.json metadata description"
-
-patch_file "$REPO_ROOT/.claude-plugin/marketplace.json" \
-  "s/[0-9]* skills ([0-9]* user-facing, [0-9]* internal)/${TOTAL} skills (${USER_FACING} user-facing, ${INTERNAL} internal)/" \
-  "marketplace.json plugin description"
-
-# README.md summary: "N skills: M user-facing, K internal"
-patch_file "$REPO_ROOT/README.md" \
-  "s/[0-9]* skills: [0-9]* user-facing, [0-9]* internal/${TOTAL} skills: ${USER_FACING} user-facing, ${INTERNAL} internal/" \
-  "README.md skills summary"
-
-# README.md reference: "all N skills:"
-patch_file "$REPO_ROOT/README.md" \
-  "s/all [0-9]* skills:/all ${TOTAL} skills:/" \
-  "README.md skills reference"
-
-# PRODUCT.md: "The N skills,"
+# PRODUCT.md: "N skills, X hooks,"
 patch_file "$REPO_ROOT/PRODUCT.md" \
-  "s/The [0-9]* skills,/The ${TOTAL} skills,/" \
-  "PRODUCT.md skill count"
-
-# using-agentops/SKILL.md: "Available Skills (M user-facing)"
-patch_file "$REPO_ROOT/skills/using-agentops/SKILL.md" \
-  "s/Available Skills ([0-9]* user-facing)/Available Skills (${USER_FACING} user-facing)/" \
-  "using-agentops/SKILL.md user-facing count"
+  '[[:space:]][0-9]+ skills, [0-9]+ hooks,' \
+  "s|([[:space:]])[0-9]+ skills, ([0-9]+ hooks,)|\\1${TOTAL} skills, \\2|" \
+  "PRODUCT.md zero-setup value proposition"
 
 echo ""
+
+if [[ "$errors" -gt 0 ]]; then
+  echo "FAIL: $errors pattern enforcement error(s) found"
+  exit 1
+fi
 
 # --- Verify with existing validator ---
 if ! $CHECK_ONLY; then
@@ -148,7 +155,7 @@ if ! $CHECK_ONLY; then
   if bash "$REPO_ROOT/tests/docs/validate-skill-count.sh" > /dev/null 2>&1; then
     echo "PASS: All counts verified consistent"
   else
-    echo "FAIL: Counts still inconsistent after patching — check output above"
+    echo "FAIL: Counts still inconsistent after patching — run tests/docs/validate-skill-count.sh"
     exit 1
   fi
 fi

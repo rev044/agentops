@@ -1,0 +1,12 @@
+# Contract orphan allowlist
+#
+# Format (required): path | reason | owner | expires
+# - path: repo-relative file path under docs/contracts/
+# - reason: concise justification for temporary orphan status
+# - owner: accountable owner (for example @team-handle)
+# - expires: YYYY-MM-DD
+#
+# Rules:
+# - Wildcards are not allowed in path.
+# - Expired entries fail the contract compatibility gate.
+# - Remove entries once contracts are catalogued in docs/INDEX.md.

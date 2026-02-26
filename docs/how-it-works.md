@@ -81,22 +81,15 @@ Skills auto-select the best available backend:
 
 ## Hooks — The Workflow Enforces Itself
 
-12 hooks. All have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
+3 active runtime hooks (from `hooks/hooks.json`). All have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 
 | Hook | Trigger | What it does |
 |------|---------|-------------|
-| Push gate | `git push` | Blocks push if `/vibe` hasn't passed |
-| Pre-mortem gate | `/crank` invocation | Blocks `/crank` if `/pre-mortem` hasn't passed |
-| Worker guard | `git commit` | Blocks workers from committing (lead-only) |
-| Dangerous git guard | `force-push`, `reset --hard` | Blocks destructive git commands |
-| Standards injector | Write/Edit | Auto-injects language-specific coding rules |
-| Ratchet nudge | Any prompt | "Run /vibe before pushing" |
-| Task validation | Task completed | Validates metadata before accepting |
-| Session start | Session start | Knowledge injection, stale state cleanup |
-| Ratchet advance | After Bash | Locks progress gates |
-| Stop team guard | Session stop | Prevents premature stop with active teams |
-| Precompact snapshot | Before compaction | Saves state before context compaction |
-| Pending cleaner | Session start | Cleans stale pending state |
+| Session start | Session start | Knowledge injection and startup maintenance |
+| Session end maintenance | Session end | Knowledge extraction, maturity, and cleanup |
+| Flywheel close | Stop | Closes the feedback loop via `ao flywheel close-loop` |
+
+Additional guardrail hook scripts remain available in `hooks/`, but they are not part of the active runtime manifest unless explicitly re-enabled.
 
 All hooks use `lib/hook-helpers.sh` for structured error recovery — failures include suggested next actions and auto-handoff context.
 

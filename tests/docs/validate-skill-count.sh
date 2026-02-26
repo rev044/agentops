@@ -4,18 +4,53 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 errors=0
+missing_patterns=0
+MISSING_PATTERN_MODE="${SKILL_COUNT_MISSING_MODE:-fail}"
 
-# Helper: extract a number from a pattern in a file
-# Usage: extract_number "regex-with-capture-group" file
-# Returns the first captured group (number) or NOT_FOUND
+case "$MISSING_PATTERN_MODE" in
+  fail|warn)
+    ;;
+  *)
+    echo "ERROR: SKILL_COUNT_MISSING_MODE must be 'fail' or 'warn' (got '$MISSING_PATTERN_MODE')"
+    exit 2
+    ;;
+esac
+
+# Helper: extract a number from a pattern in a file.
+# Usage: extract_number "sed-substitution-with-capture-group" file "label"
+# Returns the first captured group (number) or NOT_FOUND and records missing patterns.
 extract_number() {
-  local pattern="$1" file="$2"
+  local pattern="$1"
+  local file="$2"
+  local label="$3"
   local result
+
   result=$(sed -n "${pattern}p" "$file" | head -1)
   if [[ -z "$result" ]]; then
+    echo "MISSING_PATTERN: $label ($file)" >&2
+    missing_patterns=$((missing_patterns + 1))
+    if [[ "$MISSING_PATTERN_MODE" == "fail" ]]; then
+      errors=$((errors + 1))
+    fi
     echo "NOT_FOUND"
-  else
-    echo "$result"
+    return
+  fi
+
+  echo "$result"
+}
+
+check_numeric_match() {
+  local label="$1"
+  local claim="$2"
+  local expected="$3"
+
+  if [[ "$claim" == "NOT_FOUND" ]]; then
+    return
+  fi
+
+  if [[ "$claim" -ne "$expected" ]]; then
+    echo "MISMATCH: $label says $claim, expected $expected"
+    errors=$((errors + 1))
   fi
 }
 
@@ -23,14 +58,13 @@ extract_number() {
 
 actual_total=$(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -not -name '.*' | wc -l | tr -d ' ')
 
-# Count skills listed in SKILL-TIERS.md user-facing table (between "### User-Facing" and "### Internal")
-actual_user_facing=$(sed -n '/^### User-Facing/,/^### Internal/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
+# Count skills listed in SKILL-TIERS.md user-facing table.
+actual_user_facing=$(sed -n '/^### User-Facing Skills/,/^### Internal Skills/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
   | grep -c '^| \*\*')
 
-# Count skills listed in SKILL-TIERS.md internal table (after "### Internal Skills")
+# Count skills listed in SKILL-TIERS.md internal table.
 actual_internal=$(sed -n '/^### Internal Skills/,/^---$/p' "$REPO_ROOT/skills/SKILL-TIERS.md" \
   | grep -c '^| ')
-# Subtract header row
 actual_internal=$((actual_internal - 1))
 
 echo "=== Actual counts from disk ==="
@@ -50,147 +84,83 @@ fi
 
 # --- Extract claimed counts from SKILL-TIERS.md headers ---
 
-# "### User-Facing Skills (21)" -> 21
-tiers_user_claim=$(extract_number 's/.*### User-Facing Skills (\([0-9]*\)).*/\1/' "$REPO_ROOT/skills/SKILL-TIERS.md")
-# "### Internal Skills (10)" -> 10
-tiers_internal_claim=$(extract_number 's/.*### Internal Skills (\([0-9]*\)).*/\1/' "$REPO_ROOT/skills/SKILL-TIERS.md")
+tiers_user_claim=$(extract_number 's/.*### User-Facing Skills (\([0-9][0-9]*\)).*/\1/' "$REPO_ROOT/skills/SKILL-TIERS.md" "SKILL-TIERS user-facing header")
+tiers_internal_claim=$(extract_number 's/.*### Internal Skills (\([0-9][0-9]*\)).*/\1/' "$REPO_ROOT/skills/SKILL-TIERS.md" "SKILL-TIERS internal header")
 
 echo "=== SKILL-TIERS.md header claims ==="
 echo "  User-facing claim: $tiers_user_claim"
 echo "  Internal claim: $tiers_internal_claim"
 echo ""
 
-if [[ "$tiers_user_claim" != "NOT_FOUND" && "$tiers_user_claim" -ne "$actual_user_facing" ]]; then
-  echo "MISMATCH: SKILL-TIERS.md header says $tiers_user_claim user-facing, table has $actual_user_facing"
-  errors=$((errors + 1))
-fi
+check_numeric_match "SKILL-TIERS.md user-facing header" "$tiers_user_claim" "$actual_user_facing"
+check_numeric_match "SKILL-TIERS.md internal header" "$tiers_internal_claim" "$actual_internal"
 
-if [[ "$tiers_internal_claim" != "NOT_FOUND" && "$tiers_internal_claim" -ne "$actual_internal" ]]; then
-  echo "MISMATCH: SKILL-TIERS.md header says $tiers_internal_claim internal, table has $actual_internal"
-  errors=$((errors + 1))
-fi
+# --- Extract counts from docs/SKILLS.md ---
 
-# --- Extract counts from CLAUDE.md ---
+skills_doc_total=$(extract_number 's/.*all \([0-9][0-9]*\) AgentOps skills.*/\1/' "$REPO_ROOT/docs/SKILLS.md" "docs/SKILLS total header")
+skills_doc_user=$(extract_number 's/.*AgentOps skills (\([0-9][0-9]*\) user-facing [+] [0-9][0-9]* internal).*/\1/' "$REPO_ROOT/docs/SKILLS.md" "docs/SKILLS user-facing header")
+skills_doc_internal=$(extract_number 's/.*AgentOps skills ([0-9][0-9]* user-facing [+] \([0-9][0-9]*\) internal).*/\1/' "$REPO_ROOT/docs/SKILLS.md" "docs/SKILLS internal header")
+skills_doc_update_total=$(extract_number 's|.*Reinstall all \([0-9][0-9]*\) skills.*|\1|' "$REPO_ROOT/docs/SKILLS.md" "docs/SKILLS /update command count")
 
-# "All 32 skills (22 user-facing, 10 internal)"
-claude_total=$(extract_number 's/.*All \([0-9]*\) skills.*/\1/' "$REPO_ROOT/CLAUDE.md")
-claude_user=$(extract_number 's/.*(\([0-9][0-9]*\) user-facing.*/\1/' "$REPO_ROOT/CLAUDE.md")
-claude_internal=$(extract_number 's/.* \([0-9][0-9]*\) internal).*/\1/' "$REPO_ROOT/CLAUDE.md")
-
-echo "=== CLAUDE.md claims ==="
-echo "  Total: $claude_total"
-echo "  User-facing: $claude_user"
-echo "  Internal: $claude_internal"
+echo "=== docs/SKILLS.md claims ==="
+echo "  Header total: $skills_doc_total"
+echo "  Header user-facing: $skills_doc_user"
+echo "  Header internal: $skills_doc_internal"
+echo "  /update total: $skills_doc_update_total"
 echo ""
 
-if [[ "$claude_total" != "NOT_FOUND" && "$claude_total" -ne "$actual_total" ]]; then
-  echo "MISMATCH: CLAUDE.md says $claude_total total, actual is $actual_total"
-  errors=$((errors + 1))
-fi
+check_numeric_match "docs/SKILLS.md header total" "$skills_doc_total" "$actual_total"
+check_numeric_match "docs/SKILLS.md header user-facing" "$skills_doc_user" "$actual_user_facing"
+check_numeric_match "docs/SKILLS.md header internal" "$skills_doc_internal" "$actual_internal"
+check_numeric_match "docs/SKILLS.md /update total" "$skills_doc_update_total" "$actual_total"
 
-if [[ "$claude_user" != "NOT_FOUND" && "$claude_user" -ne "$actual_user_facing" ]]; then
-  echo "MISMATCH: CLAUDE.md says $claude_user user-facing, SKILL-TIERS.md table has $actual_user_facing"
-  errors=$((errors + 1))
-fi
+# --- Extract counts from docs/ARCHITECTURE.md ---
 
-if [[ "$claude_internal" != "NOT_FOUND" && "$claude_internal" -ne "$actual_internal" ]]; then
-  echo "MISMATCH: CLAUDE.md says $claude_internal internal, SKILL-TIERS.md table has $actual_internal"
-  errors=$((errors + 1))
-fi
+architecture_total=$(extract_number 's|.*# \([0-9][0-9]*\) skills ([0-9][0-9]* user-facing, [0-9][0-9]* internal).*|\1|' "$REPO_ROOT/docs/ARCHITECTURE.md" "docs/ARCHITECTURE skills tree total")
+architecture_user=$(extract_number 's|.*# [0-9][0-9]* skills (\([0-9][0-9]*\) user-facing, [0-9][0-9]* internal).*|\1|' "$REPO_ROOT/docs/ARCHITECTURE.md" "docs/ARCHITECTURE skills tree user-facing")
+architecture_internal=$(extract_number 's|.*# [0-9][0-9]* skills ([0-9][0-9]* user-facing, \([0-9][0-9]*\) internal).*|\1|' "$REPO_ROOT/docs/ARCHITECTURE.md" "docs/ARCHITECTURE skills tree internal")
 
-# --- Extract counts from README.md ---
-
-# Badge: "skills-32-"
-readme_badge_total=$(extract_number 's/.*skills-\([0-9]*\)-.*/\1/' "$REPO_ROOT/README.md")
-
-# Text: "32 skills across" or "All 32 skills"
-readme_text_total=$(extract_number 's/.*[^0-9]\([0-9][0-9]*\) skills.*/\1/' "$REPO_ROOT/README.md")
-
-# "auto-loaded, 10 total"
-readme_internal=$(extract_number 's/.*auto-loaded, \([0-9]*\) total.*/\1/' "$REPO_ROOT/README.md")
-
-echo "=== README.md claims ==="
-echo "  Badge total: $readme_badge_total"
-echo "  Text total: $readme_text_total"
-echo "  Internal: $readme_internal"
+echo "=== docs/ARCHITECTURE.md claims ==="
+echo "  Total: $architecture_total"
+echo "  User-facing: $architecture_user"
+echo "  Internal: $architecture_internal"
 echo ""
 
-if [[ "$readme_badge_total" != "NOT_FOUND" && "$readme_badge_total" -ne "$actual_total" ]]; then
-  echo "MISMATCH: README.md badge says $readme_badge_total total, actual is $actual_total"
-  errors=$((errors + 1))
-fi
-
-if [[ "$readme_text_total" != "NOT_FOUND" && "$readme_text_total" -ne "$actual_total" ]]; then
-  echo "MISMATCH: README.md text says $readme_text_total total, actual is $actual_total"
-  errors=$((errors + 1))
-fi
-
-if [[ "$readme_internal" != "NOT_FOUND" && "$readme_internal" -ne "$actual_internal" ]]; then
-  echo "MISMATCH: README.md says $readme_internal internal, SKILL-TIERS.md table has $actual_internal"
-  errors=$((errors + 1))
-fi
-
-# --- Extract counts from README.md summary line ---
-
-# "37 skills: 27 user-facing, 10 internal"
-readme_summary_total=$(extract_number 's/^\([0-9][0-9]*\) skills: [0-9]* user-facing.*/\1/' "$REPO_ROOT/README.md")
-readme_summary_user=$(extract_number 's/.*[0-9]* skills: \([0-9][0-9]*\) user-facing.*/\1/' "$REPO_ROOT/README.md")
-
-echo "=== README.md summary claims ==="
-echo "  Summary total: $readme_summary_total"
-echo "  Summary user-facing: $readme_summary_user"
-echo ""
-
-if [[ "$readme_summary_total" != "NOT_FOUND" && "$readme_summary_total" -ne "$actual_total" ]]; then
-  echo "MISMATCH: README.md summary says $readme_summary_total total, actual is $actual_total"
-  errors=$((errors + 1))
-fi
-
-if [[ "$readme_summary_user" != "NOT_FOUND" && "$readme_summary_user" -ne "$actual_user_facing" ]]; then
-  echo "MISMATCH: README.md summary says $readme_summary_user user-facing, actual is $actual_user_facing"
-  errors=$((errors + 1))
-fi
+check_numeric_match "docs/ARCHITECTURE.md total" "$architecture_total" "$actual_total"
+check_numeric_match "docs/ARCHITECTURE.md user-facing" "$architecture_user" "$actual_user_facing"
+check_numeric_match "docs/ARCHITECTURE.md internal" "$architecture_internal" "$actual_internal"
 
 # --- Extract counts from PRODUCT.md ---
 
-product_total=$(extract_number 's/.*The \([0-9][0-9]*\) skills,.*/\1/' "$REPO_ROOT/PRODUCT.md")
+product_total=$(extract_number 's|.*[^0-9]\([0-9][0-9]*\) skills, [0-9][0-9]* hooks,.*|\1|' "$REPO_ROOT/PRODUCT.md" "PRODUCT.md zero-setup value proposition total")
 
 echo "=== PRODUCT.md claims ==="
 echo "  Total: $product_total"
 echo ""
 
-if [[ "$product_total" != "NOT_FOUND" && "$product_total" -ne "$actual_total" ]]; then
-  echo "MISMATCH: PRODUCT.md says $product_total total, actual is $actual_total"
-  errors=$((errors + 1))
-fi
-
-# --- Extract counts from using-agentops/SKILL.md ---
-
-agentops_user=$(extract_number 's/.*Available Skills (\([0-9][0-9]*\) user-facing).*/\1/' "$REPO_ROOT/skills/using-agentops/SKILL.md")
-
-echo "=== using-agentops/SKILL.md claims ==="
-echo "  User-facing: $agentops_user"
-echo ""
-
-if [[ "$agentops_user" != "NOT_FOUND" && "$agentops_user" -ne "$actual_user_facing" ]]; then
-  echo "MISMATCH: using-agentops/SKILL.md says $agentops_user user-facing, actual is $actual_user_facing"
-  errors=$((errors + 1))
-fi
+check_numeric_match "PRODUCT.md total" "$product_total" "$actual_total"
 
 # --- Cross-file consistency ---
 
 echo "=== Cross-file consistency ==="
 
-# Compare all total claims against each other
 totals=()
-[[ "$claude_total" != "NOT_FOUND" ]] && totals+=("CLAUDE.md:$claude_total")
-[[ "$readme_badge_total" != "NOT_FOUND" ]] && totals+=("README-badge:$readme_badge_total")
-[[ "$readme_text_total" != "NOT_FOUND" ]] && totals+=("README-text:$readme_text_total")
-[[ "$readme_summary_total" != "NOT_FOUND" ]] && totals+=("README-summary:$readme_summary_total")
+users=()
+internals=()
+
+[[ "$tiers_user_claim" != "NOT_FOUND" && "$tiers_internal_claim" != "NOT_FOUND" ]] && totals+=("SKILL-TIERS-headers:$((tiers_user_claim + tiers_internal_claim))")
+[[ "$skills_doc_total" != "NOT_FOUND" ]] && totals+=("docs/SKILLS-header:$skills_doc_total")
+[[ "$skills_doc_update_total" != "NOT_FOUND" ]] && totals+=("docs/SKILLS-/update:$skills_doc_update_total")
+[[ "$architecture_total" != "NOT_FOUND" ]] && totals+=("docs/ARCHITECTURE:$architecture_total")
 [[ "$product_total" != "NOT_FOUND" ]] && totals+=("PRODUCT:$product_total")
-if [[ "$tiers_user_claim" != "NOT_FOUND" && "$tiers_internal_claim" != "NOT_FOUND" ]]; then
-  totals+=("SKILL-TIERS-headers:$((tiers_user_claim + tiers_internal_claim))")
-fi
+
+[[ "$tiers_user_claim" != "NOT_FOUND" ]] && users+=("SKILL-TIERS:$tiers_user_claim")
+[[ "$skills_doc_user" != "NOT_FOUND" ]] && users+=("docs/SKILLS:$skills_doc_user")
+[[ "$architecture_user" != "NOT_FOUND" ]] && users+=("docs/ARCHITECTURE:$architecture_user")
+
+[[ "$tiers_internal_claim" != "NOT_FOUND" ]] && internals+=("SKILL-TIERS:$tiers_internal_claim")
+[[ "$skills_doc_internal" != "NOT_FOUND" ]] && internals+=("docs/SKILLS:$skills_doc_internal")
+[[ "$architecture_internal" != "NOT_FOUND" ]] && internals+=("docs/ARCHITECTURE:$architecture_internal")
 
 if [[ ${#totals[@]} -gt 1 ]]; then
   first_val="${totals[0]#*:}"
@@ -204,14 +174,53 @@ if [[ ${#totals[@]} -gt 1 ]]; then
   done
 fi
 
+if [[ ${#users[@]} -gt 1 ]]; then
+  first_val="${users[0]#*:}"
+  for entry in "${users[@]:1}"; do
+    val="${entry#*:}"
+    src="${entry%%:*}"
+    if [[ "$val" -ne "$first_val" ]]; then
+      echo "MISMATCH: Cross-file user-facing disagreement: ${users[0]} vs $src:$val"
+      errors=$((errors + 1))
+    fi
+  done
+fi
+
+if [[ ${#internals[@]} -gt 1 ]]; then
+  first_val="${internals[0]#*:}"
+  for entry in "${internals[@]:1}"; do
+    val="${entry#*:}"
+    src="${entry%%:*}"
+    if [[ "$val" -ne "$first_val" ]]; then
+      echo "MISMATCH: Cross-file internal disagreement: ${internals[0]} vs $src:$val"
+      errors=$((errors + 1))
+    fi
+  done
+fi
+
 echo ""
 
 # --- Summary ---
+
+if [[ "$missing_patterns" -gt 0 ]]; then
+  if [[ "$MISSING_PATTERN_MODE" == "fail" ]]; then
+    echo "FAIL-CLOSED: $missing_patterns required extraction pattern(s) are missing."
+    echo "Migration note: temporarily set SKILL_COUNT_MISSING_MODE=warn while updating patterns."
+  else
+    echo "WARN: $missing_patterns extraction pattern(s) are missing."
+    echo "Migration note: set SKILL_COUNT_MISSING_MODE=fail to enforce fail-closed behavior."
+  fi
+  echo ""
+fi
 
 if [[ "$errors" -gt 0 ]]; then
   echo "FAIL: $errors mismatch(es) found"
   exit 1
 else
-  echo "PASS: All skill counts consistent (total=$actual_total, user-facing=$actual_user_facing, internal=$actual_internal)"
+  if [[ "$missing_patterns" -gt 0 ]]; then
+    echo "PASS (WARN): Skill counts consistent but missing patterns were tolerated"
+  else
+    echo "PASS: All skill counts consistent (total=$actual_total, user-facing=$actual_user_facing, internal=$actual_internal)"
+  fi
   exit 0
 fi

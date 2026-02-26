@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Flywheel Smoke Test
-# Verifies the knowledge flywheel (extract → forge → inject) works end-to-end
+# Verifies the knowledge flywheel (forge --promote → forge index → inject) works end-to-end
 
 TEST_DIR="$(mktemp -d)"
 AGENTS_DIR="${TEST_DIR}/.agents"
@@ -62,7 +62,7 @@ fi
 cd "$TEST_DIR"
 
 # Test inject reads the learning
-INJECT_OUTPUT=$(ao inject --format markdown --max-tokens 500 2>&1 || true)
+INJECT_OUTPUT=$(ao know inject --format markdown --max-tokens 500 2>&1 || true)
 
 if echo "$INJECT_OUTPUT" | grep -q "Flywheel Smoke Test"; then
     echo "✓ Inject found test learning"
@@ -70,16 +70,16 @@ else
     echo "⚠️  Inject didn't find learning (may be empty without prior sessions)"
 fi
 
-# Test 2: Extract can process pending sessions
+# Test 2: Forge --promote can process pending sessions
 echo ""
-echo "--- Test 2: Extract processes pending ---"
+echo "--- Test 2: Forge --promote processes pending ---"
 
 # Create mock pending session
 cat > "$AGENTS_DIR/ao/pending/test-session.jsonl" << 'EOF'
 {"session_id":"test-123","timestamp":"2026-01-25T12:00:00Z","messages":[{"role":"user","content":"Test message"}]}
 EOF
 
-EXTRACT_OUTPUT=$(ao extract 2>&1 || true)
+EXTRACT_OUTPUT=$(ao know forge --promote 2>&1 || true)
 
 if [[ -z "$EXTRACT_OUTPUT" ]] || echo "$EXTRACT_OUTPUT" | grep -qi "error"; then
     echo "⚠️  Extract had issues (expected without full setup)"
@@ -91,7 +91,7 @@ fi
 echo ""
 echo "--- Test 3: Forge indexes knowledge ---"
 
-FORGE_OUTPUT=$(ao forge index "$AGENTS_DIR/learnings/test-smoke.md" 2>&1 || true)
+FORGE_OUTPUT=$(ao know forge index "$AGENTS_DIR/learnings/test-smoke.md" 2>&1 || true)
 
 if echo "$FORGE_OUTPUT" | grep -qi "error"; then
     echo "⚠️  Forge had issues (expected without full setup)"
@@ -104,6 +104,6 @@ echo "=== Smoke Test PASSED ==="
 echo ""
 echo "Flywheel components verified:"
 echo "  - .agents/learnings/ structure ✓"
-echo "  - ao inject command ✓"
-echo "  - ao extract command ✓"
-echo "  - ao forge command ✓"
+echo "  - ao know inject command ✓"
+echo "  - ao know forge --promote command ✓"
+echo "  - ao know forge index command ✓"

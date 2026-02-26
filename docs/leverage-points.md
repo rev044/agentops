@@ -203,22 +203,15 @@ When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. 
 
 **AgentOps implementation:**
 
-AgentOps has 12 hooks that enforce rules mechanically. The agent does not decide whether to follow them. The system enforces them.
+AgentOps has 3 active runtime hooks in `hooks/hooks.json` that enforce the core knowledge lifecycle mechanically. The agent does not decide whether to follow them. The system enforces them.
 
 | Rule | Enforcement | What it prevents |
 |------|-------------|------------------|
-| Push gate | Blocks `git push` without `/vibe` pass | Unvalidated code reaching main |
-| Pre-mortem gate | Blocks `/crank` without `/pre-mortem` pass | Implementation of unvetted plans |
-| Worker guard | Blocks workers from `git commit` | Merge conflicts from parallel workers |
-| Dangerous git guard | Blocks `force-push`, `reset --hard` | Destructive git operations |
-| Standards injector | Auto-injects language-specific rules on Write/Edit | Inconsistent coding standards |
-| Ratchet nudge | Reminds to run `/vibe` before push | Knowledge of validation requirement |
-| Task validation | Validates metadata before accepting task completion | Incomplete or malformed task results |
-| Session start | Injects top learnings, cleans stale state | Cold starts without prior knowledge |
-| Ratchet advance | Locks progress gates after validation | Regression of validated progress |
-| Stop team guard | Prevents premature stop with active teams | Orphaned worker agents |
-| Precompact snapshot | Saves state before context compaction | State loss during long runs |
-| Pending cleaner | Cleans stale pending state at session start | Contamination from prior sessions |
+| Session start hook | Runs `hooks/session-start.sh` on `SessionStart` | Cold starts without prior knowledge |
+| Session end maintenance hook | Runs `hooks/session-end-maintenance.sh` on `SessionEnd` | Lost session learnings and stale pools |
+| Stop close-loop hook | Runs `hooks/ao-flywheel-close.sh` on `Stop` | Unclosed flywheel feedback cycles |
+
+Guardrail hook scripts (push gate, worker guard, pre-mortem gate, etc.) remain in the repo and can be re-enabled by manifest policy, but they are not part of the active runtime contract by default.
 
 **Additional rules:**
 - **Sisyphus rule** — Completion requires an explicit marker. The agent cannot claim "done" without the system agreeing. Prevents premature completion claims.
@@ -228,7 +221,7 @@ AgentOps has 12 hooks that enforce rules mechanically. The agent does not decide
 
 **dK/dt mapping:** Rules do not appear directly in the equation, but they prevent catastrophic dK/dt events — regressions that would send K to zero. They also enforce the information flows (#6) that keep sigma high. Without rules, the flywheel depends on agent memory. Agents forget. Rules do not.
 
-**Status:** Implemented. All 12 hooks active. All kill switches tested.
+**Status:** Implemented. All 3 active runtime hooks are enforced. All kill switches tested.
 
 ---
 
@@ -327,7 +320,7 @@ The same shape at every scale (function, issue, epic, repository) means rules at
 | 1 | Reduce variance | Harness variance (Brownian Ratchet) | Spawn parallel attempts, filter aggressively, ratchet successes |
 | 2 | Context is infinite | Context is scarce (40% Rule) | Treat context as a security boundary, least-privilege loading |
 | 3 | Validation is post-hoc | Validation is preventive (Shift-Left) | `/pre-mortem` before implementation, hooks at every gate |
-| 4 | Rules are guidelines | Rules are structural (Hooks) | 12 hooks that cannot be forgotten, skipped, or rationalized away |
+| 4 | Rules are guidelines | Rules are structural (Hooks) | 3 active runtime hooks that cannot be forgotten, skipped, or rationalized away |
 | 5 | Knowledge is hoarded | Knowledge is flowing (Flywheel) | Extract, score, tier, decay, re-inject across sessions |
 | 6 | Designed systems | Evolved systems (The Seed) | Define starting conditions, let the system evolve toward goals |
 

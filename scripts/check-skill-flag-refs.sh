@@ -121,8 +121,8 @@ echo ""
 # We look for lines containing `ao <subcommand> ... --<flag>`
 # This captures patterns like:
 #   ao goals measure --json
-#   ao inject --apply-decay --format markdown
-#   ao ratchet record implement --output "<path>"
+#   ao know inject --apply-decay --format markdown
+#   ao work ratchet record implement --output "<path>"
 #   ao rpi cleanup --all --prune-worktrees
 #
 # We exclude lines that are clearly about external tools.

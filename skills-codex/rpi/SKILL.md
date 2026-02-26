@@ -29,7 +29,7 @@ RPI control-plane command paths are configurable through `.agentops/config.yaml`
 ```yaml
 rpi:
   runtime_mode: auto        # auto|direct|stream
-  runtime_command: claude   # runtime process command
+  runtime_command: codex   # runtime process command
   ao_command: ao            # ratchet/checkpoint command
   bd_command: bd            # epic/child query command
   tmux_command: tmux        # status liveness probe command
@@ -693,5 +693,4 @@ check "SKILL.md mentions post-mortem phase" "grep -qi 'post-mortem' '$SKILL_DIR/
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
 ```
-
 

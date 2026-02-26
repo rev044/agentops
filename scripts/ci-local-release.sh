@@ -417,12 +417,12 @@ run_hooks_install_smoke() {
     tmp_home="$(mktemp -d)"
     local rc=0
 
-    HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" hooks install || rc=$?
+    HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" settings hooks install || rc=$?
     if [[ "$rc" -eq 0 ]]; then
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" hooks show || rc=$?
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" settings hooks show || rc=$?
     fi
     if [[ "$rc" -eq 0 ]]; then
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" hooks install --full --source-dir "$REPO_ROOT" --force || rc=$?
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" settings hooks install --full --source-dir "$REPO_ROOT" --force || rc=$?
     fi
     if [[ "$rc" -eq 0 ]] && [[ ! -f "$tmp_home/.claude/settings.json" ]]; then
         rc=1
@@ -445,10 +445,10 @@ run_init_hooks_rpi_smoke() {
     git -C "$tmp_repo" init -q
     (
         cd "$tmp_repo"
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" init --hooks
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" rpi status
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" rpi --help >/dev/null
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" rpi phased --help >/dev/null
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" start init --hooks
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" work rpi status
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" work rpi --help >/dev/null
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" work rpi phased --help >/dev/null
     ) || rc=$?
 
     rm -rf "$tmp_home" "$tmp_repo"

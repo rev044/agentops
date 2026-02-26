@@ -256,6 +256,7 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 
 ### artifact-consistency-allowlist.txt
 
+```text
 # Artifact consistency allowlist
 #
 # Format:
@@ -284,6 +285,7 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 * -> .agents/*/...*
 * -> .agents/*/foo.*
 * -> .agents/handoff/auto-99999999T999999Z.md
+```
 
 ### artifact-consistency.md
 
@@ -626,5 +628,4 @@ check "artifact-consistency allowlist exists" "[ -f '$SKILL_DIR/references/artif
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
 ```
-
 
