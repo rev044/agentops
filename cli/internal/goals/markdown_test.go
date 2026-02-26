@@ -634,3 +634,91 @@ func TestParseMarkdownGoals_Adversarial(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildGateColumnMap_DefaultOrder(t *testing.T) {
+	cells := []string{"ID", "Check", "Weight", "Description"}
+	colMap := buildGateColumnMap(cells)
+
+	want := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	for k, v := range want {
+		if colMap[k] != v {
+			t.Errorf("colMap[%q] = %d, want %d", k, colMap[k], v)
+		}
+	}
+}
+
+func TestBuildGateColumnMap_ReorderedColumns(t *testing.T) {
+	cells := []string{"Description", "ID", "Weight", "Check"}
+	colMap := buildGateColumnMap(cells)
+
+	want := map[string]int{"id": 1, "check": 3, "weight": 2, "description": 0}
+	for k, v := range want {
+		if colMap[k] != v {
+			t.Errorf("colMap[%q] = %d, want %d", k, colMap[k], v)
+		}
+	}
+}
+
+func TestBuildGateColumnMap_CaseInsensitive(t *testing.T) {
+	cells := []string{"id", "CHECK", "Weight", "DESCRIPTION"}
+	colMap := buildGateColumnMap(cells)
+
+	want := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	for k, v := range want {
+		if colMap[k] != v {
+			t.Errorf("colMap[%q] = %d, want %d", k, colMap[k], v)
+		}
+	}
+}
+
+func TestParseGateRow_AllFields(t *testing.T) {
+	cells := []string{"G1", "cmd", "5", "desc"}
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	g := parseGateRow(cells, colMap)
+
+	if g.ID != "G1" {
+		t.Errorf("ID = %q, want %q", g.ID, "G1")
+	}
+	if g.Check != "cmd" {
+		t.Errorf("Check = %q, want %q", g.Check, "cmd")
+	}
+	if g.Weight != 5 {
+		t.Errorf("Weight = %d, want 5", g.Weight)
+	}
+	if g.Description != "desc" {
+		t.Errorf("Description = %q, want %q", g.Description, "desc")
+	}
+	if g.Type != GoalTypeHealth {
+		t.Errorf("Type = %q, want %q", g.Type, GoalTypeHealth)
+	}
+}
+
+func TestParseGateRow_MissingWeight(t *testing.T) {
+	cells := []string{"G2", "echo ok", "bad", "test gate"}
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	g := parseGateRow(cells, colMap)
+
+	if g.Weight != 5 {
+		t.Errorf("Weight = %d, want 5 (default for non-numeric)", g.Weight)
+	}
+}
+
+func TestParseGateRow_BacktickStrip(t *testing.T) {
+	cells := []string{"G3", "`some check`", "3", "backtick test"}
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	g := parseGateRow(cells, colMap)
+
+	if g.Check != "some check" {
+		t.Errorf("Check = %q, want %q (backticks should be stripped)", g.Check, "some check")
+	}
+}
+
+func TestParseGateRow_EmptyDescription(t *testing.T) {
+	cells := []string{"G4", "echo ok", "5", ""}
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	g := parseGateRow(cells, colMap)
+
+	if g.Description != "G4" {
+		t.Errorf("Description = %q, want %q (should fall back to ID)", g.Description, "G4")
+	}
+}
