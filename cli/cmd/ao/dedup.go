@@ -59,12 +59,9 @@ func init() {
 	rootCmd.AddCommand(dedupCmd)
 }
 
-func runDedup(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
-	}
-
+// collectDedupFiles finds all .jsonl and .md files in learnings and patterns directories.
+// Returns the combined file list. Returns an empty list if neither directory exists.
+func collectDedupFiles(cwd string) ([]string, error) {
 	learningsDir := filepath.Join(cwd, ".agents", "learnings")
 	patternsDir := filepath.Join(cwd, ".agents", "patterns")
 
@@ -78,12 +75,10 @@ func runDedup(cmd *cobra.Command, args []string) error {
 	}
 
 	if !learningsExists && !patternsExists {
-		fmt.Println("No learnings or patterns directory found.")
-		return nil
+		return nil, nil
 	}
 
-	// Collect all files from learnings and patterns directories
-	var files []string
+	files := make([]string, 0)
 	for _, dir := range []string{learningsDir, patternsDir} {
 		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
 			continue
@@ -94,12 +89,12 @@ func runDedup(cmd *cobra.Command, args []string) error {
 		files = append(files, mdFiles...)
 	}
 
-	if len(files) == 0 {
-		fmt.Println("No learning or pattern files found.")
-		return nil
-	}
+	return files, nil
+}
 
-	// Hash content and group
+// groupByContentHash groups files by their normalized content hash.
+// Files whose body is empty are skipped.
+func groupByContentHash(files []string) map[string][]string {
 	hashToFiles := make(map[string][]string)
 	for _, f := range files {
 		body := extractLearningBody(f)
@@ -109,60 +104,17 @@ func runDedup(cmd *cobra.Command, args []string) error {
 		hash := hashNormalizedContent(body)
 		hashToFiles[hash] = append(hashToFiles[hash], f)
 	}
+	return hashToFiles
+}
 
-	// Build result
-	result := DedupResult{
-		TotalFiles:    len(files),
-		UniqueContent: len(hashToFiles),
-	}
+// mergeDedupGroups resolves duplicate groups by keeping the highest-utility file
+// and archiving the rest to .agents/archive/dedup/. In dry-run mode, it prints
+// what would happen without moving any files.
+func mergeDedupGroups(hashToFiles map[string][]string, cwd string, dryRun bool) error {
+	archiveDir := filepath.Join(cwd, ".agents", "archive", "dedup")
 
-	for hash, group := range hashToFiles {
-		if len(group) > 1 {
-			result.DuplicateGroups++
-			result.DuplicateFiles += len(group)
-			// Use relative paths for cleaner output
-			relFiles := make([]string, len(group))
-			for i, f := range group {
-				rel, relErr := filepath.Rel(cwd, f)
-				if relErr != nil {
-					rel = f
-				}
-				relFiles[i] = rel
-			}
-			result.Groups = append(result.Groups, DedupGroup{
-				Hash:  hash[:12], // Short hash for display
-				Count: len(group),
-				Files: relFiles,
-			})
-		}
-	}
-
-	// --merge: resolve duplicate groups by keeping highest utility
-	if dedupMerge && result.DuplicateGroups > 0 {
-		archiveDir := filepath.Join(cwd, ".agents", "archive", "dedup")
-
-		if GetDryRun() {
-			fmt.Println("Merge (dry-run):")
-			for _, group := range hashToFiles {
-				if len(group) <= 1 {
-					continue
-				}
-				kept, archived := pickHighestUtility(group)
-				keptRel, _ := filepath.Rel(cwd, kept)
-				fmt.Printf("  Keep: %s (utility %.2f)\n", keptRel, readUtilityFromFile(kept))
-				for _, a := range archived {
-					aRel, _ := filepath.Rel(cwd, a)
-					fmt.Printf("  [dry-run] Would archive: %s -> .agents/archive/dedup/%s\n", aRel, filepath.Base(a))
-				}
-			}
-			return nil
-		}
-
-		if err := os.MkdirAll(archiveDir, 0o755); err != nil {
-			return fmt.Errorf("create archive directory: %w", err)
-		}
-
-		fmt.Println("Merge Results:")
+	if dryRun {
+		fmt.Println("Merge (dry-run):")
 		for _, group := range hashToFiles {
 			if len(group) <= 1 {
 				continue
@@ -172,15 +124,93 @@ func runDedup(cmd *cobra.Command, args []string) error {
 			fmt.Printf("  Keep: %s (utility %.2f)\n", keptRel, readUtilityFromFile(kept))
 			for _, a := range archived {
 				aRel, _ := filepath.Rel(cwd, a)
-				dst := filepath.Join(archiveDir, filepath.Base(a))
-				if mvErr := os.Rename(a, dst); mvErr != nil {
-					fmt.Fprintf(os.Stderr, "Error archiving %s: %v\n", aRel, mvErr)
-					continue
-				}
-				fmt.Printf("  Archived: %s -> .agents/archive/dedup/%s\n", aRel, filepath.Base(a))
+				fmt.Printf("  [dry-run] Would archive: %s -> .agents/archive/dedup/%s\n", aRel, filepath.Base(a))
 			}
 		}
 		return nil
+	}
+
+	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+		return fmt.Errorf("create archive directory: %w", err)
+	}
+
+	fmt.Println("Merge Results:")
+	for _, group := range hashToFiles {
+		if len(group) <= 1 {
+			continue
+		}
+		kept, archived := pickHighestUtility(group)
+		keptRel, _ := filepath.Rel(cwd, kept)
+		fmt.Printf("  Keep: %s (utility %.2f)\n", keptRel, readUtilityFromFile(kept))
+		for _, a := range archived {
+			aRel, _ := filepath.Rel(cwd, a)
+			dst := filepath.Join(archiveDir, filepath.Base(a))
+			if mvErr := os.Rename(a, dst); mvErr != nil {
+				fmt.Fprintf(os.Stderr, "Error archiving %s: %v\n", aRel, mvErr)
+				continue
+			}
+			fmt.Printf("  Archived: %s -> .agents/archive/dedup/%s\n", aRel, filepath.Base(a))
+		}
+	}
+	return nil
+}
+
+// buildDedupResult creates a DedupResult from the hash-to-files map,
+// using relative paths for cleaner output.
+func buildDedupResult(hashToFiles map[string][]string, totalFiles int, cwd string) DedupResult {
+	result := DedupResult{
+		TotalFiles:    totalFiles,
+		UniqueContent: len(hashToFiles),
+	}
+
+	for hash, group := range hashToFiles {
+		if len(group) > 1 {
+			result.DuplicateGroups++
+			result.DuplicateFiles += len(group)
+			relFiles := make([]string, len(group))
+			for i, f := range group {
+				rel, relErr := filepath.Rel(cwd, f)
+				if relErr != nil {
+					rel = f
+				}
+				relFiles[i] = rel
+			}
+			result.Groups = append(result.Groups, DedupGroup{
+				Hash:  hash[:12],
+				Count: len(group),
+				Files: relFiles,
+			})
+		}
+	}
+
+	return result
+}
+
+func runDedup(cmd *cobra.Command, args []string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	files, err := collectDedupFiles(cwd)
+	if err != nil {
+		return err
+	}
+	if files == nil {
+		fmt.Println("No learnings or patterns directory found.")
+		return nil
+	}
+	if len(files) == 0 {
+		fmt.Println("No learning or pattern files found.")
+		return nil
+	}
+
+	hashToFiles := groupByContentHash(files)
+	result := buildDedupResult(hashToFiles, len(files), cwd)
+
+	// --merge: resolve duplicate groups by keeping highest utility
+	if dedupMerge && result.DuplicateGroups > 0 {
+		return mergeDedupGroups(hashToFiles, cwd, GetDryRun())
 	}
 
 	// Output
