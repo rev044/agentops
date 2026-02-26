@@ -36,5 +36,18 @@ func deprecatedAlias(oldUse, newPath string, target *cobra.Command) *cobra.Comma
 	alias.Flags().AddFlagSet(target.Flags())
 	alias.PersistentFlags().AddFlagSet(target.PersistentFlags())
 
+	// Forward subcommands so "ao <old> <sub>" works.
+	// Cobra resolves subcommands on the parent, so if the alias has no subcommands,
+	// cobra can't find e.g. "status" when the user runs "ao ratchet status".
+	// Also copy command groups: subcommands may have GroupID set to a group that is
+	// only defined on the original parent. Without copying the groups, cobra panics
+	// with "group id '...' is not defined for subcommand '...'".
+	for _, g := range target.Groups() {
+		alias.AddGroup(g)
+	}
+	for _, sub := range target.Commands() {
+		alias.AddCommand(sub)
+	}
+
 	return alias
 }

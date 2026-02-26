@@ -1049,7 +1049,7 @@ test_ao_delegation() {
     fi
 }
 
-test_ao_delegation "ao-extract.sh" "^extract"
+test_ao_delegation "ao-extract.sh" "^know forge transcript"
 test_ao_delegation "ao-feedback-loop.sh" "^work feedback-loop"
 test_ao_delegation "ao-flywheel-close.sh" "^quality flywheel close-loop"
 test_ao_delegation "ao-forge.sh" "^know forge transcript"

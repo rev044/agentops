@@ -25,4 +25,5 @@ func init() {
 	rootCmd.AddCommand(deprecatedAlias("badge", "ao quality badge", badgeCmd))
 	rootCmd.AddCommand(deprecatedAlias("anti-patterns", "ao quality anti-patterns", antiPatternCmd))
 	rootCmd.AddCommand(deprecatedAlias("curate", "ao quality curate", curateCmd))
+	rootCmd.AddCommand(deprecatedAlias("promote-anti-patterns", "ao quality promote-anti-patterns", promoteAntiPatternsCmd))
 }

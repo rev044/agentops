@@ -712,15 +712,21 @@ var deprecatedCommands = map[string]string{
 	"ao gate":          "ao quality gate",
 	"ao maturity":      "ao quality maturity",
 	"ao constraint":    "ao quality constraint",
-	"ao vibe-check":    "ao quality vibe",
+	"ao vibe-check":    "ao quality vibe-check",
 	"ao config":        "ao settings config",
 	"ao plans":         "ao settings plans",
 	"ao hooks":         "ao settings hooks",
 	"ao memory":        "ao settings memory",
-	"ao notebook":      "ao settings memory",
+	"ao notebook":      "ao settings notebook",
 	"ao demo":          "ao start demo",
 	"ao init":          "ao start init",
 	"ao seed":          "ao start seed",
+	"ao quick-start":   "ao start quick-start",
+	"ao badge":         "ao quality badge",
+	"ao contradict":    "ao quality contradict",
+	"ao dedup":         "ao quality dedup",
+	"ao anti-patterns": "ao quality anti-patterns",
+	"ao curate":        "ao quality curate",
 }
 
 // staleReference records a single deprecated command reference found in a file.

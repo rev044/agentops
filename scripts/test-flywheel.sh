@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Flywheel Smoke Test
-# Verifies the knowledge flywheel (forge --promote → forge index → inject) works end-to-end
+# Verifies the knowledge flywheel (forge transcript → forge markdown → inject) works end-to-end
 
 TEST_DIR="$(mktemp -d)"
 AGENTS_DIR="${TEST_DIR}/.agents"
@@ -70,16 +70,11 @@ else
     echo "⚠️  Inject didn't find learning (may be empty without prior sessions)"
 fi
 
-# Test 2: Forge --promote can process pending sessions
+# Test 2: Forge transcript can process last session
 echo ""
-echo "--- Test 2: Forge --promote processes pending ---"
+echo "--- Test 2: Forge transcript processes last session ---"
 
-# Create mock pending session
-cat > "$AGENTS_DIR/ao/pending/test-session.jsonl" << 'EOF'
-{"session_id":"test-123","timestamp":"2026-01-25T12:00:00Z","messages":[{"role":"user","content":"Test message"}]}
-EOF
-
-EXTRACT_OUTPUT=$(ao know forge --promote 2>&1 || true)
+EXTRACT_OUTPUT=$(ao know forge transcript --last-session --quiet 2>&1 || true)
 
 if [[ -z "$EXTRACT_OUTPUT" ]] || echo "$EXTRACT_OUTPUT" | grep -qi "error"; then
     echo "⚠️  Extract had issues (expected without full setup)"
@@ -87,11 +82,11 @@ else
     echo "✓ Extract ran without errors"
 fi
 
-# Test 3: Forge can index
+# Test 3: Forge can index markdown
 echo ""
 echo "--- Test 3: Forge indexes knowledge ---"
 
-FORGE_OUTPUT=$(ao know forge index "$AGENTS_DIR/learnings/test-smoke.md" 2>&1 || true)
+FORGE_OUTPUT=$(ao know forge markdown "$AGENTS_DIR/learnings/test-smoke.md" 2>&1 || true)
 
 if echo "$FORGE_OUTPUT" | grep -qi "error"; then
     echo "⚠️  Forge had issues (expected without full setup)"
@@ -105,5 +100,5 @@ echo ""
 echo "Flywheel components verified:"
 echo "  - .agents/learnings/ structure ✓"
 echo "  - ao know inject command ✓"
-echo "  - ao know forge --promote command ✓"
-echo "  - ao know forge index command ✓"
+echo "  - ao know forge transcript --last-session --quiet command ✓"
+echo "  - ao know forge markdown command ✓"

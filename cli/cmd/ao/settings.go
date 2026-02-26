@@ -29,4 +29,5 @@ func init() {
 	rootCmd.AddCommand(deprecatedAlias("hooks", "ao settings hooks", hooksCmd))
 	rootCmd.AddCommand(deprecatedAlias("memory", "ao settings memory", memoryCmd))
 	rootCmd.AddCommand(deprecatedAlias("notebook", "ao settings notebook", notebookCmd))
+	rootCmd.AddCommand(deprecatedAlias("worktree", "ao settings worktree", worktreeCmd))
 }

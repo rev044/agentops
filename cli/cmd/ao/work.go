@@ -18,4 +18,8 @@ func init() {
 	rootCmd.AddCommand(deprecatedAlias("goals", "ao work goals", goalsCmd))
 	rootCmd.AddCommand(deprecatedAlias("session", "ao work session", sessionCmd))
 	rootCmd.AddCommand(deprecatedAlias("feedback-loop", "ao work feedback-loop", feedbackLoopCmd))
+	rootCmd.AddCommand(deprecatedAlias("context", "ao work context", contextCmd))
+	rootCmd.AddCommand(deprecatedAlias("task-sync", "ao work task-sync", taskSyncCmd))
+	rootCmd.AddCommand(deprecatedAlias("task-feedback", "ao work task-feedback", taskFeedbackCmd))
+	rootCmd.AddCommand(deprecatedAlias("task-status", "ao work task-status", taskStatusCmd))
 }
