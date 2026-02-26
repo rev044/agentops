@@ -62,6 +62,16 @@ jobs:
           chmod +x scripts/validate-ci-policy-parity.sh
           ./scripts/validate-ci-policy-parity.sh
 
+  codex-runtime-sections:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate Codex runtime sections
+        run: |
+          chmod +x scripts/validate-codex-runtime-sections.sh
+          ./scripts/validate-codex-runtime-sections.sh
+
   embedded-sync:
     runs-on: ubuntu-latest
     steps:
@@ -554,7 +564,7 @@ jobs:
         run: bash tests/hooks/test-hooks.sh
 
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration]
+    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -566,6 +576,7 @@ jobs:
           echo "hook-preflight: ${{ needs.hook-preflight.result }}"
           echo "validate-hooks-doc-parity: ${{ needs.validate-hooks-doc-parity.result }}"
           echo "validate-ci-policy-parity: ${{ needs.validate-ci-policy-parity.result }}"
+          echo "codex-runtime-sections: ${{ needs.codex-runtime-sections.result }}"
           echo "embedded-sync: ${{ needs.embedded-sync.result }}"
           echo "cli-docs-parity: ${{ needs.cli-docs-parity.result }}"
           echo "shellcheck: ${{ needs.shellcheck.result }}"
@@ -586,6 +597,7 @@ jobs:
              [[ "${{ needs.hook-preflight.result }}" != "success" ]] || \
              [[ "${{ needs.validate-hooks-doc-parity.result }}" != "success" ]] || \
              [[ "${{ needs.validate-ci-policy-parity.result }}" != "success" ]] || \
+             [[ "${{ needs.codex-runtime-sections.result }}" != "success" ]] || \
              [[ "${{ needs.embedded-sync.result }}" != "success" ]] || \
              [[ "${{ needs.cli-docs-parity.result }}" != "success" ]] || \
              [[ "${{ needs.shellcheck.result }}" != "success" ]] || \

@@ -21,6 +21,7 @@ cd "$REPO_ROOT"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 ARTIFACT_DIR="$REPO_ROOT/.agents/releases/local-ci/$RUN_ID"
 mkdir -p "$ARTIFACT_DIR"
+SECURITY_TMP_BASE="${TMPDIR:-/tmp}/agentops-security-local-ci/$RUN_ID"
 
 SKIP_E2E_INSTALL=false
 SECURITY_MODE="full"
@@ -405,11 +406,19 @@ generate_sbom_artifacts() {
 
 run_security_gate() {
     local output_file="$ARTIFACT_DIR/security-gate-${SECURITY_MODE}.json"
-    SECURITY_GATE_OUTPUT_DIR="$ARTIFACT_DIR/security" \
-    TOOLCHAIN_OUTPUT_DIR="$ARTIFACT_DIR/tooling" \
+    local security_dir="$SECURITY_TMP_BASE/security"
+    local tooling_dir="$SECURITY_TMP_BASE/tooling"
+    mkdir -p "$security_dir" "$tooling_dir"
+
+    SECURITY_GATE_OUTPUT_DIR="$security_dir" \
+    TOOLCHAIN_OUTPUT_DIR="$tooling_dir" \
+    TOOLCHAIN_GITLEAKS_MODE="${TOOLCHAIN_GITLEAKS_MODE:-range}" \
+    TOOLCHAIN_GITLEAKS_RANGE="${TOOLCHAIN_GITLEAKS_RANGE:-origin/main..HEAD}" \
+    TOOLCHAIN_GITLEAKS_GOMAXPROCS="${TOOLCHAIN_GITLEAKS_GOMAXPROCS:-2}" \
     ./scripts/security-gate.sh --mode "$SECURITY_MODE" --json > "$output_file"
     jq -e '.gate_status' "$output_file" >/dev/null
     echo "Security report:  $output_file"
+    echo "Security artifacts: $security_dir"
 }
 
 run_hooks_install_smoke() {

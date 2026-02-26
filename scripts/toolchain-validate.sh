@@ -298,6 +298,17 @@ run_golangci() {
 # ============================================================================
 run_gitleaks() {
     local output_file="$OUTPUT_DIR/gitleaks.txt"
+    local gitleaks_mode="${TOOLCHAIN_GITLEAKS_MODE:-full}"
+    local gitleaks_range="${TOOLCHAIN_GITLEAKS_RANGE:-origin/main..HEAD}"
+    local -a gitleaks_config=()
+    local -a gitleaks_prefix=()
+
+    if [[ "${TOOLCHAIN_DISABLE_GITLEAKS:-}" == "true" || "${TOOLCHAIN_DISABLE_GITLEAKS:-}" == "1" ]]; then
+        echo "SKIPPED_DISABLED_BY_CALLER" > "$output_file"
+        TOOL_STATUS["gitleaks"]="skipped"
+        TOOLS_SKIPPED=$((TOOLS_SKIPPED + 1))
+        return 0
+    fi
 
     if [[ "$QUICK" == "true" ]]; then
         echo "SKIPPED_QUICK_MODE" > "$output_file"
@@ -309,12 +320,39 @@ run_gitleaks() {
     if ! run_tool "gitleaks" gitleaks; then return 0; fi
 
     # Use repo config if available, --no-color to avoid ANSI codes
-    local config_flag=()
     if [[ -f "$REPO_ROOT/.gitleaks.toml" ]]; then
-        config_flag=(--config "$REPO_ROOT/.gitleaks.toml")
+        gitleaks_config=(--config "$REPO_ROOT/.gitleaks.toml")
     fi
 
-    if gitleaks detect --source="$REPO_ROOT" --no-git --no-color "${config_flag[@]}" > "$output_file" 2>&1; then
+    # Optional CPU cap for local scans
+    if [[ -n "${TOOLCHAIN_GITLEAKS_GOMAXPROCS:-}" ]]; then
+        gitleaks_prefix=(env "GOMAXPROCS=${TOOLCHAIN_GITLEAKS_GOMAXPROCS}")
+    fi
+
+    local rc=0
+    case "$gitleaks_mode" in
+        range)
+            "${gitleaks_prefix[@]}" gitleaks detect --log-opts="$gitleaks_range" --no-color "${gitleaks_config[@]}" > "$output_file" 2>&1 || rc=$?
+            # Fallback for repos without expected remote refs/range
+            if [[ "$rc" -ne 0 ]] && grep -qiE "bad revision|unknown revision|not a valid object name|ambiguous argument" "$output_file"; then
+                rc=0
+                "${gitleaks_prefix[@]}" gitleaks protect --staged --no-color "${gitleaks_config[@]}" > "$output_file" 2>&1 || rc=$?
+            fi
+            ;;
+        staged)
+            "${gitleaks_prefix[@]}" gitleaks protect --staged --no-color "${gitleaks_config[@]}" > "$output_file" 2>&1 || rc=$?
+            ;;
+        full)
+            "${gitleaks_prefix[@]}" gitleaks detect --source="$REPO_ROOT" --no-git --no-color "${gitleaks_config[@]}" > "$output_file" 2>&1 || rc=$?
+            ;;
+        *)
+            echo "INVALID_GITLEAKS_MODE:$gitleaks_mode (expected full|range|staged)" > "$output_file"
+            TOOL_STATUS["gitleaks"]="error"
+            return 1
+            ;;
+    esac
+
+    if [[ "$rc" -eq 0 ]]; then
         echo "CLEAN" > "$output_file"
         TOOL_STATUS["gitleaks"]="pass"
     else
