@@ -382,7 +382,7 @@ Seeded on %s with template %s.
 Adopted AgentOps knowledge compounding workflow:
 - .agents/ directory for session artifacts
 - GOALS.md for fitness gates
-- Knowledge flywheel via ao inject / ao forge
+- Knowledge flywheel via MEMORY.md and session hooks
 
 ## Next Steps
 
