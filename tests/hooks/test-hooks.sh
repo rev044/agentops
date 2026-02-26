@@ -225,6 +225,28 @@ EC=0
 echo "$INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 2 ]; then pass "content_check blocks paths outside repo"; else fail "content_check blocks paths outside repo (exit=$EC, expected 2)"; fi
 
+# Test 30: paired_files passes when command + companion test changed
+MOCK_PAIRED_PASS="$TMPDIR/mock-paired-pass"
+setup_mock_repo "$MOCK_PAIRED_PASS"
+mkdir -p "$MOCK_PAIRED_PASS/cli/cmd/ao"
+echo 'package ao' > "$MOCK_PAIRED_PASS/cli/cmd/ao/sample.go"
+echo 'package ao' > "$MOCK_PAIRED_PASS/cli/cmd/ao/sample_test.go"
+git -C "$MOCK_PAIRED_PASS" add cli/cmd/ao/sample.go cli/cmd/ao/sample_test.go >/dev/null 2>&1
+PAIRED_INPUT=$(jq -n '{"metadata":{"validation":{"paired_files":[{"pattern":"cli/cmd/ao/*.go","exclude":"*_test.go","companion":"{dir}/{basename}_test{ext}","message":"missing paired test change"}]}}}')
+EC=0
+(cd "$MOCK_PAIRED_PASS" && echo "$PAIRED_INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1) || EC=$?
+if [ "$EC" -eq 0 ]; then pass "paired_files passes with matched companion change"; else fail "paired_files passes with matched companion change (exit=$EC, expected 0)"; fi
+
+# Test 31: paired_files blocks when companion missing from changed set
+MOCK_PAIRED_FAIL="$TMPDIR/mock-paired-fail"
+setup_mock_repo "$MOCK_PAIRED_FAIL"
+mkdir -p "$MOCK_PAIRED_FAIL/cli/cmd/ao"
+echo 'package ao' > "$MOCK_PAIRED_FAIL/cli/cmd/ao/solo.go"
+git -C "$MOCK_PAIRED_FAIL" add cli/cmd/ao/solo.go >/dev/null 2>&1
+EC=0
+(cd "$MOCK_PAIRED_FAIL" && echo "$PAIRED_INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1) || EC=$?
+if [ "$EC" -eq 2 ]; then pass "paired_files blocks missing companion"; else fail "paired_files blocks missing companion (exit=$EC, expected 2)"; fi
+
 # Test 30: Allowlist blocks disallowed commands
 EC=0
 echo '{"metadata":{"validation":{"tests":"curl http://evil.com"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || EC=$?

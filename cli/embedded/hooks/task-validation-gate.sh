@@ -111,6 +111,39 @@ resolve_repo_path() {
     esac
 }
 
+collect_changed_files() {
+    {
+        git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true
+        git diff --name-only --diff-filter=ACMR 2>/dev/null || true
+        git ls-files --others --exclude-standard 2>/dev/null || true
+    } | awk 'NF' | sort -u
+}
+
+derive_companion_path() {
+    local source_file="$1"
+    local companion_template="$2"
+    local source_dir source_name source_basename source_ext companion
+
+    source_dir=$(dirname -- "$source_file")
+    source_name=$(basename -- "$source_file")
+    source_basename="$source_name"
+    source_ext=""
+    if [[ "$source_name" == *.* ]]; then
+        source_basename="${source_name%.*}"
+        source_ext=".${source_name##*.}"
+    fi
+
+    companion="$companion_template"
+    companion="${companion//\{dir\}/$source_dir}"
+    companion="${companion//\{basename\}/$source_basename}"
+    companion="${companion//\{ext\}/$source_ext}"
+    companion="${companion#./}"
+    while [[ "$companion" == *"//"* ]]; do
+        companion="${companion//\/\//\/}"
+    done
+    printf '%s\n' "$companion"
+}
+
 # Extract metadata.validation — fail open on parse errors
 if ! VALIDATION=$(echo "$INPUT" | jq -r '.metadata.validation // empty' 2>/dev/null); then
     log_error "JSON parse error on stdin"
@@ -186,7 +219,62 @@ if [ -n "$CONTENT_CHECKS" ] && [ "$CONTENT_CHECKS" != "null" ]; then
     fi
 fi
 
-# 3. tests: command string
+# 3. paired_files: array of {pattern, exclude, companion, message}
+PAIRED_RULES=$(echo "$VALIDATION" | jq -r '.paired_files // empty' 2>/dev/null)
+if [ -n "$PAIRED_RULES" ] && [ "$PAIRED_RULES" != "null" ]; then
+    RULE_COUNT=$(echo "$PAIRED_RULES" | jq -r 'length' 2>/dev/null)
+    if [ -n "$RULE_COUNT" ] && [ "$RULE_COUNT" -gt 0 ] 2>/dev/null; then
+        CHANGED_FILES=$(collect_changed_files)
+        if [ -n "$CHANGED_FILES" ]; then
+            for i in $(seq 0 $((RULE_COUNT - 1))); do
+                RULE_PATTERN=$(echo "$PAIRED_RULES" | jq -r ".[$i].pattern // empty" 2>/dev/null)
+                RULE_EXCLUDE=$(echo "$PAIRED_RULES" | jq -r ".[$i].exclude // empty" 2>/dev/null)
+                RULE_COMPANION=$(echo "$PAIRED_RULES" | jq -r ".[$i].companion // empty" 2>/dev/null)
+                RULE_MESSAGE=$(echo "$PAIRED_RULES" | jq -r ".[$i].message // empty" 2>/dev/null)
+
+                if [ -z "$RULE_PATTERN" ] || [ -z "$RULE_COMPANION" ]; then
+                    continue
+                fi
+
+                while IFS= read -r CHANGED_FILE; do
+                    [ -n "$CHANGED_FILE" ] || continue
+
+                    if [[ "$CHANGED_FILE" != $RULE_PATTERN ]]; then
+                        continue
+                    fi
+                    if [ -n "$RULE_EXCLUDE" ] && [[ "$CHANGED_FILE" == $RULE_EXCLUDE ]]; then
+                        continue
+                    fi
+
+                    DERIVED_COMPANION=$(derive_companion_path "$CHANGED_FILE" "$RULE_COMPANION")
+                    RESOLVED_COMPANION=$(resolve_repo_path "$DERIVED_COMPANION") || {
+                        log_error "blocked paired_files companion outside repo root: $DERIVED_COMPANION"
+                        write_failure "paired_files" "resolve_repo_path" 1 "path escapes repo root: $DERIVED_COMPANION"
+                        echo "VALIDATION FAILED: paired_files — path escapes repo root: $DERIVED_COMPANION" >&2
+                        exit 2
+                    }
+                    REL_COMPANION=$(to_repo_relative_path "$RESOLVED_COMPANION")
+                    REL_COMPANION="${REL_COMPANION#./}"
+
+                    if ! printf '%s\n' "$CHANGED_FILES" | grep -Fx -- "$REL_COMPANION" >/dev/null 2>&1; then
+                        FAIL_DETAIL="missing companion '$REL_COMPANION' for changed file '$CHANGED_FILE'"
+                        write_failure "paired_files" "$RULE_PATTERN" 1 "$FAIL_DETAIL"
+                        if [ -n "$RULE_MESSAGE" ]; then
+                            echo "VALIDATION FAILED: paired_files — $RULE_MESSAGE" >&2
+                        else
+                            echo "VALIDATION FAILED: paired_files — $FAIL_DETAIL" >&2
+                        fi
+                        echo "  Changed file: $CHANGED_FILE" >&2
+                        echo "  Expected companion: $REL_COMPANION" >&2
+                        exit 2
+                    fi
+                done <<< "$CHANGED_FILES"
+            done
+        fi
+    fi
+fi
+
+# 4. tests: command string
 TESTS_CMD=$(echo "$VALIDATION" | jq -r '.tests // empty' 2>/dev/null)
 if [ -n "$TESTS_CMD" ] && [ "$TESTS_CMD" != "null" ]; then
     if ! run_restricted "$TESTS_CMD"; then
@@ -197,7 +285,7 @@ if [ -n "$TESTS_CMD" ] && [ "$TESTS_CMD" != "null" ]; then
     fi
 fi
 
-# 4. lint: command string
+# 5. lint: command string
 LINT_CMD=$(echo "$VALIDATION" | jq -r '.lint // empty' 2>/dev/null)
 if [ -n "$LINT_CMD" ] && [ "$LINT_CMD" != "null" ]; then
     if ! run_restricted "$LINT_CMD"; then
@@ -208,7 +296,7 @@ if [ -n "$LINT_CMD" ] && [ "$LINT_CMD" != "null" ]; then
     fi
 fi
 
-# 5. command: command string
+# 6. command: command string
 GENERIC_CMD=$(echo "$VALIDATION" | jq -r '.command // empty' 2>/dev/null)
 if [ -n "$GENERIC_CMD" ] && [ "$GENERIC_CMD" != "null" ]; then
     if ! run_restricted "$GENERIC_CMD"; then
