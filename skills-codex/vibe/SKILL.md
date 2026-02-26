@@ -172,11 +172,11 @@ esac
 - **Exit 1 (failed):** Auto-FAIL the vibe. Do NOT proceed to council.
 - **Exit 2 (skipped):** Note "OL validation skipped" in report. Proceed to council.
 
-### Step 2.5: Codex Review (if available)
+### Step 2.5: Codex Review (opt-in via `--mixed`)
 
-**Skip if `--quick` (see Step 1.5).**
+**Skip unless `--mixed` is passed.** Also skip if `--quick` (see Step 1.5).
 
-Run a fast, diff-focused code review via Codex CLI before council:
+Codex review is opt-in because it adds 30–60s latency and token cost. Users explicitly request cross-vendor input with `--mixed`.
 
 ```bash
 echo "$(date -Iseconds) preflight: checking codex" >> .agents/council/preflight.log
@@ -202,6 +202,7 @@ fi
 This gives council judges a Codex-generated review as pre-existing context — cheap, fast, diff-focused. It does NOT replace council judgment; it augments it.
 
 **Skip conditions:**
+- `--mixed` not passed → skip (opt-in only)
 - Codex CLI not on PATH → skip silently
 - `codex review` fails → skip silently, proceed with council only
 - No uncommitted changes → skip (nothing to review)
@@ -540,7 +541,7 @@ See `references/examples.md` for additional examples: security audit with spec c
 | "COMPLEXITY SKIPPED: radon not installed" | Python complexity analyzer missing | Install with `pip install radon` or skip complexity (council still runs). |
 | "COMPLEXITY SKIPPED: gocyclo not installed" | Go complexity analyzer missing | Install with `go install github.com/fzipp/gocyclo/cmd/gocyclo@latest` or skip. |
 | Vibe returns PASS but constraint tests fail | Council LLMs miss mechanical violations | Check `.agents/council/<timestamp>-vibe-*.md` for constraint test results. Failed constraints override council PASS. Fix violations and re-run. |
-| Codex review skipped | Codex CLI not on PATH or no uncommitted changes | Install Codex CLI (`brew install codex`) or commit changes first. Vibe proceeds without codex review. |
+| Codex review skipped | `--mixed` not passed, Codex CLI not on PATH, or no uncommitted changes | Codex review is opt-in — pass `--mixed` to enable. Also requires Codex CLI on PATH and uncommitted changes. |
 | "No modified files detected" | Clean working tree, no recent commits | Make changes or specify target path explicitly: `$vibe src/auth/`. |
 | Spec-compliance judge not spawned | No spec found in beads/plans | Reference bead ID in commit message or create plan doc in `.agents/plans/`. Without spec, vibe uses 2 independent judges (3 with `--deep`). |
 
