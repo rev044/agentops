@@ -274,9 +274,19 @@ for skill_dir in "${TARGETS[@]}"; do
     fi
   done < <(awk 'BEGIN{skip=0} /^```/{skip=1-skip; next} skip==0{print}' "$skill_md" | grep -oE '\bscripts/[a-zA-Z0-9_-]+\.[a-z]+' 2>/dev/null | sort -u || true)
 
-  # Check 8: CLI command validation (only if ao is on PATH)
-  if command -v ao >/dev/null 2>&1; then
-    ao_cmds="$(ao help 2>&1 | grep -oE '^\s+[a-z][-a-z]*' | tr -d ' ' | sort -u || true)"
+  # Check 8: CLI command validation (prefer repo binary over PATH)
+  ao_bin=""
+  if [[ -x "$REPO_ROOT/cli/bin/ao" ]]; then
+    ao_bin="$REPO_ROOT/cli/bin/ao"
+  elif command -v ao >/dev/null 2>&1; then
+    ao_bin="$(command -v ao)"
+  fi
+  if [[ -n "$ao_bin" ]]; then
+    ao_cmds="$("$ao_bin" help 2>&1 | grep -oE '^\s+[a-z][-a-z]*' | tr -d ' ' | sort -u || true)"
+    # Guard: skip if binary produced no commands (broken build)
+    [[ -z "$ao_cmds" ]] && ao_bin=""
+  fi
+  if [[ -n "$ao_bin" ]]; then
     while IFS= read -r subcmd; do
       [[ -z "$subcmd" ]] && continue
       if ! echo "$ao_cmds" | grep -qx "$subcmd"; then
@@ -292,6 +302,7 @@ for skill_dir in "${TARGETS[@]}"; do
     # Skip common filesystem path false positives
     case "$ref" in
       dev|tmp|usr|bin|etc|opt|var|home|proc|sys|path|null|dev/null|skill-name) continue ;;
+      agents|hooks|mcp|memory|output-style|permissions|allowed-tools|approved-tools|health|healthz|readyz|name) continue ;;
     esac
     if [[ ! -d "$SKILLS_ROOT/$ref" ]]; then
       report "DEAD_XREF" "$skill_dir" "references /$ref but skill directory not found"
