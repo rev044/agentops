@@ -6,17 +6,18 @@ This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get sta
 
 If you spawn into this repo without context, do this first:
 
-1. Open `docs/README.md` then `docs/INDEX.md` to get the current doc map.
-2. Identify your task domain:
+1. Read `docs/newcomer-guide.md` first for a practical repo orientation.
+2. Open `docs/README.md` then `docs/INDEX.md` to get the current doc map.
+3. Identify your task domain:
    - CLI behavior: `cli/cmd/ao/`, `cli/internal/`, `cli/docs/COMMANDS.md`
    - Skill behavior: `skills/<name>/SKILL.md`
    - Hook/gate behavior: `hooks/hooks.json` + `hooks/*.sh`
    - Validation/release/security flows: `scripts/*.sh` + `tests/`
-3. Use source-of-truth precedence when docs disagree:
+4. Use source-of-truth precedence when docs disagree:
    1. Executable code and generated artifacts (`cli/**`, `hooks/**`, `scripts/**`, `cli/docs/COMMANDS.md`)
    2. Skill contracts and manifests (`skills/**/SKILL.md`, `hooks/hooks.json`, `schemas/**`)
    3. Explanatory docs (`docs/**`, `README.md`)
-4. If you find conflicts, follow the higher-precedence source and call out the mismatch explicitly in your report/PR.
+5. If you find conflicts, follow the higher-precedence source and call out the mismatch explicitly in your report/PR.
 
 ## Installing/Updating Skills
 
