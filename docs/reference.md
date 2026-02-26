@@ -188,13 +188,11 @@ claude plugin update agentops
 ### Per-Runtime Install (non-Claude plugin path)
 
 ```bash
-# Codex (Codex-native formatting)
-git clone https://github.com/boshu2/agentops.git
-cd agentops
-bash scripts/install-codex-native-skills.sh
+# Codex CLI
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode
-bash scripts/install-opencode.sh
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 
 # Other agents (example: Cursor)
 npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y

@@ -7,9 +7,12 @@
 #   ./scripts/install-codex.sh
 #
 # What it does:
-#   1. Clones agentops repo (or pulls if exists)
-#   2. Copies pre-built Codex-native skills to ~/.codex/skills/
+#   1. Shallow-clones agentops repo (or pulls if exists)
+#   2. Symlinks pre-built Codex-native skills into ~/.codex/skills/
 #   3. Verifies installation
+#
+# To update later:
+#   cd ~/.codex/agentops && git pull
 
 set -euo pipefail
 
@@ -44,7 +47,7 @@ if [ -d "$AGENTOPS_DIR/.git" ]; then
 else
   info "Cloning AgentOps..."
   mkdir -p "$(dirname "$AGENTOPS_DIR")"
-  git clone "$REPO_URL" "$AGENTOPS_DIR"
+  git clone --depth 1 "$REPO_URL" "$AGENTOPS_DIR"
 fi
 
 # Step 3: Verify pre-built Codex skills exist
@@ -53,23 +56,26 @@ if [ ! -d "$SKILLS_SRC" ]; then
   fail "Pre-built Codex skills not found at $SKILLS_SRC"
 fi
 
-# Step 4: Copy skills to ~/.codex/skills/
+# Step 4: Symlink skills into ~/.codex/skills/
 mkdir -p "$SKILLS_DST"
 
-copied=0
+linked=0
 for skill_dir in "$SKILLS_SRC"/*/; do
   [ -d "$skill_dir" ] || continue
   skill_name="$(basename "$skill_dir")"
-  /bin/cp -R "${skill_dir%/}" "${SKILLS_DST}/"
-  copied=$((copied + 1))
+  dst="$SKILLS_DST/$skill_name"
+  rm -rf "$dst"
+  ln -s "${skill_dir%/}" "$dst"
+  linked=$((linked + 1))
 done
 
 # Step 5: Verify
 echo ""
+SKILL_COUNT=$(find -L "$SKILLS_DST" -name "SKILL.md" -maxdepth 2 2>/dev/null | wc -l | tr -d ' ')
 info "Installation complete!"
-echo "  Skills: $SKILLS_DST ($copied skills)"
+echo "  Skills: $SKILLS_DST ($SKILL_COUNT skills)"
 echo ""
 echo "Restart Codex to activate."
 echo ""
 echo "To update later:"
-echo "  curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+echo "  cd $AGENTOPS_DIR && git pull"

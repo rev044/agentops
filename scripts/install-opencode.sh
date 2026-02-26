@@ -48,7 +48,7 @@ if [ -d "$AGENTOPS_DIR/.git" ]; then
 else
   info "Cloning AgentOps..."
   mkdir -p "$(dirname "$AGENTOPS_DIR")"
-  git clone "$REPO_URL" "$AGENTOPS_DIR"
+  git clone --depth 1 "$REPO_URL" "$AGENTOPS_DIR"
 fi
 
 # Step 3: Install plugin dependency

@@ -93,7 +93,7 @@ The `ao doctor` "Plugin" check scans the `skills/` directory for subdirectories 
    ao hooks test
    ```
 
-For Codex, use `bash scripts/install-codex-native-skills.sh`. For OpenCode, use `bash scripts/install-opencode.sh`. For other Skills-compatible agents (for example Cursor), use agent-specific `npx skills` commands with explicit skill selection: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`.
+For Codex, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. For OpenCode, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`. For other Skills-compatible agents (for example Cursor), use agent-specific `npx skills` commands with explicit skill selection: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`.
 
 ### `npx skills` update issues (non-Claude/non-Codex/non-OpenCode)
 

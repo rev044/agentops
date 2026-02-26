@@ -318,6 +318,7 @@ run_dangerous_pattern_scan() {
             --exclude-dir=tests \
             --exclude-dir=cli/testdata \
             --exclude="install-opencode.sh" \
+            --exclude="install-codex.sh" \
             --exclude="ci-local-release.sh" \
             . 2>/dev/null; then
             echo "Found dangerous pattern: $pattern"
@@ -483,6 +484,8 @@ run_step_bg "Doc-release gate" ./tests/docs/validate-doc-release.sh
 run_step_bg "Manifest schema validation" ./scripts/validate-manifests.sh --repo-root "$REPO_ROOT"
 run_step_bg "Manifest version consistency" check_manifest_version_consistency
 run_step_bg "Hook preflight" ./scripts/validate-hook-preflight.sh
+run_step_bg "Hooks/docs parity" ./scripts/validate-hooks-doc-parity.sh
+run_step_bg "CI policy/docs parity" ./scripts/validate-ci-policy-parity.sh
 run_step_bg "Embedded sync check" ./scripts/validate-embedded-sync.sh
 run_step_bg "Secret pattern scan" run_security_scan_patterns
 run_step_bg "Dangerous shell pattern scan" run_dangerous_pattern_scan

@@ -297,8 +297,8 @@ Once merged:
 - Your skill is available in the plugin
 - Users install by runtime:
   - Claude Code: `claude plugin install agentops@agentops-marketplace`
-  - Codex: `bash scripts/install-codex-native-skills.sh`
-  - OpenCode: `bash scripts/install-opencode.sh`
+  - Codex: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`
+  - OpenCode: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`
   - Other agents: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`
 - You'll be credited as author
 

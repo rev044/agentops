@@ -27,11 +27,11 @@ Use the [skills.sh](https://skills.sh/) npm package to install AgentOps skills f
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex: use Codex-native installer (repo-local script)
-bash scripts/install-codex-native-skills.sh
+# Codex CLI
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
-# OpenCode: use OpenCode installer script
-bash scripts/install-opencode.sh
+# OpenCode
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 
 # Other agents (for example Cursor): install only selected skills
 npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
@@ -88,7 +88,13 @@ cd cli && make build && make test
 # 6. Contract compatibility
 ./scripts/check-contract-compatibility.sh
 
-# 7. Plugin structure (symlinks, manifests)
+# 7. Hook/docs parity
+bash scripts/validate-hooks-doc-parity.sh
+
+# 8. CI policy/docs parity
+bash scripts/validate-ci-policy-parity.sh
+
+# 9. Plugin structure (symlinks, manifests)
 ./scripts/validate-manifests.sh --repo-root .
 find skills -type l  # must be empty — zero symlinks allowed
 
@@ -100,20 +106,23 @@ scripts/ci-local-release.sh
 
 | Job | What it validates | Common failure |
 |-----|-------------------|----------------|
-| **skill-integrity** | Every `references/*.md` file is linked from SKILL.md; no dead refs, dead xrefs, or missing scripts | Adding a reference file without linking it in SKILL.md |
-| **doc-release-gate** | Skill counts match across SKILL-TIERS.md, PRODUCT.md, README.md, INDEX.md; link validation | Adding/removing a skill without running `scripts/sync-skill-counts.sh` |
-| **plugin-load-test** | No symlinks anywhere in the repo; manifests valid; plugin structure correct | Creating symlinks instead of real file copies |
-| **go-build** | `ao` binary builds; tests pass with `-race`; embedded hooks in sync; Go complexity budget | New function exceeds cyclomatic complexity 25 |
-| **shellcheck** | All `.sh` files pass ShellCheck at error severity | Unquoted variables, missing `set -euo pipefail` |
-| **markdownlint** | All tracked `.md` files pass markdownlint | Trailing whitespace, inconsistent list markers |
-| **smoke-test** | Skill frontmatter valid; no placeholders; no TODOs in SKILL.md files | Leaving `TODO` or placeholder emails in SKILL.md |
-| **embedded-sync** | `cli/embedded/` matches source files in `hooks/`, `lib/`, `skills/` | Editing hooks without running `cd cli && make sync-hooks` |
 | **cli-docs-parity** | `cli/docs/COMMANDS.md` matches `ao --help` output | Adding a CLI command without running `scripts/generate-cli-reference.sh` |
+| **cli-integration** | Built CLI runs integration command matrix and hook lifecycle smoke tests | CLI command behavior drift not covered by unit tests |
+| **contract-compatibility-gate** | INDEX.md contract links resolve; schemas are valid JSON; orphan contracts fail unless allowlisted | Adding a contract file without cataloguing it in `docs/INDEX.md` or allowlist governance |
+| **doc-release-gate** | Skill counts match across SKILL-TIERS.md, PRODUCT.md, README.md, INDEX.md; link validation | Adding/removing a skill without running `scripts/sync-skill-counts.sh` |
+| **embedded-sync** | `cli/embedded/` matches source files in `hooks/`, `lib/`, `skills/` | Editing hooks without running `cd cli && make sync-hooks` |
+| **go-build** | `ao` binary builds; tests pass with `-race`; embedded hooks in sync; Go complexity budget | New function exceeds cyclomatic complexity 25 |
 | **hook-preflight** | All hooks have kill switches, no unsafe eval, timeouts present | Using `eval` or backtick substitution in hooks |
-| **contract-compatibility** | INDEX.md contract links resolve; schemas are valid JSON; no orphaned contracts | Adding a contract file without cataloguing it in `docs/INDEX.md` |
+| **memrl-health** | MemRL feedback loop wiring and health checks | Broken ingestion/feedback loop wiring |
+| **plugin-load-test** | No symlinks anywhere in the repo; manifests valid; plugin structure correct | Creating symlinks instead of real file copies |
 | **security-scan** | No hardcoded secrets or dangerous patterns (`curl\|sh`, `rm -rf /`) | Hardcoded API keys or passwords in non-test files |
-| **e2e-install-test** | Plugin installs and loads in Claude Code CLI | Broken manifest or skill frontmatter |
 | **security-toolchain-gate** | Semgrep, gosec, gitleaks, etc. | Non-blocking (`continue-on-error: true`) |
+| **shellcheck** | All `.sh` files pass ShellCheck at error severity | Unquoted variables, missing `set -euo pipefail` |
+| **skill-integrity** | Every `references/*.md` file is linked from SKILL.md; no dead refs, dead xrefs, or missing scripts | Adding a reference file without linking it in SKILL.md |
+| **skill-schema** | SKILL frontmatter conforms to schema | Missing/invalid frontmatter fields in SKILL.md |
+| **smoke-test** | Skill frontmatter valid; no placeholders; no TODOs in SKILL.md files | Leaving `TODO` or placeholder emails in SKILL.md |
+| **validate-ci-policy-parity** | AGENTS CI table and blocking policy match workflow summary enforcement | Docs say non-blocking/required but workflow differs |
+| **validate-hooks-doc-parity** | Scoped docs avoid stale hook-count claims vs runtime `hooks/hooks.json` | Runtime hook contract changed but docs were not updated |
 
 ### Key Constraints Agents Must Follow
 
