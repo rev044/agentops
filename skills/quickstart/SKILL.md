@@ -361,9 +361,10 @@ Show the user that their sessions have already started compounding — and how t
 # How many learnings have accumulated so far?
 ls .agents/learnings/ 2>/dev/null | wc -l
 
-# Surface the most relevant knowledge for this session
+# Show flywheel health (if ao available)
 if command -v ao &>/dev/null; then
-  ao inject --format markdown --max-tokens 1000 2>/dev/null | head -40
+  ao flywheel status 2>/dev/null
+  ao status 2>/dev/null | head -10
 else
   # ao not installed: show raw learnings from disk
   ls .agents/learnings/*.md 2>/dev/null | while read -r f; do
@@ -377,29 +378,31 @@ fi
 **The aha moment.** Explain what just happened:
 
 ```
-You just ran 'ao inject' — the same command the session-start hook runs automatically.
+The flywheel turns automatically through hooks:
 
-What it does:
-  1. Scans .agents/learnings/ for knowledge from past sessions
-  2. Scores by freshness + retrieval history + confidence
-  3. Injects the best-scoring knowledge into the current session context
+  SessionStart:  MEMORY.md auto-loaded (your knowledge is always there)
+  During work:   Skills invoke ao commands at the right moments
+  SessionEnd:    forge → pool ingest → notebook update → maturity scan
+                 → dedup → contradict → expire/evict → prune
+  Stop hook:     flywheel close-loop → citation feedback → promote
 
 What it means for you:
-  - Session 2 already knows what Session 1 learned
-  - Session 50 knows what Session 1 through 49 learned
-  - Patterns that surface repeatedly get promoted. Old ones decay.
+  - Session 2 already knows what Session 1 learned (via MEMORY.md)
+  - Useful learnings get promoted, stale ones decay and get archived
+  - You never run ao commands directly — skills and hooks handle it
 
-The flywheel is running. You can verify it any time:
-  ao inject                    ← see what this session inherited
-  ao status                    ← current knowledge inventory
-  ls .agents/learnings/        ← raw learning files
+The flywheel is running. Verify any time:
+  ao flywheel status             ← escape velocity check
+  ao status                      ← current knowledge inventory
+  ls .agents/learnings/          ← raw learning files
 ```
 
 **If no learnings exist yet**, tell the user:
 ```
 No learnings yet — that's expected on your first session.
-Run /rpi "a small goal" to complete one full cycle,
-then 'ao inject' in your NEXT session to see what compounded.
+Run /rpi "a small goal" to complete one full cycle.
+The session-end hook will extract learnings automatically.
+Next session, they'll be in MEMORY.md.
 ```
 
 ### Step 8: What's Next
@@ -451,8 +454,8 @@ git rev-parse --is-inside-work-tree &>/dev/null && GIT_REPO=true || GIT_REPO=fal
 | Current State | Tier | Next Step |
 |---------------|------|-----------|
 | No git repo | — | "Initialize git with `git init` to unlock change tracking, `/vibe`, and full RPI workflow." |
-| Git repo, no `ao`, no `.agents/` | Tier 0 | "You're at Tier 0 — skills work standalone. When you want learnings to persist across sessions, install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao init --hooks`" |
-| `ao` installed, no `.agents/` yet | Tier 0+ | "Run `ao init` to create the `.agents/` directory and .gitignore. Add `--hooks` to also install flywheel hooks (SessionStart + Stop). Your knowledge flywheel starts capturing learnings automatically." |
+| Git repo, no `ao`, no `.agents/` | Tier 0 | "You're at Tier 0 — skills work standalone. When you want learnings to persist across sessions, install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao seed && ao init --hooks`" |
+| `ao` installed, no `.agents/` yet | Tier 0+ | "Run `ao seed` to bootstrap the flywheel (creates `.agents/`, GOALS.md, bootstrap learning, CLAUDE.md section). Then `ao init --hooks` for SessionStart + SessionEnd automation. Your knowledge flywheel starts capturing learnings automatically." |
 | `ao` + `.agents/`, no beads | Tier 1 | "Knowledge flywheel is active. When you have multi-issue epics, add beads for issue tracking: `brew install boshu2/agentops/beads && bd init --prefix <your-prefix>`" |
 | `ao` + beads, no Codex | Tier 2 | "Full RPI stack. Start with repo instructions (check `AGENTS.md` if present), then try `bd ready` (find work) or `/crank` (run an epic)." |
 | `ao` + beads + Codex | Tier 2+ | "Full stack with cross-vendor. Try `/council --mixed` for Claude + Codex consensus, or `/vibe --mixed` for cross-vendor code review." |
