@@ -1049,15 +1049,15 @@ test_ao_delegation() {
     fi
 }
 
-test_ao_delegation "ao-extract.sh" "^know forge transcript"
-test_ao_delegation "ao-feedback-loop.sh" "^work feedback-loop"
-test_ao_delegation "ao-flywheel-close.sh" "^quality flywheel close-loop"
-test_ao_delegation "ao-forge.sh" "^know forge transcript"
-test_ao_delegation "ao-inject.sh" "^know inject"
-test_ao_delegation "ao-maturity-scan.sh" "^quality maturity --scan"
-test_ao_delegation "ao-ratchet-status.sh" "^work ratchet status"
-test_ao_delegation "ao-session-outcome.sh" "^know session-outcome"
-test_ao_delegation "ao-task-sync.sh" "^work task-sync"
+test_ao_delegation "ao-extract.sh" "^forge transcript"
+test_ao_delegation "ao-feedback-loop.sh" "^feedback-loop"
+test_ao_delegation "ao-flywheel-close.sh" "^flywheel close-loop"
+test_ao_delegation "ao-forge.sh" "^forge transcript"
+test_ao_delegation "ao-inject.sh" "^inject"
+test_ao_delegation "ao-maturity-scan.sh" "^maturity --scan"
+test_ao_delegation "ao-ratchet-status.sh" "^ratchet status"
+test_ao_delegation "ao-session-outcome.sh" "^session-outcome"
+test_ao_delegation "ao-task-sync.sh" "^task-sync"
 
 # Verify delegation hooks log failures to hook-errors.log
 echo ""
