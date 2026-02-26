@@ -22,9 +22,9 @@ The GOALS.md parser and renderer need adversarial robustness — backtick corrup
 
 **Steer:** increase
 
-### 2. Close coverage gaps in cmd/ao
+### 2. Push cmd/ao coverage to 85%
 
-The cmd/ao package sits at 58% statement coverage. Add targeted tests for untested command handlers and fallback paths to reach 70%.
+The cmd/ao package is at 78.8% statement coverage (up from 58%). Close the remaining gaps in untested command handlers, error paths, and edge cases to reach 85%.
 
 **Steer:** increase
 

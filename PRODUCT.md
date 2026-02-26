@@ -1,18 +1,18 @@
 ---
-last_reviewed: 2026-02-19
+last_reviewed: 2026-02-25
 ---
 
 # PRODUCT.md
 
 ## Mission
 
-AgentOps is a skills plugin that treats context quality as the primary lever for agent output quality — orchestrating what information enters each agent's window at each phase so every decision is made with the right context and nothing else, then compounding those results through a knowledge flywheel that makes each successive context window smarter.
+AgentOps treats context quality as the primary lever for agent output quality — orchestrating what information enters each agent's window at each phase so every decision is made with the right context and nothing else, then compounding those results through a knowledge flywheel that makes each successive session smarter.
 
 ## Vision
 
 Make coding agents feel like a real engineering organization: validated work, institutional memory, and continuous improvement by default.
 
-AgentOps should be the local-first DevOps layer around your coding agent. Execution happens in sessions, but knowledge persists across sessions: plans, gates, outcomes, and learnings get captured and fed forward so the same codebase becomes faster and safer to change over time.
+AgentOps is the local-first DevOps layer around your coding agent. Execution happens in sessions, but knowledge persists across sessions: plans, gates, outcomes, and learnings get captured and fed forward so the same codebase becomes faster and safer to change over time.
 
 ## Target Personas
 
@@ -33,26 +33,10 @@ AgentOps should be the local-first DevOps layer around your coding agent. Execut
 - **Compound Intelligence Across Sessions** — Each session captures learnings that pass quality gates (scored on specificity, actionability, novelty, context, and confidence) into gold/silver/bronze tiers. Freshness decay ensures recent insights outweigh stale patterns. The system doesn't just remember — it curates.
 - **Ship With Confidence, Not Caution** — Least-privilege context loading gives each agent only the information relevant to its task, preventing context contamination. Parallel model validation and self-correcting workflows catch issues before deployment, letting teams move faster without sacrificing quality.
 - **Hands-Free Goal Achievement** — Spawn agents that work independently toward your goals (via `/evolve` and `/crank`), validate their work through multi-model consensus, and commit only when passing quality gates. `/evolve` is built for overnight runs — cycle state is disk-based (survives context compaction), regression gates are hard-gated (no snapshot = stop), and every cycle writes a verifiable audit trail. Validated in production: 116 cycles ran ~7 hours unattended, delivering test coverage from ~85% to ~97%, zero high-complexity functions, and modern idiomatic Go across 203 files.
-- **Orchestration at Scale** — Big visions decompose into dependency-mapped waves of parallel workers, each running in fresh-context isolation. No subagent nesting required — workers are flat peers, not nested children. `/plan` creates the wave structure from dependencies; `/crank` executes it. The system handles coordination so you manage the roadmap, not the agents.
-- **Progressive Approachability** — New users see 8 starter skills (`/quickstart`, `/research`, `/council`, `/vibe`, `/rpi`, `/implement`, `/learn`, `/status`), not 53. Plain-English verb aliases let you type what you mean — "review this code" triggers `/vibe`, "execute this epic" triggers `/crank`. The 12 advanced skills (planning, orchestration, validation) and 20 expert skills (cross-vendor, PR workflows, traceability) reveal themselves as you grow.
-- **Zero Setup, Zero Telemetry** — All state lives in git-tracked `.agents/` directories with no cloud dependency, giving teams full control and auditability while working across any coding agent runtime.
-
-## Relationship to Olympus
-
-AgentOps is a complete, standalone system — autonomous within a session. You do not need Olympus to use AgentOps. The 53 skills, 12 hooks, knowledge flywheel, and RPI lifecycle work independently — `/rpi` ships features end-to-end, `/evolve` runs goal-driven improvement loops, and the flywheel compounds knowledge across sessions, all without any external daemon.
-
-**Olympus is the power-user layer for people who want to go further.**
-
-For users who've mastered AgentOps and want fully autonomous cross-session execution — no human types `/rpi`, no human opens Claude Code — Olympus provides:
-
-- **A persistent daemon** that polls for ready work, spawns agent sessions, and monitors context saturation without human intervention
-- **Context bundles with provenance** — hashable, diffable context assemblies that track exactly which learnings, specs, and prior failures were injected into each attempt
-- **A run ledger** — append-only evidence of every execution attempt, what context produced what result, feeding failure context into the next spawn automatically
-- **Constraint injection** — learnings compile to `*_test.go` files that fail the build, not markdown that might be ignored
-
-AgentOps is where you learn to be a context engineer. Olympus is what you build when you've mastered it and want the machine to run without you.
-
-**Repo:** [github.com/boshu2/olympus](https://github.com/boshu2/olympus)
+- **Compose What You Need** — Skills are standalone building blocks you compose however you want. Use one (`/council validate this PR`), chain several (`/plan` → `/pre-mortem` → `/crank`), or run the full pipeline (`/rpi`). The same recursive shape — lead decomposes work, workers execute atomically, validation gates lock progress — repeats at every scale from a single `/implement` to a full `/evolve` run.
+- **Multi-Runtime, Multi-Model** — Works across Claude Code, Codex CLI, Cursor, and OpenCode. Skills are portable across runtimes (`/converter` exports to native formats). Codex-native skill format ships alongside Claude-native. Independent judges (Claude + Codex) debate before code ships — not advisory, validation gates block merges until they pass.
+- **Progressive Approachability** — New users see 11 starter skills (`/quickstart`, `/research`, `/council`, `/vibe`, `/rpi`, `/implement`, `/learn`, `/status`, `/goals`, `/flywheel`, `/inbox`), not 53. Plain-English verb aliases let you type what you mean — "review this code" triggers `/vibe`, "execute this epic" triggers `/crank`. The 18 advanced skills (planning, orchestration, validation) and 20 expert skills (cross-vendor, PR workflows, traceability) reveal themselves as you grow.
+- **Zero Setup, Zero Telemetry** — All state lives in git-tracked `.agents/` directories with no cloud dependency, giving teams full control and auditability. 53 skills, 3 hooks, and the knowledge flywheel work independently with no external daemon.
 
 ## Design Principles
 
@@ -63,10 +47,24 @@ AgentOps is where you learn to be a context engineer. Olympus is what you build 
 3. **[Brownian Ratchet](docs/brownian-ratchet.md)** — Embrace agent variance, filter aggressively, ratchet successes. Chaos + filter + one-way gate = net forward progress.
 4. **[Knowledge Flywheel (escape velocity)](docs/the-science.md#the-escape-velocity-condition)** — If retrieval rate × usage rate exceeds decay rate (σ×ρ > δ), knowledge compounds. If not, it decays to zero. The flywheel exists to stay above that threshold.
 
+**Operational principles:**
+
 1. **Context quality determines output quality.** Every skill, hook, and flywheel component exists to ensure the right context is in the right window at the right time.
 2. **Least-privilege loading.** Agents receive only the context necessary for their task — phase-specific, role-scoped, freshness-weighted.
 3. **The cycle is the product.** No single skill is the value. The compounding loop — research, plan, validate, build, validate, learn, repeat — is what makes the system improve.
-4. **Dormancy is success.** When all goals pass and no work remains, the system stops. It does not manufacture work to justify its existence.
+4. **Two-tier execution.** Orchestrators (`/evolve`, `/rpi`, `/crank`) stay in the main session so you see progress and can intervene. Workers they spawn fork into subagents where results merge back via the filesystem — never accumulated chat context.
+5. **Dormancy is success.** When all goals pass and no work remains, the system stops. It does not manufacture work to justify its existence.
+
+## Usage
+
+This file enables product-aware council reviews:
+
+- **`/pre-mortem`** — Automatically includes `product` perspectives (user-value, adoption-barriers, competitive-position) alongside plan-review judges when this file exists.
+- **`/vibe`** — Automatically includes `developer-experience` perspectives (api-clarity, error-experience, discoverability) alongside code-review judges when this file exists.
+- **`/council --preset=product`** — Run product review on demand.
+- **`/council --preset=developer-experience`** — Run DX review on demand.
+
+Explicit `--preset` overrides from the user skip auto-include (user intent takes precedence).
 
 ## See Also
 
