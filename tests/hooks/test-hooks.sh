@@ -1208,6 +1208,22 @@ fi
 
 # ============================================================
 echo ""
+echo "=== go-complexity-precommit.sh ==="
+# ============================================================
+
+# Test: go-complexity-precommit ignores non-Edit/Write tools (fail-open)
+EC=0
+CLAUDE_TOOL_NAME="Read" \
+CLAUDE_TOOL_INPUT_FILE_PATH="cli/cmd/ao/main.go" \
+bash "$HOOKS_DIR/go-complexity-precommit.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then
+    pass "go-complexity-precommit ignores non-Edit/Write tool"
+else
+    fail "go-complexity-precommit ignores non-Edit/Write tool"
+fi
+
+# ============================================================
+echo ""
 echo "=== Coverage check ==="
 # ============================================================
 

@@ -160,6 +160,7 @@
 - [CLI ↔ Skills/Hooks Map](cli-skills-map.md) — Which commands are called by which skills and hooks
 - [Reference](reference.md) — Deep documentation and pipeline details
 - [Releasing](RELEASING.md) — Release process for ao CLI and plugin
+- [Release E2E Checklist](release-e2e-checklist.md) — Fast/full local gate commands and release smoke expectations
 - [Troubleshooting](troubleshooting.md) — Common issues and quick fixes
 - [Incident Runbook](INCIDENT-RUNBOOK.md) — Operational runbook for incidents and recovery
 - [AO Command Customization Matrix](architecture/ao-command-customization-matrix.md) — External command dependencies and customization policy tiers

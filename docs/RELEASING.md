@@ -155,6 +155,7 @@ Release validation is local-first and enforced by:
 ```
 
 This local gate runs doc checks, manifest/schema checks, smoke/integration checks, hook and `ao rpi` smoke paths, binary validation, SBOM generation, and security scans.
+For command variants and expected release-E2E smoke markers, see [Release E2E Checklist](release-e2e-checklist.md).
 
 ## Failure Modes
 
