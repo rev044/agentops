@@ -192,6 +192,54 @@ func parseDirectives(lines []string) ([]Directive, error) {
 	return directives, nil
 }
 
+// buildGateColumnMap takes header row cells and returns a column index map.
+// Default mapping: {"id": 0, "check": 1, "weight": 2, "description": 3}.
+// Header cell names are matched case-insensitively to override default positions.
+func buildGateColumnMap(cells []string) map[string]int {
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	for j, cell := range cells {
+		lower := strings.ToLower(strings.TrimSpace(cell))
+		switch {
+		case lower == "id":
+			colMap["id"] = j
+		case lower == "check":
+			colMap["check"] = j
+		case lower == "weight":
+			colMap["weight"] = j
+		case lower == "description":
+			colMap["description"] = j
+		}
+	}
+	return colMap
+}
+
+// parseGateRow extracts a Goal from a data row's cells using the column index map.
+// Strips backticks from the check field, defaults weight to 5 on parse error,
+// and falls back description to ID if empty.
+func parseGateRow(cells []string, colMap map[string]int) Goal {
+	g := Goal{Type: GoalTypeHealth}
+	if idx, ok := colMap["id"]; ok && idx < len(cells) {
+		g.ID = strings.TrimSpace(cells[idx])
+	}
+	if idx, ok := colMap["check"]; ok && idx < len(cells) {
+		g.Check = strings.Trim(strings.TrimSpace(cells[idx]), "`")
+	}
+	if idx, ok := colMap["weight"]; ok && idx < len(cells) {
+		w, err := strconv.Atoi(strings.TrimSpace(cells[idx]))
+		if err != nil {
+			w = 5
+		}
+		g.Weight = w
+	}
+	if idx, ok := colMap["description"]; ok && idx < len(cells) {
+		g.Description = strings.TrimSpace(cells[idx])
+	}
+	if g.Description == "" {
+		g.Description = g.ID
+	}
+	return g
+}
+
 // parseGatesTable extracts goals from a markdown table under the "Gates" section.
 // Expected columns: ID | Check | Weight | Description (order may vary if header is present).
 func parseGatesTable(lines []string) ([]Goal, error) {
@@ -243,52 +291,12 @@ func parseGatesTable(lines []string) ([]Goal, error) {
 		// First non-separator row is the header
 		if !headerFound {
 			headerFound = true
-			// Build column index map from header
-			for j, cell := range cells {
-				lower := strings.ToLower(strings.TrimSpace(cell))
-				switch {
-				case lower == "id":
-					colMap["id"] = j
-				case lower == "check":
-					colMap["check"] = j
-				case lower == "weight":
-					colMap["weight"] = j
-				case lower == "description":
-					colMap["description"] = j
-				}
-			}
+			colMap = buildGateColumnMap(cells)
 			continue
 		}
 
 		// Parse data row
-		g := Goal{Type: GoalTypeHealth}
-
-		if idx, ok := colMap["id"]; ok && idx < len(cells) {
-			g.ID = strings.TrimSpace(cells[idx])
-		}
-		if idx, ok := colMap["check"]; ok && idx < len(cells) {
-			check := strings.TrimSpace(cells[idx])
-			// Strip backticks
-			check = strings.Trim(check, "`")
-			g.Check = check
-		}
-		if idx, ok := colMap["weight"]; ok && idx < len(cells) {
-			w, err := strconv.Atoi(strings.TrimSpace(cells[idx]))
-			if err != nil {
-				// Default weight if unparseable
-				w = 5
-			}
-			g.Weight = w
-		}
-		if idx, ok := colMap["description"]; ok && idx < len(cells) {
-			g.Description = strings.TrimSpace(cells[idx])
-		}
-
-		// Use ID as description fallback
-		if g.Description == "" {
-			g.Description = g.ID
-		}
-
+		g := parseGateRow(cells, colMap)
 		if g.ID != "" {
 			goals = append(goals, g)
 		}
