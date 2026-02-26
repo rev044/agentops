@@ -9,6 +9,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SKILL_PATTERN=""
 NAMESPACE_FROM=()
 NAMESPACE_TO=()
+CODEX_LAYOUT="modular"
+ARGS_SKILL_DIR_OR_FLAG=""
+ARGS_TARGET=""
+ARGS_OUTPUT_DIR=""
 
 # ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -17,17 +21,66 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 usage() {
   cat <<'EOF'
 Usage:
-  bash skills/converter/scripts/convert.sh <skill-dir> <target> [output-dir]
-  bash skills/converter/scripts/convert.sh --all <target> [output-dir]
+  bash skills/converter/scripts/convert.sh [--codex-layout modular|inline] <skill-dir> <target> [output-dir]
+  bash skills/converter/scripts/convert.sh [--codex-layout modular|inline] --all <target> [output-dir]
 
 Targets: codex, cursor, test
 
 Examples:
   bash skills/converter/scripts/convert.sh skills/council codex
+  bash skills/converter/scripts/convert.sh --codex-layout inline skills/council codex
   bash skills/converter/scripts/convert.sh --all codex
   bash skills/converter/scripts/convert.sh skills/vibe test /tmp/out
 EOF
   exit 1
+}
+
+parse_args() {
+  local positional=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --codex-layout)
+        [[ $# -ge 2 ]] || die "--codex-layout requires a value: modular|inline"
+        CODEX_LAYOUT="$2"
+        shift 2
+        ;;
+      --codex-layout=*)
+        CODEX_LAYOUT="${1#*=}"
+        shift
+        ;;
+      --all)
+        positional+=("--all")
+        shift
+        ;;
+      -h|--help)
+        usage
+        ;;
+      --)
+        shift
+        while [[ $# -gt 0 ]]; do
+          positional+=("$1")
+          shift
+        done
+        break
+        ;;
+      -*)
+        die "Unknown flag: $1"
+        ;;
+      *)
+        positional+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  [[ "$CODEX_LAYOUT" == "modular" || "$CODEX_LAYOUT" == "inline" ]] \
+    || die "Invalid --codex-layout '$CODEX_LAYOUT'. Expected: modular|inline"
+
+  [[ ${#positional[@]} -ge 2 ]] || usage
+  ARGS_SKILL_DIR_OR_FLAG="${positional[0]}"
+  ARGS_TARGET="${positional[1]}"
+  ARGS_OUTPUT_DIR="${positional[2]:-}"
 }
 
 yaml_escape_single_quote() {
@@ -76,7 +129,19 @@ codex_rewrite_text() {
 
   output="$(printf '%s' "$output" | perl -0pe '
     s/\bClaude[ ]Code\b/Codex/g;
+    s/\bClaude[ ]Native[ ]Teams\b/Codex sub-agents/g;
+    s/\bClaude[ ]native[ ]team\b/Codex sub-agent/g;
+    s/\bClaude[ ]teams\b/Codex sub-agents/g;
+    s/\bclaude[ ]teams\b/codex sub-agents/g;
+    s/\bClaude[ ]session(s)?\b/Codex session$1/g;
+    s/\bclaude[ ]session(s)?\b/codex session$1/g;
+    s/\bClaude[ ]runtime\b/Codex runtime/g;
+    s/\bclaude[ ]runtime\b/codex runtime/g;
+    s/\bclaude-native-teams\b/codex-sub-agents/g;
     s{~/.claude/}{~/.codex/}g;
+    s{\$HOME/.claude/}{\$HOME/.codex/}g;
+    s{/.claude/}{/.codex/}g;
+    s{\.claude/}{.codex/}g;
     s/\bTeamCreate\b/team-create/g;
     s/\bSendMessage\b/send-message/g;
     s/\bEnterPlanMode\b/enter-plan-mode/g;
@@ -95,6 +160,34 @@ codex_rewrite_text() {
     done
   fi
   printf '%s' "$output"
+}
+
+# Deduplicate semantically equivalent Codex runtime headings while preserving
+# all section content. If multiple "In Codex" headings exist after rewrites,
+# keep the first heading and drop subsequent duplicate heading lines.
+codex_dedupe_runtime_headings() {
+  local input="$1"
+  printf '%s' "$input" | awk '
+    function norm(line, t) {
+      t = tolower(line)
+      gsub(/^[[:space:]]*#+[[:space:]]*/, "", t)
+      gsub(/^[[:space:]]*\*\*[[:space:]]*/, "", t)
+      gsub(/[[:space:]]*\*\*[[:space:]]*$/, "", t)
+      gsub(/[[:space:]]*:[[:space:]]*$/, "", t)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", t)
+      return t
+    }
+    {
+      key = norm($0)
+      if (key == "in codex") {
+        if (seen[key] == 1) {
+          next
+        }
+        seen[key] = 1
+      }
+      print
+    }
+  '
 }
 
 # Build replacements from doctor.go deprecated map.
@@ -244,6 +337,7 @@ convert_codex() {
   local desc="$BUNDLE_DESC"
   local body
   body="$(codex_rewrite_text "$BUNDLE_BODY")"
+  body="$(codex_dedupe_runtime_headings "$body")"
 
   # Truncate description to 1024 chars at word boundary
   if [[ ${#desc} -gt 1024 ]]; then
@@ -263,38 +357,60 @@ convert_codex() {
   skill_md+="---"$'\n\n'
   skill_md+="${body}"$'\n'
 
-  # Inline references as appended sections
-  if [[ ${#REF_NAMES[@]} -gt 0 ]]; then
-    skill_md+=$'\n'"---"$'\n\n'
-    skill_md+="## References"$'\n\n'
-    local i
-    for i in "${!REF_NAMES[@]}"; do
-      skill_md+="### ${REF_NAMES[$i]}"$'\n\n'
-      skill_md+="$(codex_rewrite_text "${REF_CONTENTS[$i]}")"$'\n\n'
-    done
-  fi
+  if [[ "$CODEX_LAYOUT" == "inline" ]]; then
+    # Inline references as appended sections (legacy/portable mode)
+    if [[ ${#REF_NAMES[@]} -gt 0 ]]; then
+      skill_md+=$'\n'"---"$'\n\n'
+      skill_md+="## References"$'\n\n'
+      local i
+      for i in "${!REF_NAMES[@]}"; do
+        skill_md+="### ${REF_NAMES[$i]}"$'\n\n'
+        skill_md+="$(codex_rewrite_text "${REF_CONTENTS[$i]}")"$'\n\n'
+      done
+    fi
 
-  # Inline scripts as code blocks
-  if [[ ${#SCRIPT_NAMES[@]} -gt 0 ]]; then
-    skill_md+=$'\n'"---"$'\n\n'
-    skill_md+="## Scripts"$'\n\n'
-    local i
-    for i in "${!SCRIPT_NAMES[@]}"; do
-      # Detect language from extension
-      local ext="${SCRIPT_NAMES[$i]##*.}"
-      local lang=""
-      case "$ext" in
-        sh|bash) lang="bash" ;;
-        py)      lang="python" ;;
-        js)      lang="javascript" ;;
-        ts)      lang="typescript" ;;
-        *)       lang="$ext" ;;
-      esac
-      skill_md+="### ${SCRIPT_NAMES[$i]}"$'\n\n'
-      skill_md+="\`\`\`${lang}"$'\n'
-      skill_md+="$(codex_rewrite_text "${SCRIPT_CONTENTS[$i]}")"$'\n'
-      skill_md+="\`\`\`"$'\n\n'
-    done
+    # Inline scripts as code blocks (legacy/portable mode)
+    if [[ ${#SCRIPT_NAMES[@]} -gt 0 ]]; then
+      skill_md+=$'\n'"---"$'\n\n'
+      skill_md+="## Scripts"$'\n\n'
+      local i
+      for i in "${!SCRIPT_NAMES[@]}"; do
+        # Detect language from extension
+        local ext="${SCRIPT_NAMES[$i]##*.}"
+        local lang=""
+        case "$ext" in
+          sh|bash) lang="bash" ;;
+          py)      lang="python" ;;
+          js)      lang="javascript" ;;
+          ts)      lang="typescript" ;;
+          *)       lang="$ext" ;;
+        esac
+        skill_md+="### ${SCRIPT_NAMES[$i]}"$'\n\n'
+        skill_md+="\`\`\`${lang}"$'\n'
+        skill_md+="$(codex_rewrite_text "${SCRIPT_CONTENTS[$i]}")"$'\n'
+        skill_md+="\`\`\`"$'\n\n'
+      done
+    fi
+  else
+    # Modular mode: keep SKILL.md concise and reference copied resources.
+    if [[ ${#REF_NAMES[@]} -gt 0 || ${#SCRIPT_NAMES[@]} -gt 0 ]]; then
+      skill_md+=$'\n'"## Local Resources"$'\n\n'
+      local i
+      if [[ ${#REF_NAMES[@]} -gt 0 ]]; then
+        skill_md+="### references/"$'\n\n'
+        for i in "${!REF_NAMES[@]}"; do
+          skill_md+="- [references/${REF_NAMES[$i]}](references/${REF_NAMES[$i]})"$'\n'
+        done
+        skill_md+=$'\n'
+      fi
+      if [[ ${#SCRIPT_NAMES[@]} -gt 0 ]]; then
+        skill_md+="### scripts/"$'\n\n'
+        for i in "${!SCRIPT_NAMES[@]}"; do
+          skill_md+="- \`scripts/${SCRIPT_NAMES[$i]}\`"$'\n'
+        done
+        skill_md+=$'\n'
+      fi
+    fi
   fi
 
   # ── Build prompt.md ──
@@ -303,6 +419,9 @@ convert_codex() {
   prompt_md+="${desc}"$'\n\n'
   prompt_md+="## Instructions"$'\n\n'
   prompt_md+="Load and follow the skill instructions from \`~/.codex/skills/${BUNDLE_NAME}/SKILL.md\`."$'\n'
+  if [[ "$CODEX_LAYOUT" == "modular" && ( ${#REF_NAMES[@]} -gt 0 || ${#SCRIPT_NAMES[@]} -gt 0 ) ]]; then
+    prompt_md+="Then read local files in \`references/\` and \`scripts/\` when needed."$'\n'
+  fi
 
   # Set primary output (SKILL.md)
   CONVERTED_OUTPUT="$skill_md"
@@ -414,8 +533,55 @@ run_convert() {
 
 # ─── Stage 3: Write ───────────────────────────────────────────────────
 
+copy_passthrough_resources() {
+  local source_dir="$1"
+  local output_dir="$2"
+  local entry base
+
+  # Preserve non-generated skill resources (e.g., templates/, assets/, schemas/,
+  # examples/, agents/, and other auxiliary files) so converted skills retain
+  # runnable/supporting artifacts beyond SKILL.md/prompt.md.
+  while IFS= read -r -d '' entry; do
+    base="$(basename "$entry")"
+
+    case "$base" in
+      SKILL.md|prompt.md)
+        continue
+        ;;
+    esac
+
+    # Copy and dereference symlinks to keep output plugin-compatible.
+    rsync -a --copy-links "$entry" "$output_dir"/
+  done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -print0)
+}
+
+verify_passthrough_resources() {
+  local source_dir="$1"
+  local output_dir="$2"
+  local entry base
+  local missing=()
+
+  while IFS= read -r -d '' entry; do
+    base="$(basename "$entry")"
+    case "$base" in
+      SKILL.md|prompt.md)
+        continue
+        ;;
+    esac
+
+    if [[ ! -e "$output_dir/$base" ]]; then
+      missing+=("$base")
+    fi
+  done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -print0)
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    die "Passthrough parity check failed for '$source_dir'; missing in output: ${missing[*]}"
+  fi
+}
+
 write_output() {
   local output_dir="$1"
+  local source_dir="$2"
 
   # Clean-write: delete target dir before writing
   if [[ -d "$output_dir" ]]; then
@@ -431,6 +597,9 @@ write_output() {
     echo "$CONVERTED_OUTPUT_2" > "$output_dir/$CONVERTED_FILENAME_2"
     echo "OK: $output_dir/$CONVERTED_FILENAME_2"
   fi
+
+  copy_passthrough_resources "$source_dir" "$output_dir"
+  verify_passthrough_resources "$source_dir" "$output_dir"
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────
@@ -466,15 +635,15 @@ convert_one_skill() {
   CONVERTED_FILENAME_2=""
 
   run_convert "$target"
-  write_output "$output_dir"
+  write_output "$output_dir" "$skill_dir"
 }
 
 main() {
-  [[ $# -ge 2 ]] || usage
+  parse_args "$@"
 
-  local skill_dir_or_flag="$1"
-  local target="$2"
-  local output_dir="${3:-}"
+  local skill_dir_or_flag="$ARGS_SKILL_DIR_OR_FLAG"
+  local target="$ARGS_TARGET"
+  local output_dir="$ARGS_OUTPUT_DIR"
 
   load_skill_pattern
   load_namespace_rewrite_pairs
