@@ -76,32 +76,49 @@ func shouldFallbackToDirect(err error) bool {
 }
 
 func runtimeBinaryName(command string) string {
-	fields := strings.Fields(strings.TrimSpace(command))
-	if len(fields) == 0 {
+	executable, _ := splitRuntimeCommand(command)
+	if executable == "" {
 		return ""
 	}
-	base := strings.ToLower(filepath.Base(fields[0]))
+	base := strings.ToLower(filepath.Base(executable))
 	return strings.TrimSuffix(base, ".exe")
 }
 
-func runtimeDirectCommandArgs(command, prompt string) []string {
-	if runtimeBinaryName(command) == "codex" {
-		return []string{"exec", prompt}
+func splitRuntimeCommand(command string) (string, []string) {
+	fields := strings.Fields(strings.TrimSpace(command))
+	if len(fields) == 0 {
+		return "", nil
 	}
-	return []string{"-p", prompt}
+	return fields[0], fields[1:]
+}
+
+func runtimeDirectCommandArgs(command, prompt string) []string {
+	_, prefixArgs := splitRuntimeCommand(command)
+	args := append([]string{}, prefixArgs...)
+	if runtimeBinaryName(command) == "codex" {
+		return append(args, "exec", prompt)
+	}
+	return append(args, "-p", prompt)
 }
 
 func runtimeStreamCommandArgs(command, prompt string) ([]string, error) {
 	if runtimeBinaryName(command) == "codex" {
 		return nil, fmt.Errorf("runtime %q does not support stream-json mode", command)
 	}
-	return []string{"-p", prompt, "--output-format", "stream-json", "--verbose"}, nil
+	_, prefixArgs := splitRuntimeCommand(command)
+	args := append([]string{}, prefixArgs...)
+	args = append(args, "-p", prompt, "--output-format", "stream-json", "--verbose")
+	return args, nil
 }
 
 func formatRuntimePromptInvocation(command, prompt string) string {
+	executable, _ := splitRuntimeCommand(command)
+	if executable == "" {
+		executable = command
+	}
 	args := runtimeDirectCommandArgs(command, prompt)
 	parts := make([]string, 0, len(args)+1)
-	parts = append(parts, command)
+	parts = append(parts, executable)
 	for _, arg := range args {
 		parts = append(parts, fmt.Sprintf("%q", arg))
 	}
@@ -213,6 +230,10 @@ func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
 // phaseTimeout controls the maximum runtime; pass 0 to disable the timeout.
 func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, phaseTimeout time.Duration) error {
 	command := effectiveRuntimeCommand(runtimeCommand)
+	executable, _ := splitRuntimeCommand(command)
+	if executable == "" {
+		return fmt.Errorf("runtime command is empty")
+	}
 	args := runtimeDirectCommandArgs(command, prompt)
 
 	ctx := context.Background()
@@ -222,7 +243,7 @@ func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, ph
 	}
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, command, args...)
+	cmd := exec.CommandContext(ctx, executable, args...)
 	cmd.Dir = cwd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -263,6 +284,10 @@ type streamWatchdogState struct {
 
 func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress, phaseTimeout, stallTimeout, streamStartupTimeout, checkInterval time.Duration) error {
 	command := effectiveRuntimeCommand(runtimeCommand)
+	executable, _ := splitRuntimeCommand(command)
+	if executable == "" {
+		return fmt.Errorf("runtime command is empty")
+	}
 	args, argsErr := runtimeStreamCommandArgs(command, prompt)
 	if argsErr != nil {
 		return argsErr
@@ -282,7 +307,7 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 
 	startStreamWatchdogs(stallCtx, stallCancel, watchdog, startedAt, effectiveCheckInterval, stallTimeout, streamStartupTimeout)
 
-	cmd := exec.CommandContext(stallCtx, command, args...)
+	cmd := exec.CommandContext(stallCtx, executable, args...)
 	cmd.Dir = cwd
 	cmd.Stderr = os.Stderr
 	cmd.Env = cleanEnvNoClaude()

@@ -157,10 +157,13 @@ apply_overrides() {
   while IFS= read -r -d '' override_dir; do
     local skill
     skill="$(basename "$override_dir")"
-    [[ -d "$built_root/$skill" ]] || {
+    if [[ ! -d "$built_root/$skill" ]]; then
+      if [[ -n "$ONLY_CSV" ]]; then
+        continue
+      fi
       echo "Error: override exists for unknown skill '$skill' (no generated output)." >&2
       exit 1
-    }
+    fi
     rsync -a --copy-links "$override_dir"/ "$built_root/$skill"/
     applied=$((applied + 1))
   done < <(find "$OVERRIDES" -mindepth 1 -maxdepth 1 -type d -print0)
@@ -215,9 +218,9 @@ else
 fi
 
 # Pre-validate: check for unallowlisted residual markers
-if [[ -x "${script_dir}/lint/generate-allowlist-candidates.sh" ]]; then
+if [[ -x "${SCRIPT_DIR}/lint/generate-allowlist-candidates.sh" ]]; then
   echo "Checking for unallowlisted residual markers..."
-  if ! bash "${script_dir}/lint/generate-allowlist-candidates.sh" "$tmpdir"; then
+  if ! bash "${SCRIPT_DIR}/lint/generate-allowlist-candidates.sh" "$tmpdir"; then
     echo "WARNING: Unallowlisted markers found. Add to allowlist or fix converter rules."
     # Non-blocking warning — validation gate will catch in CI
   fi

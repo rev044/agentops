@@ -563,6 +563,7 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 
 - [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/commit-strategies.md](references/commit-strategies.md)
+- [references/worktree-per-worker.md](references/worktree-per-worker.md)
 - [references/contract-template.md](references/contract-template.md)
 - [references/failure-recovery.md](references/failure-recovery.md)
 - [references/failure-taxonomy.md](references/failure-taxonomy.md)
@@ -592,6 +593,7 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 - [references/troubleshooting.md](references/troubleshooting.md)
 - [references/wave-patterns.md](references/wave-patterns.md)
 - [references/wave1-spec-consistency-checklist.md](references/wave1-spec-consistency-checklist.md)
+- [references/worktree-per-worker.md](references/worktree-per-worker.md)
 
 ### scripts/
 

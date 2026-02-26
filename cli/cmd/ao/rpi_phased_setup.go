@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -19,8 +18,12 @@ func preflightRuntimeAvailability(runtimeCommand string) error {
 		return nil
 	}
 	command := cmp.Or(strings.TrimSpace(runtimeCommand), "claude")
-	if _, err := exec.LookPath(command); err != nil {
-		return fmt.Errorf("runtime command %q not found on PATH (required for spawning phase sessions)", command)
+	executable, _ := splitRuntimeCommand(command)
+	if executable == "" {
+		return fmt.Errorf("runtime command %q is empty", command)
+	}
+	if _, err := lookPath(executable); err != nil {
+		return fmt.Errorf("runtime executable %q (from %q) not found on PATH (required for spawning phase sessions)", executable, command)
 	}
 	return nil
 }

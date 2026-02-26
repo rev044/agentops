@@ -1141,7 +1141,7 @@ ao rpi phased <goal> [flags]
       --no-worktree                       Disable worktree isolation (run in current directory)
       --phase-timeout duration            Maximum wall-clock runtime per phase (0 disables timeout) (default 1h30m0s)
       --runtime string                    Phase runtime mode: auto|direct|stream (default "auto")
-      --runtime-cmd string                Runtime command to execute prompts (must support '-p') (default "claude")
+      --runtime-cmd string                Runtime command used for phase prompts (Claude uses '-p'; Codex uses 'exec') (default "claude")
       --stall-timeout duration            Maximum time without progress before declaring stall (0 disables) (default 10m0s)
       --stream-startup-timeout duration   Maximum time to wait for first stream event before falling back to direct execution (0 disables) (default 45s)
       --swarm-first                       Default each phase to swarm/agent-team execution; fall back to direct execution if swarm runtime is unavailable (default true)

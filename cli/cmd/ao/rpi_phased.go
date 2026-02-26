@@ -83,7 +83,7 @@ Examples:
 	phasedCmd.Flags().BoolVar(&phasedAutoCleanStale, "auto-clean-stale", false, "Run stale-run cleanup before starting phased execution")
 	phasedCmd.Flags().DurationVar(&phasedAutoCleanStaleAfter, "auto-clean-stale-after", 24*time.Hour, "Only clean stale runs older than this age when auto-clean is enabled")
 	phasedCmd.Flags().StringVar(&phasedRuntimeMode, "runtime", "auto", "Phase runtime mode: auto|direct|stream")
-	phasedCmd.Flags().StringVar(&phasedRuntimeCommand, "runtime-cmd", "claude", "Runtime command to execute prompts (must support '-p')")
+	phasedCmd.Flags().StringVar(&phasedRuntimeCommand, "runtime-cmd", "claude", "Runtime command used for phase prompts (Claude uses '-p'; Codex uses 'exec')")
 
 	rpiCmd.AddCommand(phasedCmd)
 }

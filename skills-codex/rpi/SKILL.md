@@ -29,7 +29,7 @@ RPI control-plane command paths are configurable through `.agentops/config.yaml`
 ```yaml
 rpi:
   runtime_mode: auto        # auto|direct|stream
-  runtime_command: claude   # runtime process command
+  runtime_command: claude   # runtime process command (Claude: -p, Codex: exec)
   ao_command: ao            # ratchet/checkpoint command
   bd_command: bd            # epic/child query command
   tmux_command: tmux        # status liveness probe command

@@ -210,6 +210,7 @@ For each issue's acceptance criteria, derive at least one **mechanically verifia
 - Checks MUST use validation-contract.md types: `files_exist`, `content_check`, `command`, `tests`, `lint`
 - Prefer `content_check` and `files_exist` (fast, deterministic) over `command` (slower, environment-dependent)
 - If acceptance criteria cannot be mechanically verified, flag it as underspecified
+- When adding entries to config files enumerated by tests, search for hardcoded count assertions: `grep -rn 'len.*!=\|len.*==\|expected.*count' <test-dir>/`
 
 ### Step 5: Compute Waves
 
@@ -526,6 +527,7 @@ Tell the user:
 
 ## Reference Documents
 
+- [references/complexity-estimation.md](references/complexity-estimation.md)
 - [references/examples.md](references/examples.md)
 - [references/sdd-patterns.md](references/sdd-patterns.md)
 - [references/templates.md](references/templates.md)
@@ -534,6 +536,7 @@ Tell the user:
 
 ### references/
 
+- [references/complexity-estimation.md](references/complexity-estimation.md)
 - [references/examples.md](references/examples.md)
 - [references/sdd-patterns.md](references/sdd-patterns.md)
 - [references/templates.md](references/templates.md)

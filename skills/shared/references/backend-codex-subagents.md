@@ -29,7 +29,7 @@ Bash(
 **Flag order:** `-s`/`--full-auto` → `-m` → `-C` → `--output-schema` → `-o` → prompt
 
 **Valid flags:** `--full-auto`, `-s`, `-m`, `-C`, `--output-schema`, `-o`, `--add-dir`
-**Invalid flags:** `-q` (doesn't exist), `--quiet` (doesn't exist)
+**Invalid flags:** `-q` (doesn't exist), `--quiet` (doesn't exist), `-p` as a prompt flag (in Codex CLI it means profile)
 
 ### Wait: Poll Background Shell
 
