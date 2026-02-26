@@ -173,10 +173,12 @@ apply_overrides() {
 
 validate_parity() {
   local built_root="$1"
-  local expected_file="$tmpdir/.expected-skills.txt"
-  local actual_file="$tmpdir/.actual-skills.txt"
+  local parity_dir="$tmpdir/.parity"
+  local expected_file="$parity_dir/.expected-skills.txt"
+  local actual_file="$parity_dir/.actual-skills.txt"
   local missing extra
 
+  mkdir -p "$parity_dir"
   write_expected_skills "$expected_file"
   write_actual_skills "$built_root" "$actual_file"
 
@@ -199,6 +201,47 @@ validate_parity() {
   local count
   count="$(wc -l < "$expected_file" | tr -d ' ')"
   echo "Codex skill parity check passed: $count skill(s)."
+}
+
+sync_output() {
+  local built_root="$1"
+
+  mkdir -p "$OUT"
+
+  if [[ -n "$ONLY_CSV" ]]; then
+    local updated=0
+    while IFS= read -r -d '' skill_dir; do
+      [[ -f "$skill_dir/SKILL.md" ]] || continue
+      local skill
+      skill="$(basename "$skill_dir")"
+      mkdir -p "$OUT/$skill"
+      rsync -a --delete --copy-links "$skill_dir"/ "$OUT/$skill"/
+      updated=$((updated + 1))
+    done < <(find "$built_root" -mindepth 1 -maxdepth 1 -type d -print0)
+
+    # Remove legacy parity artifacts left by earlier script versions.
+    rm -rf "$OUT/.parity"
+    rm -f "$OUT/.expected-skills.txt" "$OUT/.actual-skills.txt"
+
+    echo "Codex-native skills synced (partial): $updated"
+    echo "Output: $OUT"
+    return
+  fi
+
+  rsync -a --delete --copy-links \
+    --exclude='.parity/' \
+    --exclude='.expected-skills.txt' \
+    --exclude='.actual-skills.txt' \
+    "$built_root"/ "$OUT"/
+
+  # Remove legacy parity artifacts left by earlier script versions.
+  rm -rf "$OUT/.parity"
+  rm -f "$OUT/.expected-skills.txt" "$OUT/.actual-skills.txt"
+
+  local count
+  count="$(find "$OUT" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+  echo "Codex-native skills synced: $count"
+  echo "Output: $OUT"
 }
 
 if [[ -n "$ONLY_CSV" ]]; then
@@ -228,11 +271,4 @@ fi
 
 apply_overrides "$tmpdir"
 validate_parity "$tmpdir"
-
-rm -rf "$OUT"
-mkdir -p "$OUT"
-rsync -a --delete --copy-links "$tmpdir"/ "$OUT"/
-
-count="$(find "$OUT" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
-echo "Codex-native skills synced: $count"
-echo "Output: $OUT"
+sync_output "$tmpdir"

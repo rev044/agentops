@@ -178,7 +178,7 @@ These are how skills chain in practice:
 
 ## Current Skill Tiers
 
-### User-Facing Skills (40)
+### User-Facing Skills (41)
 
 **Judgment:**
 
@@ -203,6 +203,7 @@ These are how skills chain in practice:
 | **evolve** | execution | Autonomous fitness-scored improvement loop |
 | **bug-hunt** | execution | Investigate bugs with git archaeology |
 | **complexity** | execution | Cyclomatic complexity analysis |
+| **grafana-platform-dashboard** | execution | Build and validate platform operations dashboards with critical-first layout and PromQL gates |
 
 **Knowledge:**
 
@@ -314,6 +315,7 @@ Hidden from interactive `npx skills add` discovery. Loaded JIT by other skills v
 | ratchet | - | - |
 | **recover** | - | - (standalone) |
 | **reverse-engineer-rpi** | - | - (standalone) |
+| **grafana-platform-dashboard** | research, brainstorm | optional, optional |
 | research | knowledge, inject | optional, optional |
 | retro | - | - |
 | standards | - | - |
