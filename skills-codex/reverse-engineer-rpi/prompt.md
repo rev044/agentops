@@ -5,4 +5,5 @@ Reverse-engineer a product into a feature catalog, code map, and specs. Uses RPI
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/reverse-engineer-rpi/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

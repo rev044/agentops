@@ -5,4 +5,5 @@ Generate a gold-standard README for any project. Interviews you about the proble
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/readme/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

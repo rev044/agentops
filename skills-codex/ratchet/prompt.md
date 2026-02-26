@@ -5,4 +5,5 @@ Brownian Ratchet progress gates for RPI workflow. Check, record, verify. Trigger
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/ratchet/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

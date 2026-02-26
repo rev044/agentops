@@ -1,8 +1,15 @@
 # swarm
 
-Spawn isolated agents for parallel task execution. Auto-selects runtime-native teams (Claude Native Teams in Claude sessions, Codex sub-agents in Codex sessions). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".
+Orchestrate parallel work with Codex sub-agents and deterministic wave control.
 
-## Instructions
+## Codex Execution Profile
 
-Load and follow the skill instructions from `~/.codex/skills/swarm/SKILL.md`.
+1. Treat `skills/swarm/SKILL.md` as canonical swarm contract.
+2. Prefer Codex sub-agents for wave execution and result collection.
+3. Use file-backed result handoff under `.agents/swarm/` for consolidation.
 
+## Guardrails
+
+1. Keep runtime fallback notes short and avoid Claude-team-first language.
+2. Preserve wave dependency integrity before spawning workers.
+3. Require each worker output to include status, changed files, and blockers.

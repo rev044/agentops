@@ -5,4 +5,5 @@ Comprehensive code validation. Runs complexity analysis then multi-model council
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/vibe/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

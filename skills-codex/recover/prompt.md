@@ -5,4 +5,5 @@ Post-compaction context recovery. Detects in-progress RPI and evolve sessions, l
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/recover/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

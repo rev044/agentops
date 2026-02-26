@@ -322,29 +322,10 @@ Render this with a single code block. No visual dashboard when `--json` is activ
 | Suggested action doesn't match context | State-aware rules didn't capture edge case | Use `--json` to inspect raw state and verify which condition matched. Review priority table in Step 5. |
 | JSON output malformed | Parallel bash calls returned unexpected format | Check each bash call individually. Ensure jq parsing works on actual data. Validate JSON structure before returning to user. |
 
----
+## Local Resources
 
-## Scripts
+### scripts/
 
-### validate.sh
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PASS=0; FAIL=0
-
-check() { if bash -c "$2"; then echo "PASS: $1"; PASS=$((PASS + 1)); else echo "FAIL: $1"; FAIL=$((FAIL + 1)); fi; }
-
-check "SKILL.md exists" "[ -f '$SKILL_DIR/SKILL.md' ]"
-check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '^---$'"
-check "SKILL.md has name: recover" "grep -q '^name: recover' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions compaction" "grep -qi 'compaction' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions context recovery" "grep -qi 'context.*recovery\|recovery.*context\|recover.*context' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md has tier: session" "grep -q '^[[:space:]]*tier:[[:space:]]*session' '$SKILL_DIR/SKILL.md'"
-
-echo ""; echo "Results: $PASS passed, $FAIL failed"
-[ $FAIL -eq 0 ] && exit 0 || exit 1
-```
+- `scripts/validate.sh`
 
 

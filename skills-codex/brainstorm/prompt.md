@@ -5,4 +5,5 @@ Separate WHAT from HOW before planning. Clarify goals, explore approaches, captu
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/brainstorm/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

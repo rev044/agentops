@@ -5,4 +5,5 @@ Upstream codebase exploration for open source contribution. Outputs contribution
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/pr-research/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

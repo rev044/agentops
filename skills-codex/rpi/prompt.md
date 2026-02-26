@@ -5,4 +5,5 @@ Full RPI lifecycle orchestrator. Discovery (research+plan+pre-mortem) → Implem
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/rpi/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

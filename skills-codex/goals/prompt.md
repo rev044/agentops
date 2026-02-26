@@ -5,4 +5,5 @@ Maintain GOALS.yaml and GOALS.md fitness specifications. Measure fitness, manage
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/goals/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

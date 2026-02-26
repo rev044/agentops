@@ -5,4 +5,5 @@ Epic decomposition into trackable issues. Triggers: "create a plan", "plan imple
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/plan/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

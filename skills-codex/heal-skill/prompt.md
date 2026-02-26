@@ -5,4 +5,5 @@ Automated skill maintenance. Detects and fixes common skill issues: missing fron
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/heal-skill/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

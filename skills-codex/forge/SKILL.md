@@ -216,27 +216,10 @@ Transcript → $forge → .agents/forge/ (Tier 0)
 | forge --queue fails | CLI not available or permission error | Manually append to `.agents/ao/pending.jsonl` with session metadata |
 | Duplicate forge outputs | Same session forged multiple times | Check forge filenames before writing; ao CLI handles dedup automatically |
 
----
+## Local Resources
 
-## Scripts
+### scripts/
 
-### validate.sh
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PASS=0; FAIL=0
-check() { if bash -c "$2"; then echo "PASS: $1"; PASS=$((PASS + 1)); else echo "FAIL: $1"; FAIL=$((FAIL + 1)); fi; }
-
-check "SKILL.md exists" "[ -f '$SKILL_DIR/SKILL.md' ]"
-check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '^---$'"
-check "name is forge" "grep -q '^name: forge' '$SKILL_DIR/SKILL.md'"
-check "mentions transcript" "grep -qi 'transcript' '$SKILL_DIR/SKILL.md'"
-check "mentions mine or extract" "grep -qiE 'mine|extract' '$SKILL_DIR/SKILL.md'"
-
-echo ""; echo "Results: $PASS passed, $FAIL failed"
-[ $FAIL -eq 0 ] && exit 0 || exit 1
-```
+- `scripts/validate.sh`
 
 

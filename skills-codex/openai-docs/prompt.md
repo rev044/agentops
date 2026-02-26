@@ -1,8 +1,15 @@
 # openai-docs
 
-"Use when the user asks how to build with OpenAI products or APIs and needs up-to-date official documentation with citations (for example: Codex, Responses API, Chat Completions, Apps SDK, Agents SDK, Realtime, model capabilities or limits); prioritize OpenAI docs MCP tools and restrict any fallback browsing to official OpenAI domains."
+Use OpenAI docs MCP tools from Codex with a single, unambiguous install flow.
 
-## Instructions
+## Codex Execution Profile
 
-Load and follow the skill instructions from `~/.codex/skills/openai-docs/SKILL.md`.
+1. Treat `skills/openai-docs/SKILL.md` as canonical content policy.
+2. Prefer `mcp__openaiDeveloperDocs__search_openai_docs` and `mcp__openaiDeveloperDocs__fetch_openai_doc`.
+3. Keep fallback web browsing restricted to OpenAI domains.
 
+## Guardrails
+
+1. Present one Codex install path for MCP server setup; avoid duplicated setup sections.
+2. Keep citations explicit in final answers.
+3. If MCP is unavailable, provide a clear next command and retry step.

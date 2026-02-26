@@ -5,4 +5,5 @@ Single-screen dashboard showing current work, recent validations, flywheel healt
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/status/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

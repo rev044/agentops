@@ -278,28 +278,10 @@ Render this with a single code block. No visual dashboard when `--json` is activ
 | Suggested action doesn't match intent | State-aware rules didn't capture edge case | Review priority table in Step 3. May need to refine conditions. Use `--json` to inspect raw state and debug rule matching. |
 | JSON output malformed | Parallel bash calls returned unexpected format | Check each bash call individually. Ensure jq parsing works on actual data. Validate JSON structure with `jq .` before returning to user. |
 
----
+## Local Resources
 
-## Scripts
+### scripts/
 
-### validate.sh
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PASS=0; FAIL=0
-
-check() { if bash -c "$2"; then echo "PASS: $1"; PASS=$((PASS + 1)); else echo "FAIL: $1"; FAIL=$((FAIL + 1)); fi; }
-
-check "SKILL.md exists" "[ -f '$SKILL_DIR/SKILL.md' ]"
-check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '^---$'"
-check "SKILL.md has name: status" "grep -q '^name: status' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions dashboard" "grep -qi 'dashboard' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions suggested next action" "grep -qi 'suggested next action\|suggest next action\|suggestion' '$SKILL_DIR/SKILL.md'"
-
-echo ""; echo "Results: $PASS passed, $FAIL failed"
-[ $FAIL -eq 0 ] && exit 0 || exit 1
-```
+- `scripts/validate.sh`
 
 

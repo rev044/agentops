@@ -5,4 +5,5 @@ This skill should be used when the user asks to "generate documentation", "valid
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/doc/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

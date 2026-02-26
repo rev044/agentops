@@ -1,8 +1,15 @@
 # crank
 
-Hands-free epic execution. Runs until ALL children are CLOSED. Uses $swarm with runtime-native spawning (Codex sub-agents or Claude teams). NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "run all tasks", "hands-free execution", "crank it".
+Execute epics hands-free with Codex-native wave progression.
 
-## Instructions
+## Codex Execution Profile
 
-Load and follow the skill instructions from `~/.codex/skills/crank/SKILL.md`.
+1. Treat `skills/crank/SKILL.md` as canonical execution contract.
+2. Run waves from beads dependencies and process only currently unblocked issues.
+3. Keep retries bounded and report blockers with exact issue ids.
 
+## Guardrails
+
+1. Prefer Codex sub-agents through `$swarm` for parallel issue execution.
+2. Do not blur done/partial/blocked status boundaries.
+3. Include validation metadata checks in worker instructions when available.

@@ -72,35 +72,10 @@ Tell the user:
 | Skills installed but not available in new sessions | The global skills directory (`~/.codex/skills/`) is not on the agent's skill search path | Verify `~/.codex/skills/` exists and contains the installed skill directories. Restart the agent session |
 | `EACCES: permission denied` during install | The `~/.codex/skills/` directory has restrictive permissions | Fix with `chmod -R u+rwX ~/.codex/skills/` and re-run `$update` |
 
----
+## Local Resources
 
-## Scripts
+### scripts/
 
-### validate.sh
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-
-# Check SKILL.md exists and has required frontmatter
-if ! grep -q '^name: update' "$SKILL_DIR/SKILL.md"; then
-  echo "FAIL: missing name in frontmatter"
-  exit 1
-fi
-
-if ! grep -q '^[[:space:]]*tier:[[:space:]]*meta' "$SKILL_DIR/SKILL.md"; then
-  echo "FAIL: missing tier in frontmatter"
-  exit 1
-fi
-
-if ! grep -q 'npx skills@latest add boshu2/agentops --all -g' "$SKILL_DIR/SKILL.md"; then
-  echo "FAIL: missing install command"
-  exit 1
-fi
-
-echo "PASS: update skill validated"
-```
+- `scripts/validate.sh`
 
 

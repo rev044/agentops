@@ -5,4 +5,5 @@ Investigate suspected bugs or run proactive code audits. Triggers: "bug", "broke
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/bug-hunt/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

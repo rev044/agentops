@@ -5,4 +5,5 @@ Language-specific coding standards and validation rules. Provides Python, Go, Ru
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/standards/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

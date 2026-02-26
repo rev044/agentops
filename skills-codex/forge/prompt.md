@@ -5,4 +5,5 @@ Mine transcripts for knowledge - decisions, learnings, failures, patterns. Trigg
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/forge/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

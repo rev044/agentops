@@ -189,29 +189,10 @@ Tell the user:
 | Competitive landscape feels forced | Genuinely novel product or niche tool | Accept "No direct competitors" as valid. Focus on alternative approaches (manual processes, scripts) rather than products. |
 | PRODUCT.md feels generic | Insufficient user input or rushed interview | Ask follow-up questions. Request specific examples. Challenge vague statements like "makes things easier" — easier how? Measured how? |
 
----
+## Local Resources
 
-## Scripts
+### scripts/
 
-### validate.sh
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PASS=0; FAIL=0
-check() { if bash -c "$2"; then echo "PASS: $1"; PASS=$((PASS + 1)); else echo "FAIL: $1"; FAIL=$((FAIL + 1)); fi; }
-
-check "SKILL.md exists" "[ -f '$SKILL_DIR/SKILL.md' ]"
-check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '^---$'"
-check "name is product" "grep -q '^name: product' '$SKILL_DIR/SKILL.md'"
-check "mentions PRODUCT.md" "grep -q 'PRODUCT.md' '$SKILL_DIR/SKILL.md'"
-check "mentions personas" "grep -qi 'personas' '$SKILL_DIR/SKILL.md'"
-check "mentions value propositions" "grep -qi 'value prop' '$SKILL_DIR/SKILL.md'"
-check "mentions competitive landscape" "grep -qi 'competitive' '$SKILL_DIR/SKILL.md'"
-
-echo ""; echo "Results: $PASS passed, $FAIL failed"
-[ $FAIL -eq 0 ] && exit 0 || exit 1
-```
+- `scripts/validate.sh`
 
 

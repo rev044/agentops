@@ -5,4 +5,5 @@ Analyze code complexity and find refactor targets using radon/gocyclo. Triggers:
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/complexity/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

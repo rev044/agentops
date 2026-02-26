@@ -1,8 +1,15 @@
 # codex-team
 
-Use when you have 2+ tasks that Codex agents should execute. Runtime-native: Codex sub-agents when available, Codex CLI fallback otherwise. Handles file conflicts via merge/wave strategies. Triggers: "codex team", "spawn codex", "codex agents", "use codex for", "codex fix".
+Coordinate multi-agent Codex implementation work with clear ownership boundaries.
 
-## Instructions
+## Codex Execution Profile
 
-Load and follow the skill instructions from `~/.codex/skills/codex-team/SKILL.md`.
+1. Treat `skills/codex-team/SKILL.md` as canonical team execution contract.
+2. Assign explicit file ownership per worker.
+3. Merge wave results in deterministic order after each completion batch.
 
+## Guardrails
+
+1. Keep conflict resolution explicit when workers touch adjacent code paths.
+2. Require each worker to ignore unrelated edits made by others.
+3. Keep status reporting compact: done, blocked, next action.

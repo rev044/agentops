@@ -5,4 +5,5 @@ PR-specific validation: isolation, upstream alignment, quality, scope creep. Tri
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/pr-validate/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

@@ -1,8 +1,15 @@
 # quickstart
 
-Interactive onboarding for new users. Guided RPI cycle on your actual codebase in under 10 minutes. Triggers: "quickstart", "get started", "onboarding", "how do I start".
+Guide new users through AgentOps in a Codex-first flow.
 
-## Instructions
+## Codex Execution Profile
 
-Load and follow the skill instructions from `~/.codex/skills/quickstart/SKILL.md`.
+1. Treat `skills/quickstart/SKILL.md` as canonical workflow.
+2. Prefer Codex tooling and command examples first.
+3. Keep optional cross-runtime references brief and non-blocking.
 
+## Guardrails
+
+1. Do not require Claude CLI checks to proceed.
+2. Avoid instructions that assume `.claude/` directories.
+3. Keep onboarding output action-oriented: next command, expected result, fallback.

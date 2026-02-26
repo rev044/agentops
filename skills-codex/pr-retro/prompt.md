@@ -5,4 +5,5 @@ Learn from PR outcomes. Analyzes accept/reject patterns and updates contribution
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/pr-retro/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 

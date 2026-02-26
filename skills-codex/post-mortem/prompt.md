@@ -5,4 +5,5 @@ Wrap up completed work. Council validates the implementation, then extract learn
 ## Instructions
 
 Load and follow the skill instructions from `~/.codex/skills/post-mortem/SKILL.md`.
+Then read local files in `references/` and `scripts/` when needed.
 
