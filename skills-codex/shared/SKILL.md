@@ -10,7 +10,7 @@ This directory contains shared reference documents used by multiple skills:
 
 - `validation-contract.md` - Verification requirements for accepting spawned work
 - `references/claude-code-latest-features.md` - Codex feature contract (slash commands, agent isolation, hooks, settings)
-- `references/backend-claude-teams.md` - Concrete examples for Claude native teams (`TeamCreate` + `SendMessage`)
+- `references/backend-claude-teams.md` - Portability: Claude native teams (non-Codex runtimes)
 - `references/backend-codex-subagents.md` - Concrete examples for Codex CLI and Codex sub-agents
 - `references/backend-background-tasks.md` - Fallback: `Task(run_in_background=true)`
 - `references/backend-inline.md` - Degraded single-agent mode (no spawn)
@@ -73,21 +73,20 @@ Every runtime maps these capabilities to its own API. Skills describe WHAT to do
 
 Use capability detection at runtime, not hardcoded tool names. The same skill must work across any agent harness that provides multi-agent primitives. If no multi-agent capability is detected, degrade to single-agent inline mode (`--quick`).
 
-**Selection policy (runtime-native first):**
-1. If running in a Claude session and `TeamCreate`/`SendMessage` are available, use **Claude Native Teams** as the primary backend.
-2. If running in a Codex session and `spawn_agent` is available, use **Codex sub-agents** as the primary backend.
+**Selection policy (Codex-first):**
+1. If `spawn_agent` is available → use **Codex sub-agents** as the primary backend.
+2. Else if runtime-native team spawning is available → use **runtime-native teams**.
 3. If both are technically available, pick the backend native to the current runtime unless the user explicitly requests mixed/cross-vendor execution.
 4. Only use background tasks when neither native backend is available.
 
-| Operation | Codex Sub-Agents | Claude Native Teams | OpenCode Subagents | Inline Fallback |
-|-----------|------------------|---------------------|--------------------|-----------------|
-| Spawn | `spawn_agent(message=...)` | `TeamCreate` + `Task(team_name=...)` | `task(subagent_type="general", prompt=...)` | Execute inline |
-| Spawn (read-only) | `spawn_agent(message=...)` | `Task(subagent_type="Explore")` | `task(subagent_type="explore", prompt=...)` | Execute inline |
-| Wait | `wait(ids=[...])` | Completion via `SendMessage` | Task returns result directly | N/A |
-| Retry/follow-up | `send_input(id=..., message=...)` | `SendMessage(type="message", ...)` | `task(task_id="<prior>", prompt=...)` | N/A |
-| Cleanup | `close_agent(id=...)` | `shutdown_request` + `TeamDelete()` | None (sub-sessions auto-terminate) | N/A |
-| Inter-agent messaging | `send_input` | `SendMessage` | Not available | N/A |
-| Debate (R2) | Supported | Supported | **Not supported** (no messaging) | N/A |
+| Operation | Codex Sub-Agents | Other Runtimes (see Portability Appendix) | Inline Fallback |
+|-----------|------------------|-------------------------------------------|-----------------|
+| Spawn | `spawn_agent(message=...)` | Runtime-native team spawn | Execute inline |
+| Wait | `wait(ids=[...])` | Runtime-native completion signal | N/A |
+| Retry/follow-up | `send_input(id=..., message=...)` | Runtime-native messaging | N/A |
+| Cleanup | `close_agent(id=...)` | Runtime-native shutdown | N/A |
+| Inter-agent messaging | `send_input` | Runtime-native messaging | N/A |
+| Debate (R2) | Supported | Varies by runtime | N/A |
 
 **OpenCode limitations:**
 - No inter-agent messaging — workers run as independent sub-sessions
@@ -98,24 +97,25 @@ Use capability detection at runtime, not hardcoded tool names. The same skill mu
 
 > **Prefer native teams over background tasks.** Native teams provide messaging, redirect, and graceful shutdown. Background tasks are fire-and-forget with no steering — only a speedometer and emergency brake.
 
-| Capability | Codex Sub-Agents | Claude Native Teams | Background Tasks |
-|------------|------------------|---------------------|------------------|
-| Observe output | `wait()` result | `SendMessage` delivery | `TaskOutput` (tail) |
-| Send message mid-flight | `send_input` | `SendMessage` | **NO** |
-| Pause / resume | NO | Idle → wake via `SendMessage` | **NO** |
-| Graceful stop | `close_agent` | `shutdown_request` | **TaskStop (lossy)** |
-| Redirect to different task | `send_input` | `SendMessage` | **NO** |
-| Adjust scope mid-flight | `send_input` | `SendMessage` | **NO** |
-| File conflict prevention | Manual `git worktree` routing | Native `isolation: worktree` + lead-only commits | None |
-| Process isolation | YES (sub-process) | Shared worktree | Shared worktree |
+| Capability | Codex Sub-Agents | Background Tasks |
+|------------|------------------|------------------|
+| Observe output | `wait()` result | `TaskOutput` (tail) |
+| Send message mid-flight | `send_input` | **NO** |
+| Pause / resume | NO | **NO** |
+| Graceful stop | `close_agent` | **TaskStop (lossy)** |
+| Redirect to different task | `send_input` | **NO** |
+| Adjust scope mid-flight | `send_input` | **NO** |
+| File conflict prevention | Manual `git worktree` routing | None |
+| Process isolation | YES (sub-process) | Shared worktree |
 
 **When to use each:**
 
 | Scenario | Backend |
 |----------|---------|
-| Quick parallel tasks, coordination needed | Claude Native Teams |
-| Codex-specific execution | Codex Sub-Agents |
-| No team APIs available (last resort) | Background Tasks |
+| Parallel tasks with coordination | Codex Sub-Agents (preferred) |
+| No sub-agent API available (last resort) | Background Tasks |
+
+> See **Portability Appendix** in the inlined references for Claude Native Teams and OpenCode backend details.
 
 ### Skill Invocation Across Runtimes
 
@@ -497,7 +497,7 @@ TeamDelete()
 
 **Reaper pattern:** If a teammate doesn't respond to shutdown within 30s, proceed with `TeamDelete()` anyway.
 
-**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.claude/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
+**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.codex/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
 
 ---
 
@@ -511,7 +511,7 @@ TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
-# If TeamDelete fails: rm -rf ~/.claude/teams/swarm-1739812345-w1/ then retry
+# If TeamDelete fails: rm -rf ~/.codex/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
 TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")

@@ -70,7 +70,7 @@ ls -lt ~/.agents/learnings/ 2>/dev/null | head -5
 ls -lt ~/.agents/patterns/ 2>/dev/null | head -5
 
 # Legacy patterns (read-only fallback, no new writes)
-ls -lt ~/.claude/patterns/ 2>/dev/null | head -5
+ls -lt ~/.codex/patterns/ 2>/dev/null | head -5
 ```
 
 ### Step 2: Read Relevant Files
@@ -108,7 +108,7 @@ Citation tracking enables the feedback loop: learnings that are frequently cited
 | Global Patterns | `~/.agents/patterns/` | High | 0.8 (configurable) |
 | Research | `.agents/research/` | Medium | — |
 | Retros | `.agents/retros/` | Medium | — |
-| Legacy Patterns | `~/.claude/patterns/` | Low | 0.6 (read-only, no new writes) |
+| Legacy Patterns | `~/.codex/patterns/` | Low | 0.6 (read-only, no new writes) |
 
 ## Decay Model
 

@@ -94,7 +94,7 @@ Natural language works — the skill infers task type from your prompt.
 Judges write ALL analysis to output files. Messages to the lead contain ONLY a
 minimal completion signal: `{"type":"verdict","verdict":"...","confidence":"...","file":"..."}`.
 The lead reads output files during consolidation. This prevents N judges from
-exploding the lead's context window with N full reports via SendMessage.
+exploding the lead's context window with N full reports via backend messaging.
 
 **Consolidation runs inline as the lead** — no separate chairman agent. The lead
 reads each judge's output file sequentially with the Read tool and synthesizes.
@@ -130,10 +130,10 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
 │  (--deep/--mixed only)│           │                       │
 │                       │           │  Output: JSON + MD    │
 │  Write files, then    │           │  Files: .agents/      │
-│ wait()/SendMessage to │           │    council/codex-*    │
-│ lead                  │           │                       │
+│  wait()/signal to     │           │    council/codex-*    │
+│  lead                 │           │                       │
 │  Files: .agents/      │           └───────────────────────┘
-│    council/claude-*   │                       │
+│    council/judge-*    │                       │
 └───────────────────────┘                       │
             │                                   │
             └─────────────────┬─────────────────┘
@@ -309,7 +309,7 @@ See [references/personas.md](references/personas.md) for all built-in presets an
 
 > **Debate Protocol:** Use `Read` tool on `skills/council/references/debate-protocol.md` for full debate execution flow, R1-to-R2 verdict injection, timeout handling, and cost analysis.
 
-**Summary:** Two-round adversarial review. R1 produces independent verdicts. R2 sends other judges' verdicts via backend messaging (`send_input` or `SendMessage`) for steel-manning and revision. Only supported with validate mode.
+**Summary:** Two-round adversarial review. R1 produces independent verdicts. R2 sends other judges' verdicts via backend messaging (`send_input` for Codex sub-agents, runtime-native messaging for other backends) for steel-manning and revision. Only supported with validate mode.
 
 ---
 
@@ -1181,7 +1181,7 @@ TeamDelete()
 
 **Reaper pattern:** If a teammate doesn't respond to shutdown within 30s, proceed with `TeamDelete()` anyway.
 
-**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.claude/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
+**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.codex/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
 
 ---
 
@@ -1195,7 +1195,7 @@ TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
-# If TeamDelete fails: rm -rf ~/.claude/teams/swarm-1739812345-w1/ then retry
+# If TeamDelete fails: rm -rf ~/.codex/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
 TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")

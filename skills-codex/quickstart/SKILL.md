@@ -687,7 +687,7 @@ ao settings hooks test
 cat hooks/hooks.json | jq . 2>/dev/null
 
 # Check settings.json for ao settings hooks
-cat ~/.claude/settings.json | jq '.hooks' 2>/dev/null
+cat ~/.codex/settings.json | jq '.hooks' 2>/dev/null
 
 # Verify plugin is loaded
 claude --plugin ./ --help
@@ -716,7 +716,7 @@ head -5 skills/quickstart/SKILL.md
 - Update: `npx skills@latest update`
 - If update doesn't pick up changes, pull directly:
   ```bash
-  cd ~/.claude/plugins/marketplaces/agentops-marketplace/
+  cd ~/.codex/plugins/marketplaces/agentops-marketplace/
   git pull
   ```
 

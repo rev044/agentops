@@ -54,7 +54,7 @@ for dir in research learnings knowledge patterns retros plans brainstorm; do
 done
 
 # Search global patterns (cross-repo knowledge)
-grep -r -l -i "<topic>" ~/.claude/patterns/ 2>/dev/null
+grep -r -l -i "<topic>" ~/.codex/patterns/ 2>/dev/null
 ```
 
 If matches are found, read the relevant files with the Read tool before proceeding to exploration. Prior knowledge prevents redundant investigation.
@@ -64,7 +64,7 @@ If matches are found, read the relevant files with the Read tool before proceedi
 Before launching the explore agent, detect which backend is available:
 
 1. Check if `spawn_agent` is available → log `"Backend: codex-sub-agents"`
-2. Else check if `TeamCreate` is available → log `"Backend: claude-native-teams"`
+2. Else check if runtime-native team spawning is available → log `"Backend: runtime-native-teams"`
 3. Else check if `skill` tool is read-only (OpenCode) → log `"Backend: opencode-subagents"`
 4. Else check if `Task` is available → log `"Backend: background-task-fallback"`
 5. Else → log `"Backend: inline (no spawn available)"`
@@ -84,8 +84,8 @@ Record the selected backend — it will be included in the research output docum
 
 #### Backend Selection (MANDATORY)
 
-1. If `spawn_agent` is available → **Codex sub-agent**
-2. Else if `TeamCreate` is available → **Claude native team** (Explore agent)
+1. If `spawn_agent` is available → **Codex sub-agent** (preferred)
+2. Else if runtime-native team spawning is available → **Runtime-native team** (Explore agent)
 3. Else if `skill` tool is read-only (OpenCode) → **OpenCode subagent** — `task(subagent_type="explore", description="Research: <topic>", prompt="<explore prompt>")`
 4. Else → **Background task fallback**
 
@@ -299,7 +299,7 @@ Include in your Explore agent prompt:
 | Missing file references | Codebase has changed since last exploration or files are in unexpected locations | Use Glob to verify file locations before citing them. Always use absolute paths |
 | Auto mode skips important areas | Automated exploration prioritizes breadth over depth | Remove `--auto` flag to enable human approval gate for guided exploration |
 | Explore agent times out | Topic too broad for single exploration pass | Split into smaller focused topics (e.g., "auth flow" vs "entire auth system") |
-| No backend available for spawning | Running in environment without Task or TeamCreate support | Research runs inline — still functional but slower |
+| No backend available for spawning | Running in environment without spawn_agent or runtime-native team support | Research runs inline — still functional but slower |
 
 ## Reference Documents
 
@@ -652,7 +652,7 @@ TeamDelete()
 
 **Reaper pattern:** If a teammate doesn't respond to shutdown within 30s, proceed with `TeamDelete()` anyway.
 
-**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.claude/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
+**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.codex/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
 
 ---
 
@@ -666,7 +666,7 @@ TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
-# If TeamDelete fails: rm -rf ~/.claude/teams/swarm-1739812345-w1/ then retry
+# If TeamDelete fails: rm -rf ~/.codex/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
 TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")
@@ -1690,8 +1690,8 @@ Risk Levels:
 
 ## See Also
 
-- `~/.claude/CLAUDE-base.md` - Core Vibe-Coding methodology
-- `~/.claude/plugins/marketplaces/agentops-marketplace/reference/failure-patterns.md` - Full pattern reference
+- `~/.codex/CLAUDE-base.md` - Core Vibe-Coding methodology
+- `~/.codex/plugins/marketplaces/agentops-marketplace/reference/failure-patterns.md` - Full pattern reference
 - `~/.codex/skills/crank/failure-taxonomy.md` - Execution failure taxonomy
 
 ### ralph-loop-contract.md
@@ -1859,7 +1859,7 @@ git push             # WORK IS NOT DONE UNTIL PUSHED
 
 - `failure-patterns.md` - 12 specific failure modes
 - `context-discovery.md` - 6-tier exploration hierarchy
-- `~/.claude/CLAUDE-base.md` - Full vibe methodology
+- `~/.codex/CLAUDE-base.md` - Full vibe methodology
 
 
 ---

@@ -50,7 +50,7 @@ Safety defaults:
 
 ```
 $rpi <goal | epic-id> [--from=<phase>] [--interactive]
-  │ (session = lead, no TeamCreate)
+  │ (session = lead, no team spawn)
   │
   ├── Phase 1: Discovery
   │   ├── $research

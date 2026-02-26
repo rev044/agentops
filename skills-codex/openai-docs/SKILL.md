@@ -35,7 +35,7 @@ If MCP tools fail or no OpenAI docs resources are available:
 3. Ask the user to restart Codex, then re-run doc search/fetch.
 
 **In Codex:**
-1. Add the MCP server to `~/.claude/settings.json` under `"mcpServers"`:
+1. Add the MCP server to `~/.codex/settings.json` under `"mcpServers"`:
    ```json
    {
      "mcpServers": {

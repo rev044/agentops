@@ -563,7 +563,7 @@ Rationale: Code repos need more precise docs, ops is next most critical.
 Use Python validator for fast, exhaustive checking:
 
 ```bash
-python3 ~/.claude/scripts/doc-validate.py docs/
+python3 ~/.codex/scripts/doc-validate.py docs/
 ```
 
 ### Checks Performed

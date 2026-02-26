@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# lint-codex-native.sh — Lint skills-codex/ for Codex-native compliance
+#
+# Checks:
+#   1. No slash-command invocations (must use $ prefix)
+#   2. No Claude Code primitives in main execution flow (before ## References)
+#   3. No ~/.claude/ paths (must use ~/.codex/)
+#   4. No "Claude Code" runtime references (use "Codex" or runtime-neutral)
+#   5. Required: Portability Appendix if Claude primitives exist in main flow
+#   6. No old flat ao namespace references
+#
+# Usage:
+#   scripts/lint-codex-native.sh [--strict] [--skill <name>]
+#
+# Exit codes:
+#   0 — all checks pass
+#   1 — violations found
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SKILLS_DIR="$REPO_ROOT/skills-codex"
+
+STRICT=false
+FILTER_SKILL=""
+ERRORS=0
+WARNINGS=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --strict) STRICT=true; shift ;;
+        --skill) FILTER_SKILL="$2"; shift 2 ;;
+        *) echo "Unknown flag: $1"; exit 1 ;;
+    esac
+done
+
+# Colors
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+error() {
+    echo -e "${RED}  FAIL${NC}: $1"
+    ERRORS=$((ERRORS + 1))
+}
+
+warn() {
+    echo -e "${YELLOW}  WARN${NC}: $1"
+    WARNINGS=$((WARNINGS + 1))
+}
+
+pass() {
+    if $STRICT; then
+        echo -e "${GREEN}  PASS${NC}: $1"
+    fi
+}
+
+# Known skill names for slash-command detection (pipe-separated)
+SKILL_NAMES="research|plan|pre-mortem|implement|crank|swarm|council|vibe|post-mortem|retro|evolve|release|status|goals|ratchet|rpi|brainstorm|bug-hunt|doc|forge|inject|knowledge|learn|extract|flywheel|handoff|recover|trace|provenance|beads|quickstart|readme|security|complexity|codex-team|pr-research|pr-plan|pr-implement|pr-validate|pr-prep|pr-retro|oss-docs|openai-docs|heal-skill|converter|update|product|reverse-engineer-rpi|security-suite|standards|shared|using-agentops"
+
+# Claude-only primitives (should not appear in main execution flow)
+CLAUDE_PRIMITIVES="TeamCreate|SendMessage|EnterPlanMode|ExitPlanMode|EnterWorktree"
+
+# Find the line number where a section starts (0 if not found)
+find_section_line() {
+    local file="$1"
+    local pattern="$2"
+    local line
+    line=$(grep -n "$pattern" "$file" | head -1 | cut -d: -f1)
+    echo "${line:-0}"
+}
+
+# Count matches in a string (handling empty input)
+count_lines() {
+    local input="$1"
+    if [[ -z "$input" ]]; then
+        echo 0
+    else
+        echo "$input" | wc -l | tr -d ' '
+    fi
+}
+
+# Check a single skill
+check_skill() {
+    local skill_name="$1"
+    local skill_file="$SKILLS_DIR/$skill_name/SKILL.md"
+
+    if [[ ! -f "$skill_file" ]]; then
+        warn "$skill_name: SKILL.md not found"
+        return
+    fi
+
+    local refs_line
+    refs_line=$(find_section_line "$skill_file" '^## Reference')
+    local port_line
+    port_line=$(find_section_line "$skill_file" '^## Portability')
+    local total_lines
+    total_lines=$(wc -l < "$skill_file" | tr -d ' ')
+
+    # Determine the "main flow" boundary (before References or Portability)
+    local main_end=$total_lines
+    if [[ $refs_line -gt 0 ]]; then
+        main_end=$refs_line
+    fi
+    if [[ $port_line -gt 0 && $port_line -lt $main_end ]]; then
+        main_end=$port_line
+    fi
+
+    # --- Check 1: Slash-command invocations ---
+    # Use perl lookbehind for accurate detection (avoids false positives from file paths)
+    # Real slash-commands: ` /research`, `"/council`, backtick-/skill
+    # False positives: `.agents/council/`, `skills/research/`, `merge/release`
+    local slash_hits
+    slash_hits=$(perl -ne "print \"$.: \$_\" if m{(?<![A-Za-z0-9_/.=-])/(${SKILL_NAMES})(?![A-Za-z0-9-])}" "$skill_file" 2>/dev/null || true)
+    if [[ -n "$slash_hits" ]]; then
+        local count
+        count=$(count_lines "$slash_hits")
+        error "$skill_name: $count slash-command invocation(s) — must use \$ prefix"
+        if $STRICT; then
+            echo "$slash_hits" | head -5 | sed 's/^/      /'
+        fi
+    else
+        pass "$skill_name: no slash-command invocations"
+    fi
+
+    # --- Check 2: Claude primitives in main execution flow ---
+    if [[ $main_end -gt 1 ]]; then
+        local prim_hits
+        prim_hits=$(head -n "$main_end" "$skill_file" | grep -En "(${CLAUDE_PRIMITIVES})" 2>/dev/null || true)
+        if [[ -n "$prim_hits" ]]; then
+            local count
+            count=$(count_lines "$prim_hits")
+            error "$skill_name: $count Claude primitive(s) in main execution flow (before line $main_end)"
+            if $STRICT; then
+                echo "$prim_hits" | head -5 | sed 's/^/      /'
+            fi
+        else
+            pass "$skill_name: no Claude primitives in main flow"
+        fi
+    fi
+
+    # --- Check 3: ~/.claude/ paths ---
+    local path_hits
+    path_hits=$(grep -n '~/\.claude/' "$skill_file" | grep -v 'Portability\|non-Codex\|appendix' || true)
+    if [[ -n "$path_hits" ]]; then
+        local count
+        count=$(count_lines "$path_hits")
+        if $STRICT; then
+            error "$skill_name: $count ~/.claude/ path reference(s) — use ~/.codex/"
+        else
+            warn "$skill_name: $count ~/.claude/ path reference(s)"
+        fi
+    else
+        pass "$skill_name: no ~/.claude/ paths"
+    fi
+
+    # --- Check 4: "Claude Code" runtime reference ---
+    local runtime_hits
+    runtime_hits=$(grep -in 'Claude Code' "$skill_file" | grep -vi 'Portability\|non-Codex\|appendix\|backend-claude\|claude-code-latest' || true)
+    if [[ -n "$runtime_hits" ]]; then
+        local count
+        count=$(count_lines "$runtime_hits")
+        warn "$skill_name: $count 'Claude Code' runtime reference(s)"
+    else
+        pass "$skill_name: no 'Claude Code' runtime references"
+    fi
+
+    # --- Check 5: Claude primitives anywhere + no Portability Appendix ---
+    local total_prims
+    total_prims=$(grep -cE "(${CLAUDE_PRIMITIVES})" "$skill_file" 2>/dev/null) || total_prims=0
+    if [[ "$total_prims" -gt 0 && "$port_line" -eq 0 ]]; then
+        if [[ "$refs_line" -gt 0 ]]; then
+            local main_prims
+            main_prims=$(head -n "$refs_line" "$skill_file" | grep -cE "(${CLAUDE_PRIMITIVES})" 2>/dev/null) || main_prims=0
+            if [[ "$main_prims" -gt 0 ]]; then
+                warn "$skill_name: $total_prims Claude primitive(s) total ($main_prims in main flow) — needs Portability Appendix"
+            fi
+        else
+            warn "$skill_name: $total_prims Claude primitive(s) but no Portability Appendix or References section"
+        fi
+    fi
+
+    # --- Check 6: Old flat ao namespace ---
+    local old_ao
+    old_ao=$(grep -En '\bao (forge|inject|search|lookup|trace|rpi|ratchet|goals|session|feedback-loop|flywheel|pool|metrics|gate|maturity|constraint|vibe-check|badge|contradict|dedup|anti-patterns|curate|config|plans|hooks|memory|notebook|demo|init|seed|quick-start)\b' "$skill_file" 2>/dev/null \
+        | grep -vE 'ao (know|work|quality|settings|start) ' \
+        || true)
+    if [[ -n "$old_ao" ]]; then
+        local count
+        count=$(count_lines "$old_ao")
+        error "$skill_name: $count old flat ao namespace reference(s)"
+        if $STRICT; then
+            echo "$old_ao" | head -3 | sed 's/^/      /'
+        fi
+    fi
+}
+
+echo "Codex-Native Skill Lint"
+echo "======================="
+echo "Directory: $SKILLS_DIR"
+echo ""
+
+if [[ -n "$FILTER_SKILL" ]]; then
+    echo "Checking: $FILTER_SKILL"
+    echo ""
+    check_skill "$FILTER_SKILL"
+else
+    for skill_dir in "$SKILLS_DIR"/*/; do
+        skill_name=$(basename "$skill_dir")
+        check_skill "$skill_name"
+    done
+fi
+
+echo ""
+echo "======================="
+echo "Errors: $ERRORS | Warnings: $WARNINGS"
+
+if [[ $ERRORS -gt 0 ]]; then
+    echo -e "${RED}FAIL${NC}: $ERRORS error(s) found"
+    exit 1
+elif [[ $WARNINGS -gt 0 ]]; then
+    echo -e "${YELLOW}WARN${NC}: $WARNINGS warning(s) (pass with warnings)"
+    exit 0
+else
+    echo -e "${GREEN}PASS${NC}: all checks clean"
+    exit 0
+fi

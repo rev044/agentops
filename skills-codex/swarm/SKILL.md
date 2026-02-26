@@ -30,11 +30,11 @@ Mayor (this session)
     +-> Spawn workers via selected backend
     |       Workers receive pre-assigned task, execute atomically
     |
-    +-> Wait for completion (wait() | SendMessage | TaskOutput)
+    +-> Wait for completion (wait() | runtime-native signal | TaskOutput)
     |
     +-> Validate: Review changes when complete
     |
-    +-> Cleanup backend resources (close_agent | TeamDelete | none)
+    +-> Cleanup backend resources (close_agent | runtime-native cleanup | none)
     |
     +-> Repeat: New team + new plan if more work needed
 ```
@@ -164,8 +164,8 @@ Mayor: "Let's build a user auth system"
 - **Fresh worker contexts** - New sub-agents/teammates per wave preserve Ralph isolation
 - **Wave execution** - Only unblocked tasks spawn
 - **Mayor orchestrates** - You control the flow, workers write results to disk
-- **Thin results** - Workers write `.agents/swarm/results/<id>.json`, orchestrator reads files (NOT Task returns or SendMessage content)
-- **Retry via message/input** - Use `send_input` (Codex) or `SendMessage` (Claude) for coordination only
+- **Thin results** - Workers write `.agents/swarm/results/<id>.json`, orchestrator reads files (NOT Task returns or messaging content)
+- **Retry via message/input** - Use `send_input` (Codex sub-agents) or runtime-native messaging for coordination only
 - **Atomic execution** - Each worker works until task done
 - **Graceful degradation** - If multi-agent unavailable, work executes sequentially in current session
 
@@ -367,7 +367,7 @@ $swarm --from-wave /tmp/wave-ol-527.json
 2. Agent calls `$swarm` without beads integration
 3. Agent identifies parallel tasks (no dependencies)
 4. Agent spawns all three workers simultaneously
-5. Workers execute atomically, report to team lead via SendMessage or task completion
+5. Workers execute atomically, report to team lead via backend messaging or task completion
 6. Team lead validates all changes, commits once per wave
 
 **Result:** Parallel execution of independent tasks using TaskList only.
@@ -533,7 +533,7 @@ Solution: Use worktree isolation (`--worktrees`) for multi-epic dispatch. For si
 
 ### Team creation fails
 Cause: Stale team from prior session not cleaned up.
-Solution: Run `rm -rf ~/.claude/teams/<team-name>` then retry.
+Solution: Run `rm -rf ~/.codex/teams/<team-name>` then retry.
 
 ### Codex agents unavailable
 Cause: `codex` CLI not installed or API key not configured.
@@ -901,7 +901,7 @@ TeamDelete()
 
 **Reaper pattern:** If a teammate doesn't respond to shutdown within 30s, proceed with `TeamDelete()` anyway.
 
-**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.claude/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
+**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.codex/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
 
 ---
 
@@ -915,7 +915,7 @@ TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
-# If TeamDelete fails: rm -rf ~/.claude/teams/swarm-1739812345-w1/ then retry
+# If TeamDelete fails: rm -rf ~/.codex/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
 TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")

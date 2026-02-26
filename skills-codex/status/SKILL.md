@@ -71,7 +71,7 @@ echo "PENDING=$(ls .agents/knowledge/pending/ 2>/dev/null | wc -l | tr -d ' ')"
 # Flywheel health + badge
 if command -v ao &>/dev/null; then
   ao quality flywheel status 2>/dev/null || echo "FLYWHEEL_UNAVAILABLE"
-  ao badge 2>/dev/null || echo "BADGE_UNAVAILABLE"
+  ao quality badge 2>/dev/null || echo "BADGE_UNAVAILABLE"
 fi
 ```
 
@@ -141,7 +141,7 @@ RECENT VALIDATIONS
 KNOWLEDGE FLYWHEEL
   Learnings: <count>  Patterns: <count>  Pending: <count>
   Health: <flywheel status or "ao not installed">
-  Badge: <ao badge output or omit if unavailable>
+  Badge: <ao quality badge output or omit if unavailable>
 
 TASK MATURITY
   <ao task-status summary: active tasks with CASS maturity levels, or omit if unavailable>

@@ -377,10 +377,10 @@ If a session ID is available, analyze the Codex conversation to extract:
 
 ```bash
 # Analyze specific session
-python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID
+python3 ~/.codex/scripts/analyze-sessions.py --session=$SESSION_ID
 
 # Analyze with extraction limits for large sessions
-python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
+python3 ~/.codex/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
 ```
 
 ### Conversation Data → Retro Output Mapping
@@ -396,7 +396,7 @@ python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
 ### Session ID Sources
 
 1. **Environment variable**: `$CLAUDE_SESSION_ID` (set by Codex)
-2. **Recent session detection**: Find most recent `.jsonl` in `~/.claude/projects/`
+2. **Recent session detection**: Find most recent `.jsonl` in `~/.codex/projects/`
 3. **Beads comment**: Sessions may be recorded in crank state
 
 ### When No Session Available

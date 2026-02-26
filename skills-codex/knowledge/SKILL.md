@@ -45,14 +45,14 @@ grep -r "<query>" .agents/retros/ 2>/dev/null | head -10
 grep -r "<query>" .agents/plans/ 2>/dev/null | head -10
 
 # Global plans
-grep -r "<query>" ~/.claude/plans/ 2>/dev/null | head -10
+grep -r "<query>" ~/.codex/plans/ 2>/dev/null | head -10
 ```
 
 ### Step 3.5: Search Global Patterns
 
 ```bash
 # Global patterns (cross-repo knowledge)
-grep -r "<query>" ~/.claude/patterns/ 2>/dev/null | head -10
+grep -r "<query>" ~/.codex/patterns/ 2>/dev/null | head -10
 ```
 
 Global patterns contain knowledge promoted from any repository via `$learn --global`. These are high-confidence, cross-project learnings.
@@ -112,10 +112,10 @@ Present the knowledge found:
 | Research | `.agents/research/` | Markdown |
 | Retros | `.agents/retros/` | Markdown |
 | Plans | `.agents/plans/` | Markdown |
-| Global Plans | `~/.claude/plans/` | Markdown |
+| Global Plans | `~/.codex/plans/` | Markdown |
 | Global Learnings | `~/.agents/learnings/` | Cross-repo abstracted learnings |
 | Global Patterns | `~/.agents/patterns/` | Cross-repo reusable patterns |
-| Legacy Patterns | `~/.claude/patterns/` | Read-only fallback (deprecated for writes) |
+| Legacy Patterns | `~/.codex/patterns/` | Read-only fallback (deprecated for writes) |
 
 ## Key Rules
 
