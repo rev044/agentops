@@ -12,6 +12,54 @@ const agentopsSkillsDir = path.join(homeDir, '.codex', 'agentops', 'skills');
 const personalSkillsDir = path.join(homeDir, '.codex', 'skills');
 const bootstrapFile = path.join(homeDir, '.codex', 'agentops', '.codex', 'agentops-bootstrap.md');
 const agentopsRepoDir = path.join(homeDir, '.codex', 'agentops');
+const installMetadataFile = path.join(homeDir, '.codex', '.agentops-codex-install.json');
+const defaultStaleDays = 14;
+const fallbackUpdateCommand = 'curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash';
+
+function parsePositiveInt(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function staleDaysThreshold() {
+    return parsePositiveInt(process.env.AGENTOPS_CODEX_STALE_DAYS, defaultStaleDays);
+}
+
+function readInstallMetadata() {
+    if (!fs.existsSync(installMetadataFile)) return null;
+    try {
+        return JSON.parse(fs.readFileSync(installMetadataFile, 'utf8'));
+    } catch {
+        return null;
+    }
+}
+
+function maybeWarnStaleSkills() {
+    if (process.env.AGENTOPS_NO_UPDATE_CHECK === '1' || process.env.AGENTOPS_CODEX_STALE_WARN_DISABLED === '1') {
+        return;
+    }
+
+    const thresholdDays = staleDaysThreshold();
+    if (thresholdDays <= 0) return;
+
+    const metadata = readInstallMetadata();
+    if (!metadata || !metadata.installed_at) return;
+
+    const installedAt = new Date(metadata.installed_at);
+    if (Number.isNaN(installedAt.getTime())) return;
+
+    const ageDays = Math.floor((Date.now() - installedAt.getTime()) / (24 * 60 * 60 * 1000));
+    if (ageDays < thresholdDays) return;
+
+    const updateCommand = metadata.update_command || fallbackUpdateCommand;
+    console.log('## Skills Update Reminder');
+    console.log('');
+    console.log(`Your Codex skills were installed ${ageDays} day(s) ago and may be stale.`);
+    console.log(`Refresh with: \`${updateCommand}\``);
+    console.log('');
+    console.log('---');
+    console.log('');
+}
 
 // Utility functions
 function printSkill(skillPath, sourceType) {
@@ -75,6 +123,8 @@ function runBootstrap() {
     console.log('# ================================');
     console.log('');
 
+    maybeWarnStaleSkills();
+
     // Check for updates (with timeout protection)
     if (skillsCore.checkForUpdates(agentopsRepoDir)) {
         console.log('## Update Available');
@@ -125,6 +175,8 @@ function runBootstrap() {
 }
 
 function runUseSkill(skillName) {
+    maybeWarnStaleSkills();
+
     if (!skillName) {
         console.log('Usage: agentops-codex use-skill <skill-name>');
         console.log('Examples:');

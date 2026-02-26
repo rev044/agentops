@@ -11,6 +11,7 @@ EXPORT_SCRIPT="$REPO_ROOT/scripts/export-claude-skills-to-codex.sh"
 
 SRC="$REPO_ROOT/skills-codex"
 DST="$HOME/.codex/skills"
+INSTALL_META="$HOME/.codex/.agentops-codex-install.json"
 BACKUP=""
 ONLY_CSV=""
 SKIP_SYNC="false"
@@ -109,5 +110,22 @@ if [[ "$DRY_RUN" == "true" ]]; then
 fi
 
 bash "$EXPORT_SCRIPT" "${export_args[@]}"
+
+# Write local install metadata for stale-skill reminders (no telemetry)
+INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+VERSION="unknown"
+if git -C "$REPO_ROOT" rev-parse --short HEAD >/dev/null 2>&1; then
+  VERSION="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+fi
+mkdir -p "$(dirname "$INSTALL_META")"
+cat > "$INSTALL_META" <<EOF
+{
+  "installed_at": "$INSTALLED_AT",
+  "source": "install-codex-native-skills.sh",
+  "version": "$VERSION",
+  "update_command": "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+}
+EOF
+echo "Install metadata written: $INSTALL_META"
 
 echo "Restart Codex to pick up installed skills."

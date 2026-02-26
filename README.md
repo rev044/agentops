@@ -80,6 +80,8 @@ npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
 npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
 ```
 
+Codex includes a local stale-skills reminder in `agentops-codex bootstrap` and `agentops-codex use-skill` (default: 14 days, no telemetry). Re-run the installer when prompted.
+
 Then type `/quickstart` in your agent chat. Not sure which skill to run? See the **[Skill Router](docs/SKILL-ROUTER.md)**.
 
 For Claude plugin installs, skills are available immediately after plugin install/update (restart Claude Code if prompted). To enable hooks and flywheel automation, install the `ao` CLI and run `ao init --hooks` in each repo. To plant AgentOps in a new repo with auto-detected templates:

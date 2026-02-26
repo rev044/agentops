@@ -30,6 +30,7 @@ fail()  { echo -e "${RED}✗${NC} $*"; exit 1; }
 CODEX_DIR="${HOME}/.codex"
 AGENTOPS_DIR="${CODEX_DIR}/agentops"
 SKILLS_DST="${CODEX_DIR}/skills"
+INSTALL_META="${CODEX_DIR}/.agentops-codex-install.json"
 REPO_URL="https://github.com/boshu2/agentops.git"
 
 echo "Installing AgentOps for Codex CLI..."
@@ -75,6 +76,22 @@ echo ""
 SKILL_COUNT=$(find -L "$SKILLS_DST" -name "SKILL.md" -maxdepth 2 2>/dev/null | wc -l | tr -d ' ')
 info "Installation complete!"
 echo "  Skills: $SKILLS_DST ($SKILL_COUNT skills)"
+
+# Step 6: Write local install metadata for stale-skill reminders (no telemetry)
+INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+VERSION="unknown"
+if git -C "$AGENTOPS_DIR" rev-parse --short HEAD >/dev/null 2>&1; then
+  VERSION="$(git -C "$AGENTOPS_DIR" rev-parse --short HEAD)"
+fi
+cat > "$INSTALL_META" <<EOF
+{
+  "installed_at": "$INSTALLED_AT",
+  "source": "install-codex.sh",
+  "version": "$VERSION",
+  "update_command": "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+}
+EOF
+info "Install metadata written: $INSTALL_META"
 echo ""
 echo "Restart Codex to activate."
 echo ""

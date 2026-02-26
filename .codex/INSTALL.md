@@ -33,6 +33,11 @@ Test the installation:
 ```
 
 You should see skill listings and bootstrap instructions. The system is now ready for use.
+If skills become stale, rerun:
+```bash
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
+```
+`agentops-codex` shows a local reminder when skills are old (default threshold: 14 days).
 
 ## Codex Session-End Equivalent
 
