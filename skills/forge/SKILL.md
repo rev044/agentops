@@ -28,7 +28,7 @@ This queues the session for knowledge extraction.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--promote` | off | Process pending extractions from `.agents/knowledge/pending/` and promote to `.agents/learnings/`. Replaces the old `/extract` skill. |
+| `--promote` | off | Process pending extractions from `.agents/knowledge/pending/` and promote to `.agents/learnings/`. Absorbs the former extract skill. |
 
 ## Promote Mode
 

@@ -35,7 +35,7 @@ A skill (`/crank`) that executes an epic by spawning parallel worker agents in d
 A group of related issues that together accomplish a goal. Created by `/plan`, executed by `/crank`. Each epic has a dependency graph that determines which issues can run in parallel (same wave) and which must wait (later waves). [Full documentation](SKILLS.md#plan)
 
 ### Extract
-An internal skill that pulls learnings, patterns, and decisions from session transcripts and artifacts into structured knowledge files. [Full documentation](../skills/extract/SKILL.md)
+An internal process that pulls learnings, patterns, and decisions from session transcripts and artifacts into structured knowledge files. Now handled by `/forge --promote`. [Full documentation](../skills/forge/SKILL.md)
 
 ## F
 
@@ -59,7 +59,7 @@ A checkpoint enforced by a hook that blocks progress until a condition is met. F
 A skill (`/handoff`) that creates structured session handoff documents so another agent or future session can continue work with full context. [Full documentation](../skills/handoff/SKILL.md)
 
 ### Hook
-A shell script that fires automatically on agent lifecycle events (session start, git push, task completion, etc.). AgentOps includes 12 hooks that enforce workflow rules, inject knowledge, and advance ratchet state. All hooks can be disabled with `AGENTOPS_HOOKS_DISABLED=1`. [Full documentation](../hooks/hooks.json)
+A shell script that fires automatically on agent lifecycle events. AgentOps currently registers 3 active hooks in `hooks/hooks.json` (SessionStart, SessionEnd, Stop) to run the knowledge flywheel lifecycle. All hooks can be disabled with `AGENTOPS_HOOKS_DISABLED=1`. [Full documentation](../hooks/hooks.json)
 
 ## I
 

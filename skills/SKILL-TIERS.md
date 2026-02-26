@@ -10,9 +10,9 @@ Skills fall into three functional categories, plus infrastructure tiers for inte
 |------|----------|-------------|----------|
 | **judgment** | Judgment | Validation, review, and quality gates — council is the foundation | council, vibe, pre-mortem, post-mortem |
 | **execution** | Execution | Research, plan, build, ship — the work itself | research, plan, implement, crank, swarm, rpi |
-| **knowledge** | Knowledge | The flywheel — extract, store, query, inject learnings | knowledge, learn, retro, flywheel |
+| **knowledge** | Knowledge | The flywheel — extract, store, query, inject learnings | retro, flywheel, forge |
 | **product** | Execution | Define mission, goals, release, docs | product, goals, release, readme, doc |
-| **session** | Execution | Session continuity and status | handoff, recover, status, inbox |
+| **session** | Execution | Session continuity and status | handoff, recover, status |
 | **utility** | Execution | Standalone tools | quickstart, brainstorm, bug-hunt, complexity |
 | **contribute** | Execution | Upstream PR workflow | pr-research, pr-plan, pr-implement, pr-validate, pr-prep, pr-retro, oss-docs |
 | **cross-vendor** | Execution | Multi-runtime orchestration | codex-team, openai-docs, converter |
@@ -178,7 +178,7 @@ These are how skills chain in practice:
 
 ## Current Skill Tiers
 
-### User-Facing Skills (43)
+### User-Facing Skills (40)
 
 **Judgment:**
 
@@ -208,9 +208,7 @@ These are how skills chain in practice:
 
 | Skill | Tier | Description |
 |-------|------|-------------|
-| **knowledge** | knowledge | Query learnings, patterns, and decisions across .agents/ |
-| **learn** | knowledge | Manually capture a decision, pattern, or lesson |
-| **retro** | knowledge | Extract learnings from completed work |
+| **retro** | knowledge | Extract learnings from completed work (includes --quick for single captures) |
 | **trace** | knowledge | Trace design decisions through history |
 
 **Product & Release:**
@@ -231,7 +229,6 @@ These are how skills chain in practice:
 |-------|------|-------------|
 | **handoff** | session | Session handoff — save context for next session |
 | **recover** | session | Post-compaction context recovery |
-| **inbox** | session | Agent mail inbox — check pending messages and HELP_REQUESTs |
 | **status** | session | Single-screen dashboard |
 | **quickstart** | session | Interactive onboarding |
 
@@ -258,7 +255,7 @@ These are how skills chain in practice:
 | **heal-skill** | meta | Detect and fix skill hygiene issues |
 | **update** | meta | Reinstall all AgentOps skills globally |
 
-### Internal Skills (10) — `metadata.internal: true`
+### Internal Skills (9) — `metadata.internal: true`
 
 Hidden from interactive `npx skills add` discovery. Loaded JIT by other skills via Read or auto-triggered by hooks.
 
@@ -268,8 +265,7 @@ Hidden from interactive `npx skills add` discovery. Loaded JIT by other skills v
 | standards | library | Judgment | Coding standards (loaded by /vibe, /implement, /doc) |
 | shared | library | Execution | Shared reference documents (multi-agent backends) |
 | inject | background | Knowledge | Load knowledge at session start (hook-triggered) |
-| extract | background | Knowledge | Extract from transcripts (hook-triggered) |
-| forge | background | Knowledge | Mine transcripts for knowledge |
+| forge | background | Knowledge | Mine transcripts for knowledge (includes --promote for pending extraction) |
 | provenance | background | Knowledge | Trace knowledge lineage |
 | ratchet | background | Execution | Progress gates |
 | flywheel | background | Knowledge | Knowledge health monitoring |
@@ -293,14 +289,11 @@ Hidden from interactive `npx skills add` discovery. Loaded JIT by other skills v
 | **codex-team** | - | - (standalone, fallback to swarm) |
 | **crank** | swarm, vibe, implement, beads, post-mortem | required, required, required, optional, optional |
 | doc | standards | required |
-| extract | - | - |
 | flywheel | - | - |
 | forge | - | - |
 | handoff | retro | optional |
 | **implement** | beads, standards | optional, required |
-| inbox | - | - |
 | inject | - | - |
-| knowledge | - | - |
 | **openai-docs** | - | - (standalone) |
 | **plan** | research, beads, pre-mortem, crank, implement | optional, optional, optional, optional, optional |
 | **product** | - | - (standalone) |

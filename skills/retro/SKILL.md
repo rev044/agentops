@@ -18,7 +18,7 @@ Extract learnings from completed work, propose proactive improvements, and feed 
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--quick "text"` | off | Quick-capture a single learning directly to `.agents/learnings/` without running a full retrospective. Replaces the old `/learn` skill. |
+| `--quick "text"` | off | Quick-capture a single learning directly to `.agents/learnings/` without running a full retrospective. Absorbs the former learn skill. |
 | `--vibe-results <path>` | off | Incorporate validation findings from a prior `/vibe` run |
 
 ## Quick Mode
