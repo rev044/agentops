@@ -235,7 +235,7 @@ The flywheel is curation, not just storage.
 └── tooling/       # Tooling documentation
 ```
 
-Knowledge artifacts are the system's long-term memory. Future `/research` commands discover them via file pattern matching, semantic search (`ao know forge`), or Smart Connections MCP (if available). Freshness decay ensures stale artifacts lose priority over time — the system forgets what's no longer relevant. Quality gates prevent low-confidence or context-specific learnings from polluting the shared knowledge base.
+Knowledge artifacts are the system's long-term memory. Future `/research` commands discover them via file pattern matching, semantic search (`ao forge`), or Smart Connections MCP (if available). Freshness decay ensures stale artifacts lose priority over time — the system forgets what's no longer relevant. Quality gates prevent low-confidence or context-specific learnings from polluting the shared knowledge base.
 
 Deep dive: [knowledge-flywheel.md](knowledge-flywheel.md) — flywheel mechanics. [the-science.md](the-science.md) — formal model, decay rates, limits to growth, and the scale-aware condition `ρ·σ(K,t) > δ + φ·K - I(t)/K`.
 
@@ -398,11 +398,11 @@ For full workflow orchestration, skills integrate with the ao CLI:
 
 | Skill | ao Command |
 |-------|------------|
-| `/research` | `ao know forge search` |
-| `/retro` | `ao know forge index` |
-| `/post-mortem` | `ao work ratchet record` |
-| `/implement` | `ao work ratchet claim/record` |
-| `/crank` | `ao work ratchet verify` |
+| `/research` | `ao forge search` |
+| `/retro` | `ao forge index` |
+| `/post-mortem` | `ao ratchet record` |
+| `/implement` | `ao ratchet claim/record` |
+| `/crank` | `ao ratchet verify` |
 
 ---
 
@@ -415,7 +415,7 @@ Three hooks form the knowledge flywheel's mechanical backbone:
 On session start, `hooks/session-start.sh`:
 1. Creates `.agents/` directories if missing (local + global `~/.agents/`)
 2. Runs `ao extract` to process any pending knowledge queue
-3. Runs `ao know inject --apply-decay --max-tokens 1000` to load context:
+3. Runs `ao inject --apply-decay --max-tokens 1000` to load context:
    - **Local** `.agents/learnings/` and `.agents/patterns/` (1.0x weight)
    - **Global** `~/.agents/learnings/` and `~/.agents/patterns/` (0.8x weight, cross-repo)
    - **Work-scoped boost**: if `HOOK_BEAD` is set (active issue), matching learnings get 1.5x
@@ -429,15 +429,15 @@ The injection is intentionally lightweight (~1000 tokens). The agent gets the fr
 ### SessionEnd — Extract and prune
 
 On session end, `hooks/session-end-maintenance.sh` (35s timeout):
-1. `ao know forge transcript --last-session --queue` — mine transcript for learnings
-2. `ao quality maturity --scan` — identify artifacts ready for promotion
-3. `ao quality maturity --expire --archive` — mark stale artifacts (freshness decay ~17%/week)
-4. `ao quality maturity --evict --archive` — archive what's decayed past threshold
+1. `ao forge transcript --last-session --queue` — mine transcript for learnings
+2. `ao maturity --scan` — identify artifacts ready for promotion
+3. `ao maturity --expire --archive` — mark stale artifacts (freshness decay ~17%/week)
+4. `ao maturity --evict --archive` — archive what's decayed past threshold
 
 ### Stop — Close the loop
 
 On stop, `hooks/ao-flywheel-close.sh` (15s timeout):
-1. `ao quality flywheel close-loop` — record session completion, trigger deferred promotion
+1. `ao flywheel close-loop` — record session completion, trigger deferred promotion
 
 ---
 

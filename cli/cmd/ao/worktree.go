@@ -65,6 +65,8 @@ Safety defaults:
 
 	worktreeCmd.AddCommand(worktreeGCCmd)
 	worktreeCmd.Hidden = true
+	worktreeCmd.GroupID = "config"
+	rootCmd.AddCommand(worktreeCmd)
 }
 
 // finalizeWorktreeGC handles pruning and prints the summary message.

@@ -45,7 +45,8 @@ Commands:
 }
 
 func init() {
-	qualityCmd.AddCommand(metricsCmd)
+	metricsCmd.GroupID = "core"
+	rootCmd.AddCommand(metricsCmd)
 
 	// baseline subcommand
 	baselineCmd := &cobra.Command{

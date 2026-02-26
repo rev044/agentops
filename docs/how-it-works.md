@@ -87,7 +87,7 @@ Skills auto-select the best available backend:
 |------|---------|-------------|
 | Session start | Session start | Knowledge injection and startup maintenance |
 | Session end maintenance | Session end | Knowledge extraction, maturity, and cleanup |
-| Flywheel close | Stop | Closes the feedback loop via `ao quality flywheel close-loop` |
+| Flywheel close | Stop | Closes the feedback loop via `ao flywheel close-loop` |
 
 Additional guardrail hook scripts remain available in `hooks/`, but they are not part of the active runtime manifest unless explicitly re-enabled.
 

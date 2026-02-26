@@ -215,7 +215,8 @@ var (
 
 func init() {
 	sessionOutcomeCmd.Hidden = true
-	knowCmd.AddCommand(sessionOutcomeCmd)
+	sessionOutcomeCmd.GroupID = "knowledge"
+	rootCmd.AddCommand(sessionOutcomeCmd)
 	sessionOutcomeCmd.Flags().StringVar(&sessionOutcomeSessionID, "session", "", "Session ID (extracted from transcript if not provided)")
 	sessionOutcomeCmd.Flags().StringVar(&sessionOutcomeOutput, "output", "text", "Output format: text, json")
 }

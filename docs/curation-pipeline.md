@@ -10,7 +10,7 @@ Without curation, the flywheel stores everything and retrieves whatever fits the
 
 The curation pipeline fixes this by applying six stages -- CATALOG, VERIFY, INDEX, SCORE, REJECT, CONSTRAIN -- that progressively filter and strengthen knowledge before it re-enters agent context windows.
 
-> **Current Implementation (v1):** Only CATALOG and VERIFY stages are implemented as CLI commands (`ao quality curate catalog`, `ao quality curate verify`, `ao quality curate status`). Stages 3-6 are planned for future releases.
+> **Current Implementation (v1):** Only CATALOG and VERIFY stages are implemented as CLI commands (`ao curate catalog`, `ao curate verify`, `ao curate status`). Stages 3-6 are planned for future releases.
 
 **This is NOT the knowledge flywheel.** The flywheel is the loop: extract, store, retrieve, apply, compound. The curation pipeline is what happens between "store" and "retrieve" -- the quality control that determines whether the flywheel compounds signal or noise.
 
@@ -47,7 +47,7 @@ v1 (ship first)           v2 (after v1 proves out)      v3 (after v2 proves out)
 
 **v1 closes the biggest gap.** Today, `/forge` and `/retro` produce unstructured markdown files that go directly into `.agents/learnings/` with no verification. v1 adds structure (typed artifacts) and mechanical truth checks (did the tests pass?). This alone prevents the most damaging failure mode: confidently wrong learnings entering the knowledge base.
 
-**v2 adds discoverability and quality measurement.** Once artifacts are structured and verified, they can be tagged for retrieval and scored for quality. This makes `ao know search` and `ao know inject` return better results and enables the pool tiering system (gold/silver/bronze) to operate on verified data.
+**v2 adds discoverability and quality measurement.** Once artifacts are structured and verified, they can be tagged for retrieval and scored for quality. This makes `ao search` and `ao inject` return better results and enables the pool tiering system (gold/silver/bronze) to operate on verified data.
 
 **v3 adds the feedback loop.** Once artifacts are scored, the system can reject low-quality or stale knowledge and compile high-quality knowledge into permanent defenses. This is where the system starts to exhibit self-organization: it generates its own constraints from its own experience.
 
@@ -104,7 +104,7 @@ All curation artifacts carry `schema_version: 1` in their metadata.
 
 - **Input:** Reuses existing `/forge` output format (Decision, Learning, Failure, Pattern types with confidence scores). Reuses `/retro` output format (ID, Category, Confidence).
 - **Output:** Writes to `.agents/pool/pending/` using the existing `pool.Add()` Go API (`cli/internal/pool/pool.go`).
-- **CLI:** `ao quality curate catalog` -- reads forge/retro output, produces typed pool entries.
+- **CLI:** `ao curate catalog` -- reads forge/retro output, produces typed pool entries.
 - **Types:** Uses existing `types.KnowledgeType` (decision, solution, learning, failure, reference) and `types.Candidate` struct from `cli/internal/types/types.go`.
 
 ### Failure Mode Analysis
@@ -130,8 +130,8 @@ None. CATALOG is the entry point to the pipeline. It receives input from existin
 Cataloged artifact from Stage 1 (pool entry in `.agents/pool/pending/`) plus verification context:
 
 - Git state at the time of the learning (commit hash from provenance)
-- Test results associated with that commit (`ao work ratchet status`)
-- Goal measurements before and after (`ao work goals measure`)
+- Test results associated with that commit (`ao ratchet status`)
+- Goal measurements before and after (`ao goals measure`)
 
 ### Output
 
@@ -161,9 +161,9 @@ Verification result appended to the pool entry:
 ### Connection to Existing Infrastructure
 
 - **Input:** Reads pool entries via `pool.Get()` or `pool.List()`.
-- **Ratchet:** Uses `ao work ratchet status` to check if the commit associated with this learning passed validation gates.
-- **Goals:** Uses `ao work goals measure` to check if goal metrics improved.
-- **CLI:** `ao quality curate verify` -- runs mechanical checks against pool entries that lack verification.
+- **Ratchet:** Uses `ao ratchet status` to check if the commit associated with this learning passed validation gates.
+- **Goals:** Uses `ao goals measure` to check if goal metrics improved.
+- **CLI:** `ao curate verify` -- runs mechanical checks against pool entries that lack verification.
 - **Hooks:** Can be triggered by `session-end-maintenance.sh` to verify pending entries in background.
 
 ### Failure Mode Analysis
@@ -183,7 +183,7 @@ Depends on **CATALOG** -- can only verify artifacts that have been cataloged wit
 
 ## Stage 3: INDEX
 
-**What it does:** Tags cataloged, verified artifacts by topic, skill, and goal. Makes them findable through `ao know search` and surfaceable through `ao know inject`.
+**What it does:** Tags cataloged, verified artifacts by topic, skill, and goal. Makes them findable through `ao search` and surfaceable through `ao inject`.
 
 ### Input
 
@@ -217,18 +217,18 @@ Additionally, a JSONL entry is appended to `.agents/ao/search-index.jsonl`:
 
 ### Connection to Existing Infrastructure
 
-- **Search:** Enriches `ao know search` results. Currently, search scans markdown files and JSONL session logs. INDEX adds structured topic/keyword metadata that improves relevance ranking.
-- **Inject:** Improves `ao know inject --context "<topic>"` filtering. Currently, inject uses substring matching against file content. INDEX adds explicit topic tags for faster, more accurate filtering.
-- **Forge:** `ao know forge markdown` already writes to `search-index.jsonl`. INDEX extends this with richer metadata.
-- **CLI:** `ao quality curate index` -- reads cataloged entries, extracts topics/keywords, updates search index.
+- **Search:** Enriches `ao search` results. Currently, search scans markdown files and JSONL session logs. INDEX adds structured topic/keyword metadata that improves relevance ranking.
+- **Inject:** Improves `ao inject --context "<topic>"` filtering. Currently, inject uses substring matching against file content. INDEX adds explicit topic tags for faster, more accurate filtering.
+- **Forge:** `ao forge markdown` already writes to `search-index.jsonl`. INDEX extends this with richer metadata.
+- **CLI:** `ao curate index` -- reads cataloged entries, extracts topics/keywords, updates search index.
 
 ### Failure Mode Analysis
 
 | Failure | Impact | Mitigation |
 |---------|--------|------------|
-| INDEX missing | Artifacts are stored but not findable. `ao know search` returns results based only on content grep. `ao know inject` loads by recency only, not relevance. | This is today's status quo. INDEX improves retrieval quality but its absence doesn't break anything. |
-| Wrong topics assigned | Artifact tagged with irrelevant topics. Returns as noise in search results. | INDEX runs after VERIFY, so at minimum the content is mechanically validated. Topic assignment can be re-run (`ao quality curate index --reindex`). |
-| Index drift | Search index diverges from actual pool state (entries deleted but index not updated). | Index is append-only JSONL. `ao know search` validates entries exist before returning results. Periodic `ao quality curate index --rebuild` reconciles. |
+| INDEX missing | Artifacts are stored but not findable. `ao search` returns results based only on content grep. `ao inject` loads by recency only, not relevance. | This is today's status quo. INDEX improves retrieval quality but its absence doesn't break anything. |
+| Wrong topics assigned | Artifact tagged with irrelevant topics. Returns as noise in search results. | INDEX runs after VERIFY, so at minimum the content is mechanically validated. Topic assignment can be re-run (`ao curate index --reindex`). |
+| Index drift | Search index diverges from actual pool state (entries deleted but index not updated). | Index is append-only JSONL. `ao search` validates entries exist before returning results. Periodic `ao curate index --rebuild` reconciles. |
 
 ### Dependencies
 
@@ -363,15 +363,15 @@ Rejected artifacts moved to `.agents/pool/rejected/` with rejection metadata:
 - **Decay:** Uses existing `ConfidenceDecayRate = 0.1` (10%/week) and `DefaultDelta = 0.17` (17%/week knowledge decay from Darr 1995).
 - **Supersession:** Uses existing `types.Supersede()` and `candidate.IsSuperseded()` from `cli/internal/types/types.go`.
 - **Expiry:** Uses existing `candidate.IsExpired()` and `candidate.UpdateExpiryStatus()`.
-- **CLI:** `ao quality curate reject --stale --threshold=0.30` -- scans pool for artifacts meeting rejection criteria.
+- **CLI:** `ao curate reject --stale --threshold=0.30` -- scans pool for artifacts meeting rejection criteria.
 
 ### Failure Mode Analysis
 
 | Failure | Impact | Mitigation |
 |---------|--------|------------|
 | REJECT missing | Stale, wrong, and superseded learnings accumulate indefinitely. Context windows fill with noise. Agents apply outdated knowledge, causing regressions. This is the autoimmune disease scenario. | Without REJECT, the only cleanup is manual deletion. The flywheel equation `dK/dt = I(t) - delta*K + sigma*rho*K - B(K, K_crit)` has no delta term enforced -- knowledge grows without bound but quality degrades. |
-| Over-rejection | Useful learnings removed too aggressively. Knowledge base shrinks below useful size. | Rejection is recoverable: rejected entries stay in `.agents/pool/rejected/` and can be restored. `ao quality pool list --status rejected` shows what was removed and why. |
-| Under-rejection | Thresholds too lenient. Stale knowledge persists. | Thresholds are configurable. Start conservative (reject only below 0.30 utility), tighten based on flywheel metrics. `ao quality flywheel status` shows if velocity is negative (decay winning). |
+| Over-rejection | Useful learnings removed too aggressively. Knowledge base shrinks below useful size. | Rejection is recoverable: rejected entries stay in `.agents/pool/rejected/` and can be restored. `ao pool list --status rejected` shows what was removed and why. |
+| Under-rejection | Thresholds too lenient. Stale knowledge persists. | Thresholds are configurable. Start conservative (reject only below 0.30 utility), tighten based on flywheel metrics. `ao flywheel status` shows if velocity is negative (decay winning). |
 | Feedback gaming | Agent always reports "helpful" to prevent rejection. | MemRL uses implicit signals (citation tracking) alongside explicit feedback. An artifact that is "helpful" but never cited still decays via time-based confidence decay. |
 
 ### Dependencies
@@ -446,7 +446,7 @@ draft ──────> active ──────> retired
 - **Hooks:** Active constraints are sourced by `task-validation-gate.sh` during validation. The hook scans `.agents/constraints/` for active constraint scripts and runs them.
 - **Post-mortem / Retro:** After extracting learnings, if any score >= 4/5 on actionability and are tagged `constraint` or `anti-pattern`, the skill invokes `hooks/constraint-compiler.sh <learning-path>` to generate the template.
 - **Pool:** Reads established learnings from `.agents/pool/staged/` or promoted artifacts in `.agents/learnings/`.
-- **CLI:** `ao quality curate constrain` -- scans for established learnings meeting promotion criteria, generates constraint templates.
+- **CLI:** `ao curate constrain` -- scans for established learnings meeting promotion criteria, generates constraint templates.
 
 ### Failure Mode Analysis
 
@@ -469,7 +469,7 @@ The pipeline degrades gracefully. Each version is strictly better than the previ
 
 | State | What Works | What's Missing | Net Effect |
 |-------|-----------|----------------|------------|
-| **No pipeline** (today) | `/forge` and `/retro` write markdown to `.agents/`. `ao know inject` loads by recency. `ao know search` greps content. | No structure, no verification, no quality filtering, no expiry, no constraints. | Raw accumulation. Knowledge base grows but quality is random. |
+| **No pipeline** (today) | `/forge` and `/retro` write markdown to `.agents/`. `ao inject` loads by recency. `ao search` greps content. | No structure, no verification, no quality filtering, no expiry, no constraints. | Raw accumulation. Knowledge base grows but quality is random. |
 | **v1: CATALOG + VERIFY** | Artifacts are typed (learning/decision/failure/pattern). Mechanical verification (tests passed? goals improved?). | No topic tagging, no quality scoring, no rejection, no constraints. | Structured accumulation. Wrong learnings caught by test verification. Already a major improvement: the single biggest risk (confidently wrong learnings) is mitigated. |
 | **v2: + INDEX + SCORE** | Artifacts are findable by topic. Quality-gated into tiers. Search returns ranked results. Inject loads best-quality first. | No automated rejection, no constraint compilation. | Quality-filtered retrieval. Token budget spent on high-quality learnings first. Noise reduced proportional to scoring accuracy. |
 | **v3: + REJECT + CONSTRAIN** | Stale/wrong learnings removed. High-quality learnings compiled into hooks. Full feedback loop. | Manual constraint activation. | Self-organizing system. Generates its own defenses from experience. Unlearns what no longer applies. The flywheel equation has all terms active. |
@@ -509,7 +509,7 @@ The pipeline degrades gracefully. Each version is strictly better than the previ
   │  STAGE 3: INDEX           │  v2
   │  Tag by topic, skill,     │
   │  goal. Update search idx  │
-  │  → ao know search, ao know inject   │
+  │  → ao search, ao inject   │
   └────────────┬─────────────┘
                │
                ▼
@@ -572,8 +572,8 @@ When the schema evolves, the version increments. Readers check the version and a
 - `/forge` skill -- Transcript mining (CATALOG input)
 - `/retro` skill -- Retrospective extraction (CATALOG input)
 - `/post-mortem` skill -- Council-validated findings + constraint trigger
-- `ao quality pool list` -- View pool entries by tier and status
+- `ao pool list` -- View pool entries by tier and status
 - `ao feedback` -- Record MemRL reward signals
-- `ao know search` -- Search knowledge base (improved by INDEX)
-- `ao know inject` -- Load prior knowledge (improved by INDEX + SCORE)
-- `ao quality flywheel status` -- Knowledge growth rate and escape velocity
+- `ao search` -- Search knowledge base (improved by INDEX)
+- `ao inject` -- Load prior knowledge (improved by INDEX + SCORE)
+- `ao flywheel status` -- Knowledge growth rate and escape velocity

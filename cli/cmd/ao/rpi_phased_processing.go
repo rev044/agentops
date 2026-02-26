@@ -120,6 +120,13 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 	if isPlanFileEpic(state.EpicID) {
 		return nil
 	}
+	if isEpic, err := isEpicIssue(state.EpicID, state.Opts.BDCommand); err == nil && !isEpic {
+		fmt.Printf("Crank status: SKIP (non-epic issue %s)\n", state.EpicID)
+		logPhaseTransition(logPath, state.RunID, "implementation", fmt.Sprintf("crank status: SKIP (non-epic issue %s)", state.EpicID))
+		return nil
+	} else if err != nil {
+		VerbosePrintf("Warning: could not determine issue type for %s (continuing with crank completion check): %v\n", state.EpicID, err)
+	}
 	status, err := checkCrankCompletion(state.EpicID, state.Opts.BDCommand)
 	if err != nil {
 		VerbosePrintf("Warning: could not check crank completion (continuing to validation): %v\n", err)
@@ -276,7 +283,7 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 	}
 
 	if GetDryRun() {
-		fmt.Printf("[dry-run] Would spawn retry: %s -p '%s'\n", effectiveRuntimeCommand(state.Opts.RuntimeCommand), retryPrompt)
+		fmt.Printf("[dry-run] Would spawn retry: %s\n", formatRuntimePromptInvocation(effectiveRuntimeCommand(state.Opts.RuntimeCommand), retryPrompt))
 		return false, nil
 	}
 
@@ -599,6 +606,64 @@ func parseLatestEpicIDFromJSON(data []byte) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no epic found in bd list output")
+}
+
+func isEpicIssue(issueID, bdCommand string) (bool, error) {
+	if strings.TrimSpace(issueID) == "" {
+		return false, fmt.Errorf("empty issue id")
+	}
+	cmd := exec.Command(effectiveBDCommand(bdCommand), "show", issueID, "--json")
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("bd show: %w", err)
+	}
+	return parseIssueTypeFromShowJSON(out)
+}
+
+func parseIssueTypeFromShowJSON(data []byte) (bool, error) {
+	var single map[string]any
+	if err := json.Unmarshal(data, &single); err == nil {
+		if isEpic, ok := issueTypeFromMap(single); ok {
+			return isEpic, nil
+		}
+		return false, fmt.Errorf("bd show output missing issue type")
+	}
+
+	var multiple []map[string]any
+	if err := json.Unmarshal(data, &multiple); err == nil {
+		for _, entry := range multiple {
+			if isEpic, ok := issueTypeFromMap(entry); ok {
+				return isEpic, nil
+			}
+		}
+		return false, fmt.Errorf("bd show array output missing issue type")
+	}
+
+	return false, fmt.Errorf("bd show output is not valid json")
+}
+
+func issueTypeFromMap(payload map[string]any) (bool, bool) {
+	if payload == nil {
+		return false, false
+	}
+	if rawEpic, ok := payload["epic"]; ok {
+		if isEpic, ok := rawEpic.(bool); ok {
+			return isEpic, true
+		}
+	}
+	for _, key := range []string{"type", "issue_type", "kind"} {
+		raw, ok := payload[key]
+		if !ok {
+			continue
+		}
+		if kind, ok := raw.(string); ok {
+			return strings.EqualFold(strings.TrimSpace(kind), "epic"), true
+		}
+	}
+	if nested, ok := payload["issue"].(map[string]any); ok {
+		return issueTypeFromMap(nested)
+	}
+	return false, false
 }
 
 func parseLatestEpicIDFromText(output string) (string, error) {

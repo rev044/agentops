@@ -52,7 +52,7 @@ These control AO CLI configuration loading and RPI control-plane command customi
 
 ## Hooks
 
-These control the optional hook system installed via `ao start init --hooks`. Each hook checks `AGENTOPS_HOOKS_DISABLED` first (global kill switch), then its own variable.
+These control the optional hook system installed via `ao init --hooks`. Each hook checks `AGENTOPS_HOOKS_DISABLED` first (global kill switch), then its own variable.
 
 | Variable | Default | Description |
 |----------|---------|-------------|

@@ -13,7 +13,7 @@ check "references/ has at least 1 file" "[ \$(ls '$SKILL_DIR/references/' | wc -
 check "SKILL.md mentions .agents/learnings/ output" "grep -q '\.agents/learnings/' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions .agents/retros/ output" "grep -q '\.agents/retros/' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions knowledge flywheel" "grep -qi 'flywheel' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions ao know forge" "grep -q 'ao know forge' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions ao forge" "grep -q 'ao forge' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions learning categories" "grep -qi 'category\|debugging\|architecture\|process' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions confidence levels" "grep -qi 'confidence.*high\|high.*medium.*low' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions vibe results integration" "grep -qi 'vibe.results\|vibe-results' '$SKILL_DIR/SKILL.md'"

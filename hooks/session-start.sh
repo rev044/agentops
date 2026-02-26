@@ -98,7 +98,7 @@ if [ "$STARTUP_MODE" = "manual" ]; then
     # Manual mode (default): MEMORY.md is auto-loaded by Claude Code.
     # No extract/inject — emit pointer-only context for JIT retrieval.
     MANUAL_CTX="MEMORY.md is auto-loaded by Claude Code for this project.
-For on-demand retrieval: \`ao know search \"<query>\"\` or \`ao know lookup --query \"<query>\"\`"
+For on-demand retrieval: \`ao search \"<query>\"\` or \`ao lookup --query \"<query>\"\`"
     if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
         MANUAL_CTX="${MANUAL_CTX}
 Predecessor handoff: ${PREDECESSOR_FILE}"
@@ -110,9 +110,9 @@ elif command -v ao &>/dev/null; then
     INJECT_EXTRA_FLAGS=()
     if [ -n "${HOOK_BEAD:-}" ]; then
         INJECT_EXTRA_FLAGS+=(--bead "$HOOK_BEAD")
-        run_ao_quick 5 know forge transcript --last-session --quiet --bead "$HOOK_BEAD" || log_hook_fail "ao know forge transcript --last-session --quiet --bead"
+        run_ao_quick 5 know forge transcript --last-session --quiet --bead "$HOOK_BEAD" || log_hook_fail "ao forge transcript --last-session --quiet --bead"
     else
-        run_ao_quick 5 know forge transcript --last-session --quiet || log_hook_fail "ao know forge transcript --last-session --quiet"
+        run_ao_quick 5 know forge transcript --last-session --quiet || log_hook_fail "ao forge transcript --last-session --quiet"
     fi
 
     if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
@@ -142,7 +142,7 @@ elif command -v ao &>/dev/null; then
     fi
 
     if ! INJECTED_KNOWLEDGE="$(run_ao_quick 5 know inject "${INJECT_MODE_FLAGS[@]}" "${INJECT_EXTRA_FLAGS[@]}")"; then
-        log_hook_fail "ao know inject"
+        log_hook_fail "ao inject"
         INJECTED_KNOWLEDGE=""
     fi
 fi
@@ -174,7 +174,7 @@ fi
 if [ -n "${MEMORY_FILE:-}" ] && [ -f "$MEMORY_FILE" ] && [ "${MEMORY_AGE_DAYS:-0}" -gt 7 ]; then
     INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
 
-*Note: Your MEMORY.md hasn't been updated in ${MEMORY_AGE_DAYS} days. Consider running \`ao settings notebook update\` or updating it manually.*"
+*Note: Your MEMORY.md hasn't been updated in ${MEMORY_AGE_DAYS} days. Consider running \`ao notebook update\` or updating it manually.*"
 fi
 
 if [ -n "$INJECTED_KNOWLEDGE" ]; then

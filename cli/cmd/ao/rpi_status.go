@@ -104,6 +104,15 @@ const heartbeatLiveThreshold = 5 * time.Minute
 // tmuxProbeTimeout is the maximum time we will wait for a single tmux probe.
 const tmuxProbeTimeout = 2 * time.Second
 
+// rpiStatusMaxSiblingFiles bounds expensive sibling artifact scans.
+const rpiStatusMaxSiblingFiles = 24
+
+// rpiStatusMaxLogFileBytes bounds orchestration log parsing during status.
+const rpiStatusMaxLogFileBytes int64 = 2 * 1024 * 1024
+
+// rpiStatusMaxLiveStatusBytes bounds live-status markdown reads during status.
+const rpiStatusMaxLiveStatusBytes int64 = 256 * 1024
+
 func runRPIStatus(cmd *cobra.Command, args []string) error {
 	if rpiStatusWatch {
 		return runRPIStatusWatch()
@@ -573,7 +582,7 @@ func discoverLogRuns(cwd string) []rpiRun {
 
 	// Check current directory
 	logPath := filepath.Join(cwd, ".agents", "rpi", "phased-orchestration.log")
-	if runs, err := parseOrchestrationLog(logPath); err == nil {
+	if runs, err := parseOrchestrationLogBounded(logPath); err == nil {
 		allRuns = append(allRuns, runs...)
 	}
 
@@ -582,12 +591,15 @@ func discoverLogRuns(cwd string) []rpiRun {
 	pattern := filepath.Join(parent, "*-rpi-*", ".agents", "rpi", "phased-orchestration.log")
 	matches, err := filepath.Glob(pattern)
 	if err == nil {
+		if len(matches) > rpiStatusMaxSiblingFiles {
+			matches = matches[:rpiStatusMaxSiblingFiles]
+		}
 		for _, match := range matches {
 			// Skip if same as cwd log
 			if match == logPath {
 				continue
 			}
-			if runs, err := parseOrchestrationLog(match); err == nil {
+			if runs, err := parseOrchestrationLogBounded(match); err == nil {
 				allRuns = append(allRuns, runs...)
 			}
 		}
@@ -596,12 +608,30 @@ func discoverLogRuns(cwd string) []rpiRun {
 	return allRuns
 }
 
+func parseOrchestrationLogBounded(logPath string) ([]rpiRun, error) {
+	info, err := os.Stat(logPath)
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > rpiStatusMaxLogFileBytes {
+		return nil, fmt.Errorf("skip oversized orchestration log %s (%d bytes)", logPath, info.Size())
+	}
+	return parseOrchestrationLog(logPath)
+}
+
 func discoverLiveStatuses(cwd string) []liveStatusSnapshot {
 	var snapshots []liveStatusSnapshot
 	seen := make(map[string]struct{})
 
 	add := func(path string) {
+		if len(snapshots) >= rpiStatusMaxSiblingFiles+1 {
+			return
+		}
 		if _, ok := seen[path]; ok {
+			return
+		}
+		info, err := os.Stat(path)
+		if err != nil || info.Size() > rpiStatusMaxLiveStatusBytes {
 			return
 		}
 		data, err := os.ReadFile(path)
@@ -623,6 +653,9 @@ func discoverLiveStatuses(cwd string) []liveStatusSnapshot {
 	pattern := filepath.Join(parent, "*-rpi-*", ".agents", "rpi", "live-status.md")
 	matches, err := filepath.Glob(pattern)
 	if err == nil {
+		if len(matches) > rpiStatusMaxSiblingFiles {
+			matches = matches[:rpiStatusMaxSiblingFiles]
+		}
 		for _, match := range matches {
 			add(match)
 		}

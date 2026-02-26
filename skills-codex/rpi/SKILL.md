@@ -29,7 +29,7 @@ RPI control-plane command paths are configurable through `.agentops/config.yaml`
 ```yaml
 rpi:
   runtime_mode: auto        # auto|direct|stream
-  runtime_command: codex   # runtime process command
+  runtime_command: claude   # runtime process command
   ao_command: ao            # ratchet/checkpoint command
   bd_command: bd            # epic/child query command
   tmux_command: tmux        # status liveness probe command
@@ -50,7 +50,7 @@ Safety defaults:
 
 ```
 $rpi <goal | epic-id> [--from=<phase>] [--interactive]
-  │ (session = lead, no team spawn)
+  │ (session = lead, no team-create)
   │
   ├── Phase 1: Discovery
   │   ├── $research
@@ -693,4 +693,5 @@ check "SKILL.md mentions post-mortem phase" "grep -qi 'post-mortem' '$SKILL_DIR/
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
 ```
+
 

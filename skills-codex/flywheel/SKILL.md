@@ -110,7 +110,7 @@ if command -v ao &>/dev/null; then
   ao quality flywheel status 2>/dev/null || echo "ao quality flywheel status unavailable"
   ao status 2>/dev/null || echo "ao status unavailable"
   ao quality maturity --scan 2>/dev/null || echo "ao quality maturity unavailable"
-  ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
+  ao quality promote-anti-patterns --dry-run 2>/dev/null || echo "ao quality promote-anti-patterns unavailable"
   ao quality badge 2>/dev/null || echo "ao quality badge unavailable"
 
   # Knowledge maintenance
@@ -256,7 +256,6 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 
 ### artifact-consistency-allowlist.txt
 
-```text
 # Artifact consistency allowlist
 #
 # Format:
@@ -285,7 +284,6 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 * -> .agents/*/...*
 * -> .agents/*/foo.*
 * -> .agents/handoff/auto-99999999T999999Z.md
-```
 
 ### artifact-consistency.md
 
@@ -382,7 +380,7 @@ Defines the maturity pipeline for knowledge artifacts.
 
 ## Tier 1: Learnings (`.agents/learnings/`)
 
-- **Source:** `$retro`, `$learn`, `$extract`, promoted from forge
+- **Source:** `$retro`, `/learn`, `/extract`, promoted from forge
 - **Confidence:** 0.3-1.0
 - **Citations:** 1+
 - **Promotion criteria:** Promote to Tier 2 when confidence >= 0.8 AND cited >= 3 times AND age > 30 days
@@ -398,10 +396,10 @@ Defines the maturity pipeline for knowledge artifacts.
 
 ## Cross-Repo Promotion
 
-- Any tier can be promoted to `~/.codex/patterns/` via `$learn --global`
+- Any tier can be promoted to `~/.codex/patterns/` via `/learn --global`
 - Global patterns are user-level, shared across all repositories
 - Promotion is a manual decision (human judgment on cross-repo applicability)
-- Global patterns are found by `$research`, `$knowledge`, and `$inject` via grep
+- Global patterns are found by `$research`, `/knowledge`, and `$inject` via grep
 
 ## Confidence Normalization
 
@@ -628,4 +626,5 @@ check "artifact-consistency allowlist exists" "[ -f '$SKILL_DIR/references/artif
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
 ```
+
 

@@ -129,7 +129,8 @@ Examples:
 }
 
 func init() {
-	knowCmd.AddCommand(injectCmd)
+	injectCmd.GroupID = "knowledge"
+	rootCmd.AddCommand(injectCmd)
 	injectCmd.Flags().IntVar(&injectMaxTokens, "max-tokens", DefaultInjectMaxTokens, "Maximum tokens to output")
 	injectCmd.Flags().StringVar(&injectContext, "context", "", "Context query for filtering (alternative to positional arg)")
 	injectCmd.Flags().StringVar(&injectFormat, "format", "markdown", "Output format: markdown, json")

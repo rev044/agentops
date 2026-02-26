@@ -173,16 +173,22 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 		}
 	}
 
-	if len(cmdNames) < 20 {
-		t.Fatalf("expected at least 20 registered commands, got %d", len(cmdNames))
+	if len(cmdNames) < 45 {
+		t.Fatalf("expected at least 45 registered commands, got %d", len(cmdNames))
 	}
 
-	// Verify key top-level and namespace commands are registered
+	// Verify all top-level commands are registered (flat namespace)
 	expectedCmds := []string{
-		"version", "doctor", "status", "init",
-		"seed", "demo",
-		"completion", "extract",
-		"work", "know", "quality", "settings", "start",
+		"anti-patterns", "badge", "batch-feedback", "completion", "config",
+		"constraint", "context", "contradict", "curate", "dedup",
+		"demo", "doctor", "extract", "feedback", "feedback-loop",
+		"flywheel", "forge", "gate", "goals", "hooks",
+		"index", "init", "inject", "lookup", "maturity",
+		"memory", "metrics", "migrate", "notebook", "plans",
+		"pool", "promote-anti-patterns", "quick-start", "ratchet", "rpi",
+		"search", "seed", "session", "session-outcome", "status",
+		"store", "task-feedback", "task-status", "task-sync", "temper",
+		"trace", "version", "vibe-check", "worktree",
 	}
 	cmdSet := make(map[string]bool)
 	for _, name := range cmdNames {
@@ -194,15 +200,15 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 		}
 	}
 
-	// Verify parent commands have subcommands (namespaced paths)
+	// Verify parent commands have subcommands
 	parentExpectations := map[string][]string{
-		"work/goals":        {"validate", "measure", "drift"},
-		"work/ratchet":      {"status", "check", "next"},
-		"quality/metrics":   {"baseline", "report"},
-		"quality/flywheel":  {"status", "nudge"},
-		"quality/constraint": {"activate", "retire", "review", "list"},
-		"quality/pool":      {"list", "ingest"},
-		"know/store":        {"rebuild", "search"},
+		"goals":      {"validate", "measure", "drift"},
+		"ratchet":    {"status", "check", "next"},
+		"metrics":    {"baseline", "report"},
+		"flywheel":   {"status", "nudge"},
+		"constraint": {"activate", "retire", "review", "list"},
+		"pool":       {"list", "ingest"},
+		"store":      {"rebuild", "search"},
 	}
 	for parent, expectedSubs := range parentExpectations {
 		for _, sub := range expectedSubs {
@@ -210,6 +216,51 @@ func TestCobraCommandTreeRegistration(t *testing.T) {
 			if !cmdSet[key] {
 				t.Errorf("expected subcommand %q to be registered", key)
 			}
+		}
+	}
+}
+
+// TestCobraExpectedCmdsMatchRegistration ensures the hardcoded expectedCmds list
+// stays in sync with actual cobra command registration — catches drift in either direction.
+func TestCobraExpectedCmdsMatchRegistration(t *testing.T) {
+	root := rootCmd
+	registered := make(map[string]bool)
+	for _, cmd := range root.Commands() {
+		registered[cmd.Name()] = true
+	}
+
+	// Same list as TestCobraCommandTreeRegistration
+	expectedCmds := []string{
+		"anti-patterns", "badge", "batch-feedback", "completion", "config",
+		"constraint", "context", "contradict", "curate", "dedup",
+		"demo", "doctor", "extract", "feedback", "feedback-loop",
+		"flywheel", "forge", "gate", "goals", "hooks",
+		"index", "init", "inject", "lookup", "maturity",
+		"memory", "metrics", "migrate", "notebook", "plans",
+		"pool", "promote-anti-patterns", "quick-start", "ratchet", "rpi",
+		"search", "seed", "session", "session-outcome", "status",
+		"store", "task-feedback", "task-status", "task-sync", "temper",
+		"trace", "version", "vibe-check", "worktree",
+	}
+
+	// Every expected command must be registered
+	for _, name := range expectedCmds {
+		if !registered[name] {
+			t.Errorf("expectedCmds contains %q but it is not a registered command", name)
+		}
+	}
+
+	// Every registered command must be expected (except auto-added ones)
+	expectedSet := make(map[string]bool)
+	for _, name := range expectedCmds {
+		expectedSet[name] = true
+	}
+	for name := range registered {
+		if name == "help" {
+			continue // cobra adds this automatically
+		}
+		if !expectedSet[name] {
+			t.Errorf("registered command %q is not in expectedCmds — add it to keep the list in sync", name)
 		}
 	}
 }
@@ -312,9 +363,9 @@ func TestCobraBadgeCommand(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
-	out, err := executeCommand("quality", "badge")
+	out, err := executeCommand("badge")
 	if err != nil {
-		t.Fatalf("ao quality badge failed: %v", err)
+		t.Fatalf("ao badge failed: %v", err)
 	}
 	if !strings.Contains(out, "AGENTOPS") {
 		t.Errorf("expected badge header in output, got: %s", out)
@@ -458,9 +509,9 @@ func TestCobraSeedCommand(t *testing.T) {
 
 // TestCobraSearchHelp exercises search help.
 func TestCobraSearchHelp(t *testing.T) {
-	out, err := executeCommand("know", "search", "--help")
+	out, err := executeCommand("search", "--help")
 	if err != nil {
-		t.Fatalf("ao know search --help failed: %v", err)
+		t.Fatalf("ao search --help failed: %v", err)
 	}
 	if !strings.Contains(out, "Search") {
 		t.Errorf("expected 'Search' in output, got: %s", out)
@@ -470,9 +521,9 @@ func TestCobraSearchHelp(t *testing.T) {
 // TestCobraTraceHelpAndDryRun exercises trace help and dry-run.
 func TestCobraTraceHelpAndDryRun(t *testing.T) {
 	t.Run("help", func(t *testing.T) {
-		out, err := executeCommand("know", "trace", "--help")
+		out, err := executeCommand("trace", "--help")
 		if err != nil {
-			t.Fatalf("ao know trace --help failed: %v", err)
+			t.Fatalf("ao trace --help failed: %v", err)
 		}
 		if !strings.Contains(out, "provenance") {
 			t.Errorf("expected 'provenance' in output, got: %s", out)
@@ -483,9 +534,9 @@ func TestCobraTraceHelpAndDryRun(t *testing.T) {
 		dryRun = true
 		defer func() { dryRun = false }()
 
-		out, err := executeCommand("know", "trace", "--dry-run", "some-artifact")
+		out, err := executeCommand("trace", "--dry-run", "some-artifact")
 		if err != nil {
-			t.Fatalf("ao know trace --dry-run failed: %v", err)
+			t.Fatalf("ao trace --dry-run failed: %v", err)
 		}
 		if !strings.Contains(out, "dry-run") {
 			t.Errorf("expected dry-run in output, got: %s", out)
@@ -526,9 +577,9 @@ Maintain test coverage
 		t.Fatal(err)
 	}
 
-	out, err := executeCommand("work", "goals", "validate")
+	out, err := executeCommand("goals", "validate")
 	if err != nil {
-		t.Fatalf("ao work goals validate failed: %v\noutput: %s", err, out)
+		t.Fatalf("ao goals validate failed: %v\noutput: %s", err, out)
 	}
 	if !strings.Contains(out, "VALID") {
 		t.Errorf("expected 'VALID' in output, got: %s", out)
@@ -571,9 +622,9 @@ Increase coverage
 	goalsJSON = true
 	defer func() { goalsJSON = false }()
 
-	out, err := executeCommand("work", "goals", "validate", "--json")
+	out, err := executeCommand("goals", "validate", "--json")
 	if err != nil {
-		t.Fatalf("ao work goals validate --json failed: %v\noutput: %s", err, out)
+		t.Fatalf("ao goals validate --json failed: %v\noutput: %s", err, out)
 	}
 
 	var result map[string]any
@@ -600,9 +651,9 @@ func TestCobraIndexCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := executeCommand("know", "index")
+	out, err := executeCommand("index")
 	if err != nil {
-		t.Fatalf("ao know index failed: %v\noutput: %s", err, out)
+		t.Fatalf("ao index failed: %v\noutput: %s", err, out)
 	}
 	if !strings.Contains(out, "indexed") {
 		t.Errorf("expected 'indexed' in output, got: %s", out)
@@ -621,12 +672,12 @@ func TestCobraIndexCheckCommand(t *testing.T) {
 	}
 
 	// First build the index
-	_, _ = executeCommand("know", "index")
+	_, _ = executeCommand("index")
 
 	// Then check it
-	out, err := executeCommand("know", "index", "--check")
+	out, err := executeCommand("index", "--check")
 	if err != nil {
-		t.Fatalf("ao know index --check failed: %v\noutput: %s", err, out)
+		t.Fatalf("ao index --check failed: %v\noutput: %s", err, out)
 	}
 }
 
@@ -636,9 +687,9 @@ func TestCobraMetricsReportCommand(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
-	out, err := executeCommand("quality", "metrics", "report")
+	out, err := executeCommand("metrics", "report")
 	if err != nil {
-		t.Fatalf("ao quality metrics report failed: %v", err)
+		t.Fatalf("ao metrics report failed: %v", err)
 	}
 	// Should show metrics table even if empty
 	if out == "" {
@@ -652,9 +703,9 @@ func TestCobraMetricsBaselineCommand(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
-	out, err := executeCommand("quality", "metrics", "baseline")
+	out, err := executeCommand("metrics", "baseline")
 	if err != nil {
-		t.Fatalf("ao quality metrics baseline failed: %v", err)
+		t.Fatalf("ao metrics baseline failed: %v", err)
 	}
 	if !strings.Contains(out, "Baseline saved") && !strings.Contains(out, "baseline") {
 		// Might print table + baseline path
@@ -671,9 +722,9 @@ func TestCobraMetricsBaselineDryRun(t *testing.T) {
 	dryRun = true
 	defer func() { dryRun = false }()
 
-	out, err := executeCommand("quality", "metrics", "baseline", "--dry-run")
+	out, err := executeCommand("metrics", "baseline", "--dry-run")
 	if err != nil {
-		t.Fatalf("ao quality metrics baseline --dry-run failed: %v", err)
+		t.Fatalf("ao metrics baseline --dry-run failed: %v", err)
 	}
 	if !strings.Contains(out, "dry-run") {
 		t.Errorf("expected dry-run in output, got: %s", out)
@@ -686,9 +737,9 @@ func TestCobraFlywheelStatusCommand(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
-	out, err := executeCommand("quality", "flywheel", "status")
+	out, err := executeCommand("flywheel", "status")
 	if err != nil {
-		t.Fatalf("ao quality flywheel status failed: %v", err)
+		t.Fatalf("ao flywheel status failed: %v", err)
 	}
 	if out == "" {
 		t.Error("expected some output from flywheel status")
@@ -707,9 +758,9 @@ func TestCobraFlywheelNudgeCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := executeCommand("quality", "flywheel", "nudge")
+	out, err := executeCommand("flywheel", "nudge")
 	if err != nil {
-		t.Fatalf("ao quality flywheel nudge failed: %v", err)
+		t.Fatalf("ao flywheel nudge failed: %v", err)
 	}
 	if out == "" {
 		t.Error("expected some output from flywheel nudge")
@@ -741,9 +792,9 @@ func TestCobraConstraintListCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := executeCommand("quality", "constraint", "list")
+	out, err := executeCommand("constraint", "list")
 	if err != nil {
-		t.Fatalf("ao quality constraint list failed: %v", err)
+		t.Fatalf("ao constraint list failed: %v", err)
 	}
 	if !strings.Contains(out, "c-001") {
 		t.Errorf("expected constraint ID in output, got: %s", out)
@@ -776,9 +827,9 @@ func TestCobraConstraintReviewCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := executeCommand("quality", "constraint", "review")
+	out, err := executeCommand("constraint", "review")
 	if err != nil {
-		t.Fatalf("ao quality constraint review failed: %v", err)
+		t.Fatalf("ao constraint review failed: %v", err)
 	}
 	if !strings.Contains(out, "c-stale") {
 		t.Errorf("expected stale constraint in review output, got: %s", out)
@@ -809,9 +860,9 @@ func TestCobraConstraintActivateCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := executeCommand("quality", "constraint", "activate", "c-draft")
+	out, err := executeCommand("constraint", "activate", "c-draft")
 	if err != nil {
-		t.Fatalf("ao quality constraint activate failed: %v", err)
+		t.Fatalf("ao constraint activate failed: %v", err)
 	}
 	if !strings.Contains(out, "activated") {
 		t.Errorf("expected 'activated' in output, got: %s", out)
@@ -842,9 +893,9 @@ func TestCobraConstraintRetireCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := executeCommand("quality", "constraint", "retire", "c-active")
+	out, err := executeCommand("constraint", "retire", "c-active")
 	if err != nil {
-		t.Fatalf("ao quality constraint retire failed: %v", err)
+		t.Fatalf("ao constraint retire failed: %v", err)
 	}
 	if !strings.Contains(out, "retired") {
 		t.Errorf("expected 'retired' in output, got: %s", out)
@@ -902,9 +953,9 @@ func TestCobraMigrateCommand(t *testing.T) {
 	t.Setenv("HOME", tmp)
 
 	t.Run("no_learnings_dir", func(t *testing.T) {
-		out, err := executeCommand("know", "migrate", "memrl")
+		out, err := executeCommand("migrate", "memrl")
 		if err != nil {
-			t.Fatalf("ao know migrate memrl failed: %v", err)
+			t.Fatalf("ao migrate memrl failed: %v", err)
 		}
 		if !strings.Contains(out, "No learnings") {
 			t.Errorf("expected 'No learnings' in output, got: %s", out)
@@ -921,9 +972,9 @@ func TestCobraMigrateCommand(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		out, err := executeCommand("know", "migrate", "memrl")
+		out, err := executeCommand("migrate", "memrl")
 		if err != nil {
-			t.Fatalf("ao know migrate memrl failed: %v", err)
+			t.Fatalf("ao migrate memrl failed: %v", err)
 		}
 		if !strings.Contains(out, "Migration complete") {
 			t.Errorf("expected 'Migration complete' in output, got: %s", out)
@@ -931,7 +982,7 @@ func TestCobraMigrateCommand(t *testing.T) {
 	})
 
 	t.Run("unknown_migration", func(t *testing.T) {
-		_, err := executeCommand("know", "migrate", "unknown")
+		_, err := executeCommand("migrate", "unknown")
 		if err == nil {
 			t.Error("expected error for unknown migration type")
 		}
@@ -2187,9 +2238,9 @@ func TestCobraFileExists(t *testing.T) {
 
 // TestCobraRatchetParentHelp ensures ratchet parent help works.
 func TestCobraRatchetParentHelp(t *testing.T) {
-	out, err := executeCommand("work", "ratchet", "--help")
+	out, err := executeCommand("ratchet", "--help")
 	if err != nil {
-		t.Fatalf("ao work ratchet --help failed: %v", err)
+		t.Fatalf("ao ratchet --help failed: %v", err)
 	}
 	if !strings.Contains(out, "Brownian Ratchet") {
 		t.Errorf("expected 'Brownian Ratchet' in output, got: %s", out)
@@ -2198,9 +2249,9 @@ func TestCobraRatchetParentHelp(t *testing.T) {
 
 // TestCobraRPIParentHelp ensures rpi parent help works.
 func TestCobraRPIParentHelp(t *testing.T) {
-	out, err := executeCommand("work", "rpi", "--help")
+	out, err := executeCommand("rpi", "--help")
 	if err != nil {
-		t.Fatalf("ao work rpi --help failed: %v", err)
+		t.Fatalf("ao rpi --help failed: %v", err)
 	}
 	if !strings.Contains(out, "RPI") {
 		t.Errorf("expected 'RPI' in output, got: %s", out)
@@ -2209,9 +2260,9 @@ func TestCobraRPIParentHelp(t *testing.T) {
 
 // TestCobraPoolParentHelp ensures pool parent help works.
 func TestCobraPoolParentHelp(t *testing.T) {
-	out, err := executeCommand("quality", "pool", "--help")
+	out, err := executeCommand("pool", "--help")
 	if err != nil {
-		t.Fatalf("ao quality pool --help failed: %v", err)
+		t.Fatalf("ao pool --help failed: %v", err)
 	}
 	if !strings.Contains(out, "pool") {
 		t.Errorf("expected 'pool' in output, got: %s", out)
@@ -2220,9 +2271,9 @@ func TestCobraPoolParentHelp(t *testing.T) {
 
 // TestCobraStoreParentHelp ensures store parent help works.
 func TestCobraStoreParentHelp(t *testing.T) {
-	out, err := executeCommand("know", "store", "--help")
+	out, err := executeCommand("store", "--help")
 	if err != nil {
-		t.Fatalf("ao know store --help failed: %v", err)
+		t.Fatalf("ao store --help failed: %v", err)
 	}
 	if !strings.Contains(out, "store") && !strings.Contains(out, "Store") && !strings.Contains(out, "STORE") {
 		t.Errorf("expected 'store' in output, got: %s", out)
@@ -2231,9 +2282,9 @@ func TestCobraStoreParentHelp(t *testing.T) {
 
 // TestCobraGoalsParentHelp ensures goals parent help works.
 func TestCobraGoalsParentHelp(t *testing.T) {
-	out, err := executeCommand("work", "goals", "--help")
+	out, err := executeCommand("goals", "--help")
 	if err != nil {
-		t.Fatalf("ao work goals --help failed: %v", err)
+		t.Fatalf("ao goals --help failed: %v", err)
 	}
 	if !strings.Contains(out, "goals") && !strings.Contains(out, "Goals") {
 		t.Errorf("expected goals help in output, got: %s", out)
@@ -2242,9 +2293,9 @@ func TestCobraGoalsParentHelp(t *testing.T) {
 
 // TestCobraSessionParentHelp ensures session parent help works.
 func TestCobraSessionParentHelp(t *testing.T) {
-	out, err := executeCommand("work", "session", "--help")
+	out, err := executeCommand("session", "--help")
 	if err != nil {
-		t.Fatalf("ao work session --help failed: %v", err)
+		t.Fatalf("ao session --help failed: %v", err)
 	}
 	if !strings.Contains(out, "session") || !strings.Contains(out, "Session") {
 		t.Errorf("expected session help in output, got: %s", out)
@@ -2253,9 +2304,9 @@ func TestCobraSessionParentHelp(t *testing.T) {
 
 // TestCobraTemperParentHelp ensures temper parent help works.
 func TestCobraTemperParentHelp(t *testing.T) {
-	out, err := executeCommand("know", "temper", "--help")
+	out, err := executeCommand("temper", "--help")
 	if err != nil {
-		t.Fatalf("ao know temper --help failed: %v", err)
+		t.Fatalf("ao temper --help failed: %v", err)
 	}
 	if !strings.Contains(out, "TEMPER") || !strings.Contains(out, "temper") {
 		t.Errorf("expected temper help in output, got: %s", out)
@@ -2264,9 +2315,9 @@ func TestCobraTemperParentHelp(t *testing.T) {
 
 // TestCobraNotebookParentHelp ensures notebook parent help works under settings namespace.
 func TestCobraNotebookParentHelp(t *testing.T) {
-	out, err := executeCommand("settings", "notebook", "--help")
+	out, err := executeCommand("notebook", "--help")
 	if err != nil {
-		t.Fatalf("ao settings notebook --help failed: %v", err)
+		t.Fatalf("ao notebook --help failed: %v", err)
 	}
 	if !strings.Contains(out, "notebook") || !strings.Contains(out, "MEMORY") {
 		t.Errorf("expected notebook help in output, got: %s", out)
@@ -2275,9 +2326,9 @@ func TestCobraNotebookParentHelp(t *testing.T) {
 
 // TestCobraConstraintParentHelp ensures constraint parent help works.
 func TestCobraConstraintParentHelp(t *testing.T) {
-	out, err := executeCommand("quality", "constraint", "--help")
+	out, err := executeCommand("constraint", "--help")
 	if err != nil {
-		t.Fatalf("ao quality constraint --help failed: %v", err)
+		t.Fatalf("ao constraint --help failed: %v", err)
 	}
 	if !strings.Contains(out, "constraint") {
 		t.Errorf("expected constraint help in output, got: %s", out)
@@ -2286,9 +2337,9 @@ func TestCobraConstraintParentHelp(t *testing.T) {
 
 // TestCobraFlywheelParentHelp ensures flywheel parent help works.
 func TestCobraFlywheelParentHelp(t *testing.T) {
-	out, err := executeCommand("quality", "flywheel", "--help")
+	out, err := executeCommand("flywheel", "--help")
 	if err != nil {
-		t.Fatalf("ao quality flywheel --help failed: %v", err)
+		t.Fatalf("ao flywheel --help failed: %v", err)
 	}
 	if !strings.Contains(out, "flywheel") {
 		t.Errorf("expected flywheel help in output, got: %s", out)
@@ -2297,9 +2348,9 @@ func TestCobraFlywheelParentHelp(t *testing.T) {
 
 // TestCobraMetricsParentHelp ensures metrics parent help works.
 func TestCobraMetricsParentHelp(t *testing.T) {
-	out, err := executeCommand("quality", "metrics", "--help")
+	out, err := executeCommand("metrics", "--help")
 	if err != nil {
-		t.Fatalf("ao quality metrics --help failed: %v", err)
+		t.Fatalf("ao metrics --help failed: %v", err)
 	}
 	if !strings.Contains(out, "metrics") || !strings.Contains(out, "flywheel") {
 		t.Errorf("expected metrics help in output, got: %s", out)
@@ -2308,9 +2359,9 @@ func TestCobraMetricsParentHelp(t *testing.T) {
 
 // TestCobraMemoryParentHelp ensures memory parent help works under settings namespace.
 func TestCobraMemoryParentHelp(t *testing.T) {
-	out, err := executeCommand("settings", "memory", "--help")
+	out, err := executeCommand("memory", "--help")
 	if err != nil {
-		t.Fatalf("ao settings memory --help failed: %v", err)
+		t.Fatalf("ao memory --help failed: %v", err)
 	}
 	if !strings.Contains(out, "memory") || !strings.Contains(out, "MEMORY") {
 		t.Errorf("expected memory help in output, got: %s", out)

@@ -58,7 +58,7 @@ func handleDryRunPhase(cwd string, state *phasedState, startPhase int, p phase, 
 	if !GetDryRun() {
 		return false
 	}
-	fmt.Printf("[dry-run] Would spawn: %s -p '%s'\n", effectiveRuntimeCommand(state.Opts.RuntimeCommand), prompt)
+	fmt.Printf("[dry-run] Would spawn: %s\n", formatRuntimePromptInvocation(effectiveRuntimeCommand(state.Opts.RuntimeCommand), prompt))
 	if !opts.NoWorktree && p.Num == startPhase {
 		runID := generateRunID()
 		fmt.Printf("[dry-run] Would create worktree: ../%s-rpi-%s/ (detached)\n",
@@ -71,7 +71,7 @@ func handleDryRunPhase(cwd string, state *phasedState, startPhase int, p phase, 
 // executePhaseSession spawns the phase executor and records the result.
 // On success it writes the phaseResult artifact and returns nil.
 func executePhaseSession(spawnCwd string, state *phasedState, p phase, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath, prompt string, executor PhaseExecutor) error {
-	fmt.Printf("Spawning: %s -p '%s'\n", effectiveRuntimeCommand(state.Opts.RuntimeCommand), prompt)
+	fmt.Printf("Spawning: %s\n", formatRuntimePromptInvocation(effectiveRuntimeCommand(state.Opts.RuntimeCommand), prompt))
 	start := time.Now()
 	updateRunHeartbeat(spawnCwd, state.RunID)
 	retryKey := fmt.Sprintf("phase_%d", p.Num)

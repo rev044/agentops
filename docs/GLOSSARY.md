@@ -116,7 +116,7 @@ The first phase of the RPI lifecycle. Deep codebase exploration using Explore ag
 A skill (`/retro`) that extracts learnings from completed work — decisions made, patterns discovered, and failures encountered — and feeds them into the knowledge flywheel. Learnings are scored for specificity, actionability, and novelty. [Full documentation](../skills/retro/SKILL.md)
 
 ### RPI (Research-Plan-Implement)
-The full lifecycle workflow: Research the codebase, Plan by decomposing the goal into issues, then Implement via pre-mortem, crank, vibe, and post-mortem. The `/rpi` skill runs all phases end to end; `ao work rpi phased` runs each phase in its own fresh context window. [Full documentation](ARCHITECTURE.md#the-rpi-workflow)
+The full lifecycle workflow: Research the codebase, Plan by decomposing the goal into issues, then Implement via pre-mortem, crank, vibe, and post-mortem. The `/rpi` skill runs all phases end to end; `ao rpi phased` runs each phase in its own fresh context window. [Full documentation](ARCHITECTURE.md#the-rpi-workflow)
 
 ## S
 

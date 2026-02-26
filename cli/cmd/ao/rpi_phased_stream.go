@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -70,7 +71,41 @@ func shouldFallbackToDirect(err error) bool {
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "stream startup timeout") ||
 		strings.Contains(msg, "stream parse error") ||
+		strings.Contains(msg, "does not support stream-json") ||
 		(strings.Contains(msg, string(failReasonStall)) && strings.Contains(msg, "no stream activity"))
+}
+
+func runtimeBinaryName(command string) string {
+	fields := strings.Fields(strings.TrimSpace(command))
+	if len(fields) == 0 {
+		return ""
+	}
+	base := strings.ToLower(filepath.Base(fields[0]))
+	return strings.TrimSuffix(base, ".exe")
+}
+
+func runtimeDirectCommandArgs(command, prompt string) []string {
+	if runtimeBinaryName(command) == "codex" {
+		return []string{"exec", prompt}
+	}
+	return []string{"-p", prompt}
+}
+
+func runtimeStreamCommandArgs(command, prompt string) ([]string, error) {
+	if runtimeBinaryName(command) == "codex" {
+		return nil, fmt.Errorf("runtime %q does not support stream-json mode", command)
+	}
+	return []string{"-p", prompt, "--output-format", "stream-json", "--verbose"}, nil
+}
+
+func formatRuntimePromptInvocation(command, prompt string) string {
+	args := runtimeDirectCommandArgs(command, prompt)
+	parts := make([]string, 0, len(args)+1)
+	parts = append(parts, command)
+	for _, arg := range args {
+		parts = append(parts, fmt.Sprintf("%q", arg))
+	}
+	return strings.Join(parts, " ")
 }
 
 // backendCapabilities probes the runtime environment for executor prerequisites.
@@ -178,6 +213,7 @@ func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
 // phaseTimeout controls the maximum runtime; pass 0 to disable the timeout.
 func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, phaseTimeout time.Duration) error {
 	command := effectiveRuntimeCommand(runtimeCommand)
+	args := runtimeDirectCommandArgs(command, prompt)
 
 	ctx := context.Background()
 	cancel := func() {}
@@ -186,7 +222,7 @@ func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, ph
 	}
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, command, "-p", prompt)
+	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = cwd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -227,6 +263,10 @@ type streamWatchdogState struct {
 
 func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress, phaseTimeout, stallTimeout, streamStartupTimeout, checkInterval time.Duration) error {
 	command := effectiveRuntimeCommand(runtimeCommand)
+	args, argsErr := runtimeStreamCommandArgs(command, prompt)
+	if argsErr != nil {
+		return argsErr
+	}
 
 	ctx, cancel := buildStreamPhaseContext(phaseTimeout)
 	defer cancel()
@@ -242,7 +282,7 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 
 	startStreamWatchdogs(stallCtx, stallCancel, watchdog, startedAt, effectiveCheckInterval, stallTimeout, streamStartupTimeout)
 
-	cmd := exec.CommandContext(stallCtx, command, "-p", prompt, "--output-format", "stream-json", "--verbose")
+	cmd := exec.CommandContext(stallCtx, command, args...)
 	cmd.Dir = cwd
 	cmd.Stderr = os.Stderr
 	cmd.Env = cleanEnvNoClaude()

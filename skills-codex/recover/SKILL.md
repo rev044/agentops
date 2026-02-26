@@ -201,13 +201,12 @@ Evaluate context top-to-bottom. Use the FIRST matching condition:
 
 | Priority | Condition | Suggestion |
 |----------|-----------|------------|
-| 1 | Unread messages in inbox | "Check messages: `$inbox`" |
-| 2 | RPI run in-progress + phase=research | "Continue research: `$research` or `$plan` if ready" |
-| 3 | RPI run in-progress + phase=plan | "Review plan: `$pre-mortem` to validate before coding" |
-| 4 | RPI run in-progress + phase=implement | "Resume implementation: `$implement <next-issue-id>`" |
-| 5 | RPI run in-progress + phase=validate | "Complete cycle: `$post-mortem` to extract learnings" |
-| 6 | Evolve cycle in-progress | "Continue autonomous improvements: `$evolve --resume`" |
-| 7 | In-progress issues exist | "Continue work: `$implement <issue-id>`" |
+| 1 | RPI run in-progress + phase=research | "Continue research: `$research` or `$plan` if ready" |
+| 2 | RPI run in-progress + phase=plan | "Review plan: `$pre-mortem` to validate before coding" |
+| 3 | RPI run in-progress + phase=implement | "Resume implementation: `$implement <next-issue-id>`" |
+| 4 | RPI run in-progress + phase=validate | "Complete cycle: `$post-mortem` to extract learnings" |
+| 5 | Evolve cycle in-progress | "Continue autonomous improvements: `$evolve --resume`" |
+| 6 | In-progress issues exist | "Continue work: `$implement <issue-id>`" |
 | 8 | Ready issues available | "Pick next issue: `$implement <first-ready-id>`" |
 | 9 | Uncommitted changes | "Review changes: `$vibe recent`" |
 | 10 | Clean state, nothing pending | "Session recovered. Start with `$status` to plan next work" |

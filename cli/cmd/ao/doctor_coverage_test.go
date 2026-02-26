@@ -642,21 +642,21 @@ func TestDoctorCov_CheckStaleReferences_NoFiles(t *testing.T) {
 func TestDoctorCov_CheckStaleReferences_CleanFiles(t *testing.T) {
 	tmp := chdirTemp(t)
 
-	// Create a hooks file with only new-style commands
+	// Create a hooks file with only current flat-style commands
 	hooksDir := filepath.Join(tmp, "hooks")
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(hooksDir, "dispatch.sh"), []byte("#!/bin/bash\nao know forge transcript\nao work rpi start\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(hooksDir, "dispatch.sh"), []byte("#!/bin/bash\nao forge transcript\nao rpi start\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Create a skill file with only new-style commands
+	// Create a skill file with only current flat-style commands
 	skillDir := filepath.Join(tmp, "skills", "test-skill")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test Skill\nRun `ao know inject` to load context.\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test Skill\nRun `ao inject` to load context.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -673,8 +673,8 @@ func TestDoctorCov_CheckStaleReferences_StaleInHooks(t *testing.T) {
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	// Use old-style "ao forge" instead of "ao know forge"
-	if err := os.WriteFile(filepath.Join(hooksDir, "dispatch.sh"), []byte("#!/bin/bash\nao forge transcript\n"), 0644); err != nil {
+	// Use old namespace-style "ao know forge" instead of flat "ao forge"
+	if err := os.WriteFile(filepath.Join(hooksDir, "dispatch.sh"), []byte("#!/bin/bash\nao know forge transcript\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -694,8 +694,8 @@ func TestDoctorCov_CheckStaleReferences_StaleInSkills(t *testing.T) {
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	// Use old-style "ao inject" instead of "ao know inject"
-	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test\nRun `ao inject` to load.\n"), 0644); err != nil {
+	// Use old namespace-style "ao know inject" instead of flat "ao inject"
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test\nRun `ao know inject` to load.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -705,21 +705,97 @@ func TestDoctorCov_CheckStaleReferences_StaleInSkills(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_NoFalsePositiveOnNamespace(t *testing.T) {
+func TestDoctorCov_CheckStaleReferences_StaleInDocs(t *testing.T) {
 	tmp := chdirTemp(t)
 
-	// "ao know forge" contains "ao forge" as a substring — should NOT trigger
+	docsDir := filepath.Join(tmp, "docs")
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Use old namespace-style "ao work rpi" instead of flat "ao rpi"
+	if err := os.WriteFile(filepath.Join(docsDir, "guide.md"), []byte("# Guide\nRun `ao work rpi status` to check.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkStaleReferences()
+	if result.Status != "warn" {
+		t.Errorf("status=%q, want warn for stale docs reference (detail: %s)", result.Status, result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckStaleReferences_StaleInScripts(t *testing.T) {
+	tmp := chdirTemp(t)
+
+	scriptsDir := filepath.Join(tmp, "scripts")
+	if err := os.MkdirAll(scriptsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Use old namespace-style "ao quality pool list" instead of flat "ao pool list"
+	if err := os.WriteFile(filepath.Join(scriptsDir, "smoke.sh"), []byte("#!/bin/bash\nao quality pool list\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkStaleReferences()
+	if result.Status != "warn" {
+		t.Errorf("status=%q, want warn for stale scripts reference (detail: %s)", result.Status, result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckStaleReferences_SubdirsScanned(t *testing.T) {
+	tmp := chdirTemp(t)
+
+	// Create subdirectories that the expanded scan should cover
+	contractsDir := filepath.Join(tmp, "docs", "contracts")
+	if err := os.MkdirAll(contractsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	examplesDir := filepath.Join(tmp, "hooks", "examples")
+	if err := os.MkdirAll(examplesDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a stale reference in docs/contracts/
+	if err := os.WriteFile(
+		filepath.Join(contractsDir, "test-contract.md"),
+		[]byte("# Contract\nRun `ao know search` to find references.\n"),
+		0644,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a stale reference in hooks/examples/
+	if err := os.WriteFile(
+		filepath.Join(examplesDir, "example.sh"),
+		[]byte("#!/bin/bash\nao work rpi status\n"),
+		0644,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkStaleReferences()
+	if result.Status != "warn" {
+		t.Errorf("status=%q, want warn for stale refs in subdirs (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "stale reference") {
+		t.Errorf("expected 'stale reference' in detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckStaleReferences_NoFalsePositiveOnFlat(t *testing.T) {
+	tmp := chdirTemp(t)
+
+	// "ao forge" (flat, canonical) should NOT trigger a stale reference
 	hooksDir := filepath.Join(tmp, "hooks")
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(hooksDir, "test.sh"), []byte("ao know forge transcript\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(hooksDir, "test.sh"), []byte("ao forge transcript\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	result := checkStaleReferences()
 	if result.Status != "pass" {
-		t.Errorf("status=%q, want pass (should not false-positive on 'ao know forge') (detail: %s)", result.Status, result.Detail)
+		t.Errorf("status=%q, want pass (should not trigger on flat 'ao forge') (detail: %s)", result.Status, result.Detail)
 	}
 }
 
@@ -735,7 +811,7 @@ func TestDoctorCov_ScanFileForDeprecatedCommands(t *testing.T) {
 
 	t.Run("file with multiple deprecated commands", func(t *testing.T) {
 		f := filepath.Join(tmp, "multi.sh")
-		content := "ao forge transcript\nao inject --apply-decay\nao know search query\n"
+		content := "ao know forge transcript\nao know inject --apply-decay\nao search query\n"
 		if err := os.WriteFile(f, []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -748,9 +824,9 @@ func TestDoctorCov_ScanFileForDeprecatedCommands(t *testing.T) {
 
 func TestDoctorCov_CountUniqueFiles(t *testing.T) {
 	refs := []staleReference{
-		{File: "a.sh", OldCommand: "ao forge", NewCommand: "ao know forge"},
-		{File: "a.sh", OldCommand: "ao inject", NewCommand: "ao know inject"},
-		{File: "b.md", OldCommand: "ao forge", NewCommand: "ao know forge"},
+		{File: "a.sh", OldCommand: "ao know forge", NewCommand: "ao forge"},
+		{File: "a.sh", OldCommand: "ao know inject", NewCommand: "ao inject"},
+		{File: "b.md", OldCommand: "ao know forge", NewCommand: "ao forge"},
 	}
 	got := countUniqueFiles(refs)
 	if got != 2 {

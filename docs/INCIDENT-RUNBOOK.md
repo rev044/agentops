@@ -367,7 +367,7 @@ git log --oneline -20 -- hooks/
 ```bash
 # Check if ao CLI is working
 ao status
-ao quality flywheel status
+ao flywheel status
 
 # Check Go CLI builds
 cd cli && go build ./cmd/ao && go test ./...

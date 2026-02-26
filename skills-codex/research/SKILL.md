@@ -45,7 +45,7 @@ ao know lookup --query "<topic>" --limit 5 2>/dev/null || \
 
 **Search ALL local knowledge locations by content (not just filename):**
 
-Use Grep to search every knowledge directory for the topic. This catches learnings from `$learn`, retros, brainstorms, and plans — not just research artifacts.
+Use Grep to search every knowledge directory for the topic. This catches learnings from `$retro`, brainstorms, and plans — not just research artifacts.
 
 ```bash
 # Search all knowledge locations by content
@@ -64,7 +64,7 @@ If matches are found, read the relevant files with the Read tool before proceedi
 Before launching the explore agent, detect which backend is available:
 
 1. Check if `spawn_agent` is available → log `"Backend: codex-sub-agents"`
-2. Else check if runtime-native team spawning is available → log `"Backend: runtime-native-teams"`
+2. Else check if `team-create` is available → log `"Backend: claude-native-teams"`
 3. Else check if `skill` tool is read-only (OpenCode) → log `"Backend: opencode-subagents"`
 4. Else check if `Task` is available → log `"Backend: background-task-fallback"`
 5. Else → log `"Backend: inline (no spawn available)"`
@@ -84,8 +84,8 @@ Record the selected backend — it will be included in the research output docum
 
 #### Backend Selection (MANDATORY)
 
-1. If `spawn_agent` is available → **Codex sub-agent** (preferred)
-2. Else if runtime-native team spawning is available → **Runtime-native team** (Explore agent)
+1. If `spawn_agent` is available → **Codex sub-agent**
+2. Else if `team-create` is available → **Claude native team** (Explore agent)
 3. Else if `skill` tool is read-only (OpenCode) → **OpenCode subagent** — `task(subagent_type="explore", description="Research: <topic>", prompt="<explore prompt>")`
 4. Else → **Background task fallback**
 
@@ -299,7 +299,7 @@ Include in your Explore agent prompt:
 | Missing file references | Codebase has changed since last exploration or files are in unexpected locations | Use Glob to verify file locations before citing them. Always use absolute paths |
 | Auto mode skips important areas | Automated exploration prioritizes breadth over depth | Remove `--auto` flag to enable human approval gate for guided exploration |
 | Explore agent times out | Topic too broad for single exploration pass | Split into smaller focused topics (e.g., "auth flow" vs "entire auth system") |
-| No backend available for spawning | Running in environment without spawn_agent or runtime-native team support | Research runs inline — still functional but slower |
+| No backend available for spawning | Running in environment without Task or team-create support | Research runs inline — still functional but slower |
 
 ## Reference Documents
 
@@ -324,7 +324,7 @@ Include in your Explore agent prompt:
 
 Concrete tool calls for spawning agents using `Task(run_in_background=true)`. This is the **last-resort fallback** when neither Codex sub-agents nor Claude native teams are available.
 
-**When detected:** `Task` tool is available but `TeamCreate` and `spawn_agent` are not.
+**When detected:** `Task` tool is available but `team-create` and `spawn_agent` are not.
 
 **Limitations:**
 - Fire-and-forget — no messaging, no redirect, no scope adjustment
@@ -450,9 +450,9 @@ This is lossy — partial work may be lost.
 
 # Backend: Claude Native Teams
 
-Concrete tool calls for spawning agents using Codex native teams (`TeamCreate` + `SendMessage` + shared `TaskList`).
+Concrete tool calls for spawning agents using Codex native teams (`team-create` + `send-message` + shared `TaskList`).
 
-**When detected:** `TeamCreate` tool is available in your tool list.
+**When detected:** `team-create` tool is available in your tool list.
 
 ---
 
@@ -475,11 +475,11 @@ For canonical feature details, read:
 Every spawn session starts by creating a team. One team per wave (fresh context = Ralph Wiggum preserved; see `skills/shared/references/ralph-loop-contract.md`).
 
 ```
-TeamCreate(team_name="council-20260217-auth", description="Council validation of auth module")
+team-create(team_name="council-20260217-auth", description="Council validation of auth module")
 ```
 
 ```
-TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1: parallel implementation")
+team-create(team_name="swarm-1739812345-w1", description="Wave 1: parallel implementation")
 ```
 
 **Naming conventions:**
@@ -493,7 +493,7 @@ Claude teams are leader-first orchestration:
 
 1. One lead creates the team and assigns all work.
 2. Teammates never self-assign from shared tasks.
-3. Teammates report to lead via short `SendMessage` signals.
+3. Teammates report to lead via short `send-message` signals.
 4. Lead reads result artifacts from disk, validates, and decides retries/escalation.
 
 Recommended signal envelope (single-line JSON, under 100 tokens):
@@ -519,7 +519,7 @@ worker-5 -> lead: "Resolved peer question for worker-2; no scope change."
 
 ## Spawn: Create Workers/Judges
 
-After `TeamCreate`, spawn each agent with `Task(team_name=..., name=...)`. All agents in a wave spawn in parallel (single message, multiple tool calls).
+After `team-create`, spawn each agent with `Task(team_name=..., name=...)`. All agents in a wave spawn in parallel (single message, multiple tool calls).
 
 ### Council Judges (parallel spawn)
 
@@ -581,7 +581,7 @@ Use `subagent_type="Explore"` for read-only research agents. Use `"general-purpo
 
 ## Wait: Receive Completion Signals
 
-Workers/judges send completion signals via `SendMessage`. These are **automatically delivered** to the team lead — no polling needed.
+Workers/judges send completion signals via `send-message`. These are **automatically delivered** to the team lead — no polling needed.
 
 When a teammate finishes, their message appears as a new conversation turn. The lead reads result files from disk, NOT from message content.
 
@@ -603,18 +603,18 @@ If a teammate goes idle without sending a completion signal:
 
 See `skills/council/references/cli-spawning.md` for timeout configuration (`COUNCIL_TIMEOUT`, `COUNCIL_R2_TIMEOUT`).
 
-**Fallback:** If native teams fail at runtime despite passing detection (e.g., `TeamCreate` succeeds but `Task` spawning fails), fall back to background tasks. See `backend-background-tasks.md`.
+**Fallback:** If native teams fail at runtime despite passing detection (e.g., `team-create` succeeds but `Task` spawning fails), fall back to background tasks. See `backend-background-tasks.md`.
 
 ---
 
 ## Message: Debate R2 / Retry
 
-Send messages to specific teammates using `SendMessage`. Teammates wake from idle when messaged.
+Send messages to specific teammates using `send-message`. Teammates wake from idle when messaged.
 
 ### Council Debate R2
 
 ```
-SendMessage(
+send-message(
   type="message",
   recipient="judge-1",
   content="DEBATE ROUND 2\n\nOther judges' verdicts:\n- judge-error-paths: FAIL (HIGH confidence) — file: .agents/council/2026-02-17-auth-judge-error-paths.md\n\nRead the other judge's file. Revise your assessment considering their perspective.\nWrite your R2 verdict to .agents/council/2026-02-17-auth-judge-1-r2.md\nThen send a completion signal.",
@@ -627,7 +627,7 @@ SendMessage(
 ### Swarm Worker Retry
 
 ```
-SendMessage(
+send-message(
   type="message",
   recipient="worker-3",
   content="Validation failed: pytest tests/test_auth.py returned exit code 1.\nFix the failing tests and rewrite your result to .agents/swarm/results/3.json",
@@ -643,8 +643,8 @@ After consolidation/validation, shut down all teammates then delete the team.
 
 ```
 # Shutdown each teammate
-SendMessage(type="shutdown_request", recipient="judge-1", content="Council complete")
-SendMessage(type="shutdown_request", recipient="judge-error-paths", content="Council complete")
+send-message(type="shutdown_request", recipient="judge-1", content="Council complete")
+send-message(type="shutdown_request", recipient="judge-error-paths", content="Council complete")
 
 # After all teammates acknowledge shutdown:
 TeamDelete()
@@ -662,27 +662,27 @@ For crank/swarm with multiple waves, create a **new team per wave**:
 
 ```
 # Wave 1
-TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
+team-create(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
 # If TeamDelete fails: rm -rf ~/.codex/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
-TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")
+team-create(team_name="swarm-1739812345-w2", description="Wave 2")
 # ... spawn workers for newly-unblocked tasks ...
 TeamDelete()
 ```
 
 This ensures each wave's workers start with clean context (no leftover state from prior waves).
 
-**If `TeamDelete` fails between waves**, the next `TeamCreate` may conflict. Always verify cleanup succeeded before creating the next wave team.
+**If `TeamDelete` fails between waves**, the next `team-create` may conflict. Always verify cleanup succeeded before creating the next wave team.
 
 ---
 
 ## Key Rules
 
-1. **`TeamCreate` before `Task`** — tasks created before the team are invisible to teammates
+1. **`team-create` before `Task`** — tasks created before the team are invisible to teammates
 2. **Pre-assign tasks before spawning** — workers do NOT race-claim from TaskList
 3. **Lead-only commits** — workers write files, lead runs `git add` + `git commit`
 4. **Thin messages** — workers send <100 token signals, full results go to disk
@@ -789,7 +789,7 @@ close_agent(id="agent-id-1")
 For `--mixed` council, spawn runtime-native judges AND Codex CLI judges in parallel:
 
 ```
-# Claude native team judges (via TeamCreate — see backend-claude-teams.md)
+# Claude native team judges (via team-create — see backend-claude-teams.md)
 Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-1", prompt="...", description="Judge 1")
 Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-2", prompt="...", description="Judge 2")
 
@@ -818,7 +818,7 @@ All four spawn in the **same message** — maximum parallelism.
 
 Degraded single-agent mode when no multi-agent primitives are detected. The current agent performs all work sequentially in its own context.
 
-**When detected:** No `spawn_agent`, no `TeamCreate`, no `Task` tool available — or `--quick` flag was explicitly set.
+**When detected:** No `spawn_agent`, no `team-create`, no `Task` tool available — or `--quick` flag was explicitly set.
 
 ---
 

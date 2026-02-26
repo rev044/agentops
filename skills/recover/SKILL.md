@@ -97,7 +97,7 @@ fi
 If RPI state detected, run:
 ```bash
 if command -v ao &>/dev/null; then
-  ao know inject --apply-decay --format markdown --max-tokens 2000
+  ao inject --apply-decay --format markdown --max-tokens 2000
 fi
 ```
 
@@ -276,7 +276,7 @@ Render this with a single code block. No visual dashboard when `--json` is activ
 **What happens:**
 1. Agent runs 5 parallel bash calls to gather state
 2. Agent detects RPI run in phased-state.json (phase=2, epic ag-l2pu)
-3. Agent runs `ao know inject` to load relevant knowledge
+3. Agent runs `ao inject` to load relevant knowledge
 4. Agent shows goal, current phase (plan), cycle 1, started 2 hours ago
 5. Agent lists 2 in-progress issues and 3 ready issues
 6. Agent shows clean git state, recent commit
@@ -293,7 +293,7 @@ Render this with a single code block. No visual dashboard when `--json` is activ
 2. Agent finds no RPI run
 3. Agent detects evolve cycle (most recent: cycle 3, result "improved", goals_fixed=["goal1", "goal2"])
 4. Agent shows timestamp (1 hour ago), items_completed (8)
-5. Agent loads knowledge with `ao know inject`
+5. Agent loads knowledge with `ao inject`
 6. Agent suggests: "Continue autonomous improvements: `/evolve --resume`"
 
 **Result:** Dashboard confirms evolve cycle, shows progress, offers resume command.

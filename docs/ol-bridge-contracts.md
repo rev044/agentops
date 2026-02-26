@@ -284,8 +284,8 @@ Rather than version parsing, use feature detection:
 # Check if ol harvest supports --format flag
 ol harvest --help 2>&1 | grep -q "\-\-format" && OL_HAS_FORMAT=true
 
-# Check if ao know inject supports --ol-constraints flag
-ao know inject --help 2>&1 | grep -q "ol-constraints" && AO_HAS_OL=true
+# Check if ao inject supports --ol-constraints flag
+ao inject --help 2>&1 | grep -q "ol-constraints" && AO_HAS_OL=true
 
 # Check if ol validate stage1 exists
 ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
@@ -298,7 +298,7 @@ ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
 | `ol` not on PATH | Skip OL integration, pure AO mode |
 | `ao` not on PATH | Skip AO integration, pure OL mode |
 | `ol harvest --format=ao` not supported | Manual file copy from `.agents/learnings/` |
-| `ao know inject --ol-constraints` not supported | Skip constraint injection |
+| `ao inject --ol-constraints` not supported | Skip constraint injection |
 | `.ol/` directory missing | Not an Olympus project, skip all OL features |
 
 ### 3.5 MemRL Policy Migration

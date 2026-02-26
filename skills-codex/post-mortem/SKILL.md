@@ -384,7 +384,7 @@ if command -v ao &>/dev/null; then
   echo "Session closed, flywheel loop triggered"
 else
   # Learnings are already in .agents/learnings/ from $retro (Step 4).
-  # Without ao CLI, grep-based search in $research, $knowledge, and $inject
+  # Without ao CLI, grep-based search in $research and $inject
   # will find them directly — no copy to pending needed.
 
   # Feedback-loop fallback: update confidence for cited learnings

@@ -17,5 +17,6 @@ and spawns fresh Claude sessions for each cycle (Ralph Wiggum pattern).`,
 }
 
 func init() {
-	workCmd.AddCommand(rpiCmd)
+	rpiCmd.GroupID = "workflow"
+	rootCmd.AddCommand(rpiCmd)
 }

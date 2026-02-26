@@ -62,7 +62,7 @@ fi
 cd "$TEST_DIR"
 
 # Test inject reads the learning
-INJECT_OUTPUT=$(ao know inject --format markdown --max-tokens 500 2>&1 || true)
+INJECT_OUTPUT=$(ao inject --format markdown --max-tokens 500 2>&1 || true)
 
 if echo "$INJECT_OUTPUT" | grep -q "Flywheel Smoke Test"; then
     echo "✓ Inject found test learning"
@@ -74,7 +74,7 @@ fi
 echo ""
 echo "--- Test 2: Forge transcript processes last session ---"
 
-EXTRACT_OUTPUT=$(ao know forge transcript --last-session --quiet 2>&1 || true)
+EXTRACT_OUTPUT=$(ao forge transcript --last-session --quiet 2>&1 || true)
 
 if [[ -z "$EXTRACT_OUTPUT" ]] || echo "$EXTRACT_OUTPUT" | grep -qi "error"; then
     echo "⚠️  Extract had issues (expected without full setup)"
@@ -86,7 +86,7 @@ fi
 echo ""
 echo "--- Test 3: Forge indexes knowledge ---"
 
-FORGE_OUTPUT=$(ao know forge markdown "$AGENTS_DIR/learnings/test-smoke.md" 2>&1 || true)
+FORGE_OUTPUT=$(ao forge markdown "$AGENTS_DIR/learnings/test-smoke.md" 2>&1 || true)
 
 if echo "$FORGE_OUTPUT" | grep -qi "error"; then
     echo "⚠️  Forge had issues (expected without full setup)"
@@ -99,6 +99,6 @@ echo "=== Smoke Test PASSED ==="
 echo ""
 echo "Flywheel components verified:"
 echo "  - .agents/learnings/ structure ✓"
-echo "  - ao know inject command ✓"
-echo "  - ao know forge transcript --last-session --quiet command ✓"
-echo "  - ao know forge markdown command ✓"
+echo "  - ao inject command ✓"
+echo "  - ao forge transcript --last-session --quiet command ✓"
+echo "  - ao forge markdown command ✓"

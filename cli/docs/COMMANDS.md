@@ -16,22 +16,12 @@
 
 ## Commands
 
-### `ao start`
-
-Commands for onboarding and initial setup.
-
-```
-ao start [command]
-```
-
-**Subcommands:**
-
-#### `ao start demo`
+### `ao demo`
 
 Run an interactive demonstration of AgentOps capabilities.
 
 ```
-ao start demo [flags]
+ao demo [flags]
 ```
 
 **Flags:**
@@ -42,12 +32,14 @@ ao start demo [flags]
       --quick      2-minute quick overview
 ```
 
-#### `ao start init`
+---
+
+### `ao init`
 
 Set up a repository for AgentOps: directories, gitignore, and optional hooks.
 
 ```
-ao start init [flags]
+ao init [flags]
 ```
 
 **Flags:**
@@ -60,12 +52,14 @@ ao start init [flags]
       --stealth         Use .git/info/exclude instead of .gitignore
 ```
 
-#### `ao start quick-start`
+---
+
+### `ao quick-start`
 
 Initialize AgentOps in your current project.
 
 ```
-ao start quick-start [flags]
+ao quick-start [flags]
 ```
 
 **Flags:**
@@ -76,12 +70,14 @@ ao start quick-start [flags]
       --no-beads   Skip beads initialization
 ```
 
-#### `ao start seed`
+---
+
+### `ao seed`
 
 Plant the AgentOps seed in any repository.
 
 ```
-ao start seed [path] [flags]
+ao seed [path] [flags]
 ```
 
 **Flags:**
@@ -90,6 +86,140 @@ ao start seed [path] [flags]
       --force             Overwrite existing seed files
   -h, --help              help for seed
       --template string   Goal template: go-cli, python-lib, web-app, rust-cli, generic (default: auto-detect)
+```
+
+---
+
+### `ao anti-patterns`
+
+List learnings that have been marked as anti-patterns.
+
+```
+ao anti-patterns [flags]
+```
+
+---
+
+### `ao badge`
+
+Display a visual badge showing knowledge flywheel health status.
+
+```
+ao badge [flags]
+```
+
+---
+
+### `ao constraint`
+
+Manage constraints compiled from high-scoring learnings.
+
+```
+ao constraint [command]
+```
+
+**Subcommands:**
+
+#### `ao constraint activate`
+
+Change constraint status from draft to active
+
+```
+ao constraint activate <id> [flags]
+```
+
+#### `ao constraint list`
+
+List all constraints with status
+
+```
+ao constraint list [flags]
+```
+
+#### `ao constraint retire`
+
+Change constraint status from active to retired
+
+```
+ao constraint retire <id> [flags]
+```
+
+#### `ao constraint review`
+
+List constraints compiled >90 days ago without recent citation
+
+```
+ao constraint review [flags]
+```
+
+---
+
+### `ao contradict`
+
+Scan learnings and patterns for potential contradictions using keyword overlap heuristics.
+
+```
+ao contradict [flags]
+```
+
+---
+
+### `ao curate`
+
+Curate manages the knowledge curation pipeline: catalog artifacts,
+
+```
+ao curate [command]
+```
+
+**Subcommands:**
+
+#### `ao curate catalog`
+
+Catalog a knowledge artifact
+
+```
+ao curate catalog <path> [flags]
+```
+
+#### `ao curate status`
+
+Show curation pipeline status
+
+```
+ao curate status [flags]
+```
+
+#### `ao curate verify`
+
+Verify gate health against baselines
+
+```
+ao curate verify [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help           help for verify
+      --since string   Filter to changes within duration (e.g. 24h, 7d)
+```
+
+---
+
+### `ao dedup`
+
+Scan learnings and patterns for near-duplicates using normalized content hashing.
+
+```
+ao dedup [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help    help for dedup
+      --merge   Auto-resolve duplicates: keep highest utility, archive the rest
 ```
 
 ---
@@ -111,143 +241,17 @@ ao doctor [flags]
 
 ---
 
-### `ao quality`
-
-Commands for quality gates, metrics, and the knowledge pool.
-
-```
-ao quality [command]
-```
-
-**Subcommands:**
-
-#### `ao quality anti-patterns`
-
-List learnings that have been marked as anti-patterns.
-
-```
-ao quality anti-patterns [flags]
-```
-
-#### `ao quality badge`
-
-Display a visual badge showing knowledge flywheel health status.
-
-```
-ao quality badge [flags]
-```
-
-#### `ao quality constraint`
-
-Manage constraints compiled from high-scoring learnings.
-
-```
-ao quality constraint [command]
-```
-
-##### `ao quality constraint activate`
-
-Change constraint status from draft to active
-
-```
-ao constraint activate <id> [flags]
-```
-
-##### `ao quality constraint list`
-
-List all constraints with status
-
-```
-ao constraint list [flags]
-```
-
-##### `ao quality constraint retire`
-
-Change constraint status from active to retired
-
-```
-ao constraint retire <id> [flags]
-```
-
-##### `ao quality constraint review`
-
-List constraints compiled >90 days ago without recent citation
-
-```
-ao constraint review [flags]
-```
-
-#### `ao quality contradict`
-
-Scan learnings and patterns for potential contradictions using keyword overlap heuristics.
-
-```
-ao quality contradict [flags]
-```
-
-#### `ao quality curate`
-
-Curate manages the knowledge curation pipeline: catalog artifacts,
-
-```
-ao quality curate [command]
-```
-
-##### `ao quality curate catalog`
-
-Catalog a knowledge artifact
-
-```
-ao curate catalog <path> [flags]
-```
-
-##### `ao quality curate status`
-
-Show curation pipeline status
-
-```
-ao curate status [flags]
-```
-
-##### `ao quality curate verify`
-
-Verify gate health against baselines
-
-```
-ao curate verify [flags]
-```
-
-**Flags:**
-
-```
-  -h, --help           help for verify
-      --since string   Filter to changes within duration (e.g. 24h, 7d)
-```
-
-#### `ao quality dedup`
-
-Scan learnings and patterns for near-duplicates using normalized content hashing.
-
-```
-ao quality dedup [flags]
-```
-
-**Flags:**
-
-```
-  -h, --help    help for dedup
-      --merge   Auto-resolve duplicates: keep highest utility, archive the rest
-```
-
-#### `ao quality flywheel`
+### `ao flywheel`
 
 Knowledge flywheel operations and status.
 
 ```
-ao quality flywheel [command]
+ao flywheel [command]
 ```
 
-##### `ao quality flywheel close-loop`
+**Subcommands:**
+
+#### `ao flywheel close-loop`
 
 Close the knowledge flywheel loop by chaining:
 
@@ -264,7 +268,7 @@ ao flywheel close-loop [flags]
       --threshold string     Minimum age for auto-promotion (default: 24h) (default "24h")
 ```
 
-##### `ao quality flywheel nudge`
+#### `ao flywheel nudge`
 
 Returns structured JSON combining:
 
@@ -272,7 +276,7 @@ Returns structured JSON combining:
 ao flywheel nudge [flags]
 ```
 
-##### `ao quality flywheel status`
+#### `ao flywheel status`
 
 Display comprehensive flywheel health status.
 
@@ -287,15 +291,19 @@ ao flywheel status [flags]
   -h, --help       help for status
 ```
 
-#### `ao quality gate`
+---
+
+### `ao gate`
 
 Manage human review gates for bronze-tier candidates.
 
 ```
-ao quality gate [command]
+ao gate [command]
 ```
 
-##### `ao quality gate approve`
+**Subcommands:**
+
+#### `ao gate approve`
 
 Approve a bronze-tier candidate for promotion.
 
@@ -310,7 +318,7 @@ ao gate approve <candidate-id> [flags]
       --note string   Optional approval note
 ```
 
-##### `ao quality gate bulk-approve`
+#### `ao gate bulk-approve`
 
 Approve all silver-tier candidates older than a threshold.
 
@@ -326,7 +334,7 @@ ao gate bulk-approve [flags]
       --tier string         Tier to bulk approve (default: silver) (default "silver")
 ```
 
-##### `ao quality gate pending`
+#### `ao gate pending`
 
 List bronze-tier candidates awaiting human review.
 
@@ -334,7 +342,7 @@ List bronze-tier candidates awaiting human review.
 ao gate pending [flags]
 ```
 
-##### `ao quality gate reject`
+#### `ao gate reject`
 
 Reject a candidate with a required reason.
 
@@ -349,12 +357,14 @@ ao gate reject <candidate-id> [flags]
       --reason string   Required rejection reason
 ```
 
-#### `ao quality maturity`
+---
+
+### `ao maturity`
 
 Check and manage CASS (Contextual Agent Session Search) maturity levels.
 
 ```
-ao quality maturity [learning-id] [flags]
+ao maturity [learning-id] [flags]
 ```
 
 **Flags:**
@@ -370,15 +380,19 @@ ao quality maturity [learning-id] [flags]
       --scan          Scan all learnings for pending transitions
 ```
 
-#### `ao quality metrics`
+---
+
+### `ao metrics`
 
 Track and report on knowledge flywheel metrics.
 
 ```
-ao quality metrics [command]
+ao metrics [command]
 ```
 
-##### `ao quality metrics baseline`
+**Subcommands:**
+
+#### `ao metrics baseline`
 
 Capture a baseline snapshot of the knowledge flywheel.
 
@@ -393,7 +407,7 @@ ao metrics baseline [flags]
   -h, --help       help for baseline
 ```
 
-##### `ao quality metrics cite`
+#### `ao metrics cite`
 
 Record that an artifact was cited in this session.
 
@@ -410,7 +424,7 @@ ao metrics cite <artifact-path> [flags]
       --type string      Citation type: recall, reference, applied (default "reference")
 ```
 
-##### `ao quality metrics cite-report`
+#### `ao metrics cite-report`
 
 Produce an aggregated report from citation data.
 
@@ -426,7 +440,7 @@ ao metrics cite-report [flags]
       --json       Output as JSON
 ```
 
-##### `ao quality metrics health`
+#### `ao metrics health`
 
 Display flywheel health metrics including escape velocity status.
 
@@ -434,7 +448,7 @@ Display flywheel health metrics including escape velocity status.
 ao metrics health [flags]
 ```
 
-##### `ao quality metrics report`
+#### `ao metrics report`
 
 Display a formatted report of knowledge flywheel metrics.
 
@@ -449,15 +463,19 @@ ao metrics report [flags]
   -h, --help       help for report
 ```
 
-#### `ao quality pool`
+---
+
+### `ao pool`
 
 Manage knowledge candidates in quality pools.
 
 ```
-ao quality pool [command]
+ao pool [command]
 ```
 
-##### `ao quality pool auto-promote`
+**Subcommands:**
+
+#### `ao pool auto-promote`
 
 Automatically approve (and optionally promote) high-quality candidates
 
@@ -474,7 +492,7 @@ ao pool auto-promote [flags]
       --threshold string   Minimum age for auto-promotion (default: 24h) (default "24h")
 ```
 
-##### `ao quality pool batch-promote`
+#### `ao pool batch-promote`
 
 Promote pending pool candidates that meet promotion criteria.
 
@@ -493,7 +511,7 @@ ao pool batch-promote [flags]
       --min-age string   Minimum age for promotion eligibility (default "24h")
 ```
 
-##### `ao quality pool ingest`
+#### `ao pool ingest`
 
 Ingest pending learnings into the quality pool.
 
@@ -508,7 +526,7 @@ ao pool ingest [<files-or-globs...>] [flags]
   -h, --help         help for ingest
 ```
 
-##### `ao quality pool list`
+#### `ao pool list`
 
 List knowledge candidates filtered by tier and/or status.
 
@@ -527,7 +545,7 @@ ao pool list [flags]
   -w, --wide            Show full IDs without truncation
 ```
 
-##### `ao quality pool migrate-legacy`
+#### `ao pool migrate-legacy`
 
 Move legacy knowledge captures from .agents/knowledge/*.md into
 
@@ -543,7 +561,7 @@ ao pool migrate-legacy [flags]
       --source-dir string    Source directory containing legacy markdown captures (default ".agents/knowledge")
 ```
 
-##### `ao quality pool promote`
+#### `ao pool promote`
 
 Move a staged candidate to the knowledge base (.agents/learnings/ or .agents/patterns/).
 
@@ -551,7 +569,7 @@ Move a staged candidate to the knowledge base (.agents/learnings/ or .agents/pat
 ao pool promote <candidate-id> [flags]
 ```
 
-##### `ao quality pool reject`
+#### `ao pool reject`
 
 Mark a candidate as rejected and move to rejected directory.
 
@@ -566,7 +584,7 @@ ao pool reject <candidate-id> [flags]
       --reason string   Reason for rejection (required)
 ```
 
-##### `ao quality pool show`
+#### `ao pool show`
 
 Show detailed information about a pool candidate.
 
@@ -574,7 +592,7 @@ Show detailed information about a pool candidate.
 ao pool show <candidate-id> [flags]
 ```
 
-##### `ao quality pool stage`
+#### `ao pool stage`
 
 Move a candidate from pending to staged status.
 
@@ -587,24 +605,6 @@ ao pool stage <candidate-id> [flags]
 ```
   -h, --help              help for stage
       --min-tier string   Minimum tier threshold (default: bronze)
-```
-
-#### `ao quality vibe-check`
-
-Run a comprehensive vibe-check analysis on your repository.
-
-```
-ao quality vibe-check [flags]
-```
-
-**Flags:**
-
-```
-      --full           Show all metrics and findings (verbose)
-  -h, --help           help for vibe-check
-      --markdown       Output as markdown report
-      --repo string    Path to git repository (default ".")
-      --since string   Time window for analysis (e.g., 7d, 30d, 90d) (default "7d")
 ```
 
 ---
@@ -629,22 +629,32 @@ ao version [flags]
 
 ---
 
-### `ao work`
+### `ao vibe-check`
 
-Commands for the RPI workflow: research, plan, implement, validate.
+Run a comprehensive vibe-check analysis on your repository.
 
 ```
-ao work [command]
+ao vibe-check [flags]
 ```
 
-**Subcommands:**
+**Flags:**
 
-#### `ao work feedback-loop`
+```
+      --full           Show all metrics and findings (verbose)
+  -h, --help           help for vibe-check
+      --markdown       Output as markdown report
+      --repo string    Path to git repository (default ".")
+      --since string   Time window for analysis (e.g., 7d, 30d, 90d) (default "7d")
+```
+
+---
+
+### `ao feedback-loop`
 
 Automatically close the MemRL feedback loop by updating utilities of cited learnings.
 
 ```
-ao work feedback-loop [flags]
+ao feedback-loop [flags]
 ```
 
 **Flags:**
@@ -658,12 +668,14 @@ ao work feedback-loop [flags]
       --transcript string      Path to transcript for reward computation
 ```
 
-#### `ao work goals`
+---
+
+### `ao goals`
 
 Track, measure, and validate project fitness goals.
 
 ```
-ao work goals [command]
+ao goals [command]
 ```
 
 **Flags:**
@@ -675,7 +687,9 @@ ao work goals [command]
       --timeout int   Check timeout in seconds (default 120)
 ```
 
-##### `ao work goals measure`
+**Subcommands:**
+
+#### `ao goals measure`
 
 Run goal checks and produce a snapshot
 
@@ -691,7 +705,7 @@ ao goals measure [flags]
   -h, --help          help for measure
 ```
 
-##### `ao work goals validate`
+#### `ao goals validate`
 
 Validate GOALS.yaml structure and wiring
 
@@ -699,7 +713,7 @@ Validate GOALS.yaml structure and wiring
 ao goals validate [flags]
 ```
 
-##### `ao work goals drift`
+#### `ao goals drift`
 
 Compare snapshots for regressions
 
@@ -707,7 +721,7 @@ Compare snapshots for regressions
 ao goals drift [flags]
 ```
 
-##### `ao work goals export`
+#### `ao goals export`
 
 Export latest snapshot as JSON (for CI)
 
@@ -715,7 +729,7 @@ Export latest snapshot as JSON (for CI)
 ao goals export [flags]
 ```
 
-##### `ao work goals history`
+#### `ao goals history`
 
 Show goal measurement history
 
@@ -731,7 +745,7 @@ ao goals history [flags]
       --since string   Show entries since date (YYYY-MM-DD)
 ```
 
-##### `ao work goals add`
+#### `ao goals add`
 
 Add a new goal
 
@@ -748,7 +762,7 @@ ao goals add <id> <check-command> [flags]
       --weight int           Goal weight (1-10) (default 5)
 ```
 
-##### `ao work goals init`
+#### `ao goals init`
 
 Bootstrap a new GOALS.md file
 
@@ -764,7 +778,7 @@ ao goals init [flags]
       --template string   Goal template (go-cli, python-lib, web-app, rust-cli, generic)
 ```
 
-##### `ao work goals meta`
+#### `ao goals meta`
 
 Run and report meta-goals only
 
@@ -772,7 +786,7 @@ Run and report meta-goals only
 ao goals meta [flags]
 ```
 
-##### `ao work goals migrate`
+#### `ao goals migrate`
 
 Migrate goals between formats.
 
@@ -787,7 +801,7 @@ ao goals migrate [flags]
       --to-md   Convert GOALS.yaml to GOALS.md format
 ```
 
-##### `ao work goals prune`
+#### `ao goals prune`
 
 Remove goals referencing nonexistent files
 
@@ -795,7 +809,7 @@ Remove goals referencing nonexistent files
 ao goals prune [flags]
 ```
 
-##### `ao work goals steer`
+#### `ao goals steer`
 
 Manage directives
 
@@ -803,15 +817,51 @@ Manage directives
 ao goals steer [command]
 ```
 
-#### `ao work ratchet`
+##### `ao goals steer add`
+
+Add a new directive
+
+```
+ao goals steer add <title> [flags]
+```
+
+**Flags:**
+
+```
+      --description string   Directive description (required)
+  -h, --help                 help for add
+      --steer string         Steer direction (increase, decrease, hold, explore) (default "increase")
+```
+
+##### `ao goals steer prioritize`
+
+Move a directive to a new position
+
+```
+ao goals steer prioritize <number> <new-position> [flags]
+```
+
+##### `ao goals steer remove`
+
+Remove a directive by number
+
+```
+ao goals steer remove <number> [flags]
+```
+
+---
+
+### `ao ratchet`
 
 Track progress through the RPI (Research-Plan-Implement) workflow.
 
 ```
-ao work ratchet [command]
+ao ratchet [command]
 ```
 
-##### `ao work ratchet check`
+**Subcommands:**
+
+#### `ao ratchet check`
 
 Check if prerequisites are satisfied for a workflow step.
 
@@ -819,7 +869,7 @@ Check if prerequisites are satisfied for a workflow step.
 ao ratchet check <step> [flags]
 ```
 
-##### `ao work ratchet next`
+#### `ao ratchet next`
 
 Show the next pending step in the RPI workflow.
 
@@ -834,7 +884,7 @@ ao ratchet next [flags]
   -h, --help          help for next
 ```
 
-##### `ao work ratchet spec`
+#### `ao ratchet spec`
 
 Find and output the current spec artifact path.
 
@@ -842,7 +892,7 @@ Find and output the current spec artifact path.
 ao ratchet spec [flags]
 ```
 
-##### `ao work ratchet status`
+#### `ao ratchet status`
 
 Display the current state of the ratchet chain.
 
@@ -858,7 +908,7 @@ ao ratchet status [flags]
   -h, --help           help for status
 ```
 
-##### `ao work ratchet validate`
+#### `ao ratchet validate`
 
 Validate that an artifact meets quality requirements.
 
@@ -875,7 +925,7 @@ ao ratchet validate <step> [flags]
       --lenient-expiry int   Days until lenient bypass expires (default 90)
 ```
 
-##### `ao work ratchet promote`
+#### `ao ratchet promote`
 
 Record promotion of an artifact to a higher tier.
 
@@ -890,7 +940,7 @@ ao ratchet promote <artifact> [flags]
       --to int   Target tier (0-4, required) (default -1)
 ```
 
-##### `ao work ratchet record`
+#### `ao ratchet record`
 
 Record that a workflow step has been completed.
 
@@ -910,7 +960,7 @@ ao ratchet record <step> [flags]
       --tier int             Quality tier (0-4) (default -1)
 ```
 
-##### `ao work ratchet skip`
+#### `ao ratchet skip`
 
 Record that a step was intentionally skipped.
 
@@ -925,7 +975,7 @@ ao ratchet skip <step> [flags]
       --reason string   Reason for skipping (required)
 ```
 
-##### `ao work ratchet find`
+#### `ao ratchet find`
 
 Search for artifacts across all locations.
 
@@ -933,7 +983,7 @@ Search for artifacts across all locations.
 ao ratchet find <pattern> [flags]
 ```
 
-##### `ao work ratchet trace`
+#### `ao ratchet trace`
 
 Trace an artifact back through the ratchet chain.
 
@@ -941,7 +991,7 @@ Trace an artifact back through the ratchet chain.
 ao ratchet trace <artifact> [flags]
 ```
 
-##### `ao work ratchet migrate`
+#### `ao ratchet migrate`
 
 Migrate chain from legacy YAML format to JSONL.
 
@@ -949,7 +999,7 @@ Migrate chain from legacy YAML format to JSONL.
 ao ratchet migrate [flags]
 ```
 
-##### `ao work ratchet migrate-artifacts`
+#### `ao ratchet migrate-artifacts`
 
 Add schema_version: 1 to existing .agents/ artifacts.
 
@@ -957,15 +1007,19 @@ Add schema_version: 1 to existing .agents/ artifacts.
 ao ratchet migrate-artifacts [path] [flags]
 ```
 
-#### `ao work rpi`
+---
+
+### `ao rpi`
 
 Commands for automating the RPI (Research-Plan-Implement) lifecycle.
 
 ```
-ao work rpi [command]
+ao rpi [command]
 ```
 
-##### `ao work rpi cancel`
+**Subcommands:**
+
+#### `ao rpi cancel`
 
 Cancel active RPI orchestration runs via a CLI kill switch.
 
@@ -983,7 +1037,7 @@ ao rpi cancel [flags]
       --signal string   Signal to send: TERM|KILL|INT (default "TERM")
 ```
 
-##### `ao work rpi cleanup`
+#### `ao rpi cleanup`
 
 Detect and clean up stale RPI phased runs.
 
@@ -1003,7 +1057,7 @@ ao rpi cleanup [flags]
       --stale-after duration   Only clean runs older than this age (0 disables age filtering)
 ```
 
-##### `ao work rpi loop`
+#### `ao rpi loop`
 
 Execute RPI cycles in a loop, consuming from next-work.jsonl.
 
@@ -1044,7 +1098,7 @@ ao rpi loop [goal] [flags]
       --supervisor                        Enable autonomous supervisor mode (lease lock, self-heal, retries, gates, cleanup)
 ```
 
-##### `ao work rpi parallel`
+#### `ao rpi parallel`
 
 Run multiple RPI epics concurrently, each in an isolated git worktree.
 
@@ -1065,7 +1119,7 @@ ao rpi parallel [goals...] [flags]
       --tmux                     Spawn epics in tmux windows for interactive visibility
 ```
 
-##### `ao work rpi phased`
+#### `ao rpi phased`
 
 Orchestrate the full RPI lifecycle using 3 consolidated phases.
 
@@ -1094,7 +1148,7 @@ ao rpi phased <goal> [flags]
       --test-first                        Pass --test-first to /crank for spec-first TDD
 ```
 
-##### `ao work rpi status`
+#### `ao rpi status`
 
 Display active and recent RPI phased runs.
 
@@ -1109,7 +1163,7 @@ ao rpi status [flags]
       --watch   Poll every 5s and redraw (Ctrl-C to exit)
 ```
 
-##### `ao work rpi verify`
+#### `ao rpi verify`
 
 Verify integrity of the RPI ledger.
 
@@ -1117,15 +1171,19 @@ Verify integrity of the RPI ledger.
 ao rpi verify [flags]
 ```
 
-#### `ao work session`
+---
+
+### `ao session`
 
 Session lifecycle operations.
 
 ```
-ao work session [command]
+ao session [command]
 ```
 
-##### `ao work session close`
+**Subcommands:**
+
+#### `ao session close`
 
 Close a session by forging its transcript, extracting learnings,
 
@@ -1152,22 +1210,12 @@ ao completion [bash|zsh|fish]
 
 ---
 
-### `ao settings`
-
-Commands for managing configuration, hooks, memory, and plans.
-
-```
-ao settings [command]
-```
-
-**Subcommands:**
-
-#### `ao settings config`
+### `ao config`
 
 View and manage AgentOps configuration.
 
 ```
-ao settings config [flags]
+ao config [flags]
 ```
 
 **Flags:**
@@ -1177,15 +1225,19 @@ ao settings config [flags]
       --show   Show resolved configuration with sources
 ```
 
-#### `ao settings hooks`
+---
+
+### `ao hooks`
 
 The hooks command manages Claude Code hooks that automate the CASS knowledge flywheel.
 
 ```
-ao settings hooks [command]
+ao hooks [command]
 ```
 
-##### `ao settings hooks init`
+**Subcommands:**
+
+#### `ao hooks init`
 
 Generate Claude Code hooks configuration for the CASS knowledge flywheel.
 
@@ -1200,7 +1252,7 @@ ao hooks init [flags]
   -h, --help            help for init
 ```
 
-##### `ao settings hooks install`
+#### `ao hooks install`
 
 Install ao hooks to ~/.claude/settings.json.
 
@@ -1218,7 +1270,7 @@ ao hooks install [flags]
       --source-dir string   Path to agentops repo checkout (for --full script installation)
 ```
 
-##### `ao settings hooks show`
+#### `ao hooks show`
 
 Display the current Claude Code hooks configuration from ~/.claude/settings.json.
 
@@ -1226,7 +1278,7 @@ Display the current Claude Code hooks configuration from ~/.claude/settings.json
 ao hooks show [flags]
 ```
 
-##### `ao settings hooks test`
+#### `ao hooks test`
 
 Test that all hook dependencies are available and working.
 
@@ -1241,15 +1293,19 @@ ao hooks test [flags]
   -h, --help      help for test
 ```
 
-#### `ao settings memory`
+---
+
+### `ao memory`
 
 Manage repo-root MEMORY.md for cross-runtime access
 
 ```
-ao settings memory [command]
+ao memory [command]
 ```
 
-##### `ao settings memory sync`
+**Subcommands:**
+
+#### `ao memory sync`
 
 Write recent session history to a repo-root MEMORY.md with managed block markers.
 
@@ -1266,15 +1322,19 @@ ao memory sync [flags]
       --quiet             Suppress output
 ```
 
-#### `ao settings notebook`
+---
+
+### `ao notebook`
 
 Manage the session notebook (MEMORY.md)
 
 ```
-ao settings notebook [command]
+ao notebook [command]
 ```
 
-##### `ao settings notebook update`
+**Subcommands:**
+
+#### `ao notebook update`
 
 Reads the most recent session data and updates MEMORY.md with a "Last Session"
 
@@ -1293,15 +1353,19 @@ ao notebook update [flags]
       --source string        Source: auto|sessions|pending (default "auto")
 ```
 
-#### `ao settings plans`
+---
+
+### `ao plans`
 
 Plans manages the plan manifest at .agents/plans/manifest.jsonl.
 
 ```
-ao settings plans [command]
+ao plans [command]
 ```
 
-##### `ao settings plans diff`
+**Subcommands:**
+
+#### `ao plans diff`
 
 Diff compares the plan manifest against beads reality.
 
@@ -1309,7 +1373,7 @@ Diff compares the plan manifest against beads reality.
 ao plans diff [flags]
 ```
 
-##### `ao settings plans list`
+#### `ao plans list`
 
 List shows all plans in the manifest.
 
@@ -1325,7 +1389,7 @@ ao plans list [flags]
       --status string    Filter by status (active, completed, abandoned, superseded)
 ```
 
-##### `ao settings plans register`
+#### `ao plans register`
 
 Register adds a plan to the manifest.jsonl for discovery.
 
@@ -1342,7 +1406,7 @@ ao plans register <plan-path> [flags]
       --project string    Project path this plan applies to
 ```
 
-##### `ao settings plans search`
+#### `ao plans search`
 
 Search plans by name or project
 
@@ -1350,7 +1414,7 @@ Search plans by name or project
 ao plans search <query> [flags]
 ```
 
-##### `ao settings plans sync`
+#### `ao plans sync`
 
 Sync pulls plan metadata from beads to prevent drift.
 
@@ -1358,7 +1422,7 @@ Sync pulls plan metadata from beads to prevent drift.
 ao plans sync [flags]
 ```
 
-##### `ao settings plans update`
+#### `ao plans update`
 
 Update a plan's status or metadata
 
@@ -1376,25 +1440,17 @@ ao plans update <plan-path> [flags]
 
 ---
 
-### `ao know`
-
-Commands for the knowledge flywheel: forge, search, inject, lookup.
-
-```
-ao know [command]
-```
-
-**Subcommands:**
-
-#### `ao know forge`
+### `ao forge`
 
 The forge command extracts knowledge candidates from various sources.
 
 ```
-ao know forge [command]
+ao forge [command]
 ```
 
-##### `ao know forge batch`
+**Subcommands:**
+
+#### `ao forge batch`
 
 Find and process pending transcripts in bulk.
 
@@ -1411,7 +1467,7 @@ ao forge batch [flags]
       --max int      Maximum transcripts to process (0 = all)
 ```
 
-##### `ao know forge markdown`
+#### `ao forge markdown`
 
 Parse markdown (.md) files and extract knowledge candidates.
 
@@ -1427,7 +1483,7 @@ ao forge markdown <path-or-glob> [flags]
       --quiet   Suppress all output (for hooks)
 ```
 
-##### `ao know forge transcript`
+#### `ao forge transcript`
 
 Parse Claude Code JSONL transcript files and extract knowledge candidates.
 
@@ -1444,12 +1500,14 @@ ao forge transcript <path-or-glob> [flags]
       --quiet          Suppress all output (for hooks)
 ```
 
-#### `ao know inject`
+---
+
+### `ao inject`
 
 Inject searches and outputs relevant knowledge for session startup.
 
 ```
-ao know inject [context] [flags]
+ao inject [context] [flags]
 ```
 
 **Flags:**
@@ -1467,12 +1525,14 @@ ao know inject [context] [flags]
       --session string       Session ID for citation tracking (auto-generated if empty)
 ```
 
-#### `ao know lookup`
+---
+
+### `ao lookup`
 
 Lookup retrieves full content of specific knowledge artifacts.
 
 ```
-ao know lookup [id] [flags]
+ao lookup [id] [flags]
 ```
 
 **Flags:**
@@ -1487,12 +1547,14 @@ ao know lookup [id] [flags]
       --session string   Session ID for citation tracking
 ```
 
-#### `ao know search`
+---
+
+### `ao search`
 
 Search AgentOps knowledge using file-based search.
 
 ```
-ao know search <query> [flags]
+ao search <query> [flags]
 ```
 
 **Flags:**
@@ -1505,12 +1567,14 @@ ao know search <query> [flags]
       --use-sc        Enable Smart Connections semantic search (requires Obsidian)
 ```
 
-#### `ao know trace`
+---
+
+### `ao trace`
 
 Trace the provenance of an artifact back to its source transcript.
 
 ```
-ao know trace <artifact-path> [flags]
+ao trace <artifact-path> [flags]
 ```
 
 **Flags:**

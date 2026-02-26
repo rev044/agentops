@@ -39,7 +39,7 @@ git log --oneline -5 --format="%s" | head -1
 bd current 2>/dev/null | head -1
 
 # Check ratchet state
-ao work ratchet status 2>/dev/null | head -3
+ao ratchet status 2>/dev/null | head -3
 ```
 
 Use the most descriptive source as the topic slug.
@@ -274,7 +274,7 @@ Both should be run when ending a productive session.
 ## Without ao CLI
 
 If ao CLI not available:
-1. Skip the `ao work ratchet status` check in Step 2
+1. Skip the `ao ratchet status` check in Step 2
 2. Step 8 retro suggestion still works (uses git commit count)
 3. All handoff documents are still written to `.agents/handoff/`
 4. Knowledge is captured for future sessions via handoff, just not indexed

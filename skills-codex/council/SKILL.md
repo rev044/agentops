@@ -108,7 +108,7 @@ Verdict policy for this gate:
 Judges write ALL analysis to output files. Messages to the lead contain ONLY a
 minimal completion signal: `{"type":"verdict","verdict":"...","confidence":"...","file":"..."}`.
 The lead reads output files during consolidation. This prevents N judges from
-exploding the lead's context window with N full reports via backend messaging.
+exploding the lead's context window with N full reports via send-message.
 
 **Consolidation runs inline as the lead** — no separate chairman agent. The lead
 reads each judge's output file sequentially with the Read tool and synthesizes.
@@ -144,10 +144,10 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
 │  (--deep/--mixed only)│           │                       │
 │                       │           │  Output: JSON + MD    │
 │  Write files, then    │           │  Files: .agents/      │
-│  wait()/signal to     │           │    council/codex-*    │
-│  lead                 │           │                       │
+│ wait()/send-message to │           │    council/codex-*    │
+│ lead                  │           │                       │
 │  Files: .agents/      │           └───────────────────────┘
-│    council/judge-*    │                       │
+│    council/claude-*   │                       │
 └───────────────────────┘                       │
             │                                   │
             └─────────────────┬─────────────────┘
@@ -323,7 +323,7 @@ See [references/personas.md](references/personas.md) for all built-in presets an
 
 > **Debate Protocol:** Use `Read` tool on `skills/council/references/debate-protocol.md` for full debate execution flow, R1-to-R2 verdict injection, timeout handling, and cost analysis.
 
-**Summary:** Two-round adversarial review. R1 produces independent verdicts. R2 sends other judges' verdicts via backend messaging (`send_input` for Codex sub-agents, runtime-native messaging for other backends) for steel-manning and revision. Only supported with validate mode.
+**Summary:** Two-round adversarial review. R1 produces independent verdicts. R2 sends other judges' verdicts via backend messaging (`send_input` or `send-message`) for steel-manning and revision. Only supported with validate mode.
 
 ---
 
@@ -891,7 +891,7 @@ When a Round 2 verdict is unavailable (timeout fallback):
 
 Concrete tool calls for spawning agents using `Task(run_in_background=true)`. This is the **last-resort fallback** when neither Codex sub-agents nor Claude native teams are available.
 
-**When detected:** `Task` tool is available but `TeamCreate` and `spawn_agent` are not.
+**When detected:** `Task` tool is available but `team-create` and `spawn_agent` are not.
 
 **Limitations:**
 - Fire-and-forget — no messaging, no redirect, no scope adjustment
@@ -1017,9 +1017,9 @@ This is lossy — partial work may be lost.
 
 # Backend: Claude Native Teams
 
-Concrete tool calls for spawning agents using Codex native teams (`TeamCreate` + `SendMessage` + shared `TaskList`).
+Concrete tool calls for spawning agents using Codex native teams (`team-create` + `send-message` + shared `TaskList`).
 
-**When detected:** `TeamCreate` tool is available in your tool list.
+**When detected:** `team-create` tool is available in your tool list.
 
 ---
 
@@ -1042,11 +1042,11 @@ For canonical feature details, read:
 Every spawn session starts by creating a team. One team per wave (fresh context = Ralph Wiggum preserved; see `skills/shared/references/ralph-loop-contract.md`).
 
 ```
-TeamCreate(team_name="council-20260217-auth", description="Council validation of auth module")
+team-create(team_name="council-20260217-auth", description="Council validation of auth module")
 ```
 
 ```
-TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1: parallel implementation")
+team-create(team_name="swarm-1739812345-w1", description="Wave 1: parallel implementation")
 ```
 
 **Naming conventions:**
@@ -1060,7 +1060,7 @@ Claude teams are leader-first orchestration:
 
 1. One lead creates the team and assigns all work.
 2. Teammates never self-assign from shared tasks.
-3. Teammates report to lead via short `SendMessage` signals.
+3. Teammates report to lead via short `send-message` signals.
 4. Lead reads result artifacts from disk, validates, and decides retries/escalation.
 
 Recommended signal envelope (single-line JSON, under 100 tokens):
@@ -1086,7 +1086,7 @@ worker-5 -> lead: "Resolved peer question for worker-2; no scope change."
 
 ## Spawn: Create Workers/Judges
 
-After `TeamCreate`, spawn each agent with `Task(team_name=..., name=...)`. All agents in a wave spawn in parallel (single message, multiple tool calls).
+After `team-create`, spawn each agent with `Task(team_name=..., name=...)`. All agents in a wave spawn in parallel (single message, multiple tool calls).
 
 ### Council Judges (parallel spawn)
 
@@ -1148,7 +1148,7 @@ Use `subagent_type="Explore"` for read-only research agents. Use `"general-purpo
 
 ## Wait: Receive Completion Signals
 
-Workers/judges send completion signals via `SendMessage`. These are **automatically delivered** to the team lead — no polling needed.
+Workers/judges send completion signals via `send-message`. These are **automatically delivered** to the team lead — no polling needed.
 
 When a teammate finishes, their message appears as a new conversation turn. The lead reads result files from disk, NOT from message content.
 
@@ -1170,18 +1170,18 @@ If a teammate goes idle without sending a completion signal:
 
 See `skills/council/references/cli-spawning.md` for timeout configuration (`COUNCIL_TIMEOUT`, `COUNCIL_R2_TIMEOUT`).
 
-**Fallback:** If native teams fail at runtime despite passing detection (e.g., `TeamCreate` succeeds but `Task` spawning fails), fall back to background tasks. See `backend-background-tasks.md`.
+**Fallback:** If native teams fail at runtime despite passing detection (e.g., `team-create` succeeds but `Task` spawning fails), fall back to background tasks. See `backend-background-tasks.md`.
 
 ---
 
 ## Message: Debate R2 / Retry
 
-Send messages to specific teammates using `SendMessage`. Teammates wake from idle when messaged.
+Send messages to specific teammates using `send-message`. Teammates wake from idle when messaged.
 
 ### Council Debate R2
 
 ```
-SendMessage(
+send-message(
   type="message",
   recipient="judge-1",
   content="DEBATE ROUND 2\n\nOther judges' verdicts:\n- judge-error-paths: FAIL (HIGH confidence) — file: .agents/council/2026-02-17-auth-judge-error-paths.md\n\nRead the other judge's file. Revise your assessment considering their perspective.\nWrite your R2 verdict to .agents/council/2026-02-17-auth-judge-1-r2.md\nThen send a completion signal.",
@@ -1194,7 +1194,7 @@ SendMessage(
 ### Swarm Worker Retry
 
 ```
-SendMessage(
+send-message(
   type="message",
   recipient="worker-3",
   content="Validation failed: pytest tests/test_auth.py returned exit code 1.\nFix the failing tests and rewrite your result to .agents/swarm/results/3.json",
@@ -1210,8 +1210,8 @@ After consolidation/validation, shut down all teammates then delete the team.
 
 ```
 # Shutdown each teammate
-SendMessage(type="shutdown_request", recipient="judge-1", content="Council complete")
-SendMessage(type="shutdown_request", recipient="judge-error-paths", content="Council complete")
+send-message(type="shutdown_request", recipient="judge-1", content="Council complete")
+send-message(type="shutdown_request", recipient="judge-error-paths", content="Council complete")
 
 # After all teammates acknowledge shutdown:
 TeamDelete()
@@ -1229,27 +1229,27 @@ For crank/swarm with multiple waves, create a **new team per wave**:
 
 ```
 # Wave 1
-TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
+team-create(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
 # If TeamDelete fails: rm -rf ~/.codex/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
-TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")
+team-create(team_name="swarm-1739812345-w2", description="Wave 2")
 # ... spawn workers for newly-unblocked tasks ...
 TeamDelete()
 ```
 
 This ensures each wave's workers start with clean context (no leftover state from prior waves).
 
-**If `TeamDelete` fails between waves**, the next `TeamCreate` may conflict. Always verify cleanup succeeded before creating the next wave team.
+**If `TeamDelete` fails between waves**, the next `team-create` may conflict. Always verify cleanup succeeded before creating the next wave team.
 
 ---
 
 ## Key Rules
 
-1. **`TeamCreate` before `Task`** — tasks created before the team are invisible to teammates
+1. **`team-create` before `Task`** — tasks created before the team are invisible to teammates
 2. **Pre-assign tasks before spawning** — workers do NOT race-claim from TaskList
 3. **Lead-only commits** — workers write files, lead runs `git add` + `git commit`
 4. **Thin messages** — workers send <100 token signals, full results go to disk
@@ -1356,7 +1356,7 @@ close_agent(id="agent-id-1")
 For `--mixed` council, spawn runtime-native judges AND Codex CLI judges in parallel:
 
 ```
-# Claude native team judges (via TeamCreate — see backend-claude-teams.md)
+# Claude native team judges (via team-create — see backend-claude-teams.md)
 Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-1", prompt="...", description="Judge 1")
 Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-2", prompt="...", description="Judge 2")
 
@@ -1385,7 +1385,7 @@ All four spawn in the **same message** — maximum parallelism.
 
 Degraded single-agent mode when no multi-agent primitives are detected. The current agent performs all work sequentially in its own context.
 
-**When detected:** No `spawn_agent`, no `TeamCreate`, no `Task` tool available — or `--quick` flag was explicitly set.
+**When detected:** No `spawn_agent`, no `team-create`, no `Task` tool available — or `--quick` flag was explicitly set.
 
 ---
 
@@ -1763,25 +1763,25 @@ Judge names: `judge-{N}` for independent judges, `judge-{perspective}` when usin
 
 When `--debate` is passed, council runs two rounds instead of one. Round 1 produces independent verdicts. Round 2 lets judges review each other's work and revise.
 
-**Native teams unlock the key advantage:** Judges stay alive after R1. Instead of re-spawning fresh R2 judges with truncated R1 verdicts, the team lead sends other judges' full R1 verdicts via `SendMessage`. Judges wake from idle, process R2 with full context (their own R1 analysis + others' verdicts), and write R2 files. Result: no truncation loss, no spawn overhead, richer debate.
+**Native teams unlock the key advantage:** Judges stay alive after R1. Instead of re-spawning fresh R2 judges with truncated R1 verdicts, the team lead sends other judges' full R1 verdicts via `send-message`. Judges wake from idle, process R2 with full context (their own R1 analysis + others' verdicts), and write R2 files. Result: no truncation loss, no spawn overhead, richer debate.
 
 ## Execution Flow (with --debate)
 
 ```
 Phase 1: Build Packet + Create Team + Spawn R1 judges as teammates
                               |
-                    Collect all R1 verdicts (via SendMessage)
+                    Collect all R1 verdicts (via send-message)
                     Judges go idle after R1 (stay alive)
                               |
 Phase 1.5: Prepare R2 context (--debate only)
   - For each OTHER judge's R1 verdict, extract full JSON verdict
-  - Team lead sends R2 instructions to each judge via SendMessage
+  - Team lead sends R2 instructions to each judge via send-message
   - Each judge already has its own R1 in context (no truncation needed)
   - Each judge receives other judges' verdicts (full JSON, not truncated)
                               |
 Phase 2: Judges wake up for Round 2 (--debate only)
   - Same judge instances as R1 (not re-spawned)
-  - Each judge processes via SendMessage:
+  - Each judge processes via send-message:
     - Other judges' full R1 JSON verdicts
     - Steel-manning rebuttal prompt
     - Branch: disagreed OR agreed
@@ -1822,7 +1822,7 @@ For each judge:
 
 Since judges stay alive, truncation is no longer needed for a judge's **own** R1 verdict -- it's already in their context.
 
-For **other judges' verdicts** sent via SendMessage, include the full JSON verdict block:
+For **other judges' verdicts** sent via send-message, include the full JSON verdict block:
 
 ```json
 {
@@ -2482,12 +2482,12 @@ Use this as the source-of-truth for Ralph alignment in AgentOps orchestration sk
 
 | Ralph concept | AgentOps implementation |
 |---|---|
-| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao rpi phased` |
+| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao work rpi phased` |
 | Main context as scheduler | Mayor/lead orchestration in `$swarm` and `$crank` |
 | Plan file as state | `bd` issue graph, TaskList state, plan artifacts in `.agents/plans/` |
 | One task per pass | One issue per worker assignment in swarm/crank waves |
 | Backpressure | `$vibe`, task validation hooks, tests/lint gates, push/pre-mortem gates |
-| Outer loop restart | Wave loop in `$crank`; phase loop in `ao rpi phased` |
+| Outer loop restart | Wave loop in `$crank`; phase loop in `ao work rpi phased` |
 
 ## Implementation Notes
 
@@ -2850,3 +2850,5 @@ check "SKILL.md mentions PASS/WARN/FAIL" "grep -q 'PASS.*WARN.*FAIL\|PASS | WARN
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
 ```
+
+

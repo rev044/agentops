@@ -83,7 +83,7 @@ Swarm finds unblocked TaskList tasks and executes them.
 4. **Record ratchet progress (ao integration):**
    ```bash
    if command -v ao &>/dev/null; then
-       ao work ratchet record implement 2>/dev/null
+       ao ratchet record implement 2>/dev/null
    fi
    ```
 

@@ -34,7 +34,8 @@ Example:
 }
 
 func init() {
-	qualityCmd.AddCommand(badgeCmd)
+	badgeCmd.GroupID = "core"
+	rootCmd.AddCommand(badgeCmd)
 }
 
 func runBadge(cmd *cobra.Command, args []string) error {

@@ -54,7 +54,8 @@ Examples:
 }
 
 func init() {
-	qualityCmd.AddCommand(maturityCmd)
+	maturityCmd.GroupID = "core"
+	rootCmd.AddCommand(maturityCmd)
 	maturityCmd.Flags().BoolVar(&maturityApply, "apply", false, "Apply maturity transitions")
 	maturityCmd.Flags().BoolVar(&maturityScan, "scan", false, "Scan all learnings for pending transitions")
 	maturityCmd.Flags().BoolVar(&maturityExpire, "expire", false, "Scan for expired learnings")
@@ -762,7 +763,8 @@ Examples:
 }
 
 func init() {
-	qualityCmd.AddCommand(antiPatternCmd)
+	antiPatternCmd.GroupID = "core"
+	rootCmd.AddCommand(antiPatternCmd)
 }
 
 func runAntiPatterns(cmd *cobra.Command, args []string) error {
@@ -834,7 +836,8 @@ Examples:
 
 func init() {
 	promoteAntiPatternsCmd.Hidden = true
-	qualityCmd.AddCommand(promoteAntiPatternsCmd)
+	promoteAntiPatternsCmd.GroupID = "core"
+	rootCmd.AddCommand(promoteAntiPatternsCmd)
 }
 
 func filterTransitionsByNewMaturity(results []*ratchet.MaturityTransitionResult, maturity string) []*ratchet.MaturityTransitionResult {

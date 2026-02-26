@@ -36,7 +36,7 @@ Given `/ratchet [command]`:
 ### status - Check Current State
 
 ```bash
-ao work ratchet status 2>/dev/null
+ao ratchet status 2>/dev/null
 ```
 
 Or check the chain manually:
@@ -47,7 +47,7 @@ cat .agents/ao/chain.jsonl 2>/dev/null | tail -10
 ### check [step] - Verify Gate
 
 ```bash
-ao work ratchet check <step> 2>/dev/null
+ao ratchet check <step> 2>/dev/null
 ```
 
 Steps: `research`, `plan`, `implement`, `vibe`, `post-mortem`
@@ -55,7 +55,7 @@ Steps: `research`, `plan`, `implement`, `vibe`, `post-mortem`
 ### record [step] - Record Completion
 
 ```bash
-ao work ratchet record <step> --output "<artifact-path>" 2>/dev/null
+ao ratchet record <step> --output "<artifact-path>" 2>/dev/null
 ```
 
 Or record manually by writing to chain:
@@ -66,7 +66,7 @@ echo '{"step":"<step>","status":"completed","output":"<path>","time":"<ISO-times
 ### skip [step] - Skip Intentionally
 
 ```bash
-ao work ratchet skip <step> --reason "<why>" 2>/dev/null
+ao ratchet skip <step> --reason "<why>" 2>/dev/null
 ```
 
 ## Workflow Steps
@@ -102,7 +102,7 @@ Progress stored in `.agents/ao/chain.jsonl`:
 **User says:** `/ratchet status`
 
 **What happens:**
-1. Agent calls `ao work ratchet status 2>/dev/null` to check current state
+1. Agent calls `ao ratchet status 2>/dev/null` to check current state
 2. CLI reads `.agents/ao/chain.jsonl` and parses progress
 3. Agent reports which steps are completed, in-progress, or pending
 4. Agent shows output artifact paths for completed steps
@@ -115,7 +115,7 @@ Progress stored in `.agents/ao/chain.jsonl`:
 **Skill says:** After `/research` completes
 
 **What happens:**
-1. Agent calls `ao work ratchet record research --output ".agents/research/auth.md"`
+1. Agent calls `ao ratchet record research --output ".agents/research/auth.md"`
 2. CLI appends completion entry to `.agents/ao/chain.jsonl`
 3. Agent locks research step as permanently completed
 4. Agent proceeds to plan phase knowing research gate passed
@@ -126,7 +126,7 @@ Progress stored in `.agents/ao/chain.jsonl`:
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| ao work ratchet status fails | ao CLI not available or chain.jsonl missing | Manually check `.agents/ao/chain.jsonl` or create empty file |
-| Step already completed error | Attempting to re-ratchet locked step | Use `ao work ratchet status` to check state; skip if already done |
+| ao ratchet status fails | ao CLI not available or chain.jsonl missing | Manually check `.agents/ao/chain.jsonl` or create empty file |
+| Step already completed error | Attempting to re-ratchet locked step | Use `ao ratchet status` to check state; skip if already done |
 | chain.jsonl corrupted | Malformed JSON entries | Manually edit to fix JSON; validate each line with `jq -c '.' <file>` |
 | Out-of-order steps | Implementing before planning | Follow RPI order strictly; use `--skip` only with explicit reason |

@@ -332,7 +332,7 @@ What are you trying to do?
 │   └─ Generate ideas ────────────► /brainstorm
 │
 ├─ "Learn from past work"
-│   ├─ What do we know about X? ──► ao know search "<query>"
+│   ├─ What do we know about X? ──► ao search "<query>"
 │   ├─ Save this insight ─────────► /retro --quick "insight"
 │   └─ Run a retrospective ───────► /retro
 │
@@ -363,7 +363,7 @@ ls .agents/learnings/ 2>/dev/null | wc -l
 
 # Show flywheel health (if ao available)
 if command -v ao &>/dev/null; then
-  ao quality flywheel status 2>/dev/null
+  ao flywheel status 2>/dev/null
   ao status 2>/dev/null | head -10
 else
   # ao not installed: show raw learnings from disk
@@ -392,7 +392,7 @@ What it means for you:
   - You never run ao commands directly — skills and hooks handle it
 
 The flywheel is running. Verify any time:
-  ao quality flywheel status             ← escape velocity check
+  ao flywheel status             ← escape velocity check
   ao status                      ← current knowledge inventory
   ls .agents/learnings/          ← raw learning files
 ```
@@ -420,7 +420,7 @@ When you want parallelism, /swarm multiplies any of them.
 When you want the full pipeline, /rpi chains them all:
 
   /rpi "goal"              ← research → plan → validate → ship → learn
-  ao work rpi phased "goal"     ← same thing from the CLI, fresh context per phase
+  ao rpi phased "goal"     ← same thing from the CLI, fresh context per phase
 
 Want hands-free improvement?
 
@@ -454,8 +454,8 @@ git rev-parse --is-inside-work-tree &>/dev/null && GIT_REPO=true || GIT_REPO=fal
 | Current State | Tier | Next Step |
 |---------------|------|-----------|
 | No git repo | — | "Initialize git with `git init` to unlock change tracking, `/vibe`, and full RPI workflow." |
-| Git repo, no `ao`, no `.agents/` | Tier 0 | "You're at Tier 0 — skills work standalone. When you want learnings to persist across sessions, install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao start seed && ao start init --hooks`" |
-| `ao` installed, no `.agents/` yet | Tier 0+ | "Run `ao start seed` to bootstrap the flywheel (creates `.agents/`, GOALS.md, bootstrap learning, CLAUDE.md section). Then `ao start init --hooks` for SessionStart + SessionEnd automation. Your knowledge flywheel starts capturing learnings automatically." |
+| Git repo, no `ao`, no `.agents/` | Tier 0 | "You're at Tier 0 — skills work standalone. When you want learnings to persist across sessions, install the `ao` CLI: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao seed && ao init --hooks`" |
+| `ao` installed, no `.agents/` yet | Tier 0+ | "Run `ao seed` to bootstrap the flywheel (creates `.agents/`, GOALS.md, bootstrap learning, CLAUDE.md section). Then `ao init --hooks` for SessionStart + SessionEnd automation. Your knowledge flywheel starts capturing learnings automatically." |
 | `ao` + `.agents/`, no beads | Tier 1 | "Knowledge flywheel is active. When you have multi-issue epics, add beads for issue tracking: `brew install boshu2/agentops/beads && bd init --prefix <your-prefix>`" |
 | `ao` + beads, no Codex | Tier 2 | "Full RPI stack. Start with repo instructions (check `AGENTS.md` if present), then try `bd ready` (find work) or `/crank` (run an epic)." |
 | `ao` + beads + Codex | Tier 2+ | "Full stack with cross-vendor. Try `/council --mixed` for Claude + Codex consensus, or `/vibe --mixed` for cross-vendor code review." |

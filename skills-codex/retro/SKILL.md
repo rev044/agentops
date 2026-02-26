@@ -10,6 +10,63 @@ description: 'Extract learnings from completed work. Trigger phrases: "run a ret
 
 Extract learnings from completed work, propose proactive improvements, and feed the knowledge flywheel.
 
+## Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--quick "text"` | off | Quick-capture a single learning directly to `.agents/learnings/` without running a full retrospective. Absorbs the former learn skill. |
+| `--vibe-results <path>` | off | Incorporate validation findings from a prior `$vibe` run |
+
+## Quick Mode
+
+Given `$retro --quick "insight text"`:
+
+### Quick Step 1: Generate Slug
+
+Create a slug from the content: first meaningful words, lowercase, hyphens, max 50 chars.
+
+### Quick Step 2: Write Learning Directly
+
+**Write to:** `.agents/learnings/YYYY-MM-DD-quick-<slug>.md`
+
+```markdown
+---
+type: learning
+source: retro-quick
+date: YYYY-MM-DD
+---
+
+# Learning: <Short Title>
+
+**Category**: <auto-classify: debugging|architecture|process|testing|security>
+**Confidence**: medium
+
+## What We Learned
+
+<user's insight text>
+
+## Source
+
+Quick capture via `$retro --quick`
+```
+
+This skips the pool pipeline — writes directly to learnings, not `.agents/knowledge/pending/`.
+
+### Quick Step 3: Confirm
+
+```
+Learned: <one-line summary>
+Saved to: .agents/learnings/YYYY-MM-DD-quick-<slug>.md
+
+For deeper reflection, use `$retro` without --quick.
+```
+
+**Done.** Return immediately after confirmation.
+
+---
+
+## Full Retrospective
+
 ## Execution Steps
 
 Given `$retro [topic] [--vibe-results <path>]`:
@@ -229,7 +286,7 @@ if command -v ao &>/dev/null; then
   echo "Learnings indexed in knowledge flywheel"
 
   # Apply feedback from completed tasks to associated learnings
-  ao task-feedback 2>/dev/null
+  ao work task-feedback 2>/dev/null
   echo "Task feedback applied"
 
   # Close session and trigger full flywheel close-loop
@@ -244,7 +301,7 @@ if command -v ao &>/dev/null; then
   ao quality constraint review 2>/dev/null || true
 else
   # Learnings are already written to .agents/learnings/ by Step 5.
-  # Without ao CLI, grep-based search in $research, $knowledge, and $inject
+  # Without ao CLI, grep-based search in $research and $inject
   # will find them directly — no copy to pending needed.
 
   # Build lightweight keyword index for faster search

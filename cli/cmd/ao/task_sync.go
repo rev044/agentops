@@ -97,7 +97,8 @@ var (
 
 func init() {
 	taskSyncCmd.Hidden = true
-	workCmd.AddCommand(taskSyncCmd)
+	taskSyncCmd.GroupID = "workflow"
+	rootCmd.AddCommand(taskSyncCmd)
 	taskSyncCmd.Flags().StringVar(&taskSyncTranscript, "transcript", "", "Path to Claude Code transcript")
 	taskSyncCmd.Flags().StringVar(&taskSyncSessionID, "session", "", "Filter tasks by session ID")
 	taskSyncCmd.Flags().BoolVar(&taskSyncPromote, "promote", false, "Promote completed tasks to learnings")
@@ -529,7 +530,8 @@ var (
 
 func init() {
 	taskFeedbackCmd.Hidden = true
-	workCmd.AddCommand(taskFeedbackCmd)
+	taskFeedbackCmd.GroupID = "workflow"
+	rootCmd.AddCommand(taskFeedbackCmd)
 	taskFeedbackCmd.Flags().StringVar(&taskFeedbackSessionID, "session", "", "Session ID to process")
 	taskFeedbackCmd.Flags().BoolVar(&taskFeedbackAll, "all", false, "Process all tasks without feedback")
 }
@@ -638,7 +640,8 @@ var taskStatusSessionID string
 
 func init() {
 	taskStatusCmd.Hidden = true
-	workCmd.AddCommand(taskStatusCmd)
+	taskStatusCmd.GroupID = "workflow"
+	rootCmd.AddCommand(taskStatusCmd)
 	taskStatusCmd.Flags().StringVar(&taskStatusSessionID, "session", "", "Filter by session ID")
 }
 

@@ -329,8 +329,8 @@ What are you trying to do?
 │   └─ Generate ideas ────────────► $brainstorm
 │
 ├─ "Learn from past work"
-│   ├─ What do we know about X? ──► $knowledge <query>
-│   ├─ Save this insight ─────────► $learn "insight"
+│   ├─ What do we know about X? ──► ao know search "<query>"
+│   ├─ Save this insight ─────────► $retro --quick "insight"
 │   └─ Run a retrospective ───────► $retro
 │
 ├─ "Parallelize work"
@@ -579,8 +579,8 @@ BUILD                            $council     - multi-model judges
 $implement  - single task        $release     - tag + changelog
 $crank      - multi-issue epic
 $plan       - decompose work     KNOWLEDGE
-$rpi        - full lifecycle     $knowledge   - query learnings
-                                 $learn       - capture manually
+$rpi        - full lifecycle     /knowledge   - query learnings
+                                 /learn       - capture manually
 EXPLORE                          $retro       - extract from work
 $research   - deep dive          $trace       - decision provenance
 $brainstorm - explore ideas      $flywheel    - health monitoring

@@ -20,31 +20,31 @@ Every `ao` command that is actively called by at least one skill or hook.
 
 | Command | Skill Callers | Hook Callers |
 |---------|--------------|--------------|
-| `ao know inject` | crank, evolve, implement, inject, learn, recover, research, retro | session-start.sh, worktree-setup.sh |
-| `ao know forge` | extract, flywheel, forge, post-mortem, retro, vibe, evolve, crank | session-end-maintenance.sh |
-| `ao work ratchet` | crank, handoff, implement, plan, pre-mortem, ratchet, rpi, status, vibe | ratchet-advance.sh, stop-auto-handoff.sh, prompt-nudge.sh, precompact-snapshot.sh |
-| `ao work goals` | goals, evolve | — |
-| `ao know search` | crank, inject, knowledge, plan, pre-mortem, provenance, research, using-agentops, vibe | session-start.sh |
-| `ao work rpi` | council, crank, plan, quickstart, research, rpi, shared, swarm | — |
-| `ao quality flywheel` | crank, evolve, flywheel, post-mortem, quickstart, retro, status | ao-flywheel-close.sh |
-| `ao quality pool` | crank, learn, status | session-end-maintenance.sh |
-| `ao know lookup` | crank, implement, inject, plan, research, using-agentops | session-start.sh |
+| `ao inject` | crank, evolve, implement, inject, learn, recover, research, retro | session-start.sh, worktree-setup.sh |
+| `ao forge` | extract, flywheel, forge, post-mortem, retro, vibe, evolve, crank | session-end-maintenance.sh |
+| `ao ratchet` | crank, handoff, implement, plan, pre-mortem, ratchet, rpi, status, vibe | ratchet-advance.sh, stop-auto-handoff.sh, prompt-nudge.sh, precompact-snapshot.sh |
+| `ao goals` | goals, evolve | — |
+| `ao search` | crank, inject, knowledge, plan, pre-mortem, provenance, research, using-agentops, vibe | session-start.sh |
+| `ao rpi` | council, crank, plan, quickstart, research, rpi, shared, swarm | — |
+| `ao flywheel` | crank, evolve, flywheel, post-mortem, quickstart, retro, status | ao-flywheel-close.sh |
+| `ao pool` | crank, learn, status | session-end-maintenance.sh |
+| `ao lookup` | crank, implement, inject, plan, research, using-agentops | session-start.sh |
 | `ao context` | crank, implement, swarm | context-guard.sh |
-| `ao quality maturity` | flywheel | session-end-maintenance.sh |
-| `ao quality constraint` | flywheel, post-mortem, retro | — |
-| `ao quality badge` | flywheel, status | — |
-| `ao start seed` | quickstart | — |
-| `ao settings notebook` | retro | session-start.sh |
-| `ao settings memory` | — | session-end-maintenance.sh |
-| `ao quality dedup` | flywheel | session-end-maintenance.sh |
-| `ao quality contradict` | flywheel | session-end-maintenance.sh |
-| `ao quality metrics` | flywheel | — |
+| `ao maturity` | flywheel | session-end-maintenance.sh |
+| `ao constraint` | flywheel, post-mortem, retro | — |
+| `ao badge` | flywheel, status | — |
+| `ao seed` | quickstart | — |
+| `ao notebook` | retro | session-start.sh |
+| `ao memory` | — | session-end-maintenance.sh |
+| `ao dedup` | flywheel | session-end-maintenance.sh |
+| `ao contradict` | flywheel | session-end-maintenance.sh |
+| `ao metrics` | flywheel | — |
 | `ao extract` | extract | session-start.sh |
-| `ao settings hooks` | quickstart | — |
-| `ao start init` | quickstart | — |
-| `ao work session` | post-mortem, retro | — |
+| `ao hooks` | quickstart | — |
+| `ao init` | quickstart | — |
+| `ao session` | post-mortem, retro | — |
 | `ao temper` | post-mortem | — |
-| `ao quality curate` | flywheel | — |
+| `ao curate` | flywheel | — |
 | `ao status` | flywheel, quickstart | — |
 | `ao task-feedback` | retro | — |
 | `ao task-status` | status | — |
@@ -117,27 +117,27 @@ Commands that exist in the Go CLI but are not called by any skill or hook. All a
 | Command | Category | Notes |
 |---------|----------|-------|
 | `ao completion` | User utility | Shell completion generation |
-| `ao settings config` | User utility | Config management |
-| `ao start demo` | User utility | Interactive demonstration |
+| `ao config` | User utility | Config management |
+| `ao demo` | User utility | Interactive demonstration |
 | `ao doctor` | CI/install | Called by install.sh and release-smoke-test.sh |
 | `ao version` | User utility | Version query |
-| `ao start quick-start` | User utility | `/quickstart` skill is the orchestrator |
-| `ao quality vibe-check` | User utility | `/vibe` skill orchestrates directly |
+| `ao quick-start` | User utility | `/quickstart` skill is the orchestrator |
+| `ao vibe-check` | User utility | `/vibe` skill orchestrates directly |
 | `ao inbox` | User utility | `/inbox` skill works independently |
 | `ao mail` | User utility | Alias for inbox operations |
-| `ao settings plans` | User utility | Plan management |
-| `ao know trace` | User utility | Artifact tracing |
-| `ao quality gate` | CI/test | Promotion gate — called in test scripts |
+| `ao plans` | User utility | Plan management |
+| `ao trace` | User utility | Artifact tracing |
+| `ao gate` | CI/test | Promotion gate — called in test scripts |
 | `ao feedback` | Hidden | UI for providing feedback on learnings |
-| `ao work feedback-loop` | Internal | Async feedback processing |
+| `ao feedback-loop` | Internal | Async feedback processing |
 | `ao batch-feedback` | Hidden | Batch feedback processing |
-| `ao work session-outcome` | Hidden | Session outcome recording |
+| `ao session-outcome` | Hidden | Session outcome recording |
 | `ao store` | Hidden | Vector store management |
 | `ao index` | Hidden | Indexing utility |
 | `ao task-sync` | Hidden | Task synchronization |
 | `ao migrate` | Hidden | Migration utility (`migrate memrl`) |
 | `ao worktree` | Hidden | Worktree GC utility |
-| `ao quality anti-patterns` | Hidden | Anti-pattern list |
+| `ao anti-patterns` | Hidden | Anti-pattern list |
 | `ao assemble` | Alias | Also registered as `ao context assemble` |
 
 ---
@@ -148,8 +148,8 @@ References to subcommands that don't exist under their parent command.
 
 | Phantom Call | Location | Problem | Fix |
 |-------------|----------|---------|-----|
-| `ao quality gate check` | `tests/rpi-e2e/run-full-rpi.sh:172,176,217` | `check` is a subcommand of `ao work ratchet`, not `ao quality gate` | Change to `ao work ratchet check` |
-| `ao know forge index` | `scripts/test-flywheel.sh:94` | `index` doesn't exist under `forge` (has: `transcript`, `markdown`, `batch`) | Change to `ao know forge markdown` |
+| `ao gate check` | `tests/rpi-e2e/run-full-rpi.sh:172,176,217` | `check` is a subcommand of `ao ratchet`, not `ao gate` | Change to `ao ratchet check` |
+| `ao forge index` | `scripts/test-flywheel.sh:94` | `index` doesn't exist under `forge` (has: `transcript`, `markdown`, `batch`) | Change to `ao forge markdown` |
 
 ---
 
@@ -161,38 +161,38 @@ How hooks chain `ao` commands across a session:
 Session Start
   → session-start.sh
       → ao extract (lean mode: extract + inject with auto-shrink)
-      → ao know inject
-      → ao know lookup (JIT knowledge retrieval)
+      → ao inject
+      → ao lookup (JIT knowledge retrieval)
 
 During Session
   → ratchet-advance.sh (PostToolUse)
-      → ao work ratchet record
+      → ao ratchet record
   → context-guard.sh (UserPromptSubmit)
       → ao context guard
   → prompt-nudge.sh (UserPromptSubmit)
-      → ao work ratchet status
+      → ao ratchet status
   → citation-tracker.sh (PostToolUse)
       → writes .agents/ao/citations.jsonl (no ao command)
 
 Session End
   → session-end-maintenance.sh
-      → ao know forge transcript
-      → ao settings notebook update
-      → ao settings memory sync
-      → ao quality pool ingest
-      → ao quality maturity --expire --evict
-      → ao quality dedup
-      → ao quality contradict
+      → ao forge transcript
+      → ao notebook update
+      → ao memory sync
+      → ao pool ingest
+      → ao maturity --expire --evict
+      → ao dedup
+      → ao contradict
 
 Stop Event
   → ao-flywheel-close.sh
-      → ao quality flywheel close-loop (citation → utility → maturity)
+      → ao flywheel close-loop (citation → utility → maturity)
   → stop-auto-handoff.sh
-      → ao work ratchet status (check for incomplete gates)
+      → ao ratchet status (check for incomplete gates)
 
 Pre-Compaction
   → precompact-snapshot.sh
-      → ao work ratchet status (snapshot before context loss)
+      → ao ratchet status (snapshot before context loss)
 ```
 
 ---

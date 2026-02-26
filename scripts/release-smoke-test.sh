@@ -312,66 +312,66 @@ test_exec_output "ao version" "version|Version" "$AO" version
 test_exec_output "ao status" "Status|AgentOps|Initialized" "$AO" status
 test_exec_tolerant "ao doctor" "$AO" doctor
 
-# Search (ao know)
-test_exec "ao know search 'test'" "$AO" know search "test"
-test_exec_exact "ao know search --json nonexistent => []" "[]" "$AO" know search --json "nonexistent-xyz-12345"
+# Search
+test_exec "ao search 'test'" "$AO" search "test"
+test_exec_exact "ao search --json nonexistent => []" "[]" "$AO" search --json "nonexistent-xyz-12345"
 
-# Knowledge injection (ao know)
-test_exec_tolerant "ao know inject" "$AO" know inject
-test_exec_output "ao know inject --index-only" "Knowledge Index|ID|Title" "$AO" know inject --index-only
+# Knowledge injection
+test_exec_tolerant "ao inject" "$AO" inject
+test_exec_output "ao inject --index-only" "Knowledge Index|ID|Title" "$AO" inject --index-only
 
-# Lookup (ao know)
-test_exec_tolerant "ao know lookup --query 'test'" "$AO" know lookup --query "test"
+# Lookup
+test_exec_tolerant "ao lookup --query 'test'" "$AO" lookup --query "test"
 
-# Metrics (ao quality)
-test_exec_output "ao quality metrics health" "sigma|rho|delta|retrieval|citation|decay" "$AO" quality metrics health
-test_exec_output "ao quality metrics report" "Flywheel|Metrics|Period|decay|retrieval|citation" "$AO" quality metrics report
+# Metrics
+test_exec_output "ao metrics health" "sigma|rho|delta|retrieval|citation|decay" "$AO" metrics health
+test_exec_output "ao metrics report" "Flywheel|Metrics|Period|decay|retrieval|citation" "$AO" metrics report
 
-# Flywheel (ao quality)
-test_exec_output "ao quality flywheel status" "Flywheel|status|COMPOUNDING|decay|retrieval" "$AO" quality flywheel status
-test_exec_output "ao quality flywheel close-loop" "Close-Loop|Summary|Pool|promote|Citation" "$AO" quality flywheel close-loop
+# Flywheel
+test_exec_output "ao flywheel status" "Flywheel|status|COMPOUNDING|decay|retrieval" "$AO" flywheel status
+test_exec_output "ao flywheel close-loop" "Close-Loop|Summary|Pool|promote|Citation" "$AO" flywheel close-loop
 
-# Pool (ao quality)
-test_exec_tolerant "ao quality pool list" "$AO" quality pool list
+# Pool
+test_exec_tolerant "ao pool list" "$AO" pool list
 
-# Maturity (ao quality)
-test_exec_output "ao quality maturity --scan" "Maturity|Distribution|Provisional|Candidate|No learnings" "$AO" quality maturity --scan
+# Maturity
+test_exec_output "ao maturity --scan" "Maturity|Distribution|Provisional|Candidate|No learnings" "$AO" maturity --scan
 
-# Anti-patterns, constraints, contradict, dedup (ao quality)
-test_exec_tolerant "ao quality anti-patterns" "$AO" quality anti-patterns
-test_exec_tolerant "ao quality constraint list" "$AO" quality constraint list
-test_exec_tolerant "ao quality contradict" "$AO" quality contradict
-test_exec_output "ao quality dedup" "Dedup|Scan|Total|Duplicate|No learnings" "$AO" quality dedup
+# Anti-patterns, constraints, contradict, dedup
+test_exec_tolerant "ao anti-patterns" "$AO" anti-patterns
+test_exec_tolerant "ao constraint list" "$AO" constraint list
+test_exec_tolerant "ao contradict" "$AO" contradict
+test_exec_output "ao dedup" "Dedup|Scan|Total|Duplicate|No learnings" "$AO" dedup
 
-# Curate (ao quality)
-test_exec_tolerant "ao quality curate status" "$AO" quality curate status
-test_exec_tolerant "ao quality curate verify" "$AO" quality curate verify
+# Curate
+test_exec_tolerant "ao curate status" "$AO" curate status
+test_exec_tolerant "ao curate verify" "$AO" curate verify
 
-# Notebook and memory (ao settings, quiet mode to avoid state changes)
-test_exec "ao settings notebook update --quiet" "$AO" settings notebook update --quiet
-test_exec_tolerant "ao settings memory sync --quiet" "$AO" settings memory sync --quiet
+# Notebook and memory (quiet mode to avoid state changes)
+test_exec "ao notebook update --quiet" "$AO" notebook update --quiet
+test_exec_tolerant "ao memory sync --quiet" "$AO" memory sync --quiet
 
-# Trace (ao know, help only — requires artifact path arg)
-test_help "ao know trace --help" "$AO" know trace --help
+# Trace (help only — requires artifact path arg)
+test_help "ao trace --help" "$AO" trace --help
 
-# Goals (ao work)
-test_exec_output "ao work goals validate" "VALID|goals|version" "$AO" work goals validate
-test_exec_output "ao work goals measure" "GOAL|RESULT|pass|fail" "$AO" work goals measure
+# Goals
+test_exec_output "ao goals validate" "VALID|goals|version" "$AO" goals validate
+test_exec_output "ao goals measure" "GOAL|RESULT|pass|fail" "$AO" goals measure
 
-# Ratchet (ao work)
-test_exec_output "ao work ratchet status" "Ratchet|Chain|Status|STEP" "$AO" work ratchet status
+# Ratchet
+test_exec_output "ao ratchet status" "Ratchet|Chain|Status|STEP" "$AO" ratchet status
 
-# RPI (ao work)
-test_exec_tolerant "ao work rpi status" "$AO" work rpi status
+# RPI
+test_exec_tolerant "ao rpi status" "$AO" rpi status
 
-# Badge (ao quality)
-test_exec_output "ao quality badge" "AGENTOPS|KNOWLEDGE|Sessions|Learnings|Citations" "$AO" quality badge
+# Badge
+test_exec_output "ao badge" "AGENTOPS|KNOWLEDGE|Sessions|Learnings|Citations" "$AO" badge
 
-# Context (ao work)
-test_exec_tolerant "ao work context status" "$AO" work context status
+# Context
+test_exec_tolerant "ao context status" "$AO" context status
 
-# Vibe-check (ao quality, help only — actual execution takes a while)
-test_help "ao quality vibe-check --help" "$AO" quality vibe-check --help
+# Vibe-check (help only — actual execution takes a while)
+test_help "ao vibe-check --help" "$AO" vibe-check --help
 
 # ═══════════════════════════════════════════════════════
 #  Help-Only Commands (would modify state — test --help)
@@ -379,17 +379,17 @@ test_help "ao quality vibe-check --help" "$AO" quality vibe-check --help
 
 section "Help-Only Commands (state-modifying — --help only)"
 
-test_help "ao start init --help" "$AO" start init --help
-test_help "ao start seed --help" "$AO" start seed --help
-test_help "ao start demo --help" "$AO" start demo --help
-test_help "ao start quick-start --help" "$AO" start quick-start --help
-test_help "ao know forge --help" "$AO" know forge --help
-test_help "ao work session --help" "$AO" work session --help
-test_help "ao settings hooks --help" "$AO" settings hooks --help
-test_help "ao settings config --help" "$AO" settings config --help
+test_help "ao init --help" "$AO" init --help
+test_help "ao seed --help" "$AO" seed --help
+test_help "ao demo --help" "$AO" demo --help
+test_help "ao quick-start --help" "$AO" quick-start --help
+test_help "ao forge --help" "$AO" forge --help
+test_help "ao session --help" "$AO" session --help
+test_help "ao hooks --help" "$AO" hooks --help
+test_help "ao config --help" "$AO" config --help
 test_help "ao completion --help" "$AO" completion --help
-test_help "ao settings plans --help" "$AO" settings plans --help
-test_help "ao quality gate --help" "$AO" quality gate --help
+test_help "ao plans --help" "$AO" plans --help
+test_help "ao gate --help" "$AO" gate --help
 
 # ═══════════════════════════════════════════════════════
 #  Subcommand Help Coverage (verify subcommands exist)
@@ -397,19 +397,19 @@ test_help "ao quality gate --help" "$AO" quality gate --help
 
 section "Subcommand Help Coverage (verify command groups list subcommands)"
 
-test_help "ao work goals --help" "$AO" work goals --help
-test_help "ao work ratchet --help" "$AO" work ratchet --help
-test_help "ao quality metrics --help" "$AO" quality metrics --help
-test_help "ao quality pool --help" "$AO" quality pool --help
-test_help "ao quality constraint --help" "$AO" quality constraint --help
-test_help "ao quality curate --help" "$AO" quality curate --help
-test_help "ao work session --help" "$AO" work session --help
-test_help "ao work rpi --help" "$AO" work rpi --help
-test_help "ao quality flywheel --help" "$AO" quality flywheel --help
-test_help "ao quality maturity --help" "$AO" quality maturity --help
-test_help "ao settings memory --help" "$AO" settings memory --help
-test_help "ao settings notebook --help" "$AO" settings notebook --help
-test_help "ao know trace --help" "$AO" know trace --help
+test_help "ao goals --help" "$AO" goals --help
+test_help "ao ratchet --help" "$AO" ratchet --help
+test_help "ao metrics --help" "$AO" metrics --help
+test_help "ao pool --help" "$AO" pool --help
+test_help "ao constraint --help" "$AO" constraint --help
+test_help "ao curate --help" "$AO" curate --help
+test_help "ao session --help" "$AO" session --help
+test_help "ao rpi --help" "$AO" rpi --help
+test_help "ao flywheel --help" "$AO" flywheel --help
+test_help "ao maturity --help" "$AO" maturity --help
+test_help "ao memory --help" "$AO" memory --help
+test_help "ao notebook --help" "$AO" notebook --help
+test_help "ao trace --help" "$AO" trace --help
 
 # ═══════════════════════════════════════════════════════
 #  Flag Testing (verify key flags produce valid output)
@@ -417,8 +417,8 @@ test_help "ao know trace --help" "$AO" know trace --help
 
 section "Flag Testing (JSON output validation)"
 
-test_json "ao know search --json 'test'" "$AO" know search --json "test"
-test_json "ao know search --json nonexistent => valid JSON" "$AO" know search --json "nonexistent-xyz-12345"
+test_json "ao search --json 'test'" "$AO" search --json "test"
+test_json "ao search --json nonexistent => valid JSON" "$AO" search --json "nonexistent-xyz-12345"
 
 # Some commands support --json; test where available
 if "$AO" doctor --json >/dev/null 2>&1; then
@@ -427,34 +427,34 @@ else
     skip "ao doctor --json (flag not supported)"
 fi
 
-if "$AO" quality pool list --json >/dev/null 2>&1; then
-    test_json "ao quality pool list --json" "$AO" quality pool list --json
+if "$AO" pool list --json >/dev/null 2>&1; then
+    test_json "ao pool list --json" "$AO" pool list --json
 else
-    skip "ao quality pool list --json (flag not supported)"
+    skip "ao pool list --json (flag not supported)"
 fi
 
-if "$AO" work ratchet status --json >/dev/null 2>&1; then
-    test_json "ao work ratchet status --json" "$AO" work ratchet status --json
+if "$AO" ratchet status --json >/dev/null 2>&1; then
+    test_json "ao ratchet status --json" "$AO" ratchet status --json
 else
-    skip "ao work ratchet status --json (flag not supported)"
+    skip "ao ratchet status --json (flag not supported)"
 fi
 
-if "$AO" quality flywheel status --json >/dev/null 2>&1; then
-    test_json "ao quality flywheel status --json" "$AO" quality flywheel status --json
+if "$AO" flywheel status --json >/dev/null 2>&1; then
+    test_json "ao flywheel status --json" "$AO" flywheel status --json
 else
-    skip "ao quality flywheel status --json (flag not supported)"
+    skip "ao flywheel status --json (flag not supported)"
 fi
 
-if "$AO" quality metrics health --json >/dev/null 2>&1; then
-    test_json "ao quality metrics health --json" "$AO" quality metrics health --json
+if "$AO" metrics health --json >/dev/null 2>&1; then
+    test_json "ao metrics health --json" "$AO" metrics health --json
 else
-    skip "ao quality metrics health --json (flag not supported)"
+    skip "ao metrics health --json (flag not supported)"
 fi
 
-if "$AO" quality constraint list --json >/dev/null 2>&1; then
-    test_json "ao quality constraint list --json" "$AO" quality constraint list --json
+if "$AO" constraint list --json >/dev/null 2>&1; then
+    test_json "ao constraint list --json" "$AO" constraint list --json
 else
-    skip "ao quality constraint list --json (flag not supported)"
+    skip "ao constraint list --json (flag not supported)"
 fi
 
 # ═══════════════════════════════════════════════════════
@@ -468,8 +468,14 @@ test_help "ao --help" "$AO" --help
 # Verify expected command groups appear in top-level help
 TOP_HELP=$("$AO" --help 2>&1)
 EXPECTED_COMMANDS=(
-    start doctor quality status version
-    work completion settings know
+    doctor status version completion
+    search inject lookup forge trace
+    rpi ratchet goals session
+    flywheel pool metrics gate maturity
+    config plans hooks memory notebook
+    demo init seed quick-start
+    badge constraint contradict dedup curate
+    anti-patterns vibe-check extract
 )
 
 for cmd in "${EXPECTED_COMMANDS[@]}"; do

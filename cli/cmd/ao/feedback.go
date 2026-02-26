@@ -62,7 +62,8 @@ Examples:
 
 func init() {
 	feedbackCmd.Hidden = true
-	knowCmd.AddCommand(feedbackCmd)
+	feedbackCmd.GroupID = "knowledge"
+	rootCmd.AddCommand(feedbackCmd)
 	feedbackCmd.Flags().Float64Var(&feedbackReward, "reward", -1, "Reward value (0.0 to 1.0)")
 	feedbackCmd.Flags().Float64Var(&feedbackAlpha, "alpha", types.DefaultAlpha, "EMA learning rate")
 	feedbackCmd.Flags().BoolVar(&feedbackHelpful, "helpful", false, "Mark as helpful (shortcut for --reward 1.0)")
@@ -446,7 +447,8 @@ Examples:
 
 func init() {
 	migrateCmd.Hidden = true
-	knowCmd.AddCommand(migrateCmd)
+	migrateCmd.GroupID = "knowledge"
+	rootCmd.AddCommand(migrateCmd)
 }
 
 // migrateJSONLFiles processes a list of JSONL files, migrating those that lack the utility field.

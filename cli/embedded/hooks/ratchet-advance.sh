@@ -1,6 +1,6 @@
 #!/bin/bash
 # ratchet-advance.sh - PostToolUse hook: suggest next RPI skill after ratchet record
-# Fires on successful `ao work ratchet record <step>`. Injects additionalContext suggestion.
+# Fires on successful `ao ratchet record <step>`. Injects additionalContext suggestion.
 # Kill switches: AGENTOPS_AUTOCHAIN=0, AGENTOPS_HOOKS_DISABLED=1
 
 # Kill switches
@@ -29,14 +29,14 @@ else
     EXIT_CODE=$(echo "$INPUT" | grep -o '"exit_code"[[:space:]]*:[[:space:]]*[0-9]*' | head -1 | sed 's/.*:[[:space:]]*//')
 fi
 
-# Hot-path exit: only care about `ao work ratchet record`
-echo "$CMD" | grep -q 'ao work ratchet record' || exit 0
+# Hot-path exit: only care about `ao ratchet record`
+echo "$CMD" | grep -q 'ao ratchet record' || exit 0
 
 # Check exit code — only suggest on success
 [ "$EXIT_CODE" != "0" ] && [ -n "$EXIT_CODE" ] && exit 0
 
 # Extract step name: first positional arg after "record"
-STEP=$(echo "$CMD" | sed -n 's/.*ao work ratchet record[[:space:]]\{1,\}\([a-z_-]*\).*/\1/p')
+STEP=$(echo "$CMD" | sed -n 's/.*ao ratchet record[[:space:]]\{1,\}\([a-z_-]*\).*/\1/p')
 [ -z "$STEP" ] && exit 0
 
 # Map step → next skill

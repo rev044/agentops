@@ -89,8 +89,8 @@ The `ao doctor` "Plugin" check scans the `skills/` directory for subdirectories 
 
 5. If skills load but automation hooks are missing, install hooks from repo root:
    ```bash
-   ao start init --hooks
-   ao settings hooks test
+   ao init --hooks
+   ao hooks test
    ```
 
 For Codex, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. For OpenCode, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`. For other Skills-compatible agents (for example Cursor), use agent-specific `npx skills` commands with explicit skill selection: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`.
@@ -191,7 +191,7 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 | Check | What it verifies | How to fix |
 |-------|-----------------|------------|
 | **ao CLI** | The `ao` binary is running and reports its version. | Reinstall via Homebrew, or build from `cli/` (see `cli/README.md`). |
-| **Knowledge Base** | The `.agents/ao/` directory exists in the current working directory. | Run `ao start init` from your project root, or verify you are in the correct directory. |
+| **Knowledge Base** | The `.agents/ao/` directory exists in the current working directory. | Run `ao init` from your project root, or verify you are in the correct directory. |
 | **Plugin** | The `skills/` directory exists and contains at least one subdirectory with a `SKILL.md` file. | See [Skills not showing up](#skills-not-showing-up) above. |
 
 ### Optional checks (warnings, result stays HEALTHY)
@@ -199,9 +199,9 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 | Check | What it verifies | How to fix |
 |-------|-----------------|------------|
 | **CLI Dependencies** | `gt` and `bd` are on your PATH (nice-to-have for multi-repo ops + beads issue tracking). | Install missing tools (e.g., `brew install gastown`, `brew install beads`). |
-| **Hook Coverage** | Claude Code hooks are configured (checks `~/.claude/hooks.json` first, then `~/.claude/settings.json`). | From your repo root: run `ao start init --hooks` (or `ao start init --hooks --full`). Hooks-only: `ao settings hooks install`. |
-| **Knowledge Freshness** | At least one recent session exists under `.agents/ao/sessions/`. | After a session, run `ao know forge transcript <path>` to ingest it. |
-| **Search Index** | A non-empty `.agents/ao/index.jsonl` exists for faster searches. | Run `ao know search --rebuild-index`. |
+| **Hook Coverage** | Claude Code hooks are configured (checks `~/.claude/hooks.json` first, then `~/.claude/settings.json`). | From your repo root: run `ao init --hooks` (or `ao init --hooks --full`). Hooks-only: `ao hooks install`. |
+| **Knowledge Freshness** | At least one recent session exists under `.agents/ao/sessions/`. | After a session, run `ao forge transcript <path>` to ingest it. |
+| **Search Index** | A non-empty `.agents/ao/index.jsonl` exists for faster searches. | Run `ao search --rebuild-index`. |
 | **Flywheel Health** | At least one learning exists under `.agents/ao/learnings/` (or legacy `.agents/learnings/`). | Run `/retro` or `/forge` to extract learnings; empty is normal early on. |
 | **Codex CLI** | The `codex` binary is on your PATH (optional, used for `--mixed` validation modes). | Install Codex CLI and ensure it is on PATH. |
 
@@ -211,7 +211,7 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 ao doctor
 ─────────
  ✓ ao CLI              vX.Y.Z
- ! Hook Coverage       No hooks found — run 'ao settings hooks install'
+ ! Hook Coverage       No hooks found — run 'ao hooks install'
  ✓ Knowledge Base      .agents/ao initialized
  ✓ Plugin              skills found
  ! Codex CLI           not found (optional — needed for --mixed council)

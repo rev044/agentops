@@ -179,7 +179,8 @@ Examples:
 
 	contextCmd.AddCommand(statusCmd, guardCmd)
 	contextCmd.Hidden = true
-	workCmd.AddCommand(contextCmd)
+	contextCmd.GroupID = "workflow"
+	rootCmd.AddCommand(contextCmd)
 }
 
 func runContextStatus(cmd *cobra.Command, args []string) error {

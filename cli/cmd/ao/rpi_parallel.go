@@ -341,7 +341,7 @@ func runParallelEpic(epic parallelEpic, worktreePath, branch, runtimeCmd, logFil
 	} else {
 		// Fallback: spawn runtime directly with a prompt.
 		prompt := fmt.Sprintf("/rpi %q", epic.Goal)
-		cmd = exec.Command(runtimeCmd, "-p", prompt)
+		cmd = exec.Command(runtimeCmd, runtimeDirectCommandArgs(runtimeCmd, prompt)...)
 	}
 
 	cmd.Dir = worktreePath

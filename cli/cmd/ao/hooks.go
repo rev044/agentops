@@ -286,6 +286,8 @@ This command:
 }
 
 func init() {
+	hooksCmd.GroupID = "config"
+	rootCmd.AddCommand(hooksCmd)
 	hooksCmd.AddCommand(hooksInitCmd)
 	hooksCmd.AddCommand(hooksInstallCmd)
 	hooksCmd.AddCommand(hooksShowCmd)

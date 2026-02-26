@@ -26,7 +26,7 @@ done
 
 # Install minimal AgentOps hooks (SessionStart + SessionEnd + Stop)
 if command -v ao &>/dev/null; then
-    ao settings hooks install --target "$WORKTREE/.claude/settings.json" 2>/dev/null || true
+    ao hooks install --target "$WORKTREE/.claude/settings.json" 2>/dev/null || true
 fi
 
 # Ensure .agents/ is gitignored

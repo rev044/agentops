@@ -38,12 +38,12 @@ mkdir -p .agents/research
 
 ```bash
 # Pull relevant prior knowledge for this topic
-ao know lookup --query "<topic>" --limit 5 2>/dev/null || \
-  ao know search "<topic>" 2>/dev/null || \
+ao lookup --query "<topic>" --limit 5 2>/dev/null || \
+  ao search "<topic>" 2>/dev/null || \
   echo "ao not available, skipping knowledge search"
 ```
 
-**Review ao know search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
+**Review ao search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
 - Prior research on this topic or related topics
 - Known patterns or anti-patterns
 - Lessons learned from similar investigations

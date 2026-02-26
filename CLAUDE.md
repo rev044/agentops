@@ -146,8 +146,8 @@ The workflow builds cross-platform binaries, creates the GitHub release, updates
 ## Agent Goals
 
 GOALS.md is the strategic intent layer consumed by `/evolve` and `/goals`:
-- `ao work goals measure` — fitness gate checks
-- `ao work goals measure --directives` — list strategic directives as JSON
-- `ao work goals steer add/remove/prioritize` — manage directives
-- `ao work goals init` — bootstrap GOALS.md interactively
-- `ao work goals migrate --to-md` — convert GOALS.yaml → GOALS.md
+- `ao goals measure` — fitness gate checks
+- `ao goals measure --directives` — list strategic directives as JSON
+- `ao goals steer add/remove/prioritize` — manage directives
+- `ao goals init` — bootstrap GOALS.md interactively
+- `ao goals migrate --to-md` — convert GOALS.yaml → GOALS.md

@@ -48,6 +48,8 @@ Examples:
 }
 
 func init() {
+	configCmd.GroupID = "config"
+	rootCmd.AddCommand(configCmd)
 	configCmd.Flags().BoolVar(&configShow, "show", false, "Show resolved configuration with sources")
 }
 

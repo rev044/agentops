@@ -10,7 +10,7 @@
 # Check if ao CLI is available
 if command -v ao &>/dev/null; then
   # Check if research and plan phases completed
-  RATCHET_STATUS=$(ao work ratchet status --json 2>/dev/null || echo '{}')
+  RATCHET_STATUS=$(ao ratchet status --json 2>/dev/null || echo '{}')
   RESEARCH_DONE=$(echo "$RATCHET_STATUS" | jq -r '.research.completed // false')
   PLAN_DONE=$(echo "$RATCHET_STATUS" | jq -r '.plan.completed // false')
 
@@ -21,11 +21,11 @@ if command -v ao &>/dev/null; then
     echo "  Research: $RESEARCH_DONE"
     echo "  Plan: $PLAN_DONE"
     echo ""
-    echo "Override with: ao work ratchet skip <gate> --reason 'manual override'"
+    echo "Override with: ao ratchet skip <gate> --reason 'manual override'"
   fi
 
   # Get current spec path for reference
-  SPEC_PATH=$(ao work ratchet spec 2>/dev/null || echo "")
+  SPEC_PATH=$(ao ratchet spec 2>/dev/null || echo "")
   if [ -n "$SPEC_PATH" ]; then
     echo "Ratchet: Current spec at $SPEC_PATH"
   fi
@@ -42,7 +42,7 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  RATCHET_JSON=$(ao work ratchet status --json 2>/dev/null || echo '{}')
+  RATCHET_JSON=$(ao ratchet status --json 2>/dev/null || echo '{}')
   PRE_MORTEM_STATUS=$(echo "$RATCHET_JSON" | jq -r '.steps[]? | select(.name == "pre-mortem") | .status // "none"')
   PLAN_EXISTS=$(ls .agents/plans/*.md 2>/dev/null | head -1)
 
@@ -50,10 +50,10 @@ if command -v ao &>/dev/null; then
     echo "Pre-mortem hasn't been run on your plan."
     echo "Options:"
     echo "  1. Run /pre-mortem first"
-    echo "  2. Skip: ao work ratchet skip pre-mortem --reason 'user chose to skip'"
+    echo "  2. Skip: ao ratchet skip pre-mortem --reason 'user chose to skip'"
     echo "  3. Proceed anyway"
     # Ask user: "Pre-mortem hasn't been run on your plan. Run /pre-mortem first, skip, or proceed?"
-    # If skip: ao work ratchet skip pre-mortem --reason "user chose to skip"
+    # If skip: ao ratchet skip pre-mortem --reason "user chose to skip"
   fi
   # If ao unavailable or no chain: proceed silently
 fi

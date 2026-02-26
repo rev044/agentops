@@ -13,7 +13,7 @@ check "references/ has at least 3 files" "[ \$(ls '$SKILL_DIR/references/' | wc 
 check "SKILL.md mentions .agents/research/ output path" "grep -q '\.agents/research/' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions Explore agent" "grep -qi 'explore' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions --auto flag" "grep -q '\-\-auto' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions ao know inject" "grep -q 'ao know inject\|ao know search' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions ao inject" "grep -q 'ao inject\|ao search' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions knowledge flywheel" "grep -qi 'knowledge' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions backend detection" "grep -qi 'backend\|spawn' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions quality validation" "grep -qi 'coverage\|depth\|gap' '$SKILL_DIR/SKILL.md'"

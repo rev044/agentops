@@ -56,7 +56,8 @@ Examples:
 }
 
 func init() {
-	workCmd.AddCommand(sessionCmd)
+	sessionCmd.GroupID = "workflow"
+	rootCmd.AddCommand(sessionCmd)
 	sessionCmd.AddCommand(sessionCloseCmd)
 
 	sessionCloseCmd.Flags().StringVar(&sessionCloseSessionID, "session", "", "Session ID to close (default: most recent transcript)")

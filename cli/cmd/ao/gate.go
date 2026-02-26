@@ -305,7 +305,8 @@ Examples:
 }
 
 func init() {
-	qualityCmd.AddCommand(gateCmd)
+	gateCmd.GroupID = "core"
+	rootCmd.AddCommand(gateCmd)
 
 	// Add subcommands
 	gateCmd.AddCommand(gatePendingCmd)

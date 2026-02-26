@@ -17,12 +17,12 @@ func cov4MiscSetup(t *testing.T) string {
 
 func TestCov4_ContextStatus(t *testing.T) {
 	cov4MiscSetup(t)
-	_, _ = executeCommand("work", "context", "status")
+	_, _ = executeCommand("context", "status")
 }
 
 func TestCov4_ContextGuard(t *testing.T) {
 	cov4MiscSetup(t)
-	_, _ = executeCommand("work", "context", "guard")
+	_, _ = executeCommand("context", "guard")
 }
 
 func TestCov4_HooksShow(t *testing.T) {
@@ -65,19 +65,19 @@ func TestCov4_TaskSync(t *testing.T) {
 	if err := os.WriteFile(transcript, []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = executeCommand("work", "task-sync", "--transcript", transcript)
+	_, _ = executeCommand("task-sync", "--transcript", transcript)
 }
 
 func TestCov4_TaskStatus(t *testing.T) {
 	cov4MiscSetup(t)
 	// task-status with no tasks file — should handle gracefully
-	_, _ = executeCommand("work", "task-status")
+	_, _ = executeCommand("task-status")
 }
 
 func TestCov4_SessionClose(t *testing.T) {
 	cov4MiscSetup(t)
 	// No transcript to close — should fail gracefully
-	_, _ = executeCommand("work", "session", "close")
+	_, _ = executeCommand("session", "close")
 }
 
 func TestCov4_SessionOutcome(t *testing.T) {
@@ -115,13 +115,13 @@ func TestCov4_GoalsMigrate(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmp, "GOALS.yaml"), []byte(goalsContent), 0644); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = executeCommand("work", "goals", "migrate")
+	_, _ = executeCommand("goals", "migrate")
 }
 
 func TestCov4_PoolIngest(t *testing.T) {
 	cov4MiscSetup(t)
 	// Ingest with no pending files — should succeed gracefully
-	_, _ = executeCommand("quality", "pool", "ingest")
+	_, _ = executeCommand("pool", "ingest")
 }
 
 func TestCov4_NotebookUpdate(t *testing.T) {
@@ -145,11 +145,11 @@ func TestCov4_MetricsCite(t *testing.T) {
 	if err := os.WriteFile(artifact, []byte("# Citation Test\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = executeCommand("quality", "metrics", "cite", artifact)
+	_, _ = executeCommand("metrics", "cite", artifact)
 }
 
 func TestCov4_FlywheelCloseLoop(t *testing.T) {
 	cov4MiscSetup(t)
 	// Close loop with no pending content — should succeed gracefully
-	_, _ = executeCommand("quality", "flywheel", "close-loop")
+	_, _ = executeCommand("flywheel", "close-loop")
 }

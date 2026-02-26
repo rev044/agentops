@@ -114,6 +114,8 @@ Use 'ao plans sync' to fix the drift.`,
 }
 
 func init() {
+	plansCmd.GroupID = "config"
+	rootCmd.AddCommand(plansCmd)
 	plansCmd.AddCommand(plansRegisterCmd)
 	plansCmd.AddCommand(plansListCmd)
 	plansCmd.AddCommand(plansSearchCmd)

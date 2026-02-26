@@ -1,6 +1,6 @@
 # RPI Run Registry
 
-The RPI phased orchestrator (`ao work rpi phased`) writes structured artifacts to a well-known directory layout. This document defines the registry layout, file naming conventions, required fields per phase transition, and contract guarantees.
+The RPI phased orchestrator (`ao rpi phased`) writes structured artifacts to a well-known directory layout. This document defines the registry layout, file naming conventions, required fields per phase transition, and contract guarantees.
 
 ## Directory Layout
 
@@ -60,7 +60,7 @@ Optional fields populated when available:
 | `completed_at` | string | ISO 8601 timestamp |
 | `duration_seconds` | number | Wall-clock duration |
 
-Runtime selection is controlled by `ao work rpi phased --runtime`, `ao work rpi phased --runtime-cmd`,
+Runtime selection is controlled by `ao rpi phased --runtime`, `ao rpi phased --runtime-cmd`,
 or config/env (`rpi.runtime_mode`, `rpi.runtime_command`, `AGENTOPS_RPI_RUNTIME[_MODE]`,
 `AGENTOPS_RPI_RUNTIME_COMMAND`).
 
@@ -95,7 +95,7 @@ When starting from phase 1 (fresh run), the orchestrator removes stale phase sum
 
 ## Worktree Lifecycle Semantics
 
-`ao work rpi phased` creates sibling worktrees named `../<repo>-rpi-<run-id>/` (unless `--no-worktree` is set). Cleanup behavior is intentional and asymmetric:
+`ao rpi phased` creates sibling worktrees named `../<repo>-rpi-<run-id>/` (unless `--no-worktree` is set). Cleanup behavior is intentional and asymmetric:
 
 - Success path: after all phases complete, the orchestrator merges the worktree commit (detached checkout) into the source branch and removes the worktree directory.
 - Failure path: worktree is preserved for debugging (no auto-destroy on failed phase).
@@ -108,8 +108,8 @@ This design prevents data loss on partial runs while still auto-cleaning success
 Use:
 
 ```bash
-ao work rpi status
-ao work rpi status --watch
+ao rpi status
+ao rpi status --watch
 ```
 
 Status classification is registry-first:
@@ -125,11 +125,11 @@ Stale reasons include `worktree missing` when state references a removed worktre
 Use manual cleanup commands:
 
 ```bash
-ao work rpi cleanup --all --dry-run
-ao work rpi cleanup --all
-ao work rpi cleanup --all --stale-after 24h
-ao work rpi cleanup --all --prune-worktrees
-ao work rpi cleanup --run-id <id>
+ao rpi cleanup --all --dry-run
+ao rpi cleanup --all
+ao rpi cleanup --all --stale-after 24h
+ao rpi cleanup --all --prune-worktrees
+ao rpi cleanup --run-id <id>
 ```
 
 Behavior:
@@ -144,11 +144,11 @@ Behavior:
 Operators should use the following explicit sequence when suspending or recovering autonomous runs:
 
 - Stop active runs:
-  - `ao work rpi cancel --all`
-  - `ao work rpi cancel --run-id <id>`
+  - `ao rpi cancel --all`
+  - `ao rpi cancel --run-id <id>`
 - Mark-and-prune terminal runs:
-  - `ao work rpi cleanup --all --dry-run`
-  - `ao work rpi cleanup --all --prune-worktrees`
+  - `ao rpi cleanup --all --dry-run`
+  - `ao rpi cleanup --all --prune-worktrees`
 - Reclaim stale worktrees and stale tmux sessions:
   - `ao worktree gc`
   - `ao worktree gc --prune` (when a wider sweep is needed)
@@ -160,20 +160,20 @@ Safety guards:
 
 ## Optional Pre-Run Auto-Cleanup
 
-`ao work rpi phased` supports optional stale-run cleanup before orchestration:
+`ao rpi phased` supports optional stale-run cleanup before orchestration:
 
 ```bash
-ao work rpi phased --auto-clean-stale --auto-clean-stale-after 24h "<goal>"
+ao rpi phased --auto-clean-stale --auto-clean-stale-after 24h "<goal>"
 ```
 
 Behavior:
 
 - Runs stale cleanup at phased startup before phase execution
-- Uses dry-run cleanup semantics when `ao work rpi phased --dry-run` is set
+- Uses dry-run cleanup semantics when `ao rpi phased --dry-run` is set
 - Persists startup state (including `run_id`, backend, and phase) to state files before entering the phase loop
 
 ## Current Limitation
 
-`ao work rpi cleanup` operates on run-registry state entries. If a historical/log-only run never wrote `.agents/rpi/runs/<run-id>/phased-state.json`, it may appear in log views but not be selected by stale cleanup. In that case, use standard git worktree hygiene (`git worktree list`, `git worktree remove --force <path>`, `git branch -D rpi/<run-id>`) after verifying the branch has no unique commits.
+`ao rpi cleanup` operates on run-registry state entries. If a historical/log-only run never wrote `.agents/rpi/runs/<run-id>/phased-state.json`, it may appear in log views but not be selected by stale cleanup. In that case, use standard git worktree hygiene (`git worktree list`, `git worktree remove --force <path>`, `git branch -D rpi/<run-id>`) after verifying the branch has no unique commits.
 
-`ao work rpi phased` no longer uses `rpi/<run-id>` branches in the current implementation; cleanup for historical branch names now applies only to legacy runs that were created before detached-worktree migration.
+`ao rpi phased` no longer uses `rpi/<run-id>` branches in the current implementation; cleanup for historical branch names now applies only to legacy runs that were created before detached-worktree migration.

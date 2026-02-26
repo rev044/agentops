@@ -84,10 +84,10 @@ Codex install path is native: skills are installed directly to `~/.codex/skills`
 
 Then type `/quickstart` in your agent chat. Not sure which skill to run? See the **[Skill Router](docs/SKILL-ROUTER.md)**.
 
-For Claude plugin installs, skills are available immediately after plugin install/update (restart Claude Code if prompted). To enable hooks and flywheel automation, install the `ao` CLI and run `ao start init --hooks` in each repo. To plant AgentOps in a new repo with auto-detected templates:
+For Claude plugin installs, skills are available immediately after plugin install/update (restart Claude Code if prompted). To enable hooks and flywheel automation, install the `ao` CLI and run `ao init --hooks` in each repo. To plant AgentOps in a new repo with auto-detected templates:
 
 ```bash
-ao start seed         # Detects project type (go-cli, python-lib, web-app, rust-cli, generic)
+ao seed         # Detects project type (go-cli, python-lib, web-app, rust-cli, generic)
                 # Creates .agents/, MEMORY.md, GOALS.md, hooks — ready in one command
 ```
 
@@ -101,7 +101,7 @@ Skills work standalone. The `ao` CLI powers the automated learning loop — know
 ```bash
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
 cd /path/to/your/repo
-ao start init --hooks
+ao init --hooks
 ```
 
 Update to the latest CLI later with:
@@ -116,8 +116,8 @@ This installs 3 hooks — the bare minimum for the knowledge flywheel:
 | Event | What happens |
 |-------|-------------|
 | **SessionStart** | Lean mode (default): extract pending queue, inject the freshest learnings from this repo and global `~/.agents/`. Shrinks automatically when MEMORY.md is fresh. Three modes via `AGENTOPS_STARTUP_CONTEXT_MODE`: `lean` (default), `manual`, `legacy`. |
-| **SessionEnd** | Mine transcript for knowledge (`ao know forge`), auto-prune empty stubs, update MEMORY.md (`ao settings notebook update`), sync cross-runtime memory (`ao settings memory sync`), expire/evict stale artifacts (`ao quality maturity`) |
-| **Stop** | Close the feedback loop (`ao quality flywheel close-loop`) — citation-to-utility feedback, maturity transitions |
+| **SessionEnd** | Mine transcript for knowledge (`ao forge`), auto-prune empty stubs, update MEMORY.md (`ao notebook update`), sync cross-runtime memory (`ao memory sync`), expire/evict stale artifacts (`ao maturity`) |
+| **Stop** | Close the feedback loop (`ao flywheel close-loop`) — citation-to-utility feedback, maturity transitions |
 
 The injection is freshness-first: recent learnings from *this repo* outweigh older or cross-repo knowledge. Work-scoped context (active issue via `--bead`) gets a 1.5x boost. Predecessor handoff context (what the previous session was working on) is injected automatically when available. The goal: every session starts where the last one left off — not from scratch, and not with random noise.
 
@@ -165,7 +165,7 @@ Full reference with examples and precedence rules: [docs/ENV-VARS.md](docs/ENV-V
 |------|-------|:-----------:|
 | Skills | Global skills dir (outside your repo; for Claude Code: `~/.claude/skills/`) | `npx skills@latest remove boshu2/agentops -g` |
 | Knowledge artifacts | `.agents/` in your repo (git-ignored by default) | `rm -rf .agents/` |
-| Hook registration | `.claude/settings.json` | `ao settings hooks uninstall` or delete entries |
+| Hook registration | `.claude/settings.json` | `ao hooks uninstall` or delete entries |
 
 Nothing modifies your source code.
 
@@ -373,15 +373,15 @@ How the knowledge system and pipeline phases work under the hood.
 
 ```
 Session N ends
-    → ao know forge: mine transcript for learnings, decisions, patterns
-    → ao settings notebook update: merge insights into MEMORY.md
-    → ao settings memory sync: sync to repo-root MEMORY.md (cross-runtime)
-    → ao quality maturity --expire: mark stale artifacts (freshness decay ~17%/week)
-    → ao quality maturity --evict: archive what's decayed past threshold
-    → ao work feedback-loop: citation-to-utility feedback (MemRL)
+    → ao forge: mine transcript for learnings, decisions, patterns
+    → ao notebook update: merge insights into MEMORY.md
+    → ao memory sync: sync to repo-root MEMORY.md (cross-runtime)
+    → ao maturity --expire: mark stale artifacts (freshness decay ~17%/week)
+    → ao maturity --evict: archive what's decayed past threshold
+    → ao feedback-loop: citation-to-utility feedback (MemRL)
 
 Session N+1 starts
-    → ao know inject (lean mode): score artifacts by recency + utility
+    → ao inject (lean mode): score artifacts by recency + utility
       ├── Local .agents/ learnings & patterns (1.0x weight)
       ├── Global ~/.agents/ cross-repo knowledge (0.8x weight)
       ├── Work-scoped boost: active issue gets 1.5x (--bead)
@@ -439,23 +439,23 @@ Learnings pass quality gates (specificity, actionability, novelty) and land in t
 <details>
 <summary><b>Phased RPI</b> — fresh context per phase for larger goals</summary>
 
-`ao work rpi phased "goal"` runs each phase in its own session — no context bleed between phases. Use `/rpi` when context fits in one session. Use `ao work rpi phased` when you need phase-level resume control. For autonomous control-plane operation, use the canonical path `ao work rpi loop --supervisor`. See [The ao CLI](#the-ao-cli) for examples.
+`ao rpi phased "goal"` runs each phase in its own session — no context bleed between phases. Use `/rpi` when context fits in one session. Use `ao rpi phased` when you need phase-level resume control. For autonomous control-plane operation, use the canonical path `ao rpi loop --supervisor`. See [The ao CLI](#the-ao-cli) for examples.
 
 </details>
 
 <details>
 <summary><b>Parallel RPI</b> — run N epics concurrently in isolated worktrees</summary>
 
-`ao work rpi parallel` runs multiple epics at the same time, each in its own git worktree. Every epic gets a full 3-phase RPI lifecycle (discovery → implementation → validation) with zero cross-contamination, then merges back sequentially.
+`ao rpi parallel` runs multiple epics at the same time, each in its own git worktree. Every epic gets a full 3-phase RPI lifecycle (discovery → implementation → validation) with zero cross-contamination, then merges back sequentially.
 
 ```
-ao work rpi parallel --manifest epics.json        # Named epics with merge order
-ao work rpi parallel "add auth" "add logging"     # Inline goals (auto-named)
-ao work rpi parallel --no-merge --manifest m.json # Leave worktrees for manual review
+ao rpi parallel --manifest epics.json        # Named epics with merge order
+ao rpi parallel "add auth" "add logging"     # Inline goals (auto-named)
+ao rpi parallel --no-merge --manifest m.json # Leave worktrees for manual review
 ```
 
 ```
-                   ao work rpi parallel
+                   ao rpi parallel
                          │
          ┌───────────────┼───────────────┐
          ▼               ▼               ▼
@@ -481,7 +481,7 @@ Each phase spawns a fresh Claude session — no context bleed. Worktree isolatio
 <details>
 <summary><b>Setting up /evolve</b> — GOALS.md and the fitness loop</summary>
 
-Bootstrap with `ao work goals init` — it interviews you about your repo and generates mechanically verifiable goals. Or write them by hand:
+Bootstrap with `ao goals init` — it interviews you about your repo and generates mechanically verifiable goals. Or write them by hand:
 
 ```markdown
 # GOALS.md
@@ -497,7 +497,7 @@ All tests pass.
 No function exceeds cyclomatic complexity 15.
 ```
 
-Migrating from GOALS.yaml? Run `ao work goals migrate --to-md`. Manage goals with `ao work goals steer add/remove/prioritize` and prune stale ones with `ao work goals prune`.
+Migrating from GOALS.yaml? Run `ao goals migrate --to-md`. Manage goals with `ao goals steer add/remove/prioritize` and prune stale ones with `ao goals prune`.
 
 `/evolve` measures them, picks the worst gap by weight, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. It commits locally — you control when to push. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
 
@@ -525,29 +525,29 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 Skills work standalone — no CLI required. The `ao` CLI adds two things: (1) the knowledge flywheel that makes sessions compound (extract, inject, decay, maturity), and (2) terminal-based RPI that runs without an active chat session. Each phase gets its own fresh context window, so large goals don't hit context limits.
 
 ```bash
-ao start seed                                        # Plant AgentOps in any repo (auto-detects project type)
-ao work rpi loop --supervisor --max-cycles 1        # Canonical autonomous cycle (policy-gated landing)
-ao work rpi loop --supervisor "fix auth bug"        # Single explicit-goal supervised cycle
-ao work rpi phased --from=implementation "ag-058"   # Resume a specific phased run at build phase
-ao work rpi parallel --manifest epics.json          # Run N epics concurrently in isolated worktrees
-ao work rpi status --watch                          # Monitor active/terminal runs
+ao seed                                        # Plant AgentOps in any repo (auto-detects project type)
+ao rpi loop --supervisor --max-cycles 1        # Canonical autonomous cycle (policy-gated landing)
+ao rpi loop --supervisor "fix auth bug"        # Single explicit-goal supervised cycle
+ao rpi phased --from=implementation "ag-058"   # Resume a specific phased run at build phase
+ao rpi parallel --manifest epics.json          # Run N epics concurrently in isolated worktrees
+ao rpi status --watch                          # Monitor active/terminal runs
 ```
 
 Walk away, come back to committed code + extracted learnings.
 
-Supervisor determinism contract: task failures mark queue entries failed, infrastructure failures leave queue entries retryable, and `ao work rpi cancel` ignores stale supervisor lease metadata. For recovery/hygiene, pair `ao work rpi cancel` with `ao work rpi cleanup --all --prune-worktrees --prune-branches`.
+Supervisor determinism contract: task failures mark queue entries failed, infrastructure failures leave queue entries retryable, and `ao rpi cancel` ignores stale supervisor lease metadata. For recovery/hygiene, pair `ao rpi cancel` with `ao rpi cleanup --all --prune-worktrees --prune-branches`.
 
 ```bash
-ao know search "query"              # Search knowledge across files and chat history
-ao know lookup --query "topic"      # Retrieve specific knowledge artifacts by ID or relevance
-ao settings notebook update             # Merge latest session insights into MEMORY.md
-ao settings memory sync                 # Sync session history to MEMORY.md (cross-runtime: Codex, OpenCode)
+ao search "query"              # Search knowledge across files and chat history
+ao lookup --query "topic"      # Retrieve specific knowledge artifacts by ID or relevance
+ao notebook update             # Merge latest session insights into MEMORY.md
+ao memory sync                 # Sync session history to MEMORY.md (cross-runtime: Codex, OpenCode)
 ao context assemble            # Build 5-section context briefing for a task
-ao work feedback-loop               # Close the MemRL feedback loop (citation → utility → maturity)
-ao quality metrics health              # Flywheel health: sigma, rho, delta, escape velocity
-ao quality dedup                       # Detect near-duplicate learnings (--merge for auto-resolution)
-ao quality contradict                  # Detect potentially contradictory learnings
-ao start demo                        # Interactive demo
+ao feedback-loop               # Close the MemRL feedback loop (citation → utility → maturity)
+ao metrics health              # Flywheel health: sigma, rho, delta, escape velocity
+ao dedup                       # Detect near-duplicate learnings (--merge for auto-resolution)
+ao contradict                  # Detect potentially contradictory learnings
+ao demo                        # Interactive demo
 ```
 
 Full reference: [CLI Commands](cli/docs/COMMANDS.md)

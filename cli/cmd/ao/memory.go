@@ -41,6 +41,8 @@ the markers is replaced on each sync.`,
 }
 
 func init() {
+	memoryCmd.GroupID = "config"
+	rootCmd.AddCommand(memoryCmd)
 	memorySyncCmd.Flags().BoolVar(&memorySyncQuiet, "quiet", false, "Suppress output")
 	memorySyncCmd.Flags().IntVar(&memorySyncMaxEntries, "max-entries", 10, "Maximum session entries to keep")
 	memorySyncCmd.Flags().StringVar(&memorySyncOutput, "output", "", "Output path (default: MEMORY.md in repo root)")

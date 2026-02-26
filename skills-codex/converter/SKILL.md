@@ -42,7 +42,7 @@ Transform the SkillBundle into the target platform's format:
 | `codex` | Codex SKILL.md + prompt.md | Implemented |
 | `cursor` | Cursor .mdc rule + optional mcp.json | Implemented |
 
-The Codex adapter produces a `SKILL.md` with YAML frontmatter (`name`, `description`) plus body content, inlined references, and scripts as code blocks. It also emits a `prompt.md` (Codex prompt referencing the skill). Codex output rewrites known slash-skill references (for example `$plan`) to dollar-skill syntax (`$plan`) and replaces Claude-specific paths/labels where applicable. Descriptions are truncated to 1024 chars at a word boundary if needed.
+The Codex adapter produces a `SKILL.md` with YAML frontmatter (`name`, `description`) plus body content, inlined references, and scripts as code blocks. It also emits a `prompt.md` (Codex prompt referencing the skill). Codex output rewrites known slash-skill references (for example `$plan`) to dollar-skill syntax (`$plan`), replaces Claude-specific paths/labels, rewrites Claude-only primitive labels to runtime-neutral wording, and rewrites flat `ao` command references to namespace-qualified forms expected by Codex-native lint. Descriptions are truncated to 1024 chars at a word boundary if needed.
 
 The Cursor adapter produces a `<name>.mdc` rule file with YAML frontmatter (`description`, `globs`, `alwaysApply: false`) and body content. References are inlined into the body, scripts are included as code blocks. Output is budget-fitted to 100KB max -- references are omitted largest-first if the total exceeds the limit. If the skill references MCP servers, a `mcp.json` stub is also generated.
 
@@ -74,7 +74,7 @@ bash skills/converter/scripts/convert.sh --all <target> [output-dir]
 
 ## Supported Targets
 
-- **codex** -- Convert to OpenAI Codex format (frontmatter-preserving `SKILL.md` + `prompt.md`) with slash-to-dollar skill syntax rewriting. Output: `<dir>/SKILL.md` and `<dir>/prompt.md`.
+- **codex** -- Convert to OpenAI Codex format (frontmatter-preserving `SKILL.md` + `prompt.md`) with codex-native rewrites (slash-to-dollar skills, `~/.codex/` to `~/.codex/`, Claude primitive label neutralization, and namespace-qualified `ao` command references). Output: `<dir>/SKILL.md` and `<dir>/prompt.md`.
 - **cursor** -- Convert to Cursor rules format (`.mdc` rule file + optional `mcp.json`). Output: `<dir>/<name>.mdc` and optionally `<dir>/mcp.json`.
 - **test** -- Emit the raw SkillBundle as structured markdown. Useful for debugging the parse stage.
 
@@ -236,6 +236,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SKILL_PATTERN=""
+NAMESPACE_FROM=()
+NAMESPACE_TO=()
 
 # ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -298,9 +300,53 @@ codex_rewrite_text() {
 
   output="$(printf '%s' "$output" | perl -0pe '
     s/\bClaude Code\b/Codex/g;
-    s{~/.codex/skills}{~/.codex/skills}g;
+    s{~/.codex/}{~/.codex/}g;
+    s/\bTeamCreate\b/team-create/g;
+    s/\bSendMessage\b/send-message/g;
+    s/\bEnterPlanMode\b/enter-plan-mode/g;
+    s/\bExitPlanMode\b/exit-plan-mode/g;
+    s/\bEnterWorktree\b/enter-worktree/g;
   ')"
+
+  # Rewrite flat ao command references to namespace-qualified forms expected by
+  # codex-native lint rules (inverse of cli/cmd/ao/doctor.go deprecated map).
+  if [[ ${#NAMESPACE_FROM[@]} -gt 0 ]]; then
+    local i from_esc to_esc
+    for i in "${!NAMESPACE_FROM[@]}"; do
+      from_esc="$(printf '%s' "${NAMESPACE_FROM[$i]}" | sed -e 's/[\/&|]/\\&/g')"
+      to_esc="$(printf '%s' "${NAMESPACE_TO[$i]}" | sed -e 's/[\/&|]/\\&/g')"
+      output="$(printf '%s' "$output" | sed "s|${from_esc}|${to_esc}|g")"
+    done
+  fi
   printf '%s' "$output"
+}
+
+# Build replacements from doctor.go deprecated map.
+# doctor.go stores old(namespace-qualified) -> new(flat) references.
+# For codex-native skills we intentionally apply the inverse (new -> old).
+load_namespace_rewrite_pairs() {
+  local doctor_go="$REPO_ROOT/cli/cmd/ao/doctor.go"
+  NAMESPACE_FROM=()
+  NAMESPACE_TO=()
+
+  [[ -f "$doctor_go" ]] || return
+
+  local pairs
+  pairs="$(
+    sed -n '/var deprecatedCommands/,/^}/p' "$doctor_go" \
+      | grep '"ao ' \
+      | sed 's/.*"\(ao [^"]*\)".*:.*"\(ao [^"]*\)".*/\1|\2/' \
+      | awk -F'|' '{print length($2), $1 "|" $2}' \
+      | sort -rn \
+      | cut -d' ' -f2-
+  )"
+
+  local old_cmd new_cmd
+  while IFS='|' read -r old_cmd new_cmd; do
+    [[ -n "$old_cmd" && -n "$new_cmd" ]] || continue
+    NAMESPACE_FROM+=("$new_cmd")
+    NAMESPACE_TO+=("$old_cmd")
+  done <<< "$pairs"
 }
 
 # ─── Stage 1: Parse ───────────────────────────────────────────────────
@@ -655,6 +701,7 @@ main() {
   local output_dir="${3:-}"
 
   load_skill_pattern
+  load_namespace_rewrite_pairs
 
   if [[ "$skill_dir_or_flag" == "--all" ]]; then
     local skills_root="$REPO_ROOT/skills"

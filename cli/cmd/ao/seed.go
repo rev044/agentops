@@ -59,7 +59,8 @@ Examples:
 func init() {
 	seedCmd.Flags().StringVar(&seedTemplate, "template", "", "Goal template: go-cli, python-lib, web-app, rust-cli, generic (default: auto-detect)")
 	seedCmd.Flags().BoolVar(&seedForce, "force", false, "Overwrite existing seed files")
-	startCmd.AddCommand(seedCmd)
+	seedCmd.GroupID = "start"
+	rootCmd.AddCommand(seedCmd)
 }
 
 // validTemplates enumerates the allowed template names.

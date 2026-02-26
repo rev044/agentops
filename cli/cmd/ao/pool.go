@@ -484,7 +484,8 @@ func runPoolAutoPromoteAndPromote(p *pool.Pool, threshold time.Duration, reviewe
 }
 
 func init() {
-	qualityCmd.AddCommand(poolCmd)
+	poolCmd.GroupID = "core"
+	rootCmd.AddCommand(poolCmd)
 
 	// Add subcommands
 	poolCmd.AddCommand(poolListCmd)

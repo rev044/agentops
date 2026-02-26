@@ -426,7 +426,7 @@ func checkSearchIndex() doctorCheck {
 		return doctorCheck{
 			Name:     "Search Index",
 			Status:   "warn",
-			Detail:   "No search index \u2014 run 'ao know store rebuild' for faster searches",
+			Detail:   "No search index \u2014 run 'ao store rebuild' for faster searches",
 			Required: false,
 		}
 	}
@@ -435,7 +435,7 @@ func checkSearchIndex() doctorCheck {
 		return doctorCheck{
 			Name:     "Search Index",
 			Status:   "warn",
-			Detail:   "Search index is empty \u2014 run 'ao know store rebuild'",
+			Detail:   "Search index is empty \u2014 run 'ao store rebuild'",
 			Required: false,
 		}
 	}
@@ -706,41 +706,54 @@ func countHealFindings(output string) int {
 	return count
 }
 
-// deprecatedCommands maps old flat-namespace command references to their
-// new namespace-qualified replacements. Used by checkStaleReferences to
-// detect stale references in hooks and skill files.
+// deprecatedCommands maps old namespace-qualified command references to their
+// new flat replacements. Used by checkStaleReferences to detect lingering
+// namespace references in hooks and skill files.
 var deprecatedCommands = map[string]string{
-	"ao forge":         "ao know forge",
-	"ao inject":        "ao know inject",
-	"ao search":        "ao know search",
-	"ao lookup":        "ao know lookup",
-	"ao trace":         "ao know trace",
-	"ao rpi":           "ao work rpi",
-	"ao ratchet":       "ao work ratchet",
-	"ao goals":         "ao work goals",
-	"ao session":       "ao work session",
-	"ao feedback-loop": "ao work feedback-loop",
-	"ao flywheel":      "ao quality flywheel",
-	"ao pool":          "ao quality pool",
-	"ao metrics":       "ao quality metrics",
-	"ao gate":          "ao quality gate",
-	"ao maturity":      "ao quality maturity",
-	"ao constraint":    "ao quality constraint",
-	"ao vibe-check":    "ao quality vibe-check",
-	"ao config":        "ao settings config",
-	"ao plans":         "ao settings plans",
-	"ao hooks":         "ao settings hooks",
-	"ao memory":        "ao settings memory",
-	"ao notebook":      "ao settings notebook",
-	"ao demo":          "ao start demo",
-	"ao init":          "ao start init",
-	"ao seed":          "ao start seed",
-	"ao quick-start":   "ao start quick-start",
-	"ao badge":         "ao quality badge",
-	"ao contradict":    "ao quality contradict",
-	"ao dedup":         "ao quality dedup",
-	"ao anti-patterns": "ao quality anti-patterns",
-	"ao curate":        "ao quality curate",
+	"ao know forge":              "ao forge",
+	"ao know inject":             "ao inject",
+	"ao know search":             "ao search",
+	"ao know lookup":             "ao lookup",
+	"ao know trace":              "ao trace",
+	"ao know store":              "ao store",
+	"ao know index":              "ao index",
+	"ao know temper":             "ao temper",
+	"ao know feedback":           "ao feedback",
+	"ao know migrate":            "ao migrate",
+	"ao know batch-feedback":     "ao batch-feedback",
+	"ao know session-outcome":    "ao session-outcome",
+	"ao work rpi":                "ao rpi",
+	"ao work ratchet":            "ao ratchet",
+	"ao work goals":              "ao goals",
+	"ao work session":            "ao session",
+	"ao work feedback-loop":      "ao feedback-loop",
+	"ao work context":            "ao context",
+	"ao work task-sync":          "ao task-sync",
+	"ao work task-feedback":      "ao task-feedback",
+	"ao work task-status":        "ao task-status",
+	"ao quality flywheel":        "ao flywheel",
+	"ao quality pool":            "ao pool",
+	"ao quality metrics":         "ao metrics",
+	"ao quality gate":            "ao gate",
+	"ao quality maturity":        "ao maturity",
+	"ao quality constraint":      "ao constraint",
+	"ao quality vibe-check":      "ao vibe-check",
+	"ao quality badge":           "ao badge",
+	"ao quality contradict":      "ao contradict",
+	"ao quality dedup":           "ao dedup",
+	"ao quality anti-patterns":   "ao anti-patterns",
+	"ao quality curate":          "ao curate",
+	"ao quality promote-anti-patterns": "ao promote-anti-patterns",
+	"ao settings config":         "ao config",
+	"ao settings plans":          "ao plans",
+	"ao settings hooks":          "ao hooks",
+	"ao settings memory":         "ao memory",
+	"ao settings notebook":       "ao notebook",
+	"ao settings worktree":       "ao worktree",
+	"ao start demo":              "ao demo",
+	"ao start init":              "ao init",
+	"ao start seed":              "ao seed",
+	"ao start quick-start":       "ao quick-start",
 }
 
 // staleReference records a single deprecated command reference found in a file.
@@ -750,8 +763,10 @@ type staleReference struct {
 	NewCommand string `json:"new_command"`
 }
 
-// checkStaleReferences scans hooks/*.sh and skills/*/SKILL.md for deprecated
-// command references and reports them as warnings.
+// checkStaleReferences scans hooks/*.sh, hooks/examples/*.sh,
+// cli/embedded/hooks/*.sh, skills/*/SKILL.md, docs/*.md, docs/contracts/*.md,
+// docs/plans/*.md, and scripts/*.sh for deprecated command references and
+// reports them as warnings.
 func checkStaleReferences() doctorCheck {
 	var refs []staleReference
 
@@ -765,6 +780,48 @@ func checkStaleReferences() doctorCheck {
 	// Scan skills/*/SKILL.md
 	skillFiles, _ := filepath.Glob("skills/*/SKILL.md")
 	for _, f := range skillFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	// Scan docs/*.md
+	docFiles, _ := filepath.Glob("docs/*.md")
+	for _, f := range docFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	// Scan scripts/*.sh
+	scriptFiles, _ := filepath.Glob("scripts/*.sh")
+	for _, f := range scriptFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	// Scan hooks/examples/*.sh
+	exampleHookFiles, _ := filepath.Glob("hooks/examples/*.sh")
+	for _, f := range exampleHookFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	// Scan cli/embedded/hooks/*.sh
+	embeddedHookFiles, _ := filepath.Glob("cli/embedded/hooks/*.sh")
+	for _, f := range embeddedHookFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	// Scan docs/contracts/*.md
+	contractDocFiles, _ := filepath.Glob("docs/contracts/*.md")
+	for _, f := range contractDocFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	// Scan docs/plans/*.md
+	planDocFiles, _ := filepath.Glob("docs/plans/*.md")
+	for _, f := range planDocFiles {
 		found := scanFileForDeprecatedCommands(f)
 		refs = append(refs, found...)
 	}
@@ -802,9 +859,8 @@ func checkStaleReferences() doctorCheck {
 }
 
 // scanFileForDeprecatedCommands reads a file and checks each line for
-// deprecated command patterns. It avoids false positives by requiring the
-// deprecated command string to NOT be immediately followed by a character
-// that would indicate it is part of a longer (valid) namespaced command.
+// deprecated command patterns (old namespace-qualified commands like
+// "ao work rpi" that should be replaced with flat "ao rpi").
 func scanFileForDeprecatedCommands(path string) []staleReference {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -820,23 +876,13 @@ func scanFileForDeprecatedCommands(path string) []staleReference {
 				continue
 			}
 			// Check the character after the match to avoid false positives.
-			// e.g., "ao forge" should not match in "ao know forge".
-			// Also "ao goals" should not match "ao goals-something" but
-			// should match "ao goals measure", "ao goals", "ao goals\t".
+			// e.g., "ao work rpi" should not match "ao work rpi-something"
 			afterIdx := idx + len(oldCmd)
 			if afterIdx < len(line) {
 				ch := line[afterIdx]
-				// If followed by a letter or hyphen, it might be a longer command
-				// (but space, quote, backtick, pipe, etc. are fine)
 				if ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch == '-' {
 					continue
 				}
-			}
-
-			// Also verify this is not already the new namespaced form
-			// (e.g., "ao know forge" contains "ao forge" as a substring)
-			if strings.Contains(line, newCmd) {
-				continue
 			}
 
 			refs = append(refs, staleReference{

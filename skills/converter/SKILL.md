@@ -45,7 +45,7 @@ Transform the SkillBundle into the target platform's format:
 | `codex` | Codex SKILL.md + prompt.md | Implemented |
 | `cursor` | Cursor .mdc rule + optional mcp.json | Implemented |
 
-The Codex adapter produces a `SKILL.md` with YAML frontmatter (`name`, `description`) plus body content, inlined references, and scripts as code blocks. It also emits a `prompt.md` (Codex prompt referencing the skill). Codex output rewrites known slash-skill references (for example `/plan`) to dollar-skill syntax (`$plan`) and replaces Claude-specific paths/labels where applicable. Descriptions are truncated to 1024 chars at a word boundary if needed.
+The Codex adapter produces a `SKILL.md` with YAML frontmatter (`name`, `description`) plus body content, inlined references, and scripts as code blocks. It also emits a `prompt.md` (Codex prompt referencing the skill). Codex output rewrites known slash-skill references (for example `/plan`) to dollar-skill syntax (`$plan`), replaces Claude-specific paths/labels, rewrites Claude-only primitive labels to runtime-neutral wording, and rewrites flat `ao` command references to namespace-qualified forms expected by Codex-native lint. Descriptions are truncated to 1024 chars at a word boundary if needed.
 
 The Cursor adapter produces a `<name>.mdc` rule file with YAML frontmatter (`description`, `globs`, `alwaysApply: false`) and body content. References are inlined into the body, scripts are included as code blocks. Output is budget-fitted to 100KB max -- references are omitted largest-first if the total exceeds the limit. If the skill references MCP servers, a `mcp.json` stub is also generated.
 
@@ -77,7 +77,7 @@ bash skills/converter/scripts/convert.sh --all <target> [output-dir]
 
 ## Supported Targets
 
-- **codex** -- Convert to OpenAI Codex format (frontmatter-preserving `SKILL.md` + `prompt.md`) with slash-to-dollar skill syntax rewriting. Output: `<dir>/SKILL.md` and `<dir>/prompt.md`.
+- **codex** -- Convert to OpenAI Codex format (frontmatter-preserving `SKILL.md` + `prompt.md`) with codex-native rewrites (slash-to-dollar skills, `~/.claude/` to `~/.codex/`, Claude primitive label neutralization, and namespace-qualified `ao` command references). Output: `<dir>/SKILL.md` and `<dir>/prompt.md`.
 - **cursor** -- Convert to Cursor rules format (`.mdc` rule file + optional `mcp.json`). Output: `<dir>/<name>.mdc` and optionally `<dir>/mcp.json`.
 - **test** -- Emit the raw SkillBundle as structured markdown. Useful for debugging the parse stage.
 

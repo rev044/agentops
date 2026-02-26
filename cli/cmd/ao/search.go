@@ -58,7 +58,8 @@ Examples:
 }
 
 func init() {
-	knowCmd.AddCommand(searchCmd)
+	searchCmd.GroupID = "knowledge"
+	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().IntVar(&searchLimit, "limit", 10, "Maximum results to return")
 	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: decisions, knowledge, sessions")
 	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Enable Smart Connections semantic search (requires Obsidian)")

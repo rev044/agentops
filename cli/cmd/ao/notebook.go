@@ -43,6 +43,8 @@ from the longest sections first.`,
 }
 
 func init() {
+	notebookCmd.GroupID = "config"
+	rootCmd.AddCommand(notebookCmd)
 	notebookUpdateCmd.Flags().StringVar(&notebookMemoryFile, "memory-file", "", "Path to MEMORY.md (auto-detected if omitted)")
 	notebookUpdateCmd.Flags().BoolVar(&notebookQuiet, "quiet", false, "Suppress output (for hooks)")
 	notebookUpdateCmd.Flags().IntVar(&notebookMaxLines, "max-lines", 190, "Maximum lines in MEMORY.md")

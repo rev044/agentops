@@ -126,7 +126,7 @@ $trace "parallel wave execution"
 2. Agent launches 4 parallel agents: CASS search, handoff search, git log search, research artifact search
 3. CASS finds 8 sessions mentioning "agent team", handoff finds 2 docs, git finds 3 commits, research finds 1 analysis
 4. Agent builds chronological timeline from 2026-01-15 (first mention) to 2026-02-08 (latest update)
-5. Agent extracts 5 key decisions: initial messaging design, team spawn addition, deliberation protocol, in-process mode, delegate mode
+5. Agent extracts 5 key decisions: initial send-message design, team-create addition, deliberation protocol, in-process mode, delegate mode
 6. Agent writes trace report to `.agents/research/2026-02-13-trace-agent-team-protocol.md` with full timeline and citations
 
 **Result:** Complete evolution timeline showing how agent team protocol developed across 7 sessions with source citations.

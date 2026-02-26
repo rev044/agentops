@@ -42,7 +42,8 @@ Subcommands:
 }
 
 func init() {
-	qualityCmd.AddCommand(constraintCmd)
+	constraintCmd.GroupID = "core"
+	rootCmd.AddCommand(constraintCmd)
 	constraintCmd.AddCommand(constraintActivateCmd)
 	constraintCmd.AddCommand(constraintRetireCmd)
 	constraintCmd.AddCommand(constraintReviewCmd)
