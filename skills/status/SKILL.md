@@ -71,7 +71,7 @@ fi
 # Learnings count
 echo "LEARNINGS=$(ls .agents/learnings/ 2>/dev/null | wc -l | tr -d ' ')"
 echo "PATTERNS=$(ls .agents/patterns/ 2>/dev/null | wc -l | tr -d ' ')"
-echo "PENDING=$(ls .agents/knowledge/pending/ 2>/dev/null | wc -l | tr -d ' ')"
+echo "PENDING=$(ls .agents/forge/ 2>/dev/null | wc -l | tr -d ' ')"
 
 # Flywheel health + badge
 if command -v ao &>/dev/null; then
@@ -185,15 +185,14 @@ Evaluate state top-to-bottom. Use the FIRST matching condition:
 
 | Priority | Condition | Suggestion |
 |----------|-----------|------------|
-| 1 | Inbox has unread messages | "Check messages: `/inbox`" |
-| 2 | No ratchet chain exists | "Start with `/quickstart` or `/research` to begin a workflow" |
-| 3 | Research done, no plan | "Run `/plan` to decompose research into actionable issues" |
-| 4 | Plan done, no pre-mortem | "Run `/pre-mortem` to validate the plan before coding" |
-| 5 | Issues in-progress | "Continue working: `/implement <issue-id>` or `/crank` for autonomous execution" |
-| 6 | Ready issues available | "Pick up next issue: `/implement <first-ready-id>`" |
-| 7 | Uncommitted changes | "Review changes: `/vibe recent`" |
-| 8 | Implementation done, no vibe | "Run `/vibe` for final code validation" |
-| 9 | Recent WARN/FAIL verdict | "Address findings in `<report-path>`, then re-run `/vibe`" |
+| 1 | No ratchet chain exists | "Start with `/quickstart` or `/research` to begin a workflow" |
+| 2 | Research done, no plan | "Run `/plan` to decompose research into actionable issues" |
+| 3 | Plan done, no pre-mortem | "Run `/pre-mortem` to validate the plan before coding" |
+| 4 | Issues in-progress | "Continue working: `/implement <issue-id>` or `/crank` for autonomous execution" |
+| 5 | Ready issues available | "Pick up next issue: `/implement <first-ready-id>`" |
+| 6 | Uncommitted changes | "Review changes: `/vibe recent`" |
+| 7 | Implementation done, no vibe | "Run `/vibe` for final code validation" |
+| 8 | Recent WARN/FAIL verdict | "Address findings in `<report-path>`, then re-run `/vibe`" |
 | 10 | Vibe passed, no post-mortem | "Run `/post-mortem` to extract learnings and complete the cycle" |
 | 11 | Pending knowledge items | "Promote learnings: `ao pool list --status pending --json`, then `ao pool stage <id>` and `ao pool promote <id>`" |
 | 12 | Clean state, nothing pending | "All clear. Start with `/research` or `/plan` to find new work" |

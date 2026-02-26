@@ -332,8 +332,8 @@ What are you trying to do?
 │   └─ Generate ideas ────────────► /brainstorm
 │
 ├─ "Learn from past work"
-│   ├─ What do we know about X? ──► /knowledge <query>
-│   ├─ Save this insight ─────────► /learn "insight"
+│   ├─ What do we know about X? ──► ao search "<query>"
+│   ├─ Save this insight ─────────► /retro --quick "insight"
 │   └─ Run a retrospective ───────► /retro
 │
 ├─ "Parallelize work"

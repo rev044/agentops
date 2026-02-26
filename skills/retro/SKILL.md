@@ -305,7 +305,7 @@ if command -v ao &>/dev/null; then
   ao constraint review 2>/dev/null || true
 else
   # Learnings are already written to .agents/learnings/ by Step 5.
-  # Without ao CLI, grep-based search in /research, /knowledge, and /inject
+  # Without ao CLI, grep-based search in /research and /inject
   # will find them directly — no copy to pending needed.
 
   # Build lightweight keyword index for faster search

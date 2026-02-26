@@ -44,7 +44,7 @@ fi
 | Capability | When Missing | Fallback Behavior |
 |------------|-------------|-------------------|
 | `bd` | Issue tracking unavailable | Use TaskList for tracking. Note "install bd for persistent issue tracking" |
-| `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/knowledge/` directly. Skip flywheel metrics |
+| `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/learnings/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
 | `codex` | CLI missing or model unavailable | Fall back to runtime-native agents. Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
 | `cass` | Session search unavailable | Skip transcript search. Note "install cass for session history" |

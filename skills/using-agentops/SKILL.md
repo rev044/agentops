@@ -25,7 +25,7 @@ Research → Plan → Implement → Validate
 
 ```bash
 /research <topic>      # Deep codebase exploration
-/knowledge <query>     # Query existing knowledge
+ao search "<query>"    # Search existing knowledge
 ao lookup <id>         # Pull full content of specific learning
 ao lookup --query "x"  # Search knowledge by relevance
 ```
@@ -75,7 +75,7 @@ ao lookup --query "x"  # Search knowledge by relevance
 
 | Phase | Primary Skill | Supporting Skills |
 |-------|---------------|-------------------|
-| **Research** | `/research` | `/knowledge`, `/inject` |
+| **Research** | `/research` | `/inject` |
 | **Plan** | `/plan` | `/pre-mortem` |
 | **Implement** | `/implement` | `/crank` (epic loop), `/swarm` (parallel execution) |
 | **Validate** | `/vibe` | `/retro`, `/post-mortem` |
@@ -101,11 +101,10 @@ These are the skills every user needs first. Everything else is available when y
 | `/vibe` | Code validation (complexity + multi-model council) |
 | `/rpi` | Full RPI lifecycle orchestrator (research → plan → implement → validate) |
 | `/implement` | Execute single issue |
-| `/learn` | Capture knowledge manually into the flywheel |
+| `/retro --quick` | Quick-capture a single learning into the flywheel |
 | `/status` | Single-screen dashboard of current work and suggested next action |
 | `/goals` | Maintain GOALS.yaml fitness specification |
 | `/flywheel` | Knowledge flywheel health monitoring (σ×ρ > δ) |
-| `/inbox` | Agent mail inbox — check pending messages and HELP_REQUESTs |
 
 ## Advanced Skills (when you need them)
 
@@ -122,9 +121,7 @@ These are the skills every user needs first. Everything else is available when y
 | `/evolve` | Goal-driven fitness-scored improvement loop |
 | `/doc` | Documentation generation |
 | `/retro` | Extract learnings from completed work |
-| `/knowledge` | Query knowledge artifacts |
 | `/ratchet` | Brownian Ratchet progress gates for RPI workflow |
-| `/extract` | Extract decisions and learnings from session transcripts |
 | `/forge` | Mine transcripts for knowledge — decisions, learnings, patterns |
 | `/readme` | Generate gold-standard README for any project |
 | `/security` | Continuous repository security scanning and release gating |

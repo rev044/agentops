@@ -194,7 +194,7 @@ Transcript → /forge → .agents/forge/ (Tier 0)
 1. Hook calls `ao forge transcript --last-session --queue --quiet`
 2. CLI analyzes session transcript for decisions, learnings, failures, patterns
 3. CLI writes session ID to `.agents/ao/pending.jsonl` queue
-4. Next session start triggers `/extract` to process the queue
+4. Next session start triggers `/forge --promote` to process the queue
 
 **Result:** Session transcript automatically queued for knowledge extraction without user action.
 
