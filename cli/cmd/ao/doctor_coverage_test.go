@@ -227,6 +227,119 @@ func TestDoctorCov_CheckHookCoverage_FallbackHooksJSON(t *testing.T) {
 	}
 }
 
+func TestDoctorCov_UsesRuntimeManifestContract(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	claudeDir := filepath.Join(fakeHome, ".claude")
+	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	settings := map[string]any{
+		"hooks": map[string]any{
+			"SessionStart": []any{
+				map[string]any{
+					"hooks": []any{
+						map[string]any{"type": "command", "command": "ao inject --apply-decay"},
+					},
+				},
+			},
+		},
+	}
+	data, err := json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	tmp := t.TempDir()
+	hooksDir := filepath.Join(tmp, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{
+		"hooks": {
+			"SessionStart": [{"hooks": [{"type":"command","command":"ao inject --apply-decay"}]}]
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(hooksDir, "hooks.json"), []byte(manifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+
+	result := checkHookCoverage()
+	if result.Status != "pass" {
+		t.Fatalf("expected pass with 1/1 active manifest event, got %q (%s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "1/1") {
+		t.Fatalf("expected active contract denominator in detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_FallbackReasonSurfaced(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	claudeDir := filepath.Join(fakeHome, ".claude")
+	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	settings := map[string]any{
+		"hooks": map[string]any{
+			"SessionStart": []any{
+				map[string]any{
+					"hooks": []any{
+						map[string]any{"type": "command", "command": "ao inject --apply-decay"},
+					},
+				},
+			},
+		},
+	}
+	data, err := json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	tmp := t.TempDir()
+	hooksDir := filepath.Join(tmp, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hooksDir, "hooks.json"), []byte("{invalid"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+
+	result := checkHookCoverage()
+	if !strings.Contains(result.Detail, "coverage contract fallback:") {
+		t.Fatalf("expected fallback reason in detail, got %q", result.Detail)
+	}
+	if !strings.Contains(result.Detail, "parse hooks manifest") {
+		t.Fatalf("expected parse failure reason in detail, got %q", result.Detail)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // checkSkills (0%) — needs a fake HOME
 // ---------------------------------------------------------------------------
@@ -508,5 +621,139 @@ func TestDoctorCov_CountHooksInMap_Array(t *testing.T) {
 	got := countHooksInMap([]any{"a", "b", "c"})
 	if got != 3 {
 		t.Errorf("countHooksInMap([]any) = %d, want 3", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// checkStaleReferences — stale command reference detector
+// ---------------------------------------------------------------------------
+
+func TestDoctorCov_CheckStaleReferences_NoFiles(t *testing.T) {
+	chdirTemp(t)
+	result := checkStaleReferences()
+	if result.Status != "pass" {
+		t.Errorf("status=%q, want pass when no hooks/skills exist (detail: %s)", result.Status, result.Detail)
+	}
+	if result.Required {
+		t.Error("Stale References should not be required")
+	}
+}
+
+func TestDoctorCov_CheckStaleReferences_CleanFiles(t *testing.T) {
+	tmp := chdirTemp(t)
+
+	// Create a hooks file with only new-style commands
+	hooksDir := filepath.Join(tmp, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hooksDir, "dispatch.sh"), []byte("#!/bin/bash\nao know forge transcript\nao work rpi start\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a skill file with only new-style commands
+	skillDir := filepath.Join(tmp, "skills", "test-skill")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test Skill\nRun `ao know inject` to load context.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkStaleReferences()
+	if result.Status != "pass" {
+		t.Errorf("status=%q, want pass for clean files (detail: %s)", result.Status, result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckStaleReferences_StaleInHooks(t *testing.T) {
+	tmp := chdirTemp(t)
+
+	hooksDir := filepath.Join(tmp, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Use old-style "ao forge" instead of "ao know forge"
+	if err := os.WriteFile(filepath.Join(hooksDir, "dispatch.sh"), []byte("#!/bin/bash\nao forge transcript\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkStaleReferences()
+	if result.Status != "warn" {
+		t.Errorf("status=%q, want warn for stale hooks reference (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "stale reference") {
+		t.Errorf("expected 'stale reference' in detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckStaleReferences_StaleInSkills(t *testing.T) {
+	tmp := chdirTemp(t)
+
+	skillDir := filepath.Join(tmp, "skills", "test-skill")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Use old-style "ao inject" instead of "ao know inject"
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test\nRun `ao inject` to load.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkStaleReferences()
+	if result.Status != "warn" {
+		t.Errorf("status=%q, want warn for stale skill reference (detail: %s)", result.Status, result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckStaleReferences_NoFalsePositiveOnNamespace(t *testing.T) {
+	tmp := chdirTemp(t)
+
+	// "ao know forge" contains "ao forge" as a substring — should NOT trigger
+	hooksDir := filepath.Join(tmp, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hooksDir, "test.sh"), []byte("ao know forge transcript\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkStaleReferences()
+	if result.Status != "pass" {
+		t.Errorf("status=%q, want pass (should not false-positive on 'ao know forge') (detail: %s)", result.Status, result.Detail)
+	}
+}
+
+func TestDoctorCov_ScanFileForDeprecatedCommands(t *testing.T) {
+	tmp := t.TempDir()
+
+	t.Run("nonexistent file returns nil", func(t *testing.T) {
+		refs := scanFileForDeprecatedCommands(filepath.Join(tmp, "nope.sh"))
+		if len(refs) != 0 {
+			t.Errorf("expected 0 refs for nonexistent file, got %d", len(refs))
+		}
+	})
+
+	t.Run("file with multiple deprecated commands", func(t *testing.T) {
+		f := filepath.Join(tmp, "multi.sh")
+		content := "ao forge transcript\nao inject --apply-decay\nao know search query\n"
+		if err := os.WriteFile(f, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		refs := scanFileForDeprecatedCommands(f)
+		if len(refs) < 2 {
+			t.Errorf("expected at least 2 stale refs, got %d", len(refs))
+		}
+	})
+}
+
+func TestDoctorCov_CountUniqueFiles(t *testing.T) {
+	refs := []staleReference{
+		{File: "a.sh", OldCommand: "ao forge", NewCommand: "ao know forge"},
+		{File: "a.sh", OldCommand: "ao inject", NewCommand: "ao know inject"},
+		{File: "b.md", OldCommand: "ao forge", NewCommand: "ao know forge"},
+	}
+	got := countUniqueFiles(refs)
+	if got != 2 {
+		t.Errorf("countUniqueFiles() = %d, want 2", got)
 	}
 }

@@ -37,14 +37,14 @@ func TestFlagMatrix_JSONOutput(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"search", []string{"search", "--json", "test"}},
-		{"ratchet-status", []string{"ratchet", "status", "--json"}},
-		{"flywheel-status", []string{"flywheel", "status", "--json"}},
-		{"pool-list", []string{"pool", "list", "--json"}},
+		{"search", []string{"know", "search", "--json", "test"}},
+		{"ratchet-status", []string{"work", "ratchet", "status", "--json"}},
+		{"flywheel-status", []string{"quality", "flywheel", "status", "--json"}},
+		{"pool-list", []string{"quality", "pool", "list", "--json"}},
 		{"status", []string{"status", "--json"}},
 		{"doctor", []string{"doctor", "--json"}},
-		{"metrics-report", []string{"metrics", "report", "--json"}},
-		{"vibe-check", []string{"vibe-check", "--json"}},
+		{"metrics-report", []string{"quality", "metrics", "report", "--json"}},
+		{"vibe-check", []string{"quality", "vibe-check", "--json"}},
 		// NOTE: goals measure --json requires GOALS.md to exist; excluded from
 		// this matrix because it fails in repos without one.
 	}
@@ -87,8 +87,8 @@ func TestFlagMatrix_QuietMode(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"memory-sync", []string{"memory", "sync", "--quiet"}},
-		{"notebook-update", []string{"notebook", "update", "--quiet"}},
+		{"memory-sync", []string{"settings", "memory", "sync", "--quiet"}},
+		{"notebook-update", []string{"settings", "notebook", "update", "--quiet"}},
 	}
 
 	for _, tt := range tests {
@@ -122,13 +122,13 @@ func TestFlagMatrix_InvalidFlags(t *testing.T) {
 		{"version", []string{"version", "--nonexistent-flag"}},
 		{"status", []string{"status", "--nonexistent-flag"}},
 		{"doctor", []string{"doctor", "--nonexistent-flag"}},
-		{"search", []string{"search", "--nonexistent-flag"}},
-		{"inject", []string{"inject", "--nonexistent-flag"}},
-		{"badge", []string{"badge", "--nonexistent-flag"}},
-		{"ratchet-status", []string{"ratchet", "status", "--nonexistent-flag"}},
-		{"pool-list", []string{"pool", "list", "--nonexistent-flag"}},
-		{"flywheel-status", []string{"flywheel", "status", "--nonexistent-flag"}},
-		{"metrics-report", []string{"metrics", "report", "--nonexistent-flag"}},
+		{"search", []string{"know", "search", "--nonexistent-flag"}},
+		{"inject", []string{"know", "inject", "--nonexistent-flag"}},
+		{"badge", []string{"quality", "badge", "--nonexistent-flag"}},
+		{"ratchet-status", []string{"work", "ratchet", "status", "--nonexistent-flag"}},
+		{"pool-list", []string{"quality", "pool", "list", "--nonexistent-flag"}},
+		{"flywheel-status", []string{"quality", "flywheel", "status", "--nonexistent-flag"}},
+		{"metrics-report", []string{"quality", "metrics", "report", "--nonexistent-flag"}},
 	}
 
 	for _, tt := range tests {
@@ -166,6 +166,12 @@ func TestFlagMatrix_HelpConsistency(t *testing.T) {
 		"version",
 		"status",
 		"doctor",
+		"seed",
+		"inbox",
+		"mail",
+		"hooks",
+		"completion",
+		// Deprecated aliases (still show help)
 		"search",
 		"inject",
 		"badge",
@@ -176,7 +182,6 @@ func TestFlagMatrix_HelpConsistency(t *testing.T) {
 		"lookup",
 		"memory",
 		"notebook",
-		"seed",
 		"metrics",
 		"goals",
 		"ratchet",
@@ -185,21 +190,22 @@ func TestFlagMatrix_HelpConsistency(t *testing.T) {
 		"flywheel",
 		"forge",
 		"session",
-		"hooks",
 		"config",
-		"context",
 		"trace",
 		"maturity",
 		"anti-patterns",
-		"inbox",
-		"mail",
 		"plans",
 		"gate",
 		"init",
 		"demo",
 		"vibe-check",
 		"quick-start",
-		"completion",
+		// Namespace groups
+		"know",
+		"quality",
+		"work",
+		"settings",
+		"start",
 	}
 
 	for _, cmd := range commands {

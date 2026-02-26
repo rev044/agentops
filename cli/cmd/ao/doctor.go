@@ -64,6 +64,7 @@ func gatherDoctorChecks() []doctorCheck {
 		checkFlywheelHealth(),
 		checkSkills(),
 		checkSkillIntegrity(),
+		checkStaleReferences(),
 		checkOptionalCLI("codex", "needed for --mixed council"),
 	}
 }
@@ -179,12 +180,13 @@ func checkHookCoverage() doctorCheck {
 	if err != nil {
 		return doctorCheck{Name: "Hook Coverage", Status: "fail", Detail: "cannot determine home directory", Required: true}
 	}
+	contract := resolveHookCoverageContract()
 
 	// Prefer settings.json (active Claude configuration).
 	settingsPath := filepath.Join(homeDir, ".claude", "settings.json")
 	if data, err := os.ReadFile(settingsPath); err == nil {
 		if hooksMap, ok := extractHooksMap(data); ok {
-			return evaluateHookCoverage(hooksMap)
+			return evaluateHookCoverageWithContract(hooksMap, contract)
 		}
 	}
 
@@ -192,25 +194,42 @@ func checkHookCoverage() doctorCheck {
 	hooksPath := filepath.Join(homeDir, ".claude", "hooks.json")
 	if data, err := os.ReadFile(hooksPath); err == nil {
 		if hooksMap, ok := extractHooksMap(data); ok {
-			return evaluateHookCoverage(hooksMap)
+			return evaluateHookCoverageWithContract(hooksMap, contract)
 		}
 	}
 
 	return doctorCheck{
 		Name:     "Hook Coverage",
 		Status:   "warn",
-		Detail:   "No hooks found \u2014 run 'ao hooks install --force'",
+		Detail:   "No hooks found \u2014 run 'ao hooks install --force'" + hookCoverageFallbackDetail(contract.FallbackReason),
 		Required: false,
 	}
 }
 
 func evaluateHookCoverage(hooksMap map[string]any) doctorCheck {
-	installedEvents := countInstalledEvents(hooksMap)
+	return evaluateHookCoverageWithContract(hooksMap, resolveHookCoverageContract())
+}
+
+func hookCoverageFallbackDetail(reason string) string {
+	if reason == "" {
+		return ""
+	}
+	return fmt.Sprintf(" (coverage contract fallback: %s)", reason)
+}
+
+func evaluateHookCoverageWithContract(hooksMap map[string]any, contract hookCoverageContract) doctorCheck {
+	activeEvents := contract.ActiveEvents
+	if len(activeEvents) == 0 {
+		activeEvents = AllEventNames()
+	}
+	installedEvents := countInstalledEventsForList(hooksMap, activeEvents)
+	fallbackSuffix := hookCoverageFallbackDetail(contract.FallbackReason)
+
 	if installedEvents == 0 {
 		return doctorCheck{
 			Name:     "Hook Coverage",
 			Status:   "warn",
-			Detail:   "No hooks found \u2014 run 'ao hooks install --force'",
+			Detail:   "No hooks found \u2014 run 'ao hooks install --force'" + fallbackSuffix,
 			Required: false,
 		}
 	}
@@ -219,16 +238,16 @@ func evaluateHookCoverage(hooksMap map[string]any) doctorCheck {
 		return doctorCheck{
 			Name:     "Hook Coverage",
 			Status:   "warn",
-			Detail:   "Non-ao hooks detected \u2014 run 'ao hooks install --force'",
+			Detail:   "Non-ao hooks detected \u2014 run 'ao hooks install --force'" + fallbackSuffix,
 			Required: false,
 		}
 	}
 
-	if installedEvents < len(AllEventNames()) {
+	if installedEvents < len(activeEvents) {
 		return doctorCheck{
 			Name:     "Hook Coverage",
 			Status:   "warn",
-			Detail:   fmt.Sprintf("Partial coverage: %d/%d events \u2014 run 'ao hooks install --force'", installedEvents, len(AllEventNames())),
+			Detail:   fmt.Sprintf("Partial coverage: %d/%d events \u2014 run 'ao hooks install --force'%s", installedEvents, len(activeEvents), fallbackSuffix),
 			Required: false,
 		}
 	}
@@ -236,7 +255,7 @@ func evaluateHookCoverage(hooksMap map[string]any) doctorCheck {
 	return doctorCheck{
 		Name:     "Hook Coverage",
 		Status:   "pass",
-		Detail:   fmt.Sprintf("Full coverage: %d/%d events", installedEvents, len(AllEventNames())),
+		Detail:   fmt.Sprintf("Full coverage: %d/%d events%s", installedEvents, len(activeEvents), fallbackSuffix),
 		Required: false,
 	}
 }
@@ -671,6 +690,155 @@ func countHealFindings(output string) int {
 		}
 	}
 	return count
+}
+
+// deprecatedCommands maps old flat-namespace command references to their
+// new namespace-qualified replacements. Used by checkStaleReferences to
+// detect stale references in hooks and skill files.
+var deprecatedCommands = map[string]string{
+	"ao forge":         "ao know forge",
+	"ao inject":        "ao know inject",
+	"ao search":        "ao know search",
+	"ao lookup":        "ao know lookup",
+	"ao trace":         "ao know trace",
+	"ao rpi":           "ao work rpi",
+	"ao ratchet":       "ao work ratchet",
+	"ao goals":         "ao work goals",
+	"ao session":       "ao work session",
+	"ao feedback-loop": "ao work feedback-loop",
+	"ao flywheel":      "ao quality flywheel",
+	"ao pool":          "ao quality pool",
+	"ao metrics":       "ao quality metrics",
+	"ao gate":          "ao quality gate",
+	"ao maturity":      "ao quality maturity",
+	"ao constraint":    "ao quality constraint",
+	"ao vibe-check":    "ao quality vibe",
+	"ao config":        "ao settings config",
+	"ao plans":         "ao settings plans",
+	"ao hooks":         "ao settings hooks",
+	"ao memory":        "ao settings memory",
+	"ao notebook":      "ao settings memory",
+	"ao demo":          "ao start demo",
+	"ao init":          "ao start init",
+	"ao seed":          "ao start seed",
+}
+
+// staleReference records a single deprecated command reference found in a file.
+type staleReference struct {
+	File       string `json:"file"`
+	OldCommand string `json:"old_command"`
+	NewCommand string `json:"new_command"`
+}
+
+// checkStaleReferences scans hooks/*.sh and skills/*/SKILL.md for deprecated
+// command references and reports them as warnings.
+func checkStaleReferences() doctorCheck {
+	var refs []staleReference
+
+	// Scan hooks/*.sh
+	hookFiles, _ := filepath.Glob("hooks/*.sh")
+	for _, f := range hookFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	// Scan skills/*/SKILL.md
+	skillFiles, _ := filepath.Glob("skills/*/SKILL.md")
+	for _, f := range skillFiles {
+		found := scanFileForDeprecatedCommands(f)
+		refs = append(refs, found...)
+	}
+
+	if len(refs) == 0 {
+		return doctorCheck{
+			Name:     "Stale References",
+			Status:   "pass",
+			Detail:   "No deprecated command references found",
+			Required: false,
+		}
+	}
+
+	// Build a summary of unique old commands found
+	seen := make(map[string]bool)
+	for _, r := range refs {
+		seen[r.OldCommand] = true
+	}
+	cmds := make([]string, 0, len(seen))
+	for cmd := range seen {
+		cmds = append(cmds, cmd)
+	}
+
+	detail := fmt.Sprintf("%d stale reference(s) in %d file(s)", len(refs), countUniqueFiles(refs))
+	if len(cmds) <= 3 {
+		detail += fmt.Sprintf(" — update: %s", strings.Join(cmds, ", "))
+	}
+
+	return doctorCheck{
+		Name:     "Stale References",
+		Status:   "warn",
+		Detail:   detail,
+		Required: false,
+	}
+}
+
+// scanFileForDeprecatedCommands reads a file and checks each line for
+// deprecated command patterns. It avoids false positives by requiring the
+// deprecated command string to NOT be immediately followed by a character
+// that would indicate it is part of a longer (valid) namespaced command.
+func scanFileForDeprecatedCommands(path string) []staleReference {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	var refs []staleReference
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		for oldCmd, newCmd := range deprecatedCommands {
+			idx := strings.Index(line, oldCmd)
+			if idx < 0 {
+				continue
+			}
+			// Check the character after the match to avoid false positives.
+			// e.g., "ao forge" should not match in "ao know forge".
+			// Also "ao goals" should not match "ao goals-something" but
+			// should match "ao goals measure", "ao goals", "ao goals\t".
+			afterIdx := idx + len(oldCmd)
+			if afterIdx < len(line) {
+				ch := line[afterIdx]
+				// If followed by a letter or hyphen, it might be a longer command
+				// (but space, quote, backtick, pipe, etc. are fine)
+				if ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch == '-' {
+					continue
+				}
+			}
+
+			// Also verify this is not already the new namespaced form
+			// (e.g., "ao know forge" contains "ao forge" as a substring)
+			if strings.Contains(line, newCmd) {
+				continue
+			}
+
+			refs = append(refs, staleReference{
+				File:       path,
+				OldCommand: oldCmd,
+				NewCommand: newCmd,
+			})
+			// Only report each deprecated command once per file
+			break
+		}
+	}
+
+	return refs
+}
+
+// countUniqueFiles counts the number of distinct files in a slice of staleReferences.
+func countUniqueFiles(refs []staleReference) int {
+	seen := make(map[string]bool)
+	for _, r := range refs {
+		seen[r.File] = true
+	}
+	return len(seen)
 }
 
 func checkOptionalCLI(name string, reason string) doctorCheck {

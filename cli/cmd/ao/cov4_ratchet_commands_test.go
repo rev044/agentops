@@ -26,17 +26,17 @@ func cov4RatchetSetup(t *testing.T) string {
 func TestCov4_RatchetCheck(t *testing.T) {
 	cov4RatchetSetup(t)
 	// Pass a valid step name — gate will likely fail but RunE is exercised
-	_, _ = executeCommand("ratchet", "check", "research")
+	_, _ = executeCommand("work", "ratchet", "check", "research")
 }
 
 func TestCov4_RatchetFind(t *testing.T) {
 	cov4RatchetSetup(t)
-	_, _ = executeCommand("ratchet", "find", "specs/*.md")
+	_, _ = executeCommand("work", "ratchet", "find", "specs/*.md")
 }
 
 func TestCov4_RatchetNext(t *testing.T) {
 	cov4RatchetSetup(t)
-	out, err := executeCommand("ratchet", "next")
+	out, err := executeCommand("work", "ratchet", "next")
 	// Should succeed with "no steps completed" or similar
 	_ = out
 	_ = err
@@ -50,29 +50,29 @@ func TestCov4_RatchetPromote(t *testing.T) {
 		t.Fatal(err)
 	}
 	// --to is required
-	_, _ = executeCommand("ratchet", "promote", artifact, "--to", "1")
+	_, _ = executeCommand("work", "ratchet", "promote", artifact, "--to", "1")
 }
 
 func TestCov4_RatchetRecord(t *testing.T) {
 	cov4RatchetSetup(t)
 	// --output is required
-	_, _ = executeCommand("ratchet", "record", "research", "--output", ".agents/research/topic.md")
+	_, _ = executeCommand("work", "ratchet", "record", "research", "--output", ".agents/research/topic.md")
 }
 
 func TestCov4_RatchetSkip(t *testing.T) {
 	cov4RatchetSetup(t)
 	// --reason is required
-	_, _ = executeCommand("ratchet", "skip", "pre-mortem", "--reason", "test skip")
+	_, _ = executeCommand("work", "ratchet", "skip", "pre-mortem", "--reason", "test skip")
 }
 
 func TestCov4_RatchetSpec(t *testing.T) {
 	cov4RatchetSetup(t)
-	_, _ = executeCommand("ratchet", "spec")
+	_, _ = executeCommand("work", "ratchet", "spec")
 }
 
 func TestCov4_RatchetStatus(t *testing.T) {
 	cov4RatchetSetup(t)
-	out, err := executeCommand("ratchet", "status")
+	out, err := executeCommand("work", "ratchet", "status")
 	_ = out
 	_ = err
 }
@@ -84,5 +84,5 @@ func TestCov4_RatchetValidate(t *testing.T) {
 	if err := os.WriteFile(artifact, []byte("# Test Research\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = executeCommand("ratchet", "validate", "research", "--changes", artifact)
+	_, _ = executeCommand("work", "ratchet", "validate", "research", "--changes", artifact)
 }

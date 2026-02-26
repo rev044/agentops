@@ -48,6 +48,96 @@ func AllEventNames() []string {
 	}
 }
 
+// hookCoverageContract describes the active coverage contract for runtime checks.
+// Active events are derived from hooks.json when available.
+type hookCoverageContract struct {
+	ActiveEvents   []string
+	FallbackReason string
+}
+
+func fallbackHookCoverageContract(reason string) hookCoverageContract {
+	events := append([]string(nil), AllEventNames()...)
+	return hookCoverageContract{
+		ActiveEvents:   events,
+		FallbackReason: reason,
+	}
+}
+
+func activeEventNamesFromConfig(config *HooksConfig) []string {
+	active := make([]string, 0)
+	for _, event := range AllEventNames() {
+		if len(config.GetEventGroups(event)) > 0 {
+			active = append(active, event)
+		}
+	}
+	return active
+}
+
+func resolveHookCoverageContract() hookCoverageContract {
+	data, err := findHooksManifest()
+	if err != nil {
+		return fallbackHookCoverageContract(err.Error())
+	}
+	config, err := ReadHooksManifest(data)
+	if err != nil {
+		return fallbackHookCoverageContract(err.Error())
+	}
+	activeEvents := activeEventNamesFromConfig(config)
+	if len(activeEvents) == 0 {
+		return fallbackHookCoverageContract("hooks manifest contains zero active events")
+	}
+	return hookCoverageContract{
+		ActiveEvents: activeEvents,
+	}
+}
+
+func countInstalledEventsForList(hooksMap map[string]any, events []string) int {
+	installed := 0
+	for _, event := range events {
+		if groups, ok := hooksMap[event].([]any); ok && len(groups) > 0 {
+			installed++
+		}
+	}
+	return installed
+}
+
+func collectLegacyAoManagedEvents(hooksMap map[string]any, activeEvents []string) []string {
+	activeSet := make(map[string]struct{}, len(activeEvents))
+	for _, event := range activeEvents {
+		activeSet[event] = struct{}{}
+	}
+
+	legacyEvents := make([]string, 0)
+	for _, event := range AllEventNames() {
+		if _, ok := activeSet[event]; ok {
+			continue
+		}
+		if hookGroupContainsAo(hooksMap, event) {
+			legacyEvents = append(legacyEvents, event)
+		}
+	}
+	return legacyEvents
+}
+
+func formatLegacyPreservationReport(legacyEvents []string) string {
+	if len(legacyEvents) == 0 {
+		return ""
+	}
+	return fmt.Sprintf(
+		"Preserved legacy ao-managed hooks outside active contract (%d): %s",
+		len(legacyEvents),
+		strings.Join(legacyEvents, ", "),
+	)
+}
+
+func printLegacyPreservationReport(legacyEvents []string) {
+	msg := formatLegacyPreservationReport(legacyEvents)
+	if msg == "" {
+		return
+	}
+	fmt.Println(msg)
+}
+
 // HooksConfig represents the hooks section of Claude settings.
 // Supports all 12 Claude Code hook events.
 type HooksConfig struct {
@@ -196,8 +286,6 @@ This command:
 }
 
 func init() {
-	hooksCmd.GroupID = "config"
-	rootCmd.AddCommand(hooksCmd)
 	hooksCmd.AddCommand(hooksInitCmd)
 	hooksCmd.AddCommand(hooksInstallCmd)
 	hooksCmd.AddCommand(hooksShowCmd)
@@ -623,7 +711,11 @@ func generateHooksForInstall(installBase string) (*HooksConfig, []string, error)
 		return nil, nil, fmt.Errorf("--full requires hooks.json: %w", err)
 	}
 	replacePluginRoot(config, installBase)
-	return config, AllEventNames(), nil
+	activeEvents := activeEventNamesFromConfig(config)
+	if len(activeEvents) == 0 {
+		return nil, nil, fmt.Errorf("--full requires at least one active event in hooks.json")
+	}
+	return config, activeEvents, nil
 }
 
 func cloneHooksMap(rawSettings map[string]any) map[string]any {
@@ -690,7 +782,7 @@ func printHooksInstallSummary(settingsPath string, newHooks *HooksConfig, events
 	fmt.Printf("✓ Installed ao hooks to %s\n", settingsPath)
 	fmt.Println()
 	if hooksFull {
-		fmt.Printf("Hooks installed: %d/%d events\n", installedEvents, len(AllEventNames()))
+		fmt.Printf("Hooks installed: %d/%d events\n", installedEvents, len(eventsToInstall))
 		for _, event := range eventsToInstall {
 			groups := newHooks.GetEventGroups(event)
 			if len(groups) > 0 {
@@ -764,14 +856,22 @@ func runHooksInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	hooksMap := cloneHooksMap(rawSettings)
+	legacyPreserved := collectLegacyAoManagedEvents(hooksMap, eventsToInstall)
 	installedEvents := mergeHookEvents(hooksMap, newHooks, eventsToInstall)
 	rawSettings["hooks"] = hooksMap
 
 	if done, err := dryRunPrintSettings(settingsPath, rawSettings); done || err != nil {
+		if done {
+			printLegacyPreservationReport(legacyPreserved)
+		}
 		return err
 	}
 
-	return commitHooksSettings(settingsPath, rawSettings, newHooks, eventsToInstall, installedEvents)
+	if err := commitHooksSettings(settingsPath, rawSettings, newHooks, eventsToInstall, installedEvents); err != nil {
+		return err
+	}
+	printLegacyPreservationReport(legacyPreserved)
+	return nil
 }
 
 // commitHooksSettings backs up, writes, and prints a summary for the hooks installation.
@@ -838,7 +938,7 @@ func countRawGroupHooks(groups []any) int {
 func printEventCoverage(hooksMap map[string]any) int {
 	allEvents := AllEventNames()
 	installedCount := 0
-	fmt.Println("Hook Event Coverage:")
+	fmt.Println("Supported Hook Namespace Coverage (informational):")
 	fmt.Println()
 	for _, event := range allEvents {
 		groups, hasEvent := hooksMap[event].([]any)
@@ -867,12 +967,18 @@ func runHooksShow(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	installedCount := printEventCoverage(hooksMap)
+	supportedInstalled := printEventCoverage(hooksMap)
+	contract := resolveHookCoverageContract()
+	activeInstalled := countInstalledEventsForList(hooksMap, contract.ActiveEvents)
 
 	fmt.Println()
-	fmt.Printf("%d events installed\n", installedCount)
+	fmt.Printf("Active contract coverage: %d/%d events\n", activeInstalled, len(contract.ActiveEvents))
+	if contract.FallbackReason != "" {
+		fmt.Printf("Coverage contract fallback: %s\n", contract.FallbackReason)
+	}
+	fmt.Printf("Supported namespace coverage: %d/%d events (informational)\n", supportedInstalled, len(AllEventNames()))
 
-	if installedCount < len(AllEventNames()) {
+	if activeInstalled < len(contract.ActiveEvents) {
 		fmt.Println()
 		fmt.Println("Run 'ao hooks install --full' for complete coverage.")
 	}
@@ -1077,9 +1183,15 @@ func runSettingsCoverageTest(testNum int, homeDir string, allPassed *bool) {
 		return
 	}
 
-	installed := countInstalledHookEvents(hooksMap)
-	fmt.Printf("✓ %d events installed\n", installed)
-	if installed < len(AllEventNames()) {
+	contract := resolveHookCoverageContract()
+	activeInstalled := countInstalledEventsForList(hooksMap, contract.ActiveEvents)
+	fmt.Printf("✓ %d/%d active contract events installed\n", activeInstalled, len(contract.ActiveEvents))
+	if contract.FallbackReason != "" {
+		fmt.Printf("   Coverage contract fallback: %s\n", contract.FallbackReason)
+	}
+	supportedInstalled := countInstalledHookEvents(hooksMap)
+	fmt.Printf("   Supported namespace coverage: %d/%d events (informational)\n", supportedInstalled, len(AllEventNames()))
+	if activeInstalled < len(contract.ActiveEvents) {
 		fmt.Println("   Run 'ao hooks install --full' for complete coverage.")
 	}
 }

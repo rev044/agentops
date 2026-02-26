@@ -96,7 +96,7 @@ func TestCov5_runRPIStatus(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("rpi", "status")
+	out, err := executeCommand("work", "rpi", "status")
 	_ = out
 	_ = err
 }
@@ -105,7 +105,7 @@ func TestCov5_runRPIStatus_JSON(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("rpi", "status", "--json")
+	out, err := executeCommand("work", "rpi", "status", "--json")
 	_ = err
 	if out != "" {
 		var result rpiStatusOutput
@@ -120,7 +120,7 @@ func TestCov5_runRPICleanup_NoFlags(t *testing.T) {
 	cov5ResetFlags()
 
 	// Should error because neither --all nor --run-id specified
-	_, err := executeCommand("rpi", "cleanup")
+	_, err := executeCommand("work", "rpi", "cleanup")
 	if err == nil {
 		t.Log("expected error for missing --all or --run-id")
 	}
@@ -130,7 +130,7 @@ func TestCov5_runRPICleanup_All(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("rpi", "cleanup", "--all")
+	out, err := executeCommand("work", "rpi", "cleanup", "--all")
 	_ = out
 	_ = err
 }
@@ -139,7 +139,7 @@ func TestCov5_runRPICleanup_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("rpi", "cleanup", "--all", "--dry-run")
+	out, err := executeCommand("work", "rpi", "cleanup", "--all", "--dry-run")
 	_ = out
 	_ = err
 }
@@ -149,7 +149,7 @@ func TestCov5_runRPIPhased_NoGoal(t *testing.T) {
 	cov5ResetFlags()
 
 	// Dry-run to avoid spawning anything
-	out, err := executeCommand("rpi", "phased", "--dry-run", "test goal")
+	out, err := executeCommand("work", "rpi", "phased", "--dry-run", "test goal")
 	_ = out
 	_ = err
 }
@@ -159,7 +159,7 @@ func TestCov5_runRPIParallel_NoArgs(t *testing.T) {
 	cov5ResetFlags()
 
 	// No epics provided — should error
-	_, err := executeCommand("rpi", "parallel")
+	_, err := executeCommand("work", "rpi", "parallel")
 	if err == nil {
 		t.Log("expected error for no epics")
 	}
@@ -172,7 +172,7 @@ func TestCov5_runRPIParallel_DryRun(t *testing.T) {
 	// Initialize git repo so parallel can check
 	initGitRepo(t, tmp)
 
-	out, err := executeCommand("rpi", "parallel", "--dry-run", "goal1", "goal2")
+	out, err := executeCommand("work", "rpi", "parallel", "--dry-run", "goal1", "goal2")
 	_ = out
 	_ = err
 }
@@ -181,7 +181,7 @@ func TestCov5_runTaskFeedback_NoTasks(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("task-feedback")
+	out, err := executeCommand("work", "task-feedback")
 	_ = out
 	_ = err
 }
@@ -192,7 +192,7 @@ func TestCov5_runFeedbackLoop_NoSession(t *testing.T) {
 	t.Setenv("CLAUDE_SESSION_ID", "")
 
 	// No --session flag and no CLAUDE_SESSION_ID → error
-	_, err := executeCommand("feedback-loop")
+	_, err := executeCommand("work", "feedback-loop")
 	if err == nil {
 		t.Log("expected error for missing session")
 	}
@@ -202,7 +202,7 @@ func TestCov5_runFeedbackLoop_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("feedback-loop", "--session", "test-session", "--dry-run")
+	out, err := executeCommand("work", "feedback-loop", "--session", "test-session", "--dry-run")
 	_ = out
 	_ = err
 }
@@ -257,7 +257,7 @@ func TestCov5_runPoolAutoPromote(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("pool", "auto-promote")
+	out, err := executeCommand("quality", "pool", "auto-promote")
 	_ = out
 	_ = err
 }
@@ -266,7 +266,7 @@ func TestCov5_runPoolMigrateLegacy(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("pool", "migrate-legacy")
+	out, err := executeCommand("quality", "pool", "migrate-legacy")
 	_ = out
 	_ = err
 }
@@ -275,7 +275,7 @@ func TestCov5_runPoolMigrateLegacy_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("pool", "migrate-legacy", "--dry-run")
+	out, err := executeCommand("quality", "pool", "migrate-legacy", "--dry-run")
 	_ = out
 	_ = err
 }

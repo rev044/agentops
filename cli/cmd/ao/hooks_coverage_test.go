@@ -524,8 +524,115 @@ func TestHooksCoverage_generateHooksForInstall_Full(t *testing.T) {
 	if config == nil {
 		t.Fatal("expected non-nil config")
 	}
-	if len(events) != 12 {
-		t.Errorf("expected 12 events for full install, got %d", len(events))
+	if len(events) != 3 {
+		t.Errorf("expected 3 active manifest events for full install, got %d", len(events))
+	}
+}
+
+func TestHooksCoverage_UsesManifestEventCount(t *testing.T) {
+	tmp := t.TempDir()
+	hooksDir := filepath.Join(tmp, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{
+		"hooks": {
+			"SessionStart": [{"hooks": [{"type": "command", "command": "ao inject"}]}],
+			"Stop": [{"hooks": [{"type": "command", "command": "ao forge"}]}]
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(hooksDir, "hooks.json"), []byte(manifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+
+	contract := resolveHookCoverageContract()
+	if len(contract.ActiveEvents) != 2 {
+		t.Fatalf("expected manifest-derived active event denominator 2, got %d", len(contract.ActiveEvents))
+	}
+	if contract.FallbackReason != "" {
+		t.Fatalf("unexpected fallback reason: %s", contract.FallbackReason)
+	}
+
+	hooksMap := map[string]any{
+		"SessionStart": []any{
+			map[string]any{"hooks": []any{map[string]any{"command": "ao inject"}}},
+		},
+		"Stop": []any{
+			map[string]any{"hooks": []any{map[string]any{"command": "ao forge"}}},
+		},
+	}
+	got := countInstalledEventsForList(hooksMap, contract.ActiveEvents)
+	if got != 2 {
+		t.Errorf("expected 2/2 active events installed, got %d", got)
+	}
+}
+
+func TestHooksCoverage_Legacy12EventSettingsMigration(t *testing.T) {
+	hooksMap := make(map[string]any)
+	for _, event := range AllEventNames() {
+		hooksMap[event] = []any{
+			map[string]any{
+				"hooks": []any{
+					map[string]any{"type": "command", "command": "ao legacy " + event},
+				},
+			},
+		}
+	}
+
+	newHooks := generateMinimalHooksConfig()
+	replacePluginRoot(newHooks, "/home/user/.agentops")
+	eventsToInstall := []string{"SessionStart", "SessionEnd", "Stop"}
+
+	installed := mergeHookEvents(hooksMap, newHooks, eventsToInstall)
+	if installed != len(eventsToInstall) {
+		t.Fatalf("installed events = %d, want %d", installed, len(eventsToInstall))
+	}
+
+	// Preserve+report migration policy: legacy ao-managed non-active events remain.
+	if !hookGroupContainsAo(hooksMap, "PreToolUse") {
+		t.Error("expected PreToolUse legacy ao hook to be preserved")
+	}
+	if !hookGroupContainsAo(hooksMap, "ConfigChange") {
+		t.Error("expected ConfigChange legacy ao hook to be preserved")
+	}
+}
+
+func TestHooksCoverage_PreservedLegacyEventsAreReported(t *testing.T) {
+	hooksMap := map[string]any{
+		"SessionStart": []any{
+			map[string]any{"hooks": []any{map[string]any{"command": "ao inject"}}},
+		},
+		"PreToolUse": []any{
+			map[string]any{"hooks": []any{map[string]any{"command": "ao legacy pre"}}},
+		},
+		"ConfigChange": []any{
+			map[string]any{"hooks": []any{map[string]any{"command": "ao legacy config"}}},
+		},
+	}
+
+	legacy := collectLegacyAoManagedEvents(hooksMap, []string{"SessionStart", "SessionEnd", "Stop"})
+	if len(legacy) != 2 {
+		t.Fatalf("expected 2 preserved legacy events, got %d", len(legacy))
+	}
+	if legacy[0] != "PreToolUse" || legacy[1] != "ConfigChange" {
+		t.Fatalf("expected deterministic event order [PreToolUse ConfigChange], got %v", legacy)
+	}
+
+	report := formatLegacyPreservationReport(legacy)
+	if !strings.Contains(report, "Preserved legacy ao-managed hooks outside active contract (2)") {
+		t.Fatalf("unexpected report prefix: %s", report)
+	}
+	if !strings.Contains(report, "PreToolUse") || !strings.Contains(report, "ConfigChange") {
+		t.Fatalf("report should include preserved events, got: %s", report)
 	}
 }
 
@@ -1664,7 +1771,7 @@ func TestHooksCoverage_isAoManagedHookCommand(t *testing.T) {
 		{"echo hello", false},
 		{"", false},
 		{"/opt/tools/ao-runner.sh", false}, // "ao" not followed by space
-		{"ao ", true},                       // "ao " is detected
+		{"ao ", true},                      // "ao " is detected
 	}
 	for _, tt := range tests {
 		got := isAoManagedHookCommand(tt.cmd)
