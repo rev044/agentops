@@ -19,7 +19,7 @@ Capture knowledge manually for future sessions. Fast path to feed the knowledge 
 
 > **When to use `--global`:** Use for knowledge that applies across all your projects (e.g., language patterns, tooling preferences, debugging techniques). Use default (no flag) for repo-specific knowledge (e.g., architecture decisions, local conventions).
 >
-> **When to use `--promote`:** Use when an existing local learning turns out to be transferable. The skill reads the local file, rewrites it to remove repo-specific references, writes the abstracted version to `~/.agents/learnings/`, and marks the local copy with `promoted_to:` frontmatter so `ao inject` skips it.
+> **When to use `--promote`:** Use when an existing local learning turns out to be transferable. The skill reads the local file, rewrites it to remove repo-specific references, writes the abstracted version to `~/.agents/learnings/`, and marks the local copy with `promoted_to:` frontmatter so `ao know inject` skips it.
 
 ## Execution Steps
 
@@ -177,7 +177,7 @@ Given `$learn --promote <path-to-local-learning>`:
    promoted_to: ~/.agents/learnings/YYYY-MM-DD-<slug>.md
    ---
    ```
-   `ao inject` skips learnings with `promoted_to:` set, preventing double-counting.
+   `ao know inject` skips learnings with `promoted_to:` set, preventing double-counting.
 7. **Confirm:** "Promoted to global: `~/.agents/learnings/YYYY-MM-DD-<slug>.md`"
 
 ### Step 6: Integrate with ao CLI (if available)
@@ -188,10 +188,10 @@ if command -v ao &>/dev/null; then
   echo "✓ Knowledge saved to <path>"
   echo ""
   echo "To move this into cached memory now:"
-  echo "  ao pool ingest <path>"
-  echo "  ao pool list --status pending"
-  echo "  ao pool stage <candidate-id>"
-  echo "  ao pool promote <candidate-id>"
+  echo "  ao quality pool ingest <path>"
+  echo "  ao quality pool list --status pending"
+  echo "  ao quality pool stage <candidate-id>"
+  echo "  ao quality pool promote <candidate-id>"
   echo ""
   echo "Or let hooks run close-loop automation."
 else
@@ -203,7 +203,7 @@ fi
 
 **Do NOT auto-run promotion commands.** The user should decide when to stage/promote.
 
-**Note:** If `--global` or `--promote` is set, skip ao CLI integration. Global learnings are discovered directly by `ao inject` from `~/.agents/learnings/`.
+**Note:** If `--global` or `--promote` is set, skip ao CLI integration. Global learnings are discovered directly by `ao know inject` from `~/.agents/learnings/`.
 
 ### Step 7: Confirm to User
 
@@ -238,7 +238,7 @@ This capture is queued for flywheel ingestion; once promoted it is available via
 4. Agent generates slug: `token-bucket-rate-limiting`
 5. Agent creates `.agents/knowledge/pending/2026-02-16-token-bucket-rate-limiting.md`
 6. Agent writes frontmatter + content
-7. Agent checks for ao CLI, informs user about `ao pool ingest` + stage/promote options
+7. Agent checks for ao CLI, informs user about `ao quality pool ingest` + stage/promote options
 8. Agent confirms: "Learned: Use token bucket for rate limiting. Saved to .agents/knowledge/pending/2026-02-16-token-bucket-rate-limiting.md"
 
 ### Interactive Capture
@@ -259,15 +259,37 @@ Agent classifies as "gotcha", generates slug `bd-dep-direction`, creates file in
 |---------|-------|----------|
 | Slug collision | Same topic on same day | Append `-2`, `-3` counter automatically |
 | Content too long | User pasted large block | Accept it. $learn has no length limit. Suggest $retro for structured extraction if very large. |
-| ao pool ingest/stage fails | Candidate ID mismatch or ao not installed | Show exact next commands (`ingest`, `list`, `stage`, `promote`) and confirm file was saved |
+| ao quality pool ingest/stage fails | Candidate ID mismatch or ao not installed | Show exact next commands (`ingest`, `list`, `stage`, `promote`) and confirm file was saved |
 | Duplicate knowledge | Same insight already captured | Check existing files with grep before writing. If duplicate, tell user and show existing path. |
 
 ## The Flywheel
 
 Manual captures feed the same flywheel as automatic extraction:
 ```
-$learn → .agents/knowledge/pending/ → ao pool ingest → .agents/learnings/ → $inject
+$learn → .agents/knowledge/pending/ → ao quality pool ingest → .agents/learnings/ → $inject
 ```
 
 This skill is for quick wins. For deeper reflection, use `$retro`.
+
+---
+
+## Scripts
+
+### validate.sh
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PASS=0; FAIL=0
+
+check() { if bash -c "$2"; then echo "PASS: $1"; PASS=$((PASS + 1)); else echo "FAIL: $1"; FAIL=$((FAIL + 1)); fi; }
+
+check "SKILL.md exists" "[ -f '$SKILL_DIR/SKILL.md' ]"
+check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '^---$'"
+
+echo ""; echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1
+```
+
 

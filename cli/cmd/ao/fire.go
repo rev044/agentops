@@ -10,6 +10,32 @@ import (
 	"time"
 )
 
+// Message represents an inter-agent message.
+type Message struct {
+	ID        string    `json:"id"`
+	From      string    `json:"from"`
+	To        string    `json:"to"`
+	Body      string    `json:"body"`
+	Timestamp time.Time `json:"timestamp"`
+	Read      bool      `json:"read"`
+	Type      string    `json:"type"` // progress, completion, blocker, farm_complete
+}
+
+func formatAge(t time.Time) string {
+	age := time.Since(t)
+
+	if age < time.Minute {
+		return fmt.Sprintf("%ds ago", int(age.Seconds()))
+	}
+	if age < time.Hour {
+		return fmt.Sprintf("%dm ago", int(age.Minutes()))
+	}
+	if age < 24*time.Hour {
+		return fmt.Sprintf("%dh ago", int(age.Hours()))
+	}
+	return t.Format("Jan 2")
+}
+
 // FireState holds the current state of the FIRE loop
 type FireState struct {
 	EpicID   string   `json:"epic_id"`

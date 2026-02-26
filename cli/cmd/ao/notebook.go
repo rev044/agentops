@@ -50,8 +50,6 @@ func init() {
 	notebookUpdateCmd.Flags().StringVar(&notebookSessionID, "session", "", "Specific session ID to update from")
 
 	notebookCmd.AddCommand(notebookUpdateCmd)
-	notebookCmd.GroupID = "knowledge"
-	rootCmd.AddCommand(notebookCmd)
 }
 
 // pendingEntry represents one entry from pending.jsonl (forge output).

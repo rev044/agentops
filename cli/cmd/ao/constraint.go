@@ -39,11 +39,10 @@ Subcommands:
   retire    Change a constraint from active to retired
   review    List constraints needing review (>90 days without citation)
   list      List all constraints with status`,
-	GroupID: "knowledge",
 }
 
 func init() {
-	rootCmd.AddCommand(constraintCmd)
+	qualityCmd.AddCommand(constraintCmd)
 	constraintCmd.AddCommand(constraintActivateCmd)
 	constraintCmd.AddCommand(constraintRetireCmd)
 	constraintCmd.AddCommand(constraintReviewCmd)

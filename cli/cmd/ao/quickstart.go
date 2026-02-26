@@ -35,8 +35,7 @@ var (
 )
 
 func init() {
-	quickstartCmd.GroupID = "start"
-	rootCmd.AddCommand(quickstartCmd)
+	startCmd.AddCommand(quickstartCmd)
 	quickstartCmd.Flags().BoolVar(&noBeads, "no-beads", false, "Skip beads initialization")
 	quickstartCmd.Flags().BoolVar(&minimal, "minimal", false, "Minimal setup (just directories)")
 }

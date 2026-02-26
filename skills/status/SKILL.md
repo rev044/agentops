@@ -45,7 +45,7 @@ fi
 
 # Ratchet status via CLI
 if command -v ao &>/dev/null; then
-  ao ratchet status --json 2>/dev/null || echo "RATCHET_UNAVAILABLE"
+  ao work ratchet status --json 2>/dev/null || echo "RATCHET_UNAVAILABLE"
   ao task-status --json 2>/dev/null || echo "TASK_STATUS_UNAVAILABLE"
 fi
 ```
@@ -75,7 +75,7 @@ echo "PENDING=$(ls .agents/forge/ 2>/dev/null | wc -l | tr -d ' ')"
 
 # Flywheel health + badge
 if command -v ao &>/dev/null; then
-  ao flywheel status 2>/dev/null || echo "FLYWHEEL_UNAVAILABLE"
+  ao quality flywheel status 2>/dev/null || echo "FLYWHEEL_UNAVAILABLE"
   ao badge 2>/dev/null || echo "BADGE_UNAVAILABLE"
 fi
 ```
@@ -194,7 +194,7 @@ Evaluate state top-to-bottom. Use the FIRST matching condition:
 | 7 | Implementation done, no vibe | "Run `/vibe` for final code validation" |
 | 8 | Recent WARN/FAIL verdict | "Address findings in `<report-path>`, then re-run `/vibe`" |
 | 10 | Vibe passed, no post-mortem | "Run `/post-mortem` to extract learnings and complete the cycle" |
-| 11 | Pending knowledge items | "Promote learnings: `ao pool list --status pending --json`, then `ao pool stage <id>` and `ao pool promote <id>`" |
+| 11 | Pending knowledge items | "Promote learnings: `ao quality pool list --status pending --json`, then `ao quality pool stage <id>` and `ao quality pool promote <id>`" |
 | 12 | Clean state, nothing pending | "All clear. Start with `/research` or `/plan` to find new work" |
 
 ### Step 4: JSON Output (--json flag)

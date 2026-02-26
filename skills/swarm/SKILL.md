@@ -97,7 +97,7 @@ Every TaskCreate **must** include a `metadata.files` array listing the files tha
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao context assemble --task='<swarm objective or wave description>'
+    ao work context assemble --task='<swarm objective or wave description>'
 fi
 ```
 

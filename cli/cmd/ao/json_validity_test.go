@@ -1259,36 +1259,6 @@ func TestJSONValidity_ContextStatus(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: Inbox command
-// ---------------------------------------------------------------------------
-
-func TestJSONValidity_Inbox(t *testing.T) {
-	withOutputJSON(t)
-
-	// Inbox outputs an array of messages.
-	messages := []map[string]any{
-		{
-			"id":        "msg-001",
-			"from":      "agent-1",
-			"subject":   "Task completed",
-			"body":      "Finished the authentication fix",
-			"timestamp": time.Now().Format(time.RFC3339),
-			"read":      false,
-		},
-	}
-
-	out := captureJSONStdout(t, func() {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(messages); err != nil {
-			t.Fatalf("encode: %v", err)
-		}
-	})
-
-	assertValidJSON(t, "inbox --json", out)
-}
-
-// ---------------------------------------------------------------------------
 // Tests: Maturity command
 // ---------------------------------------------------------------------------
 

@@ -90,17 +90,8 @@ Examples:
 	assembleCmd.Flags().StringVar(&assembleOutput, "output", defaultAssembleOutput, "Output path for briefing")
 	_ = assembleCmd.MarkFlagRequired("task")
 
-	// Register under contextCmd. contextCmd is created in context.go init(),
-	// and Go init order within a package is file-name sorted, so context.go
-	// runs before context_assemble.go. We find it via rootCmd.
-	ctx, _, _ := rootCmd.Find([]string{"context"})
-	if ctx != nil && ctx != rootCmd {
-		ctx.AddCommand(assembleCmd)
-	} else {
-		// Fallback: register directly on root with knowledge group.
-		assembleCmd.GroupID = "knowledge"
-		rootCmd.AddCommand(assembleCmd)
-	}
+	// Register under contextCmd (package-level var in context.go).
+	contextCmd.AddCommand(assembleCmd)
 }
 
 // --- main entrypoint ---

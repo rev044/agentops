@@ -93,14 +93,14 @@ Given `$crank [epic-id | plan-file.md | "description"]`:
 # If ao CLI available, pull relevant knowledge for this epic
 if command -v ao &>/dev/null; then
     # Pull knowledge scoped to the epic
-    ao lookup --query "<epic-title>" --limit 5 2>/dev/null || \
-      ao search "epic execution implementation patterns" 2>/dev/null | head -20
+    ao know lookup --query "<epic-title>" --limit 5 2>/dev/null || \
+      ao know search "epic execution implementation patterns" 2>/dev/null | head -20
 
     # Check flywheel status
-    ao flywheel status 2>/dev/null
+    ao quality flywheel status 2>/dev/null
 
     # Get current ratchet state
-    ao ratchet status 2>/dev/null
+    ao work ratchet status 2>/dev/null
 fi
 ```
 
@@ -310,7 +310,7 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao context assemble --task='<epic title>: wave $wave'
+    ao work context assemble --task='<epic title>: wave $wave'
 fi
 ```
 
@@ -451,11 +451,13 @@ After completing a wave, check for newly unblocked issues (beads: `bd ready`, Ta
 
 When all issues complete, run ONE comprehensive vibe on recent changes. Fix CRITICAL issues before completion.
 
+If hooks or `lib/hook-helpers.sh` were modified, verify embedded copies are in sync: `cd cli && make sync-hooks`.
+
 **For detailed validation steps, read `skills/crank/references/failure-recovery.md`.**
 
 ### Step 8: Extract Learnings (ao Integration)
 
-If ao CLI available: run `ao forge transcript`, `ao flywheel status`, and `ao pool list --tier=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
+If ao CLI available: run `ao know forge transcript`, `ao quality flywheel close-loop --quiet`, `ao quality flywheel status`, and `ao quality pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
 
 ### Step 9: Report Completion
 
@@ -473,7 +475,7 @@ Tell the user:
 Epic: <epic-id>
 Issues completed: N
 Iterations: M/50
-Flywheel: <status from ao flywheel status>
+Flywheel: <status from ao quality flywheel status>
 ```
 
 If stopped early:
@@ -514,7 +516,7 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 
 **User says:** `$crank ag-m0r`
 
-Loads learnings (`ao inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
+Loads learnings (`ao know inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao know forge transcript`.
 
 ### Execute from Plan File (TaskList Mode)
 
@@ -1765,12 +1767,12 @@ Use this as the source-of-truth for Ralph alignment in AgentOps orchestration sk
 
 | Ralph concept | AgentOps implementation |
 |---|---|
-| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao rpi phased` |
+| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao work rpi phased` |
 | Main context as scheduler | Mayor/lead orchestration in `$swarm` and `$crank` |
 | Plan file as state | `bd` issue graph, TaskList state, plan artifacts in `.agents/plans/` |
 | One task per pass | One issue per worker assignment in swarm/crank waves |
 | Backpressure | `$vibe`, task validation hooks, tests/lint gates, push/pre-mortem gates |
-| Outer loop restart | Wave loop in `$crank`; phase loop in `ao rpi phased` |
+| Outer loop restart | Wave loop in `$crank`; phase loop in `ao work rpi phased` |
 
 ## Implementation Notes
 
@@ -2072,7 +2074,7 @@ Swarm finds unblocked TaskList tasks and executes them.
 4. **Record ratchet progress (ao integration):**
    ```bash
    if command -v ao &>/dev/null; then
-       ao ratchet record implement 2>/dev/null
+       ao work ratchet record implement 2>/dev/null
    fi
    ```
 

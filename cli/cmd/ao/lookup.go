@@ -48,8 +48,7 @@ Examples:
 }
 
 func init() {
-	lookupCmd.GroupID = "knowledge"
-	rootCmd.AddCommand(lookupCmd)
+	knowCmd.AddCommand(lookupCmd)
 	lookupCmd.Flags().StringVar(&lookupQuery, "query", "", "Search query for relevance matching")
 	lookupCmd.Flags().IntVar(&lookupLimit, "limit", 3, "Maximum results to return")
 	lookupCmd.Flags().StringVar(&lookupBead, "bead", "", "Filter by source bead ID")

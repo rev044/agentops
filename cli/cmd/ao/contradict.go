@@ -48,8 +48,7 @@ Examples:
 }
 
 func init() {
-	contradictCmd.GroupID = "knowledge"
-	rootCmd.AddCommand(contradictCmd)
+	qualityCmd.AddCommand(contradictCmd)
 }
 
 // negationWords are words that indicate negation or avoidance.

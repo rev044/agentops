@@ -33,12 +33,12 @@ mkdir -p .agents/research
 
 ```bash
 # Pull relevant prior knowledge for this topic
-ao lookup --query "<topic>" --limit 5 2>/dev/null || \
-  ao search "<topic>" 2>/dev/null || \
+ao know lookup --query "<topic>" --limit 5 2>/dev/null || \
+  ao know search "<topic>" 2>/dev/null || \
   echo "ao not available, skipping knowledge search"
 ```
 
-**Review ao search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
+**Review ao know search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
 - Prior research on this topic or related topics
 - Known patterns or anti-patterns
 - Lessons learned from similar investigations
@@ -1733,12 +1733,12 @@ Use this as the source-of-truth for Ralph alignment in AgentOps orchestration sk
 
 | Ralph concept | AgentOps implementation |
 |---|---|
-| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao rpi phased` |
+| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao work rpi phased` |
 | Main context as scheduler | Mayor/lead orchestration in `$swarm` and `$crank` |
 | Plan file as state | `bd` issue graph, TaskList state, plan artifacts in `.agents/plans/` |
 | One task per pass | One issue per worker assignment in swarm/crank waves |
 | Backpressure | `$vibe`, task validation hooks, tests/lint gates, push/pre-mortem gates |
-| Outer loop restart | Wave loop in `$crank`; phase loop in `ao rpi phased` |
+| Outer loop restart | Wave loop in `$crank`; phase loop in `ao work rpi phased` |
 
 ## Implementation Notes
 
@@ -1904,7 +1904,7 @@ The script performs the following checks:
 - **SKILL.md mentions .agents/research/ output path**: Confirms documented output location
 - **SKILL.md mentions Explore agent**: Ensures agent reference is included
 - **SKILL.md mentions --auto flag**: Validates feature documentation
-- **SKILL.md mentions ao inject**: Checks CLI integration documentation
+- **SKILL.md mentions ao know inject**: Checks CLI integration documentation
 - **SKILL.md mentions knowledge flywheel**: Confirms system architecture coverage
 - **SKILL.md mentions backend detection**: Validates technical implementation details
 - **SKILL.md mentions quality validation**: Ensures quality assurance documentation
@@ -1929,7 +1929,7 @@ PASS: references/ has at least 3 files
 PASS: SKILL.md mentions .agents/research/ output path
 PASS: SKILL.md mentions Explore agent
 PASS: SKILL.md mentions --auto flag
-PASS: SKILL.md mentions ao inject
+PASS: SKILL.md mentions ao know inject
 PASS: SKILL.md mentions knowledge flywheel
 PASS: SKILL.md mentions backend detection
 PASS: SKILL.md mentions quality validation
@@ -1993,7 +1993,7 @@ check "references/ has at least 3 files" "[ \$(ls '$SKILL_DIR/references/' | wc 
 check "SKILL.md mentions .agents/research/ output path" "grep -q '\.agents/research/' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions Explore agent" "grep -qi 'explore' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions --auto flag" "grep -q '\-\-auto' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions ao inject" "grep -q 'ao inject\|ao search' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions ao know inject" "grep -q 'ao know inject\|ao know search' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions knowledge flywheel" "grep -qi 'knowledge' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions backend detection" "grep -qi 'backend\|spawn' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions quality validation" "grep -qi 'coverage\|depth\|gap' '$SKILL_DIR/SKILL.md'"

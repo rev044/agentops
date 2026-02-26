@@ -39,12 +39,13 @@ type tmuxSessionMeta struct {
 	CreatedAt time.Time
 }
 
-func init() {
-	worktreeCmd := &cobra.Command{
-		Use:   "worktree",
-		Short: "Worktree maintenance utilities",
-	}
+// worktreeCmd is the parent for worktree maintenance subcommands.
+var worktreeCmd = &cobra.Command{
+	Use:   "worktree",
+	Short: "Worktree maintenance utilities",
+}
 
+func init() {
 	worktreeGCCmd := &cobra.Command{
 		Use:   "gc",
 		Short: "Garbage-collect stale RPI worktrees and orphaned tmux sessions",
@@ -64,7 +65,6 @@ Safety defaults:
 
 	worktreeCmd.AddCommand(worktreeGCCmd)
 	worktreeCmd.Hidden = true
-	rootCmd.AddCommand(worktreeCmd)
 }
 
 // finalizeWorktreeGC handles pruning and prints the summary message.

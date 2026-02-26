@@ -137,11 +137,13 @@ const (
 	contextReadinessCritical = "CRITICAL"
 )
 
+// contextCmd is the parent command for context operations (hidden).
+var contextCmd = &cobra.Command{
+	Use:   "context",
+	Short: "Context health telemetry and handoff guardrails",
+}
+
 func init() {
-	contextCmd := &cobra.Command{
-		Use:   "context",
-		Short: "Context health telemetry and handoff guardrails",
-	}
 
 	statusCmd := &cobra.Command{
 		Use:   "status",
@@ -177,7 +179,7 @@ Examples:
 
 	contextCmd.AddCommand(statusCmd, guardCmd)
 	contextCmd.Hidden = true
-	rootCmd.AddCommand(contextCmd)
+	workCmd.AddCommand(contextCmd)
 }
 
 func runContextStatus(cmd *cobra.Command, args []string) error {

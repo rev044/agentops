@@ -48,8 +48,7 @@ func init() {
 	goalsCmd.PersistentFlags().StringVar(&goalsFile, "file", "", "Path to goals file (auto-detects GOALS.md then GOALS.yaml)")
 	goalsCmd.PersistentFlags().BoolVar(&goalsJSON, "json", false, "Output as JSON")
 	goalsCmd.PersistentFlags().IntVar(&goalsTimeout, "timeout", 120, "Check timeout in seconds")
-	goalsCmd.GroupID = "workflow"
-	rootCmd.AddCommand(goalsCmd)
+	workCmd.AddCommand(goalsCmd)
 }
 
 // resolveGoalsFile returns the goals file path, auto-detecting if not explicitly set.

@@ -70,7 +70,7 @@ type TemperStatus struct {
 
 func init() {
 	temperCmd.Hidden = true
-	rootCmd.AddCommand(temperCmd)
+	knowCmd.AddCommand(temperCmd)
 
 	// validate subcommand
 	validateCmd := &cobra.Command{

@@ -147,7 +147,7 @@ Tell the user:
 
 ```
 Session N ends:
-  → ao forge --last-session --queue
+  → ao know forge --last-session --queue
   → Session queued in pending.jsonl
 
 Session N+1 starts:

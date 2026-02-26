@@ -33,7 +33,7 @@ Given `/implement <issue-id-or-description>`:
 
 ```bash
 # Pull knowledge scoped to this issue (if ao available)
-ao lookup --bead <issue-id> --limit 3 2>/dev/null || true
+ao know lookup --bead <issue-id> --limit 3 2>/dev/null || true
 ```
 
 ### Step 1: Get Issue Details
@@ -60,7 +60,7 @@ bd update <issue-id> --status in_progress 2>/dev/null
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao context assemble --task='<issue title and description>'
+    ao work context assemble --task='<issue title and description>'
 fi
 ```
 
@@ -253,7 +253,7 @@ if command -v ao &>/dev/null; then
 
   if [ -n "$COMMIT_HASH" ]; then
     # Record successful implementation
-    ao ratchet record implement \
+    ao work ratchet record implement \
       --output "$COMMIT_HASH" \
       --files "$CHANGED_FILES" \
       --issue "<issue-id>" \
@@ -269,7 +269,7 @@ if command -v ao &>/dev/null; then
   fi
 else
   echo "Ratchet: ao CLI not available - implementation NOT recorded"
-  echo "  Run manually: ao ratchet record implement --output <commit>"
+  echo "  Run manually: ao work ratchet record implement --output <commit>"
 fi
 ```
 
@@ -277,7 +277,7 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao ratchet record implement \
+  ao work ratchet record implement \
     --status blocked \
     --reason "<blocker description>" \
     2>/dev/null
@@ -292,7 +292,7 @@ After implementation is complete:
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao ratchet record implement --output "<issue-id>" 2>/dev/null || true
+  ao work ratchet record implement --output "<issue-id>" 2>/dev/null || true
 fi
 ```
 

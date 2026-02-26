@@ -212,7 +212,7 @@ This gives council judges a Codex-generated review as pre-existing context — c
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao search "code review findings <target>" 2>/dev/null | head -10
+    ao know search "code review findings <target>" 2>/dev/null | head -10
 fi
 ```
 If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
@@ -398,7 +398,7 @@ Tell the user:
 
 After council verdict:
 1. If verdict is PASS or WARN:
-   - Run: `ao ratchet record vibe --output "<report-path>" 2>/dev/null || true`
+   - Run: `ao work ratchet record vibe --output "<report-path>" 2>/dev/null || true`
    - Suggest: "Run $post-mortem to capture learnings and complete the cycle."
 2. If verdict is FAIL:
    - Do NOT record ratchet progress.
@@ -440,7 +440,7 @@ EOF
 
   # Index for flywheel if ao available
   if command -v ao &>/dev/null; then
-    ao forge markdown "$LEARNING_FILE" 2>/dev/null || true
+    ao know forge markdown "$LEARNING_FILE" 2>/dev/null || true
   fi
 fi
 ```

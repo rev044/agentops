@@ -54,9 +54,8 @@ Examples:
 }
 
 func init() {
-	dedupCmd.GroupID = "knowledge"
 	dedupCmd.Flags().BoolVar(&dedupMerge, "merge", false, "Auto-resolve duplicates: keep highest utility, archive the rest")
-	rootCmd.AddCommand(dedupCmd)
+	qualityCmd.AddCommand(dedupCmd)
 }
 
 func runDedup(cmd *cobra.Command, args []string) error {

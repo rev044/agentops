@@ -97,8 +97,7 @@ var curateStatusCmd = &cobra.Command{
 }
 
 func init() {
-	curateCmd.GroupID = "knowledge"
-	rootCmd.AddCommand(curateCmd)
+	qualityCmd.AddCommand(curateCmd)
 
 	curateCmd.AddCommand(curateCatalogCmd)
 	curateCmd.AddCommand(curateVerifyCmd)

@@ -188,7 +188,7 @@ for f in .agents/learnings/YYYY-MM-DD-*.md; do
 done
 ```
 
-This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`.
+This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao quality constraint activate <id>`.
 
 ### Step 5: Write Post-Mortem Report
 
@@ -377,16 +377,16 @@ Post-mortem automatically feeds learnings into the flywheel:
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao forge markdown .agents/learnings/*.md 2>/dev/null
+  ao know forge markdown .agents/learnings/*.md 2>/dev/null
   echo "Learnings indexed in knowledge flywheel"
 
   # Validate and lock artifacts that passed council review
-  ao temper validate .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
+  ao know temper validate .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
   echo "Artifacts validated for tempering"
 
   # Close session and trigger full flywheel close-loop (includes adaptive feedback)
-  ao session close 2>/dev/null || true
-  ao flywheel close-loop --quiet 2>/dev/null || true
+  ao work session close 2>/dev/null || true
+  ao quality flywheel close-loop --quiet 2>/dev/null || true
   echo "Session closed, flywheel loop triggered"
 else
   # Learnings are already in .agents/learnings/ from /retro (Step 4).
@@ -411,7 +411,7 @@ else
   EPIC_ID="<epic-id>"
   echo "{\"epic\": \"$EPIC_ID\", \"verdict\": \"<council-verdict>\", \"cycle_time_minutes\": 0, \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/outcomes.jsonl
 
-  # Skip ao temper validate (no fallback needed — tempering is an optimization)
+  # Skip ao know temper validate (no fallback needed — tempering is an optimization)
   echo "Flywheel fed locally (ao CLI not available — learnings searchable via grep)"
 fi
 ```
@@ -609,7 +609,7 @@ Ship it
 4. Runs `/retro` to extract learnings
 5. Synthesizes process improvement proposals
 6. Harvests next-work items to `.agents/rpi/next-work.jsonl`
-7. Feeds learnings to knowledge flywheel via `ao forge`
+7. Feeds learnings to knowledge flywheel via `ao know forge`
 
 **Result:** Post-mortem report with learnings, tech debt identified, and suggested next `/rpi` command.
 

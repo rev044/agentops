@@ -64,7 +64,7 @@ find .agents/ -name "*.md" -mtime +30 2>/dev/null | wc -l
 ```bash
 if command -v ao &>/dev/null; then
   # Get citation report (cache metrics)
-  CITE_REPORT=$(ao metrics cite-report --json --days 30 2>/dev/null)
+  CITE_REPORT=$(ao quality metrics cite-report --json --days 30 2>/dev/null)
   if [ -n "$CITE_REPORT" ]; then
     HIT_RATE=$(echo "$CITE_REPORT" | jq -r '.hit_rate // "unknown"')
     UNCITED=$(echo "$CITE_REPORT" | jq -r '(.uncited_learnings // []) | length')
@@ -107,11 +107,23 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao flywheel status 2>/dev/null || echo "ao flywheel status unavailable"
+  ao quality flywheel status 2>/dev/null || echo "ao quality flywheel status unavailable"
   ao status 2>/dev/null || echo "ao status unavailable"
-  ao maturity --scan 2>/dev/null || echo "ao maturity unavailable"
+  ao quality maturity --scan 2>/dev/null || echo "ao quality maturity unavailable"
   ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
   ao badge 2>/dev/null || echo "ao badge unavailable"
+
+  # Knowledge maintenance
+  ao dedup --merge 2>/dev/null || true
+  ao contradict 2>/dev/null || true
+  ao quality constraint review 2>/dev/null || true
+  ao curate status 2>/dev/null || true
+  ao quality metrics health 2>/dev/null || true
+  ao quality metrics cite-report --days 30 2>/dev/null || true
+
+  # Active pruning: archive stale, evict low-utility
+  ao quality maturity --expire --archive 2>/dev/null || true
+  ao quality maturity --evict --archive 2>/dev/null || true
 else
   echo "ao CLI not available — using file-based metrics"
 
@@ -229,7 +241,7 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | All pool counts zero | `.agents/` directory missing or empty | Run `$post-mortem` or `$retro` to seed knowledge pools |
-| Velocity always zero | No recent extractions (last 7 days) | Run `$forge` + `$extract` to process pending sessions |
+| Velocity always zero | No recent extractions (last 7 days) | Run `$retro` or `$post-mortem` to extract and index learnings |
 | "ao CLI not available" | ao command not installed or not in PATH | Install ao CLI or use manual pool counting fallback |
 | Stale artifacts >50% | Long time since last session or inactive repo | Run `$provenance --stale` to audit and archive old artifacts |
 
@@ -244,7 +256,6 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 
 ### artifact-consistency-allowlist.txt
 
-```text
 # Artifact consistency allowlist
 #
 # Format:
@@ -273,7 +284,6 @@ Read `references/cache-eviction.md` for the full eviction pipeline (passive trac
 * -> .agents/*/...*
 * -> .agents/*/foo.*
 * -> .agents/handoff/auto-99999999T999999Z.md
-```
 
 ### artifact-consistency.md
 
@@ -336,7 +346,7 @@ Passive Read tracking → Confidence decay → Maturity scan → Archive
 ```
 
 **How it works:**
-1. **Passive tracking** — `ao maturity --scan` records when learnings are accessed
+1. **Passive tracking** — `ao quality maturity --scan` records when learnings are accessed
 2. **Confidence decay** — Unused learnings lose confidence at 10%/week
 3. **Composite criteria** — Learnings are eviction candidates when ALL conditions met:
    - Utility < 0.3 (low MemRL score)
@@ -346,9 +356,9 @@ Passive Read tracking → Confidence decay → Maturity scan → Archive
 4. **Archive** — Candidates move to `.agents/archive/learnings/` (never deleted)
 
 **Commands:**
-- `ao maturity --evict` — dry-run: show eviction candidates
-- `ao maturity --evict --archive` — execute: archive candidates
-- `ao metrics cite-report --days 30` — cache health report
+- `ao quality maturity --evict` — dry-run: show eviction candidates
+- `ao quality maturity --evict --archive` — execute: archive candidates
+- `ao quality metrics cite-report --days 30` — cache health report
 
 **Kill switches:**
 - `AGENTOPS_EVICTION_DISABLED=1` — disable SessionEnd auto-eviction

@@ -9,7 +9,7 @@ metadata:
 
 # /goals — Fitness Goal Maintenance
 
-> Maintain GOALS.yaml and GOALS.md fitness specifications. Use `ao goals` CLI for all operations.
+> Maintain GOALS.yaml and GOALS.md fitness specifications. Use `ao work goals` CLI for all operations.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
@@ -44,24 +44,24 @@ Parse the user's input:
 
 | Input | Mode | CLI Command |
 |-------|------|-------------|
-| `/goals`, `/goals measure`, "goal status" | **measure** | `ao goals measure` |
-| `/goals init`, "bootstrap goals" | **init** | `ao goals init` |
-| `/goals steer`, "manage directives" | **steer** | `ao goals steer` |
-| `/goals add`, "add goal" | **add** | `ao goals add` |
-| `/goals drift`, "goal drift" | **drift** | `ao goals drift` |
-| `/goals history`, "goal history" | **history** | `ao goals history` |
-| `/goals export`, "export goals" | **export** | `ao goals export` |
-| `/goals meta`, "meta goals" | **meta** | `ao goals meta` |
-| `/goals validate`, "validate goals" | **validate** | `ao goals validate` |
-| `/goals prune`, "prune goals", "clean goals" | **prune** | `ao goals prune` |
-| `/goals migrate`, "migrate goals" | **migrate** | `ao goals migrate` |
+| `/goals`, `/goals measure`, "goal status" | **measure** | `ao work goals measure` |
+| `/goals init`, "bootstrap goals" | **init** | `ao work goals init` |
+| `/goals steer`, "manage directives" | **steer** | `ao work goals steer` |
+| `/goals add`, "add goal" | **add** | `ao work goals add` |
+| `/goals drift`, "goal drift" | **drift** | `ao work goals drift` |
+| `/goals history`, "goal history" | **history** | `ao work goals history` |
+| `/goals export`, "export goals" | **export** | `ao work goals export` |
+| `/goals meta`, "meta goals" | **meta** | `ao work goals meta` |
+| `/goals validate`, "validate goals" | **validate** | `ao work goals validate` |
+| `/goals prune`, "prune goals", "clean goals" | **prune** | `ao work goals prune` |
+| `/goals migrate`, "migrate goals" | **migrate** | `ao work goals migrate` |
 
 ## Measure Mode (default) — Observe
 
 ### Step 1: Run Measurement
 
 ```bash
-ao goals measure --json
+ao work goals measure --json
 ```
 
 Parse the JSON output. Extract per-goal pass/fail, overall fitness score.
@@ -71,7 +71,7 @@ Parse the JSON output. Extract per-goal pass/fail, overall fitness score.
 If the goals file is GOALS.md format:
 
 ```bash
-ao goals measure --directives
+ao work goals measure --directives
 ```
 
 For each directive, assess whether recent work has addressed it:
@@ -98,12 +98,12 @@ Directives:
 ## Init Mode
 
 ```bash
-ao goals init
+ao work goals init
 ```
 
 Or with defaults:
 ```bash
-ao goals init --non-interactive
+ao work goals init --non-interactive
 ```
 
 Creates a new GOALS.md with mission, north/anti stars, first directive, and auto-detected gates. Error if file already exists.
@@ -125,9 +125,9 @@ Based on measurement:
 
 Use CLI commands:
 ```bash
-ao goals steer add "Title" --description="..." --steer=increase
-ao goals steer remove 3
-ao goals steer prioritize 2 1
+ao work goals steer add "Title" --description="..." --steer=increase
+ao work goals steer remove 3
+ao work goals steer prioritize 2 1
 ```
 
 ## Add Mode
@@ -135,7 +135,7 @@ ao goals steer prioritize 2 1
 Add a single goal to the goals file. Format-aware — writes to GOALS.yaml or GOALS.md depending on which format is detected.
 
 ```bash
-ao goals add <id> <check-command> --weight=5 --description="..." --type=health
+ao work goals add <id> <check-command> --weight=5 --description="..." --type=health
 ```
 
 | Flag | Default | Description |
@@ -146,7 +146,7 @@ ao goals add <id> <check-command> --weight=5 --description="..." --type=health
 
 Example:
 ```bash
-ao goals add go-coverage-floor "bash scripts/check-coverage.sh" --weight=3 --description="Go test coverage above 60%"
+ao work goals add go-coverage-floor "bash scripts/check-coverage.sh" --weight=3 --description="Go test coverage above 60%"
 ```
 
 ## Drift Mode
@@ -154,8 +154,8 @@ ao goals add go-coverage-floor "bash scripts/check-coverage.sh" --weight=3 --des
 Compare the latest measurement snapshot against a previous one to detect regressions.
 
 ```bash
-ao goals drift                    # Compare latest vs previous snapshot
-ao goals drift --since 2026-02-20  # Compare against a specific date
+ao work goals drift                    # Compare latest vs previous snapshot
+ao work goals drift --since 2026-02-20  # Compare against a specific date
 ```
 
 Reports which goals improved, regressed, or stayed unchanged.
@@ -165,10 +165,10 @@ Reports which goals improved, regressed, or stayed unchanged.
 Show measurement history over time for all goals or a specific goal.
 
 ```bash
-ao goals history                        # All goals, all time
-ao goals history --goal go-coverage     # Single goal
-ao goals history --since 2026-02-01     # Since a specific date
-ao goals history --goal go-coverage --since 2026-02-01  # Combined
+ao work goals history                        # All goals, all time
+ao work goals history --goal go-coverage     # Single goal
+ao work goals history --since 2026-02-01     # Since a specific date
+ao work goals history --goal go-coverage --since 2026-02-01  # Combined
 ```
 
 Useful for spotting trends and identifying oscillating goals.
@@ -178,7 +178,7 @@ Useful for spotting trends and identifying oscillating goals.
 Export the latest fitness snapshot as JSON for CI consumption or external tooling.
 
 ```bash
-ao goals export
+ao work goals export
 ```
 
 Outputs the snapshot to stdout in the fitness snapshot schema (see `references/goals-schema.md`).
@@ -188,7 +188,7 @@ Outputs the snapshot to stdout in the fitness snapshot schema (see `references/g
 Run only meta-goals (goals that validate the validation system itself). Useful for checking allowlist hygiene, skip-list freshness, and other self-referential checks.
 
 ```bash
-ao goals meta --json
+ao work goals meta --json
 ```
 
 See `references/goals-schema.md` for the meta-goal pattern.
@@ -196,7 +196,7 @@ See `references/goals-schema.md` for the meta-goal pattern.
 ## Validate Mode
 
 ```bash
-ao goals validate --json
+ao work goals validate --json
 ```
 
 Reports: goal count, version, format, directive count, any structural errors or warnings.
@@ -204,8 +204,8 @@ Reports: goal count, version, format, directive count, any structural errors or 
 ## Prune Mode
 
 ```bash
-ao goals prune --dry-run    # List stale gates
-ao goals prune              # Remove stale gates
+ao work goals prune --dry-run    # List stale gates
+ao work goals prune              # Remove stale gates
 ```
 
 Identifies gates whose check commands reference nonexistent paths. Removes them and re-renders the file.
@@ -215,8 +215,8 @@ Identifies gates whose check commands reference nonexistent paths. Removes them 
 Convert between goal file formats.
 
 ```bash
-ao goals migrate --to-md      # Convert GOALS.yaml → GOALS.md
-ao goals migrate               # Migrate GOALS.yaml to latest YAML version
+ao work goals migrate --to-md      # Convert GOALS.yaml → GOALS.md
+ao work goals migrate               # Migrate GOALS.yaml to latest YAML version
 ```
 
 The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, and converts existing goals into the Gates table format. The original YAML file is backed up.
@@ -228,8 +228,8 @@ The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, a
 **User says:** `/goals`
 
 **What happens:**
-1. Runs `ao goals measure --json` to get gate results
-2. If GOALS.md format, runs `ao goals measure --directives` to get directive list
+1. Runs `ao work goals measure --json` to get gate results
+2. If GOALS.md format, runs `ao work goals measure --directives` to get directive list
 3. Assesses each directive against recent work
 4. Reports combined fitness + directive gap dashboard
 
@@ -240,7 +240,7 @@ The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, a
 **User says:** `/goals init`
 
 **What happens:**
-1. Runs `ao goals init` which prompts for mission, stars, directives, and auto-detects gates
+1. Runs `ao work goals init` which prompts for mission, stars, directives, and auto-detects gates
 2. Creates GOALS.md in the project root
 
 **Result:** New GOALS.md ready for `/evolve` consumption.
@@ -250,7 +250,7 @@ The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, a
 **User says:** `/goals drift --since 2026-02-20`
 
 **What happens:**
-1. Runs `ao goals drift --since 2026-02-20`
+1. Runs `ao work goals drift --since 2026-02-20`
 2. Compares current snapshot against the one from that date
 3. Reports improved/regressed/unchanged goals
 
@@ -261,7 +261,7 @@ The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, a
 **User says:** `/goals add go-parser-fuzz "cd cli && go test -fuzz=. ./internal/goals/ -fuzztime=10s" --weight=3 --description="Markdown parser survives fuzz testing"`
 
 **What happens:**
-1. Runs `ao goals add` with the provided arguments
+1. Runs `ao work goals add` with the provided arguments
 2. Writes the new goal in the correct format (YAML or Markdown)
 
 **Result:** New goal added, measurable on next `/goals` run.
@@ -271,11 +271,11 @@ The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, a
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | "goals file already exists" | Init called on existing project | Use `/goals` to measure, or delete file to re-init |
-| "directives require GOALS.md format" | Tried steer on YAML file | Run `ao goals migrate --to-md` first |
-| No directives in measure output | GOALS.yaml doesn't support directives | Migrate to GOALS.md with `ao goals migrate --to-md` |
+| "directives require GOALS.md format" | Tried steer on YAML file | Run `ao work goals migrate --to-md` first |
+| No directives in measure output | GOALS.yaml doesn't support directives | Migrate to GOALS.md with `ao work goals migrate --to-md` |
 | Gates referencing deleted scripts | Scripts were renamed or removed | Run `/goals prune` to clean up |
-| Drift shows no history | No prior snapshots saved | Run `ao goals measure` at least twice first |
-| Export returns empty | No snapshot file exists | Run `ao goals measure` to create initial snapshot |
+| Drift shows no history | No prior snapshots saved | Run `ao work goals measure` at least twice first |
+| Export returns empty | No snapshot file exists | Run `ao work goals measure` to create initial snapshot |
 
 ## See Also
 

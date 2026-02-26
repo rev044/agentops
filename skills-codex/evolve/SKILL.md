@@ -32,7 +32,7 @@ $evolve --quality --max-cycles=10  # Quality mode with cycle cap
 
 ```bash
 mkdir -p .agents/evolve
-ao inject 2>/dev/null || true
+ao know inject 2>/dev/null || true
 ```
 
 Recover cycle number and idle streak from disk (survives context compaction):
@@ -76,7 +76,7 @@ Skip if `--skip-baseline` or `--beads-only` or baseline already exists.
 
 ```bash
 if [ ! -f .agents/evolve/fitness-0-baseline.json ]; then
-  ao goals measure --json --timeout 60 > .agents/evolve/fitness-0-baseline.json
+  ao work goals measure --json --timeout 60 > .agents/evolve/fitness-0-baseline.json
 fi
 ```
 
@@ -95,12 +95,12 @@ CYCLE_START_SHA=$(git rev-parse HEAD)
 Skip if `--beads-only`.
 
 ```bash
-ao goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
+ao work goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
 ```
 
 **Do NOT write per-cycle `fitness-{N}-pre.json` files.** The rolling file is sufficient for work selection and regression detection.
 
-This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is unavailable, read `GOALS.yaml` and run each goal's `check` command manually. Mark timeouts as `"result": "skip"`.
+This writes a fitness snapshot to `.agents/evolve/`. If `ao work goals measure` is unavailable, read `GOALS.yaml` and run each goal's `check` command manually. Mark timeouts as `"result": "skip"`.
 
 ### Step 3: Select Work
 
@@ -125,7 +125,7 @@ fi
 **Step 3.1: Directive gap** (skip if `--beads-only`):
 ```bash
 # Get directives from GOALS.md
-DIRECTIVES=$(ao goals measure --directives 2>/dev/null)
+DIRECTIVES=$(ao work goals measure --directives 2>/dev/null)
 ```
 If directives exist, assess the top-priority directive (lowest number, non-quarantined):
 - Check git log for recent commits addressing it
@@ -229,7 +229,7 @@ bash scripts/check-wiring-closure.sh
 
 If not `--beads-only`, also re-measure to produce a post-cycle snapshot:
 ```bash
-ao goals measure --json --timeout 60 --goal $GOAL_ID > .agents/evolve/fitness-latest-post.json
+ao work goals measure --json --timeout 60 --goal $GOAL_ID > .agents/evolve/fitness-latest-post.json
 
 # Extract goal counts for cycle history entry
 PASSING=$(jq '[.goals[] | select(.result=="pass")] | length' .agents/evolve/fitness-latest-post.json 2>/dev/null || echo 0)
@@ -367,7 +367,7 @@ See `references/examples.md` for detailed walkthroughs.
 |---------|----------|
 | Loop exits immediately | Remove `~/.config/evolve/KILL` or `.agents/evolve/STOP` |
 | Stagnation after 3 idle cycles | All work sources empty — this is success |
-| `ao goals measure` hangs | Use `--timeout 30` flag or `--beads-only` to skip |
+| `ao work goals measure` hangs | Use `--timeout 30` flag or `--beads-only` to skip |
 | Regression gate reverts | Review reverted changes, narrow scope, re-run |
 
 See `references/cycle-history.md` for advanced troubleshooting.
@@ -450,12 +450,12 @@ Two mechanisms feed the loop:
 **1. Knowledge flywheel (each cycle is smarter):**
 ```
 Session 1:
-  ao inject (nothing yet)         → cycle runs blind
-  $rpi fixes test-pass-rate       → post-mortem runs ao forge
+  ao know inject (nothing yet)         → cycle runs blind
+  $rpi fixes test-pass-rate       → post-mortem runs ao know forge
   Learnings extracted: "tests/skills/run-all.sh validates frontmatter"
 
 Session 2:
-  ao inject (loads Session 1 learnings)  → cycle knows about frontmatter validation
+  ao know inject (loads Session 1 learnings)  → cycle knows about frontmatter validation
   $rpi fixes doc-coverage                → approach informed by prior learning
   Learnings extracted: "references/ dirs need at least one .md file"
 ```
@@ -863,7 +863,7 @@ GOALS.md extends the YAML format with strategic intent:
 ### Evolve Integration
 
 When GOALS.md is detected, evolve uses the directive-based cascade (Step 3.1):
-1. `ao goals measure --directives` returns the directive list as JSON
+1. `ao work goals measure --directives` returns the directive list as JSON
 2. Top-priority directive (lowest number) is assessed for gaps
 3. If gap found → generates work item from directive description + steer
 4. Directive becomes the work source for the cycle
@@ -872,7 +872,7 @@ When `--beads-only` is passed, directive assessment is skipped entirely.
 
 ### Format Detection
 
-`ao goals measure` auto-detects format. When both GOALS.yaml and GOALS.md exist, GOALS.md takes precedence.
+`ao work goals measure` auto-detects format. When both GOALS.yaml and GOALS.md exist, GOALS.md takes precedence.
 
 ### oscillation.md
 

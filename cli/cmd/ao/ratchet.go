@@ -81,8 +81,7 @@ func init() {
 		&cobra.Group{ID: "search", Title: "Search & Trace:"},
 		&cobra.Group{ID: "management", Title: "Management:"},
 	)
-	ratchetCmd.GroupID = "workflow"
-	rootCmd.AddCommand(ratchetCmd)
+	workCmd.AddCommand(ratchetCmd)
 }
 
 func statusIcon(status ratchet.StepStatus) string {

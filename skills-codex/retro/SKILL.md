@@ -150,7 +150,7 @@ for f in .agents/learnings/YYYY-MM-DD-*.md; do
 done
 ```
 
-This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`.
+This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao quality constraint activate <id>`.
 
 ### Step 6: Write Retro Summary
 
@@ -223,14 +223,25 @@ $rpi "<highest-value item>"
 ### Step 7: Feed the Knowledge Flywheel (auto-extract)
 
 ```bash
-# If ao available, index via forge and apply task feedback
+# If ao available, index via forge, close session, and trigger flywheel
 if command -v ao &>/dev/null; then
-  ao forge markdown .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null
+  ao know forge markdown .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null
   echo "Learnings indexed in knowledge flywheel"
 
   # Apply feedback from completed tasks to associated learnings
   ao task-feedback 2>/dev/null
   echo "Task feedback applied"
+
+  # Close session and trigger full flywheel close-loop
+  ao work session close 2>/dev/null || true
+  ao quality flywheel close-loop --quiet 2>/dev/null || true
+  echo "Session closed, flywheel loop triggered"
+
+  # Sync insights to MEMORY.md immediately (don't wait for session end)
+  ao settings notebook update --quiet 2>/dev/null || true
+
+  # Flag stale constraints for retirement
+  ao quality constraint review 2>/dev/null || true
 else
   # Learnings are already written to .agents/learnings/ by Step 5.
   # Without ao CLI, grep-based search in $research, $knowledge, and $inject
@@ -271,7 +282,7 @@ Tell the user:
 
 Learnings feed future research:
 ```
-Work → $retro → improvements + learnings → ao forge markdown → $research finds it
+Work → $retro → improvements + learnings → ao know forge markdown → $research finds it
 ```
 
 Future sessions start smarter because of your retrospective.
@@ -290,7 +301,7 @@ Future sessions start smarter because of your retrospective.
 5. Agent identifies 4 learnings: L1 (token expiry pattern), L2 (middleware ordering matters), L3 (test coverage caught edge case), L4 (documentation prevents support load)
 6. Agent writes learnings file to `.agents/learnings/2026-02-13-auth-refactor.md`
 7. Agent writes retro summary to `.agents/retros/2026-02-13-auth-refactor.md`
-8. Agent runs `ao forge markdown` to add learnings to knowledge base
+8. Agent runs `ao know forge markdown` to add learnings to knowledge base
 
 **Result:** 4 learnings extracted and indexed, retro summary documents what went well and improvements needed.
 
@@ -304,7 +315,7 @@ Future sessions start smarter because of your retrospective.
 3. Agent reviews recent commits for context
 4. Agent creates 6 learnings: 2 from vibe findings (what to avoid), 4 from successful patterns (what to repeat)
 5. Agent writes both learnings and retro files
-6. Agent indexes knowledge automatically via ao forge
+6. Agent indexes knowledge automatically via ao know forge
 
 **Result:** Vibe findings incorporated into learnings, preventing same issues in future work.
 
@@ -314,7 +325,7 @@ Future sessions start smarter because of your retrospective.
 |---------|-------|----------|
 | No recent activity found | Clean git history or work not committed yet | Ask user what to retrospect. Accept manual topic: `$retro "planning process improvements"`. Review uncommitted changes if needed. |
 | Learnings too generic | Insufficient analysis or surface-level review | Dig deeper into code changes. Ask "why" repeatedly. Ensure learnings are actionable (specific pattern, not vague principle). Check confidence level. |
-| ao forge markdown fails | ao CLI not installed or .agents/ structure wrong | Graceful fallback: index learnings locally to `.agents/ao/search-index.jsonl`. Notify user ao not available. Learnings still in `.agents/learnings/` and discoverable via grep-based search. |
+| ao know forge markdown fails | ao CLI not installed or .agents/ structure wrong | Graceful fallback: index learnings locally to `.agents/ao/search-index.jsonl`. Notify user ao not available. Learnings still in `.agents/learnings/` and discoverable via grep-based search. |
 | Duplicate learnings extracted | Same insight from multiple sources | Deduplicate before writing. Check existing learnings with grep. Merge duplicates into single learning with multiple source citations. |
 
 ## Reference Documents
@@ -872,7 +883,7 @@ check "references/ has at least 1 file" "[ \$(ls '$SKILL_DIR/references/' | wc -
 check "SKILL.md mentions .agents/learnings/ output" "grep -q '\.agents/learnings/' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions .agents/retros/ output" "grep -q '\.agents/retros/' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions knowledge flywheel" "grep -qi 'flywheel' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions ao forge" "grep -q 'ao forge' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions ao know forge" "grep -q 'ao know forge' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions learning categories" "grep -qi 'category\|debugging\|architecture\|process' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions confidence levels" "grep -qi 'confidence.*high\|high.*medium.*low' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions vibe results integration" "grep -qi 'vibe.results\|vibe-results' '$SKILL_DIR/SKILL.md'"

@@ -46,8 +46,6 @@ func init() {
 	memorySyncCmd.Flags().StringVar(&memorySyncOutput, "output", "", "Output path (default: MEMORY.md in repo root)")
 
 	memoryCmd.AddCommand(memorySyncCmd)
-	memoryCmd.GroupID = "knowledge"
-	rootCmd.AddCommand(memoryCmd)
 }
 
 func runMemorySync(cmd *cobra.Command, args []string) error {

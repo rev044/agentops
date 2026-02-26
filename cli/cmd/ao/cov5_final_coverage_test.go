@@ -55,7 +55,6 @@ func cov5SetupTempWorkdir(t *testing.T) string {
 		".agents/rpi",
 		".agents/rpi/runs",
 		".agents/knowledge/pending",
-		".agents/mail",
 	}
 	for _, d := range dirs {
 		if err := os.MkdirAll(filepath.Join(tmp, d), 0o755); err != nil {
@@ -276,24 +275,6 @@ func TestCov5_runPoolMigrateLegacy_DryRun(t *testing.T) {
 	cov5ResetFlags()
 
 	out, err := executeCommand("quality", "pool", "migrate-legacy", "--dry-run")
-	_ = out
-	_ = err
-}
-
-func TestCov5_runMailSend_DryRun(t *testing.T) {
-	_ = cov5SetupTempWorkdir(t)
-	cov5ResetFlags()
-
-	out, err := executeCommand("mail", "send", "--to", "testuser", "--body", "hello world", "--dry-run")
-	_ = out
-	_ = err
-}
-
-func TestCov5_runMailSend(t *testing.T) {
-	_ = cov5SetupTempWorkdir(t)
-	cov5ResetFlags()
-
-	out, err := executeCommand("mail", "send", "--to", "testuser", "--body", "hello world")
 	_ = out
 	_ = err
 }

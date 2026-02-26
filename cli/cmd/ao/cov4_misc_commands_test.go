@@ -52,14 +52,6 @@ func TestCov4_HooksInstall(t *testing.T) {
 	_, _ = executeCommand("hooks", "install", "--dry-run")
 }
 
-func TestCov4_Inbox(t *testing.T) {
-	cov4MiscSetup(t)
-	// No messages file — should print "No messages" and return nil
-	out, err := executeCommand("inbox")
-	_ = out
-	_ = err
-}
-
 func TestCov4_Inject(t *testing.T) {
 	cov4MiscSetup(t)
 	// Inject with no knowledge artifacts — should succeed gracefully

@@ -32,8 +32,7 @@ Examples:
 }
 
 func init() {
-	flywheelCmd.GroupID = "knowledge"
-	rootCmd.AddCommand(flywheelCmd)
+	qualityCmd.AddCommand(flywheelCmd)
 
 	// flywheel status subcommand
 	statusCmd := &cobra.Command{

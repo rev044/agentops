@@ -98,7 +98,7 @@ Commands:
 
 func init() {
 	storeCmd.Hidden = true
-	rootCmd.AddCommand(storeCmd)
+	knowCmd.AddCommand(storeCmd)
 
 	// index subcommand
 	indexCmd := &cobra.Command{

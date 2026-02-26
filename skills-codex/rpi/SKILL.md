@@ -133,7 +133,7 @@ After discovery completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao ratchet record research 2>/dev/null || true
+ao work ratchet record research 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-1" "discovery complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=1 phase_name=discovery 2>/dev/null || true
 ```
@@ -160,7 +160,7 @@ After implementation completes:
 4. Record ratchet and telemetry:
 
 ```bash
-ao ratchet record implement 2>/dev/null || true
+ao work ratchet record implement 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-2" "implementation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=2 phase_name=implementation 2>/dev/null || true
 ```
@@ -184,7 +184,7 @@ After validation completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao ratchet record vibe 2>/dev/null || true
+ao work ratchet record vibe 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-3" "validation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=validation 2>/dev/null || true
 ```
@@ -288,7 +288,7 @@ The complexity level is persisted in `.agents/rpi/phased-state.json` as the `com
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Supervisor spiraled branch count | Detached HEAD healing or legacy `codex/auto-rpi-*` naming created detached branches | Keep `--detached-heal` off for supervisor mode (default), prefer detached worktree execution, then run cleanup: `ao rpi cleanup --all --prune-worktrees --prune-branches --dry-run` to preview, then rerun without `--dry-run`. |
+| Supervisor spiraled branch count | Detached HEAD healing or legacy `codex/auto-rpi-*` naming created detached branches | Keep `--detached-heal` off for supervisor mode (default), prefer detached worktree execution, then run cleanup: `ao work rpi cleanup --all --prune-worktrees --prune-branches --dry-run` to preview, then rerun without `--dry-run`. |
 | Discovery retries hit max attempts | Plan has unresolved risks | Review pre-mortem findings, re-run `$rpi --from=discovery` |
 | Implementation retries hit max attempts | Epic has blockers or unresolved dependencies | Inspect `bd show <epic-id>`, fix blockers, re-run `$rpi --from=implementation` |
 | Validation retries hit max attempts | Vibe found critical defects repeatedly | Apply findings, re-run `$rpi --from=validation` |
@@ -297,8 +297,8 @@ The complexity level is persisted in `.agents/rpi/phased-state.json` as the `com
 
 ### Emergency control
 
-- Cancel in-flight RPI work immediately: `ao rpi cancel --all` (or `--run-id <id>` for one run).
-- Remove stale worktrees and legacy branches: `ao rpi cleanup --all --prune-worktrees --prune-branches`.
+- Cancel in-flight RPI work immediately: `ao work rpi cancel --all` (or `--run-id <id>` for one run).
+- Remove stale worktrees and legacy branches: `ao work rpi cleanup --all --prune-worktrees --prune-branches`.
 
 ## See Also
 
