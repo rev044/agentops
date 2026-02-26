@@ -47,6 +47,12 @@ type parallelManifestFile struct {
 	Epics []parallelEpic `json:"epics" yaml:"epics"`
 }
 
+// worktreeInfo holds the path and branch for a parallel worktree.
+type worktreeInfo struct {
+	path   string
+	branch string
+}
+
 func init() {
 	parallelCmd := &cobra.Command{
 		Use:   "parallel [goals...]",
@@ -96,32 +102,9 @@ Manifest format (JSON):
 }
 
 func runRPIParallel(cmd *cobra.Command, args []string) error {
-	// Resolve epics from manifest or args.
-	epics, err := resolveParallelEpics(args)
+	epics, baseCwd, runtimeCmd, err := validateParallelPrereqs(args)
 	if err != nil {
 		return err
-	}
-	if len(epics) == 0 {
-		return fmt.Errorf("no epics to run (provide goals as arguments or use --manifest)")
-	}
-
-	baseCwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
-	}
-
-	// Verify git repo.
-	if _, err := exec.Command("git", "rev-parse", "--is-inside-work-tree").Output(); err != nil {
-		return fmt.Errorf("not a git repository (required for worktree isolation)")
-	}
-
-	// Resolve runtime command.
-	runtimeCmd := "claude"
-	if parallelRuntimeCmd != "" {
-		runtimeCmd = parallelRuntimeCmd
-	}
-	if _, err := exec.LookPath(runtimeCmd); err != nil {
-		return fmt.Errorf("runtime command %q not found on PATH", runtimeCmd)
 	}
 
 	if GetDryRun() {
@@ -138,11 +121,111 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println()
 
-	// Create worktrees.
-	type worktreeInfo struct {
-		path   string
-		branch string
+	worktrees, err := createParallelWorktrees(baseCwd, epics)
+	if err != nil {
+		return err
 	}
+
+	logDir := filepath.Join(baseCwd, ".agents", "rpi", "parallel")
+	_ = os.MkdirAll(logDir, 0o755)
+
+	const tmuxSession = "rpi-parallel"
+	tmuxCmd, err := setupTmuxSession(tmuxSession)
+	if err != nil {
+		return err
+	}
+
+	results := spawnParallelEpics(epics, worktrees, runtimeCmd, logDir, tmuxSession, tmuxCmd, parallelPhaseTimeout)
+
+	allSuccess := reportParallelResults(results, epics, parallelTmux, tmuxSession, tmuxCmd)
+
+	if parallelNoMerge {
+		fmt.Println("--no-merge: worktrees left in place for manual review:")
+		for i, wt := range worktrees {
+			fmt.Printf("  %s: %s (branch: %s)\n", epics[i].Name, wt.path, wt.branch)
+		}
+		return nil
+	}
+
+	if !allSuccess {
+		fmt.Println("Some epics failed. Merging only successful ones.")
+	}
+
+	mergedCount, err := mergeParallelWorktrees(epics, results, worktrees)
+	if err != nil {
+		return err
+	}
+
+	cleanupParallelWorktrees(worktrees, results)
+
+	if err := runParallelGateScript(baseCwd, mergedCount); err != nil {
+		return err
+	}
+
+	fmt.Printf("\nao rpi parallel: %d/%d epics merged successfully\n", mergedCount, len(epics))
+	return nil
+}
+
+// cleanupParallelWorktrees removes worktrees and deletes branches for successful epics.
+func cleanupParallelWorktrees(worktrees []worktreeInfo, results []parallelResult) {
+	for i, wt := range worktrees {
+		_ = exec.Command("git", "worktree", "remove", "--force", wt.path).Run()
+		if results[i].Success {
+			_ = exec.Command("git", "branch", "-d", wt.branch).Run()
+		}
+	}
+}
+
+// runParallelGateScript runs the optional gate validation script after merges.
+func runParallelGateScript(baseCwd string, mergedCount int) error {
+	if parallelGateScript == "" || mergedCount == 0 {
+		return nil
+	}
+	fmt.Printf("Running gate: %s\n", parallelGateScript)
+	gateCmd := exec.Command("bash", parallelGateScript)
+	gateCmd.Dir = baseCwd
+	gateCmd.Stdout = os.Stdout
+	gateCmd.Stderr = os.Stderr
+	if err := gateCmd.Run(); err != nil {
+		return fmt.Errorf("gate script failed: %w", err)
+	}
+	fmt.Println("Gate: PASS")
+	return nil
+}
+
+// validateParallelPrereqs resolves epics, validates git repo, and resolves the runtime command.
+func validateParallelPrereqs(args []string) ([]parallelEpic, string, string, error) {
+	epics, err := resolveParallelEpics(args)
+	if err != nil {
+		return nil, "", "", err
+	}
+	if len(epics) == 0 {
+		return nil, "", "", fmt.Errorf("no epics to run (provide goals as arguments or use --manifest)")
+	}
+
+	baseCwd, err := os.Getwd()
+	if err != nil {
+		return nil, "", "", fmt.Errorf("get working directory: %w", err)
+	}
+
+	if _, err := exec.Command("git", "rev-parse", "--is-inside-work-tree").Output(); err != nil {
+		return nil, "", "", fmt.Errorf("not a git repository (required for worktree isolation)")
+	}
+
+	runtimeCmd := "claude"
+	if parallelRuntimeCmd != "" {
+		runtimeCmd = parallelRuntimeCmd
+	}
+	if _, err := exec.LookPath(runtimeCmd); err != nil {
+		return nil, "", "", fmt.Errorf("runtime command %q not found on PATH", runtimeCmd)
+	}
+
+	return epics, baseCwd, runtimeCmd, nil
+}
+
+// createParallelWorktrees creates git worktrees for each epic.
+// On failure, cleans up previously created worktrees.
+func createParallelWorktrees(baseCwd string, epics []parallelEpic) ([]worktreeInfo, error) {
 	worktrees := make([]worktreeInfo, len(epics))
 	for i, e := range epics {
 		branch := "epic/" + e.Name
@@ -160,37 +243,40 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 				_ = exec.Command("git", "worktree", "remove", "--force", worktrees[j].path).Run()
 				_ = exec.Command("git", "branch", "-D", worktrees[j].branch).Run()
 			}
-			return fmt.Errorf("create worktree for %s: %s: %w", e.Name, string(out), err)
+			return nil, fmt.Errorf("create worktree for %s: %s: %w", e.Name, string(out), err)
 		}
 		worktrees[i] = worktreeInfo{path: wtPath, branch: branch}
 		fmt.Printf("  worktree: %s → %s\n", e.Name, branch)
 	}
 	fmt.Println()
+	return worktrees, nil
+}
 
-	// Create log directory.
-	logDir := filepath.Join(baseCwd, ".agents", "rpi", "parallel")
-	_ = os.MkdirAll(logDir, 0o755)
-
-	// Set up tmux session if requested.
-	const tmuxSession = "rpi-parallel"
-	tmuxCmd := ""
-	if parallelTmux {
-		tmuxCmd = effectiveTmuxCommand("")
-		if _, err := exec.LookPath(tmuxCmd); err != nil {
-			return fmt.Errorf("tmux not found on PATH (required for --tmux)")
-		}
-		// Kill stale session.
-		_ = exec.Command(tmuxCmd, "kill-session", "-t", tmuxSession).Run()
-		// Create session with a temporary setup window.
-		if out, err := exec.Command(tmuxCmd, "new-session", "-d", "-s", tmuxSession, "-n", "_setup").CombinedOutput(); err != nil {
-			return fmt.Errorf("create tmux session: %s: %w", string(out), err)
-		}
-		// Keep panes visible after command exits.
-		_ = exec.Command(tmuxCmd, "set-option", "-t", tmuxSession, "remain-on-exit", "on").Run()
-		fmt.Printf("Attach: tmux attach -t %s\n\n", tmuxSession)
+// setupTmuxSession sets up a tmux session for parallel epic visibility.
+// Returns the tmux command path (empty if tmux not requested) and any error.
+func setupTmuxSession(tmuxSession string) (string, error) {
+	if !parallelTmux {
+		return "", nil
 	}
+	tmuxCmd := effectiveTmuxCommand("")
+	if _, err := exec.LookPath(tmuxCmd); err != nil {
+		return "", fmt.Errorf("tmux not found on PATH (required for --tmux)")
+	}
+	// Kill stale session.
+	_ = exec.Command(tmuxCmd, "kill-session", "-t", tmuxSession).Run()
+	// Create session with a temporary setup window.
+	if out, err := exec.Command(tmuxCmd, "new-session", "-d", "-s", tmuxSession, "-n", "_setup").CombinedOutput(); err != nil {
+		return "", fmt.Errorf("create tmux session: %s: %w", string(out), err)
+	}
+	// Keep panes visible after command exits.
+	_ = exec.Command(tmuxCmd, "set-option", "-t", tmuxSession, "remain-on-exit", "on").Run()
+	fmt.Printf("Attach: tmux attach -t %s\n\n", tmuxSession)
+	return tmuxCmd, nil
+}
 
-	// Spawn all epics in parallel.
+// spawnParallelEpics dispatches all epics concurrently via goroutines, using tmux or direct mode.
+// Returns a results slice indexed by epic position.
+func spawnParallelEpics(epics []parallelEpic, worktrees []worktreeInfo, runtimeCmd, logDir, tmuxSession, tmuxCmd string, timeout time.Duration) []parallelResult {
 	results := make([]parallelResult, len(epics))
 	var wg sync.WaitGroup
 
@@ -203,9 +289,9 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 			logFile := filepath.Join(logDir, epic.Name+".log")
 			var result parallelResult
 			if parallelTmux {
-				result = runParallelEpicTmux(epic, wt.path, wt.branch, runtimeCmd, logFile, logDir, tmuxSession, tmuxCmd, parallelPhaseTimeout)
+				result = runParallelEpicTmux(epic, wt.path, wt.branch, runtimeCmd, logFile, logDir, tmuxSession, tmuxCmd, timeout)
 			} else {
-				result = runParallelEpic(epic, wt.path, wt.branch, runtimeCmd, logFile, parallelPhaseTimeout)
+				result = runParallelEpic(epic, wt.path, wt.branch, runtimeCmd, logFile, timeout)
 			}
 			result.Duration = time.Since(start)
 			result.LogFile = logFile
@@ -224,11 +310,16 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	// Clean up tmux setup window.
-	if parallelTmux {
+	if parallelTmux && tmuxCmd != "" {
 		_ = exec.Command(tmuxCmd, "kill-window", "-t", tmuxSession+":_setup").Run()
 	}
 
-	// Report results.
+	return results
+}
+
+// reportParallelResults prints success/fail for each epic and handles tmux session message.
+// Returns true if all epics succeeded.
+func reportParallelResults(results []parallelResult, epics []parallelEpic, tmux bool, tmuxSession, tmuxCmd string) bool {
 	allSuccess := true
 	for _, r := range results {
 		if !r.Success {
@@ -240,24 +331,16 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println()
 
-	if parallelTmux {
+	if tmux {
 		fmt.Printf("Session %s still alive. Kill with: tmux kill-session -t %s\n\n", tmuxSession, tmuxSession)
 	}
 
-	// Merge worktrees back to main.
-	if parallelNoMerge {
-		fmt.Println("--no-merge: worktrees left in place for manual review:")
-		for i, wt := range worktrees {
-			fmt.Printf("  %s: %s (branch: %s)\n", epics[i].Name, wt.path, wt.branch)
-		}
-		return nil
-	}
+	return allSuccess
+}
 
-	if !allSuccess {
-		fmt.Println("Some epics failed. Merging only successful ones.")
-	}
-
-	// Determine merge order.
+// mergeParallelWorktrees resolves merge order and merges successful epic branches.
+// Returns merged count and any merge conflict error.
+func mergeParallelWorktrees(epics []parallelEpic, results []parallelResult, worktrees []worktreeInfo) (int, error) {
 	mergeIndices := resolveMergeOrder(epics, results)
 
 	mergedCount := 0
@@ -279,36 +362,14 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s ", worktrees[j].branch)
 			}
 			fmt.Println()
-			return fmt.Errorf("merge conflict on %s: %w", branch, err)
+			return mergedCount, fmt.Errorf("merge conflict on %s: %w", branch, err)
 		}
 		mergedCount++
 		fmt.Printf("MERGED: %s (%s)\n", epics[idx].Name, branch)
 	}
 	fmt.Println()
 
-	// Clean up worktrees.
-	for i, wt := range worktrees {
-		_ = exec.Command("git", "worktree", "remove", "--force", wt.path).Run()
-		if results[i].Success {
-			_ = exec.Command("git", "branch", "-d", wt.branch).Run()
-		}
-	}
-
-	// Run gate script if specified.
-	if parallelGateScript != "" && mergedCount > 0 {
-		fmt.Printf("Running gate: %s\n", parallelGateScript)
-		gateCmd := exec.Command("bash", parallelGateScript)
-		gateCmd.Dir = baseCwd
-		gateCmd.Stdout = os.Stdout
-		gateCmd.Stderr = os.Stderr
-		if err := gateCmd.Run(); err != nil {
-			return fmt.Errorf("gate script failed: %w", err)
-		}
-		fmt.Println("Gate: PASS")
-	}
-
-	fmt.Printf("\nao rpi parallel: %d/%d epics merged successfully\n", mergedCount, len(epics))
-	return nil
+	return mergedCount, nil
 }
 
 // runParallelEpic executes one epic in its worktree via ao rpi phased subprocess.
