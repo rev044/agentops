@@ -65,6 +65,7 @@ scripts/validate-go-fast.sh     # Quick Go validation (build + vet + test)
 ## CI Validation — Passing the Pipeline
 
 All pushes to `main` and PRs run `.github/workflows/validate.yml`. **Run checks locally before pushing.** The summary job gates on all checks except security-toolchain-gate (non-blocking).
+Blocking policy list (must match the validate summary failset): every job in the CI table below except jobs marked `(non-blocking)`, including `codex-runtime-sections`.
 
 ### Local Pre-Push Checklist
 
@@ -123,6 +124,7 @@ Process:
 |-----|-------------------|----------------|
 | **cli-docs-parity** | `cli/docs/COMMANDS.md` matches `ao --help` output | Adding a CLI command without running `scripts/generate-cli-reference.sh` |
 | **cli-integration** | Built CLI runs integration command matrix and hook lifecycle smoke tests | CLI command behavior drift not covered by unit tests |
+| **codex-runtime-sections** | Required Codex runtime sections and ordering remain valid | AGENTS/runtime guidance changes drift from required Codex runtime section rules |
 | **contract-compatibility-gate** | INDEX.md contract links resolve; schemas are valid JSON; orphan contracts fail unless allowlisted | Adding a contract file without cataloguing it in `docs/INDEX.md` or allowlist governance |
 | **doc-release-gate** | Skill counts match across SKILL-TIERS.md, PRODUCT.md, README.md, INDEX.md; link validation | Adding/removing a skill without running `scripts/sync-skill-counts.sh` |
 | **embedded-sync** | `cli/embedded/` matches source files in `hooks/`, `lib/`, `skills/` | Editing hooks without running `cd cli && make sync-hooks` |

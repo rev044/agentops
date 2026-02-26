@@ -237,7 +237,11 @@ run_shellcheck() {
     local files=()
     while IFS= read -r -d '' file; do
         files+=("$file")
-    done < <(find . -name "*.sh" -type f -not -path "./.git/*" -print0)
+    done < <(find . -name "*.sh" -type f \
+        -not -path "./.git/*" \
+        -not -path "./.claude/*" \
+        -not -path "./.agents/*" \
+        -print0 2>/dev/null)
 
     if [[ "${#files[@]}" -eq 0 ]]; then
         echo "No shell files found."
@@ -314,12 +318,14 @@ run_dangerous_pattern_scan() {
             --binary-files=without-match \
             --include="*.sh" \
             --exclude-dir=.git \
+            --exclude-dir=.claude \
             --exclude-dir=.agents \
             --exclude-dir=.tmp \
             --exclude-dir=tests \
             --exclude-dir=cli/testdata \
             --exclude="install-opencode.sh" \
             --exclude="install-codex.sh" \
+            --exclude="install-codex-native-skills.sh" \
             --exclude="ci-local-release.sh" \
             . 2>/dev/null; then
             echo "Found dangerous pattern: $pattern"
@@ -426,12 +432,12 @@ run_hooks_install_smoke() {
     tmp_home="$(mktemp -d)"
     local rc=0
 
-    HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" settings hooks install || rc=$?
+    HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" hooks install || rc=$?
     if [[ "$rc" -eq 0 ]]; then
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" settings hooks show || rc=$?
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" hooks show || rc=$?
     fi
     if [[ "$rc" -eq 0 ]]; then
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" settings hooks install --full --source-dir "$REPO_ROOT" --force || rc=$?
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" hooks install --full --source-dir "$REPO_ROOT" --force || rc=$?
     fi
     if [[ "$rc" -eq 0 ]] && [[ ! -f "$tmp_home/.claude/settings.json" ]]; then
         rc=1
@@ -454,10 +460,10 @@ run_init_hooks_rpi_smoke() {
     git -C "$tmp_repo" init -q
     (
         cd "$tmp_repo"
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" start init --hooks
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" work rpi status
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" work rpi --help >/dev/null
-        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" work rpi phased --help >/dev/null
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" init --hooks
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" rpi status
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" rpi --help >/dev/null
+        HOME="$tmp_home" "$REPO_ROOT/cli/bin/ao" rpi phased --help >/dev/null
     ) || rc=$?
 
     rm -rf "$tmp_home" "$tmp_repo"
