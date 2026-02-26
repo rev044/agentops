@@ -1594,16 +1594,7 @@ func TestHelper2_resolveLoopConfigPaths(t *testing.T) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-func writeFile(t *testing.T, path, content string) {
-	t.Helper()
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
-}
+// writeFile moved to testutil_test.go.
 
 // newTestRPICommand creates a minimal cobra.Command with the flags that
 // applySupervisorBoolDefaults and applySupervisorPolicyDefaults check.

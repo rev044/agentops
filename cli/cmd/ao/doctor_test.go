@@ -125,20 +125,7 @@ func TestCountFiles(t *testing.T) {
 
 // --- Integration tests for doctor check functions ---
 
-// chdirTemp changes to a temp dir and returns a cleanup function.
-func chdirTemp(t *testing.T) string {
-	t.Helper()
-	tmp := t.TempDir()
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prev) })
-	return tmp
-}
+// chdirTemp moved to testutil_test.go.
 
 func TestCheckKnowledgeBase(t *testing.T) {
 	t.Run("initialized", func(t *testing.T) {

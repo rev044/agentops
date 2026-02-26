@@ -461,9 +461,11 @@ func TestStreamCoverage_StartStreamWatchdogs(t *testing.T) {
 		// Very short startup timeout
 		go runStartupWatchdog(ctx, cancel, &eventCount, startedAt, 10*time.Millisecond, 50*time.Millisecond)
 
-		time.Sleep(200 * time.Millisecond)
-		if ctx.Err() == nil {
-			t.Error("expected context to be cancelled by startup watchdog")
+		select {
+		case <-ctx.Done():
+			// Success — watchdog cancelled the context.
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for startup watchdog to cancel context")
 		}
 	})
 
@@ -475,11 +477,20 @@ func TestStreamCoverage_StartStreamWatchdogs(t *testing.T) {
 		eventCount.Store(1) // Already received an event
 		startedAt := time.Now()
 
-		go runStartupWatchdog(ctx, cancel, &eventCount, startedAt, 10*time.Millisecond, 50*time.Millisecond)
+		done := make(chan struct{})
+		go func() {
+			runStartupWatchdog(ctx, cancel, &eventCount, startedAt, 10*time.Millisecond, 50*time.Millisecond)
+			close(done)
+		}()
 
-		time.Sleep(100 * time.Millisecond)
-		if ctx.Err() != nil {
-			t.Error("expected context to NOT be cancelled when events exist")
+		select {
+		case <-done:
+			// Goroutine exited — verify it did NOT cancel the context.
+			if ctx.Err() != nil {
+				t.Error("expected context to NOT be cancelled when events exist")
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for startup watchdog goroutine to exit")
 		}
 	})
 
@@ -492,9 +503,11 @@ func TestStreamCoverage_StartStreamWatchdogs(t *testing.T) {
 
 		go runStallWatchdog(ctx, cancel, &lastActivity, 10*time.Millisecond, 50*time.Millisecond)
 
-		time.Sleep(200 * time.Millisecond)
-		if ctx.Err() == nil {
-			t.Error("expected context to be cancelled by stall watchdog")
+		select {
+		case <-ctx.Done():
+			// Success — stall watchdog cancelled the context.
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for stall watchdog to cancel context")
 		}
 	})
 

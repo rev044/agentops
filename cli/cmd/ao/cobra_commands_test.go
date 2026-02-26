@@ -117,45 +117,8 @@ func executeCommand(args ...string) (string, error) {
 	return combined, err
 }
 
-// setupTempWorkdir creates a temp dir, changes to it, and returns a cleanup func.
-func setupTempWorkdir(t *testing.T) string {
-	t.Helper()
-	tmp := t.TempDir()
-	orig, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(orig) })
-	return tmp
-}
-
-// setupAgentsDir creates the .agents/ao directory structure in the given dir.
-func setupAgentsDir(t *testing.T, dir string) {
-	t.Helper()
-	dirs := []string{
-		".agents/ao/sessions",
-		".agents/ao/index",
-		".agents/ao/provenance",
-		".agents/ao/metrics",
-		".agents/learnings",
-		".agents/research",
-		".agents/patterns",
-		".agents/retros",
-		".agents/plans",
-		".agents/council",
-		".agents/knowledge/pending",
-		".agents/rpi",
-		".agents/constraints",
-	}
-	for _, d := range dirs {
-		if err := os.MkdirAll(filepath.Join(dir, d), 0755); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
+// setupTempWorkdir moved to testutil_test.go.
+// setupAgentsDir moved to testutil_test.go.
 
 // TestCobraCommandTreeRegistration verifies all expected commands are registered.
 // This covers all init() functions and Cobra command registration without

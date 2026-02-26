@@ -44,27 +44,7 @@ func withDoctorJSON(t *testing.T) {
 	t.Cleanup(func() { doctorJSON = prev })
 }
 
-// captureJSONStdout captures os.Stdout output during fn execution.
-// Named differently from captureStdout in rpi_verify_test.go to avoid
-// redeclaration (that helper returns (string, error) for RunE functions).
-func captureJSONStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe: %v", err)
-	}
-	oldStdout := os.Stdout
-	os.Stdout = w
-
-	fn()
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
-	return buf.String()
-}
+// captureJSONStdout moved to testutil_test.go.
 
 // assertValidJSON parses raw as JSON and fails the test if it is invalid.
 func assertValidJSON(t *testing.T, label string, raw string) {

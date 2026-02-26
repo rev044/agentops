@@ -33,39 +33,7 @@ func TestGenerateRunID(t *testing.T) {
 	}
 }
 
-// initTestRepo creates a temporary git repo with an initial commit.
-// Returns the repo root path.
-func initTestRepo(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	cmds := [][]string{
-		{"git", "init"},
-		{"git", "config", "user.email", "test@test.com"},
-		{"git", "config", "user.name", "Test"},
-	}
-	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git init setup (%v): %v\n%s", args, err, out)
-		}
-	}
-	// Create a file and commit so HEAD exists.
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Test\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	for _, args := range [][]string{
-		{"git", "add", "README.md"},
-		{"git", "commit", "-m", "Initial commit"},
-	} {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git commit setup (%v): %v\n%s", args, err, out)
-		}
-	}
-	return dir
-}
+// initTestRepo moved to testutil_test.go.
 
 func TestGetCurrentBranch(t *testing.T) {
 	repo := initTestRepo(t)

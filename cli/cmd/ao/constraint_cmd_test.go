@@ -267,17 +267,7 @@ func TestConstraintRetireRejectsMissingID(t *testing.T) {
 	}
 }
 
-func chdirTo(t *testing.T, wd string) string {
-	t.Helper()
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(wd); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	return prev
-}
+// chdirTo moved to testutil_test.go.
 
 func TestConstraintReviewJSONRoundTrip(t *testing.T) {
 	wd := t.TempDir()

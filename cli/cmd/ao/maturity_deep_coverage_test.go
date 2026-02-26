@@ -36,18 +36,7 @@ func cov3W2SetupMaturityDir(t *testing.T) (string, string) {
 	return tmp, learningsDir
 }
 
-// cov3W2ChdirTemp changes to a temp directory and registers cleanup to restore.
-func cov3W2ChdirTemp(t *testing.T, dir string) {
-	t.Helper()
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chdir(origDir) })
-}
+// cov3W2ChdirTemp moved to testutil_test.go.
 
 // cov3W2MakeTransitionResults creates a slice of MaturityTransitionResult for testing.
 func cov3W2MakeTransitionResults(ids ...string) []*ratchet.MaturityTransitionResult {
@@ -67,26 +56,7 @@ func cov3W2MakeTransitionResults(ids ...string) []*ratchet.MaturityTransitionRes
 	return results
 }
 
-// cov3W2CapturStdout redirects stdout, runs fn, and returns captured output.
-func cov3W2CaptureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = w
-
-	fn()
-
-	w.Close()
-	os.Stdout = oldStdout
-
-	buf := make([]byte, 65536)
-	n, _ := r.Read(buf)
-	r.Close()
-	return string(buf[:n])
-}
+// cov3W2CaptureStdout moved to testutil_test.go.
 
 // --- runMaturitySingle tests ---
 

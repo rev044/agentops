@@ -611,11 +611,12 @@ func TestRunStartupWatchdog_CancelsOnTimeout(t *testing.T) {
 
 	go runStartupWatchdog(ctx, cancel, &eventCount, startedAt, 10*time.Millisecond, 500*time.Millisecond)
 
-	// Wait for the watchdog to fire.
-	time.Sleep(1 * time.Second)
-
-	if ctx.Err() == nil {
-		t.Error("context should be cancelled by startup watchdog timeout")
+	// Wait for the watchdog to cancel the context (should fire on first tick).
+	select {
+	case <-ctx.Done():
+		// Success — watchdog cancelled the context.
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for startup watchdog to cancel context")
 	}
 }
 
@@ -626,11 +627,20 @@ func TestRunStartupWatchdog_ExitsOnEvents(t *testing.T) {
 	var eventCount atomic.Int64
 	eventCount.Store(1) // Already have events
 
-	go runStartupWatchdog(ctx, cancel, &eventCount, time.Now(), 10*time.Millisecond, 100*time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		runStartupWatchdog(ctx, cancel, &eventCount, time.Now(), 10*time.Millisecond, 100*time.Millisecond)
+		close(done)
+	}()
 
-	// Wait briefly — should exit without cancelling.
-	time.Sleep(200 * time.Millisecond)
-
-	// Cancel for cleanup (if the watchdog did not already cancel).
-	cancel(nil)
+	// Wait for the watchdog goroutine to exit (should return on first tick).
+	select {
+	case <-done:
+		// Goroutine exited — verify it did NOT cancel the context.
+		if ctx.Err() != nil {
+			t.Error("context should not be cancelled when events already exist")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for startup watchdog goroutine to exit")
+	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"strings"
 	"testing"
@@ -89,39 +88,12 @@ func TestRPIVerifyPassJSON(t *testing.T) {
 	}
 }
 
+// chdirTempDir is a local alias for chdirTemp (see testutil_test.go).
 func chdirTempDir(t *testing.T) string {
-	t.Helper()
-	tmp := t.TempDir()
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prev) })
-	return tmp
+	return chdirTemp(t)
 }
 
-func captureStdout(t *testing.T, fn func() error) (string, error) {
-	t.Helper()
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe: %v", err)
-	}
-	os.Stdout = w
-
-	runErr := fn()
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-	out, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("read captured stdout: %v", err)
-	}
-	return string(out), runErr
-}
+// captureStdout moved to testutil_test.go.
 
 func corruptRPILedger(t *testing.T, cwd string) {
 	t.Helper()

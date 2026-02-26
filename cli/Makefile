@@ -27,11 +27,11 @@ ifeq ($(shell uname -s),Darwin)
 endif
 
 # Run tests
-test:
+test: build
 	go test -v ./...
 
 # Run tests with coverage
-test-coverage:
+test-coverage: build
 	go test -v -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
