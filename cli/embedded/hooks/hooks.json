@@ -32,6 +32,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/go-complexity-precommit.sh",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

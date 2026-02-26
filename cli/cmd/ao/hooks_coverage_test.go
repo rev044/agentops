@@ -524,8 +524,8 @@ func TestHooksCoverage_generateHooksForInstall_Full(t *testing.T) {
 	if config == nil {
 		t.Fatal("expected non-nil config")
 	}
-	if len(events) != 3 {
-		t.Errorf("expected 3 active manifest events for full install, got %d", len(events))
+	if len(events) != 4 {
+		t.Errorf("expected 4 active manifest events for full install, got %d", len(events))
 	}
 }
 

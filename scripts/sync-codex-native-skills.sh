@@ -214,6 +214,15 @@ else
   bash "$CONVERTER" --codex-layout modular --all codex "$tmpdir"
 fi
 
+# Pre-validate: check for unallowlisted residual markers
+if [[ -x "${script_dir}/lint/generate-allowlist-candidates.sh" ]]; then
+  echo "Checking for unallowlisted residual markers..."
+  if ! bash "${script_dir}/lint/generate-allowlist-candidates.sh" "$tmpdir"; then
+    echo "WARNING: Unallowlisted markers found. Add to allowlist or fix converter rules."
+    # Non-blocking warning — validation gate will catch in CI
+  fi
+fi
+
 apply_overrides "$tmpdir"
 validate_parity "$tmpdir"
 

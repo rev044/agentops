@@ -530,6 +530,7 @@ Tell the user:
 
 ## Reference Documents
 
+- [references/complexity-estimation.md](references/complexity-estimation.md)
 - [references/examples.md](references/examples.md)
 - [references/sdd-patterns.md](references/sdd-patterns.md)
 - [references/templates.md](references/templates.md)

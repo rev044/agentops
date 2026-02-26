@@ -30,7 +30,7 @@ The cmd/ao package is at 78.8% statement coverage (up from 58%). Close the remai
 
 ### 3. Reduce complexity hotspots
 
-Two functions exceed CC 20 (runRPIParallel at 35, parseGatesTable at 27). Split Cobra-coupled handlers into parsing + execution layers.
+All functions are below CC 25 after ag-atu refactoring. Maintain budget headroom.
 
 **Steer:** decrease
 
@@ -46,8 +46,8 @@ Two functions exceed CC 20 (runRPIParallel at 35, parseGatesTable at 27). Split 
 | skill-frontmatter | `bash -c 'for f in skills/*/SKILL.md; do head -5 "$f" \| grep -q "^---" && head -10 "$f" \| grep -q "^name:" && head -10 "$f" \| grep -q "^description:" \|\| { echo FAIL:$f; exit 1; }; done'` | 5 | Every skill has valid YAML frontmatter |
 | contract-compatibility | `timeout 60 bash scripts/check-contract-compatibility.sh` | 5 | Contract schemas and references exist on disk |
 | wiring-closure | `timeout 60 bash scripts/check-wiring-closure.sh` | 7 | All scripts, skills, and hooks referenced by registries |
-| go-complexity-ceiling | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/ --threshold 36` | 6 | No Go function in cli/ exceeds CC 35 (ratchet — Directive 3 drives reduction) |
-| go-internal-complexity | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/internal/ --threshold 28` | 5 | No function in cli/internal/ exceeds CC 27 (ratchet — Directive 3 drives reduction) |
+| go-complexity-ceiling | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/ --threshold 25` | 6 | No Go function in cli/ exceeds CC 24 (tightened from 35 after ag-atu refactoring) |
+| go-internal-complexity | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/internal/ --threshold 18` | 5 | No function in cli/internal/ exceeds CC 17 (tightened from 27 after ag-atu refactoring) |
 | go-coverage-floor | `cd cli && timeout 120 go test -cover ./... 2>&1 \| grep '^ok' \| sed -n 's/.*coverage: \([0-9.]*\)%.*/\1/p' \| awk '{s+=$1;n++} END{if(n>0 && s/n>=80) exit 0; else exit 1}'` | 4 | Average test coverage stays above 80% |
 | cmd-ao-coverage-floor | `bash scripts/check-cmdao-coverage-floor.sh` | 6 | cmd/ao coverage floor and zero-coverage regression threshold are enforced |
 | security-gate | `test -x scripts/security-gate.sh && timeout 60 bash tests/scripts/test-security-gate.sh` | 6 | Security toolchain gate is executable and passes |
