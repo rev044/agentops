@@ -85,6 +85,20 @@ Skip `--debate` for routine validation where consensus is expected. Debate adds 
 
 Natural language works — the skill infers task type from your prompt.
 
+### First-pass rigor gate for plan/spec validation (MANDATORY)
+
+When mode is `validate` and the target is a plan/spec/contract (or contains boundary rules, state transitions, or conformance tables), judges must apply this gate before returning `PASS`:
+
+1. Canonical mutation + ack sequence is explicit, single-path, and non-contradictory.
+2. Consume-at-most-once path is crash-safe with explicit atomic boundary and restart recovery semantics.
+3. Status/precedence behavior is defined with a field-level truth table and anomaly reason codes for conflicting evidence.
+4. Conformance includes explicit boundary failpoint tests and deterministic assertions for replay/no-duplicate-effect outcomes.
+
+Verdict policy for this gate:
+- Missing or contradictory gate item: minimum `WARN`.
+- Missing deterministic conformance coverage for any gate item: minimum `WARN`.
+- Critical lifecycle invariant not mechanically verifiable: `FAIL`.
+
 ---
 
 ## Architecture
@@ -569,6 +583,18 @@ Instructions:
 
 Your job is to find problems. A PASS with caveats is less valuable than a specific FAIL.
 
+FIRST-PASS CONTRACT COMPLETENESS GATE (validate mode):
+If the target is a plan/spec/contract, you MUST audit these before returning PASS:
+1. Canonical mutation + ack sequence is explicit, single-path, and non-contradictory.
+2. Consume-at-most-once flow is crash-safe with explicit atomic boundary and restart recovery semantics.
+3. Status/precedence behavior is specified with a field-level truth table and anomaly reason codes.
+4. Conformance includes boundary failpoint tests with deterministic replay/no-duplicate-effect assertions.
+
+Gate verdict rules:
+- Any missing/contradictory item -> WARN minimum.
+- Any missing deterministic conformance coverage -> WARN minimum.
+- Any critical lifecycle invariant not mechanically verifiable -> FAIL.
+
 For every finding, include these structured remediation fields:
 - fix: Specific action to resolve this finding
 - why: Root cause or rationale
@@ -610,6 +636,18 @@ You are a teammate on team "{TEAM_NAME}".
 {JSON_PACKET}
 
 Your angle: {PERSPECTIVE_DESCRIPTION}
+
+FIRST-PASS CONTRACT COMPLETENESS GATE (validate mode):
+If the target is a plan/spec/contract, you MUST audit these before returning PASS:
+1. Canonical mutation + ack sequence is explicit, single-path, and non-contradictory.
+2. Consume-at-most-once flow is crash-safe with explicit atomic boundary and restart recovery semantics.
+3. Status/precedence behavior is specified with a field-level truth table and anomaly reason codes.
+4. Conformance includes boundary failpoint tests with deterministic replay/no-duplicate-effect assertions.
+
+Gate verdict rules:
+- Any missing/contradictory item -> WARN minimum.
+- Any missing deterministic conformance coverage -> WARN minimum.
+- Any critical lifecycle invariant not mechanically verifiable -> FAIL.
 
 For every finding, include these structured remediation fields:
 - fix: Specific action to resolve this finding
@@ -2300,7 +2338,7 @@ plan-review:
   missing-requirements: {name: Gaps}         "What's not in the spec that should be? What questions haven't been asked?"
   feasibility:          {name: Reality}       "What's technically hard or impossible here? What will take 3x longer than estimated?"
   scope:                {name: Scope}         "What's unnecessary? What's missing? Where will scope creep?"
-  spec-completeness:    {name: Completeness}  "Are boundaries defined (Always/Ask First/Never)? Do conformance checks cover all acceptance criteria? Can every acceptance criterion be mechanically verified? Are schema enum values and field names domain-neutral (meaningful in ANY codebase, not just this repo)? Plans without boundaries get WARN, plans with zero conformance checks get FAIL, self-referential schema terms get WARN."
+  spec-completeness:    {name: Completeness}  "Are boundaries defined (Always/Ask First/Never)? Do conformance checks cover all acceptance criteria? Can every acceptance criterion be mechanically verified? Are schema enum values and field names domain-neutral (meaningful in ANY codebase, not just this repo)? Also enforce lifecycle contract completeness: canonical mutation+ack sequence, crash-safe consume protocol with atomic boundary + restart recovery, field-level precedence truth table with anomaly codes, and boundary failpoint conformance tests. Missing/contradictory checklist items are WARN minimum; critical non-mechanically-verifiable invariants are FAIL."
 
 retrospective:
   plan-compliance: {name: Compass}  "What was planned vs what was delivered? What's missing? What was added?"
@@ -2444,12 +2482,12 @@ Use this as the source-of-truth for Ralph alignment in AgentOps orchestration sk
 
 | Ralph concept | AgentOps implementation |
 |---|---|
-| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao work rpi phased` |
+| Fresh context per loop | New workers/teams per wave in `$swarm`; fresh phase context in `ao rpi phased` |
 | Main context as scheduler | Mayor/lead orchestration in `$swarm` and `$crank` |
 | Plan file as state | `bd` issue graph, TaskList state, plan artifacts in `.agents/plans/` |
 | One task per pass | One issue per worker assignment in swarm/crank waves |
 | Backpressure | `$vibe`, task validation hooks, tests/lint gates, push/pre-mortem gates |
-| Outer loop restart | Wave loop in `$crank`; phase loop in `ao work rpi phased` |
+| Outer loop restart | Wave loop in `$crank`; phase loop in `ao rpi phased` |
 
 ## Implementation Notes
 
@@ -2812,5 +2850,3 @@ check "SKILL.md mentions PASS/WARN/FAIL" "grep -q 'PASS.*WARN.*FAIL\|PASS | WARN
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1
 ```
-
-

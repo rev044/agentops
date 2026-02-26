@@ -21,6 +21,18 @@ Instructions:
 
 Your job is to find problems. A PASS with caveats is less valuable than a specific FAIL.
 
+FIRST-PASS CONTRACT COMPLETENESS GATE (validate mode):
+If the target is a plan/spec/contract, you MUST audit these before returning PASS:
+1. Canonical mutation + ack sequence is explicit, single-path, and non-contradictory.
+2. Consume-at-most-once flow is crash-safe with explicit atomic boundary and restart recovery semantics.
+3. Status/precedence behavior is specified with a field-level truth table and anomaly reason codes.
+4. Conformance includes boundary failpoint tests with deterministic replay/no-duplicate-effect assertions.
+
+Gate verdict rules:
+- Any missing/contradictory item -> WARN minimum.
+- Any missing deterministic conformance coverage -> WARN minimum.
+- Any critical lifecycle invariant not mechanically verifiable -> FAIL.
+
 For every finding, include these structured remediation fields:
 - fix: Specific action to resolve this finding
 - why: Root cause or rationale
@@ -62,6 +74,18 @@ You are a teammate on team "{TEAM_NAME}".
 {JSON_PACKET}
 
 Your angle: {PERSPECTIVE_DESCRIPTION}
+
+FIRST-PASS CONTRACT COMPLETENESS GATE (validate mode):
+If the target is a plan/spec/contract, you MUST audit these before returning PASS:
+1. Canonical mutation + ack sequence is explicit, single-path, and non-contradictory.
+2. Consume-at-most-once flow is crash-safe with explicit atomic boundary and restart recovery semantics.
+3. Status/precedence behavior is specified with a field-level truth table and anomaly reason codes.
+4. Conformance includes boundary failpoint tests with deterministic replay/no-duplicate-effect assertions.
+
+Gate verdict rules:
+- Any missing/contradictory item -> WARN minimum.
+- Any missing deterministic conformance coverage -> WARN minimum.
+- Any critical lifecycle invariant not mechanically verifiable -> FAIL.
 
 For every finding, include these structured remediation fields:
 - fix: Specific action to resolve this finding

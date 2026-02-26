@@ -91,6 +91,20 @@ Skip `--debate` for routine validation where consensus is expected. Debate adds 
 
 Natural language works — the skill infers task type from your prompt.
 
+### First-pass rigor gate for plan/spec validation (MANDATORY)
+
+When mode is `validate` and the target is a plan/spec/contract (or contains boundary rules, state transitions, or conformance tables), judges must apply this gate before returning `PASS`:
+
+1. Canonical mutation + ack sequence is explicit, single-path, and non-contradictory.
+2. Consume-at-most-once path is crash-safe with explicit atomic boundary and restart recovery semantics.
+3. Status/precedence behavior is defined with a field-level truth table and anomaly reason codes for conflicting evidence.
+4. Conformance includes explicit boundary failpoint tests and deterministic assertions for replay/no-duplicate-effect outcomes.
+
+Verdict policy for this gate:
+- Missing or contradictory gate item: minimum `WARN`.
+- Missing deterministic conformance coverage for any gate item: minimum `WARN`.
+- Critical lifecycle invariant not mechanically verifiable: `FAIL`.
+
 ---
 
 ## Architecture

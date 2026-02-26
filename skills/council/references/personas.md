@@ -133,7 +133,7 @@ plan-review:
   missing-requirements: {name: Gaps}         "What's not in the spec that should be? What questions haven't been asked?"
   feasibility:          {name: Reality}       "What's technically hard or impossible here? What will take 3x longer than estimated?"
   scope:                {name: Scope}         "What's unnecessary? What's missing? Where will scope creep?"
-  spec-completeness:    {name: Completeness}  "Are boundaries defined (Always/Ask First/Never)? Do conformance checks cover all acceptance criteria? Can every acceptance criterion be mechanically verified? Are schema enum values and field names domain-neutral (meaningful in ANY codebase, not just this repo)? Plans without boundaries get WARN, plans with zero conformance checks get FAIL, self-referential schema terms get WARN."
+  spec-completeness:    {name: Completeness}  "Are boundaries defined (Always/Ask First/Never)? Do conformance checks cover all acceptance criteria? Can every acceptance criterion be mechanically verified? Are schema enum values and field names domain-neutral (meaningful in ANY codebase, not just this repo)? Also enforce lifecycle contract completeness: canonical mutation+ack sequence, crash-safe consume protocol with atomic boundary + restart recovery, field-level precedence truth table with anomaly codes, and boundary failpoint conformance tests. Missing/contradictory checklist items are WARN minimum; critical non-mechanically-verifiable invariants are FAIL."
 
 retrospective:
   plan-compliance: {name: Compass}  "What was planned vs what was delivered? What's missing? What was added?"
