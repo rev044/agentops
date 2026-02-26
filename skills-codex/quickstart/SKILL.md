@@ -579,8 +579,8 @@ BUILD                            $council     - multi-model judges
 $implement  - single task        $release     - tag + changelog
 $crank      - multi-issue epic
 $plan       - decompose work     KNOWLEDGE
-$rpi        - full lifecycle     /knowledge   - query learnings
-                                 /learn       - capture manually
+$rpi        - full lifecycle     $knowledge   - query learnings
+                                 $learn       - capture manually
 EXPLORE                          $retro       - extract from work
 $research   - deep dive          $trace       - decision provenance
 $brainstorm - explore ideas      $flywheel    - health monitoring

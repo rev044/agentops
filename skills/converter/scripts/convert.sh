@@ -43,6 +43,11 @@ load_skill_pattern() {
     names+=("$(basename "$d")")
   done
 
+  # Some command aliases are valid in docs even when no source skill directory
+  # exists in this repo (for example, migrated or generated-only skills).
+  # Keep these in the rewrite pattern so slash forms still convert to $ forms.
+  names+=("knowledge" "learn" "extract" "inbox")
+
   if [[ ${#names[@]} -eq 0 ]]; then
     SKILL_PATTERN=""
     return
@@ -70,7 +75,7 @@ codex_rewrite_text() {
   fi
 
   output="$(printf '%s' "$output" | perl -0pe '
-    s/\bClaude Code\b/Codex/g;
+    s/\bClaude[ ]Code\b/Codex/g;
     s{~/.claude/}{~/.codex/}g;
     s/\bTeamCreate\b/team-create/g;
     s/\bSendMessage\b/send-message/g;
