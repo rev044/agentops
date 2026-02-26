@@ -389,3 +389,183 @@ func TestReadUtilityFromFile_JSONL(t *testing.T) {
 		t.Errorf("readUtilityFromFile(jsonl no utility) = %f, want 0.5", got)
 	}
 }
+
+// --- Tests for extracted helpers ---
+
+func TestCollectDedupFiles_BothDirs(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	patternsDir := filepath.Join(tmp, ".agents", "patterns")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatalf("creating learnings dir: %v", err)
+	}
+	if err := os.MkdirAll(patternsDir, 0o755); err != nil {
+		t.Fatalf("creating patterns dir: %v", err)
+	}
+
+	// Write files in both directories
+	if err := os.WriteFile(filepath.Join(learningsDir, "learn-01.md"), []byte("---\ntitle: L1\n---\nBody 1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, "learn-02.jsonl"), []byte(`{"content":"c2"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(patternsDir, "pattern-01.md"), []byte("---\ntitle: P1\n---\nBody 3"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := collectDedupFiles(tmp)
+	if err != nil {
+		t.Fatalf("collectDedupFiles returned error: %v", err)
+	}
+	if len(files) != 3 {
+		t.Errorf("expected 3 files, got %d: %v", len(files), files)
+	}
+}
+
+func TestCollectDedupFiles_MissingDir(t *testing.T) {
+	tmp := t.TempDir()
+	// Only create learnings, no patterns directory
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatalf("creating learnings dir: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(learningsDir, "learn-01.md"), []byte("---\ntitle: L1\n---\nBody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, "learn-02.md"), []byte("---\ntitle: L2\n---\nBody2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := collectDedupFiles(tmp)
+	if err != nil {
+		t.Fatalf("collectDedupFiles returned error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Errorf("expected 2 files from learnings only, got %d: %v", len(files), files)
+	}
+}
+
+func TestCollectDedupFiles_EmptyDirs(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	patternsDir := filepath.Join(tmp, ".agents", "patterns")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatalf("creating learnings dir: %v", err)
+	}
+	if err := os.MkdirAll(patternsDir, 0o755); err != nil {
+		t.Fatalf("creating patterns dir: %v", err)
+	}
+
+	files, err := collectDedupFiles(tmp)
+	if err != nil {
+		t.Fatalf("collectDedupFiles returned error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("expected 0 files from empty dirs, got %d: %v", len(files), files)
+	}
+	// Verify it returns a non-nil slice (dirs exist but are empty)
+	if files == nil {
+		t.Error("expected non-nil empty slice when dirs exist but are empty, got nil")
+	}
+}
+
+func TestGroupByContentHash_IdenticalContent(t *testing.T) {
+	tmp := t.TempDir()
+	file1 := filepath.Join(tmp, "a.md")
+	file2 := filepath.Join(tmp, "b.md")
+
+	// Same body content, different frontmatter
+	if err := os.WriteFile(file1, []byte("---\ntitle: First\n---\nAlways use mutex for shared state."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file2, []byte("---\ntitle: Second\n---\nAlways use mutex for shared state."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := groupByContentHash([]string{file1, file2})
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 hash group for identical content, got %d", len(result))
+	}
+	for _, group := range result {
+		if len(group) != 2 {
+			t.Errorf("expected 2 files in group, got %d", len(group))
+		}
+	}
+}
+
+func TestGroupByContentHash_DifferentContent(t *testing.T) {
+	tmp := t.TempDir()
+	file1 := filepath.Join(tmp, "a.md")
+	file2 := filepath.Join(tmp, "b.md")
+
+	if err := os.WriteFile(file1, []byte("---\ntitle: First\n---\nContent about mutexes."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file2, []byte("---\ntitle: Second\n---\nContent about databases."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := groupByContentHash([]string{file1, file2})
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 hash groups for different content, got %d", len(result))
+	}
+	for _, group := range result {
+		if len(group) != 1 {
+			t.Errorf("expected 1 file per group, got %d", len(group))
+		}
+	}
+}
+
+func TestMergeDedupGroups_DryRun(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatalf("creating learnings dir: %v", err)
+	}
+
+	// Create two duplicate files
+	file1 := filepath.Join(learningsDir, "learn-high.md")
+	file2 := filepath.Join(learningsDir, "learn-low.md")
+	body := "Always use mutex for shared state."
+	if err := os.WriteFile(file1, []byte("---\ntitle: High\nutility: 0.9\n---\n"+body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file2, []byte("---\ntitle: Low\nutility: 0.3\n---\n"+body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build hash groups using the real function
+	hashToFiles := groupByContentHash([]string{file1, file2})
+
+	// Capture stdout to suppress dry-run output
+	_, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+
+	err := mergeDedupGroups(hashToFiles, tmp, true) // dryRun=true
+
+	_ = w.Close()
+	os.Stdout = origStdout
+
+	if err != nil {
+		t.Fatalf("mergeDedupGroups dry-run returned error: %v", err)
+	}
+
+	// Verify no files were moved
+	if _, statErr := os.Stat(file1); os.IsNotExist(statErr) {
+		t.Error("file1 was removed during dry-run, should still exist")
+	}
+	if _, statErr := os.Stat(file2); os.IsNotExist(statErr) {
+		t.Error("file2 was removed during dry-run, should still exist")
+	}
+
+	// Verify archive directory was NOT created
+	archiveDir := filepath.Join(tmp, ".agents", "archive", "dedup")
+	if _, statErr := os.Stat(archiveDir); !os.IsNotExist(statErr) {
+		t.Error("archive directory was created during dry-run, should not exist")
+	}
+}
