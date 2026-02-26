@@ -92,7 +92,7 @@ fi
 
 # Step 6: Verify
 echo ""
-SKILL_COUNT=$(find "$SKILLS_DST" -name "SKILL.md" -maxdepth 2 2>/dev/null | wc -l | tr -d ' ')
+SKILL_COUNT=$(find -L "$SKILLS_DST" -name "SKILL.md" -maxdepth 2 2>/dev/null | wc -l | tr -d ' ')
 info "Installation complete!"
 echo "  Plugin: $PLUGIN_DST"
 echo "  Skills: $SKILLS_DST ($SKILL_COUNT skills)"

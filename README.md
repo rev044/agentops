@@ -68,10 +68,8 @@ Session 5 didn't start from scratch — it started with what session 1 learned. 
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (Codex-native formatting)
-git clone https://github.com/boshu2/agentops.git
-cd agentops
-bash scripts/install-codex-native-skills.sh
+# Codex CLI
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
