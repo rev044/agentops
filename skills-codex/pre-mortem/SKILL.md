@@ -143,10 +143,14 @@ Enables adversarial two-round review for plan validation. Use for high-stakes pl
 **Write to:** `.agents/council/YYYY-MM-DD-pre-mortem-<topic>.md`
 
 ```markdown
-# Pre-Mortem: <Topic>
+---
+id: pre-mortem-YYYY-MM-DD-<topic-slug>
+type: pre-mortem
+date: YYYY-MM-DD
+source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
+---
 
-**Date:** YYYY-MM-DD
-**Plan/Spec:** <path>
+# Pre-Mortem: <Topic>
 
 ## Council Verdict: PASS / WARN / FAIL
 

@@ -73,9 +73,9 @@ Write the output file to `.agents/brainstorm/YYYY-MM-DD-<slug>.md`:
 
 ```markdown
 ---
-name: <goal-slug>
+id: brainstorm-YYYY-MM-DD-<goal-slug>
+type: brainstorm
 date: YYYY-MM-DD
-status: captured
 ---
 # Brainstorm: <Goal>
 ## Problem Statement

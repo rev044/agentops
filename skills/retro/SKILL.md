@@ -150,11 +150,15 @@ For each learning, capture:
 **Write to:** `.agents/learnings/YYYY-MM-DD-<topic>.md`
 
 ```markdown
-# Learning: <Short Title>
+---
+id: learning-YYYY-MM-DD-<slug>
+type: learning
+date: YYYY-MM-DD
+category: <category>
+confidence: <high|medium|low>
+---
 
-**ID**: L1
-**Category**: <category>
-**Confidence**: <high|medium|low>
+# Learning: <Short Title>
 
 ## What We Learned
 
@@ -218,9 +222,14 @@ This produces draft constraint templates in `.agents/constraints/` that can late
 **Write to:** `.agents/retros/YYYY-MM-DD-<topic>.md`
 
 ```markdown
+---
+id: retro-YYYY-MM-DD-<topic-slug>
+type: retro
+date: YYYY-MM-DD
+---
+
 # Retrospective: <Topic>
 
-**Date:** YYYY-MM-DD
 **Scope:** <what work was reviewed>
 
 ## Summary

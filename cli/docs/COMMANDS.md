@@ -1549,6 +1549,66 @@ ao lookup [id] [flags]
 
 ---
 
+### `ao mind`
+
+Scan, normalize, link, and index .agents/ markdown into an Obsidian knowledge graph.
+
+```
+ao mind [command]
+```
+
+**Subcommands:**
+
+#### `ao mind all`
+
+Run full pipeline (normalize → link → index)
+
+```
+ao mind all [flags]
+```
+
+#### `ao mind graph`
+
+Show graph statistics
+
+```
+ao mind graph [flags]
+```
+
+#### `ao mind index`
+
+Rebuild the graph index
+
+```
+ao mind index [flags]
+```
+
+#### `ao mind link`
+
+Insert wikilinks between related artifacts
+
+```
+ao mind link [flags]
+```
+
+#### `ao mind normalize`
+
+Add/fix YAML frontmatter on .agents/ markdown
+
+```
+ao mind normalize [flags]
+```
+
+#### `ao mind scan`
+
+Show what needs normalization
+
+```
+ao mind scan [flags]
+```
+
+---
+
 ### `ao search`
 
 Search AgentOps knowledge using file-based search.

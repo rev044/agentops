@@ -524,8 +524,18 @@ func TestHooksCoverage_generateHooksForInstall_Full(t *testing.T) {
 	if config == nil {
 		t.Fatal("expected non-nil config")
 	}
-	if len(events) != 4 {
-		t.Errorf("expected 4 active manifest events for full install, got %d", len(events))
+	// Dynamically count expected events from embedded manifest
+	manifestData, mErr := findHooksManifest()
+	if mErr != nil {
+		t.Fatalf("could not read embedded manifest: %v", mErr)
+	}
+	manifestConfig, mErr := ReadHooksManifest(manifestData)
+	if mErr != nil {
+		t.Fatalf("could not parse embedded manifest: %v", mErr)
+	}
+	expectedEvents := activeEventNamesFromConfig(manifestConfig)
+	if len(events) != len(expectedEvents) {
+		t.Errorf("expected %d active manifest events for full install, got %d (events: %v)", len(expectedEvents), len(events), events)
 	}
 }
 

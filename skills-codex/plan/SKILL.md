@@ -233,10 +233,14 @@ False dependencies reduce parallelism. Pre-mortem judges will also flag these. I
 **Write to:** `.agents/plans/YYYY-MM-DD-<goal-slug>.md`
 
 ```markdown
-# Plan: <Goal>
+---
+id: plan-YYYY-MM-DD-<goal-slug>
+type: plan
+date: YYYY-MM-DD
+source: "[[.agents/research/YYYY-MM-DD-<research-slug>]]"
+---
 
-**Date:** YYYY-MM-DD
-**Source:** <research doc if any>
+# Plan: <Goal>
 
 ## Context
 <1-2 paragraphs explaining the problem, current state, and why this change is needed>

@@ -350,9 +350,14 @@ Each judge reviews for:
 **Write to:** `.agents/council/YYYYMMDDTHHMMSSZ-vibe-<target>.md` (use `date -u +%Y%m%dT%H%M%SZ`)
 
 ```markdown
+---
+id: council-YYYY-MM-DD-vibe-<target-slug>
+type: council
+date: YYYY-MM-DD
+---
+
 # Vibe Report: <Target>
 
-**Date:** YYYY-MM-DD
 **Files Reviewed:** <count>
 
 ## Complexity Analysis

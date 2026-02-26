@@ -195,9 +195,15 @@ This produces draft constraint templates in `.agents/constraints/` that can late
 **Write to:** `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`
 
 ```markdown
+---
+id: post-mortem-YYYY-MM-DD-<topic-slug>
+type: post-mortem
+date: YYYY-MM-DD
+source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
+---
+
 # Post-Mortem: <Epic/Topic>
 
-**Date:** YYYY-MM-DD
 **Epic:** <epic-id or "recent">
 **Duration:** <elapsed time from PM_START to now>
 **Cycle-Time Trend:** <compare against prior post-mortems — is this faster or slower? Check .agents/retros/ for prior Duration values>

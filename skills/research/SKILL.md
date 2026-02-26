@@ -190,9 +190,14 @@ After the Explore agent and validation swarm return, write findings to:
 
 Use this format:
 ```markdown
+---
+id: research-YYYY-MM-DD-<topic-slug>
+type: research
+date: YYYY-MM-DD
+---
+
 # Research: <Topic>
 
-**Date:** YYYY-MM-DD
 **Backend:** <codex-sub-agents | claude-native-teams | background-task-fallback | inline>
 **Scope:** <what was investigated>
 

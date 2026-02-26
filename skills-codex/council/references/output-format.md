@@ -3,6 +3,12 @@
 ## Council Report (Markdown) — Validate Mode
 
 ```markdown
+---
+id: council-YYYY-MM-DD-<mode>-<target-slug>
+type: council
+date: YYYY-MM-DD
+---
+
 ## Council Consensus: WARN
 
 **Target:** Implementation of user authentication
@@ -56,6 +62,12 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 ## Brainstorm Report
 
 ```markdown
+---
+id: council-YYYY-MM-DD-<mode>-<target-slug>
+type: council
+date: YYYY-MM-DD
+---
+
 ## Council Brainstorm: <Topic>
 
 **Target:** <what we're brainstorming>
@@ -80,6 +92,12 @@ Add rate limiting to auth endpoints. Consider reducing token expiry to 30 minute
 ## Research Report
 
 ```markdown
+---
+id: council-YYYY-MM-DD-<mode>-<target-slug>
+type: council
+date: YYYY-MM-DD
+---
+
 ## Council Research: <Topic>
 
 **Target:** <what we're researching>

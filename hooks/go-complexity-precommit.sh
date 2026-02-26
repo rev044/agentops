@@ -7,6 +7,12 @@ set -euo pipefail
 TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
 FILE_PATH="${CLAUDE_TOOL_INPUT_FILE_PATH:-}"
 
+# Normalize: strip repo root prefix if path is absolute
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ "$FILE_PATH" == /* ]]; then
+  FILE_PATH="${FILE_PATH#"$REPO_ROOT"/}"
+fi
+
 case "$TOOL_NAME" in
   Edit|Write) ;;
   *) exit 0 ;;

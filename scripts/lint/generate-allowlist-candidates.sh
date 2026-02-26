@@ -5,7 +5,8 @@
 set -euo pipefail
 
 CONVERTED_DIR="${1:?Usage: generate-allowlist-candidates.sh <converted-skills-dir>}"
-ALLOWLIST="scripts/lint/codex-residual-allowlist.txt"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ALLOWLIST="${SCRIPT_DIR}/codex-residual-allowlist.txt"
 
 # Load existing allowlist patterns
 mapfile -t patterns < <(grep -v '^#' "$ALLOWLIST" | grep -v '^$')
