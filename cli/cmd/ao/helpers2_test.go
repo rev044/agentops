@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/boshu2/agentops/cli/internal/pool"
-	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
@@ -1109,38 +1108,6 @@ func TestHelper2_nonEmptyStringFromData(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// maturity.go: filterTransitionsByNewMaturity
-// ---------------------------------------------------------------------------
-
-func TestHelper2_filterTransitionsByNewMaturity(t *testing.T) {
-	results := []*ratchet.MaturityTransitionResult{
-		{LearningID: "L001", NewMaturity: types.MaturityAntiPattern},
-		{LearningID: "L002", NewMaturity: types.MaturityCandidate},
-		{LearningID: "L003", NewMaturity: types.MaturityEstablished},
-		{LearningID: "L004", NewMaturity: types.MaturityAntiPattern},
-	}
-
-	filtered := filterTransitionsByNewMaturity(results, "anti-pattern")
-	if len(filtered) != 2 {
-		t.Fatalf("expected 2 results, got %d", len(filtered))
-	}
-
-	filtered = filterTransitionsByNewMaturity(results, "candidate")
-	if len(filtered) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(filtered))
-	}
-
-	filtered = filterTransitionsByNewMaturity(results, "nonexistent")
-	if len(filtered) != 0 {
-		t.Fatalf("expected 0 results, got %d", len(filtered))
-	}
-
-	filtered = filterTransitionsByNewMaturity(nil, "anti-pattern")
-	if filtered != nil {
-		t.Fatalf("expected nil for nil input, got %v", filtered)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // pool.go / flywheel_close_loop.go: isEligibleTier (promotionContext)

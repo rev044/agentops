@@ -1505,15 +1505,3 @@ func TestMaturity_displayMaturityResult(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// maturity.go — displayAntiPatternCandidates (smoke test)
-// ---------------------------------------------------------------------------
-
-func TestMaturity_displayAntiPatternCandidates(t *testing.T) {
-	promotions := []*ratchet.MaturityTransitionResult{
-		{LearningID: "L001", Utility: 0.1, HarmfulCount: 7},
-		{LearningID: "L002", Utility: 0.15, HarmfulCount: 5},
-	}
-	// Just verify no panic
-	displayAntiPatternCandidates(promotions)
-}

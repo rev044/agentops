@@ -286,40 +286,6 @@ func TestMaturity_readLearningJSONLData_missingFile(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// filterTransitionsByNewMaturity
-// ---------------------------------------------------------------------------
-
-func TestMaturity_filterTransitionsByNewMaturity(t *testing.T) {
-	results := []*ratchet.MaturityTransitionResult{
-		{LearningID: "L1", NewMaturity: "anti-pattern"},
-		{LearningID: "L2", NewMaturity: "established"},
-		{LearningID: "L3", NewMaturity: "anti-pattern"},
-		{LearningID: "L4", NewMaturity: "candidate"},
-	}
-
-	filtered := filterTransitionsByNewMaturity(results, "anti-pattern")
-	if len(filtered) != 2 {
-		t.Errorf("expected 2 anti-pattern results, got %d", len(filtered))
-	}
-
-	filtered2 := filterTransitionsByNewMaturity(results, "established")
-	if len(filtered2) != 1 {
-		t.Errorf("expected 1 established result, got %d", len(filtered2))
-	}
-
-	filtered3 := filterTransitionsByNewMaturity(results, "nonexistent")
-	if len(filtered3) != 0 {
-		t.Errorf("expected 0 results for nonexistent maturity, got %d", len(filtered3))
-	}
-
-	// nil input
-	filtered4 := filterTransitionsByNewMaturity(nil, "anti-pattern")
-	if len(filtered4) != 0 {
-		t.Errorf("expected 0 results for nil input, got %d", len(filtered4))
-	}
-}
-
-// ---------------------------------------------------------------------------
 // archiveExpiredLearnings
 // ---------------------------------------------------------------------------
 
@@ -630,19 +596,6 @@ func TestMaturity_displayPendingTransitions_text(t *testing.T) {
 	if err != nil {
 		t.Fatalf("displayPendingTransitions text failed: %v", err)
 	}
-}
-
-// ---------------------------------------------------------------------------
-// displayAntiPatternCandidates (smoke test)
-// ---------------------------------------------------------------------------
-
-func TestMaturityCov_displayAntiPatternCandidates(t *testing.T) {
-	results := []*ratchet.MaturityTransitionResult{
-		{LearningID: "L-1", Utility: 0.1, HarmfulCount: 7},
-		{LearningID: "L-2", Utility: 0.15, HarmfulCount: 5},
-	}
-	// Should not panic
-	displayAntiPatternCandidates(results)
 }
 
 // ---------------------------------------------------------------------------
