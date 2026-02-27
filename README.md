@@ -19,6 +19,28 @@
 
 ---
 
+## Install
+
+```bash
+# Claude Code (recommended): marketplace + plugin install
+claude plugin marketplace add boshu2/agentops
+claude plugin install agentops@agentops-marketplace
+
+# Codex CLI
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
+
+# OpenCode
+curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
+
+# Other Skills-compatible agents (agent-specific, install only what you need)
+# Example (Cursor):
+npx skills@latest add boshu2/agentops --cursor -g
+```
+
+Then type `/quickstart` in your agent chat.
+
+---
+
 ## How It Works
 
 Coding agents get a blank context window every session. AgentOps is a toolbox of skills you compose however you want — use one, chain several, or run the full pipeline. Knowledge compounds between sessions automatically.
@@ -82,37 +104,6 @@ By session 100, your agent already knows every bug you've fixed, your architectu
 - **Multi-model councils** — independent judges (Claude + Codex) debate before code ships. Not advisory — validation gates block merges until they pass.
 
 ---
-
-## Install
-
-```bash
-# Claude Code (recommended): marketplace + plugin install
-claude plugin marketplace add boshu2/agentops
-claude plugin install agentops@agentops-marketplace
-
-# Codex CLI
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
-
-# OpenCode
-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
-
-# Other Skills-compatible agents (agent-specific, install only what you need)
-# Example (Cursor):
-npx skills@latest add boshu2/agentops --cursor -g
-```
-
-Codex install path is native: skills are installed directly to `~/.codex/skills`. Re-run the installer regularly after new releases.
-
-Then type `/quickstart` in your agent chat. Not sure which skill to run? See the **[Skill Router](docs/SKILL-ROUTER.md)**.
-
-For Claude plugin installs, skills are available immediately after plugin install/update (restart Claude Code if prompted). To enable hooks and flywheel automation, install the `ao` CLI and run `ao init --hooks` in each repo. To plant AgentOps in a new repo with auto-detected templates:
-
-```bash
-ao seed         # Detects project type (go-cli, python-lib, web-app, rust-cli, generic)
-                # Creates .agents/, MEMORY.md, GOALS.md, hooks — ready in one command
-```
-
-`claude plugin install` is the primary path for Claude Code. Codex users should use `install-codex.sh`, which installs Codex-native skills directly into `~/.codex/skills` (no repo clone). OpenCode uses `scripts/install-opencode.sh`. Other agents: use platform-specific install scripts in `scripts/`.
 
 <details>
 <summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>
