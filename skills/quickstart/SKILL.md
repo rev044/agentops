@@ -23,9 +23,10 @@ metadata:
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo "GIT=true" || echo "GIT=false"
 command -v ao >/dev/null && echo "AO=true" || echo "AO=false"
 command -v bd >/dev/null && echo "BD=true" || echo "BD=false"
+[ -d .agents ] && echo "AGENTS=true" || echo "AGENTS=false"
 ```
 
-Record GIT, AO, BD — used in Step 4 for tier selection. That's it.
+Record GIT, AO, BD, AGENTS — used in Step 4 for tier selection. That's it.
 
 ### Step 2: Orient
 
@@ -200,15 +201,15 @@ Next session, they'll be in MEMORY.md.
 
 ### Step 4: What's Next
 
-Based on GIT/AO/BD from Step 1, show the ONE matching tier row:
+Based on GIT/AO/BD/AGENTS from Step 1, show the ONE matching tier row:
 
 | Current State | Tier | Next Step |
 |---------------|------|-----------|
 | GIT=false | — | "Initialize git with `git init` to unlock change tracking, `/vibe`, and full RPI workflow." |
 | GIT=true, AO=false | Tier 0 | "Skills work standalone. For persistent learnings across sessions: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao seed && ao init --hooks`" |
-| AO=true, no `.agents/` yet | Tier 0+ | "Run `ao seed` to bootstrap the flywheel, then `ao init --hooks` for SessionStart + SessionEnd automation." |
-| AO=true, `.agents/` present, BD=false | Tier 1 | "Flywheel active. Add issue tracking: `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
-| AO=true, BD=true | Tier 2 | "Full RPI stack. Try `bd ready` (find work) or `/rpi \"goal\"` (full pipeline)." |
+| AO=true, AGENTS=false | Tier 0+ | "Run `ao seed` to bootstrap the flywheel, then `ao init --hooks` for SessionStart + SessionEnd automation." |
+| AO=true, AGENTS=true, BD=false | Tier 1 | "Flywheel active. Add issue tracking: `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
+| AO=true, AGENTS=true, BD=true | Tier 2 | "Full RPI stack. Try `bd ready` (find work) or `/rpi \"goal\"` (full pipeline)." |
 
 Then suggest one concrete next action based on project state:
 
