@@ -99,8 +99,6 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 # Other Skills-compatible agents (agent-specific, install only what you need)
 # Example (Cursor):
 npx skills@latest add boshu2/agentops --cursor -g
-# or with curl:
-bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 ```
 
 Codex install path is native: skills are installed directly to `~/.codex/skills`. Re-run the installer regularly after new releases.
