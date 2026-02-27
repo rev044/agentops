@@ -250,6 +250,31 @@ if [[ -f "hooks/session-end-maintenance.sh" ]]; then
     fi
 fi
 
+section "Hook manifest script-existence checks"
+
+if command -v jq >/dev/null 2>&1 && [[ -f "hooks/hooks.json" ]]; then
+    # Extract all command fields from hooks.json, resolve ${CLAUDE_PLUGIN_ROOT} to repo root
+    while IFS= read -r raw_command; do
+        # Resolve ${CLAUDE_PLUGIN_ROOT} to the repo root
+        resolved="${raw_command/\$\{CLAUDE_PLUGIN_ROOT\}/$REPO_ROOT}"
+        # Relative path for display (strip repo root prefix)
+        display="${resolved#$REPO_ROOT/}"
+        if [[ -f "$resolved" ]]; then
+            pass "hooks.json script exists: $display"
+        else
+            fail "hooks.json script missing: $display (resolved from: $raw_command)"
+        fi
+    done < <(jq -r '
+      .hooks
+      | to_entries[]
+      | .value[]?.hooks[]?
+      | select(.type == "command")
+      | .command
+    ' hooks/hooks.json)
+else
+    fail "jq or hooks/hooks.json unavailable — cannot validate script existence"
+fi
+
 echo ""
 if [[ "$errors" -gt 0 ]]; then
     echo -e "${RED}Hook preflight FAILED (${errors} issues)${NC}"
