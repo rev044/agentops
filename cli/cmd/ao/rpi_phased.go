@@ -28,6 +28,7 @@ var (
 	phasedAutoCleanStaleAfter  time.Duration
 	phasedRuntimeMode          string
 	phasedRuntimeCommand       string
+	phasedTmuxWorkers          int
 )
 
 // phaseFailureReason classifies why a phase spawn failed.
@@ -82,8 +83,9 @@ Examples:
 	phasedCmd.Flags().BoolVar(&phasedSwarmFirst, "swarm-first", true, "Default each phase to swarm/agent-team execution; fall back to direct execution if swarm runtime is unavailable")
 	phasedCmd.Flags().BoolVar(&phasedAutoCleanStale, "auto-clean-stale", false, "Run stale-run cleanup before starting phased execution")
 	phasedCmd.Flags().DurationVar(&phasedAutoCleanStaleAfter, "auto-clean-stale-after", 24*time.Hour, "Only clean stale runs older than this age when auto-clean is enabled")
-	phasedCmd.Flags().StringVar(&phasedRuntimeMode, "runtime", "auto", "Phase runtime mode: auto|direct|stream")
+	phasedCmd.Flags().StringVar(&phasedRuntimeMode, "runtime", "auto", "Phase runtime mode: auto|direct|stream|tmux")
 	phasedCmd.Flags().StringVar(&phasedRuntimeCommand, "runtime-cmd", "claude", "Runtime command used for phase prompts (Claude uses '-p'; Codex uses 'exec')")
+	phasedCmd.Flags().IntVar(&phasedTmuxWorkers, "tmux-workers", 1, "When --runtime tmux, number of worker sessions spawned per phase")
 
 	rpiCmd.AddCommand(phasedCmd)
 }
@@ -134,6 +136,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		StallCheckInterval:   stallCheckInterval,
 		RuntimeMode:          phasedRuntimeMode,
 		RuntimeCommand:       phasedRuntimeCommand,
+		TmuxWorkers:          phasedTmuxWorkers,
 	}
 
 	// Apply config-based worktree mode if the --no-worktree flag was not explicitly set.
@@ -172,6 +175,9 @@ func normalizeOptsCommands(opts *phasedEngineOptions) {
 	opts.AOCommand = effectiveAOCommand(opts.AOCommand)
 	opts.BDCommand = effectiveBDCommand(opts.BDCommand)
 	opts.TmuxCommand = effectiveTmuxCommand(opts.TmuxCommand)
+	if opts.TmuxWorkers <= 0 {
+		opts.TmuxWorkers = 1
+	}
 }
 
 // applyComplexityFastPath classifies goal complexity and activates the fast path
@@ -201,6 +207,11 @@ func preflightOpts(opts *phasedEngineOptions) error {
 	normalizeOptsCommands(opts)
 	if err := validateRuntimeMode(opts.RuntimeMode); err != nil {
 		return err
+	}
+	if opts.RuntimeMode == "tmux" {
+		if _, err := lookPath(opts.TmuxCommand); err != nil {
+			return fmt.Errorf("tmux executable %q not found on PATH (required for runtime=tmux)", opts.TmuxCommand)
+		}
 	}
 	return preflightRuntimeAvailability(opts.RuntimeCommand)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -942,26 +943,37 @@ func rpiRunRegistryDir(cwd, runID string) string {
 //
 // Both writes use the tmp+rename pattern to prevent corrupt partial writes.
 func savePhasedState(cwd string, state *phasedState) error {
-	stateDir := filepath.Join(cwd, ".agents", "rpi")
-	if err := os.MkdirAll(stateDir, 0755); err != nil {
-		return fmt.Errorf("create state directory: %w", err)
-	}
-
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal state: %w", err)
 	}
 	data = append(data, '\n')
 
-	// Atomic write to flat path (backward compatible).
+	roots := artifactRootsForState(cwd, state)
+	for i, root := range roots {
+		if writeErr := writePhasedStateData(root, state.RunID, data); writeErr != nil {
+			if i == 0 {
+				return writeErr
+			}
+			VerbosePrintf("Warning: mirror state write skipped for %s: %v\n", root, writeErr)
+		}
+	}
+	return nil
+}
+
+func writePhasedStateData(root, runID string, data []byte) error {
+	stateDir := filepath.Join(root, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		return fmt.Errorf("create state directory: %w", err)
+	}
+
 	flatPath := filepath.Join(stateDir, phasedStateFile)
 	if err := writePhasedStateAtomic(flatPath, data); err != nil {
 		return fmt.Errorf("write state: %w", err)
 	}
 
-	// Also write to per-run registry directory when run ID is available.
-	if state.RunID != "" {
-		runDir := rpiRunRegistryDir(cwd, state.RunID)
+	if runID != "" {
+		runDir := rpiRunRegistryDir(root, runID)
 		if mkErr := os.MkdirAll(runDir, 0755); mkErr != nil {
 			VerbosePrintf("Warning: create run registry dir: %v\n", mkErr)
 		} else {
@@ -974,6 +986,82 @@ func savePhasedState(cwd string, state *phasedState) error {
 
 	VerbosePrintf("State saved to %s\n", flatPath)
 	return nil
+}
+
+// artifactRootsForState returns persistence roots for state artifacts.
+// Primary root is always cwd; when running inside an isolated worktree, a
+// mirror root is added for the original repo so supervisors can observe run
+// state without traversing worktree directories.
+func artifactRootsForState(cwd string, state *phasedState) []string {
+	roots := []string{cwd}
+	if state == nil || state.WorktreePath == "" {
+		return roots
+	}
+
+	if filepath.Clean(state.WorktreePath) != filepath.Clean(cwd) {
+		return roots
+	}
+
+	if repoRoot := inferSupervisorRepoRoot(cwd, state.RunID); repoRoot != "" && repoRoot != filepath.Clean(cwd) {
+		roots = append(roots, repoRoot)
+	}
+	return roots
+}
+
+func inferSupervisorRepoRoot(cwd, runID string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), worktreeTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--git-common-dir")
+	cmd.Dir = cwd
+	if out, err := cmd.Output(); err == nil {
+		commonDir := filepath.Clean(strings.TrimSpace(string(out)))
+		if commonDir != "" {
+			if !filepath.IsAbs(commonDir) {
+				commonDir = filepath.Clean(filepath.Join(cwd, commonDir))
+			}
+			repoRoot := filepath.Dir(commonDir)
+			if repoRoot != "" {
+				return filepath.Clean(repoRoot)
+			}
+		}
+	}
+
+	if strings.TrimSpace(runID) == "" {
+		return ""
+	}
+	suffix := "-rpi-" + runID
+	base := filepath.Base(cwd)
+	if !strings.HasSuffix(base, suffix) {
+		return ""
+	}
+	repoBase := strings.TrimSuffix(base, suffix)
+	if repoBase == "" {
+		return ""
+	}
+	candidate := filepath.Join(filepath.Dir(cwd), repoBase)
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+		return filepath.Clean(candidate)
+	}
+	return ""
+}
+
+// artifactRootsForRun infers persistence roots from stored run state.
+// Used by heartbeat updates, where only cwd and runID are available.
+func artifactRootsForRun(cwd, runID string) []string {
+	if runID == "" {
+		return []string{cwd}
+	}
+	statePath := filepath.Join(rpiRunRegistryDir(cwd, runID), phasedStateFile)
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		return []string{cwd}
+	}
+	state, err := parsePhasedState(data)
+	if err != nil {
+		return []string{cwd}
+	}
+	return artifactRootsForState(cwd, state)
 }
 
 // writePhasedStateAtomic writes data to path using a tmp-file+rename pattern.
@@ -1122,15 +1210,17 @@ func updateRunHeartbeat(cwd, runID string) {
 	if runID == "" {
 		return
 	}
-	runDir := rpiRunRegistryDir(cwd, runID)
-	if err := os.MkdirAll(runDir, 0755); err != nil {
-		VerbosePrintf("Warning: create run dir for heartbeat: %v\n", err)
-		return
-	}
-	heartbeatPath := filepath.Join(runDir, "heartbeat.txt")
 	ts := time.Now().UTC().Format(time.RFC3339Nano) + "\n"
-	if err := writePhasedStateAtomic(heartbeatPath, []byte(ts)); err != nil {
-		VerbosePrintf("Warning: update heartbeat: %v\n", err)
+	for _, root := range artifactRootsForRun(cwd, runID) {
+		runDir := rpiRunRegistryDir(root, runID)
+		if err := os.MkdirAll(runDir, 0755); err != nil {
+			VerbosePrintf("Warning: create run dir for heartbeat: %v\n", err)
+			continue
+		}
+		heartbeatPath := filepath.Join(runDir, "heartbeat.txt")
+		if err := writePhasedStateAtomic(heartbeatPath, []byte(ts)); err != nil {
+			VerbosePrintf("Warning: update heartbeat: %v\n", err)
+		}
 	}
 }
 

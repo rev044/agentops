@@ -36,6 +36,7 @@ type phasedEngineOptions struct {
 	AOCommand            string
 	BDCommand            string
 	TmuxCommand          string
+	TmuxWorkers          int
 }
 
 // defaultPhasedEngineOptions returns options matching the default cobra flag values.
@@ -54,6 +55,7 @@ func defaultPhasedEngineOptions() phasedEngineOptions {
 		AOCommand:            "ao",
 		BDCommand:            "bd",
 		TmuxCommand:          "tmux",
+		TmuxWorkers:          1,
 	}
 }
 
@@ -253,10 +255,10 @@ func effectiveTmuxCommand(command string) string {
 
 func validateRuntimeMode(mode string) error {
 	switch normalizeRuntimeMode(mode) {
-	case "auto", "direct", "stream":
+	case "auto", "direct", "stream", "tmux":
 		return nil
 	default:
-		return fmt.Errorf("invalid runtime %q (valid: auto|direct|stream)", mode)
+		return fmt.Errorf("invalid runtime %q (valid: auto|direct|stream|tmux)", mode)
 	}
 }
 

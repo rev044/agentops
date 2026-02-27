@@ -169,6 +169,14 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 			runtimeCommand: opts.RuntimeCommand,
 			phaseTimeout:   opts.PhaseTimeout,
 		}, "runtime=direct"
+	case "tmux":
+		return &tmuxExecutor{
+			tmuxCommand:    effectiveTmuxCommand(opts.TmuxCommand),
+			runtimeCommand: opts.RuntimeCommand,
+			phaseTimeout:   opts.PhaseTimeout,
+			pollInterval:   5 * time.Second,
+			workerCount:    opts.TmuxWorkers,
+		}, "runtime=tmux"
 	default: // auto
 		if caps.LiveStatusEnabled {
 			return &streamExecutor{
