@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -248,11 +247,11 @@ func (c *Chain) withLockedFile(flags int, fn func(*os.File) error) error {
 		_ = f.Close() //nolint:errcheck // sync already done via lock release
 	}()
 
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	if err := lockFile(f); err != nil {
 		return fmt.Errorf("lock chain file: %w", err)
 	}
 	defer func() {
-		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck // unlock best-effort
+		_ = unlockFile(f) //nolint:errcheck // unlock best-effort
 	}()
 
 	return fn(f)
