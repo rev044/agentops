@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.2] - 2026-02-27
+
+### Fixed
+- CHANGELOG retrospectively updated to document all v2.19.1 post-tag commits (skills namespace fixes were shipped but not recorded)
+
 ## [2.19.1] - 2026-02-27
 
 ### Fixed
