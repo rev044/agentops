@@ -30,6 +30,7 @@ Three steps:
 /vibe src/auth/                          # validates specific path
 /vibe --quick recent                     # fast inline check, no agent spawning
 /vibe --deep recent                      # 3 judges instead of 2
+/vibe --sweep recent                     # deep audit: per-file explorers + council
 /vibe --mixed recent                     # cross-vendor (Claude + Codex)
 /vibe --preset=security-audit src/auth/  # security-focused review
 /vibe --explorers=2 recent               # judges with explorer sub-agents
@@ -225,9 +226,22 @@ fi
 ```
 If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
 
-### Step 2e: Bug Hunt Audit
+### Step 2e: Bug Hunt or Deep Audit Sweep
 
 **Skip if `--quick` (see Step 1.5).**
+
+**Path A — Deep Audit Sweep (`--deep` or `--sweep`):**
+
+Read `references/deep-audit-protocol.md` for the full protocol. In summary:
+
+1. Chunk target files into batches of 3–5 (by line count — see protocol for rules)
+2. Dispatch up to 8 Explore agents in parallel, each with a mandatory 7-category checklist per file
+3. Merge all explorer findings into a sweep manifest at `.agents/council/sweep-manifest.md`
+4. Include sweep manifest in council packet (judges shift to adjudication mode — see Step 4)
+
+**Why:** Generalist judges exhibit satisfaction bias — they stop at ~10 findings regardless of actual issue count. Per-file explorers with category checklists eliminate this bias and find 3x more issues in a single pass.
+
+**Path B — Lightweight Bug Hunt (default, no `--deep`/`--sweep`):**
 
 Run a proactive bug hunt on the target files before council review:
 
@@ -247,9 +261,9 @@ If bug-hunt produces findings, include them in the council packet as `context.bu
 }
 ```
 
-**Why:** Bug hunt catches concrete line-level bugs (resource leaks, truncation errors, dead code) that council judges — reviewing holistically — often miss. Proven: goals code audit found 5 real bugs with 0 hypothesis failures by systematic reading.
+**Why:** Bug hunt catches concrete line-level bugs (resource leaks, truncation errors, dead code) that council judges — reviewing holistically — often miss.
 
-**Skip conditions:**
+**Skip conditions (both paths):**
 - `--quick` mode → skip (fast path)
 - No source files in target → skip (nothing to audit)
 - Target is non-code (pure docs/config) → skip
@@ -321,6 +335,7 @@ The spec content is injected into the council packet context so the `spec-compli
 - Complexity hotspots (from Step 2)
 - Git diff context
 - Spec content (when found, in `context.spec`)
+- Sweep manifest (when `--deep` or `--sweep`, in `context.sweep_manifest` — judges shift to adjudication mode, see `references/deep-audit-protocol.md`)
 
 All council flags pass through: `--quick` (inline), `--mixed` (cross-vendor), `--preset=<name>` (override perspectives), `--explorers=N`, `--debate` (adversarial 2-round). See Quick Start examples and `/council` docs.
 
@@ -389,6 +404,15 @@ date: YYYY-MM-DD
 ## Concerns Raised
 - ...
 
+## All Findings
+
+> Included when `--deep` or `--sweep` produces a sweep manifest. Lists ALL findings
+> from explorer sweep + council adjudication. Grouped by category if >20 findings.
+
+| # | File | Line | Category | Severity | Description | Source |
+|---|------|------|----------|----------|-------------|--------|
+| 1 | ... | ... | ... | ... | ... | sweep / council |
+
 ## Recommendation
 <council recommendation>
 
@@ -415,9 +439,9 @@ After council verdict:
    - Suggest: "Run /post-mortem to capture learnings and complete the cycle."
 2. If verdict is FAIL:
    - Do NOT record ratchet progress.
-   - Extract top 5 findings from the council report for structured retry context:
+   - Extract ALL findings from the council report for structured retry context (group by category if >20):
      ```
-     Read the council report. For each finding (max 5), format as:
+     Read the council report. For each finding, format as:
      FINDING: <description> | FIX: <fix or recommendation> | REF: <ref or location>
 
      Fallback for v1 findings (no fix/why/ref fields):
@@ -444,7 +468,7 @@ confidence: high
 
 # Vibe findings: $TARGET
 
-$(for finding in "${TOP_FINDINGS[@]:0:3}"; do
+$(for finding in "${ALL_FINDINGS[@]}"; do
   echo "- **${finding.severity}:** ${finding.description} (${finding.location})"
 done)
 
@@ -568,6 +592,7 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ## Reference Documents
 
+- [references/deep-audit-protocol.md](references/deep-audit-protocol.md)
 - [references/examples.md](references/examples.md)
 - [references/go-patterns.md](references/go-patterns.md)
 - [references/go-standards.md](references/go-standards.md)

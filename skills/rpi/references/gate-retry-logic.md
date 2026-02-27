@@ -17,9 +17,9 @@ Gate logic:
 - **WARN:** Auto-proceed. Log: "Pre-mortem: WARN -- see report for concerns"
 - **FAIL:** Retry loop (max 2 retries):
   1. Read the full pre-mortem report to extract specific failure reasons
-  1a. Extract top 5 findings with structured fields:
+  1a. Extract ALL findings with structured fields (group by category if >20):
       ```
-      For each finding (max 5), extract:
+      For each finding, extract:
         FINDING: <description> | FIX: <fix or recommendation> | REF: <ref or location>
 
       Fallback for v1 findings: fix = finding.fix || finding.recommendation || "No fix specified"
@@ -69,9 +69,9 @@ Gate logic:
 - **WARN:** Auto-proceed. Log: "Vibe: WARN -- see report for concerns"
 - **FAIL:** Retry loop (max 2 retries):
   1. Read the full vibe report to extract specific failure reasons
-  1a. Extract top 5 findings with structured fields:
+  1a. Extract ALL findings with structured fields (group by category if >20):
       ```
-      For each finding (max 5), extract:
+      For each finding, extract:
         FINDING: <description> | FIX: <fix or recommendation> | REF: <ref or location>
 
       Fallback for v1 findings: fix = finding.fix || finding.recommendation || "No fix specified"
