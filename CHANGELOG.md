@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.1] - 2026-02-27
+
+### Fixed
+- Quickstart skill rewritten from 275 lines to 68 lines — removes 90-line ASCII diagram and 50-line intent router that caused 3+ minute runtime; now outputs ~8 lines and completes in under 30 seconds
+- `truncateText` edge case: maxLen 1–3 now returns `"..."[:maxLen]` instead of the original string unchanged
+- Dead anti-pattern promotion functions removed from `ao maturity` (`promoteAntiPatternsCmd`, `filterTransitionsByNewMaturity`, `displayAntiPatternCandidates`, ~99 LOC)
+
+### Added
+- Spec-consistency gate (`scripts/spec-consistency-gate.sh`) validates contract files before crank spawns workers
+- Command-surface parity gate (`scripts/check-cmdao-surface-parity.sh`) ensures all CLI leaf commands are tested
+- `scripts/post-merge-check.sh` now validates `go mod tidy` sync and blocks on symlinks
+- `scripts/merge-worktrees.sh` now propagates file deletions and preserves permissions
+- Post-mortem preflight script checks reference file existence before council runs
+- Hooks.json preflight validates script existence
+
+### Changed
+- Coverage floor raised 78% → 80% with CI enforcement gate; Codecov threshold aligned to 75%
+- Six truncation functions converted to rune-safe Unicode slicing
+- `truncateID` in pool.go delegates to shared `truncateText`
+- Crank skill invokes spec-consistency gate before spawning workers
+- Vibe skill carries forward unconsumed high-severity next-work items as pre-flight context
+- Release skill warns on unconsumed high-severity next-work items
+- next-work JSONL schema formalized to v1.2
+
 ## [2.19.0] - 2026-02-27
 
 ### Added
