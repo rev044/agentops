@@ -517,10 +517,7 @@ func init() {
 
 // truncateID shortens an ID for display.
 func truncateID(id string, max int) string {
-	if len(id) <= max {
-		return id
-	}
-	return id[:max-3] + "..."
+	return truncateText(id, max)
 }
 
 // repeat returns a string repeated n times.
