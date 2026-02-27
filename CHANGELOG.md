@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.19.3] - 2026-02-27
+
+### Changed
+- README highlights `ao search` (built on CASS) — indexes all chat sessions from every runtime unconditionally; adds Second Brain + Obsidian vault section with Smart Connections local/GPU embeddings and MCP semantic retrieval
+
 ## [2.19.2] - 2026-02-27
 
 ### Fixed
