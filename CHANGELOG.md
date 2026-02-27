@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows file-lock and signal support — replace no-op `filelock_windows.go` with real `LockFileEx`/`UnlockFileEx` via kernel32.dll; extract `syscall.Flock` and `syscall.Kill` into platform-specific helpers so the binary compiles on Windows without POSIX-only syscalls
 - `heal.sh` Check 7 false positive — script reference integrity check now strips URLs before pattern matching, preventing remote `https://…/scripts/foo.sh` references from being validated as local files
 - Security gate `BLOCKED_HIGH` — three persistent findings resolved: gosec G118 false positive (context cancel func returned to caller), golangci-lint nolint syntax (space in `// nolint:` directive), radon double-counting `reverse_engineer_rpi.py` from `skills-codex/` copy
+- 71 stale `ao know *` and `ao quality *` namespace references replaced across 17 `skills-codex/` SKILL.md files — agents running rpi/evolve/crank were invoking non-existent commands from the pre-flatten CLI namespace
+- Three HIGH-severity stale command references fixed across `skills/` and `skills-codex/`: `ao flywheel status` → `ao metrics flywheel status`, `ao settings notebook update` → `ao notebook update`, `ao start seed/init` → `ao seed`/`ao init`
 
 ### Added
 - Spec-consistency gate (`scripts/spec-consistency-gate.sh`) validates contract files before crank spawns workers
