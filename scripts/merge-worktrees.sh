@@ -6,7 +6,8 @@
 #   1. Verify it is a valid git worktree
 #   2. Get list of changed files (vs the worktree's merge-base with HEAD)
 #   3. Copy files using /bin/cp -fp (bypasses interactive aliases, preserves permissions)
-#   4. Report what was copied
+#   4. Delete files removed in the worktree (using git diff --diff-filter=D)
+#   5. Report what was copied/deleted
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -74,6 +75,22 @@ for wt_dir in "$@"; do
         echo "  COPY: $file"
         copied=$((copied + 1))
     done <<< "$changed_files"
+
+    # --- Propagate explicit deletions ---
+    # Use git diff-filter=D to find files deleted in the worktree (vs HEAD).
+    # This catches deletions that may not appear in the merge-base diff above
+    # (e.g. files deleted and re-added with same content, or staged-only deletes).
+    deleted_files="$(git -C "$wt_dir" diff HEAD --diff-filter=D --name-only 2>/dev/null || true)"
+    if [[ -n "$deleted_files" ]]; then
+        while IFS= read -r file; do
+            dst="$REPO_ROOT/$file"
+            if [[ -f "$dst" ]]; then
+                /bin/rm -f "$dst"
+                echo "  DELETE (explicit): $file"
+                deleted=$((deleted + 1))
+            fi
+        done <<< "$deleted_files"
+    fi
 
     echo "  -- $copied file(s) copied, $deleted file(s) deleted from $wt_dir"
     total_copied=$((total_copied + copied))
