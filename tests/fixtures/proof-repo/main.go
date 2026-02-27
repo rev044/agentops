@@ -10,7 +10,7 @@ import (
 
 // openFile opens a file but ignores the error — Issue 1: missing error handling.
 func openFile(path string) *os.File {
-	f, _ := os.Open(path) // nolint: errcheck — intentional bad practice for proof
+	f, _ := os.Open(path) //nolint:errcheck — intentional bad practice for proof
 	return f
 }
 

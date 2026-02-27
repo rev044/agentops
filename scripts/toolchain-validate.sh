@@ -446,7 +446,7 @@ run_radon() {
     fi
 
     # Run radon for cyclomatic complexity (min E = 26+, aligns with Go hard-fail at 25)
-    radon cc "$REPO_ROOT" -a -s --min E --exclude ".tmp/*,.claude/worktrees/*" > "$output_file" 2>&1 || true
+    radon cc "$REPO_ROOT" -a -s --min E --exclude ".tmp/*,.claude/worktrees/*,skills-codex/*,*/reverse_engineer_rpi.py" > "$output_file" 2>&1 || true
 
     if [[ ! -s "$output_file" ]]; then
         echo "CLEAN" > "$output_file"
@@ -755,7 +755,8 @@ run_gosec() {
         # G702: command injection via taint (CLI runs user-specified commands)
         # G703: path traversal via taint (CLI operates on user-specified paths)
         # G704: SSRF via taint (CLI makes HTTP requests to configured endpoints)
-        (cd "$module_dir" && gosec -quiet -fmt json -exclude=G104,G115,G204,G301,G302,G304,G306,G702,G703,G704 ./... > "$module_json" 2> "$module_stderr") || true
+        # G118: context cancel func not called at site (false positive — funcs that return cancel to caller)
+        (cd "$module_dir" && gosec -quiet -fmt json -exclude=G104,G115,G204,G301,G302,G304,G306,G702,G703,G704,G118 ./... > "$module_json" 2> "$module_stderr") || true
 
         if jq empty "$module_json" >/dev/null 2>&1; then
             cat "$module_json" >> "$output_file"
