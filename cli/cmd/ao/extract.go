@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -263,11 +262,11 @@ func rewritePendingFile(pendingPath string, entries []PendingExtraction) error {
 	}()
 
 	// Acquire exclusive lock
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	if err := flockLock(f); err != nil {
 		return fmt.Errorf("lock pending file: %w", err)
 	}
 	defer func() {
-		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = flockUnlock(f)
 	}()
 
 	// NOW truncate after we hold the lock

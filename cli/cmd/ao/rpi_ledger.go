@@ -150,7 +150,7 @@ func acquireLedgerLock(ledgerPath string) (*os.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open ledger lock: %w", err)
 	}
-	if err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX); err != nil {
+	if err := flockLock(lockFile); err != nil {
 		_ = lockFile.Close()
 		return nil, fmt.Errorf("lock ledger: %w", err)
 	}
@@ -159,7 +159,7 @@ func acquireLedgerLock(ledgerPath string) (*os.File, error) {
 
 // releaseLedgerLock releases and closes the ledger lock file.
 func releaseLedgerLock(lockFile *os.File) {
-	_ = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	_ = flockUnlock(lockFile)
 	_ = lockFile.Close()
 }
 

@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -888,14 +887,13 @@ func openLeaseFile(path string) (*os.File, error) {
 }
 
 func flockLeaseFile(file *os.File, path string) error {
-	err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-	if err == nil {
-		return nil
+	if err := flockLockNB(file); err != nil {
+		if errors.Is(err, errLockWouldBlock) {
+			return fmt.Errorf("single-flight lease already held: %s", readLeaseHolderHint(path))
+		}
+		return fmt.Errorf("acquire lease lock: %w", err)
 	}
-	if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
-		return fmt.Errorf("single-flight lease already held: %s", readLeaseHolderHint(path))
-	}
-	return fmt.Errorf("acquire lease lock: %w", err)
+	return nil
 }
 
 func buildAndStartLease(file *os.File, path, cwd string, ttl time.Duration, runID string) (*supervisorLease, error) {
@@ -919,7 +917,7 @@ func buildAndStartLease(file *os.File, path, cwd string, ttl time.Duration, runI
 		meta:   meta,
 	}
 	if err := lease.writeMetadata(now); err != nil {
-		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		_ = flockUnlock(file)
 		_ = file.Close()
 		return nil, err
 	}
@@ -935,7 +933,7 @@ func (l *supervisorLease) Release() error {
 	close(l.stopCh)
 	<-l.doneCh
 
-	unlockErr := syscall.Flock(int(l.file.Fd()), syscall.LOCK_UN)
+	unlockErr := flockUnlock(l.file)
 	closeErr := l.file.Close()
 
 	if unlockErr != nil {

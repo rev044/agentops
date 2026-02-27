@@ -213,6 +213,8 @@ jobs:
             dist/ao-darwin-arm64.tar.gz
             dist/ao-linux-amd64.tar.gz
             dist/ao-linux-arm64.tar.gz
+            dist/ao-windows-amd64.tar.gz
+            dist/ao-windows-arm64.tar.gz
             dist/checksums.txt
             release-artifacts/sbom-cyclonedx-go-mod.json
             release-artifacts/security-gate-summary.json

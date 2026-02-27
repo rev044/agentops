@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -447,11 +446,11 @@ func appendForgedRecord(path string, record ForgedRecord) error {
 	}()
 
 	// Acquire exclusive lock
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	if err := flockLock(f); err != nil {
 		return fmt.Errorf("lock forged index: %w", err)
 	}
 	defer func() {
-		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = flockUnlock(f)
 	}()
 
 	// Marshal and write record

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -124,7 +123,7 @@ func cancelOneTarget(target cancelTarget, sig syscall.Signal, selfPID int) []str
 
 	var failures []string
 	for _, pid := range pids {
-		if killErr := syscall.Kill(pid, sig); killErr != nil && !errors.Is(killErr, syscall.ESRCH) {
+		if killErr := sendSignal(pid, sig); killErr != nil {
 			failures = append(failures, fmt.Sprintf("pid %d: %v", pid, killErr))
 		}
 	}

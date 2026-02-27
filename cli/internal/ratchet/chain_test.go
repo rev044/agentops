@@ -1057,6 +1057,22 @@ func TestLoadJSONLChain_CloseErrorExposed(t *testing.T) {
 	}
 }
 
+func TestFileLock_lockAndUnlock(t *testing.T) {
+	tmp := t.TempDir()
+	f, err := os.CreateTemp(tmp, "lock*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	if err := lockFile(f); err != nil {
+		t.Fatalf("lockFile: %v", err)
+	}
+	if err := unlockFile(f); err != nil {
+		t.Fatalf("unlockFile: %v", err)
+	}
+}
+
 // --- Benchmarks ---
 
 func benchWriteChainFile(b *testing.B, dir string, numEntries int) {
