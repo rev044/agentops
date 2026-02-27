@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -309,6 +310,23 @@ func TestMergeParallelWorktrees_SkipsFailedEpics(t *testing.T) {
 	runGit("add", "README.md")
 	runGit("commit", "-m", "init")
 
+	// Use whatever default branch this git config created (main/master/etc.).
+	currentBranch := func() string {
+		t.Helper()
+		cmd := exec.Command("git", "branch", "--show-current")
+		cmd.Dir = tmpDir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git [branch --show-current]: %s: %v", string(out), err)
+		}
+		branch := strings.TrimSpace(string(out))
+		if branch == "" {
+			t.Fatal("default branch is empty")
+		}
+		return branch
+	}
+	defaultBranch := currentBranch()
+
 	// Create a branch with a commit to merge.
 	runGit("checkout", "-b", "epic/alpha")
 	alphaFile := filepath.Join(tmpDir, "alpha.txt")
@@ -317,7 +335,7 @@ func TestMergeParallelWorktrees_SkipsFailedEpics(t *testing.T) {
 	}
 	runGit("add", "alpha.txt")
 	runGit("commit", "-m", "alpha work")
-	runGit("checkout", "main")
+	runGit("checkout", defaultBranch)
 
 	// Reset merge-order global.
 	old := parallelMergeOrder
