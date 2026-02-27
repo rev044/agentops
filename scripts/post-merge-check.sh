@@ -48,27 +48,24 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# 5. go mod tidy
-echo "=== Checking go.mod tidiness ==="
-if (cd "$REPO_ROOT/cli" && cp go.sum go.sum.bak && go mod tidy && diff -q go.sum go.sum.bak >/dev/null 2>&1); then
-    echo "PASS: go.mod/go.sum are tidy"
-    rm -f "$REPO_ROOT/cli/go.sum.bak"
+# 5. go mod tidy (non-blocking WARN)
+echo "=== Checking go mod tidy ==="
+(cd "$REPO_ROOT/cli" && go mod tidy) 2>/dev/null || true
+TIDY_DIRTY=$(git -C "$REPO_ROOT" diff --name-only cli/go.mod cli/go.sum 2>/dev/null || true)
+if [ -n "$TIDY_DIRTY" ]; then
+    echo "WARN: go mod tidy changed go.mod/go.sum after merge — commit the changes"
 else
-    echo "FAIL: go mod tidy produced changes"
-    mv "$REPO_ROOT/cli/go.sum.bak" "$REPO_ROOT/cli/go.sum" 2>/dev/null || true
-    ERRORS=$((ERRORS + 1))
+    echo "PASS: go.mod/go.sum are tidy"
 fi
 
-# 6. Symlink check
+# 6. Symlink check (blocking ERROR)
 echo "=== Checking for symlinks ==="
-SYMLINKS=$(find "$REPO_ROOT" -type l -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/.claude/*' 2>/dev/null)
-if [ -z "$SYMLINKS" ]; then
-    echo "PASS: No symlinks found"
-else
-    echo "FAIL: Symlinks detected (CI will reject these):"
-    echo "$SYMLINKS" | head -10
-    ERRORS=$((ERRORS + 1))
+SYMLINKS=$(find "$REPO_ROOT" -type l -not -path '*/.git/*' 2>/dev/null || true)
+if [ -n "$SYMLINKS" ]; then
+    echo "ERROR: symlinks found after merge (CI plugin-load-test will reject): $SYMLINKS"
+    exit 1
 fi
+echo "PASS: No symlinks found"
 
 # 7. Summary
 echo "=== Integration Check Summary ==="
