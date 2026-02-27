@@ -37,6 +37,39 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 npx skills@latest add boshu2/agentops --cursor -g
 ```
 
+### Install ao CLI (choose one)
+
+#### Homebrew (recommended)
+
+```bash
+brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
+brew install agentops
+which ao
+ao version
+```
+
+#### Download binary from latest release
+
+```bash
+# Pick the archive for your OS/arch from:
+# https://github.com/boshu2/agentops/releases/latest
+# Example: macOS Apple Silicon
+curl -fsSL https://github.com/boshu2/agentops/releases/latest/download/ao-darwin-arm64.tar.gz | tar -xz
+install -m 0755 ao "$HOME/.local/bin/ao"
+which ao
+ao version
+```
+
+#### Build from source
+
+```bash
+git clone https://github.com/boshu2/agentops.git
+cd agentops/cli
+make install
+which ao
+ao version
+```
+
 Then type `/quickstart` in your agent chat.
 
 ---
