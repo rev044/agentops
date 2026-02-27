@@ -9,14 +9,8 @@ import (
 func TestRunMetricsReport_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	oldOutput := output
 	output = "table"
@@ -42,14 +36,8 @@ func TestRunMetricsReport_WithArtifacts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	oldOutput := output
 	output = "table"
@@ -67,14 +55,8 @@ func TestRunMetricsReport_WithArtifacts(t *testing.T) {
 func TestRunMetricsReport_CustomDays(t *testing.T) {
 	dir := t.TempDir()
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	oldOutput := output
 	output = "table"

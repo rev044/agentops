@@ -147,14 +147,8 @@ func TestSaveBaseline_CreatesDirectories(t *testing.T) {
 func TestRunMetricsBaseline_DryRun(t *testing.T) {
 	dir := t.TempDir()
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	oldDryRun := dryRun
 	dryRun = true
@@ -174,14 +168,8 @@ func TestRunMetricsBaseline_DryRun(t *testing.T) {
 func TestRunMetricsBaseline_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	oldDryRun := dryRun
 	dryRun = false

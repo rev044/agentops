@@ -9,7 +9,7 @@ import (
 // cov4MiscSetup creates a temp workdir with .agents/ directories for misc command tests.
 func cov4MiscSetup(t *testing.T) string {
 	t.Helper()
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 	return tmp

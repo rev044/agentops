@@ -117,7 +117,7 @@ func executeCommand(args ...string) (string, error) {
 	return combined, err
 }
 
-// setupTempWorkdir moved to testutil_test.go.
+// chdirTemp moved to testutil_test.go.
 // setupAgentsDir moved to testutil_test.go.
 
 // TestCobraCommandTreeRegistration verifies all expected commands are registered.
@@ -247,7 +247,7 @@ func TestCobraVersionCommand(t *testing.T) {
 
 // TestCobraDoctorCommand exercises the doctor command in a temp directory.
 func TestCobraDoctorCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	t.Run("table_output", func(t *testing.T) {
@@ -275,7 +275,7 @@ func TestCobraDoctorCommand(t *testing.T) {
 
 // TestCobraStatusCommand exercises the status command.
 func TestCobraStatusCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	t.Run("not_initialized", func(t *testing.T) {
@@ -322,7 +322,7 @@ func TestCobraStatusCommand(t *testing.T) {
 
 // TestCobraBadgeCommand exercises the badge command.
 func TestCobraBadgeCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -337,7 +337,7 @@ func TestCobraBadgeCommand(t *testing.T) {
 
 // TestCobraConfigCommand exercises the config command.
 func TestCobraConfigCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	t.Run("no_flags_shows_help", func(t *testing.T) {
@@ -408,7 +408,7 @@ func TestCobraCompletionCommand(t *testing.T) {
 
 // TestCobraInitCommand exercises ao init in a temp directory.
 func TestCobraInitCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	// Create a fake .git dir so init doesn't complain
@@ -432,7 +432,7 @@ func TestCobraInitCommand(t *testing.T) {
 
 // TestCobraSeedCommand exercises ao seed in a temp directory.
 func TestCobraSeedCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	t.Run("dry_run", func(t *testing.T) {
@@ -509,7 +509,7 @@ func TestCobraTraceHelpAndDryRun(t *testing.T) {
 
 // TestCobraGoalsValidateCommand exercises goals validate with a minimal GOALS.md.
 func TestCobraGoalsValidateCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	goalsContent := `# Fitness Goals
@@ -551,7 +551,7 @@ Maintain test coverage
 
 // TestCobraGoalsValidateJSON exercises goals validate --json.
 func TestCobraGoalsValidateJSON(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	goalsContent := `# Fitness Goals
@@ -598,7 +598,7 @@ Increase coverage
 
 // TestCobraIndexCommand exercises ao index in a temp directory.
 func TestCobraIndexCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	// Create the directories that index expects
@@ -625,7 +625,7 @@ func TestCobraIndexCommand(t *testing.T) {
 
 // TestCobraIndexCheckCommand exercises ao index --check.
 func TestCobraIndexCheckCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	for _, dir := range defaultIndexDirs {
@@ -646,7 +646,7 @@ func TestCobraIndexCheckCommand(t *testing.T) {
 
 // TestCobraMetricsReportCommand exercises metrics report in an empty repo.
 func TestCobraMetricsReportCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -662,7 +662,7 @@ func TestCobraMetricsReportCommand(t *testing.T) {
 
 // TestCobraMetricsBaselineCommand exercises metrics baseline.
 func TestCobraMetricsBaselineCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -678,7 +678,7 @@ func TestCobraMetricsBaselineCommand(t *testing.T) {
 
 // TestCobraMetricsBaselineDryRun exercises metrics baseline --dry-run.
 func TestCobraMetricsBaselineDryRun(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -696,7 +696,7 @@ func TestCobraMetricsBaselineDryRun(t *testing.T) {
 
 // TestCobraFlywheelStatusCommand exercises flywheel status.
 func TestCobraFlywheelStatusCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -711,7 +711,7 @@ func TestCobraFlywheelStatusCommand(t *testing.T) {
 
 // TestCobraFlywheelNudgeCommand exercises flywheel nudge.
 func TestCobraFlywheelNudgeCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -732,7 +732,7 @@ func TestCobraFlywheelNudgeCommand(t *testing.T) {
 
 // TestCobraConstraintListCommand exercises constraint list.
 func TestCobraConstraintListCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -766,7 +766,7 @@ func TestCobraConstraintListCommand(t *testing.T) {
 
 // TestCobraConstraintReviewCommand exercises constraint review.
 func TestCobraConstraintReviewCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -801,7 +801,7 @@ func TestCobraConstraintReviewCommand(t *testing.T) {
 
 // TestCobraConstraintActivateCommand exercises constraint activate.
 func TestCobraConstraintActivateCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -834,7 +834,7 @@ func TestCobraConstraintActivateCommand(t *testing.T) {
 
 // TestCobraConstraintRetireCommand exercises constraint retire.
 func TestCobraConstraintRetireCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -867,7 +867,7 @@ func TestCobraConstraintRetireCommand(t *testing.T) {
 
 // TestCobraExtractCommand exercises extract in a temp directory.
 func TestCobraExtractCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -880,7 +880,7 @@ func TestCobraExtractCommand(t *testing.T) {
 
 // TestCobraMemorySyncCommand exercises memory sync.
 func TestCobraMemorySyncCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
@@ -898,7 +898,7 @@ func TestCobraMemorySyncCommand(t *testing.T) {
 
 // TestCobraQuickstartMinimalCommand exercises quick-start --minimal.
 func TestCobraQuickstartMinimalCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	out, err := executeCommand("quick-start", "--minimal")
@@ -912,7 +912,7 @@ func TestCobraQuickstartMinimalCommand(t *testing.T) {
 
 // TestCobraMigrateCommand exercises ao migrate memrl.
 func TestCobraMigrateCommand(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 
 	t.Run("no_learnings_dir", func(t *testing.T) {
@@ -2083,7 +2083,7 @@ func TestCobraCountEstablished(t *testing.T) {
 
 // TestCobraResolveGoalsFile exercises resolveGoalsFile.
 func TestCobraResolveGoalsFile(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 
 	t.Run("explicit_file", func(t *testing.T) {
 		goalsFile = "/some/path.yaml"

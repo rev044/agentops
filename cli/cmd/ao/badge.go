@@ -39,9 +39,9 @@ func init() {
 }
 
 func runBadge(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
+	cwd, err := resolveProjectDir()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return err
 	}
 
 	// Compute metrics (reuse existing logic)

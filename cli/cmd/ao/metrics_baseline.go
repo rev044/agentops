@@ -14,9 +14,9 @@ import (
 
 // runMetricsBaseline captures a baseline snapshot.
 func runMetricsBaseline(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
+	cwd, err := resolveProjectDir()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return err
 	}
 
 	if GetDryRun() {

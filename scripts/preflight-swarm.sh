@@ -46,6 +46,24 @@ if (cd cli && go vet ./cmd/ao/...) 2>&1; then
     pass "go vet clean"
 else fail "go vet reported issues"; fi
 
+# --- Shell Hygiene ---
+step "Checking shell hygiene (interactive aliases)"
+alias_warnings=0
+for cmd in cp mv rm; do
+    # Check if the command is aliased to its interactive variant
+    alias_def="$(alias "$cmd" 2>/dev/null || true)"
+    if [[ "$alias_def" == *"-i"* ]]; then
+        warn "'$cmd' is aliased to interactive mode: $alias_def"
+        warn "  Use /bin/$cmd -f in scripts to bypass"
+        alias_warnings=$((alias_warnings + 1))
+    fi
+done
+if [[ "$alias_warnings" -eq 0 ]]; then
+    pass "no interactive aliases on cp/mv/rm"
+else
+    warn "$alias_warnings interactive alias(es) found — agents should use /bin/cp -f, /bin/mv -f, /bin/rm -f"
+fi
+
 # --- Summary ---
 step "Preflight summary"
 commit="$(git rev-parse --short HEAD)"

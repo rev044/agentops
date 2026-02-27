@@ -40,14 +40,8 @@ func findCiteSubcmd() *cobra.Command {
 func TestMetricsCite_MissingArtifact(t *testing.T) {
 	dir := t.TempDir()
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	cmd := findCiteSubcmd()
 	if cmd == nil {
@@ -55,7 +49,7 @@ func TestMetricsCite_MissingArtifact(t *testing.T) {
 	}
 
 	// Point to a nonexistent artifact
-	err = runMetricsCite(cmd, []string{"/nonexistent/artifact.md"})
+	err := runMetricsCite(cmd, []string{"/nonexistent/artifact.md"})
 	if err == nil {
 		t.Fatal("expected error for missing artifact")
 	}
@@ -64,14 +58,8 @@ func TestMetricsCite_MissingArtifact(t *testing.T) {
 func TestMetricsCite_DryRun(t *testing.T) {
 	dir := t.TempDir()
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	// Create a test artifact file
 	artifactPath := dir + "/test-artifact.md"
@@ -88,7 +76,7 @@ func TestMetricsCite_DryRun(t *testing.T) {
 		t.Skip("cite subcommand not found on metricsCmd")
 	}
 
-	err = runMetricsCite(cmd, []string{artifactPath})
+	err := runMetricsCite(cmd, []string{artifactPath})
 	if err != nil {
 		t.Fatalf("runMetricsCite dry-run: %v", err)
 	}
@@ -103,14 +91,8 @@ func TestMetricsCite_DryRun(t *testing.T) {
 func TestMetricsCite_ValidArtifact(t *testing.T) {
 	dir := t.TempDir()
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldWD) }()
+	testProjectDir = dir
+	defer func() { testProjectDir = "" }()
 
 	// Create directories for citations
 	if err := os.MkdirAll(dir+"/.agents/ao", 0o755); err != nil {
@@ -132,7 +114,7 @@ func TestMetricsCite_ValidArtifact(t *testing.T) {
 		t.Skip("cite subcommand not found on metricsCmd")
 	}
 
-	err = runMetricsCite(cmd, []string{artifactPath})
+	err := runMetricsCite(cmd, []string{artifactPath})
 	if err != nil {
 		t.Fatalf("runMetricsCite failed: %v", err)
 	}

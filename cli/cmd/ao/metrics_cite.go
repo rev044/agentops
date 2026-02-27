@@ -15,9 +15,9 @@ import (
 func runMetricsCite(cmd *cobra.Command, args []string) error {
 	artifactPath := args[0]
 
-	cwd, err := os.Getwd()
+	cwd, err := resolveProjectDir()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return err
 	}
 
 	// Make path absolute if needed

@@ -170,3 +170,4 @@
 - [MemRL Policy Example Profile](contracts/memrl-policy.profile.example.json) — Example deterministic policy profile
 - [RPI Run Registry](contracts/rpi-run-registry.md) — RPI run registry specification
 - [RPI Phase Result Schema](contracts/rpi-phase-result.schema.json) — Machine-readable schema for RPI phase results
+- [Scope Escape Report](contracts/scope-escape-report.md) — Structured template for agent scope-escape reporting

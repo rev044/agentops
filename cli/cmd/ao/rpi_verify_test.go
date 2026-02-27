@@ -17,7 +17,7 @@ func TestRPIVerifyCommandRegistered(t *testing.T) {
 }
 
 func TestRPIVerifyPassText(t *testing.T) {
-	cwd := chdirTempDir(t)
+	cwd := chdirTemp(t)
 	if _, err := appendRPILedgerEvent(cwd, rpiLedgerEvent{RunID: "run-pass", Phase: "discovery", Action: "started", Details: map[string]any{"ok": true}}); err != nil {
 		t.Fatalf("append event: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestRPIVerifyPassText(t *testing.T) {
 }
 
 func TestRPIVerifyFailText(t *testing.T) {
-	cwd := chdirTempDir(t)
+	cwd := chdirTemp(t)
 	if _, err := appendRPILedgerEvent(cwd, rpiLedgerEvent{RunID: "run-fail", Phase: "implementation", Action: "started", Details: map[string]any{"ok": true}}); err != nil {
 		t.Fatalf("append event: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestRPIVerifyFailText(t *testing.T) {
 }
 
 func TestRPIVerifyPassJSON(t *testing.T) {
-	cwd := chdirTempDir(t)
+	cwd := chdirTemp(t)
 	if _, err := appendRPILedgerEvent(cwd, rpiLedgerEvent{RunID: "run-json", Phase: "validation", Action: "completed", Details: map[string]any{"ok": true}}); err != nil {
 		t.Fatalf("append event: %v", err)
 	}
@@ -86,11 +86,6 @@ func TestRPIVerifyPassJSON(t *testing.T) {
 	if int(payload["record_count"].(float64)) != 1 {
 		t.Fatalf("expected record_count=1, got %v", payload["record_count"])
 	}
-}
-
-// chdirTempDir is a local alias for chdirTemp (see testutil_test.go).
-func chdirTempDir(t *testing.T) string {
-	return chdirTemp(t)
 }
 
 // captureStdout moved to testutil_test.go.

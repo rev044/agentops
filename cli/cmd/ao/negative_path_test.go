@@ -111,7 +111,7 @@ func TestNegativePath_InvalidFlagValues(t *testing.T) {
 // TestNegativePath_NonExistentPaths verifies that commands referencing files
 // or directories that do not exist produce meaningful errors.
 func TestNegativePath_NonExistentPaths(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	setupAgentsDir(t, tmp)
 
 	tests := []struct {
@@ -204,7 +204,7 @@ func TestNegativePath_UnknownNestedSubcommand(t *testing.T) {
 // in isolation is unreliable because executeCommand does not reset Changed
 // state on nested subcommand flags (only direct rootCmd children).
 func TestNegativePath_RatchetRecordUnknownStep(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	setupAgentsDir(t, tmp)
 
 	out, err := executeCommand("ratchet", "record", "bogus-step", "--output", "artifact.md")
@@ -220,7 +220,7 @@ func TestNegativePath_RatchetRecordUnknownStep(t *testing.T) {
 // This test requires a valid GOALS.md on disk because Cobra argument validation
 // passes (ExactArgs(2) is satisfied) and RunE proceeds to validate the ID format.
 func TestNegativePath_GoalsAddInvalidID(t *testing.T) {
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 
 	// Create a minimal GOALS.md so the command can load goals.
 	goalsContent := `# Goals

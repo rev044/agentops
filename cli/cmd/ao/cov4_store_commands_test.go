@@ -9,7 +9,7 @@ import (
 // cov4StoreSetup creates a temp workdir with .agents/ directories for store tests.
 func cov4StoreSetup(t *testing.T) string {
 	t.Helper()
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 	return tmp

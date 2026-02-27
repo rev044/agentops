@@ -64,7 +64,6 @@ func captureJSONStdout(t *testing.T, fn func()) string {
 }
 
 // cov3W2CaptureStdout redirects os.Stdout, calls fn, and returns the output.
-// Uses a fixed 64KB buffer.
 // Origin: maturity_deep_coverage_test.go
 func cov3W2CaptureStdout(t *testing.T, fn func()) string {
 	t.Helper()
@@ -80,10 +79,12 @@ func cov3W2CaptureStdout(t *testing.T, fn func()) string {
 	w.Close()
 	os.Stdout = oldStdout
 
-	buf := make([]byte, 65536)
-	n, _ := r.Read(buf)
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read captured stdout: %v", err)
+	}
 	r.Close()
-	return string(buf[:n])
+	return string(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -134,23 +135,6 @@ func cov3W2ChdirTemp(t *testing.T, dir string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.Chdir(origDir) })
-}
-
-// setupTempWorkdir creates a temp directory, chdir's into it, and registers
-// cleanup. Same pattern as chdirTemp but originated from cobra_commands_test.go.
-// Origin: cobra_commands_test.go
-func setupTempWorkdir(t *testing.T) string {
-	t.Helper()
-	tmp := t.TempDir()
-	orig, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(orig) })
-	return tmp
 }
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ import (
 // cov4TemperSetup creates a temp workdir with .agents/ directories for temper tests.
 func cov4TemperSetup(t *testing.T) string {
 	t.Helper()
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 	// Create chain file for lock command

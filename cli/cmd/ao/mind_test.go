@@ -67,7 +67,7 @@ func TestMindRunFunc(t *testing.T) {
 				origDryRun := dryRun
 				t.Cleanup(func() { dryRun = origDryRun })
 
-				_ = setupTempWorkdir(t)
+				_ = chdirTemp(t)
 				argsFile := filepath.Join(t.TempDir(), "mind-args.txt")
 				binDir := writeFakePython3(t)
 
@@ -93,7 +93,7 @@ func TestMindRunFunc(t *testing.T) {
 		origDryRun := dryRun
 		t.Cleanup(func() { dryRun = origDryRun })
 
-		cwd := setupTempWorkdir(t)
+		cwd := chdirTemp(t)
 		argsFile := filepath.Join(t.TempDir(), "mind-args.txt")
 		binDir := writeFakePython3(t)
 
@@ -154,7 +154,7 @@ func TestMindRunFunc(t *testing.T) {
 		origDryRun := dryRun
 		t.Cleanup(func() { dryRun = origDryRun })
 
-		_ = setupTempWorkdir(t)
+		_ = chdirTemp(t)
 		argsFile := filepath.Join(t.TempDir(), "mind-args.txt")
 		binDir := writeFakePython3(t)
 

@@ -12,9 +12,9 @@ import (
 
 // runMetricsReport shows the metrics report.
 func runMetricsReport(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
+	cwd, err := resolveProjectDir()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return err
 	}
 
 	metrics, err := computeMetrics(cwd, metricsDays)

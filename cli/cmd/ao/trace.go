@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -73,9 +72,9 @@ func runTrace(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cwd, err := os.Getwd()
+	cwd, err := resolveProjectDir()
 	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+		return err
 	}
 
 	provPath := filepath.Join(cwd, storage.DefaultBaseDir, storage.ProvenanceDir, storage.ProvenanceFile)

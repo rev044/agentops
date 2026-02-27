@@ -326,11 +326,9 @@ func TestTrace_runTrace_DryRun(t *testing.T) {
 
 func TestTrace_runTrace_NoProvenanceFile(t *testing.T) {
 	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.Chdir(origDir) }()
+
+	testProjectDir = tmp
+	defer func() { testProjectDir = "" }()
 
 	oldDryRun := dryRun
 	dryRun = false

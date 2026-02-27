@@ -9,7 +9,7 @@ import (
 // cov4RatchetSetup creates a temp workdir with .agents/ao/chain.jsonl for ratchet tests.
 func cov4RatchetSetup(t *testing.T) string {
 	t.Helper()
-	tmp := setupTempWorkdir(t)
+	tmp := chdirTemp(t)
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 	// Create empty chain file so LoadChain succeeds
