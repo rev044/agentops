@@ -59,9 +59,9 @@ Do NOT spawn agents for empty file lists.
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2a–2f (constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2.5 and 2a–2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
-**Why:** Steps 2a–2f add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
+**Why:** Steps 2.5 and 2a–2g add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
 
 ### Step 2: Run Complexity Analysis
 
@@ -109,6 +109,40 @@ fi
 | F (31+) | Untestable | Must refactor |
 
 **Include complexity findings in council context.**
+
+### Step 2.5: Prior Findings Check
+
+**Skip if `--quick` (see Step 1.5).**
+
+Read `.agents/rpi/next-work.jsonl` and find unconsumed items with `severity=high` that match the target area. Include them in the council packet as `context.prior_findings` so judges have carry-forward context.
+
+```bash
+# Count unconsumed high-severity items
+if [ -f .agents/rpi/next-work.jsonl ] && command -v jq &>/dev/null; then
+  prior_count=$(jq -s '[.[] | select(.consumed == false) | .items[] | select(.severity == "high")] | length' \
+    .agents/rpi/next-work.jsonl 2>/dev/null || echo 0)
+  if [ "$prior_count" -gt 0 ]; then
+    echo "Prior findings: $prior_count unconsumed high-severity items from next-work.jsonl"
+    jq -s '[.[] | select(.consumed == false) | .items[] | select(.severity == "high")]' \
+      .agents/rpi/next-work.jsonl 2>/dev/null
+  fi
+fi
+```
+
+If unconsumed high-severity items are found, include them in the council packet context:
+```json
+"prior_findings": {
+  "source": ".agents/rpi/next-work.jsonl",
+  "count": 3,
+  "items": [/* array of high-severity unconsumed items */]
+}
+```
+
+**Skip conditions:**
+- `--quick` mode → skip
+- `.agents/rpi/next-work.jsonl` does not exist → skip silently
+- `jq` not on PATH → skip silently
+- No unconsumed high-severity items found → skip (do not add empty `prior_findings` to packet)
 
 ### Step 2a: Run Constraint Tests
 
@@ -180,7 +214,7 @@ esac
 - **Exit 1 (failed):** Auto-FAIL the vibe. Do NOT proceed to council.
 - **Exit 2 (skipped):** Note "OL validation skipped" in report. Proceed to council.
 
-### Step 2.5: Codex Review (opt-in via `--mixed`)
+### Step 2d: Codex Review (opt-in via `--mixed`)
 
 **Skip unless `--mixed` is passed.** Also skip if `--quick` (see Step 1.5).
 
@@ -215,7 +249,7 @@ This gives council judges a Codex-generated review as pre-existing context — c
 - `codex review` fails → skip silently, proceed with council only
 - No uncommitted changes → skip (nothing to review)
 
-### Step 2d: Search Knowledge Flywheel
+### Step 2e: Search Knowledge Flywheel
 
 **Skip if `--quick` (see Step 1.5).**
 
@@ -226,7 +260,7 @@ fi
 ```
 If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
 
-### Step 2e: Bug Hunt or Deep Audit Sweep
+### Step 2f: Bug Hunt or Deep Audit Sweep
 
 **Skip if `--quick` (see Step 1.5).**
 
@@ -268,7 +302,7 @@ If bug-hunt produces findings, include them in the council packet as `context.bu
 - No source files in target → skip (nothing to audit)
 - Target is non-code (pure docs/config) → skip
 
-### Step 2f: Check for Product Context
+### Step 2g: Check for Product Context
 
 **Skip if `--quick` (see Step 1.5).**
 
