@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Quickstart skill rewritten from 275 lines to 68 lines — removes 90-line ASCII diagram and 50-line intent router that caused 3+ minute runtime; now outputs ~8 lines and completes in under 30 seconds
 - `truncateText` edge case: maxLen 1–3 now returns `"..."[:maxLen]` instead of the original string unchanged
 - Dead anti-pattern promotion functions removed from `ao maturity` (`promoteAntiPatternsCmd`, `filterTransitionsByNewMaturity`, `displayAntiPatternCandidates`, ~99 LOC)
+- Windows file-lock and signal support — replace no-op `filelock_windows.go` with real `LockFileEx`/`UnlockFileEx` via kernel32.dll; extract `syscall.Flock` and `syscall.Kill` into platform-specific helpers so the binary compiles on Windows without POSIX-only syscalls
+- `heal.sh` Check 7 false positive — script reference integrity check now strips URLs before pattern matching, preventing remote `https://…/scripts/foo.sh` references from being validated as local files
+- Security gate `BLOCKED_HIGH` — three persistent findings resolved: gosec G118 false positive (context cancel func returned to caller), golangci-lint nolint syntax (space in `// nolint:` directive), radon double-counting `reverse_engineer_rpi.py` from `skills-codex/` copy
 
 ### Added
 - Spec-consistency gate (`scripts/spec-consistency-gate.sh`) validates contract files before crank spawns workers
@@ -21,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/merge-worktrees.sh` now propagates file deletions and preserves permissions
 - Post-mortem preflight script checks reference file existence before council runs
 - Hooks.json preflight validates script existence
+- Windows binaries added to GoReleaser and SLSA attestation subject list
 
 ### Changed
 - Coverage floor raised 78% → 80% with CI enforcement gate; Codecov threshold aligned to 75%
@@ -30,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vibe skill carries forward unconsumed high-severity next-work items as pre-flight context
 - Release skill warns on unconsumed high-severity next-work items
 - next-work JSONL schema formalized to v1.2
+- Skills installation switched from `npx skills` to native curl installer (`bash <(curl -fsSL …/install.sh)`)
+- README updated with 5-command summary, compound effect section, and `/vibe` breakdown
 
 ## [2.19.0] - 2026-02-27
 
