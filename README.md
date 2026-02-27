@@ -190,7 +190,7 @@ Full reference with examples and precedence rules: [docs/ENV-VARS.md](docs/ENV-V
 |------|-------|:-----------:|
 | Skills | Global skills dir (outside your repo; for Claude Code: `~/.claude/skills/`) | `rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/` |
 | Knowledge artifacts | `.agents/` in your repo (git-ignored by default) | `rm -rf .agents/` |
-| Hook registration | `.claude/settings.json` | `ao hooks uninstall` or delete entries |
+| Hook registration | `.claude/settings.json` | Delete entries from `.claude/settings.json` |
 
 Nothing modifies your source code.
 
