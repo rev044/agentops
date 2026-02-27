@@ -367,6 +367,19 @@ if [[ $wave -ge 50 ]]; then
 fi
 ```
 
+**Pre-Spawn: Spec Consistency Gate**
+
+Prevents workers from implementing inconsistent or incomplete specs. Hard failures (missing frontmatter, bad structure, scope conflicts) block spawn; WARN-level issues (terminology, implementability) do not.
+
+```bash
+if [ -d .agents/specs ] && ls .agents/specs/contract-*.md &>/dev/null 2>&1; then
+    bash scripts/spec-consistency-gate.sh .agents/specs/ || {
+        echo "⚠️ Spec consistency check failed — fix contract files before spawning workers"
+        exit 1
+    }
+fi
+```
+
 **Cross-cutting constraint injection (SDD):**
 
 Before spawning workers, check for cross-cutting constraints:
