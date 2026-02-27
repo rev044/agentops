@@ -598,12 +598,15 @@ func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
 // truncateText truncates a string to max length with ellipsis.
 // Uses rune-safe slicing to avoid breaking multi-byte UTF-8 characters.
 func truncateText(s string, maxLen int) string {
-	if maxLen < 4 {
-		return s
+	if maxLen <= 0 {
+		return ""
 	}
 	runes := []rune(s)
 	if len(runes) <= maxLen {
 		return s
+	}
+	if maxLen <= 3 {
+		return "..."[:maxLen]
 	}
 	return string(runes[:maxLen-3]) + "..."
 }
