@@ -462,6 +462,9 @@ jobs:
           go tool cover -func=coverage.out | tail -1
           echo "✅ Go tests passed"
 
+      - name: Check cmd/ao coverage floor
+        run: bash scripts/check-cmdao-coverage-floor.sh
+
       - name: Warn about slow test packages
         if: always()
         run: |

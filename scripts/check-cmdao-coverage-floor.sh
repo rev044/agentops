@@ -5,8 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI_DIR="$REPO_ROOT/cli"
 
-FLOOR="${CMD_AO_COVERAGE_FLOOR:-78.0}"
-MAX_ZERO="${CMD_AO_ZERO_COVERAGE_MAX:-40}"
+FLOOR="${CMD_AO_COVERAGE_FLOOR:-80.0}"
+MAX_ZERO="${CMD_AO_ZERO_COVERAGE_MAX:-25}"
+MAX_HANDLER_ZERO="${CMD_AO_HANDLER_ZERO_MAX:-20}"
 
 if ! command -v go >/dev/null 2>&1; then
   echo "SKIP: go is not installed"
@@ -17,7 +18,7 @@ tmp_cov="$(mktemp)"
 tmp_out="$(mktemp)"
 trap 'rm -f "$tmp_cov" "$tmp_out"' EXIT
 
-echo "Running cmd/ao coverage gate (floor=${FLOOR}%, zero-max=${MAX_ZERO})..."
+echo "Running cmd/ao coverage gate (floor=${FLOOR}%, zero-max=${MAX_ZERO}, handler-zero-max=${MAX_HANDLER_ZERO})..."
 
 if ! (cd "$CLI_DIR" && go test -coverprofile="$tmp_cov" -covermode=atomic ./cmd/ao >"$tmp_out" 2>&1); then
   echo "FAIL: go test failed for ./cmd/ao"
@@ -44,4 +45,11 @@ if (( zero_count > MAX_ZERO )); then
   exit 1
 fi
 
-echo "PASS: cmd/ao coverage ${total_pct}% (zero-coverage functions: ${zero_count})"
+handler_zero_count="$(printf '%s\n' "$coverage_report" | awk '$1 != "total:" && $1 ~ /Handler/ {gsub("%","",$3); if ($3 == "0.0") c++} END {print c+0}')"
+
+if (( handler_zero_count > MAX_HANDLER_ZERO )); then
+  echo "FAIL: cmd/ao handler-family zero-coverage functions ${handler_zero_count} exceeds max ${MAX_HANDLER_ZERO}"
+  exit 1
+fi
+
+echo "PASS: cmd/ao coverage ${total_pct}% (zero-coverage functions: ${zero_count}, handler-zero: ${handler_zero_count})"
