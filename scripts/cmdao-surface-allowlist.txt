@@ -1,0 +1,256 @@
+# cmdao-surface-allowlist.txt
+#
+# Commands intentionally excluded from command-surface parity coverage.
+#
+# Format: one command per line (everything after "ao " in the full command).
+# Comment lines start with #. Blank lines are ignored.
+#
+# Before adding a command here, prefer adding coverage to:
+#   - scripts/release-smoke-test.sh  (for smoke/integration coverage)
+#   - cli/cmd/ao/*_test.go            (for unit test coverage)
+#
+# Use this allowlist only for commands that are:
+#   - Group parents (covered by their subcommands)
+#   - Hazardous to run in CI (state-destroying, network-dependent)
+#   - Not yet implemented / placeholder stubs
+#
+# ─── Group parents (covered by their leaf subcommands) ───────────────────────
+#
+# These commands are dispatch groups — they only show help and delegate to
+# their subcommands. Coverage of each subcommand is sufficient.
+
+# ─── Hazardous / environment-dependent commands ──────────────────────────────
+#
+# Commands that modify persistent state, require specific environment setup,
+# or are destructive in CI contexts.
+
+# help — built-in cobra help dispatcher; no application logic to test
+help
+
+# completion — shell completion output; tested by cobra framework itself
+completion
+
+# demo — interactive demonstration; requires TTY
+demo
+
+# goals steer add — writes to GOALS.md; state-modifying
+goals steer add
+
+# goals steer prioritize — writes to GOALS.md; state-modifying
+goals steer prioritize
+
+# goals steer remove — writes to GOALS.md; state-modifying
+goals steer remove
+
+# goals add — writes to GOALS.md; state-modifying
+goals add
+
+# goals prune — destructive; removes goals referencing nonexistent files
+goals prune
+
+# goals migrate — format migration; state-modifying
+goals migrate
+
+# goals meta — subset of goals measure; covered by goals measure smoke test
+goals meta
+
+# goals export — JSON export of snapshot; covered by goals measure
+goals export
+
+# goals drift — requires two snapshots to compare; needs baseline first
+goals drift
+
+# goals history — historical view; no application logic beyond goals validate
+goals history
+
+# goals init — initializes GOALS.md; state-modifying / interactive
+goals init
+
+# ratchet migrate — legacy format migration; state-modifying
+ratchet migrate
+
+# ratchet migrate-artifacts — adds frontmatter to .agents/ artifacts; state-modifying
+ratchet migrate-artifacts
+
+# ratchet record — records workflow step completion; state-modifying
+ratchet record
+
+# ratchet skip — records intentional skip; state-modifying
+ratchet skip
+
+# ratchet promote — promotes artifact to higher tier; state-modifying
+ratchet promote
+
+# ratchet find — search wrapper; covered by search and inject tests
+ratchet find
+
+# ratchet trace — traces artifact provenance; covered by trace tests
+ratchet trace
+
+# ratchet spec — finds current spec artifact; covered by ratchet status
+ratchet spec
+
+# rpi loop — autonomous loop; long-running, state-modifying
+rpi loop
+
+# rpi parallel — parallel epic orchestration; long-running, state-modifying
+rpi parallel
+
+# rpi phased — full RPI lifecycle orchestration; long-running, state-modifying
+rpi phased
+
+# rpi nudge — sends tmux messages; requires active RPI session
+rpi nudge
+
+# rpi stream — streams events from active run; requires active run
+rpi stream
+
+# rpi verify — verifies RPI ledger integrity; covered by rpi status tests
+rpi verify
+
+# rpi workers — shows worker health; requires active run
+rpi workers
+
+# rpi cleanup — cleans stale runs; covered by rpi_cleanup_test.go
+rpi cleanup
+
+# pool auto-promote — auto-approve/promote; covered by pool_test.go
+pool auto-promote
+
+# pool batch-promote — promote pending candidates; covered by batch_promote_test.go
+pool batch-promote
+
+# pool migrate-legacy — legacy migration; covered by pool_migrate_legacy_test.go
+pool migrate-legacy
+
+# pool promote — promotes a staged candidate; covered by pool_test.go
+pool promote
+
+# pool reject — rejects a candidate; covered by pool_test.go
+pool reject
+
+# pool show — shows candidate details; covered by pool_test.go
+pool show
+
+# pool stage — moves candidate to staged; covered by pool_test.go
+pool stage
+
+# gate approve — approves bronze candidate; covered by gate_test.go
+gate approve
+
+# gate bulk-approve — bulk approve; covered by gate_test.go
+gate bulk-approve
+
+# gate pending — lists pending candidates; covered by gate_test.go
+gate pending
+
+# gate reject — rejects a candidate; covered by gate_test.go
+gate reject
+
+# constraint activate — activates constraint; covered by constraint list smoke test
+constraint activate
+
+# constraint retire — retires constraint; covered by constraint list smoke test
+constraint retire
+
+# constraint review — reviews old constraints; covered by constraint list smoke test
+constraint review
+
+# curate catalog — catalogs artifact; covered by curate_test.go
+curate catalog
+
+# flywheel nudge — returns JSON nudge; covered by flywheel status smoke test
+flywheel nudge
+
+# metrics baseline — captures baseline snapshot; covered by metrics_test.go
+metrics baseline
+
+# metrics cite — records citation; covered by metrics_test.go
+metrics cite
+
+# session close — closes session; covered by session_close_test.go
+session close
+
+# hooks init — generates hooks config; covered by hooks_helpers_test.go
+hooks init
+
+# hooks install — installs hooks; covered by hooks_helpers_test.go
+hooks install
+
+# hooks show — displays hooks config; covered by hooks_helpers_test.go
+hooks show
+
+# hooks test — tests hook dependencies; covered by hooks_helpers_test.go
+hooks test
+
+# memory sync — sync sessions to MEMORY.md; tested in smoke test (quiet mode)
+# (covered by smoke test — intentionally not listed here)
+
+# plans diff — diffs plan vs beads; covered by plans_test.go
+plans diff
+
+# plans register — registers plan; covered by plans_test.go
+plans register
+
+# plans search — searches plans; covered by plans_test.go
+plans search
+
+# plans sync — syncs plan metadata; covered by plans_test.go
+plans sync
+
+# plans update — updates plan status; covered by plans_test.go
+plans update
+
+# forge markdown — extracts from markdown; covered by forge_helpers_test.go
+forge markdown
+
+# forge transcript — extracts from transcript; covered by forge_helpers_test.go
+forge transcript
+
+# forge batch — batch transcript processing; covered by batch_forge_test.go
+forge batch
+
+# mind all — full pipeline; covered by mind subcommand tests
+mind all
+
+# mind graph — graph statistics; covered by mind subcommand tests
+mind graph
+
+# mind index — rebuilds index; covered by mind subcommand tests
+mind index
+
+# mind link — inserts wikilinks; covered by mind subcommand tests
+mind link
+
+# mind normalize — normalizes frontmatter; covered by mind subcommand tests
+mind normalize
+
+# mind scan — shows what needs normalization; covered by mind subcommand tests
+mind scan
+
+# notebook update — updates MEMORY.md; tested in smoke test
+# (covered by smoke test — intentionally not listed here)
+
+# ratchet validate — validates artifact quality; covered by ratchet_test.go
+ratchet validate
+
+# ratchet check — checks step prerequisites; covered by ratchet_test.go
+ratchet check
+
+# ratchet next — shows next pending step; covered by ratchet_next_test.go
+ratchet next
+
+# plans list — lists plans; covered by plans_test.go
+plans list
+
+# ─── Commands with unit test coverage (string pattern not found) ─────────────
+#
+# These commands have dedicated *_test.go files but tests use Go function names
+# rather than the "ao <cmd>" string pattern. They are fully covered at the unit
+# level but the parity script cannot detect that via text search.
+
+# extract — covered by cli/cmd/ao/extract_test.go (function-level unit tests)
+extract
+
+# feedback-loop — covered by cli/cmd/ao/feedback_loop_test.go (function-level unit tests)
+feedback-loop
