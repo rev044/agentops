@@ -48,27 +48,7 @@ which ao
 ao version
 ```
 
-#### Download binary from latest release
-
-```bash
-# Pick the archive for your OS/arch from:
-# https://github.com/boshu2/agentops/releases/latest
-# Example: macOS Apple Silicon
-curl -fsSL https://github.com/boshu2/agentops/releases/latest/download/ao-darwin-arm64.tar.gz | tar -xz
-install -m 0755 ao "$HOME/.local/bin/ao"
-which ao
-ao version
-```
-
-#### Build from source
-
-```bash
-git clone https://github.com/boshu2/agentops.git
-cd agentops/cli
-make install
-which ao
-ao version
-```
+Advanced users can also install via release binaries or build from source.
 
 Then type `/quickstart` in your agent chat.
 
