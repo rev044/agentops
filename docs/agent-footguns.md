@@ -26,3 +26,25 @@ See also: `skills/swarm/references/worker-pitfalls.md` for general platform pitf
 
 - **Sync after editing hooks/skills**: After editing `hooks/`, `lib/hook-helpers.sh`, or `skills/standards/references/`, run `cd cli && make sync-hooks`. Tests and builds use the embedded copies, not the source files.
 - **CLI docs drift**: After adding/changing CLI commands or flags, run `scripts/generate-cli-reference.sh`. CI checks for drift.
+
+## Scope Overflow
+
+- **Scope-escape template**: When a task exceeds an agent's mandate, use the structured template at `docs/contracts/scope-escape-report.md`. Produce an audit instead of forcing a bad fix. This is the sanctioned behavior for unexpected scope overflow.
+- **File count ceiling**: Single-agent tasks should touch ~6 files max. Beyond that, split into subtasks or use scope-escape.
+
+## Maintenance Protocol
+
+This document is a living reference. Update it during every post-mortem cycle.
+
+**When to add an entry:**
+- A post-mortem discovers a framework/platform surprise that wasted agent time
+- A swarm worker hits a known limitation not documented here
+- A new tool or library introduces a gotcha
+
+**How to add an entry:**
+1. Add under the appropriate category header (Go/Cobra CLI, Shell Environment, Test Patterns, Embedded Assets)
+2. Create a new category if none fits
+3. Format: `- **Bold name**: Description of the footgun and how to avoid it`
+4. Include the relevant file path or code reference
+
+**Update cadence:** Every `/post-mortem` should check: "Did we discover a new footgun?" If yes, add it here in the same cycle — not next cycle.

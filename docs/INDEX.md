@@ -171,3 +171,8 @@
 - [RPI Run Registry](contracts/rpi-run-registry.md) — RPI run registry specification
 - [RPI Phase Result Schema](contracts/rpi-phase-result.schema.json) — Machine-readable schema for RPI phase results
 - [Scope Escape Report](contracts/scope-escape-report.md) — Structured template for agent scope-escape reporting
+- [dispatch-checklist.md](contracts/dispatch-checklist.md) — Standard references for agent dispatch prompts
+
+## Migration Trackers
+
+- [resolve-project-dir.md](migration-trackers/resolve-project-dir.md) — os.Getwd() → resolveProjectDir() migration status

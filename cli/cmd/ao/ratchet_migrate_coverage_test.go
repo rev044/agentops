@@ -13,14 +13,14 @@ import (
 
 func TestCov3_ratchetMigrate_runRatchetMigrate_dryRun(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	oldDryRun := dryRun
 	dryRun = true
 	defer func() { dryRun = oldDryRun }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runRatchetMigrate(cmd, nil)
 		if err != nil {
 			t.Fatalf("runRatchetMigrate dry-run: %v", err)
@@ -34,7 +34,7 @@ func TestCov3_ratchetMigrate_runRatchetMigrate_dryRun(t *testing.T) {
 
 func TestCov3_ratchetMigrate_runRatchetMigrate_noLegacy(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	// Create .agents/ dir but no legacy chain
 	if err := os.MkdirAll(filepath.Join(tmp, ".agents"), 0755); err != nil {
@@ -57,7 +57,7 @@ func TestCov3_ratchetMigrate_runRatchetMigrate_noLegacy(t *testing.T) {
 
 func TestCov3_ratchetMigrate_runRatchetMigrate_withLegacy(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	// Create .agents/provenance/chain.yaml with valid YAML
 	legacyDir := filepath.Join(tmp, ".agents", "provenance")
@@ -85,7 +85,7 @@ func TestCov3_ratchetMigrate_runRatchetMigrate_withLegacy(t *testing.T) {
 	defer func() { dryRun = oldDryRun }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runRatchetMigrate(cmd, nil)
 		if err != nil {
 			t.Fatalf("runRatchetMigrate with legacy: %v", err)
@@ -101,7 +101,7 @@ func TestCov3_ratchetMigrate_runRatchetMigrate_withLegacy(t *testing.T) {
 
 func TestCov3_ratchetMigrate_runMigrateArtifacts_noArgs(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	// Create .agents/ directory with a markdown file
 	agentsDir := filepath.Join(tmp, ".agents")
@@ -118,7 +118,7 @@ func TestCov3_ratchetMigrate_runMigrateArtifacts_noArgs(t *testing.T) {
 	defer func() { dryRun = oldDryRun }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runMigrateArtifacts(cmd, nil)
 		if err != nil {
 			t.Fatalf("runMigrateArtifacts no args: %v", err)
@@ -148,7 +148,7 @@ func TestCov3_ratchetMigrate_runMigrateArtifacts_withPath(t *testing.T) {
 	defer func() { dryRun = oldDryRun }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runMigrateArtifacts(cmd, []string{subDir})
 		if err != nil {
 			t.Fatalf("runMigrateArtifacts with path: %v", err)
@@ -173,7 +173,7 @@ func TestCov3_ratchetMigrate_runMigrateArtifacts_dryRun(t *testing.T) {
 	defer func() { dryRun = oldDryRun }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runMigrateArtifacts(cmd, []string{tmp})
 		if err != nil {
 			t.Fatalf("runMigrateArtifacts dry-run: %v", err)
@@ -298,7 +298,7 @@ func TestCov3_ratchetMigrate_migrateFile_success(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		result := migrateFile(p, info)
 		if result != migrateResultSuccess {
 			t.Fatalf("expected success, got %d", result)

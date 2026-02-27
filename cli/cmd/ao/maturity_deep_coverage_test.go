@@ -36,7 +36,7 @@ func cov3W2SetupMaturityDir(t *testing.T) (string, string) {
 	return tmp, learningsDir
 }
 
-// cov3W2ChdirTemp moved to testutil_test.go.
+// chdirTo moved to testutil_test.go.
 
 // cov3W2MakeTransitionResults creates a slice of MaturityTransitionResult for testing.
 func cov3W2MakeTransitionResults(ids ...string) []*ratchet.MaturityTransitionResult {
@@ -56,7 +56,7 @@ func cov3W2MakeTransitionResults(ids ...string) []*ratchet.MaturityTransitionRes
 	return results
 }
 
-// cov3W2CaptureStdout moved to testutil_test.go.
+// captureJSONStdout moved to testutil_test.go.
 
 // --- runMaturitySingle tests ---
 
@@ -116,7 +116,7 @@ func TestCov3_maturity_runMaturitySingle_checkNoTransition(t *testing.T) {
 	maturityApply = false
 	defer func() { maturityApply = oldApply }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		err := runMaturitySingle(tmp, "L002")
 		if err != nil {
 			t.Fatalf("runMaturitySingle: %v", err)
@@ -200,7 +200,7 @@ func TestCov3_maturity_outputSingleMaturityResult_json(t *testing.T) {
 		Reason:       "no transition",
 	}
 
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := outputSingleMaturityResult(result)
 		if err != nil {
 			t.Fatalf("outputSingleMaturityResult json: %v", err)
@@ -233,7 +233,7 @@ func TestCov3_maturity_outputSingleMaturityResult_table(t *testing.T) {
 	maturityApply = false
 	defer func() { maturityApply = oldApply }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		err := outputSingleMaturityResult(result)
 		if err != nil {
 			t.Fatalf("outputSingleMaturityResult table: %v", err)
@@ -245,7 +245,7 @@ func TestCov3_maturity_outputSingleMaturityResult_table(t *testing.T) {
 
 func TestCov3_maturity_runMaturity_noLearningsDir(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cmd := &cobra.Command{}
 	err := runMaturity(cmd, []string{})
@@ -256,7 +256,7 @@ func TestCov3_maturity_runMaturity_noLearningsDir(t *testing.T) {
 
 func TestCov3_maturity_runMaturity_noArgsNoScan(t *testing.T) {
 	tmp, _ := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	oldScan := maturityScan
 	maturityScan = false
@@ -282,7 +282,7 @@ func TestCov3_maturity_runMaturity_noArgsNoScan(t *testing.T) {
 
 func TestCov3_maturity_runMaturity_scanMode(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "scan-test.jsonl", map[string]any{
 		"id":            "scan-test",
@@ -309,7 +309,7 @@ func TestCov3_maturity_runMaturity_scanMode(t *testing.T) {
 	maturityApply = false
 	defer func() { maturityApply = oldApply }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runMaturity(cmd, []string{})
 		if err != nil {
@@ -320,7 +320,7 @@ func TestCov3_maturity_runMaturity_scanMode(t *testing.T) {
 
 func TestCov3_maturity_runMaturity_withLearningID(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "L010.jsonl", map[string]any{
 		"id":            "L010",
@@ -351,7 +351,7 @@ func TestCov3_maturity_runMaturity_withLearningID(t *testing.T) {
 	output = "table"
 	defer func() { output = oldOutput }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runMaturity(cmd, []string{"L010"})
 		if err != nil {
@@ -365,7 +365,7 @@ func TestCov3_maturity_runMaturity_withLearningID(t *testing.T) {
 func TestCov3_maturity_applyScannedTransitions_noResults(t *testing.T) {
 	_, learningsDir := cov3W2SetupMaturityDir(t)
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, nil)
 	})
 }
@@ -375,7 +375,7 @@ func TestCov3_maturity_applyScannedTransitions_missingFile(t *testing.T) {
 
 	results := cov3W2MakeTransitionResults("missing-learning")
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, results)
 	})
 }
@@ -397,7 +397,7 @@ func TestCov3_maturity_applyScannedTransitions_withValidFile(t *testing.T) {
 
 	results := cov3W2MakeTransitionResults("apply-target")
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, results)
 	})
 }
@@ -433,7 +433,7 @@ func TestCov3_maturity_runMaturityScan_noTransitions(t *testing.T) {
 		"harmful_count": 0,
 	})
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		err := runMaturityScan(learningsDir)
 		if err != nil {
 			t.Fatalf("runMaturityScan no transitions: %v", err)
@@ -466,7 +466,7 @@ func TestCov3_maturity_runMaturityScan_withTransitions(t *testing.T) {
 	output = "table"
 	defer func() { output = oldOutput }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		err := runMaturityScan(learningsDir)
 		if err != nil {
 			t.Fatalf("runMaturityScan with transitions: %v", err)
@@ -499,7 +499,7 @@ func TestCov3_maturity_runMaturityScan_withApply(t *testing.T) {
 	output = "table"
 	defer func() { output = oldOutput }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		err := runMaturityScan(learningsDir)
 		if err != nil {
 			t.Fatalf("runMaturityScan with apply: %v", err)
@@ -511,9 +511,9 @@ func TestCov3_maturity_runMaturityScan_withApply(t *testing.T) {
 
 func TestCov3_maturity_runAntiPatterns_noLearningsDir(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runAntiPatterns(cmd, nil)
 		if err != nil {
@@ -524,7 +524,7 @@ func TestCov3_maturity_runAntiPatterns_noLearningsDir(t *testing.T) {
 
 func TestCov3_maturity_runAntiPatterns_noAntiPatterns(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "normal.jsonl", map[string]any{
 		"id":            "normal",
@@ -535,7 +535,7 @@ func TestCov3_maturity_runAntiPatterns_noAntiPatterns(t *testing.T) {
 		"harmful_count": 0,
 	})
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runAntiPatterns(cmd, nil)
 		if err != nil {
@@ -546,7 +546,7 @@ func TestCov3_maturity_runAntiPatterns_noAntiPatterns(t *testing.T) {
 
 func TestCov3_maturity_runAntiPatterns_tableOutput(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "bad.jsonl", map[string]any{
 		"id":            "bad",
@@ -562,7 +562,7 @@ func TestCov3_maturity_runAntiPatterns_tableOutput(t *testing.T) {
 	output = "table"
 	defer func() { output = oldOutput }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runAntiPatterns(cmd, nil)
 		if err != nil {
@@ -573,7 +573,7 @@ func TestCov3_maturity_runAntiPatterns_tableOutput(t *testing.T) {
 
 func TestCov3_maturity_runAntiPatterns_jsonOutput(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "bad-json.jsonl", map[string]any{
 		"id":            "bad-json",
@@ -589,7 +589,7 @@ func TestCov3_maturity_runAntiPatterns_jsonOutput(t *testing.T) {
 	output = "json"
 	defer func() { output = oldOutput }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runAntiPatterns(cmd, nil)
 		if err != nil {
@@ -603,7 +603,7 @@ func TestCov3_maturity_runAntiPatterns_jsonOutput(t *testing.T) {
 func TestCov3_maturity_executeAntiPatternPromotions_empty(t *testing.T) {
 	_, learningsDir := cov3W2SetupMaturityDir(t)
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		promoted := executeAntiPatternPromotions(learningsDir, nil)
 		if promoted != 0 {
 			t.Fatalf("expected 0 promotions for empty input, got %d", promoted)
@@ -616,7 +616,7 @@ func TestCov3_maturity_executeAntiPatternPromotions_missingFile(t *testing.T) {
 
 	results := cov3W2MakeTransitionResults("missing-learning")
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		promoted := executeAntiPatternPromotions(learningsDir, results)
 		if promoted != 0 {
 			t.Fatalf("expected 0 promotions for missing file, got %d", promoted)
@@ -640,7 +640,7 @@ func TestCov3_maturity_executeAntiPatternPromotions_withValidFile(t *testing.T) 
 
 	results := cov3W2MakeTransitionResults("promote-target")
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		promoted := executeAntiPatternPromotions(learningsDir, results)
 		// The function should find the file and apply the transition
 		_ = promoted // may or may not promote depending on ratchet logic
@@ -651,9 +651,9 @@ func TestCov3_maturity_executeAntiPatternPromotions_withValidFile(t *testing.T) 
 
 func TestCov3_maturity_runPromoteAntiPatterns_noLearningsDir(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runPromoteAntiPatterns(cmd, nil)
 		if err != nil {
@@ -664,7 +664,7 @@ func TestCov3_maturity_runPromoteAntiPatterns_noLearningsDir(t *testing.T) {
 
 func TestCov3_maturity_runPromoteAntiPatterns_noCandidates(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "ok.jsonl", map[string]any{
 		"id":            "ok",
@@ -675,7 +675,7 @@ func TestCov3_maturity_runPromoteAntiPatterns_noCandidates(t *testing.T) {
 		"harmful_count": 0,
 	})
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runPromoteAntiPatterns(cmd, nil)
 		if err != nil {
@@ -686,7 +686,7 @@ func TestCov3_maturity_runPromoteAntiPatterns_noCandidates(t *testing.T) {
 
 func TestCov3_maturity_runPromoteAntiPatterns_dryRun(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "harmful.jsonl", map[string]any{
 		"id":            "harmful",
@@ -702,7 +702,7 @@ func TestCov3_maturity_runPromoteAntiPatterns_dryRun(t *testing.T) {
 	dryRun = true
 	defer func() { dryRun = oldDryRun }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runPromoteAntiPatterns(cmd, nil)
 		if err != nil {
@@ -713,7 +713,7 @@ func TestCov3_maturity_runPromoteAntiPatterns_dryRun(t *testing.T) {
 
 func TestCov3_maturity_runPromoteAntiPatterns_execute(t *testing.T) {
 	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	cov3W2WriteLearningJSONL(t, learningsDir, "demote-me.jsonl", map[string]any{
 		"id":            "demote-me",
@@ -729,7 +729,7 @@ func TestCov3_maturity_runPromoteAntiPatterns_execute(t *testing.T) {
 	dryRun = false
 	defer func() { dryRun = oldDryRun }()
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		cmd := &cobra.Command{}
 		err := runPromoteAntiPatterns(cmd, nil)
 		if err != nil {

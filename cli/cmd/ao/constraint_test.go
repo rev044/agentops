@@ -143,8 +143,7 @@ func TestFindConstraint_MutablePointer(t *testing.T) {
 
 func TestSaveConstraintIndex_NewlineTerminated(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{SchemaVersion: 1}
@@ -164,8 +163,7 @@ func TestSaveConstraintIndex_NewlineTerminated(t *testing.T) {
 
 func TestLoadConstraintIndex_CorruptJSON(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	// Write invalid JSON
@@ -188,8 +186,7 @@ func TestLoadConstraintIndex_CorruptJSON(t *testing.T) {
 
 func TestConstraintActivate_NotFound(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -211,8 +208,7 @@ func TestConstraintActivate_NotFound(t *testing.T) {
 
 func TestConstraintActivate_AlreadyRetired(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -238,8 +234,7 @@ func TestConstraintActivate_AlreadyRetired(t *testing.T) {
 
 func TestConstraintRetire_NotFound(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -258,8 +253,7 @@ func TestConstraintRetire_NotFound(t *testing.T) {
 
 func TestConstraintRetire_DraftCannotRetire(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -281,8 +275,7 @@ func TestConstraintRetire_DraftCannotRetire(t *testing.T) {
 
 func TestConstraintRetire_JSONOutput(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -319,8 +312,7 @@ func TestConstraintRetire_JSONOutput(t *testing.T) {
 
 func TestConstraintReview_SkipsRetired(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -361,8 +353,7 @@ func TestConstraintReview_SkipsRetired(t *testing.T) {
 
 func TestConstraintReview_DateOnlyFormat(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -399,8 +390,7 @@ func TestConstraintReview_DateOnlyFormat(t *testing.T) {
 
 func TestConstraintReview_InvalidDate(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -437,8 +427,7 @@ func TestConstraintReview_InvalidDate(t *testing.T) {
 
 func TestConstraintReview_TableOutput(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -476,8 +465,7 @@ func TestConstraintReview_TableOutput(t *testing.T) {
 
 func TestConstraintList_TableOutput(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -515,8 +503,7 @@ func TestConstraintList_TableOutput(t *testing.T) {
 
 func TestConstraintList_TruncatesLongValues(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -551,8 +538,7 @@ func TestConstraintList_TruncatesLongValues(t *testing.T) {
 
 func TestConstraintList_MissingIndex(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 
 	// No constraints directory
 	err := constraintListCmd.RunE(constraintListCmd, nil)
@@ -587,8 +573,7 @@ func TestConstraintIndexPath_IsStable(t *testing.T) {
 
 func TestConstraintLifecycle_DraftActivateRetire(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output

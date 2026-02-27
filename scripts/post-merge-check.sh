@@ -48,7 +48,29 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# 5. Summary
+# 5. go mod tidy
+echo "=== Checking go.mod tidiness ==="
+if (cd "$REPO_ROOT/cli" && cp go.sum go.sum.bak && go mod tidy && diff -q go.sum go.sum.bak >/dev/null 2>&1); then
+    echo "PASS: go.mod/go.sum are tidy"
+    rm -f "$REPO_ROOT/cli/go.sum.bak"
+else
+    echo "FAIL: go mod tidy produced changes"
+    mv "$REPO_ROOT/cli/go.sum.bak" "$REPO_ROOT/cli/go.sum" 2>/dev/null || true
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 6. Symlink check
+echo "=== Checking for symlinks ==="
+SYMLINKS=$(find "$REPO_ROOT" -type l -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/.claude/*' 2>/dev/null)
+if [ -z "$SYMLINKS" ]; then
+    echo "PASS: No symlinks found"
+else
+    echo "FAIL: Symlinks detected (CI will reject these):"
+    echo "$SYMLINKS" | head -10
+    ERRORS=$((ERRORS + 1))
+fi
+
+# 7. Summary
 echo "=== Integration Check Summary ==="
 if [ "$ERRORS" -eq 0 ]; then
     echo "All checks passed."

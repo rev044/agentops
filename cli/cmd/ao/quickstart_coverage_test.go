@@ -13,7 +13,7 @@ import (
 
 func TestCov3_quickstart_runQuickstart_minimal(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	oldMinimal := minimal
 	minimal = true
@@ -24,7 +24,7 @@ func TestCov3_quickstart_runQuickstart_minimal(t *testing.T) {
 	defer func() { noBeads = oldNoBeads }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runQuickstart(cmd, nil)
 		if err != nil {
 			t.Fatalf("runQuickstart minimal: %v", err)
@@ -55,7 +55,7 @@ func TestCov3_quickstart_runQuickstart_minimal(t *testing.T) {
 
 func TestCov3_quickstart_runQuickstart_fullNoBeads(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	oldMinimal := minimal
 	minimal = false
@@ -66,7 +66,7 @@ func TestCov3_quickstart_runQuickstart_fullNoBeads(t *testing.T) {
 	defer func() { noBeads = oldNoBeads }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runQuickstart(cmd, nil)
 		if err != nil {
 			t.Fatalf("runQuickstart full no-beads: %v", err)
@@ -91,7 +91,7 @@ func TestCov3_quickstart_runQuickstart_fullNoBeads(t *testing.T) {
 
 func TestCov3_quickstart_runQuickstart_createsClaudeMd(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	oldMinimal := minimal
 	minimal = false
@@ -102,7 +102,7 @@ func TestCov3_quickstart_runQuickstart_createsClaudeMd(t *testing.T) {
 	defer func() { noBeads = oldNoBeads }()
 
 	cmd := &cobra.Command{}
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		err := runQuickstart(cmd, nil)
 		if err != nil {
 			t.Fatalf("runQuickstart: %v", err)
@@ -125,7 +125,7 @@ func TestCov3_quickstart_runQuickstart_createsClaudeMd(t *testing.T) {
 
 func TestCov3_quickstart_runQuickstart_existingClaudeMd(t *testing.T) {
 	tmp := t.TempDir()
-	cov3W2ChdirTemp(t, tmp)
+	chdirTo(t, tmp)
 
 	// Pre-create CLAUDE.md
 	claudeMdPath := filepath.Join(tmp, "CLAUDE.md")
@@ -142,7 +142,7 @@ func TestCov3_quickstart_runQuickstart_existingClaudeMd(t *testing.T) {
 	defer func() { noBeads = oldNoBeads }()
 
 	cmd := &cobra.Command{}
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		err := runQuickstart(cmd, nil)
 		if err != nil {
 			t.Fatalf("runQuickstart: %v", err)
@@ -177,7 +177,7 @@ func TestCov3_quickstart_quickstartBeadsStep_noBeads(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		quickstartBeadsStep(tmp)
 	})
 
@@ -197,7 +197,7 @@ func TestCov3_quickstart_quickstartBeadsStep_noBeads(t *testing.T) {
 func TestCov3_quickstart_quickstartClaudeMdStep_creates(t *testing.T) {
 	tmp := t.TempDir()
 
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		quickstartClaudeMdStep(tmp)
 	})
 
@@ -218,7 +218,7 @@ func TestCov3_quickstart_quickstartClaudeMdStep_alreadyExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		quickstartClaudeMdStep(tmp)
 	})
 
@@ -240,7 +240,7 @@ func TestCov3_quickstart_createStarterPack(t *testing.T) {
 		}
 	}
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		err := createStarterPack(tmp)
 		if err != nil {
 			t.Fatalf("createStarterPack: %v", err)
@@ -269,7 +269,7 @@ func TestCov3_quickstart_createTasksFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		createTasksFile(tmp)
 	})
 
@@ -308,7 +308,7 @@ func TestCov3_quickstart_createProjectClaudeMd(t *testing.T) {
 // --- showNextSteps tests ---
 
 func TestCov3_quickstart_showNextSteps_withBeads(t *testing.T) {
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		showNextSteps(true)
 	})
 
@@ -318,7 +318,7 @@ func TestCov3_quickstart_showNextSteps_withBeads(t *testing.T) {
 }
 
 func TestCov3_quickstart_showNextSteps_withoutBeads(t *testing.T) {
-	got := cov3W2CaptureStdout(t, func() {
+	got := captureJSONStdout(t, func() {
 		showNextSteps(false)
 	})
 

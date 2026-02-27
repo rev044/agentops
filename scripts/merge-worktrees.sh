@@ -5,7 +5,7 @@
 # For each worktree directory:
 #   1. Verify it is a valid git worktree
 #   2. Get list of changed files (vs the worktree's merge-base with HEAD)
-#   3. Copy files using /bin/cp -f (bypasses interactive aliases)
+#   3. Copy files using /bin/cp -fp (bypasses interactive aliases, preserves permissions)
 #   4. Report what was copied
 set -euo pipefail
 
@@ -18,6 +18,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 total_copied=0
+total_deleted=0
 total_errors=0
 
 for wt_dir in "$@"; do
@@ -53,12 +54,15 @@ for wt_dir in "$@"; do
 
     # --- Copy files ---
     copied=0
+    deleted=0
     while IFS= read -r file; do
         src="$wt_dir/$file"
         dst="$REPO_ROOT/$file"
 
         if [[ ! -f "$src" ]]; then
-            echo "  SKIP (deleted): $file"
+            /bin/rm -f "$dst"
+            echo "  DELETE: $file"
+            deleted=$((deleted + 1))
             continue
         fi
 
@@ -66,15 +70,16 @@ for wt_dir in "$@"; do
         dst_dir="$(dirname "$dst")"
         [[ -d "$dst_dir" ]] || mkdir -p "$dst_dir"
 
-        /bin/cp -f "$src" "$dst"
+        /bin/cp -fp "$src" "$dst"
         echo "  COPY: $file"
         copied=$((copied + 1))
     done <<< "$changed_files"
 
-    echo "  -- $copied file(s) copied from $wt_dir"
+    echo "  -- $copied file(s) copied, $deleted file(s) deleted from $wt_dir"
     total_copied=$((total_copied + copied))
+    total_deleted=$((total_deleted + deleted))
 done
 
 echo ""
-echo "==> Summary: $total_copied file(s) copied, $total_errors worktree error(s)"
+echo "==> Summary: $total_copied file(s) copied, $total_deleted file(s) deleted, $total_errors worktree error(s)"
 [[ "$total_errors" -eq 0 ]] || exit 1

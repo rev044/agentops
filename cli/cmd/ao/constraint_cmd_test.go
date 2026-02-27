@@ -18,8 +18,7 @@ func TestConstraintIndexPath(t *testing.T) {
 
 func TestConstraintLoadSaveFindRoundTrip(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -60,8 +59,7 @@ func TestConstraintLoadSaveFindRoundTrip(t *testing.T) {
 
 func TestConstraintLoadMissingIndex(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 
 	if _, err := loadConstraintIndex(); err == nil {
 		t.Fatal("expected loadConstraintIndex to fail when index file is missing")
@@ -70,8 +68,7 @@ func TestConstraintLoadMissingIndex(t *testing.T) {
 
 func TestConstraintActivateDraft(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -109,8 +106,7 @@ func TestConstraintActivateDraft(t *testing.T) {
 
 func TestConstraintRetireActive(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -148,8 +144,7 @@ func TestConstraintRetireActive(t *testing.T) {
 
 func TestConstraintListAndReviewNoConstraints(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	empty := &constraintIndex{SchemaVersion: 1}
@@ -184,8 +179,7 @@ func TestConstraintListAndReviewNoConstraints(t *testing.T) {
 
 func TestConstraintActivateJSONAndReviewStale(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output
@@ -234,8 +228,7 @@ func TestConstraintActivateJSONAndReviewStale(t *testing.T) {
 
 func TestConstraintActivateRejectsNonDraft(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	idx := &constraintIndex{
@@ -255,8 +248,7 @@ func TestConstraintActivateRejectsNonDraft(t *testing.T) {
 
 func TestConstraintRetireRejectsMissingID(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	if err := os.WriteFile(constraintIndexPath(), []byte(`{"schema_version":1,"constraints":[{"id":"c-1","status":"draft","compiled_at":"2026-01-01"}]`), 0644); err != nil {
@@ -271,8 +263,7 @@ func TestConstraintRetireRejectsMissingID(t *testing.T) {
 
 func TestConstraintReviewJSONRoundTrip(t *testing.T) {
 	wd := t.TempDir()
-	oldWD := chdirTo(t, wd)
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	chdirTo(t, wd)
 	mkdirConstraintsDir(t)
 
 	oldOutput := output

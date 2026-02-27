@@ -63,30 +63,6 @@ func captureJSONStdout(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-// cov3W2CaptureStdout redirects os.Stdout, calls fn, and returns the output.
-// Origin: maturity_deep_coverage_test.go
-func cov3W2CaptureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = w
-
-	fn()
-
-	w.Close()
-	os.Stdout = oldStdout
-
-	out, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("read captured stdout: %v", err)
-	}
-	r.Close()
-	return string(out)
-}
-
 // ---------------------------------------------------------------------------
 // Working-directory helpers
 // ---------------------------------------------------------------------------
@@ -108,8 +84,9 @@ func chdirTemp(t *testing.T) string {
 	return tmp
 }
 
-// chdirTo changes to the specified directory and returns the previous working
-// directory. Caller is responsible for restoring it.
+// chdirTo changes to the specified directory, registers a cleanup to restore
+// the previous working directory, and returns the previous working directory
+// for backward compatibility.
 // Origin: constraint_cmd_test.go
 func chdirTo(t *testing.T, wd string) string {
 	t.Helper()
@@ -120,21 +97,8 @@ func chdirTo(t *testing.T, wd string) string {
 	if err := os.Chdir(wd); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
+	t.Cleanup(func() { _ = os.Chdir(prev) })
 	return prev
-}
-
-// cov3W2ChdirTemp changes to dir and registers cleanup to restore.
-// Origin: maturity_deep_coverage_test.go
-func cov3W2ChdirTemp(t *testing.T, dir string) {
-	t.Helper()
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chdir(origDir) })
 }
 
 // ---------------------------------------------------------------------------

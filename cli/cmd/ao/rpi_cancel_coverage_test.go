@@ -75,7 +75,7 @@ func TestCov3_rpiCancel_executeCancelTargets_dryRun(t *testing.T) {
 		},
 	}
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		failures := executeCancelTargets(targets, syscall.SIGTERM)
 		if len(failures) != 0 {
 			t.Fatalf("expected no failures in dry-run, got: %v", failures)
@@ -96,7 +96,7 @@ func TestCov3_rpiCancel_cancelOneTarget_dryRun(t *testing.T) {
 		PIDs:  []int{99999},
 	}
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		failures := cancelOneTarget(target, syscall.SIGTERM, os.Getpid())
 		if len(failures) != 0 {
 			t.Fatalf("expected no failures in dry-run, got: %v", failures)
@@ -116,7 +116,7 @@ func TestCov3_rpiCancel_cancelOneTarget_nonexistentPID(t *testing.T) {
 		PIDs:  []int{99999999},
 	}
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		failures := cancelOneTarget(target, syscall.SIGTERM, os.Getpid())
 		// ESRCH is ignored, so no failures
 		if len(failures) != 0 {
@@ -157,7 +157,7 @@ func TestCov3_rpiCancel_cancelOneTarget_withStateUpdate(t *testing.T) {
 		PIDs:      []int{99999999}, // nonexistent, ESRCH ignored
 	}
 
-	cov3W2CaptureStdout(t, func() {
+	captureJSONStdout(t, func() {
 		failures := cancelOneTarget(target, syscall.SIGTERM, os.Getpid())
 		if len(failures) != 0 {
 			t.Fatalf("unexpected failures: %v", failures)
