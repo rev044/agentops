@@ -30,20 +30,18 @@ claude --plugin ./ --help
 
 **Checks:**
 ```bash
-# Verify plugin installation
-npx skills@latest list
-
 # Check SKILL.md exists with valid frontmatter
-head -5 skills/quickstart/SKILL.md
+head -5 ~/.claude/skills/quickstart/SKILL.md
+
+# List installed skills
+ls ~/.claude/skills/
 ```
 
 **Fixes:**
-- Reinstall: `npx skills@latest add boshu2/agentops --all -g`
-- Update: `npx skills@latest update`
-- If update doesn't pick up changes, pull directly:
+- Reinstall: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
+- Manual sync for a single skill:
   ```bash
-  cd ~/.claude/plugins/marketplaces/agentops-marketplace/
-  git pull
+  /bin/cp -r ~/.agents/skills/<skill-name>/ ~/.claude/skills/<skill-name>/
   ```
 
 ## CLI Not Found (ao, bd, gt)

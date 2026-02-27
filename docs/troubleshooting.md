@@ -93,28 +93,27 @@ The `ao doctor` "Plugin" check scans the `skills/` directory for subdirectories 
    ao hooks test
    ```
 
-For Codex, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. For OpenCode, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`. For other Skills-compatible agents (for example Cursor), use agent-specific `npx skills` commands with explicit skill selection: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`.
+For Codex, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. For OpenCode, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`. For other agents, use the platform-specific scripts in `scripts/`.
 
-### `npx skills` update issues (non-Claude/non-Codex/non-OpenCode)
 
 **Symptoms:**
 
 - Running `npx update` installs an unrelated npm package and does not update skills.
-- `npx skills@latest update` reports failed skills without actionable detail.
+- `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)` reports failed skills without actionable detail.
 
 **Fixes:**
 
 1. Use the correct updater command:
    ```bash
-   npx skills@latest update
+   bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
    ```
 2. If specific skills still fail, reinstall each failed skill directly:
    ```bash
-   npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
+   bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
    ```
 3. Re-run update to verify a clean state:
    ```bash
-   npx skills@latest update
+   bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
    ```
 
 If reinstalling one-by-one works but bulk update previously failed, the local skills lock state was stale; per-skill reinstall refreshes it.

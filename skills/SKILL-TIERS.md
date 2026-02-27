@@ -258,7 +258,7 @@ These are how skills chain in practice:
 
 ### Internal Skills (9) — `metadata.internal: true`
 
-Hidden from interactive `npx skills add` discovery. Loaded JIT by other skills via Read or auto-triggered by hooks.
+Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hooks. Loaded JIT by other skills via Read or auto-triggered by hooks.
 
 | Skill | Tier | Category | Purpose |
 |-------|------|----------|---------|

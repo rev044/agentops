@@ -455,7 +455,7 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 
 # Other agents (example)
-npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 ```
 
 Optional:

@@ -100,7 +100,7 @@ List any skill dependencies:
 Provide installation command:
 
 ```bash
-npx skills@latest add your-repo/your-skill --all -g
+bash <(curl -fsSL https://raw.githubusercontent.com/your-repo/your-skill/main/scripts/install.sh)
 ```
 
 ## Usage Examples

@@ -66,7 +66,7 @@ If applicable, add screenshots to help explain your problem.
 **If this is a skill-specific bug:**
 
 - **Skill source:** [AgentOps/local/git URL]
-- **Installation method:** [npx skills command used]
+- **Installation method:** [installation method used]
 - **Dependencies installed:** [list other skills]
 
 ## Attempted Solutions

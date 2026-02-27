@@ -3,23 +3,36 @@ set -euo pipefail
 
 # AgentOps Installer
 # Usage: bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
-# Or:    npx skills@latest add boshu2/agentops --all -g
 
 echo "Installing AgentOps..."
 
 # Check prerequisites
-command -v npm >/dev/null 2>&1 || { echo "Error: npm required. Install Node.js first."; exit 1; }
-command -v claude >/dev/null 2>&1 || command -v codex >/dev/null 2>&1 || command -v cursor >/dev/null 2>&1 || {
-    echo "Warning: No supported coding agent found (claude, codex, cursor)."
-    echo "AgentOps requires a Skills-compatible agent. Install one first:"
+command -v curl >/dev/null 2>&1 || { echo "Error: curl required."; exit 1; }
+command -v claude >/dev/null 2>&1 || command -v codex >/dev/null 2>&1 || {
+    echo "Warning: No supported coding agent found (claude, codex)."
+    echo "AgentOps requires Claude Code or Codex CLI. Install one first:"
     echo "  Claude Code: https://docs.anthropic.com/en/docs/claude-code"
     echo "  Codex CLI:   https://github.com/openai/codex"
     echo "Continuing anyway — you can install an agent later."
 }
 
-# Step 1: Install plugin (skills + hooks + agents)
-echo "Step 1/3: Installing plugin..."
-npx skills@latest add boshu2/agentops --all -g
+# Step 1: Install skills (no npm required)
+echo "Step 1/3: Installing skills..."
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+curl -fsSL https://codeload.github.com/boshu2/agentops/tar.gz/refs/heads/main \
+    | tar xz -C "$TMP" --strip-components=1
+mkdir -p ~/.claude/skills
+/bin/cp -r "$TMP/skills/." ~/.claude/skills/
+SKILL_COUNT=$(ls "$TMP/skills" | wc -l | tr -d ' ')
+echo "✓ $SKILL_COUNT skills installed to ~/.claude/skills/"
+
+# For Codex users: also install Codex-native skills
+if command -v codex >/dev/null 2>&1; then
+    mkdir -p ~/.codex/skills
+    /bin/cp -r "$TMP/skills-codex/." ~/.codex/skills/ 2>/dev/null || true
+    echo "✓ Codex-native skills installed to ~/.codex/skills/"
+fi
 
 # Step 2: Install CLI (optional — enhances with knowledge flywheel)
 if command -v brew >/dev/null 2>&1; then

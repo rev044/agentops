@@ -75,9 +75,9 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 
 # Other Skills-compatible agents (agent-specific, install only what you need)
-npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 # Example (Cursor):
-npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 ```
 
 Codex install path is native: skills are installed directly to `~/.codex/skills`. Re-run the installer regularly after new releases.
@@ -91,7 +91,7 @@ ao seed         # Detects project type (go-cli, python-lib, web-app, rust-cli, g
                 # Creates .agents/, MEMORY.md, GOALS.md, hooks — ready in one command
 ```
 
-`claude plugin install` is the primary path for Claude Code. Codex users should use `install-codex.sh`, which installs Codex-native skills directly into `~/.codex/skills` (no repo clone). OpenCode uses `scripts/install-opencode.sh`. `npx skills` is for other agents (for example Cursor) with explicit `-a <agent>` and `-s <skill-name>` selection.
+`claude plugin install` is the primary path for Claude Code. Codex users should use `install-codex.sh`, which installs Codex-native skills directly into `~/.codex/skills` (no repo clone). OpenCode uses `scripts/install-opencode.sh`. Other agents: use platform-specific install scripts in `scripts/`.
 
 <details>
 <summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>
@@ -163,7 +163,7 @@ Full reference with examples and precedence rules: [docs/ENV-VARS.md](docs/ENV-V
 
 | What | Where | Reversible? |
 |------|-------|:-----------:|
-| Skills | Global skills dir (outside your repo; for Claude Code: `~/.claude/skills/`) | `npx skills@latest remove boshu2/agentops -g` |
+| Skills | Global skills dir (outside your repo; for Claude Code: `~/.claude/skills/`) | `rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/` |
 | Knowledge artifacts | `.agents/` in your repo (git-ignored by default) | `rm -rf .agents/` |
 | Hook registration | `.claude/settings.json` | `ao hooks uninstall` or delete entries |
 

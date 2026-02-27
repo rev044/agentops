@@ -305,7 +305,7 @@
       "brew install boshu2/agentops/ao",
       "",
       "# Install all skills globally",
-      "npx skills@latest add boshu2/agentops --all -g",
+      "bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)",
       "",
       "# Initialize AgentOps in your project",
       "ao init --hooks",

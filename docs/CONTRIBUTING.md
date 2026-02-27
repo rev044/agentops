@@ -299,7 +299,7 @@ Once merged:
   - Claude Code: `claude plugin install agentops@agentops-marketplace`
   - Codex: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`
   - OpenCode: `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`
-  - Other agents: `npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y`
+  - Other agents: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
 - You'll be credited as author
 
 ## Release Cadence

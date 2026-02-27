@@ -44,6 +44,6 @@ Workers are intentionally atomic. Fresh-context isolation per worker prevents co
 ## How do I uninstall?
 
 ```bash
-npx skills@latest remove boshu2/agentops -g
+rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/
 brew uninstall agentops  # if installed
 ```

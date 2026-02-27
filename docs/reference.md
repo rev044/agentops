@@ -195,11 +195,11 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash
 
 # Other agents (example: Cursor)
-npx skills@latest add boshu2/agentops -g -a <agent> -s <skill-name> -y
-npx skills@latest add boshu2/agentops -g -a cursor -s quickstart -y
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 
 # Update all
-npx skills@latest update
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 ```
 
 ### CLI Install (enables hooks)

@@ -34,7 +34,7 @@ This creates:
 
 What it does NOT create:
   Hooks              Use "ao init --hooks" for hook registration
-  Skills             Use "npx skills@latest add" for skill installation
+  Skills             Run: bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 
 Templates (--template):
   go-cli       Go CLI project (detected via go.mod)

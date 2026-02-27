@@ -57,7 +57,7 @@ Match the first row that applies. Output only that message — nothing else.
 
 | Problem | Solution |
 |---------|----------|
-| Skills not installed | `npx skills@latest add boshu2/agentops --all -g` |
+| Skills not installed | `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)` |
 | Flywheel count is 0 | First session — run `/rpi "a small goal"` to start it |
 | Want the full skill catalog | Ask: "show me all the skills" or see `references/full-catalog.md` |
 

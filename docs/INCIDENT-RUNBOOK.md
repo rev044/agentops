@@ -54,7 +54,7 @@ Every hook script checks `AGENTOPS_HOOKS_DISABLED=1` at the top and exits immedi
 
 ## 2. Scenario A: Broken Skills After Update
 
-**Symptom:** Consumer ran `npx skills add boshu2/agentops --all -g` and now Claude sessions are broken — hooks error, skills don't load, or sessions hang at start.
+**Symptom:** Consumer ran the install script and now Claude sessions are broken — hooks error, skills don't load, or sessions hang at start.
 
 ### Triage (< 5 min)
 
@@ -80,7 +80,7 @@ bash ~/.claude/skills/agentops/hooks/session-start.sh
 # Remove broken installation
 rm -rf ~/.claude/skills/agentops
 
-# Remove any symlinks (known failure: npx skills can't write through symlinks)
+# Remove any symlinks (known failure: installer cannot write through symlinks)
 find ~/.claude/skills -maxdepth 1 -type l -delete
 
 # Reinstall from latest Claude plugin

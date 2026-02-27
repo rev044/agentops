@@ -590,7 +590,7 @@ func checkSkills() doctorCheck {
 	}
 
 	if count == 0 {
-		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "no skills found — run 'npx skills@latest add <package> --all -g'", Required: false}
+		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "no skills found — run 'bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)'", Required: false}
 	}
 
 	return doctorCheck{
@@ -616,12 +616,12 @@ func findHealScript() string {
 		return ""
 	}
 
-	// 2. Installed via npx skills (Codex-native location)
+	// 2. Installed via install-codex.sh (Codex-native location)
 	if p := filepath.Join(home, ".codex", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
 		return p
 	}
 
-	// 3. Installed via npx skills (Claude location)
+	// 3. Installed via install.sh (Claude location)
 	if p := filepath.Join(home, ".claude", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
 		return p
 	}
