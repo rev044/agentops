@@ -20,6 +20,12 @@ All RPI artifacts live under `.agents/rpi/` relative to the working directory (w
   phase-2-handoff.md          # Handoff file
   phase-3-handoff.md          # Handoff file
   live-status.md              # Live status file (optional, --live-status flag)
+  runs/
+    <run-id>/
+      state.json              # Per-run mirrored orchestrator state
+      heartbeat.txt           # Liveness heartbeat
+      events.jsonl            # Normalized runtime/control events (schema: rpi-c2-events.schema.json)
+      commands.jsonl          # Control-plane commands (schema: rpi-c2-commands.schema.json)
 ```
 
 ## File Naming Conventions
@@ -32,6 +38,8 @@ All RPI artifacts live under `.agents/rpi/` relative to the working directory (w
 | `phase-{N}-summary.md` | Human-readable summary for cross-phase context | Written by Claude (preferred) or orchestrator fallback |
 | `phase-{N}-handoff.md` | Context degradation signal from Claude | Written by Claude when it detects context degradation |
 | `live-status.md` | Real-time progress for external watchers | Continuously updated when `--live-status` is enabled |
+| `runs/<run-id>/events.jsonl` | Append-only normalized event stream | Runtime adapters and control surfaces append with `run_id` correlation |
+| `runs/<run-id>/commands.jsonl` | Append-only control command stream | Command surfaces append with `command_id` and target metadata |
 
 Where `{N}` is the phase number: 1 (discovery), 2 (implementation), 3 (validation).
 
@@ -54,7 +62,7 @@ Optional fields populated when available:
 |-------|------|-------------|
 | `retries` | integer | Number of retry attempts (default 0) |
 | `error` | string | Error message on failure |
-| `backend` | string | Execution backend: `direct` or `stream` |
+| `backend` | string | Execution backend: `direct`, `stream`, or `tmux` |
 | `artifacts` | object | Map of artifact names to paths |
 | `verdicts` | object | Map of gate names to verdict strings |
 | `completed_at` | string | ISO 8601 timestamp |
@@ -63,6 +71,19 @@ Optional fields populated when available:
 Runtime selection is controlled by `ao rpi phased --runtime`, `ao rpi phased --runtime-cmd`,
 or config/env (`rpi.runtime_mode`, `rpi.runtime_command`, `AGENTOPS_RPI_RUNTIME[_MODE]`,
 `AGENTOPS_RPI_RUNTIME_COMMAND`).
+
+## C2 Event and Command Streams
+
+`events.jsonl` and `commands.jsonl` live under `.agents/rpi/runs/<run-id>/` and are append-only.
+
+- Event contract: [`rpi-c2-events.schema.json`](rpi-c2-events.schema.json)
+- Command contract: [`rpi-c2-commands.schema.json`](rpi-c2-commands.schema.json)
+
+Audit/correlation guarantees:
+
+- Every command carries a unique `command_id`.
+- Ack/failure events emitted to `events.jsonl` include both `run_id` and `command_id`.
+- Runtime boundaries append deterministic phase start/completion events per backend.
 
 ## Phase Transition Validation
 

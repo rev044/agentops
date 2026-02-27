@@ -81,6 +81,108 @@ func TestResolveLoopSupervisorConfig_AppliesSupervisorDefaults(t *testing.T) {
 	}
 }
 
+func TestRPILoop_ResolveLoopSupervisorConfig_RalphPreset(t *testing.T) {
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_AO_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_BD_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_TMUX_COMMAND", "")
+	prev := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prev)
+
+	rpiSupervisor = false
+	rpiRalph = true
+	rpiFailurePolicy = "stop"
+	rpiCycleRetries = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiDetachedHeal = false
+	rpiAutoClean = false
+	rpiEnsureCleanup = false
+	rpiCleanupPruneBranches = false
+	rpiGatePolicy = "off"
+	rpiLandingLockPath = ""
+	rpiLeaseTTL = 2 * time.Minute
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiLeasePath = ".agents/rpi/supervisor.lock"
+
+	cmd := newLoopSupervisorTestCommand()
+	cfg, err := resolveLoopSupervisorConfig(cmd, t.TempDir())
+	if err != nil {
+		t.Fatalf("resolveLoopSupervisorConfig: %v", err)
+	}
+	if !cfg.RalphPreset {
+		t.Fatal("expected Ralph preset to be recorded in config")
+	}
+	if cfg.FailurePolicy != loopFailurePolicyContinue {
+		t.Fatalf("failure policy = %q, want %q", cfg.FailurePolicy, loopFailurePolicyContinue)
+	}
+	if cfg.CycleDelay != 2*time.Minute {
+		t.Fatalf("cycle delay = %s, want 2m", cfg.CycleDelay)
+	}
+	if !cfg.LeaseEnabled || !cfg.AutoClean || !cfg.EnsureCleanup {
+		t.Fatalf("expected lease/auto-clean/ensure-cleanup all true; got lease=%v auto=%v ensure=%v", cfg.LeaseEnabled, cfg.AutoClean, cfg.EnsureCleanup)
+	}
+	if !cfg.CleanupPruneBranches {
+		t.Fatal("expected cleanup-prune-branches=true in Ralph mode")
+	}
+	if !cfg.DetachedHeal {
+		t.Fatal("expected detached-heal=true in Ralph mode")
+	}
+	if cfg.GatePolicy != loopGatePolicyRequired {
+		t.Fatalf("gate policy = %q, want %q", cfg.GatePolicy, loopGatePolicyRequired)
+	}
+}
+
+func TestRPILoop_ResolveLoopSupervisorConfig_RalphHonorsExplicitOverrides(t *testing.T) {
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_AO_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_BD_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_TMUX_COMMAND", "")
+	prev := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prev)
+
+	rpiSupervisor = false
+	rpiRalph = true
+	rpiFailurePolicy = "stop"
+	rpiCycleRetries = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiDetachedHeal = false
+	rpiAutoClean = false
+	rpiEnsureCleanup = false
+	rpiCleanupPruneBranches = false
+	rpiGatePolicy = "off"
+	rpiLandingLockPath = ""
+	rpiLeaseTTL = 2 * time.Minute
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiLeasePath = ".agents/rpi/supervisor.lock"
+
+	cmd := newLoopSupervisorTestCommand()
+	if err := cmd.Flags().Set("failure-policy", "stop"); err != nil {
+		t.Fatalf("set failure-policy: %v", err)
+	}
+	if err := cmd.Flags().Set("cycle-delay", "45s"); err != nil {
+		t.Fatalf("set cycle-delay: %v", err)
+	}
+	rpiFailurePolicy = "stop"
+	rpiCycleDelay = 45 * time.Second
+
+	cfg, err := resolveLoopSupervisorConfig(cmd, t.TempDir())
+	if err != nil {
+		t.Fatalf("resolveLoopSupervisorConfig: %v", err)
+	}
+	if cfg.FailurePolicy != loopFailurePolicyStop {
+		t.Fatalf("failure policy = %q, want explicit %q", cfg.FailurePolicy, loopFailurePolicyStop)
+	}
+	if cfg.CycleDelay != 45*time.Second {
+		t.Fatalf("cycle delay = %s, want explicit 45s", cfg.CycleDelay)
+	}
+}
+
 func TestAcquireSupervisorLease_SingleFlight(t *testing.T) {
 	tmpDir := t.TempDir()
 	leasePath := filepath.Join(tmpDir, "supervisor.lock")
@@ -557,6 +659,7 @@ func TestIsLoopKillSwitchSet(t *testing.T) {
 
 type loopSupervisorGlobals struct {
 	rpiSupervisor            bool
+	rpiRalph                 bool
 	rpiFailurePolicy         string
 	rpiCycleRetries          int
 	rpiRetryBackoff          time.Duration
@@ -586,6 +689,7 @@ type loopSupervisorGlobals struct {
 func snapshotLoopSupervisorGlobals() loopSupervisorGlobals {
 	return loopSupervisorGlobals{
 		rpiSupervisor:            rpiSupervisor,
+		rpiRalph:                 rpiRalph,
 		rpiFailurePolicy:         rpiFailurePolicy,
 		rpiCycleRetries:          rpiCycleRetries,
 		rpiRetryBackoff:          rpiRetryBackoff,
@@ -615,6 +719,7 @@ func snapshotLoopSupervisorGlobals() loopSupervisorGlobals {
 
 func restoreLoopSupervisorGlobals(prev loopSupervisorGlobals) {
 	rpiSupervisor = prev.rpiSupervisor
+	rpiRalph = prev.rpiRalph
 	rpiFailurePolicy = prev.rpiFailurePolicy
 	rpiCycleRetries = prev.rpiCycleRetries
 	rpiRetryBackoff = prev.rpiRetryBackoff
@@ -647,6 +752,7 @@ func newLoopSupervisorTestCommand() *cobra.Command {
 	cmd.Flags().Int("cycle-retries", 0, "")
 	cmd.Flags().Duration("cycle-delay", 0, "")
 	cmd.Flags().Bool("lease", false, "")
+	cmd.Flags().Bool("ralph", false, "")
 	cmd.Flags().Bool("detached-heal", false, "")
 	cmd.Flags().Bool("auto-clean", false, "")
 	cmd.Flags().Bool("ensure-cleanup", false, "")

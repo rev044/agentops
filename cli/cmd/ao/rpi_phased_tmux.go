@@ -72,6 +72,20 @@ func (t *tmuxExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("spawn mayor tmux session %q: %w", sessionName, err)
 	}
+	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   runID,
+		Phase:   phaseNum,
+		Backend: "tmux",
+		Source:  "runtime_tmux",
+		Type:    "phase.tmux.started",
+		Message: fmt.Sprintf("tmux mayor session %q started with %d worker(s)", sessionName, workers),
+		Details: map[string]any{
+			"session": sessionName,
+			"workers": workers,
+		},
+	}); err != nil {
+		VerbosePrintf("Warning: could not append tmux start event: %v\n", err)
+	}
 
 	fmt.Printf("Tmux mayor session %q spawned with %d worker(s) for phase %d\n", sessionName, workers, phaseNum)
 
@@ -79,6 +93,31 @@ func (t *tmuxExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
 	defer cancel()
 
 	waitErr := t.waitForCompletion(ctx, tmuxBin, sessionName, exitCodePath)
+	for i := 1; i <= workers; i++ {
+		logPath := fmt.Sprintf("%s.w%d.jsonl", exitCodePath, i)
+		if err := appendRPIC2WorkerLogEvents(cwd, runID, phaseNum, "tmux", strconv.Itoa(i), logPath); err != nil {
+			VerbosePrintf("Warning: could not append tmux worker events from %s: %v\n", logPath, err)
+		}
+	}
+	eventType := "phase.tmux.completed"
+	eventMessage := fmt.Sprintf("tmux phase %d completed", phaseNum)
+	if waitErr != nil {
+		eventType = "phase.tmux.failed"
+		eventMessage = waitErr.Error()
+	}
+	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   runID,
+		Phase:   phaseNum,
+		Backend: "tmux",
+		Source:  "runtime_tmux",
+		Type:    eventType,
+		Message: eventMessage,
+		Details: map[string]any{
+			"session": sessionName,
+		},
+	}); err != nil {
+		VerbosePrintf("Warning: could not append tmux completion event: %v\n", err)
+	}
 
 	t.killWorkerSessions(tmuxBin, sessionName, workers)
 	t.killSession(tmuxBin, sessionName)

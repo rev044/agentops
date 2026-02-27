@@ -18,6 +18,7 @@ var (
 	rpiMaxCycles             int
 	rpiRepoFilter            string
 	rpiSupervisor            bool
+	rpiRalph                 bool
 	rpiFailurePolicy         string
 	rpiCycleRetries          int
 	rpiRetryBackoff          time.Duration
@@ -77,6 +78,7 @@ Examples:
 	loopCmd.Flags().IntVar(&rpiMaxCycles, "max-cycles", 0, "Maximum cycles (0 = unlimited, stop when queue empty)")
 	loopCmd.Flags().StringVar(&rpiRepoFilter, "repo-filter", "", "Only process queue items targeting this repo (empty = all)")
 	loopCmd.Flags().BoolVar(&rpiSupervisor, "supervisor", false, "Enable autonomous supervisor mode (lease lock, self-heal, retries, gates, cleanup)")
+	loopCmd.Flags().BoolVar(&rpiRalph, "ralph", false, "Enable Ralph-mode preset for unattended external loop supervision (implies supervisor defaults with safe nonstop settings)")
 	loopCmd.Flags().StringVar(&rpiFailurePolicy, "failure-policy", "stop", "Cycle failure policy: stop|continue")
 	loopCmd.Flags().IntVar(&rpiCycleRetries, "cycle-retries", 0, "Automatic retry count per cycle after a failed attempt")
 	loopCmd.Flags().DurationVar(&rpiRetryBackoff, "retry-backoff", 30*time.Second, "Backoff between cycle retry attempts")

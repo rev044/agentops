@@ -47,6 +47,7 @@ var (
 )
 
 type rpiLoopSupervisorConfig struct {
+	RalphPreset           bool
 	FailurePolicy         string
 	CycleRetries          int
 	RetryBackoff          time.Duration
@@ -81,8 +82,11 @@ type rpiLoopSupervisorConfig struct {
 func resolveLoopSupervisorConfig(cmd *cobra.Command, cwd string) (rpiLoopSupervisorConfig, error) {
 	cfg := buildBaseLoopConfig()
 
-	if rpiSupervisor {
+	if rpiSupervisor || rpiRalph {
 		applySupervisorDefaults(cmd, &cfg)
+	}
+	if rpiRalph {
+		applyRalphDefaults(cmd, &cfg)
 	}
 
 	if err := validateLoopConfigValues(&cfg, cmd); err != nil {
@@ -109,6 +113,7 @@ func resolveLoopSupervisorConfig(cmd *cobra.Command, cwd string) (rpiLoopSupervi
 // buildBaseLoopConfig creates an rpiLoopSupervisorConfig from global flag values.
 func buildBaseLoopConfig() rpiLoopSupervisorConfig {
 	return rpiLoopSupervisorConfig{
+		RalphPreset:           rpiRalph,
 		FailurePolicy:         strings.ToLower(strings.TrimSpace(rpiFailurePolicy)),
 		CycleRetries:          rpiCycleRetries,
 		RetryBackoff:          rpiRetryBackoff,
@@ -133,6 +138,38 @@ func buildBaseLoopConfig() rpiLoopSupervisorConfig {
 		BDSyncPolicy:          strings.ToLower(strings.TrimSpace(rpiBDSyncPolicy)),
 		CommandTimeout:        rpiCommandTimeout,
 		KillSwitchPath:        strings.TrimSpace(rpiKillSwitchPath),
+	}
+}
+
+// applyRalphDefaults overlays operator-safe nonstop defaults for external loop
+// supervision while preserving explicit CLI flag precedence.
+func applyRalphDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfig) {
+	if !cmd.Flags().Changed("lease") {
+		cfg.LeaseEnabled = true
+	}
+	if !cmd.Flags().Changed("detached-heal") {
+		cfg.DetachedHeal = true
+	}
+	if !cmd.Flags().Changed("auto-clean") {
+		cfg.AutoClean = true
+	}
+	if !cmd.Flags().Changed("ensure-cleanup") {
+		cfg.EnsureCleanup = true
+	}
+	if !cmd.Flags().Changed("cleanup-prune-branches") {
+		cfg.CleanupPruneBranches = true
+	}
+	if !cmd.Flags().Changed("failure-policy") {
+		cfg.FailurePolicy = loopFailurePolicyContinue
+	}
+	if !cmd.Flags().Changed("cycle-retries") {
+		cfg.CycleRetries = 1
+	}
+	if !cmd.Flags().Changed("cycle-delay") {
+		cfg.CycleDelay = 2 * time.Minute
+	}
+	if !cmd.Flags().Changed("gate-policy") {
+		cfg.GatePolicy = loopGatePolicyRequired
 	}
 }
 

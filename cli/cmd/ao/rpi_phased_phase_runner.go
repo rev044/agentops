@@ -94,6 +94,7 @@ func executePhaseSession(spawnCwd string, state *phasedState, p phase, opts phas
 		PhaseName:       p.Name,
 		Status:          "completed",
 		Retries:         state.Attempts[retryKey],
+		Backend:         executor.Name(),
 		Verdicts:        state.Verdicts,
 		StartedAt:       start.Format(time.RFC3339),
 		CompletedAt:     time.Now().Format(time.RFC3339),

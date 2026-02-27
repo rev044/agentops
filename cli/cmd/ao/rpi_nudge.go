@@ -94,9 +94,34 @@ func runRPINudge(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	commandRecord, err := appendRPIC2Command(root, rpiC2CommandInput{
+		RunID:    runID,
+		Phase:    phase,
+		Kind:     "nudge",
+		Targets:  append([]string(nil), targets...),
+		Message:  message,
+		Deadline: time.Now().UTC().Add(30 * time.Second),
+		Metadata: map[string]any{
+			"phase_session": phaseSession,
+			"all_workers":   rpiNudgeAllWorkers,
+			"worker":        rpiNudgeWorker,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("append command log: %w", err)
+	}
+	commandID := commandRecord.CommandID
+
 	for _, target := range targets {
 		if err := sendTmuxNudge(tmuxBin, target, message); err != nil {
+			emitErr := appendRPINudgeC2Event(root, runID, phase, commandID, target, "failed", err.Error())
+			if emitErr != nil {
+				VerbosePrintf("Warning: could not append failed nudge event: %v\n", emitErr)
+			}
 			return err
+		}
+		if err := appendRPINudgeC2Event(root, runID, phase, commandID, target, "ack", "nudge delivered"); err != nil {
+			VerbosePrintf("Warning: could not append ack nudge event: %v\n", err)
 		}
 	}
 
@@ -113,6 +138,24 @@ func runRPINudge(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Nudged %d session(s): %s\n", len(targets), strings.Join(targets, ", "))
 	return nil
+}
+
+func appendRPINudgeC2Event(root, runID string, phase int, commandID, target, status, message string) error {
+	eventType := "command.nudge." + strings.TrimSpace(status)
+	_, err := appendRPIC2Event(root, rpiC2EventInput{
+		RunID:     runID,
+		CommandID: commandID,
+		Phase:     phase,
+		Backend:   "tmux",
+		Source:    "rpi_nudge",
+		Type:      eventType,
+		Message:   message,
+		Details: map[string]any{
+			"target": target,
+			"status": strings.TrimSpace(status),
+		},
+	})
+	return err
 }
 
 func resolveNudgeRun(cwd, requestedRunID string) (runID string, state *phasedState, root string, err error) {

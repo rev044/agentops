@@ -20,3 +20,7 @@ func init() {
 	rpiCmd.GroupID = "workflow"
 	rootCmd.AddCommand(rpiCmd)
 }
+
+func addRPISubcommand(cmd *cobra.Command) {
+	rpiCmd.AddCommand(cmd)
+}

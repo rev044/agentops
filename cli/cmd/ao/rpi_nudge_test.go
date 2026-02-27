@@ -213,6 +213,35 @@ done
 		time.Sleep(100 * time.Millisecond)
 	}
 
+	commands, err := loadRPIC2Commands(tmp, runID)
+	if err != nil {
+		t.Fatalf("loadRPIC2Commands: %v", err)
+	}
+	if len(commands) != 1 {
+		t.Fatalf("len(commands) = %d, want 1", len(commands))
+	}
+	commandID := commands[0].CommandID
+	if commandID == "" {
+		t.Fatal("expected non-empty command_id")
+	}
+
+	events, err := loadRPIC2Events(tmp, runID)
+	if err != nil {
+		t.Fatalf("loadRPIC2Events: %v", err)
+	}
+	ackCount := 0
+	for _, ev := range events {
+		if ev.CommandID != commandID {
+			continue
+		}
+		if ev.Type == "command.nudge.ack" {
+			ackCount++
+		}
+	}
+	if ackCount < 2 {
+		t.Fatalf("expected >=2 ack events for command %s, got %d", commandID, ackCount)
+	}
+
 	_ = sendTmuxNudge(tmuxBin, worker1, "stop-now")
 	_ = sendTmuxNudge(tmuxBin, worker2, "stop-now")
 }

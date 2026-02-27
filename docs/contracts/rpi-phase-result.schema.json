@@ -52,7 +52,7 @@
     "backend": {
       "type": "string",
       "description": "Execution backend used for this phase.",
-      "enum": ["direct", "stream"]
+      "enum": ["direct", "stream", "tmux"]
     },
     "artifacts": {
       "type": "object",

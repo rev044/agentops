@@ -327,12 +327,44 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start %s: %w", command, err)
 	}
+	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   runID,
+		Phase:   phaseNum,
+		Backend: "stream",
+		Source:  "runtime_stream",
+		Type:    "phase.stream.started",
+		Message: fmt.Sprintf("phase %d stream session started", phaseNum),
+	}); err != nil {
+		VerbosePrintf("Warning: could not append stream start event: %v\n", err)
+	}
 
 	onUpdate := buildStreamUpdateCallback(watchdog, allPhases, phaseNum, statusPath)
-	_, parseErr := ParseStreamEvents(stdout, onUpdate)
+	onEvent := func(ev StreamEvent) {
+		if _, err := appendRPIC2Event(cwd, mapStreamEventToRPIC2(runID, phaseNum, ev)); err != nil {
+			VerbosePrintf("Warning: could not append stream event: %v\n", err)
+		}
+	}
+	_, parseErr := ParseStreamEventsWithHandler(stdout, onEvent, onUpdate)
 	waitErr := cmd.Wait()
 
-	return classifyStreamResult(ctx, stallCtx, command, phaseNum, phaseTimeout, waitErr, parseErr, watchdog.eventCount.Load())
+	resultErr := classifyStreamResult(ctx, stallCtx, command, phaseNum, phaseTimeout, waitErr, parseErr, watchdog.eventCount.Load())
+	resultType := "phase.stream.completed"
+	resultMessage := fmt.Sprintf("phase %d stream session completed", phaseNum)
+	if resultErr != nil {
+		resultType = "phase.stream.failed"
+		resultMessage = resultErr.Error()
+	}
+	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   runID,
+		Phase:   phaseNum,
+		Backend: "stream",
+		Source:  "runtime_stream",
+		Type:    resultType,
+		Message: resultMessage,
+	}); err != nil {
+		VerbosePrintf("Warning: could not append stream completion event: %v\n", err)
+	}
+	return resultErr
 }
 
 // buildStreamPhaseContext creates a context with optional timeout for a stream phase.

@@ -217,3 +217,52 @@ done
 func TestTmuxExecutorImplementsPhaseExecutor(t *testing.T) {
 	var _ PhaseExecutor = &tmuxExecutor{}
 }
+
+func TestTmuxExecutor_MissingExitFileEmitsFailureEvent(t *testing.T) {
+	tmp := t.TempDir()
+	tmuxPath := filepath.Join(tmp, "fake-tmux.sh")
+	fakeTmux := `#!/usr/bin/env bash
+set -euo pipefail
+cmd="${1:-}"
+case "$cmd" in
+  new-session) exit 0 ;;
+  has-session) exit 1 ;;
+  kill-session) exit 0 ;;
+  *) exit 0 ;;
+esac
+`
+	if err := os.WriteFile(tmuxPath, []byte(fakeTmux), 0o700); err != nil {
+		t.Fatalf("write fake tmux: %v", err)
+	}
+
+	execTmux := &tmuxExecutor{
+		tmuxCommand:    tmuxPath,
+		runtimeCommand: "echo",
+		phaseTimeout:   2 * time.Second,
+		pollInterval:   50 * time.Millisecond,
+		workerCount:    1,
+	}
+	runID := "exit-missing-run"
+	err := execTmux.Execute("prompt", tmp, runID, 1)
+	if err == nil {
+		t.Fatal("expected missing exit-code file error")
+	}
+	if !strings.Contains(err.Error(), "exit-code file") {
+		t.Fatalf("expected exit-code file error, got: %v", err)
+	}
+
+	events, loadErr := loadRPIC2Events(tmp, runID)
+	if loadErr != nil {
+		t.Fatalf("loadRPIC2Events: %v", loadErr)
+	}
+	foundFailure := false
+	for _, ev := range events {
+		if ev.Type == "phase.tmux.failed" && strings.Contains(ev.Message, "exit-code file") {
+			foundFailure = true
+			break
+		}
+	}
+	if !foundFailure {
+		t.Fatalf("expected phase.tmux.failed event with exit-code file message, events=%#v", events)
+	}
+}

@@ -63,11 +63,17 @@ func applyEventToProgress(p *PhaseProgress, ev StreamEvent) {
 }
 
 // ParseStreamEvents reads newline-delimited JSON events from r, updating
-// a PhaseProgress as it goes.  If onUpdate is non-nil it is called after
-// every successfully parsed event.  The final PhaseProgress is returned
+// a PhaseProgress as it goes. If onUpdate is non-nil it is called after
+// every successfully parsed event. The final PhaseProgress is returned
 // along with the first non-EOF read error (malformed JSON lines are
 // silently skipped so that a partial stream still yields useful data).
 func ParseStreamEvents(r io.Reader, onUpdate func(PhaseProgress)) (PhaseProgress, error) {
+	return ParseStreamEventsWithHandler(r, nil, onUpdate)
+}
+
+// ParseStreamEventsWithHandler is ParseStreamEvents with an additional callback
+// for each parsed StreamEvent before progress is merged.
+func ParseStreamEventsWithHandler(r io.Reader, onEvent func(StreamEvent), onUpdate func(PhaseProgress)) (PhaseProgress, error) {
 	reader := newStreamLineReader(r)
 
 	var p PhaseProgress
@@ -76,6 +82,9 @@ func ParseStreamEvents(r io.Reader, onUpdate func(PhaseProgress)) (PhaseProgress
 		line, readErr := reader.readLine()
 		if len(line) > 0 {
 			if ev, err := ParseStreamEvent(line); err == nil {
+				if onEvent != nil {
+					onEvent(ev)
+				}
 				applyEventToProgress(&p, ev)
 				p.LastUpdate = time.Now()
 				if onUpdate != nil {
