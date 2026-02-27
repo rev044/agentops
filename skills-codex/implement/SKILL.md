@@ -28,7 +28,7 @@ Given `$implement <issue-id-or-description>`:
 
 ```bash
 # Pull knowledge scoped to this issue (if ao available)
-ao know lookup --bead <issue-id> --limit 3 2>/dev/null || true
+ao lookup --bead <issue-id> --limit 3 2>/dev/null || true
 ```
 
 ### Step 1: Get Issue Details

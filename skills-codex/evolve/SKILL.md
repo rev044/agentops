@@ -32,7 +32,7 @@ $evolve --quality --max-cycles=10  # Quality mode with cycle cap
 
 ```bash
 mkdir -p .agents/evolve
-ao know inject 2>/dev/null || true
+ao inject 2>/dev/null || true
 ```
 
 Recover cycle number and idle streak from disk (survives context compaction):

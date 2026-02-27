@@ -329,7 +329,7 @@ What are you trying to do?
 │   └─ Generate ideas ────────────► $brainstorm
 │
 ├─ "Learn from past work"
-│   ├─ What do we know about X? ──► ao know search "<query>"
+│   ├─ What do we know about X? ──► ao search "<query>"
 │   ├─ Save this insight ─────────► $retro --quick "insight"
 │   └─ Run a retrospective ───────► $retro
 │
@@ -360,7 +360,7 @@ ls .agents/learnings/ 2>/dev/null | wc -l
 
 # Show flywheel health (if ao available)
 if command -v ao &>/dev/null; then
-  ao quality flywheel status 2>/dev/null
+  ao flywheel status 2>/dev/null
   ao status 2>/dev/null | head -10
 else
   # ao not installed: show raw learnings from disk
@@ -389,7 +389,7 @@ What it means for you:
   - You never run ao commands directly — skills and hooks handle it
 
 The flywheel is running. Verify any time:
-  ao quality flywheel status             ← escape velocity check
+  ao flywheel status             ← escape velocity check
   ao status                      ← current knowledge inventory
   ls .agents/learnings/          ← raw learning files
 ```

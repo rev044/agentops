@@ -56,7 +56,7 @@ To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (c
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao know search "plan validation lessons <goal>" 2>/dev/null | head -10
+    ao search "plan validation lessons <goal>" 2>/dev/null | head -10
 fi
 ```
 If ao returns prior plan review findings, include them as context for the council packet. Skip silently if ao is unavailable or returns no results.

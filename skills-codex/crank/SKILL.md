@@ -93,11 +93,11 @@ Given `$crank [epic-id | plan-file.md | "description"]`:
 # If ao CLI available, pull relevant knowledge for this epic
 if command -v ao &>/dev/null; then
     # Pull knowledge scoped to the epic
-    ao know lookup --query "<epic-title>" --limit 5 2>/dev/null || \
-      ao know search "epic execution implementation patterns" 2>/dev/null | head -20
+    ao lookup --query "<epic-title>" --limit 5 2>/dev/null || \
+      ao search "epic execution implementation patterns" 2>/dev/null | head -20
 
     # Check flywheel status
-    ao quality flywheel status 2>/dev/null
+    ao flywheel status 2>/dev/null
 
     # Get current ratchet state
     ao ratchet status 2>/dev/null
@@ -457,7 +457,7 @@ If hooks or `lib/hook-helpers.sh` were modified, verify embedded copies are in s
 
 ### Step 8: Extract Learnings (ao Integration)
 
-If ao CLI available: run `ao know forge transcript`, `ao quality flywheel close-loop --quiet`, `ao quality flywheel status`, and `ao quality pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
+If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
 
 ### Step 9: Report Completion
 
@@ -475,7 +475,7 @@ Tell the user:
 Epic: <epic-id>
 Issues completed: N
 Iterations: M/50
-Flywheel: <status from ao quality flywheel status>
+Flywheel: <status from ao flywheel status>
 ```
 
 If stopped early:
@@ -516,7 +516,7 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 
 **User says:** `$crank ag-m0r`
 
-Loads learnings (`ao know inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao know forge transcript`.
+Loads learnings (`ao inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
 
 ### Execute from Plan File (TaskList Mode)
 

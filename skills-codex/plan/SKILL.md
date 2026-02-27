@@ -39,7 +39,7 @@ Use Grep to search `.agents/` for related content. If research exists, read it w
 **Search knowledge flywheel for prior planning patterns:**
 ```bash
 if command -v ao &>/dev/null; then
-    ao know search "<topic> plan decomposition patterns" 2>/dev/null | head -10
+    ao search "<topic> plan decomposition patterns" 2>/dev/null | head -10
 fi
 ```
 If ao returns relevant learnings or patterns, incorporate them into the plan. Skip silently if ao is unavailable or returns no results.
