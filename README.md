@@ -579,6 +579,21 @@ ao contradict                  # Detect potentially contradictory learnings
 ao demo                        # Interactive demo
 ```
 
+`ao search` (built on [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)) indexes every chat session from every runtime — Claude Code, Codex, Cursor, OpenCode, anything that writes to `.agents/ao/sessions/`. Extraction is best-effort; indexing is unconditional. If a session-end hook missed something or the model didn't pull a learning, the raw transcript is still there and searchable.
+
+<details>
+<summary><b>Second Brain + Obsidian vault</b> — semantic search over all your sessions</summary>
+
+`.agents/` is a plain-text directory. Open it directly as an Obsidian vault — every learning, council verdict, research artifact, plan, and session transcript is instantly browsable and linkable.
+
+For semantic search, pair it with [Smart Connections](https://github.com/brianpetro/obsidian-smart-connections):
+- **Local embeddings** — runs on CPU, no API key. GPU-accelerated with llama.cpp for large vaults.
+- **Smart Connections MCP** — expose your vault through the MCP server so agents do semantic retrieval directly, without leaving the chat.
+
+Agentic search (`ao search` or the MCP) handles most retrieval. Open Obsidian when you want to explore, build a knowledge map, or trace a decision back through its history. Either way, nothing is lost — every session is indexed.
+
+</details>
+
 Full reference: [CLI Commands](cli/docs/COMMANDS.md)
 
 ---
