@@ -37,7 +37,9 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 npx skills@latest add boshu2/agentops --cursor -g
 ```
 
-### Install ao CLI (choose one)
+### Install ao CLI (optional)
+
+Skills work standalone — no CLI required. The `ao` CLI adds cross-session memory: knowledge extraction, freshness-weighted injection, and maturity lifecycle. Install it if you want sessions to compound.
 
 #### Homebrew (recommended)
 
@@ -48,7 +50,7 @@ which ao
 ao version
 ```
 
-Advanced users can also install via release binaries or build from source.
+Or install via [release binaries](https://github.com/boshu2/agentops/releases) or [build from source](cli/README.md).
 
 Then type `/quickstart` in your agent chat.
 
