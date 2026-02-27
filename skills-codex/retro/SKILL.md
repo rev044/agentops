@@ -295,11 +295,11 @@ if command -v ao &>/dev/null; then
   echo "Learnings indexed in knowledge flywheel"
 
   # Apply feedback from completed tasks to associated learnings
-  ao work task-feedback 2>/dev/null
+  ao task-feedback 2>/dev/null
   echo "Task feedback applied"
 
   # Close session and trigger full flywheel close-loop
-  ao work session close 2>/dev/null || true
+  ao session close 2>/dev/null || true
   ao quality flywheel close-loop --quiet 2>/dev/null || true
   echo "Session closed, flywheel loop triggered"
 

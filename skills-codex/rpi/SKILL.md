@@ -109,7 +109,7 @@ After discovery completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao work ratchet record research 2>/dev/null || true
+ao ratchet record research 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-1" "discovery complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=1 phase_name=discovery 2>/dev/null || true
 ```
@@ -136,7 +136,7 @@ After implementation completes:
 4. Record ratchet and telemetry:
 
 ```bash
-ao work ratchet record implement 2>/dev/null || true
+ao ratchet record implement 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-2" "implementation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=2 phase_name=implementation 2>/dev/null || true
 ```
@@ -160,7 +160,7 @@ After validation completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao work ratchet record vibe 2>/dev/null || true
+ao ratchet record vibe 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-3" "validation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=validation 2>/dev/null || true
 ```
@@ -264,11 +264,18 @@ The complexity level is persisted in `.agents/rpi/phased-state.json` as the `com
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
+| Supervisor spiraled branch count | Detached HEAD healing or legacy `codex/auto-rpi-*` naming created detached branches | Keep `--detached-heal` off for supervisor mode (default), prefer detached worktree execution, then use external operator cleanup controls to preview and prune stale branches/worktrees. |
 | Discovery retries hit max attempts | Plan has unresolved risks | Review pre-mortem findings, re-run `$rpi --from=discovery` |
 | Implementation retries hit max attempts | Epic has blockers or unresolved dependencies | Inspect `bd show <epic-id>`, fix blockers, re-run `$rpi --from=implementation` |
 | Validation retries hit max attempts | Vibe found critical defects repeatedly | Apply findings, re-run `$rpi --from=validation` |
 | Missing epic ID at implementation start | Discovery did not produce a parseable epic | Verify latest open epic with `bd list --type epic --status open` |
 | Large-repo context pressure | Too much context in one window | Use `references/context-windowing.md` and summarize phase outputs aggressively |
+
+### Emergency control (external operator loop)
+
+Use external operator controls from a terminal to cancel in-flight runs and
+clean stale worktrees/branches. Keep these controls out-of-band from `$rpi`
+skill chaining.
 
 ## See Also
 
@@ -302,5 +309,3 @@ The complexity level is persisted in `.agents/rpi/phased-state.json` as the `com
 ### scripts/
 
 - `scripts/validate.sh`
-
-

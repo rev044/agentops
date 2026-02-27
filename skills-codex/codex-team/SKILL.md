@@ -8,7 +8,7 @@ description: 'Use when you have 2+ tasks that Codex agents should execute. Runti
 
 The lead orchestrates, Codex agents execute. Each agent gets one focused task. The team lead prevents file conflicts before spawning — the orchestrator IS the lock manager.
 
-For Claude-runtime feature compatibility (agents/hooks/worktree/settings), use `..$shared/references/claude-code-latest-features.md` when this skill falls back to `$swarm`.
+For Claude-runtime feature compatibility (agents/hooks/worktree/settings), use `../shared/references/claude-code-latest-features.md` when this skill falls back to `$swarm`.
 
 ## When to Use
 

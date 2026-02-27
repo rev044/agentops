@@ -54,7 +54,7 @@ fi
 command -v ao >/dev/null 2>&1 || exit 0
 
 # Get ratchet status as JSON
-RATCHET=$(run_ao_quick work ratchet status --json) || exit 0
+RATCHET=$(run_ao_quick ratchet status --json) || exit 0
 [ -z "$RATCHET" ] && exit 0
 
 # Parse steps (requires jq for JSON parsing)

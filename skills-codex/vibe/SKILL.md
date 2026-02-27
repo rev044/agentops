@@ -404,7 +404,7 @@ Tell the user:
 
 After council verdict:
 1. If verdict is PASS or WARN:
-   - Run: `ao work ratchet record vibe --output "<report-path>" 2>/dev/null || true`
+   - Run: `ao ratchet record vibe --output "<report-path>" 2>/dev/null || true`
    - Suggest: "Run $post-mortem to capture learnings and complete the cycle."
 2. If verdict is FAIL:
    - Do NOT record ratchet progress.

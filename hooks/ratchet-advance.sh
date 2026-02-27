@@ -41,8 +41,8 @@ STEP=$(echo "$CMD" | sed -n 's/.*ao ratchet record[[:space:]]\{1,\}\([a-z_-]*\).
 
 # Map step → next skill
 # Try new structured command first
-if command -v jq >/dev/null 2>&1 && run_ao_quick work ratchet next --help >/dev/null 2>&1; then
-    next_json=$(run_ao_quick work ratchet next --json)
+if command -v jq >/dev/null 2>&1 && run_ao_quick ratchet next --help >/dev/null 2>&1; then
+    next_json=$(run_ao_quick ratchet next --json)
     if [ -n "$next_json" ]; then
         NEXT=$(echo "$next_json" | jq -r '.skill // ""')
         COMPLETE=$(echo "$next_json" | jq -r '.complete // false')

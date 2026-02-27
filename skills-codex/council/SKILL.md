@@ -31,7 +31,7 @@ Council works independently — no RPI workflow, no ratchet chain, no `ao` CLI r
 | Mode | Agents | Execution Backend | Use Case |
 |------|--------|-------------------|----------|
 | `--quick` | 0 (inline) | Self | Fast single-agent check, no spawning |
-| default | 2 | Runtime-native (Codex sub-agents preferred; Codex sub-agents fallback) | Independent judges (no perspective labels) |
+| default | 2 | Runtime-native (Codex sub-agents preferred; Claude teams fallback) | Independent judges (no perspective labels) |
 | `--deep` | 3 | Runtime-native | Thorough review |
 | `--mixed` | 3+3 | Runtime-native + Codex CLI | Cross-vendor consensus |
 | `--debate` | 2+ | Runtime-native | Adversarial refinement (2 rounds) |
@@ -54,11 +54,11 @@ Council requires a runtime that can **spawn parallel subagents** and (for `--deb
 Skills describe WHAT to do, not WHICH tool to call. See `skills/shared/SKILL.md` for the capability contract.
 
 **After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
-- Claude feature contract → `..$shared/references/claude-code-latest-features.md`
-- Codex sub-agents → `..$shared/references/backend-claude-teams.md`
-- Codex Sub-Agents / CLI → `..$shared/references/backend-codex-subagents.md`
-- Background Tasks → `..$shared/references/backend-background-tasks.md`
-- Inline (`--quick`) → `..$shared/references/backend-inline.md`
+- Claude feature contract → `../shared/references/claude-code-latest-features.md`
+- Codex sub-agents → `../shared/references/backend-claude-teams.md`
+- Codex Sub-Agents / CLI → `../shared/references/backend-codex-subagents.md`
+- Background Tasks → `../shared/references/backend-background-tasks.md`
+- Inline (`--quick`) → `../shared/references/backend-inline.md`
 
 See also `references/cli-spawning.md` for council-specific spawning flow (phases, timeouts, output collection).
 
@@ -579,5 +579,4 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 
 - `scripts/validate-council.sh`
 - `scripts/validate.sh`
-
 

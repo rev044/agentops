@@ -72,11 +72,11 @@ Before launching the explore agent, detect which backend is available:
 Record the selected backend — it will be included in the research output document for traceability.
 
 **Read the matching backend reference for concrete tool call examples:**
-- Claude feature contract → `..$shared/references/claude-code-latest-features.md`
-- Codex → `..$shared/references/backend-codex-subagents.md`
-- Codex sub-agents → `..$shared/references/backend-claude-teams.md`
-- Background Tasks → `..$shared/references/backend-background-tasks.md`
-- Inline → `..$shared/references/backend-inline.md`
+- Claude feature contract → `../shared/references/claude-code-latest-features.md`
+- Codex → `../shared/references/backend-codex-subagents.md`
+- Codex sub-agents → `../shared/references/backend-claude-teams.md`
+- Background Tasks → `../shared/references/backend-background-tasks.md`
+- Inline → `../shared/references/backend-inline.md`
 
 ### Step 3: Launch Explore Agent
 

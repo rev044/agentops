@@ -442,7 +442,7 @@ Parameters:
 ### Step 9: Record Ratchet Progress
 
 ```bash
-ao work ratchet record plan 2>/dev/null || true
+ao ratchet record plan 2>/dev/null || true
 ```
 
 ### Step 10: Report to User
@@ -503,14 +503,14 @@ Tell the user:
 
 ### Plan with Implementation Detail (Symbol-Level)
 
-**User says:** `$plan "add stale run detection to ao work rpi status"`
+**User says:** `$plan "add stale run detection to RPI status"` (external operator loop surface)
 
 **What happens:**
 1. Agent explores codebase, finds `classifyRunStatus` at `rpi_status.go:850`, `phasedState` at `rpi_phased.go:100`
 2. Produces file inventory: 4 files to modify, 2 new files
 3. Each implementation section names exact functions, parameters, struct fields with JSON tags
 4. Tests section lists `TestClassifyRunStatus_StaleWorktree`, `TestDetermineRunLiveness_MissingWorktree` with descriptions
-5. Verification section provides manual simulation: create fake stale run, check `ao work rpi status` output
+5. Verification section provides manual simulation: create fake stale run, check the external RPI status surface output
 
 **Result:** Implementer can execute the plan in a single pass without rediscovering any symbol names, reducing implementation time by ~50% and eliminating spec-divergence rework.
 
@@ -544,5 +544,3 @@ Tell the user:
 ### scripts/
 
 - `scripts/validate.sh`
-
-

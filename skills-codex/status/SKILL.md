@@ -40,8 +40,8 @@ fi
 
 # Ratchet status via CLI
 if command -v ao &>/dev/null; then
-  ao work ratchet status --json 2>/dev/null || echo "RATCHET_UNAVAILABLE"
-  ao work task-status --json 2>/dev/null || echo "TASK_STATUS_UNAVAILABLE"
+  ao ratchet status --json 2>/dev/null || echo "RATCHET_UNAVAILABLE"
+  ao task-status --json 2>/dev/null || echo "TASK_STATUS_UNAVAILABLE"
 fi
 ```
 
@@ -144,7 +144,7 @@ KNOWLEDGE FLYWHEEL
   Badge: <ao quality badge output or omit if unavailable>
 
 TASK MATURITY
-  <ao work task-status summary: active tasks with CASS maturity levels, or omit if unavailable>
+  <ao task-status summary: active tasks with CASS maturity levels, or omit if unavailable>
 
 RECENT SESSIONS
   <last 3 session summaries with dates>

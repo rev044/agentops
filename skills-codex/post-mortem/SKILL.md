@@ -385,7 +385,7 @@ if command -v ao &>/dev/null; then
   echo "Artifacts validated for tempering"
 
   # Close session and trigger full flywheel close-loop (includes adaptive feedback)
-  ao work session close 2>/dev/null || true
+  ao session close 2>/dev/null || true
   ao quality flywheel close-loop --quiet 2>/dev/null || true
   echo "Session closed, flywheel loop triggered"
 else

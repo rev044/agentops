@@ -76,7 +76,7 @@ Skip if `--skip-baseline` or `--beads-only` or baseline already exists.
 
 ```bash
 if [ ! -f .agents/evolve/fitness-0-baseline.json ]; then
-  ao work goals measure --json --timeout 60 > .agents/evolve/fitness-0-baseline.json
+  ao goals measure --json --timeout 60 > .agents/evolve/fitness-0-baseline.json
 fi
 ```
 
@@ -95,12 +95,12 @@ CYCLE_START_SHA=$(git rev-parse HEAD)
 Skip if `--beads-only`.
 
 ```bash
-ao work goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
+ao goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
 ```
 
 **Do NOT write per-cycle `fitness-{N}-pre.json` files.** The rolling file is sufficient for work selection and regression detection.
 
-This writes a fitness snapshot to `.agents/evolve/`. If `ao work goals measure` is unavailable, read `GOALS.yaml` and run each goal's `check` command manually. Mark timeouts as `"result": "skip"`.
+This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is unavailable, read `GOALS.yaml` and run each goal's `check` command manually. Mark timeouts as `"result": "skip"`.
 
 ### Step 3: Select Work
 
@@ -125,7 +125,7 @@ fi
 **Step 3.1: Directive gap** (skip if `--beads-only`):
 ```bash
 # Get directives from GOALS.md
-DIRECTIVES=$(ao work goals measure --directives 2>/dev/null)
+DIRECTIVES=$(ao goals measure --directives 2>/dev/null)
 ```
 If directives exist, assess the top-priority directive (lowest number, non-quarantined):
 - Check git log for recent commits addressing it
@@ -229,7 +229,7 @@ bash scripts/check-wiring-closure.sh
 
 If not `--beads-only`, also re-measure to produce a post-cycle snapshot:
 ```bash
-ao work goals measure --json --timeout 60 --goal $GOAL_ID > .agents/evolve/fitness-latest-post.json
+ao goals measure --json --timeout 60 --goal $GOAL_ID > .agents/evolve/fitness-latest-post.json
 
 # Extract goal counts for cycle history entry
 PASSING=$(jq '[.goals[] | select(.result=="pass")] | length' .agents/evolve/fitness-latest-post.json 2>/dev/null || echo 0)
@@ -367,7 +367,7 @@ See `references/examples.md` for detailed walkthroughs.
 |---------|----------|
 | Loop exits immediately | Remove `~/.config/evolve/KILL` or `.agents/evolve/STOP` |
 | Stagnation after 3 idle cycles | All work sources empty — this is success |
-| `ao work goals measure` hangs | Use `--timeout 30` flag or `--beads-only` to skip |
+| `ao goals measure` hangs | Use `--timeout 30` flag or `--beads-only` to skip |
 | Regression gate reverts | Review reverted changes, narrow scope, re-run |
 
 See `references/cycle-history.md` for advanced troubleshooting.

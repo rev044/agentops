@@ -109,7 +109,7 @@ fi
 
 # --- Method 4: Ratchet chain (legacy/non-phased runs) ---
 if command -v ao &>/dev/null; then
-    if run_ao_quick work ratchet status --json | grep -q '"pre-mortem"'; then
+    if run_ao_quick ratchet status --json | grep -q '"pre-mortem"'; then
         exit 0
     fi
 fi

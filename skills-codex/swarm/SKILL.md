@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: 'Spawn isolated agents for parallel task execution. Auto-selects runtime-native teams (Codex sub-agents in Codex sessions, Codex sub-agents in Codex sessions). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
+description: 'Spawn isolated agents for parallel task execution. Auto-selects runtime-native teams (Codex sub-agents in Codex sessions, Claude teams in Claude sessions). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
 ---
 
 
@@ -23,7 +23,7 @@ Mayor (this session)
     |
     +-> Identify wave: tasks with no blockers
     |
-    +-> Select spawn backend (runtime-native first: Codex sub-agents in Codex runtime, Codex sub-agents in Codex runtime; fallback tasks if unavailable)
+    +-> Select spawn backend (runtime-native first: Codex sub-agents in Codex runtime, Claude teams in Claude runtime; fallback tasks if unavailable)
     |
     +-> Assign: TaskUpdate(taskId, owner="worker-<id>", status="in_progress")
     |
@@ -52,11 +52,11 @@ Use runtime capability detection, not hardcoded tool names. Swarm requires:
 See `skills/shared/SKILL.md` for the capability contract.
 
 **After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
-- Claude feature contract → `..$shared/references/claude-code-latest-features.md`
-- Codex sub-agents → `..$shared/references/backend-claude-teams.md`
-- Codex Sub-Agents / CLI → `..$shared/references/backend-codex-subagents.md`
-- Background Tasks → `..$shared/references/backend-background-tasks.md`
-- Inline (no spawn) → `..$shared/references/backend-inline.md`
+- Claude feature contract → `../shared/references/claude-code-latest-features.md`
+- Codex sub-agents → `../shared/references/backend-claude-teams.md`
+- Codex Sub-Agents / CLI → `../shared/references/backend-codex-subagents.md`
+- Background Tasks → `../shared/references/backend-background-tasks.md`
+- Inline (no spawn) → `../shared/references/backend-inline.md`
 
 See also `references/local-mode.md` for swarm-specific execution details (worktrees, validation, git commit policy, wave repeat).
 
@@ -92,7 +92,7 @@ Every TaskCreate **must** include a `metadata.files` array listing the files tha
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao work context assemble --task='<swarm objective or wave description>'
+    ao context assemble --task='<swarm objective or wave description>'
 fi
 ```
 
@@ -158,7 +158,7 @@ Mayor: "Let's build a user auth system"
 
 ## Key Points
 
-- **Runtime-native local mode** - Auto-selects the native backend for the current runtime (Codex sub-agents or Codex sub-agents)
+- **Runtime-native local mode** - Auto-selects the native backend for the current runtime (Codex sub-agents or Claude teams)
 - **Universal orchestration contract** - Same swarm behavior across Claude and Codex sessions
 - **Pre-assigned tasks** - Mayor assigns tasks before spawning; workers never race-claim
 - **Fresh worker contexts** - New sub-agents/teammates per wave preserve Ralph isolation
@@ -230,7 +230,7 @@ Follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/): **fresh context
 - **Filesystem for EVERYTHING** - Code artifacts AND result status written to disk, not passed through context
 - **Backend messaging for signals only** - Short coordination signals (under 100 tokens), never work details
 
-Ralph alignment source: `..$shared/references/ralph-loop-contract.md`.
+Ralph alignment source: `../shared/references/ralph-loop-contract.md`.
 
 ## Integration with Crank
 
@@ -350,7 +350,7 @@ $swarm --from-wave /tmp/wave-ol-527.json
 
 **What happens:**
 1. Agent identifies unblocked tasks from TaskList (e.g., "Create User model")
-2. Agent selects spawn backend using runtime-native priority (Codex session -> Codex sub-agents; Codex session -> Codex sub-agents)
+2. Agent selects spawn backend using runtime-native priority (Codex session -> Codex sub-agents; Claude session -> Claude teams)
 3. Agent spawns worker for task #1, assigns ownership via TaskUpdate
 4. Worker completes, team lead validates changes
 5. Agent identifies next wave (tasks #2 and #3 now unblocked)
@@ -392,7 +392,7 @@ $swarm --from-wave /tmp/wave-ol-527.json
 
 **Default behavior:** Auto-detect and prefer runtime-native isolation first.
 
-In Codex runtime, first verify teammate profiles with `claude agents` and use agent definitions with `isolation: worktree` for write-heavy parallel waves. If native isolation is unavailable, use manual `git worktree` fallback below.
+In Codex runtime, verify teammate profiles and use agent definitions with `isolation: worktree` for write-heavy parallel waves. If native isolation is unavailable, use manual `git worktree` fallback below.
 
 ### Isolation Semantics Per Spawn Backend
 
@@ -582,5 +582,4 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 - `scripts/ol-ratchet.sh`
 - `scripts/ol-wave-loader.sh`
 - `scripts/validate.sh`
-
 

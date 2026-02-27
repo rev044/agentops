@@ -110,9 +110,9 @@ elif command -v ao &>/dev/null; then
     INJECT_EXTRA_FLAGS=()
     if [ -n "${HOOK_BEAD:-}" ]; then
         INJECT_EXTRA_FLAGS+=(--bead "$HOOK_BEAD")
-        run_ao_quick 5 know forge transcript --last-session --quiet --bead "$HOOK_BEAD" || log_hook_fail "ao forge transcript --last-session --quiet --bead"
+        run_ao_quick 5 forge transcript --last-session --quiet --bead "$HOOK_BEAD" || log_hook_fail "ao forge transcript --last-session --quiet --bead"
     else
-        run_ao_quick 5 know forge transcript --last-session --quiet || log_hook_fail "ao forge transcript --last-session --quiet"
+        run_ao_quick 5 forge transcript --last-session --quiet || log_hook_fail "ao forge transcript --last-session --quiet"
     fi
 
     if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
@@ -141,7 +141,7 @@ elif command -v ao &>/dev/null; then
         fi
     fi
 
-    if ! INJECTED_KNOWLEDGE="$(run_ao_quick 5 know inject "${INJECT_MODE_FLAGS[@]}" "${INJECT_EXTRA_FLAGS[@]}")"; then
+    if ! INJECTED_KNOWLEDGE="$(run_ao_quick 5 inject "${INJECT_MODE_FLAGS[@]}" "${INJECT_EXTRA_FLAGS[@]}")"; then
         log_hook_fail "ao inject"
         INJECTED_KNOWLEDGE=""
     fi

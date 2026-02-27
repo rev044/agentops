@@ -179,7 +179,7 @@ source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 ### Step 5: Record Ratchet Progress
 
 ```bash
-ao work ratchet record pre-mortem 2>/dev/null || true
+ao ratchet record pre-mortem 2>/dev/null || true
 ```
 
 ### Step 6: Report to User

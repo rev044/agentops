@@ -126,6 +126,7 @@ These are the skills every user needs first. Everything else is available when y
 
 | Skill | Purpose |
 |-------|---------|
+| `$grafana-platform-dashboard` | Build Grafana platform dashboards from templates/contracts |
 | `$codex-team` | Parallel Codex agent execution |
 | `$openai-docs` | Official OpenAI docs lookup with citations |
 | `$oss-docs` | OSS documentation scaffold and audit |
@@ -208,5 +209,4 @@ bd sync               # Sync with git
 ### scripts/
 
 - `scripts/validate.sh`
-
 

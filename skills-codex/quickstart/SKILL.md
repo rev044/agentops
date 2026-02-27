@@ -417,7 +417,7 @@ When you want parallelism, $swarm multiplies any of them.
 When you want the full pipeline, $rpi chains them all:
 
   $rpi "goal"              ← research → plan → validate → ship → learn
-  ao work rpi phased "goal"     ← same thing from the CLI, fresh context per phase
+  (External Ralph-loop runner is operator-controlled and out-of-band)
 
 Want hands-free improvement?
 
@@ -540,5 +540,3 @@ git rev-parse --is-inside-work-tree &>/dev/null && GIT_REPO=true || GIT_REPO=fal
 ### scripts/
 
 - `scripts/validate.sh`
-
-

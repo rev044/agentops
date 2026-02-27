@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-02-27
+
+### Added
+- `ao mind` command for knowledge graph operations.
+- New RPI operator surfaces: normalized C2/event plumbing plus `ao rpi stream`, `ao rpi workers`, and tmux worker nudge visibility.
+- Codex install/bootstrap improvements, including native `~/.codex/skills` install and one-line installer flow.
+- Windows binaries added to GoReleaser build outputs.
+
+### Changed
+- CLI namespace migration completed and aligned across hooks, docs, integration tests, and generated command references.
+- Codex skill system moved to regenerated modular layout with codex-specific overrides and runtime prompt tailoring.
+- CI/release gates hardened (codex runtime sections, release e2e validation, parity checks, stricter policy enforcement).
+- High-complexity CLI paths refactored (`runRPIParallel`, `runDedup`, `parseGatesTable`) to lower cyclomatic complexity.
+
+### Fixed
+- Multiple post-mortem remediation waves landed for CLI/RPI/swarm reliability and edge-case handling.
+- Hook delegation and integration behavior corrected for flat command namespace.
+- `heal.sh` false-positive behavior reduced and doctor stale-path detection improved.
+- Skill/doc parity and cross-reference drift issues corrected across codex and core skill catalogs.
+
+### Removed
+- Legacy inbox/mail command surface and stale/dead skill references from active catalogs.
+
 ## [2.18.2] - 2026-02-25
 
 ### Fixed

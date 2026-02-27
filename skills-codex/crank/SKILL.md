@@ -1,6 +1,6 @@
 ---
 name: crank
-description: 'Hands-free epic execution. Runs until ALL children are CLOSED. Uses $swarm with runtime-native spawning (Codex sub-agents or Codex sub-agents). NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "run all tasks", "hands-free execution", "crank it".'
+description: 'Hands-free epic execution. Runs until ALL children are CLOSED. Uses $swarm with runtime-native spawning (Codex sub-agents or Claude teams). NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "run all tasks", "hands-free execution", "crank it".'
 ---
 
 
@@ -14,7 +14,7 @@ Autonomous execution: implement all issues until the epic is DONE.
 
 **CLI dependencies:** bd (issue tracking), ao (knowledge flywheel). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use TaskList for issue tracking and skip beads sync. If ao is unavailable, skip knowledge injection/extraction.
 
-For Codex runtime feature coverage (agents/hooks/worktree/settings), see `..$shared/references/claude-code-latest-features.md`.
+For Codex runtime feature coverage (agents/hooks/worktree/settings), see `../shared/references/claude-code-latest-features.md`.
 
 ## Architecture: Crank + Swarm
 
@@ -50,7 +50,7 @@ Crank (orchestrator, TaskList mode)    Swarm (executor)
 - **Crank** = Orchestration, epic/task lifecycle, knowledge flywheel
 - **Swarm** = Runtime-native parallel execution (Ralph Wiggum pattern via fresh worker set per wave)
 
-Ralph alignment source: `..$shared/references/ralph-loop-contract.md` (fresh context, scheduler/worker split, disk-backed state, backpressure).
+Ralph alignment source: `../shared/references/ralph-loop-contract.md` (fresh context, scheduler/worker split, disk-backed state, backpressure).
 
 ## Flags
 
@@ -100,7 +100,7 @@ if command -v ao &>/dev/null; then
     ao quality flywheel status 2>/dev/null
 
     # Get current ratchet state
-    ao work ratchet status 2>/dev/null
+    ao ratchet status 2>/dev/null
 fi
 ```
 
@@ -310,7 +310,7 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao work context assemble --task='<epic title>: wave $wave'
+    ao context assemble --task='<epic title>: wave $wave'
 fi
 ```
 
@@ -598,5 +598,4 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 ### scripts/
 
 - `scripts/validate.sh`
-
 
