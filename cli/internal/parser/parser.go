@@ -183,10 +183,11 @@ func classifyError(err error) string {
 
 // truncateForError limits error context to a reasonable size.
 func truncateForError(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return string(runes[:maxLen]) + "..."
 }
 
 // ParseFile parses a JSONL file by path.

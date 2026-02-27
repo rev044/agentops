@@ -868,16 +868,19 @@ func formatDuration(d time.Duration) string {
 // truncateAtWordBoundary truncates a string at the last space before limit.
 // If no space is found before limit, it truncates at limit exactly.
 func truncateAtWordBoundary(s string, limit int) string {
-	if len(s) <= limit {
+	runes := []rune(s)
+	if len(runes) <= limit {
 		return s
 	}
-	// Find the last space before the limit
-	lastSpace := strings.LastIndex(s[:limit], " ")
+	// Build the rune-safe prefix and search for the last space within it.
+	prefix := string(runes[:limit])
+	lastSpace := strings.LastIndex(prefix, " ")
 	if lastSpace == -1 {
 		// No space found, truncate at limit
-		return s[:limit]
+		return prefix
 	}
-	return s[:lastSpace]
+	// lastSpace is a byte offset in prefix; space is ASCII so slice is safe.
+	return prefix[:lastSpace]
 }
 
 // atomicMove moves a file atomically using the pattern:

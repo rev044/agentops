@@ -309,8 +309,9 @@ func countNegations(lower string) int {
 func truncateSnippet(text string, n int) string {
 	// Collapse whitespace first
 	s := strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
-	if len(s) <= n {
+	runes := []rune(s)
+	if len(runes) <= n {
 		return s
 	}
-	return s[:n] + "..."
+	return string(runes[:n]) + "..."
 }

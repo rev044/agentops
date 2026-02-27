@@ -594,8 +594,9 @@ func searchLearningsWithMaturity(query, dir string, limit int) ([]searchResult, 
 }
 
 func truncateContext(s string) string {
-	if len(s) > ContextLineMaxLength {
-		return s[:ContextLineMaxLength] + "..."
+	runes := []rune(s)
+	if len(runes) > ContextLineMaxLength {
+		return string(runes[:ContextLineMaxLength]) + "..."
 	}
 	return s
 }

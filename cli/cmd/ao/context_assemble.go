@@ -452,11 +452,12 @@ func truncateToCharBudget(content string, budget int) string {
 	if budget <= 0 {
 		return ""
 	}
-	if len(content) <= budget {
+	runes := []rune(content)
+	if len(runes) <= budget {
 		return content
 	}
 	// Truncate at budget, try to break at a newline.
-	truncated := content[:budget]
+	truncated := string(runes[:budget])
 	lastNL := strings.LastIndex(truncated, "\n")
 	if lastNL > budget/2 {
 		truncated = truncated[:lastNL+1]
