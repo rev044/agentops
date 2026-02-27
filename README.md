@@ -23,6 +23,18 @@
 
 Coding agents get a blank context window every session. AgentOps is a toolbox of skills you compose however you want — use one, chain several, or run the full pipeline. Knowledge compounds between sessions automatically.
 
+**The core pipeline — five commands, everything else is automatic:**
+
+| Step | Command | What Happens | Calls Internally |
+|------|---------|--------------|------------------|
+| 1 | `/research` | Explore codebase, mine prior knowledge | — |
+| 2 | `/plan` | Break goal into tracked issues with dependency waves | `/beads` |
+| 3 | `/pre-mortem` | Simulate failures before you build | `/council` |
+| 4 | `/crank` | Implement → validate → commit loop, parallel agents | `/implement`, `/vibe` |
+| 5 | `/post-mortem` | Validate + extract learnings → `.agents/` | `/vibe`, `/retro` |
+
+`/rpi` chains all five. `/evolve` loops `/rpi` overnight with fitness-gated regression checks.
+
 | Pattern | Chain | When |
 |---------|-------|------|
 | **Quick fix** | `/implement` | One issue, clear scope |
@@ -54,6 +66,16 @@ The learning part is what makes it compound. Your agent validates a PR, and the 
 ```
 
 Session 5 didn't start from scratch — it started with what session 1 learned. Stale insights [decay automatically](docs/the-science.md).
+
+**The compound effect — same bug, different sessions:**
+
+```
+Without AgentOps:  [2 hrs] → [2 hrs] → [2 hrs] → [2 hrs]  =  8 hours total
+With AgentOps:     [2 hrs] → [10 min] → [2 min] → instant  =  ~2.2 hours total
+                    learn     recall     refine    mastered
+```
+
+By session 100, your agent already knows every bug you've fixed, your architecture decisions and why, and what approaches have failed in this codebase.
 
 - **Local-only** — no telemetry, no cloud, no accounts. Nothing phones home. Everything is [open source](cli/) — audit it yourself.
 - **Multi-runtime** — Claude Code, Codex CLI, Cursor, OpenCode. Skills are portable across runtimes (`/converter` exports to native formats).
@@ -288,7 +310,9 @@ Every skill works alone. Compose them however you want.
 | Skill | What it does |
 |-------|-------------|
 | `/council` | Independent judges (Claude + Codex) debate, surface disagreement, converge. `--preset=security-audit`, `--perspectives`, `--debate` for adversarial review |
-| `/vibe` | Code quality review — complexity analysis + council |
+| `/vibe` | Code quality review — complexity analysis + council. Gates on 0 CRITICAL findings. |
+
+> **What `/vibe` checks:** Semantic (does code match spec?), Security (injection, auth bypass, secrets), Quality (smells, dead code, magic numbers), Architecture (layer violations, coupling, god classes), Complexity (CC > 10, deep nesting), Performance (N+1, resource leaks), Slop (AI hallucinations, cargo cult code), Accessibility (ARIA, keyboard nav). 1+ CRITICAL blocks until fixed.
 | `/pre-mortem` | Validate plans before implementation — council simulates failures |
 | `/post-mortem` | Wrap up completed work — council validates + retro extracts learnings |
 
