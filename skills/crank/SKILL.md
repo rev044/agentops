@@ -106,7 +106,7 @@ if command -v ao &>/dev/null; then
       ao search "epic execution implementation patterns" 2>/dev/null | head -20
 
     # Check flywheel status
-    ao flywheel status 2>/dev/null
+    ao metrics flywheel status 2>/dev/null
 
     # Get current ratchet state
     ao ratchet status 2>/dev/null
@@ -479,7 +479,7 @@ If hooks or `lib/hook-helpers.sh` were modified, verify embedded copies are in s
 
 ### Step 8: Extract Learnings (ao Integration)
 
-If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `/post-mortem` manually.
+If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao metrics flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `/post-mortem` manually.
 
 ### Step 9: Report Completion
 
@@ -497,7 +497,7 @@ Tell the user:
 Epic: <epic-id>
 Issues completed: N
 Iterations: M/50
-Flywheel: <status from ao flywheel status>
+Flywheel: <status from ao metrics flywheel status>
 ```
 
 If stopped early:

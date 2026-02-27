@@ -70,7 +70,7 @@ echo "PENDING=$(ls .agents/forge/ 2>/dev/null | wc -l | tr -d ' ')"
 
 # Flywheel health + badge
 if command -v ao &>/dev/null; then
-  ao flywheel status 2>/dev/null || echo "FLYWHEEL_UNAVAILABLE"
+  ao metrics flywheel status 2>/dev/null || echo "FLYWHEEL_UNAVAILABLE"
   ao badge 2>/dev/null || echo "BADGE_UNAVAILABLE"
 fi
 ```

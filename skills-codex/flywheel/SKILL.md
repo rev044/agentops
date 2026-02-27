@@ -107,7 +107,7 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao flywheel status 2>/dev/null || echo "ao flywheel status unavailable"
+  ao metrics flywheel status 2>/dev/null || echo "ao metrics flywheel status unavailable"
   ao status 2>/dev/null || echo "ao status unavailable"
   ao maturity --scan 2>/dev/null || echo "ao maturity unavailable"
   ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"

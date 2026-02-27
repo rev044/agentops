@@ -131,7 +131,7 @@ which ao
 ls .agents/
 
 # Check flywheel health
-ao flywheel status
+ao metrics flywheel status
 ```
 
 **Fixes:**

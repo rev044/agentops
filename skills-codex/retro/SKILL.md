@@ -304,7 +304,7 @@ if command -v ao &>/dev/null; then
   echo "Session closed, flywheel loop triggered"
 
   # Sync insights to MEMORY.md immediately (don't wait for session end)
-  ao settings notebook update --quiet 2>/dev/null || true
+  ao notebook update --quiet 2>/dev/null || true
 
   # Flag stale constraints for retirement
   ao constraint review 2>/dev/null || true
