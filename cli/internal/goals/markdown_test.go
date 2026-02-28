@@ -777,3 +777,54 @@ func TestParseGateRow_EmptyDescription(t *testing.T) {
 		t.Errorf("Description = %q, want %q (should fall back to ID)", g.Description, "G4")
 	}
 }
+
+// TestParseGateRow_ZeroWidthChar verifies that a zero-width space (U+200B)
+// embedded in a Check command is preserved as-is by the parser.
+// This test documents parser behaviour: the character is passed through
+// without stripping. Callers are responsible for validating command safety.
+func TestParseGateRow_ZeroWidthChar(t *testing.T) {
+	colMap := buildGateColumnMap([]string{"ID", "Check", "Weight", "Description"})
+	// U+200B zero-width space embedded between "echo" and "ok"
+	cells := []string{"g1", "echo\u200Bok", "5", "zero-width test"}
+	g := parseGateRow(cells, colMap)
+	if g.Check != "echo\u200Bok" {
+		t.Errorf("zero-width char was altered: got %q, want %q", g.Check, "echo\u200Bok")
+	}
+}
+
+// TestParseGateRow_CombiningChar verifies that combining diacritical marks
+// (e.g. e + U+0301 combining acute accent = é) are preserved in the
+// Description field without NFC normalisation or byte corruption.
+func TestParseGateRow_CombiningChar(t *testing.T) {
+	colMap := buildGateColumnMap([]string{"ID", "Check", "Weight", "Description"})
+	// "cafe" + U+0301 combining acute = "café" in decomposed form
+	cells := []string{"g1", "echo ok", "5", "cafe\u0301"}
+	g := parseGateRow(cells, colMap)
+	if g.Description != "cafe\u0301" {
+		t.Errorf("combining char was altered: got %q, want %q", g.Description, "cafe\u0301")
+	}
+}
+
+// TestParseGatesTable_ExtraColumns verifies that a data row with more columns
+// than the header does not panic and does not corrupt the Description field.
+// Extra columns beyond the header are silently discarded.
+func TestParseGatesTable_ExtraColumns(t *testing.T) {
+	input := "# G\n\n## Gates\n" +
+		"| ID | Check | Weight | Description | Extra |\n" +
+		"|---|---|---|---|---|\n" +
+		"| g1 | echo ok | 5 | Test | surplus |\n"
+	gf, err := ParseMarkdownGoals([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(gf.Goals) != 1 {
+		t.Fatalf("expected 1 goal, got %d", len(gf.Goals))
+	}
+	if gf.Goals[0].ID != "g1" {
+		t.Errorf("goal ID = %q, want %q", gf.Goals[0].ID, "g1")
+	}
+	// The extra column must NOT corrupt the Description field.
+	if gf.Goals[0].Description != "Test" {
+		t.Errorf("Description = %q, want %q", gf.Goals[0].Description, "Test")
+	}
+}
