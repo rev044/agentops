@@ -410,7 +410,7 @@ For full workflow orchestration, skills integrate with the ao CLI:
 
 Three hooks form the knowledge flywheel's mechanical backbone:
 
-### SessionStart — "Check your mail first"
+### SessionStart — sessions compound instead of reset
 
 On session start, `hooks/session-start.sh`:
 1. Creates `.agents/` directories if missing (local + global `~/.agents/`)

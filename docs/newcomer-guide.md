@@ -37,7 +37,6 @@ When docs disagree, follow this order:
 2. Skill contracts/manifests (`skills/**/SKILL.md`, `hooks/hooks.json`, `schemas/**`)
 3. Explanatory docs (`docs/**`, `README.md`)
 
-This keeps behavior aligned with what actually runs in CI and at runtime.
 
 ## Key concepts to learn first
 

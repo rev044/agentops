@@ -19,7 +19,7 @@ AgentOps itself stores nothing externally — all state lives in `.agents/` (git
 
 ## Can I use this with other AI coding tools?
 
-Yes — Claude Code, Codex CLI, Cursor, Open Code, anything supporting [Skills](https://skills.sh). The `--mixed` council mode adds Codex judges alongside Claude. Knowledge artifacts are plain markdown.
+Yes — Claude Code, Codex CLI, Cursor, OpenCode, anything supporting [Skills](https://skills.sh). The `--mixed` council mode adds Codex judges alongside Claude. Knowledge artifacts are plain markdown.
 
 ## What does PRODUCT.md do?
 
