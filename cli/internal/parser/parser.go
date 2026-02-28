@@ -366,11 +366,16 @@ func (p *Parser) extractToolResultContent(content any) string {
 }
 
 // truncate limits content to MaxContentLength characters.
+// Slices at rune boundaries to avoid splitting multi-byte UTF-8 sequences.
 func (p *Parser) truncate(s string) string {
-	if p.MaxContentLength <= 0 || len(s) <= p.MaxContentLength {
+	if p.MaxContentLength <= 0 {
 		return s
 	}
-	return s[:p.MaxContentLength] + "... [truncated]"
+	runes := []rune(s)
+	if len(runes) <= p.MaxContentLength {
+		return s
+	}
+	return string(runes[:p.MaxContentLength]) + "... [truncated]"
 }
 
 // ParseChannel returns a channel that emits messages as they're parsed.

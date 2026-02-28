@@ -416,6 +416,7 @@ func TestParser_Truncate(t *testing.T) {
 		{"negative max disables truncation", -1, "long text here", "long text here"},
 		{"within limit", 500, "short", "short"},
 		{"exceeds limit", 5, "hello world", "hello... [truncated]"},
+		{"multi-byte unicode at boundary", 3, "世界你好", "世界你... [truncated]"},
 	}
 
 	for _, tc := range tests {

@@ -613,6 +613,61 @@ func TestParseMarkdownGoals_Adversarial(t *testing.T) {
 				_ = gf
 			},
 		},
+		{
+			// With the paired-backtick fix: an asymmetric cell (`incomplete cmd,
+			// leading backtick only, no trailing backtick) must be preserved
+			// as-is — no silent data loss.
+			name: "asymmetric backtick preserved — no silent corruption",
+			input: "# Goals\n\nBacktick test.\n\n## Gates\n\n" +
+				"| ID | Check | Weight | Description |\n" +
+				"|----|-------|--------|-------------|\n" +
+				"| g1 | `incomplete cmd | 5 | Test |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Goals) != 1 {
+					t.Fatalf("goals = %d, want 1", len(gf.Goals))
+				}
+				want := "`incomplete cmd"
+				if gf.Goals[0].Check != want {
+					t.Errorf("Check = %q, want %q", gf.Goals[0].Check, want)
+				}
+			},
+		},
+		{
+			// A Check cell that is exactly a single backtick must be preserved
+			// rather than silently emptied.
+			name: "single-backtick-char Check preserved — no data loss",
+			input: "# Goals\n\nBacktick test.\n\n## Gates\n\n" +
+				"| ID | Check | Weight | Description |\n" +
+				"|----|-------|--------|-------------|\n" +
+				"| g1 | ` | 5 | Test |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Goals) != 1 {
+					t.Fatalf("goals = %d, want 1", len(gf.Goals))
+				}
+				want := "`"
+				if gf.Goals[0].Check != want {
+					t.Errorf("Check = %q, want %q", gf.Goals[0].Check, want)
+				}
+			},
+		},
+		{
+			// A check cell enclosed in a matching backtick pair strips only the
+			// outermost pair, preserving the interior content unchanged.
+			name: "matched backtick pair — outer pair stripped, inner preserved",
+			input: "# Goals\n\nBacktick test.\n\n## Gates\n\n" +
+				"| ID | Check | Weight | Description |\n" +
+				"|----|-------|--------|-------------|\n" +
+				"| g1 | `cmd1 && cmd2` | 5 | Test |\n",
+			check: func(t *testing.T, gf *GoalFile) {
+				if len(gf.Goals) != 1 {
+					t.Fatalf("goals = %d, want 1", len(gf.Goals))
+				}
+				want := "cmd1 && cmd2"
+				if gf.Goals[0].Check != want {
+					t.Errorf("Check = %q, want %q", gf.Goals[0].Check, want)
+				}
+			},
+		},
 	}
 
 	for _, tc := range tests {

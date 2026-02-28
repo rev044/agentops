@@ -222,7 +222,11 @@ func parseGateRow(cells []string, colMap map[string]int) Goal {
 		g.ID = strings.TrimSpace(cells[idx])
 	}
 	if idx, ok := colMap["check"]; ok && idx < len(cells) {
-		g.Check = strings.Trim(strings.TrimSpace(cells[idx]), "`")
+		s := strings.TrimSpace(cells[idx])
+		if len(s) >= 2 && s[0] == '`' && s[len(s)-1] == '`' {
+			s = s[1 : len(s)-1]
+		}
+		g.Check = s
 	}
 	if idx, ok := colMap["weight"]; ok && idx < len(cells) {
 		w, err := strconv.Atoi(strings.TrimSpace(cells[idx]))
