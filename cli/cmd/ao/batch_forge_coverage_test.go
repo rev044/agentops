@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/parser"
+	"github.com/boshu2/agentops/cli/internal/storage"
 )
 
 // ---------------------------------------------------------------------------
@@ -287,5 +290,95 @@ func TestCov3_batchForge_accumulator(t *testing.T) {
 	}
 	if len(acc.processedPaths) != 2 {
 		t.Errorf("processedPaths: got %d, want 2", len(acc.processedPaths))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// batch_forge.go — forgeSingleTranscript
+// ---------------------------------------------------------------------------
+
+func TestCov4_forgeSingleTranscript_nonexistentFile(t *testing.T) {
+	tmp := t.TempDir()
+	fs := storage.NewFileStorage(storage.WithBaseDir(filepath.Join(tmp, ".agents", "ao")))
+	if err := fs.Init(); err != nil {
+		t.Fatalf("fs.Init: %v", err)
+	}
+	p := parser.NewParser()
+	extractor := parser.NewExtractor()
+
+	candidate := transcriptCandidate{path: filepath.Join(tmp, "nonexistent.jsonl")}
+	ok, decisions, knowledge, _ := forgeSingleTranscript(0, 1, candidate, fs, p, extractor, "")
+	if ok {
+		t.Error("expected false for nonexistent file")
+	}
+	if decisions != nil {
+		t.Errorf("expected nil decisions, got %v", decisions)
+	}
+	if knowledge != nil {
+		t.Errorf("expected nil knowledge, got %v", knowledge)
+	}
+}
+
+func TestCov4_forgeSingleTranscript_happyPath(t *testing.T) {
+	tmp := t.TempDir()
+	baseDir := filepath.Join(tmp, ".agents", "ao")
+	fs := storage.NewFileStorage(storage.WithBaseDir(baseDir))
+	if err := fs.Init(); err != nil {
+		t.Fatalf("fs.Init: %v", err)
+	}
+	p := parser.NewParser()
+	p.MaxContentLength = 0
+	extractor := parser.NewExtractor()
+
+	// Minimal valid JSONL transcript (two newline-separated JSON objects)
+	transcriptPath := filepath.Join(tmp, "session.jsonl")
+	lines := strings.Join([]string{
+		`{"type":"summary","sessionId":"sess-test","timestamp":"2024-01-01T00:00:00Z"}`,
+		`{"type":"assistant","role":"assistant","content":"Working on a task","sessionId":"sess-test","timestamp":"2024-01-01T00:01:00Z"}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(transcriptPath, []byte(lines), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	forgedIndexPath := filepath.Join(tmp, "forged.jsonl")
+	candidate := transcriptCandidate{path: transcriptPath}
+	ok, _, _, _ := forgeSingleTranscript(0, 1, candidate, fs, p, extractor, forgedIndexPath)
+	if !ok {
+		t.Error("expected true for valid transcript")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// batch_forge.go — triggerExtraction
+// ---------------------------------------------------------------------------
+
+func TestCov4_triggerExtraction_noPendingFile(t *testing.T) {
+	tmp := t.TempDir()
+	count, err := triggerExtraction(tmp)
+	if err != nil {
+		t.Fatalf("triggerExtraction: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0, got %d", count)
+	}
+}
+
+func TestCov4_triggerExtraction_emptyPendingFile(t *testing.T) {
+	tmp := t.TempDir()
+	pendingDir := filepath.Join(tmp, storage.DefaultBaseDir)
+	if err := os.MkdirAll(pendingDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	pendingPath := filepath.Join(pendingDir, "pending.jsonl")
+	if err := os.WriteFile(pendingPath, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := triggerExtraction(tmp)
+	if err != nil {
+		t.Fatalf("triggerExtraction empty: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0, got %d", count)
 	}
 }

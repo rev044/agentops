@@ -327,6 +327,42 @@ func TestCov3_worktree_runWorktreeGC_negativeStaleAfter(t *testing.T) {
 	}
 }
 
+func TestCov4_runWorktreeGC_dryRunInGitRepo(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	tmp := t.TempDir()
+	if err := exec.Command("git", "init", tmp).Run(); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+
+	// Save and restore working directory (process-global)
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	origDryRun := dryRun
+	origStaleAfter := worktreeGCStaleAfter
+	defer func() {
+		dryRun = origDryRun
+		worktreeGCStaleAfter = origStaleAfter
+	}()
+
+	dryRun = true
+	worktreeGCStaleAfter = time.Hour
+
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	if err := runWorktreeGC(nil, nil); err != nil {
+		t.Fatalf("runWorktreeGC dry-run: %v", err)
+	}
+}
+
 // ===========================================================================
 // worktree.go — gcTmuxSessions (zero coverage)
 // ===========================================================================

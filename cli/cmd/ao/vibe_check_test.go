@@ -147,3 +147,86 @@ type MockVibeCheckResult struct {
 	Metrics  map[string]float64
 	Findings []any
 }
+
+func TestRunVibeCheck_invalidDuration(t *testing.T) {
+	origDryRun := dryRun
+	origSince := vibeCheckSince
+	defer func() {
+		dryRun = origDryRun
+		vibeCheckSince = origSince
+	}()
+
+	dryRun = false
+	vibeCheckSince = "not-a-duration"
+
+	err := runVibeCheck(nil, nil)
+	if err == nil {
+		t.Fatal("expected error for invalid duration format")
+	}
+}
+
+func TestRunVibeCheck_validRepo(t *testing.T) {
+	origDryRun := dryRun
+	origSince := vibeCheckSince
+	origRepo := vibeCheckRepo
+	defer func() {
+		dryRun = origDryRun
+		vibeCheckSince = origSince
+		vibeCheckRepo = origRepo
+	}()
+
+	dryRun = false
+	vibeCheckSince = "90d"
+	vibeCheckRepo = "."
+
+	err := runVibeCheck(nil, nil)
+	if err != nil {
+		t.Fatalf("runVibeCheck: %v", err)
+	}
+}
+
+func TestRunVibeCheck_jsonOutput(t *testing.T) {
+	origDryRun := dryRun
+	origSince := vibeCheckSince
+	origRepo := vibeCheckRepo
+	origOutput := output
+	defer func() {
+		dryRun = origDryRun
+		vibeCheckSince = origSince
+		vibeCheckRepo = origRepo
+		output = origOutput
+	}()
+
+	dryRun = false
+	vibeCheckSince = "90d"
+	vibeCheckRepo = "."
+	output = "json"
+
+	err := runVibeCheck(nil, nil)
+	if err != nil {
+		t.Fatalf("runVibeCheck json: %v", err)
+	}
+}
+
+func TestRunVibeCheck_markdownOutput(t *testing.T) {
+	origDryRun := dryRun
+	origSince := vibeCheckSince
+	origRepo := vibeCheckRepo
+	origMarkdown := vibeCheckMarkdown
+	defer func() {
+		dryRun = origDryRun
+		vibeCheckSince = origSince
+		vibeCheckRepo = origRepo
+		vibeCheckMarkdown = origMarkdown
+	}()
+
+	dryRun = false
+	vibeCheckSince = "90d"
+	vibeCheckRepo = "."
+	vibeCheckMarkdown = true
+
+	err := runVibeCheck(nil, nil)
+	if err != nil {
+		t.Fatalf("runVibeCheck markdown: %v", err)
+	}
+}
