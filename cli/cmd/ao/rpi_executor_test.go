@@ -25,14 +25,14 @@ func TestExecutorInterface(t *testing.T) {
 	}
 }
 
-func TestBackendSelectionAutoDirectWhenLiveStatusDisabled(t *testing.T) {
+func TestBackendSelectionAutoStreamWhenLiveStatusDisabled(t *testing.T) {
 	caps := backendCapabilities{LiveStatusEnabled: false, RuntimeMode: "auto"}
 	exec, reason := selectExecutorFromCaps(caps, "", nil, defaultPhasedEngineOptions())
-	if exec.Name() != "direct" {
-		t.Errorf("expected direct executor, got %q", exec.Name())
+	if exec.Name() != "stream" {
+		t.Errorf("expected stream executor, got %q", exec.Name())
 	}
-	if !strings.Contains(reason, "live-status disabled") {
-		t.Errorf("reason should explain auto/direct choice, got %q", reason)
+	if !strings.Contains(reason, "runtime=auto") {
+		t.Errorf("reason should explain auto choice, got %q", reason)
 	}
 }
 
@@ -42,8 +42,8 @@ func TestBackendSelectionAutoStreamWhenLiveStatusEnabled(t *testing.T) {
 	if exec.Name() != "stream" {
 		t.Errorf("expected stream executor, got %q", exec.Name())
 	}
-	if !strings.Contains(reason, "live-status enabled") {
-		t.Errorf("reason should mention live-status, got %q", reason)
+	if !strings.Contains(reason, "runtime=auto") {
+		t.Errorf("reason should mention runtime=auto, got %q", reason)
 	}
 }
 

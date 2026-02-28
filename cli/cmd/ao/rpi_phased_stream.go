@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -178,21 +179,18 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 			workerCount:    opts.TmuxWorkers,
 		}, "runtime=tmux"
 	default: // auto
-		if caps.LiveStatusEnabled {
-			return &streamExecutor{
-				runtimeCommand:       opts.RuntimeCommand,
-				statusPath:           statusPath,
-				allPhases:            allPhases,
-				phaseTimeout:         opts.PhaseTimeout,
-				stallTimeout:         opts.StallTimeout,
-				streamStartupTimeout: opts.StreamStartupTimeout,
-				stallCheckInterval:   opts.StallCheckInterval,
-			}, "runtime=auto live-status enabled"
-		}
-		return &directExecutor{
-			runtimeCommand: opts.RuntimeCommand,
-			phaseTimeout:   opts.PhaseTimeout,
-		}, "runtime=auto live-status disabled"
+		// Always use stream for live JSONL output visibility.
+		// streamExecutor falls back to direct if the runtime does not
+		// support stream-json (e.g. codex).
+		return &streamExecutor{
+			runtimeCommand:       opts.RuntimeCommand,
+			statusPath:           statusPath,
+			allPhases:            allPhases,
+			phaseTimeout:         opts.PhaseTimeout,
+			stallTimeout:         opts.StallTimeout,
+			streamStartupTimeout: opts.StreamStartupTimeout,
+			stallCheckInterval:   opts.StallCheckInterval,
+		}, "runtime=auto (stream)"
 	}
 }
 
@@ -344,7 +342,8 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 			VerbosePrintf("Warning: could not append stream event: %v\n", err)
 		}
 	}
-	_, parseErr := ParseStreamEventsWithHandler(stdout, onEvent, onUpdate)
+	tee := io.TeeReader(stdout, os.Stdout)
+	_, parseErr := ParseStreamEventsWithHandler(tee, onEvent, onUpdate)
 	waitErr := cmd.Wait()
 
 	resultErr := classifyStreamResult(ctx, stallCtx, command, phaseNum, phaseTimeout, waitErr, parseErr, watchdog.eventCount.Load())

@@ -94,9 +94,9 @@ func TestSelectExecutor_ReturnsNonNil(t *testing.T) {
 	}
 }
 
-// TestSelectExecutor_DirectFallback verifies that direct is selected when
-// runtime mode is auto and live-status is disabled.
-func TestSelectExecutor_DirectFallback(t *testing.T) {
+// TestSelectExecutor_StreamDefault verifies that stream is selected when
+// runtime mode is auto (regardless of live-status flag).
+func TestSelectExecutor_StreamDefault(t *testing.T) {
 	origLiveStatus := phasedLiveStatus
 	defer func() {
 		phasedLiveStatus = origLiveStatus
@@ -105,8 +105,8 @@ func TestSelectExecutor_DirectFallback(t *testing.T) {
 	phasedLiveStatus = false
 
 	exec := selectExecutor("", nil)
-	if exec.Name() != "direct" {
-		t.Errorf("expected direct fallback, got %q", exec.Name())
+	if exec.Name() != "stream" {
+		t.Errorf("expected stream default, got %q", exec.Name())
 	}
 }
 
@@ -479,7 +479,7 @@ func TestLedgerActionFromDetails(t *testing.T) {
 		{"dry-run: would spawn", "dry-run"},
 		{"handoff: vibe failed", "handoff"},
 		{"epic=ag-abc1 verdicts=map[]", "summary"},
-		{"backend=direct reason=\"runtime=auto live-status disabled\"", "backend=direct"},
+		{"backend=stream reason=\"runtime=auto (stream)\"", "backend=stream"},
 		{"discovery: pre-mortem verdict: PASS", "discovery"},
 	}
 

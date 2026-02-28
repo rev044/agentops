@@ -121,9 +121,9 @@ func TestStreamCoverage_SelectExecutorFromCaps(t *testing.T) {
 			wantName: "stream",
 		},
 		{
-			name:     "runtime=auto without live status selects direct",
+			name:     "runtime=auto without live status selects stream",
 			caps:     backendCapabilities{RuntimeMode: "auto", LiveStatusEnabled: false},
-			wantName: "direct",
+			wantName: "stream",
 		},
 	}
 
@@ -558,9 +558,9 @@ func TestStreamCoverage_SelectExecutor(t *testing.T) {
 	if executor == nil {
 		t.Fatal("expected non-nil executor")
 	}
-	// Default should be direct (no live status, auto mode)
-	if executor.Name() != "direct" {
-		t.Errorf("Name() = %q, want %q", executor.Name(), "direct")
+	// Default should be stream (auto mode always prefers stream)
+	if executor.Name() != "stream" {
+		t.Errorf("Name() = %q, want %q", executor.Name(), "stream")
 	}
 }
 
@@ -581,10 +581,10 @@ func TestStreamCoverage_SelectExecutorWithLog(t *testing.T) {
 		}
 	})
 
-	t.Run("without live status selects direct", func(t *testing.T) {
+	t.Run("without live status selects stream", func(t *testing.T) {
 		executor := selectExecutorWithLog("/tmp/status", phases, logPath, "run-2", false, opts)
-		if executor.Name() != "direct" {
-			t.Errorf("Name() = %q, want %q", executor.Name(), "direct")
+		if executor.Name() != "stream" {
+			t.Errorf("Name() = %q, want %q", executor.Name(), "stream")
 		}
 	})
 

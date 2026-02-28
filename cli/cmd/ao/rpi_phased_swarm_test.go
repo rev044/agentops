@@ -141,7 +141,7 @@ func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 		lookPath = origLookPath
 	}()
 
-	// Force direct backend: runtime=auto with live-status disabled.
+	// Auto mode always selects stream regardless of live-status flag.
 	lookPath = func(name string) (string, error) {
 		return "", fmt.Errorf("not found: %s", name)
 	}
@@ -158,8 +158,8 @@ func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 	opts.LiveStatus = false
 	opts.SwarmFirst = true
 	executor := selectExecutorWithLog("", nil, logPath, "dryrun-run-id", false, opts)
-	if executor.Name() != "direct" {
-		t.Errorf("expected direct executor (runtime=auto, live-status disabled), got %q", executor.Name())
+	if executor.Name() != "stream" {
+		t.Errorf("expected stream executor (runtime=auto), got %q", executor.Name())
 	}
 
 	// Verify backend-selection was logged.
@@ -170,7 +170,7 @@ func TestRunRPIPhased_DryRunBackendSelection(t *testing.T) {
 	if !strings.Contains(string(data), "backend-selection") {
 		t.Errorf("log should record backend-selection, got: %q", string(data))
 	}
-	if !strings.Contains(string(data), "direct") {
+	if !strings.Contains(string(data), "stream") {
 		t.Errorf("log should name the selected backend, got: %q", string(data))
 	}
 }
@@ -246,8 +246,8 @@ func TestRunRPIPhased_BackendStoredInState(t *testing.T) {
 	if state.Backend == "" {
 		t.Error("state.Backend should be set after selectExecutorWithLog")
 	}
-	if state.Backend != "direct" {
-		t.Errorf("expected direct backend, got %q", state.Backend)
+	if state.Backend != "stream" {
+		t.Errorf("expected stream backend, got %q", state.Backend)
 	}
 }
 
@@ -447,8 +447,8 @@ func TestSwarmFirstBackendInState(t *testing.T) {
 	if state.Backend == "" {
 		t.Error("state.Backend should be set after selectExecutorWithLog")
 	}
-	if state.Backend != "direct" {
-		t.Errorf("expected direct backend, got %q", state.Backend)
+	if state.Backend != "stream" {
+		t.Errorf("expected stream backend, got %q", state.Backend)
 	}
 }
 

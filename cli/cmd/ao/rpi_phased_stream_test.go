@@ -235,8 +235,8 @@ func TestSelectExecutorFromCaps_AutoWithoutLiveStatus(t *testing.T) {
 	caps := backendCapabilities{RuntimeMode: "auto", LiveStatusEnabled: false}
 	opts := defaultPhasedEngineOptions()
 	executor, _ := selectExecutorFromCaps(caps, "", nil, opts)
-	if executor.Name() != "direct" {
-		t.Errorf("auto + no live-status should select direct, got %q", executor.Name())
+	if executor.Name() != "stream" {
+		t.Errorf("auto + no live-status should select stream, got %q", executor.Name())
 	}
 }
 
