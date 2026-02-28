@@ -517,7 +517,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## The `ao` CLI
 
-Skills work standalone — no CLI required. The `ao` CLI adds two things: (1) the knowledge flywheel that makes sessions compound (extract, inject, decay, maturity), and (2) terminal-based RPI that runs without an active chat session. Each phase gets its own fresh context window, so large goals don't hit context limits.
+Skills work standalone — no CLI required. The `ao` CLI adds the knowledge flywheel (extract, inject, decay, maturity) and terminal-based RPI that runs without an active chat session. Each phase gets its own fresh context window, so large goals don't hit context limits.
 
 ```bash
 ao seed                                        # Plant AgentOps in any repo (auto-detects project type)
@@ -550,7 +550,7 @@ ao contradict                  # Detect potentially contradictory learnings
 ao demo                        # Interactive demo
 ```
 
-`ao search` (built on [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)) indexes every chat session from every runtime — Claude Code, Codex, Cursor, OpenCode, anything that writes to `.agents/ao/sessions/`. Extraction is best-effort; indexing is unconditional. If a session-end hook missed something or the model didn't pull a learning, the raw transcript is still there and searchable.
+`ao search` (built on [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)) indexes every chat session from every runtime — Claude Code, Codex, Cursor, OpenCode, anything that writes to `.agents/ao/sessions/`. Extraction is best-effort; indexing is unconditional.
 
 <details>
 <summary><b>Second Brain + Obsidian vault</b> — semantic search over all your sessions</summary>
