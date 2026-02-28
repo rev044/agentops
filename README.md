@@ -155,6 +155,8 @@ Full reference with examples and precedence rules: [docs/ENV-VARS.md](docs/ENV-V
 
 </details>
 
+**What AgentOps touches:**
+
 | What | Where | Reversible? |
 |------|-------|:-----------:|
 | Skills | Global skills dir (outside your repo; for Claude Code: `~/.claude/skills/`) | `rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/` |
@@ -169,7 +171,7 @@ Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## See It Work
 
-Start simple. Work your way up. Each level builds on the last.
+Start simple. Each level builds on the last.
 
 **1. Dip your toe** — one skill, one command:
 
