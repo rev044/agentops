@@ -411,7 +411,6 @@ Write once, score by freshness, inject the best, prune the rest. The [formal mod
 
 The post-mortem analyzes each learning, asks "what process would this improve?", and writes improvement proposals. It hands you a ready-to-copy `/rpi` command. Paste it, walk away.
 
-Learnings pass quality gates (specificity, actionability, novelty) and land in tiered pools. Freshness decay ensures recent insights outweigh stale patterns.
 
 <details>
 <summary><b>Phase details</b> — what each step does</summary>
@@ -531,7 +530,12 @@ ao rpi status --watch                          # Monitor active/terminal runs
 
 Walk away, come back to committed code + extracted learnings.
 
-Supervisor determinism contract: task failures mark queue entries failed, infrastructure failures leave queue entries retryable, and `ao rpi cancel` ignores stale supervisor lease metadata. For recovery/hygiene, pair `ao rpi cancel` with `ao rpi cleanup --all --prune-worktrees --prune-branches`.
+<details>
+<summary>Recovery and hygiene</summary>
+
+Supervisor determinism contract: task failures mark queue entries failed, infrastructure failures leave queue entries retryable, and `ao rpi cancel` ignores stale supervisor lease metadata. Pair with `ao rpi cleanup --all --prune-worktrees --prune-branches` for full hygiene.
+
+</details>
 
 ```bash
 ao search "query"              # Search knowledge across files and chat history
