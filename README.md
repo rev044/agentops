@@ -58,7 +58,7 @@ Then type `/quickstart` in your agent chat.
 
 ## How It Works
 
-Coding agents get a blank context window every session. AgentOps is a toolbox of skills you compose however you want — use one, chain several, or run the full pipeline. Knowledge compounds between sessions automatically.
+AgentOps is a toolbox of skills you compose however you want — use one, chain several, or run the full pipeline. Knowledge compounds between sessions automatically.
 
 **The core pipeline — five commands, everything else is automatic:**
 
@@ -102,17 +102,7 @@ The learning part is what makes it compound. Your agent validates a PR, and the 
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
-Session 5 didn't start from scratch — it started with what session 1 learned. Stale insights [decay automatically](docs/the-science.md).
-
-**The compound effect — same bug, different sessions:**
-
-```
-Without AgentOps:  [2 hrs] → [2 hrs] → [2 hrs] → [2 hrs]  =  8 hours total
-With AgentOps:     [2 hrs] → [10 min] → [2 min] → instant  =  ~2.2 hours total
-                    learn     recall     refine    mastered
-```
-
-By session 100, your agent already knows every bug you've fixed, your architecture decisions and why, and what approaches have failed in this codebase.
+Session 5 didn't start from scratch — it started with what session 1 learned. Stale insights [decay automatically](docs/the-science.md). By session 100, your agent knows every bug you've fixed, your architecture decisions and why, and what approaches failed.
 
 - **Local-only** — no telemetry, no cloud, no accounts. Nothing phones home. Everything is [open source](cli/) — audit it yourself.
 - **Multi-runtime** — Claude Code, Codex CLI, Cursor, OpenCode. Skills are portable across runtimes (`/converter` exports to native formats).
@@ -120,35 +110,7 @@ By session 100, your agent already knows every bug you've fixed, your architectu
 
 ---
 
-<details>
-<summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>
-
-Skills work standalone. The `ao` CLI powers the automated learning loop — knowledge extraction, injection with freshness decay, maturity lifecycle, and progress gates. Install it when you want knowledge to compound between sessions.
-
-```bash
-brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops
-cd /path/to/your/repo
-ao init --hooks
-```
-
-Update to the latest CLI later with:
-
-```bash
-brew update && brew upgrade agentops
-ao version
-```
-
-This installs 3 hooks — the bare minimum for the knowledge flywheel:
-
-| Event | What happens |
-|-------|-------------|
-| **SessionStart** | Lean mode (default): extract pending queue, inject the freshest learnings from this repo and global `~/.agents/`. Shrinks automatically when MEMORY.md is fresh. Three modes via `AGENTOPS_STARTUP_CONTEXT_MODE`: `lean` (default), `manual`, `legacy`. |
-| **SessionEnd** | Mine transcript for knowledge (`ao forge`), auto-prune empty stubs, update MEMORY.md (`ao notebook update`), sync cross-runtime memory (`ao memory sync`), expire/evict stale artifacts (`ao maturity`) |
-| **Stop** | Close the feedback loop (`ao flywheel close-loop`) — citation-to-utility feedback, maturity transitions |
-
-The injection is freshness-first: recent learnings from *this repo* outweigh older or cross-repo knowledge. Work-scoped context (active issue via `--bead`) gets a 1.5x boost. Predecessor handoff context (what the previous session was working on) is injected automatically when available. The goal: every session starts where the last one left off — not from scratch, and not with random noise.
-
-</details>
+The `ao` CLI powers the knowledge flywheel — see [The ao CLI](#the-ao-cli).
 
 <details>
 <summary><b>OpenCode</b> — plugin + skills</summary>
@@ -232,7 +194,7 @@ Consensus: WARN — add rate limiting to /login before shipping
 
 **3. The endgame** — `/evolve`: define goals, walk away, come back to a better codebase.
 
-This is what the whole system builds toward. Every skill — research, planning, parallel execution, council validation, knowledge extraction — composes into a single loop that measures what's wrong, fixes the worst thing, validates nothing regressed, extracts what it learned, and repeats. The [Ralph Wiggum Pattern](https://ghuntley.com/ralph/) gives each cycle fresh context. The knowledge flywheel means cycle 50 knows what cycle 1 learned. Goals give it intent. Regression gates give it safety. Memory gives it compounding.
+Every skill composes into one loop: measure the worst goal gap, run `/rpi` to fix it, validate nothing regressed, extract what was learned, repeat. Goals give it intent. Regression gates give it safety. The knowledge flywheel means cycle 50 knows what cycle 1 learned.
 
 ```text
 > /evolve
@@ -258,7 +220,7 @@ This is what the whole system builds toward. Every skill — research, planning,
               Ready for next /evolve — the floor is now the ceiling.
 ```
 
-That ran overnight — ~7 hours, unattended, on this repo. Every cycle committed with a traceable message. Regression gates auto-reverted anything that broke a previously-passing goal. The agent built its own safety net first (tests), then used that safety net to refactor aggressively (complexity), then polished (modernization). Nobody told it to do that — severity-based goal selection naturally produces the correct ordering.
+That ran overnight — ~7 hours, unattended. Regression gates auto-reverted anything that broke a passing goal. Severity-based selection naturally produced the right order: build a safety net (tests), use it to refactor aggressively (complexity), then polish. Nobody told it that.
 
 <details>
 <summary><b>More examples</b> — swarm, session continuity, different workflows</summary>
@@ -419,14 +381,9 @@ Session N+1 starts
     → Agent starts where the last one left off
 ```
 
-The injection philosophy: **check your mail, then get to work.** Every agent's first act is loading the freshest context from this repo — what the last agent learned, what's in progress, what patterns have been established. It's a small, curated packet — not a data dump. If the task needs deeper knowledge, the agent searches `.agents/` on demand.
+**Injection philosophy: sessions compound instead of reset.** Each session starts with a small, curated packet — not a data dump. Three tiers, descending priority: local `.agents/` → global `~/.agents/` → legacy `~/.claude/patterns/`. If the task needs deeper context, the agent searches `.agents/` on demand.
 
-Three knowledge tiers feed the injection:
-- **Local** (`.agents/`): this repo's learnings and patterns — highest priority
-- **Global** (`~/.agents/`): cross-repo knowledge that compounds across all your projects
-- **Legacy** (`~/.claude/patterns/`): read-only, lowest weight — for backward compatibility
-
-Write once, score by freshness, inject the best, prune the rest. If `retrieval_rate × usage_rate` stays above decay and scale friction, knowledge compounds. If not, growth stalls unless fresh input or stronger controls are added. The [formal model](docs/the-science.md) is cache eviction with a decay function and limits-to-growth controls.
+Write once, score by freshness, inject the best, prune the rest. The [formal model](docs/the-science.md) is cache eviction with freshness decay and limits-to-growth controls.
 
 ```
   /rpi "goal"
