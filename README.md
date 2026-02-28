@@ -110,7 +110,12 @@ Session 5 didn't start from scratch — it started with what session 1 learned. 
 
 ---
 
-The `ao` CLI powers the knowledge flywheel — see [The ao CLI](#the-ao-cli).
+<details>
+<summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>
+
+See [The ao CLI](#the-ao-cli) for full reference.
+
+</details>
 
 <details>
 <summary><b>OpenCode</b> — plugin + skills</summary>
@@ -278,10 +283,17 @@ Every skill works alone. Compose them however you want.
 |-------|-------------|
 | `/council` | Independent judges (Claude + Codex) debate, surface disagreement, converge. `--preset=security-audit`, `--perspectives`, `--debate` for adversarial review |
 | `/vibe` | Code quality review — complexity analysis + council. Gates on 0 CRITICAL findings. |
-
-> **What `/vibe` checks:** Semantic (does code match spec?), Security (injection, auth bypass, secrets), Quality (smells, dead code, magic numbers), Architecture (layer violations, coupling, god classes), Complexity (CC > 10, deep nesting), Performance (N+1, resource leaks), Slop (AI hallucinations, cargo cult code), Accessibility (ARIA, keyboard nav). 1+ CRITICAL blocks until fixed.
 | `/pre-mortem` | Validate plans before implementation — council simulates failures |
 | `/post-mortem` | Wrap up completed work — council validates + retro extracts learnings |
+
+<details>
+<summary>What <code>/vibe</code> checks</summary>
+
+Semantic (does code match spec?) · Security (injection, auth bypass, secrets) · Quality (smells, dead code, magic numbers) · Architecture (layer violations, coupling, god classes) · Complexity (CC > 10, deep nesting) · Performance (N+1, resource leaks) · Slop (AI hallucinations, cargo cult code) · Accessibility (ARIA, keyboard nav)
+
+1+ CRITICAL findings blocks until fixed.
+
+</details>
 
 **Execution** — research, plan, build, ship:
 
@@ -355,8 +367,6 @@ Skills spawn these agents automatically — you don't pick them manually. `/rese
 ---
 
 ## Deep Dive
-
-How the knowledge system and pipeline phases work under the hood.
 
 ### The Knowledge Ledger
 
