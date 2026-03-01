@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/spf13/cobra"
 )
 
@@ -78,18 +79,11 @@ func runRPIWorkers(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	fmt.Printf("RUN-ID: %s\n", runID)
-	fmt.Printf("%-10s %-8s %-20s %-28s %s\n", "worker_id", "health", "reason", "last_event", "last_event_at")
-	fmt.Println(strings.Repeat("-", 96))
+	tbl := formatter.NewTable(os.Stdout, "WORKER_ID", "HEALTH", "REASON", "LAST_EVENT", "LAST_EVENT_AT")
 	for _, worker := range workers {
-		fmt.Printf("%-10s %-8s %-20s %-28s %s\n",
-			worker.WorkerID,
-			worker.Health,
-			worker.Reason,
-			worker.LastEventType,
-			worker.LastEventAt,
-		)
+		tbl.AddRow(worker.WorkerID, worker.Health, worker.Reason, worker.LastEventType, worker.LastEventAt)
 	}
-	return nil
+	return tbl.Render()
 }
 
 func projectWorkerHealth(events []RPIC2Event, heartbeat time.Time) []rpiWorkerStatus {
