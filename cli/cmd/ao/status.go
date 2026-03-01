@@ -172,12 +172,9 @@ func printFlywheelHealth(fw *flywheelBrief) {
 
 func outputStatus(status *statusOutput) error {
 	if GetOutput() == "json" {
-		data, err := json.MarshalIndent(status, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal status: %w", err)
-		}
-		fmt.Println(string(data))
-		return nil
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(status)
 	}
 
 	fmt.Println("AgentOps Status")

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -45,12 +46,9 @@ func traceOneArtifact(graph *provenance.Graph, artifactPath string) error {
 	}
 
 	if GetOutput() == "json" {
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal trace result: %w", err)
-		}
-		fmt.Println(string(data))
-		return nil
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
 	}
 
 	if len(result.Chain) == 0 {

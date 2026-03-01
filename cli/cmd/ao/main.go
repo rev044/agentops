@@ -1,4 +1,4 @@
-// Package main is the entry point for the ol CLI.
+// Package main is the entry point for the ao CLI.
 package main
 
 // version is set at build time via ldflags.
