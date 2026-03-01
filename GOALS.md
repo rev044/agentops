@@ -46,6 +46,18 @@ Skills run on Claude Code, Codex CLI, and OpenCode — but only Claude Code is g
 
 **Steer:** increase
 
+### 6. Run Athena knowledge cycle daily
+
+The flywheel captures learnings reactively. Athena mines git, `.agents/`, and code hotspots to extract signal that sessions missed, then defrags stale/duplicate learnings and flags oscillating evolve goals before they waste cycles. Gate: `ao defrag` report is ≤26 hours old and stale learning count ≤5.
+
+**Steer:** decrease (stale count, age)
+
+### 7. Eliminate oscillating evolve goals
+
+Goals that alternate improved→fail for ≥3 consecutive cycles indicate the improvement approach isn't working — each cycle wastes tokens. Athena's oscillation sweep detects these and quarantines them. Gate: zero oscillating goals in cycle history.
+
+**Steer:** decrease
+
 ## Gates
 
 | ID | Check | Weight | Description |
@@ -66,3 +78,5 @@ Skills run on Claude Code, Codex CLI, and OpenCode — but only Claude Code is g
 | rpi-serve-smoke | `bash -c 'cd cli && go build -o /tmp/ao-rpi-serve-s ./cmd/ao && /tmp/ao-rpi-serve-s rpi serve --help 2>&1 \| grep -qF "port"'` | 5 | ao rpi serve subcommand exists and exposes expected flags |
 | flywheel-compounding | `bash -c 'cd cli && go build -o /tmp/ao-fw-check ./cmd/ao && cd .. && /tmp/ao-fw-check flywheel status --json 2>/dev/null \| jq -e ".compounding == true"'` | 5 | Knowledge flywheel is above escape velocity (σρ > δ) |
 | goals-validate | `bash -c 'cd cli && go build -o /tmp/ao-goals-val ./cmd/ao && cd .. && /tmp/ao-goals-val goals validate --json 2>/dev/null \| jq -e ".valid == true"'` | 5 | GOALS.md parses and validates without structural errors |
+| athena-freshness | `bash scripts/check-athena-health.sh` | 4 | Athena defrag report ≤26h old, stale learnings ≤5 |
+| athena-no-oscillation | `bash -c 'test -f .agents/defrag/latest.json && jq -e "(.oscillation.oscillating_goals // []) \| length == 0" .agents/defrag/latest.json'` | 4 | No evolve goals oscillating ≥3 consecutive cycles |
