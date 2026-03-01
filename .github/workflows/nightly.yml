@@ -96,9 +96,50 @@ jobs:
           path: ${{ runner.temp }}/agentops-security/
           retention-days: 7
 
+  athena:
+    name: Athena Knowledge Cycle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # full git history for mining
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache-dependency-path: cli/go.sum
+
+      - name: Build ao
+        run: cd cli && make build
+
+      - name: Mine — extract signal from git and .agents/
+        run: ./cli/bin/ao mine --since 26h --sources git,agents --output /tmp/athena/mine
+        continue-on-error: true  # mine failure does not block defrag
+
+      - name: Defrag — prune orphans, dedup, oscillation sweep
+        run: |
+          ./cli/bin/ao defrag \
+            --prune --dedup --oscillation-sweep \
+            --output /tmp/athena/defrag
+
+      - name: Check Athena health gates
+        run: bash scripts/check-athena-health.sh
+        env:
+          ATHENA_OUTPUT_DIR: /tmp/athena
+          ATHENA_MAX_AGE_HOURS: 30
+
+      - name: Upload Athena report
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: athena-report
+          path: /tmp/athena/
+          retention-days: 14
+
   summary:
     name: Summary
-    needs: [cli-tests, static-validation, security-toolchain]
+    needs: [cli-tests, static-validation, security-toolchain, athena]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -113,11 +154,12 @@ jobs:
           echo "| CLI tests | ${{ needs.cli-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Static validation | ${{ needs.static-validation.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security toolchain | ${{ needs.security-toolchain.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Athena knowledge cycle | ${{ needs.athena.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Run completed at $(date -u)" >> $GITHUB_STEP_SUMMARY
 
       - name: Create issue on failure
-        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.security-toolchain.result == 'failure'
+        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.security-toolchain.result == 'failure' || needs.athena.result == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -129,6 +171,7 @@ jobs:
           | CLI tests | ${{ needs.cli-tests.result }} |
           | Static validation | ${{ needs.static-validation.result }} |
           | Security toolchain | ${{ needs.security-toolchain.result }} |
+          | Athena knowledge cycle | ${{ needs.athena.result }} |
 
           **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
@@ -143,5 +186,5 @@ jobs:
           fi
 
       - name: Check for failures
-        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.security-toolchain.result == 'failure'
+        if: needs.cli-tests.result == 'failure' || needs.static-validation.result == 'failure' || needs.security-toolchain.result == 'failure' || needs.athena.result == 'failure'
         run: exit 1
