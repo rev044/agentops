@@ -380,6 +380,100 @@ func TestGoalsMeasure_MissingGoalsFile(t *testing.T) {
 	}
 }
 
+func TestGoalsMeasure_TableOutput(t *testing.T) {
+	dir := t.TempDir()
+
+	md := `# Goals
+
+Mission.
+
+## Gates
+
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| pass-gate | ` + "`exit 0`" + ` | 5 | Always passes |
+| fail-gate | ` + "`exit 1`" + ` | 3 | Always fails |
+`
+	goalsPath := filepath.Join(dir, "GOALS.md")
+	if err := os.WriteFile(goalsPath, []byte(md), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	oldFile := goalsFile
+	oldJSON := goalsJSON
+	oldTimeout := goalsTimeout
+	oldGoalID := goalsMeasureGoalID
+	oldDirectives := goalsMeasureDirectives
+	defer func() {
+		goalsFile = oldFile
+		goalsJSON = oldJSON
+		goalsTimeout = oldTimeout
+		goalsMeasureGoalID = oldGoalID
+		goalsMeasureDirectives = oldDirectives
+	}()
+
+	goalsFile = goalsPath
+	goalsJSON = false // exercise table output path
+	goalsTimeout = 10
+	goalsMeasureGoalID = ""
+	goalsMeasureDirectives = false
+
+	r, w, _ := os.Pipe()
+	oldStdout := os.Stdout
+	os.Stdout = w
+
+	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("measure returned error: %v", err)
+	}
+
+	buf := make([]byte, 16384)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+
+	// Verify table header
+	if !strings.Contains(output, "GOAL") {
+		t.Error("table output missing GOAL header")
+	}
+	if !strings.Contains(output, "RESULT") {
+		t.Error("table output missing RESULT header")
+	}
+	if !strings.Contains(output, "DURATION") {
+		t.Error("table output missing DURATION header")
+	}
+	if !strings.Contains(output, "WEIGHT") {
+		t.Error("table output missing WEIGHT header")
+	}
+
+	// Verify separator dashes
+	if !strings.Contains(output, "----") {
+		t.Error("table output missing header separator")
+	}
+
+	// Verify goal IDs appear
+	if !strings.Contains(output, "pass-gate") {
+		t.Error("table output missing pass-gate row")
+	}
+	if !strings.Contains(output, "fail-gate") {
+		t.Error("table output missing fail-gate row")
+	}
+
+	// Verify score summary line
+	if !strings.Contains(output, "Score:") {
+		t.Error("table output missing Score summary")
+	}
+}
+
 func TestGoalsMeasure_CmdAttributes(t *testing.T) {
 	if goalsMeasureCmd.Use != "measure" {
 		t.Errorf("Use = %q, want measure", goalsMeasureCmd.Use)
