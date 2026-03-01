@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
 )
@@ -51,15 +52,12 @@ var goalsMetaCmd = &cobra.Command{
 
 		// Table output.
 		fmt.Printf("Meta-Goals: %d total\n\n", len(metaGoals))
-		fmt.Printf("%-30s %-6s %8s\n", "GOAL", "RESULT", "DURATION")
-		fmt.Printf("%-30s %-6s %8s\n", "----", "------", "--------")
+		tbl := formatter.NewTable(os.Stdout, "GOAL", "RESULT", "DURATION")
+		tbl.SetMaxWidth(0, 30)
 		for _, m := range snap.Goals {
-			id := m.GoalID
-			if len(id) > 30 {
-				id = id[:27] + "..."
-			}
-			fmt.Printf("%-30s %-6s %7.1fs\n", id, m.Result, m.Duration)
+			tbl.AddRow(m.GoalID, m.Result, fmt.Sprintf("%.1fs", m.Duration))
 		}
+		tbl.Render()
 		fmt.Println()
 
 		if snap.Summary.Failing > 0 {

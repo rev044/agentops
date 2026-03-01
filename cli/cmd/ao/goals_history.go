@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
 )
@@ -47,15 +48,12 @@ var goalsHistoryCmd = &cobra.Command{
 		}
 
 		// Table output
-		fmt.Printf("%-20s %6s %6s %8s %10s\n", "TIMESTAMP", "PASS", "TOTAL", "SCORE", "GIT SHA")
-		fmt.Printf("%-20s %6s %6s %8s %10s\n", "---------", "----", "-----", "-----", "-------")
+		tbl := formatter.NewTable(os.Stdout, "TIMESTAMP", "PASS", "TOTAL", "SCORE", "GIT SHA")
+		tbl.SetMaxWidth(0, 20)
 		for _, e := range entries {
-			ts := e.Timestamp
-			if len(ts) > 20 {
-				ts = ts[:20]
-			}
-			fmt.Printf("%-20s %6d %6d %7.1f%% %10s\n", ts, e.GoalsPassing, e.GoalsTotal, e.Score, e.GitSHA)
+			tbl.AddRow(e.Timestamp, fmt.Sprintf("%d", e.GoalsPassing), fmt.Sprintf("%d", e.GoalsTotal), fmt.Sprintf("%.1f%%", e.Score), e.GitSHA)
 		}
+		tbl.Render()
 
 		return nil
 	},
