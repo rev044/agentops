@@ -384,10 +384,8 @@ func TestStreamCoverage_UpdateLivePhaseStatus(t *testing.T) {
 			{Name: "planning", CurrentAction: "pending"},
 		}
 		updateLivePhaseStatus(statusPath, phases, 1, "running tests", 2, "timeout")
-		if phases[0].CurrentAction == "pending" {
-			// It should have been updated to something based on "running tests"
-			// The summarizeStatusAction function handles truncation
-		}
+		// CurrentAction may have been updated by summarizeStatusAction;
+		// the important assertion is RetryCount below.
 		if phases[0].RetryCount != 2 {
 			t.Errorf("RetryCount = %d, want 2", phases[0].RetryCount)
 		}

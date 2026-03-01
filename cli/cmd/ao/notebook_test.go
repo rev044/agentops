@@ -248,9 +248,8 @@ func TestNotebookUpdate_EmptyPending(t *testing.T) {
 	if entry != nil {
 		t.Errorf("expected nil entry, got %+v", entry)
 	}
-	if err == nil {
-		// File doesn't exist — that's fine, err will be non-nil
-	}
+	// err is expected to be non-nil since file doesn't exist
+	_ = err
 }
 
 func TestNotebookUpdate_AtomicWrite(t *testing.T) {

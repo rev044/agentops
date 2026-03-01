@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -301,7 +302,7 @@ func TestWorktree_findRPISiblingWorktreePaths(t *testing.T) {
 
 	for _, p := range paths {
 		base := filepath.Base(p)
-		if !filepath.HasPrefix(base, "myproject-rpi-") {
+		if !strings.HasPrefix(base, "myproject-rpi-") {
 			t.Errorf("unexpected worktree path: %s", p)
 		}
 	}
