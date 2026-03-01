@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/spf13/cobra"
 )
 
@@ -91,6 +92,19 @@ func findConstraint(idx *constraintIndex, id string) *constraintEntry {
 		}
 	}
 	return nil
+}
+
+// printConstraintTable renders a slice of constraintEntry as a formatted table
+// using formatter.Table with columns ID, STATUS, COMPILED, TITLE.
+func printConstraintTable(entries []constraintEntry) {
+	tbl := formatter.NewTable(os.Stdout, "ID", "STATUS", "COMPILED", "TITLE")
+	tbl.SetMaxWidth(0, 30)  // ID
+	tbl.SetMaxWidth(2, 20)  // COMPILED
+	tbl.SetMaxWidth(3, 50)  // TITLE
+	for _, c := range entries {
+		tbl.AddRow(c.ID, c.Status, c.CompiledAt, c.Title)
+	}
+	_ = tbl.Render()
 }
 
 // ----- activate -----
@@ -201,23 +215,7 @@ var constraintReviewCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("%-30s %-10s %-20s %s\n", "ID", "STATUS", "COMPILED", "TITLE")
-		fmt.Printf("%-30s %-10s %-20s %s\n", "--", "------", "--------", "-----")
-		for _, c := range stale {
-			id := c.ID
-			if len(id) > 30 {
-				id = id[:27] + "..."
-			}
-			compiled := c.CompiledAt
-			if len(compiled) > 20 {
-				compiled = compiled[:20]
-			}
-			title := c.Title
-			if len(title) > 50 {
-				title = title[:47] + "..."
-			}
-			fmt.Printf("%-30s %-10s %-20s %s\n", id, c.Status, compiled, title)
-		}
+		printConstraintTable(stale)
 		fmt.Printf("\n%d constraint(s) need review (>90 days old)\n", len(stale))
 		return nil
 	},
@@ -245,23 +243,7 @@ var constraintListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("%-30s %-10s %-20s %s\n", "ID", "STATUS", "COMPILED", "TITLE")
-		fmt.Printf("%-30s %-10s %-20s %s\n", "--", "------", "--------", "-----")
-		for _, c := range idx.Constraints {
-			id := c.ID
-			if len(id) > 30 {
-				id = id[:27] + "..."
-			}
-			compiled := c.CompiledAt
-			if len(compiled) > 20 {
-				compiled = compiled[:20]
-			}
-			title := c.Title
-			if len(title) > 50 {
-				title = title[:47] + "..."
-			}
-			fmt.Printf("%-30s %-10s %-20s %s\n", id, c.Status, compiled, title)
-		}
+		printConstraintTable(idx.Constraints)
 		fmt.Printf("\n%d constraint(s) total\n", len(idx.Constraints))
 		return nil
 	},
