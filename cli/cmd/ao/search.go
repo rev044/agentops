@@ -123,12 +123,9 @@ func outputSearchResults(query string, results []searchResult) error {
 		if results == nil {
 			results = []searchResult{}
 		}
-		data, err := json.MarshalIndent(results, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal search results: %w", err)
-		}
-		fmt.Println(string(data))
-		return nil
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(results)
 	}
 	displaySearchResults(query, results)
 	return nil
