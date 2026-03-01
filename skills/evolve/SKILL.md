@@ -8,6 +8,7 @@ metadata:
   dependencies:
     - rpi         # required - executes each improvement cycle
     - post-mortem # required - auto-runs at teardown to harvest learnings
+    - athena      # optional - knowledge warmup when --athena is passed
   triggers:
     - evolve
     - improve everything
@@ -33,6 +34,8 @@ Thin fitness-scored loop over `/rpi`. Three work sources in priority order:
 /evolve --beads-only         # Skip goals measurement, work beads backlog only
 /evolve --quality            # Quality-first mode: prioritize post-mortem findings
 /evolve --quality --max-cycles=10  # Quality mode with cycle cap
+/evolve --athena             # Mine → Defrag warmup before first cycle
+/evolve --athena --max-cycles=5  # Warm knowledge base then run 5 cycles
 ```
 
 ## Execution Steps
@@ -79,7 +82,30 @@ fi
 declare -A QUARANTINED_GOALS  # goal_id → true if oscillation count >= 3
 ```
 
-Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`.
+Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`, `--athena`.
+
+### Step 0.2: Athena Warmup (--athena only)
+
+Skip if `--athena` was not passed or if `--dry-run`.
+
+Run the mechanical half of the Athena cycle to surface fresh signal before the first evolve cycle:
+
+```bash
+mkdir -p .agents/mine .agents/defrag
+echo "Athena warmup: mining signal..."
+ao mine --since 26h --quiet 2>/dev/null || echo "(ao mine unavailable — skipping)"
+
+echo "Athena warmup: defrag sweep..."
+ao defrag --prune --dedup --oscillation-sweep --quiet 2>/dev/null || echo "(ao defrag unavailable — skipping)"
+```
+
+Then read `.agents/mine/latest.json` and `.agents/defrag/latest.json` and note (in 1-2 sentences each):
+- Any **orphaned research** files that look relevant to current goals
+- Any **code hotspots** (high-CC functions with recent edits) that may be the root cause of failing goals
+- Any **oscillating goals** from defrag — quarantine them immediately (skip in Step 3) to avoid wasted cycles
+- Any **duplicate learnings** merged by defrag — context on what's been cleaned up
+
+These notes inform work selection throughout the evolve session. Store them in a session variable (in-memory), not a file.
 
 ### Step 0.5: Baseline (first run only)
 
@@ -369,6 +395,8 @@ Stop reason: stagnation | circuit-breaker | max-cycles | kill-switch
 **Beads only:** `/evolve --beads-only` — skips goals measurement, works through `bd ready` backlog.
 
 **Dry run:** `/evolve --dry-run` — shows what would be worked on without executing.
+
+**Athena warmup:** `/evolve --athena` — runs `ao mine` + `ao defrag` at session start to surface fresh signal (orphaned research, code hotspots, oscillating goals) before the first evolve cycle. Use before a long autonomous run or after a burst of development activity.
 
 See `references/examples.md` for detailed walkthroughs.
 
