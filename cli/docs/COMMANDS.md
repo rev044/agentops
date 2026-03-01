@@ -1068,6 +1068,10 @@ ao rpi loop [goal] [flags]
 **Flags:**
 
 ```
+      --athena                            Enable Athena producer cadence before queue selection
+      --athena-defrag                     Run defrag sweep after Athena mine producer tick
+      --athena-interval duration          Minimum interval between Athena producer ticks (0 = every cycle) (default 30m0s)
+      --athena-since string               Lookback window for Athena mine producer (default "26h")
       --auto-clean                        Run stale RPI cleanup before each phased cycle
       --auto-clean-stale-after duration   Only auto-clean runs older than this age (default 24h0m0s)
       --bd-sync-policy string             bd sync policy for landing: auto|always|never (default "auto")
@@ -1512,6 +1516,28 @@ ao plans update <plan-path> [flags]
 
 ---
 
+### `ao defrag`
+
+Defrag performs mechanical cleanup of the knowledge base:
+
+```
+ao defrag [flags]
+```
+
+**Flags:**
+
+```
+      --dedup               Flag learnings with >80% content similarity
+  -h, --help                help for defrag
+      --oscillation-sweep   Flag evolve goals alternating improved/fail >=3 consecutive cycles
+      --output string       Directory for defrag report JSON (default ".agents/defrag")
+      --prune               Find orphaned learnings not referenced in patterns or research
+      --quiet               Suppress progress output
+      --stale-days int      Days after which an unreferenced learning is considered stale (default 30)
+```
+
+---
+
 ### `ao forge`
 
 The forge command extracts knowledge candidates from various sources.
@@ -1677,6 +1703,27 @@ Show what needs normalization
 
 ```
 ao mind scan [flags]
+```
+
+---
+
+### `ao mine`
+
+Mine scans all reachable data sources for patterns and insights
+
+```
+ao mine [flags]
+```
+
+**Flags:**
+
+```
+      --emit-work-items   Append actionable mine findings to .agents/rpi/next-work.jsonl for evolve to pick up
+  -h, --help              help for mine
+      --output string     Directory for mine output JSON (default ".agents/mine")
+      --quiet             Suppress progress output
+      --since string      How far back to look (e.g. 26h, 7d) (default "26h")
+      --sources string    Comma-separated sources to mine (git, agents, code) (default "git,agents,code")
 ```
 
 ---
