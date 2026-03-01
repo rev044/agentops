@@ -444,10 +444,10 @@ func writeDefragReport(dir string, r *DefragReport) error {
 	hash := fmt.Sprintf("%x", sha256.Sum256(data))
 	_ = hash // reserved for future dedup
 
-	if err := os.WriteFile(datedPath, data, 0o600); err != nil {
+	if err := os.WriteFile(datedPath, data, 0o644); err != nil {
 		return fmt.Errorf("write dated report: %w", err)
 	}
-	if err := os.WriteFile(latestPath, data, 0o600); err != nil {
+	if err := os.WriteFile(latestPath, data, 0o644); err != nil {
 		return fmt.Errorf("write latest report: %w", err)
 	}
 

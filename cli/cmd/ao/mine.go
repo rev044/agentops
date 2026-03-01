@@ -18,10 +18,11 @@ import (
 )
 
 var (
-	mineSourcesFlag string
-	mineSince       string
-	mineOutputDir   string
-	mineQuiet       bool
+	mineSourcesFlag    string
+	mineSince          string
+	mineOutputDir      string
+	mineQuiet          bool
+	mineEmitWorkItems  bool
 )
 
 var mineCmd = &cobra.Command{
@@ -55,6 +56,8 @@ func init() {
 	mineCmd.Flags().StringVar(&mineOutputDir, "output", ".agents/mine",
 		"Directory for mine output JSON")
 	mineCmd.Flags().BoolVar(&mineQuiet, "quiet", false, "Suppress progress output")
+	mineCmd.Flags().BoolVar(&mineEmitWorkItems, "emit-work-items", false,
+		"Append actionable mine findings to .agents/rpi/next-work.jsonl for evolve to pick up")
 }
 
 // MineReport is the top-level output of ao mine.
@@ -69,9 +72,9 @@ type MineReport struct {
 
 // GitFindings holds signal extracted from git log.
 type GitFindings struct {
-	CommitCount      int        `json:"commit_count"`
-	CoChangeClusters [][]string `json:"co_change_clusters,omitempty"`
-	RecurringFixes   []string   `json:"recurring_fixes,omitempty"`
+	CommitCount      int      `json:"commit_count"`
+	TopCoChangeFiles []string `json:"top_co_change_files,omitempty"`
+	RecurringFixes   []string `json:"recurring_fixes,omitempty"`
 }
 
 // AgentsFindings holds signal from .agents/ directory scanning.
@@ -163,14 +166,20 @@ func runMine(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !mineQuiet {
-		printMineSummary(cmd.OutOrStdout(), report)
+	if mineEmitWorkItems && !GetDryRun() {
+		if err := emitMineWorkItems(cwd, report); err != nil && !mineQuiet {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: emit-work-items: %v\n", err)
+		}
 	}
 
 	if GetOutput() == "json" {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
+	}
+
+	if !mineQuiet {
+		printMineSummary(cmd.OutOrStdout(), report)
 	}
 
 	return nil
@@ -295,11 +304,11 @@ func mineGitLog(cwd string, window time.Duration) (*GitFindings, error) {
 	})
 
 	if len(frequent) > 0 {
-		cluster := make([]string, len(frequent))
+		topFiles := make([]string, len(frequent))
 		for i, fc := range frequent {
-			cluster[i] = fc.file
+			topFiles[i] = fc.file
 		}
-		findings.CoChangeClusters = [][]string{cluster}
+		findings.TopCoChangeFiles = topFiles
 	}
 
 	findings.RecurringFixes = fixPatterns
@@ -482,17 +491,110 @@ func printMineDryRun(w io.Writer, sources []string, window time.Duration) error 
 	return nil
 }
 
+// emitMineWorkItems translates mine findings into next-work.jsonl entries for evolve.
+// Orphaned research files map to severity:medium; code hotspots map to severity:high.
+// Dedup: if an unconsumed entry with source_epic=="athena-mine" already exists, skip.
+func emitMineWorkItems(cwd string, r *MineReport) error {
+	// Collect items
+	var items []mineWorkItemEmit
+	if r.Code != nil {
+		for _, h := range r.Code.Hotspots {
+			items = append(items, mineWorkItemEmit{
+				Title:       fmt.Sprintf("Reduce complexity: %s in %s (CC=%d)", h.Func, h.File, h.Complexity),
+				Type:        "refactor",
+				Severity:    "high",
+				Source:      "athena-mine",
+				Description: fmt.Sprintf("Function %s in %s has cyclomatic complexity %d with %d recent edits. Extract helpers to reduce CC below 15.", h.Func, h.File, h.Complexity, h.RecentEdits),
+				Evidence:    fmt.Sprintf("complexity=%d recent_edits=%d", h.Complexity, h.RecentEdits),
+			})
+		}
+	}
+	if r.Agents != nil {
+		for _, orphan := range r.Agents.OrphanedResearch {
+			items = append(items, mineWorkItemEmit{
+				Title:       fmt.Sprintf("Rescue orphan: %s", orphan),
+				Type:        "knowledge-gap",
+				Severity:    "medium",
+				Source:      "athena-mine",
+				Description: fmt.Sprintf("Research file %q exists in .agents/research/ but is not referenced in any learning. Extract its key insights into a learning file.", orphan),
+				Evidence:    "not referenced in .agents/learnings/",
+			})
+		}
+	}
+	if len(items) == 0 {
+		return nil // nothing to emit
+	}
+
+	nextWorkPath := filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl")
+	if err := os.MkdirAll(filepath.Dir(nextWorkPath), 0o750); err != nil {
+		return fmt.Errorf("ensure next-work dir: %w", err)
+	}
+
+	// Dedup: skip if an unconsumed athena-mine entry already exists
+	if existing, _ := os.ReadFile(nextWorkPath); len(existing) > 0 {
+		for _, line := range strings.Split(string(existing), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			var entry struct {
+				SourceEpic string `json:"source_epic"`
+				Consumed   bool   `json:"consumed"`
+			}
+			if json.Unmarshal([]byte(line), &entry) == nil &&
+				entry.SourceEpic == "athena-mine" && !entry.Consumed {
+				return nil // unconsumed mine entry already present — skip
+			}
+		}
+	}
+
+	// Build the entry
+	type emitEntry struct {
+		SourceEpic string             `json:"source_epic"`
+		Timestamp  string             `json:"timestamp"`
+		Items      []mineWorkItemEmit `json:"items"`
+		Consumed   bool               `json:"consumed"`
+		ConsumedBy *string            `json:"consumed_by"`
+		ConsumedAt *string            `json:"consumed_at"`
+	}
+	entry := emitEntry{
+		SourceEpic: "athena-mine",
+		Timestamp:  r.Timestamp.UTC().Format(time.RFC3339),
+		Items:      items,
+		Consumed:   false,
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("marshal work item entry: %w", err)
+	}
+	data = append(data, '\n')
+
+	f, err := os.OpenFile(nextWorkPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
+	if err != nil {
+		return fmt.Errorf("open next-work.jsonl: %w", err)
+	}
+	defer f.Close()
+	_, err = f.Write(data)
+	return err
+}
+
+// mineWorkItemEmit is a single work item within a next-work.jsonl entry.
+type mineWorkItemEmit struct {
+	Title       string `json:"title"`
+	Type        string `json:"type"`
+	Severity    string `json:"severity"`
+	Source      string `json:"source"`
+	Description string `json:"description"`
+	Evidence    string `json:"evidence,omitempty"`
+}
+
 // printMineSummary prints a human-readable summary of the mine report.
 func printMineSummary(w io.Writer, r *MineReport) {
 	fmt.Fprintln(w, "Mine complete.")
 	if r.Git != nil {
 		fmt.Fprintf(w, "  git: %d commits", r.Git.CommitCount)
-		if len(r.Git.CoChangeClusters) > 0 {
-			total := 0
-			for _, c := range r.Git.CoChangeClusters {
-				total += len(c)
-			}
-			fmt.Fprintf(w, ", %d co-change files", total)
+		if len(r.Git.TopCoChangeFiles) > 0 {
+			fmt.Fprintf(w, ", %d co-change files", len(r.Git.TopCoChangeFiles))
 		}
 		if len(r.Git.RecurringFixes) > 0 {
 			fmt.Fprintf(w, ", %d fix patterns", len(r.Git.RecurringFixes))

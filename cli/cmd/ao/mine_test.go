@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -163,8 +164,8 @@ func TestMineGitLog_NoGit(t *testing.T) {
 	if findings.CommitCount != 0 {
 		t.Errorf("CommitCount = %d, want 0", findings.CommitCount)
 	}
-	if len(findings.CoChangeClusters) != 0 {
-		t.Errorf("CoChangeClusters count = %d, want 0", len(findings.CoChangeClusters))
+	if len(findings.TopCoChangeFiles) != 0 {
+		t.Errorf("TopCoChangeFiles count = %d, want 0", len(findings.TopCoChangeFiles))
 	}
 	if len(findings.RecurringFixes) != 0 {
 		t.Errorf("RecurringFixes count = %d, want 0", len(findings.RecurringFixes))
@@ -252,6 +253,61 @@ func TestRunMine_DryRun(t *testing.T) {
 	}
 }
 
+func TestRunMine_JSONOutputIsPureJSON(t *testing.T) {
+	// Save and restore global state
+	oldDryRun := dryRun
+	oldSources := mineSourcesFlag
+	oldSince := mineSince
+	oldOutputDir := mineOutputDir
+	oldQuiet := mineQuiet
+	oldEmit := mineEmitWorkItems
+	oldOutput := output
+	defer func() {
+		dryRun = oldDryRun
+		mineSourcesFlag = oldSources
+		mineSince = oldSince
+		mineOutputDir = oldOutputDir
+		mineQuiet = oldQuiet
+		mineEmitWorkItems = oldEmit
+		output = oldOutput
+	}()
+
+	tmp := t.TempDir()
+	chdirTo(t, tmp)
+
+	dryRun = false
+	mineSourcesFlag = "agents"
+	mineSince = "26h"
+	mineOutputDir = filepath.Join(tmp, "mine-output")
+	mineQuiet = false
+	mineEmitWorkItems = false
+	output = "json"
+
+	var out bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd := mineCmd
+	cmd.SetOut(&out)
+	cmd.SetErr(&errBuf)
+
+	if err := runMine(cmd, nil); err != nil {
+		t.Fatalf("runMine json output error: %v (stderr=%s)", err, errBuf.String())
+	}
+
+	raw := out.String()
+	if strings.Contains(raw, "Mine complete.") {
+		t.Fatalf("json output contains human summary text: %q", raw)
+	}
+
+	var report MineReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("runMine output should be valid JSON: %v\noutput: %s", err, raw)
+	}
+
+	if report.Agents == nil {
+		t.Fatal("expected agents findings in JSON output")
+	}
+}
+
 func TestPrintMineDryRun(t *testing.T) {
 	var buf bytes.Buffer
 	sources := []string{"git", "agents"}
@@ -278,5 +334,201 @@ func TestReadDirContent_MissingDir(t *testing.T) {
 	_, err := readDirContent(filepath.Join(tmp, "nonexistent"))
 	if err == nil {
 		t.Error("expected error for nonexistent directory")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// emitMineWorkItems
+// ---------------------------------------------------------------------------
+
+func makeTestMineReport(orphans []string, hotspots []ComplexityHotspot) *MineReport {
+	r := &MineReport{
+		Timestamp:    time.Now().UTC(),
+		SinceSeconds: 93600,
+		Sources:      []string{"agents", "code"},
+	}
+	if orphans != nil {
+		r.Agents = &AgentsFindings{
+			TotalResearch:    len(orphans),
+			OrphanedResearch: orphans,
+		}
+	}
+	if hotspots != nil {
+		r.Code = &CodeFindings{Hotspots: hotspots}
+	}
+	return r
+}
+
+func TestEmitMineWorkItems_EmptyFindings(t *testing.T) {
+	tmp := t.TempDir()
+	r := makeTestMineReport(nil, nil)
+	if err := emitMineWorkItems(tmp, r); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// No next-work.jsonl should be created
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("expected no next-work.jsonl for empty findings")
+	}
+}
+
+func TestEmitMineWorkItems_OrphanSeverityMedium(t *testing.T) {
+	tmp := t.TempDir()
+	r := makeTestMineReport([]string{"old-research.md"}, nil)
+	if err := emitMineWorkItems(tmp, r); err != nil {
+		t.Fatalf("emit error: %v", err)
+	}
+
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read next-work.jsonl: %v", err)
+	}
+
+	var entry struct {
+		SourceEpic string `json:"source_epic"`
+		Items      []struct {
+			Severity string `json:"severity"`
+			Type     string `json:"type"`
+			Source   string `json:"source"`
+			Title    string `json:"title"`
+		} `json:"items"`
+		Consumed bool `json:"consumed"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(data), &entry); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if entry.SourceEpic != "athena-mine" {
+		t.Errorf("source_epic = %q, want athena-mine", entry.SourceEpic)
+	}
+	if entry.Consumed {
+		t.Error("emitted entry should not be consumed")
+	}
+	if len(entry.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(entry.Items))
+	}
+	item := entry.Items[0]
+	if item.Severity != "medium" {
+		t.Errorf("orphan severity = %q, want medium", item.Severity)
+	}
+	if item.Type != "knowledge-gap" {
+		t.Errorf("orphan type = %q, want knowledge-gap", item.Type)
+	}
+	if item.Source != "athena-mine" {
+		t.Errorf("item source = %q, want athena-mine", item.Source)
+	}
+}
+
+func TestEmitMineWorkItems_HotspotSeverityHigh(t *testing.T) {
+	tmp := t.TempDir()
+	hotspot := ComplexityHotspot{File: "notebook.go", Func: "buildLastSessionSection", Complexity: 24, RecentEdits: 5}
+	r := makeTestMineReport(nil, []ComplexityHotspot{hotspot})
+	if err := emitMineWorkItems(tmp, r); err != nil {
+		t.Fatalf("emit error: %v", err)
+	}
+
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	data, _ := os.ReadFile(path)
+	var entry struct {
+		Items []struct {
+			Severity string `json:"severity"`
+			Type     string `json:"type"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(data), &entry); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(entry.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(entry.Items))
+	}
+	if entry.Items[0].Severity != "high" {
+		t.Errorf("hotspot severity = %q, want high", entry.Items[0].Severity)
+	}
+	if entry.Items[0].Type != "refactor" {
+		t.Errorf("hotspot type = %q, want refactor", entry.Items[0].Type)
+	}
+}
+
+func TestEmitMineWorkItems_DeduplicatesUnconsumedEntry(t *testing.T) {
+	tmp := t.TempDir()
+	r := makeTestMineReport([]string{"orphan.md"}, nil)
+
+	// First emit
+	if err := emitMineWorkItems(tmp, r); err != nil {
+		t.Fatalf("first emit error: %v", err)
+	}
+	// Second emit — should be a no-op due to dedup
+	if err := emitMineWorkItems(tmp, r); err != nil {
+		t.Fatalf("second emit error: %v", err)
+	}
+
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	data, _ := os.ReadFile(path)
+	lines := 0
+	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+		if len(bytes.TrimSpace(line)) > 0 {
+			lines++
+		}
+	}
+	if lines != 1 {
+		t.Errorf("expected 1 line after dedup, got %d", lines)
+	}
+}
+
+func TestEmitMineWorkItems_EmitsAfterConsumedEntry(t *testing.T) {
+	tmp := t.TempDir()
+	// Pre-populate with a consumed athena-mine entry
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	consumed := `{"source_epic":"athena-mine","timestamp":"2026-01-01T00:00:00Z","items":[],"consumed":true,"consumed_by":null,"consumed_at":null}` + "\n"
+	if err := os.WriteFile(path, []byte(consumed), 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	r := makeTestMineReport([]string{"new-orphan.md"}, nil)
+	if err := emitMineWorkItems(tmp, r); err != nil {
+		t.Fatalf("emit error: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	lines := 0
+	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+		if len(bytes.TrimSpace(line)) > 0 {
+			lines++
+		}
+	}
+	if lines != 2 {
+		t.Errorf("expected 2 lines (consumed + new), got %d", lines)
+	}
+}
+
+func TestEmitMineWorkItems_HotspotsBeforeOrphans(t *testing.T) {
+	tmp := t.TempDir()
+	hotspot := ComplexityHotspot{File: "foo.go", Func: "heavy", Complexity: 20, RecentEdits: 2}
+	r := makeTestMineReport([]string{"orphan.md"}, []ComplexityHotspot{hotspot})
+	if err := emitMineWorkItems(tmp, r); err != nil {
+		t.Fatalf("emit error: %v", err)
+	}
+
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	data, _ := os.ReadFile(path)
+	var entry struct {
+		Items []struct {
+			Severity string `json:"severity"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(data), &entry); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(entry.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(entry.Items))
+	}
+	if entry.Items[0].Severity != "high" {
+		t.Errorf("first item should be hotspot (high), got %q", entry.Items[0].Severity)
+	}
+	if entry.Items[1].Severity != "medium" {
+		t.Errorf("second item should be orphan (medium), got %q", entry.Items[1].Severity)
 	}
 }
