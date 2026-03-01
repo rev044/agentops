@@ -218,7 +218,7 @@ func buildServeMux(root, runID string) *http.ServeMux {
 
 func serveRPIIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(rpiWatchHTML)
+	_, _ = w.Write(rpiWatchHTML) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter -- static embedded asset, no user input
 }
 
 // serveRPIEvents streams C2 events as Server-Sent Events (SSE).
@@ -270,7 +270,7 @@ func writeSSEEvent(w http.ResponseWriter, ev RPIC2Event) error {
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(w, "data: %s\n\n", data)
+	_, err = fmt.Fprintf(w, "data: %s\n\n", data) // nosemgrep: go.lang.security.audit.xss.no-fprintf-to-responsewriter.no-fprintf-to-responsewriter -- SSE stream writes JSON to text/event-stream, not HTML; localhost-only
 	return err
 }
 
