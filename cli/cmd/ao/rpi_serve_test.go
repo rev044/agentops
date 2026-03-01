@@ -141,3 +141,60 @@ func TestSetCORSHeaders(t *testing.T) {
 		t.Errorf("CORS origin: want *, got %q", v)
 	}
 }
+
+// TestServeRPIEvents_StreamsPreExistingEvents verifies that events seeded before
+// the handler starts are delivered as SSE data lines within one poll cycle.
+func TestServeRPIEvents_StreamsPreExistingEvents(t *testing.T) {
+	dir := t.TempDir()
+	runID := "rpi-ssetest"
+
+	// Seed two events before the handler starts.
+	ev1, err := appendRPIC2Event(dir, rpiC2EventInput{
+		RunID:   runID,
+		Type:    "phase.stream.started",
+		Message: "event one",
+	})
+	if err != nil {
+		t.Fatalf("appendRPIC2Event (1): %v", err)
+	}
+	ev2, err := appendRPIC2Event(dir, rpiC2EventInput{
+		RunID:   runID,
+		Type:    "phase.stream.done",
+		Message: "event two",
+	})
+	if err != nil {
+		t.Fatalf("appendRPIC2Event (2): %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, "/events?run-id="+runID, nil)
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		serveRPIEvents(rr, req, dir, runID)
+		close(done)
+	}()
+
+	// Allow at least one full poll cycle (500ms ticker) plus CI scheduling margin, then cancel.
+	time.Sleep(1200 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("serveRPIEvents did not return after context cancel")
+	}
+
+	body := rr.Body.String()
+	if !strings.Contains(body, "data: ") {
+		t.Errorf("expected SSE 'data: ' lines in body, got: %q", body)
+	}
+	if !strings.Contains(body, ev1.EventID) {
+		t.Errorf("event 1 ID %q not found in SSE body", ev1.EventID)
+	}
+	if !strings.Contains(body, ev2.EventID) {
+		t.Errorf("event 2 ID %q not found in SSE body", ev2.EventID)
+	}
+}

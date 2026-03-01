@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -294,4 +295,391 @@ func collectKeys(m map[string]bool) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// writeBDStub writes a bd shell stub that returns a single epic + one bead.
+// epicID and beadID are embedded directly in the script.
+func writeBDStub(t *testing.T, path, epicID, beadID string) {
+	t.Helper()
+	script := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"list\" ]; then\n" +
+		"    echo '[{\"id\":\"" + epicID + "\"}]'\n" +
+		"elif [ \"$1\" = \"children\" ]; then\n" +
+		"    echo \"" + beadID + " bead title\"\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(path, []byte(script), 0o750); err != nil {
+		t.Fatalf("write bd stub: %v", err)
+	}
+}
+
+// TestRunRPIOrchestration_DiscoveryFails verifies that when all discovery attempts fail
+// the engine persists phase=failed with TerminalStatus="failed" and returns an error.
+func TestRunRPIOrchestration_DiscoveryFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e orchestration test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	bdStub := filepath.Join(binDir, "bd")
+	if err := os.WriteFile(bdStub, []byte("#!/bin/sh\nexit 0\n"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	if err := os.WriteFile(runtimeStub, []byte("#!/bin/sh\nexit 1\n"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 2
+	opts.BDCommand = bdStub
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+	err := runRPIOrchestration(context.Background(), "fail goal", runID, dir, opts)
+	if err == nil {
+		t.Fatal("expected error from discovery failure, got nil")
+	}
+
+	stateData, readErr := os.ReadFile(filepath.Join(dir, ".agents", "rpi", "runs", runID, "orchestration-state.json"))
+	if readErr != nil {
+		t.Fatalf("read state: %v", readErr)
+	}
+	var state orchState
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	if state.Phase != orchPhaseFailed {
+		t.Errorf("Phase = %q, want %q", state.Phase, orchPhaseFailed)
+	}
+	if state.TerminalStatus != "failed" {
+		t.Errorf("TerminalStatus = %q, want %q", state.TerminalStatus, "failed")
+	}
+	if state.Attempts["discovery"] != 2 {
+		t.Errorf("Attempts[discovery] = %d, want 2", state.Attempts["discovery"])
+	}
+}
+
+// TestRunRPIOrchestration_DiscoveryRetriesAndSucceeds verifies that a transient
+// discovery failure triggers a retry and the run completes as orchPhaseDone.
+func TestRunRPIOrchestration_DiscoveryRetriesAndSucceeds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e orchestration test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	bdStub := filepath.Join(binDir, "bd")
+	writeBDStub(t, bdStub, "ag-retry", "ag-retry.1")
+
+	// fail-once stub: uses TMPDIR counter file — exits 1 on first call, 0 thereafter.
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	failOnceScript := "#!/bin/sh\n" +
+		"COUNTER=\"${TMPDIR:-/tmp}/stub-call-count\"\n" +
+		"if [ ! -f \"$COUNTER\" ]; then\n" +
+		"    touch \"$COUNTER\"\n" +
+		"    exit 1\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(runtimeStub, []byte(failOnceScript), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// t.Setenv sets process-wide TMPDIR for subprocess isolation; must NOT use t.Parallel().
+	t.Setenv("TMPDIR", dir)
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 2
+	opts.BDCommand = bdStub
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+	if err := runRPIOrchestration(context.Background(), "retry goal", runID, dir, opts); err != nil {
+		t.Fatalf("runRPIOrchestration: %v", err)
+	}
+
+	stateData, err := os.ReadFile(filepath.Join(dir, ".agents", "rpi", "runs", runID, "orchestration-state.json"))
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	var state orchState
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	if state.Phase != orchPhaseDone {
+		t.Errorf("Phase = %q, want %q", state.Phase, orchPhaseDone)
+	}
+	if state.Attempts["discovery"] != 2 {
+		t.Errorf("Attempts[discovery] = %d, want 2", state.Attempts["discovery"])
+	}
+}
+
+// TestRunRPIOrchestration_ValidationFails verifies that exhausted validation retries
+// terminate with phase=failed and an error message containing "validation failed".
+func TestRunRPIOrchestration_ValidationFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e orchestration test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	bdStub := filepath.Join(binDir, "bd")
+	writeBDStub(t, bdStub, "ag-vfail", "ag-vfail.1")
+
+	// Stub: fails for validation-phase prompts, succeeds for discovery and beads.
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	script := "#!/bin/sh\n" +
+		"# $1=-p $2=prompt\n" +
+		"if echo \"$2\" | grep -q \"validation phase\"; then\n" +
+		"    exit 1\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(runtimeStub, []byte(script), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 2
+	opts.BDCommand = bdStub
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+	err := runRPIOrchestration(context.Background(), "validation fail goal", runID, dir, opts)
+	if err == nil {
+		t.Fatal("expected error from validation failure, got nil")
+	}
+	if !strings.Contains(err.Error(), "validation failed") {
+		t.Errorf("error %q does not contain 'validation failed'", err.Error())
+	}
+
+	stateData, readErr := os.ReadFile(filepath.Join(dir, ".agents", "rpi", "runs", runID, "orchestration-state.json"))
+	if readErr != nil {
+		t.Fatalf("read state: %v", readErr)
+	}
+	var state orchState
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	if state.Phase != orchPhaseFailed {
+		t.Errorf("Phase = %q, want %q", state.Phase, orchPhaseFailed)
+	}
+}
+
+// TestRunRPIOrchestration_ValidationRetriesAndSucceeds verifies that a single
+// validation failure triggers a retry and the run completes as orchPhaseDone.
+func TestRunRPIOrchestration_ValidationRetriesAndSucceeds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e orchestration test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	bdStub := filepath.Join(binDir, "bd")
+	writeBDStub(t, bdStub, "ag-vretry", "ag-vretry.1")
+
+	// Stub: fails once for validation-phase prompts using a per-test counter file.
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	script := "#!/bin/sh\n" +
+		"COUNTER=\"${TMPDIR:-/tmp}/validation-fail\"\n" +
+		"if echo \"$2\" | grep -q \"validation phase\"; then\n" +
+		"    if [ ! -f \"$COUNTER\" ]; then\n" +
+		"        touch \"$COUNTER\"\n" +
+		"        exit 1\n" +
+		"    fi\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(runtimeStub, []byte(script), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// t.Setenv sets process-wide TMPDIR for subprocess isolation; must NOT use t.Parallel().
+	t.Setenv("TMPDIR", dir)
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 2
+	opts.BDCommand = bdStub
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+	if err := runRPIOrchestration(context.Background(), "val retry goal", runID, dir, opts); err != nil {
+		t.Fatalf("runRPIOrchestration: %v", err)
+	}
+
+	stateData, err := os.ReadFile(filepath.Join(dir, ".agents", "rpi", "runs", runID, "orchestration-state.json"))
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	var state orchState
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	if state.Phase != orchPhaseDone {
+		t.Errorf("Phase = %q, want %q", state.Phase, orchPhaseDone)
+	}
+	if state.Attempts["validation"] != 2 {
+		t.Errorf("Attempts[validation] = %d, want 2", state.Attempts["validation"])
+	}
+}
+
+// TestRunRPIOrchestration_NoBeads_SkipsImplGoesToValidation verifies that when
+// bd children returns no beads the implementation phase is skipped and the run
+// still completes as orchPhaseDone.
+func TestRunRPIOrchestration_NoBeads_SkipsImplGoesToValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e orchestration test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// bd stub: list returns an epic, children returns empty (no beads).
+	bdStub := filepath.Join(binDir, "bd")
+	bdScript := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"list\" ]; then\n" +
+		"    echo '[{\"id\":\"ag-nobead\"}]'\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(bdStub, []byte(bdScript), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	if err := os.WriteFile(runtimeStub, []byte("#!/bin/sh\nexit 0\n"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 1
+	opts.BDCommand = bdStub
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+	if err := runRPIOrchestration(context.Background(), "no beads goal", runID, dir, opts); err != nil {
+		t.Fatalf("runRPIOrchestration: %v", err)
+	}
+
+	stateData, err := os.ReadFile(filepath.Join(dir, ".agents", "rpi", "runs", runID, "orchestration-state.json"))
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	var state orchState
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	if state.Phase != orchPhaseDone {
+		t.Errorf("Phase = %q, want %q", state.Phase, orchPhaseDone)
+	}
+	if len(state.Beads) != 0 {
+		t.Errorf("len(Beads) = %d, want 0", len(state.Beads))
+	}
+}
+
+// TestRunRPIOrchestration_ContextCancel verifies that a pre-cancelled context causes
+// runRPIOrchestration to return a non-nil error without blocking.
+func TestRunRPIOrchestration_ContextCancel(t *testing.T) {
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stub content is irrelevant — context is pre-cancelled so the stub never executes.
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	if err := os.WriteFile(runtimeStub, []byte("#!/bin/sh\nexit 0\n"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 3
+	opts.BDCommand = "false"
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before calling — exercises the ctx.Err() guard at loop entry
+
+	runID := generateRunID()
+	err := runRPIOrchestration(ctx, "cancel goal", runID, dir, opts)
+	if err == nil {
+		t.Error("expected error for cancelled context, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got: %v", err)
+	}
+}
+
+// TestRunBeadWorker_RetriesAndSucceeds calls runBeadWorker directly and verifies
+// that a fail-once runtime stub triggers a retry, landing at beadDone with Attempts==2.
+func TestRunBeadWorker_RetriesAndSucceeds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e bead worker test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// fail-once stub: exits 1 first call, 0 thereafter.
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	failOnceScript := "#!/bin/sh\n" +
+		"COUNTER=\"${TMPDIR:-/tmp}/bead-stub-count\"\n" +
+		"if [ ! -f \"$COUNTER\" ]; then\n" +
+		"    touch \"$COUNTER\"\n" +
+		"    exit 1\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(runtimeStub, []byte(failOnceScript), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// t.Setenv sets process-wide TMPDIR for subprocess isolation; must NOT use t.Parallel().
+	t.Setenv("TMPDIR", dir)
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 2
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+	var bw beadWorker
+	if err := runBeadWorker(context.Background(), "ag-bw.1", runID, &bw, dir, opts); err != nil {
+		t.Fatalf("runBeadWorker: %v", err)
+	}
+	if bw.Status != beadDone {
+		t.Errorf("Status = %q, want %q", bw.Status, beadDone)
+	}
+	if bw.Attempts != 2 {
+		t.Errorf("Attempts = %d, want 2", bw.Attempts)
+	}
+	if bw.BeadID != "ag-bw.1" {
+		t.Errorf("BeadID = %q, want %q", bw.BeadID, "ag-bw.1")
+	}
 }
