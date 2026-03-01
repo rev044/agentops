@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -162,23 +161,13 @@ func parsePatternFile(path string) (pattern, error) {
 }
 
 // parseFrontmatterBlock scans YAML frontmatter and returns content start index and utility value.
+// Delegates to parseFrontMatter (inject_learnings.go) for the actual parsing.
 func parseFrontmatterBlock(lines []string) (contentStart int, utility float64) {
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return 0, 0
+	fm, start := parseFrontMatter(lines)
+	if fm.HasUtility {
+		utility = fm.Utility
 	}
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "---" {
-			return i + 1, utility
-		}
-		if strings.HasPrefix(line, "utility:") {
-			utilityStr := strings.TrimSpace(strings.TrimPrefix(line, "utility:"))
-			if u, parseErr := strconv.ParseFloat(utilityStr, 64); parseErr == nil && u > 0 {
-				utility = u
-			}
-		}
-	}
-	return 0, utility
+	return start, utility
 }
 
 // assembleDescriptionFrom builds a description by joining the line at index i
