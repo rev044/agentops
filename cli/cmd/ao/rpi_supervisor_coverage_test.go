@@ -25,6 +25,10 @@ func TestSupervisorCov_BuildBaseLoopConfig(t *testing.T) {
 	rpiCycleRetries = 5
 	rpiRetryBackoff = 30 * time.Second
 	rpiCycleDelay = 10 * time.Minute
+	rpiAthena = true
+	rpiAthenaInterval = 45 * time.Minute
+	rpiAthenaSince = "12h"
+	rpiAthenaDefrag = true
 	rpiLease = true
 	rpiLeasePath = "/tmp/test.lock"
 	rpiLeaseTTL = 5 * time.Minute
@@ -59,6 +63,18 @@ func TestSupervisorCov_BuildBaseLoopConfig(t *testing.T) {
 	}
 	if cfg.CycleDelay != 10*time.Minute {
 		t.Errorf("CycleDelay = %v, want 10m", cfg.CycleDelay)
+	}
+	if !cfg.AthenaEnabled {
+		t.Error("expected AthenaEnabled=true")
+	}
+	if cfg.AthenaInterval != 45*time.Minute {
+		t.Errorf("AthenaInterval = %v, want 45m", cfg.AthenaInterval)
+	}
+	if cfg.AthenaSince != "12h" {
+		t.Errorf("AthenaSince = %q, want 12h", cfg.AthenaSince)
+	}
+	if !cfg.AthenaDefrag {
+		t.Error("expected AthenaDefrag=true")
 	}
 	if !cfg.LeaseEnabled {
 		t.Error("expected LeaseEnabled=true")
@@ -137,6 +153,11 @@ func TestSupervisorCov_ValidateLoopNumericConstraints(t *testing.T) {
 			"negative delay",
 			rpiLoopSupervisorConfig{CycleRetries: 0, CycleDelay: -1},
 			"cycle-delay",
+		},
+		{
+			"negative athena interval",
+			rpiLoopSupervisorConfig{CycleRetries: 0, AthenaInterval: -1},
+			"athena-interval",
 		},
 		{
 			"negative timeout",
@@ -499,7 +520,7 @@ func TestSupervisorCov_AcquireLandingLock_OffPolicy(t *testing.T) {
 
 func TestSupervisorCov_AcquireLandingLock_EmptyPath(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
-		LandingPolicy:  loopLandingPolicyCommit,
+		LandingPolicy:   loopLandingPolicyCommit,
 		LandingLockPath: "",
 	}
 	lock, err := acquireLandingLock(t.TempDir(), cfg)

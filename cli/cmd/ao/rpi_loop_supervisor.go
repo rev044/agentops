@@ -51,6 +51,10 @@ type rpiLoopSupervisorConfig struct {
 	CycleRetries          int
 	RetryBackoff          time.Duration
 	CycleDelay            time.Duration
+	AthenaEnabled         bool
+	AthenaInterval        time.Duration
+	AthenaSince           string
+	AthenaDefrag          bool
 	LeaseEnabled          bool
 	LeasePath             string
 	LeaseTTL              time.Duration
@@ -117,6 +121,10 @@ func buildBaseLoopConfig() rpiLoopSupervisorConfig {
 		CycleRetries:          rpiCycleRetries,
 		RetryBackoff:          rpiRetryBackoff,
 		CycleDelay:            rpiCycleDelay,
+		AthenaEnabled:         rpiAthena,
+		AthenaInterval:        rpiAthenaInterval,
+		AthenaSince:           strings.TrimSpace(rpiAthenaSince),
+		AthenaDefrag:          rpiAthenaDefrag,
 		LeaseEnabled:          rpiLease,
 		LeasePath:             rpiLeasePath,
 		LeaseTTL:              rpiLeaseTTL,
@@ -180,6 +188,12 @@ func applySupervisorDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfig) {
 }
 
 func applySupervisorBoolDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfig) {
+	if !cmd.Flags().Changed("athena") {
+		cfg.AthenaEnabled = true
+	}
+	if !cmd.Flags().Changed("athena-defrag") {
+		cfg.AthenaDefrag = true
+	}
 	if !cmd.Flags().Changed("lease") {
 		cfg.LeaseEnabled = true
 	}
@@ -198,6 +212,12 @@ func applySupervisorBoolDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfi
 }
 
 func applySupervisorPolicyDefaults(cmd *cobra.Command, cfg *rpiLoopSupervisorConfig) {
+	if !cmd.Flags().Changed("athena-interval") {
+		cfg.AthenaInterval = 30 * time.Minute
+	}
+	if !cmd.Flags().Changed("athena-since") {
+		cfg.AthenaSince = "26h"
+	}
 	if !cmd.Flags().Changed("failure-policy") {
 		cfg.FailurePolicy = loopFailurePolicyContinue
 	}
@@ -232,6 +252,9 @@ func validateLoopNumericConstraints(cfg *rpiLoopSupervisorConfig) error {
 	}
 	if cfg.CycleDelay < 0 {
 		return fmt.Errorf("cycle-delay must be >= 0")
+	}
+	if cfg.AthenaInterval < 0 {
+		return fmt.Errorf("athena-interval must be >= 0")
 	}
 	if cfg.CommandTimeout < 0 {
 		return fmt.Errorf("command-timeout must be >= 0")

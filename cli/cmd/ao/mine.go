@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -493,32 +495,36 @@ func printMineDryRun(w io.Writer, sources []string, window time.Duration) error 
 
 // emitMineWorkItems translates mine findings into next-work.jsonl entries for evolve.
 // Orphaned research files map to severity:medium; code hotspots map to severity:high.
-// Dedup: if an unconsumed entry with source_epic=="athena-mine" already exists, skip.
+// Dedup: item-level — each item gets a stable ID from title+type; only new items are emitted.
 func emitMineWorkItems(cwd string, r *MineReport) error {
 	// Collect items
 	var items []mineWorkItemEmit
 	if r.Code != nil {
 		for _, h := range r.Code.Hotspots {
-			items = append(items, mineWorkItemEmit{
+			item := mineWorkItemEmit{
 				Title:       fmt.Sprintf("Reduce complexity: %s in %s (CC=%d)", h.Func, h.File, h.Complexity),
 				Type:        "refactor",
 				Severity:    "high",
 				Source:      "athena-mine",
 				Description: fmt.Sprintf("Function %s in %s has cyclomatic complexity %d with %d recent edits. Extract helpers to reduce CC below 15.", h.Func, h.File, h.Complexity, h.RecentEdits),
 				Evidence:    fmt.Sprintf("complexity=%d recent_edits=%d", h.Complexity, h.RecentEdits),
-			})
+			}
+			item.ID = mineWorkItemID(item)
+			items = append(items, item)
 		}
 	}
 	if r.Agents != nil {
 		for _, orphan := range r.Agents.OrphanedResearch {
-			items = append(items, mineWorkItemEmit{
+			item := mineWorkItemEmit{
 				Title:       fmt.Sprintf("Rescue orphan: %s", orphan),
 				Type:        "knowledge-gap",
 				Severity:    "medium",
 				Source:      "athena-mine",
 				Description: fmt.Sprintf("Research file %q exists in .agents/research/ but is not referenced in any learning. Extract its key insights into a learning file.", orphan),
 				Evidence:    "not referenced in .agents/learnings/",
-			})
+			}
+			item.ID = mineWorkItemID(item)
+			items = append(items, item)
 		}
 	}
 	if len(items) == 0 {
@@ -530,7 +536,8 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 		return fmt.Errorf("ensure next-work dir: %w", err)
 	}
 
-	// Dedup: skip if an unconsumed athena-mine entry already exists
+	// Item-level dedup: collect IDs of existing unconsumed athena-mine items
+	existingIDs := make(map[string]bool)
 	if existing, _ := os.ReadFile(nextWorkPath); len(existing) > 0 {
 		for _, line := range strings.Split(string(existing), "\n") {
 			line = strings.TrimSpace(line)
@@ -538,17 +545,34 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 				continue
 			}
 			var entry struct {
-				SourceEpic string `json:"source_epic"`
-				Consumed   bool   `json:"consumed"`
+				SourceEpic string             `json:"source_epic"`
+				Consumed   bool               `json:"consumed"`
+				Items      []mineWorkItemEmit `json:"items"`
 			}
 			if json.Unmarshal([]byte(line), &entry) == nil &&
 				entry.SourceEpic == "athena-mine" && !entry.Consumed {
-				return nil // unconsumed mine entry already present — skip
+				for _, it := range entry.Items {
+					if it.ID != "" {
+						existingIDs[it.ID] = true
+					}
+				}
 			}
 		}
 	}
 
-	// Build the entry
+	// Filter out items that already exist
+	var newItems []mineWorkItemEmit
+	for _, item := range items {
+		if !existingIDs[item.ID] {
+			newItems = append(newItems, item)
+		}
+	}
+	if len(newItems) == 0 {
+		return nil // all items already present
+	}
+	items = newItems
+
+	// Emit each item as a separate entry
 	type emitEntry struct {
 		SourceEpic string             `json:"source_epic"`
 		Timestamp  string             `json:"timestamp"`
@@ -557,35 +581,50 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 		ConsumedBy *string            `json:"consumed_by"`
 		ConsumedAt *string            `json:"consumed_at"`
 	}
-	entry := emitEntry{
-		SourceEpic: "athena-mine",
-		Timestamp:  r.Timestamp.UTC().Format(time.RFC3339),
-		Items:      items,
-		Consumed:   false,
-	}
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Errorf("marshal work item entry: %w", err)
-	}
-	data = append(data, '\n')
 
 	f, err := os.OpenFile(nextWorkPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
 	if err != nil {
 		return fmt.Errorf("open next-work.jsonl: %w", err)
 	}
 	defer f.Close()
-	_, err = f.Write(data)
-	return err
+
+	ts := r.Timestamp.UTC().Format(time.RFC3339)
+	for _, item := range items {
+		entry := emitEntry{
+			SourceEpic: "athena-mine",
+			Timestamp:  ts,
+			Items:      []mineWorkItemEmit{item},
+			Consumed:   false,
+		}
+		data, err := json.Marshal(entry)
+		if err != nil {
+			return fmt.Errorf("marshal work item entry: %w", err)
+		}
+		data = append(data, '\n')
+		if _, writeErr := f.Write(data); writeErr != nil {
+			return writeErr
+		}
+	}
+	return nil
 }
 
 // mineWorkItemEmit is a single work item within a next-work.jsonl entry.
 type mineWorkItemEmit struct {
+	ID          string `json:"id"`
 	Title       string `json:"title"`
 	Type        string `json:"type"`
 	Severity    string `json:"severity"`
 	Source      string `json:"source"`
 	Description string `json:"description"`
 	Evidence    string `json:"evidence,omitempty"`
+}
+
+// mineWorkItemID generates a stable ID from the item's identifying fields.
+func mineWorkItemID(item mineWorkItemEmit) string {
+	h := sha256.New()
+	h.Write([]byte(item.Title))
+	h.Write([]byte(item.Type))
+	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
 // printMineSummary prints a human-readable summary of the mine report.

@@ -1412,6 +1412,243 @@ func TestRPILoop_KillSwitchStopsBeforeCycleExecution(t *testing.T) {
 	}
 }
 
+func TestRPILoop_AthenaCadence_RunsOncePerInterval(t *testing.T) {
+	prevGlobals := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prevGlobals)
+
+	prevDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = prevDryRun }()
+
+	prevRunCycle := runRPISupervisedCycleFn
+	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
+
+	prevAthenaTick := runAthenaProducerTickFn
+	defer func() { runAthenaProducerTickFn = prevAthenaTick }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 2
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	queuePath := filepath.Join(rpiDir, "next-work.jsonl")
+	writeJSONL(t, queuePath, []nextWorkEntry{
+		{
+			SourceEpic: "ag-athena-1",
+			Items:      []nextWorkItem{{Title: "Athena cadence goal 1", Severity: "high"}},
+			Consumed:   false,
+		},
+		{
+			SourceEpic: "ag-athena-2",
+			Items:      []nextWorkItem{{Title: "Athena cadence goal 2", Severity: "medium"}},
+			Consumed:   false,
+		},
+	})
+
+	rpiSupervisor = false
+	rpiFailurePolicy = loopFailurePolicyStop
+	rpiCycleRetries = 0
+	rpiRetryBackoff = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiLeaseTTL = 2 * time.Minute
+	rpiGatePolicy = loopGatePolicyOff
+	rpiLandingPolicy = loopLandingPolicyOff
+	rpiBDSyncPolicy = loopBDSyncPolicyAuto
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiCommandTimeout = time.Minute
+	rpiAthena = true
+	rpiAthenaInterval = time.Hour
+	rpiAthenaSince = "26h"
+	rpiAthenaDefrag = false
+
+	athenaTicks := 0
+	runAthenaProducerTickFn = func(_ string, cfg rpiLoopSupervisorConfig) error {
+		athenaTicks++
+		if cfg.AthenaSince != "26h" {
+			t.Fatalf("AthenaSince = %q, want 26h", cfg.AthenaSince)
+		}
+		return nil
+	}
+
+	executed := 0
+	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+		executed++
+		return nil
+	}
+
+	if err := runRPILoop(nil, nil); err != nil {
+		t.Fatalf("runRPILoop returned error: %v", err)
+	}
+	if executed != 2 {
+		t.Fatalf("expected 2 cycle executions, got %d", executed)
+	}
+	if athenaTicks != 1 {
+		t.Fatalf("expected one Athena producer tick due to interval gating, got %d", athenaTicks)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if len(after) != 2 || !after[0].Consumed || !after[1].Consumed {
+		t.Fatalf("expected both queue entries consumed, got: %+v", after)
+	}
+}
+
+func TestRPILoop_AthenaCadence_ProducerFailure_ContinuePolicy(t *testing.T) {
+	prevGlobals := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prevGlobals)
+
+	prevDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = prevDryRun }()
+
+	prevRunCycle := runRPISupervisedCycleFn
+	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
+
+	prevAthenaTick := runAthenaProducerTickFn
+	defer func() { runAthenaProducerTickFn = prevAthenaTick }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 1
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	queuePath := setupSingleQueueEntry(t, tmpDir, nextWorkEntry{
+		SourceEpic: "ag-athena-continue",
+		Items:      []nextWorkItem{{Title: "Athena continue goal", Severity: "high"}},
+		Consumed:   false,
+	})
+
+	rpiSupervisor = false
+	rpiFailurePolicy = loopFailurePolicyContinue
+	rpiCycleRetries = 0
+	rpiRetryBackoff = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiLeaseTTL = 2 * time.Minute
+	rpiGatePolicy = loopGatePolicyOff
+	rpiLandingPolicy = loopLandingPolicyOff
+	rpiBDSyncPolicy = loopBDSyncPolicyAuto
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiCommandTimeout = time.Minute
+	rpiAthena = true
+	rpiAthenaInterval = 0
+	rpiAthenaSince = "26h"
+	rpiAthenaDefrag = false
+
+	runAthenaProducerTickFn = func(_ string, _ rpiLoopSupervisorConfig) error {
+		return fmt.Errorf("mine unavailable")
+	}
+
+	executed := 0
+	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+		executed++
+		return nil
+	}
+
+	if err := runRPILoop(nil, nil); err != nil {
+		t.Fatalf("expected nil error under continue policy, got: %v", err)
+	}
+	if executed != 1 {
+		t.Fatalf("expected one cycle execution after Athena producer failure, got %d", executed)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if !after[0].Consumed {
+		t.Fatal("queue item should still be consumed under continue policy")
+	}
+}
+
+func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
+	prevGlobals := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prevGlobals)
+
+	prevDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = prevDryRun }()
+
+	prevRunCycle := runRPISupervisedCycleFn
+	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
+
+	prevAthenaTick := runAthenaProducerTickFn
+	defer func() { runAthenaProducerTickFn = prevAthenaTick }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 1
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	queuePath := setupSingleQueueEntry(t, tmpDir, nextWorkEntry{
+		SourceEpic: "ag-athena-stop",
+		Items:      []nextWorkItem{{Title: "Athena stop goal", Severity: "high"}},
+		Consumed:   false,
+	})
+
+	rpiSupervisor = false
+	rpiFailurePolicy = loopFailurePolicyStop
+	rpiCycleRetries = 0
+	rpiRetryBackoff = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiLeaseTTL = 2 * time.Minute
+	rpiGatePolicy = loopGatePolicyOff
+	rpiLandingPolicy = loopLandingPolicyOff
+	rpiBDSyncPolicy = loopBDSyncPolicyAuto
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiCommandTimeout = time.Minute
+	rpiAthena = true
+	rpiAthenaInterval = 0
+	rpiAthenaSince = "26h"
+	rpiAthenaDefrag = false
+
+	runAthenaProducerTickFn = func(_ string, _ rpiLoopSupervisorConfig) error {
+		return fmt.Errorf("mine unavailable")
+	}
+
+	executed := 0
+	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+		executed++
+		return nil
+	}
+
+	err := runRPILoop(nil, nil)
+	if err == nil {
+		t.Fatal("expected stop policy to return producer failure")
+	}
+	if !strings.Contains(err.Error(), "athena producer") {
+		t.Fatalf("expected athena producer error context, got: %v", err)
+	}
+	if executed != 0 {
+		t.Fatalf("expected zero cycle executions when producer fails under stop policy, got %d", executed)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if after[0].FailedAt != nil || after[0].Consumed {
+		t.Fatalf("queue should remain unmodified when producer fails before cycle execution: %+v", after[0])
+	}
+}
+
 func captureStdoutWithError(fn func() error) (string, error) {
 	oldStdout := os.Stdout
 	r, w, err := os.Pipe()
@@ -1464,5 +1701,147 @@ func TestDefaultPhasedEngineOptions(t *testing.T) {
 	}
 	if opts.PhaseTimeout == 0 {
 		t.Errorf("expected non-zero PhaseTimeout")
+	}
+}
+
+func TestMarkItemConsumed_SingleItem(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "test",
+		Timestamp:  "2026-03-01T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "Item A", Severity: "high"},
+			{Title: "Item B", Severity: "medium"},
+		},
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(path, append(data, '\n'), 0644)
+
+	if err := markItemConsumed(path, 0, 0, "test-agent"); err != nil {
+		t.Fatalf("markItemConsumed error: %v", err)
+	}
+
+	raw, _ := os.ReadFile(path)
+	var result nextWorkEntry
+	json.Unmarshal([]byte(strings.TrimSpace(string(raw))), &result)
+
+	if !result.Items[0].Consumed {
+		t.Error("expected item 0 consumed=true")
+	}
+	if result.Items[1].Consumed {
+		t.Error("expected item 1 consumed=false")
+	}
+	if result.Consumed {
+		t.Error("entry should not be consumed when only 1 of 2 items consumed")
+	}
+}
+
+func TestMarkItemConsumed_AllItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "test",
+		Timestamp:  "2026-03-01T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "Item A", Severity: "high"},
+			{Title: "Item B", Severity: "medium"},
+		},
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(path, append(data, '\n'), 0644)
+
+	markItemConsumed(path, 0, 0, "test-agent")
+	markItemConsumed(path, 0, 1, "test-agent")
+
+	raw, _ := os.ReadFile(path)
+	var result nextWorkEntry
+	json.Unmarshal([]byte(strings.TrimSpace(string(raw))), &result)
+
+	if !result.Items[0].Consumed || !result.Items[1].Consumed {
+		t.Error("expected both items consumed=true")
+	}
+	if !result.Consumed {
+		t.Error("entry should be consumed when all items are consumed")
+	}
+	if result.ConsumedBy == nil || *result.ConsumedBy != "test-agent" {
+		t.Errorf("expected consumed_by=test-agent, got %v", result.ConsumedBy)
+	}
+}
+
+func TestSelectHighestSeverityEntry_SkipsConsumedItems(t *testing.T) {
+	entries := []nextWorkEntry{
+		{
+			SourceEpic: "test",
+			QueueIndex: 0,
+			Items: []nextWorkItem{
+				{Title: "Consumed high", Severity: "high", Consumed: true},
+				{Title: "Available medium", Severity: "medium"},
+			},
+		},
+	}
+
+	sel := selectHighestSeverityEntry(entries, "")
+	if sel == nil {
+		t.Fatal("expected a selection, got nil")
+	}
+	if sel.Item.Title != "Available medium" {
+		t.Errorf("expected 'Available medium', got %q", sel.Item.Title)
+	}
+	if sel.ItemIndex != 1 {
+		t.Errorf("expected ItemIndex=1, got %d", sel.ItemIndex)
+	}
+}
+
+func TestReadUnconsumedItems_SkipsConsumedItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "test",
+		Timestamp:  "2026-03-01T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "Consumed", Severity: "high", Consumed: true},
+			{Title: "Available", Severity: "medium"},
+		},
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(path, append(data, '\n'), 0644)
+
+	items, err := readUnconsumedItems(path, "")
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].Title != "Available" {
+		t.Errorf("expected 'Available', got %q", items[0].Title)
+	}
+}
+
+func TestReadQueueEntries_SkipsAllItemsConsumedEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "test",
+		Timestamp:  "2026-03-01T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "A", Severity: "high", Consumed: true},
+			{Title: "B", Severity: "medium", Consumed: true},
+		},
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(path, append(data, '\n'), 0644)
+
+	entries, err := readQueueEntries(path)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries (all items consumed), got %d", len(entries))
 	}
 }

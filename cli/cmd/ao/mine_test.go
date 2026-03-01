@@ -514,21 +514,90 @@ func TestEmitMineWorkItems_HotspotsBeforeOrphans(t *testing.T) {
 
 	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
 	data, _ := os.ReadFile(path)
-	var entry struct {
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines (one per item), got %d", len(lines))
+	}
+
+	// Parse each line
+	type entryItem struct {
 		Items []struct {
 			Severity string `json:"severity"`
 		} `json:"items"`
 	}
-	if err := json.Unmarshal(bytes.TrimSpace(data), &entry); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	var first, second entryItem
+	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
+		t.Fatalf("unmarshal line 0: %v", err)
 	}
-	if len(entry.Items) != 2 {
-		t.Fatalf("expected 2 items, got %d", len(entry.Items))
+	if err := json.Unmarshal([]byte(lines[1]), &second); err != nil {
+		t.Fatalf("unmarshal line 1: %v", err)
 	}
-	if entry.Items[0].Severity != "high" {
-		t.Errorf("first item should be hotspot (high), got %q", entry.Items[0].Severity)
+	if len(first.Items) != 1 || first.Items[0].Severity != "high" {
+		t.Errorf("first line should be hotspot (high), got %v", first.Items)
 	}
-	if entry.Items[1].Severity != "medium" {
-		t.Errorf("second item should be orphan (medium), got %q", entry.Items[1].Severity)
+	if len(second.Items) != 1 || second.Items[0].Severity != "medium" {
+		t.Errorf("second line should be orphan (medium), got %v", second.Items)
 	}
+}
+
+func TestMineWorkItemID_Deterministic(t *testing.T) {
+	item := mineWorkItemEmit{Title: "Reduce complexity: foo in bar.go (CC=20)", Type: "refactor"}
+	id1 := mineWorkItemID(item)
+	id2 := mineWorkItemID(item)
+	if id1 != id2 {
+		t.Errorf("expected deterministic IDs, got %q and %q", id1, id2)
+	}
+	if len(id1) != 16 {
+		t.Errorf("expected 16-char ID, got %d chars: %q", len(id1), id1)
+	}
+}
+
+func TestMineWorkItemID_DifferentInputs(t *testing.T) {
+	a := mineWorkItemEmit{Title: "Item A", Type: "refactor"}
+	b := mineWorkItemEmit{Title: "Item B", Type: "refactor"}
+	if mineWorkItemID(a) == mineWorkItemID(b) {
+		t.Error("different items should produce different IDs")
+	}
+}
+
+func TestEmitMineWorkItems_ItemLevelDedup(t *testing.T) {
+	tmp := t.TempDir()
+
+	// First emit: orphan A and hotspot B
+	r1 := makeTestMineReport(
+		[]string{"orphan-a.md"},
+		[]ComplexityHotspot{{File: "foo.go", Func: "bar", Complexity: 20, RecentEdits: 3}},
+	)
+	if err := emitMineWorkItems(tmp, r1); err != nil {
+		t.Fatalf("first emit: %v", err)
+	}
+
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	data1, _ := os.ReadFile(path)
+	lines1 := countNonEmptyLines(data1)
+	if lines1 != 2 {
+		t.Fatalf("after first emit: expected 2 lines, got %d", lines1)
+	}
+
+	// Second emit: same orphan A + new orphan C — only C should be added
+	r2 := makeTestMineReport([]string{"orphan-a.md", "orphan-c.md"}, nil)
+	if err := emitMineWorkItems(tmp, r2); err != nil {
+		t.Fatalf("second emit: %v", err)
+	}
+
+	data2, _ := os.ReadFile(path)
+	lines2 := countNonEmptyLines(data2)
+	if lines2 != 3 {
+		t.Fatalf("after second emit: expected 3 lines (2 original + 1 new), got %d", lines2)
+	}
+}
+
+func countNonEmptyLines(data []byte) int {
+	count := 0
+	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+		if len(bytes.TrimSpace(line)) > 0 {
+			count++
+		}
+	}
+	return count
 }

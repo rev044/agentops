@@ -19,6 +19,12 @@ Options:
   --failure-policy <policy>    Failure policy: stop|continue (default: continue).
   --kill-switch-path <path>    Loop kill-switch path (default: .agents/rpi/KILL).
   --auto-clean-stale-after <d> Stale age threshold for auto-clean/ensure-cleanup (default: 24h).
+  --athena                     Enable Athena producer cadence (default: enabled).
+  --no-athena                  Disable Athena producer cadence.
+  --athena-interval <d>        Minimum interval between producer ticks (default: 30m).
+  --athena-since <d>           Mine lookback window (default: 26h).
+  --athena-defrag              Enable defrag sweep after mine (default: enabled).
+  --no-athena-defrag           Disable defrag sweep after mine.
   --no-gates                   Shortcut for --gate-policy off.
   --no-push                    Deprecated alias for --landing-policy off.
   --push-branch <name>         Deprecated alias for --landing-policy sync-push + --landing-branch.
@@ -36,6 +42,10 @@ BD_SYNC_POLICY="auto"
 FAILURE_POLICY="continue"
 KILL_SWITCH_PATH=".agents/rpi/KILL"
 AUTO_CLEAN_STALE_AFTER="24h"
+ATHENA="true"
+ATHENA_INTERVAL="30m"
+ATHENA_SINCE="26h"
+ATHENA_DEFRAG="true"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -78,6 +88,30 @@ while [[ $# -gt 0 ]]; do
     --auto-clean-stale-after)
       AUTO_CLEAN_STALE_AFTER="${2:-}"
       shift 2
+      ;;
+    --athena)
+      ATHENA="true"
+      shift
+      ;;
+    --no-athena)
+      ATHENA="false"
+      shift
+      ;;
+    --athena-interval)
+      ATHENA_INTERVAL="${2:-}"
+      shift 2
+      ;;
+    --athena-since)
+      ATHENA_SINCE="${2:-}"
+      shift 2
+      ;;
+    --athena-defrag)
+      ATHENA_DEFRAG="true"
+      shift
+      ;;
+    --no-athena-defrag)
+      ATHENA_DEFRAG="false"
+      shift
       ;;
     --no-gates)
       GATE_POLICY="off"
@@ -128,6 +162,10 @@ loop_args=(
   --auto-clean
   --auto-clean-stale-after "$AUTO_CLEAN_STALE_AFTER"
   --ensure-cleanup
+  --athena="$ATHENA"
+  --athena-interval "$ATHENA_INTERVAL"
+  --athena-since "$ATHENA_SINCE"
+  --athena-defrag="$ATHENA_DEFRAG"
 )
 
 if [[ -n "$REPO_FILTER" ]]; then

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -43,6 +44,10 @@ var (
 	rpiBDSyncPolicy          string
 	rpiCommandTimeout        time.Duration
 	rpiKillSwitchPath        string
+	rpiAthena                bool
+	rpiAthenaInterval        time.Duration
+	rpiAthenaSince           string
+	rpiAthenaDefrag          bool
 )
 
 func init() {
@@ -103,6 +108,10 @@ Examples:
 	loopCmd.Flags().StringVar(&rpiBDSyncPolicy, "bd-sync-policy", "auto", "bd sync policy for landing: auto|always|never")
 	loopCmd.Flags().DurationVar(&rpiCommandTimeout, "command-timeout", 20*time.Minute, "Timeout for supervisor external commands (git/bd/gate scripts)")
 	loopCmd.Flags().StringVar(&rpiKillSwitchPath, "kill-switch-path", filepath.Join(".agents", "rpi", "KILL"), "Supervisor kill-switch file path checked at cycle boundaries (absolute or repo-relative)")
+	loopCmd.Flags().BoolVar(&rpiAthena, "athena", false, "Enable Athena producer cadence before queue selection")
+	loopCmd.Flags().DurationVar(&rpiAthenaInterval, "athena-interval", 30*time.Minute, "Minimum interval between Athena producer ticks (0 = every cycle)")
+	loopCmd.Flags().StringVar(&rpiAthenaSince, "athena-since", "26h", "Lookback window for Athena mine producer")
+	loopCmd.Flags().BoolVar(&rpiAthenaDefrag, "athena-defrag", false, "Run defrag sweep after Athena mine producer tick")
 
 	rpiCmd.AddCommand(loopCmd)
 }
@@ -128,6 +137,7 @@ type nextWorkItem struct {
 	Description string `json:"description"`
 	Evidence    string `json:"evidence,omitempty"`
 	TargetRepo  string `json:"target_repo,omitempty"`
+	Consumed    bool   `json:"consumed,omitempty"`
 }
 
 // queueSelection holds the selected item together with its source entry index
@@ -135,9 +145,13 @@ type nextWorkItem struct {
 type queueSelection struct {
 	Item       nextWorkItem
 	EntryIndex int // 0-based index among parseable JSON entries in next-work.jsonl
+	ItemIndex  int // index of the selected item within the entry
 }
 
-var runRPISupervisedCycleFn = runRPISupervisedCycle
+var (
+	runRPISupervisedCycleFn = runRPISupervisedCycle
+	runAthenaProducerTickFn = runAthenaProducerTick
+)
 
 func runRPILoop(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
@@ -193,6 +207,7 @@ var errKillSwitchActivated = fmt.Errorf("kill switch activated")
 func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSupervisorConfig) error {
 	cycle := 0
 	executedCycles := 0
+	athenaState := athenaProducerState{}
 	for {
 		cycle++
 
@@ -209,6 +224,9 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 		}
 
 		fmt.Printf("\n=== RPI Loop: Cycle %d ===\n", cycle)
+		if err := maybeRunAthenaProducerCadence(cwd, explicitGoal, cfg, &athenaState); err != nil {
+			return err
+		}
 
 		goal, sel, action := resolveLoopGoal(explicitGoal, nextWorkPath)
 		if action == loopBreak {
@@ -228,6 +246,59 @@ func executeLoopCycles(cwd, explicitGoal, nextWorkPath string, cfg rpiLoopSuperv
 	}
 
 	fmt.Printf("\nRPI loop finished after %d cycle(s).\n", executedCycles)
+	return nil
+}
+
+type athenaProducerState struct {
+	LastTick time.Time
+}
+
+func maybeRunAthenaProducerCadence(cwd, explicitGoal string, cfg rpiLoopSupervisorConfig, state *athenaProducerState) error {
+	if explicitGoal != "" || !cfg.AthenaEnabled {
+		return nil
+	}
+	if GetDryRun() {
+		fmt.Println("[dry-run] Skipping Athena producer cadence.")
+		return nil
+	}
+	if state != nil && cfg.AthenaInterval > 0 && !state.LastTick.IsZero() {
+		if elapsed := time.Since(state.LastTick); elapsed < cfg.AthenaInterval {
+			return nil
+		}
+	}
+	if err := runAthenaProducerTickFn(cwd, cfg); err != nil {
+		wrapped := wrapCycleFailure(cycleFailureInfrastructure, "athena producer", err)
+		if cfg.ShouldContinueAfterFailure() {
+			VerbosePrintf("Warning: %v\n", wrapped)
+			return nil
+		}
+		return wrapped
+	}
+	if state != nil {
+		state.LastTick = time.Now()
+	}
+	return nil
+}
+
+func runAthenaProducerTick(cwd string, cfg rpiLoopSupervisorConfig) error {
+	aoCommand := cmp.Or(strings.TrimSpace(cfg.AOCommand), "ao")
+	since := cmp.Or(strings.TrimSpace(cfg.AthenaSince), "26h")
+
+	mineArgs := []string{"mine", "--emit-work-items", "--since", since, "--quiet"}
+	fmt.Printf("Athena producer tick: %s %s\n", aoCommand, strings.Join(mineArgs, " "))
+	if err := loopCommandRunner(cwd, cfg.CommandTimeout, aoCommand, mineArgs...); err != nil {
+		return fmt.Errorf("athena mine producer failed: %w", err)
+	}
+
+	if !cfg.AthenaDefrag {
+		return nil
+	}
+
+	defragArgs := []string{"defrag", "--prune", "--dedup", "--oscillation-sweep", "--quiet"}
+	fmt.Printf("Athena producer defrag: %s %s\n", aoCommand, strings.Join(defragArgs, " "))
+	if err := loopCommandRunner(cwd, cfg.CommandTimeout, aoCommand, defragArgs...); err != nil {
+		return fmt.Errorf("athena defrag sweep failed: %w", err)
+	}
 	return nil
 }
 
@@ -374,15 +445,16 @@ func markQueueEntryFailed(nextWorkPath string, sel *queueSelection, cycleErr err
 	}
 }
 
-// markQueueEntryConsumed marks the queue entry as consumed after success.
+// markQueueEntryConsumed marks the specific queue item as consumed after success.
+// When all items in the entry are consumed, the entry itself is marked consumed.
 func markQueueEntryConsumed(nextWorkPath string, sel *queueSelection) {
 	if sel == nil {
 		return
 	}
-	if markErr := markEntryConsumed(nextWorkPath, sel.EntryIndex, "ao-rpi-loop"); markErr != nil {
-		VerbosePrintf("Warning: could not mark queue entry as consumed: %v\n", markErr)
+	if markErr := markItemConsumed(nextWorkPath, sel.EntryIndex, sel.ItemIndex, "ao-rpi-loop"); markErr != nil {
+		VerbosePrintf("Warning: could not mark queue item as consumed: %v\n", markErr)
 	} else {
-		fmt.Printf("Queue entry consumed: %q\n", sel.Item.Title)
+		fmt.Printf("Queue item consumed: %q\n", sel.Item.Title)
 	}
 }
 
@@ -399,6 +471,9 @@ func readUnconsumedItems(path string, repoFilter string) ([]nextWorkItem, error)
 	var items []nextWorkItem
 	for _, entry := range entries {
 		for _, item := range entry.Items {
+			if item.Consumed {
+				continue
+			}
 			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
 				continue
 			}
@@ -448,6 +523,17 @@ func readQueueEntries(path string) ([]nextWorkEntry, error) {
 		if len(entry.Items) == 0 {
 			continue
 		}
+		// Skip entries where all items are individually consumed (backward compat).
+		allItemsConsumed := true
+		for _, item := range entry.Items {
+			if !item.Consumed {
+				allItemsConsumed = false
+				break
+			}
+		}
+		if allItemsConsumed && len(entry.Items) > 0 {
+			continue
+		}
 
 		entries = append(entries, entry)
 	}
@@ -463,16 +549,20 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 	type candidate struct {
 		item       nextWorkItem
 		entryIndex int
+		itemIndex  int
 		rank       int
 	}
 
 	var candidates []candidate
 	for _, entry := range entries {
-		for _, item := range entry.Items {
+		for itemIdx, item := range entry.Items {
+			if item.Consumed {
+				continue
+			}
 			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
 				continue
 			}
-			candidates = append(candidates, candidate{item: item, entryIndex: entry.QueueIndex, rank: severityRank(item.Severity)})
+			candidates = append(candidates, candidate{item: item, entryIndex: entry.QueueIndex, itemIndex: itemIdx, rank: severityRank(item.Severity)})
 		}
 	}
 
@@ -485,7 +575,7 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 	})
 
 	best := candidates[0]
-	return &queueSelection{Item: best.item, EntryIndex: best.entryIndex}
+	return &queueSelection{Item: best.item, EntryIndex: best.entryIndex, ItemIndex: best.itemIndex}
 }
 
 // rewriteNextWorkFile rewrites the JSONL file with updated entries applied via
@@ -565,6 +655,38 @@ func markEntryConsumed(path string, entryIndex int, consumedBy string) error {
 		entry.ConsumedAt = &now
 		entry.ConsumedBy = &consumedBy
 		entry.FailedAt = nil
+	})
+}
+
+// markItemConsumed sets Consumed=true on a specific item within an entry.
+// When all items in the entry are consumed, the entry itself is marked consumed.
+func markItemConsumed(path string, entryIndex int, itemIndex int, consumedBy string) error {
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("next-work.jsonl not found: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	parseable := -1
+	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
+		parseable++
+		if parseable != entryIndex {
+			return
+		}
+		if itemIndex >= 0 && itemIndex < len(entry.Items) {
+			entry.Items[itemIndex].Consumed = true
+		}
+		allConsumed := true
+		for _, item := range entry.Items {
+			if !item.Consumed {
+				allConsumed = false
+				break
+			}
+		}
+		if allConsumed {
+			entry.Consumed = true
+			entry.ConsumedAt = &now
+			entry.ConsumedBy = &consumedBy
+			entry.FailedAt = nil
+		}
 	})
 }
 

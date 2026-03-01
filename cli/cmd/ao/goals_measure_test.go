@@ -356,10 +356,12 @@ goals:
 	goalsMeasureGoalID = ""
 	goalsMeasureDirectives = true
 
-	// Should not error, just warn on stderr and return nil
 	err := goalsMeasureCmd.RunE(goalsMeasureCmd, nil)
-	if err != nil {
-		t.Fatalf("expected nil error for YAML + --directives, got: %v", err)
+	if err == nil {
+		t.Fatal("expected error for YAML + --directives, got nil")
+	}
+	if !strings.Contains(err.Error(), "--directives requires GOALS.md format") {
+		t.Errorf("error = %q, want '--directives requires GOALS.md format'", err.Error())
 	}
 }
 

@@ -24,6 +24,11 @@ check "SKILL.md documents continuous values" "grep -qi 'continuous\|value.*thres
 check "SKILL.md documents full regression gate" "grep -qi 'full.*regression\|all goals' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md documents post-cycle snapshot" "grep -q 'fitness-.*-post' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md documents oscillation detection" "grep -qi 'oscillat' '$SKILL_DIR/SKILL.md'"
+# Design-level checks (2026-03-01)
+check "Step 0 has oscillation sweep (always-on)" "grep -q 'Pre-populate quarantine list' '$SKILL_DIR/SKILL.md'"
+check "Step 5 has wiring script pre-flight check" "grep -q 'if.*check-wiring-closure.sh' '$SKILL_DIR/SKILL.md'"
+check "No ambiguous YAML fallback in Step 2" "! grep -q 'run each goal.*check command manually' '$SKILL_DIR/SKILL.md'"
+check "CLI required for fitness measurement" "grep -q 'CLI is required for fitness measurement' '$SKILL_DIR/SKILL.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

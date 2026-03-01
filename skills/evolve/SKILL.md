@@ -80,6 +80,23 @@ fi
 
 # Track oscillating goals (improved→fail→improved→fail) to avoid burning cycles
 declare -A QUARANTINED_GOALS  # goal_id → true if oscillation count >= 3
+
+# Pre-populate quarantine list from cycle history (lightweight local scan)
+if [ -f .agents/evolve/cycle-history.jsonl ]; then
+  while IFS= read -r goal; do
+    QUARANTINED_GOALS[$goal]=true
+    echo "Quarantined oscillating goal: $goal"
+  done < <(
+    jq -r '.target' .agents/evolve/cycle-history.jsonl 2>/dev/null \
+    | awk '{
+        if (prev != "" && prev != $0) transitions[$0]++
+        prev = $0
+      }
+      END {
+        for (g in transitions) if (transitions[g] >= 3) print g
+      }'
+  )
+fi
 ```
 
 Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`, `--athena`.
@@ -96,13 +113,12 @@ echo "Athena warmup: mining signal..."
 ao mine --since 26h --quiet 2>/dev/null || echo "(ao mine unavailable — skipping)"
 
 echo "Athena warmup: defrag sweep..."
-ao defrag --prune --dedup --oscillation-sweep --quiet 2>/dev/null || echo "(ao defrag unavailable — skipping)"
+ao defrag --prune --dedup --quiet 2>/dev/null || echo "(ao defrag unavailable — skipping)"
 ```
 
 Then read `.agents/mine/latest.json` and `.agents/defrag/latest.json` and note (in 1-2 sentences each):
 - Any **orphaned research** files that look relevant to current goals
 - Any **code hotspots** (high-CC functions with recent edits) that may be the root cause of failing goals
-- Any **oscillating goals** from defrag — quarantine them immediately (skip in Step 3) to avoid wasted cycles
 - Any **duplicate learnings** merged by defrag — context on what's been cleaned up
 
 These notes inform work selection throughout the evolve session. Store them in a session variable (in-memory), not a file.
@@ -137,7 +153,7 @@ ao goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
 
 **Do NOT write per-cycle `fitness-{N}-pre.json` files.** The rolling file is sufficient for work selection and regression detection.
 
-This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is unavailable, read `GOALS.yaml` and run each goal's `check` command manually. Mark timeouts as `"result": "skip"`.
+This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is unavailable or fails, stop with error. The CLI is required for fitness measurement.
 
 ### Step 3: Select Work
 
@@ -261,7 +277,11 @@ elif [ -f pyproject.toml ] || [ -f setup.py ]; then python -m pytest
 else echo "No recognized build system found"; fi
 
 # Cross-cutting constraint check (catches wiring regressions)
-bash scripts/check-wiring-closure.sh
+if [ -f scripts/check-wiring-closure.sh ]; then
+  bash scripts/check-wiring-closure.sh
+else
+  echo "WARNING: scripts/check-wiring-closure.sh not found — skipping wiring check"
+fi
 ```
 
 If not `--beads-only`, also re-measure to produce a post-cycle snapshot:
