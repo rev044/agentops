@@ -22,6 +22,11 @@ metadata:
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
+## Runtime Rule (Native Orchestration Only)
+
+- `/rpi` MUST orchestrate `/research`, `/plan`, `/pre-mortem`, `/crank`, `/vibe`, and `/post-mortem` directly in-session.
+- Do not hand orchestration to external RPI wrapper commands.
+
 ## Quick Start
 
 ```bash
@@ -38,7 +43,7 @@ metadata:
 
 ```
 /rpi <goal | epic-id> [--from=<phase>] [--interactive]
-  │ (session = lead, no TeamCreate)
+  │ (session = lead, no TeamCreate, direct skill chaining only)
   │
   ├── Phase 1: Discovery
   │   ├── /research
@@ -78,6 +83,10 @@ Given `/rpi <goal | epic-id> [--from=<phase>] [--interactive]`:
 ```bash
 mkdir -p .agents/rpi
 ```
+
+Enforce orchestration mode before selecting a phase:
+- Allowed: direct invocations of `/research`, `/plan`, `/pre-mortem`, `/crank`, `/vibe`, `/post-mortem`.
+- Disallowed: external RPI wrapper orchestration.
 
 Determine starting phase:
 - default: `discovery`

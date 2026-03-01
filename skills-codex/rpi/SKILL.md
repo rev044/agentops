@@ -10,6 +10,11 @@ description: 'Full RPI lifecycle orchestrator. Discovery (research+plan+pre-mort
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
+## Runtime Rule (Native Orchestration Only)
+
+- `$rpi` MUST orchestrate `$research`, `$plan`, `$pre-mortem`, `$crank`, `$vibe`, and `$post-mortem` directly in-session.
+- Do not hand orchestration to external RPI wrapper commands.
+
 ## Quick Start
 
 ```bash
@@ -26,7 +31,7 @@ $rpi --test-first "add auth"                          # pass --test-first to $cr
 
 ```
 $rpi <goal | epic-id> [--from=<phase>] [--interactive]
-  │ (session = lead, no team-create)
+  │ (session = lead, no team-create, direct skill chaining only)
   │
   ├── Phase 1: Discovery
   │   ├── $research
@@ -66,6 +71,10 @@ Given `$rpi <goal | epic-id> [--from=<phase>] [--interactive]`:
 ```bash
 mkdir -p .agents/rpi
 ```
+
+Enforce orchestration mode before selecting a phase:
+- Allowed: direct invocations of `$research`, `$plan`, `$pre-mortem`, `$crank`, `$vibe`, `$post-mortem`.
+- Disallowed: external RPI wrapper orchestration.
 
 Determine starting phase:
 - default: `discovery`
