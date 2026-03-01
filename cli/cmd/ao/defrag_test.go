@@ -413,6 +413,83 @@ func TestTrigramOverlap_Empty(t *testing.T) {
 	}
 }
 
+func TestIsHashNamed(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"2026-02-23-4556c2b4.md", true},
+		{"2026-02-24-d26c5b4e.md", true},
+		{"2026-02-25-b64c8555.md", true},
+		{"2026-02-23-cli-skill-audit-retro.md", false},
+		{"2026-02-24-tdd-hardening.md", false},
+		{"2026-02-24-the-seed-post-mortem.md", false},
+		{"plain.md", false},
+		{"2026-02-24-toolongname.md", false}, // 12 chars after date prefix
+		{"2026-02-24-ABCDEF12.md", false},    // uppercase hex — not a match
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isHashNamed(tt.name)
+			if got != tt.want {
+				t.Errorf("isHashNamed(%q) = %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFindDuplicateLearnings_DedupApply(t *testing.T) {
+	tmp := t.TempDir()
+
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	content := "This is a learning about how to handle errors in Go programs effectively and safely"
+	hashFile := "2026-03-01-a1b2c3d4.md"
+	namedFile := "2026-03-01-my-learning.md"
+	if err := os.WriteFile(filepath.Join(learningsDir, hashFile), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, namedFile), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := findDuplicateLearnings(tmp)
+	if err != nil {
+		t.Fatalf("findDuplicateLearnings: %v", err)
+	}
+	if len(result.DuplicatePairs) != 1 {
+		t.Fatalf("DuplicatePairs count = %d, want 1", len(result.DuplicatePairs))
+	}
+
+	// Simulate the apply path from runDefrag.
+	for _, pair := range result.DuplicatePairs {
+		keep, del := pair[0], pair[1]
+		if isHashNamed(pair[0]) && !isHashNamed(pair[1]) {
+			keep, del = pair[1], pair[0]
+		}
+		_ = keep
+		p := filepath.Join(tmp, ".agents", "learnings", del)
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			t.Fatalf("remove: %v", err)
+		}
+		result.Deleted = append(result.Deleted, del)
+	}
+
+	// Hash-named file should be deleted, named file should survive.
+	if _, err := os.Stat(filepath.Join(learningsDir, hashFile)); !os.IsNotExist(err) {
+		t.Errorf("hash-named file %q should have been deleted", hashFile)
+	}
+	if _, err := os.Stat(filepath.Join(learningsDir, namedFile)); os.IsNotExist(err) {
+		t.Errorf("named file %q should have been kept", namedFile)
+	}
+	if len(result.Deleted) != 1 || result.Deleted[0] != hashFile {
+		t.Errorf("Deleted = %v, want [%s]", result.Deleted, hashFile)
+	}
+}
+
 func TestCountAlternations(t *testing.T) {
 	tests := []struct {
 		name    string

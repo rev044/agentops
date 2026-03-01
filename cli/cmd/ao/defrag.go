@@ -80,6 +80,7 @@ type PruneResult struct {
 type DefragDedupResult struct {
 	Checked        int         `json:"checked"`
 	DuplicatePairs [][2]string `json:"duplicate_pairs,omitempty"`
+	Deleted        []string    `json:"deleted,omitempty"`
 }
 
 // OscillationResult holds oscillating-goal sweep results.
@@ -129,6 +130,22 @@ func runDefrag(cmd *cobra.Command, args []string) error {
 		result, err := findDuplicateLearnings(cwd)
 		if err != nil {
 			return fmt.Errorf("dedup: %w", err)
+		}
+		if !isDryRun {
+			for _, pair := range result.DuplicatePairs {
+				// Keep pair[0], delete pair[1]. Prefer named files over hash-named ones.
+				keep, del := pair[0], pair[1]
+				if isHashNamed(pair[0]) && !isHashNamed(pair[1]) {
+					keep, del = pair[1], pair[0]
+				}
+				_ = keep
+				p := filepath.Join(cwd, ".agents", "learnings", del)
+				if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+					return fmt.Errorf("dedup remove %s: %w", del, err)
+				}
+				result.Deleted = append(result.Deleted, del)
+			}
+			result.DuplicatePairs = nil // pairs resolved
 		}
 		report.Dedup = result
 	}
@@ -219,6 +236,30 @@ func collectReferenceContent(cwd string) (string, error) {
 		}
 	}
 	return buf.String(), nil
+}
+
+// isHashNamed returns true if the filename looks like an auto-generated hash name
+// (8 hex chars preceded by a date prefix, e.g. "2026-02-23-4556c2b4.md").
+func isHashNamed(name string) bool {
+	// Strip path components — operate on basename only.
+	base := filepath.Base(name)
+	// Remove .md extension.
+	stem := strings.TrimSuffix(base, ".md")
+	// Pattern: YYYY-MM-DD-<8hexchars>
+	parts := strings.Split(stem, "-")
+	if len(parts) < 4 {
+		return false
+	}
+	last := parts[len(parts)-1]
+	if len(last) != 8 {
+		return false
+	}
+	for _, c := range last {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 // findDuplicateLearnings reads all .agents/learnings/*.md files and flags

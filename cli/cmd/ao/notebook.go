@@ -384,32 +384,9 @@ func parseSectionsFromString(content string) []notebookSection {
 	return sections
 }
 
-// buildLastSessionSection creates the "Last Session" content from a pending entry.
-func buildLastSessionSection(entry *pendingEntry) notebookSection {
-	var lines []string
-
-	date := entry.QueuedAt.Format("2006-01-02")
-	if entry.QueuedAt.IsZero() {
-		date = time.Now().Format("2006-01-02")
-	}
-
-	lines = append(lines, fmt.Sprintf("- **Date:** %s", date))
-
-	if entry.Summary != "" {
-		summary := truncateText(entry.Summary, 200)
-		lines = append(lines, fmt.Sprintf("- **Summary:** %s", summary))
-	}
-
-	if len(entry.Decisions) > 0 {
-		lines = append(lines, "- **Key decisions:**")
-		for _, d := range entry.Decisions {
-			lines = append(lines, fmt.Sprintf("  - %s", truncateText(d, 150)))
-		}
-	}
-
-	// Categorize knowledge items
-	var worked, next, other []string
-	for _, k := range entry.Knowledge {
+// categorizeKnowledge splits knowledge items into worked/next/other buckets by prefix.
+func categorizeKnowledge(items []string) (worked, next, other []string) {
+	for _, k := range items {
 		kLower := strings.ToLower(k)
 		switch {
 		case strings.HasPrefix(kLower, "next:") || strings.HasPrefix(kLower, "next ") ||
@@ -424,27 +401,47 @@ func buildLastSessionSection(entry *pendingEntry) notebookSection {
 			other = append(other, k)
 		}
 	}
+	return
+}
 
-	if len(worked) > 0 {
-		lines = append(lines, "- **What worked:**")
-		for _, w := range worked {
-			lines = append(lines, fmt.Sprintf("  - %s", truncateText(w, 150)))
+// appendBulletSection appends a heading + indented bullet list to lines if items is non-empty.
+func appendBulletSection(lines []string, heading string, items []string, maxLen int) []string {
+	if len(items) == 0 {
+		return lines
+	}
+	lines = append(lines, heading)
+	for _, item := range items {
+		lines = append(lines, fmt.Sprintf("  - %s", truncateText(item, maxLen)))
+	}
+	return lines
+}
+
+// buildLastSessionSection creates the "Last Session" content from a pending entry.
+func buildLastSessionSection(entry *pendingEntry) notebookSection {
+	var lines []string
+
+	date := entry.QueuedAt.Format("2006-01-02")
+	if entry.QueuedAt.IsZero() {
+		date = time.Now().Format("2006-01-02")
+	}
+
+	lines = append(lines, fmt.Sprintf("- **Date:** %s", date))
+
+	if entry.Summary != "" {
+		lines = append(lines, fmt.Sprintf("- **Summary:** %s", truncateText(entry.Summary, 200)))
+	}
+
+	if len(entry.Decisions) > 0 {
+		lines = append(lines, "- **Key decisions:**")
+		for _, d := range entry.Decisions {
+			lines = append(lines, fmt.Sprintf("  - %s", truncateText(d, 150)))
 		}
 	}
 
-	if len(next) > 0 {
-		lines = append(lines, "- **Next:**")
-		for _, n := range next {
-			lines = append(lines, fmt.Sprintf("  - %s", truncateText(n, 150)))
-		}
-	}
-
-	if len(other) > 0 {
-		lines = append(lines, "- **Insights:**")
-		for _, o := range other {
-			lines = append(lines, fmt.Sprintf("  - %s", truncateText(o, 150)))
-		}
-	}
+	worked, next, other := categorizeKnowledge(entry.Knowledge)
+	lines = appendBulletSection(lines, "- **What worked:**", worked, 150)
+	lines = appendBulletSection(lines, "- **Next:**", next, 150)
+	lines = appendBulletSection(lines, "- **Insights:**", other, 150)
 
 	lines = append(lines, "")
 

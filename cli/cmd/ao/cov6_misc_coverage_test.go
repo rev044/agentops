@@ -272,7 +272,7 @@ func TestCov6_filterMemoryDuplicates_withMemoryFile(t *testing.T) {
 func TestCov6_filterMemoryDuplicates_emptyLearnings(t *testing.T) {
 	tmp := t.TempDir()
 	got := filterMemoryDuplicates(tmp, nil)
-	if got != nil && len(got) != 0 {
+	if len(got) != 0 {
 		t.Errorf("expected nil/empty for nil input, got %v", got)
 	}
 }
