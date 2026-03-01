@@ -543,6 +543,70 @@ func TestRunRPIOrchestration_ValidationRetriesAndSucceeds(t *testing.T) {
 	}
 }
 
+// TestRunRPIOrchestration_ImplFails verifies that when a bead worker exhausts all
+// retries the implementation phase drives the run to orchPhaseFailed.
+func TestRunRPIOrchestration_ImplFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e orchestration test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	bdStub := filepath.Join(binDir, "bd")
+	writeBDStub(t, bdStub, "ag-implfail", "ag-implfail.1")
+
+	// runtime stub: succeeds for discovery and validation phases, always fails for bead workers.
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	script := "#!/bin/sh\n" +
+		"# $1=-p $2=prompt\n" +
+		"if echo \"$2\" | grep -q \"/implement \"; then\n" +
+		"    exit 1\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(runtimeStub, []byte(script), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 2
+	opts.BDCommand = bdStub
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+	err := runRPIOrchestration(context.Background(), "impl fail goal", runID, dir, opts)
+	if err == nil {
+		t.Fatal("expected error from impl failure, got nil")
+	}
+	if !strings.Contains(err.Error(), "implementation phase") {
+		t.Errorf("error %q does not contain 'implementation phase'", err.Error())
+	}
+
+	stateData, readErr := os.ReadFile(filepath.Join(dir, ".agents", "rpi", "runs", runID, "orchestration-state.json"))
+	if readErr != nil {
+		t.Fatalf("read state: %v", readErr)
+	}
+	var state orchState
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	if state.Phase != orchPhaseFailed {
+		t.Errorf("Phase = %q, want %q", state.Phase, orchPhaseFailed)
+	}
+	if state.TerminalStatus != "failed" {
+		t.Errorf("TerminalStatus = %q, want %q", state.TerminalStatus, "failed")
+	}
+	if len(state.Beads) == 0 {
+		t.Error("expected Beads to be populated after impl failure")
+	} else if state.Beads[0].Status != beadFailed {
+		t.Errorf("Beads[0].Status = %q, want %q", state.Beads[0].Status, beadFailed)
+	}
+}
+
 // TestRunRPIOrchestration_NoBeads_SkipsImplGoesToValidation verifies that when
 // bd children returns no beads the implementation phase is skipped and the run
 // still completes as orchPhaseDone.
