@@ -114,7 +114,7 @@ jobs:
         run: cd cli && make build
 
       - name: Mine — extract signal from git and .agents/
-        run: ./cli/bin/ao mine --since 26h --sources git,agents --output /tmp/athena/mine
+        run: ./cli/bin/ao mine --since 26h --sources git,agents --output-dir /tmp/athena/mine
         continue-on-error: true  # mine failure does not block defrag
 
       - name: Defrag — prune orphans, dedup, oscillation sweep

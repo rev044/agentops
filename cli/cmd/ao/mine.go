@@ -55,7 +55,7 @@ func init() {
 		"Comma-separated sources to mine (git, agents, code)")
 	mineCmd.Flags().StringVar(&mineSince, "since", "26h",
 		"How far back to look (e.g. 26h, 7d)")
-	mineCmd.Flags().StringVar(&mineOutputDir, "output", ".agents/mine",
+	mineCmd.Flags().StringVar(&mineOutputDir, "output-dir", ".agents/mine",
 		"Directory for mine output JSON")
 	mineCmd.Flags().BoolVar(&mineQuiet, "quiet", false, "Suppress progress output")
 	mineCmd.Flags().BoolVar(&mineEmitWorkItems, "emit-work-items", false,
@@ -493,11 +493,9 @@ func printMineDryRun(w io.Writer, sources []string, window time.Duration) error 
 	return nil
 }
 
-// emitMineWorkItems translates mine findings into next-work.jsonl entries for evolve.
-// Orphaned research files map to severity:medium; code hotspots map to severity:high.
-// Dedup: item-level — each item gets a stable ID from title+type; only new items are emitted.
-func emitMineWorkItems(cwd string, r *MineReport) error {
-	// Collect items
+// collectMineWorkItems builds work items from a mine report.
+// Code hotspots map to severity:high; orphaned research files map to severity:medium.
+func collectMineWorkItems(r *MineReport) []mineWorkItemEmit {
 	var items []mineWorkItemEmit
 	if r.Code != nil {
 		for _, h := range r.Code.Hotspots {
@@ -527,52 +525,40 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 			items = append(items, item)
 		}
 	}
-	if len(items) == 0 {
-		return nil // nothing to emit
-	}
+	return items
+}
 
-	nextWorkPath := filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl")
-	if err := os.MkdirAll(filepath.Dir(nextWorkPath), 0o750); err != nil {
-		return fmt.Errorf("ensure next-work dir: %w", err)
+// loadExistingMineIDs scans a JSONL file for unconsumed athena-mine item IDs.
+func loadExistingMineIDs(path string) map[string]bool {
+	ids := make(map[string]bool)
+	existing, _ := os.ReadFile(path)
+	if len(existing) == 0 {
+		return ids
 	}
-
-	// Item-level dedup: collect IDs of existing unconsumed athena-mine items
-	existingIDs := make(map[string]bool)
-	if existing, _ := os.ReadFile(nextWorkPath); len(existing) > 0 {
-		for _, line := range strings.Split(string(existing), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			var entry struct {
-				SourceEpic string             `json:"source_epic"`
-				Consumed   bool               `json:"consumed"`
-				Items      []mineWorkItemEmit `json:"items"`
-			}
-			if json.Unmarshal([]byte(line), &entry) == nil &&
-				entry.SourceEpic == "athena-mine" && !entry.Consumed {
-				for _, it := range entry.Items {
-					if it.ID != "" {
-						existingIDs[it.ID] = true
-					}
+	for _, line := range strings.Split(string(existing), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry struct {
+			SourceEpic string             `json:"source_epic"`
+			Consumed   bool               `json:"consumed"`
+			Items      []mineWorkItemEmit `json:"items"`
+		}
+		if json.Unmarshal([]byte(line), &entry) == nil &&
+			entry.SourceEpic == "athena-mine" && !entry.Consumed {
+			for _, it := range entry.Items {
+				if it.ID != "" {
+					ids[it.ID] = true
 				}
 			}
 		}
 	}
+	return ids
+}
 
-	// Filter out items that already exist
-	var newItems []mineWorkItemEmit
-	for _, item := range items {
-		if !existingIDs[item.ID] {
-			newItems = append(newItems, item)
-		}
-	}
-	if len(newItems) == 0 {
-		return nil // all items already present
-	}
-	items = newItems
-
-	// Emit each item as a separate entry
+// writeMineWorkItems appends one JSONL line per work item to the given path.
+func writeMineWorkItems(path string, items []mineWorkItemEmit, ts string) error {
 	type emitEntry struct {
 		SourceEpic string             `json:"source_epic"`
 		Timestamp  string             `json:"timestamp"`
@@ -582,13 +568,12 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 		ConsumedAt *string            `json:"consumed_at"`
 	}
 
-	f, err := os.OpenFile(nextWorkPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
 	if err != nil {
 		return fmt.Errorf("open next-work.jsonl: %w", err)
 	}
 	defer f.Close()
 
-	ts := r.Timestamp.UTC().Format(time.RFC3339)
 	for _, item := range items {
 		entry := emitEntry{
 			SourceEpic: "athena-mine",
@@ -606,6 +591,34 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 		}
 	}
 	return nil
+}
+
+// emitMineWorkItems translates mine findings into next-work.jsonl entries for evolve.
+// Orphaned research files map to severity:medium; code hotspots map to severity:high.
+// Dedup: item-level — each item gets a stable ID; only new items are emitted.
+func emitMineWorkItems(cwd string, r *MineReport) error {
+	items := collectMineWorkItems(r)
+	if len(items) == 0 {
+		return nil // nothing to emit
+	}
+
+	nextWorkPath := filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl")
+	if err := os.MkdirAll(filepath.Dir(nextWorkPath), 0o750); err != nil {
+		return fmt.Errorf("ensure next-work dir: %w", err)
+	}
+
+	existingIDs := loadExistingMineIDs(nextWorkPath)
+	var newItems []mineWorkItemEmit
+	for _, item := range items {
+		if !existingIDs[item.ID] {
+			newItems = append(newItems, item)
+		}
+	}
+	if len(newItems) == 0 {
+		return nil // all items already present
+	}
+
+	return writeMineWorkItems(nextWorkPath, newItems, r.Timestamp.UTC().Format(time.RFC3339))
 }
 
 // mineWorkItemEmit is a single work item within a next-work.jsonl entry.
