@@ -268,86 +268,81 @@ func seedCreateGoals(root string, template string, result *seedResult) error {
 	return nil
 }
 
-// buildSeedGoalFile creates a GoalFile tailored to the template.
-func buildSeedGoalFile(root string, template string) *goals.GoalFile {
-	dirName := filepath.Base(root)
+// templateConfig holds the per-template data used by buildSeedGoalFile.
+// Adding a new template is a data-only change: add an entry to templateConfigs.
+type templateConfig struct {
+	// MissionSuffix is appended to "Fitness goals for <dir>" in the mission string.
+	// Example: " (Go CLI)" produces "Fitness goals for myproject (Go CLI)".
+	MissionSuffix string
+	NorthStars    []string
+	AntiStars     []string
+	Directives    []goals.Directive
+}
 
-	gf := &goals.GoalFile{
-		Version: 4,
-		Format:  "md",
-	}
-
-	switch template {
-	case "go-cli":
-		gf.Mission = fmt.Sprintf("Fitness goals for %s (Go CLI)", dirName)
-		gf.NorthStars = []string{
-			"All checks pass on every commit",
-			"Clean go vet and golangci-lint",
-		}
-		gf.AntiStars = []string{
-			"Untested changes reaching main",
-			"Cyclomatic complexity > 25",
-		}
-		gf.Directives = []goals.Directive{
+// templateConfigs maps template names to their goal-file configuration.
+// The "generic" entry is used as fallback for unknown template names.
+var templateConfigs = map[string]templateConfig{
+	"go-cli": {
+		MissionSuffix: " (Go CLI)",
+		NorthStars:    []string{"All checks pass on every commit", "Clean go vet and golangci-lint"},
+		AntiStars:     []string{"Untested changes reaching main", "Cyclomatic complexity > 25"},
+		Directives: []goals.Directive{
 			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
 			{Number: 2, Title: "Test coverage", Description: "Maintain and increase test coverage across all packages.", Steer: "increase"},
-		}
-	case "python-lib":
-		gf.Mission = fmt.Sprintf("Fitness goals for %s (Python library)", dirName)
-		gf.NorthStars = []string{
-			"All tests pass on every commit",
-			"Type hints on all public APIs",
-		}
-		gf.AntiStars = []string{
-			"Untested changes reaching main",
-			"Undocumented public functions",
-		}
-		gf.Directives = []goals.Directive{
+		},
+	},
+	"python-lib": {
+		MissionSuffix: " (Python library)",
+		NorthStars:    []string{"All tests pass on every commit", "Type hints on all public APIs"},
+		AntiStars:     []string{"Untested changes reaching main", "Undocumented public functions"},
+		Directives: []goals.Directive{
 			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
 			{Number: 2, Title: "Documentation", Description: "All public APIs are documented with docstrings.", Steer: "increase"},
-		}
-	case "web-app":
-		gf.Mission = fmt.Sprintf("Fitness goals for %s (web application)", dirName)
-		gf.NorthStars = []string{
-			"All checks pass on every commit",
-			"No critical accessibility violations",
-		}
-		gf.AntiStars = []string{
-			"Untested changes reaching main",
-			"Unhandled runtime errors in production",
-		}
-		gf.Directives = []goals.Directive{
+		},
+	},
+	"web-app": {
+		MissionSuffix: " (web application)",
+		NorthStars:    []string{"All checks pass on every commit", "No critical accessibility violations"},
+		AntiStars:     []string{"Untested changes reaching main", "Unhandled runtime errors in production"},
+		Directives: []goals.Directive{
 			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
 			{Number: 2, Title: "Test coverage", Description: "Component and integration tests for critical paths.", Steer: "increase"},
-		}
-	case "rust-cli":
-		gf.Mission = fmt.Sprintf("Fitness goals for %s (Rust CLI)", dirName)
-		gf.NorthStars = []string{
-			"All checks pass on every commit",
-			"Clean clippy with no warnings",
-		}
-		gf.AntiStars = []string{
-			"Untested changes reaching main",
-			"Unsafe code without justification",
-		}
-		gf.Directives = []goals.Directive{
+		},
+	},
+	"rust-cli": {
+		MissionSuffix: " (Rust CLI)",
+		NorthStars:    []string{"All checks pass on every commit", "Clean clippy with no warnings"},
+		AntiStars:     []string{"Untested changes reaching main", "Unsafe code without justification"},
+		Directives: []goals.Directive{
 			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
 			{Number: 2, Title: "Test coverage", Description: "Maintain and increase test coverage.", Steer: "increase"},
-		}
-	default: // generic
-		gf.Mission = fmt.Sprintf("Fitness goals for %s", dirName)
-		gf.NorthStars = []string{
-			"All checks pass on every commit",
-		}
-		gf.AntiStars = []string{
-			"Untested changes reaching main",
-		}
-		gf.Directives = []goals.Directive{
+		},
+	},
+	"generic": {
+		MissionSuffix: "",
+		NorthStars:    []string{"All checks pass on every commit"},
+		AntiStars:     []string{"Untested changes reaching main"},
+		Directives: []goals.Directive{
 			{Number: 1, Title: "Establish baseline", Description: "Get all gates passing and maintain a green baseline.", Steer: "increase"},
-		}
+		},
+	},
+}
+
+// buildSeedGoalFile creates a GoalFile tailored to the template.
+func buildSeedGoalFile(root string, template string) *goals.GoalFile {
+	cfg, ok := templateConfigs[template]
+	if !ok {
+		cfg = templateConfigs["generic"]
 	}
 
-	return gf
+	return &goals.GoalFile{
+		Version:    4,
+		Format:     "md",
+		Mission:    fmt.Sprintf("Fitness goals for %s%s", filepath.Base(root), cfg.MissionSuffix),
+		NorthStars: cfg.NorthStars,
+		AntiStars:  cfg.AntiStars,
+		Directives: cfg.Directives,
+	}
 }
 
 // seedCreateBootstrapLearning creates the initial learning artifact.

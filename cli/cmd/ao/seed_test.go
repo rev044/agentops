@@ -680,6 +680,52 @@ func TestDetectTemplate(t *testing.T) {
 	}
 }
 
+func TestBuildSeedGoalFile_AllTemplates(t *testing.T) {
+	// Verify templateConfigs covers every validTemplate
+	for name := range validTemplates {
+		if _, ok := templateConfigs[name]; !ok {
+			t.Errorf("validTemplates contains %q but templateConfigs does not", name)
+		}
+	}
+
+	// Verify each template produces a well-formed GoalFile
+	for name := range templateConfigs {
+		t.Run(name, func(t *testing.T) {
+			gf := buildSeedGoalFile("/tmp/myproject", name)
+			if gf.Version != 4 {
+				t.Errorf("expected version 4, got %d", gf.Version)
+			}
+			if gf.Format != "md" {
+				t.Errorf("expected format 'md', got %q", gf.Format)
+			}
+			if !strings.Contains(gf.Mission, "Fitness goals for myproject") {
+				t.Errorf("expected mission to contain dir name, got %q", gf.Mission)
+			}
+			if len(gf.NorthStars) == 0 {
+				t.Error("expected at least one NorthStar")
+			}
+			if len(gf.AntiStars) == 0 {
+				t.Error("expected at least one AntiStar")
+			}
+			if len(gf.Directives) == 0 {
+				t.Error("expected at least one Directive")
+			}
+		})
+	}
+}
+
+func TestBuildSeedGoalFile_UnknownFallsBackToGeneric(t *testing.T) {
+	gf := buildSeedGoalFile("/tmp/proj", "nonexistent-template")
+	generic := buildSeedGoalFile("/tmp/proj", "generic")
+
+	if gf.Mission != generic.Mission {
+		t.Errorf("unknown template mission = %q, want generic %q", gf.Mission, generic.Mission)
+	}
+	if len(gf.NorthStars) != len(generic.NorthStars) {
+		t.Errorf("unknown template NorthStars count = %d, want %d", len(gf.NorthStars), len(generic.NorthStars))
+	}
+}
+
 func TestValidTemplatesMatchEmbeddedTemplates(t *testing.T) {
 	templatesDir := filepath.Join("..", "..", "embedded", "templates")
 	entries, err := os.ReadDir(templatesDir)
