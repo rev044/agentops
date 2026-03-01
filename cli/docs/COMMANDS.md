@@ -1169,6 +1169,23 @@ ao rpi phased <goal> [flags]
       --tmux-workers int                  When --runtime tmux, number of worker sessions spawned per phase (default 1)
 ```
 
+#### `ao rpi serve`
+
+Start a local web server streaming C2 events for an active RPI run.
+
+```
+ao rpi serve [run-id] [flags]
+```
+
+**Flags:**
+
+```
+  -h, --help            help for serve
+      --open            Open browser automatically (--no-open to disable) (default true)
+      --port int        Port to listen on (default 7799)
+      --run-id string   Run ID to watch (defaults to latest active run)
+```
+
 #### `ao rpi status`
 
 Display active and recent RPI phased runs.

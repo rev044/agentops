@@ -83,7 +83,7 @@ var goalsAddCmd = &cobra.Command{
 		if gf.Format == "md" {
 			content := goals.RenderGoalsMD(gf)
 			actualPath := goals.ResolveGoalsPath(resolveGoalsFile())
-			if err := os.WriteFile(actualPath, []byte(content), 0o644); err != nil {
+			if err := os.WriteFile(actualPath, []byte(content), 0o600); err != nil {
 				return fmt.Errorf("writing goals: %w", err)
 			}
 		} else {
@@ -91,7 +91,7 @@ var goalsAddCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("marshaling goals: %w", err)
 			}
-			if err := os.WriteFile(resolveGoalsFile(), data, 0o644); err != nil {
+			if err := os.WriteFile(resolveGoalsFile(), data, 0o600); err != nil {
 				return fmt.Errorf("writing goals: %w", err)
 			}
 		}

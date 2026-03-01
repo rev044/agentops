@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,6 +147,101 @@ func TestLogAndFailPhase_SetsTerminalFields(t *testing.T) {
 	}
 	if state.TerminatedAt == "" {
 		t.Error("TerminatedAt should be set")
+	}
+}
+
+// --- rescuePhaseOnTimeout helpers ---
+
+func TestIsPhaseTimeoutError(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil error", nil, false},
+		{"timeout direct", fmt.Errorf("phase 2 timed out after 1h30m0s (set --phase-timeout to increase)"), true},
+		{"timeout stream", fmt.Errorf("phase 2 (timeout) timed out after 45m0s (set --phase-timeout to increase)"), true},
+		{"non-timeout error", fmt.Errorf("phase 2 failed: exit code 1"), false},
+		{"stall error", fmt.Errorf("phase 2 (stall): stall detected: no stream activity for 10m"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isPhaseTimeoutError(tc.err); got != tc.want {
+				t.Errorf("isPhaseTimeoutError(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPhaseSummaryExists(t *testing.T) {
+	tmp := t.TempDir()
+	rpiDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0750); err != nil {
+		t.Fatal(err)
+	}
+
+	if phaseSummaryExists(tmp, 2) {
+		t.Error("should return false when no summary file exists")
+	}
+
+	summaryPath := filepath.Join(rpiDir, "phase-2-summary.md")
+	if err := os.WriteFile(summaryPath, []byte("# Phase 2 Summary\nDone."), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if !phaseSummaryExists(tmp, 2) {
+		t.Error("should return true when phase-2-summary.md exists")
+	}
+	if phaseSummaryExists(tmp, 1) {
+		t.Error("should return false for phase 1 when only phase 2 summary exists")
+	}
+}
+
+func TestRescuePhaseOnTimeout_NoSummary(t *testing.T) {
+	tmp := t.TempDir()
+	p := phases[1] // phase 2: implementation
+	timeoutErr := fmt.Errorf("phase 2 timed out after 1h30m0s (set --phase-timeout to increase)")
+
+	if rescuePhaseOnTimeout(tmp, p, timeoutErr) {
+		t.Error("rescue should fail when no phase summary exists")
+	}
+}
+
+func TestRescuePhaseOnTimeout_WithSummary(t *testing.T) {
+	tmp := t.TempDir()
+	rpiDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0750); err != nil {
+		t.Fatal(err)
+	}
+	summaryPath := filepath.Join(rpiDir, "phase-2-summary.md")
+	if err := os.WriteFile(summaryPath, []byte("# Phase 2 Summary\nCrank completed all 29 issues."), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	p := phases[1] // phase 2: implementation
+	timeoutErr := fmt.Errorf("phase 2 timed out after 1h30m0s (set --phase-timeout to increase)")
+
+	if !rescuePhaseOnTimeout(tmp, p, timeoutErr) {
+		t.Error("rescue should succeed when phase summary exists and error is timeout")
+	}
+}
+
+func TestRescuePhaseOnTimeout_NonTimeoutError(t *testing.T) {
+	tmp := t.TempDir()
+	rpiDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0750); err != nil {
+		t.Fatal(err)
+	}
+	// Write a summary — rescue should still fail because error is not a timeout.
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-2-summary.md"), []byte("done"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	p := phases[1]
+	execErr := fmt.Errorf("claude exited with code 1")
+
+	if rescuePhaseOnTimeout(tmp, p, execErr) {
+		t.Error("rescue should not trigger for non-timeout errors, even with summary present")
 	}
 }
 

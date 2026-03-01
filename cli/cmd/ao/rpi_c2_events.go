@@ -70,7 +70,7 @@ func appendRPIC2Event(root string, input rpiC2EventInput) (RPIC2Event, error) {
 	if path == "" {
 		return RPIC2Event{}, fmt.Errorf("run path is required")
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return RPIC2Event{}, fmt.Errorf("create run directory: %w", err)
 	}
 

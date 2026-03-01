@@ -191,7 +191,7 @@ func ensureStateRunID(state *phasedState) {
 
 func initializeRunArtifacts(spawnCwd string, startPhase int, state *phasedState, opts phasedEngineOptions) (string, string, string, []PhaseProgress, error) {
 	stateDir := filepath.Join(spawnCwd, ".agents", "rpi")
-	if err := os.MkdirAll(stateDir, 0755); err != nil {
+	if err := os.MkdirAll(stateDir, 0750); err != nil {
 		return "", "", "", nil, fmt.Errorf("create state directory: %w", err)
 	}
 

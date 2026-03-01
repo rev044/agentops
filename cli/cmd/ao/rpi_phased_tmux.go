@@ -161,7 +161,7 @@ func (t *tmuxExecutor) writePromptFile(cwd, runID string, phaseNum int, prompt s
 	if dir == "" {
 		dir = filepath.Join(cwd, ".agents", "rpi", "runs", "scratch")
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, fmt.Sprintf("phase-%d-prompt.txt", phaseNum))
@@ -173,7 +173,7 @@ func (t *tmuxExecutor) writeWorkerScript(cwd, runID string, phaseNum int) (strin
 	if dir == "" {
 		dir = filepath.Join(cwd, ".agents", "rpi", "runs", "scratch")
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, fmt.Sprintf("phase-%d-worker.sh", phaseNum))
@@ -195,7 +195,7 @@ printf '{"type":"rpi_worker_end","timestamp":"%s","worker":"%s","exit_code":%d}\
 printf "%s\n" "$code" > "$exit_file"
 exit "$code"
 `
-	if err := os.WriteFile(path, []byte(content), 0o700); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o700); err != nil { // #nosec G306
 		return "", err
 	}
 	return path, nil
@@ -206,7 +206,7 @@ func (t *tmuxExecutor) writeMayorScript(cwd, runID string, phaseNum int) (string
 	if dir == "" {
 		dir = filepath.Join(cwd, ".agents", "rpi", "runs", "scratch")
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, fmt.Sprintf("phase-%d-mayor.sh", phaseNum))
@@ -256,7 +256,7 @@ done
 printf "%s\n" "$overall" > "$exit_base"
 exit "$overall"
 `
-	if err := os.WriteFile(path, []byte(content), 0o700); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o700); err != nil { // #nosec G306
 		return "", err
 	}
 	return path, nil

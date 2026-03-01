@@ -490,7 +490,7 @@ func ensureCriticalHandoff(cwd string, status contextSessionStatus, usage transc
 
 	handoffDir := filepath.Join(cwd, ".agents", "handoff")
 	pendingDir := filepath.Join(handoffDir, "pending")
-	if err := os.MkdirAll(pendingDir, 0755); err != nil {
+	if err := os.MkdirAll(pendingDir, 0750); err != nil {
 		return "", "", fmt.Errorf("create pending dir: %w", err)
 	}
 
@@ -976,7 +976,7 @@ func persistAssignment(cwd string, status contextSessionStatus) error {
 		return err
 	}
 	contextDir := filepath.Join(cwd, ".agents", "ao", "context")
-	if err := os.MkdirAll(contextDir, 0755); err != nil {
+	if err := os.MkdirAll(contextDir, 0750); err != nil {
 		return err
 	}
 	path := filepath.Join(contextDir, "assignment-"+sanitizeForFilename(status.SessionID)+".json")

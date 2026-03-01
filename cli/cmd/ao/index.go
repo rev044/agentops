@@ -391,7 +391,7 @@ func writeIndex(dirPath, relDir string, entries []indexEntry, dryRun bool) error
 	}
 
 	indexPath := filepath.Join(dirPath, "INDEX.md")
-	return os.WriteFile(indexPath, []byte(sb.String()), 0644)
+	return os.WriteFile(indexPath, []byte(sb.String()), 0600)
 }
 
 // diffFileSets returns slices of files missing from existing and extra files not in expected.

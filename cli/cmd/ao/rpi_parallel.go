@@ -127,7 +127,7 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 	}
 
 	logDir := filepath.Join(baseCwd, ".agents", "rpi", "parallel")
-	_ = os.MkdirAll(logDir, 0o755)
+	_ = os.MkdirAll(logDir, 0o750)
 
 	const tmuxSession = "rpi-parallel"
 	tmuxCmd, err := setupTmuxSession(tmuxSession)
@@ -603,7 +603,7 @@ func runParallelEpicTmux(epic parallelEpic, worktreePath, branch, runtimeCmd, lo
 
 	// Write goal to file to avoid shell quoting issues.
 	goalFile := filepath.Join(logDir, epic.Name+".goal")
-	if err := os.WriteFile(goalFile, []byte(epic.Goal), 0o644); err != nil {
+	if err := os.WriteFile(goalFile, []byte(epic.Goal), 0o600); err != nil {
 		result.Error = fmt.Errorf("write goal file: %w", err)
 		return result
 	}
@@ -629,7 +629,7 @@ goal=$(cat %s)
 `, shellQuote(worktreePath), shellQuote(goalFile), cmdLine, shellQuote(logFile))
 
 	scriptFile := filepath.Join(logDir, epic.Name+".sh")
-	if err := os.WriteFile(scriptFile, []byte(script), 0o755); err != nil {
+	if err := os.WriteFile(scriptFile, []byte(script), 0o700); err != nil { // #nosec G306
 		result.Error = fmt.Errorf("write script: %w", err)
 		return result
 	}

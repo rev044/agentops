@@ -3,9 +3,45 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
+
+// isPhaseTimeoutError returns true when err was produced by a phase wall-clock timeout.
+// It matches the error strings produced by both directExecutor and streamExecutor.
+func isPhaseTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "timed out after")
+}
+
+// phaseSummaryExists reports whether the phase-N-summary.md artifact was written inside
+// spawnCwd, indicating the Claude session finished its PHASE SUMMARY CONTRACT obligation
+// before being killed by the timeout watchdog.
+func phaseSummaryExists(spawnCwd string, phaseNum int) bool {
+	path := filepath.Join(spawnCwd, ".agents", "rpi", fmt.Sprintf("phase-%d-summary.md", phaseNum))
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// rescuePhaseOnTimeout recovers from a phase timeout when the phase summary artifact
+// already exists. This handles the race where the implementation session completes all
+// work but is killed by the orchestrator's wall-clock before it can exit cleanly.
+// Returns true when the rescue succeeds; caller should continue to post-phase processing.
+func rescuePhaseOnTimeout(spawnCwd string, p phase, timeoutErr error) bool {
+	if !isPhaseTimeoutError(timeoutErr) {
+		return false
+	}
+	if !phaseSummaryExists(spawnCwd, p.Num) {
+		return false
+	}
+	fmt.Printf("Phase %d (%s): timed out, but the phase summary was written — session completed its work before the watchdog fired.\n", p.Num, p.Name)
+	fmt.Printf("Continuing to post-phase validation. Use --phase-timeout=<duration> to raise the limit.\n")
+	return true
+}
 
 // handlePostPhaseGate runs post-phase gate checking and retry logic.
 // It is extracted from runSinglePhase to reduce its cyclomatic complexity.
@@ -128,7 +164,12 @@ func runSinglePhase(cwd, spawnCwd string, state *phasedState, startPhase int, p 
 	}
 
 	if err := executePhaseSession(spawnCwd, state, p, opts, statusPath, allPhases, logPath, prompt, executor); err != nil {
-		return err
+		if !rescuePhaseOnTimeout(spawnCwd, p, err) {
+			return err
+		}
+		// Phase timed out but wrote its summary — treat as complete and fall through
+		// to post-phase gate so the orchestrator can validate and continue.
+		logPhaseTransition(logPath, state.RunID, p.Name, "timeout-rescued: summary artifact found, continuing")
 	}
 
 	if err := handlePostPhaseGate(spawnCwd, state, p, logPath, statusPath, allPhases, executor); err != nil {

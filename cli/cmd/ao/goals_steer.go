@@ -253,7 +253,7 @@ func writeMDGoals(gf *goals.GoalFile, path string) error {
 		path = filepath.Join(filepath.Dir(path), "GOALS.md")
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("writing goals file: %w", err)
 	}
 	return nil

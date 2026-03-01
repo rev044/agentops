@@ -124,7 +124,7 @@ func rankResults(scores map[string]int, limit int) []IndexResult {
 
 // SaveIndex writes the index to a JSONL file (one line per term).
 func SaveIndex(idx *Index, path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
 		return fmt.Errorf("create index dir: %w", err)
 	}
 

@@ -255,7 +255,7 @@ func updateJSONLUtility(path string, reward, alpha float64) (oldUtility, newUtil
 		return 0, 0, err
 	}
 	lines[0] = string(newJSON)
-	return oldUtility, newUtility, os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+	return oldUtility, newUtility, os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
 }
 
 func counterDirectionFromFeedback(reward float64, explicitHelpful, explicitHarmful bool) (helpful bool, harmful bool) {
@@ -350,7 +350,7 @@ func updateMarkdownUtility(path string, reward, alpha float64) (oldUtility, newU
 		updatedFM := updateFrontMatterFields(fmLines, fields)
 
 		rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
-		return oldUtility, newUtility, os.WriteFile(path, []byte(rebuilt), 0644)
+		return oldUtility, newUtility, os.WriteFile(path, []byte(rebuilt), 0600)
 	}
 
 	// No front matter - add it
@@ -366,7 +366,7 @@ func updateMarkdownUtility(path string, reward, alpha float64) (oldUtility, newU
 	sb.WriteString("---\n")
 	sb.WriteString(text)
 
-	return oldUtility, newUtility, os.WriteFile(path, []byte(sb.String()), 0644)
+	return oldUtility, newUtility, os.WriteFile(path, []byte(sb.String()), 0600)
 }
 
 // updateFrontMatterFields updates or adds fields in front matter lines.
@@ -552,5 +552,5 @@ func addUtilityField(path string) error {
 	}
 
 	lines[0] = string(newJSON)
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
 }

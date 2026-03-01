@@ -188,7 +188,7 @@ func resolveHeadCommit(repoRoot string, timeout time.Duration) (string, error) {
 // initWorktreeAgentsDir creates the .agents/rpi/ directory in a new worktree,
 // logging a warning on failure rather than failing the worktree creation.
 func initWorktreeAgentsDir(worktreePath string, verbosef func(string, ...any)) {
-	if mkErr := os.MkdirAll(filepath.Join(worktreePath, ".agents", "rpi"), 0755); mkErr != nil && verbosef != nil {
+	if mkErr := os.MkdirAll(filepath.Join(worktreePath, ".agents", "rpi"), 0750); mkErr != nil && verbosef != nil {
 		verbosef("Warning: could not create .agents/rpi/ in worktree: %v\n", mkErr)
 	}
 }

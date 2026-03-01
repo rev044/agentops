@@ -113,10 +113,10 @@ func runContextAssemble(cmd *cobra.Command, args []string) error {
 	if !filepath.IsAbs(outPath) {
 		outPath = filepath.Join(cwd, outPath)
 	}
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o750); err != nil {
 		return fmt.Errorf("mkdir output dir: %w", err)
 	}
-	if err := os.WriteFile(outPath, []byte(md), 0o644); err != nil {
+	if err := os.WriteFile(outPath, []byte(md), 0o600); err != nil {
 		return fmt.Errorf("write briefing: %w", err)
 	}
 
@@ -539,10 +539,10 @@ func shannonEntropy(s string) float64 {
 
 func logRedactions(cwd string, count int) {
 	logDir := filepath.Join(cwd, ".agents", "ao")
-	_ = os.MkdirAll(logDir, 0o755)
+	_ = os.MkdirAll(logDir, 0o750)
 	logPath := filepath.Join(logDir, "redaction.log")
 
-	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}
@@ -580,7 +580,7 @@ type provenanceManifest struct {
 
 func writeProvenanceManifest(cwd, outPath string, sections []assembledSection) error {
 	manifestDir := filepath.Join(cwd, ".agents", "ao", "injections")
-	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+	if err := os.MkdirAll(manifestDir, 0o750); err != nil {
 		return err
 	}
 
@@ -599,7 +599,7 @@ func writeProvenanceManifest(cwd, outPath string, sections []assembledSection) e
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(manifestPath, data, 0o644)
+	return os.WriteFile(manifestPath, data, 0o600)
 }
 
 // --- JSON output ---

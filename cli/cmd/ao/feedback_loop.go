@@ -326,7 +326,7 @@ func markCitationFeedback(baseDir, sessionID string, reward float64, events []Fe
 
 func writeCitations(baseDir string, citations []types.CitationEvent) error {
 	citationsPath := filepath.Join(baseDir, ratchet.CitationsFilePath)
-	if err := os.MkdirAll(filepath.Dir(citationsPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(citationsPath), 0750); err != nil {
 		return fmt.Errorf("create citations directory: %w", err)
 	}
 
@@ -393,12 +393,12 @@ func writeFeedbackEvents(baseDir string, events []FeedbackEvent) error {
 	feedbackPath := filepath.Join(baseDir, FeedbackFilePath)
 
 	// Create parent directory
-	if err := os.MkdirAll(filepath.Dir(feedbackPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(feedbackPath), 0750); err != nil {
 		return fmt.Errorf("create feedback directory: %w", err)
 	}
 
 	// Open for append
-	f, err := os.OpenFile(feedbackPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(feedbackPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("open feedback file: %w", err)
 	}

@@ -131,7 +131,7 @@ func runNotebookUpdate(cmd *cobra.Command, args []string) error {
 
 	// Step 7: Write back atomically
 	content := renderNotebook(sections)
-	if err := atomicWriteFile(memoryFile, []byte(content), 0644); err != nil {
+	if err := atomicWriteFile(memoryFile, []byte(content), 0600); err != nil {
 		return fmt.Errorf("write MEMORY.md: %w", err)
 	}
 
@@ -581,5 +581,5 @@ func writeNotebookCursor(path string, sessionID string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0644)
+	return os.WriteFile(path, append(data, '\n'), 0600)
 }

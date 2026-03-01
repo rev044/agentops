@@ -155,7 +155,7 @@ func runRPILoop(cmd *cobra.Command, args []string) error {
 	}
 
 	nextWorkPath := filepath.Join(cwd, ".agents", "rpi", "next-work.jsonl")
-	if err := os.MkdirAll(filepath.Join(cwd, ".agents", "rpi"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(cwd, ".agents", "rpi"), 0750); err != nil {
 		return fmt.Errorf("ensure .agents/rpi directory: %w", err)
 	}
 
@@ -541,7 +541,7 @@ func rewriteNextWorkFile(path string, transform func(idx int, entry *nextWorkEnt
 		out.WriteByte('\n')
 	}
 
-	return os.WriteFile(path, out.Bytes(), 0644)
+	return os.WriteFile(path, out.Bytes(), 0600)
 }
 
 // markEntryConsumed sets Consumed=true and ConsumedAt on the entry at entryIndex.

@@ -439,7 +439,7 @@ func createIndexEntry(path string, categorize bool) (*IndexEntry, error) {
 // appendToIndex adds an entry to the index file.
 func appendToIndex(baseDir string, entry *IndexEntry) error {
 	indexDir := filepath.Join(baseDir, IndexDir)
-	if err := os.MkdirAll(indexDir, 0755); err != nil {
+	if err := os.MkdirAll(indexDir, 0750); err != nil {
 		return err
 	}
 
@@ -450,7 +450,7 @@ func appendToIndex(baseDir string, entry *IndexEntry) error {
 		return err
 	}
 
-	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -710,7 +710,7 @@ func parseMemRLMetadata(content string) (utility float64, maturity string) {
 		if strings.HasPrefix(line, "**Utility**:") || strings.HasPrefix(line, "- **Utility**:") {
 			utilStr := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "**Utility**:"), "- **Utility**:"))
 			//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-			fmt.Sscanf(utilStr, "%f", &utility)
+			fmt.Sscanf(utilStr, "%f", &utility) // #nosec G104
 		}
 		if strings.HasPrefix(line, "**Maturity**:") || strings.HasPrefix(line, "- **Maturity**:") {
 			maturity = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "**Maturity**:"), "- **Maturity**:"))

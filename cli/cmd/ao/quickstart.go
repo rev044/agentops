@@ -97,7 +97,7 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 
 	for _, dir := range dirs {
 		path := filepath.Join(cwd, dir)
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0750); err != nil {
 			return fmt.Errorf("failed to create %s: %w", dir, err)
 		}
 		fmt.Printf("  ✓ %s/\n", dir)
@@ -214,7 +214,7 @@ Pre-mortem caught 6 critical issues before implementation:
 
 	for path, content := range patterns {
 		fullPath := filepath.Join(cwd, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0600); err != nil {
 			return err
 		}
 		fmt.Printf("  ✓ %s\n", path)
@@ -277,7 +277,7 @@ func createTasksFile(cwd string) {
 }
 `
 	//nolint:errcheck // quickstart setup, errors shown implicitly by missing output
-	os.WriteFile(tasksPath, []byte(content), 0644)
+	os.WriteFile(tasksPath, []byte(content), 0600) // #nosec G104
 	fmt.Println("  ✓ Created .agents/tasks.json (beads-optional mode)")
 }
 
@@ -320,7 +320,7 @@ git push              # NEVER stop before pushing
 Issue prefix: (set during ol quick-start)
 `, dirName)
 
-	return os.WriteFile(filepath.Join(cwd, "CLAUDE.md"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(cwd, "CLAUDE.md"), []byte(content), 0600)
 }
 
 func showNextSteps(hasBeads bool) {

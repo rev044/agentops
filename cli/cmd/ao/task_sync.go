@@ -397,7 +397,7 @@ func writeTaskEvents(baseDir string, tasks []TaskEvent) error {
 	taskPath := filepath.Join(baseDir, TaskFilePath)
 
 	// Create parent directory
-	if err := os.MkdirAll(filepath.Dir(taskPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(taskPath), 0750); err != nil {
 		return fmt.Errorf("create task directory: %w", err)
 	}
 
@@ -409,7 +409,7 @@ func writeTaskEvents(baseDir string, tasks []TaskEvent) error {
 	}
 
 	// Open for append
-	f, err := os.OpenFile(taskPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(taskPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("open task file: %w", err)
 	}
@@ -465,7 +465,7 @@ func loadTaskEvents(baseDir string) ([]TaskEvent, error) {
 // promoteTaskToLearning creates a learning from a completed task.
 func promoteTaskToLearning(baseDir string, task *TaskEvent) error {
 	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
-	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+	if err := os.MkdirAll(learningsDir, 0750); err != nil {
 		return fmt.Errorf("create learnings directory: %w", err)
 	}
 
@@ -494,7 +494,7 @@ func promoteTaskToLearning(baseDir string, task *TaskEvent) error {
 		return fmt.Errorf("marshal learning: %w", err)
 	}
 
-	if err := os.WriteFile(learningPath, append(data, '\n'), 0644); err != nil {
+	if err := os.WriteFile(learningPath, append(data, '\n'), 0600); err != nil {
 		return fmt.Errorf("write learning: %w", err)
 	}
 

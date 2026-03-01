@@ -92,7 +92,7 @@ func ingestFileBlocks(p *pool.Pool, blocks []learningBlock, f string, fileDate t
 // moveIngestedFiles moves successfully processed files to the processed directory.
 func moveIngestedFiles(cwd string, processedFiles []string) {
 	processedDir := filepath.Join(cwd, ".agents", "knowledge", "processed")
-	if err := os.MkdirAll(processedDir, 0755); err != nil {
+	if err := os.MkdirAll(processedDir, 0750); err != nil {
 		VerbosePrintf("Warning: create processed dir: %v\n", err)
 		return
 	}

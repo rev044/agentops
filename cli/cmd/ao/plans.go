@@ -163,7 +163,7 @@ func createPlanEntry(absPath string, modTime time.Time, projectPath, name, beads
 
 // appendManifestEntry appends an entry to the manifest file
 func appendManifestEntry(manifestPath string, entry types.PlanManifestEntry) error {
-	f, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func loadOrCreateManifest() (string, []types.PlanManifestEntry, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("get manifest path: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(manifestPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(manifestPath), 0750); err != nil {
 		return "", nil, fmt.Errorf("create manifest dir: %w", err)
 	}
 	existing, err := loadManifest(manifestPath)

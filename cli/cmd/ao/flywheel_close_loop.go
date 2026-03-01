@@ -362,10 +362,10 @@ func upsertIndexPaths(existing map[string]IndexEntry, paths []string, categorize
 
 // writeIndexFile writes the entries map as sorted JSONL to the given path.
 func writeIndexFile(indexPath string, existing map[string]IndexEntry) error {
-	if err := os.MkdirAll(filepath.Dir(indexPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(indexPath), 0750); err != nil {
 		return err
 	}
-	out, err := os.OpenFile(indexPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	out, err := os.OpenFile(indexPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}

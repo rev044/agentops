@@ -122,10 +122,10 @@ func syncMemory(cwd, outputPath string, maxEntries int, quiet bool) error {
 
 	// Atomic write
 	dir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
-	if err := atomicWriteFile(outputPath, []byte(content), 0644); err != nil {
+	if err := atomicWriteFile(outputPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("write %s: %w", outputPath, err)
 	}
 

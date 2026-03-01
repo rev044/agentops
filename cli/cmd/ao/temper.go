@@ -413,15 +413,15 @@ func applyMarkdownLine(line string, meta *artifactMetadata) {
 	}
 	if val, ok := parseMarkdownField(line, "Utility"); ok {
 		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-		fmt.Sscanf(val, "%f", &meta.Utility)
+		fmt.Sscanf(val, "%f", &meta.Utility) // #nosec G104
 	}
 	if val, ok := parseMarkdownField(line, "Confidence"); ok {
 		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-		fmt.Sscanf(val, "%f", &meta.Confidence)
+		fmt.Sscanf(val, "%f", &meta.Confidence) // #nosec G104
 	}
 	if val, ok := parseMarkdownField(line, "Schema Version"); ok {
 		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
-		fmt.Sscanf(val, "%d", &meta.SchemaVersion)
+		fmt.Sscanf(val, "%d", &meta.SchemaVersion) // #nosec G104
 	}
 	if val, ok := parseMarkdownField(line, "Status"); ok {
 		if strings.ToLower(val) == "tempered" || strings.ToLower(val) == "locked" {

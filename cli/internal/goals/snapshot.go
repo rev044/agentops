@@ -30,7 +30,7 @@ type Snapshot struct {
 // SaveSnapshot writes a snapshot to disk as indented JSON.
 // Returns the path of the written file.
 func SaveSnapshot(s *Snapshot, dir string) (string, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", fmt.Errorf("creating snapshot dir: %w", err)
 	}
 

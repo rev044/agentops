@@ -81,7 +81,7 @@ func runGoalsMigrate(cmd *cobra.Command, args []string) error {
 		}
 		content := goals.RenderGoalsMD(gf)
 		mdPath := filepath.Join(filepath.Dir(path), "GOALS.md")
-		if err := os.WriteFile(mdPath, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(mdPath, []byte(content), 0o600); err != nil {
 			return fmt.Errorf("writing GOALS.md: %w", err)
 		}
 		fmt.Printf("Migrated %s → %s (GOALS.md format, version 4)\n", path, mdPath)
@@ -100,7 +100,7 @@ func runGoalsMigrate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("read original for backup: %w", err)
 	}
-	if err := os.WriteFile(backupPath, original, 0o644); err != nil {
+	if err := os.WriteFile(backupPath, original, 0o600); err != nil {
 		return fmt.Errorf("write backup: %w", err)
 	}
 	fmt.Printf("Backed up original to %s\n", backupPath)
@@ -113,7 +113,7 @@ func runGoalsMigrate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("marshal migrated goals: %w", err)
 	}
-	if err := os.WriteFile(path, out, 0o644); err != nil {
+	if err := os.WriteFile(path, out, 0o600); err != nil {
 		return fmt.Errorf("write migrated goals: %w", err)
 	}
 

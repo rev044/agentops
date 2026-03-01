@@ -130,7 +130,7 @@ func mergeDedupGroups(hashToFiles map[string][]string, cwd string, dryRun bool) 
 		return nil
 	}
 
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+	if err := os.MkdirAll(archiveDir, 0o750); err != nil {
 		return fmt.Errorf("create archive directory: %w", err)
 	}
 

@@ -495,14 +495,14 @@ func resolveSourceDir() (string, error) {
 
 // copyFile copies a single file, creating parent directories as needed.
 func hooksCopyFile(src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
 		return err
 	}
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, data, 0644)
+	return os.WriteFile(dst, data, 0600)
 }
 
 // copyDir copies all files from src to dst recursively.
@@ -515,7 +515,7 @@ func copyDir(src, dst string) (int, error) {
 		rel, _ := filepath.Rel(src, path)
 		target := filepath.Join(dst, rel)
 		if info.IsDir() {
-			return os.MkdirAll(target, 0755)
+			return os.MkdirAll(target, 0750)
 		}
 		count++
 		return hooksCopyFile(path, target)
@@ -538,7 +538,7 @@ func copyShellScripts(srcDir, dstDir string) (int, error) {
 		if err := hooksCopyFile(src, dst); err != nil {
 			return copied, fmt.Errorf("copy %s: %w", e.Name(), err)
 		}
-		if err := os.Chmod(dst, 0755); err != nil {
+		if err := os.Chmod(dst, 0755); err != nil { // #nosec G302 -- hook scripts require execute permission
 			return copied, fmt.Errorf("chmod %s: %w", e.Name(), err)
 		}
 		copied++
@@ -633,7 +633,7 @@ func installFullHooksFromEmbed(installBase string) (int, error) {
 		}
 
 		dst := filepath.Join(installBase, path)
-		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
 			return fmt.Errorf("mkdir for %s: %w", path, err)
 		}
 
@@ -642,7 +642,7 @@ func installFullHooksFromEmbed(installBase string) (int, error) {
 			return fmt.Errorf("read embedded %s: %w", path, err)
 		}
 
-		perm := os.FileMode(0644)
+		perm := os.FileMode(0600)
 		if strings.HasSuffix(path, ".sh") {
 			perm = 0755
 		}
@@ -755,7 +755,7 @@ func backupHooksSettings(settingsPath string) error {
 	if err != nil {
 		return nil
 	}
-	if err := os.WriteFile(backupPath, data, 0644); err != nil {
+	if err := os.WriteFile(backupPath, data, 0600); err != nil {
 		return fmt.Errorf("create backup: %w", err)
 	}
 	fmt.Printf("Backed up existing settings to %s\n", backupPath)
@@ -765,7 +765,7 @@ func backupHooksSettings(settingsPath string) error {
 func writeHooksSettings(settingsPath string, rawSettings map[string]any) error {
 	// Ensure .claude directory exists
 	claudeDir := filepath.Dir(settingsPath)
-	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+	if err := os.MkdirAll(claudeDir, 0750); err != nil {
 		return fmt.Errorf("create .claude directory: %w", err)
 	}
 
@@ -774,7 +774,7 @@ func writeHooksSettings(settingsPath string, rawSettings map[string]any) error {
 	if err != nil {
 		return fmt.Errorf("marshal settings: %w", err)
 	}
-	if err := os.WriteFile(settingsPath, data, 0644); err != nil {
+	if err := os.WriteFile(settingsPath, data, 0600); err != nil {
 		return fmt.Errorf("write settings: %w", err)
 	}
 	return nil

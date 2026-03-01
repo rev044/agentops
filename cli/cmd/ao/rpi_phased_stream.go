@@ -36,7 +36,25 @@ type directExecutor struct {
 
 func (d *directExecutor) Name() string { return "direct" }
 func (d *directExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
-	return spawnRuntimeDirectImpl(d.runtimeCommand, prompt, cwd, phaseNum, d.phaseTimeout)
+	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID: runID, Phase: phaseNum, Backend: "direct", Source: "runtime_direct",
+		Type:    "phase.direct.started",
+		Message: fmt.Sprintf("phase %d direct session started", phaseNum),
+	}); err != nil {
+		VerbosePrintf("Warning: could not append direct start event: %v\n", err)
+	}
+	execErr := spawnRuntimeDirectImpl(d.runtimeCommand, prompt, cwd, phaseNum, d.phaseTimeout)
+	evType, evMsg := "phase.direct.completed", fmt.Sprintf("phase %d direct session completed", phaseNum)
+	if execErr != nil {
+		evType, evMsg = "phase.direct.failed", execErr.Error()
+	}
+	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID: runID, Phase: phaseNum, Backend: "direct", Source: "runtime_direct",
+		Type: evType, Message: evMsg,
+	}); err != nil {
+		VerbosePrintf("Warning: could not append direct completion event: %v\n", err)
+	}
+	return execErr
 }
 
 type streamExecutor struct {
@@ -59,7 +77,25 @@ func (s *streamExecutor) Execute(prompt, cwd, runID string, phaseNum int) error 
 		return err
 	}
 	fmt.Printf("Stream backend degraded for phase %d; falling back to direct execution (%v)\n", phaseNum, err)
-	if directErr := spawnRuntimeDirectImpl(s.runtimeCommand, prompt, cwd, phaseNum, s.phaseTimeout); directErr != nil {
+	if _, evErr := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID: runID, Phase: phaseNum, Backend: "direct", Source: "stream_fallback",
+		Type:    "phase.direct.started",
+		Message: fmt.Sprintf("phase %d: stream degraded, switched to direct", phaseNum),
+	}); evErr != nil {
+		VerbosePrintf("Warning: could not append fallback start event: %v\n", evErr)
+	}
+	directErr := spawnRuntimeDirectImpl(s.runtimeCommand, prompt, cwd, phaseNum, s.phaseTimeout)
+	evType, evMsg := "phase.direct.completed", fmt.Sprintf("phase %d direct fallback completed", phaseNum)
+	if directErr != nil {
+		evType, evMsg = "phase.direct.failed", directErr.Error()
+	}
+	if _, evErr := appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID: runID, Phase: phaseNum, Backend: "direct", Source: "stream_fallback",
+		Type: evType, Message: evMsg,
+	}); evErr != nil {
+		VerbosePrintf("Warning: could not append fallback completion event: %v\n", evErr)
+	}
+	if directErr != nil {
 		return fmt.Errorf("stream execution failed: %w; direct fallback failed: %v", err, directErr)
 	}
 	return nil

@@ -98,7 +98,7 @@ func AppendRPILedgerRecord(rootDir string, input RPILedgerAppendInput) (RPILedge
 
 	ledgerPath := RPILedgerPath(rootDir)
 	ledgerDir := filepath.Dir(ledgerPath)
-	if err := os.MkdirAll(ledgerDir, 0755); err != nil {
+	if err := os.MkdirAll(ledgerDir, 0750); err != nil {
 		return RPILedgerRecord{}, fmt.Errorf("create ledger dir: %w", err)
 	}
 
@@ -108,7 +108,7 @@ func AppendRPILedgerRecord(rootDir string, input RPILedgerAppendInput) (RPILedge
 	}
 	defer releaseLedgerLock(lockFile)
 
-	ledgerFile, err := os.OpenFile(ledgerPath, os.O_CREATE|os.O_RDWR, 0644)
+	ledgerFile, err := os.OpenFile(ledgerPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return RPILedgerRecord{}, fmt.Errorf("open ledger: %w", err)
 	}
@@ -146,7 +146,7 @@ func validateAppendInput(input RPILedgerAppendInput) error {
 
 // acquireLedgerLock opens and exclusively locks the ledger lock file.
 func acquireLedgerLock(ledgerPath string) (*os.File, error) {
-	lockFile, err := os.OpenFile(ledgerPath+".lock", os.O_CREATE|os.O_RDWR, 0644)
+	lockFile, err := os.OpenFile(ledgerPath+".lock", os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("open ledger lock: %w", err)
 	}
@@ -379,10 +379,10 @@ func writeRunCache(rootDir, runID string, latest RPILedgerRecord, count int) err
 
 	cachePath := filepath.Join(rootDir, rpiRunCacheRelativeDir, runID+".json")
 	cacheDir := filepath.Dir(cachePath)
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, 0750); err != nil {
 		return fmt.Errorf("create run cache dir: %w", err)
 	}
-	return writeFileAtomic(cachePath, cacheBytes, 0644)
+	return writeFileAtomic(cachePath, cacheBytes, 0600)
 }
 
 func readLastLedgerHash(file *os.File) (string, error) {

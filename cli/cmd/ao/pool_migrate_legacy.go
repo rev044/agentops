@@ -124,7 +124,7 @@ func migrateLegacyKnowledgeFiles(sourceDir, pendingDir string) (poolMigrateLegac
 	}
 
 	if !GetDryRun() {
-		if err := os.MkdirAll(pendingDir, 0755); err != nil {
+		if err := os.MkdirAll(pendingDir, 0750); err != nil {
 			return result, fmt.Errorf("create pending dir: %w", err)
 		}
 	}

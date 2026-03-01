@@ -244,7 +244,7 @@ func runCurateCatalog(cmd *cobra.Command, args []string) error {
 
 	// Write to target directory
 	targetDir := curateArtifactDir(artifactType)
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o750); err != nil {
 		return fmt.Errorf("creating artifact dir: %w", err)
 	}
 

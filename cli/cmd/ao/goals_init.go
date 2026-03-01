@@ -116,7 +116,7 @@ var goalsInitCmd = &cobra.Command{
 			return nil
 		}
 
-		if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(outPath, []byte(content), 0o600); err != nil {
 			return fmt.Errorf("writing goals file: %w", err)
 		}
 

@@ -627,7 +627,7 @@ func dedup(items []string) []string {
 // queueForExtraction adds a session to the pending extraction queue.
 func queueForExtraction(session *storage.Session, sessionPath, transcriptPath, cwd string) error {
 	pendingDir := filepath.Join(cwd, storage.DefaultBaseDir)
-	if err := os.MkdirAll(pendingDir, 0755); err != nil {
+	if err := os.MkdirAll(pendingDir, 0750); err != nil {
 		return fmt.Errorf("create pending dir: %w", err)
 	}
 
@@ -657,7 +657,7 @@ func queueForExtraction(session *storage.Session, sessionPath, transcriptPath, c
 		return fmt.Errorf("marshal pending: %w", err)
 	}
 
-	f, err := os.OpenFile(pendingPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(pendingPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("open pending file: %w", err)
 	}

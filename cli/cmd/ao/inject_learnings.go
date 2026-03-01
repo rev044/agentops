@@ -213,7 +213,7 @@ func applyConfidenceDecay(l learning, filePath string, now time.Time) learning {
 	writeDecayFields(data, newConfidence, now)
 	if newJSON, marshalErr := json.Marshal(data); marshalErr == nil {
 		lines[0] = string(newJSON)
-		if writeErr := atomicWriteFile(filePath, []byte(strings.Join(lines, "\n")), 0644); writeErr != nil {
+		if writeErr := atomicWriteFile(filePath, []byte(strings.Join(lines, "\n")), 0600); writeErr != nil {
 			VerbosePrintf("Warning: failed to write decay for %s: %v\n", l.ID, writeErr)
 		}
 	}

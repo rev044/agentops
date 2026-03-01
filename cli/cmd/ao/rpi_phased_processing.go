@@ -778,7 +778,7 @@ func writePhaseSummary(cwd string, state *phasedState, phaseNum int) {
 	}
 	fmt.Printf("Phase %d: no Claude summary found, writing fallback\n", phaseNum)
 
-	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+	if err := os.MkdirAll(rpiDir, 0750); err != nil {
 		VerbosePrintf("Warning: could not create rpi dir for summary: %v\n", err)
 		return
 	}
@@ -788,7 +788,7 @@ func writePhaseSummary(cwd string, state *phasedState, phaseNum int) {
 		return
 	}
 
-	if err := os.WriteFile(path, []byte(summary), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(summary), 0600); err != nil {
 		VerbosePrintf("Warning: could not write phase summary: %v\n", err)
 	}
 }
@@ -840,11 +840,11 @@ func handoffDetected(cwd string, phaseNum int) bool {
 func cleanPhaseSummaries(stateDir string) {
 	for i := 1; i <= len(phases); i++ {
 		path := filepath.Join(stateDir, fmt.Sprintf("phase-%d-summary.md", i))
-		os.Remove(path) //nolint:errcheck
+		os.Remove(path) //nolint:errcheck // #nosec G104
 		handoffPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-handoff.md", i))
-		os.Remove(handoffPath) //nolint:errcheck
+		os.Remove(handoffPath) //nolint:errcheck // #nosec G104
 		resultPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-result.json", i))
-		os.Remove(resultPath) //nolint:errcheck
+		os.Remove(resultPath) //nolint:errcheck // #nosec G104
 	}
 }
 
@@ -876,7 +876,7 @@ type phaseResult struct {
 // writePhaseResult writes a phase-result.json artifact (named phase-{N}-result.json) atomically (write to .tmp, rename).
 func writePhaseResult(cwd string, result *phaseResult) error {
 	stateDir := filepath.Join(cwd, ".agents", "rpi")
-	if err := os.MkdirAll(stateDir, 0755); err != nil {
+	if err := os.MkdirAll(stateDir, 0750); err != nil {
 		return fmt.Errorf("create state directory: %w", err)
 	}
 
@@ -888,7 +888,7 @@ func writePhaseResult(cwd string, result *phaseResult) error {
 	finalPath := filepath.Join(stateDir, fmt.Sprintf(phaseResultFileFmt, result.Phase))
 	tmpPath := finalPath + ".tmp"
 
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
 		return fmt.Errorf("write phase result tmp: %w", err)
 	}
 
@@ -963,7 +963,7 @@ func savePhasedState(cwd string, state *phasedState) error {
 
 func writePhasedStateData(root, runID string, data []byte) error {
 	stateDir := filepath.Join(root, ".agents", "rpi")
-	if err := os.MkdirAll(stateDir, 0755); err != nil {
+	if err := os.MkdirAll(stateDir, 0750); err != nil {
 		return fmt.Errorf("create state directory: %w", err)
 	}
 
@@ -974,7 +974,7 @@ func writePhasedStateData(root, runID string, data []byte) error {
 
 	if runID != "" {
 		runDir := rpiRunRegistryDir(root, runID)
-		if mkErr := os.MkdirAll(runDir, 0755); mkErr != nil {
+		if mkErr := os.MkdirAll(runDir, 0750); mkErr != nil {
 			VerbosePrintf("Warning: create run registry dir: %v\n", mkErr)
 		} else {
 			registryPath := filepath.Join(runDir, phasedStateFile)
@@ -1213,7 +1213,7 @@ func updateRunHeartbeat(cwd, runID string) {
 	ts := time.Now().UTC().Format(time.RFC3339Nano) + "\n"
 	for _, root := range artifactRootsForRun(cwd, runID) {
 		runDir := rpiRunRegistryDir(root, runID)
-		if err := os.MkdirAll(runDir, 0755); err != nil {
+		if err := os.MkdirAll(runDir, 0750); err != nil {
 			VerbosePrintf("Warning: create run dir for heartbeat: %v\n", err)
 			continue
 		}
@@ -1270,7 +1270,7 @@ func logPhaseTransition(logPath, runID, phase, details string) {
 		entry = fmt.Sprintf("[%s] %s: %s\n", time.Now().Format(time.RFC3339), phase, details)
 	}
 
-	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		VerbosePrintf("Warning: could not write orchestration log: %v\n", err)
 		return

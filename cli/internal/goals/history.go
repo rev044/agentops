@@ -22,7 +22,7 @@ type HistoryEntry struct {
 // AppendHistory appends a single history entry as a JSON line to the given file.
 // Creates the file if it does not exist.
 func AppendHistory(entry HistoryEntry, path string) (err error) {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}

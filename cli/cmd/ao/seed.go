@@ -261,7 +261,7 @@ func seedCreateGoals(root string, template string, result *seedResult) error {
 		return nil
 	}
 
-	if err := os.WriteFile(goalsPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(goalsPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write GOALS.md: %w", err)
 	}
 	result.Created = append(result.Created, "GOALS.md")
@@ -402,7 +402,7 @@ Adopted AgentOps knowledge compounding workflow:
 		return fmt.Errorf("create learnings dir: %w", err)
 	}
 
-	if err := os.WriteFile(learningPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(learningPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write bootstrap learning: %w", err)
 	}
 	result.Created = append(result.Created, relPath)
@@ -481,7 +481,7 @@ func seedAppendClaudeMD(root string, result *seedResult) error {
 		dirName := filepath.Base(root)
 		header := fmt.Sprintf("# %s\n", dirName)
 		content := header + claudeMDSeedSection
-		if err := os.WriteFile(claudePath, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(claudePath, []byte(content), 0o600); err != nil {
 			return fmt.Errorf("create CLAUDE.md: %w", err)
 		}
 		result.Created = append(result.Created, "CLAUDE.md")
@@ -522,7 +522,7 @@ func seedAppendClaudeMD(root string, result *seedResult) error {
 
 	content += claudeMDSeedSection
 
-	if err := os.WriteFile(claudePath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(claudePath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("update CLAUDE.md: %w", err)
 	}
 	result.Created = append(result.Created, "CLAUDE.md (seed section)")

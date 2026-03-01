@@ -194,7 +194,7 @@ func runMaturityMigrateMd(learningsDir string) error {
 			}
 			updatedFM := updateFrontMatterFields(fmLines, fields)
 			rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
-			if err := os.WriteFile(file, []byte(rebuilt), 0644); err != nil {
+			if err := os.WriteFile(file, []byte(rebuilt), 0600); err != nil {
 				VerbosePrintf("Warning: could not write %s: %v\n", filepath.Base(file), err)
 				continue
 			}
@@ -210,7 +210,7 @@ func runMaturityMigrateMd(learningsDir string) error {
 			sb.WriteString("harmful_count: 0\n")
 			sb.WriteString("---\n")
 			sb.WriteString(text)
-			if err := os.WriteFile(file, []byte(sb.String()), 0644); err != nil {
+			if err := os.WriteFile(file, []byte(sb.String()), 0600); err != nil {
 				VerbosePrintf("Warning: could not write %s: %v\n", filepath.Base(file), err)
 				continue
 			}
@@ -491,7 +491,7 @@ func archiveExpiredLearnings(cwd, learningsDir string, expired []string) error {
 		return nil
 	}
 
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+	if err := os.MkdirAll(archiveDir, 0o750); err != nil {
 		return fmt.Errorf("create archive directory: %w", err)
 	}
 
@@ -711,7 +711,7 @@ func archiveEvictionCandidates(cwd string, candidates []evictionCandidate) error
 		return nil
 	}
 
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+	if err := os.MkdirAll(archiveDir, 0o750); err != nil {
 		return fmt.Errorf("create archive directory: %w", err)
 	}
 

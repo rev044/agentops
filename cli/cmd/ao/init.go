@@ -164,7 +164,7 @@ func ensureNestedAgentsGitignore(cwd string) error {
 
 	if _, err := os.Stat(nestedGitignore); os.IsNotExist(err) {
 		content := "# Do not commit this directory — session artifacts, absolute paths, sensitive output.\n*\n!.gitignore\n!README.md\n"
-		if err := os.WriteFile(nestedGitignore, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(nestedGitignore, []byte(content), 0600); err != nil {
 			return fmt.Errorf("create .agents/.gitignore: %w", err)
 		}
 	}
@@ -261,13 +261,13 @@ func setupGitignore(cwd string, dryRun, stealth bool) error {
 
 	// For stealth mode, ensure .git/info/ exists
 	if stealth {
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0750); err != nil {
 			return err
 		}
 	}
 
 	// Append or create
-	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}

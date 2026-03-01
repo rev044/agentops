@@ -244,7 +244,7 @@ func appendRPINudgeAudit(root, runID string, record rpiNudgeRecord) error {
 	if runDir == "" {
 		return nil
 	}
-	if err := os.MkdirAll(runDir, 0o755); err != nil {
+	if err := os.MkdirAll(runDir, 0o750); err != nil {
 		return err
 	}
 	path := filepath.Join(runDir, "nudges.jsonl")
