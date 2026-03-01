@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
 )
@@ -82,15 +83,12 @@ var goalsMeasureCmd = &cobra.Command{
 		}
 
 		// Table output
-		fmt.Printf("%-30s %-6s %8s %6s\n", "GOAL", "RESULT", "DURATION", "WEIGHT")
-		fmt.Printf("%-30s %-6s %8s %6s\n", "----", "------", "--------", "------")
+		tbl := formatter.NewTable(os.Stdout, "GOAL", "RESULT", "DURATION", "WEIGHT")
+		tbl.SetMaxWidth(0, 30)
 		for _, m := range snap.Goals {
-			id := m.GoalID
-			if len(id) > 30 {
-				id = id[:27] + "..."
-			}
-			fmt.Printf("%-30s %-6s %7.1fs %6d\n", id, m.Result, m.Duration, m.Weight)
+			tbl.AddRow(m.GoalID, m.Result, fmt.Sprintf("%.1fs", m.Duration), fmt.Sprintf("%d", m.Weight))
 		}
+		tbl.Render()
 		fmt.Println()
 		fmt.Printf("Score: %.1f%% (%d/%d passing, %d skipped)\n",
 			snap.Summary.Score, snap.Summary.Passing, snap.Summary.Total, snap.Summary.Skipped)
