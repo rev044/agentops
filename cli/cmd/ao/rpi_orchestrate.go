@@ -147,7 +147,7 @@ func enumerateBeads(epicID, bdCommand string) ([]string, error) {
 
 // runBeadWorker executes one bead's implementation in an isolated worker session.
 // On failure it retries up to opts.MaxAttempts times with a fresh worker each time.
-func runBeadWorker(ctx context.Context, beadID string, bw *beadWorker, root string, opts orchOpts) error {
+func runBeadWorker(ctx context.Context, beadID, runID string, bw *beadWorker, root string, opts orchOpts) error {
 	bw.BeadID = beadID
 	bw.Status = beadPending
 
@@ -163,7 +163,7 @@ func runBeadWorker(ctx context.Context, beadID string, bw *beadWorker, root stri
 		bw.Status = beadRunning
 
 		_, _ = appendRPIC2Event(root, rpiC2EventInput{
-			RunID:    root,
+			RunID:    runID,
 			WorkerID: workerID,
 			Type:     "worker.bead.spawned",
 			Message:  fmt.Sprintf("bead %s attempt %d started", beadID, attempt),
@@ -176,7 +176,7 @@ func runBeadWorker(ctx context.Context, beadID string, bw *beadWorker, root stri
 			bw.Status = beadDone
 			bw.DoneAt = time.Now().UTC().Format(time.RFC3339)
 			_, _ = appendRPIC2Event(root, rpiC2EventInput{
-				RunID:    root,
+				RunID:    runID,
 				WorkerID: workerID,
 				Type:     "worker.bead.done",
 				Message:  fmt.Sprintf("bead %s completed on attempt %d", beadID, attempt),
@@ -187,7 +187,7 @@ func runBeadWorker(ctx context.Context, beadID string, bw *beadWorker, root stri
 
 		bw.Error = err.Error()
 		_, _ = appendRPIC2Event(root, rpiC2EventInput{
-			RunID:    root,
+			RunID:    runID,
 			WorkerID: workerID,
 			Type:     "worker.bead.failed",
 			Message:  fmt.Sprintf("bead %s attempt %d failed: %v", beadID, attempt, err),
@@ -223,7 +223,7 @@ func dispatchBeadWorkers(ctx context.Context, state *orchState, root string, opt
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errs[i] = runBeadWorker(cancelCtx, id, &beads[i], root, opts)
+			errs[i] = runBeadWorker(cancelCtx, id, state.RunID, &beads[i], root, opts)
 			if errs[i] != nil {
 				cancel() // cancel remaining workers on first failure
 			}

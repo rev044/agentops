@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestParseBeadIDsFromText_TypicalBDOutput verifies that standard bd children output
@@ -178,4 +179,119 @@ func TestRunRPIOrchestration_InvalidRoot(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for non-directory root, got nil")
 	}
+}
+
+// TestRunRPIOrchestration_EndToEnd exercises the full INIT→DISCOVERY→IMPL→VALIDATION→DONE
+// state machine with hermetic shell stubs substituted for the bd CLI and the runtime
+// (claude). The stubs exit 0 immediately, so the test is fast and free of network or
+// API dependencies.
+//
+// bd stub behaviour:
+//   - "bd list --type epic --status open --json" → JSON array with one epic
+//   - "bd children <id>"                         → two bead IDs
+//   - anything else                               → exit 0 (no-op)
+//
+// runtime stub: accepts any arguments and exits 0 (simulates a completed claude session).
+func TestRunRPIOrchestration_EndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e orchestration test in short mode")
+	}
+
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write bd stub.
+	bdStub := filepath.Join(binDir, "bd")
+	bdScript := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"list\" ]; then\n" +
+		"    echo '[{\"id\":\"ag-e2e\"}]'\n" +
+		"elif [ \"$1\" = \"children\" ]; then\n" +
+		"    echo \"ag-e2e.1 first bead\"\n" +
+		"    echo \"ag-e2e.2 second bead\"\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(bdStub, []byte(bdScript), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write runtime stub (simulates claude -p "...").
+	runtimeStub := filepath.Join(binDir, "claude-stub")
+	if err := os.WriteFile(runtimeStub, []byte("#!/bin/sh\nexit 0\n"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := defaultOrchOpts()
+	opts.MaxAttempts = 1
+	opts.BDCommand = bdStub
+	opts.RuntimeCommand = runtimeStub
+	opts.PhaseTimeout = 5 * time.Second
+
+	runID := generateRunID()
+
+	if err := runRPIOrchestration(context.Background(), "e2e test goal", runID, dir, opts); err != nil {
+		t.Fatalf("runRPIOrchestration: %v", err)
+	}
+
+	// Verify final persisted orchestration state.
+	stateDir := filepath.Join(dir, ".agents", "rpi", "runs", runID)
+	stateData, err := os.ReadFile(filepath.Join(stateDir, "orchestration-state.json"))
+	if err != nil {
+		t.Fatalf("read orchestration-state.json: %v", err)
+	}
+	var state orchState
+	if err := json.Unmarshal(stateData, &state); err != nil {
+		t.Fatalf("unmarshal state: %v", err)
+	}
+	if state.Phase != orchPhaseDone {
+		t.Errorf("Phase = %q, want %q", state.Phase, orchPhaseDone)
+	}
+	if state.TerminalStatus != "done" {
+		t.Errorf("TerminalStatus = %q, want %q", state.TerminalStatus, "done")
+	}
+	if state.EpicID != "ag-e2e" {
+		t.Errorf("EpicID = %q, want %q", state.EpicID, "ag-e2e")
+	}
+	if len(state.Beads) != 2 {
+		t.Errorf("len(Beads) = %d, want 2", len(state.Beads))
+	}
+	for _, bw := range state.Beads {
+		if bw.Status != beadDone {
+			t.Errorf("bead %q: Status = %q, want %q", bw.BeadID, bw.Status, beadDone)
+		}
+	}
+
+	// Verify C2 events were written for each lifecycle milestone.
+	events, err := loadRPIC2Events(dir, runID)
+	if err != nil {
+		t.Fatalf("loadRPIC2Events: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected C2 events, got none")
+	}
+	typeSet := make(map[string]bool, len(events))
+	for _, ev := range events {
+		typeSet[ev.Type] = true
+	}
+	for _, want := range []string{
+		"worker.phase.spawned",
+		"worker.phase.done",
+		"worker.bead.spawned",
+		"worker.bead.done",
+	} {
+		if !typeSet[want] {
+			t.Errorf("C2 event type %q missing; found types: %v", want, collectKeys(typeSet))
+		}
+	}
+}
+
+// collectKeys returns a sorted slice of map keys for diagnostic messages.
+func collectKeys(m map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
