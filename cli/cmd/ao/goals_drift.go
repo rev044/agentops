@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/boshu2/agentops/cli/internal/formatter"
 	"github.com/boshu2/agentops/cli/internal/goals"
 	"github.com/spf13/cobra"
 )
@@ -67,18 +68,15 @@ var goalsDriftCmd = &cobra.Command{
 			regressions, improvements, len(drifts)-regressions-improvements)
 
 		if regressions > 0 || improvements > 0 {
-			fmt.Printf("%-30s %-10s %-6s   %-6s\n", "GOAL", "DELTA", "BEFORE", "AFTER")
-			fmt.Printf("%-30s %-10s %-6s   %-6s\n", "----", "-----", "------", "-----")
+			tbl := formatter.NewTable(os.Stdout, "GOAL", "DELTA", "BEFORE", "AFTER")
+			tbl.SetMaxWidth(0, 30)
 			for _, d := range drifts {
 				if d.Delta == "unchanged" {
 					continue
 				}
-				id := d.GoalID
-				if len(id) > 30 {
-					id = id[:27] + "..."
-				}
-				fmt.Printf("%-30s %-10s %-6s -> %-6s\n", id, d.Delta, d.Before, d.After)
+				tbl.AddRow(d.GoalID, d.Delta, d.Before, fmt.Sprintf("-> %s", d.After))
 			}
+			_ = tbl.Render()
 			fmt.Println()
 		}
 
