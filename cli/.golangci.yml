@@ -1,9 +1,14 @@
 linters:
   enable:
     - errcheck
+    - gocyclo
+    - govet
+    - misspell
     - staticcheck
 
 linters-settings:
+  gocyclo:
+    min-complexity: 25
   errcheck:
     # Don't check return values of fmt.Fprint*/fmt.Fprintln (stdout writes)
     exclude-functions:
@@ -16,7 +21,9 @@ issues:
   exclude-dirs:
     - ../tests/fixtures
   exclude-rules:
-    # Test files: defer cleanup and env manipulation don't need error checks
+    # Test files: defer cleanup and env manipulation don't need error checks;
+    # test functions naturally have high cyclomatic complexity from subtests.
     - path: _test\.go
       linters:
         - errcheck
+        - gocyclo

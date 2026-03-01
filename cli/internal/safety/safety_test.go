@@ -686,12 +686,10 @@ func TestFailOpen_MissingInfrastructure(t *testing.T) {
 
 	for _, check := range checks {
 		t.Run(check.name, func(t *testing.T) {
-			if !check.available {
-				// Fail open: allow the operation
-				// This mirrors "if ! command -v jq >/dev/null 2>&1; then exit 0; fi"
-				// A missing tool should NOT block operations.
-			}
+			// Fail open: whether tool is available or not, operations should
+			// not be blocked. This mirrors "if ! command -v jq >/dev/null 2>&1; then exit 0; fi"
 			// Either way, we should reach here without blocking.
+			_ = check.available
 		})
 	}
 }

@@ -674,7 +674,7 @@ func TestTaskSync_processTranscriptLine(t *testing.T) {
 
 	// Line with TaskCreate
 	lineCreate := `{"sessionId":"sess-42","message":{"content":[{"type":"tool_use","name":"TaskCreate","input":{"subject":"My task"}}]}}`
-	sid = processTranscriptLine(lineCreate, "", "sess-42", taskMap)
+	_ = processTranscriptLine(lineCreate, "", "sess-42", taskMap)
 	if len(taskMap) != 1 {
 		t.Fatalf("expected 1 task, got %d", len(taskMap))
 	}
