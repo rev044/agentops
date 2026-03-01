@@ -110,6 +110,7 @@ These are the skills every user needs first. Everything else is available when y
 
 | Skill | Purpose |
 |-------|---------|
+| `/athena` | Active knowledge intelligence — Mine → Grow → Defrag cycle |
 | `/brainstorm` | Structured idea exploration before planning |
 | `/plan` | Epic decomposition into issues |
 | `/pre-mortem` | Failure simulation before implementing |

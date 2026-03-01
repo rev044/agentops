@@ -178,7 +178,7 @@ These are how skills chain in practice:
 
 ## Current Skill Tiers
 
-### User-Facing Skills (41)
+### User-Facing Skills (42)
 
 **Judgment:**
 
@@ -209,6 +209,7 @@ These are how skills chain in practice:
 
 | Skill | Tier | Description |
 |-------|------|-------------|
+| **athena** | advanced | Active knowledge intelligence — Mine → Grow → Defrag cycle |
 | **retro** | knowledge | Extract learnings from completed work (includes --quick for single captures) |
 | **trace** | knowledge | Trace design decisions through history |
 
@@ -280,6 +281,7 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 
 | Skill | Dependencies | Type |
 |-------|--------------|------|
+| **athena** | - | - (standalone, ao CLI optional) |
 | **council** | - | - (core primitive) |
 | **vibe** | council, complexity, standards | required, optional (graceful skip), optional |
 | **pre-mortem** | council | required |
