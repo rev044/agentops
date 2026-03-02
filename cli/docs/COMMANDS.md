@@ -1392,10 +1392,10 @@ ao memory sync [flags]
 **Flags:**
 
 ```
-  -h, --help              help for sync
-      --max-entries int   Maximum session entries to keep (default 10)
-      --output string     Output path (default: MEMORY.md in repo root)
-      --quiet             Suppress output
+  -h, --help                 help for sync
+      --max-entries int      Maximum session entries to keep (default 10)
+      --output-file string   Output path (default: MEMORY.md in repo root)
+      --quiet                Suppress output
 ```
 
 ---
@@ -1530,7 +1530,7 @@ ao defrag [flags]
       --dedup               Flag learnings with >80% content similarity
   -h, --help                help for defrag
       --oscillation-sweep   Flag evolve goals alternating improved/fail >=3 consecutive cycles
-      --output string       Directory for defrag report JSON (default ".agents/defrag")
+      --output-dir string   Directory for defrag report JSON (default ".agents/defrag")
       --prune               Find orphaned learnings not referenced in patterns or research
       --quiet               Suppress progress output
       --stale-days int      Days after which an unreferenced learning is considered stale (default 30)

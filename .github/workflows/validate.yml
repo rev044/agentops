@@ -599,8 +599,18 @@ jobs:
           chmod +x tests/skills/run-all.sh
           bash tests/skills/run-all.sh
 
+  learning-coherence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate learning file quality
+        run: |
+          chmod +x scripts/validate-learning-coherence.sh
+          bash scripts/validate-learning-coherence.sh .agents/learnings
+
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, doctor-check, skill-lint]
+    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, doctor-check, skill-lint, learning-coherence]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -629,6 +639,7 @@ jobs:
           echo "cli-integration: ${{ needs.cli-integration.result }}"
           echo "doctor-check: ${{ needs.doctor-check.result }}"
           echo "skill-lint: ${{ needs.skill-lint.result }}"
+          echo "learning-coherence: ${{ needs.learning-coherence.result }}"
 
           if [[ "${{ needs.doc-release-gate.result }}" != "success" ]] || \
              [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
@@ -649,7 +660,8 @@ jobs:
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \
              [[ "${{ needs.cli-integration.result }}" != "success" ]] || \
-             [[ "${{ needs.skill-lint.result }}" != "success" ]]; then
+             [[ "${{ needs.skill-lint.result }}" != "success" ]] || \
+             [[ "${{ needs.learning-coherence.result }}" != "success" ]]; then
             echo ""
             echo "❌ Some checks failed"
             exit 1

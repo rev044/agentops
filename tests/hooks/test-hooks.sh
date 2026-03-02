@@ -1246,6 +1246,56 @@ fi
 
 # ============================================================
 echo ""
+echo "=== go-test-precommit.sh ==="
+# ============================================================
+
+# Test: non-Bash tool is ignored
+EC=0
+CLAUDE_TOOL_NAME="Edit" CLAUDE_TOOL_INPUT_COMMAND="" \
+bash "$HOOKS_DIR/go-test-precommit.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then
+    pass "go-test-precommit ignores non-Bash tool"
+else
+    fail "go-test-precommit ignores non-Bash tool"
+fi
+
+# Test: non-commit command is ignored
+EC=0
+CLAUDE_TOOL_NAME="Bash" CLAUDE_TOOL_INPUT_COMMAND="git status" \
+bash "$HOOKS_DIR/go-test-precommit.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then
+    pass "go-test-precommit ignores non-commit command"
+else
+    fail "go-test-precommit ignores non-commit command"
+fi
+
+# ============================================================
+echo ""
+echo "=== go-vet-post-edit.sh ==="
+# ============================================================
+
+# Test: non-Edit/Write tool is ignored
+EC=0
+CLAUDE_TOOL_NAME="Bash" CLAUDE_TOOL_INPUT_FILE_PATH="" \
+bash "$HOOKS_DIR/go-vet-post-edit.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then
+    pass "go-vet-post-edit ignores non-Edit/Write tool"
+else
+    fail "go-vet-post-edit ignores non-Edit/Write tool"
+fi
+
+# Test: non-.go file is ignored
+EC=0
+CLAUDE_TOOL_NAME="Edit" CLAUDE_TOOL_INPUT_FILE_PATH="/tmp/test.py" \
+bash "$HOOKS_DIR/go-vet-post-edit.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then
+    pass "go-vet-post-edit ignores non-Go files"
+else
+    fail "go-vet-post-edit ignores non-Go files"
+fi
+
+# ============================================================
+echo ""
 echo "=== Coverage check ==="
 # ============================================================
 

@@ -4,7 +4,7 @@ description: 'Test, commit, and push in one atomic workflow. Runs Go and Python 
 skill_api_version: 1
 user-invocable: true
 metadata:
-  tier: starter
+  tier: execution
   dependencies: []
   triggers:
     - push

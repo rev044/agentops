@@ -70,7 +70,7 @@ for rel in "${core_multi_agent_skills[@]}"; do
         fail "missing expected skill file: $rel"
         continue
     fi
-    if grep -Fq -- "skills/shared/references/claude-code-latest-features.md" "$path"; then
+    if grep -Eq -- '(skills/shared/references|\.\.\/shared\/references)/claude-code-latest-features\.md' "$path"; then
         pass "$rel references shared Claude feature contract"
     else
         fail "$rel does not reference shared Claude feature contract"

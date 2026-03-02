@@ -486,54 +486,11 @@ After council verdict:
 
 ### Step 9.5: Feed Findings to Flywheel
 
-**If verdict is WARN or FAIL**, write top findings as a lightweight learning for future sessions:
-
-```bash
-if [[ "$VERDICT" == "WARN" || "$VERDICT" == "FAIL" ]]; then
-  mkdir -p .agents/learnings
-  LEARNING_FILE=".agents/learnings/$(date -u +%Y-%m-%d)-vibe-$(echo "$TARGET" | tr '/' '-' | head -c 40).md"
-  cat > "$LEARNING_FILE" <<EOF
----
-type: anti-pattern
-source: vibe
-date: $(date -Iseconds)
-confidence: high
----
-
-# Vibe findings: $TARGET
-
-$(for finding in "${ALL_FINDINGS[@]}"; do
-  echo "- **${finding.severity}:** ${finding.description} (${finding.location})"
-done)
-
-**Recommendation:** ${COUNCIL_RECOMMENDATION}
-EOF
-
-  # Index for flywheel if ao available
-  if command -v ao &>/dev/null; then
-    ao forge markdown "$LEARNING_FILE" 2>/dev/null || true
-  fi
-fi
-```
-
-**Why:** Vibe catches anti-patterns repeatedly across epics but they evaporate unless `/post-mortem` runs. This captures findings at the point of discovery — lightweight (one file write, no `/retro` invocation) and immediately available to future sessions via inject.
-
-**Skip if:** PASS verdict (nothing to learn from clean code).
+**If verdict is WARN or FAIL**, write top findings as a learning file to `.agents/learnings/YYYY-MM-DD-vibe-<target>.md` with `type: anti-pattern`, `source: vibe`, `confidence: high` frontmatter. Include all findings and the council recommendation. Index via `ao forge markdown` if available. Skip if PASS verdict.
 
 ### Step 10: Test Bead Cleanup
 
-After validation completes (regardless of verdict), clean up any stale test beads to prevent bead pollution:
-
-```bash
-# Test bead hygiene: close any beads created by test/validation runs
-if command -v bd &>/dev/null; then
-  test_beads=$(bd list --status=open 2>/dev/null | grep -iE "test bead|test quest|smoke test" | awk '{print $1}')
-  if [ -n "$test_beads" ]; then
-    echo "$test_beads" | xargs bd close 2>/dev/null || true
-    log "Cleaned up $(echo "$test_beads" | wc -l | tr -d ' ') test beads"
-  fi
-fi
-```
+After validation completes, clean up stale test beads (`bd list --status=open | grep -iE "test bead|test quest"`) via `bd close` to prevent bead pollution. Skip if `bd` unavailable.
 
 ---
 

@@ -10,7 +10,7 @@ description: >
 skill_api_version: 1
 user-invocable: true
 metadata:
-  tier: advanced
+  tier: knowledge
   dependencies: []
 ---
 

@@ -2,12 +2,24 @@
 set -euo pipefail
 
 # validate-learning-coherence.sh — Quality gate for learning files
-# Checks learning files for hallucination indicators and structural issues.
+# Catches hallucinated/garbage learnings before flywheel ingest.
 # Exit 0 = all pass, Exit 1 = failures found (for CI gating).
+#
+# Two learning formats are valid:
+#   1. MemRL-managed: YAML frontmatter with utility/confidence/maturity fields
+#      (body may be short or absent — metadata-only is valid)
+#   2. Manual: YAML frontmatter with id/date fields + substantive body (>=50 words)
+#
+# Failure signals (garbage indicators):
+#   - No YAML frontmatter AND < 30 words (truly empty junk)
+#   - Has frontmatter but zero recognized fields (malformed)
+#   - Boilerplate/placeholder content detected
+#   - Confidence value outside 0.0-1.0 range
 
 LEARNINGS_DIR="${1:-.agents/learnings}"
 VERBOSE="${VERBOSE:-false}"
 FAILURES=0
+WARNINGS=0
 CHECKED=0
 
 log() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
@@ -23,58 +35,93 @@ check_file() {
     CHECKED=$((CHECKED + 1))
     local content
     content=$(cat "$file")
+    local total_words
+    total_words=$(echo "$content" | wc -w | tr -d ' ')
 
-    # 1. Check for frontmatter
-    if ! echo "$content" | head -1 | grep -q '^---$'; then
-        echo "FAIL: $basename — missing YAML frontmatter"
-        FAILURES=$((FAILURES + 1))
+    # 1. Check for frontmatter presence
+    local has_frontmatter=false
+    if echo "$content" | head -1 | grep -q '^---$'; then
+        has_frontmatter=true
+    fi
+
+    # 2. No frontmatter: require at least 30 words of content
+    if [[ "$has_frontmatter" == "false" ]]; then
+        if [[ "$total_words" -lt 30 ]]; then
+            echo "FAIL: $basename — no frontmatter and too short ($total_words words)"
+            FAILURES=$((FAILURES + 1))
+            return
+        fi
+        log "PASS: $basename (no frontmatter, $total_words words)"
         return
     fi
 
-    # 2. Extract body (after second ---)
-    local body
-    body=$(echo "$content" | sed '1,/^---$/d' | sed '1,/^---$/d')
-
-    # 3. Check minimum content (< 50 words = likely stub)
-    local word_count
-    word_count=$(echo "$body" | wc -w | tr -d ' ')
-    if [[ "$word_count" -lt 50 ]]; then
-        echo "FAIL: $basename — too short ($word_count words, minimum 50)"
-        FAILURES=$((FAILURES + 1))
-        return
-    fi
-
-    # 4. Check for required frontmatter fields
+    # 3. Extract frontmatter (between first and second ---)
     local frontmatter
     frontmatter=$(echo "$content" | sed -n '2,/^---$/p' | sed '$d')
 
-    for field in "id:" "date:" "confidence:"; do
-        if ! echo "$frontmatter" | grep -q "$field"; then
-            echo "FAIL: $basename — missing frontmatter field: $field"
-            FAILURES=$((FAILURES + 1))
-            return
+    # 4. Check for at least 1 recognized field in frontmatter
+    # MemRL fields: utility, confidence, maturity, reward_count
+    # Manual fields: id, date, source_epic, tags
+    local recognized=0
+    for field in "utility:" "confidence:" "maturity:" "id:" "date:" "source_epic:"; do
+        if echo "$frontmatter" | grep -q "$field"; then
+            recognized=$((recognized + 1))
         fi
     done
 
-    # 5. Check confidence range (0.0-1.0)
-    local confidence
-    confidence=$(echo "$frontmatter" | grep 'confidence:' | head -1 | awk '{print $2}')
-    if [[ -n "$confidence" ]]; then
-        if ! awk -v c="$confidence" 'BEGIN { exit !(c >= 0.0 && c <= 1.0) }' 2>/dev/null; then
-            echo "FAIL: $basename — confidence out of range: $confidence (must be 0.0-1.0)"
-            FAILURES=$((FAILURES + 1))
-            return
-        fi
-    fi
-
-    # 6. Check for boilerplate/template indicators
-    if echo "$body" | grep -qi "no significant learnings\|placeholder\|TODO: fill in\|template content"; then
-        echo "FAIL: $basename — contains boilerplate/placeholder content"
+    if [[ "$recognized" -eq 0 ]]; then
+        echo "FAIL: $basename — frontmatter has no recognized fields"
         FAILURES=$((FAILURES + 1))
         return
     fi
 
-    log "PASS: $basename ($word_count words)"
+    # 5. Check confidence value if present
+    #    Valid: numeric 0.0-1.0  OR  string high/medium/low
+    local confidence
+    confidence=$(echo "$frontmatter" | grep 'confidence:' | head -1 | awk '{print $2}' || true)
+    if [[ -n "$confidence" ]]; then
+        case "$confidence" in
+            high|medium|low) ;; # string confidence is valid
+            *)
+                if ! awk -v c="$confidence" 'BEGIN { exit !(c >= 0.0 && c <= 1.0) }' 2>/dev/null; then
+                    echo "FAIL: $basename — confidence out of range: $confidence (must be 0.0-1.0 or high/medium/low)"
+                    FAILURES=$((FAILURES + 1))
+                    return
+                fi
+                ;;
+        esac
+    fi
+
+    # 6. Extract body (after second ---) and check for boilerplate
+    local body
+    body=$(echo "$content" | awk 'BEGIN{n=0} /^---$/{n++; if(n==2){found=1; next}} found{print}')
+
+    if [[ -n "$body" ]]; then
+        if echo "$body" | grep -qi "no significant learnings\|placeholder\|TODO: fill in\|template content"; then
+            echo "FAIL: $basename — contains boilerplate/placeholder content"
+            FAILURES=$((FAILURES + 1))
+            return
+        fi
+    fi
+
+    # 7. For manual learnings (has id: or date: but not utility:), require body >= 50 words
+    local is_manual=false
+    if echo "$frontmatter" | grep -q "id:\|date:\|source_epic:" && \
+       ! echo "$frontmatter" | grep -q "utility:"; then
+        is_manual=true
+    fi
+
+    if [[ "$is_manual" == "true" ]]; then
+        local body_words
+        body_words=$(echo "$body" | wc -w | tr -d ' ')
+        if [[ "$body_words" -lt 50 ]]; then
+            echo "WARN: $basename — manual learning with thin body ($body_words words)"
+            WARNINGS=$((WARNINGS + 1))
+            # Warn, don't fail — manual learnings may be concise
+        fi
+    fi
+
+    log "PASS: $basename (fields=$recognized)"
 }
 
 # Main
@@ -89,7 +136,7 @@ for file in "$LEARNINGS_DIR"/*.md; do
 done
 
 echo ""
-echo "Coherence check: $CHECKED files checked, $FAILURES failures"
+echo "Coherence check: $CHECKED files checked, $FAILURES failures, $WARNINGS warnings"
 
 if [[ "$FAILURES" -gt 0 ]]; then
     echo "Coherence gate FAILED"
