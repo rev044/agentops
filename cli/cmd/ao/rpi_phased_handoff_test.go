@@ -170,7 +170,8 @@ func TestBuildHandoffContext_Formatting(t *testing.T) {
 		},
 	}
 
-	ctx := buildHandoffContext(handoffs)
+	allFieldsManifest := phaseManifest{Phase: 2, NarrativeCap: 1000}
+	ctx := buildHandoffContext(handoffs, allFieldsManifest)
 	if ctx == "" {
 		t.Fatal("expected non-empty context")
 	}
@@ -207,7 +208,8 @@ func TestBuildHandoffContext_MultiPhase(t *testing.T) {
 		},
 	}
 
-	ctx := buildHandoffContext(handoffs)
+	allFieldsManifest := phaseManifest{Phase: 2, NarrativeCap: 1000}
+	ctx := buildHandoffContext(handoffs, allFieldsManifest)
 	if !strings.Contains(ctx, "Phase 1: discovery") {
 		t.Error("missing phase 1")
 	}
@@ -328,14 +330,14 @@ func TestWritePhaseHandoff_AtomicWrite(t *testing.T) {
 }
 
 func TestBuildHandoffContext_Empty(t *testing.T) {
-	ctx := buildHandoffContext(nil)
+	ctx := buildHandoffContext(nil, phaseManifest{})
 	if ctx != "" {
 		t.Errorf("expected empty context for nil handoffs, got %q", ctx)
 	}
 }
 
 func TestBuildHandoffContext_EmptySlice(t *testing.T) {
-	ctx := buildHandoffContext([]*phaseHandoff{})
+	ctx := buildHandoffContext([]*phaseHandoff{}, phaseManifest{})
 	if ctx != "" {
 		t.Errorf("expected empty context for empty handoffs, got %q", ctx)
 	}
@@ -350,7 +352,7 @@ func TestBuildHandoffContext_NarrativeTruncation(t *testing.T) {
 		},
 	}
 
-	ctx := buildHandoffContext(handoffs)
+	ctx := buildHandoffContext(handoffs, phaseManifest{NarrativeCap: 1000})
 	// Narrative should be capped at 1000 chars + "..."
 	if !strings.Contains(ctx, "...") {
 		t.Error("expected truncation marker for long narrative")

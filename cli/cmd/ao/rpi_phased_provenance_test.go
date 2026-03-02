@@ -75,7 +75,7 @@ func TestBuildHandoffContext_SourceAttribution(t *testing.T) {
 		},
 	}
 
-	ctx := buildHandoffContext(handoffs)
+	ctx := buildHandoffContext(handoffs, phaseManifest{NarrativeCap: 1000})
 
 	// Verify source attribution on phase headers
 	if !strings.Contains(ctx, "(source: phase-1-handoff.json)") {

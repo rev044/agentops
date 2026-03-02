@@ -442,7 +442,8 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 	if phaseNum >= 2 {
 		handoffs, _ := readAllHandoffs(cwd, phaseNum)
 		if len(handoffs) > 0 {
-			ctx := buildHandoffContext(handoffs)
+			manifest := defaultPhaseManifests[phaseNum]
+		ctx := buildHandoffContext(handoffs, manifest)
 			prompt.WriteString(ctx)
 			prompt.WriteString("\n\n")
 		} else {

@@ -130,8 +130,23 @@ func readAllHandoffs(cwd string, upToPhase int) ([]*phaseHandoff, error) {
 	return handoffs, nil
 }
 
+// fieldAllowed checks whether a field should be included in handoff context.
+// Returns true if the manifest has no HandoffFields (backward compat) or the field is listed.
+func fieldAllowed(m phaseManifest, field string) bool {
+	if len(m.HandoffFields) == 0 {
+		return true
+	}
+	for _, f := range m.HandoffFields {
+		if f == field {
+			return true
+		}
+	}
+	return false
+}
+
 // buildHandoffContext formats handoffs for prompt injection into the next phase.
-func buildHandoffContext(handoffs []*phaseHandoff) string {
+// The manifest controls which fields are included and narrative truncation length.
+func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) string {
 	if len(handoffs) == 0 {
 		return ""
 	}
@@ -140,11 +155,19 @@ func buildHandoffContext(handoffs []*phaseHandoff) string {
 	sb.WriteString("--- RPI Context (structured handoffs from prior phases) ---\n")
 
 	// Use goal from latest handoff
-	for i := len(handoffs) - 1; i >= 0; i-- {
-		if handoffs[i].Goal != "" {
-			sb.WriteString(fmt.Sprintf("Goal: %s\n\n", handoffs[i].Goal))
-			break
+	if fieldAllowed(manifest, "goal") {
+		for i := len(handoffs) - 1; i >= 0; i-- {
+			if handoffs[i].Goal != "" {
+				sb.WriteString(fmt.Sprintf("Goal: %s\n\n", handoffs[i].Goal))
+				break
+			}
 		}
+	}
+
+	// Resolve narrative cap: explicit cap from manifest, or 1000 as backward-compat default
+	narrativeCap := manifest.NarrativeCap
+	if narrativeCap == 0 && len(manifest.HandoffFields) == 0 {
+		narrativeCap = 1000 // backward compat: no manifest means old behavior
 	}
 
 	for _, h := range handoffs {
@@ -155,7 +178,7 @@ func buildHandoffContext(handoffs []*phaseHandoff) string {
 		sb.WriteString("]\n")
 
 		// Verdicts
-		if len(h.Verdicts) > 0 {
+		if fieldAllowed(manifest, "verdicts") && len(h.Verdicts) > 0 {
 			var parts []string
 			for k, v := range h.Verdicts {
 				parts = append(parts, fmt.Sprintf("%s %s", k, v))
@@ -164,35 +187,45 @@ func buildHandoffContext(handoffs []*phaseHandoff) string {
 		}
 
 		// Epic ID
-		if h.EpicID != "" {
+		if fieldAllowed(manifest, "epic_id") && h.EpicID != "" {
 			sb.WriteString(fmt.Sprintf("Epic: %s\n", h.EpicID))
 		}
 
 		// Artifacts
-		if len(h.ArtifactsProduced) > 0 {
+		if fieldAllowed(manifest, "artifacts_produced") && len(h.ArtifactsProduced) > 0 {
 			sb.WriteString(fmt.Sprintf("Artifacts: %s\n", strings.Join(h.ArtifactsProduced, ", ")))
 		}
 
 		// Decisions
-		if len(h.DecisionsMade) > 0 {
+		if fieldAllowed(manifest, "decisions_made") && len(h.DecisionsMade) > 0 {
 			sb.WriteString(fmt.Sprintf("Decisions: %s\n", strings.Join(h.DecisionsMade, ", ")))
 		}
 
 		// Risks
-		if len(h.OpenRisks) > 0 {
+		if fieldAllowed(manifest, "open_risks") && len(h.OpenRisks) > 0 {
 			sb.WriteString(fmt.Sprintf("Risks: %s\n", strings.Join(h.OpenRisks, ", ")))
 		}
 
-		// Narrative (capped at 1000 chars)
-		if h.Narrative != "" {
+		// Narrative (capped per manifest)
+		if narrativeCap > 0 && h.Narrative != "" {
 			narrative := h.Narrative
-			if len(narrative) > 1000 {
-				narrative = narrative[:1000] + "..."
+			if len(narrative) > narrativeCap {
+				narrative = narrative[:narrativeCap] + "..."
 			}
 			sb.WriteString(fmt.Sprintf("Narrative (from phase-%d-summary): %s\n", h.Phase, narrative))
 		}
 
 		sb.WriteString("\n")
+	}
+
+	// Apply token budget if specified in manifest
+	if manifest.MaxTokens > 0 {
+		result, budgetInfo := applyContextBudget(sb.String(), manifest.MaxTokens)
+		if budgetInfo.WasTruncated {
+			VerbosePrintf("Context budget applied: %d→%d tokens (-%d)\n",
+				budgetInfo.OriginalTokens, budgetInfo.BudgetTokens, budgetInfo.TruncatedTokens)
+		}
+		return result
 	}
 
 	return sb.String()

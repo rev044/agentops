@@ -72,3 +72,4 @@ Goals that alternate improved→fail for ≥3 consecutive cycles indicate the im
 | goals-validate | `bash -c 'cd cli && go build -o /tmp/ao-goals-val ./cmd/ao && cd .. && /tmp/ao-goals-val goals validate --json 2>/dev/null \| jq -e ".valid == true"'` | 5 | GOALS.md parses and validates without structural errors |
 | athena-freshness | `bash scripts/check-athena-health.sh` | 4 | Athena defrag report ≤26h old, stale learnings ≤5 |
 | athena-no-oscillation | `bash -c 'test -f .agents/defrag/latest.json && jq -e "(.oscillation.oscillating_goals // []) \| length == 0" .agents/defrag/latest.json'` | 4 | No evolve goals oscillating ≥3 consecutive cycles |
+| flywheel-proof | `bash scripts/proof-run.sh` | 7 | Flywheel compounds across sessions (automated proof) |
