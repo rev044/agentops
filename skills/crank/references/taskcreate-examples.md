@@ -82,8 +82,12 @@ Output: test files in the appropriate location for the project's test framework.
 files_exist:
   - <test-file-path-1>
   - <test-file-path-2>
-command: "bash -lc '! <test-command>'"
 ```
+
+> **RED verification note:** The validation gate runs commands directly (no shell wrappers).
+> To confirm tests FAIL, the worker must run the test command manually and verify non-zero
+> exit before marking complete. Do NOT put negated commands in validation metadata — the
+> gate would treat test failure as a validation failure. Workers self-verify RED state.
 
 Mark task complete when tests are written and ALL tests FAIL.",
   activeForm="Writing tests for <issue-id>"
@@ -151,6 +155,16 @@ content_check:
     pattern: "<required-structure-pattern>"
 command: "<optional-build-or-smoke-command>"
 ```
+
+> **Allowlist-safe commands:** Validation commands run via `run_restricted()` which only
+> permits: `go`, `pytest`, `npm`, `make`. No shell wrappers (`bash -c`), no compound
+> operators (`&&`, `||`), no pipes or redirects. One command per field.
+>
+> Examples by language:
+> - Go: `"tests": "go test ./..."`, `"command": "go vet ./..."`
+> - Python: `"tests": "pytest tests/"`
+> - Node: `"tests": "npm test"`
+> - Multi-step: `"tests": "make test"` (put compound logic in Makefile)
 ",
   activeForm="Implementing <issue-id>",
   metadata={
@@ -193,6 +207,10 @@ TaskCreate(
 )
 ```
 
+> **Allowlist reminder:** `command` and `lint` fields are also subject to `run_restricted()`.
+> Use bare allowlisted binaries only: `go`, `pytest`, `npm`, `make`. Example:
+> `"command": "make lint"`, `"lint": "npm run lint"`.
+
 ---
 
 ## Notes
@@ -208,6 +226,7 @@ TaskCreate(
   - For `feature`/`bug`/`task` IMPL tasks: required `tests` + structural checks
   - For `docs`/`chore`/`ci` IMPL tasks: `tests` optional (explicit exemption path)
   - Consumed by lead during wave validation
+  - **Allowlist constraint:** `tests`, `command`, and `lint` fields execute via `run_restricted()` in `task-validation-gate.sh`. Only bare allowlisted binaries are permitted: `go`, `pytest`, `npm`, `make`. Shell wrappers (`bash -c`), compound operators (`&&`, `||`, `;`), pipes (`|`), and redirects (`>`, `<`) are blocked. Use `make` targets for multi-step validation.
 
 - **activeForm:**
   - Shows in TaskList UI while worker is active

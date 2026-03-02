@@ -107,16 +107,46 @@ if ls "$ROOT/.agents/council/$TODAY"-*pre-mortem* >/dev/null 2>&1; then
     exit 0
 fi
 
+# Resolve script directory early for lib sourcing in Method 4b and failure block
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # --- Method 4: Ratchet chain (legacy/non-phased runs) ---
+# Try ao CLI structured status first, then fall back to chain.jsonl parsing.
+# Only pass on "locked" or "skipped" — NOT on mere mention of "pre-mortem".
 if command -v ao &>/dev/null; then
-    if run_ao_quick ratchet status --json | grep -q '"pre-mortem"'; then
-        exit 0
+    PM_STATUS=""
+    if command -v jq >/dev/null 2>&1; then
+        PM_STATUS=$(run_ao_quick ratchet status --json 2>/dev/null \
+            | jq -r '.steps[] | select(.step == "pre-mortem") | .status' 2>/dev/null)
+    fi
+    case "$PM_STATUS" in
+        locked|skipped) exit 0 ;;
+    esac
+fi
+
+# Method 4b: Direct chain.jsonl parsing (ao CLI unavailable or status extraction failed)
+CHAIN_FILE="$ROOT/.agents/ao/chain.jsonl"
+if [ -f "$CHAIN_FILE" ]; then
+    # Source chain-parser for dual-schema handling (canonical + legacy fields)
+    if [ -f "$SCRIPT_DIR/../lib/chain-parser.sh" ]; then
+        # shellcheck source=../lib/chain-parser.sh
+        . "$SCRIPT_DIR/../lib/chain-parser.sh"
+        PM_ENTRY=$(chain_find_entry "$CHAIN_FILE" "pre-mortem")
+        if chain_is_done "$PM_ENTRY"; then
+            exit 0
+        fi
+    elif command -v jq >/dev/null 2>&1; then
+        # Fallback: use jq directly on chain.jsonl
+        PM_CHAIN_STATUS=$(grep '"pre-mortem"' "$CHAIN_FILE" 2>/dev/null | tail -1 \
+            | jq -r 'if .locked == true then "locked" elif .skipped == true then "skipped" elif .status then .status else "unknown" end' 2>/dev/null)
+        case "$PM_CHAIN_STATUS" in
+            locked|skipped) exit 0 ;;
+        esac
     fi
 fi
 
 # No evidence found — block
 # Source hook-helpers from plugin install dir, not repo root (security: prevents malicious repo sourcing)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hook-helpers.sh
 . "$SCRIPT_DIR/../lib/hook-helpers.sh"
 

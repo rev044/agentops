@@ -747,6 +747,38 @@ EC=0
 # Note: if bd is not available in PATH the gate fail-opens, so we mock it
 if [ "$EC" -eq 0 ]; then pass "pre-mortem-gate passes with council evidence"; else fail "pre-mortem-gate passes with council evidence (exit=$EC)"; fi
 
+# Test: Method 4b fallback passes on locked chain entry (chain.jsonl)
+MOCK_PM_LOCKED="$TMPDIR/mock-pm-locked"
+setup_mock_repo "$MOCK_PM_LOCKED"
+mkdir -p "$MOCK_PM_LOCKED/.agents/ao"
+# Write chain.jsonl: metadata line + locked pre-mortem entry
+echo '{"id":"chain-test","started":"2026-01-01T00:00:00Z"}' > "$MOCK_PM_LOCKED/.agents/ao/chain.jsonl"
+echo '{"step":"pre-mortem","locked":true,"output":".agents/council/pm.md","timestamp":"2026-01-01T00:00:00Z"}' >> "$MOCK_PM_LOCKED/.agents/ao/chain.jsonl"
+# Mock bd to return 5 children + mock ao that fails (force chain.jsonl fallback)
+printf '#!/bin/bash\nif [ "$1" = "children" ]; then printf "1\\n2\\n3\\n4\\n5\\n"; fi\n' > "$MOCK_PM_LOCKED/bd"
+chmod +x "$MOCK_PM_LOCKED/bd"
+printf '#!/bin/bash\nexit 1\n' > "$MOCK_PM_LOCKED/ao"
+chmod +x "$MOCK_PM_LOCKED/ao"
+EC=0
+(cd "$MOCK_PM_LOCKED" && export PATH="$MOCK_PM_LOCKED:$PATH" && echo '{"tool_name":"Skill","tool_input":{"skill":"crank","args":"ag-xxx"}}' | bash "$HOOKS_DIR/pre-mortem-gate.sh" >/dev/null 2>&1) || EC=$?
+if [ "$EC" -eq 0 ]; then pass "pre-mortem-gate Method 4b passes on locked chain entry"; else fail "pre-mortem-gate Method 4b passes on locked chain entry (exit=$EC)"; fi
+
+# Test: Method 4b fallback blocks on pending chain entry (false-pass regression)
+MOCK_PM_PENDING="$TMPDIR/mock-pm-pending"
+setup_mock_repo "$MOCK_PM_PENDING"
+mkdir -p "$MOCK_PM_PENDING/.agents/ao"
+# Write chain.jsonl: metadata line + in_progress (not locked) pre-mortem entry
+echo '{"id":"chain-test","started":"2026-01-01T00:00:00Z"}' > "$MOCK_PM_PENDING/.agents/ao/chain.jsonl"
+echo '{"step":"pre-mortem","locked":false,"output":"","timestamp":"2026-01-01T00:00:00Z"}' >> "$MOCK_PM_PENDING/.agents/ao/chain.jsonl"
+# Mock bd to return 5 children + mock ao that fails (force chain.jsonl fallback)
+printf '#!/bin/bash\nif [ "$1" = "children" ]; then printf "1\\n2\\n3\\n4\\n5\\n"; fi\n' > "$MOCK_PM_PENDING/bd"
+chmod +x "$MOCK_PM_PENDING/bd"
+printf '#!/bin/bash\nexit 1\n' > "$MOCK_PM_PENDING/ao"
+chmod +x "$MOCK_PM_PENDING/ao"
+EC=0
+(cd "$MOCK_PM_PENDING" && export PATH="$MOCK_PM_PENDING:$PATH" && echo '{"tool_name":"Skill","tool_input":{"skill":"crank","args":"ag-xxx"}}' | bash "$HOOKS_DIR/pre-mortem-gate.sh" >/dev/null 2>&1) || EC=$?
+if [ "$EC" -eq 2 ]; then pass "pre-mortem-gate Method 4b blocks on pending chain entry"; else fail "pre-mortem-gate Method 4b blocks on pending chain entry (exit=$EC, want 2)"; fi
+
 # ============================================================
 echo ""
 echo "=== stop-team-guard.sh ==="
