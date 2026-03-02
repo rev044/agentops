@@ -150,6 +150,12 @@ Rules:
 - Do NOT run git add, git commit, or git push — the lead commits
 ```
 
+> **Scope-Escape Protocol:** When a worker needs to modify files outside its manifest:
+>
+> 1. Write a blocked result: `{"type":"blocked","issue_id":"<id>","status":"blocked","detail":"SCOPE-ESCAPE: <file> needed because <reason>"}`
+> 2. Do NOT modify the out-of-scope file or work around the constraint
+> 3. The lead evaluates scope-escape requests between waves and either adds the file to a future wave's manifest or rejects with guidance
+
 > **Orchestrator note — populating the FILE MANIFEST:** When building each worker prompt, replace
 > `<list of files from plan — one per line>` with the explicit file paths assigned to that task in
 > your plan. Pull these from the task's `metadata.files` field if present, or derive them from the

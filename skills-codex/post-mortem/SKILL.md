@@ -454,7 +454,8 @@ Scan the council report and retro for actionable follow-up items:
 1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
 2. **Retro patterns:** Extract recurring patterns from retro learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
 3. **Process improvements:** Include all items from Step 5.5 (type: `process-improvement`). These are the flywheel's growth vector — each cycle makes development more effective.
-4. **Write `## Next Work` section** to the post-mortem report:
+4. **Footgun entries (REQUIRED):** Extract platform-specific gotchas, surprising API behaviors, or silent-failure modes discovered during implementation. Each must include: trigger condition, observable symptom, and fix. Write as type `pattern-fix` with source `retro-learning`. If a footgun was discovered this cycle, it must appear in this harvest — do not defer.
+5. **Write `## Next Work` section** to the post-mortem report:
 
 ```markdown
 ## Next Work
@@ -464,7 +465,7 @@ Scan the council report and retro for actionable follow-up items:
 | 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
 ```
 
-5. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the schema contract (`.agents/rpi/next-work.schema.md`):
+6. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the schema contract (`.agents/rpi/next-work.schema.md`):
 
 ```bash
 validate_next_work_item() {
@@ -522,7 +523,7 @@ done
 echo "Schema validation: ${#VALID_ITEMS[@]}/$((${#VALID_ITEMS[@]} + INVALID_COUNT)) items passed"
 ```
 
-6. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`):
+7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`):
 
 ```bash
 mkdir -p .agents/rpi
@@ -557,7 +558,7 @@ Use the Write tool to append a single JSON line to `.agents/rpi/next-work.jsonl`
 - `items`: array of harvested items (min 0 — if nothing found, write entry with empty items array)
 - `consumed`: false, `consumed_by`: null, `consumed_at`: null
 
-7. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `$rpi --spawn-next` to create an epic from these items."
+8. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `$rpi --spawn-next` to create an epic from these items."
 
 If no actionable items found, write: "No follow-up items identified. Flywheel stable."
 

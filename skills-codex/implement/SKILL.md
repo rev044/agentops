@@ -219,6 +219,23 @@ When invoked by $crank with `--test-first`, the worker receives:
 - Workers may ADD new test files but MUST NOT modify existing test files provided by the TEST WAVE
 - If a test appears wrong, write BLOCKED with the specific test and reason — do NOT fix it
 
+### Step 5b: Pre-Commit Bug Sweep
+
+Before committing, perform a targeted sweep of all files modified in this session:
+
+1. **List modified files:** `git diff --name-only HEAD`
+2. **Read each modified file completely** — do not skim
+3. **Check for common defects:**
+   - Wrong variable references (copy-paste errors, stale names)
+   - Silent error swallowing (`_ = err` or empty catch blocks)
+   - Hardcoded values that should be configurable or constants
+   - Missing edge cases identified during implementation
+   - Inconsistencies with existing patterns in the codebase
+4. **Report findings** as a numbered list with severity (HIGH/MEDIUM/LOW)
+5. **Fix all HIGH severity findings** and re-run tests before proceeding
+
+If no modified files or sweep finds zero issues, proceed directly to Step 6.
+
 ### Step 6: Commit the Change
 
 If the change is complete and verified:

@@ -530,6 +530,19 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 - **Knowledge flywheel** - load learnings at start, forge at end (ao optional)
 - **Beads ↔ TaskList sync** - in beads mode, crank bridges beads issues to TaskList for swarm
 
+### Verb Disambiguation for Worker Prompts
+
+Ambiguous verbs cause workers to implement the wrong operation. Use explicit instructions:
+
+| Verb | Clarified Instruction |
+|------|----------------------|
+| "Extract" | "Remove from source AND write to new file. Source line count must decrease." |
+| "Remove" | "Delete the content. Verify it no longer appears in the file." |
+| "Update" | "Change [specific field] from [old] to [new]." |
+| "Consolidate" | "Merge from [A, B] into [C]. Delete [A, B] after merge." |
+
+Include `wc -l` assertions in task metadata when content moves between files.
+
 ---
 
 ## Examples

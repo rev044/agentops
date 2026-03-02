@@ -151,3 +151,24 @@ GOALS.md is the strategic intent layer consumed by `/evolve` and `/goals`:
 - `ao goals steer add/remove/prioritize` — manage directives
 - `ao goals init` — bootstrap GOALS.md interactively
 - `ao goals migrate --to-md` — convert GOALS.yaml → GOALS.md
+
+## AgentOps Workflow (RPI)
+
+```
+Research → Plan → Implement → Validate
+    ↑                            │
+    └──── Knowledge Flywheel ────┘
+```
+
+### Session & Swarm Constraints
+
+- **Multi-phase work:** Route through `ao rpi` — it enforces 90-min phase timeouts and 10-min stall detection. Raw sessions have neither.
+- **Validation overhead is by design:** Pre-mortem + vibe cost 3-5x implementation time. This ratio prevents bug rework — do not shortcut.
+- **Before spawning workers:** Verify no file overlap across the wave (see swarm SKILL.md pre-flight). File collisions are the #1 swarm failure mode.
+- **Before proposing new capability:** Check `ao rpi serve --help`, `hooks/hooks.json`, and `GOALS.md` first.
+
+### Execution Discipline
+
+- **Produce artifacts, not just plans.** When asked to research, plan, or investigate, always produce actionable output (code changes, tests, or concrete files) within the session. Do not spend an entire session only planning unless explicitly told to "just plan."
+- **Verify before committing.** After modifying Go files, run `go test ./...` and `go vet ./...` before committing. After modifying Python files, run relevant tests. Never commit code that hasn't been verified.
+- **Execute first, research second.** When asked to run tests or execute something, start running within the first 2-3 messages. If research is needed, do it concurrently or after initial execution — not instead of it.
