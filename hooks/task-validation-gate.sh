@@ -68,6 +68,47 @@ run_restricted() {
     "${cmd_parts[@]}" >/dev/null 2>&1
 }
 
+# Like run_restricted but captures stdout+stderr instead of discarding.
+# Used by behavioral assertions to check output patterns.
+run_restricted_capture() {
+    local cmd="$1"
+
+    # Block shell metacharacters and control chars
+    if [[ "$cmd" == *$'\n'* ]] || [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>\'\"\\\] ]]; then
+        log_error "BLOCKED: shell metacharacters in assertion command: $cmd"
+        echo "VALIDATION BLOCKED: shell metacharacters not allowed in assertion command" >&2
+        return 1
+    fi
+
+    read -ra cmd_parts <<< "$cmd"
+    local binary="${cmd_parts[0]}"
+
+    # Binary must be a bare name
+    if [[ "$binary" == */* ]]; then
+        log_error "BLOCKED: path in assertion binary: $binary"
+        echo "VALIDATION BLOCKED: binary must be a bare name" >&2
+        return 1
+    fi
+
+    # Strict allowlist
+    local allowed="go pytest npm make"
+    local found=0
+    for a in $allowed; do
+        if [ "$binary" = "$a" ]; then
+            found=1
+            break
+        fi
+    done
+    if [ "$found" -ne 1 ]; then
+        log_error "BLOCKED: assertion command not in allowlist: $binary"
+        echo "VALIDATION BLOCKED: command '$binary' not in allowlist ($allowed)" >&2
+        return 1
+    fi
+
+    # Execute and capture output
+    "${cmd_parts[@]}" 2>&1
+}
+
 log_error() {
     mkdir -p "$ERROR_LOG_DIR" 2>/dev/null
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) task-validation-gate: $1" >> "$ERROR_LOG" 2>/dev/null
@@ -383,6 +424,40 @@ if [ -n "$GENERIC_CMD" ] && [ "$GENERIC_CMD" != "null" ]; then
         echo "  Suggested: /bug-hunt --test-failure .agents/ao/last-failure.json" >&2
         exit 2
     fi
+fi
+
+# 7. assertions: array of {command, expect_pattern, description}
+# Behavioral assertions — run command and check output for expected pattern.
+# Closes the gap between "tests run" and "tests verify correct behavior."
+ASSERTIONS=$(echo "$VALIDATION" | jq -c '.assertions // []' 2>/dev/null)
+ASSERTION_COUNT=$(echo "$ASSERTIONS" | jq -r 'length' 2>/dev/null || echo 0)
+
+if [ -n "$ASSERTION_COUNT" ] && [ "$ASSERTION_COUNT" -gt 0 ] 2>/dev/null; then
+    for i in $(seq 0 $((ASSERTION_COUNT - 1))); do
+        A_CMD=$(echo "$ASSERTIONS" | jq -r ".[$i].command" 2>/dev/null)
+        A_PATTERN=$(echo "$ASSERTIONS" | jq -r ".[$i].expect_pattern" 2>/dev/null)
+        A_DESC=$(echo "$ASSERTIONS" | jq -r ".[$i].description // \"assertion $i\"" 2>/dev/null)
+
+        # Skip if command or pattern empty
+        [ -z "$A_CMD" ] || [ "$A_CMD" = "null" ] && continue
+        [ -z "$A_PATTERN" ] || [ "$A_PATTERN" = "null" ] && continue
+
+        # Run through restricted executor with output capture
+        A_OUTPUT=$(run_restricted_capture "$A_CMD") || {
+            write_failure "behavioral_assertion" "$A_CMD" 2 "Command failed: $A_DESC"
+            echo "VALIDATION FAILED: behavioral assertion '$A_DESC' — command failed: $A_CMD" >&2
+            exit 2
+        }
+
+        # Check output for expected pattern (regex via grep -E)
+        if ! echo "$A_OUTPUT" | grep -qE "$A_PATTERN"; then
+            write_failure "behavioral_assertion" "$A_CMD" 2 "Expected pattern '$A_PATTERN' not found in output: $A_DESC"
+            echo "VALIDATION FAILED: behavioral assertion '$A_DESC' — expected pattern '$A_PATTERN' not found in output" >&2
+            echo "  Command: $A_CMD" >&2
+            echo "  Pattern: $A_PATTERN" >&2
+            exit 2
+        fi
+    done
 fi
 
 # All checks passed
