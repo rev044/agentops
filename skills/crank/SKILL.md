@@ -335,6 +335,8 @@ This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.
 
 **File manifests (REQUIRED):** Include a `metadata.files` array in every TaskCreate listing the files that worker will modify. This feeds into swarm's pre-spawn conflict detection -- two workers claiming the same file in the same wave get serialized or worktree-isolated automatically. Derive file lists from the issue description, plan, or codebase exploration during planning.
 
+**Grep-for-existing-functions (REQUIRED for new function issues):** When an issue description says "create", "add", or "implement" a new function/utility, include `metadata.grep_check` with the function name pattern. Workers MUST grep the codebase for existing implementations before writing new code. This prevents utility duplication (e.g., `estimateTokens` was duplicated in context-orchestration-leverage because no grep check was specified).
+
 **Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks.
 
 ```

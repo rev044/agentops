@@ -17,37 +17,3 @@ var defaultPhaseManifests = map[int]phaseManifest{
 	3: {Phase: 3, HandoffFields: []string{"goal", "epic_id", "verdicts", "artifacts_produced"}, NarrativeCap: 1000, MaxTokens: 2500},
 }
 
-// selectHandoffFields returns only the requested fields from a handoff as a map.
-// If fields is nil or empty, returns all fields (backward compat).
-func selectHandoffFields(h *phaseHandoff, fields []string) map[string]interface{} {
-	if len(fields) == 0 {
-		// Return all fields
-		return map[string]interface{}{
-			"goal":               h.Goal,
-			"epic_id":            h.EpicID,
-			"verdicts":           h.Verdicts,
-			"artifacts_produced": h.ArtifactsProduced,
-			"decisions_made":     h.DecisionsMade,
-			"open_risks":         h.OpenRisks,
-		}
-	}
-
-	result := make(map[string]interface{})
-	for _, field := range fields {
-		switch field {
-		case "goal":
-			result["goal"] = h.Goal
-		case "epic_id":
-			result["epic_id"] = h.EpicID
-		case "verdicts":
-			result["verdicts"] = h.Verdicts
-		case "artifacts_produced":
-			result["artifacts_produced"] = h.ArtifactsProduced
-		case "decisions_made":
-			result["decisions_made"] = h.DecisionsMade
-		case "open_risks":
-			result["open_risks"] = h.OpenRisks
-		}
-	}
-	return result
-}

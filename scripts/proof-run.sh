@@ -47,7 +47,7 @@ RESULT2=$(cd "$TEST_DIR" && ao inject "flywheel compounding" --apply-decay --for
 }
 
 SCORE=$(echo "$RESULT2" | jq '.learnings[0].composite_score // 0' 2>/dev/null) || SCORE=0
-if [ "$(echo "$SCORE > 0" | bc)" -eq 1 ]; then
+if awk "BEGIN{exit !($SCORE > 0)}"; then
     echo "PASS: Scoring and decay operational (score=$SCORE)"
 else
     echo "FAIL: Scoring not working (score=$SCORE)"

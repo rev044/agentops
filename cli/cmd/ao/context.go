@@ -834,8 +834,8 @@ func estimateTokens(text string) int {
 	if text == "" {
 		return 0
 	}
-	// Conservative coarse estimate: 1 token ~= 4 chars.
-	n := len(text) / 4
+	// Conservative coarse estimate: 1 token ~= InjectCharsPerToken chars.
+	n := len(text) / InjectCharsPerToken
 	if n < 1 {
 		return 1
 	}

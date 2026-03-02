@@ -363,6 +363,85 @@ func TestBuildHandoffContext_NarrativeTruncation(t *testing.T) {
 	}
 }
 
+func TestBuildHandoffContext_DeterministicVerdictOrder(t *testing.T) {
+	handoffs := []*phaseHandoff{
+		{
+			Phase: 1, PhaseName: "discovery", Status: "completed",
+			Verdicts: map[string]string{
+				"vibe":       "PASS",
+				"pre_mortem": "WARN",
+				"crank":      "PASS",
+			},
+		},
+	}
+
+	manifest := phaseManifest{Phase: 2, NarrativeCap: 0}
+	// Run 10 times to catch non-determinism
+	first := buildHandoffContext(handoffs, manifest)
+	for i := 0; i < 10; i++ {
+		got := buildHandoffContext(handoffs, manifest)
+		if got != first {
+			t.Fatalf("non-deterministic output on iteration %d:\nfirst:\n%s\ngot:\n%s", i, first, got)
+		}
+	}
+	// Verify sorted order: crank, pre_mortem, vibe
+	if !strings.Contains(first, "crank PASS, pre_mortem WARN, vibe PASS") {
+		t.Errorf("verdicts not in sorted order\ngot:\n%s", first)
+	}
+}
+
+func TestRenderHandoffField_StringSlice(t *testing.T) {
+	got := renderHandoffField("Artifacts", []string{"plan.md", "auth.go"})
+	if got != "Artifacts: plan.md, auth.go\n" {
+		t.Errorf("renderHandoffField = %q, want 'Artifacts: plan.md, auth.go\\n'", got)
+	}
+}
+
+func TestRenderHandoffField_EmptySlice(t *testing.T) {
+	got := renderHandoffField("Artifacts", []string{})
+	if got != "" {
+		t.Errorf("renderHandoffField for empty slice = %q, want empty", got)
+	}
+}
+
+func TestRenderHandoffField_String(t *testing.T) {
+	got := renderHandoffField("Epic", "ag-123")
+	if got != "Epic: ag-123\n" {
+		t.Errorf("renderHandoffField = %q, want 'Epic: ag-123\\n'", got)
+	}
+}
+
+func TestRenderHandoffField_EmptyString(t *testing.T) {
+	got := renderHandoffField("Epic", "")
+	if got != "" {
+		t.Errorf("renderHandoffField for empty string = %q, want empty", got)
+	}
+}
+
+func TestFormatVerdicts_Sorted(t *testing.T) {
+	verdicts := map[string]string{
+		"zebra": "FAIL",
+		"alpha": "PASS",
+		"mid":   "WARN",
+	}
+	got := formatVerdicts(verdicts)
+	want := "Verdict: alpha PASS, mid WARN, zebra FAIL\n"
+	if got != want {
+		t.Errorf("formatVerdicts = %q, want %q", got, want)
+	}
+}
+
+func TestFormatVerdicts_Empty(t *testing.T) {
+	got := formatVerdicts(nil)
+	if got != "" {
+		t.Errorf("formatVerdicts(nil) = %q, want empty", got)
+	}
+	got = formatVerdicts(map[string]string{})
+	if got != "" {
+		t.Errorf("formatVerdicts({}) = %q, want empty", got)
+	}
+}
+
 func TestDiscoverPhaseArtifacts_Discovery(t *testing.T) {
 	dir := t.TempDir()
 	rpiDir := filepath.Join(dir, ".agents", "rpi")

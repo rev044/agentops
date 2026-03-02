@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-// NOTE: estimateTokens is defined in context.go — reused here.
+// NOTE: estimateTokens is defined in context.go, InjectCharsPerToken in inject.go — reused here.
 
 // truncateToTokenBudget truncates text to fit within a token budget.
 // Finds a safe boundary at the last sentence ending (. ! ?) before the budget.
@@ -15,7 +15,7 @@ func truncateToTokenBudget(text string, maxTokens int) string {
 	}
 
 	// Convert token budget to approximate character limit
-	charLimit := maxTokens * 4
+	charLimit := maxTokens * InjectCharsPerToken
 	if charLimit >= len(text) {
 		return text
 	}

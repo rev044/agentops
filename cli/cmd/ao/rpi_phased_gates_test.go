@@ -189,6 +189,24 @@ func TestGateFailError_WithFindingsSlice(t *testing.T) {
 	}
 }
 
+// --- shouldForceEscalation ---
+
+func TestShouldForceEscalation_BelowCeiling(t *testing.T) {
+	for i := 1; i <= maxGateRetryDepth; i++ {
+		if shouldForceEscalation(i) {
+			t.Errorf("shouldForceEscalation(%d) = true, want false (maxGateRetryDepth=%d)", i, maxGateRetryDepth)
+		}
+	}
+}
+
+func TestShouldForceEscalation_AboveCeiling(t *testing.T) {
+	for _, attempt := range []int{maxGateRetryDepth + 1, maxGateRetryDepth + 10, 100} {
+		if !shouldForceEscalation(attempt) {
+			t.Errorf("shouldForceEscalation(%d) = false, want true", attempt)
+		}
+	}
+}
+
 // --- fakeExecutor for tests ---
 
 type fakeExecutor struct {

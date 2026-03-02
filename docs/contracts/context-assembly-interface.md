@@ -21,7 +21,7 @@ A `phaseManifest` declares what context a phase needs and how much room it gets.
 type phaseManifest struct {
     Phase         int      `json:"phase"`
     HandoffFields []string `json:"handoff_fields"` // e.g., ["goal","epic_id","verdicts"]
-    NarrativeCap  int      `json:"narrative_cap"`  // max chars for narrative, 0 = omit
+    NarrativeCap  int      `json:"narrative_cap"`  // max chars for narrative; see NarrativeCap Semantics below
     MaxTokens     int      `json:"max_tokens"`     // total token budget for assembled context
 }
 ```
@@ -39,6 +39,19 @@ type phaseManifest struct {
 | `decisions_made`    | `[]string`         | Key decisions recorded during phase      |
 | `open_risks`        | `[]string`         | Unresolved risks carried forward         |
 | `narrative`         | `string`           | Free-text summary, subject to NarrativeCap |
+
+### NarrativeCap Semantics
+
+`NarrativeCap` controls narrative inclusion in assembled context. Its meaning depends on whether `HandoffFields` is set:
+
+| HandoffFields | NarrativeCap | Behavior |
+|---------------|-------------|----------|
+| non-empty     | `0`         | **Omit** narrative entirely (least-privilege: phase didn't request it) |
+| non-empty     | `> 0`       | Include narrative, truncated to `NarrativeCap` chars |
+| empty/nil     | `0`         | **Default 1000** chars (backward compat: no manifest means "include everything") |
+| empty/nil     | `> 0`       | Include narrative, truncated to `NarrativeCap` chars |
+
+This overloading exists because `NarrativeCap=0` serves double duty: "omit" (when the manifest explicitly declares fields) vs "use default" (when no manifest exists). The `HandoffFields` array disambiguates.
 
 ### Default manifests
 
@@ -97,7 +110,7 @@ func truncateToTokenBudget(text string, budget int) string
 // applyContextBudget truncates assembled context to fit the manifest's MaxTokens budget.
 // Returns the (possibly truncated) context and a result struct with metrics.
 // If manifest.MaxTokens <= 0, returns the input unchanged with WasTruncated=false.
-func applyContextBudget(context string, manifest phaseManifest) (string, contextBudgetResult)
+func applyContextBudget(context string, maxTokens int) (string, contextBudgetResult)
 ```
 
 ### Result struct

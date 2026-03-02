@@ -90,7 +90,20 @@ Parameters:
     - Any risks or concerns
 ```
 
-### Step 3.5: Write Failing Tests First (TDD-First Default)
+### Step 3.5: Grep for Existing Utilities
+
+Before implementing any new function or utility, grep the codebase for existing implementations:
+
+```bash
+# Search for the function name pattern you're about to create
+grep -rn "<function-name-pattern>" --include="*.go" --include="*.py" --include="*.ts" .
+```
+
+**Why:** In context-orchestration-leverage, a worker created a duplicate `estimateTokens` function that already existed in `context.go`. A 5-second grep would have prevented the duplication and the rework needed to consolidate it.
+
+If you find an existing implementation, reuse it. If it needs modification, modify it in place rather than creating a parallel version.
+
+### Step 3.6: Write Failing Tests First (TDD-First Default)
 
 Before implementing, write tests that define the expected behavior:
 

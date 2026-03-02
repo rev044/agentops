@@ -5,67 +5,6 @@ import (
 	"testing"
 )
 
-func TestSelectHandoffFields_SubsetSelection(t *testing.T) {
-	h := &phaseHandoff{
-		Goal:              "add auth",
-		EpicID:            "ag-123",
-		Verdicts:          map[string]string{"pre_mortem": "PASS"},
-		ArtifactsProduced: []string{"plan.md"},
-		DecisionsMade:     []string{"use JWT"},
-		OpenRisks:         []string{"migration downtime"},
-	}
-
-	result := selectHandoffFields(h, []string{"goal", "verdicts"})
-
-	if result["goal"] != "add auth" {
-		t.Errorf("goal = %v, want 'add auth'", result["goal"])
-	}
-	if result["verdicts"] == nil {
-		t.Error("verdicts should be present")
-	}
-	// Fields NOT requested should be absent
-	if _, ok := result["epic_id"]; ok {
-		t.Error("epic_id should not be present in subset selection")
-	}
-	if _, ok := result["artifacts_produced"]; ok {
-		t.Error("artifacts_produced should not be present in subset selection")
-	}
-	if _, ok := result["decisions_made"]; ok {
-		t.Error("decisions_made should not be present in subset selection")
-	}
-	if _, ok := result["open_risks"]; ok {
-		t.Error("open_risks should not be present in subset selection")
-	}
-}
-
-func TestSelectHandoffFields_AllFields(t *testing.T) {
-	h := &phaseHandoff{
-		Goal:              "add auth",
-		EpicID:            "ag-123",
-		Verdicts:          map[string]string{"pre_mortem": "PASS"},
-		ArtifactsProduced: []string{"plan.md"},
-		DecisionsMade:     []string{"use JWT"},
-		OpenRisks:         []string{"migration downtime"},
-	}
-
-	// nil fields = return all
-	result := selectHandoffFields(h, nil)
-	expected := []string{"goal", "epic_id", "verdicts", "artifacts_produced", "decisions_made", "open_risks"}
-	for _, field := range expected {
-		if _, ok := result[field]; !ok {
-			t.Errorf("field %q missing from all-fields result", field)
-		}
-	}
-
-	// empty slice = return all
-	result2 := selectHandoffFields(h, []string{})
-	for _, field := range expected {
-		if _, ok := result2[field]; !ok {
-			t.Errorf("field %q missing from empty-slice result", field)
-		}
-	}
-}
-
 func TestBuildHandoffContext_WithManifest_Phase2(t *testing.T) {
 	handoffs := []*phaseHandoff{
 		{

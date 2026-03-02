@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -144,6 +145,43 @@ func fieldAllowed(m phaseManifest, field string) bool {
 	return false
 }
 
+// formatVerdicts renders a sorted verdict line from a map.
+// Returns empty string if verdicts is nil or empty.
+func formatVerdicts(verdicts map[string]string) string {
+	if len(verdicts) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(verdicts))
+	for k := range verdicts {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s %s", k, verdicts[k]))
+	}
+	return fmt.Sprintf("Verdict: %s\n", strings.Join(parts, ", "))
+}
+
+// renderHandoffField renders a labeled field line.
+// For string values: returns "Label: value\n" or "" if empty.
+// For []string values: returns "Label: a, b, c\n" or "" if empty.
+func renderHandoffField(label string, value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		if v == "" {
+			return ""
+		}
+		return fmt.Sprintf("%s: %s\n", label, v)
+	case []string:
+		if len(v) == 0 {
+			return ""
+		}
+		return fmt.Sprintf("%s: %s\n", label, strings.Join(v, ", "))
+	}
+	return ""
+}
+
 // buildHandoffContext formats handoffs for prompt injection into the next phase.
 // The manifest controls which fields are included and narrative truncation length.
 func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) string {
@@ -164,10 +202,12 @@ func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) strin
 		}
 	}
 
-	// Resolve narrative cap: explicit cap from manifest, or 1000 as backward-compat default
+	// Resolve narrative cap: explicit cap from manifest, or 1000 as backward-compat default.
+	// NarrativeCap=0 means "omit narrative" when HandoffFields is set (least-privilege).
+	// When HandoffFields is empty (no manifest), default to 1000 for backward compat.
 	narrativeCap := manifest.NarrativeCap
 	if narrativeCap == 0 && len(manifest.HandoffFields) == 0 {
-		narrativeCap = 1000 // backward compat: no manifest means old behavior
+		narrativeCap = 1000
 	}
 
 	for _, h := range handoffs {
@@ -177,33 +217,20 @@ func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) strin
 		}
 		sb.WriteString("]\n")
 
-		// Verdicts
-		if fieldAllowed(manifest, "verdicts") && len(h.Verdicts) > 0 {
-			var parts []string
-			for k, v := range h.Verdicts {
-				parts = append(parts, fmt.Sprintf("%s %s", k, v))
-			}
-			sb.WriteString(fmt.Sprintf("Verdict: %s\n", strings.Join(parts, ", ")))
+		if fieldAllowed(manifest, "verdicts") {
+			sb.WriteString(formatVerdicts(h.Verdicts))
 		}
-
-		// Epic ID
-		if fieldAllowed(manifest, "epic_id") && h.EpicID != "" {
-			sb.WriteString(fmt.Sprintf("Epic: %s\n", h.EpicID))
+		if fieldAllowed(manifest, "epic_id") {
+			sb.WriteString(renderHandoffField("Epic", h.EpicID))
 		}
-
-		// Artifacts
-		if fieldAllowed(manifest, "artifacts_produced") && len(h.ArtifactsProduced) > 0 {
-			sb.WriteString(fmt.Sprintf("Artifacts: %s\n", strings.Join(h.ArtifactsProduced, ", ")))
+		if fieldAllowed(manifest, "artifacts_produced") {
+			sb.WriteString(renderHandoffField("Artifacts", h.ArtifactsProduced))
 		}
-
-		// Decisions
-		if fieldAllowed(manifest, "decisions_made") && len(h.DecisionsMade) > 0 {
-			sb.WriteString(fmt.Sprintf("Decisions: %s\n", strings.Join(h.DecisionsMade, ", ")))
+		if fieldAllowed(manifest, "decisions_made") {
+			sb.WriteString(renderHandoffField("Decisions", h.DecisionsMade))
 		}
-
-		// Risks
-		if fieldAllowed(manifest, "open_risks") && len(h.OpenRisks) > 0 {
-			sb.WriteString(fmt.Sprintf("Risks: %s\n", strings.Join(h.OpenRisks, ", ")))
+		if fieldAllowed(manifest, "open_risks") {
+			sb.WriteString(renderHandoffField("Risks", h.OpenRisks))
 		}
 
 		// Narrative (capped per manifest)

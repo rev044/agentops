@@ -10,6 +10,18 @@ import (
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
+// maxGateRetryDepth is the hard ceiling for gate retry attempts.
+// Attempts 1 through maxGateRetryDepth proceed normally; attempt
+// maxGateRetryDepth+1 forces escalation regardless of MemRL policy.
+// Set higher than default MaxRetries (3) to catch runaway MemRL
+// policy overrides without capping normal retries.
+const maxGateRetryDepth = 5
+
+// shouldForceEscalation returns true when the attempt count exceeds the hard ceiling.
+func shouldForceEscalation(attempt int) bool {
+	return attempt > maxGateRetryDepth
+}
+
 // gateFailError signals a gate check failure that may be retried.
 type gateFailError struct {
 	Phase    int
@@ -219,6 +231,14 @@ func handleGateRetry(ctx context.Context, cwd string, state *phasedState, phaseN
 
 	state.Attempts[attemptKey]++
 	attempt := state.Attempts[attemptKey]
+
+	// Hard ceiling: force escalation regardless of MemRL policy
+	if shouldForceEscalation(attempt) {
+		return performGateEscalation(state, phaseNum, attempt, gateErr,
+			types.MemRLPolicyDecision{}, types.MemRLActionEscalate,
+			phaseName, logPath, statusPath, allPhases)
+	}
+
 	maybeUpdateLiveStatus(state, statusPath, allPhases, phaseNum, "retrying after "+gateErr.Verdict, attempt, "")
 
 	action, decision := resolveGateRetryAction(state, phaseNum, gateErr, attempt)

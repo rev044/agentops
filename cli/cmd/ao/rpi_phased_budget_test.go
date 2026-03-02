@@ -87,6 +87,29 @@ func TestApplyContextBudget_ZeroBudget(t *testing.T) {
 	}
 }
 
+func TestEstimateTokens_UsesCharsPerTokenConstant(t *testing.T) {
+	// Verify estimateTokens uses InjectCharsPerToken, not a hardcoded value.
+	text := strings.Repeat("a", InjectCharsPerToken*10)
+	tokens := estimateTokens(text)
+	if tokens != 10 {
+		t.Errorf("estimateTokens(%d chars) = %d, want %d (InjectCharsPerToken=%d)",
+			len(text), tokens, 10, InjectCharsPerToken)
+	}
+}
+
+func TestTruncateToTokenBudget_UsesCharsPerTokenConstant(t *testing.T) {
+	// Verify truncateToTokenBudget converts tokens→chars via InjectCharsPerToken.
+	// 10 tokens * InjectCharsPerToken chars = the char budget.
+	text := strings.Repeat("x", InjectCharsPerToken*20) // 20 tokens worth
+	result := truncateToTokenBudget(text, 10)            // 10 token budget
+	// Expected char limit = 10 * InjectCharsPerToken
+	expectedMaxLen := 10*InjectCharsPerToken + 3 // +3 for possible "..."
+	if len(result) > expectedMaxLen {
+		t.Errorf("truncated len=%d, expected <= %d (10 tokens * %d chars/token + 3)",
+			len(result), expectedMaxLen, InjectCharsPerToken)
+	}
+}
+
 func TestApplyContextBudget_UnderBudget(t *testing.T) {
 	text := "Short text."
 	result, info := applyContextBudget(text, 10000)

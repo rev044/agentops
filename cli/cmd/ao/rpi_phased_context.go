@@ -443,7 +443,7 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 		handoffs, _ := readAllHandoffs(cwd, phaseNum)
 		if len(handoffs) > 0 {
 			manifest := defaultPhaseManifests[phaseNum]
-		ctx := buildHandoffContext(handoffs, manifest)
+			ctx := buildHandoffContext(handoffs, manifest)
 			prompt.WriteString(ctx)
 			prompt.WriteString("\n\n")
 		} else {
@@ -460,7 +460,9 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 
 	// Write provenance audit trail
 	if state.RunID != "" {
-		_ = writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String())
+		if err := writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String()); err != nil {
+			VerbosePrintf("Warning: failed to write prompt audit trail for phase %d: %v\n", phaseNum, err)
+		}
 	}
 
 	return prompt.String(), nil
@@ -607,7 +609,9 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 
 	// Write provenance audit trail for retry
 	if state.RunID != "" {
-		_ = writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String())
+		if err := writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String()); err != nil {
+			VerbosePrintf("Warning: failed to write retry audit trail for phase %d: %v\n", phaseNum, err)
+		}
 	}
 
 	return prompt.String(), nil

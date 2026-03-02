@@ -228,6 +228,24 @@ Group issues by dependencies for parallel execution:
 - **Wave 3**: Issues depending on Wave 2
 - Continue until all issues assigned
 
+#### File-Level Dependency Matrix (Mandatory)
+
+Before assigning issues to waves, build a file-conflict matrix. For EACH issue, list which files it modifies. If any file appears in 2+ same-wave issues, either:
+- **Serialize** them (move one to a later wave), or
+- **Merge** them into a single issue assigned to one worker.
+
+```markdown
+## File-Conflict Matrix
+
+| File | Issues |
+|------|--------|
+| `src/auth.go` | Issue 1, Issue 3 | ← CONFLICT: serialize or merge
+| `src/config.go` | Issue 2 |
+| `src/auth_test.go` | Issue 1 |
+```
+
+**Why:** Issue-level dependency graphs miss shared-file conflicts. In context-orchestration-leverage, two tracks both modified `rpi_phased_handoff.go` and required an unplanned Wave 2a/2b split. A file-conflict matrix would have caught this during planning.
+
 #### Validate Dependency Necessity
 
 For EACH declared dependency, verify:
