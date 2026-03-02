@@ -34,25 +34,19 @@ Skills run on Claude Code, Codex CLI, and OpenCode — but only Claude Code is g
 
 **Steer:** increase
 
-### 4. Evolve `ao rpi serve` into a multi-run mission control
+### 4. Prove flywheel compounds across sessions
 
-`ao rpi serve` now shows one run. Extend it to aggregate all active runs simultaneously — a true mission control view where multiple parallel `ao rpi parallel` runs are visible in a single dashboard. Add run-switcher UI, comparative cost/timing, and worker heatmaps. The foundation (SSE + events.jsonl per run) is already there.
-
-**Steer:** increase
-
-### 5. Wire nudge protocol into the dashboard
-
-`ao rpi nudge` exists and writes to `commands.jsonl`, but the dashboard has no send interface — you can only watch, not steer. Add a nudge composer to `ao rpi serve`: a text input that writes to the active run's commands.jsonl. The round-trip is: browser → POST /nudge → `ao rpi nudge` → tmux → agent.
+The north star claims every session is smarter than the last, but the `flywheel-compounding` gate currently fails. Instrument and validate that learnings captured in session N are retrieved and applied in session N+1. Evidence: at least one measured retrieval-to-application chain per week, with the `flywheel-compounding` gate passing green.
 
 **Steer:** increase
 
-### 6. Run Athena knowledge cycle daily
+### 5. Run Athena knowledge cycle daily
 
 The flywheel captures learnings reactively. Athena mines git, `.agents/`, and code hotspots to extract signal that sessions missed, then defrags stale/duplicate learnings and flags oscillating evolve goals before they waste cycles. Gate: `ao defrag` report is ≤26 hours old and stale learning count ≤5.
 
 **Steer:** decrease (stale count, age)
 
-### 7. Eliminate oscillating evolve goals
+### 6. Eliminate oscillating evolve goals
 
 Goals that alternate improved→fail for ≥3 consecutive cycles indicate the improvement approach isn't working — each cycle wastes tokens. Athena's oscillation sweep detects these and quarantines them. Gate: zero oscillating goals in cycle history.
 
@@ -70,12 +64,10 @@ Goals that alternate improved→fail for ≥3 consecutive cycles indicate the im
 | skill-frontmatter | `bash -c 'for f in skills/*/SKILL.md; do head -5 "$f" \| grep -q "^---" && head -10 "$f" \| grep -q "^name:" && head -10 "$f" \| grep -q "^description:" \|\| { echo FAIL:$f; exit 1; }; done'` | 5 | Every skill has valid YAML frontmatter |
 | contract-compatibility | `timeout 60 bash scripts/check-contract-compatibility.sh` | 5 | Contract schemas and references exist on disk |
 | wiring-closure | `timeout 60 bash scripts/check-wiring-closure.sh` | 7 | All scripts, skills, and hooks referenced by registries |
-| go-complexity-ceiling | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/ --threshold 25` | 6 | No Go function in cli/ exceeds CC 24 (tightened from 35 after ag-atu refactoring) |
-| go-internal-complexity | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/internal/ --threshold 18` | 5 | No function in cli/internal/ exceeds CC 17 (tightened from 27 after ag-atu refactoring) |
+| go-complexity-ceiling | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/ --threshold 25 && timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/internal/ --threshold 18` | 6 | No Go function exceeds CC thresholds (cli/: 25, cli/internal/: 18) |
 | go-coverage-floor | `cd cli && timeout 120 go test -cover ./... 2>&1 \| grep '^ok' \| sed -n 's/.*coverage: \([0-9.]*\)%.*/\1/p' \| awk '{s+=$1;n++} END{if(n>0 && s/n>=80) exit 0; else exit 1}'` | 4 | Average test coverage stays above 80% |
 | cmd-ao-coverage-floor | `bash scripts/check-cmdao-coverage-floor.sh` | 6 | cmd/ao coverage floor and zero-coverage regression threshold are enforced |
 | security-gate | `test -x scripts/security-gate.sh && timeout 60 bash tests/scripts/test-security-gate.sh` | 6 | Security toolchain gate is executable and passes |
-| rpi-serve-smoke | `bash -c 'cd cli && go build -o /tmp/ao-rpi-serve-s ./cmd/ao && /tmp/ao-rpi-serve-s rpi serve --help 2>&1 \| grep -qF "port"'` | 5 | ao rpi serve subcommand exists and exposes expected flags |
 | flywheel-compounding | `bash -c 'cd cli && go build -o /tmp/ao-fw-check ./cmd/ao && cd .. && /tmp/ao-fw-check flywheel status --json 2>/dev/null \| jq -e ".compounding == true"'` | 5 | Knowledge flywheel is above escape velocity (σρ > δ) |
 | goals-validate | `bash -c 'cd cli && go build -o /tmp/ao-goals-val ./cmd/ao && cd .. && /tmp/ao-goals-val goals validate --json 2>/dev/null \| jq -e ".valid == true"'` | 5 | GOALS.md parses and validates without structural errors |
 | athena-freshness | `bash scripts/check-athena-health.sh` | 4 | Athena defrag report ≤26h old, stale learnings ≤5 |
