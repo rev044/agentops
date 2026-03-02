@@ -901,7 +901,10 @@ func writePhaseResult(cwd string, result *phaseResult) error {
 }
 
 // validatePriorPhaseResult checks that phase-{expectedPhase}-result.json exists
-// and has status "completed". Called at the start of phases 2 and 3.
+// and has a continuable status. Called at the start of phases 2 and 3.
+// Both "completed" and "time_boxed" are treated as continuation signals —
+// time_boxed means the phase ran but did not finish within its budget,
+// and the next phase should proceed with whatever was accomplished.
 func validatePriorPhaseResult(cwd string, expectedPhase int) error {
 	resultPath := filepath.Join(cwd, ".agents", "rpi", fmt.Sprintf(phaseResultFileFmt, expectedPhase))
 	data, err := os.ReadFile(resultPath)
@@ -914,8 +917,8 @@ func validatePriorPhaseResult(cwd string, expectedPhase int) error {
 		return fmt.Errorf("prior phase %d result is malformed: %w", expectedPhase, err)
 	}
 
-	if result.Status != "completed" {
-		return fmt.Errorf("prior phase %d has status %q (expected %q)", expectedPhase, result.Status, "completed")
+	if result.Status != "completed" && result.Status != "time_boxed" {
+		return fmt.Errorf("prior phase %d has status %q (expected %q or %q)", expectedPhase, result.Status, "completed", "time_boxed")
 	}
 
 	return nil

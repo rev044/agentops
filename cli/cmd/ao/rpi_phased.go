@@ -364,6 +364,21 @@ func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget ti
 		VerbosePrintf("Warning: could not append [TIME-BOXED] marker: %v\n", err)
 	}
 
+	// Write structured phase result with time_boxed status
+	pr := &phaseResult{
+		SchemaVersion:   1,
+		RunID:           state.RunID,
+		Phase:           p.Num,
+		PhaseName:       p.Name,
+		Status:          "time_boxed",
+		StartedAt:       time.Now().Add(-budget).Format(time.RFC3339),
+		CompletedAt:     time.Now().Format(time.RFC3339),
+		DurationSeconds: budget.Seconds(),
+	}
+	if err := writePhaseResult(spawnCwd, pr); err != nil {
+		VerbosePrintf("Warning: could not write time_boxed phase result: %v\n", err)
+	}
+
 	msg := fmt.Sprintf("[TIME-BOXED] Phase %s time-boxed at %ds (budget: %ds)", p.Name, int(budget.Seconds()), int(budget.Seconds()))
 	fmt.Println(msg)
 	logPhaseTransition(logPath, state.RunID, p.Name, msg)

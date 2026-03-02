@@ -37,7 +37,7 @@
     "status": {
       "type": "string",
       "description": "Outcome of this phase.",
-      "enum": ["started", "completed", "failed", "retrying"]
+      "enum": ["started", "completed", "failed", "retrying", "time_boxed"]
     },
     "retries": {
       "type": "integer",

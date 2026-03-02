@@ -460,5 +460,27 @@ if [ -n "$ASSERTION_COUNT" ] && [ "$ASSERTION_COUNT" -gt 0 ] 2>/dev/null; then
     done
 fi
 
+# 8. embedded_parity: auto-check when hook files changed
+# Enforces hooks/ <-> cli/embedded/hooks/ parity after any hook modification.
+CHANGED_FILES_LIST=$(collect_changed_files 2>/dev/null || true)
+HOOK_CHANGED=0
+if [ -n "$CHANGED_FILES_LIST" ]; then
+    if echo "$CHANGED_FILES_LIST" | grep -qE '^(hooks/|lib/hook-helpers\.sh)'; then
+        HOOK_CHANGED=1
+    fi
+fi
+
+if [ "$HOOK_CHANGED" -eq 1 ]; then
+    PARITY_SCRIPT="$ROOT/scripts/validate-embedded-sync.sh"
+    if [ -f "$PARITY_SCRIPT" ] && [ -x "$PARITY_SCRIPT" ]; then
+        if ! bash "$PARITY_SCRIPT" >/dev/null 2>&1; then
+            write_failure "embedded_parity" "validate-embedded-sync.sh" 1 "hooks/ and cli/embedded/hooks/ are out of sync"
+            echo "VALIDATION FAILED: embedded_parity — hooks and embedded copies are out of sync" >&2
+            echo "  Run: cd cli && make sync-hooks" >&2
+            exit 2
+        fi
+    fi
+fi
+
 # All checks passed
 exit 0

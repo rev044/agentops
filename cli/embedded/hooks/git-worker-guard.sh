@@ -1,82 +1,46 @@
 #!/bin/bash
-# git-worker-guard.sh - PreToolUse hook: block git commit/push/add-all for swarm workers
-# Workers write files only; lead commits. Prevents merge conflicts in parallel swarms.
+# git-worker-guard.sh - PreToolUse hook: block git write operations for swarm workers
+# Workers should NEVER commit/push/add-all — only the lead does that.
+# Non-blocking for leads (exit 0). Blocks workers (exit 2).
 
-# Kill switch
+# Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
+[ "${AGENTOPS_GIT_WORKER_GUARD_DISABLED:-}" = "1" ] && exit 0
 
-# Read all of stdin (hook pipes JSON)
+# Determine if we're a worker via multiple detection paths:
+# 1. AGENTOPS_ROLE env var set by swarm dispatch
+# 2. CLAUDE_AGENT_NAME matching "worker-*" pattern (native teams)
+# 3. .agents/swarm-role file containing "worker" (filesystem signal)
+IS_WORKER=0
+if [ "${AGENTOPS_ROLE:-}" = "worker" ]; then
+    IS_WORKER=1
+elif [[ "${CLAUDE_AGENT_NAME:-}" == worker-* ]]; then
+    IS_WORKER=1
+elif [ -f ".agents/swarm-role" ] && grep -q "^worker$" ".agents/swarm-role" 2>/dev/null; then
+    IS_WORKER=1
+fi
+
+[ "$IS_WORKER" -eq 1 ] || exit 0
+
+# Read stdin
 INPUT=$(cat)
 
-# Extract tool_input.command from JSON
-if command -v jq >/dev/null 2>&1; then
-    CMD=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null)
-else
-    CMD=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//;s/"$//')
+# Extract command from stdin JSON or env var
+COMMAND="${CLAUDE_TOOL_INPUT_COMMAND:-}"
+if [ -z "$COMMAND" ]; then
+    COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || exit 0
 fi
 
-# No command → exit silently
-if [ -z "$CMD" ] || [ "$CMD" = "null" ]; then
-    exit 0
-fi
+# Check for git write operations
+COMMAND_LOWER=$(echo "$COMMAND" | tr '[:upper:]' '[:lower:]')
 
-# Hot path: if command doesn't contain "git" at all, skip (<50ms)
-case "$CMD" in
-    *git*) ;;
-    *) exit 0 ;;
+# Block git commit, git push, git add -A/--all/.
+case "$COMMAND_LOWER" in
+    *"git commit"*|*"git push"*|*"git add -a"*|*"git add --all"*|*"git add ."*)
+        echo "BLOCKED: Workers cannot run git write operations. Only the lead commits/pushes." >&2
+        echo "Command: $COMMAND" >&2
+        exit 2
+        ;;
 esac
 
-# Check if this is a dangerous git command
-BLOCKED=0
-
-# git commit or git push → always check identity
-if echo "$CMD" | grep -qE 'git\s+(commit|push)'; then
-    BLOCKED=1
-fi
-
-# git add -A / git add . / git add --all → block
-if echo "$CMD" | grep -qE 'git\s+add\s+(-A|\.(\s|$|&&)|--all)'; then
-    BLOCKED=1
-fi
-
-# Not a blocked command → allow
-if [ "$BLOCKED" -eq 0 ]; then
-    exit 0
-fi
-
-# Source hook-helpers from plugin install dir, not repo root (security: prevents malicious repo sourcing)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/hook-helpers.sh
-. "$SCRIPT_DIR/../lib/hook-helpers.sh"
-
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P 2>/dev/null || printf '%s' "$ROOT")"
-
-# Check agent identity via CLAUDE_AGENT_NAME
-if [ -n "$CLAUDE_AGENT_NAME" ]; then
-    case "$CLAUDE_AGENT_NAME" in
-        worker-*)
-            write_failure "worker_guard" "git commit" 2 "worker $CLAUDE_AGENT_NAME attempted git commit/push"
-            echo "Workers must NOT commit. Write files and report via SendMessage to the team lead." >&2
-            exit 2
-            ;;
-        *)
-            exit 0
-            ;;
-    esac
-fi
-
-# Fallback: check for swarm-role marker file
-if [ -f "$ROOT/.agents/swarm-role" ]; then
-    ROLE=$(cat "$ROOT/.agents/swarm-role")
-    case "$ROLE" in
-        worker*)
-            write_failure "worker_guard" "git commit" 2 "worker role '$ROLE' attempted git commit/push"
-            echo "Workers must NOT commit. Write files and report via SendMessage to the team lead." >&2
-            exit 2
-            ;;
-    esac
-fi
-
-# No worker identity detected → allow
 exit 0

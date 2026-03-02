@@ -1778,3 +1778,198 @@ func TestRpiRunRegistryDir(t *testing.T) {
 		t.Errorf("expected empty for empty runID, got %q", got)
 	}
 }
+
+func TestWritePhaseResult_TimeBoxed(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	pr := &phaseResult{
+		SchemaVersion:   1,
+		RunID:           "test-run-123",
+		Phase:           1,
+		PhaseName:       "discovery",
+		Status:          "time_boxed",
+		StartedAt:       time.Now().Add(-30 * time.Second).Format(time.RFC3339),
+		CompletedAt:     time.Now().Format(time.RFC3339),
+		DurationSeconds: 30.0,
+	}
+
+	err := writePhaseResult(tmpDir, pr)
+	if err != nil {
+		t.Fatalf("writePhaseResult failed: %v", err)
+	}
+
+	resultPath := filepath.Join(tmpDir, ".agents", "rpi", fmt.Sprintf(phaseResultFileFmt, 1))
+	data, err := os.ReadFile(resultPath)
+	if err != nil {
+		t.Fatalf("failed to read result: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("failed to parse result: %v", err)
+	}
+
+	if result["status"] != "time_boxed" {
+		t.Errorf("expected status time_boxed, got %v", result["status"])
+	}
+	if result["phase_name"] != "discovery" {
+		t.Errorf("expected phase_name discovery, got %v", result["phase_name"])
+	}
+	if result["run_id"] != "test-run-123" {
+		t.Errorf("expected run_id test-run-123, got %v", result["run_id"])
+	}
+	if result["schema_version"] != float64(1) {
+		t.Errorf("expected schema_version 1, got %v", result["schema_version"])
+	}
+	if result["duration_seconds"] != float64(30) {
+		t.Errorf("expected duration_seconds 30, got %v", result["duration_seconds"])
+	}
+}
+
+func TestWritePhaseResult_TimeBoxed_CreatesDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	pr := &phaseResult{
+		SchemaVersion: 1,
+		RunID:         "run-dir-test",
+		Phase:         2,
+		PhaseName:     "implementation",
+		Status:        "time_boxed",
+		StartedAt:     time.Now().Format(time.RFC3339),
+	}
+
+	err := writePhaseResult(tmpDir, pr)
+	if err != nil {
+		t.Fatalf("writePhaseResult failed: %v", err)
+	}
+
+	resultPath := filepath.Join(tmpDir, ".agents", "rpi", fmt.Sprintf(phaseResultFileFmt, 2))
+	if _, err := os.Stat(resultPath); os.IsNotExist(err) {
+		t.Fatal("expected result file to exist after writePhaseResult")
+	}
+}
+
+func TestValidatePriorPhaseResult_TimeBoxed(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write a time_boxed result for phase 1
+	pr := &phaseResult{
+		SchemaVersion: 1,
+		RunID:         "test-run",
+		Phase:         1,
+		PhaseName:     "discovery",
+		Status:        "time_boxed",
+		StartedAt:     time.Now().Format(time.RFC3339),
+	}
+	if err := writePhaseResult(tmpDir, pr); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	// time_boxed should be accepted as a valid continuation status
+	err := validatePriorPhaseResult(tmpDir, 1)
+	if err != nil {
+		t.Fatalf("validatePriorPhaseResult should accept time_boxed, got error: %v", err)
+	}
+}
+
+func TestValidatePriorPhaseResult_NoFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := validatePriorPhaseResult(tmpDir, 1)
+	if err == nil {
+		t.Fatal("expected error for missing file, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' error, got: %v", err)
+	}
+}
+
+func TestValidatePriorPhaseResult_CompletedAccepted(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	pr := &phaseResult{
+		SchemaVersion: 1,
+		RunID:         "test-run",
+		Phase:         1,
+		PhaseName:     "discovery",
+		Status:        "completed",
+		StartedAt:     time.Now().Format(time.RFC3339),
+	}
+	if err := writePhaseResult(tmpDir, pr); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	err := validatePriorPhaseResult(tmpDir, 1)
+	if err != nil {
+		t.Fatalf("validatePriorPhaseResult should accept completed, got error: %v", err)
+	}
+}
+
+func TestValidatePriorPhaseResult_FailedStatus(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	pr := &phaseResult{
+		SchemaVersion: 1,
+		RunID:         "test-run",
+		Phase:         1,
+		PhaseName:     "discovery",
+		Status:        "failed",
+		StartedAt:     time.Now().Format(time.RFC3339),
+	}
+	if err := writePhaseResult(tmpDir, pr); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	err := validatePriorPhaseResult(tmpDir, 1)
+	if err == nil {
+		t.Fatal("expected error for failed status, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed") {
+		t.Errorf("expected error mentioning 'failed', got: %v", err)
+	}
+}
+
+func TestBudgetTimeout_WritesPhaseResultArtifact(t *testing.T) {
+	tmpDir := t.TempDir()
+	stateDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(stateDir, "phased-orchestration.log")
+
+	state := newTestPhasedState().WithRunID("budget-result-run")
+	p := phase{Num: 1, Name: "discovery"}
+	budget := 45 * time.Second
+
+	if !handleBudgetTimeout(tmpDir, state, p, budget, logPath) {
+		t.Fatal("expected timeout handler to return true")
+	}
+
+	// Verify the structured JSON result artifact was written
+	resultPath := filepath.Join(stateDir, fmt.Sprintf(phaseResultFileFmt, 1))
+	data, err := os.ReadFile(resultPath)
+	if err != nil {
+		t.Fatalf("expected phase result artifact: %v", err)
+	}
+
+	var result phaseResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("failed to parse result: %v", err)
+	}
+
+	if result.Status != "time_boxed" {
+		t.Errorf("expected status time_boxed, got %v", result.Status)
+	}
+	if result.RunID != "budget-result-run" {
+		t.Errorf("expected run_id budget-result-run, got %v", result.RunID)
+	}
+	if result.PhaseName != "discovery" {
+		t.Errorf("expected phase_name discovery, got %v", result.PhaseName)
+	}
+	if result.SchemaVersion != 1 {
+		t.Errorf("expected schema_version 1, got %v", result.SchemaVersion)
+	}
+	if result.DurationSeconds < 44 {
+		t.Errorf("expected duration_seconds >= 44 (budget was 45s), got %v", result.DurationSeconds)
+	}
+}

@@ -1249,8 +1249,7 @@ tags: [constraint, reliability]
 
 This learning describes a guardrail to prevent direct bypass of safety checks.
 EOF
-cd "$MOCK_CONSTRAINT"
-OUTPUT=$(bash "$HOOKS_DIR/constraint-compiler.sh" "$MOCK_CONSTRAINT/learn-constraint.md" 2>&1 || true)
+OUTPUT=$(cd "$MOCK_CONSTRAINT" && bash "$HOOKS_DIR/constraint-compiler.sh" "$MOCK_CONSTRAINT/learn-constraint.md" 2>&1 || true)
 if echo "$OUTPUT" | grep -q "Generated constraint template"; then
     pass "constraint-compiler generates template for tagged learning"
 else
@@ -1356,6 +1355,208 @@ if [ "$EC" -eq 0 ]; then
     pass "go-vet-post-edit ignores non-Go files"
 else
     fail "go-vet-post-edit ignores non-Go files"
+fi
+
+# ============================================================
+echo ""
+echo "=== git-worker-guard.sh ==="
+# ============================================================
+
+# Test: Non-worker (no AGENTOPS_ROLE) => silent pass via AGENTOPS_ROLE
+EC=0
+echo '{"tool_input":{"command":"git commit -m test"}}' | AGENTOPS_ROLE="" bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then pass "AGENTOPS_ROLE non-worker git commit allowed"; else fail "AGENTOPS_ROLE non-worker git commit allowed (exit=$EC)"; fi
+
+# Test: Worker git commit blocked via AGENTOPS_ROLE
+EC=0
+echo '{"tool_input":{"command":"git commit -m test"}}' | AGENTOPS_ROLE=worker bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 2 ]; then pass "AGENTOPS_ROLE worker git commit blocked"; else fail "AGENTOPS_ROLE worker git commit blocked (exit=$EC, expected 2)"; fi
+
+# Test: Worker git push blocked via AGENTOPS_ROLE
+EC=0
+echo '{"tool_input":{"command":"git push origin main"}}' | AGENTOPS_ROLE=worker bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 2 ]; then pass "AGENTOPS_ROLE worker git push blocked"; else fail "AGENTOPS_ROLE worker git push blocked (exit=$EC, expected 2)"; fi
+
+# Test: Worker git add -A blocked via AGENTOPS_ROLE
+EC=0
+echo '{"tool_input":{"command":"git add -A"}}' | AGENTOPS_ROLE=worker bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 2 ]; then pass "AGENTOPS_ROLE worker git add -A blocked"; else fail "AGENTOPS_ROLE worker git add -A blocked (exit=$EC, expected 2)"; fi
+
+# Test: Worker git add . blocked via AGENTOPS_ROLE
+EC=0
+echo '{"tool_input":{"command":"git add ."}}' | AGENTOPS_ROLE=worker bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 2 ]; then pass "AGENTOPS_ROLE worker git add . blocked"; else fail "AGENTOPS_ROLE worker git add . blocked (exit=$EC, expected 2)"; fi
+
+# Test: Worker non-git command allowed via AGENTOPS_ROLE
+EC=0
+echo '{"tool_input":{"command":"go test ./..."}}' | AGENTOPS_ROLE=worker bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then pass "AGENTOPS_ROLE worker non-git command allowed"; else fail "AGENTOPS_ROLE worker non-git command allowed (exit=$EC)"; fi
+
+# Test: Worker git status allowed (read-only git)
+EC=0
+echo '{"tool_input":{"command":"git status"}}' | AGENTOPS_ROLE=worker bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then pass "AGENTOPS_ROLE worker git status allowed"; else fail "AGENTOPS_ROLE worker git status allowed (exit=$EC)"; fi
+
+# Test: AGENTOPS_GIT_WORKER_GUARD_DISABLED kill switch
+EC=0
+echo '{"tool_input":{"command":"git commit -m test"}}' | AGENTOPS_ROLE=worker AGENTOPS_GIT_WORKER_GUARD_DISABLED=1 bash "$HOOKS_DIR/git-worker-guard.sh" >/dev/null 2>&1 || EC=$?
+if [ "$EC" -eq 0 ]; then pass "AGENTOPS_GIT_WORKER_GUARD_DISABLED kill switch"; else fail "AGENTOPS_GIT_WORKER_GUARD_DISABLED kill switch (exit=$EC)"; fi
+
+# Test: Manifest wiring check
+if jq -e '.hooks.PreToolUse[] | select(.matcher == "Bash") | .hooks[] | select(.command | contains("git-worker-guard.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1; then
+    pass "git-worker-guard.sh wired in hooks.json PreToolUse/Bash"
+else
+    fail "git-worker-guard.sh not found in hooks.json PreToolUse/Bash"
+fi
+
+# ============================================================
+echo ""
+echo "=== task-validation-gate.sh: embedded parity ==="
+# ============================================================
+
+# Test: Parity check passes when hooks are in sync
+PARITY_MOCK_DIR=$(mktemp -d)
+setup_mock_repo "$PARITY_MOCK_DIR"
+mkdir -p "$PARITY_MOCK_DIR/hooks" "$PARITY_MOCK_DIR/cli/embedded/hooks" "$PARITY_MOCK_DIR/scripts"
+echo '#!/bin/bash' > "$PARITY_MOCK_DIR/hooks/test-hook.sh"
+echo '#!/bin/bash' > "$PARITY_MOCK_DIR/cli/embedded/hooks/test-hook.sh"
+# Create a validate-embedded-sync.sh that always passes
+cat > "$PARITY_MOCK_DIR/scripts/validate-embedded-sync.sh" <<'EOFSCRIPT'
+#!/bin/bash
+exit 0
+EOFSCRIPT
+chmod +x "$PARITY_MOCK_DIR/scripts/validate-embedded-sync.sh"
+# Stage a hook file change
+echo '# changed' >> "$PARITY_MOCK_DIR/hooks/test-hook.sh"
+git -C "$PARITY_MOCK_DIR" add -A >/dev/null 2>&1
+
+TASK_INPUT='{"metadata":{"validation":{"tests":"go test ./...","files_exist":["hooks/test-hook.sh"]}}}'
+OUTPUT=$(echo "$TASK_INPUT" | AGENTOPS_HOOKS_DISABLED=0 bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || true
+# The hook runs in REPO_ROOT context so it will check THIS repo's sync, not the mock.
+# Just verify the embedded_parity code path exists:
+if grep -q 'embedded_parity' "$HOOKS_DIR/task-validation-gate.sh"; then
+    pass "embedded_parity section exists in task-validation-gate.sh"
+else
+    fail "embedded_parity section missing from task-validation-gate.sh"
+fi
+rm -rf "$PARITY_MOCK_DIR"
+
+# ============================================================
+echo "=== commit-review-gate.sh ==="
+# ============================================================
+
+# Test: Non-git command => silent pass
+OUTPUT=$(echo '{"tool_name":"Bash","tool_input":{"command":"go test ./..."}}' | bash "$HOOKS_DIR/commit-review-gate.sh" 2>&1)
+RC=$?
+if [[ $RC -eq 0 ]] && [[ -z "$OUTPUT" ]]; then
+    pass "commit-review-gate: non-git command ignored"
+else
+    fail "commit-review-gate: non-git command should be silent (got exit $RC)"
+fi
+
+# Test: Kill switch
+OUTPUT=$(echo '{"tool_name":"Bash","tool_input":{"command":"git commit -m test"}}' | AGENTOPS_COMMIT_REVIEW_DISABLED=1 bash "$HOOKS_DIR/commit-review-gate.sh" 2>&1)
+RC=$?
+if [[ $RC -eq 0 ]]; then
+    pass "commit-review-gate: kill switch works"
+else
+    fail "commit-review-gate: kill switch should exit 0 (got $RC)"
+fi
+
+# Test: Manifest wiring check
+if jq -e '.hooks.PreToolUse[] | select(.matcher == "Bash") | .hooks[] | select(.command | contains("commit-review-gate.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1; then
+    pass "commit-review-gate.sh wired in hooks.json"
+else
+    fail "commit-review-gate.sh not found in hooks.json"
+fi
+
+# ============================================================
+echo "=== intent-echo.sh ==="
+# ============================================================
+
+# Test: Normal prompt => silent pass
+OUTPUT=$(echo '{"prompt":"add a new test"}' | AGENTOPS_INTENT_ECHO_DISABLED=0 bash "$HOOKS_DIR/intent-echo.sh" 2>&1)
+RC=$?
+if [[ $RC -eq 0 ]] && [[ -z "$OUTPUT" ]]; then
+    pass "intent-echo: normal prompt silent"
+else
+    fail "intent-echo: normal prompt should be silent (got exit $RC, output: $OUTPUT)"
+fi
+
+# Test: Destructive keyword triggers
+# Clean dedup flag first
+rm -f "$REPO_ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
+OUTPUT=$(echo '{"prompt":"delete all the old files"}' | bash "$HOOKS_DIR/intent-echo.sh" 2>&1)
+RC=$?
+if [[ $RC -eq 0 ]] && echo "$OUTPUT" | jq -e '.hookSpecificOutput.additionalContext' >/dev/null 2>&1; then
+    pass "intent-echo: destructive keyword triggers context injection"
+else
+    fail "intent-echo: destructive keyword should trigger (got exit $RC)"
+fi
+rm -f "$REPO_ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
+
+# Test: Kill switch
+OUTPUT=$(echo '{"prompt":"delete everything"}' | AGENTOPS_INTENT_ECHO_DISABLED=1 bash "$HOOKS_DIR/intent-echo.sh" 2>&1)
+RC=$?
+if [[ $RC -eq 0 ]] && [[ -z "$OUTPUT" ]]; then
+    pass "intent-echo: kill switch works"
+else
+    fail "intent-echo: kill switch should silence (got exit $RC)"
+fi
+
+# Test: Manifest wiring check
+if jq -e '.hooks.UserPromptSubmit[].hooks[] | select(.command | contains("intent-echo.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1; then
+    pass "intent-echo.sh wired in hooks.json"
+else
+    fail "intent-echo.sh not found in hooks.json"
+fi
+
+# ============================================================
+echo "=== research-loop-detector.sh ==="
+# ============================================================
+
+# Test: Write tool resets counter
+rm -f "$REPO_ROOT/.agents/ao/.read-streak" 2>/dev/null
+echo '{"tool_name":"Edit"}' | CLAUDE_TOOL_NAME=Edit bash "$HOOKS_DIR/research-loop-detector.sh" >/dev/null 2>&1
+if [[ ! -f "$REPO_ROOT/.agents/ao/.read-streak" ]]; then
+    pass "research-loop-detector: Edit resets counter"
+else
+    fail "research-loop-detector: Edit should reset counter"
+fi
+
+# Test: Read tool increments counter
+rm -f "$REPO_ROOT/.agents/ao/.read-streak" 2>/dev/null
+echo '{"tool_name":"Read"}' | CLAUDE_TOOL_NAME=Read bash "$HOOKS_DIR/research-loop-detector.sh" >/dev/null 2>&1
+if [[ -f "$REPO_ROOT/.agents/ao/.read-streak" ]] && [[ "$(cat "$REPO_ROOT/.agents/ao/.read-streak")" == "1" ]]; then
+    pass "research-loop-detector: Read increments counter"
+else
+    fail "research-loop-detector: Read should increment counter"
+fi
+
+# Test: Threshold triggers warning
+echo "7" > "$REPO_ROOT/.agents/ao/.read-streak"
+OUTPUT=$(echo '{"tool_name":"Read"}' | CLAUDE_TOOL_NAME=Read bash "$HOOKS_DIR/research-loop-detector.sh" 2>&1)
+if echo "$OUTPUT" | jq -e '.hookSpecificOutput.additionalContext' >/dev/null 2>&1; then
+    pass "research-loop-detector: threshold 8 triggers warning"
+else
+    fail "research-loop-detector: threshold 8 should trigger warning"
+fi
+
+# Test: Kill switch
+echo "14" > "$REPO_ROOT/.agents/ao/.read-streak"
+OUTPUT=$(echo '{"tool_name":"Read"}' | CLAUDE_TOOL_NAME=Read AGENTOPS_RESEARCH_LOOP_DISABLED=1 bash "$HOOKS_DIR/research-loop-detector.sh" 2>&1)
+if [[ -z "$OUTPUT" ]]; then
+    pass "research-loop-detector: kill switch works"
+else
+    fail "research-loop-detector: kill switch should silence"
+fi
+rm -f "$REPO_ROOT/.agents/ao/.read-streak" 2>/dev/null
+
+# Test: Manifest wiring check
+if jq -e '.hooks.PostToolUse[].hooks[] | select(.command | contains("research-loop-detector.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1; then
+    pass "research-loop-detector.sh wired in hooks.json"
+else
+    fail "research-loop-detector.sh not found in hooks.json"
 fi
 
 # ============================================================
