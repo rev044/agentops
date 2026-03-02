@@ -125,7 +125,7 @@ Codex uses different flags but the same principles apply:
 |--------|---------|
 | `tests/claude-code/test-helpers.sh` | Reusable test helpers with configurable tools |
 | `tests/release-smoke-test.sh` | Release gate with scoped tools |
-| `bin/run-rpi-headless.sh` | Multi-phase headless RPI runner |
+| `ao rpi` | Multi-phase RPI orchestrator (CLI command, not a script) |
 | `lib/scripts/team-runner.sh` | Parallel Codex team orchestrator |
 
 ## Environment Variables
