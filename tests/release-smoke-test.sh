@@ -47,8 +47,16 @@ if $FULL_TEST; then
     failed=0
 
     for skill in "${SKILLS[@]}"; do
+        # Skills need unrestricted tool access — they may use Write, Edit,
+        # WebFetch, etc. internally. --dangerously-skip-permissions is correct
+        # here; scoped --allowedTools would cause false failures.
         if timeout 45 claude -p "Invoke agentops:$skill skill" \
-            --plugin-dir "$REPO_ROOT" --dangerously-skip-permissions --max-turns 3 >/dev/null 2>&1; then
+            --plugin-dir "$REPO_ROOT" \
+            --dangerously-skip-permissions \
+            --max-turns 3 \
+            --no-session-persistence \
+            --max-budget-usd 0.50 \
+            >/dev/null 2>&1; then
             pass "$skill"
             ((passed++))
         else
@@ -79,8 +87,11 @@ log "Querying Claude for registered components..."
 
 output=$(timeout 120 claude -p "$PROMPT" \
     --plugin-dir "$REPO_ROOT" \
-    --dangerously-skip-permissions \
-    --max-turns 5 2>&1) || {
+    --allowedTools "Skill,Read,Glob,Grep" \
+    --max-turns 5 \
+    --no-session-persistence \
+    --max-budget-usd 1.00 \
+    2>&1) || {
     fail "Claude query failed"
     exit 1
 }

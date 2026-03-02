@@ -11,6 +11,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 MAX_TURNS="${MAX_TURNS:-3}"
 DEFAULT_TIMEOUT="${DEFAULT_TIMEOUT:-120}"
 LOG_DIR="${LOG_DIR:-$SCRIPT_DIR/logs}"
+MAX_BUDGET_USD="${MAX_BUDGET_USD:-1.00}"
+
+# Headless mode configuration
+# ALLOWED_TOOLS: comma-separated tool list for --allowedTools
+# Default: empty (uses --dangerously-skip-permissions for full tool access)
+# Set explicitly to scope tools, e.g.: ALLOWED_TOOLS="Read,Grep,Glob"
+ALLOWED_TOOLS="${ALLOWED_TOOLS:-}"
 
 # Colors
 RED='\033[0;31m'
@@ -24,17 +31,31 @@ mkdir -p "$LOG_DIR"
 
 # Run Claude Code with a prompt and capture output as plain text
 # Usage: run_claude "prompt text" [timeout_seconds]
+# Environment:
+#   ALLOWED_TOOLS — comma-separated tool list (default: empty = --dangerously-skip-permissions)
+#   MAX_BUDGET_USD — cost guardrail in dollars (default: 1.00)
+#   MAX_TURNS — max agentic turns (default: 3)
 run_claude() {
     local prompt="$1"
     local timeout="${2:-$DEFAULT_TIMEOUT}"
     local output_file
     output_file="$(mktemp)"
 
+    # Build permission flags: prefer --allowedTools over --dangerously-skip-permissions
+    local -a perm_flags
+    if [[ -n "${ALLOWED_TOOLS:-}" ]]; then
+        perm_flags=(--allowedTools "$ALLOWED_TOOLS")
+    else
+        perm_flags=(--dangerously-skip-permissions)
+    fi
+
     if AGENTOPS_HOOKS_DISABLED="${AGENTOPS_HOOKS_DISABLED:-1}" \
         timeout "$timeout" claude -p "$prompt" \
         --plugin-dir "$REPO_ROOT" \
-        --dangerously-skip-permissions \
+        "${perm_flags[@]}" \
         --max-turns "$MAX_TURNS" \
+        --no-session-persistence \
+        --max-budget-usd "$MAX_BUDGET_USD" \
         > "$output_file" 2>&1; then
         cat "$output_file"
         rm -f "$output_file"
@@ -50,6 +71,10 @@ run_claude() {
 # Run Claude Code with stream-json output for skill detection
 # Usage: run_claude_json "prompt text" [timeout_seconds]
 # Returns: path to JSON log file
+# Environment:
+#   ALLOWED_TOOLS — comma-separated tool list (default: empty = --dangerously-skip-permissions)
+#   MAX_BUDGET_USD — cost guardrail in dollars (default: 1.00)
+#   MAX_TURNS — max agentic turns (default: 3)
 run_claude_json() {
     local prompt="$1"
     local timeout="${2:-$DEFAULT_TIMEOUT}"
@@ -57,11 +82,21 @@ run_claude_json() {
     ts="$(date +%s)"
     local log_file="$LOG_DIR/claude-${ts}-$$.jsonl"
 
+    # Build permission flags: prefer --allowedTools over --dangerously-skip-permissions
+    local -a perm_flags
+    if [[ -n "${ALLOWED_TOOLS:-}" ]]; then
+        perm_flags=(--allowedTools "$ALLOWED_TOOLS")
+    else
+        perm_flags=(--dangerously-skip-permissions)
+    fi
+
     if AGENTOPS_HOOKS_DISABLED="${AGENTOPS_HOOKS_DISABLED:-1}" \
         timeout "$timeout" claude -p "$prompt" \
         --plugin-dir "$REPO_ROOT" \
-        --dangerously-skip-permissions \
+        "${perm_flags[@]}" \
         --max-turns "$MAX_TURNS" \
+        --no-session-persistence \
+        --max-budget-usd "$MAX_BUDGET_USD" \
         --output-format stream-json \
         --verbose \
         > "$log_file" 2>&1; then
@@ -405,3 +440,5 @@ export REPO_ROOT
 export LOG_DIR
 export MAX_TURNS
 export DEFAULT_TIMEOUT
+export MAX_BUDGET_USD
+export ALLOWED_TOOLS
