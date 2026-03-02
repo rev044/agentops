@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -37,12 +38,15 @@ type phasedEngineOptions struct {
 	BDCommand            string
 	TmuxCommand          string
 	TmuxWorkers          int
+	NoBudget             bool
+	BudgetSpec           string
 }
 
 // defaultPhasedEngineOptions returns options matching the default cobra flag values.
 func defaultPhasedEngineOptions() phasedEngineOptions {
 	return phasedEngineOptions{
 		From:                 "discovery",
+		TestFirst:            true,
 		MaxRetries:           3,
 		PhaseTimeout:         90 * time.Minute,
 		StallTimeout:         10 * time.Minute,
@@ -56,6 +60,8 @@ func defaultPhasedEngineOptions() phasedEngineOptions {
 		BDCommand:            "bd",
 		TmuxCommand:          "tmux",
 		TmuxWorkers:          1,
+		NoBudget:             false,
+		BudgetSpec:           "",
 	}
 }
 
@@ -260,6 +266,111 @@ func validateRuntimeMode(mode string) error {
 	default:
 		return fmt.Errorf("invalid runtime %q (valid: auto|direct|stream|tmux)", mode)
 	}
+}
+
+// parsePhaseBudgetSpec parses --budget=<phase:seconds,...> into per-phase durations.
+// Phase aliases are accepted (for example: research, plan, pre-mortem, crank, vibe).
+// Multiple entries that map to the same consolidated phase are summed.
+func parsePhaseBudgetSpec(spec string) (map[int]time.Duration, error) {
+	budgets := make(map[int]time.Duration)
+	trimmed := strings.TrimSpace(spec)
+	if trimmed == "" {
+		return budgets, nil
+	}
+
+	entries := strings.Split(trimmed, ",")
+	for _, entry := range entries {
+		token := strings.TrimSpace(entry)
+		if token == "" {
+			return nil, fmt.Errorf("invalid budget spec %q (empty entry)", spec)
+		}
+
+		parts := strings.SplitN(token, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid budget entry %q (expected <phase>:<seconds>)", token)
+		}
+
+		phaseName := strings.TrimSpace(parts[0])
+		phaseNum := phaseNameToNum(phaseName)
+		if phaseNum == 0 {
+			return nil, fmt.Errorf("unknown budget phase %q (valid: discovery|implementation|validation and aliases)", phaseName)
+		}
+
+		secondsRaw := strings.TrimSpace(parts[1])
+		seconds, err := strconv.Atoi(secondsRaw)
+		if err != nil || seconds <= 0 {
+			return nil, fmt.Errorf("invalid budget seconds %q for phase %q (must be positive integer)", secondsRaw, phaseName)
+		}
+		budgets[phaseNum] += time.Duration(seconds) * time.Second
+	}
+	return budgets, nil
+}
+
+// defaultPhaseBudgetForComplexity returns the default budget for a consolidated phase.
+// Implementation (phase 2) remains unbounded; crank has its own wave/backpressure limits.
+func defaultPhaseBudgetForComplexity(complexity ComplexityLevel, phaseNum int) time.Duration {
+	switch phaseNum {
+	case 1: // discovery = research + plan + pre-mortem
+		switch complexity {
+		case ComplexityFast:
+			return 6 * time.Minute
+		case ComplexityFull:
+			return 25 * time.Minute
+		default:
+			return 13 * time.Minute
+		}
+	case 2: // implementation
+		return 0
+	case 3: // validation
+		switch complexity {
+		case ComplexityFast:
+			return 0
+		case ComplexityFull:
+			return 10 * time.Minute
+		default:
+			return 5 * time.Minute
+		}
+	default:
+		return 0
+	}
+}
+
+func budgetComplexityLevel(state *phasedState) ComplexityLevel {
+	if state == nil {
+		return ComplexityStandard
+	}
+	if state.FastPath {
+		return ComplexityFast
+	}
+	if state.Complexity == "" {
+		return ComplexityStandard
+	}
+	return state.Complexity
+}
+
+// resolvePhaseBudget returns the effective per-phase runtime budget.
+// Returns hasBudget=false when no budget applies to the phase.
+func resolvePhaseBudget(state *phasedState, phaseNum int) (budget time.Duration, hasBudget bool, err error) {
+	if state == nil {
+		return 0, false, nil
+	}
+	if state.Opts.NoBudget {
+		return 0, false, nil
+	}
+
+	overrides, err := parsePhaseBudgetSpec(state.Opts.BudgetSpec)
+	if err != nil {
+		return 0, false, err
+	}
+	if override, ok := overrides[phaseNum]; ok {
+		return override, true, nil
+	}
+
+	defaultBudget := defaultPhaseBudgetForComplexity(budgetComplexityLevel(state), phaseNum)
+	if defaultBudget <= 0 {
+		return 0, false, nil
+	}
+	return defaultBudget, true, nil
 }
 
 // renderPreambleInstructions renders the context-discipline and summary-contract

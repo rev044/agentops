@@ -144,21 +144,101 @@ derive_companion_path() {
     printf '%s\n' "$companion"
 }
 
+is_impl_issue_type() {
+    case "$1" in
+        feature|bug|task) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+is_validation_exempt_issue_type() {
+    case "$1" in
+        docs|chore|ci) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Extract metadata.validation — fail open on parse errors
 if ! VALIDATION=$(echo "$INPUT" | jq -r '.metadata.validation // empty' 2>/dev/null); then
     log_error "JSON parse error on stdin"
     exit 0
 fi
 
-# No validation metadata → pass through
+# Resolve issue type from common payload locations.
+ISSUE_TYPE=$(echo "$INPUT" | jq -r '
+    (
+        .issue_type // .type // .kind //
+        .metadata.issue_type // .metadata.type // .metadata.kind //
+        .issue.issue_type // .issue.type // .issue.kind // empty
+    )
+    | if type == "string" then ascii_downcase | gsub("^\\s+|\\s+$"; "") else "" end
+' 2>/dev/null)
+
+# No validation metadata.
 if [ -z "$VALIDATION" ] || [ "$VALIDATION" = "null" ]; then
+    if is_impl_issue_type "$ISSUE_TYPE"; then
+        write_failure "validation_metadata" "metadata.validation" 1 "missing metadata.validation for issue_type '$ISSUE_TYPE'"
+        echo "VALIDATION FAILED: metadata.validation is required for issue_type '$ISSUE_TYPE' (feature|bug|task)" >&2
+        exit 2
+    fi
+    # Explicit exemption path for non-implementation tasks.
+    if is_validation_exempt_issue_type "$ISSUE_TYPE"; then
+        exit 0
+    fi
+
+    # Unknown/legacy tasks remain fail-open for backward compatibility.
     exit 0
+fi
+
+# Normalize common validation fields once for policy checks and execution.
+FILES_EXIST=$(echo "$VALIDATION" | jq -c '
+    if (.files_exist // null) == null then
+        []
+    elif (.files_exist | type) == "array" then
+        .files_exist
+    else
+        []
+    end
+' 2>/dev/null)
+FILES_EXIST="${FILES_EXIST:-[]}"
+
+CONTENT_CHECKS=$(echo "$VALIDATION" | jq -c '
+    if (.content_check // null) == null then
+        []
+    elif (.content_check | type) == "array" then
+        .content_check
+    elif (.content_check | type) == "object" then
+        [ .content_check ]
+    else
+        []
+    end
+' 2>/dev/null)
+CONTENT_CHECKS="${CONTENT_CHECKS:-[]}"
+
+TESTS_CMD=$(echo "$VALIDATION" | jq -r '.tests // empty' 2>/dev/null)
+
+# Strict policy for implementation tasks: tests + structural evidence required.
+if is_impl_issue_type "$ISSUE_TYPE"; then
+    if [ -z "$TESTS_CMD" ] || [ "$TESTS_CMD" = "null" ]; then
+        write_failure "validation_metadata" "metadata.validation.tests" 1 "missing tests for issue_type '$ISSUE_TYPE'"
+        echo "VALIDATION FAILED: metadata.validation.tests is required for issue_type '$ISSUE_TYPE'" >&2
+        exit 2
+    fi
+
+    FILE_COUNT=$(echo "$FILES_EXIST" | jq -r 'length' 2>/dev/null)
+    CHECK_COUNT=$(echo "$CONTENT_CHECKS" | jq -r 'length' 2>/dev/null)
+    FILE_COUNT="${FILE_COUNT:-0}"
+    CHECK_COUNT="${CHECK_COUNT:-0}"
+    if [ "$FILE_COUNT" -eq 0 ] && [ "$CHECK_COUNT" -eq 0 ]; then
+        write_failure "validation_metadata" "metadata.validation" 1 "missing structural checks for issue_type '$ISSUE_TYPE'"
+        echo "VALIDATION FAILED: metadata.validation for issue_type '$ISSUE_TYPE' must include files_exist or content_check" >&2
+        exit 2
+    fi
 fi
 
 # --- Validation checks ---
 
 # 1. files_exist: array of paths
-FILES_EXIST=$(echo "$VALIDATION" | jq -r '.files_exist // empty' 2>/dev/null)
 if [ -n "$FILES_EXIST" ] && [ "$FILES_EXIST" != "null" ]; then
     FILE_COUNT=$(echo "$FILES_EXIST" | jq -r 'length' 2>/dev/null)
     if [ -n "$FILE_COUNT" ] && [ "$FILE_COUNT" -gt 0 ] 2>/dev/null; then
@@ -193,7 +273,6 @@ if [ -n "$FILES_EXIST" ] && [ "$FILES_EXIST" != "null" ]; then
 fi
 
 # 2. content_check: array of {file, pattern}
-CONTENT_CHECKS=$(echo "$VALIDATION" | jq -r '.content_check // empty' 2>/dev/null)
 if [ -n "$CONTENT_CHECKS" ] && [ "$CONTENT_CHECKS" != "null" ]; then
     CHECK_COUNT=$(echo "$CONTENT_CHECKS" | jq -r 'length' 2>/dev/null)
     if [ -n "$CHECK_COUNT" ] && [ "$CHECK_COUNT" -gt 0 ] 2>/dev/null; then
@@ -275,7 +354,6 @@ if [ -n "$PAIRED_RULES" ] && [ "$PAIRED_RULES" != "null" ]; then
 fi
 
 # 4. tests: command string
-TESTS_CMD=$(echo "$VALIDATION" | jq -r '.tests // empty' 2>/dev/null)
 if [ -n "$TESTS_CMD" ] && [ "$TESTS_CMD" != "null" ]; then
     if ! run_restricted "$TESTS_CMD"; then
         write_failure "test" "$TESTS_CMD" "$?" "test command failed"

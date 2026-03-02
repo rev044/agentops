@@ -36,7 +36,8 @@ metadata:
 /rpi --from=implementation ag-23k                      # skip to crank with existing epic
 /rpi --from=validation                                 # run vibe + post-mortem only
 /rpi --loop --max-cycles=3 "add auth"                 # optional iterate-on-fail loop
-/rpi --test-first "add auth"                          # pass --test-first to /crank
+/rpi "add auth"                                       # strict-quality/test-first is ON by default
+/rpi --no-test-first "add auth"                       # explicit opt-out from test-first
 ```
 
 ## Architecture
@@ -104,7 +105,7 @@ rpi_state = {
   epic_id: null,
   phase: "<discovery|implementation|validation>",
   auto: <true unless --interactive>,
-  test_first: <true if --test-first>,
+  test_first: <true by default; false only when --no-test-first>,
   complexity: null,
   cycle: 1,
   parent_epic: null,
@@ -144,7 +145,7 @@ Gate behavior:
 Requires `rpi_state.epic_id`.
 
 ```text
-/crank <epic-id> [--test-first]
+/crank <epic-id> [--no-test-first]
 ```
 
 After implementation completes:
@@ -233,6 +234,25 @@ RPI mode: rpi-phased (complexity: standard)
 
 The complexity level is persisted in `.agents/rpi/phased-state.json` as the `complexity` field.
 
+### Legacy Gate Mapping (Compatibility)
+
+Phase naming in older tuning validation references is mapped as follows:
+
+#### Phase 3: Pre-mortem
+- complexity == "low": inline (`--quick`), no spawning
+- complexity == "medium": inline fast default (`--quick`)
+- complexity == "high": full council path (2-judge minimum), no `--quick`
+
+#### Phase 5: Final Vibe
+- complexity == "low": inline (`--quick`), no spawning
+- complexity == "medium": inline fast default (`--quick`)
+- complexity == "high": full council path (2-judge minimum), no `--quick`
+
+#### Phase 6: Post-mortem
+- complexity == "low": inline (`--quick`), no spawning
+- complexity == "medium": inline fast default (`--quick`)
+- complexity == "high": full council path (2-judge minimum), no `--quick`
+
 ### Override
 
 - `--fast-path`: force fast-path regardless of classification (useful for quick patches).
@@ -276,7 +296,8 @@ For detailed budget tables, worked examples, and rationale, read `references/pha
 | `--loop` | off | Enable post-mortem FAIL loop into next cycle |
 | `--max-cycles=<n>` | `1` | Max cycle count when `--loop` is enabled |
 | `--spawn-next` | off | Surface harvested follow-up work after post-mortem |
-| `--test-first` | off | Pass `--test-first` to `/crank` |
+| `--test-first` | on | Strict-quality default: pass `--test-first` to `/crank` |
+| `--no-test-first` | off | Explicit opt-out: do not pass `--test-first` to `/crank` |
 | `--fast-path` | auto | Force low-complexity gate mode (`--quick`) |
 | `--deep` | auto | Force high-complexity gate mode (full council) |
 | `--dry-run` | off | Report actions without mutating next-work queue |

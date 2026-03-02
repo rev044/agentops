@@ -205,8 +205,19 @@ func TestBuildPromptForPhase(t *testing.T) {
 	}
 }
 
+func TestBuildPromptForPhase_TestFirstOptOut(t *testing.T) {
+	state := &phasedState{EpicID: "ag-5k2", TestFirst: false}
+	prompt, err := buildPromptForPhase("", 2, state, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if containsStr(prompt, "--test-first") {
+		t.Errorf("implementation prompt should omit --test-first when opted out, got: %q", prompt)
+	}
+}
+
 func TestBuildPromptForPhase_Retry(t *testing.T) {
-	state := &phasedState{Goal: "add auth", EpicID: "ag-5k2"}
+	state := &phasedState{Goal: "add auth", EpicID: "ag-5k2", TestFirst: true}
 	retryCtx := &retryContext{
 		Attempt: 2,
 		Findings: []finding{
@@ -223,6 +234,9 @@ func TestBuildPromptForPhase_Retry(t *testing.T) {
 	if !containsStr(prompt, "/crank") {
 		t.Errorf("vibe retry should invoke /crank, got: %q", prompt)
 	}
+	if !containsStr(prompt, "--test-first") {
+		t.Errorf("vibe retry should preserve strict-quality default via --test-first, got: %q", prompt)
+	}
 	if !containsStr(prompt, "Missing error handling") {
 		t.Errorf("retry prompt should contain finding description, got: %q", prompt)
 	}
@@ -235,6 +249,32 @@ func TestBuildPromptForPhase_Retry(t *testing.T) {
 	}
 	if !containsStr(prompt, "/research") {
 		t.Errorf("phase 1 retry should fall back to normal prompt, got: %q", prompt)
+	}
+}
+
+func TestBuildRetryPrompt_TestFirstOptOut(t *testing.T) {
+	state := &phasedState{Goal: "add auth", EpicID: "ag-5k2", TestFirst: false}
+	retryCtx := &retryContext{
+		Attempt: 1,
+		Findings: []finding{
+			{Description: "Missing error handling", Fix: "Add try-catch", Ref: "auth.go:42"},
+		},
+		Verdict: "FAIL",
+	}
+
+	prompt, err := buildRetryPrompt("", 3, state, retryCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if containsStr(prompt, "--test-first") {
+		t.Errorf("retry prompt should omit --test-first when opted out, got: %q", prompt)
+	}
+}
+
+func TestDefaultPhasedEngineOptions_StrictQualityDefaultOn(t *testing.T) {
+	opts := defaultPhasedEngineOptions()
+	if !opts.TestFirst {
+		t.Fatal("default phased engine options should enable test-first strict-quality mode")
 	}
 }
 
@@ -1059,6 +1099,121 @@ func TestPromptBudgetEstimate(t *testing.T) {
 		if len(prompt) > 5000 {
 			t.Errorf("phase %d: prompt is %d chars (max 5000 without summaries)", phaseNum, len(prompt))
 		}
+	}
+}
+
+func TestParsePhaseBudgetSpec(t *testing.T) {
+	budgets, err := parsePhaseBudgetSpec("research:180,plan:120,validation:60")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := budgets[1]; got != 300*time.Second {
+		t.Fatalf("discovery budget = %s, want %s", got, 300*time.Second)
+	}
+	if got := budgets[3]; got != 60*time.Second {
+		t.Fatalf("validation budget = %s, want %s", got, 60*time.Second)
+	}
+}
+
+func TestParsePhaseBudgetSpec_Invalid(t *testing.T) {
+	_, err := parsePhaseBudgetSpec("unknown:30")
+	if err == nil {
+		t.Fatal("expected unknown phase parse error")
+	}
+
+	_, err = parsePhaseBudgetSpec("discovery:0")
+	if err == nil {
+		t.Fatal("expected non-positive seconds parse error")
+	}
+}
+
+func TestResolvePhaseBudget_DefaultsAndOverrides(t *testing.T) {
+	state := newTestPhasedState().WithGoal("add auth")
+	state.Complexity = ComplexityStandard
+
+	discoveryBudget, hasBudget, err := resolvePhaseBudget(state, 1)
+	if err != nil {
+		t.Fatalf("resolve discovery budget: %v", err)
+	}
+	if !hasBudget {
+		t.Fatal("expected default discovery budget to be enabled")
+	}
+	if discoveryBudget != 13*time.Minute {
+		t.Fatalf("discovery budget = %s, want %s", discoveryBudget, 13*time.Minute)
+	}
+
+	implementationBudget, hasBudget, err := resolvePhaseBudget(state, 2)
+	if err != nil {
+		t.Fatalf("resolve implementation budget: %v", err)
+	}
+	if hasBudget {
+		t.Fatalf("implementation should be unbounded, got budget %s", implementationBudget)
+	}
+
+	validationBudget, hasBudget, err := resolvePhaseBudget(state, 3)
+	if err != nil {
+		t.Fatalf("resolve validation budget: %v", err)
+	}
+	if !hasBudget || validationBudget != 5*time.Minute {
+		t.Fatalf("validation budget = %s (enabled=%v), want %s enabled", validationBudget, hasBudget, 5*time.Minute)
+	}
+
+	state.Opts.NoBudget = true
+	_, hasBudget, err = resolvePhaseBudget(state, 1)
+	if err != nil {
+		t.Fatalf("resolve no-budget override: %v", err)
+	}
+	if hasBudget {
+		t.Fatal("--no-budget should disable all phase budgets")
+	}
+
+	state.Opts.NoBudget = false
+	state.Opts.BudgetSpec = "discovery:42"
+	overrideBudget, hasBudget, err := resolvePhaseBudget(state, 1)
+	if err != nil {
+		t.Fatalf("resolve custom budget override: %v", err)
+	}
+	if !hasBudget || overrideBudget != 42*time.Second {
+		t.Fatalf("override budget = %s (enabled=%v), want %s enabled", overrideBudget, hasBudget, 42*time.Second)
+	}
+}
+
+func TestRunSinglePhaseBudgetTimeout_WritesTimeBoxedMarker(t *testing.T) {
+	tmpDir := t.TempDir()
+	stateDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(stateDir, "phased-orchestration.log")
+
+	state := newTestPhasedState().WithRunID("budget-timeout-run")
+	p := phase{Num: 1, Name: "discovery"}
+	budget := 30 * time.Second
+
+	if !handleBudgetTimeout(tmpDir, state, p, budget, logPath) {
+		t.Fatal("expected timeout handler to continue after writing time-box marker")
+	}
+
+	summaryPath := filepath.Join(stateDir, "phase-1-summary.md")
+	summaryData, err := os.ReadFile(summaryPath)
+	if err != nil {
+		t.Fatalf("read phase summary marker: %v", err)
+	}
+	summary := string(summaryData)
+	if !containsStr(summary, "[TIME-BOXED]") {
+		t.Fatalf("summary missing [TIME-BOXED] marker: %q", summary)
+	}
+	if !containsStr(summary, "budget: 30s") {
+		t.Fatalf("summary missing budget metadata: %q", summary)
+	}
+
+	logData, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read orchestration log: %v", err)
+	}
+	logLine := string(logData)
+	if !containsStr(logLine, "[TIME-BOXED]") || !containsStr(logLine, "time-boxed") {
+		t.Fatalf("log missing time-box transition marker: %q", logLine)
 	}
 }
 

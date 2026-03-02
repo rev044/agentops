@@ -375,17 +375,31 @@ else
     fail "T32: Expected 3+ retry gates with 'max 3 total attempts', found $retry_count"
 fi
 
+# T33: RPI --test-first default is on (strict-quality default)
+if grep -q '| `--test-first` | on |' "$REPO_ROOT/skills/rpi/SKILL.md"; then
+    pass "T33: RPI --test-first default is on (strict-quality default)"
+else
+    fail "T33: RPI SKILL.md should document --test-first default as on"
+fi
+
+# T34: RPI exposes explicit opt-out via --no-test-first
+if grep -q '| `--no-test-first` | off |' "$REPO_ROOT/skills/rpi/SKILL.md"; then
+    pass "T34: RPI exposes explicit opt-out via --no-test-first"
+else
+    fail "T34: RPI SKILL.md should document --no-test-first opt-out flag"
+fi
+
 # ============================================================
 # Section 9: Codex model default
 # ============================================================
 echo ""
 echo "--- Section 9: Codex Model ---"
 
-# T33: Codex model is gpt-5.3-codex
+# T35: Codex model is gpt-5.3-codex
 if grep -q 'gpt-5.3-codex' "$REPO_ROOT/skills/council/SKILL.md"; then
-    pass "T33: Council Codex model default is gpt-5.3-codex"
+    pass "T35: Council Codex model default is gpt-5.3-codex"
 else
-    fail "T33: Council SKILL.md should reference gpt-5.3-codex as Codex model"
+    fail "T35: Council SKILL.md should reference gpt-5.3-codex as Codex model"
 fi
 
 # ============================================================
@@ -394,18 +408,18 @@ fi
 echo ""
 echo "--- Section 10: Output Paths ---"
 
-# T34: Council outputs to .agents/council/
+# T36: Council outputs to .agents/council/
 if grep -q '\.agents/council/' "$REPO_ROOT/skills/council/SKILL.md"; then
-    pass "T34: Council outputs to .agents/council/"
+    pass "T36: Council outputs to .agents/council/"
 else
-    fail "T34: Council SKILL.md should output to .agents/council/"
+    fail "T36: Council SKILL.md should output to .agents/council/"
 fi
 
-# T35: Vibe outputs to .agents/council/ (same dir)
+# T37: Vibe outputs to .agents/council/ (same dir)
 if grep -q '\.agents/council/' "$REPO_ROOT/skills/vibe/SKILL.md"; then
-    pass "T35: Vibe outputs to .agents/council/"
+    pass "T37: Vibe outputs to .agents/council/"
 else
-    fail "T35: Vibe SKILL.md should output to .agents/council/"
+    fail "T37: Vibe SKILL.md should output to .agents/council/"
 fi
 
 echo ""

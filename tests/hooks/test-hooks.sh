@@ -175,57 +175,114 @@ REPO_REGEX_FILE="$REPO_FIXTURE_DIR/test-regex.txt"
 echo "function authenticate() {}" > "$REPO_CONTENT_FILE"
 echo 'hello.*world' > "$REPO_REGEX_FILE"
 
-# Test 20: No validation metadata => pass
-echo '{"metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
-if [ $? -eq 0 ]; then pass "no validation metadata passes"; else fail "no validation metadata passes"; fi
+# Test 20: feature issue_type with missing metadata.validation blocks (fail-closed)
+EC=0
+OUTPUT=$(echo '{"issue_type":"feature","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "VALIDATION FAILED"; then
+    pass "feature missing metadata.validation blocks"
+else
+    fail "feature missing metadata.validation blocks (exit=$EC, expected 2)"
+fi
 
-# Test 21: Global kill switch
+# Test 21: bug issue_type with missing metadata.validation blocks (fail-closed)
+EC=0
+OUTPUT=$(echo '{"issue_type":"bug","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "VALIDATION FAILED"; then
+    pass "bug missing metadata.validation blocks"
+else
+    fail "bug missing metadata.validation blocks (exit=$EC, expected 2)"
+fi
+
+# Test 22: task issue_type with missing metadata.validation blocks (fail-closed)
+EC=0
+OUTPUT=$(echo '{"issue_type":"task","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "VALIDATION FAILED"; then
+    pass "task missing metadata.validation blocks"
+else
+    fail "task missing metadata.validation blocks (exit=$EC, expected 2)"
+fi
+
+# Test 23: docs issue_type explicit exemption allows missing metadata.validation
+echo '{"issue_type":"docs","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
+if [ $? -eq 0 ]; then pass "docs missing metadata.validation is exempt"; else fail "docs missing metadata.validation is exempt"; fi
+
+# Test 24: chore issue_type explicit exemption allows missing metadata.validation
+echo '{"issue_type":"chore","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
+if [ $? -eq 0 ]; then pass "chore missing metadata.validation is exempt"; else fail "chore missing metadata.validation is exempt"; fi
+
+# Test 25: ci issue_type explicit exemption allows missing metadata.validation
+echo '{"issue_type":"ci","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
+if [ $? -eq 0 ]; then pass "ci missing metadata.validation is exempt"; else fail "ci missing metadata.validation is exempt"; fi
+
+# Test 26: untyped task remains fail-open for missing metadata.validation
+echo '{"metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
+if [ $? -eq 0 ]; then pass "untyped task missing metadata.validation passes"; else fail "untyped task missing metadata.validation passes"; fi
+
+# Test 27: feature requires metadata.validation.tests
+EC=0
+OUTPUT=$(echo '{"issue_type":"feature","metadata":{"validation":{"files_exist":["hooks/prompt-nudge.sh"]}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "metadata.validation.tests"; then
+    pass "feature missing tests in metadata.validation blocks"
+else
+    fail "feature missing tests in metadata.validation blocks (exit=$EC, expected 2)"
+fi
+
+# Test 28: feature requires structural checks (files_exist/content_check)
+EC=0
+OUTPUT=$(echo '{"issue_type":"feature","metadata":{"validation":{"tests":"go version"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "files_exist or content_check"; then
+    pass "feature missing structural checks blocks"
+else
+    fail "feature missing structural checks blocks (exit=$EC, expected 2)"
+fi
+
+# Test 29: Global kill switch
 echo '{"metadata":{"validation":{"files_exist":["/nonexistent"]}}}' | AGENTOPS_HOOKS_DISABLED=1 bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
 if [ $? -eq 0 ]; then pass "global kill switch passes validation"; else fail "global kill switch passes validation"; fi
 
-# Test 22: Hook-specific kill switch
+# Test 30: Hook-specific kill switch
 echo '{"metadata":{"validation":{"files_exist":["/nonexistent"]}}}' | AGENTOPS_TASK_VALIDATION_DISABLED=1 bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
 if [ $? -eq 0 ]; then pass "task-validation kill switch passes validation"; else fail "task-validation kill switch passes validation"; fi
 
-# Test 23: files_exist - existing repo file (relative path)
+# Test 31: files_exist - existing repo file (relative path)
 INPUT=$(jq -n '{"metadata":{"validation":{"files_exist":["hooks/prompt-nudge.sh"]}}}')
 echo "$INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
 if [ $? -eq 0 ]; then pass "files_exist with existing repo file passes"; else fail "files_exist with existing repo file passes"; fi
 
-# Test 24: files_exist - missing file blocks
+# Test 32: files_exist - missing file blocks
 EC=0
 echo '{"metadata":{"validation":{"files_exist":["hooks/nonexistent-file-12345.sh"]}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 2 ]; then pass "files_exist with missing file blocks (exit 2)"; else fail "files_exist with missing file blocks (exit=$EC, expected 2)"; fi
 
-# Test 25: files_exist blocks path traversal outside repo root
+# Test 33: files_exist blocks path traversal outside repo root
 EC=0
 echo '{"metadata":{"validation":{"files_exist":["../README.md"]}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 2 ]; then pass "files_exist blocks path traversal outside repo"; else fail "files_exist blocks path traversal outside repo (exit=$EC, expected 2)"; fi
 
-# Test 26: content_check - pattern found within repo root
+# Test 34: content_check - pattern found within repo root
 INPUT=$(jq -n --arg f "$REPO_CONTENT_FILE" '{"metadata":{"validation":{"content_check":[{"file":$f,"pattern":"function authenticate"}]}}}')
 echo "$INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
 if [ $? -eq 0 ]; then pass "content_check with matching pattern passes"; else fail "content_check with matching pattern passes"; fi
 
-# Test 27: content_check - pattern not found
+# Test 35: content_check - pattern not found
 INPUT=$(jq -n --arg f "$REPO_CONTENT_FILE" '{"metadata":{"validation":{"content_check":[{"file":$f,"pattern":"class UserService"}]}}}')
 EC=0
 echo "$INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 2 ]; then pass "content_check with missing pattern blocks (exit 2)"; else fail "content_check with missing pattern blocks (exit=$EC, expected 2)"; fi
 
-# Test 28: content_check - regex injection safe (grep -qF literal match)
+# Test 36: content_check - regex injection safe (grep -qF literal match)
 INPUT=$(jq -n --arg f "$REPO_REGEX_FILE" '{"metadata":{"validation":{"content_check":[{"file":$f,"pattern":"hello.*world"}]}}}')
 echo "$INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1
 if [ $? -eq 0 ]; then pass "content_check treats regex chars as literals"; else fail "content_check treats regex chars as literals"; fi
 
-# Test 29: content_check blocks files outside repo root
+# Test 37: content_check blocks files outside repo root
 echo "outside" > "$TMPDIR/outside.txt"
 INPUT=$(jq -n --arg f "$TMPDIR/outside.txt" '{"metadata":{"validation":{"content_check":[{"file":$f,"pattern":"outside"}]}}}')
 EC=0
 echo "$INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 2 ]; then pass "content_check blocks paths outside repo"; else fail "content_check blocks paths outside repo (exit=$EC, expected 2)"; fi
 
-# Test 30: paired_files passes when command + companion test changed
+# Test 38: paired_files passes when command + companion test changed
 MOCK_PAIRED_PASS="$TMPDIR/mock-paired-pass"
 setup_mock_repo "$MOCK_PAIRED_PASS"
 mkdir -p "$MOCK_PAIRED_PASS/cli/cmd/ao"
@@ -237,7 +294,7 @@ EC=0
 (cd "$MOCK_PAIRED_PASS" && echo "$PAIRED_INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1) || EC=$?
 if [ "$EC" -eq 0 ]; then pass "paired_files passes with matched companion change"; else fail "paired_files passes with matched companion change (exit=$EC, expected 0)"; fi
 
-# Test 31: paired_files blocks when companion missing from changed set
+# Test 39: paired_files blocks when companion missing from changed set
 MOCK_PAIRED_FAIL="$TMPDIR/mock-paired-fail"
 setup_mock_repo "$MOCK_PAIRED_FAIL"
 mkdir -p "$MOCK_PAIRED_FAIL/cli/cmd/ao"
@@ -247,12 +304,12 @@ EC=0
 (cd "$MOCK_PAIRED_FAIL" && echo "$PAIRED_INPUT" | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1) || EC=$?
 if [ "$EC" -eq 2 ]; then pass "paired_files blocks missing companion"; else fail "paired_files blocks missing companion (exit=$EC, expected 2)"; fi
 
-# Test 30: Allowlist blocks disallowed commands
+# Test 40: Allowlist blocks disallowed commands
 EC=0
 echo '{"metadata":{"validation":{"tests":"curl http://evil.com"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1 || EC=$?
 if [ "$EC" -eq 2 ]; then pass "allowlist blocks curl command"; else fail "allowlist blocks curl command (exit=$EC, expected 2)"; fi
 
-# Test 31: Allowlist allows go command
+# Test 41: Allowlist allows go command
 MOCK_ALLOW="$TMPDIR/mock-allowlist"
 setup_mock_repo "$MOCK_ALLOW"
 EC=0
@@ -977,6 +1034,13 @@ fi
 echo ""
 echo "=== ao-agents-check.sh removed from hook chain ==="
 # ============================================================
+
+# Test: task-validation-gate wired into TaskCompleted hook chain
+if jq -e '.hooks.TaskCompleted[]?.hooks[]?.command | select(test("task-validation-gate\\.sh$"))' "$REPO_ROOT/hooks/hooks.json" >/dev/null 2>&1; then
+    pass "task-validation-gate.sh wired in hooks.json TaskCompleted"
+else
+    fail "task-validation-gate.sh wired in hooks.json TaskCompleted"
+fi
 
 # Test: ao-agents-check.sh no longer registered in hooks.json
 if ! grep -q "ao-agents-check" "$REPO_ROOT/hooks/hooks.json" 2>/dev/null; then

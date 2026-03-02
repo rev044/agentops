@@ -376,7 +376,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COUNCIL_TIMEOUT` | 120 | Agent timeout in seconds |
-| `COUNCIL_CODEX_MODEL` | (user's default) | Override Codex model for --mixed. Omit `-m` flag to use the user's configured default. |
+| `COUNCIL_CODEX_MODEL` | gpt-5.3-codex | Override Codex model for --mixed. Set explicitly to pin Codex judge behavior; omit to use user's configured default. |
 | `COUNCIL_CLAUDE_MODEL` | sonnet | Claude model for judges (sonnet default — use opus for high-stakes via `--profile=thorough`) |
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |

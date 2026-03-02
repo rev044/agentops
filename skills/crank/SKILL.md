@@ -189,7 +189,7 @@ Track in memory: `wave=0`
 if [[ "$TEST_FIRST" == "true" ]]; then
     # Classify issues by type
     # spec-eligible: feature, bug, task → SPEC + TEST waves apply
-    # skip: chore, epic, docs → standard implementation waves only
+    # skip: docs, chore, ci, epic → standard implementation waves only
     SPEC_ELIGIBLE=()
     SPEC_SKIP=()
 
@@ -198,7 +198,7 @@ if [[ "$TEST_FIRST" == "true" ]]; then
             ISSUE_TYPE=$(bd show "$issue" 2>/dev/null | grep "Type:" | head -1 | awk '{print tolower($NF)}')
             case "$ISSUE_TYPE" in
                 feature|bug|task) SPEC_ELIGIBLE+=("$issue") ;;
-                chore|epic|docs) SPEC_SKIP+=("$issue") ;;
+                docs|chore|ci|epic) SPEC_SKIP+=("$issue") ;;
                 *)
                     echo "WARNING: Issue $issue has unknown type '$ISSUE_TYPE'. Defaulting to spec-eligible."
                     SPEC_ELIGIBLE+=("$issue")
@@ -210,7 +210,7 @@ if [[ "$TEST_FIRST" == "true" ]]; then
         SPEC_ELIGIBLE=($READY_ISSUES)
         echo "TaskList mode: all ${#SPEC_ELIGIBLE[@]} issues defaulted to spec-eligible (no bd type info)"
     fi
-    echo "Test-first mode: ${#SPEC_ELIGIBLE[@]} spec-eligible, ${#SPEC_SKIP[@]} skipped (chore/epic/docs)"
+    echo "Test-first mode: ${#SPEC_ELIGIBLE[@]} spec-eligible, ${#SPEC_SKIP[@]} skipped (docs/chore/ci/epic)"
 fi
 ```
 
@@ -334,6 +334,8 @@ This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.
 - Docs/chore/ci issues (skipped by SPEC/TEST waves) use standard worker prompts unchanged
 
 **File manifests (REQUIRED):** Include a `metadata.files` array in every TaskCreate listing the files that worker will modify. This feeds into swarm's pre-spawn conflict detection -- two workers claiming the same file in the same wave get serialized or worktree-isolated automatically. Derive file lists from the issue description, plan, or codebase exploration during planning.
+
+**Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks.
 
 ```
 TaskCreate(

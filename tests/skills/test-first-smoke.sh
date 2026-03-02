@@ -282,14 +282,21 @@ EVOLVE="skills/evolve/SKILL.md"
 if [[ ! -f "$RPI" ]]; then
     fail "File missing: $RPI"
 else
-    # 6a: --test-first in rpi flag table
-    if grep -qE '^\|.*--test-first.*\|' "$RPI"; then
-        pass "/rpi documents --test-first in flag table"
+    # 6a: --test-first in rpi flag table with default on
+    if grep -qE '^\|.*--test-first.*\|.*on.*\|' "$RPI"; then
+        pass "/rpi documents --test-first in flag table with default on"
     else
-        fail "/rpi missing --test-first in flag table"
+        fail "/rpi missing --test-first default-on entry in flag table"
     fi
 
-    # 6b: --test-first in rpi_state
+    # 6b: --no-test-first explicit opt-out path in rpi flag table
+    if grep -qE '^\|.*--no-test-first.*\|' "$RPI"; then
+        pass "/rpi documents --no-test-first explicit opt-out in flag table"
+    else
+        fail "/rpi missing --no-test-first opt-out entry in flag table"
+    fi
+
+    # 6c: --test-first in rpi_state
     if grep -q 'test_first' "$RPI"; then
         pass "/rpi tracks test_first in state"
     else
@@ -300,14 +307,14 @@ fi
 if [[ ! -f "$EVOLVE" ]]; then
     fail "File missing: $EVOLVE"
 else
-    # 6c: --test-first in evolve flag table
+    # 6d: --test-first in evolve flag table
     if grep -qE '^\|.*--test-first.*\|' "$EVOLVE"; then
         pass "/evolve documents --test-first in flag table"
     else
         fail "/evolve missing --test-first in flag table"
     fi
 
-    # 6d: --test-first in evolve_state
+    # 6e: --test-first in evolve_state
     if grep -q 'test_first' "$EVOLVE"; then
         pass "/evolve tracks test_first in state"
     else

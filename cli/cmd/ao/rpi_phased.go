@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,6 +15,7 @@ import (
 var (
 	phasedFrom         string
 	phasedTestFirst    bool
+	phasedNoTestFirst  bool
 	phasedFastPath     bool
 	phasedInteractive  bool
 	phasedMaxRetries   int
@@ -29,6 +32,8 @@ var (
 	phasedRuntimeMode          string
 	phasedRuntimeCommand       string
 	phasedTmuxWorkers          int
+	phasedNoBudget             bool
+	phasedBudgetSpec           string
 )
 
 // phaseFailureReason classifies why a phase spawn failed.
@@ -71,10 +76,13 @@ Examples:
 	}
 
 	phasedCmd.Flags().StringVar(&phasedFrom, "from", "discovery", "Start from phase (discovery, implementation, validation; aliases: research, plan, pre-mortem, crank, vibe, post-mortem)")
-	phasedCmd.Flags().BoolVar(&phasedTestFirst, "test-first", false, "Pass --test-first to /crank for spec-first TDD")
+	phasedCmd.Flags().BoolVar(&phasedTestFirst, "test-first", true, "Default to strict-quality spec-first execution by passing --test-first to /crank")
+	phasedCmd.Flags().BoolVar(&phasedNoTestFirst, "no-test-first", false, "Opt out of strict-quality spec-first execution (do not pass --test-first to /crank)")
 	phasedCmd.Flags().BoolVar(&phasedFastPath, "fast-path", false, "Force fast path (--quick for gates)")
 	phasedCmd.Flags().BoolVar(&phasedInteractive, "interactive", false, "Enable human gates at research and plan phases")
 	phasedCmd.Flags().IntVar(&phasedMaxRetries, "max-retries", 3, "Maximum retry attempts per gate (default: 3)")
+	phasedCmd.Flags().BoolVar(&phasedNoBudget, "no-budget", false, "Disable all phase budgets and run without time-box transitions")
+	phasedCmd.Flags().StringVar(&phasedBudgetSpec, "budget", "", "Override phase budgets in seconds (<phase>:<seconds>, comma-separated), e.g. discovery:300,validation:120")
 	phasedCmd.Flags().DurationVar(&phasedPhaseTimeout, "phase-timeout", 90*time.Minute, "Maximum wall-clock runtime per phase (0 disables timeout)")
 	phasedCmd.Flags().DurationVar(&phasedStallTimeout, "stall-timeout", 10*time.Minute, "Maximum time without progress before declaring stall (0 disables)")
 	phasedCmd.Flags().DurationVar(&phasedStreamStartupTimeout, "stream-startup-timeout", 45*time.Second, "Maximum time to wait for first stream event before falling back to direct execution (0 disables)")
@@ -137,6 +145,11 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		RuntimeMode:          phasedRuntimeMode,
 		RuntimeCommand:       phasedRuntimeCommand,
 		TmuxWorkers:          phasedTmuxWorkers,
+		NoBudget:             phasedNoBudget,
+		BudgetSpec:           phasedBudgetSpec,
+	}
+	if phasedNoTestFirst {
+		opts.TestFirst = false
 	}
 
 	// Apply config-based worktree mode if the --no-worktree flag was not explicitly set.
@@ -205,6 +218,12 @@ func saveTerminalState(spawnCwd string, state *phasedState, status, reason strin
 // preflightOpts normalizes, validates, and checks runtime availability for opts.
 func preflightOpts(opts *phasedEngineOptions) error {
 	normalizeOptsCommands(opts)
+	if opts.NoBudget && strings.TrimSpace(opts.BudgetSpec) != "" {
+		return fmt.Errorf("cannot combine --no-budget with --budget")
+	}
+	if _, err := parsePhaseBudgetSpec(opts.BudgetSpec); err != nil {
+		return err
+	}
 	if err := validateRuntimeMode(opts.RuntimeMode); err != nil {
 		return err
 	}
@@ -214,6 +233,19 @@ func preflightOpts(opts *phasedEngineOptions) error {
 		}
 	}
 	return preflightRuntimeAvailability(opts.RuntimeCommand)
+}
+
+func minPositiveDuration(a, b time.Duration) time.Duration {
+	if a <= 0 {
+		return b
+	}
+	if b <= 0 {
+		return a
+	}
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // initExecutorAndPersist selects the executor backend for the run and persists
@@ -287,9 +319,9 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 
 	logPhaseTransition(logPath, state.RunID, "start", fmt.Sprintf("goal=%q from=%s complexity=%s fast_path=%v", state.Goal, opts.From, state.Complexity, state.FastPath))
 
-	executor := initExecutorAndPersist(spawnCwd, logPath, statusPath, allPhases, state, opts)
+	_ = initExecutorAndPersist(spawnCwd, logPath, statusPath, allPhases, state, opts)
 
-	if err := runPhaseLoop(cwd, spawnCwd, state, startPhase, opts, statusPath, allPhases, logPath, executor); err != nil {
+	if err := runPhaseLoopWithBudgets(cwd, spawnCwd, state, startPhase, opts, statusPath, allPhases, logPath); err != nil {
 		saveTerminalState(spawnCwd, state, "failed", err.Error())
 		return err
 	}
@@ -301,6 +333,70 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 
 	writeFinalPhasedReport(state, logPath)
 
+	return nil
+}
+
+func appendTimeBoxedMarker(spawnCwd string, p phase, budget time.Duration) error {
+	stateDir := filepath.Join(spawnCwd, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		return fmt.Errorf("create rpi state directory: %w", err)
+	}
+
+	summaryPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-summary.md", p.Num))
+	f, err := os.OpenFile(summaryPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("open phase summary for marker: %w", err)
+	}
+	defer f.Close()
+
+	marker := fmt.Sprintf("[TIME-BOXED] Phase %s time-boxed at %ds (budget: %ds)\n", p.Name, int(budget.Seconds()), int(budget.Seconds()))
+	if _, err := f.WriteString(marker); err != nil {
+		return fmt.Errorf("write time-box marker: %w", err)
+	}
+	return nil
+}
+
+func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget time.Duration, logPath string) bool {
+	if budget <= 0 {
+		return false
+	}
+	if err := appendTimeBoxedMarker(spawnCwd, p, budget); err != nil {
+		VerbosePrintf("Warning: could not append [TIME-BOXED] marker: %v\n", err)
+	}
+
+	msg := fmt.Sprintf("[TIME-BOXED] Phase %s time-boxed at %ds (budget: %ds)", p.Name, int(budget.Seconds()), int(budget.Seconds()))
+	fmt.Println(msg)
+	logPhaseTransition(logPath, state.RunID, p.Name, msg)
+	return true
+}
+
+func runPhaseLoopWithBudgets(cwd, spawnCwd string, state *phasedState, startPhase int, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath string) error {
+	for i := startPhase; i <= len(phases); i++ {
+		p := phases[i-1]
+		if p.Num == 3 && state.FastPath && state.Complexity == ComplexityFast {
+			fmt.Printf("\n--- Phase 3: validation (skipped — complexity: fast) ---\n")
+			logPhaseTransition(logPath, state.RunID, "validation", "skipped — complexity: fast")
+			continue
+		}
+
+		phaseOpts := opts
+		budget, hasBudget, err := resolvePhaseBudget(state, p.Num)
+		if err != nil {
+			return fmt.Errorf("resolve budget for phase %d (%s): %w", p.Num, p.Name, err)
+		}
+		if hasBudget {
+			phaseOpts.PhaseTimeout = minPositiveDuration(phaseOpts.PhaseTimeout, budget)
+			logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("budget guard active (phase-timeout=%s, budget=%s)", phaseOpts.PhaseTimeout, budget))
+		}
+
+		phaseExecutor := selectExecutorWithLog(statusPath, allPhases, logPath, state.RunID, phaseOpts.LiveStatus, phaseOpts)
+		if err := runSinglePhase(cwd, spawnCwd, state, startPhase, p, phaseOpts, statusPath, allPhases, logPath, phaseExecutor); err != nil {
+			if hasBudget && isPhaseTimeoutError(err) && handleBudgetTimeout(spawnCwd, state, p, budget, logPath) {
+				continue
+			}
+			return logAndFailPhase(state, p.Name, logPath, spawnCwd, err)
+		}
+	}
 	return nil
 }
 

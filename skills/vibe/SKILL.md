@@ -59,7 +59,7 @@ Do NOT spawn agents for empty file lists.
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2.5 and 2a–2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2a through 2e plus 2.5/2f/2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
 **Why:** Steps 2.5 and 2a–2g add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
 
