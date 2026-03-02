@@ -32,9 +32,18 @@ type PhaseExecutor interface {
 type directExecutor struct {
 	runtimeCommand string
 	phaseTimeout   time.Duration
+	stdoutWriter   io.Writer // defaults to os.Stdout; set to io.Discard when dashboard active
 }
 
 func (d *directExecutor) Name() string { return "direct" }
+
+func (d *directExecutor) effectiveStdoutWriter() io.Writer {
+	if d.stdoutWriter != nil {
+		return d.stdoutWriter
+	}
+	return os.Stdout
+}
+
 func (d *directExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
 	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
 		RunID: runID, Phase: phaseNum, Backend: "direct", Source: "runtime_direct",
@@ -43,7 +52,7 @@ func (d *directExecutor) Execute(prompt, cwd, runID string, phaseNum int) error 
 	}); err != nil {
 		VerbosePrintf("Warning: could not append direct start event: %v\n", err)
 	}
-	execErr := spawnRuntimeDirectImpl(d.runtimeCommand, prompt, cwd, phaseNum, d.phaseTimeout)
+	execErr := spawnRuntimeDirectWithWriter(d.runtimeCommand, prompt, cwd, phaseNum, d.phaseTimeout, d.effectiveStdoutWriter())
 	evType, evMsg := "phase.direct.completed", fmt.Sprintf("phase %d direct session completed", phaseNum)
 	if execErr != nil {
 		evType, evMsg = "phase.direct.failed", execErr.Error()
@@ -65,11 +74,20 @@ type streamExecutor struct {
 	stallTimeout         time.Duration
 	streamStartupTimeout time.Duration
 	stallCheckInterval   time.Duration
+	stdoutWriter         io.Writer // defaults to os.Stdout; set to io.Discard when dashboard active
 }
 
 func (s *streamExecutor) Name() string { return "stream" }
+
+func (s *streamExecutor) effectiveStdoutWriter() io.Writer {
+	if s.stdoutWriter != nil {
+		return s.stdoutWriter
+	}
+	return os.Stdout
+}
+
 func (s *streamExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
-	err := spawnRuntimePhaseWithStream(s.runtimeCommand, prompt, cwd, runID, phaseNum, s.statusPath, s.allPhases, s.phaseTimeout, s.stallTimeout, s.streamStartupTimeout, s.stallCheckInterval)
+	err := spawnRuntimePhaseWithStream(s.runtimeCommand, prompt, cwd, runID, phaseNum, s.statusPath, s.allPhases, s.phaseTimeout, s.stallTimeout, s.streamStartupTimeout, s.stallCheckInterval, s.effectiveStdoutWriter())
 	if err == nil {
 		return nil
 	}
@@ -84,7 +102,7 @@ func (s *streamExecutor) Execute(prompt, cwd, runID string, phaseNum int) error 
 	}); evErr != nil {
 		VerbosePrintf("Warning: could not append fallback start event: %v\n", evErr)
 	}
-	directErr := spawnRuntimeDirectImpl(s.runtimeCommand, prompt, cwd, phaseNum, s.phaseTimeout)
+	directErr := spawnRuntimeDirectWithWriter(s.runtimeCommand, prompt, cwd, phaseNum, s.phaseTimeout, s.effectiveStdoutWriter())
 	evType, evMsg := "phase.direct.completed", fmt.Sprintf("phase %d direct fallback completed", phaseNum)
 	if directErr != nil {
 		evType, evMsg = "phase.direct.failed", directErr.Error()
@@ -190,6 +208,11 @@ func probeBackendCapabilities(liveStatus bool, runtimeMode string) backendCapabi
 //  2. runtime=direct — always direct
 //  3. runtime=auto   — stream when live-status enabled, otherwise direct
 func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhases []PhaseProgress, opts phasedEngineOptions) (PhaseExecutor, string) {
+	stdWriter := opts.StdoutWriter
+	if stdWriter == nil {
+		stdWriter = os.Stdout
+	}
+
 	switch caps.RuntimeMode {
 	case "stream":
 		return &streamExecutor{
@@ -200,11 +223,13 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 			stallTimeout:         opts.StallTimeout,
 			streamStartupTimeout: opts.StreamStartupTimeout,
 			stallCheckInterval:   opts.StallCheckInterval,
+			stdoutWriter:         stdWriter,
 		}, "runtime=stream"
 	case "direct":
 		return &directExecutor{
 			runtimeCommand: opts.RuntimeCommand,
 			phaseTimeout:   opts.PhaseTimeout,
+			stdoutWriter:   stdWriter,
 		}, "runtime=direct"
 	case "tmux":
 		return &tmuxExecutor{
@@ -226,6 +251,7 @@ func selectExecutorFromCaps(caps backendCapabilities, statusPath string, allPhas
 			stallTimeout:         opts.StallTimeout,
 			streamStartupTimeout: opts.StreamStartupTimeout,
 			stallCheckInterval:   opts.StallCheckInterval,
+			stdoutWriter:         stdWriter,
 		}, "runtime=auto (stream)"
 	}
 }
@@ -268,9 +294,9 @@ func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
 	return spawnDirectFn(prompt, cwd, phaseNum)
 }
 
-// spawnRuntimeDirectImpl runs <runtimeCommand> -p directly.
+// spawnRuntimeDirectWithWriter runs <runtimeCommand> -p directly, routing stdout to stdoutWriter.
 // phaseTimeout controls the maximum runtime; pass 0 to disable the timeout.
-func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, phaseTimeout time.Duration) error {
+func spawnRuntimeDirectWithWriter(runtimeCommand, prompt, cwd string, phaseNum int, phaseTimeout time.Duration, stdoutWriter io.Writer) error {
 	command := effectiveRuntimeCommand(runtimeCommand)
 	executable, _ := splitRuntimeCommand(command)
 	if executable == "" {
@@ -287,7 +313,7 @@ func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, ph
 
 	cmd := exec.CommandContext(ctx, executable, args...)
 	cmd.Dir = cwd
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = stdoutWriter
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Env = cleanEnvNoClaude()
@@ -303,6 +329,11 @@ func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, ph
 		return fmt.Errorf("%s exited with code %d: %w", command, exitErr.ExitCode(), err)
 	}
 	return fmt.Errorf("%s execution failed: %w", command, err)
+}
+
+// spawnRuntimeDirectImpl is the backward-compatible wrapper using os.Stdout.
+func spawnRuntimeDirectImpl(runtimeCommand, prompt, cwd string, phaseNum int, phaseTimeout time.Duration) error {
+	return spawnRuntimeDirectWithWriter(runtimeCommand, prompt, cwd, phaseNum, phaseTimeout, os.Stdout)
 }
 
 // spawnClaudeDirectImpl is the legacy wrapper pinned to the default runtime.
@@ -324,7 +355,7 @@ type streamWatchdogState struct {
 	lastActivityUnix atomic.Int64
 }
 
-func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress, phaseTimeout, stallTimeout, streamStartupTimeout, checkInterval time.Duration) error {
+func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress, phaseTimeout, stallTimeout, streamStartupTimeout, checkInterval time.Duration, stdoutWriter io.Writer) error {
 	command := effectiveRuntimeCommand(runtimeCommand)
 	executable, _ := splitRuntimeCommand(command)
 	if executable == "" {
@@ -378,7 +409,7 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 			VerbosePrintf("Warning: could not append stream event: %v\n", err)
 		}
 	}
-	tee := io.TeeReader(stdout, os.Stdout)
+	tee := io.TeeReader(stdout, stdoutWriter)
 	_, parseErr := ParseStreamEventsWithHandler(tee, onEvent, onUpdate)
 	waitErr := cmd.Wait()
 
@@ -530,7 +561,7 @@ func classifyStreamResult(ctx, stallCtx context.Context, command string, phaseNu
 
 // spawnClaudePhaseWithStream is the legacy wrapper pinned to the default runtime.
 func spawnClaudePhaseWithStream(prompt, cwd, runID string, phaseNum int, statusPath string, allPhases []PhaseProgress, phaseTimeout, stallTimeout, streamStartupTimeout, checkInterval time.Duration) error {
-	return spawnRuntimePhaseWithStream("claude", prompt, cwd, runID, phaseNum, statusPath, allPhases, phaseTimeout, stallTimeout, streamStartupTimeout, checkInterval)
+	return spawnRuntimePhaseWithStream("claude", prompt, cwd, runID, phaseNum, statusPath, allPhases, phaseTimeout, stallTimeout, streamStartupTimeout, checkInterval, os.Stdout)
 }
 
 func updateLivePhaseStatus(statusPath string, allPhases []PhaseProgress, phaseNum int, action string, retries int, lastErr string) {

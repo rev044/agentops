@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +36,7 @@ var (
 	phasedTmuxWorkers          int
 	phasedNoBudget             bool
 	phasedBudgetSpec           string
+	phasedNoDashboard          bool
 )
 
 // phaseFailureReason classifies why a phase spawn failed.
@@ -94,6 +97,7 @@ Examples:
 	phasedCmd.Flags().StringVar(&phasedRuntimeMode, "runtime", "auto", "Phase runtime mode: auto|direct|stream|tmux")
 	phasedCmd.Flags().StringVar(&phasedRuntimeCommand, "runtime-cmd", "claude", "Runtime command used for phase prompts (Claude uses '-p'; Codex uses 'exec')")
 	phasedCmd.Flags().IntVar(&phasedTmuxWorkers, "tmux-workers", 1, "When --runtime tmux, number of worker sessions spawned per phase")
+	phasedCmd.Flags().BoolVar(&phasedNoDashboard, "no-dashboard", false, "Disable auto-opening the web dashboard")
 
 	rpiCmd.AddCommand(phasedCmd)
 }
@@ -147,6 +151,7 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		TmuxWorkers:          phasedTmuxWorkers,
 		NoBudget:             phasedNoBudget,
 		BudgetSpec:           phasedBudgetSpec,
+		NoDashboard:          phasedNoDashboard,
 	}
 	if phasedNoTestFirst {
 		opts.TestFirst = false
@@ -321,12 +326,42 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 
 	_ = initExecutorAndPersist(spawnCwd, logPath, statusPath, allPhases, state, opts)
 
+	// Emit run.started event so the dashboard can display the goal.
+	if _, evErr := appendRPIC2Event(spawnCwd, rpiC2EventInput{
+		RunID: state.RunID, Phase: 0, Backend: state.Backend, Source: "orchestrator",
+		Type: "run.started", Message: state.Goal,
+		Details: map[string]any{"goal": state.Goal, "complexity": string(state.Complexity), "backend": state.Backend},
+	}); evErr != nil {
+		VerbosePrintf("Warning: could not emit run.started event: %v\n", evErr)
+	}
+
+	// Start embedded dashboard server (unless --no-dashboard, --dry-run, or pipe).
+	var dashSrv *http.Server
+	if !opts.NoDashboard && !GetDryRun() && isTerminal() {
+		srv, dashURL := startEmbeddedDashboard(spawnCwd, state.RunID)
+		if srv != nil {
+			dashSrv = srv
+			defer shutdownDashboard(dashSrv)
+			fmt.Printf("Mission control: %s\n", dashURL)
+		}
+	}
+
+	// When dashboard is active, suppress raw Claude session output from executors.
+	// Orchestrator status lines (fmt.Printf) are unaffected — they go to os.Stdout directly.
+	if dashSrv != nil {
+		opts.StdoutWriter = io.Discard
+	}
+
+	runStart := time.Now()
+
 	if err := runPhaseLoopWithBudgets(cwd, spawnCwd, state, startPhase, opts, statusPath, allPhases, logPath); err != nil {
 		saveTerminalState(spawnCwd, state, "failed", err.Error())
+		emitRunCompleted(spawnCwd, state, runStart)
 		return err
 	}
 
 	saveTerminalState(spawnCwd, state, "completed", "all phases completed")
+	emitRunCompleted(spawnCwd, state, runStart)
 
 	// All phases completed — mark worktree for merge+cleanup.
 	cleanupSuccess = true
@@ -334,6 +369,18 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 	writeFinalPhasedReport(state, logPath)
 
 	return nil
+}
+
+// emitRunCompleted appends a run.completed C2 event with timing and verdict data.
+func emitRunCompleted(spawnCwd string, state *phasedState, runStart time.Time) {
+	elapsed := time.Since(runStart).Round(time.Second)
+	if _, err := appendRPIC2Event(spawnCwd, rpiC2EventInput{
+		RunID: state.RunID, Phase: 0, Backend: state.Backend, Source: "orchestrator",
+		Type: "run.completed", Message: fmt.Sprintf("completed in %s", elapsed),
+		Details: map[string]any{"verdicts": state.Verdicts, "status": state.TerminalStatus, "elapsed_seconds": elapsed.Seconds()},
+	}); err != nil {
+		VerbosePrintf("Warning: could not emit run.completed event: %v\n", err)
+	}
 }
 
 func appendTimeBoxedMarker(spawnCwd string, p phase, budget time.Duration) error {

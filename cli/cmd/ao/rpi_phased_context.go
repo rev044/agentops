@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -40,6 +41,8 @@ type phasedEngineOptions struct {
 	TmuxWorkers          int
 	NoBudget             bool
 	BudgetSpec           string
+	NoDashboard          bool
+	StdoutWriter         io.Writer `json:"-"` // runtime-only; suppresses raw Claude output when dashboard active
 }
 
 // defaultPhasedEngineOptions returns options matching the default cobra flag values.
@@ -435,12 +438,20 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 	var prompt strings.Builder
 	renderPreambleInstructions(&prompt, data)
 
-	// Cross-phase context for phases 2+ (goal, verdicts, prior summaries)
+	// Cross-phase context for phases 2+ — prefer structured handoffs, fall back to raw summaries
 	if phaseNum >= 2 {
-		ctx := buildPhaseContext(cwd, state, phaseNum)
-		if ctx != "" {
+		handoffs, _ := readAllHandoffs(cwd, phaseNum)
+		if len(handoffs) > 0 {
+			ctx := buildHandoffContext(handoffs)
 			prompt.WriteString(ctx)
 			prompt.WriteString("\n\n")
+		} else {
+			// Fallback: legacy summary-based context (for runs that predate structured handoffs)
+			ctx := buildPhaseContext(cwd, state, phaseNum)
+			if ctx != "" {
+				prompt.WriteString(ctx)
+				prompt.WriteString("\n\n")
+			}
 		}
 	}
 

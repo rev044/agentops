@@ -205,7 +205,9 @@ func initializeRunArtifacts(spawnCwd string, startPhase int, state *phasedState,
 
 	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
 	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
-	fmt.Println("Monitor in a second terminal: ao rpi status --watch")
+	if opts.NoDashboard || GetDryRun() {
+		fmt.Println("Monitor: ao rpi status --watch  or  ao rpi serve " + state.RunID)
+	}
 
 	if opts.LiveStatus {
 		allPhases = buildAllPhases(phases)

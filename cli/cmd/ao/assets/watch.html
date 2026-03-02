@@ -29,7 +29,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 .grid {
   display: grid;
-  grid-template-rows: 48px 1fr 32px;
+  grid-template-rows: 48px 2px 1fr 32px;
   height: 100vh;
 }
 
@@ -193,6 +193,32 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .badge-failed  { color: #ef4444; font-weight: 600; }
 .badge-pending { color: #6b7280; }
 
+/* Goal in header */
+.header-goal { color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px; }
+
+/* Progress bar */
+.progress-bar { height: 2px; background: var(--border); }
+.progress-fill { height: 100%; background: var(--blue); transition: width .6s ease; width: 0; }
+
+/* Active session panel */
+.session-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+.session-label { color: var(--dim); }
+.session-value { color: var(--bright); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+
+/* Completion banner */
+.completion-banner {
+  display: none;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(59,130,246,.1), rgba(56,211,100,.1));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin: 8px 16px;
+  text-align: center;
+}
+.completion-banner.show { display: block; }
+.completion-title { color: var(--green); font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.completion-detail { color: var(--dim); font-size: 12px; }
+
 /* Empty state */
 .empty-state {
   display: flex;
@@ -215,8 +241,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <span class="header-logo">◉ MISSION CONTROL</span>
   <span class="header-sep">·</span>
   <span class="header-run" id="headerRun">connecting...</span>
+  <span class="header-goal" id="headerGoal"></span>
   <span class="header-elapsed" id="headerElapsed">–</span>
 </header>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
 <!-- Main -->
 <div class="main">
@@ -258,6 +286,14 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div class="stat-row"><span class="stat-label">backend</span><span class="stat-value active" id="statBackend">–</span></div>
     </div>
 
+    <div class="panel-section" id="sessionSection">
+      <div class="panel-label">Active Session</div>
+      <div class="session-row"><span class="session-label">phase</span><span class="session-value" id="sessionPhase">–</span></div>
+      <div class="session-row"><span class="session-label">last tool</span><span class="session-value" id="sessionTool">–</span></div>
+      <div class="session-row"><span class="session-label">turns</span><span class="session-value" id="sessionTurns">0</span></div>
+      <div class="session-row"><span class="session-label">phase cost</span><span class="session-value cost" id="sessionCost">$0.0000</span></div>
+    </div>
+
     <div class="panel-section" id="workerSection" style="display:none">
       <div class="panel-label">Workers</div>
       <div id="workerList"></div>
@@ -278,6 +314,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <span class="events-label">Telemetry Feed</span>
       <button class="follow-btn active" id="followBtn" onclick="toggleFollow()">↓ follow</button>
       <span class="events-count" id="eventsCount">0 events</span>
+    </div>
+    <div class="completion-banner" id="completionBanner">
+      <div class="completion-title" id="completionTitle">Run Complete</div>
+      <div class="completion-detail" id="completionDetail"></div>
     </div>
     <div class="events-feed" id="eventsFeed">
       <div class="empty-state" id="emptyState">
@@ -306,7 +346,8 @@ let runId = new URLSearchParams(location.search).get('run') || '';
 let following = true;
 let eventCount = 0;
 let stats = { cost: 0, tools: 0, backend: '' };
-let phases = { 1:{status:'pending',start:null,end:null,tools:0}, 2:{status:'pending',start:null,end:null,tools:0}, 3:{status:'pending',start:null,end:null,tools:0} };
+let phases = { 1:{status:'pending',start:null,end:null,tools:0,cost:0}, 2:{status:'pending',start:null,end:null,tools:0,cost:0}, 3:{status:'pending',start:null,end:null,tools:0,cost:0} };
+let session = { phase: 0, lastTool: '', turns: 0, phaseCost: 0 };
 let workers = {};
 let startTime = Date.now();
 let evSource = null;
@@ -349,6 +390,27 @@ function handleEvent(ev) {
     document.getElementById('statBackend').style.color = ev.backend === 'stream' ? 'var(--green)' : 'var(--amber)';
   }
 
+  // Phase 0 events (run lifecycle)
+  if (type === 'run.started') {
+    document.getElementById('headerGoal').textContent = ev.message || '';
+    startTime = ev.timestamp ? new Date(ev.timestamp).getTime() : Date.now();
+    addEventRow(ev);
+    return;
+  }
+  if (type === 'run.completed') {
+    const d = ev.details || {};
+    setConn('ok', '● completed');
+    document.getElementById('statusDot').className = 'status-dot done';
+    const banner = document.getElementById('completionBanner');
+    banner.classList.add('show');
+    const status = d.status || 'completed';
+    document.getElementById('completionTitle').textContent = status === 'failed' ? 'Run Failed' : 'Run Complete';
+    document.getElementById('completionDetail').textContent = (ev.message || '') + (stats.cost > 0 ? ' · $' + stats.cost.toFixed(4) : '');
+    updateProgress();
+    addEventRow(ev);
+    return;
+  }
+
   // Phase state machine
   updatePhase(phase, type, ev.timestamp);
 
@@ -367,12 +429,29 @@ function handleEvent(ev) {
     document.getElementById('statTools').textContent = stats.tools;
     if (phases[phase]) phases[phase].tools++;
     refreshPhaseDisplay(phase);
+    // Session panel: last tool
+    if (ev.details && ev.details.tool_name) {
+      session.lastTool = ev.details.tool_name;
+      document.getElementById('sessionTool').textContent = session.lastTool;
+    }
+  }
+
+  // Turns (from stream.result events)
+  if (type === 'stream.result' && ev.details && ev.details.num_turns) {
+    session.turns = ev.details.num_turns;
+    document.getElementById('sessionTurns').textContent = session.turns;
   }
 
   // Cost (take highest seen — final result carries total)
   if (ev.details && typeof ev.details === 'object' && ev.details.cost_usd > stats.cost) {
     stats.cost = ev.details.cost_usd;
     document.getElementById('statCost').textContent = '$' + stats.cost.toFixed(4);
+    // Per-phase cost tracking
+    if (phases[phase]) {
+      phases[phase].cost = ev.details.cost_usd;
+      session.phaseCost = ev.details.cost_usd;
+      document.getElementById('sessionCost').textContent = '$' + session.phaseCost.toFixed(4);
+    }
   }
 
   // Status dot
@@ -395,6 +474,15 @@ function updatePhase(num, type, ts) {
     p.status = 'running';
     p.start = t;
     document.getElementById('sbPhase').textContent = (PHASE_NAMES[num] || num) + ' (running)';
+    // Reset session panel for new phase
+    session.phase = num;
+    session.lastTool = '';
+    session.turns = 0;
+    session.phaseCost = 0;
+    document.getElementById('sessionPhase').textContent = PHASE_NAMES[num] || ('Phase ' + num);
+    document.getElementById('sessionTool').textContent = '–';
+    document.getElementById('sessionTurns').textContent = '0';
+    document.getElementById('sessionCost').textContent = '$0.0000';
   } else if (type.endsWith('.completed') && p.status !== 'done') {
     p.status = 'done';
     p.end = t;
@@ -403,6 +491,7 @@ function updatePhase(num, type, ts) {
     p.end = t;
   }
   refreshPhaseDisplay(num);
+  updateProgress();
 }
 
 function refreshPhaseDisplay(num) {
@@ -533,6 +622,13 @@ function updateWorkerRow(workerID, beadID, evType, ts) {
       row.querySelector('.dur-col').textContent = s + 's';
     }
   }
+}
+
+function updateProgress() {
+  const completed = Object.values(phases).filter(p => p.status === 'done').length;
+  const total = Object.keys(phases).length;
+  const pct = Math.round((completed / total) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
 }
 
 init();

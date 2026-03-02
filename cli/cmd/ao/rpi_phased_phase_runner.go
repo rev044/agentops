@@ -107,7 +107,7 @@ func handleDryRunPhase(cwd string, state *phasedState, startPhase int, p phase, 
 // executePhaseSession spawns the phase executor and records the result.
 // On success it writes the phaseResult artifact and returns nil.
 func executePhaseSession(spawnCwd string, state *phasedState, p phase, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath, prompt string, executor PhaseExecutor) error {
-	fmt.Printf("Spawning: %s\n", formatRuntimePromptInvocation(effectiveRuntimeCommand(state.Opts.RuntimeCommand), prompt))
+	fmt.Printf("Phase %d: spawning %s session...\n", p.Num, effectiveRuntimeCommand(state.Opts.RuntimeCommand))
 	start := time.Now()
 	updateRunHeartbeat(spawnCwd, state.RunID)
 	retryKey := fmt.Sprintf("phase_%d", p.Num)
@@ -182,6 +182,25 @@ func runSinglePhase(cwd, spawnCwd string, state *phasedState, startPhase int, p 
 	}
 
 	writePhaseSummary(spawnCwd, state, p.Num)
+
+	// Write structured handoff for next phase
+	handoff := buildPhaseHandoffFromState(state, p.Num, spawnCwd)
+	if err := writePhaseHandoff(spawnCwd, handoff); err != nil {
+		VerbosePrintf("Warning: could not write phase handoff: %v\n", err)
+	} else {
+		// Emit C2 event for dashboard observability
+		appendRPIC2Event(spawnCwd, rpiC2EventInput{
+			RunID:   state.RunID,
+			Phase:   p.Num,
+			Backend: state.Backend,
+			Source:  "orchestrator",
+			Type:    "phase.handoff.written",
+			Message: fmt.Sprintf("Phase %d handoff: %d artifacts, %d decisions, %d risks",
+				p.Num, len(handoff.ArtifactsProduced), len(handoff.DecisionsMade), len(handoff.OpenRisks)),
+			Details: map[string]any{"handoff": handoff},
+		})
+	}
+
 	recordRatchetCheckpoint(p.Step, state.Opts.AOCommand)
 
 	if err := savePhasedState(spawnCwd, state); err != nil {

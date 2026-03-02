@@ -284,8 +284,13 @@ func spawnPhaseWorker(_ context.Context, phaseNum int, phaseName, _ string, root
 	return err
 }
 
-// runRPIOrchestration drives the full RPI lifecycle with per-phase and per-bead worker isolation.
-// It is the production orchestration engine invoked by ao rpi serve <goal>.
+// Deprecated: runRPIOrchestration is the legacy 6-phase orchestration model.
+// Use runPhasedEngine() (the consolidated 3-phase engine in rpi_phased.go) for new
+// callers. This function is retained for ao rpi serve because it accepts
+// context.Context for cancellation — a capability not yet available in
+// runPhasedEngine. Once context propagation is added to the phased engine,
+// this function and its supporting types (orchState, orchPhase, orchOpts,
+// beadWorkerStatus) can be removed.
 //
 // State machine: INIT -> DISCOVERY -> IMPL -> VALIDATION -> DONE/FAILED
 // Failure policy: each failure spawns a fresh worker (new workerID, fresh context).
