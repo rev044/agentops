@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -259,7 +260,11 @@ func mineGitLog(cwd string, window time.Duration) (*GitFindings, error) {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return &GitFindings{}, nil
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("git log: %s", strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("git log: %w", err)
 	}
 
 	findings := &GitFindings{}
@@ -534,11 +539,19 @@ func collectMineWorkItems(r *MineReport) []mineWorkItemEmit {
 }
 
 // loadExistingMineIDs scans a JSONL file for unconsumed athena-mine item IDs.
-func loadExistingMineIDs(path string) map[string]bool {
+// Returns an empty map with nil error when the file does not exist.
+// Propagates other errors (permission denied, corrupt read, etc.).
+func loadExistingMineIDs(path string) (map[string]bool, error) {
 	ids := make(map[string]bool)
-	existing, _ := os.ReadFile(path)
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ids, nil
+		}
+		return nil, err
+	}
 	if len(existing) == 0 {
-		return ids
+		return ids, nil
 	}
 	for _, line := range strings.Split(string(existing), "\n") {
 		line = strings.TrimSpace(line)
@@ -559,7 +572,7 @@ func loadExistingMineIDs(path string) map[string]bool {
 			}
 		}
 	}
-	return ids
+	return ids, nil
 }
 
 // writeMineWorkItems appends one JSONL line per work item to the given path.
@@ -612,7 +625,10 @@ func emitMineWorkItems(cwd string, r *MineReport) error {
 		return fmt.Errorf("ensure next-work dir: %w", err)
 	}
 
-	existingIDs := loadExistingMineIDs(nextWorkPath)
+	existingIDs, err := loadExistingMineIDs(nextWorkPath)
+	if err != nil {
+		return fmt.Errorf("load existing mine IDs: %w", err)
+	}
 	var newItems []mineWorkItemEmit
 	for _, item := range items {
 		if !existingIDs[item.ID] {
