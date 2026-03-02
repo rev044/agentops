@@ -1,6 +1,6 @@
 ---
 name: crank
-description: 'Hands-free epic execution. Runs until ALL children are CLOSED. Uses $swarm with runtime-native spawning (Codex sub-agents or Claude teams). NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "run all tasks", "hands-free execution", "crank it".'
+description: 'Hands-free epic execution. Runs until ALL children are CLOSED. Uses $swarm with runtime-native spawning (Codex sub-agents or Codex sub-agents). NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "run all tasks", "hands-free execution", "crank it".'
 ---
 
 
@@ -14,7 +14,7 @@ Autonomous execution: implement all issues until the epic is DONE.
 
 **CLI dependencies:** bd (issue tracking), ao (knowledge flywheel). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use TaskList for issue tracking and skip beads sync. If ao is unavailable, skip knowledge injection/extraction.
 
-For Codex runtime feature coverage (agents/hooks/worktree/settings), see `../shared/references/claude-code-latest-features.md`.
+For Codex runtime feature coverage (agents/hooks/worktree/settings), see `..$shared/references/claude-code-latest-features.md`.
 
 ## Architecture: Crank + Swarm
 
@@ -50,7 +50,7 @@ Crank (orchestrator, TaskList mode)    Swarm (executor)
 - **Crank** = Orchestration, epic/task lifecycle, knowledge flywheel
 - **Swarm** = Runtime-native parallel execution (Ralph Wiggum pattern via fresh worker set per wave)
 
-Ralph alignment source: `../shared/references/ralph-loop-contract.md` (fresh context, scheduler/worker split, disk-backed state, backpressure).
+Ralph alignment source: `..$shared/references/ralph-loop-contract.md` (fresh context, scheduler/worker split, disk-backed state, backpressure).
 
 ## Flags
 
@@ -93,14 +93,14 @@ Given `$crank [epic-id | plan-file.md | "description"]`:
 # If ao CLI available, pull relevant knowledge for this epic
 if command -v ao &>/dev/null; then
     # Pull knowledge scoped to the epic
-    ao lookup --query "<epic-title>" --limit 5 2>/dev/null || \
-      ao search "epic execution implementation patterns" 2>/dev/null | head -20
+    ao know lookup --query "<epic-title>" --limit 5 2>/dev/null || \
+      ao know search "epic execution implementation patterns" 2>/dev/null | head -20
 
     # Check flywheel status
-    ao metrics flywheel status 2>/dev/null
+    ao quality metrics flywheel status 2>/dev/null
 
     # Get current ratchet state
-    ao ratchet status 2>/dev/null
+    ao work ratchet status 2>/dev/null
 fi
 ```
 
@@ -310,7 +310,7 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao context assemble --task='<epic title>: wave $wave'
+    ao work context assemble --task='<epic title>: wave $wave'
 fi
 ```
 
@@ -341,6 +341,22 @@ TaskCreate(
 )
 ```
 
+**Display file-ownership table (from swarm Step 1.5):**
+
+Before spawning, verify the ownership map has zero unresolved conflicts:
+
+```
+File Ownership Map (Wave $wave):
+┌─────────────────────────────┬──────────┬──────────┐
+│ File                        │ Owner    │ Conflict │
+├─────────────────────────────┼──────────┼──────────┤
+│ (populated by swarm)        │          │          │
+└─────────────────────────────┴──────────┴──────────┘
+Conflicts: 0
+```
+
+**If conflicts > 0:** Do NOT invoke `$swarm`. Resolve by serializing conflicting tasks into sub-waves or merging task scope before proceeding.
+
 **BEFORE each wave:**
 ```bash
 wave=$((wave + 1))
@@ -355,6 +371,19 @@ if [[ $wave -ge 50 ]]; then
     echo "<promise>BLOCKED</promise>"
     echo "Global wave limit (50) reached."
     # STOP - do not continue
+fi
+```
+
+**Pre-Spawn: Spec Consistency Gate**
+
+Prevents workers from implementing inconsistent or incomplete specs. Hard failures (missing frontmatter, bad structure, scope conflicts) block spawn; WARN-level issues (terminology, implementability) do not.
+
+```bash
+if [ -d .agents/specs ] && ls .agents/specs/contract-*.md &>/dev/null 2>&1; then
+    bash scripts/spec-consistency-gate.sh .agents/specs/ || {
+        echo "⚠️ Spec consistency check failed — fix contract files before spawning workers"
+        exit 1
+    }
 fi
 ```
 
@@ -441,6 +470,28 @@ EOF
 - `acceptance_verdict`: verdict from the Wave Acceptance Check (Step 5.5). Used by final validation to skip redundant $vibe on clean epics.
 - On retry of the same wave, the file is overwritten (same path).
 
+### Step 5.8: Wave Status Report
+
+After each wave checkpoint, display a consolidated status table:
+
+```
+Wave $wave Status:
+┌────────┬──────────────────────────────┬───────────┬────────────┬──────────┐
+│ Task   │ Subject                      │ Status    │ Validation │ Duration │
+├────────┼──────────────────────────────┼───────────┼────────────┼──────────┤
+│ #1     │ Add auth middleware           │ completed │ PASS       │ 2m 14s   │
+│ #2     │ Fix rate limiting             │ completed │ PASS       │ 1m 47s   │
+│ #3     │ Update config schema          │ failed    │ FAIL       │ 3m 02s   │
+└────────┴──────────────────────────────┴───────────┴────────────┴──────────┘
+
+Epic Progress:
+  Issues closed: 5/12 (wave 3 of est. 5)
+  Blocked:       1 (#8, waiting on #7)
+  Next wave:     #6, #7 (2 tasks, 0 conflicts)
+```
+
+This table is informational — it does not gate progression. Step 6 handles the loop decision.
+
 ### Step 6: Check for More Work
 
 After completing a wave, check for newly unblocked issues (beads: `bd ready`, TaskList: `TaskList()`). Loop back to Step 4 if work remains, or proceed to Step 7 when done.
@@ -457,7 +508,7 @@ If hooks or `lib/hook-helpers.sh` were modified, verify embedded copies are in s
 
 ### Step 8: Extract Learnings (ao Integration)
 
-If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao metrics flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
+If ao CLI available: run `ao know forge transcript`, `ao quality flywheel close-loop --quiet`, `ao quality metrics flywheel status`, and `ao quality pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
 
 ### Step 9: Report Completion
 
@@ -475,7 +526,7 @@ Tell the user:
 Epic: <epic-id>
 Issues completed: N
 Iterations: M/50
-Flywheel: <status from ao metrics flywheel status>
+Flywheel: <status from ao quality metrics flywheel status>
 ```
 
 If stopped early:
@@ -529,7 +580,7 @@ Include `wc -l` assertions in task metadata when content moves between files.
 
 **User says:** `$crank ag-m0r`
 
-Loads learnings (`ao inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
+Loads learnings (`ao know inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao know forge transcript`.
 
 ### Execute from Plan File (TaskList Mode)
 
@@ -611,4 +662,5 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 ### scripts/
 
 - `scripts/validate.sh`
+
 

@@ -166,6 +166,7 @@ These are how skills chain in practice:
 | Pattern | Chain | When |
 |---------|-------|------|
 | **Quick fix** | `/implement` | One issue, clear scope |
+| **Quick ship** | `/implement` → `/push` | Implement, test, and push |
 | **Validated fix** | `/implement` → `/vibe` | One issue, want confidence |
 | **Planned epic** | `/plan` → `/pre-mortem` → `/crank` → `/post-mortem` | Multi-issue, structured |
 | **Full pipeline** | `/rpi` (chains all above) | End-to-end, autonomous |
@@ -173,12 +174,15 @@ These are how skills chain in practice:
 | **PR contribution** | `/pr-research` → `/pr-plan` → `/pr-implement` → `/pr-validate` → `/pr-prep` | External repo |
 | **Knowledge query** | `/knowledge` → `/research` (if gaps) | Understanding before building |
 | **Standalone review** | `/council validate <target>` | Ad-hoc multi-judge review |
+| **Time-boxed pipeline** | `/rpi --budget=research:180,plan:120` | Prevent research/plan stalls |
+| **TDD feature** | `/implement <issue>` | TDD-first by default (skip with `--no-tdd`) |
+| **Scoped parallel** | `/crank <epic>` | Auto file-ownership map prevents conflicts |
 
 ---
 
 ## Current Skill Tiers
 
-### User-Facing Skills (42)
+### User-Facing Skills (43)
 
 **Judgment:**
 
@@ -204,6 +208,7 @@ These are how skills chain in practice:
 | **bug-hunt** | execution | Investigate bugs with git archaeology |
 | **complexity** | execution | Cyclomatic complexity analysis |
 | **grafana-platform-dashboard** | execution | Build and validate platform operations dashboards with critical-first layout and PromQL gates |
+| **push** | execution | Atomic test-commit-push workflow — tests, commits, rebases, pushes |
 
 **Knowledge:**
 
@@ -299,6 +304,7 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 | inject | - | - |
 | **openai-docs** | - | - (standalone) |
 | **plan** | research, beads, pre-mortem, crank, implement | optional, optional, optional, optional, optional |
+| **push** | - | - (standalone) |
 | **product** | - | - (standalone) |
 | **pr-research** | - | - (standalone) |
 | **pr-plan** | pr-research | optional |

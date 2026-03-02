@@ -20,9 +20,9 @@ Research → Plan → Implement → Validate
 
 ```bash
 $research <topic>      # Deep codebase exploration
-ao search "<query>"    # Search existing knowledge
-ao lookup <id>         # Pull full content of specific learning
-ao lookup --query "x"  # Search knowledge by relevance
+ao know search "<query>"    # Search existing knowledge
+ao know lookup <id>         # Pull full content of specific learning
+ao know lookup --query "x"  # Search knowledge by relevance
 ```
 
 **Output:** `.agents/research/<topic>.md`
@@ -77,14 +77,15 @@ $release --dry-run     # Preview without writing
 | **Release** | `$release` | — |
 
 **Choosing the skill:**
-- Use `$implement` for **single issue** execution.
-- Use `$crank` for **autonomous epic execution** (loops waves via swarm until done).
+- Use `$implement` for **single issue** execution. **Now defaults to TDD-first** — writes failing tests before implementing. Skip with `--no-tdd`.
+- Use `$crank` for **autonomous epic execution** (loops waves via swarm until done). Auto-generates file-ownership maps to prevent worker conflicts.
 - Use `$swarm` directly for **parallel execution** without beads (TaskList only).
+- Use `$rpi` for **full lifecycle** with optional `--budget` flag for phase time guards (e.g., `--budget=research:180,plan:120`).
 - Use `$ratchet` to **gate/record progress** through RPI.
 
 ## Available Skills
 
-## Start Here (11 starters)
+## Start Here (12 starters)
 
 These are the skills every user needs first. Everything else is available when you need it.
 
@@ -99,12 +100,14 @@ These are the skills every user needs first. Everything else is available when y
 | `$retro --quick` | Quick-capture a single learning into the flywheel |
 | `$status` | Single-screen dashboard of current work and suggested next action |
 | `$goals` | Maintain GOALS.yaml fitness specification |
+| `$push` | Atomic test-commit-push workflow |
 | `$flywheel` | Knowledge flywheel health monitoring (σ×ρ > δ) |
 
 ## Advanced Skills (when you need them)
 
 | Skill | Purpose |
 |-------|---------|
+| `$athena` | Active knowledge intelligence — Mine → Grow → Defrag cycle |
 | `$brainstorm` | Structured idea exploration before planning |
 | `$plan` | Epic decomposition into issues |
 | `$pre-mortem` | Failure simulation before implementing |
@@ -174,7 +177,7 @@ bd sync               # Sync with git
 **Hook triggers:** `session-start.sh` runs at session start
 
 **What happens:**
-1. In `manual` mode (default): MEMORY.md is auto-loaded by Codex; hook emits a pointer to on-demand retrieval (`ao search`, `ao lookup`)
+1. In `manual` mode (default): MEMORY.md is auto-loaded by Codex; hook emits a pointer to on-demand retrieval (`ao know search`, `ao know lookup`)
 2. In `lean` mode: hook extracts pending knowledge and injects prior learnings with a reduced token budget
 3. Hook injects this skill automatically into session context
 4. Agent loads RPI workflow overview, phase-to-skill mapping, trigger patterns
@@ -209,4 +212,5 @@ bd sync               # Sync with git
 ### scripts/
 
 - `scripts/validate.sh`
+
 

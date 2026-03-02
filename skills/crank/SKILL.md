@@ -350,6 +350,22 @@ TaskCreate(
 )
 ```
 
+**Display file-ownership table (from swarm Step 1.5):**
+
+Before spawning, verify the ownership map has zero unresolved conflicts:
+
+```
+File Ownership Map (Wave $wave):
+┌─────────────────────────────┬──────────┬──────────┐
+│ File                        │ Owner    │ Conflict │
+├─────────────────────────────┼──────────┼──────────┤
+│ (populated by swarm)        │          │          │
+└─────────────────────────────┴──────────┴──────────┘
+Conflicts: 0
+```
+
+**If conflicts > 0:** Do NOT invoke `/swarm`. Resolve by serializing conflicting tasks into sub-waves or merging task scope before proceeding.
+
 **BEFORE each wave:**
 ```bash
 wave=$((wave + 1))
@@ -462,6 +478,28 @@ EOF
 - `COMPLETED_IDS` / `FAILED_IDS`: space-separated issue IDs from the wave results.
 - `acceptance_verdict`: verdict from the Wave Acceptance Check (Step 5.5). Used by final validation to skip redundant /vibe on clean epics.
 - On retry of the same wave, the file is overwritten (same path).
+
+### Step 5.8: Wave Status Report
+
+After each wave checkpoint, display a consolidated status table:
+
+```
+Wave $wave Status:
+┌────────┬──────────────────────────────┬───────────┬────────────┬──────────┐
+│ Task   │ Subject                      │ Status    │ Validation │ Duration │
+├────────┼──────────────────────────────┼───────────┼────────────┼──────────┤
+│ #1     │ Add auth middleware           │ completed │ PASS       │ 2m 14s   │
+│ #2     │ Fix rate limiting             │ completed │ PASS       │ 1m 47s   │
+│ #3     │ Update config schema          │ failed    │ FAIL       │ 3m 02s   │
+└────────┴──────────────────────────────┴───────────┴────────────┴──────────┘
+
+Epic Progress:
+  Issues closed: 5/12 (wave 3 of est. 5)
+  Blocked:       1 (#8, waiting on #7)
+  Next wave:     #6, #7 (2 tasks, 0 conflicts)
+```
+
+This table is informational — it does not gate progression. Step 6 handles the loop decision.
 
 ### Step 6: Check for More Work
 

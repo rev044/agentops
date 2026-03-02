@@ -118,7 +118,7 @@ After discovery completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao ratchet record research 2>/dev/null || true
+ao work ratchet record research 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-1" "discovery complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=1 phase_name=discovery 2>/dev/null || true
 ```
@@ -145,7 +145,7 @@ After implementation completes:
 4. Record ratchet and telemetry:
 
 ```bash
-ao ratchet record implement 2>/dev/null || true
+ao work ratchet record implement 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-2" "implementation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=2 phase_name=implementation 2>/dev/null || true
 ```
@@ -169,7 +169,7 @@ After validation completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao ratchet record vibe 2>/dev/null || true
+ao work ratchet record vibe 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-3" "validation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=validation 2>/dev/null || true
 ```
@@ -226,6 +226,34 @@ The complexity level is persisted in `.agents/rpi/phased-state.json` as the `com
 - `--fast-path`: force fast-path regardless of classification (useful for quick patches).
 - `--deep`: force full-ceremony regardless of classification (useful for sensitive changes).
 
+## Phase Budgets
+
+Each RPI phase has a time budget scaled by complexity level. Budgets prevent sessions from stalling in research or planning without producing artifacts.
+
+| Phase | `fast` | `standard` | `full` |
+|-------|--------|------------|--------|
+| Research | 3 min | 5 min | 10 min |
+| Plan | 2 min | 5 min | 10 min |
+| Pre-mortem | 1 min | 3 min | 5 min |
+| Implementation | unlimited | unlimited | unlimited |
+| Validation | — (skipped) | 5 min | 10 min |
+
+**Implementation is always unlimited** — crank has its own wave limits (MAX_EPIC_WAVES = 50).
+
+### Budget Enforcement
+
+- **Check at natural pause points:** before spawning agents, before retry loops, between skill invocations
+- **On budget expiry:**
+  1. Allow in-flight tool calls to complete (soft limit — don't interrupt mid-operation)
+  2. Write `[TIME-BOXED]` marker to the phase summary file
+  3. Auto-transition to the next phase with whatever artifacts exist
+  4. Log: `"Phase <name> time-boxed at <elapsed>s (budget: <budget>s)"`
+- **Budget expiry is NOT a retry attempt** — it is orthogonal to the 3-attempt retry gates. A time-boxed phase that produced a FAIL verdict still counts as attempt 1.
+- **Override with `--no-budget`** to disable all phase budgets (useful for open-ended research)
+- **Override with `--budget=<phase>:<seconds>`** for custom per-phase budgets (e.g., `--budget=research:180,plan:120`)
+
+For detailed budget tables, worked examples, and rationale, read `references/phase-budgets.md`.
+
 ## Flags
 
 | Flag | Default | Description |
@@ -240,6 +268,8 @@ The complexity level is persisted in `.agents/rpi/phased-state.json` as the `com
 | `--fast-path` | auto | Force low-complexity gate mode (`--quick`) |
 | `--deep` | auto | Force high-complexity gate mode (full council) |
 | `--dry-run` | off | Report actions without mutating next-work queue |
+| `--no-budget` | off | Disable all phase time budgets |
+| `--budget=<spec>` | auto | Custom per-phase budgets in seconds (e.g., `research:180,plan:120`) |
 
 ## Examples
 
@@ -301,6 +331,7 @@ skill chaining.
 - [references/context-windowing.md](references/context-windowing.md)
 - [references/gate-retry-logic.md](references/gate-retry-logic.md)
 - [references/gate4-loop-and-spawn.md](references/gate4-loop-and-spawn.md)
+- [references/phase-budgets.md](references/phase-budgets.md)
 - [references/phase-data-contracts.md](references/phase-data-contracts.md)
 
 ## Local Resources
@@ -312,9 +343,12 @@ skill chaining.
 - [references/error-handling.md](references/error-handling.md)
 - [references/gate-retry-logic.md](references/gate-retry-logic.md)
 - [references/gate4-loop-and-spawn.md](references/gate4-loop-and-spawn.md)
+- [references/phase-budgets.md](references/phase-budgets.md)
 - [references/phase-data-contracts.md](references/phase-data-contracts.md)
 - [references/report-template.md](references/report-template.md)
 
 ### scripts/
 
 - `scripts/validate.sh`
+
+

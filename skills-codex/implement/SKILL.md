@@ -28,7 +28,7 @@ Given `$implement <issue-id-or-description>`:
 
 ```bash
 # Pull knowledge scoped to this issue (if ao available)
-ao lookup --bead <issue-id> --limit 3 2>/dev/null || true
+ao know lookup --bead <issue-id> --limit 3 2>/dev/null || true
 ```
 
 ### Step 1: Get Issue Details
@@ -55,7 +55,7 @@ bd update <issue-id> --status in_progress 2>/dev/null
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao context assemble --task='<issue title and description>'
+    ao work context assemble --task='<issue title and description>'
 fi
 ```
 
@@ -84,6 +84,30 @@ Parameters:
     - Suggested approach
     - Any risks or concerns
 ```
+
+### Step 3.5: Write Failing Tests First (TDD-First Default)
+
+Before implementing, write tests that define the expected behavior:
+
+1. **Write tests covering:** happy path, one error path, one edge case
+2. **Run tests to confirm they FAIL** (RED confirmation)
+   - If tests pass → feature already exists or tests are wrong. Investigate before proceeding.
+3. **Proceed to Step 4** with failing tests as the implementation target
+
+```bash
+# Run tests - ALL new tests must FAIL
+# Python: pytest tests/test_<feature>.py -v
+# Go: go test ./path/to/... -run TestNew
+# Node: npm test -- --grep "new feature"
+```
+
+**Skip conditions (any of these bypasses Step 3.5):**
+- GREEN mode is active (invoked by `$crank --test-first` — tests already exist)
+- Issue type is `chore`, `docs`, or `ci`
+- `--no-tdd` flag is set
+- No test framework detected in the project
+
+**Note:** Tests written here are MUTABLE — unlike GREEN mode's immutable tests, you may adjust these tests during implementation if you discover the initial test design was wrong. The goal is to think about behavior before code, not to be rigid.
 
 ### Step 4: Implement the Change
 
@@ -219,22 +243,35 @@ When invoked by $crank with `--test-first`, the worker receives:
 - Workers may ADD new test files but MUST NOT modify existing test files provided by the TEST WAVE
 - If a test appears wrong, write BLOCKED with the specific test and reason — do NOT fix it
 
-### Step 5b: Pre-Commit Bug Sweep
+### Step 5b: Autonomous Quality Loop (Pre-Commit)
 
-Before committing, perform a targeted sweep of all files modified in this session:
+Before committing, run a fix-verify loop on all files modified in this session (max 3 iterations):
+
+**Iteration N:**
 
 1. **List modified files:** `git diff --name-only HEAD`
 2. **Read each modified file completely** — do not skim
-3. **Check for common defects:**
+3. **Check for defects:**
    - Wrong variable references (copy-paste errors, stale names)
    - Silent error swallowing (`_ = err` or empty catch blocks)
    - Hardcoded values that should be configurable or constants
    - Missing edge cases identified during implementation
    - Inconsistencies with existing patterns in the codebase
+   - Unused imports or variables
+   - Complexity budget violations (function cyclomatic complexity >15)
 4. **Report findings** as a numbered list with severity (HIGH/MEDIUM/LOW)
-5. **Fix all HIGH severity findings** and re-run tests before proceeding
+5. **HIGH findings:** Fix immediately, re-run tests, re-sweep (next iteration)
+   - If a fix causes test regression: **revert the fix**, report as unresolvable, proceed
+6. **MEDIUM/LOW findings:** Report in commit message, proceed
 
-If no modified files or sweep finds zero issues, proceed directly to Step 6.
+**Loop termination:**
+- 0 HIGH findings → exit loop, proceed to Step 6
+- 3 iterations exhausted with HIGH findings remaining → **BLOCK commit**. Report remaining HIGHs and stop. Do NOT proceed to Step 6.
+  - Override: `--force-commit` allows proceeding with documented HIGHs (explicit opt-in only)
+
+**Output:** Record iteration count, findings per iteration, and remaining items.
+
+If no modified files or sweep finds zero issues on first pass, proceed directly to Step 6.
 
 ### Step 6: Commit the Change
 
@@ -265,7 +302,7 @@ if command -v ao &>/dev/null; then
 
   if [ -n "$COMMIT_HASH" ]; then
     # Record successful implementation
-    ao ratchet record implement \
+    ao work ratchet record implement \
       --output "$COMMIT_HASH" \
       --files "$CHANGED_FILES" \
       --issue "<issue-id>" \
@@ -281,7 +318,7 @@ if command -v ao &>/dev/null; then
   fi
 else
   echo "Ratchet: ao CLI not available - implementation NOT recorded"
-  echo "  Run manually: ao ratchet record implement --output <commit>"
+  echo "  Run manually: ao work ratchet record implement --output <commit>"
 fi
 ```
 
@@ -289,7 +326,7 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao ratchet record implement \
+  ao work ratchet record implement \
     --status blocked \
     --reason "<blocker description>" \
     2>/dev/null
@@ -304,7 +341,7 @@ After implementation is complete:
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao ratchet record implement --output "<issue-id>" 2>/dev/null || true
+  ao work ratchet record implement --output "<issue-id>" 2>/dev/null || true
 fi
 ```
 
@@ -337,6 +374,7 @@ Remaining: <what's left>
 
 ## Key Rules
 
+- **TDD by default** - write failing tests before implementing (skip with `--no-tdd`)
 - **Explore first** - understand before changing
 - **Edit, don't rewrite** - prefer Edit tool over Write tool
 - **Follow patterns** - match existing code style

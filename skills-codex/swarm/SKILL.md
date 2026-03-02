@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: 'Spawn isolated agents for parallel task execution. Auto-selects runtime-native teams (Codex sub-agents in Codex sessions, Claude teams in Claude sessions). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
+description: 'Spawn isolated agents for parallel task execution. Auto-selects runtime-native teams (Codex sub-agents in Codex sessions, Codex sub-agents in Codex sessions). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
 ---
 
 
@@ -23,7 +23,7 @@ Mayor (this session)
     |
     +-> Identify wave: tasks with no blockers
     |
-    +-> Select spawn backend (runtime-native first: Codex sub-agents in Codex runtime, Claude teams in Claude runtime; fallback tasks if unavailable)
+    +-> Select spawn backend (runtime-native first: Codex sub-agents in Codex runtime, Codex sub-agents in Codex runtime; fallback tasks if unavailable)
     |
     +-> Assign: TaskUpdate(taskId, owner="worker-<id>", status="in_progress")
     |
@@ -52,11 +52,11 @@ Use runtime capability detection, not hardcoded tool names. Swarm requires:
 See `skills/shared/SKILL.md` for the capability contract.
 
 **After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
-- Claude feature contract → `../shared/references/claude-code-latest-features.md`
-- Codex sub-agents → `../shared/references/backend-claude-teams.md`
-- Codex Sub-Agents / CLI → `../shared/references/backend-codex-subagents.md`
-- Background Tasks → `../shared/references/backend-background-tasks.md`
-- Inline (no spawn) → `../shared/references/backend-inline.md`
+- Claude feature contract → `..$shared/references/claude-code-latest-features.md`
+- Codex sub-agents → `..$shared/references/backend-claude-teams.md`
+- Codex Sub-Agents / CLI → `..$shared/references/backend-codex-subagents.md`
+- Background Tasks → `..$shared/references/backend-background-tasks.md`
+- Inline (no spawn) → `..$shared/references/backend-inline.md`
 
 See also `references/local-mode.md` for swarm-specific execution details (worktrees, validation, git commit policy, wave repeat).
 
@@ -92,11 +92,31 @@ Every TaskCreate **must** include a `metadata.files` array listing the files tha
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao context assemble --task='<swarm objective or wave description>'
+    ao work context assemble --task='<swarm objective or wave description>'
 fi
 ```
 
 This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's TaskCreate description so workers start with full project context.
+
+### Step 1.5: Auto-Populate File Manifests
+
+**Skip this step if all tasks already have populated `metadata.files` arrays.**
+
+If any task is missing its file manifest, auto-generate it before Step 2:
+
+1. **Spawn haiku Explore agents** (one per task missing manifests) to identify files:
+   ```
+   Agent(subagent_type="Explore", model="haiku",
+     prompt="Given this task: '<task subject + description>', identify all files
+     that will need to be created or modified. Return a JSON array of file paths.")
+   ```
+
+2. **Inject manifests** back into tasks:
+   ```
+   TaskUpdate(taskId=task.id, metadata={"files": [explored_files]})
+   ```
+
+Once all tasks have manifests, proceed to Step 2 where the Pre-Spawn Conflict Check enforces file ownership.
 
 ### Step 2: Identify Wave
 
@@ -125,6 +145,20 @@ for task in wave_tasks:
 - **Isolate** them with worktree isolation (`--worktrees`) so each operates on a separate branch.
 
 Do not spawn workers with overlapping file manifests into the same shared-worktree wave. This is the primary cause of build breaks and merge conflicts in parallel execution.
+
+**Display ownership table** before spawning:
+```
+File Ownership Map (Wave N):
+┌─────────────────────────────┬──────────┬──────────┐
+│ File                        │ Owner    │ Conflict │
+├─────────────────────────────┼──────────┼──────────┤
+│ src/auth/middleware.go       │ task-1   │          │
+│ src/auth/middleware_test.go  │ task-1   │          │
+│ src/api/routes.go            │ task-2   │          │
+│ src/config/settings.go       │ task-1,3 │ YES      │
+└─────────────────────────────┴──────────┴──────────┘
+Conflicts: 1 (resolved: serialized task-3 into sub-wave 2)
+```
 
 ### Steps 3-6: Spawn Workers, Validate, Finalize
 
@@ -158,7 +192,7 @@ Mayor: "Let's build a user auth system"
 
 ## Key Points
 
-- **Runtime-native local mode** - Auto-selects the native backend for the current runtime (Codex sub-agents or Claude teams)
+- **Runtime-native local mode** - Auto-selects the native backend for the current runtime (Codex sub-agents or Codex sub-agents)
 - **Universal orchestration contract** - Same swarm behavior across Claude and Codex sessions
 - **Pre-assigned tasks** - Mayor assigns tasks before spawning; workers never race-claim
 - **Fresh worker contexts** - New sub-agents/teammates per wave preserve Ralph isolation
@@ -230,7 +264,7 @@ Follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/): **fresh context
 - **Filesystem for EVERYTHING** - Code artifacts AND result status written to disk, not passed through context
 - **Backend messaging for signals only** - Short coordination signals (under 100 tokens), never work details
 
-Ralph alignment source: `../shared/references/ralph-loop-contract.md`.
+Ralph alignment source: `..$shared/references/ralph-loop-contract.md`.
 
 ## Integration with Crank
 
@@ -350,7 +384,7 @@ $swarm --from-wave /tmp/wave-ol-527.json
 
 **What happens:**
 1. Agent identifies unblocked tasks from TaskList (e.g., "Create User model")
-2. Agent selects spawn backend using runtime-native priority (Codex session -> Codex sub-agents; Claude session -> Claude teams)
+2. Agent selects spawn backend using runtime-native priority (Codex session -> Codex sub-agents; Codex session -> Codex sub-agents)
 3. Agent spawns worker for task #1, assigns ownership via TaskUpdate
 4. Worker completes, team lead validates changes
 5. Agent identifies next wave (tasks #2 and #3 now unblocked)
@@ -392,7 +426,7 @@ $swarm --from-wave /tmp/wave-ol-527.json
 
 **Default behavior:** Auto-detect and prefer runtime-native isolation first.
 
-In Codex runtime, verify teammate profiles and use agent definitions with `isolation: worktree` for write-heavy parallel waves. If native isolation is unavailable, use manual `git worktree` fallback below.
+In Codex runtime, first verify teammate profiles with `claude agents` and use agent definitions with `isolation: worktree` for write-heavy parallel waves. If native isolation is unavailable, use manual `git worktree` fallback below.
 
 ### Isolation Semantics Per Spawn Backend
 
@@ -484,7 +518,39 @@ git merge --no-ff swarm/<epic-id> -m "chore: merge swarm/<epic-id> (epic <epic-i
 
 Merge order: respect task dependencies. If epic B blocked by epic A, merge A before B.
 
-**On merge conflict:** The team lead resolves conflicts manually. Workers must not merge — lead-only commit policy still applies.
+**Merge Arbiter Protocol:**
+
+Replace manual conflict resolution with a structured sequential rebase:
+
+1. **Merge order:** Dependency-sorted (leaves first), then by task ID for ties
+2. **Sequential rebase** (one branch at a time):
+   ```bash
+   # For each branch in merge order:
+   git rebase main swarm/<epic-id>
+   ```
+3. **On rebase conflict:**
+   - Check the file-ownership map from Step 1.5
+   - If the conflicting file has a single owner → use that owner's version
+   - If the conflicting file has multiple owners → use the version from the task being merged (current branch)
+   - Run tests after resolution to verify
+4. **If tests fail after conflict resolution:**
+   - Spawn a fix-up worker scoped ONLY to the conflicting files
+   - Worker receives: both versions, test output, ownership context
+   - Max 3 fix-up retries per conflict
+   - If still failing after 3 retries → abort merge for this branch, escalate to human
+5. **Display merge status table** after all merges complete:
+   ```
+   Merge Status:
+   ┌────────────────────┬──────────┬────────────┬───────────┐
+   │ Branch             │ Status   │ Conflicts  │ Fix-ups   │
+   ├────────────────────┼──────────┼────────────┼───────────┤
+   │ swarm/task-1       │ MERGED   │ 0          │ 0         │
+   │ swarm/task-2       │ MERGED   │ 1 (auto)   │ 0         │
+   │ swarm/task-3       │ MERGED   │ 1 (fixup)  │ 1         │
+   └────────────────────┴──────────┴────────────┴───────────┘
+   ```
+
+Workers must not merge — lead-only commit policy still applies.
 
 ### Cleanup: Remove Worktrees After Merge
 
@@ -582,4 +648,5 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 - `scripts/ol-ratchet.sh`
 - `scripts/ol-wave-loader.sh`
 - `scripts/validate.sh`
+
 
