@@ -22,6 +22,8 @@ $evolve --dry-run            # Show what would be worked on, don't execute
 $evolve --beads-only         # Skip goals measurement, work beads backlog only
 $evolve --quality            # Quality-first mode: prioritize post-mortem findings
 $evolve --quality --max-cycles=10  # Quality mode with cycle cap
+$evolve --athena             # Mine → Defrag warmup before first cycle
+$evolve --athena --max-cycles=5  # Warm knowledge base then run 5 cycles
 ```
 
 ## Execution Steps
@@ -32,7 +34,7 @@ $evolve --quality --max-cycles=10  # Quality mode with cycle cap
 
 ```bash
 mkdir -p .agents/evolve
-ao inject 2>/dev/null || true
+ao know inject 2>/dev/null || true
 ```
 
 Recover cycle number and idle streak from disk (survives context compaction):
@@ -66,9 +68,48 @@ fi
 
 # Track oscillating goals (improved→fail→improved→fail) to avoid burning cycles
 declare -A QUARANTINED_GOALS  # goal_id → true if oscillation count >= 3
+
+# Pre-populate quarantine list from cycle history (lightweight local scan)
+if [ -f .agents/evolve/cycle-history.jsonl ]; then
+  while IFS= read -r goal; do
+    QUARANTINED_GOALS[$goal]=true
+    echo "Quarantined oscillating goal: $goal"
+  done < <(
+    jq -r '.target' .agents/evolve/cycle-history.jsonl 2>/dev/null \
+    | awk '{
+        if (prev != "" && prev != $0) transitions[$0]++
+        prev = $0
+      }
+      END {
+        for (g in transitions) if (transitions[g] >= 3) print g
+      }'
+  )
+fi
 ```
 
-Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`.
+Parse flags: `--max-cycles=N` (default unlimited), `--dry-run`, `--beads-only`, `--skip-baseline`, `--quality`, `--athena`.
+
+### Step 0.2: Athena Warmup (--athena only)
+
+Skip if `--athena` was not passed or if `--dry-run`.
+
+Run the mechanical half of the Athena cycle to surface fresh signal before the first evolve cycle:
+
+```bash
+mkdir -p .agents/mine .agents/defrag
+echo "Athena warmup: mining signal..."
+ao mine --since 26h --quiet 2>/dev/null || echo "(ao mine unavailable — skipping)"
+
+echo "Athena warmup: defrag sweep..."
+ao defrag --prune --dedup --quiet 2>/dev/null || echo "(ao defrag unavailable — skipping)"
+```
+
+Then read `.agents/mine/latest.json` and `.agents/defrag/latest.json` and note (in 1-2 sentences each):
+- Any **orphaned research** files that look relevant to current goals
+- Any **code hotspots** (high-CC functions with recent edits) that may be the root cause of failing goals
+- Any **duplicate learnings** merged by defrag — context on what's been cleaned up
+
+These notes inform work selection throughout the evolve session. Store them in a session variable (in-memory), not a file.
 
 ### Step 0.5: Baseline (first run only)
 
@@ -76,7 +117,7 @@ Skip if `--skip-baseline` or `--beads-only` or baseline already exists.
 
 ```bash
 if [ ! -f .agents/evolve/fitness-0-baseline.json ]; then
-  ao goals measure --json --timeout 60 > .agents/evolve/fitness-0-baseline.json
+  ao work goals measure --json --timeout 60 > .agents/evolve/fitness-0-baseline.json
 fi
 ```
 
@@ -95,12 +136,12 @@ CYCLE_START_SHA=$(git rev-parse HEAD)
 Skip if `--beads-only`.
 
 ```bash
-ao goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
+ao work goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
 ```
 
 **Do NOT write per-cycle `fitness-{N}-pre.json` files.** The rolling file is sufficient for work selection and regression detection.
 
-This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is unavailable, read `GOALS.yaml` and run each goal's `check` command manually. Mark timeouts as `"result": "skip"`.
+This writes a fitness snapshot to `.agents/evolve/`. If `ao work goals measure` is unavailable or fails, stop with error. The CLI is required for fitness measurement.
 
 ### Step 3: Select Work
 
@@ -125,7 +166,7 @@ fi
 **Step 3.1: Directive gap** (skip if `--beads-only`):
 ```bash
 # Get directives from GOALS.md
-DIRECTIVES=$(ao goals measure --directives 2>/dev/null)
+DIRECTIVES=$(ao work goals measure --directives 2>/dev/null)
 ```
 If directives exist, assess the top-priority directive (lowest number, non-quarantined):
 - Check git log for recent commits addressing it
@@ -224,12 +265,16 @@ elif [ -f pyproject.toml ] || [ -f setup.py ]; then python -m pytest
 else echo "No recognized build system found"; fi
 
 # Cross-cutting constraint check (catches wiring regressions)
-bash scripts/check-wiring-closure.sh
+if [ -f scripts/check-wiring-closure.sh ]; then
+  bash scripts/check-wiring-closure.sh
+else
+  echo "WARNING: scripts/check-wiring-closure.sh not found — skipping wiring check"
+fi
 ```
 
 If not `--beads-only`, also re-measure to produce a post-cycle snapshot:
 ```bash
-ao goals measure --json --timeout 60 --goal $GOAL_ID > .agents/evolve/fitness-latest-post.json
+ao work goals measure --json --timeout 60 --goal $GOAL_ID > .agents/evolve/fitness-latest-post.json
 
 # Extract goal counts for cycle history entry
 PASSING=$(jq '[.goals[] | select(.result=="pass")] | length' .agents/evolve/fitness-latest-post.json 2>/dev/null || echo 0)
@@ -359,6 +404,8 @@ Stop reason: stagnation | circuit-breaker | max-cycles | kill-switch
 
 **Dry run:** `$evolve --dry-run` — shows what would be worked on without executing.
 
+**Athena warmup:** `$evolve --athena` — runs `ao mine` + `ao defrag` at session start to surface fresh signal (orphaned research, code hotspots, oscillating goals) before the first evolve cycle. Use before a long autonomous run or after a burst of development activity.
+
 See `references/examples.md` for detailed walkthroughs.
 
 ## Troubleshooting
@@ -367,7 +414,7 @@ See `references/examples.md` for detailed walkthroughs.
 |---------|----------|
 | Loop exits immediately | Remove `~/.config/evolve/KILL` or `.agents/evolve/STOP` |
 | Stagnation after 3 idle cycles | All work sources empty — this is success |
-| `ao goals measure` hangs | Use `--timeout 30` flag or `--beads-only` to skip |
+| `ao work goals measure` hangs | Use `--timeout 30` flag or `--beads-only` to skip |
 | Regression gate reverts | Review reverted changes, narrow scope, re-run |
 
 See `references/cycle-history.md` for advanced troubleshooting.

@@ -33,6 +33,17 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/go-test-precommit.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "hooks": [
@@ -40,6 +51,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/go-complexity-precommit.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/go-vet-post-edit.sh",
+            "timeout": 15
           }
         ]
       }

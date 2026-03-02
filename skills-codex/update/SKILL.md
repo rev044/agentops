@@ -17,7 +17,7 @@ description: 'Reinstall all AgentOps skills globally from the latest source. Tri
 ### Step 1: Install
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 ```
 
 Run this command. Wait for it to complete.
@@ -45,11 +45,11 @@ Tell the user:
 **User says:** `$update`
 
 **What happens:**
-1. Runs the Codex install script to pull the latest skills from the repository.
+1. Runs the install script to pull the latest skills from the repository and install them globally.
 2. Verifies the output confirms all skills installed with no failures.
 3. Reports the total count of successfully installed skills.
 
-**Result:** All AgentOps skills are updated to the latest version and available globally across all Codex sessions.
+**Result:** All AgentOps skills are updated to the latest version and available globally across all agent sessions.
 
 ### Recovering from a partial failure
 
@@ -66,10 +66,10 @@ Tell the user:
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `curl: command not found` | curl not installed | Install curl via your package manager |
+| `curl: command not found` | curl is not installed | Install curl via your package manager |
 | Download fails | Network or GitHub unreachable | Check connectivity; retry |
 | Individual skills fail | Permissions issue in `~/.codex/skills/` | `chmod -R u+rwX ~/.codex/skills/` then re-run `$update` |
-| Skills not available | Codex session not restarted | Restart your Codex session |
+| Skills not available after install | Agent session not restarted | Restart your agent session |
 | `EACCES: permission denied` | Restrictive permissions on skills dir | `chmod -R u+rwX ~/.codex/skills/` and re-run `$update` |
 
 ## Local Resources

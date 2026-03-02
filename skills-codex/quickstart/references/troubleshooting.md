@@ -31,17 +31,17 @@ claude --plugin ./ --help
 **Checks:**
 ```bash
 # Check SKILL.md exists with valid frontmatter
-head -5 ~/.codex/skills/quickstart/SKILL.md
+head -5 ~/.claude/skills/quickstart/SKILL.md
 
 # List installed skills
-ls ~/.codex/skills/
+ls ~/.claude/skills/
 ```
 
 **Fixes:**
-- Reinstall: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh)`
+- Reinstall: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
 - Manual sync for a single skill:
   ```bash
-  /bin/cp -r ~/.agents/skills/<skill-name>/ ~/.codex/skills/<skill-name>/
+  /bin/cp -r ~/.agents/skills/<skill-name>/ ~/.claude/skills/<skill-name>/
   ```
 
 ## CLI Not Found (ao, bd, gt)

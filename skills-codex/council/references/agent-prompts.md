@@ -38,6 +38,21 @@ For every finding, include these structured remediation fields:
 - why: Root cause or rationale
 - ref: File path, spec anchor, or doc reference that supports this finding
 
+PRE-DISCOVERED FINDINGS (adjudication mode):
+If the context includes a "sweep_manifest" field, explorer agents have already swept
+every file with a 7-category checklist. Your role SHIFTS from discovery to adjudication:
+
+1. CONFIRM or REJECT each sweep finding (with brief rationale per finding)
+2. RECLASSIFY severity where the explorer got it wrong
+3. ADD cross-file findings that individual explorers could not see:
+   - Architectural issues spanning multiple files
+   - Inconsistent patterns across the codebase
+   - Missing integration points or contract violations
+   - Security issues visible only at the system level
+4. Do NOT repeat sweep findings verbatim — reference them by number and state confirm/reject
+
+If sweep_manifest is NOT present, operate in normal discovery mode (unchanged behavior).
+
 CONTEXT BUDGET: Your message to the team lead must be MINIMAL to avoid exploding
 the lead's context window. Send ONLY the completion signal below — the lead reads
 your full analysis from the output file.
@@ -100,6 +115,21 @@ Instructions:
    - ALL detailed findings, reasoning, and recommendations go in this file
 3. Send a SHORT completion signal to the team lead (see format below)
 4. You may receive follow-up messages (e.g., debate round 2). Process and respond.
+
+PRE-DISCOVERED FINDINGS (adjudication mode):
+If the context includes a "sweep_manifest" field, explorer agents have already swept
+every file with a 7-category checklist. Your role SHIFTS from discovery to adjudication:
+
+1. CONFIRM or REJECT each sweep finding (with brief rationale per finding)
+2. RECLASSIFY severity where the explorer got it wrong
+3. ADD cross-file findings that individual explorers could not see:
+   - Architectural issues spanning multiple files
+   - Inconsistent patterns across the codebase
+   - Missing integration points or contract violations
+   - Security issues visible only at the system level
+4. Do NOT repeat sweep findings verbatim — reference them by number and state confirm/reject
+
+If sweep_manifest is NOT present, operate in normal discovery mode (unchanged behavior).
 
 CONTEXT BUDGET: Your message to the team lead must be MINIMAL to avoid exploding
 the lead's context window. Send ONLY the completion signal below — the lead reads

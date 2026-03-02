@@ -91,6 +91,23 @@ The local CI gate writes publishable artifacts to `.agents/releases/local-ci/<ti
 | Manifest versions sync | Compare `.claude-plugin/plugin.json` and `marketplace.json` versions | Warn (show mismatches) |
 | Commits since last tag | `git log --oneline <range>` | Block if empty — nothing to release |
 | Release cadence | Check date of last tag vs today | Warn if <7 days since last non-security release (see `references/release-cadence.md`) |
+| Unconsumed high-severity findings | Count items in `.agents/rpi/next-work.jsonl` where `consumed=false` and `severity=high` | Warn — not a blocker (see check below) |
+
+**Unconsumed findings check (soft WARN, non-blocking):**
+
+```bash
+if [ -f .agents/rpi/next-work.jsonl ] && command -v jq &>/dev/null; then
+  high_count=$(jq -s '[.[] | select(.consumed == false) | .items[] | select(.severity == "high")] | length' \
+    .agents/rpi/next-work.jsonl 2>/dev/null || echo 0)
+  if [ "$high_count" -gt 0 ]; then
+    echo "[WARN] $high_count unconsumed high-severity item(s) in .agents/rpi/next-work.jsonl"
+    echo "       These carry-forward findings have not been addressed. Review before releasing."
+    echo "       Run: jq -s '[.[] | select(.consumed==false) | .items[] | select(.severity==\"high\")]' .agents/rpi/next-work.jsonl"
+  fi
+fi
+```
+
+This is a **soft WARN** — it does not block the release. It surfaces carry-forward findings from prior retro/post-mortem sessions so the release engineer can make an informed decision.
 
 **Test/lint detection:**
 
@@ -117,6 +134,7 @@ Release Readiness: NO-GO
   [PASS] Lint clean
   [PASS] Version consistency (1.6.0 in all 2 files)
   [PASS] 14 commits since v1.6.0
+  [WARN] 2 unconsumed high-severity item(s) in .agents/rpi/next-work.jsonl
 ```
 
 In `--check` mode, stop here. In default mode, continue (warnings don't block).

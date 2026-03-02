@@ -9,7 +9,12 @@ if ! grep -q '^name: update' "$SKILL_DIR/SKILL.md"; then
   exit 1
 fi
 
-if ! grep -q 'install-codex.sh' "$SKILL_DIR/SKILL.md"; then
+if ! grep -q '^[[:space:]]*tier:[[:space:]]*meta' "$SKILL_DIR/SKILL.md"; then
+  echo "FAIL: missing tier in frontmatter"
+  exit 1
+fi
+
+if ! grep -q 'scripts/install.sh' "$SKILL_DIR/SKILL.md"; then
   echo "FAIL: missing install command"
   exit 1
 fi

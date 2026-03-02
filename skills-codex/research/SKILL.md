@@ -33,12 +33,12 @@ mkdir -p .agents/research
 
 ```bash
 # Pull relevant prior knowledge for this topic
-ao lookup --query "<topic>" --limit 5 2>/dev/null || \
-  ao search "<topic>" 2>/dev/null || \
+ao know lookup --query "<topic>" --limit 5 2>/dev/null || \
+  ao know search "<topic>" 2>/dev/null || \
   echo "ao not available, skipping knowledge search"
 ```
 
-**Review ao search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
+**Review ao know search results:** If ao returns relevant learnings or patterns, incorporate them into your research strategy. Look for:
 - Prior research on this topic or related topics
 - Known patterns or anti-patterns
 - Lessons learned from similar investigations
@@ -72,11 +72,11 @@ Before launching the explore agent, detect which backend is available:
 Record the selected backend — it will be included in the research output document for traceability.
 
 **Read the matching backend reference for concrete tool call examples:**
-- Claude feature contract → `../shared/references/claude-code-latest-features.md`
-- Codex → `../shared/references/backend-codex-subagents.md`
-- Codex sub-agents → `../shared/references/backend-claude-teams.md`
-- Background Tasks → `../shared/references/backend-background-tasks.md`
-- Inline → `../shared/references/backend-inline.md`
+- Claude feature contract → `..$shared/references/claude-code-latest-features.md`
+- Codex → `..$shared/references/backend-codex-subagents.md`
+- Codex sub-agents → `..$shared/references/backend-claude-teams.md`
+- Background Tasks → `..$shared/references/backend-background-tasks.md`
+- Inline → `..$shared/references/backend-inline.md`
 
 ### Step 3: Launch Explore Agent
 

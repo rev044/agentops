@@ -106,6 +106,27 @@ If a plan is found, include it in the council packet's `context.spec` field:
 
 Read `references/metadata-verification.md` for the full verification procedure. Mechanically checks: plan vs actual files, file existence in commits, cross-references in docs, and ASCII diagram integrity. Failures are included in the council packet as `context.metadata_failures`.
 
+### Step 2.6: Pre-Council Deep Audit Sweep
+
+**Skip if `--quick` or `--skip-sweep`.**
+
+Before council runs, dispatch a deep audit sweep to systematically discover issues across all changed files. This uses the same protocol as `$vibe --deep` — see the deep audit protocol in the vibe skill (`skills/vibe/`) for the full specification.
+
+In summary:
+
+1. Identify all files in scope (from epic commits or recent changes)
+2. Chunk files into batches of 3–5 by line count (<=100 lines → batch of 5, 101–300 → batch of 3, >300 → solo)
+3. Dispatch up to 8 Explore agents in parallel, each with a mandatory 7-category checklist per file (resource leaks, string safety, dead code, hardcoded values, edge cases, concurrency, error handling)
+4. Merge all explorer findings into a sweep manifest at `.agents/council/sweep-manifest.md`
+5. Include sweep manifest in council packet — judges shift to adjudication mode (confirm/reject/reclassify sweep findings + add cross-cutting findings)
+
+**Why:** Post-mortem council judges exhibit satisfaction bias when reviewing monolithic file sets — they stop at ~10 findings regardless of actual issue count. Per-file explorers with category checklists find 3x more issues, and the sweep manifest gives judges structured input to adjudicate rather than discover from scratch.
+
+**Skip conditions:**
+- `--quick` flag → skip (fast inline path)
+- `--skip-sweep` flag → skip (old behavior: judges do pure discovery)
+- No source files in scope → skip (nothing to audit)
+
 ### Step 3: Council Validates the Work
 
 Run `$council` with the **retrospective** preset and always 3 judges:
@@ -182,7 +203,7 @@ for f in .agents/learnings/YYYY-MM-DD-*.md; do
 done
 ```
 
-This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`.
+This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao quality constraint activate <id>`.
 
 ### Step 5: Write Post-Mortem Report
 
@@ -278,7 +299,7 @@ Read the retro output (from Step 4) and the council report (from Step 3). For ea
 3. **Is it actionable in one RPI cycle?** (if not, split into smaller pieces)
 
 Coverage requirements:
-- Include at least **5** improvements total.
+- Include **ALL** improvements found (no cap).
 - Cover all three surfaces:
   - `repo` (code/contracts/docs quality)
   - `execution` (planning/implementation/review workflow)
@@ -377,16 +398,16 @@ Post-mortem automatically feeds learnings into the flywheel:
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao forge markdown .agents/learnings/*.md 2>/dev/null
+  ao know forge markdown .agents/learnings/*.md 2>/dev/null
   echo "Learnings indexed in knowledge flywheel"
 
   # Validate and lock artifacts that passed council review
-  ao temper validate .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
+  ao know temper validate .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
   echo "Artifacts validated for tempering"
 
   # Close session and trigger full flywheel close-loop (includes adaptive feedback)
-  ao session close 2>/dev/null || true
-  ao flywheel close-loop --quiet 2>/dev/null || true
+  ao work session close 2>/dev/null || true
+  ao quality flywheel close-loop --quiet 2>/dev/null || true
   echo "Session closed, flywheel loop triggered"
 else
   # Learnings are already in .agents/learnings/ from $retro (Step 4).
@@ -411,7 +432,7 @@ else
   EPIC_ID="<epic-id>"
   echo "{\"epic\": \"$EPIC_ID\", \"verdict\": \"<council-verdict>\", \"cycle_time_minutes\": 0, \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/ao/outcomes.jsonl
 
-  # Skip ao temper validate (no fallback needed — tempering is an optimization)
+  # Skip ao know temper validate (no fallback needed — tempering is an optimization)
   echo "Flywheel fed locally (ao CLI not available — learnings searchable via grep)"
 fi
 ```
@@ -425,7 +446,7 @@ Tell the user:
 4. Location of post-mortem report
 5. Knowledge flywheel status
 6. **Suggested next `$rpi` command** (ALWAYS — this is how the flywheel spins itself)
-7. Top proactive improvements (top 3), including one quick win
+7. ALL proactive improvements, organized by priority (highlight one quick win)
 
 **The next `$rpi` suggestion is MANDATORY, not opt-in.** After every post-mortem, present the highest-severity harvested item as a ready-to-copy command:
 
@@ -610,7 +631,7 @@ $rpi "<highest-priority enhancement>"
 4. Runs `$retro` to extract learnings
 5. Synthesizes process improvement proposals
 6. Harvests next-work items to `.agents/rpi/next-work.jsonl`
-7. Feeds learnings to knowledge flywheel via `ao forge`
+7. Feeds learnings to knowledge flywheel via `ao know forge`
 
 **Result:** Post-mortem report with learnings, tech debt identified, and suggested next `$rpi` command.
 
@@ -678,6 +699,7 @@ $rpi "<highest-priority enhancement>"
 
 ### scripts/
 
+- `scripts/preflight-refs.sh`
 - `scripts/validate.sh`
 
 

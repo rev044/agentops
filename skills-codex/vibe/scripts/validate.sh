@@ -13,6 +13,8 @@ check "scripts/prescan.sh exists" "[ -f '$SKILL_DIR/scripts/prescan.sh' ]"
 check "scripts/prescan.sh is executable" "[ -x '$SKILL_DIR/scripts/prescan.sh' ]"
 check "SKILL.md mentions complexity" "grep -qi 'complexity' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions council" "grep -qi 'council' '$SKILL_DIR/SKILL.md'"
+check "deep-audit-protocol.md exists" "[ -f '$SKILL_DIR/references/deep-audit-protocol.md' ]"
+check "SKILL.md references --sweep flag" "grep -q '\-\-sweep' '$SKILL_DIR/SKILL.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

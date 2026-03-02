@@ -23,6 +23,7 @@ $vibe recent                             # same as above
 $vibe src/auth/                          # validates specific path
 $vibe --quick recent                     # fast inline check, no agent spawning
 $vibe --deep recent                      # 3 judges instead of 2
+$vibe --sweep recent                     # deep audit: per-file explorers + council
 $vibe --mixed recent                     # cross-vendor (Claude + Codex)
 $vibe --preset=security-audit src/auth/  # security-focused review
 $vibe --explorers=2 recent               # judges with explorer sub-agents
@@ -51,9 +52,9 @@ Do NOT spawn agents for empty file lists.
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2a–2f (constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2.5 and 2a–2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
-**Why:** Steps 2a–2f add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
+**Why:** Steps 2.5 and 2a–2g add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
 
 ### Step 2: Run Complexity Analysis
 
@@ -101,6 +102,40 @@ fi
 | F (31+) | Untestable | Must refactor |
 
 **Include complexity findings in council context.**
+
+### Step 2.5: Prior Findings Check
+
+**Skip if `--quick` (see Step 1.5).**
+
+Read `.agents/rpi/next-work.jsonl` and find unconsumed items with `severity=high` that match the target area. Include them in the council packet as `context.prior_findings` so judges have carry-forward context.
+
+```bash
+# Count unconsumed high-severity items
+if [ -f .agents/rpi/next-work.jsonl ] && command -v jq &>/dev/null; then
+  prior_count=$(jq -s '[.[] | select(.consumed == false) | .items[] | select(.severity == "high")] | length' \
+    .agents/rpi/next-work.jsonl 2>/dev/null || echo 0)
+  if [ "$prior_count" -gt 0 ]; then
+    echo "Prior findings: $prior_count unconsumed high-severity items from next-work.jsonl"
+    jq -s '[.[] | select(.consumed == false) | .items[] | select(.severity == "high")]' \
+      .agents/rpi/next-work.jsonl 2>/dev/null
+  fi
+fi
+```
+
+If unconsumed high-severity items are found, include them in the council packet context:
+```json
+"prior_findings": {
+  "source": ".agents/rpi/next-work.jsonl",
+  "count": 3,
+  "items": [/* array of high-severity unconsumed items */]
+}
+```
+
+**Skip conditions:**
+- `--quick` mode → skip
+- `.agents/rpi/next-work.jsonl` does not exist → skip silently
+- `jq` not on PATH → skip silently
+- No unconsumed high-severity items found → skip (do not add empty `prior_findings` to packet)
 
 ### Step 2a: Run Constraint Tests
 
@@ -172,7 +207,7 @@ esac
 - **Exit 1 (failed):** Auto-FAIL the vibe. Do NOT proceed to council.
 - **Exit 2 (skipped):** Note "OL validation skipped" in report. Proceed to council.
 
-### Step 2.5: Codex Review (opt-in via `--mixed`)
+### Step 2d: Codex Review (opt-in via `--mixed`)
 
 **Skip unless `--mixed` is passed.** Also skip if `--quick` (see Step 1.5).
 
@@ -207,20 +242,33 @@ This gives council judges a Codex-generated review as pre-existing context — c
 - `codex review` fails → skip silently, proceed with council only
 - No uncommitted changes → skip (nothing to review)
 
-### Step 2d: Search Knowledge Flywheel
+### Step 2e: Search Knowledge Flywheel
 
 **Skip if `--quick` (see Step 1.5).**
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao search "code review findings <target>" 2>/dev/null | head -10
+    ao know search "code review findings <target>" 2>/dev/null | head -10
 fi
 ```
 If ao returns prior code review patterns for this area, include them in the council packet context. Skip silently if ao is unavailable or returns no results.
 
-### Step 2e: Bug Hunt Audit
+### Step 2f: Bug Hunt or Deep Audit Sweep
 
 **Skip if `--quick` (see Step 1.5).**
+
+**Path A — Deep Audit Sweep (`--deep` or `--sweep`):**
+
+Read `references/deep-audit-protocol.md` for the full protocol. In summary:
+
+1. Chunk target files into batches of 3–5 (by line count — see protocol for rules)
+2. Dispatch up to 8 Explore agents in parallel, each with a mandatory 7-category checklist per file
+3. Merge all explorer findings into a sweep manifest at `.agents/council/sweep-manifest.md`
+4. Include sweep manifest in council packet (judges shift to adjudication mode — see Step 4)
+
+**Why:** Generalist judges exhibit satisfaction bias — they stop at ~10 findings regardless of actual issue count. Per-file explorers with category checklists eliminate this bias and find 3x more issues in a single pass.
+
+**Path B — Lightweight Bug Hunt (default, no `--deep`/`--sweep`):**
 
 Run a proactive bug hunt on the target files before council review:
 
@@ -240,14 +288,14 @@ If bug-hunt produces findings, include them in the council packet as `context.bu
 }
 ```
 
-**Why:** Bug hunt catches concrete line-level bugs (resource leaks, truncation errors, dead code) that council judges — reviewing holistically — often miss. Proven: goals code audit found 5 real bugs with 0 hypothesis failures by systematic reading.
+**Why:** Bug hunt catches concrete line-level bugs (resource leaks, truncation errors, dead code) that council judges — reviewing holistically — often miss.
 
-**Skip conditions:**
+**Skip conditions (both paths):**
 - `--quick` mode → skip (fast path)
 - No source files in target → skip (nothing to audit)
 - Target is non-code (pure docs/config) → skip
 
-### Step 2f: Check for Product Context
+### Step 2g: Check for Product Context
 
 **Skip if `--quick` (see Step 1.5).**
 
@@ -314,6 +362,7 @@ $council validate <target>
 - Complexity hotspots (from Step 2)
 - Git diff context
 - Spec content (when found, in `context.spec`)
+- Sweep manifest (when `--deep` or `--sweep`, in `context.sweep_manifest` — judges shift to adjudication mode, see `references/deep-audit-protocol.md`)
 
 All council flags pass through: `--quick` (inline), `--mixed` (cross-vendor), `--preset=<name>` (override perspectives), `--explorers=N`, `--debate` (adversarial 2-round). See Quick Start examples and `$council` docs.
 
@@ -382,6 +431,15 @@ date: YYYY-MM-DD
 ## Concerns Raised
 - ...
 
+## All Findings
+
+> Included when `--deep` or `--sweep` produces a sweep manifest. Lists ALL findings
+> from explorer sweep + council adjudication. Grouped by category if >20 findings.
+
+| # | File | Line | Category | Severity | Description | Source |
+|---|------|------|----------|----------|-------------|--------|
+| 1 | ... | ... | ... | ... | ... | sweep / council |
+
 ## Recommendation
 <council recommendation>
 
@@ -404,13 +462,13 @@ Tell the user:
 
 After council verdict:
 1. If verdict is PASS or WARN:
-   - Run: `ao ratchet record vibe --output "<report-path>" 2>/dev/null || true`
+   - Run: `ao work ratchet record vibe --output "<report-path>" 2>/dev/null || true`
    - Suggest: "Run $post-mortem to capture learnings and complete the cycle."
 2. If verdict is FAIL:
    - Do NOT record ratchet progress.
-   - Extract top 5 findings from the council report for structured retry context:
+   - Extract ALL findings from the council report for structured retry context (group by category if >20):
      ```
-     Read the council report. For each finding (max 5), format as:
+     Read the council report. For each finding, format as:
      FINDING: <description> | FIX: <fix or recommendation> | REF: <ref or location>
 
      Fallback for v1 findings (no fix/why/ref fields):
@@ -437,7 +495,7 @@ confidence: high
 
 # Vibe findings: $TARGET
 
-$(for finding in "${TOP_FINDINGS[@]:0:3}"; do
+$(for finding in "${ALL_FINDINGS[@]}"; do
   echo "- **${finding.severity}:** ${finding.description} (${finding.location})"
 done)
 
@@ -446,7 +504,7 @@ EOF
 
   # Index for flywheel if ao available
   if command -v ao &>/dev/null; then
-    ao forge markdown "$LEARNING_FILE" 2>/dev/null || true
+    ao know forge markdown "$LEARNING_FILE" 2>/dev/null || true
   fi
 fi
 ```
@@ -561,6 +619,7 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ## Reference Documents
 
+- [references/deep-audit-protocol.md](references/deep-audit-protocol.md)
 - [references/examples.md](references/examples.md)
 - [references/go-patterns.md](references/go-patterns.md)
 - [references/go-standards.md](references/go-standards.md)
@@ -579,6 +638,7 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ### references/
 
+- [references/deep-audit-protocol.md](references/deep-audit-protocol.md)
 - [references/examples.md](references/examples.md)
 - [references/go-patterns.md](references/go-patterns.md)
 - [references/go-standards.md](references/go-standards.md)
