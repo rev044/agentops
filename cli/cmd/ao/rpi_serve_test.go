@@ -142,6 +142,31 @@ func TestSetCORSHeaders(t *testing.T) {
 	}
 }
 
+func TestClassifyServeArg_12HexRunID(t *testing.T) {
+	tests := []struct {
+		name      string
+		flagRunID string
+		args      []string
+		wantGoal  string
+		wantRunID string
+	}{
+		{"12-hex via flag", "760fc86f0c0f", nil, "", "760fc86f0c0f"},
+		{"12-hex via arg", "", []string{"760fc86f0c0f"}, "", "760fc86f0c0f"},
+		{"8-hex rpi prefix via flag", "rpi-a1b2c3d4", nil, "", "rpi-a1b2c3d4"},
+		{"goal string", "improve-coverage", nil, "improve-coverage", ""},
+		{"empty", "", nil, "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			goal, runID := classifyServeArg(tt.flagRunID, tt.args)
+			if goal != tt.wantGoal || runID != tt.wantRunID {
+				t.Errorf("classifyServeArg(%q, %v) = (%q, %q), want (%q, %q)",
+					tt.flagRunID, tt.args, goal, runID, tt.wantGoal, tt.wantRunID)
+			}
+		})
+	}
+}
+
 // TestServeRPIEvents_StreamsPreExistingEvents verifies that events seeded before
 // the handler starts are delivered as SSE data lines within one poll cycle.
 func TestServeRPIEvents_StreamsPreExistingEvents(t *testing.T) {

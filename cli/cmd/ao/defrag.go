@@ -54,7 +54,7 @@ func init() {
 		"Flag evolve goals alternating improved/fail >=3 consecutive cycles")
 	defragCmd.Flags().IntVar(&defragStaleDays, "stale-days", 30,
 		"Days after which an unreferenced learning is considered stale")
-	defragCmd.Flags().StringVar(&defragOutputDir, "output", ".agents/defrag",
+	defragCmd.Flags().StringVar(&defragOutputDir, "output-dir", ".agents/defrag",
 		"Directory for defrag report JSON")
 	defragCmd.Flags().BoolVar(&defragQuiet, "quiet", false, "Suppress progress output")
 }
@@ -451,6 +451,10 @@ func writeDefragReport(dir string, r *DefragReport) error {
 		return fmt.Errorf("write latest report: %w", err)
 	}
 
+	// Handle output format
+	if GetOutput() == "json" {
+		return json.NewEncoder(os.Stdout).Encode(r)
+	}
 	if !defragQuiet {
 		printDefragSummary(r)
 	}

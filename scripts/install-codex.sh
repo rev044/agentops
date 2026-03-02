@@ -27,8 +27,21 @@ fail()  { echo -e "${RED}✗${NC} $*"; exit 1; }
 CODEX_DIR="${HOME}/.codex"
 SKILLS_DST="${CODEX_DIR}/skills"
 INSTALL_META="${CODEX_DIR}/.agentops-codex-install.json"
-ARCHIVE_URL="https://codeload.github.com/boshu2/agentops/tar.gz/refs/heads/main"
 UPDATE_CMD="curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+
+get_latest_tag() {
+    local tag
+    tag=$(curl -fsSL "https://api.github.com/repos/boshu2/agentops/releases/latest" 2>/dev/null \
+        | grep '"tag_name"' | head -1 | cut -d'"' -f4)
+    if [ -z "$tag" ]; then
+        echo "main"  # fallback to main if API fails
+    else
+        echo "$tag"
+    fi
+}
+
+RELEASE_TAG=$(get_latest_tag)
+ARCHIVE_URL="https://codeload.github.com/boshu2/agentops/tar.gz/refs/tags/$RELEASE_TAG"
 
 echo "Installing AgentOps Codex skills..."
 echo ""
@@ -77,7 +90,7 @@ cat > "$INSTALL_META" <<EOF
 {
   "installed_at": "$INSTALLED_AT",
   "source": "install-codex.sh",
-  "version": "main",
+  "version": "$RELEASE_TAG",
   "update_command": "$UPDATE_CMD"
 }
 EOF

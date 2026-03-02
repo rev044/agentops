@@ -566,8 +566,41 @@ jobs:
       - name: Run hook integration tests
         run: bash tests/hooks/test-hooks.sh
 
+  doctor-check:
+    runs-on: ubuntu-latest
+    needs: go-build
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - name: Build ao CLI
+        run: cd cli && go build -o /tmp/ao-test ./cmd/ao
+
+      - name: Run ao doctor
+        run: |
+          echo "=== Running ao doctor ==="
+          /tmp/ao-test doctor 2>/dev/null || true
+          echo ""
+          echo "Note: doctor may report warnings for CI-expected missing tools."
+          echo "This job catches stale references and dead commands."
+
+  skill-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run skill linting
+        run: |
+          chmod +x tests/skills/run-all.sh
+          bash tests/skills/run-all.sh
+
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration]
+    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, doctor-check, skill-lint]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -594,6 +627,8 @@ jobs:
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
           echo "go-build: ${{ needs.go-build.result }}"
           echo "cli-integration: ${{ needs.cli-integration.result }}"
+          echo "doctor-check: ${{ needs.doctor-check.result }}"
+          echo "skill-lint: ${{ needs.skill-lint.result }}"
 
           if [[ "${{ needs.doc-release-gate.result }}" != "success" ]] || \
              [[ "${{ needs.smoke-test.result }}" != "success" ]] || \
@@ -613,7 +648,8 @@ jobs:
              [[ "${{ needs.memrl-health.result }}" != "success" ]] || \
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \
-             [[ "${{ needs.cli-integration.result }}" != "success" ]]; then
+             [[ "${{ needs.cli-integration.result }}" != "success" ]] || \
+             [[ "${{ needs.skill-lint.result }}" != "success" ]]; then
             echo ""
             echo "❌ Some checks failed"
             exit 1

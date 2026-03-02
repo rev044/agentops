@@ -47,7 +47,7 @@ var flywheelCloseLoopCmd = &cobra.Command{
 	Short: "Close the knowledge flywheel loop",
 	Long: `Close the knowledge flywheel loop by chaining:
 
-  pool ingest → pool auto-promote (promote) → promote-anti-patterns → store (categorize)
+  pool ingest → pool auto-promote (promote) → maturity transitions → store (categorize)
 
 Designed to be safe for hooks with --quiet.
 

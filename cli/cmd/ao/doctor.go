@@ -743,7 +743,6 @@ var deprecatedCommands = map[string]string{
 	"ao quality dedup":           "ao dedup",
 	"ao quality anti-patterns":   "ao anti-patterns",
 	"ao quality curate":          "ao curate",
-	"ao quality promote-anti-patterns": "ao promote-anti-patterns",
 	"ao settings config":         "ao config",
 	"ao settings plans":          "ao plans",
 	"ao settings hooks":          "ao hooks",

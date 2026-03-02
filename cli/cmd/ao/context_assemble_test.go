@@ -11,6 +11,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func TestContextAssembleOutputFileFlag(t *testing.T) {
+	// Find the assemble subcommand under context
+	cmd, _, _ := rootCmd.Find([]string{"context", "assemble"})
+	if cmd == nil {
+		t.Fatal("context assemble command not found")
+	}
+	f := cmd.Flags().Lookup("output-file")
+	if f == nil {
+		t.Fatal("expected --output-file flag on context assemble, not found")
+	}
+	// Check local flags only — root's persistent --output/-o (output format) is inherited and fine
+	if old := cmd.LocalFlags().Lookup("output"); old != nil {
+		t.Error("--output local flag should be renamed to --output-file on context assemble")
+	}
+}
+
 func TestContextAssemble_FiveSections(t *testing.T) {
 	tmp := t.TempDir()
 

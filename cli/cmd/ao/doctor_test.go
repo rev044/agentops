@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -512,5 +513,28 @@ func TestFileExists(t *testing.T) {
 	}
 	if fileExists(filepath.Join(tmp, "nope.txt")) {
 		t.Error("expected fileExists to return false for non-existent file")
+	}
+}
+
+func TestDoctorStaleReplacementsExist(t *testing.T) {
+	// Every replacement (value) in deprecatedCommands should resolve to a
+	// real Cobra command registered under rootCmd.
+	for old, newCmd := range deprecatedCommands {
+		parts := strings.Fields(newCmd)
+		if len(parts) < 2 {
+			t.Errorf("deprecatedCommands[%q] = %q — too few parts", old, newCmd)
+			continue
+		}
+		// Walk rootCmd to find the command (skip "ao" prefix)
+		cmd, _, err := rootCmd.Find(parts[1:])
+		if err != nil {
+			t.Errorf("deprecatedCommands[%q] = %q — command not found: %v", old, newCmd, err)
+			continue
+		}
+		// rootCmd.Find returns rootCmd itself when the command doesn't
+		// match any subcommand. That means the replacement is dead.
+		if cmd == rootCmd {
+			t.Errorf("deprecatedCommands[%q] = %q — resolved to root (command does not exist)", old, newCmd)
+		}
 	}
 }

@@ -82,12 +82,12 @@ single Markdown briefing document. Secrets are redacted before output.
 Examples:
   ao context assemble --task="Implement auth middleware"
   ao context assemble --task="Fix rate limiter" --max-chars=20000
-  ao context assemble --task="Add tests" --output=briefing.md`,
+  ao context assemble --task="Add tests" --output-file=briefing.md`,
 		RunE: runContextAssemble,
 	}
 	assembleCmd.Flags().StringVar(&assembleTask, "task", "", "Task description (required)")
 	assembleCmd.Flags().IntVar(&assembleMaxChars, "max-chars", defaultAssembleMaxChars, "Total character budget")
-	assembleCmd.Flags().StringVar(&assembleOutput, "output", defaultAssembleOutput, "Output path for briefing")
+	assembleCmd.Flags().StringVar(&assembleOutput, "output-file", defaultAssembleOutput, "Output path for briefing")
 	_ = assembleCmd.MarkFlagRequired("task")
 
 	// Register under contextCmd (package-level var in context.go).

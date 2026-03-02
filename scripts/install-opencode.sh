@@ -32,6 +32,17 @@ PLUGIN_DIR="${OPENCODE_CONFIG}/plugins"
 SKILLS_DIR="${OPENCODE_CONFIG}/skills"
 REPO_URL="https://github.com/boshu2/agentops.git"
 
+get_latest_tag() {
+    local tag
+    tag=$(curl -fsSL "https://api.github.com/repos/boshu2/agentops/releases/latest" 2>/dev/null \
+        | grep '"tag_name"' | head -1 | cut -d'"' -f4)
+    if [ -z "$tag" ]; then
+        echo "main"  # fallback to main if API fails
+    else
+        echo "$tag"
+    fi
+}
+
 echo "Installing AgentOps for OpenCode..."
 echo ""
 
@@ -41,14 +52,24 @@ if ! command -v opencode &>/dev/null; then
   warn "Continuing anyway — plugin will be ready when OpenCode is installed."
 fi
 
-# Step 2: Clone or update repo
+# Step 2: Clone or update repo at latest release tag
+RELEASE_TAG=$(get_latest_tag)
 if [ -d "$AGENTOPS_DIR/.git" ]; then
-  info "AgentOps repo exists, pulling latest..."
-  git -C "$AGENTOPS_DIR" pull --ff-only 2>/dev/null || warn "git pull failed — using existing version"
+  info "AgentOps repo exists, fetching latest release ($RELEASE_TAG)..."
+  git -C "$AGENTOPS_DIR" fetch --tags 2>/dev/null || warn "git fetch failed — using existing version"
+  if [ "$RELEASE_TAG" != "main" ]; then
+    git -C "$AGENTOPS_DIR" checkout "$RELEASE_TAG" 2>/dev/null || warn "checkout $RELEASE_TAG failed — using existing version"
+  else
+    git -C "$AGENTOPS_DIR" pull --ff-only 2>/dev/null || warn "git pull failed — using existing version"
+  fi
 else
-  info "Cloning AgentOps..."
+  info "Cloning AgentOps ($RELEASE_TAG)..."
   mkdir -p "$(dirname "$AGENTOPS_DIR")"
-  git clone --depth 1 "$REPO_URL" "$AGENTOPS_DIR"
+  if [ "$RELEASE_TAG" != "main" ]; then
+    git clone --branch "$RELEASE_TAG" --depth 1 "$REPO_URL" "$AGENTOPS_DIR"
+  else
+    git clone --depth 1 "$REPO_URL" "$AGENTOPS_DIR"
+  fi
 fi
 
 # Step 3: Install plugin dependency
@@ -100,4 +121,4 @@ echo ""
 echo "Restart OpenCode to activate. Verify by asking: \"do you have agentops?\""
 echo ""
 echo "To update later:"
-echo "  cd $AGENTOPS_DIR && git pull"
+echo "  curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash"

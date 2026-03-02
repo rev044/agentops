@@ -485,6 +485,17 @@ func TestFormatMemoryEntry_UnicodeContent(t *testing.T) {
 	}
 }
 
+func TestMemorySyncOutputFileFlag(t *testing.T) {
+	f := memorySyncCmd.Flags().Lookup("output-file")
+	if f == nil {
+		t.Fatal("expected --output-file flag on memory sync, not found")
+	}
+	// Check local flags only — root's persistent --output/-o (output format) is inherited and fine
+	if old := memorySyncCmd.LocalFlags().Lookup("output"); old != nil {
+		t.Error("--output local flag should be renamed to --output-file on memory sync")
+	}
+}
+
 func TestMemorySync_EndToEnd(t *testing.T) {
 	tmp := t.TempDir()
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -487,6 +488,121 @@ func TestFindDuplicateLearnings_DedupApply(t *testing.T) {
 	}
 	if len(result.Deleted) != 1 || result.Deleted[0] != hashFile {
 		t.Errorf("Deleted = %v, want [%s]", result.Deleted, hashFile)
+	}
+}
+
+func TestDefragOutputDirFlag(t *testing.T) {
+	// Verify the flag is named "output-dir", not "output"
+	cmd := defragCmd
+	f := cmd.Flags().Lookup("output-dir")
+	if f == nil {
+		t.Fatal("expected --output-dir flag, not found")
+	}
+	// Also verify "output" is NOT a registered local flag on defrag
+	if old := cmd.Flags().Lookup("output"); old != nil {
+		t.Error("--output flag should be renamed to --output-dir")
+	}
+}
+
+func TestWriteDefragReport_JSONOutput(t *testing.T) {
+	tmp := t.TempDir()
+	outDir := filepath.Join(tmp, "defrag-output")
+
+	// Save and restore global state
+	origQuiet := defragQuiet
+	origOutput := output
+	defragQuiet = true
+	output = "json"
+	defer func() {
+		defragQuiet = origQuiet
+		output = origOutput
+	}()
+
+	report := &DefragReport{
+		Timestamp: time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC),
+		DryRun:    true,
+		Prune: &PruneResult{
+			TotalLearnings: 5,
+			StaleCount:     2,
+			Orphans:        []string{".agents/learnings/stale.md"},
+		},
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := writeDefragReport(outDir, report)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var buf [4096]byte
+	n, _ := r.Read(buf[:])
+	stdout := string(buf[:n])
+
+	// Verify JSON was written to stdout
+	var parsed DefragReport
+	if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v\nGot: %s", err, stdout)
+	}
+	if !parsed.DryRun {
+		t.Error("parsed.DryRun = false, want true")
+	}
+	if parsed.Prune == nil || parsed.Prune.TotalLearnings != 5 {
+		t.Errorf("parsed.Prune.TotalLearnings = %v, want 5", parsed.Prune)
+	}
+}
+
+func TestWriteDefragReport_TextOutputNotJSON(t *testing.T) {
+	tmp := t.TempDir()
+	outDir := filepath.Join(tmp, "defrag-output")
+
+	// Save and restore global state
+	origQuiet := defragQuiet
+	origOutput := output
+	defragQuiet = false
+	output = "table"
+	defer func() {
+		defragQuiet = origQuiet
+		output = origOutput
+	}()
+
+	report := &DefragReport{
+		Timestamp: time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC),
+		DryRun:    true,
+		Prune: &PruneResult{
+			TotalLearnings: 5,
+			StaleCount:     2,
+		},
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := writeDefragReport(outDir, report)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var buf [4096]byte
+	n, _ := r.Read(buf[:])
+	stdout := string(buf[:n])
+
+	// Should contain human-readable summary, not JSON
+	if !strings.Contains(stdout, "Defrag report:") {
+		t.Errorf("expected human-readable summary, got: %s", stdout)
 	}
 }
 
