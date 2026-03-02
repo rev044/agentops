@@ -53,7 +53,7 @@ func resolveGoalAndStartPhase(opts phasedEngineOptions, args []string, cwd strin
 }
 
 func newPhasedState(opts phasedEngineOptions, startPhase int, goal string) *phasedState {
-	return &phasedState{
+	s := &phasedState{
 		SchemaVersion: 1,
 		Goal:          goal,
 		Phase:         startPhase,
@@ -67,6 +67,10 @@ func newPhasedState(opts phasedEngineOptions, startPhase int, goal string) *phas
 		StartedAt:     time.Now().Format(time.RFC3339),
 		Opts:          opts,
 	}
+	if opts.RunID != "" {
+		s.RunID = opts.RunID
+	}
+	return s
 }
 
 // mergeExistingStateFields copies relevant fields from a previous run's state

@@ -41,6 +41,7 @@ type phasedEngineOptions struct {
 	TmuxWorkers          int
 	NoBudget             bool
 	BudgetSpec           string
+	RunID                string    // Pre-seeded run ID (serve mode); empty = auto-generate
 	NoDashboard          bool
 	StdoutWriter         io.Writer `json:"-"` // runtime-only; suppresses raw Claude output when dashboard active
 }

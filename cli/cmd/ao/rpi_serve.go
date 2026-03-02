@@ -59,16 +59,16 @@ func init() {
 		Long: `Start a production RPI orchestration run or stream its live dashboard.
 
 Orchestration mode (ao rpi serve "<goal>"):
-  Runs the full RPI lifecycle — discovery, per-bead implementation, validation —
-  each phase in its own isolated worker (fresh Claude context). On failure, a new
-  worker is spawned rather than retrying in the same context.
+  Runs the full 3-phase RPI lifecycle — discovery, implementation, validation —
+  using the phased engine with fresh context per phase, budget enforcement,
+  stall detection, and worktree isolation.
 
   ao rpi serve "add user authentication"   # run full RPI lifecycle
   ao rpi serve "fix the cache bug"         # any plain-text goal
 
 Watch mode (ao rpi serve [run-id]):
   Stream C2 events for an already-active RPI run. Opens a real-time dashboard
-  with phase status, telemetry, cost, and per-bead worker activity.
+  with phase status, telemetry, cost, and worker activity.
 
   ao rpi serve                      # auto-discover latest active run
   ao rpi serve rpi-abc123           # watch a specific run by ID
@@ -107,8 +107,10 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 
 	// Orchestration mode: a goal was provided — run the full RPI lifecycle.
 	if goal != "" {
-		opts := defaultOrchOpts()
 		runID := generateRunID()
+		opts := defaultPhasedEngineOptions()
+		opts.RunID = runID
+		opts.NoDashboard = true // serve manages its own dashboard
 
 		addr := fmt.Sprintf("localhost:%d", rpiServePort)
 		dashURL := fmt.Sprintf("http://%s?run=%s", addr, runID)
@@ -143,14 +145,14 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 			_ = srv.Shutdown(shutCtx)
 		}()
 
-		// Launch orchestration in the background so the dashboard stays live.
+		// Launch phased engine in the background so the dashboard stays live.
 		orchErrCh := make(chan error, 1)
 		go func() {
-			orchErrCh <- runRPIOrchestration(orchCtx, goal, runID, cwd, opts)
+			orchErrCh <- runPhasedEngine(orchCtx, cwd, goal, opts)
 		}()
 
 		srvErr := srv.Serve(ln)
-		orchCancel() // ensure orchestration goroutine exits on server stop
+		orchCancel() // ensure phased engine goroutine exits on server stop
 
 		if srvErr != nil && srvErr != http.ErrServerClosed {
 			return fmt.Errorf("server: %w", srvErr)

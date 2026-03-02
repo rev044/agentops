@@ -125,6 +125,22 @@ func TestNewPhasedState_Defaults(t *testing.T) {
 	}
 }
 
+func TestNewPhasedState_RunIDPassthrough(t *testing.T) {
+	opts := phasedEngineOptions{RunID: "test-run-abc123"}
+	state := newPhasedState(opts, 1, "test goal")
+	if state.RunID != "test-run-abc123" {
+		t.Errorf("RunID = %q, want %q", state.RunID, "test-run-abc123")
+	}
+}
+
+func TestNewPhasedState_RunIDEmpty(t *testing.T) {
+	opts := phasedEngineOptions{}
+	state := newPhasedState(opts, 1, "test goal")
+	if state.RunID != "" {
+		t.Errorf("RunID = %q, want empty (ensureStateRunID should generate later)", state.RunID)
+	}
+}
+
 // --- mergeExistingStateFields ---
 
 func TestMergeExistingStateFields_CopiesFields(t *testing.T) {
