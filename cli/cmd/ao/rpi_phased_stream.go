@@ -26,7 +26,9 @@ type PhaseExecutor interface {
 	// Name returns the backend identifier ("direct" or "stream").
 	Name() string
 	// Execute runs the phase prompt and blocks until the session completes.
-	Execute(prompt, cwd, runID string, phaseNum int) error
+	// The context carries cancellation signals (e.g. SIGINT/SIGTERM) from the
+	// orchestrator so that long-running phase sessions can be interrupted.
+	Execute(ctx context.Context, prompt, cwd, runID string, phaseNum int) error
 }
 
 type directExecutor struct {
@@ -44,7 +46,7 @@ func (d *directExecutor) effectiveStdoutWriter() io.Writer {
 	return os.Stdout
 }
 
-func (d *directExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
+func (d *directExecutor) Execute(ctx context.Context, prompt, cwd, runID string, phaseNum int) error {
 	if _, err := appendRPIC2Event(cwd, rpiC2EventInput{
 		RunID: runID, Phase: phaseNum, Backend: "direct", Source: "runtime_direct",
 		Type:    "phase.direct.started",
@@ -86,7 +88,7 @@ func (s *streamExecutor) effectiveStdoutWriter() io.Writer {
 	return os.Stdout
 }
 
-func (s *streamExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
+func (s *streamExecutor) Execute(ctx context.Context, prompt, cwd, runID string, phaseNum int) error {
 	err := spawnRuntimePhaseWithStream(s.runtimeCommand, prompt, cwd, runID, phaseNum, s.statusPath, s.allPhases, s.phaseTimeout, s.stallTimeout, s.streamStartupTimeout, s.stallCheckInterval, s.effectiveStdoutWriter())
 	if err == nil {
 		return nil
@@ -366,7 +368,7 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 		return argsErr
 	}
 
-	ctx, cancel := buildStreamPhaseContext(phaseTimeout)
+	ctx, cancel := buildStreamPhaseContext(context.Background(), phaseTimeout)
 	defer cancel()
 
 	effectiveCheckInterval := normalizeCheckInterval(checkInterval)
@@ -434,11 +436,12 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 }
 
 // buildStreamPhaseContext creates a context with optional timeout for a stream phase.
-func buildStreamPhaseContext(phaseTimeout time.Duration) (context.Context, context.CancelFunc) {
+// It derives from parent so that orchestrator-level cancellation propagates.
+func buildStreamPhaseContext(parent context.Context, phaseTimeout time.Duration) (context.Context, context.CancelFunc) {
 	if phaseTimeout > 0 {
-		return context.WithTimeout(context.Background(), phaseTimeout)
+		return context.WithTimeout(parent, phaseTimeout)
 	}
-	return context.Background(), func() {}
+	return parent, func() {}
 }
 
 // normalizeCheckInterval returns checkInterval or a 1s default.

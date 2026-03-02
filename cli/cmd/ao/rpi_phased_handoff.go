@@ -148,7 +148,7 @@ func buildHandoffContext(handoffs []*phaseHandoff) string {
 	}
 
 	for _, h := range handoffs {
-		sb.WriteString(fmt.Sprintf("[Phase %d: %s — %s", h.Phase, h.PhaseName, h.Status))
+		sb.WriteString(fmt.Sprintf("[Phase %d: %s — %s (source: phase-%d-handoff.json)", h.Phase, h.PhaseName, h.Status, h.Phase))
 		if h.DurationSeconds > 0 {
 			sb.WriteString(fmt.Sprintf(" in %.0fs", h.DurationSeconds))
 		}
@@ -189,7 +189,7 @@ func buildHandoffContext(handoffs []*phaseHandoff) string {
 			if len(narrative) > 1000 {
 				narrative = narrative[:1000] + "..."
 			}
-			sb.WriteString(fmt.Sprintf("Narrative: %s\n", narrative))
+			sb.WriteString(fmt.Sprintf("Narrative (from phase-%d-summary): %s\n", h.Phase, narrative))
 		}
 
 		sb.WriteString("\n")

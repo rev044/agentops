@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -121,7 +122,7 @@ func TestDirectExecutor_Execute_PropagatesError(t *testing.T) {
 	t.Setenv("PATH", t.TempDir()) // empty dir = no binaries
 
 	d := &directExecutor{}
-	err := d.Execute("test prompt", t.TempDir(), "run-1", 1)
+	err := d.Execute(context.Background(), "test prompt", t.TempDir(), "run-1", 1)
 	if err == nil {
 		t.Fatal("expected error when claude binary is absent")
 	}
@@ -135,7 +136,7 @@ func TestStreamExecutor_Execute_PropagatesError(t *testing.T) {
 	t.Setenv("PATH", t.TempDir()) // no binaries
 
 	s := &streamExecutor{statusPath: filepath.Join(t.TempDir(), "status.md"), allPhases: nil}
-	err := s.Execute("prompt", t.TempDir(), "run-stream-err", 3)
+	err := s.Execute(context.Background(), "prompt", t.TempDir(), "run-stream-err", 3)
 	if err == nil {
 		t.Fatal("expected error from stream executor when claude is absent")
 	}
@@ -650,7 +651,7 @@ func TestHandleGateRetry_ExhaustsRetries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shouldRetry, err := handleGateRetry(dir, state, 1, gateErr, logPath, dir, "", nil, executor)
+	shouldRetry, err := handleGateRetry(context.Background(), dir, state, 1, gateErr, logPath, dir, "", nil, executor)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -713,7 +714,7 @@ type mockPhaseExecutor struct {
 }
 
 func (m *mockPhaseExecutor) Name() string { return m.name }
-func (m *mockPhaseExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
+func (m *mockPhaseExecutor) Execute(_ context.Context, prompt, cwd, runID string, phaseNum int) error {
 	m.execCount++
 	return m.execErr
 }

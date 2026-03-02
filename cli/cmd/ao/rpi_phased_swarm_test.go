@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -310,7 +311,7 @@ func TestRetryWithBackendSemantics(t *testing.T) {
 		Report: vibeReport,
 	}
 
-	retried, err := handleGateRetry(tmpDir, state, 3, gateErr, logPath, tmpDir, statusPath, nil, mockExec)
+	retried, err := handleGateRetry(context.Background(), tmpDir, state, 3, gateErr, logPath, tmpDir, statusPath, nil, mockExec)
 	if err != nil {
 		t.Fatalf("handleGateRetry: %v", err)
 	}
@@ -377,7 +378,7 @@ func TestRetryBackendPreservesExecutor(t *testing.T) {
 		Report:  vibeReport,
 	}
 
-	_, _ = handleGateRetry(tmpDir, state, 3, gateErr, logPath, tmpDir, statusPath, nil, primaryExec)
+	_, _ = handleGateRetry(context.Background(), tmpDir, state, 3, gateErr, logPath, tmpDir, statusPath, nil, primaryExec)
 
 	if calls["primary"] == 0 {
 		t.Error("primary executor should have been called — backend semantics must be preserved in retry")
@@ -516,7 +517,7 @@ type mockExecutor struct {
 }
 
 func (m *mockExecutor) Name() string { return m.name }
-func (m *mockExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
+func (m *mockExecutor) Execute(_ context.Context, prompt, cwd, runID string, phaseNum int) error {
 	if m.executeFn != nil {
 		return m.executeFn(prompt, cwd, runID, phaseNum)
 	}

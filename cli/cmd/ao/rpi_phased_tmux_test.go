@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -147,7 +148,7 @@ done
 	runID := "nudge1234"
 	done := make(chan error, 1)
 	go func() {
-		done <- execTmux.Execute("test prompt", tmp, runID, 1)
+		done <- execTmux.Execute(context.Background(), "test prompt", tmp, runID, 1)
 	}()
 
 	baseSession := tmuxSessionName(runID, 1)
@@ -243,7 +244,7 @@ esac
 		workerCount:    1,
 	}
 	runID := "exit-missing-run"
-	err := execTmux.Execute("prompt", tmp, runID, 1)
+	err := execTmux.Execute(context.Background(), "prompt", tmp, runID, 1)
 	if err == nil {
 		t.Fatal("expected missing exit-code file error")
 	}

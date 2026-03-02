@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -105,7 +108,7 @@ Examples:
 // runPhasedEngine runs the full phased RPI lifecycle for goal in cwd.
 // It is the programmatic entry point used by both the phased cobra command
 // and the loop command, ensuring both share the same runtime contracts.
-func runPhasedEngine(cwd, goal string, opts phasedEngineOptions) (retErr error) {
+func runPhasedEngine(ctx context.Context, cwd, goal string, opts phasedEngineOptions) (retErr error) {
 	// Temporarily change working directory so runRPIPhasedWithOpts's os.Getwd() call
 	// and all path resolution operate in the requested cwd.
 	origDir, err := os.Getwd()
@@ -125,7 +128,7 @@ func runPhasedEngine(cwd, goal string, opts phasedEngineOptions) (retErr error) 
 	if goal == "" {
 		args = nil
 	}
-	return runRPIPhasedWithOpts(opts, args)
+	return runRPIPhasedWithOpts(ctx, opts, args)
 }
 
 // runRPIPhased is the cobra RunE handler for `ao rpi phased`.
@@ -183,7 +186,9 @@ func runRPIPhased(cmd *cobra.Command, args []string) error {
 		opts.AutoCleanStale = true
 	}
 
-	return runRPIPhasedWithOpts(opts, args)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	return runRPIPhasedWithOpts(ctx, opts, args)
 }
 
 // normalizeOptsCommands resolves all runtime/tool commands to their effective values.
@@ -285,7 +290,7 @@ func initPhasedState(cwd string, opts phasedEngineOptions, args []string) (*phas
 	return state, startPhase, spawnCwd, nil
 }
 
-func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error) {
+func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []string) (retErr error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
@@ -354,7 +359,7 @@ func runRPIPhasedWithOpts(opts phasedEngineOptions, args []string) (retErr error
 
 	runStart := time.Now()
 
-	if err := runPhaseLoopWithBudgets(cwd, spawnCwd, state, startPhase, opts, statusPath, allPhases, logPath); err != nil {
+	if err := runPhaseLoopWithBudgets(ctx, cwd, spawnCwd, state, startPhase, opts, statusPath, allPhases, logPath); err != nil {
 		saveTerminalState(spawnCwd, state, "failed", err.Error())
 		emitRunCompleted(spawnCwd, state, runStart)
 		return err
@@ -432,7 +437,7 @@ func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget ti
 	return true
 }
 
-func runPhaseLoopWithBudgets(cwd, spawnCwd string, state *phasedState, startPhase int, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath string) error {
+func runPhaseLoopWithBudgets(ctx context.Context, cwd, spawnCwd string, state *phasedState, startPhase int, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath string) error {
 	for i := startPhase; i <= len(phases); i++ {
 		p := phases[i-1]
 		if p.Num == 3 && state.FastPath && state.Complexity == ComplexityFast {
@@ -452,7 +457,7 @@ func runPhaseLoopWithBudgets(cwd, spawnCwd string, state *phasedState, startPhas
 		}
 
 		phaseExecutor := selectExecutorWithLog(statusPath, allPhases, logPath, state.RunID, phaseOpts.LiveStatus, phaseOpts)
-		if err := runSinglePhase(cwd, spawnCwd, state, startPhase, p, phaseOpts, statusPath, allPhases, logPath, phaseExecutor); err != nil {
+		if err := runSinglePhase(ctx, cwd, spawnCwd, state, startPhase, p, phaseOpts, statusPath, allPhases, logPath, phaseExecutor); err != nil {
 			if hasBudget && isPhaseTimeoutError(err) && handleBudgetTimeout(spawnCwd, state, p, budget, logPath) {
 				continue
 			}

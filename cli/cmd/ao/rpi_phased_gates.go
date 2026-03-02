@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -212,7 +213,7 @@ func resolveGateRetryAction(state *phasedState, phaseNum int, gateErr *gateFailE
 
 // handleGateRetry manages retry logic for failed gates.
 // spawnCwd is the working directory for spawned claude sessions (may be worktree).
-func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gateFailError, logPath string, spawnCwd string, statusPath string, allPhases []PhaseProgress, executor PhaseExecutor) (bool, error) {
+func handleGateRetry(ctx context.Context, cwd string, state *phasedState, phaseNum int, gateErr *gateFailError, logPath string, spawnCwd string, statusPath string, allPhases []PhaseProgress, executor PhaseExecutor) (bool, error) {
 	phaseName := phases[phaseNum-1].Name
 	attemptKey := fmt.Sprintf("phase_%d", phaseNum)
 
@@ -246,7 +247,7 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 		return false, nil
 	}
 
-	if err := executeWithStatus(executor, state, statusPath, allPhases, phaseNum, attempt, retryPrompt, spawnCwd, "running retry prompt", "retry failed"); err != nil {
+	if err := executeWithStatus(ctx, executor, state, statusPath, allPhases, phaseNum, attempt, retryPrompt, spawnCwd, "running retry prompt", "retry failed"); err != nil {
 		return false, fmt.Errorf("retry failed: %w", err)
 	}
 
@@ -256,11 +257,11 @@ func handleGateRetry(cwd string, state *phasedState, phaseNum int, gateErr *gate
 	}
 
 	fmt.Printf("Re-running phase %d after retry\n", phaseNum)
-	if err := executeWithStatus(executor, state, statusPath, allPhases, phaseNum, attempt, rerunPrompt, spawnCwd, "re-running phase", "rerun failed"); err != nil {
+	if err := executeWithStatus(ctx, executor, state, statusPath, allPhases, phaseNum, attempt, rerunPrompt, spawnCwd, "re-running phase", "rerun failed"); err != nil {
 		return false, fmt.Errorf("rerun failed: %w", err)
 	}
 
-	return verifyGateAfterRetry(cwd, state, phaseNum, logPath, spawnCwd, statusPath, allPhases, executor, attempt)
+	return verifyGateAfterRetry(ctx, cwd, state, phaseNum, logPath, spawnCwd, statusPath, allPhases, executor, attempt)
 }
 
 func maybeUpdateLiveStatus(state *phasedState, statusPath string, allPhases []PhaseProgress, phaseNum int, status string, attempt int, errMsg string) {
@@ -269,9 +270,9 @@ func maybeUpdateLiveStatus(state *phasedState, statusPath string, allPhases []Ph
 	}
 }
 
-func executeWithStatus(executor PhaseExecutor, state *phasedState, statusPath string, allPhases []PhaseProgress, phaseNum, attempt int, prompt, spawnCwd, runningMsg, failedMsg string) error {
+func executeWithStatus(ctx context.Context, executor PhaseExecutor, state *phasedState, statusPath string, allPhases []PhaseProgress, phaseNum, attempt int, prompt, spawnCwd, runningMsg, failedMsg string) error {
 	maybeUpdateLiveStatus(state, statusPath, allPhases, phaseNum, runningMsg, attempt, "")
-	if err := executor.Execute(prompt, spawnCwd, state.RunID, phaseNum); err != nil {
+	if err := executor.Execute(ctx, prompt, spawnCwd, state.RunID, phaseNum); err != nil {
 		maybeUpdateLiveStatus(state, statusPath, allPhases, phaseNum, failedMsg, attempt, err.Error())
 		return err
 	}
@@ -322,12 +323,12 @@ func performGateEscalation(state *phasedState, phaseNum, attempt int, gateErr *g
 
 // verifyGateAfterRetry re-checks the gate after a retry session completes.
 // If the gate still fails, it recurses into handleGateRetry.
-func verifyGateAfterRetry(cwd string, state *phasedState, phaseNum int, logPath, spawnCwd, statusPath string, allPhases []PhaseProgress, executor PhaseExecutor, attempt int) (bool, error) {
+func verifyGateAfterRetry(ctx context.Context, cwd string, state *phasedState, phaseNum int, logPath, spawnCwd, statusPath string, allPhases []PhaseProgress, executor PhaseExecutor, attempt int) (bool, error) {
 	if err := postPhaseProcessing(cwd, state, phaseNum, logPath); err != nil {
 		var gateErr *gateFailError
 		if errors.As(err, &gateErr) {
 			// Still failing — recurse
-			return handleGateRetry(cwd, state, phaseNum, gateErr, logPath, spawnCwd, statusPath, allPhases, executor)
+			return handleGateRetry(ctx, cwd, state, phaseNum, gateErr, logPath, spawnCwd, statusPath, allPhases, executor)
 		}
 		return false, err
 	}

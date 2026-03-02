@@ -24,7 +24,7 @@ type tmuxExecutor struct {
 
 func (t *tmuxExecutor) Name() string { return "tmux" }
 
-func (t *tmuxExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
+func (t *tmuxExecutor) Execute(ctx context.Context, prompt, cwd, runID string, phaseNum int) error {
 	tmuxBin, err := lookPath(t.tmuxCommand)
 	if err != nil {
 		return fmt.Errorf("tmux binary %q not found: %w", t.tmuxCommand, err)

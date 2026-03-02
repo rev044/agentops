@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -63,7 +64,7 @@ esac
 		stallCheckInterval:   40 * time.Millisecond,
 	}
 
-	if err := exec.Execute("test prompt", t.TempDir(), "run-stream-fallback", 1); err != nil {
+	if err := exec.Execute(context.Background(), "test prompt", t.TempDir(), "run-stream-fallback", 1); err != nil {
 		t.Fatalf("expected fallback to direct execution, got error: %v", err)
 	}
 

@@ -402,7 +402,7 @@ func runRPISupervisedCycle(cwd, goal string, cycle, attempt int, cfg rpiLoopSupe
 	}
 
 	opts := buildCycleEngineOptions(cfg)
-	if err := runPhasedEngine(cwd, goal, opts); err != nil {
+	if err := runPhasedEngine(context.Background(), cwd, goal, opts); err != nil {
 		return wrapCycleFailure(cycleFailureTask, "phased engine", err)
 	}
 	if err := runSupervisorGates(cwd, cfg); err != nil {

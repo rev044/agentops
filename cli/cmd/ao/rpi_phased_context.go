@@ -456,6 +456,12 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 	}
 
 	prompt.WriteString(buf.String())
+
+	// Write provenance audit trail
+	if state.RunID != "" {
+		_ = writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String())
+	}
+
 	return prompt.String(), nil
 }
 
@@ -597,6 +603,11 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 
 	// 5. Retry skill invocation (last — the actual command with findings)
 	prompt.WriteString(skillInvocation)
+
+	// Write provenance audit trail for retry
+	if state.RunID != "" {
+		_ = writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String())
+	}
 
 	return prompt.String(), nil
 }

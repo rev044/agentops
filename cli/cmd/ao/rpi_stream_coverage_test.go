@@ -146,7 +146,7 @@ func TestStreamCoverage_SelectExecutorFromCaps(t *testing.T) {
 
 func TestStreamCoverage_BuildStreamPhaseContext(t *testing.T) {
 	t.Run("with timeout", func(t *testing.T) {
-		ctx, cancel := buildStreamPhaseContext(5 * time.Second)
+		ctx, cancel := buildStreamPhaseContext(context.Background(), 5*time.Second)
 		defer cancel()
 		deadline, ok := ctx.Deadline()
 		if !ok {
@@ -158,7 +158,7 @@ func TestStreamCoverage_BuildStreamPhaseContext(t *testing.T) {
 	})
 
 	t.Run("without timeout", func(t *testing.T) {
-		ctx, cancel := buildStreamPhaseContext(0)
+		ctx, cancel := buildStreamPhaseContext(context.Background(), 0)
 		defer cancel()
 		_, ok := ctx.Deadline()
 		if ok {

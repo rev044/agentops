@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -707,7 +708,7 @@ func TestCov5_handlePostPhaseGate_NilError(t *testing.T) {
 		{Name: "discovery"},
 	}
 
-	err := handlePostPhaseGate(tmp, state, p, logPath, statusPath, allPhases, executor)
+	err := handlePostPhaseGate(context.Background(), tmp, state, p, logPath, statusPath, allPhases, executor)
 	// May error because no phase result file, but exercises the function
 	_ = err
 }
@@ -739,7 +740,7 @@ func TestCov5_executePhaseSession(t *testing.T) {
 		LiveStatus:     false,
 	}
 
-	err := executePhaseSession(tmp, state, p, opts, statusPath, allPhases, logPath, "test prompt", executor)
+	err := executePhaseSession(context.Background(), tmp, state, p, opts, statusPath, allPhases, logPath, "test prompt", executor)
 	// The noop executor will succeed
 	_ = err
 }
@@ -1769,7 +1770,7 @@ func TestCov5_applyComplexityFastPath(t *testing.T) {
 // cov5NoopExecutor implements PhaseExecutor for testing.
 type cov5NoopExecutor struct{}
 
-func (e *cov5NoopExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
+func (e *cov5NoopExecutor) Execute(_ context.Context, prompt, cwd, runID string, phaseNum int) error {
 	return nil
 }
 

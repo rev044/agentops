@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -125,7 +126,7 @@ func TestExecuteWithStatus_SuccessPath(t *testing.T) {
 	allPhases := buildAllPhases(phases)
 	statusPath := ""
 
-	err := executeWithStatus(executor, state, statusPath, allPhases, 1, 0, "test prompt", t.TempDir(), "running", "failed")
+	err := executeWithStatus(context.Background(), executor, state, statusPath, allPhases, 1, 0, "test prompt", t.TempDir(), "running", "failed")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -137,7 +138,7 @@ func TestExecuteWithStatus_FailurePath(t *testing.T) {
 	state.Opts.LiveStatus = false
 	allPhases := buildAllPhases(phases)
 
-	err := executeWithStatus(executor, state, "", allPhases, 1, 0, "test prompt", t.TempDir(), "running", "failed")
+	err := executeWithStatus(context.Background(), executor, state, "", allPhases, 1, 0, "test prompt", t.TempDir(), "running", "failed")
 	if err == nil {
 		t.Fatal("expected error from failing executor")
 	}
@@ -198,7 +199,7 @@ type fakeExecutor struct {
 var errFakeExecFailure = fmt.Errorf("fake execution failure")
 
 func (f *fakeExecutor) Name() string { return "fake" }
-func (f *fakeExecutor) Execute(prompt, cwd, runID string, phaseNum int) error {
+func (f *fakeExecutor) Execute(_ context.Context, prompt, cwd, runID string, phaseNum int) error {
 	f.executed = true
 	return f.err
 }

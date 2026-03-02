@@ -266,7 +266,7 @@ func TestNormalizeCheckInterval_Positive(t *testing.T) {
 // --- buildStreamPhaseContext ---
 
 func TestBuildStreamPhaseContext_NoTimeout(t *testing.T) {
-	ctx, cancel := buildStreamPhaseContext(0)
+	ctx, cancel := buildStreamPhaseContext(context.Background(), 0)
 	defer cancel()
 	if _, ok := ctx.Deadline(); ok {
 		t.Error("context should not have a deadline when timeout is 0")
@@ -274,7 +274,7 @@ func TestBuildStreamPhaseContext_NoTimeout(t *testing.T) {
 }
 
 func TestBuildStreamPhaseContext_WithTimeout(t *testing.T) {
-	ctx, cancel := buildStreamPhaseContext(10 * time.Second)
+	ctx, cancel := buildStreamPhaseContext(context.Background(), 10*time.Second)
 	defer cancel()
 	if _, ok := ctx.Deadline(); !ok {
 		t.Error("context should have a deadline when timeout > 0")

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -272,7 +273,7 @@ func TestRunPhaseLoop_FastPathSkipsPhase3(t *testing.T) {
 	executor := &fakeExecutor{}
 
 	// Run from phase 1 through all phases in dry-run mode.
-	err := runPhaseLoop(tmp, tmp, state, 1, opts, statusPath, allPhases, logPath, executor)
+	err := runPhaseLoop(context.Background(), tmp, tmp, state, 1, opts, statusPath, allPhases, logPath, executor)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

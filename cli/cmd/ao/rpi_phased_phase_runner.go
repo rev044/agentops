@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -45,11 +46,11 @@ func rescuePhaseOnTimeout(spawnCwd string, p phase, timeoutErr error) bool {
 
 // handlePostPhaseGate runs post-phase gate checking and retry logic.
 // It is extracted from runSinglePhase to reduce its cyclomatic complexity.
-func handlePostPhaseGate(spawnCwd string, state *phasedState, p phase, logPath, statusPath string, allPhases []PhaseProgress, executor PhaseExecutor) error {
+func handlePostPhaseGate(ctx context.Context, spawnCwd string, state *phasedState, p phase, logPath, statusPath string, allPhases []PhaseProgress, executor PhaseExecutor) error {
 	if err := postPhaseProcessing(spawnCwd, state, p.Num, logPath); err != nil {
 		var retryErr *gateFailError
 		if errors.As(err, &retryErr) {
-			retried, retryErr2 := handleGateRetry(spawnCwd, state, p.Num, retryErr, logPath, spawnCwd, statusPath, allPhases, executor)
+			retried, retryErr2 := handleGateRetry(ctx, spawnCwd, state, p.Num, retryErr, logPath, spawnCwd, statusPath, allPhases, executor)
 			if retryErr2 != nil {
 				return retryErr2
 			}
@@ -65,7 +66,7 @@ func handlePostPhaseGate(spawnCwd string, state *phasedState, p phase, logPath, 
 
 // runPhaseLoop executes phases sequentially and applies standard fatal logging on failures.
 // For fast-complexity runs, the validation phase (phase 3) is skipped to reduce ceremony.
-func runPhaseLoop(cwd, spawnCwd string, state *phasedState, startPhase int, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath string, executor PhaseExecutor) error {
+func runPhaseLoop(ctx context.Context, cwd, spawnCwd string, state *phasedState, startPhase int, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath string, executor PhaseExecutor) error {
 	for i := startPhase; i <= len(phases); i++ {
 		p := phases[i-1]
 		// Fast-path: skip validation (phase 3) for trivial goals.
@@ -75,7 +76,7 @@ func runPhaseLoop(cwd, spawnCwd string, state *phasedState, startPhase int, opts
 			logPhaseTransition(logPath, state.RunID, "validation", "skipped — complexity: fast")
 			continue
 		}
-		if err := runSinglePhase(cwd, spawnCwd, state, startPhase, p, opts, statusPath, allPhases, logPath, executor); err != nil {
+		if err := runSinglePhase(ctx, cwd, spawnCwd, state, startPhase, p, opts, statusPath, allPhases, logPath, executor); err != nil {
 			return logAndFailPhase(state, p.Name, logPath, spawnCwd, err)
 		}
 	}
@@ -106,13 +107,18 @@ func handleDryRunPhase(cwd string, state *phasedState, startPhase int, p phase, 
 
 // executePhaseSession spawns the phase executor and records the result.
 // On success it writes the phaseResult artifact and returns nil.
-func executePhaseSession(spawnCwd string, state *phasedState, p phase, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath, prompt string, executor PhaseExecutor) error {
+func executePhaseSession(ctx context.Context, spawnCwd string, state *phasedState, p phase, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath, prompt string, executor PhaseExecutor) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	fmt.Printf("Phase %d: spawning %s session...\n", p.Num, effectiveRuntimeCommand(state.Opts.RuntimeCommand))
 	start := time.Now()
 	updateRunHeartbeat(spawnCwd, state.RunID)
 	retryKey := fmt.Sprintf("phase_%d", p.Num)
 
-	if err := executor.Execute(prompt, spawnCwd, state.RunID, p.Num); err != nil {
+	if err := executor.Execute(ctx, prompt, spawnCwd, state.RunID, p.Num); err != nil {
 		maybeLiveStatus(opts, statusPath, allPhases, p.Num, "failed", state.Attempts[retryKey], err.Error())
 		logPhaseTransition(logPath, state.RunID, p.Name, fmt.Sprintf("FAILED: %v", err))
 		return fmt.Errorf("phase %d (%s) failed: %w", p.Num, p.Name, err)
@@ -143,7 +149,12 @@ func executePhaseSession(spawnCwd string, state *phasedState, p phase, opts phas
 	return nil
 }
 
-func runSinglePhase(cwd, spawnCwd string, state *phasedState, startPhase int, p phase, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath string, executor PhaseExecutor) error {
+func runSinglePhase(ctx context.Context, cwd, spawnCwd string, state *phasedState, startPhase int, p phase, opts phasedEngineOptions, statusPath string, allPhases []PhaseProgress, logPath string, executor PhaseExecutor) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	fmt.Printf("\n--- Phase %d: %s ---\n", p.Num, p.Name)
 	state.Phase = p.Num
 	if err := savePhasedState(spawnCwd, state); err != nil {
@@ -163,7 +174,7 @@ func runSinglePhase(cwd, spawnCwd string, state *phasedState, startPhase int, p 
 		return nil
 	}
 
-	if err := executePhaseSession(spawnCwd, state, p, opts, statusPath, allPhases, logPath, prompt, executor); err != nil {
+	if err := executePhaseSession(ctx, spawnCwd, state, p, opts, statusPath, allPhases, logPath, prompt, executor); err != nil {
 		if !rescuePhaseOnTimeout(spawnCwd, p, err) {
 			return err
 		}
@@ -172,7 +183,7 @@ func runSinglePhase(cwd, spawnCwd string, state *phasedState, startPhase int, p 
 		logPhaseTransition(logPath, state.RunID, p.Name, "timeout-rescued: summary artifact found, continuing")
 	}
 
-	if err := handlePostPhaseGate(spawnCwd, state, p, logPath, statusPath, allPhases, executor); err != nil {
+	if err := handlePostPhaseGate(ctx, spawnCwd, state, p, logPath, statusPath, allPhases, executor); err != nil {
 		return err
 	}
 

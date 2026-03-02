@@ -37,15 +37,16 @@ const (
 )
 
 var (
-	injectMaxTokens   int
-	injectContext     string
-	injectFormat      string
-	injectSessionID   string
-	injectNoCite      bool
-	injectApplyDecay  bool
-	injectBead        string
-	injectPredecessor string
-	injectIndexOnly   bool
+	injectMaxTokens          int
+	injectContext            string
+	injectFormat             string
+	injectSessionID          string
+	injectNoCite             bool
+	injectApplyDecay         bool
+	injectBead               string
+	injectPredecessor        string
+	injectIndexOnly          bool
+	injectQuarantineFlagged  bool
 )
 
 type olConstraint struct {
@@ -140,6 +141,7 @@ func init() {
 	injectCmd.Flags().StringVar(&injectBead, "bead", "", "Bead ID for work-scoped knowledge injection")
 	injectCmd.Flags().StringVar(&injectPredecessor, "predecessor", "", "Path to predecessor handoff file for context injection")
 	injectCmd.Flags().BoolVar(&injectIndexOnly, "index-only", false, "Output compact knowledge index table instead of full content")
+	injectCmd.Flags().BoolVar(&injectQuarantineFlagged, "quarantine-flagged", false, "Quarantine flagged learnings from quality report")
 }
 
 func runInject(cmd *cobra.Command, args []string) error {
@@ -153,6 +155,13 @@ func runInject(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	// Quarantine flagged learnings before gathering knowledge
+	if injectQuarantineFlagged {
+		if qErr := runQuarantineFlagged(cwd); qErr != nil {
+			VerbosePrintf("Warning: quarantine-flagged: %v\n", qErr)
+		}
 	}
 
 	cfg, cfgErr := config.Load(nil)
@@ -209,6 +218,42 @@ func runInject(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println(output)
+	return nil
+}
+
+// runQuarantineFlagged reads .agents/defrag/quality-report.json and quarantines flagged learnings.
+func runQuarantineFlagged(cwd string) error {
+	reportPath := filepath.Join(cwd, ".agents", "defrag", "quality-report.json")
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no quality report found at %s", reportPath)
+		}
+		return fmt.Errorf("read quality report: %w", err)
+	}
+
+	var report struct {
+		FlaggedPaths []string `json:"flagged_paths"`
+	}
+	if err := json.Unmarshal(data, &report); err != nil {
+		return fmt.Errorf("parse quality report: %w", err)
+	}
+
+	quarantined := 0
+	for _, p := range report.FlaggedPaths {
+		absPath := p
+		if !filepath.IsAbs(p) {
+			absPath = filepath.Join(cwd, p)
+		}
+		if err := quarantineLearning(absPath, "flagged by quality report"); err != nil {
+			VerbosePrintf("Warning: quarantine %s: %v\n", p, err)
+			continue
+		}
+		quarantined++
+	}
+	if quarantined > 0 {
+		fmt.Printf("Quarantined %d flagged learnings\n", quarantined)
+	}
 	return nil
 }
 

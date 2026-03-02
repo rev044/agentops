@@ -648,7 +648,7 @@ func TestInjectLearnings_processLearningFile_FiltersByQuery(t *testing.T) {
 
 func TestInjectLearnings_processLearningFile_SetsDefaultUtility(t *testing.T) {
 	tmp := t.TempDir()
-	content := "# Test\n\nSome content\n"
+	content := "---\nsource_bead: test-fixture\n---\n# Test\n\nSome content\n"
 	path := filepath.Join(tmp, "test.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)

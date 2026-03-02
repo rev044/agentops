@@ -141,6 +141,12 @@ func processLearningFile(file, queryLower string, now time.Time) (learning, bool
 	if injectApplyDecay {
 		l = applyConfidenceDecay(l, file, now)
 	}
+
+	// Quality gate: penalize unsourced learnings
+	if l.SourceBead == "" {
+		l.Utility *= 0.3 // Severe penalty for untraceable knowledge
+	}
+
 	return l, true
 }
 
@@ -475,4 +481,16 @@ func parseLearningJSONL(path string) (learning, error) {
 
 	populateLearningFromJSON(data, &l)
 	return l, nil
+}
+
+// quarantineLearning moves a learning file to .quarantine/ subdirectory with reason.
+func quarantineLearning(path, reason string) error {
+	dir := filepath.Dir(path)
+	quarantineDir := filepath.Join(dir, ".quarantine")
+	if err := os.MkdirAll(quarantineDir, 0o755); err != nil {
+		return err
+	}
+	base := filepath.Base(path)
+	dest := filepath.Join(quarantineDir, base)
+	return os.Rename(path, dest)
 }

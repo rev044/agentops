@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -1371,7 +1372,7 @@ func TestNoWorktreeRunIDGeneration(t *testing.T) {
 	opts.NoWorktree = true
 	opts.SwarmFirst = false
 
-	if err := runPhasedEngine(tmpDir, "test goal", opts); err != nil {
+	if err := runPhasedEngine(context.Background(), tmpDir, "test goal", opts); err != nil {
 		t.Fatalf("runPhasedEngine --no-worktree --dry-run: %v", err)
 	}
 
@@ -1443,7 +1444,7 @@ func TestRunPhasedEngine_AutoCleanupStale_DryRunDoesNotMutate(t *testing.T) {
 	opts.AutoCleanStale = true
 	opts.AutoCleanStaleAfter = 1 * time.Hour
 
-	if err := runPhasedEngine(tmpDir, "test auto cleanup", opts); err != nil {
+	if err := runPhasedEngine(context.Background(), tmpDir, "test auto cleanup", opts); err != nil {
 		t.Fatalf("runPhasedEngine auto-clean --dry-run: %v", err)
 	}
 
