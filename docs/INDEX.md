@@ -172,6 +172,7 @@
 - [RPI Phase Result Schema](contracts/rpi-phase-result.schema.json) — Machine-readable schema for RPI phase results
 - [RPI C2 Events Schema](contracts/rpi-c2-events.schema.json) — Machine-readable schema for normalized per-run `events.jsonl`
 - [RPI C2 Commands Schema](contracts/rpi-c2-commands.schema.json) — Machine-readable schema for per-run `commands.jsonl`
+- [Swarm Worker Result Schema](contracts/swarm-worker-result.schema.json) — Machine-readable schema for `.agents/swarm/results/<task-id>.json` worker artifacts
 - [Scope Escape Report](contracts/scope-escape-report.md) — Structured template for agent scope-escape reporting
 - [dispatch-checklist.md](contracts/dispatch-checklist.md) — Standard references for agent dispatch prompts
 
