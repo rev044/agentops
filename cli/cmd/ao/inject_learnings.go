@@ -258,11 +258,16 @@ func applyConfidenceDecayJSONL(l learning, filePath string, now time.Time) learn
 
 // applyConfidenceDecayMarkdown applies confidence decay to a Markdown learning file
 // with YAML frontmatter containing confidence and last_reward_at/last_decay_at fields.
+// Single read/modify/atomic-write to eliminate race window with concurrent sessions.
 func applyConfidenceDecayMarkdown(l learning, filePath string, now time.Time) learning {
-	fields, err := parseFrontmatterFields(filePath, "confidence", "last_decay_at", "last_reward_at")
+	// Single read — all parsing and modification uses this content
+	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return l
 	}
+
+	// Parse frontmatter fields from the already-read content
+	fields := parseFrontmatterFromContent(string(content), "confidence", "last_decay_at", "last_reward_at")
 
 	confidence := 0.5
 	if c, parseErr := strconv.ParseFloat(fields["confidence"], 64); parseErr == nil && c > 0 {
@@ -293,11 +298,7 @@ func applyConfidenceDecayMarkdown(l learning, filePath string, now time.Time) le
 	VerbosePrintf("Applied confidence decay to %s: %.3f -> %.3f (%.1f weeks)\n",
 		l.ID, confidence, newConfidence, weeksSinceInteraction)
 
-	// Write updated decay fields back to frontmatter
-	content, readErr := os.ReadFile(filePath)
-	if readErr != nil {
-		return l
-	}
+	// Modify frontmatter from the same content (no second read)
 	lines := strings.Split(string(content), "\n")
 	if len(lines) < 2 || strings.TrimSpace(lines[0]) != "---" {
 		return l
@@ -321,12 +322,46 @@ func applyConfidenceDecayMarkdown(l learning, filePath string, now time.Time) le
 		"last_decay_at": now.Format(time.RFC3339),
 	})
 	rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
-	if writeErr := os.WriteFile(filePath, []byte(rebuilt), 0600); writeErr != nil {
+	if writeErr := atomicWriteFile(filePath, []byte(rebuilt), 0600); writeErr != nil {
 		VerbosePrintf("Warning: failed to write decay for %s: %v\n", l.ID, writeErr)
 	}
 
 	l.Utility *= newConfidence / confidence
 	return l
+}
+
+// parseFrontmatterFromContent extracts specific fields from YAML frontmatter in a string.
+// Like parseFrontmatterFields but operates on already-read content instead of opening the file.
+func parseFrontmatterFromContent(content string, fields ...string) map[string]string {
+	result := make(map[string]string)
+	lines := strings.Split(content, "\n")
+	inFrontmatter := false
+	dashCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "---" {
+			dashCount++
+			if dashCount == 1 {
+				inFrontmatter = true
+				continue
+			}
+			if dashCount == 2 {
+				break
+			}
+		}
+		if inFrontmatter {
+			for _, field := range fields {
+				prefix := field + ":"
+				if strings.HasPrefix(trimmed, prefix) {
+					val := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
+					val = strings.Trim(val, "\"'")
+					result[field] = val
+				}
+			}
+		}
+	}
+	return result
 }
 
 // jsonFloat extracts a float64 from a map, returning defaultVal if missing or non-positive.

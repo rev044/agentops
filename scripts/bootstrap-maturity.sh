@@ -49,7 +49,36 @@ for file in "$LEARNINGS_DIR"/*.md; do
     updated=$((updated + 1))
 done
 
+# Process .jsonl files: add "maturity":"provisional" if missing
+jsonl_total=0
+jsonl_updated=0
+jsonl_skipped=0
+
+if command -v jq >/dev/null 2>&1; then
+    for file in "$LEARNINGS_DIR"/*.jsonl; do
+        [[ -f "$file" ]] || continue
+        jsonl_total=$((jsonl_total + 1))
+
+        # Check if maturity field already exists
+        if jq -e '.maturity' "$file" >/dev/null 2>&1; then
+            jsonl_skipped=$((jsonl_skipped + 1))
+            continue
+        fi
+
+        # Add maturity field via jq
+        tmpfile=$(mktemp)
+        if jq '. + {"maturity": "provisional"}' "$file" > "$tmpfile" 2>/dev/null; then
+            mv "$tmpfile" "$file"
+            jsonl_updated=$((jsonl_updated + 1))
+        else
+            rm -f "$tmpfile"
+            jsonl_skipped=$((jsonl_skipped + 1))
+        fi
+    done
+else
+    echo "Warning: jq not found — skipping .jsonl files" >&2
+fi
+
 echo "Bootstrap maturity complete:"
-echo "  Total .md files: $total"
-echo "  Updated (added maturity: provisional): $updated"
-echo "  Skipped (already has maturity or no frontmatter): $skipped"
+echo "  .md files: $total total, $updated updated, $skipped skipped"
+echo "  .jsonl files: $jsonl_total total, $jsonl_updated updated, $jsonl_skipped skipped"

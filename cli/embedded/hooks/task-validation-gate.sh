@@ -24,88 +24,29 @@ ERROR_LOG="$ERROR_LOG_DIR/hook-errors.log"
 # Execute validations from repo root so relative paths are predictable.
 cd "$ROOT" 2>/dev/null || true
 
-# Restricted command execution: allowlist-based, no shell interpretation
+# Restricted command execution: uses shared validate_restricted_cmd from hook-helpers.sh
 run_restricted() {
     local cmd="$1"
-
-    # Block shell metacharacters and control chars — prevents injection via crafted metadata
-    # Note: newline checked separately — \n inside [...] matches literal 'n' in ERE
-    if [[ "$cmd" == *$'\n'* ]] || [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>\'\"\\\] ]]; then
-        log_error "BLOCKED: shell metacharacters in command: $cmd"
-        echo "VALIDATION BLOCKED: shell metacharacters not allowed in command" >&2
+    if ! validate_restricted_cmd "$cmd" "command" 2>/dev/null; then
+        log_error "BLOCKED: $cmd"
+        echo "VALIDATION BLOCKED: $(validate_restricted_cmd "$cmd" "command" 2>&1)" >&2
         exit 2
     fi
-
-    # Split command string into array (word-split on whitespace)
+    local -a cmd_parts
     read -ra cmd_parts <<< "$cmd"
-    local binary="${cmd_parts[0]}"
-
-    # Binary must be a bare name (no path separators)
-    if [[ "$binary" == */* ]]; then
-        log_error "BLOCKED: path in binary name: $binary (full: $cmd)"
-        echo "VALIDATION BLOCKED: binary must be a bare name, not a path" >&2
-        exit 2
-    fi
-
-    # Strict allowlist of permitted binaries
-    # NOTE: npx removed (downloads+executes arbitrary npm packages = RCE)
-    # NOTE: bash removed (bash <script> bypasses -c block = arbitrary execution)
-    local allowed="go pytest npm make"
-    local found=0
-    for a in $allowed; do
-        if [ "$binary" = "$a" ]; then
-            found=1
-            break
-        fi
-    done
-    if [ "$found" -ne 1 ]; then
-        log_error "BLOCKED: command not in allowlist: $binary (full: $cmd)"
-        echo "VALIDATION BLOCKED: command '$binary' not in allowlist ($allowed)" >&2
-        exit 2
-    fi
-
-    # Execute as array — no shell interpretation
     "${cmd_parts[@]}" >/dev/null 2>&1
 }
 
 # Like run_restricted but captures stdout+stderr instead of discarding.
-# Used by behavioral assertions to check output patterns.
 run_restricted_capture() {
     local cmd="$1"
-
-    # Block shell metacharacters and control chars
-    if [[ "$cmd" == *$'\n'* ]] || [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>\'\"\\\] ]]; then
-        log_error "BLOCKED: shell metacharacters in assertion command: $cmd"
-        echo "VALIDATION BLOCKED: shell metacharacters not allowed in assertion command" >&2
+    if ! validate_restricted_cmd "$cmd" "assertion command" 2>/dev/null; then
+        log_error "BLOCKED: $cmd"
+        echo "VALIDATION BLOCKED: $(validate_restricted_cmd "$cmd" "assertion command" 2>&1)" >&2
         return 1
     fi
-
+    local -a cmd_parts
     read -ra cmd_parts <<< "$cmd"
-    local binary="${cmd_parts[0]}"
-
-    # Binary must be a bare name
-    if [[ "$binary" == */* ]]; then
-        log_error "BLOCKED: path in assertion binary: $binary"
-        echo "VALIDATION BLOCKED: binary must be a bare name" >&2
-        return 1
-    fi
-
-    # Strict allowlist
-    local allowed="go pytest npm make"
-    local found=0
-    for a in $allowed; do
-        if [ "$binary" = "$a" ]; then
-            found=1
-            break
-        fi
-    done
-    if [ "$found" -ne 1 ]; then
-        log_error "BLOCKED: assertion command not in allowlist: $binary"
-        echo "VALIDATION BLOCKED: command '$binary' not in allowlist ($allowed)" >&2
-        return 1
-    fi
-
-    # Execute and capture output
     "${cmd_parts[@]}" 2>&1
 }
 
@@ -438,9 +379,18 @@ if [ -n "$ASSERTION_COUNT" ] && [ "$ASSERTION_COUNT" -gt 0 ] 2>/dev/null; then
         A_PATTERN=$(echo "$ASSERTIONS" | jq -r ".[$i].expect_pattern" 2>/dev/null)
         A_DESC=$(echo "$ASSERTIONS" | jq -r ".[$i].description // \"assertion $i\"" 2>/dev/null)
 
-        # Skip if command or pattern empty
-        [ -z "$A_CMD" ] || [ "$A_CMD" = "null" ] && continue
-        [ -z "$A_PATTERN" ] || [ "$A_PATTERN" = "null" ] && continue
+        # Skip if command or pattern empty (braces fix operator precedence: || before &&)
+        { [ -z "$A_CMD" ] || [ "$A_CMD" = "null" ]; } && continue
+        { [ -z "$A_PATTERN" ] || [ "$A_PATTERN" = "null" ]; } && continue
+
+        # Pre-validate regex — grep exits 2 on malformed patterns
+        printf '' | grep -qE "$A_PATTERN" 2>/dev/null
+        REGEX_RC=$?
+        if [ "$REGEX_RC" -eq 2 ]; then
+            write_failure "behavioral_assertion" "$A_CMD" 2 "Invalid regex pattern: $A_PATTERN"
+            echo "VALIDATION FAILED: behavioral assertion '$A_DESC' — invalid regex pattern: $A_PATTERN" >&2
+            exit 2
+        fi
 
         # Run through restricted executor with output capture
         A_OUTPUT=$(run_restricted_capture "$A_CMD") || {

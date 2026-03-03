@@ -69,6 +69,44 @@ write_failure() {
     fi
 }
 
+# validate_restricted_cmd CMD [CONTEXT]
+# Shared command validation: metachar block + bare-name guard + strict allowlist.
+# Returns 0 if safe, 1 if blocked (message on stderr).
+# Callers run the command themselves after validation passes.
+validate_restricted_cmd() {
+    local cmd="$1"
+    local context="${2:-command}"
+
+    # Block shell metacharacters and control chars
+    if [[ "$cmd" == *$'\n'* ]] || [[ "$cmd" =~ [\;\|\&\`\$\(\)\<\>\'\"\\\] ]]; then
+        echo "VALIDATION BLOCKED: shell metacharacters not allowed in $context" >&2
+        return 1
+    fi
+
+    local -a _vrc_parts
+    read -ra _vrc_parts <<< "$cmd"
+    local binary="${_vrc_parts[0]}"
+
+    # Binary must be a bare name (no path separators)
+    if [[ "$binary" == */* ]]; then
+        echo "VALIDATION BLOCKED: binary must be a bare name, not a path" >&2
+        return 1
+    fi
+
+    # Strict allowlist
+    local allowed="go pytest npm make"
+    local found=0
+    for a in $allowed; do
+        [ "$binary" = "$a" ] && { found=1; break; }
+    done
+    if [ "$found" -ne 1 ]; then
+        echo "VALIDATION BLOCKED: command '$binary' not in allowlist ($allowed)" >&2
+        return 1
+    fi
+
+    return 0
+}
+
 # json_escape_value — Escape a string for safe use as a JSON string value.
 # Handles: backslashes, double quotes, newlines, tabs, carriage returns.
 # Usage: ESCAPED=$(json_escape_value "$RAW_VALUE")

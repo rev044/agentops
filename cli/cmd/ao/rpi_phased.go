@@ -412,7 +412,7 @@ func appendTimeBoxedMarker(spawnCwd string, p phase, budget time.Duration) error
 	return nil
 }
 
-func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget time.Duration, logPath string) bool {
+func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget time.Duration, logPath string, phaseStart time.Time) bool {
 	if budget <= 0 {
 		return false
 	}
@@ -420,6 +420,7 @@ func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget ti
 		VerbosePrintf("Warning: could not append [TIME-BOXED] marker: %v\n", err)
 	}
 
+	now := time.Now()
 	// Write structured phase result with time_boxed status
 	pr := &phaseResult{
 		SchemaVersion:   1,
@@ -427,9 +428,9 @@ func handleBudgetTimeout(spawnCwd string, state *phasedState, p phase, budget ti
 		Phase:           p.Num,
 		PhaseName:       p.Name,
 		Status:          "time_boxed",
-		StartedAt:       time.Now().Add(-budget).Format(time.RFC3339),
-		CompletedAt:     time.Now().Format(time.RFC3339),
-		DurationSeconds: budget.Seconds(),
+		StartedAt:       phaseStart.Format(time.RFC3339),
+		CompletedAt:     now.Format(time.RFC3339),
+		DurationSeconds: now.Sub(phaseStart).Seconds(),
 	}
 	if err := writePhaseResult(spawnCwd, pr); err != nil {
 		VerbosePrintf("Warning: could not write time_boxed phase result: %v\n", err)
@@ -461,8 +462,9 @@ func runPhaseLoopWithBudgets(ctx context.Context, cwd, spawnCwd string, state *p
 		}
 
 		phaseExecutor := selectExecutorWithLog(statusPath, allPhases, logPath, state.RunID, phaseOpts.LiveStatus, phaseOpts)
+		phaseStart := time.Now()
 		if err := runSinglePhase(ctx, cwd, spawnCwd, state, startPhase, p, phaseOpts, statusPath, allPhases, logPath, phaseExecutor); err != nil {
-			if hasBudget && isPhaseTimeoutError(err) && handleBudgetTimeout(spawnCwd, state, p, budget, logPath) {
+			if hasBudget && isPhaseTimeoutError(err) && handleBudgetTimeout(spawnCwd, state, p, budget, logPath, phaseStart) {
 				continue
 			}
 			return logAndFailPhase(state, p.Name, logPath, spawnCwd, err)

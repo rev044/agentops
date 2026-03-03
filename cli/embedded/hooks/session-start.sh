@@ -54,6 +54,9 @@ for dir in .agents/research .agents/products .agents/retros .agents/learnings \
     mkdir -p "$ROOT/$dir" 2>/dev/null
 done
 
+# Clear stale dedup flags from prior sessions (prevents cross-session suppression)
+rm -f "$ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
+
 # Auto-gitignore .agents/
 if [ "${AGENTOPS_GITIGNORE_AUTO:-1}" != "0" ] && [ -d "$ROOT/.git" ]; then
     GITIGNORE="$ROOT/.gitignore"

@@ -1199,7 +1199,8 @@ func TestRunSinglePhaseBudgetTimeout_WritesTimeBoxedMarker(t *testing.T) {
 	p := phase{Num: 1, Name: "discovery"}
 	budget := 30 * time.Second
 
-	if !handleBudgetTimeout(tmpDir, state, p, budget, logPath) {
+	phaseStart := time.Now().Add(-budget) // simulate a phase that ran for the budget duration
+	if !handleBudgetTimeout(tmpDir, state, p, budget, logPath, phaseStart) {
 		t.Fatal("expected timeout handler to continue after writing time-box marker")
 	}
 
@@ -1950,7 +1951,8 @@ func TestBudgetTimeout_WritesPhaseResultArtifact(t *testing.T) {
 	p := phase{Num: 1, Name: "discovery"}
 	budget := 45 * time.Second
 
-	if !handleBudgetTimeout(tmpDir, state, p, budget, logPath) {
+	phaseStart := time.Now().Add(-budget) // simulate a phase that ran for the budget duration
+	if !handleBudgetTimeout(tmpDir, state, p, budget, logPath, phaseStart) {
 		t.Fatal("expected timeout handler to return true")
 	}
 

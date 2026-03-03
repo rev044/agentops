@@ -292,6 +292,12 @@ func gatherKnowledge(cwd, query, sessionID string, cfg *config.Config) *injected
 
 	knowledge.Learnings = gatherLearnings(cwd, query, sessionID, globalLearningsDir, globalWeight)
 	knowledge.Patterns = gatherPatterns(cwd, query, sessionID, globalPatternsDir, globalWeight)
+
+	// Non-verbose quality gate summary (stderr — does not pollute stdout inject output)
+	if len(knowledge.Learnings) > 0 || len(knowledge.Patterns) > 0 {
+		fmt.Fprintf(os.Stderr, "Injected %d learnings, %d patterns\n",
+			len(knowledge.Learnings), len(knowledge.Patterns))
+	}
 	knowledge.Sessions = gatherSessions(cwd, query)
 	knowledge.OLConstraints = gatherOLConstraints(cwd, query)
 

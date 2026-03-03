@@ -42,9 +42,13 @@ if [[ "$FILE_PATH" == *_test.go ]] && [[ -f "$FILE_PATH" ]]; then
   done < <(grep -oE 'func (Test[A-Za-z0-9_]+)' "$FILE_PATH" 2>/dev/null | awk '{print $2}')
 
   if [[ -n "$EMPTY_TESTS" ]]; then
-    echo "Assertion density warning: test functions with no assertions detected:" >&2
-    printf '%b' "$EMPTY_TESTS" >&2
-    echo "  These tests will pass regardless of code behavior." >&2
+    DENSITY_MSG="Assertion density warning: test functions with no assertions detected:
+$(printf '%b' "$EMPTY_TESTS")  These tests will pass regardless of code behavior."
+    if command -v jq >/dev/null 2>&1; then
+      jq -n --arg ctx "$DENSITY_MSG" '{"hookSpecificOutput":{"additionalContext":$ctx}}'
+    else
+      echo "$DENSITY_MSG" >&2
+    fi
   fi
 fi
 

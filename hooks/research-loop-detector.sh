@@ -23,7 +23,13 @@ if [ -z "$TOOL_NAME" ]; then
 fi
 [ -z "$TOOL_NAME" ] && exit 0
 
-# State file
+# Quick exit for neutral tools — no git rev-parse needed
+case "$TOOL_NAME" in
+    Read|Grep|Glob|WebSearch|WebFetch|Edit|Write|NotebookEdit|Bash) ;;
+    *) exit 0 ;;
+esac
+
+# State file (only computed for tools that affect counter)
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 STATE_DIR="$ROOT/.agents/ao"
 COUNTER_FILE="$STATE_DIR/.read-streak"

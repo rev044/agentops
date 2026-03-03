@@ -27,17 +27,17 @@ echo "$COMMAND" | grep -q 'git commit' || exit 0
 # Don't fire on --amend with no new changes (just message edit)
 echo "$COMMAND" | grep -qE '\-\-amend.*\-\-no-edit' && exit 0
 
-# Get staged diff summary
+# Capture staged diff summary (separate call — different output format)
 DIFF_STAT=$(git diff --cached --stat 2>/dev/null)
 [ -z "$DIFF_STAT" ] && exit 0
 
-# Count changed files
-FILE_COUNT=$(git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
+# Capture full diff once and derive metrics (TOCTOU fix: index can change between calls)
+FULL_DIFF=$(git diff --cached 2>/dev/null)
+FILE_COUNT=$(printf '%s\n' "$FULL_DIFF" | grep -c '^diff --git' 2>/dev/null || echo 0)
 [ "$FILE_COUNT" = "0" ] && exit 0
 
-# Get abbreviated diff (truncate at 200 lines)
-DIFF_CONTENT=$(git diff --cached 2>/dev/null | head -200)
-DIFF_LINES=$(git diff --cached 2>/dev/null | wc -l | tr -d ' ')
+DIFF_LINES=$(printf '%s\n' "$FULL_DIFF" | wc -l | tr -d ' ')
+DIFF_CONTENT=$(printf '%s\n' "$FULL_DIFF" | head -200)
 TRUNCATED=""
 if [ "$DIFF_LINES" -gt 200 ]; then
     TRUNCATED=" (showing first 200 of $DIFF_LINES lines — run 'git diff --cached' for full diff)"
