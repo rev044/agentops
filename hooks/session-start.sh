@@ -50,7 +50,7 @@ mkdir -p "$HOME/.agents/learnings" "$HOME/.agents/patterns" 2>/dev/null
 # Ensure local .agents/ directories exist
 for dir in .agents/research .agents/products .agents/retros .agents/learnings \
            .agents/patterns .agents/council .agents/knowledge/pending \
-           .agents/plans .agents/rpi .agents/ao; do
+           .agents/plans .agents/rpi .agents/ao .agents/handoff; do
     mkdir -p "$ROOT/$dir" 2>/dev/null
 done
 
@@ -88,6 +88,37 @@ if [ -f "$MEMORY_FILE" ]; then
     fi
 fi
 
+# Structured handoff consumption (ao handoff JSON artifacts)
+HANDOFF_CONTEXT=""
+if [ -d "$ROOT/.agents/handoff" ] && command -v jq &>/dev/null; then
+    # Find newest unconsumed .json handoff (exclude .consumed.json)
+    HANDOFF_JSON=$(find "$ROOT/.agents/handoff" -maxdepth 1 -name 'handoff-*.json' \
+        -not -name '*.consumed.json' -print0 2>/dev/null \
+        | xargs -0 ls -t 2>/dev/null | head -1)
+    if [ -n "$HANDOFF_JSON" ] && [ -f "$HANDOFF_JSON" ]; then
+        H_GOAL=$(jq -r '.goal // empty' "$HANDOFF_JSON" 2>/dev/null)
+        H_SUMMARY=$(jq -r '.summary // empty' "$HANDOFF_JSON" 2>/dev/null)
+        H_CONTINUATION=$(jq -r '.continuation // empty' "$HANDOFF_JSON" 2>/dev/null)
+        H_TYPE=$(jq -r '.type // "manual"' "$HANDOFF_JSON" 2>/dev/null)
+        # Mark consumed (atomic: write tmp, rename to .consumed.json, remove original)
+        CONSUMED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        jq --arg t "$CONSUMED_AT" '.consumed=true | .consumed_at=$t' \
+            "$HANDOFF_JSON" > "${HANDOFF_JSON}.tmp" 2>/dev/null \
+            && mv "${HANDOFF_JSON}.tmp" "${HANDOFF_JSON%.json}.consumed.json" \
+            && rm -f "$HANDOFF_JSON"
+        # Build injection context
+        HANDOFF_CONTEXT="### Handoff Context (${H_TYPE})"
+        [ -n "$H_GOAL" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+- **Goal:** ${H_GOAL}"
+        [ -n "$H_SUMMARY" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+- **Summary:** ${H_SUMMARY}"
+        [ -n "$H_CONTINUATION" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+- **Continue:** ${H_CONTINUATION}"
+        HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+- **Source:** ${HANDOFF_JSON}"
+    fi
+fi
+
 # Predecessor handoff discovery (used in all modes)
 PREDECESSOR_FILE="${GT_PREDECESSOR_HANDOFF:-}"
 if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
@@ -99,6 +130,11 @@ if [ "$STARTUP_MODE" = "manual" ]; then
     # No extract/inject — emit pointer-only context for JIT retrieval.
     MANUAL_CTX="MEMORY.md is auto-loaded by Claude Code for this project.
 For on-demand retrieval: \`ao search \"<query>\"\` or \`ao lookup --query \"<query>\"\`"
+    if [ -n "$HANDOFF_CONTEXT" ]; then
+        MANUAL_CTX="${MANUAL_CTX}
+
+${HANDOFF_CONTEXT}"
+    fi
     if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
         MANUAL_CTX="${MANUAL_CTX}
 Predecessor handoff: ${PREDECESSOR_FILE}"
@@ -144,6 +180,16 @@ elif command -v ao &>/dev/null; then
     if ! INJECTED_KNOWLEDGE="$(run_ao_quick 5 inject "${INJECT_MODE_FLAGS[@]}" "${INJECT_EXTRA_FLAGS[@]}")"; then
         log_hook_fail "ao inject"
         INJECTED_KNOWLEDGE=""
+    fi
+    # Prepend structured handoff context (higher priority than injected knowledge)
+    if [ -n "$HANDOFF_CONTEXT" ]; then
+        if [ -n "$INJECTED_KNOWLEDGE" ]; then
+            INJECTED_KNOWLEDGE="${HANDOFF_CONTEXT}
+
+${INJECTED_KNOWLEDGE}"
+        else
+            INJECTED_KNOWLEDGE="$HANDOFF_CONTEXT"
+        fi
     fi
 fi
 
