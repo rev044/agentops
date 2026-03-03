@@ -627,7 +627,7 @@ func TestInjectLearnings_processLearningFile_SkipsSuperseded(t *testing.T) {
 
 func TestInjectLearnings_processLearningFile_FiltersByQuery(t *testing.T) {
 	tmp := t.TempDir()
-	content := "# Authentication Patterns\n\nUse JWT for auth.\n"
+	content := "---\nmaturity: provisional\n---\n# Authentication Patterns\n\nUse JWT for auth.\n"
 	path := filepath.Join(tmp, "auth.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
@@ -648,7 +648,7 @@ func TestInjectLearnings_processLearningFile_FiltersByQuery(t *testing.T) {
 
 func TestInjectLearnings_processLearningFile_SetsDefaultUtility(t *testing.T) {
 	tmp := t.TempDir()
-	content := "---\nsource_bead: test-fixture\n---\n# Test\n\nSome content\n"
+	content := "---\nsource_bead: test-fixture\nmaturity: provisional\n---\n# Test\n\nSome content\n"
 	path := filepath.Join(tmp, "test.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
@@ -797,13 +797,13 @@ func TestInjectLearnings_collectLearnings_WithGlobalDir(t *testing.T) {
 	if err := os.MkdirAll(localLearnings, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(localLearnings, "local.md"), []byte("# Local Learning\n\nLocal content.\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(localLearnings, "local.md"), []byte("---\nmaturity: provisional\n---\n# Local Learning\n\nLocal content.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create global learnings in separate dir
 	globalDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(globalDir, "global.md"), []byte("# Global Learning\n\nGlobal content.\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(globalDir, "global.md"), []byte("---\nmaturity: provisional\n---\n# Global Learning\n\nGlobal content.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -836,7 +836,7 @@ func TestInjectLearnings_collectLearnings_GlobalWeightPenalty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	localData := map[string]any{"id": "local-1", "title": "Local", "summary": "Local learning", "utility": 0.8}
+	localData := map[string]any{"id": "local-1", "title": "Local", "summary": "Local learning", "utility": 0.8, "maturity": "provisional"}
 	b, _ := json.Marshal(localData)
 	if err := os.WriteFile(filepath.Join(localLearnings, "local.jsonl"), b, 0644); err != nil {
 		t.Fatal(err)
@@ -844,7 +844,7 @@ func TestInjectLearnings_collectLearnings_GlobalWeightPenalty(t *testing.T) {
 
 	// Create global learning with same utility
 	globalDir := t.TempDir()
-	globalData := map[string]any{"id": "global-1", "title": "Global", "summary": "Global learning", "utility": 0.8}
+	globalData := map[string]any{"id": "global-1", "title": "Global", "summary": "Global learning", "utility": 0.8, "maturity": "provisional"}
 	bg, _ := json.Marshal(globalData)
 	if err := os.WriteFile(filepath.Join(globalDir, "global.jsonl"), bg, 0644); err != nil {
 		t.Fatal(err)

@@ -36,7 +36,7 @@ func TestKnowledgeLoopE2E(t *testing.T) {
 
 	// Create test learning (will be recalled during inject)
 	learningPath := filepath.Join(tempDir, ".agents", "learnings", "test-learning.jsonl")
-	learningContent := `{"id":"L-TEST-001","title":"Context Cancellation Pattern","content":"Use context.WithCancel for graceful shutdown in Go services","utility":0.5,"created_at":"2026-01-25T10:00:00Z"}`
+	learningContent := `{"id":"L-TEST-001","title":"Context Cancellation Pattern","content":"Use context.WithCancel for graceful shutdown in Go services","utility":0.5,"maturity":"provisional","created_at":"2026-01-25T10:00:00Z"}`
 	if err := os.WriteFile(learningPath, []byte(learningContent), 0644); err != nil {
 		t.Fatalf("create test learning: %v", err)
 	}

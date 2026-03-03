@@ -623,7 +623,7 @@ func TestCollectLearningsGlobalDir(t *testing.T) {
 	if err := os.MkdirAll(localLearningsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	localContent := "---\nutility: 0.8\n---\n# Local Learning\n\nThis is local.\n"
+	localContent := "---\nutility: 0.8\nmaturity: provisional\n---\n# Local Learning\n\nThis is local.\n"
 	if err := os.WriteFile(filepath.Join(localLearningsDir, "local.md"), []byte(localContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -637,7 +637,7 @@ func TestCollectLearningsGlobalDir(t *testing.T) {
 		_ = os.RemoveAll(globalDir) //nolint:errcheck // test cleanup
 	}()
 
-	globalContent := "---\nutility: 0.7\n---\n# Global Learning\n\nCross-repo knowledge.\n"
+	globalContent := "---\nutility: 0.7\nmaturity: provisional\n---\n# Global Learning\n\nCross-repo knowledge.\n"
 	if err := os.WriteFile(filepath.Join(globalDir, "global.md"), []byte(globalContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -688,7 +688,7 @@ func TestCollectLearningsGlobalWeight(t *testing.T) {
 		{"local-mid.md", "0.7"},
 		{"local-low.md", "0.4"},
 	} {
-		content := "---\nutility: " + item.utility + "\n---\n# " + item.name + "\n\nLocal content.\n"
+		content := "---\nutility: " + item.utility + "\nmaturity: provisional\n---\n# " + item.name + "\n\nLocal content.\n"
 		if err := os.WriteFile(filepath.Join(localLearningsDir, item.name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -703,7 +703,7 @@ func TestCollectLearningsGlobalWeight(t *testing.T) {
 		_ = os.RemoveAll(globalDir) //nolint:errcheck // test cleanup
 	}()
 
-	globalContent := "---\nutility: 0.9\n---\n# Global High\n\nGlobal content.\n"
+	globalContent := "---\nutility: 0.9\nmaturity: provisional\n---\n# Global High\n\nGlobal content.\n"
 	if err := os.WriteFile(filepath.Join(globalDir, "global-high.md"), []byte(globalContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -880,5 +880,79 @@ func TestApplyConfidenceDecay_MarkdownNoTimestamp(t *testing.T) {
 	// No timestamp → no decay → utility unchanged
 	if result.Utility != l.Utility {
 		t.Errorf("expected utility unchanged without timestamp, got %.4f != %.4f", result.Utility, l.Utility)
+	}
+}
+
+func TestPassesQualityGate(t *testing.T) {
+	tests := []struct {
+		name     string
+		maturity string
+		utility  float64
+		want     bool
+	}{
+		{"provisional with good utility", "provisional", 0.8, true},
+		{"candidate with good utility", "candidate", 0.5, true},
+		{"established with good utility", "established", 0.9, true},
+		{"provisional with low utility", "provisional", 0.2, false},
+		{"provisional at boundary", "provisional", 0.3, false},   // 0.3 is NOT > 0.3
+		{"provisional just above", "provisional", 0.31, true},
+		{"empty maturity", "", 0.8, false},
+		{"draft maturity", "draft", 0.8, false},
+		{"unknown maturity", "foobar", 0.8, false},
+		{"empty maturity low utility", "", 0.1, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := learning{ID: "test", Maturity: tt.maturity, Utility: tt.utility}
+			got := passesQualityGate(l)
+			if got != tt.want {
+				t.Errorf("passesQualityGate(maturity=%q, utility=%.2f) = %v, want %v",
+					tt.maturity, tt.utility, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProcessLearningFile_QualityGateFilters(t *testing.T) {
+	dir := t.TempDir()
+
+	// Learning with no maturity should be filtered out
+	noMaturity := writeTestMDLearning(t, dir, "no-maturity.md", map[string]string{
+		"utility": "0.9",
+	}, "# Good content\nBut no maturity\n")
+
+	_, included := processLearningFile(noMaturity, "", time.Now())
+	if included {
+		t.Error("expected learning without maturity to be filtered by quality gate")
+	}
+
+	// Learning with provisional + good utility should pass
+	good := writeTestMDLearning(t, dir, "good.md", map[string]string{
+		"maturity": "provisional",
+		"utility":  "0.8",
+	}, "# Good Learning\nHas maturity and utility\n")
+
+	l, included := processLearningFile(good, "", time.Now())
+	if !included {
+		t.Error("expected provisional learning with utility 0.8 to pass quality gate")
+	}
+	if l.Maturity != "provisional" {
+		t.Errorf("expected maturity=provisional, got %q", l.Maturity)
+	}
+}
+
+func TestProcessLearningFile_QualityGateUtilityBoundary(t *testing.T) {
+	dir := t.TempDir()
+
+	// Learning with provisional but utility exactly 0.3 — should NOT pass (> not >=)
+	borderline := writeTestMDLearning(t, dir, "borderline.md", map[string]string{
+		"maturity": "provisional",
+		"utility":  "0.3",
+	}, "# Borderline\nExactly at threshold\n")
+
+	_, included := processLearningFile(borderline, "", time.Now())
+	if included {
+		t.Error("expected learning with utility=0.3 to be filtered (gate requires > 0.3)")
 	}
 }

@@ -143,12 +143,31 @@ func processLearningFile(file, queryLower string, now time.Time) (learning, bool
 		l = applyConfidenceDecay(l, file, now)
 	}
 
-	// Quality gate: penalize unsourced learnings
+	// Hard quality gate: filter out low-maturity or low-utility learnings
+	if !passesQualityGate(l) {
+		VerbosePrintf("Quality gate filtered: %s (maturity=%s, utility=%.3f)\n", l.ID, l.Maturity, l.Utility)
+		return l, false
+	}
+
+	// Soft penalty: penalize unsourced learnings that passed the hard gate
 	if l.SourceBead == "" {
-		l.Utility *= 0.3 // Severe penalty for untraceable knowledge
+		l.Utility *= 0.3
 	}
 
 	return l, true
+}
+
+// passesQualityGate returns true if a learning meets minimum injection standards.
+// Requires maturity >= provisional (provisional, candidate, or established) AND utility > 0.3.
+func passesQualityGate(l learning) bool {
+	switch types.Maturity(l.Maturity) {
+	case types.MaturityProvisional, types.MaturityCandidate, types.MaturityEstablished:
+		// maturity OK
+	default:
+		// Empty maturity, "draft", or unknown → fail gate
+		return false
+	}
+	return l.Utility > 0.3
 }
 
 // applyFreshnessScore sets the freshness score on a learning based on file modification time.
@@ -359,6 +378,7 @@ type frontMatter struct {
 	HasUtility   bool
 	SourceBead   string
 	SourcePhase  string
+	Maturity     string
 }
 
 // parseFrontMatter extracts YAML front matter from markdown content
@@ -396,6 +416,8 @@ func parseFrontMatterLine(line string, fm *frontMatter) {
 		fm.SourceBead = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
 	case strings.HasPrefix(line, "source_phase:"), strings.HasPrefix(line, "source-phase:"):
 		fm.SourcePhase = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+	case strings.HasPrefix(line, "maturity:"):
+		fm.Maturity = strings.TrimSpace(strings.TrimPrefix(line, "maturity:"))
 	}
 }
 
@@ -442,7 +464,7 @@ func isPromoted(fm frontMatter) bool {
 	return fm.PromotedTo != "" && fm.PromotedTo != "null" && fm.PromotedTo != "~"
 }
 
-// parseLearningBody extracts title and ID from markdown body lines into l.
+// parseLearningBody extracts title, ID, and maturity from markdown body lines into l.
 func parseLearningBody(lines []string, start int, l *learning) {
 	defaultID := filepath.Base(l.Source)
 	for i := start; i < len(lines); i++ {
@@ -451,6 +473,13 @@ func parseLearningBody(lines []string, start int, l *learning) {
 			l.Title = strings.TrimPrefix(line, "# ")
 		} else if (strings.HasPrefix(line, "ID:") || strings.HasPrefix(line, "id:")) && l.ID == defaultID {
 			l.ID = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+		}
+		// Extract maturity from inline metadata format: "**Maturity**: X" or "- **Maturity**: X"
+		if l.Maturity == "" {
+			trimmed := strings.TrimPrefix(line, "- ")
+			if strings.HasPrefix(trimmed, "**Maturity**:") {
+				l.Maturity = strings.TrimSpace(strings.TrimPrefix(trimmed, "**Maturity**:"))
+			}
 		}
 	}
 }
@@ -488,6 +517,7 @@ func parseLearningFile(path string) (learning, error) {
 	}
 	l.SourceBead = fm.SourceBead
 	l.SourcePhase = sanitizeSourcePhase(fm.SourcePhase)
+	l.Maturity = fm.Maturity
 
 	parseLearningBody(lines, contentStart, &l)
 	l.Summary = extractSummary(lines, contentStart)

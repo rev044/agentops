@@ -396,7 +396,10 @@ func TestCollectLearnings(t *testing.T) {
 	}
 
 	// Create markdown learning
-	mdContent := `# Mutex Pattern
+	mdContent := `---
+maturity: provisional
+---
+# Mutex Pattern
 
 Always use sync.Mutex for shared state access.
 `
@@ -406,10 +409,11 @@ Always use sync.Mutex for shared state access.
 
 	// Create JSONL learning
 	jsonlData := map[string]any{
-		"id":      "L2",
-		"title":   "Database Pooling",
-		"summary": "Use connection pooling for database access",
-		"utility": 0.8,
+		"id":       "L2",
+		"title":    "Database Pooling",
+		"summary":  "Use connection pooling for database access",
+		"utility":  0.8,
+		"maturity": "provisional",
 	}
 	line, err := json.Marshal(jsonlData)
 	if err != nil {

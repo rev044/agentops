@@ -25,6 +25,7 @@ type: learning
 created_at: "` + time.Now().Format(time.RFC3339) + `"
 category: architecture
 confidence: high
+maturity: provisional
 ---
 # Learning: Authentication Best Practices
 
@@ -117,7 +118,7 @@ Use specialized, independent judges for validation.
 	t.Run("index_per_item_cost", func(t *testing.T) {
 		// Create additional learnings to get a realistic comparison
 		for i := 0; i < 8; i++ {
-			content := "---\nid: learn-extra-" + strings.Repeat("x", 1) + "\n---\n# Learning " + string(rune('A'+i)) + "\n\nSome detailed content about topic " + string(rune('A'+i)) + " that takes up space in the full output but not in the index table.\n"
+			content := "---\nid: learn-extra-" + strings.Repeat("x", 1) + "\nmaturity: provisional\n---\n# Learning " + string(rune('A'+i)) + "\n\nSome detailed content about topic " + string(rune('A'+i)) + " that takes up space in the full output but not in the index table.\n"
 			os.WriteFile(filepath.Join(learningsDir, "extra-"+string(rune('a'+i))+".md"), []byte(content), 0644)
 		}
 
