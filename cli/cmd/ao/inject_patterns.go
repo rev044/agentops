@@ -48,79 +48,26 @@ func collectPatterns(cwd, query string, limit int, globalDir string, globalWeigh
 		patternsDir = findAgentsSubdir(cwd, "patterns")
 	}
 
-	patterns := make([]pattern, 0)
 	queryLower := strings.ToLower(query)
 	now := time.Now()
 
-	// Collect local patterns
-	if patternsDir != "" {
-		files, err := filepath.Glob(filepath.Join(patternsDir, "*.md"))
-		if err != nil {
-			return nil, err
-		}
-		for _, file := range files {
-			p, err := parsePatternFile(file)
-			if err != nil {
-				continue
-			}
-			enrichPatternFreshness(&p, file, now)
-			if !patternMatchesQuery(p, queryLower) {
-				continue
-			}
-			patterns = append(patterns, p)
-		}
+	local, err := collectPatternsFromDir(patternsDir, queryLower, now, false)
+	if err != nil {
+		return nil, err
 	}
 
-	// Build set of local file paths for dedup against global
-	localPaths := make(map[string]bool)
-	if patternsDir != "" {
-		localFiles, _ := filepath.Glob(filepath.Join(patternsDir, "*.md"))
-		for _, f := range localFiles {
-			if abs, err := filepath.Abs(f); err == nil {
-				localPaths[abs] = true
-			}
-		}
+	localPaths := buildLocalPathSet(patternsDir)
+	global, err := collectGlobalPatterns(globalDir, localPaths, queryLower, now)
+	if err != nil {
+		return nil, err
 	}
 
-	// Collect global patterns (cross-repo knowledge)
-	if globalDir != "" {
-		globalFiles, _ := filepath.Glob(filepath.Join(globalDir, "*.md"))
-		for _, file := range globalFiles {
-			// Skip if already found in local collection (prevents duplicates)
-			if abs, err := filepath.Abs(file); err == nil && localPaths[abs] {
-				continue
-			}
-			p, err := parsePatternFile(file)
-			if err != nil {
-				continue
-			}
-			enrichPatternFreshness(&p, file, now)
-			if !patternMatchesQuery(p, queryLower) {
-				continue
-			}
-			p.Global = true
-			patterns = append(patterns, p)
-		}
-	}
-
+	patterns := append(local, global...)
 	if len(patterns) == 0 {
 		return nil, nil
 	}
 
-	items := make([]scorable, len(patterns))
-	for i := range patterns {
-		items[i] = &patterns[i]
-	}
-	applyCompositeScoringTo(items, types.DefaultLambda)
-
-	// Apply global weight penalty post-scoring
-	if globalWeight > 0 && globalWeight < 1.0 {
-		for i := range patterns {
-			if patterns[i].Global {
-				patterns[i].CompositeScore *= globalWeight
-			}
-		}
-	}
+	scoreAndWeighPatterns(patterns, globalWeight)
 
 	slices.SortFunc(patterns, func(a, b pattern) int {
 		return cmp.Compare(b.CompositeScore, a.CompositeScore)
@@ -130,6 +77,84 @@ func collectPatterns(cwd, query string, limit int, globalDir string, globalWeigh
 	}
 
 	return patterns, nil
+}
+
+func collectPatternsFromDir(dir, queryLower string, now time.Time, isGlobal bool) ([]pattern, error) {
+	if dir == "" {
+		return nil, nil
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "*.md"))
+	if err != nil {
+		return nil, err
+	}
+	var result []pattern
+	for _, file := range files {
+		p, err := parsePatternFile(file)
+		if err != nil {
+			continue
+		}
+		enrichPatternFreshness(&p, file, now)
+		if !patternMatchesQuery(p, queryLower) {
+			continue
+		}
+		p.Global = isGlobal
+		result = append(result, p)
+	}
+	return result, nil
+}
+
+func buildLocalPathSet(patternsDir string) map[string]bool {
+	localPaths := make(map[string]bool)
+	if patternsDir == "" {
+		return localPaths
+	}
+	localFiles, _ := filepath.Glob(filepath.Join(patternsDir, "*.md"))
+	for _, f := range localFiles {
+		if abs, err := filepath.Abs(f); err == nil {
+			localPaths[abs] = true
+		}
+	}
+	return localPaths
+}
+
+func collectGlobalPatterns(globalDir string, localPaths map[string]bool, queryLower string, now time.Time) ([]pattern, error) {
+	if globalDir == "" {
+		return nil, nil
+	}
+	globalFiles, _ := filepath.Glob(filepath.Join(globalDir, "*.md"))
+	var result []pattern
+	for _, file := range globalFiles {
+		if abs, err := filepath.Abs(file); err == nil && localPaths[abs] {
+			continue
+		}
+		p, err := parsePatternFile(file)
+		if err != nil {
+			continue
+		}
+		enrichPatternFreshness(&p, file, now)
+		if !patternMatchesQuery(p, queryLower) {
+			continue
+		}
+		p.Global = true
+		result = append(result, p)
+	}
+	return result, nil
+}
+
+func scoreAndWeighPatterns(patterns []pattern, globalWeight float64) {
+	items := make([]scorable, len(patterns))
+	for i := range patterns {
+		items[i] = &patterns[i]
+	}
+	applyCompositeScoringTo(items, types.DefaultLambda)
+
+	if globalWeight > 0 && globalWeight < 1.0 {
+		for i := range patterns {
+			if patterns[i].Global {
+				patterns[i].CompositeScore *= globalWeight
+			}
+		}
+	}
 }
 
 // parsePatternFile extracts pattern info from a markdown file

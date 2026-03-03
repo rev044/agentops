@@ -121,12 +121,18 @@ func runSeed(cmd *cobra.Command, args []string) error {
 		DryRun:   GetDryRun(),
 	}
 
-	// Step 1: Create .agents/ directory structure
-	if err := seedCreateAgentsDirs(absPath, &result); err != nil {
+	if err := executeSeedSteps(absPath, template, &result); err != nil {
 		return err
 	}
 
-	// Step 1.5: Git protection + storage init (reuse shared functions from ao init)
+	return outputSeedResult(result)
+}
+
+func executeSeedSteps(absPath, template string, result *seedResult) error {
+	if err := seedCreateAgentsDirs(absPath, result); err != nil {
+		return err
+	}
+
 	isGitRepo := isGitRepository(absPath)
 	if err := setupGitProtection(absPath, isGitRepo); err != nil {
 		return err
@@ -138,22 +144,16 @@ func runSeed(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Step 2: Create GOALS.md
-	if err := seedCreateGoals(absPath, template, &result); err != nil {
+	if err := seedCreateGoals(absPath, template, result); err != nil {
 		return err
 	}
-
-	// Step 3: Create bootstrap learning
-	if err := seedCreateBootstrapLearning(absPath, template, &result); err != nil {
+	if err := seedCreateBootstrapLearning(absPath, template, result); err != nil {
 		return err
 	}
+	return seedAppendClaudeMD(absPath, result)
+}
 
-	// Step 4: Append CLAUDE.md seed section
-	if err := seedAppendClaudeMD(absPath, &result); err != nil {
-		return err
-	}
-
-	// Output
+func outputSeedResult(result seedResult) error {
 	if GetOutput() == "json" {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -162,25 +162,25 @@ func runSeed(cmd *cobra.Command, args []string) error {
 
 	if GetDryRun() {
 		fmt.Println("Dry run complete. No files were created.")
-	} else {
-		fmt.Printf("Seeded %s with template %q\n", absPath, template)
-		if len(result.Created) > 0 {
-			fmt.Println("\nCreated:")
-			for _, f := range result.Created {
-				fmt.Printf("  %s\n", f)
-			}
-		}
-		if len(result.Skipped) > 0 {
-			fmt.Println("\nSkipped (already exist, use --force to overwrite):")
-			for _, f := range result.Skipped {
-				fmt.Printf("  %s\n", f)
-			}
-		}
-		fmt.Println("\nNext steps:")
-		fmt.Println("  ao init --hooks    # Register session hooks")
-		fmt.Println("  ao flywheel status # Verify flywheel health")
+		return nil
 	}
 
+	fmt.Printf("Seeded %s with template %q\n", result.Path, result.Template)
+	if len(result.Created) > 0 {
+		fmt.Println("\nCreated:")
+		for _, f := range result.Created {
+			fmt.Printf("  %s\n", f)
+		}
+	}
+	if len(result.Skipped) > 0 {
+		fmt.Println("\nSkipped (already exist, use --force to overwrite):")
+		for _, f := range result.Skipped {
+			fmt.Printf("  %s\n", f)
+		}
+	}
+	fmt.Println("\nNext steps:")
+	fmt.Println("  ao init --hooks    # Register session hooks")
+	fmt.Println("  ao flywheel status # Verify flywheel health")
 	return nil
 }
 

@@ -133,13 +133,19 @@ func runMine(cmd *cobra.Command, args []string) error {
 		Sources:      sources,
 	}
 
+	runMineSources(cwd, sources, window, report, cmd.ErrOrStderr())
+
+	return finalizeMineReport(cmd, cwd, report)
+}
+
+func runMineSources(cwd string, sources []string, window time.Duration, report *MineReport, errW io.Writer) {
 	for _, src := range sources {
 		switch src {
 		case "git":
 			findings, gitErr := mineGitLog(cwd, window)
 			if gitErr != nil {
 				if !mineQuiet {
-					fmt.Fprintf(cmd.ErrOrStderr(), "warning: git source: %v\n", gitErr)
+					fmt.Fprintf(errW, "warning: git source: %v\n", gitErr)
 				}
 				continue
 			}
@@ -148,7 +154,7 @@ func runMine(cmd *cobra.Command, args []string) error {
 			findings, agErr := mineAgentsDir(cwd)
 			if agErr != nil {
 				if !mineQuiet {
-					fmt.Fprintf(cmd.ErrOrStderr(), "warning: agents source: %v\n", agErr)
+					fmt.Fprintf(errW, "warning: agents source: %v\n", agErr)
 				}
 				continue
 			}
@@ -157,14 +163,16 @@ func runMine(cmd *cobra.Command, args []string) error {
 			findings, codeErr := mineCodeComplexity(cwd, window)
 			if codeErr != nil {
 				if !mineQuiet {
-					fmt.Fprintf(cmd.ErrOrStderr(), "warning: code source: %v\n", codeErr)
+					fmt.Fprintf(errW, "warning: code source: %v\n", codeErr)
 				}
 				continue
 			}
 			report.Code = findings
 		}
 	}
+}
 
+func finalizeMineReport(cmd *cobra.Command, cwd string, report *MineReport) error {
 	if err := writeMineReport(mineOutputDir, report); err != nil {
 		return err
 	}
