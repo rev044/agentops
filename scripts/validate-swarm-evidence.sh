@@ -52,14 +52,14 @@ if [[ "$TYPE" == "completion" ]]; then
 
         # For each required check, verify it exists in checks and has PASS verdict
         for check_name in $(jq -r '.evidence.required_checks[]' "$RESULT_FILE" 2>/dev/null); do
-            CHECK_EXISTS=$(jq -e ".evidence.checks[\"$check_name\"]" "$RESULT_FILE" >/dev/null 2>&1 && echo "yes" || echo "no")
+            CHECK_EXISTS=$(jq -e --arg name "$check_name" '.evidence.checks[$name]' "$RESULT_FILE" >/dev/null 2>&1 && echo "yes" || echo "no")
             if [[ "$CHECK_EXISTS" == "no" ]]; then
                 echo "FAIL: required check '$check_name' missing from evidence.checks"
                 ERRORS=$((ERRORS + 1))
                 continue
             fi
 
-            VERDICT=$(jq -r ".evidence.checks[\"$check_name\"].verdict // \"missing\"" "$RESULT_FILE")
+            VERDICT=$(jq -r --arg name "$check_name" '.evidence.checks[$name].verdict // "missing"' "$RESULT_FILE")
             if [[ "$VERDICT" == "FAIL" ]]; then
                 echo "FAIL: required check '$check_name' has FAIL verdict"
                 ERRORS=$((ERRORS + 1))

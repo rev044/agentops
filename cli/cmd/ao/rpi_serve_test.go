@@ -153,6 +153,8 @@ func TestClassifyServeArg_12HexRunID(t *testing.T) {
 		{"12-hex via flag", "760fc86f0c0f", nil, "", "760fc86f0c0f"},
 		{"12-hex via arg", "", []string{"760fc86f0c0f"}, "", "760fc86f0c0f"},
 		{"8-hex rpi prefix via flag", "rpi-a1b2c3d4", nil, "", "rpi-a1b2c3d4"},
+		{"bare 8-hex via flag", "0aa420a9", nil, "", "0aa420a9"},
+		{"bare 8-hex via arg", "", []string{"4c538e8a"}, "", "4c538e8a"},
 		{"goal string", "improve-coverage", nil, "improve-coverage", ""},
 		{"empty", "", nil, "", ""},
 	}

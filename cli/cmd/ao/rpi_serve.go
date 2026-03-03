@@ -29,8 +29,8 @@ var (
 	rpiServeOrchestrate bool
 )
 
-// rpiRunIDPattern matches persisted run IDs like rpi-a1b2c3d4 or bare 12-hex IDs like 760fc86f0c0f.
-var rpiRunIDPattern = regexp.MustCompile(`^(rpi-[a-f0-9]{8}|[a-f0-9]{12})$`)
+// rpiRunIDPattern matches persisted run IDs: rpi-<8hex>, bare 8-hex, or bare 12-hex.
+var rpiRunIDPattern = regexp.MustCompile(`^(rpi-[a-f0-9]{8}|[a-f0-9]{8}|[a-f0-9]{12})$`)
 
 // classifyServeArg returns (goal, runID) from flags and positional args.
 // Flag --run-id wins over the positional arg. A token matching rpiRunIDPattern
