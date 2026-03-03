@@ -136,7 +136,7 @@ In summary:
 
 1. Identify all files in scope (from epic commits or recent changes)
 2. Chunk files into batches of 3–5 by line count (<=100 lines → batch of 5, 101–300 → batch of 3, >300 → solo)
-3. Dispatch up to 8 Explore agents in parallel, each with a mandatory 7-category checklist per file (resource leaks, string safety, dead code, hardcoded values, edge cases, concurrency, error handling)
+3. Dispatch up to 8 Explore agents in parallel, each with a mandatory 8-category checklist per file (resource leaks, string safety, dead code, hardcoded values, edge cases, concurrency, error handling, HTTP/web security)
 4. Merge all explorer findings into a sweep manifest at `.agents/council/sweep-manifest.md`
 5. Include sweep manifest in council packet — judges shift to adjudication mode (confirm/reject/reclassify sweep findings + add cross-cutting findings)
 
