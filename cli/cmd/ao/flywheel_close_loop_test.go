@@ -470,6 +470,87 @@ func TestCloseLoop_CitationFeedbackWithMaturityTransition(t *testing.T) {
 	}
 }
 
+// TestCloseLoop_CitationFeedbackBeforeMaturity verifies that citation feedback
+// runs before maturity transitions, so reward_count bumps are visible to the
+// maturity state machine within the same close-loop cycle.
+func TestCloseLoop_CitationFeedbackBeforeMaturity(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create a learning with utility above threshold (0.55) but reward_count=2
+	// (below MinFeedbackForPromotion=3). Citation feedback will bump reward_count
+	// to 3, enabling promotion — but ONLY if citation runs before maturity.
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatalf("mkdir learnings: %v", err)
+	}
+
+	learningPath := writeTestMDLearning(t, learningsDir, "order-test.md", map[string]string{
+		"id":            "order-test",
+		"utility":       "0.7500",
+		"reward_count":  "2",
+		"maturity":      "provisional",
+		"helpful_count": "2",
+		"harmful_count": "0",
+		"confidence":    "0.8",
+	}, "# Order Test Learning\nVerifies citation feedback runs before maturity transitions.\n")
+
+	// Write a citation event for this learning
+	citation := types.CitationEvent{
+		SessionID:     "order-test-session",
+		ArtifactPath:  ".agents/learnings/order-test.md",
+		CitationType:  "retrieved",
+		CitedAt:       time.Date(2026, 3, 3, 12, 0, 0, 0, time.UTC),
+		FeedbackGiven: false,
+	}
+	citationData, err := json.Marshal(citation)
+	if err != nil {
+		t.Fatalf("marshal citation: %v", err)
+	}
+	citationsPath := filepath.Join(tmp, ".agents", "ao", "citations.jsonl")
+	if err := os.MkdirAll(filepath.Dir(citationsPath), 0755); err != nil {
+		t.Fatalf("mkdir citations: %v", err)
+	}
+	if err := os.WriteFile(citationsPath, append(citationData, '\n'), 0600); err != nil {
+		t.Fatalf("write citations: %v", err)
+	}
+
+	// Override HOME so computeSessionRewardForCloseLoop falls back to 0.5
+	t.Setenv("HOME", tmp)
+
+	// Run citation feedback first (matching new close-loop order)
+	total, rewarded, _ := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 1 {
+		t.Fatalf("processCitationFeedback = (%d, %d, ...), want (1, 1, ...)", total, rewarded)
+	}
+
+	// Verify reward_count was bumped to 3
+	data, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatalf("read learning: %v", err)
+	}
+	if !strings.Contains(string(data), "reward_count: 3") {
+		t.Fatalf("expected reward_count: 3 after citation, got:\n%s", string(data))
+	}
+
+	// Now run maturity transitions — should promote because reward_count=3 AND utility >= 0.55
+	summary, err := applyAllMaturityTransitions(tmp)
+	if err != nil {
+		t.Fatalf("applyAllMaturityTransitions: %v", err)
+	}
+	if summary.Applied < 1 {
+		t.Errorf("Applied = %d, want >= 1 (citation bump should enable promotion)", summary.Applied)
+	}
+
+	// Verify learning promoted to candidate
+	finalData, err := os.ReadFile(learningPath)
+	if err != nil {
+		t.Fatalf("read final learning: %v", err)
+	}
+	if !strings.Contains(string(finalData), "maturity: candidate") {
+		t.Errorf("expected maturity: candidate (citation feedback raised reward_count to 3), got:\n%s", string(finalData))
+	}
+}
+
 // parseFrontMatterFloat extracts a float value from YAML front matter in a markdown string.
 func parseFrontMatterFloat(content, field string) float64 {
 	var val float64

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -814,5 +817,68 @@ func TestConfidenceDecayFloor(t *testing.T) {
 				t.Errorf("confidence should never go below 0.1, got %.4f", newConfidence)
 			}
 		})
+	}
+}
+
+func TestApplyConfidenceDecay_MarkdownLearning(t *testing.T) {
+	dir := t.TempDir()
+	fourWeeksAgo := time.Now().Add(-4 * 7 * 24 * time.Hour).Format(time.RFC3339)
+	path := writeTestMDLearning(t, dir, "test-decay.md", map[string]string{
+		"confidence":     "0.8000",
+		"last_reward_at": fourWeeksAgo,
+		"maturity":       "provisional",
+	}, "# Test Learning\nSome content\n")
+
+	l := learning{ID: "test-decay", Utility: 0.8, Source: path}
+	result := applyConfidenceDecay(l, path, time.Now())
+
+	// After 4 weeks of decay, utility should decrease
+	if result.Utility >= l.Utility {
+		t.Errorf("expected utility to decrease after 4 weeks decay, got %.4f >= %.4f", result.Utility, l.Utility)
+	}
+
+	// Verify file was updated with new confidence
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "last_decay_at:") {
+		t.Error("expected last_decay_at field in updated frontmatter")
+	}
+	// Confidence in file should be less than original 0.8
+	if strings.Contains(string(content), "confidence: 0.8000") {
+		t.Error("expected confidence to be updated from original 0.8000")
+	}
+}
+
+func TestApplyConfidenceDecay_MarkdownNoFrontmatter(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "no-fm.md")
+	if err := os.WriteFile(path, []byte("# Just a heading\nNo frontmatter here\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	l := learning{ID: "no-fm", Utility: 0.8, Source: path}
+	result := applyConfidenceDecay(l, path, time.Now())
+
+	// Should be a no-op — utility unchanged
+	if result.Utility != l.Utility {
+		t.Errorf("expected utility unchanged for .md without frontmatter, got %.4f != %.4f", result.Utility, l.Utility)
+	}
+}
+
+func TestApplyConfidenceDecay_MarkdownNoTimestamp(t *testing.T) {
+	dir := t.TempDir()
+	path := writeTestMDLearning(t, dir, "no-ts.md", map[string]string{
+		"confidence": "0.9000",
+		"maturity":   "provisional",
+	}, fmt.Sprintf("# No Timestamp\nContent here\n"))
+
+	l := learning{ID: "no-ts", Utility: 0.9, Source: path}
+	result := applyConfidenceDecay(l, path, time.Now())
+
+	// No timestamp → no decay → utility unchanged
+	if result.Utility != l.Utility {
+		t.Errorf("expected utility unchanged without timestamp, got %.4f != %.4f", result.Utility, l.Utility)
 	}
 }

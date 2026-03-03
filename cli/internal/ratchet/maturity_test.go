@@ -1457,6 +1457,52 @@ func TestGetMaturityDistribution_MDFiles(t *testing.T) {
 	}
 }
 
+func TestGlobLearningFiles_FindsBothFormats(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create .jsonl files
+	writeLearning(t, dir, "a.jsonl", map[string]any{"id": "a"})
+	writeLearning(t, dir, "b.jsonl", map[string]any{"id": "b"})
+
+	// Create .md files
+	writeMDLearning(t, dir, "c.md", map[string]string{"id": "c"}, "# C\n")
+	writeMDLearning(t, dir, "d.md", map[string]string{"id": "d"}, "# D\n")
+
+	// Create a .txt file (should NOT be returned)
+	if err := os.WriteFile(filepath.Join(dir, "ignored.txt"), []byte("not a learning"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := GlobLearningFiles(dir)
+	if err != nil {
+		t.Fatalf("GlobLearningFiles: %v", err)
+	}
+	if len(files) != 4 {
+		t.Errorf("got %d files, want 4 (2 jsonl + 2 md)", len(files))
+	}
+}
+
+func TestGlobLearningFiles_EmptyDir(t *testing.T) {
+	files, err := GlobLearningFiles(t.TempDir())
+	if err != nil {
+		t.Fatalf("GlobLearningFiles: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("got %d files, want 0", len(files))
+	}
+}
+
+func TestGlobLearningFiles_NonExistentDir(t *testing.T) {
+	// filepath.Glob returns nil (not error) for non-existent dirs
+	files, err := GlobLearningFiles("/nonexistent/dir")
+	if err != nil {
+		t.Fatalf("GlobLearningFiles: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("got %d files, want 0", len(files))
+	}
+}
+
 func TestFilterLearningsByMaturity_IncludesMD(t *testing.T) {
 	dir := t.TempDir()
 

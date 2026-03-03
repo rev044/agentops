@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"cmp"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -181,11 +182,19 @@ func rankLearnings(learnings []learning) {
 // applyConfidenceDecay applies time-based confidence decay to a learning.
 // Confidence decays at 10%/week for learnings that haven't received recent feedback.
 // Formula: confidence *= exp(-weeks_since_last_feedback * ConfidenceDecayRate)
+// Supports both JSONL and Markdown (.md with YAML frontmatter) learning files.
 func applyConfidenceDecay(l learning, filePath string, now time.Time) learning {
-	if !strings.HasSuffix(filePath, ".jsonl") {
-		return l
+	if strings.HasSuffix(filePath, ".jsonl") {
+		return applyConfidenceDecayJSONL(l, filePath, now)
 	}
+	if strings.HasSuffix(filePath, ".md") {
+		return applyConfidenceDecayMarkdown(l, filePath, now)
+	}
+	return l
+}
 
+// applyConfidenceDecayJSONL applies confidence decay to a JSONL learning file.
+func applyConfidenceDecayJSONL(l learning, filePath string, now time.Time) learning {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return l
@@ -222,6 +231,79 @@ func applyConfidenceDecay(l learning, filePath string, now time.Time) learning {
 		if writeErr := atomicWriteFile(filePath, []byte(strings.Join(lines, "\n")), 0600); writeErr != nil {
 			VerbosePrintf("Warning: failed to write decay for %s: %v\n", l.ID, writeErr)
 		}
+	}
+
+	l.Utility *= newConfidence / confidence
+	return l
+}
+
+// applyConfidenceDecayMarkdown applies confidence decay to a Markdown learning file
+// with YAML frontmatter containing confidence and last_reward_at/last_decay_at fields.
+func applyConfidenceDecayMarkdown(l learning, filePath string, now time.Time) learning {
+	fields, err := parseFrontmatterFields(filePath, "confidence", "last_decay_at", "last_reward_at")
+	if err != nil {
+		return l
+	}
+
+	confidence := 0.5
+	if c, parseErr := strconv.ParseFloat(fields["confidence"], 64); parseErr == nil && c > 0 {
+		confidence = c
+	}
+
+	// Find most recent interaction time from either field
+	var lastInteraction time.Time
+	for _, key := range []string{"last_decay_at", "last_reward_at"} {
+		if v := fields[key]; v != "" {
+			if t, parseErr := time.Parse(time.RFC3339, v); parseErr == nil {
+				if lastInteraction.IsZero() || t.After(lastInteraction) {
+					lastInteraction = t
+				}
+			}
+		}
+	}
+	if lastInteraction.IsZero() {
+		return l
+	}
+
+	weeksSinceInteraction := now.Sub(lastInteraction).Hours() / (24 * 7)
+	if weeksSinceInteraction <= 0 {
+		return l
+	}
+
+	newConfidence := computeDecayedConfidence(confidence, weeksSinceInteraction)
+	VerbosePrintf("Applied confidence decay to %s: %.3f -> %.3f (%.1f weeks)\n",
+		l.ID, confidence, newConfidence, weeksSinceInteraction)
+
+	// Write updated decay fields back to frontmatter
+	content, readErr := os.ReadFile(filePath)
+	if readErr != nil {
+		return l
+	}
+	lines := strings.Split(string(content), "\n")
+	if len(lines) < 2 || strings.TrimSpace(lines[0]) != "---" {
+		return l
+	}
+
+	// Find frontmatter end
+	endIdx := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			endIdx = i
+			break
+		}
+	}
+	if endIdx < 0 {
+		return l
+	}
+
+	fmLines := lines[1:endIdx]
+	updatedFM := updateFrontMatterFields(fmLines, map[string]string{
+		"confidence":    fmt.Sprintf("%.4f", newConfidence),
+		"last_decay_at": now.Format(time.RFC3339),
+	})
+	rebuilt := rebuildWithFrontMatter(updatedFM, lines[endIdx+1:])
+	if writeErr := os.WriteFile(filePath, []byte(rebuilt), 0600); writeErr != nil {
+		VerbosePrintf("Warning: failed to write decay for %s: %v\n", l.ID, writeErr)
 	}
 
 	l.Utility *= newConfidence / confidence

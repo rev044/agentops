@@ -47,7 +47,7 @@ var flywheelCloseLoopCmd = &cobra.Command{
 	Short: "Close the knowledge flywheel loop",
 	Long: `Close the knowledge flywheel loop by chaining:
 
-  pool ingest → pool auto-promote (promote) → maturity transitions → store (categorize)
+  pool ingest → pool auto-promote → citation feedback → maturity transitions → store (categorize)
 
 Designed to be safe for hooks with --quiet.
 
@@ -96,7 +96,18 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// 3) apply ALL maturity transitions (not just anti-patterns)
+	// 3) citation-to-utility feedback: process unprocessed citations
+	// Run BEFORE maturity transitions so utility bumps from citations
+	// are reflected in maturity evaluations within the same cycle.
+	processed, rewarded, skipped := processCitationFeedback(cwd)
+	result.CitationFeedback.Processed = processed
+	result.CitationFeedback.Rewarded = rewarded
+	result.CitationFeedback.Skipped = skipped
+
+	// 4) auto-promote learnings whose utility was bumped by citation feedback
+	promoteCitedLearnings(cwd, flywheelCloseLoopQuiet)
+
+	// 5) apply ALL maturity transitions (not just anti-patterns)
 	maturityResult, err := applyAllMaturityTransitions(cwd)
 	if err != nil {
 		return err
@@ -105,7 +116,7 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 	result.AntiPattern.Promoted = maturityResult.Applied
 	result.AntiPattern.Paths = maturityResult.ChangedPaths
 
-	// 4) store index (categorize) for newly created/changed artifacts
+	// 6) store index (categorize) for newly created/changed artifacts
 	pathsToIndex := append([]string{}, result.AutoPromote.Artifacts...)
 	pathsToIndex = append(pathsToIndex, maturityResult.ChangedPaths...)
 	result.Store.Categorize = true
@@ -115,15 +126,6 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 	}
 	result.Store.Indexed = indexed
 	result.Store.IndexPath = indexPath
-
-	// 5) citation-to-utility feedback: process unprocessed citations
-	processed, rewarded, skipped := processCitationFeedback(cwd)
-	result.CitationFeedback.Processed = processed
-	result.CitationFeedback.Rewarded = rewarded
-	result.CitationFeedback.Skipped = skipped
-
-	// 6) auto-promote learnings whose utility was bumped by citation feedback
-	promoteCitedLearnings(cwd, flywheelCloseLoopQuiet)
 
 	return outputFlywheelCloseLoopResult(result)
 }

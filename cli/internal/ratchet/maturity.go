@@ -252,8 +252,14 @@ func intFromData(data map[string]any, key string) int {
 
 // GlobLearningFiles returns all .jsonl and .md files in the given directory.
 func GlobLearningFiles(dir string) ([]string, error) {
-	jsonl, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
-	md, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+	jsonl, err := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	if err != nil {
+		return nil, fmt.Errorf("glob jsonl in %s: %w", dir, err)
+	}
+	md, err := filepath.Glob(filepath.Join(dir, "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("glob md in %s: %w", dir, err)
+	}
 	return append(jsonl, md...), nil
 }
 
