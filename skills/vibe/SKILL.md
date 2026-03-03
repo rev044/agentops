@@ -269,7 +269,7 @@ If ao returns prior code review patterns for this area, include them in the coun
 Read `references/deep-audit-protocol.md` for the full protocol. In summary:
 
 1. Chunk target files into batches of 3–5 (by line count — see protocol for rules)
-2. Dispatch up to 8 Explore agents in parallel, each with a mandatory 7-category checklist per file
+2. Dispatch up to 8 Explore agents in parallel, each with a mandatory 8-category checklist per file
 3. Merge all explorer findings into a sweep manifest at `.agents/council/sweep-manifest.md`
 4. Include sweep manifest in council packet (judges shift to adjudication mode — see Step 4)
 

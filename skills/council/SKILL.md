@@ -414,7 +414,7 @@ All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 /council --deep --preset=architecture research the auth system  # 3 judges with architecture personas
 /council --mixed validate this plan                             # 3 Claude + 3 Codex
 /council --deep --explorers=3 research upgrade patterns         # 12 agents (3 judges x 4)
-/council --preset=security-audit --deep validate the API        # attacker, defender, compliance
+/council --preset=security-audit --deep validate the API        # attacker, defender, compliance, web-security
 /council --preset=doc-review validate README.md                  # 4 doc judges with named perspectives
 /council brainstorm caching strategies for the API              # 2 judges explore options
 /council --technique=scamper brainstorm API improvements               # structured SCAMPER brainstorm
