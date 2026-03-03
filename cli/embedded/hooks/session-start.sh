@@ -91,31 +91,35 @@ fi
 # Structured handoff consumption (ao handoff JSON artifacts)
 HANDOFF_CONTEXT=""
 if [ -d "$ROOT/.agents/handoff" ] && command -v jq &>/dev/null; then
-    # Find newest unconsumed .json handoff (exclude .consumed.json)
+    # Find newest unconsumed .json handoff (exclude .consumed.json and .consuming.json)
     HANDOFF_JSON=$(find "$ROOT/.agents/handoff" -maxdepth 1 -name 'handoff-*.json' \
-        -not -name '*.consumed.json' -print0 2>/dev/null \
-        | xargs -0 ls -t 2>/dev/null | head -1)
+        -not -name '*.consumed.json' -not -name '*.consuming.json' 2>/dev/null \
+        | sort -r | head -1)
     if [ -n "$HANDOFF_JSON" ] && [ -f "$HANDOFF_JSON" ]; then
-        H_GOAL=$(jq -r '.goal // empty' "$HANDOFF_JSON" 2>/dev/null)
-        H_SUMMARY=$(jq -r '.summary // empty' "$HANDOFF_JSON" 2>/dev/null)
-        H_CONTINUATION=$(jq -r '.continuation // empty' "$HANDOFF_JSON" 2>/dev/null)
-        H_TYPE=$(jq -r '.type // "manual"' "$HANDOFF_JSON" 2>/dev/null)
-        # Mark consumed (atomic: write tmp, rename to .consumed.json, remove original)
-        CONSUMED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        jq --arg t "$CONSUMED_AT" '.consumed=true | .consumed_at=$t' \
-            "$HANDOFF_JSON" > "${HANDOFF_JSON}.tmp" 2>/dev/null \
-            && mv "${HANDOFF_JSON}.tmp" "${HANDOFF_JSON%.json}.consumed.json" \
-            && rm -f "$HANDOFF_JSON"
-        # Build injection context
-        HANDOFF_CONTEXT="### Handoff Context (${H_TYPE})"
-        [ -n "$H_GOAL" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+        # Atomic claim: mv to .consuming prevents concurrent session race
+        CONSUMING="${HANDOFF_JSON%.json}.consuming.json"
+        if mv "$HANDOFF_JSON" "$CONSUMING" 2>/dev/null; then
+            H_GOAL=$(jq -r '.goal // empty' "$CONSUMING" 2>/dev/null)
+            H_SUMMARY=$(jq -r '.summary // empty' "$CONSUMING" 2>/dev/null)
+            H_CONTINUATION=$(jq -r '.continuation // empty' "$CONSUMING" 2>/dev/null)
+            H_TYPE=$(jq -r '.type // "manual"' "$CONSUMING" 2>/dev/null)
+            # Finalize: write consumed metadata and rename to .consumed.json
+            CONSUMED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            jq --arg t "$CONSUMED_AT" '.consumed=true | .consumed_at=$t' \
+                "$CONSUMING" > "${CONSUMING}.tmp" 2>/dev/null \
+                && mv "${CONSUMING}.tmp" "${HANDOFF_JSON%.json}.consumed.json" 2>/dev/null \
+                && rm -f "$CONSUMING" 2>/dev/null
+            # Build injection context
+            HANDOFF_CONTEXT="### Handoff Context (${H_TYPE})"
+            [ -n "$H_GOAL" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
 - **Goal:** ${H_GOAL}"
-        [ -n "$H_SUMMARY" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+            [ -n "$H_SUMMARY" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
 - **Summary:** ${H_SUMMARY}"
-        [ -n "$H_CONTINUATION" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+            [ -n "$H_CONTINUATION" ] && HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
 - **Continue:** ${H_CONTINUATION}"
-        HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
+            HANDOFF_CONTEXT="${HANDOFF_CONTEXT}
 - **Source:** ${HANDOFF_JSON}"
+        fi
     fi
 fi
 
