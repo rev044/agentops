@@ -13,7 +13,7 @@
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_SESSION_START_DISABLED:-}" = "1" ] && exit 0
 
-STARTUP_MODE="${AGENTOPS_STARTUP_CONTEXT_MODE:-manual}"
+STARTUP_MODE="${AGENTOPS_STARTUP_CONTEXT_MODE:-lean}"
 # Legacy rollback: override to lean if explicitly requested
 [ "${AGENTOPS_STARTUP_LEGACY_INJECT:-}" = "1" ] && STARTUP_MODE="lean"
 
