@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -78,6 +77,7 @@ Examples:
   ao handoff --rpi-phase 2 --epic na-abc "phase 2 complete"
   ao handoff --dry-run "preview handoff"
   ao handoff --no-kill "write artifact without restarting session"`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runHandoff,
 }
 
@@ -294,20 +294,3 @@ func killSessionViaTmux(cwd string) error {
 	return cmd.Run()
 }
 
-// parseOpenBeadsCount extracts an integer count from bd ready --json output.
-func parseOpenBeadsCount(jsonOutput string) int {
-	if jsonOutput == "" {
-		return 0
-	}
-	// Try array parse
-	var arr []json.RawMessage
-	if json.Unmarshal([]byte(jsonOutput), &arr) == nil {
-		return len(arr)
-	}
-	// Try direct integer
-	n, err := strconv.Atoi(strings.TrimSpace(jsonOutput))
-	if err == nil {
-		return n
-	}
-	return 0
-}

@@ -438,26 +438,6 @@ func TestHandoffShellQuote(t *testing.T) {
 	}
 }
 
-func TestParseOpenBeadsCount(t *testing.T) {
-	tests := []struct {
-		input string
-		want  int
-	}{
-		{`[{"id":"1"},{"id":"2"},{"id":"3"}]`, 3},
-		{`[]`, 0},
-		{"", 0},
-		{"invalid", 0},
-		{"5", 5},
-	}
-
-	for _, tt := range tests {
-		got := parseOpenBeadsCount(tt.input)
-		if got != tt.want {
-			t.Errorf("parseOpenBeadsCount(%q) = %d, want %d", tt.input, got, tt.want)
-		}
-	}
-}
-
 func TestBuildHandoffRPIContext_NoStateFile(t *testing.T) {
 	dir := t.TempDir()
 
