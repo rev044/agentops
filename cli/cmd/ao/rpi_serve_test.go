@@ -169,6 +169,179 @@ func TestClassifyServeArg_12HexRunID(t *testing.T) {
 	}
 }
 
+func TestClassifyServeArg_RunID(t *testing.T) {
+	// Flag --run-id with valid run ID returns ("", runID)
+	goal, runID := classifyServeArg("rpi-abcdef01", nil)
+	if goal != "" {
+		t.Errorf("expected empty goal, got %q", goal)
+	}
+	if runID != "rpi-abcdef01" {
+		t.Errorf("expected run ID rpi-abcdef01, got %q", runID)
+	}
+}
+
+func TestClassifyServeArg_Goal(t *testing.T) {
+	// Non-run-ID string returns (goal, "")
+	goal, runID := classifyServeArg("add user authentication", nil)
+	if goal != "add user authentication" {
+		t.Errorf("expected goal 'add user authentication', got %q", goal)
+	}
+	if runID != "" {
+		t.Errorf("expected empty run ID, got %q", runID)
+	}
+}
+
+func TestClassifyServeArg_EmptyArgs(t *testing.T) {
+	// No args returns ("", "")
+	goal, runID := classifyServeArg("", nil)
+	if goal != "" {
+		t.Errorf("expected empty goal, got %q", goal)
+	}
+	if runID != "" {
+		t.Errorf("expected empty run ID, got %q", runID)
+	}
+
+	// Also with empty slice
+	goal2, runID2 := classifyServeArg("", []string{})
+	if goal2 != "" {
+		t.Errorf("expected empty goal with empty slice, got %q", goal2)
+	}
+	if runID2 != "" {
+		t.Errorf("expected empty run ID with empty slice, got %q", runID2)
+	}
+}
+
+func TestClassifyServeArg_PositionalRunID(t *testing.T) {
+	// Positional arg matching run ID pattern
+	goal, runID := classifyServeArg("", []string{"rpi-a1b2c3d4"})
+	if goal != "" {
+		t.Errorf("expected empty goal, got %q", goal)
+	}
+	if runID != "rpi-a1b2c3d4" {
+		t.Errorf("expected run ID rpi-a1b2c3d4, got %q", runID)
+	}
+
+	// Bare 8-hex positional
+	goal2, runID2 := classifyServeArg("", []string{"abcdef01"})
+	if goal2 != "" {
+		t.Errorf("expected empty goal for 8-hex positional, got %q", goal2)
+	}
+	if runID2 != "abcdef01" {
+		t.Errorf("expected run ID abcdef01, got %q", runID2)
+	}
+}
+
+func TestClassifyServeArg_PositionalGoal(t *testing.T) {
+	// Positional arg not matching run ID pattern
+	goal, runID := classifyServeArg("", []string{"fix the cache bug"})
+	if goal != "fix the cache bug" {
+		t.Errorf("expected goal 'fix the cache bug', got %q", goal)
+	}
+	if runID != "" {
+		t.Errorf("expected empty run ID, got %q", runID)
+	}
+}
+
+func TestClassifyServeArg_FlagOverridesPositional(t *testing.T) {
+	// Flag --run-id wins over positional arg
+	goal, runID := classifyServeArg("rpi-deadbeef", []string{"some-goal"})
+	if goal != "" {
+		t.Errorf("expected empty goal when flag run-id is set, got %q", goal)
+	}
+	if runID != "rpi-deadbeef" {
+		t.Errorf("expected run ID from flag, got %q", runID)
+	}
+}
+
+func TestShouldOpenBrowser_Default(t *testing.T) {
+	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen
+	defer func() {
+		rpiServeOpen = origOpen
+		rpiServeNoOpen = origNoOpen
+	}()
+
+	rpiServeOpen = true
+	rpiServeNoOpen = false
+	if !shouldOpenBrowser() {
+		t.Error("expected shouldOpenBrowser() to return true with defaults")
+	}
+}
+
+func TestShouldOpenBrowser_NoOpen(t *testing.T) {
+	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen
+	defer func() {
+		rpiServeOpen = origOpen
+		rpiServeNoOpen = origNoOpen
+	}()
+
+	rpiServeOpen = true
+	rpiServeNoOpen = true
+	if shouldOpenBrowser() {
+		t.Error("expected shouldOpenBrowser() to return false with --no-open")
+	}
+}
+
+func TestServeRPIRuns_ReturnsJSONArray(t *testing.T) {
+	dir := t.TempDir()
+	req := httptest.NewRequest(http.MethodGet, "/runs", nil)
+	rr := httptest.NewRecorder()
+	serveRPIRuns(rr, req, dir)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	ct := rr.Header().Get("Content-Type")
+	if !strings.Contains(ct, "application/json") {
+		t.Errorf("expected JSON Content-Type, got %q", ct)
+	}
+
+	// Body should be a valid JSON array (possibly null or empty)
+	body := strings.TrimSpace(rr.Body.String())
+	if body != "null" && !strings.HasPrefix(body, "[") {
+		t.Errorf("expected JSON array or null, got %q", body)
+	}
+}
+
+func TestWriteSSEEvent_Format(t *testing.T) {
+	rr := httptest.NewRecorder()
+	ev := RPIC2Event{
+		SchemaVersion: 1,
+		EventID:       "evt-format-test",
+		RunID:         "rpi-test",
+		Type:          "phase.stream.started",
+		Message:       "format check",
+		Timestamp:     time.Now().UTC().Format(time.RFC3339Nano),
+	}
+
+	if err := writeSSEEvent(rr, ev); err != nil {
+		t.Fatalf("writeSSEEvent: %v", err)
+	}
+
+	body := rr.Body.String()
+
+	// SSE format: "data: <json>\n\n"
+	if !strings.HasPrefix(body, "data: ") {
+		t.Errorf("expected SSE 'data: ' prefix, got %q", body)
+	}
+	if !strings.HasSuffix(body, "\n\n") {
+		t.Errorf("expected SSE double-newline suffix, got %q", body)
+	}
+
+	// Verify payload is valid JSON
+	jsonPart := strings.TrimPrefix(body, "data: ")
+	jsonPart = strings.TrimSpace(jsonPart)
+	var parsed RPIC2Event
+	if err := json.Unmarshal([]byte(jsonPart), &parsed); err != nil {
+		t.Errorf("SSE payload is not valid JSON: %v\nbody: %q", err, body)
+	}
+	if parsed.EventID != "evt-format-test" {
+		t.Errorf("event_id: want %q, got %q", "evt-format-test", parsed.EventID)
+	}
+	if parsed.Message != "format check" {
+		t.Errorf("message: want %q, got %q", "format check", parsed.Message)
+	}
+}
+
 func TestShouldOpenBrowser(t *testing.T) {
 	// Save and restore globals.
 	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen

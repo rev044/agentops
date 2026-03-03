@@ -2795,3 +2795,115 @@ func TestWriteTempFile_ExistingFile(t *testing.T) {
 		t.Errorf("error = %q, want 'create temp file' prefix", err)
 	}
 }
+
+func TestFindByPrefix_ExactMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	// Add several candidates with different IDs
+	for _, id := range []string{"alpha-one", "alpha-two", "beta-one"} {
+		if err := p.Add(types.Candidate{ID: id, Tier: types.TierSilver, Content: "content for " + id}, types.Scoring{}); err != nil {
+			t.Fatalf("Add(%s) failed: %v", id, err)
+		}
+	}
+
+	// Exact prefix that matches one candidate
+	matches, err := p.FindByPrefix("beta-one")
+	if err != nil {
+		t.Fatalf("FindByPrefix failed: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match for exact prefix 'beta-one', got %d", len(matches))
+	}
+	if matches[0].Candidate.ID != "beta-one" {
+		t.Errorf("expected candidate ID 'beta-one', got %q", matches[0].Candidate.ID)
+	}
+}
+
+func TestFindByPrefix_NoMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	// Add candidates
+	for _, id := range []string{"alpha-one", "alpha-two"} {
+		if err := p.Add(types.Candidate{ID: id, Tier: types.TierSilver, Content: "c"}, types.Scoring{}); err != nil {
+			t.Fatalf("Add(%s) failed: %v", id, err)
+		}
+	}
+
+	// Prefix that matches nothing
+	matches, err := p.FindByPrefix("zzz-nonexistent")
+	if err != nil {
+		t.Fatalf("FindByPrefix failed: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Errorf("expected 0 matches for 'zzz-nonexistent', got %d", len(matches))
+	}
+}
+
+func TestFindByPrefix_AmbiguousMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	// Add candidates with shared prefix
+	for _, id := range []string{"alpha-one", "alpha-two", "alpha-three", "beta-one"} {
+		if err := p.Add(types.Candidate{ID: id, Tier: types.TierSilver, Content: "c"}, types.Scoring{}); err != nil {
+			t.Fatalf("Add(%s) failed: %v", id, err)
+		}
+	}
+
+	// Ambiguous prefix that matches multiple candidates
+	matches, err := p.FindByPrefix("alpha")
+	if err != nil {
+		t.Fatalf("FindByPrefix failed: %v", err)
+	}
+	if len(matches) != 3 {
+		t.Fatalf("expected 3 matches for prefix 'alpha', got %d", len(matches))
+	}
+
+	// Verify all matches have the prefix
+	for _, m := range matches {
+		if !strings.HasPrefix(m.Candidate.ID, "alpha") {
+			t.Errorf("unexpected match: %q does not have prefix 'alpha'", m.Candidate.ID)
+		}
+	}
+}
+
+func TestFindByPrefix_EmptyPrefix(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	_, err := p.FindByPrefix("")
+	if err == nil {
+		t.Error("expected error for empty prefix")
+	}
+}
+
+func TestFindByPrefix_AcrossDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	// Add candidate to pending
+	if err := p.Add(types.Candidate{ID: "cross-pending", Tier: types.TierSilver, Content: "c"}, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	// Stage another to staged
+	if err := p.Add(types.Candidate{ID: "cross-staged", Tier: types.TierSilver, Content: "c"}, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := p.Stage("cross-staged", types.TierBronze); err != nil {
+		t.Fatalf("Stage failed: %v", err)
+	}
+
+	// FindByPrefix with shared prefix should find both
+	matches, err := p.FindByPrefix("cross")
+	if err != nil {
+		t.Fatalf("FindByPrefix failed: %v", err)
+	}
+	if len(matches) != 2 {
+		t.Errorf("expected 2 matches across directories for prefix 'cross', got %d", len(matches))
+	}
+}

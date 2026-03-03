@@ -460,6 +460,30 @@ bd create --title "<task>" --body "Description...
 
 Without bd issues, the ratchet validator cannot track gate progress. This is required for `/crank` autonomous execution and `/post-mortem` validation.
 
+### Step 7b: Verify Validation Blocks (Post-Creation Check)
+
+After creating all beads issues, verify that every issue body contains a fenced validation block. Missing validation blocks break the plan-to-crank pipeline — `/crank` cannot extract conformance checks from issues that lack them.
+
+```bash
+if command -v bd &>/dev/null && [[ -n "$EPIC_ID" ]]; then
+    MISSING_VALIDATION=()
+    for ISSUE_ID in $ALL_CREATED_ISSUES; do
+        if ! bd show "$ISSUE_ID" 2>/dev/null | grep -q '```validation'; then
+            MISSING_VALIDATION+=("$ISSUE_ID")
+        fi
+    done
+    if [[ ${#MISSING_VALIDATION[@]} -gt 0 ]]; then
+        echo "WARNING: ${#MISSING_VALIDATION[@]} issue(s) missing validation blocks: ${MISSING_VALIDATION[*]}"
+        echo "  /crank will fall back to default files_exist checks for these issues."
+        echo "  Consider adding ```validation``` blocks with conformance checks."
+    else
+        echo "All ${#ALL_CREATED_ISSUES[@]} issues have validation blocks."
+    fi
+fi
+```
+
+This is a warning gate, not a blocker — plans can proceed without validation blocks, but crank execution will use weaker fallback checks.
+
 ### Step 8: Request Human Approval (Gate 2)
 
 **Skip this step if `--auto` flag is set.** In auto mode, proceed directly to Step 9.

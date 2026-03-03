@@ -644,3 +644,42 @@ func TestRunStartupWatchdog_ExitsOnEvents(t *testing.T) {
 		t.Fatal("timed out waiting for startup watchdog goroutine to exit")
 	}
 }
+
+func TestCleanEnvNoClaude(t *testing.T) {
+	// Set some CLAUDE_ vars to verify they are filtered out.
+	t.Setenv("CLAUDECODE", "1")
+	t.Setenv("CLAUDE_CODE_SOMETHING", "value")
+	// Set a normal var to verify it survives.
+	t.Setenv("AGENTOPS_TEST_MARKER", "keep-me")
+
+	env := cleanEnvNoClaude()
+
+	for _, e := range env {
+		if strings.HasPrefix(e, "CLAUDECODE=") {
+			t.Errorf("cleanEnvNoClaude should remove CLAUDECODE, found %q", e)
+		}
+		if strings.HasPrefix(e, "CLAUDE_CODE_") {
+			t.Errorf("cleanEnvNoClaude should remove CLAUDE_CODE_ vars, found %q", e)
+		}
+	}
+
+	// Verify non-CLAUDE vars are preserved.
+	found := false
+	for _, e := range env {
+		if strings.HasPrefix(e, "AGENTOPS_TEST_MARKER=") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("cleanEnvNoClaude should preserve non-CLAUDE environment variables")
+	}
+}
+
+func TestCleanEnvNoClaude_NoClaudeVars(t *testing.T) {
+	// When no CLAUDE vars exist, the result should include everything in os.Environ().
+	env := cleanEnvNoClaude()
+	if len(env) == 0 {
+		t.Error("cleanEnvNoClaude returned empty env (expected at least PATH)")
+	}
+}

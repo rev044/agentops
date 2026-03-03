@@ -1037,9 +1037,9 @@ func TestHandoffDetection(t *testing.T) {
 		t.Error("should not detect handoff when file doesn't exist")
 	}
 
-	// Write handoff file → detected (.json, not .md)
+	// Write handoff file → detected
 	handoffPath := filepath.Join(rpiDir, "phase-2-handoff.json")
-	if err := os.WriteFile(handoffPath, []byte(`{"phase":2}`), 0644); err != nil {
+	if err := os.WriteFile(handoffPath, []byte("# Handoff\nContext degraded."), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1980,5 +1980,90 @@ func TestBudgetTimeout_WritesPhaseResultArtifact(t *testing.T) {
 	}
 	if result.DurationSeconds < 44 {
 		t.Errorf("expected duration_seconds >= 44 (budget was 45s), got %v", result.DurationSeconds)
+	}
+}
+
+func TestDefaultPhasedEngineOptions_AllFields(t *testing.T) {
+	opts := defaultPhasedEngineOptions()
+
+	if opts.From != "discovery" {
+		t.Errorf("From = %q, want %q", opts.From, "discovery")
+	}
+	if !opts.TestFirst {
+		t.Error("TestFirst should default to true")
+	}
+	if opts.MaxRetries != 3 {
+		t.Errorf("MaxRetries = %d, want 3", opts.MaxRetries)
+	}
+	if opts.PhaseTimeout != 90*time.Minute {
+		t.Errorf("PhaseTimeout = %v, want 90m", opts.PhaseTimeout)
+	}
+	if opts.StallTimeout != 10*time.Minute {
+		t.Errorf("StallTimeout = %v, want 10m", opts.StallTimeout)
+	}
+	if opts.StreamStartupTimeout != 45*time.Second {
+		t.Errorf("StreamStartupTimeout = %v, want 45s", opts.StreamStartupTimeout)
+	}
+	if !opts.SwarmFirst {
+		t.Error("SwarmFirst should default to true")
+	}
+	if opts.AutoCleanStaleAfter != 24*time.Hour {
+		t.Errorf("AutoCleanStaleAfter = %v, want 24h", opts.AutoCleanStaleAfter)
+	}
+	if opts.RuntimeMode != "auto" {
+		t.Errorf("RuntimeMode = %q, want %q", opts.RuntimeMode, "auto")
+	}
+	if opts.RuntimeCommand != "claude" {
+		t.Errorf("RuntimeCommand = %q, want %q", opts.RuntimeCommand, "claude")
+	}
+	if opts.AOCommand != "ao" {
+		t.Errorf("AOCommand = %q, want %q", opts.AOCommand, "ao")
+	}
+	if opts.BDCommand != "bd" {
+		t.Errorf("BDCommand = %q, want %q", opts.BDCommand, "bd")
+	}
+	if opts.TmuxCommand != "tmux" {
+		t.Errorf("TmuxCommand = %q, want %q", opts.TmuxCommand, "tmux")
+	}
+	if opts.TmuxWorkers != 1 {
+		t.Errorf("TmuxWorkers = %d, want 1", opts.TmuxWorkers)
+	}
+	if opts.NoBudget {
+		t.Error("NoBudget should default to false")
+	}
+	if opts.BudgetSpec != "" {
+		t.Errorf("BudgetSpec = %q, want empty", opts.BudgetSpec)
+	}
+	if opts.StallCheckInterval != 30*time.Second {
+		t.Errorf("StallCheckInterval = %v, want 30s", opts.StallCheckInterval)
+	}
+}
+
+func TestGenerateRunID_Format(t *testing.T) {
+	id := generateRunID()
+	if len(id) != 12 {
+		t.Errorf("generateRunID length = %d, want 12", len(id))
+	}
+	// Should be lowercase hex
+	for _, c := range id {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			t.Errorf("generateRunID contains non-hex char %q in %q", string(c), id)
+			break
+		}
+	}
+	// Should match the rpiRunIDPattern (12-hex variant)
+	if !rpiRunIDPattern.MatchString(id) {
+		t.Errorf("generateRunID %q does not match rpiRunIDPattern", id)
+	}
+}
+
+func TestGenerateRunID_Unique(t *testing.T) {
+	seen := make(map[string]bool, 100)
+	for i := 0; i < 100; i++ {
+		id := generateRunID()
+		if seen[id] {
+			t.Fatalf("duplicate run ID %q after %d calls", id, i)
+		}
+		seen[id] = true
 	}
 }

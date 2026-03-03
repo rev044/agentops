@@ -124,7 +124,47 @@ func savePhasedState(cwd string, state *phasedState) error {
 			VerbosePrintf("Warning: mirror state write skipped for %s: %v\n", root, writeErr)
 		}
 	}
+
+	// Mirror state to additional roots discovered via mirrorRootsForEvent
+	// and emit C2 tracking events for observability.
+	mirrorStateToPeers(cwd, state, data)
+
 	return nil
+}
+
+// mirrorStateToPeers writes the serialised state to every mirror root returned
+// by mirrorRootsForEvent that is NOT the primary cwd.  For each mirror root it
+// emits a "state.mirrored" C2 event on success or "state.mirror.failed" on error.
+func mirrorStateToPeers(cwd string, state *phasedState, data []byte) {
+	if state == nil || state.RunID == "" {
+		return
+	}
+	primaryClean := filepath.Clean(cwd)
+	for _, mirrorRoot := range mirrorRootsForEvent(cwd, state.RunID) {
+		if filepath.Clean(mirrorRoot) == primaryClean {
+			continue
+		}
+		if writeErr := writePhasedStateData(mirrorRoot, state.RunID, data); writeErr != nil {
+			VerbosePrintf("Warning: mirror state write failed for %s: %v\n", mirrorRoot, writeErr)
+			if _, evErr := appendRPIC2Event(cwd, rpiC2EventInput{
+				RunID: state.RunID, Source: "orchestrator",
+				Type:    "state.mirror.failed",
+				Message: fmt.Sprintf("mirror state write failed for %s", mirrorRoot),
+				Details: map[string]any{"mirror_root": mirrorRoot, "error": writeErr.Error()},
+			}); evErr != nil {
+				VerbosePrintf("Warning: could not emit state.mirror.failed event: %v\n", evErr)
+			}
+			continue
+		}
+		if _, evErr := appendRPIC2Event(cwd, rpiC2EventInput{
+			RunID: state.RunID, Source: "orchestrator",
+			Type:    "state.mirrored",
+			Message: fmt.Sprintf("state mirrored to %s", mirrorRoot),
+			Details: map[string]any{"mirror_root": mirrorRoot, "file": phasedStateFile},
+		}); evErr != nil {
+			VerbosePrintf("Warning: could not emit state.mirrored event: %v\n", evErr)
+		}
+	}
 }
 
 func writePhasedStateData(root, runID string, data []byte) error {

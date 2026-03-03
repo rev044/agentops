@@ -339,6 +339,27 @@ This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.
 
 **Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks.
 
+**Validation block extraction (beads mode):** Before building TaskCreate calls, extract validation metadata from each issue's description. `/plan` embeds conformance checks as fenced `validation` blocks in issue bodies:
+
+```bash
+# For each issue in the current wave, extract validation JSON from bd show output
+ISSUE_BODY=$(bd show "$ISSUE_ID" 2>/dev/null)
+VALIDATION_JSON=$(echo "$ISSUE_BODY" | sed -n '/^```validation$/,/^```$/{ /^```/d; p }')
+
+if [[ -n "$VALIDATION_JSON" ]]; then
+    # Use extracted validation as metadata.validation in TaskCreate
+    echo "Extracted validation block for $ISSUE_ID"
+else
+    # Fallback: generate default validation from files mentioned in description
+    # Use files_exist check for any file paths found in the issue body
+    MENTIONED_FILES=$(echo "$ISSUE_BODY" | grep -oE '[a-zA-Z0-9_/.-]+\.(go|py|ts|sh|md|yaml|json)' | sort -u)
+    VALIDATION_JSON="{\"files_exist\": [$(echo "$MENTIONED_FILES" | sed 's/.*/"&"/' | paste -sd,)]}"
+    echo "WARNING: No validation block in $ISSUE_ID — using fallback files_exist check"
+fi
+```
+
+Inject the extracted or fallback `VALIDATION_JSON` into the `metadata.validation` field of each worker's TaskCreate. This closes the plan-to-crank validation pipeline: `/plan` writes conformance checks → bd stores them → `/crank` extracts and enforces them.
+
 ```
 TaskCreate(
   subject="ag-1234: Add auth middleware",

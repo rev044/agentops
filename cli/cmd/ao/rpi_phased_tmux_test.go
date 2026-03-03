@@ -219,6 +219,63 @@ func TestTmuxExecutorImplementsPhaseExecutor(t *testing.T) {
 	var _ PhaseExecutor = &tmuxExecutor{}
 }
 
+func TestTmuxSanitizeName(t *testing.T) {
+	safePattern := regexp.MustCompile(`^[a-zA-Z0-9_-]*$`)
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"clean input", "ao-rpi-abc123-p1", "ao-rpi-abc123-p1"},
+		{"dots removed", "ao.rpi.abc.p1", "aorpiabcp1"},
+		{"spaces removed", "ao rpi abc p1", "aorpiabcp1"},
+		{"special chars", "run@#$%^&*!", "run"},
+		{"slashes removed", "path/to/run", "pathtorun"},
+		{"underscores preserved", "ao_rpi_test", "ao_rpi_test"},
+		{"empty string", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tmuxSanitizeName(tt.input)
+			if got != tt.want {
+				t.Errorf("tmuxSanitizeName(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+			if !safePattern.MatchString(got) {
+				t.Errorf("tmuxSanitizeName(%q) = %q, contains unsafe chars", tt.input, got)
+			}
+		})
+	}
+}
+
+func TestSanitizeSessionName_SafeForTmux(t *testing.T) {
+	// tmuxSessionName should always produce tmux-safe names
+	safePattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	inputs := []struct {
+		runID    string
+		phaseNum int
+	}{
+		{"normal-run-id", 1},
+		{"rpi-abcdef01", 2},
+		{"has spaces bad", 3},
+		{"special!@#$%", 1},
+		{"path/traversal/../id", 2},
+		{"dots.in.name", 1},
+		{"very-long-run-id-that-exceeds-eight-chars", 3},
+	}
+	for _, tt := range inputs {
+		name := fmt.Sprintf("%s-p%d", tt.runID, tt.phaseNum)
+		t.Run(name, func(t *testing.T) {
+			got := tmuxSessionName(tt.runID, tt.phaseNum)
+			if got == "" {
+				t.Error("tmuxSessionName returned empty string")
+			}
+			if !safePattern.MatchString(got) {
+				t.Errorf("tmuxSessionName(%q, %d) = %q, not tmux-safe", tt.runID, tt.phaseNum, got)
+			}
+		})
+	}
+}
+
 func TestTmuxExecutor_MissingExitFileEmitsFailureEvent(t *testing.T) {
 	tmp := t.TempDir()
 	tmuxPath := filepath.Join(tmp, "fake-tmux.sh")
