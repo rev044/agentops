@@ -286,6 +286,33 @@ fi
 
 **Why:** 7 consecutive epics (ag-oke through ag-9ad) showed positive ROI from pre-mortem validation. For epics with 3+ issues, the cost of a pre-mortem (~2 min) is negligible compared to the cost of cranking a flawed plan.
 
+### Step 3a.2: Pre-flight Check - Changed-String Grep
+
+**Before spawning workers, grep for every string being changed by the plan.**
+
+This catches stale cross-references that the plan missed. In na-lz0, 2 HIGH findings (stale "7-category" refs in agent-prompts.md and post-mortem/SKILL.md) were caught by council review, not by planning.
+
+```bash
+# PSEUDO-CODE
+# Read the plan to identify strings being changed
+PLAN_FILE=$(ls -t .agents/plans/*.md 2>/dev/null | head -1)
+if [[ -n "$PLAN_FILE" ]]; then
+    echo "Pre-flight: Checking for stale cross-references..."
+    # For each key term/string being modified, grep all skills
+    # Example: if changing "7-category" to "8-category":
+    #   grep -rn "7-category" skills/
+    # Any matches outside the planned file set = scope gap
+    echo "Review matches outside planned files. Add to scope if stale."
+fi
+```
+
+**Action on findings:**
+- If grep finds matches in files NOT in the plan's file manifest, either:
+  1. Add those files to the current epic (create new issue), or
+  2. Document as known tech debt with a follow-up beads issue
+
+**Why:** This is a P0 process fix. Both HIGH findings from na-lz0 would have been caught by this check.
+
 ### Step 3b: SPEC WAVE (--test-first only)
 
 **Skip if `--test-first` is NOT set or if no spec-eligible issues exist.**
@@ -426,6 +453,7 @@ fi
 Before spawning workers, check for cross-cutting constraints:
 
 ```bash
+# PSEUDO-CODE
 # Guard clause: skip if plan has no boundaries (backward compat)
 PLAN_FILE=$(ls -t .agents/plans/*.md 2>/dev/null | head -1)
 if [[ -n "$PLAN_FILE" ]] && grep -q "## Boundaries" "$PLAN_FILE"; then

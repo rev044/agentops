@@ -107,7 +107,7 @@ security-audit:
   attacker:   {name: Red}       "How would I exploit this? What's the weakest link?"
   defender:   {name: Blue}      "How do we detect and prevent attacks? What's our blast radius?"
   compliance:   {name: Auditor}   "Does this meet regulatory requirements? What's our audit trail?"
-  web-security: {name: WebSec}    "What OWASP Top 10 risks are present? Check for injection, XSS, path traversal, CORS misconfig, auth bypass, CSRF, response splitting."
+  web-security: {name: WebSec}    "What OWASP Top 10 risks are present? Check for injection, XSS, path traversal, CORS misconfig, auth bypass, CSRF, response splitting, SSRF (outbound URL validation), missing security headers (HSTS, X-Frame-Options, CSP), rate limiting on auth/API/upload endpoints, and credential/token exposure in logs."
 
 architecture:
   scalability:     {name: Scale}  "Will this handle 10x load? Where are the bottlenecks?"

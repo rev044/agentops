@@ -170,6 +170,7 @@ Conflicts: 1 (resolved: serialized task-3 into sub-wave 2)
 When executing wave 2+ (not the first wave), verify workers branch from the latest commit — not a stale SHA from before the prior wave's changes were committed.
 
 ```bash
+# PSEUDO-CODE
 # Capture current HEAD after prior wave's commit
 CURRENT_SHA=$(git rev-parse HEAD)
 
@@ -182,6 +183,7 @@ fi
 **Cross-reference prior wave diff against current wave file manifests:**
 
 ```bash
+# PSEUDO-CODE
 # Files changed in prior wave
 PRIOR_WAVE_FILES=$(git diff --name-only "${WAVE_START_SHA}..HEAD")
 

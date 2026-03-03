@@ -47,7 +47,10 @@ For EACH file, you MUST check all 8 categories. Do not skip any category for any
 1. **Resource Leaks** — Unclosed files/connections/handles, missing defer/finally/cleanup,
    goroutine leaks, listener leaks, temp file accumulation
 2. **String Safety** — Unsanitized user input, format string injection, path traversal,
-   SQL/command injection, XSS vectors, unsafe interpolation
+   SQL/command injection, XSS vectors, unsafe interpolation.
+   **Boundary with Cat 8:** String Safety covers injection at the data layer (SQL, command, format string).
+   HTTP-layer concerns (XSS in HTML output, CORS headers, CSRF tokens) belong to Cat 8.
+   Path traversal appears in both: Cat 2 when sanitizing input strings, Cat 8 when serving HTTP file requests.
 3. **Dead Code** — Unreachable branches, unused imports/variables/functions, commented-out
    code left behind, feature flags that are always on/off
 4. **Hardcoded Values** — Magic numbers, hardcoded paths/URLs/credentials, environment-
@@ -60,7 +63,9 @@ For EACH file, you MUST check all 8 categories. Do not skip any category for any
    panic/crash on recoverable errors, unclear error messages
 8. **HTTP/Web Security** — XSS vectors (innerHTML, document.write, dangerouslySetInnerHTML),
    path traversal (../ sequences, directory escape), CORS misconfiguration, CSRF tokens missing,
-   HTTP response splitting, Content-Type mismatches, missing rate limiting, open redirects
+   HTTP response splitting, Content-Type mismatches, missing rate limiting, open redirects,
+   SSRF (outbound URL/IP validation), missing security headers (Strict-Transport-Security,
+   X-Frame-Options, Content-Security-Policy), credential/token exposure in logs
 
 ## Per-File Coverage Certification
 
@@ -87,7 +92,7 @@ File: {filename}
 [x] Edge Cases — found: nil map access at line 78
 [ ] Concurrency — CLEAN: single-goroutine function, no shared state
 [ ] Error Handling — CLEAN: all errors returned with context wrapping
-[ ] HTTP/Web Security — CLEAN: no HTTP handlers in this file
+[ ] HTTP/Web Security — CLEAN: no HTTP handlers, outbound requests, or log statements with credentials in this file
 ```
 
 ### Findings Table
