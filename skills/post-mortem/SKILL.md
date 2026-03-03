@@ -52,6 +52,7 @@ Before Step 0.5 and Step 2.5, load required reference docs into context using th
 REQUIRED_REFS=(
   "skills/post-mortem/references/checkpoint-policy.md"
   "skills/post-mortem/references/metadata-verification.md"
+  "skills/post-mortem/references/closure-integrity-audit.md"
 )
 ```
 
@@ -121,6 +122,18 @@ Compare the original plan scope against what was actually delivered:
 2. Compare planned issues against closed issues (`bd children <epic-id>`)
 3. Note any scope additions, removals, or modifications
 4. Include scope delta in the post-mortem findings
+
+### Step 2.4: Closure Integrity Audit (MANDATORY)
+
+Read `references/closure-integrity-audit.md` for the full procedure. Mechanically verifies:
+
+1. **Git evidence per child** — every closed child has at least one commit referencing it or touching its scoped files
+2. **Phantom bead detection** — flags children with generic titles ("task") or empty descriptions
+3. **Orphaned children** — beads in `bd list` but not linked to parent in `bd show`
+4. **Multi-wave regression detection** — for crank epics, checks if a later wave removed code added by an earlier wave
+5. **Stretch goal audit** — verifies deferred stretch goals have documented rationale
+
+Include results in the council packet as `context.closure_integrity`. WARN on 1-2 findings, FAIL on 3+.
 
 ### Step 2.5: Pre-Council Metadata Verification (MANDATORY)
 
@@ -571,4 +584,5 @@ Ship it
 - [references/harvest-next-work.md](references/harvest-next-work.md)
 - [references/learning-templates.md](references/learning-templates.md)
 - [references/plan-compliance-checklist.md](references/plan-compliance-checklist.md)
+- [references/closure-integrity-audit.md](references/closure-integrity-audit.md)
 - [references/security-patterns.md](references/security-patterns.md)

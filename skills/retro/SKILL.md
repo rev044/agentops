@@ -110,6 +110,8 @@ Read relevant artifacts:
 
 Use the Read tool and git commands to understand what was done.
 
+**If retrospecting an epic:** Run the closure integrity quick-check from `references/context-gathering.md` (Phantom Bead Detection + Multi-Wave Regression Scan). Include any warnings in Step 3 findings.
+
 ### Step 3: Identify Learnings
 
 **If vibe results were provided, incorporate them:**

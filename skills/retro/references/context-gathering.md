@@ -96,6 +96,49 @@ cat .agents/blackboard/crank-state.json 2>/dev/null
 
 ---
 
+## Closure Integrity Quick-Check
+
+When retrospecting an epic, run lightweight closure checks before extracting learnings. Full audit lives in `skills/post-mortem/references/closure-integrity-audit.md`; retro uses the subset below.
+
+### Phantom Bead Detection
+
+```bash
+EPIC_ID="$ARGUMENTS"
+for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -oP '\S+' | head -1); do
+  TITLE=$(bd show "$child" 2>/dev/null | head -1 | sed 's/^.*· //' | sed 's/ \[.*$//')
+  if echo "$TITLE" | grep -qP '^(task|fix|update|todo|item|work)$'; then
+    echo "WARN: $child has generic title '$TITLE' — possible phantom closure"
+  fi
+done
+```
+
+### Multi-Wave Regression Scan
+
+For crank epics, check if later waves reverted earlier waves' work:
+
+```bash
+# Quick heuristic: count net lines added per scoped file across all wave commits
+# If a file has 0 net additions but was touched in multiple waves, flag it
+for f in $(git diff --name-only HEAD~5 2>/dev/null | sort -u); do
+  ADDS=$(git log --oneline --numstat HEAD~5..HEAD -- "$f" 2>/dev/null | awk '/^[0-9]/{s+=$1}END{print s+0}')
+  DELS=$(git log --oneline --numstat HEAD~5..HEAD -- "$f" 2>/dev/null | awk '/^[0-9]/{s+=$2}END{print s+0}')
+  TOUCHES=$(git log --oneline HEAD~5..HEAD -- "$f" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$TOUCHES" -gt 1 ] && [ "$ADDS" -le "$DELS" ]; then
+    echo "WARN: $f touched $TOUCHES times but net additions <= deletions — possible wave regression"
+  fi
+done
+```
+
+**Why:** In na-vs9.4, Wave 2 removed 15 lines that Wave 1 added. Both waves passed tests independently. This check catches the pattern mechanically.
+
+### Retro Integration
+
+- Include closure warnings in **What Could Be Improved** section
+- If phantom beads found, add learning: "Require meaningful titles and descriptions for all child beads before closing epic"
+- If wave regressions found, add learning: "Add cross-wave diff validation to crank post-wave checks"
+
+---
+
 ## Friction Detection
 
 ### Friction Keywords
