@@ -24,7 +24,7 @@ func startEmbeddedDashboard(root, runID string) (*http.Server, string) {
 	addr := ln.Addr().String()
 	dashURL := fmt.Sprintf("http://%s?run=%s", addr, runID)
 
-	mux := buildServeMux(root, runID)
+	mux := buildServeMux(&serveMuxRoot{path: root}, runID)
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 
 	go func() {

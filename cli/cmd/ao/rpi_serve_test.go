@@ -112,7 +112,7 @@ func TestWriteSSEEvent(t *testing.T) {
 
 func TestBuildServeMux(t *testing.T) {
 	dir := t.TempDir()
-	mux := buildServeMux(dir, "rpi-test")
+	mux := buildServeMux(&serveMuxRoot{path: dir}, "rpi-test")
 	if mux == nil {
 		t.Fatal("buildServeMux returned nil")
 	}
@@ -166,6 +166,115 @@ func TestClassifyServeArg_12HexRunID(t *testing.T) {
 					tt.flagRunID, tt.args, goal, runID, tt.wantGoal, tt.wantRunID)
 			}
 		})
+	}
+}
+
+func TestShouldOpenBrowser(t *testing.T) {
+	// Save and restore globals.
+	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen
+	defer func() {
+		rpiServeOpen = origOpen
+		rpiServeNoOpen = origNoOpen
+	}()
+
+	tests := []struct {
+		name   string
+		open   bool
+		noOpen bool
+		want   bool
+	}{
+		{"defaults", true, false, true},
+		{"--no-open", true, true, false},
+		{"--open=false", false, false, false},
+		{"both false", false, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rpiServeOpen = tt.open
+			rpiServeNoOpen = tt.noOpen
+			if got := shouldOpenBrowser(); got != tt.want {
+				t.Errorf("shouldOpenBrowser() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildServeMux_EmptyRunID(t *testing.T) {
+	dir := t.TempDir()
+	// An empty runID simulates watch mode when no run exists yet.
+	mux := buildServeMux(&serveMuxRoot{path: dir}, "")
+	if mux == nil {
+		t.Fatal("buildServeMux returned nil with empty runID")
+	}
+
+	// / should still serve HTML.
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("/ returned %d, want 200", rr.Code)
+	}
+
+	// /runs should return a JSON array (possibly empty).
+	req = httptest.NewRequest(http.MethodGet, "/runs", nil)
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("/runs returned %d, want 200", rr.Code)
+	}
+}
+
+// TestBuildServeMux_DynamicRoot verifies that updating the serveMuxRoot after
+// mux construction causes handlers to read from the new root.
+func TestBuildServeMux_DynamicRoot(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	runID := "rpi-dynroot"
+
+	// Seed events only in dir2.
+	ev, err := appendRPIC2Event(dir2, rpiC2EventInput{
+		RunID:   runID,
+		Type:    "phase.stream.started",
+		Message: "dynamic root event",
+	})
+	if err != nil {
+		t.Fatalf("appendRPIC2Event: %v", err)
+	}
+
+	root := &serveMuxRoot{path: dir1}
+	mux := buildServeMux(root, runID)
+
+	// Before root switch: /events should return no events (dir1 is empty).
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	req1 := httptest.NewRequest(http.MethodGet, "/events?run-id="+runID, nil)
+	req1 = req1.WithContext(ctx1)
+	rr1 := httptest.NewRecorder()
+	done1 := make(chan struct{})
+	go func() { mux.ServeHTTP(rr1, req1); close(done1) }()
+	time.Sleep(700 * time.Millisecond)
+	cancel1()
+	<-done1
+
+	if strings.Contains(rr1.Body.String(), ev.EventID) {
+		t.Errorf("event should NOT appear before root switch")
+	}
+
+	// Switch root to dir2.
+	root.set(dir2)
+
+	// After root switch: /events should return the seeded event.
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	req2 := httptest.NewRequest(http.MethodGet, "/events?run-id="+runID, nil)
+	req2 = req2.WithContext(ctx2)
+	rr2 := httptest.NewRecorder()
+	done2 := make(chan struct{})
+	go func() { mux.ServeHTTP(rr2, req2); close(done2) }()
+	time.Sleep(700 * time.Millisecond)
+	cancel2()
+	<-done2
+
+	if !strings.Contains(rr2.Body.String(), ev.EventID) {
+		t.Errorf("event %q should appear after root switch, body: %q", ev.EventID, rr2.Body.String())
 	}
 }
 

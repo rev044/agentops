@@ -97,3 +97,125 @@ func TestMapStreamEventToRPIC2(t *testing.T) {
 		t.Fatalf("backend = %q", input.Backend)
 	}
 }
+
+func TestRPIC2EventAppend_MirrorsToSupervisorRoot(t *testing.T) {
+	parent := t.TempDir()
+	runID := "a1b2c3d4"
+	supervisor := filepath.Join(parent, "repo")
+	worktree := supervisor + "-rpi-" + runID
+
+	for _, dir := range []string{supervisor, worktree} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	state := &phasedState{
+		SchemaVersion: 1,
+		RunID:         runID,
+		WorktreePath:  worktree,
+		Goal:          "test goal",
+		Phase:         1,
+		StartPhase:    1,
+		Cycle:         1,
+		Verdicts:      map[string]string{},
+		Attempts:      map[string]int{},
+	}
+	if err := savePhasedState(worktree, state); err != nil {
+		t.Fatalf("savePhasedState: %v", err)
+	}
+
+	ev, err := appendRPIC2Event(worktree, rpiC2EventInput{
+		RunID:   runID,
+		Phase:   1,
+		Backend: "stream",
+		Source:  "test",
+		Type:    "phase.stream.started",
+		Message: "mirrored",
+	})
+	if err != nil {
+		t.Fatalf("appendRPIC2Event: %v", err)
+	}
+
+	wtEvents, err := loadRPIC2Events(worktree, runID)
+	if err != nil {
+		t.Fatalf("load worktree events: %v", err)
+	}
+	if len(wtEvents) != 1 {
+		t.Fatalf("worktree len(events) = %d, want 1", len(wtEvents))
+	}
+
+	supervisorEvents, err := loadRPIC2Events(supervisor, runID)
+	if err != nil {
+		t.Fatalf("load supervisor events: %v", err)
+	}
+	if len(supervisorEvents) != 1 {
+		t.Fatalf("supervisor len(events) = %d, want 1", len(supervisorEvents))
+	}
+	if supervisorEvents[0].EventID != ev.EventID {
+		t.Fatalf("mirrored event_id = %q, want %q", supervisorEvents[0].EventID, ev.EventID)
+	}
+}
+
+func TestRPIC2EventAppend_MirrorFailureIsNonFatal(t *testing.T) {
+	parent := t.TempDir()
+	runID := "b4c5d6e7"
+	supervisor := filepath.Join(parent, "repo")
+	worktree := supervisor + "-rpi-" + runID
+
+	for _, dir := range []string{supervisor, worktree} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	state := &phasedState{
+		SchemaVersion: 1,
+		RunID:         runID,
+		WorktreePath:  worktree,
+		Goal:          "test goal",
+		Phase:         1,
+		StartPhase:    1,
+		Cycle:         1,
+		Verdicts:      map[string]string{},
+		Attempts:      map[string]int{},
+	}
+	if err := savePhasedState(worktree, state); err != nil {
+		t.Fatalf("savePhasedState: %v", err)
+	}
+
+	mirrorRunDir := rpiRunRegistryDir(supervisor, runID)
+	if err := os.Chmod(mirrorRunDir, 0o500); err != nil {
+		t.Fatalf("chmod mirror run dir: %v", err)
+	}
+	defer func() {
+		_ = os.Chmod(mirrorRunDir, 0o750)
+	}()
+
+	if _, err := appendRPIC2Event(worktree, rpiC2EventInput{
+		RunID:   runID,
+		Phase:   1,
+		Backend: "stream",
+		Source:  "test",
+		Type:    "phase.stream.started",
+		Message: "primary still writes",
+	}); err != nil {
+		t.Fatalf("appendRPIC2Event should succeed when mirror write fails: %v", err)
+	}
+
+	wtEvents, err := loadRPIC2Events(worktree, runID)
+	if err != nil {
+		t.Fatalf("load worktree events: %v", err)
+	}
+	if len(wtEvents) != 1 {
+		t.Fatalf("worktree len(events) = %d, want 1", len(wtEvents))
+	}
+
+	supervisorEvents, err := loadRPIC2Events(supervisor, runID)
+	if err != nil {
+		t.Fatalf("load supervisor events: %v", err)
+	}
+	if len(supervisorEvents) != 0 {
+		t.Fatalf("supervisor len(events) = %d, want 0 when mirror append fails", len(supervisorEvents))
+	}
+}

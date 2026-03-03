@@ -66,14 +66,6 @@ func appendRPIC2Event(root string, input rpiC2EventInput) (RPIC2Event, error) {
 		return RPIC2Event{}, fmt.Errorf("type is required")
 	}
 
-	path := rpiC2EventsPath(root, runID)
-	if path == "" {
-		return RPIC2Event{}, fmt.Errorf("run path is required")
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return RPIC2Event{}, fmt.Errorf("create run directory: %w", err)
-	}
-
 	details, err := marshalRPIC2Details(input.Details)
 	if err != nil {
 		return RPIC2Event{}, err
@@ -98,19 +90,63 @@ func appendRPIC2Event(root string, input rpiC2EventInput) (RPIC2Event, error) {
 		Timestamp:     ts.Format(time.RFC3339Nano),
 	}
 
+	if err := appendRPIC2EventRecord(root, ev); err != nil {
+		return RPIC2Event{}, err
+	}
+
+	for _, mirrorRoot := range mirrorRootsForEvent(root, runID) {
+		if filepath.Clean(mirrorRoot) == filepath.Clean(root) {
+			continue
+		}
+		if err := appendRPIC2EventRecord(mirrorRoot, ev); err != nil {
+			VerbosePrintf("Warning: mirror event write skipped for %s: %v\n", mirrorRoot, err)
+		}
+	}
+	return ev, nil
+}
+
+func appendRPIC2EventRecord(root string, ev RPIC2Event) error {
+	path := rpiC2EventsPath(root, ev.RunID)
+	if path == "" {
+		return fmt.Errorf("run path is required")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return fmt.Errorf("create run directory: %w", err)
+	}
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
-		return RPIC2Event{}, fmt.Errorf("open events log: %w", err)
+		return fmt.Errorf("open events log: %w", err)
 	}
 	defer file.Close()
 
 	if err := json.NewEncoder(file).Encode(ev); err != nil {
-		return RPIC2Event{}, fmt.Errorf("append event: %w", err)
+		return fmt.Errorf("append event: %w", err)
 	}
 	if err := file.Sync(); err != nil {
-		return RPIC2Event{}, fmt.Errorf("sync event log: %w", err)
+		return fmt.Errorf("sync event log: %w", err)
 	}
-	return ev, nil
+	return nil
+}
+
+func mirrorRootsForEvent(root, runID string) []string {
+	roots := artifactRootsForRun(root, runID)
+	if len(roots) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(roots))
+	out := make([]string, 0, len(roots))
+	for _, r := range roots {
+		clean := filepath.Clean(strings.TrimSpace(r))
+		if clean == "." || clean == "" {
+			continue
+		}
+		if _, ok := seen[clean]; ok {
+			continue
+		}
+		seen[clean] = struct{}{}
+		out = append(out, clean)
+	}
+	return out
 }
 
 func loadRPIC2Events(root, runID string) ([]RPIC2Event, error) {

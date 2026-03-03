@@ -7,12 +7,13 @@ set -euo pipefail
 #
 # Two learning formats are valid:
 #   1. MemRL-managed: YAML frontmatter with utility/confidence/maturity fields
-#      (body may be short or absent — metadata-only is valid)
+#      plus a non-empty body section.
 #   2. Manual: YAML frontmatter with id/date fields + substantive body (>=50 words)
 #
 # Failure signals (garbage indicators):
 #   - No YAML frontmatter AND < 30 words (truly empty junk)
 #   - Has frontmatter but zero recognized fields (malformed)
+#   - Frontmatter-only artifacts (no body content)
 #   - Boilerplate/placeholder content detected
 #   - Confidence value outside 0.0-1.0 range
 
@@ -92,9 +93,17 @@ check_file() {
         esac
     fi
 
-    # 6. Extract body (after second ---) and check for boilerplate
+    # 6. Extract body (after second ---) and require non-empty content.
     local body
     body=$(echo "$content" | awk 'BEGIN{n=0} /^---$/{n++; if(n==2){found=1; next}} found{print}')
+    local body_words
+    body_words=$(echo "$body" | wc -w | tr -d ' ')
+
+    if [[ "$body_words" -eq 0 ]]; then
+        echo "FAIL: $basename — frontmatter-only learning (missing body content)"
+        FAILURES=$((FAILURES + 1))
+        return
+    fi
 
     if [[ -n "$body" ]]; then
         if echo "$body" | grep -qi "no significant learnings\|placeholder\|TODO: fill in\|template content"; then
@@ -112,8 +121,6 @@ check_file() {
     fi
 
     if [[ "$is_manual" == "true" ]]; then
-        local body_words
-        body_words=$(echo "$body" | wc -w | tr -d ' ')
         if [[ "$body_words" -lt 50 ]]; then
             echo "WARN: $basename — manual learning with thin body ($body_words words)"
             WARNINGS=$((WARNINGS + 1))

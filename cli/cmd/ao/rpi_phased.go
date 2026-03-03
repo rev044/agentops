@@ -318,6 +318,10 @@ func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []
 		}
 	}()
 
+	if opts.OnSpawnCwdReady != nil {
+		opts.OnSpawnCwdReady(spawnCwd)
+	}
+
 	ensureStateRunID(state)
 	state.OrchestratorPID = os.Getpid()
 

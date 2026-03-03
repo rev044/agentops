@@ -305,6 +305,37 @@ func TestResumePhasedStateIfNeeded_Phase2NoExistingState(t *testing.T) {
 	}
 }
 
+func TestSetupWorktreeLifecycle_PreservesPreseededRunID(t *testing.T) {
+	repo := initTestRepo(t)
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir) //nolint:errcheck
+
+	state := newTestPhasedState().WithRunID("seeded-run-id")
+	spawnCwd, cleanup, err := setupWorktreeLifecycle(repo, repo, phasedEngineOptions{}, state)
+	if err != nil {
+		t.Fatalf("setupWorktreeLifecycle: %v", err)
+	}
+
+	if state.RunID != "seeded-run-id" {
+		t.Fatalf("RunID overwritten: got %q, want %q", state.RunID, "seeded-run-id")
+	}
+	if state.WorktreePath == "" {
+		t.Fatal("expected WorktreePath to be set")
+	}
+	if spawnCwd != state.WorktreePath {
+		t.Fatalf("spawnCwd = %q, want %q", spawnCwd, state.WorktreePath)
+	}
+
+	logPath := filepath.Join(repo, ".agents", "rpi", "setup-worktree-lifecycle.log")
+	if err := cleanup(true, logPath); err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+}
+
 // --- ensureStateRunID ---
 
 func TestEnsureStateRunID_AlreadySet(t *testing.T) {

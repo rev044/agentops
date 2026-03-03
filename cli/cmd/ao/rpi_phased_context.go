@@ -44,6 +44,7 @@ type phasedEngineOptions struct {
 	RunID                string    // Pre-seeded run ID (serve mode); empty = auto-generate
 	NoDashboard          bool
 	StdoutWriter         io.Writer `json:"-"` // runtime-only; suppresses raw Claude output when dashboard active
+	OnSpawnCwdReady      func(spawnCwd string) `json:"-"` // called after worktree resolved; serve mode uses this to update mux root
 }
 
 // defaultPhasedEngineOptions returns options matching the default cobra flag values.

@@ -124,7 +124,7 @@ func TestDash_IsTerminal_NonTTY(t *testing.T) {
 func TestBuildServeMux_Routes(t *testing.T) {
 	root := t.TempDir()
 	runID := "test-mux-run"
-	mux := buildServeMux(root, runID)
+	mux := buildServeMux(&serveMuxRoot{path: root}, runID)
 
 	tests := []struct {
 		name        string

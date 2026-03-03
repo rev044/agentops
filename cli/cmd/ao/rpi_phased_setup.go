@@ -143,7 +143,9 @@ func setupWorktreeLifecycle(cwd, originalCwd string, opts phasedEngineOptions, s
 
 	spawnCwd = worktreePath
 	state.WorktreePath = worktreePath
-	state.RunID = runID
+	if state.RunID == "" {
+		state.RunID = runID
+	}
 	fmt.Printf("Worktree created: %s (detached)\n", worktreePath)
 
 	sigCh := make(chan os.Signal, 1)

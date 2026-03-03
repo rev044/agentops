@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -26,6 +27,7 @@ var (
 	rpiServePort        int
 	rpiServeRunID       string
 	rpiServeOpen        bool
+	rpiServeNoOpen      bool
 	rpiServeOrchestrate bool
 )
 
@@ -80,9 +82,18 @@ The dashboard connects via Server-Sent Events (SSE) — no polling, no WebSocket
 	}
 	serveCmd.Flags().IntVar(&rpiServePort, "port", 7799, "Port to listen on")
 	serveCmd.Flags().StringVar(&rpiServeRunID, "run-id", "", "Run ID to watch (defaults to latest active run)")
-	serveCmd.Flags().BoolVar(&rpiServeOpen, "open", true, "Open browser automatically (--no-open to disable)")
+	serveCmd.Flags().BoolVar(&rpiServeOpen, "open", true, "Open browser automatically")
+	serveCmd.Flags().BoolVar(&rpiServeNoOpen, "no-open", false, "Do not open browser automatically")
 	serveCmd.Flags().BoolVar(&rpiServeOrchestrate, "orchestrate", false, "Treat first argument as a goal and run full RPI orchestration")
 	addRPISubcommand(serveCmd)
+}
+
+// shouldOpenBrowser returns true unless the user passed --no-open or --open=false.
+func shouldOpenBrowser() bool {
+	if rpiServeNoOpen {
+		return false
+	}
+	return rpiServeOpen
 }
 
 func runRPIServe(cmd *cobra.Command, args []string) error {
@@ -115,7 +126,11 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 		addr := fmt.Sprintf("localhost:%d", rpiServePort)
 		dashURL := fmt.Sprintf("http://%s?run=%s", addr, runID)
 
-		mux := buildServeMux(cwd, runID)
+		muxRoot := &serveMuxRoot{path: cwd}
+		mux := buildServeMux(muxRoot, runID)
+		opts.OnSpawnCwdReady = func(spawnCwd string) {
+			muxRoot.set(spawnCwd)
+		}
 		srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 
 		ln, err := net.Listen("tcp", addr)
@@ -129,7 +144,7 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Mission control: %s\n", dashURL)
 		fmt.Printf("Press Ctrl-C to stop.\n")
 
-		if rpiServeOpen {
+		if shouldOpenBrowser() {
 			openBrowserURL(dashURL)
 		}
 
@@ -165,16 +180,30 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Watch mode: resolve an existing run and stream its events.
-	runID, _, root, err := resolveNudgeRun(cwd, watchRunID)
-	if err != nil {
-		return fmt.Errorf("resolve run: %w", err)
+	// Watch mode: try to resolve an existing run. If none exists, start the
+	// dashboard anyway so it's ready when a run appears (the /events handler
+	// already tolerates missing event files and /runs scans dynamically).
+	runID, _, root, resolveErr := resolveNudgeRun(cwd, watchRunID)
+	if resolveErr != nil {
+		if watchRunID != "" {
+			// User explicitly asked for a specific run that doesn't exist — fail.
+			return fmt.Errorf("resolve run: %w", resolveErr)
+		}
+		// No run found, but no specific run requested — start dashboard in
+		// "waiting" mode using cwd as root and an empty run ID. The SSE handler
+		// will return an empty stream until events appear, and /runs will
+		// dynamically discover new runs.
+		root = cwd
+		runID = ""
 	}
 
 	addr := fmt.Sprintf("localhost:%d", rpiServePort)
-	dashURL := fmt.Sprintf("http://%s?run=%s", addr, runID)
+	dashURL := fmt.Sprintf("http://%s", addr)
+	if runID != "" {
+		dashURL = fmt.Sprintf("http://%s?run=%s", addr, runID)
+	}
 
-	mux := buildServeMux(root, runID)
+	mux := buildServeMux(&serveMuxRoot{path: root}, runID)
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 
 	ln, err := net.Listen("tcp", addr)
@@ -183,10 +212,14 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Mission control: %s\n", dashURL)
-	fmt.Printf("Run:             %s\n", runID)
+	if runID != "" {
+		fmt.Printf("Run:             %s\n", runID)
+	} else {
+		fmt.Printf("Mode:            waiting for runs (start an RPI session to see events)\n")
+	}
 	fmt.Printf("Press Ctrl-C to stop.\n")
 
-	if rpiServeOpen {
+	if shouldOpenBrowser() {
 		openBrowserURL(dashURL)
 	}
 
@@ -206,14 +239,35 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func buildServeMux(root, runID string) *http.ServeMux {
+// serveMuxRoot provides thread-safe mutable root path for the HTTP mux.
+// In orchestration mode the root switches from the original repo to the
+// worktree once the engine has created it; handlers read the current value
+// on every request via get().
+type serveMuxRoot struct {
+	mu   sync.RWMutex
+	path string
+}
+
+func (r *serveMuxRoot) get() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.path
+}
+
+func (r *serveMuxRoot) set(p string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.path = p
+}
+
+func buildServeMux(root *serveMuxRoot, runID string) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", serveRPIIndex)
 	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
-		serveRPIEvents(w, r, root, runID)
+		serveRPIEvents(w, r, root.get(), runID)
 	})
 	mux.HandleFunc("/runs", func(w http.ResponseWriter, r *http.Request) {
-		serveRPIRuns(w, r, root)
+		serveRPIRuns(w, r, root.get())
 	})
 	return mux
 }
