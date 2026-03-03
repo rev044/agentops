@@ -537,6 +537,48 @@ Epic Progress:
 
 This table is informational — it does not gate progression. Step 6 handles the loop decision.
 
+### Step 5.9: Refresh Worktree Base SHA (MANDATORY)
+
+**After committing a wave, refresh the base SHA before spawning the next wave.** This prevents cross-wave file collisions where later-wave worktrees overwrite earlier-wave fixes.
+
+```bash
+# After wave commit completes:
+WAVE_COMMIT_SHA=$(git rev-parse HEAD)
+
+# Verify the commit landed
+if [[ "$WAVE_COMMIT_SHA" == "$WAVE_START_SHA" ]]; then
+    echo "WARNING: Wave commit did not advance HEAD. Check for commit failures."
+fi
+
+# Next wave's worktrees MUST branch from this SHA, not the original base.
+# The swarm pre-spawn step uses HEAD as the worktree base, so this is
+# automatic IF the wave commit happens BEFORE the next /swarm invocation.
+echo "Wave $wave committed at $WAVE_COMMIT_SHA. Next wave branches from here."
+```
+
+**Cross-wave shared file check:**
+
+Before spawning the next wave, cross-reference the next wave's file manifests against files changed in the current wave:
+
+```bash
+# Files modified by the just-completed wave
+WAVE_CHANGED=$(git diff --name-only "${WAVE_START_SHA}..HEAD")
+
+# Files planned for next wave (from TaskCreate metadata.files)
+NEXT_WAVE_FILES=(<next wave file manifests>)
+
+# Check for overlap
+OVERLAP=$(comm -12 <(echo "$WAVE_CHANGED" | sort) <(printf '%s\n' "${NEXT_WAVE_FILES[@]}" | sort))
+if [[ -n "$OVERLAP" ]]; then
+    echo "Cross-wave file overlap detected:"
+    echo "$OVERLAP"
+    echo "These files were modified in Wave $wave and are planned for Wave $((wave+1))."
+    echo "Worktrees will include Wave $wave changes (branched from $WAVE_COMMIT_SHA)."
+fi
+```
+
+**Why:** In na-vs9, Wave 2 worktrees were created from pre-Wave-1 SHA. A Wave 2 agent overwrote Wave 1's `.md→.json` fix in `rpi_phased_test.go` because its worktree predated the fix. Refreshing the base SHA between waves eliminates this class of collision.
+
 ### Step 6: Check for More Work
 
 After completing a wave, check for newly unblocked issues (beads: `bd ready`, TaskList: `TaskList()`). Loop back to Step 4 if work remains, or proceed to Step 7 when done.

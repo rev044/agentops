@@ -265,6 +265,26 @@ Before assigning issues to waves, build a file-conflict matrix. For EACH issue, 
 
 **Why:** Issue-level dependency graphs miss shared-file conflicts. In context-orchestration-leverage, two tracks both modified `rpi_phased_handoff.go` and required an unplanned Wave 2a/2b split. A file-conflict matrix would have caught this during planning.
 
+#### Cross-Wave Shared File Registry (Mandatory)
+
+After computing waves, build a **cross-wave file registry** listing every file that appears in issues across different waves. These files are collision risks because later-wave worktrees are created from a base SHA that may not include earlier-wave changes.
+
+```markdown
+## Cross-Wave Shared Files
+
+| File | Wave 1 Issues | Wave 2+ Issues | Mitigation |
+|------|---------------|----------------|------------|
+| `src/auth_test.go` | Issue 1 | Issue 5 | Wave 2 worktree must branch from post-Wave-1 SHA |
+| `src/config.go` | Issue 2 | Issue 6 | Serial: Issue 6 blocked by Issue 2 |
+```
+
+**If any file appears in multiple waves:**
+1. Ensure the later-wave issue explicitly declares a dependency on the earlier-wave issue that touches the same file (so `bd dep add` / `addBlockedBy` is set).
+2. Flag the file in the plan's `## Cross-Wave Shared Files` section so `/crank` can enforce worktree base refresh between waves.
+3. For test files shared across waves, prefer splitting test additions into the same wave as the code they test — avoid a separate "test coverage" issue that touches files already modified in an earlier wave.
+
+**Why:** In na-vs9, Wave 2 agents started from pre-Wave-1 SHA. A Wave 2 test coverage issue overwrote Wave 1's `.md→.json` fix in `rpi_phased_test.go` because the worktree didn't include Wave 1's commit. The cross-wave registry makes these collisions visible during planning.
+
 #### Validate Dependency Necessity
 
 For EACH declared dependency, verify:
