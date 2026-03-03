@@ -363,7 +363,7 @@ func performGateEscalation(state *phasedState, phaseNum, attempt int, gateErr *g
 		gateErr.Report,
 	)
 	fmt.Println(msg)
-	escalationRoot := filepath.Dir(filepath.Dir(logPath))
+	escalationRoot := filepath.Dir(filepath.Dir(filepath.Dir(logPath)))
 	_, _ = appendRPIC2Event(escalationRoot, rpiC2EventInput{
 		RunID:   state.RunID,
 		Phase:   phaseNum,

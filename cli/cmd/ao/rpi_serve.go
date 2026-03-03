@@ -303,6 +303,10 @@ func serveRPIIndex(w http.ResponseWriter, r *http.Request) {
 // It sends all existing events immediately, then polls for new ones every 500ms.
 func serveRPIEvents(w http.ResponseWriter, r *http.Request, root, defaultRunID string) {
 	runID := strings.TrimSpace(r.URL.Query().Get("run-id"))
+	if runID != "" && (strings.Contains(runID, "..") || strings.Contains(runID, "/") || strings.Contains(runID, "\\")) {
+		http.Error(w, "invalid run-id", http.StatusBadRequest)
+		return
+	}
 	if runID == "" {
 		runID = defaultRunID
 	}

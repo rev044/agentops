@@ -553,10 +553,21 @@ function updateWorker(wid, phase, type) {
 
 function renderWorkers() {
   const list = document.getElementById('workerList');
-  list.innerHTML = Object.entries(workers).map(([wid, w]) => {
+  list.textContent = '';
+  Object.entries(workers).forEach(([wid, w]) => {
     const icon = w.status === 'done' ? '✓' : w.status === 'failed' ? '✗' : '▶';
-    return `<div class="stat-row"><span class="stat-label">${icon} ${wid}</span><span class="stat-value">${w.events} evts</span></div>`;
-  }).join('');
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+    const label = document.createElement('span');
+    label.className = 'stat-label';
+    label.textContent = icon + ' ' + wid;
+    const val = document.createElement('span');
+    val.className = 'stat-value';
+    val.textContent = w.events + ' evts';
+    row.appendChild(label);
+    row.appendChild(val);
+    list.appendChild(row);
+  });
 }
 
 function escapeHTML(str) {
