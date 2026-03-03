@@ -18,13 +18,13 @@ Make every coding agent session smarter than the last.
 
 ### 1. Cut the zero-coverage frontier in half
 
-cmd/ao has 12 zero-coverage functions (0 handler zeros). Each uncovered function is a bug hiding in plain sight. Drive this to ≤6 by targeting untested command handlers and error paths — then lower the `cmd-ao-coverage-floor` zero-max threshold to lock in the gain.
+cmd/ao had 17 zero-coverage functions. Drove to 6 (all excluded: main, Execute, interactiveDemo, runRPIServe, runParallelEpic, runParallelEpicTmux). Coverage floor raised 80→84%, zero-max lowered 25→8, handler-zero-max lowered 20→5. Gate locked.
 
 **Steer:** decrease
 
 ### 2. Tighten the cli/ complexity ceiling from 25 to 20
 
-Three production functions exceed CC 20: `buildLastSessionSection` (CC 24), `collectPatterns` (CC 23), `runSeed` (CC 21). Refactor each to stay under 20, then lower the `go-complexity-ceiling` gate threshold from 25 to 21 to prevent future creep.
+Three production functions exceeded CC 20. All refactored below 20 (collectPatterns 23→10, runMine 21→11, runSeed 21→11). Gate threshold lowered from 25 to 21. Max production CC is now 20.
 
 **Steer:** decrease
 
