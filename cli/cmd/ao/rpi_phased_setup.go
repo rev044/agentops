@@ -103,6 +103,12 @@ func resolveExistingWorktree(state *phasedState, existing *phasedState, opts pha
 	state.WorktreePath = existing.WorktreePath
 	state.RunID = existing.RunID
 	fmt.Printf("Resuming in existing worktree: %s\n", existing.WorktreePath)
+	_, _ = appendRPIC2Event(existing.WorktreePath, rpiC2EventInput{
+		RunID:   state.RunID,
+		Type:    "worktree.resumed",
+		Message: fmt.Sprintf("Resumed existing worktree: %s", existing.WorktreePath),
+		Details: map[string]string{"path": existing.WorktreePath},
+	})
 	return existing.WorktreePath, nil
 }
 
@@ -147,6 +153,12 @@ func setupWorktreeLifecycle(cwd, originalCwd string, opts phasedEngineOptions, s
 		state.RunID = runID
 	}
 	fmt.Printf("Worktree created: %s (detached)\n", worktreePath)
+	_, _ = appendRPIC2Event(worktreePath, rpiC2EventInput{
+		RunID:   state.RunID,
+		Type:    "worktree.created",
+		Message: fmt.Sprintf("Worktree created: %s", worktreePath),
+		Details: map[string]string{"path": worktreePath, "run_id": runID},
+	})
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -175,11 +187,21 @@ func setupWorktreeLifecycle(cwd, originalCwd string, opts phasedEngineOptions, s
 			fmt.Fprintf(os.Stderr, "Merge failed: %v\nWorktree preserved at: %s\n", mergeErr, worktreePath)
 			return fmt.Errorf("worktree merge failed: %w", mergeErr)
 		}
+		_, _ = appendRPIC2Event(originalCwd, rpiC2EventInput{
+			RunID:   state.RunID,
+			Type:    "worktree.merged",
+			Message: fmt.Sprintf("Merged worktree into %s", originalCwd),
+		})
 		if rmErr := removeWorktree(originalCwd, worktreePath, runID); rmErr != nil {
 			fmt.Fprintf(os.Stderr, "Cleanup failed: %v\nWorktree may require manual removal: %s\n", rmErr, worktreePath)
 			logFailureContext(logPath, state.RunID, "cleanup", rmErr)
 			return fmt.Errorf("worktree cleanup failed: %w", rmErr)
 		}
+		_, _ = appendRPIC2Event(originalCwd, rpiC2EventInput{
+			RunID:   state.RunID,
+			Type:    "worktree.removed",
+			Message: fmt.Sprintf("Removed worktree: %s", worktreePath),
+		})
 		return nil
 	}
 
@@ -210,6 +232,13 @@ func initializeRunArtifacts(spawnCwd string, startPhase int, state *phasedState,
 	}
 
 	fmt.Printf("\n=== RPI Phased: %s ===\n", state.Goal)
+	_, _ = appendRPIC2Event(spawnCwd, rpiC2EventInput{
+		RunID:   state.RunID,
+		Phase:   startPhase,
+		Type:    "rpi.started",
+		Message: fmt.Sprintf("RPI started: %s (phase %d)", state.Goal, startPhase),
+		Details: map[string]any{"goal": state.Goal, "start_phase": startPhase},
+	})
 	fmt.Printf("Starting from phase %d (%s)\n", startPhase, phases[startPhase-1].Name)
 	if opts.NoDashboard || GetDryRun() {
 		fmt.Println("Monitor: ao rpi status --watch  or  ao rpi serve " + state.RunID)

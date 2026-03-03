@@ -13,7 +13,11 @@ type phaseManifest struct {
 // Phase 1 has no prior context. Phase 2 gets decisions/risks. Phase 3 gets artifacts.
 var defaultPhaseManifests = map[int]phaseManifest{
 	1: {Phase: 1, HandoffFields: nil, NarrativeCap: 0, MaxTokens: 0},
-	2: {Phase: 2, HandoffFields: []string{"goal", "epic_id", "verdicts", "decisions_made", "open_risks"}, NarrativeCap: 500, MaxTokens: 2500},
-	3: {Phase: 3, HandoffFields: []string{"goal", "epic_id", "verdicts", "artifacts_produced"}, NarrativeCap: 1000, MaxTokens: 2500},
+	// Phase 2 (implementation) needs constraints and hazards from discovery
+	// Artifacts omitted — crank tracks via beads
+	2: {Phase: 2, HandoffFields: []string{"goal", "epic_id", "verdicts", "decisions_made", "open_risks"}, NarrativeCap: 1500, MaxTokens: 2500},
+	// Phase 3 (validation) validates implementation against requirements
+	// Decisions/risks from phase 2 dropped — focus on what was produced
+	3: {Phase: 3, HandoffFields: []string{"goal", "epic_id", "verdicts", "artifacts_produced"}, NarrativeCap: 2000, MaxTokens: 2500},
 }
 

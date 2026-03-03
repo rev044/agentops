@@ -52,6 +52,25 @@ fi
 ```
 If ao returns relevant learnings or patterns, incorporate them into the plan. Skip silently if ao is unavailable or returns no results.
 
+### Step 2.2: Read and Validate Research Content
+
+If research files exist, read the most recent one and verify it contains substantive findings before proceeding:
+
+```bash
+LATEST_RESEARCH=$(ls -t .agents/research/*.md 2>/dev/null | head -1)
+if [ -n "$LATEST_RESEARCH" ]; then
+    # Verify research has substantive content (not just frontmatter)
+    if grep -qE '^## (Key Findings|Architecture|Executive Summary|Recommendations|Part [0-9])' "$LATEST_RESEARCH"; then
+        echo "Research validated: $LATEST_RESEARCH"
+    else
+        echo "WARNING: Research file exists but lacks standard sections (Key Findings, Architecture, Executive Summary, or Recommendations)."
+        echo "Consider running /research first for a thorough exploration."
+    fi
+fi
+```
+
+**Read the validated research file** with the Read tool before proceeding to Step 3. Do not plan based solely on file existence — understanding the research content is essential for accurate decomposition.
+
 ### Step 3: Explore the Codebase (if needed)
 
 **USE THE TASK TOOL** to dispatch an Explore agent. The explore prompt MUST request symbol-level detail:

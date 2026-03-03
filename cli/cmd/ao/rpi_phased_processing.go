@@ -77,7 +77,7 @@ func generatePhaseSummary(state *phasedState, phaseNum int) string {
 
 // handoffDetected checks if a phase wrote a handoff file (context degradation signal).
 func handoffDetected(cwd string, phaseNum int) bool {
-	path := filepath.Join(cwd, ".agents", "rpi", fmt.Sprintf("phase-%d-handoff.md", phaseNum))
+	path := filepath.Join(cwd, ".agents", "rpi", fmt.Sprintf("phase-%d-handoff.json", phaseNum))
 	_, err := os.Stat(path)
 	return err == nil
 }
@@ -89,6 +89,8 @@ func cleanPhaseSummaries(stateDir string) {
 		os.Remove(path) //nolint:errcheck // #nosec G104
 		handoffPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-handoff.md", i))
 		os.Remove(handoffPath) //nolint:errcheck // #nosec G104
+		jsonHandoffPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-handoff.json", i))
+		os.Remove(jsonHandoffPath) //nolint:errcheck // #nosec G104
 		resultPath := filepath.Join(stateDir, fmt.Sprintf("phase-%d-result.json", i))
 		os.Remove(resultPath) //nolint:errcheck // #nosec G104
 	}

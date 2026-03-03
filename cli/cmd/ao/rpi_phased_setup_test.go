@@ -449,6 +449,163 @@ func TestInitializeRunArtifacts_CleansSummariesOnPhase1(t *testing.T) {
 	}
 }
 
+// --- C2 events ---
+
+func TestWorktreeResumedEvent(t *testing.T) {
+	tmp := t.TempDir()
+	runID := "run-resumed-001"
+	state := newTestPhasedState().WithRunID(runID)
+	existing := &phasedState{WorktreePath: tmp, RunID: runID}
+	opts := phasedEngineOptions{NoWorktree: false}
+
+	path, err := resolveExistingWorktree(state, existing, opts)
+	if err != nil {
+		t.Fatalf("resolveExistingWorktree: %v", err)
+	}
+	if path != tmp {
+		t.Fatalf("path = %q, want %q", path, tmp)
+	}
+
+	events, err := loadRPIC2Events(tmp, runID)
+	if err != nil {
+		t.Fatalf("loadRPIC2Events: %v", err)
+	}
+	found := false
+	for _, ev := range events {
+		if ev.Type == "worktree.resumed" {
+			found = true
+			if ev.RunID != runID {
+				t.Errorf("event RunID = %q, want %q", ev.RunID, runID)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("expected worktree.resumed event in events.jsonl")
+	}
+}
+
+func TestWorktreeCreatedEvent(t *testing.T) {
+	repo := initTestRepo(t)
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir) //nolint:errcheck
+
+	state := newTestPhasedState().WithRunID("run-created-001")
+	spawnCwd, cleanup, err := setupWorktreeLifecycle(repo, repo, phasedEngineOptions{}, state)
+	if err != nil {
+		t.Fatalf("setupWorktreeLifecycle: %v", err)
+	}
+	defer func() {
+		_ = cleanup(true, filepath.Join(repo, ".agents", "rpi", "test.log"))
+	}()
+
+	// The event is written to the worktree path (spawnCwd).
+	events, err := loadRPIC2Events(spawnCwd, state.RunID)
+	if err != nil {
+		t.Fatalf("loadRPIC2Events: %v", err)
+	}
+	found := false
+	for _, ev := range events {
+		if ev.Type == "worktree.created" {
+			found = true
+			if ev.RunID != state.RunID {
+				t.Errorf("event RunID = %q, want %q", ev.RunID, state.RunID)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("expected worktree.created event in events.jsonl")
+	}
+}
+
+func TestRPIStartedEvent(t *testing.T) {
+	tmp := t.TempDir()
+	runID := "run-started-001"
+	state := newTestPhasedState().WithRunID(runID).WithGoal("test rpi started")
+	opts := phasedEngineOptions{LiveStatus: false}
+
+	_, _, _, _, err := initializeRunArtifacts(tmp, 1, state, opts)
+	if err != nil {
+		t.Fatalf("initializeRunArtifacts: %v", err)
+	}
+
+	events, err := loadRPIC2Events(tmp, runID)
+	if err != nil {
+		t.Fatalf("loadRPIC2Events: %v", err)
+	}
+	found := false
+	for _, ev := range events {
+		if ev.Type == "rpi.started" {
+			found = true
+			if ev.RunID != runID {
+				t.Errorf("event RunID = %q, want %q", ev.RunID, runID)
+			}
+			if ev.Phase != 1 {
+				t.Errorf("event Phase = %d, want 1", ev.Phase)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("expected rpi.started event in events.jsonl")
+	}
+}
+
+func TestWorktreeMergedAndRemovedEvents(t *testing.T) {
+	repo := initTestRepo(t)
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir) //nolint:errcheck
+
+	state := newTestPhasedState().WithRunID("run-merge-001")
+	_, cleanup, err := setupWorktreeLifecycle(repo, repo, phasedEngineOptions{}, state)
+	if err != nil {
+		t.Fatalf("setupWorktreeLifecycle: %v", err)
+	}
+
+	logPath := filepath.Join(repo, ".agents", "rpi", "test.log")
+	if err := cleanup(true, logPath); err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+
+	// Merged and removed events are written to originalCwd (repo).
+	events, err := loadRPIC2Events(repo, state.RunID)
+	if err != nil {
+		t.Fatalf("loadRPIC2Events: %v", err)
+	}
+
+	foundMerged := false
+	foundRemoved := false
+	for _, ev := range events {
+		switch ev.Type {
+		case "worktree.merged":
+			foundMerged = true
+			if ev.RunID != state.RunID {
+				t.Errorf("merged event RunID = %q, want %q", ev.RunID, state.RunID)
+			}
+		case "worktree.removed":
+			foundRemoved = true
+			if ev.RunID != state.RunID {
+				t.Errorf("removed event RunID = %q, want %q", ev.RunID, state.RunID)
+			}
+		}
+	}
+	if !foundMerged {
+		t.Error("expected worktree.merged event in events.jsonl")
+	}
+	if !foundRemoved {
+		t.Error("expected worktree.removed event in events.jsonl")
+	}
+}
+
 // --- preflightRuntimeAvailability ---
 
 func TestPreflightRuntimeAvailability_DryRunSkips(t *testing.T) {

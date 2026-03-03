@@ -661,8 +661,8 @@ func TestPhasedCov_HandoffDetected(t *testing.T) {
 		t.Error("expected false when no handoff file")
 	}
 
-	// Create handoff file
-	if err := os.WriteFile(filepath.Join(rpiDir, "phase-1-handoff.md"), []byte("handoff"), 0644); err != nil {
+	// Create handoff file (.json, not .md)
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-1-handoff.json"), []byte(`{"phase":1}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if !handoffDetected(cwd, 1) {

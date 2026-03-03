@@ -41,6 +41,21 @@ Three steps:
 
 ## Execution Steps
 
+### Crank Checkpoint Detection
+
+Before scanning for changed files via git diff, check if a crank checkpoint exists:
+
+```bash
+if [ -f .agents/vibe-context/latest-crank-wave.json ]; then
+    echo "Crank checkpoint found — using files_changed from checkpoint"
+    FILES_CHANGED=$(jq -r '.files_changed[]' .agents/vibe-context/latest-crank-wave.json 2>/dev/null)
+    WAVE_COUNT=$(jq -r '.wave' .agents/vibe-context/latest-crank-wave.json 2>/dev/null)
+    echo "Wave $WAVE_COUNT checkpoint: $(echo "$FILES_CHANGED" | wc -l | tr -d ' ') files changed"
+fi
+```
+
+When a crank checkpoint is available, use its `files_changed` list instead of re-detecting via `git diff`. This ensures vibe validates exactly the files that crank modified.
+
 ### Step 1: Determine Target
 
 **If target provided:** Use it directly.
@@ -396,7 +411,7 @@ Each judge reviews for:
 
 ### Step 7: Write Vibe Report
 
-**Write to:** `.agents/council/YYYYMMDDTHHMMSSZ-vibe-<target>.md` (use `date -u +%Y%m%dT%H%M%SZ`)
+**Write to:** `.agents/council/YYYY-MM-DD-vibe-<target>.md` (use `date +%Y-%m-%d`)
 
 ```markdown
 ---

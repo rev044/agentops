@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -100,6 +101,13 @@ func processDiscoveryPhase(cwd string, state *phasedState, logPath string) error
 	}
 	state.Verdicts["pre_mortem"] = verdict
 	fmt.Printf("Pre-mortem verdict: %s\n", verdict)
+	_, _ = appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   state.RunID,
+		Phase:   1,
+		Type:    "gate.discovery.verdict",
+		Message: fmt.Sprintf("Pre-mortem verdict: %s", verdict),
+		Details: map[string]any{"verdict": verdict, "report": report},
+	})
 	logPhaseTransition(logPath, state.RunID, "discovery", fmt.Sprintf("pre-mortem verdict: %s report=%s", verdict, report))
 
 	if verdict == "FAIL" {
@@ -139,6 +147,13 @@ func processImplementationPhase(cwd string, state *phasedState, phaseNum int, lo
 		return nil
 	}
 	fmt.Printf("Crank status: %s\n", status)
+	_, _ = appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   state.RunID,
+		Phase:   2,
+		Type:    "gate.implementation.verdict",
+		Message: fmt.Sprintf("Crank status: %s", status),
+		Details: map[string]any{"status": status, "epic_id": state.EpicID},
+	})
 	logPhaseTransition(logPath, state.RunID, "implementation", fmt.Sprintf("crank status: %s", status))
 	if status == "BLOCKED" || status == "PARTIAL" {
 		return &gateFailError{Phase: 2, Verdict: status, Report: "bd children " + state.EpicID}
@@ -165,6 +180,13 @@ func processValidationPhase(cwd string, state *phasedState, phaseNum int, logPat
 	}
 	state.Verdicts["vibe"] = verdict
 	fmt.Printf("Vibe verdict: %s\n", verdict)
+	_, _ = appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   state.RunID,
+		Phase:   3,
+		Type:    "gate.validation.verdict",
+		Message: fmt.Sprintf("Vibe verdict: %s", verdict),
+		Details: map[string]any{"verdict": verdict, "report": report},
+	})
 	logPhaseTransition(logPath, state.RunID, "validation", fmt.Sprintf("vibe verdict: %s report=%s", verdict, report))
 
 	if verdict == "FAIL" {
@@ -249,6 +271,13 @@ func handleGateRetry(ctx context.Context, cwd string, state *phasedState, phaseN
 	}
 
 	fmt.Printf("%s: %s (attempt %d/%d) — retrying\n", phaseName, gateErr.Verdict, attempt, state.Opts.MaxRetries)
+	_, _ = appendRPIC2Event(cwd, rpiC2EventInput{
+		RunID:   state.RunID,
+		Phase:   phaseNum,
+		Type:    "gate.retry.attempt",
+		Message: fmt.Sprintf("%s retry attempt %d/%d", phaseName, attempt, state.Opts.MaxRetries),
+		Details: map[string]any{"attempt": attempt, "max_retries": state.Opts.MaxRetries, "verdict": gateErr.Verdict},
+	})
 	logPhaseTransition(logPath, state.RunID, phaseName, fmt.Sprintf("RETRY attempt %d/%d verdict=%s report=%s", attempt, state.Opts.MaxRetries, gateErr.Verdict, gateErr.Report))
 
 	retryCtx := &retryContext{
@@ -334,6 +363,14 @@ func performGateEscalation(state *phasedState, phaseNum, attempt int, gateErr *g
 		gateErr.Report,
 	)
 	fmt.Println(msg)
+	escalationRoot := filepath.Dir(filepath.Dir(logPath))
+	_, _ = appendRPIC2Event(escalationRoot, rpiC2EventInput{
+		RunID:   state.RunID,
+		Phase:   phaseNum,
+		Type:    "gate.escalation",
+		Message: msg,
+		Details: map[string]any{"attempt": attempt, "report": gateErr.Report},
+	})
 	if state.Opts.LiveStatus {
 		updateLivePhaseStatus(statusPath, allPhases, phaseNum, "failed after retries", attempt, gateErr.Report)
 	}

@@ -44,29 +44,20 @@ Before proceeding, verify:
 2. **Work was done:** `git log --oneline -1 2>/dev/null` — if empty, error: "No commits found. Run /implement first."
 3. **Epic context:** If epic ID provided, verify it has closed children. If 0 closed children, error: "No completed work to review."
 
-### Step 0.4: Reference Existence Preflight (MANDATORY)
+### Step 0.4: Load Reference Documents (MANDATORY)
 
-Before Step 0.5 and Step 2.5, verify required reference docs exist:
+Before Step 0.5 and Step 2.5, load required reference docs into context using the Read tool:
 
-```bash
+```
 REQUIRED_REFS=(
   "skills/post-mortem/references/checkpoint-policy.md"
   "skills/post-mortem/references/metadata-verification.md"
 )
-
-missing=0
-for ref in "${REQUIRED_REFS[@]}"; do
-  if [ ! -f "$ref" ]; then
-    echo "WARN: missing required reference: $ref"
-    missing=$((missing + 1))
-  fi
-done
-
-if [ "$missing" -gt 0 ]; then
-  echo "WARN: post-mortem reference preflight incomplete (${missing} missing)."
-  echo "Add these as checkpoint warnings in council context and proceed only if intentionally deferred."
-fi
 ```
+
+For each reference file, use the **Read tool** to load its content and hold it in context for use in later steps. Do NOT just test file existence with `[ -f ]` -- actually read the content so it is available when Steps 0.5 and 2.5 need it.
+
+If a reference file does not exist (Read returns an error), log a warning and add it as a checkpoint warning in the council context. Proceed only if the missing reference is intentionally deferred.
 
 ### Step 0.5: Checkpoint-Policy Preflight (MANDATORY)
 
@@ -107,6 +98,29 @@ If a plan is found, include it in the council packet's `context.spec` field:
   }
 }
 ```
+
+### Step 2.2: Load Implementation Summary
+
+Check for a crank-generated phase-2 summary:
+
+```bash
+PHASE2_SUMMARY=$(ls -t .agents/rpi/phase-2-summary-*-crank.md 2>/dev/null | head -1)
+if [ -n "$PHASE2_SUMMARY" ]; then
+    echo "Phase-2 summary found: $PHASE2_SUMMARY"
+    # Read the summary with the Read tool for implementation context
+fi
+```
+
+If available, use the phase-2 summary to understand what was implemented, how many waves ran, and which files were modified.
+
+### Step 2.3: Reconcile Plan vs Delivered Scope
+
+Compare the original plan scope against what was actually delivered:
+
+1. Read the plan from `.agents/plans/` (most recent)
+2. Compare planned issues against closed issues (`bd children <epic-id>`)
+3. Note any scope additions, removals, or modifications
+4. Include scope delta in the post-mortem findings
 
 ### Step 2.5: Pre-Council Metadata Verification (MANDATORY)
 

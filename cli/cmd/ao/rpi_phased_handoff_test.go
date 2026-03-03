@@ -536,6 +536,91 @@ func TestWritePhaseHandoff_CreatesDirectories(t *testing.T) {
 	}
 }
 
+func TestBuildPhaseHandoffFromState_ContextDegradation(t *testing.T) {
+	dir := t.TempDir()
+	rpiDir := filepath.Join(dir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &phasedState{
+		RunID:    "test-run",
+		Goal:     "test goal",
+		Verdicts: map[string]string{},
+	}
+
+	// Build handoff for phase 2 WITHOUT writing a phase-1-handoff.json first
+	h := buildPhaseHandoffFromState(state, 2, dir)
+	if !h.ContextDegradation {
+		t.Error("expected ContextDegradation=true when phase-1-handoff.json is missing")
+	}
+
+	// Now write phase-1 handoff and rebuild phase-2 handoff
+	h1 := &phaseHandoff{SchemaVersion: 1, Phase: 1, PhaseName: "discovery", Status: "completed"}
+	if err := writePhaseHandoff(dir, h1); err != nil {
+		t.Fatal(err)
+	}
+
+	h = buildPhaseHandoffFromState(state, 2, dir)
+	if h.ContextDegradation {
+		t.Error("expected ContextDegradation=false when phase-1-handoff.json exists")
+	}
+
+	// Phase 1 should never have degradation (no prior phase)
+	h = buildPhaseHandoffFromState(state, 1, dir)
+	if h.ContextDegradation {
+		t.Error("expected ContextDegradation=false for phase 1 (no prior phase)")
+	}
+}
+
+func TestHandoffDetected_ChecksJsonFile(t *testing.T) {
+	dir := t.TempDir()
+	rpiDir := filepath.Join(dir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// No file — should return false
+	if handoffDetected(dir, 1) {
+		t.Error("expected false when no handoff file exists")
+	}
+
+	// Write .md file — should NOT trigger detection (bug fix validates .json)
+	mdPath := filepath.Join(rpiDir, "phase-1-handoff.md")
+	if err := os.WriteFile(mdPath, []byte("legacy"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if handoffDetected(dir, 1) {
+		t.Error("expected false when only .md file exists (should check .json)")
+	}
+
+	// Write .json file — should return true
+	jsonPath := filepath.Join(rpiDir, "phase-1-handoff.json")
+	if err := os.WriteFile(jsonPath, []byte(`{"phase":1}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !handoffDetected(dir, 1) {
+		t.Error("expected true when phase-1-handoff.json exists")
+	}
+}
+
+func TestBuildHandoffContext_DegradationWarning(t *testing.T) {
+	handoffs := []*phaseHandoff{
+		{
+			Phase: 2, PhaseName: "implementation", Status: "completed",
+			ContextDegradation: true,
+		},
+	}
+
+	ctx := buildHandoffContext(handoffs, phaseManifest{Phase: 3, NarrativeCap: 0})
+	if !strings.Contains(ctx, "CONTEXT DEGRADATION") {
+		t.Error("expected CONTEXT DEGRADATION warning in output")
+	}
+	if !strings.Contains(ctx, "Phase 1 handoff was missing") {
+		t.Errorf("expected 'Phase 1 handoff was missing' in output, got:\n%s", ctx)
+	}
+}
+
 func TestReadPhaseHandoff_PrefersJSONOverLegacy(t *testing.T) {
 	dir := t.TempDir()
 	rpiDir := filepath.Join(dir, ".agents", "rpi")

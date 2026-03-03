@@ -35,6 +35,10 @@ type phaseHandoff struct {
 	CostUSD         float64 `json:"cost_usd,omitempty"`
 	ToolCalls       int     `json:"tool_calls"`
 
+	// Context quality signals
+	ContextDegradation bool   `json:"context_degradation"`
+	AdHocHandoff       string `json:"ad_hoc_handoff,omitempty"`
+
 	// Narrative (from Claude's phase-N-summary.md, capped)
 	Narrative string `json:"narrative,omitempty"`
 
@@ -245,6 +249,13 @@ func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) strin
 		sb.WriteString("\n")
 	}
 
+	// Render degradation warning if any handoff has context loss
+	for _, h := range handoffs {
+		if h.ContextDegradation {
+			sb.WriteString(fmt.Sprintf("⚠️ CONTEXT DEGRADATION: Phase %d handoff was missing — context may be incomplete\n\n", h.Phase-1))
+		}
+	}
+
 	// Apply token budget if specified in manifest
 	if manifest.MaxTokens > 0 {
 		result, budgetInfo := applyContextBudget(sb.String(), manifest.MaxTokens)
@@ -307,6 +318,11 @@ func buildPhaseHandoffFromState(state *phasedState, phaseNum int, cwd string) *p
 
 	// Scan for artifacts produced during this phase
 	h.ArtifactsProduced = discoverPhaseArtifacts(cwd, phaseNum)
+
+	// Check if previous phase had a structured handoff (degradation = missing prior handoff)
+	if phaseNum > 1 && !handoffDetected(cwd, phaseNum-1) {
+		h.ContextDegradation = true
+	}
 
 	return h
 }

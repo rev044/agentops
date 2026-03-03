@@ -329,6 +329,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 </div>
 
+<!-- Error banner -->
+<div id="error-banner" style="display:none; background:#dc3545; color:white; padding:8px 16px; text-align:center; position:sticky; top:0; z-index:100; font-family:sans-serif;"></div>
+
 <!-- Status bar -->
 <footer class="statusbar">
   <span class="statusbar-item">run: <span id="sbRun">–</span></span>
@@ -359,12 +362,36 @@ function init() {
   setInterval(updateElapsed, 1000);
 }
 
+let reconnectDelay = 1000;
+const MAX_RECONNECT_DELAY = 16000;
+
+function showErrorBanner(msg) {
+  const banner = document.getElementById('error-banner');
+  if (banner) { banner.textContent = msg; banner.style.display = 'block'; }
+}
+function hideErrorBanner() {
+  const banner = document.getElementById('error-banner');
+  if (banner) { banner.style.display = 'none'; }
+}
+
 function connect() {
   const url = '/events' + (runId ? '?run-id=' + encodeURIComponent(runId) : '');
   evSource = new EventSource(url);
-  evSource.onopen  = () => setConn('ok', '● live');
-  evSource.onerror = () => setConn('err', '● disconnected');
-  evSource.onmessage = (e) => {
+  evSource.onopen = function() {
+    reconnectDelay = 1000;
+    hideErrorBanner();
+    setConn('ok', '● live');
+  };
+  evSource.onerror = function() {
+    evSource.close();
+    setConn('err', '● disconnected');
+    showErrorBanner('Connection lost. Reconnecting in ' + (reconnectDelay/1000) + 's...');
+    setTimeout(function() {
+      reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+      connect();
+    }, reconnectDelay);
+  };
+  evSource.onmessage = function(e) {
     try { handleEvent(JSON.parse(e.data)); } catch(_) {}
   };
 }
@@ -532,6 +559,12 @@ function renderWorkers() {
   }).join('');
 }
 
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function addEventRow(ev) {
   const feed = document.getElementById('eventsFeed');
   const empty = document.getElementById('emptyState');
@@ -544,19 +577,43 @@ function addEventRow(ev) {
   const type = ev.type || '';
   const phase = ev.phase || 0;
   const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString('en-US', {hour12:false}) : '';
-  const msg = (ev.message || '').replace(/</g,'&lt;');
+  const msg = ev.message || '';
 
   let typeClass = '';
   if (type.startsWith('phase.direct')) typeClass = 'direct';
   else if (type.startsWith('command.')) typeClass = 'command';
   else if (type.includes('fail') || type.includes('error')) typeClass = 'error';
 
-  let phaseHtml = '<span class="ev-phase"></span>';
-  if (phase > 0) phaseHtml = `<span class="ev-phase p${phase}">${phase}</span>`;
-
   const row = document.createElement('div');
-  row.className = `event-row new ${phase > 0 ? 'phase-'+phase : ''}`;
-  row.innerHTML = `<span class="ev-ts">${ts}</span>${phaseHtml}<span class="ev-type ${typeClass}" title="${type}">${type}</span><span class="ev-msg">${msg}</span>`;
+  row.className = 'event-row new' + (phase > 0 ? ' phase-' + phase : '');
+
+  // Build child elements via DOM (no innerHTML)
+  row.textContent = '';
+  const tsSpan = document.createElement('span');
+  tsSpan.className = 'ev-ts';
+  tsSpan.textContent = ts;
+  row.appendChild(tsSpan);
+
+  const phaseSpan = document.createElement('span');
+  if (phase > 0) {
+    phaseSpan.className = 'ev-phase p' + phase;
+    phaseSpan.textContent = phase;
+  } else {
+    phaseSpan.className = 'ev-phase';
+  }
+  row.appendChild(phaseSpan);
+
+  const typeSpan = document.createElement('span');
+  typeSpan.className = 'ev-type' + (typeClass ? ' ' + typeClass : '');
+  typeSpan.title = type;
+  typeSpan.textContent = type;
+  row.appendChild(typeSpan);
+
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'ev-msg';
+  msgSpan.textContent = msg;
+  row.appendChild(msgSpan);
+
   feed.appendChild(row);
   setTimeout(() => row.classList.remove('new'), 500);
 
@@ -600,7 +657,20 @@ function updateWorkerRow(workerID, beadID, evType, ts) {
   if (!row) {
     row = document.createElement('tr');
     row.id = 'worker-' + workerID;
-    row.innerHTML = '<td class="bead-col" style="padding:4px 8px;"></td><td class="wid-col" style="padding:4px 8px;font-family:monospace;font-size:0.85em;"></td><td class="status-col" style="padding:4px 8px;"></td><td class="attempts-col" style="padding:4px 8px;">1</td><td class="dur-col" style="padding:4px 8px;">—</td>';
+    var cols = [
+      {cls:'bead-col', text:'', style:'padding:4px 8px;'},
+      {cls:'wid-col', text:'', style:'padding:4px 8px;font-family:monospace;font-size:0.85em;'},
+      {cls:'status-col', text:'', style:'padding:4px 8px;'},
+      {cls:'attempts-col', text:'1', style:'padding:4px 8px;'},
+      {cls:'dur-col', text:'\u2014', style:'padding:4px 8px;'}
+    ];
+    cols.forEach(function(c) {
+      var td = document.createElement('td');
+      td.className = c.cls;
+      td.style.cssText = c.style;
+      td.textContent = c.text;
+      row.appendChild(td);
+    });
     tbody.appendChild(row);
   }
   row.querySelector('.bead-col').textContent = beadID || '';
@@ -614,7 +684,12 @@ function updateWorkerRow(workerID, beadID, evType, ts) {
   } else if (evType === 'worker.bead.failed') {
     statusText = 'failed'; badgeClass = 'badge-failed';
   }
-  row.querySelector('.status-col').innerHTML = '<span class="' + badgeClass + '">' + statusText + '</span>';
+  var statusCol = row.querySelector('.status-col');
+  statusCol.textContent = '';
+  var badge = document.createElement('span');
+  badge.className = badgeClass;
+  badge.textContent = statusText;
+  statusCol.appendChild(badge);
   if (evType === 'worker.bead.done' || evType === 'worker.bead.failed') {
     const start = workerStartTimes.get(workerID);
     if (start) {

@@ -483,6 +483,17 @@ EOF
 - `acceptance_verdict`: verdict from the Wave Acceptance Check (Step 5.5). Used by final validation to skip redundant /vibe on clean epics.
 - On retry of the same wave, the file is overwritten (same path).
 
+### Step 5.7b: Vibe Context Checkpoint
+
+After writing the wave checkpoint, copy it for downstream `/vibe` consumption:
+
+```bash
+mkdir -p .agents/vibe-context
+cp ".agents/crank/wave-${wave}-checkpoint.json" .agents/vibe-context/latest-crank-wave.json
+```
+
+This provides `/vibe` a stable path to read the latest crank state without scanning wave checkpoint files. Uses file copy (not symlink) per repo conventions.
+
 ### Step 5.8: Wave Status Report
 
 After each wave checkpoint, display a consolidated status table:
@@ -519,7 +530,28 @@ If hooks or `lib/hook-helpers.sh` were modified, verify embedded copies are in s
 
 **For detailed validation steps, read `skills/crank/references/failure-recovery.md`.**
 
-### Step 8: Extract Learnings (ao Integration)
+### Step 8: Write Phase-2 Summary
+
+Before extracting learnings, write a phase-2 summary for downstream `/post-mortem` consumption:
+
+```bash
+mkdir -p .agents/rpi
+cat > ".agents/rpi/phase-2-summary-$(date +%Y-%m-%d)-crank.md" <<PHASE2
+# Phase 2 Summary: Implementation
+
+- **Epic:** <epic-id>
+- **Waves completed:** ${wave}
+- **Issues completed:** <completed-count>/<total-count>
+- **Files modified:** $(git diff --name-only "${WAVE_START_SHA}..HEAD" | wc -l | tr -d ' ')
+- **Status:** <DONE|PARTIAL|BLOCKED>
+- **Completion marker:** <promise marker from Step 9>
+- **Timestamp:** $(date -Iseconds)
+PHASE2
+```
+
+This summary is consumed by `/post-mortem` Step 2.2 for scope reconciliation.
+
+### Step 8.5: Extract Learnings (ao Integration)
 
 If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao metrics flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `/post-mortem` manually.
 

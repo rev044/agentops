@@ -1037,9 +1037,9 @@ func TestHandoffDetection(t *testing.T) {
 		t.Error("should not detect handoff when file doesn't exist")
 	}
 
-	// Write handoff file → detected
-	handoffPath := filepath.Join(rpiDir, "phase-2-handoff.md")
-	if err := os.WriteFile(handoffPath, []byte("# Handoff\nContext degraded."), 0644); err != nil {
+	// Write handoff file → detected (.json, not .md)
+	handoffPath := filepath.Join(rpiDir, "phase-2-handoff.json")
+	if err := os.WriteFile(handoffPath, []byte(`{"phase":2}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1060,7 +1060,7 @@ func TestCleanPhaseSummaries_AlsoRemovesHandoffs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create summaries and handoffs
+	// Create summaries, .md handoffs, and .json handoffs
 	for i := 1; i <= 3; i++ {
 		summaryPath := filepath.Join(rpiDir, fmt.Sprintf("phase-%d-summary.md", i))
 		if err := os.WriteFile(summaryPath, []byte("test"), 0644); err != nil {
@@ -1068,6 +1068,10 @@ func TestCleanPhaseSummaries_AlsoRemovesHandoffs(t *testing.T) {
 		}
 		handoffPath := filepath.Join(rpiDir, fmt.Sprintf("phase-%d-handoff.md", i))
 		if err := os.WriteFile(handoffPath, []byte("handoff"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		jsonHandoffPath := filepath.Join(rpiDir, fmt.Sprintf("phase-%d-handoff.json", i))
+		if err := os.WriteFile(jsonHandoffPath, []byte(`{"phase":`+fmt.Sprintf("%d", i)+`}`), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1082,6 +1086,10 @@ func TestCleanPhaseSummaries_AlsoRemovesHandoffs(t *testing.T) {
 		handoffPath := filepath.Join(rpiDir, fmt.Sprintf("phase-%d-handoff.md", i))
 		if _, err := os.Stat(handoffPath); err == nil {
 			t.Errorf("phase-%d-handoff.md should be deleted", i)
+		}
+		jsonHandoffPath := filepath.Join(rpiDir, fmt.Sprintf("phase-%d-handoff.json", i))
+		if _, err := os.Stat(jsonHandoffPath); err == nil {
+			t.Errorf("phase-%d-handoff.json should be deleted", i)
 		}
 	}
 }

@@ -131,7 +131,13 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 		opts.OnSpawnCwdReady = func(spawnCwd string) {
 			muxRoot.set(spawnCwd)
 		}
-		srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+		srv := &http.Server{
+			Addr:              addr,
+			Handler:           mux,
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       120 * time.Second,
+			MaxHeaderBytes:    8192,
+		}
 
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
@@ -155,7 +161,7 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 		go func() {
 			<-stop
 			orchCancel()
-			shutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			_ = srv.Shutdown(shutCtx)
 		}()
@@ -204,7 +210,13 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 	}
 
 	mux := buildServeMux(&serveMuxRoot{path: root}, runID)
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    8192,
+	}
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -227,7 +239,7 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-stop
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(ctx)
 	}()
@@ -264,9 +276,19 @@ func buildServeMux(root *serveMuxRoot, runID string) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", serveRPIIndex)
 	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			setCORSHeaders(w)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		serveRPIEvents(w, r, root.get(), runID)
 	})
 	mux.HandleFunc("/runs", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			setCORSHeaders(w)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		serveRPIRuns(w, r, root.get())
 	})
 	return mux
@@ -340,6 +362,8 @@ func serveRPIRuns(w http.ResponseWriter, _ *http.Request, root string) {
 func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Max-Age", "86400")
 }
 
 // openBrowserURL opens url in the default system browser.
