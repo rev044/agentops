@@ -103,6 +103,13 @@ func runDefrag(cmd *cobra.Command, args []string) error {
 
 	isDryRun := GetDryRun()
 
+	// Default to all operations when no mode flag is specified.
+	if !defragPrune && !defragDedup && !defragOscillationSweep {
+		defragPrune = true
+		defragDedup = true
+		defragOscillationSweep = true
+	}
+
 	report := &DefragReport{
 		Timestamp: time.Now().UTC(),
 		DryRun:    isDryRun,

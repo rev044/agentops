@@ -526,3 +526,34 @@ func TestServeRPIEvents_StreamsPreExistingEvents(t *testing.T) {
 		t.Errorf("event 2 ID %q not found in SSE body", ev2.EventID)
 	}
 }
+
+func TestServeRPIEvents_InitialFlush(t *testing.T) {
+	dir := t.TempDir()
+	runID := "rpi-flushtest"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, "/events?run-id="+runID, nil)
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		serveRPIEvents(rr, req, dir, runID)
+		close(done)
+	}()
+
+	// Wait for one poll cycle so the initial flush has been written.
+	time.Sleep(800 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("serveRPIEvents did not return after context cancel")
+	}
+
+	body := rr.Body.String()
+	if !strings.HasPrefix(body, ": connected\n\n") {
+		t.Errorf("expected SSE body to start with ': connected\\n\\n', got prefix: %q", body[:min(len(body), 40)])
+	}
+}

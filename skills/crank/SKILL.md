@@ -773,5 +773,6 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 - [references/team-coordination.md](references/team-coordination.md)
 - [references/test-first-mode.md](references/test-first-mode.md)
 - [references/troubleshooting.md](references/troubleshooting.md)
+- [references/uat-integration-wave.md](references/uat-integration-wave.md)
 - [references/wave1-spec-consistency-checklist.md](references/wave1-spec-consistency-checklist.md)
 - [references/wave-patterns.md](references/wave-patterns.md)

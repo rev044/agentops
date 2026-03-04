@@ -647,3 +647,48 @@ func TestCountAlternations(t *testing.T) {
 		})
 	}
 }
+
+func TestDefrag_NoFlags_DefaultsAll(t *testing.T) {
+	// When no mode flags are set, runDefrag should enable all three modes.
+	dir := t.TempDir()
+
+	// Seed minimal .agents/ structure so defrag has something to scan.
+	agentsDir := filepath.Join(dir, ".agents", "learnings")
+	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	// Reset flags to simulate bare "ao defrag" (no mode flags).
+	defragPrune = false
+	defragDedup = false
+	defragOscillationSweep = false
+	defragQuiet = true
+	defer func() {
+		defragPrune = false
+		defragDedup = false
+		defragOscillationSweep = false
+		defragQuiet = false
+	}()
+
+	err := runDefrag(nil, nil)
+	if err != nil {
+		t.Fatalf("runDefrag with no flags: %v", err)
+	}
+
+	// After runDefrag, all three should have been enabled.
+	if !defragPrune {
+		t.Error("expected defragPrune to be true after no-flags invocation")
+	}
+	if !defragDedup {
+		t.Error("expected defragDedup to be true after no-flags invocation")
+	}
+	if !defragOscillationSweep {
+		t.Error("expected defragOscillationSweep to be true after no-flags invocation")
+	}
+}

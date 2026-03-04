@@ -323,6 +323,10 @@ func serveRPIEvents(w http.ResponseWriter, r *http.Request, root, defaultRunID s
 	w.Header().Set("X-Accel-Buffering", "no")
 	setCORSHeaders(w, r)
 
+	// Immediately flush headers so clients know the SSE connection is established.
+	fmt.Fprintf(w, ": connected\n\n") // nosemgrep: go.lang.security.audit.xss.no-fprintf-to-responsewriter.no-fprintf-to-responsewriter -- SSE comment to text/event-stream, not HTML; localhost-only
+	flusher.Flush()
+
 	seen := 0
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
