@@ -44,6 +44,7 @@ HOOK_FILES=(
   "hooks/ratchet-advance.sh"
   "hooks/standards-injector.sh"
   "hooks/stop-team-guard.sh"
+  "hooks/context-contract-check.sh"
 )
 
 section "Hook preflight checks"

@@ -3,6 +3,7 @@ module github.com/boshu2/agentops/cli
 go 1.26
 
 require (
+	github.com/google/go-cmp v0.7.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	go.uber.org/goleak v1.3.0

@@ -1,0 +1,29 @@
+The forge command extracts knowledge candidates from various sources.
+
+Currently supported forges:
+  transcript    Extract from Claude Code JSONL transcripts
+  markdown      Extract from markdown files (.md)
+
+Example:
+  ao forge transcript ~/.claude/projects/**/*.jsonl
+  ao forge markdown .agents/learnings/*.md
+
+Usage:
+  ao forge [command]
+
+Available Commands:
+  batch       Process multiple transcripts at once
+  markdown    Extract knowledge from markdown files
+  transcript  Extract knowledge from Claude Code transcripts
+
+Flags:
+  -h, --help   help for forge
+
+Global Flags:
+      --config string   Config file (default: ~/.agentops/config.yaml)
+      --dry-run         Show what would happen without executing
+      --json            Output as JSON (shorthand for -o json)
+  -o, --output string   Output format (json, table, yaml) (default "table")
+  -v, --verbose         Enable verbose output
+
+Use "ao forge [command] --help" for more information about a command.

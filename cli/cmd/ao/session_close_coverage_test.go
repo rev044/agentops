@@ -61,6 +61,15 @@ func TestCov3_sessionClose_computeVelocityDelta(t *testing.T) {
 			}
 		})
 	}
+
+	// Also verify zero-velocity case explicitly
+	got := computeVelocityDelta(
+		&types.FlywheelMetrics{Velocity: 0.5},
+		&types.FlywheelMetrics{Velocity: 0.5},
+	)
+	if got != 0.0 {
+		t.Errorf("expected 0 delta for equal velocities, got %f", got)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +180,7 @@ func TestCov3_sessionClose_printCloseTable(t *testing.T) {
 			},
 			checks: []string{
 				"near-escape",
+				"Session Close Summary",
 			},
 		},
 	}

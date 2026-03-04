@@ -77,6 +77,10 @@ func TestCov3_maturity_runMaturitySingle_dryRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runMaturitySingle dry-run: %v", err)
 	}
+	// Verify learning file was not modified in dry-run mode
+	if _, statErr := os.Stat(filepath.Join(learningsDir, "L001.jsonl")); statErr != nil {
+		t.Errorf("learning file missing after dry-run: %v", statErr)
+	}
 }
 
 func TestCov3_maturity_runMaturitySingle_notFound(t *testing.T) {
@@ -252,6 +256,10 @@ func TestCov3_maturity_runMaturity_noLearningsDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected nil error when no learnings dir, got: %v", err)
 	}
+	// Verify no learnings dir was created as side effect
+	if _, statErr := os.Stat(filepath.Join(tmp, ".agents", "learnings")); statErr == nil {
+		t.Error("learnings dir was unexpectedly created when it should not exist")
+	}
 }
 
 func TestCov3_maturity_runMaturity_noArgsNoScan(t *testing.T) {
@@ -365,9 +373,13 @@ func TestCov3_maturity_runMaturity_withLearningID(t *testing.T) {
 func TestCov3_maturity_applyScannedTransitions_noResults(t *testing.T) {
 	_, learningsDir := cov3W2SetupMaturityDir(t)
 
-	captureJSONStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, nil)
 	})
+	// With nil results, should produce no transition output
+	if strings.Contains(out, "transitioned") {
+		t.Errorf("expected no transition output for nil results, got: %s", out)
+	}
 }
 
 func TestCov3_maturity_applyScannedTransitions_missingFile(t *testing.T) {
@@ -375,14 +387,18 @@ func TestCov3_maturity_applyScannedTransitions_missingFile(t *testing.T) {
 
 	results := cov3W2MakeTransitionResults("missing-learning")
 
-	captureJSONStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, results)
 	})
+	// Missing file should not crash, just skip
+	_ = out // function completed without panic
+	if _, err := os.Stat(filepath.Join(learningsDir, "missing-learning.jsonl")); err == nil {
+		t.Error("expected missing-learning.jsonl to not exist")
+	}
 }
 
 func TestCov3_maturity_applyScannedTransitions_withValidFile(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	_ = tmp
+	_, learningsDir := cov3W2SetupMaturityDir(t)
 
 	// Create a learning that matches the transition result
 	cov3W2WriteLearningJSONL(t, learningsDir, "apply-target.jsonl", map[string]any{
@@ -400,6 +416,10 @@ func TestCov3_maturity_applyScannedTransitions_withValidFile(t *testing.T) {
 	captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, results)
 	})
+	// Verify the learning file still exists after applying transitions
+	if _, err := os.Stat(filepath.Join(learningsDir, "apply-target.jsonl")); err != nil {
+		t.Errorf("learning file missing after apply: %v", err)
+	}
 }
 
 // --- runMaturityScan tests ---

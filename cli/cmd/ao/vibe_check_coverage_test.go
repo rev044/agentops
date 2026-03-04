@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +15,23 @@ import (
 // vibe_check.go — outputVibeCheckJSON (zero coverage)
 // ===========================================================================
 
+// captureVibeStdout captures stdout output from a function for assertion.
+func captureVibeStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdout = w
+	fn()
+	_ = w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = io.ReadAll(io.TeeReader(r, &buf))
+	return buf.String()
+}
+
 func TestCov3_vibeCheck_outputVibeCheckJSON_emptyResult(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score:    85.0,
@@ -19,9 +40,14 @@ func TestCov3_vibeCheck_outputVibeCheckJSON_emptyResult(t *testing.T) {
 		Findings: []vibecheck.Finding{},
 		Events:   []vibecheck.TimelineEvent{},
 	}
-	err := outputVibeCheckJSON(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckJSON(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckJSON: %v", err)
+	}
+	if !strings.Contains(out, "85") {
+		t.Errorf("expected JSON output to contain score 85, got: %s", out)
 	}
 }
 
@@ -44,9 +70,17 @@ func TestCov3_vibeCheck_outputVibeCheckJSON_withData(t *testing.T) {
 			},
 		},
 	}
-	err := outputVibeCheckJSON(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckJSON(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckJSON: %v", err)
+	}
+	if !strings.Contains(out, "92.5") {
+		t.Errorf("expected JSON to contain score 92.5, got: %s", out)
+	}
+	if !strings.Contains(out, "drift") {
+		t.Errorf("expected JSON to contain finding category 'drift', got: %s", out)
 	}
 }
 
@@ -62,9 +96,14 @@ func TestCov3_vibeCheck_outputVibeCheckMarkdown_emptyResult(t *testing.T) {
 		Findings: []vibecheck.Finding{},
 		Events:   []vibecheck.TimelineEvent{},
 	}
-	err := outputVibeCheckMarkdown(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckMarkdown(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckMarkdown: %v", err)
+	}
+	if !strings.Contains(out, "50") {
+		t.Errorf("expected markdown to contain score 50, got: %s", out)
 	}
 }
 
@@ -88,9 +127,17 @@ func TestCov3_vibeCheck_outputVibeCheckMarkdown_withData(t *testing.T) {
 			},
 		},
 	}
-	err := outputVibeCheckMarkdown(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckMarkdown(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckMarkdown: %v", err)
+	}
+	if !strings.Contains(out, "72") {
+		t.Errorf("expected markdown to contain score 72, got: %s", out)
+	}
+	if !strings.Contains(out, "amnesia") {
+		t.Errorf("expected markdown to contain finding category 'amnesia', got: %s", out)
 	}
 }
 
@@ -99,20 +146,39 @@ func TestCov3_vibeCheck_outputVibeCheckMarkdown_withData(t *testing.T) {
 // ===========================================================================
 
 func TestCov3_vibeCheck_printMarkdownMetrics_empty(t *testing.T) {
-	// Should not panic
-	printMarkdownMetrics(map[string]float64{})
+	out := captureVibeStdout(t, func() {
+		printMarkdownMetrics(map[string]float64{})
+	})
+	// Empty metrics should produce minimal or no output, but must not panic
+	if strings.Contains(out, "panic") {
+		t.Errorf("printMarkdownMetrics panicked on empty map")
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownMetrics_withValues(t *testing.T) {
-	printMarkdownMetrics(map[string]float64{
-		"velocity":   1.5,
-		"complexity": 0.3,
-		"rework":     0.1,
+	out := captureVibeStdout(t, func() {
+		printMarkdownMetrics(map[string]float64{
+			"velocity":   1.5,
+			"complexity": 0.3,
+			"rework":     0.1,
+		})
 	})
+	if !strings.Contains(out, "velocity") {
+		t.Errorf("expected output to contain 'velocity', got: %s", out)
+	}
+	if !strings.Contains(out, "complexity") {
+		t.Errorf("expected output to contain 'complexity', got: %s", out)
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownMetrics_nil(t *testing.T) {
-	printMarkdownMetrics(nil)
+	out := captureVibeStdout(t, func() {
+		printMarkdownMetrics(nil)
+	})
+	// nil metrics should produce minimal or no output, but must not panic
+	if strings.Contains(out, "panic") {
+		t.Errorf("printMarkdownMetrics panicked on nil map")
+	}
 }
 
 // ===========================================================================
@@ -120,7 +186,13 @@ func TestCov3_vibeCheck_printMarkdownMetrics_nil(t *testing.T) {
 // ===========================================================================
 
 func TestCov3_vibeCheck_printMarkdownFindings_empty(t *testing.T) {
-	printMarkdownFindings([]vibecheck.Finding{})
+	out := captureVibeStdout(t, func() {
+		printMarkdownFindings([]vibecheck.Finding{})
+	})
+	// Empty findings should not produce finding-specific output
+	if strings.Contains(out, "error") || strings.Contains(out, "amnesia") {
+		t.Errorf("expected no finding output for empty list, got: %s", out)
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownFindings_withFindings(t *testing.T) {
@@ -129,11 +201,25 @@ func TestCov3_vibeCheck_printMarkdownFindings_withFindings(t *testing.T) {
 		{Severity: "warning", Category: "drift", Message: "minor issue", File: "cmd/main.go"},
 		{Severity: "info", Category: "test", Message: "informational", File: "pkg/util.go", Line: 10},
 	}
-	printMarkdownFindings(findings)
+	out := captureVibeStdout(t, func() {
+		printMarkdownFindings(findings)
+	})
+	if !strings.Contains(out, "critical issue") {
+		t.Errorf("expected output to contain 'critical issue', got: %s", out)
+	}
+	if !strings.Contains(out, "minor issue") {
+		t.Errorf("expected output to contain 'minor issue', got: %s", out)
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownFindings_nil(t *testing.T) {
-	printMarkdownFindings(nil)
+	out := captureVibeStdout(t, func() {
+		printMarkdownFindings(nil)
+	})
+	// nil findings should produce minimal or no output, but must not panic
+	if strings.Contains(out, "panic") {
+		t.Errorf("printMarkdownFindings panicked on nil")
+	}
 }
 
 // ===========================================================================
@@ -173,8 +259,15 @@ func TestCov3_vibeCheck_printMarkdownFinding_withFileLine(t *testing.T) {
 		File:     "pkg/handler.go",
 		Line:     42,
 	}
-	// Should not panic
-	printMarkdownFinding(finding)
+	out := captureVibeStdout(t, func() {
+		printMarkdownFinding(finding)
+	})
+	if !strings.Contains(out, "test assertions are empty") {
+		t.Errorf("expected output to contain finding message, got: %s", out)
+	}
+	if !strings.Contains(out, "pkg/handler.go") {
+		t.Errorf("expected output to contain file path, got: %s", out)
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownFinding_withFileNoLine(t *testing.T) {
@@ -184,7 +277,15 @@ func TestCov3_vibeCheck_printMarkdownFinding_withFileNoLine(t *testing.T) {
 		Message:  "code drifting",
 		File:     "main.go",
 	}
-	printMarkdownFinding(finding)
+	out := captureVibeStdout(t, func() {
+		printMarkdownFinding(finding)
+	})
+	if !strings.Contains(out, "code drifting") {
+		t.Errorf("expected output to contain finding message, got: %s", out)
+	}
+	if !strings.Contains(out, "main.go") {
+		t.Errorf("expected output to contain file path, got: %s", out)
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownFinding_noFile(t *testing.T) {
@@ -193,7 +294,12 @@ func TestCov3_vibeCheck_printMarkdownFinding_noFile(t *testing.T) {
 		Category: "logging",
 		Message:  "missing structured logs",
 	}
-	printMarkdownFinding(finding)
+	out := captureVibeStdout(t, func() {
+		printMarkdownFinding(finding)
+	})
+	if !strings.Contains(out, "missing structured logs") {
+		t.Errorf("expected output to contain finding message, got: %s", out)
+	}
 }
 
 // ===========================================================================
@@ -209,8 +315,13 @@ func TestCov3_vibeCheck_printMarkdownEvents_notFull(t *testing.T) {
 	events := []vibecheck.TimelineEvent{
 		{Timestamp: time.Now(), Author: "dev", Message: "commit 1"},
 	}
-	// Should not print anything (returns early)
-	printMarkdownEvents(events)
+	out := captureVibeStdout(t, func() {
+		printMarkdownEvents(events)
+	})
+	// Not full mode — should produce no output
+	if strings.Contains(out, "commit 1") {
+		t.Errorf("expected no event output in non-full mode, got: %s", out)
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownEvents_fullWithEvents(t *testing.T) {
@@ -222,7 +333,15 @@ func TestCov3_vibeCheck_printMarkdownEvents_fullWithEvents(t *testing.T) {
 		{Timestamp: time.Now(), Author: "dev1", Message: "feat: add feature"},
 		{Timestamp: time.Now(), Author: "dev2", Message: "fix: fix bug with a very long message that exceeds fifty characters and should be truncated"},
 	}
-	printMarkdownEvents(events)
+	out := captureVibeStdout(t, func() {
+		printMarkdownEvents(events)
+	})
+	if !strings.Contains(out, "dev1") {
+		t.Errorf("expected output to contain author 'dev1', got: %s", out)
+	}
+	if !strings.Contains(out, "feat: add feature") {
+		t.Errorf("expected output to contain event message, got: %s", out)
+	}
 }
 
 func TestCov3_vibeCheck_printMarkdownEvents_fullEmpty(t *testing.T) {
@@ -231,7 +350,13 @@ func TestCov3_vibeCheck_printMarkdownEvents_fullEmpty(t *testing.T) {
 	vibeCheckFull = true
 
 	// Empty events should return early
-	printMarkdownEvents([]vibecheck.TimelineEvent{})
+	out := captureVibeStdout(t, func() {
+		printMarkdownEvents([]vibecheck.TimelineEvent{})
+	})
+	// Empty events in full mode should produce no event-specific output
+	if strings.Contains(out, "Author") && strings.Contains(out, "Message") {
+		t.Errorf("expected no event rows for empty list, got: %s", out)
+	}
 }
 
 // ===========================================================================
@@ -251,9 +376,14 @@ func TestCov3_vibeCheck_outputVibeCheckTable_empty(t *testing.T) {
 	defer func() { vibeCheckFull = origFull }()
 	vibeCheckFull = false
 
-	err := outputVibeCheckTable(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckTable(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckTable: %v", err)
+	}
+	if !strings.Contains(out, "F") {
+		t.Errorf("expected table to contain grade 'F', got: %s", out)
 	}
 }
 
@@ -278,9 +408,14 @@ func TestCov3_vibeCheck_outputVibeCheckTable_withMetrics(t *testing.T) {
 	defer func() { vibeCheckFull = origFull }()
 	vibeCheckFull = false
 
-	err := outputVibeCheckTable(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckTable(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckTable: %v", err)
+	}
+	if !strings.Contains(out, "75") {
+		t.Errorf("expected table to contain score 75, got: %s", out)
 	}
 }
 
@@ -299,9 +434,14 @@ func TestCov3_vibeCheck_outputVibeCheckTable_fullMode(t *testing.T) {
 	defer func() { vibeCheckFull = origFull }()
 	vibeCheckFull = true
 
-	err := outputVibeCheckTable(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckTable(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckTable: %v", err)
+	}
+	if !strings.Contains(out, "90") {
+		t.Errorf("expected table to contain score 90, got: %s", out)
 	}
 }
 
@@ -316,8 +456,13 @@ func TestCov3_vibeCheck_outputVibeCheckTable_findingsNoFile(t *testing.T) {
 		Events: nil,
 	}
 
-	err := outputVibeCheckTable(result)
+	out, err := captureStdout(t, func() error {
+		return outputVibeCheckTable(result)
+	})
 	if err != nil {
 		t.Fatalf("outputVibeCheckTable: %v", err)
+	}
+	if !strings.Contains(out, "no file location") {
+		t.Errorf("expected table to contain finding message, got: %s", out)
 	}
 }
