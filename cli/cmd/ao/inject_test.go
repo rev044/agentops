@@ -1097,3 +1097,53 @@ context:
 		t.Errorf("%q is not a directory", expectedDir)
 	}
 }
+
+// TestInjectForFlag_CreatesAdhocContextDir verifies --for without RPI_RUN_ID creates adhoc context dir.
+func TestInjectForFlag_CreatesAdhocContextDir(t *testing.T) {
+	tmp := chdirTemp(t)
+	setupAgentsDir(t, tmp)
+
+	// Create a skill with context declaration
+	skillDir := filepath.Join(tmp, "skills", "ctx-adhoc")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	skillContent := `---
+name: ctx-adhoc
+description: test adhoc context dir
+skill_api_version: 1
+context:
+  window: fork
+---
+# Context Adhoc Test
+`
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure RPI_RUN_ID is NOT set
+	t.Setenv("RPI_RUN_ID", "")
+
+	_, err := executeCommand("inject", "--for=ctx-adhoc", "--no-cite")
+	if err != nil {
+		t.Fatalf("inject --for=ctx-adhoc without RPI_RUN_ID failed: %v", err)
+	}
+
+	// Verify an adhoc context dir was created under .agents/context/
+	contextBase := filepath.Join(tmp, ".agents", "context")
+	entries, readErr := os.ReadDir(contextBase)
+	if readErr != nil {
+		t.Fatalf("expected .agents/context/ to exist, got: %v", readErr)
+	}
+
+	found := false
+	for _, e := range entries {
+		if e.IsDir() && strings.HasPrefix(e.Name(), "adhoc-") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected adhoc-* directory under %q, found: %v", contextBase, entries)
+	}
+}

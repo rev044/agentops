@@ -9,8 +9,7 @@ import (
 
 // contextArtifactDir returns the path for context-scoped artifacts.
 // If runID is empty, generates an adhoc identifier from the current timestamp.
-// NOTE: Not yet wired into the --for codepath — artifact path wiring deferred to Phase 2.
-// These functions are available for orchestrators to call directly.
+// Called automatically when --for is used; uses RPI_RUN_ID if set.
 func contextArtifactDir(runID string) string {
 	if runID == "" {
 		runID = fmt.Sprintf("adhoc-%d", time.Now().Unix())
