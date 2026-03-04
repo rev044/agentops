@@ -28,8 +28,8 @@ This is a test learning for UAT.
 	if err != nil {
 		t.Fatalf("inject --for=research failed: %v\noutput: %s", err, out)
 	}
-	if strings.Contains(out, "HISTORY") {
-		t.Errorf("inject --for=research should exclude HISTORY section, got: %s", out)
+	if strings.Contains(out, "### Recent Sessions") {
+		t.Errorf("inject --for=research should exclude Sessions section, got: %s", out)
 	}
 }
 
@@ -61,9 +61,10 @@ func TestUATSmoke_HandoffDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handoff --dry-run failed: %v\noutput: %s", err, out)
 	}
-	// Dry-run should produce JSON-like output on stdout.
-	if !strings.Contains(out, "goal") && !strings.Contains(out, "type") {
-		t.Errorf("handoff --dry-run should produce structured output, got: %s", out)
+	// Dry-run should produce valid JSON on stdout.
+	var handoffResult map[string]any
+	if jsonErr := json.Unmarshal([]byte(strings.TrimSpace(out)), &handoffResult); jsonErr != nil {
+		t.Errorf("handoff --dry-run should produce valid JSON, got error: %v\noutput: %s", jsonErr, out)
 	}
 }
 

@@ -38,7 +38,7 @@ ao inject --no-cite
 # Global flags (--json, --dry-run) work across all subcommands
 ao defrag --dry-run --json
 ao mine --quiet --sources git
-ao inject --format json --no-cite
+ao inject --json --no-cite
 ```
 
 ## Worker Prompt Template

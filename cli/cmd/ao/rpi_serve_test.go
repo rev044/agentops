@@ -542,8 +542,9 @@ func TestServeRPIEvents_InitialFlush(t *testing.T) {
 		close(done)
 	}()
 
-	// Wait for one poll cycle so the initial flush has been written.
-	time.Sleep(800 * time.Millisecond)
+	// The initial flush fires synchronously before the ticker loop.
+	// Sleep briefly to let the goroutine start and write the comment.
+	time.Sleep(200 * time.Millisecond)
 	cancel()
 
 	select {

@@ -650,19 +650,13 @@ func TestCountAlternations(t *testing.T) {
 
 func TestDefrag_NoFlags_DefaultsAll(t *testing.T) {
 	// When no mode flags are set, runDefrag should enable all three modes.
-	dir := t.TempDir()
+	dir := chdirTemp(t)
 
 	// Seed minimal .agents/ structure so defrag has something to scan.
 	agentsDir := filepath.Join(dir, ".agents", "learnings")
 	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(origDir)
 
 	// Reset flags to simulate bare "ao defrag" (no mode flags).
 	defragPrune = false

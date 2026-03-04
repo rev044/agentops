@@ -324,7 +324,9 @@ func serveRPIEvents(w http.ResponseWriter, r *http.Request, root, defaultRunID s
 	setCORSHeaders(w, r)
 
 	// Immediately flush headers so clients know the SSE connection is established.
-	fmt.Fprintf(w, ": connected\n\n") // nosemgrep: go.lang.security.audit.xss.no-fprintf-to-responsewriter.no-fprintf-to-responsewriter -- SSE comment to text/event-stream, not HTML; localhost-only
+	if _, err := fmt.Fprintf(w, ": connected\n\n"); err != nil { // nosemgrep: go.lang.security.audit.xss.no-fprintf-to-responsewriter.no-fprintf-to-responsewriter -- SSE comment to text/event-stream, not HTML; localhost-only
+		return
+	}
 	flusher.Flush()
 
 	seen := 0
