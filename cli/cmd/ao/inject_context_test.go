@@ -375,6 +375,46 @@ func TestResolveSkillPath_LocalSkill(t *testing.T) {
 	}
 }
 
+func TestResolveSkillPath_InstalledSkill(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpDir, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create empty local skills dir (no local match)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "skills"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create installed skill at fake HOME
+	fakeHome := filepath.Join(tmpDir, "fakehome")
+	installedDir := filepath.Join(fakeHome, ".claude", "skills", "myskill")
+	if err := os.MkdirAll(installedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	installedFile := filepath.Join(installedDir, "SKILL.md")
+	if err := os.WriteFile(installedFile, []byte("# installed"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", fakeHome)
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	path, err := resolveSkillPath("myskill")
+	if err != nil {
+		t.Fatalf("resolveSkillPath() error = %v", err)
+	}
+	if path != installedFile {
+		t.Errorf("resolveSkillPath() = %q, want %q", path, installedFile)
+	}
+}
+
 func TestResolveSkillPath_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -390,6 +430,110 @@ func TestResolveSkillPath_NotFound(t *testing.T) {
 	}
 	if !contains(err.Error(), "not found") {
 		t.Errorf("error = %q, want to contain %q", err.Error(), "not found")
+	}
+}
+
+func TestApplyContextFilter_IncludeINTELOnly(t *testing.T) {
+	pred := &predecessorContext{WorkingOn: "test task"}
+	knowledge := &injectedKnowledge{
+		Sessions:    []session{{Date: "2026-03-01", Summary: "test"}},
+		Learnings:   []learning{{ID: "l1", Title: "test learning"}},
+		Patterns:    []pattern{{Name: "p1", Description: "test pattern"}},
+		BeadID:      "ag-test",
+		Predecessor: pred,
+		Timestamp:   time.Now(),
+	}
+
+	decl := &ContextDeclaration{
+		Window:   "fork",
+		Sections: &SectionFilter{Include: []string{"INTEL"}},
+	}
+
+	result := applyContextFilter(knowledge, decl)
+	// INTEL preserved
+	if len(result.Learnings) != 1 {
+		t.Errorf("Learnings count = %d, want 1 (INTEL should be preserved)", len(result.Learnings))
+	}
+	if len(result.Patterns) != 1 {
+		t.Errorf("Patterns count = %d, want 1 (INTEL should be preserved)", len(result.Patterns))
+	}
+	// HISTORY zeroed
+	if result.Sessions != nil {
+		t.Errorf("Sessions = %v, want nil (HISTORY not in include list)", result.Sessions)
+	}
+	// TASK zeroed
+	if result.BeadID != "" {
+		t.Errorf("BeadID = %q, want empty (TASK not in include list)", result.BeadID)
+	}
+	if result.Predecessor != nil {
+		t.Errorf("Predecessor = %v, want nil (TASK not in include list)", result.Predecessor)
+	}
+}
+
+func TestApplyContextFilter_IncludeHISTORY(t *testing.T) {
+	knowledge := &injectedKnowledge{
+		Sessions:  []session{{Date: "2026-03-01", Summary: "test"}},
+		Learnings: []learning{{ID: "l1", Title: "test learning"}},
+		Patterns:  []pattern{{Name: "p1", Description: "test pattern"}},
+		BeadID:    "ag-test",
+		Timestamp: time.Now(),
+	}
+
+	decl := &ContextDeclaration{
+		Window:   "inherit",
+		Sections: &SectionFilter{Include: []string{"HISTORY"}},
+	}
+
+	result := applyContextFilter(knowledge, decl)
+	// HISTORY preserved
+	if len(result.Sessions) != 1 {
+		t.Errorf("Sessions count = %d, want 1 (HISTORY should be preserved)", len(result.Sessions))
+	}
+	// INTEL zeroed
+	if result.Learnings != nil {
+		t.Errorf("Learnings = %v, want nil (INTEL not in include list)", result.Learnings)
+	}
+	if result.Patterns != nil {
+		t.Errorf("Patterns = %v, want nil (INTEL not in include list)", result.Patterns)
+	}
+	// TASK zeroed
+	if result.BeadID != "" {
+		t.Errorf("BeadID = %q, want empty (TASK not in include list)", result.BeadID)
+	}
+}
+
+func TestApplyContextFilter_IncludePrecedenceOverExclude(t *testing.T) {
+	knowledge := &injectedKnowledge{
+		Sessions:  []session{{Date: "2026-03-01", Summary: "test"}},
+		Learnings: []learning{{ID: "l1", Title: "test learning"}},
+		Patterns:  []pattern{{Name: "p1", Description: "test pattern"}},
+		BeadID:    "ag-test",
+		Timestamp: time.Now(),
+	}
+
+	// Both include and exclude specified — include should win
+	decl := &ContextDeclaration{
+		Window: "fork",
+		Sections: &SectionFilter{
+			Include: []string{"INTEL"},
+			Exclude: []string{"INTEL"}, // contradicts include — include wins
+		},
+	}
+
+	result := applyContextFilter(knowledge, decl)
+	// Include takes precedence: INTEL is allowed, so it stays
+	if len(result.Learnings) != 1 {
+		t.Errorf("Learnings count = %d, want 1 (include takes precedence over exclude)", len(result.Learnings))
+	}
+	if len(result.Patterns) != 1 {
+		t.Errorf("Patterns count = %d, want 1 (include takes precedence over exclude)", len(result.Patterns))
+	}
+	// HISTORY and TASK zeroed (not in include list)
+	if result.Sessions != nil {
+		t.Errorf("Sessions = %v, want nil (HISTORY not in include list)", result.Sessions)
+	}
+	if result.BeadID != "" {
+		t.Errorf("BeadID = %q, want empty (TASK not in include list)", result.BeadID)
 	}
 }
 

@@ -209,6 +209,16 @@ func runInject(cmd *cobra.Command, args []string) error {
 		if decl != nil {
 			knowledge = applyContextFilter(knowledge, decl)
 		}
+
+		// Create context artifact directory for skill-scoped runs
+		if runID := os.Getenv("RPI_RUN_ID"); runID != "" {
+			ctxDir, ctxErr := ensureContextDir(cwd, runID)
+			if ctxErr != nil {
+				fmt.Fprintf(os.Stderr, "WARN: context dir: %v\n", ctxErr)
+			} else {
+				VerbosePrintf("context-dir: %s\n", ctxDir)
+			}
+		}
 	}
 
 	var output string

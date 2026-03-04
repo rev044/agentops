@@ -179,20 +179,43 @@ func applyContextFilter(knowledge *injectedKnowledge, decl *ContextDeclaration) 
 		return knowledge
 	}
 
-	// Apply section excludes
+	// Apply section filters
 	if decl.Sections != nil {
-		// sections.include is parsed but not yet enforced (v1: declaration-only).
-		// A future version will use include as an allowlist, zeroing all sections not in the list.
-		for _, section := range decl.Sections.Exclude {
-			switch section {
-			case "HISTORY":
+		// Section→Field mapping:
+		//   HISTORY → Sessions
+		//   INTEL   → Learnings, Patterns
+		//   TASK    → BeadID, Predecessor
+		if len(decl.Sections.Include) > 0 {
+			// Allowlist mode: zero sections NOT in the include list.
+			// Include takes precedence over exclude when both are specified.
+			allowed := make(map[string]bool, len(decl.Sections.Include))
+			for _, s := range decl.Sections.Include {
+				allowed[s] = true
+			}
+			if !allowed["HISTORY"] {
 				knowledge.Sessions = nil
-			case "INTEL":
+			}
+			if !allowed["INTEL"] {
 				knowledge.Learnings = nil
 				knowledge.Patterns = nil
-			case "TASK":
+			}
+			if !allowed["TASK"] {
 				knowledge.BeadID = ""
 				knowledge.Predecessor = nil
+			}
+		} else {
+			// Exclude mode: zero sections in the exclude list.
+			for _, section := range decl.Sections.Exclude {
+				switch section {
+				case "HISTORY":
+					knowledge.Sessions = nil
+				case "INTEL":
+					knowledge.Learnings = nil
+					knowledge.Patterns = nil
+				case "TASK":
+					knowledge.BeadID = ""
+					knowledge.Predecessor = nil
+				}
 			}
 		}
 	}

@@ -1055,3 +1055,45 @@ Does things.
 		t.Errorf("expected standard inject output, got:\n%s", out)
 	}
 }
+
+// TestInjectForFlag_CreatesContextDir verifies --for + RPI_RUN_ID creates context artifact directory.
+func TestInjectForFlag_CreatesContextDir(t *testing.T) {
+	tmp := chdirTemp(t)
+	setupAgentsDir(t, tmp)
+
+	// Create a skill with context declaration
+	skillDir := filepath.Join(tmp, "skills", "ctx-test")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	skillContent := `---
+name: ctx-test
+description: test context dir
+skill_api_version: 1
+context:
+  window: fork
+---
+# Context Test
+`
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set RPI_RUN_ID to trigger context dir creation
+	t.Setenv("RPI_RUN_ID", "test-run-abc")
+
+	_, err := executeCommand("inject", "--for=ctx-test", "--no-cite")
+	if err != nil {
+		t.Fatalf("inject --for=ctx-test with RPI_RUN_ID failed: %v", err)
+	}
+
+	// Verify context dir was created
+	expectedDir := filepath.Join(tmp, ".agents", "context", "test-run-abc")
+	info, statErr := os.Stat(expectedDir)
+	if statErr != nil {
+		t.Fatalf("expected context dir %q to exist, got: %v", expectedDir, statErr)
+	}
+	if !info.IsDir() {
+		t.Errorf("%q is not a directory", expectedDir)
+	}
+}
