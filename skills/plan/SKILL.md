@@ -199,6 +199,22 @@ Add a `## Verification` section with runnable bash sequences that reproduce the 
 
 **Why this matters:** The golden plan pattern (file tables + symbol-level specs + verification procedures) enabled single-pass implementation of an 8-file, 5-area change with zero ambiguity. Category-level specs ("modify classifyRunStatus") force implementers to rediscover symbols, causing divergence and rework.
 
+#### Data Transformation Mapping Tables (Mandatory for Filtering)
+
+When a plan declares any struct-level filtering, exclusion, or allowlist logic:
+- Create an explicit mapping table showing **source field → output transformation**
+- Format: source name → fields affected → transformation (zeroed, renamed, computed)
+
+Example from context orchestration (na-0v2):
+
+| Section Name | Fields Zeroed |
+|---|---|
+| `HISTORY` | `Sessions` |
+| `INTEL` | `Learnings`, `Patterns` |
+| `TASK` | `BeadID`, `Predecessor` |
+
+**Why:** Without explicit mapping tables, workers misinterpret data transformations. In na-0v2, section→field mapping ambiguity was caught only in pre-mortem. An explicit table prevents the concern entirely.
+
 ### Step 4: Decompose into Issues
 
 Analyze the goal and break it into discrete, implementable issues. For each issue define:

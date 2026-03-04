@@ -1,21 +1,11 @@
 #!/usr/bin/env bash
-# AgentOps Session Start Hook (minimal flywheel)
-# Creates .agents/ directories, optionally runs extract+inject, injects skill context.
-#
-# Startup modes (AGENTOPS_STARTUP_CONTEXT_MODE):
-#   manual  (default) — MEMORY.md auto-loaded by Claude Code; emit pointer only, no extract/inject
-#   lean    — extract + lean inject (shrinks when MEMORY.md is fresh)
-#   legacy  — extract + full inject (pre-notebook behavior)
-#
-# Rollback: AGENTOPS_STARTUP_LEGACY_INJECT=1 forces lean mode (backward compat)
+# AgentOps Session Start Hook (manual mode)
+# Creates .agents/ directories, consumes handoffs, injects skill context.
+# MEMORY.md is auto-loaded by Claude Code — no extract/inject needed.
 
 # Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_SESSION_START_DISABLED:-}" = "1" ] && exit 0
-
-STARTUP_MODE="${AGENTOPS_STARTUP_CONTEXT_MODE:-lean}"
-# Legacy rollback: override to lean if explicitly requested
-[ "${AGENTOPS_STARTUP_LEGACY_INJECT:-}" = "1" ] && STARTUP_MODE="lean"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -28,18 +18,6 @@ HOOK_ERROR_LOG="$AO_DIR/hook-errors.log"
 log_hook_fail() {
     mkdir -p "$AO_DIR" 2>/dev/null || return 0
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: $1" >> "$HOOK_ERROR_LOG" 2>/dev/null || true
-}
-
-AO_TIMEOUT_BIN="timeout"
-command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1 || AO_TIMEOUT_BIN="gtimeout"
-
-run_ao_quick() {
-    local seconds="$1"; shift
-    if command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1; then
-        "$AO_TIMEOUT_BIN" "$seconds" ao "$@" 2>/dev/null
-        return $?
-    fi
-    ao "$@" 2>/dev/null
 }
 
 cd "$ROOT" 2>/dev/null || true
@@ -75,11 +53,10 @@ if [ ! -f "$ROOT/.agents/.gitignore" ]; then
 EOF
 fi
 
-# Flywheel behavior depends on startup mode
+# Flywheel behavior
 INJECTED_KNOWLEDGE=""
-NOTEBOOK_LEAN_MODE=0
 
-# Derive MEMORY.md path once (used for stale nudge in all modes)
+# Derive MEMORY.md path once (used for stale nudge)
 MEMORY_DIR="$HOME/.claude/projects"
 PROJECT_PATH=$(printf '%s' "$ROOT" | tr '/' '-')
 MEMORY_FILE="$MEMORY_DIR/$PROJECT_PATH/memory/MEMORY.md"
@@ -126,78 +103,23 @@ if [ -d "$ROOT/.agents/handoff" ] && command -v jq &>/dev/null; then
     fi
 fi
 
-# Predecessor handoff discovery (used in all modes)
+# Predecessor handoff discovery
 PREDECESSOR_FILE="${GT_PREDECESSOR_HANDOFF:-}"
 if [ -z "$PREDECESSOR_FILE" ] && [ -d "$ROOT/.agents/handoff" ]; then
     PREDECESSOR_FILE=$(ls -t "$ROOT/.agents/handoff/"*.md 2>/dev/null | head -1)
 fi
 
-if [ "$STARTUP_MODE" = "manual" ]; then
-    # Manual mode (default): MEMORY.md is auto-loaded by Claude Code.
-    # No extract/inject — emit pointer-only context for JIT retrieval.
-    MANUAL_CTX="MEMORY.md is auto-loaded by Claude Code for this project.
+# Build injection context (manual mode — MEMORY.md auto-loaded by Claude Code)
+INJECTED_KNOWLEDGE="MEMORY.md is auto-loaded by Claude Code for this project.
 For on-demand retrieval: \`ao search \"<query>\"\` or \`ao lookup --query \"<query>\"\`"
-    if [ -n "$HANDOFF_CONTEXT" ]; then
-        MANUAL_CTX="${MANUAL_CTX}
+if [ -n "$HANDOFF_CONTEXT" ]; then
+    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
 
 ${HANDOFF_CONTEXT}"
-    fi
-    if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
-        MANUAL_CTX="${MANUAL_CTX}
+fi
+if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
+    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
 Predecessor handoff: ${PREDECESSOR_FILE}"
-    fi
-    INJECTED_KNOWLEDGE="$MANUAL_CTX"
-
-elif command -v ao &>/dev/null; then
-    # Lean/legacy mode: extract pending queue + inject prior knowledge
-    INJECT_EXTRA_FLAGS=()
-    if [ -n "${HOOK_BEAD:-}" ]; then
-        INJECT_EXTRA_FLAGS+=(--bead "$HOOK_BEAD")
-        run_ao_quick 5 forge transcript --last-session --quiet --bead "$HOOK_BEAD" || log_hook_fail "ao forge transcript --last-session --quiet --bead"
-    else
-        run_ao_quick 5 forge transcript --last-session --quiet || log_hook_fail "ao forge transcript --last-session --quiet"
-    fi
-
-    if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
-        INJECT_EXTRA_FLAGS+=(--predecessor "$PREDECESSOR_FILE")
-    fi
-
-    # Notebook-aware lean injection (skip in legacy mode)
-    if [ "$STARTUP_MODE" != "legacy" ] && [ -f "$MEMORY_FILE" ] && [ "$MEMORY_AGE_DAYS" -ge 0 ] && [ "$MEMORY_AGE_DAYS" -le 7 ]; then
-        NOTEBOOK_LEAN_MODE=1
-    fi
-
-    INJECT_MODE_FLAGS=(--apply-decay --format markdown)
-    if [ "$NOTEBOOK_LEAN_MODE" = "1" ]; then
-        INJECT_MODE_FLAGS+=(--max-tokens 400)
-    elif [ "${AGENTOPS_INDEX_INJECT:-0}" = "1" ]; then
-        INJECT_MODE_FLAGS+=(--index-only --max-tokens 400)
-    else
-        INJECT_MODE_FLAGS+=(--max-tokens 800)
-    fi
-
-    # Use bead title as query for relevance-scoped injection
-    if [ -n "${HOOK_BEAD:-}" ] && command -v bd &>/dev/null; then
-        BEAD_TITLE=$("$AO_TIMEOUT_BIN" 3 bd show "$HOOK_BEAD" --json 2>/dev/null | jq -r '.title // empty' 2>/dev/null || true)
-        if [ -n "$BEAD_TITLE" ]; then
-            INJECT_EXTRA_FLAGS+=("$BEAD_TITLE")
-        fi
-    fi
-
-    if ! INJECTED_KNOWLEDGE="$(run_ao_quick 5 inject "${INJECT_MODE_FLAGS[@]}" "${INJECT_EXTRA_FLAGS[@]}")"; then
-        log_hook_fail "ao inject"
-        INJECTED_KNOWLEDGE=""
-    fi
-    # Prepend structured handoff context (higher priority than injected knowledge)
-    if [ -n "$HANDOFF_CONTEXT" ]; then
-        if [ -n "$INJECTED_KNOWLEDGE" ]; then
-            INJECTED_KNOWLEDGE="${HANDOFF_CONTEXT}
-
-${INJECTED_KNOWLEDGE}"
-        else
-            INJECTED_KNOWLEDGE="$HANDOFF_CONTEXT"
-        fi
-    fi
 fi
 
 # Keep startup context lean: inject only fresh flywheel knowledge and a short skill pointer.
@@ -208,12 +130,8 @@ else
     using_agentops_hint="(AgentOps skill content unavailable at ${SKILL_FILE})"
 fi
 
-# Notebook lean mode: MEMORY.md auto-loaded → shrink injection budget
-if [ "${NOTEBOOK_LEAN_MODE:-0}" = "1" ]; then
-    MAX_INJECT_CHARS=1500
-else
-    MAX_INJECT_CHARS=4000
-fi
+# Truncation (static cap — no notebook mode logic needed)
+MAX_INJECT_CHARS=4000
 if [ -n "$INJECTED_KNOWLEDGE" ] && [ "${#INJECTED_KNOWLEDGE}" -gt "$MAX_INJECT_CHARS" ]; then
     # Truncate at last newline within budget (never mid-line)
     trimmed="${INJECTED_KNOWLEDGE:0:$MAX_INJECT_CHARS}"

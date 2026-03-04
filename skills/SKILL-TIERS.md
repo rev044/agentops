@@ -10,7 +10,7 @@ Skills fall into three functional categories, plus infrastructure tiers for inte
 |------|----------|-------------|----------|
 | **judgment** | Judgment | Validation, review, and quality gates — council is the foundation | council, vibe, pre-mortem, post-mortem |
 | **execution** | Execution | Research, plan, build, ship — the work itself | research, plan, implement, crank, swarm, rpi |
-| **knowledge** | Knowledge | The flywheel — extract, store, query, inject learnings | retro, flywheel, forge |
+| **knowledge** | Knowledge | The flywheel — extract, store, query, inject learnings | retro (quick-capture), flywheel, forge |
 | **product** | Execution | Define mission, goals, release, docs | product, goals, release, readme, doc |
 | **session** | Execution | Session continuity and status | handoff, recover, status |
 | **utility** | Execution | Standalone tools | quickstart, brainstorm, bug-hunt, complexity |
@@ -36,13 +36,13 @@ Council is the core primitive. Every validation skill depends on it. Remove coun
         ▼                     ▼                     ▼
   ┌────────────┐        ┌─────────┐         ┌─────────────┐
   │ pre-mortem │        │  vibe   │         │ post-mortem │
-  │ (plans)    │        │ (code)  │         │ (wrap up)   │
-  └────────────┘        └────┬────┘         └──────┬──────┘
-                             │                     │
-                             ▼                     ▼
-                       ┌────────────┐         ┌─────────┐
-                       │ complexity │         │  retro  │
-                       └────────────┘         └─────────┘
+  │ (plans)    │        │ (code)  │         │ (full retro │
+  └────────────┘        └────┬────┘         │ + knowledge)│
+                             │              └─────────────┘
+                             ▼
+                       ┌────────────┐
+                       │ complexity │
+                       └────────────┘
 ```
 
 ### Execution — the work
@@ -79,7 +79,7 @@ POST-SHIP                             ONBOARDING / STATUS
 ┌─────────────┐                       ┌────────────┐
 │ post-mortem │                       │ quickstart │ (first-time tour)
 │ (council +  │                       └────────────┘
-│   retro)    │                       ┌────────────┐
+│ knowledge)  │                       ┌────────────┐
 └──────┬──────┘                       │   status   │ (dashboard)
        │                              └────────────┘
        ▼
@@ -101,7 +101,7 @@ Append-only ledger in `.agents/`. Every session writes. Freshness decay prunes. 
      └──────────────│ flywheel │◄──────────────────────┘
                     └──────────┘
 
-User-facing: /knowledge, /learn, /retro, /flywheel
+User-facing: /knowledge, /retro (quick-capture), /post-mortem (full), /flywheel
 Background:  inject, extract, forge, provenance, ratchet
 CLI:         ao inject, ao extract, ao forge, ao maturity
 ```
@@ -135,8 +135,8 @@ What are you trying to do?
 │
 ├─ "Learn from past work"
 │   ├─ What do we know about X? ──► /knowledge <query>
-│   ├─ Save this insight ─────────► /learn "insight"
-│   ├─ Run a retrospective ───────► /retro
+│   ├─ Save this insight ─────────► /retro --quick "insight"
+│   ├─ Full retrospective ────────► /post-mortem
 │   └─ Trace a decision ─────────► /trace <concept>
 │
 ├─ "Contribute upstream"
@@ -191,7 +191,7 @@ These are how skills chain in practice:
 | **council** | judgment | Multi-model validation (core primitive) — independent judges debate and converge |
 | **vibe** | judgment | Complexity analysis + council — code quality review |
 | **pre-mortem** | judgment | Council on plans — simulate failures before implementation |
-| **post-mortem** | judgment | Council + retro — validate completed work, extract learnings |
+| **post-mortem** | judgment | Council + knowledge lifecycle — validate completed work, extract/activate/retire learnings |
 
 **Execution:**
 
@@ -215,7 +215,7 @@ These are how skills chain in practice:
 | Skill | Tier | Description |
 |-------|------|-------------|
 | **athena** | advanced | Active knowledge intelligence — Mine → Grow → Defrag cycle |
-| **retro** | knowledge | Extract learnings from completed work (includes --quick for single captures) |
+| **retro** | knowledge | Quick-capture wrapper (full retro → /post-mortem) |
 | **trace** | knowledge | Trace design decisions through history |
 
 **Product & Release:**
@@ -290,7 +290,7 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 | **council** | - | - (core primitive) |
 | **vibe** | council, complexity, standards | required, optional (graceful skip), optional |
 | **pre-mortem** | council | required |
-| **post-mortem** | council, retro, beads | required, optional (graceful skip), optional |
+| **post-mortem** | council, beads | required, optional |
 | beads | - | - |
 | bug-hunt | beads | optional |
 | complexity | - | - |
@@ -299,7 +299,7 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 | doc | standards | required |
 | flywheel | - | - |
 | forge | - | - |
-| handoff | retro | optional |
+| handoff | - | - |
 | **implement** | beads, standards | optional, required |
 | inject | - | - |
 | **openai-docs** | - | - (standalone) |

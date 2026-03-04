@@ -47,8 +47,8 @@ What are you trying to do?
 │
 ├─ "Learn from past work"
 │   ├─ What do we know about X? ──► /knowledge <query>
-│   ├─ Save this insight ─────────► /learn "insight"
-│   └─ Run a retrospective ───────► /retro
+│   ├─ Save this insight ─────────► /retro --quick "insight"
+│   └─ Full retrospective ────────► /post-mortem
 │
 ├─ "Parallelize work"
 │   ├─ Multiple independent tasks ► /swarm
@@ -140,23 +140,26 @@ Comprehensive code validation across 8 aspects.
 
 ### /retro
 
-Extract learnings from completed work.
+Quick-capture a learning. For full retrospectives, use `/post-mortem`.
 
 ```bash
-/retro "debugging memory leak"
+/retro --quick "debugging memory leak"
 ```
 
-**Output:** `.agents/retros/` and `.agents/learnings/`
+**Output:** `.agents/learnings/`
 
 ### /post-mortem
 
-Full validation + knowledge extraction. Council validates, retro extracts learnings, then synthesizes process improvement proposals and suggests the next `/rpi` command. The flywheel exit point.
+Full validation + knowledge lifecycle. Council validates, extracts learnings, activates/retires knowledge, then synthesizes process improvement proposals and suggests the next `/rpi` command. The flywheel exit point. Supports `--quick`, `--process-only`, and `--skip-activate` flags.
 
 ```bash
 /post-mortem <epic-id>
+/post-mortem --quick            # Lightweight post-mortem
+/post-mortem --process-only     # Process improvements only
+/post-mortem --skip-activate    # Skip knowledge activation
 ```
 
-**Output:** Council report, retro, learnings, process improvement proposals, next-work queue (`.agents/rpi/next-work.jsonl`)
+**Output:** Council report, learnings, knowledge activation/retirement, process improvement proposals, next-work queue (`.agents/rpi/next-work.jsonl`)
 
 ---
 

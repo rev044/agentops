@@ -195,13 +195,13 @@ Each phase is a context boundary. The output of one phase is compressed and scop
 | **Research** | `/research`, `/knowledge` | `.agents/research/` |
 | **Plan** | `/pre-mortem`, `/plan` | Beads issues |
 | **Implement** | `/implement`, `/crank` | Code, tests |
-| **Validate** | `/vibe`, `/retro`, `/post-mortem` | `.agents/learnings/`, `.agents/patterns/` |
+| **Validate** | `/vibe`, `/post-mortem` (primary: council + extraction + backlog + activation + retirement), `/retro` (quick-capture) | `.agents/learnings/`, `.agents/patterns/` |
 
 Every `/post-mortem` feeds back into the next `/rpi` cycle:
 
 1. Council validates the implementation
-2. `/retro` extracts learnings → `.agents/learnings/`
-3. Process improvement proposals synthesized from retro findings
+2. Knowledge extraction → `.agents/learnings/` (activation + retirement)
+3. Process improvement proposals synthesized from findings
 4. Next-work items harvested → `.agents/rpi/next-work.jsonl`
    - Each item includes a `target_repo` field: repo name (string) for repo-scoped work, `"*"` for cross-repo items, or omitted for legacy backward compatibility
    - Consumers filter items by matching `target_repo` against the current repo
@@ -334,7 +334,7 @@ All hooks can be disabled: `AGENTOPS_HOOKS_DISABLED=1` (kill switch) or per-hook
 │   ├── plan/            # solo — Decompose epics into issues
 │   ├── vibe/            # solo — Code validation (complexity + council)
 │   ├── pre-mortem/      # solo — Council on plans
-│   ├── post-mortem/     # solo — Council + retro (wrap up work)
+│   ├── post-mortem/     # solo — Council + knowledge lifecycle (wrap up work)
 │   ├── shared/          # library — Shared reference docs
 │   └── ...              # 39 more skills
 ├── hooks/               # 12 hook scripts (lifecycle enforcement)

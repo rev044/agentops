@@ -4,8 +4,7 @@ description: 'Create structured handoff for session continuation. Triggers: hand
 skill_api_version: 1
 metadata:
   tier: session
-  dependencies:
-    - retro  # optional - suggested for learnings extraction
+  dependencies: []
 ---
 
 # Handoff Skill
@@ -202,15 +201,15 @@ Copy/paste this to start the next session:
 
 ### Step 8: Extract Learnings (Optional)
 
-If significant learnings occurred this session, also run retro:
+If significant learnings occurred this session, also run post-mortem:
 
 ```bash
-# Check if retro skill should be invoked
+# Check if post-mortem skill should be invoked
 # (if >3 commits or major decisions made)
 git log --oneline --since="2 hours ago" 2>/dev/null | wc -l
 ```
 
-**If ≥3 commits:** Suggest running `/retro` to extract learnings.
+**If ≥3 commits:** Suggest running `/post-mortem --quick` to extract learnings.
 **If <3 commits:** Handoff alone is sufficient; learnings are likely minimal.
 
 ### Step 9: Report to User
@@ -220,7 +219,7 @@ Tell the user:
 2. Continuation prompt location
 3. Summary of what was captured
 4. Suggestion: Copy the continuation prompt for next session
-5. If learnings detected, suggest `/retro`
+5. If learnings detected, suggest `/post-mortem --quick`
 
 **Output completion marker:**
 ```
@@ -258,15 +257,15 @@ To continue: Copy the prompt from auth-refactor-prompt.md
 - **Write the continuation prompt** - make resumption effortless
 - **Cite everything** - file:line for all references
 
-## Integration with /retro
+## Integration with /post-mortem
 
 Handoff captures *state* for continuation.
-Retro captures *learnings* for the flywheel.
+Post-mortem captures *learnings* for the flywheel (full knowledge lifecycle).
 
 For a clean session end:
 ```bash
-/handoff  # Capture state for continuation
-/retro    # Extract learnings for future
+/handoff              # Capture state for continuation
+/post-mortem --quick  # Extract learnings for future
 ```
 
 Both should be run when ending a productive session.
@@ -294,9 +293,9 @@ If ao CLI not available:
 4. Agent lists key files: auth.go, token.go, research doc, plan doc
 5. Agent writes handoff document with accomplishments and pause state
 6. Agent writes continuation prompt with clear next action
-7. Agent checks commits (5) and suggests running `/retro` to extract learnings
+7. Agent checks commits (5) and suggests running `/post-mortem --quick` to extract learnings
 
-**Result:** Handoff captures state, continuation prompt ready, retro suggested.
+**Result:** Handoff captures state, continuation prompt ready, post-mortem suggested.
 
 ### Between Tasks, Clean State
 
@@ -308,7 +307,7 @@ If ao CLI not available:
 3. Agent lists files from #40 (middleware.go, config.go)
 4. Agent writes handoff with accomplishment summary and next-task preview
 5. Agent writes continuation prompt with `/implement #41` suggestion
-6. Agent skips retro suggestion (<3 commits)
+6. Agent skips post-mortem suggestion (<3 commits)
 
 **Result:** Handoff captures clean boundary, continuation is simple.
 
@@ -334,11 +333,11 @@ If ao CLI not available:
 | Handoff files not written | `.agents/handoff/` directory does not exist or not writable | Run `mkdir -p .agents/handoff` or check directory permissions |
 | Topic slug is generic "session-1430" | No descriptive commits or issues to derive topic from | Provide explicit topic: `/handoff auth-refactor` for better naming |
 | Continuation prompt missing key context | Recent files or artifacts not listed in handoff | Manually add missing files to handoff document or re-run with explicit topic |
-| Retro suggested but no learnings | Agent sees ≥3 commits and auto-suggests `/retro` | Run `/retro` or skip if commits are trivial (agent can't judge learning quality, only commit count) |
+| Post-mortem suggested but no learnings | Agent sees ≥3 commits and auto-suggests `/post-mortem --quick` | Run `/post-mortem --quick` or skip if commits are trivial (agent can't judge learning quality, only commit count) |
 
 ---
 
 ## See Also
 
-- `skills/retro/SKILL.md` — Extract learnings for knowledge flywheel
-- `skills/post-mortem/SKILL.md` — Wrap-up with council review
+- `skills/post-mortem/SKILL.md` — Full validation + knowledge lifecycle (council + extraction + activation + retirement)
+- `skills/retro/SKILL.md` — Quick-capture a learning
