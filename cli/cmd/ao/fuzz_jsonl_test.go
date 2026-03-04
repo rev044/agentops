@@ -31,6 +31,40 @@ func FuzzParseLearningJSONL(f *testing.F) {
 	})
 }
 
+func TestFuzzParseLearningJSONL_SeedCorrectness(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		summary string
+		hasErr  bool
+	}{
+		{"valid learning", `{"summary":"test learning","confidence":0.8}`, "test learning", false},
+		{"with source", `{"summary":"has source","source_bead":"bd-123","source_phase":"research"}`, "has source", false},
+		{"empty json", `{}`, "", false},
+		{"not json", `not json at all`, "", false},
+		{"empty file", ``, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test.jsonl")
+			if err := os.WriteFile(path, []byte(tt.input), 0644); err != nil {
+				t.Fatal(err)
+			}
+			l, err := parseLearningJSONL(path)
+			if tt.hasErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.hasErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !tt.hasErr && tt.summary != "" && l.Summary != tt.summary {
+				t.Fatalf("expected summary=%q, got %q", tt.summary, l.Summary)
+			}
+		})
+	}
+}
+
 // FuzzParseJSONLFirstLine fuzzes the first-line JSONL parser used by feedback.
 func FuzzParseJSONLFirstLine(f *testing.F) {
 	// Seed corpus with realistic JSONL first lines
@@ -54,6 +88,47 @@ func FuzzParseJSONLFirstLine(f *testing.F) {
 	})
 }
 
+func TestFuzzParseJSONLFirstLine_SeedCorrectness(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		hasErr    bool
+		wantLines int // expected number of lines returned
+	}{
+		{"single valid line", `{"utility":0.5,"reward_count":3}`, false, 1},
+		{"two lines returns first", `{"utility":0.5}` + "\n" + `{"second":"line"}`, false, 2},
+		{"empty file", ``, true, 0},
+		{"empty json object", `{}`, false, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test.jsonl")
+			if err := os.WriteFile(path, []byte(tt.input), 0644); err != nil {
+				t.Fatal(err)
+			}
+			lines, parsed, err := parseJSONLFirstLine(path)
+			if tt.hasErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.hasErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !tt.hasErr {
+				if len(lines) == 0 {
+					t.Fatal("expected non-empty lines slice")
+				}
+				if parsed == nil {
+					t.Fatal("expected non-nil parsed map")
+				}
+				if tt.wantLines > 0 && len(lines) != tt.wantLines {
+					t.Fatalf("expected %d lines, got %d", tt.wantLines, len(lines))
+				}
+			}
+		})
+	}
+}
+
 // FuzzParseJSONLSessionSummary fuzzes the session summary JSONL parser.
 func FuzzParseJSONLSessionSummary(f *testing.F) {
 	// Seed corpus with realistic session formats
@@ -75,4 +150,38 @@ func FuzzParseJSONLSessionSummary(f *testing.F) {
 		// Must never panic — errors are acceptable
 		_, _ = parseJSONLSessionSummary(path)
 	})
+}
+
+func TestFuzzParseJSONLSessionSummary_SeedCorrectness(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		summary string
+		hasErr  bool
+	}{
+		{"valid summary", `{"summary":"Session about testing"}`, "Session about testing", false},
+		{"empty summary", `{"summary":""}`, "", false},
+		{"no summary field", `{"no_summary_field":true}`, "", false},
+		{"not json", `not json`, "", false},
+		{"empty file", ``, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test.jsonl")
+			if err := os.WriteFile(path, []byte(tt.input), 0644); err != nil {
+				t.Fatal(err)
+			}
+			summary, err := parseJSONLSessionSummary(path)
+			if tt.hasErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.hasErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !tt.hasErr && tt.summary != "" && summary != tt.summary {
+				t.Fatalf("expected summary=%q, got %q", tt.summary, summary)
+			}
+		})
+	}
 }

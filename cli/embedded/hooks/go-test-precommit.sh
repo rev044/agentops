@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# PreToolUse hook: run short Go tests before git commit.
-# Blocking (exit 2) if tests fail — prevents committing broken code.
+# PreToolUse hook: fast Go validation before git commit.
+#
+# Fast path (<5s): go vet + go build on every commit.
+# Targeted tests: only for cli/internal/ changes (skip cmd/ao — deferred to pre-push).
+#
+# Blocking (exit 2) if checks fail — prevents committing broken code.
 set -euo pipefail
 
-TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
-COMMAND="${CLAUDE_TOOL_INPUT_COMMAND:-}"
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || TOOL_NAME=""
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 
 # Only trigger on Bash tool
 [[ "$TOOL_NAME" == "Bash" ]] || exit 0
@@ -31,10 +36,44 @@ done
 
 GO_DIR="$(dirname "$GO_MOD")"
 
-echo "Running pre-commit Go tests..." >&2
-if ! (cd "$GO_DIR" && go test ./... -count=1 -short 2>&1 | tail -5) >&2; then
-  echo "BLOCKED: Go tests failed. Fix before committing." >&2
+# --- Fast gate: vet + build (<5s) ---
+echo "Pre-commit: go vet..." >&2
+if ! (cd "$GO_DIR" && go vet ./... 2>&1) >&2; then
+  echo "BLOCKED: go vet failed. Fix before committing." >&2
   exit 2
+fi
+
+echo "Pre-commit: go build..." >&2
+if ! (cd "$GO_DIR" && go build ./... 2>&1) >&2; then
+  echo "BLOCKED: go build failed. Fix before committing." >&2
+  exit 2
+fi
+
+# --- Targeted tests: only cli/internal/ packages ---
+STAGED_FILES="$(git diff --cached --name-only 2>/dev/null || true)"
+
+# Check for cmd/ao changes — defer to pre-push
+if printf '%s\n' "$STAGED_FILES" | grep -q 'cli/cmd/ao/'; then
+  echo "Pre-commit: cmd/ao changes detected — full test suite deferred to pre-push" >&2
+fi
+
+# Run tests only for changed cli/internal/ packages
+INTERNAL_CHANGED="$(printf '%s\n' "$STAGED_FILES" | grep '^cli/internal/' | grep '\.go$' || true)"
+if [[ -n "$INTERNAL_CHANGED" ]]; then
+  # Extract unique package directories relative to GO_DIR
+  PKGS="$(printf '%s\n' "$INTERNAL_CHANGED" \
+    | xargs -n1 dirname \
+    | sort -u \
+    | sed "s|^cli/|./|")"
+
+  if [[ -n "$PKGS" ]]; then
+    echo "Pre-commit: testing changed internal packages..." >&2
+    # shellcheck disable=SC2086
+    if ! (cd "$GO_DIR" && go test -count=1 -short $PKGS 2>&1 | tail -10) >&2; then
+      echo "BLOCKED: internal package tests failed. Fix before committing." >&2
+      exit 2
+    fi
+  fi
 fi
 
 exit 0

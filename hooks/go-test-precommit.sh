@@ -7,8 +7,9 @@
 # Blocking (exit 2) if checks fail — prevents committing broken code.
 set -euo pipefail
 
-TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
-COMMAND="${CLAUDE_TOOL_INPUT_COMMAND:-}"
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || TOOL_NAME=""
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || COMMAND=""
 
 # Only trigger on Bash tool
 [[ "$TOOL_NAME" == "Bash" ]] || exit 0

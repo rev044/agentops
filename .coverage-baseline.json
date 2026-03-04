@@ -14,5 +14,6 @@
   "internal/taxonomy": 100.0,
   "internal/types": 100.0,
   "internal/vibecheck": 100.0,
-  "internal/worker": 100.0
+  "internal/worker": 100.0,
+  "cmd/ao": 84.0
 }

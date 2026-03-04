@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -34,6 +35,43 @@ func FuzzParseContextFromFrontmatter(f *testing.F) {
 	})
 }
 
+func TestFuzzParseContext_SeedCorrectness(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  []byte
+		window string
+		hasErr bool
+	}{
+		{"string form fork", []byte("context: fork\n"), "fork", false},
+		{"string form isolated", []byte("context: isolated\n"), "isolated", false},
+		{"object form with intel_scope", []byte("context:\n  window: inherit\n  intel_scope: full\n"), "inherit", false},
+		{"empty input returns nil decl", []byte(""), "", false},
+		{"no context field returns nil decl", []byte("no_context_field: true\n"), "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decl, err := parseContextFromFrontmatter(tt.input)
+			if tt.hasErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.hasErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if err == nil && tt.window != "" {
+				if decl == nil {
+					t.Fatal("expected non-nil decl with window")
+				}
+				if decl.Window != tt.window {
+					t.Fatalf("expected window=%q, got %q", tt.window, decl.Window)
+				}
+			}
+			if err == nil && tt.window == "" && decl != nil && decl.Window != "" {
+				t.Fatalf("expected nil decl or empty window, got window=%q", decl.Window)
+			}
+		})
+	}
+}
+
 // FuzzExtractFrontmatter fuzzes the frontmatter extraction from markdown content.
 func FuzzExtractFrontmatter(f *testing.F) {
 	// Seed corpus with realistic markdown frontmatter
@@ -50,4 +88,34 @@ func FuzzExtractFrontmatter(f *testing.F) {
 		// Must never panic — errors are acceptable
 		_, _ = extractFrontmatter(data)
 	})
+}
+
+func TestFuzzExtractFrontmatter_SeedCorrectness(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		contains string
+		hasErr   bool
+	}{
+		{"valid frontmatter", "---\ncontext: fork\n---\n# Title\n", "context: fork", false},
+		{"empty frontmatter", "---\n---\n", "", false},
+		{"no frontmatter", "no frontmatter here", "", false},
+		{"empty string", "", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fm, err := extractFrontmatter(tt.input)
+			if tt.hasErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.hasErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.contains != "" && err == nil {
+				if !strings.Contains(fm, tt.contains) {
+					t.Fatalf("expected frontmatter containing %q, got %q", tt.contains, fm)
+				}
+			}
+		})
+	}
 }

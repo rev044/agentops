@@ -3,8 +3,9 @@
 # Non-blocking (exit 0) — logs warnings to stderr for visibility.
 set -euo pipefail
 
-TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
-FILE_PATH="${CLAUDE_TOOL_INPUT_FILE_PATH:-}"
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || TOOL_NAME=""
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""' 2>/dev/null) || FILE_PATH=""
 
 # Only trigger on Edit/Write
 case "$TOOL_NAME" in
