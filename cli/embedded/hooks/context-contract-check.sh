@@ -19,6 +19,9 @@ fi
 # Strip namespace prefix (e.g. "agentops:research" → "research")
 SKILL_NAME="${SKILL_NAME##*:}"
 
+# Reject skill names with path traversal characters
+[[ "$SKILL_NAME" =~ [./\\] ]] && exit 0
+
 # Resolve SKILL.md path
 SKILL_DIR=""
 for candidate in \

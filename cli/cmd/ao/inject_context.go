@@ -53,27 +53,18 @@ func parseContextDeclaration(skillName string) (*ContextDeclaration, error) {
 }
 
 // extractFrontmatter pulls YAML content between --- markers from a markdown file.
+// Uses line-oriented parsing to avoid false matches on --- appearing in YAML string values.
 func extractFrontmatter(content string) (string, error) {
-	const marker = "---"
-	if !strings.HasPrefix(strings.TrimSpace(content), marker) {
+	lines := strings.Split(strings.TrimSpace(content), "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
 		return "", nil
 	}
-
-	trimmed := strings.TrimSpace(content)
-	// Find the opening marker
-	startIdx := strings.Index(trimmed, marker)
-	if startIdx < 0 {
-		return "", nil
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			return strings.Join(lines[1:i], "\n"), nil
+		}
 	}
-	afterStart := startIdx + len(marker)
-
-	// Find the closing marker
-	endIdx := strings.Index(trimmed[afterStart:], marker)
-	if endIdx < 0 {
-		return "", nil
-	}
-
-	return trimmed[afterStart : afterStart+endIdx], nil
+	return "", nil
 }
 
 // parseContextFromFrontmatter parses the context field from YAML frontmatter bytes.
@@ -105,6 +96,9 @@ func parseContextFromFrontmatter(frontmatter []byte) (*ContextDeclaration, error
 
 		// String form: context: fork
 		if valNode.Kind == yaml.ScalarNode {
+			if err := validateWindow(valNode.Value); err != nil {
+				return nil, err
+			}
 			return &ContextDeclaration{Window: valNode.Value}, nil
 		}
 
@@ -113,6 +107,11 @@ func parseContextFromFrontmatter(frontmatter []byte) (*ContextDeclaration, error
 			var decl ContextDeclaration
 			if err := valNode.Decode(&decl); err != nil {
 				return nil, fmt.Errorf("decode context declaration: %w", err)
+			}
+			if decl.Window != "" {
+				if err := validateWindow(decl.Window); err != nil {
+					return nil, err
+				}
 			}
 			return &decl, nil
 		}
@@ -124,9 +123,24 @@ func parseContextFromFrontmatter(frontmatter []byte) (*ContextDeclaration, error
 	return nil, nil
 }
 
+// validateWindow checks that the window value is one of the allowed values.
+func validateWindow(w string) error {
+	switch w {
+	case "isolated", "fork", "inherit":
+		return nil
+	default:
+		return fmt.Errorf("invalid context.window %q: must be isolated, fork, or inherit", w)
+	}
+}
+
 // resolveSkillPath finds the SKILL.md for a given skill name.
 // Search order: local repo, installed skills, plugin cache.
 func resolveSkillPath(skillName string) (string, error) {
+	// Reject path traversal characters to prevent directory escape
+	if strings.ContainsAny(skillName, "/\\.") {
+		return "", fmt.Errorf("invalid skill name %q: must not contain path separators or dots", skillName)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get working directory: %w", err)
