@@ -57,6 +57,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-mortem-gate.sh",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/context-contract-check.sh",
+            "timeout": 5
           }
         ]
       },
