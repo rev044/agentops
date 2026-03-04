@@ -116,43 +116,17 @@ func runDefrag(cmd *cobra.Command, args []string) error {
 	}
 
 	if defragPrune {
-		result, err := findOrphanLearnings(cwd, defragStaleDays)
+		result, err := executePrune(cwd, isDryRun, defragStaleDays)
 		if err != nil {
-			return fmt.Errorf("prune: %w", err)
+			return err
 		}
 		report.Prune = result
-
-		if !isDryRun && len(result.Orphans) > 0 {
-			for _, orphan := range result.Orphans {
-				p := filepath.Join(cwd, orphan)
-				if err := os.Remove(p); err != nil {
-					return fmt.Errorf("delete orphan %s: %w", orphan, err)
-				}
-				result.Deleted = append(result.Deleted, orphan)
-			}
-		}
 	}
 
 	if defragDedup {
-		result, err := findDuplicateLearnings(cwd)
+		result, err := executeDedup(cwd, isDryRun)
 		if err != nil {
-			return fmt.Errorf("dedup: %w", err)
-		}
-		if !isDryRun {
-			for _, pair := range result.DuplicatePairs {
-				// Keep pair[0], delete pair[1]. Prefer named files over hash-named ones.
-				keep, del := pair[0], pair[1]
-				if isHashNamed(pair[0]) && !isHashNamed(pair[1]) {
-					keep, del = pair[1], pair[0]
-				}
-				_ = keep
-				p := filepath.Join(cwd, ".agents", "learnings", del)
-				if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
-					return fmt.Errorf("dedup remove %s: %w", del, err)
-				}
-				result.Deleted = append(result.Deleted, del)
-			}
-			result.DuplicatePairs = nil // pairs resolved
+			return err
 		}
 		report.Dedup = result
 	}
@@ -166,6 +140,49 @@ func runDefrag(cmd *cobra.Command, args []string) error {
 	}
 
 	return writeDefragReport(defragOutputDir, report)
+}
+
+// executePrune finds orphan learnings and optionally deletes them.
+func executePrune(cwd string, isDryRun bool, staleDays int) (*PruneResult, error) {
+	result, err := findOrphanLearnings(cwd, staleDays)
+	if err != nil {
+		return nil, fmt.Errorf("prune: %w", err)
+	}
+	if !isDryRun && len(result.Orphans) > 0 {
+		for _, orphan := range result.Orphans {
+			p := filepath.Join(cwd, orphan)
+			if err := os.Remove(p); err != nil {
+				return nil, fmt.Errorf("delete orphan %s: %w", orphan, err)
+			}
+			result.Deleted = append(result.Deleted, orphan)
+		}
+	}
+	return result, nil
+}
+
+// executeDedup finds duplicate learnings and optionally removes them.
+func executeDedup(cwd string, isDryRun bool) (*DefragDedupResult, error) {
+	result, err := findDuplicateLearnings(cwd)
+	if err != nil {
+		return nil, fmt.Errorf("dedup: %w", err)
+	}
+	if !isDryRun {
+		for _, pair := range result.DuplicatePairs {
+			// Keep pair[0], delete pair[1]. Prefer named files over hash-named ones.
+			keep, del := pair[0], pair[1]
+			if isHashNamed(pair[0]) && !isHashNamed(pair[1]) {
+				keep, del = pair[1], pair[0]
+			}
+			_ = keep
+			p := filepath.Join(cwd, ".agents", "learnings", del)
+			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+				return nil, fmt.Errorf("dedup remove %s: %w", del, err)
+			}
+			result.Deleted = append(result.Deleted, del)
+		}
+		result.DuplicatePairs = nil // pairs resolved
+	}
+	return result, nil
 }
 
 // findOrphanLearnings scans .agents/learnings/ for files older than staleDays
