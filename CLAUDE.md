@@ -72,7 +72,7 @@ cd cli && make sync-hooks   # Sync embedded hooks/skills into cli/embedded/
 
 ## CI Validation
 
-All pushes to `main` run `.github/workflows/validate.yml` (14 jobs). **Run checks locally before pushing.**
+All pushes to `main` run `.github/workflows/validate.yml` (24 jobs). **Run checks locally before pushing.**
 
 ### Quick Local Validation
 

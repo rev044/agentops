@@ -509,6 +509,7 @@ run_step_bg "Skill flag cross-refs" ./scripts/check-skill-flag-refs.sh
 run_step_bg "Command/test pairing gate" ./scripts/check-go-command-test-pair.sh
 run_step_bg "MemRL feedback loop health" ./scripts/check-memrl-health.sh
 run_step_bg "Doctor health check" ./scripts/check-doctor-health.sh
+run_step_bg "Release cadence check" ./scripts/release-cadence-check.sh
 
 collect_parallel
 

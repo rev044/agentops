@@ -30,15 +30,21 @@ Three production functions exceeded CC 20. All refactored below 20 (collectPatte
 
 ### 3. Ship one cross-runtime skill validation test
 
-Skills run on Claude Code, Codex CLI, and OpenCode — but only Claude Code is gate-tested. Add one automated integration test that exercises a skill (e.g. `goals`, `inject`) via Codex CLI and verifies structured output. This anchors the multi-runtime value proposition with evidence rather than assumption.
+Skills run on Claude Code, Codex CLI, and OpenCode — but only Claude Code is gate-tested. Shipped `tests/codex/test-skill-cross-runtime.sh` (2026-03-02) — exercises `ao inject` via both Claude Code and Codex CLI runtimes, verifies structured JSON consistency. Gate anchored.
 
-**Steer:** increase
+**Steer:** decrease (maintain)
 
 ### 4. Prove flywheel compounds across sessions
 
-The north star claims every session is smarter than the last, but the `flywheel-compounding` gate currently fails. Instrument and validate that learnings captured in session N are retrieved and applied in session N+1. Evidence: at least one measured retrieval-to-application chain per week, with the `flywheel-compounding` gate passing green.
+The north star claims every session is smarter than the last. Instrumented and validated: `flywheel-proof` gate (automated proof-run.sh) and `flywheel-compounding` gate (σρ > δ) both passing green. Evidence chain: learnings captured → cited → applied across sessions.
 
-**Steer:** increase
+**Steer:** decrease (maintain)
+
+### 7. Enforce release cadence in pre-release gate
+
+Policy: max 1 published release per week (security hotfixes exempt). Was violated (4 releases on 2026-02-27). Added `scripts/release-cadence-check.sh` with warn <7 days, block <1 day. Wired into `ci-local-release.sh` Phase 2. Gate: cadence check passes.
+
+**Steer:** decrease (violation count)
 
 ### 5. Run Athena knowledge cycle daily
 
@@ -73,3 +79,4 @@ Goals that alternate improved→fail for ≥3 consecutive cycles indicate the im
 | athena-freshness | `bash scripts/check-athena-health.sh` | 4 | Athena defrag report ≤26h old, stale learnings ≤5 |
 | athena-no-oscillation | `bash -c 'test -f .agents/defrag/latest.json && jq -e "(.oscillation.oscillating_goals // []) \| length == 0" .agents/defrag/latest.json'` | 4 | No evolve goals oscillating ≥3 consecutive cycles |
 | flywheel-proof | `bash scripts/proof-run.sh` | 7 | Flywheel compounds across sessions (automated proof) |
+| release-cadence | `bash scripts/release-cadence-check.sh` | 3 | Release cadence policy enforced (warn <7d, block <1d) |
