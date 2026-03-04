@@ -181,6 +181,8 @@ func applyContextFilter(knowledge *injectedKnowledge, decl *ContextDeclaration) 
 
 	// Apply section excludes
 	if decl.Sections != nil {
+		// sections.include is parsed but not yet enforced (v1: declaration-only).
+		// A future version will use include as an allowlist, zeroing all sections not in the list.
 		for _, section := range decl.Sections.Exclude {
 			switch section {
 			case "HISTORY":
@@ -196,6 +198,8 @@ func applyContextFilter(knowledge *injectedKnowledge, decl *ContextDeclaration) 
 	}
 
 	// Apply intel_scope
+	// "topic" and "full" are declaration-only in v1 — no runtime difference.
+	// Future versions may use "topic" to restrict learnings to query-matched intel only.
 	if decl.IntelScope == "none" {
 		knowledge.Learnings = nil
 		knowledge.Patterns = nil
