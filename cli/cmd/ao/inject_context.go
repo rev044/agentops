@@ -4,10 +4,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+// Section name constants for context filtering.
+const (
+	sectionHistory = "HISTORY"
+	sectionIntel   = "INTEL"
+	sectionTask    = "TASK"
+)
+
+// validIntelScopes is the set of allowed intel_scope values.
+var validIntelScopes = map[string]bool{
+	"none":  true,
+	"topic": true,
+	"full":  true,
+}
 
 // ContextDeclaration represents a skill's context window policy.
 type ContextDeclaration struct {
@@ -113,6 +128,11 @@ func parseContextFromFrontmatter(frontmatter []byte) (*ContextDeclaration, error
 					return nil, err
 				}
 			}
+			if decl.IntelScope != "" {
+				if err := validateIntelScope(decl.IntelScope); err != nil {
+					return nil, err
+				}
+			}
 			return &decl, nil
 		}
 
@@ -131,6 +151,14 @@ func validateWindow(w string) error {
 	default:
 		return fmt.Errorf("invalid context.window %q: must be isolated, fork, or inherit", w)
 	}
+}
+
+// validateIntelScope checks that the intel_scope value is one of the allowed values.
+func validateIntelScope(scope string) error {
+	if validIntelScopes[scope] {
+		return nil
+	}
+	return fmt.Errorf("invalid context.intel_scope %q: must be none, topic, or full", scope)
 }
 
 // resolveSkillPath finds the SKILL.md for a given skill name.
@@ -166,7 +194,8 @@ func resolveSkillPath(skillName string) (string, error) {
 	cachePattern := filepath.Join(home, ".claude", "plugins", "cache", "agentops-marketplace", "agentops", "*", "skills", skillName, "SKILL.md")
 	matches, _ := filepath.Glob(cachePattern)
 	if len(matches) > 0 {
-		return matches[0], nil
+		sort.Strings(matches)
+		return matches[len(matches)-1], nil // latest version (lexicographically highest)
 	}
 
 	return "", fmt.Errorf("skill %q not found", skillName)
@@ -192,14 +221,14 @@ func applyContextFilter(knowledge *injectedKnowledge, decl *ContextDeclaration) 
 			for _, s := range decl.Sections.Include {
 				allowed[s] = true
 			}
-			if !allowed["HISTORY"] {
+			if !allowed[sectionHistory] {
 				knowledge.Sessions = nil
 			}
-			if !allowed["INTEL"] {
+			if !allowed[sectionIntel] {
 				knowledge.Learnings = nil
 				knowledge.Patterns = nil
 			}
-			if !allowed["TASK"] {
+			if !allowed[sectionTask] {
 				knowledge.BeadID = ""
 				knowledge.Predecessor = nil
 			}
@@ -207,12 +236,12 @@ func applyContextFilter(knowledge *injectedKnowledge, decl *ContextDeclaration) 
 			// Exclude mode: zero sections in the exclude list.
 			for _, section := range decl.Sections.Exclude {
 				switch section {
-				case "HISTORY":
+				case sectionHistory:
 					knowledge.Sessions = nil
-				case "INTEL":
+				case sectionIntel:
 					knowledge.Learnings = nil
 					knowledge.Patterns = nil
-				case "TASK":
+				case sectionTask:
 					knowledge.BeadID = ""
 					knowledge.Predecessor = nil
 				}

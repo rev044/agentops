@@ -135,10 +135,29 @@ func TestBuildServeMux(t *testing.T) {
 }
 
 func TestSetCORSHeaders(t *testing.T) {
+	// Without request, defaults to localhost
 	rr := httptest.NewRecorder()
 	setCORSHeaders(rr)
-	if v := rr.Header().Get("Access-Control-Allow-Origin"); v != "*" {
-		t.Errorf("CORS origin: want *, got %q", v)
+	if v := rr.Header().Get("Access-Control-Allow-Origin"); v != "http://localhost" {
+		t.Errorf("CORS origin (no request): want http://localhost, got %q", v)
+	}
+
+	// With localhost origin, echoes it back
+	rr = httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	setCORSHeaders(rr, req)
+	if v := rr.Header().Get("Access-Control-Allow-Origin"); v != "http://localhost:3000" {
+		t.Errorf("CORS origin (localhost): want http://localhost:3000, got %q", v)
+	}
+
+	// With non-localhost origin, does not set origin header
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Origin", "http://evil.example.com")
+	setCORSHeaders(rr, req)
+	if v := rr.Header().Get("Access-Control-Allow-Origin"); v != "" {
+		t.Errorf("CORS origin (external): want empty, got %q", v)
 	}
 }
 

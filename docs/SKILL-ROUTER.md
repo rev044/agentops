@@ -41,7 +41,7 @@ What are you trying to do?
 │
 ├─ "Learn from past work"
 │   ├─ What do we know about X? ──► /knowledge <query>
-│   ├─ Save this insight ─────────► /learn "insight"
+│   ├─ Save this insight ─────────► /retro --quick "insight"
 │   └─ Run a retrospective ───────► /retro
 │
 ├─ "Parallelize work"

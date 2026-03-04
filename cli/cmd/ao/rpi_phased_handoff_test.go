@@ -418,6 +418,32 @@ func TestRenderHandoffField_EmptyString(t *testing.T) {
 	}
 }
 
+func TestTruncateRunes_MultiByteUTF8(t *testing.T) {
+	// Mix of ASCII and multi-byte characters (Japanese + emoji)
+	input := "Hello 世界! 🌍🌎🌏 more text here"
+	got := truncateRunes(input, 10)
+	// Should be first 10 runes + "..."
+	runes := []rune(input)
+	want := string(runes[:10]) + "..."
+	if got != want {
+		t.Errorf("truncateRunes(%q, 10) = %q, want %q", input, got, want)
+	}
+	// Verify result is valid UTF-8
+	for i, r := range got {
+		if r == '\uFFFD' {
+			t.Errorf("truncateRunes produced invalid UTF-8 at byte %d", i)
+		}
+	}
+}
+
+func TestTruncateRunes_ShortString(t *testing.T) {
+	input := "short"
+	got := truncateRunes(input, 100)
+	if got != input {
+		t.Errorf("truncateRunes(%q, 100) = %q, want %q (no truncation)", input, got, input)
+	}
+}
+
 func TestFormatVerdicts_Sorted(t *testing.T) {
 	verdicts := map[string]string{
 		"zebra": "FAIL",

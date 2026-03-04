@@ -42,6 +42,8 @@ if [[ -z "$TAG_DATE" ]]; then
     exit 0
 fi
 
+# Note: Uses rolling 86400-second window, not calendar-day boundaries.
+# Both date +%s values are UTC epoch seconds, so subtraction is timezone-neutral.
 NOW=$(date +%s)
 DAYS_AGO=$(( (NOW - TAG_DATE) / 86400 ))
 

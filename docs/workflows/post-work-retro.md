@@ -2,7 +2,7 @@
 
 **Purpose:** Systematic retrospective after completing significant work
 
-**Composes:** `/retro` -> `/learn` -> improvement creation
+**Composes:** `/retro` -> `/post-mortem` -> improvement creation
 
 **Failure Patterns Prevented:** Institutional memory loss, repeated mistakes, ecosystem gaps
 
@@ -17,7 +17,7 @@ Run /retro (failure pattern analysis)
     ↓
 Identify Learnings (patterns, anti-patterns)
     ↓
-Run /learn for each pattern
+Run /retro --quick for each pattern
     ↓
 Create Improvements (skills, workflows, agents)
     ↓
@@ -178,21 +178,21 @@ Extract patterns (what to repeat) and anti-patterns (what to avoid):
 **Evidence:** 3 rollback commits in session
 ```
 
-### Step 5: Run /learn for Each Pattern
+### Step 5: Run /retro --quick for Each Pattern
 
 Extract reusable patterns to pattern library:
 
 ```markdown
 # For each pattern worth capturing:
 
-/learn pattern="tracer-bullet-first" \
+/retro --quick pattern="tracer-bullet-first" \
   context="Infrastructure deployments with operators" \
   what="Deploy minimal resource before full implementation" \
   why="Catches admission webhook rejections early" \
   when="Any deployment using CRDs with admission webhooks" \
   evidence="Dify deployment 2025-11-27, saved 2h"
 
-/learn pattern="version-check-before-docs" \
+/retro --quick pattern="version-check-before-docs" \
   context="Using external documentation" \
   what="Check installed version before trusting docs" \
   why="Docs may be for newer version with features you don't have" \
@@ -345,12 +345,12 @@ Based on gaps identified, create issues or drafts for:
 → Saves bundle
 ```
 
-### With /learn Command
+### With /retro Command
 
 ```markdown
 # Each pattern identified gets captured
 
-/learn pattern="name" context="..." what="..." why="..." when="..."
+/retro --quick pattern="name" context="..." what="..." why="..." when="..."
 
 # Patterns stored in:
 # - Knowledge graph (Memory MCP)
@@ -381,7 +381,7 @@ infrastructure-deployment:
 | Run /retro | 5 min | Failure pattern analysis |
 | Ecosystem audit | 5 min | Tool usage review |
 | Identify patterns | 10 min | Extract learnings |
-| Run /learn | 5 min | Capture patterns |
+| Run /retro --quick | 5 min | Capture patterns |
 | Create improvements | 10 min | File issues/drafts |
 | Save bundle | 2 min | Preserve context |
 | **Total** | **~40 min** | |
@@ -418,7 +418,7 @@ Post-work retrospective is successful when:
    # What tools helped? What was missing?
 
 4. Extract patterns
-   /learn pattern="name" ...
+   /retro --quick pattern="name" ...
 
 5. Create improvements
    # File issues for skills/workflows needed

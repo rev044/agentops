@@ -402,7 +402,7 @@ Orchestrators, interactive skills, and single-task executors stay in the main se
 | implement | Single-task | Single issue, medium duration |
 | bug-hunt | Investigator | Hypothesis loop, need to see reasoning |
 | vibe | Orchestrator | Orchestrates council, reports verdict |
-| post-mortem | Orchestrator | Orchestrates council + retro |
+| post-mortem | Orchestrator | Orchestrates council + knowledge lifecycle |
 | pre-mortem | Orchestrator | Default inline, orchestrates if --deep |
 
 ### Tier 2: FORK (subagent/worktree via `context: fork`)

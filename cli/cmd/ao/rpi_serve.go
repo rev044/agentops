@@ -159,6 +159,7 @@ func runServeOrchestrate(cwd, goal string) error {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
 	go func() {
 		<-stop
 		orchCancel()
@@ -224,6 +225,7 @@ func runServeWatch(cwd, watchRunID string) error {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
 	go func() {
 		<-stop
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -275,7 +277,7 @@ func buildServeMux(root *serveMuxRoot, runID string) *http.ServeMux {
 	mux.HandleFunc("/", serveRPIIndex)
 	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
-			setCORSHeaders(w)
+			setCORSHeaders(w, r)
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -283,7 +285,7 @@ func buildServeMux(root *serveMuxRoot, runID string) *http.ServeMux {
 	})
 	mux.HandleFunc("/runs", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
-			setCORSHeaders(w)
+			setCORSHeaders(w, r)
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -319,7 +321,7 @@ func serveRPIEvents(w http.ResponseWriter, r *http.Request, root, defaultRunID s
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
-	setCORSHeaders(w)
+	setCORSHeaders(w, r)
 
 	seen := 0
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -333,6 +335,11 @@ func serveRPIEvents(w http.ResponseWriter, r *http.Request, root, defaultRunID s
 		case <-ticker.C:
 			events, err := loadRPIC2Events(root, runID)
 			if err != nil {
+				errEvent := RPIC2Event{Type: "error", Message: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+				if writeSSEEvent(w, errEvent) != nil {
+					return
+				}
+				flusher.Flush()
 				continue
 			}
 			for ; seen < len(events); seen++ {
@@ -354,18 +361,43 @@ func writeSSEEvent(w http.ResponseWriter, ev RPIC2Event) error {
 	return err
 }
 
-func serveRPIRuns(w http.ResponseWriter, _ *http.Request, root string) {
-	setCORSHeaders(w)
+func serveRPIRuns(w http.ResponseWriter, r *http.Request, root string) {
+	setCORSHeaders(w, r)
 	runs := scanRegistryRuns(root)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(runs)
 }
 
-func setCORSHeaders(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+func setCORSHeaders(w http.ResponseWriter, r ...*http.Request) {
+	origin := ""
+	if len(r) > 0 && r[0] != nil {
+		origin = r[0].Header.Get("Origin")
+	}
+	// Only allow localhost origins to prevent cross-site data exfiltration.
+	if origin == "" || isLocalhostOrigin(origin) {
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+		}
+	}
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Max-Age", "86400")
+}
+
+// isLocalhostOrigin returns true if the origin is a localhost URL.
+func isLocalhostOrigin(origin string) bool {
+	for _, prefix := range []string{
+		"http://localhost", "https://localhost",
+		"http://127.0.0.1", "https://127.0.0.1",
+		"http://[::1]", "https://[::1]",
+	} {
+		if strings.HasPrefix(origin, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // openBrowserURL opens url in the default system browser.

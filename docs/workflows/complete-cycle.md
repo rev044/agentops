@@ -163,7 +163,7 @@ Read CLAUDE.md                    # Reload primer context if needed
 
 **Commands:**
 ```bash
-/learn [topic]                    # Extract patterns
+/retro --quick [topic]            # Extract patterns
 /bundle-save [topic]-learning     # Share learnings
 ```
 
@@ -215,7 +215,7 @@ Read CLAUDE.md
 /implement --resume [topic]-implementation-progress
 # Complete implementation
 /vibe recent
-/learn [topic]
+/retro --quick [topic]
 # Context: 40-70k total (20-35%)
 ```
 
@@ -321,7 +321,7 @@ Read CLAUDE.md
 
 **Session 4: Learn**
 ```bash
-/learn redis-pooling-implementation
+/retro --quick redis-pooling-implementation
 # Agent extracts:
 # Pattern: Redis Connection Pooling for Burst Traffic
 # - When: High-traffic services with burst patterns

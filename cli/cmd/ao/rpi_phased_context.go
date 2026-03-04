@@ -463,7 +463,7 @@ func buildPromptForPhase(cwd string, phaseNum int, state *phasedState, _ *retryC
 	// Write provenance audit trail
 	if state.RunID != "" {
 		if err := writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String()); err != nil {
-			VerbosePrintf("Warning: failed to write prompt audit trail for phase %d: %v\n", phaseNum, err)
+			fmt.Fprintf(os.Stderr, "Warning: failed to write prompt audit trail for phase %d: %v\n", phaseNum, err)
 		}
 	}
 
@@ -612,7 +612,7 @@ func buildRetryPrompt(cwd string, phaseNum int, state *phasedState, retryCtx *re
 	// Write provenance audit trail for retry
 	if state.RunID != "" {
 		if err := writePromptAuditTrail(cwd, state.RunID, phaseNum, prompt.String()); err != nil {
-			VerbosePrintf("Warning: failed to write retry audit trail for phase %d: %v\n", phaseNum, err)
+			fmt.Fprintf(os.Stderr, "Warning: failed to write retry audit trail for phase %d: %v\n", phaseNum, err)
 		}
 	}
 

@@ -19,7 +19,7 @@ See `.claude/includes/tag-vocabulary.md` for the complete tag vocabulary.
 
 ## Retro Summary Template
 
-Write to `.agents/retros/YYYY-MM-DD-{topic}.md`:
+Write to `.agents/council/YYYY-MM-DD-{topic}.md`:
 
 ```markdown
 ---
@@ -329,7 +329,7 @@ Cross-references added (not superseded):
     -> Added to "Related" section
 
 No action needed:
-  - .agents/retros/2025-10-01-unrelated.md
+  - .agents/council/2025-10-01-unrelated.md
     -> Different topic, no relationship
 
 Ready for Phase 5: User Review
@@ -340,7 +340,7 @@ Ready for Phase 5: User Review
 
 ```
 Retro complete:
-- Summary: .agents/retros/YYYY-MM-DD-topic.md
+- Summary: .agents/council/YYYY-MM-DD-topic.md
 - Learnings: .agents/learnings/YYYY-MM-DD-topic.md (if applicable)
 - Patterns: [updated/created files] (if applicable)
 

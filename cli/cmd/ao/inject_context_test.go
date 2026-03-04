@@ -537,3 +537,25 @@ func TestApplyContextFilter_IncludePrecedenceOverExclude(t *testing.T) {
 	}
 }
 
+func TestValidateIntelScope_Valid(t *testing.T) {
+	for _, scope := range []string{"none", "topic", "full"} {
+		if err := validateIntelScope(scope); err != nil {
+			t.Errorf("validateIntelScope(%q) = %v, want nil", scope, err)
+		}
+	}
+}
+
+func TestValidateIntelScope_Invalid(t *testing.T) {
+	if err := validateIntelScope("typo"); err == nil {
+		t.Error("validateIntelScope(\"typo\") = nil, want error")
+	}
+}
+
+func TestParseContextFromFrontmatter_InvalidIntelScope(t *testing.T) {
+	fm := []byte("context:\n  window: fork\n  intel_scope: invalid")
+	_, err := parseContextFromFrontmatter(fm)
+	if err == nil {
+		t.Error("parseContextFromFrontmatter with invalid intel_scope should error")
+	}
+}
+

@@ -115,7 +115,7 @@ Read CLAUDE.md
 **Session 3: Integration**
 ```bash
 # Both bundles loaded (technical + personal)
-/learn k8s-deployment
+/retro --quick k8s-deployment
 # Pattern extracted:
 # - Technical: K8s app deployment pattern
 # - Personal: Career advancement evidence

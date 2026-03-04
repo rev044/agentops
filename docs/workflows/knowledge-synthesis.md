@@ -68,7 +68,7 @@ Phase 3: Document (5-10% context)
 
 **Commands:**
 ```bash
-/learn [topic]
+/retro --quick [topic]
 # Creates pattern documentation
 # Updates knowledge base
 ```
@@ -103,7 +103,7 @@ Read CLAUDE.md
 # Pattern: Middleware-based validation
 # Best practice: Separate auth concerns from business logic
 
-/learn auth-system-knowledge
+/retro --quick auth-system-knowledge
 # Documented for future reference
 ```
 

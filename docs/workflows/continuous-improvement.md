@@ -39,7 +39,7 @@ Phase 4: Improve (10-15% context)
 
 **Commands:**
 ```bash
-/learn --retrospective --since "30 days ago"
+/retro --retrospective --since "30 days ago"
 ```
 
 **Activities:**
@@ -92,7 +92,7 @@ Low Impact, High Effort → SKIP
 /plan [improvement]
 /implement [improvement]-plan
 /vibe recent
-/learn [improvement]
+/retro --quick [improvement]
 ```
 
 **Output:** Improved system + new patterns
@@ -103,7 +103,7 @@ Low Impact, High Effort → SKIP
 
 ```bash
 # Phase 1: Review
-/learn --retrospective --since "2025-10-01"
+/retro --retrospective --since "2025-10-01"
 # Findings:
 # - 15 commits reviewed
 # - 3 patterns emerged (used 5+ times each)
@@ -124,10 +124,10 @@ Low Impact, High Effort → SKIP
 /plan pre-commit-hook
 /implement pre-commit-hook-plan
 /vibe recent
-/learn pre-commit-improvement
+/retro --quick pre-commit-improvement
 # Result: 90% reduction in linting issues
 ```
 
 ---
 
-**Start continuous improvement with:** `/learn --retrospective`
+**Start continuous improvement with:** `/retro --retrospective`

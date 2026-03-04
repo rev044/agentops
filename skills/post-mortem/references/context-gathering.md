@@ -46,7 +46,7 @@ python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
 
 | Conversation Data | Retro Output |
 |-------------------|--------------|
-| `DecisionExtraction` | `.agents/retros/` - Decisions section |
+| `DecisionExtraction` | `.agents/council/` - Decisions section |
 | `QualityResult.issues` | Friction detection |
 | `DocExtraction(type="warning")` | `.agents/learnings/` |
 | `DecisionExtraction(type="pattern")` | `.agents/patterns/` |

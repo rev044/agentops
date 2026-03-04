@@ -230,7 +230,7 @@ mcp__ai-platform__memory_store(
 
 ## Retro Summary Template
 
-Write to: `.agents/retros/YYYY-MM-DD-{epic}.md`
+Write to: `.agents/council/YYYY-MM-DD-{epic}.md`
 
 ```markdown
 # Retro: [Epic Title]

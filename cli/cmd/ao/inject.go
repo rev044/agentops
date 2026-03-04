@@ -126,7 +126,11 @@ Examples:
   ao inject --apply-decay       # Apply confidence decay before ranking
   ao inject --bead ag-7abc      # Work-scoped injection for bead
   ao inject --predecessor /path/to/handoff.md  # Include predecessor context
-  ao inject --for=research "authentication"    # Filtered by skill's context contract`,
+  ao inject --for=research "authentication"    # Filtered by skill's context contract
+
+Environment variables:
+  RPI_RUN_ID    When set, --for uses this as the context artifact directory name
+                instead of generating an adhoc-<timestamp> ID. Set by /rpi orchestrator.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runInject,
 }

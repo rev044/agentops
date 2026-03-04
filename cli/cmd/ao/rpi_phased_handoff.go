@@ -267,7 +267,7 @@ func renderHandoffEntry(sb *strings.Builder, h *phaseHandoff, manifest phaseMani
 	if narrativeCap > 0 && h.Narrative != "" {
 		narrative := h.Narrative
 		if len(narrative) > narrativeCap {
-			narrative = narrative[:narrativeCap] + "..."
+			narrative = truncateRunes(narrative, narrativeCap)
 		}
 		sb.WriteString(fmt.Sprintf("Narrative (from phase-%d-summary): %s\n", h.Phase, narrative))
 	}
@@ -325,7 +325,7 @@ func buildPhaseHandoffFromState(state *phasedState, phaseNum int, cwd string) *p
 		if content, err := os.ReadFile(matches[len(matches)-1]); err == nil {
 			narrative := string(content)
 			if len(narrative) > 2000 {
-				narrative = narrative[:2000]
+				narrative = truncateRunes(narrative, 2000)
 			}
 			h.Narrative = narrative
 		}
@@ -388,4 +388,14 @@ func discoverPhaseArtifacts(cwd string, phaseNum int) []string {
 	}
 
 	return artifacts
+}
+
+// truncateRunes truncates s to at most cap runes and appends "..." if truncated.
+// Safe for multi-byte UTF-8 characters — avoids slicing mid-codepoint.
+func truncateRunes(s string, cap int) string {
+	runes := []rune(s)
+	if len(runes) <= cap {
+		return s
+	}
+	return string(runes[:cap]) + "..."
 }

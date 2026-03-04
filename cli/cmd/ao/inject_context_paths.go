@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,7 +13,7 @@ import (
 // Called automatically when --for is used; uses RPI_RUN_ID if set.
 func contextArtifactDir(runID string) string {
 	if runID == "" {
-		runID = fmt.Sprintf("adhoc-%d", time.Now().Unix())
+		runID = fmt.Sprintf("adhoc-%d-%04x", time.Now().Unix(), rand.Intn(0x10000)) //nolint:gosec // non-cryptographic use
 	}
 	return filepath.Join(".agents", "context", runID)
 }

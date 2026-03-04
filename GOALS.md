@@ -40,18 +40,6 @@ The north star claims every session is smarter than the last. Instrumented and v
 
 **Steer:** decrease (maintain)
 
-### 7. Enforce release cadence in pre-release gate
-
-Policy: max 1 published release per week (security hotfixes exempt). Was violated (4 releases on 2026-02-27). Added `scripts/release-cadence-check.sh` with warn <7 days, block <1 day. Wired into `ci-local-release.sh` Phase 2. Gate: cadence check passes.
-
-**Steer:** decrease (violation count)
-
-### 8. Tighten cli/ complexity ceiling from 21 to 20
-
-Two functions at CC 21 refactored: `buildHandoffContext` 21→10 (extracted renderHandoffEntry, renderDegradationWarnings, resolveNarrativeCap) and `runRPIServe` 21→12 (extracted runServeOrchestrate, runServeWatch, newDashboardServer). Gate threshold lowered from 21 to 20.
-
-**Steer:** decrease (maintain)
-
 ### 5. Run Athena knowledge cycle daily
 
 The flywheel captures learnings reactively. Athena mines git, `.agents/`, and code hotspots to extract signal that sessions missed, then defrags stale/duplicate learnings and flags oscillating evolve goals before they waste cycles. Gate: `ao defrag` report is ≤26 hours old and stale learning count ≤5.
@@ -63,6 +51,18 @@ The flywheel captures learnings reactively. Athena mines git, `.agents/`, and co
 Goals that alternate improved→fail for ≥3 consecutive cycles indicate the improvement approach isn't working — each cycle wastes tokens. Athena's oscillation sweep detects these and quarantines them. Gate: zero oscillating goals in cycle history.
 
 **Steer:** decrease
+
+### 7. Enforce release cadence in pre-release gate
+
+Policy: max 1 published release per week (security hotfixes exempt). Was violated (4 releases on 2026-02-27). Added `scripts/release-cadence-check.sh` with warn <7 days, block <1 day. Wired into `ci-local-release.sh` Phase 2. Gate: cadence check passes.
+
+**Steer:** decrease (violation count)
+
+### 8. Tighten cli/ complexity ceiling from 21 to 20
+
+Two functions at CC 21 refactored: `buildHandoffContext` 21→10 (extracted renderHandoffEntry, renderDegradationWarnings, resolveNarrativeCap) and `runRPIServe` 21→12 (extracted runServeOrchestrate, runServeWatch, newDashboardServer). Gate threshold lowered from 21 to 20.
+
+**Steer:** decrease (maintain)
 
 ## Gates
 

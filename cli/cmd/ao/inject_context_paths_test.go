@@ -21,15 +21,23 @@ func TestContextArtifactDir_Empty(t *testing.T) {
 	if !strings.HasPrefix(got, prefix) {
 		t.Errorf("contextArtifactDir(\"\") = %q, want prefix %q", got, prefix)
 	}
-	// Verify the suffix after "adhoc-" is numeric
+	// Verify the suffix after "adhoc-" matches <timestamp>-<4hex>
 	suffix := strings.TrimPrefix(got, prefix)
 	if suffix == "" {
-		t.Errorf("contextArtifactDir(\"\") suffix is empty, expected numeric timestamp")
+		t.Errorf("contextArtifactDir(\"\") suffix is empty, expected timestamp-hex")
 	}
-	for _, c := range suffix {
-		if c < '0' || c > '9' {
-			t.Errorf("contextArtifactDir(\"\") suffix %q contains non-numeric character %q", suffix, string(c))
-			break
+	parts := strings.SplitN(suffix, "-", 2)
+	if len(parts) != 2 {
+		t.Errorf("contextArtifactDir(\"\") suffix %q expected format <timestamp>-<hex>, got %d parts", suffix, len(parts))
+	} else {
+		for _, c := range parts[0] {
+			if c < '0' || c > '9' {
+				t.Errorf("contextArtifactDir(\"\") timestamp part %q contains non-numeric character %q", parts[0], string(c))
+				break
+			}
+		}
+		if len(parts[1]) != 4 {
+			t.Errorf("contextArtifactDir(\"\") hex suffix %q expected 4 characters", parts[1])
 		}
 	}
 }

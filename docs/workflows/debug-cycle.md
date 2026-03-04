@@ -100,7 +100,7 @@ Read CLAUDE.md
 **Commands:**
 ```bash
 /vibe recent
-/learn [issue]-fix
+/retro --quick [issue]-fix
 ```
 
 **Activities:**
@@ -134,7 +134,7 @@ Read CLAUDE.md
 # Phase 4: Verify
 /vibe recent
 # ✅ Load test: No failures at 3x traffic
-/learn redis-pool-debugging
+/retro --quick redis-pool-debugging
 # Pattern: Intermittent failures + time correlation = resource exhaustion
 ```
 

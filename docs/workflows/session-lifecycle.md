@@ -241,7 +241,7 @@ Next time, just say "continue the caching work" and I'll pick up where you left 
 | Command | Purpose | When to Use |
 |---------|---------|-------------|
 | `/retro` | Session retrospective | After significant work |
-| `/learn` | Extract reusable patterns | After solving problems |
+| `/retro --quick` | Extract reusable patterns | After solving problems |
 
 ---
 
@@ -300,7 +300,6 @@ Next time, just say "continue the caching work" and I'll pick up where you left 
 /session-end
 # optionally:
 /retro
-/learn
 ```
 
 ---

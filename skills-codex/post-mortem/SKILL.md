@@ -274,7 +274,7 @@ Enables adversarial two-round review for post-implementation validation. Use for
 
 Inline extraction of learnings from the completed work (formerly delegated to the retro skill).
 
-#### Step 4.1: Gather Context
+#### Step EX.1: Gather Context
 
 ```bash
 # Recent commits
@@ -291,7 +291,7 @@ Read relevant artifacts: research documents, plan documents, commit messages, co
 
 **If retrospecting an epic:** Run the closure integrity quick-check from `references/context-gathering.md` (Phantom Bead Detection + Multi-Wave Regression Scan). Include any warnings in findings.
 
-#### Step 4.2: Classify Learnings
+#### Step EX.2: Classify Learnings
 
 Ask these questions:
 
@@ -318,7 +318,7 @@ For each learning, capture:
 - **Why it matters**: Impact on future work
 - **Confidence**: high, medium, low
 
-#### Step 4.3: Write Learnings
+#### Step EX.3: Write Learnings
 
 **Write to:** `.agents/learnings/YYYY-MM-DD-<topic>.md`
 
@@ -353,13 +353,13 @@ confidence: <high|medium|low>
 ...
 ```
 
-#### Step 4.4: Classify Learning Scope
+#### Step EX.4: Classify Learning Scope
 
-For each learning extracted in Step 4.3, classify:
+For each learning extracted in Step EX.3, classify:
 
 **Question:** "Does this learning reference specific files, packages, or architecture in THIS repo? Or is it a transferable pattern that helps any project?"
 
-- **Repo-specific** -> Write to `.agents/learnings/` (existing behavior from Step 4.3). Use `git rev-parse --show-toplevel` to resolve repo root — never write relative to cwd.
+- **Repo-specific** -> Write to `.agents/learnings/` (existing behavior from Step EX.3). Use `git rev-parse --show-toplevel` to resolve repo root — never write relative to cwd.
 - **Cross-cutting/transferable** -> Rewrite to remove repo-specific context (file paths, function names, package names), then:
   1. Write abstracted version to `~/.agents/learnings/YYYY-MM-DD-<slug>.md` (NOT local — one copy only)
   2. Run abstraction lint check:
@@ -377,7 +377,7 @@ For each learning extracted in Step 4.3, classify:
 - Local: "Athena's validate package needs O_CREATE|O_EXCL for atomic claims because Zeus spawns concurrent workers"
 - Global: "Use O_CREATE|O_EXCL for atomic file creation when multiple processes may race on the same path"
 
-#### Step 4.5: Compile Constraint Templates
+#### Step EX.5: Compile Constraint Templates
 
 For each extracted learning scoring >= 4/5 on actionability AND tagged "constraint" or "anti-pattern", run `bash hooks/constraint-compiler.sh <learning-path>` to generate a constraint template.
 
@@ -594,7 +594,7 @@ source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 
 **Epic:** <epic-id or "recent">
 **Duration:** <elapsed time from PM_START to now>
-**Cycle-Time Trend:** <compare against prior post-mortems — is this faster or slower? Check .agents/retros/ for prior Duration values>
+**Cycle-Time Trend:** <compare against prior post-mortems — is this faster or slower? Check .agents/council/ for prior post-mortem Duration values>
 
 ## Council Verdict: PASS / WARN / FAIL
 
