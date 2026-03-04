@@ -188,10 +188,11 @@ func TestParseContextDeclaration_BackwardCompat(t *testing.T) {
 		t.Fatalf("parseContextFromFrontmatter() error = %v", err)
 	}
 	if decl == nil {
-		t.Fatal("council SKILL.md should have context: fork, got nil")
+		t.Fatal("council SKILL.md should have context declaration, got nil")
 	}
-	if decl.Window != "fork" {
-		t.Errorf("council context Window = %q, want %q", decl.Window, "fork")
+	// council was upgraded from "context: fork" to structured object with window: isolated
+	if decl.Window != "isolated" {
+		t.Errorf("council context Window = %q, want %q", decl.Window, "isolated")
 	}
 }
 

@@ -10,6 +10,11 @@ metadata:
     - pre-mortem # optional - suggested before crank
     - crank      # optional - suggested for execution
     - implement  # optional - suggested for single issue
+context:
+  window: inherit
+  intent:
+    mode: task
+  intel_scope: topic
 ---
 
 # Plan Skill

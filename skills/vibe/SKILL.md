@@ -9,6 +9,13 @@ metadata:
     - complexity # complexity analysis
     - bug-hunt   # proactive code audit
     - standards  # loaded for language-specific context
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: full
 ---
 
 # Vibe Skill

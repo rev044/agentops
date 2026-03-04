@@ -7,6 +7,13 @@ metadata:
   dependencies:
     - beads     # optional - for issue tracking via bd CLI
     - standards # loads language-specific standards
+context:
+  window: isolated
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: topic
 ---
 
 # Implement Skill

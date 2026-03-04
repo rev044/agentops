@@ -5,6 +5,13 @@ skill_api_version: 1
 metadata:
   tier: execution
   dependencies: []
+context:
+  window: inherit
+  intent:
+    mode: none
+  sections:
+    exclude: [INTEL, HISTORY, TASK]
+  intel_scope: none
 ---
 
 # /brainstorm — Clarify Goals Before Planning

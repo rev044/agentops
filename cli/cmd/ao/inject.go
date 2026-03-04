@@ -47,6 +47,7 @@ var (
 	injectPredecessor        string
 	injectIndexOnly          bool
 	injectQuarantineFlagged  bool
+	injectForSkill           string
 )
 
 type olConstraint struct {
@@ -124,7 +125,8 @@ Examples:
   ao inject --no-cite           # Skip citation recording
   ao inject --apply-decay       # Apply confidence decay before ranking
   ao inject --bead ag-7abc      # Work-scoped injection for bead
-  ao inject --predecessor /path/to/handoff.md  # Include predecessor context`,
+  ao inject --predecessor /path/to/handoff.md  # Include predecessor context
+  ao inject --for=research "authentication"    # Filtered by skill's context contract`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runInject,
 }
@@ -142,6 +144,7 @@ func init() {
 	injectCmd.Flags().StringVar(&injectPredecessor, "predecessor", "", "Path to predecessor handoff file for context injection")
 	injectCmd.Flags().BoolVar(&injectIndexOnly, "index-only", false, "Output compact knowledge index table instead of full content")
 	injectCmd.Flags().BoolVar(&injectQuarantineFlagged, "quarantine-flagged", false, "Quarantine flagged learnings from quality report")
+	injectCmd.Flags().StringVar(&injectForSkill, "for", "", "Skill name — assembles context per skill's context declaration")
 }
 
 func runInject(cmd *cobra.Command, args []string) error {
@@ -195,6 +198,17 @@ func runInject(cmd *cobra.Command, args []string) error {
 	// Load predecessor context
 	if injectPredecessor != "" {
 		knowledge.Predecessor = parsePredecessorFile(injectPredecessor)
+	}
+
+	// Apply skill context filter
+	if injectForSkill != "" {
+		decl, err := parseContextDeclaration(injectForSkill)
+		if err != nil {
+			return fmt.Errorf("parse context declaration for %s: %w", injectForSkill, err)
+		}
+		if decl != nil {
+			knowledge = applyContextFilter(knowledge, decl)
+		}
 	}
 
 	var output string

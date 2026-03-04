@@ -7,6 +7,13 @@ metadata:
   tier: execution
   dependencies:
     - inject    # optional - injects prior context
+context:
+  window: isolated
+  intent:
+    mode: questions
+  sections:
+    exclude: [HISTORY, TASK]
+  intel_scope: topic
 ---
 
 # Research Skill

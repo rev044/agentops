@@ -6,6 +6,13 @@ metadata:
   tier: judgment
   dependencies:
     - council  # multi-model judgment
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: full
 ---
 
 # Pre-Mortem Skill

@@ -956,3 +956,102 @@ func TestProcessLearningFile_QualityGateUtilityBoundary(t *testing.T) {
 		t.Error("expected learning with utility=0.3 to be filtered (gate requires > 0.3)")
 	}
 }
+
+// TestInjectForFlag_ResearchSkill verifies --for filters out excluded sections.
+func TestInjectForFlag_ResearchSkill(t *testing.T) {
+	tmp := chdirTemp(t)
+	setupAgentsDir(t, tmp)
+
+	// Create skill with context declaration excluding HISTORY and TASK
+	skillDir := filepath.Join(tmp, "skills", "research")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	skillContent := `---
+name: research
+description: test
+skill_api_version: 1
+context:
+  window: isolated
+  sections:
+    exclude: [HISTORY, TASK]
+  intel_scope: topic
+---
+# Test
+`
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a learning so knowledge is populated
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	writeTestMDLearning(t, learningsDir, "test-learning.md", map[string]string{
+		"maturity": "provisional",
+		"utility":  "0.8",
+	}, "# Test Learning\nSome important knowledge.\n")
+
+	// Create a session file so sessions would be populated without the filter
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	sessionContent := fmt.Sprintf("---\ndate: %s\nsummary: Did some work\n---\n# Session\nWorked on things.\n",
+		time.Now().Format("2006-01-02"))
+	if err := os.WriteFile(filepath.Join(sessionsDir, "2026-03-03-test.md"), []byte(sessionContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := executeCommand("inject", "--for=research", "--no-cite")
+	if err != nil {
+		t.Fatalf("inject --for=research failed: %v", err)
+	}
+
+	// HISTORY is excluded → no session content should appear
+	if strings.Contains(out, "Recent Sessions") {
+		t.Errorf("expected HISTORY to be excluded by --for=research, but found 'Recent Sessions' in output:\n%s", out)
+	}
+}
+
+// TestInjectForFlag_UnknownSkill verifies --for with a nonexistent skill returns an error.
+func TestInjectForFlag_UnknownSkill(t *testing.T) {
+	tmp := chdirTemp(t)
+	setupAgentsDir(t, tmp)
+
+	_, err := executeCommand("inject", "--for=nonexistent-skill-xyz", "--no-cite")
+	if err == nil {
+		t.Fatal("expected error for --for with nonexistent skill, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected error to contain 'not found', got: %v", err)
+	}
+}
+
+// TestInjectForFlag_NoDeclaration verifies --for with a skill that has no context field succeeds (passthrough).
+func TestInjectForFlag_NoDeclaration(t *testing.T) {
+	tmp := chdirTemp(t)
+	setupAgentsDir(t, tmp)
+
+	// Create a skill SKILL.md with no context field
+	skillDir := filepath.Join(tmp, "skills", "basic-skill")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	skillContent := `---
+name: basic-skill
+description: A skill without context declaration
+skill_api_version: 1
+---
+# Basic Skill
+Does things.
+`
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := executeCommand("inject", "--for=basic-skill", "--no-cite")
+	if err != nil {
+		t.Fatalf("inject --for=basic-skill (no context) should succeed, got: %v", err)
+	}
+
+	// Should produce valid output (passthrough — no filtering)
+	if !strings.Contains(out, "Injected Knowledge") && !strings.Contains(out, "No prior knowledge found") {
+		t.Errorf("expected standard inject output, got:\n%s", out)
+	}
+}
