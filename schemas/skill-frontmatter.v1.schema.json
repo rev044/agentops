@@ -21,7 +21,34 @@
       }
     },
     "user-invocable": { "type": "boolean" },
-    "context": { "type": "string" },
+    "context": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": {
+            "window": { "type": "string", "enum": ["isolated", "fork", "inherit"] },
+            "sections": {
+              "type": "object",
+              "properties": {
+                "include": { "type": "array", "items": { "type": "string" } },
+                "exclude": { "type": "array", "items": { "type": "string" } }
+              },
+              "additionalProperties": false
+            },
+            "intent": {
+              "type": "object",
+              "properties": {
+                "mode": { "type": "string", "enum": ["questions", "task", "none"] }
+              },
+              "additionalProperties": false
+            },
+            "intel_scope": { "type": "string", "enum": ["topic", "full", "none"] }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "allowed-tools": {
       "oneOf": [
         { "type": "array", "items": { "type": "string" } },
