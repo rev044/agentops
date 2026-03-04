@@ -261,7 +261,8 @@ If `.agents/ao/environment.json` exists, include it in the context packet so jud
       "prior_decisions": [
         "Using JWT, not sessions",
         "Refresh tokens required"
-      ]
+      ],
+      "empirical_results": "(optional) test output, CLI flag verification, or Wave 0 findings — include when evaluating feasibility"
     },
     "perspective": "skeptic (only when --preset or --perspectives used)",
     "perspective_description": "What could go wrong? (only when --preset or --perspectives used)",
@@ -287,6 +288,12 @@ If `.agents/ao/environment.json` exists, include it in the context packet so jud
   }
 }
 ```
+
+### Empirical Evidence Rule
+
+When evaluating **implementation feasibility** (e.g., "will this CLI flag work?", "can these tools coexist?"), always include empirical test results in `context.empirical_results`. Judges reasoning from assumptions produce false verdicts — a Codex judge once gave a false FAIL on `-s read-only` because Wave 0 test output was not in the packet. The rule: **run the experiment first, then let judges evaluate the evidence.**
+
+Wrapper skills (`/vibe`, `/pre-mortem`) should include relevant test output when the council target involves tooling behavior, flag combinations, or runtime compatibility.
 
 ---
 

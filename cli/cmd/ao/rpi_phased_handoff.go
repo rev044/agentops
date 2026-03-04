@@ -206,55 +206,13 @@ func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) strin
 		}
 	}
 
-	// Resolve narrative cap: explicit cap from manifest, or 1000 as backward-compat default.
-	// NarrativeCap=0 means "omit narrative" when HandoffFields is set (least-privilege).
-	// When HandoffFields is empty (no manifest), default to 1000 for backward compat.
-	narrativeCap := manifest.NarrativeCap
-	if narrativeCap == 0 && len(manifest.HandoffFields) == 0 {
-		narrativeCap = 1000
-	}
+	narrativeCap := resolveNarrativeCap(manifest)
 
 	for _, h := range handoffs {
-		sb.WriteString(fmt.Sprintf("[Phase %d: %s — %s (source: phase-%d-handoff.json)", h.Phase, h.PhaseName, h.Status, h.Phase))
-		if h.DurationSeconds > 0 {
-			sb.WriteString(fmt.Sprintf(" in %.0fs", h.DurationSeconds))
-		}
-		sb.WriteString("]\n")
-
-		if fieldAllowed(manifest, "verdicts") {
-			sb.WriteString(formatVerdicts(h.Verdicts))
-		}
-		if fieldAllowed(manifest, "epic_id") {
-			sb.WriteString(renderHandoffField("Epic", h.EpicID))
-		}
-		if fieldAllowed(manifest, "artifacts_produced") {
-			sb.WriteString(renderHandoffField("Artifacts", h.ArtifactsProduced))
-		}
-		if fieldAllowed(manifest, "decisions_made") {
-			sb.WriteString(renderHandoffField("Decisions", h.DecisionsMade))
-		}
-		if fieldAllowed(manifest, "open_risks") {
-			sb.WriteString(renderHandoffField("Risks", h.OpenRisks))
-		}
-
-		// Narrative (capped per manifest)
-		if narrativeCap > 0 && h.Narrative != "" {
-			narrative := h.Narrative
-			if len(narrative) > narrativeCap {
-				narrative = narrative[:narrativeCap] + "..."
-			}
-			sb.WriteString(fmt.Sprintf("Narrative (from phase-%d-summary): %s\n", h.Phase, narrative))
-		}
-
-		sb.WriteString("\n")
+		renderHandoffEntry(&sb, h, manifest, narrativeCap)
 	}
 
-	// Render degradation warning if any handoff has context loss
-	for _, h := range handoffs {
-		if h.ContextDegradation {
-			sb.WriteString(fmt.Sprintf("⚠️ CONTEXT DEGRADATION: Phase %d handoff was missing — context may be incomplete\n\n", h.Phase-1))
-		}
-	}
+	renderDegradationWarnings(&sb, handoffs)
 
 	// Apply token budget if specified in manifest
 	if manifest.MaxTokens > 0 {
@@ -267,6 +225,63 @@ func buildHandoffContext(handoffs []*phaseHandoff, manifest phaseManifest) strin
 	}
 
 	return sb.String()
+}
+
+// resolveNarrativeCap returns the narrative character cap from manifest.
+// NarrativeCap=0 means "omit narrative" when HandoffFields is set (least-privilege).
+// When HandoffFields is empty (no manifest), default to 1000 for backward compat.
+func resolveNarrativeCap(manifest phaseManifest) int {
+	if manifest.NarrativeCap > 0 {
+		return manifest.NarrativeCap
+	}
+	if len(manifest.HandoffFields) == 0 {
+		return 1000
+	}
+	return 0
+}
+
+// renderHandoffEntry writes a single phase handoff block to the builder.
+func renderHandoffEntry(sb *strings.Builder, h *phaseHandoff, manifest phaseManifest, narrativeCap int) {
+	sb.WriteString(fmt.Sprintf("[Phase %d: %s — %s (source: phase-%d-handoff.json)", h.Phase, h.PhaseName, h.Status, h.Phase))
+	if h.DurationSeconds > 0 {
+		sb.WriteString(fmt.Sprintf(" in %.0fs", h.DurationSeconds))
+	}
+	sb.WriteString("]\n")
+
+	if fieldAllowed(manifest, "verdicts") {
+		sb.WriteString(formatVerdicts(h.Verdicts))
+	}
+	if fieldAllowed(manifest, "epic_id") {
+		sb.WriteString(renderHandoffField("Epic", h.EpicID))
+	}
+	if fieldAllowed(manifest, "artifacts_produced") {
+		sb.WriteString(renderHandoffField("Artifacts", h.ArtifactsProduced))
+	}
+	if fieldAllowed(manifest, "decisions_made") {
+		sb.WriteString(renderHandoffField("Decisions", h.DecisionsMade))
+	}
+	if fieldAllowed(manifest, "open_risks") {
+		sb.WriteString(renderHandoffField("Risks", h.OpenRisks))
+	}
+
+	if narrativeCap > 0 && h.Narrative != "" {
+		narrative := h.Narrative
+		if len(narrative) > narrativeCap {
+			narrative = narrative[:narrativeCap] + "..."
+		}
+		sb.WriteString(fmt.Sprintf("Narrative (from phase-%d-summary): %s\n", h.Phase, narrative))
+	}
+
+	sb.WriteString("\n")
+}
+
+// renderDegradationWarnings writes context degradation warnings for handoffs with context loss.
+func renderDegradationWarnings(sb *strings.Builder, handoffs []*phaseHandoff) {
+	for _, h := range handoffs {
+		if h.ContextDegradation {
+			sb.WriteString(fmt.Sprintf("⚠️ CONTEXT DEGRADATION: Phase %d handoff was missing — context may be incomplete\n\n", h.Phase-1))
+		}
+	}
 }
 
 // buildPhaseHandoffFromState constructs a handoff from existing state + phase result + summary.

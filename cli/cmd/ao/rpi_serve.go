@@ -107,8 +107,6 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 	// --orchestrate flag forces the first arg to be interpreted as a goal.
 	if rpiServeOrchestrate {
 		if goal == "" && watchRunID != "" {
-			// User passed something that looks like a run-ID but --orchestrate is set;
-			// treat it as a goal string instead.
 			goal, watchRunID = watchRunID, ""
 		}
 		if goal == "" {
@@ -118,87 +116,83 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 
 	// Orchestration mode: a goal was provided — run the full RPI lifecycle.
 	if goal != "" {
-		runID := generateRunID()
-		opts := defaultPhasedEngineOptions()
-		opts.RunID = runID
-		opts.NoDashboard = true // serve manages its own dashboard
-
-		addr := fmt.Sprintf("localhost:%d", rpiServePort)
-		dashURL := fmt.Sprintf("http://%s?run=%s", addr, runID)
-
-		muxRoot := &serveMuxRoot{path: cwd}
-		mux := buildServeMux(muxRoot, runID)
-		opts.OnSpawnCwdReady = func(spawnCwd string) {
-			muxRoot.set(spawnCwd)
-		}
-		srv := &http.Server{
-			Addr:              addr,
-			Handler:           mux,
-			ReadHeaderTimeout: 10 * time.Second,
-			IdleTimeout:       120 * time.Second,
-			MaxHeaderBytes:    8192,
-		}
-
-		ln, err := net.Listen("tcp", addr)
-		if err != nil {
-			return fmt.Errorf("port %d unavailable: %w", rpiServePort, err)
-		}
-
-		fmt.Printf("RPI orchestration starting\n")
-		fmt.Printf("Goal:            %s\n", goal)
-		fmt.Printf("Run ID:          %s\n", runID)
-		fmt.Printf("Mission control: %s\n", dashURL)
-		fmt.Printf("Press Ctrl-C to stop.\n")
-
-		if shouldOpenBrowser() {
-			openBrowserURL(dashURL)
-		}
-
-		orchCtx, orchCancel := context.WithCancel(context.Background())
-
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-		go func() {
-			<-stop
-			orchCancel()
-			shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = srv.Shutdown(shutCtx)
-		}()
-
-		// Launch phased engine in the background so the dashboard stays live.
-		orchErrCh := make(chan error, 1)
-		go func() {
-			orchErrCh <- runPhasedEngine(orchCtx, cwd, goal, opts)
-		}()
-
-		srvErr := srv.Serve(ln)
-		orchCancel() // ensure phased engine goroutine exits on server stop
-
-		if srvErr != nil && srvErr != http.ErrServerClosed {
-			return fmt.Errorf("server: %w", srvErr)
-		}
-		fmt.Println("\nDashboard stopped.")
-
-		if orchErr := <-orchErrCh; orchErr != nil && orchErr != context.Canceled {
-			return fmt.Errorf("orchestration: %w", orchErr)
-		}
-		return nil
+		return runServeOrchestrate(cwd, goal)
 	}
 
-	// Watch mode: try to resolve an existing run. If none exists, start the
-	// dashboard anyway so it's ready when a run appears (the /events handler
-	// already tolerates missing event files and /runs scans dynamically).
+	// Watch mode: observe an existing or upcoming run.
+	return runServeWatch(cwd, watchRunID)
+}
+
+// runServeOrchestrate starts the phased engine with a live dashboard.
+func runServeOrchestrate(cwd, goal string) error {
+	runID := generateRunID()
+	opts := defaultPhasedEngineOptions()
+	opts.RunID = runID
+	opts.NoDashboard = true // serve manages its own dashboard
+
+	addr := fmt.Sprintf("localhost:%d", rpiServePort)
+	dashURL := fmt.Sprintf("http://%s?run=%s", addr, runID)
+
+	muxRoot := &serveMuxRoot{path: cwd}
+	mux := buildServeMux(muxRoot, runID)
+	opts.OnSpawnCwdReady = func(spawnCwd string) {
+		muxRoot.set(spawnCwd)
+	}
+	srv := newDashboardServer(addr, mux)
+
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("port %d unavailable: %w", rpiServePort, err)
+	}
+
+	fmt.Printf("RPI orchestration starting\n")
+	fmt.Printf("Goal:            %s\n", goal)
+	fmt.Printf("Run ID:          %s\n", runID)
+	fmt.Printf("Mission control: %s\n", dashURL)
+	fmt.Printf("Press Ctrl-C to stop.\n")
+
+	if shouldOpenBrowser() {
+		openBrowserURL(dashURL)
+	}
+
+	orchCtx, orchCancel := context.WithCancel(context.Background())
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-stop
+		orchCancel()
+		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutCtx)
+	}()
+
+	orchErrCh := make(chan error, 1)
+	go func() {
+		orchErrCh <- runPhasedEngine(orchCtx, cwd, goal, opts)
+	}()
+
+	srvErr := srv.Serve(ln)
+	orchCancel()
+
+	if srvErr != nil && srvErr != http.ErrServerClosed {
+		return fmt.Errorf("server: %w", srvErr)
+	}
+	fmt.Println("\nDashboard stopped.")
+
+	if orchErr := <-orchErrCh; orchErr != nil && orchErr != context.Canceled {
+		return fmt.Errorf("orchestration: %w", orchErr)
+	}
+	return nil
+}
+
+// runServeWatch starts the dashboard in watch mode for an existing or upcoming run.
+func runServeWatch(cwd, watchRunID string) error {
 	runID, _, root, resolveErr := resolveNudgeRun(cwd, watchRunID)
 	if resolveErr != nil {
 		if watchRunID != "" {
-			// User explicitly asked for a specific run that doesn't exist — fail.
 			return fmt.Errorf("resolve run: %w", resolveErr)
 		}
-		// No run found, but no specific run requested — start dashboard in
-		// "waiting" mode using cwd as root and an empty run ID. The SSE handler
-		// will return an empty stream until events appear, and /runs will
-		// dynamically discover new runs.
 		root = cwd
 		runID = ""
 	}
@@ -209,14 +203,7 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 		dashURL = fmt.Sprintf("http://%s?run=%s", addr, runID)
 	}
 
-	mux := buildServeMux(&serveMuxRoot{path: root}, runID)
-	srv := &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		MaxHeaderBytes:    8192,
-	}
+	srv := newDashboardServer(addr, buildServeMux(&serveMuxRoot{path: root}, runID))
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -249,6 +236,17 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println("\nDashboard stopped.")
 	return nil
+}
+
+// newDashboardServer creates an http.Server with standard timeouts.
+func newDashboardServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    8192,
+	}
 }
 
 // serveMuxRoot provides thread-safe mutable root path for the HTTP mux.

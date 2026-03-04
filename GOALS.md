@@ -24,9 +24,9 @@ cmd/ao had 17 zero-coverage functions. Drove to 6 (all excluded: main, Execute, 
 
 ### 2. Tighten the cli/ complexity ceiling from 25 to 20
 
-Three production functions exceeded CC 20. All refactored below 20 (collectPatterns 23→10, runMine 21→11, runSeed 21→11). Gate threshold lowered from 25 to 21. Max production CC is now 20.
+Three production functions exceeded CC 20. All refactored below 20 (collectPatterns 23→10, runMine 21→11, runSeed 21→11). Gate threshold lowered from 25 to 21. Second pass: buildHandoffContext 21→10, runRPIServe 21→12. Gate threshold lowered from 21 to 20.
 
-**Steer:** decrease
+**Steer:** decrease (maintain)
 
 ### 3. Ship one cross-runtime skill validation test
 
@@ -45,6 +45,12 @@ The north star claims every session is smarter than the last. Instrumented and v
 Policy: max 1 published release per week (security hotfixes exempt). Was violated (4 releases on 2026-02-27). Added `scripts/release-cadence-check.sh` with warn <7 days, block <1 day. Wired into `ci-local-release.sh` Phase 2. Gate: cadence check passes.
 
 **Steer:** decrease (violation count)
+
+### 8. Tighten cli/ complexity ceiling from 21 to 20
+
+Two functions at CC 21 refactored: `buildHandoffContext` 21→10 (extracted renderHandoffEntry, renderDegradationWarnings, resolveNarrativeCap) and `runRPIServe` 21→12 (extracted runServeOrchestrate, runServeWatch, newDashboardServer). Gate threshold lowered from 21 to 20.
+
+**Steer:** decrease (maintain)
 
 ### 5. Run Athena knowledge cycle daily
 
@@ -70,7 +76,7 @@ Goals that alternate improved→fail for ≥3 consecutive cycles indicate the im
 | skill-frontmatter | `bash -c 'for f in skills/*/SKILL.md; do head -5 "$f" \| grep -q "^---" && head -10 "$f" \| grep -q "^name:" && head -10 "$f" \| grep -q "^description:" \|\| { echo FAIL:$f; exit 1; }; done'` | 5 | Every skill has valid YAML frontmatter |
 | contract-compatibility | `timeout 60 bash scripts/check-contract-compatibility.sh` | 5 | Contract schemas and references exist on disk |
 | wiring-closure | `timeout 60 bash scripts/check-wiring-closure.sh` | 7 | All scripts, skills, and hooks referenced by registries |
-| go-complexity-ceiling | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/ --threshold 21 && timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/internal/ --threshold 18` | 6 | No Go function exceeds CC thresholds (cli/: 21, cli/internal/: 18) |
+| go-complexity-ceiling | `timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/ --threshold 20 && timeout 60 bash scripts/check-go-absolute-complexity.sh --dir cli/internal/ --threshold 18` | 6 | No Go function exceeds CC thresholds (cli/: 20, cli/internal/: 18) |
 | go-coverage-floor | `cd cli && timeout 120 go test -cover ./... 2>&1 \| grep '^ok' \| sed -n 's/.*coverage: \([0-9.]*\)%.*/\1/p' \| awk '{s+=$1;n++} END{if(n>0 && s/n>=95) exit 0; else exit 1}'` | 4 | Average test coverage stays above 95% |
 | cmd-ao-coverage-floor | `bash scripts/check-cmdao-coverage-floor.sh` | 6 | cmd/ao coverage floor and zero-coverage regression threshold are enforced |
 | security-gate | `test -x scripts/security-gate.sh && timeout 60 bash tests/scripts/test-security-gate.sh` | 6 | Security toolchain gate is executable and passes |
