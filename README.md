@@ -206,7 +206,7 @@ Every skill composes into one loop: measure the worst goal gap, run `/rpi` to fi
 ```text
 > /evolve
 
-[evolve] GOALS.yaml: 28 goals loaded, score 77.0% (20/26 passing)
+[evolve] GOALS.md: 18 gates loaded, score 77.0% (14/18 passing)
 
 [cycle-1]     Worst: wiring-closure (weight 6) + 3 more
               /rpi "Fix failing goals" → score 93.3% (25/28) ✓

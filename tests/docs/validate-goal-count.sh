@@ -5,19 +5,30 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 errors=0
 
-# Count actual goals in GOALS.yaml
-actual_count=$(grep -c "^  - id:" "$REPO_ROOT/GOALS.yaml")
-
-# Extract README claim (line like "44 measurable goals") — optional
-readme_claim=$(grep -oE '[0-9]+ measurable goals' "$REPO_ROOT/README.md" | head -1 | grep -oE '^[0-9]+' || echo "")
-
 echo "=== Goal Count Validation ==="
-echo "  GOALS.yaml actual: $actual_count"
+
+# Detect goals file format
+if [[ -f "$REPO_ROOT/GOALS.md" ]]; then
+    GOALS_FILE="$REPO_ROOT/GOALS.md"
+    # Count gates (table rows starting with | followed by lowercase id)
+    actual_count=$(grep -cE '^\| [a-z]' "$GOALS_FILE")
+    echo "  GOALS.md gates: $actual_count"
+elif [[ -f "$REPO_ROOT/GOALS.yaml" ]]; then
+    GOALS_FILE="$REPO_ROOT/GOALS.yaml"
+    actual_count=$(grep -c "^  - id:" "$GOALS_FILE")
+    echo "  GOALS.yaml goals: $actual_count"
+else
+    echo "FAIL: No GOALS.md or GOALS.yaml found"
+    exit 1
+fi
+
+# Extract README claim (line like "N measurable goals" or "N gates") — optional
+readme_claim=$(grep -oE '[0-9]+ (measurable )?(goals|gates)' "$REPO_ROOT/README.md" | head -1 | grep -oE '^[0-9]+' || echo "")
 
 if [[ -n "$readme_claim" ]]; then
     echo "  README.md claim:   $readme_claim"
     if [[ "$actual_count" -ne "$readme_claim" ]]; then
-        echo "FAIL: GOALS.yaml has $actual_count goals but README.md claims $readme_claim"
+        echo "FAIL: Goals file has $actual_count entries but README.md claims $readme_claim"
         errors=$((errors + 1))
     fi
 else
@@ -25,13 +36,15 @@ else
 fi
 echo ""
 
-# Also check GOALS.yaml count comment if present
-yaml_claim=$(grep -oE '^# [0-9]+ goals:' "$REPO_ROOT/GOALS.yaml" | head -1 | grep -oE '[0-9]+' || echo "")
-if [[ -n "$yaml_claim" ]]; then
-    echo "  GOALS.yaml comment: $yaml_claim"
-    if [[ "$actual_count" -ne "$yaml_claim" ]]; then
-        echo "FAIL: GOALS.yaml comment says $yaml_claim but actual count is $actual_count"
-        errors=$((errors + 1))
+# Also check goals file count comment if present (YAML format)
+if [[ "$GOALS_FILE" == *".yaml" ]]; then
+    yaml_claim=$(grep -oE '^# [0-9]+ goals:' "$GOALS_FILE" | head -1 | grep -oE '[0-9]+' || echo "")
+    if [[ -n "$yaml_claim" ]]; then
+        echo "  GOALS.yaml comment: $yaml_claim"
+        if [[ "$actual_count" -ne "$yaml_claim" ]]; then
+            echo "FAIL: GOALS.yaml comment says $yaml_claim but actual count is $actual_count"
+            errors=$((errors + 1))
+        fi
     fi
 fi
 
