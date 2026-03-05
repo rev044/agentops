@@ -126,6 +126,11 @@ scripts/generate-cli-reference.sh
 
 **No secrets in code.** CI greps for hardcoded passwords, API keys, tokens in non-test files.
 
+## Testing Rules
+
+- **No coverage-padding tests.** Tests that use trivial `!= ""` or `!= nil` assertions solely to inflate coverage metrics are banned. Every test must assert behavioral correctness, not just presence. If a function's coverage is low, write a real test or accept the metric.
+- **No `cov*_test.go` naming convention.** Test files must be named after the source file they test (e.g., `goals_test.go` not `cov15_goals_init_test.go`).
+
 ## Release Pipeline
 
 Releases are automated via GoReleaser + GitHub Actions:

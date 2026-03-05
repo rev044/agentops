@@ -2,6 +2,7 @@
 # Run all Codex integration tests
 # Usage: ./tests/codex/run-all.sh
 # ag-3b7.5
+# Test harness: intentionally -uo (not -euo) to accumulate passed/failed/skipped
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

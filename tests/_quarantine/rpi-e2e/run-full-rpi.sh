@@ -4,6 +4,7 @@
 #
 # Usage: ./run-full-rpi.sh [--verbose] [--cleanup]
 
+# Test harness: intentionally -uo (not -euo) to accumulate PASS_COUNT/FAIL_COUNT
 set -uo pipefail
 
 # Colors for output

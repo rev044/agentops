@@ -12,6 +12,7 @@
 #   <skill-name-or-path>  Either a skill name (looks in SKILLS_DIR) or full path to skill dir
 #   [skills-base-dir]     Optional base directory for dependency resolution
 
+# Test harness: intentionally -uo (not -euo) to accumulate ERRORS/CHECKS counters
 set -uo pipefail
 
 SKILL="${1:-}"

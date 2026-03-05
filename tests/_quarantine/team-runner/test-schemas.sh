@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Test JSON schemas are valid and have required properties
+# Test harness: intentionally -uo (not -euo) to accumulate PASS/FAIL
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

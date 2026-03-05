@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Run all team-runner tests
+# Test harness: intentionally -uo (not -euo) to accumulate TOTAL_FAIL
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
