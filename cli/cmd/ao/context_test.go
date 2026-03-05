@@ -942,7 +942,7 @@ func TestContextCov_HookMessageForStatus(t *testing.T) {
 				Action:         "recover_dead_session",
 				RestartAttempt: true,
 				RestartSuccess: true,
-				TmuxSession:   "my-session",
+				TmuxSession:    "my-session",
 			},
 			want: "auto-restarted",
 		},
@@ -982,9 +982,9 @@ func TestContextCov_HookMessageForStatus(t *testing.T) {
 			want: "Hull is RED",
 		},
 		{
-			name:  "continue with GREEN readiness returns empty",
+			name:   "continue with GREEN readiness returns empty",
 			status: contextSessionStatus{Action: "continue", Readiness: contextReadinessGreen},
-			empty: true,
+			empty:  true,
 		},
 	}
 	for _, tt := range tests {

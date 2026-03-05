@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
 	"github.com/spf13/cobra"
 )
 
@@ -159,7 +160,7 @@ func TestQuickstart_CreateStarterPack_PatternContent(t *testing.T) {
 
 // --- runQuickstart tests ---
 
-func TestCov3_quickstart_runQuickstart_minimal(t *testing.T) {
+func TestQuickstart_runQuickstart_minimal(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -201,7 +202,7 @@ func TestCov3_quickstart_runQuickstart_minimal(t *testing.T) {
 	}
 }
 
-func TestCov3_quickstart_runQuickstart_fullNoBeads(t *testing.T) {
+func TestQuickstart_runQuickstart_fullNoBeads(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -237,7 +238,7 @@ func TestCov3_quickstart_runQuickstart_fullNoBeads(t *testing.T) {
 	}
 }
 
-func TestCov3_quickstart_runQuickstart_createsClaudeMd(t *testing.T) {
+func TestQuickstart_runQuickstart_createsClaudeMd(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -271,7 +272,7 @@ func TestCov3_quickstart_runQuickstart_createsClaudeMd(t *testing.T) {
 	}
 }
 
-func TestCov3_quickstart_runQuickstart_existingClaudeMd(t *testing.T) {
+func TestQuickstart_runQuickstart_existingClaudeMd(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -313,7 +314,7 @@ func TestCov3_quickstart_runQuickstart_existingClaudeMd(t *testing.T) {
 
 // --- quickstartBeadsStep tests ---
 
-func TestCov3_quickstart_quickstartBeadsStep_noBeads(t *testing.T) {
+func TestQuickstart_quickstartBeadsStep_noBeads(t *testing.T) {
 	tmp := t.TempDir()
 
 	oldNoBeads := noBeads
@@ -342,7 +343,7 @@ func TestCov3_quickstart_quickstartBeadsStep_noBeads(t *testing.T) {
 
 // --- quickstartClaudeMdStep tests ---
 
-func TestCov3_quickstart_quickstartClaudeMdStep_creates(t *testing.T) {
+func TestQuickstart_quickstartClaudeMdStep_creates(t *testing.T) {
 	tmp := t.TempDir()
 
 	got := captureJSONStdout(t, func() {
@@ -359,7 +360,7 @@ func TestCov3_quickstart_quickstartClaudeMdStep_creates(t *testing.T) {
 	}
 }
 
-func TestCov3_quickstart_quickstartClaudeMdStep_alreadyExists(t *testing.T) {
+func TestQuickstart_quickstartClaudeMdStep_alreadyExists(t *testing.T) {
 	tmp := t.TempDir()
 	claudeMdPath := filepath.Join(tmp, "CLAUDE.md")
 	if err := os.WriteFile(claudeMdPath, []byte("existing"), 0644); err != nil {
@@ -377,7 +378,7 @@ func TestCov3_quickstart_quickstartClaudeMdStep_alreadyExists(t *testing.T) {
 
 // --- createStarterPack tests ---
 
-func TestCov3_quickstart_createStarterPack(t *testing.T) {
+func TestQuickstart_createStarterPack(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Create needed directories
@@ -411,7 +412,7 @@ func TestCov3_quickstart_createStarterPack(t *testing.T) {
 
 // --- createTasksFile tests ---
 
-func TestCov3_quickstart_createTasksFile(t *testing.T) {
+func TestQuickstart_createTasksFile(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tmp, ".agents"), 0755); err != nil {
 		t.Fatal(err)
@@ -433,7 +434,7 @@ func TestCov3_quickstart_createTasksFile(t *testing.T) {
 
 // --- createProjectClaudeMd tests ---
 
-func TestCov3_quickstart_createProjectClaudeMd(t *testing.T) {
+func TestQuickstart_createProjectClaudeMd(t *testing.T) {
 	tmp := t.TempDir()
 
 	err := createProjectClaudeMd(tmp)
@@ -455,7 +456,7 @@ func TestCov3_quickstart_createProjectClaudeMd(t *testing.T) {
 
 // --- showNextSteps tests ---
 
-func TestCov3_quickstart_showNextSteps_withBeads(t *testing.T) {
+func TestQuickstart_showNextSteps_withBeads(t *testing.T) {
 	got := captureJSONStdout(t, func() {
 		showNextSteps(true)
 	})
@@ -465,7 +466,7 @@ func TestCov3_quickstart_showNextSteps_withBeads(t *testing.T) {
 	}
 }
 
-func TestCov3_quickstart_showNextSteps_withoutBeads(t *testing.T) {
+func TestQuickstart_showNextSteps_withoutBeads(t *testing.T) {
 	got := captureJSONStdout(t, func() {
 		showNextSteps(false)
 	})

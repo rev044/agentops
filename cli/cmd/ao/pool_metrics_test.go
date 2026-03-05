@@ -18,13 +18,13 @@ import (
 
 func TestPoolIngest_parseLearningBlocks(t *testing.T) {
 	tests := []struct {
-		name       string
-		md         string
-		wantCount  int
-		wantTitle  string
-		wantID     string
-		wantCat    string
-		wantConf   string
+		name      string
+		md        string
+		wantCount int
+		wantTitle string
+		wantID    string
+		wantCat   string
+		wantConf  string
 	}{
 		{
 			name:      "no learning blocks returns nil",
@@ -1240,13 +1240,13 @@ func TestPoolMigrate_migrateLegacyKnowledgeFiles(t *testing.T) {
 
 func TestPoolMetrics_computeSigmaRho(t *testing.T) {
 	tests := []struct {
-		name            string
-		totalArtifacts  int
-		uniqueCited     int
-		citationCount   int
-		days            int
-		wantSigma       float64
-		wantRho         float64
+		name           string
+		totalArtifacts int
+		uniqueCited    int
+		citationCount  int
+		days           int
+		wantSigma      float64
+		wantRho        float64
 	}{
 		{
 			name:           "zero artifacts",
@@ -1367,11 +1367,11 @@ func TestPoolMetrics_isStaleArtifact(t *testing.T) {
 	staleThreshold := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name           string
-		modTime        time.Time
-		lastCited      map[string]time.Time
-		path           string
-		want           bool
+		name      string
+		modTime   time.Time
+		lastCited map[string]time.Time
+		path      string
+		want      bool
 	}{
 		{
 			name:      "recent mod time not stale",
@@ -1388,8 +1388,8 @@ func TestPoolMetrics_isStaleArtifact(t *testing.T) {
 			want:      true,
 		},
 		{
-			name:    "old mod, recently cited not stale",
-			modTime: staleThreshold.Add(-30 * 24 * time.Hour),
+			name:      "old mod, recently cited not stale",
+			modTime:   staleThreshold.Add(-30 * 24 * time.Hour),
 			lastCited: map[string]time.Time{
 				// normalizeArtifactPath will canonicalize, so we need the right key
 			},
@@ -1448,11 +1448,11 @@ func TestPoolMetrics_buildLastCitedMap(t *testing.T) {
 
 func TestPoolMetrics_computeUtilityStats(t *testing.T) {
 	tests := []struct {
-		name      string
-		values    []float64
-		wantMean  float64
-		wantHigh  int
-		wantLow   int
+		name     string
+		values   []float64
+		wantMean float64
+		wantHigh int
+		wantLow  int
 	}{
 		{
 			name:     "empty",
@@ -1695,7 +1695,7 @@ func TestMetrics_retrievableCitationStats(t *testing.T) {
 		{ArtifactPath: ".agents/learnings/a.md"},
 		{ArtifactPath: ".agents/learnings/a.md"},
 		{ArtifactPath: ".agents/patterns/b.md"},
-		{ArtifactPath: ".agents/research/c.md"},  // not retrievable
+		{ArtifactPath: ".agents/research/c.md"},   // not retrievable
 		{ArtifactPath: ".agents/candidates/d.md"}, // not retrievable
 	}
 
@@ -1838,9 +1838,9 @@ func TestMetrics_countArtifacts(t *testing.T) {
 
 func TestMetricsFlywheel_printFlywheelStatus(t *testing.T) {
 	tests := []struct {
-		name       string
-		metrics    *types.FlywheelMetrics
-		wantStr    string
+		name    string
+		metrics *types.FlywheelMetrics
+		wantStr string
 	}{
 		{
 			name: "compounding",
@@ -1929,10 +1929,10 @@ func TestMetrics_canonicalSessionID(t *testing.T) {
 
 func TestMetrics_canonicalArtifactPath(t *testing.T) {
 	tests := []struct {
-		name     string
-		baseDir  string
-		path     string
-		wantAbs  bool
+		name    string
+		baseDir string
+		path    string
+		wantAbs bool
 	}{
 		{"absolute path stays absolute", "/project", "/abs/path/file.md", true},
 		{"relative path made absolute", "/project", ".agents/learnings/a.md", true},

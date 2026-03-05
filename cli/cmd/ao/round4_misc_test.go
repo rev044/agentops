@@ -353,8 +353,8 @@ func TestStatusToMaturity(t *testing.T) {
 func TestFilterProcessableTasks(t *testing.T) {
 	tasks := []TaskEvent{
 		{TaskID: "t1", Status: "completed", LearningID: "L1", SessionID: "s1"},
-		{TaskID: "t2", Status: "completed", LearningID: "", SessionID: "s1"},  // no learning
-		{TaskID: "t3", Status: "pending", LearningID: "L3", SessionID: "s1"},  // not completed
+		{TaskID: "t2", Status: "completed", LearningID: "", SessionID: "s1"}, // no learning
+		{TaskID: "t3", Status: "pending", LearningID: "L3", SessionID: "s1"}, // not completed
 		{TaskID: "t4", Status: "completed", LearningID: "L4", SessionID: "s2"},
 		{TaskID: "t5", Status: "in_progress", LearningID: "L5", SessionID: "s2"},
 	}

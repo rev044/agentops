@@ -69,6 +69,8 @@ if [[ "$PATTERN" == *..* ]] || [[ "$PATTERN" == */* ]]; then
     die "Invalid --pattern: must not contain '..' or '/'. Got: $PATTERN"
 fi
 
+echo "Resolved worktree pattern: $WT_BASE/$PATTERN"
+
 # ── Pre-flight ───────────────────────────────────────────────────────────────
 git -C "$REPO_ROOT" rev-parse --is-inside-work-tree &>/dev/null \
   || die "Not inside a git repository: $REPO_ROOT"
@@ -86,8 +88,9 @@ if [[ -d "$WT_BASE" ]]; then
   for d in "$WT_BASE"/$PATTERN; do [[ -d "$d" ]] && WORKTREES+=("$d"); done
 fi
 if [[ ${#WORKTREES[@]} -eq 0 ]]; then
-  echo "No worktrees found matching '$PATTERN' in $WT_BASE"; exit 0
+  echo "No worktree directories found matching '$PATTERN' in $WT_BASE"; exit 0
 fi
+echo "Found ${#WORKTREES[@]} worktree directory(ies) matching pattern"
 
 # ── Analyze each worktree ────────────────────────────────────────────────────
 declare -a WT_NAMES=() WT_BRANCHES=() WT_COMMITS=() WT_SUMMARIES=()

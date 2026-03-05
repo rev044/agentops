@@ -634,6 +634,16 @@ source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 ### Anti-Patterns to Avoid
 - ...
 
+### Footgun Entries (Required)
+
+List discovered footguns — common mistakes or surprising behaviors that cost time:
+
+| Footgun | Impact | Prevention |
+|---------|--------|-----------|
+| description | how it wasted time | how to prevent |
+
+These entries are promoted to `.agents/learnings/` and injected into future worker prompts to prevent recurrence. Zero-cycle lag between discovery and prevention.
+
 ## Knowledge Lifecycle
 
 ### Backlog Processing (Phase 3)

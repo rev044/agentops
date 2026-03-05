@@ -2,11 +2,11 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-	"os/exec"
 )
 
 // ---------------------------------------------------------------------------
@@ -415,7 +415,7 @@ func TestWorktree_gcWorktreeCandidates_DryRun(t *testing.T) {
 // worktree.go — gcWorktreeCandidates (zero coverage)
 // ===========================================================================
 
-func TestCov3_worktree_gcWorktreeCandidates_empty(t *testing.T) {
+func TestWorktree_gcWorktreeCandidates_empty(t *testing.T) {
 	var candidates []worktreeGCCandidate
 	liveRuns := make(map[string]bool)
 	removed := gcWorktreeCandidates(candidates, liveRuns, "/fake/root", time.Now())
@@ -424,7 +424,7 @@ func TestCov3_worktree_gcWorktreeCandidates_empty(t *testing.T) {
 	}
 }
 
-func TestCov3_worktree_gcWorktreeCandidates_dryRun(t *testing.T) {
+func TestWorktree_gcWorktreeCandidates_dryRun(t *testing.T) {
 	// Save and restore dryRun
 	origDryRun := dryRun
 	defer func() { dryRun = origDryRun }()
@@ -445,7 +445,7 @@ func TestCov3_worktree_gcWorktreeCandidates_dryRun(t *testing.T) {
 	}
 }
 
-func TestCov3_worktree_gcWorktreeCandidates_realRemoveNonexistentPath(t *testing.T) {
+func TestWorktree_gcWorktreeCandidates_realRemoveNonexistentPath(t *testing.T) {
 	// Save and restore dryRun
 	origDryRun := dryRun
 	defer func() { dryRun = origDryRun }()
@@ -476,7 +476,7 @@ func TestCov3_worktree_gcWorktreeCandidates_realRemoveNonexistentPath(t *testing
 // worktree.go — isWorktreeDirty (zero coverage)
 // ===========================================================================
 
-func TestCov3_worktree_isWorktreeDirty_cleanRepo(t *testing.T) {
+func TestWorktree_isWorktreeDirty_cleanRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}
@@ -523,7 +523,7 @@ func TestCov3_worktree_isWorktreeDirty_cleanRepo(t *testing.T) {
 	}
 }
 
-func TestCov3_worktree_isWorktreeDirty_dirtyRepo(t *testing.T) {
+func TestWorktree_isWorktreeDirty_dirtyRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}
@@ -574,12 +574,11 @@ func TestCov3_worktree_isWorktreeDirty_dirtyRepo(t *testing.T) {
 	}
 }
 
-
 // ===========================================================================
 // worktree.go — resolveRepoRoot (zero coverage)
 // ===========================================================================
 
-func TestCov3_worktree_resolveRepoRoot_inGitRepo(t *testing.T) {
+func TestWorktree_resolveRepoRoot_inGitRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}
@@ -599,12 +598,11 @@ func TestCov3_worktree_resolveRepoRoot_inGitRepo(t *testing.T) {
 	}
 }
 
-
 // ===========================================================================
 // worktree.go — findStaleRPITmuxSessions (zero coverage)
 // ===========================================================================
 
-func TestCov3_worktree_findStaleRPITmuxSessions_noTmux(t *testing.T) {
+func TestWorktree_findStaleRPITmuxSessions_noTmux(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("PATH", tmp) // no tmux
 
@@ -626,7 +624,7 @@ func TestCov3_worktree_findStaleRPITmuxSessions_noTmux(t *testing.T) {
 // worktree.go — listRPITmuxSessions (zero coverage)
 // ===========================================================================
 
-func TestCov3_worktree_listRPITmuxSessions_noTmux(t *testing.T) {
+func TestWorktree_listRPITmuxSessions_noTmux(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("PATH", tmp) // no tmux
 
@@ -643,7 +641,7 @@ func TestCov3_worktree_listRPITmuxSessions_noTmux(t *testing.T) {
 // worktree.go — finalizeWorktreeGC (zero coverage)
 // ===========================================================================
 
-func TestCov3_worktree_finalizeWorktreeGC_dryRun(t *testing.T) {
+func TestWorktree_finalizeWorktreeGC_dryRun(t *testing.T) {
 	origDryRun := dryRun
 	defer func() { dryRun = origDryRun }()
 	dryRun = true
@@ -652,7 +650,7 @@ func TestCov3_worktree_finalizeWorktreeGC_dryRun(t *testing.T) {
 	finalizeWorktreeGC("/fake/root", 3, 0, 0, 2)
 }
 
-func TestCov3_worktree_finalizeWorktreeGC_noPrune(t *testing.T) {
+func TestWorktree_finalizeWorktreeGC_noPrune(t *testing.T) {
 	origDryRun := dryRun
 	origPrune := worktreeGCPrune
 	defer func() {
@@ -666,7 +664,7 @@ func TestCov3_worktree_finalizeWorktreeGC_noPrune(t *testing.T) {
 	finalizeWorktreeGC("/fake/root", 0, 0, 0, 0)
 }
 
-func TestCov3_worktree_finalizeWorktreeGC_withPrune(t *testing.T) {
+func TestWorktree_finalizeWorktreeGC_withPrune(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}
@@ -689,8 +687,6 @@ func TestCov3_worktree_finalizeWorktreeGC_withPrune(t *testing.T) {
 	// finalizeWorktreeGC calls pruneWorktrees which runs git worktree prune
 	finalizeWorktreeGC(tmp, 0, 0, 0, 0)
 }
-
-
 
 func TestCov4_runWorktreeGC_dryRunInGitRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
@@ -732,7 +728,7 @@ func TestCov4_runWorktreeGC_dryRunInGitRepo(t *testing.T) {
 // worktree.go — gcTmuxSessions (zero coverage)
 // ===========================================================================
 
-func TestCov3_worktree_gcTmuxSessions_noTmux(t *testing.T) {
+func TestWorktree_gcTmuxSessions_noTmux(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("PATH", tmp) // no tmux
 
@@ -752,5 +748,3 @@ func TestCov3_worktree_gcTmuxSessions_noTmux(t *testing.T) {
 		t.Errorf("expected 0 candidates without tmux, got %d", candidates)
 	}
 }
-
-

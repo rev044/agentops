@@ -236,7 +236,6 @@ summary: Has both fields
 	}
 }
 
-
 func TestIndexCov_ProcessAllIndexDirs_WithFiles(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, ".agents", "learnings")
@@ -598,7 +597,6 @@ func TestIndexCov_RunIndex_SingleDir(t *testing.T) {
 	}
 }
 
-
 func TestIndexCov_ScanAndSortDir_WithFiles(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, ".agents", "learnings")
@@ -646,7 +644,6 @@ func TestIndexCov_WriteIndex_DryRun(t *testing.T) {
 		t.Error("expected INDEX.md not written in dry-run mode")
 	}
 }
-
 
 func TestIndexCov_ParseIndexTableRows_ValidTable(t *testing.T) {
 	table := `# Index: Learnings

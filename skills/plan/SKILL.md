@@ -122,6 +122,8 @@ Run grep/wc/ls commands to count the current state of what you're changing:
 | "update stale docs" | "Rewrite 4 specs (verified: `ls docs/specs/*.md \| wc -l` = 4)" |
 | "add missing sections" | "Add Examples to 27 skills (verified: `grep -L '## Examples' skills/*/SKILL.md \| wc -l` = 27)" |
 
+- **Test fixtures affected:** count test fixtures upstream of any filter/gate/hook being added or modified with `grep -rn 'func Test' <test-dir>/ | wc -l`. Changing a gate without updating its test fixtures causes false-green CI.
+
 Ground truth with numbers prevents scope creep and makes completion verifiable. In ol-571, the audit found 5,752 LOC to remove — without it, the plan would have been vague. In ag-dnu, wrong counts (11 vs 14, 0 vs 7) caused a pre-mortem FAIL that a simple grep audit would have prevented.
 
 ### Step 3.5: Generate Implementation Detail (Mandatory)
@@ -156,7 +158,7 @@ For each logical change group, provide symbol-level detail:
    - "Reuse `readRunHeartbeat()` at `rpi_phased.go:1963`"
    - "Call existing `parsePhasedState()` at `rpi_phased.go:1924`"
 
-3. **Inline code blocks** — for non-obvious constructs (struct definitions, CLI flags, config snippets):
+3. **Inline code blocks** — for non-obvious constructs (struct definitions, CLI flags, config snippets). Verify all inline snippets compile with `go build ./...` before including them in issue descriptions — workers copy them verbatim:
    ```go
    type RPIConfig struct {
        WorktreeMode string `yaml:"worktree_mode" json:"worktree_mode"`
@@ -424,6 +426,12 @@ In `path/to/file.go`:
 **Wave 1** (parallel): Issue 1, Issue 3
 **Wave 2** (after Wave 1): Issue 2, Issue 4
 **Wave 3** (after Wave 2): Issue 5
+
+## Post-Merge Cleanup
+
+After bulk-merging wave results, audit for scaffold-era names:
+- Rename placeholder function/variable names (e.g., `handleThing`, `processItem`) to domain-specific names
+- Search with `grep -rn 'TODO\|FIXME\|HACK\|XXX' <modified-files>` for deferred cleanup markers
 
 ## Next Steps
 - Run `/pre-mortem` to validate plan

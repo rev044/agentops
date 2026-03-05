@@ -128,7 +128,7 @@ func TestTaskSync_filterProcessableTasks(t *testing.T) {
 	tasks := []TaskEvent{
 		{TaskID: "t1", Status: "completed", LearningID: "L-1", SessionID: "s1"},
 		{TaskID: "t2", Status: "pending", LearningID: "", SessionID: "s1"},
-		{TaskID: "t3", Status: "completed", LearningID: "", SessionID: "s1"},      // no learning
+		{TaskID: "t3", Status: "completed", LearningID: "", SessionID: "s1"}, // no learning
 		{TaskID: "t4", Status: "completed", LearningID: "L-4", SessionID: "s2"},
 	}
 
@@ -137,9 +137,9 @@ func TestTaskSync_filterProcessableTasks(t *testing.T) {
 		session   string
 		wantCount int
 	}{
-		{"all sessions", "", 2},        // t1 and t4
-		{"filter to s1", "s1", 1},      // only t1
-		{"filter to s2", "s2", 1},      // only t4
+		{"all sessions", "", 2},   // t1 and t4
+		{"filter to s1", "s1", 1}, // only t1
+		{"filter to s2", "s2", 1}, // only t4
 		{"nonexistent session", "s9", 0},
 	}
 	for _, tt := range tests {

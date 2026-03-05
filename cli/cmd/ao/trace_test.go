@@ -350,12 +350,11 @@ func TestTrace_runTrace_NoProvenanceFile(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // trace.go — traceOneArtifact
 // ---------------------------------------------------------------------------
 
-func TestCov3_trace_traceOneArtifact_jsonOutput(t *testing.T) {
+func TestTrace_traceOneArtifact_jsonOutput(t *testing.T) {
 	// Set up a temp dir with a provenance graph file
 	tmpDir := t.TempDir()
 	provDir := filepath.Join(tmpDir, storage.DefaultBaseDir, storage.ProvenanceDir)
@@ -412,7 +411,7 @@ func TestCov3_trace_traceOneArtifact_jsonOutput(t *testing.T) {
 	}
 }
 
-func TestCov3_trace_traceOneArtifact_noProvenance(t *testing.T) {
+func TestTrace_traceOneArtifact_noProvenance(t *testing.T) {
 	// Create an empty provenance graph
 	tmpDir := t.TempDir()
 	provDir := filepath.Join(tmpDir, storage.DefaultBaseDir, storage.ProvenanceDir)
@@ -462,7 +461,7 @@ func TestCov3_trace_traceOneArtifact_noProvenance(t *testing.T) {
 // trace.go — printTraceGraph
 // ---------------------------------------------------------------------------
 
-func TestCov3_trace_printTraceGraph(t *testing.T) {
+func TestTrace_printTraceGraph(t *testing.T) {
 	result := &provenance.TraceResult{
 		Artifact: "sessions/test.md",
 		Chain: []provenance.Record{
@@ -503,10 +502,10 @@ func TestCov3_trace_printTraceGraph(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// trace.go — repeatString, min
+// trace.go — repeatString, min (additional cases)
 // ---------------------------------------------------------------------------
 
-func TestCov3_trace_repeatString(t *testing.T) {
+func TestTrace_repeatString_Additional(t *testing.T) {
 	tests := []struct {
 		s    string
 		n    int
@@ -525,7 +524,7 @@ func TestCov3_trace_repeatString(t *testing.T) {
 	}
 }
 
-func TestCov3_trace_min(t *testing.T) {
+func TestTrace_min_Additional(t *testing.T) {
 	tests := []struct {
 		a, b, want int
 	}{

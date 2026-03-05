@@ -863,7 +863,7 @@ func TestForge_extractToolRefs(t *testing.T) {
 		{Name: "Read", Input: map[string]any{"file_path": "/a.go"}},
 		{Name: "Write", Input: map[string]any{"file_path": "/b.go"}},
 		{Name: "Read", Input: map[string]any{"file_path": "/a.go"}}, // duplicate
-		{Name: "tool_result"},                                        // should be skipped
+		{Name: "tool_result"}, // should be skipped
 	}
 
 	extractToolRefs(tools, session, state)
@@ -881,7 +881,6 @@ func TestForge_extractToolRefs(t *testing.T) {
 		t.Errorf("expected 2 unique files, got %d", len(state.filesChanged))
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // extractSnippet
@@ -1428,7 +1427,6 @@ func TestForgeCoverage_extractIssueRefs(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // splitMarkdownSections
 // ---------------------------------------------------------------------------
@@ -1966,9 +1964,6 @@ func TestForgeCoverage_collectTranscriptCandidates(t *testing.T) {
 	}
 }
 
-
-
-
 func TestForgeCoverage_findLastSession_FindsMostRecent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -2171,7 +2166,6 @@ func TestForgeCoverage_consumeTranscriptMessages(t *testing.T) {
 	}
 }
 
-
 func TestForgeCoverage_processMarkdown_ValidFile(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "valid.md")
@@ -2193,7 +2187,6 @@ func TestForgeCoverage_processMarkdown_ValidFile(t *testing.T) {
 		t.Errorf("unexpected transcript path: %s", session.TranscriptPath)
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // processMarkdown deterministic ID

@@ -16,12 +16,12 @@ func TestBadge_GetEscapeStatus_Boundaries(t *testing.T) {
 		delta      float64
 		wantStatus string
 	}{
-		{"exact delta boundary", 0.17, 0.17, "APPROACHING"},  // not >, falls to 0.17 > 0.136 = true
+		{"exact delta boundary", 0.17, 0.17, "APPROACHING"}, // not >, falls to 0.17 > 0.136 = true
 		{"just above delta", 0.18, 0.17, "ESCAPE VELOCITY"},
-		{"above 80% of delta", 0.14, 0.17, "APPROACHING"},  // 0.14 > 0.136
-		{"at 80% of delta", 0.136, 0.17, "BUILDING"},       // 0.136 ~= 0.136, not strictly >, falls through
-		{"below 80% above 50%", 0.10, 0.17, "BUILDING"},    // 0.10 > 0.085
-		{"at 50% of delta", 0.085, 0.17, "STARTING"},       // 0.085 ~= 0.085, not strictly >
+		{"above 80% of delta", 0.14, 0.17, "APPROACHING"}, // 0.14 > 0.136
+		{"at 80% of delta", 0.136, 0.17, "BUILDING"},      // 0.136 ~= 0.136, not strictly >, falls through
+		{"below 80% above 50%", 0.10, 0.17, "BUILDING"},   // 0.10 > 0.085
+		{"at 50% of delta", 0.085, 0.17, "STARTING"},      // 0.085 ~= 0.085, not strictly >
 		{"just below 50%", 0.084, 0.17, "STARTING"},
 		{"zero sigmaRho", 0.0, 0.17, "STARTING"},
 		{"zero delta", 0.0, 0.0, "STARTING"},

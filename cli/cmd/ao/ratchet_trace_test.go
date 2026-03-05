@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"os"
 	"path/filepath"
+
+	"github.com/boshu2/agentops/cli/internal/ratchet"
 )
 
 func TestBuildTrace_EmptyChain(t *testing.T) {
@@ -276,7 +277,7 @@ func TestTraceResult_JSONSerialization(t *testing.T) {
 // ratchet_trace.go — buildTrace
 // ---------------------------------------------------------------------------
 
-func TestCov3_ratchetTrace_buildTrace_emptyChain(t *testing.T) {
+func TestRatchetTrace_buildTrace_emptyChain(t *testing.T) {
 	chain := &ratchet.Chain{
 		ID:      "test-chain-1",
 		Started: time.Now(),
@@ -293,7 +294,7 @@ func TestCov3_ratchetTrace_buildTrace_emptyChain(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetTrace_buildTrace_matchesOutput(t *testing.T) {
+func TestRatchetTrace_buildTrace_matchesOutput(t *testing.T) {
 	now := time.Now()
 	chain := &ratchet.Chain{
 		ID:      "test-chain-2",
@@ -343,7 +344,7 @@ func TestCov3_ratchetTrace_buildTrace_matchesOutput(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetTrace_buildTrace_suffixMatch(t *testing.T) {
+func TestRatchetTrace_buildTrace_suffixMatch(t *testing.T) {
 	now := time.Now()
 	chain := &ratchet.Chain{
 		ID:      "test-chain-3",
@@ -370,7 +371,7 @@ func TestCov3_ratchetTrace_buildTrace_suffixMatch(t *testing.T) {
 // ratchet_trace.go — outputTrace (JSON mode)
 // ---------------------------------------------------------------------------
 
-func TestCov3_ratchetTrace_outputTrace_json(t *testing.T) {
+func TestRatchetTrace_outputTrace_json(t *testing.T) {
 	oldOutput := output
 	output = "json"
 	defer func() { output = oldOutput }()
@@ -414,7 +415,7 @@ func TestCov3_ratchetTrace_outputTrace_json(t *testing.T) {
 // ratchet_trace.go — outputTraceText
 // ---------------------------------------------------------------------------
 
-func TestCov3_ratchetTrace_outputTraceText_emptyChain(t *testing.T) {
+func TestRatchetTrace_outputTraceText_emptyChain(t *testing.T) {
 	trace := traceResult{
 		Artifact: "missing.md",
 		Chain:    nil,
@@ -443,7 +444,7 @@ func TestCov3_ratchetTrace_outputTraceText_emptyChain(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetTrace_outputTraceText_withEntries(t *testing.T) {
+func TestRatchetTrace_outputTraceText_withEntries(t *testing.T) {
 	trace := traceResult{
 		Artifact: "output.md",
 		Chain: []traceEntry{
@@ -495,7 +496,7 @@ func TestCov3_ratchetTrace_outputTraceText_withEntries(t *testing.T) {
 // ratchet_trace.go — runRatchetTrace error path
 // ---------------------------------------------------------------------------
 
-func TestCov3_ratchetTrace_runRatchetTrace_noAgentsDir(t *testing.T) {
+func TestRatchetTrace_runRatchetTrace_noAgentsDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	prev, _ := os.Getwd()
 	if err := os.Chdir(tmpDir); err != nil {

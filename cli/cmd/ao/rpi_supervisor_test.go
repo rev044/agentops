@@ -371,7 +371,6 @@ func TestSupervisorCov_IsInfrastructureCycleFailure(t *testing.T) {
 	}
 }
 
-
 // --- renderLandingCommitMessage ---
 
 func TestSupervisorCov_RenderLandingCommitMessage(t *testing.T) {
@@ -412,7 +411,6 @@ func TestSupervisorCov_AppendDirtyPaths(t *testing.T) {
 		}
 	}
 }
-
 
 // --- computeOwnedDirtyPaths ---
 
@@ -486,7 +484,6 @@ func TestSupervisorCov_RunSupervisorLanding_UnsupportedPolicy(t *testing.T) {
 	}
 }
 
-
 func TestSupervisorCov_AcquireLandingLock_EmptyPath(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
 		LandingPolicy:   loopLandingPolicyCommit,
@@ -537,8 +534,6 @@ func TestSupervisorCov_BuildCycleEngineOptions(t *testing.T) {
 		t.Errorf("TmuxCommand = %q", opts.TmuxCommand)
 	}
 }
-
-
 
 // --- supervisorLease methods ---
 

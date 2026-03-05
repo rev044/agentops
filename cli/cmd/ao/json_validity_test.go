@@ -1336,16 +1336,16 @@ func TestJSONValidity_AntiPatterns(t *testing.T) {
 func TestJSONValidity_VibeCheck(t *testing.T) {
 	// VibeCheck outputs a comprehensive analysis result.
 	result := map[string]any{
-		"grade":          "B",
-		"score":          72.5,
-		"velocity":       8,
-		"rework_pct":     12.0,
-		"trust_ratio":    0.85,
-		"spirals":        0,
-		"flow_score":     70,
-		"issues":         []string{},
+		"grade":           "B",
+		"score":           72.5,
+		"velocity":        8,
+		"rework_pct":      12.0,
+		"trust_ratio":     0.85,
+		"spirals":         0,
+		"flow_score":      70,
+		"issues":          []string{},
 		"recommendations": []string{"Consider adding more test coverage"},
-		"period":         "30d",
+		"period":          "30d",
 	}
 
 	out := captureJSONStdout(t, func() {

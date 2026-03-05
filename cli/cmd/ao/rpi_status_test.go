@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 )
 
 // helper: write a run registry entry (state + optional heartbeat)
@@ -2097,8 +2097,6 @@ func TestRPIStatusCov_UpdateInlineVerdicts(t *testing.T) {
 	}
 }
 
-
-
 func TestRPIStatusCov_DiscoverLogRuns_WithSiblingLog(t *testing.T) {
 	parent := t.TempDir()
 	cwd := filepath.Join(parent, "repo")
@@ -2289,7 +2287,6 @@ func TestRPIStatusCov_ScanRegistryRuns_FileNotDir(t *testing.T) {
 	}
 }
 
-
 // --- writeRPIStatusJSON ---
 
 func TestRPIStatusCov_WriteRPIStatusJSON_Fields(t *testing.T) {
@@ -2398,4 +2395,3 @@ func TestRPIStatusCov_ParseOrchestrationLogLine_NonRFC3339Time(t *testing.T) {
 		t.Error("expected HasTime=false for non-RFC3339 timestamp")
 	}
 }
-

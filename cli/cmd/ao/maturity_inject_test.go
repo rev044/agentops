@@ -334,10 +334,10 @@ func TestRatchet_statusIcon(t *testing.T) {
 		status ratchet.StepStatus
 		want   string
 	}{
-		{ratchet.StatusLocked, "\u2713"},      // checkmark
-		{ratchet.StatusSkipped, "\u2298"},      // circled slash
-		{ratchet.StatusInProgress, "\u25d0"},   // half circle
-		{ratchet.StatusPending, "\u25cb"},      // open circle
+		{ratchet.StatusLocked, "\u2713"},          // checkmark
+		{ratchet.StatusSkipped, "\u2298"},         // circled slash
+		{ratchet.StatusInProgress, "\u25d0"},      // half circle
+		{ratchet.StatusPending, "\u25cb"},         // open circle
 		{ratchet.StepStatus("unknown"), "\u25cb"}, // default
 	}
 	for _, tt := range tests {
@@ -730,12 +730,12 @@ func TestInject_writeDecayFields(t *testing.T) {
 
 func TestInject_parseFrontMatter(t *testing.T) {
 	tests := []struct {
-		name         string
-		lines        []string
-		wantIdx      int
-		wantSuper    string
-		wantUtility  float64
-		wantHasUtil  bool
+		name        string
+		lines       []string
+		wantIdx     int
+		wantSuper   string
+		wantUtility float64
+		wantHasUtil bool
 	}{
 		{
 			name:    "no frontmatter",
@@ -748,15 +748,15 @@ func TestInject_parseFrontMatter(t *testing.T) {
 			wantIdx: 0,
 		},
 		{
-			name:    "valid frontmatter with superseded_by",
-			lines:   []string{"---", "superseded_by: L-new", "---", "# Title"},
-			wantIdx: 3,
+			name:      "valid frontmatter with superseded_by",
+			lines:     []string{"---", "superseded_by: L-new", "---", "# Title"},
+			wantIdx:   3,
 			wantSuper: "L-new",
 		},
 		{
-			name:    "superseded-by with dash",
-			lines:   []string{"---", "superseded-by: L-other", "---"},
-			wantIdx: 3,
+			name:      "superseded-by with dash",
+			lines:     []string{"---", "superseded-by: L-other", "---"},
+			wantIdx:   3,
 			wantSuper: "L-other",
 		},
 		{
@@ -1504,4 +1504,3 @@ func TestMaturity_displayMaturityResult(t *testing.T) {
 		displayMaturityResult(r, false)
 	})
 }
-

@@ -1079,9 +1079,6 @@ func TestFeedbackCov_MigrateJSONLFiles(t *testing.T) {
 	})
 }
 
-
-
-
 // ---------------------------------------------------------------------------
 // classifyFeedbackType
 // ---------------------------------------------------------------------------
@@ -1125,8 +1122,6 @@ func TestFeedbackCov_ParseJSONLFirstLine_InvalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
-
-
 
 // ---------------------------------------------------------------------------
 // rebuildWithFrontMatter

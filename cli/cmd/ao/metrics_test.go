@@ -436,7 +436,6 @@ func TestParseUtilityFromJSONL(t *testing.T) {
 	})
 }
 
-
 // ---------------------------------------------------------------------------
 // computeSigmaRho
 // ---------------------------------------------------------------------------
@@ -565,7 +564,7 @@ func TestMetricsCov_retrievableCitationStats(t *testing.T) {
 		{ArtifactPath: filepath.Join(baseDir, ".agents", "learnings", "a.md")},
 		{ArtifactPath: filepath.Join(baseDir, ".agents", "learnings", "b.md")},
 		{ArtifactPath: filepath.Join(baseDir, ".agents", "patterns", "c.md")},
-		{ArtifactPath: filepath.Join(baseDir, ".agents", "research", "d.md")},  // not retrievable
+		{ArtifactPath: filepath.Join(baseDir, ".agents", "research", "d.md")}, // not retrievable
 	}
 
 	uniqueCount, citationCount := retrievableCitationStats(baseDir, citations)
@@ -651,11 +650,11 @@ func TestMetricsCov_countLoopMetrics(t *testing.T) {
 func TestMetricsCov_countArtifacts(t *testing.T) {
 	baseDir := t.TempDir()
 	dirs := map[string][]string{
-		filepath.Join(baseDir, ".agents", "learnings"):  {"l1.md", "l2.jsonl"},
-		filepath.Join(baseDir, ".agents", "patterns"):   {"p1.md"},
-		filepath.Join(baseDir, ".agents", "candidates"): {"c1.md", "c2.md"},
-		filepath.Join(baseDir, ".agents", "research"):   {"r1.md"},
-		filepath.Join(baseDir, ".agents", "retros"):     {"retro1.md"},
+		filepath.Join(baseDir, ".agents", "learnings"):                      {"l1.md", "l2.jsonl"},
+		filepath.Join(baseDir, ".agents", "patterns"):                       {"p1.md"},
+		filepath.Join(baseDir, ".agents", "candidates"):                     {"c1.md", "c2.md"},
+		filepath.Join(baseDir, ".agents", "research"):                       {"r1.md"},
+		filepath.Join(baseDir, ".agents", "retros"):                         {"retro1.md"},
 		filepath.Join(baseDir, storage.DefaultBaseDir, storage.SessionsDir): {"s1.jsonl"},
 	}
 	for dir, files := range dirs {
@@ -740,7 +739,6 @@ func TestMetricsCov_countNewArtifacts(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // countNewArtifactsInDir
 // ---------------------------------------------------------------------------
@@ -769,7 +767,6 @@ func TestMetricsCov_countNewArtifactsInDir(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // buildLastCitedMap
 // ---------------------------------------------------------------------------
@@ -787,7 +784,6 @@ func TestMetricsCov_buildLastCitedMap(t *testing.T) {
 		t.Errorf("expected 2 entries, got %d", len(m))
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // isKnowledgeFile
@@ -1028,7 +1024,6 @@ func TestMetricsCov_countRetros(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // computeUtilityStats
 // ---------------------------------------------------------------------------
@@ -1111,7 +1106,6 @@ func TestMetricsCov_collectUtilityValuesFromDir(t *testing.T) {
 		t.Errorf("expected 2 utility values, got %d", len(values))
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // parseUtilityFromFile / parseUtilityFromMarkdown / parseUtilityFromJSONL
@@ -1229,12 +1223,12 @@ func TestMetricsCov_printMetricsDerived(t *testing.T) {
 
 func TestMetricsCov_printMetricsCounts(t *testing.T) {
 	m := &types.FlywheelMetrics{
-		TotalArtifacts:      10,
-		CitationsThisPeriod: 5,
+		TotalArtifacts:       10,
+		CitationsThisPeriod:  5,
 		UniqueCitedArtifacts: 3,
-		NewArtifacts:        2,
-		StaleArtifacts:      1,
-		TierCounts:          map[string]int{"learning": 5, "pattern": 3, "observation": 2},
+		NewArtifacts:         2,
+		StaleArtifacts:       1,
+		TierCounts:           map[string]int{"learning": 5, "pattern": 3, "observation": 2},
 	}
 	printMetricsCounts(m)
 }
@@ -1300,7 +1294,6 @@ func TestMetricsCov_printMetricsTable(t *testing.T) {
 	// Should not panic
 	printMetricsTable(m)
 }
-
 
 // ---------------------------------------------------------------------------
 // computeUtilityMetrics

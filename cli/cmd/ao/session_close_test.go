@@ -248,12 +248,11 @@ func TestSessionCloseResultJSON(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // session_close.go — computeVelocityDelta
 // ---------------------------------------------------------------------------
 
-func TestCov3_sessionClose_computeVelocityDelta(t *testing.T) {
+func TestSessionClose_computeVelocityDelta(t *testing.T) {
 	tests := []struct {
 		name string
 		pre  *types.FlywheelMetrics
@@ -317,7 +316,7 @@ func TestCov3_sessionClose_computeVelocityDelta(t *testing.T) {
 // session_close.go — classifyFlywheelStatus
 // ---------------------------------------------------------------------------
 
-func TestCov3_sessionClose_classifyFlywheelStatus(t *testing.T) {
+func TestSessionClose_classifyFlywheelStatus(t *testing.T) {
 	tests := []struct {
 		name string
 		post *types.FlywheelMetrics
@@ -364,7 +363,7 @@ func TestCov3_sessionClose_classifyFlywheelStatus(t *testing.T) {
 // session_close.go — printCloseTable
 // ---------------------------------------------------------------------------
 
-func TestCov3_sessionClose_printCloseTable(t *testing.T) {
+func TestSessionClose_printCloseTable(t *testing.T) {
 	tests := []struct {
 		name   string
 		result SessionCloseResult
@@ -455,7 +454,7 @@ func TestCov3_sessionClose_printCloseTable(t *testing.T) {
 // session_close.go — shortenPath
 // ---------------------------------------------------------------------------
 
-func TestCov3_sessionClose_shortenPath(t *testing.T) {
+func TestSessionClose_shortenPath(t *testing.T) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatalf("get home: %v", err)

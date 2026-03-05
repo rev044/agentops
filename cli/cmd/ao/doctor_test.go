@@ -1361,4 +1361,3 @@ func TestDoctorCov_CountUniqueFiles(t *testing.T) {
 		t.Errorf("countUniqueFiles() = %d, want 2", got)
 	}
 }
-

@@ -45,8 +45,14 @@ collect_coverage() {
             continue
         fi
 
-        coverage_line="$(cd "$CLI_DIR" && go test -cover "./internal/$pkg_name" 2>&1 | grep -oE 'coverage: [0-9.]+%' | head -1 || true)"
+        local pkg_output
+        pkg_output="$(cd "$CLI_DIR" && go test -cover "./internal/$pkg_name" 2>&1 || true)"
+        coverage_line="$(echo "$pkg_output" | grep -oE 'coverage: [0-9.]+%' | head -1 || true)"
         if [[ -z "$coverage_line" ]]; then
+            # go test may have failed or produced no coverage data — skip package
+            if echo "$pkg_output" | grep -q 'FAIL'; then
+                echo "  WARN: go test failed for internal/$pkg_name — skipping" >&2
+            fi
             continue
         fi
 
@@ -62,7 +68,13 @@ collect_coverage() {
     done
 
     # cmd/ao coverage (the monolith)
-    cmd_coverage="$(cd "$CLI_DIR" && go test -cover ./cmd/ao 2>&1 | grep -oE 'coverage: [0-9.]+%' | head -1 || true)"
+    # Note: go test may output "[no test files]" or fail — both handled gracefully
+    local cmd_output
+    cmd_output="$(cd "$CLI_DIR" && go test -cover ./cmd/ao 2>&1 || true)"
+    if echo "$cmd_output" | grep -q '\[no test files\]'; then
+        : # No test files for cmd/ao — skip silently
+    fi
+    cmd_coverage="$(echo "$cmd_output" | grep -oE 'coverage: [0-9.]+%' | head -1 || true)"
     if [[ -n "$cmd_coverage" ]]; then
         cmd_pct="$(echo "$cmd_coverage" | grep -oE '[0-9.]+')"
         if [[ -n "$cmd_pct" ]]; then

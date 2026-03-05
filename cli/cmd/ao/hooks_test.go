@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boshu2/agentops/cli/embedded"
 	"bytes"
 	"fmt"
+
+	"github.com/boshu2/agentops/cli/embedded"
 )
 
 func TestGenerateMinimalHooksConfig(t *testing.T) {
@@ -809,10 +810,6 @@ func TestHooksCoverage_eventGroupPtrs_ReturnsAllEvents(t *testing.T) {
 	}
 }
 
-
-
-
-
 // ---------------------------------------------------------------------------
 // generateMinimalHooksConfig
 // ---------------------------------------------------------------------------
@@ -1021,7 +1018,6 @@ func TestHooksCoverage_writeHooksSettings_CreatesDir(t *testing.T) {
 	}
 }
 
-
 func TestHooksCoverage_backupHooksSettings_CreatesBackup(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "settings.json")
@@ -1056,7 +1052,6 @@ func TestHooksCoverage_backupHooksSettings_CreatesBackup(t *testing.T) {
 	}
 }
 
-
 func TestHooksCoverage_cloneHooksMap_WithExistingHooks(t *testing.T) {
 	rawSettings := map[string]any{
 		"hooks": map[string]any{
@@ -1072,7 +1067,6 @@ func TestHooksCoverage_cloneHooksMap_WithExistingHooks(t *testing.T) {
 		t.Error("expected custom key preserved")
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // existingAoHooksBlock
@@ -1886,7 +1880,6 @@ func TestHooksCoverage_rawGroupLegacyContainsAo(t *testing.T) {
 	}
 }
 
-
 func TestHooksCoverage_filterNonAoHookGroups_NonMapEntries(t *testing.T) {
 	hooksMap := map[string]any{
 		"SessionStart": []any{
@@ -1930,7 +1923,6 @@ func TestHooksCoverage_hooksCopyFile(t *testing.T) {
 		t.Error("content mismatch")
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // copyDir
@@ -2018,8 +2010,6 @@ func TestHooksCoverage_copyShellScripts(t *testing.T) {
 	}
 }
 
-
-
 func TestHooksCoverage_copyOptionalFile_Present(t *testing.T) {
 	tmp := t.TempDir()
 	src := filepath.Join(tmp, "source.txt")
@@ -2042,7 +2032,6 @@ func TestHooksCoverage_copyOptionalFile_Present(t *testing.T) {
 		t.Error("content mismatch")
 	}
 }
-
 
 func TestHooksCoverage_copyOptionalDir_Present(t *testing.T) {
 	tmp := t.TempDir()
@@ -2306,7 +2295,6 @@ func TestHooksCoverage_runForgeTranscriptAccessTest_NoProjectsDir(t *testing.T) 
 	runForgeTranscriptAccessTest(1, tmp)
 }
 
-
 // ---------------------------------------------------------------------------
 // runInjectCommandTest (dry-run only)
 // ---------------------------------------------------------------------------
@@ -2350,7 +2338,6 @@ func TestHooksCoverage_resolveSourceDir_ExplicitValid(t *testing.T) {
 		t.Errorf("expected %s, got %s", tmp, result)
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // collectScriptNames

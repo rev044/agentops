@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"testing"
-	"time"
 	"strings"
 	"syscall"
+	"testing"
+	"time"
 )
 
 func TestParseCancelSignal(t *testing.T) {
@@ -220,7 +220,7 @@ func TestMarkRunInterruptedByCancel(t *testing.T) {
 
 // --- runRPICancel tests ---
 
-func TestCov3_rpiCancel_runRPICancel_noFlagsError(t *testing.T) {
+func TestRPICancel_runRPICancel_noFlagsError(t *testing.T) {
 	// Neither --all nor --run-id set
 	oldAll := rpiCancelAll
 	oldRunID := rpiCancelRunID
@@ -241,7 +241,7 @@ func TestCov3_rpiCancel_runRPICancel_noFlagsError(t *testing.T) {
 	}
 }
 
-func TestCov3_rpiCancel_runRPICancel_badSignal(t *testing.T) {
+func TestRPICancel_runRPICancel_badSignal(t *testing.T) {
 	oldAll := rpiCancelAll
 	oldSignal := rpiCancelSignal
 	rpiCancelAll = true
@@ -261,8 +261,7 @@ func TestCov3_rpiCancel_runRPICancel_badSignal(t *testing.T) {
 	}
 }
 
-
-func TestCov3_rpiCancel_executeCancelTargets_dryRun(t *testing.T) {
+func TestRPICancel_executeCancelTargets_dryRun(t *testing.T) {
 	oldDryRun := rpiCancelDryRun
 	rpiCancelDryRun = true
 	defer func() { rpiCancelDryRun = oldDryRun }()
@@ -285,7 +284,7 @@ func TestCov3_rpiCancel_executeCancelTargets_dryRun(t *testing.T) {
 
 // --- cancelOneTarget tests ---
 
-func TestCov3_rpiCancel_cancelOneTarget_dryRun(t *testing.T) {
+func TestRPICancel_cancelOneTarget_dryRun(t *testing.T) {
 	oldDryRun := rpiCancelDryRun
 	rpiCancelDryRun = true
 	defer func() { rpiCancelDryRun = oldDryRun }()
@@ -304,7 +303,7 @@ func TestCov3_rpiCancel_cancelOneTarget_dryRun(t *testing.T) {
 	})
 }
 
-func TestCov3_rpiCancel_cancelOneTarget_nonexistentPID(t *testing.T) {
+func TestRPICancel_cancelOneTarget_nonexistentPID(t *testing.T) {
 	oldDryRun := rpiCancelDryRun
 	rpiCancelDryRun = false
 	defer func() { rpiCancelDryRun = oldDryRun }()
@@ -325,7 +324,7 @@ func TestCov3_rpiCancel_cancelOneTarget_nonexistentPID(t *testing.T) {
 	})
 }
 
-func TestCov3_rpiCancel_cancelOneTarget_withStateUpdate(t *testing.T) {
+func TestRPICancel_cancelOneTarget_withStateUpdate(t *testing.T) {
 	oldDryRun := rpiCancelDryRun
 	rpiCancelDryRun = false
 	defer func() { rpiCancelDryRun = oldDryRun }()
@@ -378,8 +377,7 @@ func TestCov3_rpiCancel_cancelOneTarget_withStateUpdate(t *testing.T) {
 	}
 }
 
-
-func TestCov3_rpiCancel_discoverCancelTargets_sortOrder(t *testing.T) {
+func TestRPICancel_discoverCancelTargets_sortOrder(t *testing.T) {
 	// Create two roots, one with a supervisor lease and one with a run registry
 	root1 := t.TempDir()
 	root2 := t.TempDir()
@@ -414,14 +412,14 @@ func TestCov3_rpiCancel_discoverCancelTargets_sortOrder(t *testing.T) {
 
 // --- loadActiveSupervisorLease tests ---
 
-func TestCov3_rpiCancel_loadActiveSupervisorLease_missingFile(t *testing.T) {
+func TestRPICancel_loadActiveSupervisorLease_missingFile(t *testing.T) {
 	_, ok := loadActiveSupervisorLease("/nonexistent/path", "", nil)
 	if ok {
 		t.Fatal("expected false for missing file")
 	}
 }
 
-func TestCov3_rpiCancel_loadActiveSupervisorLease_emptyRunID(t *testing.T) {
+func TestRPICancel_loadActiveSupervisorLease_emptyRunID(t *testing.T) {
 	tmp := t.TempDir()
 	leasePath := filepath.Join(tmp, "supervisor.lock")
 	meta := supervisorLeaseMetadata{
@@ -438,7 +436,7 @@ func TestCov3_rpiCancel_loadActiveSupervisorLease_emptyRunID(t *testing.T) {
 	}
 }
 
-func TestCov3_rpiCancel_loadActiveSupervisorLease_runIDMismatch(t *testing.T) {
+func TestRPICancel_loadActiveSupervisorLease_runIDMismatch(t *testing.T) {
 	tmp := t.TempDir()
 	leasePath := filepath.Join(tmp, "supervisor.lock")
 	meta := supervisorLeaseMetadata{
@@ -458,7 +456,7 @@ func TestCov3_rpiCancel_loadActiveSupervisorLease_runIDMismatch(t *testing.T) {
 	}
 }
 
-func TestCov3_rpiCancel_loadActiveSupervisorLease_processNotFound(t *testing.T) {
+func TestRPICancel_loadActiveSupervisorLease_processNotFound(t *testing.T) {
 	tmp := t.TempDir()
 	leasePath := filepath.Join(tmp, "supervisor.lock")
 	meta := supervisorLeaseMetadata{

@@ -179,10 +179,10 @@ func TestContradictDetection_FindsContradiction(t *testing.T) {
 
 func TestJaccardSimilarity(t *testing.T) {
 	tests := []struct {
-		name     string
-		a, b     map[string]bool
-		wantMin  float64
-		wantMax  float64
+		name    string
+		a, b    map[string]bool
+		wantMin float64
+		wantMax float64
 	}{
 		{
 			name:    "identical sets",

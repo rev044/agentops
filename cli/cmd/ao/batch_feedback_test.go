@@ -364,13 +364,13 @@ func TestBatchForge_resolveSearchDirs(t *testing.T) {
 
 func TestFeedback_resolveReward(t *testing.T) {
 	tests := []struct {
-		name     string
-		helpful  bool
-		harmful  bool
-		reward   float64
-		alpha    float64
-		want     float64
-		wantErr  string
+		name    string
+		helpful bool
+		harmful bool
+		reward  float64
+		alpha   float64
+		want    float64
+		wantErr string
 	}{
 		{"helpful shortcut", true, false, -1, 0.1, 1.0, ""},
 		{"harmful shortcut", false, true, -1, 0.1, 0.0, ""},
@@ -432,12 +432,12 @@ func TestFeedback_classifyFeedbackType(t *testing.T) {
 
 func TestFeedback_counterDirectionFromFeedback(t *testing.T) {
 	tests := []struct {
-		name       string
-		reward     float64
-		helpful    bool
-		harmful    bool
-		wantHelp   bool
-		wantHarm   bool
+		name     string
+		reward   float64
+		helpful  bool
+		harmful  bool
+		wantHelp bool
+		wantHarm bool
 	}{
 		{"explicit helpful", 0.5, true, false, true, false},
 		{"explicit harmful", 0.5, false, true, false, true},

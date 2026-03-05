@@ -57,11 +57,11 @@ func TestWorkflow_RPIRatchetProgression(t *testing.T) {
 
 	// Define the full RPI progression with realistic outputs
 	phases := []struct {
-		step       ratchet.Step
-		output     string
-		wantNext   string
-		wantSkill  string
-		wantDone   bool
+		step      ratchet.Step
+		output    string
+		wantNext  string
+		wantSkill string
+		wantDone  bool
 	}{
 		{
 			step:      ratchet.StepResearch,

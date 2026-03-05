@@ -172,8 +172,9 @@ func TestClassifyServeArg_12HexRunID(t *testing.T) {
 		{"12-hex via flag", "760fc86f0c0f", nil, "", "760fc86f0c0f"},
 		{"12-hex via arg", "", []string{"760fc86f0c0f"}, "", "760fc86f0c0f"},
 		{"8-hex rpi prefix via flag", "rpi-a1b2c3d4", nil, "", "rpi-a1b2c3d4"},
-		{"bare 8-hex via flag", "0aa420a9", nil, "", "0aa420a9"},
-		{"bare 8-hex via arg", "", []string{"4c538e8a"}, "", "4c538e8a"},
+		{"12-hex rpi prefix via flag", "rpi-760fc86f0c0f", nil, "", "rpi-760fc86f0c0f"},
+		{"bare 8-hex via flag treated as goal", "0aa420a9", nil, "0aa420a9", ""},
+		{"bare 8-hex via arg treated as goal", "", []string{"4c538e8a"}, "4c538e8a", ""},
 		{"goal string", "improve-coverage", nil, "improve-coverage", ""},
 		{"empty", "", nil, "", ""},
 	}
@@ -240,13 +241,13 @@ func TestClassifyServeArg_PositionalRunID(t *testing.T) {
 		t.Errorf("expected run ID rpi-a1b2c3d4, got %q", runID)
 	}
 
-	// Bare 8-hex positional
+	// Bare 8-hex positional — now treated as goal (not run ID)
 	goal2, runID2 := classifyServeArg("", []string{"abcdef01"})
-	if goal2 != "" {
-		t.Errorf("expected empty goal for 8-hex positional, got %q", goal2)
+	if goal2 != "abcdef01" {
+		t.Errorf("expected bare 8-hex as goal, got %q", goal2)
 	}
-	if runID2 != "abcdef01" {
-		t.Errorf("expected run ID abcdef01, got %q", runID2)
+	if runID2 != "" {
+		t.Errorf("expected empty run ID for bare 8-hex, got %q", runID2)
 	}
 }
 

@@ -270,15 +270,15 @@ func TestCloseLoop_IntegrationEndToEnd(t *testing.T) {
 	}
 
 	learningPath := writeTestMDLearning(t, learningsDir, "e2e-test-learning.md", map[string]string{
-		"id":            "e2e-test-learning",
-		"utility":       "0.6000",
-		"reward_count":  "3",
-		"last_reward":   "0.70",
+		"id":             "e2e-test-learning",
+		"utility":        "0.6000",
+		"reward_count":   "3",
+		"last_reward":    "0.70",
 		"last_reward_at": "2026-02-24T00:00:00Z",
-		"maturity":      "provisional",
-		"helpful_count": "2",
-		"harmful_count": "0",
-		"confidence":    "0.3750",
+		"maturity":       "provisional",
+		"helpful_count":  "2",
+		"harmful_count":  "0",
+		"confidence":     "0.3750",
 	}, "# E2E Test Learning\nThis is an end-to-end test learning to verify the feedback loop.\n")
 
 	// 2. Write a citation for this learning

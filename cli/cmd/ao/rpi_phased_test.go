@@ -2170,7 +2170,6 @@ func TestPhasedCov_DiscoverPlanFile_NoPlans(t *testing.T) {
 	}
 }
 
-
 func TestPhasedCov_DiscoverPlanFile_SkipNonMD(t *testing.T) {
 	cwd := t.TempDir()
 	plansDir := filepath.Join(cwd, ".agents", "plans")
@@ -2187,8 +2186,6 @@ func TestPhasedCov_DiscoverPlanFile_SkipNonMD(t *testing.T) {
 		t.Fatal("expected error when no .md files exist")
 	}
 }
-
-
 
 func TestPhasedCov_FindLatestCouncilReport_NoMatches(t *testing.T) {
 	cwd := t.TempDir()
@@ -2358,7 +2355,6 @@ func TestPhasedCov_ExtractCouncilFindings_FallbackFormat(t *testing.T) {
 		t.Errorf("first finding = %q", findings[0].Description)
 	}
 }
-
 
 func TestPhasedCov_ExtractCouncilFindings_NoFindings(t *testing.T) {
 	reportPath := filepath.Join(t.TempDir(), "empty-report.md")
@@ -2813,7 +2809,6 @@ func TestPhasedCov_ValidatePriorPhaseResult_Failed(t *testing.T) {
 	}
 }
 
-
 func TestPhasedCov_ValidatePriorPhaseResult_Corrupt(t *testing.T) {
 	cwd := t.TempDir()
 	rpiDir := filepath.Join(cwd, ".agents", "rpi")
@@ -2863,7 +2858,6 @@ func TestPhasedCov_SaveAndLoadPhasedState(t *testing.T) {
 	}
 }
 
-
 func TestPhasedCov_ParsePhasedState_NilMaps(t *testing.T) {
 	data := `{"schema_version": 1, "run_id": "test", "phase": 2}`
 	state, err := parsePhasedState([]byte(data))
@@ -2902,9 +2896,6 @@ func TestPhasedCov_ParsePhasedState_ZeroPhaseDefaults(t *testing.T) {
 		t.Errorf("expected Cycle=1, got %d", state.Cycle)
 	}
 }
-
-
-
 
 // --- rpiRunRegistryDir ---
 
@@ -2990,7 +2981,6 @@ func TestPhasedCov_ReadRunHeartbeat_InvalidFormat(t *testing.T) {
 		t.Error("expected zero for invalid timestamp format")
 	}
 }
-
 
 func TestPhasedCov_LoadLatestRunRegistryState_MultipleRuns(t *testing.T) {
 	cwd := t.TempDir()
@@ -3202,7 +3192,6 @@ func TestPhasedCov_ClassifyByVerdict(t *testing.T) {
 		}
 	}
 }
-
 
 // --- maybeUpdateLiveStatus ---
 

@@ -101,7 +101,7 @@ func TestTruncateToTokenBudget_UsesCharsPerTokenConstant(t *testing.T) {
 	// Verify truncateToTokenBudget converts tokens→chars via InjectCharsPerToken.
 	// 10 tokens * InjectCharsPerToken chars = the char budget.
 	text := strings.Repeat("x", InjectCharsPerToken*20) // 20 tokens worth
-	result := truncateToTokenBudget(text, 10)            // 10 token budget
+	result := truncateToTokenBudget(text, 10)           // 10 token budget
 	// Expected char limit = 10 * InjectCharsPerToken
 	expectedMaxLen := 10*InjectCharsPerToken + 3 // +3 for possible "..."
 	if len(result) > expectedMaxLen {

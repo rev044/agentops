@@ -133,4 +133,3 @@ func TestPreflightRuntimeAvailabilityErrorIncludesExecutable(t *testing.T) {
 		t.Fatalf("error %q missing source command detail", msg)
 	}
 }
-

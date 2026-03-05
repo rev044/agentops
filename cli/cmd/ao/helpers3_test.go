@@ -193,10 +193,10 @@ func TestHelper3_isArtifactFile(t *testing.T) {
 
 func TestHelper3_isContainedPath(t *testing.T) {
 	tests := []struct {
-		name    string
-		base    string
-		path    string
-		want    bool
+		name string
+		base string
+		path string
+		want bool
 	}{
 		{"same dir", "/a/b", "/a/b", true},
 		{"child", "/a/b", "/a/b/c", true},
@@ -438,10 +438,10 @@ func TestHelper3_splitCSV(t *testing.T) {
 
 func TestHelper3_parseMemRLMetadata(t *testing.T) {
 	tests := []struct {
-		name        string
-		content     string
-		wantUtil    float64
-		wantMat     string
+		name     string
+		content  string
+		wantUtil float64
+		wantMat  string
 	}{
 		{
 			name:     "standard format",
@@ -658,10 +658,10 @@ func TestHelper3_extractPatternNameAndDescription(t *testing.T) {
 
 func TestHelper3_parseFrontmatterBlock(t *testing.T) {
 	tests := []struct {
-		name           string
-		lines          []string
-		wantStart      int
-		wantUtility    float64
+		name        string
+		lines       []string
+		wantStart   int
+		wantUtility float64
 	}{
 		{
 			name:        "valid frontmatter",
@@ -1626,4 +1626,3 @@ func TestHelper3_applyToolBlock(t *testing.T) {
 		t.Errorf("expected no change after unknown tool, got %d tasks", len(taskMap))
 	}
 }
-

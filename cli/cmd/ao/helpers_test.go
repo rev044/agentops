@@ -39,8 +39,8 @@ func TestHelper_doctorStatusIcon(t *testing.T) {
 
 func TestHelper_countCheckStatuses(t *testing.T) {
 	tests := []struct {
-		name                         string
-		checks                       []doctorCheck
+		name                             string
+		checks                           []doctorCheck
 		wantPasses, wantFails, wantWarns int
 	}{
 		{
@@ -97,37 +97,37 @@ func TestHelper_countCheckStatuses(t *testing.T) {
 
 func TestHelper_buildDoctorSummary(t *testing.T) {
 	tests := []struct {
-		name                      string
+		name                        string
 		passes, fails, warns, total int
-		want                      string
+		want                        string
 	}{
 		{
-			name: "all pass no warnings",
+			name:   "all pass no warnings",
 			passes: 5, fails: 0, warns: 0, total: 5,
 			want: "5/5 checks passed",
 		},
 		{
-			name: "all pass one warning",
+			name:   "all pass one warning",
 			passes: 4, fails: 0, warns: 1, total: 5,
 			want: "4/5 checks passed, 1 warning",
 		},
 		{
-			name: "all pass multiple warnings",
+			name:   "all pass multiple warnings",
 			passes: 3, fails: 0, warns: 2, total: 5,
 			want: "3/5 checks passed, 2 warnings",
 		},
 		{
-			name: "failures only",
+			name:   "failures only",
 			passes: 3, fails: 2, warns: 0, total: 5,
 			want: "3/5 checks passed, 2 failed",
 		},
 		{
-			name: "failures and warnings",
+			name:   "failures and warnings",
 			passes: 2, fails: 1, warns: 2, total: 5,
 			want: "2/5 checks passed, 2 warnings, 1 failed",
 		},
 		{
-			name: "single failure single warning",
+			name:   "single failure single warning",
 			passes: 3, fails: 1, warns: 1, total: 5,
 			want: "3/5 checks passed, 1 warning, 1 failed",
 		},
@@ -279,11 +279,11 @@ func TestHelper_applyJSONLRewardFields(t *testing.T) {
 
 func TestHelper_parseFrontMatterUtility(t *testing.T) {
 	tests := []struct {
-		name      string
-		lines     []string
-		wantIdx   int
-		wantUtil  float64
-		wantErr   bool
+		name     string
+		lines    []string
+		wantIdx  int
+		wantUtil float64
+		wantErr  bool
 	}{
 		{
 			name:     "valid front matter with utility",
@@ -339,9 +339,9 @@ func TestHelper_rebuildWithFrontMatter(t *testing.T) {
 		wantOutput string
 	}{
 		{
-			name: "basic rebuild",
-			fm:   []string{"title: test", "utility: 0.75"},
-			body: []string{"# Hello", "", "World"},
+			name:       "basic rebuild",
+			fm:         []string{"title: test", "utility: 0.75"},
+			body:       []string{"# Hello", "", "World"},
 			wantOutput: "---\ntitle: test\nutility: 0.75\n---\n# Hello\n\nWorld",
 		},
 		{
@@ -1039,12 +1039,12 @@ type mockFileInfo struct {
 	isDir bool
 }
 
-func (m mockFileInfo) Name() string      { return m.name }
-func (m mockFileInfo) Size() int64       { return m.size }
-func (m mockFileInfo) Mode() os.FileMode { return 0644 }
+func (m mockFileInfo) Name() string       { return m.name }
+func (m mockFileInfo) Size() int64        { return m.size }
+func (m mockFileInfo) Mode() os.FileMode  { return 0644 }
 func (m mockFileInfo) ModTime() time.Time { return time.Now() }
-func (m mockFileInfo) IsDir() bool       { return m.isDir }
-func (m mockFileInfo) Sys() any          { return nil }
+func (m mockFileInfo) IsDir() bool        { return m.isDir }
+func (m mockFileInfo) Sys() any           { return nil }
 
 func TestHelper_isBatchTranscriptCandidate(t *testing.T) {
 	tests := []struct {

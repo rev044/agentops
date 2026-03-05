@@ -112,17 +112,17 @@ func TestPrintBadge(t *testing.T) {
 	})
 	t.Run("zero metrics", func(t *testing.T) {
 		printBadge(5, &FlywheelMetrics{
-			Delta:     types.DefaultDelta,
+			Delta:      types.DefaultDelta,
 			TierCounts: map[string]int{"learning": 3, "pattern": 1},
 		})
 	})
 	t.Run("escape velocity", func(t *testing.T) {
 		printBadge(10, &FlywheelMetrics{
-			Sigma:              0.8,
-			Rho:                0.9,
-			Delta:              0.3,
-			SigmaRho:           0.72,
-			TierCounts:         map[string]int{"learning": 10, "pattern": 5},
+			Sigma:               0.8,
+			Rho:                 0.9,
+			Delta:               0.3,
+			SigmaRho:            0.72,
+			TierCounts:          map[string]int{"learning": 10, "pattern": 5},
 			CitationsThisPeriod: 3,
 		})
 	})

@@ -894,7 +894,7 @@ func TestPassesQualityGate(t *testing.T) {
 		{"candidate with good utility", "candidate", 0.5, true},
 		{"established with good utility", "established", 0.9, true},
 		{"provisional with low utility", "provisional", 0.2, false},
-		{"provisional at boundary", "provisional", 0.3, false},   // 0.3 is NOT > 0.3
+		{"provisional at boundary", "provisional", 0.3, false}, // 0.3 is NOT > 0.3
 		{"provisional just above", "provisional", 0.31, true},
 		{"empty maturity", "", 0.8, false},
 		{"draft maturity", "draft", 0.8, false},

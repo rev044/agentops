@@ -743,7 +743,7 @@ func TestCobraConstraintListCommand(t *testing.T) {
 			{
 				ID:         "c-001",
 				Title:      "Test constraint",
-				Source:      "test",
+				Source:     "test",
 				Status:     "active",
 				CompiledAt: time.Now().Format(time.RFC3339),
 				File:       "test.md",
@@ -778,7 +778,7 @@ func TestCobraConstraintReviewCommand(t *testing.T) {
 			{
 				ID:         "c-stale",
 				Title:      "Stale constraint",
-				Source:      "test",
+				Source:     "test",
 				Status:     "active",
 				CompiledAt: staleDate,
 				File:       "stale.md",
@@ -811,7 +811,7 @@ func TestCobraConstraintActivateCommand(t *testing.T) {
 			{
 				ID:         "c-draft",
 				Title:      "Draft constraint",
-				Source:      "test",
+				Source:     "test",
 				Status:     "draft",
 				CompiledAt: time.Now().Format(time.RFC3339),
 				File:       "draft.md",
@@ -844,7 +844,7 @@ func TestCobraConstraintRetireCommand(t *testing.T) {
 			{
 				ID:         "c-active",
 				Title:      "Active constraint",
-				Source:      "test",
+				Source:     "test",
 				Status:     "active",
 				CompiledAt: time.Now().Format(time.RFC3339),
 				File:       "active.md",

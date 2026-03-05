@@ -148,6 +148,14 @@ fi
 bd list --type epic --status open 2>/dev/null | head -5
 ```
 
+**Single-Epic Scope Check (WARN):**
+If `bd list --type epic --status open` returns more than one epic, log a warning:
+```
+WARN: Multiple open epics detected. /crank operates on a single epic.
+Use --allow-multi-epic to suppress this warning.
+```
+This is a WARN, not a FAIL — cranking with focused scope is a best practice but not a hard requirement.
+
 If multiple epics found, ask user which one.
 
 **TaskList mode:**

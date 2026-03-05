@@ -127,10 +127,10 @@ func TestBuildServeMux_Routes(t *testing.T) {
 	mux := buildServeMux(&serveMuxRoot{path: root}, runID)
 
 	tests := []struct {
-		name        string
-		path        string
-		wantStatus  int
-		wantCTHint  string // substring of Content-Type
+		name       string
+		path       string
+		wantStatus int
+		wantCTHint string // substring of Content-Type
 	}{
 		{
 			name:       "index returns HTML",

@@ -309,11 +309,11 @@ func TestHelper2_applySupervisorBoolDefaults(t *testing.T) {
 	cmd := newTestRPICommand()
 
 	cfg := rpiLoopSupervisorConfig{
-		LeaseEnabled:          false,
-		DetachedHeal:          true,
-		AutoClean:             false,
-		EnsureCleanup:         false,
-		CleanupPruneBranches:  false,
+		LeaseEnabled:         false,
+		DetachedHeal:         true,
+		AutoClean:            false,
+		EnsureCleanup:        false,
+		CleanupPruneBranches: false,
 	}
 
 	applySupervisorBoolDefaults(cmd, &cfg)
@@ -1107,7 +1107,6 @@ func TestHelper2_nonEmptyStringFromData(t *testing.T) {
 		t.Fatalf("expected fallback for missing key, got %q", got)
 	}
 }
-
 
 // ---------------------------------------------------------------------------
 // pool.go / flywheel_close_loop.go: isEligibleTier (promotionContext)

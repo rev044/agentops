@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"github.com/boshu2/agentops/cli/internal/parser"
 	"github.com/boshu2/agentops/cli/internal/storage"
 )
@@ -538,7 +539,7 @@ func TestRunForgeBatch_NoPendingTranscripts(t *testing.T) {
 // batch_forge.go — dedupSimilar
 // ---------------------------------------------------------------------------
 
-func TestCov3_batchForge_dedupSimilar(t *testing.T) {
+func TestBatchForge_dedupSimilar_Deep(t *testing.T) {
 	tests := []struct {
 		name  string
 		items []string
@@ -597,7 +598,7 @@ func TestCov3_batchForge_dedupSimilar(t *testing.T) {
 // batch_forge.go — normalizeForDedup
 // ---------------------------------------------------------------------------
 
-func TestCov3_batchForge_normalizeForDedup(t *testing.T) {
+func TestBatchForge_normalizeForDedup_Deep(t *testing.T) {
 	// Same input should always produce same hash
 	hash1 := normalizeForDedup("Hello World")
 	hash2 := normalizeForDedup("hello world")
@@ -629,7 +630,7 @@ func TestCov3_batchForge_normalizeForDedup(t *testing.T) {
 // batch_forge.go — humanSize
 // ---------------------------------------------------------------------------
 
-func TestCov3_batchForge_humanSize(t *testing.T) {
+func TestBatchForge_humanSize_Deep(t *testing.T) {
 	tests := []struct {
 		bytes int64
 		want  string
@@ -655,7 +656,7 @@ func TestCov3_batchForge_humanSize(t *testing.T) {
 // batch_forge.go — loadForgedIndex / appendForgedRecord
 // ---------------------------------------------------------------------------
 
-func TestCov3_batchForge_loadForgedIndex(t *testing.T) {
+func TestBatchForge_loadForgedIndex_Deep(t *testing.T) {
 	t.Run("file does not exist returns empty set", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "nonexistent.jsonl")
@@ -722,7 +723,7 @@ not-json-line
 	})
 }
 
-func TestCov3_batchForge_appendForgedRecord(t *testing.T) {
+func TestBatchForge_appendForgedRecord_Deep(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "subdir", "forged.jsonl")
 
@@ -772,7 +773,7 @@ func TestCov3_batchForge_appendForgedRecord(t *testing.T) {
 // batch_forge.go — batchForgeAccumulator
 // ---------------------------------------------------------------------------
 
-func TestCov3_batchForge_accumulator(t *testing.T) {
+func TestBatchForge_accumulator(t *testing.T) {
 	var acc batchForgeAccumulator
 
 	// Accumulate a success
@@ -869,7 +870,6 @@ func TestCov4_forgeSingleTranscript_happyPath(t *testing.T) {
 		t.Error("expected true for valid transcript")
 	}
 }
-
 
 func TestCov4_triggerExtraction_emptyPendingFile(t *testing.T) {
 	tmp := t.TempDir()

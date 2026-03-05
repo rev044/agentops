@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
 	"github.com/boshu2/agentops/cli/internal/types"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 func TestComputePlanChecksum(t *testing.T) {

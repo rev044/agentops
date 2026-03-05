@@ -70,10 +70,10 @@ func TestSkillRegexContract_StructuredFindings(t *testing.T) {
 	re := regexp.MustCompile(pattern)
 
 	tests := []struct {
-		name    string
-		input   string
-		want    bool
-		groups  []string // [finding, fix, ref]
+		name   string
+		input  string
+		want   bool
+		groups []string // [finding, fix, ref]
 	}{
 		{
 			"standard format",
@@ -136,11 +136,11 @@ func TestSkillRegexContract_FallbackFindings(t *testing.T) {
 	re := regexp.MustCompile(pattern)
 
 	tests := []struct {
-		name    string
-		input   string
-		want    bool
-		title   string
-		desc    string
+		name  string
+		input string
+		want  bool
+		title string
+		desc  string
 	}{
 		{"em dash", "1. **Missing guard** — inject.go needs nil check", true, "Missing guard", "inject.go needs nil check"},
 		{"en dash", "2. **Race condition** – goroutine access", true, "Race condition", "goroutine access"},
@@ -184,10 +184,10 @@ func TestSkillRegexContract_LearningHeader(t *testing.T) {
 	re := regexp.MustCompile(pattern)
 
 	tests := []struct {
-		name    string
-		input   string
-		want    bool
-		title   string
+		name  string
+		input string
+		want  bool
+		title string
 	}{
 		{"standard header", "# Learning: Always validate JWT claims", true, "Always validate JWT claims"},
 		// Note: the regex captures trailing spaces in the group; production code
@@ -338,7 +338,7 @@ func TestSkillRegexContract_DateExtraction(t *testing.T) {
 	t.Run("markdown_date", func(t *testing.T) {
 		re := regexp.MustCompile(`(?m)^\*\*Date:?\*\*:?\s*(\d{4}-\d{2}-\d{2})\s*$`)
 		tests := []struct {
-			name string
+			name  string
 			input string
 			want  bool
 			date  string
@@ -369,7 +369,7 @@ func TestSkillRegexContract_DateExtraction(t *testing.T) {
 	t.Run("yaml_date", func(t *testing.T) {
 		re := regexp.MustCompile(`(?m)^date:\s*(\d{4}-\d{2}-\d{2})\s*$`)
 		tests := []struct {
-			name string
+			name  string
 			input string
 			want  bool
 			date  string
@@ -400,7 +400,7 @@ func TestSkillRegexContract_DateExtraction(t *testing.T) {
 	t.Run("filename_date", func(t *testing.T) {
 		re := regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})`)
 		tests := []struct {
-			name string
+			name  string
 			input string
 			want  bool
 			date  string
@@ -676,10 +676,10 @@ func TestSkillRegexContract_SpecificityPatterns(t *testing.T) {
 }
 
 // --- RPI run ID pattern (rpi_serve.go:35) ---
-// Pattern: `^(rpi-[a-f0-9]{8}|[a-f0-9]{8}|[a-f0-9]{12})$`
+// Pattern: `^(rpi-[a-f0-9]{8,12}|[a-f0-9]{12})$`
 
 func TestSkillRegexContract_RPIRunID(t *testing.T) {
-	pattern := `^(rpi-[a-f0-9]{8}|[a-f0-9]{8}|[a-f0-9]{12})$`
+	pattern := `^(rpi-[a-f0-9]{8,12}|[a-f0-9]{12})$`
 	re := regexp.MustCompile(pattern)
 
 	tests := []struct {
@@ -688,12 +688,14 @@ func TestSkillRegexContract_RPIRunID(t *testing.T) {
 		want  bool
 	}{
 		{"rpi prefix 8 hex", "rpi-abcdef01", true},
-		{"8 hex digits", "abcdef01", true},
+		{"rpi prefix 10 hex", "rpi-abcdef0123", true},
+		{"rpi prefix 12 hex", "rpi-abcdef012345", true},
+		{"bare 8 hex digits", "abcdef01", false},
 		{"12 hex digits", "abcdef012345", true},
 
 		{"empty", "", false},
 		{"rpi with short hex", "rpi-abcde", false},
-		{"10 hex digits", "abcdef0123", false},
+		{"10 hex digits bare", "abcdef0123", false},
 		{"uppercase hex", "ABCDEF01", false},
 		{"rpi uppercase", "RPI-abcdef01", false},
 		{"extra chars", "rpi-abcdef01x", false},
@@ -1035,9 +1037,9 @@ func TestSkillRegexContract_ShellSafety(t *testing.T) {
 	re := regexp.MustCompile(`[^a-zA-Z0-9_-]`)
 
 	tests := []struct {
-		name   string
-		input  string
-		safe   bool // true if NO match (all chars are safe)
+		name  string
+		input string
+		safe  bool // true if NO match (all chars are safe)
 	}{
 		{"alphanumeric", "abc123", true},
 		{"with hyphen", "my-session", true},

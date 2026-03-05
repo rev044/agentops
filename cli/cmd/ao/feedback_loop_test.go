@@ -397,8 +397,7 @@ func TestComputeRewardFromTranscriptPrefersSessionMatch(t *testing.T) {
 	}
 }
 
-
-func TestCov3_feedbackLoop_loadSessionCitations_filterByType(t *testing.T) {
+func TestFeedbackLoop_loadSessionCitations_filterByType(t *testing.T) {
 	tmp := t.TempDir()
 	sessionID := "session-20260201-120000"
 
@@ -432,7 +431,7 @@ func TestCov3_feedbackLoop_loadSessionCitations_filterByType(t *testing.T) {
 	}
 }
 
-func TestCov3_feedbackLoop_loadSessionCitations_wrongSession(t *testing.T) {
+func TestFeedbackLoop_loadSessionCitations_wrongSession(t *testing.T) {
 	tmp := t.TempDir()
 
 	entry := types.CitationEvent{
@@ -454,8 +453,7 @@ func TestCov3_feedbackLoop_loadSessionCitations_wrongSession(t *testing.T) {
 	}
 }
 
-
-func TestCov3_feedbackLoop_computeRewardFromTranscript_explicitPath(t *testing.T) {
+func TestFeedbackLoop_computeRewardFromTranscript_explicitPath(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 
@@ -482,7 +480,7 @@ func TestCov3_feedbackLoop_computeRewardFromTranscript_explicitPath(t *testing.T
 // feedback_loop.go — processUniqueCitations (zero coverage)
 // ===========================================================================
 
-func TestCov3_feedbackLoop_processUniqueCitations_noFiles(t *testing.T) {
+func TestFeedbackLoop_processUniqueCitations_noFiles(t *testing.T) {
 	tmp := t.TempDir()
 
 	citations := []types.CitationEvent{
@@ -501,7 +499,7 @@ func TestCov3_feedbackLoop_processUniqueCitations_noFiles(t *testing.T) {
 	}
 }
 
-func TestCov3_feedbackLoop_processUniqueCitations_withLearning(t *testing.T) {
+func TestFeedbackLoop_processUniqueCitations_withLearning(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Create a learning file
@@ -547,15 +545,11 @@ func TestCov3_feedbackLoop_processUniqueCitations_withLearning(t *testing.T) {
 	}
 }
 
-
-
-
-
 // ===========================================================================
 // feedback_loop.go — outputFeedbackSummary (zero coverage)
 // ===========================================================================
 
-func TestCov3_feedbackLoop_outputFeedbackSummary_tableFormat(t *testing.T) {
+func TestFeedbackLoop_outputFeedbackSummary_tableFormat(t *testing.T) {
 	origOutput := output
 	defer func() { output = origOutput }()
 	output = "table"
@@ -569,8 +563,7 @@ func TestCov3_feedbackLoop_outputFeedbackSummary_tableFormat(t *testing.T) {
 	}
 }
 
-
-func TestCov3_feedbackLoop_outputFeedbackSummary_jsonFormat(t *testing.T) {
+func TestFeedbackLoop_outputFeedbackSummary_jsonFormat(t *testing.T) {
 	origOutput := output
 	defer func() { output = origOutput }()
 	output = "json"
@@ -588,7 +581,7 @@ func TestCov3_feedbackLoop_outputFeedbackSummary_jsonFormat(t *testing.T) {
 // feedback_loop.go — discoverUnprocessedSessions (zero coverage)
 // ===========================================================================
 
-func TestCov3_feedbackLoop_discoverUnprocessedSessions_noCitations(t *testing.T) {
+func TestFeedbackLoop_discoverUnprocessedSessions_noCitations(t *testing.T) {
 	tmp := t.TempDir()
 
 	origDays := batchFeedbackDays
@@ -607,7 +600,7 @@ func TestCov3_feedbackLoop_discoverUnprocessedSessions_noCitations(t *testing.T)
 	}
 }
 
-func TestCov3_feedbackLoop_discoverUnprocessedSessions_withCitations(t *testing.T) {
+func TestFeedbackLoop_discoverUnprocessedSessions_withCitations(t *testing.T) {
 	tmp := t.TempDir()
 
 	origDays := batchFeedbackDays
@@ -637,7 +630,7 @@ func TestCov3_feedbackLoop_discoverUnprocessedSessions_withCitations(t *testing.
 	}
 }
 
-func TestCov3_feedbackLoop_discoverUnprocessedSessions_excludesProcessed(t *testing.T) {
+func TestFeedbackLoop_discoverUnprocessedSessions_excludesProcessed(t *testing.T) {
 	tmp := t.TempDir()
 
 	origDays := batchFeedbackDays
@@ -680,7 +673,7 @@ func TestCov3_feedbackLoop_discoverUnprocessedSessions_excludesProcessed(t *test
 // feedback_loop.go — reportBatchFeedbackDryRun (zero coverage)
 // ===========================================================================
 
-func TestCov3_feedbackLoop_reportBatchFeedbackDryRun(t *testing.T) {
+func TestFeedbackLoop_reportBatchFeedbackDryRun(t *testing.T) {
 	sessionIDs := []string{"s1", "s2"}
 	sessionCitations := map[string][]types.CitationEvent{
 		"s1": {{ArtifactPath: "/a.md"}},
@@ -690,6 +683,6 @@ func TestCov3_feedbackLoop_reportBatchFeedbackDryRun(t *testing.T) {
 	reportBatchFeedbackDryRun(sessionIDs, 3, sessionCitations)
 }
 
-func TestCov3_feedbackLoop_reportBatchFeedbackDryRun_empty(t *testing.T) {
+func TestFeedbackLoop_reportBatchFeedbackDryRun_empty(t *testing.T) {
 	reportBatchFeedbackDryRun(nil, 0, nil)
 }

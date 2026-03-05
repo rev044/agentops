@@ -13,11 +13,11 @@ INPUT=$(cat)
 # Extract tool name and command
 TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
 COMMAND="${CLAUDE_TOOL_INPUT_COMMAND:-}"
-if [ -z "$TOOL_NAME" ]; then
-    TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || exit 0
-fi
-if [ -z "$COMMAND" ]; then
-    COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || exit 0
+if [ -z "$TOOL_NAME" ] || [ -z "$COMMAND" ]; then
+    # Single jq call to extract both fields (avoids double-parse of stdin)
+    IFS=$'\t' read -r _jq_tool _jq_cmd < <(echo "$INPUT" | jq -r '[.tool_name // "", .tool_input.command // ""] | @tsv' 2>/dev/null) || exit 0
+    [ -z "$TOOL_NAME" ] && TOOL_NAME="$_jq_tool"
+    [ -z "$COMMAND" ] && COMMAND="$_jq_cmd"
 fi
 
 # Only fire on Bash + git commit

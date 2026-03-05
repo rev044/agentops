@@ -7,9 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boshu2/agentops/cli/internal/types"
-	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"time"
+
+	"github.com/boshu2/agentops/cli/internal/ratchet"
+	"github.com/boshu2/agentops/cli/internal/types"
+	"github.com/spf13/cobra"
 )
 
 // ---------------------------------------------------------------------------
@@ -946,9 +948,9 @@ func TestMaturityCov_displayMaturityDistribution(t *testing.T) {
 
 func TestMaturityCov_displayMaturityResult(t *testing.T) {
 	tests := []struct {
-		name        string
-		result      *ratchet.MaturityTransitionResult
-		applied     bool
+		name    string
+		result  *ratchet.MaturityTransitionResult
+		applied bool
 	}{
 		{
 			name: "no transition",
@@ -1052,4 +1054,596 @@ func TestMaturity_expiryCategoryEmpty(t *testing.T) {
 		len(cats.newlyExpired) != 0 || len(cats.alreadyArchived) != 0 {
 		t.Error("empty expiryCategory should have all nil slices")
 	}
+}
+
+// ===========================================================================
+// Merged from maturity_deep_test.go
+// ===========================================================================
+
+// cov3W2WriteLearningJSONL writes a JSONL learning file with the given metadata.
+func cov3W2WriteLearningJSONL(t *testing.T, dir, name string, data map[string]any) string {
+	t.Helper()
+	b, err := json.Marshal(data)
+	if err != nil {
+		t.Fatalf("marshal learning data: %v", err)
+	}
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, b, 0644); err != nil {
+		t.Fatalf("write learning file: %v", err)
+	}
+	return path
+}
+
+// cov3W2SetupMaturityDir creates a temp dir with .agents/learnings/ structure.
+func cov3W2SetupMaturityDir(t *testing.T) (string, string) {
+	t.Helper()
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	return tmp, learningsDir
+}
+
+// cov3W2MakeTransitionResults creates a slice of MaturityTransitionResult for testing.
+func cov3W2MakeTransitionResults(ids ...string) []*ratchet.MaturityTransitionResult {
+	var results []*ratchet.MaturityTransitionResult
+	for _, id := range ids {
+		results = append(results, &ratchet.MaturityTransitionResult{
+			LearningID:   id,
+			OldMaturity:  "provisional",
+			NewMaturity:  "anti-pattern",
+			Transitioned: true,
+			Utility:      0.1,
+			HarmfulCount: 10,
+			RewardCount:  10,
+			Reason:       "test",
+		})
+	}
+	return results
+}
+
+// --- runMaturitySingle tests ---
+
+func TestMaturity_runMaturitySingle_dryRun(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "L001.jsonl", map[string]any{
+		"id":       "L001",
+		"maturity": "provisional",
+		"utility":  0.5,
+	})
+
+	oldDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = oldDryRun }()
+
+	err := runMaturitySingle(tmp, "L001")
+	if err != nil {
+		t.Fatalf("runMaturitySingle dry-run: %v", err)
+	}
+	// Verify learning file was not modified in dry-run mode
+	if _, statErr := os.Stat(filepath.Join(learningsDir, "L001.jsonl")); statErr != nil {
+		t.Errorf("learning file missing after dry-run: %v", statErr)
+	}
+}
+
+func TestMaturity_runMaturitySingle_notFound(t *testing.T) {
+	tmp, _ := cov3W2SetupMaturityDir(t)
+
+	err := runMaturitySingle(tmp, "NONEXISTENT")
+	if err == nil {
+		t.Fatal("expected error for nonexistent learning")
+	}
+	if !strings.Contains(err.Error(), "find learning") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestMaturity_runMaturitySingle_checkNoTransition(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "L002.jsonl", map[string]any{
+		"id":            "L002",
+		"maturity":      "provisional",
+		"utility":       0.5,
+		"confidence":    0.5,
+		"reward_count":  1,
+		"helpful_count": 0,
+		"harmful_count": 0,
+	})
+
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	oldApply := maturityApply
+	maturityApply = false
+	defer func() { maturityApply = oldApply }()
+
+	captureJSONStdout(t, func() {
+		err := runMaturitySingle(tmp, "L002")
+		if err != nil {
+			t.Fatalf("runMaturitySingle: %v", err)
+		}
+	})
+}
+
+// --- checkOrApplyMaturity tests ---
+
+func TestMaturity_checkOrApplyMaturity_checkMode(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	path := cov3W2WriteLearningJSONL(t, learningsDir, "L003.jsonl", map[string]any{
+		"id":            "L003",
+		"maturity":      "provisional",
+		"utility":       0.5,
+		"reward_count":  1,
+		"helpful_count": 1,
+		"harmful_count": 0,
+	})
+
+	oldApply := maturityApply
+	maturityApply = false
+	defer func() { maturityApply = oldApply }()
+
+	result, err := checkOrApplyMaturity(path)
+	if err != nil {
+		t.Fatalf("checkOrApplyMaturity: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.LearningID != "L003" {
+		t.Fatalf("expected learning ID L003, got %q", result.LearningID)
+	}
+}
+
+func TestMaturity_checkOrApplyMaturity_applyMode(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	path := cov3W2WriteLearningJSONL(t, learningsDir, "L004.jsonl", map[string]any{
+		"id":            "L004",
+		"maturity":      "provisional",
+		"utility":       0.8,
+		"confidence":    0.9,
+		"reward_count":  5,
+		"helpful_count": 4,
+		"harmful_count": 0,
+	})
+
+	oldApply := maturityApply
+	maturityApply = true
+	defer func() { maturityApply = oldApply }()
+
+	result, err := checkOrApplyMaturity(path)
+	if err != nil {
+		t.Fatalf("checkOrApplyMaturity apply: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+// --- outputSingleMaturityResult tests ---
+
+func TestMaturity_outputSingleMaturityResult_json(t *testing.T) {
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	result := &ratchet.MaturityTransitionResult{
+		LearningID:   "L005",
+		OldMaturity:  "provisional",
+		NewMaturity:  "provisional",
+		Transitioned: false,
+		Utility:      0.5,
+		Confidence:   0.5,
+		HelpfulCount: 1,
+		HarmfulCount: 0,
+		RewardCount:  1,
+		Reason:       "no transition",
+	}
+
+	got := captureJSONStdout(t, func() {
+		err := outputSingleMaturityResult(result)
+		if err != nil {
+			t.Fatalf("outputSingleMaturityResult json: %v", err)
+		}
+	})
+	if !strings.Contains(got, "L005") {
+		t.Fatalf("expected JSON output to contain L005, got: %s", got)
+	}
+}
+
+func TestMaturity_outputSingleMaturityResult_table(t *testing.T) {
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	result := &ratchet.MaturityTransitionResult{
+		LearningID:   "L006",
+		OldMaturity:  "provisional",
+		NewMaturity:  "candidate",
+		Transitioned: true,
+		Utility:      0.8,
+		Confidence:   0.9,
+		HelpfulCount: 4,
+		HarmfulCount: 0,
+		RewardCount:  5,
+		Reason:       "met threshold",
+	}
+
+	oldApply := maturityApply
+	maturityApply = false
+	defer func() { maturityApply = oldApply }()
+
+	captureJSONStdout(t, func() {
+		err := outputSingleMaturityResult(result)
+		if err != nil {
+			t.Fatalf("outputSingleMaturityResult table: %v", err)
+		}
+	})
+}
+
+// --- runMaturity (Cobra RunE) tests ---
+
+func TestMaturity_runMaturity_noLearningsDir(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTo(t, tmp)
+
+	cmd := &cobra.Command{}
+	err := runMaturity(cmd, []string{})
+	if err != nil {
+		t.Fatalf("expected nil error when no learnings dir, got: %v", err)
+	}
+	// Verify no learnings dir was created as side effect
+	if _, statErr := os.Stat(filepath.Join(tmp, ".agents", "learnings")); statErr == nil {
+		t.Error("learnings dir was unexpectedly created when it should not exist")
+	}
+}
+
+func TestMaturity_runMaturity_noArgsNoScan(t *testing.T) {
+	tmp, _ := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+
+	oldScan := maturityScan
+	maturityScan = false
+	defer func() { maturityScan = oldScan }()
+
+	oldExpire := maturityExpire
+	maturityExpire = false
+	defer func() { maturityExpire = oldExpire }()
+
+	oldEvict := maturityEvict
+	maturityEvict = false
+	defer func() { maturityEvict = oldEvict }()
+
+	cmd := &cobra.Command{}
+	err := runMaturity(cmd, []string{})
+	if err == nil {
+		t.Fatal("expected error when no args and no --scan")
+	}
+	if !strings.Contains(err.Error(), "must provide learning-id or use --scan") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestMaturity_runMaturity_scanMode(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "scan-test.jsonl", map[string]any{
+		"id":            "scan-test",
+		"maturity":      "provisional",
+		"utility":       0.5,
+		"reward_count":  1,
+		"helpful_count": 1,
+		"harmful_count": 0,
+	})
+
+	oldScan := maturityScan
+	maturityScan = true
+	defer func() { maturityScan = oldScan }()
+
+	oldExpire := maturityExpire
+	maturityExpire = false
+	defer func() { maturityExpire = oldExpire }()
+
+	oldEvict := maturityEvict
+	maturityEvict = false
+	defer func() { maturityEvict = oldEvict }()
+
+	oldApply := maturityApply
+	maturityApply = false
+	defer func() { maturityApply = oldApply }()
+
+	captureJSONStdout(t, func() {
+		cmd := &cobra.Command{}
+		err := runMaturity(cmd, []string{})
+		if err != nil {
+			t.Fatalf("runMaturity scan mode: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturity_withLearningID(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "L010.jsonl", map[string]any{
+		"id":            "L010",
+		"maturity":      "provisional",
+		"utility":       0.5,
+		"reward_count":  1,
+		"helpful_count": 1,
+		"harmful_count": 0,
+	})
+
+	oldScan := maturityScan
+	maturityScan = false
+	defer func() { maturityScan = oldScan }()
+
+	oldExpire := maturityExpire
+	maturityExpire = false
+	defer func() { maturityExpire = oldExpire }()
+
+	oldEvict := maturityEvict
+	maturityEvict = false
+	defer func() { maturityEvict = oldEvict }()
+
+	oldApply := maturityApply
+	maturityApply = false
+	defer func() { maturityApply = oldApply }()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	captureJSONStdout(t, func() {
+		cmd := &cobra.Command{}
+		err := runMaturity(cmd, []string{"L010"})
+		if err != nil {
+			t.Fatalf("runMaturity with ID: %v", err)
+		}
+	})
+}
+
+// --- applyScannedTransitions tests ---
+
+func TestMaturity_applyScannedTransitions_noResults(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	out := captureJSONStdout(t, func() {
+		applyScannedTransitions(learningsDir, nil)
+	})
+	// With nil results, should produce no transition output
+	if strings.Contains(out, "transitioned") {
+		t.Errorf("expected no transition output for nil results, got: %s", out)
+	}
+}
+
+func TestMaturity_applyScannedTransitions_missingFile(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	results := cov3W2MakeTransitionResults("missing-learning")
+
+	out := captureJSONStdout(t, func() {
+		applyScannedTransitions(learningsDir, results)
+	})
+	// Missing file should not crash, just skip
+	_ = out // function completed without panic
+	if _, err := os.Stat(filepath.Join(learningsDir, "missing-learning.jsonl")); err == nil {
+		t.Error("expected missing-learning.jsonl to not exist")
+	}
+}
+
+func TestMaturity_applyScannedTransitions_withValidFile(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	// Create a learning that matches the transition result
+	cov3W2WriteLearningJSONL(t, learningsDir, "apply-target.jsonl", map[string]any{
+		"id":            "apply-target",
+		"maturity":      "provisional",
+		"utility":       0.1,
+		"confidence":    0.1,
+		"reward_count":  10,
+		"helpful_count": 0,
+		"harmful_count": 10,
+	})
+
+	results := cov3W2MakeTransitionResults("apply-target")
+
+	captureJSONStdout(t, func() {
+		applyScannedTransitions(learningsDir, results)
+	})
+	// Verify the learning file still exists after applying transitions
+	if _, err := os.Stat(filepath.Join(learningsDir, "apply-target.jsonl")); err != nil {
+		t.Errorf("learning file missing after apply: %v", err)
+	}
+}
+
+func TestMaturity_runMaturityScan_noTransitions(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "stable.jsonl", map[string]any{
+		"id":            "stable",
+		"maturity":      "provisional",
+		"utility":       0.5,
+		"reward_count":  1,
+		"helpful_count": 0,
+		"harmful_count": 0,
+	})
+
+	captureJSONStdout(t, func() {
+		err := runMaturityScan(learningsDir)
+		if err != nil {
+			t.Fatalf("runMaturityScan no transitions: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturityScan_withTransitions(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+
+	oldApply := maturityApply
+	maturityApply = false
+	defer func() { maturityApply = oldApply }()
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "ready.jsonl", map[string]any{
+		"id":            "ready",
+		"maturity":      "provisional",
+		"utility":       0.8,
+		"confidence":    0.9,
+		"reward_count":  5,
+		"helpful_count": 4,
+		"harmful_count": 0,
+	})
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	captureJSONStdout(t, func() {
+		err := runMaturityScan(learningsDir)
+		if err != nil {
+			t.Fatalf("runMaturityScan with transitions: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturityScan_withApply(t *testing.T) {
+	_, learningsDir := cov3W2SetupMaturityDir(t)
+
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+
+	oldApply := maturityApply
+	maturityApply = true
+	defer func() { maturityApply = oldApply }()
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "apply-me.jsonl", map[string]any{
+		"id":            "apply-me",
+		"maturity":      "provisional",
+		"utility":       0.8,
+		"confidence":    0.9,
+		"reward_count":  5,
+		"helpful_count": 4,
+		"harmful_count": 0,
+	})
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	captureJSONStdout(t, func() {
+		err := runMaturityScan(learningsDir)
+		if err != nil {
+			t.Fatalf("runMaturityScan with apply: %v", err)
+		}
+	})
+}
+
+// --- runAntiPatterns tests ---
+
+func TestMaturity_runAntiPatterns_noLearningsDir(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTo(t, tmp)
+
+	captureJSONStdout(t, func() {
+		cmd := &cobra.Command{}
+		err := runAntiPatterns(cmd, nil)
+		if err != nil {
+			t.Fatalf("expected nil for missing learnings dir, got: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runAntiPatterns_noAntiPatterns(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "normal.jsonl", map[string]any{
+		"id":            "normal",
+		"maturity":      "provisional",
+		"utility":       0.8,
+		"reward_count":  2,
+		"helpful_count": 2,
+		"harmful_count": 0,
+	})
+
+	captureJSONStdout(t, func() {
+		cmd := &cobra.Command{}
+		err := runAntiPatterns(cmd, nil)
+		if err != nil {
+			t.Fatalf("runAntiPatterns with no anti-patterns: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runAntiPatterns_tableOutput(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "bad.jsonl", map[string]any{
+		"id":            "bad",
+		"maturity":      "anti-pattern",
+		"utility":       0.1,
+		"confidence":    0.1,
+		"reward_count":  10,
+		"helpful_count": 0,
+		"harmful_count": 10,
+	})
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	captureJSONStdout(t, func() {
+		cmd := &cobra.Command{}
+		err := runAntiPatterns(cmd, nil)
+		if err != nil {
+			t.Fatalf("runAntiPatterns table: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runAntiPatterns_jsonOutput(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+
+	cov3W2WriteLearningJSONL(t, learningsDir, "bad-json.jsonl", map[string]any{
+		"id":            "bad-json",
+		"maturity":      "anti-pattern",
+		"utility":       0.1,
+		"confidence":    0.1,
+		"reward_count":  10,
+		"helpful_count": 0,
+		"harmful_count": 10,
+	})
+
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	captureJSONStdout(t, func() {
+		cmd := &cobra.Command{}
+		err := runAntiPatterns(cmd, nil)
+		if err != nil {
+			t.Fatalf("runAntiPatterns JSON: %v", err)
+		}
+	})
 }

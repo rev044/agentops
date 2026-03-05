@@ -341,7 +341,6 @@ func TestRPILedgerCov_ValidateAppendInput_MissingFields(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // validateRunID
 // ---------------------------------------------------------------------------
@@ -427,8 +426,6 @@ func TestRPILedgerCov_NormalizeDetails_ValidMap(t *testing.T) {
 		t.Errorf("expected 'key' in result, got %q", string(result))
 	}
 }
-
-
 
 // ---------------------------------------------------------------------------
 // validateLedgerTimestamp
@@ -578,8 +575,6 @@ func TestRPILedgerCov_WriteFileAtomic_Overwrite(t *testing.T) {
 	}
 }
 
-
-
 // ---------------------------------------------------------------------------
 // hashHex
 // ---------------------------------------------------------------------------
@@ -709,9 +704,6 @@ func TestRPILedgerCov_ComputeLedgerHashes_Deterministic(t *testing.T) {
 		t.Error("expected deterministic hash")
 	}
 }
-
-
-
 
 func TestRPILedgerCov_LoadRecords_EmptyFile(t *testing.T) {
 	tmp := t.TempDir()

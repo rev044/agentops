@@ -164,12 +164,11 @@ func TestRepeat(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // pool.go — outputPoolList
 // ---------------------------------------------------------------------------
 
-func TestCov3_pool_outputPoolList_emptyTable(t *testing.T) {
+func TestPool_outputPoolList_emptyTable(t *testing.T) {
 	oldOutput := output
 	output = "table"
 	defer func() { output = oldOutput }()
@@ -197,7 +196,7 @@ func TestCov3_pool_outputPoolList_emptyTable(t *testing.T) {
 	}
 }
 
-func TestCov3_pool_outputPoolList_jsonMode(t *testing.T) {
+func TestPool_outputPoolList_jsonMode(t *testing.T) {
 	oldOutput := output
 	output = "json"
 	defer func() { output = oldOutput }()
@@ -240,7 +239,7 @@ func TestCov3_pool_outputPoolList_jsonMode(t *testing.T) {
 	}
 }
 
-func TestCov3_pool_outputPoolList_paginationMessage(t *testing.T) {
+func TestPool_outputPoolList_paginationMessage(t *testing.T) {
 	oldOutput := output
 	output = "table"
 	defer func() { output = oldOutput }()
@@ -293,7 +292,7 @@ func TestCov3_pool_outputPoolList_paginationMessage(t *testing.T) {
 // pool.go — outputPoolShow
 // ---------------------------------------------------------------------------
 
-func TestCov3_pool_outputPoolShow_textMode(t *testing.T) {
+func TestPool_outputPoolShow_textMode(t *testing.T) {
 	oldOutput := output
 	output = "table"
 	defer func() { output = oldOutput }()
@@ -363,7 +362,7 @@ func TestCov3_pool_outputPoolShow_textMode(t *testing.T) {
 	}
 }
 
-func TestCov3_pool_outputPoolShow_withHumanReview(t *testing.T) {
+func TestPool_outputPoolShow_withHumanReview(t *testing.T) {
 	oldOutput := output
 	output = "table"
 	defer func() { output = oldOutput }()

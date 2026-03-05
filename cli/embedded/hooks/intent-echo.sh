@@ -25,10 +25,15 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 STATE_DIR="$ROOT/.agents/ao"
 mkdir -p "$STATE_DIR" 2>/dev/null
 
-# Dedup: don't fire if already fired recently (10-min TTL)
+# Dedup: don't fire if already fired recently (10-min TTL) in same session
+# Session boundary detection: PPID stored in flag file; different PPID = new session
 DEDUP_FLAG="$STATE_DIR/.intent-echo-fired"
 if [ -f "$DEDUP_FLAG" ]; then
-    if find "$DEDUP_FLAG" -mmin -10 2>/dev/null | grep -q .; then
+    STORED_PID=$(cat "$DEDUP_FLAG" 2>/dev/null)
+    if [ "$STORED_PID" != "$$" ]; then
+        # Different session (different parent PID) — clear stale flag
+        rm -f "$DEDUP_FLAG" 2>/dev/null
+    elif find "$DEDUP_FLAG" -mmin -10 2>/dev/null | grep -q .; then
         exit 0
     else
         rm -f "$DEDUP_FLAG" 2>/dev/null
@@ -63,8 +68,8 @@ fi
 # Not triggered → exit silently
 [ "$TRIGGERED" = "0" ] && exit 0
 
-# Write dedup flag
-touch "$DEDUP_FLAG" 2>/dev/null
+# Write dedup flag with session PID for cross-session detection
+echo "$$" > "$DEDUP_FLAG" 2>/dev/null
 
 # Inject echo protocol
 ECHO_MSG="HIGH-STAKES OPERATION DETECTED. Before proceeding:

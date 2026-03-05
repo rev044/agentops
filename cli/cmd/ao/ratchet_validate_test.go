@@ -236,9 +236,9 @@ func TestFormatValidationResult_FullOutput(t *testing.T) {
 	tier := ratchet.TierLearning
 	result := &ratchet.ValidationResult{
 		Valid:    true,
-		Issues:  []string{},
+		Issues:   []string{},
 		Warnings: []string{"minor warning"},
-		Tier:    &tier,
+		Tier:     &tier,
 	}
 	allValid := true
 
@@ -337,8 +337,8 @@ func TestOutputValidationResult_Table(t *testing.T) {
 	defer func() { output = origOutput }()
 
 	result := &ratchet.ValidationResult{
-		Step:  ratchet.StepPlan,
-		Valid: false,
+		Step:   ratchet.StepPlan,
+		Valid:  false,
 		Issues: []string{"missing objective"},
 	}
 	allValid := true

@@ -445,4 +445,3 @@ func TestJSONTruncationNoTruncationNeeded(t *testing.T) {
 		t.Errorf("expected truncated=true even when output fits budget, got %v", parsed["truncated"])
 	}
 }
-

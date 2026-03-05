@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
-	"bytes"
+
 	"github.com/boshu2/agentops/cli/internal/vibecheck"
-	"io"
-	"strings"
 )
 
 func TestParseDuration(t *testing.T) {
@@ -256,7 +257,7 @@ func captureVibeStdout(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-func TestCov3_vibeCheck_outputVibeCheckJSON_emptyResult(t *testing.T) {
+func TestVibeCheck_outputVibeCheckJSON_emptyResult(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score:    85.0,
 		Grade:    "B",
@@ -275,7 +276,7 @@ func TestCov3_vibeCheck_outputVibeCheckJSON_emptyResult(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_outputVibeCheckJSON_withData(t *testing.T) {
+func TestVibeCheck_outputVibeCheckJSON_withData(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score: 92.5,
 		Grade: "A",
@@ -312,7 +313,7 @@ func TestCov3_vibeCheck_outputVibeCheckJSON_withData(t *testing.T) {
 // vibe_check.go — outputVibeCheckMarkdown (zero coverage)
 // ===========================================================================
 
-func TestCov3_vibeCheck_outputVibeCheckMarkdown_emptyResult(t *testing.T) {
+func TestVibeCheck_outputVibeCheckMarkdown_emptyResult(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score:    50.0,
 		Grade:    "C",
@@ -331,7 +332,7 @@ func TestCov3_vibeCheck_outputVibeCheckMarkdown_emptyResult(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_outputVibeCheckMarkdown_withData(t *testing.T) {
+func TestVibeCheck_outputVibeCheckMarkdown_withData(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score: 72.0,
 		Grade: "B-",
@@ -369,7 +370,7 @@ func TestCov3_vibeCheck_outputVibeCheckMarkdown_withData(t *testing.T) {
 // vibe_check.go — printMarkdownMetrics (zero coverage)
 // ===========================================================================
 
-func TestCov3_vibeCheck_printMarkdownMetrics_empty(t *testing.T) {
+func TestVibeCheck_printMarkdownMetrics_empty(t *testing.T) {
 	out := captureVibeStdout(t, func() {
 		printMarkdownMetrics(map[string]float64{})
 	})
@@ -379,7 +380,7 @@ func TestCov3_vibeCheck_printMarkdownMetrics_empty(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownMetrics_withValues(t *testing.T) {
+func TestVibeCheck_printMarkdownMetrics_withValues(t *testing.T) {
 	out := captureVibeStdout(t, func() {
 		printMarkdownMetrics(map[string]float64{
 			"velocity":   1.5,
@@ -395,7 +396,7 @@ func TestCov3_vibeCheck_printMarkdownMetrics_withValues(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownMetrics_nil(t *testing.T) {
+func TestVibeCheck_printMarkdownMetrics_nil(t *testing.T) {
 	out := captureVibeStdout(t, func() {
 		printMarkdownMetrics(nil)
 	})
@@ -409,7 +410,7 @@ func TestCov3_vibeCheck_printMarkdownMetrics_nil(t *testing.T) {
 // vibe_check.go — printMarkdownFindings (zero coverage)
 // ===========================================================================
 
-func TestCov3_vibeCheck_printMarkdownFindings_empty(t *testing.T) {
+func TestVibeCheck_printMarkdownFindings_empty(t *testing.T) {
 	out := captureVibeStdout(t, func() {
 		printMarkdownFindings([]vibecheck.Finding{})
 	})
@@ -419,7 +420,7 @@ func TestCov3_vibeCheck_printMarkdownFindings_empty(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownFindings_withFindings(t *testing.T) {
+func TestVibeCheck_printMarkdownFindings_withFindings(t *testing.T) {
 	findings := []vibecheck.Finding{
 		{Severity: "error", Category: "amnesia", Message: "critical issue"},
 		{Severity: "warning", Category: "drift", Message: "minor issue", File: "cmd/main.go"},
@@ -436,7 +437,7 @@ func TestCov3_vibeCheck_printMarkdownFindings_withFindings(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownFindings_nil(t *testing.T) {
+func TestVibeCheck_printMarkdownFindings_nil(t *testing.T) {
 	out := captureVibeStdout(t, func() {
 		printMarkdownFindings(nil)
 	})
@@ -450,7 +451,7 @@ func TestCov3_vibeCheck_printMarkdownFindings_nil(t *testing.T) {
 // vibe_check.go — severityEmoji (zero coverage)
 // ===========================================================================
 
-func TestCov3_vibeCheck_severityEmoji(t *testing.T) {
+func TestVibeCheck_severityEmoji(t *testing.T) {
 	tests := []struct {
 		severity string
 		want     string
@@ -475,7 +476,7 @@ func TestCov3_vibeCheck_severityEmoji(t *testing.T) {
 // vibe_check.go — printMarkdownFinding (zero coverage)
 // ===========================================================================
 
-func TestCov3_vibeCheck_printMarkdownFinding_withFileLine(t *testing.T) {
+func TestVibeCheck_printMarkdownFinding_withFileLine(t *testing.T) {
 	finding := vibecheck.Finding{
 		Severity: "error",
 		Category: "test-lies",
@@ -494,7 +495,7 @@ func TestCov3_vibeCheck_printMarkdownFinding_withFileLine(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownFinding_withFileNoLine(t *testing.T) {
+func TestVibeCheck_printMarkdownFinding_withFileNoLine(t *testing.T) {
 	finding := vibecheck.Finding{
 		Severity: "warning",
 		Category: "drift",
@@ -512,7 +513,7 @@ func TestCov3_vibeCheck_printMarkdownFinding_withFileNoLine(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownFinding_noFile(t *testing.T) {
+func TestVibeCheck_printMarkdownFinding_noFile(t *testing.T) {
 	finding := vibecheck.Finding{
 		Severity: "info",
 		Category: "logging",
@@ -530,7 +531,7 @@ func TestCov3_vibeCheck_printMarkdownFinding_noFile(t *testing.T) {
 // vibe_check.go — printMarkdownEvents (zero coverage)
 // ===========================================================================
 
-func TestCov3_vibeCheck_printMarkdownEvents_notFull(t *testing.T) {
+func TestVibeCheck_printMarkdownEvents_notFull(t *testing.T) {
 	// vibeCheckFull is false by default, so events should not be printed
 	origFull := vibeCheckFull
 	defer func() { vibeCheckFull = origFull }()
@@ -548,7 +549,7 @@ func TestCov3_vibeCheck_printMarkdownEvents_notFull(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownEvents_fullWithEvents(t *testing.T) {
+func TestVibeCheck_printMarkdownEvents_fullWithEvents(t *testing.T) {
 	origFull := vibeCheckFull
 	defer func() { vibeCheckFull = origFull }()
 	vibeCheckFull = true
@@ -568,7 +569,7 @@ func TestCov3_vibeCheck_printMarkdownEvents_fullWithEvents(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_printMarkdownEvents_fullEmpty(t *testing.T) {
+func TestVibeCheck_printMarkdownEvents_fullEmpty(t *testing.T) {
 	origFull := vibeCheckFull
 	defer func() { vibeCheckFull = origFull }()
 	vibeCheckFull = true
@@ -587,7 +588,7 @@ func TestCov3_vibeCheck_printMarkdownEvents_fullEmpty(t *testing.T) {
 // vibe_check.go — outputVibeCheckTable (zero coverage)
 // ===========================================================================
 
-func TestCov3_vibeCheck_outputVibeCheckTable_empty(t *testing.T) {
+func TestVibeCheck_outputVibeCheckTable_empty(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score:    0.0,
 		Grade:    "F",
@@ -611,7 +612,7 @@ func TestCov3_vibeCheck_outputVibeCheckTable_empty(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_outputVibeCheckTable_withMetrics(t *testing.T) {
+func TestVibeCheck_outputVibeCheckTable_withMetrics(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score: 75.0,
 		Grade: "B",
@@ -643,7 +644,7 @@ func TestCov3_vibeCheck_outputVibeCheckTable_withMetrics(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_outputVibeCheckTable_fullMode(t *testing.T) {
+func TestVibeCheck_outputVibeCheckTable_fullMode(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score:    90.0,
 		Grade:    "A",
@@ -669,7 +670,7 @@ func TestCov3_vibeCheck_outputVibeCheckTable_fullMode(t *testing.T) {
 	}
 }
 
-func TestCov3_vibeCheck_outputVibeCheckTable_findingsNoFile(t *testing.T) {
+func TestVibeCheck_outputVibeCheckTable_findingsNoFile(t *testing.T) {
 	result := &vibecheck.VibeCheckResult{
 		Score:   60.0,
 		Grade:   "D",

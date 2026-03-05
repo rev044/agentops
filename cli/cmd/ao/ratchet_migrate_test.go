@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
 	"github.com/spf13/cobra"
 )
 
@@ -278,7 +279,7 @@ func TestMigrateResult_Constants(t *testing.T) {
 
 // --- runRatchetMigrate tests ---
 
-func TestCov3_ratchetMigrate_runRatchetMigrate_dryRun(t *testing.T) {
+func TestRatchetMigrate_runRatchetMigrate_dryRun(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -299,7 +300,7 @@ func TestCov3_ratchetMigrate_runRatchetMigrate_dryRun(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_runRatchetMigrate_noLegacy(t *testing.T) {
+func TestRatchetMigrate_runRatchetMigrate_noLegacy(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -322,7 +323,7 @@ func TestCov3_ratchetMigrate_runRatchetMigrate_noLegacy(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_runRatchetMigrate_withLegacy(t *testing.T) {
+func TestRatchetMigrate_runRatchetMigrate_withLegacy(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -366,7 +367,7 @@ func TestCov3_ratchetMigrate_runRatchetMigrate_withLegacy(t *testing.T) {
 
 // --- runMigrateArtifacts tests ---
 
-func TestCov3_ratchetMigrate_runMigrateArtifacts_noArgs(t *testing.T) {
+func TestRatchetMigrate_runMigrateArtifacts_noArgs(t *testing.T) {
 	tmp := t.TempDir()
 	chdirTo(t, tmp)
 
@@ -397,7 +398,7 @@ func TestCov3_ratchetMigrate_runMigrateArtifacts_noArgs(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_runMigrateArtifacts_withPath(t *testing.T) {
+func TestRatchetMigrate_runMigrateArtifacts_withPath(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Create a subdir with a markdown file
@@ -427,7 +428,7 @@ func TestCov3_ratchetMigrate_runMigrateArtifacts_withPath(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_runMigrateArtifacts_dryRun(t *testing.T) {
+func TestRatchetMigrate_runMigrateArtifacts_dryRun(t *testing.T) {
 	tmp := t.TempDir()
 
 	mdContent := "# Artifact\n**Epic:** test-epic\nSome content\n"
@@ -454,7 +455,7 @@ func TestCov3_ratchetMigrate_runMigrateArtifacts_dryRun(t *testing.T) {
 
 // --- shouldMigrateFile tests ---
 
-func TestCov3_ratchetMigrate_shouldMigrateFile_markdown(t *testing.T) {
+func TestRatchetMigrate_shouldMigrateFile_markdown(t *testing.T) {
 	tmp := t.TempDir()
 	p := filepath.Join(tmp, "test.md")
 	if err := os.WriteFile(p, []byte("content"), 0644); err != nil {
@@ -469,7 +470,7 @@ func TestCov3_ratchetMigrate_shouldMigrateFile_markdown(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_shouldMigrateFile_nonMarkdown(t *testing.T) {
+func TestRatchetMigrate_shouldMigrateFile_nonMarkdown(t *testing.T) {
 	tmp := t.TempDir()
 	p := filepath.Join(tmp, "test.json")
 	if err := os.WriteFile(p, []byte("{}"), 0644); err != nil {
@@ -484,10 +485,9 @@ func TestCov3_ratchetMigrate_shouldMigrateFile_nonMarkdown(t *testing.T) {
 	}
 }
 
-
 // --- findSchemaInsertPoint tests ---
 
-func TestCov3_ratchetMigrate_findSchemaInsertPoint_afterDate(t *testing.T) {
+func TestRatchetMigrate_findSchemaInsertPoint_afterDate(t *testing.T) {
 	lines := []string{"# Title", "**Date:** 2026-01-01", "Content"}
 	idx := findSchemaInsertPoint(lines)
 	if idx != 2 {
@@ -495,7 +495,7 @@ func TestCov3_ratchetMigrate_findSchemaInsertPoint_afterDate(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_findSchemaInsertPoint_afterEpic(t *testing.T) {
+func TestRatchetMigrate_findSchemaInsertPoint_afterEpic(t *testing.T) {
 	lines := []string{"# Title", "**Epic:** test", "Content"}
 	idx := findSchemaInsertPoint(lines)
 	if idx != 2 {
@@ -503,7 +503,7 @@ func TestCov3_ratchetMigrate_findSchemaInsertPoint_afterEpic(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_findSchemaInsertPoint_afterHeading(t *testing.T) {
+func TestRatchetMigrate_findSchemaInsertPoint_afterHeading(t *testing.T) {
 	lines := []string{"# Title", "Some content", "More"}
 	idx := findSchemaInsertPoint(lines)
 	if idx != 1 {
@@ -511,7 +511,7 @@ func TestCov3_ratchetMigrate_findSchemaInsertPoint_afterHeading(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_findSchemaInsertPoint_noMatch(t *testing.T) {
+func TestRatchetMigrate_findSchemaInsertPoint_noMatch(t *testing.T) {
 	lines := []string{"no heading", "no date", "no epic"}
 	idx := findSchemaInsertPoint(lines)
 	if idx != -1 {
@@ -521,7 +521,7 @@ func TestCov3_ratchetMigrate_findSchemaInsertPoint_noMatch(t *testing.T) {
 
 // --- migrateFile tests ---
 
-func TestCov3_ratchetMigrate_migrateFile_alreadyHasSchema(t *testing.T) {
+func TestRatchetMigrate_migrateFile_alreadyHasSchema(t *testing.T) {
 	tmp := t.TempDir()
 	p := filepath.Join(tmp, "already.md")
 	content := "# Title\n**Schema Version:** 1\nContent\n"
@@ -538,7 +538,7 @@ func TestCov3_ratchetMigrate_migrateFile_alreadyHasSchema(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_migrateFile_success(t *testing.T) {
+func TestRatchetMigrate_migrateFile_success(t *testing.T) {
 	tmp := t.TempDir()
 	p := filepath.Join(tmp, "migrate-me.md")
 	content := "# Title\n**Date:** 2026-01-01\nContent\n"
@@ -572,7 +572,7 @@ func TestCov3_ratchetMigrate_migrateFile_success(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_migrateFile_noInsertPoint(t *testing.T) {
+func TestRatchetMigrate_migrateFile_noInsertPoint(t *testing.T) {
 	tmp := t.TempDir()
 	p := filepath.Join(tmp, "no-heading.md")
 	content := "plain text\nno heading\nno date\n"

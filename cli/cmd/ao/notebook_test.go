@@ -315,7 +315,7 @@ func TestBuildLastSessionSection(t *testing.T) {
 
 func TestTotalLines(t *testing.T) {
 	sections := []notebookSection{
-		{Heading: "# Title", Lines: []string{""}},         // 2 lines
+		{Heading: "# Title", Lines: []string{""}},          // 2 lines
 		{Heading: "## Section", Lines: []string{"a", "b"}}, // 3 lines
 	}
 

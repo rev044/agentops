@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
 	"github.com/boshu2/agentops/cli/internal/pool"
 	"github.com/boshu2/agentops/cli/internal/types"
-	"strings"
 )
 
 // TestGatePendingReturnsBronzeCandidates verifies that gate pending
@@ -485,7 +486,7 @@ func TestGateApproveNoteTooLong(t *testing.T) {
 // gate.go — entryUrgency
 // ---------------------------------------------------------------------------
 
-func TestCov3_gate_entryUrgency(t *testing.T) {
+func TestGate_entryUrgency(t *testing.T) {
 	tests := []struct {
 		name  string
 		entry pool.PoolEntry
@@ -495,7 +496,7 @@ func TestCov3_gate_entryUrgency(t *testing.T) {
 			name: "approaching auto promote is HIGH",
 			entry: pool.PoolEntry{
 				ApproachingAutoPromote: true,
-				Age:                   23 * time.Hour,
+				Age:                    23 * time.Hour,
 			},
 			want: "HIGH (approaching 24h)",
 		},
@@ -503,7 +504,7 @@ func TestCov3_gate_entryUrgency(t *testing.T) {
 			name: "over 12h is MEDIUM",
 			entry: pool.PoolEntry{
 				ApproachingAutoPromote: false,
-				Age:                   13 * time.Hour,
+				Age:                    13 * time.Hour,
 			},
 			want: "MEDIUM",
 		},
@@ -511,7 +512,7 @@ func TestCov3_gate_entryUrgency(t *testing.T) {
 			name: "under 12h is LOW",
 			entry: pool.PoolEntry{
 				ApproachingAutoPromote: false,
-				Age:                   6 * time.Hour,
+				Age:                    6 * time.Hour,
 			},
 			want: "LOW",
 		},
@@ -519,7 +520,7 @@ func TestCov3_gate_entryUrgency(t *testing.T) {
 			name: "zero age is LOW",
 			entry: pool.PoolEntry{
 				ApproachingAutoPromote: false,
-				Age:                   0,
+				Age:                    0,
 			},
 			want: "LOW",
 		},
@@ -539,7 +540,7 @@ func TestCov3_gate_entryUrgency(t *testing.T) {
 // gate.go — outputGatePending (table mode)
 // ---------------------------------------------------------------------------
 
-func TestCov3_gate_outputGatePending_table(t *testing.T) {
+func TestGate_outputGatePending_table(t *testing.T) {
 	oldOutput := output
 	output = "table"
 	defer func() { output = oldOutput }()
@@ -627,7 +628,7 @@ func TestCov3_gate_outputGatePending_table(t *testing.T) {
 // gate.go — outputGatePending (JSON mode)
 // ---------------------------------------------------------------------------
 
-func TestCov3_gate_outputGatePending_json(t *testing.T) {
+func TestGate_outputGatePending_json(t *testing.T) {
 	oldOutput := output
 	output = "json"
 	defer func() { output = oldOutput }()
@@ -672,7 +673,7 @@ func TestCov3_gate_outputGatePending_json(t *testing.T) {
 // gate.go — printAutoPromoteWarning
 // ---------------------------------------------------------------------------
 
-func TestCov3_gate_printAutoPromoteWarning(t *testing.T) {
+func TestGate_printAutoPromoteWarning(t *testing.T) {
 	t.Run("no approaching entries", func(t *testing.T) {
 		entries := []pool.PoolEntry{
 			{ApproachingAutoPromote: false},

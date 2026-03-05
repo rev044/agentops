@@ -118,7 +118,7 @@ func TestFormatLookupAge(t *testing.T) {
 // lookup.go — matchesID
 // ---------------------------------------------------------------------------
 
-func TestCov3_lookup_matchesID(t *testing.T) {
+func TestLookup_matchesID(t *testing.T) {
 	tests := []struct {
 		name     string
 		itemID   string
@@ -190,7 +190,7 @@ func TestCov3_lookup_matchesID(t *testing.T) {
 // lookup.go — filterByBead
 // ---------------------------------------------------------------------------
 
-func TestCov3_lookup_filterByBead(t *testing.T) {
+func TestLookup_filterByBead(t *testing.T) {
 	learnings := []learning{
 		{ID: "l1", SourceBead: "ag-abc"},
 		{ID: "l2", SourceBead: "ag-def"},
@@ -229,7 +229,7 @@ func TestCov3_lookup_filterByBead(t *testing.T) {
 // lookup.go — formatLookupAge
 // ---------------------------------------------------------------------------
 
-func TestCov3_lookup_formatLookupAge(t *testing.T) {
+func TestLookup_formatLookupAge(t *testing.T) {
 	tests := []struct {
 		ageWeeks float64
 		want     string
@@ -256,7 +256,7 @@ func TestCov3_lookup_formatLookupAge(t *testing.T) {
 // lookup.go — relPath
 // ---------------------------------------------------------------------------
 
-func TestCov3_lookup_relPath(t *testing.T) {
+func TestLookup_relPath(t *testing.T) {
 	cwd := "/Users/test/project"
 
 	tests := []struct {
@@ -290,7 +290,7 @@ func TestCov3_lookup_relPath(t *testing.T) {
 // lookup.go — outputResults
 // ---------------------------------------------------------------------------
 
-func TestCov3_lookup_outputResults_noResults(t *testing.T) {
+func TestLookup_outputResults_noResults(t *testing.T) {
 	// Save and restore the module-level flag
 	oldLookupJSON := lookupJSON
 	lookupJSON = false
@@ -319,7 +319,7 @@ func TestCov3_lookup_outputResults_noResults(t *testing.T) {
 	}
 }
 
-func TestCov3_lookup_outputResults_withLearnings(t *testing.T) {
+func TestLookup_outputResults_withLearnings(t *testing.T) {
 	oldLookupJSON := lookupJSON
 	lookupJSON = false
 	defer func() { lookupJSON = oldLookupJSON }()
@@ -362,7 +362,7 @@ func TestCov3_lookup_outputResults_withLearnings(t *testing.T) {
 	}
 }
 
-func TestCov3_lookup_outputResults_jsonMode(t *testing.T) {
+func TestLookup_outputResults_jsonMode(t *testing.T) {
 	oldLookupJSON := lookupJSON
 	lookupJSON = true
 	defer func() { lookupJSON = oldLookupJSON }()
@@ -398,7 +398,7 @@ func TestCov3_lookup_outputResults_jsonMode(t *testing.T) {
 // lookup.go — outputLearning (text mode, no-cite)
 // ---------------------------------------------------------------------------
 
-func TestCov3_lookup_outputLearning_textMode(t *testing.T) {
+func TestLookup_outputLearning_textMode(t *testing.T) {
 	oldLookupJSON := lookupJSON
 	lookupJSON = false
 	defer func() { lookupJSON = oldLookupJSON }()

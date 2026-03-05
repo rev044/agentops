@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
 	"github.com/boshu2/agentops/cli/internal/pool"
 	"github.com/boshu2/agentops/cli/internal/ratchet"
-	"github.com/boshu2/agentops/cli/internal/types"
 	"github.com/boshu2/agentops/cli/internal/taxonomy"
-	"strings"
+	"github.com/boshu2/agentops/cli/internal/types"
 )
 
 func TestParseLearningBlocks(t *testing.T) {

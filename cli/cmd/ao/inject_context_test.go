@@ -558,4 +558,3 @@ func TestParseContextFromFrontmatter_InvalidIntelScope(t *testing.T) {
 		t.Error("parseContextFromFrontmatter with invalid intel_scope should error")
 	}
 }
-
