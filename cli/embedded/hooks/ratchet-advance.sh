@@ -133,5 +133,11 @@ else
 fi
 
 # Output as additionalContext
-printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$MSG"
+if command -v jq >/dev/null 2>&1; then
+    jq -n --arg ctx "$MSG" '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":$ctx}}'
+else
+    safe_msg=${MSG//\\/\\\\}
+    safe_msg=${safe_msg//\"/\\\"}
+    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$safe_msg"
+fi
 exit 0
