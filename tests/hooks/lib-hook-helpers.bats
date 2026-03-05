@@ -213,3 +213,96 @@ teardown() {
     hf=$(jq -r '.handoff_file' "$pkt_file")
     [ "$hf" = "/tmp/handoff.md" ]
 }
+
+# ═══════════════════════════════════════════════════════════════════════
+# 7. No-jq fallback paths
+# ═══════════════════════════════════════════════════════════════════════
+
+@test "write_failure: produces valid JSON without jq (fallback path)" {
+    # Build a minimal PATH without jq to trigger the printf fallback.
+    # We can't just remove /usr/bin since sed lives there too.
+    local nojq_bin="$TMP_TEST_DIR/nojq-bin"
+    mkdir -p "$nojq_bin"
+    for tool in sed date printf grep tr mkdir chmod cat; do
+        local tool_path
+        tool_path=$(PATH="/usr/bin:/bin:/usr/local/bin" command -v "$tool" 2>/dev/null || true)
+        [ -n "$tool_path" ] && ln -sf "$tool_path" "$nojq_bin/$tool"
+    done
+    local original_path="$PATH"
+    PATH="$nojq_bin"
+
+    _HOOK_HELPERS_ERROR_LOG_DIR="$TMP_TEST_DIR/error-log-nojq"
+    mkdir -p "$_HOOK_HELPERS_ERROR_LOG_DIR"
+    write_failure "test-type" "test-command" 42 "test details"
+
+    PATH="$original_path"
+
+    # Verify file exists
+    local outfile="$_HOOK_HELPERS_ERROR_LOG_DIR/last-failure.json"
+    [ -f "$outfile" ]
+
+    # Use jq (now back on PATH) to validate the output is valid JSON
+    run jq -e '.schema_version == 1' "$outfile"
+    [ "$status" -eq 0 ]
+
+    run jq -r '.type' "$outfile"
+    [ "$output" = "test-type" ]
+
+    run jq -r '.command' "$outfile"
+    [ "$output" = "test-command" ]
+
+    run jq -e '.exit_code == 42' "$outfile"
+    [ "$status" -eq 0 ]
+}
+
+@test "write_memory_packet: creates valid packet without jq (fallback path)" {
+    # Reuse the same nojq-bin approach: restricted PATH without jq
+    local nojq_bin="$TMP_TEST_DIR/nojq-bin2"
+    mkdir -p "$nojq_bin"
+    for tool in sed date printf grep tr mkdir chmod cat; do
+        local tool_path
+        tool_path=$(PATH="/usr/bin:/bin:/usr/local/bin" command -v "$tool" 2>/dev/null || true)
+        [ -n "$tool_path" ] && ln -sf "$tool_path" "$nojq_bin/$tool"
+    done
+    local original_path="$PATH"
+    PATH="$nojq_bin"
+
+    _HOOK_PACKET_ROOT="$TMP_TEST_DIR/packets-nojq"
+    _HOOK_PACKET_PENDING_DIR="$_HOOK_PACKET_ROOT/pending"
+    export CLAUDE_SESSION_ID="test-session"
+
+    run write_memory_packet "test-type" "test-hook" '{"key":"value"}'
+
+    PATH="$original_path"
+
+    [ "$status" -eq 0 ]
+    [ -n "$output" ]
+
+    # Verify the file was created
+    local packet_file="$output"
+    [ -f "$packet_file" ]
+
+    # Validate with jq (now back on PATH)
+    run jq -e '.schema_version == 1' "$packet_file"
+    [ "$status" -eq 0 ]
+
+    run jq -r '.packet_type' "$packet_file"
+    [ "$output" = "test-type" ]
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+# 8. Edge cases
+# ═══════════════════════════════════════════════════════════════════════
+
+@test "validate_restricted_cmd: blocks newline injection" {
+    run validate_restricted_cmd $'go\nrm -rf /'
+    [ "$status" -eq 1 ]
+}
+
+@test "json_escape_value: handles tabs and newlines" {
+    local result
+    result=$(json_escape_value $'line1\tindented\nline2')
+    # Tabs and newlines should be converted to spaces
+    [[ "$result" != *$'\t'* ]]
+    [[ "$result" != *$'\n'* ]]
+}
