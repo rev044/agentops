@@ -114,6 +114,7 @@ Hooks are tested using the [BATS](https://github.com/bats-core/bats-core) framew
 | `hook-output-schema.bats` | Hook output JSON schema contracts |
 | `hook-stdin-contracts.bats` | Hook stdin JSON input contracts |
 | `constraint-compiler.bats` | Constraint compiler logic |
+| `lib-hook-helpers.bats` | Unit tests for `lib/hook-helpers.sh` functions |
 
 ### Writing a BATS test
 

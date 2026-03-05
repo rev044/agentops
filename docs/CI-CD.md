@@ -1,12 +1,12 @@
 # CI/CD Architecture
 
-CI ensures code quality, security, and release integrity for the AgentOps repository. Every push and PR runs a 26-job validation pipeline. Releases are automated through GoReleaser with SBOM generation and SLSA provenance attestation.
+CI ensures code quality, security, and release integrity for the AgentOps repository. Every push and PR runs a 29-job validation pipeline. Releases are automated through GoReleaser with SBOM generation and SLSA provenance attestation.
 
 ## Workflow Map
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
-| Validate | `validate.yml` | Push to `main`, PRs to `main` | Primary quality gate (26 jobs) |
+| Validate | `validate.yml` | Push to `main`, PRs to `main` | Primary quality gate (29 jobs) |
 | Release Publisher | `release.yml` | Tag push (`v*`), manual dispatch | Build, publish, attest releases |
 | Nightly | `nightly.yml` | Daily 6am UTC, manual | Full test suite + security + Athena knowledge cycle |
 | Stale Issues | `stale.yml` | Weekly Monday 9am UTC | Auto-mark/close inactive issues and PRs |
@@ -14,13 +14,13 @@ CI ensures code quality, security, and release integrity for the AgentOps reposi
 
 ## validate.yml Architecture
 
-The validate workflow runs **26 jobs** across 4 tiers of parallelism. Most jobs run independently with no `needs` dependencies, maximizing throughput.
+The validate workflow runs **29 jobs** across 4 tiers of parallelism. Most jobs run independently with no `needs` dependencies, maximizing throughput.
 
 ### Job Dependency Graph
 
 ```text
                     ┌─────────────────────────────────────────────┐
-                    │         24 independent parallel jobs         │
+                    │         25 independent parallel jobs         │
                     │                                             │
                     │  doc-release-gate    smoke-test              │
                     │  hook-preflight      validate-hooks-doc-parity│
@@ -34,24 +34,25 @@ The validate workflow runs **26 jobs** across 4 tiers of parallelism. Most jobs 
                     │  contract-compatibility-gate                  │
                     │  memrl-health        plugin-load-test        │
                     │  go-build            cli-integration         │
+                    │  file-manifest-overlap                       │
                     │  skill-lint          learning-coherence      │
                     │  bats-tests          check-test-staleness    │
                     └──────────────┬──────────────────────────────┘
                                    │
                     ┌──────────────┴──────────────┐
                     │  go-build (must complete)    │
-                    └──────┬─────────────┬────────┘
-                           │             │
-                    ┌──────┴──┐   ┌──────┴──────┐
-                    │ doctor- │   │  coverage-   │
-                    │  check  │   │   ratchet    │
-                    └─────┬───┘   └──────┬──────┘
-                          │              │
-                    ┌─────┴──────────────┴─────┐
-                    │         summary           │
-                    │  (needs: ALL 26 jobs)     │
-                    │  if: always()             │
-                    └──────────────────────────┘
+                    └──┬─────────────┬─────────┬──┘
+                       │             │         │
+                 ┌─────┴──┐  ┌──────┴───┐ ┌───┴──────────┐
+                 │ doctor- │  │coverage- │ │json-flag-    │
+                 │  check  │  │ ratchet  │ │consistency   │
+                 └────┬────┘  └────┬─────┘ └──────┬───────┘
+                      │            │              │
+                    ┌─┴────────────┴──────────────┴─┐
+                    │           summary              │
+                    │  (needs: ALL 28 jobs)           │
+                    │  if: always()                   │
+                    └────────────────────────────────┘
 ```
 
 ### The `summary` Aggregator Pattern
