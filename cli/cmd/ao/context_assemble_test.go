@@ -74,7 +74,7 @@ Test project goals
 		t.Fatalf("expected 5 sections, got %d", len(sections))
 	}
 
-	expectedNames := []string{"GOALS", "HISTORY", "INTEL", "TASK", "PROTOCOL"}
+	expectedNames := []string{"GOALS", sectionHistory, sectionIntel, sectionTask, "PROTOCOL"}
 	for i, name := range expectedNames {
 		if sections[i].Name != name {
 			t.Errorf("section %d: expected name %q, got %q", i, name, sections[i].Name)
@@ -314,7 +314,7 @@ func TestContextAssemble_JSONOutput(t *testing.T) {
 	}
 
 	// Verify section names in JSON.
-	expectedNames := []string{"GOALS", "HISTORY", "INTEL", "TASK", "PROTOCOL"}
+	expectedNames := []string{"GOALS", sectionHistory, sectionIntel, sectionTask, "PROTOCOL"}
 	for i, name := range expectedNames {
 		if parsed.Sections[i].Name != name {
 			t.Errorf("JSON section %d: expected name %q, got %q", i, name, parsed.Sections[i].Name)
@@ -434,6 +434,108 @@ func TestContextAssemble_CommandWritesBriefingAndManifest(t *testing.T) {
 	}
 	if len(manifestEntries) == 0 {
 		t.Fatal("expected at least one provenance manifest file")
+	}
+}
+
+func TestTruncateToCharBudget_RuneSafe(t *testing.T) {
+	// Multi-byte characters: each emoji is multiple bytes but 1 rune.
+	input := "Hello 🌍🌎🌏 World and more text to exceed budget"
+	// Budget of 10 runes — verify no replacement characters (rune-safe).
+	result := truncateToCharBudget(input, 10)
+	for _, r := range result {
+		if r == 0xFFFD { // Unicode replacement character = bad truncation
+			t.Error("truncation produced replacement character, not rune-safe")
+		}
+	}
+	// Result should be shorter than the original input.
+	if len([]rune(result)) >= len([]rune(input)) {
+		t.Error("truncated result should be shorter than input")
+	}
+}
+
+func TestTruncateToCharBudget_ZeroBudget(t *testing.T) {
+	if got := truncateToCharBudget("anything", 0); got != "" {
+		t.Errorf("zero budget should return empty, got %q", got)
+	}
+}
+
+func TestTruncateToCharBudget_UnderBudget(t *testing.T) {
+	input := "short"
+	if got := truncateToCharBudget(input, 100); got != input {
+		t.Errorf("under-budget should return input unchanged, got %q", got)
+	}
+}
+
+func TestShannonEntropy(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantMin float64
+		wantMax float64
+	}{
+		{"empty", "", 0, 0},
+		{"single char repeated", "aaaaaaa", 0, 0.01},
+		{"low entropy", "aabb", 0.9, 1.1},
+		{"high entropy hex", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 3.5, 5.0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shannonEntropy(tt.input)
+			if got < tt.wantMin || got > tt.wantMax {
+				t.Errorf("shannonEntropy(%q) = %f, want [%f, %f]", tt.input, got, tt.wantMin, tt.wantMax)
+			}
+		})
+	}
+}
+
+func TestRedactHighEntropy(t *testing.T) {
+	// A 32-char high-entropy string (>4.5 bits/char) should be redacted.
+	// Use a base64-like string with high character diversity.
+	secret := "Kx9mPqR3vZ7wJ5nLtY2fBgC8hDsE4aUo"
+	entropy := shannonEntropy(secret)
+	if entropy <= 4.5 {
+		t.Fatalf("test setup: secret entropy %.2f must be >4.5", entropy)
+	}
+
+	input := "prefix " + secret + " suffix"
+	result, count := redactHighEntropy(input)
+	if strings.Contains(result, secret) {
+		t.Error("high-entropy string should be redacted")
+	}
+	if !strings.Contains(result, "[REDACTED: high-entropy]") {
+		t.Error("expected [REDACTED: high-entropy] marker")
+	}
+	if count == 0 {
+		t.Error("expected non-zero redaction count")
+	}
+
+	// A 32-char low-entropy string should NOT be redacted.
+	lowEntropy := strings.Repeat("a", 32)
+	result2, count2 := redactHighEntropy("before " + lowEntropy + " after")
+	if !strings.Contains(result2, lowEntropy) {
+		t.Error("low-entropy string should not be redacted")
+	}
+	if count2 != 0 {
+		t.Errorf("expected 0 redactions for low-entropy, got %d", count2)
+	}
+}
+
+func TestFormatHistoryEntry(t *testing.T) {
+	entry := map[string]interface{}{
+		"timestamp": "2026-02-20T10:00:00Z",
+		"cycle":     float64(3),
+		"status":    "pass",
+		"summary":   "test cycle summary",
+	}
+	result := formatHistoryEntry(entry, 1)
+	if !strings.Contains(result, "### Entry 1") {
+		t.Error("expected entry header")
+	}
+	if !strings.Contains(result, "**timestamp**") {
+		t.Error("expected timestamp field")
+	}
+	if !strings.Contains(result, "**status**: pass") {
+		t.Error("expected status field")
 	}
 }
 

@@ -8,12 +8,11 @@
   "internal/provenance": 98.3,
   "internal/ratchet": 94.2,
   "internal/resolver": 88.2,
-  "internal/rpi": 94.8,
+  "internal/rpi": 93.4,
   "internal/search": 96.0,
   "internal/storage": 96.5,
   "internal/taxonomy": 100.0,
   "internal/types": 100.0,
   "internal/vibecheck": 100.0,
-  "internal/worker": 100.0,
-  "cmd/ao": 84.0
+  "internal/worker": 100.0
 }

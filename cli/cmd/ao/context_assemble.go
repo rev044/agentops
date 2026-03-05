@@ -169,7 +169,7 @@ func assembleSections(cwd, task string, maxChars int) []assembledSection {
 	historyContent := gatherHistory(cwd, bHistory)
 	historyContent, historyRedactions := redactContent(historyContent, cwd)
 	sections = append(sections, assembledSection{
-		Name:       "HISTORY",
+		Name:       sectionHistory,
 		CharCount:  len(historyContent),
 		Redactions: historyRedactions,
 		Content:    historyContent,
@@ -179,7 +179,7 @@ func assembleSections(cwd, task string, maxChars int) []assembledSection {
 	intelContent := gatherIntel(cwd, task, bIntel)
 	intelContent, intelRedactions := redactContent(intelContent, cwd)
 	sections = append(sections, assembledSection{
-		Name:       "INTEL",
+		Name:       sectionIntel,
 		CharCount:  len(intelContent),
 		Redactions: intelRedactions,
 		Content:    intelContent,
@@ -189,7 +189,7 @@ func assembleSections(cwd, task string, maxChars int) []assembledSection {
 	taskContent := formatTaskSection(task, bTask)
 	taskContent, taskRedactions := redactContent(taskContent, cwd)
 	sections = append(sections, assembledSection{
-		Name:       "TASK",
+		Name:       sectionTask,
 		CharCount:  len(taskContent),
 		Redactions: taskRedactions,
 		Content:    taskContent,
