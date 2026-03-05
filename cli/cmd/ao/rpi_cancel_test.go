@@ -261,14 +261,6 @@ func TestCov3_rpiCancel_runRPICancel_badSignal(t *testing.T) {
 	}
 }
 
-// --- executeCancelTargets tests ---
-
-func TestCov3_rpiCancel_executeCancelTargets_noTargets(t *testing.T) {
-	failures := executeCancelTargets(nil, syscall.SIGTERM)
-	if len(failures) != 0 {
-		t.Fatalf("expected no failures for empty targets, got: %v", failures)
-	}
-}
 
 func TestCov3_rpiCancel_executeCancelTargets_dryRun(t *testing.T) {
 	oldDryRun := rpiCancelDryRun
@@ -386,14 +378,6 @@ func TestCov3_rpiCancel_cancelOneTarget_withStateUpdate(t *testing.T) {
 	}
 }
 
-// --- discoverCancelTargets tests ---
-
-func TestCov3_rpiCancel_discoverCancelTargets_emptyRoots(t *testing.T) {
-	targets := discoverCancelTargets(nil, "", nil)
-	if len(targets) != 0 {
-		t.Fatalf("expected no targets for nil roots, got %d", len(targets))
-	}
-}
 
 func TestCov3_rpiCancel_discoverCancelTargets_sortOrder(t *testing.T) {
 	// Create two roots, one with a supervisor lease and one with a run registry

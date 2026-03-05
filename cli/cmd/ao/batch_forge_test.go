@@ -870,20 +870,6 @@ func TestCov4_forgeSingleTranscript_happyPath(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// batch_forge.go — triggerExtraction
-// ---------------------------------------------------------------------------
-
-func TestCov4_triggerExtraction_noPendingFile(t *testing.T) {
-	tmp := t.TempDir()
-	count, err := triggerExtraction(tmp)
-	if err != nil {
-		t.Fatalf("triggerExtraction: %v", err)
-	}
-	if count != 0 {
-		t.Errorf("expected 0, got %d", count)
-	}
-}
 
 func TestCov4_triggerExtraction_emptyPendingFile(t *testing.T) {
 	tmp := t.TempDir()

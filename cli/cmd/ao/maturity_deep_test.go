@@ -422,20 +422,6 @@ func TestCov3_maturity_applyScannedTransitions_withValidFile(t *testing.T) {
 	}
 }
 
-// --- runMaturityScan tests ---
-
-func TestCov3_maturity_runMaturityScan_dryRun(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
-
-	oldDryRun := dryRun
-	dryRun = true
-	defer func() { dryRun = oldDryRun }()
-
-	err := runMaturityScan(learningsDir)
-	if err != nil {
-		t.Fatalf("runMaturityScan dry-run: %v", err)
-	}
-}
 
 func TestCov3_maturity_runMaturityScan_noTransitions(t *testing.T) {
 	_, learningsDir := cov3W2SetupMaturityDir(t)

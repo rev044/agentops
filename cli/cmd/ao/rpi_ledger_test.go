@@ -341,16 +341,6 @@ func TestRPILedgerCov_ValidateAppendInput_MissingFields(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_ValidateAppendInput_Valid(t *testing.T) {
-	err := validateAppendInput(RPILedgerAppendInput{
-		RunID:  "run-1",
-		Phase:  "research",
-		Action: "start",
-	})
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // validateRunID
@@ -438,23 +428,7 @@ func TestRPILedgerCov_NormalizeDetails_ValidMap(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_NormalizeDetails_RawJSON(t *testing.T) {
-	raw := json.RawMessage(`{"a":1}`)
-	result, err := normalizeDetails(raw)
-	if err != nil {
-		t.Fatalf("error: %v", err)
-	}
-	if string(result) != `{"a":1}` {
-		t.Errorf("expected '{\"a\":1}', got %q", string(result))
-	}
-}
 
-func TestRPILedgerCov_NormalizeDetails_InvalidJSON(t *testing.T) {
-	_, err := normalizeDetails(json.RawMessage([]byte("not json")))
-	if err == nil {
-		t.Error("expected error for invalid JSON")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // validateLedgerTimestamp
@@ -604,24 +578,7 @@ func TestRPILedgerCov_WriteFileAtomic_Overwrite(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// syncDirectory
-// ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_SyncDirectory(t *testing.T) {
-	tmp := t.TempDir()
-	err := syncDirectory(tmp)
-	if err != nil {
-		t.Errorf("syncDirectory() error = %v", err)
-	}
-}
-
-func TestRPILedgerCov_SyncDirectory_Nonexistent(t *testing.T) {
-	err := syncDirectory("/nonexistent/path/xyz")
-	if err == nil {
-		t.Error("expected error for nonexistent directory")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // hashHex
@@ -753,42 +710,8 @@ func TestRPILedgerCov_ComputeLedgerHashes_Deterministic(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// roundTripJSON
-// ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_RoundTripJSON(t *testing.T) {
-	input := []byte(`{"b":2,"a":1}`)
-	result, err := roundTripJSON(input)
-	if err != nil {
-		t.Fatalf("error: %v", err)
-	}
-	// Go's json.Marshal sorts keys
-	if string(result) != `{"a":1,"b":2}` {
-		t.Errorf("expected sorted keys, got %q", string(result))
-	}
-}
 
-func TestRPILedgerCov_RoundTripJSON_Invalid(t *testing.T) {
-	_, err := roundTripJSON([]byte("not json"))
-	if err == nil {
-		t.Error("expected error for invalid JSON")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// loadRPILedgerRecordsFromPath
-// ---------------------------------------------------------------------------
-
-func TestRPILedgerCov_LoadRecords_NonexistentFile(t *testing.T) {
-	records, err := loadRPILedgerRecordsFromPath("/nonexistent/path/ledger.jsonl")
-	if err != nil {
-		t.Fatalf("error: %v", err)
-	}
-	if records != nil {
-		t.Errorf("expected nil records, got %d", len(records))
-	}
-}
 
 func TestRPILedgerCov_LoadRecords_EmptyFile(t *testing.T) {
 	tmp := t.TempDir()

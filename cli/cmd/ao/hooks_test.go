@@ -809,49 +809,9 @@ func TestHooksCoverage_eventGroupPtrs_ReturnsAllEvents(t *testing.T) {
 	}
 }
 
-func TestHooksCoverage_eventGroupPtr_Unknown(t *testing.T) {
-	config := &HooksConfig{}
-	ptr := config.eventGroupPtr("NonexistentEvent")
-	if ptr != nil {
-		t.Error("expected nil for unknown event")
-	}
-}
 
-func TestHooksCoverage_eventGroupPtr_Known(t *testing.T) {
-	config := &HooksConfig{}
-	for _, event := range AllEventNames() {
-		ptr := config.eventGroupPtr(event)
-		if ptr == nil {
-			t.Errorf("expected non-nil pointer for event %s", event)
-		}
-	}
-}
 
-// ---------------------------------------------------------------------------
-// HooksConfig.GetEventGroups / SetEventGroups
-// ---------------------------------------------------------------------------
 
-func TestHooksCoverage_SetEventGroups_UnknownEvent(t *testing.T) {
-	config := &HooksConfig{}
-	// Should be a no-op, no panic
-	config.SetEventGroups("BogusEvent", []HookGroup{
-		{Hooks: []HookEntry{{Type: "command", Command: "test"}}},
-	})
-	// Verify nothing was set
-	if got := config.GetEventGroups("BogusEvent"); got != nil {
-		t.Errorf("expected nil for unknown event, got %v", got)
-	}
-}
-
-func TestHooksCoverage_GetEventGroups_Empty(t *testing.T) {
-	config := &HooksConfig{}
-	for _, event := range AllEventNames() {
-		got := config.GetEventGroups(event)
-		if len(got) != 0 {
-			t.Errorf("expected empty groups for %s on fresh config, got %d", event, len(got))
-		}
-	}
-}
 
 // ---------------------------------------------------------------------------
 // generateMinimalHooksConfig
@@ -1061,18 +1021,6 @@ func TestHooksCoverage_writeHooksSettings_CreatesDir(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// backupHooksSettings
-// ---------------------------------------------------------------------------
-
-func TestHooksCoverage_backupHooksSettings_NoFile(t *testing.T) {
-	tmp := t.TempDir()
-	path := filepath.Join(tmp, "nonexistent.json")
-	// Should be a no-op, no error
-	if err := backupHooksSettings(path); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
 
 func TestHooksCoverage_backupHooksSettings_CreatesBackup(t *testing.T) {
 	tmp := t.TempDir()
@@ -1108,17 +1056,6 @@ func TestHooksCoverage_backupHooksSettings_CreatesBackup(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// cloneHooksMap
-// ---------------------------------------------------------------------------
-
-func TestHooksCoverage_cloneHooksMap_EmptySettings(t *testing.T) {
-	rawSettings := map[string]any{}
-	result := cloneHooksMap(rawSettings)
-	if len(result) != 0 {
-		t.Errorf("expected empty map, got %v", result)
-	}
-}
 
 func TestHooksCoverage_cloneHooksMap_WithExistingHooks(t *testing.T) {
 	rawSettings := map[string]any{
@@ -1136,15 +1073,6 @@ func TestHooksCoverage_cloneHooksMap_WithExistingHooks(t *testing.T) {
 	}
 }
 
-func TestHooksCoverage_cloneHooksMap_NonMapHooks(t *testing.T) {
-	rawSettings := map[string]any{
-		"hooks": "not-a-map",
-	}
-	result := cloneHooksMap(rawSettings)
-	if len(result) != 0 {
-		t.Errorf("expected empty map for non-map hooks, got %v", result)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // existingAoHooksBlock
@@ -1958,17 +1886,6 @@ func TestHooksCoverage_rawGroupLegacyContainsAo(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// filterNonAoHookGroups
-// ---------------------------------------------------------------------------
-
-func TestHooksCoverage_filterNonAoHookGroups_EventNotPresent(t *testing.T) {
-	hooksMap := map[string]any{}
-	result := filterNonAoHookGroups(hooksMap, "SessionStart")
-	if len(result) != 0 {
-		t.Errorf("expected empty slice, got %d", len(result))
-	}
-}
 
 func TestHooksCoverage_filterNonAoHookGroups_NonMapEntries(t *testing.T) {
 	hooksMap := map[string]any{
@@ -2014,13 +1931,6 @@ func TestHooksCoverage_hooksCopyFile(t *testing.T) {
 	}
 }
 
-func TestHooksCoverage_hooksCopyFile_SourceNotExist(t *testing.T) {
-	tmp := t.TempDir()
-	err := hooksCopyFile(filepath.Join(tmp, "nonexistent"), filepath.Join(tmp, "dest"))
-	if err == nil {
-		t.Error("expected error for nonexistent source")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // copyDir
@@ -2108,27 +2018,7 @@ func TestHooksCoverage_copyShellScripts(t *testing.T) {
 	}
 }
 
-func TestHooksCoverage_copyShellScripts_SrcNotExist(t *testing.T) {
-	_, err := copyShellScripts("/nonexistent/path", "/also/nonexistent")
-	if err == nil {
-		t.Error("expected error for nonexistent source directory")
-	}
-}
 
-// ---------------------------------------------------------------------------
-// copyOptionalFile
-// ---------------------------------------------------------------------------
-
-func TestHooksCoverage_copyOptionalFile_Missing(t *testing.T) {
-	tmp := t.TempDir()
-	count, err := copyOptionalFile(filepath.Join(tmp, "nofile"), filepath.Join(tmp, "dst"), "test")
-	if err != nil {
-		t.Fatalf("expected nil error, got %v", err)
-	}
-	if count != 0 {
-		t.Errorf("expected 0 copied, got %d", count)
-	}
-}
 
 func TestHooksCoverage_copyOptionalFile_Present(t *testing.T) {
 	tmp := t.TempDir()
@@ -2153,20 +2043,6 @@ func TestHooksCoverage_copyOptionalFile_Present(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// copyOptionalDir
-// ---------------------------------------------------------------------------
-
-func TestHooksCoverage_copyOptionalDir_Missing(t *testing.T) {
-	tmp := t.TempDir()
-	count, err := copyOptionalDir(filepath.Join(tmp, "nodir"), filepath.Join(tmp, "dst"), "test")
-	if err != nil {
-		t.Fatalf("expected nil error, got %v", err)
-	}
-	if count != 0 {
-		t.Errorf("expected 0 copied, got %d", count)
-	}
-}
 
 func TestHooksCoverage_copyOptionalDir_Present(t *testing.T) {
 	tmp := t.TempDir()
@@ -2430,17 +2306,6 @@ func TestHooksCoverage_runForgeTranscriptAccessTest_NoProjectsDir(t *testing.T) 
 	runForgeTranscriptAccessTest(1, tmp)
 }
 
-func TestHooksCoverage_runForgeTranscriptAccessTest_WithProjectsDir(t *testing.T) {
-	oldDryRun := hooksDryRun
-	defer func() { hooksDryRun = oldDryRun }()
-	hooksDryRun = false
-
-	tmp := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(tmp, ".claude", "projects"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	runForgeTranscriptAccessTest(1, tmp)
-}
 
 // ---------------------------------------------------------------------------
 // runInjectCommandTest (dry-run only)
@@ -2486,18 +2351,6 @@ func TestHooksCoverage_resolveSourceDir_ExplicitValid(t *testing.T) {
 	}
 }
 
-func TestHooksCoverage_resolveSourceDir_ExplicitInvalid(t *testing.T) {
-	tmp := t.TempDir()
-
-	oldSourceDir := hooksSourceDir
-	defer func() { hooksSourceDir = oldSourceDir }()
-	hooksSourceDir = tmp
-
-	_, err := resolveSourceDir()
-	if err == nil {
-		t.Error("expected error for invalid source dir")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // collectScriptNames

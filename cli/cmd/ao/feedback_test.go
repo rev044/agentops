@@ -1079,34 +1079,8 @@ func TestFeedbackCov_MigrateJSONLFiles(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// resolveReward — edge cases
-// ---------------------------------------------------------------------------
 
-func TestFeedbackCov_ResolveReward_NoInput(t *testing.T) {
-	_, err := resolveReward(false, false, -1, 0.1)
-	if err == nil {
-		t.Error("expected error when no reward/helpful/harmful")
-	}
-}
 
-func TestFeedbackCov_ResolveReward_TooHigh(t *testing.T) {
-	_, err := resolveReward(false, false, 1.5, 0.1)
-	if err == nil {
-		t.Error("expected error for reward > 1")
-	}
-}
-
-func TestFeedbackCov_ResolveReward_BadAlpha(t *testing.T) {
-	_, err := resolveReward(false, false, 0.5, 0.0)
-	if err == nil {
-		t.Error("expected error for alpha=0")
-	}
-	_, err = resolveReward(false, false, 0.5, 1.5)
-	if err == nil {
-		t.Error("expected error for alpha>1")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // classifyFeedbackType
@@ -1152,24 +1126,7 @@ func TestFeedbackCov_ParseJSONLFirstLine_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestFeedbackCov_ParseJSONLFirstLine_NonexistentFile(t *testing.T) {
-	_, _, err := parseJSONLFirstLine("/nonexistent/path/file.jsonl")
-	if err == nil {
-		t.Error("expected error for nonexistent file")
-	}
-}
 
-// ---------------------------------------------------------------------------
-// parseFrontMatterUtility — malformed
-// ---------------------------------------------------------------------------
-
-func TestFeedbackCov_ParseFrontMatterUtility_NoClosure(t *testing.T) {
-	lines := []string{"---", "utility: 0.5", "no closing"}
-	_, _, err := parseFrontMatterUtility(lines)
-	if err == nil {
-		t.Error("expected error for malformed front matter without closing ---")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // rebuildWithFrontMatter

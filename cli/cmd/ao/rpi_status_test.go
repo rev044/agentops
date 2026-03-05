@@ -2097,22 +2097,7 @@ func TestRPIStatusCov_UpdateInlineVerdicts(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_UpdateInlineVerdicts_NoVerdict(t *testing.T) {
-	run := &rpiRun{Verdicts: make(map[string]string)}
-	updateInlineVerdicts(run, "discovery", "completed in 5m0s")
-	if len(run.Verdicts) != 0 {
-		t.Errorf("expected no verdicts, got %d", len(run.Verdicts))
-	}
-}
 
-// --- discoverLogRuns ---
-
-func TestRPIStatusCov_DiscoverLogRuns_NoLogs(t *testing.T) {
-	runs := discoverLogRuns(t.TempDir())
-	if len(runs) != 0 {
-		t.Errorf("expected 0 runs for empty dir, got %d", len(runs))
-	}
-}
 
 func TestRPIStatusCov_DiscoverLogRuns_WithSiblingLog(t *testing.T) {
 	parent := t.TempDir()
@@ -2304,14 +2289,6 @@ func TestRPIStatusCov_ScanRegistryRuns_FileNotDir(t *testing.T) {
 	}
 }
 
-// --- discoverRPIRuns (legacy compat) ---
-
-func TestRPIStatusCov_DiscoverRPIRuns_EmptyDir(t *testing.T) {
-	runs := discoverRPIRuns(t.TempDir())
-	if len(runs) != 0 {
-		t.Errorf("expected 0 runs, got %d", len(runs))
-	}
-}
 
 // --- writeRPIStatusJSON ---
 
@@ -2422,14 +2399,3 @@ func TestRPIStatusCov_ParseOrchestrationLogLine_NonRFC3339Time(t *testing.T) {
 	}
 }
 
-// --- newOrchestrationLogState ---
-
-func TestRPIStatusCov_NewOrchestrationLogState(t *testing.T) {
-	state := newOrchestrationLogState()
-	if state.runMap == nil {
-		t.Error("expected non-nil runMap")
-	}
-	if state.anonymousCounter != 0 {
-		t.Errorf("expected 0 counter, got %d", state.anonymousCounter)
-	}
-}

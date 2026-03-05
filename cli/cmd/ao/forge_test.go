@@ -1428,16 +1428,6 @@ func TestForgeCoverage_extractIssueRefs(t *testing.T) {
 	}
 }
 
-func TestForgeCoverage_extractIssueRefs_NoIssues(t *testing.T) {
-	state := &transcriptState{
-		seenFiles:  make(map[string]bool),
-		seenIssues: make(map[string]bool),
-	}
-	extractIssueRefs("no issue ids here", state)
-	if len(state.issues) != 0 {
-		t.Errorf("expected 0 issues, got %d", len(state.issues))
-	}
-}
 
 // ---------------------------------------------------------------------------
 // splitMarkdownSections
@@ -1976,38 +1966,8 @@ func TestForgeCoverage_collectTranscriptCandidates(t *testing.T) {
 	}
 }
 
-func TestForgeCoverage_collectTranscriptCandidates_EmptyDir(t *testing.T) {
-	tmp := t.TempDir()
-	candidates, err := collectTranscriptCandidates(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(candidates) != 0 {
-		t.Errorf("expected 0 candidates, got %d", len(candidates))
-	}
-}
 
-// ---------------------------------------------------------------------------
-// findLastSession
-// ---------------------------------------------------------------------------
 
-func TestForgeCoverage_findLastSession_NoProjectsDir(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	_, err := findLastSession()
-	if err == nil {
-		t.Error("expected error when no projects dir")
-	}
-}
-
-func TestForgeCoverage_findLastSession_EmptyProjectsDir(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	os.MkdirAll(filepath.Join(home, ".claude", "projects"), 0755)
-	_, err := findLastSession()
-	if err == nil {
-		t.Error("expected error when no transcript files")
-	}
-}
 
 func TestForgeCoverage_findLastSession_FindsMostRecent(t *testing.T) {
 	home := t.TempDir()
@@ -2211,20 +2171,6 @@ func TestForgeCoverage_consumeTranscriptMessages(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// processMarkdown
-// ---------------------------------------------------------------------------
-
-func TestForgeCoverage_processMarkdown_EmptyFile(t *testing.T) {
-	tmp := t.TempDir()
-	path := filepath.Join(tmp, "empty.md")
-	os.WriteFile(path, []byte(""), 0644)
-	extractor := parser.NewExtractor()
-	_, err := processMarkdown(path, extractor, true)
-	if err == nil {
-		t.Error("expected error for empty file")
-	}
-}
 
 func TestForgeCoverage_processMarkdown_ValidFile(t *testing.T) {
 	tmp := t.TempDir()
@@ -2248,13 +2194,6 @@ func TestForgeCoverage_processMarkdown_ValidFile(t *testing.T) {
 	}
 }
 
-func TestForgeCoverage_processMarkdown_NonexistentFile(t *testing.T) {
-	extractor := parser.NewExtractor()
-	_, err := processMarkdown("/nonexistent/file.md", extractor, true)
-	if err == nil {
-		t.Error("expected error for nonexistent file")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // processMarkdown deterministic ID

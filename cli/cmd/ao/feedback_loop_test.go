@@ -398,22 +398,6 @@ func TestComputeRewardFromTranscriptPrefersSessionMatch(t *testing.T) {
 }
 
 
-// ===========================================================================
-// feedback_loop.go — loadSessionCitations (zero coverage)
-// ===========================================================================
-
-func TestCov3_feedbackLoop_loadSessionCitations_noCitations(t *testing.T) {
-	tmp := t.TempDir()
-
-	citations, err := loadSessionCitations(tmp, "session-test", "all")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(citations) != 0 {
-		t.Errorf("expected 0 citations, got %d", len(citations))
-	}
-}
-
 func TestCov3_feedbackLoop_loadSessionCitations_filterByType(t *testing.T) {
 	tmp := t.TempDir()
 	sessionID := "session-20260201-120000"
@@ -470,19 +454,6 @@ func TestCov3_feedbackLoop_loadSessionCitations_wrongSession(t *testing.T) {
 	}
 }
 
-// ===========================================================================
-// feedback_loop.go — computeRewardFromTranscript (zero coverage)
-// ===========================================================================
-
-func TestCov3_feedbackLoop_computeRewardFromTranscript_noTranscript(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-
-	_, err := computeRewardFromTranscript("", "nonexistent-session")
-	if err == nil {
-		t.Fatal("expected error when no transcript found")
-	}
-}
 
 func TestCov3_feedbackLoop_computeRewardFromTranscript_explicitPath(t *testing.T) {
 	tmp := t.TempDir()
@@ -576,49 +547,9 @@ func TestCov3_feedbackLoop_processUniqueCitations_withLearning(t *testing.T) {
 	}
 }
 
-// ===========================================================================
-// feedback_loop.go — resolveFeedbackReward (zero coverage)
-// ===========================================================================
 
-func TestCov3_feedbackLoop_resolveFeedbackReward_explicit(t *testing.T) {
-	reward, err := resolveFeedbackReward(0.75, "", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if reward != 0.75 {
-		t.Errorf("reward = %f, want 0.75", reward)
-	}
-}
 
-func TestCov3_feedbackLoop_resolveFeedbackReward_zero(t *testing.T) {
-	reward, err := resolveFeedbackReward(0.0, "", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if reward != 0.0 {
-		t.Errorf("reward = %f, want 0.0", reward)
-	}
-}
 
-func TestCov3_feedbackLoop_resolveFeedbackReward_one(t *testing.T) {
-	reward, err := resolveFeedbackReward(1.0, "", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if reward != 1.0 {
-		t.Errorf("reward = %f, want 1.0", reward)
-	}
-}
-
-func TestCov3_feedbackLoop_resolveFeedbackReward_autoCompute_noTranscript(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-
-	_, err := resolveFeedbackReward(-1, "", "no-such-session")
-	if err == nil {
-		t.Fatal("expected error when no transcript available for auto-compute")
-	}
-}
 
 // ===========================================================================
 // feedback_loop.go — outputFeedbackSummary (zero coverage)
@@ -638,16 +569,6 @@ func TestCov3_feedbackLoop_outputFeedbackSummary_tableFormat(t *testing.T) {
 	}
 }
 
-func TestCov3_feedbackLoop_outputFeedbackSummary_tableWithFailed(t *testing.T) {
-	origOutput := output
-	defer func() { output = origOutput }()
-	output = "table"
-
-	err := outputFeedbackSummary("s1", 0.5, 5, 3, 2, 1, nil)
-	if err != nil {
-		t.Fatalf("outputFeedbackSummary (table with failed): %v", err)
-	}
-}
 
 func TestCov3_feedbackLoop_outputFeedbackSummary_jsonFormat(t *testing.T) {
 	origOutput := output

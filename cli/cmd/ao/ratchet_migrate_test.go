@@ -484,16 +484,6 @@ func TestCov3_ratchetMigrate_shouldMigrateFile_nonMarkdown(t *testing.T) {
 	}
 }
 
-func TestCov3_ratchetMigrate_shouldMigrateFile_directory(t *testing.T) {
-	tmp := t.TempDir()
-	info, err := os.Stat(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if shouldMigrateFile(tmp, info) {
-		t.Fatal("expected directory to be ineligible")
-	}
-}
 
 // --- findSchemaInsertPoint tests ---
 

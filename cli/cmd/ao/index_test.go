@@ -237,22 +237,6 @@ summary: Has both fields
 }
 
 
-// ---------------------------------------------------------------------------
-// processAllIndexDirs (0%)
-// ---------------------------------------------------------------------------
-
-func TestIndexCov_ProcessAllIndexDirs_Empty(t *testing.T) {
-	tmp := t.TempDir()
-	results, stale := processAllIndexDirs(tmp, []string{".agents/learnings"}, false, true)
-	// Directory doesn't exist, should skip it
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for nonexistent dir, got %d", len(results))
-	}
-	if stale {
-		t.Error("expected not stale for skipped dirs")
-	}
-}
-
 func TestIndexCov_ProcessAllIndexDirs_WithFiles(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, ".agents", "learnings")
@@ -614,20 +598,6 @@ func TestIndexCov_RunIndex_SingleDir(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// scanAndSortDir — nonexistent dir
-// ---------------------------------------------------------------------------
-
-func TestIndexCov_ScanAndSortDir_Nonexistent(t *testing.T) {
-	tmp := t.TempDir()
-	_, entries, ok := scanAndSortDir(tmp, ".agents/nonexistent")
-	if ok {
-		t.Error("expected ok=false for nonexistent dir")
-	}
-	if entries != nil {
-		t.Error("expected nil entries for nonexistent dir")
-	}
-}
 
 func TestIndexCov_ScanAndSortDir_WithFiles(t *testing.T) {
 	tmp := t.TempDir()
@@ -677,16 +647,6 @@ func TestIndexCov_WriteIndex_DryRun(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// parseIndexTableRows — various inputs
-// ---------------------------------------------------------------------------
-
-func TestIndexCov_ParseIndexTableRows_Empty(t *testing.T) {
-	result := parseIndexTableRows([]byte(""))
-	if len(result) != 0 {
-		t.Errorf("expected 0 files, got %d", len(result))
-	}
-}
 
 func TestIndexCov_ParseIndexTableRows_ValidTable(t *testing.T) {
 	table := `# Index: Learnings

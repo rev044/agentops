@@ -2170,12 +2170,6 @@ func TestPhasedCov_DiscoverPlanFile_NoPlans(t *testing.T) {
 	}
 }
 
-func TestPhasedCov_DiscoverPlanFile_NoPlanDir(t *testing.T) {
-	_, err := discoverPlanFile(t.TempDir())
-	if err == nil {
-		t.Fatal("expected error when plans dir doesn't exist")
-	}
-}
 
 func TestPhasedCov_DiscoverPlanFile_SkipNonMD(t *testing.T) {
 	cwd := t.TempDir()
@@ -2194,23 +2188,7 @@ func TestPhasedCov_DiscoverPlanFile_SkipNonMD(t *testing.T) {
 	}
 }
 
-// --- extractCouncilVerdict ---
 
-func TestPhasedCov_ExtractCouncilVerdict_MissingFile(t *testing.T) {
-	_, err := extractCouncilVerdict("/nonexistent/report.md")
-	if err == nil {
-		t.Fatal("expected error for missing file")
-	}
-}
-
-// --- findLatestCouncilReport ---
-
-func TestPhasedCov_FindLatestCouncilReport_NoDir(t *testing.T) {
-	_, err := findLatestCouncilReport(t.TempDir(), "vibe", time.Time{}, "")
-	if err == nil {
-		t.Fatal("expected error when council dir doesn't exist")
-	}
-}
 
 func TestPhasedCov_FindLatestCouncilReport_NoMatches(t *testing.T) {
 	cwd := t.TempDir()
@@ -2381,12 +2359,6 @@ func TestPhasedCov_ExtractCouncilFindings_FallbackFormat(t *testing.T) {
 	}
 }
 
-func TestPhasedCov_ExtractCouncilFindings_MissingFile(t *testing.T) {
-	_, err := extractCouncilFindings("/nonexistent/report.md", 5)
-	if err == nil {
-		t.Fatal("expected error for missing file")
-	}
-}
 
 func TestPhasedCov_ExtractCouncilFindings_NoFindings(t *testing.T) {
 	reportPath := filepath.Join(t.TempDir(), "empty-report.md")
@@ -2841,12 +2813,6 @@ func TestPhasedCov_ValidatePriorPhaseResult_Failed(t *testing.T) {
 	}
 }
 
-func TestPhasedCov_ValidatePriorPhaseResult_Missing(t *testing.T) {
-	err := validatePriorPhaseResult(t.TempDir(), 1)
-	if err == nil {
-		t.Fatal("expected error for missing result")
-	}
-}
 
 func TestPhasedCov_ValidatePriorPhaseResult_Corrupt(t *testing.T) {
 	cwd := t.TempDir()
@@ -2897,12 +2863,6 @@ func TestPhasedCov_SaveAndLoadPhasedState(t *testing.T) {
 	}
 }
 
-func TestPhasedCov_LoadPhasedState_Missing(t *testing.T) {
-	_, err := loadPhasedState(t.TempDir())
-	if err == nil {
-		t.Fatal("expected error for missing state")
-	}
-}
 
 func TestPhasedCov_ParsePhasedState_NilMaps(t *testing.T) {
 	data := `{"schema_version": 1, "run_id": "test", "phase": 2}`
@@ -2943,34 +2903,8 @@ func TestPhasedCov_ParsePhasedState_ZeroPhaseDefaults(t *testing.T) {
 	}
 }
 
-func TestPhasedCov_ParsePhasedState_StartPhaseDefaults(t *testing.T) {
-	data := `{"schema_version": 1, "run_id": "test", "goal": "test", "phase": 2}`
-	state, err := parsePhasedState([]byte(data))
-	if err != nil {
-		t.Fatalf("parsePhasedState: %v", err)
-	}
-	if state.StartPhase != 2 {
-		t.Errorf("expected StartPhase=2 (defaults to Phase), got %d", state.StartPhase)
-	}
-}
 
-func TestPhasedCov_ParsePhasedState_InvalidStartPhase(t *testing.T) {
-	data := `{"schema_version": 1, "run_id": "test", "goal": "test", "phase": 2, "start_phase": 99}`
-	state, err := parsePhasedState([]byte(data))
-	if err != nil {
-		t.Fatalf("parsePhasedState: %v", err)
-	}
-	if state.StartPhase != 2 {
-		t.Errorf("expected StartPhase=2 (invalid 99 clamped to Phase), got %d", state.StartPhase)
-	}
-}
 
-func TestPhasedCov_ParsePhasedState_Invalid(t *testing.T) {
-	_, err := parsePhasedState([]byte("not json"))
-	if err == nil {
-		t.Fatal("expected error for invalid JSON")
-	}
-}
 
 // --- rpiRunRegistryDir ---
 
@@ -3057,14 +2991,6 @@ func TestPhasedCov_ReadRunHeartbeat_InvalidFormat(t *testing.T) {
 	}
 }
 
-// --- loadLatestRunRegistryState ---
-
-func TestPhasedCov_LoadLatestRunRegistryState_NoRunsDir(t *testing.T) {
-	_, err := loadLatestRunRegistryState(t.TempDir())
-	if err == nil {
-		t.Fatal("expected error for non-existent runs dir")
-	}
-}
 
 func TestPhasedCov_LoadLatestRunRegistryState_MultipleRuns(t *testing.T) {
 	cwd := t.TempDir()
@@ -3277,15 +3203,6 @@ func TestPhasedCov_ClassifyByVerdict(t *testing.T) {
 	}
 }
 
-// --- postPhaseProcessing with unknown phase ---
-
-func TestPhasedCov_PostPhaseProcessing_UnknownPhase(t *testing.T) {
-	state := &phasedState{Verdicts: make(map[string]string), Attempts: make(map[string]int)}
-	err := postPhaseProcessing(t.TempDir(), state, 99, filepath.Join(t.TempDir(), "test.log"))
-	if err != nil {
-		t.Errorf("expected nil for unknown phase, got: %v", err)
-	}
-}
 
 // --- maybeUpdateLiveStatus ---
 

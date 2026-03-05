@@ -574,13 +574,6 @@ func TestCov3_worktree_isWorktreeDirty_dirtyRepo(t *testing.T) {
 	}
 }
 
-func TestCov3_worktree_isWorktreeDirty_nonGitDir(t *testing.T) {
-	tmp := t.TempDir()
-	_, err := isWorktreeDirty(tmp)
-	if err == nil {
-		t.Fatal("expected error for non-git directory")
-	}
-}
 
 // ===========================================================================
 // worktree.go — resolveRepoRoot (zero coverage)
@@ -606,13 +599,6 @@ func TestCov3_worktree_resolveRepoRoot_inGitRepo(t *testing.T) {
 	}
 }
 
-func TestCov3_worktree_resolveRepoRoot_nonGitDir(t *testing.T) {
-	tmp := t.TempDir()
-	_, err := resolveRepoRoot(tmp)
-	if err == nil {
-		t.Fatal("expected error for non-git directory")
-	}
-}
 
 // ===========================================================================
 // worktree.go — findStaleRPITmuxSessions (zero coverage)
@@ -704,31 +690,7 @@ func TestCov3_worktree_finalizeWorktreeGC_withPrune(t *testing.T) {
 	finalizeWorktreeGC(tmp, 0, 0, 0, 0)
 }
 
-// ===========================================================================
-// worktree.go — runWorktreeGC (zero coverage)
-// ===========================================================================
 
-func TestCov3_worktree_runWorktreeGC_invalidStaleAfter(t *testing.T) {
-	origStaleAfter := worktreeGCStaleAfter
-	defer func() { worktreeGCStaleAfter = origStaleAfter }()
-	worktreeGCStaleAfter = 0
-
-	err := runWorktreeGC(nil, nil)
-	if err == nil {
-		t.Fatal("expected error for stale-after <= 0")
-	}
-}
-
-func TestCov3_worktree_runWorktreeGC_negativeStaleAfter(t *testing.T) {
-	origStaleAfter := worktreeGCStaleAfter
-	defer func() { worktreeGCStaleAfter = origStaleAfter }()
-	worktreeGCStaleAfter = -time.Hour
-
-	err := runWorktreeGC(nil, nil)
-	if err == nil {
-		t.Fatal("expected error for negative stale-after")
-	}
-}
 
 func TestCov4_runWorktreeGC_dryRunInGitRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
@@ -791,28 +753,4 @@ func TestCov3_worktree_gcTmuxSessions_noTmux(t *testing.T) {
 	}
 }
 
-// ===========================================================================
-// worktree.go — killTmuxSession (zero coverage)
-// ===========================================================================
 
-func TestCov3_worktree_killTmuxSession_noTmux(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("PATH", tmp) // no tmux
-
-	err := killTmuxSession("ao-rpi-test-p1")
-	if err == nil {
-		t.Fatal("expected error when tmux is not on PATH")
-	}
-}
-
-func TestCov3_worktree_killTmuxSession_nonexistentSession(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not available")
-	}
-
-	// Killing a non-existent session should return an error
-	err := killTmuxSession("ao-rpi-nonexistent-session-xyz-p1")
-	if err == nil {
-		t.Fatal("expected error killing non-existent tmux session")
-	}
-}

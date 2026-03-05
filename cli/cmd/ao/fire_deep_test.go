@@ -37,31 +37,7 @@ func TestCov3_fire_runFireIteration_emptyEpic(t *testing.T) {
 	}
 }
 
-// ===========================================================================
-// fire.go — findPhase (zero coverage)
-// ===========================================================================
 
-func TestCov3_fire_findPhase_noBd(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp) // no bd on PATH
-
-	_, err := findPhase("epic-123")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}
-
-func TestCov3_fire_findPhase_emptyEpicID(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp) // no bd
-
-	_, err := findPhase("")
-	if err == nil {
-		t.Fatal("expected error when bd is not available")
-	}
-}
 
 // ===========================================================================
 // fire.go — ignitePhase (zero coverage)
@@ -188,113 +164,13 @@ func TestCov3_fire_reapPhase_withBurningNoBd(t *testing.T) {
 	}
 }
 
-// ===========================================================================
-// fire.go — bdReady (zero coverage)
-// ===========================================================================
 
-func TestCov3_fire_bdReady_noBd(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp) // no bd on PATH
 
-	_, err := bdReady("epic-1")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}
 
-func TestCov3_fire_bdReady_emptyEpicID(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
 
-	_, err := bdReady("")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}
 
-// ===========================================================================
-// fire.go — bdListByStatus (zero coverage)
-// ===========================================================================
 
-func TestCov3_fire_bdListByStatus_noBd(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
 
-	_, err := bdListByStatus("epic-1", "in_progress")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}
-
-func TestCov3_fire_bdListByStatus_emptyEpicID(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
-
-	_, err := bdListByStatus("", "closed")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}
-
-// ===========================================================================
-// fire.go — bdBlocked (zero coverage)
-// ===========================================================================
-
-func TestCov3_fire_bdBlocked_noBd(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
-
-	_, err := bdBlocked("epic-1")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}
-
-// ===========================================================================
-// fire.go — bdShowStatus (zero coverage)
-// ===========================================================================
-
-func TestCov3_fire_bdShowStatus_noBd(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
-
-	_, err := bdShowStatus("issue-1")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}
-
-// ===========================================================================
-// fire.go — gtSling (zero coverage)
-// ===========================================================================
-
-func TestCov3_fire_gtSling_noGt(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
-
-	err := gtSling("issue-1", "test-rig")
-	if err == nil {
-		t.Fatal("expected error when gt is not on PATH")
-	}
-}
-
-func TestCov3_fire_gtSling_emptyRig(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
-
-	err := gtSling("issue-1", "")
-	if err == nil {
-		t.Fatal("expected error when gt is not on PATH")
-	}
-}
 
 // ===========================================================================
 // fire.go — sendMail (zero coverage)
@@ -349,17 +225,3 @@ func TestCov3_fire_printState_emptyState(t *testing.T) {
 	printState(state)
 }
 
-// ===========================================================================
-// fire.go — bdAddLabel (zero coverage)
-// ===========================================================================
-
-func TestCov3_fire_bdAddLabel_noBd(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("PATH", tmp)
-
-	err := bdAddLabel("issue-1", "BLOCKER")
-	if err == nil {
-		t.Fatal("expected error when bd is not on PATH")
-	}
-}

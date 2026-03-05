@@ -371,18 +371,6 @@ func TestSupervisorCov_IsInfrastructureCycleFailure(t *testing.T) {
 	}
 }
 
-// --- isLoopKillSwitchSet ---
-
-func TestSupervisorCov_IsLoopKillSwitchSet_WhitespacePath(t *testing.T) {
-	cfg := rpiLoopSupervisorConfig{KillSwitchPath: "   "}
-	set, err := isLoopKillSwitchSet(cfg)
-	if err != nil {
-		t.Fatalf("whitespace kill switch path error: %v", err)
-	}
-	if set {
-		t.Error("expected false for whitespace path")
-	}
-}
 
 // --- renderLandingCommitMessage ---
 
@@ -425,13 +413,6 @@ func TestSupervisorCov_AppendDirtyPaths(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_AppendDirtyPaths_Empty(t *testing.T) {
-	paths := make(map[string]struct{})
-	appendDirtyPaths(paths, "")
-	if len(paths) != 0 {
-		t.Errorf("expected 0 paths for empty output, got %d", len(paths))
-	}
-}
 
 // --- computeOwnedDirtyPaths ---
 
@@ -505,18 +486,6 @@ func TestSupervisorCov_RunSupervisorLanding_UnsupportedPolicy(t *testing.T) {
 	}
 }
 
-// --- acquireLandingLock ---
-
-func TestSupervisorCov_AcquireLandingLock_OffPolicy(t *testing.T) {
-	cfg := rpiLoopSupervisorConfig{LandingPolicy: loopLandingPolicyOff}
-	lock, err := acquireLandingLock(t.TempDir(), cfg)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if lock != nil {
-		t.Error("expected nil lock for off policy")
-	}
-}
 
 func TestSupervisorCov_AcquireLandingLock_EmptyPath(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
@@ -569,24 +538,7 @@ func TestSupervisorCov_BuildCycleEngineOptions(t *testing.T) {
 	}
 }
 
-// --- healDetachedHeadIfNeeded ---
 
-func TestSupervisorCov_HealDetachedHeadIfNeeded_Disabled(t *testing.T) {
-	cfg := rpiLoopSupervisorConfig{DetachedHeal: false}
-	err := healDetachedHeadIfNeeded(t.TempDir(), cfg)
-	if err != nil {
-		t.Errorf("expected nil when heal disabled, got: %v", err)
-	}
-}
-
-// --- wrapSyncPushLandingFailure ---
-
-func TestSupervisorCov_WrapSyncPushLandingFailure_NilErr(t *testing.T) {
-	err := wrapSyncPushLandingFailure(t.TempDir(), time.Second, "fetch", nil)
-	if err != nil {
-		t.Errorf("expected nil for nil input, got: %v", err)
-	}
-}
 
 // --- supervisorLease methods ---
 

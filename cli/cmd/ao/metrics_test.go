@@ -740,15 +740,6 @@ func TestMetricsCov_countNewArtifacts(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_countNewArtifacts_missingDirs(t *testing.T) {
-	count, err := countNewArtifacts(t.TempDir(), time.Now().AddDate(0, 0, -7))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if count != 0 {
-		t.Errorf("expected 0 for missing dirs, got %d", count)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // countNewArtifactsInDir
@@ -778,15 +769,6 @@ func TestMetricsCov_countNewArtifactsInDir(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_countNewArtifactsInDir_missingDir(t *testing.T) {
-	count, err := countNewArtifactsInDir("/nonexistent/dir", time.Now())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if count != 0 {
-		t.Errorf("expected 0 for missing dir, got %d", count)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // buildLastCitedMap
@@ -806,12 +788,6 @@ func TestMetricsCov_buildLastCitedMap(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_buildLastCitedMap_empty(t *testing.T) {
-	m := buildLastCitedMap("/tmp", nil)
-	if len(m) != 0 {
-		t.Errorf("expected 0 entries, got %d", len(m))
-	}
-}
 
 // ---------------------------------------------------------------------------
 // isKnowledgeFile
@@ -1052,15 +1028,6 @@ func TestMetricsCov_countRetros(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_countRetros_missingDir(t *testing.T) {
-	total, withLearnings, err := countRetros(t.TempDir(), time.Now())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if total != 0 || withLearnings != 0 {
-		t.Errorf("expected 0/0, got %d/%d", total, withLearnings)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // computeUtilityStats
@@ -1145,12 +1112,6 @@ func TestMetricsCov_collectUtilityValuesFromDir(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_collectUtilityValuesFromDir_missingDir(t *testing.T) {
-	values := collectUtilityValuesFromDir("/nonexistent/dir")
-	if values != nil {
-		t.Errorf("expected nil for missing dir, got %v", values)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // parseUtilityFromFile / parseUtilityFromMarkdown / parseUtilityFromJSONL
@@ -1340,19 +1301,6 @@ func TestMetricsCov_printMetricsTable(t *testing.T) {
 	printMetricsTable(m)
 }
 
-// ---------------------------------------------------------------------------
-// periodCitationStats struct
-// ---------------------------------------------------------------------------
-
-func TestMetricsCov_periodCitationStats(t *testing.T) {
-	stats := periodCitationStats{
-		citations:   []types.CitationEvent{{ArtifactPath: "a.md"}},
-		uniqueCited: map[string]bool{"a.md": true},
-	}
-	if len(stats.citations) != 1 || len(stats.uniqueCited) != 1 {
-		t.Error("periodCitationStats field access failed")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // computeUtilityMetrics

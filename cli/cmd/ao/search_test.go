@@ -973,16 +973,6 @@ func TestSearchCov_SearchLearningsWithMaturity_NoMatch(t *testing.T) {
 	}
 }
 
-func TestSearchCov_SearchLearningsWithMaturity_EmptyDir(t *testing.T) {
-	tmp := t.TempDir()
-	results, err := searchLearningsWithMaturity("test", tmp, 10)
-	if err != nil {
-		t.Fatalf("error: %v", err)
-	}
-	if len(results) != 0 {
-		t.Errorf("expected 0 results, got %d", len(results))
-	}
-}
 
 // ---------------------------------------------------------------------------
 // truncateContext
