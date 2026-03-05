@@ -34,6 +34,12 @@ const (
 
 	// quarantineRelPath is the path to OL quarantine constraints relative to the .ol/ directory.
 	quarantineRelPath = "constraints/quarantine.json"
+
+	// Knowledge section directory names under .agents/.
+	SectionLearnings = "learnings"
+	SectionPatterns  = "patterns"
+	SectionResearch  = "research"
+	SectionSessions  = "sessions"
 )
 
 var (

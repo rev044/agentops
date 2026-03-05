@@ -65,7 +65,7 @@ Raw output from existing skills:
 |-------------|-----------------|---------|
 | `/forge` | `.agents/forge/YYYY-MM-DD-forge.md` | Decisions, learnings, failures, patterns extracted from transcripts |
 | `/retro` | `.agents/learnings/YYYY-MM-DD-<topic>.md` | Lessons learned from completed work |
-| `/retro` | `.agents/retros/YYYY-MM-DD-<topic>.md` | Retrospective summaries with improvement agendas |
+| `/retro` | `.agents/learnings/YYYY-MM-DD-<topic>.md` | Retrospective summaries with improvement agendas |
 | `/post-mortem` | `.agents/learnings/` | Council-validated findings |
 
 ### Output

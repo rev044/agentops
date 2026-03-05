@@ -237,7 +237,7 @@ Olympus treats **artifacts** as the authoritative completion signal. Exit codes 
 Current phase patterns (authoritative in Olympus code; may drift):
 - `RESEARCH`: `.agents/research/*` (required)
 - `PLAN`: `.agents/plans/*` (required), `.beads/issues.jsonl` (optional)
-- `RETRO`: `.agents/retros/*` (required)
+- `RETRO`: `.agents/learnings/*` (required)
 - `FLYWHEEL`: `.agents/learnings/*` (optional)
 
 **Normative interpretation (DD7.3 + DD8)**

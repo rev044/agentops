@@ -238,7 +238,7 @@ func findOrphanLearnings(cwd string, staleDays int) (*PruneResult, error) {
 // .agents/research/ and returns their concatenated content for link checking.
 func collectReferenceContent(cwd string) (string, error) {
 	var buf strings.Builder
-	for _, sub := range []string{"patterns", "research"} {
+	for _, sub := range []string{SectionPatterns, SectionResearch} {
 		dir := filepath.Join(cwd, ".agents", sub)
 		entries, err := os.ReadDir(dir)
 		if err != nil {

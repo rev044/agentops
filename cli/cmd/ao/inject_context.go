@@ -24,6 +24,13 @@ var validIntelScopes = map[string]bool{
 	"full":  true,
 }
 
+// validSectionNames is the set of allowed section names in context declarations.
+var validSectionNames = map[string]bool{
+	sectionHistory: true,
+	sectionIntel:   true,
+	sectionTask:    true,
+}
+
 // ContextDeclaration represents a skill's context window policy.
 type ContextDeclaration struct {
 	Window     string         `yaml:"window"`      // isolated, fork, inherit
@@ -133,6 +140,9 @@ func parseContextFromFrontmatter(frontmatter []byte) (*ContextDeclaration, error
 					return nil, err
 				}
 			}
+			if err := validateSectionNames(decl.Sections); err != nil {
+				return nil, err
+			}
 			return &decl, nil
 		}
 
@@ -151,6 +161,24 @@ func validateWindow(w string) error {
 	default:
 		return fmt.Errorf("invalid context.window %q: must be isolated, fork, or inherit", w)
 	}
+}
+
+// validateSectionNames checks that all section names in include/exclude lists are valid.
+func validateSectionNames(sf *SectionFilter) error {
+	if sf == nil {
+		return nil
+	}
+	for _, s := range sf.Include {
+		if !validSectionNames[s] {
+			return fmt.Errorf("invalid section name %q in sections.include: must be HISTORY, INTEL, or TASK", s)
+		}
+	}
+	for _, s := range sf.Exclude {
+		if !validSectionNames[s] {
+			return fmt.Errorf("invalid section name %q in sections.exclude: must be HISTORY, INTEL, or TASK", s)
+		}
+	}
+	return nil
 }
 
 // validateIntelScope checks that the intel_scope value is one of the allowed values.

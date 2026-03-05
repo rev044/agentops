@@ -77,7 +77,7 @@ ao ratchet skip <step> --reason "<why>" 2>/dev/null
 | `plan` | Plan artifact exists | `.agents/plans/*.md` |
 | `implement` | Code + tests pass | Source files |
 | `vibe` | /vibe passes | `.agents/vibe/*.md` |
-| `post-mortem` | Learnings extracted | `.agents/retros/*.md` |
+| `post-mortem` | Learnings extracted | `.agents/learnings/*.md` |
 
 ## Chain Storage
 

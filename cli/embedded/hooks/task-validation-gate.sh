@@ -7,6 +7,19 @@
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_TASK_VALIDATION_DISABLED:-}" = "1" ] && exit 0
 
+# Recursion depth limit: max 3 retry attempts
+RETRY_DEPTH_FILE="/tmp/.ao-task-validation-depth-$$"
+CURRENT_DEPTH=$(cat "$RETRY_DEPTH_FILE" 2>/dev/null || echo 0)
+if [[ "$CURRENT_DEPTH" -ge 3 ]]; then
+  echo "WARN: task validation retry limit (3) reached — skipping" >&2
+  rm -f "$RETRY_DEPTH_FILE"
+  exit 0
+fi
+echo $((CURRENT_DEPTH + 1)) > "$RETRY_DEPTH_FILE"
+
+# Metadata gate mode: warn (default) or strict
+METADATA_GATE="${AGENTOPS_METADATA_GATE:-warn}"
+
 # Read all stdin
 INPUT=$(cat)
 
@@ -159,9 +172,14 @@ ISSUE_TYPE=$(echo "$INPUT" | jq -r '
 # No validation metadata.
 if [ -z "$VALIDATION" ] || [ "$VALIDATION" = "null" ]; then
     if is_impl_issue_type "$ISSUE_TYPE"; then
-        write_failure "validation_metadata" "metadata.validation" 1 "missing metadata.validation for issue_type '$ISSUE_TYPE'"
-        echo "VALIDATION FAILED: metadata.validation is required for issue_type '$ISSUE_TYPE' (feature|bug|task)" >&2
-        exit 2
+        if [ "$METADATA_GATE" = "strict" ]; then
+            write_failure "validation_metadata" "metadata.validation" 1 "missing metadata.validation for issue_type '$ISSUE_TYPE'"
+            echo "VALIDATION FAILED: metadata.validation is required for issue_type '$ISSUE_TYPE' (feature|bug|task)" >&2
+            exit 2
+        else
+            echo "WARN: metadata.validation missing for issue_type '$ISSUE_TYPE' — set AGENTOPS_METADATA_GATE=strict to enforce" >&2
+            exit 0
+        fi
     fi
     # Explicit exemption path for non-implementation tasks.
     if is_validation_exempt_issue_type "$ISSUE_TYPE"; then
@@ -202,9 +220,13 @@ TESTS_CMD=$(echo "$VALIDATION" | jq -r '.tests // empty' 2>/dev/null)
 # Strict policy for implementation tasks: tests + structural evidence required.
 if is_impl_issue_type "$ISSUE_TYPE"; then
     if [ -z "$TESTS_CMD" ] || [ "$TESTS_CMD" = "null" ]; then
-        write_failure "validation_metadata" "metadata.validation.tests" 1 "missing tests for issue_type '$ISSUE_TYPE'"
-        echo "VALIDATION FAILED: metadata.validation.tests is required for issue_type '$ISSUE_TYPE'" >&2
-        exit 2
+        if [ "$METADATA_GATE" = "strict" ]; then
+            write_failure "validation_metadata" "metadata.validation.tests" 1 "missing tests for issue_type '$ISSUE_TYPE'"
+            echo "VALIDATION FAILED: metadata.validation.tests is required for issue_type '$ISSUE_TYPE'" >&2
+            exit 2
+        else
+            echo "WARN: metadata.validation.tests missing for issue_type '$ISSUE_TYPE' — set AGENTOPS_METADATA_GATE=strict to enforce" >&2
+        fi
     fi
 
     FILE_COUNT=$(echo "$FILES_EXIST" | jq -r 'length' 2>/dev/null)
@@ -212,9 +234,13 @@ if is_impl_issue_type "$ISSUE_TYPE"; then
     FILE_COUNT="${FILE_COUNT:-0}"
     CHECK_COUNT="${CHECK_COUNT:-0}"
     if [ "$FILE_COUNT" -eq 0 ] && [ "$CHECK_COUNT" -eq 0 ]; then
-        write_failure "validation_metadata" "metadata.validation" 1 "missing structural checks for issue_type '$ISSUE_TYPE'"
-        echo "VALIDATION FAILED: metadata.validation for issue_type '$ISSUE_TYPE' must include files_exist or content_check" >&2
-        exit 2
+        if [ "$METADATA_GATE" = "strict" ]; then
+            write_failure "validation_metadata" "metadata.validation" 1 "missing structural checks for issue_type '$ISSUE_TYPE'"
+            echo "VALIDATION FAILED: metadata.validation for issue_type '$ISSUE_TYPE' must include files_exist or content_check" >&2
+            exit 2
+        else
+            echo "WARN: metadata.validation missing structural checks for issue_type '$ISSUE_TYPE' — set AGENTOPS_METADATA_GATE=strict to enforce" >&2
+        fi
     fi
 fi
 

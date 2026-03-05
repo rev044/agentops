@@ -76,7 +76,7 @@ User: Document this incident
 - Write action items
 - Update runbook
 
-**Output**: Incident postmortem in `.agents/retros/`
+**Output**: Incident postmortem in `.agents/learnings/`
 
 ---
 

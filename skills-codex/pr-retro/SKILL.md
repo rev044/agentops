@@ -13,7 +13,7 @@ Learn from PR outcomes by analyzing accept/reject patterns.
 After a PR is merged or rejected, analyze what worked and what didn't to
 improve future contributions.
 
-**Output:** `.agents/retros/YYYY-MM-DD-pr-{repo}-{outcome}.md`
+**Output:** `.agents/learnings/YYYY-MM-DD-pr-{repo}-{outcome}.md`
 
 **When to Use**:
 - After a PR is merged (capture success patterns)
@@ -144,7 +144,7 @@ gh pr view <number> --json reviews --jq '.reviews[] | select(.state == "CHANGES_
 
 ## Phase 6: Output
 
-Write to `.agents/retros/YYYY-MM-DD-pr-{repo}-{outcome}.md`
+Write to `.agents/learnings/YYYY-MM-DD-pr-{repo}-{outcome}.md`
 
 ```markdown
 # PR Retro: {repo} #{number}

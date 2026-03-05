@@ -101,7 +101,7 @@ User: /retro "pattern extraction session"
 - Extract reusable insights
 - Update institutional memory
 
-**Output**: Retrospective in `.agents/retros/`
+**Output**: Retrospective in `.agents/learnings/`
 
 ---
 

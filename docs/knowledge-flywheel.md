@@ -29,7 +29,7 @@ Mine transcripts → Extract knowledge → Index for recall → Apply to new wor
 │                      THE FLYWHEEL                          │
 │                                                            │
 │  .agents/patterns/  ──▶  Next /research reads              │
-│  .agents/retros/    ──▶  Smart Connections indexes         │
+│  .agents/learnings/ ──▶  Smart Connections indexes         │
 │  .agents/learnings/ ──▶  Knowledge compounds               │
 │                                                            │
 └───────────────────────────────────────────────────────────┘
@@ -44,7 +44,7 @@ Mine transcripts → Extract knowledge → Index for recall → Apply to new wor
 |-------|---------|------------|
 | `.agents/learnings/` | Lessons learned | `/forge`, `/post-mortem` |
 | `.agents/patterns/` | Reusable patterns | `/forge`, `/retro` |
-| `.agents/retros/` | Retrospectives | `/retro`, `/post-mortem` |
+| `.agents/learnings/` | Retrospectives | `/retro`, `/post-mortem` |
 | `.agents/ao/` | Session index, provenance | `ao forge` |
 
 ## The Compounding Effect

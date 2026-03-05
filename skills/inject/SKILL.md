@@ -112,7 +112,7 @@ Citation tracking enables the feedback loop: learnings that are frequently cited
 | Global Learnings | `~/.agents/learnings/` | High | 0.8 (configurable) |
 | Global Patterns | `~/.agents/patterns/` | High | 0.8 (configurable) |
 | Research | `.agents/research/` | Medium | — |
-| Retros | `.agents/retros/` | Medium | — |
+| Retros | `.agents/learnings/` | Medium | — |
 | Legacy Patterns | `~/.claude/patterns/` | Low | 0.6 (read-only, no new writes) |
 
 ## Decay Model

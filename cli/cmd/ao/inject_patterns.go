@@ -43,9 +43,9 @@ func patternMatchesQuery(p pattern, queryLower string) bool {
 // collectPatterns finds patterns from .agents/patterns/ and optionally ~/.agents/patterns/.
 // Global patterns receive a post-scoring weight penalty (globalWeight, default 0.8).
 func collectPatterns(cwd, query string, limit int, globalDir string, globalWeight float64) ([]pattern, error) {
-	patternsDir := filepath.Join(cwd, ".agents", "patterns")
+	patternsDir := filepath.Join(cwd, ".agents", SectionPatterns)
 	if _, err := os.Stat(patternsDir); os.IsNotExist(err) {
-		patternsDir = findAgentsSubdir(cwd, "patterns")
+		patternsDir = findAgentsSubdir(cwd, SectionPatterns)
 	}
 
 	queryLower := strings.ToLower(query)

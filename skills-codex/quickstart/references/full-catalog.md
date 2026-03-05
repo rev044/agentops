@@ -43,7 +43,7 @@ BUILD                            /council     - multi-model judges
 /crank      - multi-issue epic
 /plan       - decompose work     KNOWLEDGE
 /rpi        - full lifecycle     /knowledge   - query learnings
-                                 /learn       - capture manually
+                                 /retro       - capture manually
 EXPLORE                          /retro       - extract from work
 /research   - deep dive          /trace       - decision provenance
 /brainstorm - explore ideas      /flywheel    - health monitoring

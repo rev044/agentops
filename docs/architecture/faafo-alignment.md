@@ -157,7 +157,7 @@ All FAAFO dimensions require:
 | `/research` | Optionality, Ambitious |
 | `/plan` | Fast, Autonomous |
 | `/implement` | Fast, Fun |
-| `/learn` | Optionality, Ambitious |
+| `/retro` | Optionality, Ambitious |
 
 ---
 

@@ -585,7 +585,7 @@ Phase 5 (Retire) Summary:
 - N MEMORY.md references to review
 ```
 
-### Step 5: Write Post-Mortem Report
+### Step 4: Write Post-Mortem Report
 
 **Write to:** `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`
 
@@ -694,7 +694,7 @@ These entries are promoted to `.agents/learnings/` and injected into future work
 [ ] FOLLOW-UP - Issues need addressing (create new beads)
 ```
 
-### Step 5.5: Synthesize Proactive Improvement Agenda (MANDATORY)
+### Step 4.5: Synthesize Proactive Improvement Agenda (MANDATORY)
 
 **After writing the post-mortem report, analyze extraction + council context and proactively propose improvements to repo quality and execution quality.**
 
@@ -720,7 +720,7 @@ Write process improvement items with type `process-improvement` (distinct from `
 - `horizon`: now / next-cycle / later
 - `effort`: S / M / L
 
-**These items feed directly into Step 8 (Harvest Next Work) alongside council findings. They are the flywheel's growth vector — each cycle makes the system smarter.**
+**These items feed directly into Step 7 (Harvest Next Work) alongside council findings. They are the flywheel's growth vector — each cycle makes the system smarter.**
 
 Write this into the post-mortem report under `## Proactive Improvement Agenda`.
 
@@ -737,11 +737,11 @@ Example output:
 /rpi "<highest-value improvement>"
 ```
 
-### Step 5.6: Prior-Findings Resolution Tracking (MANDATORY)
+### Step 4.6: Prior-Findings Resolution Tracking (MANDATORY)
 
-After Step 5.5, compute and include prior-findings resolution tracking from `.agents/rpi/next-work.jsonl`. Read `references/harvest-next-work.md` for the jq queries that compute totals and per-source resolution rates. Write results into `## Prior Findings Resolution Tracking` in the post-mortem report.
+After Step 4.5, compute and include prior-findings resolution tracking from `.agents/rpi/next-work.jsonl`. Read `references/harvest-next-work.md` for the jq queries that compute totals and per-source resolution rates. Write results into `## Prior Findings Resolution Tracking` in the post-mortem report.
 
-### Step 5.7: Command-Surface Parity Gate (MANDATORY)
+### Step 4.7: Command-Surface Parity Gate (MANDATORY)
 
 Before marking post-mortem complete, enforce command-surface parity for modified CLI commands:
 
@@ -751,7 +751,7 @@ Before marking post-mortem complete, enforce command-surface parity for modified
 
 If any modified command file is missing both coverage evidence and an intentional-uncovered rationale, post-mortem cannot be marked complete.
 
-### Step 6: Feed the Knowledge Flywheel
+### Step 5: Feed the Knowledge Flywheel
 
 Post-mortem automatically feeds learnings into the flywheel:
 
@@ -796,7 +796,7 @@ else
 fi
 ```
 
-### Step 7: Report to User
+### Step 6: Report to User
 
 Tell the user:
 1. Council verdict on implementation
@@ -828,13 +828,13 @@ Or see all N harvested items in `.agents/rpi/next-work.jsonl`.
 
 If no items were harvested, write: "Flywheel stable — no follow-up items identified."
 
-### Step 8: Harvest Next Work
+### Step 7: Harvest Next Work
 
 Scan the council report and extracted learnings for actionable follow-up items:
 
 1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
 2. **Retro patterns:** Extract recurring patterns from learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
-3. **Process improvements:** Include all items from Step 5.5 (type: `process-improvement`). These are the flywheel's growth vector — each cycle makes development more effective.
+3. **Process improvements:** Include all items from Step 4.5 (type: `process-improvement`). These are the flywheel's growth vector — each cycle makes development more effective.
 4. **Footgun entries (REQUIRED):** Extract platform-specific gotchas, surprising API behaviors, or silent-failure modes discovered during implementation. Each must include: trigger condition, observable symptom, and fix. Write as type `pattern-fix` with source `retro-learning`. If a footgun was discovered this cycle, it must appear in this harvest — do not defer.
 5. **Write `## Next Work` section** to the post-mortem report:
 

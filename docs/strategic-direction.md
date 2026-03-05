@@ -126,7 +126,7 @@ Intelligence lives in the chain of skills, not in any individual skill. `/resear
 
 ### Progressive Disclosure
 
-New users see 8 starter skills: `/quickstart`, `/research`, `/council`, `/vibe`, `/rpi`, `/implement`, `/learn`, `/status`. The remaining 45 skills reveal themselves as the user grows. Verb aliases let users type what they mean ("review this code" triggers `/vibe`). The system is approachable at the surface and deep underneath.
+New users see 8 starter skills: `/quickstart`, `/research`, `/council`, `/vibe`, `/rpi`, `/implement`, `/retro`, `/status`. The remaining 45 skills reveal themselves as the user grows. Verb aliases let users type what they mean ("review this code" triggers `/vibe`). The system is approachable at the surface and deep underneath.
 
 ### Fractal Composition
 

@@ -58,7 +58,7 @@ artifacts:
       description: Parallel validation (3 agents)
       token_cost: 700
 
-    - path: .claude/commands/learn.md
+    - path: .claude/commands/retro.md
       description: Learning extraction
       token_cost: 500
 

@@ -46,7 +46,7 @@ func collectSessionFiles(sessionsDir string) ([]string, error) {
 
 // collectRecentSessions finds recent session summaries
 func collectRecentSessions(cwd, query string, limit int) ([]session, error) {
-	sessionsDir := filepath.Join(cwd, ".agents", "ao", "sessions")
+	sessionsDir := filepath.Join(cwd, ".agents", "ao", SectionSessions)
 	if _, err := os.Stat(sessionsDir); os.IsNotExist(err) {
 		return nil, nil
 	}

@@ -288,7 +288,7 @@ The Mayor runs FIRE:
 ```
 
 Learnings get ratcheted:
-- `.agents/retros/` - What happened
+- `.agents/learnings/` - What happened
 - `.agents/learnings/` - What we learned
 - `.agents/patterns/` - Reusable solutions
 - MCP memories - Persistent insights

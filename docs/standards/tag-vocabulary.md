@@ -69,7 +69,7 @@ Step 4: Any status modifier? (optional)
 | `research` | `.agents/research/` | Exploring a topic, gathering context |
 | `plan` | `.agents/plans/` | Defining implementation steps |
 | `pattern` | `.agents/patterns/` | Documenting a reusable solution |
-| `retro` | `.agents/retros/` | Reflecting on completed work |
+| `retro` | `.agents/learnings/` | Reflecting on completed work |
 | `learning` | `.agents/learnings/` | Capturing extracted insights |
 
 **Decision Table:**
@@ -227,7 +227,7 @@ author: agent
 
 ### Retrospective
 
-**File:** `.agents/retros/sprint-5-auth-feature.md`
+**File:** `.agents/learnings/sprint-5-auth-feature.md`
 
 ```yaml
 ---

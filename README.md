@@ -314,7 +314,7 @@ Semantic (does code match spec?) · Security (injection, auth bypass, secrets) �
 | Skill | What it does |
 |-------|-------------|
 | `/knowledge` | Query learnings, patterns, and decisions across `.agents/` |
-| `/learn` | Manually capture a decision, pattern, or lesson |
+| `/retro` | Manually capture a decision, pattern, or lesson |
 | `/retro` | Extract learnings from completed work |
 | `/flywheel` | Monitor knowledge health — velocity, staleness, pool depths |
 

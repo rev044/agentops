@@ -39,6 +39,19 @@ echo "$CMD" | grep -q 'ao ratchet record' || exit 0
 STEP=$(echo "$CMD" | sed -n 's/.*ao ratchet record[[:space:]]\{1,\}\([a-z_-]*\).*/\1/p')
 [ -z "$STEP" ] && exit 0
 
+# Epic-scoped gating: only suggest advances for the active epic's issues
+ACTIVE_EPIC="${AGENTOPS_ACTIVE_EPIC:-}"
+if [ -n "$ACTIVE_EPIC" ]; then
+    # Extract bead ID from command args (after step name)
+    BEAD_ID=$(echo "$CMD" | sed -n 's/.*ao ratchet record[[:space:]]\{1,\}[a-z_-]*[[:space:]]\{1,\}\([a-z]\{2\}-[a-z0-9]\{1,\}\).*/\1/p')
+    if [ -n "$BEAD_ID" ] && command -v bd &>/dev/null; then
+        BEAD_PARENT=$(bd parent "$BEAD_ID" 2>/dev/null | grep -oE '[a-z]{2}-[a-z0-9]+' | head -1)
+        if [ -n "$BEAD_PARENT" ] && [ "$BEAD_PARENT" != "$ACTIVE_EPIC" ]; then
+            exit 0  # Bead doesn't belong to active epic, skip silently
+        fi
+    fi
+fi
+
 # Map step → next skill
 # Try new structured command first
 if command -v jq >/dev/null 2>&1 && run_ao_quick ratchet next --help >/dev/null 2>&1; then

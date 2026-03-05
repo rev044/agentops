@@ -558,3 +558,68 @@ func TestParseContextFromFrontmatter_InvalidIntelScope(t *testing.T) {
 		t.Error("parseContextFromFrontmatter with invalid intel_scope should error")
 	}
 }
+
+func TestValidateSectionNames_Valid(t *testing.T) {
+	sf := &SectionFilter{
+		Include: []string{"HISTORY", "INTEL", "TASK"},
+	}
+	if err := validateSectionNames(sf); err != nil {
+		t.Errorf("validateSectionNames() = %v, want nil for valid names", err)
+	}
+}
+
+func TestValidateSectionNames_InvalidInclude(t *testing.T) {
+	sf := &SectionFilter{
+		Include: []string{"BOGUS"},
+	}
+	err := validateSectionNames(sf)
+	if err == nil {
+		t.Error("validateSectionNames() = nil, want error for invalid include section")
+	}
+	if err != nil && !contains(err.Error(), "BOGUS") {
+		t.Errorf("error = %q, want to mention %q", err.Error(), "BOGUS")
+	}
+}
+
+func TestValidateSectionNames_InvalidExclude(t *testing.T) {
+	sf := &SectionFilter{
+		Exclude: []string{"INVALID"},
+	}
+	err := validateSectionNames(sf)
+	if err == nil {
+		t.Error("validateSectionNames() = nil, want error for invalid exclude section")
+	}
+}
+
+func TestValidateSectionNames_Nil(t *testing.T) {
+	if err := validateSectionNames(nil); err != nil {
+		t.Errorf("validateSectionNames(nil) = %v, want nil", err)
+	}
+}
+
+func TestParseContextFromFrontmatter_InvalidSectionName(t *testing.T) {
+	fm := []byte("context:\n  window: fork\n  sections:\n    include:\n      - BOGUS")
+	_, err := parseContextFromFrontmatter(fm)
+	if err == nil {
+		t.Error("parseContextFromFrontmatter with invalid section name should error")
+	}
+}
+
+func TestSectionConstants_MatchExpected(t *testing.T) {
+	// Verify the exported section constants have the expected values
+	cases := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"SectionLearnings", SectionLearnings, "learnings"},
+		{"SectionPatterns", SectionPatterns, "patterns"},
+		{"SectionResearch", SectionResearch, "research"},
+		{"SectionSessions", SectionSessions, "sessions"},
+	}
+	for _, tc := range cases {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}

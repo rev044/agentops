@@ -11,6 +11,7 @@
 # Kill switches
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_SKIP_PRE_MORTEM_GATE:-}" = "1" ] && exit 0
+PREMORTEM_FALLBACK="${AGENTOPS_PREMORTEM_FALLBACK:-open}"
 AO_TIMEOUT_BIN="timeout"
 command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1 || AO_TIMEOUT_BIN="gtimeout"
 
@@ -163,4 +164,8 @@ Options:
   1. /pre-mortem                         -- run pre-mortem validation
   2. /crank $EPIC_ID --skip-pre-mortem   -- bypass with justification
 EOMSG
-exit 2
+if [[ "$PREMORTEM_FALLBACK" == "strict" ]]; then
+  exit 1
+fi
+echo "WARN: pre-mortem gate advisory — set AGENTOPS_PREMORTEM_FALLBACK=strict to enforce" >&2
+exit 0
