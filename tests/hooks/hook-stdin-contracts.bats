@@ -710,3 +710,71 @@ AOEOF
         -- "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
 }
+
+# ═══════════════════════════════════════════════════════════════════════
+# 14. context-contract-check.sh — behavioral: context.window declarations
+# ═══════════════════════════════════════════════════════════════════════
+
+@test "context-contract-check: isolated window emits warning" {
+    local skills_dir="$TMP_TEST_DIR/skills"
+    mkdir -p "$skills_dir/test-skill"
+    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
+---
+context:
+  window: isolated
+---
+# Test Skill
+EOF
+    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
+        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"context.window=isolated"* ]]
+}
+
+@test "context-contract-check: fork window emits warning" {
+    local skills_dir="$TMP_TEST_DIR/skills"
+    mkdir -p "$skills_dir/test-skill"
+    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
+---
+context:
+  window: fork
+---
+# Test Skill
+EOF
+    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
+        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"context.window=fork"* ]]
+}
+
+@test "context-contract-check: inherit window is silent" {
+    local skills_dir="$TMP_TEST_DIR/skills"
+    mkdir -p "$skills_dir/test-skill"
+    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
+---
+context:
+  window: inherit
+---
+# Test Skill
+EOF
+    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
+        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "context-contract-check: no declaration is silent" {
+    local skills_dir="$TMP_TEST_DIR/skills"
+    mkdir -p "$skills_dir/test-skill"
+    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
+---
+name: test-skill
+---
+# Test Skill
+No context block here.
+EOF
+    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
+        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}

@@ -1055,3 +1055,212 @@ func TestValidMineSources_IncludesEvents(t *testing.T) {
 		t.Error("'events' should be a valid mine source")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// printMineSummary
+// ---------------------------------------------------------------------------
+
+func TestPrintMineSummary_BasicReport(t *testing.T) {
+	report := &MineReport{
+		Timestamp:    time.Now().UTC(),
+		SinceSeconds: 93600,
+		Sources:      []string{"git", "agents", "code", "events"},
+		Git: &GitFindings{
+			CommitCount:      42,
+			TopCoChangeFiles: []string{"a.go", "b.go"},
+			RecurringFixes:   []string{"nil-check"},
+		},
+		Agents: &AgentsFindings{
+			TotalResearch:    5,
+			OrphanedResearch: []string{"stale.md", "old.md"},
+		},
+		Code: &CodeFindings{
+			Hotspots: []ComplexityHotspot{
+				{File: "big.go", Func: "doStuff", Complexity: 25, RecentEdits: 3},
+				{File: "big2.go", Func: "doMore", Complexity: 18, RecentEdits: 1},
+			},
+		},
+		Events: &EventsFindings{
+			RunsScanned:     3,
+			TotalEvents:     15,
+			EventTypeCounts: map[string]int{"phase.start": 10, "error": 2},
+			ErrorEvents: []EventErrorSummary{
+				{RunID: "r1", Message: "crash", Timestamp: "2026-03-05T00:00:00Z"},
+				{RunID: "r2", Message: "timeout", Timestamp: "2026-03-05T01:00:00Z"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	printMineSummary(&buf, report)
+	out := buf.String()
+
+	// Verify the summary header
+	if !strings.Contains(out, "Mine complete.") {
+		t.Error("output should contain 'Mine complete.'")
+	}
+	// Git section: commit count, co-change count, fix pattern count
+	if !strings.Contains(out, "42 commits") {
+		t.Errorf("expected '42 commits' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "2 co-change files") {
+		t.Errorf("expected '2 co-change files' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "1 fix patterns") {
+		t.Errorf("expected '1 fix patterns' in output, got:\n%s", out)
+	}
+	// Agents section: total research, orphaned count
+	if !strings.Contains(out, "5 research files") {
+		t.Errorf("expected '5 research files' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "2 orphaned") {
+		t.Errorf("expected '2 orphaned' in output, got:\n%s", out)
+	}
+	// Code section: hotspot count
+	if !strings.Contains(out, "2 hotspots") {
+		t.Errorf("expected '2 hotspots' in output, got:\n%s", out)
+	}
+	// Events section: runs scanned, total events, error count
+	if !strings.Contains(out, "3 runs scanned") {
+		t.Errorf("expected '3 runs scanned' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "15 total events") {
+		t.Errorf("expected '15 total events' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "2 errors") {
+		t.Errorf("expected '2 errors' in output, got:\n%s", out)
+	}
+}
+
+func TestPrintMineSummary_EmptyReport(t *testing.T) {
+	report := &MineReport{
+		Timestamp:    time.Now().UTC(),
+		SinceSeconds: 3600,
+		Sources:      []string{},
+	}
+
+	var buf bytes.Buffer
+	printMineSummary(&buf, report)
+	out := buf.String()
+
+	// Should still print the header
+	if !strings.Contains(out, "Mine complete.") {
+		t.Error("empty report should still contain 'Mine complete.'")
+	}
+	// Should NOT contain any section-specific output
+	if strings.Contains(out, "git:") {
+		t.Error("empty report should not contain 'git:' section")
+	}
+	if strings.Contains(out, "agents:") {
+		t.Error("empty report should not contain 'agents:' section")
+	}
+	if strings.Contains(out, "code:") {
+		t.Error("empty report should not contain 'code:' section")
+	}
+	if strings.Contains(out, "events:") {
+		t.Error("empty report should not contain 'events:' section")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// mineCodeComplexity — missing gocyclo
+// ---------------------------------------------------------------------------
+
+func TestMineCodeComplexity_Missing(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Override PATH to ensure gocyclo is not found
+	t.Setenv("PATH", tmp) // tmp has no executables
+
+	findings, err := mineCodeComplexity(tmp, 26*time.Hour)
+	if err != nil {
+		t.Fatalf("expected graceful handling, got error: %v", err)
+	}
+
+	if !findings.Skipped {
+		t.Error("expected Skipped=true when gocyclo is not installed")
+	}
+	if len(findings.Hotspots) != 0 {
+		t.Errorf("expected 0 hotspots when skipped, got %d", len(findings.Hotspots))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// runMineSources
+// ---------------------------------------------------------------------------
+
+func TestRunMineSources_AllSources(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Set up .agents/research/ with files so the agents source has data
+	researchDir := filepath.Join(tmp, ".agents", "research")
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(researchDir, "finding-a.md"), []byte("# Finding A\nSome content."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(researchDir, "finding-b.md"), []byte("# Finding B\nMore content."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up .agents/learnings/ with a file referencing only finding-a
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, "learned.md"), []byte("Based on finding-a.md research."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and restore mineQuiet to suppress warnings from sources that fail
+	// (git and code will fail in a temp dir — that's expected)
+	oldQuiet := mineQuiet
+	defer func() { mineQuiet = oldQuiet }()
+	mineQuiet = true
+
+	report := &MineReport{
+		Timestamp:    time.Now().UTC(),
+		SinceSeconds: 93600,
+		Sources:      []string{"git", "agents", "code", "events"},
+	}
+
+	var errBuf bytes.Buffer
+	runMineSources(tmp, []string{"git", "agents", "code", "events"}, 26*time.Hour, report, &errBuf)
+
+	// git source: should fail gracefully in a non-git dir → report.Git stays nil
+	if report.Git != nil {
+		t.Error("expected Git findings to be nil in non-git temp dir")
+	}
+
+	// agents source: should populate with research findings
+	if report.Agents == nil {
+		t.Fatal("expected Agents findings to be populated")
+	}
+	if report.Agents.TotalResearch != 2 {
+		t.Errorf("TotalResearch = %d, want 2", report.Agents.TotalResearch)
+	}
+	if len(report.Agents.OrphanedResearch) != 1 {
+		t.Errorf("OrphanedResearch count = %d, want 1", len(report.Agents.OrphanedResearch))
+	}
+	if len(report.Agents.OrphanedResearch) == 1 && report.Agents.OrphanedResearch[0] != "finding-b.md" {
+		t.Errorf("OrphanedResearch[0] = %q, want 'finding-b.md'", report.Agents.OrphanedResearch[0])
+	}
+
+	// code source: should be skipped (no gocyclo or no cli/ dir) but not nil
+	if report.Code == nil {
+		t.Fatal("expected Code findings to be populated (even if skipped)")
+	}
+	if !report.Code.Skipped && len(report.Code.Hotspots) != 0 {
+		t.Errorf("expected Code to be skipped or have 0 hotspots, got Skipped=%v, Hotspots=%d",
+			report.Code.Skipped, len(report.Code.Hotspots))
+	}
+
+	// events source: no .agents/rpi/runs → empty findings
+	if report.Events == nil {
+		t.Fatal("expected Events findings to be populated (even if empty)")
+	}
+	if report.Events.RunsScanned != 0 {
+		t.Errorf("expected 0 runs scanned in temp dir, got %d", report.Events.RunsScanned)
+	}
+}

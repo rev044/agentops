@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	contextbudget "github.com/boshu2/agentops/cli/internal/context"
 )
@@ -1383,6 +1386,315 @@ func TestContextCov_CollectTrackedSessionStatuses(t *testing.T) {
 			t.Errorf("SessionID = %q, want %q", statuses[0].SessionID, sessionID)
 		}
 	})
+}
+
+// --- gitChangedFiles ---
+
+func TestGitChangedFiles_WithChanges(t *testing.T) {
+	dir := t.TempDir()
+
+	// Initialize a git repo, commit a file, then modify it
+	cmds := [][]string{
+		{"git", "init"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test"},
+	}
+	for _, args := range cmds {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("command %v failed: %v\n%s", args, err, out)
+		}
+	}
+
+	// Create and commit a file
+	testFile := filepath.Join(dir, "hello.txt")
+	if err := os.WriteFile(testFile, []byte("original"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"git", "add", "hello.txt"},
+		{"git", "commit", "-m", "init"},
+	} {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("command %v failed: %v\n%s", args, err, out)
+		}
+	}
+
+	// Modify the file (unstaged change against HEAD)
+	if err := os.WriteFile(testFile, []byte("modified"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	changed := gitChangedFiles(dir, 10)
+	if len(changed) != 1 {
+		t.Fatalf("expected 1 changed file, got %d: %v", len(changed), changed)
+	}
+	if changed[0] != "hello.txt" {
+		t.Errorf("expected 'hello.txt', got %q", changed[0])
+	}
+}
+
+func TestGitChangedFiles_CleanRepo(t *testing.T) {
+	dir := t.TempDir()
+
+	// Initialize a git repo with a committed file, no uncommitted changes
+	for _, args := range [][]string{
+		{"git", "init"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test"},
+	} {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("command %v failed: %v\n%s", args, err, out)
+		}
+	}
+	testFile := filepath.Join(dir, "clean.txt")
+	if err := os.WriteFile(testFile, []byte("committed"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"git", "add", "clean.txt"},
+		{"git", "commit", "-m", "init"},
+	} {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("command %v failed: %v\n%s", args, err, out)
+		}
+	}
+
+	changed := gitChangedFiles(dir, 10)
+	if len(changed) != 0 {
+		t.Errorf("expected no changed files, got %d: %v", len(changed), changed)
+	}
+}
+
+func TestGitChangedFiles_NotGitRepo(t *testing.T) {
+	dir := t.TempDir() // plain directory, not a git repo
+
+	changed := gitChangedFiles(dir, 10)
+	if len(changed) != 0 {
+		t.Errorf("expected no changed files for non-git dir, got %d: %v", len(changed), changed)
+	}
+}
+
+// --- runContextStatus ---
+
+func TestRunContextStatus_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+
+	// Save and restore cwd
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Save and restore the output format
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	cmd := &cobra.Command{}
+	err = runContextStatus(cmd, nil)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("runContextStatus returned error: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	if !strings.Contains(got, "No context telemetry found") {
+		t.Errorf("expected 'No context telemetry found' in output, got: %q", got)
+	}
+}
+
+func TestRunContextStatus_JSONOutput(t *testing.T) {
+	dir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Set JSON output mode
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	cmd := &cobra.Command{}
+	err = runContextStatus(cmd, nil)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("runContextStatus returned error: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+
+	// JSON output should be valid JSON (null or empty array for no sessions)
+	var parsed interface{}
+	if jsonErr := json.Unmarshal([]byte(strings.TrimSpace(got)), &parsed); jsonErr != nil {
+		t.Errorf("expected valid JSON output, got parse error: %v\noutput: %q", jsonErr, got)
+	}
+}
+
+// --- runContextGuard ---
+
+func TestRunContextGuard_NoCritical(t *testing.T) {
+	dir := t.TempDir()
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	// Create a transcript file with low usage (well below CRITICAL threshold)
+	sessionID := "guard-test-session"
+	t.Setenv("CLAUDE_SESSION_ID", sessionID)
+
+	// Create transcript directory structure
+	projDir := filepath.Join(tmpHome, ".claude", "projects", "guard-proj", "conversations")
+	if err := os.MkdirAll(projDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a transcript with minimal usage
+	transcriptLines := []map[string]any{
+		{
+			"type":      "user",
+			"timestamp": time.Now().Add(-30 * time.Second).UTC().Format(time.RFC3339),
+			"message": map[string]any{
+				"role":    "user",
+				"content": "simple task",
+			},
+		},
+		{
+			"type":      "assistant",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"message": map[string]any{
+				"role":  "assistant",
+				"model": "claude-sonnet",
+				"usage": map[string]any{
+					"input_tokens":                500,
+					"cache_creation_input_tokens": 1000,
+					"cache_read_input_tokens":     2000,
+				},
+			},
+		},
+	}
+	var b strings.Builder
+	for _, line := range transcriptLines {
+		data, _ := json.Marshal(line)
+		b.Write(data)
+		b.WriteByte('\n')
+	}
+	if err := os.WriteFile(filepath.Join(projDir, sessionID+".jsonl"), []byte(b.String()), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and restore flag state
+	oldSessionID := contextSessionID
+	oldMaxTokens := contextMaxTokens
+	oldWatchdog := contextWatchdogMinute
+	oldAutoRestart := contextAutoRestart
+	oldWriteHandoff := contextWriteHandoff
+	contextSessionID = sessionID
+	contextMaxTokens = contextbudget.DefaultMaxTokens
+	contextWatchdogMinute = defaultWatchdogMinutes
+	contextAutoRestart = false
+	contextWriteHandoff = false
+	defer func() {
+		contextSessionID = oldSessionID
+		contextMaxTokens = oldMaxTokens
+		contextWatchdogMinute = oldWatchdog
+		contextAutoRestart = oldAutoRestart
+		contextWriteHandoff = oldWriteHandoff
+	}()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	cmd := &cobra.Command{}
+	err = runContextGuard(cmd, nil)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("runContextGuard returned error: %v", err)
+	}
+
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	got := strings.TrimSpace(string(buf[:n]))
+
+	// Parse the JSON result
+	var result contextGuardResult
+	if jsonErr := json.Unmarshal([]byte(got), &result); jsonErr != nil {
+		t.Fatalf("expected valid JSON, got parse error: %v\noutput: %q", jsonErr, got)
+	}
+
+	// With 3500 total tokens out of 200000 default, status should not be CRITICAL
+	if result.Session.Status == "CRITICAL" {
+		t.Errorf("expected non-CRITICAL status with low usage, got %q", result.Session.Status)
+	}
+	if result.Session.Action == "handoff_now" {
+		t.Error("expected no handoff_now action with low usage")
+	}
+	if result.HandoffFile != "" {
+		t.Errorf("expected no handoff file, got %q", result.HandoffFile)
+	}
+	// Verify session ID propagates
+	if result.Session.SessionID != sessionID {
+		t.Errorf("SessionID = %q, want %q", result.Session.SessionID, sessionID)
+	}
+	// Verify usage is reflected
+	if result.Session.EstimatedUsage != 3500 {
+		t.Errorf("EstimatedUsage = %d, want 3500", result.Session.EstimatedUsage)
+	}
 }
 
 // --- renderHandoffMarkdown ---

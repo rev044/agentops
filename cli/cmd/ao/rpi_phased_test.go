@@ -3202,3 +3202,12 @@ func TestPhasedCov_MaybeUpdateLiveStatus_Disabled(t *testing.T) {
 	// Should not panic even with zero-value arguments
 	maybeUpdateLiveStatus(state, "", nil, 1, "running", 0, "")
 }
+
+// NOTE: TestRunRPIPhased_BasicFlow is intentionally omitted. The runRPIPhased cobra RunE
+// handler reads from package-level flag variables, wires signal.NotifyContext, and calls
+// resolveRPIToolchain — all tightly coupled to cobra command registration. Testing through
+// the cobra entry point would require reconstructing the full flag set and command tree.
+// The engine logic is already tested via runRPIPhasedWithOpts in rpi_phased_swarm_test.go
+// (TestRunRPIPhased_DryRunBackendSelection, TestRunRPIPhased_SwarmFirstBackendLogged,
+// TestRunRPIPhased_BackendStoredInState). Config resolution is tested via
+// TestResolveWorktreeModeFromConfig_* in rpi_phased_context_test.go.

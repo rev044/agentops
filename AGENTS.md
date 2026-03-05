@@ -64,7 +64,7 @@ scripts/validate-go-fast.sh     # Quick Go validation (build + vet + test)
 
 ## CI Validation — Passing the Pipeline
 
-All pushes to `main` and PRs run `.github/workflows/validate.yml`. **Run checks locally before pushing.** The summary job gates on all checks except security-toolchain-gate (non-blocking) and doctor-check (non-blocking).
+All pushes to `main` and PRs run `.github/workflows/validate.yml`. **Run checks locally before pushing.** The summary job gates on all checks except security-toolchain-gate (non-blocking), doctor-check (non-blocking), and check-test-staleness (non-blocking).
 Blocking policy list (must match the validate summary failset): every job in the CI table below except jobs marked `(non-blocking)`, including `codex-runtime-sections`.
 
 ### Local Pre-Push Checklist
@@ -145,6 +145,11 @@ Process:
 | **smoke-test** | Skill frontmatter valid; no placeholders; no TODOs in SKILL.md files | Leaving `TODO` or placeholder emails in SKILL.md |
 | **validate-ci-policy-parity** | AGENTS CI table and blocking policy match workflow summary enforcement | Docs say non-blocking/required but workflow differs |
 | **validate-hooks-doc-parity** | Scoped docs avoid stale hook-count claims vs runtime `hooks/hooks.json` | Runtime hook contract changed but docs were not updated |
+| **bats-tests** | BATS integration tests for shell scripts pass | Hook or script behavioral regression |
+| **check-test-staleness** | Detects stale/abandoned test files | Non-blocking (`continue-on-error: true`) |
+| **coverage-ratchet** | Coverage baseline doesn't regress vs `.coverage-baseline.json` | New code drops package coverage below floor |
+| **file-manifest-overlap** | No file path conflicts between workers/skills | Two skills claim the same output file |
+| **json-flag-consistency** | All `--json` flags produce valid JSON with consistent format | Missing `--json` support on a new command |
 
 ### Key Constraints Agents Must Follow
 

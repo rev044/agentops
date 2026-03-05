@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -205,6 +207,42 @@ func TestParseIssueTypeFromShowJSON_InvalidJSON(t *testing.T) {
 	}
 }
 
+// --- extractAnyOpenIssueID ---
+
+// TestExtractAnyOpenIssueID_NoBD verifies that when bd is not available (nonexistent command),
+// the function returns an error gracefully without panicking.
+func TestExtractAnyOpenIssueID_NoBD(t *testing.T) {
+	// Use a command name that does not exist on PATH.
+	id, err := extractAnyOpenIssueID("nonexistent-bd-command-" + t.Name())
+	if err == nil {
+		t.Error("expected error when bd command is not available, got nil")
+	}
+	if id != "" {
+		t.Errorf("expected empty ID when bd unavailable, got %q", id)
+	}
+}
+
+// TestExtractAnyOpenIssueID_NoEpic verifies that when bd returns empty JSON arrays
+// (no epics and no open issues), the function returns an error with empty ID.
+func TestExtractAnyOpenIssueID_NoEpic(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create a fake bd script that returns empty JSON arrays for list commands.
+	fakeBD := filepath.Join(tmp, "fake-bd")
+	script := "#!/bin/sh\necho '[]'\n"
+	if err := os.WriteFile(fakeBD, []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := extractAnyOpenIssueID(fakeBD)
+	if err == nil {
+		t.Error("expected error when bd returns no issues, got nil")
+	}
+	if id != "" {
+		t.Errorf("expected empty ID when no issues exist, got %q", id)
+	}
+}
+
 // --- parseLatestEpicIDFromJSON ---
 
 func TestParseLatestEpicIDFromJSON_MultipleEntries(t *testing.T) {
@@ -255,9 +293,7 @@ func TestParseLatestEpicIDFromJSON_AllEmpty(t *testing.T) {
 // --- parseLatestEpicIDFromText ---
 
 func TestParseLatestEpicIDFromText_MultipleLines(t *testing.T) {
-	output := `ag-100 epic: first
-ag-200 epic: second
-ag-300 epic: latest`
+	output := "ag-100 epic: first\nag-200 epic: second\nag-300 epic: latest"
 	got, err := parseLatestEpicIDFromText(output)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -356,7 +392,7 @@ func TestParseCrankCompletion_EmptyOutput(t *testing.T) {
 }
 
 func TestParseCrankCompletion_CheckmarkAsClosed(t *testing.T) {
-	output := "ag-1 \u2713 Fix\nag-2 \u2713 Add\n"
+	output := "ag-1 ✓ Fix\nag-2 ✓ Add\n"
 	got := parseCrankCompletion(output)
 	if got != "DONE" {
 		t.Errorf("parseCrankCompletion with checkmarks = %q, want %q", got, "DONE")

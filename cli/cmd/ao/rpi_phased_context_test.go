@@ -302,6 +302,62 @@ func TestCtx_ParsePhaseBudgetSpec_Valid(t *testing.T) {
 	}
 }
 
+// TestResolveWorktreeModeFromConfig_NoConfig verifies that when no config file exists,
+// the function returns the flagDefault value unchanged.
+func TestResolveWorktreeModeFromConfig_NoConfig(t *testing.T) {
+	// Point AGENTOPS_CONFIG to a nonexistent file so Load returns defaults (WorktreeMode="auto").
+	// "auto" hits the default switch case, which returns flagDefault.
+	t.Setenv("AGENTOPS_CONFIG", filepath.Join(t.TempDir(), "nonexistent.yaml"))
+
+	// With flagDefault=false, should return false (auto mode preserves flag default).
+	got := resolveWorktreeModeFromConfig(false)
+	if got != false {
+		t.Errorf("resolveWorktreeModeFromConfig(false) with no config = %v, want false", got)
+	}
+
+	// With flagDefault=true, should return true.
+	got = resolveWorktreeModeFromConfig(true)
+	if got != true {
+		t.Errorf("resolveWorktreeModeFromConfig(true) with no config = %v, want true", got)
+	}
+}
+
+// TestResolveWorktreeModeFromConfig_FlagTrue verifies that when config has worktree_mode="always",
+// the function returns false (NoWorktree=false means worktrees ARE enabled).
+func TestResolveWorktreeModeFromConfig_FlagTrue(t *testing.T) {
+	tmp := t.TempDir()
+	cfgPath := filepath.Join(tmp, "config.yaml")
+	// "always" means always use worktrees → NoWorktree should be false.
+	if err := os.WriteFile(cfgPath, []byte("rpi:\n  worktree_mode: always\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENTOPS_CONFIG", cfgPath)
+
+	// Regardless of flagDefault, "always" should return false (NoWorktree=false → worktrees on).
+	got := resolveWorktreeModeFromConfig(true)
+	if got != false {
+		t.Errorf("resolveWorktreeModeFromConfig(true) with always = %v, want false", got)
+	}
+}
+
+// TestResolveWorktreeModeFromConfig_FlagFalse verifies that when config has worktree_mode="never",
+// the function returns true (NoWorktree=true means worktrees are disabled).
+func TestResolveWorktreeModeFromConfig_FlagFalse(t *testing.T) {
+	tmp := t.TempDir()
+	cfgPath := filepath.Join(tmp, "config.yaml")
+	// "never" means never use worktrees → NoWorktree should be true.
+	if err := os.WriteFile(cfgPath, []byte("rpi:\n  worktree_mode: never\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENTOPS_CONFIG", cfgPath)
+
+	// Regardless of flagDefault, "never" should return true (NoWorktree=true → worktrees off).
+	got := resolveWorktreeModeFromConfig(false)
+	if got != true {
+		t.Errorf("resolveWorktreeModeFromConfig(false) with never = %v, want true", got)
+	}
+}
+
 func TestCtx_ResolvePhaseBudget_ComplexityDefault(t *testing.T) {
 	tests := []struct {
 		name       string

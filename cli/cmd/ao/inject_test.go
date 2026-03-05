@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -1095,6 +1096,302 @@ context:
 	}
 	if !info.IsDir() {
 		t.Errorf("%q is not a directory", expectedDir)
+	}
+}
+
+// TestAtomicWriteFile_Success verifies atomicWriteFile writes content with correct permissions.
+func TestAtomicWriteFile_Success(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-output.txt")
+	content := []byte("hello atomic world")
+	perm := os.FileMode(0644)
+
+	err := atomicWriteFile(path, content, perm)
+	if err != nil {
+		t.Fatalf("atomicWriteFile() error = %v", err)
+	}
+
+	// Verify file content
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(got) != string(content) {
+		t.Errorf("file content = %q, want %q", string(got), string(content))
+	}
+
+	// Verify file permissions
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if info.Mode().Perm() != perm {
+		t.Errorf("file permissions = %v, want %v", info.Mode().Perm(), perm)
+	}
+}
+
+// TestAtomicWriteFile_BadDir verifies atomicWriteFile returns error for non-existent directory.
+func TestAtomicWriteFile_BadDir(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nonexistent", "subdir", "file.txt")
+	err := atomicWriteFile(path, []byte("data"), 0644)
+	if err == nil {
+		t.Fatal("expected error when writing to non-existent directory, got nil")
+	}
+}
+
+// TestWritePredecessorSection_AllFields verifies all predecessor fields are rendered.
+func TestWritePredecessorSection_AllFields(t *testing.T) {
+	pred := &predecessorContext{
+		WorkingOn:  "refactoring inject.go",
+		Progress:   "70% complete",
+		Blocker:    "failing test in CI",
+		NextStep:   "fix the flaky test",
+		SessionAge: "2h",
+		RawSummary: "raw summary text",
+	}
+	var sb strings.Builder
+	writePredecessorSection(&sb, pred)
+	output := sb.String()
+
+	if !strings.Contains(output, "### Predecessor Context") {
+		t.Error("missing header '### Predecessor Context'")
+	}
+	if !strings.Contains(output, "(2h ago)") {
+		t.Errorf("missing session age, got:\n%s", output)
+	}
+	if !strings.Contains(output, "**Working on:** refactoring inject.go") {
+		t.Errorf("missing WorkingOn field, got:\n%s", output)
+	}
+	if !strings.Contains(output, "**Progress:** 70% complete") {
+		t.Errorf("missing Progress field, got:\n%s", output)
+	}
+	if !strings.Contains(output, "**Blocker:** failing test in CI") {
+		t.Errorf("missing Blocker field, got:\n%s", output)
+	}
+	if !strings.Contains(output, "**Next step:** fix the flaky test") {
+		t.Errorf("missing NextStep field, got:\n%s", output)
+	}
+	// RawSummary should NOT appear when Progress is set (per implementation)
+	if strings.Contains(output, "raw summary text") {
+		t.Errorf("RawSummary should not appear when Progress is set, got:\n%s", output)
+	}
+}
+
+// TestWritePredecessorSection_Partial verifies graceful output with partial fields.
+func TestWritePredecessorSection_Partial(t *testing.T) {
+	pred := &predecessorContext{
+		WorkingOn: "deploy pipeline",
+		// No Progress, Blocker, NextStep, SessionAge
+		RawSummary: "just a raw summary",
+	}
+	var sb strings.Builder
+	writePredecessorSection(&sb, pred)
+	output := sb.String()
+
+	if !strings.Contains(output, "### Predecessor Context") {
+		t.Error("missing header")
+	}
+	if !strings.Contains(output, "**Working on:** deploy pipeline") {
+		t.Errorf("missing WorkingOn, got:\n%s", output)
+	}
+	// RawSummary SHOULD appear when Progress is empty
+	if !strings.Contains(output, "just a raw summary") {
+		t.Errorf("RawSummary should appear when Progress is empty, got:\n%s", output)
+	}
+	// SessionAge not set, so no "(ago)" suffix
+	if strings.Contains(output, "ago)") {
+		t.Errorf("should not contain session age when not set, got:\n%s", output)
+	}
+}
+
+// TestWritePredecessorSection_Nil verifies nil predecessor produces no output and no panic.
+func TestWritePredecessorSection_Nil(t *testing.T) {
+	var sb strings.Builder
+	writePredecessorSection(&sb, nil)
+	if sb.Len() != 0 {
+		t.Errorf("expected empty output for nil predecessor, got %q", sb.String())
+	}
+}
+
+// TestFilterMemoryDuplicates_RemovesDuplicates verifies learnings matching MEMORY.md content are filtered.
+func TestFilterMemoryDuplicates_RemovesDuplicates(t *testing.T) {
+	// filterMemoryDuplicates calls findMemoryFile which looks for MEMORY.md
+	// in ~/.claude/projects/-<path>/ — we need to set up that structure.
+	// Instead, since findMemoryFile uses cwd to derive the path, we test the
+	// filtering logic by creating the expected MEMORY.md location.
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home directory")
+	}
+
+	tmpDir := t.TempDir()
+	// Create MEMORY.md in the Claude projects convention path
+	normalizedPath := strings.ReplaceAll(tmpDir, "/", "-")
+	memoryDir := filepath.Join(homeDir, ".claude", "projects", normalizedPath, "memory")
+	if err := os.MkdirAll(memoryDir, 0755); err != nil {
+		t.Fatalf("create memory dir: %v", err)
+	}
+	memoryPath := filepath.Join(memoryDir, "MEMORY.md")
+	memoryContent := "# Memory\n\n- Known pattern: auth-caching\n- Learning L42 is important\n"
+	if err := os.WriteFile(memoryPath, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("write MEMORY.md: %v", err)
+	}
+	defer os.RemoveAll(filepath.Join(homeDir, ".claude", "projects", normalizedPath))
+
+	learnings := []learning{
+		{ID: "L42", Title: "Auth Caching Pattern"},   // ID matches MEMORY.md
+		{ID: "L99", Title: "auth-caching"},            // Title matches MEMORY.md
+		{ID: "L100", Title: "New Unique Knowledge"},   // Should pass through
+	}
+
+	result := filterMemoryDuplicates(tmpDir, learnings)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 learning after dedup, got %d: %+v", len(result), result)
+	}
+	if result[0].ID != "L100" {
+		t.Errorf("expected surviving learning ID=L100, got %q", result[0].ID)
+	}
+}
+
+// TestFilterMemoryDuplicates_NoMemoryFilePassthrough verifies all learnings pass through when no MEMORY.md exists.
+func TestFilterMemoryDuplicates_NoMemoryFilePassthrough(t *testing.T) {
+	tmpDir := t.TempDir() // No MEMORY.md anywhere for this path
+
+	learnings := []learning{
+		{ID: "L1", Title: "First"},
+		{ID: "L2", Title: "Second"},
+		{ID: "L3", Title: "Third"},
+	}
+
+	result := filterMemoryDuplicates(tmpDir, learnings)
+	if len(result) != 3 {
+		t.Errorf("expected all 3 learnings to pass through, got %d", len(result))
+	}
+}
+
+// TestRenderKnowledge_JSON verifies JSON format output contains expected fields.
+func TestRenderKnowledge_JSON(t *testing.T) {
+	knowledge := &injectedKnowledge{
+		Timestamp: time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
+		Query:     "test-query",
+		Learnings: []learning{
+			{ID: "L1", Title: "Test Learning", Summary: "A summary"},
+		},
+	}
+
+	output, err := renderKnowledge(knowledge, "json")
+	if err != nil {
+		t.Fatalf("renderKnowledge(json) error = %v", err)
+	}
+
+	// Verify it's valid JSON
+	var parsed map[string]interface{}
+	if jsonErr := json.Unmarshal([]byte(output), &parsed); jsonErr != nil {
+		t.Fatalf("output is not valid JSON: %v\noutput:\n%s", jsonErr, output)
+	}
+
+	// Verify key fields are present
+	if _, ok := parsed["timestamp"]; !ok {
+		t.Error("JSON output missing 'timestamp' field")
+	}
+	if q, ok := parsed["query"]; !ok || q != "test-query" {
+		t.Errorf("JSON query = %v, want 'test-query'", q)
+	}
+	if _, ok := parsed["learnings"]; !ok {
+		t.Error("JSON output missing 'learnings' field")
+	}
+	learningsArr, ok := parsed["learnings"].([]interface{})
+	if !ok || len(learningsArr) != 1 {
+		t.Errorf("expected 1 learning in JSON, got %v", parsed["learnings"])
+	}
+}
+
+// TestRenderKnowledge_Markdown verifies markdown format output.
+func TestRenderKnowledge_Markdown(t *testing.T) {
+	knowledge := &injectedKnowledge{
+		Timestamp: time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
+		Learnings: []learning{
+			{ID: "L1", Title: "Test Learning", Summary: "A summary"},
+		},
+		Predecessor: &predecessorContext{
+			WorkingOn: "testing",
+		},
+	}
+
+	output, err := renderKnowledge(knowledge, "markdown")
+	if err != nil {
+		t.Fatalf("renderKnowledge(markdown) error = %v", err)
+	}
+
+	if !strings.Contains(output, "## Injected Knowledge (ao inject)") {
+		t.Error("missing main header in markdown output")
+	}
+	if !strings.Contains(output, "### Predecessor Context") {
+		t.Error("missing predecessor section in markdown output")
+	}
+	if !strings.Contains(output, "### Recent Learnings") {
+		t.Error("missing learnings section in markdown output")
+	}
+	if !strings.Contains(output, "**L1**") {
+		t.Error("missing learning ID in markdown output")
+	}
+	if !strings.Contains(output, "Last injection:") {
+		t.Error("missing timestamp in markdown output")
+	}
+}
+
+// TestRunQuarantineFlagged_WithFlagged verifies quarantine processing with flagged paths.
+func TestRunQuarantineFlagged_WithFlagged(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a learning file that will be quarantined
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	learningFile := filepath.Join(learningsDir, "bad-learning.md")
+	if err := os.WriteFile(learningFile, []byte("# Bad Learning\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create quality report referencing the learning
+	defragDir := filepath.Join(dir, ".agents", "defrag")
+	if err := os.MkdirAll(defragDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	report := fmt.Sprintf(`{"flagged_paths": ["%s"]}`, learningFile)
+	if err := os.WriteFile(filepath.Join(defragDir, "quality-report.json"), []byte(report), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := runQuarantineFlagged(dir)
+	if err != nil {
+		t.Fatalf("runQuarantineFlagged() error = %v", err)
+	}
+
+	// Verify original file was moved
+	if _, statErr := os.Stat(learningFile); !os.IsNotExist(statErr) {
+		t.Error("expected learning file to be moved to quarantine")
+	}
+
+	// Verify file exists in .quarantine directory
+	quarantinedFile := filepath.Join(learningsDir, ".quarantine", "bad-learning.md")
+	if _, statErr := os.Stat(quarantinedFile); statErr != nil {
+		t.Errorf("expected quarantined file at %s, got error: %v", quarantinedFile, statErr)
+	}
+}
+
+// TestRunQuarantineFlagged_NoReport verifies error when no quality report exists.
+func TestRunQuarantineFlagged_NoReport(t *testing.T) {
+	dir := t.TempDir() // No .agents/defrag/quality-report.json
+
+	err := runQuarantineFlagged(dir)
+	if err == nil {
+		t.Fatal("expected error when no quality report exists, got nil")
+	}
+	if !strings.Contains(err.Error(), "no quality report found") {
+		t.Errorf("expected 'no quality report found' error, got: %v", err)
 	}
 }
 

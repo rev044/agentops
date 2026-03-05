@@ -248,6 +248,78 @@ func TestRescuePhaseOnTimeout_NonTimeoutError(t *testing.T) {
 
 // --- runPhaseLoop ---
 
+// --- handlePostPhaseGate ---
+
+func TestHandlePostPhaseGate_Pass(t *testing.T) {
+	// Use phase 99 (unknown) so postPhaseProcessing returns nil,
+	// simulating a gate that passes without error.
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(stateDir, "phased-orchestration.log")
+	statusPath := filepath.Join(stateDir, "live-status.md")
+
+	state := newTestPhasedState().WithRunID("gate-pass").WithMaxRetries(3)
+	allPhases := buildAllPhases(phases)
+	executor := &fakeExecutor{}
+	p := phase{Num: 99, Name: "unknown-phase", Step: "none"}
+
+	err := handlePostPhaseGate(context.Background(), tmp, state, p, logPath, statusPath, allPhases, executor)
+	if err != nil {
+		t.Fatalf("handlePostPhaseGate should return nil for passing gate, got: %v", err)
+	}
+}
+
+func TestHandlePostPhaseGate_Fail(t *testing.T) {
+	// Set up validation phase (3) with a FAIL council report. postPhaseProcessing
+	// returns a gateFailError, which triggers retry logic. With attempts pre-loaded
+	// to maxGateRetryDepth, handleGateRetry hits forced escalation and returns
+	// (false, nil), causing handlePostPhaseGate to return the "gate failed after
+	// max retries" error.
+	tmp := t.TempDir()
+	rpiDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create prior phase result for prerequisite check.
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-2-result.json"), []byte(`{"status":"ok"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a council report with FAIL verdict.
+	councilDir := filepath.Join(tmp, ".agents", "council")
+	if err := os.MkdirAll(councilDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	reportContent := "# Vibe\n## Council Verdict: FAIL\nCritical issues found.\n"
+	if err := os.WriteFile(filepath.Join(councilDir, "2026-03-05-vibe-gate-fail.md"), []byte(reportContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	logPath := filepath.Join(rpiDir, "phased-orchestration.log")
+	statusPath := filepath.Join(rpiDir, "live-status.md")
+
+	state := newTestPhasedState().WithRunID("gate-fail").WithMaxRetries(3).WithPhase(3).WithStartPhase(3)
+	// Pre-load attempts so escalation triggers immediately.
+	state.Attempts["phase_3"] = maxGateRetryDepth
+	allPhases := buildAllPhases(phases)
+	executor := &fakeExecutor{}
+	p := phases[2] // phase 3: validation
+
+	t.Setenv("MEMRL_MODE", "off")
+
+	err := handlePostPhaseGate(context.Background(), tmp, state, p, logPath, statusPath, allPhases, executor)
+	if err == nil {
+		t.Fatal("handlePostPhaseGate should return error when gate fails after max retries")
+	}
+	if !strings.Contains(err.Error(), "gate failed after max retries") {
+		t.Errorf("error = %q, should contain 'gate failed after max retries'", err.Error())
+	}
+}
+
 func TestRunPhaseLoop_FastPathSkipsPhase3(t *testing.T) {
 	tmp := t.TempDir()
 	stateDir := filepath.Join(tmp, ".agents", "rpi")

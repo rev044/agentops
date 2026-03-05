@@ -648,6 +648,208 @@ func TestCountAlternations(t *testing.T) {
 	}
 }
 
+func TestExecutePrune_FindsOrphans(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create learnings dir with an old orphan file
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, ".agents", "patterns"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, ".agents", "research"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	orphanFile := filepath.Join(learningsDir, "stale-orphan.md")
+	if err := os.WriteFile(orphanFile, []byte("# Stale orphan learning\nNot referenced anywhere"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().AddDate(0, 0, -60)
+	if err := os.Chtimes(orphanFile, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	// Also add a fresh file that should NOT be orphaned (not stale)
+	freshFile := filepath.Join(learningsDir, "fresh-learning.md")
+	if err := os.WriteFile(freshFile, []byte("# Fresh learning"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// isDryRun=false so orphans get deleted
+	result, err := executePrune(tmp, false, 30)
+	if err != nil {
+		t.Fatalf("executePrune: %v", err)
+	}
+
+	if result.TotalLearnings != 2 {
+		t.Errorf("TotalLearnings = %d, want 2", result.TotalLearnings)
+	}
+	if result.StaleCount != 1 {
+		t.Errorf("StaleCount = %d, want 1", result.StaleCount)
+	}
+	if len(result.Orphans) != 1 {
+		t.Fatalf("Orphans count = %d, want 1", len(result.Orphans))
+	}
+	expectedOrphan := filepath.Join(".agents", "learnings", "stale-orphan.md")
+	if result.Orphans[0] != expectedOrphan {
+		t.Errorf("Orphans[0] = %q, want %q", result.Orphans[0], expectedOrphan)
+	}
+	// Orphan should have been deleted
+	if len(result.Deleted) != 1 {
+		t.Fatalf("Deleted count = %d, want 1", len(result.Deleted))
+	}
+	if result.Deleted[0] != expectedOrphan {
+		t.Errorf("Deleted[0] = %q, want %q", result.Deleted[0], expectedOrphan)
+	}
+	// File should no longer exist on disk
+	if _, err := os.Stat(orphanFile); !os.IsNotExist(err) {
+		t.Error("orphan file should have been deleted from disk")
+	}
+	// Fresh file should still exist
+	if _, err := os.Stat(freshFile); os.IsNotExist(err) {
+		t.Error("fresh file should NOT have been deleted")
+	}
+}
+
+func TestExecutePrune_DryRun(t *testing.T) {
+	tmp := t.TempDir()
+
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, ".agents", "patterns"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, ".agents", "research"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	orphanFile := filepath.Join(learningsDir, "dry-run-orphan.md")
+	if err := os.WriteFile(orphanFile, []byte("# Orphan in dry-run test"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().AddDate(0, 0, -45)
+	if err := os.Chtimes(orphanFile, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	// isDryRun=true — should report but NOT delete
+	result, err := executePrune(tmp, true, 30)
+	if err != nil {
+		t.Fatalf("executePrune dry-run: %v", err)
+	}
+
+	// Orphan should be identified
+	if len(result.Orphans) != 1 {
+		t.Fatalf("Orphans count = %d, want 1", len(result.Orphans))
+	}
+	// Deleted should be empty in dry-run
+	if len(result.Deleted) != 0 {
+		t.Errorf("Deleted = %v, want empty in dry-run", result.Deleted)
+	}
+	// File must still exist on disk
+	if _, err := os.Stat(orphanFile); os.IsNotExist(err) {
+		t.Error("orphan file was deleted during dry-run — should have been preserved")
+	}
+}
+
+func TestExecuteDedup_FindsDuplicates(t *testing.T) {
+	tmp := t.TempDir()
+
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Two files with identical content but different names
+	content := "This is a learning about how to handle errors in Go programs effectively and safely"
+	hashFile := "2026-03-01-a1b2c3d4.md"
+	namedFile := "2026-03-01-error-handling.md"
+	if err := os.WriteFile(filepath.Join(learningsDir, hashFile), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, namedFile), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// isDryRun=false — should delete the hash-named duplicate
+	result, err := executeDedup(tmp, false)
+	if err != nil {
+		t.Fatalf("executeDedup: %v", err)
+	}
+
+	if result.Checked != 2 {
+		t.Errorf("Checked = %d, want 2", result.Checked)
+	}
+	// After apply, DuplicatePairs is cleared
+	if result.DuplicatePairs != nil {
+		t.Errorf("DuplicatePairs should be nil after apply, got %v", result.DuplicatePairs)
+	}
+	// Hash-named file should have been deleted
+	if len(result.Deleted) != 1 {
+		t.Fatalf("Deleted count = %d, want 1", len(result.Deleted))
+	}
+	if result.Deleted[0] != hashFile {
+		t.Errorf("Deleted[0] = %q, want %q", result.Deleted[0], hashFile)
+	}
+	// Hash file gone from disk
+	if _, err := os.Stat(filepath.Join(learningsDir, hashFile)); !os.IsNotExist(err) {
+		t.Error("hash-named duplicate should have been deleted from disk")
+	}
+	// Named file preserved
+	if _, err := os.Stat(filepath.Join(learningsDir, namedFile)); os.IsNotExist(err) {
+		t.Error("named file should have been kept")
+	}
+}
+
+func TestExecuteDedup_DryRun(t *testing.T) {
+	tmp := t.TempDir()
+
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	content := "This is a learning about how to handle errors in Go programs effectively and safely"
+	fileA := "2026-03-01-dup-a.md"
+	fileB := "2026-03-01-dup-b.md"
+	if err := os.WriteFile(filepath.Join(learningsDir, fileA), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, fileB), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// isDryRun=true — report but do NOT remove
+	result, err := executeDedup(tmp, true)
+	if err != nil {
+		t.Fatalf("executeDedup dry-run: %v", err)
+	}
+
+	if result.Checked != 2 {
+		t.Errorf("Checked = %d, want 2", result.Checked)
+	}
+	// Duplicates should be reported
+	if len(result.DuplicatePairs) != 1 {
+		t.Fatalf("DuplicatePairs count = %d, want 1", len(result.DuplicatePairs))
+	}
+	// Nothing should be deleted in dry-run
+	if len(result.Deleted) != 0 {
+		t.Errorf("Deleted = %v, want empty in dry-run", result.Deleted)
+	}
+	// Both files must still exist on disk
+	if _, err := os.Stat(filepath.Join(learningsDir, fileA)); os.IsNotExist(err) {
+		t.Error("fileA was deleted during dry-run")
+	}
+	if _, err := os.Stat(filepath.Join(learningsDir, fileB)); os.IsNotExist(err) {
+		t.Error("fileB was deleted during dry-run")
+	}
+}
+
 func TestDefrag_NoFlags_DefaultsAll(t *testing.T) {
 	// When no mode flags are set, runDefrag should enable all three modes.
 	dir := chdirTemp(t)

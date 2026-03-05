@@ -431,6 +431,83 @@ func TestGateImplementationVerdictC2Event(t *testing.T) {
 	}
 }
 
+// --- verifyGateAfterRetry ---
+
+func TestVerifyGateAfterRetry_Succeeds(t *testing.T) {
+	// Use phase 99 (unknown) so postPhaseProcessing returns nil immediately,
+	// simulating a gate that passes after retry.
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(stateDir, "phased-orchestration.log")
+	statusPath := filepath.Join(stateDir, "live-status.md")
+
+	state := newTestPhasedState().WithRunID("verify-ok").WithMaxRetries(3)
+	allPhases := buildAllPhases(phases)
+	executor := &fakeExecutor{}
+
+	retried, err := verifyGateAfterRetry(
+		context.Background(), tmp, state, 99,
+		logPath, tmp, statusPath, allPhases, executor, 1,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !retried {
+		t.Error("verifyGateAfterRetry should return true when gate passes")
+	}
+}
+
+func TestVerifyGateAfterRetry_Exhausted(t *testing.T) {
+	// Set up a validation phase (3) with a FAIL council report so
+	// postPhaseProcessing returns a gateFailError. Pre-load attempts to
+	// maxGateRetryDepth so the recursive handleGateRetry hits forced escalation.
+	tmp := t.TempDir()
+	rpiDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a prior phase result so processValidationPhase doesn't fail on prerequisite check.
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-2-result.json"), []byte(`{"status":"ok"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a council report with FAIL verdict.
+	councilDir := filepath.Join(tmp, ".agents", "council")
+	if err := os.MkdirAll(councilDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	reportContent := "# Vibe\n## Council Verdict: FAIL\nCritical issues found.\n"
+	if err := os.WriteFile(filepath.Join(councilDir, "2026-03-05-vibe-exhaust.md"), []byte(reportContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	logPath := filepath.Join(rpiDir, "phased-orchestration.log")
+	statusPath := filepath.Join(rpiDir, "live-status.md")
+
+	state := newTestPhasedState().WithRunID("verify-exhaust").WithMaxRetries(3).WithPhase(3).WithStartPhase(3)
+	// Pre-load attempts so next increment exceeds maxGateRetryDepth.
+	state.Attempts["phase_3"] = maxGateRetryDepth
+	allPhases := buildAllPhases(phases)
+	executor := &fakeExecutor{}
+
+	t.Setenv("MEMRL_MODE", "off")
+
+	retried, err := verifyGateAfterRetry(
+		context.Background(), tmp, state, 3,
+		logPath, tmp, statusPath, allPhases, executor, maxGateRetryDepth,
+	)
+	if err != nil {
+		t.Fatalf("forced escalation should not return error, got: %v", err)
+	}
+	if retried {
+		t.Error("verifyGateAfterRetry should return false when retries are exhausted (escalation)")
+	}
+}
+
 // --- fakeExecutor for tests ---
 
 type fakeExecutor struct {

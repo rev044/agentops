@@ -392,6 +392,28 @@ func TestShouldOpenBrowser(t *testing.T) {
 	}
 }
 
+func TestNewDashboardServer_Config(t *testing.T) {
+	handler := http.NewServeMux()
+	addr := "localhost:9999"
+	srv := newDashboardServer(addr, handler)
+
+	if srv.Addr != addr {
+		t.Errorf("Addr = %q, want %q", srv.Addr, addr)
+	}
+	if srv.Handler != handler {
+		t.Error("Handler does not match the provided handler")
+	}
+	if srv.ReadHeaderTimeout != 10*time.Second {
+		t.Errorf("ReadHeaderTimeout = %v, want 10s", srv.ReadHeaderTimeout)
+	}
+	if srv.IdleTimeout != 120*time.Second {
+		t.Errorf("IdleTimeout = %v, want 120s", srv.IdleTimeout)
+	}
+	if srv.MaxHeaderBytes != 8192 {
+		t.Errorf("MaxHeaderBytes = %d, want 8192", srv.MaxHeaderBytes)
+	}
+}
+
 func TestBuildServeMux_EmptyRunID(t *testing.T) {
 	dir := t.TempDir()
 	// An empty runID simulates watch mode when no run exists yet.

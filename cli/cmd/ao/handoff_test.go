@@ -438,6 +438,168 @@ func TestHandoffShellQuote(t *testing.T) {
 	}
 }
 
+func TestKillSessionViaTmux_NotInTmux(t *testing.T) {
+	// Save and clear TMUX-related env vars
+	origTmux := os.Getenv("TMUX")
+	origPane := os.Getenv("TMUX_PANE")
+	os.Unsetenv("TMUX")
+	os.Unsetenv("TMUX_PANE")
+	defer func() {
+		if origTmux != "" {
+			os.Setenv("TMUX", origTmux)
+		}
+		if origPane != "" {
+			os.Setenv("TMUX_PANE", origPane)
+		}
+	}()
+
+	err := killSessionViaTmux(t.TempDir())
+	if err == nil {
+		t.Fatal("expected error when not in tmux, got nil")
+	}
+	if err.Error() != "not in tmux" {
+		t.Errorf("error message = %q, want %q", err.Error(), "not in tmux")
+	}
+}
+
+func TestRunHandoff_BasicFlow(t *testing.T) {
+	dir := t.TempDir()
+
+	// Save and restore global flag vars (runHandoff reads these)
+	origGoal := handoffGoal
+	origCollect := handoffCollect
+	origRPIPhase := handoffRPIPhase
+	origEpicID := handoffEpicID
+	origRunID := handoffRunID
+	origDryRun := handoffDryRun
+	origNoKill := handoffNoKill
+	defer func() {
+		handoffGoal = origGoal
+		handoffCollect = origCollect
+		handoffRPIPhase = origRPIPhase
+		handoffEpicID = origEpicID
+		handoffRunID = origRunID
+		handoffDryRun = origDryRun
+		handoffNoKill = origNoKill
+	}()
+
+	// Set flags for a basic handoff: no-kill to avoid tmux, set a goal
+	handoffGoal = "test basic flow"
+	handoffCollect = false
+	handoffRPIPhase = 0
+	handoffEpicID = ""
+	handoffRunID = ""
+	handoffDryRun = false
+	handoffNoKill = true // avoid tmux kill attempt
+
+	// Change to temp dir so runHandoff's os.Getwd() uses it
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origWd)
+
+	// Call runHandoff — cmd parameter is unused by the function body
+	err = runHandoff(nil, []string{"basic flow summary"})
+	if err != nil {
+		t.Fatalf("runHandoff returned error: %v", err)
+	}
+
+	// Verify a handoff artifact was written under .agents/handoff/
+	handoffDir := filepath.Join(dir, ".agents", "handoff")
+	entries, err := os.ReadDir(handoffDir)
+	if err != nil {
+		t.Fatalf("handoff dir not created: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 handoff file, got %d", len(entries))
+	}
+
+	// Read and verify the artifact content
+	data, err := os.ReadFile(filepath.Join(handoffDir, entries[0].Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var artifact handoffArtifact
+	if err := json.Unmarshal(data, &artifact); err != nil {
+		t.Fatalf("artifact is not valid JSON: %v", err)
+	}
+	if artifact.Summary != "basic flow summary" {
+		t.Errorf("summary = %q, want %q", artifact.Summary, "basic flow summary")
+	}
+	if artifact.Goal != "test basic flow" {
+		t.Errorf("goal = %q, want %q", artifact.Goal, "test basic flow")
+	}
+	if artifact.Type != "manual" {
+		t.Errorf("type = %q, want %q", artifact.Type, "manual")
+	}
+	if artifact.SchemaVersion != 1 {
+		t.Errorf("schema_version = %d, want 1", artifact.SchemaVersion)
+	}
+	if artifact.Consumed {
+		t.Error("consumed should be false for newly written artifact")
+	}
+	if !strings.HasPrefix(artifact.ID, "handoff-") {
+		t.Errorf("id = %q, expected prefix 'handoff-'", artifact.ID)
+	}
+	if artifact.CreatedAt == "" {
+		t.Error("created_at should not be empty")
+	}
+}
+
+func TestRunHandoff_DryRunViaRunHandoff(t *testing.T) {
+	dir := t.TempDir()
+
+	// Save and restore global flag vars
+	origGoal := handoffGoal
+	origDryRun := handoffDryRun
+	origNoKill := handoffNoKill
+	origCollect := handoffCollect
+	origRPIPhase := handoffRPIPhase
+	defer func() {
+		handoffGoal = origGoal
+		handoffDryRun = origDryRun
+		handoffNoKill = origNoKill
+		handoffCollect = origCollect
+		handoffRPIPhase = origRPIPhase
+	}()
+
+	handoffGoal = "dry run goal"
+	handoffDryRun = true
+	handoffNoKill = true
+	handoffCollect = false
+	handoffRPIPhase = 0
+
+	// Change to temp dir
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origWd)
+
+	// Call runHandoff with --dry-run set — cmd parameter unused
+	err = runHandoff(nil, []string{"dry run summary"})
+	if err != nil {
+		t.Fatalf("runHandoff --dry-run returned error: %v", err)
+	}
+
+	// Verify NO files were written
+	handoffDir := filepath.Join(dir, ".agents", "handoff")
+	if fileExists(handoffDir) {
+		t.Error("handoff dir should not exist when --dry-run is set")
+	}
+	agentsDir := filepath.Join(dir, ".agents")
+	if fileExists(agentsDir) {
+		t.Error(".agents dir should not exist when --dry-run is set")
+	}
+}
+
 func TestBuildHandoffRPIContext_NoStateFile(t *testing.T) {
 	dir := t.TempDir()
 

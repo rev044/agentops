@@ -647,3 +647,109 @@ func TestPreflightRuntimeAvailability_NonexistentBinary(t *testing.T) {
 		t.Error("expected error for nonexistent binary")
 	}
 }
+
+// --- resumePhasedStateIfNeeded coverage ---
+
+func TestResumePhasedStateIfNeeded_NoState(t *testing.T) {
+	// When no state file exists and startPhase > 1, the function should
+	// return the original cwd without error (loadPhasedState fails silently).
+	tmp := t.TempDir()
+	state := newTestPhasedState()
+
+	got, err := resumePhasedStateIfNeeded(tmp, phasedEngineOptions{NoWorktree: true}, 2, "resume goal", state)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != tmp {
+		t.Errorf("returned path = %q, want original cwd %q", got, tmp)
+	}
+	// State fields should remain at their defaults since no existing state was loaded.
+	if state.EpicID != "" {
+		t.Errorf("EpicID = %q, want empty (no existing state to merge)", state.EpicID)
+	}
+	if state.Goal != "test goal" {
+		t.Errorf("Goal = %q, want %q (should keep original when no existing state)", state.Goal, "test goal")
+	}
+}
+
+func TestResumePhasedStateIfNeeded_WithState(t *testing.T) {
+	// Write a valid phased-state.json, then resume from phase 2.
+	// Verify that existing state fields are merged into the current state.
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	existing := &phasedState{
+		SchemaVersion: 1,
+		Goal:          "original goal",
+		Phase:         1,
+		StartPhase:    1,
+		Cycle:         1,
+		EpicID:        "ag-resume-42",
+		FastPath:      true,
+		Verdicts:      map[string]string{"pre_mortem": "PASS"},
+		Attempts:      map[string]int{"phase_1": 1},
+	}
+	data, err := json.MarshalIndent(existing, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, phasedStateFile), data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := newTestPhasedState()
+	got, err := resumePhasedStateIfNeeded(tmp, phasedEngineOptions{NoWorktree: true}, 2, "", state)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != tmp {
+		t.Errorf("returned path = %q, want %q", got, tmp)
+	}
+	// Verify merged fields from existing state.
+	if state.EpicID != "ag-resume-42" {
+		t.Errorf("EpicID = %q, want %q", state.EpicID, "ag-resume-42")
+	}
+	if !state.FastPath {
+		t.Error("FastPath should be true (merged from existing state)")
+	}
+	if state.Verdicts["pre_mortem"] != "PASS" {
+		t.Errorf("Verdicts[pre_mortem] = %q, want %q", state.Verdicts["pre_mortem"], "PASS")
+	}
+	if state.Attempts["phase_1"] != 1 {
+		t.Errorf("Attempts[phase_1] = %d, want 1", state.Attempts["phase_1"])
+	}
+	// Goal should be inherited from existing since we passed empty goal.
+	if state.Goal != "original goal" {
+		t.Errorf("Goal = %q, want %q (should inherit from existing when empty)", state.Goal, "original goal")
+	}
+}
+
+func TestResumePhasedStateIfNeeded_Corrupt(t *testing.T) {
+	// Write corrupt JSON to the state file. loadPhasedState should fail,
+	// and resumePhasedStateIfNeeded should return cwd without error
+	// (it treats load failure as "no existing state").
+	tmp := t.TempDir()
+	stateDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, phasedStateFile), []byte("{corrupt json!!!"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := newTestPhasedState()
+	got, err := resumePhasedStateIfNeeded(tmp, phasedEngineOptions{NoWorktree: true}, 2, "test goal", state)
+	if err != nil {
+		t.Fatalf("corrupt state should not cause error, got: %v", err)
+	}
+	if got != tmp {
+		t.Errorf("returned path = %q, want original cwd %q", got, tmp)
+	}
+	// State should remain unmodified since load failed.
+	if state.EpicID != "" {
+		t.Errorf("EpicID = %q, want empty (corrupt state should not merge)", state.EpicID)
+	}
+}

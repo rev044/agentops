@@ -839,3 +839,217 @@ func newLoopSupervisorTestCommand() *cobra.Command {
 	cmd.Flags().Duration("command-timeout", 20*time.Minute, "")
 	return cmd
 }
+
+func TestDeferSupervisorCleanup_NoError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// When cleanup succeeds and retErr is nil, deferSupervisorCleanup returns nil.
+	// executeRPICleanup succeeds on dirs without stale runs (returns nil),
+	// so this exercises the cleanupErr==nil && retErr==nil path.
+	cfg := rpiLoopSupervisorConfig{
+		AutoCleanStaleAfter:   24 * time.Hour,
+		CleanupPruneWorktrees: false,
+		CleanupPruneBranches:  false,
+	}
+
+	result := deferSupervisorCleanup(tmpDir, cfg, nil)
+	if result != nil {
+		t.Fatalf("expected nil when both cleanup and retErr succeed, got: %v", result)
+	}
+}
+
+func TestDeferSupervisorCleanup_WithError(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := rpiLoopSupervisorConfig{
+		AutoCleanStaleAfter:   24 * time.Hour,
+		CleanupPruneWorktrees: false,
+		CleanupPruneBranches:  false,
+	}
+
+	originalErr := fmt.Errorf("original cycle failure")
+	// With no git repo, cleanup will also fail. But when retErr is non-nil,
+	// the original error should be returned (not the cleanup error).
+	result := deferSupervisorCleanup(tmpDir, cfg, originalErr)
+	if result == nil {
+		t.Fatal("expected error to propagate, got nil")
+	}
+	if result.Error() != originalErr.Error() {
+		t.Fatalf("expected original error %q to propagate, got %q", originalErr.Error(), result.Error())
+	}
+}
+
+func TestHealDetachedHead_NotDetached(t *testing.T) {
+	tmpDir := t.TempDir()
+	// When DetachedHeal is false, healDetachedHeadIfNeeded should be a no-op
+	cfg := rpiLoopSupervisorConfig{
+		DetachedHeal: false,
+	}
+	err := healDetachedHeadIfNeeded(tmpDir, cfg)
+	if err != nil {
+		t.Fatalf("expected no-op when DetachedHeal=false, got: %v", err)
+	}
+}
+
+func TestEnsureLoopAttachedBranch_CreatesBranch(t *testing.T) {
+	repoPath := t.TempDir()
+
+	runGit := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repoPath
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	// Set up a git repo with a commit, then detach HEAD
+	runGit("init", "-q")
+	runGit("config", "user.email", "test@example.com")
+	runGit("config", "user.name", "Test")
+	runGit("checkout", "-q", "-b", "main")
+	runGit("commit", "-q", "--allow-empty", "-m", "init")
+	commitHash := runGit("rev-parse", "HEAD")
+
+	// Detach HEAD
+	runGit("checkout", "-q", "--detach", commitHash)
+
+	// Verify we're detached
+	cmd := exec.Command("git", "symbolic-ref", "HEAD")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err == nil {
+		t.Fatal("expected detached HEAD state")
+	}
+
+	branch, healed, err := ensureLoopAttachedBranch(repoPath, "ao-loop-")
+	if err != nil {
+		t.Fatalf("ensureLoopAttachedBranch: %v", err)
+	}
+	if !healed {
+		t.Fatal("expected healed=true for detached HEAD")
+	}
+	if !strings.HasPrefix(branch, "ao-loop-") {
+		t.Fatalf("expected branch to start with 'ao-loop-', got %q", branch)
+	}
+
+	// Verify HEAD is now attached to a branch
+	currentBranch := runGit("symbolic-ref", "--short", "HEAD")
+	if currentBranch != branch {
+		t.Fatalf("expected HEAD on branch %q, got %q", branch, currentBranch)
+	}
+}
+
+func TestRunBDSyncIfNeeded_Always(t *testing.T) {
+	prevRunner := loopCommandRunner
+	prevLookPath := loopLookPath
+	defer func() {
+		loopCommandRunner = prevRunner
+		loopLookPath = prevLookPath
+	}()
+
+	loopLookPath = func(_ string) (string, error) {
+		return "/usr/bin/bd", nil
+	}
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".beads"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	var calledWith []string
+	loopCommandRunner = func(_ string, _ time.Duration, name string, args ...string) error {
+		calledWith = append(calledWith, name+" "+strings.Join(args, " "))
+		return nil
+	}
+
+	cfg := rpiLoopSupervisorConfig{
+		BDSyncPolicy:   loopBDSyncPolicyAlways,
+		BDCommand:      "bd",
+		CommandTimeout: time.Minute,
+	}
+	if err := runBDSyncIfNeeded(tmpDir, cfg); err != nil {
+		t.Fatalf("runBDSyncIfNeeded: %v", err)
+	}
+
+	found := false
+	for _, call := range calledWith {
+		if call == "bd sync" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected 'bd sync' call with always policy, got calls: %v", calledWith)
+	}
+}
+
+func TestRunBDSyncIfNeeded_Never(t *testing.T) {
+	prevRunner := loopCommandRunner
+	defer func() { loopCommandRunner = prevRunner }()
+
+	var called bool
+	loopCommandRunner = func(_ string, _ time.Duration, name string, args ...string) error {
+		called = true
+		return nil
+	}
+
+	cfg := rpiLoopSupervisorConfig{
+		BDSyncPolicy:   loopBDSyncPolicyNever,
+		BDCommand:      "bd",
+		CommandTimeout: time.Minute,
+	}
+	if err := runBDSyncIfNeeded(t.TempDir(), cfg); err != nil {
+		t.Fatalf("runBDSyncIfNeeded: %v", err)
+	}
+	if called {
+		t.Fatal("expected no command calls with never policy")
+	}
+}
+
+func TestSyncRebaseAndPush_Success(t *testing.T) {
+	prevRunner := loopCommandRunner
+	prevOutputRunner := loopCommandOutputRunner
+	defer func() {
+		loopCommandRunner = prevRunner
+		loopCommandOutputRunner = prevOutputRunner
+	}()
+
+	var runnerCalls []string
+	loopCommandRunner = func(_ string, _ time.Duration, name string, args ...string) error {
+		runnerCalls = append(runnerCalls, name+" "+strings.Join(args, " "))
+		return nil
+	}
+	loopCommandOutputRunner = func(_ string, _ time.Duration, name string, args ...string) (string, error) {
+		// resolveLandingBranch calls symbolic-ref first
+		if name == "git" && len(args) > 0 && args[0] == "symbolic-ref" {
+			return "origin/main", nil
+		}
+		return "", nil
+	}
+
+	cfg := rpiLoopSupervisorConfig{
+		BDSyncPolicy:   loopBDSyncPolicyNever,
+		CommandTimeout: time.Minute,
+	}
+	err := syncRebaseAndPush(t.TempDir(), cfg)
+	if err != nil {
+		t.Fatalf("syncRebaseAndPush: %v", err)
+	}
+
+	// Verify fetch, rebase, and push were called in order
+	expectedSequence := []string{
+		"git fetch origin main",
+		"git rebase origin/main",
+		"git push origin HEAD:main",
+	}
+	matchIdx := 0
+	for _, call := range runnerCalls {
+		if matchIdx < len(expectedSequence) && call == expectedSequence[matchIdx] {
+			matchIdx++
+		}
+	}
+	if matchIdx != len(expectedSequence) {
+		t.Fatalf("expected git fetch/rebase/push sequence, got calls: %v", runnerCalls)
+	}
+}
