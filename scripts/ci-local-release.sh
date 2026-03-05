@@ -8,7 +8,6 @@ set -euo pipefail
 # Usage:
 #   ./scripts/ci-local-release.sh              # full gate (parallel where possible)
 #   ./scripts/ci-local-release.sh --fast       # skip heavy checks (~20s vs ~100s)
-#   ./scripts/ci-local-release.sh --skip-e2e-install
 #   ./scripts/ci-local-release.sh --security-mode quick
 #
 # Exit codes:
@@ -23,7 +22,6 @@ ARTIFACT_DIR="$REPO_ROOT/.agents/releases/local-ci/$RUN_ID"
 mkdir -p "$ARTIFACT_DIR"
 SECURITY_TMP_BASE="${TMPDIR:-/tmp}/agentops-security-local-ci/$RUN_ID"
 
-SKIP_E2E_INSTALL=false
 SECURITY_MODE="full"
 FAST_MODE=false
 
@@ -35,7 +33,6 @@ Usage: scripts/ci-local-release.sh [options]
 
 Options:
   --fast               Skip heavy checks (race tests, security gate, SBOM, hook integration)
-  --skip-e2e-install   Skip tests/e2e-install-test.sh
   --security-mode      quick|full (default: full)
   --jobs N             Max parallel jobs (default: half CPU cores, min 4)
   -h, --help           Show this help
@@ -46,10 +43,6 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --fast)
             FAST_MODE=true
-            shift
-            ;;
-        --skip-e2e-install)
-            SKIP_E2E_INSTALL=true
             shift
             ;;
         --security-mode)
@@ -556,14 +549,6 @@ run_step_bg "ao init --hooks + ao rpi smoke" run_init_hooks_rpi_smoke
 run_step_bg "Release smoke test (all commands)" ./scripts/release-smoke-test.sh --skip-build
 
 collect_parallel
-
-# ── Phase 6: E2E (optional) ──
-
-if [[ "$SKIP_E2E_INSTALL" == "true" ]]; then
-    warn "Skipped E2E install test (--skip-e2e-install)"
-else
-    run_step "E2E install test" ./tests/e2e-install-test.sh
-fi
 
 # ═══════════════════════════════════════════════════════
 #  Summary

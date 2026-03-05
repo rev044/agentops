@@ -160,6 +160,26 @@ else
     echo -e "  ${YELLOW}⚠ check-alias-collisions.sh not found${NC}"
 fi
 
+# ── Additional skill tests ──
+echo ""
+echo -e "${BLUE}━━━ Additional Skill Tests ━━━${NC}"
+
+for extra_test in \
+    "$SCRIPT_DIR/test-tuning-defaults.sh" \
+    "$SCRIPT_DIR/test-first-smoke.sh"; do
+    if [ -f "$extra_test" ]; then
+        test_name=$(basename "$extra_test" .sh)
+        echo -n "  $test_name ... "
+        if bash "$extra_test" >/dev/null 2>&1; then
+            echo -e "${GREEN}PASS${NC}"
+            PASSED=$((PASSED + 1))
+        else
+            echo -e "${RED}FAIL${NC}"
+            FAILED=$((FAILED + 1))
+        fi
+    fi
+done
+
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
 echo "║                       RESULTS                              ║"

@@ -20,7 +20,7 @@ The AgentOps skill test framework provides utilities for validating Claude Code 
 ## Test Framework Location
 
 ```
-tests/claude-code/
+tests/_quarantine/claude-code/
 ├── test-helpers.sh          # Core test utilities (source this)
 ├── logs/                    # JSON logs from test runs
 ├── test-<skill>-skill.sh    # Individual skill tests
@@ -433,10 +433,16 @@ fi
 | standards | 3 | Standard (recognition, languages, library) |
 | vibe | 2 | Minimal (recognition, domains) |
 | implement | 2 | Minimal (recognition, lifecycle) |
-| research | - | Check test file |
-| plan | - | Check test file |
-| crank | - | Check test file |
-| retro | - | Check test file |
+| research | - | None |
+| plan | - | None |
+| crank | - | None |
+| retro | - | None |
+
+### Quarantine Policy
+
+Tests in `tests/_quarantine/` are legacy integration tests that require a running Claude Code instance to execute. They were moved to quarantine because they cannot run in CI without external services (a live Claude Code process, API access, etc.).
+
+**Promotion path:** Tests move out of quarantine when they can run headlessly — either through mock-based execution (stubbing Claude responses) or API-stubbed harnesses that don't require a live Claude Code session.
 
 ---
 
@@ -446,13 +452,13 @@ fi
 
 ```bash
 cd <repo-root>
-./tests/claude-code/test-swarm-skill.sh
+./tests/_quarantine/claude-code/test-swarm-skill.sh
 ```
 
 ### All Tests
 
 ```bash
-for test in tests/claude-code/test-*-skill.sh; do
+for test in tests/_quarantine/claude-code/test-*-skill.sh; do
     echo "Running $test..."
     bash "$test" || echo "FAILED: $test"
 done
@@ -461,7 +467,7 @@ done
 ### With Custom Settings
 
 ```bash
-MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/claude-code/test-swarm-skill.sh
+MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/_quarantine/claude-code/test-swarm-skill.sh
 ```
 
 ---
@@ -480,7 +486,7 @@ MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/claude-code/test-swarm-skill.sh
 **Solutions:**
 - Increase timeout: `run_claude "prompt" 180`
 - Increase `MAX_TURNS` for complex prompts
-- Check log files in `tests/claude-code/logs/`
+- Check log files in `tests/_quarantine/claude-code/logs/`
 
 ---
 
@@ -514,7 +520,7 @@ MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/claude-code/test-swarm-skill.sh
 - Check skill namespace in log file
 - Review tool calls in JSON log:
   ```bash
-  grep '"name":' tests/claude-code/logs/claude-*.jsonl | head -10
+  grep '"name":' tests/_quarantine/claude-code/logs/claude-*.jsonl | head -10
   ```
 
 ---
@@ -556,18 +562,18 @@ MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/claude-code/test-swarm-skill.sh
 
 1. **Check the log file:**
    ```bash
-   ls -la tests/claude-code/logs/
-   cat tests/claude-code/logs/claude-<timestamp>.jsonl | head -50
+   ls -la tests/_quarantine/claude-code/logs/
+   cat tests/_quarantine/claude-code/logs/claude-<timestamp>.jsonl | head -50
    ```
 
 2. **Extract tool calls:**
    ```bash
-   grep '"name":' tests/claude-code/logs/claude-*.jsonl | tail -20
+   grep '"name":' tests/_quarantine/claude-code/logs/claude-*.jsonl | tail -20
    ```
 
 3. **Check skill invocations:**
    ```bash
-   grep -E '"skill":"' tests/claude-code/logs/claude-*.jsonl
+   grep -E '"skill":"' tests/_quarantine/claude-code/logs/claude-*.jsonl
    ```
 
 4. **Run interactively:**
@@ -603,7 +609,7 @@ MAX_TURNS=10 DEFAULT_TIMEOUT=180 ./tests/claude-code/test-swarm-skill.sh
 
 ## Example: Complete Test File
 
-See `<repo-root>/tests/claude-code/test-swarm-skill.sh` for a comprehensive example with:
+See `<repo-root>/tests/_quarantine/claude-code/test-swarm-skill.sh` for a comprehensive example with:
 - 8 tests covering full skill behavior
 - Retry logic for transient failures
 - Structured test runner with pass/fail tracking

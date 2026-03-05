@@ -624,6 +624,9 @@ jobs:
           bats tests/hooks/*.bats tests/scripts/*.bats
           echo "✅ Bats tests passed"
 
+      - name: Run orphan hooks audit
+        run: bash tests/hooks/test-orphan-hooks.sh
+
   check-test-staleness:
     runs-on: ubuntu-latest
     continue-on-error: true
