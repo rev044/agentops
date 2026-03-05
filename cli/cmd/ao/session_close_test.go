@@ -451,6 +451,161 @@ func TestSessionClose_printCloseTable(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// session_close.go — auto-extract
+// ---------------------------------------------------------------------------
+
+func TestSessionClose_AutoExtract_ProducesLearnings(t *testing.T) {
+	tmpDir := t.TempDir()
+	decisions := []string{"Use Go modules for dependency management", "Pin CI to Go 1.22"}
+	knowledge := []string{"The parser handles JSONL format natively"}
+
+	count, err := writeAutoExtractedLearnings(tmpDir, decisions, knowledge)
+	if err != nil {
+		t.Fatalf("writeAutoExtractedLearnings: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 learnings written, got %d", count)
+	}
+
+	// Verify files exist in .agents/learnings/
+	learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
+	entries, err := os.ReadDir(learningsDir)
+	if err != nil {
+		t.Fatalf("read learnings dir: %v", err)
+	}
+	if len(entries) != 3 {
+		t.Errorf("expected 3 files in learnings dir, got %d", len(entries))
+	}
+
+	// Verify frontmatter content in first file
+	firstFile := filepath.Join(learningsDir, entries[0].Name())
+	data, err := os.ReadFile(firstFile)
+	if err != nil {
+		t.Fatalf("read first learning: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"type: learning", "source: auto-extract", "confidence: medium", "maturity: provisional"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("expected learning to contain %q, got:\n%s", want, content)
+		}
+	}
+
+	// Verify category field is present
+	if !strings.Contains(content, "category: decision") && !strings.Contains(content, "category: knowledge") {
+		t.Errorf("expected learning to contain a category field, got:\n%s", content)
+	}
+}
+
+func TestSessionClose_AutoExtract_WritesHandoff(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	artifact := &handoffArtifact{
+		SchemaVersion: 1,
+		ID:            "auto-test123",
+		CreatedAt:     "2026-03-05T00:00:00Z",
+		Type:          "auto",
+		Summary:       "Auto-extracted test handoff",
+		DecisionsMade: []string{"test decision"},
+	}
+
+	path, err := writeHandoffArtifact(tmpDir, artifact)
+	if err != nil {
+		t.Fatalf("writeHandoffArtifact: %v", err)
+	}
+
+	if path == "" {
+		t.Fatal("expected non-empty handoff path")
+	}
+
+	// Verify file exists and contains expected content
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read handoff: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{`"type": "auto"`, `"summary": "Auto-extracted test handoff"`, `"id": "auto-test123"`} {
+		if !strings.Contains(content, want) {
+			t.Errorf("expected handoff to contain %q, got:\n%s", want, content)
+		}
+	}
+}
+
+func TestSessionClose_AutoExtract_NoTranscript(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Empty decisions and knowledge — graceful no-op
+	count, err := writeAutoExtractedLearnings(tmpDir, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected 0 learnings for empty input, got %d", count)
+	}
+
+	// Learnings dir should still be created but empty
+	learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
+	entries, err := os.ReadDir(learningsDir)
+	if err != nil {
+		t.Fatalf("read learnings dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected 0 files, got %d", len(entries))
+	}
+}
+
+func TestSessionClose_WithoutAutoExtract_Unchanged(t *testing.T) {
+	// Verify that SessionCloseResult defaults have zero values for new fields
+	result := SessionCloseResult{
+		SessionID:     "test-no-auto",
+		Transcript:    "/tmp/test.jsonl",
+		Decisions:     2,
+		Knowledge:     3,
+		VelocityDelta: 0.1,
+		Status:        "compounding",
+		Message:       "test",
+	}
+
+	// New fields should be zero-valued when auto-extract is not used
+	if result.LearningsExtracted != 0 {
+		t.Errorf("expected LearningsExtracted=0, got %d", result.LearningsExtracted)
+	}
+	if result.HandoffWritten != "" {
+		t.Errorf("expected HandoffWritten empty, got %q", result.HandoffWritten)
+	}
+
+	// Verify JSON output still works with new fields
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	err := outputCloseResult(result)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputCloseResult: %v", err)
+	}
+
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	_ = r.Close()
+	out := string(buf[:n])
+
+	// JSON should contain the new fields with zero values
+	if !strings.Contains(out, `"learnings_extracted": 0`) {
+		t.Errorf("expected JSON to contain learnings_extracted: 0, got:\n%s", out)
+	}
+	// handoff_written should be omitted (omitempty)
+	if strings.Contains(out, `"handoff_written"`) {
+		t.Errorf("expected handoff_written to be omitted from JSON, got:\n%s", out)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // session_close.go — shortenPath
 // ---------------------------------------------------------------------------
 

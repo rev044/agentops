@@ -28,6 +28,9 @@ run_ao_quick() {
 run_maintenance() {
     command -v ao >/dev/null 2>&1 || return 0
 
+    # Step 0: Auto-extract learnings while context is fresh (before forge)
+    run_ao_quick 10 session close --auto-extract --quiet || true
+
     FORGE_STATUS=0
     if run_ao_quick 6 forge transcript --last-session --quiet; then
         run_ao_quick 6 pool ingest --quiet || true

@@ -33,6 +33,7 @@ Examples:
 }
 
 var sessionCloseSessionID string
+var sessionCloseAutoExtract bool
 
 var sessionCloseCmd = &cobra.Command{
 	Use:   "close",
@@ -61,19 +62,23 @@ func init() {
 	sessionCmd.AddCommand(sessionCloseCmd)
 
 	sessionCloseCmd.Flags().StringVar(&sessionCloseSessionID, "session", "", "Session ID to close (default: most recent transcript)")
+	sessionCloseCmd.Flags().BoolVar(&sessionCloseAutoExtract, "auto-extract", false,
+		"Extract lightweight learnings and write handoff artifact")
 }
 
 // SessionCloseResult holds the result of a session close operation.
 type SessionCloseResult struct {
-	SessionID     string  `json:"session_id"`
-	Transcript    string  `json:"transcript"`
-	Decisions     int     `json:"decisions"`
-	Knowledge     int     `json:"knowledge"`
-	FilesChanged  int     `json:"files_changed"`
-	Issues        int     `json:"issues"`
-	VelocityDelta float64 `json:"velocity_delta"`
-	Status        string  `json:"status"`
-	Message       string  `json:"message"`
+	SessionID          string  `json:"session_id"`
+	Transcript         string  `json:"transcript"`
+	Decisions          int     `json:"decisions"`
+	Knowledge          int     `json:"knowledge"`
+	FilesChanged       int     `json:"files_changed"`
+	Issues             int     `json:"issues"`
+	VelocityDelta      float64 `json:"velocity_delta"`
+	Status             string  `json:"status"`
+	Message            string  `json:"message"`
+	LearningsExtracted int     `json:"learnings_extracted"`
+	HandoffWritten     string  `json:"handoff_written,omitempty"`
 }
 
 func runSessionClose(cmd *cobra.Command, args []string) error {
@@ -98,12 +103,12 @@ func runSessionClose(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 3: Forge, extract, measure, build result
-	return forgeExtractAndReport(transcriptPath)
+	return forgeExtractAndReport(transcriptPath, sessionCloseAutoExtract)
 }
 
 // forgeExtractAndReport runs the forge/extract/measure pipeline and outputs
 // the session close result. Extracted from runSessionClose to reduce CC.
-func forgeExtractAndReport(transcriptPath string) error {
+func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
@@ -137,16 +142,41 @@ func forgeExtractAndReport(transcriptPath string) error {
 	velocityDelta := computeVelocityDelta(preMetrics, postMetrics)
 	status := classifyFlywheelStatus(postMetrics)
 
+	var learningsExtracted int
+	var handoffPath string
+
+	if autoExtract {
+		learningsExtracted, err = writeAutoExtractedLearnings(cwd, session.Decisions, session.Knowledge)
+		if err != nil {
+			VerbosePrintf("Warning: auto-extract learnings: %v\n", err)
+		}
+
+		artifact := &handoffArtifact{
+			SchemaVersion: 1,
+			ID:            fmt.Sprintf("auto-%s", session.ID[:minInt(7, len(session.ID))]),
+			CreatedAt:     time.Now().UTC().Format(time.RFC3339),
+			Type:          "auto",
+			Summary:       fmt.Sprintf("Auto-extracted from session %s", session.ID),
+			DecisionsMade: session.Decisions,
+		}
+		handoffPath, err = writeHandoffArtifact(cwd, artifact)
+		if err != nil {
+			VerbosePrintf("Warning: auto-extract handoff: %v\n", err)
+		}
+	}
+
 	result := SessionCloseResult{
-		SessionID:     session.ID,
-		Transcript:    transcriptPath,
-		Decisions:     len(session.Decisions),
-		Knowledge:     len(session.Knowledge),
-		FilesChanged:  len(session.FilesChanged),
-		Issues:        len(session.Issues),
-		VelocityDelta: velocityDelta,
-		Status:        status,
-		Message:       fmt.Sprintf("Session closed: %d decisions, %d learnings extracted", len(session.Decisions), len(session.Knowledge)),
+		SessionID:          session.ID,
+		Transcript:         transcriptPath,
+		Decisions:          len(session.Decisions),
+		Knowledge:          len(session.Knowledge),
+		FilesChanged:       len(session.FilesChanged),
+		Issues:             len(session.Issues),
+		VelocityDelta:      velocityDelta,
+		Status:             status,
+		Message:            fmt.Sprintf("Session closed: %d decisions, %d learnings extracted", len(session.Decisions), len(session.Knowledge)),
+		LearningsExtracted: learningsExtracted,
+		HandoffWritten:     handoffPath,
 	}
 
 	return outputCloseResult(result)
@@ -346,6 +376,56 @@ func printCloseTable(r SessionCloseResult) {
 	fmt.Println()
 	fmt.Printf("  %s\n", r.Message)
 	fmt.Println()
+}
+
+// writeAutoExtractedLearnings writes each decision and knowledge item as a
+// lightweight learning file to .agents/learnings/. Returns the count of files written.
+func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []string) (int, error) {
+	dir := filepath.Join(cwd, ".agents", "learnings")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, fmt.Errorf("create learnings dir: %w", err)
+	}
+
+	datePrefix := time.Now().Format("2006-01-02")
+	count := 0
+
+	type item struct {
+		category string
+		content  string
+	}
+
+	items := make([]item, 0, len(decisions)+len(knowledge))
+	for _, d := range decisions {
+		items = append(items, item{"decision", d})
+	}
+	for _, k := range knowledge {
+		items = append(items, item{"knowledge", k})
+	}
+
+	for _, it := range items {
+		slug := slugify(it.content)
+		if len(slug) > 40 {
+			slug = slug[:40]
+		}
+		filename := fmt.Sprintf("%s-auto-%s.md", datePrefix, slug)
+		target := filepath.Join(dir, filename)
+
+		content := fmt.Sprintf("---\ntype: learning\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\ncategory: %s\n---\n\n%s\n", it.category, it.content)
+		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
+			return count, fmt.Errorf("write learning %s: %w", filename, err)
+		}
+		count++
+	}
+
+	return count, nil
+}
+
+// minInt returns the smaller of two ints.
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // shortenPath returns a display-friendly version of a file path.

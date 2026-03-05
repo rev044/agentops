@@ -145,6 +145,13 @@ func runHandoff(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Handoff written: %s\n", path)
 
+	// Bridge decisions to learnings
+	if len(artifact.DecisionsMade) > 0 || len(artifact.OpenRisks) > 0 {
+		if err := bridgeHandoffToLearnings(cwd, &artifact); err != nil {
+			fmt.Fprintf(os.Stderr, "warn: handoff\u2192learnings bridge: %v\n", err)
+		}
+	}
+
 	// --no-kill: skip session restart
 	if handoffNoKill {
 		return nil

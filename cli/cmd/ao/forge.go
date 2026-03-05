@@ -427,6 +427,36 @@ func finalizeTranscriptSession(session *storage.Session, state *transcriptState,
 		Total:     int(fileSize / CharsPerToken),
 		Estimated: true,
 	}
+	session.SessionType = detectSessionTypeFromContent(session.Summary, state.knowledge, state.decisions)
+}
+
+// detectSessionTypeFromContent infers session type from forged content.
+func detectSessionTypeFromContent(summary string, knowledge, decisions []string) string {
+	combined := strings.ToLower(summary)
+	for _, k := range knowledge {
+		combined += " " + strings.ToLower(k)
+	}
+	for _, d := range decisions {
+		combined += " " + strings.ToLower(d)
+	}
+	switch {
+	case strings.Contains(combined, "career") || strings.Contains(combined, "interview") ||
+		strings.Contains(combined, "resume") || strings.Contains(combined, "salary"):
+		return "career"
+	case strings.Contains(combined, "debug") || strings.Contains(combined, "stack trace") ||
+		strings.Contains(combined, "broken") || strings.Contains(combined, "error log"):
+		return "debug"
+	case strings.Contains(combined, "brainstorm") || strings.Contains(combined, "what if") ||
+		strings.Contains(combined, "option a vs"):
+		return "brainstorm"
+	case strings.Contains(combined, "research") || strings.Contains(combined, "explore"):
+		return "research"
+	case strings.Contains(combined, "go test") || strings.Contains(combined, "git commit") ||
+		strings.Contains(combined, "implement") || strings.Contains(combined, "feat("):
+		return "implement"
+	default:
+		return "general"
+	}
 }
 
 // transcriptState holds accumulated state during transcript processing.

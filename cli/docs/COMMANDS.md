@@ -1298,6 +1298,7 @@ ao session close [flags]
 **Flags:**
 
 ```
+      --auto-extract     Extract lightweight learnings and write handoff artifact
   -h, --help             help for close
       --session string   Session ID to close (default: most recent transcript)
 ```
@@ -1639,18 +1640,20 @@ ao inject [context] [flags]
 **Flags:**
 
 ```
-      --apply-decay          Apply confidence decay before ranking
-      --bead string          Bead ID for work-scoped knowledge injection
-      --context string       Context query for filtering (alternative to positional arg)
-      --for string           Skill name — assembles context per skill's context declaration
-      --format string        Output format: markdown, json (default "markdown")
-  -h, --help                 help for inject
-      --index-only           Output compact knowledge index table instead of full content
-      --max-tokens int       Maximum tokens to output (default 1500)
-      --no-cite              Disable citation recording
-      --predecessor string   Path to predecessor handoff file for context injection
-      --quarantine-flagged   Quarantine flagged learnings from quality report
-      --session string       Session ID for citation tracking (auto-generated if empty)
+      --apply-decay           Apply confidence decay before ranking
+      --bead string           Bead ID for work-scoped knowledge injection
+      --context string        Context query for filtering (alternative to positional arg)
+      --for string            Skill name — assembles context per skill's context declaration
+      --format string         Output format: markdown, json (default "markdown")
+  -h, --help                  help for inject
+      --index-only            Output compact knowledge index table instead of full content
+      --max-tokens int        Maximum tokens to output (default 1500)
+      --no-cite               Disable citation recording
+      --predecessor string    Path to predecessor handoff file for context injection
+      --profile               Include .agents/profile.md identity artifact in output
+      --quarantine-flagged    Quarantine flagged learnings from quality report
+      --session string        Session ID for citation tracking (auto-generated if empty)
+      --session-type string   Session type for scoring boost (career, research, debug, implement, brainstorm)
 ```
 
 ---

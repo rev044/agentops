@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"time"
@@ -40,6 +41,7 @@ type flywheelCloseLoopResult struct {
 		Rewarded  int `json:"rewarded"`
 		Skipped   int `json:"skipped"`
 	} `json:"citation_feedback"`
+	MemoryPromoted int `json:"memory_promoted"`
 }
 
 var flywheelCloseLoopCmd = &cobra.Command{
@@ -127,6 +129,13 @@ func runFlywheelCloseLoop(cmd *cobra.Command, args []string) error {
 	result.Store.Indexed = indexed
 	result.Store.IndexPath = indexPath
 
+	// 7) promote high-value learnings to MEMORY.md
+	memoryPromoted, memErr := promoteToMemory(cwd)
+	if memErr != nil && !flywheelCloseLoopQuiet {
+		fmt.Fprintf(os.Stderr, "warn: memory promotion: %v\n", memErr)
+	}
+	result.MemoryPromoted = memoryPromoted
+
 	return outputFlywheelCloseLoopResult(result)
 }
 
@@ -150,9 +159,20 @@ func outputFlywheelCloseLoopResult(res flywheelCloseLoopResult) error {
 		fmt.Printf("Store: indexed=%d (categorize=%v)\n", res.Store.Indexed, res.Store.Categorize)
 		fmt.Printf("Citation feedback: processed=%d (rewarded=%d, skipped=%d)\n",
 			res.CitationFeedback.Processed, res.CitationFeedback.Rewarded, res.CitationFeedback.Skipped)
+		fmt.Printf("Memory promotion: promoted=%d\n", res.MemoryPromoted)
 		fmt.Println()
 		return nil
 	}
+}
+
+// promoteToMemory promotes high-value learnings to MEMORY.md via ao notebook update.
+func promoteToMemory(cwd string) (int, error) {
+	cmd := exec.Command("ao", "notebook", "update", "--quiet")
+	cmd.Dir = cwd
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("notebook update: %w", err)
+	}
+	return 1, nil
 }
 
 func ingestPendingFilesToPool(cwd string, files []string) (poolIngestResult, error) {

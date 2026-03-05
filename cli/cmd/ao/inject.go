@@ -54,6 +54,8 @@ var (
 	injectIndexOnly          bool
 	injectQuarantineFlagged  bool
 	injectForSkill           string
+	injectSessionType        string
+	injectProfile            bool
 )
 
 type olConstraint struct {
@@ -87,6 +89,7 @@ type learning struct {
 	Utility        float64 `json:"utility,omitempty"`         // MemRL utility value
 	CompositeScore float64 `json:"composite_score,omitempty"` // Two-Phase ranking score
 	Maturity       string  `json:"maturity,omitempty"`        // CASS maturity level
+	SessionType    string  `json:"session_type,omitempty"`   // career, research, debug, implement, brainstorm
 	Superseded     bool    `json:"-"`                         // Internal flag - not serialized
 	Global         bool    `json:"-"`                         // Internal flag: from global dir
 }
@@ -155,6 +158,8 @@ func init() {
 	injectCmd.Flags().BoolVar(&injectIndexOnly, "index-only", false, "Output compact knowledge index table instead of full content")
 	injectCmd.Flags().BoolVar(&injectQuarantineFlagged, "quarantine-flagged", false, "Quarantine flagged learnings from quality report")
 	injectCmd.Flags().StringVar(&injectForSkill, "for", "", "Skill name — assembles context per skill's context declaration")
+	injectCmd.Flags().StringVar(&injectSessionType, "session-type", "", "Session type for scoring boost (career, research, debug, implement, brainstorm)")
+	injectCmd.Flags().BoolVar(&injectProfile, "profile", false, "Include .agents/profile.md identity artifact in output")
 }
 
 func runInject(cmd *cobra.Command, args []string) error {
@@ -205,6 +210,14 @@ func runInject(cmd *cobra.Command, args []string) error {
 		resortLearnings(knowledge.Learnings)
 	}
 
+	// Apply session-type scoring boost
+	if injectSessionType != "" {
+		for i := range knowledge.Learnings {
+			knowledge.Learnings[i].CompositeScore *= sessionTypeBoost(knowledge.Learnings[i], injectSessionType)
+		}
+		resortLearnings(knowledge.Learnings)
+	}
+
 	// Load predecessor context
 	if injectPredecessor != "" {
 		knowledge.Predecessor = parsePredecessorFile(injectPredecessor)
@@ -248,6 +261,14 @@ func runInject(cmd *cobra.Command, args []string) error {
 			output = trimJSONToCharBudget(knowledge, charBudget)
 		} else {
 			output = trimToCharBudget(output, charBudget)
+		}
+	}
+
+	// Prepend profile if requested
+	if injectProfile {
+		profilePath := filepath.Join(cwd, ".agents", "profile.md")
+		if data, readErr := os.ReadFile(profilePath); readErr == nil {
+			output = "## Identity\n\n" + string(data) + "\n\n" + output
 		}
 	}
 

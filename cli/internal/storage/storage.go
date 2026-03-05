@@ -38,6 +38,9 @@ type Session struct {
 
 	// TranscriptPath is the source transcript file.
 	TranscriptPath string `json:"transcript_path,omitempty"`
+
+	// SessionType is the detected session type (career, research, debug, implement, brainstorm, general).
+	SessionType string `json:"session_type,omitempty"`
 }
 
 // TokenUsage tracks token consumption.
