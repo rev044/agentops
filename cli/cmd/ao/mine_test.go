@@ -939,3 +939,119 @@ func TestMineWorkItemID_AlgorithmV2_BreaksBackcompat(t *testing.T) {
 	}
 	t.Logf("Orphan Old ID: %s, New ID: %s — one-time dedup miss accepted", oldOrphanID, newOrphanID)
 }
+
+// ---------------------------------------------------------------------------
+// Events source tests
+// ---------------------------------------------------------------------------
+
+func setupEventsFixture(t *testing.T, events []string) string {
+	t.Helper()
+	tmp := t.TempDir()
+	runID := "test-run-001"
+	runDir := filepath.Join(tmp, ".agents", "rpi", "runs", runID)
+	if err := os.MkdirAll(runDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write phased-state.json so scanRegistryRuns discovers this run
+	state := `{"run_id":"` + runID + `","goal":"test","phase":3,"started_at":"` + time.Now().UTC().Format(time.RFC3339) + `"}`
+	if err := os.WriteFile(filepath.Join(runDir, "phased-state.json"), []byte(state), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write events.jsonl
+	if len(events) > 0 {
+		evData := strings.Join(events, "\n") + "\n"
+		if err := os.WriteFile(filepath.Join(runDir, "events.jsonl"), []byte(evData), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return tmp
+}
+
+func TestMineEvents_EmptyRegistry(t *testing.T) {
+	tmp := t.TempDir()
+	findings, err := mineEvents(tmp, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if findings.RunsScanned != 0 {
+		t.Errorf("expected 0 runs scanned, got %d", findings.RunsScanned)
+	}
+	if findings.TotalEvents != 0 {
+		t.Errorf("expected 0 total events, got %d", findings.TotalEvents)
+	}
+}
+
+func TestMineEvents_WithEvents(t *testing.T) {
+	events := []string{
+		`{"schema_version":1,"event_id":"e1","run_id":"test-run-001","type":"phase.start","message":"start","timestamp":"2026-03-05T00:00:00Z"}`,
+		`{"schema_version":1,"event_id":"e2","run_id":"test-run-001","type":"phase.start","message":"start2","timestamp":"2026-03-05T00:01:00Z"}`,
+		`{"schema_version":1,"event_id":"e3","run_id":"test-run-001","type":"worker.complete","message":"done","timestamp":"2026-03-05T00:02:00Z"}`,
+	}
+	tmp := setupEventsFixture(t, events)
+
+	findings, err := mineEvents(tmp, 48*time.Hour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if findings.RunsScanned != 1 {
+		t.Errorf("expected 1 run scanned, got %d", findings.RunsScanned)
+	}
+	if findings.TotalEvents != 3 {
+		t.Errorf("expected 3 total events, got %d", findings.TotalEvents)
+	}
+	if findings.EventTypeCounts["phase.start"] != 2 {
+		t.Errorf("expected 2 phase.start events, got %d", findings.EventTypeCounts["phase.start"])
+	}
+	if findings.EventTypeCounts["worker.complete"] != 1 {
+		t.Errorf("expected 1 worker.complete event, got %d", findings.EventTypeCounts["worker.complete"])
+	}
+}
+
+func TestMineEvents_ErrorExtraction(t *testing.T) {
+	events := []string{
+		`{"schema_version":1,"event_id":"e1","run_id":"test-run-001","type":"error","message":"worker crashed","timestamp":"2026-03-05T00:00:00Z"}`,
+		`{"schema_version":1,"event_id":"e2","run_id":"test-run-001","type":"phase.start","message":"ok","timestamp":"2026-03-05T00:01:00Z"}`,
+	}
+	tmp := setupEventsFixture(t, events)
+
+	findings, err := mineEvents(tmp, 48*time.Hour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(findings.ErrorEvents) != 1 {
+		t.Fatalf("expected 1 error event, got %d", len(findings.ErrorEvents))
+	}
+	if findings.ErrorEvents[0].Message != "worker crashed" {
+		t.Errorf("expected message 'worker crashed', got %q", findings.ErrorEvents[0].Message)
+	}
+}
+
+func TestMineEvents_GateVerdicts(t *testing.T) {
+	events := []string{
+		`{"schema_version":1,"event_id":"e1","run_id":"test-run-001","type":"gate.pre-mortem.verdict","phase":1,"message":"pass","timestamp":"2026-03-05T00:00:00Z","details":{"verdict":"PASS"}}`,
+		`{"schema_version":1,"event_id":"e2","run_id":"test-run-001","type":"gate.vibe.verdict","phase":3,"message":"warn","timestamp":"2026-03-05T00:01:00Z","details":{"verdict":"WARN"}}`,
+	}
+	tmp := setupEventsFixture(t, events)
+
+	findings, err := mineEvents(tmp, 48*time.Hour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(findings.GateVerdicts) != 2 {
+		t.Fatalf("expected 2 gate verdicts, got %d", len(findings.GateVerdicts))
+	}
+	if findings.GateVerdicts[0].Verdict != "PASS" {
+		t.Errorf("expected PASS, got %q", findings.GateVerdicts[0].Verdict)
+	}
+	if findings.GateVerdicts[1].Verdict != "WARN" {
+		t.Errorf("expected WARN, got %q", findings.GateVerdicts[1].Verdict)
+	}
+}
+
+func TestValidMineSources_IncludesEvents(t *testing.T) {
+	if !validMineSources["events"] {
+		t.Error("'events' should be a valid mine source")
+	}
+}

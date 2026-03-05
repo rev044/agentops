@@ -38,6 +38,7 @@ Sources (--sources flag, comma-separated):
   git     Git log + diffs: recurring fix patterns, co-change clusters
   agents  .agents/research/ files not yet referenced in learnings
   code    gocyclo hotspots: functions edited repeatedly or high CC
+  events  RPI C2 event streams: error patterns, gate verdicts (opt-in)
 
 Output goes to .agents/mine/YYYY-MM-DD-HH.json (structured JSON).
 Mine is non-destructive: it only reads and appends.
@@ -71,6 +72,7 @@ type MineReport struct {
 	Git          *GitFindings    `json:"git,omitempty"`
 	Agents       *AgentsFindings `json:"agents,omitempty"`
 	Code         *CodeFindings   `json:"code,omitempty"`
+	Events       *EventsFindings `json:"events,omitempty"`
 }
 
 // GitFindings holds signal extracted from git log.
@@ -100,11 +102,36 @@ type ComplexityHotspot struct {
 	RecentEdits int    `json:"recent_edits"`
 }
 
+// EventsFindings holds signal extracted from RPI C2 event streams.
+type EventsFindings struct {
+	RunsScanned     int                  `json:"runs_scanned"`
+	TotalEvents     int                  `json:"total_events"`
+	EventTypeCounts map[string]int       `json:"event_type_counts,omitempty"`
+	ErrorEvents     []EventErrorSummary  `json:"error_events,omitempty"`
+	GateVerdicts    []GateVerdictSummary `json:"gate_verdicts,omitempty"`
+}
+
+// EventErrorSummary captures an error event from a run.
+type EventErrorSummary struct {
+	RunID     string `json:"run_id"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
+}
+
+// GateVerdictSummary captures a gate verdict event from a run.
+type GateVerdictSummary struct {
+	RunID   string `json:"run_id"`
+	Phase   int    `json:"phase"`
+	Type    string `json:"type"`
+	Verdict string `json:"verdict"`
+}
+
 // validMineSources enumerates the allowed source names.
 var validMineSources = map[string]bool{
 	"git":    true,
 	"agents": true,
 	"code":   true,
+	"events": true,
 }
 
 func runMine(cmd *cobra.Command, args []string) error {
@@ -168,6 +195,15 @@ func runMineSources(cwd string, sources []string, window time.Duration, report *
 				continue
 			}
 			report.Code = findings
+		case "events":
+			findings, evErr := mineEvents(cwd, window)
+			if evErr != nil {
+				if !mineQuiet {
+					fmt.Fprintf(errW, "warning: events source: %v\n", evErr)
+				}
+				continue
+			}
+			report.Events = findings
 		}
 	}
 }
@@ -708,4 +744,72 @@ func printMineSummary(w io.Writer, r *MineReport) {
 			fmt.Fprintf(w, "  code: %d hotspots\n", len(r.Code.Hotspots))
 		}
 	}
+	if r.Events != nil {
+		fmt.Fprintf(w, "  events: %d runs scanned, %d total events", r.Events.RunsScanned, r.Events.TotalEvents)
+		if len(r.Events.ErrorEvents) > 0 {
+			fmt.Fprintf(w, ", %d errors", len(r.Events.ErrorEvents))
+		}
+		fmt.Fprintln(w)
+	}
+}
+
+// mineEvents scans RPI C2 event streams for patterns.
+func mineEvents(cwd string, window time.Duration) (*EventsFindings, error) {
+	runs := scanRegistryRuns(cwd)
+	if len(runs) == 0 {
+		return &EventsFindings{}, nil
+	}
+
+	cutoff := time.Now().Add(-window)
+	findings := &EventsFindings{
+		EventTypeCounts: make(map[string]int),
+	}
+
+	for _, run := range runs {
+		if run.StartedAt != "" {
+			t, err := time.Parse(time.RFC3339, run.StartedAt)
+			if err == nil && t.Before(cutoff) {
+				continue
+			}
+		}
+
+		events, err := loadRPIC2Events(cwd, run.RunID)
+		if err != nil || len(events) == 0 {
+			continue
+		}
+
+		findings.RunsScanned++
+		for _, ev := range events {
+			findings.TotalEvents++
+			findings.EventTypeCounts[ev.Type]++
+
+			if ev.Type == "error" {
+				findings.ErrorEvents = append(findings.ErrorEvents, EventErrorSummary{
+					RunID:     ev.RunID,
+					Message:   ev.Message,
+					Timestamp: ev.Timestamp,
+				})
+			}
+
+			if strings.HasPrefix(ev.Type, "gate.") && strings.HasSuffix(ev.Type, ".verdict") {
+				verdict := ""
+				if ev.Details != nil {
+					var d map[string]interface{}
+					if json.Unmarshal(ev.Details, &d) == nil {
+						if v, ok := d["verdict"].(string); ok {
+							verdict = v
+						}
+					}
+				}
+				findings.GateVerdicts = append(findings.GateVerdicts, GateVerdictSummary{
+					RunID:   ev.RunID,
+					Phase:   ev.Phase,
+					Type:    ev.Type,
+					Verdict: verdict,
+				})
+			}
+		}
+	}
+
+	return findings, nil
 }

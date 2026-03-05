@@ -209,6 +209,21 @@ func TestMergeWorktree(t *testing.T) {
 func TestMergeWorktree_Conflict(t *testing.T) {
 	repo := initTestRepo(t)
 
+	// Gitignore .agents/ so merge lock file doesn't cause "dirty repo" assertion
+	if err := os.WriteFile(filepath.Join(repo, ".gitignore"), []byte(".agents/\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"git", "add", ".gitignore"},
+		{"git", "commit", "-m", "Add gitignore"},
+	} {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = repo
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("gitignore commit (%v): %v\n%s", args, err, out)
+		}
+	}
+
 	origDir, _ := os.Getwd()
 	if err := os.Chdir(repo); err != nil {
 		t.Fatal(err)

@@ -80,7 +80,7 @@ for wt_dir in "$@"; do
     # Use git diff-filter=D to find files deleted in the worktree (vs HEAD).
     # This catches deletions that may not appear in the merge-base diff above
     # (e.g. files deleted and re-added with same content, or staged-only deletes).
-    deleted_files="$(git -C "$wt_dir" diff HEAD --diff-filter=D --name-only 2>/dev/null || true)"
+    deleted_files="$(git -C "$wt_dir" diff "$merge_base" HEAD --diff-filter=D --name-only 2>/dev/null || true)"
     if [[ -n "$deleted_files" ]]; then
         while IFS= read -r file; do
             dst="$REPO_ROOT/$file"

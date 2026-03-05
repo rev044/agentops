@@ -233,8 +233,40 @@ func tryCreateWorktree(repoRoot, currentCommit string, timeout time.Duration, ve
 	return "", "", ErrWorktreeCollision
 }
 
+// acquireMergeLock obtains an exclusive file lock for merge serialization.
+func acquireMergeLock(repoRoot string) (*os.File, error) {
+	lockPath := filepath.Join(repoRoot, ".agents", "rpi", "merge.lock")
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o750); err != nil {
+		return nil, fmt.Errorf("create lock dir: %w", err)
+	}
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open merge lock: %w", err)
+	}
+	if err := lockFile(f); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("acquire merge lock: %w", err)
+	}
+	return f, nil
+}
+
+// releaseMergeLock releases the exclusive merge lock.
+func releaseMergeLock(f *os.File) {
+	if f == nil {
+		return
+	}
+	_ = unlockFile(f)
+	_ = f.Close()
+}
+
 // MergeWorktree merges the RPI worktree commit back into the original branch.
 func MergeWorktree(repoRoot, worktreePath, runID string, timeout time.Duration, verbosef func(string, ...any)) error {
+	lock, err := acquireMergeLock(repoRoot)
+	if err != nil {
+		return fmt.Errorf("merge lock: %w", err)
+	}
+	defer releaseMergeLock(lock)
+
 	if err := waitForCleanRepo(repoRoot, timeout, verbosef); err != nil {
 		return err
 	}

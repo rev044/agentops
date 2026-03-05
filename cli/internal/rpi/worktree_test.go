@@ -263,3 +263,41 @@ func TestInitWorktreeAgentsDir_WarningLogged(t *testing.T) {
 		t.Error("expected warning to be logged when MkdirAll fails")
 	}
 }
+
+func TestAcquireMergeLock_Basic(t *testing.T) {
+	tmp := t.TempDir()
+	lock, err := acquireMergeLock(tmp)
+	if err != nil {
+		t.Fatalf("failed to acquire lock: %v", err)
+	}
+	defer releaseMergeLock(lock)
+
+	lockPath := filepath.Join(tmp, ".agents", "rpi", "merge.lock")
+	if _, err := os.Stat(lockPath); os.IsNotExist(err) {
+		t.Error("expected merge.lock file to exist")
+	}
+}
+
+func TestAcquireMergeLock_CreatesDir(t *testing.T) {
+	tmp := t.TempDir()
+	// .agents/rpi/ doesn't exist yet
+	lock, err := acquireMergeLock(tmp)
+	if err != nil {
+		t.Fatalf("failed to acquire lock: %v", err)
+	}
+	releaseMergeLock(lock)
+
+	dir := filepath.Join(tmp, ".agents", "rpi")
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("expected .agents/rpi/ to be created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("expected .agents/rpi/ to be a directory")
+	}
+}
+
+func TestReleaseMergeLock_NilSafe(t *testing.T) {
+	// Should not panic
+	releaseMergeLock(nil)
+}

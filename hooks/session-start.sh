@@ -35,6 +35,11 @@ done
 # Clear stale dedup flags from prior sessions (prevents cross-session suppression)
 rm -f "$ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
 
+# Auto-cleanup stale RPI runs (lightweight, <1s, dry-run only)
+if command -v ao &>/dev/null; then
+    ao rpi cleanup --all --stale-after 24h --dry-run 2>/dev/null | head -5 || true
+fi
+
 # Auto-gitignore .agents/
 if [ "${AGENTOPS_GITIGNORE_AUTO:-1}" != "0" ] && [ -d "$ROOT/.git" ]; then
     GITIGNORE="$ROOT/.gitignore"
