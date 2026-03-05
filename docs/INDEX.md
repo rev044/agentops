@@ -26,7 +26,6 @@
 
 - [Skills Reference](SKILLS.md) — Complete reference for all AgentOps skills
 - [Skill Tiers](../skills/SKILL-TIERS.md) — Taxonomy and dependency graph
-- [Testing Skills](testing-skills.md) — Guide for writing and running skill tests
 - [Claude Code Skills Docs](https://code.claude.com/docs/en/skills) — Official Claude Code skills documentation (upstream)
 
 ## Workflows
@@ -73,6 +72,13 @@
 - [JSON/JSONL Standards](standards/json-jsonl-standards.md) — JSON and JSONL conventions
 - [YAML/Helm Standards](standards/yaml-helm-standards.md) — YAML and Helm chart conventions
 - [Tag Vocabulary](standards/tag-vocabulary.md) — Standard tag definitions
+
+## Testing & CI
+
+- [Testing Guide](TESTING.md) — Umbrella guide for all test types, tiers, and conventions
+- [CI/CD Architecture](CI-CD.md) — Workflow map, job graph, blocking vs soft gates, local CI
+- [Testing Skills](testing-skills.md) — Guide for writing and running skill integration tests
+- [Release E2E Checklist](release-e2e-checklist.md) — Fast/full local gate commands and release smoke expectations
 
 ## Levels
 
@@ -160,7 +166,6 @@
 - [CLI ↔ Skills/Hooks Map](cli-skills-map.md) — Which commands are called by which skills and hooks
 - [Reference](reference.md) — Deep documentation and pipeline details
 - [Releasing](RELEASING.md) — Release process for ao CLI and plugin
-- [Release E2E Checklist](release-e2e-checklist.md) — Fast/full local gate commands and release smoke expectations
 - [Troubleshooting](troubleshooting.md) — Common issues and quick fixes
 - [Incident Runbook](INCIDENT-RUNBOOK.md) — Operational runbook for incidents and recovery
 - [AO Command Customization Matrix](architecture/ao-command-customization-matrix.md) — External command dependencies and customization policy tiers

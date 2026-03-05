@@ -132,6 +132,25 @@ cd cli && make build && make test
 cd cli && make sync-hooks
 ```
 
+### Local-Only Checks
+
+Four checks run only in the local CI gate and are intentionally excluded from `validate.yml`:
+
+| Script | Reason |
+|--------|--------|
+| `check-doctor-health.sh` | Already present in `validate.yml` as the `doctor-check` job; duplicating it adds no value |
+| `check-go-command-test-pair.sh` | Go-specific pairing check; CI has a dedicated `go-build` job that covers this surface |
+| `check-skill-flag-refs.sh` | Fast local cross-reference check with low CI value; catches flag mismatches during authoring |
+| `release-cadence-check.sh` | Only relevant at release time; not meaningful in a per-push pipeline |
+
+### Skipped Remote-Parity Checks
+
+One CI check is intentionally **not** wired into the local gate:
+
+| Script | Reason |
+|--------|--------|
+| `validate-learning-coherence.sh` | Fails on pre-existing frontmatter-only learning files; needs repo cleanup before local enforcement |
+
 ## Git Hooks
 
 Hooks are installed via `ao init --hooks` or `ao hooks install`. They live in `hooks/` (source of truth) and are embedded into the CLI binary via `cli/embedded/hooks/`.

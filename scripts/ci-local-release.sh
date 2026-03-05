@@ -519,6 +519,15 @@ run_step_bg "cmd/ao coverage floor gate" ./scripts/check-cmdao-coverage-floor.sh
 
 collect_parallel
 
+# ── Phase 3b: Remote-parity checks ──
+# These run in CI (validate.yml) but were missing from local gate.
+# validate-learning-coherence.sh excluded: fails on frontmatter-only learnings (pre-existing issue).
+
+run_step_bg "Coverage ratchet check" ./scripts/coverage-ratchet.sh --check
+run_step_bg "Skill schema validation" ./scripts/validate-skill-schema.sh --verbose
+
+collect_parallel
+
 # ── Phase 4: Heavy checks (skipped in --fast mode) ──
 
 if [[ "$FAST_MODE" == "true" ]]; then
