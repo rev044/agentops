@@ -57,35 +57,7 @@ for jf in "$REPO_ROOT/.claude-plugin/plugin.json" "$REPO_ROOT/hooks/hooks.json";
     fi
 done
 
-# Validate skill structure
-skill_errors=0
-skill_count=0
-for skill_dir in "$REPO_ROOT"/skills/*/; do
-    [[ ! -d "$skill_dir" ]] && continue
-    skill_name=$(basename "$skill_dir")
-    skill_md="${skill_dir}SKILL.md"
-
-    if [[ -f "$skill_md" ]]; then
-        if head -1 "$skill_md" | grep -q "^---$"; then
-            if grep -q "^name:" "$skill_md"; then
-                skill_count=$((skill_count + 1))
-            else
-                fail "$skill_name - missing 'name' in frontmatter"
-                skill_errors=$((skill_errors + 1))
-            fi
-        else
-            fail "$skill_name - no YAML frontmatter"
-            skill_errors=$((skill_errors + 1))
-        fi
-    else
-        fail "$skill_name/SKILL.md missing"
-        skill_errors=$((skill_errors + 1))
-    fi
-done
-
-if [[ $skill_errors -eq 0 ]] && [[ $skill_count -gt 0 ]]; then
-    pass "All $skill_count skills have valid SKILL.md"
-fi
+# Skill structure validation deferred to smoke-test.sh and validate-doc-release.sh (CI-active)
 
 # Validate agents
 agent_count=0
@@ -118,15 +90,7 @@ else
     skip "Doc link validation (script not found)"
 fi
 
-if [[ -f "$SCRIPT_DIR/docs/validate-skill-count.sh" ]]; then
-    if bash "$SCRIPT_DIR/docs/validate-skill-count.sh" > /dev/null 2>&1; then
-        pass "Doc skill count validation"
-    else
-        fail "Doc skill count validation"
-    fi
-else
-    skip "Doc skill count validation (script not found)"
-fi
+# Skill count validation deferred to validate-doc-release.sh (CI-active, runs validate-skill-count.sh + sync-skill-counts.sh)
 
 if [[ -f "$SCRIPT_DIR/docs/validate-goal-count.sh" ]]; then
     if bash "$SCRIPT_DIR/docs/validate-goal-count.sh" > /dev/null 2>&1; then
