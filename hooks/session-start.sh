@@ -138,6 +138,7 @@ if command -v ao >/dev/null 2>&1; then
     INJECT_ARGS="--apply-decay --format markdown --max-tokens 1000"
     [ -n "${H_GOAL:-}" ] && INJECT_ARGS="${INJECT_ARGS} --context ${H_GOAL}"
     [ -n "${H_TYPE:-}" ] && INJECT_ARGS="${INJECT_ARGS} --session-type ${H_TYPE}"
+    [ -f "${PROJECT_ROOT:-.}/.agents/profile.md" ] && INJECT_ARGS="${INJECT_ARGS} --profile"
     # shellcheck disable=SC2086
     AO_INJECT_OUTPUT=$(timeout 5 ao inject ${INJECT_ARGS} 2>/dev/null) || true
     if [ -n "${AO_INJECT_OUTPUT:-}" ]; then
