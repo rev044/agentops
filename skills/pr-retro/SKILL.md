@@ -9,7 +9,7 @@ metadata:
   version: "1.0.0"
   tier: contribute
   internal: false
-allowed-tools: Read Write Bash Grep Glob
+allowed-tools: Read, Write, Bash, Grep, Glob
 ---
 
 # PR Retro Skill
