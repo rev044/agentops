@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/boshu2/agentops/cli/internal/ratchet"
 	"github.com/boshu2/agentops/cli/internal/types"
-	"github.com/spf13/cobra"
 )
 
 // ---------------------------------------------------------------------------

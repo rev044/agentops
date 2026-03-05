@@ -10,6 +10,8 @@ AO="$REPO_ROOT/cli/bin/ao"
 ERRORS=0
 WARNINGS=0
 PASSED=0
+STDERR_TMP=$(mktemp)
+trap 'rm -f "$STDERR_TMP"' EXIT
 
 pass() { echo -e "\033[0;32m✓\033[0m $1"; PASSED=$((PASSED + 1)); }
 fail() { echo -e "\033[0;31m✗\033[0m $1"; ERRORS=$((ERRORS + 1)); }
@@ -43,8 +45,8 @@ test_json_cmd() {
   local stdout stderr rc
 
   # Capture stdout and stderr separately
-  stdout=$("$AO" "$@" --json 2>/tmp/ao-json-test-stderr) && rc=$? || rc=$?
-  stderr=$(cat /tmp/ao-json-test-stderr 2>/dev/null || true)
+  stdout=$("$AO" "$@" --json 2>"$STDERR_TMP") && rc=$? || rc=$?
+  stderr=$(cat "$STDERR_TMP" 2>/dev/null || true)
 
   # Check if --json flag was rejected as unknown
   if echo "$stderr" | grep -qi "unknown flag.*--json"; then
@@ -121,6 +123,6 @@ echo "=== JSON Flag Consistency ==="
 echo "Passed: $PASSED  Warnings: $WARNINGS  Errors: $ERRORS"
 
 # Clean up temp file
-rm -f /tmp/ao-json-test-stderr
+rm -f "$STDERR_TMP"
 
 exit $((ERRORS > 0 ? 1 : 0))

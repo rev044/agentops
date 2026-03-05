@@ -12,6 +12,14 @@ set -euo pipefail
 #   5. All contracts on disk are catalogued in docs/INDEX.md (orphan check)
 #   6. Example JSON files conform to their corresponding schemas
 
+# Graceful skip when required tools are missing
+for tool in jq python3; do
+  if ! command -v "$tool" &>/dev/null; then
+    echo "WARN: $tool not found — skipping contract compatibility check"
+    exit 0
+  fi
+done
+
 ROOT="${1:-.}"
 if [[ ! -d "$ROOT" ]]; then
   echo "FAIL: repository root not found: $ROOT"

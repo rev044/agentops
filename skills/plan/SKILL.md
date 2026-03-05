@@ -243,6 +243,15 @@ Without a design brief, workers invent design decisions. In ol-571, a spec rewri
   - Enables N parallel workers instead of 1 serial worker
 - **Shared files between issues** → serialize or assign to same worker
 
+#### Operationalization Heuristics
+
+Each issue must be immediately executable by a swarm worker without further research:
+
+- **File ownership (`metadata.files`):** List every file the issue touches. Workers use this for conflict detection.
+- **Validation commands (`metadata.validation`):** Include runnable checks (e.g., `go test ./...`, `bash -n script.sh`). Workers run these before reporting done.
+- **Homogeneous wave grouping:** Group issues by work type (all Go, all docs, all shell) within the same wave. Mixed-type waves cause toolchain context-switching and increase conflict risk.
+- **Same-file serialization:** If two issues touch the same file, flag them for serialization (different waves) or merge into one issue. Never assign same-file issues to parallel workers.
+
 #### Conformance Checks
 
 For each issue's acceptance criteria, derive at least one **mechanically verifiable** conformance check using validation-contract.md types. These checks bridge the gap between spec intent and implementation verification.

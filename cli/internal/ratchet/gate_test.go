@@ -83,7 +83,7 @@ func TestGetExpectedOutput(t *testing.T) {
 		{StepImplement, "issue:<issue-id> (closed)"},
 		{StepCrank, "issue:<issue-id> (closed)"},
 		{StepVibe, "validation report"},
-		{StepPostMortem, ".agents/retros/<date>-<topic>.md"},
+		{StepPostMortem, ".agents/learnings/<date>-<topic>.md"},
 		{Step("unknown"), "unknown"},
 	}
 

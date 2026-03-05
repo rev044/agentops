@@ -346,7 +346,11 @@ When workers complete AND pass validation:
 3. Run any additional tests/validation
 4. Team lead commits all changes for the wave (sole committer)
 
-## Step 5a: Cleanup
+## Step 5a: Post-Merge Naming Cleanup
+
+After merging worker output, scan for scaffolding-era naming conventions introduced by parallel workers (e.g., `TestCov_` prefixes, `cov*_test.go` file names). Rename to follow project conventions. Run `go vet ./...` (or equivalent linter) to catch naming inconsistencies before committing.
+
+## Step 5b: Cleanup
 
 After wave completes:
 

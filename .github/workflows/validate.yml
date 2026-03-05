@@ -566,6 +566,44 @@ jobs:
       - name: Run hook integration tests
         run: bash tests/hooks/test-hooks.sh
 
+  json-flag-consistency:
+    runs-on: ubuntu-latest
+    needs: go-build
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - name: Build ao CLI
+        run: cd cli && make build
+
+      - name: Run JSON flag consistency tests
+        run: |
+          chmod +x tests/cli/test-json-flag-consistency.sh
+          ./tests/cli/test-json-flag-consistency.sh
+
+  file-manifest-overlap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate manifest overlap script
+        run: |
+          chmod +x scripts/check-file-manifest-overlap.sh
+          bash -n scripts/check-file-manifest-overlap.sh
+          OVERLAP_TMP=$(mktemp)
+          CLEAN_TMP=$(mktemp)
+          trap 'rm -f "$OVERLAP_TMP" "$CLEAN_TMP"' EXIT
+          # Self-test: overlapping manifests should fail
+          echo '[{"id":"1","subject":"A","files":["a.go"]},{"id":"2","subject":"B","files":["a.go"]}]' > "$OVERLAP_TMP"
+          ! scripts/check-file-manifest-overlap.sh "$OVERLAP_TMP"
+          # Self-test: non-overlapping should pass
+          echo '[{"id":"1","subject":"A","files":["a.go"]},{"id":"2","subject":"B","files":["b.go"]}]' > "$CLEAN_TMP"
+          scripts/check-file-manifest-overlap.sh "$CLEAN_TMP"
+
   doctor-check:
     runs-on: ubuntu-latest
     needs: go-build
@@ -657,7 +695,7 @@ jobs:
           scripts/coverage-ratchet.sh --check
 
   summary:
-    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, doctor-check, skill-lint, learning-coherence, bats-tests, coverage-ratchet, check-test-staleness]
+    needs: [doc-release-gate, smoke-test, hook-preflight, validate-hooks-doc-parity, validate-ci-policy-parity, codex-runtime-sections, embedded-sync, cli-docs-parity, shellcheck, markdownlint, security-scan, security-toolchain-gate, skill-integrity, skill-schema, skill-dependency-check, contract-compatibility-gate, memrl-health, plugin-load-test, go-build, cli-integration, json-flag-consistency, file-manifest-overlap, doctor-check, skill-lint, learning-coherence, bats-tests, coverage-ratchet, check-test-staleness]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -684,6 +722,8 @@ jobs:
           echo "plugin-load-test: ${{ needs.plugin-load-test.result }}"
           echo "go-build: ${{ needs.go-build.result }}"
           echo "cli-integration: ${{ needs.cli-integration.result }}"
+          echo "json-flag-consistency: ${{ needs.json-flag-consistency.result }}"
+          echo "file-manifest-overlap: ${{ needs.file-manifest-overlap.result }}"
           echo "doctor-check: ${{ needs.doctor-check.result }}"
           echo "skill-lint: ${{ needs.skill-lint.result }}"
           echo "learning-coherence: ${{ needs.learning-coherence.result }}"
@@ -710,6 +750,8 @@ jobs:
              [[ "${{ needs.plugin-load-test.result }}" != "success" ]] || \
              [[ "${{ needs.go-build.result }}" != "success" ]] || \
              [[ "${{ needs.cli-integration.result }}" != "success" ]] || \
+             [[ "${{ needs.json-flag-consistency.result }}" != "success" ]] || \
+             [[ "${{ needs.file-manifest-overlap.result }}" != "success" ]] || \
              [[ "${{ needs.skill-lint.result }}" != "success" ]] || \
              [[ "${{ needs.learning-coherence.result }}" != "success" ]] || \
              [[ "${{ needs.bats-tests.result }}" != "success" ]] || \

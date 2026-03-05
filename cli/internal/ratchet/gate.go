@@ -47,7 +47,7 @@ var expectedOutputs = map[Step]string{
 	StepImplement:  "issue:<issue-id> (closed)",
 	StepCrank:      "issue:<issue-id> (closed)",
 	StepVibe:       "validation report",
-	StepPostMortem: ".agents/retros/<date>-<topic>.md",
+	StepPostMortem: ".agents/learnings/<date>-<topic>.md",
 }
 
 // GateChecker validates that prerequisites are met before a step can proceed.

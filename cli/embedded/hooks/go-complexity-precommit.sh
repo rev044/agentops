@@ -3,23 +3,8 @@
 # Non-blocking (exit 0) — logs warnings to stderr for visibility.
 set -euo pipefail
 
-# Validate a command is in an allowlist before executing.
-# Usage: _validate_restricted_cmd "command_string" allowed_array
-# Returns 1 if the command binary is not in the allowlist.
-_validate_restricted_cmd() {
-    local cmd="$1"
-    shift
-    local -a allowlist=("$@")
-    local binary
-    binary=$(echo "$cmd" | awk '{print $1}')
-    for allowed in "${allowlist[@]}"; do
-        if [ "$binary" = "$allowed" ]; then
-            return 0
-        fi
-    done
-    echo "BLOCKED: '$binary' not in allowlist: ${allowlist[*]}" >&2
-    return 1
-}
+# shellcheck source=../lib/hook-helpers.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/hook-helpers.sh"
 
 # Only trigger on Edit/Write tool use against .go files
 INPUT=$(cat)
