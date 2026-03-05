@@ -2,13 +2,13 @@
 name: research
 description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
 skill_api_version: 1
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob, Bash, Write
 metadata:
   tier: execution
   dependencies:
     - inject    # optional - injects prior context
 context:
-  window: isolated
+  window: fork
   intent:
     mode: questions
   sections:

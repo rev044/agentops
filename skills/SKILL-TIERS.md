@@ -386,31 +386,39 @@ Individual judge outputs also go to `.agents/council/`:
 
 Skills follow a two-tier execution model based on visibility needs:
 
-> **The Rule:** The orchestrator never forks. The workers it spawns always fork.
+> **The Rule:** Orchestrators stay inline for visibility. Discovery primitives, judgment skills, and worker spawners fork to keep the caller's context clean.
 
 ### Tier 1: NO-FORK (stay in main context)
 
-Orchestrators, interactive skills, and single-task executors stay in the main session so the operator can see progress, phase transitions, and intervene.
+Orchestrators, single-task executors, and investigative skills stay in the main session so the operator can see progress, phase transitions, and intervene.
 
 | Skill | Role | Why |
 |-------|------|-----|
 | evolve | Orchestrator | Long loop, need cycle-by-cycle visibility |
 | rpi | Orchestrator | Sequential phases, need phase gates |
 | crank | Orchestrator | Wave orchestrator, need wave reports |
-| research | Interactive | User gate before /plan |
-| plan | Interactive | User gate before /crank |
 | implement | Single-task | Single issue, medium duration |
 | bug-hunt | Investigator | Hypothesis loop, need to see reasoning |
-| vibe | Orchestrator | Orchestrates council, reports verdict |
-| post-mortem | Orchestrator | Orchestrates council + knowledge lifecycle |
-| pre-mortem | Orchestrator | Default inline, orchestrates if --deep |
 
-### Tier 2: FORK (subagent/worktree via `context: fork`)
+### Tier 1.5: FORK (discovery primitives)
 
-Worker spawners that fan out parallel work. Results merge back via filesystem. Only these skills set `context: fork` in frontmatter.
+Discovery skills that produce filesystem artifacts. User wants the output, not the process. Heavy codebase exploration and decomposition runs in a forked subagent; only the summary and artifact path return to the caller's context.
 
 | Skill | Role | Why |
 |-------|------|-----|
+| research | Discovery | Massive codebase exploration → `.agents/research/*.md` |
+| plan | Discovery | Decomposition + beads creation → `.agents/plans/*.md` + beads |
+| retro | Knowledge extraction | Extract learnings → `.agents/learnings/*.md` |
+
+### Tier 2: FORK (judgment + worker spawners)
+
+Judgment skills validate artifacts in isolation. Worker spawners fan out parallel work. Results merge back via filesystem.
+
+| Skill | Role | Why |
+|-------|------|-----|
+| vibe | Judgment | Code validation, user wants verdict |
+| pre-mortem | Judgment | Plan validation, user wants verdict |
+| post-mortem | Judgment | Validation close-out + knowledge extraction |
 | council | Worker spawner | Parallel judges, merge verdicts |
 | codex-team | Worker spawner | Parallel Codex agents, merge results |
 
@@ -425,7 +433,7 @@ Some skills are orchestrators when called directly but workers when spawned by a
 
 ### Mechanism
 
-Set `context: fork` in skill frontmatter to fork into a subagent. Only set this on **worker spawner** skills (council, codex-team), never on orchestrators.
+Set `context: { window: fork }` in skill frontmatter to fork into a subagent. The skill's markdown body becomes the subagent's task prompt. Set on discovery primitives, judgment skills, and worker spawners. Never on orchestrators that need visibility.
 
 ---
 

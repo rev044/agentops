@@ -5,6 +5,8 @@ skill_api_version: 1
 metadata:
   tier: knowledge
   dependencies: []
+context:
+  window: fork
 ---
 
 # Retro Skill

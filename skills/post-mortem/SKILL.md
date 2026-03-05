@@ -7,6 +7,13 @@ metadata:
   dependencies:
     - council  # multi-model judgment
     - beads    # optional - for issue status
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: full
 ---
 
 # Post-Mortem Skill

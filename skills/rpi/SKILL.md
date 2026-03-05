@@ -115,7 +115,7 @@ rpi_state = {
 
 ### Phase 1: Discovery
 
-Discovery is one context window that runs research, planning, and pre-mortem together:
+Discovery invokes research, planning, and pre-mortem sequentially. Each skill forks into its own subagent context via `context: { window: fork }` and communicates via filesystem artifacts:
 
 ```text
 /research <goal> [--auto]

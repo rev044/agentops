@@ -11,7 +11,7 @@ metadata:
     - crank      # optional - suggested for execution
     - implement  # optional - suggested for single issue
 context:
-  window: inherit
+  window: fork
   intent:
     mode: task
   intel_scope: topic
