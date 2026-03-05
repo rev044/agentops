@@ -10,6 +10,7 @@ set -euo pipefail
 #   3. All *.schema.json files are valid JSON
 #   4. Orphan allowlist is well-formed and governed
 #   5. All contracts on disk are catalogued in docs/INDEX.md (orphan check)
+#   6. Example JSON files conform to their corresponding schemas
 
 ROOT="${1:-.}"
 if [[ ! -d "$ROOT" ]]; then
@@ -226,7 +227,180 @@ for example in "$CONTRACTS_DIR"/*.example.json; do
 done
 echo ""
 
-# ── Check 8: Orphan detection — files on disk not in INDEX.md ──
+# ── Check 8: Example JSON files conform to their schemas ──
+
+echo "--- Example-to-schema conformance ---"
+for example in "$CONTRACTS_DIR"/*.example.json; do
+  [[ -f "$example" ]] || continue
+  base="$(basename "$example")"
+
+  # Derive schema name: strip .example.json, find matching .schema.json
+  # memrl-policy.profile.example.json -> memrl-policy.schema.json
+  # Strategy: try progressively shorter prefixes
+  schema_found=""
+  prefix="${base%.example.json}"  # e.g. "memrl-policy.profile"
+  while [[ "$prefix" == *.* ]]; do
+    candidate="$CONTRACTS_DIR/${prefix%.*}.schema.json"
+    if [[ -f "$candidate" ]]; then
+      schema_found="$candidate"
+      break
+    fi
+    prefix="${prefix%.*}"
+  done
+  # Also try direct: prefix.schema.json (no dots left to strip)
+  if [[ -z "$schema_found" ]] && [[ -f "$CONTRACTS_DIR/${prefix}.schema.json" ]]; then
+    schema_found="$CONTRACTS_DIR/${prefix}.schema.json"
+  fi
+
+  if [[ -z "$schema_found" ]]; then
+    warn "no schema found for example: $base"
+    continue
+  fi
+
+  schema_base="$(basename "$schema_found")"
+
+  # Validate using embedded Python validator (same pattern as validate-manifests.sh)
+  if ! output="$(
+    python3 - "$schema_found" "$example" <<'PYVALIDATE'
+import json
+import sys
+
+schema_path, data_path = sys.argv[1:3]
+
+with open(schema_path, "r", encoding="utf-8") as handle:
+    root_schema = json.load(handle)
+
+with open(data_path, "r", encoding="utf-8") as handle:
+    document = json.load(handle)
+
+errors = []
+
+
+def json_type_name(value):
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def matches_type(expected, value):
+    if expected == "null":
+        return value is None
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "number":
+        return (isinstance(value, int) or isinstance(value, float)) and not isinstance(value, bool)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "object":
+        return isinstance(value, dict)
+    return True
+
+
+def resolve_ref(ref):
+    if not ref.startswith("#/"):
+        raise ValueError(f"unsupported $ref: {ref}")
+    node = root_schema
+    for part in ref[2:].split("/"):
+        part = part.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+        else:
+            raise ValueError(f"unresolvable $ref: {ref}")
+    return node
+
+
+def validate(schema, value, path):
+    if "$ref" in schema:
+        try:
+            target = resolve_ref(schema["$ref"])
+        except ValueError as error:
+            errors.append(f"{path}: {error}")
+            return
+        validate(target, value, path)
+        return
+
+    expected_type = schema.get("type")
+    if expected_type is not None:
+        if isinstance(expected_type, list):
+            if not any(matches_type(item, value) for item in expected_type):
+                errors.append(f"{path}: expected one of {expected_type}, got {json_type_name(value)}")
+                return
+        elif not matches_type(expected_type, value):
+            errors.append(f"{path}: expected {expected_type}, got {json_type_name(value)}")
+            return
+
+    if "const" in schema and value != schema["const"]:
+        errors.append(f"{path}: expected const {schema['const']!r}, got {value!r}")
+
+    if "enum" in schema and value not in schema["enum"]:
+        errors.append(f"{path}: value {value!r} not in enum {schema['enum']!r}")
+
+    if isinstance(value, str) and "minLength" in schema and len(value) < schema["minLength"]:
+        errors.append(f"{path}: string shorter than minLength {schema['minLength']}")
+
+    if isinstance(value, list):
+        if "minItems" in schema and len(value) < schema["minItems"]:
+            errors.append(f"{path}: expected at least {schema['minItems']} items")
+        if "items" in schema:
+            item_schema = schema["items"]
+            for index, item in enumerate(value):
+                validate(item_schema, item, f"{path}[{index}]")
+
+    if isinstance(value, dict):
+        required = schema.get("required", [])
+        for key in required:
+            if key not in value:
+                errors.append(f"{path}: missing required property '{key}'")
+
+        properties = schema.get("properties", {})
+        additional = schema.get("additionalProperties", True)
+        for key, item in value.items():
+            item_path = f"{path}.{key}" if path != "$" else f"$.{key}"
+            if key in properties:
+                validate(properties[key], item, item_path)
+            elif additional is False:
+                errors.append(f"{path}: additional property '{key}' not allowed")
+            elif isinstance(additional, dict):
+                validate(additional, item, item_path)
+
+
+validate(root_schema, document, "$")
+
+if errors:
+    for line in errors:
+        print(line)
+    sys.exit(1)
+PYVALIDATE
+  )"; then
+    fail "$base failed schema validation against $schema_base"
+    if [[ -n "$output" ]]; then
+      while IFS= read -r line; do
+        echo "    $line"
+      done <<<"$output"
+    fi
+  else
+    pass "$base conforms to $schema_base"
+  fi
+done
+echo ""
+
+# ── Check 9: Orphan detection — files on disk not in INDEX.md ──
 
 echo "--- Orphan detection ---"
 if [[ -f "$INDEX" ]]; then

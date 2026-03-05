@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/boshu2/agentops/cli/internal/types"
+	"github.com/spf13/cobra"
+	"strings"
 )
 
 func TestComputePlanChecksum(t *testing.T) {
@@ -374,4 +376,1221 @@ func TestDetectOrphanedEntries(t *testing.T) {
 			t.Errorf("drift type = %q, want 'orphaned'", d.Type)
 		}
 	}
+}
+
+// --- getManifestPath ---
+
+func TestPlansCov_GetManifestPath(t *testing.T) {
+	t.Run("returns path with .agents dir in cwd", func(t *testing.T) {
+		dir := t.TempDir()
+		agentsDir := filepath.Join(dir, ".agents")
+		if err := os.MkdirAll(agentsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		path, err := getManifestPath()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.HasSuffix(path, filepath.Join(".agents", "plans", "manifest.jsonl")) {
+			t.Errorf("path = %q, want suffix .agents/plans/manifest.jsonl", path)
+		}
+	})
+
+	t.Run("returns default path when no .agents exists", func(t *testing.T) {
+		dir := t.TempDir()
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		path, err := getManifestPath()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should fall back to cwd/.agents/plans/manifest.jsonl
+		if !strings.Contains(path, "manifest.jsonl") {
+			t.Errorf("path = %q, expected manifest.jsonl", path)
+		}
+	})
+
+	t.Run("finds .agents in parent with rig markers", func(t *testing.T) {
+		dir := t.TempDir()
+		// Create rig marker in parent dir
+		if err := os.MkdirAll(filepath.Join(dir, ".beads"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		subDir := filepath.Join(dir, "sub", "deep")
+		if err := os.MkdirAll(subDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(subDir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		path, err := getManifestPath()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should find .agents at the rig root (parent of sub/deep)
+		if !strings.Contains(path, dir) {
+			t.Errorf("path = %q, expected to be under %q", path, dir)
+		}
+	})
+}
+
+// --- findAgentsDir ---
+
+func TestPlansCov_FindAgentsDir(t *testing.T) {
+	t.Run("finds existing .agents dir", func(t *testing.T) {
+		dir := t.TempDir()
+		agentsDir := filepath.Join(dir, ".agents")
+		if err := os.MkdirAll(agentsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		subDir := filepath.Join(dir, "a", "b")
+		if err := os.MkdirAll(subDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		got := findAgentsDir(subDir)
+		if got != agentsDir {
+			t.Errorf("findAgentsDir(%q) = %q, want %q", subDir, got, agentsDir)
+		}
+	})
+
+	t.Run("finds dir by rig marker .beads", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, ".beads"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		subDir := filepath.Join(dir, "child")
+		if err := os.MkdirAll(subDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		got := findAgentsDir(subDir)
+		want := filepath.Join(dir, ".agents")
+		if got != want {
+			t.Errorf("findAgentsDir(%q) = %q, want %q", subDir, got, want)
+		}
+	})
+
+	t.Run("finds dir by rig marker crew", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, "crew"), 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		got := findAgentsDir(dir)
+		want := filepath.Join(dir, ".agents")
+		if got != want {
+			t.Errorf("findAgentsDir(%q) = %q, want %q", dir, got, want)
+		}
+	})
+
+	t.Run("finds dir by rig marker polecats", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, "polecats"), 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		got := findAgentsDir(dir)
+		want := filepath.Join(dir, ".agents")
+		if got != want {
+			t.Errorf("findAgentsDir(%q) = %q, want %q", dir, got, want)
+		}
+	})
+
+	t.Run("returns empty for root dir without markers", func(t *testing.T) {
+		dir := t.TempDir()
+		got := findAgentsDir(dir)
+		if got != "" {
+			t.Errorf("findAgentsDir(%q) = %q, want empty", dir, got)
+		}
+	})
+}
+
+// --- detectProjectPath ---
+
+func TestPlansCov_DetectProjectPath(t *testing.T) {
+	t.Run("detects from .claude/plans content with Project line", func(t *testing.T) {
+		dir := t.TempDir()
+		planDir := filepath.Join(dir, ".claude", "plans")
+		if err := os.MkdirAll(planDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		planPath := filepath.Join(planDir, "my-plan.md")
+		content := "# Plan\nProject: /home/user/myproject\nSteps:\n1. Do stuff"
+		if err := os.WriteFile(planPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		got := detectProjectPath(planPath)
+		if got != "/home/user/myproject" {
+			t.Errorf("detectProjectPath() = %q, want %q", got, "/home/user/myproject")
+		}
+	})
+
+	t.Run("detects from Working directory line", func(t *testing.T) {
+		dir := t.TempDir()
+		planDir := filepath.Join(dir, ".claude", "plans")
+		if err := os.MkdirAll(planDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		planPath := filepath.Join(planDir, "work-plan.md")
+		content := "# Plan\nWorking directory: /opt/project\nDo things"
+		if err := os.WriteFile(planPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		got := detectProjectPath(planPath)
+		if got != "/opt/project" {
+			t.Errorf("detectProjectPath() = %q, want %q", got, "/opt/project")
+		}
+	})
+
+	t.Run("returns cwd for non-.claude/plans path", func(t *testing.T) {
+		dir := t.TempDir()
+		planPath := filepath.Join(dir, "local-plan.md")
+		if err := os.WriteFile(planPath, []byte("# Plan"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		got := detectProjectPath(planPath)
+		// Should return os.Getwd() since plan is not in .claude/plans/
+		if got == "" {
+			t.Error("expected non-empty project path")
+		}
+	})
+
+	t.Run("returns empty for unreadable .claude/plans file", func(t *testing.T) {
+		got := detectProjectPath("/nonexistent/.claude/plans/no-such-plan.md")
+		if got != "" {
+			t.Errorf("expected empty for unreadable file, got %q", got)
+		}
+	})
+
+	t.Run("falls through to cwd for .claude/plans file without project line", func(t *testing.T) {
+		dir := t.TempDir()
+		planDir := filepath.Join(dir, ".claude", "plans")
+		if err := os.MkdirAll(planDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		planPath := filepath.Join(planDir, "no-project.md")
+		if err := os.WriteFile(planPath, []byte("# Plan\nNo project info here"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		got := detectProjectPath(planPath)
+		// No "Project:" or "Working directory:" lines, falls through to cwd
+		if got == "" {
+			t.Error("expected non-empty (cwd fallback)")
+		}
+	})
+}
+
+// --- resolveProjectPath ---
+
+func TestPlansCov_ResolveProjectPath(t *testing.T) {
+	t.Run("explicit overrides detection", func(t *testing.T) {
+		got := resolveProjectPath("/explicit/path", "/some/.claude/plans/plan.md")
+		if got != "/explicit/path" {
+			t.Errorf("got %q, want /explicit/path", got)
+		}
+	})
+
+	t.Run("empty explicit falls through to detection", func(t *testing.T) {
+		dir := t.TempDir()
+		planPath := filepath.Join(dir, "plan.md")
+		if err := os.WriteFile(planPath, []byte("# Plan"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		got := resolveProjectPath("", planPath)
+		// detectProjectPath should return cwd since not in .claude/plans/
+		if got == "" {
+			t.Error("expected non-empty from detection")
+		}
+	})
+}
+
+// --- resolvePlanName ---
+
+func TestPlansCov_ResolvePlanName(t *testing.T) {
+	tests := []struct {
+		name     string
+		explicit string
+		planPath string
+		want     string
+	}{
+		{name: "explicit name", explicit: "my-custom-name", planPath: "/a/b/plan.md", want: "my-custom-name"},
+		{name: "derived from filename", explicit: "", planPath: "/a/b/peaceful-stirring-tome.md", want: "peaceful-stirring-tome"},
+		{name: "derived strips extension", explicit: "", planPath: "/a/b/plan.txt", want: "plan"},
+		{name: "no extension", explicit: "", planPath: "/a/b/planfile", want: "planfile"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolvePlanName(tt.explicit, tt.planPath)
+			if got != tt.want {
+				t.Errorf("resolvePlanName(%q, %q) = %q, want %q", tt.explicit, tt.planPath, got, tt.want)
+			}
+		})
+	}
+}
+
+// --- buildRegisterEntry ---
+
+func TestPlansCov_BuildRegisterEntry(t *testing.T) {
+	t.Run("builds entry for valid file", func(t *testing.T) {
+		dir := t.TempDir()
+		planPath := filepath.Join(dir, "test-plan.md")
+		if err := os.WriteFile(planPath, []byte("# Test Plan Content"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		entry, err := buildRegisterEntry(planPath, "/project", "my-plan", "ol-123")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if entry.Path != planPath {
+			t.Errorf("Path = %q, want %q", entry.Path, planPath)
+		}
+		if entry.ProjectPath != "/project" {
+			t.Errorf("ProjectPath = %q, want /project", entry.ProjectPath)
+		}
+		if entry.PlanName != "my-plan" {
+			t.Errorf("PlanName = %q, want my-plan", entry.PlanName)
+		}
+		if entry.BeadsID != "ol-123" {
+			t.Errorf("BeadsID = %q, want ol-123", entry.BeadsID)
+		}
+		if entry.Checksum == "" {
+			t.Error("expected non-empty checksum")
+		}
+		if entry.Status != types.PlanStatusActive {
+			t.Errorf("Status = %v, want active", entry.Status)
+		}
+	})
+
+	t.Run("returns error for missing file", func(t *testing.T) {
+		_, err := buildRegisterEntry("/nonexistent/plan.md", "", "", "")
+		if err == nil {
+			t.Fatal("expected error for missing file")
+		}
+		if !strings.Contains(err.Error(), "plan not found") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+}
+
+// --- loadOrCreateManifest ---
+
+func TestPlansCov_LoadOrCreateManifest(t *testing.T) {
+	t.Run("creates manifest dir when not exists", func(t *testing.T) {
+		dir := t.TempDir()
+		agentsDir := filepath.Join(dir, ".agents")
+		if err := os.MkdirAll(agentsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		manifestPath, entries, err := loadOrCreateManifest()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.HasSuffix(manifestPath, "manifest.jsonl") {
+			t.Errorf("manifestPath = %q, want suffix manifest.jsonl", manifestPath)
+		}
+		if len(entries) != 0 {
+			t.Errorf("expected 0 entries for new manifest, got %d", len(entries))
+		}
+		// Verify directory was created
+		if _, err := os.Stat(filepath.Dir(manifestPath)); err != nil {
+			t.Errorf("manifest dir should have been created: %v", err)
+		}
+	})
+
+	t.Run("loads existing manifest", func(t *testing.T) {
+		dir := t.TempDir()
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		entry := types.PlanManifestEntry{Path: "/existing.md", PlanName: "existing", Status: types.PlanStatusActive}
+		data, _ := json.Marshal(entry)
+		if err := os.WriteFile(filepath.Join(plansDir, "manifest.jsonl"), append(data, '\n'), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		_, entries, err := loadOrCreateManifest()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 1 {
+			t.Errorf("expected 1 entry, got %d", len(entries))
+		}
+	})
+}
+
+// --- upsertManifestEntry ---
+
+func TestPlansCov_UpsertManifestEntry(t *testing.T) {
+	t.Run("updates existing entry", func(t *testing.T) {
+		dir := t.TempDir()
+		manifestPath := filepath.Join(dir, "manifest.jsonl")
+
+		existing := []types.PlanManifestEntry{
+			{Path: "/a.md", PlanName: "plan-a", Status: types.PlanStatusActive},
+			{Path: "/b.md", PlanName: "plan-b", Status: types.PlanStatusActive},
+		}
+		newEntry := types.PlanManifestEntry{Path: "/a.md", PlanName: "plan-a-updated", Status: types.PlanStatusCompleted}
+
+		updated, err := upsertManifestEntry(manifestPath, existing, newEntry)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !updated {
+			t.Error("expected true for existing path update")
+		}
+
+		// Verify saved correctly
+		loaded, err := loadManifest(manifestPath)
+		if err != nil {
+			t.Fatalf("load error: %v", err)
+		}
+		if len(loaded) != 2 {
+			t.Errorf("expected 2 entries, got %d", len(loaded))
+		}
+		if loaded[0].PlanName != "plan-a-updated" {
+			t.Errorf("expected updated name, got %q", loaded[0].PlanName)
+		}
+	})
+
+	t.Run("appends new entry", func(t *testing.T) {
+		dir := t.TempDir()
+		manifestPath := filepath.Join(dir, "manifest.jsonl")
+
+		existing := []types.PlanManifestEntry{
+			{Path: "/a.md", PlanName: "plan-a"},
+		}
+		newEntry := types.PlanManifestEntry{Path: "/c.md", PlanName: "plan-c", Status: types.PlanStatusActive}
+
+		updated, err := upsertManifestEntry(manifestPath, existing, newEntry)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if updated {
+			t.Error("expected false for new entry")
+		}
+
+		loaded, err := loadManifest(manifestPath)
+		if err != nil {
+			t.Fatalf("load error: %v", err)
+		}
+		if len(loaded) != 1 {
+			t.Errorf("expected 1 appended entry, got %d", len(loaded))
+		}
+	})
+}
+
+// --- filterPlans ---
+
+func TestPlansCov_FilterPlans(t *testing.T) {
+	entries := []types.PlanManifestEntry{
+		{Path: "/a.md", PlanName: "plan-a", ProjectPath: "/proj1", Status: types.PlanStatusActive},
+		{Path: "/b.md", PlanName: "plan-b", ProjectPath: "/proj2", Status: types.PlanStatusCompleted},
+		{Path: "/c.md", PlanName: "plan-c", ProjectPath: "/proj1/sub", Status: types.PlanStatusActive},
+	}
+
+	t.Run("no filters returns all", func(t *testing.T) {
+		got := filterPlans(entries, "", "")
+		if len(got) != 3 {
+			t.Errorf("expected 3, got %d", len(got))
+		}
+	})
+
+	t.Run("filter by project substring", func(t *testing.T) {
+		got := filterPlans(entries, "proj1", "")
+		if len(got) != 2 {
+			t.Errorf("expected 2 (proj1 and proj1/sub), got %d", len(got))
+		}
+	})
+
+	t.Run("filter by status", func(t *testing.T) {
+		got := filterPlans(entries, "", "completed")
+		if len(got) != 1 {
+			t.Errorf("expected 1 completed, got %d", len(got))
+		}
+	})
+
+	t.Run("combined filters", func(t *testing.T) {
+		got := filterPlans(entries, "proj1", "active")
+		if len(got) != 2 {
+			t.Errorf("expected 2, got %d", len(got))
+		}
+	})
+
+	t.Run("no match returns empty", func(t *testing.T) {
+		got := filterPlans(entries, "nonexistent", "")
+		if len(got) != 0 {
+			t.Errorf("expected 0, got %d", len(got))
+		}
+	})
+}
+
+// --- applyPlanUpdates ---
+
+func TestPlansCov_ApplyPlanUpdates(t *testing.T) {
+	t.Run("updates status and beadsID for matching path", func(t *testing.T) {
+		entries := []types.PlanManifestEntry{
+			{Path: "/a.md", Status: types.PlanStatusActive, BeadsID: ""},
+		}
+		found := applyPlanUpdates(entries, "/a.md", "completed", "ol-99")
+		if !found {
+			t.Fatal("expected true for matching path")
+		}
+		if entries[0].Status != "completed" {
+			t.Errorf("Status = %q, want completed", entries[0].Status)
+		}
+		if entries[0].BeadsID != "ol-99" {
+			t.Errorf("BeadsID = %q, want ol-99", entries[0].BeadsID)
+		}
+		if entries[0].UpdatedAt.IsZero() {
+			t.Error("UpdatedAt should be set")
+		}
+	})
+
+	t.Run("returns false for non-matching path", func(t *testing.T) {
+		entries := []types.PlanManifestEntry{
+			{Path: "/a.md", Status: types.PlanStatusActive},
+		}
+		found := applyPlanUpdates(entries, "/nonexistent.md", "completed", "")
+		if found {
+			t.Error("expected false for non-matching path")
+		}
+	})
+
+	t.Run("only updates provided fields", func(t *testing.T) {
+		entries := []types.PlanManifestEntry{
+			{Path: "/a.md", Status: types.PlanStatusActive, BeadsID: "existing-id"},
+		}
+		found := applyPlanUpdates(entries, "/a.md", "completed", "")
+		if !found {
+			t.Fatal("expected true")
+		}
+		if entries[0].BeadsID != "existing-id" {
+			t.Errorf("BeadsID should not change, got %q", entries[0].BeadsID)
+		}
+	})
+}
+
+// --- printPlanEntry ---
+
+func TestPlansCov_PrintPlanEntry(t *testing.T) {
+	t.Run("prints active plan", func(t *testing.T) {
+		entry := types.PlanManifestEntry{
+			PlanName: "my-plan",
+			Status:   types.PlanStatusActive,
+			BeadsID:  "ol-123",
+		}
+		// Just verify it doesn't panic — output goes to stdout
+		printPlanEntry(entry, false)
+	})
+
+	t.Run("prints completed plan", func(t *testing.T) {
+		entry := types.PlanManifestEntry{
+			PlanName: "done-plan",
+			Status:   types.PlanStatusCompleted,
+		}
+		printPlanEntry(entry, false)
+	})
+
+	t.Run("prints unknown status as string", func(t *testing.T) {
+		entry := types.PlanManifestEntry{
+			PlanName: "weird-plan",
+			Status:   types.PlanStatus("custom-status"),
+		}
+		printPlanEntry(entry, false)
+	})
+
+	t.Run("verbose mode prints extra details", func(t *testing.T) {
+		entry := types.PlanManifestEntry{
+			PlanName:    "verbose-plan",
+			Path:        "/path/to/plan.md",
+			ProjectPath: "/project",
+			Status:      types.PlanStatusActive,
+			CreatedAt:   time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+		}
+		printPlanEntry(entry, true)
+	})
+}
+
+// --- printRegistrationSummary ---
+
+func TestPlansCov_PrintRegistrationSummary(t *testing.T) {
+	t.Run("prints basic summary", func(t *testing.T) {
+		entry := types.PlanManifestEntry{
+			PlanName: "new-plan",
+		}
+		printRegistrationSummary(entry) // should not panic
+	})
+
+	t.Run("prints summary with beads and project", func(t *testing.T) {
+		entry := types.PlanManifestEntry{
+			PlanName:    "full-plan",
+			BeadsID:     "ol-456",
+			ProjectPath: "/my/project",
+		}
+		printRegistrationSummary(entry) // should not panic
+	})
+}
+
+// --- printSyncSummary ---
+
+func TestPlansCov_PrintSyncSummary(t *testing.T) {
+	t.Run("no drift", func(t *testing.T) {
+		printSyncSummary(3, 0) // should not panic
+	})
+
+	t.Run("with drift", func(t *testing.T) {
+		printSyncSummary(1, 2) // should not panic, prints hint
+	})
+}
+
+// --- printDrifts ---
+
+func TestPlansCov_PrintDrifts(t *testing.T) {
+	drifts := []driftEntry{
+		{Type: "status_mismatch", PlanName: "plan-1", BeadsID: "ol-1", Manifest: "active", Beads: "closed"},
+		{Type: "orphaned", PlanName: "plan-2"},
+		{Type: "missing_beads", PlanName: "plan-3", BeadsID: "ol-3"},
+	}
+	// Just verify it doesn't panic — output goes to stdout
+	printDrifts(drifts)
+}
+
+// --- syncEpicsToManifest ---
+
+func TestPlansCov_SyncEpicsToManifest(t *testing.T) {
+	t.Run("syncs matching epics", func(t *testing.T) {
+		entries := []types.PlanManifestEntry{
+			{Path: "/a.md", BeadsID: "ol-1", Status: types.PlanStatusActive},
+			{Path: "/b.md", BeadsID: "ol-2", Status: types.PlanStatusActive},
+		}
+		epics := []beadsEpic{
+			{ID: "ol-1", Status: "closed"},
+			{ID: "ol-2", Status: "open"},
+		}
+		byBeadsID := buildBeadsIDIndex(entries)
+
+		synced := syncEpicsToManifest(entries, epics, byBeadsID)
+		if synced != 1 {
+			t.Errorf("expected 1 synced, got %d", synced)
+		}
+		if entries[0].Status != types.PlanStatusCompleted {
+			t.Errorf("entry[0] status = %v, want completed", entries[0].Status)
+		}
+	})
+
+	t.Run("no matches returns 0", func(t *testing.T) {
+		entries := []types.PlanManifestEntry{
+			{Path: "/a.md", BeadsID: "ol-1", Status: types.PlanStatusActive},
+		}
+		epics := []beadsEpic{
+			{ID: "ol-99", Status: "closed"},
+		}
+		byBeadsID := buildBeadsIDIndex(entries)
+
+		synced := syncEpicsToManifest(entries, epics, byBeadsID)
+		if synced != 0 {
+			t.Errorf("expected 0, got %d", synced)
+		}
+	})
+}
+
+// --- runPlansRegister ---
+
+func TestPlansCov_RunPlansRegister(t *testing.T) {
+	oldDryRun := dryRun
+	oldPlanProjectPath := planProjectPath
+	oldPlanBeadsID := planBeadsID
+	oldPlanName := planName
+	defer func() {
+		dryRun = oldDryRun
+		planProjectPath = oldPlanProjectPath
+		planBeadsID = oldPlanBeadsID
+		planName = oldPlanName
+	}()
+
+	t.Run("dry-run mode with existing file", func(t *testing.T) {
+		dir := t.TempDir()
+		planPath := filepath.Join(dir, "my-plan.md")
+		if err := os.WriteFile(planPath, []byte("# Plan"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		dryRun = true
+
+		cmd := &cobra.Command{}
+		err := runPlansRegister(cmd, []string{planPath})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("dry-run mode with missing file returns error", func(t *testing.T) {
+		dryRun = true
+		cmd := &cobra.Command{}
+		err := runPlansRegister(cmd, []string{"/nonexistent/plan.md"})
+		if err == nil {
+			t.Fatal("expected error for missing file in dry-run")
+		}
+	})
+
+	t.Run("registers new plan", func(t *testing.T) {
+		dir := t.TempDir()
+		dryRun = false
+		planProjectPath = "/test-project"
+		planBeadsID = "ol-test"
+		planName = "test-plan"
+
+		// Create plan file
+		planPath := filepath.Join(dir, "register-plan.md")
+		if err := os.WriteFile(planPath, []byte("# Register Test Plan"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Create .agents dir so getManifestPath works
+		if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		err := runPlansRegister(cmd, []string{planPath})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify manifest was written
+		manifestPath := filepath.Join(dir, ".agents", "plans", "manifest.jsonl")
+		entries, err := loadManifest(manifestPath)
+		if err != nil {
+			t.Fatalf("load manifest: %v", err)
+		}
+		if len(entries) != 1 {
+			t.Fatalf("expected 1 entry, got %d", len(entries))
+		}
+		if entries[0].PlanName != "test-plan" {
+			t.Errorf("PlanName = %q, want test-plan", entries[0].PlanName)
+		}
+	})
+
+	t.Run("updates existing plan on re-register", func(t *testing.T) {
+		dir := t.TempDir()
+		dryRun = false
+		planProjectPath = "/test-project"
+		planBeadsID = "ol-re"
+		planName = "re-plan"
+
+		planPath := filepath.Join(dir, "re-register.md")
+		if err := os.WriteFile(planPath, []byte("# Re-Register Plan"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		// Register first time
+		if err := runPlansRegister(cmd, []string{planPath}); err != nil {
+			t.Fatalf("first register: %v", err)
+		}
+
+		// Register again (should update)
+		planName = "re-plan-updated"
+		if err := runPlansRegister(cmd, []string{planPath}); err != nil {
+			t.Fatalf("second register: %v", err)
+		}
+
+		manifestPath := filepath.Join(dir, ".agents", "plans", "manifest.jsonl")
+		entries, err := loadManifest(manifestPath)
+		if err != nil {
+			t.Fatalf("load manifest: %v", err)
+		}
+		// Should still be 1 entry (updated, not duplicated)
+		if len(entries) != 1 {
+			t.Fatalf("expected 1 entry after update, got %d", len(entries))
+		}
+	})
+}
+
+// --- runPlansList ---
+
+func TestPlansCov_RunPlansList(t *testing.T) {
+	oldProjectPath := planProjectPath
+	oldStatus := planStatus
+	oldVerbose := verbose
+	defer func() {
+		planProjectPath = oldProjectPath
+		planStatus = oldStatus
+		verbose = oldVerbose
+	}()
+
+	t.Run("no manifest prints message", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		planProjectPath = ""
+		planStatus = ""
+		cmd := &cobra.Command{}
+		err := runPlansList(cmd, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("lists plans from manifest", func(t *testing.T) {
+		dir := t.TempDir()
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		entries := []types.PlanManifestEntry{
+			{Path: "/a.md", PlanName: "plan-a", Status: types.PlanStatusActive, ProjectPath: "/proj"},
+			{Path: "/b.md", PlanName: "plan-b", Status: types.PlanStatusCompleted, ProjectPath: "/proj"},
+		}
+		for _, e := range entries {
+			data, _ := json.Marshal(e)
+			f, _ := os.OpenFile(filepath.Join(plansDir, "manifest.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			_, _ = f.WriteString(string(data) + "\n")
+			_ = f.Close()
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		planProjectPath = ""
+		planStatus = ""
+		verbose = false
+		cmd := &cobra.Command{}
+		err := runPlansList(cmd, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("filter returns no match", func(t *testing.T) {
+		dir := t.TempDir()
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		entry := types.PlanManifestEntry{Path: "/a.md", PlanName: "plan-a", Status: types.PlanStatusActive}
+		data, _ := json.Marshal(entry)
+		if err := os.WriteFile(filepath.Join(plansDir, "manifest.jsonl"), append(data, '\n'), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		planProjectPath = ""
+		planStatus = "nonexistent-status"
+		cmd := &cobra.Command{}
+		err := runPlansList(cmd, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// --- runPlansSearch ---
+
+func TestPlansCov_RunPlansSearch(t *testing.T) {
+	t.Run("no manifest prints message", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		err := runPlansSearch(cmd, []string{"anything"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("finds matching plans", func(t *testing.T) {
+		dir := t.TempDir()
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		entries := []types.PlanManifestEntry{
+			{Path: "/auth-plan.md", PlanName: "auth-migration", BeadsID: "ol-auth", Status: types.PlanStatusActive},
+			{Path: "/data-plan.md", PlanName: "data-cleanup", Status: types.PlanStatusActive},
+		}
+		var content strings.Builder
+		for _, e := range entries {
+			data, _ := json.Marshal(e)
+			content.WriteString(string(data) + "\n")
+		}
+		if err := os.WriteFile(filepath.Join(plansDir, "manifest.jsonl"), []byte(content.String()), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		err := runPlansSearch(cmd, []string{"auth"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("no matches prints message", func(t *testing.T) {
+		dir := t.TempDir()
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		entry := types.PlanManifestEntry{Path: "/a.md", PlanName: "plan-a", Status: types.PlanStatusActive}
+		data, _ := json.Marshal(entry)
+		if err := os.WriteFile(filepath.Join(plansDir, "manifest.jsonl"), append(data, '\n'), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		err := runPlansSearch(cmd, []string{"zzzznonexistent"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// --- runPlansUpdate ---
+
+func TestPlansCov_RunPlansUpdate(t *testing.T) {
+	oldDryRun := dryRun
+	oldPlanStatus := planStatus
+	oldPlanBeadsID := planBeadsID
+	defer func() {
+		dryRun = oldDryRun
+		planStatus = oldPlanStatus
+		planBeadsID = oldPlanBeadsID
+	}()
+
+	t.Run("dry-run mode", func(t *testing.T) {
+		dryRun = true
+		cmd := &cobra.Command{}
+		err := runPlansUpdate(cmd, []string{"some-plan.md"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("updates plan status", func(t *testing.T) {
+		dir := t.TempDir()
+		dryRun = false
+		planStatus = "completed"
+		planBeadsID = "ol-upd"
+
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		planPath := filepath.Join(dir, "update-plan.md")
+		if err := os.WriteFile(planPath, []byte("# Plan"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		absPath, _ := filepath.Abs(planPath)
+		entry := types.PlanManifestEntry{Path: absPath, PlanName: "update-plan", Status: types.PlanStatusActive}
+		data, _ := json.Marshal(entry)
+		if err := os.WriteFile(filepath.Join(plansDir, "manifest.jsonl"), append(data, '\n'), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		err := runPlansUpdate(cmd, []string{planPath})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify update
+		entries, _ := loadManifest(filepath.Join(plansDir, "manifest.jsonl"))
+		if len(entries) == 0 {
+			t.Fatal("expected at least 1 entry")
+		}
+		if string(entries[0].Status) != "completed" {
+			t.Errorf("status = %v, want completed", entries[0].Status)
+		}
+		if entries[0].BeadsID != "ol-upd" {
+			t.Errorf("beadsID = %q, want ol-upd", entries[0].BeadsID)
+		}
+	})
+
+	t.Run("returns error for non-existent plan", func(t *testing.T) {
+		dir := t.TempDir()
+		dryRun = false
+		planStatus = "completed"
+		planBeadsID = ""
+
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		entry := types.PlanManifestEntry{Path: "/some-other.md", PlanName: "other", Status: types.PlanStatusActive}
+		data, _ := json.Marshal(entry)
+		if err := os.WriteFile(filepath.Join(plansDir, "manifest.jsonl"), append(data, '\n'), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		err := runPlansUpdate(cmd, []string{"/nonexistent/plan.md"})
+		if err == nil {
+			t.Fatal("expected error for plan not in manifest")
+		}
+		if !strings.Contains(err.Error(), "plan not found in manifest") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+}
+
+// --- runPlansSync ---
+
+func TestPlansCov_RunPlansSync(t *testing.T) {
+	oldDryRun := dryRun
+	defer func() { dryRun = oldDryRun }()
+
+	t.Run("dry-run mode", func(t *testing.T) {
+		dryRun = true
+		cmd := &cobra.Command{}
+		err := runPlansSync(cmd, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("sync with no beads available", func(t *testing.T) {
+		dir := t.TempDir()
+		dryRun = false
+
+		plansDir := filepath.Join(dir, ".agents", "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		entry := types.PlanManifestEntry{Path: "/a.md", PlanName: "plan-a", Status: types.PlanStatusActive}
+		data, _ := json.Marshal(entry)
+		if err := os.WriteFile(filepath.Join(plansDir, "manifest.jsonl"), append(data, '\n'), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		oldWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.Chdir(oldWD) }()
+
+		cmd := &cobra.Command{}
+		// This will fail to query beads (bd not available) but should handle gracefully
+		err := runPlansSync(cmd, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// --- buildBeadsStatusIndex ---
+
+func TestPlansCov_BuildBeadsStatusIndex(t *testing.T) {
+	epics := []beadsEpic{
+		{ID: "a", Status: "open"},
+		{ID: "b", Status: "closed"},
+	}
+	index := buildBeadsStatusIndex(epics)
+	if len(index) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(index))
+	}
+	if index["a"] != "open" {
+		t.Errorf("a = %q, want open", index["a"])
+	}
+	if index["b"] != "closed" {
+		t.Errorf("b = %q, want closed", index["b"])
+	}
+}
+
+// --- detectStatusDrifts ---
+
+func TestPlansCov_DetectStatusDrifts(t *testing.T) {
+	t.Run("no drift when everything matches", func(t *testing.T) {
+		byBeadsID := map[string]*types.PlanManifestEntry{
+			"ol-1": {PlanName: "p1", BeadsID: "ol-1", Status: types.PlanStatusActive},
+		}
+		beadsIndex := map[string]string{"ol-1": "open"}
+		drifts := detectStatusDrifts(byBeadsID, beadsIndex)
+		if len(drifts) != 0 {
+			t.Errorf("expected 0 drifts, got %d", len(drifts))
+		}
+	})
+
+	t.Run("detects completed in manifest but open in beads", func(t *testing.T) {
+		byBeadsID := map[string]*types.PlanManifestEntry{
+			"ol-1": {PlanName: "p1", BeadsID: "ol-1", Status: types.PlanStatusCompleted},
+		}
+		beadsIndex := map[string]string{"ol-1": "open"}
+		drifts := detectStatusDrifts(byBeadsID, beadsIndex)
+		if len(drifts) != 1 {
+			t.Fatalf("expected 1 drift, got %d", len(drifts))
+		}
+		if drifts[0].Type != "status_mismatch" {
+			t.Errorf("type = %q, want status_mismatch", drifts[0].Type)
+		}
+	})
+}
+
+// --- detectOrphanedEntries ---
+
+func TestPlansCov_DetectOrphanedEntries(t *testing.T) {
+	entries := []types.PlanManifestEntry{
+		{PlanName: "linked", BeadsID: "ol-1"},
+		{PlanName: "orphan1", BeadsID: ""},
+		{PlanName: "orphan2", BeadsID: ""},
+	}
+	drifts := detectOrphanedEntries(entries)
+	if len(drifts) != 2 {
+		t.Errorf("expected 2 orphans, got %d", len(drifts))
+	}
+	for _, d := range drifts {
+		if d.Type != "orphaned" {
+			t.Errorf("type = %q, want orphaned", d.Type)
+		}
+	}
+}
+
+// --- saveManifest edge case ---
+
+func TestPlansCov_SaveManifest(t *testing.T) {
+	t.Run("round-trip preserves data", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "manifest.jsonl")
+
+		now := time.Now().UTC().Truncate(time.Second)
+		entries := []types.PlanManifestEntry{
+			{Path: "/x.md", PlanName: "x", Status: types.PlanStatusActive, CreatedAt: now},
+			{Path: "/y.md", PlanName: "y", Status: types.PlanStatusCompleted, BeadsID: "ol-y"},
+		}
+		if err := saveManifest(path, entries); err != nil {
+			t.Fatalf("save error: %v", err)
+		}
+
+		loaded, err := loadManifest(path)
+		if err != nil {
+			t.Fatalf("load error: %v", err)
+		}
+		if len(loaded) != 2 {
+			t.Fatalf("expected 2 entries, got %d", len(loaded))
+		}
+		if loaded[0].PlanName != "x" {
+			t.Errorf("first entry name = %q, want x", loaded[0].PlanName)
+		}
+		if loaded[1].BeadsID != "ol-y" {
+			t.Errorf("second entry beadsID = %q, want ol-y", loaded[1].BeadsID)
+		}
+	})
+
+	t.Run("handles empty entries", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "empty-manifest.jsonl")
+
+		if err := saveManifest(path, nil); err != nil {
+			t.Fatalf("save error: %v", err)
+		}
+
+		loaded, err := loadManifest(path)
+		if err != nil {
+			t.Fatalf("load error: %v", err)
+		}
+		if len(loaded) != 0 {
+			t.Errorf("expected 0 entries, got %d", len(loaded))
+		}
+	})
 }
