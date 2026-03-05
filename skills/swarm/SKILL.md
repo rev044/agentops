@@ -230,6 +230,16 @@ Mayor: "Let's build a user auth system"
 6. /vibe -> Validate everything
 ```
 
+### Scope-Escape Protocol
+
+When a worker discovers work outside their assigned scope, they MUST NOT modify files outside their file manifest. Instead, append to `.agents/swarm/scope-escapes.jsonl`:
+
+```json
+{"worker": "<worker-id>", "finding": "<description>", "suggested_files": ["path/to/file"], "timestamp": "<ISO8601>"}
+```
+
+The lead reviews scope escapes after each wave and creates follow-up tasks as needed.
+
 ## Key Points
 
 - **Runtime-native local mode** - Auto-selects the native backend for the current runtime (Claude teams or Codex sub-agents)

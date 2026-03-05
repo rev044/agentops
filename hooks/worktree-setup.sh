@@ -5,6 +5,12 @@
 # Kill switch
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 
+# Lead-only git guard: workers should not commit directly
+# Set GIT_WORKER_GUARD=1 to block git commit/push in worker sessions
+if [[ "${AGENTOPS_WORKER_SESSION:-}" == "1" ]]; then
+    export GIT_WORKER_GUARD=1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/../lib/hook-helpers.sh"
 

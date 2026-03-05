@@ -7,6 +7,12 @@
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 [ "${AGENTOPS_SESSION_START_DISABLED:-}" = "1" ] && exit 0
 
+# Worker environment sanitization
+if [[ "${AGENTOPS_WORKER_SESSION:-}" == "1" ]]; then
+    # Reset aliases to prevent interference
+    unalias -a 2>/dev/null || true
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

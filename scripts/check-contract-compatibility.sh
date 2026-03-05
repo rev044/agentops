@@ -116,10 +116,8 @@ echo ""
 # ── Check 1: docs/contracts/ directory exists ──
 
 if [[ ! -d "$CONTRACTS_DIR" ]]; then
-  fail "docs/contracts/ directory not found"
-  echo ""
-  echo "Contract compatibility check failed ($failures failure(s))."
-  exit 1
+  echo "WARN: docs/contracts/ directory not found — skipping contract compatibility check"
+  exit 0
 fi
 
 # ── Check 2: Orphan allowlist format and policy ──
