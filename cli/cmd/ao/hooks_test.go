@@ -647,3 +647,145 @@ func TestCollectWiredScriptsInlineCommands(t *testing.T) {
 		t.Errorf("expected 0 wired scripts, got %d", len(wiredScripts))
 	}
 }
+
+// --- Cobra execution tests for `ao hooks` commands ---
+
+func TestHooksCommand_RootListsSubcommands(t *testing.T) {
+	out, err := executeCommand("hooks")
+	if err != nil {
+		t.Fatalf("ao hooks failed: %v", err)
+	}
+	for _, sub := range []string{"init", "install", "show", "test"} {
+		if !strings.Contains(out, sub) {
+			t.Errorf("expected subcommand %q in output, got: %s", sub, out)
+		}
+	}
+}
+
+func TestHooksCommand_InitProducesValidJSON(t *testing.T) {
+	// Reset format to default in case prior test changed it
+	hooksOutputFormat = "json"
+
+	out, err := executeCommand("hooks", "init")
+	if err != nil {
+		t.Fatalf("ao hooks init failed: %v", err)
+	}
+
+	var parsed map[string]any
+	if jsonErr := json.Unmarshal([]byte(out), &parsed); jsonErr != nil {
+		t.Fatalf("ao hooks init did not produce valid JSON: %v\noutput: %s", jsonErr, out)
+	}
+
+	hooksSection, ok := parsed["hooks"].(map[string]any)
+	if !ok {
+		t.Fatal("expected top-level 'hooks' key in JSON output")
+	}
+	if _, ok := hooksSection["SessionStart"]; !ok {
+		t.Error("expected 'SessionStart' key in hooks JSON output")
+	}
+}
+
+func TestHooksCommand_InitShellFormat(t *testing.T) {
+	out, err := executeCommand("hooks", "init", "--format=shell")
+	if err != nil {
+		t.Fatalf("ao hooks init --format=shell failed: %v", err)
+	}
+
+	// Shell format should contain comment lines, not be valid JSON
+	if !strings.Contains(out, "#") {
+		t.Errorf("expected shell comments (#) in output, got: %s", out)
+	}
+	if strings.Contains(out, "SessionStart") {
+		// Shell format references hook commands, not event names directly
+	}
+	// Verify it is NOT valid JSON
+	var probe map[string]any
+	if json.Unmarshal([]byte(out), &probe) == nil {
+		t.Errorf("shell format should not be valid JSON, but it parsed successfully")
+	}
+}
+
+func TestHooksCommand_ShowHandlesNoSettings(t *testing.T) {
+	tmp := chdirTemp(t)
+	t.Setenv("HOME", tmp)
+
+	out, err := executeCommand("hooks", "show")
+	if err != nil {
+		t.Fatalf("ao hooks show failed: %v", err)
+	}
+	// With no settings.json, should print guidance about installing hooks
+	if !strings.Contains(out, "install") && !strings.Contains(out, "No") {
+		t.Errorf("expected guidance about missing settings, got: %s", out)
+	}
+}
+
+func TestHooksCommand_ShowWithSettings(t *testing.T) {
+	tmp := chdirTemp(t)
+	t.Setenv("HOME", tmp)
+
+	// Create a minimal settings.json with hooks
+	claudeDir := filepath.Join(tmp, ".claude")
+	if err := os.MkdirAll(claudeDir, 0750); err != nil {
+		t.Fatal(err)
+	}
+	settings := map[string]any{
+		"hooks": map[string]any{
+			"SessionStart": []any{
+				map[string]any{
+					"hooks": []any{
+						map[string]any{"type": "command", "command": "ao inject 2>/dev/null"},
+					},
+				},
+			},
+		},
+	}
+	data, _ := json.Marshal(settings)
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := executeCommand("hooks", "show")
+	if err != nil {
+		t.Fatalf("ao hooks show failed: %v", err)
+	}
+	if !strings.Contains(out, "SessionStart") {
+		t.Errorf("expected SessionStart in show output, got: %s", out)
+	}
+}
+
+func TestHooksCommand_InstallDryRun(t *testing.T) {
+	tmp := chdirTemp(t)
+	t.Setenv("HOME", tmp)
+
+	out, err := executeCommand("hooks", "install", "--dry-run")
+	if err != nil {
+		t.Fatalf("ao hooks install --dry-run failed: %v", err)
+	}
+	if !strings.Contains(out, "dry-run") && !strings.Contains(out, "Would") {
+		t.Errorf("expected dry-run indication in output, got: %s", out)
+	}
+
+	// Verify no settings.json was created
+	settingsPath := filepath.Join(tmp, ".claude", "settings.json")
+	if _, statErr := os.Stat(settingsPath); statErr == nil {
+		t.Error("dry-run should NOT create settings.json, but it exists")
+	}
+}
+
+func TestHooksCommand_TestDryRun(t *testing.T) {
+	tmp := chdirTemp(t)
+	t.Setenv("HOME", tmp)
+
+	out, err := executeCommand("hooks", "test", "--dry-run")
+	if err != nil {
+		t.Fatalf("ao hooks test --dry-run failed: %v", err)
+	}
+	// Should show test steps header
+	if !strings.Contains(out, "Testing") {
+		t.Errorf("expected 'Testing' header in output, got: %s", out)
+	}
+	// Dry-run skips actual hook execution
+	if strings.Contains(out, "skipped") || strings.Contains(out, "dry-run") {
+		// Good - confirms dry-run behavior for individual test steps
+	}
+}

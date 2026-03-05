@@ -280,6 +280,80 @@ if [[ "$SKIP_HOOKS" -eq 0 ]]; then
         "hooks manifest"
 fi
 
+# --- Skill Frontmatter Validation ---
+log "Validating skill frontmatter"
+SKILL_SCHEMA="$REPO_ROOT/schemas/skill-frontmatter.v1.schema.json"
+if [[ -f "$SKILL_SCHEMA" ]]; then
+    for skill_md in "$REPO_ROOT"/skills/*/SKILL.md; do
+        [[ -f "$skill_md" ]] || continue
+        skill_name="$(basename "$(dirname "$skill_md")")"
+
+        # Extract YAML frontmatter and convert to JSON via PyYAML
+        frontmatter_json="$(python3 - "$skill_md" <<'PY'
+import sys, json, re
+
+with open(sys.argv[1], "r") as f:
+    content = f.read()
+
+# Extract between first two --- markers
+m = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
+if not m:
+    print("{}")
+    sys.exit(0)
+
+import yaml
+data = yaml.safe_load(m.group(1))
+if not isinstance(data, dict):
+    print("{}")
+    sys.exit(0)
+
+print(json.dumps(data))
+PY
+        )" || continue
+
+        # Skip if empty/no frontmatter
+        if [[ "$frontmatter_json" == "{}" ]]; then
+            continue
+        fi
+
+        # Write to temp file and validate via existing function
+        tmp_manifest="$(mktemp)"
+        echo "$frontmatter_json" > "$tmp_manifest"
+        validate_manifest "$tmp_manifest" "$SKILL_SCHEMA" "skill/$skill_name frontmatter"
+        rm -f "$tmp_manifest"
+    done
+fi
+
+# --- Memory Packet Validation ---
+log "Validating memory packets"
+MEMORY_SCHEMA="$REPO_ROOT/schemas/memory-packet.v1.schema.json"
+if [[ -f "$MEMORY_SCHEMA" ]]; then
+    found_memory=0
+    for packet in "$REPO_ROOT"/.agents/memory/*.json; do
+        [[ -f "$packet" ]] || continue
+        found_memory=1
+        validate_manifest "$packet" "$MEMORY_SCHEMA" "memory/$(basename "$packet")"
+    done
+    if [[ "$found_memory" -eq 0 ]]; then
+        echo "ℹ no memory packets found (skipped)"
+    fi
+fi
+
+# --- Handoff Artifact Validation ---
+log "Validating handoff artifacts"
+HANDOFF_SCHEMA="$REPO_ROOT/schemas/handoff.v1.schema.json"
+if [[ -f "$HANDOFF_SCHEMA" ]]; then
+    found_handoff=0
+    for handoff in "$REPO_ROOT"/.agents/handoff/*.json; do
+        [[ -f "$handoff" ]] || continue
+        found_handoff=1
+        validate_manifest "$handoff" "$HANDOFF_SCHEMA" "handoff/$(basename "$handoff")"
+    done
+    if [[ "$found_handoff" -eq 0 ]]; then
+        echo "ℹ no handoff artifacts found (skipped)"
+    fi
+fi
+
 if [[ "$errors" -gt 0 ]]; then
     exit 1
 fi
