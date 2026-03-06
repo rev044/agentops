@@ -1,11 +1,19 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+type errReader struct{}
+
+func (errReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("boom")
+}
 
 func TestContextArtifactDir_WithRunID(t *testing.T) {
 	got := contextArtifactDir("run-abc123")
@@ -39,6 +47,22 @@ func TestContextArtifactDir_Empty(t *testing.T) {
 		if len(parts[1]) != 4 {
 			t.Errorf("contextArtifactDir(\"\") hex suffix %q expected 4 characters", parts[1])
 		}
+	}
+}
+
+func TestNewAdhocContextRunID_UsesCryptoSuffix(t *testing.T) {
+	got := newAdhocContextRunID(time.Unix(1234, 0), strings.NewReader("\xab\xcd"))
+	if got != "adhoc-1234-abcd" {
+		t.Fatalf("newAdhocContextRunID() = %q, want %q", got, "adhoc-1234-abcd")
+	}
+}
+
+func TestNewAdhocContextRunID_FallsBackToTimeBits(t *testing.T) {
+	now := time.Unix(1234, 0).Add(0x1234)
+	got := newAdhocContextRunID(now, errReader{})
+	want := "adhoc-1234-c634"
+	if got != want {
+		t.Fatalf("newAdhocContextRunID() fallback = %q, want %q", got, want)
 	}
 }
 
