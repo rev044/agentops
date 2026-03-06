@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -292,6 +293,14 @@ func buildServeMux(root *serveMuxRoot, runID string) *http.ServeMux {
 		}
 		serveRPIRuns(w, r, root.get())
 	})
+	mux.HandleFunc("/state", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			setCORSHeaders(w, r)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		serveRPIState(w, r, root.get(), runID)
+	})
 	return mux
 }
 
@@ -373,6 +382,59 @@ func serveRPIRuns(w http.ResponseWriter, r *http.Request, root string) {
 	runs := scanRegistryRuns(root)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(runs)
+}
+
+// serveRPIState returns the current phased-state.json and run registry info
+// so the frontend can read ground truth instead of inferring from events.
+func serveRPIState(w http.ResponseWriter, r *http.Request, root, defaultRunID string) {
+	setCORSHeaders(w, r)
+
+	runID := strings.TrimSpace(r.URL.Query().Get("run-id"))
+	if runID != "" && (strings.Contains(runID, "..") || strings.Contains(runID, "/") || strings.Contains(runID, "\\")) {
+		http.Error(w, "invalid run-id", http.StatusBadRequest)
+		return
+	}
+	if runID == "" {
+		runID = defaultRunID
+	}
+
+	resp := map[string]any{
+		"root":   root,
+		"run_id": runID,
+	}
+
+	// Read phased-state.json if it exists
+	statePath := filepath.Join(root, ".agents", "rpi", "phased-state.json")
+	if data, err := os.ReadFile(statePath); err == nil {
+		var state map[string]any
+		if json.Unmarshal(data, &state) == nil {
+			resp["phased_state"] = state
+		}
+	}
+
+	// Read per-phase results
+	phaseResults := make(map[string]any)
+	for i := 1; i <= 3; i++ {
+		resultPath := filepath.Join(root, ".agents", "rpi", fmt.Sprintf("phase-%d-result.json", i))
+		if data, err := os.ReadFile(resultPath); err == nil {
+			var result map[string]any
+			if json.Unmarshal(data, &result) == nil {
+				phaseResults[fmt.Sprintf("phase_%d", i)] = result
+			}
+		}
+	}
+	if len(phaseResults) > 0 {
+		resp["phase_results"] = phaseResults
+	}
+
+	// Scan for active runs if no specific run requested
+	if runID == "" {
+		runs := scanRegistryRuns(root)
+		resp["runs"] = runs
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func setCORSHeaders(w http.ResponseWriter, r ...*http.Request) {
