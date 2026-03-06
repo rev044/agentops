@@ -1,0 +1,18 @@
+{
+  "checks": [
+    {
+      "name": "ao CLI",
+      "status": "pass",
+      "detail": "v2.10.0",
+      "required": true
+    },
+    {
+      "name": "Knowledge Base",
+      "status": "fail",
+      "detail": ".agents/ao not initialized",
+      "required": true
+    }
+  ],
+  "result": "UNHEALTHY",
+  "summary": "1/2 checks passed, 1 failed"
+}

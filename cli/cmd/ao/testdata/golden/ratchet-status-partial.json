@@ -1,0 +1,41 @@
+{
+  "chain_id": "golden-test-002",
+  "started": "2025-06-15T09:00:00Z",
+  "epic_id": "ag-golden",
+  "steps": [
+    {
+      "step": "research",
+      "status": "locked",
+      "output": "findings.md",
+      "time": "2025-06-15T09:10:00Z"
+    },
+    {
+      "step": "pre-mortem",
+      "status": "locked",
+      "output": "pre-mortem.md",
+      "time": "2025-06-15T09:20:00Z"
+    },
+    {
+      "step": "plan",
+      "status": "in_progress",
+      "input": "findings.md"
+    },
+    {
+      "step": "implement",
+      "status": "pending"
+    },
+    {
+      "step": "crank",
+      "status": "pending"
+    },
+    {
+      "step": "vibe",
+      "status": "pending"
+    },
+    {
+      "step": "post-mortem",
+      "status": "pending"
+    }
+  ],
+  "path": "/tmp/test/.agents/ao/chain.jsonl"
+}
