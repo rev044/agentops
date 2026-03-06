@@ -57,6 +57,17 @@ func classifyServeArg(flagRunID string, args []string) (goal, runID string) {
 	return "", ""
 }
 
+func validateExplicitServeRunID(flagRunID string) (string, error) {
+	tok := strings.TrimSpace(flagRunID)
+	if tok == "" {
+		return "", nil
+	}
+	if !rpiRunIDPattern.MatchString(tok) {
+		return "", fmt.Errorf("invalid --run-id %q: expected rpi-<8-12 hex> or <12 hex>", tok)
+	}
+	return tok, nil
+}
+
 func init() {
 	serveCmd := &cobra.Command{
 		Use:   "serve [goal | run-id]",
@@ -76,15 +87,17 @@ Watch mode (ao rpi serve [run-id]):
   with phase status, telemetry, cost, and worker activity.
 
   ao rpi serve                      # auto-discover latest active run
-  ao rpi serve rpi-abc123           # watch a specific run by ID
+  ao rpi serve rpi-a1b2c3d4         # watch a specific run by ID
+  ao rpi serve --run-id 760fc86f0c0f
   ao rpi serve --port 8080          # use a custom port
   ao rpi serve --no-open            # start server without opening browser
 
-The dashboard connects via Server-Sent Events (SSE) — no polling, no WebSockets.`,
+The dashboard streams events via Server-Sent Events (SSE) and also polls
+/runs and /state for discovery and reconciliation. It does not use WebSockets.`,
 		RunE: runRPIServe,
 	}
 	serveCmd.Flags().IntVar(&rpiServePort, "port", 7799, "Port to listen on")
-	serveCmd.Flags().StringVar(&rpiServeRunID, "run-id", "", "Run ID to watch (defaults to latest active run)")
+	serveCmd.Flags().StringVar(&rpiServeRunID, "run-id", "", "Run ID to watch explicitly (must match rpi-<8-12 hex> or <12 hex>)")
 	serveCmd.Flags().BoolVar(&rpiServeOpen, "open", true, "Open browser automatically")
 	serveCmd.Flags().BoolVar(&rpiServeNoOpen, "no-open", false, "Do not open browser automatically")
 	serveCmd.Flags().BoolVar(&rpiServeOrchestrate, "orchestrate", false, "Treat first argument as a goal and run full RPI orchestration")
@@ -103,6 +116,9 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
+	}
+	if _, err := validateExplicitServeRunID(rpiServeRunID); err != nil {
+		return err
 	}
 
 	goal, watchRunID := classifyServeArg(rpiServeRunID, args)

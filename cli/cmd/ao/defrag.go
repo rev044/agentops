@@ -32,14 +32,15 @@ var defragCmd = &cobra.Command{
   --dedup             Flag learnings with >80% content similarity
   --oscillation-sweep Read evolve cycle history; flag goals alternating >=3 cycles
 
-All operations are non-destructive by default: defrag reports what it would do.
-Combine with --dry-run=false to apply changes (prune deletes, dedup merges).
+By default, defrag applies prune/dedup changes unless you pass the global
+--dry-run flag. Use ao --dry-run defrag ... to inspect the report without
+deleting orphaned or duplicate learnings.
 
 Output: .agents/defrag/YYYY-MM-DD.json with full delta report.
 
 Examples:
-  ao defrag --prune --dedup --oscillation-sweep   # full report, dry-run
-  ao defrag --prune --stale-days 14               # report learnings older than 14d`,
+  ao --dry-run defrag --prune --dedup --oscillation-sweep   # full report only
+  ao defrag --prune --stale-days 14                         # apply prune/delete rules`,
 	RunE: runDefrag,
 }
 
@@ -64,7 +65,7 @@ type DefragReport struct {
 	Timestamp   time.Time          `json:"timestamp"`
 	DryRun      bool               `json:"dry_run"`
 	Prune       *PruneResult       `json:"prune,omitempty"`
-	Dedup       *DefragDedupResult  `json:"dedup,omitempty"`
+	Dedup       *DefragDedupResult `json:"dedup,omitempty"`
 	Oscillation *OscillationResult `json:"oscillation,omitempty"`
 }
 
@@ -92,7 +93,7 @@ type OscillationResult struct {
 type OscillatingGoal struct {
 	Target           string `json:"target"`
 	AlternationCount int    `json:"alternation_count"`
-	LastCycle         int    `json:"last_cycle"`
+	LastCycle        int    `json:"last_cycle"`
 }
 
 func runDefrag(cmd *cobra.Command, args []string) error {
@@ -423,7 +424,7 @@ func sweepOscillatingGoals(cwd string) (*OscillationResult, error) {
 			result.OscillatingGoals = append(result.OscillatingGoals, OscillatingGoal{
 				Target:           target,
 				AlternationCount: alternations,
-				LastCycle:         lastCycle,
+				LastCycle:        lastCycle,
 			})
 		}
 	}

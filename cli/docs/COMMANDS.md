@@ -1216,7 +1216,7 @@ ao rpi serve [goal | run-id] [flags]
       --open            Open browser automatically (default true)
       --orchestrate     Treat first argument as a goal and run full RPI orchestration
       --port int        Port to listen on (default 7799)
-      --run-id string   Run ID to watch (defaults to latest active run)
+      --run-id string   Run ID to watch explicitly (must match rpi-<8-12 hex> or <12 hex>)
 ```
 
 #### `ao rpi status`
@@ -1756,7 +1756,7 @@ ao mine [flags]
       --output-dir string   Directory for mine output JSON (default ".agents/mine")
       --quiet               Suppress progress output
       --since string        How far back to look (e.g. 26h, 7d) (default "26h")
-      --sources string      Comma-separated sources to mine (git, agents, code) (default "git,agents,code")
+      --sources string      Comma-separated sources to mine (git, agents, code, events) (default "git,agents,code")
 ```
 
 ---

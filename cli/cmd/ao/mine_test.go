@@ -68,6 +68,7 @@ func TestSplitSources_Valid(t *testing.T) {
 		{"git,agents", []string{"git", "agents"}},
 		{"code", []string{"code"}},
 		{"git", []string{"git"}},
+		{"git,events", []string{"git", "events"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
@@ -100,6 +101,16 @@ func TestSplitSources_UnknownSource(t *testing.T) {
 				t.Errorf("splitSources(%q) expected error, got nil", input)
 			}
 		})
+	}
+}
+
+func TestSplitSources_UnknownSourceErrorMentionsEvents(t *testing.T) {
+	_, err := splitSources("git,fake")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "valid: git, agents, code, events") {
+		t.Fatalf("expected events in error message, got %q", err.Error())
 	}
 }
 

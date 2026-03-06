@@ -290,6 +290,38 @@ func TestClassifyServeArg_FlagOverridesPositional(t *testing.T) {
 	}
 }
 
+func TestValidateExplicitServeRunID(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{name: "empty allowed", input: "", want: ""},
+		{name: "bare 12-hex", input: "760fc86f0c0f", want: "760fc86f0c0f"},
+		{name: "prefixed 8-hex", input: "rpi-a1b2c3d4", want: "rpi-a1b2c3d4"},
+		{name: "bare 8-hex rejected", input: "3f0d90bd", wantErr: true},
+		{name: "goal rejected", input: "add auth", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := validateExplicitServeRunID(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for %q", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validateExplicitServeRunID(%q): %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestShouldOpenBrowser_Default(t *testing.T) {
 	origOpen, origNoOpen := rpiServeOpen, rpiServeNoOpen
 	defer func() {

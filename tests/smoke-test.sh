@@ -208,14 +208,28 @@ if [[ -f "$NEXTWORK_FILE" ]]; then
         while IFS= read -r line; do
             ((line_num++)) || true
             [[ -z "$line" ]] && continue
-            if ! echo "$line" | jq -e '.source_epic and .timestamp and (.items | type == "array") and (.consumed | type == "boolean")' >/dev/null 2>&1; then
-                fail "next-work.jsonl line $line_num: missing required fields"
+            if ! echo "$line" | jq -e '
+                .source_epic and
+                ((.timestamp | type == "string") or (.created_at | type == "string")) and
+                (.consumed | type == "boolean") and
+                (
+                  ((.items | type) == "array") or
+                  ((.title | type == "string") and (.type | type == "string") and (.severity | type == "string"))
+                )
+            ' >/dev/null 2>&1; then
+                fail "next-work.jsonl line $line_num: missing required fields for batch or legacy flat schema"
                 ((nw_errors++)) || true
             fi
             # Validate optional target_repo is a string when present
             if echo "$line" | jq -e 'has("target_repo")' >/dev/null 2>&1; then
                 if ! echo "$line" | jq -e '(.target_repo | type) == "string"' >/dev/null 2>&1; then
                     fail "next-work.jsonl line $line_num: target_repo must be a string"
+                    ((nw_errors++)) || true
+                fi
+            fi
+            if echo "$line" | jq -e 'has("items") and (.items | type == "array")' >/dev/null 2>&1; then
+                if ! echo "$line" | jq -e 'all(.items[]?; (has("target_repo") | not) or (.target_repo | type == "string"))' >/dev/null 2>&1; then
+                    fail "next-work.jsonl line $line_num: item target_repo must be a string"
                     ((nw_errors++)) || true
                 fi
             fi

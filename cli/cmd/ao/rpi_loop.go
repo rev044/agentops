@@ -118,14 +118,23 @@ Examples:
 
 // nextWorkEntry represents one line in next-work.jsonl.
 type nextWorkEntry struct {
-	SourceEpic string         `json:"source_epic"`
-	Timestamp  string         `json:"timestamp"`
-	Items      []nextWorkItem `json:"items"`
-	Consumed   bool           `json:"consumed"`
-	ConsumedBy *string        `json:"consumed_by"`
-	ConsumedAt *string        `json:"consumed_at"`
-	FailedAt   *string        `json:"failed_at,omitempty"`
-	QueueIndex int            `json:"-"`
+	SourceEpic  string         `json:"source_epic"`
+	Timestamp   string         `json:"timestamp"`
+	Items       []nextWorkItem `json:"items,omitempty"`
+	Consumed    bool           `json:"consumed"`
+	ConsumedBy  *string        `json:"consumed_by"`
+	ConsumedAt  *string        `json:"consumed_at"`
+	FailedAt    *string        `json:"failed_at,omitempty"`
+	LegacyID    string         `json:"id,omitempty"`
+	CreatedAt   string         `json:"created_at,omitempty"`
+	Title       string         `json:"title,omitempty"`
+	Type        string         `json:"type,omitempty"`
+	Severity    string         `json:"severity,omitempty"`
+	Source      string         `json:"source,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Evidence    string         `json:"evidence,omitempty"`
+	TargetRepo  string         `json:"target_repo,omitempty"`
+	QueueIndex  int            `json:"-"`
 }
 
 // nextWorkItem represents a single harvested work item.
@@ -508,8 +517,8 @@ func readQueueEntries(path string) ([]nextWorkEntry, error) {
 			continue
 		}
 
-		var entry nextWorkEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+		entry, err := parseNextWorkEntryLine(line)
+		if err != nil {
 			VerbosePrintf("Skipping malformed line: %v\n", err)
 			continue
 		}
@@ -539,6 +548,42 @@ func readQueueEntries(path string) ([]nextWorkEntry, error) {
 	}
 
 	return entries, scanner.Err()
+}
+
+func parseNextWorkEntryLine(line string) (nextWorkEntry, error) {
+	var entry nextWorkEntry
+	if err := json.Unmarshal([]byte(line), &entry); err != nil {
+		return nextWorkEntry{}, err
+	}
+
+	if entry.Timestamp == "" && entry.CreatedAt != "" {
+		entry.Timestamp = entry.CreatedAt
+	}
+
+	if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(entry) {
+		entry.Items = []nextWorkItem{{
+			Title:       entry.Title,
+			Type:        entry.Type,
+			Severity:    entry.Severity,
+			Source:      entry.Source,
+			Description: entry.Description,
+			Evidence:    entry.Evidence,
+			TargetRepo:  entry.TargetRepo,
+			Consumed:    entry.Consumed,
+		}}
+	}
+
+	return entry, nil
+}
+
+func hasLegacyFlatNextWorkItem(entry nextWorkEntry) bool {
+	return strings.TrimSpace(entry.Title) != "" ||
+		strings.TrimSpace(entry.Type) != "" ||
+		strings.TrimSpace(entry.Severity) != "" ||
+		strings.TrimSpace(entry.Description) != "" ||
+		strings.TrimSpace(entry.Evidence) != "" ||
+		strings.TrimSpace(entry.TargetRepo) != "" ||
+		strings.TrimSpace(entry.Source) != ""
 }
 
 // selectHighestSeverityEntry picks the best item across all eligible entries.

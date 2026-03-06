@@ -64,6 +64,12 @@ var (
 	feedbackLoopCitationType string
 )
 
+var validFeedbackCitationTypes = map[string]bool{
+	"retrieved": true,
+	"applied":   true,
+	"all":       true,
+}
+
 func init() {
 	feedbackLoopCmd.Hidden = false
 	feedbackLoopCmd.GroupID = "workflow"
@@ -224,8 +230,20 @@ func resolveFeedbackReward(flagReward float64, transcriptPath, sessionID string)
 	return computeRewardFromTranscript(transcriptPath, sessionID)
 }
 
+func validateFeedbackCitationType(citationType string) (string, error) {
+	candidate := strings.TrimSpace(citationType)
+	if validFeedbackCitationTypes[candidate] {
+		return candidate, nil
+	}
+	return "", fmt.Errorf("invalid --citation-type %q (valid: retrieved, applied, all)", candidate)
+}
+
 func runFeedbackLoop(cmd *cobra.Command, args []string) error {
 	sessionID, err := resolveFeedbackLoopSessionID(feedbackLoopSessionID)
+	if err != nil {
+		return err
+	}
+	citationType, err := validateFeedbackCitationType(feedbackLoopCitationType)
 	if err != nil {
 		return err
 	}
@@ -240,7 +258,7 @@ func runFeedbackLoop(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	sessionCitations, err := loadSessionCitations(cwd, sessionID, feedbackLoopCitationType)
+	sessionCitations, err := loadSessionCitations(cwd, sessionID, citationType)
 	if err != nil {
 		return err
 	}

@@ -21,11 +21,11 @@ import (
 )
 
 var (
-	mineSourcesFlag    string
-	mineSince          string
-	mineOutputDir      string
-	mineQuiet          bool
-	mineEmitWorkItems  bool
+	mineSourcesFlag   string
+	mineSince         string
+	mineOutputDir     string
+	mineQuiet         bool
+	mineEmitWorkItems bool
 )
 
 var mineCmd = &cobra.Command{
@@ -54,7 +54,7 @@ func init() {
 	mineCmd.GroupID = "knowledge"
 	rootCmd.AddCommand(mineCmd)
 	mineCmd.Flags().StringVar(&mineSourcesFlag, "sources", "git,agents,code",
-		"Comma-separated sources to mine (git, agents, code)")
+		"Comma-separated sources to mine (git, agents, code, events)")
 	mineCmd.Flags().StringVar(&mineSince, "since", "26h",
 		"How far back to look (e.g. 26h, 7d)")
 	mineCmd.Flags().StringVar(&mineOutputDir, "output-dir", ".agents/mine",
@@ -286,7 +286,7 @@ func splitSources(s string) ([]string, error) {
 			continue
 		}
 		if !validMineSources[p] {
-			return nil, fmt.Errorf("unknown source %q (valid: git, agents, code)", p)
+			return nil, fmt.Errorf("unknown source %q (valid: git, agents, code, events)", p)
 		}
 		sources = append(sources, p)
 	}

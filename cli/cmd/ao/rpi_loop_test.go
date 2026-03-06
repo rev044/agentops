@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -404,6 +405,70 @@ func TestReadUnconsumedItems_RepoFilter_Legacy(t *testing.T) {
 	}
 }
 
+func TestReadQueueEntries_LegacyFlatEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	line := `{"id":"nw-legacy-1","source_epic":"ag-legacy","title":"Legacy item","type":"tech-debt","severity":"high","source":"retro-learning","description":"legacy flat row","target_repo":"agentops","consumed":false,"created_at":"2026-02-11T11:04:30-05:00"}`
+	if err := os.WriteFile(path, []byte(line+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := readQueueEntries(path)
+	if err != nil {
+		t.Fatalf("readQueueEntries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	entry := entries[0]
+	if entry.Timestamp != "2026-02-11T11:04:30-05:00" {
+		t.Fatalf("timestamp = %q, want created_at fallback", entry.Timestamp)
+	}
+	if entry.LegacyID != "nw-legacy-1" {
+		t.Fatalf("legacy id = %q, want nw-legacy-1", entry.LegacyID)
+	}
+	if len(entry.Items) != 1 {
+		t.Fatalf("expected synthesized single item, got %d", len(entry.Items))
+	}
+	if entry.Items[0].Title != "Legacy item" {
+		t.Fatalf("item title = %q, want Legacy item", entry.Items[0].Title)
+	}
+}
+
+func TestSelectHighestSeverityEntry_LegacyFlatEntry(t *testing.T) {
+	entries := []nextWorkEntry{
+		{
+			SourceEpic: "ag-legacy",
+			LegacyID:   "nw-legacy-1",
+			Items: []nextWorkItem{{
+				Title:    "Legacy high",
+				Severity: "high",
+			}},
+			QueueIndex: 0,
+		},
+		{
+			SourceEpic: "ag-batch",
+			Items: []nextWorkItem{{
+				Title:    "Batch low",
+				Severity: "low",
+			}},
+			QueueIndex: 1,
+		},
+	}
+
+	sel := selectHighestSeverityEntry(entries, "")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "Legacy high" {
+		t.Fatalf("selected %q, want Legacy high", sel.Item.Title)
+	}
+	if sel.EntryIndex != 0 {
+		t.Fatalf("entry index = %d, want 0", sel.EntryIndex)
+	}
+}
+
 func TestReadUnconsumedItems_RepoFilter_EmptyFilter(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")
@@ -507,6 +572,38 @@ func TestQueueMarkConsumed_Basic(t *testing.T) {
 	}
 }
 
+func TestMarkEntryConsumed_LegacyFlatEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	line := `{"id":"nw-legacy-1","source_epic":"ag-legacy","title":"Legacy item","type":"tech-debt","severity":"high","consumed":false,"created_at":"2026-02-11T11:04:30-05:00"}`
+	if err := os.WriteFile(path, []byte(line+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := markItemConsumed(path, 0, 0, "ao-rpi-loop"); err != nil {
+		t.Fatalf("markItemConsumed: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(data), &entry); err != nil {
+		t.Fatalf("unmarshal rewritten legacy line: %v", err)
+	}
+	if consumed, _ := entry["consumed"].(bool); !consumed {
+		t.Fatalf("consumed = %v, want true", entry["consumed"])
+	}
+	if _, ok := entry["items"]; ok {
+		t.Fatal("legacy flat row should remain flat after rewrite")
+	}
+	if entry["title"] != "Legacy item" {
+		t.Fatalf("title = %v, want Legacy item", entry["title"])
+	}
+}
+
 func TestQueueMarkConsumed_SecondEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")
@@ -549,6 +646,35 @@ func TestQueueMarkFailed_Basic(t *testing.T) {
 	}
 	if got[0].FailedAt == nil {
 		t.Errorf("expected FailedAt to be set")
+	}
+}
+
+func TestMarkEntryFailed_LegacyFlatEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	line := `{"id":"nw-legacy-1","source_epic":"ag-legacy","title":"Legacy item","type":"tech-debt","severity":"high","consumed":false,"created_at":"2026-02-11T11:04:30-05:00"}`
+	if err := os.WriteFile(path, []byte(line+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := markEntryFailed(path, 0); err != nil {
+		t.Fatalf("markEntryFailed: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(data), &entry); err != nil {
+		t.Fatalf("unmarshal rewritten legacy line: %v", err)
+	}
+	if _, ok := entry["failed_at"]; !ok {
+		t.Fatal("expected failed_at on rewritten legacy row")
+	}
+	if _, ok := entry["items"]; ok {
+		t.Fatal("legacy flat row should remain flat after failure rewrite")
 	}
 }
 

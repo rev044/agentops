@@ -2,7 +2,7 @@
 
 > Which `ao` commands are called by which skills and hooks — and vice versa.
 
-Auto-audited 2026-02-25. 52 CLI commands, 53 skills, 3 active runtime hooks.
+Auto-audited 2026-03-06. 52 CLI commands, 53 skills, 3 active runtime hooks.
 
 ## Summary
 
@@ -172,7 +172,7 @@ During Session
   → prompt-nudge.sh (UserPromptSubmit)
       → ao ratchet status
   → citation-tracker.sh (PostToolUse)
-      → writes .agents/ao/citations.jsonl (no ao command)
+      → appends citation events to .agents/ao/citations.jsonl (no ao command)
 
 Session End
   → session-end-maintenance.sh

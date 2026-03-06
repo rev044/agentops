@@ -22,7 +22,7 @@ All RPI artifacts live under `.agents/rpi/` relative to the working directory (w
   live-status.md              # Live status file (optional, --live-status flag)
   runs/
     <run-id>/
-      state.json              # Per-run mirrored orchestrator state
+      phased-state.json       # Per-run mirrored orchestrator state
       heartbeat.txt           # Liveness heartbeat
       events.jsonl            # Normalized runtime/control events (schema: rpi-c2-events.schema.json)
       commands.jsonl          # Control-plane commands (schema: rpi-c2-commands.schema.json)
@@ -38,6 +38,7 @@ All RPI artifacts live under `.agents/rpi/` relative to the working directory (w
 | `phase-{N}-summary.md` | Human-readable summary for cross-phase context | Written by Claude (preferred) or orchestrator fallback |
 | `phase-{N}-handoff.md` | Context degradation signal from Claude | Written by Claude when it detects context degradation |
 | `live-status.md` | Real-time progress for external watchers | Continuously updated when `--live-status` is enabled |
+| `.agents/ledger/rpi-events.jsonl` | Cross-run ledger stream | Append-only historical RPI event ledger across runs |
 | `runs/<run-id>/events.jsonl` | Append-only normalized event stream | Runtime adapters and control surfaces append with `run_id` correlation |
 | `runs/<run-id>/commands.jsonl` | Append-only control command stream | Command surfaces append with `command_id` and target metadata |
 
@@ -74,7 +75,7 @@ or config/env (`rpi.runtime_mode`, `rpi.runtime_command`, `AGENTOPS_RPI_RUNTIME[
 
 ## C2 Event and Command Streams
 
-`events.jsonl` and `commands.jsonl` live under `.agents/rpi/runs/<run-id>/` and are append-only.
+Per-run `events.jsonl` and `commands.jsonl` live under `.agents/rpi/runs/<run-id>/` and are append-only. The historical cross-run ledger is `.agents/ledger/rpi-events.jsonl`.
 
 - Event contract: [`rpi-c2-events.schema.json`](rpi-c2-events.schema.json)
 - Command contract: [`rpi-c2-commands.schema.json`](rpi-c2-commands.schema.json)

@@ -43,6 +43,27 @@ func TestResolveFeedbackLoopSessionID(t *testing.T) {
 	})
 }
 
+func TestValidateFeedbackCitationType(t *testing.T) {
+	t.Run("accepts valid values", func(t *testing.T) {
+		for _, input := range []string{"retrieved", "applied", "all"} {
+			got, err := validateFeedbackCitationType(input)
+			if err != nil {
+				t.Fatalf("validateFeedbackCitationType(%q): %v", input, err)
+			}
+			if got != input {
+				t.Fatalf("got %q, want %q", got, input)
+			}
+		}
+	})
+
+	t.Run("rejects invalid values", func(t *testing.T) {
+		_, err := validateFeedbackCitationType("typo")
+		if err == nil {
+			t.Fatal("expected error for invalid citation type")
+		}
+	})
+}
+
 func TestLoadSessionCitationsSupportsSessionAliases(t *testing.T) {
 	tempDir := t.TempDir()
 	timestampSession := "session-20260221-123456"

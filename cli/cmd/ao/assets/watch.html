@@ -367,7 +367,7 @@ function init() {
     connect();
   }
   if (autoFollowRuns) {
-    // No run-id provided — poll /runs to auto-discover
+    // No run-id provided — poll /runs to auto-discover active runs
     pollForRuns();
     runsInterval = setInterval(pollForRuns, 3000);
   }

@@ -175,8 +175,8 @@
 - [MemRL Policy Example Profile](contracts/memrl-policy.profile.example.json) — Example deterministic policy profile
 - [RPI Run Registry](contracts/rpi-run-registry.md) — RPI run registry specification
 - [RPI Phase Result Schema](contracts/rpi-phase-result.schema.json) — Machine-readable schema for RPI phase results
-- [RPI C2 Events Schema](contracts/rpi-c2-events.schema.json) — Machine-readable schema for normalized per-run `events.jsonl`
-- [RPI C2 Commands Schema](contracts/rpi-c2-commands.schema.json) — Machine-readable schema for per-run `commands.jsonl`
+- [RPI C2 Events Schema](contracts/rpi-c2-events.schema.json) — Machine-readable schema for per-run `.agents/rpi/runs/<run-id>/events.jsonl`
+- [RPI C2 Commands Schema](contracts/rpi-c2-commands.schema.json) — Machine-readable schema for per-run `.agents/rpi/runs/<run-id>/commands.jsonl`
 - [Swarm Worker Result Schema](contracts/swarm-worker-result.schema.json) — Machine-readable schema for `.agents/swarm/results/<task-id>.json` worker artifacts
 - [Scope Escape Report](contracts/scope-escape-report.md) — Structured template for agent scope-escape reporting
 - [dispatch-checklist.md](contracts/dispatch-checklist.md) — Standard references for agent dispatch prompts
