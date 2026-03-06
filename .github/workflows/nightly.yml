@@ -121,7 +121,7 @@ jobs:
         run: |
           ./cli/bin/ao defrag \
             --prune --dedup --oscillation-sweep \
-            --output /tmp/athena/defrag
+            --output-dir /tmp/athena/defrag
 
       - name: Check Athena health gates
         run: bash scripts/check-athena-health.sh
@@ -177,10 +177,15 @@ jobs:
 
           Please investigate and fix before the next release."
 
+          LABEL_ARGS=(--label bug)
+          if gh label list --limit 200 --json name --jq '.[].name' | grep -Fxq "nightly-failure"; then
+            LABEL_ARGS+=(--label nightly-failure)
+          fi
+
           # Check if issue already exists for today
-          EXISTING=$(gh issue list --label "nightly-failure" --search "$TITLE" --state open --json number --jq '.[0].number' 2>/dev/null || true)
-          if [[ -z "$EXISTING" ]]; then
-            gh issue create --title "$TITLE" --body "$BODY" --label "bug,nightly-failure"
+          EXISTING=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title --jq 'map(select(.title == "'"$TITLE"'")) | .[0].number' 2>/dev/null || true)
+          if [[ -z "$EXISTING" || "$EXISTING" == "null" ]]; then
+            gh issue create --title "$TITLE" --body "$BODY" "${LABEL_ARGS[@]}"
           else
             echo "Issue #$EXISTING already exists for today's failure"
           fi
