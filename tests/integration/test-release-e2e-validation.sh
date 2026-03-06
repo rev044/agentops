@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Source shared colors and helpers
-source "${SCRIPT_DIR}/../lib/colors.sh"
+source "${REPO_ROOT}/tests/lib/colors.sh"
 
 PASS=0
 FAIL=0
@@ -53,6 +53,7 @@ check_marker() {
 }
 
 check_marker "Codex runtime sections"
+check_marker "Codex release bundle parity"
 check_marker "Hook install smoke (minimal + full)"
 check_marker "ao init --hooks + ao rpi smoke"
 
