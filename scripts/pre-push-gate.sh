@@ -12,6 +12,7 @@
 #   4. cmd/ao coverage floor gate
 #   5. Embedded hooks sync (cli/embedded/ matches hooks/)
 #   6. Skill count sync
+#   7. Worktree disposition
 #
 # Usage:
 #   scripts/pre-push-gate.sh          # Run directly
@@ -30,6 +31,11 @@ NC='\033[0m'
 errors=0
 pass() { echo -e "${GREEN}  ok${NC}  $1"; }
 fail() { echo -e "${RED}FAIL${NC}  $1"; errors=$((errors + 1)); }
+indent_output() {
+    while IFS= read -r line; do
+        printf '    %s\n' "$line"
+    done <<<"$1"
+}
 
 echo "pre-push gate: validating before push..."
 
@@ -59,7 +65,7 @@ if [[ -x scripts/validate-go-fast.sh ]]; then
         pass "go test -race (changed scope)"
     else
         fail "go test -race (changed scope)"
-        echo "$go_fast_output" | sed 's/^/    /'
+        indent_output "$go_fast_output"
     fi
 else
     fail "missing executable: scripts/validate-go-fast.sh"
@@ -71,7 +77,7 @@ if [[ -x scripts/check-go-command-test-pair.sh ]]; then
         pass "command/test pairing"
     else
         fail "command/test pairing"
-        echo "$pair_output" | sed 's/^/    /'
+        indent_output "$pair_output"
     fi
 else
     fail "missing executable: scripts/check-go-command-test-pair.sh"
@@ -83,7 +89,7 @@ if [[ -x scripts/check-cmdao-coverage-floor.sh ]]; then
         pass "cmd/ao coverage floor"
     else
         fail "cmd/ao coverage floor"
-        echo "$coverage_output" | sed 's/^/    /'
+        indent_output "$coverage_output"
     fi
 else
     fail "missing executable: scripts/check-cmdao-coverage-floor.sh"
@@ -113,6 +119,18 @@ if [[ -x scripts/sync-skill-counts.sh ]]; then
     else
         fail "skill counts out of sync (run: scripts/sync-skill-counts.sh)"
     fi
+fi
+
+# --- 7. Worktree disposition ---
+if [[ -x scripts/check-worktree-disposition.sh ]]; then
+    if disposition_output="$(scripts/check-worktree-disposition.sh 2>&1)"; then
+        pass "worktree disposition"
+    else
+        fail "worktree disposition"
+        indent_output "$disposition_output"
+    fi
+else
+    fail "missing executable: scripts/check-worktree-disposition.sh"
 fi
 
 # --- Summary ---

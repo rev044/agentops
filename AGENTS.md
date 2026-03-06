@@ -96,7 +96,10 @@ bash scripts/validate-hooks-doc-parity.sh
 # 8. CI policy/docs parity
 bash scripts/validate-ci-policy-parity.sh
 
-# 9. Plugin structure (symlinks, manifests)
+# 9. Worktree disposition
+bash scripts/check-worktree-disposition.sh
+
+# 10. Plugin structure (symlinks, manifests)
 ./scripts/validate-manifests.sh --repo-root .
 find skills -type l  # must be empty — zero symlinks allowed
 
@@ -117,6 +120,17 @@ Process:
 1. Update this map from current sources.
 2. Run `bash scripts/validate-hooks-doc-parity.sh`.
 3. Run `bash tests/docs/validate-doc-release.sh` and `bash tests/docs/validate-skill-count.sh` before pushing.
+
+### Canonical Root and Worktrees
+
+This repo has a canonical root worktree. It owns the common `.git` directory and must remain a non-disposable anchor.
+
+- Keep the canonical root clean and attached to `main`.
+- Do not use the canonical root as scratch space for task work.
+- Create task branches in linked worktrees and do the actual edits there.
+- Every foreign worktree must end the session as `merged`, `preserved`, `exported`, or `deleted`.
+- Preserve unfinished branch work on `codex/preserve-*` when it is not ready to merge.
+- Run `bash scripts/check-worktree-disposition.sh` before push and session close.
 
 ### CI Jobs and What They Check
 
@@ -214,7 +228,7 @@ This moves the tag to HEAD, pushes, rebuilds the GitHub release, updates the Hom
    git push
    git status  # MUST show "up to date with origin"
    ```
-5. **Clean up** - Clear stashes, prune remote branches
+5. **Clean up** - Clear stashes, prune remote branches, and validate worktree disposition
 6. **Verify** - All changes committed AND pushed
 7. **Hand off** - Provide context for next session
 
@@ -223,6 +237,7 @@ This moves the tag to HEAD, pushes, rebuilds the GitHub release, updates the Hom
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+- NEVER leave a foreign branch-attached worktree without a recorded disposition
 
 <!-- BEGIN BEADS INTEGRATION -->
 ## Issue Tracking with bd (beads)
