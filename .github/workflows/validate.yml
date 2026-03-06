@@ -25,7 +25,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Run smoke tests
         run: |
@@ -221,7 +221,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install scanner tools
         run: |
@@ -272,7 +272,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install jsonschema
         run: pip install jsonschema pyyaml

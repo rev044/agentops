@@ -44,7 +44,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install scanner tools
         run: |
@@ -76,7 +76,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Resolve version
         id: version
