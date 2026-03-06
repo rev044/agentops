@@ -2,6 +2,7 @@ package goals
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -229,5 +230,47 @@ func TestGitSHA_OutsideGitRepo(t *testing.T) {
 	sha := gitSHA()
 	if sha != "" {
 		t.Errorf("expected empty SHA outside git repo, got %q", sha)
+	}
+}
+
+func TestGitSHAWithTimeout_WhenGitBlocks(t *testing.T) {
+	origPath := os.Getenv("PATH")
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := t.TempDir()
+	binDir := filepath.Join(tmpDir, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	fakeGit := filepath.Join(binDir, "git")
+	script := "#!/usr/bin/env bash\nsleep 10\n"
+	if err := os.WriteFile(fakeGit, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Setenv("PATH", binDir+string(os.PathListSeparator)+origPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Setenv("PATH", origPath)
+		_ = os.Chdir(origDir)
+	})
+
+	start := time.Now()
+	sha := gitSHAWithTimeout(50 * time.Millisecond)
+	elapsed := time.Since(start)
+
+	if sha != "" {
+		t.Fatalf("expected empty SHA on timeout, got %q", sha)
+	}
+	if elapsed > time.Second {
+		t.Fatalf("expected gitSHA timeout quickly, took %s", elapsed)
 	}
 }

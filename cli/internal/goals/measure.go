@@ -218,9 +218,18 @@ func computeSummary(measurements []Measurement) SnapshotSummary {
 	return summary
 }
 
+const gitSHATimeout = 2 * time.Second
+
 // gitSHA returns the short git SHA of HEAD, or "" on error.
 func gitSHA() string {
-	out, err := exec.Command("git", "rev-parse", "--short", "HEAD").Output()
+	return gitSHAWithTimeout(gitSHATimeout)
+}
+
+func gitSHAWithTimeout(timeout time.Duration) string {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD").Output()
 	if err != nil {
 		return ""
 	}
