@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -579,5 +581,155 @@ func TestServeRPIEvents_InitialFlush(t *testing.T) {
 	body := rr.Body.String()
 	if !strings.HasPrefix(body, ": connected\n\n") {
 		t.Errorf("expected SSE body to start with ': connected\\n\\n', got prefix: %q", body[:min(len(body), 40)])
+	}
+}
+
+func TestServeRPIRuns_DiscoversSiblingWorktreeRuns(t *testing.T) {
+	parent := t.TempDir()
+	cwd := filepath.Join(parent, "repo")
+	sibling := filepath.Join(parent, "repo-rpi-serve")
+	for _, dir := range []string{cwd, sibling} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	runID := "rpi-sibling-run"
+	writeRegistryRun(t, sibling, registryRunSpec{
+		runID:  runID,
+		phase:  2,
+		schema: 1,
+		goal:   "follow sibling run",
+		hbAge:  time.Minute,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/runs", nil)
+	rr := httptest.NewRecorder()
+	serveRPIRuns(rr, req, cwd)
+
+	var runs []rpiRunInfo
+	if err := json.Unmarshal(rr.Body.Bytes(), &runs); err != nil {
+		t.Fatalf("decode /runs response: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 discovered run, got %d", len(runs))
+	}
+	if runs[0].RunID != runID {
+		t.Fatalf("run_id = %q, want %q", runs[0].RunID, runID)
+	}
+	if runs[0].Worktree != sibling {
+		t.Fatalf("worktree = %q, want %q", runs[0].Worktree, sibling)
+	}
+}
+
+func TestServeRPIState_UsesRequestedRunRoot(t *testing.T) {
+	parent := t.TempDir()
+	cwd := filepath.Join(parent, "repo")
+	sibling := filepath.Join(parent, "repo-rpi-serve")
+	for _, dir := range []string{cwd, sibling} {
+		if err := os.MkdirAll(filepath.Join(dir, ".agents", "rpi"), 0o755); err != nil {
+			t.Fatalf("mkdir rpi dir for %s: %v", dir, err)
+		}
+	}
+
+	runID := "rpi-state-root"
+	writeRegistryRun(t, sibling, registryRunSpec{
+		runID:  runID,
+		phase:  3,
+		schema: 1,
+		goal:   "state should resolve sibling root",
+		hbAge:  time.Minute,
+	})
+
+	resultPath := filepath.Join(sibling, ".agents", "rpi", "phase-3-result.json")
+	if err := os.WriteFile(resultPath, []byte(`{"phase":3,"status":"completed","phase_name":"validation"}`), 0o644); err != nil {
+		t.Fatalf("write phase result: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/state?run-id="+runID, nil)
+	rr := httptest.NewRecorder()
+	serveRPIState(rr, req, cwd, "")
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode /state response: %v", err)
+	}
+
+	if got := resp["root"]; got != sibling {
+		t.Fatalf("root = %v, want %q", got, sibling)
+	}
+
+	phasedState, ok := resp["phased_state"].(map[string]any)
+	if !ok {
+		t.Fatalf("phased_state missing or wrong type: %#v", resp["phased_state"])
+	}
+	if got := phasedState["run_id"]; got != runID {
+		t.Fatalf("phased_state.run_id = %v, want %q", got, runID)
+	}
+
+	phaseResults, ok := resp["phase_results"].(map[string]any)
+	if !ok {
+		t.Fatalf("phase_results missing or wrong type: %#v", resp["phase_results"])
+	}
+	phase3, ok := phaseResults["phase_3"].(map[string]any)
+	if !ok {
+		t.Fatalf("phase_3 result missing: %#v", phaseResults)
+	}
+	if got := phase3["status"]; got != "completed" {
+		t.Fatalf("phase_3.status = %v, want %q", got, "completed")
+	}
+}
+
+func TestServeRPIEvents_ResolvesRequestedRunAcrossRoots(t *testing.T) {
+	parent := t.TempDir()
+	cwd := filepath.Join(parent, "repo")
+	sibling := filepath.Join(parent, "repo-rpi-events")
+	for _, dir := range []string{cwd, sibling} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	runID := "rpi-cross-root-events"
+	writeRegistryRun(t, sibling, registryRunSpec{
+		runID:  runID,
+		phase:  2,
+		schema: 1,
+		goal:   "stream sibling events",
+		hbAge:  time.Minute,
+	})
+
+	ev, err := appendRPIC2Event(sibling, rpiC2EventInput{
+		RunID:   runID,
+		Type:    "phase.stream.started",
+		Message: "cross-root event",
+	})
+	if err != nil {
+		t.Fatalf("appendRPIC2Event: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, "/events?run-id="+runID, nil)
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		serveRPIEvents(rr, req, cwd, "")
+		close(done)
+	}()
+
+	time.Sleep(1200 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("serveRPIEvents did not return after context cancel")
+	}
+
+	body := rr.Body.String()
+	if !strings.Contains(body, ev.EventID) {
+		t.Fatalf("expected SSE body to contain event %q, got %q", ev.EventID, body)
 	}
 }
