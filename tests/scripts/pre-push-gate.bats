@@ -25,6 +25,7 @@ setup() {
     echo "content" > "$FAKE_REPO/cli/embedded/hooks/hooks.json"
 
     GATE="$FAKE_REPO/scripts/pre-push-gate.sh"
+    make_stub "$FAKE_REPO/scripts/check-worktree-disposition.sh"
 }
 
 teardown() {
@@ -52,11 +53,11 @@ STUB
     [ "$status" -eq 0 ]
 }
 
-@test "pre-push-gate.sh checks all 6 gates" {
-    # Verify the script references all 6 check sections
+@test "pre-push-gate.sh checks all 7 gates" {
+    # Verify the script references all 7 check sections
     run grep -c '# --- [0-9]' "$SCRIPT"
     [ "$status" -eq 0 ]
-    [ "$output" -ge 6 ]
+    [ "$output" -ge 7 ]
 }
 
 @test "pre-push-gate.sh exits 1 on go build failure" {
@@ -209,4 +210,32 @@ GIT
     run bash "$GATE"
     [ "$status" -eq 1 ]
     [[ "$output" == *"BLOCKED"* ]]
+}
+
+@test "pre-push-gate.sh fails when worktree disposition check fails" {
+    cat > "$MOCK_BIN/go" <<'GO'
+#!/usr/bin/env bash
+exit 0
+GO
+    chmod +x "$MOCK_BIN/go"
+
+    cat > "$MOCK_BIN/git" <<'GIT'
+#!/usr/bin/env bash
+if [[ "$*" == *"diff --name-only"* ]]; then echo ""; fi
+exit 0
+GIT
+    chmod +x "$MOCK_BIN/git"
+
+    make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
+    make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
+    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+    make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
+    make_stub "$FAKE_REPO/scripts/check-worktree-disposition.sh" 1
+
+    cd "$FAKE_REPO"
+    export PATH="$MOCK_BIN:$PATH"
+
+    run bash "$GATE"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"FAIL"*"worktree disposition"* ]]
 }

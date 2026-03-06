@@ -494,6 +494,7 @@ run_step_bg "Manifest version consistency" check_manifest_version_consistency
 run_step_bg "Hook preflight" ./scripts/validate-hook-preflight.sh
 run_step_bg "Hooks/docs parity" ./scripts/validate-hooks-doc-parity.sh
 run_step_bg "CI policy/docs parity" ./scripts/validate-ci-policy-parity.sh
+run_step_bg "Worktree disposition gate" ./scripts/check-worktree-disposition.sh
 run_step_bg "Codex runtime sections" bash ./scripts/validate-codex-runtime-sections.sh
 run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
 run_step_bg "Embedded sync check" ./scripts/validate-embedded-sync.sh
