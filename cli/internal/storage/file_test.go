@@ -1224,6 +1224,230 @@ func TestAtomicWrite_WriteFuncError(t *testing.T) {
 	}
 }
 
+func TestScanJSONLFile_MissingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.jsonl")
+	called := false
+
+	if err := scanJSONLFile(path, func(line []byte) {
+		called = true
+	}); err != nil {
+		t.Fatalf("scanJSONLFile() error = %v, want nil", err)
+	}
+	if called {
+		t.Fatal("expected callback to not be invoked for missing file")
+	}
+}
+
+func TestScanJSONLFile_OpenError(t *testing.T) {
+	tmpDir := t.TempDir()
+	parentFile := filepath.Join(tmpDir, "parent")
+	if err := os.WriteFile(parentFile, []byte("x"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := scanJSONLFile(filepath.Join(parentFile, "child.jsonl"), func(line []byte) {})
+	if err == nil {
+		t.Fatal("expected open error for non-directory parent")
+	}
+}
+
+func TestWriteSyncClose_WriteErrorClosesFile(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "write-sync-close-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedErr := errors.New("boom")
+	err = writeSyncClose(f, func(w io.Writer) error {
+		return expectedErr
+	})
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("writeSyncClose() error = %v, want wrapped %v", err, expectedErr)
+	}
+
+	if _, writeErr := f.Write([]byte("x")); writeErr == nil {
+		t.Fatal("expected file to be closed after writeSyncClose write error")
+	}
+}
+
+func TestWriteSyncClose_SyncError(t *testing.T) {
+	f := os.NewFile(^uintptr(0), "bad-fd")
+
+	err := writeSyncClose(f, func(w io.Writer) error {
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected sync error for invalid file descriptor")
+	}
+	if !strings.Contains(err.Error(), "sync file") {
+		t.Fatalf("expected sync file error, got %v", err)
+	}
+}
+
+func TestAppendJSONLToFile_MarshalError(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "append-jsonl-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	fs := NewFileStorage()
+	err = fs.appendJSONLToFile(f, func() {})
+	if err == nil {
+		t.Fatal("expected marshal error for unsupported value")
+	}
+	if !strings.Contains(err.Error(), "marshal json") {
+		t.Fatalf("expected marshal json error, got %v", err)
+	}
+}
+
+func TestAppendJSONLToFile_SeekErrorOnClosedFile(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "append-jsonl-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := NewFileStorage()
+	err = fs.appendJSONLToFile(f, map[string]string{"ok": "value"})
+	if err == nil {
+		t.Fatal("expected seek error on closed file")
+	}
+	if !strings.Contains(err.Error(), "seek end") {
+		t.Fatalf("expected seek end error, got %v", err)
+	}
+}
+
+func TestAppendJSONLToFile_WriteErrorOnReadOnlyFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "append-jsonl-readonly.jsonl")
+	if err := os.WriteFile(path, []byte(""), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	fs := NewFileStorage()
+	err = fs.appendJSONLToFile(f, map[string]string{"ok": "value"})
+	if err == nil {
+		t.Fatal("expected write error on read-only file")
+	}
+	if !strings.Contains(err.Error(), "write line") {
+		t.Fatalf("expected write line error, got %v", err)
+	}
+}
+
+func TestFileStorage_AtomicWrite_RenameErrorToDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	fs := NewFileStorage(WithBaseDir(tmpDir))
+
+	targetDir := filepath.Join(tmpDir, "target")
+	if err := os.MkdirAll(targetDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	err := fs.atomicWrite(targetDir, func(w io.Writer) error {
+		_, writeErr := w.Write([]byte("content"))
+		return writeErr
+	})
+	if err == nil {
+		t.Fatal("expected rename error when target path is a directory")
+	}
+	if !strings.Contains(err.Error(), "rename to final") {
+		t.Fatalf("expected rename to final error, got %v", err)
+	}
+}
+
+func TestFileStorage_HasIndexEntry_SeekErrorOnClosedFile(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "index-entry-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := NewFileStorage()
+	_, err = fs.hasIndexEntry(f, "session-id")
+	if err == nil {
+		t.Fatal("expected seek start error on closed file")
+	}
+	if !strings.Contains(err.Error(), "seek start") {
+		t.Fatalf("expected seek start error, got %v", err)
+	}
+}
+
+func TestFileStorage_HasIndexEntry_ScanError(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "index-entry-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	longLine := strings.Repeat("x", 70*1024) + "\n"
+	if _, err := f.WriteString(longLine); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := NewFileStorage()
+	_, err = fs.hasIndexEntry(f, "session-id")
+	if err == nil {
+		t.Fatal("expected scan error for oversized line")
+	}
+}
+
+func TestFileStorage_WriteIndex_HasIndexEntryError(t *testing.T) {
+	tmpDir := t.TempDir()
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
+
+	fs := NewFileStorage(WithBaseDir(baseDir))
+	if err := fs.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	indexPath := fs.GetIndexPath()
+	longLine := strings.Repeat("x", 70*1024) + "\n"
+	if err := os.WriteFile(indexPath, []byte(longLine), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := fs.WriteIndex(&IndexEntry{
+		SessionID:   "session-id",
+		SessionPath: "/path/to/session.jsonl",
+		Summary:     "summary",
+	})
+	if err == nil {
+		t.Fatal("expected WriteIndex to surface hasIndexEntry error")
+	}
+}
+
+func TestWithLockedFile_CallbackErrorUnlocksFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "index.jsonl")
+	fs := NewFileStorage()
+
+	expectedErr := errors.New("callback failed")
+	err := fs.withLockedFile(path, func(f *os.File) error {
+		return expectedErr
+	})
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("withLockedFile() error = %v, want wrapped %v", err, expectedErr)
+	}
+
+	err = fs.withLockedFile(path, func(f *os.File) error {
+		_, writeErr := f.Write([]byte("ok"))
+		return writeErr
+	})
+	if err != nil {
+		t.Fatalf("expected second withLockedFile call to succeed after unlock, got %v", err)
+	}
+}
+
 func TestAppendJSONL_ReadOnlyDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "readonly")

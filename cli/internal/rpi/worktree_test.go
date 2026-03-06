@@ -301,3 +301,32 @@ func TestReleaseMergeLock_NilSafe(t *testing.T) {
 	// Should not panic
 	releaseMergeLock(nil)
 }
+
+func TestTryCreateWorktree_InvalidRepoRoot(t *testing.T) {
+	repo := t.TempDir()
+
+	worktreePath, runID, err := tryCreateWorktree(repo, "HEAD", 200*time.Millisecond, nil)
+	if err == nil {
+		t.Fatal("expected error for non-git repo root")
+	}
+	if worktreePath != "" || runID != "" {
+		t.Fatalf("expected empty outputs on error, got path=%q runID=%q", worktreePath, runID)
+	}
+}
+
+func TestWaitForCleanRepo_CleanRepo(t *testing.T) {
+	repo := initGitRepo(t)
+	if err := waitForCleanRepo(repo, time.Second, nil); err != nil {
+		t.Fatalf("waitForCleanRepo() error = %v, want nil", err)
+	}
+}
+
+func TestResolveMergeSource_InvalidPath(t *testing.T) {
+	_, err := resolveMergeSource(filepath.Join(t.TempDir(), "missing"), 200*time.Millisecond)
+	if err == nil {
+		t.Fatal("expected error for invalid worktree path")
+	}
+	if !strings.Contains(err.Error(), "resolve worktree merge source") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
