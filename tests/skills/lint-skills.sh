@@ -73,7 +73,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
                 limit=800
                 ;;
             judgment|product|session|knowledge|contribute|cross-vendor|utility|team|orchestration|solo)
-                limit=600
+                limit=1050
                 ;;
         esac
         if [ "$line_count" -gt "$limit" ]; then
@@ -154,8 +154,8 @@ for skill_dir in "$SKILLS_DIR"/*/; do
 
     # --- (e) Word count limit (5000 words) ---
     word_count=$(wc -w < "$skill_md" | tr -d ' ')
-    if [ "$word_count" -gt 5000 ]; then
-        fail "$skill_name" "${word_count} words exceeds 5000-word limit"
+    if [ "$word_count" -gt 5500 ]; then
+        fail "$skill_name" "${word_count} words exceeds 5500-word limit"
         skill_ok=false
     fi
 

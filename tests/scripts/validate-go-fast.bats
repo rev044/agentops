@@ -34,8 +34,8 @@ exit 0
 GIT
     chmod +x "$MOCK_BIN/git"
 
-    # PATH with mock bin + essential system tools, but no go
-    export PATH="$MOCK_BIN:/usr/bin:/bin"
+    # Ensure go cannot be found: use only mock bin + /bin (no /usr/local/go, no /usr/bin)
+    export PATH="$MOCK_BIN:/bin"
 
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]

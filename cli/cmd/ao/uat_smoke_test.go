@@ -15,6 +15,17 @@ func TestUATSmoke_InjectForResearch(t *testing.T) {
 	tmp := chdirTemp(t)
 	setupAgentsDir(t, tmp)
 
+	// Create a minimal skill definition so --for can resolve it.
+	writeFile(t, tmp+"/skills/research/SKILL.md", `---
+name: research
+context:
+  window: fork
+  sections:
+    exclude: [HISTORY]
+---
+# Research Skill
+`)
+
 	// Create a minimal learning file so inject has something to return.
 	writeFile(t, tmp+"/.agents/learnings/test-learning.md", `---
 utility: 0.8

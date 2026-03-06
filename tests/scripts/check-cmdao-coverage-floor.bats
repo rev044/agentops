@@ -34,7 +34,8 @@ teardown() {
 }
 
 @test "check-cmdao-coverage-floor.sh skips when go not installed" {
-    export PATH="$MOCK_BIN:/usr/bin:/bin"  # essentials but no go
+    # Ensure go cannot be found: use only mock bin + /bin (no /usr/local/go, no /usr/bin)
+    export PATH="$MOCK_BIN:/bin"
 
     run bash "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
     [ "$status" -eq 0 ]
