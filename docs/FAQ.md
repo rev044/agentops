@@ -47,3 +47,6 @@ Workers are intentionally atomic. Fresh-context isolation per worker prevents co
 rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/
 brew uninstall agentops  # if installed
 ```
+
+If Codex is showing duplicate skills and you do not want a full uninstall, remove
+or archive the legacy `~/.agents/skills/` tree and keep `~/.codex/skills/`.

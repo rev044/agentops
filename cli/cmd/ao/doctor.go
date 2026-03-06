@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -554,51 +555,127 @@ func countEstablished(dir string) int {
 }
 
 func checkSkills() doctorCheck {
-	// Skills are installed globally at ~/.claude/skills/, not in the local repo.
-	// They may be symlinks pointing to ~/.agents/skills/.
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "cannot determine home directory", Required: false}
 	}
 
-	skillsDirs := []string{
-		filepath.Join(home, ".codex", "skills"),
-		filepath.Join(home, ".claude", "skills"),
-		filepath.Join(home, ".agents", "skills"),
+	type skillInstall struct {
+		path        string
+		label       string
+		displayPath string
+		legacy      bool
+	}
+	installs := []skillInstall{
+		{
+			path:        filepath.Join(home, ".codex", "skills"),
+			label:       "Codex",
+			displayPath: "~/.codex/skills",
+		},
+		{
+			path:        filepath.Join(home, ".claude", "skills"),
+			label:       "Claude",
+			displayPath: "~/.claude/skills",
+		},
+		{
+			path:        filepath.Join(home, ".agents", "skills"),
+			label:       "Legacy",
+			displayPath: "~/.agents/skills",
+			legacy:      true,
+		},
 	}
 
-	count := 0
-	for _, skillsDir := range skillsDirs {
-		entries, err := os.ReadDir(skillsDir)
+	installedNames := make(map[string]map[string]struct{}, len(installs))
+	primary := ""
+	primaryCount := 0
+	legacyNames := map[string]struct{}{}
+
+	for _, install := range installs {
+		entries, err := os.ReadDir(install.path)
 		if err != nil {
 			continue
 		}
+		names := make(map[string]struct{})
 		for _, e := range entries {
 			// Use os.Stat to follow symlinks (e.IsDir() doesn't follow symlinks)
-			info, err := os.Stat(filepath.Join(skillsDir, e.Name()))
+			info, err := os.Stat(filepath.Join(install.path, e.Name()))
 			if err != nil || !info.IsDir() {
 				continue
 			}
-			skillFile := filepath.Join(skillsDir, e.Name(), "SKILL.md")
+			skillFile := filepath.Join(install.path, e.Name(), "SKILL.md")
 			if _, err := os.Stat(skillFile); err == nil {
-				count++
+				names[e.Name()] = struct{}{}
 			}
 		}
-		if count > 0 {
-			break // Found skills in this directory, don't double-count
+		if len(names) == 0 {
+			continue
+		}
+		installedNames[install.displayPath] = names
+		if primary == "" {
+			primary = install.displayPath
+			primaryCount = len(names)
+		}
+		if install.legacy {
+			legacyNames = names
 		}
 	}
 
-	if count == 0 {
+	if primaryCount == 0 {
 		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "no skills found — run 'bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)'", Required: false}
+	}
+
+	if len(legacyNames) > 0 {
+		overlaps := overlappingSkillNames(legacyNames, installedNames["~/.codex/skills"], installedNames["~/.claude/skills"])
+		if len(overlaps) > 0 {
+			sample := overlaps
+			if len(sample) > 3 {
+				sample = sample[:3]
+			}
+			return doctorCheck{
+				Name:   "Plugin",
+				Status: "warn",
+				Detail: fmt.Sprintf("%d skills found in %s; duplicate legacy install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove ~/.agents/skills if it is no longer needed.",
+					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
+			}
+		}
 	}
 
 	return doctorCheck{
 		Name:     "Plugin",
 		Status:   "pass",
-		Detail:   fmt.Sprintf("%d skills found", count),
+		Detail:   fmt.Sprintf("%d skills found in %s", primaryCount, primary),
 		Required: false,
 	}
+}
+
+func overlappingSkillNames(base map[string]struct{}, others ...map[string]struct{}) []string {
+	if len(base) == 0 {
+		return nil
+	}
+
+	overlaps := make(map[string]struct{})
+	for name := range base {
+		for _, other := range others {
+			if len(other) == 0 {
+				continue
+			}
+			if _, ok := other[name]; ok {
+				overlaps[name] = struct{}{}
+				break
+			}
+		}
+	}
+
+	if len(overlaps) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(overlaps))
+	for name := range overlaps {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // findHealScript searches for heal.sh in known locations and returns the path if found.
@@ -710,49 +787,49 @@ func countHealFindings(output string) int {
 // new flat replacements. Used by checkStaleReferences to detect lingering
 // namespace references in hooks and skill files.
 var deprecatedCommands = map[string]string{
-	"ao know forge":              "ao forge",
-	"ao know inject":             "ao inject",
-	"ao know search":             "ao search",
-	"ao know lookup":             "ao lookup",
-	"ao know trace":              "ao trace",
-	"ao know store":              "ao store",
-	"ao know index":              "ao index",
-	"ao know temper":             "ao temper",
-	"ao know feedback":           "ao feedback",
-	"ao know migrate":            "ao migrate",
-	"ao know batch-feedback":     "ao batch-feedback",
-	"ao know session-outcome":    "ao session-outcome",
-	"ao work rpi":                "ao rpi",
-	"ao work ratchet":            "ao ratchet",
-	"ao work goals":              "ao goals",
-	"ao work session":            "ao session",
-	"ao work feedback-loop":      "ao feedback-loop",
-	"ao work context":            "ao context",
-	"ao work task-sync":          "ao task-sync",
-	"ao work task-feedback":      "ao task-feedback",
-	"ao work task-status":        "ao task-status",
-	"ao quality flywheel":        "ao flywheel",
-	"ao quality pool":            "ao pool",
-	"ao quality metrics":         "ao metrics",
-	"ao quality gate":            "ao gate",
-	"ao quality maturity":        "ao maturity",
-	"ao quality constraint":      "ao constraint",
-	"ao quality vibe-check":      "ao vibe-check",
-	"ao quality badge":           "ao badge",
-	"ao quality contradict":      "ao contradict",
-	"ao quality dedup":           "ao dedup",
-	"ao quality anti-patterns":   "ao anti-patterns",
-	"ao quality curate":          "ao curate",
-	"ao settings config":         "ao config",
-	"ao settings plans":          "ao plans",
-	"ao settings hooks":          "ao hooks",
-	"ao settings memory":         "ao memory",
-	"ao settings notebook":       "ao notebook",
-	"ao settings worktree":       "ao worktree",
-	"ao start demo":              "ao demo",
-	"ao start init":              "ao init",
-	"ao start seed":              "ao seed",
-	"ao start quick-start":       "ao quick-start",
+	"ao know forge":            "ao forge",
+	"ao know inject":           "ao inject",
+	"ao know search":           "ao search",
+	"ao know lookup":           "ao lookup",
+	"ao know trace":            "ao trace",
+	"ao know store":            "ao store",
+	"ao know index":            "ao index",
+	"ao know temper":           "ao temper",
+	"ao know feedback":         "ao feedback",
+	"ao know migrate":          "ao migrate",
+	"ao know batch-feedback":   "ao batch-feedback",
+	"ao know session-outcome":  "ao session-outcome",
+	"ao work rpi":              "ao rpi",
+	"ao work ratchet":          "ao ratchet",
+	"ao work goals":            "ao goals",
+	"ao work session":          "ao session",
+	"ao work feedback-loop":    "ao feedback-loop",
+	"ao work context":          "ao context",
+	"ao work task-sync":        "ao task-sync",
+	"ao work task-feedback":    "ao task-feedback",
+	"ao work task-status":      "ao task-status",
+	"ao quality flywheel":      "ao flywheel",
+	"ao quality pool":          "ao pool",
+	"ao quality metrics":       "ao metrics",
+	"ao quality gate":          "ao gate",
+	"ao quality maturity":      "ao maturity",
+	"ao quality constraint":    "ao constraint",
+	"ao quality vibe-check":    "ao vibe-check",
+	"ao quality badge":         "ao badge",
+	"ao quality contradict":    "ao contradict",
+	"ao quality dedup":         "ao dedup",
+	"ao quality anti-patterns": "ao anti-patterns",
+	"ao quality curate":        "ao curate",
+	"ao settings config":       "ao config",
+	"ao settings plans":        "ao plans",
+	"ao settings hooks":        "ao hooks",
+	"ao settings memory":       "ao memory",
+	"ao settings notebook":     "ao notebook",
+	"ao settings worktree":     "ao worktree",
+	"ao start demo":            "ao demo",
+	"ao start init":            "ao init",
+	"ao start seed":            "ao seed",
+	"ao start quick-start":     "ao quick-start",
 }
 
 // staleReference records a single deprecated command reference found in a file.
