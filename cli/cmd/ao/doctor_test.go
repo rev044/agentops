@@ -899,8 +899,8 @@ func TestDoctorCov_CheckSkills_WithSkills(t *testing.T) {
 	if result.Status != "pass" {
 		t.Errorf("status=%q, want pass when skills are found (detail: %s)", result.Status, result.Detail)
 	}
-	if !strings.Contains(result.Detail, "1 skills found") {
-		t.Errorf("expected '1 skills found' in detail, got %q", result.Detail)
+	if !strings.Contains(result.Detail, "1 skills found in ~/.claude/skills") {
+		t.Errorf("expected install path in detail, got %q", result.Detail)
 	}
 }
 
@@ -920,6 +920,38 @@ func TestDoctorCov_CheckSkills_AltPath(t *testing.T) {
 	result := checkSkills()
 	if result.Status != "pass" {
 		t.Errorf("status=%q, want pass for alt-path skills (detail: %s)", result.Status, result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckSkills_LegacyOverlapWarns(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	for _, dir := range []string{
+		filepath.Join(fakeHome, ".codex", "skills", "research"),
+		filepath.Join(fakeHome, ".codex", "skills", "vibe"),
+		filepath.Join(fakeHome, ".agents", "skills", "research"),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# Skill"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result := checkSkills()
+	if result.Status != "warn" {
+		t.Fatalf("status=%q, want warn for duplicate legacy installs (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "duplicate legacy install") {
+		t.Fatalf("expected duplicate legacy warning, got %q", result.Detail)
+	}
+	if !strings.Contains(result.Detail, "~/.agents/skills") {
+		t.Fatalf("expected legacy path in detail, got %q", result.Detail)
+	}
+	if !strings.Contains(result.Detail, "research") {
+		t.Fatalf("expected overlapping skill sample in detail, got %q", result.Detail)
 	}
 }
 
