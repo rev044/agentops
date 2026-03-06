@@ -120,6 +120,38 @@ If reinstalling one-by-one works but bulk update previously failed, the local sk
 
 ---
 
+## Skills show up twice in Codex
+
+This usually means a current install in `~/.codex/skills` is overlapping with a
+legacy install in `~/.agents/skills`.
+
+**Diagnosis:**
+
+```bash
+ao doctor
+```
+
+If the "Plugin" check warns about a duplicate legacy install, inspect both homes:
+
+```bash
+find ~/.codex/skills -maxdepth 1 -mindepth 1 -type d | sort
+find ~/.agents/skills -maxdepth 1 -mindepth 1 -type d | sort
+```
+
+**Fix:**
+
+1. If Codex is using `~/.codex/skills`, archive the legacy copy:
+   ```bash
+   mv ~/.agents/skills ~/.agents/skills.backup.$(date +%Y%m%d-%H%M%S)
+   ```
+2. Restart Codex so it reloads the remaining skill home.
+3. Re-run `ao doctor` to confirm the warning is gone.
+
+If you still need the legacy path for another workflow, keep the backup and restore
+only the specific skills that runtime still needs instead of the whole directory.
+
+---
+
 ## Push blocked by vibe gate
 
 The push gate hook blocks `git push` unless a recent `/vibe` check has passed. This enforces quality validation before code reaches the remote.

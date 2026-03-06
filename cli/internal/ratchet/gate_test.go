@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -309,6 +310,40 @@ func restrictSearchOrder(t *testing.T) {
 	t.Cleanup(func() { SearchOrder = orig })
 }
 
+func prependFakeCommand(t *testing.T, name string, body string) {
+	t.Helper()
+
+	binDir := t.TempDir()
+	scriptPath := filepath.Join(binDir, name)
+	script := "#!/usr/bin/env bash\nset -euo pipefail\n" + body + "\n"
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		t.Fatalf("write fake %s: %v", name, err)
+	}
+
+	pathValue := binDir
+	if existing := os.Getenv("PATH"); existing != "" {
+		pathValue += string(os.PathListSeparator) + existing
+	}
+	t.Setenv("PATH", pathValue)
+}
+
+func chdirTemp(t *testing.T, dir string) {
+	t.Helper()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(wd); err != nil {
+			t.Fatalf("restore wd: %v", err)
+		}
+	})
+}
+
 func TestGateChecker_CheckPreMortem_NoArtifact_CrewOnly(t *testing.T) {
 	restrictSearchOrder(t)
 
@@ -431,5 +466,162 @@ func TestGateChecker_CheckPostMortem_CrewOnly(t *testing.T) {
 	// PostMortem is a soft gate -- always passes
 	if !result.Passed {
 		t.Error("PostMortem gate should always pass (soft gate)")
+	}
+}
+
+func TestParseFirstEpicID(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "empty", in: "", want: ""},
+		{name: "comments only", in: "# heading\n# comment", want: ""},
+		{name: "skips blank and comment lines", in: "\n# comment\n  epic-123   fix release flow", want: "epic-123"},
+		{name: "first non-comment wins", in: "epic-101 first\n epic-202 second", want: "epic-101"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseFirstEpicID([]byte(tt.in)); got != tt.want {
+				t.Fatalf("parseFirstEpicID(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGateChecker_CheckImplement_WithOpenEpic(t *testing.T) {
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `
+if [[ "$*" == *"--status open"* ]]; then
+  printf 'epic-open Implement release hotfix\n'
+  exit 0
+fi
+exit 1
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepImplement)
+	if err != nil {
+		t.Fatalf("Check(Implement): %v", err)
+	}
+	if !result.Passed {
+		t.Fatalf("expected open epic to satisfy implement gate: %+v", result)
+	}
+	if result.Input != "epic-open" {
+		t.Fatalf("expected epic-open input, got %q", result.Input)
+	}
+	if result.Location != "beads" {
+		t.Fatalf("expected beads location, got %q", result.Location)
+	}
+}
+
+func TestGateChecker_CheckImplement_FallsBackToInProgress(t *testing.T) {
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `
+if [[ "$*" == *"--status open"* ]]; then
+  printf '# no open epics\n'
+  exit 0
+fi
+if [[ "$*" == *"--status in_progress"* ]]; then
+  printf 'epic-active Continue rollout\n'
+  exit 0
+fi
+exit 1
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepImplement)
+	if err != nil {
+		t.Fatalf("Check(Implement): %v", err)
+	}
+	if !result.Passed {
+		t.Fatalf("expected in_progress fallback to satisfy implement gate: %+v", result)
+	}
+	if result.Input != "epic-active" {
+		t.Fatalf("expected epic-active input, got %q", result.Input)
+	}
+}
+
+func TestGateChecker_CheckPostMortem_WithClosedEpic(t *testing.T) {
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `
+if [[ "$*" == *"--status closed"* ]]; then
+  printf '# recently closed\nclosed-epic Done and shipped\n'
+  exit 0
+fi
+exit 1
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepPostMortem)
+	if err != nil {
+		t.Fatalf("Check(PostMortem): %v", err)
+	}
+	if !result.Passed {
+		t.Fatalf("expected closed epic to satisfy post-mortem gate: %+v", result)
+	}
+	if result.Input != "closed-epic" {
+		t.Fatalf("expected closed-epic input, got %q", result.Input)
+	}
+}
+
+func TestGateChecker_CheckVibe_WithGitChanges(t *testing.T) {
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "git", `
+if [[ "${1:-}" == "status" && "${2:-}" == "--porcelain" ]]; then
+  printf ' M cli/internal/ratchet/gate.go\n'
+  exit 0
+fi
+exit 1
+`)
+	chdirTemp(t, tmpDir)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepVibe)
+	if err != nil {
+		t.Fatalf("Check(Vibe): %v", err)
+	}
+	if !result.Passed {
+		t.Fatalf("expected vibe soft gate to pass: %+v", result)
+	}
+	if !strings.Contains(result.Message, "Code changes detected") {
+		t.Fatalf("expected dirty-tree message, got %q", result.Message)
 	}
 }

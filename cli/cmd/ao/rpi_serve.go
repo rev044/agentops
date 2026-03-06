@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -310,6 +311,69 @@ func buildServeMux(root *serveMuxRoot, runID string) *http.ServeMux {
 	return mux
 }
 
+func discoverServeRuns(root string) []rpiRunInfo {
+	active, historical := discoverRPIRunsRegistryFirst(root)
+	runs := make([]rpiRunInfo, 0, len(active)+len(historical))
+	runs = append(runs, active...)
+	runs = append(runs, historical...)
+	sortServeRuns(runs)
+	return runs
+}
+
+func sortServeRuns(runs []rpiRunInfo) {
+	sort.SliceStable(runs, func(i, j int) bool {
+		left := runs[i]
+		right := runs[j]
+		if left.IsActive != right.IsActive {
+			return left.IsActive
+		}
+		if left.LastHeartbeat != right.LastHeartbeat {
+			if left.LastHeartbeat.IsZero() {
+				return false
+			}
+			if right.LastHeartbeat.IsZero() {
+				return true
+			}
+			return left.LastHeartbeat.After(right.LastHeartbeat)
+		}
+		leftStart := parseServeRunTime(left.StartedAt)
+		rightStart := parseServeRunTime(right.StartedAt)
+		if !leftStart.Equal(rightStart) {
+			return leftStart.After(rightStart)
+		}
+		return left.RunID > right.RunID
+	})
+}
+
+func parseServeRunTime(raw string) time.Time {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}
+	}
+	if ts, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+		return ts
+	}
+	if ts, err := time.Parse(time.RFC3339, raw); err == nil {
+		return ts
+	}
+	return time.Time{}
+}
+
+func resolveServeRun(root, runID string) (*phasedState, string) {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return nil, root
+	}
+	state, resolvedRoot, err := locateRunMetadata(root, runID)
+	if err != nil || state == nil {
+		return nil, root
+	}
+	if strings.TrimSpace(resolvedRoot) == "" {
+		return state, root
+	}
+	return state, resolvedRoot
+}
+
 func serveRPIIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write(rpiWatchHTML) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter -- static embedded asset, no user input
@@ -355,7 +419,12 @@ func serveRPIEvents(w http.ResponseWriter, r *http.Request, root, defaultRunID s
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			events, err := loadRPIC2Events(root, runID)
+			eventRoot := root
+			if _, resolvedRoot := resolveServeRun(root, runID); strings.TrimSpace(resolvedRoot) != "" {
+				eventRoot = resolvedRoot
+			}
+
+			events, err := loadRPIC2Events(eventRoot, runID)
 			if err != nil {
 				errEvent := RPIC2Event{Type: "error", Message: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 				if writeSSEEvent(w, errEvent) != nil {
@@ -385,7 +454,7 @@ func writeSSEEvent(w http.ResponseWriter, ev RPIC2Event) error {
 
 func serveRPIRuns(w http.ResponseWriter, r *http.Request, root string) {
 	setCORSHeaders(w, r)
-	runs := scanRegistryRuns(root)
+	runs := discoverServeRuns(root)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(runs)
 }
@@ -409,19 +478,36 @@ func serveRPIState(w http.ResponseWriter, r *http.Request, root, defaultRunID st
 		"run_id": runID,
 	}
 
-	// Read phased-state.json if it exists
-	statePath := filepath.Join(root, ".agents", "rpi", "phased-state.json")
-	if data, err := os.ReadFile(statePath); err == nil {
-		var state map[string]any
-		if json.Unmarshal(data, &state) == nil {
-			resp["phased_state"] = state
+	resolvedRoot := root
+	if runID != "" {
+		if state, stateRoot := resolveServeRun(root, runID); state != nil {
+			resolvedRoot = stateRoot
+			respState, err := json.Marshal(state)
+			if err == nil {
+				var mapped map[string]any
+				if json.Unmarshal(respState, &mapped) == nil {
+					resp["phased_state"] = mapped
+				}
+			}
+		}
+	}
+	resp["root"] = resolvedRoot
+
+	// Read phased-state.json if it exists and a run-specific lookup did not already populate it.
+	if _, ok := resp["phased_state"]; !ok {
+		statePath := filepath.Join(resolvedRoot, ".agents", "rpi", "phased-state.json")
+		if data, err := os.ReadFile(statePath); err == nil {
+			var state map[string]any
+			if json.Unmarshal(data, &state) == nil {
+				resp["phased_state"] = state
+			}
 		}
 	}
 
 	// Read per-phase results
 	phaseResults := make(map[string]any)
 	for i := 1; i <= 3; i++ {
-		resultPath := filepath.Join(root, ".agents", "rpi", fmt.Sprintf("phase-%d-result.json", i))
+		resultPath := filepath.Join(resolvedRoot, ".agents", "rpi", fmt.Sprintf("phase-%d-result.json", i))
 		if data, err := os.ReadFile(resultPath); err == nil {
 			var result map[string]any
 			if json.Unmarshal(data, &result) == nil {
@@ -435,7 +521,7 @@ func serveRPIState(w http.ResponseWriter, r *http.Request, root, defaultRunID st
 
 	// Scan for active runs if no specific run requested
 	if runID == "" {
-		runs := scanRegistryRuns(root)
+		runs := discoverServeRuns(root)
 		resp["runs"] = runs
 	}
 

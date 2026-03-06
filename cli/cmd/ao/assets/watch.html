@@ -346,6 +346,8 @@ const MAX_EVENTS = 2000;
 const PHASE_NAMES = {1:'Discovery', 2:'Implementation', 3:'Validation'};
 
 let runId = new URLSearchParams(location.search).get('run') || '';
+const explicitRun = !!runId;
+const autoFollowRuns = !explicitRun;
 let following = true;
 let eventCount = 0;
 let stats = { cost: 0, tools: 0, backend: '' };
@@ -357,13 +359,14 @@ let startTime = Date.now();
 let evSource = null;
 let stateInterval = null;
 let runsInterval = null;
+let connectGeneration = 0;
 
 function init() {
-  document.getElementById('headerRun').textContent = runId || '(auto-discovering...)';
-  document.getElementById('sbRun').textContent = runId || '(auto)';
+  updateRunLabels();
   if (runId) {
     connect();
-  } else {
+  }
+  if (autoFollowRuns) {
     // No run-id provided — poll /runs to auto-discover
     pollForRuns();
     runsInterval = setInterval(pollForRuns, 3000);
@@ -376,18 +379,9 @@ function init() {
 function pollForRuns() {
   fetch('/runs').then(function(r){return r.json();}).then(function(runs) {
     if (!runs || !runs.length) return;
-    // Find the most recent active run
-    var active = runs.filter(function(r){return r.status === 'running' || r.status === 'active';});
-    var target = active.length > 0 ? active[active.length-1] : runs[runs.length-1];
+    var target = pickRunTarget(runs);
     if (target && target.run_id && target.run_id !== runId) {
-      runId = target.run_id;
-      document.getElementById('headerRun').textContent = runId;
-      document.getElementById('sbRun').textContent = runId;
-      // Stop polling for runs — we found one
-      if (runsInterval) { clearInterval(runsInterval); runsInterval = null; }
-      // Connect SSE with discovered run
-      if (evSource) { evSource.close(); }
-      connect();
+      activateRun(target.run_id);
     }
   }).catch(function(){});
 }
@@ -397,13 +391,8 @@ function pollState() {
   fetch(url).then(function(r){return r.json();}).then(function(state) {
     if (!state) return;
     // Auto-discover run-id from state if we don't have one
-    if (!runId && state.phased_state && state.phased_state.run_id) {
-      runId = state.phased_state.run_id;
-      document.getElementById('headerRun').textContent = runId;
-      document.getElementById('sbRun').textContent = runId;
-      if (runsInterval) { clearInterval(runsInterval); runsInterval = null; }
-      if (evSource) { evSource.close(); }
-      connect();
+    if (autoFollowRuns && !runId && state.phased_state && state.phased_state.run_id) {
+      activateRun(state.phased_state.run_id);
     }
     // Reconcile phase state from phased_state.json (ground truth)
     if (state.phased_state) {
@@ -480,25 +469,103 @@ function hideErrorBanner() {
 }
 
 function connect() {
+  const generation = ++connectGeneration;
   const url = '/events' + (runId ? '?run-id=' + encodeURIComponent(runId) : '');
   evSource = new EventSource(url);
   evSource.onopen = function() {
+    if (generation !== connectGeneration) return;
     reconnectDelay = 1000;
     hideErrorBanner();
     setConn('ok', '● live');
   };
   evSource.onerror = function() {
+    if (generation !== connectGeneration) return;
     evSource.close();
     setConn('err', '● disconnected');
     showErrorBanner('Connection lost. Reconnecting in ' + (reconnectDelay/1000) + 's...');
     setTimeout(function() {
+      if (generation !== connectGeneration) return;
       reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
       connect();
     }, reconnectDelay);
   };
   evSource.onmessage = function(e) {
+    if (generation !== connectGeneration) return;
     try { handleEvent(JSON.parse(e.data)); } catch(_) {}
   };
+}
+
+function updateRunLabels() {
+  document.getElementById('headerRun').textContent = runId || '(auto-discovering...)';
+  document.getElementById('sbRun').textContent = runId || '(auto)';
+}
+
+function pickRunTarget(runs) {
+  if (!runs || !runs.length) return null;
+  var active = runs.filter(function(run){ return run.is_active || run.status === 'running' || run.status === 'active'; });
+  if (active.length > 0) return active[0];
+  return runs[0];
+}
+
+function resetRunState() {
+  eventCount = 0;
+  stats = { cost: 0, tools: 0, backend: '' };
+  phaseCosts = {};
+  phases = { 1:{status:'pending',start:null,end:null,tools:0,cost:0}, 2:{status:'pending',start:null,end:null,tools:0,cost:0}, 3:{status:'pending',start:null,end:null,tools:0,cost:0} };
+  session = { phase: 0, lastTool: '', turns: 0, phaseCost: 0 };
+  workers = {};
+  startTime = Date.now();
+  document.getElementById('headerGoal').textContent = '';
+  document.getElementById('headerElapsed').textContent = '0s';
+  document.getElementById('statusDot').className = 'status-dot';
+  document.getElementById('statCost').textContent = '$0.0000';
+  document.getElementById('statTools').textContent = '0';
+  document.getElementById('statEvents').textContent = '0';
+  document.getElementById('statBackend').textContent = '–';
+  document.getElementById('sessionPhase').textContent = '–';
+  document.getElementById('sessionTool').textContent = '–';
+  document.getElementById('sessionTurns').textContent = '0';
+  document.getElementById('sessionCost').textContent = '$0.0000';
+  document.getElementById('sbPhase').textContent = '–';
+  document.getElementById('eventsCount').textContent = '0 events';
+  document.getElementById('workerSection').style.display = 'none';
+  document.getElementById('workerList').textContent = '';
+  document.getElementById('workers-panel').style.display = 'none';
+  document.getElementById('workers-body').textContent = '';
+  document.getElementById('completionBanner').classList.remove('show');
+  resetEventFeed();
+  for (var i = 1; i <= 3; i++) refreshPhaseDisplay(i);
+  updateProgress();
+  setConn('connecting', '● connecting');
+}
+
+function resetEventFeed() {
+  const feed = document.getElementById('eventsFeed');
+  feed.textContent = '';
+  const empty = document.createElement('div');
+  empty.className = 'empty-state';
+  empty.id = 'emptyState';
+  const icon = document.createElement('div');
+  icon.className = 'icon';
+  icon.textContent = '⌛';
+  const label = document.createElement('div');
+  label.textContent = 'Waiting for events...';
+  empty.appendChild(icon);
+  empty.appendChild(label);
+  feed.appendChild(empty);
+}
+
+function activateRun(nextRunId) {
+  if (!nextRunId || nextRunId === runId) return;
+  if (evSource) {
+    connectGeneration++;
+    evSource.close();
+    evSource = null;
+  }
+  runId = nextRunId;
+  updateRunLabels();
+  resetRunState();
+  connect();
 }
 
 function setConn(cls, text) {
