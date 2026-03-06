@@ -163,7 +163,14 @@ func TestCov7_updateSearchIndexForFile_noIndex(t *testing.T) {
 	tmp := t.TempDir()
 	// No index file exists — function should return early with no error
 	updateSearchIndexForFile(tmp, filepath.Join(tmp, "file.md"), true)
-	// If we reach here without panic, the early-return path works
+	// Verify no index file was created as a side effect
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected empty dir after no-index update, got %d entries", len(entries))
+	}
 }
 
 // ---------------------------------------------------------------------------

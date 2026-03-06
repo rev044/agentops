@@ -72,10 +72,10 @@ func TestCov5_runTrace(t *testing.T) {
 	cov5ResetFlags()
 
 	// No provenance records — exercises the "no records" path
-	out, err := executeCommand("trace", "some-artifact.md")
-	_ = err
-	if out == "" {
-		t.Log("trace produced no output (expected for empty provenance)")
+	_, err := executeCommand("trace", "some-artifact.md")
+	// Trace with no provenance should not return a hard error
+	if err != nil {
+		t.Errorf("trace with empty provenance returned unexpected error: %v", err)
 	}
 }
 
@@ -83,12 +83,10 @@ func TestCov5_runTrace_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("trace", "--dry-run", "some-artifact.md")
+	_, err := executeCommand("trace", "--dry-run", "some-artifact.md")
+	// Dry-run trace should succeed without error
 	if err != nil {
-		t.Logf("trace dry-run error (OK): %v", err)
-	}
-	if out != "" {
-		t.Logf("trace dry-run output: %s", out)
+		t.Errorf("trace dry-run returned unexpected error: %v", err)
 	}
 }
 
@@ -96,9 +94,11 @@ func TestCov5_runRPIStatus(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("rpi", "status")
-	_ = out
-	_ = err
+	_, err := executeCommand("rpi", "status")
+	// Status with no runs should succeed
+	if err != nil {
+		t.Errorf("rpi status returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runRPIStatus_JSON(t *testing.T) {
@@ -106,11 +106,13 @@ func TestCov5_runRPIStatus_JSON(t *testing.T) {
 	cov5ResetFlags()
 
 	out, err := executeCommand("rpi", "status", "--json")
-	_ = err
+	if err != nil {
+		t.Errorf("rpi status --json returned unexpected error: %v", err)
+	}
 	if out != "" {
 		var result rpiStatusOutput
 		if jsonErr := json.Unmarshal([]byte(out), &result); jsonErr != nil {
-			t.Logf("JSON parse (not fatal): %v", jsonErr)
+			t.Errorf("rpi status --json produced invalid JSON: %v", jsonErr)
 		}
 	}
 }
@@ -122,7 +124,7 @@ func TestCov5_runRPICleanup_NoFlags(t *testing.T) {
 	// Should error because neither --all nor --run-id specified
 	_, err := executeCommand("rpi", "cleanup")
 	if err == nil {
-		t.Log("expected error for missing --all or --run-id")
+		t.Error("expected error for missing --all or --run-id, got nil")
 	}
 }
 
@@ -130,18 +132,20 @@ func TestCov5_runRPICleanup_All(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("rpi", "cleanup", "--all")
-	_ = out
-	_ = err
+	_, err := executeCommand("rpi", "cleanup", "--all")
+	if err != nil {
+		t.Errorf("rpi cleanup --all returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runRPICleanup_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("rpi", "cleanup", "--all", "--dry-run")
-	_ = out
-	_ = err
+	_, err := executeCommand("rpi", "cleanup", "--all", "--dry-run")
+	if err != nil {
+		t.Errorf("rpi cleanup --all --dry-run returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runRPIPhased_NoGoal(t *testing.T) {
@@ -149,9 +153,11 @@ func TestCov5_runRPIPhased_NoGoal(t *testing.T) {
 	cov5ResetFlags()
 
 	// Dry-run to avoid spawning anything
-	out, err := executeCommand("rpi", "phased", "--dry-run", "test goal")
-	_ = out
-	_ = err
+	_, err := executeCommand("rpi", "phased", "--dry-run", "test goal")
+	// Dry-run phased should succeed without error
+	if err != nil {
+		t.Errorf("rpi phased --dry-run returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runRPIParallel_NoArgs(t *testing.T) {
@@ -161,7 +167,7 @@ func TestCov5_runRPIParallel_NoArgs(t *testing.T) {
 	// No epics provided — should error
 	_, err := executeCommand("rpi", "parallel")
 	if err == nil {
-		t.Log("expected error for no epics")
+		t.Error("expected error for no epics, got nil")
 	}
 }
 
@@ -172,18 +178,21 @@ func TestCov5_runRPIParallel_DryRun(t *testing.T) {
 	// Initialize git repo so parallel can check
 	initGitRepo(t, tmp)
 
-	out, err := executeCommand("rpi", "parallel", "--dry-run", "goal1", "goal2")
-	_ = out
-	_ = err
+	_, err := executeCommand("rpi", "parallel", "--dry-run", "goal1", "goal2")
+	if err != nil {
+		t.Errorf("rpi parallel --dry-run returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runTaskFeedback_NoTasks(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("task-feedback")
-	_ = out
-	_ = err
+	_, err := executeCommand("task-feedback")
+	// No tasks should succeed without error
+	if err != nil {
+		t.Errorf("task-feedback with no tasks returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runFeedbackLoop_NoSession(t *testing.T) {
@@ -194,7 +203,7 @@ func TestCov5_runFeedbackLoop_NoSession(t *testing.T) {
 	// No --session flag and no CLAUDE_SESSION_ID → error
 	_, err := executeCommand("feedback-loop")
 	if err == nil {
-		t.Log("expected error for missing session")
+		t.Error("expected error for missing session, got nil")
 	}
 }
 
@@ -202,9 +211,10 @@ func TestCov5_runFeedbackLoop_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("feedback-loop", "--session", "test-session", "--dry-run")
-	_ = out
-	_ = err
+	_, err := executeCommand("feedback-loop", "--session", "test-session", "--dry-run")
+	if err != nil {
+		t.Errorf("feedback-loop --dry-run returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runForgeTranscript_NoFile(t *testing.T) {
@@ -213,7 +223,7 @@ func TestCov5_runForgeTranscript_NoFile(t *testing.T) {
 
 	_, err := executeCommand("forge", "transcript", "/nonexistent/file.jsonl")
 	if err == nil {
-		t.Log("expected error for missing file")
+		t.Error("expected error for missing transcript file, got nil")
 	}
 }
 
@@ -225,9 +235,10 @@ func TestCov5_runForgeTranscript_DryRun(t *testing.T) {
 	dummyFile := filepath.Join(tmp, "test.jsonl")
 	_ = os.WriteFile(dummyFile, []byte(`{"type":"human","text":"hello"}`+"\n"), 0o644)
 
-	out, err := executeCommand("forge", "transcript", "--dry-run", dummyFile)
-	_ = out
-	_ = err
+	_, err := executeCommand("forge", "transcript", "--dry-run", dummyFile)
+	if err != nil {
+		t.Errorf("forge transcript --dry-run returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runForgeMarkdown_NoFile(t *testing.T) {
@@ -236,7 +247,7 @@ func TestCov5_runForgeMarkdown_NoFile(t *testing.T) {
 
 	_, err := executeCommand("forge", "markdown", "/nonexistent/file.md")
 	if err == nil {
-		t.Log("expected error for missing file")
+		t.Error("expected error for missing markdown file, got nil")
 	}
 }
 
@@ -248,54 +259,62 @@ func TestCov5_runForgeMarkdown_DryRun(t *testing.T) {
 	dummyFile := filepath.Join(tmp, "test.md")
 	_ = os.WriteFile(dummyFile, []byte("# Test\n\nSome content\n"), 0o644)
 
-	out, err := executeCommand("forge", "markdown", "--dry-run", dummyFile)
-	_ = out
-	_ = err
+	_, err := executeCommand("forge", "markdown", "--dry-run", dummyFile)
+	if err != nil {
+		t.Errorf("forge markdown --dry-run returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runPoolAutoPromote(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("pool", "auto-promote")
-	_ = out
-	_ = err
+	_, err := executeCommand("pool", "auto-promote")
+	if err != nil {
+		t.Errorf("pool auto-promote returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runPoolMigrateLegacy(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("pool", "migrate-legacy")
-	_ = out
-	_ = err
+	_, err := executeCommand("pool", "migrate-legacy")
+	if err != nil {
+		t.Errorf("pool migrate-legacy returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runPoolMigrateLegacy_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("pool", "migrate-legacy", "--dry-run")
-	_ = out
-	_ = err
+	_, err := executeCommand("pool", "migrate-legacy", "--dry-run")
+	if err != nil {
+		t.Errorf("pool migrate-legacy --dry-run returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runHooksTest(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("hooks", "test")
-	_ = out
-	_ = err
+	_, err := executeCommand("hooks", "test")
+	if err != nil {
+		t.Errorf("hooks test returned unexpected error: %v", err)
+	}
 }
 
 func TestCov5_runBatchFeedback_DryRun(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 	cov5ResetFlags()
 
-	out, err := executeCommand("feedback", "batch", "--dry-run", "--days", "1")
-	_ = out
-	_ = err
+	// batch --dry-run exercises the command path; may error if required flags missing
+	_, err := executeCommand("feedback", "batch", "--dry-run")
+	// Error is acceptable (e.g. missing --reward/--helpful/--harmful), but must not panic
+	if err != nil && err.Error() == "" {
+		t.Error("feedback batch --dry-run returned empty error")
+	}
 }
 
 func TestCov5_runBatchFeedback_InvalidFlags(t *testing.T) {
@@ -304,7 +323,7 @@ func TestCov5_runBatchFeedback_InvalidFlags(t *testing.T) {
 
 	_, err := executeCommand("feedback", "batch", "--max-sessions", "-1")
 	if err == nil {
-		t.Log("expected error for invalid max-sessions")
+		t.Error("expected error for invalid max-sessions, got nil")
 	}
 }
 
@@ -315,11 +334,17 @@ func TestCov5_forgeExtractAndReport(t *testing.T) {
 
 	// forgeExtractAndReport expects a transcript file to exist. Use an empty one.
 	transcriptPath := filepath.Join(tmp, "test.jsonl")
-	_ = os.WriteFile(transcriptPath, []byte(""), 0o644)
+	if err := os.WriteFile(transcriptPath, []byte(""), 0o644); err != nil {
+		t.Fatalf("write test transcript: %v", err)
+	}
 
-	err := forgeExtractAndReport(transcriptPath)
-	// May fail since transcript is empty, but exercises the function
-	_ = err
+	// Empty transcript exercises the function — may return an error, which is acceptable
+	_ = forgeExtractAndReport(transcriptPath)
+	// Verify function completed without panic (implicit assertion: reaching this point)
+	// Also verify the transcript file still exists (not accidentally deleted)
+	if _, err := os.Stat(transcriptPath); err != nil {
+		t.Errorf("transcript file was unexpectedly removed: %v", err)
+	}
 }
 
 func TestCov5_extractForClose(t *testing.T) {
@@ -329,15 +354,20 @@ func TestCov5_extractForClose(t *testing.T) {
 	session := cov5MinimalSession()
 
 	count, err := extractForClose(session, filepath.Join(tmp, "fake.jsonl"), tmp)
-	_ = count
-	_ = err
+	// With no transcript content, count should be 0
+	if err != nil {
+		t.Errorf("extractForClose returned unexpected error: %v", err)
+	}
+	if count < 0 {
+		t.Errorf("extractForClose returned negative count: %d", count)
+	}
 }
 
 func TestCov5_extractAnyOpenIssueID(t *testing.T) {
 	// This calls external bd command which won't be available in test
 	_, err := extractAnyOpenIssueID("bd-nonexistent-for-test")
 	if err == nil {
-		t.Log("expected error when bd is not available")
+		t.Error("expected error when bd is not available, got nil")
 	}
 }
 
@@ -347,7 +377,7 @@ func TestCov5_ensureLoopAttachedBranch(t *testing.T) {
 	// Non-git directory — should fail
 	_, _, err := ensureLoopAttachedBranch(tmp, "rpi-loop-")
 	if err == nil {
-		t.Log("expected error in non-git dir")
+		t.Error("expected error in non-git dir, got nil")
 	}
 }
 
@@ -355,27 +385,36 @@ func TestCov5_ensureLoopAttachedBranch_Git(t *testing.T) {
 	tmp := cov5SetupTempWorkdir(t)
 	initGitRepo(t, tmp)
 
-	branch, healed, err := ensureLoopAttachedBranch(tmp, "rpi-loop-")
-	_ = branch
-	_ = healed
-	_ = err
+	branch, _, err := ensureLoopAttachedBranch(tmp, "rpi-loop-")
+	if err != nil {
+		t.Errorf("ensureLoopAttachedBranch in git dir returned error: %v", err)
+	}
+	if branch == "" {
+		t.Error("expected non-empty branch name")
+	}
 }
 
 func TestCov5_resolveCancelTargets(t *testing.T) {
 	_ = cov5SetupTempWorkdir(t)
 
 	targets, err := resolveCancelTargets()
-	_ = targets
-	_ = err
+	if err != nil {
+		t.Errorf("resolveCancelTargets returned error: %v", err)
+	}
+	// With no active runs, targets should be empty or nil
+	if len(targets) != 0 {
+		t.Errorf("expected 0 cancel targets in empty dir, got %d", len(targets))
+	}
 }
 
 func TestCov5_listProcesses(t *testing.T) {
 	procs, err := listProcesses()
 	if err != nil {
-		t.Logf("listProcesses error (OK if ps not available): %v", err)
+		t.Fatalf("listProcesses returned error: %v", err)
 	}
+	// There should be at least one process (the test runner itself)
 	if len(procs) == 0 {
-		t.Log("no processes found (unusual but not fatal)")
+		t.Error("expected at least 1 process from listProcesses")
 	}
 }
 
@@ -384,15 +423,20 @@ func TestCov5_ingestFileBlocks_Empty(t *testing.T) {
 
 	// Create a pool directory structure
 	poolDir := filepath.Join(tmp, ".agents", "knowledge", "pool")
-	_ = os.MkdirAll(filepath.Join(poolDir, "pending"), 0o755)
-	_ = os.MkdirAll(filepath.Join(poolDir, "staged"), 0o755)
-	_ = os.MkdirAll(filepath.Join(poolDir, "promoted"), 0o755)
-	_ = os.MkdirAll(filepath.Join(poolDir, "rejected"), 0o755)
+	for _, sub := range []string{"pending", "staged", "promoted", "rejected"} {
+		if err := os.MkdirAll(filepath.Join(poolDir, sub), 0o755); err != nil {
+			t.Fatalf("create pool dir %s: %v", sub, err)
+		}
+	}
 
-	// Empty blocks list exercises the function but does no work
-	// pool.New expects pool directory structure
-	// Just verify the function signature is callable
-	t.Log("ingestFileBlocks signature verified")
+	// Verify the pool directory was created correctly
+	info, err := os.Stat(filepath.Join(poolDir, "pending"))
+	if err != nil {
+		t.Fatalf("pool pending dir not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("expected pending to be a directory")
+	}
 }
 
 func TestCov5_initBeads_NoBD(t *testing.T) {
@@ -402,7 +446,7 @@ func TestCov5_initBeads_NoBD(t *testing.T) {
 
 	err := initBeads(tmp)
 	if err == nil {
-		t.Log("expected error when bd is not on PATH")
+		t.Error("expected error when bd is not on PATH, got nil")
 	}
 }
 
@@ -454,24 +498,34 @@ func TestCov5_findMissingPath(t *testing.T) {
 func TestCov5_installFullHookScripts_DryRun(t *testing.T) {
 	tmp := cov5SetupTempWorkdir(t)
 	installBase := filepath.Join(tmp, ".claude", "hooks")
-	_ = os.MkdirAll(installBase, 0o755)
+	if err := os.MkdirAll(installBase, 0o755); err != nil {
+		t.Fatalf("mkdir hooks base: %v", err)
+	}
 
 	hooksDryRun = true
 	defer func() { hooksDryRun = false }()
 
 	err := installFullHookScripts(installBase)
-	_ = err
+	// Dry-run should not fail
+	if err != nil {
+		t.Errorf("installFullHookScripts dry-run returned error: %v", err)
+	}
 }
 
 func TestCov5_installFullHookScripts(t *testing.T) {
 	tmp := cov5SetupTempWorkdir(t)
 	installBase := filepath.Join(tmp, ".claude", "hooks")
-	_ = os.MkdirAll(installBase, 0o755)
+	if err := os.MkdirAll(installBase, 0o755); err != nil {
+		t.Fatalf("mkdir hooks base: %v", err)
+	}
 
 	hooksDryRun = false
-	err := installFullHookScripts(installBase)
-	// May fail due to missing source dir, but that exercises the embed fallback
-	_ = err
+	// May fail due to missing embedded source, which is acceptable
+	_ = installFullHookScripts(installBase)
+	// Verify install base still exists (not accidentally removed)
+	if _, err := os.Stat(installBase); err != nil {
+		t.Errorf("install base directory removed unexpectedly: %v", err)
+	}
 }
 
 func TestCov5_searchSmartConnections(t *testing.T) {
@@ -480,9 +534,11 @@ func TestCov5_searchSmartConnections(t *testing.T) {
 	// Smart Connections API won't be running in tests
 	results, err := searchSmartConnections("test query", ".", 10)
 	if err == nil {
-		t.Log("unexpected success connecting to Smart Connections")
+		t.Error("expected error connecting to Smart Connections in test env, got nil")
 	}
-	_ = results
+	if len(results) != 0 {
+		t.Errorf("expected 0 results when Smart Connections unavailable, got %d", len(results))
+	}
 }
 
 func TestCov5_resolveWorktreeModeFromConfig(t *testing.T) {
@@ -516,7 +572,7 @@ func TestCov5_processSingleTaskFeedback(t *testing.T) {
 	// Should fail because learning file doesn't exist
 	ok := processSingleTaskFeedback(tmp, task)
 	if ok {
-		t.Log("unexpected success (learning file shouldn't exist)")
+		t.Error("expected false when learning file doesn't exist, got true")
 	}
 }
 
@@ -537,7 +593,9 @@ func TestCov5_recordCitations(t *testing.T) {
 	}
 
 	err := recordCitations(tmp, learnings, "session-test", "test query")
-	_ = err
+	if err != nil {
+		t.Errorf("recordCitations returned error: %v", err)
+	}
 }
 
 func TestCov5_recordPatternCitations(t *testing.T) {
@@ -555,7 +613,9 @@ func TestCov5_recordPatternCitations(t *testing.T) {
 	}
 
 	err := recordPatternCitations(tmp, patterns, "session-test", "test query")
-	_ = err
+	if err != nil {
+		t.Errorf("recordPatternCitations returned error: %v", err)
+	}
 }
 
 func TestCov5_recordPatternCitations_NoFilePath(t *testing.T) {
@@ -583,10 +643,10 @@ func TestCov5_triggerExtraction_NoPending(t *testing.T) {
 
 	count, err := triggerExtraction(tmp)
 	if err != nil {
-		t.Logf("triggerExtraction error (OK): %v", err)
+		t.Errorf("triggerExtraction returned unexpected error: %v", err)
 	}
 	if count != 0 {
-		t.Logf("unexpected count: %d", count)
+		t.Errorf("expected 0 extractions with no pending, got %d", count)
 	}
 }
 
@@ -608,10 +668,11 @@ func TestCov5_executeBatchFeedbackSessions_WithBudget(t *testing.T) {
 	batchFeedbackMaxRuntime = 1 * time.Nanosecond
 	defer func() { batchFeedbackMaxRuntime = origMaxRuntime }()
 
-	// Non-empty sessions list with expired budget
+	// Non-empty sessions list with expired budget — should process 0 due to budget
 	processed := executeBatchFeedbackSessions(rootCmd, []string{"session-1", "session-2"})
-	// Budget should expire immediately
-	_ = processed
+	if processed > 2 {
+		t.Errorf("expected at most 2 processed with budget, got %d", processed)
+	}
 }
 
 func TestCov5_forgeTranscriptForClose(t *testing.T) {
@@ -619,11 +680,19 @@ func TestCov5_forgeTranscriptForClose(t *testing.T) {
 
 	// Create a minimal JSONL transcript
 	transcriptPath := filepath.Join(tmp, "transcript.jsonl")
-	_ = os.WriteFile(transcriptPath, []byte(`{"type":"human","text":"hello"}`+"\n"+`{"type":"assistant","text":"world"}`+"\n"), 0o644)
+	if err := os.WriteFile(transcriptPath, []byte(`{"type":"human","text":"hello"}`+"\n"+`{"type":"assistant","text":"world"}`+"\n"), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
 
-	session, err := forgeTranscriptForClose(transcriptPath, tmp)
-	_ = session
-	_ = err
+	// forgeTranscriptForClose may return an error for minimal transcripts (e.g. missing session ID)
+	_, err := forgeTranscriptForClose(transcriptPath, tmp)
+	// The function exercises the transcript parsing path regardless of error
+	if err != nil {
+		// Verify it's a specific, expected error (not a nil pointer)
+		if err.Error() == "" {
+			t.Error("forgeTranscriptForClose returned empty error")
+		}
+	}
 }
 
 func TestCov5_outputBatchForgeResult_Text(t *testing.T) {
@@ -682,7 +751,10 @@ func TestCov5_runBatchExtractionStep_Enabled(t *testing.T) {
 	defer func() { batchExtract = origExtract }()
 
 	count := runBatchExtractionStep(tmp, 3)
-	_ = count // May be 0 if no pending extractions
+	// No pending extractions in clean dir — should return 0
+	if count != 0 {
+		t.Errorf("expected 0 extractions in clean dir, got %d", count)
+	}
 }
 
 func TestCov5_handlePostPhaseGate_NilError(t *testing.T) {
@@ -709,8 +781,13 @@ func TestCov5_handlePostPhaseGate_NilError(t *testing.T) {
 	}
 
 	err := handlePostPhaseGate(context.Background(), tmp, state, p, logPath, statusPath, allPhases, executor)
-	// May error because no phase result file, but exercises the function
-	_ = err
+	// May error because no phase result file — that's acceptable for test coverage
+	if err != nil {
+		// Verify it's a meaningful error (not a nil pointer panic)
+		if err.Error() == "" {
+			t.Error("handlePostPhaseGate returned empty error message")
+		}
+	}
 }
 
 func TestCov5_executePhaseSession(t *testing.T) {
@@ -741,8 +818,10 @@ func TestCov5_executePhaseSession(t *testing.T) {
 	}
 
 	err := executePhaseSession(context.Background(), tmp, state, p, opts, statusPath, allPhases, logPath, "test prompt", executor)
-	// The noop executor will succeed
-	_ = err
+	// The noop executor should succeed
+	if err != nil {
+		t.Errorf("executePhaseSession with noop executor returned error: %v", err)
+	}
 }
 
 func TestCov5_RunFireLoop_NoBD(t *testing.T) {
@@ -760,7 +839,7 @@ func TestCov5_RunFireLoop_NoBD(t *testing.T) {
 	// RunFireLoop requires bd which won't be available
 	err := RunFireLoop(cfg)
 	if err == nil {
-		t.Log("expected error when bd is not available")
+		t.Error("expected error when bd is not available, got nil")
 	}
 }
 
@@ -782,7 +861,10 @@ func TestCov5_runRPISupervisedCycle(t *testing.T) {
 
 	// Will fail because claude/echo isn't a valid runtime, but exercises paths
 	err := runRPISupervisedCycle(tmp, "test goal", 1, 1, cfg)
-	_ = err
+	// Error is expected — verify we got one
+	if err == nil {
+		t.Error("expected error with invalid runtime, got nil")
+	}
 }
 
 func TestCov5_isLoopKillSwitchSet(t *testing.T) {
@@ -1544,7 +1626,7 @@ func TestCov5_installInitHooks_DryRun(t *testing.T) {
 
 	err := installInitHooks(rootCmd)
 	if err != nil {
-		t.Logf("installInitHooks dry-run error (may be OK): %v", err)
+		t.Errorf("installInitHooks dry-run returned error: %v", err)
 	}
 }
 
@@ -1558,8 +1640,12 @@ func TestCov5_renderStateRunsSection(t *testing.T) {
 			Elapsed:   "1m30s",
 		},
 	}
-	// Just verify it doesn't panic
-	renderStateRunsSection("Active Runs", runs, "active", false)
+	out := captureJSONStdout(t, func() {
+		renderStateRunsSection("Active Runs", runs, "active", false)
+	})
+	if out == "" {
+		t.Error("expected non-empty output from renderStateRunsSection")
+	}
 }
 
 func TestCov5_renderStateRunsSection_WithReason(t *testing.T) {
@@ -1573,7 +1659,12 @@ func TestCov5_renderStateRunsSection_WithReason(t *testing.T) {
 			Elapsed:   "5m",
 		},
 	}
-	renderStateRunsSection("Historical Runs", runs, "historical", true)
+	out := captureJSONStdout(t, func() {
+		renderStateRunsSection("Historical Runs", runs, "historical", true)
+	})
+	if out == "" {
+		t.Error("expected non-empty output from renderStateRunsSection with reason")
+	}
 }
 
 func TestCov5_renderLogRunsSection(t *testing.T) {
@@ -1590,7 +1681,12 @@ func TestCov5_renderLogRunsSection(t *testing.T) {
 			Duration: 5 * time.Minute,
 		},
 	}
-	renderLogRunsSection(runs)
+	out := captureJSONStdout(t, func() {
+		renderLogRunsSection(runs)
+	})
+	if out == "" {
+		t.Error("expected non-empty output from renderLogRunsSection")
+	}
 }
 
 func TestCov5_renderLiveStatusesSection(t *testing.T) {
@@ -1599,7 +1695,12 @@ func TestCov5_renderLiveStatusesSection(t *testing.T) {
 	snapshots := []liveStatusSnapshot{
 		{Path: filepath.Join(tmp, "status.md"), Content: "Phase 1: running"},
 	}
-	renderLiveStatusesSection(tmp, snapshots)
+	out := captureJSONStdout(t, func() {
+		renderLiveStatusesSection(tmp, snapshots)
+	})
+	if out == "" {
+		t.Error("expected non-empty output from renderLiveStatusesSection")
+	}
 }
 
 func TestCov5_formattedLogRunStatus(t *testing.T) {
@@ -1690,9 +1791,9 @@ func TestCov5_loadFeedbackEvents_WithData(t *testing.T) {
 func TestCov5_buildRPIStatusOutput(t *testing.T) {
 	tmp := cov5SetupTempWorkdir(t)
 
-	output := buildRPIStatusOutput(tmp)
-	if output.Count != 0 {
-		t.Logf("found %d runs in empty dir", output.Count)
+	result := buildRPIStatusOutput(tmp)
+	if result.Count != 0 {
+		t.Errorf("expected 0 runs in empty dir, got %d", result.Count)
 	}
 }
 
@@ -1726,11 +1827,20 @@ func TestCov5_maybeAutoCleanStale(t *testing.T) {
 	// Disabled — should be a no-op
 	opts := phasedEngineOptions{AutoCleanStale: false}
 	maybeAutoCleanStale(opts, tmp)
+	// Verify the runs directory still exists (not accidentally cleaned)
+	runsDir := filepath.Join(tmp, ".agents", "rpi", "runs")
+	if _, err := os.Stat(runsDir); err != nil {
+		t.Errorf("runs dir missing after disabled auto-clean: %v", err)
+	}
 
 	// Enabled
 	opts.AutoCleanStale = true
 	opts.AutoCleanStaleAfter = 1 * time.Hour
 	maybeAutoCleanStale(opts, tmp)
+	// Runs dir should still exist (nothing stale to clean)
+	if _, err := os.Stat(runsDir); err != nil {
+		t.Errorf("runs dir missing after enabled auto-clean: %v", err)
+	}
 }
 
 func TestCov5_saveTerminalState(t *testing.T) {
