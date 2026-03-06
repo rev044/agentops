@@ -123,7 +123,7 @@ Process:
 
 ### Canonical Root and Worktrees
 
-`/Users/fullerbt/gt/agentops/crew/nami` is the canonical repo root. It owns the common `.git` directory and must remain a non-disposable anchor.
+This repo has a canonical root worktree. It owns the common `.git` directory and must remain a non-disposable anchor.
 
 - Keep the canonical root clean and attached to `main`.
 - Do not use the canonical root as scratch space for task work.
