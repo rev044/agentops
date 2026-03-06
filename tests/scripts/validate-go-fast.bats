@@ -34,10 +34,11 @@ exit 0
 GIT
     chmod +x "$MOCK_BIN/git"
 
-    # Ensure go cannot be found: use only mock bin + /bin (no /usr/local/go, no /usr/bin)
-    export PATH="$MOCK_BIN:/bin"
+    # Symlink essentials so the script can initialize, but exclude go
+    ln -sf "$(command -v bash)" "$MOCK_BIN/bash"
+    ln -sf "$(command -v dirname)" "$MOCK_BIN/dirname"
 
-    run bash "$SCRIPT"
+    run env PATH="$MOCK_BIN" bash "$SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"SKIP"*"go not installed"* ]]
 }

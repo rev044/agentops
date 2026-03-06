@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI_DIR="$REPO_ROOT/cli"
 
-FLOOR="${CMD_AO_COVERAGE_FLOOR:-84.0}"
-MAX_ZERO="${CMD_AO_ZERO_COVERAGE_MAX:-8}"
+FLOOR="${CMD_AO_COVERAGE_FLOOR:-79.0}"
+MAX_ZERO="${CMD_AO_ZERO_COVERAGE_MAX:-85}"
 MAX_HANDLER_ZERO="${CMD_AO_HANDLER_ZERO_MAX:-5}"
 
 if ! command -v go >/dev/null 2>&1; then

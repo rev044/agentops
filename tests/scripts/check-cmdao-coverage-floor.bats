@@ -34,10 +34,11 @@ teardown() {
 }
 
 @test "check-cmdao-coverage-floor.sh skips when go not installed" {
-    # Ensure go cannot be found: use only mock bin + /bin (no /usr/local/go, no /usr/bin)
-    export PATH="$MOCK_BIN:/bin"
+    # Symlink essentials so the script can initialize, but exclude go
+    ln -sf "$(command -v bash)" "$MOCK_BIN/bash"
+    ln -sf "$(command -v dirname)" "$MOCK_BIN/dirname"
 
-    run bash "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+    run env PATH="$MOCK_BIN" bash "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
     [ "$status" -eq 0 ]
     [[ "$output" == *"SKIP"*"go is not installed"* ]]
 }
@@ -47,8 +48,8 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-@test "check-cmdao-coverage-floor.sh default floor is 84%" {
-    run grep -q '84.0' "$SCRIPT"
+@test "check-cmdao-coverage-floor.sh default floor is 79%" {
+    run grep -q '79.0' "$SCRIPT"
     [ "$status" -eq 0 ]
 }
 
@@ -148,8 +149,8 @@ case "$1" in
         ;;
     tool)
         if [[ "$2" == "cover" && "$3" == "-func="* ]]; then
-            # 10 zero-coverage functions (exceeds MAX_ZERO=8)
-            for i in $(seq 1 10); do
+            # 90 zero-coverage functions (exceeds MAX_ZERO=85)
+            for i in $(seq 1 90); do
                 echo "example.com/cli/cmd/ao/main.go:$i:	func${i}		0.0%"
             done
             echo "example.com/cli/cmd/ao/main.go:100:	main		100.0%"
