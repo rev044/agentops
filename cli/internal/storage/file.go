@@ -149,13 +149,16 @@ func (fs *FileStorage) WriteIndex(entry *IndexEntry) error {
 
 	indexPath := filepath.Join(fs.BaseDir, IndexDir, IndexFile)
 
-	// Check for duplicate by session ID
-	if fs.hasIndexEntry(indexPath, entry.SessionID) {
-		// Already indexed, skip
-		return nil
-	}
-
-	return fs.appendJSONL(indexPath, entry)
+	return fs.withLockedFile(indexPath, func(f *os.File) error {
+		hasEntry, err := fs.hasIndexEntry(f, entry.SessionID)
+		if err != nil {
+			return err
+		}
+		if hasEntry {
+			return nil
+		}
+		return fs.appendJSONLToFile(f, entry)
+	})
 }
 
 // WriteProvenance records provenance information.
@@ -215,6 +218,14 @@ func (fs *FileStorage) QueryProvenance(artifactPath string) ([]ProvenanceRecord,
 
 // scanJSONLFile opens a JSONL file and calls fn for each non-empty line.
 // Returns nil (not an error) if the file does not exist.
+func scanJSONL(r io.Reader, fn func(line []byte)) error {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		fn(scanner.Bytes())
+	}
+	return scanner.Err()
+}
+
 func scanJSONLFile(path string, fn func(line []byte)) (err error) {
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
@@ -229,11 +240,7 @@ func scanJSONLFile(path string, fn func(line []byte)) (err error) {
 		}
 	}()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		fn(scanner.Bytes())
-	}
-	return scanner.Err()
+	return scanJSONL(f, fn)
 }
 
 // Close releases any resources.
@@ -293,59 +300,84 @@ func (fs *FileStorage) atomicWrite(path string, writeFunc func(io.Writer) error)
 
 // appendJSONL appends a JSON line to a file atomically.
 func (fs *FileStorage) appendJSONL(path string, v any) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return err
-	}
+	return fs.withLockedFile(path, func(f *os.File) error {
+		return fs.appendJSONLToFile(f, v)
+	})
+}
 
-	// For append, we can't use pure atomic write, but we can:
-	// 1. Write to temp
-	// 2. Append temp content to main file
-	// This ensures partial writes don't corrupt the main file
-
+func (fs *FileStorage) appendJSONLToFile(f *os.File, v any) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("marshal json: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return fmt.Errorf("open file: %w", err)
+	if _, err := f.Seek(0, io.SeekEnd); err != nil {
+		return fmt.Errorf("seek end: %w", err)
 	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // sync already called, close best-effort
-	}()
 
-	// Write with newline
 	if _, err := f.Write(append(data, '\n')); err != nil {
 		return fmt.Errorf("write line: %w", err)
 	}
 
-	return f.Sync()
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("sync file: %w", err)
+	}
+
+	return nil
 }
 
-// hasIndexEntry checks if a session ID already exists in the index.
-func (fs *FileStorage) hasIndexEntry(indexPath, sessionID string) bool {
-	f, err := os.Open(indexPath)
-	if err != nil {
-		return false
+// hasIndexEntry checks if a session ID already exists in the locked index file.
+func (fs *FileStorage) hasIndexEntry(f *os.File, sessionID string) (bool, error) {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return false, fmt.Errorf("seek start: %w", err)
 	}
-	defer func() {
-		_ = f.Close() //nolint:errcheck // read-only check, errors non-critical
-	}()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
+	found := false
+	err := scanJSONL(f, func(line []byte) {
 		var entry IndexEntry
-		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
-			continue
+		if err := json.Unmarshal(line, &entry); err != nil {
+			return
 		}
 		if entry.SessionID == sessionID {
-			return true
+			found = true
 		}
+	})
+	if err != nil {
+		return false, err
 	}
 
-	return false
+	return found, nil
+}
+
+func (fs *FileStorage) withLockedFile(path string, fn func(f *os.File) error) (err error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+
+	locked := false
+	defer func() {
+		if locked {
+			if unlockErr := unlockFile(f); unlockErr != nil && err == nil {
+				err = fmt.Errorf("unlock file: %w", unlockErr)
+			}
+		}
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close file: %w", closeErr)
+		}
+	}()
+
+	if err := lockFile(f); err != nil {
+		return fmt.Errorf("lock file: %w", err)
+	}
+	locked = true
+
+	return fn(f)
 }
 
 // readSessionFile reads a session from a JSONL file.

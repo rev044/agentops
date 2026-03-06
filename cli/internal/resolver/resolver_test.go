@@ -104,6 +104,62 @@ func TestFileResolver_Resolve(t *testing.T) {
 	}
 }
 
+func TestFileResolver_Resolve_LiteralMetacharacterSubstring(t *testing.T) {
+	root := t.TempDir()
+	learningsDir := filepath.Join(root, ".agents", "learnings")
+	if err := os.MkdirAll(learningsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{
+		"prefix[abc]suffix.md",
+		"alpha-star-target.md",
+		"prefix*star.md",
+		"alphaqmark-target.md",
+		"prefix?mark.md",
+	} {
+		if err := os.WriteFile(filepath.Join(learningsDir, name), []byte("test\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	r := NewFileResolver(root)
+
+	tests := []struct {
+		name     string
+		id       string
+		wantBase string
+	}{
+		{
+			name:     "unbalanced bracket ID is treated literally",
+			id:       "[abc",
+			wantBase: "prefix[abc]suffix.md",
+		},
+		{
+			name:     "star ID is treated literally",
+			id:       "*star",
+			wantBase: "prefix*star.md",
+		},
+		{
+			name:     "question ID is treated literally",
+			id:       "?mark",
+			wantBase: "prefix?mark.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path, err := r.Resolve(tt.id)
+			if err != nil {
+				t.Fatalf("Resolve(%q) error = %v", tt.id, err)
+			}
+			if filepath.Base(path) != tt.wantBase {
+				t.Errorf("Resolve(%q) = %q, want base %q", tt.id, path, tt.wantBase)
+			}
+		})
+	}
+}
+
 func TestFileResolver_Resolve_PoolID(t *testing.T) {
 	root := t.TempDir()
 	learningsDir := filepath.Join(root, ".agents", "learnings")

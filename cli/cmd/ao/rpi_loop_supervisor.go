@@ -401,7 +401,7 @@ func runRPISupervisedCycle(cwd, goal string, cycle, attempt int, cfg rpiLoopSupe
 		}()
 	}
 
-	opts := buildCycleEngineOptions(cfg)
+	opts := buildCycleEngineOptions(cwd, cfg)
 	if err := runPhasedEngine(context.Background(), cwd, goal, opts); err != nil {
 		return wrapCycleFailure(cycleFailureTask, "phased engine", err)
 	}
@@ -445,8 +445,9 @@ func deferSupervisorCleanup(cwd string, cfg rpiLoopSupervisorConfig, retErr erro
 	return retErr
 }
 
-func buildCycleEngineOptions(cfg rpiLoopSupervisorConfig) phasedEngineOptions {
+func buildCycleEngineOptions(cwd string, cfg rpiLoopSupervisorConfig) phasedEngineOptions {
 	opts := defaultPhasedEngineOptions()
+	opts.WorkingDir = cwd
 	opts.AutoCleanStale = cfg.AutoClean
 	opts.AutoCleanStaleAfter = cfg.AutoCleanStaleAfter
 	opts.RuntimeMode = cfg.RuntimeMode

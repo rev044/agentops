@@ -1471,6 +1471,48 @@ func TestRunPhasedEngine_AutoCleanupStale_DryRunDoesNotMutate(t *testing.T) {
 	}
 }
 
+func TestRunPhasedEngine_DoesNotMutateProcessCWD(t *testing.T) {
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd(): %v", err)
+	}
+
+	callerDir := t.TempDir()
+	targetDir := t.TempDir()
+	if err := os.Chdir(callerDir); err != nil {
+		t.Fatalf("Chdir(%s): %v", callerDir, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
+
+	prevDryRun := dryRun
+	dryRun = true
+	t.Cleanup(func() { dryRun = prevDryRun })
+
+	opts := defaultPhasedEngineOptions()
+	opts.NoWorktree = true
+	opts.SwarmFirst = false
+
+	if err := runPhasedEngine(context.Background(), targetDir, "cwd isolation", opts); err != nil {
+		t.Fatalf("runPhasedEngine(): %v", err)
+	}
+
+	gotWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() after run: %v", err)
+	}
+	gotResolved, err := filepath.EvalSymlinks(gotWD)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q): %v", gotWD, err)
+	}
+	callerResolved, err := filepath.EvalSymlinks(callerDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q): %v", callerDir, err)
+	}
+	if gotResolved != callerResolved {
+		t.Fatalf("process cwd changed to %q (resolved %q), want %q (resolved %q)", gotWD, gotResolved, callerDir, callerResolved)
+	}
+}
+
 func writeFakeBDScript(t *testing.T, dir string) {
 	t.Helper()
 	script := filepath.Join(dir, "bd")

@@ -501,6 +501,7 @@ func TestSupervisorCov_AcquireLandingLock_EmptyPath(t *testing.T) {
 // --- buildCycleEngineOptions ---
 
 func TestSupervisorCov_BuildCycleEngineOptions(t *testing.T) {
+	cwd := t.TempDir()
 	cfg := rpiLoopSupervisorConfig{
 		AutoClean:           true,
 		AutoCleanStaleAfter: 48 * time.Hour,
@@ -510,10 +511,13 @@ func TestSupervisorCov_BuildCycleEngineOptions(t *testing.T) {
 		BDCommand:           "bd",
 		TmuxCommand:         "tmux",
 	}
-	opts := buildCycleEngineOptions(cfg)
+	opts := buildCycleEngineOptions(cwd, cfg)
 
 	if !opts.AutoCleanStale {
 		t.Error("expected AutoCleanStale=true")
+	}
+	if opts.WorkingDir != cwd {
+		t.Errorf("WorkingDir = %q, want %q", opts.WorkingDir, cwd)
 	}
 	if opts.AutoCleanStaleAfter != 48*time.Hour {
 		t.Errorf("AutoCleanStaleAfter = %v", opts.AutoCleanStaleAfter)

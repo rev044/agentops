@@ -231,7 +231,7 @@ func TestMergeWorktree_MissingBothPathAndRunID(t *testing.T) {
 func TestMergeWorktree_DirtyRepo(t *testing.T) {
 	repo := initGitRepo(t)
 
-	// Make the repo dirty by writing an untracked file
+	// Make the repo dirty with staged content
 	dirtyFile := filepath.Join(repo, "uncommitted.txt")
 	if err := os.WriteFile(dirtyFile, []byte("dirty\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -244,6 +244,21 @@ func TestMergeWorktree_DirtyRepo(t *testing.T) {
 	// Either way it should return an error
 	if err == nil {
 		t.Fatal("expected error for dirty/invalid merge scenario")
+	}
+}
+
+func TestMergeWorktree_UntrackedFileDirtyRepo(t *testing.T) {
+	repo := initGitRepo(t)
+
+	// Leave the file untracked so the cleanliness check must catch it
+	dirtyFile := filepath.Join(repo, "untracked.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := MergeWorktree(repo, "/fake/path", "fakerunid", 100*time.Millisecond, nil)
+	if !errors.Is(err, ErrRepoUnclean) {
+		t.Fatalf("expected ErrRepoUnclean for untracked file, got: %v", err)
 	}
 }
 
