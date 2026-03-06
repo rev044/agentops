@@ -349,17 +349,122 @@ let runId = new URLSearchParams(location.search).get('run') || '';
 let following = true;
 let eventCount = 0;
 let stats = { cost: 0, tools: 0, backend: '' };
+let phaseCosts = {}; // track per-phase cumulative cost
 let phases = { 1:{status:'pending',start:null,end:null,tools:0,cost:0}, 2:{status:'pending',start:null,end:null,tools:0,cost:0}, 3:{status:'pending',start:null,end:null,tools:0,cost:0} };
 let session = { phase: 0, lastTool: '', turns: 0, phaseCost: 0 };
 let workers = {};
 let startTime = Date.now();
 let evSource = null;
+let stateInterval = null;
+let runsInterval = null;
 
 function init() {
-  document.getElementById('headerRun').textContent = runId || '(auto)';
+  document.getElementById('headerRun').textContent = runId || '(auto-discovering...)';
   document.getElementById('sbRun').textContent = runId || '(auto)';
-  connect();
+  if (runId) {
+    connect();
+  } else {
+    // No run-id provided — poll /runs to auto-discover
+    pollForRuns();
+    runsInterval = setInterval(pollForRuns, 3000);
+  }
+  // Poll /state every 5s to reconcile phase state from ground truth
+  stateInterval = setInterval(pollState, 5000);
   setInterval(updateElapsed, 1000);
+}
+
+function pollForRuns() {
+  fetch('/runs').then(function(r){return r.json();}).then(function(runs) {
+    if (!runs || !runs.length) return;
+    // Find the most recent active run
+    var active = runs.filter(function(r){return r.status === 'running' || r.status === 'active';});
+    var target = active.length > 0 ? active[active.length-1] : runs[runs.length-1];
+    if (target && target.run_id && target.run_id !== runId) {
+      runId = target.run_id;
+      document.getElementById('headerRun').textContent = runId;
+      document.getElementById('sbRun').textContent = runId;
+      // Stop polling for runs — we found one
+      if (runsInterval) { clearInterval(runsInterval); runsInterval = null; }
+      // Connect SSE with discovered run
+      if (evSource) { evSource.close(); }
+      connect();
+    }
+  }).catch(function(){});
+}
+
+function pollState() {
+  var url = '/state' + (runId ? '?run-id=' + encodeURIComponent(runId) : '');
+  fetch(url).then(function(r){return r.json();}).then(function(state) {
+    if (!state) return;
+    // Auto-discover run-id from state if we don't have one
+    if (!runId && state.phased_state && state.phased_state.run_id) {
+      runId = state.phased_state.run_id;
+      document.getElementById('headerRun').textContent = runId;
+      document.getElementById('sbRun').textContent = runId;
+      if (runsInterval) { clearInterval(runsInterval); runsInterval = null; }
+      if (evSource) { evSource.close(); }
+      connect();
+    }
+    // Reconcile phase state from phased_state.json (ground truth)
+    if (state.phased_state) {
+      reconcileFromState(state.phased_state);
+    }
+    // Reconcile from phase results
+    if (state.phase_results) {
+      reconcileFromPhaseResults(state.phase_results);
+    }
+  }).catch(function(){});
+}
+
+function reconcileFromState(ps) {
+  // Update goal if not set
+  if (ps.goal) {
+    var goalEl = document.getElementById('headerGoal');
+    if (!goalEl.textContent) goalEl.textContent = ps.goal;
+  }
+  // Update backend
+  if (ps.backend && !stats.backend) {
+    stats.backend = ps.backend;
+    document.getElementById('statBackend').textContent = ps.backend;
+  }
+  // Update terminal status
+  if (ps.terminal_status === 'completed' || ps.terminal_status === 'failed') {
+    var dot = document.getElementById('statusDot');
+    dot.className = 'status-dot ' + (ps.terminal_status === 'failed' ? 'failed' : 'done');
+    setConn('ok', ps.terminal_status === 'failed' ? '● failed' : '● completed');
+  }
+  // Update current phase from state
+  if (ps.current_phase && typeof ps.current_phase === 'number') {
+    document.getElementById('sbPhase').textContent = (PHASE_NAMES[ps.current_phase] || ps.current_phase);
+    session.phase = ps.current_phase;
+    document.getElementById('sessionPhase').textContent = PHASE_NAMES[ps.current_phase] || ('Phase ' + ps.current_phase);
+  }
+}
+
+function reconcileFromPhaseResults(results) {
+  for (var key in results) {
+    var pr = results[key];
+    var num = pr.phase;
+    if (!num || !phases[num]) continue;
+    var p = phases[num];
+    // Only upgrade status — never downgrade from a more advanced state
+    if (pr.status === 'completed' && p.status !== 'done') {
+      p.status = 'done';
+      if (pr.started_at) p.start = new Date(pr.started_at);
+      if (pr.completed_at) p.end = new Date(pr.completed_at);
+      refreshPhaseDisplay(num);
+    } else if (pr.status === 'failed' && p.status !== 'failed') {
+      p.status = 'failed';
+      if (pr.started_at) p.start = new Date(pr.started_at);
+      if (pr.completed_at) p.end = new Date(pr.completed_at);
+      refreshPhaseDisplay(num);
+    } else if (pr.status === 'running' && p.status === 'pending') {
+      p.status = 'running';
+      if (pr.started_at) p.start = new Date(pr.started_at);
+      refreshPhaseDisplay(num);
+    }
+  }
+  updateProgress();
 }
 
 let reconnectDelay = 1000;
@@ -469,14 +574,20 @@ function handleEvent(ev) {
     document.getElementById('sessionTurns').textContent = session.turns;
   }
 
-  // Cost (take highest seen — final result carries total)
-  if (ev.details && typeof ev.details === 'object' && ev.details.cost_usd > stats.cost) {
-    stats.cost = ev.details.cost_usd;
+  // Cost: track per-phase max (each phase session reports cumulative cost within
+  // that session), then sum across phases for total run cost.
+  if (ev.details && typeof ev.details === 'object' && typeof ev.details.cost_usd === 'number' && ev.details.cost_usd > 0) {
+    var phaseKey = phase || 0;
+    if (!phaseCosts[phaseKey] || ev.details.cost_usd > phaseCosts[phaseKey]) {
+      phaseCosts[phaseKey] = ev.details.cost_usd;
+    }
+    // Sum all per-phase max costs for total
+    stats.cost = Object.values(phaseCosts).reduce(function(a,b){return a+b;}, 0);
     document.getElementById('statCost').textContent = '$' + stats.cost.toFixed(4);
     // Per-phase cost tracking
     if (phases[phase]) {
-      phases[phase].cost = ev.details.cost_usd;
-      session.phaseCost = ev.details.cost_usd;
+      phases[phase].cost = phaseCosts[phaseKey];
+      session.phaseCost = phaseCosts[phaseKey];
       document.getElementById('sessionCost').textContent = '$' + session.phaseCost.toFixed(4);
     }
   }
