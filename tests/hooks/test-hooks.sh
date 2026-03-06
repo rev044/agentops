@@ -177,7 +177,7 @@ echo 'hello.*world' > "$REPO_REGEX_FILE"
 
 # Test 20: feature issue_type with missing metadata.validation blocks (fail-closed)
 EC=0
-OUTPUT=$(echo '{"issue_type":"feature","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+OUTPUT=$(echo '{"issue_type":"feature","metadata":{}}' | AGENTOPS_METADATA_GATE=strict bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
 if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "VALIDATION FAILED"; then
     pass "feature missing metadata.validation blocks"
 else
@@ -186,7 +186,7 @@ fi
 
 # Test 21: bug issue_type with missing metadata.validation blocks (fail-closed)
 EC=0
-OUTPUT=$(echo '{"issue_type":"bug","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+OUTPUT=$(echo '{"issue_type":"bug","metadata":{}}' | AGENTOPS_METADATA_GATE=strict bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
 if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "VALIDATION FAILED"; then
     pass "bug missing metadata.validation blocks"
 else
@@ -195,7 +195,7 @@ fi
 
 # Test 22: task issue_type with missing metadata.validation blocks (fail-closed)
 EC=0
-OUTPUT=$(echo '{"issue_type":"task","metadata":{}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+OUTPUT=$(echo '{"issue_type":"task","metadata":{}}' | AGENTOPS_METADATA_GATE=strict bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
 if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "VALIDATION FAILED"; then
     pass "task missing metadata.validation blocks"
 else
@@ -220,7 +220,7 @@ if [ $? -eq 0 ]; then pass "untyped task missing metadata.validation passes"; el
 
 # Test 27: feature requires metadata.validation.tests
 EC=0
-OUTPUT=$(echo '{"issue_type":"feature","metadata":{"validation":{"files_exist":["hooks/prompt-nudge.sh"]}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+OUTPUT=$(echo '{"issue_type":"feature","metadata":{"validation":{"files_exist":["hooks/prompt-nudge.sh"]}}}' | AGENTOPS_METADATA_GATE=strict bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
 if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "metadata.validation.tests"; then
     pass "feature missing tests in metadata.validation blocks"
 else
@@ -229,7 +229,7 @@ fi
 
 # Test 28: feature requires structural checks (files_exist/content_check)
 EC=0
-OUTPUT=$(echo '{"issue_type":"feature","metadata":{"validation":{"tests":"go version"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+OUTPUT=$(echo '{"issue_type":"feature","metadata":{"validation":{"tests":"go version"}}}' | AGENTOPS_METADATA_GATE=strict bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
 if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q "files_exist or content_check"; then
     pass "feature missing structural checks blocks"
 else
@@ -776,7 +776,7 @@ chmod +x "$MOCK_PM_PENDING/bd"
 printf '#!/bin/bash\nexit 1\n' > "$MOCK_PM_PENDING/ao"
 chmod +x "$MOCK_PM_PENDING/ao"
 EC=0
-(cd "$MOCK_PM_PENDING" && export PATH="$MOCK_PM_PENDING:$PATH" && echo '{"tool_name":"Skill","tool_input":{"skill":"crank","args":"ag-xxx"}}' | bash "$HOOKS_DIR/pre-mortem-gate.sh" >/dev/null 2>&1) || EC=$?
+(cd "$MOCK_PM_PENDING" && export PATH="$MOCK_PM_PENDING:$PATH" && echo '{"tool_name":"Skill","tool_input":{"skill":"crank","args":"ag-xxx"}}' | AGENTOPS_PREMORTEM_FALLBACK=strict bash "$HOOKS_DIR/pre-mortem-gate.sh" >/dev/null 2>&1) || EC=$?
 if [ "$EC" -eq 2 ]; then pass "pre-mortem-gate Method 4b blocks on pending chain entry"; else fail "pre-mortem-gate Method 4b blocks on pending chain entry (exit=$EC, want 2)"; fi
 
 # ============================================================

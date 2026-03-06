@@ -165,7 +165,7 @@ Options:
   2. /crank $EPIC_ID --skip-pre-mortem   -- bypass with justification
 EOMSG
 if [[ "$PREMORTEM_FALLBACK" == "strict" ]]; then
-  exit 1
+  exit 2
 fi
 echo "WARN: pre-mortem gate advisory — set AGENTOPS_PREMORTEM_FALLBACK=strict to enforce" >&2
 exit 0

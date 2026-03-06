@@ -633,14 +633,14 @@ AOEOF
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "task-validation-gate: feature missing metadata.validation blocks" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
+    run bash -c 'printf "%s" "$1" | AGENTOPS_METADATA_GATE=strict bash "$2" 2>&1' \
         -- '{"issue_type":"feature","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 2 ]
     [[ "$output" == *"VALIDATION FAILED"* ]]
 }
 
 @test "task-validation-gate: bug missing metadata.validation blocks" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
+    run bash -c 'printf "%s" "$1" | AGENTOPS_METADATA_GATE=strict bash "$2" 2>&1' \
         -- '{"issue_type":"bug","metadata":{}}' "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 2 ]
 }

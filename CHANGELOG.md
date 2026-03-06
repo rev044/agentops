@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-03-05
+
+### Added
+- Flywheel loop closure — `ao session close --auto-extract` produces lightweight learnings and auto-handoff at session boundary
+- Handoff-to-learnings bridge — `ao handoff` now extracts decisions into `.agents/learnings/` automatically
+- Session-type scoring in `ao inject --session-type` — 30% boost for matching session context (career, debug, research, brainstorm)
+- Identity artifact support — `ao inject --profile` surfaces `.agents/profile.md` in session context
+- MEMORY.md auto-promotion in `ao flywheel close-loop` (Step 7) after maturity transitions
+- Session-type detection in `ao forge` output metadata
+- Production RPI orchestration engine — `ao rpi serve <goal>` with SSE streaming and auto mode
+- Knowledge mining — `ao mine` and `ao defrag` commands for automated codebase intelligence
+- Context declarations — `ao inject --for <skill>` reads skill frontmatter `context:` block for scoped retrieval
+- Sections include allowlist and context artifact directories for skill-scoped injection
+- `ao handoff` command for structured session boundary isolation
+- Behavioral guardrails — 3-layer hook defense-in-depth (intent-echo, research-loop-detector, task-validation-gate)
+- Context enforcement hook and run-id namespaced artifact paths
+- Headless invocation standards and RPI phase runner
+- Nightly CI athena job for automated knowledge warmup
+- Coverage ratchet gate with BATS integration tests for shell scripts
+- Fuzz targets, property tests, and golden file contracts for CLI
+- Git worker guard, embedded parity gate, and swarm evidence validation hooks
+- Release cadence gate warns on releases within 7 days of previous
+
+### Changed
+- Coverage floor raised to 84% for `cmd/ao`, average floor to 95%
+- Complexity ceiling tightened to 20 (from 25)
+- Default session-start hook mode switched from manual to lean
+- Hard quality gate on injection — maturity + utility filter
+- Post-mortem redesigned as knowledge lifecycle processor
+- RPI god-file split — 1,363 lines reduced to 203 with structured handoff schema
+- Legacy RPI orchestrator retired — serve now uses phased engine (-1,121 lines)
+- Council V2 findings synthesized into agent instructions and skill contracts
+- 10k LOC of coverage-padding tests deleted; 72 stale tests quarantined
+- Skill hardening — web security controls across 5 skills, CSRF protection, crank pre-flight
+- Session-end hook wires `ao session close --auto-extract` before existing forge pipeline
+
+### Fixed
+- Flywheel signal chain — confidence decay, close-loop ordering, glob errors
+- Path traversal in context enforcement hook and frontmatter parsing
+- Race condition in handoff consumption at session boundary
+- `ao mine` stabilized — dedup IDs, error propagation, `--since` window, empty output guard
+- Hook test assertions aligned with warn-then-fail ratchet pattern (strict env required)
+- Pre-mortem gate exit code corrected to 2 in strict mode (was 1)
+- RPI serve event pipeline and coherence gate hardened
+- jq injection via bare 8-hex run IDs in serve classifier
+- Goals parser edge cases — paired backtick strip and rune-aware truncation
+- UTF-8 truncation across six functions converted to rune-safe slicing
+- CORS headers and stale doc references cleaned up
+- Cross-wave worktree file collisions prevented
+- hookEventName added to hookSpecificOutput JSON schema
 
 ## [2.19.3] - 2026-02-27
 
