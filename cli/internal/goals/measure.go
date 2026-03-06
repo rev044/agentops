@@ -229,7 +229,11 @@ func gitSHAWithTimeout(timeout time.Duration) string {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD").Output()
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD")
+	// Bound pipe-drain waits after cancellation so wrapper scripts cannot stall timeout handling.
+	cmd.WaitDelay = timeout
+
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
