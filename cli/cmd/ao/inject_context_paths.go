@@ -1,21 +1,33 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
-	"math/rand"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+var contextRandReader io.Reader = rand.Reader
 
 // contextArtifactDir returns the path for context-scoped artifacts.
 // If runID is empty, generates an adhoc identifier from the current timestamp.
 // Called automatically when --for is used; uses RPI_RUN_ID if set.
 func contextArtifactDir(runID string) string {
 	if runID == "" {
-		runID = fmt.Sprintf("adhoc-%d-%04x", time.Now().Unix(), rand.Intn(0x10000)) //nolint:gosec // non-cryptographic use
+		runID = newAdhocContextRunID(time.Now(), contextRandReader)
 	}
 	return filepath.Join(".agents", "context", runID)
+}
+
+func newAdhocContextRunID(now time.Time, r io.Reader) string {
+	suffix := make([]byte, 2)
+	if _, err := io.ReadFull(r, suffix); err != nil {
+		return fmt.Sprintf("adhoc-%d-%04x", now.Unix(), uint16(now.UnixNano()))
+	}
+	return fmt.Sprintf("adhoc-%d-%s", now.Unix(), hex.EncodeToString(suffix))
 }
 
 // ensureContextDir creates the context artifact directory on disk.
