@@ -235,7 +235,7 @@ func tryCreateWorktree(repoRoot, currentCommit string, timeout time.Duration, ve
 
 // acquireMergeLock obtains an exclusive file lock for merge serialization.
 func acquireMergeLock(repoRoot string) (*os.File, error) {
-	lockPath := filepath.Join(repoRoot, ".agents", "rpi", "merge.lock")
+	lockPath := filepath.Join(repoRoot, ".git", "agentops", "merge.lock")
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o750); err != nil {
 		return nil, fmt.Errorf("create lock dir: %w", err)
 	}
@@ -286,16 +286,18 @@ func MergeWorktree(repoRoot, worktreePath, runID string, timeout time.Duration, 
 
 // waitForCleanRepo polls the repo until it has no uncommitted changes, retrying up to 5 times.
 func waitForCleanRepo(repoRoot string, timeout time.Duration, verbosef func(string, ...any)) error {
-	var dirtyErr error
 	for attempt := 0; attempt < 5; attempt++ {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		checkCmd := exec.CommandContext(ctx, "git", "diff-index", "--quiet", "HEAD")
+		checkCmd := exec.CommandContext(ctx, "git", "status", "--porcelain", "--untracked-files=all")
 		checkCmd.Dir = repoRoot
-		dirtyErr = checkCmd.Run()
+		statusOut, statusErr := checkCmd.Output()
 		cancel()
 
-		if dirtyErr == nil {
+		if statusErr == nil && strings.TrimSpace(string(statusOut)) == "" {
 			return nil
+		}
+		if statusErr != nil && ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("git status --porcelain timed out after %s", timeout)
 		}
 		if attempt < 4 {
 			if verbosef != nil {

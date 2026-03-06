@@ -41,9 +41,10 @@ type phasedEngineOptions struct {
 	TmuxWorkers          int
 	NoBudget             bool
 	BudgetSpec           string
-	RunID                string    // Pre-seeded run ID (serve mode); empty = auto-generate
+	WorkingDir           string `json:"-"` // runtime-only; base directory for repo/worktree resolution
+	RunID                string // Pre-seeded run ID (serve mode); empty = auto-generate
 	NoDashboard          bool
-	StdoutWriter         io.Writer `json:"-"` // runtime-only; suppresses raw Claude output when dashboard active
+	StdoutWriter         io.Writer             `json:"-"` // runtime-only; suppresses raw Claude output when dashboard active
 	OnSpawnCwdReady      func(spawnCwd string) `json:"-"` // called after worktree resolved; serve mode uses this to update mux root
 }
 

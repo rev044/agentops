@@ -108,22 +108,10 @@ Examples:
 // runPhasedEngine runs the full phased RPI lifecycle for goal in cwd.
 // It is the programmatic entry point used by both the phased cobra command
 // and the loop command, ensuring both share the same runtime contracts.
-func runPhasedEngine(ctx context.Context, cwd, goal string, opts phasedEngineOptions) (retErr error) {
-	// Temporarily change working directory so runRPIPhasedWithOpts's os.Getwd() call
-	// and all path resolution operate in the requested cwd.
-	origDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+func runPhasedEngine(ctx context.Context, cwd, goal string, opts phasedEngineOptions) error {
+	if strings.TrimSpace(opts.WorkingDir) == "" {
+		opts.WorkingDir = cwd
 	}
-	if cwd != "" && cwd != origDir {
-		if err := os.Chdir(cwd); err != nil {
-			return fmt.Errorf("chdir to %s: %w", cwd, err)
-		}
-		defer func() {
-			_ = os.Chdir(origDir)
-		}()
-	}
-
 	args := []string{goal}
 	if goal == "" {
 		args = nil
@@ -291,9 +279,13 @@ func initPhasedState(cwd string, opts phasedEngineOptions, args []string) (*phas
 }
 
 func runRPIPhasedWithOpts(ctx context.Context, opts phasedEngineOptions, args []string) (retErr error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
+	cwd := strings.TrimSpace(opts.WorkingDir)
+	if cwd == "" {
+		var err error
+		cwd, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get working directory: %w", err)
+		}
 	}
 	if err := preflightOpts(&opts); err != nil {
 		return err

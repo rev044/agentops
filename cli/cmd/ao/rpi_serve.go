@@ -129,9 +129,7 @@ func runRPIServe(cmd *cobra.Command, args []string) error {
 // runServeOrchestrate starts the phased engine with a live dashboard.
 func runServeOrchestrate(cwd, goal string) error {
 	runID := generateRunID()
-	opts := defaultPhasedEngineOptions()
-	opts.RunID = runID
-	opts.NoDashboard = true // serve manages its own dashboard
+	opts := buildServeEngineOptions(cwd, runID)
 
 	addr := fmt.Sprintf("localhost:%d", rpiServePort)
 	dashURL := fmt.Sprintf("http://%s?run=%s", addr, runID)
@@ -188,6 +186,14 @@ func runServeOrchestrate(cwd, goal string) error {
 		return fmt.Errorf("orchestration: %w", orchErr)
 	}
 	return nil
+}
+
+func buildServeEngineOptions(cwd, runID string) phasedEngineOptions {
+	opts := defaultPhasedEngineOptions()
+	opts.WorkingDir = cwd
+	opts.RunID = runID
+	opts.NoDashboard = true // serve manages its own dashboard
+	return opts
 }
 
 // runServeWatch starts the dashboard in watch mode for an existing or upcoming run.

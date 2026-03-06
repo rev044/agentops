@@ -301,6 +301,9 @@ else
     exit 1
 fi
 
+# Verify release bundle ships current Codex artifacts
+test_exec "Codex release bundle parity" bash "$REPO_ROOT/scripts/validate-codex-install-bundle.sh"
+
 # ═══════════════════════════════════════════════════════
 #  Safe Commands (read-only / reporting — actually execute)
 # ═══════════════════════════════════════════════════════
@@ -345,7 +348,6 @@ test_exec_output "ao dedup" "Dedup|Scan|Total|Duplicate|No learnings" "$AO" dedu
 
 # Curate
 test_exec_tolerant "ao curate status" "$AO" curate status
-test_exec_tolerant "ao curate verify" "$AO" curate verify
 
 # Notebook and memory (quiet mode to avoid state changes)
 test_exec "ao notebook update --quiet" "$AO" notebook update --quiet
@@ -390,6 +392,7 @@ test_help "ao config --help" "$AO" config --help
 test_help "ao completion --help" "$AO" completion --help
 test_help "ao plans --help" "$AO" plans --help
 test_help "ao gate --help" "$AO" gate --help
+test_help "ao curate verify --help" "$AO" curate verify --help
 
 # ═══════════════════════════════════════════════════════
 #  Subcommand Help Coverage (verify subcommands exist)

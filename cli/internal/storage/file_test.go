@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -92,6 +93,65 @@ func TestFileStorage_WriteIndex_Dedup(t *testing.T) {
 	}
 }
 
+func TestFileStorage_WriteIndex_DedupAcrossInstances(t *testing.T) {
+	tmpDir := t.TempDir()
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
+
+	fs := NewFileStorage(WithBaseDir(baseDir))
+	if err := fs.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	entry := &IndexEntry{
+		SessionID:   "cross-instance-session",
+		Date:        time.Now(),
+		SessionPath: "/path/to/session.md",
+		Summary:     "Cross-instance session",
+	}
+
+	const writers = 8
+	start := make(chan struct{})
+	errs := make(chan error, writers)
+
+	var wg sync.WaitGroup
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			writer := NewFileStorage(WithBaseDir(baseDir))
+			if err := writer.Init(); err != nil {
+				errs <- err
+				return
+			}
+
+			<-start
+			errs <- writer.WriteIndex(entry)
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("WriteIndex() error = %v", err)
+		}
+	}
+
+	entries, err := fs.ListSessions()
+	if err != nil {
+		t.Fatalf("ListSessions() error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 entry after concurrent dedup, got %d", len(entries))
+	}
+	if entries[0].SessionID != entry.SessionID {
+		t.Fatalf("Expected session ID %q, got %q", entry.SessionID, entries[0].SessionID)
+	}
+}
+
 func TestFileStorage_WriteProvenance(t *testing.T) {
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, ".agents/ao")
@@ -125,6 +185,81 @@ func TestFileStorage_WriteProvenance(t *testing.T) {
 	}
 	if records[0].ID != "prov-123" {
 		t.Errorf("Expected ID 'prov-123', got %s", records[0].ID)
+	}
+}
+
+func TestFileStorage_WriteProvenance_ConcurrentWritersValidJSONL(t *testing.T) {
+	tmpDir := t.TempDir()
+	baseDir := filepath.Join(tmpDir, ".agents/ao")
+
+	fs := NewFileStorage(WithBaseDir(baseDir))
+	if err := fs.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	const writers = 16
+	start := make(chan struct{})
+	errs := make(chan error, writers)
+
+	var wg sync.WaitGroup
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+
+			writer := NewFileStorage(WithBaseDir(baseDir))
+			if err := writer.Init(); err != nil {
+				errs <- err
+				return
+			}
+
+			record := &ProvenanceRecord{
+				ID:           fmt.Sprintf("prov-%02d", i),
+				ArtifactPath: fmt.Sprintf("/output/%02d.md", i),
+				ArtifactType: "session",
+				SourcePath:   fmt.Sprintf("/input/%02d.jsonl", i),
+				SourceType:   "transcript",
+				SessionID:    fmt.Sprintf("session-%02d", i),
+				CreatedAt:    time.Now(),
+			}
+
+			<-start
+			errs <- writer.WriteProvenance(record)
+		}(i)
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("WriteProvenance() error = %v", err)
+		}
+	}
+
+	provPath := filepath.Join(baseDir, ProvenanceDir, ProvenanceFile)
+	data, err := os.ReadFile(provPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) error = %v", provPath, err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != writers {
+		t.Fatalf("Expected %d JSONL lines, got %d", writers, len(lines))
+	}
+
+	seen := make(map[string]struct{}, writers)
+	for _, line := range lines {
+		var record ProvenanceRecord
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("invalid JSONL line %q: %v", line, err)
+		}
+		seen[record.ID] = struct{}{}
+	}
+
+	if len(seen) != writers {
+		t.Fatalf("Expected %d unique provenance records, got %d", writers, len(seen))
 	}
 }
 
@@ -762,8 +897,17 @@ func TestFileStorage_HasIndexEntry_FileNotExist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// hasIndexEntry on non-existent file should return false
-	got := fs.hasIndexEntry("/nonexistent/index.jsonl", "any-id")
+	indexPath := filepath.Join(baseDir, IndexDir, IndexFile)
+	f, err := os.OpenFile(indexPath, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	got, err := fs.hasIndexEntry(f, "any-id")
+	if err != nil {
+		t.Fatalf("hasIndexEntry() error = %v", err)
+	}
 	if got {
 		t.Error("expected false for non-existent index file")
 	}
@@ -923,14 +1067,31 @@ func TestFileStorage_HasIndexEntry_MalformedJSON(t *testing.T) {
 	_ = f.Close()
 
 	// hasIndexEntry should still find the valid entry even with malformed lines
-	if !fs.hasIndexEntry(indexPath, "find-me") {
+	locked, err := os.OpenFile(indexPath, os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = locked.Close() }()
+
+	if !mustHasIndexEntry(t, fs, locked, "find-me") {
 		t.Error("expected hasIndexEntry to find valid entry despite malformed lines")
 	}
 
 	// Should not find a nonexistent entry
-	if fs.hasIndexEntry(indexPath, "not-here") {
+	if mustHasIndexEntry(t, fs, locked, "not-here") {
 		t.Error("expected hasIndexEntry to return false for nonexistent entry")
 	}
+}
+
+func mustHasIndexEntry(t *testing.T, fs *FileStorage, f *os.File, sessionID string) bool {
+	t.Helper()
+
+	got, err := fs.hasIndexEntry(f, sessionID)
+	if err != nil {
+		t.Fatalf("hasIndexEntry(%q) error = %v", sessionID, err)
+	}
+
+	return got
 }
 
 func TestFileStorage_ListSessions_PermissionError(t *testing.T) {

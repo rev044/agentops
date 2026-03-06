@@ -272,7 +272,7 @@ func TestAcquireMergeLock_Basic(t *testing.T) {
 	}
 	defer releaseMergeLock(lock)
 
-	lockPath := filepath.Join(tmp, ".agents", "rpi", "merge.lock")
+	lockPath := filepath.Join(tmp, ".git", "agentops", "merge.lock")
 	if _, err := os.Stat(lockPath); os.IsNotExist(err) {
 		t.Error("expected merge.lock file to exist")
 	}
@@ -287,13 +287,13 @@ func TestAcquireMergeLock_CreatesDir(t *testing.T) {
 	}
 	releaseMergeLock(lock)
 
-	dir := filepath.Join(tmp, ".agents", "rpi")
+	dir := filepath.Join(tmp, ".git", "agentops")
 	info, err := os.Stat(dir)
 	if err != nil {
-		t.Fatalf("expected .agents/rpi/ to be created: %v", err)
+		t.Fatalf("expected .git/agentops/ to be created: %v", err)
 	}
 	if !info.IsDir() {
-		t.Error("expected .agents/rpi/ to be a directory")
+		t.Error("expected .git/agentops/ to be a directory")
 	}
 }
 

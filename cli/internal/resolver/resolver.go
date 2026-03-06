@@ -161,7 +161,7 @@ func buildAgentsDirs(root string) []string {
 	return dirs
 }
 
-// searchDirs tries extension-probing, direct-probing, glob-probing,
+// searchDirs tries extension-probing, direct-probing, literal substring probing,
 // and frontmatter ID scanning across dirs.
 func searchDirs(dirs []string, id string) (string, error) {
 	for _, d := range dirs {
@@ -175,11 +175,7 @@ func searchDirs(dirs []string, id string) (string, error) {
 		}
 	}
 	for _, d := range dirs {
-		p, err := probeGlob(d, id)
-		if err != nil {
-			return "", err
-		}
-		if p != "" {
+		if p := probeLiteralSubstring(d, id); p != "" {
 			return p, nil
 		}
 	}
@@ -211,16 +207,21 @@ func probeDirect(dirPath, id string) string {
 	return ""
 }
 
-// probeGlob searches for files whose names contain id inside dirPath.
-func probeGlob(dirPath, id string) (string, error) {
-	files, err := filepath.Glob(filepath.Join(dirPath, "*"+id+"*"))
+// probeLiteralSubstring searches for files whose names contain id literally inside dirPath.
+func probeLiteralSubstring(dirPath, id string) string {
+	entries, err := os.ReadDir(dirPath)
 	if err != nil {
-		return "", err
+		return ""
 	}
-	if len(files) > 0 {
-		return files[0], nil
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.Contains(entry.Name(), id) {
+			return filepath.Join(dirPath, entry.Name())
+		}
 	}
-	return "", nil
+	return ""
 }
 
 // probeFrontmatterID scans .md files in dirPath for a frontmatter "id" field matching id.

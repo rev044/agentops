@@ -233,6 +233,21 @@ func TestClassifyServeArg_EmptyArgs(t *testing.T) {
 	}
 }
 
+func TestBuildServeEngineOptions(t *testing.T) {
+	cwd := t.TempDir()
+	opts := buildServeEngineOptions(cwd, "run-1234")
+
+	if opts.WorkingDir != cwd {
+		t.Errorf("WorkingDir = %q, want %q", opts.WorkingDir, cwd)
+	}
+	if opts.RunID != "run-1234" {
+		t.Errorf("RunID = %q, want %q", opts.RunID, "run-1234")
+	}
+	if !opts.NoDashboard {
+		t.Error("expected NoDashboard=true")
+	}
+}
+
 func TestClassifyServeArg_PositionalRunID(t *testing.T) {
 	// Positional arg matching run ID pattern
 	goal, runID := classifyServeArg("", []string{"rpi-a1b2c3d4"})
