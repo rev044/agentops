@@ -157,7 +157,7 @@ def parse_frontmatter(path: Path):
     _, rest = text.split("---\n", 1)
     frontmatter, _ = rest.split("\n---\n", 1)
     lines = frontmatter.splitlines()
-    result = {"name": None, "description": None}
+    result = {"name": None, "description": None, "user_invocable": True}
     i = 0
     while i < len(lines):
         line = lines[i]
@@ -182,6 +182,10 @@ def parse_frontmatter(path: Path):
                 block.append(candidate)
                 i += 1
             result["description"] = fold_block(block, block_mode)
+            continue
+        if stripped.startswith("user-invocable:"):
+            result["user_invocable"] = strip_quotes(stripped.split(":", 1)[1]).lower() != "false"
+            i += 1
             continue
         i += 1
     if not result["name"] or result["description"] is None:
@@ -271,6 +275,9 @@ def description_matches(expected_text: str, actual_text: str) -> bool:
         return True
     return False
 
+if mode == "names-only-invocable":
+    expected = [item for item in expected if item.get("user_invocable", True)]
+
 expected_map = {item["name"]: norm(item["description"]) for item in expected}
 actual_map = {
     trim_name(item["name"] if isinstance(item, dict) else item): norm(item.get("description", "") if isinstance(item, dict) else "")
@@ -279,7 +286,7 @@ actual_map = {
 }
 
 missing = sorted(name for name in expected_map if name not in actual_map)
-if mode == "names-only":
+if mode.startswith("names-only"):
     mismatched = []
 else:
     mismatched = sorted(
@@ -382,7 +389,7 @@ Path(sys.argv[2]).write_text(messages[-1] + "\n")
 PY
 
     extract_json_array "$TMP_DIR/claude-output.txt" "$ACTUAL_CLAUDE_JSON"
-    compare_inventory "$EXPECTED_CLAUDE_JSON" "$ACTUAL_CLAUDE_JSON" "claude" "names-only"
+    compare_inventory "$EXPECTED_CLAUDE_JSON" "$ACTUAL_CLAUDE_JSON" "claude" "names-only-invocable"
     }
 
 run_codex_validation() {
