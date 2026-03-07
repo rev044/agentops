@@ -5,7 +5,9 @@
 [![Validate](https://github.com/boshu2/agentops/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/boshu2/agentops/actions/workflows/validate.yml)
 [![Nightly](https://github.com/boshu2/agentops/actions/workflows/nightly.yml/badge.svg)](https://github.com/boshu2/agentops/actions/workflows/nightly.yml)
 
-### Coding agents forget everything between sessions. This fixes that.
+### The local DevOps layer for coding agents.
+
+AgentOps is the operating system around your coding agent: it tracks the work, validates the plan and code, and feeds what was learned into the next session.
 
 [How It Works](#how-it-works) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Newcomer Guide](docs/newcomer-guide.md)
 
@@ -14,8 +16,39 @@
 <p align="center">
 <img src="docs/assets/swarm-6-rpi.png" alt="Agents running full development cycles in parallel with validation gates and a coordinating team leader" width="800">
 <br>
-<i>From goal to shipped code — agents research, plan, and implement in parallel. Councils validate before and after. Every learning feeds the next session.</i>
+<i>AgentOps does not just prompt agents better. It gives the repo memory, gates, issue state, and a repeatable operating loop.</i>
 </p>
+
+---
+
+## Why AgentOps Exists
+
+Most coding-agent tools improve the session. AgentOps improves the repo around the session.
+
+Without extra machinery, coding agents usually:
+
+- start each task with partial memory
+- rely on review culture instead of explicit gates
+- execute work without durable issue state
+- leave behind chat logs instead of reusable artifacts
+
+AgentOps adds the missing layer:
+
+- **Repo-native memory** via `.agents/` artifacts plus `ao` retrieval and injection
+- **Validation before merge** with `/pre-mortem`, `/vibe`, and `/council`
+- **Tracked execution** with beads issues, dependency waves, worktrees, and `/crank`
+- **Compounding operation** where every cycle leaves behind artifacts the next one can use
+
+---
+
+## What Makes It Different
+
+| If you want... | Most tools give you... | AgentOps gives you... |
+|----------------|------------------------|-----------------------|
+| Better prompting | A workflow or command pack | A repo-level operating model |
+| Better review | CI or human review after the fact | `/pre-mortem` before build and `/vibe` before commit |
+| Better memory | Notes or ad hoc docs | Retrieval, freshness weighting, and injection from `.agents/` |
+| Better execution | Untracked agent runs | Issues, waves, worktrees, and audit trails |
 
 ---
 
@@ -39,7 +72,7 @@ npx skills@latest add boshu2/agentops --cursor -g
 
 ### Install ao CLI (optional)
 
-Skills work standalone — no CLI required. The `ao` CLI adds cross-session memory: knowledge extraction, freshness-weighted injection, and maturity lifecycle. Install it if you want sessions to compound.
+Skills work standalone — no CLI required. The `ao` CLI is what unlocks the full repo-native layer: knowledge extraction, retrieval and injection, maturity scoring, goals, and control-plane style workflows.
 
 #### Homebrew (recommended)
 
@@ -58,19 +91,27 @@ Then type `/quickstart` in your agent chat.
 
 ## How It Works
 
-AgentOps is a toolbox of skills you compose however you want — use one, chain several, or run the full pipeline. Knowledge compounds between sessions automatically.
-
-**The core pipeline — five commands, everything else is automatic:**
+AgentOps is built around five commands. They are not just prompts. They create tracked state, validation artifacts, and reusable knowledge.
 
 | Step | Command | What Happens | Calls Internally |
 |------|---------|--------------|------------------|
-| 1 | `/research` | Explore codebase, mine prior knowledge | — |
-| 2 | `/plan` | Break goal into tracked issues with dependency waves | `/beads` |
-| 3 | `/pre-mortem` | Simulate failures before you build | `/council` |
-| 4 | `/crank` | Implement → validate → commit loop, parallel agents | `/implement`, `/vibe` |
-| 5 | `/post-mortem` | Validate + extract learnings → `.agents/` | `/vibe`, `/retro` |
+| 1 | `/research` | Explore the codebase and load prior repo knowledge | — |
+| 2 | `/plan` | Break work into tracked issues with dependency waves | `/beads` |
+| 3 | `/pre-mortem` | Challenge the plan before code exists | `/council` |
+| 4 | `/crank` | Execute unblocked work in waves with validation and commits | `/implement`, `/vibe` |
+| 5 | `/post-mortem` | Validate what shipped and extract reusable learnings | `/vibe`, `/retro` |
 
 `/rpi` chains all five. `/evolve` loops `/rpi` overnight with fitness-gated regression checks.
+
+### What those commands actually add
+
+- `/research` keeps the agent from starting cold
+- `/plan` turns work into a graph instead of a chat todo list
+- `/pre-mortem` catches failure modes before implementation
+- `/crank` makes multi-step work executable in dependency order
+- `/post-mortem` turns one finished task into better future context
+
+This is why AgentOps feels different in practice: the output is not just code. It is code plus state plus memory plus gates.
 
 | Pattern | Chain | When |
 |---------|-------|------|
@@ -83,13 +124,17 @@ AgentOps is a toolbox of skills you compose however you want — use one, chain 
 | **Knowledge query** | `/knowledge` → `/research` (if gaps) | Understanding before building |
 | **Standalone review** | `/council validate <target>` | Ad-hoc multi-judge review |
 
-Every skill maps to one of **DevOps' Three Ways**, applied to the agent loop:
+### The three systems underneath it
 
-- **Flow** (`/research`, `/plan`, `/crank`, `/swarm`, `/rpi`): move work through the system. Swarm parallelizes any skill; crank runs dependency-ordered waves; rpi chains the full pipeline.
-- **Feedback** (`/council`, `/vibe`, `/pre-mortem`): shorten the feedback loop until defects can't survive it. Independent judges catch issues before code ships.
-- **Learning** (`.agents/`, `ao` CLI, `/retro`, `/knowledge`): stop rediscovering what you already know. Every session extracts learnings, scores them by freshness, and re-injects the best ones next time. Session 50 knows what session 1 learned the hard way.
+- **Execution system**: `/plan`, beads, worktrees, `/crank`, `/evolve`
+- **Validation system**: `/pre-mortem`, `/vibe`, `/council`
+- **Memory system**: `.agents/`, `ao inject`, `ao forge`, `/retro`, `/knowledge`
 
-The learning part is what makes it compound. Your agent validates a PR, and the decisions and patterns are written to `.agents/`. Three weeks later, different task, but your agent already knows:
+That is the real architecture. Not just a skill pack. A local operating layer around the agent.
+
+### Why the memory matters
+
+This is the compounding part, but now in mechanical terms. Your agent validates a PR, the decisions and patterns are written to `.agents/`, and the next relevant task starts with that context already loaded:
 
 ```text
 > /research "retry backoff strategies"
@@ -102,11 +147,16 @@ The learning part is what makes it compound. Your agent validates a PR, and the 
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
-Session 5 didn't start from scratch — it started with what session 1 learned. Stale insights [decay automatically](docs/the-science.md). By session 100, your agent knows every bug you've fixed, your architecture decisions and why, and what approaches failed.
+Session 5 did not start from scratch. It started with scored, retrieved, repo-specific context. Stale insights [decay automatically](docs/the-science.md). Useful ones keep getting cited, reinforced, and reused.
 
-- **Local-only** — no telemetry, no cloud, no accounts. Nothing phones home. Everything is [open source](cli/) — audit it yourself.
-- **Multi-runtime** — Claude Code, Codex CLI, Cursor, OpenCode. Skills are portable across runtimes (`/converter` exports to native formats).
-- **Multi-model councils** — independent judges (Claude + Codex) debate before code ships. Not advisory — validation gates block merges until they pass.
+### Why engineers buy in
+
+- **Local-only** — no telemetry, no cloud, no accounts. Nothing phones home.
+- **Auditable** — plans, verdicts, learnings, and patterns are plain files on disk.
+- **Multi-runtime** — Claude Code, Codex CLI, Cursor, OpenCode.
+- **Harder to drift** — tracked issues and validation gates mean the repo is less dependent on agent mood or memory.
+
+Everything is [open source](cli/) — audit it yourself.
 
 ---
 
