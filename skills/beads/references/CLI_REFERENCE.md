@@ -17,15 +17,9 @@
 ### Check Status
 
 ```bash
-# Check database path and daemon status
+# Inspect the active database
 bd info --json
-
-# Example output:
-# {
-#   "database_path": "/path/to/.beads/beads.db",
-#   "issue_prefix": "bd",
-#   "daemon_running": true
-# }
+bd info --schema --json
 ```
 
 ### Find Work
@@ -217,17 +211,13 @@ When detected, you'll see: `ℹ️  Sandbox detected, using direct mode`
 ```bash
 # Explicitly enable sandbox mode
 bd --sandbox <command>
-
-# Equivalent to combining these flags:
-bd --no-daemon --no-auto-flush --no-auto-import <command>
 ```
 
 **What it does:**
-- Disables daemon (uses direct SQLite mode)
-- Disables auto-export to JSONL
-- Disables auto-import from JSONL
+- Disables auto-sync while the command runs
+- Keeps the command isolated from background state reconciliation
 
-**When to use:** Sandboxed environments where daemon can't be controlled (permission restrictions), or when auto-detection doesn't trigger.
+**When to use:** Sandboxed worker environments or restricted automation where you want side-effect-limited execution.
 
 ### Staleness Control
 
@@ -261,12 +251,8 @@ bd doctor --fix --source=jsonl --yes
 # JSON output for programmatic use
 bd --json <command>
 
-# Force direct mode (bypass daemon)
-bd --no-daemon <command>
-
-# Disable auto-sync
-bd --no-auto-flush <command>    # Disable auto-export to JSONL
-bd --no-auto-import <command>   # Disable auto-import from JSONL
+# Sandbox mode
+bd --sandbox <command>
 
 # Custom database path
 bd --db /path/to/.beads/beads.db <command>
@@ -277,7 +263,7 @@ bd --actor alice <command>
 
 **See also:**
 - [TROUBLESHOOTING.md - Sandboxed environments](TROUBLESHOOTING.md#sandboxed-environments-codex-claude-code-etc) for detailed sandbox troubleshooting
-- [DAEMON.md](DAEMON.md) for daemon mode details
+- `bd doctor --json` for health checks and `bd vc status` for Dolt inspection
 
 ## Advanced Operations
 
@@ -391,28 +377,21 @@ bd info --schema --json                                # Get schema, tables, con
 
 These invariants prevent data loss and would have caught issues like GH #201 (missing issue_prefix after migration).
 
-### Daemon Management
+### Database Inspection / Health
 
-See [docs/DAEMON.md](DAEMON.md) for complete daemon management reference.
+The current CLI in this workspace does not expose daemon-management commands.
+Use database inspection, health, and Dolt VC commands instead.
 
 ```bash
-# List all running daemons
-bd daemons list --json
+# Inspect the active database
+bd info --json
 
-# Check health (version mismatches, stale sockets)
-bd daemons health --json
+# Check health or repair from JSONL
+bd doctor --json
+bd doctor --fix --source=jsonl --yes
 
-# Stop/restart specific daemon
-bd daemons stop /path/to/workspace --json
-bd daemons restart 12345 --json  # By PID
-
-# View daemon logs
-bd daemons logs /path/to/workspace -n 100
-bd daemons logs 12345 -f  # Follow mode
-
-# Stop all daemons
-bd daemons killall --json
-bd daemons killall --force --json  # Force kill if graceful fails
+# Inspect Dolt state when using the Dolt backend
+bd vc status
 ```
 
 ### Sync / VC Operations
