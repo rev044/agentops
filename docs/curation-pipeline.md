@@ -47,7 +47,7 @@ v1 (ship first)           v2 (after v1 proves out)      v3 (after v2 proves out)
 
 **v1 closes the biggest gap.** Today, `/forge` and `/retro` produce unstructured markdown files that go directly into `.agents/learnings/` with no verification. v1 adds structure (typed artifacts) and mechanical truth checks (did the tests pass?). This alone prevents the most damaging failure mode: confidently wrong learnings entering the knowledge base.
 
-**v2 adds discoverability and quality measurement.** Once artifacts are structured and verified, they can be tagged for retrieval and scored for quality. This makes `ao search` and `ao inject` return better results and enables the pool tiering system (gold/silver/bronze) to operate on verified data.
+**v2 adds discoverability and quality measurement.** Once artifacts are structured and verified, they can be tagged for retrieval and scored for quality. This makes `ao search` and `ao lookup` return better results and enables the pool tiering system (gold/silver/bronze) to operate on verified data.
 
 **v3 adds the feedback loop.** Once artifacts are scored, the system can reject low-quality or stale knowledge and compile high-quality knowledge into permanent defenses. This is where the system starts to exhibit self-organization: it generates its own constraints from its own experience.
 
@@ -183,7 +183,7 @@ Depends on **CATALOG** -- can only verify artifacts that have been cataloged wit
 
 ## Stage 3: INDEX
 
-**What it does:** Tags cataloged, verified artifacts by topic, skill, and goal. Makes them findable through `ao search` and surfaceable through `ao inject`.
+**What it does:** Tags cataloged, verified artifacts by topic, skill, and goal. Makes them findable through `ao search` and surfaceable through `ao lookup`.
 
 ### Input
 
@@ -218,7 +218,7 @@ Additionally, a JSONL entry is appended to `.agents/ao/search-index.jsonl`:
 ### Connection to Existing Infrastructure
 
 - **Search:** Enriches `ao search` results. Currently, search scans markdown files and JSONL session logs. INDEX adds structured topic/keyword metadata that improves relevance ranking.
-- **Inject:** Improves `ao inject --context "<topic>"` filtering. Currently, inject uses substring matching against file content. INDEX adds explicit topic tags for faster, more accurate filtering.
+- **Lookup:** Improves `ao lookup --query "<topic>"` filtering. Currently, lookup uses substring matching against file content. INDEX adds explicit topic tags for faster, more accurate filtering.
 - **Forge:** `ao forge markdown` already writes to `search-index.jsonl`. INDEX extends this with richer metadata.
 - **CLI:** `ao curate index` -- reads cataloged entries, extracts topics/keywords, updates search index.
 
@@ -226,7 +226,7 @@ Additionally, a JSONL entry is appended to `.agents/ao/search-index.jsonl`:
 
 | Failure | Impact | Mitigation |
 |---------|--------|------------|
-| INDEX missing | Artifacts are stored but not findable. `ao search` returns results based only on content grep. `ao inject` loads by recency only, not relevance. | This is today's status quo. INDEX improves retrieval quality but its absence doesn't break anything. |
+| INDEX missing | Artifacts are stored but not findable. `ao search` returns results based only on content grep. `ao lookup` loads by recency only, not relevance. | This is today's status quo. INDEX improves retrieval quality but its absence doesn't break anything. |
 | Wrong topics assigned | Artifact tagged with irrelevant topics. Returns as noise in search results. | INDEX runs after VERIFY, so at minimum the content is mechanically validated. Topic assignment can be re-run (`ao curate index --reindex`). |
 | Index drift | Search index diverges from actual pool state (entries deleted but index not updated). | Index is append-only JSONL. `ao search` validates entries exist before returning results. Periodic `ao curate index --rebuild` reconciles. |
 
@@ -469,9 +469,9 @@ The pipeline degrades gracefully. Each version is strictly better than the previ
 
 | State | What Works | What's Missing | Net Effect |
 |-------|-----------|----------------|------------|
-| **No pipeline** (today) | `/forge` and `/retro` write markdown to `.agents/`. `ao inject` loads by recency. `ao search` greps content. | No structure, no verification, no quality filtering, no expiry, no constraints. | Raw accumulation. Knowledge base grows but quality is random. |
+| **No pipeline** (today) | `/forge` and `/retro` write markdown to `.agents/`. `ao lookup` loads by recency. `ao search` greps content. | No structure, no verification, no quality filtering, no expiry, no constraints. | Raw accumulation. Knowledge base grows but quality is random. |
 | **v1: CATALOG + VERIFY** | Artifacts are typed (learning/decision/failure/pattern). Mechanical verification (tests passed? goals improved?). | No topic tagging, no quality scoring, no rejection, no constraints. | Structured accumulation. Wrong learnings caught by test verification. Already a major improvement: the single biggest risk (confidently wrong learnings) is mitigated. |
-| **v2: + INDEX + SCORE** | Artifacts are findable by topic. Quality-gated into tiers. Search returns ranked results. Inject loads best-quality first. | No automated rejection, no constraint compilation. | Quality-filtered retrieval. Token budget spent on high-quality learnings first. Noise reduced proportional to scoring accuracy. |
+| **v2: + INDEX + SCORE** | Artifacts are findable by topic. Quality-gated into tiers. Search returns ranked results. Lookup loads best-quality first. | No automated rejection, no constraint compilation. | Quality-filtered retrieval. Token budget spent on high-quality learnings first. Noise reduced proportional to scoring accuracy. |
 | **v3: + REJECT + CONSTRAIN** | Stale/wrong learnings removed. High-quality learnings compiled into hooks. Full feedback loop. | Manual constraint activation. | Self-organizing system. Generates its own defenses from experience. Unlearns what no longer applies. The flywheel equation has all terms active. |
 
 **v1 alone closes the biggest gap.** The jump from "no pipeline" to "v1" is larger than any subsequent jump. Structured, verified artifacts are dramatically better than unstructured, unverified markdown -- even without scoring or rejection.
@@ -509,7 +509,7 @@ The pipeline degrades gracefully. Each version is strictly better than the previ
   │  STAGE 3: INDEX           │  v2
   │  Tag by topic, skill,     │
   │  goal. Update search idx  │
-  │  → ao search, ao inject   │
+  │  → ao search, ao lookup    │
   └────────────┬─────────────┘
                │
                ▼
@@ -575,5 +575,5 @@ When the schema evolves, the version increments. Readers check the version and a
 - `ao pool list` -- View pool entries by tier and status
 - `ao feedback` -- Record MemRL reward signals
 - `ao search` -- Search knowledge base (improved by INDEX)
-- `ao inject` -- Load prior knowledge (improved by INDEX + SCORE)
+- `ao lookup` -- Query prior knowledge on demand (improved by INDEX + SCORE)
 - `ao flywheel status` -- Knowledge growth rate and escape velocity

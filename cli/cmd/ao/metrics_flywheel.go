@@ -154,7 +154,7 @@ func printFlywheelStatus(w io.Writer, m *types.FlywheelMetrics) {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "  RECOMMENDATIONS:")
 		if m.Sigma < 0.3 {
-			fmt.Fprintln(w, "    • Improve retrieval: run 'ao inject' more often")
+			fmt.Fprintln(w, "    • Improve retrieval: use 'ao lookup' for on-demand knowledge")
 		}
 		if m.Rho < 0.5 {
 			fmt.Fprintln(w, "    • Cite more learnings: reference artifacts in your work")

@@ -12,7 +12,7 @@ schema_version: 1
 
 ## Overview
 
-A context packet is the structured payload assembled by `ao inject` and delivered into an agent's context window at session start. It replaces the current raw knowledge dump with a purpose-built artifact containing exactly what an agent needs to do its work — no more, no less.
+A context packet is the structured payload assembled by `ao lookup` and delivered into an agent's context window on demand. It replaces the current raw knowledge dump with a purpose-built artifact containing exactly what an agent needs to do its work — no more, no less.
 
 The packet has five sections, each with a defined character budget, content source, and eviction priority. The total budget is ~28K characters (~7K tokens at `InjectCharsPerToken = 4`), which leaves 90%+ of the context window available for actual work.
 
@@ -150,7 +150,7 @@ Future sessions will see what you did and how it went.
 ```
 
 **Assembly rules:**
-1. The `--context` query (or positional argument to `ao inject`) filters learnings and patterns by substring match against the agent's task description.
+1. The `--query` argument (to `ao lookup`) filters learnings and patterns by substring match against the agent's task description.
 2. Learnings are ranked by composite score (freshness * utility, Two-Phase MemRL retrieval). Maximum 10 learnings.
 3. Patterns are ranked by composite score. Maximum 5 patterns.
 4. Olympus constraints are included unfiltered (they are always relevant as hard boundaries).
@@ -280,7 +280,7 @@ Commit your work with clear messages. Write a session summary to
 | PROTOCOL | 200 | 2,000 | 2,500 | ~500 |
 | **Total** | **1,000** | **28,000** | **35,500** | **~7,000** |
 
-Token estimates use `InjectCharsPerToken = 4` (conservative, from `cli/cmd/ao/inject.go:22`).
+Token estimates use `InjectCharsPerToken = 4` (conservative, from `cli/cmd/ao/lookup.go`).
 
 ### Overflow Eviction Order
 
@@ -346,9 +346,9 @@ Before assembly, each section's raw content passes through a redaction gate. The
 The complete assembly flow from invocation to output:
 
 ```
-ao inject [--context="<query>"] [--max-tokens=N]
+ao lookup [--query="<query>"] [--max-tokens=N]
   │
-  ├─ 1. Resolve query (positional arg or --context flag)
+  ├─ 1. Resolve query (--query flag)
   │
   ├─ 2. Gather raw content for each section:
   │     ├─ GOALS:    goals.LoadGoals() + latest snapshot
@@ -420,24 +420,21 @@ This provenance record enables:
 
 ---
 
-## Evolution of `ao inject`
+## Evolution of `ao lookup`
 
-The current `ao inject` (as of `inject.go`) outputs a flat knowledge dump: learnings, patterns, sessions, and OL constraints rendered as markdown or JSON. The context packet evolves this in three phases:
+The deprecated `ao inject` output a flat knowledge dump: learnings, patterns, sessions, and OL constraints rendered as markdown or JSON. The context packet evolves this through an on-demand retrieval pattern:
 
 ### Phase 1: Structured Sections (non-breaking)
 
-Add `--packet` flag to `ao inject`. When set, output is organized into the five sections defined above instead of the current flat format. Without `--packet`, behavior is unchanged.
+`ao lookup` organizes output into the five sections defined above instead of the legacy flat format.
 
 ```bash
-# Current (unchanged):
-ao inject "authentication"
-
-# New:
-ao inject --packet "authentication"
-ao inject --packet --max-tokens 7000 "authentication"
+# On-demand query:
+ao lookup --query "authentication"
+ao lookup --query "authentication" --max-tokens 7000
 ```
 
-The `--packet` flag activates:
+`ao lookup` activates:
 - Section-based assembly instead of flat rendering
 - Per-section char budgets and overflow eviction
 - Redaction gate before assembly
@@ -450,12 +447,12 @@ Wire the GOALS and TASK sections into the packet assembler:
 - TASK: accept a `--task` flag or `--bead` flag that pulls the bead description.
 
 ```bash
-ao inject --packet --bead ag-poz.2 "authentication"
+ao lookup --query "authentication" --bead ag-poz.2
 ```
 
-### Phase 3: Default Packet Mode
+### Phase 3: On-Demand Default
 
-Once validated in production, `--packet` becomes the default. The old flat format is available via `--legacy`. The session-start hook (`hooks/session-start.sh`) is updated to call `ao inject --packet` instead of `ao inject`.
+The on-demand pattern (`ao lookup`) replaces the session-start injection model. Agents consult `.agents/AGENTS.md` for orientation and use `ao lookup --query "topic"` to retrieve context when needed.
 
 ### Backward Compatibility
 
@@ -491,7 +488,7 @@ The context packet unifies and structures what multiple components already provi
 
 | Component | Current Role | Context Packet Role |
 |-----------|-------------|---------------------|
-| `ao inject` (`inject.go`) | Flat knowledge dump | Becomes the packet assembler |
+| `ao lookup` (`lookup.go`) | On-demand knowledge retrieval | The packet assembler |
 | `goals.LoadGoals()` | Fitness measurement | Feeds GOALS section |
 | `collectLearnings()` | MemRL retrieval | Feeds INTEL section (learnings) |
 | `collectPatterns()` | Pattern retrieval | Feeds INTEL section (patterns) |
@@ -499,7 +496,7 @@ The context packet unifies and structures what multiple components already provi
 | `collectRecentSessions()` | Session history | Feeds HISTORY section (sessions) |
 | `ratchet.LoadChain()` | Provenance chain | Feeds HISTORY section (chain) |
 | `recordCitations()` | Citation tracking | Provenance tracking (injection-log.jsonl) |
-| `hooks/session-start.sh` | Session initialization | Calls `ao inject --packet` |
+| `hooks/session-start.sh` | Session initialization | Points agent to `.agents/AGENTS.md` for on-demand lookup |
 | Memory packets (`memory-packet.v1.schema.json`) | Boundary-memory for handoff | Orthogonal — handoff packets are emitted at session END; context packets are assembled at session START |
 
 ---
@@ -510,5 +507,5 @@ The context packet unifies and structures what multiple components already provi
 - [Knowledge Flywheel](knowledge-flywheel.md) — How learnings compound across sessions
 - [How It Works](how-it-works.md) — Context windowing, Brownian Ratchet, Ralph Wiggum
 - [The Science](the-science.md) — Freshness decay model, MemRL two-phase retrieval
-- [CLI Reference](../cli/docs/COMMANDS.md) — `ao inject` command documentation
+- [CLI Reference](../cli/docs/COMMANDS.md) — `ao lookup` command documentation
 - [OL-AO Bridge Contracts](ol-bridge-contracts.md) — Olympus constraint interchange

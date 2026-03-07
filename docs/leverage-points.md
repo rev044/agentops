@@ -23,7 +23,7 @@
 | Summary budget | 500 tokens | Briefing packet assembly (`ao context assemble`) |
 | Max waves per epic | 50 | `/crank` FIRE loop global limit |
 | Max retries per gate | 3 | Gate retry logic in validation hooks |
-| Confidence decay | 10%/week | Learning freshness scoring in `ao inject` |
+| Confidence decay | 10%/week | Learning freshness scoring in `ao lookup` |
 | Circuit breaker | 60 minutes | `/evolve` stops if no productive cycle in 60 min |
 
 **dK/dt mapping:** These tune `delta`, `phi`, and the operating bounds of `sigma`. Changing them shifts the curve; it does not change the shape of the system.
@@ -72,7 +72,7 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 **Flows:**
 - **Inflow:** `ao forge` (session learnings), `/retro`, `/post-mortem` deposit into `I(t)`
 - **Outflow (decay):** `ao maturity --expire` removes stale artifacts, freshness scoring deprioritizes old knowledge
-- **Reinforcement:** `ao inject` retrieves from stock, citation tracking records usage, MemRL utility scoring adjusts future retrieval priority
+- **Reinforcement:** `ao lookup` retrieves from stock on demand, citation tracking records usage, MemRL utility scoring adjusts future retrieval priority
 - **Friction:** As `K` grows, retrieval quality degrades without active scale controls (tiering, pruning, re-indexing)
 
 **dK/dt mapping:** This IS the physical equation. `K` = `.agents/` corpus. `I(t)` = forge inflow. `delta * K` = expiry outflow. `sigma * rho * K` = retrieval-citation compounding. `phi * K^2` = scale friction.
@@ -107,7 +107,7 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 
 | Loop | Mechanism | What it balances | Files/commands |
 |------|-----------|------------------|----------------|
-| **B1: Freshness decay** | Knowledge decays at ~17%/week without retrieval | Prevents stale knowledge from polluting decisions | `ao maturity --expire`, freshness scoring in `ao inject` |
+| **B1: Freshness decay** | Knowledge decays at ~17%/week without retrieval | Prevents stale knowledge from polluting decisions | `ao maturity --expire`, freshness scoring in `ao lookup` |
 | **B2: Scale friction** | As K grows, retrieval quality degrades and governance cost rises | Prevents corpus bloat from collapsing sigma | Tiering, pruning, MemRL utility scoring (`ao feedback`) |
 | **Regression gates** | `/evolve` snapshots fitness before each cycle; regression = automatic revert | Prevents improvement cycles from making things worse | `ao goals measure`, fitness snapshot comparison |
 | **Council FAIL** | Multi-model council returns FAIL verdict; blocks merge | Prevents bad code from locking into ratchet | `/vibe`, `/council` verdicts in `.agents/council/` |
@@ -134,7 +134,7 @@ The knowledge stock `K` lives in `.agents/`. Its structure:
 **R1: The Knowledge Flywheel**
 
 ```
-retrieve (ao inject)
+retrieve (ao lookup --query "topic")
     |
     v
 use in session (citation)
@@ -148,7 +148,7 @@ better future retrieval (higher utility scores)
     +---> ao forge extracts new learnings
     |         |
     v         v
-retrieve (ao inject) ... [loop repeats]
+retrieve (ao lookup) ... [loop repeats]
 ```
 
 This is the `sigma * rho * K` compounding term. Each retrieval-and-use cycle:
@@ -181,7 +181,7 @@ When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. 
 
 | Flow | From | To | Mechanism | Why it matters |
 |------|------|----|-----------|----------------|
-| Knowledge injection | `.agents/learnings/` | Session context | `ao inject` (freshness-weighted, utility-scored) | Session N knows what session 1 learned |
+| Knowledge injection | `.agents/learnings/` | Session context | `ao lookup` (freshness-weighted, utility-scored, on demand) | Session N knows what session 1 learned |
 | Knowledge extraction | Session output | `.agents/learnings/` | `ao forge` (hook-enforced at session end) | Experience survives session death |
 | Briefing packets | Prior research/plans | Agent context | `ao context assemble` (500-token summaries) | Right information, right phase, right agent |
 | Least-privilege loading | Full knowledge stock | Filtered subset | Phase-based and role-based filtering | Prevents lost-in-the-middle; context as security boundary |
@@ -193,7 +193,7 @@ When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. 
 
 **dK/dt mapping:** Directly increases `sigma` by getting the right knowledge to the right window at the right time. Also increases `rho` by making retrieved knowledge more relevant to the current task (phase scoping reduces noise).
 
-**Status:** Implemented. All seven information flows are active. `ao context assemble` and `ao inject` are the primary delivery mechanisms.
+**Status:** Implemented. All seven information flows are active. `ao context assemble` and `ao lookup` are the primary delivery mechanisms.
 
 ---
 

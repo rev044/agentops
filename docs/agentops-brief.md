@@ -149,7 +149,7 @@ AgentOps applies the same insight one layer up. Not better AI models. Better fee
 ```
    SKILL                   ao CLI COMMAND              RESULT
    ─────                   ──────────────              ──────
-/research          →    ao inject                  Prior knowledge loaded
+/research          →    ao lookup                  Prior knowledge loaded
 /retro             →    ao forge transcript        Learnings extracted
 /retro             →    ao pool promote            Learnings validated
 /evolve            →    ao goals measure           Fitness checked
@@ -180,7 +180,7 @@ KNOWLEDGE FLYWHEEL          VALIDATION GATES         SESSION / LIFECYCLE
 ao forge                    ao gate pending          ao session close
 ao pool ingest              ao gate approve          ao rpi status
 ao pool promote             ao gate reject           ao hooks list
-ao inject                   ao ratchet status        ao config
+ao lookup                   ao ratchet status        ao config
 ao lookup                   ao ratchet record
 ao search                   ao ratchet check         METRICS / HEALTH
 ao dedup                                             ────────────────

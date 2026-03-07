@@ -49,7 +49,7 @@ These control AO CLI configuration loading and RPI control-plane command customi
 | `AGENTOPS_RPI_AO_COMMAND` | `ao` | `ao` command used for ratchet/checkpoint operations in RPI control plane. |
 | `AGENTOPS_RPI_BD_COMMAND` | `bd` | `bd` command used for epic and child issue queries in RPI control plane. |
 | `AGENTOPS_RPI_TMUX_COMMAND` | `tmux` | `tmux` command used for status liveness probes in RPI control plane. |
-| `RPI_RUN_ID` | (unset) | When set, `ao inject --for=<skill>` uses this as the context artifact directory name instead of generating an `adhoc-<timestamp>` ID. Automatically set by the `/rpi` orchestrator during phased runs. |
+| `RPI_RUN_ID` | (unset) | When set, `ao lookup --for=<skill>` uses this as the context artifact directory name instead of generating an `adhoc-<timestamp>` ID. Automatically set by the `/rpi` orchestrator during phased runs. |
 
 ## Hooks
 

@@ -145,7 +145,7 @@ if [[ $total_fail -gt 0 ]]; then
     echo "Remediation:"
     echo "  1. Check skill SKILL.md sizes — move content to references/"
     echo "  2. Check hook output — reduce SessionStart injection volume"
-    echo "  3. Check ao inject --max-tokens limit (currently 1000)"
+    echo "  3. Check ao lookup / signpost token budget (session injection volume)"
     echo "  4. Review log files in $LOG_DIR for details"
     exit 1
 fi

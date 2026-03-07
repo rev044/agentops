@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Flywheel Smoke Test
-# Verifies the knowledge flywheel (forge transcript → forge markdown → inject) works end-to-end
+# Verifies the knowledge flywheel (forge transcript → forge markdown → lookup) works end-to-end
 
 TEST_DIR="$(mktemp -d)"
 AGENTS_DIR="${TEST_DIR}/.agents"
@@ -19,8 +19,8 @@ echo ""
 # Setup test .agents structure
 mkdir -p "$AGENTS_DIR"/{learnings,patterns,ao/pending,ao/index}
 
-# Test 1: Inject can read learnings
-echo "--- Test 1: Inject reads learnings ---"
+# Test 1: Lookup can read learnings
+echo "--- Test 1: Lookup reads learnings ---"
 cat > "$AGENTS_DIR/learnings/test-smoke.md" << 'EOF'
 # Test Learning: Flywheel Smoke Test
 
@@ -61,13 +61,13 @@ fi
 # With ao CLI available, run full test
 cd "$TEST_DIR"
 
-# Test inject reads the learning
-INJECT_OUTPUT=$(ao inject --format markdown --max-tokens 500 2>&1 || true)
+# Test lookup reads the learning
+LOOKUP_OUTPUT=$(ao lookup --query "flywheel" --format markdown --max-tokens 500 2>&1 || true)
 
-if echo "$INJECT_OUTPUT" | grep -q "Flywheel Smoke Test"; then
-    echo "✓ Inject found test learning"
+if echo "$LOOKUP_OUTPUT" | grep -q "Flywheel Smoke Test"; then
+    echo "✓ Lookup found test learning"
 else
-    echo "⚠️  Inject didn't find learning (may be empty without prior sessions)"
+    echo "⚠️  Lookup didn't find learning (may be empty without prior sessions)"
 fi
 
 # Test 2: Forge transcript can process last session
@@ -99,6 +99,6 @@ echo "=== Smoke Test PASSED ==="
 echo ""
 echo "Flywheel components verified:"
 echo "  - .agents/learnings/ structure ✓"
-echo "  - ao inject command ✓"
+echo "  - ao lookup command ✓"
 echo "  - ao forge transcript --last-session --quiet command ✓"
 echo "  - ao forge markdown command ✓"

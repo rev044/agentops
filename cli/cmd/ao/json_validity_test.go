@@ -579,7 +579,7 @@ func TestJSONValidity_FlywheelNudge(t *testing.T) {
 		LearningsCount:  10,
 		PoolPending:     2,
 		PoolApproaching: 1,
-		Suggestion:      "Run 'ao inject' to improve retrieval",
+		Suggestion:      "Run 'ao lookup' to improve retrieval",
 	}
 
 	out := captureJSONStdout(t, func() {

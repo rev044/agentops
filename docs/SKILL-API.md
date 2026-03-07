@@ -35,7 +35,7 @@ metadata:
 
 ### `context`
 
-Controls what knowledge `ao inject --for=<skill>` provides. Two forms:
+Controls what knowledge `ao lookup --for=<skill>` provides. Two forms:
 
 **String form** (backward compat):
 ```yaml
@@ -85,7 +85,7 @@ Valid section names:
 | `INTEL` | Learnings and patterns from the knowledge flywheel |
 | `TASK` | Current bead ID and predecessor context |
 
-**v1 status:** Actively enforced at runtime. `ao inject --for=<skill>` zeroes excluded/non-included sections.
+**v1 status:** Actively enforced at runtime. `ao lookup --for=<skill>` zeroes excluded/non-included sections.
 
 #### `context.intent.mode`
 

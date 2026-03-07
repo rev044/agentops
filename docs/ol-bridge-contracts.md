@@ -155,7 +155,7 @@ OL `harvestCandidate` maps to AO `Candidate` as follows:
 
 ### File Format
 
-OL harvest outputs markdown with YAML frontmatter to `.agents/learnings/`. AO `inject` discovers files at this same path.
+OL harvest outputs markdown with YAML frontmatter to `.agents/learnings/`. AO discovers files at this same path (see `.agents/AGENTS.md` for knowledge layout).
 
 **Transport note:** The file system under `.agents/` is the canonical transport for this profile, but the contract surface is still `INVOCATION_ENVELOPE` (this is not an extra bridge surface).
 
@@ -284,8 +284,8 @@ Rather than version parsing, use feature detection:
 # Check if ol harvest supports --format flag
 ol harvest --help 2>&1 | grep -q "\-\-format" && OL_HAS_FORMAT=true
 
-# Check if ao inject supports --ol-constraints flag
-ao inject --help 2>&1 | grep -q "ol-constraints" && AO_HAS_OL=true
+# Check if ao lookup supports --ol-constraints flag
+ao lookup --help 2>&1 | grep -q "ol-constraints" && AO_HAS_OL=true
 
 # Check if ol validate stage1 exists
 ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
@@ -298,7 +298,7 @@ ol validate stage1 --help 2>/dev/null && OL_HAS_STAGE1=true
 | `ol` not on PATH | Skip OL integration, pure AO mode |
 | `ao` not on PATH | Skip AO integration, pure OL mode |
 | `ol harvest --format=ao` not supported | Manual file copy from `.agents/learnings/` |
-| `ao inject --ol-constraints` not supported | Skip constraint injection |
+| `ao lookup --ol-constraints` not supported | Skip constraint injection |
 | `.ol/` directory missing | Not an Olympus project, skip all OL features |
 
 ### 3.5 MemRL Policy Migration

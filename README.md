@@ -126,7 +126,7 @@ This is why AgentOps feels different in practice: the output is not just code. I
 
 - **Execution system**: `/plan`, beads, worktrees, `/crank`, `/evolve`
 - **Validation system**: `/pre-mortem`, `/vibe`, `/council`
-- **Memory system**: `.agents/`, `ao inject`, `ao forge`, `/retro`, `/knowledge`
+- **Memory system**: `.agents/`, `ao lookup`, `ao forge`, `/retro`, `/knowledge`
 
 That is the real architecture. Not just a skill pack. A local operating layer around the agent.
 
@@ -137,11 +137,11 @@ This is the compounding part, but now in mechanical terms. Your agent validates 
 ```text
 > /research "retry backoff strategies"
 
-[inject] 3 prior learnings loaded (freshness-weighted):
+[lookup] 3 prior learnings found (freshness-weighted):
   - Token bucket with Redis (established, high confidence)
   - Rate limit at middleware layer, not per-handler (pattern)
   - /login endpoint was missing rate limiting (decision)
-[research] Found prior art in your codebase + injected context
+[research] Found prior art in your codebase + retrieved context
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
@@ -432,7 +432,7 @@ Session N ends
     → ao feedback-loop: citation-to-utility feedback (MemRL)
 
 Session N+1 starts
-    → ao inject (lean mode): score artifacts by recency + utility
+    → ao lookup (on demand): score artifacts by recency + utility
       ├── Local .agents/ learnings & patterns (1.0x weight)
       ├── Global ~/.agents/ cross-repo knowledge (0.8x weight)
       ├── Work-scoped boost: active issue gets 1.5x (--bead)

@@ -220,7 +220,7 @@ func buildSuggestion(metrics *types.FlywheelMetrics, rpiState RPIState, poolPend
 	// Priority 4: Flywheel health
 	if !metrics.AboveEscapeVelocity {
 		if metrics.Sigma < 0.3 {
-			return "Improve retrieval: run 'ao inject' more often"
+			return "Improve retrieval: use 'ao lookup' for on-demand knowledge"
 		}
 		if metrics.Rho < 0.5 {
 			return "Cite more learnings: reference artifacts in your work"

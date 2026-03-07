@@ -79,7 +79,7 @@ Skills hand off to `ao` to persist knowledge across sessions:
 ```
    SKILL                   ao CLI COMMAND              RESULT
    ─────                   ──────────────              ──────
-/research          →    ao inject                  Prior knowledge loaded into session
+/research          →    ao lookup                  Prior knowledge loaded into session
 /retro             →    ao forge transcript        Learnings extracted from session
 /retro             →    ao pool promote            Validated learnings promoted
 /evolve            →    ao goals measure           Fitness checked before next cycle
@@ -97,7 +97,7 @@ KNOWLEDGE FLYWHEEL          VALIDATION GATES         SESSION / LIFECYCLE
 ao forge                    ao gate pending          ao session close
 ao pool ingest              ao gate approve          ao rpi status
 ao pool promote             ao gate reject           ao rpi cancel
-ao inject                   ao ratchet status        ao hooks list
+ao lookup                   ao ratchet status        ao hooks list
 ao lookup                   ao ratchet record        ao config
 ao search                   ao ratchet check
 ao dedup                    ao ratchet promote       METRICS / HEALTH

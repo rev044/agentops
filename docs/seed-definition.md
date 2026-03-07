@@ -55,7 +55,7 @@ An append-only ledger with cache-like semantics. Nothing gets overwritten. Every
   ao/            -- session index, provenance, metrics
 ```
 
-**Why it exists:** The flywheel needs a place to write. Without `.agents/`, `ao forge` has nowhere to put learnings, `ao inject` has nothing to retrieve, and knowledge dies with each session. This is the physical `K` stock from the equation.
+**Why it exists:** The flywheel needs a place to write. Without `.agents/`, `ao forge` has nowhere to put learnings, `ao lookup` has nothing to retrieve, and knowledge dies with each session. This is the physical `K` stock from the equation.
 
 **Meadows mapping:** #10 (material stocks), #7 (reinforcing feedback loop -- more knowledge enables better retrieval enables more knowledge).
 
@@ -65,11 +65,11 @@ Hooks that fire on session lifecycle events. The minimum viable set:
 
 | Event | Hook | What it does |
 |-------|------|--------------|
-| SessionStart | session-start | Inject top learnings, clean stale state |
+| SessionStart | session-start | Load context signpost (`.agents/AGENTS.md`), clean stale state |
 | SessionEnd | session-end | Extract learnings (`ao forge`), expire stale artifacts |
 | Stop | stop | Close the feedback loop (`ao flywheel close-loop`) |
 
-**Why it exists:** Hooks are Meadows #5 -- structural rules. Without hooks, knowledge extraction depends on the agent remembering to run `ao forge`. Agents forget. Hooks do not. The flywheel only turns automatically if hooks enforce the extract-inject cycle.
+**Why it exists:** Hooks are Meadows #5 -- structural rules. Without hooks, knowledge extraction depends on the agent remembering to run `ao forge`. Agents forget. Hooks do not. The flywheel only turns automatically if hooks enforce the extract-and-retrieve cycle.
 
 **Meadows mapping:** #5 (rules), #6 (information flows -- hooks ensure knowledge moves from session output to persistent storage to next session input).
 
@@ -79,7 +79,7 @@ Two lines added to the repo's CLAUDE.md:
 
 ```markdown
 ## Knowledge Flywheel
-Run `ao inject` at session start. Run `ao forge` at session end.
+See `.agents/AGENTS.md` for orientation. Run `ao lookup --query "topic"` when you need prior knowledge. Run `ao forge` at session end.
 ```
 
 **Why it exists:** Hooks handle the automation, but CLAUDE.md provides the fallback for environments where hooks are not configured and the explanation for environments where they are. It bridges the gap between "hooks fire automatically" and "the agent understands why." This is belt-and-suspenders: structural enforcement (hooks) plus cognitive priming (instructions).
@@ -116,7 +116,7 @@ This repo was seeded on DATE with goals: GOAL_1, GOAL_2, GOAL_3.
 Initial state: SUMMARY. Run /evolve to begin improvement.
 ```
 
-**Why it exists:** A flywheel with zero learnings is a flywheel that has never turned. The bootstrap learning ensures `ao inject` has something to retrieve on the very first session. It primes the reinforcing loop (Meadows #7) so the system starts compounding immediately instead of running one empty cycle first.
+**Why it exists:** A flywheel with zero learnings is a flywheel that has never turned. The bootstrap learning ensures `ao lookup` has something to retrieve on the very first session. It primes the reinforcing loop (Meadows #7) so the system starts compounding immediately instead of running one empty cycle first.
 
 **Meadows mapping:** #7 (reinforcing feedback -- the initial push that starts the flywheel turning).
 

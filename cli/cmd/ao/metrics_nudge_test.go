@@ -152,7 +152,7 @@ func TestBuildSuggestion(t *testing.T) {
 			rpiState:        RPIState{},
 			poolPending:     0,
 			poolApproaching: 0,
-			wantContains:    "ao inject",
+			wantContains:    "ao lookup",
 		},
 		{
 			name: "low rho",

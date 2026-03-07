@@ -19,17 +19,17 @@ source_bead: proof-test
 source_phase: validate
 ---
 # Proof Run Learning
-When testing flywheel compounding, always verify inject retrieves prior session learnings.
+When testing flywheel compounding, always verify lookup retrieves prior session learnings.
 LEARNING
 
-# Session 2: Verify inject retrieves it
-RESULT=$(cd "$TEST_DIR" && ao inject "flywheel compounding" --format json --no-cite 2>/dev/null) || {
-    echo "FAIL: ao inject command failed"
+# Session 2: Verify lookup retrieves it
+RESULT=$(cd "$TEST_DIR" && ao lookup --query "flywheel compounding" --json 2>/dev/null) || {
+    echo "FAIL: ao lookup command failed"
     exit 1
 }
 
 COUNT=$(echo "$RESULT" | jq '.learnings | length' 2>/dev/null) || {
-    echo "FAIL: Could not parse inject output as JSON"
+    echo "FAIL: Could not parse lookup output as JSON"
     echo "Raw output: $RESULT"
     exit 1
 }
@@ -42,8 +42,8 @@ else
 fi
 
 # Session 3: Verify scoring is operational (with decay)
-RESULT2=$(cd "$TEST_DIR" && ao inject "flywheel compounding" --apply-decay --format json --no-cite 2>/dev/null) || {
-    echo "FAIL: ao inject --apply-decay command failed"
+RESULT2=$(cd "$TEST_DIR" && ao lookup --query "flywheel compounding" --apply-decay --json 2>/dev/null) || {
+    echo "FAIL: ao lookup --apply-decay command failed"
     exit 1
 }
 

@@ -3,8 +3,8 @@
 #
 # Demonstrates 3-session compounding of the AgentOps knowledge flywheel:
 #   Session 1: Discovery  — research + learn → learnings created
-#   Session 2: Compound   — inject → learnings surfaced and applied
-#   Session 3: Mature     — inject again → maturation visible
+#   Session 2: Compound   — lookup/signpost → learnings surfaced and applied
+#   Session 3: Mature     — lookup/signpost again → maturation visible
 #
 # Fully automated, no interactive prompts, CI-runnable.
 # Exit 0 = proof passes. Exit 1 = proof fails (with reason).
@@ -202,8 +202,8 @@ log "Session 1: complete. Learnings on disk: $LEARNING_COUNT"
 log ""
 log "==================================================================="
 log "SESSION 2: Compounding"
-log "  Simulate 'ao inject' loading learnings from Session 1."
-log "  Assert: injection surfaces prior learnings."
+log "  Simulate knowledge lookup loading learnings from Session 1."
+log "  Assert: lookup surfaces prior learnings."
 log "  Assert: output references prior learning content."
 log "==================================================================="
 
@@ -280,7 +280,7 @@ log "Session 2: complete. Learnings on disk: $LEARNING_COUNT2"
 log ""
 log "==================================================================="
 log "SESSION 3: Maturation"
-log "  Simulate continued injection and knowledge compounding."
+log "  Simulate continued lookup and knowledge compounding."
 log "  Assert: maturation is visible (retrieval_count, new builds-on)."
 log "  Assert: new learnings reference prior session learnings."
 log "==================================================================="

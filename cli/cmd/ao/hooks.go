@@ -797,7 +797,7 @@ func printHooksInstallSummary(settingsPath string, newHooks *HooksConfig, events
 		}
 	} else {
 		fmt.Println("Hooks installed:")
-		fmt.Println("  SessionStart: ao extract + ao inject")
+		fmt.Println("  SessionStart: ao extract + signpost pointer")
 		fmt.Println("  SessionEnd: ao forge + ao maturity")
 		fmt.Println("  Stop: ao flywheel close-loop")
 	}

@@ -23,9 +23,9 @@ When you start a Claude Code session, behavior depends on `AGENTOPS_STARTUP_CONT
 
 **`manual` (default):** MEMORY.md is auto-loaded by Claude Code. The hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`). No `ao extract` or `ao inject` runs. This is the lightest startup path.
 
-**`lean`:** Runs `ao extract` + `ao inject` with a reduced token budget (400 tokens when MEMORY.md is fresh). Provides automatic knowledge injection alongside MEMORY.md. Use `AGENTOPS_STARTUP_LEGACY_INJECT=1` to force this mode.
+**`lean`:** Runs `ao extract` + `ao lookup` with a reduced token budget (400 tokens when MEMORY.md is fresh). Provides automatic knowledge retrieval alongside MEMORY.md. Use `AGENTOPS_STARTUP_LEGACY_INJECT=1` to force this mode.
 
-**`legacy`:** Runs `ao extract` + `ao inject` with full token budget (800 tokens). Pre-notebook behavior for backward compatibility.
+**`legacy`:** Runs `ao extract` + `ao lookup` with full token budget (800 tokens). Pre-notebook behavior for backward compatibility.
 
 In `lean`/`legacy` modes, injection is weighted by:
 - **Freshness**: More recent = higher score
@@ -166,13 +166,13 @@ Note: this is a minimal example. `ao hooks install` is recommended for full cove
 Control what happens at session start via environment variable:
 
 ```bash
-# Default — extract + inject with reduced budget (lean injection alongside MEMORY.md)
+# Default — extract + lookup with reduced budget (lean retrieval alongside MEMORY.md)
 AGENTOPS_STARTUP_CONTEXT_MODE=lean claude
 
-# MEMORY.md auto-loaded, no extract/inject (lightest)
+# MEMORY.md auto-loaded, no extract/lookup (lightest)
 AGENTOPS_STARTUP_CONTEXT_MODE=manual claude
 
-# Full extract + inject (pre-notebook backward compatibility)
+# Full extract + lookup (pre-notebook backward compatibility)
 AGENTOPS_STARTUP_CONTEXT_MODE=legacy claude
 ```
 
@@ -183,7 +183,6 @@ In `manual` mode, use CLI commands for on-demand knowledge retrieval:
 ```bash
 ao search "authentication"     # Search knowledge by keyword
 ao lookup --query "auth flow"  # Relevance-ranked lookup
-ao inject --max-tokens 1000    # Manual knowledge injection
 ```
 
 ## Troubleshooting
@@ -200,21 +199,21 @@ which ao
 export PATH="$HOME/go/bin:$PATH"
 ```
 
-### No knowledge being injected
+### No knowledge being retrieved
 
 1. Check if `.agents/learnings/` exists and has content:
    ```bash
    ls -la .agents/learnings/
    ```
 
-2. Verify inject works manually:
+2. Verify lookup works manually:
    ```bash
-   ao inject --verbose
+   ao lookup --query "test" --verbose
    ```
 
 3. Check for parse errors:
    ```bash
-   ao inject 2>&1 | head -20
+   ao lookup --query "test" 2>&1 | head -20
    ```
 
 ### Hooks not running
@@ -248,7 +247,7 @@ For deep dive: see `docs/the-science.md` in the repository.
 
 | Command | Purpose |
 |---------|---------|
-| `ao inject` | Manually inject knowledge |
+| `ao lookup` | On-demand knowledge retrieval |
 | `ao forge transcript` | Extract learnings from transcripts |
 | `ao task-sync` | Sync Claude Code tasks to CASS |
 | `ao feedback-loop` | Update utility scores |

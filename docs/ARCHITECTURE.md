@@ -415,11 +415,10 @@ Three hooks form the knowledge flywheel's mechanical backbone:
 On session start, `hooks/session-start.sh`:
 1. Creates `.agents/` directories if missing (local + global `~/.agents/`)
 2. Runs `ao extract` to process any pending knowledge queue
-3. Runs `ao inject --apply-decay --max-tokens 1000` to load context:
-   - **Local** `.agents/learnings/` and `.agents/patterns/` (1.0x weight)
-   - **Global** `~/.agents/learnings/` and `~/.agents/patterns/` (0.8x weight, cross-repo)
-   - **Work-scoped boost**: if `HOOK_BEAD` is set (active issue), matching learnings get 1.5x
-   - **Predecessor context**: if `.agents/handoff/` contains a handoff, injects what the previous session was working on (~200 tokens)
+3. Points to `.agents/AGENTS.md` signpost for on-demand knowledge navigation:
+   - **Local** `.agents/learnings/` and `.agents/patterns/` available via `ao lookup --query "topic"`
+   - **Global** `~/.agents/learnings/` and `~/.agents/patterns/` (cross-repo, 0.8x weight in lookup scoring)
+   - **Predecessor context**: if `.agents/handoff/` contains a handoff, emits what the previous session was working on (~200 tokens)
    - **Two-phase MemRL ranking**: Phase A scores by similarity + freshness, Phase B by utility + composite. Result: the most recent, most relevant learnings from *this repo* surface first
 4. Injects `using-agentops` skill content as context
 5. Outputs JSON with `additionalContext` for compatible agent runtimes

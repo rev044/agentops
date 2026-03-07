@@ -60,10 +60,19 @@
       },
       {
         "name": "ao inject",
-        "description": "Search and output relevant knowledge for session startup.",
+        "description": "Deprecated: use ao lookup instead. Legacy command for session knowledge injection.",
         "usage": "ao inject [context] [flags]",
         "category": "knowledge",
-        "flags": ["--context", "--format", "--max-tokens", "--no-cite"]
+        "flags": ["--context", "--format", "--max-tokens", "--no-cite"],
+        "deprecated": true,
+        "replacement": "ao lookup"
+      },
+      {
+        "name": "ao lookup",
+        "description": "Search and retrieve relevant knowledge from the flywheel.",
+        "usage": "ao lookup --query <query> [flags]",
+        "category": "knowledge",
+        "flags": ["--query", "--json", "--format", "--max-tokens", "--apply-decay"]
       },
       {
         "name": "ao ratchet",
@@ -86,11 +95,11 @@
         "flags": ["--full", "--markdown", "--repo", "--since"]
       }
     ],
-    "total": 11,
+    "total": 12,
     "categories": {
       "health": ["badge", "doctor", "status"],
       "setup": ["config", "hooks"],
-      "knowledge": ["feedback", "forge", "inject"],
+      "knowledge": ["feedback", "forge", "inject", "lookup"],
       "workflow": ["goals", "ratchet"],
       "validation": ["vibe-check"]
     }
@@ -346,7 +355,7 @@
       "```bash",
       "ao status          # Knowledge base state",
       "ao doctor          # Health checks",
-      "ao inject          # Load prior knowledge",
+      "ao lookup          # Search prior knowledge",
       "ao badge           # Flywheel health badge",
       "ao goals measure   # Fitness check",
       "ao ratchet status  # Workflow progress",

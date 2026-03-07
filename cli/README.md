@@ -61,9 +61,8 @@ ao hooks test      # Verify hooks work
 ## Knowledge Commands
 
 ```bash
-ao inject "kubernetes"      # Inject knowledge about k8s
-ao inject --apply-decay     # Apply confidence decay first
-ao search "error handling"  # Search knowledge base
+ao lookup --query "kubernetes"  # Look up knowledge about k8s
+ao search "error handling"      # Search knowledge base
 ```
 
 ## Task Integration

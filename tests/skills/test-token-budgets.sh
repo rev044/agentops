@@ -105,11 +105,11 @@ hook_tokens=$(estimate_tokens $HOOK_WRAPPER_BYTES)
 echo "  Hook wrapper overhead: ${hook_tokens} tokens (${HOOK_WRAPPER_BYTES} bytes, estimated)"
 session_total_bytes=$((session_total_bytes + HOOK_WRAPPER_BYTES))
 
-# Component 3: ao inject cap (default --max-tokens 1000 = ~4000 bytes)
-AO_INJECT_BYTES=4000
-inject_tokens=$(estimate_tokens $AO_INJECT_BYTES)
-echo "  ao inject cap: ${inject_tokens} tokens (${AO_INJECT_BYTES} bytes, estimated)"
-session_total_bytes=$((session_total_bytes + AO_INJECT_BYTES))
+# Component 3: ao lookup / signpost cap (default budget ~4000 bytes)
+AO_LOOKUP_BYTES=4000
+lookup_tokens=$(estimate_tokens $AO_LOOKUP_BYTES)
+echo "  ao lookup/signpost cap: ${lookup_tokens} tokens (${AO_LOOKUP_BYTES} bytes, estimated)"
+session_total_bytes=$((session_total_bytes + AO_LOOKUP_BYTES))
 
 session_total_tokens=$(estimate_tokens $session_total_bytes)
 echo ""
@@ -141,7 +141,7 @@ if [[ $failed -gt 0 ]]; then
     echo "Remediation:"
     echo "  1. Move content from SKILL.md to references/ (loaded JIT)"
     echo "  2. Check SessionStart hook output volume"
-    echo "  3. Reduce ao inject --max-tokens limit"
+    echo "  3. Reduce ao lookup / signpost token budget"
     exit 1
 fi
 
