@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -908,6 +909,42 @@ func TestDoctorCov_CheckSkills_WithNativeCodexPlugin(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
+	skillsRoot := filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex")
+	skillDir := filepath.Join(skillsRoot, "fake-skill")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Fake Skill"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(skillsRoot, ".agentops-manifest.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"skills":[{"name":"fake-skill"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	manifestHash, err := sha256File(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(fakeHome, ".codex"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeHome, ".codex", ".agentops-codex-install.json"), []byte(fmt.Sprintf(`{"install_mode":"native-plugin","plugin_root":"%s","manifest_hash":"%s","skill_count":1}`, filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local"), manifestHash)), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkSkills()
+	if result.Status != "pass" {
+		t.Errorf("status=%q, want pass when native plugin skills are found (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex") || !strings.Contains(result.Detail, "native manifest OK") {
+		t.Errorf("expected native plugin path in detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckSkills_NativeCodexPluginMissingManifestWarns(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
 	skillDir := filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex", "fake-skill")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		t.Fatal(err)
@@ -917,11 +954,42 @@ func TestDoctorCov_CheckSkills_WithNativeCodexPlugin(t *testing.T) {
 	}
 
 	result := checkSkills()
-	if result.Status != "pass" {
-		t.Errorf("status=%q, want pass when native plugin skills are found (detail: %s)", result.Status, result.Detail)
+	if result.Status != "warn" {
+		t.Fatalf("status=%q, want warn when native plugin manifest is missing (detail: %s)", result.Status, result.Detail)
 	}
-	if !strings.Contains(result.Detail, "~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex") {
-		t.Errorf("expected native plugin path in detail, got %q", result.Detail)
+	if !strings.Contains(result.Detail, ".agentops-manifest.json") {
+		t.Fatalf("expected manifest warning in detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckSkills_NativeCodexPluginManifestMismatchWarns(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	skillsRoot := filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex")
+	skillDir := filepath.Join(skillsRoot, "fake-skill")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Fake Skill"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillsRoot, ".agentops-manifest.json"), []byte(`{"skills":[{"name":"fake-skill"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(fakeHome, ".codex"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeHome, ".codex", ".agentops-codex-install.json"), []byte(fmt.Sprintf(`{"install_mode":"native-plugin","plugin_root":"%s","manifest_hash":"deadbeef","skill_count":1}`, filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local"))), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkSkills()
+	if result.Status != "warn" {
+		t.Fatalf("status=%q, want warn when native plugin manifest mismatches (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "manifest hash does not match") {
+		t.Fatalf("expected manifest mismatch warning, got %q", result.Detail)
 	}
 }
 
@@ -998,6 +1066,106 @@ func TestDoctorCov_CheckSkills_RawCodexOverlapWarns(t *testing.T) {
 	}
 	if !strings.Contains(result.Detail, "duplicate raw Codex install") {
 		t.Fatalf("expected duplicate raw Codex warning, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckCodexSync_PassWhenRepoMatchesInstall(t *testing.T) {
+	repo := chdirTemp(t)
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	if err := exec.Command("git", "-C", repo, "init").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "config", "user.name", "Test").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repo, "skills-codex"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(repo, "skills-codex", ".agentops-manifest.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"skills":[{"name":"research"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "add", ".").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "commit", "-m", "fixture").Run(); err != nil {
+		t.Fatal(err)
+	}
+	manifestHash, err := sha256File(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	versionOut, err := exec.Command("git", "-C", repo, "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := strings.TrimSpace(string(versionOut))
+
+	metaDir := filepath.Join(fakeHome, ".codex")
+	if err := os.MkdirAll(metaDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	meta := fmt.Sprintf(`{"install_mode":"native-plugin","version":"%s","manifest_hash":"%s"}`, version, manifestHash)
+	if err := os.WriteFile(filepath.Join(metaDir, ".agentops-codex-install.json"), []byte(meta), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkCodexSync()
+	if result.Status != "pass" {
+		t.Fatalf("status=%q, want pass (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "matches repo") {
+		t.Fatalf("expected match detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckCodexSync_WarnsWhenRepoIsNewer(t *testing.T) {
+	repo := chdirTemp(t)
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	if err := exec.Command("git", "-C", repo, "init").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "config", "user.name", "Test").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repo, "skills-codex"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "skills-codex", ".agentops-manifest.json"), []byte(`{"skills":[{"name":"research"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "add", ".").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "commit", "-m", "fixture").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	metaDir := filepath.Join(fakeHome, ".codex")
+	if err := os.MkdirAll(metaDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(metaDir, ".agentops-codex-install.json"), []byte(`{"install_mode":"native-plugin","version":"oldsha","manifest_hash":"deadbeef"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkCodexSync()
+	if result.Status != "warn" {
+		t.Fatalf("status=%q, want warn (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "refresh-codex-local.sh") {
+		t.Fatalf("expected repair command in detail, got %q", result.Detail)
 	}
 }
 

@@ -88,7 +88,7 @@ test_script_executable() {
   fi
 }
 
-test_frontmatter_only_fails() {
+test_frontmatter_only_memrl_fails() {
   local dir
   dir="$(make_fixture_dir frontmatter-only)"
   cat >"$dir/meta-only.md" <<'EOF'
@@ -100,7 +100,23 @@ maturity: established
 EOF
 
   assert_gate_fails_with \
-    "frontmatter-only learning fails" \
+    "frontmatter-only MemRL learning fails" \
+    "$dir" \
+    "frontmatter-only learning"
+}
+
+test_manual_frontmatter_only_fails() {
+  local dir
+  dir="$(make_fixture_dir manual-frontmatter-only)"
+  cat >"$dir/meta-only.md" <<'EOF'
+---
+id: learning-123
+date: 2026-03-07
+---
+EOF
+
+  assert_gate_fails_with \
+    "frontmatter-only manual learning fails" \
     "$dir" \
     "frontmatter-only learning"
 }
@@ -148,7 +164,8 @@ echo "================================"
 echo ""
 
 test_script_executable
-test_frontmatter_only_fails
+test_frontmatter_only_memrl_fails
+test_manual_frontmatter_only_fails
 test_memrl_with_body_passes
 test_frontmatter_without_recognized_fields_fails
 

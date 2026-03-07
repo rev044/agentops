@@ -101,6 +101,17 @@ GIT
     [ "$status" -eq 0 ]
 }
 
+@test "validate-go-fast.sh supports explicit scope selection" {
+    run grep -q -- '--scope auto|upstream|staged|worktree|head' "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate-go-fast.sh rejects invalid scope" {
+    run bash "$SCRIPT" --scope nope
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"Invalid --scope"* ]]
+}
+
 @test "validate-go-fast.sh supports SLOW_THRESHOLD_SECS override" {
     run grep -q 'SLOW_THRESHOLD_SECS' "$SCRIPT"
     [ "$status" -eq 0 ]
@@ -109,4 +120,40 @@ GIT
 @test "validate-go-fast.sh handles fork/resource failures with serial fallback" {
     run grep -q 'serial mode' "$SCRIPT"
     [ "$status" -eq 0 ]
+}
+
+@test "validate-go-fast.sh narrows to sibling tests when available" {
+    GO_LOG="$TMP_DIR/go.log"
+
+    cat > "$MOCK_BIN/go" <<'GO'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GO_LOG"
+if [[ "$1" == "test" ]]; then
+    cat <<'JSON'
+{"Action":"pass","Package":"agentops/cli/cmd/ao","Elapsed":0.1}
+JSON
+fi
+exit 0
+GO
+    chmod +x "$MOCK_BIN/go"
+
+    cat > "$MOCK_BIN/git" <<'GIT'
+#!/usr/bin/env bash
+case "$*" in
+    *"rev-parse --git-dir"*) echo ".git"; exit 0 ;;
+    *"diff --name-only --cached"*) echo "cli/cmd/ao/doctor.go"; exit 0 ;;
+    *"diff --name-only"*) echo ""; exit 0 ;;
+    *"ls-files --others"*) echo ""; exit 0 ;;
+esac
+exit 0
+GIT
+    chmod +x "$MOCK_BIN/git"
+
+    export PATH="$MOCK_BIN:$PATH"
+    export GO_LOG
+
+    run bash "$SCRIPT" --scope worktree
+    [ "$status" -eq 0 ]
+    grep -q -- '-run ^(' "$GO_LOG"
+    grep -q -- './cmd/ao' "$GO_LOG"
 }

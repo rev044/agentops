@@ -76,6 +76,48 @@ EOF
 exit 0
 EOF
   chmod +x "$fixture/skills-codex/heal-skill/scripts/heal.sh"
+
+  cat > "$fixture/skills-codex/research/.agentops-generated.json" <<'EOF'
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/research",
+  "layout": "modular",
+  "source_hash": "fixture-source",
+  "generated_hash": "fixture-generated"
+}
+EOF
+
+  cat > "$fixture/skills-codex/heal-skill/.agentops-generated.json" <<'EOF'
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/heal-skill",
+  "layout": "modular",
+  "source_hash": "fixture-source",
+  "generated_hash": "fixture-generated"
+}
+EOF
+
+  cat > "$fixture/skills-codex/.agentops-manifest.json" <<'EOF'
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_root": "skills",
+  "layout": "modular",
+  "skills": [
+    {
+      "name": "heal-skill",
+      "source_skill": "skills/heal-skill",
+      "source_hash": "fixture-source",
+      "generated_hash": "fixture-generated"
+    },
+    {
+      "name": "research",
+      "source_skill": "skills/research",
+      "source_hash": "fixture-source",
+      "generated_hash": "fixture-generated"
+    }
+  ]
+}
+EOF
 }
 
 run_install() {
@@ -109,6 +151,10 @@ test_installs_plugin_cache_and_config() {
     fail "skills copied into plugin cache"
     return
   }
+  [[ -f "$plugin_root/.agentops-codex-state.json" ]] || {
+    fail "plugin state file written"
+    return
+  }
   [[ -f "$codex_home/config.toml" ]] || {
     fail "config.toml written"
     return
@@ -116,7 +162,8 @@ test_installs_plugin_cache_and_config() {
   if rg -q '^\[features\]$' "$codex_home/config.toml" && \
     rg -q '^plugins = true$' "$codex_home/config.toml" && \
     rg -q '^\[plugins\."agentops@agentops-marketplace"\]$' "$codex_home/config.toml" && \
-    rg -q '^enabled = true$' "$codex_home/config.toml"; then
+    rg -q '^enabled = true$' "$codex_home/config.toml" && \
+    rg -q '"manifest_hash"' "$codex_home/.agentops-codex-install.json"; then
     pass "installs plugin cache and enables config"
   else
     fail "config.toml missing plugin enablement"

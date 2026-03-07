@@ -105,7 +105,7 @@ Examples:
 	loopCmd.Flags().StringVar(&rpiLandingBranch, "landing-branch", "", "Landing target branch (empty resolves origin/HEAD, then current branch, then main)")
 	loopCmd.Flags().StringVar(&rpiLandingCommitMessage, "landing-commit-message", "chore(rpi): autonomous cycle {{cycle}}", "Commit message template for landing policies that commit")
 	loopCmd.Flags().StringVar(&rpiLandingLockPath, "landing-lock-path", filepath.Join(".agents", "rpi", "landing.lock"), "Landing lock file path for synchronized integration (absolute or repo-relative)")
-	loopCmd.Flags().StringVar(&rpiBDSyncPolicy, "bd-sync-policy", "auto", "bd sync policy for landing: auto|always|never")
+	loopCmd.Flags().StringVar(&rpiBDSyncPolicy, "bd-sync-policy", "auto", "Legacy bd landing checkpoint policy: auto|always|never (auto/always run 'bd export -o /dev/null' on current bd releases)")
 	loopCmd.Flags().DurationVar(&rpiCommandTimeout, "command-timeout", 20*time.Minute, "Timeout for supervisor external commands (git/bd/gate scripts)")
 	loopCmd.Flags().StringVar(&rpiKillSwitchPath, "kill-switch-path", filepath.Join(".agents", "rpi", "KILL"), "Supervisor kill-switch file path checked at cycle boundaries (absolute or repo-relative)")
 	loopCmd.Flags().BoolVar(&rpiAthena, "athena", false, "Enable Athena producer cadence before queue selection")

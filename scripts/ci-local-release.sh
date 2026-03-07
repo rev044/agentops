@@ -501,11 +501,14 @@ run_step_bg "Skill runtime parity" bash ./scripts/validate-skill-runtime-parity.
 run_step_bg "Codex runtime sections" bash ./scripts/validate-codex-runtime-sections.sh
 run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
 run_step_bg "Codex install bundle parity" bash ./scripts/validate-codex-install-bundle.sh
+run_step_bg "Codex generated manifest" bash ./scripts/validate-codex-generated-manifest.sh
+run_step_bg "Codex generated artifacts" bash ./scripts/validate-codex-generated-artifacts.sh --scope worktree
+run_step_bg "Skill runtime formats" bash ./scripts/validate-skill-runtime-formats.sh
 run_step_bg "Contract compatibility gate" ./scripts/check-contract-compatibility.sh
 run_step_bg "Embedded sync check" ./scripts/validate-embedded-sync.sh
 run_step_bg "Secret pattern scan" run_security_scan_patterns
 run_step_bg "Dangerous shell pattern scan" run_dangerous_pattern_scan
-run_step_bg "Skill flag cross-refs" ./scripts/check-skill-flag-refs.sh
+run_step_bg "Skill CLI snippets" bash ./scripts/validate-skill-cli-snippets.sh
 run_step_bg "Command/test pairing gate" ./scripts/check-go-command-test-pair.sh
 run_step_bg "MemRL feedback loop health" ./scripts/check-memrl-health.sh
 run_step_bg "Doctor health check" ./scripts/check-doctor-health.sh
@@ -522,11 +525,16 @@ run_step_bg "Smoke tests" ./tests/smoke-test.sh --verbose
 run_step_bg "Skill lint" bash ./tests/skills/run-all.sh
 run_step_bg "CLI integration smoke tests" ./tests/integration/test-cli-commands.sh
 run_step_bg "Command/test pairing gate tests" ./tests/scripts/test-go-command-test-pair.sh
+run_step_bg "Go fast scope tests" bats ./tests/scripts/validate-go-fast.bats
 run_step_bg "Skill runtime parity tests" bash ./tests/scripts/test-skill-runtime-parity.sh
+run_step_bg "Skill CLI snippet tests" bash ./tests/scripts/test-skill-cli-snippets.sh
 run_step_bg "Codex plugin install tests" bash ./tests/scripts/test-codex-plugin-install.sh
 run_step_bg "Codex native install tests" bash ./tests/scripts/test-codex-native-skills-install.sh
+run_step_bg "Codex generated manifest tests" bash ./tests/scripts/test-codex-generated-manifest.sh
+run_step_bg "Codex generated artifact tests" bash ./tests/scripts/test-codex-generated-artifacts.sh
 run_step_bg "Dev hook install tests" bash ./tests/scripts/test-install-dev-hooks.sh
 run_step_bg "Git hook shim tests" bash ./tests/scripts/test-githook-shims.sh
+run_step_bg "Validate-local tests" bash ./tests/scripts/test-validate-local.sh
 run_step_bg "Constraint compiler BATS wrapper" ./tests/hooks/test-constraint-compiler.sh
 run_step_bg "cmd/ao coverage floor gate" ./scripts/check-cmdao-coverage-floor.sh
 

@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/product",
+  "layout": "modular",
+  "source_hash": "466942187643c94529e5c5598bf2703cc63e1010b3923c83b2a6ce889c6b495f",
+  "generated_hash": "aa80512071861db63aebe5a249af787c7606aa65326d923b328466d0a18c8db3"
+}

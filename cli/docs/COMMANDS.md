@@ -1097,7 +1097,7 @@ ao rpi loop [goal] [flags]
       --athena-since string               Lookback window for Athena mine producer (default "26h")
       --auto-clean                        Run stale RPI cleanup before each phased cycle
       --auto-clean-stale-after duration   Only auto-clean runs older than this age (default 24h0m0s)
-      --bd-sync-policy string             bd sync policy for landing: auto|always|never (default "auto")
+      --bd-sync-policy string             Legacy bd landing checkpoint policy: auto|always|never (auto/always run 'bd export -o /dev/null' on current bd releases) (default "auto")
       --cleanup-prune-branches            Run legacy branch cleanup during supervisor cleanup
       --cleanup-prune-worktrees           Run git worktree prune during supervisor cleanup (default true)
       --command-timeout duration          Timeout for supervisor external commands (git/bd/gate scripts) (default 20m0s)

@@ -41,7 +41,9 @@ Run a specific tier:
 | Quick static validation | `./tests/run-all.sh` | ~10s |
 | Full test suite | `./tests/run-all.sh --all` | 2-5 min |
 | Go unit tests | `cd cli && make test` | ~15s |
-| Go build + vet + test | `scripts/validate-go-fast.sh` | ~20s |
+| Push-time local gate | `scripts/pre-push-gate.sh` | ~30-90s |
+| Activate repo hooks | `bash scripts/install-dev-hooks.sh` | ~1s |
+| Go build + vet + changed-scope race | `scripts/validate-go-fast.sh` | ~20s |
 | BATS hook tests | `bats tests/hooks/*.bats` | ~10s |
 | BATS script tests | `bats tests/scripts/*.bats` | ~10s |
 | Skill validation | `tests/skills/run-all.sh` | ~30s |
@@ -51,6 +53,16 @@ Run a specific tier:
 | Full CI gate (local) | `scripts/ci-local-release.sh` | 5-10 min |
 
 ## Writing New Tests
+
+## Local Hooking
+
+Use the repo-managed hooks, not ad hoc `.git/hooks` symlinks:
+
+```bash
+bash scripts/install-dev-hooks.sh
+```
+
+That activates `.githooks/pre-commit` and `.githooks/pre-push` for the current clone/worktree. The pre-push hook runs `scripts/pre-push-gate.sh`.
 
 ### Where to put tests
 

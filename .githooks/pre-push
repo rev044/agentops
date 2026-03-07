@@ -11,8 +11,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # --- Pre-push validation gate ---
-if [[ -x "$REPO_ROOT/scripts/pre-push-gate.sh" ]]; then
-    if ! "$REPO_ROOT/scripts/pre-push-gate.sh"; then
+if [[ -x "$REPO_ROOT/scripts/validate-local.sh" ]]; then
+    if ! "$REPO_ROOT/scripts/validate-local.sh" --scope upstream --skip-claude; then
         echo "pre-push: blocked by validation gate. Fix issues before pushing."
         exit 1
     fi

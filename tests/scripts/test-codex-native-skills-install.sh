@@ -65,6 +65,30 @@ INNER
 cat > "$OUT/source-skill/prompt.md" <<'INNER'
 # source-skill
 INNER
+cat > "$OUT/source-skill/.agentops-generated.json" <<'INNER'
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/source-skill",
+  "layout": "modular",
+  "source_hash": "fixture-source",
+  "generated_hash": "fixture-generated"
+}
+INNER
+cat > "$OUT/.agentops-manifest.json" <<'INNER'
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_root": "skills",
+  "layout": "modular",
+  "skills": [
+    {
+      "name": "source-skill",
+      "source_skill": "skills/source-skill",
+      "source_hash": "fixture-source",
+      "generated_hash": "fixture-generated"
+    }
+  ]
+}
+INNER
 EOF
 
   cat > "$fixture/scripts/export-claude-skills-to-codex.sh" <<'EOF'
@@ -183,11 +207,16 @@ EOF
     fail "explicit --dest should install raw skills into requested destination"
     return
   fi
+  if [[ ! -f "$raw_dst/.agentops-codex-state.json" ]]; then
+    fail "explicit --dest should write raw install state file"
+    return
+  fi
   if [[ -e "$plugin_root/skills-codex/source-skill/SKILL.md" ]]; then
     fail "explicit --dest should not refresh plugin cache"
     return
   fi
-  if rg -q '"source": "install-codex-native-skills.sh"' "$home_dir/.codex/.agentops-codex-install.json"; then
+  if rg -q '"source": "install-codex-native-skills.sh"' "$home_dir/.codex/.agentops-codex-install.json" && \
+    rg -q '"manifest_hash"' "$home_dir/.codex/.agentops-codex-install.json"; then
     pass "explicit --dest preserves raw skill install behavior"
   else
     fail "explicit --dest should record raw skill install metadata"

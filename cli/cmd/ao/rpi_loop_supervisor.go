@@ -628,8 +628,8 @@ func runBDSyncIfNeeded(cwd string, cfg rpiLoopSupervisorConfig) error {
 		return err
 	}
 	if runSync {
-		if err := loopCommandRunner(cwd, cfg.CommandTimeout, cfg.BDCommand, "sync"); err != nil {
-			return fmt.Errorf("bd sync failed: %w", err)
+		if err := loopCommandRunner(cwd, cfg.CommandTimeout, cfg.BDCommand, "export", "-o", os.DevNull); err != nil {
+			return fmt.Errorf("bd export checkpoint failed: %w", err)
 		}
 	}
 	return nil

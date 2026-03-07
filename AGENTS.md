@@ -58,6 +58,7 @@ cd cli && make test   # Run tests
 cd cli && make lint   # Run linter
 
 # Validation (run before pushing)
+bash scripts/install-dev-hooks.sh  # Activate repo-managed git hooks once per clone/worktree
 scripts/ci-local-release.sh     # Full local release gate (runs everything)
 scripts/validate-go-fast.sh     # Quick Go validation (build + vet + test)
 ```

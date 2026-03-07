@@ -974,13 +974,13 @@ func TestRunBDSyncIfNeeded_Always(t *testing.T) {
 
 	found := false
 	for _, call := range calledWith {
-		if call == "bd sync" {
+		if call == "bd export -o /dev/null" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected 'bd sync' call with always policy, got calls: %v", calledWith)
+		t.Fatalf("expected 'bd export -o /dev/null' call with always policy, got calls: %v", calledWith)
 	}
 }
 

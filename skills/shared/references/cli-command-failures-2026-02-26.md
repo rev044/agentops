@@ -4,7 +4,7 @@ Captured from live RPI batch execution logs in this repo.
 
 ## Observed Failures
 
-1. `ao --version` (both PATH and local build)
+1. `ao version` (both PATH and local build)
 - Output: `Error: unknown flag: --version`
 - Working form: `ao version`
 
@@ -38,4 +38,3 @@ Captured from live RPI batch execution logs in this repo.
 
 - `.agents/rpi/batch-ready-20260226T123121.log`
 - `.agents/rpi/batch-ready-local-20260226T131237.log`
-

@@ -7,7 +7,6 @@
 #   3. No ~/.claude/ paths (must use ~/.codex/)
 #   4. No "Claude Code" runtime references (use "Codex" or runtime-neutral)
 #   5. Required: Portability Appendix if Claude primitives exist in main flow
-#   6. No old flat ao namespace references
 #
 # Usage:
 #   scripts/lint-codex-native.sh [--strict] [--skill <name>]
@@ -182,19 +181,6 @@ check_skill() {
         fi
     fi
 
-    # --- Check 6: Old flat ao namespace ---
-    local old_ao
-    old_ao=$(grep -En '\bao (forge|inject|search|lookup|trace|rpi|ratchet|goals|session|feedback-loop|flywheel|pool|metrics|gate|maturity|constraint|vibe-check|badge|contradict|dedup|anti-patterns|curate|config|plans|hooks|memory|notebook|demo|init|seed|quick-start)\b' "$skill_file" 2>/dev/null \
-        | grep -vE 'ao (know|work|quality|settings|start) ' \
-        || true)
-    if [[ -n "$old_ao" ]]; then
-        local count
-        count=$(count_lines "$old_ao")
-        error "$skill_name: $count old flat ao namespace reference(s)"
-        if $STRICT; then
-            echo "$old_ao" | head -3 | sed 's/^/      /'
-        fi
-    fi
 }
 
 echo "Codex-Native Skill Lint"

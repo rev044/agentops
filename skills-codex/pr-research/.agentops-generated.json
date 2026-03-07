@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/pr-research",
+  "layout": "modular",
+  "source_hash": "c130318d32608f3f42c609da768c7a53c88e314b897f05f4740ab31d0ba722bd",
+  "generated_hash": "cf2a32d538087d7da64348d9bbfc5bf6d7a741f533c3bfa9861617b942bc4826"
+}

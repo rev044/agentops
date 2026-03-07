@@ -162,7 +162,6 @@ Compare the latest measurement snapshot against a previous one to detect regress
 
 ```bash
 ao goals drift                    # Compare latest vs previous snapshot
-ao goals drift --since 2026-02-20  # Compare against a specific date
 ```
 
 Reports which goals improved, regressed, or stayed unchanged.
@@ -251,17 +250,6 @@ The `--to-md` flag creates a GOALS.md with mission, north/anti stars sections, a
 2. Creates GOALS.md in the project root
 
 **Result:** New GOALS.md ready for `/evolve` consumption.
-
-### Tracking regressions across releases
-
-**User says:** `/goals drift --since 2026-02-20`
-
-**What happens:**
-1. Runs `ao goals drift --since 2026-02-20`
-2. Compares current snapshot against the one from that date
-3. Reports improved/regressed/unchanged goals
-
-**Result:** Regression report highlighting which goals changed direction.
 
 ### Adding a new goal after a post-mortem
 

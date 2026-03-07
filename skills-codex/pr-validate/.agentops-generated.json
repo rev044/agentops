@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/pr-validate",
+  "layout": "modular",
+  "source_hash": "3ebfa8af8302a25ca4719863a96a7640711b0cadfcb171a1bacdf41527b9edb5",
+  "generated_hash": "104301a3ac1170ad5e901dbbdd644c825fca52fc1290a62daab16dfc33f0ffd6"
+}

@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/pre-mortem",
+  "layout": "modular",
+  "source_hash": "48838e1fe5a3580741e1d8e7a326af4db978638a3dd5d2d11027960606e0c2ca",
+  "generated_hash": "6ccdad5ce49b9386427f9476c38d04d0b84ca11b7168851675f094fdf7a69a86"
+}

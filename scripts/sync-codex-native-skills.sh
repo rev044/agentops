@@ -9,6 +9,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONVERTER="$REPO_ROOT/skills/converter/scripts/convert.sh"
+MANIFEST_FILE_NAME=".agentops-manifest.json"
+SKILL_MARKER_FILE_NAME=".agentops-generated.json"
 
 SRC="$REPO_ROOT/skills"
 OUT="$REPO_ROOT/skills-codex"
@@ -96,6 +98,62 @@ cleanup() {
   rm -rf "$tmpdir"
 }
 trap cleanup EXIT
+
+sha256_file() {
+  local path="$1"
+
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path" | awk '{print $1}'
+    return
+  fi
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path" | awk '{print $1}'
+    return
+  fi
+  if command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$path" | awk '{print $NF}'
+    return
+  fi
+
+  echo "Error: need shasum, sha256sum, or openssl to compute skill manifests." >&2
+  exit 1
+}
+
+find_hashable_files() {
+  local root="$1"
+
+  find "$root" -type f \
+    ! -path '*/__pycache__/*' \
+    ! -name '*.pyc' \
+    ! -name '.DS_Store' \
+    ! -name "$MANIFEST_FILE_NAME" \
+    ! -name "$SKILL_MARKER_FILE_NAME" \
+    | LC_ALL=C sort
+}
+
+hash_tree() {
+  local root="$1"
+  local manifest_tmp
+  local rel
+  local file
+
+  manifest_tmp="$(mktemp)"
+  while IFS= read -r file; do
+    rel="${file#"$root"/}"
+    printf '%s\t%s\n' "$rel" "$(sha256_file "$file")"
+  done < <(find_hashable_files "$root") > "$manifest_tmp"
+
+  sha256_file "$manifest_tmp"
+  rm -f "$manifest_tmp"
+}
+
+prune_transient_files() {
+  local root="$1"
+
+  find "$root" \
+    \( -type d -name '__pycache__' -o -type f \( -name '*.pyc' -o -name '.DS_Store' \) \) \
+    -exec rm -rf {} +
+}
 
 write_expected_skills() {
   local out_file="$1"
@@ -222,6 +280,8 @@ sync_output() {
     # Remove legacy parity artifacts left by earlier script versions.
     rm -rf "$OUT/.parity"
     rm -f "$OUT/.expected-skills.txt" "$OUT/.actual-skills.txt"
+    rm -f "$OUT/.agentops-generated.json"
+    write_generated_manifest "$OUT"
 
     echo "Codex-native skills synced (partial): $updated"
     echo "Output: $OUT"
@@ -237,11 +297,67 @@ sync_output() {
   # Remove legacy parity artifacts left by earlier script versions.
   rm -rf "$OUT/.parity"
   rm -f "$OUT/.expected-skills.txt" "$OUT/.actual-skills.txt"
+  rm -f "$OUT/.agentops-generated.json"
 
   local count
   count="$(find "$OUT" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
   echo "Codex-native skills synced: $count"
   echo "Output: $OUT"
+}
+
+write_generated_manifest() {
+  local built_root="$1"
+  local manifest_path="$built_root/$MANIFEST_FILE_NAME"
+  local skill_dirs=()
+  local skill_dir
+  local skill
+  local source_hash
+  local generated_hash
+  local first=1
+
+  while IFS= read -r skill_dir; do
+    [[ -f "$skill_dir/SKILL.md" ]] || continue
+    skill_dirs+=("$skill_dir")
+  done < <(find "$built_root" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
+
+  {
+    printf '{\n'
+    printf '  "generator": "scripts/sync-codex-native-skills.sh",\n'
+    printf '  "source_root": "skills",\n'
+    printf '  "layout": "modular",\n'
+    printf '  "skills": [\n'
+
+    for skill_dir in "${skill_dirs[@]}"; do
+      skill="$(basename "$skill_dir")"
+      source_hash="$(hash_tree "$SRC/$skill")"
+      generated_hash="$(hash_tree "$skill_dir")"
+
+      cat > "$skill_dir/$SKILL_MARKER_FILE_NAME" <<EOF
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/$skill",
+  "layout": "modular",
+  "source_hash": "$source_hash",
+  "generated_hash": "$generated_hash"
+}
+EOF
+
+      if [[ "$first" -eq 0 ]]; then
+        printf ',\n'
+      fi
+      first=0
+      printf '    {\n'
+      printf '      "name": "%s",\n' "$skill"
+      printf '      "source_skill": "skills/%s",\n' "$skill"
+      printf '      "source_hash": "%s",\n' "$source_hash"
+      printf '      "generated_hash": "%s"\n' "$generated_hash"
+      printf '    }'
+    done
+
+    printf '\n'
+    printf '  ]\n'
+    printf '}\n'
+  } > "$manifest_path"
 }
 
 if [[ -n "$ONLY_CSV" ]]; then
@@ -270,5 +386,7 @@ if [[ -x "${SCRIPT_DIR}/lint/generate-allowlist-candidates.sh" ]]; then
 fi
 
 apply_overrides "$tmpdir"
+prune_transient_files "$tmpdir"
+write_generated_manifest "$tmpdir"
 validate_parity "$tmpdir"
 sync_output "$tmpdir"

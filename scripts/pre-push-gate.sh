@@ -21,9 +21,12 @@
 #  13. Skill lint suite
 #  14. Skill schema validation
 #  15. Manifest schema validation
+#  16. Codex generated artifacts
+#  17. Skill runtime formats
+#  18. Skill CLI snippets
 #
 # Usage:
-#   scripts/pre-push-gate.sh          # Run directly
+#   scripts/pre-push-gate.sh [--scope auto|upstream|staged|worktree|head]
 #   (also called from .githooks/pre-push)
 
 set -euo pipefail
@@ -37,6 +40,7 @@ GREEN='\033[0;32m'
 NC='\033[0m'
 
 errors=0
+SCOPE="${PRE_PUSH_GO_SCOPE:-upstream}"
 pass() { echo -e "${GREEN}  ok${NC}  $1"; }
 fail() { echo -e "${RED}FAIL${NC}  $1"; errors=$((errors + 1)); }
 indent_output() {
@@ -45,12 +49,71 @@ indent_output() {
     done <<<"$1"
 }
 
+usage() {
+    cat <<'EOF'
+Usage: scripts/pre-push-gate.sh [--scope auto|upstream|staged|worktree|head]
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --scope)
+            SCOPE="${2:-}"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown arg: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+case "$SCOPE" in
+    auto|upstream|staged|worktree|head) ;;
+    *)
+        echo "Invalid --scope: $SCOPE" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+
+collect_go_changed() {
+    case "$SCOPE" in
+        upstream)
+            git diff --name-only '@{upstream}...HEAD' -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+            ;;
+        staged)
+            git diff --name-only --cached -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+            ;;
+        worktree)
+            {
+                git diff --name-only --cached -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+                git diff --name-only -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+            } | sed '/^[[:space:]]*$/d' | sort -u
+            ;;
+        head)
+            git show --name-only --pretty=format: HEAD -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+            ;;
+        auto)
+            {
+                git diff --name-only '@{upstream}...HEAD' -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+                git diff --name-only --cached -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+                git diff --name-only -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true
+            } | sed '/^[[:space:]]*$/d' | sort -u
+            ;;
+    esac
+}
+
 echo "pre-push gate: validating before push..."
 
 # --- 1. Go build + vet ---
 if command -v go >/dev/null 2>&1 && [[ -f cli/go.mod ]]; then
-    # Check if any Go files changed vs upstream
-    go_changed=$(git diff --name-only '@{upstream}...HEAD' -- 'cli/*.go' 'cli/**/*.go' 'cli/go.mod' 'cli/go.sum' 2>/dev/null || true)
+    go_changed="$(collect_go_changed)"
     if [[ -n "$go_changed" ]]; then
         if (cd cli && go build -o /dev/null ./cmd/ao 2>&1); then
             pass "go build"
@@ -69,7 +132,7 @@ fi
 
 # --- 2. Go race tests on changed scope ---
 if [[ -x scripts/validate-go-fast.sh ]]; then
-    if go_fast_output="$(scripts/validate-go-fast.sh 2>&1)"; then
+    if go_fast_output="$(scripts/validate-go-fast.sh --scope "$SCOPE" 2>&1)"; then
         pass "go test -race (changed scope)"
     else
         fail "go test -race (changed scope)"
@@ -235,6 +298,42 @@ if [[ -x scripts/validate-manifests.sh ]]; then
     fi
 else
     fail "missing executable: scripts/validate-manifests.sh"
+fi
+
+# --- 16. Codex generated artifacts ---
+if [[ -x scripts/validate-codex-generated-artifacts.sh ]]; then
+    if codex_generated_output="$(scripts/validate-codex-generated-artifacts.sh --scope "$SCOPE" 2>&1)"; then
+        pass "codex generated artifacts"
+    else
+        fail "codex generated artifacts"
+        indent_output "$codex_generated_output"
+    fi
+else
+    fail "missing executable: scripts/validate-codex-generated-artifacts.sh"
+fi
+
+# --- 17. Skill runtime formats ---
+if [[ -x scripts/validate-skill-runtime-formats.sh ]]; then
+    if codex_lint_output="$(scripts/validate-skill-runtime-formats.sh 2>&1)"; then
+        pass "skill runtime formats"
+    else
+        fail "skill runtime formats"
+        indent_output "$codex_lint_output"
+    fi
+else
+    fail "missing executable: scripts/validate-skill-runtime-formats.sh"
+fi
+
+# --- 18. Skill CLI snippets ---
+if [[ -x scripts/validate-skill-cli-snippets.sh ]]; then
+    if skill_cli_output="$(scripts/validate-skill-cli-snippets.sh 2>&1)"; then
+        pass "skill CLI snippets"
+    else
+        fail "skill CLI snippets"
+        indent_output "$skill_cli_output"
+    fi
+else
+    fail "missing executable: scripts/validate-skill-cli-snippets.sh"
 fi
 
 # --- Summary ---

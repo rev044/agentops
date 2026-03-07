@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/status",
+  "layout": "modular",
+  "source_hash": "293dff204519e2558f7283d281798f4db53b1c72d28ddb80d292558cb10ce890",
+  "generated_hash": "c8fa7c1e5568f84d38574f31c0b24ae25180b8b448e32296ab0dd42d7a8d2578"
+}

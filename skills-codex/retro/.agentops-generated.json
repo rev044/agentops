@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/retro",
+  "layout": "modular",
+  "source_hash": "b36f612a69dd96def95a6a34f952d6a887059fb16e9d2aeb15c34a7e206ff395",
+  "generated_hash": "92ea3079c3a96ca0805528ae4eef4408e04ba2e399d0d5cf52df0e58c25478b2"
+}

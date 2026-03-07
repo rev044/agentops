@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/trace",
+  "layout": "modular",
+  "source_hash": "8bace2da9b99ded04bce3de4b7305c52215c07b949e7cebbc54cefe90a1775dc",
+  "generated_hash": "d51afa043a998ebabd18062f70a8e5017c7bfac4e9f523d15bfb41aed23e8704"
+}

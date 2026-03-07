@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/quickstart",
+  "layout": "modular",
+  "source_hash": "5dfbfeba8d39fe8b44f92b1cc705f278cfaea6c853d0b5ede6db292cb8b25816",
+  "generated_hash": "d3eb2d6131becedb8cce7fe04b0eb3f24dc4588fe97a07ba163a698163bb5404"
+}

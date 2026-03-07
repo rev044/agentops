@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -64,6 +65,7 @@ func gatherDoctorChecks() []doctorCheck {
 		checkSearchIndex(),
 		checkFlywheelHealth(),
 		checkSkills(),
+		checkCodexSync(),
 		checkSkillIntegrity(),
 		checkStaleReferences(),
 		checkOptionalCLI("codex", "needed for --mixed council"),
@@ -559,6 +561,14 @@ const (
 	codexAgentOpsMarketplaceName = "agentops-marketplace"
 )
 
+type codexInstallMeta struct {
+	InstallMode  string `json:"install_mode"`
+	PluginRoot   string `json:"plugin_root"`
+	Version      string `json:"version"`
+	ManifestHash string `json:"manifest_hash"`
+	SkillCount   int    `json:"skill_count"`
+}
+
 func codexNativePluginSkillsPath(home string) string {
 	return filepath.Join(
 		home,
@@ -574,6 +584,125 @@ func codexNativePluginSkillsPath(home string) string {
 
 func codexNativePluginHealPath(home string) string {
 	return filepath.Join(codexNativePluginSkillsPath(home), "heal-skill", "scripts", "heal.sh")
+}
+
+func codexNativePluginManifestPath(home string) string {
+	return filepath.Join(codexNativePluginSkillsPath(home), ".agentops-manifest.json")
+}
+
+func codexInstallMetaPath(home string) string {
+	return filepath.Join(home, ".codex", ".agentops-codex-install.json")
+}
+
+func readCodexInstallMeta(home string) (*codexInstallMeta, error) {
+	data, err := os.ReadFile(codexInstallMetaPath(home))
+	if err != nil {
+		return nil, err
+	}
+	var meta codexInstallMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return nil, err
+	}
+	return &meta, nil
+}
+
+func readCodexManifestSkillCount(path string) (int, error) {
+	var manifest struct {
+		Skills []struct {
+			Name string `json:"name"`
+		} `json:"skills"`
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return 0, err
+	}
+	return len(manifest.Skills), nil
+}
+
+func checkCodexNativePluginManifest(home, primary string, primaryCount int) *doctorCheck {
+	manifestPath := codexNativePluginManifestPath(home)
+	manifestHash, err := sha256File(manifestPath)
+	if err != nil {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; native plugin is missing .agentops-manifest.json — run 'bash scripts/refresh-codex-local.sh' from the repo checkout.",
+				primaryCount, primary),
+		}
+	}
+
+	manifestSkillCount, err := readCodexManifestSkillCount(manifestPath)
+	if err != nil {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; native plugin manifest is unreadable — run 'bash scripts/refresh-codex-local.sh'.",
+				primaryCount, primary),
+		}
+	}
+
+	meta, err := readCodexInstallMeta(home)
+	if err != nil {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; native plugin install metadata is missing — run 'bash scripts/refresh-codex-local.sh' from the repo checkout.",
+				primaryCount, primary),
+		}
+	}
+
+	expectedRoot := filepath.Join(home, ".codex", "plugins", "cache", codexAgentOpsMarketplaceName, codexAgentOpsPluginName, "local")
+	if meta.InstallMode != "native-plugin" {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; install metadata says install_mode=%q instead of native-plugin — run 'bash scripts/refresh-codex-local.sh'.",
+				primaryCount, primary, meta.InstallMode),
+		}
+	}
+	if meta.PluginRoot != "" && filepath.Clean(meta.PluginRoot) != expectedRoot {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; install metadata points at %s instead of %s — run 'bash scripts/refresh-codex-local.sh'.",
+				primaryCount, primary, meta.PluginRoot, expectedRoot),
+		}
+	}
+	if meta.ManifestHash != "" && meta.ManifestHash != manifestHash {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; install metadata manifest hash does not match the active native plugin manifest — run 'bash scripts/refresh-codex-local.sh'.",
+				primaryCount, primary),
+		}
+	}
+	if meta.SkillCount > 0 && manifestSkillCount > 0 && meta.SkillCount != manifestSkillCount {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; install metadata says %d skills but manifest says %d — run 'bash scripts/refresh-codex-local.sh'.",
+				primaryCount, primary, meta.SkillCount, manifestSkillCount),
+		}
+	}
+	if manifestSkillCount > 0 && manifestSkillCount != primaryCount {
+		return &doctorCheck{
+			Name:   "Plugin",
+			Status: "warn",
+			Detail: fmt.Sprintf("%d skills found in %s; active native plugin manifest lists %d skills — run 'bash scripts/refresh-codex-local.sh'.",
+				primaryCount, primary, manifestSkillCount),
+		}
+	}
+
+	return &doctorCheck{
+		Name:     "Plugin",
+		Status:   "pass",
+		Detail:   fmt.Sprintf("%d skills found in %s (native manifest OK)", primaryCount, primary),
+		Required: false,
+	}
 }
 
 func checkSkills() doctorCheck {
@@ -685,6 +814,10 @@ func checkSkills() doctorCheck {
 		}
 	}
 
+	if primary == "~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex" {
+		return *checkCodexNativePluginManifest(home, primary, primaryCount)
+	}
+
 	return doctorCheck{
 		Name:     "Plugin",
 		Status:   "pass",
@@ -721,6 +854,104 @@ func overlappingSkillNames(base map[string]struct{}, others ...map[string]struct
 	}
 	sort.Strings(names)
 	return names
+}
+
+func findAgentOpsRepoRoot(start string) string {
+	dir := start
+	for {
+		if fileExists(filepath.Join(dir, ".git")) && fileExists(filepath.Join(dir, "skills-codex", ".agentops-manifest.json")) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func sha256File(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("%x", sum[:]), nil
+}
+
+func currentRepoVersion(repoRoot string) string {
+	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func checkCodexSync() doctorCheck {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return doctorCheck{Name: "Codex Sync", Status: "warn", Detail: "cannot determine home directory", Required: false}
+	}
+
+	meta, err := readCodexInstallMeta(home)
+	if err != nil {
+		return doctorCheck{Name: "Codex Sync", Status: "pass", Detail: "no Codex install metadata found", Required: false}
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return doctorCheck{Name: "Codex Sync", Status: "warn", Detail: "cannot determine current directory", Required: false}
+	}
+
+	repoRoot := findAgentOpsRepoRoot(cwd)
+	if repoRoot == "" {
+		return doctorCheck{Name: "Codex Sync", Status: "pass", Detail: "no local AgentOps repo context detected", Required: false}
+	}
+
+	repoManifest := filepath.Join(repoRoot, "skills-codex", ".agentops-manifest.json")
+	repoManifestHash, err := sha256File(repoManifest)
+	if err != nil {
+		return doctorCheck{Name: "Codex Sync", Status: "warn", Detail: "cannot read local skills-codex manifest", Required: false}
+	}
+
+	repoVersion := currentRepoVersion(repoRoot)
+	if meta.ManifestHash == "" {
+		return doctorCheck{
+			Name:   "Codex Sync",
+			Status: "warn",
+			Detail: fmt.Sprintf("Codex install metadata is missing manifest hash — run 'cd %s && bash scripts/refresh-codex-local.sh'", repoRoot),
+		}
+	}
+
+	if meta.ManifestHash != repoManifestHash || (repoVersion != "" && meta.Version != "" && meta.Version != repoVersion) {
+		return doctorCheck{
+			Name:   "Codex Sync",
+			Status: "warn",
+			Detail: fmt.Sprintf("installed Codex %s is stale relative to repo (%s -> %s) — run 'cd %s && bash scripts/refresh-codex-local.sh'",
+				modeOrDefault(meta.InstallMode), valueOrUnknown(meta.Version), valueOrUnknown(repoVersion), repoRoot),
+		}
+	}
+
+	return doctorCheck{
+		Name:     "Codex Sync",
+		Status:   "pass",
+		Detail:   fmt.Sprintf("installed Codex %s matches repo %s", modeOrDefault(meta.InstallMode), valueOrUnknown(repoVersion)),
+		Required: false,
+	}
+}
+
+func modeOrDefault(mode string) string {
+	if mode == "" {
+		return "install"
+	}
+	return mode
+}
+
+func valueOrUnknown(value string) string {
+	if value == "" {
+		return "unknown"
+	}
+	return value
 }
 
 // findHealScript searches for heal.sh in known locations and returns the path if found.

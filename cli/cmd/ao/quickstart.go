@@ -208,7 +208,7 @@ Pre-mortem caught 6 critical issues before implementation:
 
 4. **Use beads for state**
    - ` + "`bd ready`" + ` shows unblocked work
-   - ` + "`bd sync`" + ` commits issue changes
+   - beads auto-sync issue writes; use ` + "`bd export -o backup.jsonl`" + ` for a manual snapshot
 `,
 	}
 
@@ -301,7 +301,6 @@ gt hook               # Check for hooked work
 bd ready              # Find available work
 
 # End
-bd sync               # Sync beads
 git add .
 git commit -m "..."
 git push              # NEVER stop before pushing

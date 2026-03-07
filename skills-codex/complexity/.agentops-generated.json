@@ -1,0 +1,7 @@
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/complexity",
+  "layout": "modular",
+  "source_hash": "de91f71586111a2277d6ccdf0301eeffd0fb2dc83e9f130d10807aec9fc7b9f5",
+  "generated_hash": "0ac47f64a754b3270f4b75e2d08d24e122f32b45040ea2e5363f92d987e0ea60"
+}

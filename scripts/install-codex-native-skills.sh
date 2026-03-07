@@ -18,6 +18,7 @@ ONLY_CSV=""
 SKIP_SYNC="false"
 DRY_RUN="false"
 DEST_EXPLICIT="false"
+SKILL_MANIFEST_NAME=".agentops-manifest.json"
 
 usage() {
   cat <<'EOF'
@@ -98,6 +99,26 @@ read_install_meta_value() {
   sed -n "s/.*\"${key}\":[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$INSTALL_META" | head -n 1
 }
 
+sha256_file() {
+  local path="$1"
+
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path" | awk '{print $1}'
+    return
+  fi
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path" | awk '{print $1}'
+    return
+  fi
+  if command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$path" | awk '{print $NF}'
+    return
+  fi
+
+  echo "Error: need shasum, sha256sum, or openssl to compute install snapshots." >&2
+  exit 1
+}
+
 should_refresh_native_plugin() {
   local install_mode
   local plugin_root
@@ -121,6 +142,11 @@ fi
 [[ -d "$SRC" ]] || {
   echo "Error: source codex skills directory not found: $SRC" >&2
   echo "Run without --skip-sync or build first via scripts/sync-codex-native-skills.sh." >&2
+  exit 1
+}
+[[ -f "$SRC/$SKILL_MANIFEST_NAME" ]] || {
+  echo "Error: source codex skill manifest not found: $SRC/$SKILL_MANIFEST_NAME" >&2
+  echo "Re-run scripts/sync-codex-native-skills.sh to regenerate skills-codex." >&2
   exit 1
 }
 
@@ -157,12 +183,40 @@ bash "$EXPORT_SCRIPT" "${export_args[@]}"
 
 # Write local install metadata for stale-skill reminders (no telemetry)
 INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+MANIFEST_HASH="$(sha256_file "$SRC/$SKILL_MANIFEST_NAME")"
+INSTALLED_MANIFEST="$DST/$SKILL_MANIFEST_NAME"
+[[ -f "$INSTALLED_MANIFEST" ]] || {
+  echo "Error: installed codex skill manifest missing after export: $INSTALLED_MANIFEST" >&2
+  exit 1
+}
+INSTALLED_MANIFEST_HASH="$(sha256_file "$INSTALLED_MANIFEST")"
+[[ "$MANIFEST_HASH" == "$INSTALLED_MANIFEST_HASH" ]] || {
+  echo "Error: installed codex skill manifest hash mismatch; expected $MANIFEST_HASH, got $INSTALLED_MANIFEST_HASH" >&2
+  exit 1
+}
+SKILL_COUNT="$(find "$DST" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
+RAW_STATE_FILE="$DST/.agentops-codex-state.json"
+cat > "$RAW_STATE_FILE" <<EOF
+{
+  "installed_at": "$INSTALLED_AT",
+  "install_mode": "raw-skills",
+  "version": "$VERSION",
+  "manifest_hash": "$MANIFEST_HASH",
+  "skill_count": $SKILL_COUNT,
+  "skills_root": "$DST"
+}
+EOF
 mkdir -p "$(dirname "$INSTALL_META")"
 cat > "$INSTALL_META" <<EOF
 {
   "installed_at": "$INSTALLED_AT",
   "source": "install-codex-native-skills.sh",
+  "install_mode": "raw-skills",
   "version": "$VERSION",
+  "manifest_hash": "$MANIFEST_HASH",
+  "skill_count": $SKILL_COUNT,
+  "skills_root": "$DST",
+  "plugin_state_file": "$RAW_STATE_FILE",
   "update_command": "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
 }
 EOF

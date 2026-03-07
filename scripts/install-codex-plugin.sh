@@ -24,16 +24,18 @@ MARKETPLACE_NAME="agentops-marketplace"
 PLUGIN_KEY="${PLUGIN_NAME}@${MARKETPLACE_NAME}"
 VERSION="${AGENTOPS_INSTALL_VERSION:-unknown}"
 UPDATE_CMD="${AGENTOPS_UPDATE_COMMAND:-curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash}"
+PLUGIN_SKILLS_SRC=""
 
 PLUGIN_MANIFEST="${REPO_ROOT}/.codex-plugin/plugin.json"
 MARKETPLACE_FILE="${REPO_ROOT}/.agents/plugins/marketplace.json"
-PLUGIN_SKILLS_SRC="${REPO_ROOT}/skills-codex"
 PLUGIN_CACHE_ROOT="${CODEX_HOME}/plugins/cache/${MARKETPLACE_NAME}/${PLUGIN_NAME}/local"
 PLUGIN_SKILLS_DST="${PLUGIN_CACHE_ROOT}/skills-codex"
 LEGACY_SKILLS_DIR="${CODEX_HOME}/skills"
 CONFIG_FILE="${CODEX_HOME}/config.toml"
 INSTALL_META="${CODEX_HOME}/.agentops-codex-install.json"
 LEGACY_BACKUP_ROOT=""
+SKILL_MANIFEST_NAME=".agentops-manifest.json"
+PLUGIN_STATE_FILE=""
 
 usage() {
   cat <<'EOF'
@@ -94,6 +96,9 @@ fi
 
 PLUGIN_MANIFEST="${REPO_ROOT}/.codex-plugin/plugin.json"
 MARKETPLACE_FILE="${REPO_ROOT}/.agents/plugins/marketplace.json"
+if [[ -z "$PLUGIN_SKILLS_SRC" ]]; then
+  PLUGIN_SKILLS_SRC="${REPO_ROOT}/skills-codex"
+fi
 if [[ "$PLUGIN_SKILLS_SRC" != /* ]]; then
   PLUGIN_SKILLS_SRC="${REPO_ROOT}/${PLUGIN_SKILLS_SRC}"
 fi
@@ -107,6 +112,25 @@ require_path() {
   local path="$1"
   local label="$2"
   [[ -e "$path" ]] || fail "Missing ${label}: $path"
+}
+
+sha256_file() {
+  local path="$1"
+
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path" | awk '{print $1}'
+    return
+  fi
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path" | awk '{print $1}'
+    return
+  fi
+  if command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$path" | awk '{print $NF}'
+    return
+  fi
+
+  fail "Need shasum, sha256sum, or openssl to compute install snapshots"
 }
 
 upsert_toml_key() {
@@ -225,6 +249,8 @@ stage_plugin_source() {
 require_path "$PLUGIN_MANIFEST" "Codex plugin manifest"
 require_path "$MARKETPLACE_FILE" "Codex marketplace manifest"
 require_path "$PLUGIN_SKILLS_SRC" "Codex-native skill bundle"
+require_path "$PLUGIN_SKILLS_SRC/$SKILL_MANIFEST_NAME" "Codex skill manifest"
+PLUGIN_STATE_FILE="${PLUGIN_CACHE_ROOT}/.agentops-codex-state.json"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -245,6 +271,21 @@ upsert_toml_key "$CONFIG_FILE" "[features]" "plugins" "true"
 upsert_toml_key "$CONFIG_FILE" "[plugins.\"${PLUGIN_KEY}\"]" "enabled" "true"
 
 INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+MANIFEST_HASH="$(sha256_file "$PLUGIN_SKILLS_SRC/$SKILL_MANIFEST_NAME")"
+require_path "$PLUGIN_SKILLS_DST/$SKILL_MANIFEST_NAME" "installed Codex skill manifest"
+INSTALLED_MANIFEST_HASH="$(sha256_file "$PLUGIN_SKILLS_DST/$SKILL_MANIFEST_NAME")"
+[[ "$MANIFEST_HASH" == "$INSTALLED_MANIFEST_HASH" ]] || fail "Installed plugin cache manifest hash mismatch; expected $MANIFEST_HASH, got $INSTALLED_MANIFEST_HASH"
+SKILL_COUNT="$(find "$PLUGIN_SKILLS_DST" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
+cat > "$PLUGIN_STATE_FILE" <<EOF
+{
+  "installed_at": "$INSTALLED_AT",
+  "install_mode": "native-plugin",
+  "version": "$VERSION",
+  "manifest_hash": "$MANIFEST_HASH",
+  "skill_count": $SKILL_COUNT,
+  "plugin_root": "$PLUGIN_CACHE_ROOT"
+}
+EOF
 mkdir -p "$(dirname "$INSTALL_META")"
 cat > "$INSTALL_META" <<EOF
 {
@@ -254,11 +295,12 @@ cat > "$INSTALL_META" <<EOF
   "plugin_key": "$PLUGIN_KEY",
   "version": "$VERSION",
   "plugin_root": "$PLUGIN_CACHE_ROOT",
+  "manifest_hash": "$MANIFEST_HASH",
+  "skill_count": $SKILL_COUNT,
+  "plugin_state_file": "$PLUGIN_STATE_FILE",
   "update_command": "$UPDATE_CMD"
 }
 EOF
-
-SKILL_COUNT="$(find "$PLUGIN_SKILLS_DST" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
 
 info "Native Codex plugin installed"
 echo "  Plugin key: $PLUGIN_KEY"

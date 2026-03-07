@@ -8,6 +8,50 @@ set -euo pipefail
 #   0 - pass or no Go changes
 #   1 - failures / setup issues
 
+SCOPE="auto"
+
+usage() {
+    cat <<'EOF'
+Usage: scripts/validate-go-fast.sh [--scope auto|upstream|staged|worktree|head]
+
+Options:
+  --scope <mode>  How to choose files to inspect.
+                  auto     prefer upstream diff, then staged/worktree fallback
+                  upstream commits ahead of @{upstream}
+                  staged   staged changes only
+                  worktree unstaged + staged + untracked files
+                  head     files from HEAD commit only
+  -h, --help      Show this help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --scope)
+            SCOPE="${2:-}"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown arg: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+case "$SCOPE" in
+    auto|upstream|staged|worktree|head) ;;
+    *)
+        echo "Invalid --scope: $SCOPE" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
@@ -18,20 +62,43 @@ if ! command -v go >/dev/null 2>&1; then
 fi
 
 collect_target_files() {
-    # Best pre-push scope: commits ahead of upstream.
-    if git rev-parse --git-dir >/dev/null 2>&1; then
-        if git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
-            ahead_files="$(git diff --name-only '@{upstream}...HEAD' 2>/dev/null || true)"
-            if [[ -n "$ahead_files" ]]; then
-                printf '%s\n' "$ahead_files"
-                return 0
-            fi
-        fi
-        # Fallbacks for detached or no upstream.
-        git diff --name-only --cached 2>/dev/null || true
-        git diff --name-only 2>/dev/null || true
-        git show --name-only --pretty=format: HEAD 2>/dev/null || true
+    local scope="$1"
+    local ahead_files=""
+
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        return 0
     fi
+
+    case "$scope" in
+        upstream)
+            if git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
+                git diff --name-only '@{upstream}...HEAD' 2>/dev/null || true
+            fi
+            ;;
+        staged)
+            git diff --name-only --cached 2>/dev/null || true
+            ;;
+        worktree)
+            git diff --name-only --cached 2>/dev/null || true
+            git diff --name-only 2>/dev/null || true
+            git ls-files --others --exclude-standard 2>/dev/null || true
+            ;;
+        head)
+            git show --name-only --pretty=format: HEAD 2>/dev/null || true
+            ;;
+        auto)
+            if git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
+                ahead_files="$(git diff --name-only '@{upstream}...HEAD' 2>/dev/null || true)"
+                if [[ -n "$ahead_files" ]]; then
+                    printf '%s\n' "$ahead_files"
+                    return 0
+                fi
+            fi
+            git diff --name-only --cached 2>/dev/null || true
+            git diff --name-only 2>/dev/null || true
+            git ls-files --others --exclude-standard 2>/dev/null || true
+            ;;
+    esac
 }
 
 find_module_root() {
@@ -51,11 +118,26 @@ find_module_root() {
     return 1
 }
 
+collect_test_names_from_file() {
+    local test_file="$1"
+    [[ -f "$test_file" ]] || return 0
+
+    awk '
+        /^func (Test|Fuzz|Example)[A-Za-z0-9_]*\(/ {
+            name = $2
+            sub(/\(.*/, "", name)
+            print name
+        }
+    ' "$test_file"
+}
+
 tmp_files="$(mktemp)"
 tmp_pairs="$(mktemp)"
-trap 'rm -f "$tmp_files" "$tmp_pairs"' EXIT
+tmp_runs="$(mktemp)"
+tmp_full="$(mktemp)"
+trap 'rm -f "$tmp_files" "$tmp_pairs" "$tmp_runs" "$tmp_full"' EXIT
 
-collect_target_files | sed '/^[[:space:]]*$/d' | sort -u > "$tmp_files"
+collect_target_files "$SCOPE" | sed '/^[[:space:]]*$/d' | sort -u > "$tmp_files"
 
 if [[ ! -s "$tmp_files" ]]; then
     echo "SKIP: no changed files detected"
@@ -114,7 +196,7 @@ if [[ ! -s "$tmp_pairs" ]]; then
 fi
 
 tmp_unique="$(mktemp)"
-trap 'rm -f "$tmp_files" "$tmp_pairs" "$tmp_unique"' EXIT
+trap 'rm -f "$tmp_files" "$tmp_pairs" "$tmp_runs" "$tmp_full" "$tmp_unique"' EXIT
 sort -u "$tmp_pairs" > "$tmp_unique"
 
 echo "Running lightweight Go race checks on changed scope..."
@@ -123,29 +205,89 @@ echo "Running lightweight Go race checks on changed scope..."
 SLOW_THRESHOLD_SECS="${SLOW_THRESHOLD_SECS:-45}"
 
 tmp_json="$(mktemp)"
-trap 'rm -f "$tmp_files" "$tmp_pairs" "$tmp_unique" "$tmp_json"' EXIT
+trap 'rm -f "$tmp_files" "$tmp_pairs" "$tmp_runs" "$tmp_full" "$tmp_unique" "$tmp_json"' EXIT
 
 race_exit=0
 fallback_hits=0
 
-while IFS=$'\t' read -r module_root _; do
+while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    abs_path="$REPO_ROOT/$file"
+
+    case "$file" in
+        *.go|go.mod|go.sum)
+            ;;
+        *)
+            continue
+            ;;
+    esac
+
+    module_root="$(find_module_root "$abs_path" || true)"
     [[ -z "$module_root" ]] && continue
 
-    patterns=()
-    while IFS= read -r pattern; do
-        [[ -z "$pattern" ]] && continue
-        patterns+=("$pattern")
-    done < <(awk -F '\t' -v m="$module_root" '$1 == m {print $2}' "$tmp_unique" | sort -u)
-    if [[ "${#patterns[@]}" -eq 0 ]]; then
+    if [[ "$file" == "go.mod" || "$file" == "go.sum" || "$file" == */go.mod || "$file" == */go.sum ]]; then
         continue
     fi
 
+    dir_path="$(dirname "$abs_path")"
+    dir_path="$(cd "$dir_path" 2>/dev/null && pwd -P 2>/dev/null || true)"
+    [[ -z "$dir_path" ]] && continue
+
+    rel="${dir_path#"$module_root"/}"
+    pattern="."
+    if [[ "$dir_path" != "$module_root" ]]; then
+        pattern="./$rel"
+    fi
+
+    candidate_test=""
+    if [[ "$file" == *_test.go ]]; then
+        candidate_test="$abs_path"
+    else
+        sibling_test="${abs_path%.go}_test.go"
+        if [[ -f "$sibling_test" ]]; then
+            candidate_test="$sibling_test"
+        fi
+    fi
+
+    if [[ -n "$candidate_test" ]]; then
+        while IFS= read -r test_name; do
+            [[ -n "$test_name" ]] || continue
+            printf '%s\t%s\t%s\n' "$module_root" "$pattern" "$test_name" >> "$tmp_runs"
+        done < <(collect_test_names_from_file "$candidate_test")
+    else
+        printf '%s\t%s\n' "$module_root" "$pattern" >> "$tmp_full"
+    fi
+done < "$tmp_files"
+
+while IFS=$'\t' read -r module_root pattern; do
+    [[ -z "$module_root" ]] && continue
+    race_exit=0
+
     echo ""
     echo "module: ${module_root#"$REPO_ROOT"/}"
-    echo "packages: ${patterns[*]}"
+    echo "package: $pattern"
+
+    run_filter=""
+    if ! awk -F '\t' -v m="$module_root" -v p="$pattern" '$1 == m && $2 == p {found=1} END {exit(found ? 0 : 1)}' "$tmp_full"; then
+        mapfile -t test_names < <(awk -F '\t' -v m="$module_root" -v p="$pattern" '$1 == m && $2 == p {print $3}' "$tmp_runs" | sort -u)
+        if [[ "${#test_names[@]}" -gt 0 ]]; then
+            escaped_names=()
+            for test_name in "${test_names[@]}"; do
+                escaped_names+=("$(printf '%s' "$test_name" | sed 's/[][(){}.^$+*?|\\]/\\&/g')")
+            done
+            regex_body="$(printf '%s\n' "${escaped_names[@]}" | paste -sd'|' -)"
+            run_filter="^(${regex_body})$"
+            echo "tests: ${test_names[*]}"
+        fi
+    fi
+
     (
         cd "$module_root"
-        go test -race -count=1 -json "${patterns[@]}" 2>&1
+        if [[ -n "$run_filter" ]]; then
+            go test -race -count=1 -json -run "$run_filter" "$pattern" 2>&1
+        else
+            go test -race -count=1 -json "$pattern" 2>&1
+        fi
     ) > "$tmp_json" || race_exit=$?
 
     # CI/provisioning fallback: retry serially when the first run fails due to
@@ -154,7 +296,11 @@ while IFS=$'\t' read -r module_root _; do
         echo "  INFO: fork/resource failure detected; retrying serial mode (-p 1)"
         if (
             cd "$module_root"
-            go test -race -count=1 -json -p 1 "${patterns[@]}" 2>&1
+            if [[ -n "$run_filter" ]]; then
+                go test -race -count=1 -json -p 1 -run "$run_filter" "$pattern" 2>&1
+            else
+                go test -race -count=1 -json -p 1 "$pattern" 2>&1
+            fi
         ) > "$tmp_json"; then
             race_exit=0
             fallback_hits=$((fallback_hits + 1))
@@ -214,7 +360,7 @@ while IFS=$'\t' read -r module_root _; do
         echo "--- end failure output ---"
         exit 1
     fi
-done < <(cut -f1 "$tmp_unique" | sort -u)
+done < "$tmp_unique"
 
 echo ""
 if [[ "$fallback_hits" -gt 0 ]]; then
