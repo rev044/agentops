@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+PASS=0
+FAIL=0
+
+pass() { echo "PASS: $1"; PASS=$((PASS + 1)); }
+fail() { echo "FAIL: $1"; FAIL=$((FAIL + 1)); }
+
+assert_contains() {
+  local file="$1"
+  local pattern="$2"
+  local label="$3"
+
+  if rg -q "$pattern" "$file"; then
+    pass "$label"
+  else
+    fail "$label"
+  fi
+}
+
+echo "== test-githook-shims =="
+assert_contains "$ROOT/.githooks/pre-commit" 'bd hooks run pre-commit' "pre-commit delegates via bd hooks run"
+assert_contains "$ROOT/.githooks/pre-push" 'bd hooks run pre-push' "pre-push delegates via bd hooks run"
+
+echo ""
+echo "Results: $PASS PASS, $FAIL FAIL"
+if [[ "$FAIL" -gt 0 ]]; then
+  exit 1
+fi
+exit 0

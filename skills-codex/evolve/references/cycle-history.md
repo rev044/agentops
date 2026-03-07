@@ -21,6 +21,7 @@ All new entries MUST use this schema:
   "target": "goal-id-or-idle",
   "result": "improved|regressed|unchanged|harvested|quarantined",
   "sha": "abc1234",
+  "canonical_sha": "abc1234",
   "timestamp": "2026-02-23T12:00:00-05:00",
   "goals_passing": 59,
   "goals_total": 59
@@ -29,7 +30,9 @@ All new entries MUST use this schema:
 
 **Field standardization:**
 - Use `target` (not `goal_id`) — this is what recent cycles already use
-- Use `sha` (not `commit_sha`) — shorter, matches recent convention
+- Use `sha` as the compatibility alias for `canonical_sha`
+- Use `canonical_sha` for the implementation commit the cycle actually delivered
+- Use `log_sha` only when the bookkeeping/log commit is distinct from `canonical_sha`
 - Always include `goals_passing` and `goals_total` — enables trajectory plotting
 - Optional fields: `quality_score` (quality mode), `idle_streak` (idle cycles), `parallel` + `goal_ids` (parallel mode)
 
@@ -37,8 +40,8 @@ All new entries MUST use this schema:
 
 **Sequential cycle entry:**
 ```jsonl
-{"cycle": 1, "target": "test-pass-rate", "result": "improved", "sha": "abc1234", "goals_passing": 18, "goals_total": 23, "timestamp": "2026-02-11T21:00:00Z"}
-{"cycle": 2, "target": "doc-coverage", "result": "regressed", "sha": "def5678", "goals_passing": 17, "goals_total": 23, "timestamp": "2026-02-11T21:30:00Z"}
+{"cycle": 1, "target": "test-pass-rate", "result": "improved", "sha": "abc1234", "canonical_sha": "abc1234", "goals_passing": 18, "goals_total": 23, "timestamp": "2026-02-11T21:00:00Z"}
+{"cycle": 2, "target": "doc-coverage", "result": "regressed", "sha": "def5678", "canonical_sha": "def5678", "log_sha": "fedcba9", "goals_passing": 17, "goals_total": 23, "timestamp": "2026-02-11T21:30:00Z"}
 ```
 
 **Idle cycle entry** (not committed to git):
@@ -60,12 +63,22 @@ Every productive cycle log entry MUST include:
 | `cycle` | Cycle number (1-indexed) |
 | `target` | Target goal ID, or `"idle"` for idle cycles |
 | `result` | One of: `improved`, `regressed`, `unchanged`, `harvested`, `quarantined` |
-| `sha` | Git SHA after cycle commit (omitted for idle cycles) |
+| `sha` | Compatibility alias for the implementation SHA (omitted for idle cycles) |
+| `canonical_sha` | Implementation commit the cycle actually delivered |
 | `goals_passing` | Count of goals with result "pass" (omitted for idle cycles) |
 | `goals_total` | Total goals measured (omitted for idle cycles) |
 | `timestamp` | ISO 8601 timestamp |
 
-These enable fitness trajectory plotting across cycles.
+`log_sha` is optional and should only be written when the log/bookkeeping commit
+differs from `canonical_sha`. These fields enable fitness trajectory plotting
+without losing retrospective provenance.
+
+### Substantive-Delta Rule
+
+Do not record `result: "improved"` when a cycle produces no non-agent repo delta.
+If the cycle touched only `.agents/` artifacts or otherwise made no substantive
+repo change, rewrite the outcome to `unchanged` and keep it local-only. This
+prevents ledger churn from being misread as product progress.
 
 ### Telemetry
 
@@ -82,16 +95,29 @@ disposable if compaction occurs, and the idle streak is re-derived from disk at
 session start.
 
 ```bash
-# Productive cycle: commit cycle-history.jsonl only
-git add .agents/evolve/cycle-history.jsonl
-git commit -m "evolve: cycle ${CYCLE} -- ${TARGET} ${OUTCOME}"
+# Productive cycle: log via the canonical writer, then commit
+bash scripts/evolve-log-cycle.sh \
+  --cycle "$CYCLE" \
+  --target "$TARGET" \
+  --result "$OUTCOME" \
+  --canonical-sha "$(git rev-parse --short HEAD)" \
+  --cycle-start-sha "$CYCLE_START_SHA" \
+  --goals-passing "$PASSING" \
+  --goals-total "$TOTAL"
 
 # Parallel productive cycle:
-git add .agents/evolve/cycle-history.jsonl
-git commit -m "evolve: cycle ${CYCLE} -- parallel wave [${goal_ids}] ${outcome}"
+bash scripts/evolve-log-cycle.sh \
+  --cycle "$CYCLE" \
+  --target "parallel-wave" \
+  --goal-ids "${goal_ids_csv}" \
+  --parallel \
+  --result "$OUTCOME" \
+  --canonical-sha "$(git rev-parse --short HEAD)" \
+  --goals-passing "$PASSING" \
+  --goals-total "$TOTAL"
 
-# Idle cycle: append locally, do NOT commit
-echo '{"cycle":N,"target":"idle","result":"unchanged",...}' >> .agents/evolve/cycle-history.jsonl
+# Idle or no-delta cycle: append locally, do NOT commit
+bash scripts/evolve-log-cycle.sh --cycle "$CYCLE" --target "idle" --result "unchanged" >/dev/null
 # No git add, no git commit
 ```
 
@@ -116,7 +142,7 @@ On session restart or after compaction:
 1. Read `.agents/evolve/cycle-history.jsonl` to find last completed cycle number
 2. Set `evolve_state.cycle` to last cycle + 1
 3. Resume from Step 1 (kill switch check)
-4. The baseline snapshot (`fitness-0-baseline.json`) is preserved -- do not regenerate
+4. The active baseline pointer (`active-baseline.txt`) is preserved -- do not regenerate the current era baseline
 
 ## Kill Switch
 

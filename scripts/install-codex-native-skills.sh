@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SYNC_SCRIPT="$REPO_ROOT/scripts/sync-codex-native-skills.sh"
 EXPORT_SCRIPT="$REPO_ROOT/scripts/export-claude-skills-to-codex.sh"
+PLUGIN_INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-plugin.sh"
 
 SRC="$REPO_ROOT/skills-codex"
 DST="$HOME/.codex/skills"
@@ -16,12 +17,17 @@ BACKUP=""
 ONLY_CSV=""
 SKIP_SYNC="false"
 DRY_RUN="false"
+DEST_EXPLICIT="false"
 
 usage() {
   cat <<'EOF'
 install-codex-native-skills.sh
 
 Builds Codex-native skills into ./skills-codex and installs them to ~/.codex/skills.
+
+If the current Codex install metadata reports native-plugin mode, the default
+behavior is to refresh the active plugin cache instead of writing raw skills to
+~/.codex/skills. Pass --dest to force a raw skill install.
 
 Options:
   --source <dir>      Codex-native source skills root (default: ./skills-codex)
@@ -47,6 +53,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dest)
       DST="${2:-}"
+      DEST_EXPLICIT="true"
       shift 2
       ;;
     --backup)
@@ -84,6 +91,25 @@ if [[ "$DST" != /* ]]; then
   DST="$REPO_ROOT/$DST"
 fi
 
+read_install_meta_value() {
+  local key="$1"
+
+  [[ -f "$INSTALL_META" ]] || return 1
+  sed -n "s/.*\"${key}\":[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$INSTALL_META" | head -n 1
+}
+
+should_refresh_native_plugin() {
+  local install_mode
+  local plugin_root
+
+  [[ "$DEST_EXPLICIT" != "true" ]] || return 1
+  install_mode="$(read_install_meta_value "install_mode" || true)"
+  plugin_root="$(read_install_meta_value "plugin_root" || true)"
+
+  [[ "$install_mode" == "native-plugin" ]] || return 1
+  [[ -n "$plugin_root" ]] || return 1
+}
+
 if [[ "$SKIP_SYNC" != "true" ]]; then
   sync_args=(--src "$REPO_ROOT/skills" --out "$SRC")
   if [[ -n "$ONLY_CSV" ]]; then
@@ -97,6 +123,24 @@ fi
   echo "Run without --skip-sync or build first via scripts/sync-codex-native-skills.sh." >&2
   exit 1
 }
+
+VERSION="unknown"
+if git -C "$REPO_ROOT" rev-parse --short HEAD >/dev/null 2>&1; then
+  VERSION="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+fi
+
+if should_refresh_native_plugin; then
+  plugin_root="$(read_install_meta_value "plugin_root")"
+  echo "Detected native-plugin install metadata at $INSTALL_META"
+  echo "Refreshing active Codex plugin cache at $plugin_root"
+  bash "$PLUGIN_INSTALL_SCRIPT" \
+    --repo-root "$REPO_ROOT" \
+    --codex-home "$HOME/.codex" \
+    --skills-src "$SRC" \
+    --version "$VERSION" \
+    --update-command "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+  exit 0
+fi
 
 export_args=(--src "$SRC" --dst "$DST")
 if [[ -n "$BACKUP" ]]; then
@@ -113,10 +157,6 @@ bash "$EXPORT_SCRIPT" "${export_args[@]}"
 
 # Write local install metadata for stale-skill reminders (no telemetry)
 INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-VERSION="unknown"
-if git -C "$REPO_ROOT" rev-parse --short HEAD >/dev/null 2>&1; then
-  VERSION="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
-fi
 mkdir -p "$(dirname "$INSTALL_META")"
 cat > "$INSTALL_META" <<EOF
 {

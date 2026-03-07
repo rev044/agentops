@@ -28,7 +28,7 @@ Given `$implement <issue-id-or-description>`:
 
 ```bash
 # Pull knowledge scoped to this issue (if ao available)
-ao know lookup --bead <issue-id> --limit 3 2>/dev/null || true
+ao lookup --bead <issue-id> --limit 3 2>/dev/null || true
 ```
 
 ### Step 1: Get Issue Details
@@ -55,7 +55,7 @@ bd update <issue-id> --status in_progress 2>/dev/null
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao work context assemble --task='<issue title and description>'
+    ao context assemble --task='<issue title and description>'
 fi
 ```
 
@@ -336,7 +336,7 @@ if command -v ao &>/dev/null; then
 
   if [ -n "$COMMIT_HASH" ]; then
     # Record successful implementation
-    ao work ratchet record implement \
+    ao ratchet record implement \
       --output "$COMMIT_HASH" \
       --files "$CHANGED_FILES" \
       --issue "<issue-id>" \
@@ -352,7 +352,7 @@ if command -v ao &>/dev/null; then
   fi
 else
   echo "Ratchet: ao CLI not available - implementation NOT recorded"
-  echo "  Run manually: ao work ratchet record implement --output <commit>"
+  echo "  Run manually: ao ratchet record implement --output <commit>"
 fi
 ```
 
@@ -360,7 +360,7 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao work ratchet record implement \
+  ao ratchet record implement \
     --status blocked \
     --reason "<blocker description>" \
     2>/dev/null
@@ -375,7 +375,7 @@ After implementation is complete:
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao work ratchet record implement --output "<issue-id>" 2>/dev/null || true
+  ao ratchet record implement --output "<issue-id>" 2>/dev/null || true
 fi
 ```
 
@@ -471,7 +471,7 @@ If bd CLI not available:
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Issue not found | Issue ID doesn't exist or beads not synced | Run `bd sync` then `bd show <id>` to verify |
+| Issue not found | Issue ID doesn't exist or local state looks stale | Run `bd show <id>` to verify; use `bd vc status` only if you need Dolt state |
 | GREEN mode violation | Edited a file not related to the issue scope | Revert unrelated changes. GREEN mode restricts edits to files relevant to the issue |
 | Verification gate fails | Tests fail or build breaks after implementation | Read the verification output, fix the specific failures, re-run verification |
 | "BLOCKED" status | Contract contradicts tests or is incomplete in GREEN mode | Write BLOCKED with specific reason, do NOT modify tests |

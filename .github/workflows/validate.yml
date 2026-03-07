@@ -193,6 +193,7 @@ jobs:
                 --exclude-dir=cli/testdata \
                 --exclude="install-opencode.sh" \
                 --exclude="install-codex.sh" \
+                --exclude="install-codex-plugin.sh" \
                 --exclude="install-codex-native-skills.sh" \
                 --exclude="ci-local-release.sh" \
                 . 2>/dev/null; then

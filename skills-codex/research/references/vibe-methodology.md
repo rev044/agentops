@@ -98,7 +98,7 @@ bd ready             # What's available
 /implement <issue>   # Focused execution
 
 # End
-bd sync              # Sync beads
+bd vc status         # Optional Dolt status check; JSONL auto-sync is automatic
 git commit           # Commit changes
 git push             # WORK IS NOT DONE UNTIL PUSHED
 ```

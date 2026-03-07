@@ -93,14 +93,14 @@ Given `$crank [epic-id | plan-file.md | "description"]`:
 # If ao CLI available, pull relevant knowledge for this epic
 if command -v ao &>/dev/null; then
     # Pull knowledge scoped to the epic
-    ao know lookup --query "<epic-title>" --limit 5 2>/dev/null || \
-      ao know search "epic execution implementation patterns" 2>/dev/null | head -20
+    ao lookup --query "<epic-title>" --limit 5 2>/dev/null || \
+      ao search "epic execution implementation patterns" 2>/dev/null | head -20
 
     # Check flywheel status
-    ao quality metrics flywheel status 2>/dev/null
+    ao metrics flywheel status 2>/dev/null
 
     # Get current ratchet state
-    ao work ratchet status 2>/dev/null
+    ao ratchet status 2>/dev/null
 fi
 ```
 
@@ -345,11 +345,15 @@ For RED Gate enforcement and retry logic, read `skills/crank/references/test-fir
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao work context assemble --task='<epic title>: wave $wave'
+    ao context assemble --task='<epic title>: wave $wave'
 fi
 ```
 
 This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's TaskCreate description so workers start with full project context.
+
+Worker prompt signpost:
+- Codex workers should include: `Knowledge artifacts are in .agents/. See .agents/AGENTS.md for navigation. Use \`ao lookup --query "topic"\` for learnings.`
+- Codex workers cannot rely on `.agents/` file access in sandbox. The lead should search `.agents/learnings/` for relevant material and inline the top 3 results directly in the worker prompt body.
 
 ### Step 4: Execute Wave via Swarm
 
@@ -643,7 +647,7 @@ This summary is consumed by `$post-mortem` Step 2.2 for scope reconciliation.
 
 ### Step 8.5: Extract Learnings (ao Integration)
 
-If ao CLI available: run `ao know forge transcript`, `ao quality flywheel close-loop --quiet`, `ao quality metrics flywheel status`, and `ao quality pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
+If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`, `ao metrics flywheel status`, and `ao pool list --status=pending` to extract and review learnings. If ao unavailable, skip and recommend `$post-mortem` manually.
 
 ### Step 9: Report Completion
 
@@ -661,7 +665,7 @@ Tell the user:
 Epic: <epic-id>
 Issues completed: N
 Iterations: M/50
-Flywheel: <status from ao quality metrics flywheel status>
+Flywheel: <status from ao metrics flywheel status>
 ```
 
 If stopped early:
@@ -715,7 +719,7 @@ Include `wc -l` assertions in task metadata when content moves between files.
 
 **User says:** `$crank ag-m0r`
 
-Loads learnings (`ao know inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao know forge transcript`.
+Loads learnings (`ao lookup --query "<epic-title>"`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
 
 ### Execute from Plan File (TaskList Mode)
 

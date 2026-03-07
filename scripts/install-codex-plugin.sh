@@ -44,6 +44,7 @@ Install the AgentOps native Codex plugin into CODEX_HOME.
 Options:
   --repo-root <dir>     AgentOps repo or extracted release bundle root
   --codex-home <dir>    Target Codex home (default: ~/.codex)
+  --skills-src <dir>    Codex-native skills source root (default: <repo-root>/skills-codex)
   --version <value>     Version string to record in install metadata
   --update-command <s>  Update command to record in install metadata
   --help                Show this help
@@ -58,6 +59,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --codex-home)
       CODEX_HOME="${2:-}"
+      shift 2
+      ;;
+    --skills-src)
+      PLUGIN_SKILLS_SRC="${2:-}"
       shift 2
       ;;
     --version)
@@ -89,7 +94,9 @@ fi
 
 PLUGIN_MANIFEST="${REPO_ROOT}/.codex-plugin/plugin.json"
 MARKETPLACE_FILE="${REPO_ROOT}/.agents/plugins/marketplace.json"
-PLUGIN_SKILLS_SRC="${REPO_ROOT}/skills-codex"
+if [[ "$PLUGIN_SKILLS_SRC" != /* ]]; then
+  PLUGIN_SKILLS_SRC="${REPO_ROOT}/${PLUGIN_SKILLS_SRC}"
+fi
 PLUGIN_CACHE_ROOT="${CODEX_HOME}/plugins/cache/${MARKETPLACE_NAME}/${PLUGIN_NAME}/local"
 PLUGIN_SKILLS_DST="${PLUGIN_CACHE_ROOT}/skills-codex"
 LEGACY_SKILLS_DIR="${CODEX_HOME}/skills"

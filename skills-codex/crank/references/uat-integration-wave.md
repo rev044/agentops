@@ -20,17 +20,17 @@ This prevents integration workers from making conflicting edits to files owned b
 
 ### Pipeline Flow Test
 ```bash
-# Inject knowledge → mine signals → defrag cleanup
-ao inject --for=research --no-cite
+# Lookup knowledge → mine signals → defrag cleanup
+ao lookup --query "research" --no-cite
 ao mine --sources git --since 1d --quiet
 ao defrag --dedup --quiet
 ```
 
 ### Cross-Feature State Test
 ```bash
-# Handoff creates artifact → inject reads it
+# Handoff creates artifact → lookup reads it
 ao handoff --dry-run "integration test"
-ao inject --no-cite
+ao lookup --query "integration test" --no-cite
 ```
 
 ### CLI Flag Interaction Test
@@ -38,7 +38,7 @@ ao inject --no-cite
 # Global flags (--json, --dry-run) work across all subcommands
 ao defrag --dry-run --json
 ao mine --quiet --sources git
-ao inject --json --no-cite
+ao lookup --query "integration test" --json --no-cite
 ```
 
 ## Worker Prompt Template

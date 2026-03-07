@@ -33,7 +33,7 @@ Look for provenance metadata:
 grep -i "source\|session\|from\|extracted" <artifact-path>
 
 # Search for related transcripts using ao
-ao know search "<artifact-name>" 2>/dev/null
+ao search "<artifact-name>" 2>/dev/null
 ```
 
 ### Step 3: Search Session Transcripts with CASS

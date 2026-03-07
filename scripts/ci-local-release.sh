@@ -318,6 +318,7 @@ run_dangerous_pattern_scan() {
             --exclude-dir=cli/testdata \
             --exclude="install-opencode.sh" \
             --exclude="install-codex.sh" \
+            --exclude="install-codex-plugin.sh" \
             --exclude="install-codex-native-skills.sh" \
             --exclude="ci-local-release.sh" \
             . 2>/dev/null; then
@@ -495,8 +496,12 @@ run_step_bg "Hook preflight" ./scripts/validate-hook-preflight.sh
 run_step_bg "Hooks/docs parity" ./scripts/validate-hooks-doc-parity.sh
 run_step_bg "CI policy/docs parity" ./scripts/validate-ci-policy-parity.sh
 run_step_bg "Worktree disposition gate" ./scripts/check-worktree-disposition.sh
+run_step_bg "Skill integrity" bash ./skills/heal-skill/scripts/heal.sh --strict
+run_step_bg "Skill runtime parity" bash ./scripts/validate-skill-runtime-parity.sh
 run_step_bg "Codex runtime sections" bash ./scripts/validate-codex-runtime-sections.sh
 run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
+run_step_bg "Codex install bundle parity" bash ./scripts/validate-codex-install-bundle.sh
+run_step_bg "Contract compatibility gate" ./scripts/check-contract-compatibility.sh
 run_step_bg "Embedded sync check" ./scripts/validate-embedded-sync.sh
 run_step_bg "Secret pattern scan" run_security_scan_patterns
 run_step_bg "Dangerous shell pattern scan" run_dangerous_pattern_scan
@@ -514,8 +519,14 @@ run_step_bg "CLI docs parity" ./scripts/generate-cli-reference.sh --check
 run_step_bg "ShellCheck" run_shellcheck
 run_step_bg "Markdownlint" run_markdownlint
 run_step_bg "Smoke tests" ./tests/smoke-test.sh --verbose
+run_step_bg "Skill lint" bash ./tests/skills/run-all.sh
 run_step_bg "CLI integration smoke tests" ./tests/integration/test-cli-commands.sh
 run_step_bg "Command/test pairing gate tests" ./tests/scripts/test-go-command-test-pair.sh
+run_step_bg "Skill runtime parity tests" bash ./tests/scripts/test-skill-runtime-parity.sh
+run_step_bg "Codex plugin install tests" bash ./tests/scripts/test-codex-plugin-install.sh
+run_step_bg "Codex native install tests" bash ./tests/scripts/test-codex-native-skills-install.sh
+run_step_bg "Dev hook install tests" bash ./tests/scripts/test-install-dev-hooks.sh
+run_step_bg "Git hook shim tests" bash ./tests/scripts/test-githook-shims.sh
 run_step_bg "Constraint compiler BATS wrapper" ./tests/hooks/test-constraint-compiler.sh
 run_step_bg "cmd/ao coverage floor gate" ./scripts/check-cmdao-coverage-floor.sh
 
@@ -527,6 +538,7 @@ collect_parallel
 run_step_bg "Coverage ratchet check" ./scripts/coverage-ratchet.sh --check
 run_step_bg "Skill schema validation" ./scripts/validate-skill-schema.sh --verbose
 run_step_bg "Learning coherence" ./scripts/validate-learning-coherence.sh
+run_step_bg "JSON flag consistency" ./tests/cli/test-json-flag-consistency.sh
 
 collect_parallel
 

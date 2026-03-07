@@ -14,7 +14,13 @@ setup() {
 
     # Build a fake repo with the real script copied in so SCRIPT_DIR resolves here
     FAKE_REPO="$TMP_DIR/repo"
-    mkdir -p "$FAKE_REPO/scripts" "$FAKE_REPO/cli" "$FAKE_REPO/hooks" "$FAKE_REPO/cli/embedded/hooks"
+    mkdir -p \
+        "$FAKE_REPO/scripts" \
+        "$FAKE_REPO/cli" \
+        "$FAKE_REPO/hooks" \
+        "$FAKE_REPO/cli/embedded/hooks" \
+        "$FAKE_REPO/skills/heal-skill/scripts" \
+        "$FAKE_REPO/tests/skills"
     /bin/cp "$SCRIPT" "$FAKE_REPO/scripts/pre-push-gate.sh"
     chmod +x "$FAKE_REPO/scripts/pre-push-gate.sh"
     touch "$FAKE_REPO/cli/go.mod"
@@ -26,6 +32,14 @@ setup() {
 
     GATE="$FAKE_REPO/scripts/pre-push-gate.sh"
     make_stub "$FAKE_REPO/scripts/check-worktree-disposition.sh"
+    make_stub "$FAKE_REPO/scripts/validate-skill-runtime-parity.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-skill-parity.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-install-bundle.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-runtime-sections.sh"
+    make_stub "$FAKE_REPO/skills/heal-skill/scripts/heal.sh"
+    make_stub "$FAKE_REPO/tests/skills/run-all.sh"
+    make_stub "$FAKE_REPO/scripts/validate-skill-schema.sh"
+    make_stub "$FAKE_REPO/scripts/validate-manifests.sh"
 }
 
 teardown() {
@@ -53,11 +67,11 @@ STUB
     [ "$status" -eq 0 ]
 }
 
-@test "pre-push-gate.sh checks all 7 gates" {
-    # Verify the script references all 7 check sections
+@test "pre-push-gate.sh checks all 15 gates" {
+    # Verify the script references all gate sections
     run grep -c '# --- [0-9]' "$SCRIPT"
     [ "$status" -eq 0 ]
-    [ "$output" -ge 7 ]
+    [ "$output" -ge 15 ]
 }
 
 @test "pre-push-gate.sh exits 1 on go build failure" {

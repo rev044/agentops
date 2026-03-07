@@ -91,6 +91,7 @@ CI validates not just builds/tests but also docs parity, hook safety, skill inte
 
 ## Practical tips
 
+- Activate the repo-managed git hooks once per clone/worktree: `bash scripts/install-dev-hooks.sh`
 - Trust runtime files over narrative docs when there is a mismatch.
 - Keep changes small and verify with local gates before pushing.
 - Treat `.agents/` and hooks as first-class parts of the system behavior.

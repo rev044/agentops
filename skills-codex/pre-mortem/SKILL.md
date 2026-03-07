@@ -56,7 +56,7 @@ To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (c
 
 ```bash
 if command -v ao &>/dev/null; then
-    ao know search "plan validation lessons <goal>" 2>/dev/null | head -10
+    ao search "plan validation lessons <goal>" 2>/dev/null | head -10
 fi
 ```
 If ao returns prior plan review findings, include them as context for the council packet. Skip silently if ao is unavailable or returns no results.
@@ -181,7 +181,7 @@ source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 ### Step 5: Record Ratchet Progress
 
 ```bash
-ao work ratchet record pre-mortem 2>/dev/null || true
+ao ratchet record pre-mortem 2>/dev/null || true
 ```
 
 ### Step 6: Report to User

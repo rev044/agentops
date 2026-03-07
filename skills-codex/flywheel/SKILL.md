@@ -64,7 +64,7 @@ find .agents/ -name "*.md" -mtime +30 2>/dev/null | wc -l
 ```bash
 if command -v ao &>/dev/null; then
   # Get citation report (cache metrics)
-  CITE_REPORT=$(ao quality metrics cite-report --json --days 30 2>/dev/null)
+  CITE_REPORT=$(ao metrics cite-report --json --days 30 2>/dev/null)
   if [ -n "$CITE_REPORT" ]; then
     HIT_RATE=$(echo "$CITE_REPORT" | jq -r '.hit_rate // "unknown"')
     UNCITED=$(echo "$CITE_REPORT" | jq -r '(.uncited_learnings // []) | length')
@@ -107,23 +107,23 @@ fi
 
 ```bash
 if command -v ao &>/dev/null; then
-  ao quality metrics flywheel status 2>/dev/null || echo "ao quality metrics flywheel status unavailable"
+  ao metrics flywheel status 2>/dev/null || echo "ao metrics flywheel status unavailable"
   ao status 2>/dev/null || echo "ao status unavailable"
-  ao quality maturity --scan 2>/dev/null || echo "ao quality maturity unavailable"
+  ao maturity --scan 2>/dev/null || echo "ao maturity unavailable"
   ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
-  ao quality badge 2>/dev/null || echo "ao quality badge unavailable"
+  ao badge 2>/dev/null || echo "ao badge unavailable"
 
   # Knowledge maintenance
-  ao quality dedup --merge 2>/dev/null || true
-  ao quality contradict 2>/dev/null || true
-  ao quality constraint review 2>/dev/null || true
-  ao quality curate status 2>/dev/null || true
-  ao quality metrics health 2>/dev/null || true
-  ao quality metrics cite-report --days 30 2>/dev/null || true
+  ao dedup --merge 2>/dev/null || true
+  ao contradict 2>/dev/null || true
+  ao constraint review 2>/dev/null || true
+  ao curate status 2>/dev/null || true
+  ao metrics health 2>/dev/null || true
+  ao metrics cite-report --days 30 2>/dev/null || true
 
   # Active pruning: archive stale, evict low-utility
-  ao quality maturity --expire --archive 2>/dev/null || true
-  ao quality maturity --evict --archive 2>/dev/null || true
+  ao maturity --expire --archive 2>/dev/null || true
+  ao maturity --evict --archive 2>/dev/null || true
 else
   echo "ao CLI not available — using file-based metrics"
 

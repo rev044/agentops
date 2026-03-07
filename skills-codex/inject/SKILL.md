@@ -4,6 +4,8 @@ description: 'Inject relevant knowledge into session context from .agents/ artif
 ---
 
 
+> **DEPRECATED (removal target: v3.0.0)** — Use `ao lookup --query "topic"` for on-demand learnings retrieval, or see `.agents/AGENTS.md` for knowledge navigation. This skill and the `ao inject` CLI command still work but are no longer called from hooks or other skills.
+
 # Inject Skill
 
 **On-demand knowledge retrieval. Not run automatically at startup (since ag-8km).**
@@ -12,16 +14,16 @@ Inject relevant prior knowledge into the current session.
 
 ## How It Works
 
-In the default `manual` startup mode, MEMORY.md is auto-loaded by Codex and no startup injection occurs. Use `$inject` or `ao know inject` for on-demand retrieval when you need deeper context.
+In the default `manual` startup mode, MEMORY.md is auto-loaded by Codex and no startup injection occurs. Use `$inject` or `ao inject` for on-demand retrieval when you need deeper context.
 
 In `lean` or `legacy` startup modes (set via `AGENTOPS_STARTUP_CONTEXT_MODE`), the SessionStart hook runs:
 ```bash
 # lean mode (MEMORY.md fresh): 400 tokens
-ao know inject --apply-decay --format markdown --max-tokens 400 \
+ao inject --apply-decay --format markdown --max-tokens 400 \
   [--bead <bead-id>] [--predecessor <handoff-path>]
 
 # legacy mode: 800 tokens
-ao know inject --apply-decay --format markdown --max-tokens 800 \
+ao inject --apply-decay --format markdown --max-tokens 800 \
   [--bead <bead-id>] [--predecessor <handoff-path>]
 ```
 
@@ -49,7 +51,7 @@ Given `$inject [topic]`:
 
 **With ao CLI:**
 ```bash
-ao know inject --context "<topic>" --format markdown --max-tokens 1000
+ao inject --context "<topic>" --format markdown --max-tokens 1000
 ```
 
 **Without ao CLI, search manually:**
@@ -128,7 +130,7 @@ Knowledge relevance decays over time (~17%/week). More recent learnings are weig
 **Hook triggers:** `session-start.sh` runs at session start with `AGENTOPS_STARTUP_CONTEXT_MODE=lean` or `legacy`
 
 **What happens:**
-1. Hook calls `ao know inject --apply-decay --format markdown --max-tokens 400` (lean) or `--max-tokens 800` (legacy)
+1. Hook calls `ao inject --apply-decay --format markdown --max-tokens 400` (lean) or `--max-tokens 800` (legacy)
 2. CLI searches `.agents/learnings/`, `.agents/patterns/`, `.agents/research/` for relevant artifacts
 3. CLI applies recency-weighted decay (~17%/week) to rank results
 4. CLI outputs top-ranked knowledge as markdown within token budget
@@ -136,14 +138,14 @@ Knowledge relevance decays over time (~17%/week). More recent learnings are weig
 
 **Result:** Prior learnings, patterns, research automatically available at session start without manual lookup.
 
-**Note:** In the default `manual` mode, MEMORY.md is auto-loaded by Codex and this hook emits only a pointer to on-demand retrieval commands (`ao know search`, `ao know lookup`).
+**Note:** In the default `manual` mode, MEMORY.md is auto-loaded by Codex and this hook emits only a pointer to on-demand retrieval commands (`ao search`, `ao lookup`).
 
 ### Manual Context Injection
 
 **User says:** `$inject authentication` or "recall knowledge about auth"
 
 **What happens:**
-1. Agent calls `ao know inject --context "authentication" --format markdown --max-tokens 1000`
+1. Agent calls `ao inject --context "authentication" --format markdown --max-tokens 1000`
 2. CLI filters artifacts by topic relevance
 3. Agent reads top-ranked learnings and patterns
 4. Agent summarizes injected knowledge for current work

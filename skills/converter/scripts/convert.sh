@@ -7,8 +7,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SKILL_PATTERN=""
-NAMESPACE_FROM=()
-NAMESPACE_TO=()
 CODEX_LAYOUT="modular"
 ARGS_SKILL_DIR_OR_FLAG=""
 ARGS_TARGET=""
@@ -137,6 +135,8 @@ codex_rewrite_text() {
     s/\bclaude[ ]session(s)?\b/codex session$1/g;
     s/\bClaude[ ]runtime\b/Codex runtime/g;
     s/\bclaude[ ]runtime\b/codex runtime/g;
+    s/\bClaude[ ]workers\b/Codex workers/g;
+    s/\bclaude[ ]workers\b/codex workers/g;
     s/\bclaude-native-teams\b/codex-sub-agents/g;
     s{~/.claude/}{~/.codex/}g;
     s{\$HOME/.claude/}{\$HOME/.codex/}g;
@@ -149,16 +149,6 @@ codex_rewrite_text() {
     s/\bEnterWorktree\b/enter-worktree/g;
   ')"
 
-  # Rewrite flat ao command references to namespace-qualified forms expected by
-  # codex-native lint rules (inverse of cli/cmd/ao/doctor.go deprecated map).
-  if [[ ${#NAMESPACE_FROM[@]} -gt 0 ]]; then
-    local i from_esc to_esc
-    for i in "${!NAMESPACE_FROM[@]}"; do
-      from_esc="$(printf '%s' "${NAMESPACE_FROM[$i]}" | sed -e 's/[\/&|]/\\&/g')"
-      to_esc="$(printf '%s' "${NAMESPACE_TO[$i]}" | sed -e 's/[\/&|]/\\&/g')"
-      output="$(printf '%s' "$output" | sed "s|${from_esc}|${to_esc}|g")"
-    done
-  fi
   printf '%s' "$output"
 }
 
@@ -188,34 +178,6 @@ codex_dedupe_runtime_headings() {
       print
     }
   '
-}
-
-# Build replacements from doctor.go deprecated map.
-# doctor.go stores old(namespace-qualified) -> new(flat) references.
-# For codex-native skills we intentionally apply the inverse (new -> old).
-load_namespace_rewrite_pairs() {
-  local doctor_go="$REPO_ROOT/cli/cmd/ao/doctor.go"
-  NAMESPACE_FROM=()
-  NAMESPACE_TO=()
-
-  [[ -f "$doctor_go" ]] || return
-
-  local pairs
-  pairs="$(
-    sed -n '/var deprecatedCommands/,/^}/p' "$doctor_go" \
-      | grep '"ao ' \
-      | sed 's/.*"\(ao [^"]*\)".*:.*"\(ao [^"]*\)".*/\1|\2/' \
-      | awk -F'|' '{print length($2), $1 "|" $2}' \
-      | sort -rn \
-      | cut -d' ' -f2-
-  )"
-
-  local old_cmd new_cmd
-  while IFS='|' read -r old_cmd new_cmd; do
-    [[ -n "$old_cmd" && -n "$new_cmd" ]] || continue
-    NAMESPACE_FROM+=("$new_cmd")
-    NAMESPACE_TO+=("$old_cmd")
-  done <<< "$pairs"
 }
 
 # ─── Stage 1: Parse ───────────────────────────────────────────────────
@@ -645,7 +607,6 @@ main() {
   local output_dir="$ARGS_OUTPUT_DIR"
 
   load_skill_pattern
-  load_namespace_rewrite_pairs
 
   if [[ "$skill_dir_or_flag" == "--all" ]]; then
     local skills_root="$REPO_ROOT/skills"

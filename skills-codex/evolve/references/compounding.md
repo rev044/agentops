@@ -5,12 +5,12 @@ Two mechanisms feed the loop:
 **1. Knowledge flywheel (each cycle is smarter):**
 ```
 Session 1:
-  ao inject (nothing yet)         → cycle runs blind
+  ao lookup --query "recent learnings" (nothing yet)  → cycle runs blind
   /rpi fixes test-pass-rate       → post-mortem runs ao forge
   Learnings extracted: "tests/skills/run-all.sh validates frontmatter"
 
 Session 2:
-  ao inject (loads Session 1 learnings)  → cycle knows about frontmatter validation
+  ao lookup --query "recent learnings" (loads Session 1 learnings)  → cycle knows about frontmatter validation
   /rpi fixes doc-coverage                → approach informed by prior learning
   Learnings extracted: "references/ dirs need at least one .md file"
 ```
@@ -21,7 +21,7 @@ Cycle 1: /rpi fixes test-pass-rate
   → post-mortem harvests: "add missing smoke test for /evolve" → next-work.jsonl
 
 Cycle 2: all GOALS.yaml goals pass
-  → /evolve reads next-work.jsonl (filtered to current repo + cross-repo '*')
+  → /evolve reads next-work.jsonl (exact repo first, then cross-repo '*', then legacy)
   → picks "add missing smoke test"
   → /rpi fixes it → post-mortem harvests: "update SKILL-TIERS count"
 
@@ -34,7 +34,7 @@ The loop keeps running as long as post-mortem keeps finding follow-up work. Each
 ```
 GOALS.yaml goals (explicit, human-authored)  → fix these first
 Open beads (bd ready)                        → work when goals pass
-next-work.jsonl (harvested from post-mortem) → work on these when beads empty
+next-work.jsonl (harvested from post-mortem) → exact repo first, then `*`, then legacy
 nothing left                                 → re-measure (external changes may create new work)
 3 consecutive idle cycles                    → stagnation stop (nothing left to improve)
 60-minute circuit breaker                    → stop if no productive cycle in 60 min

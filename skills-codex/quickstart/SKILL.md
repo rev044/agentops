@@ -43,8 +43,8 @@ Match the first row that applies. Output only that message — nothing else.
 | Condition | Message |
 |-----------|---------|
 | GIT=false | "⚠ Not in a git repo. Run `git init` first." |
-| AO=false | "📦 Install ao CLI first:\n  brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops\n  brew install agentops\n  ao start init --hooks && ao start seed\nThen: `$rpi \"a small goal\"` to run your first cycle." |
-| AGENTS=false | "🌱 ao is installed but not initialized here.\n  ao start init --hooks && ao start seed\nThen: `$rpi \"a small goal\"` to run your first cycle." |
+| AO=false | "📦 Install ao CLI first:\n  brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops\n  brew install agentops\n  ao init --hooks && ao seed\nThen: `$rpi \"a small goal\"` to run your first cycle." |
+| AGENTS=false | "🌱 ao is installed but not initialized here.\n  ao init --hooks && ao seed\nThen: `$rpi \"a small goal\"` to run your first cycle." |
 | BD=false | "✅ Flywheel active. Start now:\n  `$rpi \"your goal\"` — full research → plan → implement pipeline\n  `$vibe recent` — validate recent changes\n  `$research <topic>` — explore the codebase\n  Want issue tracking? `brew install boshu2/agentops/beads && bd init --prefix <prefix>`" |
 | BD=true | "✅ Full stack ready.\n  `bd ready` — see open work\n  `$rpi \"your goal\"` — start a new goal from scratch\n  `$status` — see current session state" |
 

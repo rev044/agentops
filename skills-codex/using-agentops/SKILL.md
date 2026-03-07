@@ -20,9 +20,9 @@ Research → Plan → Implement → Validate
 
 ```bash
 $research <topic>      # Deep codebase exploration
-ao know search "<query>"    # Search existing knowledge
-ao know lookup <id>         # Pull full content of specific learning
-ao know lookup --query "x"  # Search knowledge by relevance
+ao search "<query>"    # Search existing knowledge
+ao lookup <id>         # Pull full content of specific learning
+ao lookup --query "x"  # Search knowledge by relevance
 ```
 
 **Output:** `.agents/research/<topic>.md`
@@ -70,7 +70,7 @@ $release --dry-run     # Preview without writing
 
 | Phase | Primary Skill | Supporting Skills |
 |-------|---------------|-------------------|
-| **Research** | `$research` | `$inject` |
+| **Research** | `$research` | `ao lookup` |
 | **Plan** | `$plan` | `$pre-mortem` |
 | **Implement** | `$implement` | `$crank` (epic loop), `$swarm` (parallel execution) |
 | **Validate** | `$vibe` | `$post-mortem` (full retro + knowledge lifecycle), `$retro` (quick-capture) |
@@ -167,7 +167,7 @@ This workflow uses beads for git-native issue tracking:
 bd ready              # Unblocked issues
 bd show <id>          # Issue details
 bd close <id>         # Close issue
-bd sync               # Sync with git
+bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automatic)
 ```
 
 ## Examples
@@ -177,7 +177,7 @@ bd sync               # Sync with git
 **Hook triggers:** `session-start.sh` runs at session start
 
 **What happens:**
-1. In `manual` mode (default): MEMORY.md is auto-loaded by Codex; hook emits a pointer to on-demand retrieval (`ao know search`, `ao know lookup`)
+1. In `manual` mode (default): MEMORY.md is auto-loaded by Codex; hook emits a pointer to on-demand retrieval (`ao search`, `ao lookup`)
 2. In `lean` mode: hook extracts pending knowledge and injects prior learnings with a reduced token budget
 3. Hook injects this skill automatically into session context
 4. Agent loads RPI workflow overview, phase-to-skill mapping, trigger patterns

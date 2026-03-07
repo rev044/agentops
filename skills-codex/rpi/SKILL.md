@@ -119,7 +119,7 @@ After discovery completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao work ratchet record research 2>/dev/null || true
+ao ratchet record research 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-1" "discovery complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=1 phase_name=discovery 2>/dev/null || true
 ```
@@ -146,7 +146,7 @@ After implementation completes:
 4. Record ratchet and telemetry:
 
 ```bash
-ao work ratchet record implement 2>/dev/null || true
+ao ratchet record implement 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-2" "implementation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=2 phase_name=implementation 2>/dev/null || true
 ```
@@ -170,7 +170,7 @@ After validation completes:
 5. Record ratchet and telemetry:
 
 ```bash
-ao work ratchet record vibe 2>/dev/null || true
+ao ratchet record vibe 2>/dev/null || true
 bash scripts/checkpoint-commit.sh rpi "phase-3" "validation complete" 2>/dev/null || true
 bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=validation 2>/dev/null || true
 ```

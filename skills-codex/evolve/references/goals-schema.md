@@ -55,16 +55,19 @@ Each cycle writes a fitness snapshot with **continuous values** (not just pass/f
 Pre-cycle snapshot: `fitness-latest.json` (rolling, overwritten each cycle)
 Post-cycle snapshot: `fitness-latest-post.json` (rolling, for regression comparison)
 
-## Cycle-0 Baseline
+## Era Baselines
 
-Before the first improvement cycle runs, the system captures a baseline fitness snapshot (`fitness-0-baseline.json`). This serves as the comparison anchor for measuring session-wide progress.
+Before the first improvement cycle of a new goal era runs, evolve captures an
+immutable baseline snapshot under `.agents/evolve/baselines/`. The active era
+is referenced by `.agents/evolve/active-baseline.txt`, and
+`fitness-0-baseline.json` remains as a compatibility mirror.
 
-The baseline includes:
-- **All goals** from GOALS.yaml, measured in their initial state
-- **Cycle-0 report** (`cycle-0-report.md`) — summary of which goals are failing and their weights
-- **No regression comparisons** — this is the starting point
+Each era baseline includes:
+- **All goals** from GOALS.yaml or GOALS.md, measured in their initial state for that era
+- **Baseline metadata** in `baselines/index.jsonl` (label, path, captured time, SHA, goals total)
+- **No regression comparisons** — this is the starting point for that era
 
-When the session ends (at Teardown), the system computes the **session fitness trajectory** by comparing the baseline against the final cycle snapshot. This produces `session-fitness-delta.md`, which shows which goals improved, regressed, or stayed unchanged over the entire /evolve session.
+When the session ends (at Teardown), the system computes the **session fitness trajectory** by comparing the active era baseline against the final cycle snapshot. This produces `session-fitness-delta.md`, which shows which goals improved, regressed, or stayed unchanged over the entire /evolve session.
 
 ## Meta-Goals
 

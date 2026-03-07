@@ -20,7 +20,7 @@ claude --plugin ./ --help
 ```
 
 **Fixes:**
-- Reinstall hooks: `ao hooks install` (minimal) or `ao init --hooks --full` (all 8 events)
+- Reinstall hooks: `ao hooks install --full` (full runtime hook set) or `ao init --hooks` (full 12-event coverage by default)
 - Check that `hooks/hooks.json` is not malformed JSON
 - Restart Claude Code after hook changes
 
@@ -54,7 +54,7 @@ ls ~/.claude/skills/
 brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops
 brew install agentops
 ao init              # Create .agents/ dirs + .gitignore
-ao init --hooks      # Also install flywheel hooks (SessionStart + Stop)
+ao init --hooks      # Also install full 12-event hook coverage
 
 # bd (Beads issue tracking)
 brew install boshu2/agentops/beads
@@ -136,5 +136,5 @@ ao metrics flywheel status
 
 **Fixes:**
 - Install ao: `brew tap boshu2/agentops https://github.com/boshu2/homebrew-agentops && brew install agentops && ao init`
-- Install hooks: `ao init --hooks` (minimal) or `ao init --hooks --full` (all lifecycle events)
+- Install hooks: `ao init --hooks` (full 12-event coverage by default) or `ao init --hooks --minimal-hooks` (SessionStart + SessionEnd + Stop only)
 - Verify inject runs on session start: check `hooks/session-start.sh`

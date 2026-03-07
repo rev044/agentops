@@ -15,6 +15,7 @@ Expect:
 - Exit code `0`
 - Output contains these markers:
   - `Codex runtime sections`
+  - `Skill runtime parity`
   - `Hook install smoke (minimal + full)`
   - `ao init --hooks + ao rpi smoke`
 
@@ -65,6 +66,8 @@ When changing CI workflow policy, hook/runtime docs, or required gate wording, r
 ```bash
 bash scripts/validate-ci-policy-parity.sh
 bash scripts/validate-hooks-doc-parity.sh
+bash scripts/validate-skill-runtime-parity.sh
 bash scripts/validate-codex-runtime-sections.sh
+bash scripts/validate-codex-install-bundle.sh
 bash tests/docs/validate-doc-release.sh
 ```

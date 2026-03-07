@@ -119,8 +119,8 @@ bd dep add phase2 phase1
 ### Rig Level
 - Multiple worktrees (crew/*, polecats/*)
 - Uses `beads-sync` branch for coordination
-- `bd sync` handles cross-worktree synchronization
-- `bd sync --from-main` pulls updates from main (for ephemeral branches)
+- Coordination happens through normal git workflows plus automatic JSONL sync
+- Use `bd vc status` to inspect Dolt state when you need backend visibility
 
 ## Troubleshooting
 

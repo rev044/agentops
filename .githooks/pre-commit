@@ -53,5 +53,5 @@ fi
 
 # --- bd issue tracking (existing behavior) ---
 if command -v bd >/dev/null 2>&1; then
-    bd hook pre-commit "$@"
+    bd hooks run pre-commit "$@"
 fi
