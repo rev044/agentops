@@ -14,6 +14,7 @@ mkdir -p "$TEST_DIR/.agents/learnings"
 cat > "$TEST_DIR/.agents/learnings/proof-learning-1.md" << 'LEARNING'
 ---
 utility: 0.8
+maturity: provisional
 source_bead: proof-test
 source_phase: validate
 ---

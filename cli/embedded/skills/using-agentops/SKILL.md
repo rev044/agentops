@@ -3,6 +3,13 @@ name: using-agentops
 description: 'Meta skill explaining the RPI workflow. Auto-injected on session start. Covers Research-Plan-Implement workflow, Knowledge Flywheel, and skill catalog.'
 skill_api_version: 1
 user-invocable: false
+context:
+  window: isolated
+  intent:
+    mode: none
+  sections:
+    exclude: [HISTORY, INTEL, TASK]
+  intel_scope: none
 metadata:
   tier: meta
   dependencies: []
@@ -172,7 +179,7 @@ This workflow uses beads for git-native issue tracking:
 bd ready              # Unblocked issues
 bd show <id>          # Issue details
 bd close <id>         # Close issue
-bd sync               # Sync with git
+bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automatic)
 ```
 
 ## Examples

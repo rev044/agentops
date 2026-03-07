@@ -7,18 +7,16 @@ Common issues encountered when using bd and how to resolve them.
 ## Interface-Specific Troubleshooting
 
 **MCP tools (local environment):**
-- MCP tools require bd daemon running
-- Check daemon status: `bd daemon --status` (CLI)
-- If MCP tools fail, verify daemon is running and restart if needed
-- MCP tools automatically use daemon mode (no --no-daemon option)
+- Older docs referenced daemon-management commands, but the installed CLI in this workspace does not expose them
+- If MCP tools fail, confirm the selected database with `bd info --json`
+- If local state looks stale, run `bd doctor --json` or `bd doctor --fix --source=jsonl --yes`
 
 **CLI (web environment or local):**
-- CLI can use daemon mode (default) or direct mode (--no-daemon)
-- Direct mode has 3-5 second sync delay
+- Use direct `bd` commands (`ready`, `show`, `update`, `close`) without daemon/no-daemon toggles
 - Web environment: Install via `npm install -g @beads/cli`
 - Web environment: Initialize via `bd init <prefix>` before first use
 
-**Most issues below apply to both interfaces** - the underlying database and daemon behavior is the same.
+**Most issues below apply to both interfaces** - the underlying database, JSONL export, and Dolt VC behavior are the same.
 
 ## Contents
 
@@ -26,7 +24,7 @@ Common issues encountered when using bd and how to resolve them.
 - [Molecule-Style ID Corruption](#molecule-style-id-corruption)
 - [Dependencies Not Persisting](#dependencies-not-persisting)
 - [Status Updates Not Visible](#status-updates-not-visible)
-- [Daemon Won't Start](#daemon-wont-start)
+- [Daemon Commands Missing](#daemon-commands-missing)
 - [Database Errors on Cloud Storage](#database-errors-on-cloud-storage)
 - [JSONL File Not Created](#jsonl-file-not-created)
 - [Version Requirements](#version-requirements)
@@ -38,11 +36,10 @@ Common issues encountered when using bd and how to resolve them.
 ### Symptom
 ```bash
 bd list
-# Error: Database out of sync with JSONL. Run 'bd sync --import-only' to fix.
+# Error: Database out of sync with JSONL.
 
-bd sync --import-only
-# Error: prefix mismatch detected: database uses 'ap-' but found issues with prefixes:
-# [code- (14 issues) etl- (8 issues) hybrid- (11 issues)]
+# Current CLI repair path:
+bd doctor --fix --source=jsonl --yes
 ```
 
 ### Root Cause
@@ -61,20 +58,23 @@ cp issues.jsonl issues.jsonl.bak
 # Keep only issues with correct prefix (e.g., ap-)
 grep -E '"id":"ap-' issues.jsonl.bak > issues.jsonl
 
-# Reimport
-bd sync --import-only
+# Rebuild database state from JSONL
+bd doctor --fix --source=jsonl --yes
 ```
 
-**Option 2: Use --rename-on-import (if IDs are standard format)**
+**Option 2: Normalize IDs, then rebuild**
 ```bash
-bd sync --import-only --rename-on-import
-# Renames all issues to database prefix
+# Current CLI does not expose the old rename-on-import repair path.
+# Fix the JSONL contents first, then rebuild from JSONL.
+grep -E '"id":"[a-z]+-[a-z0-9]+"' issues.jsonl > clean.jsonl
+mv clean.jsonl issues.jsonl
+bd doctor --fix --source=jsonl --yes
 ```
 
 **Option 3: Nuclear rebuild**
 ```bash
 rm -rf .beads/*.db
-bd sync --import-only
+bd doctor --fix --source=jsonl --yes
 ```
 
 ### Prevention
@@ -88,8 +88,9 @@ bd sync --import-only
 
 ### Symptom
 ```bash
-bd sync --import-only --rename-on-import
-# Error: cannot rename issue code-map-validation: invalid suffix 'map-validation'
+# Historical docs mention a removed rename-on-import repair path,
+# but the current CLI repairs from JSONL via `bd doctor`.
+bd doctor --fix --source=jsonl --yes
 ```
 
 ### Root Cause
@@ -112,9 +113,9 @@ grep -E '"id":"[a-z]+-[a-z0-9]+"' issues.jsonl.bak > issues.jsonl
 # Check what was removed
 diff <(wc -l < issues.jsonl.bak) <(wc -l < issues.jsonl)
 
-# Reimport
+# Rebuild from the cleaned JSONL file
 rm -f *.db
-bd sync --import-only
+bd doctor --fix --source=jsonl --yes
 ```
 
 **Full reset** (if too corrupted):
@@ -162,10 +163,10 @@ go install github.com/steveyegge/beads/cmd/bd@latest
 # See https://github.com/steveyegge/beads#installing
 ```
 
-**3. Restart daemon after upgrade:**
+**3. Re-check local state after upgrade:**
 ```bash
-pkill -f "bd daemon"  # Kill old daemon
-bd daemon             # Start new daemon with fix
+bd info --json
+bd doctor --check=validate --json
 ```
 
 **4. Test dependency creation:**
@@ -181,15 +182,14 @@ bd show <B-id>
 
 If dependencies still don't persist after updating:
 
-1. **Check daemon is running:**
+1. **Confirm you're using the expected database:**
    ```bash
-   ps aux | grep "bd daemon"
+   bd info --json
    ```
 
-2. **Try without --no-daemon flag:**
+2. **Repair from JSONL if the local state looks stale:**
    ```bash
-   # Instead of: bd --no-daemon dep add ...
-   # Use: bd dep add ...  (let daemon handle it)
+   bd doctor --fix --source=jsonl --yes
    ```
 
 3. **Check JSONL file:**
@@ -209,101 +209,68 @@ If dependencies still don't persist after updating:
 
 ### Symptom
 ```bash
-bd --no-daemon update issue-1 --status in_progress
+bd update issue-1 --status in_progress
 # Reports: ✓ Updated issue: issue-1
 bd show issue-1
-# Shows: Status: open (not in_progress!)
+# Shows unexpected or stale data
 ```
 
 ### Root Cause
-This is **expected behavior**, not a bug. Understanding requires knowing bd's architecture:
-
-**BD Architecture:**
-- **JSONL files** (`.beads/issues.jsonl`): Human-readable export format
-- **SQLite database** (`.beads/*.db`): Source of truth for queries
-- **Daemon**: Syncs JSONL ↔ SQLite every 5 minutes
-
-**What `--no-daemon` actually does:**
-- **Writes**: Go directly to JSONL file
-- **Reads**: Still come from SQLite database
-- **Sync delay**: Daemon imports JSONL → SQLite periodically
+Usually one of three things is happening:
+- `bd` is pointed at a different database than you expect
+- Local state is stale after pull/rebase or manual JSONL edits
+- Dolt working-set changes have not been inspected yet
 
 ### Resolution
 
-**Option 1: Use daemon mode (recommended)**
+**Option 1: Check which database bd is using**
 ```bash
-# Don't use --no-daemon for CRUD operations
-bd update issue-1 --status in_progress
-bd show issue-1
-# ✓ Status reflects immediately
+bd info --json
 ```
 
-**Option 2: Wait for sync (if using --no-daemon)**
+**Option 2: Repair local state from JSONL**
 ```bash
-bd --no-daemon update issue-1 --status in_progress
-# Wait 3-5 seconds for daemon to sync
-sleep 5
-bd show issue-1
-# ✓ Status should reflect now
+bd doctor --fix --source=jsonl --yes
 ```
 
-**Option 3: Manual sync trigger**
+**Option 3: Inspect Dolt state**
 ```bash
-bd --no-daemon update issue-1 --status in_progress
-# Trigger sync by exporting/importing
-bd export > /dev/null 2>&1  # Forces sync
-bd show issue-1
+bd vc status
 ```
 
-### When to Use `--no-daemon`
+### When This Usually Happens
 
-**Use --no-daemon for:**
-- Batch import scripts (performance)
-- CI/CD environments (no persistent daemon)
-- Testing/debugging
-
-**Don't use --no-daemon for:**
-- Interactive development
-- Real-time status checks
-- When you need immediate query results
+- After moving between worktrees or clones
+- After hand-editing `.beads/issues.jsonl`
+- After restoring from backup or recovering a Dolt database
 
 ---
 
-## Daemon Won't Start
+## Daemon Commands Missing
 
 ### Symptom
 ```bash
-bd daemon
-# Error: not in a git repository
-# Hint: run 'git init' to initialize a repository
+<historical daemon command>
+# Error: unknown command "daemon" for "bd"
 ```
 
 ### Root Cause
-bd daemon requires a **git repository** because it uses git for:
-- Syncing issues to git remote (optional)
-- Version control of `.beads/*.jsonl` files
-- Commit history of issue changes
+These references describe an older bd command surface. The installed CLI in this
+workspace does not expose daemon-management commands.
 
 ### Resolution
 
-**Initialize git repository:**
 ```bash
-# In your project directory
-git init
-bd daemon
-# ✓ Daemon should start now
-```
+# Inspect the active database
+bd info --json
 
-**Prevent git remote operations:**
-```bash
-# If you don't want daemon to pull from remote
-bd daemon --global=false
-```
+# Check health / repair local state
+bd doctor --json
+bd doctor --fix --source=jsonl --yes
 
-**Flags:**
-- `--global=false`: Don't sync with git remote
-- `--interval=10m`: Custom sync interval (default: 5m)
-- `--auto-commit=true`: Auto-commit JSONL changes
+# Inspect Dolt working state when needed
+bd vc status
+```
 
 ---
 
@@ -353,9 +320,9 @@ This is a **known SQLite limitation**, not a bd bug.
    bd init myproject
    ```
 
-3. **Import existing issues (if you had JSONL export):**
+3. **Restore from backup (if you have one):**
    ```bash
-   bd import < issues-backup.jsonl
+   bd backup restore /path/to/backup-dir
    ```
 
 **Alternative: Use global `~/.beads/` database**
@@ -383,37 +350,34 @@ bd create "My task"
 ### Symptom
 ```bash
 bd init myproject
-bd --no-daemon create "Test" -t task
+bd create "Test" -t task
 ls .beads/
 # Only shows: .gitignore, myproject.db
 # Missing: issues.jsonl
 ```
 
 ### Root Cause
-**JSONL initialization coupling.** The `issues.jsonl` file is created by daemon on first startup, not by `bd init`.
+Cloud-synced filesystems can delay writes, and older docs incorrectly assumed a
+daemon step would create `issues.jsonl`.
 
 ### Resolution
 
-**Start daemon once to initialize JSONL:**
+**Write a JSONL snapshot explicitly:**
 ```bash
-bd daemon --global=false &
-# Wait for initialization
-sleep 2
-
-# Now JSONL file exists
+bd export -o .beads/issues.jsonl
 ls .beads/issues.jsonl
 # ✓ File created
 
-# Subsequent --no-daemon operations work
-bd --no-daemon create "Task 1" -t task
+# Create issues normally
+bd create "Task 1" -t task
 cat .beads/issues.jsonl
 # ✓ Shows task data
 ```
 
 **Why this matters:**
-- Daemon owns the JSONL export format
-- First daemon run creates empty JSONL skeleton
-- `--no-daemon` operations assume JSONL exists
+- `bd init` sets up the database, not necessarily a JSONL snapshot
+- `bd export` writes the JSONL file explicitly
+- `bd doctor --fix --source=jsonl --yes` can rebuild database state from JSONL if needed
 
 **Pattern for batch scripts:**
 ```bash
@@ -421,16 +385,11 @@ cat .beads/issues.jsonl
 # Batch import script
 
 bd init myproject
-bd daemon --global=false &  # Start daemon
-sleep 3                     # Wait for initialization
+bd export -o .beads/issues.jsonl
 
-# Now safe to use --no-daemon for performance
 for item in "${items[@]}"; do
-    bd --no-daemon create "$item" -t feature
+    bd create "$item" -t feature
 done
-
-# Daemon syncs JSONL → SQLite in background
-sleep 5  # Wait for final sync
 
 # Query results
 bd stats
@@ -462,7 +421,7 @@ claude plugin update beads
 
 **v0.15.0:**
 - MCP parameter names changed from `from_id/to_id` to `issue_id/depends_on_id`
-- Dependency creation now persists correctly in daemon mode
+- Dependency creation now persists correctly in the current CLI workflow
 
 **v0.14.0:**
 - Daemon architecture changes
@@ -528,18 +487,16 @@ Before reporting issues, collect this information:
 # 1. Version
 bd version
 
-# 2. Daemon status
-ps aux | grep "bd daemon"
-
-# 3. Database location
+# 2. Database location
+bd info --json
 echo $PWD/.beads/*.db
 ls -la .beads/
 
-# 4. Git status
+# 3. Git status
 git status
 git log --oneline -1
 
-# 5. JSONL contents (for dependency issues)
+# 4. JSONL contents (for dependency issues)
 cat .beads/issues.jsonl | jq '.' | head -50
 ```
 
@@ -574,10 +531,10 @@ If the **bd-issue-tracking skill** provides incorrect guidance:
 | Problem | Quick Fix |
 |---------|-----------|
 | Dependencies not saving | Upgrade to bd v0.15.0+ |
-| Status updates lag | Use daemon mode (not `--no-daemon`) |
-| Daemon won't start | Run `git init` first |
+| Status updates lag | Run `bd info --json`, then `bd doctor --fix --source=jsonl --yes` if state is stale |
+| Daemon command missing | Current CLI has no daemon command; use `bd info` and `bd doctor` instead |
 | Database errors on Google Drive | Move to local filesystem |
-| JSONL file missing | Start daemon once: `bd daemon &` |
+| JSONL file missing | Write it explicitly: `bd export -o .beads/issues.jsonl` |
 | Dependencies backwards (MCP) | Update to v0.15.0+, use `issue_id/depends_on_id` correctly |
 
 ---

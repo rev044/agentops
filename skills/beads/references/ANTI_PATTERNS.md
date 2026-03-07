@@ -29,7 +29,7 @@ ap-cr7k
 **Why it breaks**:
 - bd expects IDs in `prefix-hash` format
 - Dot-separated IDs fail prefix validation during import
-- `bd sync --import-only` errors with "invalid suffix"
+- JSONL-based repair via `bd doctor --fix --source=jsonl` errors with "invalid suffix"
 - Database becomes corrupted, requiring full rebuild
 
 **Root cause**: Early formula/molecule templates created non-standard IDs. This was a design mistake.
@@ -39,7 +39,7 @@ ap-cr7k
 # Filter to standard format only
 grep -E '"id":"[a-z]+-[a-z0-9]+' .beads/issues.jsonl > clean.jsonl
 mv clean.jsonl .beads/issues.jsonl
-bd sync --import-only
+bd doctor --fix --source=jsonl --yes
 ```
 
 ---
@@ -66,7 +66,7 @@ ap-abcd
 ```
 
 **Why it breaks**:
-- `bd sync --import-only` fails with "prefix mismatch detected"
+- JSONL-based repair fails with "prefix mismatch detected"
 - Database configured for one prefix rejects others
 - Cross-prefix dependencies don't resolve correctly
 
@@ -83,20 +83,20 @@ grep -o '"id":"[^-]*' .beads/issues.jsonl | sort -u
 
 ### 3. Skipping Session End Protocol
 
-**DON'T**: Stop work without syncing
+**DON'T**: Stop work without pushing your issue updates
 
 ```bash
-# WRONG - Work not persisted
+# WRONG - Work not persisted remotely
 bd close ap-1234 --reason "Done"
-# ... session ends without sync
+# ... session ends without commit/push
 ```
 
-**DO**: Always sync and push before stopping
+**DO**: Finish your normal git push workflow before stopping
 
 ```bash
 # CORRECT - Full session end protocol
 bd close ap-1234 --reason "Done"
-bd sync                    # Commit beads changes
+bd vc status               # Optional Dolt inspection; JSONL auto-sync is automatic
 git add .beads/            # Stage if needed
 git commit -m "beads: close ap-1234"
 git push                   # Push to remote
@@ -106,7 +106,7 @@ git push                   # Push to remote
 - Beads changes live in `.beads/issues.jsonl`
 - Without commit+push, changes lost on branch switch
 - Other agents/sessions won't see your updates
-- Merge conflicts accumulate if not synced regularly
+- Merge conflicts accumulate if changes are not committed/pushed regularly
 
 ---
 
@@ -248,11 +248,11 @@ bd list --status=tombstone  # Review tombstones
 bd doctor                   # Health check
 
 # Before major work
-bd sync --status            # Check sync state
+bd vc status                # Check Dolt state (optional)
 bd ready                    # Verify ready queue
 
-# After git pull
-bd sync --import-only       # Import remote changes
+# After git pull, if local state looks stale
+bd doctor --fix --source=jsonl --yes
 ```
 
 ### Nuclear Options
@@ -266,7 +266,7 @@ bd sync --import-only       # Import remote changes
 ```bash
 # Full database rebuild (DESTRUCTIVE)
 rm -rf .beads/*.db
-bd sync --import-only
+bd doctor --fix --source=jsonl --yes
 
 # Complete reset (VERY DESTRUCTIVE)
 rm -rf .beads/

@@ -156,6 +156,7 @@ func TestRPINudgeCommand_E2EAllWorkers(t *testing.T) {
 set -euo pipefail
 worker="$1"
 log="$2"
+echo "ready:${worker}" >> "$log"
 while true; do
   if IFS= read -r line; then
     echo "in:${worker}:${line}" >> "$log"
@@ -176,6 +177,19 @@ done
 	}
 	if err := exec.Command(tmuxBin, "new-session", "-d", "-s", worker2, "-c", tmp, workerScriptPath, "2", logPath).Run(); err != nil {
 		t.Fatalf("spawn worker2: %v", err)
+	}
+
+	readyDeadline := time.Now().Add(5 * time.Second)
+	for {
+		raw, _ := os.ReadFile(logPath)
+		log := string(raw)
+		if strings.Contains(log, "ready:1") && strings.Contains(log, "ready:2") {
+			break
+		}
+		if time.Now().After(readyDeadline) {
+			t.Fatalf("workers did not become ready:\n%s", log)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	oldCwd, err := os.Getwd()
@@ -200,7 +214,7 @@ done
 		t.Fatalf("execute ao rpi nudge: %v", err)
 	}
 
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		raw, _ := os.ReadFile(logPath)
 		log := string(raw)

@@ -140,6 +140,14 @@ func Measure(gf *GoalFile, timeout time.Duration) *Snapshot {
 // Keep low — heavy gates (go test, go build) compete for CPU.
 const maxParallelGoals = 2
 
+// requiresExclusiveExecution marks test-heavy gates that should not overlap
+// with other goal checks because they contend on the same module/worktree.
+func requiresExclusiveExecution(goal Goal) bool {
+	check := strings.ToLower(goal.Check)
+	return strings.Contains(check, "go test") ||
+		strings.Contains(check, "check-cmdao-coverage-floor.sh")
+}
+
 // runGoals executes meta-goals first (sequential), then non-meta goals (parallel).
 // Installs a signal handler to kill all child process groups on SIGINT/SIGTERM.
 func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
@@ -179,14 +187,25 @@ func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
 
 	results := make([]Measurement, len(nonMeta))
 	sem := make(chan struct{}, maxParallelGoals)
+	var exclusive sync.RWMutex
 	var wg sync.WaitGroup
 	for i, g := range nonMeta {
 		wg.Add(1)
 		go func(idx int, goal Goal) {
 			defer wg.Done()
 			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			if requiresExclusiveExecution(goal) {
+				exclusive.Lock()
+				defer exclusive.Unlock()
+				results[idx] = MeasureOne(goal, timeout)
+				return
+			}
+
+			exclusive.RLock()
+			defer exclusive.RUnlock()
 			results[idx] = MeasureOne(goal, timeout)
-			<-sem
 		}(i, g)
 	}
 	wg.Wait()

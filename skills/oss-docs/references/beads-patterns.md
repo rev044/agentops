@@ -56,7 +56,7 @@ brew tap steveyegge/beads && brew install bd
 bd init                  # Initialize in project
 bd create "Fix bug" -p 1 # Create issue
 bd ready                 # Find unblocked work
-bd sync                  # Sync to git
+bd vc status             # Optional Dolt status check; JSONL auto-sync is automatic
 ```
 ```
 
@@ -94,7 +94,7 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --status in_progress  # Claim work
 bd close <id>         # Complete work
-bd sync               # Sync with git
+bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automatic)
 ```
 ```
 

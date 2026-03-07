@@ -671,7 +671,7 @@ These are fellow experiments in making coding agents work. Use pieces from any o
 <details>
 <summary><b>Issue tracking</b> — Beads / bd</summary>
 
-Git-native issues in `.beads/`. `bd onboard` (setup) · `bd ready` (find work) · `bd show <id>` · `bd close <id>` · `bd sync`. More: [AGENTS.md](AGENTS.md)
+Git-native issues in `.beads/`. `bd onboard` (setup) · `bd ready` (find work) · `bd show <id>` · `bd close <id>` · `bd vc status` (optional Dolt state check; JSONL auto-sync is automatic). More: [AGENTS.md](AGENTS.md)
 
 </details>
 

@@ -111,7 +111,8 @@ Summary:
 - Mode: crew (sequential)
 - All tests passing
 
-$ bd sync && git push
+$ bd vc status   # Optional Dolt status check
+$ git push
 ```
 
 ---

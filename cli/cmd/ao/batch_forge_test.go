@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -532,6 +533,261 @@ func TestRunForgeBatch_NoPendingTranscripts(t *testing.T) {
 	r.Close()
 	if !strings.Contains(string(buf[:n]), "No pending transcripts found.") {
 		t.Fatalf("expected no-pending message, got: %s", string(buf[:n]))
+	}
+}
+
+func TestRunForgeBatch_DryRunAppliesMaxLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	transcriptDir := filepath.Join(tmpDir, "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
+		t.Fatalf("mkdir transcript dir: %v", err)
+	}
+
+	baseTime := time.Now().Add(-3 * time.Hour)
+	for i := 1; i <= 3; i++ {
+		path := filepath.Join(transcriptDir, fmt.Sprintf("session-%d.jsonl", i))
+		content := strings.Repeat(
+			fmt.Sprintf(`{"role":"user","content":"session %d has enough content to exceed the transcript size threshold for dry-run coverage"}
+`, i),
+			2,
+		)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write transcript %d: %v", i, err)
+		}
+		ts := baseTime.Add(time.Duration(i) * time.Minute)
+		if err := os.Chtimes(path, ts, ts); err != nil {
+			t.Fatalf("chtimes transcript %d: %v", i, err)
+		}
+	}
+
+	oldBatchDir, oldBatchMax, oldBatchExtract := batchDir, batchMax, batchExtract
+	oldDryRun, oldOutput := dryRun, output
+	t.Cleanup(func() {
+		batchDir, batchMax, batchExtract = oldBatchDir, oldBatchMax, oldBatchExtract
+		dryRun, output = oldDryRun, oldOutput
+	})
+
+	batchDir = transcriptDir
+	batchMax = 2
+	batchExtract = false
+	dryRun = true
+	output = "table"
+
+	stdout, err := captureStdout(t, func() error {
+		return runForgeBatch(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("runForgeBatch: %v", err)
+	}
+
+	if !strings.Contains(stdout, "[dry-run] Would process 2 transcript(s) (skipped 0):") {
+		t.Fatalf("expected dry-run summary, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "session-1.jsonl") || !strings.Contains(stdout, "session-2.jsonl") {
+		t.Fatalf("expected first two transcripts in output, got %q", stdout)
+	}
+	if strings.Contains(stdout, "session-3.jsonl") {
+		t.Fatalf("expected max limit to exclude session-3.jsonl, got %q", stdout)
+	}
+}
+
+func TestRunForgeBatch_ProcessesTranscript(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	transcriptDir := filepath.Join(tmpDir, "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
+		t.Fatalf("mkdir transcript dir: %v", err)
+	}
+
+	transcriptPath := filepath.Join(transcriptDir, "session.jsonl")
+	lines := strings.Join([]string{
+		`{"type":"summary","sessionId":"sess-batch","timestamp":"2024-01-01T00:00:00Z","summary":"Batch forge summary"}`,
+		`{"type":"assistant","role":"assistant","content":"Working on a task with enough detail to keep the transcript comfortably above the batch filter threshold.","sessionId":"sess-batch","timestamp":"2024-01-01T00:01:00Z"}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(transcriptPath, []byte(lines), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+
+	oldBatchDir, oldBatchMax, oldBatchExtract := batchDir, batchMax, batchExtract
+	oldDryRun, oldOutput := dryRun, output
+	t.Cleanup(func() {
+		batchDir, batchMax, batchExtract = oldBatchDir, oldBatchMax, oldBatchExtract
+		dryRun, output = oldDryRun, oldOutput
+	})
+
+	batchDir = transcriptDir
+	batchMax = 0
+	batchExtract = false
+	dryRun = false
+	output = "table"
+
+	stdout, err := captureStdout(t, func() error {
+		return runForgeBatch(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("runForgeBatch: %v", err)
+	}
+
+	for _, want := range []string{
+		"Found 1 transcript(s) to process (skipped 0 already forged).",
+		"[1/1] Processing session.jsonl...",
+		"--- Batch Forge Summary ---",
+		"Transcripts processed: 1",
+		"Failed:                0",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("expected %q in output, got %q", want, stdout)
+		}
+	}
+
+	forgedIndexPath := filepath.Join(tmpDir, storage.DefaultBaseDir, "forged.jsonl")
+	if _, err := os.Stat(forgedIndexPath); err != nil {
+		t.Fatalf("expected forged index to be created: %v", err)
+	}
+}
+
+func TestRunBatchExtractionStep_DryRunPendingExtractions(t *testing.T) {
+	tmpDir := t.TempDir()
+	pendingPath := filepath.Join(tmpDir, storage.DefaultBaseDir, "pending.jsonl")
+	entries := []PendingExtraction{
+		{
+			SessionID:      "session-1",
+			Summary:        "Batch forge extraction dry run",
+			TranscriptPath: "/tmp/transcript.jsonl",
+			QueuedAt:       time.Now(),
+		},
+	}
+	if err := writePendingFile(pendingPath, entries); err != nil {
+		t.Fatalf("writePendingFile: %v", err)
+	}
+
+	origBatchExtract := batchExtract
+	origDryRun := dryRun
+	origOutput := output
+	t.Cleanup(func() {
+		batchExtract = origBatchExtract
+		dryRun = origDryRun
+		output = origOutput
+	})
+
+	batchExtract = true
+	dryRun = true
+	output = "json"
+
+	stdout, err := captureStdout(t, func() error {
+		extracted := runBatchExtractionStep(tmpDir, 2)
+		if extracted != 1 {
+			t.Fatalf("runBatchExtractionStep() = %d, want 1", extracted)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("captureStdout: %v", err)
+	}
+	if !strings.Contains(stdout, "Triggering extraction for 2 session(s)...") {
+		t.Fatalf("expected extraction banner, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "\"remaining\": 1") {
+		t.Fatalf("expected dry-run JSON summary, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "session-1") {
+		t.Fatalf("expected session id in dry-run output, got %q", stdout)
+	}
+}
+
+func TestOutputBatchForgeResult_JSON(t *testing.T) {
+	origOutput := output
+	t.Cleanup(func() { output = origOutput })
+	output = "json"
+
+	stdout, err := captureStdout(t, func() error {
+		return outputBatchForgeResult(
+			"/tmp/.agents/ao",
+			3,
+			2,
+			1,
+			7,
+			9,
+			4,
+			2,
+			[]string{"learning-1", "learning-2"},
+			[]string{"decision-1"},
+			[]string{"/tmp/a.jsonl", "/tmp/b.jsonl", "/tmp/c.jsonl"},
+		)
+	})
+	if err != nil {
+		t.Fatalf("outputBatchForgeResult: %v", err)
+	}
+
+	var got BatchForgeResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stdout)), &got); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if got.Forged != 3 || got.Skipped != 2 || got.Failed != 1 || got.Extracted != 2 {
+		t.Fatalf("unexpected result payload: %+v", got)
+	}
+	if len(got.Paths) != 3 {
+		t.Fatalf("expected 3 paths, got %d", len(got.Paths))
+	}
+}
+
+func TestOutputBatchForgeResult_Text(t *testing.T) {
+	origOutput := output
+	t.Cleanup(func() { output = origOutput })
+	output = "table"
+
+	stdout, err := captureStdout(t, func() error {
+		return outputBatchForgeResult(
+			"/tmp/.agents/ao",
+			2,
+			1,
+			0,
+			5,
+			6,
+			3,
+			1,
+			[]string{"learning-1", "learning-2"},
+			[]string{"decision-1", "decision-2"},
+			[]string{"/tmp/a.jsonl", "/tmp/b.jsonl"},
+		)
+	})
+	if err != nil {
+		t.Fatalf("outputBatchForgeResult: %v", err)
+	}
+
+	for _, want := range []string{
+		"--- Batch Forge Summary ---",
+		"Transcripts processed: 2",
+		"Skipped (already):     1",
+		"Failed:                0",
+		"Decisions extracted:   5",
+		"Learnings extracted:   6",
+		"Duplicates removed:    3",
+		"Unique decisions:      2",
+		"Unique learnings:      2",
+		"Extractions processed: 1",
+		"Output:                /tmp/.agents/ao",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("expected %q in output, got %q", want, stdout)
+		}
 	}
 }
 

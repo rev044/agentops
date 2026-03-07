@@ -314,6 +314,36 @@ func TestTryPromoteEntry_RecordsSkipOnError(t *testing.T) {
 	}
 }
 
+func TestPromoteEntry_DryRun(t *testing.T) {
+	oldDryRun := dryRun
+	dryRun = true
+	t.Cleanup(func() { dryRun = oldDryRun })
+
+	entry := pool.PoolEntry{
+		PoolEntry: types.PoolEntry{
+			Candidate: types.Candidate{
+				ID:   "cand-dry-run",
+				Tier: types.TierSilver,
+			},
+		},
+		AgeString: "48h",
+	}
+	result := &batchPromoteResult{}
+
+	stdout, err := captureStdout(t, func() error {
+		return promoteEntry(nil, entry, result)
+	})
+	if err != nil {
+		t.Fatalf("promoteEntry: %v", err)
+	}
+	if result.Promoted != 1 {
+		t.Fatalf("expected promoted=1, got %d", result.Promoted)
+	}
+	if !strings.Contains(stdout, "[dry-run] Would promote: cand-dry-run (tier=silver, age=48h)") {
+		t.Fatalf("expected dry-run output, got %q", stdout)
+	}
+}
+
 func TestProcessPromotionCandidate_TooYoungSkips(t *testing.T) {
 	oldForce := batchPromoteForce
 	batchPromoteForce = false
