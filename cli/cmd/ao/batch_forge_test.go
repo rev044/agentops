@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -532,6 +533,70 @@ func TestRunForgeBatch_NoPendingTranscripts(t *testing.T) {
 	r.Close()
 	if !strings.Contains(string(buf[:n]), "No pending transcripts found.") {
 		t.Fatalf("expected no-pending message, got: %s", string(buf[:n]))
+	}
+}
+
+func TestRunForgeBatch_DryRunAppliesMaxLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	transcriptDir := filepath.Join(tmpDir, "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
+		t.Fatalf("mkdir transcript dir: %v", err)
+	}
+
+	baseTime := time.Now().Add(-3 * time.Hour)
+	for i := 1; i <= 3; i++ {
+		path := filepath.Join(transcriptDir, fmt.Sprintf("session-%d.jsonl", i))
+		content := strings.Repeat(
+			fmt.Sprintf(`{"role":"user","content":"session %d has enough content to exceed the transcript size threshold for dry-run coverage"}
+`, i),
+			2,
+		)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write transcript %d: %v", i, err)
+		}
+		ts := baseTime.Add(time.Duration(i) * time.Minute)
+		if err := os.Chtimes(path, ts, ts); err != nil {
+			t.Fatalf("chtimes transcript %d: %v", i, err)
+		}
+	}
+
+	oldBatchDir, oldBatchMax, oldBatchExtract := batchDir, batchMax, batchExtract
+	oldDryRun, oldOutput := dryRun, output
+	t.Cleanup(func() {
+		batchDir, batchMax, batchExtract = oldBatchDir, oldBatchMax, oldBatchExtract
+		dryRun, output = oldDryRun, oldOutput
+	})
+
+	batchDir = transcriptDir
+	batchMax = 2
+	batchExtract = false
+	dryRun = true
+	output = "table"
+
+	stdout, err := captureStdout(t, func() error {
+		return runForgeBatch(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("runForgeBatch: %v", err)
+	}
+
+	if !strings.Contains(stdout, "[dry-run] Would process 2 transcript(s) (skipped 0):") {
+		t.Fatalf("expected dry-run summary, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "session-1.jsonl") || !strings.Contains(stdout, "session-2.jsonl") {
+		t.Fatalf("expected first two transcripts in output, got %q", stdout)
+	}
+	if strings.Contains(stdout, "session-3.jsonl") {
+		t.Fatalf("expected max limit to exclude session-3.jsonl, got %q", stdout)
 	}
 }
 
