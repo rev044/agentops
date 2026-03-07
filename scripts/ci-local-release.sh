@@ -523,6 +523,7 @@ run_step_bg "ShellCheck" run_shellcheck
 run_step_bg "Markdownlint" run_markdownlint
 run_step_bg "Smoke tests" ./tests/smoke-test.sh --verbose
 run_step_bg "Skill lint" bash ./tests/skills/run-all.sh
+run_step_bg "Headless runtime skill smoke" bash ./scripts/validate-headless-runtime-skills.sh
 run_step_bg "CLI integration smoke tests" ./tests/integration/test-cli-commands.sh
 run_step_bg "Command/test pairing gate tests" ./tests/scripts/test-go-command-test-pair.sh
 run_step_bg "Go fast scope tests" bats ./tests/scripts/validate-go-fast.bats
@@ -535,6 +536,7 @@ run_step_bg "Codex generated artifact tests" bash ./tests/scripts/test-codex-gen
 run_step_bg "Dev hook install tests" bash ./tests/scripts/test-install-dev-hooks.sh
 run_step_bg "Git hook shim tests" bash ./tests/scripts/test-githook-shims.sh
 run_step_bg "Validate-local tests" bash ./tests/scripts/test-validate-local.sh
+run_step_bg "Headless runtime skill smoke tests" bash ./tests/scripts/test-headless-runtime-skills.sh
 run_step_bg "Constraint compiler BATS wrapper" ./tests/hooks/test-constraint-compiler.sh
 run_step_bg "cmd/ao coverage floor gate" ./scripts/check-cmdao-coverage-floor.sh
 

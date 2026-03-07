@@ -24,6 +24,7 @@
 #  16. Codex generated artifacts
 #  17. Skill runtime formats
 #  18. Skill CLI snippets
+#  19. Headless runtime skill smoke
 #
 # Usage:
 #   scripts/pre-push-gate.sh [--scope auto|upstream|staged|worktree|head]
@@ -334,6 +335,19 @@ if [[ -x scripts/validate-skill-cli-snippets.sh ]]; then
     fi
 else
     fail "missing executable: scripts/validate-skill-cli-snippets.sh"
+fi
+
+# --- 19. Headless runtime skill smoke ---
+if [[ -x scripts/validate-headless-runtime-skills.sh ]]; then
+    if runtime_smoke_output="$(scripts/validate-headless-runtime-skills.sh 2>&1)"; then
+        pass "headless runtime skills"
+        indent_output "$runtime_smoke_output"
+    else
+        fail "headless runtime skills"
+        indent_output "$runtime_smoke_output"
+    fi
+else
+    fail "missing executable: scripts/validate-headless-runtime-skills.sh"
 fi
 
 # --- Summary ---

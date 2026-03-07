@@ -104,6 +104,9 @@ bash scripts/check-worktree-disposition.sh
 ./scripts/validate-manifests.sh --repo-root .
 find skills -type l  # must be empty — zero symlinks allowed
 
+# 11. Headless runtime skill smoke (local Claude/Codex sessions; skips missing CLIs)
+bash scripts/validate-headless-runtime-skills.sh
+
 # Full gate (runs everything above and more):
 scripts/ci-local-release.sh
 ```
