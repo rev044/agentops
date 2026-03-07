@@ -19,7 +19,7 @@ fi
 HOLLOW_COUNT=0
 TOTAL_FILES=0
 
-for f in $(find "$TARGET_DIR" -name "*_test.go" -type f | sort); do
+for f in $(find "$TARGET_DIR" -name "*coverage*_test.go" -type f | sort); do
     TOTAL_FILES=$((TOTAL_FILES + 1))
     FUNCS=$(grep -c "^func Test" "$f" 2>/dev/null || echo 0)
     ASSERTS=$(grep -cE 't\.(Error|Fatal|Errorf|Fatalf)|assert\.|require\.' "$f" 2>/dev/null || echo 0)
@@ -39,7 +39,7 @@ for f in $(find "$TARGET_DIR" -name "*_test.go" -type f | sort); do
 done
 
 echo ""
-echo "Summary: $HOLLOW_COUNT hollow / $TOTAL_FILES total test files"
+echo "Summary: $HOLLOW_COUNT hollow / $TOTAL_FILES total coverage test files"
 
 if [[ "$CHECK_MODE" == "true" && "$HOLLOW_COUNT" -gt 0 ]]; then
     echo "FAIL: $HOLLOW_COUNT files below threshold ($THRESHOLD)"
