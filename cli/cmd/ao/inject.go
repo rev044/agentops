@@ -43,19 +43,19 @@ const (
 )
 
 var (
-	injectMaxTokens          int
-	injectContext            string
-	injectFormat             string
-	injectSessionID          string
-	injectNoCite             bool
-	injectApplyDecay         bool
-	injectBead               string
-	injectPredecessor        string
-	injectIndexOnly          bool
-	injectQuarantineFlagged  bool
-	injectForSkill           string
-	injectSessionType        string
-	injectProfile            bool
+	injectMaxTokens         int
+	injectContext           string
+	injectFormat            string
+	injectSessionID         string
+	injectNoCite            bool
+	injectApplyDecay        bool
+	injectBead              string
+	injectPredecessor       string
+	injectIndexOnly         bool
+	injectQuarantineFlagged bool
+	injectForSkill          string
+	injectSessionType       string
+	injectProfile           bool
 )
 
 type olConstraint struct {
@@ -82,14 +82,14 @@ type learning struct {
 	Title          string  `json:"title"`
 	Summary        string  `json:"summary"`
 	Source         string  `json:"source,omitempty"`
-	SourceBead     string  `json:"source_bead,omitempty"`     // Bead ID that produced this learning
-	SourcePhase    string  `json:"source_phase,omitempty"`    // RPI phase (research|plan|implement|validate)
+	SourceBead     string  `json:"source_bead,omitempty"`  // Bead ID that produced this learning
+	SourcePhase    string  `json:"source_phase,omitempty"` // RPI phase (research|plan|implement|validate)
 	FreshnessScore float64 `json:"freshness_score,omitempty"`
 	AgeWeeks       float64 `json:"age_weeks,omitempty"`
 	Utility        float64 `json:"utility,omitempty"`         // MemRL utility value
 	CompositeScore float64 `json:"composite_score,omitempty"` // Two-Phase ranking score
 	Maturity       string  `json:"maturity,omitempty"`        // CASS maturity level
-	SessionType    string  `json:"session_type,omitempty"`   // career, research, debug, implement, brainstorm
+	SessionType    string  `json:"session_type,omitempty"`    // career, research, debug, implement, brainstorm
 	Superseded     bool    `json:"-"`                         // Internal flag - not serialized
 	Global         bool    `json:"-"`                         // Internal flag: from global dir
 }
@@ -175,24 +175,10 @@ func runInject(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	// Quarantine flagged learnings before gathering knowledge
-	if injectQuarantineFlagged {
-		if qErr := runQuarantineFlagged(cwd); qErr != nil {
-			VerbosePrintf("Warning: quarantine-flagged: %v\n", qErr)
-		}
-	}
+	maybeQuarantineFlagged(cwd)
 
-	cfg, cfgErr := config.Load(nil)
-	if cfgErr != nil {
-		VerbosePrintf("Warning: config load: %v (using defaults)\n", cfgErr)
-	}
-
-	// Resolve bead context for work-scoped injection
-	var beadCtx *BeadContext
-	if injectBead != "" {
-		beadCtx = resolveBeadContext(injectBead, cwd)
-		VerbosePrintf("Bead context: id=%s title=%q labels=%v\n", injectBead, beadCtx.Title, beadCtx.Labels)
-	}
+	cfg := loadInjectConfig()
+	beadCtx := resolveInjectBeadContext(cwd)
 
 	sessionID := canonicalSessionID(injectSessionID)
 	knowledge := gatherKnowledge(cwd, query, sessionID, cfg)
@@ -201,16 +187,53 @@ func runInject(cmd *cobra.Command, args []string) error {
 	// Dedup: skip learnings whose title already appears in MEMORY.md
 	knowledge.Learnings = filterMemoryDuplicates(cwd, knowledge.Learnings)
 
-	// Apply bead-scoped boosting after composite scoring
+	if err := applyInjectModifiers(cwd, knowledge, beadCtx); err != nil {
+		return err
+	}
+
+	output, err := renderInjectOutput(cwd, knowledge)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(output)
+	return nil
+}
+
+func maybeQuarantineFlagged(cwd string) {
+	if !injectQuarantineFlagged {
+		return
+	}
+	if qErr := runQuarantineFlagged(cwd); qErr != nil {
+		VerbosePrintf("Warning: quarantine-flagged: %v\n", qErr)
+	}
+}
+
+func loadInjectConfig() *config.Config {
+	cfg, cfgErr := config.Load(nil)
+	if cfgErr != nil {
+		VerbosePrintf("Warning: config load: %v (using defaults)\n", cfgErr)
+	}
+	return cfg
+}
+
+func resolveInjectBeadContext(cwd string) *BeadContext {
+	if injectBead == "" {
+		return nil
+	}
+	beadCtx := resolveBeadContext(injectBead, cwd)
+	VerbosePrintf("Bead context: id=%s title=%q labels=%v\n", injectBead, beadCtx.Title, beadCtx.Labels)
+	return beadCtx
+}
+
+func applyInjectModifiers(cwd string, knowledge *injectedKnowledge, beadCtx *BeadContext) error {
 	if beadCtx != nil {
 		for i := range knowledge.Learnings {
 			applyBeadBoost(&knowledge.Learnings[i], beadCtx)
 		}
-		// Re-sort by boosted score
 		resortLearnings(knowledge.Learnings)
 	}
 
-	// Apply session-type scoring boost
 	if injectSessionType != "" {
 		for i := range knowledge.Learnings {
 			knowledge.Learnings[i].CompositeScore *= sessionTypeBoost(knowledge.Learnings[i], injectSessionType)
@@ -218,41 +241,42 @@ func runInject(cmd *cobra.Command, args []string) error {
 		resortLearnings(knowledge.Learnings)
 	}
 
-	// Load predecessor context
 	if injectPredecessor != "" {
 		knowledge.Predecessor = parsePredecessorFile(injectPredecessor)
 	}
 
-	// Apply skill context filter
-	if injectForSkill != "" {
-		decl, err := parseContextDeclaration(injectForSkill)
-		if err != nil {
-			return fmt.Errorf("parse context declaration for %s: %w", injectForSkill, err)
-		}
-		if decl != nil {
-			knowledge = applyContextFilter(knowledge, decl)
-		}
-
-		// Create context artifact directory for skill-scoped runs.
-		// Uses RPI_RUN_ID if available, otherwise generates adhoc ID.
-		runID := os.Getenv("RPI_RUN_ID")
-		ctxDir, ctxErr := ensureContextDir(cwd, runID)
-		if ctxErr != nil {
-			fmt.Fprintf(os.Stderr, "WARN: context dir: %v\n", ctxErr)
-		} else {
-			VerbosePrintf("context-dir: %s\n", ctxDir)
-		}
+	if injectForSkill == "" {
+		return nil
 	}
 
-	var output string
-	if injectIndexOnly {
-		output = renderKnowledgeIndex(knowledge)
-	} else {
-		var renderErr error
-		output, renderErr = renderKnowledge(knowledge, injectFormat)
-		if renderErr != nil {
-			return renderErr
+	decl, err := parseContextDeclaration(injectForSkill)
+	if err != nil {
+		return fmt.Errorf("parse context declaration for %s: %w", injectForSkill, err)
+	}
+	if decl != nil {
+		filtered := applyContextFilter(knowledge, decl)
+		*knowledge = *filtered
+	}
+
+	runID := os.Getenv("RPI_RUN_ID")
+	ctxDir, ctxErr := ensureContextDir(cwd, runID)
+	if ctxErr != nil {
+		fmt.Fprintf(os.Stderr, "WARN: context dir: %v\n", ctxErr)
+		return nil
+	}
+
+	VerbosePrintf("context-dir: %s\n", ctxDir)
+	return nil
+}
+
+func renderInjectOutput(cwd string, knowledge *injectedKnowledge) (string, error) {
+	output := renderKnowledgeIndex(knowledge)
+	if !injectIndexOnly {
+		rendered, err := renderKnowledge(knowledge, injectFormat)
+		if err != nil {
+			return "", err
 		}
+		output = rendered
 	}
 
 	charBudget := injectMaxTokens * InjectCharsPerToken
@@ -264,16 +288,15 @@ func runInject(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Prepend profile if requested
-	if injectProfile {
-		profilePath := filepath.Join(cwd, ".agents", "profile.md")
-		if data, readErr := os.ReadFile(profilePath); readErr == nil {
-			output = "## Identity\n\n" + string(data) + "\n\n" + output
-		}
+	if !injectProfile {
+		return output, nil
 	}
 
-	fmt.Println(output)
-	return nil
+	profilePath := filepath.Join(cwd, ".agents", "profile.md")
+	if data, readErr := os.ReadFile(profilePath); readErr == nil {
+		output = "## Identity\n\n" + string(data) + "\n\n" + output
+	}
+	return output, nil
 }
 
 // runQuarantineFlagged reads .agents/defrag/quality-report.json and quarantines flagged learnings.
