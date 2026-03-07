@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Copy "Claude-style" skill folders (directories containing SKILL.md)
-# into a Codex skills directory (default: ~/.codex/skills).
+# Copy skill folders (directories containing SKILL.md)
+# into a local skills directory.
 #
 # Safe by default:
 # - Creates a timestamped backup of any destination skill it overwrites
@@ -10,7 +10,7 @@
 # Usage:
 #   ./scripts/export-claude-skills-to-codex.sh \
 #     --src ./skills \
-#     --dst "$HOME/.codex/skills" \
+#     --dst "$HOME/.agents/skills" \
 #     --dry-run
 #
 set -euo pipefail
@@ -23,15 +23,15 @@ Copies skill directories (each containing SKILL.md) from --src into --dst.
 
 Options:
   --src <dir>         Source directory containing skill folders (default: ./skills if present, else ./.agents/skills)
-  --dst <dir>         Destination Codex skills directory (default: ~/.codex/skills)
-  --backup <dir>      Backup directory (default: ~/.codex/skills.backup.<timestamp>)
+  --dst <dir>         Destination skills directory (default: ~/.agents/skills)
+  --backup <dir>      Backup directory (default: <dst>.backup.<timestamp>)
   --dry-run           Show what would change (no writes)
   --only <a,b,c>      Only copy these skill folder names (comma-separated)
   --help              Show this help
 
 Examples:
   ./scripts/export-claude-skills-to-codex.sh --dry-run
-  ./scripts/export-claude-skills-to-codex.sh --src ./skills --dst ~/.codex/skills
+  ./scripts/export-claude-skills-to-codex.sh --src ./skills --dst ~/.agents/skills
   ./scripts/export-claude-skills-to-codex.sh --only research,vibe --dry-run
 EOF
 }
@@ -93,12 +93,12 @@ if [[ -z "$SRC" ]]; then
 fi
 
 if [[ -z "$DST" ]]; then
-  DST="$HOME/.codex/skills"
+  DST="$HOME/.agents/skills"
 fi
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
 if [[ -z "$BACKUP" ]]; then
-  BACKUP="$HOME/.codex/skills.backup.${timestamp}"
+  BACKUP="${DST}.backup.${timestamp}"
 fi
 
 if [[ ! -d "$SRC" ]]; then
@@ -158,6 +158,15 @@ for skill_dir in "$SRC"/*/; do
 
   rsync "${rsync_args[@]}" "${skill_dir%/}/" "${dst_skill%/}/" >/dev/null
   copied=$((copied + 1))
+done
+
+for root_file in "$SRC"/.agentops-*.json; do
+  [[ -f "$root_file" ]] || continue
+  rsync_args=(-a --copy-links)
+  if [[ "$DRY_RUN" == "true" ]]; then
+    rsync_args+=(--dry-run)
+  fi
+  rsync "${rsync_args[@]}" "$root_file" "${DST%/}/" >/dev/null
 done
 
 echo "Skills copied: $copied"

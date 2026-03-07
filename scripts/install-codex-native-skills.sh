@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build Codex-native skills and install them into ~/.codex/skills.
+# Build Codex-native skills and install them into local Codex skill homes.
 #
 set -euo pipefail
 
@@ -11,7 +11,9 @@ EXPORT_SCRIPT="$REPO_ROOT/scripts/export-claude-skills-to-codex.sh"
 PLUGIN_INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-plugin.sh"
 
 SRC="$REPO_ROOT/skills-codex"
-DST="$HOME/.codex/skills"
+DST="$HOME/.agents/skills"
+USER_DST="$HOME/.agents/skills"
+USER_DST_INSTALLED=""
 INSTALL_META="$HOME/.codex/.agentops-codex-install.json"
 BACKUP=""
 ONLY_CSV=""
@@ -24,16 +26,17 @@ usage() {
   cat <<'EOF'
 install-codex-native-skills.sh
 
-Builds Codex-native skills into ./skills-codex and installs them to ~/.codex/skills.
+Builds Codex-native skills into ./skills-codex and installs them to ~/.agents/skills.
 
 If the current Codex install metadata reports native-plugin mode, the default
-behavior is to refresh the active plugin cache instead of writing raw skills to
-~/.codex/skills. Pass --dest to force a raw skill install.
+behavior is to refresh the active plugin cache and mirror the same generated
+bundle into the local raw skill homes. Pass --dest to force a single raw skill
+install destination.
 
 Options:
   --source <dir>      Codex-native source skills root (default: ./skills-codex)
-  --dest <dir>        Destination Codex skills root (default: ~/.codex/skills)
-  --backup <dir>      Backup directory (default: ~/.codex/skills.backup.<timestamp>)
+  --dest <dir>        Destination raw skills root (default: ~/.agents/skills)
+  --backup <dir>      Backup directory (default: <dest>.backup.<timestamp>)
   --only <a,b,c>      Only install these skill names (comma-separated)
   --skip-sync         Skip build step and install from existing --source
   --dry-run           Preview install copy operations
@@ -155,19 +158,6 @@ if git -C "$REPO_ROOT" rev-parse --short HEAD >/dev/null 2>&1; then
   VERSION="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 fi
 
-if should_refresh_native_plugin; then
-  plugin_root="$(read_install_meta_value "plugin_root")"
-  echo "Detected native-plugin install metadata at $INSTALL_META"
-  echo "Refreshing active Codex plugin cache at $plugin_root"
-  bash "$PLUGIN_INSTALL_SCRIPT" \
-    --repo-root "$REPO_ROOT" \
-    --codex-home "$HOME/.codex" \
-    --skills-src "$SRC" \
-    --version "$VERSION" \
-    --update-command "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
-  exit 0
-fi
-
 export_args=(--src "$SRC" --dst "$DST")
 if [[ -n "$BACKUP" ]]; then
   export_args+=(--backup "$BACKUP")
@@ -180,6 +170,20 @@ if [[ "$DRY_RUN" == "true" ]]; then
 fi
 
 bash "$EXPORT_SCRIPT" "${export_args[@]}"
+
+if [[ "$DEST_EXPLICIT" != "true" && "$DST" != "$USER_DST" ]]; then
+  user_export_args=(--src "$SRC" --dst "$USER_DST")
+  if [[ -n "$ONLY_CSV" ]]; then
+    user_export_args+=(--only "$ONLY_CSV")
+  fi
+  if [[ "$DRY_RUN" == "true" ]]; then
+    user_export_args+=(--dry-run)
+  fi
+  bash "$EXPORT_SCRIPT" "${user_export_args[@]}"
+  USER_DST_INSTALLED="$USER_DST"
+elif [[ "$DST" == "$USER_DST" ]]; then
+  USER_DST_INSTALLED="$USER_DST"
+fi
 
 # Write local install metadata for stale-skill reminders (no telemetry)
 INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -206,7 +210,25 @@ cat > "$RAW_STATE_FILE" <<EOF
   "skills_root": "$DST"
 }
 EOF
-mkdir -p "$(dirname "$INSTALL_META")"
+
+if should_refresh_native_plugin && [[ "$DRY_RUN" != "true" ]]; then
+  plugin_root="$(read_install_meta_value "plugin_root")"
+  echo "Detected native-plugin install metadata at $INSTALL_META"
+  echo "Refreshing active Codex plugin cache at $plugin_root"
+  bash "$PLUGIN_INSTALL_SCRIPT" \
+    --repo-root "$REPO_ROOT" \
+    --codex-home "$HOME/.codex" \
+    --skills-src "$SRC" \
+    --version "$VERSION" \
+    --update-command "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+else
+  mkdir -p "$(dirname "$INSTALL_META")"
+if [[ -z "$USER_DST_INSTALLED" ]]; then
+  USER_DST_INSTALLED="null"
+else
+  USER_DST_INSTALLED="\"$USER_DST_INSTALLED\""
+fi
+
 cat > "$INSTALL_META" <<EOF
 {
   "installed_at": "$INSTALLED_AT",
@@ -216,10 +238,12 @@ cat > "$INSTALL_META" <<EOF
   "manifest_hash": "$MANIFEST_HASH",
   "skill_count": $SKILL_COUNT,
   "skills_root": "$DST",
+  "user_skills_root": $USER_DST_INSTALLED,
   "plugin_state_file": "$RAW_STATE_FILE",
   "update_command": "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
 }
 EOF
-echo "Install metadata written: $INSTALL_META"
+  echo "Install metadata written: $INSTALL_META"
+fi
 
 echo "Restart Codex to pick up installed skills."

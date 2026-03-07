@@ -152,6 +152,7 @@ test_native_plugin_metadata_refreshes_plugin_cache() {
   local fixture="$TMP_DIR/plugin-mode"
   local home_dir="$TMP_DIR/home-plugin"
   local plugin_root="$home_dir/.codex/plugins/cache/agentops-marketplace/agentops/local"
+  local user_skills_root="$home_dir/.agents/skills"
 
   setup_fixture "$fixture"
   mkdir -p "$home_dir/.codex"
@@ -171,15 +172,47 @@ EOF
     fail "native-plugin refresh should write skills into plugin cache"
     return
   fi
-  if [[ -e "$home_dir/.codex/skills/source-skill/SKILL.md" ]]; then
-    fail "native-plugin refresh should not write raw skills into ~/.codex/skills"
+  if [[ ! -f "$home_dir/.codex/skills/source-skill/SKILL.md" ]]; then
+    fail "native-plugin refresh should mirror raw skills into ~/.codex/skills"
+    return
+  fi
+  if [[ ! -f "$user_skills_root/source-skill/SKILL.md" ]]; then
+    fail "native-plugin refresh should mirror raw skills into ~/.agents/skills"
     return
   fi
   if rg -q '"source": "install-codex-plugin.sh"' "$home_dir/.codex/.agentops-codex-install.json" && \
     rg -q '"install_mode": "native-plugin"' "$home_dir/.codex/.agentops-codex-install.json"; then
-    pass "native-plugin metadata refreshes active plugin cache"
+    pass "native-plugin metadata refreshes plugin cache and raw skill homes"
   else
     fail "native-plugin refresh should preserve plugin install metadata"
+  fi
+}
+
+test_default_raw_install_targets_home_agents_skills() {
+  local fixture="$TMP_DIR/default-raw"
+  local home_dir="$TMP_DIR/home-default"
+  local raw_dst="$home_dir/.agents/skills"
+
+  setup_fixture "$fixture"
+
+  if ! HOME="$home_dir" bash "$fixture/scripts/install-codex-native-skills.sh" >/dev/null; then
+    fail "default raw install should succeed"
+    return
+  fi
+
+  if [[ ! -f "$raw_dst/source-skill/SKILL.md" ]]; then
+    fail "default raw install should target ~/.agents/skills"
+    return
+  fi
+  if [[ -e "$home_dir/.codex/skills/source-skill/SKILL.md" ]]; then
+    fail "default raw install should not target ~/.codex/skills"
+    return
+  fi
+  if rg -q '"install_mode": "raw-skills"' "$home_dir/.codex/.agentops-codex-install.json" && \
+    rg -q "\"skills_root\": \"$raw_dst\"" "$home_dir/.codex/.agentops-codex-install.json"; then
+    pass "default raw install targets ~/.agents/skills"
+  else
+    fail "default raw install should record ~/.agents/skills metadata"
   fi
 }
 
@@ -225,6 +258,7 @@ EOF
 
 echo "== test-codex-native-skills-install =="
 test_native_plugin_metadata_refreshes_plugin_cache
+test_default_raw_install_targets_home_agents_skills
 test_explicit_dest_keeps_raw_skill_install_behavior
 
 echo ""

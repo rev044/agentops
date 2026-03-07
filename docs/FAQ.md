@@ -49,5 +49,7 @@ brew uninstall agentops  # if installed
 ```
 
 If Codex is showing duplicate skills and you do not want a full uninstall, remove
-or archive the legacy raw copies in `~/.codex/skills/` and `~/.agents/skills/`,
-then keep the native plugin cache in `~/.codex/plugins/cache/agentops-marketplace/agentops/`.
+or archive stale copies in `~/.codex/skills/`, keep `~/.agents/skills/` as the
+documented user skill home, and only keep the compatibility plugin cache in
+`~/.codex/plugins/cache/agentops-marketplace/agentops/` if your local Codex
+build still requires it.

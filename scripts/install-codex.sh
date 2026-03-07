@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# install-codex.sh — Install the AgentOps native Codex plugin into ~/.codex
+# install-codex.sh — Install AgentOps into the local Codex skill homes and plugin cache
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 #
 # What it does:
 #   1. Downloads a temporary AgentOps archive (no local git clone)
-#   2. Installs the AgentOps native Codex plugin into ~/.codex/plugins/cache
-#   3. Enables the plugin in ~/.codex/config.toml
+#   2. Installs the generated skills into ~/.agents/skills
+#   3. Refreshes the native Codex plugin cache in ~/.codex/plugins/cache for compatibility
+#   4. Enables the plugin in ~/.codex/config.toml
 #
 # Update policy:
 #   Re-run this installer when new AgentOps releases land.
@@ -65,7 +66,10 @@ else
   SRC_ROOT="${TMP_DIR}/${ARCHIVE_ROOT}"
 fi
 
+[ -f "$SRC_ROOT/scripts/install-codex-native-skills.sh" ] || fail "Codex skills installer not found in bundle"
 [ -f "$SRC_ROOT/scripts/install-codex-plugin.sh" ] || fail "Native Codex installer not found in bundle"
+
+bash "$SRC_ROOT/scripts/install-codex-native-skills.sh"
 
 bash "$SRC_ROOT/scripts/install-codex-plugin.sh" \
   --repo-root "$SRC_ROOT" \

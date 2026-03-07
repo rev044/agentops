@@ -8,8 +8,8 @@ set -euo pipefail
 # 1) shellcheck on codex conversion/install scripts
 # 2) skill integrity gate (heal --strict)
 # 3) sync-codex-native-skills.sh succeeds
-# 4) install-codex-plugin.sh succeeds into temp CODEX_HOME
-# 5) Installed plugin cache contains expected skill count and required files (SKILL.md + prompt.md)
+# 4) install-codex.sh succeeds into temp HOME
+# 5) Installed plugin cache plus raw/user skill homes contain expected skill count and required files
 # 6) Generated prompt.md files are runtime-agnostic (no ~/.codex/skills hardcoding)
 # 7) Generated SKILL.md files use $skill syntax (no known /skill references)
 #
@@ -80,6 +80,7 @@ require_file() {
 
 SYNC_SCRIPT="$REPO_ROOT/scripts/sync-codex-native-skills.sh"
 INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-plugin.sh"
+PUBLIC_INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex.sh"
 CONVERTER_SCRIPT="$REPO_ROOT/skills/converter/scripts/convert.sh"
 HEAL_SCRIPT="$REPO_ROOT/skills/heal-skill/scripts/heal.sh"
 CODEX_MANIFEST="$REPO_ROOT/.codex-plugin/plugin.json"
@@ -87,6 +88,7 @@ CODEX_MARKETPLACE="$REPO_ROOT/.agents/plugins/marketplace.json"
 
 require_file "$SYNC_SCRIPT"
 require_file "$INSTALL_SCRIPT"
+require_file "$PUBLIC_INSTALL_SCRIPT"
 require_file "$CONVERTER_SCRIPT"
 require_file "$HEAL_SCRIPT"
 require_file "$CODEX_MANIFEST"
@@ -102,7 +104,7 @@ if [[ "$SKIP_LINT" != "true" ]]; then
   require_cmd markdownlint
 
   info "Running shellcheck on codex pipeline scripts"
-  shellcheck "$SYNC_SCRIPT" "$INSTALL_SCRIPT" "$CONVERTER_SCRIPT"
+  shellcheck "$SYNC_SCRIPT" "$INSTALL_SCRIPT" "$PUBLIC_INSTALL_SCRIPT" "$CONVERTER_SCRIPT"
 
   info "Running markdownlint on install docs"
   markdownlint \
@@ -126,18 +128,20 @@ fi
 bash "$SYNC_SCRIPT" "${SYNC_ARGS[@]}" >/dev/null
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
-CODEX_HOME="/tmp/codex-native-install-test-${timestamp}"
+HOME_ROOT="/tmp/codex-native-install-test-${timestamp}"
+CODEX_HOME="$HOME_ROOT/.codex"
 PLUGIN_ROOT="$CODEX_HOME/plugins/cache/agentops-marketplace/agentops/local"
 PLUGIN_SKILLS="$PLUGIN_ROOT/skills-codex"
+RAW_SKILLS="$CODEX_HOME/skills"
+USER_SKILLS="$HOME_ROOT/.agents/skills"
 
-info "Installing native Codex plugin to temp CODEX_HOME"
-bash "$INSTALL_SCRIPT" \
-  --repo-root "$REPO_ROOT" \
-  --codex-home "$CODEX_HOME" \
-  --version "test-local" \
-  --update-command "test-update" >/dev/null
+info "Installing AgentOps via the public Codex installer into temp HOME"
+HOME="$HOME_ROOT" AGENTOPS_BUNDLE_ROOT="$REPO_ROOT" AGENTOPS_INSTALL_REF="test-local" \
+  bash "$PUBLIC_INSTALL_SCRIPT" >/dev/null
 
 [[ -d "$PLUGIN_SKILLS" ]] || fail "Plugin skills directory not created: $PLUGIN_SKILLS"
+[[ -d "$RAW_SKILLS" ]] || fail "Raw skills directory not created: $RAW_SKILLS"
+[[ -d "$USER_SKILLS" ]] || fail "User skills directory not created: $USER_SKILLS"
 
 expected_count=0
 if [[ -n "$ONLY_CSV" ]]; then
@@ -154,6 +158,10 @@ fi
 
 installed_count="$(find "$PLUGIN_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [[ "$installed_count" == "$expected_count" ]] || fail "Installed count mismatch (expected $expected_count, got $installed_count)"
+raw_count="$(find "$RAW_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+[[ "$raw_count" == "$expected_count" ]] || fail "Raw skill count mismatch (expected $expected_count, got $raw_count)"
+user_count="$(find "$USER_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+[[ "$user_count" == "$expected_count" ]] || fail "User skill count mismatch (expected $expected_count, got $user_count)"
 
 info "Verifying installed plugin files"
 while IFS= read -r skill_dir; do
@@ -206,5 +214,5 @@ fi
 echo ""
 echo "PASS: Codex-native install flow verified"
 echo "  skills tested: $installed_count"
-echo "  codex home: $CODEX_HOME"
+echo "  home root: $HOME_ROOT"
 echo "  plugin root: $PLUGIN_ROOT"

@@ -31,9 +31,9 @@ MARKETPLACE_FILE="${REPO_ROOT}/.agents/plugins/marketplace.json"
 PLUGIN_CACHE_ROOT="${CODEX_HOME}/plugins/cache/${MARKETPLACE_NAME}/${PLUGIN_NAME}/local"
 PLUGIN_SKILLS_DST="${PLUGIN_CACHE_ROOT}/skills-codex"
 LEGACY_SKILLS_DIR="${CODEX_HOME}/skills"
+USER_SKILLS_DIR="$(dirname "$CODEX_HOME")/.agents/skills"
 CONFIG_FILE="${CODEX_HOME}/config.toml"
 INSTALL_META="${CODEX_HOME}/.agentops-codex-install.json"
-LEGACY_BACKUP_ROOT=""
 SKILL_MANIFEST_NAME=".agentops-manifest.json"
 PLUGIN_STATE_FILE=""
 
@@ -105,6 +105,7 @@ fi
 PLUGIN_CACHE_ROOT="${CODEX_HOME}/plugins/cache/${MARKETPLACE_NAME}/${PLUGIN_NAME}/local"
 PLUGIN_SKILLS_DST="${PLUGIN_CACHE_ROOT}/skills-codex"
 LEGACY_SKILLS_DIR="${CODEX_HOME}/skills"
+USER_SKILLS_DIR="$(dirname "$CODEX_HOME")/.agents/skills"
 CONFIG_FILE="${CODEX_HOME}/config.toml"
 INSTALL_META="${CODEX_HOME}/.agentops-codex-install.json"
 
@@ -203,34 +204,6 @@ upsert_toml_key() {
   mv "$tmp" "$file"
 }
 
-move_legacy_agentops_skills() {
-  local moved=0
-  local timestamp
-  local backup_dir
-  local skill_name
-
-  [[ -d "$LEGACY_SKILLS_DIR" ]] || return 0
-
-  timestamp="$(date +%Y%m%d-%H%M%S)"
-  backup_dir="${CODEX_HOME}/agentops-legacy-skills.${timestamp}"
-
-  while IFS= read -r skill_name; do
-    [[ -n "$skill_name" ]] || continue
-    if [[ -f "$LEGACY_SKILLS_DIR/$skill_name/SKILL.md" ]]; then
-      mkdir -p "$backup_dir"
-      mv "$LEGACY_SKILLS_DIR/$skill_name" "$backup_dir/$skill_name"
-      moved=$((moved + 1))
-    fi
-  done < <(find "$PLUGIN_SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
-
-  if [[ "$moved" -gt 0 ]]; then
-    LEGACY_BACKUP_ROOT="$backup_dir"
-    info "Archived $moved legacy AgentOps skill folder(s) from ~/.codex/skills to $backup_dir"
-  elif [[ -d "$backup_dir" ]]; then
-    rmdir "$backup_dir" 2>/dev/null || true
-  fi
-}
-
 stage_plugin_source() {
   local staging_root="$1"
 
@@ -244,6 +217,49 @@ stage_plugin_source() {
   if [[ -f "$REPO_ROOT/.app.json" ]]; then
     cp "$REPO_ROOT/.app.json" "$staging_root/.app.json"
   fi
+}
+
+sync_raw_skills_root() {
+  local dst_root="$1"
+  local skill_dir
+  local skill_name
+  local dst_skill
+
+  mkdir -p "$dst_root"
+  cp "$PLUGIN_SKILLS_SRC/$SKILL_MANIFEST_NAME" "$dst_root/$SKILL_MANIFEST_NAME"
+
+  while IFS= read -r -d '' skill_dir; do
+    skill_name="$(basename "$skill_dir")"
+    dst_skill="$dst_root/$skill_name"
+    mkdir -p "$dst_skill"
+    rsync -a --delete --copy-links "${skill_dir%/}/" "${dst_skill%/}/"
+  done < <(find "$PLUGIN_SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+
+  while IFS= read -r -d '' dst_skill; do
+    skill_name="$(basename "$dst_skill")"
+    if [[ ! -d "$PLUGIN_SKILLS_SRC/$skill_name" ]] && [[ -f "$dst_skill/.agentops-generated.json" ]]; then
+      rm -rf "$dst_skill"
+    fi
+  done < <(find "$dst_root" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+}
+
+write_raw_skill_state() {
+  local dst_root="$1"
+  local installed_at="$2"
+  local manifest_hash="$3"
+  local skill_count
+
+  skill_count="$(find "$dst_root" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
+  cat > "$dst_root/.agentops-codex-state.json" <<EOF
+{
+  "installed_at": "$installed_at",
+  "install_mode": "managed-raw-skills",
+  "version": "$VERSION",
+  "manifest_hash": "$manifest_hash",
+  "skill_count": $skill_count,
+  "skills_root": "$dst_root"
+}
+EOF
 }
 
 require_path "$PLUGIN_MANIFEST" "Codex plugin manifest"
@@ -260,8 +276,6 @@ trap cleanup EXIT
 
 info "Installing AgentOps Codex native plugin..."
 
-move_legacy_agentops_skills
-
 mkdir -p "$(dirname "$PLUGIN_CACHE_ROOT")"
 rm -rf "$PLUGIN_CACHE_ROOT"
 stage_plugin_source "$TMP_DIR/plugin"
@@ -276,6 +290,12 @@ require_path "$PLUGIN_SKILLS_DST/$SKILL_MANIFEST_NAME" "installed Codex skill ma
 INSTALLED_MANIFEST_HASH="$(sha256_file "$PLUGIN_SKILLS_DST/$SKILL_MANIFEST_NAME")"
 [[ "$MANIFEST_HASH" == "$INSTALLED_MANIFEST_HASH" ]] || fail "Installed plugin cache manifest hash mismatch; expected $MANIFEST_HASH, got $INSTALLED_MANIFEST_HASH"
 SKILL_COUNT="$(find "$PLUGIN_SKILLS_DST" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
+
+sync_raw_skills_root "$LEGACY_SKILLS_DIR"
+sync_raw_skills_root "$USER_SKILLS_DIR"
+write_raw_skill_state "$LEGACY_SKILLS_DIR" "$INSTALLED_AT" "$MANIFEST_HASH"
+write_raw_skill_state "$USER_SKILLS_DIR" "$INSTALLED_AT" "$MANIFEST_HASH"
+
 cat > "$PLUGIN_STATE_FILE" <<EOF
 {
   "installed_at": "$INSTALLED_AT",
@@ -298,6 +318,8 @@ cat > "$INSTALL_META" <<EOF
   "manifest_hash": "$MANIFEST_HASH",
   "skill_count": $SKILL_COUNT,
   "plugin_state_file": "$PLUGIN_STATE_FILE",
+  "codex_home_skills_root": "$LEGACY_SKILLS_DIR",
+  "user_skills_root": "$USER_SKILLS_DIR",
   "update_command": "$UPDATE_CMD"
 }
 EOF
@@ -307,9 +329,8 @@ echo "  Plugin key: $PLUGIN_KEY"
 echo "  Plugin root: $PLUGIN_CACHE_ROOT"
 echo "  Skills available: $SKILL_COUNT"
 echo "  Config updated: $CONFIG_FILE"
+echo "  Raw skills mirrored to: $LEGACY_SKILLS_DIR"
+echo "  User skills mirrored to: $USER_SKILLS_DIR"
 info "Install metadata written: $INSTALL_META"
-if [[ -n "$LEGACY_BACKUP_ROOT" ]]; then
-  echo "  Legacy AgentOps raw skills backup: $LEGACY_BACKUP_ROOT"
-fi
 echo ""
 echo "Restart Codex to pick up the native plugin."

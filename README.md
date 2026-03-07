@@ -57,7 +57,7 @@ AgentOps adds the missing layer:
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (0.110.0+ native plugin)
+# Codex CLI (installs to ~/.agents/skills and refreshes plugin compatibility)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode
@@ -207,7 +207,7 @@ Full reference with examples and precedence rules: [docs/ENV-VARS.md](docs/ENV-V
 
 | What | Where | Reversible? |
 |------|-------|:-----------:|
-| Skills | Global skills dir or native plugin cache (outside your repo; for Claude Code: `~/.claude/skills/`) | `rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/ ~/.codex/plugins/cache/agentops-marketplace/agentops/` |
+| Skills | Global skill homes (`~/.agents/skills` for Codex/OpenAI-documented installs, plus compatibility caches outside your repo; for Claude Code: `~/.claude/skills/`) | `rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/ ~/.codex/plugins/cache/agentops-marketplace/agentops/` |
 | Knowledge artifacts | `.agents/` in your repo (git-ignored by default) | `rm -rf .agents/` |
 | Hook registration | `.claude/settings.json` | Delete entries from `.claude/settings.json` |
 

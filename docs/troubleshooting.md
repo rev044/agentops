@@ -122,8 +122,11 @@ If reinstalling one-by-one works but bulk update previously failed, the local sk
 
 ## Skills show up twice in Codex
 
-This usually means the native Codex plugin cache is overlapping with an older
-raw skills install in `~/.codex/skills` or a legacy install in `~/.agents/skills`.
+This usually means Codex is seeing AgentOps skills from more than one location.
+OpenAI's Codex skills docs describe `~/.agents/skills` as the user skill home.
+Extra copies in `~/.codex/skills` or the compatibility plugin cache can still
+create duplicates if they drift or if your local Codex build scans more than one
+of those locations.
 
 **Diagnosis:**
 
@@ -141,17 +144,27 @@ find ~/.agents/skills -maxdepth 1 -mindepth 1 -type d | sort
 
 **Fix:**
 
-1. Keep the native plugin install and archive the raw copies:
+1. Reinstall so `~/.agents/skills` is refreshed from the current generated source:
    ```bash
-   mkdir -p ~/.codex/skills.backup.$(date +%Y%m%d-%H%M%S)
-   mv ~/.agents/skills ~/.agents/skills.backup.$(date +%Y%m%d-%H%M%S)
+   curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
    ```
-2. If `~/.codex/skills` still contains old AgentOps folders, move those folders into the same backup location.
-3. Restart Codex so it reloads the remaining skill home.
-4. Re-run `ao doctor` to confirm the warning is gone.
+2. If duplicates persist, archive the stale `~/.codex/skills` copy:
+   ```bash
+   mv ~/.codex/skills ~/.codex/skills.backup.$(date +%Y%m%d-%H%M%S)
+   ```
+3. If duplicates still persist after that, remove the compatibility plugin cache:
+   ```bash
+   rm -rf ~/.codex/plugins/cache/agentops-marketplace/agentops/local
+   ```
+4. Validate the runtime in a fresh session:
+   ```bash
+   bash scripts/validate-codex-cli-skills.sh
+   ```
+5. Restart Codex so interactive sessions reload the current skill list.
+6. Re-run `ao doctor` to confirm the warning is gone.
 
-If you still need the legacy path for another workflow, keep the backup and restore
-only the specific skills that runtime still needs instead of the whole directory.
+Keep `~/.agents/skills` as the source of truth. Only restore `~/.codex/skills`
+or the plugin cache if a specific Codex build still requires them.
 
 ---
 
