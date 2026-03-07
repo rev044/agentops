@@ -179,7 +179,7 @@ This workflow uses beads for git-native issue tracking:
 bd ready              # Unblocked issues
 bd show <id>          # Issue details
 bd close <id>         # Close issue
-bd sync               # Sync with git
+bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automatic)
 ```
 
 ## Examples

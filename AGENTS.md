@@ -50,7 +50,7 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --status in_progress  # Claim work
 bd close <id>         # Complete work
-bd sync               # Sync with git
+bd vc status          # Inspect Dolt state if needed (JSONL auto-sync is automatic)
 
 # CLI development
 cd cli && make build  # Build ao binary
@@ -224,7 +224,7 @@ This moves the tag to HEAD, pushes, rebuilds the GitHub release, updates the Hom
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   bd vc status  # Optional visibility check; bd auto-sync handles JSONL import/export
    git push
    git status  # MUST show "up to date with origin"
    ```
