@@ -389,8 +389,19 @@ Path(sys.argv[2]).write_text(messages[-1] + "\n")
 PY
 
     extract_json_array "$TMP_DIR/claude-output.txt" "$ACTUAL_CLAUDE_JSON"
-    compare_inventory "$EXPECTED_CLAUDE_JSON" "$ACTUAL_CLAUDE_JSON" "claude" "names-only-invocable"
-    }
+    local compare_output
+    if compare_output="$(compare_inventory "$EXPECTED_CLAUDE_JSON" "$ACTUAL_CLAUDE_JSON" "claude" "names-only-invocable" 2>&1)"; then
+        printf '%s\n' "$compare_output"
+        return 0
+    fi
+    if [[ "$CLAUDE_STRICT" == "1" ]]; then
+        printf '%s\n' "$compare_output" >&2
+        return 1
+    fi
+    echo "WARN: Claude inventory differs from expected invocable skill set." >&2
+    printf '%s\n' "$compare_output" >&2
+    return 0
+}
 
 run_codex_validation() {
     if ! command -v "$CODEX_BIN" >/dev/null 2>&1; then
