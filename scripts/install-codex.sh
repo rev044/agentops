@@ -26,20 +26,12 @@ fail()  { echo -e "${RED}✗${NC} $*"; exit 1; }
 
 UPDATE_CMD="curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
 SOURCE_ROOT_OVERRIDE="${AGENTOPS_BUNDLE_ROOT:-}"
-
-get_latest_tag() {
-    local tag
-    tag=$(curl -fsSL "https://api.github.com/repos/boshu2/agentops/releases/latest" 2>/dev/null \
-        | grep '"tag_name"' | head -1 | cut -d'"' -f4)
-    if [ -z "$tag" ]; then
-        echo "main"  # fallback to main if API fails
-    else
-        echo "$tag"
-    fi
-}
-
-RELEASE_TAG=$(get_latest_tag)
-ARCHIVE_URL="https://codeload.github.com/boshu2/agentops/tar.gz/refs/tags/$RELEASE_TAG"
+INSTALL_REF="${AGENTOPS_INSTALL_REF:-main}"
+if [[ "$INSTALL_REF" == "main" ]]; then
+  ARCHIVE_URL="https://codeload.github.com/boshu2/agentops/tar.gz/refs/heads/main"
+else
+  ARCHIVE_URL="https://codeload.github.com/boshu2/agentops/tar.gz/refs/tags/$INSTALL_REF"
+fi
 
 echo "Installing AgentOps for Codex..."
 echo ""
@@ -77,11 +69,11 @@ fi
 
 bash "$SRC_ROOT/scripts/install-codex-plugin.sh" \
   --repo-root "$SRC_ROOT" \
-  --version "$RELEASE_TAG" \
+  --version "$INSTALL_REF" \
   --update-command "$UPDATE_CMD"
 
 echo ""
 echo "Update note:"
 echo "  AgentOps ships frequent updates."
-echo "  Re-run this installer regularly (especially after new releases):"
+echo "  Re-run this installer regularly to pick up the latest main branch changes:"
 echo "  $UPDATE_CMD"
