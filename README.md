@@ -15,8 +15,6 @@ AgentOps is the operating system around your coding agent: it tracks the work, v
 
 <p align="center">
 <img src="docs/assets/swarm-6-rpi.png" alt="Agents running full development cycles in parallel with validation gates and a coordinating team leader" width="800">
-<br>
-<i>AgentOps does not just prompt agents better. It gives the repo memory, gates, issue state, and a repeatable operating loop.</i>
 </p>
 
 ---
