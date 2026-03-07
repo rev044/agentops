@@ -3,7 +3,20 @@ set -euo pipefail
 
 # Validate evolve cycle-history.jsonl integrity.
 # Checks: file exists (if evolve has run), entries have required fields,
-# cycle numbers are monotonically increasing with no gaps.
+# cycle numbers are monotonically increasing, and productive entries carry
+# the fields needed for trajectory plotting. Historical numbering gaps are
+# warnings by default; pass --strict-gaps to fail on them.
+
+STRICT_GAPS=false
+if [[ "${1:-}" == "--strict-gaps" ]]; then
+  STRICT_GAPS=true
+  shift
+fi
+
+if [[ $# -gt 0 ]]; then
+  echo "Usage: $0 [--strict-gaps]"
+  exit 2
+fi
 
 HISTORY=".agents/evolve/cycle-history.jsonl"
 
@@ -26,17 +39,18 @@ if [[ ! -f "$HISTORY" ]]; then
   exit 0
 fi
 
-# Validate each entry has required fields
-REQUIRED_FIELDS='cycle goal_id result timestamp'
 LINE_NUM=0
 ERRORS=0
+WARNINGS=0
 PREV_CYCLE=-1
+LAST_NON_EMPTY=0
 
 while IFS= read -r line; do
   LINE_NUM=$((LINE_NUM + 1))
 
   # Skip empty lines
   [[ -z "$line" ]] && continue
+  LAST_NON_EMPTY=$LINE_NUM
 
   # Validate JSON
   if ! echo "$line" | jq empty 2>/dev/null; then
@@ -45,7 +59,7 @@ while IFS= read -r line; do
     continue
   fi
 
-  # Check required fields (goal_id or goal_ids)
+  # Check required scalar fields
   for field in cycle result timestamp; do
     VALUE=$(echo "$line" | jq -r ".$field // empty")
     if [[ -z "$VALUE" ]]; then
@@ -54,28 +68,78 @@ while IFS= read -r line; do
     fi
   done
 
-  # Check that either goal_id or goal_ids exists
-  GOAL_ID=$(echo "$line" | jq -r '.goal_id // empty')
-  GOAL_IDS=$(echo "$line" | jq -r '.goal_ids // empty')
-  if [[ -z "$GOAL_ID" && -z "$GOAL_IDS" ]]; then
-    echo "ERROR: Line $LINE_NUM missing both goal_id and goal_ids"
+  TARGET=$(echo "$line" | jq -r '.target // .goal_id // empty')
+  GOAL_IDS_LEN=$(echo "$line" | jq -r '(.goal_ids // []) | length')
+  if [[ -z "$TARGET" && "$GOAL_IDS_LEN" -eq 0 ]]; then
+    echo "ERROR: Line $LINE_NUM missing target/goal_id and goal_ids"
     ERRORS=$((ERRORS + 1))
+  elif [[ -z "$TARGET" ]]; then
+    echo "WARN: Line $LINE_NUM uses goal_ids parallel schema without target"
+    WARNINGS=$((WARNINGS + 1))
+  elif [[ "$(echo "$line" | jq -r 'has("target")')" != "true" ]]; then
+    echo "WARN: Line $LINE_NUM uses legacy goal_id field"
+    WARNINGS=$((WARNINGS + 1))
+  fi
+
+  RESULT=$(echo "$line" | jq -r '.result // empty')
+  case "$RESULT" in
+    improved|regressed|harvested)
+      for field in sha goals_passing goals_total; do
+        VALUE=$(echo "$line" | jq -r ".$field // empty")
+        if [[ -z "$VALUE" ]]; then
+          echo "WARN: Line $LINE_NUM missing productive field: $field"
+          WARNINGS=$((WARNINGS + 1))
+        fi
+      done
+      for field in goals_passing goals_total; do
+        TYPE=$(echo "$line" | jq -r "if has(\"$field\") then (.$field | type) else \"missing\" end")
+        if [[ "$TYPE" != "number" ]]; then
+          echo "WARN: Line $LINE_NUM uses non-numeric $field ($TYPE)"
+          WARNINGS=$((WARNINGS + 1))
+        fi
+      done
+      ;;
+    unchanged|quarantined)
+      :
+      ;;
+    *)
+      echo "WARN: Line $LINE_NUM uses unrecognized result: $RESULT"
+      WARNINGS=$((WARNINGS + 1))
+      ;;
+  esac
+
+  CYCLE_TYPE=$(echo "$line" | jq -r '.cycle | type')
+  if [[ "$CYCLE_TYPE" != "number" ]]; then
+    echo "ERROR: Line $LINE_NUM cycle is not numeric ($CYCLE_TYPE)"
+    ERRORS=$((ERRORS + 1))
+    continue
   fi
 
   # Check cycle number monotonicity
   CYCLE=$(echo "$line" | jq -r '.cycle // -1')
   if [[ "$PREV_CYCLE" -ge 0 ]]; then
     EXPECTED=$((PREV_CYCLE + 1))
-    if [[ "$CYCLE" -ne "$EXPECTED" ]]; then
-      echo "ERROR: Cycle gap at line $LINE_NUM: expected cycle $EXPECTED, got $CYCLE"
+    if [[ "$CYCLE" -le "$PREV_CYCLE" ]]; then
+      echo "ERROR: Non-increasing cycle at line $LINE_NUM: previous $PREV_CYCLE, got $CYCLE"
       ERRORS=$((ERRORS + 1))
+    elif [[ "$CYCLE" -ne "$EXPECTED" ]]; then
+      if [[ "$STRICT_GAPS" == "true" ]]; then
+        echo "ERROR: Cycle gap at line $LINE_NUM: expected cycle $EXPECTED, got $CYCLE"
+        ERRORS=$((ERRORS + 1))
+      else
+        echo "WARN: Cycle gap at line $LINE_NUM: expected cycle $EXPECTED, got $CYCLE"
+        WARNINGS=$((WARNINGS + 1))
+      fi
     fi
+  elif [[ "$CYCLE" -ne 1 ]]; then
+    echo "WARN: First logged cycle is $CYCLE (expected 1)"
+    WARNINGS=$((WARNINGS + 1))
   fi
   PREV_CYCLE="$CYCLE"
 
 done < "$HISTORY"
 
-if [[ "$LINE_NUM" -eq 0 ]]; then
+if [[ "$LAST_NON_EMPTY" -eq 0 ]]; then
   echo "WARN: cycle-history.jsonl exists but is empty."
   exit 0
 fi
@@ -86,5 +150,10 @@ if [[ "$ERRORS" -gt 0 ]]; then
   exit 1
 fi
 
-echo "cycle-history.jsonl OK: $LINE_NUM entries, cycles 1-$PREV_CYCLE, no gaps, all fields present."
+if [[ "$WARNINGS" -gt 0 ]]; then
+  echo "cycle-history.jsonl OK with warnings: $LAST_NON_EMPTY entries checked, cycles 1-$PREV_CYCLE, warnings=$WARNINGS."
+  exit 0
+fi
+
+echo "cycle-history.jsonl OK: $LAST_NON_EMPTY entries, cycles 1-$PREV_CYCLE, required fields present."
 exit 0

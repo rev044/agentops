@@ -352,11 +352,27 @@ if [ "$QUALITY_MODE" = "true" ]; then
   QUALITY_SCORE_FIELD=",\"quality_score\":${QUALITY_SCORE}"
 fi
 
-# Append to cycle history (atomic write)
-# Note: flock is Linux-native. On macOS use plain >> append if single-process.
-ENTRY="{\"cycle\":${CYCLE},\"target\":\"${TARGET}\",\"result\":\"${OUTCOME}\",\"sha\":\"$(git rev-parse --short HEAD)\",\"timestamp\":\"$(date -Iseconds)\",\"goals_passing\":${PASSING},\"goals_total\":${TOTAL}${QUALITY_SCORE_FIELD}}"
-flock .agents/evolve/cycle-history.jsonl -c "echo '${ENTRY}' >> .agents/evolve/cycle-history.jsonl" 2>/dev/null \
-  || echo "${ENTRY}" >> .agents/evolve/cycle-history.jsonl
+# Check if this cycle changed real code (not just artifacts)
+# Note: Using ${CYCLE_START_SHA} instead of HEAD~1 safely handles sub-skill multi-commit cases
+REAL_CHANGES=$(git diff --name-only ${CYCLE_START_SHA}..HEAD -- ':!.agents/*' ':!GOALS.yaml' 2>/dev/null | wc -l | tr -d ' ')
+
+# Substantive-delta gate: artifact-only/no-delta cycles must not be recorded as "improved".
+if [ "$OUTCOME" = "improved" ] && [ "$REAL_CHANGES" -eq 0 ]; then
+  OUTCOME="unchanged"
+fi
+
+if [ "$OUTCOME" = "unchanged" ]; then
+  flock .agents/evolve/cycle-history.jsonl -c \
+    "echo '{\"cycle\":${CYCLE},\"target\":\"${TARGET}\",\"result\":\"unchanged\",\"timestamp\":\"$(date -Iseconds)\"}' >> .agents/evolve/cycle-history.jsonl" \
+    2>/dev/null \
+    || echo "{\"cycle\":${CYCLE},\"target\":\"${TARGET}\",\"result\":\"unchanged\",\"timestamp\":\"$(date -Iseconds)\"}" >> .agents/evolve/cycle-history.jsonl
+else
+  # Append to cycle history (atomic write)
+  # Note: flock is Linux-native. On macOS use plain >> append if single-process.
+  ENTRY="{\"cycle\":${CYCLE},\"target\":\"${TARGET}\",\"result\":\"${OUTCOME}\",\"sha\":\"$(git rev-parse --short HEAD)\",\"timestamp\":\"$(date -Iseconds)\",\"goals_passing\":${PASSING},\"goals_total\":${TOTAL}${QUALITY_SCORE_FIELD}}"
+  flock .agents/evolve/cycle-history.jsonl -c "echo '${ENTRY}' >> .agents/evolve/cycle-history.jsonl" 2>/dev/null \
+    || echo "${ENTRY}" >> .agents/evolve/cycle-history.jsonl
+fi
 
 # Verify write
 LAST=$(tail -1 .agents/evolve/cycle-history.jsonl | jq -r '.cycle')
@@ -365,19 +381,17 @@ LAST=$(tail -1 .agents/evolve/cycle-history.jsonl | jq -r '.cycle')
 # Telemetry
 bash scripts/log-telemetry.sh evolve cycle-complete cycle=${CYCLE} goal=${TARGET} outcome=${OUTCOME} 2>/dev/null || true
 
-# Check if this cycle changed real code (not just artifacts)
-# Note: Using ${CYCLE_START_SHA} instead of HEAD~1 safely handles sub-skill multi-commit cases
-REAL_CHANGES=$(git diff --name-only ${CYCLE_START_SHA}..HEAD -- ':!.agents/*' ':!GOALS.yaml' 2>/dev/null | wc -l | tr -d ' ')
-
-if [ "$REAL_CHANGES" -gt 0 ]; then
+if [ "$OUTCOME" = "unchanged" ]; then
+  # No-delta cycle: leave local-only so history stays honest and stagnation logic can see it.
+  :
+elif [ "$REAL_CHANGES" -gt 0 ]; then
   # Full commit: real code was changed
   git add .agents/evolve/cycle-history.jsonl
   git commit -m "evolve: cycle ${CYCLE} -- ${TARGET} ${OUTCOME}"
 else
-  # Artifact-only cycle: stage JSONL but don't create a standalone commit
-  # The /rpi or /implement sub-skill already committed its own artifact changes
+  # Productive cycle with non-agent repo delta already committed by a sub-skill:
+  # stage the ledger but do not create a standalone follow-up commit.
   git add .agents/evolve/cycle-history.jsonl
-  # Do NOT create a standalone commit for artifact-only work
 fi
 
 PRODUCTIVE_THIS_SESSION=$((PRODUCTIVE_THIS_SESSION + 1))

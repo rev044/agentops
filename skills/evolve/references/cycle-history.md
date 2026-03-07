@@ -67,6 +67,13 @@ Every productive cycle log entry MUST include:
 
 These enable fitness trajectory plotting across cycles.
 
+### Substantive-Delta Rule
+
+Do not record `result: "improved"` when a cycle produces no non-agent repo delta.
+If the cycle touched only `.agents/` artifacts or otherwise made no substantive
+repo change, rewrite the outcome to `unchanged` and keep it local-only. This
+prevents ledger churn from being misread as product progress.
+
 ### Telemetry
 
 Log telemetry at the end of each cycle:
@@ -90,7 +97,7 @@ git commit -m "evolve: cycle ${CYCLE} -- ${TARGET} ${OUTCOME}"
 git add .agents/evolve/cycle-history.jsonl
 git commit -m "evolve: cycle ${CYCLE} -- parallel wave [${goal_ids}] ${outcome}"
 
-# Idle cycle: append locally, do NOT commit
+# Idle or no-delta cycle: append locally, do NOT commit
 echo '{"cycle":N,"target":"idle","result":"unchanged",...}' >> .agents/evolve/cycle-history.jsonl
 # No git add, no git commit
 ```
