@@ -86,7 +86,7 @@ Three issues now ready! (c2d and e3f were blocked by a1b)
 
 Before ending:
 ```
-$ bd sync
+$ bd vc status   # Optional Dolt status check
 $ git push
 ```
 
@@ -98,4 +98,4 @@ $ git push
 2. Issue auto-marked `in_progress` then closed
 3. Commit message references the issue
 4. Closing an issue unblocks dependents
-5. Always `bd sync` before ending session
+5. Issue updates auto-sync to JSONL; push before ending session

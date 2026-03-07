@@ -483,7 +483,7 @@ If bd CLI not available:
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Issue not found | Issue ID doesn't exist or beads not synced | Run `bd sync` then `bd show <id>` to verify |
+| Issue not found | Issue ID doesn't exist or local state looks stale | Run `bd show <id>` to verify; use `bd vc status` only if you need Dolt state |
 | GREEN mode violation | Edited a file not related to the issue scope | Revert unrelated changes. GREEN mode restricts edits to files relevant to the issue |
 | Verification gate fails | Tests fail or build breaks after implementation | Read the verification output, fix the specific failures, re-run verification |
 | "BLOCKED" status | Contract contradicts tests or is incomplete in GREEN mode | Write BLOCKED with specific reason, do NOT modify tests |

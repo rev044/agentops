@@ -297,7 +297,7 @@ Mayor (FIRE Loop)
 **Coordination via beads**:
 - Mayor updates status via `bd update`
 - Polecats work independently
-- Status synced via `bd sync`
+- Issue state auto-syncs via JSONL; use `bd vc status` only to inspect Dolt state
 
 ---
 
@@ -340,7 +340,7 @@ gt sling <issue> <rig>                    # Re-ignite
 ```bash
 git checkout --theirs .beads/issues.jsonl
 git add .beads/issues.jsonl
-bd sync
+bd vc status   # Optional: inspect Dolt state after resolving the JSONL file
 ```
 
 ---

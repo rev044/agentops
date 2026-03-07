@@ -70,7 +70,8 @@ $ bd close agentops-abc
 
 Before ending, always run:
 ```
-bd sync && git push
+bd vc status   # Optional Dolt status check
+git push
 ```
 
 ## Next

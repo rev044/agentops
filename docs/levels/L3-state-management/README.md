@@ -32,14 +32,14 @@ bd list --status open       # All open issues
 bd show <id>                # View issue details
 bd update <id> --status in_progress
 bd close <id> --reason "Done"
-bd sync                     # Sync at session end
+bd vc status                # Optional Dolt status check; JSONL auto-sync is automatic
 ```
 
 ## Key Concepts
 
 - **Issues**: Atomic units of work
 - **Dependencies**: Issues can block each other
-- **Session close**: `bd sync` before push
+- **Session close**: push after your issue updates; use `bd vc status` only if you need Dolt state
 
 ## What's NOT at This Level
 
