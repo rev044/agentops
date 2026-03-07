@@ -38,11 +38,10 @@ Common issues encountered when using bd and how to resolve them.
 ### Symptom
 ```bash
 bd list
-# Error: Database out of sync with JSONL. Run 'bd sync --import-only' to fix.
+# Error: Database out of sync with JSONL.
 
-bd sync --import-only
-# Error: prefix mismatch detected: database uses 'ap-' but found issues with prefixes:
-# [code- (14 issues) etl- (8 issues) hybrid- (11 issues)]
+# Current CLI repair path:
+bd doctor --fix --source=jsonl --yes
 ```
 
 ### Root Cause
@@ -61,20 +60,23 @@ cp issues.jsonl issues.jsonl.bak
 # Keep only issues with correct prefix (e.g., ap-)
 grep -E '"id":"ap-' issues.jsonl.bak > issues.jsonl
 
-# Reimport
-bd sync --import-only
+# Rebuild database state from JSONL
+bd doctor --fix --source=jsonl --yes
 ```
 
-**Option 2: Use --rename-on-import (if IDs are standard format)**
+**Option 2: Normalize IDs, then rebuild**
 ```bash
-bd sync --import-only --rename-on-import
-# Renames all issues to database prefix
+# Current CLI does not expose the old rename-on-import repair path.
+# Fix the JSONL contents first, then rebuild from JSONL.
+grep -E '"id":"[a-z]+-[a-z0-9]+"' issues.jsonl > clean.jsonl
+mv clean.jsonl issues.jsonl
+bd doctor --fix --source=jsonl --yes
 ```
 
 **Option 3: Nuclear rebuild**
 ```bash
 rm -rf .beads/*.db
-bd sync --import-only
+bd doctor --fix --source=jsonl --yes
 ```
 
 ### Prevention
@@ -88,8 +90,9 @@ bd sync --import-only
 
 ### Symptom
 ```bash
-bd sync --import-only --rename-on-import
-# Error: cannot rename issue code-map-validation: invalid suffix 'map-validation'
+# Historical docs mention a removed rename-on-import repair path,
+# but the current CLI repairs from JSONL via `bd doctor`.
+bd doctor --fix --source=jsonl --yes
 ```
 
 ### Root Cause
@@ -112,9 +115,9 @@ grep -E '"id":"[a-z]+-[a-z0-9]+"' issues.jsonl.bak > issues.jsonl
 # Check what was removed
 diff <(wc -l < issues.jsonl.bak) <(wc -l < issues.jsonl)
 
-# Reimport
+# Rebuild from the cleaned JSONL file
 rm -f *.db
-bd sync --import-only
+bd doctor --fix --source=jsonl --yes
 ```
 
 **Full reset** (if too corrupted):
@@ -353,9 +356,9 @@ This is a **known SQLite limitation**, not a bd bug.
    bd init myproject
    ```
 
-3. **Import existing issues (if you had JSONL export):**
+3. **Restore from backup (if you have one):**
    ```bash
-   bd import < issues-backup.jsonl
+   bd backup restore /path/to/backup-dir
    ```
 
 **Alternative: Use global `~/.beads/` database**

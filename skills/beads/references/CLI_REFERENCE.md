@@ -244,16 +244,16 @@ bd --allow-stale list --status open --json
 
 **⚠️ Caution:** May show stale or incomplete data. Use only when stuck and other options fail.
 
-### Force Import
+### Force JSONL Repair
 
 ```bash
-# Force metadata update even when DB appears synced
-bd import --force -i .beads/issues.jsonl
+# Rebuild database state from the current JSONL source of truth
+bd doctor --fix --source=jsonl --yes
 ```
 
-**When to use:** `bd import` reports "0 created, 0 updated" but staleness errors persist.
+**When to use:** Local beads state looks stale or inconsistent after pull/rebase or after manual JSONL edits.
 
-**Shows:** `Metadata updated (database already in sync with JSONL)`
+**Note:** The current CLI in this workspace does not expose the older import subcommand.
 
 ### Other Global Flags
 
@@ -332,31 +332,27 @@ bd rename-prefix kw- --json     # Apply rename
 
 ## Database Management
 
-### Import/Export
+### Export/Repair
 
 ```bash
-# Import issues from JSONL
-bd import -i .beads/issues.jsonl --dry-run      # Preview changes
-bd import -i .beads/issues.jsonl                # Import and update issues
-bd import -i .beads/issues.jsonl --dedupe-after # Import + detect duplicates
+# Export a JSONL snapshot
+bd export -o backup.jsonl
 
-# Handle missing parents during import
-bd import -i issues.jsonl --orphan-handling allow      # Default: import orphans without validation
-bd import -i issues.jsonl --orphan-handling resurrect  # Auto-resurrect deleted parents as tombstones
-bd import -i issues.jsonl --orphan-handling skip       # Skip orphans with warning
-bd import -i issues.jsonl --orphan-handling strict     # Fail if parent is missing
+# Rebuild database state from JSONL when local state is stale
+bd doctor --fix --source=jsonl --yes
 
-# Configure default orphan handling behavior
-bd config set import.orphan_handling "resurrect"
-bd sync  # Now uses resurrect mode by default
+# Restore from a backup directory created by `bd backup`
+bd backup restore /path/to/backup-dir
+
+# Inspect or commit Dolt state when using the Dolt backend
+bd vc status
+bd vc commit -m "Repair beads state"
 ```
 
-**Orphan handling modes:**
+**Current CLI note:**
 
-- **`allow` (default)** - Import orphaned children without parent validation. Most permissive, ensures no data loss even if hierarchy is temporarily broken.
-- **`resurrect`** - Search JSONL history for deleted parents and recreate them as tombstones (Status=Closed, Priority=4). Preserves hierarchy with minimal data. Dependencies are also resurrected on best-effort basis.
-- **`skip`** - Skip orphaned children with warning. Partial import succeeds but some issues are excluded.
-- **`strict`** - Fail import immediately if a child's parent is missing. Use when database integrity is critical.
+- Older docs referenced removed import/sync commands, but the installed CLI in this workspace does not expose them.
+- Prefer automatic JSONL sync for normal work, `bd doctor --fix --source=jsonl` for repairs, and `bd backup restore` for recovery from backups.
 
 **When to use:**
 - Use `allow` (default) for daily imports and auto-sync
@@ -419,18 +415,17 @@ bd daemons killall --json
 bd daemons killall --force --json  # Force kill if graceful fails
 ```
 
-### Sync Operations
+### Sync / VC Operations
 
 ```bash
-# Manual sync (force immediate export/import/commit/push)
-bd sync
+# Inspect the Dolt working set (optional)
+bd vc status
 
-# What it does:
-# 1. Export pending changes to JSONL
-# 2. Commit to git
-# 3. Pull from remote
-# 4. Import any updates
-# 5. Push to remote
+# Create a Dolt commit when you need one explicitly
+bd vc commit -m "Update issue state"
+
+# Export a JSONL snapshot on demand
+bd export -o backup.jsonl
 ```
 
 ## Issue Types
@@ -544,10 +539,10 @@ bd update bd-42 --status in_progress --json
 # ... work ...
 
 # End of session (IMPORTANT!)
-bd sync  # Force immediate sync, bypass debounce
+bd vc status  # Optional Dolt inspection; JSONL auto-sync is automatic
 ```
 
-**ALWAYS run `bd sync` at end of agent sessions** to ensure changes are committed/pushed immediately.
+**Always finish with your normal git commit/push workflow.** Use `bd vc status` or `bd vc commit` only when you need Dolt visibility.
 
 ## See Also
 
