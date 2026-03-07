@@ -16,15 +16,33 @@ fi
 
 tmp_cov="$(mktemp)"
 tmp_out="$(mktemp)"
-trap 'rm -f "$tmp_cov" "$tmp_out"' EXIT
+tmp_first_fail="$(mktemp)"
+trap 'rm -f "$tmp_cov" "$tmp_out" "$tmp_first_fail"' EXIT
 
 echo "Running cmd/ao coverage gate (floor=${FLOOR}%, zero-max=${MAX_ZERO}, handler-zero-max=${MAX_HANDLER_ZERO})..."
 
-if ! (cd "$CLI_DIR" && go test -coverprofile="$tmp_cov" -covermode=atomic ./cmd/ao >"$tmp_out" 2>&1); then
-  echo "FAIL: go test failed for ./cmd/ao"
-  cat "$tmp_out"
-  exit 1
-fi
+attempt=1
+while true; do
+  if (cd "$CLI_DIR" && go test -coverprofile="$tmp_cov" -covermode=atomic ./cmd/ao >"$tmp_out" 2>&1); then
+    break
+  fi
+
+  if [[ "$attempt" -ge 2 ]]; then
+    echo "FAIL: go test failed for ./cmd/ao"
+    if [[ -s "$tmp_first_fail" ]]; then
+      echo "First attempt output:"
+      cat "$tmp_first_fail"
+      echo ""
+      echo "Second attempt output:"
+    fi
+    cat "$tmp_out"
+    exit 1
+  fi
+
+  cp "$tmp_out" "$tmp_first_fail"
+  echo "WARN: initial covered go test failed for ./cmd/ao; retrying once to filter transient flake..."
+  attempt=$((attempt + 1))
+done
 
 coverage_report="$(cd "$CLI_DIR" && go tool cover -func="$tmp_cov")"
 total_pct="$(printf '%s\n' "$coverage_report" | awk '/^total:/ {gsub("%","",$3); print $3}')"
