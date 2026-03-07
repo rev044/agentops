@@ -36,6 +36,7 @@ CONFIG_FILE="${CODEX_HOME}/config.toml"
 INSTALL_META="${CODEX_HOME}/.agentops-codex-install.json"
 SKILL_MANIFEST_NAME=".agentops-manifest.json"
 PLUGIN_STATE_FILE=""
+LEGACY_BACKUP_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -243,6 +244,44 @@ sync_raw_skills_root() {
   done < <(find "$dst_root" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 }
 
+archive_legacy_codex_skills() {
+  local timestamp
+  local backup_dir
+  local skill_name
+  local moved=0
+
+  [[ -d "$LEGACY_SKILLS_DIR" ]] || return 0
+
+  timestamp="$(date +%Y%m%d-%H%M%S)"
+  backup_dir="${CODEX_HOME}/skills.backup.${timestamp}"
+
+  while IFS= read -r -d '' skill_dir; do
+    skill_name="$(basename "$skill_dir")"
+    [[ -d "$LEGACY_SKILLS_DIR/$skill_name" ]] || continue
+    mkdir -p "$backup_dir"
+    mv "$LEGACY_SKILLS_DIR/$skill_name" "$backup_dir/$skill_name"
+    moved=$((moved + 1))
+  done < <(find "$PLUGIN_SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+
+  if [[ -f "$LEGACY_SKILLS_DIR/$SKILL_MANIFEST_NAME" ]]; then
+    mkdir -p "$backup_dir"
+    mv "$LEGACY_SKILLS_DIR/$SKILL_MANIFEST_NAME" "$backup_dir/$SKILL_MANIFEST_NAME"
+    moved=$((moved + 1))
+  fi
+  if [[ -f "$LEGACY_SKILLS_DIR/.agentops-codex-state.json" ]]; then
+    mkdir -p "$backup_dir"
+    mv "$LEGACY_SKILLS_DIR/.agentops-codex-state.json" "$backup_dir/.agentops-codex-state.json"
+    moved=$((moved + 1))
+  fi
+
+  if [[ "$moved" -eq 0 ]]; then
+    rmdir "$backup_dir" 2>/dev/null || true
+    return 0
+  fi
+
+  LEGACY_BACKUP_DIR="$backup_dir"
+}
+
 write_raw_skill_state() {
   local dst_root="$1"
   local installed_at="$2"
@@ -291,9 +330,8 @@ INSTALLED_MANIFEST_HASH="$(sha256_file "$PLUGIN_SKILLS_DST/$SKILL_MANIFEST_NAME"
 [[ "$MANIFEST_HASH" == "$INSTALLED_MANIFEST_HASH" ]] || fail "Installed plugin cache manifest hash mismatch; expected $MANIFEST_HASH, got $INSTALLED_MANIFEST_HASH"
 SKILL_COUNT="$(find "$PLUGIN_SKILLS_DST" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
 
-sync_raw_skills_root "$LEGACY_SKILLS_DIR"
+archive_legacy_codex_skills
 sync_raw_skills_root "$USER_SKILLS_DIR"
-write_raw_skill_state "$LEGACY_SKILLS_DIR" "$INSTALLED_AT" "$MANIFEST_HASH"
 write_raw_skill_state "$USER_SKILLS_DIR" "$INSTALLED_AT" "$MANIFEST_HASH"
 
 cat > "$PLUGIN_STATE_FILE" <<EOF
@@ -318,7 +356,6 @@ cat > "$INSTALL_META" <<EOF
   "manifest_hash": "$MANIFEST_HASH",
   "skill_count": $SKILL_COUNT,
   "plugin_state_file": "$PLUGIN_STATE_FILE",
-  "codex_home_skills_root": "$LEGACY_SKILLS_DIR",
   "user_skills_root": "$USER_SKILLS_DIR",
   "update_command": "$UPDATE_CMD"
 }
@@ -329,8 +366,10 @@ echo "  Plugin key: $PLUGIN_KEY"
 echo "  Plugin root: $PLUGIN_CACHE_ROOT"
 echo "  Skills available: $SKILL_COUNT"
 echo "  Config updated: $CONFIG_FILE"
-echo "  Raw skills mirrored to: $LEGACY_SKILLS_DIR"
 echo "  User skills mirrored to: $USER_SKILLS_DIR"
+if [[ -n "$LEGACY_BACKUP_DIR" ]]; then
+  echo "  Archived overlapping ~/.codex/skills entries to: $LEGACY_BACKUP_DIR"
+fi
 info "Install metadata written: $INSTALL_META"
 echo ""
 echo "Restart Codex to pick up the native plugin."

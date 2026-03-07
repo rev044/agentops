@@ -132,7 +132,6 @@ HOME_ROOT="/tmp/codex-native-install-test-${timestamp}"
 CODEX_HOME="$HOME_ROOT/.codex"
 PLUGIN_ROOT="$CODEX_HOME/plugins/cache/agentops-marketplace/agentops/local"
 PLUGIN_SKILLS="$PLUGIN_ROOT/skills-codex"
-RAW_SKILLS="$CODEX_HOME/skills"
 USER_SKILLS="$HOME_ROOT/.agents/skills"
 
 info "Installing AgentOps via the public Codex installer into temp HOME"
@@ -140,7 +139,6 @@ HOME="$HOME_ROOT" AGENTOPS_BUNDLE_ROOT="$REPO_ROOT" AGENTOPS_INSTALL_REF="test-l
   bash "$PUBLIC_INSTALL_SCRIPT" >/dev/null
 
 [[ -d "$PLUGIN_SKILLS" ]] || fail "Plugin skills directory not created: $PLUGIN_SKILLS"
-[[ -d "$RAW_SKILLS" ]] || fail "Raw skills directory not created: $RAW_SKILLS"
 [[ -d "$USER_SKILLS" ]] || fail "User skills directory not created: $USER_SKILLS"
 
 expected_count=0
@@ -158,10 +156,9 @@ fi
 
 installed_count="$(find "$PLUGIN_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [[ "$installed_count" == "$expected_count" ]] || fail "Installed count mismatch (expected $expected_count, got $installed_count)"
-raw_count="$(find "$RAW_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
-[[ "$raw_count" == "$expected_count" ]] || fail "Raw skill count mismatch (expected $expected_count, got $raw_count)"
 user_count="$(find "$USER_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [[ "$user_count" == "$expected_count" ]] || fail "User skill count mismatch (expected $expected_count, got $user_count)"
+[[ ! -e "$CODEX_HOME/skills" ]] || fail "Unexpected ~/.codex/skills raw mirror created"
 
 info "Verifying installed plugin files"
 while IFS= read -r skill_dir; do

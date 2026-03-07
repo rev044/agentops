@@ -172,17 +172,17 @@ EOF
     fail "native-plugin refresh should write skills into plugin cache"
     return
   fi
-  if [[ ! -f "$home_dir/.codex/skills/source-skill/SKILL.md" ]]; then
-    fail "native-plugin refresh should mirror raw skills into ~/.codex/skills"
-    return
-  fi
   if [[ ! -f "$user_skills_root/source-skill/SKILL.md" ]]; then
     fail "native-plugin refresh should mirror raw skills into ~/.agents/skills"
     return
   fi
+  if [[ -e "$home_dir/.codex/skills/source-skill/SKILL.md" ]]; then
+    fail "native-plugin refresh should not recreate ~/.codex/skills AgentOps mirror"
+    return
+  fi
   if rg -q '"source": "install-codex-plugin.sh"' "$home_dir/.codex/.agentops-codex-install.json" && \
     rg -q '"install_mode": "native-plugin"' "$home_dir/.codex/.agentops-codex-install.json"; then
-    pass "native-plugin metadata refreshes plugin cache and raw skill homes"
+    pass "native-plugin metadata refreshes plugin cache and ~/.agents/skills"
   else
     fail "native-plugin refresh should preserve plugin install metadata"
   fi

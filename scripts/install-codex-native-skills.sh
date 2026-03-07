@@ -29,9 +29,9 @@ install-codex-native-skills.sh
 Builds Codex-native skills into ./skills-codex and installs them to ~/.agents/skills.
 
 If the current Codex install metadata reports native-plugin mode, the default
-behavior is to refresh the active plugin cache and mirror the same generated
-bundle into the local raw skill homes. Pass --dest to force a single raw skill
-install destination.
+behavior is to refresh the active plugin cache after updating the documented
+user raw skill home. Pass --dest to force a single raw skill install
+destination.
 
 Options:
   --source <dir>      Codex-native source skills root (default: ./skills-codex)
