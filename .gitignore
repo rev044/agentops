@@ -43,6 +43,15 @@ reports/
 .agents/**
 !.agents/plugins/
 !.agents/plugins/marketplace.json
+!.agents/evolve/
+.agents/evolve/*
+!.agents/evolve/cycle-history.jsonl
+!.agents/evolve/fitness-0-baseline.json
+!.agents/evolve/active-baseline.txt
+!.agents/evolve/baselines/
+.agents/evolve/baselines/*
+!.agents/evolve/baselines/index.jsonl
+!.agents/evolve/baselines/*.json
 tests/claude-code/.agents/
 # Allow testdata fixtures that live under .agents/
 !cli/cmd/ao/testdata/agents-fixture/.agents/

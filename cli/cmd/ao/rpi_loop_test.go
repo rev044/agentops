@@ -245,6 +245,71 @@ func TestSeverityRank(t *testing.T) {
 	}
 }
 
+func TestRepoAffinityRank(t *testing.T) {
+	tests := []struct {
+		name       string
+		repoFilter string
+		item       nextWorkItem
+		want       int
+	}{
+		{
+			name:       "empty filter disables affinity ranking",
+			repoFilter: "",
+			item:       nextWorkItem{TargetRepo: "agentops"},
+			want:       0,
+		},
+		{
+			name:       "exact repo wins",
+			repoFilter: "agentops",
+			item:       nextWorkItem{TargetRepo: "agentops"},
+			want:       3,
+		},
+		{
+			name:       "wildcard is second",
+			repoFilter: "agentops",
+			item:       nextWorkItem{TargetRepo: "*"},
+			want:       2,
+		},
+		{
+			name:       "legacy empty target_repo is third",
+			repoFilter: "agentops",
+			item:       nextWorkItem{},
+			want:       1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := repoAffinityRank(tt.item, tt.repoFilter); got != tt.want {
+				t.Fatalf("repoAffinityRank(%+v, %q) = %d, want %d", tt.item, tt.repoFilter, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWorkTypeRank(t *testing.T) {
+	tests := []struct {
+		itemType string
+		want     int
+	}{
+		{itemType: "feature", want: 2},
+		{itemType: "improvement", want: 2},
+		{itemType: "tech-debt", want: 2},
+		{itemType: "bug", want: 2},
+		{itemType: "task", want: 2},
+		{itemType: "process-improvement", want: 1},
+		{itemType: "unknown", want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.itemType, func(t *testing.T) {
+			if got := workTypeRank(nextWorkItem{Type: tt.itemType}); got != tt.want {
+				t.Fatalf("workTypeRank(%q) = %d, want %d", tt.itemType, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestReadUnconsumedItems_MalformedLines(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")
@@ -830,6 +895,74 @@ func TestSelectHighestSeverityEntry_RepoFilter(t *testing.T) {
 	}
 	if sel.Item.Title != "For agentops" {
 		t.Errorf("expected 'For agentops' (filtered by repo), got %q", sel.Item.Title)
+	}
+}
+
+func TestSelectHighestSeverityEntry_PrefersExactRepoOverWildcard(t *testing.T) {
+	entries := []nextWorkEntry{
+		{QueueIndex: 0, Items: []nextWorkItem{
+			{Title: "Wildcard process", Severity: "high", Type: "process-improvement", TargetRepo: "*"},
+			{Title: "Exact repo fix", Severity: "high", Type: "tech-debt", TargetRepo: "agentops"},
+		}},
+	}
+
+	sel := selectHighestSeverityEntry(entries, "agentops")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "Exact repo fix" {
+		t.Fatalf("selected %q, want exact repo item", sel.Item.Title)
+	}
+}
+
+func TestSelectHighestSeverityEntry_PrefersWildcardOverLegacyWhenSeverityTied(t *testing.T) {
+	entries := []nextWorkEntry{
+		{QueueIndex: 0, Items: []nextWorkItem{
+			{Title: "Legacy unscoped", Severity: "medium", Type: "tech-debt"},
+			{Title: "Wildcard scoped", Severity: "medium", Type: "tech-debt", TargetRepo: "*"},
+		}},
+	}
+
+	sel := selectHighestSeverityEntry(entries, "agentops")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "Wildcard scoped" {
+		t.Fatalf("selected %q, want wildcard item", sel.Item.Title)
+	}
+}
+
+func TestSelectHighestSeverityEntry_SeverityStillWinsWithinAffinityBucket(t *testing.T) {
+	entries := []nextWorkEntry{
+		{QueueIndex: 0, Items: []nextWorkItem{
+			{Title: "Exact medium", Severity: "medium", Type: "tech-debt", TargetRepo: "agentops"},
+			{Title: "Exact high", Severity: "high", Type: "process-improvement", TargetRepo: "agentops"},
+		}},
+	}
+
+	sel := selectHighestSeverityEntry(entries, "agentops")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "Exact high" {
+		t.Fatalf("selected %q, want higher severity exact-repo item", sel.Item.Title)
+	}
+}
+
+func TestSelectHighestSeverityEntry_PrefersImplementationWorkTypeOnTie(t *testing.T) {
+	entries := []nextWorkEntry{
+		{QueueIndex: 0, Items: []nextWorkItem{
+			{Title: "Process chore", Severity: "high", Type: "process-improvement", TargetRepo: "agentops"},
+			{Title: "Code fix", Severity: "high", Type: "tech-debt", TargetRepo: "agentops"},
+		}},
+	}
+
+	sel := selectHighestSeverityEntry(entries, "agentops")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "Code fix" {
+		t.Fatalf("selected %q, want implementation-oriented item", sel.Item.Title)
 	}
 }
 

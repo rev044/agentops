@@ -305,13 +305,61 @@ func formatHistoryEntry(entry map[string]interface{}, index int) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("### Entry %d\n", index))
 
-	for _, key := range []string{"timestamp", "cycle", "status", "goal_id", "result", "summary", "error"} {
-		if v, ok := entry[key]; ok && v != nil {
-			sb.WriteString(fmt.Sprintf("- **%s**: %v\n", key, v))
+	type historyField struct {
+		label   string
+		primary string
+		aliases []string
+	}
+
+	fields := []historyField{
+		{label: "timestamp", primary: "timestamp"},
+		{label: "cycle", primary: "cycle"},
+		{label: "target", primary: "target", aliases: []string{"goal_id"}},
+		{label: "goal_ids", primary: "goal_ids"},
+		{label: "result", primary: "result", aliases: []string{"status"}},
+		{label: "sha", primary: "sha"},
+		{label: "canonical_sha", primary: "canonical_sha"},
+		{label: "log_sha", primary: "log_sha"},
+		{label: "goals_passing", primary: "goals_passing"},
+		{label: "goals_total", primary: "goals_total"},
+		{label: "summary", primary: "summary"},
+		{label: "error", primary: "error"},
+	}
+
+	for _, field := range fields {
+		if v, ok := lookupHistoryField(entry, field.primary, field.aliases...); ok && v != nil {
+			sb.WriteString(fmt.Sprintf("- **%s**: %v\n", field.label, formatHistoryValue(v)))
 		}
 	}
 	sb.WriteString("\n")
 	return sb.String()
+}
+
+func lookupHistoryField(entry map[string]interface{}, primary string, aliases ...string) (interface{}, bool) {
+	if v, ok := entry[primary]; ok && v != nil {
+		return v, true
+	}
+	for _, alias := range aliases {
+		if v, ok := entry[alias]; ok && v != nil {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+func formatHistoryValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case []interface{}:
+		parts := make([]string, 0, len(v))
+		for _, item := range v {
+			parts = append(parts, fmt.Sprintf("%v", item))
+		}
+		return strings.Join(parts, ", ")
+	case []string:
+		return strings.Join(v, ", ")
+	default:
+		return value
+	}
 }
 
 func gatherIntel(cwd, task string, budget int) string {
