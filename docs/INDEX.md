@@ -25,6 +25,7 @@
 ## Skills
 
 - [Skills Reference](SKILLS.md) — Complete reference for all AgentOps skills
+- [Skill API](SKILL-API.md) — Frontmatter fields, context declarations, enforcement status
 - [Skill Tiers](../skills/SKILL-TIERS.md) — Taxonomy and dependency graph
 - [Claude Code Skills Docs](https://code.claude.com/docs/en/skills) — Official Claude Code skills documentation (upstream)
 

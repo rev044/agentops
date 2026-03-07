@@ -3,6 +3,13 @@ name: push
 description: 'Test, commit, and push in one atomic workflow. Runs Go and Python tests, commits with conventional message, pushes to current branch.'
 skill_api_version: 1
 user-invocable: true
+context:
+  window: isolated
+  intent:
+    mode: none
+  sections:
+    exclude: [HISTORY, INTEL, TASK]
+  intel_scope: none
 metadata:
   tier: execution
   dependencies: []

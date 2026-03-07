@@ -3,6 +3,13 @@ name: evolve
 description: Goal-driven fitness-scored improvement loop. Measures goals, picks worst gap, runs /rpi, compounds via knowledge flywheel. Also pulls from open beads when goals all pass.
 skill_api_version: 1
 user-invocable: true
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: full
 metadata:
   tier: execution
   dependencies:

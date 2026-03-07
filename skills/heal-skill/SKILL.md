@@ -2,6 +2,13 @@
 name: heal-skill
 description: 'Automated skill maintenance. Detects and fixes common skill issues: missing frontmatter, name mismatches, unlinked references, empty directories, dead references. Triggers: "heal-skill", "heal skill", "fix skills", "skill maintenance", "repair skills".'
 skill_api_version: 1
+context:
+  window: isolated
+  intent:
+    mode: none
+  sections:
+    exclude: [HISTORY, INTEL, TASK]
+  intel_scope: none
 metadata:
   tier: meta
   dependencies: []

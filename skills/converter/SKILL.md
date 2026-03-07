@@ -2,6 +2,13 @@
 name: converter
 description: 'Cross-platform skill converter. Parse AgentOps skills into a universal bundle format, then convert to target platforms (Codex, Cursor). Triggers: convert, converter, convert skill, export skill, cross-platform.'
 skill_api_version: 1
+context:
+  window: isolated
+  intent:
+    mode: none
+  sections:
+    exclude: [HISTORY, INTEL, TASK]
+  intel_scope: none
 metadata:
   tier: cross-vendor
   dependencies: []

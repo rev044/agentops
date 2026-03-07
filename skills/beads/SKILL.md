@@ -2,6 +2,13 @@
 name: beads
 description: 'This skill should be used when the user asks to "track issues", "create beads issue", "show blockers", "what''s ready to work on", "beads routing", "prefix routing", "cross-rig beads", "BEADS_DIR", "two-level beads", "town vs rig beads", "slingable beads", or needs guidance on git-based issue tracking with the bd CLI.'
 skill_api_version: 1
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: topic
 metadata:
   tier: library
   dependencies: []

@@ -2,6 +2,13 @@
 name: grafana-platform-dashboard
 description: 'Design, refactor, and validate Grafana dashboards for OpenShift/Kubernetes platform operations. Use when users ask to improve platform health dashboards, prioritize critical tenant-impacting signals, filter noise (for example ArgoCD), add Crossplane/Keycloak health panels, validate PromQL programmatically, or apply GrafanaDashboard CR changes live then promote to GitOps.'
 skill_api_version: 1
+context:
+  window: fork
+  intent:
+    mode: questions
+  sections:
+    exclude: [HISTORY, TASK]
+  intel_scope: none
 metadata:
   tier: execution
   dependencies:

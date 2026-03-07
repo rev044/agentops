@@ -3,6 +3,13 @@ name: shared
 description: Shared reference documents for multi-agent skills (not directly invocable)
 skill_api_version: 1
 user-invocable: false
+context:
+  window: isolated
+  intent:
+    mode: none
+  sections:
+    exclude: [HISTORY, INTEL, TASK]
+  intel_scope: none
 metadata:
   tier: library
   internal: true

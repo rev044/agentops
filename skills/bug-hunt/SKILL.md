@@ -2,6 +2,13 @@
 name: bug-hunt
 description: 'Investigate suspected bugs or run proactive code audits. Triggers: "bug", "broken", "doesn''t work", "failing", "investigate bug", "debug", "find the bug", "troubleshoot", "audit code", "find bugs in", "code audit", "hunt bugs".'
 skill_api_version: 1
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: topic
 metadata:
   tier: execution
   dependencies:

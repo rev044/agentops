@@ -4,6 +4,13 @@ description: 'Knowledge flywheel health monitoring. Checks velocity, pool depths
 skill_api_version: 1
 allowed-tools: Read, Grep, Glob, Bash
 model: haiku
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [TASK]
+  intel_scope: full
 metadata:
   tier: background
   dependencies: []

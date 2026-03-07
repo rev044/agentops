@@ -2,6 +2,13 @@
 name: reverse-engineer-rpi
 description: 'Reverse-engineer a product into a feature catalog, code map, and specs. Uses RPI-style loop with verification gates. Triggers: “reverse engineer”, “catalog features”, “feature inventory”, “code map”, “docs to code mapping”, “binary analysis”.'
 skill_api_version: 1
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: topic
 metadata:
   tier: execution
   internal: false

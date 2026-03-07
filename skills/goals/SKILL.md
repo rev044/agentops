@@ -2,6 +2,13 @@
 name: goals
 description: 'Maintain GOALS.yaml and GOALS.md fitness specifications. Measure fitness, manage directives, track drift, add/prune goals. Triggers: "goals", "goal status", "show goals", "add goals", "prune goals", "clean goals", "goal drift", "goal history", "export goals", "meta goals", "migrate goals".'
 skill_api_version: 1
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: topic
 metadata:
   tier: product
   dependencies: []

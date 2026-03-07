@@ -3,6 +3,13 @@ name: forge
 description: 'Mine transcripts for knowledge - decisions, learnings, failures, patterns. Triggers: "forge insights", "mine transcripts", "extract knowledge".'
 skill_api_version: 1
 user-invocable: false
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [TASK]
+  intel_scope: full
 metadata:
   tier: background
   dependencies: []

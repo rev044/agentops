@@ -3,6 +3,13 @@ name: ratchet
 description: 'Brownian Ratchet progress gates for RPI workflow. Check, record, verify. Triggers: "check gate", "verify progress", "ratchet status".'
 skill_api_version: 1
 user-invocable: false
+context:
+  window: isolated
+  intent:
+    mode: none
+  sections:
+    exclude: [HISTORY, INTEL, TASK]
+  intel_scope: none
 metadata:
   tier: background
   dependencies: []

@@ -9,6 +9,13 @@ description: >
   "clean flywheel", "grow knowledge".
 skill_api_version: 1
 user-invocable: true
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [TASK]
+  intel_scope: full
 metadata:
   tier: knowledge
   dependencies: []

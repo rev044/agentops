@@ -2,6 +2,11 @@
 name: quickstart
 description: 'New user onboarding. Detect setup, explain what AgentOps does, give one next action. Under 30 seconds. Triggers: "quickstart", "get started", "onboarding", "how do I start".'
 skill_api_version: 1
+context:
+  window: inherit
+  intent:
+    mode: none
+  intel_scope: none
 metadata:
   tier: session
   dependencies: []

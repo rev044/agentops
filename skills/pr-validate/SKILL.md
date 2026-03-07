@@ -2,6 +2,13 @@
 name: pr-validate
 description: 'PR-specific validation: isolation, upstream alignment, quality, scope creep. Triggers: "validate PR", "pr validation", "check PR scope", "scope creep check", "isolation check".'
 skill_api_version: 1
+context:
+  window: fork
+  intent:
+    mode: task
+  sections:
+    exclude: [HISTORY]
+  intel_scope: topic
 license: MIT
 compatibility: Requires git, gh CLI
 metadata:

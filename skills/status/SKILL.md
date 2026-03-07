@@ -4,6 +4,11 @@ description: 'Single-screen dashboard showing current work, recent validations, 
 skill_api_version: 1
 allowed-tools: Read, Grep, Glob, Bash
 model: haiku
+context:
+  window: inherit
+  intent:
+    mode: none
+  intel_scope: none
 metadata:
   tier: session
   dependencies: []
