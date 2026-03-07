@@ -171,6 +171,59 @@ func TestMeasure_SkippedGoalsExcludedFromScore(t *testing.T) {
 	}
 }
 
+func TestRequiresExclusiveExecution(t *testing.T) {
+	tests := []struct {
+		name string
+		goal Goal
+		want bool
+	}{
+		{
+			name: "go test gate is exclusive",
+			goal: Goal{Check: "cd cli && go test -race ./..."},
+			want: true,
+		},
+		{
+			name: "cmd ao coverage script is exclusive",
+			goal: Goal{Check: "bash scripts/check-cmdao-coverage-floor.sh"},
+			want: true,
+		},
+		{
+			name: "shell lint is not exclusive",
+			goal: Goal{Check: "find . -name '*.sh' -print0 | xargs -0 shellcheck"},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := requiresExclusiveExecution(tt.goal); got != tt.want {
+				t.Fatalf("requiresExclusiveExecution(%q) = %v, want %v", tt.goal.Check, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRunGoals_ExclusiveChecksDoNotOverlap(t *testing.T) {
+	gf := &GoalFile{
+		Version: 2,
+		Goals: []Goal{
+			{ID: "exclusive-1", Check: "sleep 0.3 # go test", Weight: 1, Type: GoalTypeHealth},
+			{ID: "normal-1", Check: "sleep 0.3", Weight: 1, Type: GoalTypeHealth},
+		},
+	}
+
+	start := time.Now()
+	snap := Measure(gf, 2*time.Second)
+	elapsed := time.Since(start)
+
+	if len(snap.Goals) != 2 {
+		t.Fatalf("expected 2 goals, got %d", len(snap.Goals))
+	}
+	if elapsed < 500*time.Millisecond {
+		t.Fatalf("expected exclusive goal to serialize execution, elapsed=%s", elapsed)
+	}
+}
+
 func TestMeasure_EmptyGoals(t *testing.T) {
 	gf := &GoalFile{Version: 2, Goals: []Goal{}}
 	snap := Measure(gf, 5*time.Second)
