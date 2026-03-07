@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentops.dev/schemas/codex-plugin-manifest.v1.schema.json",
+  "title": "AgentOps Codex Plugin Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "skills": {
+      "type": "string",
+      "pattern": "^\\./"
+    },
+    "mcp": {
+      "type": "string",
+      "pattern": "^\\./"
+    },
+    "apps": {
+      "type": "string",
+      "pattern": "^\\./"
+    }
+  }
+}

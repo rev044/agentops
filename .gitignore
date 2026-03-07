@@ -40,7 +40,9 @@ reports/
 /release-notes.md
 
 # Claude session artifacts
-.agents/
+.agents/**
+!.agents/plugins/
+!.agents/plugins/marketplace.json
 tests/claude-code/.agents/
 # Allow testdata fixtures that live under .agents/
 !cli/cmd/ao/testdata/agents-fixture/.agents/

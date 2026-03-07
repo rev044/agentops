@@ -4,6 +4,6 @@ Trace knowledge artifact lineage and sources. Find orphans, stale citations. Tri
 
 ## Instructions
 
-Load and follow the skill instructions from `~/.codex/skills/provenance/SKILL.md`.
+Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
 Then read local files in `references/` and `scripts/` when needed.
 

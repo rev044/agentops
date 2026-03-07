@@ -904,6 +904,27 @@ func TestDoctorCov_CheckSkills_WithSkills(t *testing.T) {
 	}
 }
 
+func TestDoctorCov_CheckSkills_WithNativeCodexPlugin(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	skillDir := filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex", "fake-skill")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Fake Skill"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkSkills()
+	if result.Status != "pass" {
+		t.Errorf("status=%q, want pass when native plugin skills are found (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex") {
+		t.Errorf("expected native plugin path in detail, got %q", result.Detail)
+	}
+}
+
 func TestDoctorCov_CheckSkills_AltPath(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -952,6 +973,31 @@ func TestDoctorCov_CheckSkills_LegacyOverlapWarns(t *testing.T) {
 	}
 	if !strings.Contains(result.Detail, "research") {
 		t.Fatalf("expected overlapping skill sample in detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckSkills_RawCodexOverlapWarns(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	for _, dir := range []string{
+		filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex", "research"),
+		filepath.Join(fakeHome, ".codex", "skills", "research"),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# Skill"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result := checkSkills()
+	if result.Status != "warn" {
+		t.Fatalf("status=%q, want warn for duplicate raw Codex installs (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "duplicate raw Codex install") {
+		t.Fatalf("expected duplicate raw Codex warning, got %q", result.Detail)
 	}
 }
 
@@ -1091,6 +1137,26 @@ func TestDoctorCov_FindHealScript_InClaude(t *testing.T) {
 
 	// Create heal.sh in ~/.claude/skills/heal-skill/scripts/
 	healDir := filepath.Join(fakeHome, ".claude", "skills", "heal-skill", "scripts")
+	if err := os.MkdirAll(healDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	healPath := filepath.Join(healDir, "heal.sh")
+	if err := os.WriteFile(healPath, []byte("#!/bin/bash\nexit 0\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := findHealScript()
+	if got != healPath {
+		t.Errorf("findHealScript() = %q, want %q", got, healPath)
+	}
+}
+
+func TestDoctorCov_FindHealScript_InCodexPluginCache(t *testing.T) {
+	chdirTemp(t)
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	healDir := filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex", "heal-skill", "scripts")
 	if err := os.MkdirAll(healDir, 0755); err != nil {
 		t.Fatal(err)
 	}

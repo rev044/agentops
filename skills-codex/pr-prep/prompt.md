@@ -4,6 +4,6 @@ PR preparation: git archaeology, test validation, structured PR body generation.
 
 ## Instructions
 
-Load and follow the skill instructions from `~/.codex/skills/pr-prep/SKILL.md`.
+Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
 Then read local files in `references/` and `scripts/` when needed.
 

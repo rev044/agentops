@@ -44,9 +44,10 @@ Workers are intentionally atomic. Fresh-context isolation per worker prevents co
 ## How do I uninstall?
 
 ```bash
-rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/
+rm -rf ~/.claude/skills/ ~/.agents/skills/ ~/.codex/skills/ ~/.codex/plugins/cache/agentops-marketplace/agentops/
 brew uninstall agentops  # if installed
 ```
 
 If Codex is showing duplicate skills and you do not want a full uninstall, remove
-or archive the legacy `~/.agents/skills/` tree and keep `~/.codex/skills/`.
+or archive the legacy raw copies in `~/.codex/skills/` and `~/.agents/skills/`,
+then keep the native plugin cache in `~/.codex/plugins/cache/agentops-marketplace/agentops/`.

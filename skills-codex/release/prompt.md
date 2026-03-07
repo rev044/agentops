@@ -4,6 +4,6 @@ Release your software. Pre-flight validation, changelog generation, version bump
 
 ## Instructions
 
-Load and follow the skill instructions from `~/.codex/skills/release/SKILL.md`.
+Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
 Then read local files in `references/` and `scripts/` when needed.
 

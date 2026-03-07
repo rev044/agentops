@@ -554,6 +554,28 @@ func countEstablished(dir string) int {
 	return count
 }
 
+const (
+	codexAgentOpsPluginName      = "agentops"
+	codexAgentOpsMarketplaceName = "agentops-marketplace"
+)
+
+func codexNativePluginSkillsPath(home string) string {
+	return filepath.Join(
+		home,
+		".codex",
+		"plugins",
+		"cache",
+		codexAgentOpsMarketplaceName,
+		codexAgentOpsPluginName,
+		"local",
+		"skills-codex",
+	)
+}
+
+func codexNativePluginHealPath(home string) string {
+	return filepath.Join(codexNativePluginSkillsPath(home), "heal-skill", "scripts", "heal.sh")
+}
+
 func checkSkills() doctorCheck {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -567,6 +589,11 @@ func checkSkills() doctorCheck {
 		legacy      bool
 	}
 	installs := []skillInstall{
+		{
+			path:        codexNativePluginSkillsPath(home),
+			label:       "Codex Native Plugin",
+			displayPath: "~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex",
+		},
 		{
 			path:        filepath.Join(home, ".codex", "skills"),
 			label:       "Codex",
@@ -624,8 +651,26 @@ func checkSkills() doctorCheck {
 		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "no skills found — run 'bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)'", Required: false}
 	}
 
+	nativeNames := installedNames["~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex"]
+	rawCodexNames := installedNames["~/.codex/skills"]
+	if len(nativeNames) > 0 && len(rawCodexNames) > 0 {
+		overlaps := overlappingSkillNames(rawCodexNames, nativeNames)
+		if len(overlaps) > 0 {
+			sample := overlaps
+			if len(sample) > 3 {
+				sample = sample[:3]
+			}
+			return doctorCheck{
+				Name:   "Plugin",
+				Status: "warn",
+				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw Codex install also present in ~/.codex/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps skill folders in ~/.codex/skills.",
+					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
+			}
+		}
+	}
+
 	if len(legacyNames) > 0 {
-		overlaps := overlappingSkillNames(legacyNames, installedNames["~/.codex/skills"], installedNames["~/.claude/skills"])
+		overlaps := overlappingSkillNames(legacyNames, nativeNames, rawCodexNames, installedNames["~/.claude/skills"])
 		if len(overlaps) > 0 {
 			sample := overlaps
 			if len(sample) > 3 {
@@ -693,17 +738,22 @@ func findHealScript() string {
 		return ""
 	}
 
-	// 2. Installed via install-codex.sh (Codex-native location)
+	// 2. Installed via native Codex plugin cache
+	if p := codexNativePluginHealPath(home); fileExists(p) {
+		return p
+	}
+
+	// 3. Installed via raw Codex skills directory
 	if p := filepath.Join(home, ".codex", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
 		return p
 	}
 
-	// 3. Installed via install.sh (Claude location)
+	// 4. Installed via install.sh (Claude location)
 	if p := filepath.Join(home, ".claude", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
 		return p
 	}
 
-	// 4. Alt install location
+	// 5. Alt install location
 	if p := filepath.Join(home, ".agents", "skills", "heal-skill", "scripts", "heal.sh"); fileExists(p) {
 		return p
 	}

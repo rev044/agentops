@@ -8,9 +8,10 @@ set -euo pipefail
 # 1) shellcheck on codex conversion/install scripts
 # 2) skill integrity gate (heal --strict)
 # 3) sync-codex-native-skills.sh succeeds
-# 4) install-codex-native-skills.sh succeeds into temp destination
-# 5) Installed skill count and required files (SKILL.md + prompt.md)
-# 6) Generated SKILL.md files use $skill syntax (no known /skill references)
+# 4) install-codex-plugin.sh succeeds into temp CODEX_HOME
+# 5) Installed plugin cache contains expected skill count and required files (SKILL.md + prompt.md)
+# 6) Generated prompt.md files are runtime-agnostic (no ~/.codex/skills hardcoding)
+# 7) Generated SKILL.md files use $skill syntax (no known /skill references)
 #
 # Usage:
 #   bash scripts/test-codex-native-install.sh
@@ -78,16 +79,18 @@ require_file() {
 }
 
 SYNC_SCRIPT="$REPO_ROOT/scripts/sync-codex-native-skills.sh"
-INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-native-skills.sh"
-EXPORT_SCRIPT="$REPO_ROOT/scripts/export-claude-skills-to-codex.sh"
+INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-plugin.sh"
 CONVERTER_SCRIPT="$REPO_ROOT/skills/converter/scripts/convert.sh"
 HEAL_SCRIPT="$REPO_ROOT/skills/heal-skill/scripts/heal.sh"
+CODEX_MANIFEST="$REPO_ROOT/.codex-plugin/plugin.json"
+CODEX_MARKETPLACE="$REPO_ROOT/.agents/plugins/marketplace.json"
 
 require_file "$SYNC_SCRIPT"
 require_file "$INSTALL_SCRIPT"
-require_file "$EXPORT_SCRIPT"
 require_file "$CONVERTER_SCRIPT"
 require_file "$HEAL_SCRIPT"
+require_file "$CODEX_MANIFEST"
+require_file "$CODEX_MARKETPLACE"
 require_cmd bash
 require_cmd find
 require_cmd awk
@@ -99,7 +102,7 @@ if [[ "$SKIP_LINT" != "true" ]]; then
   require_cmd markdownlint
 
   info "Running shellcheck on codex pipeline scripts"
-  shellcheck "$SYNC_SCRIPT" "$INSTALL_SCRIPT" "$EXPORT_SCRIPT" "$CONVERTER_SCRIPT"
+  shellcheck "$SYNC_SCRIPT" "$INSTALL_SCRIPT" "$CONVERTER_SCRIPT"
 
   info "Running markdownlint on install docs"
   markdownlint \
@@ -123,17 +126,18 @@ fi
 bash "$SYNC_SCRIPT" "${SYNC_ARGS[@]}" >/dev/null
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
-DEST="/tmp/codex-native-install-test-${timestamp}"
-BACKUP="/tmp/codex-native-install-backup-${timestamp}"
+CODEX_HOME="/tmp/codex-native-install-test-${timestamp}"
+PLUGIN_ROOT="$CODEX_HOME/plugins/cache/agentops-marketplace/agentops/local"
+PLUGIN_SKILLS="$PLUGIN_ROOT/skills-codex"
 
-info "Installing Codex-native skills to temp destination"
-INSTALL_ARGS=(--dest "$DEST" --backup "$BACKUP")
-if [[ -n "$ONLY_CSV" ]]; then
-  INSTALL_ARGS+=(--only "$ONLY_CSV")
-fi
-bash "$INSTALL_SCRIPT" "${INSTALL_ARGS[@]}" >/dev/null
+info "Installing native Codex plugin to temp CODEX_HOME"
+bash "$INSTALL_SCRIPT" \
+  --repo-root "$REPO_ROOT" \
+  --codex-home "$CODEX_HOME" \
+  --version "test-local" \
+  --update-command "test-update" >/dev/null
 
-[[ -d "$DEST" ]] || fail "Install destination not created: $DEST"
+[[ -d "$PLUGIN_SKILLS" ]] || fail "Plugin skills directory not created: $PLUGIN_SKILLS"
 
 expected_count=0
 if [[ -n "$ONLY_CSV" ]]; then
@@ -148,16 +152,32 @@ else
   expected_count="$(find "$REPO_ROOT/skills-codex" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 fi
 
-installed_count="$(find "$DEST" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+installed_count="$(find "$PLUGIN_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [[ "$installed_count" == "$expected_count" ]] || fail "Installed count mismatch (expected $expected_count, got $installed_count)"
 
-info "Verifying installed files"
+info "Verifying installed plugin files"
 while IFS= read -r skill_dir; do
   [[ -n "$skill_dir" ]] || continue
   [[ -f "$skill_dir/SKILL.md" ]] || fail "Missing SKILL.md in $skill_dir"
   [[ -f "$skill_dir/prompt.md" ]] || fail "Missing prompt.md in $skill_dir"
   head -n 1 "$skill_dir/SKILL.md" | rg -q '^---$' || fail "Missing YAML frontmatter in $skill_dir/SKILL.md"
-done < <(find "$DEST" -mindepth 1 -maxdepth 1 -type d | sort)
+done < <(find "$PLUGIN_SKILLS" -mindepth 1 -maxdepth 1 -type d | sort)
+
+[[ -f "$CODEX_HOME/config.toml" ]] || fail "Missing config.toml in $CODEX_HOME"
+rg -q '^\[features\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing [features] section"
+rg -q '^plugins = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing plugins = true"
+rg -q '^\[plugins\."agentops@agentops-marketplace"\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing AgentOps plugin block"
+rg -q '^enabled = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing enabled = true"
+
+info "Checking Codex entrypoint files for runtime-agnostic instructions"
+entrypoint_files=()
+while IFS= read -r -d '' file; do
+  entrypoint_files+=("$file")
+done < <(find "$REPO_ROOT/skills-codex" -type f \( -name "SKILL.md" -o -name "prompt.md" \) -print0)
+
+if rg -n "\$HOME/.codex/skills|~/.codex/skills" "${entrypoint_files[@]}" >/dev/null 2>&1; then
+  fail "Found stale ~/.codex/skills references in Codex entrypoint files"
+fi
 
 # Build regex alternation from known converted skill names.
 skill_pattern="$(
@@ -174,12 +194,7 @@ skill_pattern="$(
 )"
 [[ -n "$skill_pattern" ]] || fail "Could not build skill-name regex for slash-command check"
 
-info "Checking Codex entrypoints for known slash-command references"
-entrypoint_files=()
-while IFS= read -r -d '' file; do
-  entrypoint_files+=("$file")
-done < <(find "$REPO_ROOT/skills-codex" -type f \( -name "SKILL.md" -o -name "prompt.md" \) -print0)
-
+info "Checking Codex entrypoint files for known slash-command references"
 if [[ "${#entrypoint_files[@]}" -eq 0 ]]; then
   fail "No Codex entrypoint files found for slash-command check"
 fi
@@ -191,5 +206,5 @@ fi
 echo ""
 echo "PASS: Codex-native install flow verified"
 echo "  skills tested: $installed_count"
-echo "  install dir: $DEST"
-echo "  backup dir: $BACKUP"
+echo "  codex home: $CODEX_HOME"
+echo "  plugin root: $PLUGIN_ROOT"

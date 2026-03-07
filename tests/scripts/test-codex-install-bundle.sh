@@ -24,11 +24,35 @@ setup_fixture() {
   local generated_body="$3"
 
   mkdir -p \
+    "$fixture/.codex-plugin" \
+    "$fixture/.agents/plugins" \
     "$fixture/scripts" \
     "$fixture/skills/source-skill" \
     "$fixture/skills-codex/source-skill"
 
   cp "$SCRIPT" "$fixture/scripts/validate-codex-install-bundle.sh"
+
+  cat > "$fixture/.codex-plugin/plugin.json" <<'EOF'
+{
+  "name": "agentops",
+  "skills": "./skills-codex"
+}
+EOF
+
+  cat > "$fixture/.agents/plugins/marketplace.json" <<'EOF'
+{
+  "name": "agentops-marketplace",
+  "plugins": [
+    {
+      "name": "agentops",
+      "source": {
+        "source": "local",
+        "path": "./"
+      }
+    }
+  ]
+}
+EOF
 
   cat > "$fixture/scripts/sync-codex-native-skills.sh" <<EOF
 #!/usr/bin/env bash

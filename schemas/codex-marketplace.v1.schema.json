@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentops.dev/schemas/codex-marketplace.v1.schema.json",
+  "title": "AgentOps Codex Marketplace Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "plugins"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plugins": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "source"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "path"],
+            "properties": {
+              "source": {
+                "const": "local"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^\\./"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

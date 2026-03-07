@@ -26,10 +26,10 @@ Run this command. Wait for it to complete.
 
 Confirm the output shows all skills installed with no failures.
 
-If any skills failed to install, report which ones failed and suggest re-running or manual sync:
+If any skills failed to install, report which ones failed and suggest re-running the installer. If the failure is isolated to one skill, tell the user to inspect the target agent's installed skill or plugin directory and restore just that skill from the latest repo copy.
 ```bash
-# Manual sync for a failed skill (replace <skill-name>):
-/bin/cp -r ~/.agents/skills/<skill-name>/ ~/.codex/skills/<skill-name>/
+# Retry the full installer:
+bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)
 ```
 
 ### Step 3: Report
@@ -60,7 +60,7 @@ Tell the user:
 2. Detects that 2 of 50 skills failed to install and identifies them by name.
 3. Reports the failures and provides manual sync commands as a fallback.
 
-**Result:** 48 skills installed successfully, with clear instructions to manually sync the 2 that failed.
+**Result:** 48 skills installed successfully, with clear instructions to retry the installer and recover the 2 failed skills from the latest repo copy if needed.
 
 ## Troubleshooting
 
@@ -68,9 +68,9 @@ Tell the user:
 |---------|-------|----------|
 | `curl: command not found` | curl is not installed | Install curl via your package manager |
 | Download fails | Network or GitHub unreachable | Check connectivity; retry |
-| Individual skills fail | Permissions issue in `~/.codex/skills/` | `chmod -R u+rwX ~/.codex/skills/` then re-run `$update` |
+| Individual skills fail | Permissions issue in the agent's install or plugin directory | Fix permissions on the target agent's install home, then re-run `$update` |
 | Skills not available after install | Agent session not restarted | Restart your agent session |
-| `EACCES: permission denied` | Restrictive permissions on skills dir | `chmod -R u+rwX ~/.codex/skills/` and re-run `$update` |
+| `EACCES: permission denied` | Restrictive permissions on the install target | Fix permissions on the install target, then re-run `$update` |
 
 ## Local Resources
 

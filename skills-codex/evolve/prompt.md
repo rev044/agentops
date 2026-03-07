@@ -4,6 +4,6 @@ Goal-driven fitness-scored improvement loop. Measures goals, picks worst gap, ru
 
 ## Instructions
 
-Load and follow the skill instructions from `~/.codex/skills/evolve/SKILL.md`.
+Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
 Then read local files in `references/` and `scripts/` when needed.
 

@@ -1,0 +1,5 @@
+{
+  "name": "agentops",
+  "description": "The missing DevOps layer for coding agents. Repo-native memory, validation gates, and tracked execution.",
+  "skills": "./skills-codex"
+}

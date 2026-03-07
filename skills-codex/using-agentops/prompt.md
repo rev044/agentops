@@ -4,6 +4,6 @@ Meta skill explaining the RPI workflow. Auto-injected on session start. Covers R
 
 ## Instructions
 
-Load and follow the skill instructions from `~/.codex/skills/using-agentops/SKILL.md`.
+Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
 Then read local files in `references/` and `scripts/` when needed.
 

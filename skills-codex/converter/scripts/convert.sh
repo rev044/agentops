@@ -330,8 +330,7 @@ convert_test() {
 }
 
 # Codex target: SKILL.md + prompt.md
-# Codex skills live at ~/.codex/skills/<name>/SKILL.md
-# Codex prompts live at ~/.codex/prompts/<name>.md
+# Codex may load these skills from ~/.codex/skills or from a native plugin cache.
 # Description max 1024 chars, no hooks support, tool names pass through
 convert_codex() {
   local desc="$BUNDLE_DESC"
@@ -418,7 +417,7 @@ convert_codex() {
   prompt_md+="# ${BUNDLE_NAME}"$'\n\n'
   prompt_md+="${desc}"$'\n\n'
   prompt_md+="## Instructions"$'\n\n'
-  prompt_md+="Load and follow the skill instructions from \`~/.codex/skills/${BUNDLE_NAME}/SKILL.md\`."$'\n'
+  prompt_md+="Load and follow the skill instructions from the sibling \`SKILL.md\` file for this skill."$'\n'
   if [[ "$CODEX_LAYOUT" == "modular" && ( ${#REF_NAMES[@]} -gt 0 || ${#SCRIPT_NAMES[@]} -gt 0 ) ]]; then
     prompt_md+="Then read local files in \`references/\` and \`scripts/\` when needed."$'\n'
   fi

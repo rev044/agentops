@@ -273,6 +273,16 @@ validate_manifest \
     "$REPO_ROOT/schemas/plugin-manifest.v1.schema.json" \
     "plugin manifest"
 
+validate_manifest \
+    "$REPO_ROOT/.codex-plugin/plugin.json" \
+    "$REPO_ROOT/schemas/codex-plugin-manifest.v1.schema.json" \
+    "Codex plugin manifest"
+
+validate_manifest \
+    "$REPO_ROOT/.agents/plugins/marketplace.json" \
+    "$REPO_ROOT/schemas/codex-marketplace.v1.schema.json" \
+    "Codex marketplace manifest"
+
 if [[ "$SKIP_HOOKS" -eq 0 ]]; then
     validate_manifest \
         "$REPO_ROOT/hooks/hooks.json" \

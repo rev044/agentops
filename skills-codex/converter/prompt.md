@@ -4,6 +4,6 @@ Cross-platform skill converter. Parse AgentOps skills into a universal bundle fo
 
 ## Instructions
 
-Load and follow the skill instructions from `~/.codex/skills/converter/SKILL.md`.
+Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
 Then read local files in `references/` and `scripts/` when needed.
 

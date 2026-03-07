@@ -4,6 +4,6 @@ Inject relevant knowledge into session context from .agents/ artifacts. Triggers
 
 ## Instructions
 
-Load and follow the skill instructions from `~/.codex/skills/inject/SKILL.md`.
+Load and follow the skill instructions from the sibling `SKILL.md` file for this skill.
 Then read local files in `references/` and `scripts/` when needed.
 

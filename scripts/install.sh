@@ -24,14 +24,12 @@ curl -fsSL https://codeload.github.com/boshu2/agentops/tar.gz/refs/heads/main \
     | tar xz -C "$TMP" --strip-components=1
 mkdir -p ~/.claude/skills
 /bin/cp -r "$TMP/skills/." ~/.claude/skills/
-SKILL_COUNT=$(ls "$TMP/skills" | wc -l | tr -d ' ')
+SKILL_COUNT=$(find "$TMP/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
 echo "✓ $SKILL_COUNT skills installed to ~/.claude/skills/"
 
 # For Codex users: also install Codex-native skills
 if command -v codex >/dev/null 2>&1; then
-    mkdir -p ~/.codex/skills
-    /bin/cp -r "$TMP/skills-codex/." ~/.codex/skills/ 2>/dev/null || true
-    echo "✓ Codex-native skills installed to ~/.codex/skills/"
+    AGENTOPS_BUNDLE_ROOT="$TMP" bash "$TMP/scripts/install-codex.sh"
 fi
 
 # Step 2: Install CLI (optional — enhances with knowledge flywheel)
