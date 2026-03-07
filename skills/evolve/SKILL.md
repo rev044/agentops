@@ -161,7 +161,9 @@ Skip if `--skip-baseline` or `--beads-only` or baseline already exists.
 
 ```bash
 if [ ! -f .agents/evolve/fitness-0-baseline.json ]; then
-  ao goals measure --json --timeout 60 > .agents/evolve/fitness-0-baseline.json
+  bash scripts/evolve-capture-baseline.sh \
+    --label "era-$(date -u +%Y%m%dT%H%M%SZ)" \
+    --timeout 60
 fi
 ```
 
@@ -218,6 +220,10 @@ If directives exist, assess the top-priority directive (lowest number, non-quara
 - Use this as the work item for Step 4
 
 **Step 3.2: Harvested work** from `.agents/rpi/next-work.jsonl` (unconsumed entries).
+When a repo filter is active, prefer exact-repo items first, then wildcard `*`,
+then legacy unscoped items. At equal repo affinity and severity, prefer
+implementation work (`feature`, `improvement`, `tech-debt`, `bug`, `task`)
+before `process-improvement`.
 
 **Step 3.3: Open beads**:
 ```bash
@@ -249,6 +255,8 @@ Step 3.5q: Next directive.
 
 This inverts the standard cascade: findings BEFORE goals and directives.
 Rationale: harvested work has 100% first-attempt success rate.
+Within harvested work, keep the same repo-first preference: exact repo before
+`*`, then legacy unscoped entries.
 
 When evolve picks a finding, mark it consumed in next-work.jsonl:
 - Set `consumed: true`, `consumed_by: "evolve-quality:cycle-N"`, `consumed_at: "<timestamp>"`
@@ -341,7 +349,7 @@ Two paths: productive cycles get committed, idle cycles are local-only.
 
 ```bash
 # Quality mode: compute quality_score BEFORE writing the JSONL entry
-QUALITY_SCORE_FIELD=""
+QUALITY_SCORE_ARGS=()
 if [ "$QUALITY_MODE" = "true" ]; then
   REMAINING_HIGH=$(jq -r 'select(.consumed==false) | .items[] | select(.severity=="high")' \
     .agents/rpi/next-work.jsonl 2>/dev/null | wc -l | tr -d ' ')
@@ -349,34 +357,23 @@ if [ "$QUALITY_MODE" = "true" ]; then
     .agents/rpi/next-work.jsonl 2>/dev/null | wc -l | tr -d ' ')
   QUALITY_SCORE=$((100 - (REMAINING_HIGH * 10) - (REMAINING_MEDIUM * 3)))
   [ "$QUALITY_SCORE" -lt 0 ] && QUALITY_SCORE=0
-  QUALITY_SCORE_FIELD=",\"quality_score\":${QUALITY_SCORE}"
+  QUALITY_SCORE_ARGS=(--quality-score "$QUALITY_SCORE")
 fi
 
-# Check if this cycle changed real code (not just artifacts)
-# Note: Using ${CYCLE_START_SHA} instead of HEAD~1 safely handles sub-skill multi-commit cases
-REAL_CHANGES=$(git diff --name-only ${CYCLE_START_SHA}..HEAD -- ':!.agents/*' ':!GOALS.yaml' 2>/dev/null | wc -l | tr -d ' ')
-
-# Substantive-delta gate: artifact-only/no-delta cycles must not be recorded as "improved".
-if [ "$OUTCOME" = "improved" ] && [ "$REAL_CHANGES" -eq 0 ]; then
-  OUTCOME="unchanged"
-fi
-
-if [ "$OUTCOME" = "unchanged" ]; then
-  flock .agents/evolve/cycle-history.jsonl -c \
-    "echo '{\"cycle\":${CYCLE},\"target\":\"${TARGET}\",\"result\":\"unchanged\",\"timestamp\":\"$(date -Iseconds)\"}' >> .agents/evolve/cycle-history.jsonl" \
-    2>/dev/null \
-    || echo "{\"cycle\":${CYCLE},\"target\":\"${TARGET}\",\"result\":\"unchanged\",\"timestamp\":\"$(date -Iseconds)\"}" >> .agents/evolve/cycle-history.jsonl
-else
-  # Append to cycle history (atomic write)
-  # Note: flock is Linux-native. On macOS use plain >> append if single-process.
-  ENTRY="{\"cycle\":${CYCLE},\"target\":\"${TARGET}\",\"result\":\"${OUTCOME}\",\"sha\":\"$(git rev-parse --short HEAD)\",\"timestamp\":\"$(date -Iseconds)\",\"goals_passing\":${PASSING},\"goals_total\":${TOTAL}${QUALITY_SCORE_FIELD}}"
-  flock .agents/evolve/cycle-history.jsonl -c "echo '${ENTRY}' >> .agents/evolve/cycle-history.jsonl" 2>/dev/null \
-    || echo "${ENTRY}" >> .agents/evolve/cycle-history.jsonl
-fi
-
-# Verify write
-LAST=$(tail -1 .agents/evolve/cycle-history.jsonl | jq -r '.cycle')
-[ "$LAST" != "$CYCLE" ] && echo "FATAL: cycle log write failed" && exit 1
+ENTRY_JSON="$(
+  bash scripts/evolve-log-cycle.sh \
+    --cycle "$CYCLE" \
+    --target "$TARGET" \
+    --result "$OUTCOME" \
+    --canonical-sha "$(git rev-parse --short HEAD)" \
+    --cycle-start-sha "$CYCLE_START_SHA" \
+    --goals-passing "$PASSING" \
+    --goals-total "$TOTAL" \
+    "${QUALITY_SCORE_ARGS[@]}"
+)"
+OUTCOME="$(printf '%s\n' "$ENTRY_JSON" | jq -r '.result')"
+REAL_CHANGES=$(git diff --name-only "${CYCLE_START_SHA}..HEAD" -- ':!.agents/**' ':!GOALS.yaml' ':!GOALS.md' \
+  2>/dev/null | wc -l | tr -d ' ')
 
 # Telemetry
 bash scripts/log-telemetry.sh evolve cycle-complete cycle=${CYCLE} goal=${TARGET} outcome=${OUTCOME} 2>/dev/null || true
@@ -400,11 +397,10 @@ PRODUCTIVE_THIS_SESSION=$((PRODUCTIVE_THIS_SESSION + 1))
 **IDLE cycles** (nothing found):
 
 ```bash
-# Append locally — NOT committed (disposable if compaction occurs)
-flock .agents/evolve/cycle-history.jsonl -c \
-  "echo '{\"cycle\":${CYCLE},\"target\":\"idle\",\"result\":\"unchanged\",\"timestamp\":\"$(date -Iseconds)\"}' >> .agents/evolve/cycle-history.jsonl" \
-  2>/dev/null \
-  || echo "{\"cycle\":${CYCLE},\"target\":\"idle\",\"result\":\"unchanged\",\"timestamp\":\"$(date -Iseconds)\"}" >> .agents/evolve/cycle-history.jsonl
+bash scripts/evolve-log-cycle.sh \
+  --cycle "$CYCLE" \
+  --target "idle" \
+  --result "unchanged" >/dev/null
 # No git add, no git commit, no fitness snapshot write
 ```
 

@@ -12,8 +12,9 @@ This captures learnings from the ENTIRE evolution run (all cycles, all /rpi invo
 
 ```bash
 # Check if both baseline and final snapshot exist
-if [ -f .agents/evolve/fitness-0-baseline.json ] && [ -f .agents/evolve/fitness-latest.json ]; then
-  baseline = load(".agents/evolve/fitness-0-baseline.json")
+ACTIVE_BASELINE_PATH="$(cat .agents/evolve/active-baseline.txt 2>/dev/null || echo .agents/evolve/fitness-0-baseline.json)"
+if [ -f "$ACTIVE_BASELINE_PATH" ] && [ -f .agents/evolve/fitness-latest.json ]; then
+  baseline = load("$ACTIVE_BASELINE_PATH")
   final = load(".agents/evolve/fitness-latest.json")
 
   # Compute delta — goals that flipped between baseline and final

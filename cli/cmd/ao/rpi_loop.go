@@ -595,7 +595,9 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 		item       nextWorkItem
 		entryIndex int
 		itemIndex  int
-		rank       int
+		severity   int
+		affinity   int
+		typeRank   int
 	}
 
 	var candidates []candidate
@@ -607,7 +609,14 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
 				continue
 			}
-			candidates = append(candidates, candidate{item: item, entryIndex: entry.QueueIndex, itemIndex: itemIdx, rank: severityRank(item.Severity)})
+			candidates = append(candidates, candidate{
+				item:       item,
+				entryIndex: entry.QueueIndex,
+				itemIndex:  itemIdx,
+				severity:   severityRank(item.Severity),
+				affinity:   repoAffinityRank(item, repoFilter),
+				typeRank:   workTypeRank(item),
+			})
 		}
 	}
 
@@ -616,11 +625,50 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 	}
 
 	slices.SortFunc(candidates, func(a, b candidate) int {
-		return cmp.Compare(b.rank, a.rank)
+		if diff := cmp.Compare(b.affinity, a.affinity); diff != 0 {
+			return diff
+		}
+		if diff := cmp.Compare(b.severity, a.severity); diff != 0 {
+			return diff
+		}
+		if diff := cmp.Compare(b.typeRank, a.typeRank); diff != 0 {
+			return diff
+		}
+		if diff := cmp.Compare(a.entryIndex, b.entryIndex); diff != 0 {
+			return diff
+		}
+		return cmp.Compare(a.itemIndex, b.itemIndex)
 	})
 
 	best := candidates[0]
 	return &queueSelection{Item: best.item, EntryIndex: best.entryIndex, ItemIndex: best.itemIndex}
+}
+
+func repoAffinityRank(item nextWorkItem, repoFilter string) int {
+	if repoFilter == "" {
+		return 0
+	}
+	switch item.TargetRepo {
+	case repoFilter:
+		return 3
+	case "*":
+		return 2
+	case "":
+		return 1
+	default:
+		return 0
+	}
+}
+
+func workTypeRank(item nextWorkItem) int {
+	switch item.Type {
+	case "feature", "improvement", "tech-debt", "bug", "task":
+		return 2
+	case "process-improvement":
+		return 1
+	default:
+		return 0
+	}
 }
 
 // rewriteNextWorkFile rewrites the JSONL file with updated entries applied via

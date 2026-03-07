@@ -4,7 +4,8 @@ set -euo pipefail
 # Validate evolve cycle-history.jsonl integrity.
 # Checks: file exists (if evolve has run), entries have required fields,
 # cycle numbers are monotonically increasing, and productive entries carry
-# the fields needed for trajectory plotting. Historical numbering gaps are
+# the fields needed for trajectory plotting. Historical rows remain warning-
+# tolerant so legacy schema drift does not block the repo. Numbering gaps are
 # warnings by default; pass --strict-gaps to fail on them.
 
 STRICT_GAPS=false
@@ -98,6 +99,25 @@ while IFS= read -r line; do
           WARNINGS=$((WARNINGS + 1))
         fi
       done
+      CANONICAL_TYPE=$(echo "$line" | jq -r 'if has("canonical_sha") then (.canonical_sha | type) else "missing" end')
+      if [[ "$CANONICAL_TYPE" != "missing" && "$CANONICAL_TYPE" != "string" ]]; then
+        echo "WARN: Line $LINE_NUM uses non-string canonical_sha ($CANONICAL_TYPE)"
+        WARNINGS=$((WARNINGS + 1))
+      fi
+      LOG_TYPE=$(echo "$line" | jq -r 'if has("log_sha") then (.log_sha | type) else "missing" end')
+      if [[ "$LOG_TYPE" != "missing" && "$LOG_TYPE" != "string" ]]; then
+        echo "WARN: Line $LINE_NUM uses non-string log_sha ($LOG_TYPE)"
+        WARNINGS=$((WARNINGS + 1))
+      fi
+      SHA_VALUE=$(echo "$line" | jq -r '.sha // empty')
+      CANONICAL_VALUE=$(echo "$line" | jq -r '.canonical_sha // empty')
+      if [[ -n "$CANONICAL_VALUE" && -z "$SHA_VALUE" ]]; then
+        echo "WARN: Line $LINE_NUM has canonical_sha but no compatibility sha"
+        WARNINGS=$((WARNINGS + 1))
+      elif [[ -n "$SHA_VALUE" && -n "$CANONICAL_VALUE" && "$SHA_VALUE" != "$CANONICAL_VALUE" ]]; then
+        echo "WARN: Line $LINE_NUM has sha/canonical_sha mismatch"
+        WARNINGS=$((WARNINGS + 1))
+      fi
       ;;
     unchanged|quarantined)
       :

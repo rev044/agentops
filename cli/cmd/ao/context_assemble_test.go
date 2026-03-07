@@ -522,10 +522,17 @@ func TestRedactHighEntropy(t *testing.T) {
 
 func TestFormatHistoryEntry(t *testing.T) {
 	entry := map[string]interface{}{
-		"timestamp": "2026-02-20T10:00:00Z",
-		"cycle":     float64(3),
-		"status":    "pass",
-		"summary":   "test cycle summary",
+		"timestamp":     "2026-02-20T10:00:00Z",
+		"cycle":         float64(3),
+		"target":        "goals-proof",
+		"result":        "improved",
+		"sha":           "abc1234",
+		"canonical_sha": "abc1234",
+		"log_sha":       "def5678",
+		"goals_passing": float64(17),
+		"goals_total":   float64(18),
+		"goal_ids":      []interface{}{"goals-proof", "cmd-ao-coverage-floor"},
+		"summary":       "test cycle summary",
 	}
 	result := formatHistoryEntry(entry, 1)
 	if !strings.Contains(result, "### Entry 1") {
@@ -534,8 +541,37 @@ func TestFormatHistoryEntry(t *testing.T) {
 	if !strings.Contains(result, "**timestamp**") {
 		t.Error("expected timestamp field")
 	}
-	if !strings.Contains(result, "**status**: pass") {
-		t.Error("expected status field")
+	if !strings.Contains(result, "**target**: goals-proof") {
+		t.Error("expected target field")
+	}
+	if !strings.Contains(result, "**result**: improved") {
+		t.Error("expected result field")
+	}
+	if !strings.Contains(result, "**canonical_sha**: abc1234") {
+		t.Error("expected canonical_sha field")
+	}
+	if !strings.Contains(result, "**log_sha**: def5678") {
+		t.Error("expected log_sha field")
+	}
+	if !strings.Contains(result, "**goal_ids**: goals-proof, cmd-ao-coverage-floor") {
+		t.Error("expected formatted goal_ids field")
+	}
+}
+
+func TestFormatHistoryEntry_LegacyFallbacks(t *testing.T) {
+	entry := map[string]interface{}{
+		"timestamp": "2026-02-20T10:00:00Z",
+		"cycle":     float64(4),
+		"goal_id":   "legacy-goal",
+		"status":    "pass",
+	}
+
+	result := formatHistoryEntry(entry, 2)
+	if !strings.Contains(result, "**target**: legacy-goal") {
+		t.Error("expected goal_id to render as target")
+	}
+	if !strings.Contains(result, "**result**: pass") {
+		t.Error("expected status to render as result")
 	}
 }
 
