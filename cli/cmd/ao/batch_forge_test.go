@@ -600,6 +600,69 @@ func TestRunForgeBatch_DryRunAppliesMaxLimit(t *testing.T) {
 	}
 }
 
+func TestRunForgeBatch_ProcessesTranscript(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	transcriptDir := filepath.Join(tmpDir, "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0o755); err != nil {
+		t.Fatalf("mkdir transcript dir: %v", err)
+	}
+
+	transcriptPath := filepath.Join(transcriptDir, "session.jsonl")
+	lines := strings.Join([]string{
+		`{"type":"summary","sessionId":"sess-batch","timestamp":"2024-01-01T00:00:00Z","summary":"Batch forge summary"}`,
+		`{"type":"assistant","role":"assistant","content":"Working on a task with enough detail to keep the transcript comfortably above the batch filter threshold.","sessionId":"sess-batch","timestamp":"2024-01-01T00:01:00Z"}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(transcriptPath, []byte(lines), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+
+	oldBatchDir, oldBatchMax, oldBatchExtract := batchDir, batchMax, batchExtract
+	oldDryRun, oldOutput := dryRun, output
+	t.Cleanup(func() {
+		batchDir, batchMax, batchExtract = oldBatchDir, oldBatchMax, oldBatchExtract
+		dryRun, output = oldDryRun, oldOutput
+	})
+
+	batchDir = transcriptDir
+	batchMax = 0
+	batchExtract = false
+	dryRun = false
+	output = "table"
+
+	stdout, err := captureStdout(t, func() error {
+		return runForgeBatch(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("runForgeBatch: %v", err)
+	}
+
+	for _, want := range []string{
+		"Found 1 transcript(s) to process (skipped 0 already forged).",
+		"[1/1] Processing session.jsonl...",
+		"--- Batch Forge Summary ---",
+		"Transcripts processed: 1",
+		"Failed:                0",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("expected %q in output, got %q", want, stdout)
+		}
+	}
+
+	forgedIndexPath := filepath.Join(tmpDir, storage.DefaultBaseDir, "forged.jsonl")
+	if _, err := os.Stat(forgedIndexPath); err != nil {
+		t.Fatalf("expected forged index to be created: %v", err)
+	}
+}
+
 func TestRunBatchExtractionStep_DryRunPendingExtractions(t *testing.T) {
 	tmpDir := t.TempDir()
 	pendingPath := filepath.Join(tmpDir, storage.DefaultBaseDir, "pending.jsonl")
