@@ -735,7 +735,7 @@ func checkSkills() doctorCheck {
 		},
 		{
 			path:        filepath.Join(home, ".agents", "skills"),
-			label:       "Legacy",
+			label:       "User Skills",
 			displayPath: "~/.agents/skills",
 			legacy:      true,
 		},
@@ -799,7 +799,7 @@ func checkSkills() doctorCheck {
 	}
 
 	if len(legacyNames) > 0 {
-		overlaps := overlappingSkillNames(legacyNames, nativeNames, rawCodexNames, installedNames["~/.claude/skills"])
+		overlaps := overlappingSkillNames(legacyNames, rawCodexNames, installedNames["~/.claude/skills"])
 		if len(overlaps) > 0 {
 			sample := overlaps
 			if len(sample) > 3 {
@@ -808,7 +808,7 @@ func checkSkills() doctorCheck {
 			return doctorCheck{
 				Name:   "Plugin",
 				Status: "warn",
-				Detail: fmt.Sprintf("%d skills found in %s; duplicate legacy install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove ~/.agents/skills if it is no longer needed.",
+				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove ~/.agents/skills if it is no longer needed.",
 					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
 			}
 		}
@@ -923,7 +923,24 @@ func checkCodexSync() doctorCheck {
 		}
 	}
 
-	if meta.ManifestHash != repoManifestHash || (repoVersion != "" && meta.Version != "" && meta.Version != repoVersion) {
+	if meta.ManifestHash != repoManifestHash {
+		if repoVersion != "" && meta.Version != "" && meta.Version == repoVersion {
+			return doctorCheck{
+				Name:   "Codex Sync",
+				Status: "warn",
+				Detail: fmt.Sprintf("installed Codex %s manifest differs from repo %s — run 'cd %s && bash scripts/refresh-codex-local.sh'",
+					modeOrDefault(meta.InstallMode), valueOrUnknown(repoVersion), repoRoot),
+			}
+		}
+		return doctorCheck{
+			Name:   "Codex Sync",
+			Status: "warn",
+			Detail: fmt.Sprintf("installed Codex %s is stale relative to repo (%s -> %s) — run 'cd %s && bash scripts/refresh-codex-local.sh'",
+				modeOrDefault(meta.InstallMode), valueOrUnknown(meta.Version), valueOrUnknown(repoVersion), repoRoot),
+		}
+	}
+
+	if repoVersion != "" && meta.Version != "" && meta.Version != repoVersion {
 		return doctorCheck{
 			Name:   "Codex Sync",
 			Status: "warn",

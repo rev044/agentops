@@ -1012,7 +1012,7 @@ func TestDoctorCov_CheckSkills_AltPath(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckSkills_LegacyOverlapWarns(t *testing.T) {
+func TestDoctorCov_CheckSkills_UserSkillsOverlapWarnsWithoutPluginCache(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -1031,16 +1031,55 @@ func TestDoctorCov_CheckSkills_LegacyOverlapWarns(t *testing.T) {
 
 	result := checkSkills()
 	if result.Status != "warn" {
-		t.Fatalf("status=%q, want warn for duplicate legacy installs (detail: %s)", result.Status, result.Detail)
+		t.Fatalf("status=%q, want warn for duplicate raw installs (detail: %s)", result.Status, result.Detail)
 	}
-	if !strings.Contains(result.Detail, "duplicate legacy install") {
-		t.Fatalf("expected duplicate legacy warning, got %q", result.Detail)
+	if !strings.Contains(result.Detail, "duplicate raw skill install") {
+		t.Fatalf("expected duplicate raw install warning, got %q", result.Detail)
 	}
 	if !strings.Contains(result.Detail, "~/.agents/skills") {
 		t.Fatalf("expected legacy path in detail, got %q", result.Detail)
 	}
 	if !strings.Contains(result.Detail, "research") {
 		t.Fatalf("expected overlapping skill sample in detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckSkills_PluginCacheAndUserSkillsPass(t *testing.T) {
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	for _, dir := range []string{
+		filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex", "research"),
+		filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local", "skills-codex", "vibe"),
+		filepath.Join(fakeHome, ".agents", "skills", "research"),
+		filepath.Join(fakeHome, ".agents", "skills", "vibe"),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# Skill"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	pluginRoot := filepath.Join(fakeHome, ".codex", "plugins", "cache", "agentops-marketplace", "agentops", "local")
+	manifestPath := filepath.Join(pluginRoot, "skills-codex", ".agentops-manifest.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"skills":[{"name":"research"},{"name":"vibe"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pluginRoot, ".agentops-codex-state.json"), []byte(`{"manifest_hash":"abc123","skill_count":2}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(fakeHome, ".codex"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeHome, ".codex", ".agentops-codex-install.json"), []byte(`{"install_mode":"native-plugin","plugin_root":"`+pluginRoot+`","skill_count":2}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkSkills()
+	if result.Status != "pass" {
+		t.Fatalf("status=%q, want pass when plugin cache and ~/.agents/skills overlap (detail: %s)", result.Status, result.Detail)
 	}
 }
 
@@ -1122,6 +1161,61 @@ func TestDoctorCov_CheckCodexSync_PassWhenRepoMatchesInstall(t *testing.T) {
 	}
 	if !strings.Contains(result.Detail, "matches repo") {
 		t.Fatalf("expected match detail, got %q", result.Detail)
+	}
+}
+
+func TestDoctorCov_CheckCodexSync_WarnsOnManifestDriftAtSameVersion(t *testing.T) {
+	repo := chdirTemp(t)
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	if err := exec.Command("git", "-C", repo, "init").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "config", "user.name", "Test").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repo, "skills-codex"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(repo, "skills-codex", ".agentops-manifest.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"skills":[{"name":"research"}]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "add", ".").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", repo, "commit", "-m", "fixture").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	versionOut, err := exec.Command("git", "-C", repo, "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := strings.TrimSpace(string(versionOut))
+
+	metaDir := filepath.Join(fakeHome, ".codex")
+	if err := os.MkdirAll(metaDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	meta := fmt.Sprintf(`{"install_mode":"native-plugin","version":"%s","manifest_hash":"stale-hash"}`, version)
+	if err := os.WriteFile(filepath.Join(metaDir, ".agentops-codex-install.json"), []byte(meta), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := checkCodexSync()
+	if result.Status != "warn" {
+		t.Fatalf("status=%q, want warn (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "manifest differs from repo") {
+		t.Fatalf("expected manifest drift detail, got %q", result.Detail)
+	}
+	if strings.Contains(result.Detail, " -> ") {
+		t.Fatalf("expected non-version drift detail, got %q", result.Detail)
 	}
 }
 

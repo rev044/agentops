@@ -6,7 +6,8 @@
 [ "${AGENTOPS_HOOKS_DISABLED:-}" = "1" ] && exit 0
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=cli/embedded/lib/hook-helpers.sh
+# shellcheck disable=SC1091
+# shellcheck source=../lib/hook-helpers.sh
 . "$SCRIPT_DIR/../lib/hook-helpers.sh"
 
 read_hook_input
@@ -27,18 +28,19 @@ fi
 [ -z "$WORKTREE_PATH" ] && exit 0
 [ ! -d "$WORKTREE_PATH" ] && exit 0
 
-TIMESTAMP=$(date -u +%Y-%m-%dT%H%M%SZ)
-ARCHIVE_DIR="$ROOT/.agents/archived-worktrees/$TIMESTAMP"
-
 # Archive a beads snapshot when bd is available. Current bd releases auto-sync
 # issue writes, so an explicit 'bd sync' command is no longer available.
 if command -v bd >/dev/null 2>&1; then
+    TIMESTAMP=$(date -u +%Y-%m-%dT%H%M%SZ)
+    ARCHIVE_DIR="$ROOT/.agents/archived-worktrees/$TIMESTAMP"
     mkdir -p "$ARCHIVE_DIR"
     (cd "$WORKTREE_PATH" && timeout_run 5 bd export -o "$ARCHIVE_DIR/beads.jsonl" >/dev/null 2>&1) || true
 fi
 
 # Archive .agents/ from worktree to parent repo
 if [ -d "$WORKTREE_PATH/.agents" ]; then
+    TIMESTAMP=${TIMESTAMP:-$(date -u +%Y-%m-%dT%H%M%SZ)}
+    ARCHIVE_DIR="${ARCHIVE_DIR:-$ROOT/.agents/archived-worktrees/$TIMESTAMP}"
     mkdir -p "$ARCHIVE_DIR"
     cp -r "$WORKTREE_PATH/.agents/." "$ARCHIVE_DIR/" 2>/dev/null || true
 fi

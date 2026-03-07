@@ -57,7 +57,7 @@ AgentOps adds the missing layer:
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (installs to ~/.agents/skills and refreshes plugin compatibility)
+# Codex CLI (installs to ~/.agents/skills, refreshes plugin compatibility, then open a fresh Codex session)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode

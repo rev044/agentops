@@ -7,7 +7,7 @@
       "name": "athena",
       "source_skill": "skills/athena",
       "source_hash": "41dbfaa350b864d7b25ba25ade7e5c667f26eba7fa9b2442ce93b9a00593f79d",
-      "generated_hash": "8245190cbd4bf004afe980df9d8ecc61560452c5dc92c970636a4bcdac5b986f"
+      "generated_hash": "48bb7939efb33311628c76aa07078c4017e5ffcbaf3be2a99feb66842ac8b08a"
     },
     {
       "name": "beads",
@@ -42,8 +42,8 @@
     {
       "name": "converter",
       "source_skill": "skills/converter",
-      "source_hash": "0ac60eb8ba4cf05cf6001a9371e8333058e1b411bcd127404dcc3fe920036091",
-      "generated_hash": "568eb548ebb013e18e73a70afcf128ae7ba474b20e21ddb9354eeaec7d85a9c2"
+      "source_hash": "1e64f74bdcc59e9bf409f58600f490f8dbd8893581ec4cc0ef90e0e8cd80e7fb",
+      "generated_hash": "f3bb49a9824c816db47dc85ed2b0307be1d2734b13ff63d99f60c144ace9d25c"
     },
     {
       "name": "council",
@@ -121,7 +121,7 @@
       "name": "openai-docs",
       "source_skill": "skills/openai-docs",
       "source_hash": "7dfd594997ae3a1fcec2376025b40a5dcc49fdf61c3134e7a62fe893bdfa1fa6",
-      "generated_hash": "07784928c78d88e9d70eecea3a4ce6c9cbdf8a15f5c3cd5d837a9c548daf9588"
+      "generated_hash": "956a60aff0ced868bbe72e06ffe213f4383ffdb48deec452b1772ab0a8f7892a"
     },
     {
       "name": "oss-docs",

@@ -220,7 +220,40 @@ parse_skill_md() {
 
   # Extract name and description from frontmatter
   BUNDLE_NAME="$(echo "$BUNDLE_FRONTMATTER" | sed -n 's/^name: *//p' | tr -d "'" | tr -d '"')"
-  BUNDLE_DESC="$(echo "$BUNDLE_FRONTMATTER" | sed -n 's/^description: *//p' | sed "s/^'//;s/'$//")"
+  BUNDLE_DESC="$(
+    awk '
+      BEGIN {
+        capture = 0
+        first = 1
+      }
+      /^description:[[:space:]]*[>|]-?[[:space:]]*$/ {
+        capture = 1
+        next
+      }
+      /^description:[[:space:]]*/ {
+        sub(/^description:[[:space:]]*/, "", $0)
+        gsub(/^'\''|'\''$/, "", $0)
+        gsub(/^"|"$/, "", $0)
+        print
+        exit
+      }
+      capture {
+        if ($0 ~ /^[^[:space:]]/ && $0 !~ /^$/) {
+          exit
+        }
+        line = $0
+        sub(/^[[:space:]]+/, "", line)
+        if (line == "") {
+          next
+        }
+        if (!first) {
+          printf " "
+        }
+        printf "%s", line
+        first = 0
+      }
+    ' <<< "$BUNDLE_FRONTMATTER"
+  )"
 
   # Body: join with newlines
   BUNDLE_BODY="$(printf '%s\n' "${body_lines[@]}")"

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.20.1] - 2026-03-07
+
+### Fixed
+- Codex install workflow now uses `~/.agents/skills` as the single raw skill home and stops recreating an AgentOps mirror in `~/.codex/skills`
+- Native Codex plugin refresh now archives overlapping legacy `~/.codex/skills` AgentOps folders instead of repopulating them
+- Codex install docs now consistently describe the `~/.agents/skills` workflow and the need for a fresh Codex session after install
+- Codex skill conversion now preserves multiline YAML `description` fields correctly, fixing malformed generated metadata for skills such as Athena
+- `ao doctor` now treats plugin-cache plus `~/.agents/skills` as the supported Codex layout and reports manifest drift with accurate wording
+
 ## [2.20.0] - 2026-03-05
 
 ### Added
