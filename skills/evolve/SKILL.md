@@ -68,7 +68,7 @@ Thin fitness-scored loop over `/rpi`. Three work sources in priority order:
 
 ```bash
 mkdir -p .agents/evolve
-ao inject 2>/dev/null || true
+ao lookup --query "autonomous improvement cycle" --limit 5 2>/dev/null || true
 ```
 
 Recover cycle number and idle streak from disk (survives context compaction):

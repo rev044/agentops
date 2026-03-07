@@ -60,4 +60,5 @@ Mine transcripts → Extract knowledge → Index for recall → Apply to new wor
 
 - [Brownian Ratchet Philosophy](brownian-ratchet.md)
 - `/forge` - Extract knowledge from transcripts
-- `/inject` - Recall knowledge at session start
+- `ao lookup` - Retrieve knowledge on demand
+- `.agents/AGENTS.md` - Knowledge store navigation

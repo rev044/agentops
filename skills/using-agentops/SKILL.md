@@ -82,7 +82,7 @@ ao lookup --query "x"  # Search knowledge by relevance
 
 | Phase | Primary Skill | Supporting Skills |
 |-------|---------------|-------------------|
-| **Research** | `/research` | `/inject` |
+| **Research** | `/research` | `ao lookup` |
 | **Plan** | `/plan` | `/pre-mortem` |
 | **Implement** | `/implement` | `/crank` (epic loop), `/swarm` (parallel execution) |
 | **Validate** | `/vibe` | `/post-mortem` (full retro + knowledge lifecycle), `/retro` (quick-capture) |

@@ -41,13 +41,8 @@ if command -v bd >/dev/null 2>&1 && [ -d "$WORKTREE_PATH" ]; then
     }
 fi
 
-# Inject knowledge into worktree (per-command timeout)
-if command -v ao >/dev/null 2>&1 && [ -d "$WORKTREE_PATH" ]; then
-    (cd "$WORKTREE_PATH" && timeout_run 5 ao inject --apply-decay --max-tokens 1000 2>/dev/null) || {
-        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_WARN: ao inject failed in worktree $WORKTREE_PATH" \
-            >> "$ROOT/.agents/ao/hook-errors.log" 2>/dev/null
-    }
-fi
+# Knowledge navigation: workers use .agents/AGENTS.md signpost or ao lookup
+# (ao inject deprecated -- removal target v3.0.0)
 
 # Record worktree metadata
 METADATA_DIR="$ROOT/.agents/ao"

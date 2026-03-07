@@ -236,6 +236,10 @@ The packet sent to each agent. **File contents are included inline** — agents 
 
 If `.agents/ao/environment.json` exists, include it in the context packet so judges can reason about available tools and environment state.
 
+Judge prompt boundary:
+- Do NOT include `.agents/` references in judge prompts.
+- Do NOT instruct judges to search `.agents/` directories. Judges operate on the council packet only.
+
 ```json
 {
   "council_packet": {

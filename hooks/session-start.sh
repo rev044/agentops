@@ -133,21 +133,17 @@ if [ -n "$PREDECESSOR_FILE" ] && [ -f "$PREDECESSOR_FILE" ]; then
 Predecessor handoff: ${PREDECESSOR_FILE}"
 fi
 
-# Inject flywheel knowledge with predecessor context pass-through
-if command -v ao >/dev/null 2>&1; then
-    INJECT_ARGS="--apply-decay --format markdown --max-tokens 1000"
-    [ -n "${H_GOAL:-}" ] && INJECT_ARGS="${INJECT_ARGS} --context ${H_GOAL}"
-    [ -n "${H_TYPE:-}" ] && INJECT_ARGS="${INJECT_ARGS} --session-type ${H_TYPE}"
-    [ -f "${PROJECT_ROOT:-.}/.agents/profile.md" ] && INJECT_ARGS="${INJECT_ARGS} --profile"
-    # shellcheck disable=SC2086
-    AO_INJECT_OUTPUT=$(timeout 5 ao inject ${INJECT_ARGS} 2>/dev/null) || true
-    if [ -n "${AO_INJECT_OUTPUT:-}" ]; then
-        INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
+# Point to knowledge signpost (agents search on demand)
+if [ -f "${ROOT:-.}/.agents/AGENTS.md" ]; then
+    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
 
-## Injected Knowledge (ao inject)
+Knowledge artifacts are in \`.agents/\`. See \`.agents/AGENTS.md\` for navigation.
+Use \`ao lookup --query \"topic\"\` for learnings retrieval, or \`Grep\` in \`.agents/learnings/\` as fallback."
+else
+    INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
 
-${AO_INJECT_OUTPUT}"
-    fi
+Knowledge artifacts are in \`.agents/\` (if populated).
+Use \`ao lookup --query \"topic\"\` for on-demand learnings retrieval."
 fi
 
 # Keep startup context lean: inject only fresh flywheel knowledge and a short skill pointer.

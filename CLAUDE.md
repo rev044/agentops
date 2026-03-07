@@ -12,6 +12,7 @@ If this is your first message in a fresh session, orient in this order:
    - Skills behavior: `skills/**/SKILL.md`
    - Hooks/gates: `hooks/hooks.json` and `hooks/*.sh`
    - Contracts/schemas: `schemas/**`, `lib/schemas/**`
+5. `.agents/AGENTS.md` for knowledge store navigation (search on demand, don't pre-load).
 
 ## Source-of-Truth Precedence
 

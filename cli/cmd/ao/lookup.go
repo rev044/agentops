@@ -29,9 +29,9 @@ var lookupCmd = &cobra.Command{
 	Short: "Retrieve specific knowledge artifacts by ID or query",
 	Long: `Lookup retrieves full content of specific knowledge artifacts.
 
-This is the Phase 2 complement to 'ao inject --index-only'. After seeing
-the compact knowledge index at session start, use lookup to pull full
-content for items relevant to your current task.
+Retrieve full content of specific knowledge artifacts on demand.
+Use this to pull learnings, patterns, or any indexed knowledge
+relevant to your current task.
 
 Modes:
   ao lookup <id>                    # Fetch one learning by ID

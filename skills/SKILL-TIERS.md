@@ -103,7 +103,7 @@ Append-only ledger in `.agents/`. Every session writes. Freshness decay prunes. 
 
 User-facing: /knowledge, /retro (quick-capture), /post-mortem (full), /flywheel
 Background:  inject, extract, forge, provenance, ratchet
-CLI:         ao inject, ao extract, ao forge, ao maturity
+CLI:         ao lookup, ao extract, ao forge, ao maturity
 ```
 
 ## Which Skill Should I Use?

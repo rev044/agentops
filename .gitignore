@@ -41,6 +41,10 @@ reports/
 
 # Claude session artifacts
 .agents/**
+!.agents/.gitignore
+!.agents/README.md
+!.agents/AGENTS.md
+!.agents/**/AGENTS.md
 !.agents/plugins/
 !.agents/plugins/marketplace.json
 tests/claude-code/.agents/

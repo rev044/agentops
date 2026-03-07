@@ -163,6 +163,7 @@ func init() {
 }
 
 func runInject(cmd *cobra.Command, args []string) error {
+	fmt.Fprintln(os.Stderr, "NOTICE: ao inject is deprecated (removal target: v3.0.0). Use 'ao lookup' for learnings or see .agents/AGENTS.md for navigation.")
 	query := resolveInjectQuery(args)
 
 	if GetDryRun() {

@@ -367,6 +367,10 @@ fi
 
 This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's TaskCreate description so workers start with full project context.
 
+Worker prompt signpost:
+- Claude workers should include: `Knowledge artifacts are in .agents/. See .agents/AGENTS.md for navigation. Use \`ao lookup --query "topic"\` for learnings.`
+- Codex workers cannot rely on `.agents/` file access in sandbox. The lead should search `.agents/learnings/` for relevant material and inline the top 3 results directly in the worker prompt body.
+
 ### Step 4: Execute Wave via Swarm
 
 **GREEN mode (--test-first only):** If `--test-first` is set and SPEC/TEST waves have completed, modify worker prompts for spec-eligible issues:
@@ -731,7 +735,7 @@ Include `wc -l` assertions in task metadata when content moves between files.
 
 **User says:** `/crank ag-m0r`
 
-Loads learnings (`ao inject`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `/swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
+Loads learnings (`ao lookup --query "<epic-title>"`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `/swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
 
 ### Execute from Plan File (TaskList Mode)
 

@@ -17,8 +17,8 @@ The architecture rests on five pillars. Each one is independent — you can use 
 │  Ratchet    │   Wiggum    │  Flywheel   │     Composition       │
 │             │   Pattern   │             │                       │
 │  chaos →    │  fresh ctx  │  extract →  │  same shape at        │
-│  filter →   │  per worker │  score →    │  every scale:         │
-│  ratchet    │  disk state │  inject →   │  lead → workers →     │
+│  filter →   │  per worker │  index →    │  every scale:         │
+│  ratchet    │  disk state │  lookup →   │  lead → workers →     │
 │             │  lead-only  │  compound   │  validate → next wave │
 └─────────────┴─────────────┴─────────────┴───────────────────────┘
 ```
@@ -45,7 +45,7 @@ The meta-framework. [DevOps' Three Ways](https://itrevolution.com/articles/the-t
 
 **Feedback.** Shorten the feedback loop until defects can't survive it. Multi-model councils (`/council`) catch issues before code ships. Hooks make the rules unavoidable — validation gates, push blocking, regression auto-revert. Problems found Friday don't wait until Monday.
 
-**Continual Learning.** Stop rediscovering what you already know. Every session extracts learnings, scores them, and re-injects them at the next session start. Knowledge compounds when retrieval quality and usage stay ahead of decay and scale friction. Session 50 knows what session 1 learned the hard way.
+**Continual Learning.** Stop rediscovering what you already know. Every session extracts learnings, scores them, and makes them retrievable via `ao lookup` for the next session. Knowledge compounds when retrieval quality and usage stay ahead of decay and scale friction. Session 50 knows what session 1 learned the hard way.
 
 These three ways aren't aspirational — they're mechanically enforced through skills, hooks, and operational invariants.
 

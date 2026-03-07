@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# hook-stdin-contracts.bats — Verify all 13 stdin-consuming hooks handle JSON contracts correctly.
+# hook-stdin-contracts.bats — Verify all 12 stdin-consuming hooks handle JSON contracts correctly.
 # Each hook gets: valid input, malformed JSON, and empty stdin tests.
 
 setup() {
@@ -95,35 +95,6 @@ run_hook_env() {
 @test "commit-review-gate: empty stdin exits gracefully" {
     run bash -c 'printf "" | bash "$1" 2>&1' \
         -- "$HOOKS_DIR/commit-review-gate.sh"
-    [ "$status" -eq 0 ]
-}
-
-# ═══════════════════════════════════════════════════════════════════════
-# 3. context-contract-check.sh — .tool_input.skill, .tool_input.args
-# ═══════════════════════════════════════════════════════════════════════
-
-@test "context-contract-check: empty skill name exits silently" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- '{"tool_input":{"skill":"","args":""}}' "$HOOKS_DIR/context-contract-check.sh"
-    [ "$status" -eq 0 ]
-    [ -z "$output" ]
-}
-
-@test "context-contract-check: path traversal in skill name exits safely" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- '{"tool_input":{"skill":"../../../etc/passwd","args":""}}' "$HOOKS_DIR/context-contract-check.sh"
-    [ "$status" -eq 0 ]
-}
-
-@test "context-contract-check: malformed JSON exits gracefully" {
-    run bash -c 'printf "%s" "$1" | bash "$2" 2>&1' \
-        -- 'not json at all' "$HOOKS_DIR/context-contract-check.sh"
-    [ "$status" -eq 0 ]
-}
-
-@test "context-contract-check: empty stdin exits gracefully" {
-    run bash -c 'printf "" | bash "$1" 2>&1' \
-        -- "$HOOKS_DIR/context-contract-check.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -709,72 +680,4 @@ AOEOF
     run bash -c 'printf "" | bash "$1" 2>&1' \
         -- "$HOOKS_DIR/task-validation-gate.sh"
     [ "$status" -eq 0 ]
-}
-
-# ═══════════════════════════════════════════════════════════════════════
-# 14. context-contract-check.sh — behavioral: context.window declarations
-# ═══════════════════════════════════════════════════════════════════════
-
-@test "context-contract-check: isolated window emits warning" {
-    local skills_dir="$TMP_TEST_DIR/skills"
-    mkdir -p "$skills_dir/test-skill"
-    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
----
-context:
-  window: isolated
----
-# Test Skill
-EOF
-    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
-        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"context.window=isolated"* ]]
-}
-
-@test "context-contract-check: fork window emits warning" {
-    local skills_dir="$TMP_TEST_DIR/skills"
-    mkdir -p "$skills_dir/test-skill"
-    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
----
-context:
-  window: fork
----
-# Test Skill
-EOF
-    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
-        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"context.window=fork"* ]]
-}
-
-@test "context-contract-check: inherit window is silent" {
-    local skills_dir="$TMP_TEST_DIR/skills"
-    mkdir -p "$skills_dir/test-skill"
-    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
----
-context:
-  window: inherit
----
-# Test Skill
-EOF
-    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
-        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
-    [ "$status" -eq 0 ]
-    [ -z "$output" ]
-}
-
-@test "context-contract-check: no declaration is silent" {
-    local skills_dir="$TMP_TEST_DIR/skills"
-    mkdir -p "$skills_dir/test-skill"
-    cat > "$skills_dir/test-skill/SKILL.md" <<'EOF'
----
-name: test-skill
----
-# Test Skill
-No context block here.
-EOF
-    run bash -c 'printf "%s" "$1" | CLAUDE_PLUGIN_ROOT="$2" bash "$3" 2>&1' \
-        -- '{"tool_input":{"skill":"test-skill"}}' "$TMP_TEST_DIR" "$HOOKS_DIR/context-contract-check.sh"
-    [ "$status" -eq 0 ]
-    [ -z "$output" ]
 }

@@ -5,12 +5,12 @@ Two mechanisms feed the loop:
 **1. Knowledge flywheel (each cycle is smarter):**
 ```
 Session 1:
-  ao inject (nothing yet)         → cycle runs blind
+  ao lookup --query "recent learnings" (nothing yet)  → cycle runs blind
   /rpi fixes test-pass-rate       → post-mortem runs ao forge
   Learnings extracted: "tests/skills/run-all.sh validates frontmatter"
 
 Session 2:
-  ao inject (loads Session 1 learnings)  → cycle knows about frontmatter validation
+  ao lookup --query "recent learnings" (loads Session 1 learnings)  → cycle knows about frontmatter validation
   /rpi fixes doc-coverage                → approach informed by prior learning
   Learnings extracted: "references/ dirs need at least one .md file"
 ```

@@ -33,7 +33,7 @@ The script performs the following checks:
 - **SKILL.md mentions .agents/research/ output path**: Confirms documented output location
 - **SKILL.md mentions Explore agent**: Ensures agent reference is included
 - **SKILL.md mentions --auto flag**: Validates feature documentation
-- **SKILL.md mentions ao inject**: Checks CLI integration documentation
+- **SKILL.md mentions ao lookup or ao search**: Checks CLI integration documentation
 - **SKILL.md mentions knowledge flywheel**: Confirms system architecture coverage
 - **SKILL.md mentions backend detection**: Validates technical implementation details
 - **SKILL.md mentions quality validation**: Ensures quality assurance documentation
@@ -58,7 +58,7 @@ PASS: references/ has at least 3 files
 PASS: SKILL.md mentions .agents/research/ output path
 PASS: SKILL.md mentions Explore agent
 PASS: SKILL.md mentions --auto flag
-PASS: SKILL.md mentions ao inject
+PASS: SKILL.md mentions ao lookup or ao search
 PASS: SKILL.md mentions knowledge flywheel
 PASS: SKILL.md mentions backend detection
 PASS: SKILL.md mentions quality validation
