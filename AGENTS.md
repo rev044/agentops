@@ -125,6 +125,32 @@ Process:
 2. Run `bash scripts/validate-hooks-doc-parity.sh`.
 3. Run `bash tests/docs/validate-doc-release.sh` and `bash tests/docs/validate-skill-count.sh` before pushing.
 
+### Codex Skill Maintenance
+
+Codex is a first-class runtime in this repo.
+
+- `skills/<name>/SKILL.md` is the canonical behavior contract.
+- `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer.
+- `skills-codex/<name>/` is generated output and must not be hand-maintained as the source of truth.
+
+When a skill change affects Codex behavior, phrasing, orchestration, or UX:
+
+1. Update the source skill under `skills/`.
+2. Update any Codex-native override under `skills-codex-overrides/` when the Codex experience should differ from Claude.
+3. Regenerate the full Codex bundle:
+   ```bash
+   bash scripts/sync-codex-native-skills.sh
+   ```
+4. Validate the generated bundle:
+   ```bash
+   bash scripts/validate-codex-skill-parity.sh
+   bash scripts/validate-codex-generated-artifacts.sh
+   bash scripts/validate-codex-install-bundle.sh
+   bash scripts/validate-headless-runtime-skills.sh
+   ```
+
+Think of `skills/` and `skills-codex-overrides/` as the entangled source inputs. `skills-codex/` is the compiled Codex artifact.
+
 ### Canonical Root and Worktrees
 
 This repo has a canonical root worktree. It owns the common `.git` directory and must remain a non-disposable anchor.

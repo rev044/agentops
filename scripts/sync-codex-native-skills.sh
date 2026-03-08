@@ -2,7 +2,11 @@
 #
 # Build Codex-native skill artifacts into a dedicated area (default: ./skills-codex).
 # Output is generated from ./skills via the converter's codex target and then
-# optionally overlaid with codex-specific overrides.
+# overlaid with codex-specific overrides from ./skills-codex-overrides.
+# Source of truth for Codex behavior is therefore:
+#   1) canonical skill contract in ./skills
+#   2) Codex-native tailoring in ./skills-codex-overrides
+#   3) generated artifact in ./skills-codex
 #
 set -euo pipefail
 

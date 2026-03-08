@@ -24,7 +24,7 @@ See also:
 Think in five layers:
 
 1. **Product/docs layer** — `docs/` + root docs (`README.md`, `CONTRIBUTING.md`, etc.)
-2. **Skills layer** — `skills/` and `skills-codex/` (`SKILL.md` contracts + per-skill scripts/references)
+2. **Skills layer** — `skills/`, generated `skills-codex/`, and `skills-codex-overrides/` (`SKILL.md` contracts + per-skill scripts/references + Codex-only tailoring)
 3. **Hooks layer** — `hooks/` with active runtime manifest in `hooks/hooks.json`
 4. **CLI layer** — `cli/` (`cli/cmd/ao/`, `cli/internal/`, generated `cli/docs/COMMANDS.md`)
 5. **Validation layer** — `scripts/`, `tests/`, and `.github/workflows/validate.yml`
@@ -36,6 +36,12 @@ When docs disagree, follow this order:
 1. Executable code + generated artifacts (`cli/**`, `hooks/**`, `scripts/**`, `cli/docs/COMMANDS.md`)
 2. Skill contracts/manifests (`skills/**/SKILL.md`, `hooks/hooks.json`, `schemas/**`)
 3. Explanatory docs (`docs/**`, `README.md`)
+
+For Codex skills specifically:
+
+1. `skills/<name>/SKILL.md` is the canonical workflow contract
+2. `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer
+3. `skills-codex/<name>/` is the generated artifact and should be regenerated, not hand-maintained
 
 
 ## Key concepts to learn first
@@ -95,6 +101,7 @@ CI validates not just builds/tests but also docs parity, hook safety, skill inte
 - Trust runtime files over narrative docs when there is a mismatch.
 - Keep changes small and verify with local gates before pushing.
 - Treat `.agents/` and hooks as first-class parts of the system behavior.
+- Treat Codex as a first-class runtime: when a skill change affects Codex UX or execution style, inspect `skills-codex-overrides/`, regenerate `skills-codex/`, and run the Codex validation scripts.
 - If you touch command surfaces or hook contracts, expect related parity checks to fail until updated.
 
 ## Where to go next
