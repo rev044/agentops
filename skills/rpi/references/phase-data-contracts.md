@@ -4,10 +4,17 @@ How each consolidated phase passes data to the next. Artifacts are filesystem-ba
 
 | Transition | Output | Extraction | Input to Next |
 |------------|--------|------------|---------------|
-| → Discovery | Research doc, plan doc, pre-mortem report, epic ID | Latest files in `.agents/research/`, `.agents/plans/`, `.agents/council/`; epic from `bd list --type epic --status open` | `epic_id`, `pre_mortem` verdict, and discovery summary are persisted in phased state |
-| Discovery → Implementation | Epic execution context + discovery summary | `phased-state.json` + `.agents/rpi/phase-1-summary.md` | `/crank <epic-id>` with prior-phase context |
-| Implementation → Validation | Completed/partial crank status + implementation summary | `bd children <epic-id>` + `.agents/rpi/phase-2-summary.md` | `/vibe` + `/post-mortem` with implementation context |
+| → Discovery | Goal string + repo execution profile contract | Goal from the `/rpi` invocation; repo policy from `docs/contracts/repo-execution-profile.md` and `repo-execution-profile.schema.json` | `repo_profile` state is loaded before research/planning begins |
+| Discovery → Implementation | Epic execution context + discovery summary + `execution_packet` | `phased-state.json` + `.agents/rpi/phase-1-summary.md` + `.agents/rpi/execution-packet.json` | `/crank <epic-id>` with repo policy, contract surfaces, and validation bundle already normalized |
+| Implementation → Validation | Completed/partial crank status + implementation summary + `execution_packet` | `bd children <epic-id>` + `.agents/rpi/phase-2-summary.md` + `.agents/rpi/execution-packet.json` | `/vibe` + `/post-mortem` with the same repo execution profile fields and done criteria |
 | Validation → Next Cycle (optional) | Vibe/post-mortem verdicts + harvested follow-up work + queue lifecycle fields (`claim_status`, `claimed_by`, `claimed_at`, `consumed`, `failed_at`) | Latest council reports + `.agents/rpi/next-work.jsonl` | Stop, loop (`--loop`), suggest next `/rpi` (`--spawn-next`), or hand work back to `/evolve` |
+
+Execution packet v1 should remain additive. Recommended fields:
+- `objective`
+- `contract_surfaces`
+- `validation_commands`
+- `tracker_mode`
+- `done_criteria`
 
 Queue lifecycle rule:
 - post-mortem writes new entries as available: entry aggregate `consumed=false`, `claim_status="available"`

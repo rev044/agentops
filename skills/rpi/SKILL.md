@@ -70,9 +70,9 @@ All phase transitions use filesystem-based artifacts (no in-memory coupling):
 
 | Transition | Key Artifacts | How Next Phase Reads Them |
 |------------|---------------|---------------------------|
-| Start -> Discovery | Goal string | Passed as argument to `/research` |
-| Discovery -> Implementation | Epic ID, pre-mortem verdict, phase-1 summary | `phased-state.json` + `.agents/rpi/phase-1-summary-*.md` |
-| Implementation -> Validation | Crank completion status, phase-2 summary | `bd children <epic-id>` + `.agents/rpi/phase-2-summary-*.md` |
+| Start -> Discovery | Goal string + repo execution profile | Goal is passed to `/research`; repo policy is loaded from `docs/contracts/repo-execution-profile.md` and its schema |
+| Discovery -> Implementation | Epic ID, pre-mortem verdict, phase-1 summary, execution packet | `phased-state.json` + `.agents/rpi/phase-1-summary-*.md` + `.agents/rpi/execution-packet.json` |
+| Implementation -> Validation | Execution packet, crank completion status, phase-2 summary | `.agents/rpi/execution-packet.json` + `bd children <epic-id>` + `.agents/rpi/phase-2-summary-*.md` |
 | Validation -> Next Cycle (optional) | Vibe/post-mortem verdicts, harvested follow-up work, queue claim/finalize metadata | Council reports + `.agents/rpi/next-work.jsonl` |
 
 ## Execution Steps
@@ -84,6 +84,11 @@ Given `/rpi <goal | epic-id> [--from=<phase>] [--interactive]`:
 ```bash
 mkdir -p .agents/rpi
 ```
+
+Load repo policy before selecting a phase:
+- locate `docs/contracts/repo-execution-profile.md` and `docs/contracts/repo-execution-profile.schema.json`
+- read the repo execution profile fields needed for orchestration: `startup_reads`, `validation_commands`, `tracker_commands`, and `definition_of_done`
+- carry those fields forward through a normalized execution packet instead of re-deriving them from free-form prompt text
 
 Enforce orchestration mode before selecting a phase:
 - Allowed: direct invocations of `/research`, `/plan`, `/pre-mortem`, `/crank`, `/vibe`, `/post-mortem`.
@@ -106,10 +111,24 @@ rpi_state = {
   phase: "<discovery|implementation|validation>",
   auto: <true unless --interactive>,
   test_first: <true by default; false only when --no-test-first>,
+  repo_profile_path: <docs/contracts/repo-execution-profile.md or null>,
+  execution_packet_path: ".agents/rpi/execution-packet.json",
   complexity: null,
   cycle: 1,
   parent_epic: null,
   verdicts: {}
+}
+```
+
+Discovery owns the first normalized execution packet:
+
+```text
+execution_packet = {
+  objective: "<goal or epic objective>",
+  contract_surfaces: ["docs/contracts/repo-execution-profile.md", "..."],
+  validation_commands: ["<repo validation command>", "..."],
+  tracker_mode: "<default|repo-wrapped>",
+  done_criteria: ["<definition_of_done predicate>", "..."]
 }
 ```
 
@@ -127,8 +146,9 @@ After discovery completes:
 1. Extract epic ID from `bd list --type epic --status open` and store in `rpi_state.epic_id`.
 2. Extract pre-mortem verdict (PASS/WARN/FAIL) from latest pre-mortem council report.
 3. Store verdict in `rpi_state.verdicts.pre_mortem`.
-4. Write summary to `.agents/rpi/phase-1-summary-YYYY-MM-DD-<goal-slug>.md`.
-5. Record ratchet and telemetry:
+4. Write `.agents/rpi/execution-packet.json` using the goal, repo execution profile, discovery findings, epic id, and pre-mortem verdict.
+5. Write summary to `.agents/rpi/phase-1-summary-YYYY-MM-DD-<goal-slug>.md`.
+6. Record ratchet and telemetry:
 
 ```bash
 ao ratchet record research 2>/dev/null || true
@@ -143,6 +163,8 @@ Gate behavior:
 ### Phase 2: Implementation
 
 Requires `rpi_state.epic_id`.
+
+Before invoking `/crank`, read `.agents/rpi/execution-packet.json` and use it as the normalized handoff. The packet is the source for repo validation commands, tracker mode, and done_criteria during implementation.
 
 ```text
 /crank <epic-id> [--no-test-first]
@@ -166,6 +188,8 @@ bash scripts/log-telemetry.sh rpi phase-complete phase=2 phase_name=implementati
 ### Phase 3: Validation
 
 Validation runs final review and lifecycle close-out:
+
+Read `.agents/rpi/execution-packet.json` again before `/vibe` and `/post-mortem` so validation uses the same repo contract surfaces and done_criteria that discovery handed to implementation.
 
 ```text
 /vibe recent            # use --quick recent for low/medium complexity

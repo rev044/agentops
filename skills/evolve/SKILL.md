@@ -75,6 +75,13 @@ mkdir -p .agents/evolve
 ao lookup --query "autonomous improvement cycle" --limit 5 2>/dev/null || true
 ```
 
+Before cycle recovery, load the repo execution profile contract when it exists. The repo execution profile is the source for repo policy; the user prompt should mostly supply mission/objective, not restate startup reads, validation bundle, tracker wrapper rules, or `definition_of_done`.
+
+- Locate `docs/contracts/repo-execution-profile.md` and `docs/contracts/repo-execution-profile.schema.json`.
+- Read the ordered `startup_reads` and bootstrap from those repo paths before selecting work.
+- Cache repo `validation_commands`, `tracker_commands`, and `definition_of_done` into session state.
+- If the repo execution profile is present but missing required fields, stop or downgrade with an explicit warning before cycle 1. Do not silently invent repo policy.
+
 Recover cycle number, queue/generator streaks, and the last claimed work item from disk (survives context compaction):
 ```bash
 if [ -f .agents/evolve/cycle-history.jsonl ]; then
@@ -145,6 +152,11 @@ evolve_state = {
   cycle: <current cycle number>,
   mode: <standard|quality|beads-only>,
   test_first: <true by default; false only when --no-test-first>,
+  repo_profile_path: <docs/contracts/repo-execution-profile.md or null>,
+  startup_reads: <ordered repo bootstrap paths>,
+  validation_commands: <ordered repo validation bundle>,
+  tracker_commands: <repo tracker shell wrappers>,
+  definition_of_done: <repo stop predicates>,
   generator_empty_streak: <consecutive passes where all generator layers returned nothing>,
   last_selected_source: <harvested|beads|goal|directive|testing|validation|bug-hunt|drift|feature>,
   claimed_work: <null or queue reference being worked>,
