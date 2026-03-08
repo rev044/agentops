@@ -173,7 +173,7 @@ This repo has a canonical root worktree. It owns the common `.git` directory and
 |-----|-------------------|----------------|
 | **cli-docs-parity** | `cli/docs/COMMANDS.md` matches `ao --help` output | Adding a CLI command without running `scripts/generate-cli-reference.sh` |
 | **cli-integration** | Built CLI runs integration command matrix and hook lifecycle smoke tests | CLI command behavior drift not covered by unit tests |
-| **codex-runtime-sections** | Required Codex runtime sections and ordering remain valid | AGENTS/runtime guidance changes drift from required Codex runtime section rules |
+| **codex-runtime-sections** | Required Codex runtime sections and ordering remain valid; CI also enforces Codex skill parity, install-bundle parity, generated-artifact parity, backbone prompts, and headless runtime smoke in this job | AGENTS/runtime guidance changes drift from required Codex runtime section rules or Codex artifact/runtime checks stop matching the shipped local gate stack |
 | **contract-compatibility-gate** | INDEX.md contract links resolve; schemas are valid JSON; orphan contracts fail unless allowlisted | Adding a contract file without cataloguing it in `docs/INDEX.md` or allowlist governance |
 | **doc-release-gate** | Skill counts match across SKILL-TIERS.md, PRODUCT.md, README.md, INDEX.md; link validation | Adding/removing a skill without running `scripts/sync-skill-counts.sh` |
 | **doctor-check** | `ao doctor` runs without error on built binary | Non-blocking (`continue-on-error: true`) |

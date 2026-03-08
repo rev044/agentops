@@ -25,6 +25,13 @@ CHECKED=0
 
 log() { [[ "$VERBOSE" == "true" ]] && echo "$@" || true; }
 
+is_learning_artifact() {
+    local file="$1"
+    local basename
+    basename=$(basename "$file")
+    [[ "$basename" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-.*\.md$ ]]
+}
+
 check_file() {
     local file="$1"
     local basename
@@ -139,6 +146,7 @@ fi
 
 for file in "$LEARNINGS_DIR"/*.md; do
     [[ -f "$file" ]] || continue
+    is_learning_artifact "$file" || continue
     check_file "$file"
 done
 

@@ -9,6 +9,7 @@ PASS_COUNT=0
 FAIL_COUNT=0
 TMP_DIR="$(mktemp -d)"
 
+# shellcheck disable=SC2329
 cleanup() {
   rm -rf "$TMP_DIR"
 }
@@ -91,7 +92,7 @@ test_script_executable() {
 test_frontmatter_only_memrl_fails() {
   local dir
   dir="$(make_fixture_dir frontmatter-only)"
-  cat >"$dir/meta-only.md" <<'EOF'
+  cat >"$dir/2026-03-07-meta-only.md" <<'EOF'
 ---
 utility: 0.80
 confidence: 0.90
@@ -108,7 +109,7 @@ EOF
 test_manual_frontmatter_only_fails() {
   local dir
   dir="$(make_fixture_dir manual-frontmatter-only)"
-  cat >"$dir/meta-only.md" <<'EOF'
+  cat >"$dir/2026-03-07-meta-only.md" <<'EOF'
 ---
 id: learning-123
 date: 2026-03-07
@@ -124,7 +125,7 @@ EOF
 test_memrl_with_body_passes() {
   local dir
   dir="$(make_fixture_dir memrl-body)"
-  cat >"$dir/valid.md" <<'EOF'
+  cat >"$dir/2026-03-07-valid.md" <<'EOF'
 ---
 utility: 0.72
 confidence: 0.80
@@ -142,7 +143,7 @@ EOF
 test_frontmatter_without_recognized_fields_fails() {
   local dir
   dir="$(make_fixture_dir missing-fields)"
-  cat >"$dir/bad-frontmatter.md" <<'EOF'
+  cat >"$dir/2026-03-07-bad-frontmatter.md" <<'EOF'
 ---
 foo: bar
 bar: baz
@@ -158,6 +159,18 @@ EOF
     "frontmatter has no recognized fields"
 }
 
+test_non_learning_markdown_is_ignored() {
+  local dir
+  dir="$(make_fixture_dir non-learning-doc)"
+  cat >"$dir/AGENTS.md" <<'EOF'
+# Learnings
+
+Helper documentation file that should not be treated as a learning artifact.
+EOF
+
+  assert_gate_passes "non-learning markdown is ignored" "$dir"
+}
+
 echo "================================"
 echo "Testing learning coherence gate"
 echo "================================"
@@ -168,6 +181,7 @@ test_frontmatter_only_memrl_fails
 test_manual_frontmatter_only_fails
 test_memrl_with_body_passes
 test_frontmatter_without_recognized_fields_fails
+test_non_learning_markdown_is_ignored
 
 echo ""
 echo "================================"
