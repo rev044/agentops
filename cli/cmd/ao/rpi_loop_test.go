@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -820,6 +821,169 @@ func TestMarkItemClaimedAndReleased(t *testing.T) {
 	}
 	if released[0].Items[0].ClaimedBy != nil || released[0].Items[0].ClaimedAt != nil {
 		t.Fatal("released item should clear claimed_by/claimed_at")
+	}
+}
+
+func TestMarkItemClaimedConflict(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic:  "ag-claim",
+		ClaimStatus: "available",
+		Items: []nextWorkItem{
+			{Title: "Item A", Severity: "high"},
+		},
+	}
+	writeJSONL(t, path, []nextWorkEntry{entry})
+
+	if err := markItemClaimed(path, 0, 0, "loop:cycle-1"); err != nil {
+		t.Fatalf("first markItemClaimed: %v", err)
+	}
+	err := markItemClaimed(path, 0, 0, "loop:cycle-2")
+	if !errors.Is(err, errQueueClaimConflict) {
+		t.Fatalf("second markItemClaimed error = %v, want errQueueClaimConflict", err)
+	}
+
+	claimed := readJSONLEntries(t, path)
+	if claimed[0].Items[0].ClaimStatus != "in_progress" {
+		t.Fatalf("item claim_status = %q, want in_progress", claimed[0].Items[0].ClaimStatus)
+	}
+	if claimed[0].Items[0].ClaimedBy == nil || *claimed[0].Items[0].ClaimedBy != "loop:cycle-1" {
+		t.Fatalf("claimed_by = %v, want loop:cycle-1", claimed[0].Items[0].ClaimedBy)
+	}
+}
+
+func TestMarkItemClaimedConcurrentSingleWinner(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic:  "ag-claim",
+		ClaimStatus: "available",
+		Items: []nextWorkItem{
+			{Title: "Item A", Severity: "high"},
+		},
+	}
+	writeJSONL(t, path, []nextWorkEntry{entry})
+
+	claimers := []string{"loop:cycle-1", "loop:cycle-2"}
+	start := make(chan struct{})
+	errs := make(chan error, len(claimers))
+
+	for _, claimer := range claimers {
+		claimer := claimer
+		go func() {
+			<-start
+			errs <- markItemClaimed(path, 0, 0, claimer)
+		}()
+	}
+	close(start)
+
+	successes := 0
+	conflicts := 0
+	for range claimers {
+		err := <-errs
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, errQueueClaimConflict):
+			conflicts++
+		default:
+			t.Fatalf("unexpected concurrent claim error: %v", err)
+		}
+	}
+
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("successes=%d conflicts=%d, want 1/1", successes, conflicts)
+	}
+
+	claimed := readJSONLEntries(t, path)
+	if claimed[0].Items[0].ClaimStatus != "in_progress" {
+		t.Fatalf("item claim_status = %q, want in_progress", claimed[0].Items[0].ClaimStatus)
+	}
+	if claimed[0].Items[0].ClaimedBy == nil {
+		t.Fatal("claimed_by = nil, want winning claimer")
+	}
+	if *claimed[0].Items[0].ClaimedBy != claimers[0] && *claimed[0].Items[0].ClaimedBy != claimers[1] {
+		t.Fatalf("claimed_by = %q, want one of the concurrent claimers", *claimed[0].Items[0].ClaimedBy)
+	}
+}
+
+func TestMarkItemConsumedOwnedConflict(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic:  "ag-claim",
+		ClaimStatus: "available",
+		Items: []nextWorkItem{
+			{Title: "Item A", Severity: "high"},
+		},
+	}
+	writeJSONL(t, path, []nextWorkEntry{entry})
+
+	if err := markItemClaimed(path, 0, 0, "loop:cycle-1"); err != nil {
+		t.Fatalf("markItemClaimed: %v", err)
+	}
+	err := markItemConsumedOwned(path, 0, 0, "ao-rpi-loop", "loop:cycle-2")
+	if !errors.Is(err, errQueueClaimConflict) {
+		t.Fatalf("markItemConsumedOwned error = %v, want errQueueClaimConflict", err)
+	}
+
+	claimed := readJSONLEntries(t, path)
+	if claimed[0].Items[0].ClaimStatus != "in_progress" {
+		t.Fatalf("item claim_status = %q, want in_progress", claimed[0].Items[0].ClaimStatus)
+	}
+	if claimed[0].Items[0].Consumed {
+		t.Fatal("item should remain unconsumed after owner mismatch")
+	}
+}
+
+func TestRunCycleWithRetries_ClaimConflictContinuesQueue(t *testing.T) {
+	prevRunCycle := runRPISupervisedCycleFn
+	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
+
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic:  "ag-claim",
+		ClaimStatus: "available",
+		Items: []nextWorkItem{
+			{Title: "Item A", Severity: "high"},
+		},
+	}
+	writeJSONL(t, path, []nextWorkEntry{entry})
+
+	entries, err := readQueueEntries(path)
+	if err != nil {
+		t.Fatalf("readQueueEntries: %v", err)
+	}
+	sel := selectHighestSeverityEntry(entries, "")
+	if sel == nil {
+		t.Fatal("expected queue selection, got nil")
+	}
+
+	if err := markItemClaimed(path, sel.EntryIndex, sel.ItemIndex, "other-consumer"); err != nil {
+		t.Fatalf("markItemClaimed(other-consumer): %v", err)
+	}
+
+	called := 0
+	runRPISupervisedCycleFn = func(_ string, _ string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+		called++
+		return nil
+	}
+
+	result, err := runCycleWithRetries(tmpDir, sel.Item.Title, 1, 1, path, sel, "", rpiLoopSupervisorConfig{})
+	if err != nil {
+		t.Fatalf("runCycleWithRetries error = %v, want nil", err)
+	}
+	if result != loopContinue {
+		t.Fatalf("runCycleWithRetries result = %v, want loopContinue", result)
+	}
+	if called != 0 {
+		t.Fatalf("runRPISupervisedCycleFn called %d times, want 0", called)
 	}
 }
 

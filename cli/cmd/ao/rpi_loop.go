@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -49,6 +51,8 @@ var (
 	rpiAthenaSince           string
 	rpiAthenaDefrag          bool
 )
+
+var errQueueClaimConflict = errors.New("next-work item no longer available for this consumer")
 
 func init() {
 	loopCmd := &cobra.Command{
@@ -166,6 +170,7 @@ type queueSelection struct {
 	Item       nextWorkItem
 	EntryIndex int // 0-based index among parseable JSON entries in next-work.jsonl
 	ItemIndex  int // index of the selected item within the entry
+	ClaimedBy  string
 }
 
 var (
@@ -380,6 +385,10 @@ func resolveLoopGoal(explicitGoal, nextWorkPath string) (string, *queueSelection
 // success/failure queue marking.
 func runCycleWithRetries(cwd, goal string, cycle, executedCycles int, nextWorkPath string, sel *queueSelection, explicitGoal string, cfg rpiLoopSupervisorConfig) (loopCycleResult, error) {
 	if err := claimQueueSelection(nextWorkPath, sel, cycle); err != nil {
+		if errors.Is(err, errQueueClaimConflict) && explicitGoal == "" {
+			fmt.Printf("Queue contention for %q; another consumer won the claim. Continuing.\n", goal)
+			return loopContinue, nil
+		}
 		return loopReturn, err
 	}
 
@@ -462,6 +471,7 @@ func claimQueueSelection(nextWorkPath string, sel *queueSelection, cycle int) er
 	if err := markItemClaimed(nextWorkPath, sel.EntryIndex, sel.ItemIndex, claimedBy); err != nil {
 		return fmt.Errorf("claim queue item %q: %w", sel.Item.Title, err)
 	}
+	sel.ClaimedBy = claimedBy
 	fmt.Printf("Queue item claimed: %q\n", sel.Item.Title)
 	return nil
 }
@@ -472,9 +482,9 @@ func releaseQueueSelection(nextWorkPath string, sel *queueSelection, failed bool
 	}
 	var markErr error
 	if failed {
-		markErr = markItemFailed(nextWorkPath, sel.EntryIndex, sel.ItemIndex)
+		markErr = markItemFailedOwned(nextWorkPath, sel.EntryIndex, sel.ItemIndex, sel.ClaimedBy)
 	} else {
-		markErr = releaseItemClaim(nextWorkPath, sel.EntryIndex, sel.ItemIndex)
+		markErr = releaseItemClaimOwned(nextWorkPath, sel.EntryIndex, sel.ItemIndex, sel.ClaimedBy)
 	}
 	if markErr != nil {
 		VerbosePrintf("Warning: could not release queue item claim: %v\n", markErr)
@@ -505,7 +515,7 @@ func markQueueEntryConsumed(nextWorkPath string, sel *queueSelection) {
 	if sel == nil {
 		return
 	}
-	if markErr := markItemConsumed(nextWorkPath, sel.EntryIndex, sel.ItemIndex, "ao-rpi-loop"); markErr != nil {
+	if markErr := markItemConsumedOwned(nextWorkPath, sel.EntryIndex, sel.ItemIndex, "ao-rpi-loop", sel.ClaimedBy); markErr != nil {
 		VerbosePrintf("Warning: could not mark queue item as consumed: %v\n", markErr)
 	} else {
 		fmt.Printf("Queue item consumed: %q\n", sel.Item.Title)
@@ -787,15 +797,32 @@ func workTypeRank(item nextWorkItem) int {
 }
 
 // rewriteNextWorkFile rewrites the JSONL file with updated entries applied via
-// the transform function. The transform receives a pointer to each parsed entry
-// so it can mutate individual fields. Entries that could not be parsed are
-// preserved verbatim. If the file does not exist, rewriteNextWorkFile is a no-op.
-func rewriteNextWorkFile(path string, transform func(idx int, entry *nextWorkEntry)) error {
-	data, err := os.ReadFile(path)
+// the transform function. The full read-modify-write runs under an exclusive
+// flock so concurrent queue consumers cannot interleave updates. Entries that
+// could not be parsed are preserved verbatim. If the file does not exist,
+// rewriteNextWorkFile is a no-op.
+func rewriteNextWorkFile(path string, transform func(idx int, entry *nextWorkEntry) error) error {
+	f, err := os.OpenFile(path, os.O_RDWR, 0600)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
+		return fmt.Errorf("open next-work.jsonl: %w", err)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+	if err := flockLock(f); err != nil {
+		return fmt.Errorf("lock next-work.jsonl: %w", err)
+	}
+	defer func() {
+		_ = flockUnlock(f)
+	}()
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("seek next-work.jsonl: %w", err)
+	}
+	data, err := io.ReadAll(f)
+	if err != nil {
 		return fmt.Errorf("read next-work.jsonl: %w", err)
 	}
 
@@ -804,7 +831,7 @@ func rewriteNextWorkFile(path string, transform func(idx int, entry *nextWorkEnt
 	scanner.Buffer(buf, 1024*1024)
 
 	var lines []string
-	idx := 0
+	parseableIndex := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -816,18 +843,19 @@ func rewriteNextWorkFile(path string, transform func(idx int, entry *nextWorkEnt
 		if jsonErr := json.Unmarshal([]byte(line), &entry); jsonErr != nil {
 			// Preserve malformed lines verbatim.
 			lines = append(lines, line)
-			idx++
 			continue
 		}
 
-		transform(idx, &entry)
+		if err := transform(parseableIndex, &entry); err != nil {
+			return err
+		}
 		rewritten, marshalErr := json.Marshal(entry)
 		if marshalErr != nil {
 			lines = append(lines, line)
 		} else {
 			lines = append(lines, string(rewritten))
 		}
-		idx++
+		parseableIndex++
 	}
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("scan next-work.jsonl: %w", err)
@@ -839,7 +867,19 @@ func rewriteNextWorkFile(path string, transform func(idx int, entry *nextWorkEnt
 		out.WriteByte('\n')
 	}
 
-	return os.WriteFile(path, out.Bytes(), 0600)
+	if err := f.Truncate(0); err != nil {
+		return fmt.Errorf("truncate next-work.jsonl: %w", err)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("seek next-work.jsonl for write: %w", err)
+	}
+	if _, err := f.Write(out.Bytes()); err != nil {
+		return fmt.Errorf("write next-work.jsonl: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("sync next-work.jsonl: %w", err)
+	}
+	return nil
 }
 
 // markEntryConsumed sets Consumed=true and ConsumedAt on the entry at entryIndex.
@@ -853,11 +893,9 @@ func markEntryConsumed(path string, entryIndex int, consumedBy string) error {
 		return fmt.Errorf("next-work.jsonl not found: %w", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	parseable := -1
-	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
-		parseable++
-		if parseable != entryIndex {
-			return
+	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {
+		if idx != entryIndex {
+			return nil
 		}
 		entry.Consumed = true
 		entry.ClaimStatus = "consumed"
@@ -866,23 +904,31 @@ func markEntryConsumed(path string, entryIndex int, consumedBy string) error {
 		entry.ConsumedAt = &now
 		entry.ConsumedBy = &consumedBy
 		entry.FailedAt = nil
+		return nil
 	})
 }
 
 // markItemConsumed sets Consumed=true on a specific item within an entry.
 // When all items in the entry are consumed, the entry itself is marked consumed.
 func markItemConsumed(path string, entryIndex int, itemIndex int, consumedBy string) error {
+	return markItemConsumedOwned(path, entryIndex, itemIndex, consumedBy, "")
+}
+
+func markItemConsumedOwned(path string, entryIndex int, itemIndex int, consumedBy string, expectedClaimedBy string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("next-work.jsonl not found: %w", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	parseable := -1
-	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
-		parseable++
-		if parseable != entryIndex {
-			return
+	targetFound := false
+	err := rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {
+		if idx != entryIndex {
+			return nil
 		}
+		targetFound = true
 		if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(*entry) {
+			if err := requireQueueClaimOwner(entry.ClaimedBy, expectedClaimedBy); err != nil {
+				return err
+			}
 			entry.Consumed = true
 			entry.ClaimStatus = "consumed"
 			entry.ClaimedAt = nil
@@ -890,36 +936,47 @@ func markItemConsumed(path string, entryIndex int, itemIndex int, consumedBy str
 			entry.ConsumedAt = &now
 			entry.ConsumedBy = &consumedBy
 			entry.FailedAt = nil
-			return
+			return nil
 		}
-		if itemIndex >= 0 && itemIndex < len(entry.Items) {
-			entry.Items[itemIndex].Consumed = true
-			entry.Items[itemIndex].ClaimStatus = "consumed"
-			entry.Items[itemIndex].ClaimedBy = nil
-			entry.Items[itemIndex].ClaimedAt = nil
-			entry.Items[itemIndex].ConsumedBy = &consumedBy
-			entry.Items[itemIndex].ConsumedAt = &now
-			entry.Items[itemIndex].FailedAt = nil
+		if itemIndex < 0 || itemIndex >= len(entry.Items) {
+			return errQueueClaimConflict
 		}
+		if err := requireQueueClaimOwner(entry.Items[itemIndex].ClaimedBy, expectedClaimedBy); err != nil {
+			return err
+		}
+		entry.Items[itemIndex].Consumed = true
+		entry.Items[itemIndex].ClaimStatus = "consumed"
+		entry.Items[itemIndex].ClaimedBy = nil
+		entry.Items[itemIndex].ClaimedAt = nil
+		entry.Items[itemIndex].ConsumedBy = &consumedBy
+		entry.Items[itemIndex].ConsumedAt = &now
+		entry.Items[itemIndex].FailedAt = nil
 		recomputeEntryLifecycle(entry)
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if !targetFound {
+		return errQueueClaimConflict
+	}
+	return nil
 }
 
 // markEntryFailed records a FailedAt timestamp on the entry at entryIndex without
 // setting Consumed. This leaves the entry recoverable: set consumed=false to retry.
 func markEntryFailed(path string, entryIndex int) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	parseable := -1
-	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
-		parseable++
-		if parseable != entryIndex {
-			return
+	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {
+		if idx != entryIndex {
+			return nil
 		}
 		entry.FailedAt = &now
 		entry.ClaimStatus = "available"
 		entry.ClaimedBy = nil
 		entry.ClaimedAt = nil
 		entry.Consumed = false
+		return nil
 	})
 }
 
@@ -928,49 +985,75 @@ func markItemClaimed(path string, entryIndex int, itemIndex int, claimedBy strin
 		return fmt.Errorf("next-work.jsonl not found: %w", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	parseable := -1
-	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
-		parseable++
-		if parseable != entryIndex {
-			return
+	targetFound := false
+	err := rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {
+		if idx != entryIndex {
+			return nil
 		}
+		targetFound = true
 		if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(*entry) {
+			if err := ensureQueueItemClaimable(normalizeClaimStatus(entry.Consumed, entry.ClaimStatus), entry.ClaimedBy, claimedBy); err != nil {
+				return err
+			}
 			entry.ClaimStatus = "in_progress"
 			entry.ClaimedBy = &claimedBy
 			entry.ClaimedAt = &now
 			entry.Consumed = false
-			return
+			return nil
 		}
-		if itemIndex >= 0 && itemIndex < len(entry.Items) {
-			entry.Items[itemIndex].ClaimStatus = "in_progress"
-			entry.Items[itemIndex].ClaimedBy = &claimedBy
-			entry.Items[itemIndex].ClaimedAt = &now
-			entry.Items[itemIndex].Consumed = false
+		if itemIndex < 0 || itemIndex >= len(entry.Items) {
+			return errQueueClaimConflict
 		}
+		if err := ensureQueueItemClaimable(normalizeClaimStatus(entry.Items[itemIndex].Consumed, entry.Items[itemIndex].ClaimStatus), entry.Items[itemIndex].ClaimedBy, claimedBy); err != nil {
+			return err
+		}
+		entry.Items[itemIndex].ClaimStatus = "in_progress"
+		entry.Items[itemIndex].ClaimedBy = &claimedBy
+		entry.Items[itemIndex].ClaimedAt = &now
+		entry.Items[itemIndex].Consumed = false
 		recomputeEntryLifecycle(entry)
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if !targetFound {
+		return errQueueClaimConflict
+	}
+	return nil
 }
 
 func releaseItemClaim(path string, entryIndex int, itemIndex int) error {
-	return releaseQueueItem(path, entryIndex, itemIndex, nil)
+	return releaseItemClaimOwned(path, entryIndex, itemIndex, "")
 }
 
 func markItemFailed(path string, entryIndex int, itemIndex int) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	return releaseQueueItem(path, entryIndex, itemIndex, &now)
+	return markItemFailedOwned(path, entryIndex, itemIndex, "")
 }
 
-func releaseQueueItem(path string, entryIndex int, itemIndex int, failedAt *string) error {
+func releaseItemClaimOwned(path string, entryIndex int, itemIndex int, expectedClaimedBy string) error {
+	return releaseQueueItem(path, entryIndex, itemIndex, nil, expectedClaimedBy)
+}
+
+func markItemFailedOwned(path string, entryIndex int, itemIndex int, expectedClaimedBy string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return releaseQueueItem(path, entryIndex, itemIndex, &now, expectedClaimedBy)
+}
+
+func releaseQueueItem(path string, entryIndex int, itemIndex int, failedAt *string, expectedClaimedBy string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("next-work.jsonl not found: %w", err)
 	}
-	parseable := -1
-	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
-		parseable++
-		if parseable != entryIndex {
-			return
+	targetFound := false
+	err := rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) error {
+		if idx != entryIndex {
+			return nil
 		}
+		targetFound = true
 		if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(*entry) {
+			if err := requireQueueClaimOwner(entry.ClaimedBy, expectedClaimedBy); err != nil {
+				return err
+			}
 			entry.ClaimStatus = "available"
 			entry.ClaimedBy = nil
 			entry.ClaimedAt = nil
@@ -978,19 +1061,51 @@ func releaseQueueItem(path string, entryIndex int, itemIndex int, failedAt *stri
 			if failedAt != nil {
 				entry.FailedAt = failedAt
 			}
-			return
+			return nil
 		}
-		if itemIndex >= 0 && itemIndex < len(entry.Items) {
-			entry.Items[itemIndex].ClaimStatus = "available"
-			entry.Items[itemIndex].ClaimedBy = nil
-			entry.Items[itemIndex].ClaimedAt = nil
-			entry.Items[itemIndex].Consumed = false
-			if failedAt != nil {
-				entry.Items[itemIndex].FailedAt = failedAt
-			}
+		if itemIndex < 0 || itemIndex >= len(entry.Items) {
+			return errQueueClaimConflict
+		}
+		if err := requireQueueClaimOwner(entry.Items[itemIndex].ClaimedBy, expectedClaimedBy); err != nil {
+			return err
+		}
+		entry.Items[itemIndex].ClaimStatus = "available"
+		entry.Items[itemIndex].ClaimedBy = nil
+		entry.Items[itemIndex].ClaimedAt = nil
+		entry.Items[itemIndex].Consumed = false
+		if failedAt != nil {
+			entry.Items[itemIndex].FailedAt = failedAt
 		}
 		recomputeEntryLifecycle(entry)
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if !targetFound {
+		return errQueueClaimConflict
+	}
+	return nil
+}
+
+func ensureQueueItemClaimable(status string, currentClaimedBy *string, claimedBy string) error {
+	if status == "consumed" {
+		return errQueueClaimConflict
+	}
+	if status == "in_progress" && (currentClaimedBy == nil || *currentClaimedBy != claimedBy) {
+		return errQueueClaimConflict
+	}
+	return nil
+}
+
+func requireQueueClaimOwner(currentClaimedBy *string, expectedClaimedBy string) error {
+	if expectedClaimedBy == "" {
+		return nil
+	}
+	if currentClaimedBy == nil || *currentClaimedBy != expectedClaimedBy {
+		return errQueueClaimConflict
+	}
+	return nil
 }
 
 func recomputeEntryLifecycle(entry *nextWorkEntry) {
