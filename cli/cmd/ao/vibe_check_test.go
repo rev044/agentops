@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"io"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -157,13 +155,16 @@ type MockVibeCheckResult struct {
 func TestRunVibeCheck_invalidDuration(t *testing.T) {
 	origDryRun := dryRun
 	origSince := vibeCheckSince
+	origRepo := vibeCheckRepo
 	defer func() {
 		dryRun = origDryRun
 		vibeCheckSince = origSince
+		vibeCheckRepo = origRepo
 	}()
 
 	dryRun = false
 	vibeCheckSince = "not-a-duration"
+	vibeCheckRepo = t.TempDir()
 
 	err := runVibeCheck(nil, nil)
 	if err == nil {
@@ -175,22 +176,37 @@ func TestRunVibeCheck_validRepo(t *testing.T) {
 	origDryRun := dryRun
 	origSince := vibeCheckSince
 	origRepo := vibeCheckRepo
+	origOutput := output
+	origMarkdown := vibeCheckMarkdown
+	origFull := vibeCheckFull
 	defer func() {
 		dryRun = origDryRun
 		vibeCheckSince = origSince
 		vibeCheckRepo = origRepo
+		output = origOutput
+		vibeCheckMarkdown = origMarkdown
+		vibeCheckFull = origFull
 	}()
 
+	repo := newVibeCheckFixtureRepo(t)
 	dryRun = false
 	vibeCheckSince = "90d"
-	vibeCheckRepo = "."
+	vibeCheckRepo = repo
+	output = "table"
+	vibeCheckMarkdown = false
+	vibeCheckFull = false
 
-	err := runVibeCheck(nil, nil)
+	out, err := captureStdout(t, func() error {
+		return runVibeCheck(nil, nil)
+	})
 	if err != nil {
-		if strings.Contains(err.Error(), "not a git repository") {
-			t.Skipf("skipping: %v", err)
-		}
 		t.Fatalf("runVibeCheck: %v", err)
+	}
+	if !strings.Contains(out, "Vibe Check Report") {
+		t.Fatalf("expected table report output, got: %s", out)
+	}
+	if !strings.Contains(out, "Metrics:") {
+		t.Fatalf("expected metrics section in table output, got: %s", out)
 	}
 }
 
@@ -206,17 +222,23 @@ func TestRunVibeCheck_jsonOutput(t *testing.T) {
 		output = origOutput
 	}()
 
+	repo := newVibeCheckFixtureRepo(t)
 	dryRun = false
 	vibeCheckSince = "90d"
-	vibeCheckRepo = "."
+	vibeCheckRepo = repo
 	output = "json"
 
-	err := runVibeCheck(nil, nil)
+	out, err := captureStdout(t, func() error {
+		return runVibeCheck(nil, nil)
+	})
 	if err != nil {
-		if strings.Contains(err.Error(), "not a git repository") {
-			t.Skipf("skipping: %v", err)
-		}
 		t.Fatalf("runVibeCheck json: %v", err)
+	}
+	if !strings.Contains(out, "\"events\":") {
+		t.Fatalf("expected JSON events in output, got: %s", out)
+	}
+	if !strings.Contains(out, "Fix bug") {
+		t.Fatalf("expected seeded commit message in JSON output, got: %s", out)
 	}
 }
 
@@ -225,45 +247,67 @@ func TestRunVibeCheck_markdownOutput(t *testing.T) {
 	origSince := vibeCheckSince
 	origRepo := vibeCheckRepo
 	origMarkdown := vibeCheckMarkdown
+	origOutput := output
+	origFull := vibeCheckFull
 	defer func() {
 		dryRun = origDryRun
 		vibeCheckSince = origSince
 		vibeCheckRepo = origRepo
 		vibeCheckMarkdown = origMarkdown
+		output = origOutput
+		vibeCheckFull = origFull
 	}()
 
+	repo := newVibeCheckFixtureRepo(t)
 	dryRun = false
 	vibeCheckSince = "90d"
-	vibeCheckRepo = "."
+	vibeCheckRepo = repo
+	output = "table"
 	vibeCheckMarkdown = true
+	vibeCheckFull = true
 
-	err := runVibeCheck(nil, nil)
+	out, err := captureStdout(t, func() error {
+		return runVibeCheck(nil, nil)
+	})
 	if err != nil {
-		if strings.Contains(err.Error(), "not a git repository") {
-			t.Skipf("skipping: %v", err)
-		}
 		t.Fatalf("runVibeCheck markdown: %v", err)
+	}
+	if !strings.Contains(out, "# Vibe Check Report") {
+		t.Fatalf("expected markdown heading, got: %s", out)
+	}
+	if !strings.Contains(out, "## Recent Events (3 commits)") {
+		t.Fatalf("expected markdown timeline section, got: %s", out)
+	}
+	if !strings.Contains(out, "Fix bug") {
+		t.Fatalf("expected seeded commit message in markdown output, got: %s", out)
 	}
 }
 
 func TestResolveVibeCheckRepoPath_UsesGitTopLevel(t *testing.T) {
-	t.Setenv("GIT_DIR", ".git")
-
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	cmd.Env = gitDiscoveryEnv()
-	wantOut, err := cmd.Output()
-	if err != nil {
-		t.Skipf("skipping: not in a git repo context: %v", err)
+	repo := newVibeCheckFixtureRepo(t)
+	nested := filepath.Join(repo, "nested", "child")
+	if err := os.MkdirAll(nested, 0755); err != nil {
+		t.Fatalf("mkdir nested repo path: %v", err)
 	}
+	chdirTo(t, nested)
+	t.Setenv("GIT_DIR", ".git")
 
 	got, err := resolveVibeCheckRepoPath(".")
 	if err != nil {
 		t.Fatalf("resolveVibeCheckRepoPath: %v", err)
 	}
 
-	want := strings.TrimSpace(string(wantOut))
-	if got != want {
-		t.Fatalf("resolveVibeCheckRepoPath(.) = %q, want %q", got, want)
+	gotPath, err := filepath.EvalSymlinks(got)
+	if err != nil {
+		gotPath = filepath.Clean(got)
+	}
+	repoPath, err := filepath.EvalSymlinks(repo)
+	if err != nil {
+		repoPath = filepath.Clean(repo)
+	}
+
+	if gotPath != repoPath {
+		t.Fatalf("resolveVibeCheckRepoPath(.) = %q, want %q", gotPath, repoPath)
 	}
 }
 
@@ -271,21 +315,29 @@ func TestResolveVibeCheckRepoPath_UsesGitTopLevel(t *testing.T) {
 // vibe_check.go — outputVibeCheckJSON (zero coverage)
 // ===========================================================================
 
-// captureVibeStdout captures stdout output from a function for assertion.
-func captureVibeStdout(t *testing.T, fn func()) string {
+func newVibeCheckFixtureRepo(t *testing.T) string {
 	t.Helper()
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe: %v", err)
-	}
-	os.Stdout = w
-	fn()
-	_ = w.Close()
-	os.Stdout = oldStdout
-	var buf bytes.Buffer
-	_, _ = io.ReadAll(io.TeeReader(r, &buf))
-	return buf.String()
+	base := time.Now().UTC().Add(-24 * time.Hour).Truncate(time.Second)
+	return initGitHistoryFixtureRepo(t, []gitCommitFixture{
+		{
+			Path:      "file1.txt",
+			Content:   "first commit\n",
+			Message:   "Initial commit",
+			Timestamp: base,
+		},
+		{
+			Path:      "file2.txt",
+			Content:   "feature work\n",
+			Message:   "Add feature",
+			Timestamp: base.Add(6 * time.Hour),
+		},
+		{
+			Path:      "file1.txt",
+			Content:   "bug fix\n",
+			Message:   "Fix bug",
+			Timestamp: base.Add(12 * time.Hour),
+		},
+	})
 }
 
 func TestVibeCheck_outputVibeCheckJSON_emptyResult(t *testing.T) {
@@ -402,7 +454,7 @@ func TestVibeCheck_outputVibeCheckMarkdown_withData(t *testing.T) {
 // ===========================================================================
 
 func TestVibeCheck_printMarkdownMetrics_empty(t *testing.T) {
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownMetrics(map[string]float64{})
 	})
 	// Empty metrics should produce minimal or no output, but must not panic
@@ -412,7 +464,7 @@ func TestVibeCheck_printMarkdownMetrics_empty(t *testing.T) {
 }
 
 func TestVibeCheck_printMarkdownMetrics_withValues(t *testing.T) {
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownMetrics(map[string]float64{
 			"velocity":   1.5,
 			"complexity": 0.3,
@@ -428,7 +480,7 @@ func TestVibeCheck_printMarkdownMetrics_withValues(t *testing.T) {
 }
 
 func TestVibeCheck_printMarkdownMetrics_nil(t *testing.T) {
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownMetrics(nil)
 	})
 	// nil metrics should produce minimal or no output, but must not panic
@@ -442,7 +494,7 @@ func TestVibeCheck_printMarkdownMetrics_nil(t *testing.T) {
 // ===========================================================================
 
 func TestVibeCheck_printMarkdownFindings_empty(t *testing.T) {
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownFindings([]vibecheck.Finding{})
 	})
 	// Empty findings should not produce finding-specific output
@@ -457,7 +509,7 @@ func TestVibeCheck_printMarkdownFindings_withFindings(t *testing.T) {
 		{Severity: "warning", Category: "drift", Message: "minor issue", File: "cmd/main.go"},
 		{Severity: "info", Category: "test", Message: "informational", File: "pkg/util.go", Line: 10},
 	}
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownFindings(findings)
 	})
 	if !strings.Contains(out, "critical issue") {
@@ -469,7 +521,7 @@ func TestVibeCheck_printMarkdownFindings_withFindings(t *testing.T) {
 }
 
 func TestVibeCheck_printMarkdownFindings_nil(t *testing.T) {
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownFindings(nil)
 	})
 	// nil findings should produce minimal or no output, but must not panic
@@ -515,7 +567,7 @@ func TestVibeCheck_printMarkdownFinding_withFileLine(t *testing.T) {
 		File:     "pkg/handler.go",
 		Line:     42,
 	}
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownFinding(finding)
 	})
 	if !strings.Contains(out, "test assertions are empty") {
@@ -533,7 +585,7 @@ func TestVibeCheck_printMarkdownFinding_withFileNoLine(t *testing.T) {
 		Message:  "code drifting",
 		File:     "main.go",
 	}
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownFinding(finding)
 	})
 	if !strings.Contains(out, "code drifting") {
@@ -550,7 +602,7 @@ func TestVibeCheck_printMarkdownFinding_noFile(t *testing.T) {
 		Category: "logging",
 		Message:  "missing structured logs",
 	}
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownFinding(finding)
 	})
 	if !strings.Contains(out, "missing structured logs") {
@@ -571,7 +623,7 @@ func TestVibeCheck_printMarkdownEvents_notFull(t *testing.T) {
 	events := []vibecheck.TimelineEvent{
 		{Timestamp: time.Now(), Author: "dev", Message: "commit 1"},
 	}
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownEvents(events)
 	})
 	// Not full mode — should produce no output
@@ -589,7 +641,7 @@ func TestVibeCheck_printMarkdownEvents_fullWithEvents(t *testing.T) {
 		{Timestamp: time.Now(), Author: "dev1", Message: "feat: add feature"},
 		{Timestamp: time.Now(), Author: "dev2", Message: "fix: fix bug with a very long message that exceeds fifty characters and should be truncated"},
 	}
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownEvents(events)
 	})
 	if !strings.Contains(out, "dev1") {
@@ -606,7 +658,7 @@ func TestVibeCheck_printMarkdownEvents_fullEmpty(t *testing.T) {
 	vibeCheckFull = true
 
 	// Empty events should return early
-	out := captureVibeStdout(t, func() {
+	out := captureJSONStdout(t, func() {
 		printMarkdownEvents([]vibecheck.TimelineEvent{})
 	})
 	// Empty events in full mode should produce no event-specific output

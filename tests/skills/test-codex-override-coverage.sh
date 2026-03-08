@@ -95,13 +95,24 @@ EOF
       "treatment": "bespoke",
       "wave": "wave-a",
       "reason": "Needs Codex-native wording.",
+      "operator_contract_required": true,
       "operator_contract": {
         "required_sections": ["## Codex Execution Profile", "## Guardrails"],
         "required_markers": ["Record issue-ready handoff markers for downstream Codex execution."]
       }
     },
     {"name": "beta", "treatment": "parity_only", "wave": "wave-b", "reason": "Default generated prompt is enough."},
-    {"name": "gamma", "treatment": "bespoke", "wave": "wave-b", "reason": "Needs Codex-native review structure."}
+    {
+      "name": "gamma",
+      "treatment": "bespoke",
+      "wave": "wave-b",
+      "reason": "Needs Codex-native review structure.",
+      "operator_contract_required": true,
+      "operator_contract": {
+        "required_sections": ["## Codex Execution Profile", "## Guardrails"],
+        "required_markers": ["Record issue-ready handoff markers for downstream Codex execution."]
+      }
+    }
   ]
 }
 EOF
@@ -148,6 +159,30 @@ test_fails_when_parity_skill_has_override() {
   fi
 }
 
+test_fails_when_required_operator_contract_is_missing() {
+  local fixture="$TMP_DIR/operator-contract-required-missing"
+  setup_fixture "$fixture"
+  mkdir -p "$fixture/skills-codex-overrides/gamma"
+  write_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
+  cp "$fixture/skills-codex-overrides/gamma/prompt.md" "$fixture/skills-codex/gamma/prompt.md"
+  python3 - <<'PY' "$fixture/skills-codex-overrides/catalog.json"
+import json
+from pathlib import Path
+path = Path(__import__("sys").argv[1])
+data = json.loads(path.read_text())
+for skill in data["skills"]:
+    if skill["name"] == "gamma":
+        skill.pop("operator_contract", None)
+path.write_text(json.dumps(data, indent=2) + "\n")
+PY
+
+  if bash "$SCRIPT" --repo-root "$fixture" >/dev/null 2>&1; then
+    fail "should fail when a required operator contract is missing from the catalog"
+  else
+    pass "fails when operator-contract governance requires a missing contract"
+  fi
+}
+
 test_fails_when_operator_contract_marker_is_missing() {
   local fixture="$TMP_DIR/operator-contract-missing"
   setup_fixture "$fixture"
@@ -182,6 +217,7 @@ echo "== test-codex-override-coverage =="
 test_fixture_passes_with_complete_wave_filter
 test_fails_when_bespoke_override_missing
 test_fails_when_parity_skill_has_override
+test_fails_when_required_operator_contract_is_missing
 test_fails_when_operator_contract_marker_is_missing
 test_repo_catalog_is_complete
 

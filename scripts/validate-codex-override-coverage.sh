@@ -90,14 +90,6 @@ contains_fixed() {
   rg -Fq -- "$needle" "$path"
 }
 
-required_contract_skills_file="$tmpdir/required-contract-skills.txt"
-cat > "$required_contract_skills_file" <<'EOF'
-plan
-post-mortem
-push
-rpi
-vibe
-EOF
 find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d \
   | while IFS= read -r d; do
       [[ -f "$d/SKILL.md" ]] || continue
@@ -115,6 +107,10 @@ if ! jq -e '
     (.treatment == "bespoke" or .treatment == "parity_only") and
     (.wave | type) == "string" and (.wave | length) > 0 and
     (.reason | type) == "string" and (.reason | length) > 0 and
+    (
+      (.operator_contract_required? | not) or
+      ((.operator_contract_required | type) == "boolean")
+    ) and
     (
       (.operator_contract? | not) or
       (
@@ -195,6 +191,7 @@ if [[ -n "$WAVE_FILTER" ]]; then
         treatment,
         wave,
         reason,
+        operator_contract_required: (.operator_contract_required // false),
         operator_contract: (.operator_contract // null)
       }
   ' "$CATALOG_PATH" > "$selected_entries_file"
@@ -206,6 +203,7 @@ else
         treatment,
         wave,
         reason,
+        operator_contract_required: (.operator_contract_required // false),
         operator_contract: (.operator_contract // null)
       }
   ' "$CATALOG_PATH" > "$selected_entries_file"
@@ -236,9 +234,9 @@ while IFS= read -r entry; do
       if [[ -f "$override_prompt" ]] && ! rg -q '^## Codex Execution Profile$' "$override_prompt"; then
         fail "override prompt for $skill lacks '## Codex Execution Profile'"
       fi
-      if grep -Fxq "$skill" "$required_contract_skills_file"; then
+      if jq -e '.operator_contract_required == true' <<<"$entry" >/dev/null; then
         if ! jq -e '.operator_contract != null' <<<"$entry" >/dev/null; then
-          fail "catalog missing operator_contract for required Codex backbone skill: $skill"
+          fail "catalog missing operator_contract for required Codex operator-contract skill: $skill"
         fi
       fi
       if jq -e '.operator_contract != null' <<<"$entry" >/dev/null; then
@@ -260,6 +258,9 @@ while IFS= read -r entry; do
       fi
       ;;
     parity_only)
+      if jq -e '.operator_contract_required == true' <<<"$entry" >/dev/null; then
+        fail "parity-only skill cannot require operator-contract governance: $skill"
+      fi
       if [[ -d "$override_dir" ]]; then
         fail "parity-only skill has unexpected Codex override directory: $skill"
       fi

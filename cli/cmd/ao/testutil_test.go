@@ -7,11 +7,13 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // ---------------------------------------------------------------------------
@@ -148,36 +150,78 @@ func writeFile(t *testing.T, path, content string) {
 // Git helpers
 // ---------------------------------------------------------------------------
 
+type gitCommitFixture struct {
+	Path      string
+	Content   string
+	Message   string
+	Timestamp time.Time
+}
+
+func initGitHistoryFixtureRepo(t *testing.T, commits []gitCommitFixture) string {
+	t.Helper()
+	dir := t.TempDir()
+	initHistoryFixtureGitRepo(t, dir)
+	for i, commit := range commits {
+		path := commit.Path
+		if path == "" {
+			path = fmt.Sprintf("fixture-%d.txt", i)
+		}
+		content := commit.Content
+		if content == "" {
+			content = fmt.Sprintf("%s at %s\n", commit.Message, commit.Timestamp.Format(time.RFC3339))
+		}
+		writeFile(t, filepath.Join(dir, path), content)
+		runFixtureGit(
+			t,
+			dir,
+			nil,
+			"add",
+			path,
+		)
+		runFixtureGit(
+			t,
+			dir,
+			[]string{
+				"GIT_AUTHOR_DATE=" + commit.Timestamp.Format(time.RFC3339),
+				"GIT_COMMITTER_DATE=" + commit.Timestamp.Format(time.RFC3339),
+			},
+			"commit",
+			"-m",
+			commit.Message,
+		)
+	}
+	return dir
+}
+
 // initTestRepo creates a temp directory with a git repo containing one commit.
 // Origin: rpi_phased_worktree_test.go
 func initTestRepo(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	cmds := [][]string{
-		{"git", "init"},
-		{"git", "config", "user.email", "test@test.com"},
-		{"git", "config", "user.name", "Test"},
+	return initGitHistoryFixtureRepo(t, []gitCommitFixture{{
+		Path:      "README.md",
+		Content:   "# Test\n",
+		Message:   "Initial commit",
+		Timestamp: time.Now().Add(-1 * time.Hour).UTC(),
+	}})
+}
+
+func initHistoryFixtureGitRepo(t *testing.T, dir string) {
+	t.Helper()
+	runFixtureGit(t, dir, nil, "init")
+	runFixtureGit(t, dir, nil, "config", "user.email", "test@test.com")
+	runFixtureGit(t, dir, nil, "config", "user.name", "Test")
+}
+
+func runFixtureGit(t *testing.T, dir string, extraEnv []string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
 	}
-	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git init setup (%v): %v\n%s", args, err, out)
-		}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v in %s: %v\n%s", args, dir, err, out)
 	}
-	// Create a file and commit so HEAD exists.
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Test\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	for _, args := range [][]string{
-		{"git", "add", "README.md"},
-		{"git", "commit", "-m", "Initial commit"},
-	} {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git commit setup (%v): %v\n%s", args, err, out)
-		}
-	}
-	return dir
+	return string(out)
 }
