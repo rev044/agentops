@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+GATE_SCRIPT="$REPO_ROOT/scripts/validate-next-work-contract-parity.sh"
+
+PASS_COUNT=0
+FAIL_COUNT=0
+TMP_DIR="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+pass() {
+  echo "PASS: $1"
+  PASS_COUNT=$((PASS_COUNT + 1))
+}
+
+fail() {
+  echo "FAIL: $1"
+  FAIL_COUNT=$((FAIL_COUNT + 1))
+}
+
+copy_target() {
+  local fixture="$1"
+  local rel="$2"
+  mkdir -p "$fixture/$(dirname "$rel")"
+  /bin/cp "$REPO_ROOT/$rel" "$fixture/$rel"
+}
+
+create_fixture() {
+  local fixture="$TMP_DIR/fixture-$1"
+  mkdir -p "$fixture"
+
+  copy_target "$fixture" ".agents/rpi/next-work.schema.md"
+  copy_target "$fixture" "skills/post-mortem/references/harvest-next-work.md"
+  copy_target "$fixture" "skills/post-mortem/SKILL.md"
+  copy_target "$fixture" "skills/rpi/references/phase-data-contracts.md"
+  copy_target "$fixture" "skills/rpi/references/gate4-loop-and-spawn.md"
+  copy_target "$fixture" "cli/cmd/ao/rpi_loop.go"
+  copy_target "$fixture" "tests/smoke-test.sh"
+
+  echo "$fixture"
+}
+
+run_gate() {
+  local target_root="$1"
+  local output_file="$2"
+
+  set +e
+  "$GATE_SCRIPT" "$target_root" >"$output_file" 2>&1
+  local status=$?
+  set -e
+  return "$status"
+}
+
+assert_gate_passes() {
+  local description="$1"
+  local target_root="$2"
+  local output_file
+  output_file="$(mktemp "$TMP_DIR/output-pass-XXXXXX")"
+
+  if run_gate "$target_root" "$output_file"; then
+    pass "$description"
+  else
+    echo "--- output ($description) ---"
+    cat "$output_file"
+    fail "$description"
+  fi
+}
+
+assert_gate_fails_with() {
+  local description="$1"
+  local target_root="$2"
+  local expected="$3"
+  local output_file
+  output_file="$(mktemp "$TMP_DIR/output-fail-XXXXXX")"
+
+  if run_gate "$target_root" "$output_file"; then
+    echo "--- output ($description) ---"
+    cat "$output_file"
+    fail "$description (expected failure, got success)"
+    return
+  fi
+
+  if grep -Fq "$expected" "$output_file"; then
+    pass "$description"
+  else
+    echo "--- output ($description) ---"
+    cat "$output_file"
+    fail "$description (missing expected text: $expected)"
+  fi
+}
+
+test_script_executable() {
+  if [[ -x "$GATE_SCRIPT" ]]; then
+    pass "validate-next-work-contract-parity.sh is executable"
+  else
+    fail "validate-next-work-contract-parity.sh is not executable"
+  fi
+}
+
+test_repo_baseline_passes() {
+  assert_gate_passes "repository baseline passes next-work contract parity gate" "$REPO_ROOT"
+}
+
+test_schema_version_drift_fails() {
+  local fixture
+  fixture="$(create_fixture "schema-version")"
+  python3 - <<'PY' "$fixture/.agents/rpi/next-work.schema.md"
+from pathlib import Path
+path = Path(__import__("sys").argv[1])
+path.write_text(path.read_text().replace("schema_version: 1.3", "schema_version: 1.2"))
+PY
+
+  assert_gate_fails_with \
+    "schema version drift fails parity gate" \
+    "$fixture" \
+    "next-work schema is not at v1.3"
+}
+
+test_runtime_pattern_fix_rank_fails() {
+  local fixture
+  fixture="$(create_fixture "pattern-fix-rank")"
+  python3 - <<'PY' "$fixture/cli/cmd/ao/rpi_loop.go"
+from pathlib import Path
+path = Path(__import__("sys").argv[1])
+text = path.read_text()
+text = text.replace('"feature", "improvement", "tech-debt", "pattern-fix", "bug", "task"', '"feature", "improvement", "tech-debt", "bug", "task"')
+path.write_text(text)
+PY
+
+  assert_gate_fails_with \
+    "runtime pattern-fix ranking drift fails parity gate" \
+    "$fixture" \
+    "RPI runtime is missing workTypeRank coverage for pattern-fix"
+}
+
+echo "================================"
+echo "Testing next-work contract parity gate"
+echo "================================"
+echo ""
+
+test_script_executable
+test_repo_baseline_passes
+test_schema_version_drift_fails
+test_runtime_pattern_fix_rank_fails
+
+echo ""
+echo "================================"
+echo "Results: $PASS_COUNT PASS, $FAIL_COUNT FAIL"
+echo "================================"
+
+if [[ $FAIL_COUNT -gt 0 ]]; then
+  exit 1
+fi
+exit 0

@@ -295,6 +295,7 @@ func TestWorkTypeRank(t *testing.T) {
 		{itemType: "feature", want: 2},
 		{itemType: "improvement", want: 2},
 		{itemType: "tech-debt", want: 2},
+		{itemType: "pattern-fix", want: 2},
 		{itemType: "bug", want: 2},
 		{itemType: "task", want: 2},
 		{itemType: "process-improvement", want: 1},

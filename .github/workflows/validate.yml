@@ -341,6 +341,11 @@ jobs:
           chmod +x scripts/check-contract-compatibility.sh
           ./scripts/check-contract-compatibility.sh
 
+      - name: Run next-work contract parity check
+        run: |
+          chmod +x scripts/validate-next-work-contract-parity.sh
+          ./scripts/validate-next-work-contract-parity.sh
+
   memrl-health:
     runs-on: ubuntu-latest
     steps:

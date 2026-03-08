@@ -503,6 +503,7 @@ run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
 run_step_bg "Codex install bundle parity" bash ./scripts/validate-codex-install-bundle.sh
 run_step_bg "Codex generated manifest" bash ./scripts/validate-codex-generated-manifest.sh
 run_step_bg "Codex generated artifacts" bash ./scripts/validate-codex-generated-artifacts.sh --scope worktree
+run_step_bg "Next-work contract parity" bash ./scripts/validate-next-work-contract-parity.sh
 run_step_bg "Skill runtime formats" bash ./scripts/validate-skill-runtime-formats.sh
 run_step_bg "Contract compatibility gate" ./scripts/check-contract-compatibility.sh
 run_step_bg "Embedded sync check" ./scripts/validate-embedded-sync.sh

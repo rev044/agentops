@@ -196,7 +196,17 @@ NEXTWORK_SCHEMA="$NEXTWORK_DIR/next-work.schema.md"
 if [[ -f "$NEXTWORK_SCHEMA" ]]; then
     pass "next-work.schema.md exists"
 else
-    warn "next-work.schema.md missing — flywheel loop has no contract (gitignored, local-only)"
+    fail "next-work.schema.md missing"
+fi
+
+if [[ -x "$REPO_ROOT/scripts/validate-next-work-contract-parity.sh" ]]; then
+    if "$REPO_ROOT/scripts/validate-next-work-contract-parity.sh" >/dev/null 2>&1; then
+        pass "next-work contract parity validator passed"
+    else
+        fail "next-work contract parity validator failed"
+    fi
+else
+    fail "scripts/validate-next-work-contract-parity.sh missing or not executable"
 fi
 
 # Validate existing next-work.jsonl if present

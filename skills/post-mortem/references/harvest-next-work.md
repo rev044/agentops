@@ -2,7 +2,8 @@
 
 ## Schema Validation
 
-Before writing, validate each harvested item against the schema contract (`.agents/rpi/next-work.schema.md`):
+Before writing, validate each harvested item against the tracked schema
+contract in [../../../.agents/rpi/next-work.schema.md](../../../.agents/rpi/next-work.schema.md):
 
 ```bash
 validate_next_work_item() {
@@ -86,6 +87,8 @@ done
 #   consumed_by: null, consumed_at: null
 # Item lifecycle fields are optional on write and are populated by consumers:
 #   claim_status, claimed_by, claimed_at, consumed, consumed_by, consumed_at, failed_at
+# Consumers may rewrite existing lines to claim, release, fail, or consume
+# existing items. The queue is not append-only after initial write.
 ```
 
 Use the Write tool to append a single JSON line to `.agents/rpi/next-work.jsonl` with:

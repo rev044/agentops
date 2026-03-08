@@ -29,7 +29,7 @@
 
 **Complementary to Gate 4:** Gate 4 (`--loop`) handles FAIL->iterate (same goal, tighter). `--spawn-next` handles PASS/WARN->new-goal (different work harvested from post-mortem).
 
-1. Read `.agents/rpi/next-work.jsonl` for unconsumed entries (schema: `.agents/rpi/next-work.schema.md`).
+1. Read `.agents/rpi/next-work.jsonl` for unconsumed entries (schema contract: [`.agents/rpi/next-work.schema.md`](../../../.agents/rpi/next-work.schema.md)).
    Filter entries by `target_repo`:
    - **Include** if `target_repo` matches the current repo name, OR `target_repo` is `"*"` (wildcard), OR the field is absent (backward compatibility).
    - **Skip** if `target_repo` names a different repo.

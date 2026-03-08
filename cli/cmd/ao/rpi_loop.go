@@ -641,6 +641,8 @@ func hasLegacyFlatNextWorkItem(entry nextWorkEntry) bool {
 		strings.TrimSpace(entry.Source) != ""
 }
 
+// normalizeClaimStatus keeps omitted item `claim_status` semantically
+// equivalent to available unless the item is already consumed.
 func normalizeClaimStatus(consumed bool, claimStatus string) string {
 	switch claimStatus {
 	case "available", "in_progress", "consumed":
@@ -775,7 +777,7 @@ func repoAffinityRank(item nextWorkItem, repoFilter string) int {
 
 func workTypeRank(item nextWorkItem) int {
 	switch item.Type {
-	case "feature", "improvement", "tech-debt", "bug", "task":
+	case "feature", "improvement", "tech-debt", "pattern-fix", "bug", "task":
 		return 2
 	case "process-improvement":
 		return 1

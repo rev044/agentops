@@ -140,8 +140,8 @@
     {
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
-      "source_hash": "e9434edb73e39ff452b922cc6f709d085bbc87fd869d57d5b400753e4edb85c0",
-      "generated_hash": "ca2a969ca419812dba60f2795b5b2debf6f15beda757c92efe04b38f6c9defad"
+      "source_hash": "e8de0f7047824bd5dbcb111e07a4af20357711c7b6714dee3c3d7b242207a95b",
+      "generated_hash": "5356e93882d573b2c7d841acbf8370c30474fbae8ebdef84a38e963c2e8019eb"
     },
     {
       "name": "pr-implement",
@@ -254,8 +254,8 @@
     {
       "name": "rpi",
       "source_skill": "skills/rpi",
-      "source_hash": "9cb37c97ff6e452590d077566435e572945d0ec077b0c135aea4ce6529a41535",
-      "generated_hash": "b3689d261401cd3f05dd5fd59e7d17e1bfa7caf7f0b08b450ef41d7d801f6305"
+      "source_hash": "5524e89f27734ddaa8f2dadf4893680799a62de7d25b73895a518beeef7d07eb",
+      "generated_hash": "d18852d088ca0161ca86ed71e864c585eedbc5951fdde97ba8eba2863f22c54d"
     },
     {
       "name": "security",
