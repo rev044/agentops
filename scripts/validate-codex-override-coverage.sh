@@ -98,7 +98,6 @@ push
 rpi
 vibe
 EOF
-
 find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d \
   | while IFS= read -r d; do
       [[ -f "$d/SKILL.md" ]] || continue

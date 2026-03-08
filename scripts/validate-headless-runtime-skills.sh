@@ -315,25 +315,35 @@ CODEX_PROMPT="List the available AgentOps skills in this session. Return ONLY a 
 build_expected_inventory "$REPO_ROOT/skills" "$EXPECTED_CLAUDE_JSON"
 build_expected_inventory "$REPO_ROOT/skills-codex" "$EXPECTED_CODEX_JSON"
 
-claude_load_check() {
+run_claude_load_check() {
     if command -v script >/dev/null 2>&1; then
         script -q /dev/null "$CLAUDE_BIN" --plugin-dir "$REPO_ROOT" --help >/dev/null 2>&1
         return $?
     fi
+
     timeout 20 "$CLAUDE_BIN" --plugin-dir "$REPO_ROOT" --help >/dev/null 2>&1
 }
 
-claude_fallback_or_fail() {
+claude_inventory_failed() {
     local reason="$1"
-    echo "WARN: Claude inventory verification failed: $reason" >&2
-    if claude_load_check; then
-        echo "WARN: Claude load-check fallback succeeded; deep inventory not verified." >&2
+    local raw_output="${2:-}"
+
+    echo "WARN: Claude inventory verification failed ($reason)." >&2
+    if [[ -n "$raw_output" && -f "$raw_output" ]]; then
+        sed -n '1,20p' "$raw_output" >&2 || true
+    fi
+
+    if run_claude_load_check; then
+        echo "WARN: Claude load check passed; using load-check fallback instead of verified inventory." >&2
         if [[ "$CLAUDE_STRICT" == "1" ]]; then
+            echo "FAIL: HEADLESS_RUNTIME_SKILL_CLAUDE_STRICT=1 requires verified Claude inventory." >&2
             return 1
         fi
+        echo "claude: load-check fallback passed"
         return 0
     fi
-    echo "Claude plugin load failed" >&2
+
+    echo "Claude load check failed" >&2
     return 1
 }
 
@@ -359,9 +369,7 @@ run_claude_validation() {
         :
     else
         local rc=$?
-        echo "WARN: Claude headless inventory timed out or failed (exit $rc)." >&2
-        sed -n '1,20p' "$raw_output" >&2 || true
-        claude_fallback_or_fail "headless inventory command exited $rc"
+        claude_inventory_failed "headless command exit $rc" "$raw_output"
         return $?
     fi
 
@@ -395,12 +403,12 @@ if not messages:
 Path(sys.argv[2]).write_text(messages[-1] + "\n")
 PY
     then
-        claude_fallback_or_fail "Claude stream output could not be parsed"
+        claude_inventory_failed "stream-json parse error" "$raw_output"
         return $?
     fi
 
     if ! extract_json_array "$TMP_DIR/claude-output.txt" "$ACTUAL_CLAUDE_JSON"; then
-        claude_fallback_or_fail "Claude assistant output was not a JSON array"
+        claude_inventory_failed "assistant output was not a JSON array" "$TMP_DIR/claude-output.txt"
         return $?
     fi
     local compare_output
@@ -410,8 +418,7 @@ PY
         return 0
     fi
     printf '%s\n' "$compare_output" >&2
-    claude_fallback_or_fail "Claude inventory differed from expected invocable skill set"
-    return $?
+    claude_inventory_failed "inventory mismatch" "$ACTUAL_CLAUDE_JSON"
 }
 
 run_codex_validation() {

@@ -317,7 +317,7 @@ GIT
     [[ "$output" == *"FAIL"*"codex override coverage"* ]]
 }
 
-@test "pre-push-gate.sh fails when headless runtime skill validation fails" {
+@test "pre-push-gate.sh fails when headless runtime skill smoke fails" {
     cat > "$MOCK_BIN/go" <<'GO'
 #!/usr/bin/env bash
 exit 0

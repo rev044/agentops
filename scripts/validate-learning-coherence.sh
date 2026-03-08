@@ -37,8 +37,9 @@ check_file() {
     local basename
     basename=$(basename "$file")
 
-    # Skip non-markdown
+    # Only validate real learning artifacts, not helper docs like AGENTS.md.
     [[ "$file" == *.md ]] || return 0
+    is_learning_artifact "$file" || return 0
 
     CHECKED=$((CHECKED + 1))
     local content

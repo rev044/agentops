@@ -89,6 +89,18 @@ mode="__MODE__"
 if [[ "$mode" == "fallback" ]]; then
   exit 124
 fi
+if [[ "$mode" == "malformed" ]]; then
+  python3 - <<'PY'
+import json
+
+for payload in (
+    {"type": "assistant", "message": {"content": [{"type": "text", "text": 'not-json'}]}},
+    {"type": "result"},
+):
+    print(json.dumps(payload))
+PY
+  exit 0
+fi
 
 if [[ "$prompt" == *"compact JSON array of skill names"* ]]; then
   if [[ "$mode" == "malformed" ]]; then
@@ -204,14 +216,14 @@ test_warns_and_passes_when_claude_inventory_falls_back_to_help() {
     make_mock_claude "$bin_dir" fallback
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-fallback" >"$TMP_DIR/fallback.log" 2>&1; then
-        if rg -q 'Claude load-check fallback succeeded; deep inventory not verified' "$TMP_DIR/fallback.log"; then
-            pass "warns and passes when Claude inventory falls back to help"
+        if rg -q 'load-check fallback passed' "$TMP_DIR/fallback.log"; then
+            pass "warns and passes when Claude inventory falls back to explicit load-check fallback"
         else
-            fail "warns and passes when Claude inventory falls back to help"
+            fail "warns and passes when Claude inventory falls back to explicit load-check fallback"
             sed -n '1,80p' "$TMP_DIR/fallback.log" >&2
         fi
     else
-        fail "warns and passes when Claude inventory falls back to help"
+        fail "warns and passes when Claude inventory falls back to explicit load-check fallback"
         sed -n '1,80p' "$TMP_DIR/fallback.log" >&2
     fi
 }
@@ -224,32 +236,34 @@ test_warns_and_passes_when_claude_output_is_malformed() {
     make_mock_claude "$bin_dir" malformed
 
     if PATH="$bin_dir:$PATH" bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-malformed" >"$TMP_DIR/malformed.log" 2>&1; then
-        if rg -q 'Claude assistant output was not a JSON array' "$TMP_DIR/malformed.log" && \
-            rg -q 'Claude load-check fallback succeeded; deep inventory not verified' "$TMP_DIR/malformed.log"; then
-            pass "warns and passes when Claude output is malformed"
+        if rg -q 'assistant output was not a JSON array' "$TMP_DIR/malformed.log" && \
+            rg -q 'load-check fallback passed' "$TMP_DIR/malformed.log"; then
+            pass "warns and passes when Claude output is malformed but load check succeeds"
         else
-            fail "warns and passes when Claude output is malformed"
+            fail "warns and passes when Claude output is malformed but load check succeeds"
             sed -n '1,80p' "$TMP_DIR/malformed.log" >&2
         fi
     else
-        fail "warns and passes when Claude output is malformed"
+        fail "warns and passes when Claude output is malformed but load check succeeds"
         sed -n '1,80p' "$TMP_DIR/malformed.log" >&2
     fi
 }
 
-test_strict_mode_fails_when_claude_falls_back() {
+test_fails_in_strict_mode_when_claude_uses_load_check_fallback() {
     local repo="$TMP_DIR/strict-repo"
     local bin_dir="$TMP_DIR/strict-bin"
     mkdir -p "$bin_dir"
     make_fixture "$repo"
     make_mock_claude "$bin_dir" fallback
 
-    if PATH="$bin_dir:$PATH" HEADLESS_RUNTIME_SKILL_CLAUDE_STRICT=1 bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-strict" >"$TMP_DIR/strict.log" 2>&1; then
-        fail "strict mode fails when Claude falls back"
-    elif rg -q 'Claude load-check fallback succeeded; deep inventory not verified' "$TMP_DIR/strict.log"; then
-        pass "strict mode fails when Claude falls back"
+    if HEADLESS_RUNTIME_SKILL_CLAUDE_STRICT=1 PATH="$bin_dir:$PATH" \
+        bash "$SCRIPT" --repo-root "$repo" --runtime claude --workdir "$TMP_DIR/workdir-strict" \
+        >"$TMP_DIR/strict.log" 2>&1; then
+        fail "fails in strict mode when Claude falls back to load-check"
+    elif rg -q 'requires verified Claude inventory' "$TMP_DIR/strict.log"; then
+        pass "fails in strict mode when Claude falls back to load-check"
     else
-        fail "strict mode fails when Claude falls back"
+        fail "fails in strict mode when Claude falls back to load-check"
         sed -n '1,80p' "$TMP_DIR/strict.log" >&2
     fi
 }
@@ -259,7 +273,7 @@ test_passes_with_mocked_runtimes
 test_fails_when_codex_inventory_is_missing_skill
 test_warns_and_passes_when_claude_inventory_falls_back_to_help
 test_warns_and_passes_when_claude_output_is_malformed
-test_strict_mode_fails_when_claude_falls_back
+test_fails_in_strict_mode_when_claude_uses_load_check_fallback
 
 echo ""
 echo "Results: $PASS PASS, $FAIL FAIL"

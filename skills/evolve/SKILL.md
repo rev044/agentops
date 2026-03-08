@@ -203,12 +203,15 @@ CYCLE_START_SHA=$(git rev-parse HEAD)
 Skip if `--beads-only`.
 
 ```bash
-ao goals measure --json --timeout 60 > .agents/evolve/fitness-latest.json
+bash scripts/evolve-measure-fitness.sh \
+  --output .agents/evolve/fitness-latest.json \
+  --timeout 60 \
+  --total-timeout 75
 ```
 
 **Do NOT write per-cycle `fitness-{N}-pre.json` files.** The rolling file is sufficient for work selection and regression detection.
 
-This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is unavailable or fails, stop with error. The CLI is required for fitness measurement.
+This writes a fitness snapshot to `.agents/evolve/` atomically via a temp file plus JSON validation. If measurement exceeds the whole-command bound or returns invalid JSON, the wrapper fails without clobbering the previous rolling snapshot.
 
 ### Step 3: Select Work
 
@@ -387,7 +390,11 @@ fi
 
 If not `--beads-only`, also re-measure to produce a post-cycle snapshot:
 ```bash
-ao goals measure --json --timeout 60 --goal $GOAL_ID > .agents/evolve/fitness-latest-post.json
+bash scripts/evolve-measure-fitness.sh \
+  --output .agents/evolve/fitness-latest-post.json \
+  --timeout 60 \
+  --total-timeout 75 \
+  --goal "$GOAL_ID"
 
 # Extract goal counts for cycle history entry
 PASSING=$(jq '[.goals[] | select(.result=="pass")] | length' .agents/evolve/fitness-latest-post.json 2>/dev/null || echo 0)
