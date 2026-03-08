@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -26,6 +27,7 @@ func ParseTimeline(repoPath string, since time.Time) ([]TimelineEvent, error) {
 		"--since="+sinceStr,
 	)
 	cmd.Dir = repoPath
+	cmd.Env = gitDiscoveryEnv()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -36,6 +38,23 @@ func ParseTimeline(repoPath string, since time.Time) ([]TimelineEvent, error) {
 	}
 
 	return parseGitLog(stdout.String(), delim)
+}
+
+func gitDiscoveryEnv() []string {
+	env := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		switch {
+		case strings.HasPrefix(entry, "GIT_DIR="):
+			continue
+		case strings.HasPrefix(entry, "GIT_WORK_TREE="):
+			continue
+		case strings.HasPrefix(entry, "GIT_COMMON_DIR="):
+			continue
+		default:
+			env = append(env, entry)
+		}
+	}
+	return env
 }
 
 // gitLogParser accumulates events while scanning git log output line by line.

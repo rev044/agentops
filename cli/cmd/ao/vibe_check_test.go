@@ -238,7 +238,11 @@ func TestRunVibeCheck_markdownOutput(t *testing.T) {
 }
 
 func TestResolveVibeCheckRepoPath_UsesGitTopLevel(t *testing.T) {
-	wantOut, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	t.Setenv("GIT_DIR", ".git")
+
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Env = gitDiscoveryEnv()
+	wantOut, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("git rev-parse --show-toplevel: %v", err)
 	}

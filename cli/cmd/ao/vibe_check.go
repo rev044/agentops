@@ -112,12 +112,30 @@ func resolveVibeCheckRepoPath(repoPath string) (string, error) {
 
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	cmd.Dir = absPath
+	cmd.Env = gitDiscoveryEnv()
 	out, err := cmd.Output()
 	if err != nil {
 		return absPath, nil
 	}
 
 	return strings.TrimSpace(string(out)), nil
+}
+
+func gitDiscoveryEnv() []string {
+	env := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		switch {
+		case strings.HasPrefix(entry, "GIT_DIR="):
+			continue
+		case strings.HasPrefix(entry, "GIT_WORK_TREE="):
+			continue
+		case strings.HasPrefix(entry, "GIT_COMMON_DIR="):
+			continue
+		default:
+			env = append(env, entry)
+		}
+	}
+	return env
 }
 
 // parseDuration parses durations like "7d", "30d", "90d", "1w", etc.
