@@ -33,7 +33,7 @@
       "name": "codex-team",
       "source_skill": "skills/codex-team",
       "source_hash": "ed0855912248ba610202df993b43335f138599c12b3f580ec58b1f4de0a7a478",
-      "generated_hash": "6bd14e2df747422df5740249175115372d3fddcc5dc389c167bacec63a57c053"
+      "generated_hash": "4cd56af613144f0e78713c9fc42e36175a7445115cf3a43fab4c465600b5ae69"
     },
     {
       "name": "complexity",
@@ -225,7 +225,7 @@
       "name": "recover",
       "source_skill": "skills/recover",
       "source_hash": "b81d186f9a50c3131f4f1bc203cd4765feaa545bb23878316d9bf3549bf0e07e",
-      "generated_hash": "1be99e7c058490a0ea06f7098b51f2eff3205e8ed9250789be7b41ebdec93769"
+      "generated_hash": "4417b1c6bf205d008515a2450ce9bd805668751977498cb85083618f952382df"
     },
     {
       "name": "release",
@@ -285,13 +285,13 @@
       "name": "status",
       "source_skill": "skills/status",
       "source_hash": "293dff204519e2558f7283d281798f4db53b1c72d28ddb80d292558cb10ce890",
-      "generated_hash": "93899c199978b681e784680168b8c2d92f9c07cbf87c0b046c14b4e22fe5c9a4"
+      "generated_hash": "7dfab0b885db59cb8a3e22b9bdeaefdb23fc893664ac03c439df54e7266da56a"
     },
     {
       "name": "swarm",
       "source_skill": "skills/swarm",
       "source_hash": "36aed6f55dcee7a1c0ab02fb6048285b6962036799473ec3da666dbfffbe7899",
-      "generated_hash": "59e3e98f4a4b4edd625fd6dd27df00ebfe73c2767a6e472845ad45ca44b341f6"
+      "generated_hash": "c6d9112243a589facea38a4b8a834189e19ebfc4ce4e77368661951fa6e1bcae"
     },
     {
       "name": "trace",
