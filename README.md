@@ -57,7 +57,7 @@ AgentOps adds the missing layer:
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (installs to ~/.agents/skills, refreshes plugin compatibility, then open a fresh Codex session)
+# Codex CLI (0.110.0+ native plugin; installs the compatibility skills bundle in ~/.agents/skills, enables the plugin, then open a fresh Codex session)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode
@@ -109,7 +109,7 @@ AgentOps is built around five commands. They are not just prompts. They create t
 - `/crank` makes multi-step work executable in dependency order
 - `/post-mortem` turns one finished task into better future context
 
-This is why AgentOps feels different in practice: the output is not just code. It is code plus state plus memory plus gates.
+This is why AgentOps feels different in practice: the output is not just code. It is code + state + memory + gates.
 
 | Pattern | Chain | When |
 |---------|-------|------|
