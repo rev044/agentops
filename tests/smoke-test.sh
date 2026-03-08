@@ -233,6 +233,24 @@ if [[ -f "$NEXTWORK_FILE" ]]; then
                     ((nw_errors++)) || true
                 fi
             fi
+            if echo "$line" | jq -e 'has("claim_status")' >/dev/null 2>&1; then
+                if ! echo "$line" | jq -e '(.claim_status == "available" or .claim_status == "in_progress" or .claim_status == "consumed")' >/dev/null 2>&1; then
+                    fail "next-work.jsonl line $line_num: claim_status must be available|in_progress|consumed"
+                    ((nw_errors++)) || true
+                fi
+            fi
+            if echo "$line" | jq -e 'has("claimed_by")' >/dev/null 2>&1; then
+                if ! echo "$line" | jq -e '(.claimed_by == null) or ((.claimed_by | type) == "string")' >/dev/null 2>&1; then
+                    fail "next-work.jsonl line $line_num: claimed_by must be null or string"
+                    ((nw_errors++)) || true
+                fi
+            fi
+            if echo "$line" | jq -e 'has("claimed_at")' >/dev/null 2>&1; then
+                if ! echo "$line" | jq -e '(.claimed_at == null) or ((.claimed_at | type) == "string")' >/dev/null 2>&1; then
+                    fail "next-work.jsonl line $line_num: claimed_at must be null or string"
+                    ((nw_errors++)) || true
+                fi
+            fi
         done < "$NEXTWORK_FILE"
         if [[ $nw_errors -eq 0 ]]; then
             pass "next-work.jsonl: all $line_num entries have valid schema"

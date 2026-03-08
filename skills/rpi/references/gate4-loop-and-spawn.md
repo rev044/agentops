@@ -36,7 +36,9 @@
    - Current repo is derived from: `basename` of `git remote get-url origin`, or failing that, `basename "$PWD"`.
 2. If unconsumed, repo-matched entries exist:
    - If `--dry-run` is set: report items but do NOT mutate next-work.jsonl (skip consumption). Log: "Dry run -- items not marked consumed."
-   - Otherwise: mark the current cycle's entry as consumed (set `consumed: true`, `consumed_by: <epic-id>`, `consumed_at: <now>`)
+   - Otherwise: claim the current cycle's entry first (`claim_status: "in_progress"`, `claimed_by: <epic-id>`, `claimed_at: <now>`)
+   - Only after the cycle finishes PASS/WARN and clears the regression gate: finalize consumption (`consumed: true`, `consumed_by: <epic-id>`, `consumed_at: <now>`)
+   - If the cycle fails, regresses, or is interrupted: release the claim (`claim_status: "available"`, clear `claimed_by` / `claimed_at`, keep `consumed: false`)
    - Report harvested items to user with suggested next command:
      ```
      ## Next Work Available
@@ -51,7 +53,7 @@
    - Do NOT auto-invoke `/rpi` -- the user decides when to start the next cycle
 3. If no unconsumed entries: report "No follow-up work harvested. Flywheel stable."
 
-**Note:** Only `--spawn-next` mutates next-work.jsonl (marks consumed). Phase 0 read is read-only.
+**Note:** Phase 0 read is read-only. Mutating queue state follows a claim/finalize lifecycle so failed cycles can safely release work back to the queue.
 
 ## Repo-Scoped Filtering (target_repo)
 
@@ -67,3 +69,13 @@ Both Phase 0 and `--spawn-next` filter next-work entries by `target_repo`:
 The current repo name is resolved as: `basename $(git remote get-url origin 2>/dev/null)` with `.git` suffix stripped, falling back to `basename "$PWD"` when no remote is configured.
 
 This prevents cross-repo pollution when `.agents/rpi/next-work.jsonl` is shared or synced across rigs.
+
+## Claim / Release State Machine
+
+| State | Required fields | Meaning |
+|-------|-----------------|---------|
+| available | `consumed=false`, `claim_status="available"` | Ready for `/evolve` or `--spawn-next` to pick |
+| in_progress | `consumed=false`, `claim_status="in_progress"`, `claimed_by`, `claimed_at` | Currently being worked |
+| consumed | `consumed=true`, `consumed_by`, `consumed_at` | Successfully completed and retired from the queue |
+
+Never mark an item consumed at pick-time. Claim first, consume on success, release on failure.

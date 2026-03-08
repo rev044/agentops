@@ -32,13 +32,16 @@ The loop keeps running as long as post-mortem keeps finding follow-up work. Each
 
 **Priority cascade:**
 ```
-GOALS.yaml goals (explicit, human-authored)  → fix these first
-Open beads (bd ready)                        → work when goals pass
-next-work.jsonl (harvested from post-mortem) → exact repo first, then `*`, then legacy
-nothing left                                 → re-measure (external changes may create new work)
-3 consecutive idle cycles                    → stagnation stop (nothing left to improve)
+next-work.jsonl (harvested / queued work)    → exact repo first, then `*`, then legacy
+Open beads (bd ready)                        → durable tracked backlog
+GOALS.yaml directives and failing goals      → explicit fitness gaps
+Testing improvements                         → synthesize coverage / regression-test work
+Validation + bug-hunt passes                 → tighten gates, discover real defects
+Hotspots / TODO / drift / stale docs         → mine weak signals into work
+Feature suggestions                          → propose new product work when remediation dries up
+multiple empty queue + generator passes      → last-resort dormancy
 60-minute circuit breaker                    → stop if no productive cycle in 60 min
 kill switch                                  → immediate stop
 ```
 
-The loop does NOT stop just because goals are met. It re-measures, checks for harvested work, and only stops after 3 consecutive cycles with truly nothing to do. Idle cycles are NOT committed to git — only appended locally. The idle streak is re-derived from disk at each session start, so compaction cannot corrupt it. Use the kill switch for intentional stops.
+The loop does NOT stop just because goals are met or the current queue is empty. It re-reads harvested work after every `/rpi` cycle, runs generator layers when queues are empty, and only stops after repeated empty queue + generator passes. Idle cycles are NOT committed to git — only appended locally. The idle streak is re-derived from disk at each session start, while `session-state.json` carries pending claim/generator resume state. Use the kill switch for intentional stops.

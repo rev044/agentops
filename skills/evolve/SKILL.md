@@ -27,15 +27,19 @@ metadata:
 
 > Measure what's wrong. Fix the worst thing. Measure again. Compound.
 
-Thin fitness-scored loop over `/rpi`. Three work sources in priority order:
-1. **Failing GOALS.yaml goals** (highest-weight first)
-2. **Open beads issues** (`bd ready` — when all goals pass)
-3. **Harvested next-work.jsonl** (from prior /rpi post-mortems)
+Always-on autonomous loop over `/rpi`. Work selection order:
+1. **Harvested `.agents/rpi/next-work.jsonl` work** (freshest concrete follow-up)
+2. **Open ready beads work** (`bd ready`)
+3. **Failing goals and directive gaps** (`ao goals measure`)
+4. **Testing improvements** (missing/thin coverage, missing regression tests)
+5. **Validation tightening and bug-hunt passes** (gates, audits, bug sweeps)
+6. **Complexity / TODO / FIXME / drift / dead code / stale docs / stale research mining**
+7. **Concrete feature suggestions** derived from repo purpose when no sharper work exists
 
-**Dormancy is success.** When all sources are empty, stop. Don't manufacture work.
+**Dormancy is last resort.** Empty current queues mean "run the generator layers", not "stop". Only go dormant after the queue layers and generator layers come up empty across multiple consecutive passes.
 
 ```bash
-/evolve                      # Run until kill switch or stagnation
+/evolve                      # Run until kill switch, max-cycles, or real dormancy
 /evolve --max-cycles=5       # Cap at 5 cycles
 /evolve --dry-run            # Show what would be worked on, don't execute
 /evolve --beads-only         # Skip goals measurement, work beads backlog only
@@ -71,7 +75,7 @@ mkdir -p .agents/evolve
 ao lookup --query "autonomous improvement cycle" --limit 5 2>/dev/null || true
 ```
 
-Recover cycle number and idle streak from disk (survives context compaction):
+Recover cycle number, queue/generator streaks, and the last claimed work item from disk (survives context compaction):
 ```bash
 if [ -f .agents/evolve/cycle-history.jsonl ]; then
   CYCLE=$(( $(tail -1 .agents/evolve/cycle-history.jsonl | jq -r '.cycle // 0') + 1 ))
@@ -86,6 +90,17 @@ IDLE_STREAK=$(awk '/"result"\s*:\s*"(idle|unchanged)"/{streak++; next} {streak=0
   .agents/evolve/cycle-history.jsonl 2>/dev/null)
 
 PRODUCTIVE_THIS_SESSION=0
+
+# Recover generator state and queue claim state
+if [ -f .agents/evolve/session-state.json ]; then
+  GENERATOR_EMPTY_STREAK=$(jq -r '.generator_empty_streak // 0' .agents/evolve/session-state.json 2>/dev/null || echo 0)
+  LAST_SELECTED_SOURCE=$(jq -r '.last_selected_source // empty' .agents/evolve/session-state.json 2>/dev/null || true)
+  CLAIMED_WORK_REF=$(jq -r '.claimed_work.ref // empty' .agents/evolve/session-state.json 2>/dev/null || true)
+else
+  GENERATOR_EMPTY_STREAK=0
+  LAST_SELECTED_SOURCE=""
+  CLAIMED_WORK_REF=""
+fi
 
 # Circuit breaker: stop if last productive cycle was >60 minutes ago
 LAST_PRODUCTIVE_TS=$(grep -v '"idle"\|"unchanged"' .agents/evolve/cycle-history.jsonl 2>/dev/null \
@@ -129,9 +144,15 @@ Track cycle-level execution state:
 evolve_state = {
   cycle: <current cycle number>,
   mode: <standard|quality|beads-only>,
-  test_first: <true by default; false only when --no-test-first>
+  test_first: <true by default; false only when --no-test-first>,
+  generator_empty_streak: <consecutive passes where all generator layers returned nothing>,
+  last_selected_source: <harvested|beads|goal|directive|testing|validation|bug-hunt|drift|feature>,
+  claimed_work: <null or queue reference being worked>,
+  queue_refresh_count: <incremented after every /rpi cycle>
 }
 ```
+
+Persist `evolve_state` to `.agents/evolve/session-state.json` at each cycle boundary, after queue claims, after queue release/finalize, and during teardown. `cycle-history.jsonl` remains the canonical cycle ledger; `session-state.json` carries resume-only state that has not yet earned a committed cycle entry.
 
 ### Step 0.2: Athena Warmup (--athena only)
 
@@ -191,12 +212,40 @@ This writes a fitness snapshot to `.agents/evolve/`. If `ao goals measure` is un
 
 ### Step 3: Select Work
 
-**Step 3.0: Emergency gates** (skip if `--beads-only`):
+Selection is a ladder, not a one-shot check. After every productive cycle, return to the TOP of this step and re-read the queue before considering dormancy.
+
+**Step 3.1: Harvested work first**
+
+Read `.agents/rpi/next-work.jsonl` and pick the highest-value unconsumed item for this repo. Prefer:
+- exact repo match before `*`, then legacy unscoped entries
+- already-harvested concrete implementation work before process work
+- higher severity before lower severity
+
+When evolve picks a queue item, **claim it first**:
+- set `claim_status: "in_progress"`
+- set `claimed_by: "evolve:cycle-N"`
+- set `claimed_at: "<timestamp>"`
+- keep `consumed: false` until the `/rpi` cycle and regression gate both succeed
+
+If the cycle fails, regresses, or is interrupted before success, release the claim and leave the item available for the next cycle.
+
+**Step 3.2: Open ready beads**
+
+If no harvested item is ready, check `bd ready`. Pick the highest-priority unblocked issue.
+
+**Step 3.3: Failing goals and directive gaps** (skip if `--beads-only`)
+
+First assess directives, then goals:
+- top-priority directive gap from `ao goals measure --directives`
+- highest-weight failing goals (skip quarantined oscillators)
+- lower-weight failing goals
+
+This step exists even when all queued work is empty. Goals are the third source, not the stop condition.
+
 ```bash
-# Check for failing gates with weight >= 5
-FAILING=$(jq -r '.goals[] | select(.result=="fail" and .weight>=5) | .id' .agents/evolve/fitness-latest.json | head -1)
+DIRECTIVES=$(ao goals measure --directives 2>/dev/null)
+FAILING=$(jq -r '.goals[] | select(.result=="fail") | .id' .agents/evolve/fitness-latest.json | head -1)
 ```
-Pick highest-weight failing goal. Skip quarantined goals (oscillation ≥ 3).
 
 **Oscillation check:** Before working a failing goal, check if it has oscillated (improved→fail transitions ≥ 3 times in cycle-history.jsonl). If so, quarantine it and try the next failing goal. See `references/oscillation.md`.
 ```bash
@@ -209,31 +258,44 @@ if [ "$OSC_COUNT" -ge 3 ]; then
 fi
 ```
 
-**Step 3.1: Directive gap** (skip if `--beads-only`):
-```bash
-# Get directives from GOALS.md
-DIRECTIVES=$(ao goals measure --directives 2>/dev/null)
-```
-If directives exist, assess the top-priority directive (lowest number, non-quarantined):
-- Check git log for recent commits addressing it
-- If gap detected → generate `suggested_work` description from the directive
-- Use this as the work item for Step 4
+**Step 3.4: Testing improvements**
 
-**Step 3.2: Harvested work** from `.agents/rpi/next-work.jsonl` (unconsumed entries).
-When a repo filter is active, prefer exact-repo items first, then wildcard `*`,
-then legacy unscoped items. At equal repo affinity and severity, prefer
-implementation work (`feature`, `improvement`, `tech-debt`, `bug`, `task`)
-before `process-improvement`.
+When queues and goals are empty, generate concrete testing work instead of idling:
+- find packages/files with thin or missing tests
+- look for missing regression tests around recent bug-fix paths
+- identify flaky or absent headless/runtime smokes
 
-**Step 3.3: Open beads**:
-```bash
-READY_ISSUE=$(bd ready -n 1 2>/dev/null | head -1 | awk '{print $2}')
-```
-Pick highest-priority unblocked issue. If `bd ready` fails or returns empty, fall through. Do not treat bd failure as idle.
+Convert any real finding into durable work:
+- add a bead when the work needs tracked backlog ownership, or
+- append a queue item under the shared next-work contract when it should flow directly back into `/rpi`
 
-**Step 3.4: Next directive** — assess priority 2, 3, etc. directives for gaps.
+**Step 3.5: Validation tightening and bug-hunt passes**
 
-**Step 3.5: Lower-weight failing gates** — failing goals with weight < 5.
+If testing improvement generation returns nothing, run bug-hunt and validation sweeps:
+- missing validation gates
+- weak lint/contract coverage
+- bug-hunt style audits for risky areas
+- stale assumptions between docs, contracts, and runtime truth
+
+Again: convert findings into beads or queue items, then immediately select the highest-priority result and continue.
+
+**Step 3.6: Drift / hotspot / dead-code mining**
+
+If the prior generators are empty, mine for:
+- complexity hotspots
+- stale TODO/FIXME markers
+- dead code
+- stale docs
+- stale research
+- drift between generated artifacts and source-of-truth files
+
+Do not stop here. Normalize findings into tracked work and continue.
+
+**Step 3.7: Feature suggestions**
+
+If all concrete remediation layers are empty, propose one or more specific feature ideas grounded in the repo purpose, write them as durable work, and continue:
+- create a bead when the feature needs review/backlog treatment
+- or append a queue item with `source: "feature-suggestion"` when it is ready for the next `/rpi` cycle
 
 **Quality mode (`--quality`)** — inverted cascade (findings before directives):
 
@@ -245,63 +307,62 @@ HIGH=$(jq -r 'select(.consumed==false) | .items[] | select(.severity=="high") | 
 
 Step 3.1q: Unconsumed medium-severity findings.
 
-Step 3.2q: Emergency gates (weight >= 5).
+Step 3.2q: Open ready beads.
 
-Step 3.3q: Top directive gap.
+Step 3.3q: Emergency gates (weight >= 5) and top directive gaps.
 
-Step 3.4q: Open beads (`bd ready`).
+Step 3.4q: Testing improvements.
 
-Step 3.5q: Next directive.
+Step 3.5q: Validation tightening / bug-hunt / drift mining.
 
-This inverts the standard cascade: findings BEFORE goals and directives.
-Rationale: harvested work has 100% first-attempt success rate.
-Within harvested work, keep the same repo-first preference: exact repo before
-`*`, then legacy unscoped entries.
+Step 3.6q: Feature suggestions.
 
-When evolve picks a finding, mark it consumed in next-work.jsonl:
-- Set `consumed: true`, `consumed_by: "evolve-quality:cycle-N"`, `consumed_at: "<timestamp>"`
-- If the /rpi cycle fails (regression), un-mark the finding (set consumed back to false).
+This inverts the standard cascade only at the top of the ladder: findings BEFORE goals and directives. It does NOT skip the generator layers.
+
+When evolve picks a finding, claim it first in next-work.jsonl:
+- Set `claim_status: "in_progress"`, `claimed_by: "evolve-quality:cycle-N"`, `claimed_at: "<timestamp>"`
+- Set `consumed: true` only after the /rpi cycle and regression gate succeed
+- If the /rpi cycle fails (regression), clear the claim and leave `consumed: false`
 
 See `references/quality-mode.md` for scoring and full details.
 
-**Nothing found?** HARD GATE — re-derive idle streak from disk:
+**Nothing found?** HARD GATE — only consider dormancy after the generator layers also came up empty:
 
 ```bash
 # Count trailing idle/unchanged entries in cycle-history.jsonl (portable, no tac)
 IDLE_STREAK=$(awk '/"result"\s*:\s*"(idle|unchanged)"/{streak++; next} {streak=0} END{print streak+0}' \
   .agents/evolve/cycle-history.jsonl 2>/dev/null)
 
-if [ "$IDLE_STREAK" -ge 2 ]; then
-  # This would be the 3rd consecutive idle cycle — STOP
-  echo "Stagnation reached (3 idle cycles). Dormancy is success."
+if [ "$GENERATOR_EMPTY_STREAK" -ge 2 ] && [ "$IDLE_STREAK" -ge 2 ]; then
+  # Queue layers are empty AND producer layers were empty for the 3rd consecutive pass — STOP
+  echo "Stagnation reached after repeated empty queue + generator passes. Dormancy is the last-resort outcome."
   # go to Teardown — do NOT log another idle entry
 fi
 ```
 
-If IDLE_STREAK < 2: this is idle cycle 1 or 2. Go to Step 6 (idle path).
+If the queue layers were empty but a generator pass has not been exhausted 3 times yet, persist the new generator streak in `session-state.json` and loop back to Step 1. Empty pre-cycle queues are not a stop reason by themselves.
 
-A cycle is idle if NO work source returned actionable work. A cycle that targeted an oscillating goal and skipped it counts as idle.
+A cycle is idle only if NO work source returned actionable work and every generator layer also came up empty. A cycle that targeted an oscillating goal and skipped it counts as idle only after the remaining ladder was exhausted.
 
 If `--dry-run`: report what would be worked on and go to Teardown.
 
 ### Step 4: Execute
 
-For a **failing goal**:
+Primary engine: use `/rpi` for any implementation-quality work. `/implement` and `/crank` are allowed only when a bead already contains execution-ready scope and skipping discovery is clearly the better path.
+
+For a **harvested item, failing goal, directive gap, testing improvement, validation tightening task, bug-hunt result, drift finding, or feature suggestion**:
 ```
-Invoke /rpi "Improve {goal_id}: {description}" --auto --max-cycles=1
+Invoke /rpi "{normalized work title}" --auto --max-cycles=1
 ```
 
 For a **beads issue**:
 ```
-Invoke /implement {issue_id}
+Prefer: /rpi "Land {issue_id}: {title}" --auto --max-cycles=1
+Fallback: /implement {issue_id}
 ```
 Or for an epic with children: `Invoke /crank {epic_id}`.
 
-For **harvested work**:
-```
-Invoke /rpi "{item_title}" --auto --max-cycles=1
-```
-Then mark the item consumed in next-work.jsonl.
+If Step 3 created durable work instead of executing it immediately, re-enter Step 3 and let the newly-created queue/bead item win through the normal selection order.
 
 ### Step 5: Regression Gate
 
@@ -340,6 +401,12 @@ git revert HEAD --no-edit  # single commit
 git revert --no-commit ${CYCLE_START_SHA}..HEAD && git commit -m "revert: evolve cycle ${CYCLE} regression"
 ```
 Set outcome to "regressed".
+
+Queue finalization after the regression gate:
+- **success:** finalize any claimed queue item with `consumed: true`, `consumed_by`, and `consumed_at`; clear transient claim fields
+- **failure/regression:** clear `claim_status`, `claimed_by`, and `claimed_at`; keep `consumed: false`; record the release in `session-state.json`
+
+After the cycle's `/post-mortem` finishes, immediately re-read `.agents/rpi/next-work.jsonl` before selecting the next item. Never assume the queue state from before the cycle.
 
 ### Step 6: Log Cycle + Commit
 
@@ -394,7 +461,7 @@ fi
 PRODUCTIVE_THIS_SESSION=$((PRODUCTIVE_THIS_SESSION + 1))
 ```
 
-**IDLE cycles** (nothing found):
+**IDLE cycles** (nothing found even after generator layers):
 
 ```bash
 bash scripts/evolve-log-cycle.sh \
@@ -407,9 +474,12 @@ bash scripts/evolve-log-cycle.sh \
 ### Step 7: Loop or Stop
 
 ```bash
-CYCLE=$((CYCLE + 1))
-# Stop if max-cycles reached
-# Otherwise: go to Step 1
+while true; do
+  # Step 1 .. Step 6
+  # Stop if kill switch, max-cycles, or a real safety breaker triggers
+  # Otherwise increment cycle and re-enter selection
+  CYCLE=$((CYCLE + 1))
+done
 ```
 
 Push only when productive work has accumulated:
@@ -452,13 +522,20 @@ Stop reason: stagnation | circuit-breaker | max-cycles | kill-switch
 
 ## Examples
 
-**Basic:** `/evolve --max-cycles=5` — measures goals, fixes highest-weight failure, gates, repeats for 5 cycles.
+**User says:** `/evolve --max-cycles=5`
+**What happens:** Evolve re-enters the full selection ladder after every `/rpi` cycle and runs producer layers instead of idling on empty queues.
 
-**Beads only:** `/evolve --beads-only` — skips goals measurement, works through `bd ready` backlog.
+**User says:** `/evolve --beads-only`
+**What happens:** Evolve skips goals measurement and works through `bd ready` backlog.
 
-**Dry run:** `/evolve --dry-run` — shows what would be worked on without executing.
+**User says:** `/evolve --dry-run`
+**What happens:** Evolve shows what would be worked on without executing.
 
-**Athena warmup:** `/evolve --athena` — runs `ao mine` + `ao defrag` at session start to surface fresh signal (orphaned research, code hotspots, oscillating goals) before the first evolve cycle. Use before a long autonomous run or after a burst of development activity.
+**User says:** `/evolve --athena`
+**What happens:** Evolve runs `ao mine` + `ao defrag` at session start to surface fresh signal (orphaned research, code hotspots, oscillating goals) before the first evolve cycle. Use before a long autonomous run or after a burst of development activity.
+
+**User says:** `/evolve`
+**What happens:** See `references/examples.md` for a worked overnight flow that moves through beads -> harvested work -> goals -> testing -> bug hunt -> feature suggestion before dormancy is considered.
 
 See `references/examples.md` for detailed walkthroughs.
 
@@ -467,9 +544,9 @@ See `references/examples.md` for detailed walkthroughs.
 | Problem | Solution |
 |---------|----------|
 | Loop exits immediately | Remove `~/.config/evolve/KILL` or `.agents/evolve/STOP` |
-| Stagnation after 3 idle cycles | All work sources empty — this is success |
+| Stagnation after repeated empty passes | Queue layers and producer layers were empty across multiple passes — dormancy is the fallback outcome |
 | `ao goals measure` hangs | Use `--timeout 30` flag or `--beads-only` to skip |
-| Regression gate reverts | Review reverted changes, narrow scope, re-run |
+| Regression gate reverts | Review reverted changes, narrow scope, re-run; claimed queue items must be released back to available state |
 
 See `references/cycle-history.md` for advanced troubleshooting.
 

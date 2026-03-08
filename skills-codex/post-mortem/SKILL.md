@@ -495,7 +495,7 @@ mkdir -p .agents/rpi
 # Only append if not already present (dedup by title)
 TITLE="<improvement-title>"
 if ! grep -q "\"title\":\"$TITLE\"" .agents/rpi/next-work.jsonl 2>/dev/null; then
-  echo "{\"title\": \"$TITLE\", \"type\": \"process-improvement\", \"severity\": \"medium\", \"source\": \"backlog-processing\", \"consumed\": false, \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/rpi/next-work.jsonl
+  echo "{\"title\": \"$TITLE\", \"type\": \"process-improvement\", \"severity\": \"medium\", \"source\": \"backlog-processing\", \"claim_status\": \"available\", \"consumed\": false, \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/rpi/next-work.jsonl
 fi
 ```
 
@@ -836,7 +836,7 @@ Scan the council report and extracted learnings for actionable follow-up items:
 
 6. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the schema contract (`.agents/rpi/next-work.schema.md`). Read `references/harvest-next-work.md` for the validation function and write procedure. Drop invalid items; do NOT block the entire harvest.
 
-7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`). Read `references/harvest-next-work.md` for the write procedure (target_repo assignment, JSONL format, required fields).
+7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`). Read `references/harvest-next-work.md` for the write procedure (target_repo assignment, claim/finalize lifecycle, JSONL format, required fields).
 
 8. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `$rpi --spawn-next` to create an epic from these items."
 

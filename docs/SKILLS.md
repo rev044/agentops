@@ -307,7 +307,7 @@ Post-compaction context recovery. Detects in-progress RPI and evolve sessions, l
 Autonomous fitness-scored improvement loop. Measures GOALS.yaml, fixes the worst gap, compounds via knowledge flywheel.
 
 ```bash
-/evolve                      # Run until all goals met
+/evolve                      # Run until stopped or the full producer ladder is exhausted
 /evolve --max-cycles=5       # Cap at 5 cycles
 /evolve --dry-run            # Measure only, don't execute
 ```

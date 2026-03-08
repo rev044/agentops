@@ -17,6 +17,7 @@
 |------|---------|
 | `.agents/evolve/fitness-latest.json` | Pre-cycle fitness snapshot (rolling, overwritten each cycle) |
 | `.agents/evolve/fitness-latest-post.json` | Post-cycle fitness snapshot (for regression comparison) |
+| `.agents/evolve/session-state.json` | Resume-only state: generator streaks, last selected source, pending queue claim |
 | `.agents/evolve/session-summary.md` | Session wrap-up |
 | `.agents/evolve/session-fitness-delta.md` | Session fitness trajectory (baseline to final delta) |
 | `.agents/evolve/STOP` | Local kill switch |

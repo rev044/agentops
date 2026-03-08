@@ -5,76 +5,58 @@
 **User says:** `/evolve`
 
 **What happens:**
-1. Agent checks kill switch files (none found, continues)
-2. Agent measures fitness against GOALS.yaml (3 of 5 goals passing)
-3. Agent selects worst-failing goal by weight (test-pass-rate)
-4. Agent invokes `/rpi "Improve test-pass-rate"` with full lifecycle
-5. Agent re-measures fitness post-cycle (test-pass-rate now passing, all others unchanged)
-6. Agent logs cycle to history, increments cycle counter
-7. Agent loops to next cycle, selects next failing goal
-8. After all goals pass, agent checks harvested work from post-mortem — finds 3 items
-9. Agent works through harvested items, each generating more via post-mortem
-10. After 3 consecutive idle cycles (no failing goals, no harvested work), agent runs `/post-mortem` and writes session summary
-11. To stop earlier: create `~/.config/evolve/KILL` or `.agents/evolve/STOP`
+1. Agent checks kill switch files (none found, continues).
+2. Agent first reads `.agents/rpi/next-work.jsonl`, claims the highest-value harvested item, and runs `/rpi` on it.
+3. The cycle's `/post-mortem` harvests 2 new follow-up items; evolve immediately re-reads the queue instead of trusting the pre-cycle snapshot.
+4. With harvested work drained, evolve checks `bd ready` and lands the top unblocked bead.
+5. With beads drained, evolve measures GOALS.yaml, finds a directive gap, and runs `/rpi` on that goal.
+6. Once goals/directives are healthy, evolve generates testing work from thin coverage and lands the best regression-test improvement.
+7. Testing producers dry up, so evolve runs validation tightening / bug-hunt and fixes the highest-value finding.
+8. When remediation layers are empty, evolve mines hotspot/TODO/stale-doc drift and turns any real findings into durable work.
+9. If all remediation layers stay empty, evolve writes a concrete feature suggestion as durable work and starts the next `/rpi`.
+10. Only after repeated empty queue + generator passes does dormancy trigger and teardown begin.
+11. To stop earlier: create `~/.config/evolve/KILL` or `.agents/evolve/STOP`.
 
-**Result:** Runs forever — fixing goals, consuming harvested work, re-measuring. Only stops on kill switch or stagnation (3 idle cycles).
+**Result:** Runs as an always-on compounding loop. Empty queues trigger more work discovery; they do not end the run.
 
 ## Dry-Run Mode
 
 **User says:** `/evolve --dry-run`
 
 **What happens:**
-1. Agent measures fitness (3 of 5 goals passing)
-2. Agent identifies worst-failing goal (doc-coverage, weight 5)
-3. Agent reports what would be worked on: "Dry run: would work on 'doc-coverage' (weight: 5)"
-4. Agent shows harvested work queue (2 items from prior RPI cycles)
-5. Agent stops without executing
+1. Agent measures fitness.
+2. Agent reports the next harvested/beads/goals item it would work on.
+3. If those are empty, agent reports the next generator layer it would run (testing, validation, drift, or feature suggestion).
+4. Agent stops without executing.
 
-**Result:** Fitness report and next-action preview without code changes.
+**Result:** Next-action preview without code changes.
 
 ## Regression with Revert
 
 **User says:** `/evolve --max-cycles=3`
 
 **What happens:**
-1. Agent improves goal A in cycle 1 (commit abc123)
-2. Agent measures fitness post-cycle: goal A passes, but goal B now fails (regression)
-3. Agent reverts commit abc123 with annotated message
-4. Agent logs regression to history, moves to next goal
-5. Agent completes 3 cycles (cap reached), runs post-mortem
+1. Agent claims a harvested queue item in cycle 1 and starts `/rpi`.
+2. Post-cycle fitness shows a regression.
+3. Agent reverts the cycle's changes.
+4. Agent clears the queue claim and leaves `consumed: false`, so the work is available again.
+5. Agent logs the regression and continues.
 
-**Result:** Fitness regressions are auto-reverted, preventing compounding failures.
+**Result:** Fitness regressions are auto-reverted, and claimed work is re-queued instead of being lost.
 
-## Parallel Goal Improvement
+## Worked Overnight Ladder
 
-**User says:** `/evolve --parallel`
-
-**What happens:**
-1. Agent checks kill switch (none found)
-2. Agent measures fitness against GOALS.yaml (4 of 7 goals failing)
-3. Agent selects top 3 independent failing goals by weight, filtered for independence via `select_parallel_goals`
-4. Agent creates TaskList tasks for each goal, sets up artifact isolation
-5. Agent invokes `/swarm --worktrees` — spawns 3 fresh-context workers in isolated worktrees
-6. Each worker runs a full `/rpi` cycle independently (research → plan → crank → vibe → post-mortem)
-7. `/swarm` completes — all 3 workers done, lead merges worktrees
-8. Agent re-measures ALL goals (single regression gate for entire wave)
-9. No regression detected — logs cycle with `goal_ids` array and `parallel: true`
-10. Next cycle: 1 remaining failing goal → sequential (only 1 goal, no parallelism needed)
-11. After all goals pass, checks harvested work, eventually stagnation → teardown
-
-**Result:** 3 goals fixed in ~1 cycle instead of 3 sequential cycles. ~3x speedup for independent goals. Each worker's /post-mortem feeds the knowledge flywheel independently.
-
-## Parallel with Regression Revert
-
-**User says:** `/evolve --parallel --max-cycles=2`
+**User says:** `/evolve --athena`
 
 **What happens:**
-1. Cycle 1: 3 parallel goals attempted via `/swarm --worktrees`
-2. Post-wave regression gate detects goal C started failing after goals A and B were improved
-3. Agent reverts entire parallel wave (all merged worktree commits) using `cycle_start_sha`
-4. Logs cycle with `result: "regressed"` and all 3 `goal_ids`
-5. Cycle 2: Agent retries — `select_parallel_goals` still selects same 3 (different check scripts)
-6. This time no regression — all 3 improvements are clean
-7. Max cycles reached (2), runs teardown with `/post-mortem`
+1. Athena warmup surfaces a stale research note about runtime smoke coverage.
+2. `bd ready` has one open docs/runtime parity bead, so evolve runs that first.
+3. That bead's `/post-mortem` harvests an implementation follow-up into `next-work.jsonl`; evolve re-reads the queue and runs it immediately.
+4. The queue empties, so evolve measures goals and fixes one directive gap via `/rpi`.
+5. All goals now pass. Evolve generates testing work from thin coverage and lands a new regression test.
+6. Testing producers dry up, so evolve runs a bug-hunt / validation sweep and tightens a missing validation gate.
+7. No bug-hunt findings remain, so evolve mines complexity/TODO/stale-doc drift and queues one cleanup item.
+8. After that cleanup, the remediation ladder is empty, so evolve writes a concrete feature suggestion bead and starts the next `/rpi`.
+9. Only after harvested work, beads, goals, testing, bug hunt, drift mining, and feature suggestions all come up empty across repeated passes does dormancy trigger.
 
-**Result:** Parallel regression detected and reverted cleanly. Entire wave rolled back as a unit. Retry in next cycle succeeds.
+**Result:** One long-running session compounds across beads -> harvested work -> goals -> testing -> bug hunt -> feature suggestion instead of stopping at the first empty queue.

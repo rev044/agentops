@@ -61,7 +61,7 @@ All phase transitions use filesystem-based artifacts (no in-memory coupling):
 | Start -> Discovery | Goal string | Passed as argument to `$research` |
 | Discovery -> Implementation | Epic ID, pre-mortem verdict, phase-1 summary | `phased-state.json` + `.agents/rpi/phase-1-summary-*.md` |
 | Implementation -> Validation | Crank completion status, phase-2 summary | `bd children <epic-id>` + `.agents/rpi/phase-2-summary-*.md` |
-| Validation -> Next Cycle (optional) | Vibe/post-mortem verdicts, harvested follow-up work | Council reports + `.agents/rpi/next-work.jsonl` |
+| Validation -> Next Cycle (optional) | Vibe/post-mortem verdicts, harvested follow-up work, queue claim/finalize metadata | Council reports + `.agents/rpi/next-work.jsonl` |
 
 ## Execution Steps
 
@@ -177,7 +177,7 @@ bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=validation 2
 
 **Optional loop (`--loop`):** If post-mortem verdict is FAIL and `--loop` is enabled, extract 3 concrete fixes from the report and re-invoke `$rpi` from Phase 1 with a tightened goal (up to `--max-cycles` total cycles). PASS/WARN stops the loop.
 
-**Optional spawn-next (`--spawn-next`):** After a PASS/WARN finish, read `.agents/rpi/next-work.jsonl` for harvested follow-up items. Report them to the user with a suggested next `$rpi` command but do NOT auto-invoke.
+**Optional spawn-next (`--spawn-next`):** After a PASS/WARN finish, read `.agents/rpi/next-work.jsonl` for harvested follow-up items. Report them to the user with a suggested next `$rpi` command but do NOT auto-invoke. Queue items are claimed first and only finalized as consumed after the successful validation path; failed cycles must release claims back to available state.
 
 ### Step Final: Report
 

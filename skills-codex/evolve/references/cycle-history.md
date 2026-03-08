@@ -2,10 +2,11 @@
 
 ## Compaction Resilience
 
-The evolve loop MUST survive context compaction. Every cycle commits its
-artifacts to git before proceeding. The `cycle-history.jsonl` file is the
-recovery point -- on session restart, read it to determine cycle number
-and resume from Step 1.
+The evolve loop MUST survive context compaction. Every productive cycle commits
+its ledger artifacts to git before proceeding. `cycle-history.jsonl` is the
+committed recovery point for cycle numbering, and `.agents/evolve/session-state.json`
+is the on-disk resume point for pending queue claims, queue refresh count, and
+generator-empty streaks.
 
 ## Cycle History JSONL Format
 
@@ -73,6 +74,31 @@ Every productive cycle log entry MUST include:
 differs from `canonical_sha`. These fields enable fitness trajectory plotting
 without losing retrospective provenance.
 
+### Session-State Sidecar
+
+Persist the non-ledger loop state to `.agents/evolve/session-state.json`:
+
+```json
+{
+  "cycle": 124,
+  "generator_empty_streak": 1,
+  "last_selected_source": "testing",
+  "queue_refresh_count": 17,
+  "claimed_work": {
+    "ref": "source_epic=ag-123:item=Add smoke test",
+    "claimed_by": "evolve:cycle-124",
+    "claimed_at": "2026-03-08T10:15:00Z"
+  }
+}
+```
+
+On resume:
+1. recover `cycle` from `cycle-history.jsonl`
+2. recover generator and claim state from `session-state.json`
+3. if `claimed_work` exists, inspect the queue entry:
+   - if the prior cycle succeeded, finalize it as consumed
+   - if the prior cycle failed or is ambiguous, release the claim and continue
+
 ### Substantive-Delta Rule
 
 Do not record `result: "improved"` when a cycle produces no non-agent repo delta.
@@ -92,7 +118,8 @@ bash scripts/log-telemetry.sh evolve cycle-complete cycle=${CYCLE} score=${SCORE
 Only **productive cycles** (improved, regressed, harvested) are committed. Idle
 cycles are appended to cycle-history.jsonl locally but NOT committed — they are
 disposable if compaction occurs, and the idle streak is re-derived from disk at
-session start.
+session start. Producer-layer exhaustion is tracked in `session-state.json`, not
+by stopping early.
 
 ```bash
 # Productive cycle: log via the canonical writer, then commit
@@ -125,8 +152,8 @@ bash scripts/evolve-log-cycle.sh --cycle "$CYCLE" --target "idle" --result "unch
 
 At session start (Step 0), after recovering the idle streak, check the timestamp
 of the last productive cycle. If it was more than 60 minutes ago, go directly to
-Teardown. This prevents runaway sessions that accumulate idle cycles without
-producing value.
+Teardown. This prevents runaway sessions that accumulate empty queue/generator
+passes without producing value.
 
 ```bash
 LAST_PRODUCTIVE_TS=$(grep -v '"idle"\|"unchanged"' .agents/evolve/cycle-history.jsonl 2>/dev/null \
@@ -184,5 +211,5 @@ rm .agents/evolve/STOP
 | "No goals to measure" error | GOALS.yaml missing or empty | Create GOALS.yaml in repo root with fitness goals (see goals-schema.md) |
 | Cycle completes but fitness unchanged | Goal check command is always passing or always failing | Verify check command logic in GOALS.yaml produces exit code 0 (pass) or non-zero (fail) |
 | Regression revert fails | Multiple commits in cycle or uncommitted changes | Check cycle-start SHA in fitness snapshot, commit or stash changes before retrying |
-| Harvested work never consumed | All goals passing but `next-work.jsonl` not read | Check file exists and has `consumed: false` entries. Agent picks harvested work after goals met. |
-| Loop stops after N cycles | `--max-cycles` was set (or old default of 10) | Omit `--max-cycles` flag -- default is now unlimited. Loop runs until kill switch or 3 idle cycles. |
+| Harvested work never finalizes | Queue item was claimed but cycle did not clear/finalize it | Inspect `claim_status`, `claimed_by`, and `claimed_at`; successful cycles consume, failed cycles release |
+| Loop stops after empty queues | Generator streak was exhausted too quickly or `--max-cycles` was set | Verify producer layers ran, inspect `session-state.json`, and omit `--max-cycles` for overnight runs |

@@ -34,18 +34,22 @@ Where counts are unconsumed findings remaining in next-work.jsonl.
 
 1. High-severity unconsumed findings → /rpi
 2. Medium-severity unconsumed findings → /rpi
-3. Failing GOALS.yaml goals → /rpi (standard behavior)
-4. Open beads → /implement
-5. Nothing → stagnation (3 idle cycles)
+3. Open ready beads → prefer /rpi with bead context
+4. Failing GOALS.yaml goals and directive gaps → /rpi
+5. Testing improvements → /rpi
+6. Validation tightening / bug-hunt / drift mining → /rpi
+7. Feature suggestions → durable work + /rpi
+8. Nothing after repeated generator passes → dormancy fallback
 
 ## Marking Findings Consumed
 
-When evolve picks a finding from next-work.jsonl, mark it consumed:
-- Set `consumed: true`
-- Set `consumed_by: "evolve-quality:cycle-N"`
-- Set `consumed_at: "<timestamp>"`
+When evolve picks a finding from next-work.jsonl, claim it first:
+- Set `claim_status: "in_progress"`
+- Set `claimed_by: "evolve-quality:cycle-N"`
+- Set `claimed_at: "<timestamp>"`
+- Keep `consumed: false` until the /rpi cycle and regression gate both succeed
 
-If the /rpi cycle fails (regression), un-mark the finding (set consumed back to false).
+If the /rpi cycle fails (regression), clear the claim and leave the finding available.
 
 ## Artifacts
 
@@ -60,7 +64,7 @@ If the /rpi cycle fails (regression), un-mark the finding (set consumed back to 
 Quality mode and standard mode share:
 - The same cycle-history.jsonl
 - The same fitness measurement (goals are still checked)
-- The same stagnation detection (3 idle cycles)
+- The same dormancy guard (repeated empty queue + generator passes)
 - The same circuit breaker (60 minutes)
 
-They differ in work selection priority: quality mode picks findings first, standard picks goals first.
+They differ in work selection priority at the top of the ladder: quality mode picks findings first, then still falls through to the same producer layers before dormancy is allowed.

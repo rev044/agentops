@@ -53,7 +53,7 @@ AgentOps is the local-first DevOps layer around your coding agent. Execution hap
 2. **Least-privilege loading.** Agents receive only the context necessary for their task — phase-specific, role-scoped, freshness-weighted.
 3. **The cycle is the product.** No single skill is the value. The compounding loop — research, plan, validate, build, validate, learn, repeat — is what makes the system improve.
 4. **Two-tier execution.** Orchestrators (`/evolve`, `/rpi`, `/crank`) stay in the main session so you see progress and can intervene. Workers they spawn fork into subagents where results merge back via the filesystem — never accumulated chat context.
-5. **Dormancy is success.** When all goals pass and no work remains, the system stops. It does not manufacture work to justify its existence.
+5. **Dormancy is last resort.** When goals pass and the current backlog is empty, the system keeps generating productive work from tests, validation gaps, bug hunts, drift, and feature suggestions before it finally goes dormant.
 
 ## Usage
 

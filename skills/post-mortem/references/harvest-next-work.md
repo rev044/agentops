@@ -12,7 +12,6 @@ validate_next_work_item() {
   local severity=$(echo "$item" | jq -r '.severity // empty')
   local source=$(echo "$item" | jq -r '.source // empty')
   local description=$(echo "$item" | jq -r '.description // empty')
-  local target_repo=$(echo "$item" | jq -r '.target_repo // empty')
 
   # Required fields
   if [ -z "$title" ] || [ -z "$description" ]; then
@@ -20,15 +19,9 @@ validate_next_work_item() {
     return 1
   fi
 
-  # target_repo required (v1.2)
-  if [ -z "$target_repo" ]; then
-    echo "SCHEMA VALIDATION FAILED: missing target_repo for item '$title'"
-    return 1
-  fi
-
   # Type enum validation
   case "$type" in
-    tech-debt|improvement|pattern-fix|process-improvement) ;;
+    tech-debt|improvement|pattern-fix|process-improvement|feature|bug|task) ;;
     *) echo "SCHEMA VALIDATION FAILED: invalid type '$type' for item '$title'"; return 1 ;;
   esac
 
@@ -40,7 +33,7 @@ validate_next_work_item() {
 
   # Source enum validation
   case "$source" in
-    council-finding|retro-learning|retro-pattern) ;;
+    council-finding|retro-learning|retro-pattern|evolve-generator|feature-suggestion|backlog-processing) ;;
     *) echo "SCHEMA VALIDATION FAILED: invalid source '$source' for item '$title'"; return 1 ;;
   esac
 
@@ -72,7 +65,7 @@ CURRENT_REPO=$(bd config --get prefix 2>/dev/null \
   || basename "$(git remote get-url origin 2>/dev/null)" .git 2>/dev/null \
   || basename "$(pwd)")
 
-# Assign target_repo to each validated item (v1.2):
+# Normalize each validated item before writing:
 #   process-improvement → "*" (applies across all repos)
 #   all other types     → CURRENT_REPO (scoped to this repo)
 for i in "${!VALID_ITEMS[@]}"; do
@@ -88,14 +81,25 @@ done
 # Append one entry per epic (schema v1.2: .agents/rpi/next-work.schema.md)
 # Only include VALID_ITEMS that passed schema validation
 # Each item: {title, type, severity, source, description, evidence, target_repo}
-# Entry fields: source_epic, timestamp, items[], consumed: false
+# Entry fields: source_epic, timestamp, items[], consumed: false, claim_status, claimed_by, claimed_at, consumed_by, consumed_at
 ```
 
 Use the Write tool to append a single JSON line to `.agents/rpi/next-work.jsonl` with:
 - `source_epic`: the epic ID being post-mortemed
 - `timestamp`: current ISO-8601
 - `items`: array of harvested items (min 0 — if nothing found, write entry with empty items array)
-- `consumed`: false, `consumed_by`: null, `consumed_at`: null
+- `consumed`: false, `claim_status`: "available", `claimed_by`: null, `claimed_at`: null, `consumed_by`: null, `consumed_at`: null
+
+## Queue Lifecycle
+
+Writers always append entries in **available** state. Consumers use a claim/finalize lifecycle:
+
+1. **available**: `consumed=false`, `claim_status="available"`
+2. **in_progress**: consumer sets `claim_status="in_progress"`, plus `claimed_by` and `claimed_at`
+3. **consumed**: after a successful `/rpi` cycle and regression gate, consumer sets `consumed=true`, `consumed_by`, and `consumed_at`
+4. **release on failure**: failed or regressed cycles clear `claimed_by` / `claimed_at`, reset `claim_status="available"`, and leave `consumed=false`
+
+Never mark an item consumed at pick-time.
 
 ## Prior-Findings Resolution Tracking
 
