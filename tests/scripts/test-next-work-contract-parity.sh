@@ -58,6 +58,17 @@ run_gate() {
   return "$status"
 }
 
+run_gate_without_rg() {
+  local target_root="$1"
+  local output_file="$2"
+
+  set +e
+  PATH="/usr/bin:/bin" "$GATE_SCRIPT" "$target_root" >"$output_file" 2>&1
+  local status=$?
+  set -e
+  return "$status"
+}
+
 assert_gate_passes() {
   local description="$1"
   local target_root="$2"
@@ -106,6 +117,19 @@ test_script_executable() {
 
 test_repo_baseline_passes() {
   assert_gate_passes "repository baseline passes next-work contract parity gate" "$REPO_ROOT"
+}
+
+test_repo_baseline_passes_without_rg() {
+  local output_file
+  output_file="$(mktemp "$TMP_DIR/output-pass-no-rg-XXXXXX")"
+
+  if run_gate_without_rg "$REPO_ROOT" "$output_file"; then
+    pass "repository baseline passes next-work contract parity gate without rg"
+  else
+    echo "--- output (repository baseline passes next-work contract parity gate without rg) ---"
+    cat "$output_file"
+    fail "repository baseline passes next-work contract parity gate without rg"
+  fi
 }
 
 test_schema_version_drift_fails() {
@@ -215,6 +239,7 @@ echo ""
 
 test_script_executable
 test_repo_baseline_passes
+test_repo_baseline_passes_without_rg
 test_schema_version_drift_fails
 test_runtime_pattern_fix_rank_fails
 test_source_skill_legacy_example_fails

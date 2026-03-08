@@ -44,16 +44,43 @@ fail() {
   failures=$((failures + 1))
 }
 
+have_rg() {
+  command -v rg >/dev/null 2>&1
+}
+
 require_file() {
   local path="$1"
   [[ -f "$path" ]] || fail "missing file: ${path#$ROOT/}"
+}
+
+contains_fixed_file() {
+  local needle="$1"
+  local path="$2"
+
+  if have_rg; then
+    rg -Fq "$needle" "$path"
+    return
+  fi
+
+  grep -Fq -- "$needle" "$path"
+}
+
+contains_fixed_stdin() {
+  local needle="$1"
+
+  if have_rg; then
+    rg -Fq "$needle"
+    return
+  fi
+
+  grep -Fq -- "$needle"
 }
 
 require_contains() {
   local path="$1"
   local needle="$2"
   local label="$3"
-  if ! rg -Fq "$needle" "$path"; then
+  if ! contains_fixed_file "$needle" "$path"; then
     fail "$label"
   fi
 }
@@ -67,9 +94,9 @@ require_section_contains() {
   local section
 
   section="$(awk -v start="$start" -v end="$end" '
-    $0 ~ start {in_section=1}
+    index($0, start) {in_section=1}
     in_section {print}
-    in_section && $0 ~ end {exit}
+    in_section && index($0, end) {exit}
   ' "$path")"
 
   if [[ -z "$section" ]]; then
@@ -77,7 +104,7 @@ require_section_contains() {
     return
   fi
 
-  if ! printf '%s\n' "$section" | rg -Fq "$needle"; then
+  if ! printf '%s\n' "$section" | contains_fixed_stdin "$needle"; then
     fail "$label"
   fi
 }
@@ -91,9 +118,9 @@ require_section_not_contains() {
   local section
 
   section="$(awk -v start="$start" -v end="$end" '
-    $0 ~ start {in_section=1}
+    index($0, start) {in_section=1}
     in_section {print}
-    in_section && $0 ~ end {exit}
+    in_section && index($0, end) {exit}
   ' "$path")"
 
   if [[ -z "$section" ]]; then
@@ -101,7 +128,7 @@ require_section_not_contains() {
     return
   fi
 
-  if printf '%s\n' "$section" | rg -Fq "$needle"; then
+  if printf '%s\n' "$section" | contains_fixed_stdin "$needle"; then
     fail "$label"
   fi
 }
@@ -206,19 +233,19 @@ require_contains "$RUNTIME" 'omitted item `claim_status` semantically' \
   "runtime comments or docs should preserve omitted claim_status semantics"
 
 for skill in "$POST_MORTEM_SKILL" "$POST_MORTEM_CODEX_SKILL"; do
-  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+  require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     ".agents/rpi/next-work.schema.md" \
     "${skill#$ROOT/} ACT.3 must reference the tracked next-work schema"
-  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+  require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     "source_epic:" \
     "${skill#$ROOT/} ACT.3 must show batched next-work entries"
-  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+  require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     "items:" \
     "${skill#$ROOT/} ACT.3 must show batched item arrays"
-  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+  require_section_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     'claim_status: "available"' \
     "${skill#$ROOT/} ACT.3 must initialize entry claim_status"
-  require_section_not_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+  require_section_not_contains "$skill" '#### Step ACT.3: Feed Next-Work' '#### Step ACT.4: Update Marker' \
     'echo "{\"title\":' \
     "${skill#$ROOT/} ACT.3 still contains the legacy flat-row append example"
 done

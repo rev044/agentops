@@ -2,7 +2,7 @@
 
 > Which `ao` commands are called by which skills and hooks — and vice versa.
 
-Auto-audited 2026-03-08. 52 CLI command entries, 52 source skills, 7 runtime hook event sections.
+Auto-audited 2026-03-08. 52 CLI commands, 52 source skills, 7 runtime hook event sections.
 
 Source-of-truth note: `hooks/hooks.json` currently declares 7 runtime hook event sections. Repository hook scripts such as `worktree-setup.sh` are support/setup scripts and are listed separately when relevant.
 
