@@ -15,6 +15,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONVERTER="$REPO_ROOT/skills/converter/scripts/convert.sh"
 MANIFEST_FILE_NAME=".agentops-manifest.json"
 SKILL_MARKER_FILE_NAME=".agentops-generated.json"
+CATALOG_FILE_NAME="catalog.json"
 
 SRC="$REPO_ROOT/skills"
 OUT="$REPO_ROOT/skills-codex"
@@ -312,11 +313,14 @@ sync_output() {
 write_generated_manifest() {
   local built_root="$1"
   local manifest_path="$built_root/$MANIFEST_FILE_NAME"
+  local catalog_path="$OVERRIDES/$CATALOG_FILE_NAME"
   local skill_dirs=()
   local skill_dir
   local skill
   local source_hash
   local generated_hash
+  local catalog_hash=""
+  local catalog_json=""
   local first=1
 
   while IFS= read -r skill_dir; do
@@ -324,11 +328,26 @@ write_generated_manifest() {
     skill_dirs+=("$skill_dir")
   done < <(find "$built_root" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
 
+  if [[ -f "$catalog_path" ]]; then
+    command -v jq >/dev/null 2>&1 || {
+      echo "Error: jq is required to embed $catalog_path into the generated Codex manifest." >&2
+      exit 1
+    }
+    catalog_hash="$(sha256_file "$catalog_path")"
+    catalog_json="$(jq -c '.' "$catalog_path")"
+  fi
+
   {
     printf '{\n'
     printf '  "generator": "scripts/sync-codex-native-skills.sh",\n'
     printf '  "source_root": "skills",\n'
     printf '  "layout": "modular",\n'
+    if [[ -n "$catalog_hash" ]]; then
+      printf '  "codex_override_catalog_hash": "%s",\n' "$catalog_hash"
+    fi
+    if [[ -n "$catalog_json" ]]; then
+      printf '  "codex_override_catalog": %s,\n' "$catalog_json"
+    fi
     printf '  "skills": [\n'
 
     for skill_dir in "${skill_dirs[@]}"; do

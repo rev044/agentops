@@ -107,7 +107,7 @@ find skills -type l  # must be empty — zero symlinks allowed
  # 11. Headless runtime skill smoke (local Claude/Codex sessions; skips missing CLIs)
  bash scripts/validate-headless-runtime-skills.sh
 
- # 12. Codex-first override coverage (core RPI chain has explicit Codex tailoring)
+ # 12. Codex-first override coverage (full skill catalog is classified and covered)
  bash scripts/validate-codex-override-coverage.sh
 
 # Full gate (runs everything above and more):
@@ -134,6 +134,7 @@ Codex is a first-class runtime in this repo.
 
 - `skills/<name>/SKILL.md` is the canonical behavior contract.
 - `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer.
+- `skills-codex-overrides/catalog.json` is the machine-readable treatment map for the full catalog.
 - `skills-codex/<name>/` is generated output and must not be hand-maintained as the source of truth.
 
 When a skill change affects Codex behavior, phrasing, orchestration, or UX:
@@ -146,6 +147,7 @@ When a skill change affects Codex behavior, phrasing, orchestration, or UX:
    ```
 4. Validate the generated bundle:
    ```bash
+   bash scripts/validate-codex-override-coverage.sh
    bash scripts/validate-codex-skill-parity.sh
    bash scripts/validate-codex-generated-artifacts.sh
    bash scripts/validate-codex-install-bundle.sh

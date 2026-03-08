@@ -41,7 +41,8 @@ For Codex skills specifically:
 
 1. `skills/<name>/SKILL.md` is the canonical workflow contract
 2. `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer
-3. `skills-codex/<name>/` is the generated artifact and should be regenerated, not hand-maintained
+3. `skills-codex-overrides/catalog.json` records the Codex treatment decision for every skill
+4. `skills-codex/<name>/` is the generated artifact and should be regenerated, not hand-maintained
 
 
 ## Key concepts to learn first
@@ -101,7 +102,7 @@ CI validates not just builds/tests but also docs parity, hook safety, skill inte
 - Trust runtime files over narrative docs when there is a mismatch.
 - Keep changes small and verify with local gates before pushing.
 - Treat `.agents/` and hooks as first-class parts of the system behavior.
-- Treat Codex as a first-class runtime: when a skill change affects Codex UX or execution style, inspect `skills-codex-overrides/`, regenerate `skills-codex/`, and run the Codex validation scripts.
+- Treat Codex as a first-class runtime: when a skill change affects Codex UX or execution style, inspect `skills-codex-overrides/`, update `skills-codex-overrides/catalog.json` if treatment changes, regenerate `skills-codex/`, and run the Codex validation scripts.
 - If you touch command surfaces or hook contracts, expect related parity checks to fail until updated.
 
 ## Where to go next

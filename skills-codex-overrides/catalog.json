@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "description": "Machine-readable Codex treatment map for the full skill catalog.",
+  "waves": [
+    {
+      "id": "backbone",
+      "description": "Existing bespoke Codex-first overrides for the execution backbone and shared runtime entry points."
+    },
+    {
+      "id": "core-execution",
+      "description": "Primary execution and session-continuity skills that anchor day-to-day Codex work."
+    },
+    {
+      "id": "analysis-authoring",
+      "description": "Analysis and authoring skills where Codex phrasing and artifact expectations materially affect usability."
+    },
+    {
+      "id": "contribution-workflow",
+      "description": "Open source contribution chain skills that need explicit PR-oriented Codex behavior."
+    },
+    {
+      "id": "security-focused",
+      "description": "Security review workflows where findings format and gate semantics need bespoke Codex guidance."
+    },
+    {
+      "id": "catalog-parity",
+      "description": "Skills reviewed explicitly and kept on converter parity until a real Codex-only divergence appears."
+    }
+  ],
+  "skills": [
+    {"name": "athena", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical knowledge-cycle contract is already operationally specific; a bespoke Codex prompt is not justified yet."},
+    {"name": "beads", "treatment": "bespoke", "wave": "backbone", "reason": "Issue routing and dependency edits are a core Codex workflow and need explicit runtime-facing operator guidance."},
+    {"name": "brainstorm", "treatment": "bespoke", "wave": "analysis-authoring", "reason": "Codex benefits from a tighter WHAT-vs-HOW split and clearer decision-capture expectations during idea exploration."},
+    {"name": "bug-hunt", "treatment": "bespoke", "wave": "analysis-authoring", "reason": "Bug audits need Codex-specific findings structure, repro discipline, and validation expectations."},
+    {"name": "codex-team", "treatment": "bespoke", "wave": "backbone", "reason": "This skill is inherently runtime-native and must speak directly to Codex sub-agent orchestration."},
+    {"name": "complexity", "treatment": "bespoke", "wave": "analysis-authoring", "reason": "Complexity analysis in Codex should bias toward ranked hotspots and issue-ready refactor follow-ups."},
+    {"name": "converter", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical converter workflow is already tool-specific and remains sufficient without extra Codex prompt tailoring."},
+    {"name": "council", "treatment": "bespoke", "wave": "backbone", "reason": "Multi-judge review flow and evidence handling differ materially in Codex sessions."},
+    {"name": "crank", "treatment": "bespoke", "wave": "backbone", "reason": "Hands-free execution depends on Codex-native agent control, progress reporting, and scope discipline."},
+    {"name": "doc", "treatment": "bespoke", "wave": "analysis-authoring", "reason": "Documentation work benefits from Codex-specific emphasis on repo-grounded evidence and validation commands."},
+    {"name": "evolve", "treatment": "bespoke", "wave": "backbone", "reason": "The always-on improvement loop needs explicit Codex operating semantics around queues, generators, and persistence."},
+    {"name": "flywheel", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Current flywheel monitoring behavior is file-driven and remains understandable from the generated Codex prompt."},
+    {"name": "forge", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Transcript mining is largely artifact-oriented and does not yet require Codex-only UX differences."},
+    {"name": "goals", "treatment": "bespoke", "wave": "core-execution", "reason": "Goal maintenance in Codex should stay compact, measurable, and immediately actionable."},
+    {"name": "grafana-platform-dashboard", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical dashboard workflow is already highly domain-specific, so converter parity is sufficient for now."},
+    {"name": "handoff", "treatment": "bespoke", "wave": "core-execution", "reason": "Compaction-safe resume handoffs are runtime-sensitive and need explicit Codex pickup guidance."},
+    {"name": "heal-skill", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Skill repair is already procedural and script-led; the generated Codex prompt is adequate."},
+    {"name": "implement", "treatment": "bespoke", "wave": "core-execution", "reason": "Single-issue implementation is a primary Codex workflow and benefits from explicit test-first execution rules."},
+    {"name": "inject", "treatment": "parity_only", "wave": "catalog-parity", "reason": "This deprecated background skill has minimal user-facing surface and does not justify bespoke Codex phrasing."},
+    {"name": "openai-docs", "treatment": "bespoke", "wave": "backbone", "reason": "Official-doc retrieval and citation behavior need explicit Codex tooling guidance."},
+    {"name": "oss-docs", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical OSS documentation workflow is already explicit enough for Codex without a dedicated override."},
+    {"name": "plan", "treatment": "bespoke", "wave": "backbone", "reason": "Planning output must feed the Codex execution chain with issue-ready scope and handoff artifacts."},
+    {"name": "post-mortem", "treatment": "bespoke", "wave": "backbone", "reason": "Harvested follow-up work and closure semantics need Codex-specific framing."},
+    {"name": "pr-implement", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "Fork-based contribution work needs explicit Codex guidance around isolation, scope control, and proof of completion."},
+    {"name": "pr-plan", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "PR planning benefits from concise Codex framing around contribution scope, risk, and upstream fit."},
+    {"name": "pr-prep", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "Preparing a PR in Codex needs a tighter artifact checklist and explicit user-review boundary."},
+    {"name": "pr-research", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "Upstream research works better in Codex with explicit evidence capture and maintainer-pattern extraction."},
+    {"name": "pr-retro", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "Contribution retros should emphasize actionable maintainer feedback patterns in a Codex-native format."},
+    {"name": "pr-validate", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "PR validation in Codex should lead with isolation, regression, and scope-creep findings."},
+    {"name": "pre-mortem", "treatment": "bespoke", "wave": "core-execution", "reason": "Go/no-go judgment depends on Codex-specific gate framing and concise blocker reporting."},
+    {"name": "product", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical interview-and-synthesis loop already defines the interaction strongly enough for Codex."},
+    {"name": "provenance", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Knowledge-lineage tracing is largely read-only and does not yet need Codex-specific prompt shaping."},
+    {"name": "push", "treatment": "bespoke", "wave": "core-execution", "reason": "Validate-commit-push flow must align with Codex gate discipline and remote-verification habits."},
+    {"name": "quickstart", "treatment": "bespoke", "wave": "backbone", "reason": "First-run onboarding should reflect Codex runtime expectations rather than generic converted wording."},
+    {"name": "ratchet", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Ratchet commands are procedural and already map cleanly into the generated Codex prompt."},
+    {"name": "readme", "treatment": "bespoke", "wave": "analysis-authoring", "reason": "README generation benefits from Codex-specific interview brevity, artifact output, and validation focus."},
+    {"name": "recover", "treatment": "bespoke", "wave": "core-execution", "reason": "Context recovery is runtime-sensitive and needs Codex-specific evidence ordering and resume output."},
+    {"name": "release", "treatment": "bespoke", "wave": "core-execution", "reason": "Release preparation needs explicit Codex operator guidance around gates, boundaries, and tagging."},
+    {"name": "research", "treatment": "bespoke", "wave": "backbone", "reason": "Parallel exploration and artifact capture differ materially in Codex sessions."},
+    {"name": "retro", "treatment": "bespoke", "wave": "backbone", "reason": "Quick learning capture should reflect Codex session habits and artifact-first closure."},
+    {"name": "reverse-engineer-rpi", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical reverse-engineering workflow is already prescriptive enough that converter parity is acceptable for now."},
+    {"name": "rpi", "treatment": "bespoke", "wave": "backbone", "reason": "The lead orchestration path and disk-backed state contract require explicit Codex-native operating rules."},
+    {"name": "security", "treatment": "bespoke", "wave": "security-focused", "reason": "Security review needs findings-first Codex output and clear release-gate semantics."},
+    {"name": "security-suite", "treatment": "bespoke", "wave": "security-focused", "reason": "Composable security tooling benefits from Codex-specific artifact discipline and policy-oriented reporting."},
+    {"name": "shared", "treatment": "parity_only", "wave": "catalog-parity", "reason": "This non-invocable shared-reference skill does not need bespoke Codex prompt wording."},
+    {"name": "standards", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Standards are loaded as reference material and do not currently need a Codex-specific prompt layer."},
+    {"name": "status", "treatment": "bespoke", "wave": "core-execution", "reason": "Status output should be concise, operational, and resume-friendly in Codex."},
+    {"name": "swarm", "treatment": "bespoke", "wave": "backbone", "reason": "Parallel worker execution depends directly on Codex-native sub-agent patterns and ownership rules."},
+    {"name": "trace", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Current trace workflows are evidence-driven and remain sufficiently clear under converter parity."},
+    {"name": "update", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Skill reinstall/update flow is script-led and does not need extra Codex-native phrasing."},
+    {"name": "using-agentops", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The meta-skill already serves as explanatory reference material, so converter parity is acceptable."},
+    {"name": "vibe", "treatment": "bespoke", "wave": "backbone", "reason": "Ship-readiness review output must match Codex findings-first review ergonomics and repo gates."}
+  ]
+}

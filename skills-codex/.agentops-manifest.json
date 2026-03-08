@@ -2,6 +2,8 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_root": "skills",
   "layout": "modular",
+  "codex_override_catalog_hash": "d5afc832ebbe479ce4cd78d29e55692aa09fcb71294f8e94218be905926900ab",
+  "codex_override_catalog": {"version":1,"description":"Machine-readable Codex treatment map for the full skill catalog.","waves":[{"id":"backbone","description":"Existing bespoke Codex-first overrides for the execution backbone and shared runtime entry points."},{"id":"core-execution","description":"Primary execution and session-continuity skills that anchor day-to-day Codex work."},{"id":"analysis-authoring","description":"Analysis and authoring skills where Codex phrasing and artifact expectations materially affect usability."},{"id":"contribution-workflow","description":"Open source contribution chain skills that need explicit PR-oriented Codex behavior."},{"id":"security-focused","description":"Security review workflows where findings format and gate semantics need bespoke Codex guidance."},{"id":"catalog-parity","description":"Skills reviewed explicitly and kept on converter parity until a real Codex-only divergence appears."}],"skills":[{"name":"athena","treatment":"parity_only","wave":"catalog-parity","reason":"The canonical knowledge-cycle contract is already operationally specific; a bespoke Codex prompt is not justified yet."},{"name":"beads","treatment":"bespoke","wave":"backbone","reason":"Issue routing and dependency edits are a core Codex workflow and need explicit runtime-facing operator guidance."},{"name":"brainstorm","treatment":"bespoke","wave":"analysis-authoring","reason":"Codex benefits from a tighter WHAT-vs-HOW split and clearer decision-capture expectations during idea exploration."},{"name":"bug-hunt","treatment":"bespoke","wave":"analysis-authoring","reason":"Bug audits need Codex-specific findings structure, repro discipline, and validation expectations."},{"name":"codex-team","treatment":"bespoke","wave":"backbone","reason":"This skill is inherently runtime-native and must speak directly to Codex sub-agent orchestration."},{"name":"complexity","treatment":"bespoke","wave":"analysis-authoring","reason":"Complexity analysis in Codex should bias toward ranked hotspots and issue-ready refactor follow-ups."},{"name":"converter","treatment":"parity_only","wave":"catalog-parity","reason":"The canonical converter workflow is already tool-specific and remains sufficient without extra Codex prompt tailoring."},{"name":"council","treatment":"bespoke","wave":"backbone","reason":"Multi-judge review flow and evidence handling differ materially in Codex sessions."},{"name":"crank","treatment":"bespoke","wave":"backbone","reason":"Hands-free execution depends on Codex-native agent control, progress reporting, and scope discipline."},{"name":"doc","treatment":"bespoke","wave":"analysis-authoring","reason":"Documentation work benefits from Codex-specific emphasis on repo-grounded evidence and validation commands."},{"name":"evolve","treatment":"bespoke","wave":"backbone","reason":"The always-on improvement loop needs explicit Codex operating semantics around queues, generators, and persistence."},{"name":"flywheel","treatment":"parity_only","wave":"catalog-parity","reason":"Current flywheel monitoring behavior is file-driven and remains understandable from the generated Codex prompt."},{"name":"forge","treatment":"parity_only","wave":"catalog-parity","reason":"Transcript mining is largely artifact-oriented and does not yet require Codex-only UX differences."},{"name":"goals","treatment":"bespoke","wave":"core-execution","reason":"Goal maintenance in Codex should stay compact, measurable, and immediately actionable."},{"name":"grafana-platform-dashboard","treatment":"parity_only","wave":"catalog-parity","reason":"The canonical dashboard workflow is already highly domain-specific, so converter parity is sufficient for now."},{"name":"handoff","treatment":"bespoke","wave":"core-execution","reason":"Compaction-safe resume handoffs are runtime-sensitive and need explicit Codex pickup guidance."},{"name":"heal-skill","treatment":"parity_only","wave":"catalog-parity","reason":"Skill repair is already procedural and script-led; the generated Codex prompt is adequate."},{"name":"implement","treatment":"bespoke","wave":"core-execution","reason":"Single-issue implementation is a primary Codex workflow and benefits from explicit test-first execution rules."},{"name":"inject","treatment":"parity_only","wave":"catalog-parity","reason":"This deprecated background skill has minimal user-facing surface and does not justify bespoke Codex phrasing."},{"name":"openai-docs","treatment":"bespoke","wave":"backbone","reason":"Official-doc retrieval and citation behavior need explicit Codex tooling guidance."},{"name":"oss-docs","treatment":"parity_only","wave":"catalog-parity","reason":"The canonical OSS documentation workflow is already explicit enough for Codex without a dedicated override."},{"name":"plan","treatment":"bespoke","wave":"backbone","reason":"Planning output must feed the Codex execution chain with issue-ready scope and handoff artifacts."},{"name":"post-mortem","treatment":"bespoke","wave":"backbone","reason":"Harvested follow-up work and closure semantics need Codex-specific framing."},{"name":"pr-implement","treatment":"bespoke","wave":"contribution-workflow","reason":"Fork-based contribution work needs explicit Codex guidance around isolation, scope control, and proof of completion."},{"name":"pr-plan","treatment":"bespoke","wave":"contribution-workflow","reason":"PR planning benefits from concise Codex framing around contribution scope, risk, and upstream fit."},{"name":"pr-prep","treatment":"bespoke","wave":"contribution-workflow","reason":"Preparing a PR in Codex needs a tighter artifact checklist and explicit user-review boundary."},{"name":"pr-research","treatment":"bespoke","wave":"contribution-workflow","reason":"Upstream research works better in Codex with explicit evidence capture and maintainer-pattern extraction."},{"name":"pr-retro","treatment":"bespoke","wave":"contribution-workflow","reason":"Contribution retros should emphasize actionable maintainer feedback patterns in a Codex-native format."},{"name":"pr-validate","treatment":"bespoke","wave":"contribution-workflow","reason":"PR validation in Codex should lead with isolation, regression, and scope-creep findings."},{"name":"pre-mortem","treatment":"bespoke","wave":"core-execution","reason":"Go/no-go judgment depends on Codex-specific gate framing and concise blocker reporting."},{"name":"product","treatment":"parity_only","wave":"catalog-parity","reason":"The canonical interview-and-synthesis loop already defines the interaction strongly enough for Codex."},{"name":"provenance","treatment":"parity_only","wave":"catalog-parity","reason":"Knowledge-lineage tracing is largely read-only and does not yet need Codex-specific prompt shaping."},{"name":"push","treatment":"bespoke","wave":"core-execution","reason":"Validate-commit-push flow must align with Codex gate discipline and remote-verification habits."},{"name":"quickstart","treatment":"bespoke","wave":"backbone","reason":"First-run onboarding should reflect Codex runtime expectations rather than generic converted wording."},{"name":"ratchet","treatment":"parity_only","wave":"catalog-parity","reason":"Ratchet commands are procedural and already map cleanly into the generated Codex prompt."},{"name":"readme","treatment":"bespoke","wave":"analysis-authoring","reason":"README generation benefits from Codex-specific interview brevity, artifact output, and validation focus."},{"name":"recover","treatment":"bespoke","wave":"core-execution","reason":"Context recovery is runtime-sensitive and needs Codex-specific evidence ordering and resume output."},{"name":"release","treatment":"bespoke","wave":"core-execution","reason":"Release preparation needs explicit Codex operator guidance around gates, boundaries, and tagging."},{"name":"research","treatment":"bespoke","wave":"backbone","reason":"Parallel exploration and artifact capture differ materially in Codex sessions."},{"name":"retro","treatment":"bespoke","wave":"backbone","reason":"Quick learning capture should reflect Codex session habits and artifact-first closure."},{"name":"reverse-engineer-rpi","treatment":"parity_only","wave":"catalog-parity","reason":"The canonical reverse-engineering workflow is already prescriptive enough that converter parity is acceptable for now."},{"name":"rpi","treatment":"bespoke","wave":"backbone","reason":"The lead orchestration path and disk-backed state contract require explicit Codex-native operating rules."},{"name":"security","treatment":"bespoke","wave":"security-focused","reason":"Security review needs findings-first Codex output and clear release-gate semantics."},{"name":"security-suite","treatment":"bespoke","wave":"security-focused","reason":"Composable security tooling benefits from Codex-specific artifact discipline and policy-oriented reporting."},{"name":"shared","treatment":"parity_only","wave":"catalog-parity","reason":"This non-invocable shared-reference skill does not need bespoke Codex prompt wording."},{"name":"standards","treatment":"parity_only","wave":"catalog-parity","reason":"Standards are loaded as reference material and do not currently need a Codex-specific prompt layer."},{"name":"status","treatment":"bespoke","wave":"core-execution","reason":"Status output should be concise, operational, and resume-friendly in Codex."},{"name":"swarm","treatment":"bespoke","wave":"backbone","reason":"Parallel worker execution depends directly on Codex-native sub-agent patterns and ownership rules."},{"name":"trace","treatment":"parity_only","wave":"catalog-parity","reason":"Current trace workflows are evidence-driven and remain sufficiently clear under converter parity."},{"name":"update","treatment":"parity_only","wave":"catalog-parity","reason":"Skill reinstall/update flow is script-led and does not need extra Codex-native phrasing."},{"name":"using-agentops","treatment":"parity_only","wave":"catalog-parity","reason":"The meta-skill already serves as explanatory reference material, so converter parity is acceptable."},{"name":"vibe","treatment":"bespoke","wave":"backbone","reason":"Ship-readiness review output must match Codex findings-first review ergonomics and repo gates."}]},
   "skills": [
     {
       "name": "athena",
@@ -19,13 +21,13 @@
       "name": "brainstorm",
       "source_skill": "skills/brainstorm",
       "source_hash": "1b11fc1af96967ccdaa33e13d80755496919bcced6710e9ab638dd90bc505e28",
-      "generated_hash": "1c5b2810045b4c30d4448fd14df0cf2154dbf37078c70520464a05e6e2c1cfe6"
+      "generated_hash": "06131d5dd3da0291a6ba8bba592542330b9fb70c5ff3aeaccc09d0bb698c2ff2"
     },
     {
       "name": "bug-hunt",
       "source_skill": "skills/bug-hunt",
       "source_hash": "2e8185d7d29353bfcacc6492fee16b634222f8439c51593fb7e7f0eea2678cf8",
-      "generated_hash": "f24a5d6797ef72ac3df8bdc0823b1b44479ae459f326da6d36d6e48db50a573d"
+      "generated_hash": "b9174a5e6234488d4e7c83760c061f16ad292c49c4e48a1c3be3bb5670df78fd"
     },
     {
       "name": "codex-team",
@@ -37,7 +39,7 @@
       "name": "complexity",
       "source_skill": "skills/complexity",
       "source_hash": "de91f71586111a2277d6ccdf0301eeffd0fb2dc83e9f130d10807aec9fc7b9f5",
-      "generated_hash": "0ac47f64a754b3270f4b75e2d08d24e122f32b45040ea2e5363f92d987e0ea60"
+      "generated_hash": "f4f205d75de4725af4ae8e5f26d02cc91355cfd27c4548cb3f59f62a15be4397"
     },
     {
       "name": "converter",
@@ -61,7 +63,7 @@
       "name": "doc",
       "source_skill": "skills/doc",
       "source_hash": "2340fcdd482613ec611c9b4455aa172e824d93c620fd50864467058417893376",
-      "generated_hash": "fcf52805ea10cf0a9472d9703b5daa442dabccf50248efb392a792b1491ec674"
+      "generated_hash": "8ee636c136488fd92e26461e628f426c8363c5e86f8c2e23209b517fe85d08e7"
     },
     {
       "name": "evolve",
@@ -85,7 +87,7 @@
       "name": "goals",
       "source_skill": "skills/goals",
       "source_hash": "4eef0404176a6345265670378c4d20f4c92b783318e49ae4c673688e203b1124",
-      "generated_hash": "5bb17b30ddb77bf5366df9054a1303a11617a5e9ffecaac93624132767286460"
+      "generated_hash": "e1e07ef096f469ab886d517bd2779dedf20c2b13e36f5f5790201ba8e4e01560"
     },
     {
       "name": "grafana-platform-dashboard",
@@ -97,7 +99,7 @@
       "name": "handoff",
       "source_skill": "skills/handoff",
       "source_hash": "b706f6f249b11cba643982b46927fd6fc41156844233986487c2b5faf6d0096a",
-      "generated_hash": "badf1e48111b306a9ceabbd9e3c4a62c66cf2211b0e4fae8f0cd7d4cad0b182a"
+      "generated_hash": "87951b2cab30033070dfaeb03ddb3524e1333ca578ac9e4aec65764210a12a90"
     },
     {
       "name": "heal-skill",
@@ -109,7 +111,7 @@
       "name": "implement",
       "source_skill": "skills/implement",
       "source_hash": "3f7b4804e34404e6a624122170bfd9b7ed0bee0b0f10e9079eace8625614a8c2",
-      "generated_hash": "493a434050e8f1db317010fecfa4a82d0b5a5cfa18dffba1f8b640c6af740ac7"
+      "generated_hash": "9d03e5dd76794513efef16e32a5b39dd07736d86293e62f4c6e62ec49e5bfc0d"
     },
     {
       "name": "inject",
@@ -145,43 +147,43 @@
       "name": "pr-implement",
       "source_skill": "skills/pr-implement",
       "source_hash": "c06a85c50586cd92b32cfd0fab36bbb99ab94fefd720405bd041f26be0bbd72c",
-      "generated_hash": "e6719c872edf43e983ab862b2d4bdb31c2484177b5abd7d301495281855cf5c3"
+      "generated_hash": "932959dc1e62b84a01f43d8b1b4dd4f8a76f57d3eccdc3dd73c6da4478e1b1dc"
     },
     {
       "name": "pr-plan",
       "source_skill": "skills/pr-plan",
       "source_hash": "bfca2f1c9c15cf31c0003417cfad84575a32a60f3db3e8f0374e54a38dcea441",
-      "generated_hash": "051640612a82e6bc9e2ab69c0bdf9c6e053a2018e2afe276b6955c25a400c7c6"
+      "generated_hash": "fefb6c665833ff466758116152f45b625d87915e97e69e593bb9b6c5b0c877ae"
     },
     {
       "name": "pr-prep",
       "source_skill": "skills/pr-prep",
       "source_hash": "60ca4a8e3a495d4e55857f9bd0bf4acf699fed6388494fb415962135976d05b9",
-      "generated_hash": "d18be0a27b9390cee00dcf86c4fd808b37a822236a7ff76929b7d59656d030c3"
+      "generated_hash": "c36af726633300ec840293ebeec60bb7836e1bc2e0084191b9e883631a505501"
     },
     {
       "name": "pr-research",
       "source_skill": "skills/pr-research",
       "source_hash": "c130318d32608f3f42c609da768c7a53c88e314b897f05f4740ab31d0ba722bd",
-      "generated_hash": "cf2a32d538087d7da64348d9bbfc5bf6d7a741f533c3bfa9861617b942bc4826"
+      "generated_hash": "690c32a8d4387cfcf257a2da1335bb81bbc9037b35d9f4d46d49df480d10e24c"
     },
     {
       "name": "pr-retro",
       "source_skill": "skills/pr-retro",
       "source_hash": "6d30dc54d41c484331243c9e5958b5bdeaf5d0259830f8bc7afecbc7c8f965d3",
-      "generated_hash": "21659c8017d85b80fefb9f2184173428baa12f8621036f85fffa59762194f852"
+      "generated_hash": "7c795ac6980b7548faad48000313b1f3d956011def25c2a0dc7337db2bfde663"
     },
     {
       "name": "pr-validate",
       "source_skill": "skills/pr-validate",
       "source_hash": "3ebfa8af8302a25ca4719863a96a7640711b0cadfcb171a1bacdf41527b9edb5",
-      "generated_hash": "104301a3ac1170ad5e901dbbdd644c825fca52fc1290a62daab16dfc33f0ffd6"
+      "generated_hash": "41c7bc7cb1fdf5c6a05f851840815125c82253ce641fc91b66d191dd91619acc"
     },
     {
       "name": "pre-mortem",
       "source_skill": "skills/pre-mortem",
       "source_hash": "48838e1fe5a3580741e1d8e7a326af4db978638a3dd5d2d11027960606e0c2ca",
-      "generated_hash": "6ccdad5ce49b9386427f9476c38d04d0b84ca11b7168851675f094fdf7a69a86"
+      "generated_hash": "287849bc124a70d1ebb8556af52334e6ac9e6dd9fb55b0f0623ac9be93f4f030"
     },
     {
       "name": "product",
@@ -199,7 +201,7 @@
       "name": "push",
       "source_skill": "skills/push",
       "source_hash": "69461f67d4714e470e7b0cc40e3705dbf56812f3065fa2206407866053056be4",
-      "generated_hash": "99d522ac34213cd2cac2543fcbfcffbbdcb7c0c90c775804d7bd9076edd05109"
+      "generated_hash": "9356bfc9acc7fd0710542e2d4919ff9cdea8199efeac507e53cd84d774991a2f"
     },
     {
       "name": "quickstart",
@@ -217,19 +219,19 @@
       "name": "readme",
       "source_skill": "skills/readme",
       "source_hash": "e2ae11f20555d1c10249777a812ebabaa1b513381a03cef4bf463971faed6960",
-      "generated_hash": "e6e3b6ea9b243af9073b0cc4b0185365085d20a30049b3bad4da70533db22bd4"
+      "generated_hash": "da17c60bdc29c2a6391b261bae624b7c68256375d782d5990b033aa1ae0d3a59"
     },
     {
       "name": "recover",
       "source_skill": "skills/recover",
       "source_hash": "b81d186f9a50c3131f4f1bc203cd4765feaa545bb23878316d9bf3549bf0e07e",
-      "generated_hash": "7582634071932fda5117bc1f5ade12b54bac81369c537c09ff75eae0f742c294"
+      "generated_hash": "1be99e7c058490a0ea06f7098b51f2eff3205e8ed9250789be7b41ebdec93769"
     },
     {
       "name": "release",
       "source_skill": "skills/release",
       "source_hash": "7844c1325e258feede47775e855b9f882bfaccf5f7ae6db352a9e06402e2bf5d",
-      "generated_hash": "afcf7c921130882b277a79ff1e0ee2c126ee711f8de00844360926369b237966"
+      "generated_hash": "5e5233cfc1ed0f58719d37e49ca989490b3271b8a4b15a8a181a5a7ed41bb0da"
     },
     {
       "name": "research",
@@ -259,13 +261,13 @@
       "name": "security",
       "source_skill": "skills/security",
       "source_hash": "7748243f32a4e8abcaec227748d59776673d3e0ba968a748a3e4fa8021c882cc",
-      "generated_hash": "e24cca5367da70ad3332d24c950cd0467f3c73d8cdb642c058eea5c328b9eed8"
+      "generated_hash": "2894015c7428e735ab7969c0a5fa95a2cd5c7395303d5bc147c3272db25904aa"
     },
     {
       "name": "security-suite",
       "source_skill": "skills/security-suite",
       "source_hash": "f293e988d48fdcd9e71f476eba3f7a9bf4e519f989f09711f800ccc795ed408c",
-      "generated_hash": "412b6beb9fa98b2f048097d5afe896151075a1bb5a8465ee6fdeaafce9d7373b"
+      "generated_hash": "2207ca751a2f2e19fa800557a05f60c80bccf8d1e1799a7915cf14e8ed68a878"
     },
     {
       "name": "shared",
@@ -283,7 +285,7 @@
       "name": "status",
       "source_skill": "skills/status",
       "source_hash": "293dff204519e2558f7283d281798f4db53b1c72d28ddb80d292558cb10ce890",
-      "generated_hash": "c8fa7c1e5568f84d38574f31c0b24ae25180b8b448e32296ab0dd42d7a8d2578"
+      "generated_hash": "93899c199978b681e784680168b8c2d92f9c07cbf87c0b046c14b4e22fe5c9a4"
     },
     {
       "name": "swarm",
