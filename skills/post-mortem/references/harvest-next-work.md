@@ -78,10 +78,14 @@ for i in "${!VALID_ITEMS[@]}"; do
   fi
 done
 
-# Append one entry per epic (schema v1.2: .agents/rpi/next-work.schema.md)
+# Append one entry per epic (schema v1.3: .agents/rpi/next-work.schema.md)
 # Only include VALID_ITEMS that passed schema validation
 # Each item: {title, type, severity, source, description, evidence, target_repo}
-# Entry fields: source_epic, timestamp, items[], consumed: false, claim_status, claimed_by, claimed_at, consumed_by, consumed_at
+# Entry aggregate fields: source_epic, timestamp, items[], consumed: false,
+#   claim_status: "available", claimed_by: null, claimed_at: null,
+#   consumed_by: null, consumed_at: null
+# Item lifecycle fields are optional on write and are populated by consumers:
+#   claim_status, claimed_by, claimed_at, consumed, consumed_by, consumed_at, failed_at
 ```
 
 Use the Write tool to append a single JSON line to `.agents/rpi/next-work.jsonl` with:
@@ -92,12 +96,18 @@ Use the Write tool to append a single JSON line to `.agents/rpi/next-work.jsonl`
 
 ## Queue Lifecycle
 
-Writers always append entries in **available** state. Consumers use a claim/finalize lifecycle:
+Writers always append entries in **available** state. Consumers use a claim/finalize lifecycle. In batched entries, lifecycle is tracked per item; the entry-level fields are aggregate summaries only:
 
-1. **available**: `consumed=false`, `claim_status="available"`
-2. **in_progress**: consumer sets `claim_status="in_progress"`, plus `claimed_by` and `claimed_at`
-3. **consumed**: after a successful `/rpi` cycle and regression gate, consumer sets `consumed=true`, `consumed_by`, and `consumed_at`
-4. **release on failure**: failed or regressed cycles clear `claimed_by` / `claimed_at`, reset `claim_status="available"`, and leave `consumed=false`
+1. **available**: item has `consumed=false`, `claim_status="available"` (or omitted status, which consumers treat as available)
+2. **in_progress**: consumer sets item `claim_status="in_progress"`, plus `claimed_by` and `claimed_at`
+3. **consumed**: after a successful `/rpi` cycle and regression gate, consumer sets item `consumed=true`, `claim_status="consumed"`, `consumed_by`, and `consumed_at`
+4. **release on failure**: failed or regressed cycles clear item `claimed_by` / `claimed_at`, reset `claim_status="available"`, keep `consumed=false`, and may record `failed_at`
+
+Selection rules:
+- skip items that are `consumed=true`
+- skip items currently claimed with `claim_status="in_progress"`
+- keep failed items retryable; `failed_at` is audit/retry-order metadata, not dormancy
+- only mark the entry aggregate `consumed=true` once every child item is consumed
 
 Never mark an item consumed at pick-time.
 
@@ -116,7 +126,7 @@ if [ -f "$NEXT_WORK" ]; then
         {entries:0,total:0,resolved:0};
         .entries += 1
         | .total += ($e.items | length)
-        | .resolved += (if ($e.consumed // false) then ($e.items | length) else 0 end)
+        | .resolved += ([($e.items // [])[] | select((.consumed // false) == true)] | length)
       )
     | .unresolved = (.total - .resolved)
     | .rate = (if .total > 0 then ((.resolved * 10000 / .total) | round / 100) else 0 end)
@@ -128,7 +138,7 @@ if [ -f "$NEXT_WORK" ]; then
     | map({
         source_epic,
         total: (.items | length),
-        resolved: (if (.consumed // false) then (.items | length) else 0 end)
+        resolved: ([((.items // [])[]) | select((.consumed // false) == true)] | length)
       })
     | group_by(.source_epic)
     | map({

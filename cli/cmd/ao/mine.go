@@ -624,12 +624,15 @@ func loadExistingMineIDs(path string) (map[string]bool, error) {
 // writeMineWorkItems appends one JSONL line per work item to the given path.
 func writeMineWorkItems(path string, items []mineWorkItemEmit, ts string) error {
 	type emitEntry struct {
-		SourceEpic string             `json:"source_epic"`
-		Timestamp  string             `json:"timestamp"`
-		Items      []mineWorkItemEmit `json:"items"`
-		Consumed   bool               `json:"consumed"`
-		ConsumedBy *string            `json:"consumed_by"`
-		ConsumedAt *string            `json:"consumed_at"`
+		SourceEpic  string             `json:"source_epic"`
+		Timestamp   string             `json:"timestamp"`
+		Items       []mineWorkItemEmit `json:"items"`
+		Consumed    bool               `json:"consumed"`
+		ClaimStatus string             `json:"claim_status,omitempty"`
+		ClaimedBy   *string            `json:"claimed_by,omitempty"`
+		ClaimedAt   *string            `json:"claimed_at,omitempty"`
+		ConsumedBy  *string            `json:"consumed_by"`
+		ConsumedAt  *string            `json:"consumed_at"`
 	}
 
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640)
@@ -640,10 +643,11 @@ func writeMineWorkItems(path string, items []mineWorkItemEmit, ts string) error 
 
 	for _, item := range items {
 		entry := emitEntry{
-			SourceEpic: "athena-mine",
-			Timestamp:  ts,
-			Items:      []mineWorkItemEmit{item},
-			Consumed:   false,
+			SourceEpic:  "athena-mine",
+			Timestamp:   ts,
+			Items:       []mineWorkItemEmit{item},
+			Consumed:    false,
+			ClaimStatus: "available",
 		}
 		data, err := json.Marshal(entry)
 		if err != nil {

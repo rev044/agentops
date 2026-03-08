@@ -953,14 +953,14 @@ func TestMarkEntryFailed_SetsFailedAt(t *testing.T) {
 		t.Fatalf("markEntryFailed: %v", err)
 	}
 
-	// After marking failed, the entry should NOT appear in unconsumed items
-	// (failed entries are excluded by readQueueEntries).
+	// After marking failed, the entry should remain retryable. markEntryFailed
+	// now records audit metadata and releases the item back to available state.
 	items, err := readUnconsumedItems(path, "")
 	if err != nil {
 		t.Fatalf("readUnconsumedItems after fail: %v", err)
 	}
-	if len(items) != 0 {
-		t.Errorf("expected 0 items after marking failed, got %d", len(items))
+	if len(items) != 1 {
+		t.Errorf("expected 1 retryable item after marking failed, got %d", len(items))
 	}
 }
 

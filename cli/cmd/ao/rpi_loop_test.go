@@ -697,12 +697,12 @@ func TestQueueMarkFailed_Basic(t *testing.T) {
 	path := filepath.Join(tmpDir, "next-work.jsonl")
 
 	entries := []nextWorkEntry{
-		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failing item"}}, Consumed: false},
+		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failing item"}}, Consumed: false, ClaimStatus: "available"},
 	}
 	writeJSONL(t, path, entries)
 
-	if err := markEntryFailed(path, 0); err != nil {
-		t.Fatalf("markEntryFailed: %v", err)
+	if err := markItemFailed(path, 0, 0); err != nil {
+		t.Fatalf("markItemFailed: %v", err)
 	}
 
 	got := readJSONLEntries(t, path)
@@ -711,6 +711,12 @@ func TestQueueMarkFailed_Basic(t *testing.T) {
 	}
 	if got[0].FailedAt == nil {
 		t.Errorf("expected FailedAt to be set")
+	}
+	if got[0].Items[0].FailedAt == nil {
+		t.Errorf("expected item-level FailedAt to be set")
+	}
+	if got[0].Items[0].ClaimStatus != "available" {
+		t.Errorf("failed item claim_status = %q, want available", got[0].Items[0].ClaimStatus)
 	}
 }
 
@@ -748,19 +754,19 @@ func TestQueueMarkFailed_Idempotent(t *testing.T) {
 	path := filepath.Join(tmpDir, "next-work.jsonl")
 
 	entries := []nextWorkEntry{
-		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failing item"}}, Consumed: false},
+		{SourceEpic: "ag-fail", Items: []nextWorkItem{{Title: "Failing item"}}, Consumed: false, ClaimStatus: "available"},
 	}
 	writeJSONL(t, path, entries)
 
-	if err := markEntryFailed(path, 0); err != nil {
-		t.Fatalf("first markEntryFailed: %v", err)
+	if err := markItemFailed(path, 0, 0); err != nil {
+		t.Fatalf("first markItemFailed: %v", err)
 	}
 	first := readJSONLEntries(t, path)
 	firstTime := *first[0].FailedAt
 
 	// Mark again (idempotent - updates timestamp but remains non-consumed).
-	if err := markEntryFailed(path, 0); err != nil {
-		t.Fatalf("second markEntryFailed: %v", err)
+	if err := markItemFailed(path, 0, 0); err != nil {
+		t.Fatalf("second markItemFailed: %v", err)
 	}
 	second := readJSONLEntries(t, path)
 	if second[0].Consumed {
@@ -771,6 +777,49 @@ func TestQueueMarkFailed_Idempotent(t *testing.T) {
 		t.Errorf("FailedAt should still be set after second call")
 	}
 	_ = firstTime // both are valid
+}
+
+func TestMarkItemClaimedAndReleased(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic:  "ag-claim",
+		ClaimStatus: "available",
+		Items: []nextWorkItem{
+			{Title: "Item A", Severity: "high"},
+			{Title: "Item B", Severity: "medium"},
+		},
+	}
+	writeJSONL(t, path, []nextWorkEntry{entry})
+
+	if err := markItemClaimed(path, 0, 0, "loop:cycle-1"); err != nil {
+		t.Fatalf("markItemClaimed: %v", err)
+	}
+	claimed := readJSONLEntries(t, path)
+	if claimed[0].ClaimStatus != "in_progress" {
+		t.Fatalf("entry claim_status = %q, want in_progress", claimed[0].ClaimStatus)
+	}
+	if claimed[0].Items[0].ClaimStatus != "in_progress" {
+		t.Fatalf("item claim_status = %q, want in_progress", claimed[0].Items[0].ClaimStatus)
+	}
+	if claimed[0].Items[1].ClaimStatus != "available" {
+		t.Fatalf("untouched sibling claim_status = %q, want available", claimed[0].Items[1].ClaimStatus)
+	}
+
+	if err := releaseItemClaim(path, 0, 0); err != nil {
+		t.Fatalf("releaseItemClaim: %v", err)
+	}
+	released := readJSONLEntries(t, path)
+	if released[0].ClaimStatus != "available" {
+		t.Fatalf("entry claim_status = %q, want available", released[0].ClaimStatus)
+	}
+	if released[0].Items[0].ClaimStatus != "available" {
+		t.Fatalf("item claim_status = %q, want available", released[0].Items[0].ClaimStatus)
+	}
+	if released[0].Items[0].ClaimedBy != nil || released[0].Items[0].ClaimedAt != nil {
+		t.Fatal("released item should clear claimed_by/claimed_at")
+	}
 }
 
 func TestQueueMarkConsumed_MissingFile(t *testing.T) {
@@ -813,7 +862,7 @@ func TestReadQueueEntries_SkipsConsumed(t *testing.T) {
 	}
 }
 
-func TestReadQueueEntries_SkipsFailed(t *testing.T) {
+func TestReadQueueEntries_SkipsLegacyFailedEntries(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")
 
@@ -833,6 +882,40 @@ func TestReadQueueEntries_SkipsFailed(t *testing.T) {
 	}
 	if got[0].SourceEpic != "ag-open" {
 		t.Errorf("expected ag-open, got %q", got[0].SourceEpic)
+	}
+}
+
+func TestReadQueueEntries_KeepsPerItemFailedEntriesSelectable(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	failedAt := "2026-02-10T00:00:00Z"
+	entries := []nextWorkEntry{
+		{
+			SourceEpic:  "ag-batch",
+			ClaimStatus: "available",
+			FailedAt:    &failedAt,
+			Items: []nextWorkItem{
+				{Title: "Retry me later", Severity: "high", ClaimStatus: "available", FailedAt: &failedAt},
+				{Title: "Fresh sibling", Severity: "medium"},
+			},
+		},
+	}
+	writeJSONL(t, path, entries)
+
+	got, err := readQueueEntries(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 eligible entry, got %d", len(got))
+	}
+	sel := selectHighestSeverityEntry(got, "")
+	if sel == nil {
+		t.Fatal("expected selection, got nil")
+	}
+	if sel.Item.Title != "Fresh sibling" {
+		t.Fatalf("selected %q, want fresh sibling before retryable failed item", sel.Item.Title)
 	}
 }
 
@@ -1304,11 +1387,14 @@ func TestRPILoop_TaskFailure_MarksQueueFailed(t *testing.T) {
 	}
 
 	after := readJSONLEntries(t, queuePath)
-	if after[0].FailedAt == nil {
-		t.Fatal("task failures should mark queue entry failed")
+	if after[0].FailedAt == nil || after[0].Items[0].FailedAt == nil {
+		t.Fatal("task failures should record failed_at for the item")
 	}
 	if after[0].Consumed {
 		t.Fatal("failed queue entry should remain unconsumed")
+	}
+	if after[0].ClaimStatus != "available" || after[0].Items[0].ClaimStatus != "available" {
+		t.Fatal("failed queue item should be released back to available state")
 	}
 }
 
@@ -1324,7 +1410,7 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesAfterFailingEntry(t *testing
 	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
 
 	prevMaxCycles := rpiMaxCycles
-	rpiMaxCycles = 3
+	rpiMaxCycles = 2
 	defer func() { rpiMaxCycles = prevMaxCycles }()
 
 	tmpDir := t.TempDir()
@@ -1391,8 +1477,8 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesAfterFailingEntry(t *testing
 	}
 
 	after := readJSONLEntries(t, queuePath)
-	if after[0].FailedAt == nil {
-		t.Fatal("task failure should mark first queue entry failed")
+	if after[0].FailedAt == nil || after[0].Items[0].FailedAt == nil {
+		t.Fatal("task failure should record failed_at on first queue item")
 	}
 	if after[0].Consumed {
 		t.Fatal("failed queue entry should remain unconsumed")
@@ -1414,7 +1500,7 @@ func TestRPILoop_TaskFailure_StopPolicy_DoesNotAdvanceQueue(t *testing.T) {
 	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
 
 	prevMaxCycles := rpiMaxCycles
-	rpiMaxCycles = 3
+	rpiMaxCycles = 2
 	defer func() { rpiMaxCycles = prevMaxCycles }()
 
 	tmpDir := t.TempDir()
@@ -1470,11 +1556,105 @@ func TestRPILoop_TaskFailure_StopPolicy_DoesNotAdvanceQueue(t *testing.T) {
 	}
 
 	after := readJSONLEntries(t, queuePath)
-	if after[0].FailedAt == nil {
-		t.Fatal("first queue entry should be marked failed")
+	if after[0].FailedAt == nil || after[0].Items[0].FailedAt == nil {
+		t.Fatal("first queue item should be marked failed")
 	}
 	if after[1].FailedAt != nil || after[1].Consumed {
 		t.Fatal("second queue entry should be untouched when stop policy is active")
+	}
+}
+
+func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesToSiblingItemInSameEntry(t *testing.T) {
+	prevGlobals := snapshotLoopSupervisorGlobals()
+	defer restoreLoopSupervisorGlobals(prevGlobals)
+
+	prevDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = prevDryRun }()
+
+	prevRunCycle := runRPISupervisedCycleFn
+	defer func() { runRPISupervisedCycleFn = prevRunCycle }()
+
+	prevMaxCycles := rpiMaxCycles
+	rpiMaxCycles = 2
+	defer func() { rpiMaxCycles = prevMaxCycles }()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	rpiDir := filepath.Join(tmpDir, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	queuePath := filepath.Join(rpiDir, "next-work.jsonl")
+	writeJSONL(t, queuePath, []nextWorkEntry{
+		{
+			SourceEpic:  "ag-task-batch",
+			ClaimStatus: "available",
+			Items: []nextWorkItem{
+				{Title: "Failing item", Severity: "high"},
+				{Title: "Fresh sibling", Severity: "medium"},
+			},
+		},
+	})
+
+	rpiSupervisor = false
+	rpiFailurePolicy = loopFailurePolicyContinue
+	rpiCycleRetries = 0
+	rpiRetryBackoff = 0
+	rpiCycleDelay = 0
+	rpiLease = false
+	rpiLeaseTTL = 2 * time.Minute
+	rpiGatePolicy = loopGatePolicyOff
+	rpiLandingPolicy = loopLandingPolicyOff
+	rpiBDSyncPolicy = loopBDSyncPolicyAuto
+	rpiAutoCleanStaleAfter = 24 * time.Hour
+	rpiCommandTimeout = time.Minute
+
+	var goals []string
+	runRPISupervisedCycleFn = func(_ string, goal string, _ int, _ int, _ rpiLoopSupervisorConfig) error {
+		goals = append(goals, goal)
+		if goal == "Failing item" {
+			return wrapCycleFailure(cycleFailureTask, "phased engine", fmt.Errorf("intentional task failure"))
+		}
+		return nil
+	}
+
+	output, err := captureStdoutWithError(func() error {
+		return runRPILoop(nil, nil)
+	})
+	if err != nil {
+		t.Fatalf("expected nil error under continue policy, got: %v", err)
+	}
+	if len(goals) != 2 {
+		t.Fatalf("expected 2 cycle executions, got %d (%v)", len(goals), goals)
+	}
+	if goals[0] != "Failing item" || goals[1] != "Fresh sibling" {
+		t.Fatalf("unexpected goal progression: %v", goals)
+	}
+	if !strings.Contains(output, "RPI loop finished after 2 cycle(s).") {
+		t.Fatalf("expected 2-cycle summary, got:\n%s", output)
+	}
+
+	after := readJSONLEntries(t, queuePath)
+	if after[0].Items[0].FailedAt == nil {
+		t.Fatal("failing item should record failed_at")
+	}
+	if after[0].Items[0].Consumed {
+		t.Fatal("failing item should remain unconsumed")
+	}
+	if after[0].Items[0].ClaimStatus != "available" {
+		t.Fatalf("failing item claim_status = %q, want available", after[0].Items[0].ClaimStatus)
+	}
+	if !after[0].Items[1].Consumed {
+		t.Fatal("fresh sibling should be consumed after continue policy advances")
+	}
+	if after[0].Consumed {
+		t.Fatal("batch entry should remain unconsumed until all sibling items are done")
 	}
 }
 
@@ -1555,6 +1735,9 @@ func TestRPILoop_KillSwitchDuringRetry_StopsWithoutQueueMutation(t *testing.T) {
 	}
 	if after[0].Consumed {
 		t.Fatal("kill-switch interruption should not consume queue entry")
+	}
+	if after[0].ClaimStatus == "in_progress" || after[0].Items[0].ClaimStatus == "in_progress" {
+		t.Fatal("kill-switch interruption should release any in-progress claim")
 	}
 }
 
@@ -2054,6 +2237,27 @@ func TestSelectHighestSeverityEntry_SkipsConsumedItems(t *testing.T) {
 	}
 }
 
+func TestSelectHighestSeverityEntry_SkipsClaimedItems(t *testing.T) {
+	entries := []nextWorkEntry{
+		{
+			SourceEpic: "test",
+			QueueIndex: 0,
+			Items: []nextWorkItem{
+				{Title: "Claimed high", Severity: "high", ClaimStatus: "in_progress"},
+				{Title: "Available medium", Severity: "medium"},
+			},
+		},
+	}
+
+	sel := selectHighestSeverityEntry(entries, "")
+	if sel == nil {
+		t.Fatal("expected a selection, got nil")
+	}
+	if sel.Item.Title != "Available medium" {
+		t.Errorf("expected 'Available medium', got %q", sel.Item.Title)
+	}
+}
+
 func TestReadUnconsumedItems_SkipsConsumedItems(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "next-work.jsonl")
@@ -2063,6 +2267,33 @@ func TestReadUnconsumedItems_SkipsConsumedItems(t *testing.T) {
 		Timestamp:  "2026-03-01T00:00:00Z",
 		Items: []nextWorkItem{
 			{Title: "Consumed", Severity: "high", Consumed: true},
+			{Title: "Available", Severity: "medium"},
+		},
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(path, append(data, '\n'), 0644)
+
+	items, err := readUnconsumedItems(path, "")
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].Title != "Available" {
+		t.Errorf("expected 'Available', got %q", items[0].Title)
+	}
+}
+
+func TestReadUnconsumedItems_SkipsClaimedItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "next-work.jsonl")
+
+	entry := nextWorkEntry{
+		SourceEpic: "test",
+		Timestamp:  "2026-03-01T00:00:00Z",
+		Items: []nextWorkItem{
+			{Title: "Claimed", Severity: "high", ClaimStatus: "in_progress"},
 			{Title: "Available", Severity: "medium"},
 		},
 	}

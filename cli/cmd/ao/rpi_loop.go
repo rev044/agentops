@@ -60,15 +60,17 @@ Each cycle drives a queue item through the full phased RPI engine:
   1. Read unconsumed items from .agents/rpi/next-work.jsonl
   2. Pick highest-severity item as goal (or use explicit goal)
   3. Run: ao rpi phased "<goal>" (discovery → implementation → validation)
-  4. Mark the consumed queue entry with a timestamp on success (or "failed" on error)
+  4. Claim the queue item while it runs, then consume on success or release on failure
   5. Re-read next-work.jsonl (post-mortem may have harvested new items)
   6. Repeat until queue empty or max-cycles reached
 
 Queue semantics:
-  - An entry is only marked consumed after the phased engine completes without error.
-  - If the phased engine fails, the entry is marked with failed_at so it is
-    skipped on subsequent runs but remains recoverable (set consumed=false to retry).
-  - Already-consumed or already-failed entries are skipped (idempotent).
+  - An item is only marked consumed after the phased engine completes without error.
+  - Queue items are claimed before execution and released back to available state
+    on interruption or failure so harvested work can continue compounding.
+  - Task failures record failed_at per item for retry ordering, but do not consume
+    sibling items in the same harvested batch.
+  - Already-consumed items and currently-claimed items are skipped (idempotent).
 
 Examples:
   ao rpi loop                          # consume from queue until stable
@@ -122,6 +124,9 @@ type nextWorkEntry struct {
 	Timestamp   string         `json:"timestamp"`
 	Items       []nextWorkItem `json:"items,omitempty"`
 	Consumed    bool           `json:"consumed"`
+	ClaimStatus string         `json:"claim_status,omitempty"`
+	ClaimedBy   *string        `json:"claimed_by,omitempty"`
+	ClaimedAt   *string        `json:"claimed_at,omitempty"`
 	ConsumedBy  *string        `json:"consumed_by"`
 	ConsumedAt  *string        `json:"consumed_at"`
 	FailedAt    *string        `json:"failed_at,omitempty"`
@@ -139,14 +144,20 @@ type nextWorkEntry struct {
 
 // nextWorkItem represents a single harvested work item.
 type nextWorkItem struct {
-	Title       string `json:"title"`
-	Type        string `json:"type"`
-	Severity    string `json:"severity"`
-	Source      string `json:"source"`
-	Description string `json:"description"`
-	Evidence    string `json:"evidence,omitempty"`
-	TargetRepo  string `json:"target_repo,omitempty"`
-	Consumed    bool   `json:"consumed,omitempty"`
+	Title       string  `json:"title"`
+	Type        string  `json:"type"`
+	Severity    string  `json:"severity"`
+	Source      string  `json:"source"`
+	Description string  `json:"description"`
+	Evidence    string  `json:"evidence,omitempty"`
+	TargetRepo  string  `json:"target_repo,omitempty"`
+	Consumed    bool    `json:"consumed,omitempty"`
+	ClaimStatus string  `json:"claim_status,omitempty"`
+	ClaimedBy   *string `json:"claimed_by,omitempty"`
+	ClaimedAt   *string `json:"claimed_at,omitempty"`
+	ConsumedBy  *string `json:"consumed_by,omitempty"`
+	ConsumedAt  *string `json:"consumed_at,omitempty"`
+	FailedAt    *string `json:"failed_at,omitempty"`
 }
 
 // queueSelection holds the selected item together with its source entry index
@@ -368,12 +379,17 @@ func resolveLoopGoal(explicitGoal, nextWorkPath string) (string, *queueSelection
 // runCycleWithRetries executes a single cycle with retry logic and handles
 // success/failure queue marking.
 func runCycleWithRetries(cwd, goal string, cycle, executedCycles int, nextWorkPath string, sel *queueSelection, explicitGoal string, cfg rpiLoopSupervisorConfig) (loopCycleResult, error) {
+	if err := claimQueueSelection(nextWorkPath, sel, cycle); err != nil {
+		return loopReturn, err
+	}
+
 	start := time.Now()
 	cycleErr := executeCycleAttempts(cwd, goal, cycle, executedCycles, cfg)
 	elapsed := time.Since(start).Round(time.Second)
 
 	// Kill switch fired mid-retry: clean exit without queue mutation.
 	if cycleErr == errKillSwitchActivated {
+		releaseQueueSelection(nextWorkPath, sel, false)
 		return loopBreak, nil
 	}
 
@@ -438,19 +454,48 @@ func handleCycleFailure(cycleErr error, cycle int, elapsed time.Duration, nextWo
 	return loopReturn, cycleErr
 }
 
+func claimQueueSelection(nextWorkPath string, sel *queueSelection, cycle int) error {
+	if sel == nil {
+		return nil
+	}
+	claimedBy := fmt.Sprintf("ao-rpi-loop:cycle-%d", cycle)
+	if err := markItemClaimed(nextWorkPath, sel.EntryIndex, sel.ItemIndex, claimedBy); err != nil {
+		return fmt.Errorf("claim queue item %q: %w", sel.Item.Title, err)
+	}
+	fmt.Printf("Queue item claimed: %q\n", sel.Item.Title)
+	return nil
+}
+
+func releaseQueueSelection(nextWorkPath string, sel *queueSelection, failed bool) {
+	if sel == nil {
+		return
+	}
+	var markErr error
+	if failed {
+		markErr = markItemFailed(nextWorkPath, sel.EntryIndex, sel.ItemIndex)
+	} else {
+		markErr = releaseItemClaim(nextWorkPath, sel.EntryIndex, sel.ItemIndex)
+	}
+	if markErr != nil {
+		VerbosePrintf("Warning: could not release queue item claim: %v\n", markErr)
+		return
+	}
+	if failed {
+		fmt.Printf("Queue item released for retry after task failure: %q\n", sel.Item.Title)
+		return
+	}
+	fmt.Printf("Queue item released after interruption/transient failure: %q\n", sel.Item.Title)
+}
+
 // markQueueEntryFailed marks the queue entry as failed when appropriate.
 func markQueueEntryFailed(nextWorkPath string, sel *queueSelection, cycleErr error) {
 	if sel == nil {
 		return
 	}
 	if shouldMarkQueueEntryFailed(cycleErr) {
-		if markErr := markEntryFailed(nextWorkPath, sel.EntryIndex); markErr != nil {
-			VerbosePrintf("Warning: could not mark queue entry as failed: %v\n", markErr)
-		} else {
-			fmt.Printf("Queue entry marked failed (set consumed=false to retry): %q\n", sel.Item.Title)
-		}
+		releaseQueueSelection(nextWorkPath, sel, true)
 	} else {
-		fmt.Printf("Queue entry left unmodified (transient infra failure): %q\n", sel.Item.Title)
+		releaseQueueSelection(nextWorkPath, sel, false)
 	}
 }
 
@@ -480,7 +525,7 @@ func readUnconsumedItems(path string, repoFilter string) ([]nextWorkItem, error)
 	var items []nextWorkItem
 	for _, entry := range entries {
 		for _, item := range entry.Items {
-			if item.Consumed {
+			if !isQueueItemSelectable(item) {
 				continue
 			}
 			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
@@ -492,8 +537,9 @@ func readUnconsumedItems(path string, repoFilter string) ([]nextWorkItem, error)
 	return items, nil
 }
 
-// readQueueEntries reads next-work.jsonl and returns all unconsumed, non-failed
-// entries (with their 0-based index preserved for later marking). Malformed
+// readQueueEntries reads next-work.jsonl and returns entries with at least one
+// selectable queue item (with their 0-based index preserved for later marking).
+// Malformed
 // lines are skipped with a verbose warning. Missing files return nil, nil.
 func readQueueEntries(path string) ([]nextWorkEntry, error) {
 	f, err := os.Open(path)
@@ -525,22 +571,25 @@ func readQueueEntries(path string) ([]nextWorkEntry, error) {
 		parseableIndex++
 		entry.QueueIndex = parseableIndex
 
-		// Skip entries that are already consumed or previously failed.
-		if entry.Consumed || entry.FailedAt != nil {
+		// Skip entries that are already consumed or use legacy failed-at suppression.
+		if entry.Consumed || normalizeClaimStatus(entry.Consumed, entry.ClaimStatus) == "consumed" {
+			continue
+		}
+		if shouldSkipLegacyFailedEntry(entry) {
 			continue
 		}
 		if len(entry.Items) == 0 {
 			continue
 		}
-		// Skip entries where all items are individually consumed (backward compat).
-		allItemsConsumed := true
+		// Skip entries where all items are either consumed or currently claimed.
+		hasSelectableItem := false
 		for _, item := range entry.Items {
-			if !item.Consumed {
-				allItemsConsumed = false
+			if isQueueItemSelectable(item) {
+				hasSelectableItem = true
 				break
 			}
 		}
-		if allItemsConsumed && len(entry.Items) > 0 {
+		if !hasSelectableItem {
 			continue
 		}
 
@@ -570,6 +619,12 @@ func parseNextWorkEntryLine(line string) (nextWorkEntry, error) {
 			Evidence:    entry.Evidence,
 			TargetRepo:  entry.TargetRepo,
 			Consumed:    entry.Consumed,
+			ClaimStatus: normalizeClaimStatus(entry.Consumed, entry.ClaimStatus),
+			ClaimedBy:   entry.ClaimedBy,
+			ClaimedAt:   entry.ClaimedAt,
+			ConsumedBy:  entry.ConsumedBy,
+			ConsumedAt:  entry.ConsumedAt,
+			FailedAt:    entry.FailedAt,
 		}}
 	}
 
@@ -586,6 +641,52 @@ func hasLegacyFlatNextWorkItem(entry nextWorkEntry) bool {
 		strings.TrimSpace(entry.Source) != ""
 }
 
+func normalizeClaimStatus(consumed bool, claimStatus string) string {
+	switch claimStatus {
+	case "available", "in_progress", "consumed":
+		if consumed && claimStatus != "in_progress" {
+			return "consumed"
+		}
+		return claimStatus
+	default:
+		if consumed {
+			return "consumed"
+		}
+		return "available"
+	}
+}
+
+func isQueueItemSelectable(item nextWorkItem) bool {
+	if item.Consumed || normalizeClaimStatus(item.Consumed, item.ClaimStatus) == "consumed" {
+		return false
+	}
+	return normalizeClaimStatus(item.Consumed, item.ClaimStatus) != "in_progress"
+}
+
+func hasQueueItemLifecycleMetadata(item nextWorkItem) bool {
+	return item.ClaimStatus != "" ||
+		item.ClaimedBy != nil ||
+		item.ClaimedAt != nil ||
+		item.ConsumedBy != nil ||
+		item.ConsumedAt != nil ||
+		item.FailedAt != nil
+}
+
+func shouldSkipLegacyFailedEntry(entry nextWorkEntry) bool {
+	if entry.FailedAt == nil {
+		return false
+	}
+	if entry.ClaimStatus != "" || entry.ClaimedBy != nil || entry.ClaimedAt != nil {
+		return false
+	}
+	for _, item := range entry.Items {
+		if hasQueueItemLifecycleMetadata(item) {
+			return false
+		}
+	}
+	return true
+}
+
 // selectHighestSeverityEntry picks the best item across all eligible entries.
 // It returns a queueSelection containing the winning item and its source entry
 // parseable index in next-work.jsonl. Items filtered out by repoFilter are skipped.
@@ -597,13 +698,14 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 		itemIndex  int
 		severity   int
 		affinity   int
+		freshness  int
 		typeRank   int
 	}
 
 	var candidates []candidate
 	for _, entry := range entries {
 		for itemIdx, item := range entry.Items {
-			if item.Consumed {
+			if !isQueueItemSelectable(item) {
 				continue
 			}
 			if repoFilter != "" && item.TargetRepo != "" && item.TargetRepo != "*" && item.TargetRepo != repoFilter {
@@ -615,6 +717,7 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 				itemIndex:  itemIdx,
 				severity:   severityRank(item.Severity),
 				affinity:   repoAffinityRank(item, repoFilter),
+				freshness:  freshnessRank(item),
 				typeRank:   workTypeRank(item),
 			})
 		}
@@ -626,6 +729,9 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 
 	slices.SortFunc(candidates, func(a, b candidate) int {
 		if diff := cmp.Compare(b.affinity, a.affinity); diff != 0 {
+			return diff
+		}
+		if diff := cmp.Compare(b.freshness, a.freshness); diff != 0 {
 			return diff
 		}
 		if diff := cmp.Compare(b.severity, a.severity); diff != 0 {
@@ -642,6 +748,13 @@ func selectHighestSeverityEntry(entries []nextWorkEntry, repoFilter string) *que
 
 	best := candidates[0]
 	return &queueSelection{Item: best.item, EntryIndex: best.entryIndex, ItemIndex: best.itemIndex}
+}
+
+func freshnessRank(item nextWorkItem) int {
+	if item.FailedAt != nil {
+		return 0
+	}
+	return 1
 }
 
 func repoAffinityRank(item nextWorkItem, repoFilter string) int {
@@ -745,6 +858,9 @@ func markEntryConsumed(path string, entryIndex int, consumedBy string) error {
 			return
 		}
 		entry.Consumed = true
+		entry.ClaimStatus = "consumed"
+		entry.ClaimedAt = nil
+		entry.ClaimedBy = nil
 		entry.ConsumedAt = &now
 		entry.ConsumedBy = &consumedBy
 		entry.FailedAt = nil
@@ -764,22 +880,26 @@ func markItemConsumed(path string, entryIndex int, itemIndex int, consumedBy str
 		if parseable != entryIndex {
 			return
 		}
-		if itemIndex >= 0 && itemIndex < len(entry.Items) {
-			entry.Items[itemIndex].Consumed = true
-		}
-		allConsumed := true
-		for _, item := range entry.Items {
-			if !item.Consumed {
-				allConsumed = false
-				break
-			}
-		}
-		if allConsumed {
+		if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(*entry) {
 			entry.Consumed = true
+			entry.ClaimStatus = "consumed"
+			entry.ClaimedAt = nil
+			entry.ClaimedBy = nil
 			entry.ConsumedAt = &now
 			entry.ConsumedBy = &consumedBy
 			entry.FailedAt = nil
+			return
 		}
+		if itemIndex >= 0 && itemIndex < len(entry.Items) {
+			entry.Items[itemIndex].Consumed = true
+			entry.Items[itemIndex].ClaimStatus = "consumed"
+			entry.Items[itemIndex].ClaimedBy = nil
+			entry.Items[itemIndex].ClaimedAt = nil
+			entry.Items[itemIndex].ConsumedBy = &consumedBy
+			entry.Items[itemIndex].ConsumedAt = &now
+			entry.Items[itemIndex].FailedAt = nil
+		}
+		recomputeEntryLifecycle(entry)
 	})
 }
 
@@ -794,7 +914,142 @@ func markEntryFailed(path string, entryIndex int) error {
 			return
 		}
 		entry.FailedAt = &now
+		entry.ClaimStatus = "available"
+		entry.ClaimedBy = nil
+		entry.ClaimedAt = nil
+		entry.Consumed = false
 	})
+}
+
+func markItemClaimed(path string, entryIndex int, itemIndex int, claimedBy string) error {
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("next-work.jsonl not found: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	parseable := -1
+	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
+		parseable++
+		if parseable != entryIndex {
+			return
+		}
+		if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(*entry) {
+			entry.ClaimStatus = "in_progress"
+			entry.ClaimedBy = &claimedBy
+			entry.ClaimedAt = &now
+			entry.Consumed = false
+			return
+		}
+		if itemIndex >= 0 && itemIndex < len(entry.Items) {
+			entry.Items[itemIndex].ClaimStatus = "in_progress"
+			entry.Items[itemIndex].ClaimedBy = &claimedBy
+			entry.Items[itemIndex].ClaimedAt = &now
+			entry.Items[itemIndex].Consumed = false
+		}
+		recomputeEntryLifecycle(entry)
+	})
+}
+
+func releaseItemClaim(path string, entryIndex int, itemIndex int) error {
+	return releaseQueueItem(path, entryIndex, itemIndex, nil)
+}
+
+func markItemFailed(path string, entryIndex int, itemIndex int) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return releaseQueueItem(path, entryIndex, itemIndex, &now)
+}
+
+func releaseQueueItem(path string, entryIndex int, itemIndex int, failedAt *string) error {
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("next-work.jsonl not found: %w", err)
+	}
+	parseable := -1
+	return rewriteNextWorkFile(path, func(idx int, entry *nextWorkEntry) {
+		parseable++
+		if parseable != entryIndex {
+			return
+		}
+		if len(entry.Items) == 0 && hasLegacyFlatNextWorkItem(*entry) {
+			entry.ClaimStatus = "available"
+			entry.ClaimedBy = nil
+			entry.ClaimedAt = nil
+			entry.Consumed = false
+			if failedAt != nil {
+				entry.FailedAt = failedAt
+			}
+			return
+		}
+		if itemIndex >= 0 && itemIndex < len(entry.Items) {
+			entry.Items[itemIndex].ClaimStatus = "available"
+			entry.Items[itemIndex].ClaimedBy = nil
+			entry.Items[itemIndex].ClaimedAt = nil
+			entry.Items[itemIndex].Consumed = false
+			if failedAt != nil {
+				entry.Items[itemIndex].FailedAt = failedAt
+			}
+		}
+		recomputeEntryLifecycle(entry)
+	})
+}
+
+func recomputeEntryLifecycle(entry *nextWorkEntry) {
+	if len(entry.Items) == 0 {
+		return
+	}
+
+	allConsumed := true
+	claimedIndex := -1
+	var latestFailed *string
+	var finalConsumedBy *string
+	var finalConsumedAt *string
+
+	for i := range entry.Items {
+		status := normalizeClaimStatus(entry.Items[i].Consumed, entry.Items[i].ClaimStatus)
+		entry.Items[i].ClaimStatus = status
+
+		switch status {
+		case "consumed":
+			entry.Items[i].Consumed = true
+			if entry.Items[i].ConsumedBy != nil {
+				finalConsumedBy = entry.Items[i].ConsumedBy
+			}
+			if entry.Items[i].ConsumedAt != nil {
+				finalConsumedAt = entry.Items[i].ConsumedAt
+			}
+		default:
+			allConsumed = false
+		}
+
+		if status == "in_progress" && claimedIndex == -1 {
+			claimedIndex = i
+		}
+		if entry.Items[i].FailedAt != nil {
+			latestFailed = entry.Items[i].FailedAt
+		}
+	}
+
+	entry.FailedAt = latestFailed
+	if allConsumed {
+		entry.Consumed = true
+		entry.ClaimStatus = "consumed"
+		entry.ClaimedBy = nil
+		entry.ClaimedAt = nil
+		entry.ConsumedBy = finalConsumedBy
+		entry.ConsumedAt = finalConsumedAt
+		return
+	}
+
+	entry.Consumed = false
+	entry.ConsumedBy = nil
+	entry.ConsumedAt = nil
+	if claimedIndex >= 0 {
+		entry.ClaimStatus = "in_progress"
+		entry.ClaimedBy = entry.Items[claimedIndex].ClaimedBy
+		entry.ClaimedAt = entry.Items[claimedIndex].ClaimedAt
+		return
+	}
+	entry.ClaimStatus = "available"
+	entry.ClaimedBy = nil
+	entry.ClaimedAt = nil
 }
 
 // selectHighestSeverityItem returns the title of the highest-severity item.
