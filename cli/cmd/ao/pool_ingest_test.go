@@ -571,6 +571,23 @@ func TestPoolIngestCoverage_BuildCandidateFromLearningBlock(t *testing.T) {
 		}
 	})
 
+	t.Run("decision category sets KnowledgeTypeDecision", func(t *testing.T) {
+		b := learningBlock{
+			Title:      "Always Use Conventional Commits",
+			ID:         "L-dec",
+			Category:   "decision",
+			Confidence: "high",
+			Body:       "We decided to always use conventional commits for consistency.",
+		}
+		cand, _, ok := buildCandidateFromLearningBlock(b, "/test/file.md", fileDate, "ag-xyz")
+		if !ok {
+			t.Fatal("expected ok=true")
+		}
+		if cand.Type != types.KnowledgeTypeDecision {
+			t.Errorf("Type = %q, want %q", cand.Type, types.KnowledgeTypeDecision)
+		}
+	})
+
 	t.Run("high confidence boosts raw score", func(t *testing.T) {
 		bHigh := learningBlock{Title: "Test", ID: "L1", Confidence: "high", Body: "Some body content here."}
 		bLow := learningBlock{Title: "Test", ID: "L2", Confidence: "low", Body: "Some body content here."}
@@ -1077,4 +1094,56 @@ func TestPoolIngestCoverage_OutputPoolIngestResult(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// inferKnowledgeType
+// ---------------------------------------------------------------------------
+
+func TestInferKnowledgeType(t *testing.T) {
+	tests := []struct {
+		name     string
+		block    learningBlock
+		wantType types.KnowledgeType
+	}{
+		// Category exact-match cases
+		{name: "category decision", block: learningBlock{Category: "decision", Body: "some text"}, wantType: types.KnowledgeTypeDecision},
+		{name: "category pattern", block: learningBlock{Category: "pattern", Body: "some text"}, wantType: types.KnowledgeTypeDecision},
+		{name: "category architectural-decision", block: learningBlock{Category: "architectural-decision", Body: "x"}, wantType: types.KnowledgeTypeDecision},
+		{name: "category convention", block: learningBlock{Category: "convention", Body: "x"}, wantType: types.KnowledgeTypeDecision},
+		{name: "category failure", block: learningBlock{Category: "failure", Body: "x"}, wantType: types.KnowledgeTypeFailure},
+		{name: "category anti-pattern", block: learningBlock{Category: "anti-pattern", Body: "x"}, wantType: types.KnowledgeTypeFailure},
+		{name: "category antipattern", block: learningBlock{Category: "antipattern", Body: "x"}, wantType: types.KnowledgeTypeFailure},
+		{name: "category postmortem", block: learningBlock{Category: "postmortem", Body: "x"}, wantType: types.KnowledgeTypeFailure},
+		{name: "category solution", block: learningBlock{Category: "solution", Body: "x"}, wantType: types.KnowledgeTypeSolution},
+		{name: "category fix", block: learningBlock{Category: "fix", Body: "x"}, wantType: types.KnowledgeTypeSolution},
+		{name: "category workaround", block: learningBlock{Category: "workaround", Body: "x"}, wantType: types.KnowledgeTypeSolution},
+		{name: "category reference", block: learningBlock{Category: "reference", Body: "x"}, wantType: types.KnowledgeTypeReference},
+		{name: "category doc", block: learningBlock{Category: "doc", Body: "x"}, wantType: types.KnowledgeTypeReference},
+		{name: "category documentation", block: learningBlock{Category: "documentation", Body: "x"}, wantType: types.KnowledgeTypeReference},
+		// Category case-insensitive
+		{name: "category Decision uppercase", block: learningBlock{Category: "Decision", Body: "x"}, wantType: types.KnowledgeTypeDecision},
+		{name: "category FAILURE uppercase", block: learningBlock{Category: "FAILURE", Body: "x"}, wantType: types.KnowledgeTypeFailure},
+		// Signal-based: decision (needs >= 2 signals)
+		{name: "decision signals 2", block: learningBlock{Category: "", Body: "we always prefer convention over configuration"}, wantType: types.KnowledgeTypeDecision},
+		{name: "decision signals 1 not enough", block: learningBlock{Category: "", Body: "we always use X"}, wantType: types.KnowledgeTypeLearning},
+		// Signal-based: failure (needs >= 2 signals)
+		{name: "failure signals 2", block: learningBlock{Category: "", Body: "the deploy failed and we found the root cause"}, wantType: types.KnowledgeTypeFailure},
+		{name: "failure signals 1 not enough", block: learningBlock{Category: "", Body: "the deploy failed"}, wantType: types.KnowledgeTypeLearning},
+		// Fallback to learning
+		{name: "empty category and body", block: learningBlock{Category: "", Body: ""}, wantType: types.KnowledgeTypeLearning},
+		{name: "unknown category", block: learningBlock{Category: "process", Body: "run tests first"}, wantType: types.KnowledgeTypeLearning},
+		{name: "generic content", block: learningBlock{Category: "", Body: "use go test before commit"}, wantType: types.KnowledgeTypeLearning},
+		// Category takes priority over signals
+		{name: "category overrides signals", block: learningBlock{Category: "reference", Body: "we always prefer this convention"}, wantType: types.KnowledgeTypeReference},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := inferKnowledgeType(tt.block)
+			if got != tt.wantType {
+				t.Errorf("inferKnowledgeType(%q, %q) = %q, want %q", tt.block.Category, tt.block.Body, got, tt.wantType)
+			}
+		})
+	}
 }

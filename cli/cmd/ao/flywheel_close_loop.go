@@ -331,10 +331,12 @@ func applyAllMaturityTransitions(cwd string) (maturityTransitionSummary, error) 
 		for _, r := range results {
 			learningPath, ferr := findLearningFile(filepath.Dir(dir), r.LearningID)
 			if ferr != nil {
+				VerbosePrintf("Warning: could not find %s: %v\n", r.LearningID, ferr)
 				continue
 			}
 			applied, aerr := ratchet.ApplyMaturityTransition(learningPath)
 			if aerr != nil {
+				VerbosePrintf("Warning: could not apply transition for %s: %v\n", r.LearningID, aerr)
 				continue
 			}
 			if applied.Transitioned {

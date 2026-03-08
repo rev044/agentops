@@ -353,9 +353,7 @@ func runMaturityScanAll(learningsDir, patternsDir string) error {
 	}
 
 	if maturityApply {
-		for _, dir := range dirs {
-			applyScannedTransitions(dir, allResults)
-		}
+		applyScannedTransitions(dirs[0], allResults)
 	}
 
 	return nil
