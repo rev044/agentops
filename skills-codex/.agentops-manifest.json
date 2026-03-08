@@ -133,7 +133,7 @@
       "name": "plan",
       "source_skill": "skills/plan",
       "source_hash": "e401c282d2b277f9267ecdd210302e9ca8de3dc1840469ca6144bf316348abe1",
-      "generated_hash": "33a33f88016b08cd14f52e12c4a7988dbb248a871acde27eb3a73ec5a9eb2af5"
+      "generated_hash": "0c93518f2a66ce2ac98b29bb93165d3455710912870258186b3c65157de1f2ae"
     },
     {
       "name": "post-mortem",
@@ -313,7 +313,7 @@
       "name": "vibe",
       "source_skill": "skills/vibe",
       "source_hash": "7756653d3d553a621442125a173cd55e09b262330826ec115cd8ae09fe8b9de0",
-      "generated_hash": "e6a6b8affa8f48d824ff6e984e396d32af14dd9efd00408a60fcf4df7ae40cad"
+      "generated_hash": "d147875d2687da5f290498ec61a58686663cb28ca6c3db0ef788bc8f0ae03248"
     }
   ]
 }

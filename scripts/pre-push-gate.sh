@@ -313,7 +313,19 @@ else
     fail "missing executable: scripts/validate-codex-generated-artifacts.sh"
 fi
 
-# --- 17. Skill runtime formats ---
+# --- 17. Codex override coverage ---
+if [[ -x scripts/validate-codex-override-coverage.sh ]]; then
+    if codex_override_output="$(scripts/validate-codex-override-coverage.sh 2>&1)"; then
+        pass "codex override coverage"
+    else
+        fail "codex override coverage"
+        indent_output "$codex_override_output"
+    fi
+else
+    fail "missing executable: scripts/validate-codex-override-coverage.sh"
+fi
+
+# --- 18. Skill runtime formats ---
 if [[ -x scripts/validate-skill-runtime-formats.sh ]]; then
     if codex_lint_output="$(scripts/validate-skill-runtime-formats.sh 2>&1)"; then
         pass "skill runtime formats"
@@ -325,7 +337,7 @@ else
     fail "missing executable: scripts/validate-skill-runtime-formats.sh"
 fi
 
-# --- 18. Skill CLI snippets ---
+# --- 19. Skill CLI snippets ---
 if [[ -x scripts/validate-skill-cli-snippets.sh ]]; then
     if skill_cli_output="$(scripts/validate-skill-cli-snippets.sh 2>&1)"; then
         pass "skill CLI snippets"
@@ -337,7 +349,7 @@ else
     fail "missing executable: scripts/validate-skill-cli-snippets.sh"
 fi
 
-# --- 19. Headless runtime skill smoke ---
+# --- 20. Headless runtime skill smoke ---
 if [[ -x scripts/validate-headless-runtime-skills.sh ]]; then
     if runtime_smoke_output="$(scripts/validate-headless-runtime-skills.sh 2>&1)"; then
         pass "headless runtime skills"
