@@ -37,6 +37,7 @@ setup() {
     make_stub "$FAKE_REPO/scripts/validate-codex-install-bundle.sh"
     make_stub "$FAKE_REPO/scripts/validate-codex-runtime-sections.sh"
     make_stub "$FAKE_REPO/scripts/validate-codex-generated-artifacts.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-override-coverage.sh"
     make_stub "$FAKE_REPO/scripts/validate-skill-runtime-formats.sh"
     make_stub "$FAKE_REPO/scripts/validate-skill-cli-snippets.sh"
     make_stub "$FAKE_REPO/scripts/validate-headless-runtime-skills.sh"

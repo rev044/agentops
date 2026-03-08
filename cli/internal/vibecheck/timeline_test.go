@@ -1,6 +1,8 @@
 package vibecheck
 
 import (
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -177,5 +179,57 @@ func TestParseGitLog_MalformedNumstat(t *testing.T) {
 	}
 	if events[0].FilesChanged != 0 {
 		t.Errorf("expected 0 files changed (malformed numstat ignored), got %d", events[0].FilesChanged)
+	}
+}
+
+func TestGitDiscoveryEnv_StripsGitDiscoveryVariables(t *testing.T) {
+	t.Setenv("GIT_DIR", "/tmp/git-dir")
+	t.Setenv("GIT_WORK_TREE", "/tmp/work-tree")
+	t.Setenv("GIT_COMMON_DIR", "/tmp/common-dir")
+	t.Setenv("KEEP_ME", "still-here")
+
+	env := gitDiscoveryEnv()
+	envMap := make(map[string]string, len(env))
+	for _, entry := range env {
+		key, value, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		envMap[key] = value
+	}
+
+	if _, ok := envMap["GIT_DIR"]; ok {
+		t.Fatal("expected GIT_DIR to be stripped from git discovery env")
+	}
+	if _, ok := envMap["GIT_WORK_TREE"]; ok {
+		t.Fatal("expected GIT_WORK_TREE to be stripped from git discovery env")
+	}
+	if _, ok := envMap["GIT_COMMON_DIR"]; ok {
+		t.Fatal("expected GIT_COMMON_DIR to be stripped from git discovery env")
+	}
+	if got := envMap["KEEP_ME"]; got != "still-here" {
+		t.Fatalf("expected unrelated env var to survive, got %q", got)
+	}
+}
+
+func TestGitDiscoveryEnv_PreservesEnvironmentWithoutGitOverrides(t *testing.T) {
+	t.Setenv("PATH", os.Getenv("PATH"))
+	t.Setenv("HOME", "/tmp/vibecheck-home")
+
+	env := gitDiscoveryEnv()
+	envMap := make(map[string]string, len(env))
+	for _, entry := range env {
+		key, value, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		envMap[key] = value
+	}
+
+	if got := envMap["HOME"]; got != "/tmp/vibecheck-home" {
+		t.Fatalf("expected HOME to be preserved, got %q", got)
+	}
+	if _, ok := envMap["PATH"]; !ok {
+		t.Fatal("expected PATH to be preserved")
 	}
 }
