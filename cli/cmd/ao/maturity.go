@@ -108,8 +108,10 @@ func runMaturity(cmd *cobra.Command, args []string) error {
 	}
 
 	learningsDir := filepath.Join(cwd, ".agents", "learnings")
-	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
-		fmt.Println("No learnings directory found.")
+	patternsDir := filepath.Join(cwd, ".agents", "patterns")
+
+	if !dirExists(learningsDir) && !dirExists(patternsDir) {
+		fmt.Println("No learnings or patterns directory found.")
 		return nil
 	}
 
@@ -123,7 +125,7 @@ func runMaturity(cmd *cobra.Command, args []string) error {
 	case maturityExpire:
 		return runMaturityExpire(cmd)
 	case maturityScan:
-		return runMaturityScan(learningsDir)
+		return runMaturityScanAll(learningsDir, patternsDir)
 	case len(args) == 0:
 		return fmt.Errorf("must provide learning-id or use --scan")
 	default:
@@ -294,6 +296,69 @@ func applyScannedTransitions(learningsDir string, results []*ratchet.MaturityTra
 		}
 	}
 	fmt.Printf("\nApplied %d transitions.\n", applied)
+}
+
+// runMaturityScanAll scans both learnings/ and patterns/ for maturity transitions.
+func runMaturityScanAll(learningsDir, patternsDir string) error {
+	var dirs []string
+	if dirExists(learningsDir) {
+		dirs = append(dirs, learningsDir)
+	}
+	if dirExists(patternsDir) {
+		dirs = append(dirs, patternsDir)
+	}
+	if len(dirs) == 0 {
+		fmt.Println("No learnings or patterns directory found.")
+		return nil
+	}
+
+	if GetDryRun() {
+		for _, d := range dirs {
+			fmt.Printf("[dry-run] Would scan: %s\n", d)
+		}
+		return nil
+	}
+
+	totalDist := &ratchet.MaturityDistribution{}
+	var allResults []*ratchet.MaturityTransitionResult
+
+	for _, dir := range dirs {
+		dist, err := ratchet.GetMaturityDistribution(dir)
+		if err != nil {
+			return fmt.Errorf("get distribution from %s: %w", dir, err)
+		}
+		totalDist.Provisional += dist.Provisional
+		totalDist.Candidate += dist.Candidate
+		totalDist.Established += dist.Established
+		totalDist.AntiPattern += dist.AntiPattern
+		totalDist.Unknown += dist.Unknown
+		totalDist.Total += dist.Total
+
+		results, err := ratchet.ScanForMaturityTransitions(dir)
+		if err != nil {
+			return fmt.Errorf("scan transitions in %s: %w", dir, err)
+		}
+		allResults = append(allResults, results...)
+	}
+
+	displayMaturityDistribution(totalDist)
+
+	if len(allResults) == 0 {
+		fmt.Println("No pending maturity transitions found.")
+		return nil
+	}
+
+	if err := displayPendingTransitions(allResults); err != nil {
+		return err
+	}
+
+	if maturityApply {
+		for _, dir := range dirs {
+			applyScannedTransitions(dir, allResults)
+		}
+	}
+
+	return nil
 }
 
 func runMaturityScan(learningsDir string) error {

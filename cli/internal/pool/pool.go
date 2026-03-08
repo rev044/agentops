@@ -740,25 +740,31 @@ func firstLineTitle(content string) string {
 	return firstLine
 }
 
-// writeArtifact writes a promoted candidate as markdown.
+// writeArtifact writes a promoted candidate as markdown with YAML frontmatter.
+// The frontmatter is required for the maturity scanner (ratchet.readLearningData)
+// to parse utility, maturity, and feedback fields.
 func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 	var content strings.Builder
 
+	// YAML frontmatter — required for maturity scanner compatibility
+	content.WriteString("---\n")
+	fmt.Fprintf(&content, "id: %s\n", entry.Candidate.ID)
+	fmt.Fprintf(&content, "type: %s\n", entry.Candidate.Type)
+	fmt.Fprintf(&content, "date: %s\n", time.Now().Format("2006-01-02"))
+	fmt.Fprintf(&content, "tier: %s\n", entry.Candidate.Tier)
+	fmt.Fprintf(&content, "utility: %.4f\n", entry.Candidate.Utility)
+	fmt.Fprintf(&content, "confidence: %.4f\n", entry.Candidate.Confidence)
+	fmt.Fprintf(&content, "maturity: %s\n", entry.Candidate.Maturity)
+	fmt.Fprintf(&content, "reward_count: %d\n", entry.Candidate.RewardCount)
+	fmt.Fprintf(&content, "helpful_count: %d\n", entry.Candidate.HelpfulCount)
+	fmt.Fprintf(&content, "harmful_count: %d\n", entry.Candidate.HarmfulCount)
+	fmt.Fprintf(&content, "source_session: %s\n", entry.Candidate.Source.SessionID)
+	content.WriteString("---\n\n")
+
+	// Heading
 	content.WriteString(knowledgeTypeHeading(entry.Candidate.Type))
 	content.WriteString(firstLineTitle(entry.Candidate.Content))
 	content.WriteString("\n\n")
-
-	// Metadata
-	content.WriteString(fmt.Sprintf("**ID**: %s\n", entry.Candidate.ID))
-	content.WriteString(fmt.Sprintf("**Date**: %s\n", time.Now().Format("2006-01-02")))
-	content.WriteString(fmt.Sprintf("**Tier**: %s\n", entry.Candidate.Tier))
-	content.WriteString("**Schema Version**: 1\n\n")
-
-	// MemRL fields
-	content.WriteString("## MemRL Metrics\n\n")
-	content.WriteString(fmt.Sprintf("- **Utility**: %.2f\n", entry.Candidate.Utility))
-	content.WriteString(fmt.Sprintf("- **Confidence**: %.2f\n", entry.Candidate.Confidence))
-	content.WriteString(fmt.Sprintf("- **Maturity**: %s\n\n", entry.Candidate.Maturity))
 
 	// Content
 	content.WriteString("## What We Learned\n\n")
@@ -774,9 +780,9 @@ func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 
 	// Provenance
 	content.WriteString("## Source\n\n")
-	content.WriteString(fmt.Sprintf("- **Session**: %s\n", entry.Candidate.Source.SessionID))
-	content.WriteString(fmt.Sprintf("- **Transcript**: %s\n", entry.Candidate.Source.TranscriptPath))
-	content.WriteString(fmt.Sprintf("- **Message**: %d\n\n", entry.Candidate.Source.MessageIndex))
+	fmt.Fprintf(&content, "- **Session**: %s\n", entry.Candidate.Source.SessionID)
+	fmt.Fprintf(&content, "- **Transcript**: %s\n", entry.Candidate.Source.TranscriptPath)
+	fmt.Fprintf(&content, "- **Message**: %d\n\n", entry.Candidate.Source.MessageIndex)
 
 	return os.WriteFile(path, []byte(content.String()), 0600)
 }

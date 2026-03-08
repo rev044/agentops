@@ -4,7 +4,16 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 current_branch="$(git branch --show-current)"
 common_dir="$(git rev-parse --git-common-dir)"
-canonical_root="${common_dir%/.git}"
+
+if [[ "$common_dir" != /* ]]; then
+    common_dir="$(cd "$repo_root" && cd "$common_dir" && pwd)"
+fi
+
+if [[ "$common_dir" == */.git ]]; then
+    canonical_root="${common_dir%/.git}"
+else
+    canonical_root="${common_dir%%/.git/*}"
+fi
 
 if [[ -z "$current_branch" ]]; then
     echo "FAIL: current worktree is detached; run this gate from a branch-attached task worktree" >&2

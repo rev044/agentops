@@ -305,35 +305,42 @@ type maturityTransitionSummary struct {
 	ChangedPaths []string `json:"changed_paths,omitempty"`
 }
 
-// applyAllMaturityTransitions scans learnings and applies all pending maturity transitions.
+// applyAllMaturityTransitions scans learnings and patterns, applying all pending transitions.
 func applyAllMaturityTransitions(cwd string) (maturityTransitionSummary, error) {
-	learningsDir := filepath.Join(cwd, ".agents", "learnings")
-	if _, err := os.Stat(learningsDir); os.IsNotExist(err) {
-		return maturityTransitionSummary{}, nil
+	dirs := []string{
+		filepath.Join(cwd, ".agents", "learnings"),
+		filepath.Join(cwd, ".agents", "patterns"),
 	}
 
-	results, err := ratchet.ScanForMaturityTransitions(learningsDir)
-	if err != nil {
-		return maturityTransitionSummary{}, fmt.Errorf("scan transitions: %w", err)
-	}
-
-	summary := maturityTransitionSummary{Total: len(results)}
-	if len(results) == 0 || GetDryRun() {
-		return summary, nil
-	}
-
-	for _, r := range results {
-		learningPath, ferr := findLearningFile(filepath.Dir(learningsDir), r.LearningID)
-		if ferr != nil {
+	summary := maturityTransitionSummary{}
+	for _, dir := range dirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		}
-		applied, aerr := ratchet.ApplyMaturityTransition(learningPath)
-		if aerr != nil {
+
+		results, err := ratchet.ScanForMaturityTransitions(dir)
+		if err != nil {
+			return maturityTransitionSummary{}, fmt.Errorf("scan transitions in %s: %w", dir, err)
+		}
+
+		summary.Total += len(results)
+		if len(results) == 0 || GetDryRun() {
 			continue
 		}
-		if applied.Transitioned {
-			summary.Applied++
-			summary.ChangedPaths = append(summary.ChangedPaths, learningPath)
+
+		for _, r := range results {
+			learningPath, ferr := findLearningFile(filepath.Dir(dir), r.LearningID)
+			if ferr != nil {
+				continue
+			}
+			applied, aerr := ratchet.ApplyMaturityTransition(learningPath)
+			if aerr != nil {
+				continue
+			}
+			if applied.Transitioned {
+				summary.Applied++
+				summary.ChangedPaths = append(summary.ChangedPaths, learningPath)
+			}
 		}
 	}
 

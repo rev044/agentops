@@ -446,10 +446,11 @@ func buildCandidateFromLearningBlock(b learningBlock, srcPath string, fileDate t
 		id = slugify(id[:90] + "-" + hex.EncodeToString(h[:4]))
 	}
 
+	candType := inferKnowledgeType(b)
 	confDim := confidenceToScore(b.Confidence)
 	rubric := computeRubricScores(b.Body, confDim)
 	weighted := rubricWeightedSum(rubric, taxonomy.DefaultRubricWeights)
-	raw := (taxonomy.GetBaseScore(types.KnowledgeTypeLearning) + weighted) / 2.0
+	raw := (taxonomy.GetBaseScore(candType) + weighted) / 2.0
 
 	// Pending learnings already reflect some human/LLM filtering (they were written intentionally),
 	// so bias score upwards based on the declared confidence to reduce false "bronze" assignments.
@@ -472,7 +473,7 @@ func buildCandidateFromLearningBlock(b learningBlock, srcPath string, fileDate t
 
 	cand := types.Candidate{
 		ID:          id,
-		Type:        types.KnowledgeTypeLearning,
+		Type:        candType,
 		Content:     strings.TrimSpace(b.Body),
 		Source:      types.Source{TranscriptPath: srcPath, Timestamp: fileDate, SessionID: sessionHint, MessageIndex: 0},
 		RawScore:    raw,
@@ -509,6 +510,45 @@ func buildCandidateFromLearningBlock(b learningBlock, srcPath string, fileDate t
 	}
 
 	return cand, scoring, true
+}
+
+// inferKnowledgeType classifies a learning block by its category and content signals.
+func inferKnowledgeType(b learningBlock) types.KnowledgeType {
+	cat := strings.ToLower(strings.TrimSpace(b.Category))
+	lower := strings.ToLower(b.Body)
+
+	switch cat {
+	case "decision", "pattern", "architectural-decision", "convention":
+		return types.KnowledgeTypeDecision
+	case "failure", "anti-pattern", "antipattern", "postmortem":
+		return types.KnowledgeTypeFailure
+	case "solution", "fix", "workaround":
+		return types.KnowledgeTypeSolution
+	case "reference", "doc", "documentation":
+		return types.KnowledgeTypeReference
+	}
+
+	decisionSignals := 0
+	for _, kw := range []string{"always ", "never ", "prefer ", "convention", "pattern:", "decision:", "we decided", "architectural"} {
+		if strings.Contains(lower, kw) {
+			decisionSignals++
+		}
+	}
+	if decisionSignals >= 2 {
+		return types.KnowledgeTypeDecision
+	}
+
+	failureSignals := 0
+	for _, kw := range []string{"failed", "broke", "regression", "root cause", "post-mortem", "anti-pattern"} {
+		if strings.Contains(lower, kw) {
+			failureSignals++
+		}
+	}
+	if failureSignals >= 2 {
+		return types.KnowledgeTypeFailure
+	}
+
+	return types.KnowledgeTypeLearning
 }
 
 func confidenceToScore(s string) float64 {

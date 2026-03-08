@@ -12,7 +12,9 @@
 
 set -euo pipefail
 
-AGENTS_DIR=".agents"
+# Anchor to repo root to avoid pruning wrong .agents/ when cwd differs
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+AGENTS_DIR="${REPO_ROOT}/.agents"
 DRY_RUN=true
 TOTAL_FILES=0
 TOTAL_BYTES=0

@@ -1224,10 +1224,18 @@ func TestPoolWriteArtifactLongTitle(t *testing.T) {
 	}
 
 	content := string(data)
-	// The first line after "# Learning: " should end with "..."
-	lines := strings.Split(content, "\n")
-	if !strings.HasSuffix(lines[0], "...") {
-		t.Errorf("expected truncated title ending with '...', got %q", lines[0])
+	// With YAML frontmatter, the heading with truncated title comes after the --- block
+	if !strings.Contains(content, "---\n") {
+		t.Error("expected YAML frontmatter delimiters")
+	}
+	// Find the heading line (starts with "# Learning: ")
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "# Learning: ") {
+			if !strings.HasSuffix(line, "...") {
+				t.Errorf("expected truncated title ending with '...', got %q", line)
+			}
+			break
+		}
 	}
 }
 
@@ -1264,13 +1272,25 @@ func TestPoolWriteArtifactMultilineContent(t *testing.T) {
 	}
 
 	content := string(data)
-	// Title should only be first line
-	lines := strings.Split(content, "\n")
-	if !strings.Contains(lines[0], "First line title") {
-		t.Errorf("expected title to contain 'First line title', got %q", lines[0])
+	// With YAML frontmatter, find the heading line
+	if !strings.Contains(content, "---\n") {
+		t.Error("expected YAML frontmatter delimiters")
 	}
-	if strings.Contains(lines[0], "Second line") {
-		t.Error("title should not contain second line content")
+	foundHeading := false
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "# Learning: ") {
+			foundHeading = true
+			if !strings.Contains(line, "First line title") {
+				t.Errorf("expected title to contain 'First line title', got %q", line)
+			}
+			if strings.Contains(line, "Second line") {
+				t.Error("title should not contain second line content")
+			}
+			break
+		}
+	}
+	if !foundHeading {
+		t.Error("expected to find '# Learning: ' heading in artifact")
 	}
 }
 
