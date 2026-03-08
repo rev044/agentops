@@ -172,11 +172,14 @@ for extra_test in \
     if [ -f "$extra_test" ]; then
         test_name=$(basename "$extra_test" .sh)
         echo -n "  $test_name ... "
-        if bash "$extra_test" >/dev/null 2>&1; then
+        if extra_output="$(
+            bash "$extra_test" 2>&1
+        )"; then
             echo -e "${GREEN}PASS${NC}"
             PASSED=$((PASSED + 1))
         else
             echo -e "${RED}FAIL${NC}"
+            printf '%s\n' "$extra_output"
             FAILED=$((FAILED + 1))
         fi
     fi
