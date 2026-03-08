@@ -77,6 +77,11 @@ jobs:
           chmod +x scripts/validate-codex-skill-parity.sh
           ./scripts/validate-codex-skill-parity.sh
 
+      - name: Validate Codex backbone prompts
+        run: |
+          chmod +x scripts/validate-codex-backbone-prompts.sh
+          ./scripts/validate-codex-backbone-prompts.sh
+
   embedded-sync:
     runs-on: ubuntu-latest
     steps:

@@ -503,6 +503,7 @@ run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
 run_step_bg "Codex install bundle parity" bash ./scripts/validate-codex-install-bundle.sh
 run_step_bg "Codex generated manifest" bash ./scripts/validate-codex-generated-manifest.sh
 run_step_bg "Codex generated artifacts" bash ./scripts/validate-codex-generated-artifacts.sh --scope worktree
+run_step_bg "Codex backbone prompts" bash ./scripts/validate-codex-backbone-prompts.sh
 run_step_bg "Next-work contract parity" bash ./scripts/validate-next-work-contract-parity.sh
 run_step_bg "Skill runtime formats" bash ./scripts/validate-skill-runtime-formats.sh
 run_step_bg "Contract compatibility gate" ./scripts/check-contract-compatibility.sh
@@ -534,6 +535,7 @@ run_step_bg "Codex plugin install tests" bash ./tests/scripts/test-codex-plugin-
 run_step_bg "Codex native install tests" bash ./tests/scripts/test-codex-native-skills-install.sh
 run_step_bg "Codex generated manifest tests" bash ./tests/scripts/test-codex-generated-manifest.sh
 run_step_bg "Codex generated artifact tests" bash ./tests/scripts/test-codex-generated-artifacts.sh
+run_step_bg "Codex backbone prompt tests" bash ./tests/scripts/test-codex-backbone-prompts.sh
 run_step_bg "Dev hook install tests" bash ./tests/scripts/test-install-dev-hooks.sh
 run_step_bg "Git hook shim tests" bash ./tests/scripts/test-githook-shims.sh
 run_step_bg "Validate-local tests" bash ./tests/scripts/test-validate-local.sh

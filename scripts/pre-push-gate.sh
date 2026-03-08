@@ -22,11 +22,12 @@
 #  14. Skill schema validation
 #  15. Manifest schema validation
 #  16. Codex generated artifacts
-#  17. Codex override coverage
-#  18. Next-work contract parity
-#  19. Skill runtime formats
-#  20. Skill CLI snippets
-#  21. Headless runtime skill smoke
+#  17. Codex backbone prompts
+#  18. Codex override coverage
+#  19. Next-work contract parity
+#  20. Skill runtime formats
+#  21. Skill CLI snippets
+#  22. Headless runtime skill smoke
 #
 # Usage:
 #   scripts/pre-push-gate.sh [--scope auto|upstream|staged|worktree|head]
@@ -315,7 +316,19 @@ else
     fail "missing executable: scripts/validate-codex-generated-artifacts.sh"
 fi
 
-# --- 17. Codex override coverage ---
+# --- 17. Codex backbone prompts ---
+if [[ -x scripts/validate-codex-backbone-prompts.sh ]]; then
+    if codex_backbone_output="$(scripts/validate-codex-backbone-prompts.sh 2>&1)"; then
+        pass "codex backbone prompts"
+    else
+        fail "codex backbone prompts"
+        indent_output "$codex_backbone_output"
+    fi
+else
+    fail "missing executable: scripts/validate-codex-backbone-prompts.sh"
+fi
+
+# --- 18. Codex override coverage ---
 if [[ -x scripts/validate-codex-override-coverage.sh ]]; then
     if codex_override_output="$(scripts/validate-codex-override-coverage.sh 2>&1)"; then
         pass "codex override coverage"
@@ -327,7 +340,7 @@ else
     fail "missing executable: scripts/validate-codex-override-coverage.sh"
 fi
 
-# --- 18. Next-work contract parity ---
+# --- 19. Next-work contract parity ---
 if [[ -x scripts/validate-next-work-contract-parity.sh ]]; then
     if next_work_contract_output="$(scripts/validate-next-work-contract-parity.sh 2>&1)"; then
         pass "next-work contract parity"
@@ -339,7 +352,7 @@ else
     fail "missing executable: scripts/validate-next-work-contract-parity.sh"
 fi
 
-# --- 19. Skill runtime formats ---
+# --- 20. Skill runtime formats ---
 if [[ -x scripts/validate-skill-runtime-formats.sh ]]; then
     if codex_lint_output="$(scripts/validate-skill-runtime-formats.sh 2>&1)"; then
         pass "skill runtime formats"
@@ -351,7 +364,7 @@ else
     fail "missing executable: scripts/validate-skill-runtime-formats.sh"
 fi
 
-# --- 20. Skill CLI snippets ---
+# --- 21. Skill CLI snippets ---
 if [[ -x scripts/validate-skill-cli-snippets.sh ]]; then
     if skill_cli_output="$(scripts/validate-skill-cli-snippets.sh 2>&1)"; then
         pass "skill CLI snippets"
@@ -363,7 +376,7 @@ else
     fail "missing executable: scripts/validate-skill-cli-snippets.sh"
 fi
 
-# --- 21. Headless runtime skill smoke ---
+# --- 22. Headless runtime skill smoke ---
 if [[ -x scripts/validate-headless-runtime-skills.sh ]]; then
     if runtime_smoke_output="$(scripts/validate-headless-runtime-skills.sh 2>&1)"; then
         pass "headless runtime skills"
