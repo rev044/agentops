@@ -78,11 +78,26 @@ trap cleanup EXIT
 source_skills_file="$tmpdir/source-skills.txt"
 manifest_skills_file="$tmpdir/manifest-skills.txt"
 wave_ids_file="$tmpdir/wave-ids.txt"
-selected_entries_file="$tmpdir/selected-entries.tsv"
+selected_entries_file="$tmpdir/selected-entries.jsonl"
 selected_skills_file="$tmpdir/selected-skills.txt"
 selected_bespoke_file="$tmpdir/selected-bespoke.txt"
 actual_override_dirs_file="$tmpdir/actual-override-dirs.txt"
 expected_override_dirs_file="$tmpdir/expected-override-dirs.txt"
+
+contains_fixed() {
+  local needle="$1"
+  local path="$2"
+  rg -Fq -- "$needle" "$path"
+}
+
+required_contract_skills_file="$tmpdir/required-contract-skills.txt"
+cat > "$required_contract_skills_file" <<'EOF'
+plan
+post-mortem
+push
+rpi
+vibe
+EOF
 
 find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d \
   | while IFS= read -r d; do
@@ -100,7 +115,17 @@ if ! jq -e '
     (.name | type) == "string" and (.name | length) > 0 and
     (.treatment == "bespoke" or .treatment == "parity_only") and
     (.wave | type) == "string" and (.wave | length) > 0 and
-    (.reason | type) == "string" and (.reason | length) > 0
+    (.reason | type) == "string" and (.reason | length) > 0 and
+    (
+      (.operator_contract? | not) or
+      (
+        (.operator_contract | type) == "object" and
+        (.operator_contract.required_sections | type) == "array" and
+        (.operator_contract.required_markers | type) == "array" and
+        all(.operator_contract.required_sections[]; (type == "string") and (length > 0)) and
+        all(.operator_contract.required_markers[]; (type == "string") and (length > 0))
+      )
+    )
   )
 ' "$CATALOG_PATH" >/dev/null; then
   echo "Invalid Codex override catalog schema: $CATALOG_PATH" >&2
@@ -163,29 +188,42 @@ if [[ -n "$WAVE_FILTER" ]]; then
     echo "Unknown wave id in Codex override catalog: $WAVE_FILTER" >&2
     exit 1
   fi
-  jq -r --arg wave "$WAVE_FILTER" '
+  jq -c --arg wave "$WAVE_FILTER" '
     .skills[]
     | select(.wave == $wave)
-    | [.name, .treatment, .wave, .reason]
-    | @tsv
+    | {
+        name,
+        treatment,
+        wave,
+        reason,
+        operator_contract: (.operator_contract // null)
+      }
   ' "$CATALOG_PATH" > "$selected_entries_file"
 else
-  jq -r '
+  jq -c '
     .skills[]
-    | [.name, .treatment, .wave, .reason]
-    | @tsv
+    | {
+        name,
+        treatment,
+        wave,
+        reason,
+        operator_contract: (.operator_contract // null)
+      }
   ' "$CATALOG_PATH" > "$selected_entries_file"
 fi
 
-cut -f1 "$selected_entries_file" | LC_ALL=C sort -u > "$selected_skills_file"
-awk -F'\t' '$2 == "bespoke" { print $1 }' "$selected_entries_file" | LC_ALL=C sort -u > "$selected_bespoke_file"
+jq -r '.name' "$selected_entries_file" | LC_ALL=C sort -u > "$selected_skills_file"
+jq -r 'select(.treatment == "bespoke") | .name' "$selected_entries_file" | LC_ALL=C sort -u > "$selected_bespoke_file"
 
 selected_count="$(wc -l < "$selected_skills_file" | tr -d ' ')"
 if [[ "$selected_count" == "0" ]]; then
   fail "selected catalog scope is empty"
 fi
 
-while IFS=$'\t' read -r skill treatment wave reason; do
+while IFS= read -r entry; do
+  [[ -n "$entry" ]] || continue
+  skill="$(jq -r '.name' <<<"$entry")"
+  treatment="$(jq -r '.treatment' <<<"$entry")"
   [[ -n "$skill" ]] || continue
   generated_prompt="$GENERATED_DIR/$skill/prompt.md"
   override_dir="$OVERRIDES_DIR/$skill"
@@ -198,6 +236,25 @@ while IFS=$'\t' read -r skill treatment wave reason; do
       [[ -f "$override_prompt" ]] || fail "missing Codex override prompt for bespoke skill $skill"
       if [[ -f "$override_prompt" ]] && ! rg -q '^## Codex Execution Profile$' "$override_prompt"; then
         fail "override prompt for $skill lacks '## Codex Execution Profile'"
+      fi
+      if grep -Fxq "$skill" "$required_contract_skills_file"; then
+        if ! jq -e '.operator_contract != null' <<<"$entry" >/dev/null; then
+          fail "catalog missing operator_contract for required Codex backbone skill: $skill"
+        fi
+      fi
+      if jq -e '.operator_contract != null' <<<"$entry" >/dev/null; then
+        while IFS= read -r required_section; do
+          [[ -n "$required_section" ]] || continue
+          if ! contains_fixed "$required_section" "$override_prompt"; then
+            fail "override prompt for $skill missing required operator-contract section: $required_section"
+          fi
+        done < <(jq -r '.operator_contract.required_sections[]' <<<"$entry")
+        while IFS= read -r required_marker; do
+          [[ -n "$required_marker" ]] || continue
+          if ! contains_fixed "$required_marker" "$override_prompt"; then
+            fail "override prompt for $skill missing required operator-contract marker: $required_marker"
+          fi
+        done < <(jq -r '.operator_contract.required_markers[]' <<<"$entry")
       fi
       if [[ -f "$override_prompt" && -f "$generated_prompt" ]] && ! cmp -s "$override_prompt" "$generated_prompt"; then
         fail "generated Codex prompt for $skill does not match override source (run: bash scripts/sync-codex-native-skills.sh)"

@@ -29,6 +29,7 @@ Codex-native prompt for $name.
 ## Codex Execution Profile
 
 1. Treat the canonical skill as source of truth.
+2. Record issue-ready handoff markers for downstream Codex execution.
 
 ## Guardrails
 
@@ -89,7 +90,16 @@ EOF
     {"id": "wave-b", "description": "fixture"}
   ],
   "skills": [
-    {"name": "alpha", "treatment": "bespoke", "wave": "wave-a", "reason": "Needs Codex-native wording."},
+    {
+      "name": "alpha",
+      "treatment": "bespoke",
+      "wave": "wave-a",
+      "reason": "Needs Codex-native wording.",
+      "operator_contract": {
+        "required_sections": ["## Codex Execution Profile", "## Guardrails"],
+        "required_markers": ["Record issue-ready handoff markers for downstream Codex execution."]
+      }
+    },
     {"name": "beta", "treatment": "parity_only", "wave": "wave-b", "reason": "Default generated prompt is enough."},
     {"name": "gamma", "treatment": "bespoke", "wave": "wave-b", "reason": "Needs Codex-native review structure."}
   ]
@@ -138,6 +148,28 @@ test_fails_when_parity_skill_has_override() {
   fi
 }
 
+test_fails_when_operator_contract_marker_is_missing() {
+  local fixture="$TMP_DIR/operator-contract-missing"
+  setup_fixture "$fixture"
+  mkdir -p "$fixture/skills-codex-overrides/gamma"
+  write_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
+  cp "$fixture/skills-codex-overrides/gamma/prompt.md" "$fixture/skills-codex/gamma/prompt.md"
+  python3 - <<'PY' "$fixture/skills-codex-overrides/alpha/prompt.md"
+from pathlib import Path
+path = Path(__import__("sys").argv[1])
+path.write_text(path.read_text().replace(
+    "2. Record issue-ready handoff markers for downstream Codex execution.\n",
+    "",
+))
+PY
+
+  if bash "$SCRIPT" --repo-root "$fixture" >/dev/null 2>&1; then
+    fail "should fail when a required operator contract marker is missing"
+  else
+    pass "fails when operator contract markers drift from the override prompt"
+  fi
+}
+
 test_repo_catalog_is_complete() {
   if bash "$SCRIPT" --repo-root "$ROOT" >/dev/null 2>&1; then
     pass "repository catalog validates end to end"
@@ -150,6 +182,7 @@ echo "== test-codex-override-coverage =="
 test_fixture_passes_with_complete_wave_filter
 test_fails_when_bespoke_override_missing
 test_fails_when_parity_skill_has_override
+test_fails_when_operator_contract_marker_is_missing
 test_repo_catalog_is_complete
 
 echo

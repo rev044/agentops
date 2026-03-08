@@ -49,8 +49,34 @@
     {"name": "inject", "treatment": "parity_only", "wave": "catalog-parity", "reason": "This deprecated background skill has minimal user-facing surface and does not justify bespoke Codex phrasing."},
     {"name": "openai-docs", "treatment": "bespoke", "wave": "backbone", "reason": "Official-doc retrieval and citation behavior need explicit Codex tooling guidance."},
     {"name": "oss-docs", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical OSS documentation workflow is already explicit enough for Codex without a dedicated override."},
-    {"name": "plan", "treatment": "bespoke", "wave": "backbone", "reason": "Planning output must feed the Codex execution chain with issue-ready scope and handoff artifacts."},
-    {"name": "post-mortem", "treatment": "bespoke", "wave": "backbone", "reason": "Harvested follow-up work and closure semantics need Codex-specific framing."},
+    {
+      "name": "plan",
+      "treatment": "bespoke",
+      "wave": "backbone",
+      "reason": "Planning output must feed the Codex execution chain with issue-ready scope and handoff artifacts.",
+      "operator_contract": {
+        "required_sections": ["## Codex Execution Profile", "## Guardrails"],
+        "required_markers": [
+          "beads-ready issues, dependencies, and acceptance criteria",
+          "future Codex sessions can pick them up without chat-only context",
+          "Keep WHAT and HOW separated"
+        ]
+      }
+    },
+    {
+      "name": "post-mortem",
+      "treatment": "bespoke",
+      "wave": "backbone",
+      "reason": "Harvested follow-up work and closure semantics need Codex-specific framing.",
+      "operator_contract": {
+        "required_sections": ["## Codex Execution Profile", "## Guardrails"],
+        "required_markers": [
+          "write learnings and harvested work to disk",
+          ".agents/rpi/next-work.jsonl",
+          "claim/release/consume through the queue lifecycle"
+        ]
+      }
+    },
     {"name": "pr-implement", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "Fork-based contribution work needs explicit Codex guidance around isolation, scope control, and proof of completion."},
     {"name": "pr-plan", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "PR planning benefits from concise Codex framing around contribution scope, risk, and upstream fit."},
     {"name": "pr-prep", "treatment": "bespoke", "wave": "contribution-workflow", "reason": "Preparing a PR in Codex needs a tighter artifact checklist and explicit user-review boundary."},
@@ -60,7 +86,20 @@
     {"name": "pre-mortem", "treatment": "bespoke", "wave": "core-execution", "reason": "Go/no-go judgment depends on Codex-specific gate framing and concise blocker reporting."},
     {"name": "product", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical interview-and-synthesis loop already defines the interaction strongly enough for Codex."},
     {"name": "provenance", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Knowledge-lineage tracing is largely read-only and does not yet need Codex-specific prompt shaping."},
-    {"name": "push", "treatment": "bespoke", "wave": "core-execution", "reason": "Validate-commit-push flow must align with Codex gate discipline and remote-verification habits."},
+    {
+      "name": "push",
+      "treatment": "bespoke",
+      "wave": "core-execution",
+      "reason": "Validate-commit-push flow must align with Codex gate discipline and remote-verification habits.",
+      "operator_contract": {
+        "required_sections": ["## Codex Execution Profile", "## Guardrails"],
+        "required_markers": [
+          "relevant tests first, commit second, push third, remote verification last",
+          "branch is synced with origin at the end",
+          "If push fails, stay in recovery mode until it succeeds or a real blocker is identified"
+        ]
+      }
+    },
     {"name": "quickstart", "treatment": "bespoke", "wave": "backbone", "reason": "First-run onboarding should reflect Codex runtime expectations rather than generic converted wording."},
     {"name": "ratchet", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Ratchet commands are procedural and already map cleanly into the generated Codex prompt."},
     {"name": "readme", "treatment": "bespoke", "wave": "analysis-authoring", "reason": "README generation benefits from Codex-specific interview brevity, artifact output, and validation focus."},
@@ -69,7 +108,20 @@
     {"name": "research", "treatment": "bespoke", "wave": "backbone", "reason": "Parallel exploration and artifact capture differ materially in Codex sessions."},
     {"name": "retro", "treatment": "bespoke", "wave": "backbone", "reason": "Quick learning capture should reflect Codex session habits and artifact-first closure."},
     {"name": "reverse-engineer-rpi", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The canonical reverse-engineering workflow is already prescriptive enough that converter parity is acceptable for now."},
-    {"name": "rpi", "treatment": "bespoke", "wave": "backbone", "reason": "The lead orchestration path and disk-backed state contract require explicit Codex-native operating rules."},
+    {
+      "name": "rpi",
+      "treatment": "bespoke",
+      "wave": "backbone",
+      "reason": "The lead orchestration path and disk-backed state contract require explicit Codex-native operating rules.",
+      "operator_contract": {
+        "required_sections": ["## Codex Execution Profile", "## Guardrails"],
+        "required_markers": [
+          "Orchestrate phases directly in the current session; do not hand RPI orchestration to wrapper commands.",
+          "claim, release, and consume semantics exactly",
+          "claim before work, consume on success, release on failure or interruption"
+        ]
+      }
+    },
     {"name": "security", "treatment": "bespoke", "wave": "security-focused", "reason": "Security review needs findings-first Codex output and clear release-gate semantics."},
     {"name": "security-suite", "treatment": "bespoke", "wave": "security-focused", "reason": "Composable security tooling benefits from Codex-specific artifact discipline and policy-oriented reporting."},
     {"name": "shared", "treatment": "parity_only", "wave": "catalog-parity", "reason": "This non-invocable shared-reference skill does not need bespoke Codex prompt wording."},
@@ -79,6 +131,19 @@
     {"name": "trace", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Current trace workflows are evidence-driven and remain sufficiently clear under converter parity."},
     {"name": "update", "treatment": "parity_only", "wave": "catalog-parity", "reason": "Skill reinstall/update flow is script-led and does not need extra Codex-native phrasing."},
     {"name": "using-agentops", "treatment": "parity_only", "wave": "catalog-parity", "reason": "The meta-skill already serves as explanatory reference material, so converter parity is acceptable."},
-    {"name": "vibe", "treatment": "bespoke", "wave": "backbone", "reason": "Ship-readiness review output must match Codex findings-first review ergonomics and repo gates."}
+    {
+      "name": "vibe",
+      "treatment": "bespoke",
+      "wave": "backbone",
+      "reason": "Ship-readiness review output must match Codex findings-first review ergonomics and repo gates.",
+      "operator_contract": {
+        "required_sections": ["## Codex Execution Profile", "## Guardrails"],
+        "required_markers": [
+          "Prefer findings-first output with exact file references, regression risks, and missing-test callouts.",
+          "same gates that block `git push`",
+          "lead with defects, risks, and verification gaps"
+        ]
+      }
+    }
   ]
 }

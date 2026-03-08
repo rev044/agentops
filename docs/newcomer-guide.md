@@ -44,6 +44,11 @@ For Codex skills specifically:
 3. `skills-codex-overrides/catalog.json` records the Codex treatment decision for every skill
 4. `skills-codex/<name>/` is the generated artifact and should be regenerated, not hand-maintained
 
+For the core Codex execution chain, `skills-codex-overrides/catalog.json` also
+stores machine-readable `operator_contract` markers. When you change one of
+those prompts, update the contract alongside the prose so the validator can
+enforce the intended Codex-specific guarantees.
+
 
 ## Key concepts to learn first
 
