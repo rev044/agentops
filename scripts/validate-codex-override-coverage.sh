@@ -32,6 +32,10 @@ for skill in "${required_skills[@]}"; do
   if [[ -f "$override_prompt" ]] && ! rg -q '^## Codex Execution Profile$' "$override_prompt"; then
     fail "override prompt for $skill lacks '## Codex Execution Profile'"
   fi
+
+  if [[ -f "$override_prompt" && -f "$generated_prompt" ]] && ! cmp -s "$override_prompt" "$generated_prompt"; then
+    fail "generated Codex prompt for $skill does not match override source (run: bash scripts/sync-codex-native-skills.sh)"
+  fi
 done
 
 if [[ "$failures" -gt 0 ]]; then
