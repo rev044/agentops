@@ -34,9 +34,10 @@ run_maintenance() {
 
     FORGE_STATUS=0
     if run_ao_quick 6 forge transcript --last-session --quiet; then
-        # Note: pool ingest does not support --quiet; removed to prevent silent failure
-        run_ao_quick 6 pool ingest || true
-        run_ao_quick 8 notebook update --quiet || true
+        # Run the full flywheel close-loop: ingest → auto-promote → citation feedback
+        # → maturity transitions → store index → memory promotion
+        # Replaces separate pool ingest + maturity --scan --apply calls
+        run_ao_quick 15 flywheel close-loop --quiet || true
 
         # Sync to repo-root MEMORY.md (opt-in via AGENTOPS_MEMORY_SYNC=1)
         # Only runs after successful forge — no point syncing stale data
@@ -54,8 +55,6 @@ run_maintenance() {
     else
         printf '{"outcome":"failure","written_at":"%s"}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$OUTCOME_FILE" 2>/dev/null || true
     fi
-
-    run_ao_quick 4 maturity --scan --apply || true
 
     # Knowledge maintenance: deduplicate and detect contradictions
     run_ao_quick 6 dedup --merge || true

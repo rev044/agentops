@@ -451,7 +451,7 @@ func runHooksInit(cmd *cobra.Command, args []string) error {
 		fmt.Println("# SessionStart hook (startup context + optional inject)")
 		fmt.Printf("# %s\n", hooks.SessionStart[0].Hooks[0].Command)
 		fmt.Println()
-		fmt.Println("# SessionEnd hook (forge + notebook update + maturity)")
+		fmt.Println("# SessionEnd hook (forge + flywheel maintenance)")
 		fmt.Printf("# %s\n", hooks.SessionEnd[0].Hooks[0].Command)
 		fmt.Println()
 		fmt.Println("# Stop hook (close flywheel)")

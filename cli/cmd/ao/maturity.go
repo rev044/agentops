@@ -276,11 +276,13 @@ func displayPendingTransitions(results []*ratchet.MaturityTransitionResult) erro
 	return nil
 }
 
-func applyScannedTransitions(learningsDir string, results []*ratchet.MaturityTransitionResult) {
+func applyScannedTransitions(artifactDir string, results []*ratchet.MaturityTransitionResult) {
 	fmt.Println("=== Applying Transitions ===")
 	applied := 0
+	// Resolve from the parent (.agents/) so the resolver can find files in both learnings/ and patterns/
+	baseDir := filepath.Dir(artifactDir)
 	for _, r := range results {
-		learningPath, err := findLearningFile(filepath.Dir(learningsDir), r.LearningID)
+		learningPath, err := findLearningFile(baseDir, r.LearningID)
 		if err != nil {
 			VerbosePrintf("Warning: could not find %s: %v\n", r.LearningID, err)
 			continue

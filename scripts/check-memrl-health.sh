@@ -54,12 +54,13 @@ else
     pass "Citation feedback does not hardcode reward=1.0"
 fi
 
-# ── Check D: SessionEnd hook has --scan --apply ──
-# Without --scan --apply, maturity transitions never fire at session boundaries.
-if grep -q '\-\-scan.*\-\-apply' "$ROOT/hooks/session-end-maintenance.sh"; then
-    pass "SessionEnd hook invokes maturity --scan --apply"
+# ── Check D: SessionEnd hook triggers maturity transitions ──
+# Session boundaries must still run the close-loop path that applies maturity.
+if grep -q 'flywheel close-loop' "$ROOT/hooks/session-end-maintenance.sh" || \
+   grep -q '\-\-scan.*\-\-apply' "$ROOT/hooks/session-end-maintenance.sh"; then
+    pass "SessionEnd hook triggers maturity transitions"
 else
-    fail "SessionEnd hook missing --scan --apply (hooks/session-end-maintenance.sh)"
+    fail "SessionEnd hook missing close-loop or maturity apply path (hooks/session-end-maintenance.sh)"
 fi
 
 # ── Check E: Close-loop calls applyAllMaturityTransitions ──

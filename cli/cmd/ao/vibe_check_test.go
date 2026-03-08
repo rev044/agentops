@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -233,6 +234,23 @@ func TestRunVibeCheck_markdownOutput(t *testing.T) {
 	err := runVibeCheck(nil, nil)
 	if err != nil {
 		t.Fatalf("runVibeCheck markdown: %v", err)
+	}
+}
+
+func TestResolveVibeCheckRepoPath_UsesGitTopLevel(t *testing.T) {
+	wantOut, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		t.Fatalf("git rev-parse --show-toplevel: %v", err)
+	}
+
+	got, err := resolveVibeCheckRepoPath(".")
+	if err != nil {
+		t.Fatalf("resolveVibeCheckRepoPath: %v", err)
+	}
+
+	want := strings.TrimSpace(string(wantOut))
+	if got != want {
+		t.Fatalf("resolveVibeCheckRepoPath(.) = %q, want %q", got, want)
 	}
 }
 

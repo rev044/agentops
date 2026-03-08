@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -66,25 +67,14 @@ func runVibeCheck(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid duration format: %w", err)
 	}
 
-	// Resolve repo path
-	repoPath := vibeCheckRepo
-	if repoPath == "." {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("get working directory: %w", err)
-		}
-		repoPath = cwd
-	}
-
-	// Make it absolute
-	absPath, err := filepath.Abs(repoPath)
+	repoPath, err := resolveVibeCheckRepoPath(vibeCheckRepo)
 	if err != nil {
 		return fmt.Errorf("resolve repo path: %w", err)
 	}
 
 	// Run analysis
 	opts := vibecheck.AnalyzeOptions{
-		RepoPath: absPath,
+		RepoPath: repoPath,
 		Since:    time.Now().Add(-duration),
 	}
 
@@ -104,6 +94,30 @@ func runVibeCheck(cmd *cobra.Command, args []string) error {
 
 	// Default: table output
 	return outputVibeCheckTable(result)
+}
+
+func resolveVibeCheckRepoPath(repoPath string) (string, error) {
+	if repoPath == "." {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("get working directory: %w", err)
+		}
+		repoPath = cwd
+	}
+
+	absPath, err := filepath.Abs(repoPath)
+	if err != nil {
+		return "", err
+	}
+
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = absPath
+	out, err := cmd.Output()
+	if err != nil {
+		return absPath, nil
+	}
+
+	return strings.TrimSpace(string(out)), nil
 }
 
 // parseDuration parses durations like "7d", "30d", "90d", "1w", etc.
