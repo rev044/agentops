@@ -260,3 +260,59 @@ GIT
     [ "$status" -eq 1 ]
     [[ "$output" == *"FAIL"*"worktree disposition"* ]]
 }
+
+@test "pre-push-gate.sh fails when codex backbone prompts validation fails" {
+    cat > "$MOCK_BIN/go" <<'GO'
+#!/usr/bin/env bash
+exit 0
+GO
+    chmod +x "$MOCK_BIN/go"
+
+    cat > "$MOCK_BIN/git" <<'GIT'
+#!/usr/bin/env bash
+if [[ "$*" == *"diff --name-only"* ]]; then echo ""; fi
+exit 0
+GIT
+    chmod +x "$MOCK_BIN/git"
+
+    make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
+    make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
+    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+    make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-backbone-prompts.sh" 1
+
+    cd "$FAKE_REPO"
+    export PATH="$MOCK_BIN:$PATH"
+
+    run bash "$GATE"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"FAIL"*"codex backbone prompts"* ]]
+}
+
+@test "pre-push-gate.sh fails when codex override coverage validation fails" {
+    cat > "$MOCK_BIN/go" <<'GO'
+#!/usr/bin/env bash
+exit 0
+GO
+    chmod +x "$MOCK_BIN/go"
+
+    cat > "$MOCK_BIN/git" <<'GIT'
+#!/usr/bin/env bash
+if [[ "$*" == *"diff --name-only"* ]]; then echo ""; fi
+exit 0
+GIT
+    chmod +x "$MOCK_BIN/git"
+
+    make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
+    make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
+    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+    make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
+    make_stub "$FAKE_REPO/scripts/validate-codex-override-coverage.sh" 1
+
+    cd "$FAKE_REPO"
+    export PATH="$MOCK_BIN:$PATH"
+
+    run bash "$GATE"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"FAIL"*"codex override coverage"* ]]
+}

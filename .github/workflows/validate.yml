@@ -77,10 +77,25 @@ jobs:
           chmod +x scripts/validate-codex-skill-parity.sh
           ./scripts/validate-codex-skill-parity.sh
 
+      - name: Validate Codex install bundle parity
+        run: |
+          chmod +x scripts/validate-codex-install-bundle.sh
+          ./scripts/validate-codex-install-bundle.sh
+
+      - name: Validate Codex generated artifacts
+        run: |
+          chmod +x scripts/validate-codex-generated-artifacts.sh
+          ./scripts/validate-codex-generated-artifacts.sh --scope head
+
       - name: Validate Codex backbone prompts
         run: |
           chmod +x scripts/validate-codex-backbone-prompts.sh
           ./scripts/validate-codex-backbone-prompts.sh
+
+      - name: Validate headless runtime skills
+        run: |
+          chmod +x scripts/validate-headless-runtime-skills.sh
+          ./scripts/validate-headless-runtime-skills.sh
 
   embedded-sync:
     runs-on: ubuntu-latest
