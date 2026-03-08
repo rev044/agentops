@@ -211,7 +211,7 @@ bash scripts/evolve-measure-fitness.sh \
 
 **Do NOT write per-cycle `fitness-{N}-pre.json` files.** The rolling file is sufficient for work selection and regression detection.
 
-This writes a fitness snapshot to `.agents/evolve/` atomically via a temp file plus JSON validation. If measurement exceeds the whole-command bound or returns invalid JSON, the wrapper fails without clobbering the previous rolling snapshot.
+This writes a fitness snapshot to `.agents/evolve/` atomically via a temp file plus JSON validation. The AgentOps CLI is required for fitness measurement because the wrapper shells out to `ao goals measure`. If measurement exceeds the whole-command bound or returns invalid JSON, the wrapper fails without clobbering the previous rolling snapshot.
 
 ### Step 3: Select Work
 
