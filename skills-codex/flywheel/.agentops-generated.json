@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/flywheel",
   "layout": "modular",
-  "source_hash": "9b466a25abc2389d47b9a5278b25b59afd3f2fd467d6bc09fc7038fd256f5113",
-  "generated_hash": "cb4f30937f56bfdc078a2eb2f80c29d15b7ddd604a53529821beec7eb909fb43"
+  "source_hash": "508cf90165bc98c0da405952600c0fddc2ca8bfca34f47a213f472bea384731b",
+  "generated_hash": "1d8faac889b25fc235473eb8af86b7c882128d4700a47f9092321aeea1a3ce53"
 }

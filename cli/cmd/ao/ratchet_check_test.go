@@ -157,11 +157,6 @@ func TestRunRatchetCheck_GateChecker_AllStepsHaveResults(t *testing.T) {
 		t.Fatalf("NewGateChecker: %v", err)
 	}
 
-	// crank shares implement's gate checker, so its result.Step = implement
-	sharedGateStep := map[ratchet.Step]ratchet.Step{
-		ratchet.StepCrank: ratchet.StepImplement,
-	}
-
 	for _, step := range ratchet.AllSteps() {
 		t.Run(string(step), func(t *testing.T) {
 			result, err := checker.Check(step)
@@ -171,12 +166,8 @@ func TestRunRatchetCheck_GateChecker_AllStepsHaveResults(t *testing.T) {
 			if result == nil {
 				t.Fatalf("Check(%s) returned nil result", step)
 			}
-			expectedStep := step
-			if mapped, ok := sharedGateStep[step]; ok {
-				expectedStep = mapped
-			}
-			if result.Step != expectedStep {
-				t.Errorf("result.Step = %q, want %q", result.Step, expectedStep)
+			if result.Step != step {
+				t.Errorf("result.Step = %q, want %q", result.Step, step)
 			}
 			if result.Message == "" {
 				t.Errorf("result.Message should not be empty for step %s", step)

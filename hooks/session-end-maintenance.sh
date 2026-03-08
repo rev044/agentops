@@ -29,11 +29,13 @@ run_maintenance() {
     command -v ao >/dev/null 2>&1 || return 0
 
     # Step 0: Auto-extract learnings while context is fresh (before forge)
-    run_ao_quick 10 session close --auto-extract --quiet || true
+    # Note: session close does not support --quiet; removed to prevent silent failure
+    run_ao_quick 10 session close --auto-extract || true
 
     FORGE_STATUS=0
     if run_ao_quick 6 forge transcript --last-session --quiet; then
-        run_ao_quick 6 pool ingest --quiet || true
+        # Note: pool ingest does not support --quiet; removed to prevent silent failure
+        run_ao_quick 6 pool ingest || true
         run_ao_quick 8 notebook update --quiet || true
 
         # Sync to repo-root MEMORY.md (opt-in via AGENTOPS_MEMORY_SYNC=1)
@@ -68,7 +70,7 @@ run_maintenance() {
     if [ "${AGENTOPS_AUTO_PRUNE:-1}" = "1" ]; then
         PRUNE_SCRIPT="${PLUGIN_ROOT}/scripts/prune-agents.sh"
         if [ -x "$PRUNE_SCRIPT" ]; then
-            "$AO_TIMEOUT_BIN" 5 bash "$PRUNE_SCRIPT" --quiet 2>/dev/null || true
+            "$AO_TIMEOUT_BIN" 15 bash "$PRUNE_SCRIPT" --execute --quiet 2>/dev/null || true
         fi
     fi
 }

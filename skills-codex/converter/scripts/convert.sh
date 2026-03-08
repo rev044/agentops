@@ -147,6 +147,7 @@ codex_rewrite_text() {
     s/\bEnterPlanMode\b/enter-plan-mode/g;
     s/\bExitPlanMode\b/exit-plan-mode/g;
     s/\bEnterWorktree\b/enter-worktree/g;
+    s/\| Codex sub-agents \| `skills\/shared\/references\/backend-claude-teams\.md` \|/\| Codex sub-agents \| `skills\/shared\/references\/backend-codex-subagents.md` \|/g;
   ')"
 
   printf '%s' "$output"

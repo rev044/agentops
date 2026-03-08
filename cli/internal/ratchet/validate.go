@@ -235,7 +235,7 @@ func (v *Validator) validateResearch(path string, result *ValidationResult) {
 	wordCount := len(strings.Fields(text))
 	if wordCount < 100 {
 		result.Warnings = append(result.Warnings,
-			"Research seems short ("+string(rune(wordCount))+" words), consider adding more detail")
+			fmt.Sprintf("Research seems short (%d words), consider adding more detail", wordCount))
 	}
 
 	// Check for citations/sources

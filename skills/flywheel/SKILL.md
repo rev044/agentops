@@ -123,7 +123,7 @@ if command -v ao &>/dev/null; then
   ao metrics flywheel status 2>/dev/null || echo "ao metrics flywheel status unavailable"
   ao status 2>/dev/null || echo "ao status unavailable"
   ao maturity --scan 2>/dev/null || echo "ao maturity unavailable"
-  ao promote-anti-patterns --dry-run 2>/dev/null || echo "ao promote-anti-patterns unavailable"
+  ao anti-patterns 2>/dev/null || echo "ao anti-patterns unavailable"
   ao badge 2>/dev/null || echo "ao badge unavailable"
 
   # Knowledge maintenance

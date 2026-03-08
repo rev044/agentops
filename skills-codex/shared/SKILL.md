@@ -67,7 +67,7 @@ Every runtime maps these capabilities to its own API. Skills describe WHAT to do
 | Backend | Reference |
 |---------|-----------|
 | Claude feature contract | `skills/shared/references/claude-code-latest-features.md` |
-| Codex sub-agents | `skills/shared/references/backend-claude-teams.md` |
+| Codex sub-agents | `skills/shared/references/backend-codex-subagents.md` |
 | Codex Sub-Agents / CLI | `skills/shared/references/backend-codex-subagents.md` |
 | Background Tasks (fallback) | `skills/shared/references/backend-background-tasks.md` |
 | Inline (no spawn) | `skills/shared/references/backend-inline.md` |

@@ -2,6 +2,7 @@ package ratchet
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1731,15 +1732,16 @@ func TestValidate_ResearchStep_ShortContent(t *testing.T) {
 	}
 
 	// Should have warning about short research
+	wantWarning := fmt.Sprintf("Research seems short (%d words), consider adding more detail", len(strings.Fields(content)))
 	found := false
 	for _, w := range result.Warnings {
-		if strings.Contains(w, "seems short") {
+		if w == wantWarning {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected 'seems short' warning for < 100 word research, got %v", result.Warnings)
+		t.Errorf("expected %q warning for < 100 word research, got %v", wantWarning, result.Warnings)
 	}
 }
 

@@ -32,14 +32,14 @@ type parallelEpic struct {
 
 // parallelResult captures the outcome of one epic's execution.
 type parallelResult struct {
-	Epic       parallelEpic
-	Worktree   string
-	Branch     string
-	Success    bool
-	Error      error
-	Duration   time.Duration
-	CommitSHA  string
-	LogFile    string
+	Epic      parallelEpic
+	Worktree  string
+	Branch    string
+	Success   bool
+	Error     error
+	Duration  time.Duration
+	CommitSHA string
+	LogFile   string
 }
 
 // parallelManifestFile is the top-level manifest structure.
@@ -121,7 +121,7 @@ func runRPIParallel(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println()
 
-	worktrees, err := createParallelWorktrees(baseCwd, epics)
+	worktrees, err := createParallelWorktrees(baseCwd, epics, runtimeCmd)
 	if err != nil {
 		return err
 	}
@@ -223,13 +223,22 @@ func validateParallelPrereqs(args []string) ([]parallelEpic, string, string, err
 	return epics, baseCwd, runtimeCmd, nil
 }
 
+func parallelWorktreeRoot(baseCwd, runtimeCmd string) string {
+	runtimeName := filepath.Base(runtimeCmd)
+	if runtimeName == "." || runtimeName == string(filepath.Separator) || runtimeName == "" {
+		runtimeName = "claude"
+	}
+	return filepath.Join(baseCwd, "."+runtimeName, "worktrees")
+}
+
 // createParallelWorktrees creates git worktrees for each epic.
 // On failure, cleans up previously created worktrees.
-func createParallelWorktrees(baseCwd string, epics []parallelEpic) ([]worktreeInfo, error) {
+func createParallelWorktrees(baseCwd string, epics []parallelEpic, runtimeCmd string) ([]worktreeInfo, error) {
 	worktrees := make([]worktreeInfo, len(epics))
+	worktreeRoot := parallelWorktreeRoot(baseCwd, runtimeCmd)
 	for i, e := range epics {
 		branch := "epic/" + e.Name
-		wtPath := filepath.Join(baseCwd, ".claude", "worktrees", e.Name)
+		wtPath := filepath.Join(worktreeRoot, e.Name)
 
 		// Clean up stale worktree if it exists.
 		_ = exec.Command("git", "worktree", "remove", "--force", wtPath).Run()

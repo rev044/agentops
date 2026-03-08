@@ -23,7 +23,7 @@ var gateCheckerFuncs = map[Step]func(*GateChecker) (*GateResult, error){
 	StepPreMortem:  (*GateChecker).checkPreMortemGate,
 	StepPlan:       (*GateChecker).checkPlanGate,
 	StepImplement:  (*GateChecker).checkImplementGate,
-	StepCrank:      (*GateChecker).checkImplementGate,
+	StepCrank:      (*GateChecker).checkCrankGate,
 	StepVibe:       (*GateChecker).checkVibeGate,
 	StepPostMortem: (*GateChecker).checkPostMortemGate,
 }
@@ -168,6 +168,15 @@ func (g *GateChecker) checkImplementGate() (*GateResult, error) {
 	}, nil
 }
 
+// checkCrankGate uses the implement gate requirements but preserves crank identity.
+func (g *GateChecker) checkCrankGate() (*GateResult, error) {
+	result, err := g.checkImplementGate()
+	if result != nil {
+		result.Step = StepCrank
+	}
+	return result, err
+}
+
 // checkVibeGate - Soft gate (always passes, but warns if no code).
 func (g *GateChecker) checkVibeGate() (*GateResult, error) {
 	// This is a soft gate - always passes
@@ -255,6 +264,9 @@ func (g *GateChecker) findEpic(status string) (string, error) {
 // checkGitChanges returns true if there are uncommitted changes.
 func (g *GateChecker) checkGitChanges() bool {
 	cmd := exec.Command("git", "status", "--porcelain")
+	if g.locator != nil && g.locator.startDir != "" {
+		cmd.Dir = g.locator.startDir
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return false

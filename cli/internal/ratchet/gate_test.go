@@ -561,6 +561,41 @@ exit 1
 	}
 }
 
+func TestGateChecker_CheckCrank_WithOpenEpic(t *testing.T) {
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `
+if [[ "$*" == *"--status open"* ]]; then
+  printf 'epic-open Crank release hotfix\n'
+  exit 0
+fi
+exit 1
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepCrank)
+	if err != nil {
+		t.Fatalf("Check(Crank): %v", err)
+	}
+	if !result.Passed {
+		t.Fatalf("expected open epic to satisfy crank gate: %+v", result)
+	}
+	if result.Step != StepCrank {
+		t.Fatalf("expected crank step, got %q", result.Step)
+	}
+	if result.Input != "epic-open" {
+		t.Fatalf("expected epic-open input, got %q", result.Input)
+	}
+}
+
 func TestGateChecker_CheckPostMortem_WithClosedEpic(t *testing.T) {
 	restrictSearchOrder(t)
 
@@ -623,5 +658,42 @@ exit 1
 	}
 	if !strings.Contains(result.Message, "Code changes detected") {
 		t.Fatalf("expected dirty-tree message, got %q", result.Message)
+	}
+}
+
+func TestGateChecker_CheckVibe_UsesCheckerRootForGit(t *testing.T) {
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	ambientDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EXPECTED_GIT_DIR", tmpDir)
+	prependFakeCommand(t, "git", `
+if [[ "${1:-}" == "status" && "${2:-}" == "--porcelain" ]]; then
+  if [[ "$PWD" == "$EXPECTED_GIT_DIR" ]]; then
+    printf ' M cli/internal/ratchet/gate.go\n'
+  fi
+  exit 0
+fi
+exit 1
+`)
+	chdirTemp(t, ambientDir)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepVibe)
+	if err != nil {
+		t.Fatalf("Check(Vibe): %v", err)
+	}
+	if !result.Passed {
+		t.Fatalf("expected vibe soft gate to pass: %+v", result)
+	}
+	if !strings.Contains(result.Message, "Code changes detected") {
+		t.Fatalf("expected dirty-tree message when checker root is dirty, got %q", result.Message)
 	}
 }

@@ -2,14 +2,16 @@
 
 > Which `ao` commands are called by which skills and hooks — and vice versa.
 
-Auto-audited 2026-03-06. 52 CLI commands, 53 skills, 3 active runtime hooks.
+Auto-audited 2026-03-08. 52 CLI command entries, 52 source skills, 7 runtime hook event sections.
+
+Source-of-truth note: `hooks/hooks.json` currently declares 7 runtime hook event sections. Repository hook scripts such as `worktree-setup.sh` are support/setup scripts and are listed separately when relevant.
 
 ## Summary
 
 | Category | Count |
 |----------|-------|
 | CLI commands with skill/hook callers | 29 |
-| Orphan commands (user utilities, hidden, CI-only) | 23 |
+| Orphan commands (user utilities, hidden, CI-only) | 20 |
 | Phantom subcommands (bugs) | 2 |
 
 ---
@@ -20,14 +22,14 @@ Every `ao` command that is actively called by at least one skill or hook.
 
 | Command | Skill Callers | Hook Callers |
 |---------|--------------|--------------|
-| `ao inject` | crank, evolve, implement, inject, learn, recover, research, retro | session-start.sh, worktree-setup.sh |
-| `ao forge` | extract, flywheel, forge, post-mortem, retro, vibe, evolve, crank | session-end-maintenance.sh |
+| `ao inject` | crank, evolve, implement, inject, recover, research, retro | session-start.sh, worktree-setup.sh |
+| `ao forge` | flywheel, forge, post-mortem, retro, vibe, evolve, crank | session-end-maintenance.sh |
 | `ao ratchet` | crank, handoff, implement, plan, pre-mortem, ratchet, rpi, status, vibe | ratchet-advance.sh, stop-auto-handoff.sh, prompt-nudge.sh, precompact-snapshot.sh |
 | `ao goals` | goals, evolve | — |
-| `ao search` | crank, inject, knowledge, plan, pre-mortem, provenance, research, using-agentops, vibe | session-start.sh |
+| `ao search` | crank, inject, plan, pre-mortem, provenance, research, using-agentops, vibe | session-start.sh |
 | `ao rpi` | council, crank, plan, quickstart, research, rpi, shared, swarm | — |
 | `ao flywheel` | crank, evolve, flywheel, post-mortem, quickstart, retro, status | ao-flywheel-close.sh |
-| `ao pool` | crank, learn, status | session-end-maintenance.sh |
+| `ao pool` | crank, status | session-end-maintenance.sh |
 | `ao lookup` | crank, implement, inject, plan, research, using-agentops | session-start.sh |
 | `ao context` | crank, implement, swarm | context-guard.sh |
 | `ao maturity` | flywheel | session-end-maintenance.sh |
@@ -39,7 +41,7 @@ Every `ao` command that is actively called by at least one skill or hook.
 | `ao dedup` | flywheel | session-end-maintenance.sh |
 | `ao contradict` | flywheel | session-end-maintenance.sh |
 | `ao metrics` | flywheel | — |
-| `ao extract` | extract | session-start.sh |
+| `ao extract` | — | session-start.sh |
 | `ao hooks` | quickstart | — |
 | `ao init` | quickstart | — |
 | `ao session` | post-mortem, retro | — |
@@ -48,7 +50,7 @@ Every `ao` command that is actively called by at least one skill or hook.
 | `ao status` | flywheel, quickstart | — |
 | `ao task-feedback` | retro | — |
 | `ao task-status` | status | — |
-| `ao promote-anti-patterns` | flywheel | — |
+| `ao anti-patterns` | flywheel | — |
 
 ---
 
@@ -60,15 +62,12 @@ Which `ao` commands each skill invokes.
 |-------|-----------------|
 | **crank** | `context assemble`, `flywheel close-loop`, `flywheel status`, `forge transcript`, `inject`, `lookup`, `pool list`, `ratchet record`, `ratchet status`, `rpi phased`, `search` |
 | **evolve** | `forge`, `goals measure`, `inject` |
-| **extract** | `extract`, `forge` |
-| **flywheel** | `badge`, `constraint review`, `contradict`, `curate status`, `dedup`, `maturity`, `metrics cite-report`, `metrics health`, `promote-anti-patterns`, `status` |
+| **flywheel** | `badge`, `constraint review`, `contradict`, `curate status`, `dedup`, `maturity`, `metrics cite-report`, `metrics health`, `anti-patterns`, `status` |
 | **forge** | `forge markdown`, `forge transcript` |
 | **goals** | `goals add`, `goals drift`, `goals export`, `goals history`, `goals init`, `goals measure`, `goals meta`, `goals migrate`, `goals prune`, `goals steer`, `goals validate` |
 | **handoff** | `ratchet status` |
 | **implement** | `context assemble`, `lookup`, `ratchet record`, `ratchet skip`, `ratchet spec`, `ratchet status` |
 | **inject** | `inject`, `lookup`, `search` |
-| **knowledge** | `search` |
-| **learn** | `inject`, `pool ingest`, `pool list`, `pool promote`, `pool stage` |
 | **plan** | `ratchet record`, `rpi cleanup`, `rpi status`, `search` |
 | **post-mortem** | `constraint activate`, `flywheel close-loop`, `forge`, `forge markdown`, `session close`, `temper validate` |
 | **pre-mortem** | `ratchet record`, `search` |
@@ -86,7 +85,9 @@ Which `ao` commands each skill invokes.
 | council | `rpi phased` |
 | shared | `rpi phased` |
 
-Skills with **no ao commands**: beads, brainstorm, bug-hunt, codex-team, complexity, converter, doc, heal-skill, inbox, openai-docs, oss-docs, pr-implement, pr-plan, pr-prep, pr-research, pr-retro, pr-validate, product, readme, release, reverse-engineer-rpi, security, security-suite, standards, trace, update.
+Skills with **no ao commands**: beads, brainstorm, bug-hunt, codex-team, complexity, converter, doc, heal-skill, openai-docs, oss-docs, pr-implement, pr-plan, pr-prep, pr-research, pr-retro, pr-validate, product, readme, release, reverse-engineer-rpi, security, security-suite, standards, trace, update.
+
+Conceptual slash commands such as `/knowledge` are documented elsewhere in the product docs, but they are not counted as source skill directories in this map.
 
 ---
 
@@ -104,7 +105,7 @@ Which `ao` commands each hook invokes.
 | **prompt-nudge.sh** | UserPromptSubmit | `ratchet status` |
 | **precompact-snapshot.sh** | PreCompact | `ratchet status` |
 | **stop-auto-handoff.sh** | Stop | `ratchet status` |
-| **worktree-setup.sh** | (worktree init) | `inject` |
+| **worktree-setup.sh** | setup script (outside `hooks/hooks.json`) | `inject` |
 
 Hooks with **no ao commands**: citation-tracker.sh, config-change-monitor.sh, constraint-compiler.sh, dangerous-git-guard.sh, git-worker-guard.sh, pending-cleaner.sh, pre-mortem-gate.sh, skill-lint-gate.sh, standards-injector.sh, stop-team-guard.sh, subagent-stop.sh, task-validation-gate.sh, worktree-cleanup.sh.
 
@@ -123,8 +124,6 @@ Commands that exist in the Go CLI but are not called by any skill or hook. All a
 | `ao version` | User utility | Version query |
 | `ao quick-start` | User utility | `/quickstart` skill is the orchestrator |
 | `ao vibe-check` | User utility | `/vibe` skill orchestrates directly |
-| `ao inbox` | User utility | `/inbox` skill works independently |
-| `ao mail` | User utility | Alias for inbox operations |
 | `ao plans` | User utility | Plan management |
 | `ao trace` | User utility | Artifact tracing |
 | `ao gate` | CI/test | Promotion gate — called in test scripts |
@@ -138,7 +137,6 @@ Commands that exist in the Go CLI but are not called by any skill or hook. All a
 | `ao migrate` | Hidden | Migration utility (`migrate memrl`) |
 | `ao worktree` | Hidden | Worktree GC utility |
 | `ao anti-patterns` | Hidden | Anti-pattern list |
-| `ao assemble` | Alias | Also registered as `ao context assemble` |
 
 ---
 
@@ -202,7 +200,7 @@ Pre-Compaction
 When skills, hooks, or command usage changes, refresh this map as follows:
 
 1. Re-scan source invocations in: `skills/*/SKILL.md`, `skills-codex/*/SKILL.md`, `hooks/*.sh`, `hooks/hooks.json`.
-2. Update the relevant rows in this document.
+2. Update the relevant rows in this document, keeping hidden/subcommands aligned with the live command tree (`ao anti-patterns`, `ao context assemble`, etc.).
 3. Run `bash scripts/validate-hooks-doc-parity.sh` and ensure no stale hook-count wording remains.
 4. Update the audit header date above.
 

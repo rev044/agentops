@@ -256,7 +256,7 @@ func TestCreateParallelWorktrees_CreatesAndCleansUp(t *testing.T) {
 		{Name: "wt-beta", Goal: "do beta"},
 	}
 
-	worktrees, err := createParallelWorktrees(tmpDir, epics)
+	worktrees, err := createParallelWorktrees(tmpDir, epics, "claude")
 	if err != nil {
 		t.Fatalf("createParallelWorktrees: %v", err)
 	}
@@ -268,6 +268,10 @@ func TestCreateParallelWorktrees_CreatesAndCleansUp(t *testing.T) {
 	for i, wt := range worktrees {
 		if _, err := os.Stat(wt.path); os.IsNotExist(err) {
 			t.Errorf("worktree %d path does not exist: %s", i, wt.path)
+		}
+		expectedPath := filepath.Join(tmpDir, ".claude", "worktrees", epics[i].Name)
+		if wt.path != expectedPath {
+			t.Errorf("worktree %d path = %q, want %q", i, wt.path, expectedPath)
 		}
 		expectedBranch := "epic/" + epics[i].Name
 		if wt.branch != expectedBranch {
@@ -283,6 +287,40 @@ func TestCreateParallelWorktrees_CreatesAndCleansUp(t *testing.T) {
 		cmd = exec.Command("git", "branch", "-D", wt.branch)
 		cmd.Dir = tmpDir
 		_ = cmd.Run()
+	}
+}
+
+func TestParallelWorktreeRoot(t *testing.T) {
+	tmpDir := t.TempDir()
+	tests := []struct {
+		name       string
+		runtimeCmd string
+		want       string
+	}{
+		{
+			name:       "default claude root",
+			runtimeCmd: "claude",
+			want:       filepath.Join(tmpDir, ".claude", "worktrees"),
+		},
+		{
+			name:       "codex root",
+			runtimeCmd: "codex",
+			want:       filepath.Join(tmpDir, ".codex", "worktrees"),
+		},
+		{
+			name:       "path runtime uses basename",
+			runtimeCmd: "/usr/local/bin/codex",
+			want:       filepath.Join(tmpDir, ".codex", "worktrees"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parallelWorktreeRoot(tmpDir, tt.runtimeCmd)
+			if got != tt.want {
+				t.Fatalf("parallelWorktreeRoot(%q) = %q, want %q", tt.runtimeCmd, got, tt.want)
+			}
+		})
 	}
 }
 

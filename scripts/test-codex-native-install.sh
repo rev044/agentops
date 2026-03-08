@@ -208,6 +208,28 @@ if rg --pcre2 -n "(^|[^A-Za-z0-9_/])/(${skill_pattern})(?![A-Za-z0-9-])" "${entr
   fail "Found known /skill command references in skills-codex output"
 fi
 
+info "Checking openai-docs Codex install flow for duplicate setup drift"
+openai_skill="$REPO_ROOT/skills-codex/openai-docs/SKILL.md"
+legacy_codex_settings_pattern="~"
+legacy_codex_settings_pattern="${legacy_codex_settings_pattern}/.codex/settings.json"
+require_file "$openai_skill"
+[[ "$(rg -c '^\*\*In Codex:\*\*$' "$openai_skill")" == "1" ]] \
+  || fail "Expected exactly one '**In Codex:**' section in $openai_skill"
+rg -q 'codex mcp add openaiDeveloperDocs --url https://developers.openai.com/mcp' "$openai_skill" \
+  || fail "Missing Codex MCP install command in $openai_skill"
+if rg -q "$legacy_codex_settings_pattern" "$openai_skill"; then
+  fail "Found duplicate Codex settings-file install flow in $openai_skill"
+fi
+
+info "Checking shared Codex backend references"
+shared_skill="$REPO_ROOT/skills-codex/shared/SKILL.md"
+require_file "$shared_skill"
+rg -q '\| Codex sub-agents \| `skills/shared/references/backend-codex-subagents\.md` \|' "$shared_skill" \
+  || fail "Missing Codex sub-agent backend mapping in $shared_skill"
+if rg -q '\| Codex sub-agents \| `skills/shared/references/backend-claude-teams\.md` \|' "$shared_skill"; then
+  fail "Found Codex backend row still pointing at backend-claude-teams.md in $shared_skill"
+fi
+
 echo ""
 echo "PASS: Codex-native install flow verified"
 echo "  skills tested: $installed_count"
