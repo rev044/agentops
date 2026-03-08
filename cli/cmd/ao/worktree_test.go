@@ -598,6 +598,46 @@ func TestWorktree_resolveRepoRoot_inGitRepo(t *testing.T) {
 	}
 }
 
+func TestWorktree_resolveRepoRoot_ignoresPollutedGitEnvInLinkedWorktree(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	repo := t.TempDir()
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, out)
+		}
+	}
+
+	run(repo, "init")
+	run(repo, "config", "user.email", "test@example.com")
+	run(repo, "config", "user.name", "Test User")
+	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("hi\n"), 0644); err != nil {
+		t.Fatalf("write README.md: %v", err)
+	}
+	run(repo, "add", "README.md")
+	run(repo, "commit", "-m", "init")
+
+	worktree := filepath.Join(t.TempDir(), "repo-linked-worktree")
+	run(repo, "worktree", "add", "-q", "-b", "codex/test-linked-worktree", worktree, "HEAD")
+
+	t.Setenv("GIT_DIR", filepath.Join(repo, ".git"))
+	t.Setenv("GIT_WORK_TREE", repo)
+	t.Setenv("GIT_COMMON_DIR", filepath.Join(repo, ".git"))
+
+	root, err := resolveRepoRoot(worktree)
+	if err != nil {
+		t.Fatalf("resolveRepoRoot: %v", err)
+	}
+	if got, want := realPathForTest(t, root), realPathForTest(t, worktree); got != want {
+		t.Fatalf("resolveRepoRoot(%q) = %q, want %q", worktree, got, want)
+	}
+}
+
 // ===========================================================================
 // worktree.go — findStaleRPITmuxSessions (zero coverage)
 // ===========================================================================

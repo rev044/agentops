@@ -488,15 +488,36 @@ done
 
 #### Step ACT.3: Feed Next-Work
 
-Actionable improvements identified during processing -> append to `.agents/rpi/next-work.jsonl`:
+Actionable improvements identified during processing -> append one schema v1.3
+batch entry to `.agents/rpi/next-work.jsonl` using the tracked contract in
+[`../../.agents/rpi/next-work.schema.md`](../../.agents/rpi/next-work.schema.md)
+and the write procedure in
+[`references/harvest-next-work.md`](references/harvest-next-work.md):
 
 ```bash
 mkdir -p .agents/rpi
-# Only append if not already present (dedup by title)
-TITLE="<improvement-title>"
-if ! grep -q "\"title\":\"$TITLE\"" .agents/rpi/next-work.jsonl 2>/dev/null; then
-  echo "{\"title\": \"$TITLE\", \"type\": \"process-improvement\", \"severity\": \"medium\", \"source\": \"backlog-processing\", \"claim_status\": \"available\", \"consumed\": false, \"timestamp\": \"$(date -Iseconds)\"}" >> .agents/rpi/next-work.jsonl
-fi
+# Build VALID_ITEMS via the schema-validation flow in references/harvest-next-work.md
+# Then append one entry per post-mortem / epic.
+ENTRY_TIMESTAMP="$(date -Iseconds)"
+SOURCE_EPIC="${EPIC_ID:-recent}"
+VALID_ITEMS_JSON="${VALID_ITEMS_JSON:-[]}"
+
+printf '%s\n' "$(jq -cn \
+  --arg source_epic "$SOURCE_EPIC" \
+  --arg timestamp "$ENTRY_TIMESTAMP" \
+  --argjson items "$VALID_ITEMS_JSON" \
+  '{
+    source_epic: $source_epic,
+    timestamp: $timestamp,
+    items: $items,
+    consumed: false,
+    claim_status: "available",
+    claimed_by: null,
+    claimed_at: null,
+    consumed_by: null,
+    consumed_at: null
+  }'
+)" >> .agents/rpi/next-work.jsonl
 ```
 
 #### Step ACT.4: Update Marker

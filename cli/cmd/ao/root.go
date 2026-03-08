@@ -32,11 +32,22 @@ The Knowledge Flywheel:
 
 Use "ao <command> --help" for more information about a command.`,
 	SilenceUsage: true,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if jsonFlag {
 			output = "json"
 		}
 		syncConfigFlagToEnv()
+		if err := sanitizeGitProcessEnv(); err != nil {
+			return err
+		}
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		if err := repairSharedCoreWorktreeConfig(cwd); err != nil {
+			return err
+		}
+		return nil
 	},
 }
 

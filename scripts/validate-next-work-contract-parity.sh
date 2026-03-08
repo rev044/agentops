@@ -31,6 +31,7 @@ fi
 SCHEMA="$ROOT/.agents/rpi/next-work.schema.md"
 HARVEST_REF="$ROOT/skills/post-mortem/references/harvest-next-work.md"
 POST_MORTEM_SKILL="$ROOT/skills/post-mortem/SKILL.md"
+POST_MORTEM_CODEX_SKILL="$ROOT/skills-codex/post-mortem/SKILL.md"
 PHASE_CONTRACT="$ROOT/skills/rpi/references/phase-data-contracts.md"
 GATE4="$ROOT/skills/rpi/references/gate4-loop-and-spawn.md"
 RUNTIME="$ROOT/cli/cmd/ao/rpi_loop.go"
@@ -57,10 +58,59 @@ require_contains() {
   fi
 }
 
+require_section_contains() {
+  local path="$1"
+  local start="$2"
+  local end="$3"
+  local needle="$4"
+  local label="$5"
+  local section
+
+  section="$(awk -v start="$start" -v end="$end" '
+    $0 ~ start {in_section=1}
+    in_section {print}
+    in_section && $0 ~ end {exit}
+  ' "$path")"
+
+  if [[ -z "$section" ]]; then
+    fail "missing section $start in ${path#$ROOT/}"
+    return
+  fi
+
+  if ! printf '%s\n' "$section" | rg -Fq "$needle"; then
+    fail "$label"
+  fi
+}
+
+require_section_not_contains() {
+  local path="$1"
+  local start="$2"
+  local end="$3"
+  local needle="$4"
+  local label="$5"
+  local section
+
+  section="$(awk -v start="$start" -v end="$end" '
+    $0 ~ start {in_section=1}
+    in_section {print}
+    in_section && $0 ~ end {exit}
+  ' "$path")"
+
+  if [[ -z "$section" ]]; then
+    fail "missing section $start in ${path#$ROOT/}"
+    return
+  fi
+
+  if printf '%s\n' "$section" | rg -Fq "$needle"; then
+    fail "$label"
+  fi
+}
+
 for path in \
   "$SCHEMA" \
   "$HARVEST_REF" \
   "$POST_MORTEM_SKILL" \
+  "$POST_MORTEM_CODEX_SKILL" \
   "$PHASE_CONTRACT" \
   "$GATE4" \
   "$RUNTIME" \
@@ -137,6 +187,8 @@ require_contains "$HARVEST_REF" ".agents/rpi/next-work.schema.md" \
   "harvest-next-work must reference the tracked next-work schema"
 require_contains "$POST_MORTEM_SKILL" ".agents/rpi/next-work.schema.md" \
   "post-mortem skill must reference the tracked next-work schema"
+require_contains "$POST_MORTEM_CODEX_SKILL" ".agents/rpi/next-work.schema.md" \
+  "generated Codex post-mortem skill must reference the tracked next-work schema"
 require_contains "$GATE4" ".agents/rpi/next-work.schema.md" \
   "rpi gate4 reference must point at the tracked next-work schema"
 require_contains "$PHASE_CONTRACT" "item lifecycle as authoritative" \
@@ -152,6 +204,24 @@ require_contains "$RUNTIME" "case \"feature\", \"improvement\", \"tech-debt\", \
   "RPI runtime is missing workTypeRank coverage for pattern-fix"
 require_contains "$RUNTIME" 'omitted item `claim_status` semantically' \
   "runtime comments or docs should preserve omitted claim_status semantics"
+
+for skill in "$POST_MORTEM_SKILL" "$POST_MORTEM_CODEX_SKILL"; do
+  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+    ".agents/rpi/next-work.schema.md" \
+    "${skill#$ROOT/} ACT.3 must reference the tracked next-work schema"
+  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+    "source_epic:" \
+    "${skill#$ROOT/} ACT.3 must show batched next-work entries"
+  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+    "items:" \
+    "${skill#$ROOT/} ACT.3 must show batched item arrays"
+  require_section_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+    'claim_status: "available"' \
+    "${skill#$ROOT/} ACT.3 must initialize entry claim_status"
+  require_section_not_contains "$skill" '^#### Step ACT\.3: Feed Next-Work$' '^#### Step ACT\.4: Update Marker$' \
+    'echo "{\"title\":' \
+    "${skill#$ROOT/} ACT.3 still contains the legacy flat-row append example"
+done
 
 if [[ "$failures" -gt 0 ]]; then
   echo "next-work contract parity validation FAILED ($failures finding(s))." >&2

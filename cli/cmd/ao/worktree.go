@@ -178,6 +178,7 @@ func gcTmuxSessions(now time.Time, activeRuns, liveWorktreeRuns map[string]bool)
 func resolveRepoRoot(cwd string) (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	cmd.Dir = cwd
+	cmd.Env = gitDiscoveryEnv()
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("resolve git repo root: %w", err)
@@ -306,6 +307,7 @@ func worktreeReferenceTime(worktreePath string) time.Time {
 
 func isWorktreeDirty(worktreePath string) (bool, error) {
 	cmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	cmd.Env = gitDiscoveryEnv()
 	out, err := cmd.Output()
 	if err != nil {
 		return false, err
