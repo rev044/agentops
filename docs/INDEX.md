@@ -186,6 +186,8 @@
 - [dispatch-checklist.md](contracts/dispatch-checklist.md) — Standard references for agent dispatch prompts
 - [Headless Invocation Standards](contracts/headless-invocation-standards.md) — Required flags, tool allowlists, and timeout strategy for non-interactive Claude/Codex execution
 - [Context Assembly Interface](contracts/context-assembly-interface.md) — Interface contract for adaptive context assembly and mechanical token budgeting
+- [Finding Artifact Schema](contracts/finding-artifact.schema.json) — Machine-readable schema for normalized prevention findings under `.agents/findings/`
+- [Finding Compiler Contract](contracts/finding-compiler.md) — Compile targets, lifecycle, and retirement rules for turning findings into prevention artifacts
 
 ## Migration Trackers
 

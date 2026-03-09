@@ -20,6 +20,7 @@ import (
 // Default directories to index under .agents/
 var defaultIndexDirs = []string{
 	".agents/learnings",
+	".agents/findings",
 	".agents/research",
 	".agents/plans",
 	".agents/retros",
@@ -55,6 +56,7 @@ summary, tags), and produces a markdown table sorted by date (newest first).
 
 Directories indexed:
   .agents/learnings
+  .agents/findings
   .agents/research
   .agents/plans
   .agents/retros

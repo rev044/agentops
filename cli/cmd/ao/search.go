@@ -478,6 +478,9 @@ func classifyResultType(path string) string {
 	if strings.Contains(pathLower, "/learnings/") {
 		return "learning"
 	}
+	if strings.Contains(pathLower, "/findings/") {
+		return "finding"
+	}
 	if strings.Contains(pathLower, "/patterns/") {
 		return "pattern"
 	}
@@ -527,6 +530,18 @@ func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 			patternResults[i].Type = "pattern"
 		}
 		results = append(results, patternResults...)
+	}
+
+	findingsDir := filepath.Join(filepath.Dir(dir), "findings")
+	if _, err := os.Stat(findingsDir); err == nil {
+		findingResults, err := grepFiles(query, findingsDir, "*.md", limit)
+		if err != nil {
+			VerbosePrintf("CASS findings search error: %v\n", err)
+		}
+		for i := range findingResults {
+			findingResults[i].Type = "finding"
+		}
+		results = append(results, findingResults...)
 	}
 
 	// Also search sessions for context
