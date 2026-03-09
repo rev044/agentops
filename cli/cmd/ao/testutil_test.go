@@ -38,14 +38,13 @@ type stdoutCaptureResult struct {
 
 func beginStdoutCaptureSession() (*stdoutCaptureSession, error) {
 	stdoutCaptureState.mu.Lock()
+	defer stdoutCaptureState.mu.Unlock()
 	if stdoutCaptureState.active {
-		stdoutCaptureState.mu.Unlock()
 		return nil, fmt.Errorf("nested stdout capture is not supported")
 	}
 
 	reader, writer, err := os.Pipe()
 	if err != nil {
-		stdoutCaptureState.mu.Unlock()
 		return nil, err
 	}
 
@@ -70,9 +69,10 @@ func (session *stdoutCaptureSession) closeAndRestore() {
 	if session.oldStdout != nil {
 		os.Stdout = session.oldStdout
 	}
+	stdoutCaptureState.mu.Lock()
+	defer stdoutCaptureState.mu.Unlock()
 	if stdoutCaptureState.active {
 		stdoutCaptureState.active = false
-		stdoutCaptureState.mu.Unlock()
 	}
 }
 
