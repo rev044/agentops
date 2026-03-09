@@ -24,7 +24,7 @@ assert_contains() {
 echo "== test-githook-shims =="
 assert_contains "$ROOT/.githooks/pre-commit" 'bd hooks run pre-commit' "pre-commit delegates via bd hooks run"
 assert_contains "$ROOT/.githooks/pre-push" 'bd hooks run pre-push' "pre-push delegates via bd hooks run"
-assert_contains "$ROOT/.githooks/pre-push" 'validate-local\.sh' "pre-push runs the shared local validation wrapper"
+assert_contains "$ROOT/.githooks/pre-push" 'pre-push-gate\.sh' "pre-push runs the shared push gate directly"
 assert_contains "$ROOT/.githooks/post-merge" 'bd hooks run post-merge' "post-merge delegates via bd hooks run"
 assert_contains "$ROOT/.githooks/post-checkout" 'bd hooks run post-checkout' "post-checkout delegates via bd hooks run"
 assert_contains "$ROOT/.githooks/prepare-commit-msg" 'bd hooks run prepare-commit-msg' "prepare-commit-msg delegates via bd hooks run"

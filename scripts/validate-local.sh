@@ -34,6 +34,52 @@ EOF
 errors=0
 SCOPE="worktree"
 SKIP_CLAUDE="false"
+VALIDATE_LOCAL_LOCK_DIR=""
+
+release_validate_local_lock() {
+    local pid_file
+
+    [[ -n "$VALIDATE_LOCAL_LOCK_DIR" ]] || return 0
+    pid_file="$VALIDATE_LOCAL_LOCK_DIR/pid"
+
+    if [[ -f "$pid_file" ]] && [[ "$(<"$pid_file")" != "$$" ]]; then
+        return 0
+    fi
+
+    rm -rf "$VALIDATE_LOCAL_LOCK_DIR"
+}
+
+acquire_validate_local_lock() {
+    local git_dir pid_file existing_pid
+
+    git_dir="$(git rev-parse --git-dir 2>/dev/null || printf '%s\n' "$REPO_ROOT/.git")"
+    if [[ "$git_dir" != /* ]]; then
+        git_dir="$REPO_ROOT/$git_dir"
+    fi
+
+    VALIDATE_LOCAL_LOCK_DIR="$git_dir/agentops-validate-local.lock"
+    pid_file="$VALIDATE_LOCAL_LOCK_DIR/pid"
+
+    while true; do
+        if mkdir "$VALIDATE_LOCAL_LOCK_DIR" 2>/dev/null; then
+            printf '%s\n' "$$" > "$pid_file"
+            trap release_validate_local_lock EXIT INT TERM
+            return 0
+        fi
+
+        existing_pid=""
+        if [[ -f "$pid_file" ]]; then
+            existing_pid="$(<"$pid_file")"
+        fi
+
+        if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
+            echo "error: another local validation is already running (pid $existing_pid)" >&2
+            return 1
+        fi
+
+        rm -rf "$VALIDATE_LOCAL_LOCK_DIR"
+    done
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -58,6 +104,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 cd "$REPO_ROOT"
+
+if ! acquire_validate_local_lock; then
+    exit 1
+fi
 
 hooks_path="$(git config --local --get core.hooksPath 2>/dev/null || true)"
 if [[ "$hooks_path" != ".githooks" ]]; then
