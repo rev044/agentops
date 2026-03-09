@@ -7,6 +7,250 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-03-09
+
+### Added
+
+- **Codex-first skill rollout** — Completed the Codex-native override
+  catalog with operator contracts, generated-artifact governance, and
+  install/runtime parity validation
+- **Claim-aware next-work lifecycle** — Added claim-aware queue handling,
+  per-item lifecycle semantics, and next-work contract parity checks for
+  `/rpi` and follow-on workflows
+- **Headless runtime skill smoke gate** — Added headless runtime smoke
+  coverage and Codex backbone prompt validation to local and pre-push
+  release gates
+
+### Changed
+
+- **Codex maintenance guidance** — Expanded override coverage docs,
+  Codex-first maintenance instructions, and CLI ↔ skills map guidance to
+  match the generated runtime model
+- **Release-prep validation** — Hardened release-prep path handling,
+  runtime smoke expectations, and Codex artifact sync flows in the local
+  validation stack
+
+### Fixed
+
+- **Next-work queue concurrency** — Made queue mutations concurrency-safe
+  and per-item to prevent claim/update races
+- **Codex prompt parity** — Synced override-generated prompts and
+  tightened Codex gate coverage so generated artifacts stay aligned with
+  source overrides
+- **Git/worktree runtime resolution** — Sanitized `GIT_DIR`-style env
+  leakage in vibe-check and hardened worktree git discovery
+- **Push and pre-push validation** — Repaired push validation regressions
+  and removed nested pre-push validation wrappers
+- **Streamed phase timeouts** — Unblocked streamed phase timeout
+  cancellation so phased runtime tests and release gating terminate
+  promptly
+
+## [2.20.1] - 2026-03-07
+
+### Added
+
+- **Native Codex plugin install support** — Added plugin-native Codex
+  installation and context declarations across the full 52-skill catalog
+
+### Changed
+
+- **On-demand context retrieval** — Replaced `ao inject`-centric guidance
+  with a signpost network plus `ao lookup` for context retrieval
+- **Canonical root worktree policy** — Documented and enforced canonical
+  root worktree hygiene for the shared git-dir layout
+
+### Fixed
+
+- **Codex install bundle** — Hardened install discovery, skill sync,
+  executable bits, and local Codex validation flows
+- **Evolve and Athena reliability** — Corrected cycle logging, late-cycle
+  SHA bindings, and nightly Athena/security regressions
+- **Release validation** — Restored coverage ratchet enforcement and
+  cleaned up remaining Codex install and context-doc drift
+
+## [2.20.0] - 2026-03-06
+
+### Added
+
+- **Flywheel loop closure** — Added auto-extraction, handoff bridge,
+  MEMORY.md promotion, and session-type scoring across the knowledge
+  pipeline
+- **Context declarations** — Added skill-scoped context declarations with
+  sections allowlists and artifact-directory support
+- **RPI orchestration engine** — Added `ao rpi serve`, phased execution,
+  and automated knowledge mining with `ao mine` and `ao defrag`
+- **Behavioral guardrails** — Added a three-layer hook system with intent
+  echo, research loop detection, and task validation gates
+- **Nightly CI and test hardening** — Added nightly athena automation,
+  BATS integration tests, fuzz targets, and golden-file contracts
+
+### Changed
+
+- **Coverage and complexity gates** — Raised cmd/ao coverage floor to 84%,
+  pushed average package coverage to 95%, and tightened the complexity
+  ceiling to 20
+- **Session defaults** — Switched SessionStart to lean mode and applied a
+  hard quality gate to injection results
+- **Post-mortem workflow** — Redesigned `/post-mortem` as a knowledge
+  lifecycle processor and retired the legacy RPI orchestrator
+
+### Fixed
+
+- **Flywheel signal chain** — Corrected confidence decay, ordering, and
+  glob-handling issues in the knowledge loop
+- **RPI serve reliability** — Hardened the serve pipeline, fixed jq
+  injection, and closed observability gaps
+- **Hook and parser correctness** — Aligned hook strict-mode tests and
+  fixed handoff, UTF-8 truncation, and goals-parser edge cases
+
+## [2.19.3] - 2026-02-27
+
+### Changed
+
+- **README positioning** — Highlighted `ao search` as the CASS/Second
+  Brain entry point and refreshed the Obsidian-facing product framing
+
+## [2.19.2] - 2026-02-27
+
+### Changed
+
+- **Install guidance refresh** — Simplified README install paths around
+  Homebrew, release binaries, and source builds while clarifying optional
+  `ao` usage
+- **Agent install examples** — Updated skills-compatible install examples
+  to use agent-specific `npx skills` flags and removed stale curl
+  fallbacks
+
+### Fixed
+
+- **Plugin manifest versions** — Bumped plugin and marketplace manifests to
+  `2.19.2` for release parity
+
+## [2.19.1] - 2026-02-27
+
+### Added
+
+- **Spec-consistency gate** — Added `scripts/spec-consistency-gate.sh` so
+  crank validates contract files before spawning workers
+
+### Changed
+
+- **Quickstart performance** — Reduced `/quickstart` from a multi-minute,
+  diagram-heavy experience to an under-30-second orientation flow
+
+### Fixed
+
+- **Unicode-safe truncation** — Converted text truncation helpers to
+  rune-safe slicing
+- **Runtime and install correctness** — Repaired stale skill command
+  references, Windows locking/signal handling, and swarm merge safety
+
+## [2.19.0] - 2026-02-26
+
+### Added
+
+- **Knowledge graph command surface** — Added `ao mind` for knowledge graph
+  operations
+- **RPI observability surfaces** — Added `ao rpi stream` and
+  `ao rpi workers` for event and worker visibility
+- **Codex delivery improvements** — Added native Codex install/bootstrap
+  flow, modular skill generation, and Codex-specific prompt overrides
+- **Windows release support** — Added Windows build output to the release
+  pipeline
+
+### Changed
+
+- **CLI namespace flattening** — Aligned hooks, docs, tests, and runtime
+  commands on the flat CLI namespace
+- **Codex runtime governance** — Added Codex runtime section validation,
+  release-E2E checks, and stronger parity rules around generated skills
+- **RPI runtime flow** — Improved tmux worker visibility, nudge telemetry,
+  and phase-1 C2 surfaces
+
+### Fixed
+
+- **CLI/RPI/swarm reliability** — Closed post-mortem findings across
+  phased RPI, swarm merge flows, and release validation
+- **Hook and docs drift** — Repaired stale path hints, integration tests,
+  and skill/documentation parity after namespace refactors
+
+## [2.18.2] - 2026-02-25
+
+### Changed
+
+- **Repository hygiene** — Removed `.agents/` session artifacts from git
+  tracking and refreshed PRODUCT/GOALS docs to match current state
+
+### Fixed
+
+- **`ao seed` bootstrap** — Added git protection, storage initialization,
+  and current MEMORY/session-hook guidance to seeded repos
+- **MemRL feedback loop** — Wired `ao feedback-loop` end-to-end and added
+  a dry-run guard to `ao maturity --recalibrate`
+- **Quickstart docs** — Updated onboarding to point at `ao seed` and the
+  current flywheel model
+
+## [2.18.1] - 2026-02-25
+
+### Changed
+
+- **Flywheel defaults** — Switched startup injection to `lean`, enabled
+  auto-prune by default, and recalibrated thresholds so promotion and
+  eviction fire against real data
+
+### Fixed
+
+- **Empty-learning handling** — Prevented stub learnings from being
+  created, promoted, or counted in knowledge metrics
+- **Session-end ingestion** — Restored automatic pool ingest after forge
+  so flywheel compounding actually runs every session
+- **Threshold/docs drift** — Synced maturity help text, comments, and tests
+  to the new flywheel thresholds
+
+## [2.18.0] - 2026-02-25
+
+### Added
+
+- **Knowledge plumbing overhaul** — Added `seed`, `lookup`, `curate`,
+  `dedup`, `contradict`, `context assemble`, and related commands that
+  connect the knowledge flywheel end to end
+- **Repo-root memory sync** — Added `ao memory sync` and `ao notebook
+  update` for managed MEMORY.md workflows across runtimes
+- **Codex-native skill delivery** — Added the `skills-codex/` delivery
+  format with install and sync scripts
+- **Coverage expansion** — Added 500+ cmd/ao tests and pushed package
+  coverage to roughly 79%
+
+### Changed
+
+- **Injection model** — Added work-scoped injection, predecessor context,
+  compact index output, and a global `~/.agents/` knowledge tier
+- **Hooks and infrastructure** — Reworked SessionStart/SessionEnd flows,
+  timeout isolation, and constraint compilation plumbing
+
+### Fixed
+
+- **CLI tech debt** — Addressed notebook, inject, memrl, and release-gate
+  correctness issues surfaced by post-mortems and audits
+
+## [2.17.0] - 2026-02-24
+
+### Added
+
+- **GOALS.md intent layer** — Added a markdown-based goals format with
+  mission, north stars, anti-stars, and steerable directives
+- **Expanded `ao goals` lifecycle** — Added `init`, `steer`, `prune`,
+  `migrate --to-md`, `measure --directives`, and `validate`
+- **Format-aware goals writeback** — `ao goals add` now auto-detects
+  Markdown versus YAML goals files before writing changes
+
+### Fixed
+
+- **RPI fallback behavior** — When Phase 1 creates a task instead of an
+  epic, `ao rpi` now falls back to any open issue instead of failing
+- **Goals parser coverage** — Expanded phased-processing coverage around
+  the new GOALS.md flow
+
 ## [2.16.1] - 2026-02-24
 
 ### Added

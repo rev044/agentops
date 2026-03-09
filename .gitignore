@@ -47,6 +47,9 @@ reports/
 !.agents/**/AGENTS.md
 !.agents/plugins/
 !.agents/plugins/marketplace.json
+!.agents/releases/
+.agents/releases/*
+!.agents/releases/*.md
 !.agents/evolve/
 .agents/evolve/*
 !.agents/evolve/cycle-history.jsonl
