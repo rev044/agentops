@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCOPE="auto"
 EPIC_ID=""
+COLLECTION_DETAIL=""
 
 usage() {
   cat <<'EOF'
@@ -58,37 +59,215 @@ command -v bd >/dev/null 2>&1 || {
   exit 1
 }
 
-collect_children() {
-  bd children "$EPIC_ID" 2>/dev/null | grep -oE '[a-z]{2}-[a-z0-9]+\.[0-9]+' | sort -u
-}
-
-extract_scoped_files() {
-  local child="$1"
-  bd show "$child" 2>/dev/null \
-    | grep -oE '`[^`]+\.(go|py|ts|sh|md|yaml|yml|json)`' \
-    | tr -d '`' \
-    | sort -u
-}
-
 json_array_from_stream() {
-  if ! cat | sed '/^[[:space:]]*$/d' | sort -u | jq -R . | jq -s .; then
+  if ! sed '/^[[:space:]]*$/d' | sort -u | jq -R . | jq -s .; then
     printf '[]\n'
   fi
 }
 
-commit_ref_exists() {
-  local child="$1"
-  git log --oneline --all --grep="$child" 2>/dev/null | grep -q .
+regex_escape_extended() {
+  printf '%s' "$1" | sed -e 's/[][(){}.^$*+?|\\-]/\\&/g'
 }
 
-commit_file_exists() {
+bd_show_json() {
+  local issue_id="$1"
+  bd show "$issue_id" --json 2>/dev/null | jq -ec 'if type == "array" then .[0] // empty else . end'
+}
+
+extract_description_from_show_text() {
+  awk '
+    /^DESCRIPTION$/ { in_desc = 1; next }
+    in_desc {
+      if ($0 ~ /^(LABELS|DEPENDENCIES|DEPENDENTS|CHILDREN|COMMENTS|REFERENCES|NOTES):?[[:space:]]*$/) {
+        exit
+      }
+      print
+    }
+  '
+}
+
+collect_children_from_bd_children_json() {
+  local json_output
+  json_output="$(bd children "$EPIC_ID" --json 2>/dev/null)" || return 1
+  printf '%s\n' "$json_output" \
+    | jq -er '
+        .[]? |
+        if type == "object" then
+          (.id // .child_id // .issue_id // empty)
+        elif type == "string" then
+          .
+        else
+          empty
+        end
+      ' 2>/dev/null \
+    | sed '/^[[:space:]]*$/d' \
+    | sort -u
+}
+
+collect_children_from_bd_show_json() {
+  local json_output
+  json_output="$(bd show "$EPIC_ID" --json 2>/dev/null)" || return 1
+  printf '%s\n' "$json_output" \
+    | jq -er '
+        .[]? |
+        ((.dependents // .children // [])[]? |
+          select((.dependency_type // .type // "parent-child") == "parent-child") |
+          (.id // .child_id // .issue_id // empty))
+      ' 2>/dev/null \
+    | sed '/^[[:space:]]*$/d' \
+    | sort -u
+}
+
+collect_children_from_human_output() {
+  local human_output
+  human_output="$(bd show "$EPIC_ID" 2>/dev/null)" || return 1
+  printf '%s\n' "$human_output" \
+    | awk '
+        /^CHILDREN$/ { in_children = 1; next }
+        in_children && /^[[:space:]]*$/ { exit }
+        in_children { print }
+      ' \
+    | grep -oE '[[:alnum:]]+-[[:alnum:]]+(\.[0-9]+)+' \
+    | sort -u
+}
+
+collect_children() {
+  local children_output=""
+
+  if children_output="$(collect_children_from_bd_children_json)" && [[ -n "$children_output" ]]; then
+    printf '%s\n' "$children_output"
+    return 0
+  fi
+
+  if children_output="$(collect_children_from_bd_show_json)" && [[ -n "$children_output" ]]; then
+    printf '%s\n' "$children_output"
+    return 0
+  fi
+
+  if children_output="$(collect_children_from_human_output)" && [[ -n "$children_output" ]]; then
+    printf '%s\n' "$children_output"
+    return 0
+  fi
+
+  COLLECTION_DETAIL="no child issues discovered from bd children/show output"
+  return 1
+}
+
+extract_validation_block_from_text() {
+  awk '
+    /^```validation[[:space:]]*$/ { in_block = 1; next }
+    in_block && /^```[[:space:]]*$/ { exit }
+    in_block { print }
+  '
+}
+
+extract_validation_files_from_block() {
+  local validation_block="$1"
+
+  [[ -n "$validation_block" ]] || return 0
+  printf '%s\n' "$validation_block" \
+    | jq -r '
+        def as_items:
+          if type == "array" then .[]
+          else .
+          end;
+        (
+          (.files // [])[]?,
+          (.files_exist // [])[]?,
+          ((.content_check // empty) | as_items | .file?),
+          ((.content_checks // empty) | as_items | .file?),
+          ((.paired_files // empty) | as_items | .file?)
+        )
+        | select(type == "string" and length > 0)
+      ' 2>/dev/null || true
+}
+
+extract_files_section_from_text() {
+  awk '
+    /^Files:[[:space:]]*$/ { in_files = 1; next }
+    in_files {
+      if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^```/) {
+        exit
+      }
+      if ($0 !~ /^[[:space:]]*-/) {
+        exit
+      }
+      sub(/^[[:space:]]*-[[:space:]]*/, "", $0)
+      gsub(/`/, "", $0)
+      sub(/[[:space:]]+\(.*\)$/, "", $0)
+      if ($0 ~ /^([.[:alnum:]_-]+\/)*[.[:alnum:]_-]+\.(go|py|ts|sh|md|yaml|yml|json)$/) {
+        print
+      }
+    }
+  '
+}
+
+extract_backticked_files_from_text() {
+  grep -oE '`[^`]+\.(go|py|ts|sh|md|yaml|yml|json)`' | tr -d '`' || true
+}
+
+extract_scoped_files() {
+  local child="$1"
+  local description=""
+  local child_json=""
+  local human_output=""
+  local validation_block=""
+
+  if child_json="$(bd_show_json "$child" 2>/dev/null)"; then
+    description="$(printf '%s\n' "$child_json" | jq -r '.description // ""')"
+  else
+    human_output="$(bd show "$child" 2>/dev/null || true)"
+    description="$(printf '%s\n' "$human_output" | extract_description_from_show_text)"
+  fi
+
+  validation_block="$(printf '%s\n' "$description" | extract_validation_block_from_text)"
+
+  {
+    extract_validation_files_from_block "$validation_block"
+    printf '%s\n' "$description" | extract_files_section_from_text
+    printf '%s\n' "$description" | extract_backticked_files_from_text
+  } | sed '/^[[:space:]]*$/d' | sort -u
+}
+
+issue_timestamp() {
+  local child_json="$1"
+  local field="$2"
+  printf '%s\n' "$child_json" | jq -r --arg field "$field" '.[$field] // empty'
+}
+
+commit_ref_exists() {
+  local child="$1"
+  local escaped_child
+  local pattern
+
+  escaped_child="$(regex_escape_extended "$child")"
+  pattern="(^|[^[:alnum:]_.-])${escaped_child}([^[:alnum:]_.-]|$)"
+  git log --format='%H' --all --extended-regexp --grep="$pattern" 2>/dev/null | grep -q .
+}
+
+commit_matches_json() {
+  local since="$1"
+  local until="$2"
+  shift 2
   local file
+  local -a matched_files=()
+  local -a git_args=(log --format=%H --all --diff-filter=ACMR)
+
+  [[ -n "$since" ]] && git_args+=("--since=$since")
+  [[ -n "$until" ]] && git_args+=("--until=$until")
+
   for file in "$@"; do
-    if git log --oneline --diff-filter=ACMR -- "$file" 2>/dev/null | head -1 | grep -q .; then
-      return 0
+    if git "${git_args[@]}" -- "$file" 2>/dev/null | grep -q .; then
+      matched_files+=("$file")
     fi
   done
-  return 1
+
+  if [[ "${#matched_files[@]}" -eq 0 ]]; then
+    printf '[]\n'
+    return 0
+  fi
+
+  printf '%s\n' "${matched_files[@]}" | json_array_from_stream
 }
 
 staged_matches_json() {
@@ -138,8 +317,19 @@ build_child_result() {
 
 classify_child() {
   local child="$1"
-  local scoped_json staged_json worktree_json
+  local child_json=""
+  local created_at=""
+  local closed_at=""
+  local scoped_json commit_json staged_json worktree_json
   local -a scoped_files=()
+
+  if child_json="$(bd_show_json "$child" 2>/dev/null)"; then
+    created_at="$(issue_timestamp "$child_json" "created_at")"
+    closed_at="$(issue_timestamp "$child_json" "closed_at")"
+    if [[ -z "$closed_at" ]]; then
+      closed_at="$(issue_timestamp "$child_json" "updated_at")"
+    fi
+  fi
 
   mapfile -t scoped_files < <(extract_scoped_files "$child")
   scoped_json="$(printf '%s\n' "${scoped_files[@]}" | json_array_from_stream)"
@@ -150,8 +340,9 @@ classify_child() {
         build_child_result "$child" "$scoped_json" "commit" "matched child id in git history" '[]' "pass"
         return 0
       fi
-      if [[ "${#scoped_files[@]}" -gt 0 ]] && commit_file_exists "${scoped_files[@]}"; then
-        build_child_result "$child" "$scoped_json" "commit" "matched scoped files in git history" "$scoped_json" "pass"
+      commit_json="$(commit_matches_json "$created_at" "$closed_at" "${scoped_files[@]}")"
+      if echo "$commit_json" | jq -e 'length > 0' >/dev/null 2>&1; then
+        build_child_result "$child" "$scoped_json" "commit" "matched scoped files in git history during issue lifetime" "$commit_json" "pass"
         return 0
       fi
       if [[ "$SCOPE" == "commit" ]]; then
@@ -194,30 +385,39 @@ classify_child() {
 }
 
 tmp_results="$(mktemp)"
-trap 'rm -f "$tmp_results"' EXIT
+children_file="$(mktemp)"
+trap 'rm -f "$tmp_results" "$children_file"' EXIT
 
-while IFS= read -r child; do
-  [[ -n "$child" ]] || continue
-  classify_child "$child" >> "$tmp_results"
-done < <(collect_children)
-
-if [[ ! -s "$tmp_results" ]]; then
+if ! collect_children >"$children_file"; then
   jq -n \
     --arg epic_id "$EPIC_ID" \
     --arg scope "$SCOPE" \
+    --arg detail "${COLLECTION_DETAIL:-failed to collect child issues}" \
     '{
       epic_id: $epic_id,
       scope: $scope,
       summary: {
         checked_children: 0,
         passed: 0,
-        failed: 0
+        failed: 1,
+        collection_failed: true
       },
       children: [],
-      failures: []
+      failures: [
+        {
+          child_id: null,
+          detail: $detail
+        }
+      ]
     }'
-  exit 0
+  exit 1
 fi
+
+children_output="$(cat "$children_file")"
+while IFS= read -r child; do
+  [[ -n "$child" ]] || continue
+  classify_child "$child" >> "$tmp_results"
+done <<< "$children_output"
 
 jq -s \
   --arg epic_id "$EPIC_ID" \

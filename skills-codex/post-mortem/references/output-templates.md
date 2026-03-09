@@ -1,229 +1,148 @@
-# Retro Output Templates
+# Post-Mortem Output Templates
 
-Document templates for retro, learnings, and patterns.
+Canonical output shapes for `skills/post-mortem/SKILL.md`. When this file and the
+skill disagree, follow the skill workflow and the executable/schema surfaces:
 
----
+- `skills/post-mortem/SKILL.md`
+- `skills/post-mortem/scripts/write-evidence-only-closure.sh`
+- `schemas/evidence-only-closure.v1.schema.json`
 
-## Tag Vocabulary Reference
+## Post-Mortem Report Template
 
-See `.claude/includes/tag-vocabulary.md` for the complete tag vocabulary.
-
-**Document type tags:** `retro`, `learning`, `pattern`
-
-**Examples:**
-- `[retro, agents, mcp]` - MCP server implementation retro
-- `[learning, data, neo4j]` - GraphRAG implementation learning
-- `[pattern, testing, python]` - Python testing pattern
-
----
-
-## Retro Summary Template
-
-Write to `.agents/council/YYYY-MM-DD-{topic}.md`:
+Write to `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`:
 
 ```markdown
 ---
+id: post-mortem-YYYY-MM-DD-<topic-slug>
+type: post-mortem
 date: YYYY-MM-DD
-type: Learning
-topic: "[Topic]"
-tags: [retro, domain-tag, optional-tech-tag]
-status: COMPLETE
+source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 ---
 
-# Retrospective: [Topic]
+# Post-Mortem: <Epic/Topic>
 
-**Date:** YYYY-MM-DD
-**Epic:** [beads epic ID if applicable]
-**Duration:** [Single session | Multi-session | Sprint]
+**Epic:** <epic-id or "recent">
+**Duration:** <elapsed time from PM_START to now>
+**Cycle-Time Trend:** <faster|slower|flat vs prior post-mortems>
 
----
+## Council Verdict: PASS / WARN / FAIL
 
-## What We Accomplished
+| Judge | Verdict | Key Finding |
+|-------|---------|-------------|
+| Plan-Compliance | ... | ... |
+| Tech-Debt | ... | ... |
+| Learnings | ... | ... |
 
-[Summary of work completed with commits, issues closed, metrics]
+### Implementation Assessment
+<council summary>
 
-| Commit | Issue | Description |
-|--------|-------|-------------|
-| `abc123` | ai-platform-xxx | Feature description |
+### Concerns
+<open issues or residual risks>
 
----
+## Closure Integrity
 
-## What Went Well
+| Check | Result | Details |
+|-------|--------|---------|
+| Evidence Precedence | PASS/WARN/FAIL | N children resolved by commit/staged/worktree, M without evidence |
+| Phantom Beads | PASS/WARN | N phantom beads detected |
+| Orphaned Children | PASS/WARN | N orphans found |
+| Multi-Wave Regression | PASS/FAIL | N regressions detected |
+| Stretch Goals | PASS/WARN | N stretch goals closed without rationale |
 
-- [Positive outcome 1]
-- [Positive outcome 2]
+### Findings
+- <specific closure-integrity finding>
 
----
+## Learnings (from Phase 2)
 
-## What Could Improve
+### What Went Well
+- ...
 
-- [Area for improvement 1]
-- [Area for improvement 2]
+### What Was Hard
+- ...
 
----
+### Do Differently Next Time
+- ...
 
-## Patterns Worth Repeating
+### Patterns to Reuse
+- ...
 
-[Code blocks or descriptions of reusable patterns discovered]
+### Anti-Patterns to Avoid
+- ...
 
----
+### Footgun Entries (Required)
 
-## Remaining Work
+| Footgun | Trigger | Symptom | Fix |
+|---------|---------|---------|-----|
+| Human CLI parsing | Automation parses human-readable CLI output instead of a structured surface such as `--json` | Parser breaks on wording/order changes or mixed prose + JSON output | Use machine-readable output for automation and treat prose output as display-only |
+| Hook git env leakage | Hook/helper shell inherits `GIT_DIR`, `GIT_WORK_TREE`, or `GIT_COMMON_DIR` from another repo/worktree | Git resolves the wrong repo or reports misleading dirty-state evidence | Unset git discovery env before repo resolution, then rerun git from the intended cwd |
 
-[List of open issues or next steps]
+## Knowledge Lifecycle
 
----
+### Backlog Processing (Phase 3)
+- Scanned: N learnings
+- Merged: N duplicates
+- Flagged stale: N
 
-## Session Stats
+### Activation (Phase 4)
+- Promoted to MEMORY.md: N
+- Constraints compiled: N
+- Next-work items fed: N
+
+### Retirement (Phase 5)
+- Archived: N learnings
+
+## Proactive Improvement Agenda
+
+| # | Area | Improvement | Priority | Horizon | Effort | Evidence |
+|---|------|-------------|----------|---------|--------|----------|
+| 1 | repo / execution / ci-automation | ... | P0/P1/P2 | now/next-cycle/later | S/M/L | ... |
+
+## Prior Findings Resolution Tracking
 
 | Metric | Value |
-|--------|-------|
-| Issues closed | X |
-| Lines added | ~Y |
+|---|---|
+| Backlog entries analyzed | ... |
+| Prior findings total | ... |
+| Resolved findings | ... |
+| Unresolved findings | ... |
+| Resolution rate | ...% |
 
-## Source Performance
+| Source Epic | Findings | Resolved | Unresolved | Resolution Rate |
+|---|---:|---:|---:|---:|
+| ... | ... | ... | ... | ...% |
 
-[Include if analytics data available from Phase 1.5]
+## Command-Surface Parity Checklist
 
-| Source | Tier | Value Score | Expected | Deviation |
-|--------|------|-------------|----------|-----------|
-| [source_type] | [tier] | [value_score] | [expected_weight] | [deviation] |
+| Command File | Run-path Covered by Test? | Evidence (file:line or test name) | Intentionally Uncovered? | Reason |
+|---|---|---|---|---|
+| cli/cmd/ao/<command>.go | yes/no | ... | yes/no | ... |
 
-### Tier Weight Recommendations
+## Next Work
 
-[List any recommendations from analytics endpoint]
+| # | Title | Type | Severity | Source | Target Repo |
+|---|-------|------|----------|--------|-------------|
+| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
 
-- **PROMOTE/DEMOTE**: '[source_type]' [over/under]performing by [%]. Consider [action].
+### Recommended Next /rpi
+/rpi "<highest-value improvement>"
+
+## Status
+
+[ ] CLOSED - Work complete, learnings captured
+[ ] FOLLOW-UP - Issues need addressing (create new beads)
 ```
 
-**Tag Rules:** First tag MUST be `retro`. Include domain tag.
+Notes:
 
----
-
-## Learning File Template
-
-Write to `.agents/learnings/YYYY-MM-DD-{topic}.md`:
-
-**Tag Rules:** 3-5 tags. First tag MUST be `learning`. At least one domain tag required.
-
-```markdown
----
-date: YYYY-MM-DD
-type: Learning
-topic: "[Topic]"
-source: "[beads ID or plan file]"
-tags: [learning, domain-tag, optional-tech-tag]
-status: COMPLETE
----
-
-# Learning: [Topic]
-
-## Context
-[What were we trying to do?]
-
-## What We Learned
-
-### [Learning 1]
-**Type:** Technical | Process | Pattern | Gotcha
-
-[Description]
-
-**Evidence:** [File path, beads comment, or observation]
-
-**Application:** [How to use this knowledge in the future]
-
-### [Learning 2]
-...
-
-## Discovery Provenance
-
-Track which sources led to these learnings (enables flywheel optimization).
-
-**Purpose**: Create measurement data for the knowledge flywheel. Analytics can then measure: "Which discovery sources produce the most cited, most valuable knowledge?"
-
-**Format**:
-```markdown
-| Learning | Source Type | Source Detail |
-|----------|-------------|---------------|
-| [Learning 1] | [type] | [detail] |
-| [Learning 2] | [type] | [detail] |
-```
-
-> **Note:** Do NOT include a "Confidence" column. Confidence/relevance are query-time metrics, not storage-time. See `domain-kit/skills/standards/references/rag-formatting.md`.
-
-**Example**:
-```markdown
-| Middleware pattern works well | smart-connections | "request lifecycle" query |
-| Rate limit algorithm at L89 | grep | services/limits.py:89 |
-| Precedent from prior work | prior-research | 2026-01-01-limits.md |
-```
-
-**Source types by tier**:
-- **Tier 1**: `code-map`
-- **Tier 2**: `smart-connections`, `athena-knowledge`
-- **Tier 3**: `grep`, `glob`
-- **Tier 4**: `read`, `lsp`
-- **Tier 5**: `prior-research`, `prior-retro`, `prior-pattern`, `memory-recall`
-- **Tier 6**: `web-search`, `web-fetch`
-
-**How it feeds the flywheel**:
-1. You document source_type for each learning during retro
-2. Session analyzer extracts these and stores as memories with source_type field
-3. `GET /memories/analytics/sources` computes value_score for each source
-4. High-value sources (value_score > 0.7) get promoted in discovery tier ordering
-5. Future research prioritizes high-value sources = better decisions
-
-## Related
-- Plan: [link to plan file if applicable]
-- Research: [link to research file if applicable]
-- Issues: [beads IDs]
-```
-
----
-
-## Pattern File Template
-
-Write to `.agents/patterns/`:
-
-**Tag Rules:** 3-5 tags. First tag MUST be `pattern`. At least one domain tag required.
-
-```markdown
----
-date: YYYY-MM-DD
-type: Pattern
-category: "[Category]"
-tags: [pattern, domain-tag, optional-tech-tag]
-status: ACTIVE
----
-
-# Pattern: [Name]
-
-## When to Use
-[Triggering conditions]
-
-## The Pattern
-[Step-by-step or code example]
-
-## Why It Works
-[Rationale]
-
-## Examples
-[Real examples from codebase with file paths]
-```
-
----
-
-## Progress Output Templates
-
-### Context Summary
-
-```
-
----
+- Populate `## Next Work` before `### Recommended Next /rpi`. The suggestion must come from harvested items, not pre-harvest speculation.
+- If no items are harvested, keep the report explicit: `Flywheel stable - no follow-up items identified.`
+- Footgun entries are not optional flavor text. They are harvest inputs for `pattern-fix` items when the cycle discovered real operator/runtime gotchas.
 
 ## Evidence-Only Closure Artifact
 
-When a post-mortem closes an item on validation or policy evidence without a code diff, write a proof artifact to `.agents/council/evidence-only-closures/<target-id>.json`.
+When a post-mortem closes an item on validation or policy evidence without a
+code diff, write a proof artifact to
+`.agents/council/evidence-only-closures/<target-id>.json`.
 
 Example producer command:
 
@@ -242,6 +161,7 @@ Template shape:
 
 ```json
 {
+  "$schema": "../../../schemas/evidence-only-closure.v1.schema.json",
   "schema_version": 1,
   "artifact_id": "evidence-only-closure-<target-id>",
   "target_id": "<target-id>",
@@ -251,6 +171,7 @@ Template shape:
   "evidence_mode": "commit|staged|worktree",
   "validation_commands": ["bash <command>"],
   "repo_state": {
+    "repo_root": "/abs/path/to/repo",
     "git_branch": "main",
     "git_dirty": true,
     "head_sha": "<sha>",
@@ -269,138 +190,9 @@ Template shape:
 
 Mode guidance:
 
-- `commit`: use when commit-backed evidence exists for the closed item
-- `staged`: use when no qualifying commit exists yet but the scoped files are staged
-- `worktree`: use when only unstaged/untracked working-tree evidence exists
+- `commit`: commit-backed evidence exists and wins for the closed item
+- `staged`: no qualifying commit evidence exists, but the scoped files are staged
+- `worktree`: neither commit nor staged evidence exists, but qualifying unstaged or untracked files exist
 
-### Context Gathered
-
-```
-================================================================
-CONTEXT GATHERED
-================================================================
-
-Epic: ai-platform-xxxx
-Title: [Epic title]
-Duration: [Days from first to last commit]
-
-Sources Analyzed:
-  - Commits: 12 (abc123..def456)
-  - Issues: 5 (3 closed, 2 open)
-  - Files modified: 8
-  - Blackboard entries: 2
-  - Commands used: 14
-
-Key Files:
-  - .claude/commands/retro.md (major changes)
-  - services/etl/app/main.py (new)
-  - tests/test_etl.py (new)
-
-Ready for Phase 2: Identify Improvements
-================================================================
-```
-
-### Friction Analysis
-
-```
-================================================================
-FRICTION ANALYSIS COMPLETE
-================================================================
-
-Friction Points Found: 5
-  [HIGH] Epic-child dependency confusion (3 occurrences)
-  [MEDIUM] Wave detection unclear (2 occurrences)
-  [LOW] Commit message format inconsistent (1 occurrence)
-
-Improvement Opportunities: 3
-  1. Update /plan command with dependency warning
-  2. Add wave auto-detection to /load-epic
-  3. Document commit message format in CLAUDE.md
-
-New Patterns Discovered: 1
-  - Comment-based epic-child linking
-
-Ready for Phase 3: Propose Changes
-================================================================
-```
-
-### User Review Display
-
-```
-================================================================
-IMPROVEMENT PROPOSALS
-================================================================
-
-Found 4 improvements (1 critical, 2 recommended, 1 optional)
-
-Would you like to:
-1. Review each proposal individually
-2. Apply all CRITICAL and RECOMMENDED (skip OPTIONAL)
-3. Apply all proposals
-4. Skip improvements (proceed to retro summary only)
-
-================================================================
-```
-
-### Changes Applied
-
-```
-================================================================
-CHANGES APPLIED
-================================================================
-
-Successfully applied: 3/3 proposals
-
-Files modified:
-  * .claude/commands/plan.md
-  * .claude/commands/load-epic.md
-  * CLAUDE.md
-
-Commit: abc1234
-
-Skipped (user choice): 1
-  - .agents/patterns/comment-based-linking.md
-
-Failed: 0
-
-================================================================
-```
-
-### Supersession Report
-
-```
-================================================================
-SUPERSESSION CHECK COMPLETE
-================================================================
-
-Searched for: "[topic]"
-Candidates found: 3
-Superseded: 1
-
-Supersession applied:
-  * .agents/learnings/2025-11-15-old-pattern.md
-    -> superseded by: .agents/learnings/2025-12-31-new-pattern.md
-    -> Reason: Updated approach with better performance
-
-Cross-references added (not superseded):
-  - .agents/patterns/related-pattern.md
-    -> Added to "Related" section
-
-No action needed:
-  - .agents/council/2025-10-01-unrelated.md
-    -> Different topic, no relationship
-
-Ready for Phase 5: User Review
-================================================================
-```
-
-### Final Output
-
-```
-Retro complete:
-- Summary: .agents/council/YYYY-MM-DD-topic.md
-- Learnings: .agents/learnings/YYYY-MM-DD-topic.md (if applicable)
-- Patterns: [updated/created files] (if applicable)
-
-This knowledge is now persistent and available to future sessions.
-```
+`auto` is only the selection input to the writer script. The emitted artifact must
+record the resolved mode.

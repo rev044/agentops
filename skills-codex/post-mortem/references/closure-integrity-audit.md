@@ -27,6 +27,15 @@ Only fall back to a weaker source when the stronger source has no qualifying evi
 
 ## Audit Procedure
 
+Prefer `bash skills/post-mortem/scripts/closure-integrity-audit.sh --scope auto <epic-id>`
+for any real audit. The shell snippets below are explanatory fallbacks, not parser
+contracts.
+
+Manual-audit footguns:
+
+- Prefer structured CLI surfaces such as `--json` whenever they exist. Do not build automation on human-readable prose output.
+- When running git discovery from hooks, helper shells, or shared-worktree sessions, unset `GIT_DIR`, `GIT_WORK_TREE`, and `GIT_COMMON_DIR` first so evidence resolves against the intended repo/worktree.
+
 ### Check 1: Evidence Precedence Per Child
 
 For each closed child bead, verify evidence in precedence order: `commit`, then `staged`, then `worktree`. Use `bash skills/post-mortem/scripts/closure-integrity-audit.sh --scope auto <epic-id>` for the executable path, or the outline below if you are auditing manually.
@@ -36,7 +45,7 @@ EPIC_ID="<epic-id>"
 FAILURES=""
 
 # Get all children
-for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -oP '\S+' | head -1); do
+for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -oE '[a-z]{2}-[a-z0-9]+\.[0-9]+' | sort -u); do
   # 1. Commit evidence: strongest path
   COMMITS=$(git log --oneline --all --grep="$child" 2>/dev/null | wc -l | tr -d ' ')
 
@@ -50,20 +59,25 @@ for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -oP '\S+' | head -1); d
       # 2. Commit path by file history
       TOUCHED=0
       for f in $FILES_IN_SCOPE; do
-        if git log --oneline --diff-filter=M -- "$f" 2>/dev/null | head -1 | grep -q .; then
+        if git log --oneline --diff-filter=ACMR -- "$f" 2>/dev/null | head -1 | grep -q .; then
           TOUCHED=1
           break
         fi
       done
       if [ "$TOUCHED" -eq 0 ]; then
         # 3. Staged fallback
-        STAGED=$(git diff --cached --name-only -- $FILES_IN_SCOPE 2>/dev/null | head -1)
+        STAGED=$(git diff --cached --name-only --diff-filter=ACMR -- $FILES_IN_SCOPE 2>/dev/null | head -1)
         if [ -n "$STAGED" ]; then
           continue
         fi
 
         # 4. Worktree fallback (unstaged or untracked)
-        WORKTREE=$( { git diff --name-only -- $FILES_IN_SCOPE 2>/dev/null; git ls-files --others --exclude-standard -- $FILES_IN_SCOPE 2>/dev/null; } | head -1 )
+        WORKTREE=$(
+          {
+            git diff --name-only --diff-filter=ACMR -- $FILES_IN_SCOPE 2>/dev/null
+            git ls-files --others --exclude-standard -- $FILES_IN_SCOPE 2>/dev/null
+          } | head -1
+        )
         [ -z "$WORKTREE" ] && FAILURES="${FAILURES}\n- NO EVIDENCE: $child — no commit, staged, or worktree evidence for scoped files"
       fi
     fi
@@ -128,7 +142,7 @@ Minimum `repo_state` fields:
 Flag children with no meaningful description or title.
 
 ```bash
-for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -oP '\S+' | head -1); do
+for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -oE '[a-z]{2}-[a-z0-9]+\.[0-9]+' | sort -u); do
   TITLE=$(bd show "$child" 2>/dev/null | head -1 | sed 's/^.*· //' | sed 's/ \[.*$//')
   DESC=$(bd show "$child" 2>/dev/null | sed -n '/^DESCRIPTION$/,/^$/p' | tail -n +2)
 
@@ -201,7 +215,7 @@ done
 For children tagged "stretch" that were closed, verify either implementation exists or deferral is documented.
 
 ```bash
-for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -i 'stretch' | grep -oP '\S+' | head -1); do
+for child in $(bd children "$EPIC_ID" 2>/dev/null | grep -i 'stretch' | grep -oE '[a-z]{2}-[a-z0-9]+\.[0-9]+' | sort -u); do
   STATUS=$(bd show "$child" 2>/dev/null | grep -oP 'CLOSED')
   CLOSE_REASON=$(bd show "$child" 2>/dev/null | grep 'Close reason:')
   COMMITS=$(git log --oneline --all --grep="$child" 2>/dev/null | wc -l | tr -d ' ')

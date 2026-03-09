@@ -60,9 +60,9 @@ write_failure() {
             > "$_HOOK_HELPERS_ERROR_LOG_DIR/last-failure.json" 2>/dev/null
     else
         local escaped_command escaped_subject escaped_details
-        escaped_command=$(printf '%s' "$command" | sed 's/["\\]/\\&/g')
-        escaped_subject=$(printf '%s' "$task_subject" | sed 's/["\\]/\\&/g')
-        escaped_details=$(printf '%s' "$details" | sed 's/["\\]/\\&/g')
+        escaped_command=$(json_escape_value "$command")
+        escaped_subject=$(json_escape_value "$task_subject")
+        escaped_details=$(json_escape_value "$details")
 
         printf '{"schema_version":1,"ts":"%s","type":"%s","command":"%s","exit_code":%d,"task_subject":"%s","details":"%s"}\n' \
             "$ts" "$type" "$escaped_command" "$exit_code" "$escaped_subject" "$escaped_details" \
@@ -112,7 +112,13 @@ validate_restricted_cmd() {
 # Handles: backslashes, double quotes, newlines, tabs, carriage returns.
 # Usage: ESCAPED=$(json_escape_value "$RAW_VALUE")
 json_escape_value() {
-    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' | tr '\n' ' ' | tr '\r' ' '
+    local value="${1:-}"
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    value=${value//$'\n'/\\n}
+    value=${value//$'\r'/\\r}
+    value=${value//$'\t'/\\t}
+    printf '%s' "$value"
 }
 
 # timeout_run SECONDS COMMAND [ARGS...]
@@ -207,7 +213,12 @@ validate_evidence_only_closure_packet_file() {
             all(.repo_state.unstaged_files[]; type == "string") and
             (.repo_state.untracked_files | type == "array") and
             all(.repo_state.untracked_files[]; type == "string") and
-            (.evidence | type == "object" and (.summary | type == "string" and length > 0))
+            (.evidence | type == "object") and
+            (.evidence.summary | type == "string" and length > 0) and
+            (.evidence.artifacts | type == "array") and
+            all(.evidence.artifacts[]; type == "string") and
+            (.evidence.notes | type == "array") and
+            all(.evidence.notes[]; type == "string")
         ' "$packet_file" >/dev/null 2>&1
         return $?
     fi
@@ -349,7 +360,14 @@ write_evidence_only_closure_packet() {
         (.untracked_files | type == "array") and
         all(.untracked_files[]; type == "string")
     ' >/dev/null 2>&1 || return 1
-    echo "$evidence_json" | jq -e 'type == "object"' >/dev/null 2>&1 || return 1
+    echo "$evidence_json" | jq -e '
+        type == "object" and
+        (.summary | type == "string" and length > 0) and
+        (.artifacts | type == "array") and
+        all(.artifacts[]; type == "string") and
+        (.notes | type == "array") and
+        all(.notes[]; type == "string")
+    ' >/dev/null 2>&1 || return 1
 
     local created_at safe_target artifact_id artifact_file
     created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")

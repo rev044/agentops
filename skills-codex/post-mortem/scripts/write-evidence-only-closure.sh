@@ -108,14 +108,9 @@ ROOT="$TARGET_ROOT"
 source "$WORKSPACE_ROOT/lib/hook-helpers.sh"
 
 if [[ "${#VALIDATION_COMMANDS[@]}" -eq 0 ]]; then
-  VALIDATION_COMMANDS=("bash scripts/validate-manifests.sh --repo-root $TARGET_ROOT")
+  printf -v default_validation_command 'bash scripts/validate-manifests.sh --repo-root %q' "$TARGET_ROOT"
+  VALIDATION_COMMANDS=("$default_validation_command")
 fi
-
-validation_commands_json="$(
-  printf '%s\n' "${VALIDATION_COMMANDS[@]}" \
-    | jq -R . \
-    | jq -s .
-)"
 
 json_array_from_values() {
   if [[ "$#" -eq 0 ]]; then
@@ -130,21 +125,9 @@ json_array_from_values() {
     | jq -s .
 }
 
-artifacts_json="$(
-  if [[ "${#ARTIFACTS[@]}" -eq 0 ]]; then
-    printf '[]\n'
-  else
-    printf '%s\n' "${ARTIFACTS[@]}" | jq -R . | jq -s .
-  fi
-)"
-
-notes_json="$(
-  if [[ "${#NOTES[@]}" -eq 0 ]]; then
-    printf '[]\n'
-  else
-    printf '%s\n' "${NOTES[@]}" | jq -R . | jq -s .
-  fi
-)"
+validation_commands_json="$(json_array_from_values "${VALIDATION_COMMANDS[@]}")"
+artifacts_json="$(json_array_from_values "${ARTIFACTS[@]}")"
+notes_json="$(json_array_from_values "${NOTES[@]}")"
 
 git_branch="$(git -C "$TARGET_ROOT" branch --show-current 2>/dev/null || true)"
 head_sha="$(git -C "$TARGET_ROOT" rev-parse HEAD 2>/dev/null || true)"
