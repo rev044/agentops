@@ -19,6 +19,7 @@ fi
 _HOOK_HELPERS_ERROR_LOG_DIR="${ROOT}/.agents/ao"
 _HOOK_PACKET_ROOT="${ROOT}/.agents/ao/packets"
 _HOOK_PACKET_PENDING_DIR="${_HOOK_PACKET_ROOT}/pending"
+_EVIDENCE_ONLY_CLOSURE_DIR="${ROOT}/.agents/council/evidence-only-closures"
 
 to_repo_relative_path() {
     local abs="$1"
@@ -176,6 +177,39 @@ validate_memory_packet_file() {
         grep -q '"payload"' "$packet_file"
 }
 
+# validate_evidence_only_closure_packet_file — shallow schema check for
+# evidence-only-closure v1 artifacts.
+validate_evidence_only_closure_packet_file() {
+    local packet_file="$1"
+    [ -f "$packet_file" ] || return 1
+
+    if command -v jq >/dev/null 2>&1; then
+        jq -e '
+            .schema_version == 1 and
+            (.artifact_id | type == "string" and length > 0) and
+            (.target_id | type == "string" and length > 0) and
+            (.target_type | type == "string" and length > 0) and
+            (.created_at | type == "string" and length > 0) and
+            (.producer | type == "string" and length > 0) and
+            (.validation_commands | type == "array" and length > 0) and
+            all(.validation_commands[]; type == "string" and length > 0) and
+            (.repo_state | type == "object") and
+            (.evidence | type == "object" and (.summary | type == "string" and length > 0))
+        ' "$packet_file" >/dev/null 2>&1
+        return $?
+    fi
+
+    grep -q '"schema_version"' "$packet_file" &&
+        grep -q '"artifact_id"' "$packet_file" &&
+        grep -q '"target_id"' "$packet_file" &&
+        grep -q '"target_type"' "$packet_file" &&
+        grep -q '"created_at"' "$packet_file" &&
+        grep -q '"producer"' "$packet_file" &&
+        grep -q '"validation_commands"' "$packet_file" &&
+        grep -q '"repo_state"' "$packet_file" &&
+        grep -q '"evidence"' "$packet_file"
+}
+
 # write_memory_packet TYPE SOURCE PAYLOAD_JSON [HANDOFF_FILE]
 # Emits a v1 memory packet under .agents/ao/packets/pending and prints packet path.
 write_memory_packet() {
@@ -258,6 +292,68 @@ write_memory_packet() {
     fi
 
     printf '%s\n' "$packet_file"
+    return 0
+}
+
+# write_evidence_only_closure_packet TARGET_ID TARGET_TYPE PRODUCER
+#   VALIDATION_COMMANDS_JSON REPO_STATE_JSON EVIDENCE_JSON
+# Emits a v1 evidence-only closure packet under
+# .agents/council/evidence-only-closures and prints the artifact path.
+write_evidence_only_closure_packet() {
+    local target_id="$1"
+    local target_type="$2"
+    local producer="$3"
+    local validation_commands_json="$4"
+    local repo_state_json="$5"
+    local evidence_json="$6"
+
+    command -v jq >/dev/null 2>&1 || return 1
+    mkdir -p "$_EVIDENCE_ONLY_CLOSURE_DIR" 2>/dev/null || return 1
+
+    [ -n "$target_id" ] || return 1
+    [ -n "$target_type" ] || return 1
+    [ -n "$producer" ] || return 1
+
+    echo "$validation_commands_json" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null 2>&1 || return 1
+    echo "$repo_state_json" | jq -e 'type == "object"' >/dev/null 2>&1 || return 1
+    echo "$evidence_json" | jq -e 'type == "object"' >/dev/null 2>&1 || return 1
+
+    local created_at safe_target artifact_id artifact_file
+    created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
+    safe_target="${target_id//\//_}"
+    artifact_id="evidence-only-closure-${safe_target}"
+    artifact_file="${_EVIDENCE_ONLY_CLOSURE_DIR}/${safe_target}.json"
+
+    jq -n \
+        --arg schema "../../../schemas/evidence-only-closure.v1.schema.json" \
+        --argjson schema_version 1 \
+        --arg artifact_id "$artifact_id" \
+        --arg target_id "$target_id" \
+        --arg target_type "$target_type" \
+        --arg created_at "$created_at" \
+        --arg producer "$producer" \
+        --argjson validation_commands "$validation_commands_json" \
+        --argjson repo_state "$repo_state_json" \
+        --argjson evidence "$evidence_json" \
+        '{
+            "$schema": $schema,
+            schema_version: $schema_version,
+            artifact_id: $artifact_id,
+            target_id: $target_id,
+            target_type: $target_type,
+            created_at: $created_at,
+            producer: $producer,
+            validation_commands: $validation_commands,
+            repo_state: $repo_state,
+            evidence: $evidence
+        }' > "$artifact_file" 2>/dev/null || return 1
+
+    if ! validate_evidence_only_closure_packet_file "$artifact_file"; then
+        rm -f "$artifact_file" 2>/dev/null || true
+        return 1
+    fi
+
+    printf '%s\n' "$artifact_file"
     return 0
 }
 

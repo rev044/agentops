@@ -213,6 +213,8 @@ Read `references/closure-integrity-audit.md` for the full procedure. Mechanicall
 
 Include results in the council packet as `context.closure_integrity`. WARN on 1-2 findings, FAIL on 3+.
 
+If a closure is evidence-only rather than code-changing, emit a proof artifact at `.agents/council/evidence-only-closures/<target-id>.json` with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite that artifact in the council packet.
+
 ### Step 2.5: Pre-Council Metadata Verification (MANDATORY)
 
 Read `references/metadata-verification.md` for the full verification procedure. Mechanically checks: plan vs actual files, file existence in commits, cross-references in docs, and ASCII diagram integrity. Failures are included in the council packet as `context.metadata_failures`.

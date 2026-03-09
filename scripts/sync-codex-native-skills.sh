@@ -203,6 +203,165 @@ write_actual_skills() {
     | sort -u > "$out_file"
 }
 
+catalog_contract_entries() {
+  local catalog_path="$OVERRIDES/$CATALOG_FILE_NAME"
+
+  [[ -f "$catalog_path" ]] || return 0
+
+  command -v jq >/dev/null 2>&1 || {
+    echo "Error: jq is required for Codex operator-contract synthesis." >&2
+    exit 1
+  }
+
+  if [[ -n "$ONLY_CSV" ]]; then
+    local only_json
+    only_json="$(
+      printf '%s\n' "$ONLY_CSV" \
+        | tr ',' '\n' \
+        | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
+        | sed '/^$/d' \
+        | jq -R . \
+        | jq -s .
+    )"
+    jq -c --argjson only "$only_json" '
+      .skills[]
+      | select(.operator_contract_required == true and .operator_contract != null)
+      | select(.name as $name | $only | index($name))
+    ' "$catalog_path"
+    return
+  fi
+
+  jq -c '
+    .skills[]
+    | select(.operator_contract_required == true and .operator_contract != null)
+  ' "$catalog_path"
+}
+
+strip_generated_operator_contract_block() {
+  local prompt_path="$1"
+  local first_section="$2"
+  local stripped_tmp trimmed_tmp
+
+  stripped_tmp="$(mktemp "$tmpdir/operator-contract-strip.XXXXXX")"
+  trimmed_tmp="$(mktemp "$tmpdir/operator-contract-trim.XXXXXX")"
+
+  awk '
+    $0 == "<!-- BEGIN AGENTOPS OPERATOR CONTRACT -->" { skip = 1; next }
+    $0 == "<!-- END AGENTOPS OPERATOR CONTRACT -->" { skip = 0; next }
+    !skip { print }
+  ' "$prompt_path" > "$stripped_tmp"
+
+  if grep -Fxq "$first_section" "$stripped_tmp"; then
+    awk -v first_section="$first_section" '
+      $0 == first_section { exit }
+      { print }
+    ' "$stripped_tmp" > "$trimmed_tmp"
+    mv "$trimmed_tmp" "$stripped_tmp"
+  fi
+
+  awk '
+    { lines[NR] = $0 }
+    END {
+      last = NR
+      while (last > 0 && lines[last] == "") {
+        last--
+      }
+      for (i = 1; i <= last; i++) {
+        print lines[i]
+      }
+    }
+  ' "$stripped_tmp" > "$prompt_path"
+
+  rm -f "$stripped_tmp" "$trimmed_tmp"
+}
+
+render_operator_contract_block() {
+  local entry="$1"
+  local skill
+  local marker_index=0
+  local remaining_markers=0
+  local section_count=0
+  local section_index
+  local sections=()
+  local markers=()
+
+  skill="$(jq -r '.name' <<<"$entry")"
+  mapfile -t sections < <(jq -r '.operator_contract.required_sections[]' <<<"$entry")
+  mapfile -t markers < <(jq -r '.operator_contract.required_markers[]' <<<"$entry")
+  section_count="${#sections[@]}"
+  remaining_markers="${#markers[@]}"
+
+  printf '<!-- BEGIN AGENTOPS OPERATOR CONTRACT -->\n'
+  printf '<!-- Generated from skills-codex-overrides/catalog.json for %s. -->\n\n' "$skill"
+
+  for ((section_index = 0; section_index < section_count; section_index++)); do
+    local sections_left count bullet_index
+
+    printf '%s\n\n' "${sections[$section_index]}"
+    sections_left=$((section_count - section_index))
+
+    if (( remaining_markers == 0 )); then
+      count=0
+    elif (( sections_left == 1 )); then
+      count=$remaining_markers
+    else
+      count=$((remaining_markers - (sections_left - 1)))
+      if (( count < 1 )); then
+        count=1
+      fi
+    fi
+
+    for ((bullet_index = 0; bullet_index < count; bullet_index++)); do
+      printf '%d. %s\n' "$((bullet_index + 1))" "${markers[$marker_index]}"
+      marker_index=$((marker_index + 1))
+      remaining_markers=$((remaining_markers - 1))
+    done
+
+    if (( section_index < section_count - 1 )); then
+      printf '\n'
+    fi
+  done
+
+  printf '\n<!-- END AGENTOPS OPERATOR CONTRACT -->\n'
+}
+
+apply_operator_contract_synthesis() {
+  local built_root="$1"
+  local synthesized=0
+
+  while IFS= read -r entry; do
+    local skill prompt_path first_section rendered_tmp final_tmp
+
+    [[ -n "$entry" ]] || continue
+    skill="$(jq -r '.name' <<<"$entry")"
+    prompt_path="$built_root/$skill/prompt.md"
+    first_section="$(jq -r '.operator_contract.required_sections[0]' <<<"$entry")"
+
+    [[ -f "$prompt_path" ]] || {
+      echo "Error: cannot synthesize operator contract for missing prompt: $prompt_path" >&2
+      exit 1
+    }
+
+    strip_generated_operator_contract_block "$prompt_path" "$first_section"
+
+    rendered_tmp="$(mktemp "$tmpdir/operator-contract-render.XXXXXX")"
+    final_tmp="$(mktemp "$tmpdir/operator-contract-final.XXXXXX")"
+    render_operator_contract_block "$entry" > "$rendered_tmp"
+
+    if [[ -s "$prompt_path" ]]; then
+      cat "$prompt_path" > "$final_tmp"
+      printf '\n\n' >> "$final_tmp"
+    fi
+    cat "$rendered_tmp" >> "$final_tmp"
+    mv "$final_tmp" "$prompt_path"
+    rm -f "$rendered_tmp"
+
+    synthesized=$((synthesized + 1))
+  done < <(catalog_contract_entries)
+
+  echo "Codex operator-contract synthesis applied: $synthesized"
+}
+
 apply_overrides() {
   local built_root="$1"
   local applied=0
@@ -409,6 +568,7 @@ if [[ -x "${SCRIPT_DIR}/lint/generate-allowlist-candidates.sh" ]]; then
 fi
 
 apply_overrides "$tmpdir"
+apply_operator_contract_synthesis "$tmpdir"
 prune_transient_files "$tmpdir"
 write_generated_manifest "$tmpdir"
 validate_parity "$tmpdir"

@@ -90,6 +90,114 @@ contains_fixed() {
   rg -Fq -- "$needle" "$path"
 }
 
+strip_generated_operator_contract_block() {
+  local prompt_path="$1"
+  local first_section="$2"
+  local stripped_tmp trimmed_tmp
+
+  stripped_tmp="$(mktemp "$tmpdir/operator-contract-strip.XXXXXX")"
+  trimmed_tmp="$(mktemp "$tmpdir/operator-contract-trim.XXXXXX")"
+
+  awk '
+    $0 == "<!-- BEGIN AGENTOPS OPERATOR CONTRACT -->" { skip = 1; next }
+    $0 == "<!-- END AGENTOPS OPERATOR CONTRACT -->" { skip = 0; next }
+    !skip { print }
+  ' "$prompt_path" > "$stripped_tmp"
+
+  if grep -Fxq "$first_section" "$stripped_tmp"; then
+    awk -v first_section="$first_section" '
+      $0 == first_section { exit }
+      { print }
+    ' "$stripped_tmp" > "$trimmed_tmp"
+    mv "$trimmed_tmp" "$stripped_tmp"
+  fi
+
+  awk '
+    { lines[NR] = $0 }
+    END {
+      last = NR
+      while (last > 0 && lines[last] == "") {
+        last--
+      }
+      for (i = 1; i <= last; i++) {
+        print lines[i]
+      }
+    }
+  ' "$stripped_tmp" > "$prompt_path"
+
+  rm -f "$stripped_tmp" "$trimmed_tmp"
+}
+
+render_operator_contract_block() {
+  local entry="$1"
+  local skill
+  local marker_index=0
+  local remaining_markers=0
+  local section_count=0
+  local section_index
+  local sections=()
+  local markers=()
+
+  skill="$(jq -r '.name' <<<"$entry")"
+  mapfile -t sections < <(jq -r '.operator_contract.required_sections[]' <<<"$entry")
+  mapfile -t markers < <(jq -r '.operator_contract.required_markers[]' <<<"$entry")
+  section_count="${#sections[@]}"
+  remaining_markers="${#markers[@]}"
+
+  printf '<!-- BEGIN AGENTOPS OPERATOR CONTRACT -->\n'
+  printf '<!-- Generated from skills-codex-overrides/catalog.json for %s. -->\n\n' "$skill"
+
+  for ((section_index = 0; section_index < section_count; section_index++)); do
+    local sections_left count bullet_index
+
+    printf '%s\n\n' "${sections[$section_index]}"
+    sections_left=$((section_count - section_index))
+
+    if (( remaining_markers == 0 )); then
+      count=0
+    elif (( sections_left == 1 )); then
+      count=$remaining_markers
+    else
+      count=$((remaining_markers - (sections_left - 1)))
+      if (( count < 1 )); then
+        count=1
+      fi
+    fi
+
+    for ((bullet_index = 0; bullet_index < count; bullet_index++)); do
+      printf '%d. %s\n' "$((bullet_index + 1))" "${markers[$marker_index]}"
+      marker_index=$((marker_index + 1))
+      remaining_markers=$((remaining_markers - 1))
+    done
+
+    if (( section_index < section_count - 1 )); then
+      printf '\n'
+    fi
+  done
+
+  printf '\n<!-- END AGENTOPS OPERATOR CONTRACT -->\n'
+}
+
+synthesize_expected_prompt() {
+  local entry="$1"
+  local override_prompt="$2"
+  local expected_prompt="$3"
+  local first_section rendered_tmp
+
+  cp "$override_prompt" "$expected_prompt"
+  first_section="$(jq -r '.operator_contract.required_sections[0]' <<<"$entry")"
+  strip_generated_operator_contract_block "$expected_prompt" "$first_section"
+
+  rendered_tmp="$(mktemp "$tmpdir/operator-contract-render.XXXXXX")"
+  render_operator_contract_block "$entry" > "$rendered_tmp"
+
+  if [[ -s "$expected_prompt" ]]; then
+    printf '\n\n' >> "$expected_prompt"
+  fi
+  cat "$rendered_tmp" >> "$expected_prompt"
+  rm -f "$rendered_tmp"
+}
+
 find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d \
   | while IFS= read -r d; do
       [[ -f "$d/SKILL.md" ]] || continue
@@ -231,30 +339,25 @@ while IFS= read -r entry; do
   case "$treatment" in
     bespoke)
       [[ -f "$override_prompt" ]] || fail "missing Codex override prompt for bespoke skill $skill"
-      if [[ -f "$override_prompt" ]] && ! rg -q '^## Codex Execution Profile$' "$override_prompt"; then
-        fail "override prompt for $skill lacks '## Codex Execution Profile'"
-      fi
       if jq -e '.operator_contract_required == true' <<<"$entry" >/dev/null; then
         if ! jq -e '.operator_contract != null' <<<"$entry" >/dev/null; then
           fail "catalog missing operator_contract for required Codex operator-contract skill: $skill"
         fi
       fi
-      if jq -e '.operator_contract != null' <<<"$entry" >/dev/null; then
-        while IFS= read -r required_section; do
-          [[ -n "$required_section" ]] || continue
-          if ! contains_fixed "$required_section" "$override_prompt"; then
-            fail "override prompt for $skill missing required operator-contract section: $required_section"
-          fi
-        done < <(jq -r '.operator_contract.required_sections[]' <<<"$entry")
-        while IFS= read -r required_marker; do
-          [[ -n "$required_marker" ]] || continue
-          if ! contains_fixed "$required_marker" "$override_prompt"; then
-            fail "override prompt for $skill missing required operator-contract marker: $required_marker"
-          fi
-        done < <(jq -r '.operator_contract.required_markers[]' <<<"$entry")
-      fi
-      if [[ -f "$override_prompt" && -f "$generated_prompt" ]] && ! cmp -s "$override_prompt" "$generated_prompt"; then
-        fail "generated Codex prompt for $skill does not match override source (run: bash scripts/sync-codex-native-skills.sh)"
+      if jq -e '.operator_contract_required == true and .operator_contract != null' <<<"$entry" >/dev/null; then
+        expected_prompt="$(mktemp "$tmpdir/operator-contract-expected.XXXXXX")"
+        synthesize_expected_prompt "$entry" "$override_prompt" "$expected_prompt"
+        if ! cmp -s "$expected_prompt" "$generated_prompt"; then
+          fail "generated Codex prompt for $skill does not match synthesized override + catalog contract output (run: bash scripts/sync-codex-native-skills.sh)"
+        fi
+        rm -f "$expected_prompt"
+      else
+        if [[ -f "$override_prompt" ]] && ! rg -q '^## Codex Execution Profile$' "$override_prompt"; then
+          fail "override prompt for $skill lacks '## Codex Execution Profile'"
+        fi
+        if [[ -f "$override_prompt" && -f "$generated_prompt" ]] && ! cmp -s "$override_prompt" "$generated_prompt"; then
+          fail "generated Codex prompt for $skill does not match override source (run: bash scripts/sync-codex-native-skills.sh)"
+        fi
       fi
       ;;
     parity_only)

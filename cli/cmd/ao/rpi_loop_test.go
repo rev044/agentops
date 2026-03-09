@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1625,7 +1624,7 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesAfterFailingEntry(t *testing
 		return nil
 	}
 
-	output, err := captureStdoutWithError(func() error {
+	output, err := captureStdout(t, func() error {
 		return runRPILoop(nil, nil)
 	})
 	if err != nil {
@@ -1789,7 +1788,7 @@ func TestRPILoop_TaskFailure_ContinuePolicy_AdvancesToSiblingItemInSameEntry(t *
 		return nil
 	}
 
-	output, err := captureStdoutWithError(func() error {
+	output, err := captureStdout(t, func() error {
 		return runRPILoop(nil, nil)
 	})
 	if err != nil {
@@ -1881,7 +1880,7 @@ func TestRPILoop_KillSwitchDuringRetry_StopsWithoutQueueMutation(t *testing.T) {
 		return wrapCycleFailure(cycleFailureInfrastructure, "landing", fmt.Errorf("transient infra failure"))
 	}
 
-	output, err := captureStdoutWithError(func() error {
+	output, err := captureStdout(t, func() error {
 		return runRPILoop(nil, nil)
 	})
 	if err != nil {
@@ -1942,7 +1941,7 @@ func TestRPILoop_ExplicitGoalReportsExecutedCycles(t *testing.T) {
 		return nil
 	}
 
-	output, err := captureStdoutWithError(func() error {
+	output, err := captureStdout(t, func() error {
 		return runRPILoop(nil, []string{"count cycles"})
 	})
 	if err != nil {
@@ -2002,7 +2001,7 @@ func TestRPILoop_KillSwitchStopsBeforeCycleExecution(t *testing.T) {
 		return nil
 	}
 
-	output, err := captureStdoutWithError(func() error {
+	output, err := captureStdout(t, func() error {
 		return runRPILoop(nil, []string{"stopped by kill switch"})
 	})
 	if err != nil {
@@ -2254,26 +2253,6 @@ func TestRPILoop_AthenaCadence_ProducerFailure_StopPolicy(t *testing.T) {
 	if after[0].FailedAt != nil || after[0].Consumed {
 		t.Fatalf("queue should remain unmodified when producer fails before cycle execution: %+v", after[0])
 	}
-}
-
-func captureStdoutWithError(fn func() error) (string, error) {
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		return "", err
-	}
-	os.Stdout = w
-
-	runErr := fn()
-	_ = w.Close()
-	os.Stdout = oldStdout
-
-	data, readErr := io.ReadAll(r)
-	_ = r.Close()
-	if readErr != nil {
-		return "", readErr
-	}
-	return string(data), runErr
 }
 
 func setupSingleQueueEntry(t *testing.T, tmpDir string, entry nextWorkEntry) string {

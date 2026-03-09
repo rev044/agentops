@@ -9,6 +9,8 @@ This audit catches four failure modes discovered in production:
 3. **Orphaned children** — Child beads exist in `bd list` but aren't linked to parent in `bd show <parent>`.
 4. **Stretch goals closed without work** — Items marked "stretch" bulk-closed when epic closes, with no implementation or documented deferral rationale.
 
+For **evidence-only closures** that intentionally do not produce a code delta, require a proof artifact at `.agents/council/evidence-only-closures/<target-id>.json`. The artifact is written with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and gives later audits something durable to validate besides bead notes.
+
 ## When to Run
 
 - **Step 2.3** of post-mortem (Reconcile Plan vs Delivered Scope)
@@ -56,6 +58,31 @@ done
 - 0 failures → PASS
 - 1-2 failures → WARN (include in council packet, continue)
 - 3+ failures → FAIL (block epic closure, investigate)
+
+### Evidence-Only Closure Packet
+
+If a child is being closed on validation or policy evidence alone, produce a packet before closeout:
+
+```bash
+bash skills/post-mortem/scripts/write-evidence-only-closure.sh \
+  --target-id "<bead-id>" \
+  --target-type issue \
+  --producer post-mortem \
+  --validation-command "bash tests/hooks/lib-hook-helpers.bats" \
+  --evidence-summary "No code delta required; validation artifact captured." \
+  --artifact ".agents/council/<report>.md"
+```
+
+Minimum packet fields:
+- `schema_version`
+- `artifact_id`
+- `target_id`
+- `target_type`
+- `created_at`
+- `producer`
+- `validation_commands`
+- `repo_state`
+- `evidence`
 
 ### Check 2: Phantom Bead Detection
 

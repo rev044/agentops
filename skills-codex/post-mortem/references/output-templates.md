@@ -218,6 +218,49 @@ status: ACTIVE
 ### Context Summary
 
 ```
+
+---
+
+## Evidence-Only Closure Artifact
+
+When a post-mortem closes an item on validation or policy evidence without a code diff, write a proof artifact to `.agents/council/evidence-only-closures/<target-id>.json`.
+
+Example producer command:
+
+```bash
+bash skills/post-mortem/scripts/write-evidence-only-closure.sh \
+  --target-id na-a7e.4 \
+  --target-type issue \
+  --producer post-mortem \
+  --validation-command "bash tests/hooks/lib-hook-helpers.bats" \
+  --evidence-summary "Structured proof artifact added and schema validation passed." \
+  --artifact ".agents/council/2026-03-09-post-mortem-na-a7e.md"
+```
+
+Template shape:
+
+```json
+{
+  "schema_version": 1,
+  "artifact_id": "evidence-only-closure-<target-id>",
+  "target_id": "<target-id>",
+  "target_type": "issue",
+  "created_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "producer": "post-mortem",
+  "validation_commands": ["bash <command>"],
+  "repo_state": {
+    "git_branch": "main",
+    "git_dirty": false,
+    "head_sha": "<sha>",
+    "modified_files": []
+  },
+  "evidence": {
+    "summary": "<why evidence-only closure is valid>",
+    "artifacts": ["<supporting-path>"],
+    "notes": ["<optional note>"]
+  }
+}
+```
 ================================================================
 CONTEXT GATHERED
 ================================================================

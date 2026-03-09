@@ -6,12 +6,12 @@ package main
 // makes cross-file dependencies explicit.
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -20,27 +20,120 @@ import (
 // Stdout capture helpers
 // ---------------------------------------------------------------------------
 
+var stdoutCaptureState struct {
+	mu     sync.Mutex
+	active bool
+}
+
+type stdoutCaptureSession struct {
+	oldStdout *os.File
+	reader    *os.File
+	writer    *os.File
+}
+
+type stdoutCaptureResult struct {
+	output string
+	err    error
+}
+
+func beginStdoutCaptureSession() (*stdoutCaptureSession, error) {
+	stdoutCaptureState.mu.Lock()
+	if stdoutCaptureState.active {
+		stdoutCaptureState.mu.Unlock()
+		return nil, fmt.Errorf("nested stdout capture is not supported")
+	}
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		stdoutCaptureState.mu.Unlock()
+		return nil, err
+	}
+
+	session := &stdoutCaptureSession{
+		oldStdout: os.Stdout,
+		reader:    reader,
+		writer:    writer,
+	}
+	stdoutCaptureState.active = true
+	os.Stdout = writer
+	return session, nil
+}
+
+func (session *stdoutCaptureSession) closeAndRestore() {
+	if session == nil {
+		return
+	}
+	if session.writer != nil {
+		_ = session.writer.Close()
+		session.writer = nil
+	}
+	if session.oldStdout != nil {
+		os.Stdout = session.oldStdout
+	}
+	if stdoutCaptureState.active {
+		stdoutCaptureState.active = false
+		stdoutCaptureState.mu.Unlock()
+	}
+}
+
+func (session *stdoutCaptureSession) startReader() <-chan stdoutCaptureResult {
+	results := make(chan stdoutCaptureResult, 1)
+	if session == nil || session.reader == nil {
+		results <- stdoutCaptureResult{}
+		return results
+	}
+
+	reader := session.reader
+	session.reader = nil
+	go func() {
+		data, err := io.ReadAll(reader)
+		_ = reader.Close()
+		results <- stdoutCaptureResult{
+			output: string(data),
+			err:    err,
+		}
+	}()
+	return results
+}
+
 // captureStdout redirects os.Stdout to a pipe, calls fn, and returns everything
 // written to stdout along with fn's error.
 // Origin: rpi_verify_test.go
 func captureStdout(t *testing.T, fn func() error) (string, error) {
 	t.Helper()
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
+	session, err := beginStdoutCaptureSession()
 	if err != nil {
-		t.Fatalf("pipe: %v", err)
+		t.Fatalf("capture stdout: %v", err)
 	}
-	os.Stdout = w
-
-	runErr := fn()
-
-	_ = w.Close()
-	os.Stdout = oldStdout
-	out, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("read captured stdout: %v", err)
+	results := session.startReader()
+	restored := false
+	restore := func() {
+		if restored {
+			return
+		}
+		restored = true
+		session.closeAndRestore()
 	}
-	return string(out), runErr
+	t.Cleanup(restore)
+
+	var runErr error
+	var panicValue any
+	func() {
+		defer func() {
+			panicValue = recover()
+			restore()
+		}()
+		runErr = fn()
+	}()
+
+	result := <-results
+	if result.err != nil {
+		t.Fatalf("read captured stdout: %v", result.err)
+	}
+	if panicValue != nil {
+		panic(panicValue)
+	}
+	return result.output, runErr
 }
 
 // captureJSONStdout redirects os.Stdout, calls fn (no return value), and
@@ -48,21 +141,38 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 // Origin: json_validity_test.go
 func captureJSONStdout(t *testing.T, fn func()) string {
 	t.Helper()
-	r, w, err := os.Pipe()
+	session, err := beginStdoutCaptureSession()
 	if err != nil {
-		t.Fatalf("pipe: %v", err)
+		t.Fatalf("capture stdout: %v", err)
 	}
-	oldStdout := os.Stdout
-	os.Stdout = w
+	results := session.startReader()
+	restored := false
+	restore := func() {
+		if restored {
+			return
+		}
+		restored = true
+		session.closeAndRestore()
+	}
+	t.Cleanup(restore)
 
-	fn()
+	var panicValue any
+	func() {
+		defer func() {
+			panicValue = recover()
+			restore()
+		}()
+		fn()
+	}()
 
-	_ = w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
-	return buf.String()
+	result := <-results
+	if result.err != nil {
+		t.Fatalf("read captured stdout: %v", result.err)
+	}
+	if panicValue != nil {
+		panic(panicValue)
+	}
+	return result.output
 }
 
 // ---------------------------------------------------------------------------

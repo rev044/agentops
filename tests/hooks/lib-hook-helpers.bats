@@ -215,7 +215,68 @@ teardown() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════
-# 7. No-jq fallback paths
+# 7. Evidence-only closure packets
+# ═══════════════════════════════════════════════════════════════════════
+
+@test "validate_evidence_only_closure_packet_file: accepts valid packet" {
+    local artifact="$TMP_TEST_DIR/evidence-only-closure.json"
+    jq -n '{
+        schema_version: 1,
+        artifact_id: "evidence-only-closure-na-test",
+        target_id: "na-test",
+        target_type: "issue",
+        created_at: "2026-03-09T00:00:00Z",
+        producer: "bats",
+        validation_commands: ["bash tests/hooks/lib-hook-helpers.bats"],
+        repo_state: {
+            repo_root: "/tmp/mock-repo",
+            git_branch: "main",
+            git_dirty: false,
+            head_sha: "abc123",
+            modified_files: []
+        },
+        evidence: {
+            summary: "Validation-only closure remains auditable.",
+            artifacts: [".agents/council/report.md"],
+            notes: []
+        }
+    }' > "$artifact"
+
+    run validate_evidence_only_closure_packet_file "$artifact"
+    [ "$status" -eq 0 ]
+}
+
+@test "write_evidence_only_closure_packet: producer emits packet that manifest validation accepts" {
+    local artifact_file="$REPO_ROOT/.agents/council/evidence-only-closures/na-test.json"
+    rm -f "$artifact_file"
+
+    run bash "$REPO_ROOT/skills/post-mortem/scripts/write-evidence-only-closure.sh" \
+        --repo-root "$REPO_ROOT" \
+        --target-id "na-test" \
+        --target-type "issue" \
+        --producer "bats" \
+        --validation-command "bash tests/hooks/lib-hook-helpers.bats" \
+        --evidence-summary "Validation-only closure proof emitted for auditability." \
+        --artifact ".agents/council/report.md" \
+        --note "No code delta required."
+    [ "$status" -eq 0 ]
+    [ -n "$output" ]
+    [ -f "$output" ]
+    [ "$output" = "$artifact_file" ]
+
+    run jq -r '.target_id' "$output"
+    [ "$status" -eq 0 ]
+    [ "$output" = "na-test" ]
+
+    run bash "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" --skip-hooks
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"evidence-only-closure/na-test.json"* ]]
+
+    rm -f "$artifact_file"
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+# 8. No-jq fallback paths
 # ═══════════════════════════════════════════════════════════════════════
 
 @test "write_failure: produces valid JSON without jq (fallback path)" {

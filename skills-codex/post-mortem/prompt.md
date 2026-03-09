@@ -2,15 +2,17 @@
 
 Close out completed work in a Codex-native way: validate outcomes, extract durable learnings, and harvest concrete follow-up work back into the queue.
 
+
+<!-- BEGIN AGENTOPS OPERATOR CONTRACT -->
+<!-- Generated from skills-codex-overrides/catalog.json for post-mortem. -->
+
 ## Codex Execution Profile
 
-1. Treat `skills/post-mortem/SKILL.md` as the canonical close-out contract and `skills-codex/post-mortem/SKILL.md` as the Codex-facing artifact.
-2. Keep the council/validation summary concise, then write learnings and harvested work to disk.
-3. Prefer concrete follow-up items that can flow directly into `.agents/rpi/next-work.jsonl` for the next Codex loop.
+1. write learnings and harvested work to disk
+2. .agents/rpi/next-work.jsonl
 
 ## Guardrails
 
-1. Keep harvested work machine-checkable: available on write, then claim/release/consume through the queue lifecycle.
-2. Count resolution per item, not per batch entry, when reporting prior findings.
-3. Preserve evidence and source links so the next Codex cycle can act without re-deriving context.
-4. If a Codex-native override and the source skill diverge, keep behavior aligned with the source contract and then update the override.
+1. claim/release/consume through the queue lifecycle
+
+<!-- END AGENTOPS OPERATOR CONTRACT -->

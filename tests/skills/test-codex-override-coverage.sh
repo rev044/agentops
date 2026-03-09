@@ -18,7 +18,17 @@ fail() { echo "FAIL: $1"; FAIL=$((FAIL + 1)); }
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-write_prompt() {
+write_override_prompt() {
+  local path="$1"
+  local name="$2"
+  cat > "$path" <<EOF
+# $name
+
+Codex-native prompt for $name.
+EOF
+}
+
+write_synthesized_prompt() {
   local path="$1"
   local name="$2"
   cat > "$path" <<EOF
@@ -26,14 +36,18 @@ write_prompt() {
 
 Codex-native prompt for $name.
 
+
+<!-- BEGIN AGENTOPS OPERATOR CONTRACT -->
+<!-- Generated from skills-codex-overrides/catalog.json for $name. -->
+
 ## Codex Execution Profile
 
-1. Treat the canonical skill as source of truth.
-2. Record issue-ready handoff markers for downstream Codex execution.
+1. Record issue-ready handoff markers for downstream Codex execution.
 
 ## Guardrails
 
-1. Keep behavior machine-checkable.
+
+<!-- END AGENTOPS OPERATOR CONTRACT -->
 EOF
 }
 
@@ -63,8 +77,8 @@ description: fixture
 EOF
   done
 
-  write_prompt "$fixture/skills-codex-overrides/alpha/prompt.md" "alpha"
-  cp "$fixture/skills-codex-overrides/alpha/prompt.md" "$fixture/skills-codex/alpha/prompt.md"
+  write_override_prompt "$fixture/skills-codex-overrides/alpha/prompt.md" "alpha"
+  write_synthesized_prompt "$fixture/skills-codex/alpha/prompt.md" "alpha"
 
   cat > "$fixture/skills-codex/beta/prompt.md" <<'EOF'
 # beta
@@ -122,13 +136,13 @@ test_fixture_passes_with_complete_wave_filter() {
   local fixture="$TMP_DIR/pass"
   setup_fixture "$fixture"
   mkdir -p "$fixture/skills-codex-overrides/gamma"
-  write_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
-  cp "$fixture/skills-codex-overrides/gamma/prompt.md" "$fixture/skills-codex/gamma/prompt.md"
+  write_override_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
+  write_synthesized_prompt "$fixture/skills-codex/gamma/prompt.md" "gamma"
 
   if bash "$SCRIPT" --repo-root "$fixture" --wave wave-a >/dev/null; then
-    pass "supports repo-root fixtures and wave filtering"
+    pass "supports concise override fixtures and wave filtering"
   else
-    fail "should validate a filtered wave in a fixture repo"
+    fail "should validate a filtered wave with synthesized generated prompts"
   fi
 }
 
@@ -147,10 +161,10 @@ test_fails_when_parity_skill_has_override() {
   local fixture="$TMP_DIR/parity"
   setup_fixture "$fixture"
   mkdir -p "$fixture/skills-codex-overrides/beta"
-  write_prompt "$fixture/skills-codex-overrides/beta/prompt.md" "beta"
+  write_override_prompt "$fixture/skills-codex-overrides/beta/prompt.md" "beta"
   mkdir -p "$fixture/skills-codex-overrides/gamma"
-  write_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
-  cp "$fixture/skills-codex-overrides/gamma/prompt.md" "$fixture/skills-codex/gamma/prompt.md"
+  write_override_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
+  write_synthesized_prompt "$fixture/skills-codex/gamma/prompt.md" "gamma"
 
   if bash "$SCRIPT" --repo-root "$fixture" >/dev/null 2>&1; then
     fail "should fail when a parity-only skill has a prompt override"
@@ -163,8 +177,8 @@ test_fails_when_required_operator_contract_is_missing() {
   local fixture="$TMP_DIR/operator-contract-required-missing"
   setup_fixture "$fixture"
   mkdir -p "$fixture/skills-codex-overrides/gamma"
-  write_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
-  cp "$fixture/skills-codex-overrides/gamma/prompt.md" "$fixture/skills-codex/gamma/prompt.md"
+  write_override_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
+  write_synthesized_prompt "$fixture/skills-codex/gamma/prompt.md" "gamma"
   python3 - <<'PY' "$fixture/skills-codex-overrides/catalog.json"
 import json
 from pathlib import Path
@@ -183,25 +197,25 @@ PY
   fi
 }
 
-test_fails_when_operator_contract_marker_is_missing() {
-  local fixture="$TMP_DIR/operator-contract-missing"
+test_fails_when_generated_prompt_drifts_from_synthesized_output() {
+  local fixture="$TMP_DIR/generated-override-mismatch"
   setup_fixture "$fixture"
   mkdir -p "$fixture/skills-codex-overrides/gamma"
-  write_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
-  cp "$fixture/skills-codex-overrides/gamma/prompt.md" "$fixture/skills-codex/gamma/prompt.md"
-  python3 - <<'PY' "$fixture/skills-codex-overrides/alpha/prompt.md"
+  write_override_prompt "$fixture/skills-codex-overrides/gamma/prompt.md" "gamma"
+  write_synthesized_prompt "$fixture/skills-codex/gamma/prompt.md" "gamma"
+  python3 - <<'PY' "$fixture/skills-codex/gamma/prompt.md"
 from pathlib import Path
 path = Path(__import__("sys").argv[1])
 path.write_text(path.read_text().replace(
-    "2. Record issue-ready handoff markers for downstream Codex execution.\n",
-    "",
+    "1. Record issue-ready handoff markers for downstream Codex execution.\n",
+    "1. Drifted generated contract marker.\n",
 ))
 PY
 
   if bash "$SCRIPT" --repo-root "$fixture" >/dev/null 2>&1; then
-    fail "should fail when a required operator contract marker is missing"
+    fail "should fail when generated/override mismatch appears for a required-contract skill"
   else
-    pass "fails when operator contract markers drift from the override prompt"
+    pass "fails when generated/override mismatch appears for a required-contract skill"
   fi
 }
 
@@ -218,7 +232,7 @@ test_fixture_passes_with_complete_wave_filter
 test_fails_when_bespoke_override_missing
 test_fails_when_parity_skill_has_override
 test_fails_when_required_operator_contract_is_missing
-test_fails_when_operator_contract_marker_is_missing
+test_fails_when_generated_prompt_drifts_from_synthesized_output
 test_repo_catalog_is_complete
 
 echo
