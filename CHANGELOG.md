@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-03-09
+
+### Added
+- Codex-first skill rollout across the full catalog with override coverage, generated-artifact governance, and install/runtime parity validation
+- Claim-aware next-work lifecycle handling with contract parity checks for `/rpi` and follow-on flows
+- Headless runtime skill smoke coverage and Codex backbone prompt validation in the release gate stack
+
+### Changed
+- Codex maintenance guidance, override coverage docs, and CLI-to-skills mapping to match the generated runtime model
+- Release-prep validation flows for runtime smoke, Codex artifact sync, and release note generation
+
+### Fixed
+- Next-work queue mutation races by making claim/update handling concurrency-safe and per-item
+- Codex prompt parity drift by syncing generated prompts and tightening override coverage gates
+- Worktree Git resolution and vibe-check runtime environment handling
+- Push/pre-push validation regressions and nested pre-push wrappers
+- Streamed phase timeout cancellation so phased runtime tests and release gating terminate promptly
+
 ## [2.20.1] - 2026-03-07
 
 ### Fixed
