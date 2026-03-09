@@ -404,6 +404,7 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 	}); err != nil {
 		VerbosePrintf("Warning: could not append stream start event: %v\n", err)
 	}
+	go closeStreamPipeOnCancel(stallCtx, stdout)
 
 	onUpdate := buildStreamUpdateCallback(watchdog, allPhases, phaseNum, statusPath)
 	onEvent := func(ev StreamEvent) {
@@ -433,6 +434,11 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 		VerbosePrintf("Warning: could not append stream completion event: %v\n", err)
 	}
 	return resultErr
+}
+
+func closeStreamPipeOnCancel(ctx context.Context, stdout io.ReadCloser) {
+	<-ctx.Done()
+	_ = stdout.Close()
 }
 
 // buildStreamPhaseContext creates a context with optional timeout for a stream phase.

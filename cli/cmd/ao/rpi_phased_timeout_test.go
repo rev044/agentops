@@ -40,12 +40,16 @@ func TestSpawnClaudePhaseWithStream_TimesOut(t *testing.T) {
 	statusPath := filepath.Join(tmpDir, "live-status.md")
 	allPhases := []PhaseProgress{{Name: "discovery", CurrentAction: "starting"}}
 
+	startedAt := time.Now()
 	err := spawnClaudePhaseWithStream("test prompt", tmpDir, "run-1", 1, statusPath, allPhases, 200*time.Millisecond, 0, 0, 30*time.Second)
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
 	if !strings.Contains(err.Error(), "timed out after") {
 		t.Fatalf("expected timeout error, got: %v", err)
+	}
+	if elapsed := time.Since(startedAt); elapsed > 2*time.Second {
+		t.Fatalf("expected timeout to return promptly, took %s", elapsed)
 	}
 }
 
