@@ -50,7 +50,7 @@ Before decomposition, read `.agents/findings/registry.jsonl` when it exists. Thi
 
 Use the tracked contract in `docs/contracts/finding-registry.md`:
 
-- select only `status=active` entries
+- select only active findings with `status=active`
 - rank by `applicable_when` overlap, language overlap, literal goal-text overlap, and severity
 - cap at top 5 entries
 - fail open:

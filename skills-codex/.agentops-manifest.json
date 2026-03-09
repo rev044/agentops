@@ -134,8 +134,8 @@
     {
       "name": "plan",
       "source_skill": "skills/plan",
-      "source_hash": "13f0e1088b8f149c0beb2c8d428867516d72d3e3bd38ba877bb608cc2bd7b6bf",
-      "generated_hash": "6bd0fcf3ba4a5d4c68aa46d7854d493886c347a74de1ab9ca3caea3090939239"
+      "source_hash": "bdbf0b0b62567b5792d156b5486eefda4bb0beda02122f917ad0c5a87d29217b",
+      "generated_hash": "697eb7a5ecef6eefbda564904317a203ffadbb9e62b2b7c4ca5f0f35cc7ae544"
     },
     {
       "name": "post-mortem",
@@ -182,8 +182,8 @@
     {
       "name": "pre-mortem",
       "source_skill": "skills/pre-mortem",
-      "source_hash": "daaf633541f65938fa444b3e48bec59088ab548164588c27f77792a024a4ca72",
-      "generated_hash": "4ea08c4a7d0a748791e32bdd23482f57c101f10e7c0bdf693a682fbd7a69c28e"
+      "source_hash": "c6e266747015ae9b1fb54a448a07cf7f08374f22745d0bdb58114dc6273ebcfa",
+      "generated_hash": "06ac86d42e1db080e338c10b562ca1dc64fb9532f3a3b75ed4a95a077ccfac74"
     },
     {
       "name": "product",
