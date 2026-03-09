@@ -1,0 +1,15 @@
+{
+  "team_id": "test-run-claude-001",
+  "runtime": "claude",
+  "repo_path": ".",
+  "agents": [
+    {
+      "name": "claude-agent-1",
+      "prompt": "Return a valid worker result",
+      "files": ["claude-output.txt"],
+      "output_file": "result.json",
+      "sandbox_level": "workspace-write",
+      "timeout_ms": 30000
+    }
+  ]
+}

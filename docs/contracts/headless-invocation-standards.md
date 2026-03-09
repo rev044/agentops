@@ -67,8 +67,43 @@ Recommended defaults:
 |----------|------|-------|
 | Human-readable | `--output-format text` (default) | Simple scripts |
 | Structured processing | `--output-format json` | Parse with `jq -r '.result'` |
-| Streaming / debugging | `--output-format stream-json --verbose` | JSONL events |
+| Streaming / debugging | `--output-format stream-json --verbose` | JSONL events; final success event carries `structured_output` when `--json-schema` is used |
 | Schema-validated | `--output-format json --json-schema '...'` | Typed output |
+
+## Claude Team-Runner Contract
+
+When Codex is orchestrating a headless Claude team through
+`lib/scripts/team-runner.sh`, the Claude worker command must preserve four
+properties:
+
+1. Run from `repo_path` so the worker sees the intended worktree.
+2. Use `--dangerously-skip-permissions` because worker prompts may invoke
+   skills.
+3. Use `--output-format stream-json --verbose` so the watcher can detect stalls
+   and completion.
+4. Use `--json-schema` with `lib/schemas/worker-output.json` so the final
+   `structured_output` object matches the shared worker contract.
+
+Reference shape:
+
+```bash
+(
+  cd "$REPO_PATH" && timeout "$TIMEOUT_S" claude -p "$PROMPT" \
+    --model "$CLAUDE_MODEL" \
+    --plugin-dir "$REPO_PATH" \
+    --dangerously-skip-permissions \
+    --max-turns "$CLAUDE_MAX_TURNS" \
+    --no-session-persistence \
+    --max-budget-usd "$CLAUDE_MAX_BUDGET_USD" \
+    --output-format stream-json \
+    --verbose \
+    --json-schema "$(jq -c . lib/schemas/worker-output.json)"
+) | CLAUDE_IDLE_TIMEOUT="$CLAUDE_IDLE_TIMEOUT" \
+    bash lib/scripts/watch-claude-stream.sh "$STATUS_FILE" "$OUTPUT_FILE"
+```
+
+`watch-claude-stream.sh` must treat the final `type=="result"` success event as
+the completion signal and write `.structured_output` to `output.json`.
 
 ## Session Chaining
 
@@ -126,7 +161,7 @@ Codex uses different flags but the same principles apply:
 | `tests/claude-code/test-helpers.sh` | Reusable test helpers with configurable tools |
 | `tests/release-smoke-test.sh` | Release gate with scoped tools |
 | `ao rpi` | Multi-phase RPI orchestrator (CLI command, not a script) |
-| `lib/scripts/team-runner.sh` | Parallel Codex team orchestrator |
+| `lib/scripts/team-runner.sh` | Parallel Codex/Claude team orchestrator |
 
 ## Environment Variables
 
@@ -137,6 +172,9 @@ Codex uses different flags but the same principles apply:
 | `MAX_BUDGET_USD` | 1.00 | Per-invocation cost guardrail |
 | `DEFAULT_TIMEOUT` | 120 | Shell timeout in seconds |
 | `CLAUDE_MODEL` | (default) | Model override |
+| `CLAUDE_IDLE_TIMEOUT` | 60 | Claude stream idle timeout for `watch-claude-stream.sh` |
+| `CLAUDE_MAX_TURNS` | 6 | Max turns per Claude team-runner worker |
+| `CLAUDE_MAX_BUDGET_USD` | 5 | Max budget per Claude team-runner worker |
 | `CODEX_MODEL` | gpt-5.3-codex | Codex model |
 | `RPI_DRY_RUN` | unset | Print commands without executing |
 | `RPI_VERBOSE` | unset | Enable verbose stream-json output |

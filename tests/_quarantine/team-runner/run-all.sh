@@ -4,11 +4,10 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || exit 1
 
-TOTAL_PASS=0
 TOTAL_FAIL=0
 
 run_test() {
@@ -29,6 +28,7 @@ echo "=== Team Runner Test Suite ==="
 
 run_test "$SCRIPT_DIR/test-schemas.sh"
 run_test "$SCRIPT_DIR/test-watch-stream.sh"
+run_test "$SCRIPT_DIR/test-watch-claude-stream.sh"
 run_test "$SCRIPT_DIR/test-runner-dry-run.sh"
 
 echo ""

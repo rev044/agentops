@@ -4,7 +4,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUNNER="${REPO_ROOT}/lib/scripts/team-runner.sh"
 FIXTURES="${SCRIPT_DIR}/fixtures"
 TMPDIR=$(mktemp -d)
@@ -51,6 +51,7 @@ assert_contains "shows model" "gpt-5.3-codex" "$OUTPUT"
 assert_contains "shows agent name" "test-agent-1" "$OUTPUT"
 assert_contains "all agents passed" "All agents passed" "$OUTPUT"
 assert_contains "report generated" "team-report.md" "$OUTPUT"
+assert_contains "shows codex runtime" "Runtime: codex" "$OUTPUT"
 
 # Test 3: Dry run produces report
 echo "Test 3: Report generation"
@@ -60,6 +61,16 @@ assert_eq "report exists" "true" "$(test -f ".agents/teams/test-run-001/team-rep
 echo "Test 4: Sandbox level mapping"
 assert_contains "full-auto for workspace-write" "full-auto" "$OUTPUT"
 assert_contains "read-only for read-only agent" "read-only" "$OUTPUT"
+
+# Test 5: Claude dry run execution
+echo "Test 5: Claude dry run execution"
+CLAUDE_OUTPUT=$(TEAM_RUNNER_DRY_RUN=1 bash "$RUNNER" "$FIXTURES/sample-team-spec-claude.json" 2>&1)
+assert_eq "claude exit code 0" "0" "$?"
+assert_contains "shows claude command" "claude -p" "$CLAUDE_OUTPUT"
+assert_contains "shows stream-json" "stream-json" "$CLAUDE_OUTPUT"
+assert_contains "shows json-schema" "json-schema" "$CLAUDE_OUTPUT"
+assert_contains "shows claude runtime" "Runtime: claude" "$CLAUDE_OUTPUT"
+assert_contains "shows claude agent name" "claude-agent-1" "$CLAUDE_OUTPUT"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

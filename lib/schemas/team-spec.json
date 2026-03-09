@@ -5,6 +5,11 @@
       "type": "string",
       "description": "Unique identifier for this team run"
     },
+    "runtime": {
+      "type": "string",
+      "enum": ["codex", "claude"],
+      "description": "Worker runtime for this team (defaults to codex when omitted)"
+    },
     "repo_path": {
       "type": "string",
       "description": "Absolute path to the repository root"

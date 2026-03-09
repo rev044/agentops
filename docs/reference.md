@@ -24,11 +24,18 @@ Deep documentation for AgentOps. For quick start, see [README](../README.md).
 
 | Property | How it works |
 |----------|-------------|
-| **Backends** | Auto-detected: `spawn_agent` (Codex) → `TeamCreate` (Claude) → `Task(run_in_background=true)` (fallback) |
+| **Backends** | Auto-detected at runtime: `spawn_agent` (Codex) → `TeamCreate` (Claude) → `Task(run_in_background=true)` (fallback). For headless cross-runtime execution, `lib/scripts/team-runner.sh` now lets Codex launch Codex or Claude workers from the same team spec. |
 | **Dependencies** | None (runtime-native) |
 | **Context** | Fresh per agent (team-per-wave) |
 | **Coordination** | `wait`/`SendMessage`/`TaskOutput` + `TaskList` |
 | **Commits** | Lead-only (workers blocked by hook) |
+
+The headless team backend preserves a shared worker artifact contract:
+
+- team spec selects `runtime: codex` or `runtime: claude`
+- both backends write the same `lib/schemas/worker-output.json` artifact
+- Codex streams are watched by `lib/scripts/watch-codex-stream.sh`
+- Claude streams are watched by `lib/scripts/watch-claude-stream.sh`
 
 ---
 

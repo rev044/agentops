@@ -53,6 +53,7 @@
 
 ## Concepts
 
+- [Context Lifecycle Contract](context-lifecycle.md) — The three-gap contract for judgment validation, durable learning, and loop closure
 - [Knowledge Flywheel](knowledge-flywheel.md) — How every session makes the next one smarter
 - [The Science](the-science.md) — Research behind knowledge decay and compounding
 - [Brownian Ratchet](brownian-ratchet.md) — AI-native development philosophy
