@@ -32,8 +32,8 @@
     {
       "name": "codex-team",
       "source_skill": "skills/codex-team",
-      "source_hash": "ed0855912248ba610202df993b43335f138599c12b3f580ec58b1f4de0a7a478",
-      "generated_hash": "4cd56af613144f0e78713c9fc42e36175a7445115cf3a43fab4c465600b5ae69"
+      "source_hash": "bbb4f9e82a197bee79978a152983a513ced63515c3deb2da41973bd6ac47705e",
+      "generated_hash": "b31a27ae75183fd7954c177c9c96f8179908dac3f9354f40052938637f28e68c"
     },
     {
       "name": "complexity",
