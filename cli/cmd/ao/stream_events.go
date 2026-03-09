@@ -1,6 +1,10 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"regexp"
+	"strings"
+)
 
 // Event type constants for Claude Code streaming JSON output.
 const (
@@ -9,6 +13,38 @@ const (
 	EventTypeUser      = "user"
 	EventTypeResult    = "result"
 	EventTypeInit      = "init"
+)
+
+// StreamErrorClass categorizes stream-level errors for downstream handling.
+// When a Claude Code stream reports an error (IsError=true), this enum
+// classifies the failure to enable appropriate retry/escalation behavior.
+type StreamErrorClass string
+
+const (
+	StreamErrorClassNone             StreamErrorClass = ""
+	StreamErrorClassTimeout          StreamErrorClass = "timeout"
+	StreamErrorClassRateLimit        StreamErrorClass = "rate_limit"
+	StreamErrorClassAuthFailure      StreamErrorClass = "auth_failure"
+	StreamErrorClassContextOverflow  StreamErrorClass = "context_overflow"
+	StreamErrorClassSandboxViolation StreamErrorClass = "sandbox_violation"
+	StreamErrorClassExecutionError   StreamErrorClass = "execution_error"
+	StreamErrorClassUnknown          StreamErrorClass = "unknown"
+)
+
+// Precompiled patterns for error classification.
+// Using word boundaries and contextual patterns to avoid false positives
+// on port numbers, line numbers, or benign validation messages.
+var (
+	// HTTP status codes require surrounding HTTP/error context.
+	reHTTP429 = regexp.MustCompile(`(?i)\b(status|http|error|code)\s*:?\s*429\b`)
+	reHTTP401 = regexp.MustCompile(`(?i)\b(status|http|error|code)\s*:?\s*401\b`)
+	reHTTP403 = regexp.MustCompile(`(?i)\b(status|http|error|code)\s*:?\s*403\b`)
+
+	// Broader error families for execution_error fallback.
+	reNetworkError = regexp.MustCompile(`(?i)\b(enoent|econnrefused|econnreset|dial tcp|dns resolve|connection refused|network unreachable)\b`)
+	reProcessError = regexp.MustCompile(`(?i)\b(fork failed|exec format error|signal:\s*killed|oom killed|out of memory)\b`)
+	reModelError   = regexp.MustCompile(`(?i)\b(model not found|model.+unavailable|invalid model|unsupported model)\b`)
+	reQuotaError   = regexp.MustCompile(`(?i)\b(quota exceeded|billing|insufficient.+credits?|payment required)\b`)
 )
 
 // StreamEvent is the top-level envelope for every JSON line emitted by
@@ -56,16 +92,115 @@ type StreamEvent struct {
 	// IsError indicates whether a result event represents an error.
 	IsError bool `json:"is_error,omitempty"`
 
+	// ErrorClass provides structured classification of the error when
+	// IsError is true. Auto-populated by ParseStreamEvent via
+	// ClassifyStreamError when not already set.
+	ErrorClass StreamErrorClass `json:"error_class,omitempty"`
+
 	// NumTurns is the number of conversation turns in a result event.
 	NumTurns int `json:"num_turns,omitempty"`
 }
 
 // ParseStreamEvent unmarshals a single JSON line into a StreamEvent.
 // Unknown fields are silently ignored (permissive parsing).
+// When IsError is true and ErrorClass is empty, it auto-fills ErrorClass
+// via ClassifyStreamError.
+// validErrorClasses is the allowlist of recognized StreamErrorClass values.
+var validErrorClasses = map[StreamErrorClass]bool{
+	StreamErrorClassNone:             true,
+	StreamErrorClassTimeout:          true,
+	StreamErrorClassRateLimit:        true,
+	StreamErrorClassAuthFailure:      true,
+	StreamErrorClassContextOverflow:  true,
+	StreamErrorClassSandboxViolation: true,
+	StreamErrorClassExecutionError:   true,
+	StreamErrorClassUnknown:          true,
+}
+
 func ParseStreamEvent(data []byte) (StreamEvent, error) {
 	var ev StreamEvent
 	if err := json.Unmarshal(data, &ev); err != nil {
 		return StreamEvent{}, err
 	}
+	// Normalize ErrorClass: clear when not an error, validate against allowlist,
+	// and auto-classify when empty.
+	if !ev.IsError {
+		ev.ErrorClass = StreamErrorClassNone
+	} else if ev.ErrorClass != StreamErrorClassNone && !validErrorClasses[ev.ErrorClass] {
+		// Invalid wire value — reclassify from message content.
+		ev.ErrorClass = ClassifyStreamError(ev)
+	} else if ev.ErrorClass == StreamErrorClassNone {
+		ev.ErrorClass = ClassifyStreamError(ev)
+	}
 	return ev, nil
+}
+
+// ClassifyStreamError assigns a StreamErrorClass to a StreamEvent based on
+// pattern matching against the error message. Returns StreamErrorClassNone
+// when IsError is false. Uses first-match-wins on the pattern list.
+//
+// The classifier uses contextual regex patterns instead of bare substring
+// matches to avoid false positives on port numbers, line numbers, or
+// benign validation messages.
+//
+// Unrecognized errors with a non-empty message are classified as
+// execution_error. Only empty/whitespace-only messages return unknown.
+func ClassifyStreamError(ev StreamEvent) StreamErrorClass {
+	if !ev.IsError {
+		return StreamErrorClassNone
+	}
+
+	msg := strings.ToLower(ev.Message)
+
+	switch {
+	// Timeout patterns
+	case strings.Contains(msg, "timeout") || strings.Contains(msg, "timed out"):
+		return StreamErrorClassTimeout
+
+	// Rate limit: contextual "rate limit" phrase or HTTP 429 with context
+	case strings.Contains(msg, "rate limit") || strings.Contains(msg, "too many requests") ||
+		reHTTP429.MatchString(ev.Message):
+		return StreamErrorClassRateLimit
+
+	// Auth failure: contextual keywords or HTTP 401/403 with context
+	case strings.Contains(msg, "unauthorized") || strings.Contains(msg, "authentication") ||
+		strings.Contains(msg, "forbidden") || strings.Contains(msg, "invalid api key") ||
+		strings.Contains(msg, "invalid_api_key") ||
+		reHTTP401.MatchString(ev.Message) || reHTTP403.MatchString(ev.Message):
+		return StreamErrorClassAuthFailure
+
+	// Context overflow
+	case strings.Contains(msg, "context") &&
+		(strings.Contains(msg, "limit") || strings.Contains(msg, "overflow") || strings.Contains(msg, "too long")):
+		return StreamErrorClassContextOverflow
+
+	// Sandbox violations: require permission/policy phrase, not bare "sandbox"
+	case strings.Contains(msg, "permission denied") ||
+		(strings.Contains(msg, "sandbox") && (strings.Contains(msg, "not allowed") || strings.Contains(msg, "not permitted") || strings.Contains(msg, "violation") || strings.Contains(msg, "denied"))) ||
+		(strings.Contains(msg, "not allowed") && (strings.Contains(msg, "permission") || strings.Contains(msg, "operation"))):
+		return StreamErrorClassSandboxViolation
+
+	// Quota/billing errors
+	case reQuotaError.MatchString(ev.Message):
+		return StreamErrorClassRateLimit
+
+	// Network/connectivity errors
+	case reNetworkError.MatchString(ev.Message):
+		return StreamErrorClassExecutionError
+
+	// Process/OS errors
+	case reProcessError.MatchString(ev.Message):
+		return StreamErrorClassExecutionError
+
+	// Model errors
+	case reModelError.MatchString(ev.Message):
+		return StreamErrorClassExecutionError
+
+	default:
+		// Non-empty messages are execution errors; empty/whitespace = truly unknown
+		if strings.TrimSpace(msg) == "" {
+			return StreamErrorClassUnknown
+		}
+		return StreamErrorClassExecutionError
+	}
 }

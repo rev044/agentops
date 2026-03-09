@@ -25,7 +25,89 @@
 - Validate and sanitize all external input (user data, file paths, URLs)
 - Use parameterized queries for SQL — never string formatting
 
+## Dataclass & Model Contract Completeness
+
+When adding fields to a dataclass, Pydantic model, or TypedDict, every code path that creates an instance **must** populate them.
+
+| Anti-Pattern | Problem | Fix |
+|--------------|---------|-----|
+| New field with `default=None`, some constructors never set it | Consumers see `None` for some paths, real value for others | Grep all `ClassName(` calls; verify each sets the new field |
+| Synthesized instances (e.g., summary dicts, fallback objects) skip fields | Downstream code assumes all instances have the same shape | Store provenance metadata alongside state; populate synthesized instances from it |
+| Index fields after sort | `event_index` points to sorted position, not caller's original position | Zip with `enumerate()` before sorting; emit original index |
+| `__init__` sets fields conditionally | Some branches leave fields unset | Use `field(default_factory=...)` or set in all branches |
+
+**Checklist for adding fields:**
+1. Grep `ClassName(` across the package — every constructor call must set the new field
+2. Check factory functions (`from_dict`, `from_json`, `create_*`)
+3. Check synthesized/summary instances created outside the main loop
+4. Add a structural assertion test (see below)
+
+## Wire Input Validation
+
+When parsing external JSON/YAML into models with enum-like fields, **validate against known values** before trusting.
+
+```python
+# BAD: trust whatever the wire sends
+if event.error_class:
+    # use as-is — "bogus" passes through
+
+# GOOD: validate against known values
+VALID_ERROR_CLASSES = {"timeout", "rate_limit", "auth_failure", ...}
+if event.error_class and event.error_class not in VALID_ERROR_CLASSES:
+    event.error_class = classify_error(event)  # reclassify from content
+```
+
+For Pydantic models, use `Literal` types or `@field_validator` to reject invalid values at parse time:
+
+```python
+from typing import Literal
+
+class StreamEvent(BaseModel):
+    error_class: Literal["timeout", "rate_limit", "auth_failure", ""] = ""
+```
+
+Also normalize impossible states: if `is_error=False` but `error_class="timeout"`, use a `@model_validator` to clear it.
+
+## Classification & Pattern Matching
+
+When classifying inputs by string patterns (error types, log levels, status codes):
+
+| Anti-Pattern | Problem | Fix |
+|--------------|---------|-----|
+| `"429" in msg` | Matches port numbers, line numbers | Use regex with context: `r'\b(status|http|error|code)\s*:?\s*429\b'` |
+| Bare keyword match (`"sandbox" in msg`) | "sandbox startup failed" misclassifies as sandbox violation | Require compound match: keyword + policy phrase (`denied`, `violation`) |
+| Meaningless default case | `return "unknown"` for both truly-unknown and simply-unrecognized | Make default semantic: `"execution_error"` for non-empty, `"unknown"` for empty |
+| No false-positive test coverage | Tests only check happy paths | Generate 5+ realistic false-positive inputs per pattern |
+
 ## Testing
+
+### Exact Assertion Rule
+
+**Always assert the exact expected value, never just "not the wrong one."**
+
+```python
+# BAD: passes even if classification drifts to a different wrong class
+assert classify(msg) != "rate_limit"
+
+# GOOD: pins the exact expected behavior
+assert classify(msg) == "execution_error"
+```
+
+This applies to all classifier/enum tests. `!= X` assertions silently pass when the result drifts to a third, equally wrong value.
+
+### Structural Invariant Tests
+
+For dataclasses/models with required fields, add a sweep test that asserts ALL output instances populate them:
+
+```python
+def test_all_violations_have_structured_fields(violations):
+    """Every violation must populate team_name, timestamp, and event_index."""
+    for v in violations:
+        assert v.team_name, f"violation {v} missing team_name"
+        assert v.timestamp is not None, f"violation {v} missing timestamp"
+```
+
+### General
 - pytest preferred
 - `conftest.py` for shared fixtures
 - Mock external services, not internal code

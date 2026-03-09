@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/council",
   "layout": "modular",
-  "source_hash": "e236c2786d82785851d66c16ee02c6a8205f38c132daf8672d8029922f84f07d",
-  "generated_hash": "5a7fb144b6049cd0019ded0a184138c124ff99c184d03b53fb40fb94c357892a"
+  "source_hash": "2320b0dc8fbfc77489ad3cec38627446141d493e7c01f7230f4cf077718225b6",
+  "generated_hash": "bec17f46ae7e2c81c698ca9f680e30728f66642996666b57c6ed15d891d7edc7"
 }

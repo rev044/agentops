@@ -232,9 +232,9 @@ This ensures each wave's workers start with clean context (no leftover state fro
 
 ## Key Rules
 
-1. **`TeamCreate` before `Task`** — tasks created before the team are invisible to teammates
-2. **Pre-assign tasks before spawning** — workers do NOT race-claim from TaskList
-3. **Lead-only commits** — workers write files, lead runs `git add` + `git commit`
-4. **Thin messages** — workers send <100 token signals, full results go to disk
-5. **New team per wave** — fresh context, Ralph Wiggum preserved
-6. **Always cleanup** — `TeamDelete()` after every wave, even on partial failure
+1. **`TeamCreate` before `Task`** — tasks created before the team are invisible to teammates — **Enforcement: `safety.ValidateTeamLifecycle()` (T9)**
+2. **Pre-assign tasks before spawning** — workers do NOT race-claim from TaskList — **Enforcement: documentation only**
+3. **Lead-only commits** — workers write files, lead runs `git add` + `git commit` — **Enforcement: `hooks/git-worker-guard.sh` (T4)**
+4. **Thin messages** — workers send <100 token signals, full results go to disk — **Enforcement: `safety.ValidateMessageSize()` (T9)**
+5. **New team per wave** — fresh context, Ralph Wiggum preserved — **Enforcement: `safety.ValidateTeamLifecycle()` (T9)**
+6. **Always cleanup** — `TeamDelete()` after every wave, even on partial failure — **Enforcement: `hooks/stop-team-guard.sh` + `safety.ValidateTeamLifecycle()` (T9)**

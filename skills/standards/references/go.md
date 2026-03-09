@@ -131,7 +131,78 @@ May eliminate the need for third-party routers for simple APIs.
 | `min(a, b)` / `max(a, b)` | 1.21+ | `if a > b` patterns or custom helpers |
 | `clear(m)` / `clear(s)` | 1.21+ | Manual map deletion loop / manual slice zeroing |
 
+## Struct Contract Completeness
+
+When adding fields to a struct, every code path that creates an instance **must** populate them. Partial population creates an inconsistent contract for consumers.
+
+| Anti-Pattern | Problem | Fix |
+|--------------|---------|-----|
+| New field on struct, some constructors don't set it | Consumers see zero-value for some paths, real value for others | Grep all `StructName{` literals; verify each sets the new field |
+| Synthesized instances (e.g., end-of-batch summaries) skip fields | Downstream code assumes all instances have the same shape | Store provenance metadata alongside state so synthesized instances can populate fields from last-seen values |
+| Index fields after sort | `EventIndex` points to sorted position, not caller's original position | Wrap items with original index before sorting; emit original index in output |
+
+**Checklist for adding struct fields:**
+1. Grep `StructName{` across the package — every literal must set the new field
+2. Check factory functions and builder patterns
+3. Check synthesized/summary instances created outside the main loop
+4. Add a structural assertion test: iterate all output instances, assert new field is non-zero (or document why zero is valid)
+
+## Wire Input Validation
+
+When parsing external JSON/YAML into structs with enum-like fields, **validate against an allowlist** before trusting the value.
+
+```go
+// BAD: trust whatever the wire sends
+if ev.ErrorClass != "" {
+    // use it as-is — "bogus" passes through
+}
+
+// GOOD: validate against known values
+var validClasses = map[ErrorClass]bool{ ... }
+if ev.ErrorClass != "" && !validClasses[ev.ErrorClass] {
+    ev.ErrorClass = classify(ev) // reclassify from content
+}
+```
+
+Also normalize impossible states: if `IsError=false` but `ErrorClass="timeout"`, clear it.
+
 ## Testing
+
+### Exact Assertion Rule
+
+**Always assert the exact expected value, never just "not the wrong one."**
+
+```go
+// BAD: passes even if classification drifts to a different wrong class
+if got == StreamErrorClassRateLimit {
+    t.Errorf("should not be rate_limit")
+}
+
+// GOOD: pins the exact expected behavior
+if got != StreamErrorClassExecutionError {
+    t.Errorf("got %q, want execution_error", got)
+}
+```
+
+This applies to all classifier/enum tests. `!= X` assertions silently pass when the result drifts to a third, equally wrong value.
+
+### Structural Invariant Tests
+
+For structs with required fields, add a sweep test that asserts ALL output instances populate them:
+
+```go
+func TestAllViolationsHaveStructuredFields(t *testing.T) {
+    // Run through multiple scenarios, collect all violations
+    for _, v := range allViolations {
+        if v.TeamName == "" && v.Rule != RuleSomeException {
+            t.Errorf("violation %+v missing TeamName", v)
+        }
+        if v.Timestamp.IsZero() {
+            t.Errorf("violation %+v missing Timestamp", v)
+        }
+    }
+}
+```
 
 ### CI-Safe Test Pattern
 
