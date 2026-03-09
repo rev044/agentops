@@ -140,8 +140,8 @@
     {
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
-      "source_hash": "7dd499a82e061d09113e49cfd530ec500816204f66ad135dca339b484a2a4925",
-      "generated_hash": "3a2f9673e77647ef6a9a54ec685efe8751998e02f8d13ce8a93d29335085e3c6"
+      "source_hash": "a8300f1ab07f48a3865eb258161e5bcd0f0f10fe245357adb5a38f62b47aed4a",
+      "generated_hash": "43369d6b493ea6d26a78d9c98d2793b9513da3469d9be0cde39eaba0f3338f61"
     },
     {
       "name": "pr-implement",

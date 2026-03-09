@@ -193,7 +193,7 @@ Compare the original plan scope against what was actually delivered:
 
 Read `references/closure-integrity-audit.md` for the full procedure. Mechanically verifies:
 
-1. **Git evidence per child** — every closed child has at least one commit referencing it or touching its scoped files
+1. **Evidence precedence per child** — every closed child resolves on the strongest available evidence in this order: `commit`, then `staged`, then `worktree`
 2. **Phantom bead detection** — flags children with generic titles ("task") or empty descriptions
 3. **Orphaned children** — beads in `bd list` but not linked to parent in `bd show`
 4. **Multi-wave regression detection** — for crank epics, checks if a later wave removed code added by an earlier wave
@@ -201,7 +201,7 @@ Read `references/closure-integrity-audit.md` for the full procedure. Mechanicall
 
 Include results in the council packet as `context.closure_integrity`. WARN on 1-2 findings, FAIL on 3+.
 
-If a closure is evidence-only rather than code-changing, emit a proof artifact at `.agents/council/evidence-only-closures/<target-id>.json` with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite that artifact in the council packet.
+If a closure is evidence-only rather than code-changing, emit a proof artifact at `.agents/council/evidence-only-closures/<target-id>.json` with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite that artifact in the council packet. The packet must record the selected `evidence_mode` plus repo-state detail that distinguishes staged files from broader worktree state so active-session audits stay mechanically replayable.
 
 ### Step 2.5: Pre-Council Metadata Verification (MANDATORY)
 
@@ -696,6 +696,12 @@ These entries are promoted to `.agents/learnings/` and injected into future work
 |---|---|---|---|---|
 | cli/cmd/ao/<command>.go | yes/no | ... | yes/no | ... |
 
+## Next Work
+
+| # | Title | Type | Severity | Source | Target Repo |
+|---|-------|------|----------|--------|-------------|
+| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
+
 ### Recommended Next $rpi
 $rpi "<highest-value improvement>"
 
@@ -731,7 +737,7 @@ Write process improvement items with type `process-improvement` (distinct from `
 - `horizon`: now / next-cycle / later
 - `effort`: S / M / L
 
-**These items feed directly into Step 7 (Harvest Next Work) alongside council findings. They are the flywheel's growth vector — each cycle makes the system smarter.**
+**These items feed directly into Step 5 (Harvest Next Work) alongside council findings. They are the flywheel's growth vector — each cycle makes the system smarter.**
 
 Write this into the post-mortem report under `## Proactive Improvement Agenda`.
 
@@ -743,9 +749,6 @@ Example output:
 |---|------|-------------|----------|---------|--------|----------|
 | 1 | ci-automation | Add validation metadata requirement for Go tasks | P0 | now | S | Workers shipped untested code when metadata didn't require `go test` |
 | 2 | execution | Add consistency-check finding category in review | P1 | next-cycle | M | Partial refactoring left stale references undetected |
-
-### Recommended Next $rpi
-$rpi "<highest-value improvement>"
 ```
 
 ### Step 4.6: Prior-Findings Resolution Tracking (MANDATORY)
@@ -762,7 +765,33 @@ Before marking post-mortem complete, enforce command-surface parity for modified
 
 If any modified command file is missing both coverage evidence and an intentional-uncovered rationale, post-mortem cannot be marked complete.
 
-### Step 5: Feed the Knowledge Flywheel
+### Step 5: Harvest Next Work
+
+Scan the council report and extracted learnings for actionable follow-up items:
+
+1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
+2. **Retro patterns:** Extract recurring patterns from learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
+3. **Process improvements:** Include all items from Step 4.5 (type: `process-improvement`). These are the flywheel's growth vector — each cycle makes development more effective.
+4. **Footgun entries (REQUIRED):** Extract platform-specific gotchas, surprising API behaviors, or silent-failure modes discovered during implementation. Each must include: trigger condition, observable symptom, and fix. Write as type `pattern-fix` with source `retro-learning`. If a footgun was discovered this cycle, it must appear in this harvest — do not defer.
+5. **Write `## Next Work` section** to the post-mortem report:
+
+```markdown
+## Next Work
+
+| # | Title | Type | Severity | Source | Target Repo |
+|---|-------|------|----------|--------|-------------|
+| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
+```
+
+6. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the tracked contract in [`.agents/rpi/next-work.schema.md`](../../.agents/rpi/next-work.schema.md). Read `references/harvest-next-work.md` for the validation function and write procedure. Drop invalid items; do NOT block the entire harvest.
+
+7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`). Read `references/harvest-next-work.md` for the write procedure (target_repo assignment, claim/finalize lifecycle, JSONL format, required fields).
+
+8. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `$rpi --spawn-next` to create an epic from these items."
+
+If no actionable items found, write: "No follow-up items identified. Flywheel stable."
+
+### Step 6: Feed the Knowledge Flywheel
 
 Post-mortem automatically feeds learnings into the flywheel:
 
@@ -807,7 +836,7 @@ else
 fi
 ```
 
-### Step 6: Report to User
+### Step 7: Report to User
 
 Tell the user:
 1. Council verdict on implementation
@@ -815,7 +844,7 @@ Tell the user:
 3. Any follow-up items
 4. Location of post-mortem report
 5. Knowledge flywheel status
-6. **Suggested next `$rpi` command** (ALWAYS — this is how the flywheel spins itself)
+6. **Suggested next `$rpi` command** from the harvested `## Next Work` section (ALWAYS — this is how the flywheel spins itself)
 7. ALL proactive improvements, organized by priority (highlight one quick win)
 8. Knowledge lifecycle summary (Phase 3-5 stats)
 
@@ -838,32 +867,6 @@ Or see all N harvested items in `.agents/rpi/next-work.jsonl`.
 ```
 
 If no items were harvested, write: "Flywheel stable — no follow-up items identified."
-
-### Step 7: Harvest Next Work
-
-Scan the council report and extracted learnings for actionable follow-up items:
-
-1. **Council findings:** Extract tech debt, warnings, and improvement suggestions from the council report (items with severity "significant" or "critical" that weren't addressed in this epic)
-2. **Retro patterns:** Extract recurring patterns from learnings that warrant dedicated RPIs (items from "Do Differently Next Time" and "Anti-Patterns to Avoid")
-3. **Process improvements:** Include all items from Step 4.5 (type: `process-improvement`). These are the flywheel's growth vector — each cycle makes development more effective.
-4. **Footgun entries (REQUIRED):** Extract platform-specific gotchas, surprising API behaviors, or silent-failure modes discovered during implementation. Each must include: trigger condition, observable symptom, and fix. Write as type `pattern-fix` with source `retro-learning`. If a footgun was discovered this cycle, it must appear in this harvest — do not defer.
-5. **Write `## Next Work` section** to the post-mortem report:
-
-```markdown
-## Next Work
-
-| # | Title | Type | Severity | Source | Target Repo |
-|---|-------|------|----------|--------|-------------|
-| 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
-```
-
-6. **SCHEMA VALIDATION (MANDATORY):** Before writing, validate each harvested item against the tracked contract in [`.agents/rpi/next-work.schema.md`](../../.agents/rpi/next-work.schema.md). Read `references/harvest-next-work.md` for the validation function and write procedure. Drop invalid items; do NOT block the entire harvest.
-
-7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`). Read `references/harvest-next-work.md` for the write procedure (target_repo assignment, claim/finalize lifecycle, JSONL format, required fields).
-
-8. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `$rpi --spawn-next` to create an epic from these items."
-
-If no actionable items found, write: "No follow-up items identified. Flywheel stable."
 
 ---
 
@@ -1028,6 +1031,7 @@ $rpi "<highest-priority enhancement>"
 
 ### scripts/
 
+- `scripts/closure-integrity-audit.sh`
 - `scripts/preflight-refs.sh`
 - `scripts/validate.sh`
 - `scripts/write-evidence-only-closure.sh`

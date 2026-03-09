@@ -8,6 +8,7 @@ TARGET_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 TARGET_ID="fixture-evidence-only-closure"
 TARGET_TYPE="task"
 PRODUCER="post-mortem"
+EVIDENCE_MODE="auto"
 EVIDENCE_SUMMARY="Evidence-only closure artifact emitted for follow-up validation."
 declare -a VALIDATION_COMMANDS=()
 declare -a ARTIFACTS=()
@@ -22,6 +23,7 @@ Options:
   --target-id <id>              Target issue/epic/policy identifier. Default: fixture-evidence-only-closure.
   --target-type <type>          Target type (for example: issue, epic, policy). Default: task.
   --producer <name>             Producer name recorded in the artifact. Default: post-mortem.
+  --evidence-mode <mode>        Evidence mode to record: auto, commit, staged, or worktree. Default: auto.
   --validation-command <cmd>    Validation command to record. Repeatable. Defaults to manifest validation for the target root.
   --evidence-summary <text>     Human summary for the closure evidence.
   --artifact <path>             Repo-relative or absolute evidence artifact path. Repeatable.
@@ -46,6 +48,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --producer)
       PRODUCER="${2:-}"
+      shift 2
+      ;;
+    --evidence-mode)
+      EVIDENCE_MODE="${2:-}"
       shift 2
       ;;
     --validation-command)
@@ -83,6 +89,13 @@ fi
 [[ -n "$TARGET_ID" ]] || { echo "--target-id is required" >&2; exit 1; }
 [[ -n "$TARGET_TYPE" ]] || { echo "--target-type is required" >&2; exit 1; }
 [[ -n "$EVIDENCE_SUMMARY" ]] || { echo "--evidence-summary is required" >&2; exit 1; }
+case "$EVIDENCE_MODE" in
+  auto|commit|staged|worktree) ;;
+  *)
+    echo "--evidence-mode must be one of: auto, commit, staged, worktree" >&2
+    exit 1
+    ;;
+esac
 
 mkdir -p "$TARGET_ROOT/schemas"
 schema_source="$WORKSPACE_ROOT/schemas/evidence-only-closure.v1.schema.json"
@@ -95,41 +108,67 @@ ROOT="$TARGET_ROOT"
 source "$WORKSPACE_ROOT/lib/hook-helpers.sh"
 
 if [[ "${#VALIDATION_COMMANDS[@]}" -eq 0 ]]; then
-  VALIDATION_COMMANDS=("bash scripts/validate-manifests.sh --repo-root $TARGET_ROOT")
+  printf -v default_validation_command 'bash scripts/validate-manifests.sh --repo-root %q' "$TARGET_ROOT"
+  VALIDATION_COMMANDS=("$default_validation_command")
 fi
 
-validation_commands_json="$(
-  printf '%s\n' "${VALIDATION_COMMANDS[@]}" \
+json_array_from_values() {
+  if [[ "$#" -eq 0 ]]; then
+    printf '[]\n'
+    return 0
+  fi
+
+  printf '%s\n' "$@" \
+    | sed '/^[[:space:]]*$/d' \
+    | sort -u \
     | jq -R . \
     | jq -s .
-)"
+}
 
-artifacts_json="$(
-  if [[ "${#ARTIFACTS[@]}" -eq 0 ]]; then
-    printf '[]\n'
-  else
-    printf '%s\n' "${ARTIFACTS[@]}" | jq -R . | jq -s .
-  fi
-)"
-
-notes_json="$(
-  if [[ "${#NOTES[@]}" -eq 0 ]]; then
-    printf '[]\n'
-  else
-    printf '%s\n' "${NOTES[@]}" | jq -R . | jq -s .
-  fi
-)"
+validation_commands_json="$(json_array_from_values "${VALIDATION_COMMANDS[@]}")"
+artifacts_json="$(json_array_from_values "${ARTIFACTS[@]}")"
+notes_json="$(json_array_from_values "${NOTES[@]}")"
 
 git_branch="$(git -C "$TARGET_ROOT" branch --show-current 2>/dev/null || true)"
 head_sha="$(git -C "$TARGET_ROOT" rev-parse HEAD 2>/dev/null || true)"
-mapfile -t modified_files < <(git -C "$TARGET_ROOT" status --short 2>/dev/null | awk '{print $2}')
+mapfile -t staged_files < <(git -C "$TARGET_ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+mapfile -t unstaged_files < <(git -C "$TARGET_ROOT" diff --name-only --diff-filter=ACMR 2>/dev/null || true)
+mapfile -t untracked_files < <(git -C "$TARGET_ROOT" ls-files --others --exclude-standard 2>/dev/null || true)
+mapfile -t modified_files < <(
+  printf '%s\n' "${staged_files[@]}" "${unstaged_files[@]}" "${untracked_files[@]}" \
+    | sed '/^[[:space:]]*$/d' \
+    | sort -u
+)
+
+staged_files_json="$(json_array_from_values "${staged_files[@]}")"
+unstaged_files_json="$(json_array_from_values "${unstaged_files[@]}")"
+untracked_files_json="$(json_array_from_values "${untracked_files[@]}")"
+modified_files_json="$(json_array_from_values "${modified_files[@]}")"
+
 if [[ "${#modified_files[@]}" -eq 0 ]]; then
-  modified_files_json='[]'
   git_dirty='false'
 else
-  modified_files_json="$(printf '%s\n' "${modified_files[@]}" | jq -R . | jq -s .)"
   git_dirty='true'
 fi
+
+resolve_evidence_mode() {
+  case "$EVIDENCE_MODE" in
+    commit|staged|worktree)
+      printf '%s\n' "$EVIDENCE_MODE"
+      ;;
+    auto)
+      if [[ "${#staged_files[@]}" -gt 0 ]]; then
+        printf 'staged\n'
+      elif [[ "${#unstaged_files[@]}" -gt 0 || "${#untracked_files[@]}" -gt 0 ]]; then
+        printf 'worktree\n'
+      else
+        printf 'commit\n'
+      fi
+      ;;
+  esac
+}
+
+resolved_evidence_mode="$(resolve_evidence_mode)"
 
 repo_state_json="$(
   jq -n \
@@ -138,12 +177,18 @@ repo_state_json="$(
     --arg head_sha "$head_sha" \
     --argjson git_dirty "$git_dirty" \
     --argjson modified_files "$modified_files_json" \
+    --argjson staged_files "$staged_files_json" \
+    --argjson unstaged_files "$unstaged_files_json" \
+    --argjson untracked_files "$untracked_files_json" \
     '{
       repo_root: $repo_root,
       git_branch: $git_branch,
       git_dirty: $git_dirty,
       head_sha: $head_sha,
-      modified_files: $modified_files
+      modified_files: $modified_files,
+      staged_files: $staged_files,
+      unstaged_files: $unstaged_files,
+      untracked_files: $untracked_files
     }'
 )"
 
@@ -163,6 +208,7 @@ write_evidence_only_closure_packet \
   "$TARGET_ID" \
   "$TARGET_TYPE" \
   "$PRODUCER" \
+  "$resolved_evidence_mode" \
   "$validation_commands_json" \
   "$repo_state_json" \
   "$evidence_json"

@@ -5,6 +5,18 @@ repo_root="$(git rev-parse --show-toplevel)"
 current_branch="$(git branch --show-current)"
 common_dir="$(git rev-parse --git-common-dir)"
 
+run_git_external() {
+    local target_root="$1"
+    shift
+
+    local -a env_args=(env)
+    while IFS= read -r var_name; do
+        env_args+=("-u" "$var_name")
+    done < <(git rev-parse --local-env-vars)
+
+    "${env_args[@]}" git -C "$target_root" "$@"
+}
+
 if [[ "$common_dir" != /* ]]; then
     common_dir="$(cd "$repo_root" && cd "$common_dir" && pwd)"
 fi
@@ -25,7 +37,7 @@ if [[ ! -d "$canonical_root" ]]; then
     exit 1
 fi
 
-canonical_branch="$(git -C "$canonical_root" branch --show-current)"
+canonical_branch="$(run_git_external "$canonical_root" branch --show-current)"
 if [[ -z "$canonical_branch" ]]; then
     echo "FAIL: canonical root $canonical_root is detached; it must stay on main" >&2
     exit 1
@@ -36,7 +48,7 @@ if [[ "$canonical_branch" != "main" ]]; then
     exit 1
 fi
 
-if [[ -n "$(git -C "$canonical_root" status --porcelain)" ]]; then
+if [[ -n "$(run_git_external "$canonical_root" status --porcelain)" ]]; then
     echo "FAIL: canonical root $canonical_root has uncommitted changes" >&2
     exit 1
 fi

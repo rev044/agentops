@@ -12,6 +12,7 @@ check "references/ has at least 2 files" "[ \$(ls '$SKILL_DIR/references/' | wc 
 check "SKILL.md mentions harvest" "grep -qi 'harvest' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md has Step 2.6 (deep audit sweep)" "grep -q 'Step 2.6' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md references --skip-sweep" "grep -q '\-\-skip-sweep' '$SKILL_DIR/SKILL.md'"
+check "closure-integrity audit script exists" "[ -f '$SKILL_DIR/scripts/closure-integrity-audit.sh' ]"
 check "harvest-next-work documents claim lifecycle" "grep -q 'Queue Lifecycle' '$SKILL_DIR/references/harvest-next-work.md' && grep -q 'Never mark an item consumed at pick-time' '$SKILL_DIR/references/harvest-next-work.md'"
 check "harvest-next-work documents evolve-generated sources" "grep -q 'feature-suggestion' '$SKILL_DIR/references/harvest-next-work.md'"
 check "SKILL.md points to claim/finalize lifecycle for next-work" "grep -q 'claim/finalize lifecycle' '$SKILL_DIR/SKILL.md'"

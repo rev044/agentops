@@ -4,6 +4,7 @@
 setup() {
     load helpers/test_helper
     _helper_setup
+    REAL_REPO_CLEANUP_PATHS=()
     # Source hook-helpers with ROOT pointing at mock repo
     export ROOT="$MOCK_REPO"
     source "$REPO_ROOT/lib/hook-helpers.sh"
@@ -14,7 +15,175 @@ setup() {
 }
 
 teardown() {
+    local path
+    for path in "${REAL_REPO_CLEANUP_PATHS[@]}"; do
+        rm -f "$path"
+    done
     _helper_teardown
+}
+
+setup_audit_repo() {
+    local repo_dir="$1"
+    mkdir -p "$repo_dir/bin"
+    git -C "$repo_dir" init -q >/dev/null 2>&1
+    git -C "$repo_dir" config user.email "bats@example.com"
+    git -C "$repo_dir" config user.name "Bats"
+}
+
+write_fake_bd() {
+    local repo_dir="$1"
+    local child_id="$2"
+    local scoped_file="$3"
+
+    cat >"$repo_dir/bin/bd" <<EOF
+#!/usr/bin/env bash
+case "\$1" in
+  children)
+    printf '%s\n' "$child_id"
+    ;;
+  show)
+    cat <<'OUT'
+DESCRIPTION
+\`$scoped_file\`
+OUT
+    ;;
+esac
+EOF
+    chmod +x "$repo_dir/bin/bd"
+}
+
+write_fake_bd_json() {
+    local repo_dir="$1"
+    local epic_id="$2"
+    local child_id="$3"
+    local child_description="$4"
+    local created_at="$5"
+    local updated_at="$6"
+    local closed_at="$7"
+
+    cat >"$repo_dir/bin/bd" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+command_name="\$1"
+shift || true
+want_json=0
+for arg in "\$@"; do
+  if [[ "\$arg" == "--json" ]]; then
+    want_json=1
+  fi
+done
+
+case "\$command_name" in
+  children)
+    if [[ "\$want_json" -eq 1 ]]; then
+      cat <<'OUT'
+[{"id":"$child_id","status":"closed"}]
+OUT
+    else
+      printf '%s\n' "$child_id"
+    fi
+    ;;
+  show)
+    issue_id="\$1"
+    if [[ "\$issue_id" == "$epic_id" ]]; then
+      if [[ "\$want_json" -eq 1 ]]; then
+        cat <<'OUT'
+[{"id":"$epic_id","dependents":[{"id":"$child_id","dependency_type":"parent-child"}]}]
+OUT
+      else
+        cat <<'OUT'
+✓ $epic_id [EPIC] · Example epic   [● P1 · CLOSED]
+
+CHILDREN
+  ↳ ✓ $child_id: Example child ● P1
+OUT
+      fi
+    elif [[ "\$issue_id" == "$child_id" ]]; then
+      if [[ "\$want_json" -eq 1 ]]; then
+        cat <<'OUT'
+[{
+  "id": "$child_id",
+  "created_at": "$created_at",
+  "updated_at": "$updated_at",
+  "closed_at": "$closed_at",
+  "description": $(jq -Rn --arg text "$child_description" '$text')
+}]
+OUT
+      else
+        cat <<'OUT'
+✓ $child_id [TASK] · Example child   [● P1 · CLOSED]
+Created: ${created_at%%T*} · Updated: ${updated_at%%T*}
+
+DESCRIPTION
+$child_description
+OUT
+      fi
+    else
+      exit 1
+    fi
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+EOF
+    chmod +x "$repo_dir/bin/bd"
+}
+
+write_fake_bd_human_only() {
+    local repo_dir="$1"
+    local epic_id="$2"
+    local child_id="$3"
+    local child_description="$4"
+
+    cat >"$repo_dir/bin/bd" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+command_name="\$1"
+shift || true
+want_json=0
+for arg in "\$@"; do
+  if [[ "\$arg" == "--json" ]]; then
+    want_json=1
+  fi
+done
+
+if [[ "\$want_json" -eq 1 ]]; then
+  exit 1
+fi
+
+case "\$command_name" in
+  children)
+    exit 1
+    ;;
+  show)
+    issue_id="\$1"
+    if [[ "\$issue_id" == "$epic_id" ]]; then
+      cat <<'OUT'
+✓ $epic_id [EPIC] · Example epic   [● P1 · CLOSED]
+
+CHILDREN
+  ↳ ✓ $child_id: Example child ● P1
+OUT
+    elif [[ "\$issue_id" == "$child_id" ]]; then
+      cat <<'OUT'
+✓ $child_id [TASK] · Example child   [● P1 · CLOSED]
+
+DESCRIPTION
+$child_description
+OUT
+    else
+      exit 1
+    fi
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+EOF
+    chmod +x "$repo_dir/bin/bd"
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -227,13 +396,17 @@ teardown() {
         target_type: "issue",
         created_at: "2026-03-09T00:00:00Z",
         producer: "bats",
+        evidence_mode: "worktree",
         validation_commands: ["bash tests/hooks/lib-hook-helpers.bats"],
         repo_state: {
             repo_root: "/tmp/mock-repo",
             git_branch: "main",
             git_dirty: false,
             head_sha: "abc123",
-            modified_files: []
+            modified_files: [],
+            staged_files: [],
+            unstaged_files: [],
+            untracked_files: []
         },
         evidence: {
             summary: "Validation-only closure remains auditable.",
@@ -246,15 +419,52 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
+@test "validate_evidence_only_closure_packet_file: rejects missing evidence arrays" {
+    local artifact="$TMP_TEST_DIR/evidence-only-closure-missing-arrays.json"
+    jq -n '{
+        schema_version: 1,
+        artifact_id: "evidence-only-closure-na-test",
+        target_id: "na-test",
+        target_type: "issue",
+        created_at: "2026-03-09T00:00:00Z",
+        producer: "bats",
+        evidence_mode: "worktree",
+        validation_commands: ["bash tests/hooks/lib-hook-helpers.bats"],
+        repo_state: {
+            repo_root: "/tmp/mock-repo",
+            git_branch: "main",
+            git_dirty: false,
+            head_sha: "abc123",
+            modified_files: [],
+            staged_files: [],
+            unstaged_files: [],
+            untracked_files: []
+        },
+        evidence: {
+            summary: "Validation-only closure remains auditable."
+        }
+    }' > "$artifact"
+
+    run validate_evidence_only_closure_packet_file "$artifact"
+    [ "$status" -ne 0 ]
+}
+
 @test "write_evidence_only_closure_packet: producer emits packet that manifest validation accepts" {
-    local artifact_file="$REPO_ROOT/.agents/council/evidence-only-closures/na-test.json"
-    rm -f "$artifact_file"
+    local evidence_repo="$TMP_TEST_DIR/evidence-repo"
+    local artifact_file="$evidence_repo/.agents/council/evidence-only-closures/na-test.json"
+    local repo_artifact="$REPO_ROOT/.agents/council/evidence-only-closures/na-test.json"
+    setup_mock_repo "$evidence_repo"
+    git -C "$evidence_repo" config user.email "bats@example.com"
+    git -C "$evidence_repo" config user.name "Bats"
+    printf 'staged proof\n' > "$evidence_repo/staged.md"
+    git -C "$evidence_repo" add staged.md
 
     run bash "$REPO_ROOT/skills/post-mortem/scripts/write-evidence-only-closure.sh" \
-        --repo-root "$REPO_ROOT" \
+        --repo-root "$evidence_repo" \
         --target-id "na-test" \
         --target-type "issue" \
         --producer "bats" \
+        --evidence-mode auto \
         --validation-command "bash tests/hooks/lib-hook-helpers.bats" \
         --evidence-summary "Validation-only closure proof emitted for auditability." \
         --artifact ".agents/council/report.md" \
@@ -268,11 +478,172 @@ teardown() {
     [ "$status" -eq 0 ]
     [ "$output" = "na-test" ]
 
+    run jq -r '.evidence_mode' "$artifact_file"
+    [ "$status" -eq 0 ]
+    [ "$output" = "staged" ]
+
+    run jq -r '.repo_state.staged_files[]' "$artifact_file"
+    [ "$status" -eq 0 ]
+    [ "$output" = "staged.md" ]
+
+    REAL_REPO_CLEANUP_PATHS+=("$repo_artifact")
+    mkdir -p "$(dirname "$repo_artifact")"
+    /bin/cp "$artifact_file" "$repo_artifact"
+
     run bash "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" --skip-hooks
     [ "$status" -eq 0 ]
     [[ "$output" == *"evidence-only-closure/na-test.json"* ]]
+}
 
-    rm -f "$artifact_file"
+@test "write_evidence_only_closure_packet: default validation command shell-quotes repo roots with spaces" {
+    local evidence_repo="$TMP_TEST_DIR/evidence repo"
+    local artifact_file="$evidence_repo/.agents/council/evidence-only-closures/na-space.json"
+    local expected_command=""
+    setup_mock_repo "$evidence_repo"
+    git -C "$evidence_repo" config user.email "bats@example.com"
+    git -C "$evidence_repo" config user.name "Bats"
+
+    run bash "$REPO_ROOT/skills/post-mortem/scripts/write-evidence-only-closure.sh" \
+        --repo-root "$evidence_repo" \
+        --target-id "na-space" \
+        --target-type "issue" \
+        --producer "bats" \
+        --evidence-summary "Validation command serialization stays replayable."
+    [ "$status" -eq 0 ]
+    [ "$output" = "$artifact_file" ]
+
+    printf -v expected_command 'bash scripts/validate-manifests.sh --repo-root %q' "$evidence_repo"
+    run jq -r '.validation_commands[0]' "$artifact_file"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$expected_command" ]
+}
+
+@test "closure-integrity-audit.sh: auto prefers commit evidence over staged fallback" {
+    local audit_repo="$TMP_TEST_DIR/audit-commit"
+    setup_audit_repo "$audit_repo"
+    printf 'committed\n' > "$audit_repo/commit.md"
+    git -C "$audit_repo" add commit.md
+    git -C "$audit_repo" commit -q -m "add commit evidence"
+    printf 'staged\n' >> "$audit_repo/commit.md"
+    git -C "$audit_repo" add commit.md
+    write_fake_bd_json "$audit_repo" "ag-test" "ag-test.1" $'Files:\n- commit.md' \
+        "2000-01-01T00:00:00Z" "2030-01-01T00:00:00Z" "2030-01-01T00:00:00Z"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-test' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    local commit_child
+    commit_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.commit[0]')
+    [ "$commit_child" = "ag-test.1" ]
+}
+
+@test "closure-integrity-audit.sh: auto falls back to staged evidence when no commit evidence exists" {
+    local audit_repo="$TMP_TEST_DIR/audit-staged"
+    setup_audit_repo "$audit_repo"
+    printf 'staged only\n' > "$audit_repo/staged.md"
+    git -C "$audit_repo" add staged.md
+    write_fake_bd_json "$audit_repo" "ag-test" "ag-test.1" $'Files:\n- staged.md' \
+        "2000-01-01T00:00:00Z" "2030-01-01T00:00:00Z" "2030-01-01T00:00:00Z"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-test' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    local staged_child
+    staged_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.staged[0]')
+    [ "$staged_child" = "ag-test.1" ]
+}
+
+@test "closure-integrity-audit.sh: auto falls back to worktree evidence when no commit or staged evidence exists" {
+    local audit_repo="$TMP_TEST_DIR/audit-worktree"
+    setup_audit_repo "$audit_repo"
+    printf 'worktree only\n' > "$audit_repo/worktree.md"
+    write_fake_bd_json "$audit_repo" "ag-test" "ag-test.1" $'Files:\n- worktree.md' \
+        "2000-01-01T00:00:00Z" "2030-01-01T00:00:00Z" "2030-01-01T00:00:00Z"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-test' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    local worktree_child
+    worktree_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.worktree[0]')
+    [ "$worktree_child" = "ag-test.1" ]
+}
+
+@test "closure-integrity-audit.sh: falls back to real-ish human bd output and parses Files plus validation sections" {
+    local audit_repo="$TMP_TEST_DIR/audit-human"
+    local child_description=""
+    local staged_child=""
+    local scoped_files=""
+    setup_audit_repo "$audit_repo"
+    mkdir -p "$audit_repo/lib"
+    printf 'staged only\n' > "$audit_repo/lib/hook-helpers.sh"
+    git -C "$audit_repo" add lib/hook-helpers.sh
+    child_description=$'Example child\n\nFiles:\n- lib/hook-helpers.sh\n- skills/post-mortem/scripts/closure-integrity-audit.sh\n\n```validation\n{"files_exist":["tests/hooks/lib-hook-helpers.bats"],"content_check":[{"file":"skills/post-mortem/scripts/write-evidence-only-closure.sh","pattern":"validation_commands"}]}\n```'
+    write_fake_bd_human_only "$audit_repo" "ag-human" "ag-human.1" "$child_description"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope staged ag-human' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+
+    staged_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.staged[0]')
+    [ "$staged_child" = "ag-human.1" ]
+    scoped_files=$(printf '%s\n' "$output" | jq -r '.children[0].scoped_files | join("\n")')
+    [[ "$scoped_files" == *"tests/hooks/lib-hook-helpers.bats"* ]]
+    [[ "$scoped_files" == *"skills/post-mortem/scripts/write-evidence-only-closure.sh"* ]]
+}
+
+@test "closure-integrity-audit.sh: commit evidence does not regex-match similar child ids" {
+    local audit_repo="$TMP_TEST_DIR/audit-regex"
+    local failed_count=""
+    setup_audit_repo "$audit_repo"
+    printf 'note\n' > "$audit_repo/note.md"
+    git -C "$audit_repo" add note.md
+    git -C "$audit_repo" commit -q -m "close ag-testx1"
+    write_fake_bd_json "$audit_repo" "ag-test" "ag-test.1" "No file scope for this child." \
+        "2000-01-01T00:00:00Z" "2030-01-01T00:00:00Z" "2030-01-01T00:00:00Z"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope commit ag-test' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    failed_count=$(printf '%s\n' "$output" | jq -r '.summary.failed')
+    [ "$failed_count" = "1" ]
+}
+
+@test "closure-integrity-audit.sh: commit file evidence ignores historical touches outside issue lifetime" {
+    local audit_repo="$TMP_TEST_DIR/audit-history"
+    local failed_count=""
+    setup_audit_repo "$audit_repo"
+    printf 'legacy\n' > "$audit_repo/legacy.md"
+    git -C "$audit_repo" add legacy.md
+    git -C "$audit_repo" commit -q -m "legacy touch"
+    write_fake_bd_json "$audit_repo" "ag-history" "ag-history.1" $'Files:\n- legacy.md' \
+        "2030-01-01T00:00:00Z" "2030-01-02T00:00:00Z" "2030-01-02T00:00:00Z"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope commit ag-history' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    failed_count=$(printf '%s\n' "$output" | jq -r '.summary.failed')
+    [ "$failed_count" = "1" ]
+}
+
+@test "closure-integrity-audit.sh: empty or failed child collection is a hard failure signal" {
+    local audit_repo="$TMP_TEST_DIR/audit-empty"
+    local collection_failed=""
+    local failure_detail=""
+    setup_audit_repo "$audit_repo"
+    cat >"$audit_repo/bin/bd" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+    chmod +x "$audit_repo/bin/bd"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-empty' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 1 ]
+
+    collection_failed=$(printf '%s\n' "$output" | jq -r '.summary.collection_failed')
+    [ "$collection_failed" = "true" ]
+    failure_detail=$(printf '%s\n' "$output" | jq -r '.failures[0].detail')
+    [[ "$failure_detail" == *"no child issues"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -294,7 +665,7 @@ teardown() {
 
     _HOOK_HELPERS_ERROR_LOG_DIR="$TMP_TEST_DIR/error-log-nojq"
     mkdir -p "$_HOOK_HELPERS_ERROR_LOG_DIR"
-    write_failure "test-type" "test-command" 42 "test details"
+    write_failure "test-type" $'test-command "quoted"' 42 $'line1\tvalue\nline2'
 
     PATH="$original_path"
 
@@ -310,10 +681,11 @@ teardown() {
     [ "$output" = "test-type" ]
 
     run jq -r '.command' "$outfile"
-    [ "$output" = "test-command" ]
+    [ "$output" = $'test-command "quoted"' ]
 
-    run jq -e '.exit_code == 42' "$outfile"
+    run jq -r '.details' "$outfile"
     [ "$status" -eq 0 ]
+    [ "$output" = $'line1\tvalue\nline2' ]
 }
 
 @test "write_memory_packet: creates valid packet without jq (fallback path)" {
@@ -363,7 +735,6 @@ teardown() {
 @test "json_escape_value: handles tabs and newlines" {
     local result
     result=$(json_escape_value $'line1\tindented\nline2')
-    # Tabs and newlines should be converted to spaces
-    [[ "$result" != *$'\t'* ]]
-    [[ "$result" != *$'\n'* ]]
+    [[ "$result" == *'\t'* ]]
+    [[ "$result" == *'\n'* ]]
 }
