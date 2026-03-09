@@ -1659,6 +1659,36 @@ func TestQueryProvenance_OpenError(t *testing.T) {
 	}
 }
 
+func TestReadSessionFile_ScannerError(t *testing.T) {
+	tmpDir := t.TempDir()
+	fs := NewFileStorage(WithBaseDir(tmpDir))
+
+	// Create sessions directory
+	sessDir := filepath.Join(tmpDir, SessionsDir)
+	if err := os.MkdirAll(sessDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a .jsonl file with a single line exceeding bufio.MaxScanTokenSize (64KB).
+	// This causes scanner.Scan() to return false with scanner.Err() != nil.
+	hugeLine := strings.Repeat("x", 65*1024) // 65KB > 64KB limit
+	filePath := filepath.Join(sessDir, "scanner-error.jsonl")
+	if err := os.WriteFile(filePath, []byte(hugeLine), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := fs.readSessionFile(filePath)
+	if err == nil {
+		t.Fatal("expected error for oversized scanner token, got nil")
+	}
+	if errors.Is(err, ErrEmptySessionFile) {
+		t.Errorf("expected scanner I/O error, got ErrEmptySessionFile; scanner.Err() was swallowed")
+	}
+	if !strings.Contains(err.Error(), "read session file") {
+		t.Errorf("expected wrapped scanner error with 'read session file' prefix, got: %v", err)
+	}
+}
+
 // contains is a test helper for substring matching.
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))

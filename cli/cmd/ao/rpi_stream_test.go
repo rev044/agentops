@@ -3,10 +3,26 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+// ---------------------------------------------------------------------------
+// writeStreamEvent
+// ---------------------------------------------------------------------------
+
+func TestWriteStreamEvent_NilFile(t *testing.T) {
+	event := RPIC2Event{Type: "test.event", Message: "hello"}
+	err := writeStreamEvent(nil, event, "human")
+	if err == nil {
+		t.Fatal("expected error when out is nil, got nil")
+	}
+	if !strings.Contains(err.Error(), "nil") {
+		t.Errorf("error = %q, want it to mention 'nil'", err.Error())
+	}
+}
 
 // ---------------------------------------------------------------------------
 // directExecutor

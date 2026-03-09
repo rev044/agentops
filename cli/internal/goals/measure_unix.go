@@ -27,5 +27,5 @@ func killAllChildren() {
 	for pid := range childGroups.pids {
 		_ = syscall.Kill(-pid, syscall.SIGKILL)
 	}
-	childGroups.pids = nil
+	childGroups.pids = make(map[int]struct{})
 }

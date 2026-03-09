@@ -170,7 +170,8 @@ func TestCumulativeProgress(t *testing.T) {
 }
 
 func TestParseStreamEvents_LargeLine(t *testing.T) {
-	largeMsg := strings.Repeat("x", 2*1024*1024) // 2MB payload
+	// Use a payload under the 1MB max line length limit.
+	largeMsg := strings.Repeat("x", 512*1024) // 512KB payload (under 1MB limit)
 	input := strings.Join([]string{
 		`{"type":"init","session_id":"s-large","model":"claude-sonnet-4-20250514"}`,
 		`{"type":"assistant","message":"` + largeMsg + `"}`,
@@ -186,6 +187,18 @@ func TestParseStreamEvents_LargeLine(t *testing.T) {
 	}
 	if progress.CurrentAction != "result received" {
 		t.Errorf("CurrentAction = %q, want %q", progress.CurrentAction, "result received")
+	}
+}
+
+func TestStreamLineReader_MaxLineLength(t *testing.T) {
+	// Feed >1MB without a newline — should return an error containing "max length"
+	huge := strings.Repeat("A", (1<<20)+1) // 1MB + 1 byte, no newline
+	_, err := ParseStreamEvents(strings.NewReader(huge), nil)
+	if err == nil {
+		t.Fatal("expected error for line exceeding max length, got nil")
+	}
+	if !strings.Contains(err.Error(), "max length") {
+		t.Errorf("error = %q, want it to contain 'max length'", err.Error())
 	}
 }
 

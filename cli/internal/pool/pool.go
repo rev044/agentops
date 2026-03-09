@@ -238,7 +238,7 @@ func filterByTier(entries []PoolEntry, tier types.Tier) []PoolEntry {
 func paginate(entries []PoolEntry, offset, limit int) []PoolEntry {
 	if offset > 0 {
 		if offset >= len(entries) {
-			return nil
+			return []PoolEntry{}
 		}
 		entries = entries[offset:]
 	}
@@ -509,6 +509,9 @@ func (p *Pool) Reject(candidateID, reason, reviewer string) error {
 		return err
 	}
 
+	// Capture status before mutation for chain event
+	priorStatus := entry.Status
+
 	// Move to rejected directory atomically
 	newPath := filepath.Join(p.PoolPath, RejectedDir, filepath.Base(entry.FilePath))
 	if err := atomicMove(entry.FilePath, newPath); err != nil {
@@ -535,7 +538,7 @@ func (p *Pool) Reject(candidateID, reason, reviewer string) error {
 		Timestamp:   time.Now(),
 		Operation:   "reject",
 		CandidateID: candidateID,
-		FromStatus:  entry.Status,
+		FromStatus:  priorStatus,
 		ToStatus:    types.PoolStatusRejected,
 		Reason:      reason,
 		Reviewer:    reviewer,
@@ -758,7 +761,11 @@ func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 	fmt.Fprintf(&content, "reward_count: %d\n", entry.Candidate.RewardCount)
 	fmt.Fprintf(&content, "helpful_count: %d\n", entry.Candidate.HelpfulCount)
 	fmt.Fprintf(&content, "harmful_count: %d\n", entry.Candidate.HarmfulCount)
-	fmt.Fprintf(&content, "source_session: %s\n", entry.Candidate.Source.SessionID)
+	if entry.Candidate.Source.SessionID != "" {
+		fmt.Fprintf(&content, "source_session: %s\n", entry.Candidate.Source.SessionID)
+	} else {
+		content.WriteString("source_session: unknown\n")
+	}
 	content.WriteString("---\n\n")
 
 	// Heading
@@ -780,9 +787,13 @@ func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 
 	// Provenance
 	content.WriteString("## Source\n\n")
-	fmt.Fprintf(&content, "- **Session**: %s\n", entry.Candidate.Source.SessionID)
-	fmt.Fprintf(&content, "- **Transcript**: %s\n", entry.Candidate.Source.TranscriptPath)
-	fmt.Fprintf(&content, "- **Message**: %d\n\n", entry.Candidate.Source.MessageIndex)
+	if entry.Candidate.Source.SessionID != "" {
+		fmt.Fprintf(&content, "- **Session**: %s\n", entry.Candidate.Source.SessionID)
+		fmt.Fprintf(&content, "- **Transcript**: %s\n", entry.Candidate.Source.TranscriptPath)
+		fmt.Fprintf(&content, "- **Message**: %d\n\n", entry.Candidate.Source.MessageIndex)
+	} else {
+		content.WriteString("- **Source**: unknown\n\n")
+	}
 
 	return os.WriteFile(path, []byte(content.String()), 0600)
 }
@@ -806,8 +817,10 @@ func (p *Pool) recordEvent(event ChainEvent) (err error) {
 		}
 	}()
 
-	_, err = f.Write(append(data, '\n'))
-	return err
+	if _, err = f.Write(append(data, '\n')); err != nil {
+		return err
+	}
+	return f.Sync()
 }
 
 // openIfExists opens a file for reading, returning (nil, nil) if it does not exist.

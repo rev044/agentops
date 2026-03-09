@@ -43,7 +43,7 @@ func lockFile(f *os.File) error {
 	if r != 0 {
 		return nil
 	}
-	if err.(syscall.Errno) == errorIOPending {
+	if errno, ok := err.(syscall.Errno); ok && errno == errorIOPending {
 		// Lock is pending: block until the event is signaled.
 		res, _, werr := procWFSO.Call(hEvent, 0xFFFFFFFF /* INFINITE */)
 		if res == 0xFFFFFFFF { // WAIT_FAILED

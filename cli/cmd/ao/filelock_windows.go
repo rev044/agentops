@@ -41,7 +41,7 @@ func flockLock(f *os.File) error {
 	if r != 0 {
 		return nil
 	}
-	if err.(syscall.Errno) == errorIOPendingAO {
+	if errno, ok := err.(syscall.Errno); ok && errno == errorIOPendingAO {
 		res, _, werr := procWFSOLock.Call(hEvent, 0xFFFFFFFF)
 		if res == 0xFFFFFFFF {
 			return werr
@@ -62,7 +62,7 @@ func flockLockNB(f *os.File) error {
 	if r != 0 {
 		return nil
 	}
-	if err.(syscall.Errno) == errorLockViolation {
+	if errno, ok := err.(syscall.Errno); ok && errno == errorLockViolation {
 		return errLockWouldBlock
 	}
 	return err

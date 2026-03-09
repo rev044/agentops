@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -112,9 +113,15 @@ func summarizeStatusAction(s string) string {
 	return trimmed[:maxLen-3] + "..."
 }
 
+// maxStreamLineLength is the maximum number of bytes buffered for a single
+// line before the reader returns an error. This prevents unbounded memory
+// growth when the stream emits very long lines without newlines.
+const maxStreamLineLength = 1 << 20 // 1MB
+
 type streamLineReader struct {
-	buf []byte
-	r   io.Reader
+	buf     []byte
+	r       io.Reader
+	readBuf []byte
 }
 
 func newStreamLineReader(r io.Reader) *streamLineReader {
@@ -132,10 +139,15 @@ func (lr *streamLineReader) readLine() ([]byte, error) {
 			return line, nil
 		}
 
-		chunk := make([]byte, 64*1024)
-		n, err := lr.r.Read(chunk)
+		if lr.readBuf == nil {
+			lr.readBuf = make([]byte, 64*1024)
+		}
+		n, err := lr.r.Read(lr.readBuf)
 		if n > 0 {
-			lr.buf = append(lr.buf, chunk[:n]...)
+			lr.buf = append(lr.buf, lr.readBuf[:n]...)
+		}
+		if len(lr.buf) > maxStreamLineLength {
+			return nil, fmt.Errorf("stream line exceeds max length (%d bytes)", maxStreamLineLength)
 		}
 		if err != nil {
 			if err == io.EOF {

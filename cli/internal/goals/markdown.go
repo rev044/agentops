@@ -178,7 +178,9 @@ func parseDirectives(lines []string) ([]Directive, error) {
 			// Check for **Steer:** line
 			if strings.HasPrefix(trimmed, "**Steer:**") {
 				steerVal := strings.TrimSpace(strings.TrimPrefix(trimmed, "**Steer:**"))
-				current.Steer = steerVal
+				if steerVal != "" {
+					current.Steer = steerVal
+				}
 				continue
 			}
 			// Preserve raw line content (including indentation) for directive body.
@@ -230,7 +232,7 @@ func parseGateRow(cells []string, colMap map[string]int) Goal {
 	}
 	if idx, ok := colMap["weight"]; ok && idx < len(cells) {
 		w, err := strconv.Atoi(strings.TrimSpace(cells[idx]))
-		if err != nil {
+		if err != nil || w < 1 || w > 10 {
 			w = 5
 		}
 		g.Weight = w

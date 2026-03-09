@@ -273,6 +273,15 @@ func TestBuildStreamPhaseContext_NoTimeout(t *testing.T) {
 	}
 }
 
+func TestBuildStreamPhaseContext_ZeroTimeout(t *testing.T) {
+	// When timeout is 0, the returned cancel must actually cancel the context.
+	ctx, cancel := buildStreamPhaseContext(context.Background(), 0)
+	cancel()
+	if ctx.Err() == nil {
+		t.Error("calling cancel() on zero-timeout context should cancel it, but ctx.Err() is nil")
+	}
+}
+
 func TestBuildStreamPhaseContext_WithTimeout(t *testing.T) {
 	ctx, cancel := buildStreamPhaseContext(context.Background(), 10*time.Second)
 	defer cancel()

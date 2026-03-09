@@ -185,6 +185,79 @@ func TestProcessResultsAreSortable(t *testing.T) {
 	}
 }
 
+func TestPool_PanicRecovery(t *testing.T) {
+	p := NewPool[string](2)
+	items := []string{"ok", "panic", "ok2"}
+
+	results := p.Process(items, func(s string) (string, error) {
+		if s == "panic" {
+			panic("boom")
+		}
+		return "done-" + s, nil
+	})
+
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+
+	// "ok" item should succeed
+	if results[0].Err != nil {
+		t.Errorf("result[0] should succeed, got err=%v", results[0].Err)
+	}
+	if results[0].Value != "done-ok" {
+		t.Errorf("result[0].Value = %q, want %q", results[0].Value, "done-ok")
+	}
+
+	// "panic" item should have error containing "worker panic"
+	if results[1].Err == nil {
+		t.Fatal("result[1] should have error from panic")
+	}
+	if got := results[1].Err.Error(); !contains(got, "worker panic") {
+		t.Errorf("result[1].Err = %q, want it to contain %q", got, "worker panic")
+	}
+
+	// "ok2" item should succeed
+	if results[2].Err != nil {
+		t.Errorf("result[2] should succeed, got err=%v", results[2].Err)
+	}
+	if results[2].Value != "done-ok2" {
+		t.Errorf("result[2].Value = %q, want %q", results[2].Value, "done-ok2")
+	}
+}
+
+func TestPool_AllPanic(t *testing.T) {
+	p := NewPool[string](2)
+	items := []string{"a", "b", "c"}
+
+	results := p.Process(items, func(s string) (string, error) {
+		panic("all broken")
+	})
+
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+
+	for i, r := range results {
+		if r.Err == nil {
+			t.Errorf("result[%d] should have error from panic", i)
+			continue
+		}
+		if got := r.Err.Error(); !contains(got, "worker panic") {
+			t.Errorf("result[%d].Err = %q, want it to contain %q", i, got, "worker panic")
+		}
+	}
+}
+
+// contains checks if s contains substr (avoids importing strings package).
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 // --- Benchmarks ---
 
 func BenchmarkPoolProcess(b *testing.B) {

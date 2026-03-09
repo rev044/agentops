@@ -291,8 +291,7 @@ const (
 
 // spawnClaudePhase exists for compatibility with legacy direct-spawn tests.
 // Production code should use a PhaseExecutor (selectExecutorFromCaps) instead.
-func spawnClaudePhase(prompt, cwd, runID string, phaseNum int) error {
-	_ = runID
+func spawnClaudePhase(prompt, cwd, _ string, phaseNum int) error {
 	return spawnDirectFn(prompt, cwd, phaseNum)
 }
 
@@ -438,7 +437,9 @@ func spawnRuntimePhaseWithStream(runtimeCommand, prompt, cwd, runID string, phas
 
 func closeStreamPipeOnCancel(ctx context.Context, stdout io.ReadCloser) {
 	<-ctx.Done()
-	_ = stdout.Close()
+	if err := stdout.Close(); err != nil {
+		VerbosePrintf("Warning: error closing stdout pipe: %v\n", err)
+	}
 }
 
 // buildStreamPhaseContext creates a context with optional timeout for a stream phase.
@@ -447,7 +448,7 @@ func buildStreamPhaseContext(parent context.Context, phaseTimeout time.Duration)
 	if phaseTimeout > 0 {
 		return context.WithTimeout(parent, phaseTimeout)
 	}
-	return parent, func() {}
+	return context.WithCancel(parent)
 }
 
 // normalizeCheckInterval returns checkInterval or a 1s default.
@@ -549,8 +550,11 @@ func classifyStreamResult(ctx, stallCtx context.Context, command string, phaseNu
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return fmt.Errorf("phase %d (%s) timed out after %s (set --phase-timeout to increase)", phaseNum, failReasonTimeout, phaseTimeout)
 	}
-	if cause := context.Cause(stallCtx); cause != nil && stallCtx.Err() != nil && ctx.Err() == nil {
-		return fmt.Errorf("phase %d (%s): %w", phaseNum, failReasonStall, cause)
+	stallErr := stallCtx.Err()
+	if stallErr != nil && ctx.Err() == nil {
+		if cause := context.Cause(stallCtx); cause != nil {
+			return fmt.Errorf("phase %d (%s): %w", phaseNum, failReasonStall, cause)
+		}
 	}
 	if waitErr != nil {
 		var exitErr *exec.ExitError

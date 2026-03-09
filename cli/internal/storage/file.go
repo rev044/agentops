@@ -400,6 +400,9 @@ func (fs *FileStorage) readSessionFile(path string) (*Session, error) {
 			}
 			return &session, nil
 		}
+		if err := scanner.Err(); err != nil {
+			return nil, fmt.Errorf("read session file: %w", err)
+		}
 		return nil, ErrEmptySessionFile
 	}
 

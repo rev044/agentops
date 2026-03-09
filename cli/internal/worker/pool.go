@@ -4,6 +4,7 @@
 package worker
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 )
@@ -59,12 +60,22 @@ func (p *Pool[T]) Process(items []string, fn func(string) (T, error)) []Result[T
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
-				val, err := fn(j.item)
-				results[j.index] = Result[T]{
-					Index: j.index,
-					Value: val,
-					Err:   err,
-				}
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							results[j.index] = Result[T]{
+								Index: j.index,
+								Err:   fmt.Errorf("worker panic: %v", r),
+							}
+						}
+					}()
+					val, err := fn(j.item)
+					results[j.index] = Result[T]{
+						Index: j.index,
+						Value: val,
+						Err:   err,
+					}
+				}()
 			}
 		}()
 	}

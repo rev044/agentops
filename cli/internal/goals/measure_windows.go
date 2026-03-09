@@ -40,5 +40,5 @@ func killAllChildren() {
 	for pid := range childGroups.pids {
 		_ = killProcessTree(pid)
 	}
-	childGroups.pids = nil
+	childGroups.pids = make(map[int]struct{})
 }

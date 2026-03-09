@@ -106,6 +106,8 @@ func ResolveToolchain(opts ResolveToolchainOptions) (Toolchain, error) {
 	applyConfigField(&tc.TmuxCommand, opts.Config.TmuxCommand)
 
 	// Layer 2: env overrides config
+	// AGENTOPS_RPI_RUNTIME is the legacy env var name; AGENTOPS_RPI_RUNTIME_MODE
+	// takes precedence because it is applied second (last-write-wins).
 	applyEnvField(&tc.RuntimeMode, lookup, "AGENTOPS_RPI_RUNTIME")
 	applyEnvField(&tc.RuntimeMode, lookup, "AGENTOPS_RPI_RUNTIME_MODE")
 	applyEnvField(&tc.RuntimeCommand, lookup, "AGENTOPS_RPI_RUNTIME_COMMAND")

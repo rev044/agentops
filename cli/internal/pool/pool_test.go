@@ -2927,3 +2927,263 @@ func TestFindByPrefix_AcrossDirectories(t *testing.T) {
 		t.Errorf("expected 2 matches across directories for prefix 'cross', got %d", len(matches))
 	}
 }
+
+// --- Bug #3: Chain event records wrong FromStatus ---
+
+func TestReject_ChainEventFromStatus(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "from-status-test",
+		Tier:    types.TierBronze,
+		Content: "Test from-status tracking",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	// Entry starts as pending; reject it
+	if err := p.Reject("from-status-test", "bad quality", "tester"); err != nil {
+		t.Fatalf("Reject failed: %v", err)
+	}
+
+	// Read chain and find the reject event
+	events, err := p.GetChain()
+	if err != nil {
+		t.Fatalf("GetChain failed: %v", err)
+	}
+
+	var rejectEvent *ChainEvent
+	for i := range events {
+		if events[i].Operation == "reject" && events[i].CandidateID == "from-status-test" {
+			rejectEvent = &events[i]
+			break
+		}
+	}
+	if rejectEvent == nil {
+		t.Fatal("reject chain event not found")
+	}
+
+	// FromStatus must be pending (before mutation), NOT rejected (after mutation)
+	if rejectEvent.FromStatus != types.PoolStatusPending {
+		t.Errorf("expected FromStatus=pending, got %s", rejectEvent.FromStatus)
+	}
+	if rejectEvent.ToStatus != types.PoolStatusRejected {
+		t.Errorf("expected ToStatus=rejected, got %s", rejectEvent.ToStatus)
+	}
+	if rejectEvent.FromStatus == rejectEvent.ToStatus {
+		t.Error("FromStatus == ToStatus; chain event recorded AFTER mutation instead of before")
+	}
+}
+
+func TestPromote_ChainEventFromStatus(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "promote-chain-test",
+		Tier:    types.TierSilver,
+		Type:    types.KnowledgeTypeLearning,
+		Content: "Promotable learning",
+		Source: types.Source{
+			SessionID:      "sess-1",
+			TranscriptPath: "/tmp/t.jsonl",
+		},
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := p.Stage("promote-chain-test", types.TierBronze); err != nil {
+		t.Fatalf("Stage failed: %v", err)
+	}
+
+	if _, err := p.Promote("promote-chain-test"); err != nil {
+		t.Fatalf("Promote failed: %v", err)
+	}
+
+	events, err := p.GetChain()
+	if err != nil {
+		t.Fatalf("GetChain failed: %v", err)
+	}
+
+	var promoteEvent *ChainEvent
+	for i := range events {
+		if events[i].Operation == "promote" && events[i].CandidateID == "promote-chain-test" {
+			promoteEvent = &events[i]
+			break
+		}
+	}
+	if promoteEvent == nil {
+		t.Fatal("promote chain event not found")
+	}
+
+	if promoteEvent.FromStatus != types.PoolStatusStaged {
+		t.Errorf("expected FromStatus=staged, got %s", promoteEvent.FromStatus)
+	}
+	if promoteEvent.ToStatus != types.PoolStatusArchived {
+		t.Errorf("expected ToStatus=archived, got %s", promoteEvent.ToStatus)
+	}
+}
+
+// --- Bug #11: Missing Sync in recordEvent ---
+
+func TestRecordEvent_SyncsFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	event := ChainEvent{
+		Timestamp:   time.Now(),
+		Operation:   "test-sync",
+		CandidateID: "sync-test",
+		ToStatus:    types.PoolStatusPending,
+	}
+
+	if err := p.recordEvent(event); err != nil {
+		t.Fatalf("recordEvent failed: %v", err)
+	}
+
+	// Read back immediately — data must be on disk (synced), not just in OS buffer
+	data, err := os.ReadFile(filepath.Join(p.PoolPath, ChainFile))
+	if err != nil {
+		t.Fatalf("read chain file failed: %v", err)
+	}
+
+	if !strings.Contains(string(data), "sync-test") {
+		t.Error("chain event not found in file after recordEvent; data may not be synced")
+	}
+
+	// Verify it's valid JSON
+	var readBack ChainEvent
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &readBack); err != nil {
+		t.Fatalf("chain event not valid JSON: %v", err)
+	}
+	if readBack.CandidateID != "sync-test" {
+		t.Errorf("expected CandidateID=sync-test, got %s", readBack.CandidateID)
+	}
+}
+
+// --- Bug #12: paginate returns nil vs empty slice ---
+
+func TestPaginate_OffsetBeyondLength(t *testing.T) {
+	entries := []PoolEntry{
+		{PoolEntry: types.PoolEntry{Candidate: types.Candidate{ID: "a"}}},
+		{PoolEntry: types.PoolEntry{Candidate: types.Candidate{ID: "b"}}},
+		{PoolEntry: types.PoolEntry{Candidate: types.Candidate{ID: "c"}}},
+		{PoolEntry: types.PoolEntry{Candidate: types.Candidate{ID: "d"}}},
+		{PoolEntry: types.PoolEntry{Candidate: types.Candidate{ID: "e"}}},
+	}
+
+	result := paginate(entries, 100, 0)
+	if result == nil {
+		t.Error("paginate returned nil; expected empty slice")
+	}
+	if len(result) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(result))
+	}
+}
+
+func TestPaginate_EmptyInput(t *testing.T) {
+	result := paginate([]PoolEntry{}, 0, 0)
+	if result == nil {
+		t.Error("paginate returned nil for empty input; expected empty slice")
+	}
+	if len(result) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(result))
+	}
+}
+
+// --- Bug #14: Nil Source in writeArtifact ---
+
+func TestWriteArtifact_NilSource(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	// Entry with zero-value Source (no SessionID, no TranscriptPath)
+	entry := &PoolEntry{
+		PoolEntry: types.PoolEntry{
+			Candidate: types.Candidate{
+				ID:      "nil-source-test",
+				Type:    types.KnowledgeTypeLearning,
+				Tier:    types.TierSilver,
+				Content: "Learning without source info",
+				// Source is zero-value (empty struct) — no SessionID, no TranscriptPath
+			},
+			Status: types.PoolStatusStaged,
+		},
+	}
+
+	artifactPath := filepath.Join(tmpDir, "test-artifact.md")
+
+	// Must not panic
+	err := p.writeArtifact(artifactPath, entry)
+	if err != nil {
+		t.Fatalf("writeArtifact failed: %v", err)
+	}
+
+	// Verify file was written and contains fallback source info
+	data, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatalf("read artifact failed: %v", err)
+	}
+
+	content := string(data)
+	// When Source is zero-value, should show "unknown" fallback instead of empty fields
+	if strings.Contains(content, "source_session: \n") {
+		t.Error("artifact contains empty source_session in frontmatter; expected fallback handling")
+	}
+	if !strings.Contains(content, "## Source") {
+		t.Error("artifact missing Source section")
+	}
+
+	// Should contain either valid source info or the unknown fallback
+	if strings.Contains(content, "- **Session**: \n") {
+		t.Error("artifact contains empty Session field; expected unknown fallback")
+	}
+}
+
+func TestWriteArtifact_WithSource(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	entry := &PoolEntry{
+		PoolEntry: types.PoolEntry{
+			Candidate: types.Candidate{
+				ID:      "with-source-test",
+				Type:    types.KnowledgeTypeLearning,
+				Tier:    types.TierSilver,
+				Content: "Learning with source",
+				Source: types.Source{
+					SessionID:      "sess-abc",
+					TranscriptPath: "/path/to/t.jsonl",
+					MessageIndex:   42,
+				},
+			},
+			Status: types.PoolStatusStaged,
+		},
+	}
+
+	artifactPath := filepath.Join(tmpDir, "test-with-source.md")
+	if err := p.writeArtifact(artifactPath, entry); err != nil {
+		t.Fatalf("writeArtifact failed: %v", err)
+	}
+
+	data, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatalf("read artifact failed: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "sess-abc") {
+		t.Error("artifact missing session ID")
+	}
+	if !strings.Contains(content, "/path/to/t.jsonl") {
+		t.Error("artifact missing transcript path")
+	}
+	if !strings.Contains(content, fmt.Sprintf("**Message**: %d", 42)) {
+		t.Error("artifact missing message index")
+	}
+}

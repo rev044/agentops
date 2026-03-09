@@ -690,6 +690,47 @@ func TestParseMarkdownGoals_Adversarial(t *testing.T) {
 	}
 }
 
+func TestParseGateRow_NegativeWeight(t *testing.T) {
+	cells := []string{"G1", "echo ok", "-1", "neg weight"}
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	g := parseGateRow(cells, colMap)
+	if g.Weight != 5 {
+		t.Errorf("Weight = %d, want 5 (negative should default)", g.Weight)
+	}
+}
+
+func TestParseGateRow_OversizedWeight(t *testing.T) {
+	cells := []string{"G1", "echo ok", "99", "big weight"}
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	g := parseGateRow(cells, colMap)
+	if g.Weight != 5 {
+		t.Errorf("Weight = %d, want 5 (oversized should default)", g.Weight)
+	}
+}
+
+func TestParseGateRow_ValidWeight(t *testing.T) {
+	cells := []string{"G1", "echo ok", "3", "valid weight"}
+	colMap := map[string]int{"id": 0, "check": 1, "weight": 2, "description": 3}
+	g := parseGateRow(cells, colMap)
+	if g.Weight != 3 {
+		t.Errorf("Weight = %d, want 3", g.Weight)
+	}
+}
+
+func TestParseDirectives_EmptySteer(t *testing.T) {
+	input := "## Directives\n\n### 1. Test Dir\n\nBody text.\n\n**Steer:**   \n\n## Gates\n"
+	directives, err := parseDirectives(strings.Split(input, "\n"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(directives) != 1 {
+		t.Fatalf("directives = %d, want 1", len(directives))
+	}
+	if directives[0].Steer != "" {
+		t.Errorf("Steer = %q, want empty (whitespace-only steer should be rejected)", directives[0].Steer)
+	}
+}
+
 func TestBuildGateColumnMap_DefaultOrder(t *testing.T) {
 	cells := []string{"ID", "Check", "Weight", "Description"}
 	colMap := buildGateColumnMap(cells)

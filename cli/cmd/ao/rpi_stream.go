@@ -71,6 +71,9 @@ func runRPIStream(cmd *cobra.Command, args []string) error {
 }
 
 func writeStreamEvent(out *os.File, event RPIC2Event, format string) error {
+	if out == nil {
+		return fmt.Errorf("output file is nil")
+	}
 	switch format {
 	case "json":
 		data, err := json.Marshal(event)

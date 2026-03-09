@@ -170,10 +170,10 @@ func CreateWorktree(cwd string, timeout time.Duration, verbosef func(string, ...
 // resolveHeadCommit returns the current HEAD commit SHA.
 func resolveHeadCommit(repoRoot string, timeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 	cmdHead := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
 	cmdHead.Dir = repoRoot
 	headOut, headErr := cmdHead.CombinedOutput()
-	cancel()
 	if headErr != nil {
 		return "", fmt.Errorf("git rev-parse HEAD: %w (output: %s)", headErr, strings.TrimSpace(string(headOut)))
 	}
@@ -366,7 +366,11 @@ func handleMergeFailure(repoRoot, mergeSource, shortMergeSource string, ctx cont
 	}
 	conflictCmd := exec.Command("git", "diff", "--name-only", "--diff-filter=U")
 	conflictCmd.Dir = repoRoot
-	conflictOut, _ := conflictCmd.Output()
+	conflictOut, conflictErr := conflictCmd.Output()
+	if conflictErr != nil {
+		// Non-fatal: best-effort conflict file listing
+		_ = conflictErr
+	}
 	abortCmd := exec.Command("git", "merge", "--abort")
 	abortCmd.Dir = repoRoot
 	_ = abortCmd.Run() //nolint:errcheck

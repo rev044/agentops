@@ -69,12 +69,11 @@ var childGroups struct {
 	pids map[int]struct{}
 }
 
+func init() { childGroups.pids = make(map[int]struct{}) }
+
 func trackChild(pid int) {
 	childGroups.mu.Lock()
 	defer childGroups.mu.Unlock()
-	if childGroups.pids == nil {
-		childGroups.pids = make(map[int]struct{})
-	}
 	childGroups.pids[pid] = struct{}{}
 }
 
@@ -154,16 +153,19 @@ func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
 	// Install signal handler to kill children on interrupt.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	defer func() {
-		signal.Stop(sigCh)
-		close(sigCh)
-	}()
-
+	done := make(chan struct{})
 	go func() {
-		if _, ok := <-sigCh; ok {
+		select {
+		case <-sigCh:
 			killAllChildren()
 			os.Exit(130) // 128 + SIGINT(2)
+		case <-done:
+			return
 		}
+	}()
+	defer func() {
+		signal.Stop(sigCh)
+		close(done)
 	}()
 
 	// Phase 1: meta-goals run sequentially (they may affect non-meta goals).
