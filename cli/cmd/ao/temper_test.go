@@ -512,6 +512,33 @@ func TestTemperCoverage_ValidateArtifact(t *testing.T) {
 			t.Error("ValidatedAt should not be zero")
 		}
 	})
+
+	t.Run("frontmatter metadata satisfies schema and feedback checks", func(t *testing.T) {
+		content := `---
+id: L1
+maturity: candidate
+utility: 0.8
+confidence: 0.9
+reward_count: 3
+schema_version: 1
+---
+# Test
+`
+		path := filepath.Join(tmp, "frontmatter.md")
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		result := validateArtifact(path, "provisional", 0.5, 1)
+		if !result.Valid {
+			t.Errorf("expected valid, issues: %v", result.Issues)
+		}
+		if len(result.Warnings) != 0 {
+			t.Errorf("expected no warnings, got %v", result.Warnings)
+		}
+		if result.FeedbackCount != 3 {
+			t.Errorf("FeedbackCount = %d, want 3", result.FeedbackCount)
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------

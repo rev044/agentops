@@ -14,8 +14,8 @@
     {
       "name": "beads",
       "source_skill": "skills/beads",
-      "source_hash": "e8b3be537990faf3b609a48f71462a385f46030fbe8e03c0610ec1d871118e23",
-      "generated_hash": "f420b0bb94dbf1deda376f39730aec43855b7ef940d1a756d3d7f4d00c199e57"
+      "source_hash": "9cf7e4fea0c22ad0c8ae0e52bd574c1db1e2ed4ad531790d4102df7f039d746e",
+      "generated_hash": "21c05d6d6a9b6ea80175d5a265ecf777e1132ccb45ecd8ff207c49bd85f37df1"
     },
     {
       "name": "brainstorm",
@@ -140,8 +140,8 @@
     {
       "name": "post-mortem",
       "source_skill": "skills/post-mortem",
-      "source_hash": "26e6a1b1d0400d184c26fd62216de2ac054ade6c11d3cadb775abffe56ad9a77",
-      "generated_hash": "08cb8968989cbdb9fde45ca2761ea5251ede5d1efb7bc73d99da46e6648504c1"
+      "source_hash": "7dd499a82e061d09113e49cfd530ec500816204f66ad135dca339b484a2a4925",
+      "generated_hash": "3a2f9673e77647ef6a9a54ec685efe8751998e02f8d13ce8a93d29335085e3c6"
     },
     {
       "name": "pr-implement",

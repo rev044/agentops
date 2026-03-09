@@ -65,6 +65,54 @@ Content here.
 	})
 }
 
+func TestParseFrontmatterMetadata(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "frontmatter.md")
+	content := `---
+id: learning-frontmatter
+maturity: candidate
+utility: 0.72
+confidence: 0.83
+reward_count: 4
+schema_version: 1
+status: locked
+---
+# Learning
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	meta := &artifactMetadata{
+		Maturity:   types.MaturityProvisional,
+		Utility:    0.5,
+		Confidence: 0.5,
+	}
+	parseFrontmatterMetadata(path, meta)
+
+	if meta.ID != "learning-frontmatter" {
+		t.Errorf("ID = %q, want %q", meta.ID, "learning-frontmatter")
+	}
+	if meta.Maturity != types.MaturityCandidate {
+		t.Errorf("Maturity = %q, want %q", meta.Maturity, types.MaturityCandidate)
+	}
+	if meta.Utility < 0.71 || meta.Utility > 0.73 {
+		t.Errorf("Utility = %f, want ~0.72", meta.Utility)
+	}
+	if meta.Confidence < 0.82 || meta.Confidence > 0.84 {
+		t.Errorf("Confidence = %f, want ~0.83", meta.Confidence)
+	}
+	if meta.FeedbackCount != 4 {
+		t.Errorf("FeedbackCount = %d, want 4", meta.FeedbackCount)
+	}
+	if meta.SchemaVersion != 1 {
+		t.Errorf("SchemaVersion = %d, want 1", meta.SchemaVersion)
+	}
+	if !meta.Tempered {
+		t.Error("expected Tempered = true")
+	}
+}
+
 func TestExpandDirectoryFlat(t *testing.T) {
 	tmpDir := t.TempDir()
 

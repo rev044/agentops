@@ -784,7 +784,7 @@ if command -v ao &>/dev/null; then
   echo "Learnings indexed in knowledge flywheel"
 
   # Validate and lock artifacts that passed council review
-  ao temper validate .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
+  ao temper validate --min-feedback 0 .agents/learnings/YYYY-MM-DD-*.md 2>/dev/null || true
   echo "Artifacts validated for tempering"
 
   # Close session and trigger full flywheel close-loop (includes adaptive feedback)

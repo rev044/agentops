@@ -21,6 +21,10 @@ check "workflow doc covers tracker mutation follow-through" "grep -q '^## Tracke
 check "workflow doc covers parent-child reconciliation" "grep -q '^## Parent/Child Reconciliation' '$SKILL_DIR/references/WORKFLOWS.md'"
 check "workflow doc covers queue normalization" "grep -q '^## Queue and Backlog Reconciliation' '$SKILL_DIR/references/WORKFLOWS.md'"
 check "anti-pattern doc forbids jsonl as canonical state" "grep -q 'Canonical Tracker' '$SKILL_DIR/references/ANTI_PATTERNS.md'"
+check "cli reference requires explicit export refresh" "grep -q 'bd export -o \\.beads/issues.jsonl' '$SKILL_DIR/references/CLI_REFERENCE.md'"
+check "cli reference no longer claims automatic jsonl sync" "! grep -q 'JSONL auto-sync is automatic' '$SKILL_DIR/references/CLI_REFERENCE.md'"
+check "patterns doc uses parent-child semantics for broad-parent decomposition" "grep -q -- '--parent pl-vnu.5' '$SKILL_DIR/references/PATTERNS.md' && ! grep -q 'discovered-from:pl-vnu.5' '$SKILL_DIR/references/PATTERNS.md'"
+check "dependencies doc remains the planning contract" "grep -q 'parent-child.*planned task breakdown' '$SKILL_DIR/references/DEPENDENCIES.md'"
 check "troubleshooting doc covers missing dolt remote" "grep -q '^## \`bd dolt push\` Fails Because No Remote Is Configured' '$SKILL_DIR/references/TROUBLESHOOTING.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"

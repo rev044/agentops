@@ -364,6 +364,49 @@ type artifactMetadata struct {
 	Tempered      bool
 }
 
+// parseFrontmatterMetadata extracts metadata from YAML frontmatter on markdown artifacts.
+func parseFrontmatterMetadata(path string, meta *artifactMetadata) {
+	fields, err := parseFrontmatterFields(
+		path,
+		"id",
+		"maturity",
+		"utility",
+		"confidence",
+		"reward_count",
+		"schema_version",
+		"status",
+	)
+	if err != nil {
+		return
+	}
+
+	if fields["id"] != "" {
+		meta.ID = fields["id"]
+	}
+	if fields["maturity"] != "" {
+		meta.Maturity = types.Maturity(strings.ToLower(fields["maturity"]))
+	}
+	if fields["utility"] != "" {
+		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
+		fmt.Sscanf(fields["utility"], "%f", &meta.Utility) // #nosec G104
+	}
+	if fields["confidence"] != "" {
+		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
+		fmt.Sscanf(fields["confidence"], "%f", &meta.Confidence) // #nosec G104
+	}
+	if fields["reward_count"] != "" {
+		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
+		fmt.Sscanf(fields["reward_count"], "%d", &meta.FeedbackCount) // #nosec G104
+	}
+	if fields["schema_version"] != "" {
+		//nolint:errcheck // parsing optional metadata, zero value is acceptable default
+		fmt.Sscanf(fields["schema_version"], "%d", &meta.SchemaVersion) // #nosec G104
+	}
+	if status := strings.ToLower(fields["status"]); status == "tempered" || status == "locked" {
+		meta.Tempered = true
+	}
+}
+
 // parseJSONLMetadata extracts metadata from a JSONL artifact file.
 func parseJSONLMetadata(path string, meta *artifactMetadata) error {
 	f, err := os.Open(path)
@@ -458,6 +501,7 @@ func parseArtifactMetadata(path string) (*artifactMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
+	parseFrontmatterMetadata(path, meta)
 	parseMarkdownMetadata(string(content), meta)
 
 	if meta.ID == "" {

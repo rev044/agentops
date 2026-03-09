@@ -71,7 +71,8 @@ bd ready
 bd show pl-vnu.5
 # Notes reveal only one concrete remaining gap: export hygiene after tracker writes
 
-bd create "Refresh tracked issues.jsonl after tracker mutations" -t task -p 1 --deps discovered-from:pl-vnu.5
+bd create "Refresh tracked issues.jsonl after tracker mutations" -t task -p 1 --parent pl-vnu.5
+# or: bd dep add <child-id> --type parent-child --blocked-by pl-vnu.5
 bd update <child-id> --status in_progress
 # execute work against child
 bd close <child-id> --reason "Export hygiene documented and validated"

@@ -518,10 +518,13 @@ bd update bd-42 --status in_progress --json
 # ... work ...
 
 # End of session (IMPORTANT!)
-bd vc status  # Optional Dolt inspection; JSONL auto-sync is automatic
+bd export -o .beads/issues.jsonl  # If this repo tracks the export artifact
+bd vc status
+bd dolt commit -m "Refresh tracker state"  # If Dolt changes are pending
+bd dolt push  # Only if a Dolt remote is configured
 ```
 
-**Always finish with your normal git commit/push workflow.** Use `bd vc status` or `bd vc commit` only when you need Dolt visibility.
+**Always finish with your normal git commit/push workflow.** Treat live `bd` queries as canonical state and refresh `.beads/issues.jsonl` explicitly when the repo tracks it.
 
 ## See Also
 
