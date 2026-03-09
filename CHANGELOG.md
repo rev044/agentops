@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.0] - 2026-03-09
+
+### Added
+
+- **Finding-registry prevention ratchet** — Added the normalized finding
+  registry contract, council write/read-path support, and prevention-ratchet
+  flow so findings can be promoted into reusable planning and validation input
+- **Repo-native orchestration profile** — Added repo-profile aware execution
+  guidance and orchestration wiring for skill/runtime flows
+- **Headless Claude team backend** — Added headless team backend support for
+  automated multi-agent validation and execution flows
+
+### Changed
+
+- **Codex and embedded runtime artifacts** — Synced generated Codex bundles,
+  embedded standards references, and install/runtime artifacts after merging the
+  preserved branch work into `main`
+- **Validation feedback capture** — Folded fresh validation-cycle feedback back
+  into tracked `.agents` learnings and patterns so the flywheel state matches
+  the shipped tree
+
+### Fixed
+
+- **Lookup findings integration** — Reconciled merged-branch fallout in
+  `ao lookup` and inject scoring so findings render, cite, and score correctly
+  without colliding with phased-RPI finding types
+- **Comprehensive CLI audit follow-through** — Landed the audited CLI bug fixes
+  and supporting runtime parity corrections from the preserved branch work
+- **Post-mortem and worktree closure hardening** — Preserved and merged durable
+  proof, staged/worktree closure evidence, and related follow-up fixes without
+  regressing canonical-root hygiene
+
 ## [2.21.0] - 2026-03-09
 
 ### Added
