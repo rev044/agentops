@@ -117,7 +117,7 @@ to_target_relative_path() {
 
   case "$path" in
     "$repo_root"/*)
-      printf '.%s\n' "${path#$repo_root}"
+      printf '.%s\n' "${path#"$repo_root"}"
       ;;
     *)
       printf '%s\n' "$path"

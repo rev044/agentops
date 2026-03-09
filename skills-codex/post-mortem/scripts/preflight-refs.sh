@@ -42,7 +42,7 @@ missing_list=()
 skipped_list=()
 
 for ref in "${REQUIRED_REFS[@]}"; do
-  display_ref="${ref#$REPO_ROOT/}"
+  display_ref="${ref#"$REPO_ROOT"/}"
   # Apply skip guard clause
   if [[ "$skip_checkpoint_policy" == true ]] && [[ "$ref" == *"checkpoint-policy.md" ]]; then
     skipped=$((skipped + 1))
