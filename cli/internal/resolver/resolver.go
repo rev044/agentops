@@ -33,11 +33,11 @@ func NewFileResolverWithGlobal(root string, globalDirs []string) *FileResolver {
 // extensions lists the file extensions to probe when searching for learnings.
 var extensions = []string{".jsonl", ".md", ".json"}
 
-// subdirs lists the subdirectories under .agents that contain learnings.
-var subdirs = []string{"learnings", "patterns"}
+// subdirs lists the subdirectories under .agents that contain reusable knowledge artifacts.
+var subdirs = []string{"learnings", "findings", "patterns"}
 
-// Resolve locates a learning file by ID, searching .agents/learnings/ and
-// .agents/patterns/ with extension probing, direct path, glob, and
+// Resolve locates a knowledge file by ID, searching .agents/learnings/,
+// .agents/findings/, and .agents/patterns/ with extension probing, direct path, glob, and
 // frontmatter ID scanning. It walks up parent directories to the rig root.
 func (r *FileResolver) Resolve(id string) (string, error) {
 	// Normalize: strip pend- prefix for pool IDs
@@ -71,7 +71,7 @@ func (r *FileResolver) Resolve(id string) (string, error) {
 		return p, err
 	}
 
-	// Walk up to rig root looking for .agents/learnings and .agents/patterns
+	// Walk up to rig root looking for .agents knowledge directories
 	dir := r.Root
 	for {
 		parent := filepath.Dir(dir)
@@ -105,8 +105,8 @@ func (r *FileResolver) Resolve(id string) (string, error) {
 	return "", fmt.Errorf("learning not found: %s", id)
 }
 
-// DiscoverAll returns all learning files (.md and .jsonl) under the resolver root.
-// It searches .agents/learnings/ and .agents/patterns/ and walks up to the rig root.
+// DiscoverAll returns all knowledge files (.md and .jsonl) under the resolver root.
+// It searches .agents/learnings/, .agents/findings/, and .agents/patterns/ and walks up to the rig root.
 func (r *FileResolver) DiscoverAll() ([]string, error) {
 	var allFiles []string
 	seen := make(map[string]bool)

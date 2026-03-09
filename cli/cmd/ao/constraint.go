@@ -19,12 +19,15 @@ type constraintIndex struct {
 
 // constraintEntry represents a single compiled constraint.
 type constraintEntry struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	Source     string `json:"source"`
-	Status     string `json:"status"`
-	CompiledAt string `json:"compiled_at"`
-	File       string `json:"file"`
+	ID              string   `json:"id"`
+	Title           string   `json:"title"`
+	Source          string   `json:"source"`
+	SourceType      string   `json:"source_type,omitempty"`
+	CompilerTargets []string `json:"compiler_targets,omitempty"`
+	Detectability   string   `json:"detectability,omitempty"`
+	Status          string   `json:"status"`
+	CompiledAt      string   `json:"compiled_at"`
+	File            string   `json:"file"`
 }
 
 var constraintCmd = &cobra.Command{

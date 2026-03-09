@@ -188,6 +188,8 @@
 - [Context Assembly Interface](contracts/context-assembly-interface.md) — Interface contract for adaptive context assembly and mechanical token budgeting
 - [Finding Registry Contract](contracts/finding-registry.md) — Structured reusable-finding registry for planning and judgment
 - [Finding Registry Schema](contracts/finding-registry.schema.json) — Machine-readable schema for `.agents/findings/registry.jsonl`
+- [Finding Artifact Schema](contracts/finding-artifact.schema.json) — Machine-readable schema for normalized prevention findings under `.agents/findings/`
+- [Finding Compiler Contract](contracts/finding-compiler.md) — Compile targets, lifecycle, and retirement rules for turning findings into prevention artifacts
 
 ## Migration Trackers
 

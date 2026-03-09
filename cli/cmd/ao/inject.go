@@ -37,6 +37,7 @@ const (
 
 	// Knowledge section directory names under .agents/.
 	SectionLearnings = "learnings"
+	SectionFindings  = "findings"
 	SectionPatterns  = "patterns"
 	SectionResearch  = "research"
 	SectionSessions  = "sessions"
@@ -103,6 +104,24 @@ type pattern struct {
 	Utility        float64 `json:"utility,omitempty"`
 	CompositeScore float64 `json:"composite_score,omitempty"`
 	Global         bool    `json:"-"` // Internal flag: from global dir
+}
+
+type finding struct {
+	ID              string   `json:"id"`
+	Title           string   `json:"title"`
+	Summary         string   `json:"summary"`
+	Source          string   `json:"source,omitempty"`
+	SourceSkill     string   `json:"source_skill,omitempty"`
+	Severity        string   `json:"severity,omitempty"`
+	Detectability   string   `json:"detectability,omitempty"`
+	Status          string   `json:"status,omitempty"`
+	CompilerTargets []string `json:"compiler_targets,omitempty"`
+	ScopeTags       []string `json:"scope_tags,omitempty"`
+	FreshnessScore  float64  `json:"freshness_score,omitempty"`
+	AgeWeeks        float64  `json:"age_weeks,omitempty"`
+	Utility         float64  `json:"utility,omitempty"`
+	CompositeScore  float64  `json:"composite_score,omitempty"`
+	Global          bool     `json:"-"`
 }
 
 type session struct {

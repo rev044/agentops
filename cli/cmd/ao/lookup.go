@@ -85,9 +85,13 @@ func runLookup(cmd *cobra.Command, args []string) error {
 // lookupByID searches all learning and pattern files for a matching ID.
 func lookupByID(cwd, id string, cfg *config.Config) error {
 	globalLearningsDir := ""
+	globalFindingsDir := ""
 	globalPatternsDir := ""
 	if cfg != nil {
 		globalLearningsDir = cfg.Paths.GlobalLearningsDir
+		if globalLearningsDir != "" {
+			globalFindingsDir = filepath.Join(filepath.Dir(globalLearningsDir), SectionFindings)
+		}
 		globalPatternsDir = cfg.Paths.GlobalPatternsDir
 	}
 
@@ -104,6 +108,13 @@ func lookupByID(cwd, id string, cfg *config.Config) error {
 	for _, p := range patterns {
 		if matchesID(p.Name, p.FilePath, id) {
 			return outputPattern(cwd, p)
+		}
+	}
+
+	findings, _ := collectFindings(cwd, "", MaxPatternsToInject*5, globalFindingsDir, 1.0)
+	for _, f := range findings {
+		if matchesID(f.ID, f.Source, id) {
+			return outputFinding(cwd, f)
 		}
 	}
 
@@ -132,10 +143,14 @@ func matchesID(itemID, filePath, searchID string) bool {
 // lookupByQuery uses the existing collectors with query filtering.
 func lookupByQuery(cwd string, cfg *config.Config) error {
 	globalLearningsDir := ""
+	globalFindingsDir := ""
 	globalPatternsDir := ""
 	globalWeight := 0.8
 	if cfg != nil {
 		globalLearningsDir = cfg.Paths.GlobalLearningsDir
+		if globalLearningsDir != "" {
+			globalFindingsDir = filepath.Join(filepath.Dir(globalLearningsDir), SectionFindings)
+		}
 		globalPatternsDir = cfg.Paths.GlobalPatternsDir
 		globalWeight = cfg.Paths.GlobalWeight
 	}
@@ -154,22 +169,25 @@ func lookupByQuery(cwd string, cfg *config.Config) error {
 	// Collect and score patterns
 	patterns, _ := collectPatterns(cwd, query, limit, globalPatternsDir, globalWeight)
 
+	// Collect and score findings
+	findings, _ := collectFindings(cwd, query, limit, globalFindingsDir, globalWeight)
+
 	// Trim to limit
 	if len(learnings) > limit {
 		learnings = learnings[:limit]
 	}
 
 	// Record citations
-	if !lookupNoCite && (len(learnings) > 0 || len(patterns) > 0) {
+	if !lookupNoCite && (len(learnings) > 0 || len(patterns) > 0 || len(findings) > 0) {
 		sessionID := canonicalSessionID(lookupSessionID)
 		citationQuery := query
 		if citationQuery == "" {
 			citationQuery = lookupBead
 		}
-		recordLookupCitations(cwd, learnings, patterns, sessionID, citationQuery)
+		recordLookupCitations(cwd, learnings, patterns, findings, sessionID, citationQuery)
 	}
 
-	return outputResults(cwd, learnings, patterns)
+	return outputResults(cwd, learnings, patterns, findings)
 }
 
 // filterByBead keeps only learnings whose SourceBead matches the given bead ID.
