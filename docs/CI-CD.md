@@ -220,6 +220,8 @@ The release workflow (`release.yml`) triggers on version tags (`v*`) or manual d
 7. **Attestation:** SLSA provenance via `actions/attest-build-provenance@v3` covering all tarballs, checksums, SBOM, and security report
 8. **Homebrew:** GoReleaser auto-updates `boshu2/homebrew-agentops` tap
 
+Manual dispatch is a rerun path, not the primary publish path for a new version. For a fresh release, push the tag. For post-tag fixes, use `scripts/retag-release.sh vX.Y.Z`. Do not start a manual dispatch in parallel with the tag-push workflow for the same tag.
+
 ### Release Cadence
 
 - **Weekly release train (Fridays).** One published release per week max.

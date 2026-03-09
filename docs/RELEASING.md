@@ -177,7 +177,11 @@ If publisher CI fails after a local gate pass, the release may be in a partial s
 **To fix:**
 1. Check if GitHub release was created (may need manual cleanup)
 2. Check if Homebrew formula was pushed
-3. Use `workflow_dispatch` to re-run manually if needed
+3. If the original tag-push workflow is still running for that tag, wait for it to finish before starting anything else
+4. For post-tag commits, use `scripts/retag-release.sh vX.Y.Z`
+5. Use `workflow_dispatch` only to rerun an existing tag after the original tag-triggered workflow has already finished and you are not pushing a new tag in parallel
+
+Why this matters: a second publish for the same tag can collide on release assets and fail with GitHub `422 already_exists` errors if the first publish already created or uploaded assets.
 
 ### Homebrew Token Expired
 
@@ -189,7 +193,19 @@ The `HOMEBREW_TAP_GITHUB_TOKEN` secret is validated before publish. If it fails:
 
 ## Manual Release (workflow_dispatch)
 
-If you need to re-run a release without pushing a new tag:
+Use `workflow_dispatch` only when you need to rerun an existing tag release after the original tag-triggered workflow has already completed or failed.
+
+Do not use `workflow_dispatch` as the primary path for a fresh release. The primary path is still `git push origin vX.Y.Z`.
+
+Do not launch a manual run in parallel with a tag-push run for the same tag.
+
+If you have post-tag commits that should become part of the same version, use:
+
+```bash
+scripts/retag-release.sh vX.Y.Z
+```
+
+If you only need to retry the existing tag with no new commits:
 
 1. Go to Actions → Release workflow
 2. Click "Run workflow"

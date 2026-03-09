@@ -11,7 +11,10 @@ on:
         required: true
 
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+  # Normalize both tag-push and workflow_dispatch reruns onto the same
+  # refs/tags/vX.Y.Z key so a manual rerun cannot publish in parallel with the
+  # original tag-triggered workflow for that same version.
+  group: release-${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', startsWith(github.event.inputs.tag, 'v') && github.event.inputs.tag || format('v{0}', github.event.inputs.tag)) || github.ref }}
   cancel-in-progress: false
 
 permissions:
