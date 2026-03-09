@@ -35,6 +35,10 @@ check "SKILL.md documents dormancy as last resort" "grep -q 'Dormancy is last re
 check "SKILL.md documents queue claim before consume" "grep -q 'claim it first' '$SKILL_DIR/SKILL.md' && grep -Fq 'keep \`consumed: false\`' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md documents session-state persistence" "grep -q 'session-state.json' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md documents immediate queue reread after /rpi" "grep -Fq 'immediately re-read \`.agents/rpi/next-work.jsonl\`' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions repo execution profile" "grep -qi 'repo execution profile' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions startup_reads" "grep -q 'startup_reads' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions validation_commands" "grep -q 'validation_commands' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions definition_of_done" "grep -q 'definition_of_done' '$SKILL_DIR/SKILL.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

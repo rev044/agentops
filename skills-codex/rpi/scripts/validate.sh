@@ -19,6 +19,11 @@ check "SKILL.md mentions post-mortem phase" "grep -qi 'post-mortem' '$SKILL_DIR/
 check "SKILL.md mentions next-work handoff metadata" "grep -q 'queue claim/finalize metadata' '$SKILL_DIR/SKILL.md'"
 check "phase-data-contracts documents claim lifecycle" "grep -q 'claim_status' '$SKILL_DIR/references/phase-data-contracts.md' && grep -q 'release the claim back to available state' '$SKILL_DIR/references/phase-data-contracts.md'"
 check "gate4-loop-and-spawn documents claim before consume" "grep -q 'claim the current cycle' '$SKILL_DIR/references/gate4-loop-and-spawn.md' && grep -q 'Never mark an item consumed at pick-time' '$SKILL_DIR/references/gate4-loop-and-spawn.md'"
+check "SKILL.md mentions repo execution profile" "grep -qi 'repo execution profile' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions execution packet" "grep -qi 'execution packet' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions contract_surfaces" "grep -q 'contract_surfaces' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions done_criteria" "grep -q 'done_criteria' '$SKILL_DIR/SKILL.md'"
+check "phase-data-contracts documents execution packet" "grep -q 'execution_packet' '$SKILL_DIR/references/phase-data-contracts.md' && grep -qi 'repo execution profile' '$SKILL_DIR/references/phase-data-contracts.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

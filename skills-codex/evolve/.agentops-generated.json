@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/evolve",
   "layout": "modular",
-  "source_hash": "ac0614adb86e8926e3b9a9d29e5826e767aa99e459237eb5716f2703518f891e",
-  "generated_hash": "6ae16544b2d738828937c9c9dfa93a72eca89fbb30ac8fa449f578d04943194d"
+  "source_hash": "04e2969964243445039578b62aa351baab0aceb8db636e7ca1f6b89cab0cb43b",
+  "generated_hash": "5b14b1e3104645ac5757f2c15ae099bf8a3c9110360203469e1562eef8a9f07f"
 }
