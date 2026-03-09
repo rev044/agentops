@@ -11,7 +11,7 @@ import (
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
-func collectFindings(cwd, query string, limit int, globalDir string, globalWeight float64) ([]finding, error) {
+func collectFindings(cwd, query string, limit int, globalDir string, globalWeight float64) ([]knowledgeFinding, error) {
 	findingsDir := filepath.Join(cwd, ".agents", SectionFindings)
 	if _, err := os.Stat(findingsDir); os.IsNotExist(err) {
 		findingsDir = findAgentsSubdir(cwd, SectionFindings)
@@ -33,7 +33,7 @@ func collectFindings(cwd, query string, limit int, globalDir string, globalWeigh
 		}
 	}
 
-	findings := append([]finding{}, local...)
+	findings := append([]knowledgeFinding{}, local...)
 	if globalDir != "" {
 		globalFiles, _ := filepath.Glob(filepath.Join(globalDir, "*.md"))
 		for _, file := range globalFiles {
@@ -71,7 +71,7 @@ func collectFindings(cwd, query string, limit int, globalDir string, globalWeigh
 		}
 	}
 
-	slices.SortFunc(findings, func(a, b finding) int {
+	slices.SortFunc(findings, func(a, b knowledgeFinding) int {
 		return cmp.Compare(b.CompositeScore, a.CompositeScore)
 	})
 	if len(findings) > limit {
@@ -80,7 +80,7 @@ func collectFindings(cwd, query string, limit int, globalDir string, globalWeigh
 	return findings, nil
 }
 
-func collectFindingsFromDir(dir, queryLower string, now time.Time, isGlobal bool) ([]finding, error) {
+func collectFindingsFromDir(dir, queryLower string, now time.Time, isGlobal bool) ([]knowledgeFinding, error) {
 	if dir == "" {
 		return nil, nil
 	}
@@ -88,7 +88,7 @@ func collectFindingsFromDir(dir, queryLower string, now time.Time, isGlobal bool
 	if err != nil {
 		return nil, err
 	}
-	var result []finding
+	var result []knowledgeFinding
 	for _, file := range files {
 		f, err := parseFindingFile(file)
 		if err != nil {
@@ -104,7 +104,7 @@ func collectFindingsFromDir(dir, queryLower string, now time.Time, isGlobal bool
 	return result, nil
 }
 
-func applyFindingFreshness(f *finding, file string, now time.Time) {
+func applyFindingFreshness(f *knowledgeFinding, file string, now time.Time) {
 	info, err := os.Stat(file)
 	if err != nil || info == nil {
 		f.FreshnessScore = 0.5
@@ -120,7 +120,7 @@ func applyFindingFreshness(f *finding, file string, now time.Time) {
 	}
 }
 
-func findingMatchesQuery(f finding, queryLower string) bool {
+func findingMatchesQuery(f knowledgeFinding, queryLower string) bool {
 	if queryLower == "" {
 		return true
 	}
@@ -137,8 +137,8 @@ func findingMatchesQuery(f finding, queryLower string) bool {
 	return strings.Contains(haystack, queryLower)
 }
 
-func parseFindingFile(path string) (finding, error) {
-	f := finding{
+func parseFindingFile(path string) (knowledgeFinding, error) {
+	f := knowledgeFinding{
 		ID:     strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
 		Source: path,
 	}

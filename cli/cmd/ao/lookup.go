@@ -297,20 +297,69 @@ func outputPattern(cwd string, p pattern) error {
 	return nil
 }
 
-// outputResults renders multiple learnings and patterns.
-func outputResults(cwd string, learnings []learning, patterns []pattern) error {
+func outputFinding(cwd string, f knowledgeFinding) error {
+	if lookupJSON {
+		return outputJSON(f)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("## %s\n\n", f.ID))
+	if f.Title != "" {
+		sb.WriteString(fmt.Sprintf("**%s**\n", f.Title))
+	}
+	if f.Severity != "" || f.Detectability != "" || f.Status != "" {
+		sb.WriteString(fmt.Sprintf("Severity: %s | Detectability: %s | Status: %s\n",
+			emptyIfMissing(f.Severity), emptyIfMissing(f.Detectability), emptyIfMissing(f.Status)))
+	}
+	sb.WriteString(fmt.Sprintf("Utility: %.2f | Age: %s | Score: %.2f\n\n",
+		f.Utility, formatLookupAge(f.AgeWeeks), f.CompositeScore))
+	if f.Summary != "" {
+		sb.WriteString(f.Summary + "\n\n")
+	}
+	if f.Source != "" {
+		content, err := os.ReadFile(f.Source)
+		if err == nil {
+			sb.WriteString("---\n")
+			sb.WriteString(string(content))
+		}
+		sb.WriteString(fmt.Sprintf("\nSource: %s\n", relPath(cwd, f.Source)))
+	}
+
+	fmt.Println(sb.String())
+
+	if !lookupNoCite && f.Source != "" {
+		sessionID := canonicalSessionID(lookupSessionID)
+		event := types.CitationEvent{
+			ArtifactPath: canonicalArtifactPath(cwd, f.Source),
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: "pulled",
+			Query:        f.ID,
+		}
+		if err := ratchet.RecordCitation(cwd, event); err != nil {
+			VerbosePrintf("Warning: failed to record citation: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// outputResults renders multiple learnings, patterns, and findings.
+func outputResults(cwd string, learnings []learning, patterns []pattern, findings []knowledgeFinding) error {
 	if lookupJSON {
 		result := struct {
-			Learnings []learning `json:"learnings"`
-			Patterns  []pattern  `json:"patterns"`
+			Learnings []learning         `json:"learnings"`
+			Patterns  []pattern          `json:"patterns"`
+			Findings  []knowledgeFinding `json:"findings"`
 		}{
 			Learnings: learnings,
 			Patterns:  patterns,
+			Findings:  findings,
 		}
 		return outputJSON(result)
 	}
 
-	if len(learnings) == 0 && len(patterns) == 0 {
+	if len(learnings) == 0 && len(patterns) == 0 && len(findings) == 0 {
 		fmt.Println("No matching artifacts found.")
 		return nil
 	}
@@ -334,6 +383,21 @@ func outputResults(cwd string, learnings []learning, patterns []pattern) error {
 		fmt.Printf("Score: %.2f\n", p.CompositeScore)
 		if p.FilePath != "" {
 			fmt.Printf("Source: %s\n", relPath(cwd, p.FilePath))
+		}
+		fmt.Println()
+	}
+
+	for _, f := range findings {
+		fmt.Printf("## %s\n\n", f.ID)
+		if f.Title != "" {
+			fmt.Printf("**%s**\n", f.Title)
+		}
+		if f.Summary != "" {
+			fmt.Printf("%s\n", f.Summary)
+		}
+		fmt.Printf("Score: %.2f\n", f.CompositeScore)
+		if f.Source != "" {
+			fmt.Printf("Source: %s\n", relPath(cwd, f.Source))
 		}
 		fmt.Println()
 	}
@@ -375,7 +439,7 @@ func formatLookupAge(ageWeeks float64) string {
 }
 
 // recordLookupCitations records "pulled" citations for lookup results.
-func recordLookupCitations(cwd string, learnings []learning, patterns []pattern, sessionID, query string) {
+func recordLookupCitations(cwd string, learnings []learning, patterns []pattern, findings []knowledgeFinding, sessionID, query string) {
 	for _, l := range learnings {
 		if l.Source == "" {
 			continue
@@ -406,4 +470,26 @@ func recordLookupCitations(cwd string, learnings []learning, patterns []pattern,
 			VerbosePrintf("Warning: record citation for %s: %v\n", p.Name, err)
 		}
 	}
+	for _, f := range findings {
+		if f.Source == "" {
+			continue
+		}
+		event := types.CitationEvent{
+			ArtifactPath: canonicalArtifactPath(cwd, f.Source),
+			SessionID:    sessionID,
+			CitedAt:      time.Now(),
+			CitationType: "pulled",
+			Query:        query,
+		}
+		if err := ratchet.RecordCitation(cwd, event); err != nil {
+			VerbosePrintf("Warning: record citation for %s: %v\n", f.ID, err)
+		}
+	}
+}
+
+func emptyIfMissing(v string) string {
+	if v == "" {
+		return "-"
+	}
+	return v
 }

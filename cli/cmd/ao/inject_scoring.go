@@ -15,10 +15,10 @@ func (l *learning) getFreshness() float64  { return l.FreshnessScore }
 func (l *learning) getUtility() float64    { return l.Utility }
 func (l *learning) getMaturity() string    { return l.Maturity }
 func (l *learning) setComposite(v float64) { l.CompositeScore = v }
-func (f *finding) getFreshness() float64   { return f.FreshnessScore }
-func (f *finding) getUtility() float64     { return f.Utility }
-func (f *finding) getMaturity() string     { return "" }
-func (f *finding) setComposite(v float64)  { f.CompositeScore = v }
+func (f *knowledgeFinding) getFreshness() float64 { return f.FreshnessScore }
+func (f *knowledgeFinding) getUtility() float64   { return f.Utility }
+func (f *knowledgeFinding) getMaturity() string   { return "" }
+func (f *knowledgeFinding) setComposite(v float64) { f.CompositeScore = v }
 func (p *pattern) getFreshness() float64   { return p.FreshnessScore }
 func (p *pattern) getUtility() float64     { return p.Utility }
 func (p *pattern) getMaturity() string     { return "" }

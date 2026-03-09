@@ -300,7 +300,7 @@ func TestLookup_outputResults_noResults(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := outputResults("/tmp", nil, nil)
+	err := outputResults("/tmp", nil, nil, nil)
 
 	_ = w.Close()
 	os.Stdout = oldStdout
@@ -340,7 +340,7 @@ func TestLookup_outputResults_withLearnings(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := outputResults("/tmp", learnings, nil)
+	err := outputResults("/tmp", learnings, nil, nil)
 
 	_ = w.Close()
 	os.Stdout = oldStdout
@@ -375,7 +375,7 @@ func TestLookup_outputResults_jsonMode(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := outputResults("/tmp", learnings, nil)
+	err := outputResults("/tmp", learnings, nil, nil)
 
 	_ = w.Close()
 	os.Stdout = oldStdout

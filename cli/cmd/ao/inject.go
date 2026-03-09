@@ -106,7 +106,7 @@ type pattern struct {
 	Global         bool    `json:"-"` // Internal flag: from global dir
 }
 
-type finding struct {
+type knowledgeFinding struct {
 	ID              string   `json:"id"`
 	Title           string   `json:"title"`
 	Summary         string   `json:"summary"`
