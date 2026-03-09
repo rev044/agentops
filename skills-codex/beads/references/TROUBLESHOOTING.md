@@ -9,6 +9,7 @@ Common issues encountered when using bd and how to resolve them.
 **MCP tools (local environment):**
 - Older docs referenced daemon-management commands, but the installed CLI in this workspace does not expose them
 - If MCP tools fail, confirm the selected database with `bd info --json`
+- Prefer live `bd` reads over `.beads/issues.jsonl` when deciding what is true right now
 - If local state looks stale, run `bd doctor --json` or `bd doctor --fix --source=jsonl --yes`
 
 **CLI (web environment or local):**
@@ -17,6 +18,7 @@ Common issues encountered when using bd and how to resolve them.
 - Web environment: Initialize via `bd init <prefix>` before first use
 
 **Most issues below apply to both interfaces** - the underlying database, JSONL export, and Dolt VC behavior are the same.
+Treat `.beads/issues.jsonl` as an export artifact, not the canonical state source, whenever live `bd` queries are available.
 
 ## Contents
 
@@ -27,6 +29,7 @@ Common issues encountered when using bd and how to resolve them.
 - [Daemon Commands Missing](#daemon-commands-missing)
 - [Database Errors on Cloud Storage](#database-errors-on-cloud-storage)
 - [JSONL File Not Created](#jsonl-file-not-created)
+- [`bd dolt push` Fails Because No Remote Is Configured](#bd-dolt-push-fails-because-no-remote-is-configured)
 - [Version Requirements](#version-requirements)
 
 ---
@@ -220,6 +223,7 @@ Usually one of three things is happening:
 - `bd` is pointed at a different database than you expect
 - Local state is stale after pull/rebase or manual JSONL edits
 - Dolt working-set changes have not been inspected yet
+- You refreshed or read `.beads/issues.jsonl` instead of checking live `bd show`/`bd ready`
 
 ### Resolution
 
@@ -237,6 +241,15 @@ bd doctor --fix --source=jsonl --yes
 ```bash
 bd vc status
 ```
+
+**Option 4: Refresh the tracked export after tracker writes**
+```bash
+bd export -o .beads/issues.jsonl
+```
+
+**Important**:
+- Use `bd show <id>` to confirm current issue truth
+- Use `.beads/issues.jsonl` for export parity or repair workflows, not as the first read path
 
 ### When This Usually Happens
 
@@ -378,6 +391,7 @@ cat .beads/issues.jsonl
 - `bd init` sets up the database, not necessarily a JSONL snapshot
 - `bd export` writes the JSONL file explicitly
 - `bd doctor --fix --source=jsonl --yes` can rebuild database state from JSONL if needed
+- Agents should still trust live `bd` queries first; the JSONL file is a snapshot artifact
 
 **Pattern for batch scripts:**
 ```bash
@@ -425,7 +439,39 @@ claude plugin update beads
 
 **v0.14.0:**
 - Daemon architecture changes
-- Auto-sync JSONL behavior introduced
+- Auto-sync behavior changed, but agents should still explicitly export tracked `.beads/issues.jsonl` after tracker mutations
+
+---
+
+## `bd dolt push` Fails Because No Remote Is Configured
+
+### Symptom
+```bash
+bd dolt push
+# Error indicates no Dolt remote is configured
+```
+
+### Root Cause
+The tracker repository has local Dolt state, but no remote has been configured for push.
+
+### Resolution
+
+**Always separate local tracker durability from remote tracker sync:**
+```bash
+bd vc status
+bd dolt commit -m "tracker: reconcile parent after child closure"   # if pending
+
+# Only run push if a remote is configured
+bd dolt remote list
+bd dolt push
+```
+
+**Workflow rule**:
+- Tracker commit required: pending Dolt changes exist
+- Tracker push possible: a remote is configured
+- Tracker push unavailable: no remote configured, report this as informational
+
+**Do not** treat missing remote as a failed issue workflow when local tracker commits succeeded.
 
 ---
 
@@ -535,6 +581,7 @@ If the **bd-issue-tracking skill** provides incorrect guidance:
 | Daemon command missing | Current CLI has no daemon command; use `bd info` and `bd doctor` instead |
 | Database errors on Google Drive | Move to local filesystem |
 | JSONL file missing | Write it explicitly: `bd export -o .beads/issues.jsonl` |
+| `bd dolt push` has no remote | Commit locally if needed and report push as unavailable/informational |
 | Dependencies backwards (MCP) | Update to v0.15.0+, use `issue_id/depends_on_id` correctly |
 
 ---

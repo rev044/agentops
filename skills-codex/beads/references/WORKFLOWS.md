@@ -4,11 +4,16 @@ Detailed step-by-step workflows for common bd usage patterns with checklists.
 
 ## Contents
 
+- [Authoritative State Reads](#authoritative-state-reads) - Prefer live bd queries over JSONL snapshots
 - [Session Start Workflow](#session-start) - Check bd ready, establish context
 - [Compaction Survival](#compaction-survival) - Recovering after compaction events
 - [Discovery and Issue Creation](#discovery) - Proactive issue creation during work
 - [Status Maintenance](#status-maintenance) - Keeping bd status current
+- [Tracker Mutation Follow-Through](#tracker-mutation-follow-through) - Export hygiene and Dolt follow-up
 - [Epic Planning](#epic-planning) - Structuring complex work with dependencies
+- [Broad Parent Issue Handling](#broad-parent-issue-handling) - Convert umbrella beads into execution-ready children
+- [Parent/Child Reconciliation](#parentchild-reconciliation) - Update parents when children land
+- [Queue and Backlog Reconciliation](#queue-and-backlog-reconciliation) - Normalize stale beads instead of skipping them
 - [Side Quest Handling](#side-quests) - Discovery during main task, assessing blocker vs deferrable, resuming
 - [Multi-Session Resume](#resume) - Returning after days/weeks away
 - [Session Handoff Workflow](#session-handoff) - Collaborative handoff between sessions
@@ -21,6 +26,25 @@ Detailed step-by-step workflows for common bd usage patterns with checklists.
 - [Decision Points](#decision-points)
 - [Troubleshooting Workflows](#troubleshooting-workflows)
 
+## Authoritative State Reads {#authoritative-state-reads}
+
+**Source of truth rule**:
+- Live `bd` queries are authoritative when available
+- `.beads/issues.jsonl` is an export artifact for git history, not the primary decision source
+- Use `.beads/issues.jsonl` directly only when you're repairing, auditing exports, or diffing history
+
+**Read pattern**:
+
+```bash
+bd ready --json
+bd show <issue-id> --json
+bd export --json
+```
+
+**Do not** decide what to work on by reading `.beads/issues.jsonl` first if `bd ready` or `bd show` can answer the question live.
+
+---
+
 ## Session Start Workflow {#session-start}
 
 **bd is available when**:
@@ -32,6 +56,7 @@ Detailed step-by-step workflows for common bd usage patterns with checklists.
 ```
 Session Start (when bd is available):
 - [ ] Run bd ready --json
+- [ ] Treat bd output as authoritative over `.beads/issues.jsonl`
 - [ ] Report: "X items ready to work on: [summary]"
 - [ ] If using global ~/.beads, note this in report
 - [ ] If none ready, check bd blocked --json
@@ -129,6 +154,7 @@ Issue Lifecycle:
 - [ ] During: Update acceptance criteria if requirements clarify
 - [ ] During: Add dependencies if blockers discovered
 - [ ] Complete: Close with summary of what was done
+- [ ] After each tracker mutation: refresh tracked `.beads/issues.jsonl`, inspect `bd vc status`, and commit/push Dolt conditionally
 - [ ] After: Check bd ready to see what unblocked
 ```
 
@@ -139,6 +165,36 @@ Issue Lifecycle:
 - `in_progress` → `blocked` if blocker discovered
 - `blocked` → `in_progress` when unblocked
 - `in_progress` → `closed` when complete
+
+---
+
+## Tracker Mutation Follow-Through {#tracker-mutation-follow-through}
+
+**After any `bd` write that changes status, notes, dependencies, description, or closure:**
+
+```
+Post-write follow-through:
+- [ ] If `.beads/issues.jsonl` is tracked in git, run `bd export -o .beads/issues.jsonl`
+- [ ] Run `bd vc status`
+- [ ] If tracker changes are pending, run `bd dolt commit -m "..."`
+- [ ] Run `bd dolt push` only when a Dolt remote is configured
+- [ ] If no Dolt remote exists, report that push is unavailable instead of failing the workflow
+```
+
+**Recommended sequence**:
+
+```bash
+bd update <id> --status in_progress
+bd export -o .beads/issues.jsonl   # if tracked
+bd vc status
+bd dolt commit -m "tracker: start <id>"   # if pending
+bd dolt push                              # only if remote configured
+```
+
+**Tracker VC states to distinguish**:
+- Tracker commit required
+- Tracker push possible
+- Tracker push unavailable because no remote is configured
 
 ---
 
@@ -257,6 +313,56 @@ If `gt-setup` is blocked by `gt-integration` → deps are inverted, fix them
 
 ---
 
+## Broad Parent Issue Handling {#broad-parent-issue-handling}
+
+**If `bd ready` returns an umbrella parent that is too broad to execute directly:**
+
+```
+Broad parent workflow:
+- [ ] Read the parent live with `bd show`
+- [ ] Identify the concrete remaining gap instead of implementing against umbrella wording
+- [ ] Create or update a narrower child bead when needed
+- [ ] Execute against the child bead
+- [ ] After landing the child, reconcile the parent description, notes, and status to match current repo reality
+```
+
+**Pattern**: Broad parents are coordination containers. Execution happens against concrete remaining gaps.
+
+---
+
+## Parent/Child Reconciliation {#parentchild-reconciliation}
+
+**When a child bead closes or materially reduces the remaining parent gap:**
+
+```
+Parent/child reconciliation:
+- [ ] Check the open parent with `bd show <parent-id>`
+- [ ] Compare the parent notes to what the child actually closed
+- [ ] If parent notes still describe the closed gap, update them in the same session
+- [ ] If the child closed the parent's last real remaining gap, close the parent too
+- [ ] Do not leave stale "remaining gap" notes behind
+```
+
+**Pattern**: Closing children without reconciling parents creates false backlog and misroutes the next autonomous loop.
+
+---
+
+## Queue and Backlog Reconciliation {#queue-and-backlog-reconciliation}
+
+**When ready items, harvested queues, or open beads are stale, partially absorbed, or too broad:**
+
+```
+Backlog normalization:
+- [ ] Rewrite the item to the actual remaining gap
+- [ ] Split into narrower children if execution requires it
+- [ ] Update stale notes, status, or acceptance criteria instead of skipping silently
+- [ ] Report the normalization in your session summary so the queue stays trustworthy
+```
+
+**Pattern**: Autonomous runs should actively normalize stale queue entries, not just route around them.
+
+---
+
 ## Side Quest Handling {#side-quests}
 
 **When discovering work that pauses main task:**
@@ -298,6 +404,7 @@ Actions:
 ```
 Resume Workflow:
 - [ ] Run bd ready to see available work
+- [ ] Trust live `bd ready`/`bd show` output over `.beads/issues.jsonl`
 - [ ] Run bd stats for project overview
 - [ ] List recent closed issues for context
 - [ ] Show details on issue to work on
@@ -552,7 +659,12 @@ Research or investigation work:
 ```
 - [ ] Implementation done
 - [ ] Tests passing
+- [ ] Reconcile open parent notes/status if this was a child issue
 - [ ] Close issue with summary
+- [ ] If `.beads/issues.jsonl` is tracked, run `bd export -o .beads/issues.jsonl`
+- [ ] Run `bd vc status`
+- [ ] Commit tracker changes if pending
+- [ ] Push tracker state only when a Dolt remote is configured
 - [ ] Check bd ready for unblocked work
 - [ ] Report completion and next available work
 ```
@@ -620,4 +732,3 @@ Research or investigation work:
 2. Use bd ready to focus on unblocked work
 3. Consider closing old issues that no longer matter
 4. Use labels for organization
-

@@ -18,6 +18,23 @@ Graph-based issue tracker that survives conversation compaction.
 
 **Decision Rule**: If resuming in 2 weeks would be hard without bd, use bd.
 
+## Operating Rules
+
+- Treat live `bd` reads as authoritative. Use `bd show`, `bd ready`, `bd list`, and `bd export` to inspect current tracker state. Do not treat `.beads/issues.jsonl` as the primary decision source when live `bd` data is available.
+- Treat `.beads/issues.jsonl` as a git-friendly export artifact. If the repo tracks `.beads/issues.jsonl` and you mutate tracker state, refresh it explicitly with `bd export -o .beads/issues.jsonl`.
+- After closing or materially updating a child issue, reconcile the open parent in the same session. Update stale "remaining gap" notes immediately, and close the parent when the child resolved the parent's last real gap.
+- If `bd ready` returns a broad umbrella issue, do not implement directly against vague parent wording. First narrow the remaining gap into an execution-ready child issue, then land the child and reconcile the parent.
+- Normalize stale queue items instead of silently skipping them. Rewrite broad or partially absorbed beads to the actual remaining gap.
+- Use this post-mutation sequence when tracker state changed:
+
+```bash
+bd ...                              # mutate tracker state
+bd export -o .beads/issues.jsonl    # if tracked in git
+bd vc status
+bd dolt commit -m "..."             # if tracker changes are pending
+bd dolt push                        # only if a Dolt remote is configured
+```
+
 ## Prerequisites
 
 - **bd CLI**: Version 0.34.0+ installed and in PATH

@@ -5,6 +5,7 @@ Practical patterns for using bd effectively across different scenarios.
 ## Contents
 
 - [Knowledge Work Session](#knowledge-work-session) - Resume long-running research or writing tasks
+- [Broad Parent Narrowing](#broad-parent-narrowing) - Convert umbrella beads into concrete execution work
 - [Side Quest Handling](#side-quest-handling) - Capture discovered work without losing context
 - [Multi-Session Project Resume](#multi-session-project-resume) - Pick up work after time away
 - [Status Transitions](#status-transitions) - When to change issue status
@@ -48,6 +49,36 @@ NEXT: Need user input on budget constraints before finalizing recommendations"
 **Outcome**: Task tools disappears at session end, but bd notes preserve context for next session.
 
 **Key insight**: Notes field captures the "why" and context, Task tools tracks the "doing" right now.
+
+---
+
+## Broad Parent Narrowing
+
+**Scenario**: `bd ready` surfaces a parent bead that is still open but now only some narrower gap remains.
+
+**Pattern**:
+1. Read the parent live with `bd show <parent-id>`
+2. Identify the exact remaining gap instead of coding against the broad title
+3. Create or update a child bead for that concrete gap
+4. Implement against the child bead
+5. Reconcile the parent's notes and status immediately after the child lands
+
+**Example**:
+```bash
+bd ready
+# Returns: pl-vnu.5 "Tracker workflow friction"
+
+bd show pl-vnu.5
+# Notes reveal only one concrete remaining gap: export hygiene after tracker writes
+
+bd create "Refresh tracked issues.jsonl after tracker mutations" -t task -p 1 --deps discovered-from:pl-vnu.5
+bd update <child-id> --status in_progress
+# execute work against child
+bd close <child-id> --reason "Export hygiene documented and validated"
+bd update pl-vnu.5 --notes "Remaining gap is now narrowed to Dolt remote handling"
+```
+
+**Why this works**: The parent remains a coordination container, while the child is the executable unit of work.
 
 ---
 
@@ -295,6 +326,21 @@ FOLLOW-UP: Filed perf-99 for token cleanup job"
 bd close task-123 --reason "Implemented OAuth refresh token rotation with rate limiting. All security guidelines met. Tests passing."
 ```
 
+**If the issue was a child bead**:
+```bash
+bd close <child-id> --reason "Closed concrete remaining gap"
+bd show <parent-id>
+bd update <parent-id> --notes "Remaining gap now ..."   # or close parent if nothing remains
+```
+
+**If tracked export exists**:
+```bash
+bd export -o .beads/issues.jsonl
+bd vc status
+bd dolt commit -m "tracker: close <child-id>"   # if pending
+bd dolt push                                    # only if remote configured
+```
+
 ### Documenting Resolution (Outcome vs Design)
 
 For issues where the outcome differed from initial design, use `--notes` to document what actually happened:
@@ -332,6 +378,7 @@ bd close auth-5 --reason "OAuth refresh implemented. Discovered perf optimizatio
 | Pattern | When to Use | Key Command | Preserves |
 |---------|-------------|-------------|-----------|
 | **Knowledge Work** | Long-running research, writing | `bd update --notes` | Context across sessions |
+| **Broad Parent Narrowing** | Ready work is too broad to execute safely | `bd create`, `bd update`, `bd show` | Executable next gap |
 | **Side Quest** | Discovered during other work | `bd dep add --type discovered-from` | Relationship to original |
 | **Multi-Session Resume** | Returning after time away | `bd ready`, `bd show` | Full project state |
 | **Status Transitions** | Tracking work state | `bd update --status` | Current state |

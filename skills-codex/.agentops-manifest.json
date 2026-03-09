@@ -14,8 +14,8 @@
     {
       "name": "beads",
       "source_skill": "skills/beads",
-      "source_hash": "233d300bcfe6882fc096c7f3e9b1f3e82f7a19b5adb3b783139a3c10b9074f0f",
-      "generated_hash": "e102ae2336d91bfad0d96ce4ea811505cc1e0838aaed79dfe067141dfb09ae8c"
+      "source_hash": "e8b3be537990faf3b609a48f71462a385f46030fbe8e03c0610ec1d871118e23",
+      "generated_hash": "f420b0bb94dbf1deda376f39730aec43855b7ef940d1a756d3d7f4d00c199e57"
     },
     {
       "name": "brainstorm",

@@ -6,7 +6,31 @@ Hard-won lessons from production beads usage. Avoid these mistakes.
 
 ## Critical Anti-Patterns
 
-### 1. Molecule-Style Issue IDs
+### 1. Treating `.beads/issues.jsonl` as the Canonical Tracker
+
+**DON'T**: Use `.beads/issues.jsonl` as your primary source for what is ready or what notes say when live `bd` commands are available
+
+```bash
+# WRONG
+jq '.[] | select(.status=="open")' .beads/issues.jsonl
+```
+
+**DO**: Use live `bd` queries first
+
+```bash
+# CORRECT
+bd ready --json
+bd show <id> --json
+```
+
+**Why it breaks**:
+- Export files can lag behind live tracker state
+- Autonomous runs make bad routing decisions when they trust stale JSONL
+- Parent notes and status can already be reconciled in Dolt even if the export was not refreshed
+
+---
+
+### 2. Molecule-Style Issue IDs
 
 **DON'T**: Create issues with dot-separated hierarchical IDs
 
@@ -44,7 +68,7 @@ bd doctor --fix --source=jsonl --yes
 
 ---
 
-### 2. Prefix Proliferation
+### 3. Prefix Proliferation
 
 **DON'T**: Mix multiple prefixes in one database
 
@@ -81,36 +105,78 @@ grep -o '"id":"[^-]*' .beads/issues.jsonl | sort -u
 
 ---
 
-### 3. Skipping Session End Protocol
+### 4. Assuming Tracked JSONL Stays Synced Automatically
 
-**DON'T**: Stop work without pushing your issue updates
+**DON'T**: Mutate tracker state and assume `.beads/issues.jsonl` will stay current by itself
 
 ```bash
-# WRONG - Work not persisted remotely
-bd close ap-1234 --reason "Done"
-# ... session ends without commit/push
+# WRONG
+bd update ap-1234 --notes "Remaining gap narrowed to CLI parity"
+# keep working without exporting tracked JSONL
 ```
 
-**DO**: Finish your normal git push workflow before stopping
+**DO**: Refresh the tracked export explicitly after tracker writes
 
 ```bash
-# CORRECT - Full session end protocol
-bd close ap-1234 --reason "Done"
-bd vc status               # Optional Dolt inspection; JSONL auto-sync is automatic
-git add .beads/            # Stage if needed
-git commit -m "beads: close ap-1234"
-git push                   # Push to remote
+# CORRECT
+bd update ap-1234 --notes "Remaining gap narrowed to CLI parity"
+bd export -o .beads/issues.jsonl   # if tracked
 ```
 
 **Why it matters**:
-- Beads changes live in `.beads/issues.jsonl`
-- Without commit+push, changes lost on branch switch
-- Other agents/sessions won't see your updates
-- Merge conflicts accumulate if changes are not committed/pushed regularly
+- The export is a git artifact, not a guaranteed live mirror
+- Git history becomes misleading when tracked exports are stale
+- Other agents may diff the export and see outdated state
 
 ---
 
-### 4. Mayor Implementing Instead of Dispatching
+### 5. Closing Child Issues Without Reconciling the Parent
+
+**DON'T**: Close a child bead and leave the parent's stale "remaining gap" notes untouched
+
+```bash
+# WRONG
+bd close pl-vnu.4 --reason "Fixed the exact remaining gap"
+# parent still says the gap is open
+```
+
+**DO**: Reconcile the open parent in the same session
+
+```bash
+# CORRECT
+bd close <child-id> --reason "Closed concrete remaining gap"
+bd show <parent-id>
+bd update <parent-id> --notes "Remaining gap now ..."
+# or bd close <parent-id> when nothing real remains
+```
+
+**Why it matters**:
+- Stale parent notes create false backlog
+- `bd ready` can surface umbrella work that is already effectively done
+- Autonomous loops lose trust in tracker state
+
+---
+
+### 6. Implementing Broad Parent Beads Directly
+
+**DON'T**: Take a broad umbrella bead from `bd ready` and implement against the vague parent wording
+
+```bash
+# WRONG
+bd show pl-vnu.5
+# immediately code against the parent without narrowing the remaining gap
+```
+
+**DO**: Identify the concrete gap, create or update a narrower child bead, and execute against that child
+
+**Why it matters**:
+- Broad parents hide multiple possible gaps
+- Acceptance criteria are usually too coarse for reliable execution
+- Parent reconciliation becomes impossible if execution never targeted the real remaining gap
+
+---
+
+### 7. Mayor Implementing Instead of Dispatching
 
 **DON'T**: Mayor role edits code directly
 
@@ -139,7 +205,7 @@ gt convoy list  <!-- FUTURE: gt convoy not yet implemented -->
 
 ---
 
-### 5. Stale MR Issue Accumulation
+### 8. Stale MR Issue Accumulation
 
 **DON'T**: Let merge request issues pile up
 
@@ -168,7 +234,7 @@ done
 
 ---
 
-### 6. Using Short IDs
+### 9. Using Short IDs
 
 **DON'T**: Use abbreviated issue IDs
 
@@ -193,7 +259,7 @@ bd close ap-xyz5
 
 ---
 
-### 7. Creating Issues Without Context
+### 10. Creating Issues Without Context
 
 **DON'T**: Create issues with minimal information
 
@@ -219,6 +285,31 @@ Fix: Increase timeout or add retry logic." \
 - Issues survive compaction, conversations don't
 - Future agent needs full context from issue alone
 - 2-week resumption test: Could you restart this work from the issue text?
+
+---
+
+### 11. Treating `bd dolt push` Failure as Mandatory When No Remote Exists
+
+**DON'T**: Fail the workflow just because `bd dolt push` cannot run without a configured remote
+
+```bash
+# WRONG
+bd dolt push
+# no remote configured -> treat entire session as failed
+```
+
+**DO**: Distinguish local tracker commits from remote tracker pushes
+
+```bash
+bd vc status
+bd dolt commit -m "tracker: reconcile parent notes"   # if pending
+# Run bd dolt push only if a remote is configured
+```
+
+**Why it matters**:
+- Local tracker commits can still be valid and required
+- Some repos use Dolt only locally
+- Missing remote is an informational constraint, not a broken tracker mutation
 
 ---
 
