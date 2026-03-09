@@ -191,9 +191,22 @@ validate_evidence_only_closure_packet_file() {
             (.target_type | type == "string" and length > 0) and
             (.created_at | type == "string" and length > 0) and
             (.producer | type == "string" and length > 0) and
+            (.evidence_mode | IN("commit", "staged", "worktree")) and
             (.validation_commands | type == "array" and length > 0) and
             all(.validation_commands[]; type == "string" and length > 0) and
             (.repo_state | type == "object") and
+            (.repo_state.repo_root | type == "string" and length > 0) and
+            (.repo_state.git_branch | type == "string") and
+            (.repo_state.git_dirty | type == "boolean") and
+            (.repo_state.head_sha | type == "string") and
+            (.repo_state.modified_files | type == "array") and
+            all(.repo_state.modified_files[]; type == "string") and
+            (.repo_state.staged_files | type == "array") and
+            all(.repo_state.staged_files[]; type == "string") and
+            (.repo_state.unstaged_files | type == "array") and
+            all(.repo_state.unstaged_files[]; type == "string") and
+            (.repo_state.untracked_files | type == "array") and
+            all(.repo_state.untracked_files[]; type == "string") and
             (.evidence | type == "object" and (.summary | type == "string" and length > 0))
         ' "$packet_file" >/dev/null 2>&1
         return $?
@@ -205,6 +218,7 @@ validate_evidence_only_closure_packet_file() {
         grep -q '"target_type"' "$packet_file" &&
         grep -q '"created_at"' "$packet_file" &&
         grep -q '"producer"' "$packet_file" &&
+        grep -q '"evidence_mode"' "$packet_file" &&
         grep -q '"validation_commands"' "$packet_file" &&
         grep -q '"repo_state"' "$packet_file" &&
         grep -q '"evidence"' "$packet_file"
@@ -296,16 +310,17 @@ write_memory_packet() {
 }
 
 # write_evidence_only_closure_packet TARGET_ID TARGET_TYPE PRODUCER
-#   VALIDATION_COMMANDS_JSON REPO_STATE_JSON EVIDENCE_JSON
+#   EVIDENCE_MODE VALIDATION_COMMANDS_JSON REPO_STATE_JSON EVIDENCE_JSON
 # Emits a v1 evidence-only closure packet under
 # .agents/council/evidence-only-closures and prints the artifact path.
 write_evidence_only_closure_packet() {
     local target_id="$1"
     local target_type="$2"
     local producer="$3"
-    local validation_commands_json="$4"
-    local repo_state_json="$5"
-    local evidence_json="$6"
+    local evidence_mode="$4"
+    local validation_commands_json="$5"
+    local repo_state_json="$6"
+    local evidence_json="$7"
 
     command -v jq >/dev/null 2>&1 || return 1
     mkdir -p "$_EVIDENCE_ONLY_CLOSURE_DIR" 2>/dev/null || return 1
@@ -313,9 +328,27 @@ write_evidence_only_closure_packet() {
     [ -n "$target_id" ] || return 1
     [ -n "$target_type" ] || return 1
     [ -n "$producer" ] || return 1
+    case "$evidence_mode" in
+        commit|staged|worktree) ;;
+        *) return 1 ;;
+    esac
 
     echo "$validation_commands_json" | jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' >/dev/null 2>&1 || return 1
-    echo "$repo_state_json" | jq -e 'type == "object"' >/dev/null 2>&1 || return 1
+    echo "$repo_state_json" | jq -e '
+        type == "object" and
+        (.repo_root | type == "string" and length > 0) and
+        (.git_branch | type == "string") and
+        (.git_dirty | type == "boolean") and
+        (.head_sha | type == "string") and
+        (.modified_files | type == "array") and
+        all(.modified_files[]; type == "string") and
+        (.staged_files | type == "array") and
+        all(.staged_files[]; type == "string") and
+        (.unstaged_files | type == "array") and
+        all(.unstaged_files[]; type == "string") and
+        (.untracked_files | type == "array") and
+        all(.untracked_files[]; type == "string")
+    ' >/dev/null 2>&1 || return 1
     echo "$evidence_json" | jq -e 'type == "object"' >/dev/null 2>&1 || return 1
 
     local created_at safe_target artifact_id artifact_file
@@ -332,6 +365,7 @@ write_evidence_only_closure_packet() {
         --arg target_type "$target_type" \
         --arg created_at "$created_at" \
         --arg producer "$producer" \
+        --arg evidence_mode "$evidence_mode" \
         --argjson validation_commands "$validation_commands_json" \
         --argjson repo_state "$repo_state_json" \
         --argjson evidence "$evidence_json" \
@@ -343,6 +377,7 @@ write_evidence_only_closure_packet() {
             target_type: $target_type,
             created_at: $created_at,
             producer: $producer,
+            evidence_mode: $evidence_mode,
             validation_commands: $validation_commands,
             repo_state: $repo_state,
             evidence: $evidence

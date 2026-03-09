@@ -17,6 +17,36 @@ teardown() {
     _helper_teardown
 }
 
+setup_audit_repo() {
+    local repo_dir="$1"
+    mkdir -p "$repo_dir/bin"
+    git -C "$repo_dir" init -q >/dev/null 2>&1
+    git -C "$repo_dir" config user.email "bats@example.com"
+    git -C "$repo_dir" config user.name "Bats"
+}
+
+write_fake_bd() {
+    local repo_dir="$1"
+    local child_id="$2"
+    local scoped_file="$3"
+
+    cat >"$repo_dir/bin/bd" <<EOF
+#!/usr/bin/env bash
+case "\$1" in
+  children)
+    printf '%s\n' "$child_id"
+    ;;
+  show)
+    cat <<'OUT'
+DESCRIPTION
+\`$scoped_file\`
+OUT
+    ;;
+esac
+EOF
+    chmod +x "$repo_dir/bin/bd"
+}
+
 # ═══════════════════════════════════════════════════════════════════════
 # 1. to_repo_relative_path
 # ═══════════════════════════════════════════════════════════════════════
@@ -227,13 +257,17 @@ teardown() {
         target_type: "issue",
         created_at: "2026-03-09T00:00:00Z",
         producer: "bats",
+        evidence_mode: "worktree",
         validation_commands: ["bash tests/hooks/lib-hook-helpers.bats"],
         repo_state: {
             repo_root: "/tmp/mock-repo",
             git_branch: "main",
             git_dirty: false,
             head_sha: "abc123",
-            modified_files: []
+            modified_files: [],
+            staged_files: [],
+            unstaged_files: [],
+            untracked_files: []
         },
         evidence: {
             summary: "Validation-only closure remains auditable.",
@@ -247,14 +281,21 @@ teardown() {
 }
 
 @test "write_evidence_only_closure_packet: producer emits packet that manifest validation accepts" {
-    local artifact_file="$REPO_ROOT/.agents/council/evidence-only-closures/na-test.json"
-    rm -f "$artifact_file"
+    local evidence_repo="$TMP_TEST_DIR/evidence-repo"
+    local artifact_file="$evidence_repo/.agents/council/evidence-only-closures/na-test.json"
+    local repo_artifact="$REPO_ROOT/.agents/council/evidence-only-closures/na-test.json"
+    setup_mock_repo "$evidence_repo"
+    git -C "$evidence_repo" config user.email "bats@example.com"
+    git -C "$evidence_repo" config user.name "Bats"
+    printf 'staged proof\n' > "$evidence_repo/staged.md"
+    git -C "$evidence_repo" add staged.md
 
     run bash "$REPO_ROOT/skills/post-mortem/scripts/write-evidence-only-closure.sh" \
-        --repo-root "$REPO_ROOT" \
+        --repo-root "$evidence_repo" \
         --target-id "na-test" \
         --target-type "issue" \
         --producer "bats" \
+        --evidence-mode auto \
         --validation-command "bash tests/hooks/lib-hook-helpers.bats" \
         --evidence-summary "Validation-only closure proof emitted for auditability." \
         --artifact ".agents/council/report.md" \
@@ -268,11 +309,70 @@ teardown() {
     [ "$status" -eq 0 ]
     [ "$output" = "na-test" ]
 
+    run jq -r '.evidence_mode' "$artifact_file"
+    [ "$status" -eq 0 ]
+    [ "$output" = "staged" ]
+
+    run jq -r '.repo_state.staged_files[]' "$artifact_file"
+    [ "$status" -eq 0 ]
+    [ "$output" = "staged.md" ]
+
+    mkdir -p "$(dirname "$repo_artifact")"
+    /bin/cp "$artifact_file" "$repo_artifact"
+
     run bash "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" --skip-hooks
     [ "$status" -eq 0 ]
     [[ "$output" == *"evidence-only-closure/na-test.json"* ]]
 
     rm -f "$artifact_file"
+    rm -f "$repo_artifact"
+}
+
+@test "closure-integrity-audit.sh: auto prefers commit evidence over staged fallback" {
+    local audit_repo="$TMP_TEST_DIR/audit-commit"
+    setup_audit_repo "$audit_repo"
+    printf 'committed\n' > "$audit_repo/commit.md"
+    git -C "$audit_repo" add commit.md
+    git -C "$audit_repo" commit -q -m "add commit evidence"
+    printf 'staged\n' >> "$audit_repo/commit.md"
+    git -C "$audit_repo" add commit.md
+    write_fake_bd "$audit_repo" "ag-test.1" "commit.md"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-test' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    local commit_child
+    commit_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.commit[0]')
+    [ "$commit_child" = "ag-test.1" ]
+}
+
+@test "closure-integrity-audit.sh: auto falls back to staged evidence when no commit evidence exists" {
+    local audit_repo="$TMP_TEST_DIR/audit-staged"
+    setup_audit_repo "$audit_repo"
+    printf 'staged only\n' > "$audit_repo/staged.md"
+    git -C "$audit_repo" add staged.md
+    write_fake_bd "$audit_repo" "ag-test.1" "staged.md"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-test' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    local staged_child
+    staged_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.staged[0]')
+    [ "$staged_child" = "ag-test.1" ]
+}
+
+@test "closure-integrity-audit.sh: auto falls back to worktree evidence when no commit or staged evidence exists" {
+    local audit_repo="$TMP_TEST_DIR/audit-worktree"
+    setup_audit_repo "$audit_repo"
+    printf 'worktree only\n' > "$audit_repo/worktree.md"
+    write_fake_bd "$audit_repo" "ag-test.1" "worktree.md"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-test' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    local worktree_child
+    worktree_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.worktree[0]')
+    [ "$worktree_child" = "ag-test.1" ]
 }
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -17,6 +17,7 @@ SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REQUIRED_REFS=(
   "skills/post-mortem/references/checkpoint-policy.md"
   "skills/post-mortem/references/metadata-verification.md"
+  "skills/post-mortem/references/closure-integrity-audit.md"
 )
 
 # --- Parse flags ---

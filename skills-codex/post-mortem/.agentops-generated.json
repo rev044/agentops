@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/post-mortem",
   "layout": "modular",
-  "source_hash": "26e6a1b1d0400d184c26fd62216de2ac054ade6c11d3cadb775abffe56ad9a77",
-  "generated_hash": "08cb8968989cbdb9fde45ca2761ea5251ede5d1efb7bc73d99da46e6648504c1"
+  "source_hash": "3565cac6ac65f0351a5849f53f93d7944584f7f39453bef4a5ab0b0d28228edb",
+  "generated_hash": "da22e26e9904e342c58689210908ba2f7a8bb0efb51598c051445d921594df53"
 }

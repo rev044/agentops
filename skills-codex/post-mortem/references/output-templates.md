@@ -232,6 +232,7 @@ bash skills/post-mortem/scripts/write-evidence-only-closure.sh \
   --target-id na-a7e.4 \
   --target-type issue \
   --producer post-mortem \
+  --evidence-mode auto \
   --validation-command "bash tests/hooks/lib-hook-helpers.bats" \
   --evidence-summary "Structured proof artifact added and schema validation passed." \
   --artifact ".agents/council/2026-03-09-post-mortem-na-a7e.md"
@@ -247,12 +248,16 @@ Template shape:
   "target_type": "issue",
   "created_at": "YYYY-MM-DDTHH:MM:SSZ",
   "producer": "post-mortem",
+  "evidence_mode": "commit|staged|worktree",
   "validation_commands": ["bash <command>"],
   "repo_state": {
     "git_branch": "main",
-    "git_dirty": false,
+    "git_dirty": true,
     "head_sha": "<sha>",
-    "modified_files": []
+    "modified_files": [],
+    "staged_files": [],
+    "unstaged_files": [],
+    "untracked_files": []
   },
   "evidence": {
     "summary": "<why evidence-only closure is valid>",
@@ -261,6 +266,12 @@ Template shape:
   }
 }
 ```
+
+Mode guidance:
+
+- `commit`: use when commit-backed evidence exists for the closed item
+- `staged`: use when no qualifying commit exists yet but the scoped files are staged
+- `worktree`: use when only unstaged/untracked working-tree evidence exists
 
 ### Context Gathered
 

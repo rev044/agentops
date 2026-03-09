@@ -12,6 +12,7 @@
     "target_type",
     "created_at",
     "producer",
+    "evidence_mode",
     "validation_commands",
     "repo_state",
     "evidence"
@@ -44,6 +45,10 @@
       "type": "string",
       "minLength": 1
     },
+    "evidence_mode": {
+      "type": "string",
+      "enum": ["commit", "staged", "worktree"]
+    },
     "validation_commands": {
       "type": "array",
       "minItems": 1,
@@ -55,7 +60,16 @@
     "repo_state": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["repo_root", "git_branch", "git_dirty", "head_sha", "modified_files"],
+      "required": [
+        "repo_root",
+        "git_branch",
+        "git_dirty",
+        "head_sha",
+        "modified_files",
+        "staged_files",
+        "unstaged_files",
+        "untracked_files"
+      ],
       "properties": {
         "repo_root": {
           "type": "string",
@@ -71,6 +85,24 @@
           "type": "string"
         },
         "modified_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "staged_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unstaged_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "untracked_files": {
           "type": "array",
           "items": {
             "type": "string"
