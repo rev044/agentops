@@ -102,6 +102,13 @@ Use `auto` only for audit selection logic, never as the final reported evidence 
 
 ### Evidence-Only Closure Packet
 
+If a child is being closed on validation or policy evidence alone, or it closes before commit-backed proof exists, produce a packet before closeout. The writer emits both:
+
+- Local council copy: `.agents/council/evidence-only-closures/<target-id>.json`
+- Durable tracked copy: `.agents/releases/evidence-only-closures/<target-id>.json`
+
+If the child closes before commit-backed proof exists, the durable tracked copy must be preserved with the change set.
+
 If a child is being closed on validation or policy evidence alone, produce a packet before closeout:
 
 ```bash

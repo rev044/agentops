@@ -137,6 +137,17 @@ Notes:
 - Populate `## Next Work` before `### Recommended Next /rpi`. The suggestion must come from harvested items, not pre-harvest speculation.
 - If no items are harvested, keep the report explicit: `Flywheel stable - no follow-up items identified.`
 - Footgun entries are not optional flavor text. They are harvest inputs for `pattern-fix` items when the cycle discovered real operator/runtime gotchas.
+- Evidence-only or pre-commit closure packets must preserve the durable tracked copy at `.agents/releases/evidence-only-closures/<target-id>.json`. The writer also emits a local council copy at `.agents/council/evidence-only-closures/<target-id>.json`.
+
+Example evidence-only closure packet:
+
+```json
+{
+  "repo_state": {
+    "repo_root": "."
+  }
+}
+```
 
 ## Evidence-Only Closure Artifact
 

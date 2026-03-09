@@ -65,6 +65,10 @@ json_array_from_stream() {
   fi
 }
 
+run_git_clean() {
+  env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR git "$@"
+}
+
 regex_escape_extended() {
   printf '%s' "$1" | sed -e 's/[][(){}.^$*+?|\\-]/\\&/g'
 }
@@ -242,7 +246,7 @@ commit_ref_exists() {
 
   escaped_child="$(regex_escape_extended "$child")"
   pattern="(^|[^[:alnum:]_.-])${escaped_child}([^[:alnum:]_.-]|$)"
-  git log --format='%H' --all --extended-regexp --grep="$pattern" 2>/dev/null | grep -q .
+  run_git_clean log --format='%H' --all --extended-regexp --grep="$pattern" 2>/dev/null | grep -q .
 }
 
 commit_matches_json() {
@@ -257,7 +261,7 @@ commit_matches_json() {
   [[ -n "$until" ]] && git_args+=("--until=$until")
 
   for file in "$@"; do
-    if git "${git_args[@]}" -- "$file" 2>/dev/null | grep -q .; then
+    if run_git_clean "${git_args[@]}" -- "$file" 2>/dev/null | grep -q .; then
       matched_files+=("$file")
     fi
   done
@@ -275,7 +279,7 @@ staged_matches_json() {
     printf '[]\n'
     return 0
   fi
-  git diff --cached --name-only --diff-filter=ACMR -- "$@" 2>/dev/null | json_array_from_stream
+  run_git_clean diff --cached --name-only --diff-filter=ACMR -- "$@" 2>/dev/null | json_array_from_stream
 }
 
 worktree_matches_json() {
@@ -285,9 +289,57 @@ worktree_matches_json() {
   fi
 
   {
-    git diff --name-only --diff-filter=ACMR -- "$@" 2>/dev/null || true
-    git ls-files --others --exclude-standard -- "$@" 2>/dev/null || true
+    run_git_clean diff --name-only --diff-filter=ACMR -- "$@" 2>/dev/null || true
+    run_git_clean ls-files --others --exclude-standard -- "$@" 2>/dev/null || true
   } | json_array_from_stream
+}
+
+child_is_closed() {
+  local child_json="$1"
+
+  printf '%s\n' "$child_json" \
+    | jq -e '
+        (.status // "" | ascii_downcase) == "closed" or
+        ((.closed_at // "") | length > 0)
+      ' >/dev/null 2>&1
+}
+
+packet_is_valid_for_child() {
+  local packet_path="$1"
+  local child="$2"
+
+  [[ -f "$packet_path" ]] || return 1
+  jq -e --arg child "$child" '
+    .target_id == $child and
+    (.evidence_mode | IN("commit", "staged", "worktree")) and
+    (.evidence.artifacts | type == "array" and length > 0)
+  ' "$packet_path" >/dev/null 2>&1
+}
+
+durable_packet_path_for_child() {
+  local child="$1"
+  local safe_child="${child//\//_}"
+
+  if [[ -f ".agents/releases/evidence-only-closures/${safe_child}.json" ]]; then
+    printf '.agents/releases/evidence-only-closures/%s.json\n' "$safe_child"
+    return 0
+  fi
+  if [[ -f ".agents/council/evidence-only-closures/${safe_child}.json" ]]; then
+    printf '.agents/council/evidence-only-closures/%s.json\n' "$safe_child"
+    return 0
+  fi
+  return 1
+}
+
+packet_evidence_mode() {
+  local packet_path="$1"
+  jq -r '.evidence_mode' "$packet_path"
+}
+
+packet_matches_json() {
+  local packet_path="$1"
+
+  jq -c --arg path "$packet_path" '[$path, (.evidence.artifacts[]?)] | unique' "$packet_path"
 }
 
 build_child_result() {
@@ -318,16 +370,27 @@ build_child_result() {
 classify_child() {
   local child="$1"
   local child_json=""
+  local human_output=""
   local created_at=""
   local closed_at=""
-  local scoped_json commit_json staged_json worktree_json
+  local packet_path=""
+  local packet_mode=""
+  local scoped_json commit_json staged_json worktree_json packet_json
   local -a scoped_files=()
 
   if child_json="$(bd_show_json "$child" 2>/dev/null)"; then
+    if ! child_is_closed "$child_json"; then
+      return 0
+    fi
     created_at="$(issue_timestamp "$child_json" "created_at")"
     closed_at="$(issue_timestamp "$child_json" "closed_at")"
     if [[ -z "$closed_at" ]]; then
       closed_at="$(issue_timestamp "$child_json" "updated_at")"
+    fi
+  else
+    human_output="$(bd show "$child" 2>/dev/null || true)"
+    if [[ "$human_output" != *"CLOSED"* ]]; then
+      return 0
     fi
   fi
 
@@ -381,6 +444,13 @@ classify_child() {
       ;;
   esac
 
+  if packet_path="$(durable_packet_path_for_child "$child")" && packet_is_valid_for_child "$packet_path" "$child"; then
+    packet_mode="$(packet_evidence_mode "$packet_path")"
+    packet_json="$(packet_matches_json "$packet_path")"
+    build_child_result "$child" "$scoped_json" "$packet_mode" "matched durable closure proof packet" "$packet_json" "pass"
+    return 0
+  fi
+
   build_child_result "$child" "$scoped_json" "none" "no qualifying commit, staged, or worktree evidence" '[]' "fail"
 }
 
@@ -416,7 +486,9 @@ fi
 children_output="$(cat "$children_file")"
 while IFS= read -r child; do
   [[ -n "$child" ]] || continue
-  classify_child "$child" >> "$tmp_results"
+  child_result="$(classify_child "$child")"
+  [[ -n "$child_result" ]] || continue
+  printf '%s\n' "$child_result" >> "$tmp_results"
 done <<< "$children_output"
 
 jq -s \

@@ -107,6 +107,24 @@ fi
 ROOT="$TARGET_ROOT"
 source "$WORKSPACE_ROOT/lib/hook-helpers.sh"
 
+run_git_target() {
+  env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR git -C "$TARGET_ROOT" "$@"
+}
+
+to_target_relative_path() {
+  local path="$1"
+  local repo_root="${TARGET_ROOT%/}"
+
+  case "$path" in
+    "$repo_root"/*)
+      printf '.%s\n' "${path#"$repo_root"}"
+      ;;
+    *)
+      printf '%s\n' "$path"
+      ;;
+  esac
+}
+
 if [[ "${#VALIDATION_COMMANDS[@]}" -eq 0 ]]; then
   printf -v default_validation_command 'bash scripts/validate-manifests.sh --repo-root %q' "$TARGET_ROOT"
   VALIDATION_COMMANDS=("$default_validation_command")
@@ -126,14 +144,13 @@ json_array_from_values() {
 }
 
 validation_commands_json="$(json_array_from_values "${VALIDATION_COMMANDS[@]}")"
-artifacts_json="$(json_array_from_values "${ARTIFACTS[@]}")"
 notes_json="$(json_array_from_values "${NOTES[@]}")"
 
-git_branch="$(git -C "$TARGET_ROOT" branch --show-current 2>/dev/null || true)"
-head_sha="$(git -C "$TARGET_ROOT" rev-parse HEAD 2>/dev/null || true)"
-mapfile -t staged_files < <(git -C "$TARGET_ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
-mapfile -t unstaged_files < <(git -C "$TARGET_ROOT" diff --name-only --diff-filter=ACMR 2>/dev/null || true)
-mapfile -t untracked_files < <(git -C "$TARGET_ROOT" ls-files --others --exclude-standard 2>/dev/null || true)
+git_branch="$(run_git_target branch --show-current 2>/dev/null || true)"
+head_sha="$(run_git_target rev-parse HEAD 2>/dev/null || true)"
+mapfile -t staged_files < <(run_git_target diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+mapfile -t unstaged_files < <(run_git_target diff --name-only --diff-filter=ACMR 2>/dev/null || true)
+mapfile -t untracked_files < <(run_git_target ls-files --others --exclude-standard 2>/dev/null || true)
 mapfile -t modified_files < <(
   printf '%s\n' "${staged_files[@]}" "${unstaged_files[@]}" "${untracked_files[@]}" \
     | sed '/^[[:space:]]*$/d' \
@@ -170,9 +187,20 @@ resolve_evidence_mode() {
 
 resolved_evidence_mode="$(resolve_evidence_mode)"
 
+safe_target="${TARGET_ID//\//_}"
+DURABLE_PACKET_PATH=".agents/releases/evidence-only-closures/${safe_target}.json"
+artifacts_with_durable=("${ARTIFACTS[@]}" "$DURABLE_PACKET_PATH")
+mapfile -t normalized_artifacts < <(
+  for artifact in "${artifacts_with_durable[@]}"; do
+    [[ -n "$artifact" ]] || continue
+    to_target_relative_path "$artifact"
+  done | sed '/^[[:space:]]*$/d' | sort -u
+)
+artifacts_json="$(json_array_from_values "${normalized_artifacts[@]}")"
+
 repo_state_json="$(
   jq -n \
-    --arg repo_root "$TARGET_ROOT" \
+    --arg repo_root "." \
     --arg git_branch "$git_branch" \
     --arg head_sha "$head_sha" \
     --argjson git_dirty "$git_dirty" \

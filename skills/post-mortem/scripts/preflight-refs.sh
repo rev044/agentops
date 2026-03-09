@@ -13,11 +13,12 @@
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$SKILL_DIR/../.." && pwd)"
 
 REQUIRED_REFS=(
-  "skills/post-mortem/references/checkpoint-policy.md"
-  "skills/post-mortem/references/metadata-verification.md"
-  "skills/post-mortem/references/closure-integrity-audit.md"
+  "$SKILL_DIR/references/checkpoint-policy.md"
+  "$SKILL_DIR/references/metadata-verification.md"
+  "$SKILL_DIR/references/closure-integrity-audit.md"
 )
 
 # --- Parse flags ---
@@ -41,18 +42,19 @@ missing_list=()
 skipped_list=()
 
 for ref in "${REQUIRED_REFS[@]}"; do
+  display_ref="${ref#"$REPO_ROOT"/}"
   # Apply skip guard clause
   if [[ "$skip_checkpoint_policy" == true ]] && [[ "$ref" == *"checkpoint-policy.md" ]]; then
     skipped=$((skipped + 1))
-    skipped_list+=("$ref")
+    skipped_list+=("$display_ref")
     continue
   fi
 
-  if [ ! -f "$ref" ]; then
+  if [ ! -f "$ref" ] || ! cat "$ref" >/dev/null 2>&1; then
     missing=$((missing + 1))
-    missing_list+=("$ref")
+    missing_list+=("$display_ref")
     if [ "$json_output" = false ]; then
-      echo "WARN: missing required reference: $ref"
+      echo "WARN: missing required reference: $display_ref"
     fi
   fi
 done

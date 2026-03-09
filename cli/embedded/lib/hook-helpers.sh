@@ -20,12 +20,13 @@ _HOOK_HELPERS_ERROR_LOG_DIR="${ROOT}/.agents/ao"
 _HOOK_PACKET_ROOT="${ROOT}/.agents/ao/packets"
 _HOOK_PACKET_PENDING_DIR="${_HOOK_PACKET_ROOT}/pending"
 _EVIDENCE_ONLY_CLOSURE_DIR="${ROOT}/.agents/council/evidence-only-closures"
+_EVIDENCE_ONLY_CLOSURE_RELEASE_DIR="${ROOT}/.agents/releases/evidence-only-closures"
 
 to_repo_relative_path() {
     local abs="$1"
     local repo="${ROOT%/}"
     case "$abs" in
-        "$repo"/*) printf '.%s\n' "${abs#$repo}" ;;
+        "$repo"/*) printf '.%s\n' "${abs#"$repo"}" ;;
         *) printf '%s\n' "$abs" ;;
     esac
 }
@@ -215,7 +216,7 @@ validate_evidence_only_closure_packet_file() {
             all(.repo_state.untracked_files[]; type == "string") and
             (.evidence | type == "object") and
             (.evidence.summary | type == "string" and length > 0) and
-            (.evidence.artifacts | type == "array") and
+            (.evidence.artifacts | type == "array" and length > 0) and
             all(.evidence.artifacts[]; type == "string") and
             (.evidence.notes | type == "array") and
             all(.evidence.notes[]; type == "string")
@@ -320,11 +321,11 @@ write_memory_packet() {
     return 0
 }
 
-# write_evidence_only_closure_packet TARGET_ID TARGET_TYPE PRODUCER
-#   EVIDENCE_MODE VALIDATION_COMMANDS_JSON REPO_STATE_JSON EVIDENCE_JSON
-# Emits a v1 evidence-only closure packet under
-# .agents/council/evidence-only-closures and prints the artifact path.
-write_evidence_only_closure_packet() {
+# write_evidence_only_closure_packet_to_dir TARGET_ID TARGET_TYPE PRODUCER
+#   EVIDENCE_MODE VALIDATION_COMMANDS_JSON REPO_STATE_JSON EVIDENCE_JSON OUTPUT_DIR
+# Emits a v1 evidence-only closure packet into the requested directory and
+# prints the artifact path.
+write_evidence_only_closure_packet_to_dir() {
     local target_id="$1"
     local target_type="$2"
     local producer="$3"
@@ -332,13 +333,15 @@ write_evidence_only_closure_packet() {
     local validation_commands_json="$5"
     local repo_state_json="$6"
     local evidence_json="$7"
+    local output_dir="$8"
 
     command -v jq >/dev/null 2>&1 || return 1
-    mkdir -p "$_EVIDENCE_ONLY_CLOSURE_DIR" 2>/dev/null || return 1
+    mkdir -p "$output_dir" 2>/dev/null || return 1
 
     [ -n "$target_id" ] || return 1
     [ -n "$target_type" ] || return 1
     [ -n "$producer" ] || return 1
+    [ -n "$output_dir" ] || return 1
     case "$evidence_mode" in
         commit|staged|worktree) ;;
         *) return 1 ;;
@@ -373,7 +376,7 @@ write_evidence_only_closure_packet() {
     created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
     safe_target="${target_id//\//_}"
     artifact_id="evidence-only-closure-${safe_target}"
-    artifact_file="${_EVIDENCE_ONLY_CLOSURE_DIR}/${safe_target}.json"
+    artifact_file="${output_dir}/${safe_target}.json"
 
     jq -n \
         --arg schema "../../../schemas/evidence-only-closure.v1.schema.json" \
@@ -407,6 +410,57 @@ write_evidence_only_closure_packet() {
     fi
 
     printf '%s\n' "$artifact_file"
+    return 0
+}
+
+# write_evidence_only_closure_packet TARGET_ID TARGET_TYPE PRODUCER
+#   EVIDENCE_MODE VALIDATION_COMMANDS_JSON REPO_STATE_JSON EVIDENCE_JSON
+# Emits a v1 evidence-only closure packet under
+# .agents/council/evidence-only-closures and a durable tracked copy under
+# .agents/releases/evidence-only-closures. Prints the council artifact path.
+write_evidence_only_closure_packet() {
+    local target_id="$1"
+    local target_type="$2"
+    local producer="$3"
+    local evidence_mode="$4"
+    local validation_commands_json="$5"
+    local repo_state_json="$6"
+    local evidence_json="$7"
+    local local_artifact release_artifact
+
+    local_artifact="$(
+        write_evidence_only_closure_packet_to_dir \
+            "$target_id" \
+            "$target_type" \
+            "$producer" \
+            "$evidence_mode" \
+            "$validation_commands_json" \
+            "$repo_state_json" \
+            "$evidence_json" \
+            "$_EVIDENCE_ONLY_CLOSURE_DIR"
+    )" || return 1
+
+    release_artifact="$(
+        write_evidence_only_closure_packet_to_dir \
+            "$target_id" \
+            "$target_type" \
+            "$producer" \
+            "$evidence_mode" \
+            "$validation_commands_json" \
+            "$repo_state_json" \
+            "$evidence_json" \
+            "$_EVIDENCE_ONLY_CLOSURE_RELEASE_DIR"
+    )" || {
+        rm -f "$local_artifact" 2>/dev/null || true
+        return 1
+    }
+
+    [ -n "$release_artifact" ] || {
+        rm -f "$local_artifact" 2>/dev/null || true
+        return 1
+    }
+
+    printf '%s\n' "$local_artifact"
     return 0
 }
 

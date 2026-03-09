@@ -369,10 +369,15 @@ log "Validating evidence-only closure artifacts"
 EVIDENCE_ONLY_CLOSURE_SCHEMA="$REPO_ROOT/schemas/evidence-only-closure.v1.schema.json"
 if [[ -f "$EVIDENCE_ONLY_CLOSURE_SCHEMA" ]]; then
     found_evidence_only_closure=0
-    for artifact in "$REPO_ROOT"/.agents/council/evidence-only-closures/*.json; do
-        [[ -f "$artifact" ]] || continue
-        found_evidence_only_closure=1
-        validate_manifest "$artifact" "$EVIDENCE_ONLY_CLOSURE_SCHEMA" "evidence-only-closure/$(basename "$artifact")"
+    for artifact_dir in \
+        "$REPO_ROOT"/.agents/council/evidence-only-closures \
+        "$REPO_ROOT"/.agents/releases/evidence-only-closures; do
+        [[ -d "$artifact_dir" ]] || continue
+        for artifact in "$artifact_dir"/*.json; do
+            [[ -f "$artifact" ]] || continue
+            found_evidence_only_closure=1
+            validate_manifest "$artifact" "$EVIDENCE_ONLY_CLOSURE_SCHEMA" "evidence-only-closure/$(basename "$artifact")"
+        done
     done
     if [[ "$found_evidence_only_closure" -eq 0 ]]; then
         echo "ℹ no evidence-only closure artifacts found (skipped)"

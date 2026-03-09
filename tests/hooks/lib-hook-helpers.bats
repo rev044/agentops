@@ -410,7 +410,10 @@ EOF
         },
         evidence: {
             summary: "Validation-only closure remains auditable.",
-            artifacts: [".agents/council/report.md"],
+            artifacts: [
+                ".agents/council/report.md",
+                ".agents/releases/evidence-only-closures/na-test.json"
+            ],
             notes: []
         }
     }' > "$artifact"
@@ -452,7 +455,8 @@ EOF
 @test "write_evidence_only_closure_packet: producer emits packet that manifest validation accepts" {
     local evidence_repo="$TMP_TEST_DIR/evidence-repo"
     local artifact_file="$evidence_repo/.agents/council/evidence-only-closures/na-test.json"
-    local repo_artifact="$REPO_ROOT/.agents/council/evidence-only-closures/na-test.json"
+    local durable_artifact="$evidence_repo/.agents/releases/evidence-only-closures/na-test.json"
+    local repo_artifact="$REPO_ROOT/.agents/releases/evidence-only-closures/na-test.json"
     setup_mock_repo "$evidence_repo"
     git -C "$evidence_repo" config user.email "bats@example.com"
     git -C "$evidence_repo" config user.name "Bats"
@@ -473,6 +477,7 @@ EOF
     [ -n "$output" ]
     [ -f "$output" ]
     [ "$output" = "$artifact_file" ]
+    [ -f "$durable_artifact" ]
 
     run jq -r '.target_id' "$output"
     [ "$status" -eq 0 ]
@@ -486,9 +491,17 @@ EOF
     [ "$status" -eq 0 ]
     [ "$output" = "staged.md" ]
 
+    run jq -r '.repo_state.repo_root' "$durable_artifact"
+    [ "$status" -eq 0 ]
+    [ "$output" = "." ]
+
+    run jq -r '.evidence.artifacts[]' "$durable_artifact"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *".agents/releases/evidence-only-closures/na-test.json"* ]]
+
     REAL_REPO_CLEANUP_PATHS+=("$repo_artifact")
     mkdir -p "$(dirname "$repo_artifact")"
-    /bin/cp "$artifact_file" "$repo_artifact"
+    /bin/cp "$durable_artifact" "$repo_artifact"
 
     run bash "$REPO_ROOT/scripts/validate-manifests.sh" --repo-root "$REPO_ROOT" --skip-hooks
     [ "$status" -eq 0 ]
@@ -516,6 +529,8 @@ EOF
     run jq -r '.validation_commands[0]' "$artifact_file"
     [ "$status" -eq 0 ]
     [ "$output" = "$expected_command" ]
+
+    [ -f "$evidence_repo/.agents/releases/evidence-only-closures/na-space.json" ]
 }
 
 @test "closure-integrity-audit.sh: auto prefers commit evidence over staged fallback" {
@@ -644,6 +659,148 @@ EOF
     [ "$collection_failed" = "true" ]
     failure_detail=$(printf '%s\n' "$output" | jq -r '.failures[0].detail')
     [[ "$failure_detail" == *"no child issues"* ]]
+}
+
+@test "write_evidence_only_closure_packet: ignores inherited git env from another repo" {
+    local outer_repo="$TMP_TEST_DIR/outer-repo"
+    local evidence_repo="$TMP_TEST_DIR/evidence-env-repo"
+    setup_mock_repo "$outer_repo"
+    setup_mock_repo "$evidence_repo"
+    git -C "$evidence_repo" config user.email "bats@example.com"
+    git -C "$evidence_repo" config user.name "Bats"
+    printf 'tracked\n' > "$evidence_repo/proof.md"
+    git -C "$evidence_repo" add proof.md
+
+    export GIT_DIR="$outer_repo/.git"
+    export GIT_WORK_TREE="$outer_repo"
+    export GIT_COMMON_DIR="$outer_repo/.git"
+    run bash "$REPO_ROOT/skills/post-mortem/scripts/write-evidence-only-closure.sh" \
+        --repo-root "$evidence_repo" \
+        --target-id "na-env" \
+        --target-type "issue" \
+        --producer "bats" \
+        --evidence-summary "Inherited git env should not poison repo-state capture."
+    unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR
+
+    [ "$status" -eq 0 ]
+    run jq -r '.repo_state.staged_files[0]' "$evidence_repo/.agents/releases/evidence-only-closures/na-env.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "proof.md" ]
+}
+
+@test "closure-integrity-audit.sh: ignores open children" {
+    local audit_repo="$TMP_TEST_DIR/audit-open"
+    local checked_children=""
+    setup_audit_repo "$audit_repo"
+    cat >"$audit_repo/bin/bd" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+command_name="$1"
+shift || true
+want_json=0
+for arg in "$@"; do
+  if [[ "$arg" == "--json" ]]; then
+    want_json=1
+  fi
+done
+
+case "$command_name" in
+  children)
+    if [[ "$want_json" -eq 1 ]]; then
+      cat <<'OUT'
+[{"id":"ag-open.1","status":"open"}]
+OUT
+    else
+      printf '%s\n' "ag-open.1"
+    fi
+    ;;
+  show)
+    if [[ "$1" == "ag-open" ]]; then
+      if [[ "$want_json" -eq 1 ]]; then
+        cat <<'OUT'
+[{"id":"ag-open","dependents":[{"id":"ag-open.1","dependency_type":"parent-child"}]}]
+OUT
+      else
+        cat <<'OUT'
+✓ ag-open [EPIC] · Example epic   [● P1 · OPEN]
+OUT
+      fi
+    else
+      if [[ "$want_json" -eq 1 ]]; then
+        cat <<'OUT'
+[{"id":"ag-open.1","status":"open","description":"Files:\n- proof.md"}]
+OUT
+      else
+        cat <<'OUT'
+✓ ag-open.1 [TASK] · Example child   [● P1 · OPEN]
+DESCRIPTION
+Files:
+- proof.md
+OUT
+      fi
+    fi
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+EOF
+    chmod +x "$audit_repo/bin/bd"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-open' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    checked_children=$(printf '%s\n' "$output" | jq -r '.summary.checked_children')
+    [ "$checked_children" = "0" ]
+}
+
+@test "closure-integrity-audit.sh: uses durable closure packet when commit proof lands after close" {
+    local audit_repo="$TMP_TEST_DIR/audit-durable"
+    local durable_packet="$TMP_TEST_DIR/durable-packet.json"
+    local staged_child=""
+    setup_audit_repo "$audit_repo"
+    mkdir -p "$audit_repo/.agents/releases/evidence-only-closures"
+    printf 'legacy\n' > "$audit_repo/proof.md"
+    git -C "$audit_repo" add proof.md
+    git -C "$audit_repo" commit -q -m "post-close proof arrives later"
+    write_fake_bd_json "$audit_repo" "ag-durable" "ag-durable.1" $'Files:\n- proof.md' \
+        "2026-03-09T10:00:00Z" "2026-03-09T10:05:00Z" "2026-03-09T10:05:00Z"
+    jq -n '{
+        schema_version: 1,
+        artifact_id: "evidence-only-closure-ag-durable.1",
+        target_id: "ag-durable.1",
+        target_type: "issue",
+        created_at: "2026-03-09T10:05:00Z",
+        producer: "bats",
+        evidence_mode: "staged",
+        validation_commands: ["bash tests/hooks/lib-hook-helpers.bats"],
+        repo_state: {
+            repo_root: ".",
+            git_branch: "main",
+            git_dirty: false,
+            head_sha: "abc123",
+            modified_files: ["proof.md"],
+            staged_files: ["proof.md"],
+            unstaged_files: [],
+            untracked_files: []
+        },
+        evidence: {
+            summary: "Durable packet preserves the pre-commit close proof.",
+            artifacts: [
+                ".agents/releases/evidence-only-closures/ag-durable.1.json",
+                "proof.md"
+            ],
+            notes: []
+        }
+    }' > "$durable_packet"
+    /bin/cp "$durable_packet" "$audit_repo/.agents/releases/evidence-only-closures/ag-durable.1.json"
+
+    run bash -c 'cd "$1" && PATH="$1/bin:$PATH" bash "$2" --scope auto ag-durable' -- \
+        "$audit_repo" "$REPO_ROOT/skills/post-mortem/scripts/closure-integrity-audit.sh"
+    [ "$status" -eq 0 ]
+    staged_child=$(printf '%s\n' "$output" | jq -r '.summary.evidence_modes.staged[0]')
+    [ "$staged_child" = "ag-durable.1" ]
 }
 
 # ═══════════════════════════════════════════════════════════════════════
