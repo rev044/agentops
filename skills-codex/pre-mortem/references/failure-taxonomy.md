@@ -13,7 +13,7 @@ When running pre-mortem, use each category as a checklist item:
 3. If the answer is "no" or "unclear", that's a GAP
 4. Apply the Enhancement Pattern to fix it
 
-The taxonomy covers 10 categories. Minimum viable pre-mortem covers at least:
+The taxonomy covers 12 categories. Minimum viable pre-mortem covers at least:
 - **Interface Mismatch** - API/schema defined?
 - **Error Handling** - Error states defined?
 - **Safety** - Rollback defined?
@@ -170,6 +170,38 @@ For comprehensive validation, walk through all 10 categories. See `enhancement-p
 | Unclear ownership | "Who gets paged?" | Add escalation path |
 
 **Simulation Prompt**: "What if this breaks on Sunday at 3 AM?"
+
+---
+
+## Category 11: Classification & Pattern Matching
+
+**Description**: When code classifies inputs into categories (error types, event kinds, status codes), the taxonomy and matching patterns are a common source of subtle bugs.
+
+| Failure Mode | Detection Question | Enhancement Pattern |
+|--------------|-------------------|---------------------|
+| False-positive patterns | "Can a benign input match this pattern?" (e.g., port `4290` matching HTTP `429`) | Require contextual co-occurrence: bare substring matches for numbers/keywords need surrounding context (HTTP prefix, error suffix) |
+| Incomplete taxonomy | "What falls through to the default case?" List 5 real-world inputs that would hit `default`. | Expand patterns or make the default case semantically meaningful (e.g., `execution_error` vs `unknown`) |
+| Overly broad keyword | "Does `sandbox` always mean sandbox violation? Or could `sandbox startup failed` be an execution error?" | Require compound matches: keyword + policy phrase (denied, violation, not permitted) |
+| Untrusted wire enums | "What if the JSON says `error_class: bogus`?" | Validate against an explicit allowlist; reclassify invalid values from content |
+| Impossible state combinations | "Can `is_error=false` coexist with `error_class=timeout`?" | Normalize after parse: clear contradictory fields |
+| Weak test assertions | "Does the test assert `!= wrong_class` or `== expected_class`?" | Always assert exact expected value. `!= X` silently passes when result drifts to a third wrong value. |
+
+**Simulation Prompt**: "Generate 10 realistic error messages from production. How many match the wrong pattern? How many fall through to default?"
+
+---
+
+## Category 12: Struct & Contract Completeness
+
+**Description**: When structs gain new fields, not all code paths populate them — creating inconsistent contracts for consumers.
+
+| Failure Mode | Detection Question | Enhancement Pattern |
+|--------------|-------------------|---------------------|
+| Partial field population | "Does every code path that creates this struct set ALL fields?" | Grep `StructName{` across package; verify each literal sets new fields |
+| Synthesized instances skip fields | "Are end-of-batch/summary instances populated from tracked metadata, or do they use zero values?" | Store provenance (last-seen timestamp, agent, index) alongside state; use it for synthesized instances |
+| Index after sort | "If events are sorted, does `EventIndex` refer to the original position or the sorted position?" | Wrap with original index before sorting; emit original index |
+| No structural sweep test | "Is there a test that iterates ALL output instances and asserts non-zero for required fields?" | Add invariant test: for all outputs, assert required fields are populated |
+
+**Simulation Prompt**: "Add a new field to this struct. Which code paths would produce a zero-value? Would any consumer break?"
 
 ---
 

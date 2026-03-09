@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/standards",
   "layout": "modular",
-  "source_hash": "d47a5e35dc048c8ff7e88a98f8e9617fd0641ea81cefc99f7544755d15d9e636",
-  "generated_hash": "e9bd2bb9996de18c0cc2e61a9e3b05424a295c9a67064fa10b8967643e856f43"
+  "source_hash": "7760762a3ee28c3eb9609adffd17d218158c63eb51d57566f369599cac5ce295",
+  "generated_hash": "4213636cdf750671a9435a5ac4695ed798c4933124821f774287637d0d75676c"
 }

@@ -67,6 +67,15 @@
 // repository root, ensuring hooks execute trusted code regardless of repository
 // contents.
 //
+// T9 - Team Lifecycle Violations: Native team orchestration requires strict
+// lifecycle ordering (TeamCreate before Task, TeamDelete after completion)
+// and constraint adherence (thin messages under 100 tokens, lead-only commits,
+// fresh team per wave). Without validators, stale teams accumulate, workers
+// race-claim tasks, and oversized messages consume teammate context.
+// Mitigations include TeamSandboxContract validators (sandbox.go) that audit
+// lifecycle event sequences and message sizes, hooks/stop-team-guard.sh for
+// stale team cleanup, and hooks/git-worker-guard.sh for worker commit blocking.
+//
 // # Design Principles
 //
 // Fail open on missing infrastructure: hooks exit 0 when jq, ao, or helper
