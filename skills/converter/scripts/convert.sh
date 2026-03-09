@@ -270,12 +270,14 @@ collect_files() {
   contents_arr=()
 
   if [[ -d "$dir" ]]; then
-    local f
+    local f _old_lc="${LC_ALL:-}"
+    LC_ALL=C
     for f in "$dir"/*; do
       [[ -f "$f" ]] || continue
       names_arr+=("$(basename "$f")")
       contents_arr+=("$(<"$f")")
     done
+    LC_ALL="${_old_lc}"
   fi
 }
 
