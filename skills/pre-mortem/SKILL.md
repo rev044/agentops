@@ -53,6 +53,27 @@ ls -lt .agents/specs/ 2>/dev/null | head -3
 
 Use the most recent file. If nothing found, ask user.
 
+### Step 1.4: Load Finding Registry (Mandatory)
+
+Before quick or deep review, check `.agents/findings/registry.jsonl` for reusable active findings. This is separate from flywheel search and does NOT get skipped by `--quick`.
+
+Use the tracked contract in `docs/contracts/finding-registry.md`:
+
+- load only `status=active`
+- rank by severity, `applicable_when` overlap, language overlap, and literal plan-text overlap
+- cap at top 5 findings
+- fail open:
+  - missing file -> skip silently
+  - empty file -> skip silently
+  - malformed line -> warn and ignore that line
+  - unreadable file -> warn once and continue without findings
+
+Include matched entries in the council packet as `known_risks` with:
+- `id`
+- `pattern`
+- `detection_question`
+- `checklist_item`
+
 ### Step 1.5: Fast Path (--quick mode)
 
 **By default, pre-mortem runs inline (`--quick`)** — single-agent structured review, no spawning. This catches real implementation issues at ~10% of full council cost (proven in ag-nsx: 3 actionable bugs found inline that would have caused runtime failures).
@@ -176,6 +197,9 @@ source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 ## Shared Findings
 - ...
 
+## Known Risks Applied
+- `<finding-id>` — `<why it matched this plan>`
+
 ## Concerns Raised
 - ...
 
@@ -188,6 +212,19 @@ source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 [ ] ADDRESS - Fix concerns before implementing
 [ ] RETHINK - Fundamental issues, needs redesign
 ```
+
+### Step 4.5: Persist Reusable Findings
+
+If the verdict is `WARN` or `FAIL`, persist only the reusable plan/spec failures to `.agents/findings/registry.jsonl`.
+
+Use the finding-registry contract:
+
+- required fields: `dedup_key`, provenance, `pattern`, `detection_question`, `checklist_item`, `applicable_when`, `confidence`
+- `applicable_when` must use the controlled vocabulary from the contract
+- append or merge by `dedup_key`
+- use the contract's temp-file-plus-rename atomic write rule
+
+Do NOT write every comment. Persist only findings that should change future planning or review behavior.
 
 ### Step 5: Record Ratchet Progress
 

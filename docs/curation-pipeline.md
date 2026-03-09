@@ -49,6 +49,8 @@ v1 (ship first)           v2 (after v1 proves out)      v3 (after v2 proves out)
 
 **v2 adds discoverability and quality measurement.** Once artifacts are structured and verified, they can be tagged for retrieval and scored for quality. This makes `ao search` and `ao lookup` return better results and enables the pool tiering system (gold/silver/bronze) to operate on verified data.
 
+> `2026-03-09` status note: the repo now treats the finding registry as the first prevention-oriented slice. In v1, structured findings live in `.agents/findings/registry.jsonl` and are consumed directly by `/plan`, `/pre-mortem`, `/vibe`, and `/post-mortem` skill contracts. General CLI/index/search expansion and active hook enforcement remain deferred follow-on work.
+
 **v3 adds the feedback loop.** Once artifacts are scored, the system can reject low-quality or stale knowledge and compile high-quality knowledge into permanent defenses. This is where the system starts to exhibit self-organization: it generates its own constraints from its own experience.
 
 ---
@@ -66,7 +68,7 @@ Raw output from existing skills:
 | `/forge` | `.agents/forge/YYYY-MM-DD-forge.md` | Decisions, learnings, failures, patterns extracted from transcripts |
 | `/retro` | `.agents/learnings/YYYY-MM-DD-<topic>.md` | Lessons learned from completed work |
 | `/retro` | `.agents/learnings/YYYY-MM-DD-<topic>.md` | Retrospective summaries with improvement agendas |
-| `/post-mortem` | `.agents/learnings/` | Council-validated findings |
+| `/post-mortem` | `.agents/learnings/`, `.agents/findings/registry.jsonl` | Council-validated learnings plus reusable structured findings |
 
 ### Output
 
@@ -419,7 +421,7 @@ if false; then
 fi
 ```
 
-For v1, constraints are generated as templates with `if false` placeholders. The detection pattern is filled in by a human or agent in a subsequent session. This keeps the constraint compiler purely mechanical while establishing the artifact format and lifecycle.
+For the current v1 registry-first slice, reusable findings are persisted in `.agents/findings/registry.jsonl` and fed back into planning and review as advisory prevention. Constraint templates still exist, but they remain a deferred follow-on enforcement surface and must not be described as active task-validation behavior.
 
 ### Constraint Lifecycle
 
@@ -469,7 +471,7 @@ The pipeline degrades gracefully. Each version is strictly better than the previ
 
 | State | What Works | What's Missing | Net Effect |
 |-------|-----------|----------------|------------|
-| **No pipeline** (today) | `/forge` and `/retro` write markdown to `.agents/`. `ao lookup` loads by recency. `ao search` greps content. | No structure, no verification, no quality filtering, no expiry, no constraints. | Raw accumulation. Knowledge base grows but quality is random. |
+| **Registry-first advisory loop** (current v1 slice) | `/pre-mortem`, `/vibe`, and `/post-mortem` read/write `.agents/findings/registry.jsonl`; `ao lookup` and `ao search` still serve legacy knowledge surfaces. | Structured findings exist for judgment/planning, but CLI-wide finding transport and active hook enforcement are deferred. | Prevention is becoming structured, but not yet fully automated. |
 | **v1: CATALOG + VERIFY** | Artifacts are typed (learning/decision/failure/pattern). Mechanical verification (tests passed? goals improved?). | No topic tagging, no quality scoring, no rejection, no constraints. | Structured accumulation. Wrong learnings caught by test verification. Already a major improvement: the single biggest risk (confidently wrong learnings) is mitigated. |
 | **v2: + INDEX + SCORE** | Artifacts are findable by topic. Quality-gated into tiers. Search returns ranked results. Lookup loads best-quality first. | No automated rejection, no constraint compilation. | Quality-filtered retrieval. Token budget spent on high-quality learnings first. Noise reduced proportional to scoring accuracy. |
 | **v3: + REJECT + CONSTRAIN** | Stale/wrong learnings removed. High-quality learnings compiled into hooks. Full feedback loop. | Manual constraint activation. | Self-organizing system. Generates its own defenses from experience. Unlearns what no longer applies. The flywheel equation has all terms active. |
@@ -571,7 +573,7 @@ When the schema evolves, the version increments. Readers check the version and a
 - [Architecture](ARCHITECTURE.md) -- System design (Pillar 4: Knowledge Flywheel)
 - `/forge` skill -- Transcript mining (CATALOG input)
 - `/retro` skill -- Retrospective extraction (CATALOG input)
-- `/post-mortem` skill -- Council-validated findings + constraint trigger
+- `/post-mortem` skill -- Council-validated findings + finding-registry emission
 - `ao pool list` -- View pool entries by tier and status
 - `ao feedback` -- Record MemRL reward signals
 - `ao search` -- Search knowledge base (improved by INDEX)

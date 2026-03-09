@@ -53,6 +53,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | Mechanism | Source | Role |
 |-----------|--------|------|
 | `.agents/` ledger | [README.md](../README.md) and `.agents/` | Stores plans, learnings, patterns, council outputs, and next-work artifacts on disk |
+| Finding registry | [docs/contracts/finding-registry.md](contracts/finding-registry.md) | Stores reusable structured findings that planning and judgment can load before rediscovering the same failure |
 | `ao lookup` / injection | [README.md](../README.md) and `ao` CLI | Retrieves repo-specific context at session start and task boundaries |
 | `/retro` and `/post-mortem` extraction | [skills/post-mortem/SKILL.md](../skills/post-mortem/SKILL.md) | Turns completed work into reusable learnings and patterns |
 | Freshness / maturity controls | `ao maturity`, `ao dedup`, `ao contradict` | Keeps retrieval focused on useful, current knowledge |
@@ -79,6 +80,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | Mechanism | Source | Role |
 |-----------|--------|------|
 | `/post-mortem` | [skills/post-mortem/SKILL.md](../skills/post-mortem/SKILL.md) | Validates shipped work, extracts learnings, and harvests next work |
+| Finding registry read/write path | [docs/contracts/finding-registry.md](contracts/finding-registry.md) + skill contracts | Closes the advisory loop by feeding reusable findings back into future planning and review |
 | Flywheel close hook | `hooks/ao-flywheel-close.sh` + [docs/how-it-works.md](how-it-works.md) | Closes the feedback loop at stop time |
 | GOALS + `/evolve` | [GOALS.md](../GOALS.md) and `/evolve` flows | Turns findings into measurable next work instead of leaving them as loose notes |
 | Ratchet + run registry | `ao ratchet`, `.agents/rpi/next-work.jsonl` | Records what passed, what remains, and what should be worked next |
@@ -97,10 +99,10 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | Judgment validation | `/pre-mortem` | `skills/pre-mortem/SKILL.md` | Plan review before implementation |
 | Judgment validation | `/vibe` | `skills/vibe/SKILL.md` | Code review before commit/merge |
 | Judgment validation | pre-mortem gate | `hooks/pre-mortem-gate.sh`, `hooks/hooks.json` | Runtime hook enforcement |
-| Durable learning | extraction + retrieval | `.agents/`, `ao lookup`, `ao forge` | Repo-specific context loaded into later sessions |
+| Durable learning | extraction + retrieval | `.agents/`, `ao lookup`, `ao forge`, finding registry | Repo-specific context and reusable structured findings loaded into later sessions |
 | Durable learning | curation | `ao maturity`, `ao dedup`, `ao contradict` | Freshness, contradiction, and duplication control |
 | Durable learning | Athena | `GOALS.md`, Athena checks | Daily maintenance of learning quality |
-| Loop closure | `/post-mortem` | `skills/post-mortem/SKILL.md` | Learnings + next work harvested from completed work |
+| Loop closure | `/post-mortem` + finding registry | `skills/post-mortem/SKILL.md`, `docs/contracts/finding-registry.md` | Learnings + next work harvested from completed work; reusable findings re-enter planning/review |
 | Loop closure | flywheel close hook | `hooks/ao-flywheel-close.sh` | Stop-time feedback loop closure |
 | Loop closure | goals / evolve | `GOALS.md`, flywheel-proof gate | Proof that the system compounds across sessions |
 

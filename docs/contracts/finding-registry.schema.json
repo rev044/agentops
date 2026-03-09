@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/boshu2/agentops/docs/contracts/finding-registry.schema.json",
+  "title": "Finding Registry Entry",
+  "description": "Schema for one JSONL entry in .agents/findings/registry.jsonl. Each line represents one reusable structured finding that later planning or judgment phases can reload.",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "tier",
+    "source",
+    "date",
+    "severity",
+    "category",
+    "pattern",
+    "detection_question",
+    "checklist_item",
+    "applicable_languages",
+    "applicable_when",
+    "status",
+    "superseded_by",
+    "dedup_key",
+    "hit_count",
+    "last_cited",
+    "ttl_days",
+    "confidence"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this finding entry."
+    },
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Contract version for this finding entry."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["local", "seed", "pulled"],
+      "description": "Whether the finding was authored locally, seeded, or pulled from another repo."
+    },
+    "source": {
+      "type": "object",
+      "required": ["repo", "session", "file", "skill"],
+      "properties": {
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "description": "Origin metadata that lets readers trace the finding back to the source artifact."
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when the finding was normalized into the registry."
+    },
+    "severity": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Severity label used for reader ranking."
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Normalized category slug for grouping related findings."
+    },
+    "pattern": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short natural-language description of the reusable failure pattern."
+    },
+    "detection_question": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Prompt a later planner or judge can ask to detect recurrence."
+    },
+    "checklist_item": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Concrete preventive action to add to planning or review."
+    },
+    "applicable_languages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Language or artifact hints used by readers when ranking findings."
+    },
+    "applicable_when": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "plan-shape",
+          "classifier",
+          "enum-parser",
+          "struct-change",
+          "pattern-matcher",
+          "validation-gap",
+          "test-gap",
+          "docs-drift"
+        ]
+      },
+      "description": "Controlled-vocabulary work-shape tags used to decide when the finding should be injected."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "superseded", "retired"],
+      "description": "Only active entries are eligible for future injection."
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "description": "Finding id that replaced this entry when status is superseded."
+    },
+    "dedup_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical merge key used to coalesce repeated observations of the same reusable failure."
+    },
+    "hit_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many times this finding has been cited by later runs. Automation is deferred in v1."
+    },
+    "last_cited": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Most recent citation timestamp. Null is allowed until the first later citation."
+    },
+    "ttl_days": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Advisory expiration window. Auto-expiration is deferred in v1."
+    },
+    "confidence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Confidence label for the reusable finding."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "superseded"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "superseded_by": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

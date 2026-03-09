@@ -187,13 +187,13 @@ When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. 
 | Least-privilege loading | Full knowledge stock | Filtered subset | Phase-based and role-based filtering | Prevents lost-in-the-middle; context as security boundary |
 | Ralph Wiggum | Previous wave state | New wave workers | Fresh context per wave (zero bleed-through) | Workers reason from clean state, not accumulated garbage |
 | Hook nudges | System state | Agent prompt | PostToolUse/UserPromptSubmit hooks | "Run /vibe before pushing" — invisible except when needed |
-| Constraint injection | `.agents/constraints/` | CLAUDE.md/hooks | `constraint-compiler.sh` | Learnings become structural rules |
+| Finding registry injection | `.agents/findings/registry.jsonl` | `/plan`, `/pre-mortem`, `/vibe`, `/post-mortem` | skill contracts + `docs/contracts/finding-registry.md` | Reusable failures become earlier planning and review checks |
 
 **The 40% Rule as an information flow control:** The context guard is not just a buffer control (#11). It is fundamentally an information flow decision: what gets loaded and what does not. At 40% capacity, the system must choose. That choice — freshness-weighted, utility-scored, phase-scoped — determines sigma.
 
 **dK/dt mapping:** Directly increases `sigma` by getting the right knowledge to the right window at the right time. Also increases `rho` by making retrieved knowledge more relevant to the current task (phase scoping reduces noise).
 
-**Status:** Implemented. All seven information flows are active. `ao context assemble` and `ao lookup` are the primary delivery mechanisms.
+**Status:** Implemented. All seven information flows are active, but the prevention-oriented seventh flow is registry-first and advisory in v1, not compiled hook enforcement. `ao context assemble` and `ao lookup` remain the primary CLI delivery mechanisms.
 
 ---
 
@@ -260,17 +260,17 @@ The same shape at every scale (function, issue, epic, repository) means rules at
 | Mechanism | What self-organizes | How |
 |-----------|--------------------|----|
 | `/evolve` fitness loop | Goal pursuit strategy | Measures all goals, selects worst by severity weight, fixes it, validates no regression, learns. Next cycle's choice depends on this cycle's result. |
-| Constraint compiler | Rule set | `hooks/constraint-compiler.sh` — high-scoring learnings tagged "constraint" or "anti-pattern" are compiled into structural rules in `.agents/constraints/`. Experience becomes enforcement. |
+| Finding registry ratchet | Planning and review context | Structured findings in `.agents/findings/registry.jsonl` are reloaded by `/plan`, `/pre-mortem`, and `/vibe`. Experience becomes reusable advisory checks before rediscovery. |
 | `/forge` pattern extraction | Knowledge taxonomy | Extracts reusable patterns from sessions. The pattern library grows and changes shape based on what the system encounters. |
 | Skill composition | Capability surface | Skills chain: `/research` -> `/plan` -> `/pre-mortem` -> `/crank` -> `/vibe` -> `/post-mortem`. The chain is fixed but each skill adapts its behavior to its inputs. |
 | Progressive skill revelation | User-visible surface | New users see 8 starter skills. The remaining skills reveal as the user grows. The system's visible complexity adapts to the user's readiness. |
 | Severity-weighted goal selection | Priority ordering | `ao goals measure` scores all goals by weight. `/evolve` works the highest-weight failure first. The priority order changes every cycle based on measurement. |
 
-**The constraint compiler deserves emphasis.** It is the mechanism that converts #7 (reinforcing feedback — learnings) into #5 (rules — constraints). When a learning scores high enough and carries the right tags, it stops being advice and becomes structure. This is how the system literally rewrites its own rules based on experience.
+**The finding registry deserves emphasis.** It is the current mechanism that converts #7 (reinforcing feedback - learnings) into earlier-stage prevention without overclaiming active hook enforcement. When a failure is normalized into a structured finding and later reloaded by `/plan`, `/pre-mortem`, or `/vibe`, it stops being a forgotten note and becomes reusable advisory structure. The compiler path still exists as a later follow-on for mechanically enforceable cases.
 
-**dK/dt mapping:** Self-organization does not appear in the equation because it changes the equation itself. When the constraint compiler promotes a learning to a rule, it changes the system's `sigma` (by improving retrieval focus), its `rho` (by making reuse automatic), and its `phi` (by reducing governance cost — compiled constraints do not need re-derivation).
+**dK/dt mapping:** Self-organization does not appear in the equation because it changes the equation itself. When the finding registry promotes a failure into a reusable checklist item, it changes the system's `sigma` by improving retrieval focus and its `rho` by making reuse happen earlier in the lifecycle. A later compiler may also reduce `phi`, but that hook-enforced step is deferred in the current slice.
 
-**Status:** Implemented. `/evolve` is production-tested (116 cycles, ~7 hours continuous). Constraint compiler is active. Severity-weighted selection is the default goal strategy.
+**Status:** Implemented in part. `/evolve` is production-tested (116 cycles, ~7 hours continuous). Registry-first advisory reuse is active. Constraint compiler templates exist, but active promotion to runtime rules is not part of the default runtime contract yet. Severity-weighted selection remains the default goal strategy.
 
 ---
 
@@ -359,7 +359,7 @@ Two mechanisms approach this level:
 
 **Stigmergy coordination** — Workers leave traces in shared state (`.agents/`) that influence other workers' behavior without direct communication. No worker knows the full system state. No coordinator directs the full system. The system's behavior emerges from local interactions with shared artifacts — the same principle that governs ant colonies.
 
-**The honest assessment:** Level #1 is aspirational. True paradigm transcendence would mean the system can recognize when its own organizing metaphors (the seed, the flywheel, the ratchet) are limiting and replace them. AgentOps does not do this yet. The constraint compiler (#4) can promote learnings to rules, and `/evolve` can change what it works on, but neither can change the fundamental assumptions of the system itself.
+**The honest assessment:** Level #1 is aspirational. True paradigm transcendence would mean the system can recognize when its own organizing metaphors (the seed, the flywheel, the ratchet) are limiting and replace them. AgentOps does not do this yet. The finding registry (#4) can promote learnings to reusable advisory checks, and `/evolve` can change what it works on, but neither can change the fundamental assumptions of the system itself.
 
 What exists is the infrastructure for it: append-only logs that let a future meta-observer analyze whether the system's paradigms are serving it.
 
@@ -470,7 +470,7 @@ What is missing from the Meadows mapping and what would close each gap.
 | 7 | R1 loop | No cross-project R1 | Knowledge compounding across repos (not just within one). Transfer learning for agent knowledge. |
 | 6 | Info flows | No feedback on information flow quality | Measure whether injected knowledge actually influenced decisions (beyond citation counting) |
 | 5 | Rules | Rules are additive only | No mechanism to deprecate or remove rules that are no longer serving the system |
-| 4 | Self-organization | Constraint compiler is one-way (learning to rule) | Reverse path: detect rules that no longer fire and demote them back to learnings |
+| 4 | Self-organization | Registry/compiler promotion is one-way (finding to stronger prevention) | Reverse path: detect stale checks or rules and demote them back to learnings |
 | 3 | Goals | Goals are human-authored | Goal suggestion based on measured system state ("your coverage is declining — add a coverage goal?") |
 | 2 | Paradigms | Paradigm shifts are documented, not measured | Paradigm adherence metrics — is the team actually practicing "harness variance" or falling back to sequential? |
 | 1 | Transcending | No true self-reflection on paradigms | A meta-evolve loop that questions whether the organizing metaphors (seed, flywheel, ratchet) are still serving |

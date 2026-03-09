@@ -2,9 +2,11 @@
 
 > Which `ao` commands are called by which skills and hooks — and vice versa.
 
-Auto-audited 2026-03-08. 52 CLI commands, 52 source skills, 7 runtime hook event sections.
+Auto-audited 2026-03-09. 52 CLI commands, 52 source skills, 7 runtime hook event sections.
 
 Source-of-truth note: `hooks/hooks.json` currently declares 7 runtime hook event sections. Repository hook scripts such as `worktree-setup.sh` are support/setup scripts and are listed separately when relevant.
+
+Registry-first note: `/plan`, `/pre-mortem`, `/vibe`, and `/post-mortem` now also read or write `.agents/findings/registry.jsonl` directly via skill contract. Those file-native prevention reads are intentionally not counted as `ao` command invocations in the tables below.
 
 ## Summary
 
@@ -88,6 +90,15 @@ Which `ao` commands each skill invokes.
 Skills with **no ao commands**: beads, brainstorm, bug-hunt, codex-team, complexity, converter, doc, heal-skill, openai-docs, oss-docs, pr-implement, pr-plan, pr-prep, pr-research, pr-retro, pr-validate, product, readme, release, reverse-engineer-rpi, security, security-suite, standards, trace, update.
 
 Conceptual slash commands such as `/knowledge` are documented elsewhere in the product docs, but they are not counted as source skill directories in this map.
+
+## Repo-Native Prevention Surfaces
+
+These are active skill-level reads or writes that do not go through an `ao` subcommand:
+
+- `/plan` reads `.agents/findings/registry.jsonl` before decomposition and cites `Applied findings:`
+- `/pre-mortem` reads `.agents/findings/registry.jsonl` in both quick and deep modes, injects `known_risks`, and can persist reusable findings
+- `/vibe` reads `.agents/findings/registry.jsonl` before council review and can persist reusable findings
+- `/post-mortem` writes normalized reusable findings to `.agents/findings/registry.jsonl`
 
 ---
 

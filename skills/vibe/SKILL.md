@@ -81,7 +81,7 @@ Do NOT spawn agents for empty file lists.
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2a through 2e plus 2.5/2f/2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2a through 2e plus 2.5/2f/2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Step 2.4 (finding registry check) still runs in quick mode because reusable review findings are mandatory context, not optional search. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
 **Why:** Steps 2.5 and 2a–2g add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
 
@@ -131,6 +131,27 @@ fi
 | F (31+) | Untestable | Must refactor |
 
 **Include complexity findings in council context.**
+
+### Step 2.4: Finding Registry Check
+
+Before reading `.agents/rpi/next-work.jsonl`, read `.agents/findings/registry.jsonl` if it exists. This is the primary reusable-prevention surface for review.
+
+Use the tracked contract in `docs/contracts/finding-registry.md`:
+
+- load only `status=active`
+- rank by severity, `applicable_when` overlap, language overlap, changed-file overlap, and literal target-text overlap
+- cap at top 5 findings
+- fail open:
+  - missing file -> skip silently
+  - empty file -> skip silently
+  - malformed line -> warn and ignore that line
+  - unreadable file -> warn once and continue without findings
+
+Include matched entries in the council packet as `known_risks` / checklist context with:
+- `id`
+- `pattern`
+- `detection_question`
+- `checklist_item`
 
 ### Step 2.5: Prior Findings Check
 
@@ -508,7 +529,17 @@ After council verdict:
 
 ### Step 9.5: Feed Findings to Flywheel
 
-**If verdict is WARN or FAIL**, write top findings as a learning file to `.agents/learnings/YYYY-MM-DD-vibe-<target>.md` with `type: anti-pattern`, `source: vibe`, `confidence: high` frontmatter. Include all findings and the council recommendation. Index via `ao forge markdown` if available. Skip if PASS verdict.
+**If verdict is WARN or FAIL**, persist reusable findings to `.agents/findings/registry.jsonl` and optionally mirror the broader narrative to a learning file.
+
+Registry write rules:
+
+- persist only reusable issues that should change future review or implementation behavior
+- require `dedup_key`, provenance, `pattern`, `detection_question`, `checklist_item`, `applicable_when`, and `confidence`
+- `applicable_when` must use the controlled vocabulary from the finding-registry contract
+- append or merge by `dedup_key`
+- use the contract's temp-file-plus-rename atomic write rule
+
+If a broader prose summary still helps, also write the existing anti-pattern learning file to `.agents/learnings/YYYY-MM-DD-vibe-<target>.md`. Skip both if verdict is PASS.
 
 ### Step 10: Test Bead Cleanup
 

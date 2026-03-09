@@ -374,9 +374,25 @@ For each learning extracted in Step EX.3, classify:
 - Local: "Athena's validate package needs O_CREATE|O_EXCL for atomic claims because Zeus spawns concurrent workers"
 - Global: "Use O_CREATE|O_EXCL for atomic file creation when multiple processes may race on the same path"
 
-#### Step EX.5: Compile Constraint Templates
+#### Step EX.5: Write Structured Findings to Registry
 
-For each extracted learning scoring >= 4/5 on actionability AND tagged "constraint" or "anti-pattern", run `bash hooks/constraint-compiler.sh <learning-path>` to generate a constraint template.
+Before backlog processing, normalize reusable council findings into `.agents/findings/registry.jsonl`.
+
+Use the tracked contract in `docs/contracts/finding-registry.md`:
+
+- persist only reusable findings that should change future planning or review behavior
+- require `dedup_key`, provenance, `pattern`, `detection_question`, `checklist_item`, `applicable_when`, and `confidence`
+- `applicable_when` must use the controlled vocabulary from the contract
+- append or merge by `dedup_key`
+- use the contract's temp-file-plus-rename atomic write rule
+
+This registry is the v1 advisory prevention surface. It complements learnings and next-work; it does not replace them.
+
+#### Step EX.6: Compile Constraint Templates (Deferred Follow-On)
+
+Constraint compilation remains a follow-on surface. Do not present draft templates as active runtime enforcement in the v1 registry-first slice.
+
+If you are explicitly operating in a later compiler-enabled slice, for each extracted learning scoring >= 4/5 on actionability AND tagged "constraint" or "anti-pattern", run `bash hooks/constraint-compiler.sh <learning-path>` to generate a constraint template.
 
 ```bash
 # Compile high-scoring constraint/anti-pattern learnings into enforcement templates
@@ -386,7 +402,7 @@ for f in .agents/learnings/YYYY-MM-DD-*.md; do
 done
 ```
 
-This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`.
+This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`, but that activation path is not part of the v1 registry-first contract.
 
 ### Phase 3: Process Backlog
 
@@ -476,9 +492,11 @@ Learnings with score >= 6 are promoted:
 
 **Important:** Append only. Never overwrite MEMORY.md.
 
-#### Step ACT.2: Compile Constraints
+#### Step ACT.2: Compile Constraints (Deferred Follow-On)
 
-Anti-patterns and constraint-tagged learnings -> `bash hooks/constraint-compiler.sh`:
+The v1 finding-registry loop stops at structured registry entries. Draft constraint compilation remains a deferred follow-on and must not be described as active runtime enforcement in this slice.
+
+If explicitly operating in a later compiler-enabled slice, anti-patterns and constraint-tagged learnings can still flow through `bash hooks/constraint-compiler.sh`:
 
 ```bash
 for f in .agents/learnings/YYYY-MM-DD-*.md; do
