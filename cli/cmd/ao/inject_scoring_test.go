@@ -62,6 +62,26 @@ func TestApplyCompositeScoring_WithMaturity(t *testing.T) {
 	}
 }
 
+func TestKnowledgeFindingScorableInterface(t *testing.T) {
+	f := &knowledgeFinding{
+		FreshnessScore: 0.75,
+		Utility:        0.6,
+	}
+	if got := f.getFreshness(); got != 0.75 {
+		t.Errorf("getFreshness() = %v, want 0.75", got)
+	}
+	if got := f.getUtility(); got != 0.6 {
+		t.Errorf("getUtility() = %v, want 0.6", got)
+	}
+	if got := f.getMaturity(); got != "" {
+		t.Errorf("getMaturity() = %q, want empty", got)
+	}
+	f.setComposite(1.5)
+	if f.CompositeScore != 1.5 {
+		t.Errorf("setComposite(1.5) -> CompositeScore = %v, want 1.5", f.CompositeScore)
+	}
+}
+
 func TestApplyCompositeScoring_NoMaturity(t *testing.T) {
 	// Patterns don't have maturity — should get weight 1.0 (no change).
 	p1 := &pattern{FreshnessScore: 0.8, Utility: 0.6}

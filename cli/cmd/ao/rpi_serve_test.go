@@ -12,6 +12,34 @@ import (
 	"time"
 )
 
+func TestParseServeRunTime(t *testing.T) {
+	tests := []struct {
+		input string
+		zero  bool
+	}{
+		{"", true},
+		{"  ", true},
+		{"not-a-time", true},
+		{"2026-03-09T21:14:06Z", false},
+		{"2026-03-09T21:14:06.123456789Z", false},
+	}
+	for _, tt := range tests {
+		got := parseServeRunTime(tt.input)
+		if tt.zero && !got.IsZero() {
+			t.Errorf("parseServeRunTime(%q) = %v, want zero", tt.input, got)
+		}
+		if !tt.zero && got.IsZero() {
+			t.Errorf("parseServeRunTime(%q) = zero, want non-zero", tt.input)
+		}
+	}
+
+	got := parseServeRunTime("2026-03-09T21:14:06Z")
+	want := time.Date(2026, 3, 9, 21, 14, 6, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Errorf("parseServeRunTime parsed incorrectly: got %v, want %v", got, want)
+	}
+}
+
 func TestServeRPIIndex(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()

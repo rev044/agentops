@@ -114,6 +114,15 @@ func TestFormatLookupAge(t *testing.T) {
 	}
 }
 
+func TestEmptyIfMissing(t *testing.T) {
+	if got := emptyIfMissing(""); got != "-" {
+		t.Errorf("emptyIfMissing(\"\") = %q, want \"-\"", got)
+	}
+	if got := emptyIfMissing("hello"); got != "hello" {
+		t.Errorf("emptyIfMissing(\"hello\") = %q, want \"hello\"", got)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // lookup.go — matchesID
 // ---------------------------------------------------------------------------

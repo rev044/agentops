@@ -9,6 +9,23 @@ import (
 	"time"
 )
 
+func TestFallbackValue(t *testing.T) {
+	tests := []struct {
+		value, fallback, want string
+	}{
+		{"hello", "default", "hello"},
+		{"", "default", "default"},
+		{"  ", "default", "default"},
+		{"  trimmed  ", "default", "trimmed"},
+	}
+	for _, tt := range tests {
+		got := fallbackValue(tt.value, tt.fallback)
+		if got != tt.want {
+			t.Errorf("fallbackValue(%q, %q) = %q, want %q", tt.value, tt.fallback, got, tt.want)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // writeStreamEvent
 // ---------------------------------------------------------------------------
