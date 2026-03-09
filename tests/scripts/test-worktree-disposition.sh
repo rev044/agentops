@@ -36,6 +36,22 @@ run_gate() {
     )
 }
 
+run_gate_with_feature_git_env() {
+    local workdir="$1"
+
+    (
+        cd "$workdir"
+        local git_dir
+        local git_common_dir
+        git_dir="$(git rev-parse --git-dir)"
+        git_common_dir="$(git rev-parse --git-common-dir)"
+        GIT_DIR="$git_dir" \
+        GIT_WORK_TREE="$workdir" \
+        GIT_COMMON_DIR="$git_common_dir" \
+        "$script_path"
+    )
+}
+
 assert_contains() {
     local haystack="$1"
     local needle="$2"
@@ -57,6 +73,10 @@ git -C "$canonical" worktree add -q -b codex/feature "$feature" main
 output="$(run_gate "$feature")"
 assert_contains "$output" "PASS: canonical root"
 assert_contains "$output" "current branch codex/feature"
+
+hook_output="$(run_gate_with_feature_git_env "$feature")"
+assert_contains "$hook_output" "PASS: canonical root"
+assert_contains "$hook_output" "current branch codex/feature"
 
 git -C "$canonical" switch --detach HEAD >/dev/null 2>&1
 if detached_output="$(run_gate "$feature" 2>&1)"; then
