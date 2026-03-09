@@ -11,33 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Finding-registry prevention ratchet** — Added the normalized finding
-  registry contract, council write/read-path support, and prevention-ratchet
-  flow so findings can be promoted into reusable planning and validation input
-- **Repo-native orchestration profile** — Added repo-profile aware execution
-  guidance and orchestration wiring for skill/runtime flows
-- **Headless Claude team backend** — Added headless team backend support for
-  automated multi-agent validation and execution flows
+- **Finding registry** — Council findings are saved to a persistent registry
+  and automatically fed back into planning and validation, so the same class
+  of bug is caught earlier next time
+- **Repo execution profiles** — `.repo-execution-profile.json` lets skills
+  and runtimes adapt to each repository's validation gates, startup reads,
+  and done-criteria
+- **Headless team backend** — Multi-agent workflows can run non-interactively
+  (e.g. in CI) with structured JSON output and automated validation
 
 ### Changed
 
-- **Codex and embedded runtime artifacts** — Synced generated Codex bundles,
-  embedded standards references, and install/runtime artifacts after merging the
-  preserved branch work into `main`
-- **Validation feedback capture** — Folded fresh validation-cycle feedback back
-  into tracked `.agents` learnings and patterns so the flywheel state matches
-  the shipped tree
+- **Codex and embedded artifacts** — Synced generated Codex bundles, embedded
+  standards references, and install artifacts after merging branch work
+- **Validation feedback capture** — Recorded validation-cycle feedback into
+  `.agents` learnings so tracked patterns match the shipped tree
 
 ### Fixed
 
-- **Lookup findings integration** — Reconciled merged-branch fallout in
-  `ao lookup` and inject scoring so findings render, cite, and score correctly
-  without colliding with phased-RPI finding types
-- **Comprehensive CLI audit follow-through** — Landed the audited CLI bug fixes
-  and supporting runtime parity corrections from the preserved branch work
-- **Post-mortem and worktree closure hardening** — Preserved and merged durable
-  proof, staged/worktree closure evidence, and related follow-up fixes without
-  regressing canonical-root hygiene
+- **Lookup findings** — Fixed `ao lookup` and inject scoring so findings
+  render, cite, and score correctly after the branch merge
+- **23 CLI bug fixes** — Fixed goroutine leaks, race conditions, panics,
+  buffer overflows, missing error handling, and nil-check inconsistencies
+- **Post-mortem evidence hardening** — Staged changes and worktree evidence
+  are now captured durably so proof isn't lost during compaction or cleanup
 
 ## [2.21.0] - 2026-03-09
 
