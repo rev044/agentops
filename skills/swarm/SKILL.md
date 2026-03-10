@@ -64,11 +64,12 @@ Use runtime capability detection, not hardcoded tool names. Swarm requires:
 See `skills/shared/SKILL.md` for the capability contract.
 
 **After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
-- Claude feature contract → `../shared/references/claude-code-latest-features.md`
-- Claude Native Teams → `../shared/references/backend-claude-teams.md`
-- Codex Sub-Agents / CLI → `../shared/references/backend-codex-subagents.md`
-- Background Tasks → `../shared/references/backend-background-tasks.md`
-- Inline (no spawn) → `../shared/references/backend-inline.md`
+- Shared Claude feature contract → `skills/shared/references/claude-code-latest-features.md`
+- Local mirrored contract for runtime-local reads → `references/claude-code-latest-features.md`
+- Claude Native Teams → `references/backend-claude-teams.md`
+- Codex Sub-Agents / CLI → `references/backend-codex-subagents.md`
+- Background Tasks → `references/backend-background-tasks.md`
+- Inline (no spawn) → `references/backend-inline.md`
 
 See also `references/local-mode.md` for swarm-specific execution details (worktrees, validation, git commit policy, wave repeat).
 

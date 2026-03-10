@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/crank",
   "layout": "modular",
-  "source_hash": "bd051cdbe36b901f940af85c67d37b5fbc1bfb4a44640c0e6b2191a0423380a3",
-  "generated_hash": "a2f214554263799fd7fe307028b6c2079c6e9807ba9e28bbd4945b3e3cac64e6"
+  "source_hash": "8e0301d997737bb684329c233986eccce2dca9f707db20cbcbd2bf5604d972c6",
+  "generated_hash": "5aab15a49f9e327b3f5fad3fd0202b2b2146ae506f398f3894f5aba51b0ebf10"
 }

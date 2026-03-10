@@ -30,7 +30,7 @@ Autonomous execution: implement all issues until the epic is DONE.
 
 **CLI dependencies:** bd (issue tracking), ao (knowledge flywheel). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use TaskList for issue tracking and skip beads sync. If ao is unavailable, skip knowledge injection/extraction.
 
-For Claude runtime feature coverage (agents/hooks/worktree/settings), see `../shared/references/claude-code-latest-features.md`.
+For Claude runtime feature coverage (agents/hooks/worktree/settings), the shared source of truth is `skills/shared/references/claude-code-latest-features.md`, mirrored locally at `references/claude-code-latest-features.md`.
 
 ## Architecture: Crank + Swarm
 
