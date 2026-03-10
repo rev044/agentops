@@ -51,6 +51,7 @@ TaskCreate(
 
 If a `feature`/`bug`/`task` TaskCreate is missing required test or structural checks, do not dispatch the task.
 If a TaskCreate is missing `metadata.issue_type`, do not dispatch it once active constraints are in play; task validation cannot apply issue-scoped prevention safely without it.
+Treat this as part of the closed flywheel, not extra metadata ceremony: a finding only shifts left into deterministic validation when applicability can be resolved without guessing.
 
 ### Validation Types
 

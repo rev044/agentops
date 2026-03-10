@@ -380,6 +380,7 @@ Worker prompt signpost:
 - Docs/chore/ci issues (skipped by SPEC/TEST waves) use standard worker prompts unchanged
 
 **Issue typing + file manifests (REQUIRED):** Include `metadata.issue_type` plus a `metadata.files` array in every TaskCreate. `issue_type` feeds active constraint applicability and validation policy; `files` feed swarm's pre-spawn conflict detection. Two workers claiming the same file in the same wave get serialized or worktree-isolated automatically. Derive both from the issue description, plan, or codebase exploration during planning.
+This is the shift-left edge of the prevention ratchet: compiled findings target issue type plus changed files, so missing `metadata.issue_type` weakens enforcement back into guesswork.
 
 **Grep-for-existing-functions (REQUIRED for new function issues):** When an issue description says "create", "add", or "implement" a new function/utility, include `metadata.grep_check` with the function name pattern. Workers MUST grep the codebase for existing implementations before writing new code. This prevents utility duplication (e.g., `estimateTokens` was duplicated in context-orchestration-leverage because no grep check was specified).
 

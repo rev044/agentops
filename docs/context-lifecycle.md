@@ -30,6 +30,7 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | `/vibe` | [skills/vibe/SKILL.md](../skills/vibe/SKILL.md) | Runs post-implementation judgment instead of stopping at build/test |
 | `/council` | [skills/council/SKILL.md](../skills/council/SKILL.md) | Supplies multi-judge review for plans and code |
 | Pre-mortem gate hook | `hooks/pre-mortem-gate.sh` + [hooks/hooks.json](../hooks/hooks.json) | Prevents large implementation work from skipping plan validation |
+| Task-validation constraint hook | `hooks/task-validation-gate.sh` + `.agents/constraints/index.json` | Task-validation executes active compiled constraints for mechanically detectable findings |
 | Product-aware review context | [PRODUCT.md](../PRODUCT.md) | Injects product and DX perspectives into judgment flows |
 
 **Supporting failure modes addressed inside this gap:**
@@ -80,7 +81,8 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | Mechanism | Source | Role |
 |-----------|--------|------|
 | `/post-mortem` | [skills/post-mortem/SKILL.md](../skills/post-mortem/SKILL.md) | Validates shipped work, extracts learnings, and harvests next work |
-| Finding registry read/write path | [docs/contracts/finding-registry.md](contracts/finding-registry.md) + skill contracts | Closes the advisory loop by feeding reusable findings back into future planning and review |
+| Finding registry + compiler path | [docs/contracts/finding-registry.md](contracts/finding-registry.md), [docs/contracts/finding-compiler.md](contracts/finding-compiler.md), `hooks/finding-compiler.sh` | Promotes reusable findings into advisory artifacts and active constraint index entries |
+| Task-validation constraint execution | `hooks/task-validation-gate.sh` + `.agents/constraints/index.json` | Turns mechanically detectable findings into enforced validation checks before task completion |
 | Flywheel close hook | `hooks/ao-flywheel-close.sh` + [docs/how-it-works.md](how-it-works.md) | Closes the feedback loop at stop time |
 | GOALS + `/evolve` | [GOALS.md](../GOALS.md) and `/evolve` flows | Turns findings into measurable next work instead of leaving them as loose notes |
 | Ratchet + run registry | `ao ratchet`, `.agents/rpi/next-work.jsonl` | Records what passed, what remains, and what should be worked next |
@@ -99,10 +101,11 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 | Judgment validation | `/pre-mortem` | `skills/pre-mortem/SKILL.md` | Plan review before implementation |
 | Judgment validation | `/vibe` | `skills/vibe/SKILL.md` | Code review before commit/merge |
 | Judgment validation | pre-mortem gate | `hooks/pre-mortem-gate.sh`, `hooks/hooks.json` | Runtime hook enforcement |
-| Durable learning | extraction + retrieval | `.agents/`, `ao lookup`, `ao forge`, finding registry | Repo-specific context and reusable structured findings loaded into later sessions |
+| Durable learning | extraction + retrieval | `.agents/`, `ao lookup`, `ao forge`, finding registry, finding artifacts | Repo-specific context and reusable structured findings loaded into later sessions |
 | Durable learning | curation | `ao maturity`, `ao dedup`, `ao contradict` | Freshness, contradiction, and duplication control |
 | Durable learning | Athena | `GOALS.md`, Athena checks | Daily maintenance of learning quality |
-| Loop closure | `/post-mortem` + finding registry | `skills/post-mortem/SKILL.md`, `docs/contracts/finding-registry.md` | Learnings + next work harvested from completed work; reusable findings re-enter planning/review |
+| Loop closure | `/post-mortem` + finding compiler | `skills/post-mortem/SKILL.md`, `docs/contracts/finding-registry.md`, `docs/contracts/finding-compiler.md` | Learnings + next work harvested from completed work; reusable findings re-enter planning/review and compile into preventive artifacts |
+| Loop closure | task-validation compiled enforcement | `hooks/task-validation-gate.sh`, `.agents/constraints/index.json` | Task-validation executes active compiled constraints before completion is accepted |
 | Loop closure | flywheel close hook | `hooks/ao-flywheel-close.sh` | Stop-time feedback loop closure |
 | Loop closure | goals / evolve | `GOALS.md`, flywheel-proof gate | Proof that the system compounds across sessions |
 

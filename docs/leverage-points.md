@@ -187,13 +187,13 @@ When `dominant: "R1"`, the flywheel is spinning faster than decay can drain it. 
 | Least-privilege loading | Full knowledge stock | Filtered subset | Phase-based and role-based filtering | Prevents lost-in-the-middle; context as security boundary |
 | Ralph Wiggum | Previous wave state | New wave workers | Fresh context per wave (zero bleed-through) | Workers reason from clean state, not accumulated garbage |
 | Hook nudges | System state | Agent prompt | PostToolUse/UserPromptSubmit hooks | "Run /vibe before pushing" — invisible except when needed |
-| Finding registry injection | `.agents/findings/registry.jsonl` | `/plan`, `/pre-mortem`, `/vibe`, `/post-mortem` | skill contracts + `docs/contracts/finding-registry.md` | Reusable failures become earlier planning and review checks |
+| Finding registry + compiled prevention | `.agents/findings/registry.jsonl`, `.agents/planning-rules/*.md`, `.agents/pre-mortem-checks/*.md`, `.agents/constraints/index.json` | `/plan`, `/pre-mortem`, `/vibe`, `/post-mortem`, `task-validation-gate.sh` | skill contracts + `hooks/finding-compiler.sh` + `docs/contracts/finding-registry.md` | Reusable failures become earlier planning/review checks, and mechanically detectable ones can become active validation blockers |
 
 **The 40% Rule as an information flow control:** The context guard is not just a buffer control (#11). It is fundamentally an information flow decision: what gets loaded and what does not. At 40% capacity, the system must choose. That choice — freshness-weighted, utility-scored, phase-scoped — determines sigma.
 
 **dK/dt mapping:** Directly increases `sigma` by getting the right knowledge to the right window at the right time. Also increases `rho` by making retrieved knowledge more relevant to the current task (phase scoping reduces noise).
 
-**Status:** Implemented. All seven information flows are active, but the prevention-oriented seventh flow is registry-first and advisory in v1, not compiled hook enforcement. `ao context assemble` and `ao lookup` remain the primary CLI delivery mechanisms.
+**Status:** Implemented. All seven information flows are active. The prevention-oriented seventh flow now spans registry intake and compiled prevention outputs: planning and judgment load compiled artifacts first, and task validation consumes active constraint index entries for mechanically detectable findings. `ao context assemble` and `ao lookup` remain the primary CLI delivery mechanisms for broader knowledge retrieval.
 
 ---
 
@@ -210,6 +210,7 @@ AgentOps has 3 active runtime hooks in `hooks/hooks.json` that enforce the core 
 | Session start hook | Runs `hooks/session-start.sh` on `SessionStart` | Cold starts without prior knowledge |
 | Session end maintenance hook | Runs `hooks/session-end-maintenance.sh` on `SessionEnd` | Lost session learnings and stale pools |
 | Stop close-loop hook | Runs `hooks/ao-flywheel-close.sh` on `Stop` | Unclosed flywheel feedback cycles |
+| Task validation constraint hook | Runs `hooks/task-validation-gate.sh` on `TaskCompleted` | Mechanically detectable failures escaping validation despite prior findings |
 
 Guardrail hook scripts (push gate, worker guard, pre-mortem gate, etc.) remain in the repo and can be re-enabled by manifest policy, but they are not part of the active runtime contract by default.
 
@@ -221,7 +222,7 @@ Guardrail hook scripts (push gate, worker guard, pre-mortem gate, etc.) remain i
 
 **dK/dt mapping:** Rules do not appear directly in the equation, but they prevent catastrophic dK/dt events — regressions that would send K to zero. They also enforce the information flows (#6) that keep sigma high. Without rules, the flywheel depends on agent memory. Agents forget. Rules do not.
 
-**Status:** Implemented. All 3 active runtime hooks are enforced. All kill switches tested.
+**Status:** Implemented. The session-boundary hooks and task-validation constraint hook are enforced. All kill switches tested.
 
 ---
 
@@ -260,17 +261,17 @@ The same shape at every scale (function, issue, epic, repository) means rules at
 | Mechanism | What self-organizes | How |
 |-----------|--------------------|----|
 | `/evolve` fitness loop | Goal pursuit strategy | Measures all goals, selects worst by severity weight, fixes it, validates no regression, learns. Next cycle's choice depends on this cycle's result. |
-| Finding registry ratchet | Planning and review context | Structured findings in `.agents/findings/registry.jsonl` are reloaded by `/plan`, `/pre-mortem`, and `/vibe`. Experience becomes reusable advisory checks before rediscovery. |
+| Finding registry ratchet | Planning, review, and validation context | Structured findings enter through `.agents/findings/registry.jsonl`, compile into promoted artifacts plus planning/pre-mortem outputs, and mechanical active findings feed `.agents/constraints/index.json` for `task-validation-gate.sh`. |
 | `/forge` pattern extraction | Knowledge taxonomy | Extracts reusable patterns from sessions. The pattern library grows and changes shape based on what the system encounters. |
 | Skill composition | Capability surface | Skills chain: `/research` -> `/plan` -> `/pre-mortem` -> `/crank` -> `/vibe` -> `/post-mortem`. The chain is fixed but each skill adapts its behavior to its inputs. |
 | Progressive skill revelation | User-visible surface | New users see 8 starter skills. The remaining skills reveal as the user grows. The system's visible complexity adapts to the user's readiness. |
 | Severity-weighted goal selection | Priority ordering | `ao goals measure` scores all goals by weight. `/evolve` works the highest-weight failure first. The priority order changes every cycle based on measurement. |
 
-**The finding registry deserves emphasis.** It is the current mechanism that converts #7 (reinforcing feedback - learnings) into earlier-stage prevention without overclaiming active hook enforcement. When a failure is normalized into a structured finding and later reloaded by `/plan`, `/pre-mortem`, or `/vibe`, it stops being a forgotten note and becomes reusable advisory structure. The compiler path still exists as a later follow-on for mechanically enforceable cases.
+**The finding registry deserves emphasis.** It is the mechanism that converts #7 (reinforcing feedback - learnings) into earlier-stage prevention. When a failure is normalized into a structured finding, it no longer stays as prose: the compiler promotes it into reusable planning/review artifacts, and mechanically detectable active findings can also become task-validation constraints. The important limit is not "registry versus enforcement" anymore; it is "advisory for ambiguous findings, enforced for the mechanical subset."
 
-**dK/dt mapping:** Self-organization does not appear in the equation because it changes the equation itself. When the finding registry promotes a failure into a reusable checklist item, it changes the system's `sigma` by improving retrieval focus and its `rho` by making reuse happen earlier in the lifecycle. A later compiler may also reduce `phi`, but that hook-enforced step is deferred in the current slice.
+**dK/dt mapping:** Self-organization does not appear in the equation because it changes the equation itself. When the finding registry promotes a failure into reusable planning/review artifacts, it changes the system's `sigma` by improving retrieval focus and its `rho` by making reuse happen earlier in the lifecycle. When the same finding becomes an active mechanical constraint, it also reduces `phi` by preventing repeated validation misses from compounding into governance friction.
 
-**Status:** Implemented in part. `/evolve` is production-tested (116 cycles, ~7 hours continuous). Registry-first advisory reuse is active. Constraint compiler templates exist, but active promotion to runtime rules is not part of the default runtime contract yet. Severity-weighted selection remains the default goal strategy.
+**Status:** Implemented in part. `/evolve` is production-tested (116 cycles, ~7 hours continuous). Registry intake, compiled planning/review reuse, and active task-validation enforcement for mechanically detectable findings are all live. The remaining limit is selectivity, not absence: many findings will always stay advisory because they cannot be compiled safely.
 
 ---
 
@@ -359,7 +360,7 @@ Two mechanisms approach this level:
 
 **Stigmergy coordination** — Workers leave traces in shared state (`.agents/`) that influence other workers' behavior without direct communication. No worker knows the full system state. No coordinator directs the full system. The system's behavior emerges from local interactions with shared artifacts — the same principle that governs ant colonies.
 
-**The honest assessment:** Level #1 is aspirational. True paradigm transcendence would mean the system can recognize when its own organizing metaphors (the seed, the flywheel, the ratchet) are limiting and replace them. AgentOps does not do this yet. The finding registry (#4) can promote learnings to reusable advisory checks, and `/evolve` can change what it works on, but neither can change the fundamental assumptions of the system itself.
+**The honest assessment:** Level #1 is aspirational. True paradigm transcendence would mean the system can recognize when its own organizing metaphors (the seed, the flywheel, the ratchet) are limiting and replace them. AgentOps does not do this yet. The finding registry (#4) can now promote learnings into reusable advisory checks and active task-validation constraints, and `/evolve` can change what it works on, but neither can change the fundamental assumptions of the system itself.
 
 What exists is the infrastructure for it: append-only logs that let a future meta-observer analyze whether the system's paradigms are serving it.
 

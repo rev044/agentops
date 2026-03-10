@@ -49,7 +49,7 @@ v1 (ship first)           v2 (after v1 proves out)      v3 (after v2 proves out)
 
 **v2 adds discoverability and quality measurement.** Once artifacts are structured and verified, they can be tagged for retrieval and scored for quality. This makes `ao search` and `ao lookup` return better results and enables the pool tiering system (gold/silver/bronze) to operate on verified data.
 
-> `2026-03-09` status note: the repo now treats the finding registry as the first prevention-oriented slice. In v1, structured findings live in `.agents/findings/registry.jsonl` and are consumed directly by `/plan`, `/pre-mortem`, `/vibe`, and `/post-mortem` skill contracts. General CLI/index/search expansion and active hook enforcement remain deferred follow-on work.
+> `2026-03-09` status note: the repo now runs a finding-compiler prevention ratchet alongside the broader curation pipeline. Structured findings enter via `.agents/findings/registry.jsonl`, compile into promoted finding artifacts plus `.agents/planning-rules/*.md` and `.agents/pre-mortem-checks/*.md`, and mechanically detectable active findings populate `.agents/constraints/index.json` for `task-validation-gate.sh`. The general `ao curate` stage family is still partial, but the prevention slice is no longer advisory-only.
 
 **v3 adds the feedback loop.** Once artifacts are scored, the system can reject low-quality or stale knowledge and compile high-quality knowledge into permanent defenses. This is where the system starts to exhibit self-organization: it generates its own constraints from its own experience.
 
@@ -421,7 +421,7 @@ if false; then
 fi
 ```
 
-For the current v1 registry-first slice, reusable findings are persisted in `.agents/findings/registry.jsonl` and fed back into planning and review as advisory prevention. Constraint templates still exist, but they remain a deferred follow-on enforcement surface and must not be described as active task-validation behavior.
+For the current finding-compiler slice, reusable findings still enter through `.agents/findings/registry.jsonl`, but the compiler does more than emit advisory markdown. Promoted finding artifacts materialize `.agents/planning-rules/*.md` and `.agents/pre-mortem-checks/*.md` by default, and mechanically detectable active findings also upsert `.agents/constraints/index.json` for runtime enforcement. The honest limit is narrower: not every finding is mechanically compilable, and registry intake still defaults to advisory promotion until an artifact carries active mechanical compiler metadata.
 
 ### Constraint Lifecycle
 
@@ -445,7 +445,7 @@ draft ──────> active ──────> retired
 
 ### Connection to Existing Infrastructure
 
-- **Hooks:** Active constraints are sourced by `task-validation-gate.sh` during validation. The hook scans `.agents/constraints/` for active constraint scripts and runs them.
+- **Hooks:** Active constraints are sourced by `task-validation-gate.sh` during validation. The hook reads `.agents/constraints/index.json`, evaluates supported detector kinds, and treats companion `.sh` files as review artifacts rather than executable runtime contracts.
 - **Post-mortem / Retro:** After extracting learnings, if any score >= 4/5 on actionability and are tagged `constraint` or `anti-pattern`, the skill invokes `hooks/constraint-compiler.sh <learning-path>` to generate the template.
 - **Pool:** Reads established learnings from `.agents/pool/staged/` or promoted artifacts in `.agents/learnings/`.
 - **CLI:** `ao curate constrain` -- scans for established learnings meeting promotion criteria, generates constraint templates.
@@ -471,7 +471,7 @@ The pipeline degrades gracefully. Each version is strictly better than the previ
 
 | State | What Works | What's Missing | Net Effect |
 |-------|-----------|----------------|------------|
-| **Registry-first advisory loop** (current v1 slice) | `/pre-mortem`, `/vibe`, and `/post-mortem` read/write `.agents/findings/registry.jsonl`; `ao lookup` and `ao search` still serve legacy knowledge surfaces. | Structured findings exist for judgment/planning, but CLI-wide finding transport and active hook enforcement are deferred. | Prevention is becoming structured, but not yet fully automated. |
+| **Registry-first intake + compiled prevention** (current slice) | `/pre-mortem`, `/vibe`, and `/post-mortem` read/write `.agents/findings/registry.jsonl`; `hooks/finding-compiler.sh` promotes findings into advisory artifacts and active constraint index entries; `ao findings` and citation feedback manage promoted artifacts directly. | Registry intake still defaults to advisory promotion, and only mechanically detectable active findings can become enforced constraints. | Prevention is structured and partially automated: planning/review always see compiled outputs first, and task validation can enforce the mechanical subset. |
 | **v1: CATALOG + VERIFY** | Artifacts are typed (learning/decision/failure/pattern). Mechanical verification (tests passed? goals improved?). | No topic tagging, no quality scoring, no rejection, no constraints. | Structured accumulation. Wrong learnings caught by test verification. Already a major improvement: the single biggest risk (confidently wrong learnings) is mitigated. |
 | **v2: + INDEX + SCORE** | Artifacts are findable by topic. Quality-gated into tiers. Search returns ranked results. Lookup loads best-quality first. | No automated rejection, no constraint compilation. | Quality-filtered retrieval. Token budget spent on high-quality learnings first. Noise reduced proportional to scoring accuracy. |
 | **v3: + REJECT + CONSTRAIN** | Stale/wrong learnings removed. High-quality learnings compiled into hooks. Full feedback loop. | Manual constraint activation. | Self-organizing system. Generates its own defenses from experience. Unlearns what no longer applies. The flywheel equation has all terms active. |

@@ -56,8 +56,8 @@
     {
       "name": "crank",
       "source_skill": "skills/crank",
-      "source_hash": "059796b1ffc1c4a698c71862e703c6bfce19efc1664fe4ef7d7f433a5f69d108",
-      "generated_hash": "a32b9c0bf6652d7aaf155b232ec8bbf88c5605759525d91f5c368a649f71bc48"
+      "source_hash": "bd051cdbe36b901f940af85c67d37b5fbc1bfb4a44640c0e6b2191a0423380a3",
+      "generated_hash": "a2f214554263799fd7fe307028b6c2079c6e9807ba9e28bbd4945b3e3cac64e6"
     },
     {
       "name": "doc",
@@ -272,8 +272,8 @@
     {
       "name": "shared",
       "source_skill": "skills/shared",
-      "source_hash": "9d1922719f255b2ab9faff3703dfb93d39fcc049d979a9d4b6b196cfcc17b7f6",
-      "generated_hash": "3f4c47736f864085ce9d526537ef957912adcfad786f278f773cc790c0f3223b"
+      "source_hash": "3acfac9406708cd4207ba052f759e2c7daa301e7db8079fae93bd485b7ad034b",
+      "generated_hash": "c4eea5dda4d48330edd1e4bb3f274a62c51a5359187f1c0c23b6c625fcfdfcd2"
     },
     {
       "name": "standards",
@@ -290,8 +290,8 @@
     {
       "name": "swarm",
       "source_skill": "skills/swarm",
-      "source_hash": "a76fdaae849567906661a37ead6962cec337a985beb353f6b475214ea7627b35",
-      "generated_hash": "b768cd696007cde828c822a93dd3b04db39f40fbcf7968fe8023e8021ea26899"
+      "source_hash": "71e5154a9cda2d23782f01dc9317176ce22d046a736a5710eea9f011b8b892c6",
+      "generated_hash": "9a87dfefe556557ac2ce3733ce344c21ed41861b4be44fcab6175af0a52f8329"
     },
     {
       "name": "trace",

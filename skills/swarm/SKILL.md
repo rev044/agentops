@@ -85,6 +85,7 @@ TaskUpdate(taskId="2", addBlockedBy=["1"])  # Add dependencies after creation
 #### Task Typing + File Manifest
 
 Every TaskCreate **must** include `metadata.issue_type` plus a `metadata.files` array. `issue_type` drives active constraint applicability and validation policy; `files` enable mechanical conflict detection before spawning a wave.
+This is how the prevention ratchet applies shift-left mechanically: active compiled findings use issue type plus changed files to decide whether a task should be blocked, warned, or left alone.
 
 - Use canonical issue types: `feature`, `bug`, `task`, `docs`, `chore`, `ci`.
 - Preserve the same `metadata.issue_type` on TaskUpdate / TaskCompleted payloads so task-validation can apply active constraints without guessing.

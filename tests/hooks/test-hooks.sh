@@ -1325,6 +1325,16 @@ else
     fail "finding-compiler promotes registry entries into advisory artifacts"
 fi
 
+# Test: full prevention ratchet flow covers registry -> artifact -> enforcement -> citation feedback
+EC=0
+OUTPUT=$(bash "$REPO_ROOT/tests/integration/test-finding-prevention-ratchet.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 0 ]; then
+    pass "finding prevention ratchet end-to-end coverage passes"
+else
+    fail "finding prevention ratchet end-to-end coverage passes"
+    echo "$OUTPUT" | head -20 | sed 's/^/    /'
+fi
+
 echo ""
 echo "=== constraint-compiler.sh ==="
 # ============================================================

@@ -4,7 +4,7 @@
 ┌──────────────────────────────────────────────────────────────────┐
 │                    AgentOps at a Glance                          │
 ├───────────────────┬──────────────────────┬───────────────────────┤
-│    49  Skills     │  121 CLI Commands    │    14 Hooks           │
+│    52  Skills     │  121 CLI Commands    │   13 Hook Entries     │
 │  (workflows)      │  (ao binary)         │  (auto-enforcement)   │
 └───────────────────┴──────────────────────┴───────────────────────┘
 ```
@@ -85,7 +85,35 @@ Skills hand off to `ao` to persist knowledge across sessions:
 /evolve            →    ao goals measure           Fitness checked before next cycle
 /rpi               →    ao ratchet record          Progress gate checkpointed
 /implement         →    ao ratchet check           Gate verified before work starts
+/post-mortem       →    finding-compiler.sh        Findings become artifacts, checks, and constraints
+/post-mortem       →    ao flywheel close-loop     Citation feedback and lifecycle updates applied
 ```
+
+---
+
+## Prevention Ratchet
+
+The closed-loop prevention path is file-native:
+
+```
+/post-mortem or /pre-mortem
+        │
+        ▼
+.agents/findings/registry.jsonl
+        │
+        ▼
+hooks/finding-compiler.sh
+        │
+        ├──> .agents/findings/<id>.md
+        ├──> .agents/planning-rules/<id>.md
+        ├──> .agents/pre-mortem-checks/<id>.md
+        └──> .agents/constraints/index.json   (mechanical + active only)
+                                              │
+                                              ▼
+                                   hooks/task-validation-gate.sh
+```
+
+`/plan`, `/pre-mortem`, `/vibe`, and `/post-mortem` load compiled planning and review artifacts first, then fall back to the registry when compiled outputs are missing. `task-validation-gate.sh` is the shift-left enforcement surface for active mechanical findings.
 
 ---
 
@@ -119,7 +147,7 @@ ao extract                  ao goals drift           UTILITIES
 
 ---
 
-## Hooks — Automatic Enforcement (14 hooks)
+## Hooks — Automatic Enforcement (13 hook entries across 7 trigger points)
 
 Hooks fire without human involvement. The AI cannot bypass them.
 
@@ -129,6 +157,7 @@ TRIGGER                   HOOK                        WHAT IT DOES
 Session starts         session-start.sh            Inject prior knowledge into briefing
 Session ends           session-end-maintenance.sh  Harvest learnings, run maintenance
 Agent stops            ao-flywheel-close.sh        Close the learning loop
+Task completes         task-validation-gate.sh     Execute active compiled constraints and metadata checks
 Every tool call        go-complexity-precommit.sh  Block functions over complexity budget
 Pre-commit             skill-lint-gate.sh          Reject malformed skills
 Pre-commit             dangerous-git-guard.sh      Block force-pushes to main
@@ -165,4 +194,4 @@ post-mortem          crank                  goals               standards
 
 ---
 
-*49 skills · 121 CLI commands · 14 hooks · 0 telemetry · everything in plain files*
+*52 skills · 121 CLI commands · 13 hook entries · 0 telemetry · everything in plain files*

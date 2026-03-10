@@ -361,7 +361,7 @@ test_help "ao findings --help" "$AO" findings --help
 
 # Goals
 test_exec_output "ao goals validate" "VALID|goals|version" "$AO" goals validate
-test_exec_output "ao goals measure" "GOAL|RESULT|pass|fail" "$AO" goals measure
+test_exec_output "ao goals measure" "GOAL|RESULT|pass|fail" "$AO" goals measure --timeout 1
 
 # Ratchet
 test_exec_output "ao ratchet status" "Ratchet|Chain|Status|STEP" "$AO" ratchet status
