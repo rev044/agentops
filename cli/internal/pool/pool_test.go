@@ -1239,6 +1239,29 @@ func TestPoolWriteArtifactLongTitle(t *testing.T) {
 	}
 }
 
+func TestKnowledgeTypeHeading(t *testing.T) {
+	tests := []struct {
+		name string
+		kt   types.KnowledgeType
+		want string
+	}{
+		{name: "learning", kt: types.KnowledgeTypeLearning, want: "# Learning: "},
+		{name: "decision", kt: types.KnowledgeTypeDecision, want: "# Decision: "},
+		{name: "solution", kt: types.KnowledgeTypeSolution, want: "# Solution: "},
+		{name: "failure", kt: types.KnowledgeTypeFailure, want: "# Failure: "},
+		{name: "reference", kt: types.KnowledgeTypeReference, want: "# Reference: "},
+		{name: "default", kt: types.KnowledgeType("custom"), want: "# Knowledge: "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := knowledgeTypeHeading(tt.kt); got != tt.want {
+				t.Fatalf("knowledgeTypeHeading(%q) = %q, want %q", tt.kt, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPoolWriteArtifactMultilineContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	p := NewPool(tmpDir)
