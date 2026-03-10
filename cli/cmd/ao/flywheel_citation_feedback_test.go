@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/boshu2/agentops/cli/internal/types"
 )
@@ -355,5 +356,62 @@ func TestComputeSessionRewardForCloseLoop_NoTranscript(t *testing.T) {
 	}
 	if reward != 0.5 {
 		t.Errorf("expected InitialUtility (0.5) as fallback, got: %v", reward)
+	}
+}
+
+func TestFlywheelCitationFeedback_FindingUpdatesCitationFields(t *testing.T) {
+	tmp := t.TempDir()
+	aoDir := filepath.Join(tmp, ".agents", "ao")
+	findingsDir := filepath.Join(tmp, ".agents", SectionFindings)
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(findingsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	findingPath := filepath.Join(findingsDir, "f-cited.md")
+	if err := os.WriteFile(findingPath, []byte(`---
+id: f-cited
+title: Cited finding
+status: active
+hit_count: 1
+---
+
+# Cited finding
+
+Summary.
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	citation := types.CitationEvent{
+		ArtifactPath: filepath.Join(".agents", SectionFindings, "f-cited.md"),
+		SessionID:    "session-1",
+		CitedAt:      time.Date(2026, 3, 10, 1, 0, 0, 0, time.UTC),
+	}
+	data, err := json.Marshal(citation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(aoDir, "citations.jsonl"), append(data, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	total, rewarded, skipped := processCitationFeedback(tmp)
+	if total != 1 || rewarded != 1 || skipped != 0 {
+		t.Fatalf("expected (1,1,0), got (%d,%d,%d)", total, rewarded, skipped)
+	}
+
+	content, err := os.ReadFile(findingPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	if !strings.Contains(text, "hit_count: 2") {
+		t.Fatalf("expected updated hit_count, got:\n%s", text)
+	}
+	if !strings.Contains(text, "last_cited: 2026-03-10T01:00:00Z") {
+		t.Fatalf("expected updated last_cited, got:\n%s", text)
 	}
 }

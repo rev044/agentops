@@ -11,8 +11,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
+
+func resetFlagChangesRecursive(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		f.Changed = false
+	})
+	for _, child := range cmd.Commands() {
+		resetFlagChangesRecursive(child)
+	}
+}
 
 // executeCommand runs a command through rootCmd and captures output from
 // both cmd.OutOrStdout() (via SetOut) and os.Stdout (via pipe).
@@ -37,6 +47,15 @@ func executeCommand(args ...string) (string, error) {
 	origHooksFull := hooksFull
 	origHooksDryRun := hooksDryRun
 	origHooksForce := hooksForce
+	origFindingsListLimit := findingsListLimit
+	origFindingsListAll := findingsListAll
+	origFindingsExportTo := findingsExportTo
+	origFindingsExportAll := findingsExportAll
+	origFindingsExportForce := findingsExportForce
+	origFindingsPullFrom := findingsPullFrom
+	origFindingsPullAll := findingsPullAll
+	origFindingsPullForce := findingsPullForce
+	origFindingsRetireBy := findingsRetireBy
 	defer func() {
 		dryRun = origDryRun
 		verbose = origVerbose
@@ -54,6 +73,15 @@ func executeCommand(args ...string) (string, error) {
 		hooksFull = origHooksFull
 		hooksDryRun = origHooksDryRun
 		hooksForce = origHooksForce
+		findingsListLimit = origFindingsListLimit
+		findingsListAll = origFindingsListAll
+		findingsExportTo = origFindingsExportTo
+		findingsExportAll = origFindingsExportAll
+		findingsExportForce = origFindingsExportForce
+		findingsPullFrom = origFindingsPullFrom
+		findingsPullAll = origFindingsPullAll
+		findingsPullForce = origFindingsPullForce
+		findingsRetireBy = origFindingsRetireBy
 	}()
 
 	// Reset all command-local flags to defaults before execution.
@@ -70,12 +98,18 @@ func executeCommand(args ...string) (string, error) {
 	hooksFull = false
 	hooksDryRun = false
 	hooksForce = false
-	// Reset Cobra flag Changed state on all subcommands
-	for _, sub := range rootCmd.Commands() {
-		sub.Flags().VisitAll(func(f *pflag.Flag) {
-			f.Changed = false
-		})
-	}
+	findingsListLimit = 20
+	findingsListAll = false
+	findingsExportTo = ""
+	findingsExportAll = false
+	findingsExportForce = false
+	findingsPullFrom = ""
+	findingsPullAll = false
+	findingsPullForce = false
+	findingsRetireBy = ""
+
+	// Reset Cobra flag Changed state on all commands recursively.
+	resetFlagChangesRecursive(rootCmd)
 	rootCmd.Flags().VisitAll(func(f *pflag.Flag) {
 		f.Changed = false
 	})

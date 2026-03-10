@@ -221,6 +221,45 @@ func TestMetricsHealth_WithCitations(t *testing.T) {
 	}
 }
 
+func TestMetricsHealth_FindingsParticipateInStockAndRetrieval(t *testing.T) {
+	dir := setupHealthTestDir(t)
+	now := time.Now()
+
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	findingsDir := filepath.Join(dir, ".agents", SectionFindings)
+	if err := os.MkdirAll(findingsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(learningsDir, "learn.md"), []byte("# L"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(findingsDir, "finding.md"), []byte("# F"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	writeHealthCitations(t, dir, []types.CitationEvent{
+		{
+			ArtifactPath: filepath.Join(dir, ".agents", SectionFindings, "finding.md"),
+			SessionID:    "s1",
+			CitedAt:      now.Add(-time.Hour),
+		},
+	})
+
+	hm, err := computeHealthMetrics(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hm.KnowledgeStock.Findings != 1 {
+		t.Fatalf("expected 1 finding, got %d", hm.KnowledgeStock.Findings)
+	}
+	if hm.KnowledgeStock.Total != 2 {
+		t.Fatalf("expected total knowledge stock 2, got %d", hm.KnowledgeStock.Total)
+	}
+	if hm.Sigma < 0.49 || hm.Sigma > 0.51 {
+		t.Fatalf("expected sigma~0.5 with 1 cited finding / 2 retrievable artifacts, got %f", hm.Sigma)
+	}
+}
+
 func TestMetricsHealth_EscapeVelocity_Positive(t *testing.T) {
 	dir := setupHealthTestDir(t)
 	now := time.Now()
