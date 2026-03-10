@@ -107,21 +107,26 @@ type pattern struct {
 }
 
 type knowledgeFinding struct {
-	ID              string   `json:"id"`
-	Title           string   `json:"title"`
-	Summary         string   `json:"summary"`
-	Source          string   `json:"source,omitempty"`
-	SourceSkill     string   `json:"source_skill,omitempty"`
-	Severity        string   `json:"severity,omitempty"`
-	Detectability   string   `json:"detectability,omitempty"`
-	Status          string   `json:"status,omitempty"`
-	CompilerTargets []string `json:"compiler_targets,omitempty"`
-	ScopeTags       []string `json:"scope_tags,omitempty"`
-	FreshnessScore  float64  `json:"freshness_score,omitempty"`
-	AgeWeeks        float64  `json:"age_weeks,omitempty"`
-	Utility         float64  `json:"utility,omitempty"`
-	CompositeScore  float64  `json:"composite_score,omitempty"`
-	Global          bool     `json:"-"`
+	ID                  string   `json:"id"`
+	Title               string   `json:"title"`
+	Summary             string   `json:"summary"`
+	Source              string   `json:"source,omitempty"`
+	SourceSkill         string   `json:"source_skill,omitempty"`
+	Severity            string   `json:"severity,omitempty"`
+	Detectability       string   `json:"detectability,omitempty"`
+	Status              string   `json:"status,omitempty"`
+	CompilerTargets     []string `json:"compiler_targets,omitempty"`
+	ScopeTags           []string `json:"scope_tags,omitempty"`
+	ApplicableWhen      []string `json:"applicable_when,omitempty"`
+	ApplicableLanguages []string `json:"applicable_languages,omitempty"`
+	HitCount            int      `json:"hit_count,omitempty"`
+	LastCited           string   `json:"last_cited,omitempty"`
+	RetiredBy           string   `json:"retired_by,omitempty"`
+	FreshnessScore      float64  `json:"freshness_score,omitempty"`
+	AgeWeeks            float64  `json:"age_weeks,omitempty"`
+	Utility             float64  `json:"utility,omitempty"`
+	CompositeScore      float64  `json:"composite_score,omitempty"`
+	Global              bool     `json:"-"`
 }
 
 type session struct {
