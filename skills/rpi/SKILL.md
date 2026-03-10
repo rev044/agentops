@@ -1,31 +1,23 @@
 ---
 name: rpi
-description: 'Full RPI lifecycle orchestrator. Discovery (research+plan+pre-mortem) → Implementation (crank) → Validation (vibe+post-mortem). One command, sequential skill invocations with retry gates and fresh phase contexts.'
+description: 'Full RPI lifecycle orchestrator. Delegates to /discovery, /crank, /validation phase skills. One command, full lifecycle with complexity classification, --from routing, and optional loop. Triggers: "rpi", "full lifecycle", "research plan implement", "end to end".'
 skill_api_version: 1
 user-invocable: true
 metadata:
-  tier: execution
+  tier: meta
   dependencies:
-    - research    # discovery sub-step
-    - plan        # discovery sub-step
-    - pre-mortem  # discovery gate
-    - crank       # implementation phase
-    - vibe        # validation sub-step
-    - post-mortem # validation sub-step
+    - discovery   # phase 1 orchestrator
+    - crank       # phase 2 orchestrator
+    - validation  # phase 3 orchestrator
     - ratchet     # checkpoint tracking
   internal: false
 ---
 
 # /rpi — Full RPI Lifecycle Orchestrator
 
-> **Quick Ref:** One command, full lifecycle. Discovery → Implementation → Validation. The session is the lead; sub-skills manage their own teams.
+> **Quick Ref:** One command, full lifecycle. `/discovery` → `/crank` → `/validation`. Thin wrapper that delegates to phase orchestrators.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
-
-## Runtime Rule (Native Orchestration Only)
-
-- `/rpi` MUST orchestrate `/research`, `/plan`, `/pre-mortem`, `/crank`, `/vibe`, and `/post-mortem` directly in-session.
-- Do not hand orchestration to external RPI wrapper commands.
 
 ## Quick Start
 
@@ -34,299 +26,187 @@ metadata:
 /rpi --interactive "add user authentication"          # human gates in discovery only
 /rpi --from=discovery "add auth"                      # resume discovery
 /rpi --from=implementation ag-23k                      # skip to crank with existing epic
-/rpi --from=validation                                 # run vibe + post-mortem only
-/rpi --loop --max-cycles=3 "add auth"                 # optional iterate-on-fail loop
-/rpi "add auth"                                       # strict-quality/test-first is ON by default
-/rpi --no-test-first "add auth"                       # explicit opt-out from test-first
+/rpi --from=validation                                 # run validation only
+/rpi --loop --max-cycles=3 "add auth"                 # iterate-on-fail loop
+/rpi --deep "refactor payment module"                  # force full council ceremony
+/rpi --fast-path "fix typo in readme"                  # force lightweight ceremony
+/rpi --no-test-first "add auth"                       # opt out of strict-quality
 ```
 
 ## Architecture
 
 ```
-/rpi <goal | epic-id> [--from=<phase>] [--interactive]
-  │ (session = lead, no TeamCreate, direct skill chaining only)
+/rpi <goal | epic-id> [--from=<phase>] [--interactive] [--deep|--fast-path]
   │
-  ├── Phase 1: Discovery
-  │   ├── /research
-  │   ├── /plan
-  │   └── /pre-mortem (gate)
+  ├── Step 0: Setup + complexity classification
   │
-  ├── Phase 2: Implementation
-  │   └── /crank (autonomous execution)
+  ├── Phase 1: /discovery <goal>
+  │   └── brainstorm → ao search → research → plan → pre-mortem (gate)
+  │   └── Outputs: epic-id, execution-packet.json
   │
-  └── Phase 3: Validation
-      ├── /vibe (gate)
-      └── /post-mortem (retro + flywheel)
+  ├── Phase 2: /crank <epic-id>
+  │   └── wave-based implementation + validation + rework
+  │   └── Gate: DONE → proceed, BLOCKED/PARTIAL → retry (max 3)
+  │
+  └── Phase 3: /validation <epic-id>
+      └── vibe → post-mortem → retro → forge
+      └── Gate: PASS/WARN → finish, FAIL → re-crank (max 3)
 ```
 
-**Human gates (default):** 0 — fully autonomous.
-**Human gates (`--interactive`):** discovery approvals in `/research` and `/plan`.
-**Retry gates:** pre-mortem FAIL → re-plan, implementation BLOCKED/PARTIAL → re-crank, vibe FAIL → re-crank (max 3 attempts each).
-**Optional loop (`--loop`):** post-mortem FAIL can spawn another RPI cycle.
-
-### Phase Data Contracts
-
-All phase transitions use filesystem-based artifacts (no in-memory coupling):
-
-| Transition | Key Artifacts | How Next Phase Reads Them |
-|------------|---------------|---------------------------|
-| Start -> Discovery | Goal string + repo execution profile | Goal is passed to `/research`; repo policy is loaded from `docs/contracts/repo-execution-profile.md` and its schema |
-| Discovery -> Implementation | Epic ID, pre-mortem verdict, phase-1 summary, execution packet | `phased-state.json` + `.agents/rpi/phase-1-summary-*.md` + `.agents/rpi/execution-packet.json` |
-| Implementation -> Validation | Execution packet, crank completion status, phase-2 summary | `.agents/rpi/execution-packet.json` + `bd children <epic-id>` + `.agents/rpi/phase-2-summary-*.md` |
-| Validation -> Next Cycle (optional) | Vibe/post-mortem verdicts, harvested follow-up work, queue claim/finalize metadata | Council reports + `.agents/rpi/next-work.jsonl` |
+**Phase orchestrators own all sub-skill sequencing, retry gates, and phase budgets.**
+`/rpi` owns only: setup, complexity classification, phase routing, implementation gate, validation-fail-to-crank loop, and final report.
 
 ## Execution Steps
 
-Given `/rpi <goal | epic-id> [--from=<phase>] [--interactive]`:
-
-### Step 0: Setup
+### Step 0: Setup + Classify
 
 ```bash
 mkdir -p .agents/rpi
 ```
 
-Load repo policy before selecting a phase:
-- locate `docs/contracts/repo-execution-profile.md` and `docs/contracts/repo-execution-profile.schema.json`
-- read the repo execution profile fields needed for orchestration: `startup_reads`, `validation_commands`, `tracker_commands`, and `definition_of_done`
-- carry those fields forward through a normalized execution packet instead of re-deriving them from free-form prompt text
-
-Enforce orchestration mode before selecting a phase:
-- Allowed: direct invocations of `/research`, `/plan`, `/pre-mortem`, `/crank`, `/vibe`, `/post-mortem`.
-- Disallowed: external RPI wrapper orchestration.
-
-Determine starting phase:
+**Determine starting phase:**
 - default: `discovery`
-- `--from=implementation` (alias: `crank`)
-- `--from=validation` (aliases: `vibe`, `post-mortem`)
-- aliases `research`, `plan`, and `pre-mortem` map to `discovery`
+- `--from=implementation` (aliases: `crank`) → skip to Phase 2
+- `--from=validation` (aliases: `vibe`, `post-mortem`) → skip to Phase 3
+- aliases `research`, `plan`, `pre-mortem`, `brainstorm` map to `discovery`
+- If input looks like an epic ID (`ag-*`) and `--from` is not set, start at implementation.
 
-If input looks like an epic ID (`ag-*`) and `--from` is not set, start at implementation.
+**Classify complexity:**
+
+| Level | Criteria | Behavior |
+|-------|----------|----------|
+| `fast` | Goal <=30 chars, no complex/scope keywords | Discovery → crank only. Skip validation. |
+| `standard` | Goal 31-120 chars, or 1 scope keyword | Full 3-phase. Gates use `--quick`. |
+| `full` | Complex-operation keyword, 2+ scope keywords, or >120 chars | Full 3-phase. Gates use full council. |
+
+**Complex-operation keywords:** `refactor`, `migrate`, `migration`, `rewrite`, `redesign`, `rearchitect`, `overhaul`, `restructure`, `reorganize`, `decouple`, `deprecate`, `split`, `extract module`, `port`
+
+**Scope keywords:** `all`, `entire`, `across`, `everywhere`, `every file`, `every module`, `system-wide`, `global`, `throughout`, `codebase`
+
+**Overrides:** `--deep` forces `full`. `--fast-path` forces `fast`.
+
+Log:
+```
+RPI mode: rpi-phased (complexity: <level>)
+```
 
 Initialize state:
-
 ```
 rpi_state = {
   goal: "<goal string>",
   epic_id: null,
   phase: "<discovery|implementation|validation>",
-  auto: <true unless --interactive>,
+  complexity: "<fast|standard|full>",
   test_first: <true by default; false only when --no-test-first>,
-  repo_profile_path: <docs/contracts/repo-execution-profile.md or null>,
-  execution_packet_path: ".agents/rpi/execution-packet.json",
-  complexity: null,
   cycle: 1,
-  parent_epic: null,
+  max_cycles: <3 when --loop; overridden by --max-cycles>,
   verdicts: {}
-}
-```
-
-Discovery owns the first normalized execution packet:
-
-```text
-execution_packet = {
-  objective: "<goal or epic objective>",
-  contract_surfaces: ["docs/contracts/repo-execution-profile.md", "..."],
-  validation_commands: ["<repo validation command>", "..."],
-  tracker_mode: "<default|repo-wrapped>",
-  done_criteria: ["<definition_of_done predicate>", "..."]
 }
 ```
 
 ### Phase 1: Discovery
 
-Discovery invokes research, planning, and pre-mortem sequentially. Each skill forks into its own subagent context via `context: { window: fork }` and communicates via filesystem artifacts:
+Delegate to `/discovery`:
 
-```text
-/research <goal> [--auto]
-/plan <goal> [--auto]
-/pre-mortem
+```
+Skill(skill="discovery", args="<goal> [--interactive] --complexity=<level>")
 ```
 
-After discovery completes:
-1. Extract epic ID from `bd list --type epic --status open` and store in `rpi_state.epic_id`.
-2. Extract pre-mortem verdict (PASS/WARN/FAIL) from latest pre-mortem council report.
-3. Store verdict in `rpi_state.verdicts.pre_mortem`.
-4. Write `.agents/rpi/execution-packet.json` using the goal, repo execution profile, discovery findings, epic id, and pre-mortem verdict.
-5. Write summary to `.agents/rpi/phase-1-summary-YYYY-MM-DD-<goal-slug>.md`.
-6. Record ratchet and telemetry:
-
-```bash
-ao ratchet record research 2>/dev/null || true
-bash scripts/checkpoint-commit.sh rpi "phase-1" "discovery complete" 2>/dev/null || true
-bash scripts/log-telemetry.sh rpi phase-complete phase=1 phase_name=discovery 2>/dev/null || true
-```
-
-Gate behavior:
-- PASS/WARN: proceed to implementation.
-- FAIL: re-run `/plan` with findings context (top 5 structured findings: description, fix, ref), then `/pre-mortem` again. Max 3 total attempts. If still FAIL after 3, stop and require manual intervention.
+After `/discovery` completes:
+1. Check completion marker: `<promise>DONE</promise>` or `<promise>BLOCKED</promise>`
+2. If BLOCKED: stop. Discovery handles its own retries (max 3 pre-mortem attempts). Manual intervention needed.
+3. If DONE: extract epic-id from `.agents/rpi/execution-packet.json`
+4. Store `rpi_state.epic_id` and `rpi_state.verdicts.pre_mortem`
 
 ### Phase 2: Implementation
 
 Requires `rpi_state.epic_id`.
 
-Before invoking `/crank`, read `.agents/rpi/execution-packet.json` and use it as the normalized handoff. The packet is the source for repo validation commands, tracker mode, and done_criteria during implementation.
-
-```text
-/crank <epic-id> [--no-test-first]
+```
+Skill(skill="crank", args="<epic-id> [--test-first] [--no-test-first]")
 ```
 
-After implementation completes:
-1. Check completion via crank output / epic child statuses.
-2. Gate result:
-   - DONE: proceed to validation
-   - BLOCKED: re-run `/crank` with block context (max 3 total attempts). If still BLOCKED, stop and require manual intervention.
-   - PARTIAL: re-run `/crank` with epic-id; it picks up unclosed issues (max 3 total attempts). If still PARTIAL, stop and require manual intervention.
-3. Write summary to `.agents/rpi/phase-2-summary-YYYY-MM-DD-<goal-slug>.md`.
-4. Record ratchet and telemetry:
+**Implementation gate (max 3 attempts):**
+- `<promise>DONE</promise>`: proceed to validation
+- `<promise>BLOCKED</promise>`: retry with block context (max 2 retries)
+  - Re-invoke `/crank` with epic-id + block reason
+  - If still BLOCKED after 3 total: stop, manual intervention needed
+- `<promise>PARTIAL</promise>`: retry remaining (max 2 retries)
+  - Re-invoke `/crank` with epic-id (picks up unclosed issues)
+  - If still PARTIAL after 3 total: stop, manual intervention needed
 
+Record:
 ```bash
 ao ratchet record implement 2>/dev/null || true
-bash scripts/checkpoint-commit.sh rpi "phase-2" "implementation complete" 2>/dev/null || true
-bash scripts/log-telemetry.sh rpi phase-complete phase=2 phase_name=implementation 2>/dev/null || true
 ```
 
 ### Phase 3: Validation
 
-Validation runs final review and lifecycle close-out:
+**Skip if:** complexity == `fast` (fast-path runs discovery + crank only).
 
-Read `.agents/rpi/execution-packet.json` again before `/vibe` and `/post-mortem` so validation uses the same repo contract surfaces and done_criteria that discovery handed to implementation.
-
-```text
-/vibe recent            # use --quick recent for low/medium complexity
-/post-mortem <epic-id>  # use --quick for low/medium complexity
+```
+Skill(skill="validation", args="<epic-id> --complexity=<level>")
 ```
 
-After validation completes:
-1. Extract vibe verdict and store `rpi_state.verdicts.vibe`.
-2. If present, extract post-mortem verdict and store `rpi_state.verdicts.post_mortem`.
-3. Gate result:
-   - PASS/WARN: finish RPI
-   - FAIL: re-run implementation with findings, then re-run validation (max 3 total attempts)
-4. Write summary to `.agents/rpi/phase-3-summary-YYYY-MM-DD-<goal-slug>.md`.
-5. Record ratchet and telemetry:
+**Validation-to-crank loop (max 3 total attempts):**
+- `<promise>DONE</promise>`: finish RPI
+- `<promise>FAIL</promise>`: vibe found defects
+  1. Extract findings from validation output
+  2. Re-invoke `/crank` with epic-id + findings context (preserve `--test-first` / `--no-test-first` from original invocation)
+  3. Re-invoke `/validation`
+  4. If still FAIL after 3 total: stop, manual intervention needed
 
+Record:
 ```bash
 ao ratchet record vibe 2>/dev/null || true
-bash scripts/checkpoint-commit.sh rpi "phase-3" "validation complete" 2>/dev/null || true
-bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=validation 2>/dev/null || true
 ```
 
-**Optional loop (`--loop`):** If post-mortem verdict is FAIL and `--loop` is enabled, extract 3 concrete fixes from the report and re-invoke `/rpi` from Phase 1 with a tightened goal (up to `--max-cycles` total cycles). PASS/WARN stops the loop.
+### Step Final: Report + Loop
 
-**Optional spawn-next (`--spawn-next`):** After a PASS/WARN finish, read `.agents/rpi/next-work.jsonl` for harvested follow-up items. Report them to the user with a suggested next `/rpi` command but do NOT auto-invoke. Queue items are claimed first and only finalized as consumed after the successful validation path; failed cycles must release claims back to available state.
+**Report:** Summarize all phase verdicts and epic status.
 
-### Step Final: Report
+**Optional loop (`--loop`):** If validation verdict is FAIL and `cycle < max_cycles`:
+1. Extract 3 concrete fixes from the post-mortem report
+2. Increment `rpi_state.cycle`
+3. Re-invoke `/rpi` from discovery with a tightened goal
+4. PASS/WARN stops the loop
 
-Read `references/report-template.md` for the final output format and next-work handoff pattern.
+**Optional spawn-next (`--spawn-next`):** After PASS/WARN finish:
+1. Read `.agents/rpi/next-work.jsonl` for harvested follow-up items
+2. Report with suggested next `/rpi` command
+3. Do NOT auto-invoke
 
-Read `references/error-handling.md` for failure semantics and retries.
-
-## Complexity-Aware Ceremony
-
-RPI automatically classifies each goal's complexity at startup and adjusts the ceremony accordingly. This prevents trivial tasks from paying the full validation overhead of a refactor.
-
-### Classification Levels
-
-| Level | Criteria | Behavior |
-|-------|----------|----------|
-| `fast` | Goal ≤30 chars, no complex/scope keywords | Skips Phase 3 (validation). Runs discovery → implementation only. |
-| `standard` | Goal 31–120 chars, or 1 scope keyword | Full 3-phase lifecycle. Gates use `--quick` shortcuts. |
-| `full` | Complex-operation keyword (refactor, migrate, rewrite, …), 2+ scope keywords, or >120 chars | Full 3-phase lifecycle. Gates use full council (no shortcuts). |
-
-### Keyword Signals
-
-**Complex-operation keywords** (trigger `full`): `refactor`, `migrate`, `migration`, `rewrite`, `redesign`, `rearchitect`, `overhaul`, `restructure`, `reorganize`, `decouple`, `deprecate`, `split`, `extract module`, `port`
-
-**Scope keywords** (1 → `standard`; 2+ → `full`): `all`, `entire`, `across`, `everywhere`, `every file`, `every module`, `system-wide`, `global`, `throughout`, `codebase`
-
-All keywords are matched as **whole words** to prevent false positives (e.g. "support" does not match "port").
-
-### Logged Output
-
-At RPI start you will see:
-
-```
-RPI mode: rpi-phased (complexity: fast)
-Complexity: fast — skipping validation phase (phase 3)
-```
-
-or for standard/full:
-
-```
-RPI mode: rpi-phased (complexity: standard)
-```
-
-The complexity level is persisted in `.agents/rpi/phased-state.json` as the `complexity` field.
-
-### Legacy Gate Mapping (Compatibility)
-
-Phase naming in older tuning validation references is mapped as follows:
-
-#### Phase 3: Pre-mortem
-- complexity == "low": inline (`--quick`), no spawning
-- complexity == "medium": inline fast default (`--quick`)
-- complexity == "high": full council path (2-judge minimum), no `--quick`
-
-#### Phase 5: Final Vibe
-- complexity == "low": inline (`--quick`), no spawning
-- complexity == "medium": inline fast default (`--quick`)
-- complexity == "high": full council path (2-judge minimum), no `--quick`
-
-#### Phase 6: Post-mortem
-- complexity == "low": inline (`--quick`), no spawning
-- complexity == "medium": inline fast default (`--quick`)
-- complexity == "high": full council path (2-judge minimum), no `--quick`
-
-### Override
-
-- `--fast-path`: force fast-path regardless of classification (useful for quick patches).
-- `--deep`: force full-ceremony regardless of classification (useful for sensitive changes).
-
-## Phase Budgets
-
-Each RPI phase has a time budget scaled by complexity level. Budgets prevent sessions from stalling in research or planning without producing artifacts.
-
-| Phase | `fast` | `standard` | `full` |
-|-------|--------|------------|--------|
-| Research | 3 min | 5 min | 10 min |
-| Plan | 2 min | 5 min | 10 min |
-| Pre-mortem | 1 min | 3 min | 5 min |
-| Implementation | unlimited | unlimited | unlimited |
-| Validation | — (skipped) | 5 min | 10 min |
-
-**Implementation is always unlimited** — crank has its own wave limits (MAX_EPIC_WAVES = 50).
-
-### Budget Enforcement
-
-- **Check at natural pause points:** before spawning agents, before retry loops, between skill invocations
-- **On budget expiry:**
-  1. Allow in-flight tool calls to complete (soft limit — don't interrupt mid-operation)
-  2. Write `[TIME-BOXED]` marker to the phase summary file
-  3. Auto-transition to the next phase with whatever artifacts exist
-  4. Log: `"Phase <name> time-boxed at <elapsed>s (budget: <budget>s)"`
-- **Budget expiry is NOT a retry attempt** — it is orthogonal to the 3-attempt retry gates. A time-boxed phase that produced a FAIL verdict still counts as attempt 1.
-- **Override with `--no-budget`** to disable all phase budgets (useful for open-ended research)
-- **Override with `--budget=<phase>:<seconds>`** for custom per-phase budgets (e.g., `--budget=research:180,plan:120`)
-
-For detailed budget tables, worked examples, and rationale, read `references/phase-budgets.md`.
+Read `references/report-template.md` for full output format.
+Read `references/error-handling.md` for failure semantics.
 
 ## Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--from=<phase>` | `discovery` | Start from `discovery`, `implementation`, or `validation` (aliases accepted) |
-| `--interactive` | off | Enable human gates in discovery (`/research`, `/plan`) |
-| `--auto` | on | Legacy flag; autonomous is default |
-| `--loop` | off | Enable post-mortem FAIL loop into next cycle |
-| `--max-cycles=<n>` | `1` | Max cycle count when `--loop` is enabled |
-| `--spawn-next` | off | Surface harvested follow-up work after post-mortem |
-| `--test-first` | on | Strict-quality default: pass `--test-first` to `/crank` |
-| `--no-test-first` | off | Explicit opt-out: do not pass `--test-first` to `/crank` |
-| `--fast-path` | auto | Force low-complexity gate mode (`--quick`) |
-| `--deep` | auto | Force high-complexity gate mode (full council) |
-| `--dry-run` | off | Report actions without mutating next-work queue |
-| `--no-budget` | off | Disable all phase time budgets |
-| `--budget=<spec>` | auto | Custom per-phase budgets in seconds (e.g., `research:180,plan:120`) |
+| `--from=<phase>` | `discovery` | Start from `discovery`, `implementation`, or `validation` |
+| `--interactive` | off | Human gates in discovery |
+| `--loop` | off | Post-mortem FAIL triggers new cycle |
+| `--max-cycles=<n>` | `3` | Max cycles when `--loop` enabled (default 3) |
+| `--spawn-next` | off | Surface follow-up work after completion |
+| `--test-first` | on | Strict-quality (passed to `/crank`) |
+| `--no-test-first` | off | Opt out of strict-quality |
+| `--fast-path` | auto | Force fast complexity |
+| `--deep` | auto | Force full complexity |
+| `--dry-run` | off | Report without mutating queue |
+| `--no-budget` | off | Disable phase time budgets (passed to phase skills) |
+
+## Phase Data Contracts
+
+All transitions use filesystem artifacts (no in-memory coupling):
+
+| Transition | Key Artifacts |
+|-----------|---------------|
+| /rpi → /discovery | Goal string, complexity level |
+| /discovery → /crank | `.agents/rpi/execution-packet.json`, epic-id, `phase-1-summary-*.md` |
+| /crank → /validation | `.agents/rpi/execution-packet.json`, `phase-2-summary-*.md`, epic child statuses |
+| /validation → loop/next | Verdicts, `.agents/rpi/next-work.jsonl` |
+
+For detailed contract schemas, read `references/phase-data-contracts.md`.
 
 ## Examples
 
@@ -334,53 +214,40 @@ For detailed budget tables, worked examples, and rationale, read `references/pha
 
 **User says:** `/rpi "add user authentication"`
 
-**What happens:**
-1. Discovery runs `/research`, `/plan`, `/pre-mortem` and produces epic `ag-5k2`.
-2. Implementation runs `/crank ag-5k2` until children are complete.
-3. Validation runs `/vibe` then `/post-mortem`, extracts learnings, and suggests next work.
+1. `/discovery "add user authentication"` — brainstorm, research, plan, pre-mortem → epic `ag-5k2`
+2. `/crank ag-5k2` — implement all issues
+3. `/validation ag-5k2` — vibe, post-mortem, retro, forge
 
 ### Resume from Implementation
 
 **User says:** `/rpi --from=implementation ag-5k2`
 
-**What happens:**
-1. Skips discovery.
-2. Runs `/crank ag-5k2`.
-3. Runs validation (`/vibe` + `/post-mortem`).
+1. Skips discovery
+2. `/crank ag-5k2`
+3. `/validation ag-5k2`
 
 ### Interactive Discovery
 
 **User says:** `/rpi --interactive "refactor payment module"`
 
-**What happens:**
-1. Discovery runs with human gates in `/research` and `/plan`.
-2. Implementation and validation remain autonomous.
+1. `/discovery "refactor payment module" --interactive --complexity=full` — human gates in research + plan
+2. `/crank <epic-id>` — autonomous
+3. `/validation <epic-id>` — autonomous
 
 ## Troubleshooting
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| Supervisor spiraled branch count | Detached HEAD healing or legacy `codex/auto-rpi-*` naming created detached branches | Keep `--detached-heal` off for supervisor mode (default), prefer detached worktree execution, then use external operator cleanup controls to preview and prune stale branches/worktrees. |
-| Discovery retries hit max attempts | Plan has unresolved risks | Review pre-mortem findings, re-run `/rpi --from=discovery` |
-| Implementation retries hit max attempts | Epic has blockers or unresolved dependencies | Inspect `bd show <epic-id>`, fix blockers, re-run `/rpi --from=implementation` |
-| Validation retries hit max attempts | Vibe found critical defects repeatedly | Apply findings, re-run `/rpi --from=validation` |
-| Missing epic ID at implementation start | Discovery did not produce a parseable epic | Verify latest open epic with `bd list --type epic --status open` |
-| Large-repo context pressure | Too much context in one window | Use `references/context-windowing.md` and summarize phase outputs aggressively |
-
-### Emergency control (external operator loop)
-
-Use external operator controls from a terminal to cancel in-flight runs and
-clean stale worktrees/branches. Keep these controls out-of-band from `/rpi`
-skill chaining.
+| Discovery BLOCKED | Pre-mortem failed 3x | Review `.agents/council/*pre-mortem*.md`, refine goal, re-run `/rpi --from=discovery` |
+| Crank retries hit max | Epic has blockers | `bd show <epic-id>`, fix blockers, re-run `/rpi --from=implementation` |
+| Validation retries hit max | Vibe found critical defects repeatedly | Apply findings, re-run `/rpi --from=validation` |
+| Missing epic ID | Discovery didn't produce a parseable epic | `bd list --type epic --status open` |
 
 ## See Also
 
-- `skills/research/SKILL.md` — discovery exploration
-- `skills/plan/SKILL.md` — discovery decomposition
-- `skills/pre-mortem/SKILL.md` — discovery risk gate
-- `skills/crank/SKILL.md` — implementation execution
-- `skills/vibe/SKILL.md` — validation gate
-- `skills/post-mortem/SKILL.md` — validation close-out
+- [skills/discovery/SKILL.md](../discovery/SKILL.md) — Phase 1: discovery orchestrator
+- [skills/crank/SKILL.md](../crank/SKILL.md) — Phase 2: implementation orchestrator
+- [skills/validation/SKILL.md](../validation/SKILL.md) — Phase 3: validation orchestrator
 
 ## Reference Documents
 
@@ -390,3 +257,5 @@ skill chaining.
 - [references/gate4-loop-and-spawn.md](references/gate4-loop-and-spawn.md)
 - [references/phase-budgets.md](references/phase-budgets.md)
 - [references/phase-data-contracts.md](references/phase-data-contracts.md)
+- [references/report-template.md](references/report-template.md)
+- [references/error-handling.md](references/error-handling.md)

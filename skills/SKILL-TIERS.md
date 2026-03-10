@@ -182,7 +182,7 @@ These are how skills chain in practice:
 
 ## Current Skill Tiers
 
-### User-Facing Skills (43)
+### User-Facing Skills (45)
 
 **Judgment:**
 
@@ -202,8 +202,10 @@ These are how skills chain in practice:
 | **plan** | execution | Decompose epics into issues with dependency waves |
 | **implement** | execution | Full lifecycle for one task |
 | **crank** | execution | Autonomous epic execution — parallel waves |
+| **discovery** | meta | Discovery phase orchestrator — brainstorm → search → research → plan → pre-mortem |
+| **validation** | meta | Validation phase orchestrator — vibe → post-mortem → retro → forge |
 | **swarm** | execution | Parallelize any skill — fresh context per agent |
-| **rpi** | execution | Full pipeline: research → plan → pre-mortem → crank → vibe → post-mortem |
+| **rpi** | meta | Thin wrapper: /discovery → /crank → /validation with complexity classification and loop |
 | **evolve** | execution | Autonomous fitness-scored improvement loop |
 | **bug-hunt** | execution | Investigate bugs with git archaeology |
 | **complexity** | execution | Cyclomatic complexity analysis |
@@ -315,7 +317,9 @@ Not auto-loaded — loaded JIT by other skills via Read or auto-triggered by hoo
 | **oss-docs** | doc | optional |
 | provenance | - | - |
 | **quickstart** | - | - (zero dependencies) |
-| **rpi** | research, plan, pre-mortem, crank, vibe, post-mortem, ratchet | all required |
+| **discovery** | brainstorm, research, plan, pre-mortem, shared | brainstorm optional, rest required |
+| **validation** | vibe, post-mortem, retro, forge, shared | vibe+post-mortem required, retro+forge optional |
+| **rpi** | discovery, crank, validation, ratchet | all required |
 | **evolve** | rpi | required (rpi pulls in all sub-skills) |
 | **release** | - | - (standalone) |
 | **security** | - | - (standalone) |
@@ -397,6 +401,8 @@ Orchestrators, single-task executors, and investigative skills stay in the main 
 | evolve | Orchestrator | Long loop, need cycle-by-cycle visibility |
 | rpi | Orchestrator | Sequential phases, need phase gates |
 | crank | Orchestrator | Wave orchestrator, need wave reports |
+| discovery | Orchestrator | Discovery phase orchestrator, need gate visibility |
+| validation | Orchestrator | Validation phase orchestrator, need verdict visibility |
 | implement | Single-task | Single issue, medium duration |
 | bug-hunt | Investigator | Hypothesis loop, need to see reasoning |
 
