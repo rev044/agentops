@@ -56,6 +56,17 @@ report() {
 # Extract YAML frontmatter value. Handles quoted and unquoted values.
 get_frontmatter() {
   local file="$1" key="$2"
+
+  # Validate frontmatter structure: file must start with --- and have a closing ---
+  local first_line
+  first_line="$(head -1 "$file")"
+  if [[ "$first_line" != "---" ]]; then
+    return 1
+  fi
+  if ! awk 'NR==1{next} /^---$/{found=1; exit} END{exit !found}' "$file"; then
+    return 1
+  fi
+
   # Read between first --- pair
   local in_fm=0 value=""
   while IFS= read -r line; do
@@ -88,16 +99,19 @@ is_linked() {
   # Also accept any non-backtick reference to the file path
   local ref_basename
   ref_basename="$(basename "$ref_file")"
+  # Escape dots in filename for grep regex
+  local ref_basename_escaped="${ref_basename//./\\.}"
   local ref_rel="references/$ref_basename"
   # Linked = appears in a markdown link or Read instruction (not just bare backtick)
-  if grep -qE "\]\(.*${ref_rel}.*\)" "$skill_md" 2>/dev/null; then
+  # Allow optional suffix after filename: anchors (#section), query strings, or closing paren
+  if grep -qE "\]\(references/${ref_basename_escaped}[^)]*\)" "$skill_md" 2>/dev/null; then
     return 0
   fi
-  if grep -qE "Read.*${ref_rel}" "$skill_md" 2>/dev/null; then
+  if grep -qE "Read.*references/${ref_basename_escaped}" "$skill_md" 2>/dev/null; then
     return 0
   fi
   # Also accept if referenced via a relative path in some other link form
-  if grep -qE "\(${ref_rel}\)" "$skill_md" 2>/dev/null; then
+  if grep -qE "\(references/${ref_basename_escaped}[^)]*\)" "$skill_md" 2>/dev/null; then
     return 0
   fi
   return 1

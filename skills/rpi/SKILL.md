@@ -197,57 +197,37 @@ Read `references/error-handling.md` for failure semantics.
 
 ## Phase Data Contracts
 
-All transitions use filesystem artifacts (no in-memory coupling):
+All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries `contract_surfaces` (repo execution profile), `done_criteria`, and queue claim/finalize metadata between phases. Sub-skills include /plan, /vibe, /post-mortem, and /pre-mortem. For detailed contract schemas, read `references/phase-data-contracts.md`.
 
-| Transition | Key Artifacts |
-|-----------|---------------|
-| /rpi → /discovery | Goal string, complexity level |
-| /discovery → /crank | `.agents/rpi/execution-packet.json`, epic-id, `phase-1-summary-*.md` |
-| /crank → /validation | `.agents/rpi/execution-packet.json`, `phase-2-summary-*.md`, epic child statuses |
-| /validation → loop/next | Verdicts, `.agents/rpi/next-work.jsonl` |
+## Complexity-Scaled Council Gates
 
-For detailed contract schemas, read `references/phase-data-contracts.md`.
+### Phase 3: Pre-mortem
+- complexity == "low": inline review, no spawning (--quick)
+- complexity == "medium": inline fast default (--quick)
+- complexity == "high": full council, 2-judge minimum
+- Retry gate: max 3 total attempts
+
+### Phase 5: Final Vibe
+- complexity == "low": inline review, no spawning (--quick)
+- complexity == "medium": inline fast default (--quick)
+- complexity == "high": full council, 2-judge minimum
+- Retry gate: max 3 total attempts
+
+### Phase 6: Post-mortem
+- complexity == "low": inline review, no spawning (--quick)
+- complexity == "medium": inline fast default (--quick)
+- complexity == "high": full council, 2-judge minimum
+- Retry gate: max 3 total attempts
 
 ## Examples
 
-### Full Lifecycle
-
-**User says:** `/rpi "add user authentication"`
-
-1. `/discovery "add user authentication"` — brainstorm, research, plan, pre-mortem → epic `ag-5k2`
-2. `/crank ag-5k2` — implement all issues
-3. `/validation ag-5k2` — vibe, post-mortem, retro, forge
-
-### Resume from Implementation
-
-**User says:** `/rpi --from=implementation ag-5k2`
-
-1. Skips discovery
-2. `/crank ag-5k2`
-3. `/validation ag-5k2`
-
-### Interactive Discovery
-
-**User says:** `/rpi --interactive "refactor payment module"`
-
-1. `/discovery "refactor payment module" --interactive --complexity=full` — human gates in research + plan
-2. `/crank <epic-id>` — autonomous
-3. `/validation <epic-id>` — autonomous
+Read `references/examples.md` for full lifecycle, resume, and interactive examples.
 
 ## Troubleshooting
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Discovery BLOCKED | Pre-mortem failed 3x | Review `.agents/council/*pre-mortem*.md`, refine goal, re-run `/rpi --from=discovery` |
-| Crank retries hit max | Epic has blockers | `bd show <epic-id>`, fix blockers, re-run `/rpi --from=implementation` |
-| Validation retries hit max | Vibe found critical defects repeatedly | Apply findings, re-run `/rpi --from=validation` |
-| Missing epic ID | Discovery didn't produce a parseable epic | `bd list --type epic --status open` |
+Read `references/troubleshooting.md` for common problems and solutions.
 
-## See Also
-
-- [skills/discovery/SKILL.md](../discovery/SKILL.md) — Phase 1: discovery orchestrator
-- [skills/crank/SKILL.md](../crank/SKILL.md) — Phase 2: implementation orchestrator
-- [skills/validation/SKILL.md](../validation/SKILL.md) — Phase 3: validation orchestrator
+**See also:** [discovery](../discovery/SKILL.md), [crank](../crank/SKILL.md), [validation](../validation/SKILL.md)
 
 ## Reference Documents
 
@@ -259,3 +239,5 @@ For detailed contract schemas, read `references/phase-data-contracts.md`.
 - [references/phase-data-contracts.md](references/phase-data-contracts.md)
 - [references/report-template.md](references/report-template.md)
 - [references/error-handling.md](references/error-handling.md)
+- [references/examples.md](references/examples.md)
+- [references/troubleshooting.md](references/troubleshooting.md)

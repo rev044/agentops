@@ -1,59 +1,43 @@
 ---
 name: discovery
-description: 'Full discovery phase orchestrator. Brainstorm + ao search + research + plan + pre-mortem gate. Produces epic-id and execution-packet for /crank. Triggers: "discovery", "discover", "explore and plan", "research and plan", "discovery phase".'
-skill_api_version: 1
-user-invocable: true
-context:
-  window: fork
-  intent:
-    mode: task
-  sections:
-    exclude: [HISTORY]
-  intel_scope: full
-metadata:
-  tier: meta
-  dependencies:
-    - brainstorm  # optional - clarify WHAT before HOW
-    - research    # required - codebase exploration
-    - plan        # required - epic decomposition
-    - pre-mortem  # required - validation gate
-    - shared      # optional - CLI fallback table
+description: 'Full discovery phase orchestrator. Brainstorm + ao search + research + plan + pre-mortem gate. Produces epic-id and execution-packet for $crank. Triggers: "discovery", "discover", "explore and plan", "research and plan", "discovery phase".'
 ---
 
-# /discovery — Full Discovery Phase Orchestrator
 
-> **Quick Ref:** Brainstorm → search history → research → plan → pre-mortem. Produces an epic-id and execution-packet ready for `/crank`.
+# $discovery — Full Discovery Phase Orchestrator
+
+> **Quick Ref:** Brainstorm → search history → research → plan → pre-mortem. Produces an epic-id and execution-packet ready for `$crank`.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
 ## Quick Start
 
 ```bash
-/discovery "add user authentication"              # full discovery
-/discovery --interactive "refactor payment module" # human gates in research + plan
-/discovery --skip-brainstorm "fix login bug"       # skip brainstorm for specific goals
-/discovery --complexity=full "migrate to v2 API"   # force full council ceremony
+$discovery "add user authentication"              # full discovery
+$discovery --interactive "refactor payment module" # human gates in research + plan
+$discovery --skip-brainstorm "fix login bug"       # skip brainstorm for specific goals
+$discovery --complexity=full "migrate to v2 API"   # force full council ceremony
 ```
 
 ## Architecture
 
 ```
-/discovery <goal> [--interactive] [--complexity=<fast|standard|full>] [--skip-brainstorm]
+$discovery <goal> [--interactive] [--complexity=<fast|standard|full>] [--skip-brainstorm]
   │
   ├── Step 1: Brainstorm (optional)
-  │   └── /brainstorm <goal> — clarify WHAT before HOW
+  │   └── $brainstorm <goal> — clarify WHAT before HOW
   │
   ├── Step 2: Search History
   │   └── ao search "<goal keywords>" — surface prior learnings
   │
   ├── Step 3: Research
-  │   └── /research <goal> — deep codebase exploration
+  │   └── $research <goal> — deep codebase exploration
   │
   ├── Step 4: Plan
-  │   └── /plan <goal> — decompose into epic + issues
+  │   └── $plan <goal> — decompose into epic + issues
   │
   └── Step 5: Pre-mortem (gate)
-      └── /pre-mortem — council validates the plan
+      └── $pre-mortem — council validates the plan
           PASS/WARN → output epic-id + execution-packet
           FAIL → re-plan with findings, max 3 attempts
 ```
@@ -94,7 +78,7 @@ if command -v ao &>/dev/null; then AO_AVAILABLE=true; else AO_AVAILABLE=false; f
 
 **Skip if:** `--skip-brainstorm` flag, OR goal is >50 chars and contains no vague keywords (improve, better, something, somehow, maybe), OR a brainstorm artifact already exists for this goal in `.agents/brainstorm/`.
 
-**Otherwise:** Invoke `/brainstorm` to clarify WHAT before HOW:
+**Otherwise:** Invoke `$brainstorm` to clarify WHAT before HOW:
 
 ```
 Skill(skill="brainstorm", args="<goal>")
@@ -117,7 +101,7 @@ Summarize any relevant findings (prior attempts, related decisions, known constr
 
 ### Step 3: Research
 
-Invoke `/research` for deep codebase exploration:
+Invoke `$research` for deep codebase exploration:
 
 ```
 Skill(skill="research", args="<goal> [--auto]")
@@ -127,7 +111,7 @@ Pass `--auto` unless `--interactive` was specified. Research output lands in `.a
 
 ### Step 4: Plan
 
-Invoke `/plan` to decompose into an epic with trackable issues:
+Invoke `$plan` to decompose into an epic with trackable issues:
 
 ```
 Skill(skill="plan", args="<goal> [--auto]")
@@ -146,7 +130,7 @@ After plan completes:
 
 ### Step 5: Pre-mortem (gate)
 
-Invoke `/pre-mortem` to validate the plan:
+Invoke `$pre-mortem` to validate the plan:
 
 ```
 Skill(skill="pre-mortem", args="[--quick]")
@@ -161,11 +145,11 @@ Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for 
   1. Read pre-mortem report: `ls -t .agents/council/*pre-mortem*.md | head -1`
   2. Extract structured findings (description, fix, ref)
   3. Log: `"Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"`
-  4. Re-invoke `/plan` with findings context:
+  4. Re-invoke `$plan` with findings context:
      ```
      Skill(skill="plan", args="<goal> --auto --context 'Pre-mortem FAIL: <findings>'")
      ```
-  5. Re-invoke `/pre-mortem`
+  5. Re-invoke `$pre-mortem`
   6. If still FAIL after 3 total attempts, stop:
      ```
      "Pre-mortem failed 3 times. Last report: <path>. Manual intervention needed."
@@ -174,7 +158,7 @@ Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for 
 
 ### Step 6: Output
 
-After successful gate (PASS/WARN): write execution packet and phase summary (read `references/output-templates.md` for formats), record ratchet, output `<promise>DONE</promise>`, and report epic-id with suggested next step: `/crank <epic-id>`.
+After successful gate (PASS/WARN): write execution packet and phase summary (read `references/output-templates.md` for formats), record ratchet, output `<promise>DONE</promise>`, and report epic-id with suggested next step: `$crank <epic-id>`.
 
 ## Flags
 
@@ -195,9 +179,9 @@ After successful gate (PASS/WARN): write execution packet and phase summary (rea
 ## Examples
 
 ```bash
-/discovery "add user authentication"              # full discovery
-/discovery --interactive "refactor payment module" # human gates
-/discovery --skip-brainstorm "fix login bug"       # skip brainstorm
+$discovery "add user authentication"              # full discovery
+$discovery --interactive "refactor payment module" # human gates
+$discovery --skip-brainstorm "fix login bug"       # skip brainstorm
 ```
 
 ## Troubleshooting
@@ -212,4 +196,16 @@ Read `references/troubleshooting.md` for common problems and solutions.
 - [references/troubleshooting.md](references/troubleshooting.md) — common problems and solutions
 - [references/output-templates.md](references/output-templates.md) — execution packet and phase summary formats
 
-**See also:** [brainstorm](../brainstorm/SKILL.md), [research](../research/SKILL.md), [plan](../plan/SKILL.md), [pre-mortem](../pre-mortem/SKILL.md), [crank](../crank/SKILL.md), [rpi](../rpi/SKILL.md)
+**See also:** [brainstorm](..$brainstorm/SKILL.md), [research](..$research/SKILL.md), [plan](..$plan/SKILL.md), [pre-mortem](..$pre-mortem/SKILL.md), [crank](..$crank/SKILL.md), [rpi](..$rpi/SKILL.md)
+
+## Local Resources
+
+### references/
+
+- [references/complexity-auto-detect.md](references/complexity-auto-detect.md)
+- [references/idempotency-and-resume.md](references/idempotency-and-resume.md)
+- [references/output-templates.md](references/output-templates.md)
+- [references/phase-budgets.md](references/phase-budgets.md)
+- [references/troubleshooting.md](references/troubleshooting.md)
+
+

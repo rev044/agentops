@@ -586,12 +586,12 @@ write_output() {
   fi
   mkdir -p "$output_dir"
 
-  echo "$CONVERTED_OUTPUT" > "$output_dir/$CONVERTED_FILENAME"
+  printf '%s\n' "$CONVERTED_OUTPUT" > "$output_dir/$CONVERTED_FILENAME"
   echo "OK: $output_dir/$CONVERTED_FILENAME"
 
   # Write secondary output if present (e.g., codex prompt.md)
   if [[ -n "${CONVERTED_OUTPUT_2:-}" && -n "${CONVERTED_FILENAME_2:-}" ]]; then
-    echo "$CONVERTED_OUTPUT_2" > "$output_dir/$CONVERTED_FILENAME_2"
+    printf '%s\n' "$CONVERTED_OUTPUT_2" > "$output_dir/$CONVERTED_FILENAME_2"
     echo "OK: $output_dir/$CONVERTED_FILENAME_2"
   fi
 

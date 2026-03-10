@@ -309,16 +309,22 @@ Include in your Explore agent prompt:
 
 ## Reference Documents
 
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
+- [references/context-discovery.md](references/context-discovery.md)
+- [references/document-template.md](references/document-template.md)
+- [references/failure-patterns.md](references/failure-patterns.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
+- [references/vibe-methodology.md](references/vibe-methodology.md)
 - [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
 - [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
 - [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
 - [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
 - [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
-- [references/context-discovery.md](references/context-discovery.md)
-- [references/document-template.md](references/document-template.md)
-- [references/failure-patterns.md](references/failure-patterns.md)
 - [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
-- [references/vibe-methodology.md](references/vibe-methodology.md)
 
 ## Local Resources
 

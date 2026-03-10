@@ -34,26 +34,40 @@ fi
 # Validate and output sorted entries
 results=()
 while IFS= read -r entry; do
+    # Skip empty lines (e.g., trailing newline from heredoc)
+    [[ -z "$entry" ]] && continue
     # Validate required fields
-    id=$(echo "$entry" | jq -r '.id // empty' 2>/dev/null)
+    id=$(echo "$entry" | jq -r '.id // empty') || {
+        echo "Error: jq failed parsing 'id' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$id" ]]; then
         echo "Error: Missing or invalid 'id' field in wave entry: $entry" >&2
         exit 1
     fi
 
-    title=$(echo "$entry" | jq -r '.title // empty' 2>/dev/null)
+    title=$(echo "$entry" | jq -r '.title // empty') || {
+        echo "Error: jq failed parsing 'title' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$title" ]]; then
         echo "Error: Missing or invalid 'title' field in wave entry: $entry" >&2
         exit 1
     fi
 
-    spec_path=$(echo "$entry" | jq -r '.spec_path // empty' 2>/dev/null)
+    spec_path=$(echo "$entry" | jq -r '.spec_path // empty') || {
+        echo "Error: jq failed parsing 'spec_path' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$spec_path" ]]; then
         echo "Error: Missing or invalid 'spec_path' field in wave entry: $entry" >&2
         exit 1
     fi
 
-    priority=$(echo "$entry" | jq -r '.priority // empty' 2>/dev/null)
+    priority=$(echo "$entry" | jq -r '.priority // empty') || {
+        echo "Error: jq failed parsing 'priority' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$priority" ]]; then
         echo "Error: Missing or invalid 'priority' field in wave entry: $entry" >&2
         exit 1
@@ -64,6 +78,15 @@ while IFS= read -r entry; do
         echo "Error: Priority must be a number, got '$priority' for bead $id" >&2
         exit 1
     fi
+
+    # Validate fields do not contain newlines or tabs (prevents TSV array corruption)
+    for _field_name in id title spec_path; do
+        eval "_field_val=\$$_field_name"
+        if [[ "$_field_val" =~ [$'\n'$'\t'] ]]; then
+            echo "Error: '$_field_name' field contains newline or tab characters in wave entry: $entry" >&2
+            exit 1
+        fi
+    done
 
     # Store result for sorting (priority first for sorting, then output columns)
     results+=("$priority"$'\t'"$id"$'\t'"$title"$'\t'"$spec_path")

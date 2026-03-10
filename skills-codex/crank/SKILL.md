@@ -766,14 +766,14 @@ See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 
 ## Reference Documents
 
-- [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/commit-strategies.md](references/commit-strategies.md)
 - [references/worktree-per-worker.md](references/worktree-per-worker.md)
 - [references/contract-template.md](references/contract-template.md)
 - [references/failure-recovery.md](references/failure-recovery.md)
 - [references/failure-taxonomy.md](references/failure-taxonomy.md)
 - [references/fire.md](references/fire.md)
-- [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/taskcreate-examples.md](references/taskcreate-examples.md)
 - [references/team-coordination.md](references/team-coordination.md)
 - [references/test-first-mode.md](references/test-first-mode.md)

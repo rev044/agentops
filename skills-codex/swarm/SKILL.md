@@ -674,15 +674,21 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 
 ## Reference Documents
 
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
+- [references/local-mode.md](references/local-mode.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
+- [references/validation-contract.md](references/validation-contract.md)
+- [references/worker-pitfalls.md](references/worker-pitfalls.md)
 - [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
 - [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
 - [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
 - [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
 - [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
-- [references/local-mode.md](references/local-mode.md)
 - [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
-- [references/validation-contract.md](references/validation-contract.md)
-- [references/worker-pitfalls.md](references/worker-pitfalls.md)
 
 ## Local Resources
 

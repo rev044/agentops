@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/using-agentops",
   "layout": "modular",
-  "source_hash": "10fb446c268e48846c115718f40236a73be60cb659869cfce1f02d07b808ee2f",
-  "generated_hash": "ff7eedcc0d46d39cb0401f1604a7231b944bdfdbdf13b5926cf33d4447ac5143"
+  "source_hash": "e9e97e387c2880d32386b8b68d9d704a26c2b7d989486dc3f42e1eda7f2a2a65",
+  "generated_hash": "24b412a4170a56113fffa9f1dd4a2451895c244d894a0b4bb86e48276a60ef1f"
 }

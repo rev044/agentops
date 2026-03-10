@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/rpi",
   "layout": "modular",
-  "source_hash": "daa6e453a9b41bae34c3df1266eff701e50cd78102e1268002e4f50aae0ab406",
-  "generated_hash": "4351bbde20b5e6c4104870dd9783e206bd77b040f4cf83fbe4d5f2f9365ef0d5"
+  "source_hash": "579638b081114e16bc3c12722c05ff00d4ebcd1b100b67a9d18d3f4b54936994",
+  "generated_hash": "8021a42028cab788eb197270460c08c339b8839498d39ea6e40981b1c9e05345"
 }

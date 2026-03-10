@@ -353,6 +353,7 @@ Skill(skill="swarm")
 
 ## Reference Documents
 
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
 
 ## Local Resources

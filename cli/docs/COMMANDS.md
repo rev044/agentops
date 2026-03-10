@@ -1298,7 +1298,7 @@ ao session close [flags]
 **Flags:**
 
 ```
-      --auto-extract     Extract lightweight learnings and write handoff artifact
+      --auto-extract     Extract lightweight learnings (quality-filtered) and write handoff artifact
   -h, --help             help for close
       --session string   Session ID to close (default: most recent transcript)
 ```
