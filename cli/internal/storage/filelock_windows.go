@@ -27,8 +27,15 @@ func lockFile(f *os.File) error {
 	if hEvent == 0 {
 		return err
 	}
-	defer procCloseHandle.Call(hEvent) //nolint:errcheck
+	defer func() {
+		if hEvent != 0 {
+			procCloseHandle.Call(hEvent) //nolint:errcheck
+		}
+	}()
 
+	// ol is stack-allocated but its lifetime is safe: WaitForSingleObject
+	// blocks until the async I/O completes, so ol remains valid for the
+	// duration of the overlapped operation.
 	var ol syscall.Overlapped
 	ol.HEvent = syscall.Handle(hEvent)
 

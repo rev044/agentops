@@ -35,25 +35,37 @@ fi
 results=()
 while IFS= read -r entry; do
     # Validate required fields
-    id=$(echo "$entry" | jq -r '.id // empty' 2>/dev/null)
+    id=$(echo "$entry" | jq -r '.id // empty') || {
+        echo "Error: jq failed parsing 'id' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$id" ]]; then
         echo "Error: Missing or invalid 'id' field in wave entry: $entry" >&2
         exit 1
     fi
 
-    title=$(echo "$entry" | jq -r '.title // empty' 2>/dev/null)
+    title=$(echo "$entry" | jq -r '.title // empty') || {
+        echo "Error: jq failed parsing 'title' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$title" ]]; then
         echo "Error: Missing or invalid 'title' field in wave entry: $entry" >&2
         exit 1
     fi
 
-    spec_path=$(echo "$entry" | jq -r '.spec_path // empty' 2>/dev/null)
+    spec_path=$(echo "$entry" | jq -r '.spec_path // empty') || {
+        echo "Error: jq failed parsing 'spec_path' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$spec_path" ]]; then
         echo "Error: Missing or invalid 'spec_path' field in wave entry: $entry" >&2
         exit 1
     fi
 
-    priority=$(echo "$entry" | jq -r '.priority // empty' 2>/dev/null)
+    priority=$(echo "$entry" | jq -r '.priority // empty') || {
+        echo "Error: jq failed parsing 'priority' from wave entry: $entry" >&2
+        exit 1
+    }
     if [[ -z "$priority" ]]; then
         echo "Error: Missing or invalid 'priority' field in wave entry: $entry" >&2
         exit 1
@@ -62,6 +74,12 @@ while IFS= read -r entry; do
     # Validate priority is a number
     if ! [[ "$priority" =~ ^[0-9]+$ ]]; then
         echo "Error: Priority must be a number, got '$priority' for bead $id" >&2
+        exit 1
+    fi
+
+    # Validate id does not contain newlines or tabs (prevents array corruption)
+    if [[ "$id" =~ [$'\n'$'\t'] ]]; then
+        echo "Error: 'id' field contains newline or tab characters in wave entry: $entry" >&2
         exit 1
     fi
 

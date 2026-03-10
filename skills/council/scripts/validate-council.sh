@@ -13,7 +13,7 @@ REPO_ROOT="$(cd "$SKILL_DIR/../.." && pwd)"
 
 # Validate output directory argument to prevent argument injection
 OUTPUT_DIR="${1:-.agents/council}"
-if [[ "$OUTPUT_DIR" =~ ^- ]]; then
+if [[ "$OUTPUT_DIR" =~ ^-+ ]]; then
     echo "Error: OUTPUT_DIR cannot start with a dash (prevents argument injection)" >&2
     exit 1
 fi

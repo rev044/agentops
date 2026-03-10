@@ -1297,7 +1297,7 @@ func TestHelper3_classifyFlywheelStatus(t *testing.T) {
 		post *types.FlywheelMetrics
 		want string
 	}{
-		{"nil returns compounding", nil, "compounding"},
+		{"nil returns unknown", nil, "unknown"},
 		{"above escape velocity", &types.FlywheelMetrics{AboveEscapeVelocity: true}, "compounding"},
 		{"near escape", &types.FlywheelMetrics{Velocity: -0.01}, "near-escape"},
 		{"decaying", &types.FlywheelMetrics{Velocity: -0.1}, "decaying"},

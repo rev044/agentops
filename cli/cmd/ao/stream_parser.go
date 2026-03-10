@@ -107,10 +107,11 @@ func ParseStreamEventsWithHandler(r io.Reader, onEvent func(StreamEvent), onUpda
 func summarizeStatusAction(s string) string {
 	trimmed := strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
 	const maxLen = 72
-	if len(trimmed) <= maxLen {
+	runes := []rune(trimmed)
+	if len(runes) <= maxLen {
 		return trimmed
 	}
-	return trimmed[:maxLen-3] + "..."
+	return string(runes[:maxLen-3]) + "..."
 }
 
 // maxStreamLineLength is the maximum number of bytes buffered for a single

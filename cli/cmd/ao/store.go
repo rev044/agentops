@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -736,21 +737,30 @@ func createSearchSnippet(content, query string, maxLen int) string {
 	}
 
 	if idx == -1 {
-		// Return start of content
-		if len(content) > maxLen {
-			return content[:maxLen-3] + "..."
+		// Return start of content (use rune-safe truncation)
+		runes := []rune(content)
+		if len(runes) > maxLen {
+			return string(runes[:maxLen-3]) + "..."
 		}
 		return content
 	}
 
-	// Extract window around match
+	// Extract window around match — snap byte offsets to valid UTF-8 boundaries.
 	start := idx - 50
 	if start < 0 {
 		start = 0
 	}
+	// Walk back to the start of a valid UTF-8 rune.
+	for start > 0 && !utf8.RuneStart(content[start]) {
+		start--
+	}
 	end := idx + maxLen
 	if end > len(content) {
 		end = len(content)
+	}
+	// Walk back to the start of a valid UTF-8 rune so we don't split one.
+	for end < len(content) && !utf8.RuneStart(content[end]) {
+		end++
 	}
 
 	snippet := content[start:end]

@@ -361,6 +361,9 @@ func (fs *FileStorage) withLockedFile(path string, fn func(f *os.File) error) (e
 	}
 
 	locked := false
+	// Deferred cleanup: unlock (if locked) then close. The first error
+	// encountered is propagated only when the function would otherwise
+	// return nil, so the caller always sees the most significant error.
 	defer func() {
 		if locked {
 			if unlockErr := unlockFile(f); unlockErr != nil && err == nil {
@@ -373,6 +376,9 @@ func (fs *FileStorage) withLockedFile(path string, fn func(f *os.File) error) (e
 	}()
 
 	if err := lockFile(f); err != nil {
+		// Close the file explicitly — the deferred Close will no-op on an
+		// already-closed file, and we must not leak the descriptor.
+		f.Close()
 		return fmt.Errorf("lock file: %w", err)
 	}
 	locked = true

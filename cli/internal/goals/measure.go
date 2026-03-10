@@ -195,16 +195,23 @@ func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
 		wg.Add(1)
 		go func(idx int, goal Goal) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
 
 			if requiresExclusiveExecution(goal) {
+				// Acquire exclusive lock BEFORE semaphore to avoid priority
+				// inversion: a waiting writer must not be starved by readers
+				// that hold semaphore slots.
 				exclusive.Lock()
+				sem <- struct{}{}
+				// LIFO defer order: Unlock runs before sem release, which is
+				// correct — the lock must be released before freeing the slot.
+				defer func() { <-sem }()
 				defer exclusive.Unlock()
 				results[idx] = MeasureOne(goal, timeout)
 				return
 			}
 
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			exclusive.RLock()
 			defer exclusive.RUnlock()
 			results[idx] = MeasureOne(goal, timeout)
