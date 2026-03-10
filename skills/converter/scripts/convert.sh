@@ -120,7 +120,7 @@ codex_rewrite_text() {
 
   if [[ -n "$SKILL_PATTERN" ]]; then
     output="$(printf '%s' "$output" | SKILL_PATTERN="$SKILL_PATTERN" perl -0pe '
-      my $pattern = qr/\Q$ENV{SKILL_PATTERN}\E/;
+      my $pattern = qr/$ENV{SKILL_PATTERN}/;
       s{(?<![A-Za-z0-9_/])/($pattern)(?![A-Za-z0-9-])}{\$$1}g;
     ')"
   fi

@@ -102,16 +102,16 @@ is_linked() {
   # Escape dots in filename for grep regex
   local ref_basename_escaped="${ref_basename//./\\.}"
   local ref_rel="references/$ref_basename"
-  local ref_rel_escaped="references/${ref_basename_escaped}"
   # Linked = appears in a markdown link or Read instruction (not just bare backtick)
-  if grep -qE "\]\(references/${ref_basename_escaped}\)" "$skill_md" 2>/dev/null; then
+  # Allow optional suffix after filename: anchors (#section), query strings, or closing paren
+  if grep -qE "\]\(references/${ref_basename_escaped}[^)]*\)" "$skill_md" 2>/dev/null; then
     return 0
   fi
   if grep -qE "Read.*references/${ref_basename_escaped}" "$skill_md" 2>/dev/null; then
     return 0
   fi
   # Also accept if referenced via a relative path in some other link form
-  if grep -qE "\(references/${ref_basename_escaped}\)" "$skill_md" 2>/dev/null; then
+  if grep -qE "\(references/${ref_basename_escaped}[^)]*\)" "$skill_md" 2>/dev/null; then
     return 0
   fi
   return 1

@@ -34,6 +34,8 @@ fi
 # Validate and output sorted entries
 results=()
 while IFS= read -r entry; do
+    # Skip empty lines (e.g., trailing newline from heredoc)
+    [[ -z "$entry" ]] && continue
     # Validate required fields
     id=$(echo "$entry" | jq -r '.id // empty') || {
         echo "Error: jq failed parsing 'id' from wave entry: $entry" >&2
@@ -77,11 +79,14 @@ while IFS= read -r entry; do
         exit 1
     fi
 
-    # Validate id does not contain newlines or tabs (prevents array corruption)
-    if [[ "$id" =~ [$'\n'$'\t'] ]]; then
-        echo "Error: 'id' field contains newline or tab characters in wave entry: $entry" >&2
-        exit 1
-    fi
+    # Validate fields do not contain newlines or tabs (prevents TSV array corruption)
+    for _field_name in id title spec_path; do
+        eval "_field_val=\$$_field_name"
+        if [[ "$_field_val" =~ [$'\n'$'\t'] ]]; then
+            echo "Error: '$_field_name' field contains newline or tab characters in wave entry: $entry" >&2
+            exit 1
+        fi
+    done
 
     # Store result for sorting (priority first for sorting, then output columns)
     results+=("$priority"$'\t'"$id"$'\t'"$title"$'\t'"$spec_path")

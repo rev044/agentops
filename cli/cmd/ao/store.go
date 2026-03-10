@@ -740,6 +740,9 @@ func createSearchSnippet(content, query string, maxLen int) string {
 		// Return start of content (use rune-safe truncation)
 		runes := []rune(content)
 		if len(runes) > maxLen {
+			if maxLen <= 3 {
+				return string(runes[:maxLen])
+			}
 			return string(runes[:maxLen-3]) + "..."
 		}
 		return content
@@ -758,7 +761,8 @@ func createSearchSnippet(content, query string, maxLen int) string {
 	if end > len(content) {
 		end = len(content)
 	}
-	// Walk back to the start of a valid UTF-8 rune so we don't split one.
+	// Walk forward to include the full rune (end is a soft ceiling — may
+	// exceed maxLen by up to 3 bytes to avoid splitting a multi-byte char).
 	for end < len(content) && !utf8.RuneStart(content[end]) {
 		end++
 	}
