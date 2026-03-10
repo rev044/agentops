@@ -323,9 +323,9 @@ func TestSessionClose_classifyFlywheelStatus(t *testing.T) {
 		want string
 	}{
 		{
-			name: "nil returns compounding",
+			name: "nil returns unknown",
 			post: nil,
-			want: "compounding",
+			want: "unknown",
 		},
 		{
 			name: "above escape velocity returns compounding",
@@ -717,44 +717,4 @@ func TestSessionClose_WithoutAutoExtract_Unchanged(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// session_close.go — shortenPath
-// ---------------------------------------------------------------------------
-
-func TestSessionClose_shortenPath(t *testing.T) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("get home: %v", err)
-	}
-
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "absolute path under home",
-			input: homeDir + "/projects/test.md",
-			want:  "~/projects/test.md",
-		},
-		{
-			name:  "path not under home",
-			input: "/var/log/test.log",
-			want:  "/var/log/test.log",
-		},
-		{
-			name:  "empty path",
-			input: "",
-			want:  "",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := shortenPath(tc.input)
-			if got != tc.want {
-				t.Errorf("shortenPath(%q) = %q, want %q", tc.input, got, tc.want)
-			}
-		})
-	}
-}
+// TestSessionClose_shortenPath removed — duplicate of TestShortenPath (line 188).

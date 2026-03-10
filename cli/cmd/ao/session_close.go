@@ -35,6 +35,24 @@ Examples:
 var sessionCloseSessionID string
 var sessionCloseAutoExtract bool
 
+// autoExtractContinuationPrefixes rejects content starting with mid-sentence
+// fragments or operational chatter. Add new entries grouped by category:
+//   - session chatter: "till ", "still ", "will "
+//   - doc structure: "see also", "key learnings"
+//   - mid-thought: "choosing the", "selected ", "anti-pattern"
+var autoExtractContinuationPrefixes = []string{
+	"till ", "still ", "will ", "see also", "choosing the",
+	"selected ", "key learnings", "anti-pattern",
+}
+
+// autoExtractSkillPatterns rejects content that parrots skill doc structure.
+// Keep in sync when adding new skills referenced in auto-extract sources.
+var autoExtractSkillPatterns = []string{
+	"## Phase", "### Step", "```bash\n#", "```validation",
+	"skills/council/SKILL.md", "skills/research/SKILL.md",
+	"skills/plan/SKILL.md",
+}
+
 var sessionCloseCmd = &cobra.Command{
 	Use:   "close",
 	Short: "Forge transcript, extract learnings, measure flywheel impact",
@@ -195,7 +213,10 @@ func computeVelocityDelta(pre, post *types.FlywheelMetrics) float64 {
 
 // classifyFlywheelStatus returns a human-readable flywheel status label.
 func classifyFlywheelStatus(post *types.FlywheelMetrics) string {
-	if post == nil || post.AboveEscapeVelocity {
+	if post == nil {
+		return "unknown"
+	}
+	if post.AboveEscapeVelocity {
 		return "compounding"
 	}
 	if post.Velocity > -0.05 {
@@ -397,23 +418,14 @@ func qualifyAutoExtract(content string) bool {
 
 	// No mid-sentence starts (lowercase or continuation words)
 	lower := strings.ToLower(trimmed)
-	continuationPrefixes := []string{
-		"till ", "still ", "will ", "see also", "choosing the",
-		"selected ", "key learnings", "anti-pattern",
-	}
-	for _, prefix := range continuationPrefixes {
+	for _, prefix := range autoExtractContinuationPrefixes {
 		if strings.HasPrefix(lower, prefix) {
 			return false
 		}
 	}
 
 	// No skill doc structure parroting
-	skillPatterns := []string{
-		"## Phase", "### Step", "```bash\n#", "```validation",
-		"skills/council/SKILL.md", "skills/research/SKILL.md",
-		"skills/plan/SKILL.md",
-	}
-	for _, pat := range skillPatterns {
+	for _, pat := range autoExtractSkillPatterns {
 		if strings.Contains(trimmed, pat) {
 			return false
 		}
@@ -482,7 +494,9 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 		filename := fmt.Sprintf("%s-auto-%s.md", datePrefix, slug)
 		target := filepath.Join(dir, filename)
 
-		content := fmt.Sprintf("---\ntype: learning\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\ncategory: %s\n---\n\n%s\n", it.category, it.content)
+		// Escape bare "---" lines in body to prevent YAML multi-document parsing issues.
+		safeBody := strings.ReplaceAll(it.content, "\n---\n", "\n- - -\n")
+		content := fmt.Sprintf("---\ntype: learning\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\ncategory: %s\n---\n\n%s\n", it.category, safeBody)
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
 			return result, fmt.Errorf("write learning %s: %w", filename, err)
 		}
