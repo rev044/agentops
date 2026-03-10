@@ -231,6 +231,11 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 | Forge produces no output | No ao CLI or no transcript content | Install ao CLI or run `/retro` manually |
 | Stale execution-packet | Packet from a previous RPI cycle | Delete `.agents/rpi/execution-packet.json` and pass `--complexity` explicitly |
 
+## Reference Documents
+
+- [references/forge-scope.md](references/forge-scope.md) — forge session scoping and deduplication
+- [references/idempotency-and-resume.md](references/idempotency-and-resume.md) — re-run behavior and standalone mode
+
 ## See Also
 
 - [skills/vibe/SKILL.md](../vibe/SKILL.md) — code quality review

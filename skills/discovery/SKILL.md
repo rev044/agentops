@@ -261,6 +261,11 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 | Brainstorm loops without advancing | Goal too vague for automated clarification | Use `--interactive` or provide a specific goal |
 | ao search returns nothing | No prior sessions on this topic | Normal — proceed without history context |
 
+## Reference Documents
+
+- [references/complexity-auto-detect.md](references/complexity-auto-detect.md) — precedence contract for keyword vs issue-count classification
+- [references/idempotency-and-resume.md](references/idempotency-and-resume.md) — re-run safety and resume behavior
+
 ## See Also
 
 - [skills/brainstorm/SKILL.md](../brainstorm/SKILL.md) — clarify WHAT before HOW
