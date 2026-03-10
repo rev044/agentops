@@ -325,6 +325,8 @@ test_exec_output "ao inject --index-only" "Knowledge Index|ID|Title" "$AO" injec
 
 # Lookup
 test_exec_tolerant "ao lookup --query 'test'" "$AO" lookup --query "test"
+test_exec_tolerant "ao findings list" "$AO" findings list
+test_exec_output "ao findings stats" "Total findings|By status|Most cited|Total hits" "$AO" findings stats
 
 # Metrics
 test_exec_output "ao metrics health" "sigma|rho|delta|retrieval|citation|decay" "$AO" metrics health
@@ -355,6 +357,7 @@ test_exec_tolerant "ao memory sync --quiet" "$AO" memory sync --quiet
 
 # Trace (help only — requires artifact path arg)
 test_help "ao trace --help" "$AO" trace --help
+test_help "ao findings --help" "$AO" findings --help
 
 # Goals
 test_exec_output "ao goals validate" "VALID|goals|version" "$AO" goals validate
@@ -413,6 +416,7 @@ test_help "ao maturity --help" "$AO" maturity --help
 test_help "ao memory --help" "$AO" memory --help
 test_help "ao notebook --help" "$AO" notebook --help
 test_help "ao trace --help" "$AO" trace --help
+test_help "ao findings --help" "$AO" findings --help
 
 # ═══════════════════════════════════════════════════════
 #  Flag Testing (verify key flags produce valid output)
@@ -460,6 +464,18 @@ else
     skip "ao constraint list --json (flag not supported)"
 fi
 
+if "$AO" findings list --json >/dev/null 2>&1; then
+    test_json "ao findings list --json" "$AO" findings list --json
+else
+    skip "ao findings list --json (flag not supported)"
+fi
+
+if "$AO" findings stats --json >/dev/null 2>&1; then
+    test_json "ao findings stats --json" "$AO" findings stats --json
+else
+    skip "ao findings stats --json (flag not supported)"
+fi
+
 # ═══════════════════════════════════════════════════════
 #  Top-Level Help (catch unregistered commands)
 # ═══════════════════════════════════════════════════════
@@ -472,7 +488,7 @@ test_help "ao --help" "$AO" --help
 TOP_HELP=$("$AO" --help 2>&1)
 EXPECTED_COMMANDS=(
     doctor status version completion
-    search inject lookup forge trace
+    search inject lookup forge trace findings
     rpi ratchet goals session
     flywheel pool metrics gate maturity
     config plans hooks memory notebook
