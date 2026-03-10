@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,10 @@ import (
 )
 
 func collectFindings(cwd, query string, limit int, globalDir string, globalWeight float64) ([]knowledgeFinding, error) {
+	return collectFindingsWithOptions(cwd, query, limit, globalDir, globalWeight, false)
+}
+
+func collectFindingsWithOptions(cwd, query string, limit int, globalDir string, globalWeight float64, includeInactive bool) ([]knowledgeFinding, error) {
 	findingsDir := filepath.Join(cwd, ".agents", SectionFindings)
 	if _, err := os.Stat(findingsDir); os.IsNotExist(err) {
 		findingsDir = findAgentsSubdir(cwd, SectionFindings)
@@ -20,7 +25,7 @@ func collectFindings(cwd, query string, limit int, globalDir string, globalWeigh
 	queryLower := strings.ToLower(query)
 	now := time.Now()
 
-	local, err := collectFindingsFromDir(findingsDir, queryLower, now, false)
+	local, err := collectFindingsFromDir(findingsDir, queryLower, now, false, includeInactive)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +50,9 @@ func collectFindings(cwd, query string, limit int, globalDir string, globalWeigh
 				continue
 			}
 			applyFindingFreshness(&f, file, now)
+			if !includeInactive && !findingStatusActiveForRetrieval(f.Status) {
+				continue
+			}
 			if !findingMatchesQuery(f, queryLower) {
 				continue
 			}
@@ -80,7 +88,7 @@ func collectFindings(cwd, query string, limit int, globalDir string, globalWeigh
 	return findings, nil
 }
 
-func collectFindingsFromDir(dir, queryLower string, now time.Time, isGlobal bool) ([]knowledgeFinding, error) {
+func collectFindingsFromDir(dir, queryLower string, now time.Time, isGlobal, includeInactive bool) ([]knowledgeFinding, error) {
 	if dir == "" {
 		return nil, nil
 	}
@@ -95,6 +103,9 @@ func collectFindingsFromDir(dir, queryLower string, now time.Time, isGlobal bool
 			continue
 		}
 		applyFindingFreshness(&f, file, now)
+		if !includeInactive && !findingStatusActiveForRetrieval(f.Status) {
+			continue
+		}
 		if !findingMatchesQuery(f, queryLower) {
 			continue
 		}
@@ -113,7 +124,11 @@ func applyFindingFreshness(f *knowledgeFinding, file string, now time.Time) {
 		}
 		return
 	}
-	f.AgeWeeks = now.Sub(info.ModTime()).Hours() / (24 * 7)
+	anchorTime := info.ModTime()
+	if citedAt, ok := parseFindingTime(f.LastCited); ok && citedAt.After(anchorTime) {
+		anchorTime = citedAt
+	}
+	f.AgeWeeks = now.Sub(anchorTime).Hours() / (24 * 7)
 	f.FreshnessScore = freshnessScore(f.AgeWeeks)
 	if f.Utility == 0 {
 		f.Utility = types.InitialUtility
@@ -131,7 +146,10 @@ func findingMatchesQuery(f knowledgeFinding, queryLower string) bool {
 		f.SourceSkill,
 		f.Severity,
 		f.Detectability,
+		f.Status,
 		strings.Join(f.ScopeTags, " "),
+		strings.Join(f.ApplicableWhen, " "),
+		strings.Join(f.ApplicableLanguages, " "),
 		strings.Join(f.CompilerTargets, " "),
 	}, " "))
 	return strings.Contains(haystack, queryLower)
@@ -171,6 +189,16 @@ func parseFindingFile(path string) (knowledgeFinding, error) {
 			f.CompilerTargets = parseListField(trimField(line))
 		case strings.HasPrefix(line, "scope_tags:"), strings.HasPrefix(line, "scope-tags:"):
 			f.ScopeTags = parseListField(trimField(line))
+		case strings.HasPrefix(line, "applicable_when:"), strings.HasPrefix(line, "applicable-when:"):
+			f.ApplicableWhen = parseListField(trimField(line))
+		case strings.HasPrefix(line, "applicable_languages:"), strings.HasPrefix(line, "applicable-languages:"):
+			f.ApplicableLanguages = parseListField(trimField(line))
+		case strings.HasPrefix(line, "hit_count:"), strings.HasPrefix(line, "hit-count:"):
+			f.HitCount = parseIntField(trimField(line))
+		case strings.HasPrefix(line, "last_cited:"), strings.HasPrefix(line, "last-cited:"):
+			f.LastCited = trimField(line)
+		case strings.HasPrefix(line, "retired_by:"), strings.HasPrefix(line, "retired-by:"):
+			f.RetiredBy = trimField(line)
 		}
 	}
 	for i := contentStart; i < len(lines); i++ {
@@ -208,4 +236,32 @@ func parseListField(raw string) []string {
 		}
 	}
 	return out
+}
+
+func parseIntField(raw string) int {
+	n, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func parseFindingTime(raw string) (time.Time, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, false
+	}
+	if ts, err := time.Parse(time.RFC3339, raw); err == nil {
+		return ts, true
+	}
+	return time.Time{}, false
+}
+
+func findingStatusActiveForRetrieval(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "retired", "superseded":
+		return false
+	default:
+		return true
+	}
 }

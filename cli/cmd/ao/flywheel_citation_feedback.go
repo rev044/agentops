@@ -55,6 +55,20 @@ func processCitationFeedback(cwd string) (int, int, int) {
 	var feedbackEvents []FeedbackEvent
 
 	for _, c := range unique {
+		if isFindingArtifactPath(cwd, c.ArtifactPath) {
+			path := normalizeArtifactPath(cwd, c.ArtifactPath)
+			citedAt := c.CitedAt
+			if citedAt.IsZero() {
+				citedAt = time.Now()
+			}
+			if err := updateFindingCitationFields(path, citedAt); err != nil {
+				skipped++
+				continue
+			}
+			rewarded++
+			continue
+		}
+
 		// Resolve the artifact to a file path
 		learningID := extractLearningID(c.ArtifactPath)
 		path, err := res.Resolve(learningID)
@@ -100,6 +114,18 @@ func processCitationFeedback(cwd string) (int, int, int) {
 	markCitationsFeedbackGiven(citationsPath, citations)
 
 	return len(unique), rewarded, skipped
+}
+
+func updateFindingCitationFields(path string, citedAt time.Time) error {
+	finding, err := parseFindingFile(path)
+	if err != nil {
+		return err
+	}
+	hitCount := finding.HitCount + 1
+	return updateFindingFrontMatter(path, map[string]string{
+		"hit_count":  fmt.Sprintf("%d", hitCount),
+		"last_cited": citedAt.UTC().Format(time.RFC3339),
+	})
 }
 
 // extractLearningID derives a learning ID from an artifact path.

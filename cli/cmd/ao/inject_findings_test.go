@@ -182,7 +182,7 @@ func TestApplyFindingFreshnessMissingFile(t *testing.T) {
 }
 
 func TestCollectFindingsFromDirEmpty(t *testing.T) {
-	result, err := collectFindingsFromDir("", "query", time.Now(), false)
+	result, err := collectFindingsFromDir("", "query", time.Now(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ Summary text.
 		t.Fatal(err)
 	}
 
-	results, err := collectFindingsFromDir(dir, "", time.Now(), true)
+	results, err := collectFindingsFromDir(dir, "", time.Now(), true, false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -133,7 +133,14 @@ func isRetrievableArtifactPath(baseDir, artifactPath string) bool {
 	p := filepath.ToSlash(normalizeArtifactPath(baseDir, artifactPath))
 	learningsRoot := filepath.ToSlash(filepath.Join(baseDir, ".agents", "learnings")) + "/"
 	patternsRoot := filepath.ToSlash(filepath.Join(baseDir, ".agents", "patterns")) + "/"
-	return strings.HasPrefix(p, learningsRoot) || strings.HasPrefix(p, patternsRoot)
+	findingsRoot := filepath.ToSlash(filepath.Join(baseDir, ".agents", SectionFindings)) + "/"
+	return strings.HasPrefix(p, learningsRoot) || strings.HasPrefix(p, patternsRoot) || strings.HasPrefix(p, findingsRoot)
+}
+
+func isFindingArtifactPath(baseDir, artifactPath string) bool {
+	p := filepath.ToSlash(normalizeArtifactPath(baseDir, artifactPath))
+	findingsRoot := filepath.ToSlash(filepath.Join(baseDir, ".agents", SectionFindings)) + "/"
+	return strings.HasPrefix(p, findingsRoot)
 }
 
 func retrievableCitationStats(baseDir string, citations []types.CitationEvent) (uniqueCount, citationCount int) {

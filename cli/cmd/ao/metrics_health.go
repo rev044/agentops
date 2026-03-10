@@ -40,6 +40,7 @@ type healthMetrics struct {
 type knowledgeStock struct {
 	Learnings   int `json:"learnings"`
 	Patterns    int `json:"patterns"`
+	Findings    int `json:"findings"`
 	Constraints int `json:"constraints"`
 	Total       int `json:"total"`
 }
@@ -176,7 +177,8 @@ func computeHealthSigmaRho(baseDir string, citations []types.CitationEvent) (sig
 
 	// Count total retrievable artifacts (learnings + patterns)
 	totalRetrievable := countFilesInDir(filepath.Join(baseDir, ".agents", "learnings")) +
-		countFilesInDir(filepath.Join(baseDir, ".agents", "patterns"))
+		countFilesInDir(filepath.Join(baseDir, ".agents", "patterns")) +
+		countFilesInDir(filepath.Join(baseDir, ".agents", SectionFindings))
 
 	// sigma = unique cited / total retrievable
 	if totalRetrievable > 0 {
@@ -286,9 +288,10 @@ func computeKnowledgeStock(baseDir string) knowledgeStock {
 	ks := knowledgeStock{
 		Learnings:   countFilesInDir(filepath.Join(baseDir, ".agents", "learnings")),
 		Patterns:    countFilesInDir(filepath.Join(baseDir, ".agents", "patterns")),
+		Findings:    countFilesInDir(filepath.Join(baseDir, ".agents", SectionFindings)),
 		Constraints: countConstraints(baseDir),
 	}
-	ks.Total = ks.Learnings + ks.Patterns + ks.Constraints
+	ks.Total = ks.Learnings + ks.Patterns + ks.Findings + ks.Constraints
 	return ks
 }
 
@@ -413,6 +416,7 @@ func printHealthTable(w io.Writer, hm *healthMetrics) {
 	fmt.Fprintln(w, "KNOWLEDGE STOCK:")
 	fmt.Fprintf(w, "  learnings:   %d\n", hm.KnowledgeStock.Learnings)
 	fmt.Fprintf(w, "  patterns:    %d\n", hm.KnowledgeStock.Patterns)
+	fmt.Fprintf(w, "  findings:    %d\n", hm.KnowledgeStock.Findings)
 	fmt.Fprintf(w, "  constraints: %d\n", hm.KnowledgeStock.Constraints)
 	fmt.Fprintf(w, "  total:       %d\n", hm.KnowledgeStock.Total)
 	fmt.Fprintln(w)
