@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.1] - 2026-03-10
+
+### Added
+
+- **Repo-native redteam harness** — Added a packaged redteam pack and prompt
+  runner to `security-suite` for repeatable repository-local security
+  exercises
+- **Findings management commands** — Added CLI commands for listing and
+  managing saved findings from the terminal
+
+### Changed
+
+- **Closed-loop prevention validation** — Completed the end-to-end finding
+  compiler and prevention-ratchet validation path so saved findings feed back
+  into earlier planning and task validation more reliably
+- **Runtime contract parity** — Localized shared Claude runtime reference
+  packs into the source skills and regenerated Codex artifacts so source and
+  generated bundles stay aligned
+
+### Fixed
+
+- **Finding metadata injection** — Exposed finding metadata consistently in
+  inject output and JSON integrations after the merged findings work landed
+- **Release gate regressions** — Restored goals/package coverage, learning
+  coherence, and hook-fixture isolation so the local release gate matches the
+  shipped tree again
+
 ## [2.22.0] - 2026-03-09
 
 ### Added
