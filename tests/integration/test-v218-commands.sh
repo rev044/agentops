@@ -70,6 +70,7 @@ mkdir -p "$TMPDIR_TEST/.agents/rpi"
 mkdir -p "$TMPDIR_TEST/.agents/ao/sessions"
 mkdir -p "$TMPDIR_TEST/.agents/pool"
 mkdir -p "$TMPDIR_TEST/.agents/constraints"
+mkdir -p "$TMPDIR_TEST/.agents/findings"
 
 # Create sample learning files for dedup/contradict/curate tests
 cat > "$TMPDIR_TEST/.agents/learnings/2026-02-25-test-learning-alpha.md" <<'LEARNING_EOF'
@@ -175,6 +176,51 @@ cat > "$TMPDIR_TEST/.agents/constraints/index.json" <<'INDEX_EOF'
   ]
 }
 INDEX_EOF
+
+# Create promoted findings for findings command coverage
+cat > "$TMPDIR_TEST/.agents/findings/test-finding-alpha.md" <<'FINDING_EOF'
+---
+id: test-finding-alpha
+title: Prefer registry-backed prevention
+source_skill: post-mortem
+severity: high
+detectability: advisory
+status: active
+compiler_targets: [inject, lookup]
+scope_tags: [planning, flywheel]
+applicable_when: [pre-mortem, planning]
+applicable_languages: [go, shell]
+hit_count: 3
+last_cited: 2026-03-09T12:00:00Z
+---
+
+# Prefer registry-backed prevention
+
+Normalize repeated findings into promoted artifacts so future planning and review
+can load them before implementation.
+FINDING_EOF
+
+cat > "$TMPDIR_TEST/.agents/findings/test-finding-retired.md" <<'FINDING_EOF'
+---
+id: test-finding-retired
+title: Retired finding fixture
+source_skill: vibe
+severity: low
+detectability: mechanical
+status: retired
+compiler_targets: [constraint]
+scope_tags: [validation]
+applicable_when: [task-validation]
+applicable_languages: [shell]
+hit_count: 9
+last_cited: 2026-03-08T12:00:00Z
+retired_by: tester
+---
+
+# Retired finding fixture
+
+Used to verify retired findings stay out of default list output.
+FINDING_EOF
 
 # Initialize git repo (many commands use git rev-parse)
 cd "$TMPDIR_TEST"
@@ -309,6 +355,29 @@ echo "--- lookup ---"
 test_cmd "lookup --query guard" 0 "" \
     "$TMPBIN" lookup --query "guard clause"
 
+# ---- findings list ----
+echo ""
+echo "--- findings list ---"
+test_cmd "findings list" 0 "test-finding-alpha|Prefer registry-backed prevention" \
+    "$TMPBIN" findings list
+
+# ---- findings list --json ----
+echo ""
+echo "--- findings list --json ---"
+FINDINGS_JSON=$("$TMPBIN" findings list --json 2>&1) || true
+if echo "$FINDINGS_JSON" | jq -e 'type == "array" and map(.id) | index("test-finding-alpha")' >/dev/null 2>&1; then
+    pass "findings list --json returns active findings array"
+else
+    fail "findings list --json returns active findings array"
+    echo "    output: $(echo "$FINDINGS_JSON" | head -3)" | sed 's/^/    /'
+fi
+
+# ---- findings stats ----
+echo ""
+echo "--- findings stats ---"
+test_cmd "findings stats" 0 "Total findings: 2|By status:|Most cited:" \
+    "$TMPBIN" findings stats
+
 # ---- memory sync ----
 echo ""
 echo "--- memory sync ---"
@@ -401,6 +470,16 @@ if echo "$METRICS_JSON" | jq . >/dev/null 2>&1; then
     pass "metrics health --json returns valid JSON"
 else
     yellow "SKIP: metrics health --json may not be supported"
+fi
+
+# findings stats --json
+echo ""
+echo "--- findings stats --json ---"
+FINDINGS_STATS_JSON=$("$TMPBIN" findings stats --json 2>&1) || true
+if echo "$FINDINGS_STATS_JSON" | jq -e '.total == 2 and .by_status.active == 1 and .by_status.retired == 1' >/dev/null 2>&1; then
+    pass "findings stats --json returns finding inventory"
+else
+    fail "findings stats --json returns finding inventory"
 fi
 
 # ============================================================

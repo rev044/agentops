@@ -94,6 +94,8 @@ test_json_cmd "ao search 'test'"    search "test"
 test_json_cmd "ao anti-patterns"    anti-patterns
 test_json_cmd "ao dedup"            dedup
 test_json_cmd "ao contradict"       contradict
+test_json_cmd "ao findings list"    findings list
+test_json_cmd "ao findings stats"   findings stats
 
 echo ""
 echo "--- Pool / Flywheel commands ---"
