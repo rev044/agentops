@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/security-suite",
   "layout": "modular",
-  "source_hash": "f293e988d48fdcd9e71f476eba3f7a9bf4e519f989f09711f800ccc795ed408c",
-  "generated_hash": "2207ca751a2f2e19fa800557a05f60c80bccf8d1e1799a7915cf14e8ed68a878"
+  "source_hash": "a7cfa1c5a57501b45a63341222860bfcbcfa5ab97a66fb7bd71be4725828baab",
+  "generated_hash": "4d82b18fbfaf3e218e3af4110585297a2fb989be87d85b8f7502a8eac2a7aabe"
 }

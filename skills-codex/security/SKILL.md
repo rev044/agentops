@@ -84,8 +84,8 @@ Actions:
   - `.github/workflows/validate.yml`
   - `.github/workflows/nightly.yml`
   - `.github/workflows/release.yml`
-- For binary/internal black-box assurance (static + dynamic + baseline + policy), use:
-  - `skills/security-suite/SKILL.md` (includes `security_suite.py` in its scripts dir)
+- For binary/internal black-box assurance plus offline repo-surface redteam, use:
+  - `skills/security-suite/SKILL.md` (includes `security_suite.py` and `prompt_redteam.py`)
 
 ## Examples
 

@@ -226,7 +226,7 @@ These are how skills chain in practice:
 | **goals** | product | Maintain GOALS.yaml fitness specification |
 | **release** | product | Pre-flight, changelog, version bumps, tag |
 | **security** | product | Continuous security scanning and release gating |
-| **security-suite** | execution | Composable binary security suite for static/dynamic assurance and policy gating |
+| **security-suite** | execution | Composable security suite for binary and prompt-surface assurance, offline redteam, and policy gating |
 | **readme** | product | Gold-standard README generation with council validation |
 | **doc** | product | Generate documentation |
 

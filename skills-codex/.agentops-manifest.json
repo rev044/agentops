@@ -260,14 +260,14 @@
     {
       "name": "security",
       "source_skill": "skills/security",
-      "source_hash": "7748243f32a4e8abcaec227748d59776673d3e0ba968a748a3e4fa8021c882cc",
-      "generated_hash": "2894015c7428e735ab7969c0a5fa95a2cd5c7395303d5bc147c3272db25904aa"
+      "source_hash": "afc17b9fa9e2f11af61915caf4dd4914f2239ed1d3e6c63e5a1bc157a1623f56",
+      "generated_hash": "2de110d1fe6aaae6a73f9814fd97be7b3431f78f225f06904d928da8b51cf971"
     },
     {
       "name": "security-suite",
       "source_skill": "skills/security-suite",
-      "source_hash": "f293e988d48fdcd9e71f476eba3f7a9bf4e519f989f09711f800ccc795ed408c",
-      "generated_hash": "2207ca751a2f2e19fa800557a05f60c80bccf8d1e1799a7915cf14e8ed68a878"
+      "source_hash": "a7cfa1c5a57501b45a63341222860bfcbcfa5ab97a66fb7bd71be4725828baab",
+      "generated_hash": "4d82b18fbfaf3e218e3af4110585297a2fb989be87d85b8f7502a8eac2a7aabe"
     },
     {
       "name": "shared",
@@ -308,8 +308,8 @@
     {
       "name": "using-agentops",
       "source_skill": "skills/using-agentops",
-      "source_hash": "01069d9c826717b7fb9c844ee30b439d307f2fca52758a3a3d267cb9d0f5a179",
-      "generated_hash": "3d43b631f07b911d50593cb4ffc21352e836e5c45f1ad3fca2ee2f16b3cfb30d"
+      "source_hash": "10fb446c268e48846c115718f40236a73be60cb659869cfce1f02d07b808ee2f",
+      "generated_hash": "ff7eedcc0d46d39cb0401f1604a7231b944bdfdbdf13b5926cf33d4447ac5143"
     },
     {
       "name": "vibe",
