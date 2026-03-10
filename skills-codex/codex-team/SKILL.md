@@ -357,6 +357,10 @@ Skill(skill="swarm")
 
 ## Local Resources
 
+### references/
+
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
+
 ### scripts/
 
 - `scripts/validate.sh`

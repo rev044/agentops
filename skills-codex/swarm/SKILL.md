@@ -688,7 +688,13 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 
 ### references/
 
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/local-mode.md](references/local-mode.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/validation-contract.md](references/validation-contract.md)
 - [references/worker-pitfalls.md](references/worker-pitfalls.md)
 

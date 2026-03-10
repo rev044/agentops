@@ -571,7 +571,12 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 ### references/
 
 - [references/agent-prompts.md](references/agent-prompts.md)
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
 - [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/cli-spawning.md](references/cli-spawning.md)
 - [references/debate-protocol.md](references/debate-protocol.md)
 - [references/explorers.md](references/explorers.md)
@@ -580,6 +585,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/personas.md](references/personas.md)
 - [references/presets.md](references/presets.md)
 - [references/quick-mode.md](references/quick-mode.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 
 ### scripts/
 

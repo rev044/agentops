@@ -32,8 +32,8 @@
     {
       "name": "codex-team",
       "source_skill": "skills/codex-team",
-      "source_hash": "e64db92b9c0a2d82d3e4f610a685af8530725038edf7dcd2c8e87af9916b5460",
-      "generated_hash": "36796543085824fde1f78443590fbc1b39aeb81c4d8d91d8e554997af639d0b4"
+      "source_hash": "ad5e34758635ffb9afd763f4ae9f33c3e2d64d8195f122f63f7875775d92cc34",
+      "generated_hash": "a436f1c93cbbc67e8e99f99ad58fbfce97274a6a3d20b8f4836563104a8ee50b"
     },
     {
       "name": "complexity",
@@ -50,14 +50,14 @@
     {
       "name": "council",
       "source_skill": "skills/council",
-      "source_hash": "e42b8dbb43b86d4a1508218a082daf3972c6542b8e40228b47941d8fd47d4a75",
-      "generated_hash": "64def27b4072d8c45f422fd7029f585793556b4b3aed71c364d4027ef5dbc31d"
+      "source_hash": "90b8a1e9c38d6412b5af01e89f8a2ff74fc9ae6f04792b99b75ad16b52f6cc6e",
+      "generated_hash": "4373283b60fd602efb4318f3e81c4cfc9c519d65b505f544da05be4020a26b48"
     },
     {
       "name": "crank",
       "source_skill": "skills/crank",
-      "source_hash": "8e0301d997737bb684329c233986eccce2dca9f707db20cbcbd2bf5604d972c6",
-      "generated_hash": "5aab15a49f9e327b3f5fad3fd0202b2b2146ae506f398f3894f5aba51b0ebf10"
+      "source_hash": "40e8c8bb7544c9f6967059e8806f1e2a01200c3b60855967436b7b5da63b13a6",
+      "generated_hash": "98650584247a27d50c366384bed0db1dec4712b4904f876060d0359d502b023f"
     },
     {
       "name": "doc",
@@ -236,8 +236,8 @@
     {
       "name": "research",
       "source_skill": "skills/research",
-      "source_hash": "2b829c7f1374670a4d096f0851cc9dadfec6e26d02b2cb5bb14045145d6641f8",
-      "generated_hash": "51b2517ffd2c92331948dedd823f45e8e1d204864f28f25fc2251e0b4fb40305"
+      "source_hash": "b0a72cc139d02199775697c92a53e35f2c96b3ca5377716c773414728d28109e",
+      "generated_hash": "fca70f333be12fd263a9d7e68a5750039e40ad67076a01d2608ba97b3ebcbb0c"
     },
     {
       "name": "retro",
@@ -290,8 +290,8 @@
     {
       "name": "swarm",
       "source_skill": "skills/swarm",
-      "source_hash": "ad375fc7a2d3bf97e7996b0a777d9d6ffa76072d4ea401d9290dc44dc05a1c11",
-      "generated_hash": "a9e1878c655049fc9c0492d54f20e680371c2dc80340a2bf263a24464ccfd1b2"
+      "source_hash": "7006a0d41db8a7e74f57d4c74335cc38ac7b9a1c5bb62480cdc3f5421d2d3ae3",
+      "generated_hash": "ca61120d19291fba034590cba8ce4942f3c221f08d061e58451c5775c6c8e6d5"
     },
     {
       "name": "trace",
