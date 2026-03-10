@@ -82,17 +82,18 @@ ao lookup --query "x"  # Search knowledge by relevance
 
 | Phase | Primary Skill | Supporting Skills |
 |-------|---------------|-------------------|
-| **Research** | `/research` | `ao lookup` |
-| **Plan** | `/plan` | `/pre-mortem` |
-| **Implement** | `/implement` | `/crank` (epic loop), `/swarm` (parallel execution) |
-| **Validate** | `/vibe` | `/post-mortem` (full retro + knowledge lifecycle), `/retro` (quick-capture) |
+| **Discovery** | `/discovery` | `/brainstorm`, `/research`, `/plan`, `/pre-mortem` |
+| **Implement** | `/crank` | `/implement` (single issue), `/swarm` (parallel execution) |
+| **Validate** | `/validation` | `/vibe`, `/post-mortem`, `/retro`, `/forge` |
 | **Release** | `/release` | — |
 
 **Choosing the skill:**
 - Use `/implement` for **single issue** execution. **Now defaults to TDD-first** — writes failing tests before implementing. Skip with `--no-tdd`.
 - Use `/crank` for **autonomous epic execution** (loops waves via swarm until done). Auto-generates file-ownership maps to prevent worker conflicts.
 - Use `/swarm` directly for **parallel execution** without beads (TaskList only).
-- Use `/rpi` for **full lifecycle** with optional `--budget` flag for phase time guards (e.g., `--budget=research:180,plan:120`).
+- Use `/discovery` for the **discovery phase only** (brainstorm → search → research → plan → pre-mortem).
+- Use `/validation` for the **validation phase only** (vibe → post-mortem → retro → forge).
+- Use `/rpi` for **full lifecycle** — delegates to `/discovery` → `/crank` → `/validation`.
 - Use `/ratchet` to **gate/record progress** through RPI.
 
 ## Available Skills
@@ -121,6 +122,7 @@ These are the skills every user needs first. Everything else is available when y
 |-------|---------|
 | `/athena` | Active knowledge intelligence — Mine → Grow → Defrag cycle |
 | `/brainstorm` | Structured idea exploration before planning |
+| `/discovery` | Full discovery phase orchestrator (brainstorm → search → research → plan → pre-mortem) |
 | `/plan` | Epic decomposition into issues |
 | `/pre-mortem` | Failure simulation before implementing |
 | `/post-mortem` | Full validation + knowledge lifecycle (council + extraction + activation + retirement) |
@@ -131,6 +133,7 @@ These are the skills every user needs first. Everything else is available when y
 | `/evolve` | Goal-driven fitness-scored improvement loop |
 | `/doc` | Documentation generation |
 | `/retro` | Quick-capture a learning (full retro → /post-mortem) |
+| `/validation` | Full validation phase orchestrator (vibe → post-mortem → retro → forge) |
 | `/ratchet` | Brownian Ratchet progress gates for RPI workflow |
 | `/forge` | Mine transcripts for knowledge — decisions, learnings, patterns |
 | `/readme` | Generate gold-standard README for any project |
