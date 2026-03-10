@@ -566,13 +566,13 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 
 ## Reference Documents
 
-- [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
-- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
-- [references/backend-inline.md](references/backend-inline.md)
+- [../shared/references/backend-background-tasks.md](../shared/references/backend-background-tasks.md)
+- [../shared/references/backend-claude-teams.md](../shared/references/backend-claude-teams.md)
+- [../shared/references/backend-codex-subagents.md](../shared/references/backend-codex-subagents.md)
+- [../shared/references/backend-inline.md](../shared/references/backend-inline.md)
 - [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
+- [../shared/references/claude-code-latest-features.md](../shared/references/claude-code-latest-features.md)
 - [references/model-profiles.md](references/model-profiles.md)
 - [references/presets.md](references/presets.md)
 - [references/quick-mode.md](references/quick-mode.md)
-- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
+- [../shared/references/ralph-loop-contract.md](../shared/references/ralph-loop-contract.md)
