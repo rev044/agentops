@@ -454,17 +454,94 @@ func TestSessionClose_printCloseTable(t *testing.T) {
 // session_close.go — auto-extract
 // ---------------------------------------------------------------------------
 
+func TestQualifyAutoExtract(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{
+			name:    "substantial learning passes",
+			content: "Use Go modules for dependency management. Pin CI to Go 1.22 to avoid breaking changes in newer versions.",
+			want:    true,
+		},
+		{
+			name:    "mid-sentence fragment rejected",
+			content: "till waiting on the event deletion (the big one). Let me check.",
+			want:    false,
+		},
+		{
+			name:    "see also fragment rejected",
+			content: "See Also\n\n- `skills/council/SKILL.md` — Multi-model validation council",
+			want:    false,
+		},
+		{
+			name:    "too few words rejected",
+			content: "till grinding",
+			want:    false,
+		},
+		{
+			name:    "skill doc parrot rejected",
+			content: "### Step 8: Request Human Approval (Gate 2)\n\n**Skip this step if `--auto` flag is set.**",
+			want:    false,
+		},
+		{
+			name:    "operational chatter rejected",
+			content: "still running (lots of objects to delete). Let me save that evidence while they finish.",
+			want:    false,
+		},
+		{
+			name:    "single sentence with enough words passes",
+			content: "The parser handles JSONL format natively and can extract decisions from multi-turn conversations.",
+			want:    true,
+		},
+		{
+			name:    "exactly 10 words with sentence ender passes",
+			content: "The parser extracts all decisions from every multi turn conversation here.",
+			want:    true,
+		},
+		{
+			name:    "exactly 9 words rejected",
+			content: "Parser extracts decisions from multi-turn conversations natively here.",
+			want:    false,
+		},
+		{
+			name:    "no sentence ender rejected",
+			content: "This is a long enough fragment but it has no sentence-ending punctuation at all",
+			want:    false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := qualifyAutoExtract(tc.content)
+			if got != tc.want {
+				t.Errorf("qualifyAutoExtract() = %v, want %v for: %s",
+					got, tc.want, tc.content)
+			}
+		})
+	}
+}
+
 func TestSessionClose_AutoExtract_ProducesLearnings(t *testing.T) {
 	tmpDir := t.TempDir()
-	decisions := []string{"Use Go modules for dependency management", "Pin CI to Go 1.22"}
-	knowledge := []string{"The parser handles JSONL format natively"}
+	decisions := []string{
+		"Use Go modules for dependency management. Pin CI to Go 1.22 to avoid breaking changes in newer versions.",
+		"Prefer table-driven tests for multi-case functions. This reduces boilerplate and improves coverage.",
+	}
+	knowledge := []string{
+		"The parser handles JSONL format natively and can extract decisions from multi-turn conversations.",
+	}
 
-	count, err := writeAutoExtractedLearnings(tmpDir, decisions, knowledge)
+	result, err := writeAutoExtractedLearnings(tmpDir, decisions, knowledge)
 	if err != nil {
 		t.Fatalf("writeAutoExtractedLearnings: %v", err)
 	}
-	if count != 3 {
-		t.Errorf("expected 3 learnings written, got %d", count)
+	if result.written != 3 {
+		t.Errorf("expected 3 learnings written, got %d", result.written)
+	}
+	if result.rejected != 0 {
+		t.Errorf("expected 0 rejected, got %d", result.rejected)
 	}
 
 	// Verify files exist in .agents/learnings/
@@ -493,6 +570,38 @@ func TestSessionClose_AutoExtract_ProducesLearnings(t *testing.T) {
 	// Verify category field is present
 	if !strings.Contains(content, "category: decision") && !strings.Contains(content, "category: knowledge") {
 		t.Errorf("expected learning to contain a category field, got:\n%s", content)
+	}
+}
+
+func TestSessionClose_AutoExtract_RejectsJunk(t *testing.T) {
+	tmpDir := t.TempDir()
+	decisions := []string{
+		"till waiting on the event deletion",
+		"Pin CI to Go 1.22",
+	}
+	knowledge := []string{
+		"See Also\n\n- `skills/council/SKILL.md` — Multi-model council",
+		"still running (lots of objects to delete)",
+	}
+
+	result, err := writeAutoExtractedLearnings(tmpDir, decisions, knowledge)
+	if err != nil {
+		t.Fatalf("writeAutoExtractedLearnings: %v", err)
+	}
+	if result.written != 0 {
+		t.Errorf("expected 0 learnings written (all junk), got %d", result.written)
+	}
+	if result.rejected != 4 {
+		t.Errorf("expected 4 rejected, got %d", result.rejected)
+	}
+
+	learningsDir := filepath.Join(tmpDir, ".agents", "learnings")
+	entries, err := os.ReadDir(learningsDir)
+	if err != nil {
+		t.Fatalf("read learnings dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected 0 files for junk input, got %d", len(entries))
 	}
 }
 
@@ -534,12 +643,15 @@ func TestSessionClose_AutoExtract_NoTranscript(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Empty decisions and knowledge — graceful no-op
-	count, err := writeAutoExtractedLearnings(tmpDir, nil, nil)
+	result, err := writeAutoExtractedLearnings(tmpDir, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if count != 0 {
-		t.Errorf("expected 0 learnings for empty input, got %d", count)
+	if result.written != 0 {
+		t.Errorf("expected 0 learnings for empty input, got %d", result.written)
+	}
+	if result.rejected != 0 {
+		t.Errorf("expected 0 rejected for empty input, got %d", result.rejected)
 	}
 
 	// Learnings dir should still be created but empty

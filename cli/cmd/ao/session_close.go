@@ -63,7 +63,7 @@ func init() {
 
 	sessionCloseCmd.Flags().StringVar(&sessionCloseSessionID, "session", "", "Session ID to close (default: most recent transcript)")
 	sessionCloseCmd.Flags().BoolVar(&sessionCloseAutoExtract, "auto-extract", false,
-		"Extract lightweight learnings and write handoff artifact")
+		"Extract lightweight learnings (quality-filtered) and write handoff artifact")
 }
 
 // SessionCloseResult holds the result of a session close operation.
@@ -78,6 +78,7 @@ type SessionCloseResult struct {
 	Status             string  `json:"status"`
 	Message            string  `json:"message"`
 	LearningsExtracted int     `json:"learnings_extracted"`
+	LearningsRejected  int     `json:"learnings_rejected,omitempty"`
 	HandoffWritten     string  `json:"handoff_written,omitempty"`
 }
 
@@ -142,11 +143,11 @@ func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
 	velocityDelta := computeVelocityDelta(preMetrics, postMetrics)
 	status := classifyFlywheelStatus(postMetrics)
 
-	var learningsExtracted int
+	var extractResult autoExtractResult
 	var handoffPath string
 
 	if autoExtract {
-		learningsExtracted, err = writeAutoExtractedLearnings(cwd, session.Decisions, session.Knowledge)
+		extractResult, err = writeAutoExtractedLearnings(cwd, session.Decisions, session.Knowledge)
 		if err != nil {
 			VerbosePrintf("Warning: auto-extract learnings: %v\n", err)
 		}
@@ -175,7 +176,8 @@ func forgeExtractAndReport(transcriptPath string, autoExtract bool) error {
 		VelocityDelta:      velocityDelta,
 		Status:             status,
 		Message:            fmt.Sprintf("Session closed: %d decisions, %d learnings extracted", len(session.Decisions), len(session.Knowledge)),
-		LearningsExtracted: learningsExtracted,
+		LearningsExtracted: extractResult.written,
+		LearningsRejected:  extractResult.rejected,
 		HandoffWritten:     handoffPath,
 	}
 
@@ -365,6 +367,9 @@ func printCloseTable(r SessionCloseResult) {
 	if r.Issues > 0 {
 		fmt.Printf("  Issues:        %d\n", r.Issues)
 	}
+	if r.LearningsRejected > 0 {
+		fmt.Printf("  Rejected:      %d (run with --verbose to see why)\n", r.LearningsRejected)
+	}
 	fmt.Println()
 
 	// Flywheel impact
@@ -378,16 +383,76 @@ func printCloseTable(r SessionCloseResult) {
 	fmt.Println()
 }
 
+// qualifyAutoExtract returns true if the content is substantial enough
+// to be a useful learning. Rejects fragments, skill doc parrots, and
+// operational chatter.
+func qualifyAutoExtract(content string) bool {
+	trimmed := strings.TrimSpace(content)
+
+	// Minimum word count
+	words := strings.Fields(trimmed)
+	if len(words) < 10 {
+		return false
+	}
+
+	// No mid-sentence starts (lowercase or continuation words)
+	lower := strings.ToLower(trimmed)
+	continuationPrefixes := []string{
+		"till ", "still ", "will ", "see also", "choosing the",
+		"selected ", "key learnings", "anti-pattern",
+	}
+	for _, prefix := range continuationPrefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return false
+		}
+	}
+
+	// No skill doc structure parroting
+	skillPatterns := []string{
+		"## Phase", "### Step", "```bash\n#", "```validation",
+		"skills/council/SKILL.md", "skills/research/SKILL.md",
+		"skills/plan/SKILL.md",
+	}
+	for _, pat := range skillPatterns {
+		if strings.Contains(trimmed, pat) {
+			return false
+		}
+	}
+
+	// Must contain at least one sentence-ending punctuation.
+	// Use []rune to avoid byte/rune offset mismatch on non-ASCII content.
+	runes := []rune(trimmed)
+	sentenceEnders := 0
+	for i, ch := range runes {
+		if ch == '.' || ch == '!' || ch == '?' {
+			if i == len(runes)-1 || runes[i+1] == ' ' || runes[i+1] == '\n' {
+				sentenceEnders++
+			}
+		}
+	}
+	if sentenceEnders < 1 {
+		return false
+	}
+
+	return true
+}
+
+// autoExtractResult holds counts from writeAutoExtractedLearnings.
+type autoExtractResult struct {
+	written  int
+	rejected int
+}
+
 // writeAutoExtractedLearnings writes each decision and knowledge item as a
-// lightweight learning file to .agents/learnings/. Returns the count of files written.
-func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []string) (int, error) {
+// lightweight learning file to .agents/learnings/. Returns written and rejected counts.
+func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []string) (autoExtractResult, error) {
+	var result autoExtractResult
 	dir := filepath.Join(cwd, ".agents", "learnings")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return 0, fmt.Errorf("create learnings dir: %w", err)
+		return result, fmt.Errorf("create learnings dir: %w", err)
 	}
 
 	datePrefix := time.Now().Format("2006-01-02")
-	count := 0
 
 	type item struct {
 		category string
@@ -403,6 +468,13 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 	}
 
 	for _, it := range items {
+		if !qualifyAutoExtract(it.content) {
+			VerbosePrintf("Skipped low-quality auto-extract: %s\n",
+				truncate(it.content, 60))
+			result.rejected++
+			continue
+		}
+
 		slug := slugify(it.content)
 		if len(slug) > 40 {
 			slug = slug[:40]
@@ -412,12 +484,12 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 
 		content := fmt.Sprintf("---\ntype: learning\nsource: auto-extract\nconfidence: medium\nmaturity: provisional\ncategory: %s\n---\n\n%s\n", it.category, it.content)
 		if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
-			return count, fmt.Errorf("write learning %s: %w", filename, err)
+			return result, fmt.Errorf("write learning %s: %w", filename, err)
 		}
-		count++
+		result.written++
 	}
 
-	return count, nil
+	return result, nil
 }
 
 // minInt returns the smaller of two ints.
