@@ -53,18 +53,19 @@ ls -lt .agents/specs/ 2>/dev/null | head -3
 
 Use the most recent file. If nothing found, ask user.
 
-### Step 1.4: Load Finding Registry (Mandatory)
+### Step 1.4: Load Compiled Prevention First (Mandatory)
 
-Before quick or deep review, check `.agents/findings/registry.jsonl` for reusable active findings. This is separate from flywheel search and does NOT get skipped by `--quick`.
+Before quick or deep review, load compiled checks from `.agents/pre-mortem-checks/*.md` when they exist. This is separate from flywheel search and does NOT get skipped by `--quick`.
 
-Use the tracked contract in `docs/contracts/finding-registry.md`:
+Use the tracked contracts in `docs/contracts/finding-compiler.md` and `docs/contracts/finding-registry.md`:
 
-- load only `status=active`
+- prefer compiled pre-mortem checks first
 - rank by severity, `applicable_when` overlap, language overlap, and literal plan-text overlap
-- cap at top 5 findings
+- cap at top 5 findings / check files
+- if compiled checks are missing, incomplete, or fewer than the matched finding set, fall back to `.agents/findings/registry.jsonl`
 - fail open:
-  - missing file -> skip silently
-  - empty file -> skip silently
+  - missing compiled directory or registry -> skip silently
+  - empty compiled directory or registry -> skip silently
   - malformed line -> warn and ignore that line
   - unreadable file -> warn once and continue without findings
 
@@ -225,6 +226,14 @@ Use the finding-registry contract:
 - use the contract's temp-file-plus-rename atomic write rule
 
 Do NOT write every comment. Persist only findings that should change future planning or review behavior.
+
+After the registry update, if `hooks/finding-compiler.sh` exists, run:
+
+```bash
+bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
+```
+
+This refreshes `.agents/findings/*.md`, `.agents/planning-rules/*.md`, `.agents/pre-mortem-checks/*.md`, and draft constraint metadata in the same session. `session-end-maintenance.sh` remains the idempotent backstop.
 
 ### Step 5: Record Ratchet Progress
 

@@ -73,6 +73,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hook-helpers.sh
 . "$SCRIPT_DIR/../lib/hook-helpers.sh"
 
+CONSTRAINT_INDEX="$ROOT/.agents/constraints/index.json"
+ACTIVE_CONSTRAINTS='[]'
+ACTIVE_CONSTRAINT_COUNT=0
+if [ -f "$CONSTRAINT_INDEX" ]; then
+    if ! ACTIVE_CONSTRAINTS=$(jq -c '[.constraints // [] | .[]? | select(.status == "active")]' "$CONSTRAINT_INDEX" 2>/dev/null); then
+        write_failure "constraint" "load_constraint_index" 1 "malformed active constraint index"
+        echo "VALIDATION FAILED: constraint index is unreadable: $CONSTRAINT_INDEX" >&2
+        exit 2
+    fi
+    ACTIVE_CONSTRAINT_COUNT=$(printf '%s' "$ACTIVE_CONSTRAINTS" | jq -r 'length' 2>/dev/null || echo 0)
+fi
+
 # Resolve user-provided file paths to repo-rooted absolute paths.
 # Returns non-zero if path escapes ROOT or cannot be normalized.
 resolve_repo_path() {
@@ -112,6 +124,277 @@ collect_changed_files() {
         git diff --name-only --diff-filter=ACMR 2>/dev/null || true
         git ls-files --others --exclude-standard 2>/dev/null || true
     } | awk 'NF' | sort -u
+}
+
+collect_constraint_target_files() {
+    {
+        printf '%s' "$INPUT" | jq -r '
+            def arr(x):
+                if x == null then
+                    []
+                elif (x | type) == "array" then
+                    x
+                elif (x | type) == "object" then
+                    [x]
+                else
+                    []
+                end;
+
+            [
+                (arr(.metadata.files)[]?),
+                (arr(.metadata.validation.files_exist)[]?),
+                (arr(.metadata.validation.content_check)[]? | .file? // empty)
+            ] | .[]
+        ' 2>/dev/null || true
+        collect_changed_files
+    } | awk 'NF' | while IFS= read -r raw_path; do
+        [ -n "$raw_path" ] || continue
+        resolved=$(resolve_repo_path "$raw_path" 2>/dev/null) || continue
+        rel=$(to_repo_relative_path "$resolved")
+        printf '%s\n' "${rel#./}"
+    done | awk 'NF' | sort -u
+}
+
+file_matches_language() {
+    local file="$1"
+    local language="$2"
+
+    case "$language" in
+        go) [[ "$file" == *.go ]] ;;
+        python) [[ "$file" == *.py ]] ;;
+        shell) [[ "$file" == *.sh ]] ;;
+        markdown) [[ "$file" == *.md ]] ;;
+        yaml) [[ "$file" == *.yaml || "$file" == *.yml ]] ;;
+        json) [[ "$file" == *.json ]] ;;
+        typescript) [[ "$file" == *.ts || "$file" == *.tsx ]] ;;
+        javascript) [[ "$file" == *.js || "$file" == *.jsx || "$file" == *.mjs || "$file" == *.cjs ]] ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+filter_constraint_target_files() {
+    local applies_to_json="$1"
+    local target_files="$2"
+    local glob_count language_count path_file glob language matched
+
+    glob_count=$(printf '%s' "$applies_to_json" | jq -r '(.path_globs // []) | length' 2>/dev/null || echo 0)
+    language_count=$(printf '%s' "$applies_to_json" | jq -r '(.languages // []) | length' 2>/dev/null || echo 0)
+
+    while IFS= read -r path_file; do
+        [ -n "$path_file" ] || continue
+
+        if [ "$glob_count" -gt 0 ] 2>/dev/null; then
+            matched=0
+            while IFS= read -r glob; do
+                [ -n "$glob" ] || continue
+                if [[ "$path_file" == $glob ]]; then
+                    matched=1
+                    break
+                fi
+            done <<< "$(printf '%s' "$applies_to_json" | jq -r '.path_globs[]?' 2>/dev/null)"
+            [ "$matched" -eq 1 ] || continue
+        fi
+
+        if [ "$language_count" -gt 0 ] 2>/dev/null; then
+            matched=0
+            while IFS= read -r language; do
+                [ -n "$language" ] || continue
+                if file_matches_language "$path_file" "$language"; then
+                    matched=1
+                    break
+                fi
+            done <<< "$(printf '%s' "$applies_to_json" | jq -r '.languages[]?' 2>/dev/null)"
+            [ "$matched" -eq 1 ] || continue
+        fi
+
+        printf '%s\n' "$path_file"
+    done <<< "$target_files" | sort -u
+}
+
+constraint_failure() {
+    local constraint_id="$1"
+    local detail="$2"
+    local command_ref="${3:-constraint}"
+
+    write_failure "constraint" "$command_ref" 1 "$constraint_id: $detail"
+    echo "VALIDATION FAILED: constraint $constraint_id — $detail" >&2
+}
+
+run_constraint_content_pattern() {
+    local constraint_id="$1"
+    local detector_json="$2"
+    local applicable_files="$3"
+    local mode pattern message resolved_file rel_file
+
+    mode=$(printf '%s' "$detector_json" | jq -r '.mode // "must_contain"' 2>/dev/null)
+    pattern=$(printf '%s' "$detector_json" | jq -r '.pattern // empty' 2>/dev/null)
+    message=$(printf '%s' "$detector_json" | jq -r '.message // empty' 2>/dev/null)
+
+    if [ -z "$pattern" ]; then
+        constraint_failure "$constraint_id" "content_pattern detector is missing pattern" "content_pattern"
+        return 2
+    fi
+
+    while IFS= read -r rel_file; do
+        [ -n "$rel_file" ] || continue
+        resolved_file=$(resolve_repo_path "$rel_file" 2>/dev/null) || {
+            constraint_failure "$constraint_id" "path escapes repo root: $rel_file" "content_pattern"
+            return 2
+        }
+        if [ ! -f "$resolved_file" ]; then
+            constraint_failure "$constraint_id" "target file not found: $rel_file" "content_pattern"
+            return 2
+        fi
+
+        case "$mode" in
+            must_contain)
+                if ! grep -qF -- "$pattern" "$resolved_file" 2>/dev/null; then
+                    constraint_failure "$constraint_id" "${message:-expected literal pattern '$pattern' in $rel_file}" "content_pattern"
+                    return 2
+                fi
+                ;;
+            must_not_contain)
+                if grep -qF -- "$pattern" "$resolved_file" 2>/dev/null; then
+                    constraint_failure "$constraint_id" "${message:-forbidden literal pattern '$pattern' found in $rel_file}" "content_pattern"
+                    return 2
+                fi
+                ;;
+            *)
+                constraint_failure "$constraint_id" "unsupported content_pattern mode: $mode" "content_pattern"
+                return 2
+                ;;
+        esac
+    done <<< "$applicable_files"
+
+    return 0
+}
+
+run_constraint_paired_files() {
+    local constraint_id="$1"
+    local detector_json="$2"
+    local all_target_files="$3"
+    local applicable_files="$4"
+    local pattern exclude companion message rel_companion derived_companion rel_file
+
+    pattern=$(printf '%s' "$detector_json" | jq -r '.pattern // empty' 2>/dev/null)
+    exclude=$(printf '%s' "$detector_json" | jq -r '.exclude // empty' 2>/dev/null)
+    companion=$(printf '%s' "$detector_json" | jq -r '.companion // empty' 2>/dev/null)
+    message=$(printf '%s' "$detector_json" | jq -r '.message // empty' 2>/dev/null)
+
+    if [ -z "$pattern" ] || [ -z "$companion" ]; then
+        constraint_failure "$constraint_id" "paired_files detector requires pattern and companion" "paired_files"
+        return 2
+    fi
+
+    while IFS= read -r rel_file; do
+        [ -n "$rel_file" ] || continue
+        if [[ "$rel_file" != $pattern ]]; then
+            continue
+        fi
+        if [ -n "$exclude" ] && [[ "$rel_file" == $exclude ]]; then
+            continue
+        fi
+
+        derived_companion=$(derive_companion_path "$rel_file" "$companion")
+        rel_companion="${derived_companion#./}"
+        if ! printf '%s\n' "$all_target_files" | grep -Fx -- "$rel_companion" >/dev/null 2>&1; then
+            constraint_failure "$constraint_id" "${message:-missing companion '$rel_companion' for '$rel_file'}" "paired_files"
+            return 2
+        fi
+    done <<< "$applicable_files"
+
+    return 0
+}
+
+run_constraint_restricted_command() {
+    local constraint_id="$1"
+    local detector_json="$2"
+    local command message reason
+    local -a cmd_parts
+
+    command=$(printf '%s' "$detector_json" | jq -r '.command // empty' 2>/dev/null)
+    message=$(printf '%s' "$detector_json" | jq -r '.message // empty' 2>/dev/null)
+
+    if [ -z "$command" ]; then
+        constraint_failure "$constraint_id" "restricted_command detector is missing command" "restricted_command"
+        return 2
+    fi
+
+    if ! validate_restricted_cmd "$command" "constraint command" 2>/dev/null; then
+        reason=$(validate_restricted_cmd "$command" "constraint command" 2>&1)
+        constraint_failure "$constraint_id" "$reason" "restricted_command"
+        return 2
+    fi
+
+    read -ra cmd_parts <<< "$command"
+    if ! "${cmd_parts[@]}" >/dev/null 2>&1; then
+        constraint_failure "$constraint_id" "${message:-constraint command failed: $command}" "restricted_command"
+        return 2
+    fi
+
+    return 0
+}
+
+evaluate_active_constraints() {
+    local constraints_json="$1"
+    local target_files="$2"
+    local constraint_json id detector_json detector_kind applies_to_json applicable_files
+    local requires_issue_type
+
+    requires_issue_type=$(printf '%s' "$constraints_json" | jq -r 'any(.[]?; ((.applies_to.issue_types // []) | length) > 0)' 2>/dev/null)
+    if [ "$requires_issue_type" = "true" ] && [ -z "$ISSUE_TYPE" ]; then
+        constraint_failure "issue_type" "active constraints require metadata.issue_type on the task payload" "constraint"
+        return 2
+    fi
+
+    while IFS= read -r constraint_json; do
+        [ -n "$constraint_json" ] || continue
+        id=$(printf '%s' "$constraint_json" | jq -r '.id // empty' 2>/dev/null)
+        detector_json=$(printf '%s' "$constraint_json" | jq -c '.detector // {}' 2>/dev/null)
+        detector_kind=$(printf '%s' "$detector_json" | jq -r '.kind // empty' 2>/dev/null)
+        applies_to_json=$(printf '%s' "$constraint_json" | jq -c '.applies_to // {}' 2>/dev/null)
+
+        if [ -z "$id" ] || [ -z "$detector_kind" ]; then
+            constraint_failure "${id:-unknown}" "active constraint entry is missing required id or detector.kind" "constraint"
+            return 2
+        fi
+
+        if ! printf '%s' "$applies_to_json" | jq -e '. == {} or ((.scope // "files") == "files")' >/dev/null 2>&1; then
+            constraint_failure "$id" "unsupported applies_to.scope in active constraint" "$detector_kind"
+            return 2
+        fi
+
+        if printf '%s' "$applies_to_json" | jq -e '((.issue_types // []) | length) > 0' >/dev/null 2>&1; then
+            if ! printf '%s' "$applies_to_json" | jq -e --arg issue_type "$ISSUE_TYPE" '(.issue_types // []) | index($issue_type) != null' >/dev/null 2>&1; then
+                continue
+            fi
+        fi
+
+        applicable_files=$(filter_constraint_target_files "$applies_to_json" "$target_files")
+        if [ -z "$applicable_files" ] && [ "$detector_kind" != "restricted_command" ]; then
+            continue
+        fi
+
+        case "$detector_kind" in
+            content_pattern)
+                run_constraint_content_pattern "$id" "$detector_json" "$applicable_files" || return 2
+                ;;
+            paired_files)
+                run_constraint_paired_files "$id" "$detector_json" "$target_files" "$applicable_files" || return 2
+                ;;
+            restricted_command)
+                run_constraint_restricted_command "$id" "$detector_json" || return 2
+                ;;
+            *)
+                constraint_failure "$id" "unsupported active detector kind: $detector_kind" "$detector_kind"
+                return 2
+                ;;
+        esac
+    done <<< "$(printf '%s' "$constraints_json" | jq -c '.[]' 2>/dev/null)"
+
+    return 0
 }
 
 derive_companion_path() {
@@ -176,18 +459,26 @@ if [ -z "$VALIDATION" ] || [ "$VALIDATION" = "null" ]; then
             write_failure "validation_metadata" "metadata.validation" 1 "missing metadata.validation for issue_type '$ISSUE_TYPE'"
             echo "VALIDATION FAILED: metadata.validation is required for issue_type '$ISSUE_TYPE' (feature|bug|task)" >&2
             exit 2
-        else
-            echo "WARN: metadata.validation missing for issue_type '$ISSUE_TYPE' — set AGENTOPS_METADATA_GATE=strict to enforce" >&2
+        fi
+
+        echo "WARN: metadata.validation missing for issue_type '$ISSUE_TYPE' — set AGENTOPS_METADATA_GATE=strict to enforce" >&2
+        if [ "$ACTIVE_CONSTRAINT_COUNT" -eq 0 ]; then
             exit 0
         fi
+        VALIDATION='{}'
+    elif is_validation_exempt_issue_type "$ISSUE_TYPE"; then
+        # Explicit exemption path for non-implementation tasks.
+        if [ "$ACTIVE_CONSTRAINT_COUNT" -eq 0 ]; then
+            exit 0
+        fi
+        VALIDATION='{}'
+    else
+        # Unknown/legacy tasks remain fail-open for backward compatibility.
+        if [ "$ACTIVE_CONSTRAINT_COUNT" -eq 0 ]; then
+            exit 0
+        fi
+        VALIDATION='{}'
     fi
-    # Explicit exemption path for non-implementation tasks.
-    if is_validation_exempt_issue_type "$ISSUE_TYPE"; then
-        exit 0
-    fi
-
-    # Unknown/legacy tasks remain fail-open for backward compatibility.
-    exit 0
 fi
 
 # Normalize common validation fields once for policy checks and execution.
@@ -243,6 +534,8 @@ if is_impl_issue_type "$ISSUE_TYPE"; then
         fi
     fi
 fi
+
+CONSTRAINT_TARGET_FILES=$(collect_constraint_target_files)
 
 # --- Validation checks ---
 
@@ -358,6 +651,13 @@ if [ -n "$PAIRED_RULES" ] && [ "$PAIRED_RULES" != "null" ]; then
                 done <<< "$CHANGED_FILES"
             done
         fi
+    fi
+fi
+
+# 3.5 active constraints: .agents/constraints/index.json
+if [ "$ACTIVE_CONSTRAINT_COUNT" -gt 0 ] 2>/dev/null; then
+    if ! evaluate_active_constraints "$ACTIVE_CONSTRAINTS" "$CONSTRAINT_TARGET_FILES"; then
+        exit 2
     fi
 fi
 

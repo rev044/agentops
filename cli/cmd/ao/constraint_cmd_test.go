@@ -25,11 +25,24 @@ func TestConstraintLoadSaveFindRoundTrip(t *testing.T) {
 		SchemaVersion: 1,
 		Constraints: []constraintEntry{
 			{
-				ID:         "c-1",
-				Title:      "No eval",
-				Status:     "draft",
-				CompiledAt: "2026-01-01",
-				File:       "notes.md",
+				ID:             "c-1",
+				FindingID:      "f-1",
+				Title:          "No eval",
+				Status:         "draft",
+				CompiledAt:     "2026-01-01",
+				SourceArtifact: ".agents/findings/f-1.md",
+				ReviewFile:     ".agents/constraints/c-1.sh",
+				AppliesTo: constraintAppliesTo{
+					Scope:      "files",
+					IssueTypes: []string{"feature"},
+					PathGlobs:  []string{"cli/cmd/ao/*.go"},
+				},
+				Detector: constraintDetector{
+					Kind:    "content_pattern",
+					Mode:    "must_contain",
+					Pattern: "issue_type",
+				},
+				File: "notes.md",
 			},
 		},
 	}
@@ -54,6 +67,48 @@ func TestConstraintLoadSaveFindRoundTrip(t *testing.T) {
 	}
 	if gotEntry := findConstraint(got, "c-1"); gotEntry == nil || gotEntry.ID != "c-1" {
 		t.Fatalf("findConstraint() = %v, want entry c-1", gotEntry)
+	}
+	if gotEntry := findConstraint(got, "c-1"); gotEntry == nil || gotEntry.FindingID != "f-1" {
+		t.Fatalf("FindingID = %v, want f-1", gotEntry)
+	}
+	if gotEntry := findConstraint(got, "c-1"); gotEntry == nil || gotEntry.Detector.Kind != "content_pattern" {
+		t.Fatalf("Detector.Kind = %v, want content_pattern", gotEntry)
+	}
+}
+
+func TestSaveConstraintIndex_AtomicWrite(t *testing.T) {
+	wd := t.TempDir()
+	chdirTo(t, wd)
+	mkdirConstraintsDir(t)
+
+	idx := &constraintIndex{
+		SchemaVersion: 1,
+		Constraints: []constraintEntry{
+			{ID: "c-atomic", Status: "draft", CompiledAt: time.Now().Format(time.RFC3339)},
+		},
+	}
+	if err := saveConstraintIndex(idx); err != nil {
+		t.Fatalf("saveConstraintIndex: %v", err)
+	}
+
+	if _, err := os.Stat(constraintLockPath()); !os.IsNotExist(err) {
+		t.Fatalf("constraint lock should not remain after save, err=%v", err)
+	}
+
+	tmpMatches, err := filepath.Glob(filepath.Join(".agents", "constraints", "index.json.tmp.*"))
+	if err != nil {
+		t.Fatalf("glob temp files: %v", err)
+	}
+	if len(tmpMatches) != 0 {
+		t.Fatalf("expected no temp files after atomic save, got %v", tmpMatches)
+	}
+
+	data, err := os.ReadFile(constraintIndexPath())
+	if err != nil {
+		t.Fatalf("read index: %v", err)
+	}
+	if !json.Valid(data) {
+		t.Fatalf("constraint index is not valid JSON: %s", string(data))
 	}
 }
 

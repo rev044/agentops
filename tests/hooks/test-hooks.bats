@@ -145,6 +145,34 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
+@test "task-validation-gate: active constraint requires metadata.issue_type" {
+    local mock="$TMP_TEST_DIR/mock-constraint-issue"
+    setup_mock_repo "$mock"
+    mkdir -p "$mock/.agents/constraints" "$mock/docs"
+    echo 'SAFE_MARKER' > "$mock/docs/guide.md"
+    cat > "$mock/.agents/constraints/index.json" <<'EOF'
+{"schema_version":1,"constraints":[{"id":"c-issue-type","title":"issue type required","status":"active","compiled_at":"2026-03-10T00:00:00Z","applies_to":{"scope":"files","issue_types":["feature"],"path_globs":["docs/*.md"]},"detector":{"kind":"content_pattern","mode":"must_contain","pattern":"SAFE_MARKER","message":"SAFE_MARKER required"}}]}
+EOF
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$mock" '{"metadata":{"files":["docs/guide.md"]}}' "$HOOKS_DIR/task-validation-gate.sh"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"metadata.issue_type"* ]]
+}
+
+@test "task-validation-gate: active content constraint blocks missing literal" {
+    local mock="$TMP_TEST_DIR/mock-constraint-pattern"
+    setup_mock_repo "$mock"
+    mkdir -p "$mock/.agents/constraints" "$mock/docs"
+    echo 'hello' > "$mock/docs/guide.md"
+    cat > "$mock/.agents/constraints/index.json" <<'EOF'
+{"schema_version":1,"constraints":[{"id":"c-pattern","title":"must contain","status":"active","compiled_at":"2026-03-10T00:00:00Z","applies_to":{"scope":"files","issue_types":["feature"],"path_globs":["docs/*.md"]},"detector":{"kind":"content_pattern","mode":"must_contain","pattern":"SAFE_MARKER","message":"SAFE_MARKER required"}}]}
+EOF
+    run bash -c 'cd "$1" && printf "%s" "$2" | bash "$3" 2>&1' \
+        -- "$mock" '{"metadata":{"issue_type":"feature","files":["docs/guide.md"]}}' "$HOOKS_DIR/task-validation-gate.sh"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"SAFE_MARKER required"* ]]
+}
+
 @test "task-validation-gate: content_check with matching pattern passes" {
     # File must be inside REPO_ROOT for path validation to accept it
     local fixture_dir="$REPO_ROOT/.agents/ao/bats-fixtures-$$"
@@ -467,6 +495,20 @@ MOCK_EOF
 # constraint-compiler.sh
 # ═══════════════════════════════════════════════════════════════════════
 
+@test "finding-compiler: registry entries promote into advisory artifacts" {
+    local mock="$TMP_TEST_DIR/mock-finding-compiler"
+    setup_mock_repo "$mock"
+    mkdir -p "$mock/.agents/findings"
+    cat > "$mock/.agents/findings/registry.jsonl" <<'EOF'
+{"id":"f-bats-compiler","version":1,"tier":"local","source":{"repo":"agentops/crew/nami","session":"2026-03-09","file":".agents/council/source.md","skill":"pre-mortem"},"date":"2026-03-09","severity":"significant","category":"validation-gap","pattern":"Finding compiler should emit advisory artifacts.","detection_question":"Did the compiler emit plan and pre-mortem files?","checklist_item":"Compile advisory artifacts from active findings.","applicable_languages":["markdown","shell"],"applicable_when":["plan-shape"],"status":"active","superseded_by":null,"dedup_key":"validation-gap|finding-compiler-should-emit-advisory-artifacts|plan-shape","hit_count":0,"last_cited":null,"ttl_days":30,"confidence":"high"}
+EOF
+    run bash -c 'cd "$1" && bash "$2" 2>&1' -- "$mock" "$HOOKS_DIR/finding-compiler.sh"
+    [ "$status" -eq 0 ]
+    [ -f "$mock/.agents/findings/f-bats-compiler.md" ]
+    [ -f "$mock/.agents/planning-rules/f-bats-compiler.md" ]
+    [ -f "$mock/.agents/pre-mortem-checks/f-bats-compiler.md" ]
+}
+
 @test "constraint-compiler: requires learning path argument" {
     local mock="$TMP_TEST_DIR/mock-constraint-arg"
     mkdir -p "$mock"
@@ -475,7 +517,7 @@ MOCK_EOF
     [ "$status" -eq 1 ]
 }
 
-@test "constraint-compiler: tagged constraint learning generates template and index" {
+@test "constraint-compiler: tagged constraint learning routes through finding compiler outputs" {
     local mock="$TMP_TEST_DIR/mock-constraint"
     mkdir -p "$mock"
     git -C "$mock" init -q >/dev/null 2>&1
@@ -489,8 +531,12 @@ tags: [constraint, reliability]
 
 This learning describes a guardrail to prevent direct bypass of safety checks.
 LEARN_EOF
-    OUTPUT=$(cd "$mock" && bash "$HOOKS_DIR/constraint-compiler.sh" "$mock/learn-constraint.md" 2>&1 || true)
-    [[ "$OUTPUT" == *"Generated constraint template"* ]]
+    run bash -c 'cd "$1" && bash "$2" "$3" 2>&1' -- "$mock" "$HOOKS_DIR/constraint-compiler.sh" "$mock/learn-constraint.md"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"finding-compiler.sh"* || "$output" == *"Promoted legacy learning"* ]]
+    [ -f "$mock/.agents/findings/learn-constraint.md" ]
+    [ -f "$mock/.agents/planning-rules/learn-constraint.md" ]
+    [ -f "$mock/.agents/pre-mortem-checks/learn-constraint.md" ]
     [ -x "$mock/.agents/constraints/learn-constraint.sh" ]
     [ -f "$mock/.agents/constraints/index.json" ]
 }
@@ -525,6 +571,25 @@ LEARN_EOF
     run bash -c 'AGENTOPS_HOOKS_DISABLED=1 bash "$1" 2>&1' \
         -- "$HOOKS_DIR/session-end-maintenance.sh"
     [ "$status" -eq 0 ]
+}
+
+@test "session-end-maintenance: finding compiler backstop refreshes compiled artifacts" {
+    local mock="$TMP_TEST_DIR/mock-session-end"
+    setup_mock_repo "$mock"
+    mkdir -p "$mock/.agents/findings" "$TMP_TEST_DIR/bin"
+    cat > "$mock/.agents/findings/registry.jsonl" <<'EOF'
+{"id":"f-bats-session-end","version":1,"tier":"local","source":{"repo":"agentops/crew/nami","session":"2026-03-09","file":".agents/council/source.md","skill":"post-mortem"},"date":"2026-03-09","severity":"significant","category":"validation-gap","pattern":"Session end should compile findings before close.","detection_question":"Did session end rebuild compiled artifacts?","checklist_item":"Compile findings as part of session close.","applicable_languages":["markdown","shell"],"applicable_when":["validation-gap"],"status":"active","superseded_by":null,"dedup_key":"validation-gap|session-end-should-compile-findings-before-close|validation-gap","hit_count":0,"last_cited":null,"ttl_days":30,"confidence":"high"}
+EOF
+    cat > "$TMP_TEST_DIR/bin/ao" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+    chmod +x "$TMP_TEST_DIR/bin/ao"
+    run bash -c 'cd "$1" && PATH="$2:$PATH" bash "$3" 2>&1' \
+        -- "$mock" "$TMP_TEST_DIR/bin" "$HOOKS_DIR/session-end-maintenance.sh"
+    [ "$status" -eq 0 ]
+    [ -f "$mock/.agents/planning-rules/f-bats-session-end.md" ]
+    [ -f "$mock/.agents/pre-mortem-checks/f-bats-session-end.md" ]
 }
 
 @test "ao-flywheel-close: kill switch exits cleanly" {

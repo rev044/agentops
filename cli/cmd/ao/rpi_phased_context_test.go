@@ -146,6 +146,9 @@ func TestCtx_BuildPromptForPhase_Phase2_WithHandoffs(t *testing.T) {
 		"epic_id": "ep-200",
 		"verdicts": {"pre-mortem": "PASS"},
 		"artifacts_produced": ["plan.md"],
+		"applied_findings": ["f-2026-03-09-001"],
+		"planning_rules": ["f-2026-03-09-001 — Do not skip prevention context"],
+		"known_risks": ["f-2026-03-09-001 — Validate before implementation"],
 		"decisions_made": ["use redis"],
 		"open_risks": ["cache invalidation"],
 		"duration_seconds": 120,
@@ -178,6 +181,12 @@ func TestCtx_BuildPromptForPhase_Phase2_WithHandoffs(t *testing.T) {
 	if !strings.Contains(prompt, "handoff goal") {
 		t.Errorf("phase 2 prompt missing goal from handoff")
 	}
+	if !strings.Contains(prompt, "Do not skip prevention context") {
+		t.Errorf("phase 2 prompt missing planning rule context")
+	}
+	if !strings.Contains(prompt, "Validate before implementation") {
+		t.Errorf("phase 2 prompt missing known risk context")
+	}
 	// Phase 2 should invoke crank
 	if !strings.Contains(prompt, "/crank") {
 		t.Errorf("phase 2 prompt missing /crank")
@@ -185,6 +194,31 @@ func TestCtx_BuildPromptForPhase_Phase2_WithHandoffs(t *testing.T) {
 }
 
 func TestCtx_BuildPromptForPhase_Phase3(t *testing.T) {
+	tmp := t.TempDir()
+	rpiDir := filepath.Join(tmp, ".agents", "rpi")
+	if err := os.MkdirAll(rpiDir, 0750); err != nil {
+		t.Fatal(err)
+	}
+
+	handoff := fmt.Sprintf(`{
+		"schema_version": 1,
+		"run_id": "r2",
+		"phase": 2,
+		"phase_name": "implementation",
+		"status": "completed",
+		"goal": "add caching",
+		"epic_id": "ep-300",
+		"verdicts": {"crank": "PASS"},
+		"artifacts_produced": ["cache.go", "cache_test.go"],
+		"applied_findings": ["f-2026-03-09-001"],
+		"planning_rules": ["f-2026-03-09-001 — Do not skip prevention context"],
+		"known_risks": ["f-2026-03-09-001 — Validate before implementation"],
+		"completed_at": %q
+	}`, time.Now().UTC().Format(time.RFC3339))
+	if err := os.WriteFile(filepath.Join(rpiDir, "phase-2-handoff.json"), []byte(handoff), 0600); err != nil {
+		t.Fatal(err)
+	}
+
 	state := &phasedState{
 		Goal:       "add caching",
 		EpicID:     "ep-300",
@@ -195,7 +229,7 @@ func TestCtx_BuildPromptForPhase_Phase3(t *testing.T) {
 		Opts:       defaultPhasedEngineOptions(),
 	}
 
-	prompt, err := buildPromptForPhase("", 3, state, nil)
+	prompt, err := buildPromptForPhase(tmp, 3, state, nil)
 	if err != nil {
 		t.Fatalf("buildPromptForPhase(3): %v", err)
 	}
@@ -204,6 +238,12 @@ func TestCtx_BuildPromptForPhase_Phase3(t *testing.T) {
 		if !strings.Contains(prompt, keyword) {
 			t.Errorf("phase 3 prompt missing %q", keyword)
 		}
+	}
+	if !strings.Contains(prompt, "f-2026-03-09-001") {
+		t.Errorf("phase 3 prompt missing applied findings context")
+	}
+	if strings.Contains(prompt, "Do not skip prevention context") || strings.Contains(prompt, "Validate before implementation") {
+		t.Errorf("phase 3 prompt should not include raw planning rules or known risks")
 	}
 }
 

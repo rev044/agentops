@@ -468,7 +468,7 @@ func TestTaskSync_parseTaskCreate(t *testing.T) {
 		sessionID string
 		wantNil   bool
 		wantDesc  string
-		wantMeta  bool
+		wantMeta  map[string]any
 	}{
 		{
 			name:    "empty subject returns nil",
@@ -496,7 +496,20 @@ func TestTaskSync_parseTaskCreate(t *testing.T) {
 			name:      "with activeForm metadata",
 			input:     map[string]any{"subject": "Fix bug", "activeForm": "checklist"},
 			sessionID: "sess-1",
-			wantMeta:  true,
+			wantMeta:  map[string]any{"active_form": "checklist"},
+		},
+		{
+			name: "preserves metadata map",
+			input: map[string]any{
+				"subject": "Fix bug",
+				"metadata": map[string]any{
+					"issue_type": "feature",
+					"files":      []any{"cli/cmd/ao/task_sync.go"},
+					"validation": map[string]any{"tests": "go test ./cli/cmd/ao/..."},
+				},
+			},
+			sessionID: "sess-1",
+			wantMeta:  map[string]any{"issue_type": "feature"},
 		},
 	}
 	for _, tt := range tests {
@@ -523,8 +536,15 @@ func TestTaskSync_parseTaskCreate(t *testing.T) {
 			if tt.wantDesc != "" && got.Description != tt.wantDesc {
 				t.Errorf("Description = %q, want %q", got.Description, tt.wantDesc)
 			}
-			if tt.wantMeta && (got.Metadata == nil || got.Metadata["active_form"] != "checklist") {
-				t.Errorf("Metadata mismatch: %v", got.Metadata)
+			if len(tt.wantMeta) > 0 {
+				if got.Metadata == nil {
+					t.Fatalf("Metadata = nil, want %v", tt.wantMeta)
+				}
+				for key, want := range tt.wantMeta {
+					if got.Metadata[key] != want {
+						t.Errorf("Metadata[%q] = %v, want %v", key, got.Metadata[key], want)
+					}
+				}
 			}
 		})
 	}
@@ -601,7 +621,7 @@ func TestTaskSync_applyToolBlock(t *testing.T) {
 	// TaskCreate
 	createBlock := map[string]any{
 		"name":  "TaskCreate",
-		"input": map[string]any{"subject": "New task"},
+		"input": map[string]any{"subject": "New task", "metadata": map[string]any{"issue_type": "task"}},
 	}
 	applyToolBlock(createBlock, "sess-1", taskMap)
 
@@ -613,6 +633,9 @@ func TestTaskSync_applyToolBlock(t *testing.T) {
 	var taskID string
 	for id := range taskMap {
 		taskID = id
+	}
+	if got := taskMap[taskID].Metadata["issue_type"]; got != "task" {
+		t.Fatalf("Metadata[issue_type] = %v, want task", got)
 	}
 
 	// TaskUpdate

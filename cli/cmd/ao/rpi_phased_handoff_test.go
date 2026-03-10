@@ -22,6 +22,9 @@ func TestWritePhaseHandoff_RoundTrip(t *testing.T) {
 		ArtifactsProduced: []string{"plan.md"},
 		DecisionsMade:     []string{"use JWT"},
 		OpenRisks:         []string{"migration downtime"},
+		AppliedFindings:   []string{"f-2026-03-09-001"},
+		PlanningRules:     []string{"f-2026-03-09-001 — Do not skip prevention context"},
+		KnownRisks:        []string{"f-2026-03-09-001 — Validate before implementation"},
 		DurationSeconds:   312.5,
 		ToolCalls:         42,
 		Narrative:         "Discovery completed successfully.",
@@ -63,6 +66,15 @@ func TestWritePhaseHandoff_RoundTrip(t *testing.T) {
 	}
 	if len(got.OpenRisks) != 1 || got.OpenRisks[0] != "migration downtime" {
 		t.Errorf("OpenRisks = %v, want [migration downtime]", got.OpenRisks)
+	}
+	if len(got.AppliedFindings) != 1 || got.AppliedFindings[0] != "f-2026-03-09-001" {
+		t.Errorf("AppliedFindings = %v, want [f-2026-03-09-001]", got.AppliedFindings)
+	}
+	if len(got.PlanningRules) != 1 || got.PlanningRules[0] != "f-2026-03-09-001 — Do not skip prevention context" {
+		t.Errorf("PlanningRules = %v, want planning rule", got.PlanningRules)
+	}
+	if len(got.KnownRisks) != 1 || got.KnownRisks[0] != "f-2026-03-09-001 — Validate before implementation" {
+		t.Errorf("KnownRisks = %v, want known risk", got.KnownRisks)
 	}
 	if got.ToolCalls != h.ToolCalls {
 		t.Errorf("ToolCalls = %d, want %d", got.ToolCalls, h.ToolCalls)
@@ -164,6 +176,9 @@ func TestBuildHandoffContext_Formatting(t *testing.T) {
 			DurationSeconds:   312,
 			Verdicts:          map[string]string{"pre_mortem": "PASS"},
 			ArtifactsProduced: []string{"plan.md"},
+			AppliedFindings:   []string{"f-2026-03-09-001"},
+			PlanningRules:     []string{"f-2026-03-09-001 — Do not skip prevention context"},
+			KnownRisks:        []string{"f-2026-03-09-001 — Validate before implementation"},
 			DecisionsMade:     []string{"use JWT"},
 			OpenRisks:         []string{"migration downtime"},
 			Narrative:         "Discovery done.",
@@ -184,6 +199,7 @@ func TestBuildHandoffContext_Formatting(t *testing.T) {
 		"ag-123",
 		"pre_mortem PASS",
 		"plan.md",
+		"f-2026-03-09-001",
 		"use JWT",
 		"migration downtime",
 		"Discovery done.",
@@ -259,6 +275,9 @@ func TestBuildPhaseHandoffFromState(t *testing.T) {
 	if h.Narrative != "Phase 1 done." {
 		t.Errorf("Narrative = %q, want 'Phase 1 done.'", h.Narrative)
 	}
+	if len(h.AppliedFindings) != 0 {
+		t.Errorf("AppliedFindings = %v, want empty without discovery artifacts", h.AppliedFindings)
+	}
 	if h.CompletedAt == "" {
 		t.Error("expected CompletedAt to be set")
 	}
@@ -299,6 +318,80 @@ func TestBuildPhaseHandoffFromState_WithPhaseResult(t *testing.T) {
 	}
 	if h.DurationSeconds != 5400 {
 		t.Errorf("DurationSeconds = %f, want 5400", h.DurationSeconds)
+	}
+}
+
+func TestBuildPhaseHandoffFromState_DiscoversPreventionContext(t *testing.T) {
+	dir := t.TempDir()
+	rpiDir := filepath.Join(dir, ".agents", "rpi")
+	plansDir := filepath.Join(dir, ".agents", "plans")
+	councilDir := filepath.Join(dir, ".agents", "council")
+	planningRulesDir := filepath.Join(dir, ".agents", "planning-rules")
+	preMortemChecksDir := filepath.Join(dir, ".agents", "pre-mortem-checks")
+	for _, path := range []string{rpiDir, plansDir, councilDir, planningRulesDir, preMortemChecksDir} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(plansDir, "2026-03-09-plan.md"), []byte(`# Plan
+
+## Context
+Applied findings:
+- f-2026-03-09-001 — Added prevention guardrails to the plan
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(councilDir, "2026-03-09-pre-mortem-plan.md"), []byte(`# Pre-Mortem
+
+## Known Risks Applied
+- f-2026-03-09-001 — Missing prior findings context would recreate the same failure
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ruleBody := `---
+id: "f-2026-03-09-001"
+---
+# Planning Rule: Prior finding injection
+
+- Pattern: Plans can skip reusable prevention context
+- Ask: Did the plan load active findings first?
+- Do: Cite applied finding IDs in the plan
+`
+	if err := os.WriteFile(filepath.Join(planningRulesDir, "f-2026-03-09-001.md"), []byte(ruleBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	checkBody := `---
+id: "f-2026-03-09-001"
+---
+# Pre-Mortem Check: Prior finding injection
+
+- Pattern: Reviews can miss known failure modes
+- Ask: Did this review load compiled checks first?
+- Do: Include matched entries as known_risks
+`
+	if err := os.WriteFile(filepath.Join(preMortemChecksDir, "f-2026-03-09-001.md"), []byte(checkBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &phasedState{
+		RunID:    "test-run",
+		Goal:     "test goal",
+		Verdicts: map[string]string{"pre_mortem": "PASS"},
+	}
+
+	h := buildPhaseHandoffFromState(state, 1, dir)
+	if len(h.AppliedFindings) != 1 || h.AppliedFindings[0] != "f-2026-03-09-001" {
+		t.Fatalf("AppliedFindings = %v, want discovery finding ID", h.AppliedFindings)
+	}
+	if len(h.PlanningRules) != 1 || !strings.Contains(h.PlanningRules[0], "Did the plan load active findings first?") {
+		t.Fatalf("PlanningRules = %v, want compiled planning rule summary", h.PlanningRules)
+	}
+	if len(h.KnownRisks) != 1 || !strings.Contains(h.KnownRisks[0], "Include matched entries as known_risks") {
+		t.Fatalf("KnownRisks = %v, want compiled known risk summary", h.KnownRisks)
 	}
 }
 

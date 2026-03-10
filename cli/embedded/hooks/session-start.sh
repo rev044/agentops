@@ -26,6 +26,62 @@ log_hook_fail() {
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) HOOK_FAIL: $1" >> "$HOOK_ERROR_LOG" 2>/dev/null || true
 }
 
+write_environment_manifest() {
+    local env_file="$AO_DIR/environment.json"
+    local tmp_file git_branch head_sha git_dirty tools_json manifest_json
+
+    git_branch="$(git -C "$ROOT" branch --show-current 2>/dev/null || echo "")"
+    head_sha="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo "")"
+    if git -C "$ROOT" diff --quiet 2>/dev/null && git -C "$ROOT" diff --cached --quiet 2>/dev/null; then
+        if [ -z "$(git -C "$ROOT" ls-files --others --exclude-standard 2>/dev/null)" ]; then
+            git_dirty=false
+        else
+            git_dirty=true
+        fi
+    else
+        git_dirty=true
+    fi
+
+    if command -v jq &>/dev/null; then
+        tools_json=$(jq -n \
+            --arg ao "$(command -v ao 2>/dev/null || true)" \
+            --arg git "$(command -v git 2>/dev/null || true)" \
+            --arg jqbin "$(command -v jq 2>/dev/null || true)" '
+            {
+                ao: ($ao != ""),
+                git: ($git != ""),
+                jq: ($jqbin != "")
+            }
+        ')
+        manifest_json=$(jq -n \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg os "$(uname -s 2>/dev/null || echo unknown)" \
+            --arg arch "$(uname -m 2>/dev/null || echo unknown)" \
+            --arg root "$ROOT" \
+            --arg branch "$git_branch" \
+            --arg head_sha "$head_sha" \
+            --argjson git_dirty "$git_dirty" \
+            --argjson tools "$tools_json" '
+            {
+                timestamp: $ts,
+                platform: {
+                    os: $os,
+                    arch: $arch
+                },
+                tools: $tools,
+                git: {
+                    repo_root: $root,
+                    branch: $branch,
+                    head_sha: $head_sha,
+                    dirty: $git_dirty
+                }
+            }
+        ')
+        tmp_file="${env_file}.tmp"
+        printf '%s\n' "$manifest_json" > "$tmp_file" 2>/dev/null && mv "$tmp_file" "$env_file" 2>/dev/null || true
+    fi
+}
+
 cd "$ROOT" 2>/dev/null || true
 
 # Ensure global .agents/ directories exist (cross-repo knowledge)
@@ -34,16 +90,20 @@ mkdir -p "$HOME/.agents/learnings" "$HOME/.agents/patterns" 2>/dev/null
 # Ensure local .agents/ directories exist
 for dir in .agents/research .agents/products .agents/retros .agents/learnings \
            .agents/patterns .agents/council .agents/knowledge/pending \
-           .agents/plans .agents/rpi .agents/ao .agents/handoff; do
+           .agents/plans .agents/rpi .agents/ao .agents/handoff \
+           .agents/findings .agents/planning-rules .agents/pre-mortem-checks \
+           .agents/constraints; do
     mkdir -p "$ROOT/$dir" 2>/dev/null
 done
+
+write_environment_manifest
 
 # Clear stale dedup flags from prior sessions (prevents cross-session suppression)
 rm -f "$ROOT/.agents/ao/.intent-echo-fired" 2>/dev/null
 
 # Auto-cleanup stale RPI runs (lightweight, <1s, dry-run only)
 if command -v ao &>/dev/null; then
-    ao rpi cleanup --all --stale-after 24h --dry-run 2>/dev/null | head -5 || true
+    ao rpi cleanup --all --stale-after 24h --dry-run >/dev/null 2>&1 || true
 fi
 
 # Auto-gitignore .agents/

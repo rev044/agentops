@@ -118,18 +118,19 @@ fi
 
 **Include complexity findings in council context.**
 
-### Step 2.4: Finding Registry Check
+### Step 2.4: Compiled Prevention Check
 
-Before reading `.agents/rpi/next-work.jsonl`, read `.agents/findings/registry.jsonl` if it exists. This is the primary reusable-prevention surface for review.
+Before reading `.agents/rpi/next-work.jsonl`, load compiled prevention context from `.agents/pre-mortem-checks/*.md` and `.agents/planning-rules/*.md` when they exist. This is the primary reusable-prevention surface for review.
 
-Use the tracked contract in `docs/contracts/finding-registry.md`:
+Use the tracked contracts in `docs/contracts/finding-compiler.md` and `docs/contracts/finding-registry.md`:
 
-- load only `status=active`
+- prefer compiled pre-mortem checks and planning rules first
 - rank by severity, `applicable_when` overlap, language overlap, changed-file overlap, and literal target-text overlap
-- cap at top 5 findings
+- cap at top 5 findings / compiled files
+- if compiled outputs are missing, incomplete, or fewer than the matched finding set, fall back to `.agents/findings/registry.jsonl`
 - fail open:
-  - missing file -> skip silently
-  - empty file -> skip silently
+  - missing compiled directory or registry -> skip silently
+  - empty compiled directory or registry -> skip silently
   - malformed line -> warn and ignore that line
   - unreadable file -> warn once and continue without findings
 
@@ -526,6 +527,14 @@ Registry write rules:
 - use the contract's temp-file-plus-rename atomic write rule
 
 If a broader prose summary still helps, also write the existing anti-pattern learning file to `.agents/learnings/YYYY-MM-DD-vibe-<target>.md`. Skip both if verdict is PASS.
+
+After the registry update, if `hooks/finding-compiler.sh` exists, run:
+
+```bash
+bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
+```
+
+This keeps the same-session post-mortem path synchronized with the latest reusable findings. `session-end-maintenance.sh` remains the idempotent backstop.
 
 ### Step 10: Test Bead Cleanup
 

@@ -166,6 +166,15 @@ If a plan is found, include it in the council packet's `context.spec` field:
 }
 ```
 
+### Step 2.1: Load Compiled Prevention Context
+
+Before council and retro synthesis, load compiled prevention outputs when they exist:
+
+- `.agents/planning-rules/*.md`
+- `.agents/pre-mortem-checks/*.md`
+
+Use these compiled artifacts first, then fall back to `.agents/findings/registry.jsonl` only when compiled outputs are missing or incomplete. Carry matched finding IDs into the retro as `Applied findings` / `Known risks applied` context so post-mortem can judge whether the flywheel actually prevented rediscovery.
+
 ### Step 2.2: Load Implementation Summary
 
 Check for a crank-generated phase-2 summary:
@@ -388,21 +397,17 @@ Use the tracked contract in `docs/contracts/finding-registry.md`:
 
 This registry is the v1 advisory prevention surface. It complements learnings and next-work; it does not replace them.
 
-#### Step EX.6: Compile Constraint Templates (Deferred Follow-On)
+#### Step EX.6: Refresh Compiled Prevention Outputs
 
-Constraint compilation remains a follow-on surface. Do not present draft templates as active runtime enforcement in the v1 registry-first slice.
+After the registry mutation, refresh compiled outputs immediately so the same session can benefit from the updated prevention set.
 
-If you are explicitly operating in a later compiler-enabled slice, for each extracted learning scoring >= 4/5 on actionability AND tagged "constraint" or "anti-pattern", run `bash hooks/constraint-compiler.sh <learning-path>` to generate a constraint template.
+If `hooks/finding-compiler.sh` exists, run:
 
 ```bash
-# Compile high-scoring constraint/anti-pattern learnings into enforcement templates
-for f in .agents/learnings/YYYY-MM-DD-*.md; do
-    [ -f "$f" ] || continue
-    bash hooks/constraint-compiler.sh "$f" 2>/dev/null || true
-done
+bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
 ```
 
-This produces draft constraint templates in `.agents/constraints/` that can later be activated via `ao constraint activate <id>`, but that activation path is not part of the v1 registry-first contract.
+This promotes registry rows into `.agents/findings/*.md`, refreshes `.agents/planning-rules/*.md` and `.agents/pre-mortem-checks/*.md`, and rewrites draft constraint metadata under `.agents/constraints/`. Active enforcement still depends on the constraint index lifecycle and runtime hook support, but compilation itself is no longer deferred.
 
 ### Phase 3: Process Backlog
 
@@ -492,18 +497,12 @@ Learnings with score >= 6 are promoted:
 
 **Important:** Append only. Never overwrite MEMORY.md.
 
-#### Step ACT.2: Compile Constraints (Deferred Follow-On)
+#### Step ACT.2: Re-Run the Finding Compiler Idempotently
 
-The v1 finding-registry loop stops at structured registry entries. Draft constraint compilation remains a deferred follow-on and must not be described as active runtime enforcement in this slice.
-
-If explicitly operating in a later compiler-enabled slice, anti-patterns and constraint-tagged learnings can still flow through `bash hooks/constraint-compiler.sh`:
+If registry rows changed during this post-mortem, rerun the compiler before feeding next-work so downstream sessions read the freshest compiled prevention outputs:
 
 ```bash
-for f in .agents/learnings/YYYY-MM-DD-*.md; do
-    [ -f "$f" ] || continue
-    grep -q "constraint\|anti-pattern" "$f" 2>/dev/null || continue
-    bash hooks/constraint-compiler.sh "$f" 2>/dev/null || true
-done
+bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
 ```
 
 #### Step ACT.3: Feed Next-Work

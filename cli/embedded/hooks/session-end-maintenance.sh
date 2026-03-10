@@ -65,6 +65,17 @@ run_maintenance() {
         run_ao_quick 4 maturity --evict --archive || true
     fi
 
+    # Always refresh compiled prevention outputs from the current finding ledger
+    # before session close. Missing registry/artifacts fail open inside the helper.
+    FINDING_COMPILER="${PLUGIN_ROOT}/hooks/finding-compiler.sh"
+    if [ -x "$FINDING_COMPILER" ]; then
+        if command -v "$AO_TIMEOUT_BIN" >/dev/null 2>&1; then
+            "$AO_TIMEOUT_BIN" 20 bash "$FINDING_COMPILER" --quiet 2>/dev/null || true
+        else
+            bash "$FINDING_COMPILER" --quiet 2>/dev/null || true
+        fi
+    fi
+
     # Auto-prune .agents/ (opt-out via AGENTOPS_AUTO_PRUNE=0)
     if [ "${AGENTOPS_AUTO_PRUNE:-1}" = "1" ]; then
         PRUNE_SCRIPT="${PLUGIN_ROOT}/scripts/prune-agents.sh"

@@ -5,30 +5,36 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
 
+var findingIDPattern = regexp.MustCompile(`\bf-\d{4}-\d{2}-\d{2}-\d+\b`)
+
 // phaseHandoff is the structured artifact that carries context between phases.
 // Written by the orchestrator after each phase completes.
 // Read by buildPromptForPhase() when constructing the next phase's prompt.
 type phaseHandoff struct {
-	SchemaVersion int               `json:"schema_version"`
-	RunID         string            `json:"run_id"`
-	Phase         int               `json:"phase"`
-	PhaseName     string            `json:"phase_name"`
-	Status        string            `json:"status"` // completed, time_boxed, failed
+	SchemaVersion int    `json:"schema_version"`
+	RunID         string `json:"run_id"`
+	Phase         int    `json:"phase"`
+	PhaseName     string `json:"phase_name"`
+	Status        string `json:"status"` // completed, time_boxed, failed
 
 	// Context for next phase
-	Goal    string            `json:"goal"`
-	EpicID  string            `json:"epic_id,omitempty"`
+	Goal     string            `json:"goal"`
+	EpicID   string            `json:"epic_id,omitempty"`
 	Verdicts map[string]string `json:"verdicts"`
 
 	// What happened
 	ArtifactsProduced []string `json:"artifacts_produced"`
 	DecisionsMade     []string `json:"decisions_made"`
 	OpenRisks         []string `json:"open_risks"`
+	AppliedFindings   []string `json:"applied_findings,omitempty"`
+	PlanningRules     []string `json:"planning_rules,omitempty"`
+	KnownRisks        []string `json:"known_risks,omitempty"`
 
 	// Metrics
 	DurationSeconds float64 `json:"duration_seconds"`
@@ -133,6 +139,255 @@ func readAllHandoffs(cwd string, upToPhase int) ([]*phaseHandoff, error) {
 		return nil, fmt.Errorf("no handoffs found for phases 1..%d", upToPhase-1)
 	}
 	return handoffs, nil
+}
+
+func uniqueStringsPreserveOrder(items []string) []string {
+	seen := make(map[string]struct{}, len(items))
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		trimmed := strings.TrimSpace(item)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+func latestMatchingFile(cwd string, patterns ...string) string {
+	var latest string
+	var latestMod time.Time
+
+	for _, pattern := range patterns {
+		glob := pattern
+		if cwd != "" {
+			glob = filepath.Join(cwd, pattern)
+		}
+		matches, err := filepath.Glob(glob)
+		if err != nil {
+			continue
+		}
+		for _, match := range matches {
+			info, err := os.Stat(match)
+			if err != nil || info.IsDir() {
+				continue
+			}
+			if latest == "" || info.ModTime().After(latestMod) {
+				latest = match
+				latestMod = info.ModTime()
+			}
+		}
+	}
+
+	return latest
+}
+
+func stripMarkdownFrontmatter(content string) string {
+	if !strings.HasPrefix(content, "---\n") {
+		return content
+	}
+	lines := strings.Split(content, "\n")
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			return strings.Join(lines[i+1:], "\n")
+		}
+	}
+	return content
+}
+
+func extractFindingIDs(text string) []string {
+	return uniqueStringsPreserveOrder(findingIDPattern.FindAllString(text, -1))
+}
+
+func extractBulletItemsAfterMarker(text, marker string) []string {
+	lines := strings.Split(text, "\n")
+	marker = strings.TrimSpace(marker)
+	items := []string{}
+	capturing := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !capturing {
+			if trimmed == marker || strings.HasPrefix(trimmed, marker+" ") {
+				capturing = true
+				continue
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "## ") || strings.HasPrefix(trimmed, "# ") {
+			break
+		}
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
+			items = append(items, strings.TrimSpace(trimmed[2:]))
+			continue
+		}
+		if len(items) > 0 {
+			break
+		}
+	}
+
+	return uniqueStringsPreserveOrder(items)
+}
+
+func extractMarkdownListItemsUnderHeading(text, heading string) []string {
+	lines := strings.Split(text, "\n")
+	heading = strings.TrimSpace(heading)
+	items := []string{}
+	capturing := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !capturing {
+			if trimmed == heading {
+				capturing = true
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "## ") || strings.HasPrefix(trimmed, "# ") {
+			break
+		}
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
+			items = append(items, strings.TrimSpace(trimmed[2:]))
+			continue
+		}
+		if len(items) > 0 {
+			break
+		}
+	}
+
+	return uniqueStringsPreserveOrder(items)
+}
+
+func compiledChecklistSummary(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+
+	body := stripMarkdownFrontmatter(string(data))
+	id := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	lines := strings.Split(body, "\n")
+	items := []string{}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case trimmed == "":
+			continue
+		case strings.HasPrefix(trimmed, "#"):
+			continue
+		case strings.HasPrefix(trimmed, "Prevent this known failure mode"):
+			continue
+		case strings.HasPrefix(trimmed, "- "):
+			item := strings.TrimSpace(trimmed[2:])
+			if strings.HasPrefix(item, "Source:") {
+				continue
+			}
+			items = append(items, item)
+		default:
+			if len(items) == 0 {
+				items = append(items, trimmed)
+			}
+		}
+		if len(items) >= 3 {
+			break
+		}
+	}
+
+	if len(items) == 0 {
+		return id
+	}
+	return fmt.Sprintf("%s — %s", id, strings.Join(items, " | "))
+}
+
+func compiledSummariesForFindings(cwd, subdir string, findingIDs []string) []string {
+	summaries := make([]string, 0, len(findingIDs))
+	for _, id := range uniqueStringsPreserveOrder(findingIDs) {
+		path := filepath.Join(cwd, ".agents", subdir, id+".md")
+		if summary := compiledChecklistSummary(path); summary != "" {
+			summaries = append(summaries, summary)
+		}
+	}
+	return uniqueStringsPreserveOrder(summaries)
+}
+
+func discoveryPreventionContext(cwd string) (appliedFindings, planningRules, knownRisks []string) {
+	planPath := latestMatchingFile(cwd, ".agents/plans/*.md")
+	reportPath := latestMatchingFile(cwd, ".agents/council/*pre-mortem*.md")
+
+	var planApplied []string
+	var planRuleFallback []string
+	if planPath != "" {
+		if data, err := os.ReadFile(planPath); err == nil {
+			planRuleFallback = extractBulletItemsAfterMarker(string(data), "Applied findings:")
+			planApplied = extractFindingIDs(strings.Join(planRuleFallback, "\n"))
+		}
+	}
+
+	var reportApplied []string
+	var knownRiskFallback []string
+	if reportPath != "" {
+		if data, err := os.ReadFile(reportPath); err == nil {
+			knownRiskFallback = extractMarkdownListItemsUnderHeading(string(data), "## Known Risks Applied")
+			reportApplied = extractFindingIDs(strings.Join(knownRiskFallback, "\n"))
+		}
+	}
+
+	appliedFindings = uniqueStringsPreserveOrder(append(planApplied, reportApplied...))
+	planningRules = compiledSummariesForFindings(cwd, "planning-rules", appliedFindings)
+	knownRisks = compiledSummariesForFindings(cwd, "pre-mortem-checks", appliedFindings)
+	if len(planningRules) == 0 {
+		planningRules = uniqueStringsPreserveOrder(planRuleFallback)
+	}
+	if len(knownRisks) == 0 {
+		knownRisks = uniqueStringsPreserveOrder(knownRiskFallback)
+	}
+
+	return appliedFindings, planningRules, knownRisks
+}
+
+func inheritedPreventionContext(cwd string, phaseNum int) (appliedFindings, planningRules, knownRisks []string) {
+	if phaseNum <= 1 {
+		return nil, nil, nil
+	}
+
+	handoffs, err := readAllHandoffs(cwd, phaseNum)
+	if err != nil {
+		return nil, nil, nil
+	}
+
+	for _, handoff := range handoffs {
+		appliedFindings = append(appliedFindings, handoff.AppliedFindings...)
+		planningRules = append(planningRules, handoff.PlanningRules...)
+		knownRisks = append(knownRisks, handoff.KnownRisks...)
+	}
+
+	return uniqueStringsPreserveOrder(appliedFindings),
+		uniqueStringsPreserveOrder(planningRules),
+		uniqueStringsPreserveOrder(knownRisks)
+}
+
+func collectPreventionContext(cwd string, phaseNum int) (appliedFindings, planningRules, knownRisks []string) {
+	appliedFindings, planningRules, knownRisks = inheritedPreventionContext(cwd, phaseNum)
+	if phaseNum != 1 {
+		return appliedFindings, planningRules, knownRisks
+	}
+
+	currentApplied, currentPlanning, currentKnown := discoveryPreventionContext(cwd)
+	appliedFindings = uniqueStringsPreserveOrder(append(appliedFindings, currentApplied...))
+	planningRules = uniqueStringsPreserveOrder(append(planningRules, currentPlanning...))
+	knownRisks = uniqueStringsPreserveOrder(append(knownRisks, currentKnown...))
+	return appliedFindings, planningRules, knownRisks
 }
 
 // fieldAllowed checks whether a field should be included in handoff context.
@@ -257,6 +512,15 @@ func renderHandoffEntry(sb *strings.Builder, h *phaseHandoff, manifest phaseMani
 	if fieldAllowed(manifest, "artifacts_produced") {
 		sb.WriteString(renderHandoffField("Artifacts", h.ArtifactsProduced))
 	}
+	if fieldAllowed(manifest, "applied_findings") {
+		sb.WriteString(renderHandoffField("Applied findings", h.AppliedFindings))
+	}
+	if fieldAllowed(manifest, "planning_rules") {
+		sb.WriteString(renderHandoffField("Planning rules", h.PlanningRules))
+	}
+	if fieldAllowed(manifest, "known_risks") {
+		sb.WriteString(renderHandoffField("Known risks", h.KnownRisks))
+	}
 	if fieldAllowed(manifest, "decisions_made") {
 		sb.WriteString(renderHandoffField("Decisions", h.DecisionsMade))
 	}
@@ -333,6 +597,7 @@ func buildPhaseHandoffFromState(state *phasedState, phaseNum int, cwd string) *p
 
 	// Scan for artifacts produced during this phase
 	h.ArtifactsProduced = discoverPhaseArtifacts(cwd, phaseNum)
+	h.AppliedFindings, h.PlanningRules, h.KnownRisks = collectPreventionContext(cwd, phaseNum)
 
 	// Check if previous phase had a structured handoff (degradation = missing prior handoff)
 	if phaseNum > 1 && !handoffDetected(cwd, phaseNum-1) {
@@ -380,6 +645,13 @@ func discoverPhaseArtifacts(cwd string, phaseNum int) []string {
 	case 3: // validation — look for vibe/post-mortem reports
 		vibePattern := filepath.Join(cwd, ".agents", "council", "*vibe*.md")
 		if matches, _ := filepath.Glob(vibePattern); len(matches) > 0 {
+			rel, _ := filepath.Rel(cwd, matches[len(matches)-1])
+			if rel != "" {
+				artifacts = append(artifacts, rel)
+			}
+		}
+		postMortemPattern := filepath.Join(cwd, ".agents", "council", "*post-mortem*.md")
+		if matches, _ := filepath.Glob(postMortemPattern); len(matches) > 0 {
 			rel, _ := filepath.Rel(cwd, matches[len(matches)-1])
 			if rel != "" {
 				artifacts = append(artifacts, rel)

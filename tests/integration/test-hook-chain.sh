@@ -194,6 +194,10 @@ EXPECTED_DIRS=(
     ".agents/patterns"
     ".agents/council"
     ".agents/knowledge/pending"
+    ".agents/findings"
+    ".agents/planning-rules"
+    ".agents/pre-mortem-checks"
+    ".agents/constraints"
     ".agents/ao"
 )
 

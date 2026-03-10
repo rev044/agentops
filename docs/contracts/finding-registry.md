@@ -2,14 +2,27 @@
 
 The canonical reusable-finding registry lives at `.agents/findings/registry.jsonl`.
 
-This file is the v1 prevention surface for the AgentOps flywheel. Planning and judgment should load it before rediscovering a known failure, and judgment should write back only the reusable findings that deserve to affect future work.
+This file is the canonical intake ledger for reusable findings in the AgentOps flywheel. Planning and judgment load it before rediscovering a known failure, and judgment writes back only the reusable findings that deserve to affect future work.
+
+The registry line shape remains the canonical `version: 1` JSONL contract. V2 does not replace that ledger. Instead, V2 adds promoted Markdown finding artifacts and compiled prevention outputs defined in [finding-compiler.md](finding-compiler.md).
+
+## Relationship to the V2 Compiler
+
+The v2 prevention ladder has four layers:
+
+1. `.agents/findings/registry.jsonl` — append-only intake ledger for normalized findings.
+2. `.agents/findings/<id>.md` — promoted finding artifact with YAML frontmatter matching [finding-artifact.schema.json](finding-artifact.schema.json).
+3. `.agents/planning-rules/<id>.md` and `.agents/pre-mortem-checks/<id>.md` — compiled advisory outputs consumed before planning or judgment.
+4. `.agents/constraints/index.json` plus `.agents/constraints/<id>.sh` — compiled mechanical outputs governed by [finding-compiler.md](finding-compiler.md).
+
+This contract governs only the registry ledger. The promotion ladder, executable constraint index, and runtime enforcement expectations are governed by [finding-compiler.md](finding-compiler.md).
 
 ## Canonical Shape
 
 - One JSON object per line.
 - Each line must validate against [finding-registry.schema.json](finding-registry.schema.json).
 - Canonical contract version is `version: 1`.
-- Canonical path is repo-local. Do not require a service or database for the v1 slice.
+- Canonical path is repo-local. Do not require a service or database.
 
 ## Required Fields
 
@@ -105,12 +118,12 @@ Writers must:
 - preserve the most actionable current wording for `pattern`, `detection_question`, and `checklist_item`
 - keep lifecycle fields (`status`, `superseded_by`, `ttl_days`, `confidence`) explicit in the merged record
 
-Lifecycle notes for v1:
+Lifecycle notes:
 
-- future citations should increment `hit_count`
-- future citations should update `last_cited`
-- automated CLI mutation of those fields is deferred in v1
-- post-mortem scoring inputs such as confidence, citations, and recency may guide promotion decisions, but automated scoring is deferred in v1
+- later retrieval and close-loop paths may increment `hit_count`
+- later retrieval and close-loop paths may update `last_cited`
+- post-mortem scoring inputs such as confidence, citations, and recency may guide promotion decisions
+- the registry remains the source intake ledger even when higher-level v2 surfaces mutate these fields
 
 ## Retirement and Supersession
 
@@ -162,14 +175,11 @@ If a lock is used, the canonical lock path is `.agents/findings/registry.lock`, 
 }
 ```
 
-## Explicit Deferrals
+## Legacy V1 Deferrals and V2 Status
 
-The following are intentionally out of scope for the v1 contract:
+The old v1 slice described several follow-ons as deferred. Those deferrals are now split into two groups:
 
-- cross-repo seed, pull, and export transport
-- a new top-level `ao findings` command surface
-- automatic citation-count updates in CLI code
-- automatic TTL retirement
-- hook-enforced compiled constraints derived from findings
+- **Superseded by the v2 compiler contract:** promoted finding artifacts, `ao findings`, citation updates, and active declarative constraints now belong to [finding-compiler.md](finding-compiler.md) and the downstream CLI/runtime contracts that implement it.
+- **Still deferred beyond issue ag-8ki.1:** automatic TTL retirement and broader cross-repo transport policy remain follow-on implementation work even though the contract now leaves room for them.
 
-The current contract is registry-first and advisory. It exists so the same failure is discovered once, normalized once, and then checked earlier in future planning and review.
+The important compatibility rule is simple: the JSONL registry remains the canonical intake ledger, even as later v2 layers compile and consume richer prevention artifacts.

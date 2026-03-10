@@ -186,10 +186,10 @@
 - [dispatch-checklist.md](contracts/dispatch-checklist.md) — Standard references for agent dispatch prompts
 - [Headless Invocation Standards](contracts/headless-invocation-standards.md) — Required flags, tool allowlists, and timeout strategy for non-interactive Claude/Codex execution
 - [Context Assembly Interface](contracts/context-assembly-interface.md) — Interface contract for adaptive context assembly and mechanical token budgeting
-- [Finding Registry Contract](contracts/finding-registry.md) — Structured reusable-finding registry for planning and judgment
-- [Finding Registry Schema](contracts/finding-registry.schema.json) — Machine-readable schema for `.agents/findings/registry.jsonl`
-- [Finding Artifact Schema](contracts/finding-artifact.schema.json) — Machine-readable schema for normalized prevention findings under `.agents/findings/`
-- [Finding Compiler Contract](contracts/finding-compiler.md) — Compile targets, lifecycle, and retirement rules for turning findings into prevention artifacts
+- [Finding Registry Contract](contracts/finding-registry.md) — Canonical intake-ledger contract for reusable findings in `.agents/findings/registry.jsonl`
+- [Finding Registry Schema](contracts/finding-registry.schema.json) — Machine-readable schema for the finding intake ledger
+- [Finding Artifact Schema](contracts/finding-artifact.schema.json) — Machine-readable schema for promoted finding artifacts under `.agents/findings/*.md`
+- [Finding Compiler Contract](contracts/finding-compiler.md) — V2 promotion ladder, executable constraint index contract, and lifecycle rules for turning findings into prevention artifacts
 
 ## Migration Trackers
 

@@ -57,22 +57,23 @@ fi
 ```
 If ao returns relevant learnings or patterns, incorporate them into the plan. Skip silently if ao is unavailable or returns no results.
 
-### Step 2.1: Load Finding Registry (Mandatory)
+### Step 2.1: Load Compiled Prevention First (Mandatory)
 
-Before decomposition, read `.agents/findings/registry.jsonl` when it exists. This is the primary prevention surface for `/plan` in v1.
+Before decomposition, load compiled planning rules from `.agents/planning-rules/*.md` when they exist. This is the primary prevention surface for `/plan` in the compiler-enabled flow.
 
-Use the tracked contract in `docs/contracts/finding-registry.md`:
+Use the tracked contracts in `docs/contracts/finding-compiler.md` and `docs/contracts/finding-registry.md`:
 
-- select only active findings with `status=active`
-- rank by `applicable_when` overlap, language overlap, literal goal-text overlap, and severity
-- cap at top 5 entries
+- prefer compiled planning rules first
+- match by finding ID, `applicable_when` overlap, language overlap, and literal goal-text overlap
+- cap the injected set at top 5 findings / rule files
+- if compiled planning rules are missing, incomplete, or fewer than the matched finding set, fall back to `.agents/findings/registry.jsonl`
 - fail open:
-  - missing file -> skip silently
-  - empty file -> skip silently
+  - missing compiled directory or registry -> skip silently
+  - empty compiled directory or registry -> skip silently
   - malformed line -> warn and ignore that line
   - unreadable file -> warn once and continue without findings
 
-Use the selected findings as hard planning context before issue decomposition. Record the applied finding IDs and how they changed the plan. These become required context for the written plan, not optional side notes.
+Use the selected planning rules / active findings as hard planning context before issue decomposition. Record the applied finding IDs and how they changed the plan. These become required context for the written plan, not optional side notes.
 
 ### Step 2.2: Read and Validate Research Content
 
@@ -358,7 +359,7 @@ source: "[[.agents/research/YYYY-MM-DD-<research-slug>]]"
 # Plan: <Goal>
 
 ## Context
-<1-2 paragraphs explaining the problem, current state, and why this change is needed. Include `Applied findings: <id, id, ...>` from `.agents/findings/registry.jsonl` when present.>
+<1-2 paragraphs explaining the problem, current state, and why this change is needed. Include `Applied findings: <id, id, ...>` from `.agents/planning-rules/*.md` first, with `.agents/findings/registry.jsonl` as fallback.>
 
 Applied findings:
 - `<finding-id>` — `<how it changed the plan>`

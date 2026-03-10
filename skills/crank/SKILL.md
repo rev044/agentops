@@ -379,11 +379,11 @@ Worker prompt signpost:
 - Workers follow GREEN Mode rules from `/implement` SKILL.md
 - Docs/chore/ci issues (skipped by SPEC/TEST waves) use standard worker prompts unchanged
 
-**File manifests (REQUIRED):** Include a `metadata.files` array in every TaskCreate listing the files that worker will modify. This feeds into swarm's pre-spawn conflict detection -- two workers claiming the same file in the same wave get serialized or worktree-isolated automatically. Derive file lists from the issue description, plan, or codebase exploration during planning.
+**Issue typing + file manifests (REQUIRED):** Include `metadata.issue_type` plus a `metadata.files` array in every TaskCreate. `issue_type` feeds active constraint applicability and validation policy; `files` feed swarm's pre-spawn conflict detection. Two workers claiming the same file in the same wave get serialized or worktree-isolated automatically. Derive both from the issue description, plan, or codebase exploration during planning.
 
 **Grep-for-existing-functions (REQUIRED for new function issues):** When an issue description says "create", "add", or "implement" a new function/utility, include `metadata.grep_check` with the function name pattern. Workers MUST grep the codebase for existing implementations before writing new code. This prevents utility duplication (e.g., `estimateTokens` was duplicated in context-orchestration-leverage because no grep check was specified).
 
-**Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks.
+**Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks. Do not omit `metadata.issue_type` and hope task-validation can infer it later.
 
 **Validation block extraction (beads mode):** Before building TaskCreate calls, extract validation metadata from each issue's description. `/plan` embeds conformance checks as fenced `validation` blocks in issue bodies:
 
@@ -412,6 +412,7 @@ TaskCreate(
   description="...",
   activeForm="Implementing ag-1234",
   metadata={
+    "issue_type": "feature",
     "files": ["src/middleware/auth.py", "tests/test_auth.py"],
     "validation": {
       "tests": "pytest tests/test_auth.py -v",

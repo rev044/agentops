@@ -316,6 +316,38 @@ EC=0
 (cd "$MOCK_ALLOW" && echo '{"metadata":{"validation":{"tests":"go version"}}}' | bash "$HOOKS_DIR/task-validation-gate.sh" >/dev/null 2>&1) || EC=$?
 if [ "$EC" -eq 0 ]; then pass "allowlist allows go command"; else fail "allowlist allows go command (exit=$EC, expected 0)"; fi
 
+# Test 42: active constraint requires issue_type
+MOCK_CONSTRAINT_ISSUE="$TMPDIR/mock-constraint-issue"
+setup_mock_repo "$MOCK_CONSTRAINT_ISSUE"
+mkdir -p "$MOCK_CONSTRAINT_ISSUE/.agents/constraints" "$MOCK_CONSTRAINT_ISSUE/docs"
+echo 'SAFE_MARKER' > "$MOCK_CONSTRAINT_ISSUE/docs/guide.md"
+cat > "$MOCK_CONSTRAINT_ISSUE/.agents/constraints/index.json" <<'EOF'
+{"schema_version":1,"constraints":[{"id":"c-issue-type","title":"issue type required","status":"active","compiled_at":"2026-03-10T00:00:00Z","applies_to":{"scope":"files","issue_types":["feature"],"path_globs":["docs/*.md"]},"detector":{"kind":"content_pattern","mode":"must_contain","pattern":"SAFE_MARKER","message":"SAFE_MARKER required"}}]}
+EOF
+EC=0
+OUTPUT=$(cd "$MOCK_CONSTRAINT_ISSUE" && echo '{"metadata":{"files":["docs/guide.md"]}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q 'metadata.issue_type'; then
+    pass "active constraint requires metadata.issue_type"
+else
+    fail "active constraint requires metadata.issue_type (exit=$EC, expected 2)"
+fi
+
+# Test 43: active content constraint blocks missing literal
+MOCK_CONSTRAINT_PATTERN="$TMPDIR/mock-constraint-pattern"
+setup_mock_repo "$MOCK_CONSTRAINT_PATTERN"
+mkdir -p "$MOCK_CONSTRAINT_PATTERN/.agents/constraints" "$MOCK_CONSTRAINT_PATTERN/docs"
+echo 'hello' > "$MOCK_CONSTRAINT_PATTERN/docs/guide.md"
+cat > "$MOCK_CONSTRAINT_PATTERN/.agents/constraints/index.json" <<'EOF'
+{"schema_version":1,"constraints":[{"id":"c-pattern","title":"must contain","status":"active","compiled_at":"2026-03-10T00:00:00Z","applies_to":{"scope":"files","issue_types":["feature"],"path_globs":["docs/*.md"]},"detector":{"kind":"content_pattern","mode":"must_contain","pattern":"SAFE_MARKER","message":"SAFE_MARKER required"}}]}
+EOF
+EC=0
+OUTPUT=$(cd "$MOCK_CONSTRAINT_PATTERN" && echo '{"metadata":{"issue_type":"feature","files":["docs/guide.md"]}}' | bash "$HOOKS_DIR/task-validation-gate.sh" 2>&1) || EC=$?
+if [ "$EC" -eq 2 ] && echo "$OUTPUT" | grep -q 'SAFE_MARKER required'; then
+    pass "active content constraint blocks missing literal"
+else
+    fail "active content constraint blocks missing literal (exit=$EC, expected 2)"
+fi
+
 # ============================================================
 echo ""
 echo "=== task-validation-gate.sh error recovery ==="
@@ -999,6 +1031,29 @@ else
     fail "session-end-maintenance fail-open without ao"
 fi
 
+# Test: session-end runs finding compiler as a backstop when ao succeeds
+MOCK_SESSION_END="$TMPDIR/mock-session-end-maintenance"
+setup_mock_repo "$MOCK_SESSION_END"
+mkdir -p "$MOCK_SESSION_END/.agents/findings" "$TMPDIR/mock-session-end-bin"
+cat > "$MOCK_SESSION_END/.agents/findings/registry.jsonl" <<'EOF'
+{"id":"f-session-end","version":1,"tier":"local","source":{"repo":"agentops/crew/nami","session":"2026-03-09","file":".agents/council/source.md","skill":"post-mortem"},"date":"2026-03-09","severity":"significant","category":"validation-gap","pattern":"Session end should compile fresh findings before close.","detection_question":"Did session close rebuild planning and pre-mortem artifacts?","checklist_item":"Compile findings before session close completes.","applicable_languages":["markdown","shell"],"applicable_when":["validation-gap"],"status":"active","superseded_by":null,"dedup_key":"validation-gap|session-end-should-compile-fresh-findings-before-close|validation-gap","hit_count":0,"last_cited":null,"ttl_days":30,"confidence":"high"}
+EOF
+cat > "$TMPDIR/mock-session-end-bin/ao" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+chmod +x "$TMPDIR/mock-session-end-bin/ao"
+(
+    cd "$MOCK_SESSION_END" && \
+    PATH="$TMPDIR/mock-session-end-bin:$PATH" \
+    bash "$HOOKS_DIR/session-end-maintenance.sh" >/dev/null 2>&1
+) || true
+if [ -f "$MOCK_SESSION_END/.agents/planning-rules/f-session-end.md" ] && [ -f "$MOCK_SESSION_END/.agents/pre-mortem-checks/f-session-end.md" ]; then
+    pass "session-end-maintenance compiles findings as a backstop"
+else
+    fail "session-end-maintenance compiles findings as a backstop"
+fi
+
 # ============================================================
 echo ""
 echo "=== stop-auto-handoff.sh ==="
@@ -1249,6 +1304,28 @@ for wrapper in "${AO_EMBEDDED_WRAPPERS[@]}"; do
 done
 
 echo ""
+echo "=== finding-compiler.sh ==="
+# ============================================================
+
+# Test: registry entries promote into advisory artifacts
+MOCK_FINDING_COMPILER="$TMPDIR/mock-finding-compiler"
+setup_mock_repo "$MOCK_FINDING_COMPILER"
+mkdir -p "$MOCK_FINDING_COMPILER/.agents/findings"
+cat > "$MOCK_FINDING_COMPILER/.agents/findings/registry.jsonl" <<'EOF'
+{"id":"f-compiler-test","version":1,"tier":"local","source":{"repo":"agentops/crew/nami","session":"2026-03-09","file":".agents/council/source.md","skill":"pre-mortem"},"date":"2026-03-09","severity":"significant","category":"validation-gap","pattern":"Compiled findings should generate advisory artifacts.","detection_question":"Did the compiler materialize planning and pre-mortem outputs?","checklist_item":"Generate advisory artifacts from active findings.","applicable_languages":["markdown","shell"],"applicable_when":["plan-shape"],"status":"active","superseded_by":null,"dedup_key":"validation-gap|compiled-findings-should-generate-advisory-artifacts|plan-shape","hit_count":0,"last_cited":null,"ttl_days":30,"confidence":"high"}
+EOF
+EC=0
+(
+    cd "$MOCK_FINDING_COMPILER" && \
+    bash "$HOOKS_DIR/finding-compiler.sh" >/dev/null 2>&1
+) || EC=$?
+if [ "$EC" -eq 0 ] && [ -f "$MOCK_FINDING_COMPILER/.agents/findings/f-compiler-test.md" ] && [ -f "$MOCK_FINDING_COMPILER/.agents/planning-rules/f-compiler-test.md" ] && [ -f "$MOCK_FINDING_COMPILER/.agents/pre-mortem-checks/f-compiler-test.md" ]; then
+    pass "finding-compiler promotes registry entries into advisory artifacts"
+else
+    fail "finding-compiler promotes registry entries into advisory artifacts"
+fi
+
+echo ""
 echo "=== constraint-compiler.sh ==="
 # ============================================================
 
@@ -1267,7 +1344,7 @@ else
     fail "constraint-compiler requires learning path argument"
 fi
 
-# Test: tagged constraint learning generates constraint file and index
+# Test: tagged constraint learning routes through finding-compiler and emits compiled outputs
 MOCK_CONSTRAINT="$TMPDIR/mock-constraint-constraint-tag"
 mkdir -p "$MOCK_CONSTRAINT"
 git -C "$MOCK_CONSTRAINT" init -q >/dev/null 2>&1
@@ -1282,10 +1359,10 @@ tags: [constraint, reliability]
 This learning describes a guardrail to prevent direct bypass of safety checks.
 EOF
 OUTPUT=$(cd "$MOCK_CONSTRAINT" && bash "$HOOKS_DIR/constraint-compiler.sh" "$MOCK_CONSTRAINT/learn-constraint.md" 2>&1 || true)
-if echo "$OUTPUT" | grep -q "Generated constraint template"; then
-    pass "constraint-compiler generates template for tagged learning"
+if echo "$OUTPUT" | grep -q "finding-compiler.sh\|Promoted legacy learning"; then
+    pass "constraint-compiler routes tagged learning through finding-compiler"
 else
-    fail "constraint-compiler generates template for tagged learning"
+    fail "constraint-compiler routes tagged learning through finding-compiler"
 fi
 if [ -x "$MOCK_CONSTRAINT/.agents/constraints/learn-constraint.sh" ]; then
     pass "constraint-compiler writes compiled constraint file"
@@ -1296,6 +1373,11 @@ if [ -f "$MOCK_CONSTRAINT/.agents/constraints/index.json" ]; then
     pass "constraint-compiler updates constraint index"
 else
     fail "constraint-compiler updates constraint index"
+fi
+if [ -f "$MOCK_CONSTRAINT/.agents/findings/learn-constraint.md" ] && [ -f "$MOCK_CONSTRAINT/.agents/planning-rules/learn-constraint.md" ] && [ -f "$MOCK_CONSTRAINT/.agents/pre-mortem-checks/learn-constraint.md" ]; then
+    pass "constraint-compiler writes promoted finding and advisory artifacts"
+else
+    fail "constraint-compiler writes promoted finding and advisory artifacts"
 fi
 
 # Test: non-constraint learning skips without generating template
@@ -1321,6 +1403,11 @@ if [ ! -f "$MOCK_CONSTRAINT/.agents/constraints/learn-note.sh" ]; then
     pass "constraint-compiler skips non-constraint learning"
 else
     fail "constraint-compiler skips non-constraint learning"
+fi
+if [ ! -f "$MOCK_CONSTRAINT/.agents/findings/learn-note.md" ]; then
+    pass "constraint-compiler does not promote non-constraint learning"
+else
+    fail "constraint-compiler does not promote non-constraint learning"
 fi
 
 # ============================================================

@@ -15,6 +15,17 @@ import (
 	"github.com/boshu2/agentops/cli/internal/types"
 )
 
+func cloneMap(input map[string]any) map[string]any {
+	if len(input) == 0 {
+		return nil
+	}
+	cloned := make(map[string]any, len(input))
+	for key, value := range input {
+		cloned[key] = value
+	}
+	return cloned
+}
+
 // TaskEvent represents a captured task from Claude Code's Task tool.
 type TaskEvent struct {
 	// TaskID is the unique identifier from Claude Code's TaskCreate.
@@ -334,6 +345,10 @@ func parseTaskCreate(input map[string]any, sessionID string) *TaskEvent {
 
 	if desc, ok := input["description"].(string); ok {
 		task.Description = desc
+	}
+
+	if metadata, ok := input["metadata"].(map[string]any); ok {
+		task.Metadata = cloneMap(metadata)
 	}
 
 	if activeForm, ok := input["activeForm"].(string); ok {
