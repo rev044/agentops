@@ -72,11 +72,11 @@ Before launching the explore agent, detect which backend is available:
 Record the selected backend — it will be included in the research output document for traceability.
 
 **Read the matching backend reference for concrete tool call examples:**
-- Claude feature contract → `..$shared/references/claude-code-latest-features.md`
-- Codex → `..$shared/references/backend-codex-subagents.md`
-- Codex sub-agents → `..$shared/references/backend-claude-teams.md`
-- Background Tasks → `..$shared/references/backend-background-tasks.md`
-- Inline → `..$shared/references/backend-inline.md`
+- Claude feature contract → `references/claude-code-latest-features.md`
+- Codex → `references/backend-codex-subagents.md`
+- Codex sub-agents → `references/backend-claude-teams.md`
+- Background Tasks → `references/backend-background-tasks.md`
+- Inline → `references/backend-inline.md`
 
 ### Step 3: Launch Explore Agent
 
@@ -308,24 +308,30 @@ Include in your Explore agent prompt:
 
 ## Reference Documents
 
-- [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
-- [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
-- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
-- [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
-- [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/context-discovery.md](references/context-discovery.md)
 - [references/document-template.md](references/document-template.md)
 - [references/failure-patterns.md](references/failure-patterns.md)
-- [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/vibe-methodology.md](references/vibe-methodology.md)
 
 ## Local Resources
 
 ### references/
 
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/context-discovery.md](references/context-discovery.md)
 - [references/document-template.md](references/document-template.md)
 - [references/failure-patterns.md](references/failure-patterns.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/vibe-methodology.md](references/vibe-methodology.md)
 
 ### scripts/

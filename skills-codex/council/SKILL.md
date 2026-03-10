@@ -54,11 +54,11 @@ Council requires a runtime that can **spawn parallel subagents** and (for `--deb
 Skills describe WHAT to do, not WHICH tool to call. See `skills/shared/SKILL.md` for the capability contract.
 
 **After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
-- Claude feature contract → `..$shared/references/claude-code-latest-features.md`
-- Codex sub-agents → `..$shared/references/backend-claude-teams.md`
-- Codex Sub-Agents / CLI → `..$shared/references/backend-codex-subagents.md`
-- Background Tasks → `..$shared/references/backend-background-tasks.md`
-- Inline (`--quick`) → `..$shared/references/backend-inline.md`
+- Claude feature contract → `references/claude-code-latest-features.md`
+- Codex sub-agents → `references/backend-claude-teams.md`
+- Codex Sub-Agents / CLI → `references/backend-codex-subagents.md`
+- Background Tasks → `references/backend-background-tasks.md`
+- Inline (`--quick`) → `references/backend-inline.md`
 
 See also `references/cli-spawning.md` for council-specific spawning flow (phases, timeouts, output collection).
 
@@ -554,23 +554,28 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 
 ## Reference Documents
 
-- [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
-- [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
-- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
-- [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
 - [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
-- [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/model-profiles.md](references/model-profiles.md)
 - [references/presets.md](references/presets.md)
 - [references/quick-mode.md](references/quick-mode.md)
-- [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 
 ## Local Resources
 
 ### references/
 
 - [references/agent-prompts.md](references/agent-prompts.md)
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
 - [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/cli-spawning.md](references/cli-spawning.md)
 - [references/debate-protocol.md](references/debate-protocol.md)
 - [references/explorers.md](references/explorers.md)
@@ -579,6 +584,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/personas.md](references/personas.md)
 - [references/presets.md](references/presets.md)
 - [references/quick-mode.md](references/quick-mode.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 
 ### scripts/
 
