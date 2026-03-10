@@ -16,7 +16,7 @@ This mines **the current session only** — not the full transcript corpus.
 |-------|---------|-------------|
 | Current session | `ao forge transcript --last-session` | Default in `/validation` |
 | Full corpus | `ao forge transcript` | Only via `/athena` or manual invocation |
-| Specific session | `ao forge transcript --session <id>` | Manual targeted mining |
+| Specific session | `ao forge transcript <path/to/session.jsonl>` | Manual targeted mining |
 
 ## Rationale
 

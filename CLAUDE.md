@@ -62,6 +62,7 @@ cd cli && make sync-hooks   # Sync embedded hooks/skills into cli/embedded/
 
 | Script | Purpose |
 |--------|---------|
+| `scripts/pre-push-gate.sh` | Smart pre-push validation (use `--fast` for diff-based checks) |
 | `scripts/ci-local-release.sh` | Local release validation gate (run before releasing) |
 | `scripts/retag-release.sh` | Retag existing release with post-tag commits |
 | `scripts/extract-release-notes.sh` | Extract notes from CHANGELOG.md for GitHub release |
@@ -78,7 +79,10 @@ All pushes to `main` run `.github/workflows/validate.yml` (24 jobs). **Run check
 ### Quick Local Validation
 
 ```bash
-# Minimum checks before any push:
+# Recommended: smart conditional gate (only checks relevant to changed files):
+scripts/pre-push-gate.sh --fast
+
+# Or minimum manual checks before any push:
 bash skills/heal-skill/scripts/heal.sh --strict   # Skill integrity
 ./tests/docs/validate-doc-release.sh               # Skill counts + links
 ./scripts/check-contract-compatibility.sh           # Contract refs + JSON validity
@@ -89,7 +93,10 @@ cd cli && make build && make test
 # If you changed hooks or lib/hook-helpers.sh:
 cd cli && make sync-hooks
 
-# Full gate (runs everything):
+# Full gate (all 22 checks, ~3min):
+scripts/pre-push-gate.sh
+
+# Release gate (runs everything including security):
 scripts/ci-local-release.sh
 ```
 

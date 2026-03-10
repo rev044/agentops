@@ -58,6 +58,7 @@ cd cli && make test   # Run tests
 cd cli && make lint   # Run linter
 
 # Validation (run before pushing)
+scripts/pre-push-gate.sh --fast  # Smart conditional gate (only checks relevant to changed files)
 bash scripts/install-dev-hooks.sh  # Activate repo-managed git hooks once per clone/worktree
 scripts/ci-local-release.sh     # Full local release gate (runs everything)
 scripts/validate-go-fast.sh     # Quick Go validation (build + vet + test)
@@ -70,9 +71,14 @@ Blocking policy list (must match the validate summary failset): every job in the
 
 ### Local Pre-Push Checklist
 
-Run these before every push. If any fail, CI will fail too.
+Run `scripts/pre-push-gate.sh --fast` for a smart conditional gate that only checks what changed. Or run individual checks below. If any fail, CI will fail too.
 
 ```bash
+# Recommended: smart conditional gate
+scripts/pre-push-gate.sh --fast
+
+# Or individual checks:
+
 # 1. Skill integrity (most common failure)
 bash skills/heal-skill/scripts/heal.sh --strict
 
