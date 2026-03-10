@@ -66,20 +66,23 @@ Use TaskList to see current tasks. If none, create them:
 
 ```
 TaskCreate(subject="Implement feature X", description="Full details...",
-  metadata={"files": ["src/feature_x.py", "tests/test_feature_x.py"], "validation": {...}})
+  metadata={"issue_type": "feature", "files": ["src/feature_x.py", "tests/test_feature_x.py"], "validation": {...}})
 TaskUpdate(taskId="2", addBlockedBy=["1"])  # Add dependencies after creation
 ```
 
-#### File Manifest
+#### Task Typing + File Manifest
 
-Every TaskCreate **must** include a `metadata.files` array listing the files that worker is expected to modify. This enables mechanical conflict detection before spawning a wave.
+Every TaskCreate **must** include `metadata.issue_type` plus a `metadata.files` array. `issue_type` drives active constraint applicability and validation policy; `files` enable mechanical conflict detection before spawning a wave.
 
+- Use canonical issue types: `feature`, `bug`, `task`, `docs`, `chore`, `ci`.
+- Preserve the same `metadata.issue_type` on TaskUpdate / TaskCompleted payloads so task-validation can apply active constraints without guessing.
 - Pull file lists from the plan, issue description, or codebase exploration during planning.
 - If you cannot enumerate files yet, add a planning step to identify them before spawning workers. An empty or missing manifest signals the need for more planning, not unconstrained workers.
 - Workers receive the manifest in their prompt and are instructed to stay within it (see `references/local-mode.md` worker prompt template).
 
 ```json
 {
+  "issue_type": "feature",
   "files": ["cli/cmd/ao/goals.go", "cli/cmd/ao/goals_test.go"],
   "validation": {
     "tests": "go test ./cli/cmd/ao/...",
@@ -375,6 +378,7 @@ for each entry in wave:
         subject="[{entry.id}] {entry.title}",
         description="OL bead {entry.id}\nSpec: {entry.spec_path}\nPriority: {entry.priority}\n\nRead the spec file at {entry.spec_path} for full requirements.",
         metadata={
+            "issue_type": entry.issue_type,
             "ol_bead_id": entry.id,
             "ol_spec_path": entry.spec_path,
             "ol_priority": entry.priority
@@ -668,13 +672,13 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 
 ## Reference Documents
 
-- [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
-- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
-- [references/backend-inline.md](references/backend-inline.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
+- [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
+- [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
+- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
+- [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
+- [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
 - [references/local-mode.md](references/local-mode.md)
-- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
+- [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
 - [references/validation-contract.md](references/validation-contract.md)
 - [references/worker-pitfalls.md](references/worker-pitfalls.md)
 
@@ -682,13 +686,7 @@ Solution: Check which spawn backend was selected (look for "Using: <backend>" me
 
 ### references/
 
-- [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
-- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
-- [references/backend-inline.md](references/backend-inline.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/local-mode.md](references/local-mode.md)
-- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/validation-contract.md](references/validation-contract.md)
 - [references/worker-pitfalls.md](references/worker-pitfalls.md)
 

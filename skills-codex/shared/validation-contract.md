@@ -23,13 +23,14 @@ CORRECT (new):
 
 ### TaskCreate Metadata
 
-Validation requirements are specified in the `metadata.validation` field when creating tasks:
+Validation requirements are specified with `metadata.issue_type` plus the `metadata.validation` field when creating tasks:
 
 ```
 TaskCreate(
   subject="Implement feature X",
   description="...",
   metadata={
+    "issue_type": "feature",
     "validation": {
       "files_exist": ["path/to/file1", "path/to/file2"],
       "command": "npm test",
@@ -49,6 +50,7 @@ TaskCreate(
 | `docs`, `chore`, `ci` | Explicit exemption from required `tests`; use structural and/or command/lint checks as applicable |
 
 If a `feature`/`bug`/`task` TaskCreate is missing required test or structural checks, do not dispatch the task.
+If a TaskCreate is missing `metadata.issue_type`, do not dispatch it once active constraints are in play; task validation cannot apply issue-scoped prevention safely without it.
 
 ### Validation Types
 

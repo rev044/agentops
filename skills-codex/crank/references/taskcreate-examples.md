@@ -168,6 +168,7 @@ command: "<optional-build-or-smoke-command>"
 ",
   activeForm="Implementing <issue-id>",
   metadata={
+    "issue_type": "feature",
     "files": ["<expected-modified-file-1>", "<expected-modified-file-2>"],
     "validation": {
       "tests": "<test-command>",
@@ -193,6 +194,7 @@ TaskCreate(
   description="Implement beads issue <issue-id> (`docs`/`chore`/`ci` path).",
   activeForm="Implementing <issue-id>",
   metadata={
+    "issue_type": "docs",
     "files": ["<expected-modified-file-1>"],
     "validation": {
       "files_exist": ["<expected-output-file-1>"],
@@ -241,6 +243,9 @@ TaskCreate(
 
 - **File manifests (`metadata.files`):**
   - **Required** for all TaskCreate entries — list every file the worker will modify
+- **Issue typing (`metadata.issue_type`):**
+  - **Required** for all TaskCreate entries — one of `feature|bug|task|docs|chore|ci`
+  - Task validation uses this to decide when active constraints apply and whether test metadata is mandatory
   - Swarm uses manifests for pre-spawn conflict detection (overlapping files = serialize or isolate)
   - Workers receive the manifest in their prompt and must stay within it
   - Derive from issue description, plan, or codebase exploration during planning
