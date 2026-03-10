@@ -47,6 +47,7 @@ setup() {
     make_stub "$FAKE_REPO/tests/skills/run-all.sh"
     make_stub "$FAKE_REPO/scripts/validate-skill-schema.sh"
     make_stub "$FAKE_REPO/scripts/validate-manifests.sh"
+    make_stub "$FAKE_REPO/scripts/generate-cli-reference.sh"
 }
 
 teardown() {
