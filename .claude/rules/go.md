@@ -18,8 +18,11 @@ Or equivalently: `cd cli && make build && make test`
 
 ## Testing
 
-- Test file naming: `<source>_test.go` (e.g., `goals_test.go`). NEVER `cov*_test.go`.
+- Test file naming: `<source>_test.go` (e.g., `goals_test.go`). NEVER `cov*_test.go` or `*_extra_test.go`.
+- Test function naming: `Test<Uppercase>` (e.g., `TestFoo_Bar`). Go requires uppercase after `Test`.
 - No coverage-padding tests: trivial `!= ""` or `!= nil` assertions are banned.
+- No zero-assertion smoke tests: every test must assert behavioral correctness, not just "doesn't panic".
+- For print/output functions, use `captureStdout` and assert output contains expected strings.
 - Assert exact expected values (`== expected`), not just "not the wrong one" (`!= wrong`).
 - Prefer table-driven tests for multi-case functions.
 - Test low-level functions directly; don't depend on external CLIs (`bd`, `ao`) in tests.
