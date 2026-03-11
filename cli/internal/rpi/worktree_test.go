@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -1715,6 +1716,9 @@ func TestResolveAbsPath_NonExistentPath(t *testing.T) {
 // On macOS/BSD, flock on a FIFO returns ENOTSUP, causing lockFile to fail
 // after OpenFile succeeds.
 func TestAcquireMergeLock_LockFileFails_FIFO(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("flock on FIFO only fails on macOS/BSD (ENOTSUP); Linux allows it")
+	}
 	tmp := t.TempDir()
 	lockDir := filepath.Join(tmp, ".git", "agentops")
 	if err := os.MkdirAll(lockDir, 0o750); err != nil {

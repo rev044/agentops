@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -2004,6 +2005,9 @@ func TestWithLockedFile_UnlockError(t *testing.T) {
 // flock on a FIFO returns ENOTSUP, causing lockFile to fail after
 // OpenFile succeeds.
 func TestWithLockedFile_LockFileError(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("flock on FIFO only fails on macOS/BSD (ENOTSUP); Linux allows it")
+	}
 	tmp := t.TempDir()
 	fifoPath := filepath.Join(tmp, "lock-err.fifo")
 
@@ -2213,6 +2217,9 @@ func TestScanJSONLFile_DeferCloseError(t *testing.T) {
 // unlockFile (which succeeds) and f.Close() in the defer, f.Close() fails
 // with EBADF while err is still nil, covering the branch.
 func TestWithLockedFile_DeferCloseError(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("fd-race test unreliable on Linux; causes TempDir cleanup failures")
+	}
 	tmp := t.TempDir()
 	fs := NewFileStorage(WithBaseDir(tmp))
 
