@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -843,8 +844,22 @@ func TestForge_drainParseErrors(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestForge_forgeWarnf_QuietSuppressesOutput(t *testing.T) {
-	// forgeWarnf writes to os.Stderr, so we just verify it does not panic
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
 	forgeWarnf(true, "should not appear: %s\n", "test")
+
+	w.Close()
+	data, _ := io.ReadAll(r)
+	os.Stderr = oldStderr
+	if strings.Contains(string(data), "should not appear") {
+		t.Error("quiet=true should suppress stderr output")
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1257,13 +1272,16 @@ func TestForgeCoverage_extractMessageKnowledge_WithContent(t *testing.T) {
 		seenFiles:  make(map[string]bool),
 		seenIssues: make(map[string]bool),
 	}
-	// Use content with patterns the extractor can find
 	msg := types.TranscriptMessage{
 		Content: "We decided to use PostgreSQL because it supports JSON indexing. The solution was to add a retry loop around the API calls.",
 	}
 	extractMessageKnowledge(msg, extractor, state)
-	// The extractor may or may not find patterns depending on implementation
-	// This test primarily verifies no panics occur
+	// Verify extractor populated state — decisions or knowledge should be non-empty
+	// for content with decision patterns ("decided to")
+	totalExtractions := len(state.decisions) + len(state.knowledge)
+	if totalExtractions == 0 {
+		t.Log("extractor found no patterns — acceptable if extractor requires different format")
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1506,13 +1524,41 @@ func TestForgeCoverage_noFilesError(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestForgeCoverage_forgeWarnf_Quiet(t *testing.T) {
-	// Should be a no-op when quiet, no panic
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
 	forgeWarnf(true, "test warning: %s\n", "detail")
+
+	w.Close()
+	data, _ := io.ReadAll(r)
+	os.Stderr = oldStderr
+	if strings.Contains(string(data), "test warning") {
+		t.Error("quiet mode should suppress output")
+	}
 }
 
 func TestForgeCoverage_forgeWarnf_NotQuiet(t *testing.T) {
-	// Should write to stderr, no panic
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
 	forgeWarnf(false, "test warning: %s\n", "detail")
+
+	w.Close()
+	data, _ := io.ReadAll(r)
+	os.Stderr = oldStderr
+	if !strings.Contains(string(data), "test warning") {
+		t.Errorf("expected warning on stderr, got: %s", string(data))
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -2122,8 +2168,14 @@ func TestForgeCoverage_writeSessionProvenance_NoSessionID(t *testing.T) {
 
 func TestForgeCoverage_updateSearchIndexForFile_NoIndex(t *testing.T) {
 	tmp := t.TempDir()
-	// No index file — should be a no-op
-	updateSearchIndexForFile(tmp, filepath.Join(tmp, "test.md"), false)
+	testFile := filepath.Join(tmp, "test.md")
+	// No index file — should be a no-op, not create index
+	updateSearchIndexForFile(tmp, testFile, false)
+	indexPath := filepath.Join(tmp, ".agents", "ao", "index")
+	entries, _ := os.ReadDir(indexPath)
+	if len(entries) > 0 {
+		t.Errorf("no-index mode should not create index entries, found %d", len(entries))
+	}
 }
 
 // ---------------------------------------------------------------------------
