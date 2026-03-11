@@ -149,8 +149,8 @@ case "$1" in
         ;;
     tool)
         if [[ "$2" == "cover" && "$3" == "-func="* ]]; then
-            # 90 zero-coverage functions (exceeds MAX_ZERO=85)
-            for i in $(seq 1 90); do
+            # 100 zero-coverage functions (exceeds MAX_ZERO=95)
+            for i in $(seq 1 100); do
                 echo "example.com/cli/cmd/ao/main.go:$i:	func${i}		0.0%"
             done
             echo "example.com/cli/cmd/ao/main.go:100:	main		100.0%"
