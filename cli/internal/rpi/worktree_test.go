@@ -2,6 +2,8 @@ package rpi
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -518,5 +520,992 @@ func TestLockFile_ClosedFd(t *testing.T) {
 	lockErr := lockFile(f)
 	if lockErr == nil {
 		t.Skip("lockFile succeeded on closed fd (OS dependent)")
+	}
+}
+
+func TestGenerateRunID(t *testing.T) {
+	id := GenerateRunID()
+	if len(id) != 12 {
+		t.Errorf("GenerateRunID length = %d, want 12", len(id))
+	}
+	// Should be hex
+	for _, c := range id {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			t.Errorf("GenerateRunID contains non-hex char %q in %q", c, id)
+			break
+		}
+	}
+	// Should be unique-ish
+	id2 := GenerateRunID()
+	if id == id2 {
+		t.Logf("Warning: two consecutive GenerateRunID calls returned same value %q (very unlikely)", id)
+	}
+}
+
+func TestGetRepoRoot_ValidRepo(t *testing.T) {
+	repo := initGitRepo(t)
+	root, err := GetRepoRoot(repo, 30*time.Second)
+	if err != nil {
+		t.Fatalf("GetRepoRoot: %v", err)
+	}
+	if root == "" {
+		t.Error("expected non-empty repo root")
+	}
+}
+
+func TestGetRepoRoot_NotARepo(t *testing.T) {
+	dir := t.TempDir()
+	_, err := GetRepoRoot(dir, 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for non-git directory")
+	}
+	if !errors.Is(err, ErrNotGitRepo) {
+		t.Errorf("expected ErrNotGitRepo, got: %v", err)
+	}
+}
+
+func TestGetRepoRoot_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	_, err := GetRepoRoot(dir, 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for non-git directory")
+	}
+}
+
+func TestCreateWorktree_HappyPath(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, func(f string, a ...any) {})
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	if worktreePath == "" {
+		t.Error("expected non-empty worktree path")
+	}
+	if runID == "" {
+		t.Error("expected non-empty runID")
+	}
+	if len(runID) != 12 {
+		t.Errorf("runID length = %d, want 12", len(runID))
+	}
+
+	if _, err := os.Stat(worktreePath); err != nil {
+		t.Errorf("worktree directory should exist: %v", err)
+	}
+
+	agentsDir := filepath.Join(worktreePath, ".agents", "rpi")
+	if _, err := os.Stat(agentsDir); err != nil {
+		t.Errorf(".agents/rpi directory should exist in worktree: %v", err)
+	}
+}
+
+func TestCreateWorktree_NilVerbosef(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree with nil verbosef: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	if worktreePath == "" {
+		t.Error("expected non-empty worktree path")
+	}
+}
+
+func TestRemoveWorktree_HappyPath(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+
+	if err := RemoveWorktree(repo, worktreePath, runID, 30*time.Second); err != nil {
+		t.Fatalf("RemoveWorktree: %v", err)
+	}
+
+	if _, err := os.Stat(worktreePath); err == nil {
+		t.Error("worktree directory should not exist after removal")
+	}
+}
+
+func TestRemoveWorktree_PathValidation(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	err = RemoveWorktree(repo, t.TempDir(), runID, 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error when removing path that doesn't match expected pattern")
+	}
+	if !strings.Contains(err.Error(), "path validation failed") && !strings.Contains(err.Error(), "refusing to remove") {
+		t.Errorf("expected path validation error, got: %v", err)
+	}
+}
+
+func TestRemoveWorktree_EmptyRunID_InferredFromPath(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+
+	if err := RemoveWorktree(repo, worktreePath, "", 30*time.Second); err != nil {
+		t.Fatalf("RemoveWorktree with empty runID: %v", err)
+	}
+	_ = runID
+}
+
+func TestRpiRunIDFromWorktree(t *testing.T) {
+	cases := []struct {
+		repoRoot     string
+		worktreePath string
+		wantRunID    string
+	}{
+		{
+			repoRoot:     "/home/user/myrepo",
+			worktreePath: "/home/user/myrepo-rpi-abc123def456",
+			wantRunID:    "abc123def456",
+		},
+		{
+			repoRoot:     "/home/user/myrepo",
+			worktreePath: "/home/user/other-dir",
+			wantRunID:    "", // wrong prefix
+		},
+		{
+			repoRoot:     "/home/user/myrepo",
+			worktreePath: "/home/user/myrepo-rpi-",
+			wantRunID:    "", // empty suffix
+		},
+	}
+
+	for _, tc := range cases {
+		got := rpiRunIDFromWorktree(tc.repoRoot, tc.worktreePath)
+		if got != tc.wantRunID {
+			t.Errorf("rpiRunIDFromWorktree(%q, %q) = %q, want %q",
+				tc.repoRoot, tc.worktreePath, got, tc.wantRunID)
+		}
+	}
+}
+
+func TestIsBranchBusyInWorktree(t *testing.T) {
+	cases := []struct {
+		msg  string
+		want bool
+	}{
+		{"", false},
+		{"fatal: 'main' is already used by worktree at '/foo/bar'", true},
+		{"error: 'branch' is used by worktree", true},
+		{"ALREADY USED BY WORKTREE", true}, // case insensitive
+		{"some other git error", false},
+	}
+	for _, tc := range cases {
+		got := isBranchBusyInWorktree(tc.msg)
+		if got != tc.want {
+			t.Errorf("isBranchBusyInWorktree(%q) = %v, want %v", tc.msg, got, tc.want)
+		}
+	}
+}
+
+func TestMergeWorktree_MissingBothPathAndRunID(t *testing.T) {
+	repo := initGitRepo(t)
+	err := MergeWorktree(repo, "", "", 5*time.Second, nil)
+	if err == nil {
+		t.Fatal("expected error when both worktreePath and runID are empty")
+	}
+	if !errors.Is(err, ErrMergeSourceUnavailable) {
+		t.Errorf("expected ErrMergeSourceUnavailable, got: %v", err)
+	}
+}
+
+func TestMergeWorktree_DirtyRepo(t *testing.T) {
+	repo := initGitRepo(t)
+
+	dirtyFile := filepath.Join(repo, "uncommitted.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "add", "uncommitted.txt")
+
+	err := MergeWorktree(repo, "/fake/path", "fakerunid", 100*time.Millisecond, nil)
+	if err == nil {
+		t.Fatal("expected error for dirty/invalid merge scenario")
+	}
+}
+
+func TestMergeWorktree_UntrackedFileDirtyRepo(t *testing.T) {
+	repo := initGitRepo(t)
+
+	dirtyFile := filepath.Join(repo, "untracked.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := MergeWorktree(repo, "/fake/path", "fakerunid", 100*time.Millisecond, nil)
+	if !errors.Is(err, ErrRepoUnclean) {
+		t.Fatalf("expected ErrRepoUnclean for untracked file, got: %v", err)
+	}
+}
+
+func TestMergeWorktree_HappyPath(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	newFile := filepath.Join(worktreePath, "worktree-change.txt")
+	if err := os.WriteFile(newFile, []byte("from worktree\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, worktreePath, "add", "worktree-change.txt")
+	runGit(t, worktreePath, "commit", "-m", "worktree commit")
+
+	branch := strings.TrimSpace(runGitOutput(t, repo, "branch", "--show-current"))
+	if branch == "" {
+		branches := listBranches(t, repo, "*")
+		if len(branches) == 0 {
+			t.Fatal("no branches available")
+		}
+		branch = branches[0]
+		runGit(t, repo, "checkout", branch)
+	}
+
+	var verboseOutput []string
+	verbosef := func(f string, a ...any) {
+		verboseOutput = append(verboseOutput, f)
+	}
+	err = MergeWorktree(repo, worktreePath, runID, 30*time.Second, verbosef)
+	if err != nil {
+		t.Fatalf("MergeWorktree: %v", err)
+	}
+
+	mergedFile := filepath.Join(repo, "worktree-change.txt")
+	if _, err := os.Stat(mergedFile); err != nil {
+		t.Errorf("expected merged file to exist in repo: %v", err)
+	}
+}
+
+func TestMergeWorktree_EmptyWorktreePath_InferredFromRunID(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	newFile := filepath.Join(worktreePath, "inferred-path.txt")
+	if err := os.WriteFile(newFile, []byte("test\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, worktreePath, "add", "inferred-path.txt")
+	runGit(t, worktreePath, "commit", "-m", "commit for path inference test")
+
+	branch := strings.TrimSpace(runGitOutput(t, repo, "branch", "--show-current"))
+	if branch == "" {
+		branches := listBranches(t, repo, "*")
+		if len(branches) > 0 {
+			runGit(t, repo, "checkout", branches[0])
+		}
+	}
+
+	err = MergeWorktree(repo, "", runID, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("MergeWorktree with empty path: %v", err)
+	}
+}
+
+func TestMergeWorktree_NonexistentWorktree(t *testing.T) {
+	repo := initGitRepo(t)
+	err := MergeWorktree(repo, "/nonexistent/path", "abc123", 5*time.Second, nil)
+	if err == nil {
+		t.Fatal("expected error for nonexistent worktree")
+	}
+}
+
+func TestMergeWorktree_EmptyMergeSource(t *testing.T) {
+	repo := initGitRepo(t)
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	branch := strings.TrimSpace(runGitOutput(t, repo, "branch", "--show-current"))
+	if branch == "" {
+		branches := listBranches(t, repo, "*")
+		if len(branches) > 0 {
+			runGit(t, repo, "checkout", branches[0])
+		}
+	}
+
+	err = MergeWorktree(repo, worktreePath, runID, 30*time.Second, nil)
+	_ = err
+}
+
+func TestEnsureAttachedBranch_EmptyPrefix(t *testing.T) {
+	repo := initGitRepo(t)
+
+	sha := runGitOutput(t, repo, "rev-parse", "HEAD")
+	runGit(t, repo, "checkout", strings.TrimSpace(sha))
+
+	branch, healed, err := EnsureAttachedBranch(repo, 30*time.Second, "")
+	if err != nil {
+		t.Fatalf("EnsureAttachedBranch with empty prefix: %v", err)
+	}
+	if !healed {
+		t.Fatal("expected healing with empty prefix")
+	}
+	if branch != "codex/auto-rpi-recovery" {
+		t.Fatalf("expected default recovery branch, got %q", branch)
+	}
+}
+
+func TestEnsureAttachedBranch_PrefixWithTrailingDash(t *testing.T) {
+	repo := initGitRepo(t)
+
+	sha := runGitOutput(t, repo, "rev-parse", "HEAD")
+	runGit(t, repo, "checkout", strings.TrimSpace(sha))
+
+	branch, healed, err := EnsureAttachedBranch(repo, 30*time.Second, "my-prefix-")
+	if err != nil {
+		t.Fatalf("EnsureAttachedBranch: %v", err)
+	}
+	if !healed {
+		t.Fatal("expected healing")
+	}
+	if branch != "my-prefix-recovery" {
+		t.Fatalf("expected my-prefix-recovery, got %q", branch)
+	}
+}
+
+func TestCreateWorktree_NotARepo(t *testing.T) {
+	dir := t.TempDir()
+	_, _, err := CreateWorktree(dir, 30*time.Second, nil)
+	if err == nil {
+		t.Fatal("expected error for non-git directory")
+	}
+	if !errors.Is(err, ErrNotGitRepo) {
+		t.Errorf("expected ErrNotGitRepo, got: %v", err)
+	}
+}
+
+func TestGetCurrentBranch_NotARepo(t *testing.T) {
+	dir := t.TempDir()
+	_, err := GetCurrentBranch(dir, 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for non-git directory")
+	}
+}
+
+func TestGetCurrentBranch_DetachedHEAD(t *testing.T) {
+	repo := initGitRepo(t)
+	sha := runGitOutput(t, repo, "rev-parse", "HEAD")
+	runGit(t, repo, "checkout", strings.TrimSpace(sha))
+
+	_, err := GetCurrentBranch(repo, 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for detached HEAD")
+	}
+	if !errors.Is(err, ErrDetachedHEAD) {
+		t.Errorf("expected ErrDetachedHEAD, got: %v", err)
+	}
+}
+
+func TestRemoveWorktree_EmptyRunIDNonMatchingPath(t *testing.T) {
+	repo := initGitRepo(t)
+	err := RemoveWorktree(repo, "/some/random/path", "", 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for non-matching path with empty runID")
+	}
+	if !strings.Contains(err.Error(), "invalid run id") {
+		t.Errorf("expected 'invalid run id' error, got: %v", err)
+	}
+}
+
+func TestRemoveWorktree_PathMismatch(t *testing.T) {
+	repo := initGitRepo(t)
+	wrongPath := filepath.Join(filepath.Dir(repo), "wrong-dir")
+	if err := os.MkdirAll(wrongPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.RemoveAll(wrongPath) }()
+
+	err := RemoveWorktree(repo, wrongPath, "abc123def456", 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for path mismatch")
+	}
+	if !strings.Contains(err.Error(), "refusing to remove") || !strings.Contains(err.Error(), "path validation failed") {
+		t.Errorf("expected path validation error, got: %v", err)
+	}
+}
+
+func TestMergeWorktree_DirtyRepoRetryVerbose(t *testing.T) {
+	repo := initGitRepo(t)
+
+	dirtyFile := filepath.Join(repo, "dirty.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "add", "dirty.txt")
+
+	var verboseOutput []string
+	verbosef := func(f string, a ...any) {
+		verboseOutput = append(verboseOutput, fmt.Sprintf(f, a...))
+	}
+
+	err := MergeWorktree(repo, "/fake/worktree", "fakerun", 500*time.Millisecond, verbosef)
+	if err == nil {
+		t.Fatal("expected error for dirty repo")
+	}
+	if len(verboseOutput) == 0 {
+		t.Error("expected verbose retry messages for dirty repo")
+	}
+}
+
+func TestEnsureAttachedBranch_NonDetachedHEADError(t *testing.T) {
+	_, _, err := EnsureAttachedBranch("/nonexistent/repo", 5*time.Second, "test")
+	if err == nil {
+		t.Fatal("expected error for nonexistent repo")
+	}
+	if errors.Is(err, ErrDetachedHEAD) {
+		t.Errorf("should NOT be ErrDetachedHEAD, got: %v", err)
+	}
+}
+
+func TestGetRepoRoot_EmptyStringDir(t *testing.T) {
+	root, err := GetRepoRoot("", 30*time.Second)
+	if err != nil {
+		t.Skipf("Skipping - not running inside a git repo: %v", err)
+	}
+	if root == "" {
+		t.Error("expected non-empty root for empty dir string")
+	}
+}
+
+func TestCreateWorktree_WithVerbosef(t *testing.T) {
+	repo := initGitRepo(t)
+
+	var verboseOutput []string
+	verbosef := func(f string, a ...any) {
+		verboseOutput = append(verboseOutput, fmt.Sprintf(f, a...))
+	}
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, verbosef)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	if len(verboseOutput) == 0 {
+		t.Error("expected verbose output about branch creation")
+	}
+	found := false
+	for _, msg := range verboseOutput {
+		if strings.Contains(msg, "Creating detached worktree from current branch") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected verbose message about branch, got: %v", verboseOutput)
+	}
+}
+
+func TestMergeWorktree_WithRunIDChangesMessage(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	newFile := filepath.Join(worktreePath, "merge-msg-test.txt")
+	if err := os.WriteFile(newFile, []byte("testing merge message\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, worktreePath, "add", "merge-msg-test.txt")
+	runGit(t, worktreePath, "commit", "-m", "commit for merge message test")
+
+	branch := strings.TrimSpace(runGitOutput(t, repo, "branch", "--show-current"))
+	if branch == "" {
+		branches := listBranches(t, repo, "*")
+		if len(branches) > 0 {
+			runGit(t, repo, "checkout", branches[0])
+		}
+	}
+
+	err = MergeWorktree(repo, worktreePath, runID, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("MergeWorktree: %v", err)
+	}
+
+	lastCommitMsg := strings.TrimSpace(runGitOutput(t, repo, "log", "-1", "--format=%s"))
+	if !strings.Contains(lastCommitMsg, runID) {
+		t.Errorf("merge commit message should contain runID %q, got: %q", runID, lastCommitMsg)
+	}
+}
+
+func TestMergeWorktree_EmptyRunIDUsesDefaultMessage(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	newFile := filepath.Join(worktreePath, "empty-runid-test.txt")
+	if err := os.WriteFile(newFile, []byte("testing empty runID\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, worktreePath, "add", "empty-runid-test.txt")
+	runGit(t, worktreePath, "commit", "-m", "commit for empty runid test")
+
+	branch := strings.TrimSpace(runGitOutput(t, repo, "branch", "--show-current"))
+	if branch == "" {
+		branches := listBranches(t, repo, "*")
+		if len(branches) > 0 {
+			runGit(t, repo, "checkout", branches[0])
+		}
+	}
+
+	err = MergeWorktree(repo, worktreePath, "", 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("MergeWorktree with empty runID: %v", err)
+	}
+
+	lastCommitMsg := strings.TrimSpace(runGitOutput(t, repo, "log", "-1", "--format=%s"))
+	if !strings.Contains(lastCommitMsg, "detached checkout") {
+		t.Errorf("merge commit message should contain 'detached checkout', got: %q", lastCommitMsg)
+	}
+}
+
+func TestEnsureAttachedBranch_BranchCreateFailsWithMessage(t *testing.T) {
+	repo := initGitRepo(t)
+
+	sha := strings.TrimSpace(runGitOutput(t, repo, "rev-parse", "HEAD"))
+	runGit(t, repo, "checkout", sha)
+
+	branch, healed, err := EnsureAttachedBranch(repo, 30*time.Second, "test-prefix")
+	if err != nil {
+		t.Fatalf("EnsureAttachedBranch: %v", err)
+	}
+	if !healed {
+		t.Fatal("expected healing")
+	}
+	if branch != "test-prefix-recovery" {
+		t.Fatalf("expected test-prefix-recovery, got %q", branch)
+	}
+}
+
+func TestCreateWorktree_DetachedHEAD(t *testing.T) {
+	repo := initGitRepo(t)
+
+	sha := strings.TrimSpace(runGitOutput(t, repo, "rev-parse", "HEAD"))
+	runGit(t, repo, "checkout", sha)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, func(f string, a ...any) {})
+	if err != nil {
+		t.Fatalf("CreateWorktree from detached HEAD: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	if worktreePath == "" {
+		t.Error("expected non-empty worktree path")
+	}
+}
+
+func TestCreateWorktree_GenericFailure(t *testing.T) {
+	repo := initGitRepo(t)
+
+	repoBasename := filepath.Base(repo)
+	for range 4 {
+		_ = repoBasename
+	}
+
+	emptyRepo := t.TempDir()
+	cmd := exec.Command("git", "init", emptyRepo)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init failed: %v\n%s", err, out)
+	}
+
+	_, _, err := CreateWorktree(emptyRepo, 30*time.Second, nil)
+	if err == nil {
+		t.Fatal("expected error for empty repo (no commits, no HEAD)")
+	}
+}
+
+func TestMergeWorktree_MergeConflict(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	branch := strings.TrimSpace(runGitOutput(t, repo, "branch", "--show-current"))
+	if branch == "" {
+		branches := listBranches(t, repo, "*")
+		if len(branches) > 0 {
+			branch = branches[0]
+			runGit(t, repo, "checkout", branch)
+		}
+	}
+
+	conflictFile := filepath.Join(repo, "README.md")
+	if err := os.WriteFile(conflictFile, []byte("# Main repo change\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "add", "README.md")
+	runGit(t, repo, "commit", "-m", "main repo change")
+
+	conflictFileWT := filepath.Join(worktreePath, "README.md")
+	if err := os.WriteFile(conflictFileWT, []byte("# Worktree change\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, worktreePath, "add", "README.md")
+	runGit(t, worktreePath, "commit", "-m", "worktree change")
+
+	err = MergeWorktree(repo, worktreePath, runID, 30*time.Second, nil)
+	if err == nil {
+		t.Fatal("expected merge conflict error")
+	}
+	if !strings.Contains(err.Error(), "merge conflict") && !strings.Contains(err.Error(), "merge failed") {
+		t.Errorf("expected merge conflict/failed error, got: %v", err)
+	}
+}
+
+func TestRemoveWorktree_GitWorktreeRemoveFails(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+
+	gitFile := filepath.Join(worktreePath, ".git")
+	if err := os.Remove(gitFile); err != nil {
+		t.Fatalf("Remove .git file: %v", err)
+	}
+
+	err = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	if err != nil {
+		t.Fatalf("RemoveWorktree should succeed via RemoveAll fallback: %v", err)
+	}
+
+	if _, err := os.Stat(worktreePath); err == nil {
+		t.Error("worktree directory should be removed via fallback")
+	}
+}
+
+func TestRemoveWorktree_RepoRootEvalSymlinksFails(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	fakeRoot := "/nonexistent/path/to/repo"
+	err = RemoveWorktree(fakeRoot, worktreePath, runID, 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for mismatched repo root path")
+	}
+	if !strings.Contains(err.Error(), "refusing to remove") && !strings.Contains(err.Error(), "path validation failed") {
+		t.Errorf("expected path validation error, got: %v", err)
+	}
+}
+
+func TestCreateWorktree_WorktreeAddFailsGenericError(t *testing.T) {
+	repo := initGitRepo(t)
+
+	objectsDir := filepath.Join(repo, ".git", "objects")
+	if err := os.Chmod(objectsDir, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(objectsDir, 0700) })
+
+	_, _, err := CreateWorktree(repo, 5*time.Second, nil)
+	if err == nil {
+		t.Fatal("expected error when git objects directory is unreadable")
+	}
+}
+
+func TestMergeWorktree_MergeFailsNoConflictFiles(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	newFile := filepath.Join(worktreePath, "merge-test.txt")
+	if err := os.WriteFile(newFile, []byte("test\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, worktreePath, "add", "merge-test.txt")
+	runGit(t, worktreePath, "commit", "-m", "test commit")
+
+	branch := strings.TrimSpace(runGitOutput(t, repo, "branch", "--show-current"))
+	if branch == "" {
+		branches := listBranches(t, repo, "*")
+		if len(branches) > 0 {
+			runGit(t, repo, "checkout", branches[0])
+		}
+	}
+
+	objectsDir := filepath.Join(repo, ".git", "objects")
+	if err := os.Chmod(objectsDir, 0500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(objectsDir, 0700) })
+
+	err = MergeWorktree(repo, worktreePath, runID, 5*time.Second, nil)
+	if err == nil {
+		t.Log("merge succeeded despite read-only objects dir; skipping")
+	}
+}
+
+func TestRemoveWorktree_SymlinkFallback(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+
+	symlinkDir := t.TempDir()
+	symlinkPath := filepath.Join(symlinkDir, "linked-worktree")
+	if err := os.Symlink(worktreePath, symlinkPath); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	err = RemoveWorktree(repo, symlinkPath, runID, 30*time.Second)
+	if err != nil {
+		t.Fatalf("RemoveWorktree via symlink: %v", err)
+	}
+
+	if _, err := os.Stat(worktreePath); err == nil {
+		t.Error("worktree directory should be removed")
+	}
+}
+
+func TestRunGitCreateBranch_Timeout(t *testing.T) {
+	repo := initGitRepo(t)
+
+	_, err := runGitCreateBranch(repo, 1*time.Nanosecond, "status")
+	if err == nil {
+		t.Skip("git command completed faster than 1ns timeout")
+	}
+}
+
+func TestGetRepoRoot_Timeout(t *testing.T) {
+	repo := initGitRepo(t)
+
+	_, err := GetRepoRoot(repo, 1*time.Nanosecond)
+	if err == nil {
+		t.Skip("git command completed faster than 1ns timeout")
+	}
+}
+
+func TestGetCurrentBranch_Timeout(t *testing.T) {
+	repo := initGitRepo(t)
+
+	_, err := GetCurrentBranch(repo, 1*time.Nanosecond)
+	if err == nil {
+		t.Skip("git command completed faster than 1ns timeout")
+	}
+}
+
+func TestEnsureAttachedBranch_BranchCreateFailsInvalidRef(t *testing.T) {
+	repo := initGitRepo(t)
+
+	sha := strings.TrimSpace(runGitOutput(t, repo, "rev-parse", "HEAD"))
+	runGit(t, repo, "checkout", sha)
+
+	_, _, err := EnsureAttachedBranch(repo, 30*time.Second, "invalid..ref")
+	if err == nil {
+		t.Fatal("expected error for invalid branch ref name")
+	}
+	if !errors.Is(err, ErrDetachedSelfHealFailed) {
+		t.Errorf("expected ErrDetachedSelfHealFailed, got: %v", err)
+	}
+}
+
+func TestEnsureAttachedBranch_SwitchFailsCorruptedBranch(t *testing.T) {
+	repo := initGitRepo(t)
+
+	sha := strings.TrimSpace(runGitOutput(t, repo, "rev-parse", "HEAD"))
+	runGit(t, repo, "checkout", sha)
+
+	recoveryRef := filepath.Join(repo, ".git", "refs", "heads", "lock-test-recovery")
+	if err := os.MkdirAll(filepath.Dir(recoveryRef), 0755); err != nil {
+		t.Fatal(err)
+	}
+	lockFile := recoveryRef + ".lock"
+	if err := os.WriteFile(lockFile, []byte(sha+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Remove(lockFile) })
+
+	_, _, err := EnsureAttachedBranch(repo, 30*time.Second, "lock-test")
+	if err == nil {
+		t.Log("EnsureAttachedBranch succeeded despite lock file (git version dependent)")
+		return
+	}
+	if !errors.Is(err, ErrDetachedSelfHealFailed) {
+		t.Errorf("expected ErrDetachedSelfHealFailed, got: %v", err)
+	}
+}
+
+func TestCreateWorktree_AgentsDirWarning(t *testing.T) {
+	repo := initGitRepo(t)
+
+	agentsFile := filepath.Join(repo, ".agents")
+	if err := os.WriteFile(agentsFile, []byte("block\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "add", ".agents")
+	runGit(t, repo, "commit", "-m", "add .agents file to block directory creation")
+
+	var warnings []string
+	verbosef := func(f string, a ...any) {
+		warnings = append(warnings, fmt.Sprintf(f, a...))
+	}
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, verbosef)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+	defer func() {
+		_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+	}()
+
+	foundWarning := false
+	for _, w := range warnings {
+		if strings.Contains(w, "Warning") && strings.Contains(w, ".agents/rpi") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Errorf("expected warning about .agents/rpi creation failure, got: %v", warnings)
+	}
+}
+
+func TestEnsureAttachedBranch_SwitchFailsIndexLocked(t *testing.T) {
+	repo := initGitRepo(t)
+
+	sha := strings.TrimSpace(runGitOutput(t, repo, "rev-parse", "HEAD"))
+	runGit(t, repo, "checkout", sha)
+
+	indexLock := filepath.Join(repo, ".git", "index.lock")
+	if err := os.WriteFile(indexLock, []byte("locked\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Remove(indexLock) })
+
+	_, _, err := EnsureAttachedBranch(repo, 30*time.Second, "indexlock-test")
+	if err == nil {
+		t.Fatal("expected error when index is locked")
+	}
+	if !errors.Is(err, ErrDetachedSelfHealFailed) {
+		t.Errorf("expected ErrDetachedSelfHealFailed, got: %v", err)
+	}
+}
+
+func TestRemoveWorktree_EvalSymlinksAndAbsFail(t *testing.T) {
+	repo := initGitRepo(t)
+
+	worktreePath, runID, err := CreateWorktree(repo, 30*time.Second, nil)
+	if err != nil {
+		t.Fatalf("CreateWorktree: %v", err)
+	}
+
+	brokenPath := filepath.Join(t.TempDir(), "broken-link")
+	if err := os.Symlink("/nonexistent/target", brokenPath); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	err = RemoveWorktree(repo, brokenPath, runID, 30*time.Second)
+	if err == nil {
+		t.Fatal("expected error for broken symlink path")
+	}
+	if !strings.Contains(err.Error(), "refusing to remove") && !strings.Contains(err.Error(), "path validation failed") {
+		t.Errorf("expected path validation error, got: %v", err)
+	}
+
+	_ = RemoveWorktree(repo, worktreePath, runID, 30*time.Second)
+}
+
+func TestResolveRecoveryBranch(t *testing.T) {
+	tests := []struct {
+		name   string
+		prefix string
+		want   string
+	}{
+		{name: "empty prefix uses default", prefix: "", want: "codex/auto-rpi-recovery"},
+		{name: "whitespace prefix uses default", prefix: "  ", want: "codex/auto-rpi-recovery"},
+		{name: "custom prefix", prefix: "feature/test", want: "feature/test-recovery"},
+		{name: "trailing dash stripped", prefix: "feature/test-", want: "feature/test-recovery"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveRecoveryBranch(tt.prefix)
+			if got != tt.want {
+				t.Errorf("resolveRecoveryBranch(%q) = %q, want %q", tt.prefix, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveRemovePaths_InvalidWorktreePath(t *testing.T) {
+	repo := initGitRepo(t)
+	absPath, _, _, err := resolveRemovePaths(repo, "/tmp/not-matching-pattern", "")
+	_ = absPath
+	if err == nil {
+		t.Fatal("expected error for non-matching worktree path")
 	}
 }

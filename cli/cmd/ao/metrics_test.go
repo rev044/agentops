@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1003,20 +1004,37 @@ func TestParseUtilityFromFile_dispatch(t *testing.T) {
 
 func TestPrintMetricsParameters(t *testing.T) {
 	m := &types.FlywheelMetrics{Delta: 0.17, Sigma: 0.5, Rho: 1.0}
-	printMetricsParameters(m)
+	out, err := captureStdout(t, func() error { printMetricsParameters(m); return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"PARAMETERS:", "0.17", "0.50", "1.00"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 func TestPrintMetricsDerived(t *testing.T) {
 	tests := []struct {
 		name string
 		m    *types.FlywheelMetrics
+		want []string
 	}{
-		{"positive velocity", &types.FlywheelMetrics{SigmaRho: 0.5, Delta: 0.17, Velocity: 0.33, AboveEscapeVelocity: true}},
-		{"negative velocity", &types.FlywheelMetrics{SigmaRho: 0.05, Delta: 0.17, Velocity: -0.12, AboveEscapeVelocity: false}},
+		{"positive velocity", &types.FlywheelMetrics{SigmaRho: 0.5, Delta: 0.17, Velocity: 0.33, AboveEscapeVelocity: true}, []string{"DERIVED:", "+0.33", "✓"}},
+		{"negative velocity", &types.FlywheelMetrics{SigmaRho: 0.05, Delta: 0.17, Velocity: -0.12, AboveEscapeVelocity: false}, []string{"DERIVED:", "-0.12", "✗"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			printMetricsDerived(tt.m)
+			out, err := captureStdout(t, func() error { printMetricsDerived(tt.m); return nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("output missing %q:\n%s", w, out)
+				}
+			}
 		})
 	}
 }
@@ -1030,46 +1048,93 @@ func TestPrintMetricsCounts(t *testing.T) {
 		StaleArtifacts:       1,
 		TierCounts:           map[string]int{"learning": 5, "pattern": 3, "observation": 2},
 	}
-	printMetricsCounts(m)
+	out, err := captureStdout(t, func() error { printMetricsCounts(m); return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"COUNTS:", "10", "5", "TIER DISTRIBUTION:", "learning", "pattern", "observation"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 func TestPrintMetricsCounts_emptyTiers(t *testing.T) {
 	m := &types.FlywheelMetrics{TierCounts: map[string]int{}}
-	printMetricsCounts(m)
+	out, err := captureStdout(t, func() error { printMetricsCounts(m); return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "COUNTS:") {
+		t.Errorf("output missing COUNTS header:\n%s", out)
+	}
+	if strings.Contains(out, "TIER DISTRIBUTION:") {
+		t.Errorf("empty tiers should not print TIER DISTRIBUTION:\n%s", out)
+	}
 }
 
 func TestPrintMetricsLoopClosure(t *testing.T) {
 	tests := []struct {
-		name string
-		m    *types.FlywheelMetrics
+		name    string
+		m       *types.FlywheelMetrics
+		want    []string
+		notWant []string
 	}{
-		{"no loop data", &types.FlywheelMetrics{}},
-		{"open loop", &types.FlywheelMetrics{LearningsCreated: 5, LearningsFound: 0, LoopClosureRatio: 0}},
-		{"partial loop", &types.FlywheelMetrics{LearningsCreated: 5, LearningsFound: 3, LoopClosureRatio: 0.6}},
-		{"closed loop", &types.FlywheelMetrics{LearningsCreated: 5, LearningsFound: 5, LoopClosureRatio: 1.0}},
-		{"with retros", &types.FlywheelMetrics{LearningsCreated: 1, TotalRetros: 3, RetrosWithLearnings: 2}},
-		{"with bypasses", &types.FlywheelMetrics{LearningsCreated: 1, PriorArtBypasses: 2}},
+		{"no loop data", &types.FlywheelMetrics{}, nil, []string{"LOOP CLOSURE"}},
+		{"open loop", &types.FlywheelMetrics{LearningsCreated: 5, LearningsFound: 0, LoopClosureRatio: 0}, []string{"LOOP CLOSURE", "OPEN"}, nil},
+		{"partial loop", &types.FlywheelMetrics{LearningsCreated: 5, LearningsFound: 3, LoopClosureRatio: 0.6}, []string{"PARTIAL", "0.60"}, nil},
+		{"closed loop", &types.FlywheelMetrics{LearningsCreated: 5, LearningsFound: 5, LoopClosureRatio: 1.0}, []string{"CLOSED", "1.00"}, nil},
+		{"with retros", &types.FlywheelMetrics{LearningsCreated: 1, TotalRetros: 3, RetrosWithLearnings: 2}, []string{"Retros:", "3", "2"}, nil},
+		{"with bypasses", &types.FlywheelMetrics{LearningsCreated: 1, PriorArtBypasses: 2}, []string{"bypasses:", "2"}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			printMetricsLoopClosure(tt.m)
+			out, err := captureStdout(t, func() error { printMetricsLoopClosure(tt.m); return nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("output missing %q:\n%s", w, out)
+				}
+			}
+			for _, nw := range tt.notWant {
+				if strings.Contains(out, nw) {
+					t.Errorf("output should not contain %q:\n%s", nw, out)
+				}
+			}
 		})
 	}
 }
 
 func TestPrintMetricsUtility(t *testing.T) {
 	tests := []struct {
-		name string
-		m    *types.FlywheelMetrics
+		name    string
+		m       *types.FlywheelMetrics
+		want    []string
+		notWant []string
 	}{
-		{"no utility data", &types.FlywheelMetrics{}},
-		{"healthy", &types.FlywheelMetrics{MeanUtility: 0.7, UtilityStdDev: 0.1, HighUtilityCount: 5, LowUtilityCount: 1}},
-		{"neutral", &types.FlywheelMetrics{MeanUtility: 0.45, HighUtilityCount: 1}},
-		{"needs review", &types.FlywheelMetrics{MeanUtility: 0.2, LowUtilityCount: 5}},
+		{"no utility data", &types.FlywheelMetrics{}, nil, []string{"UTILITY"}},
+		{"healthy", &types.FlywheelMetrics{MeanUtility: 0.7, UtilityStdDev: 0.1, HighUtilityCount: 5, LowUtilityCount: 1}, []string{"UTILITY", "HEALTHY", "0.700"}, nil},
+		{"neutral", &types.FlywheelMetrics{MeanUtility: 0.45, HighUtilityCount: 1}, []string{"NEUTRAL", "0.450"}, nil},
+		{"needs review", &types.FlywheelMetrics{MeanUtility: 0.2, LowUtilityCount: 5}, []string{"REVIEW", "0.200"}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			printMetricsUtility(tt.m)
+			out, err := captureStdout(t, func() error { printMetricsUtility(tt.m); return nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("output missing %q:\n%s", w, out)
+				}
+			}
+			for _, nw := range tt.notWant {
+				if strings.Contains(out, nw) {
+					t.Errorf("output should not contain %q:\n%s", nw, out)
+				}
+			}
 		})
 	}
 }
@@ -1091,8 +1156,15 @@ func TestPrintMetricsTable(t *testing.T) {
 		UniqueCitedArtifacts: 3,
 		TierCounts:           map[string]int{"learning": 5, "pattern": 3},
 	}
-	// Should not panic
-	printMetricsTable(m)
+	out, err := captureStdout(t, func() error { printMetricsTable(m); return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Knowledge Flywheel Metrics", "PARAMETERS:", "DERIVED:", "COUNTS:", "STATUS:"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
