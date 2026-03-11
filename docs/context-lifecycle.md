@@ -116,6 +116,29 @@ AgentOps treats those three gaps as a lifecycle contract, not as separate featur
 - It does not claim that raw memory alone is enough; the contract depends on validation, curation, and re-use.
 - It does not claim that new runtime machinery should be invented when an existing command, hook, or gate already covers the gap.
 
+## The Knowledge Ledger — Session-to-Session Flow
+
+```
+Session N ends
+    → ao forge: mine transcript for learnings, decisions, patterns
+    → ao notebook update: merge insights into MEMORY.md
+    → ao memory sync: sync to repo-root MEMORY.md (cross-runtime)
+    → ao maturity --expire: mark stale artifacts (freshness decay ~17%/week)
+    → ao maturity --evict: archive what's decayed past threshold
+    → ao feedback-loop: citation-to-utility feedback (MemRL)
+
+Session N+1 starts
+    → ao lookup (on demand): score artifacts by recency + utility
+      ├── Local .agents/ learnings & patterns (1.0x weight)
+      ├── Global ~/.agents/ cross-repo knowledge (0.8x weight)
+      ├── Work-scoped boost: active issue gets 1.5x (--bead)
+      ├── Predecessor handoff: what the last session was doing (--predecessor)
+      └── Trim to ~1000 tokens — lightweight, not encyclopedic
+    → Agent starts where the last one left off
+```
+
+Three tiers, descending priority: local `.agents/` → global `~/.agents/` → legacy `~/.claude/patterns/`. Each session starts with a small, curated packet — not a data dump. If the task needs deeper context, the agent searches `.agents/` on demand.
+
 ## See Also
 
 - [README.md](../README.md) for the repo-level overview

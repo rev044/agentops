@@ -23,30 +23,12 @@ AgentOps is the operating system around your coding agent: it tracks the work, v
 
 Most coding-agent tools improve the session. AgentOps improves the repo around the session.
 
-Without extra machinery, coding agents usually:
-
-- start each task with partial memory
-- rely on review culture instead of explicit gates
-- execute work without durable issue state
-- leave behind chat logs instead of reusable artifacts
-
-AgentOps adds the missing layer:
-
-- **Repo-native memory** via `.agents/` artifacts plus `ao` retrieval and injection
-- **Validation before merge** with `/pre-mortem`, `/vibe`, and `/council`
-- **Tracked execution** with beads issues, dependency waves, worktrees, and `/crank`
-- **Compounding operation** where every cycle leaves behind artifacts the next one can use
-
----
-
-## What Makes It Different
-
-| If you want... | Most tools give you... | AgentOps gives you... |
-|----------------|------------------------|-----------------------|
-| Better prompting | A workflow or command pack | A repo-level operating model |
-| Better review | CI or human review after the fact | `/pre-mortem` before build and `/vibe` before commit |
-| Better memory | Notes or ad hoc docs | Retrieval, freshness weighting, and injection from `.agents/` |
-| Better execution | Untracked agent runs | Issues, waves, worktrees, and audit trails |
+| Without AgentOps | With AgentOps |
+|------------------|---------------|
+| Partial memory each session | Repo-native memory via `.agents/` — retrieval, freshness weighting, injection |
+| Review after the fact | `/pre-mortem` before build, `/vibe` before commit |
+| Untracked agent runs | Issues, dependency waves, worktrees, audit trails |
+| Chat logs | Artifacts the next session can use |
 
 ---
 
@@ -89,7 +71,7 @@ Then type `/quickstart` in your agent chat.
 
 ## How It Works
 
-AgentOps is built around a phased lifecycle, not a bag of prompts. The current runtime shape is:
+A phased lifecycle, not a bag of prompts:
 
 | Phase | Primary skills | What gets locked in |
 |------|----------------|---------------------|
@@ -97,9 +79,7 @@ AgentOps is built around a phased lifecycle, not a bag of prompts. The current r
 | Implementation | `/crank` -> `/swarm` -> `/implement` | closed issues, validated wave outputs, ratchet checkpoints |
 | Validation + learning | `/validation` -> `/vibe` -> `/post-mortem` -> `/retro` -> `/forge` | findings, learnings, next work, stronger prevention artifacts |
 
-`/rpi` orchestrates those three phases end to end. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next.
-
-Within each phase, agents iterate quickly in bounded loops. Across phases, the repo acts as durable memory through `.agents/`, finding registries, contracts, handoffs, and commits. That is the operational difference: the output is not just code. It is code + state + memory + gates.
+`/rpi` orchestrates all three phases. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next. The output is not just code — it is code + state + memory + gates.
 
 | Pattern | Chain | When |
 |---------|-------|------|
@@ -122,13 +102,9 @@ Within each phase, agents iterate quickly in bounded loops. Across phases, the r
 
 That is the real architecture: a local operating layer around the agent, not just a prompt pack. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
 
-### From five commands to primitive chains
-
-Older AgentOps docs taught the system as a simpler command-centric story: `research -> plan -> pre-mortem -> crank -> post-mortem`. That was a useful teaching model, but the runtime has since hardened into a phased system with compiled prevention, explicit validation, and disk-backed continuity between sessions. If you see older terms like `RPI` elsewhere in the repo, read them as legacy vocabulary around the same core lifecycle. For the deeper map of how the repo evolved into its current executable shape, see [Primitive Chains](docs/architecture/primitive-chains.md).
-
 ### Why the memory matters
 
-This is the compounding part, but now in mechanical terms. Your agent validates a PR, the decisions and patterns are written to `.agents/`, and the next relevant task starts with that context already loaded:
+Each session writes decisions and patterns to `.agents/`. The next relevant task starts with that context already loaded:
 
 ```text
 > /research "retry backoff strategies"
@@ -141,7 +117,7 @@ This is the compounding part, but now in mechanical terms. Your agent validates 
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
-Session 5 did not start from scratch. It started with scored, retrieved, repo-specific context. Stale insights [decay automatically](docs/the-science.md). Useful ones keep getting cited, reinforced, and reused.
+Session 5 started with scored, repo-specific context — not from scratch. Stale insights [decay automatically](docs/the-science.md). Useful ones compound.
 
 ### Why engineers buy in
 
@@ -155,13 +131,6 @@ Everything is [open source](cli/) — audit it yourself.
 ---
 
 <details>
-<summary><b>The ao CLI</b> — powers the knowledge flywheel</summary>
-
-See [The ao CLI](#the-ao-cli) for full reference.
-
-</details>
-
-<details>
 <summary><b>OpenCode</b> — plugin + skills</summary>
 
 Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and symlinks all skills. Restart OpenCode after install. Details: [.opencode/INSTALL.md](.opencode/INSTALL.md)
@@ -171,31 +140,7 @@ Installs 7 hooks (tool enrichment, audit logging, compaction resilience) and sym
 <details>
 <summary><b>Configuration</b> — environment variables</summary>
 
-All optional. AgentOps works out of the box with no configuration.
-
-**Council / validation:**
-
-| Variable | Default | What it does |
-|----------|---------|-------------|
-| `COUNCIL_TIMEOUT` | 120 | Judge timeout in seconds |
-| `COUNCIL_CLAUDE_MODEL` | sonnet | Claude model for judges (`opus` for high-stakes) |
-| `COUNCIL_CODEX_MODEL` | (user's Codex default) | Override Codex model for `--mixed` |
-| `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
-| `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
-| `COUNCIL_R2_TIMEOUT` | 90 | Debate round 2 timeout in seconds |
-
-**Hooks:**
-
-| Variable | Default | What it does |
-|----------|---------|-------------|
-| `AGENTOPS_HOOKS_DISABLED` | 0 | `1` to disable all hooks (kill switch) |
-| `AGENTOPS_SESSION_START_DISABLED` | 0 | `1` to disable session-start hook |
-| `AGENTOPS_STARTUP_CONTEXT_MODE` | `lean` | Startup mode: `lean` (default, auto-shrinks), `manual`, `legacy` |
-| `AGENTOPS_AUTO_PRUNE` | 1 | `0` to disable automatic empty-learning pruning |
-| `AGENTOPS_EVICTION_DISABLED` | 0 | `1` to disable knowledge eviction |
-| `AGENTOPS_GITIGNORE_AUTO` | 1 | `0` to skip auto-adding `.agents/` to `.gitignore` |
-
-Full reference with examples and precedence rules: [docs/ENV-VARS.md](docs/ENV-VARS.md)
+All optional. AgentOps works out of the box with no configuration. Full reference: [docs/ENV-VARS.md](docs/ENV-VARS.md)
 
 </details>
 
@@ -215,9 +160,7 @@ Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## See It Work
 
-Start simple. Each level builds on the last.
-
-**1. Dip your toe** — one skill, one command:
+**1. One command** — validate a PR:
 
 ```text
 > /council validate this PR
@@ -243,9 +186,7 @@ Consensus: WARN — add rate limiting to /login before shipping
 [flywheel]    Next: /rpi "add circuit breaker to external API calls"
 ```
 
-**3. The endgame** — `/evolve`: define goals, walk away, come back to a better codebase.
-
-Every skill composes into one loop: measure the worst goal gap, run `/rpi` to fix it, validate nothing regressed, extract what was learned, repeat. Goals give it intent. Regression gates give it safety. The knowledge flywheel means cycle 50 knows what cycle 1 learned.
+**3. The endgame** — `/evolve`: define goals, walk away, come back to a better codebase:
 
 ```text
 > /evolve
@@ -271,7 +212,7 @@ Every skill composes into one loop: measure the worst goal gap, run `/rpi` to fi
               Ready for next /evolve — the floor is now the ceiling.
 ```
 
-That ran overnight — ~7 hours, unattended. Regression gates auto-reverted anything that broke a passing goal. Severity-based selection naturally produced the right order: build a safety net (tests), use it to refactor aggressively (complexity), then polish. Nobody told it that.
+That ran overnight — ~7 hours, unattended. Regression gates auto-reverted anything that broke a passing goal. The agent naturally organized into the right order: build a safety net (tests), refactor aggressively (complexity), then polish.
 
 <details>
 <summary><b>More examples</b> — swarm, session continuity, different workflows</summary>
@@ -332,15 +273,6 @@ Every skill works alone. Compose them however you want.
 | `/pre-mortem` | Validate plans before implementation — council simulates failures |
 | `/post-mortem` | Wrap up completed work — council validates + retro extracts learnings |
 
-<details>
-<summary>What <code>/vibe</code> checks</summary>
-
-Semantic (does code match spec?) · Security (injection, auth bypass, secrets) · Quality (smells, dead code, magic numbers) · Architecture (layer violations, coupling, god classes) · Complexity (CC > 10, deep nesting) · Performance (N+1, resource leaks) · Slop (AI hallucinations, cargo cult code) · Accessibility (ARIA, keyboard nav)
-
-1+ CRITICAL findings blocks until fixed.
-
-</details>
-
 **Execution** — research, plan, build, ship:
 
 | Skill | What it does |
@@ -390,23 +322,14 @@ AgentOps orchestrates across runtimes. Claude can lead a team of Codex workers. 
 <details>
 <summary><b>Custom agents</b> — why AgentOps ships its own</summary>
 
-AgentOps includes two small, purpose-built agents that fill gaps between Claude Code's built-in agent types:
+Two read-only agents fill the gap between Claude Code's `Explore` (no commands) and `general-purpose` (full write, expensive):
 
 | Agent | Model | Can do | Can't do |
 |-------|-------|--------|----------|
-| `agentops:researcher` | haiku | Read, search, **run commands** (`gocyclo`, `go test`, etc.) | Write or edit files |
-| `agentops:code-reviewer` | sonnet | Read, search, run `git diff`, produce structured findings | Write or edit files |
+| `agentops:researcher` | haiku | Read, search, run commands | Write or edit files |
+| `agentops:code-reviewer` | sonnet | Read, search, `git diff`, structured findings | Write or edit files |
 
-**The gap they fill:** Claude Code's built-in `Explore` agent can search code but can't run commands. Its `general-purpose` agent can do everything but uses the primary model (expensive) and has full write access. The custom agents sit in between — read-only discipline with command execution, at lower cost.
-
-| Need | Best agent |
-|------|-----------|
-| Find a file or function | `Explore` (fastest) |
-| Explore + run analysis tools | `agentops:researcher` (haiku, read-only + Bash) |
-| Make changes to files | `general-purpose` (full access) |
-| Review code after changes | `agentops:code-reviewer` (sonnet, structured review) |
-
-Skills spawn these agents automatically — you don't pick them manually. `/research` uses the researcher, `/vibe` uses the code-reviewer, `/crank` uses general-purpose for workers.
+Skills spawn these automatically — `/research` uses the researcher, `/vibe` uses the code-reviewer.
 
 </details>
 
@@ -414,60 +337,18 @@ Skills spawn these agents automatically — you don't pick them manually. `/rese
 
 ## Deep Dive
 
-### The Knowledge Ledger
-
-`.agents/` is an append-only ledger with cache-like semantics. Nothing gets overwritten — every learning, council verdict, pattern, and decision is a new dated file. Freshness decay prunes what's stale. The cycle:
-
-```
-Session N ends
-    → ao forge: mine transcript for learnings, decisions, patterns
-    → ao notebook update: merge insights into MEMORY.md
-    → ao memory sync: sync to repo-root MEMORY.md (cross-runtime)
-    → ao maturity --expire: mark stale artifacts (freshness decay ~17%/week)
-    → ao maturity --evict: archive what's decayed past threshold
-    → ao feedback-loop: citation-to-utility feedback (MemRL)
-
-Session N+1 starts
-    → ao lookup (on demand): score artifacts by recency + utility
-      ├── Local .agents/ learnings & patterns (1.0x weight)
-      ├── Global ~/.agents/ cross-repo knowledge (0.8x weight)
-      ├── Work-scoped boost: active issue gets 1.5x (--bead)
-      ├── Predecessor handoff: what the last session was doing (--predecessor)
-      └── Trim to ~1000 tokens — lightweight, not encyclopedic
-    → Agent starts where the last one left off
-```
-
-**Injection philosophy: sessions compound instead of reset.** Each session starts with a small, curated packet — not a data dump. Three tiers, descending priority: local `.agents/` → global `~/.agents/` → legacy `~/.claude/patterns/`. If the task needs deeper context, the agent searches `.agents/` on demand.
-
-Write once, score by freshness, inject the best, prune the rest. The [formal model](docs/the-science.md) is cache eviction with freshness decay and limits-to-growth controls.
-
-```
-  /rpi "goal"
-    │
-    ├── /research → /plan → /pre-mortem → /crank → /vibe
-    │
-    ▼
-  /post-mortem
-    ├── validates what shipped
-    ├── extracts learnings → .agents/
-    └── suggests next /rpi command ────┐
-                                       │
-   /rpi "next goal" ◄──────────────────┘
-```
-
-The post-mortem analyzes each learning, asks "what process would this improve?", and writes improvement proposals. It hands you a ready-to-copy `/rpi` command. Paste it, walk away.
-
+`.agents/` is an append-only ledger — every learning, verdict, pattern, and decision is a dated file. Write once, score by freshness, inject the best, prune the rest. The [formal model](docs/the-science.md) is cache eviction with freshness decay. Full lifecycle: [Context Lifecycle](docs/context-lifecycle.md).
 
 <details>
 <summary><b>Phase details</b> — what each step does</summary>
 
 1. **`/research`** — Explores your codebase. Produces a research artifact with findings and recommendations.
 
-2. **`/plan`** — Decomposes the goal into issues with dependency waves. Derives scope boundaries and conformance checks. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking).
+2. **`/plan`** — Decomposes the goal into issues with dependency waves. Creates a [beads](https://github.com/steveyegge/beads) epic (git-native issue tracking).
 
-3. **`/pre-mortem`** — Judges simulate failures before you write code, including a spec-completeness judge. FAIL? Re-plan with feedback (max 3 retries).
+3. **`/pre-mortem`** — Judges simulate failures before you write code. FAIL? Re-plan with feedback (max 3 retries).
 
-4. **`/crank`** — Spawns parallel agents in dependency-ordered waves. Each worker gets fresh context. Lead validates and commits. Runs until every issue is closed. `--test-first` for spec-first TDD.
+4. **`/crank`** — Spawns parallel agents in dependency-ordered waves. Each worker gets fresh context. Lead validates and commits. `--test-first` for spec-first TDD.
 
 5. **`/vibe`** — Judges validate the code. FAIL? Re-crank with failure context and re-vibe (max 3).
 
@@ -477,85 +358,17 @@ The post-mortem analyzes each learning, asks "what process would this improve?",
 
 </details>
 
-<details>
-<summary><b>Phased RPI</b> — fresh context per phase for larger goals</summary>
-
-`ao rpi phased "goal"` runs each phase in its own session — no context bleed between phases. Use `/rpi` when context fits in one session. Use `ao rpi phased` when you need phase-level resume control. For autonomous control-plane operation, use the canonical path `ao rpi loop --supervisor`. See [The ao CLI](#the-ao-cli) for examples.
-
-</details>
-
-<details>
-<summary><b>Parallel RPI</b> — run N epics concurrently in isolated worktrees</summary>
-
-`ao rpi parallel` runs multiple epics at the same time, each in its own git worktree. Every epic gets a full 3-phase RPI lifecycle (discovery → implementation → validation) with zero cross-contamination, then merges back sequentially.
-
-```
-ao rpi parallel --manifest epics.json        # Named epics with merge order
-ao rpi parallel "add auth" "add logging"     # Inline goals (auto-named)
-ao rpi parallel --no-merge --manifest m.json # Leave worktrees for manual review
-```
-
-```
-                   ao rpi parallel
-                         │
-         ┌───────────────┼───────────────┐
-         ▼               ▼               ▼
-   ┌───────────┐   ┌───────────┐   ┌───────────┐
-   │ worktree  │   │ worktree  │   │ worktree  │
-   │  epic/A   │   │  epic/B   │   │  epic/C   │
-   ├───────────┤   ├───────────┤   ├───────────┤
-   │ 1 discover│   │ 1 discover│   │ 1 discover│
-   │ 2 build   │   │ 2 build   │   │ 2 build   │
-   │ 3 validate│   │ 3 validate│   │ 3 validate│
-   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
-         └───────────────┼───────────────┘
-                         ▼
-            merge  A → B → C  (in order)
-                         │
-                   gate script (CI)
-```
-
-Each phase spawns a fresh Claude session — no context bleed. Worktree isolation means parallel epics can touch the same files without conflicts. The merge order is configurable (manifest `merge_order` or `--merge-order` flag) so dependency-heavy epics land first.
-
-</details>
+| Topic | Where |
+|-------|-------|
+| Phased RPI (fresh context per phase) | [How It Works](docs/how-it-works.md) |
+| Parallel RPI (N epics in isolated worktrees) | [How It Works](docs/how-it-works.md) |
+| Setting up `/evolve` (GOALS.md, fitness loop) | [Evolve Setup](docs/evolve-setup.md) |
+| Science, systems theory, prior art | [The Science](docs/the-science.md) |
 
 <details>
-<summary><b>Setting up /evolve</b> — GOALS.md and the fitness loop</summary>
+<summary><b>Built on</b> — Ralph Wiggum, Multiclaude, beads, CASS, MemRL</summary>
 
-Bootstrap with `ao goals init` — it interviews you about your repo and generates mechanically verifiable goals. Or write them by hand:
-
-```markdown
-# GOALS.md
-
-## test-pass-rate
-- **check:** `make test`
-- **weight:** 10
-All tests pass.
-
-## code-complexity
-- **check:** `gocyclo -over 15 ./...`
-- **weight:** 6
-No function exceeds cyclomatic complexity 15.
-```
-
-Migrating from GOALS.yaml? Run `ao goals migrate --to-md`. Manage goals with `ao goals steer add/remove/prioritize` and prune stale ones with `ao goals prune`.
-
-`/evolve` measures them, picks the worst gap by weight, runs `/rpi` to fix it, re-measures ALL goals (regressed commits auto-revert), and loops. It commits locally — you control when to push. Kill switch: `echo "stop" > ~/.config/evolve/KILL`
-
-**Built for overnight runs.** Cycle state lives on disk, not in LLM memory — survives context compaction. Every cycle writes to `cycle-history.jsonl` with verified writes, a regression gate that refuses to proceed without a valid fitness snapshot, and a watchdog heartbeat for external monitoring. If anything breaks the tracking invariant, the loop stops rather than continuing ungated. See `skills/SKILL-TIERS.md` for the two-tier execution model that keeps the orchestrator visible while workers fork.
-
-Maintain over time: `/goals` shows pass/fail status, `/goals prune` finds stale or broken checks.
-
-</details>
-
-<details>
-<summary><b>References</b> — science, systems theory, prior art</summary>
-
-Built on [Darr 1995](docs/the-science.md) (decay rates), Sweller 1988 (cognitive load), [Liu et al. 2023](docs/the-science.md) (lost-in-the-middle), [MemRL 2025](https://arxiv.org/abs/2601.03192) (RL for memory).
-
-AgentOps concentrates on the high-leverage end of [Meadows' hierarchy](https://en.wikipedia.org/wiki/Twelve_leverage_points): information flows (#6), rules (#5), self-organization (#4), goals (#3). The bet: changing the loop beats tuning the output.
-
-Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ralph Wiggum Pattern, agent backends, hooks, context windowing.
+[Ralph Wiggum](https://ghuntley.com/ralph/) (fresh context per agent) · [Multiclaude](https://github.com/dlorenc/multiclaude) (validation gates) · [beads](https://github.com/steveyegge/beads) (git-native issues) · [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) (session search) · [MemRL](https://arxiv.org/abs/2601.03192) (cross-session memory)
 
 </details>
 
@@ -563,7 +376,7 @@ Deep dive: [docs/how-it-works.md](docs/how-it-works.md) — Brownian Ratchet, Ra
 
 ## The `ao` CLI
 
-Skills work standalone — no CLI required. The `ao` CLI adds the knowledge flywheel (extract, inject, decay, maturity) and terminal-based RPI that runs without an active chat session. Each phase gets its own fresh context window, so large goals don't hit context limits.
+The `ao` CLI adds the knowledge flywheel (extract, inject, decay, maturity) and terminal-based RPI that runs without an active chat session.
 
 ```bash
 ao seed                                        # Plant AgentOps in any repo (auto-detects project type)
@@ -575,13 +388,6 @@ ao rpi status --watch                          # Monitor active/terminal runs
 ```
 
 Walk away, come back to committed code + extracted learnings.
-
-<details>
-<summary>Recovery and hygiene</summary>
-
-Supervisor determinism contract: task failures mark queue entries failed, infrastructure failures leave queue entries retryable, and `ao rpi cancel` ignores stale supervisor lease metadata. Pair with `ao rpi cleanup --all --prune-worktrees --prune-branches` for full hygiene.
-
-</details>
 
 ```bash
 ao search "query"              # Search knowledge across files and chat history
@@ -596,18 +402,12 @@ ao contradict                  # Detect potentially contradictory learnings
 ao demo                        # Interactive demo
 ```
 
-`ao search` (built on [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)) indexes every chat session from every runtime — Claude Code, Codex, Cursor, OpenCode, anything that writes to `.agents/ao/sessions/`. Extraction is best-effort; indexing is unconditional.
+`ao search` (built on [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search)) indexes every chat session from every runtime that writes to `.agents/ao/sessions/`.
 
 <details>
 <summary><b>Second Brain + Obsidian vault</b> — semantic search over all your sessions</summary>
 
-`.agents/` is a plain-text directory. Open it directly as an Obsidian vault — every learning, council verdict, research artifact, plan, and session transcript is instantly browsable and linkable.
-
-For semantic search, pair it with [Smart Connections](https://github.com/brianpetro/obsidian-smart-connections):
-- **Local embeddings** — runs on CPU, no API key. GPU-accelerated with llama.cpp for large vaults.
-- **Smart Connections MCP** — expose your vault through the MCP server so agents do semantic retrieval directly, without leaving the chat.
-
-Agentic search (`ao search` or the MCP) handles most retrieval. Open Obsidian when you want to explore, build a knowledge map, or trace a decision back through its history. Either way, nothing is lost — every session is indexed.
+`.agents/` is plain text — open it as an Obsidian vault for browsing and linking. For semantic search, pair with [Smart Connections](https://github.com/brianpetro/obsidian-smart-connections) (local embeddings, MCP server for agent retrieval).
 
 </details>
 
@@ -617,7 +417,7 @@ Full reference: [CLI Commands](cli/docs/COMMANDS.md)
 
 ## Architecture
 
-Five pillars, one recursive shape. The same pattern — lead decomposes work, workers execute atomically, validation gates lock progress, next wave begins — repeats at every scale:
+One recursive shape at every scale:
 
 ```
 /implement ── one worker, one issue, one verify cycle
@@ -626,19 +426,20 @@ Five pillars, one recursive shape. The same pattern — lead decomposes work, wo
             └── /evolve ── fitness-gated /rpi cycles
 ```
 
-Each level treats the one below as a black box: spec in, validated result out. Workers get fresh context per wave ([Ralph Wiggum Pattern](https://ghuntley.com/ralph/)), never commit (lead-only), and communicate through the filesystem — not accumulated chat context. Parallel execution works because each unit of work is **atomic**: no shared mutable state with concurrent workers.
+Each level treats the one below as a black box: spec in, validated result out. Workers get fresh context per wave ([Ralph Wiggum Pattern](https://ghuntley.com/ralph/)), never commit (lead-only), and communicate through the filesystem. Orchestrators stay in the main session; workers fork into subagents. See [`SKILL-TIERS.md`](skills/SKILL-TIERS.md) for the full classification.
 
-**Two-tier execution model.** Skills follow a strict rule: *the orchestrator never forks; the workers it spawns always fork.* Orchestrators (`/evolve`, `/rpi`, `/crank`, `/vibe`, `/post-mortem`) stay in the main session so you can see progress and intervene. Worker spawners (`/council`, `/codex-team`) fork into subagents where results merge back via the filesystem. This was learned the hard way — orchestrators that forked became invisible, losing cycle-by-cycle visibility during long runs. See [`SKILL-TIERS.md`](skills/SKILL-TIERS.md) for the full classification.
-
-Validation is mechanical, not advisory. [Multi-model councils](docs/ARCHITECTURE.md#pillar-2-brownian-ratchet) judge before and after implementation. The [knowledge flywheel](docs/ARCHITECTURE.md#pillar-4-knowledge-flywheel) extracts learnings, scores them, and re-injects them at session start so each cycle compounds.
-
-Full treatment: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — all five pillars, operational invariants, component overview.
+| Topic | Where |
+|-------|-------|
+| Five pillars, operational invariants | [Architecture](docs/ARCHITECTURE.md) |
+| Brownian Ratchet, Ralph Wiggum, context windowing | [How It Works](docs/how-it-works.md) |
+| Orchestrator vs worker fork rules | [Skill Tiers](skills/SKILL-TIERS.md) |
+| Injection philosophy, freshness decay, MemRL | [The Science](docs/the-science.md) |
+| Primitive chains (audited map) | [Primitive Chains](docs/architecture/primitive-chains.md) |
+| Context lifecycle, three-tier injection | [Context Lifecycle](docs/context-lifecycle.md) |
 
 ---
 
 ## How AgentOps Fits With Other Tools
-
-These are fellow experiments in making coding agents work. Use pieces from any of them.
 
 | Alternative | What it does well | Where AgentOps focuses differently |
 |-------------|-------------------|-------------------------------------|
@@ -654,13 +455,6 @@ These are fellow experiments in making coding agents work. Use pieces from any o
 [docs/FAQ.md](docs/FAQ.md) — comparisons, limitations, subagent nesting, PRODUCT.md, uninstall.
 
 ---
-
-<details>
-<summary><b>Built on</b> — Ralph Wiggum, Multiclaude, beads, CASS, MemRL</summary>
-
-[Ralph Wiggum](https://ghuntley.com/ralph/) (fresh context per agent) · [Multiclaude](https://github.com/dlorenc/multiclaude) (validation gates) · [beads](https://github.com/steveyegge/beads) (git-native issues) · [CASS](https://github.com/Dicklesworthstone/coding_agent_session_search) (session search) · [MemRL](https://arxiv.org/abs/2601.03192) (cross-session memory)
-
-</details>
 
 ## Contributing
 

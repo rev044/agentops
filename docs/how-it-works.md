@@ -133,6 +133,42 @@ This was validated in production: 116 evolve cycles ran ~7 hours overnight. The 
 
 For repos over ~1500 files, `/rpi` uses deterministic shards to keep each worker's context window bounded. Run `scripts/rpi/context-window-contract.sh` before `/rpi` to enable sharding. This prevents context overflow and keeps worker quality consistent regardless of codebase size.
 
+## Phased RPI — Fresh Context Per Phase
+
+`ao rpi phased "goal"` runs each phase in its own session — no context bleed between phases. Use `/rpi` when context fits in one session. Use `ao rpi phased` when you need phase-level resume control. For autonomous control-plane operation, use the canonical path `ao rpi loop --supervisor`.
+
+## Parallel RPI — N Epics in Isolated Worktrees
+
+`ao rpi parallel` runs multiple epics concurrently, each in its own git worktree. Every epic gets a full 3-phase lifecycle (discovery → implementation → validation) with zero cross-contamination, then merges back sequentially.
+
+```
+ao rpi parallel --manifest epics.json        # Named epics with merge order
+ao rpi parallel "add auth" "add logging"     # Inline goals (auto-named)
+ao rpi parallel --no-merge --manifest m.json # Leave worktrees for manual review
+```
+
+```
+                   ao rpi parallel
+                         │
+         ┌───────────────┼───────────────┐
+         ▼               ▼               ▼
+   ┌───────────┐   ┌───────────┐   ┌───────────┐
+   │ worktree  │   │ worktree  │   │ worktree  │
+   │  epic/A   │   │  epic/B   │   │  epic/C   │
+   ├───────────┤   ├───────────┤   ├───────────┤
+   │ 1 discover│   │ 1 discover│   │ 1 discover│
+   │ 2 build   │   │ 2 build   │   │ 2 build   │
+   │ 3 validate│   │ 3 validate│   │ 3 validate│
+   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
+         └───────────────┼───────────────┘
+                         ▼
+            merge  A → B → C  (in order)
+                         │
+                   gate script (CI)
+```
+
+Each phase spawns a fresh session — no context bleed. Worktree isolation means parallel epics can touch the same files without conflicts. The merge order is configurable (manifest `merge_order` or `--merge-order` flag) so dependency-heavy epics land first.
+
 ## See Also
 
 - [Architecture](ARCHITECTURE.md) — System design and component overview
