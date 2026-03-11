@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -700,10 +701,24 @@ func TestFeedbackLoop_reportBatchFeedbackDryRun(t *testing.T) {
 		"s1": {{ArtifactPath: "/a.md"}},
 		"s2": {{ArtifactPath: "/b.md"}, {ArtifactPath: "/c.md"}},
 	}
-	// Should not panic, prints dry-run report
-	reportBatchFeedbackDryRun(sessionIDs, 3, sessionCitations)
+	out, _ := captureStdout(t, func() error {
+		reportBatchFeedbackDryRun(sessionIDs, 3, sessionCitations)
+		return nil
+	})
+	for _, want := range []string{"s1", "s2", "dry-run"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 func TestFeedbackLoop_reportBatchFeedbackDryRun_empty(t *testing.T) {
-	reportBatchFeedbackDryRun(nil, 0, nil)
+	out, _ := captureStdout(t, func() error {
+		reportBatchFeedbackDryRun(nil, 0, nil)
+		return nil
+	})
+	// Empty input should produce header but no session details
+	if strings.Contains(out, "s1") {
+		t.Errorf("empty input should not reference sessions:\n%s", out)
+	}
 }

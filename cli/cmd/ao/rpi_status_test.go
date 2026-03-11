@@ -1568,47 +1568,39 @@ func TestRenderRPIStatusTable_ActiveAndHistorical(t *testing.T) {
 // --- renderStateRunsSection ---
 
 func TestRenderStateRunsSection_WithReason(t *testing.T) {
-	old := os.Stdout
-	_, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		_ = w.Close()
-		os.Stdout = old
-	}()
-
 	runs := []rpiRunInfo{
 		{RunID: "stale-1", Goal: "stale goal", PhaseName: "implementation", Status: "stale", Reason: "worktree missing", Elapsed: "30m0s"},
 		{RunID: "stale-2", Goal: "another stale", PhaseName: "discovery", Status: "stale", Reason: "", Elapsed: "5m0s"},
 	}
-	renderStateRunsSection("Stale Runs", runs, "stale", true)
+	out, _ := captureStdout(t, func() error {
+		renderStateRunsSection("Stale Runs", runs, "stale", true)
+		return nil
+	})
+	for _, want := range []string{"Stale Runs", "stale-1", "worktree missing"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 func TestRenderStateRunsSection_WithoutReason(t *testing.T) {
-	old := os.Stdout
-	_, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		_ = w.Close()
-		os.Stdout = old
-	}()
-
 	runs := []rpiRunInfo{
 		{RunID: "r1", Goal: "goal 1", PhaseName: "discovery", Status: "running", Elapsed: "5m0s"},
 	}
-	renderStateRunsSection("Active Runs", runs, "active", false)
+	out, _ := captureStdout(t, func() error {
+		renderStateRunsSection("Active Runs", runs, "active", false)
+		return nil
+	})
+	for _, want := range []string{"Active Runs", "r1", "goal 1"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // --- renderLogRunsSection ---
 
 func TestRenderLogRunsSection(t *testing.T) {
-	old := os.Stdout
-	_, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		_ = w.Close()
-		os.Stdout = old
-	}()
-
 	logRuns := []rpiRun{
 		{
 			RunID:    "lr1",
@@ -1629,43 +1621,42 @@ func TestRenderLogRunsSection(t *testing.T) {
 			Duration: 0,
 		},
 	}
-	renderLogRunsSection(logRuns)
+	out, _ := captureStdout(t, func() error { renderLogRunsSection(logRuns); return nil })
+	for _, want := range []string{"lr1", "first log run", "completed", "lr2", "running"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // --- renderLiveStatusesSection ---
 
 func TestRenderLiveStatusesSection(t *testing.T) {
 	cwd := t.TempDir()
-	old := os.Stdout
-	_, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		_ = w.Close()
-		os.Stdout = old
-	}()
-
-	// Absolute path that can be made relative to cwd
 	statusPath := filepath.Join(cwd, "live-status.md")
-	renderLiveStatusesSection(cwd, []liveStatusSnapshot{
-		{Path: statusPath, Content: "# Phase 2\nImplementation in progress\n"},
+	out, _ := captureStdout(t, func() error {
+		renderLiveStatusesSection(cwd, []liveStatusSnapshot{
+			{Path: statusPath, Content: "# Phase 2\nImplementation in progress\n"},
+		})
+		return nil
 	})
+	if !strings.Contains(out, "Phase 2") {
+		t.Errorf("output missing Phase 2 content:\n%s", out)
+	}
 }
 
 func TestRenderLiveStatusesSection_NonRelativePath(t *testing.T) {
 	cwd := t.TempDir()
-	old := os.Stdout
-	_, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() {
-		_ = w.Close()
-		os.Stdout = old
-	}()
-
-	// Path in a different directory (can't be relativized)
 	otherPath := filepath.Join(t.TempDir(), "other-live-status.md")
-	renderLiveStatusesSection(cwd, []liveStatusSnapshot{
-		{Path: otherPath, Content: "status content"},
+	out, _ := captureStdout(t, func() error {
+		renderLiveStatusesSection(cwd, []liveStatusSnapshot{
+			{Path: otherPath, Content: "status content"},
+		})
+		return nil
 	})
+	if !strings.Contains(out, "status content") {
+		t.Errorf("output missing status content:\n%s", out)
+	}
 }
 
 // --- totalRetries ---
@@ -1747,15 +1738,11 @@ func TestFormattedLogRunStatus_CompletedWithVerdicts(t *testing.T) {
 // --- clearScreen ---
 
 func TestClearScreen(t *testing.T) {
-	old := os.Stdout
-	_, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Just verify it doesn't panic
-	clearScreen()
-
-	_ = w.Close()
-	os.Stdout = old
+	out, _ := captureStdout(t, func() error { clearScreen(); return nil })
+	// clearScreen emits ANSI escape sequences
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("expected ANSI escape in output, got %q", out)
+	}
 }
 
 // --- orchestrationLogState methods ---

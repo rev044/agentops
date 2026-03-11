@@ -72,8 +72,10 @@ func TestTrace_printTraceTable_NoChain(t *testing.T) {
 	result := &provenance.TraceResult{
 		Artifact: "/path/to/artifact.md",
 	}
-	// Should not panic with empty chain
-	printTraceTable(result)
+	out, _ := captureStdout(t, func() error { printTraceTable(result); return nil })
+	if !strings.Contains(out, "artifact.md") {
+		t.Errorf("expected artifact path in output, got: %s", out)
+	}
 }
 
 func TestTrace_printTraceTable_WithChain(t *testing.T) {
@@ -91,8 +93,12 @@ func TestTrace_printTraceTable_WithChain(t *testing.T) {
 		},
 		Sources: []string{"/path/to/transcript.jsonl"},
 	}
-	// Should not panic
-	printTraceTable(result)
+	out, _ := captureStdout(t, func() error { printTraceTable(result); return nil })
+	for _, want := range []string{"session.md", "prov-abc1234", "transcript"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -113,8 +119,12 @@ func TestTrace_printTraceGraph_SingleRecord(t *testing.T) {
 			},
 		},
 	}
-	// Should not panic
-	printTraceGraph(result)
+	out, _ := captureStdout(t, func() error { printTraceGraph(result); return nil })
+	for _, want := range []string{"session.md", "prov-abc", "sess-12345"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 func TestTrace_printTraceGraph_ShortSessionID(t *testing.T) {
@@ -131,8 +141,10 @@ func TestTrace_printTraceGraph_ShortSessionID(t *testing.T) {
 			},
 		},
 	}
-	// min(12, len("ab")) = 2 — should not panic
-	printTraceGraph(result)
+	out, _ := captureStdout(t, func() error { printTraceGraph(result); return nil })
+	if !strings.Contains(out, "prov-x") {
+		t.Errorf("output missing prov-x:\n%s", out)
+	}
 }
 
 func TestTrace_printTraceGraph_EmptySessionID(t *testing.T) {
@@ -149,8 +161,10 @@ func TestTrace_printTraceGraph_EmptySessionID(t *testing.T) {
 			},
 		},
 	}
-	// Empty session ID branch — should not panic or print session line
-	printTraceGraph(result)
+	out, _ := captureStdout(t, func() error { printTraceGraph(result); return nil })
+	if !strings.Contains(out, "prov-y") {
+		t.Errorf("output missing prov-y:\n%s", out)
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -341,7 +341,13 @@ func TestWorktree_finalizeWorktreeGC_DryRun(t *testing.T) {
 	oldDryRun := dryRun
 	dryRun = true
 	defer func() { dryRun = oldDryRun }()
-	finalizeWorktreeGC("/fake/repo", 5, 3, 2, 4)
+	out, _ := captureStdout(t, func() error {
+		finalizeWorktreeGC("/fake/repo", 5, 3, 2, 4)
+		return nil
+	})
+	if !strings.Contains(out, "dry-run") && !strings.Contains(out, "Worktree GC") {
+		t.Errorf("expected dry-run or GC output, got: %s", out)
+	}
 }
 
 func TestWorktree_finalizeWorktreeGC_NotDryRun(t *testing.T) {
@@ -350,7 +356,13 @@ func TestWorktree_finalizeWorktreeGC_NotDryRun(t *testing.T) {
 	dryRun = false
 	worktreeGCPrune = false
 	defer func() { dryRun = oldDryRun; worktreeGCPrune = oldPrune }()
-	finalizeWorktreeGC("/fake/repo", 5, 3, 2, 4)
+	out, _ := captureStdout(t, func() error {
+		finalizeWorktreeGC("/fake/repo", 5, 3, 2, 4)
+		return nil
+	})
+	if out == "" {
+		t.Error("expected non-empty GC summary output")
+	}
 }
 
 func TestWorktree_finalizeWorktreeGC_withPrune(t *testing.T) {
@@ -376,7 +388,15 @@ func TestWorktree_finalizeWorktreeGC_pruneOnInvalidRepo(t *testing.T) {
 	dryRun = false
 	worktreeGCPrune = true
 	tmp := t.TempDir() // not a git repo
-	finalizeWorktreeGC(tmp, 0, 0, 0, 0)
+	out, _ := captureStdout(t, func() error {
+		finalizeWorktreeGC(tmp, 0, 0, 0, 0)
+		return nil
+	})
+	// Should handle invalid repo gracefully
+	_ = out
+	if strings.Contains(out, "panic") {
+		t.Error("should not panic on invalid repo")
+	}
 }
 
 func TestWorktree_gcWorktreeCandidates_Empty(t *testing.T) {

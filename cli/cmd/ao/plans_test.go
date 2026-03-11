@@ -988,8 +988,12 @@ func TestPrintDrifts(t *testing.T) {
 		{Type: "orphaned", PlanName: "plan-2"},
 		{Type: "missing_beads", PlanName: "plan-3", BeadsID: "ol-3"},
 	}
-	// Just verify it doesn't panic — output goes to stdout
-	printDrifts(drifts)
+	out, _ := captureStdout(t, func() error { printDrifts(drifts); return nil })
+	for _, want := range []string{"plan-1", "mismatch", "plan-2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // --- syncEpicsToManifest ---

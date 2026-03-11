@@ -91,13 +91,17 @@ func TestQuickstart_CreateTasksFile_ValidJSON(t *testing.T) {
 }
 
 func TestQuickstart_ShowNextSteps_WithBeads(t *testing.T) {
-	// Should not panic.
-	showNextSteps(true)
+	out, _ := captureStdout(t, func() error { showNextSteps(true); return nil })
+	if !strings.Contains(out, "bd") {
+		t.Errorf("with beads=true, expected bd reference in output:\n%s", out)
+	}
 }
 
 func TestQuickstart_ShowNextSteps_WithoutBeads(t *testing.T) {
-	// Should not panic.
-	showNextSteps(false)
+	out, _ := captureStdout(t, func() error { showNextSteps(false); return nil })
+	if out == "" {
+		t.Error("expected non-empty output for next steps")
+	}
 }
 
 func TestQuickstart_CreateStarterPack_CreatesPatterns(t *testing.T) {

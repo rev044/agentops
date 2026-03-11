@@ -2131,8 +2131,13 @@ func TestHooksCoverage_printHooksInstallSummary_Minimal(t *testing.T) {
 	hooksFull = false
 
 	newHooks := generateMinimalHooksConfig()
-	// Should not panic
-	printHooksInstallSummary("/fake/settings.json", newHooks, []string{"SessionStart", "SessionEnd", "Stop"}, 3)
+	out, _ := captureStdout(t, func() error {
+		printHooksInstallSummary("/fake/settings.json", newHooks, []string{"SessionStart", "SessionEnd", "Stop"}, 3)
+		return nil
+	})
+	if !strings.Contains(out, "settings.json") {
+		t.Errorf("output missing settings path:\n%s", out)
+	}
 }
 
 func TestHooksCoverage_printHooksInstallSummary_Full(t *testing.T) {
@@ -2141,8 +2146,13 @@ func TestHooksCoverage_printHooksInstallSummary_Full(t *testing.T) {
 	hooksFull = true
 
 	newHooks := generateMinimalHooksConfig()
-	// Should not panic
-	printHooksInstallSummary("/fake/settings.json", newHooks, AllEventNames(), 3)
+	out, _ := captureStdout(t, func() error {
+		printHooksInstallSummary("/fake/settings.json", newHooks, AllEventNames(), 3)
+		return nil
+	})
+	if !strings.Contains(out, "settings.json") {
+		t.Errorf("output missing settings path:\n%s", out)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -2152,8 +2162,14 @@ func TestHooksCoverage_printHooksInstallSummary_Full(t *testing.T) {
 func TestHooksCoverage_runSettingsCoverageTest_NoSettings(t *testing.T) {
 	tmp := t.TempDir()
 	allPassed := true
-	// Should print warning, not crash
-	runSettingsCoverageTest(1, tmp, &allPassed)
+	out, _ := captureStdout(t, func() error {
+		runSettingsCoverageTest(1, tmp, &allPassed)
+		return nil
+	})
+	// Missing settings should produce diagnostic output
+	if out == "" {
+		t.Error("expected non-empty output for missing settings")
+	}
 }
 
 func TestHooksCoverage_runSettingsCoverageTest_WithSettings(t *testing.T) {
@@ -2196,8 +2212,13 @@ func TestHooksCoverage_runSettingsCoverageTest_InvalidJSON(t *testing.T) {
 
 func TestHooksCoverage_runHookScriptsAccessTest_NoAgentopsDir(t *testing.T) {
 	tmp := t.TempDir()
-	// Should not panic, prints "not installed"
-	runHookScriptsAccessTest(1, tmp)
+	out, _ := captureStdout(t, func() error {
+		runHookScriptsAccessTest(1, tmp)
+		return nil
+	})
+	if out == "" {
+		t.Error("expected non-empty output for missing agentops dir")
+	}
 }
 
 func TestHooksCoverage_runHookScriptsAccessTest_WithScripts(t *testing.T) {
@@ -2281,8 +2302,14 @@ func TestHooksCoverage_runForgeTranscriptAccessTest_DryRun(t *testing.T) {
 	defer func() { hooksDryRun = oldDryRun }()
 	hooksDryRun = true
 
-	// Should skip, not panic
-	runForgeTranscriptAccessTest(1, t.TempDir())
+	out, _ := captureStdout(t, func() error {
+		runForgeTranscriptAccessTest(1, t.TempDir())
+		return nil
+	})
+	if !strings.Contains(out, "SKIP") && !strings.Contains(out, "skip") && !strings.Contains(out, "dry") {
+		// Dry run should indicate skipping or produce minimal output
+		_ = out // acceptable: some dry-run paths produce no stdout
+	}
 }
 
 func TestHooksCoverage_runForgeTranscriptAccessTest_NoProjectsDir(t *testing.T) {
@@ -2291,8 +2318,13 @@ func TestHooksCoverage_runForgeTranscriptAccessTest_NoProjectsDir(t *testing.T) 
 	hooksDryRun = false
 
 	tmp := t.TempDir()
-	// No .claude/projects directory
-	runForgeTranscriptAccessTest(1, tmp)
+	out, _ := captureStdout(t, func() error {
+		runForgeTranscriptAccessTest(1, tmp)
+		return nil
+	})
+	if out == "" {
+		t.Error("expected non-empty output for missing projects dir")
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -84,9 +84,13 @@ func TestTaskSync_assignMaturityAndUtility(t *testing.T) {
 }
 
 func TestTaskSync_assignMaturityAndUtility_empty(t *testing.T) {
-	// Should not panic on empty slice
+	// Verify nil and empty slice are handled without panic and return no modifications
 	assignMaturityAndUtility(nil)
-	assignMaturityAndUtility([]TaskEvent{})
+	tasks := []TaskEvent{}
+	assignMaturityAndUtility(tasks)
+	if len(tasks) != 0 {
+		t.Errorf("expected empty slice, got %d tasks", len(tasks))
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -786,8 +790,9 @@ func TestTaskSync_resolveTranscriptPath_empty(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	// With empty HOME/.claude/projects, should return empty
 	got := resolveTranscriptPath("")
-	// May return empty or a discovered path; just ensure no panic
-	_ = got
+	if got != "" {
+		t.Errorf("expected empty path with no projects, got %q", got)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -820,8 +825,13 @@ func TestTaskSync_printTaskStatusText(t *testing.T) {
 		types.MaturityProvisional: 2,
 		types.MaturityEstablished: 1,
 	}
-	// Should not panic
-	printTaskStatusText([]TaskEvent{{}, {}, {}}, statusCounts, maturityCounts, 1)
+	out, _ := captureStdout(t, func() error {
+		printTaskStatusText([]TaskEvent{{}, {}, {}}, statusCounts, maturityCounts, 1)
+		return nil
+	})
+	if !strings.Contains(out, "pending") {
+		t.Errorf("output missing 'pending':\n%s", out)
+	}
 }
 
 // ---------------------------------------------------------------------------

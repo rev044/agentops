@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -383,7 +384,12 @@ func TestPrintState(t *testing.T) {
 		Reaped:  []string{"issue-4", "issue-5", "issue-6"},
 		Blocked: []string{},
 	}
-	printState(state)
+	out, _ := captureStdout(t, func() error { printState(state); return nil })
+	for _, want := range []string{"2 ready", "1 burning", "3 reaped"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------

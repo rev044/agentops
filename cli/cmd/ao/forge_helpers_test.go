@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -360,9 +361,29 @@ func TestNoFilesError(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestForgeWarnf(t *testing.T) {
-	t.Log("smoke: forgeWarnf should not panic regardless of quiet flag")
+	// forgeWarnf writes to stderr, not stdout. Capture stderr to verify.
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = oldStderr })
+
 	forgeWarnf(true, "should not print: %s", "test")
-	forgeWarnf(false, "test warning (goes to stderr): %s\n", "msg")
+	forgeWarnf(false, "test warning: %s\n", "msg")
+
+	w.Close()
+	data, _ := io.ReadAll(r)
+	os.Stderr = oldStderr
+	output := string(data)
+
+	if strings.Contains(output, "should not print") {
+		t.Error("quiet=true should suppress output")
+	}
+	if !strings.Contains(output, "test warning") {
+		t.Errorf("quiet=false should produce output, got: %s", output)
+	}
 }
 
 // ---------------------------------------------------------------------------

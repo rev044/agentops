@@ -1431,9 +1431,14 @@ func TestInject_printInjectDryRun(t *testing.T) {
 	injectMaxTokens = 2000
 	defer func() { injectMaxTokens = origMaxTokens }()
 
-	// Just verify it doesn't panic
-	printInjectDryRun("")
-	printInjectDryRun("some query")
+	out, _ := captureStdout(t, func() error {
+		printInjectDryRun("")
+		printInjectDryRun("some query")
+		return nil
+	})
+	if !strings.Contains(out, "2000") {
+		t.Errorf("expected max tokens in output, got: %s", out)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1448,8 +1453,12 @@ func TestMaturity_displayMaturityDistribution(t *testing.T) {
 		AntiPattern: 0,
 		Total:       6,
 	}
-	// Just verify no panic
-	displayMaturityDistribution(dist)
+	out, _ := captureStdout(t, func() error { displayMaturityDistribution(dist); return nil })
+	for _, want := range []string{"3", "2", "1"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
