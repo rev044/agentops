@@ -2306,9 +2306,9 @@ func TestHooksCoverage_runForgeTranscriptAccessTest_DryRun(t *testing.T) {
 		runForgeTranscriptAccessTest(1, t.TempDir())
 		return nil
 	})
-	if !strings.Contains(out, "SKIP") && !strings.Contains(out, "skip") && !strings.Contains(out, "dry") {
-		// Dry run should indicate skipping or produce minimal output
-		_ = out // acceptable: some dry-run paths produce no stdout
+	// Dry run should indicate skipping, produce minimal output, or be empty (no projects dir)
+	if out != "" && !strings.Contains(out, "SKIP") && !strings.Contains(out, "skip") && !strings.Contains(out, "dry") && !strings.Contains(out, "forge") {
+		t.Errorf("unexpected dry-run output: %s", out)
 	}
 }
 

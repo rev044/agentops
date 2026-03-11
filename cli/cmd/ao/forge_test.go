@@ -1276,11 +1276,13 @@ func TestForgeCoverage_extractMessageKnowledge_WithContent(t *testing.T) {
 		Content: "We decided to use PostgreSQL because it supports JSON indexing. The solution was to add a retry loop around the API calls.",
 	}
 	extractMessageKnowledge(msg, extractor, state)
-	// Verify extractor populated state — decisions or knowledge should be non-empty
-	// for content with decision patterns ("decided to")
-	totalExtractions := len(state.decisions) + len(state.knowledge)
-	if totalExtractions == 0 {
-		t.Log("extractor found no patterns — acceptable if extractor requires different format")
+	// Verify state maps remain valid (not nil or corrupted) after extraction
+	if state.seenFiles == nil || state.seenIssues == nil {
+		t.Error("extractMessageKnowledge corrupted state maps")
+	}
+	// With "decided to" pattern, extractor should find at least one decision
+	if len(state.decisions) == 0 && len(state.knowledge) == 0 {
+		t.Log("extractor found no patterns — verify extractor recognizes 'decided to' pattern")
 	}
 }
 

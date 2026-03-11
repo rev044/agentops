@@ -505,8 +505,15 @@ func TestLiveStatusOutOfBoundsIgnored(t *testing.T) {
 	statusPath := filepath.Join(tmpDir, "live-status.md")
 	allPhases := buildAllPhases(phases)
 
+	// Out-of-bounds phase numbers should not corrupt the phase list
 	updateLivePhaseStatus(statusPath, allPhases, 0, "running", 0, "")
 	updateLivePhaseStatus(statusPath, allPhases, 99, "running", 0, "")
+
+	for i, p := range allPhases {
+		if p.CurrentAction != "pending" {
+			t.Errorf("allPhases[%d].CurrentAction = %q, want %q after out-of-bounds updates", i, p.CurrentAction, "pending")
+		}
+	}
 }
 
 // mockExecutor is a test double for PhaseExecutor that records calls and

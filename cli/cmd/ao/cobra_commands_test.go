@@ -905,11 +905,15 @@ func TestCobraExtractCommand(t *testing.T) {
 	t.Setenv("HOME", tmp)
 	setupAgentsDir(t, tmp)
 
-	// With no pending extractions, it should run without error
+	// With no pending extractions, extract should succeed or report "no pending"
 	out, err := executeCommand("extract")
-	// Extract may return no pending, which is fine
-	_ = err
-	_ = out
+	if err != nil {
+		// Acceptable errors: no pending extractions, missing knowledge base
+		errMsg := err.Error()
+		if !strings.Contains(errMsg, "no pending") && !strings.Contains(errMsg, "not found") && !strings.Contains(errMsg, "no such") {
+			t.Fatalf("extract command failed unexpectedly: %v\noutput: %s", err, out)
+		}
+	}
 }
 
 // TestCobraMemorySyncCommand exercises memory sync.

@@ -338,10 +338,17 @@ func TestIsGitRepository(t *testing.T) {
 }
 
 func TestWarnTrackedFilesNoError(t *testing.T) {
-	// Ensure it doesn't panic on non-git directories
+	// warnTrackedFiles should handle non-git directories gracefully
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not in PATH")
 	}
 	tmp := t.TempDir()
-	warnTrackedFiles(tmp) // Should not panic
+	out, _ := captureStdout(t, func() error {
+		warnTrackedFiles(tmp)
+		return nil
+	})
+	// In a non-git directory, should produce no warnings about tracked files
+	if strings.Contains(out, "tracked") {
+		t.Errorf("non-git dir should not warn about tracked files, got: %s", out)
+	}
 }
