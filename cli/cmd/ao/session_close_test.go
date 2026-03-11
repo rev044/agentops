@@ -462,7 +462,7 @@ func TestQualifyAutoExtract(t *testing.T) {
 	}{
 		{
 			name:    "substantial learning passes",
-			content: "Use Go modules for dependency management. Pin CI to Go 1.22 to avoid breaking changes in newer versions.",
+			content: "Use Go modules for dependency management to ensure reproducible builds across environments. Pin CI to Go 1.22 to avoid breaking changes in newer versions. Always verify module checksums match before deploying.",
 			want:    true,
 		},
 		{
@@ -492,17 +492,27 @@ func TestQualifyAutoExtract(t *testing.T) {
 		},
 		{
 			name:    "single sentence with enough words passes",
-			content: "The parser handles JSONL format natively and can extract decisions from multi-turn conversations.",
+			content: "Our parser handles JSONL format natively and can extract decisions from multi-turn conversations reliably across different session types. It enables automated knowledge extraction at scale for large distributed projects.",
 			want:    true,
 		},
 		{
-			name:    "exactly 10 words with sentence ender passes",
-			content: "The parser extracts all decisions from every multi turn conversation here.",
+			name:    "25+ words with two sentences passes",
+			content: "Our parser extracts all decisions from every multi turn conversation here in the automated pipeline efficiently and reliably without manual intervention. Output format preserves all metadata including timestamps and categories.",
 			want:    true,
 		},
 		{
-			name:    "exactly 9 words rejected",
-			content: "Parser extracts decisions from multi-turn conversations natively here.",
+			name:    "24 words rejected",
+			content: "The parser extracts all decisions from every multi turn conversation here in the automated pipeline efficiently. The output format preserves metadata.",
+			want:    false,
+		},
+		{
+			name:    "new continuation prefix and rejected",
+			content: "and then we found that the approach works well for all cases in the production environment. This was confirmed by testing.",
+			want:    false,
+		},
+		{
+			name:    "new continuation prefix the rejected",
+			content: "the main approach is to use structured logging for all services in production environments. This improves debugging significantly.",
 			want:    false,
 		},
 		{
@@ -526,11 +536,11 @@ func TestQualifyAutoExtract(t *testing.T) {
 func TestSessionClose_AutoExtract_ProducesLearnings(t *testing.T) {
 	tmpDir := t.TempDir()
 	decisions := []string{
-		"Use Go modules for dependency management. Pin CI to Go 1.22 to avoid breaking changes in newer versions.",
-		"Prefer table-driven tests for multi-case functions. This reduces boilerplate and improves coverage.",
+		"Use Go modules for dependency management to ensure reproducible builds across environments. Pin CI to Go 1.22 to avoid breaking changes in newer versions. Always verify module checksums match before deploying.",
+		"Prefer table-driven tests for multi-case functions to reduce boilerplate and improve coverage across the entire test suite. Each row should test one specific behavior with clear expected values.",
 	}
 	knowledge := []string{
-		"The parser handles JSONL format natively and can extract decisions from multi-turn conversations.",
+		"Our parser handles JSONL format natively and can extract decisions from multi-turn conversations reliably across different session types. It enables automated knowledge extraction at scale for large distributed projects.",
 	}
 
 	result, err := writeAutoExtractedLearnings(tmpDir, decisions, knowledge)
@@ -714,6 +724,32 @@ func TestSessionClose_WithoutAutoExtract_Unchanged(t *testing.T) {
 	// handoff_written should be omitted (omitempty)
 	if strings.Contains(out, `"handoff_written"`) {
 		t.Errorf("expected handoff_written to be omitted from JSON, got:\n%s", out)
+	}
+}
+
+func TestWriteAutoExtractedLearnings_Dedup(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := "Use Go modules for dependency management to ensure reproducible builds across environments. Pin CI to Go 1.22 to avoid breaking changes in newer versions. Always verify module checksums match."
+
+	// First extraction should write
+	result1, err := writeAutoExtractedLearnings(tmpDir, []string{content}, nil)
+	if err != nil {
+		t.Fatalf("first extraction: %v", err)
+	}
+	if result1.written != 1 {
+		t.Errorf("first extraction: expected 1 written, got %d", result1.written)
+	}
+
+	// Second extraction of same content should be deduped
+	result2, err := writeAutoExtractedLearnings(tmpDir, []string{content}, nil)
+	if err != nil {
+		t.Fatalf("second extraction: %v", err)
+	}
+	if result2.written != 0 {
+		t.Errorf("second extraction: expected 0 written (dedup), got %d", result2.written)
+	}
+	if result2.rejected != 1 {
+		t.Errorf("second extraction: expected 1 rejected (dedup), got %d", result2.rejected)
 	}
 }
 

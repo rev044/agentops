@@ -41,8 +41,18 @@ var sessionCloseAutoExtract bool
 //   - doc structure: "see also", "key learnings"
 //   - mid-thought: "choosing the", "selected ", "anti-pattern"
 var autoExtractContinuationPrefixes = []string{
-	"till ", "still ", "will ", "see also", "choosing the",
-	"selected ", "key learnings", "anti-pattern",
+	// session chatter
+	"till ", "still ", "will ", "let me ",
+	// doc structure
+	"see also", "key learnings", "key insight",
+	// mid-thought continuations
+	"choosing the", "selected ", "anti-pattern",
+	"and ", "but ", "or ", "however ", "therefore ",
+	"additionally ", "furthermore ",
+	// list/reference orphans
+	"- ", "* ", "the ", "a ", "an ", "this ", "that ", "these ",
+	// operational noise
+	"going with", "picked up", "resolved by",
 }
 
 // autoExtractSkillPatterns rejects content that parrots skill doc structure.
@@ -412,7 +422,7 @@ func qualifyAutoExtract(content string) bool {
 
 	// Minimum word count
 	words := strings.Fields(trimmed)
-	if len(words) < 10 {
+	if len(words) < 25 {
 		return false
 	}
 
@@ -442,7 +452,7 @@ func qualifyAutoExtract(content string) bool {
 			}
 		}
 	}
-	if sentenceEnders < 1 {
+	if sentenceEnders < 2 {
 		return false
 	}
 
@@ -487,6 +497,28 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 			continue
 		}
 
+		// Dedup check: skip if first 80 chars match an existing learning from today
+		existingFiles, _ := filepath.Glob(filepath.Join(dir, datePrefix+"-auto-*.md"))
+		isDuplicate := false
+		for _, ef := range existingFiles {
+			body, readErr := os.ReadFile(ef)
+			if readErr != nil {
+				continue
+			}
+			existingContent := extractBodyAfterFrontmatter(string(body))
+			if len(existingContent) > 80 && len(it.content) > 80 &&
+				existingContent[:80] == it.content[:80] {
+				isDuplicate = true
+				break
+			}
+		}
+		if isDuplicate {
+			VerbosePrintf("Skipped duplicate auto-extract: %s\n",
+				truncate(it.content, 60))
+			result.rejected++
+			continue
+		}
+
 		slug := slugify(it.content)
 		if len(slug) > 40 {
 			slug = slug[:40]
@@ -504,6 +536,18 @@ func writeAutoExtractedLearnings(cwd string, decisions []string, knowledge []str
 	}
 
 	return result, nil
+}
+
+// extractBodyAfterFrontmatter returns content after YAML frontmatter (--- delimited).
+func extractBodyAfterFrontmatter(content string) string {
+	if !strings.HasPrefix(content, "---\n") {
+		return content
+	}
+	end := strings.Index(content[4:], "\n---\n")
+	if end < 0 {
+		return content
+	}
+	return strings.TrimSpace(content[4+end+5:])
 }
 
 // minInt returns the smaller of two ints.
