@@ -1767,3 +1767,114 @@ func BenchmarkGenerateSlug(b *testing.B) {
 		generateSlug(text)
 	}
 }
+
+func TestScanJSONLFile_PermissionDenied(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "data.jsonl")
+
+	// Create a file with valid content, then remove read permission
+	if err := os.WriteFile(filePath, []byte(`{"key":"value"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filePath, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filePath, 0o600) })
+
+	called := false
+	err := scanJSONLFile(filePath, func(_ []byte) { called = true })
+	if err == nil {
+		t.Fatal("expected permission denied error from scanJSONLFile")
+	}
+	if called {
+		t.Error("callback should not be invoked when file is unreadable")
+	}
+	if !errors.Is(err, os.ErrPermission) {
+		t.Errorf("expected os.ErrPermission, got: %v", err)
+	}
+}
+
+func TestWriteSyncClose_WriteError(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.dat")
+
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	writeErr := fmt.Errorf("simulated write failure")
+	err = writeSyncClose(f, func(_ io.Writer) error {
+		return writeErr
+	})
+	if err == nil {
+		t.Fatal("expected error from writeSyncClose when writeFunc fails")
+	}
+	if !strings.Contains(err.Error(), "write content") {
+		t.Errorf("expected 'write content' wrapper, got: %v", err)
+	}
+	if !errors.Is(err, writeErr) {
+		t.Errorf("expected wrapped writeErr, got: %v", err)
+	}
+}
+
+func TestWithLockedFile_MkdirAllError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a regular file where a directory is expected
+	blocker := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("not a dir"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Try withLockedFile using a path whose parent is the regular file
+	fs := NewFileStorage(WithBaseDir(tmpDir))
+	err := fs.withLockedFile(filepath.Join(blocker, "child", "file.lock"), func(_ *os.File) error {
+		t.Error("callback should not be called when MkdirAll fails")
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected error from withLockedFile when MkdirAll fails")
+	}
+}
+
+func TestWithLockedFile_OpenFileError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a directory where the lock file should be — OpenFile on a dir fails
+	lockPath := filepath.Join(tmpDir, "lockdir")
+	if err := os.MkdirAll(lockPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := NewFileStorage(WithBaseDir(tmpDir))
+	err := fs.withLockedFile(lockPath, func(_ *os.File) error {
+		t.Error("callback should not be called when OpenFile fails")
+		return nil
+	})
+	if err == nil {
+		t.Fatal("expected error from withLockedFile when path is a directory")
+	}
+	if !strings.Contains(err.Error(), "open file") {
+		t.Errorf("expected 'open file' error, got: %v", err)
+	}
+}
+
+func TestAppendJSONLToFile_SyncError(t *testing.T) {
+	// /dev/null accepts writes but Sync fails with ENOTSUP on macOS/Linux.
+	// This exercises the f.Sync() error path in appendJSONLToFile.
+	f, err := os.OpenFile("/dev/null", os.O_RDWR, 0)
+	if err != nil {
+		t.Skipf("cannot open /dev/null: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	fs := NewFileStorage()
+	err = fs.appendJSONLToFile(f, map[string]string{"key": "value"})
+	if err == nil {
+		t.Fatal("expected sync error when writing to /dev/null")
+	}
+	if !strings.Contains(err.Error(), "sync file") {
+		t.Fatalf("expected 'sync file' error, got: %v", err)
+	}
+}

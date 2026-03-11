@@ -569,3 +569,316 @@ func TestMergeDedupGroups_DryRun(t *testing.T) {
 		t.Error("archive directory was created during dry-run, should not exist")
 	}
 }
+
+func TestRunDedup_NoDirs(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(origDir) }()
+	r, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+	err := runDedup(nil, nil)
+	_ = w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("no dirs: %v", err)
+	}
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	if !containsStr(string(buf[:n]), "No learnings or patterns") {
+		t.Errorf("expected no-dirs, got: %q", string(buf[:n]))
+	}
+}
+
+func TestRunDedup_EmptyDirs(t *testing.T) {
+	tmp := t.TempDir()
+	os.MkdirAll(filepath.Join(tmp, ".agents", "learnings"), 0o755)
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(origDir) }()
+	r, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+	err := runDedup(nil, nil)
+	_ = w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("empty: %v", err)
+	}
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	if !containsStr(string(buf[:n]), "No learning or pattern files") {
+		t.Errorf("expected empty msg, got: %q", string(buf[:n]))
+	}
+}
+
+func TestRunDedup_TextOutput(t *testing.T) {
+	tmp := t.TempDir()
+	ld := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(ld, 0o755)
+	os.WriteFile(filepath.Join(ld, "a.md"), []byte("---\ntitle: A\n---\nUnique A."), 0o644)
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(origDir) }()
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+	r, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+	err := runDedup(nil, nil)
+	_ = w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("text: %v", err)
+	}
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	got := string(buf[:n])
+	if !containsStr(got, "Dedup Scan Results") {
+		t.Errorf("expected header, got: %q", got)
+	}
+}
+
+func TestRunDedup_TextOutputWithDuplicates(t *testing.T) {
+	tmp := t.TempDir()
+	ld := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(ld, 0o755)
+	body := "Identical body."
+	os.WriteFile(filepath.Join(ld, "d1.md"), []byte("---\ntitle: D1\n---\n"+body), 0o644)
+	os.WriteFile(filepath.Join(ld, "d2.md"), []byte("---\ntitle: D2\n---\n"+body), 0o644)
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(origDir) }()
+	origOutput := output
+	output = "table"
+	defer func() { output = origOutput }()
+	r, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+	err := runDedup(nil, nil)
+	_ = w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("text dups: %v", err)
+	}
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	if !containsStr(string(buf[:n]), "Duplicate Groups:") {
+		t.Errorf("expected groups, got: %q", string(buf[:n]))
+	}
+}
+
+func TestRunDedup_MergeDryRun(t *testing.T) {
+	tmp := t.TempDir()
+	ld := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(ld, 0o755)
+	body := "Same merge."
+	os.WriteFile(filepath.Join(ld, "m1.md"), []byte("---\nutility: 0.9\n---\n"+body), 0o644)
+	os.WriteFile(filepath.Join(ld, "m2.md"), []byte("---\nutility: 0.3\n---\n"+body), 0o644)
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(origDir) }()
+	origMerge := dedupMerge
+	dedupMerge = true
+	defer func() { dedupMerge = origMerge }()
+	origDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = origDryRun }()
+	r, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+	err := runDedup(nil, nil)
+	_ = w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("merge dry: %v", err)
+	}
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	if !containsStr(string(buf[:n]), "dry-run") {
+		t.Errorf("expected dry-run, got: %q", string(buf[:n]))
+	}
+}
+
+func TestRunDedup_MergeNoDuplicates(t *testing.T) {
+	tmp := t.TempDir()
+	ld := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(ld, 0o755)
+	os.WriteFile(filepath.Join(ld, "u.md"), []byte("---\ntitle: U\n---\nUnique."), 0o644)
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer func() { _ = os.Chdir(origDir) }()
+	origMerge := dedupMerge
+	dedupMerge = true
+	defer func() { dedupMerge = origMerge }()
+	origOutput := output
+	output = "json"
+	defer func() { output = origOutput }()
+	r, w, _ := os.Pipe()
+	origStdout := os.Stdout
+	os.Stdout = w
+	err := runDedup(nil, nil)
+	_ = w.Close()
+	os.Stdout = origStdout
+	if err != nil {
+		t.Fatalf("merge no dups: %v", err)
+	}
+	var result DedupResult
+	json.NewDecoder(r).Decode(&result)
+	if result.DuplicateGroups != 0 {
+		t.Errorf("DuplicateGroups = %d, want 0", result.DuplicateGroups)
+	}
+}
+
+func TestReadUtilityFromJSONL_StringUtility(t *testing.T) {
+	if got := readUtilityFromJSONL(`{"utility":"0.85"}`, 0.5); got != 0.85 {
+		t.Errorf("string = %f, want 0.85", got)
+	}
+}
+
+func TestReadUtilityFromJSONL_InvalidJSON(t *testing.T) {
+	if got := readUtilityFromJSONL("bad", 0.5); got != 0.5 {
+		t.Errorf("invalid = %f, want 0.5", got)
+	}
+}
+
+func TestReadUtilityFromJSONL_EmptyText(t *testing.T) {
+	if got := readUtilityFromJSONL("", 0.5); got != 0.5 {
+		t.Errorf("empty = %f, want 0.5", got)
+	}
+}
+
+func TestReadUtilityFromJSONL_UnparseableString(t *testing.T) {
+	if got := readUtilityFromJSONL(`{"utility":"xyz"}`, 0.5); got != 0.5 {
+		t.Errorf("nan = %f, want 0.5", got)
+	}
+}
+
+func TestReadUtilityFromFrontmatter_UnparseableValue(t *testing.T) {
+	if got := readUtilityFromFrontmatter("---\nutility: xyz\n---\nB", 0.5); got != 0.5 {
+		t.Errorf("nan = %f, want 0.5", got)
+	}
+}
+
+func TestReadUtilityFromFrontmatter_NoClosingDelimiter(t *testing.T) {
+	if got := readUtilityFromFrontmatter("---\nutility: 0.9\ntitle: X", 0.5); got != 0.9 {
+		t.Errorf("no close = %f, want 0.9", got)
+	}
+}
+
+func TestExtractLearningBody_JSONL(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "l.jsonl")
+	os.WriteFile(p, []byte(`{"content":"jb"}`+"\n"), 0o644)
+	if got := extractLearningBody(p); got != "jb" {
+		t.Errorf("JSONL = %q, want jb", got)
+	}
+}
+
+func TestExtractLearningBody_Nonexistent(t *testing.T) {
+	if got := extractLearningBody("/no/file.md"); got != "" {
+		t.Errorf("nonexist = %q", got)
+	}
+}
+
+func TestExtractMarkdownBody_UnclosedFrontmatter(t *testing.T) {
+	text := "---\ntitle: X\nContent"
+	if got := extractMarkdownBody(text); got != text {
+		t.Errorf("unclosed = %q", got)
+	}
+}
+
+func TestExtractJSONLBody_Empty(t *testing.T) {
+	if got := extractJSONLBody(""); got != "" {
+		t.Errorf("empty = %q", got)
+	}
+}
+
+func TestExtractJSONLBody_InvalidJSON(t *testing.T) {
+	if got := extractJSONLBody("bad"); got != "" {
+		t.Errorf("invalid = %q", got)
+	}
+}
+
+func TestExtractJSONLBody_NoContentOrTitle(t *testing.T) {
+	if got := extractJSONLBody(`{"utility":0.5}`); got != "" {
+		t.Errorf("no content = %q", got)
+	}
+}
+
+func TestReadUtilityFromFile_JSONLStringUtility(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "s.jsonl")
+	os.WriteFile(p, []byte(`{"utility":"0.65"}`+"\n"), 0o644)
+	if got := readUtilityFromFile(p); got != 0.65 {
+		t.Errorf("str = %f, want 0.65", got)
+	}
+}
+
+func TestReadUtilityFromFile_Nonexistent(t *testing.T) {
+	if got := readUtilityFromFile("/no/file.md"); got != 0.5 {
+		t.Errorf("nonexist = %f, want 0.5", got)
+	}
+}
+
+func TestCollectDedupFiles_NeitherDir(t *testing.T) {
+	files, err := collectDedupFiles(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files != nil {
+		t.Errorf("expected nil, got %v", files)
+	}
+}
+
+func TestGroupByContentHash_SkipsNonexistent(t *testing.T) {
+	result := groupByContentHash([]string{"/no/file.md"})
+	if len(result) != 0 {
+		t.Errorf("expected empty, got %d", len(result))
+	}
+}
+
+func TestPickHighestUtility_SingleFile(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "only.md")
+	os.WriteFile(p, []byte("---\nutility: 0.8\n---\nB"), 0o644)
+	kept, archived := pickHighestUtility([]string{p})
+	if kept != p {
+		t.Errorf("not kept: %q", kept)
+	}
+	if len(archived) != 0 {
+		t.Errorf("archived = %d", len(archived))
+	}
+}
+
+func TestPickHighestUtility_ThreeFiles(t *testing.T) {
+	tmp := t.TempDir()
+	lo := filepath.Join(tmp, "lo.md")
+	mi := filepath.Join(tmp, "mi.md")
+	hi := filepath.Join(tmp, "hi.md")
+	os.WriteFile(lo, []byte("---\nutility: 0.2\n---\nB"), 0o644)
+	os.WriteFile(mi, []byte("---\nutility: 0.5\n---\nB"), 0o644)
+	os.WriteFile(hi, []byte("---\nutility: 0.9\n---\nB"), 0o644)
+	kept, archived := pickHighestUtility([]string{lo, mi, hi})
+	if kept != hi {
+		t.Errorf("expected hi, got %q", kept)
+	}
+	if len(archived) != 2 {
+		t.Errorf("archived = %d, want 2", len(archived))
+	}
+}
+
+func TestBuildDedupResult_RelativePathFallback(t *testing.T) {
+	h := map[string][]string{
+		"abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abc1": {"/a/b.md", "/a/c.md"},
+	}
+	result := buildDedupResult(h, 2, "/nonexistent")
+	if result.DuplicateGroups != 1 {
+		t.Errorf("groups = %d", result.DuplicateGroups)
+	}
+	if len(result.Groups[0].Files) != 2 {
+		t.Errorf("files = %d", len(result.Groups[0].Files))
+	}
+}

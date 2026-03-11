@@ -767,3 +767,167 @@ func TestCleanEnvNoClaude_NoClaudeVars(t *testing.T) {
 		t.Error("cleanEnvNoClaude returned empty env (expected at least PATH)")
 	}
 }
+
+func TestDirectExecutor_EffectiveStdoutWriter_NilFallsBack(t *testing.T) {
+	d := &directExecutor{stdoutWriter: nil}
+	w := d.effectiveStdoutWriter()
+	if w == nil {
+		t.Error("should return non-nil even when stdoutWriter is nil")
+	}
+}
+
+func TestDirectExecutor_EffectiveStdoutWriter_Custom(t *testing.T) {
+	var buf strings.Builder
+	d := &directExecutor{stdoutWriter: &buf}
+	w := d.effectiveStdoutWriter()
+	if w != &buf {
+		t.Error("should return the custom writer when set")
+	}
+}
+
+func TestStreamExecutor_EffectiveStdoutWriter_NilFallsBack(t *testing.T) {
+	s := &streamExecutor{stdoutWriter: nil}
+	w := s.effectiveStdoutWriter()
+	if w == nil {
+		t.Error("should return non-nil even when stdoutWriter is nil")
+	}
+}
+
+func TestStreamExecutor_EffectiveStdoutWriter_Custom(t *testing.T) {
+	var buf strings.Builder
+	s := &streamExecutor{stdoutWriter: &buf}
+	w := s.effectiveStdoutWriter()
+	if w != &buf {
+		t.Error("should return the custom writer when set")
+	}
+}
+
+func TestUpdateLivePhaseStatus_NegativePhaseNum2(t *testing.T) {
+	allPhases := buildAllPhases(phases)
+	updateLivePhaseStatus("", allPhases, 0, "test", 0, "")
+	if allPhases[0].CurrentAction != "pending" {
+		t.Errorf("should be untouched, got %q", allPhases[0].CurrentAction)
+	}
+}
+
+func TestUpdateLivePhaseStatus_PhaseNumTooLarge2(t *testing.T) {
+	allPhases := buildAllPhases(phases)
+	updateLivePhaseStatus("", allPhases, len(phases)+1, "test", 0, "")
+}
+
+func TestUpdateLivePhaseStatus_ValidPhase2(t *testing.T) {
+	allPhases := buildAllPhases(phases)
+	updateLivePhaseStatus("", allPhases, 1, "running tool X", 3, "some error")
+	if allPhases[0].RetryCount != 3 {
+		t.Errorf("RetryCount = %d, want 3", allPhases[0].RetryCount)
+	}
+	if allPhases[0].LastUpdate.IsZero() {
+		t.Error("LastUpdate should be set")
+	}
+}
+
+func TestUpdateLivePhaseStatus_EmptyAction2(t *testing.T) {
+	allPhases := buildAllPhases(phases)
+	allPhases[0].CurrentAction = "already running"
+	updateLivePhaseStatus("", allPhases, 1, "", 0, "")
+	if allPhases[0].CurrentAction != "already running" {
+		t.Errorf("CurrentAction = %q, want %q", allPhases[0].CurrentAction, "already running")
+	}
+}
+
+func TestStartStreamWatchdogs_CapsStartupCheckInterval2(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	watchdog := &streamWatchdogState{}
+	watchdog.lastActivityUnix.Store(time.Now().UnixNano())
+	watchdog.eventCount.Store(1)
+	startStreamWatchdogs(ctx, func(err error) { cancel() }, watchdog, time.Now(), 10*time.Second, 0, 1*time.Second)
+	time.Sleep(50 * time.Millisecond)
+	if ctx.Err() != nil {
+		t.Error("context should not be cancelled when events already exist")
+	}
+}
+
+func TestRunStallWatchdog_ExitsOnContextCancel2(t *testing.T) {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	var lastActivity atomic.Int64
+	lastActivity.Store(time.Now().UnixNano())
+	done := make(chan struct{})
+	go func() {
+		runStallWatchdog(ctx, cancel, &lastActivity, 10*time.Millisecond, 1*time.Hour)
+		close(done)
+	}()
+	cancel(nil)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stall watchdog did not exit after context cancellation")
+	}
+}
+
+func TestRunStallWatchdog_DetectsStall2(t *testing.T) {
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+	var lastActivity atomic.Int64
+	lastActivity.Store(time.Now().Add(-2 * time.Second).UnixNano())
+	go runStallWatchdog(ctx, cancel, &lastActivity, 10*time.Millisecond, 100*time.Millisecond)
+	select {
+	case <-ctx.Done():
+		cause := context.Cause(ctx)
+		if cause == nil || !strings.Contains(cause.Error(), "stall detected") {
+			t.Errorf("expected stall detection cause, got: %v", cause)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("stall watchdog did not fire")
+	}
+}
+
+func TestBuildAllPhases_EmptyInput2(t *testing.T) {
+	all := buildAllPhases(nil)
+	if len(all) != 0 {
+		t.Errorf("length = %d, want 0", len(all))
+	}
+}
+
+func TestBuildAllPhases_SinglePhase2(t *testing.T) {
+	defs := []phase{{Name: "test-phase"}}
+	all := buildAllPhases(defs)
+	if len(all) != 1 {
+		t.Fatalf("length = %d, want 1", len(all))
+	}
+	if all[0].Name != "test-phase" {
+		t.Errorf("Name = %q, want %q", all[0].Name, "test-phase")
+	}
+}
+
+func TestClassifyStreamResult_NonExitWaitError2(t *testing.T) {
+	ctx := context.Background()
+	stallCtx := context.Background()
+	waitErr := fmt.Errorf("connection reset")
+	err := classifyStreamResult(ctx, stallCtx, "claude", 1, 0, waitErr, nil, 5)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "execution failed") {
+		t.Errorf("error = %q, should mention 'execution failed'", err.Error())
+	}
+}
+
+func TestSelectExecutorFromCaps_TmuxMode2(t *testing.T) {
+	caps := backendCapabilities{RuntimeMode: "tmux", LiveStatusEnabled: false}
+	opts := defaultPhasedEngineOptions()
+	executor, reason := selectExecutorFromCaps(caps, "", nil, opts)
+	if executor.Name() != "tmux" {
+		t.Errorf("executor name = %q, want %q", executor.Name(), "tmux")
+	}
+	if !strings.Contains(reason, "tmux") {
+		t.Errorf("reason = %q, should mention tmux", reason)
+	}
+}
+
+func TestShouldFallbackToDirect_CaseInsensitive2(t *testing.T) {
+	err := fmt.Errorf("STREAM STARTUP TIMEOUT: no events")
+	if !shouldFallbackToDirect(err) {
+		t.Error("shouldFallbackToDirect should be case-insensitive")
+	}
+}

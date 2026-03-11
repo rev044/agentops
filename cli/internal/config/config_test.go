@@ -1540,3 +1540,14 @@ func TestMerge_GlobalWeight(t *testing.T) {
 		t.Errorf("merge GlobalWeight with zero = %f, want 0.8 (preserved)", result2.Paths.GlobalWeight)
 	}
 }
+
+func TestHomeConfigPath_UserHomeDirError(t *testing.T) {
+	// When HOME is empty, os.UserHomeDir() returns an error and
+	// homeConfigPath must return an empty string.
+	t.Setenv("HOME", "")
+
+	result := homeConfigPath()
+	if result != "" {
+		t.Errorf("homeConfigPath() = %q, want empty string when HOME is unset", result)
+	}
+}

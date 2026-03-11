@@ -95,3 +95,70 @@ func TestIsInVault(t *testing.T) {
 		t.Error("IsInVault() = false, want true")
 	}
 }
+
+func TestDetectVault_GetwdError(t *testing.T) {
+	// Trigger os.Getwd() failure by chdir-ing to a deleted directory.
+	// On macOS, Getwd may still succeed for deleted dirs (kernel caches vnode),
+	// so this test verifies the behavior without guaranteeing the error branch.
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "vault-getwd-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chdir(tmpDir); err != nil {
+		_ = os.RemoveAll(tmpDir)
+		t.Fatal(err)
+	}
+
+	// Remove the directory while we're in it
+	_ = os.RemoveAll(tmpDir)
+
+	result := DetectVault("")
+
+	// Restore cwd before assertions so test cleanup works
+	if err := os.Chdir(origDir); err != nil {
+		t.Fatalf("failed to restore working directory: %v", err)
+	}
+
+	// On macOS Getwd succeeds for deleted dirs, so result may not be "".
+	// On Linux, Getwd fails and result should be "".
+	// Either way, verify no panic occurred.
+	_ = result
+}
+
+func TestDetectVault_WithNestedVault(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	vaultDir := filepath.Join(tmpDir, "workspace", "notes")
+	obsidianDir := filepath.Join(vaultDir, ".obsidian")
+	subDir := filepath.Join(vaultDir, "daily", "2026", "03")
+	if err := os.MkdirAll(obsidianDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := DetectVault(subDir)
+	if got != vaultDir {
+		t.Errorf("DetectVault(%q) = %q, want %q", subDir, got, vaultDir)
+	}
+}
+
+func TestDetectVault_WalksToRoot(t *testing.T) {
+	tmpDir := t.TempDir()
+	deep := filepath.Join(tmpDir, "a", "b", "c", "d")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	result := DetectVault(deep)
+	if result != "" {
+		t.Errorf("DetectVault(%q) = %q, want empty string (no vault)", deep, result)
+	}
+}

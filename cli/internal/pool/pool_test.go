@@ -2696,6 +2696,186 @@ func TestAtomicMove_RenameError(t *testing.T) {
 	}
 }
 
+// --- Coverage gap tests (targeting uncovered branches) ---
+
+func TestFindByPrefix_SkipsNonJSONDirsAndMalformed(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a valid candidate with a known prefix
+	if err := p.Add(types.Candidate{ID: "pfx-valid", Tier: types.TierSilver, Content: "valid"}, types.Scoring{}); err != nil {
+		t.Fatal(err)
+	}
+
+	pendingDir := filepath.Join(p.PoolPath, PendingDir)
+
+	// Create a non-JSON file with matching prefix (covers !strings.HasSuffix branch)
+	if err := os.WriteFile(filepath.Join(pendingDir, "pfx-text.txt"), []byte("not json"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a subdirectory with matching prefix (covers e.IsDir() branch)
+	if err := os.MkdirAll(filepath.Join(pendingDir, "pfx-subdir"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a malformed JSON file with matching prefix (covers readEntry error branch)
+	if err := os.WriteFile(filepath.Join(pendingDir, "pfx-broken.json"), []byte("{bad json"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	matches, err := p.FindByPrefix("pfx-")
+	if err != nil {
+		t.Fatalf("FindByPrefix failed: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match (skip non-JSON, dirs, malformed), got %d", len(matches))
+	}
+	if matches[0].Candidate.ID != "pfx-valid" {
+		t.Errorf("expected pfx-valid, got %s", matches[0].Candidate.ID)
+	}
+}
+
+func TestFindByPrefix_MissingDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	// Don't Init -- directories don't exist, covers os.ReadDir error continue branch
+
+	matches, err := p.FindByPrefix("anything")
+	if err != nil {
+		t.Fatalf("FindByPrefix on uninitialized pool should not error: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Errorf("expected 0 matches for uninitialized pool, got %d", len(matches))
+	}
+}
+
+func TestPromoteEntryRemoveWarning(t *testing.T) {
+	// Exercise the non-fatal os.Remove warning in Promote (line 445-447).
+	// Make the staged directory non-writable so Remove fails but the rest succeeds.
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "promote-rm-warn",
+		Tier:    types.TierSilver,
+		Type:    types.KnowledgeTypeLearning,
+		Content: "Content for removal warning test",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Stage("promote-rm-warn", types.TierBronze); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make staged directory read-only so os.Remove(entry.FilePath) fails
+	stagedDir := filepath.Join(p.PoolPath, StagedDir)
+	if err := os.Chmod(stagedDir, 0500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(stagedDir, 0700) })
+
+	// Promote should succeed (Remove failure is non-fatal warning)
+	artifactPath, err := p.Promote("promote-rm-warn")
+	if err != nil {
+		t.Fatalf("Promote should succeed despite source removal warning: %v", err)
+	}
+	if artifactPath == "" {
+		t.Error("expected non-empty artifact path")
+	}
+	if _, err := os.Stat(artifactPath); os.IsNotExist(err) {
+		t.Error("artifact file should exist")
+	}
+}
+
+func TestOpenIfExists_NonExistentReturnsNilNil(t *testing.T) {
+	f, err := openIfExists(filepath.Join(t.TempDir(), "does-not-exist.txt"))
+	if f != nil {
+		_ = f.Close()
+		t.Error("expected nil file for non-existent path")
+	}
+	if err != nil {
+		t.Errorf("expected nil error for non-existent path, got: %v", err)
+	}
+}
+
+func TestOpenIfExists_ExistingFileReturnsFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "exists.txt")
+	if err := os.WriteFile(path, []byte("content"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := openIfExists(path)
+	if err != nil {
+		t.Fatalf("openIfExists failed: %v", err)
+	}
+	if f == nil {
+		t.Fatal("expected non-nil file")
+	}
+	_ = f.Close()
+}
+
+func TestOpenIfExists_PermissionError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "noperm.txt")
+	if err := os.WriteFile(path, []byte("content"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0600) })
+
+	f, err := openIfExists(path)
+	if f != nil {
+		_ = f.Close()
+		t.Error("expected nil file for unreadable path")
+	}
+	// Permission error is NOT IsNotExist, so it should return err
+	if err == nil {
+		t.Error("expected error for permission-denied file")
+	}
+}
+
+func TestWriteArtifactNoSourceSession(t *testing.T) {
+	// Exercise the "source_session: unknown" and "Source: unknown" branches
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	entry := &PoolEntry{
+		PoolEntry: types.PoolEntry{
+			Candidate: types.Candidate{
+				ID:      "no-source",
+				Type:    types.KnowledgeTypeLearning,
+				Content: "Content without source info",
+				Source:  types.Source{}, // empty SessionID
+			},
+			Status: types.PoolStatusStaged,
+		},
+	}
+
+	artifactPath := filepath.Join(tmpDir, "no-source.md")
+	if err := p.writeArtifact(artifactPath, entry); err != nil {
+		t.Fatalf("writeArtifact failed: %v", err)
+	}
+
+	data, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, "source_session: unknown") {
+		t.Error("expected 'source_session: unknown' in frontmatter")
+	}
+	if !strings.Contains(content, "**Source**: unknown") {
+		t.Error("expected '**Source**: unknown' in body")
+	}
+}
+
 // --- Benchmarks ---
 
 func benchCandidate(id string) (types.Candidate, types.Scoring) {

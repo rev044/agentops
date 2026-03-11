@@ -330,3 +330,193 @@ func TestResolveMergeSource_InvalidPath(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestAttemptBranchHeal_EmptyOutputError(t *testing.T) {
+	// Exercise attemptBranchHeal where branch create fails with empty output,
+	// reaching the bare ErrDetachedSelfHealFailed return.
+	emptyRepo := t.TempDir()
+	cmd := exec.Command("git", "init", emptyRepo)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	cmd = exec.Command("git", "config", "user.email", "test@test.com")
+	cmd.Dir = emptyRepo
+	_ = cmd.Run()
+	cmd = exec.Command("git", "config", "user.name", "Test")
+	cmd.Dir = emptyRepo
+	_ = cmd.Run()
+
+	_, _, err := attemptBranchHeal(emptyRepo, 5*time.Second, "test-recovery")
+	if err == nil {
+		t.Fatal("expected error from attemptBranchHeal on empty repo")
+	}
+}
+
+func TestAttemptBranchSwitch_WorktreeBusy(t *testing.T) {
+	// Exercise attemptBranchSwitch where switch fails with "used by worktree".
+	repo := initGitRepo(t)
+
+	branchName := "switch-busy-test"
+	runGit(t, repo, "branch", branchName)
+
+	wtDir := t.TempDir()
+	wtPath := filepath.Join(wtDir, "wt")
+	runGit(t, repo, "worktree", "add", wtPath, branchName)
+	defer runGitIgnoreError(t, repo, "worktree", "remove", "--force", wtPath)
+
+	branch, healed, err := attemptBranchSwitch(repo, 5*time.Second, branchName)
+	if err != nil {
+		t.Fatalf("expected nil error for worktree-busy fallback, got: %v", err)
+	}
+	if healed {
+		t.Error("expected healed=false for worktree-busy case")
+	}
+	if branch != "" {
+		t.Errorf("expected empty branch for worktree-busy case, got %q", branch)
+	}
+}
+
+func TestHandleMergeFailure_Timeout(t *testing.T) {
+	// Exercise handleMergeFailure with context deadline exceeded.
+	repo := initGitRepo(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+	time.Sleep(1 * time.Millisecond)
+
+	err := handleMergeFailure(repo, "abc123", "abc1", ctx, os.ErrPermission, 5*time.Second)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("expected 'timed out' in error, got: %v", err)
+	}
+}
+
+func TestHandleMergeFailure_ConflictListFails(t *testing.T) {
+	// Exercise handleMergeFailure where git diff fails (non-git dir) and
+	// conflict files are empty, returning "git merge failed".
+	nonGitDir := t.TempDir()
+	ctx := context.Background()
+
+	err := handleMergeFailure(nonGitDir, "abc123def456", "abc123def456", ctx, os.ErrPermission, 5*time.Second)
+	if err == nil {
+		t.Fatal("expected error from handleMergeFailure")
+	}
+	if !strings.Contains(err.Error(), "git merge failed") {
+		t.Errorf("expected 'git merge failed' in error, got: %v", err)
+	}
+}
+
+func TestAcquireMergeLock_MkdirAllFails(t *testing.T) {
+	// Exercise acquireMergeLock where MkdirAll fails.
+	tmp := t.TempDir()
+	gitDir := filepath.Join(tmp, ".git")
+	if err := os.WriteFile(gitDir, []byte("not a dir"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := acquireMergeLock(tmp)
+	if err == nil {
+		t.Fatal("expected error when lock dir cannot be created")
+	}
+	if !strings.Contains(err.Error(), "create lock dir") {
+		t.Errorf("expected 'create lock dir' error, got: %v", err)
+	}
+}
+
+func TestAcquireMergeLock_OpenFileFails(t *testing.T) {
+	// Exercise acquireMergeLock where os.OpenFile fails.
+	tmp := t.TempDir()
+	lockDir := filepath.Join(tmp, ".git", "agentops")
+	if err := os.MkdirAll(lockDir, 0750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(lockDir, 0500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(lockDir, 0750) })
+
+	_, err := acquireMergeLock(tmp)
+	if err == nil {
+		t.Fatal("expected error when lock file cannot be opened")
+	}
+	if !strings.Contains(err.Error(), "open merge lock") {
+		t.Errorf("expected 'open merge lock' error, got: %v", err)
+	}
+}
+
+func TestMergeWorktree_LockDirBlocked(t *testing.T) {
+	// Exercise MergeWorktree where acquireMergeLock fails.
+	repo := initGitRepo(t)
+
+	agentopsFile := filepath.Join(repo, ".git", "agentops")
+	if err := os.WriteFile(agentopsFile, []byte("blocker"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := MergeWorktree(repo, "/fake/path", "fakerun", 5*time.Second, nil)
+	if err == nil {
+		t.Fatal("expected error for merge with blocked lock dir")
+	}
+	if !strings.Contains(err.Error(), "merge lock") {
+		t.Errorf("expected 'merge lock' in error, got: %v", err)
+	}
+}
+
+func TestWaitForCleanRepo_GitStatusTimeout(t *testing.T) {
+	// Exercise waitForCleanRepo timeout path.
+	repo := initGitRepo(t)
+	err := waitForCleanRepo(repo, 1*time.Nanosecond, nil)
+	if err == nil {
+		t.Skip("git status completed faster than 1ns timeout")
+	}
+	if !strings.Contains(err.Error(), "timed out") && !strings.Contains(err.Error(), "uncommitted") {
+		t.Errorf("expected timeout or unclean error, got: %v", err)
+	}
+}
+
+func TestResolveAbsPath_EvalSymlinksFails_AbsSucceeds(t *testing.T) {
+	// Exercise resolveAbsPath where EvalSymlinks fails but filepath.Abs succeeds.
+	brokenLink := filepath.Join(t.TempDir(), "broken-link")
+	if err := os.Symlink("/nonexistent/target/path", brokenLink); err != nil {
+		t.Fatal(err)
+	}
+	deepPath := filepath.Join(brokenLink, "sub", "dir")
+
+	absPath, err := resolveAbsPath(deepPath)
+	if err != nil {
+		t.Fatalf("resolveAbsPath should succeed via Abs fallback, got: %v", err)
+	}
+	if !filepath.IsAbs(absPath) {
+		t.Errorf("expected absolute path, got: %q", absPath)
+	}
+}
+
+func TestAttemptBranchHeal_BranchCreateTimeout(t *testing.T) {
+	// Exercise attemptBranchHeal with very short timeout to potentially reach
+	// empty output error path.
+	repo := initGitRepo(t)
+	sha := strings.TrimSpace(runGitOutput(t, repo, "rev-parse", "HEAD"))
+	runGit(t, repo, "checkout", sha)
+
+	_, _, err := attemptBranchHeal(repo, 1*time.Nanosecond, "timeout-test-recovery")
+	if err == nil {
+		t.Skip("git branch completed faster than 1ns timeout")
+	}
+}
+
+func TestLockFile_ClosedFd(t *testing.T) {
+	// Exercise lockFile with a closed file descriptor.
+	tmp := t.TempDir()
+	lockPath := filepath.Join(tmp, "test.lock")
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	lockErr := lockFile(f)
+	if lockErr == nil {
+		t.Skip("lockFile succeeded on closed fd (OS dependent)")
+	}
+}

@@ -1647,3 +1647,326 @@ func TestMaturity_runAntiPatterns_jsonOutput(t *testing.T) {
 		}
 	})
 }
+
+func TestMaturity_buildCitationMap_noCitationsFile(t *testing.T) {
+	result := buildCitationMap(t.TempDir())
+	if len(result) != 0 {
+		t.Errorf("expected empty map, got %d entries", len(result))
+	}
+}
+
+func TestMaturity_runMaturityEvict_noLearningsDir(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTo(t, tmp)
+	got := captureJSONStdout(t, func() {
+		if err := runMaturityEvict(maturityCmd); err != nil {
+			t.Fatalf("no dir: %v", err)
+		}
+	})
+	if !strings.Contains(got, "No learnings directory") {
+		t.Errorf("expected no-dir, got: %s", got)
+	}
+}
+
+func TestMaturity_runMaturityEvict_withCandidate(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(learningsDir, 0o755)
+	chdirTo(t, tmp)
+	cov3W2WriteLearningJSONL(t, learningsDir, "ev.jsonl", map[string]any{
+		"id": "ev", "maturity": "provisional", "utility": 0.1, "confidence": 0.1,
+		"reward_count": 1, "helpful_count": 0, "harmful_count": 1,
+	})
+	oldEvict := maturityEvict
+	oldArchive := maturityArchive
+	maturityEvict = true
+	maturityArchive = true
+	defer func() { maturityEvict = oldEvict; maturityArchive = oldArchive }()
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+	captureJSONStdout(t, func() {
+		if err := runMaturityEvict(maturityCmd); err != nil {
+			t.Fatalf("evict: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturityEvict_jsonOutput(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(learningsDir, 0o755)
+	chdirTo(t, tmp)
+	cov3W2WriteLearningJSONL(t, learningsDir, "ej.jsonl", map[string]any{
+		"id": "ej", "maturity": "provisional", "utility": 0.1, "confidence": 0.1,
+		"reward_count": 1, "helpful_count": 0, "harmful_count": 1,
+	})
+	oldEvict := maturityEvict
+	oldArchive := maturityArchive
+	maturityEvict = true
+	maturityArchive = false
+	defer func() { maturityEvict = oldEvict; maturityArchive = oldArchive }()
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+	captureJSONStdout(t, func() {
+		if err := runMaturityEvict(maturityCmd); err != nil {
+			t.Fatalf("json: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturityScanAll_dryRun2(t *testing.T) {
+	tmp, _ := cov3W2SetupMaturityDir(t)
+	oldDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = oldDryRun }()
+	got := captureJSONStdout(t, func() {
+		if err := runMaturityScanAll(filepath.Join(tmp, ".agents", "learnings"), filepath.Join(tmp, ".agents", "patterns")); err != nil {
+			t.Fatalf("dry-run: %v", err)
+		}
+	})
+	if !strings.Contains(got, "[dry-run]") {
+		t.Errorf("expected dry-run, got: %s", got)
+	}
+}
+
+func TestMaturity_runMaturityScanAll_noDirs2(t *testing.T) {
+	tmp := t.TempDir()
+	got := captureJSONStdout(t, func() {
+		if err := runMaturityScanAll(filepath.Join(tmp, "x"), filepath.Join(tmp, "y")); err != nil {
+			t.Fatalf("no dirs: %v", err)
+		}
+	})
+	if !strings.Contains(got, "No learnings or patterns") {
+		t.Errorf("expected msg, got: %s", got)
+	}
+}
+
+func TestMaturity_runMaturityScanAll_bothDirsApply(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	patternsDir := filepath.Join(tmp, ".agents", "patterns")
+	os.MkdirAll(patternsDir, 0o755)
+	cov3W2WriteLearningJSONL(t, learningsDir, "rd.jsonl", map[string]any{
+		"id": "rd", "maturity": "provisional", "utility": 0.7, "confidence": 0.6,
+		"reward_count": 5, "helpful_count": 5, "harmful_count": 0,
+	})
+	cov3W2WriteLearningJSONL(t, patternsDir, "pp.jsonl", map[string]any{
+		"id": "pp", "maturity": "established", "utility": 0.8, "confidence": 0.8,
+		"reward_count": 10, "helpful_count": 10, "harmful_count": 0,
+	})
+	oldApply := maturityApply
+	maturityApply = true
+	defer func() { maturityApply = oldApply }()
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+	captureJSONStdout(t, func() {
+		if err := runMaturityScanAll(learningsDir, patternsDir); err != nil {
+			t.Fatalf("apply: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturityScanAll_noTransitions2(t *testing.T) {
+	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	cov3W2WriteLearningJSONL(t, learningsDir, "st.jsonl", map[string]any{
+		"id": "st", "maturity": "established", "utility": 0.9, "confidence": 0.9,
+		"reward_count": 20, "helpful_count": 20, "harmful_count": 0,
+	})
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+	got := captureJSONStdout(t, func() {
+		if err := runMaturityScanAll(learningsDir, filepath.Join(tmp, ".agents", "patterns")); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+	if !strings.Contains(got, "No pending maturity transitions") {
+		t.Errorf("expected no-transitions, got: %s", got)
+	}
+}
+
+func TestMaturity_displayPendingTransitions_jsonOut(t *testing.T) {
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+	results := []*ratchet.MaturityTransitionResult{{
+		LearningID: "L099", OldMaturity: "provisional", NewMaturity: "candidate",
+		Transitioned: true, Utility: 0.7, Confidence: 0.6,
+		RewardCount: 5, HelpfulCount: 5, HarmfulCount: 0, Reason: "test",
+	}}
+	got := captureJSONStdout(t, func() {
+		if err := displayPendingTransitions(results); err != nil {
+			t.Fatalf("json: %v", err)
+		}
+	})
+	if !strings.Contains(got, "L099") {
+		t.Errorf("expected L099, got: %s", got)
+	}
+}
+
+func TestMaturity_runMaturity_evictBranch(t *testing.T) {
+	tmp, _ := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+	oldEvict := maturityEvict
+	maturityEvict = true
+	defer func() { maturityEvict = oldEvict }()
+	captureJSONStdout(t, func() {
+		if err := runMaturity(maturityCmd, nil); err != nil {
+			t.Fatalf("evict: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturity_expireBranch(t *testing.T) {
+	tmp, _ := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+	oldExpire := maturityExpire
+	maturityExpire = true
+	defer func() { maturityExpire = oldExpire }()
+	captureJSONStdout(t, func() {
+		if err := runMaturity(maturityCmd, nil); err != nil {
+			t.Fatalf("expire: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturity_migrateMdBranch(t *testing.T) {
+	tmp, _ := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+	oldMigrate := maturityMigrateMd
+	maturityMigrateMd = true
+	defer func() { maturityMigrateMd = oldMigrate }()
+	captureJSONStdout(t, func() {
+		if err := runMaturity(maturityCmd, nil); err != nil {
+			t.Fatalf("migrate: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturity_recalibrateBranch(t *testing.T) {
+	tmp, _ := cov3W2SetupMaturityDir(t)
+	chdirTo(t, tmp)
+	oldRecal := maturityRecalibrate
+	maturityRecalibrate = true
+	defer func() { maturityRecalibrate = oldRecal }()
+	captureJSONStdout(t, func() {
+		if err := runMaturity(maturityCmd, nil); err != nil {
+			t.Fatalf("recalibrate: %v", err)
+		}
+	})
+}
+
+func TestMaturity_runMaturityExpire_archivesExpiredFile(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(learningsDir, 0o755)
+	chdirTo(t, tmp)
+	os.WriteFile(filepath.Join(learningsDir, "old.md"), []byte("---\ntitle: Old\nvalid_until: 2020-01-01\n---\nExpired.\n"), 0o644)
+	oldExpire := maturityExpire
+	oldArchive := maturityArchive
+	maturityExpire = true
+	maturityArchive = true
+	defer func() { maturityExpire = oldExpire; maturityArchive = oldArchive }()
+	oldDryRun := dryRun
+	dryRun = false
+	defer func() { dryRun = oldDryRun }()
+	captureJSONStdout(t, func() {
+		if err := runMaturityExpire(maturityCmd); err != nil {
+			t.Fatalf("archive: %v", err)
+		}
+	})
+	if _, err := os.Stat(filepath.Join(learningsDir, "old.md")); !os.IsNotExist(err) {
+		t.Error("expired file still exists")
+	}
+}
+
+func TestMaturity_runMaturityExpire_mixedCategories(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, ".agents", "learnings")
+	os.MkdirAll(learningsDir, 0o755)
+	chdirTo(t, tmp)
+	os.WriteFile(filepath.Join(learningsDir, "active.md"), []byte("---\nvalid_until: 2099-01-01\n---\nB\n"), 0o644)
+	os.WriteFile(filepath.Join(learningsDir, "eternal.md"), []byte("---\ntitle: E\n---\nB\n"), 0o644)
+	os.WriteFile(filepath.Join(learningsDir, "archived.md"), []byte("---\nexpiry_status: archived\n---\nB\n"), 0o644)
+	os.WriteFile(filepath.Join(learningsDir, "expired.md"), []byte("---\nvalid_until: 2020-01-01\n---\nB\n"), 0o644)
+	oldExpire := maturityExpire
+	oldArchive := maturityArchive
+	maturityExpire = true
+	maturityArchive = false
+	defer func() { maturityExpire = oldExpire; maturityArchive = oldArchive }()
+	got := captureJSONStdout(t, func() {
+		if err := runMaturityExpire(maturityCmd); err != nil {
+			t.Fatalf("mixed: %v", err)
+		}
+	})
+	if !strings.Contains(got, "Active:           1") {
+		t.Errorf("expected 1 active, got: %s", got)
+	}
+}
+
+func TestMaturity_classifyExpiryEntry_rfc3339Date(t *testing.T) {
+	tmp := t.TempDir()
+	os.WriteFile(filepath.Join(tmp, "rfc.md"), []byte("---\nvalid_until: 2020-01-01T00:00:00Z\n---\nB\n"), 0o644)
+	info, _ := os.ReadDir(tmp)
+	cats := expiryCategory{}
+	classifyExpiryEntry(info[0], tmp, &cats)
+	if len(cats.newlyExpired) != 1 {
+		t.Errorf("expected 1 newlyExpired, got %d", len(cats.newlyExpired))
+	}
+}
+
+func TestMaturity_classifyExpiryEntry_badDateFormat(t *testing.T) {
+	tmp := t.TempDir()
+	os.WriteFile(filepath.Join(tmp, "bad.md"), []byte("---\nvalid_until: not-a-date\n---\nB\n"), 0o644)
+	info, _ := os.ReadDir(tmp)
+	cats := expiryCategory{}
+	classifyExpiryEntry(info[0], tmp, &cats)
+	if len(cats.neverExpiring) != 1 {
+		t.Errorf("expected 1 neverExpiring, got %d", len(cats.neverExpiring))
+	}
+}
+
+func TestMaturity_classifyExpiryEntry_futureDate(t *testing.T) {
+	tmp := t.TempDir()
+	os.WriteFile(filepath.Join(tmp, "future.md"), []byte("---\nvalid_until: 2099-12-31\n---\nB\n"), 0o644)
+	info, _ := os.ReadDir(tmp)
+	cats := expiryCategory{}
+	classifyExpiryEntry(info[0], tmp, &cats)
+	if len(cats.active) != 1 {
+		t.Errorf("expected 1 active, got %d", len(cats.active))
+	}
+}
+
+func TestMaturity_classifyExpiryEntry_alreadyArchived(t *testing.T) {
+	tmp := t.TempDir()
+	os.WriteFile(filepath.Join(tmp, "arch.md"), []byte("---\nexpiry_status: archived\n---\nB\n"), 0o644)
+	info, _ := os.ReadDir(tmp)
+	cats := expiryCategory{}
+	classifyExpiryEntry(info[0], tmp, &cats)
+	if len(cats.alreadyArchived) != 1 {
+		t.Errorf("expected 1 alreadyArchived, got %d", len(cats.alreadyArchived))
+	}
+}
+
+func TestMaturity_floatValueFromData_stringType(t *testing.T) {
+	data := map[string]any{"utility": "not-a-float"}
+	if got := floatValueFromData(data, "utility", 0.5); got != 0.5 {
+		t.Errorf("string type = %f, want 0.5", got)
+	}
+}
+
+func TestMaturity_nonEmptyStringFromData_emptyString(t *testing.T) {
+	data := map[string]any{"maturity": ""}
+	if got := nonEmptyStringFromData(data, "maturity", "default"); got != "default" {
+		t.Errorf("empty = %q, want default", got)
+	}
+}
+
+func TestMaturity_nonEmptyStringFromData_intType(t *testing.T) {
+	data := map[string]any{"maturity": 42}
+	if got := nonEmptyStringFromData(data, "maturity", "default"); got != "default" {
+		t.Errorf("int = %q, want default", got)
+	}
+}

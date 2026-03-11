@@ -1,6 +1,7 @@
 package provenance
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -388,6 +389,38 @@ func TestGraph_FindBySource_AbsolutePath(t *testing.T) {
 	results := g.FindBySource(sourcePath)
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result, got %d", len(results))
+	}
+}
+
+func TestGraph_Trace_AbsError_FallsBackToRawPath(t *testing.T) {
+	// When absPathFunc fails, Trace falls back to the raw artifact path
+	// and still matches records via the literal path comparison in matchByAbsPath.
+	content := `{"id":"prov-abs","artifact_path":"relative/session.md","artifact_type":"session","source_path":"/in/transcript.jsonl","source_type":"transcript"}`
+	path := createTestProvFile(t, content)
+
+	g, err := NewGraph(path)
+	if err != nil {
+		t.Fatalf("NewGraph() error = %v", err)
+	}
+
+	orig := absPathFunc
+	absPathFunc = func(string) (string, error) {
+		return "", fmt.Errorf("simulated abs failure")
+	}
+	t.Cleanup(func() { absPathFunc = orig })
+
+	result, err := g.Trace("relative/session.md")
+	if err != nil {
+		t.Fatalf("Trace() error = %v", err)
+	}
+	if len(result.Chain) != 1 {
+		t.Errorf("Expected 1 record in chain (fallback match), got %d", len(result.Chain))
+	}
+	if result.Chain[0].ID != "prov-abs" {
+		t.Errorf("Chain[0].ID = %q, want %q", result.Chain[0].ID, "prov-abs")
+	}
+	if len(result.Sources) != 1 || result.Sources[0] != "/in/transcript.jsonl" {
+		t.Errorf("Sources = %v, want [/in/transcript.jsonl]", result.Sources)
 	}
 }
 

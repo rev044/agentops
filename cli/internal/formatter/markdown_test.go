@@ -407,3 +407,27 @@ func TestMarkdownFormatter_Format_TokensEstimated(t *testing.T) {
 		t.Error("Output should prefix estimated total with ~")
 	}
 }
+
+func TestMarkdownFormatter_Format_TemplateParseError(t *testing.T) {
+	// Inject an invalid template to exercise the parse-error return path.
+	orig := markdownTmplSource
+	markdownTmplSource = "{{ .Unclosed"
+	t.Cleanup(func() { markdownTmplSource = orig })
+
+	mf := &MarkdownFormatter{UseWikiLinks: false}
+	session := &storage.Session{
+		ID:      "parse-err",
+		Date:    time.Now(),
+		Summary: "trigger parse error",
+	}
+
+	var buf bytes.Buffer
+	err := mf.Format(&buf, session)
+	if err == nil {
+		t.Fatal("expected error from invalid template, got nil")
+	}
+	expectedMsg := "parse template:"
+	if !strings.Contains(err.Error(), expectedMsg) {
+		t.Errorf("error = %q, want it to contain %q", err.Error(), expectedMsg)
+	}
+}
