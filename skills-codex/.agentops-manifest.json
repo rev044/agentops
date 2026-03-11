@@ -62,8 +62,8 @@
     {
       "name": "discovery",
       "source_skill": "skills/discovery",
-      "source_hash": "697083beaa55563a8ddb68e2c20472280318d20cab7cf70573f44e6cd2b7a2a6",
-      "generated_hash": "3ab3ced32e6a0016aaf72fd2665bba9fc15945e48e27ba1de0821bd24a269e24"
+      "source_hash": "f063451f0a725eadef4a41df10d4f7dea3b7f0cff38d1be8ac3bb74c83ddcc22",
+      "generated_hash": "b5e9a9b68e2638a70972e3a0852cdd1b8f76156ca7ed6484b83f5acd8752cd69"
     },
     {
       "name": "doc",
@@ -140,8 +140,8 @@
     {
       "name": "plan",
       "source_skill": "skills/plan",
-      "source_hash": "a64db3fe218b8afbcb37abe132a36c81378f7ef56d118438acc9b5564c680dd4",
-      "generated_hash": "2ec4f59d74e31d34af0bb8c9f7b6e53464a08e66662b8cef038258c96b7fc128"
+      "source_hash": "9b833299c90914ef0ef24bf1a48aa91b363110747495011bcd56f889e7ddc2da",
+      "generated_hash": "768e9ffe3c3dac045638322ace85b80fdf04eeb11926a709d45ca9e8f13f519a"
     },
     {
       "name": "post-mortem",
@@ -188,8 +188,8 @@
     {
       "name": "pre-mortem",
       "source_skill": "skills/pre-mortem",
-      "source_hash": "81a8dd1c8f1f7d0c51df84180a1a322711156da52e9d4fd168e3db66c18e7642",
-      "generated_hash": "180163b94874d871227a9ffa8e05b128d3b4c38e527a78dcd13f1b8c4fa4ca55"
+      "source_hash": "a49f569ddc27cb3c68d0200bbee8561f9b2880064683f8148caab340e433e039",
+      "generated_hash": "e570b02f7dd02247c04a9ba15fedfaa7c50b94cefad9bab751e71c3237ef4d8d"
     },
     {
       "name": "product",
@@ -326,8 +326,8 @@
     {
       "name": "vibe",
       "source_skill": "skills/vibe",
-      "source_hash": "cab8338c280d1e253d7ac0a336ee2d38498ce7bcf60dfadde70806d242e67261",
-      "generated_hash": "a14ecad64b2c83864b16614275be3cb9caeef510f27fa0c463b78771fd5c9a20"
+      "source_hash": "2605b1288c305f01f1e141f4e4c737341c04558113ec584a4412a33657eb90cf",
+      "generated_hash": "1c12fbfd5e419d3541d61ed5e2e97cdb97c2408fcc4e502f28c9e95fcdda3da0"
     }
   ]
 }

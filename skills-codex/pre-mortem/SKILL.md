@@ -50,6 +50,7 @@ Use the tracked contracts in `docs/contracts/finding-compiler.md` and `docs/cont
 
 - prefer compiled pre-mortem checks first
 - rank by severity, `applicable_when` overlap, language overlap, and literal plan-text overlap
+- when the plan names files, rank changed-file overlap ahead of generic keyword matches
 - cap at top 5 findings / check files
 - if compiled checks are missing, incomplete, or fewer than the matched finding set, fall back to `.agents/findings/registry.jsonl`
 - fail open:
@@ -63,6 +64,8 @@ Include matched entries in the council packet as `known_risks` with:
 - `pattern`
 - `detection_question`
 - `checklist_item`
+
+Use the same ranked packet contract as `$plan`: compiled checks first, then active findings fallback, then matching high-severity next-work context when relevant. Avoid re-ranking with an unrelated heuristic inside pre-mortem; the point is consistent carry-forward, not a fresh retrieval policy per phase.
 
 ### Step 1.5: Fast Path (--quick mode)
 

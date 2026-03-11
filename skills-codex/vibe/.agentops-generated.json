@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/vibe",
   "layout": "modular",
-  "source_hash": "cab8338c280d1e253d7ac0a336ee2d38498ce7bcf60dfadde70806d242e67261",
-  "generated_hash": "a14ecad64b2c83864b16614275be3cb9caeef510f27fa0c463b78771fd5c9a20"
+  "source_hash": "2605b1288c305f01f1e141f4e4c737341c04558113ec584a4412a33657eb90cf",
+  "generated_hash": "1c12fbfd5e419d3541d61ed5e2e97cdb97c2408fcc4e502f28c9e95fcdda3da0"
 }
