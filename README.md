@@ -122,6 +122,10 @@ Within each phase, agents iterate quickly in bounded loops. Across phases, the r
 
 That is the real architecture: a local operating layer around the agent, not just a prompt pack. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
 
+### From five commands to primitive chains
+
+Older AgentOps docs taught the system as a simpler command-centric story: `research -> plan -> pre-mortem -> crank -> post-mortem`. That was a useful teaching model, but the runtime has since hardened into a phased system with compiled prevention, explicit validation, and disk-backed continuity between sessions. If you see older terms like `RPI` elsewhere in the repo, read them as legacy vocabulary around the same core lifecycle. For the deeper map of how the repo evolved into its current executable shape, see [Primitive Chains](docs/architecture/primitive-chains.md).
+
 ### Why the memory matters
 
 This is the compounding part, but now in mechanical terms. Your agent validates a PR, the decisions and patterns are written to `.agents/`, and the next relevant task starts with that context already loaded:
