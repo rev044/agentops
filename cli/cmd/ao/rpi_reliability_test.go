@@ -15,9 +15,9 @@ import (
 
 // ─── gateFailError ────────────────────────────────────────────────────────────
 
-// TestGateFailError_Error verifies that gateFailError.Error() returns a
+// TestGateFailError_ErrorMessage verifies that gateFailError.Error() returns a
 // human-readable string that includes phase, verdict, and report path.
-func TestGateFailError_Error(t *testing.T) {
+func TestGateFailError_ErrorMessage(t *testing.T) {
 	err := &gateFailError{
 		Phase:   2,
 		Verdict: "FAIL",

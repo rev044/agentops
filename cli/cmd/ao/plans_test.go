@@ -381,7 +381,7 @@ func TestDetectOrphanedEntries(t *testing.T) {
 
 // --- getManifestPath ---
 
-func TestPlansCov_GetManifestPath(t *testing.T) {
+func TestGetManifestPath(t *testing.T) {
 	t.Run("returns path with .agents dir in cwd", func(t *testing.T) {
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, ".agents")
@@ -453,7 +453,7 @@ func TestPlansCov_GetManifestPath(t *testing.T) {
 
 // --- findAgentsDir ---
 
-func TestPlansCov_FindAgentsDir(t *testing.T) {
+func TestFindAgentsDir(t *testing.T) {
 	t.Run("finds existing .agents dir", func(t *testing.T) {
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, ".agents")
@@ -525,7 +525,7 @@ func TestPlansCov_FindAgentsDir(t *testing.T) {
 
 // --- detectProjectPath ---
 
-func TestPlansCov_DetectProjectPath(t *testing.T) {
+func TestDetectProjectPath(t *testing.T) {
 	t.Run("detects from .claude/plans content with Project line", func(t *testing.T) {
 		dir := t.TempDir()
 		planDir := filepath.Join(dir, ".claude", "plans")
@@ -604,7 +604,7 @@ func TestPlansCov_DetectProjectPath(t *testing.T) {
 
 // --- resolveProjectPath ---
 
-func TestPlansCov_ResolveProjectPath(t *testing.T) {
+func TestResolveProjectPath(t *testing.T) {
 	t.Run("explicit overrides detection", func(t *testing.T) {
 		got := resolveProjectPath("/explicit/path", "/some/.claude/plans/plan.md")
 		if got != "/explicit/path" {
@@ -628,7 +628,7 @@ func TestPlansCov_ResolveProjectPath(t *testing.T) {
 
 // --- resolvePlanName ---
 
-func TestPlansCov_ResolvePlanName(t *testing.T) {
+func TestResolvePlanName(t *testing.T) {
 	tests := []struct {
 		name     string
 		explicit string
@@ -652,7 +652,7 @@ func TestPlansCov_ResolvePlanName(t *testing.T) {
 
 // --- buildRegisterEntry ---
 
-func TestPlansCov_BuildRegisterEntry(t *testing.T) {
+func TestBuildRegisterEntry(t *testing.T) {
 	t.Run("builds entry for valid file", func(t *testing.T) {
 		dir := t.TempDir()
 		planPath := filepath.Join(dir, "test-plan.md")
@@ -697,7 +697,7 @@ func TestPlansCov_BuildRegisterEntry(t *testing.T) {
 
 // --- loadOrCreateManifest ---
 
-func TestPlansCov_LoadOrCreateManifest(t *testing.T) {
+func TestLoadOrCreateManifest(t *testing.T) {
 	t.Run("creates manifest dir when not exists", func(t *testing.T) {
 		dir := t.TempDir()
 		agentsDir := filepath.Join(dir, ".agents")
@@ -757,7 +757,7 @@ func TestPlansCov_LoadOrCreateManifest(t *testing.T) {
 
 // --- upsertManifestEntry ---
 
-func TestPlansCov_UpsertManifestEntry(t *testing.T) {
+func TestUpsertManifestEntry(t *testing.T) {
 	t.Run("updates existing entry", func(t *testing.T) {
 		dir := t.TempDir()
 		manifestPath := filepath.Join(dir, "manifest.jsonl")
@@ -818,7 +818,7 @@ func TestPlansCov_UpsertManifestEntry(t *testing.T) {
 
 // --- filterPlans ---
 
-func TestPlansCov_FilterPlans(t *testing.T) {
+func TestFilterPlans(t *testing.T) {
 	entries := []types.PlanManifestEntry{
 		{Path: "/a.md", PlanName: "plan-a", ProjectPath: "/proj1", Status: types.PlanStatusActive},
 		{Path: "/b.md", PlanName: "plan-b", ProjectPath: "/proj2", Status: types.PlanStatusCompleted},
@@ -863,7 +863,7 @@ func TestPlansCov_FilterPlans(t *testing.T) {
 
 // --- applyPlanUpdates ---
 
-func TestPlansCov_ApplyPlanUpdates(t *testing.T) {
+func TestApplyPlanUpdates(t *testing.T) {
 	t.Run("updates status and beadsID for matching path", func(t *testing.T) {
 		entries := []types.PlanManifestEntry{
 			{Path: "/a.md", Status: types.PlanStatusActive, BeadsID: ""},
@@ -909,7 +909,7 @@ func TestPlansCov_ApplyPlanUpdates(t *testing.T) {
 
 // --- printPlanEntry ---
 
-func TestPlansCov_PrintPlanEntry(t *testing.T) {
+func TestPrintPlanEntry(t *testing.T) {
 	t.Run("prints active plan", func(t *testing.T) {
 		entry := types.PlanManifestEntry{
 			PlanName: "my-plan",
@@ -950,7 +950,7 @@ func TestPlansCov_PrintPlanEntry(t *testing.T) {
 
 // --- printRegistrationSummary ---
 
-func TestPlansCov_PrintRegistrationSummary(t *testing.T) {
+func TestPrintRegistrationSummary(t *testing.T) {
 	t.Run("prints basic summary", func(t *testing.T) {
 		entry := types.PlanManifestEntry{
 			PlanName: "new-plan",
@@ -970,7 +970,7 @@ func TestPlansCov_PrintRegistrationSummary(t *testing.T) {
 
 // --- printSyncSummary ---
 
-func TestPlansCov_PrintSyncSummary(t *testing.T) {
+func TestPrintSyncSummary(t *testing.T) {
 	t.Run("no drift", func(t *testing.T) {
 		printSyncSummary(3, 0) // should not panic
 	})
@@ -982,7 +982,7 @@ func TestPlansCov_PrintSyncSummary(t *testing.T) {
 
 // --- printDrifts ---
 
-func TestPlansCov_PrintDrifts(t *testing.T) {
+func TestPrintDrifts(t *testing.T) {
 	drifts := []driftEntry{
 		{Type: "status_mismatch", PlanName: "plan-1", BeadsID: "ol-1", Manifest: "active", Beads: "closed"},
 		{Type: "orphaned", PlanName: "plan-2"},
@@ -994,7 +994,7 @@ func TestPlansCov_PrintDrifts(t *testing.T) {
 
 // --- syncEpicsToManifest ---
 
-func TestPlansCov_SyncEpicsToManifest(t *testing.T) {
+func TestSyncEpicsToManifest(t *testing.T) {
 	t.Run("syncs matching epics", func(t *testing.T) {
 		entries := []types.PlanManifestEntry{
 			{Path: "/a.md", BeadsID: "ol-1", Status: types.PlanStatusActive},
@@ -1033,7 +1033,7 @@ func TestPlansCov_SyncEpicsToManifest(t *testing.T) {
 
 // --- runPlansRegister ---
 
-func TestPlansCov_RunPlansRegister(t *testing.T) {
+func TestRunPlansRegister(t *testing.T) {
 	oldDryRun := dryRun
 	oldPlanProjectPath := planProjectPath
 	oldPlanBeadsID := planBeadsID
@@ -1160,7 +1160,7 @@ func TestPlansCov_RunPlansRegister(t *testing.T) {
 
 // --- runPlansList ---
 
-func TestPlansCov_RunPlansList(t *testing.T) {
+func TestRunPlansList(t *testing.T) {
 	oldProjectPath := planProjectPath
 	oldStatus := planStatus
 	oldVerbose := verbose
@@ -1255,7 +1255,7 @@ func TestPlansCov_RunPlansList(t *testing.T) {
 
 // --- runPlansSearch ---
 
-func TestPlansCov_RunPlansSearch(t *testing.T) {
+func TestRunPlansSearch(t *testing.T) {
 	t.Run("no manifest prints message", func(t *testing.T) {
 		dir := t.TempDir()
 		if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0755); err != nil {
@@ -1336,7 +1336,7 @@ func TestPlansCov_RunPlansSearch(t *testing.T) {
 
 // --- runPlansUpdate ---
 
-func TestPlansCov_RunPlansUpdate(t *testing.T) {
+func TestRunPlansUpdate(t *testing.T) {
 	oldDryRun := dryRun
 	oldPlanStatus := planStatus
 	oldPlanBeadsID := planBeadsID
@@ -1438,7 +1438,7 @@ func TestPlansCov_RunPlansUpdate(t *testing.T) {
 
 // --- runPlansSync ---
 
-func TestPlansCov_RunPlansSync(t *testing.T) {
+func TestRunPlansSync(t *testing.T) {
 	oldDryRun := dryRun
 	defer func() { dryRun = oldDryRun }()
 
@@ -1480,118 +1480,5 @@ func TestPlansCov_RunPlansSync(t *testing.T) {
 	})
 }
 
-// --- buildBeadsStatusIndex ---
-
-func TestPlansCov_BuildBeadsStatusIndex(t *testing.T) {
-	epics := []beadsEpic{
-		{ID: "a", Status: "open"},
-		{ID: "b", Status: "closed"},
-	}
-	index := buildBeadsStatusIndex(epics)
-	if len(index) != 2 {
-		t.Errorf("expected 2 entries, got %d", len(index))
-	}
-	if index["a"] != "open" {
-		t.Errorf("a = %q, want open", index["a"])
-	}
-	if index["b"] != "closed" {
-		t.Errorf("b = %q, want closed", index["b"])
-	}
-}
-
-// --- detectStatusDrifts ---
-
-func TestPlansCov_DetectStatusDrifts(t *testing.T) {
-	t.Run("no drift when everything matches", func(t *testing.T) {
-		byBeadsID := map[string]*types.PlanManifestEntry{
-			"ol-1": {PlanName: "p1", BeadsID: "ol-1", Status: types.PlanStatusActive},
-		}
-		beadsIndex := map[string]string{"ol-1": "open"}
-		drifts := detectStatusDrifts(byBeadsID, beadsIndex)
-		if len(drifts) != 0 {
-			t.Errorf("expected 0 drifts, got %d", len(drifts))
-		}
-	})
-
-	t.Run("detects completed in manifest but open in beads", func(t *testing.T) {
-		byBeadsID := map[string]*types.PlanManifestEntry{
-			"ol-1": {PlanName: "p1", BeadsID: "ol-1", Status: types.PlanStatusCompleted},
-		}
-		beadsIndex := map[string]string{"ol-1": "open"}
-		drifts := detectStatusDrifts(byBeadsID, beadsIndex)
-		if len(drifts) != 1 {
-			t.Fatalf("expected 1 drift, got %d", len(drifts))
-		}
-		if drifts[0].Type != "status_mismatch" {
-			t.Errorf("type = %q, want status_mismatch", drifts[0].Type)
-		}
-	})
-}
-
-// --- detectOrphanedEntries ---
-
-func TestPlansCov_DetectOrphanedEntries(t *testing.T) {
-	entries := []types.PlanManifestEntry{
-		{PlanName: "linked", BeadsID: "ol-1"},
-		{PlanName: "orphan1", BeadsID: ""},
-		{PlanName: "orphan2", BeadsID: ""},
-	}
-	drifts := detectOrphanedEntries(entries)
-	if len(drifts) != 2 {
-		t.Errorf("expected 2 orphans, got %d", len(drifts))
-	}
-	for _, d := range drifts {
-		if d.Type != "orphaned" {
-			t.Errorf("type = %q, want orphaned", d.Type)
-		}
-	}
-}
-
-// --- saveManifest edge case ---
-
-func TestPlansCov_SaveManifest(t *testing.T) {
-	t.Run("round-trip preserves data", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "manifest.jsonl")
-
-		now := time.Now().UTC().Truncate(time.Second)
-		entries := []types.PlanManifestEntry{
-			{Path: "/x.md", PlanName: "x", Status: types.PlanStatusActive, CreatedAt: now},
-			{Path: "/y.md", PlanName: "y", Status: types.PlanStatusCompleted, BeadsID: "ol-y"},
-		}
-		if err := saveManifest(path, entries); err != nil {
-			t.Fatalf("save error: %v", err)
-		}
-
-		loaded, err := loadManifest(path)
-		if err != nil {
-			t.Fatalf("load error: %v", err)
-		}
-		if len(loaded) != 2 {
-			t.Fatalf("expected 2 entries, got %d", len(loaded))
-		}
-		if loaded[0].PlanName != "x" {
-			t.Errorf("first entry name = %q, want x", loaded[0].PlanName)
-		}
-		if loaded[1].BeadsID != "ol-y" {
-			t.Errorf("second entry beadsID = %q, want ol-y", loaded[1].BeadsID)
-		}
-	})
-
-	t.Run("handles empty entries", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "empty-manifest.jsonl")
-
-		if err := saveManifest(path, nil); err != nil {
-			t.Fatalf("save error: %v", err)
-		}
-
-		loaded, err := loadManifest(path)
-		if err != nil {
-			t.Fatalf("load error: %v", err)
-		}
-		if len(loaded) != 0 {
-			t.Errorf("expected 0 entries, got %d", len(loaded))
-		}
-	})
-}
+// buildBeadsStatusIndex, detectStatusDrifts, detectOrphanedEntries, saveManifest
+// tests are declared earlier in this file (lines 276-400). Duplicates removed.

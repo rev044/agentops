@@ -662,7 +662,7 @@ func TestSearchFilesCombinedLimitEnforcement(t *testing.T) {
 // displaySearchResults (0%)
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_DisplaySearchResults_Basic(t *testing.T) {
+func TestDisplaySearchResults_Basic(t *testing.T) {
 	results := []searchResult{
 		{Path: "/path/to/file1.md", Context: "line one\nline two", Type: "session"},
 		{Path: "/path/to/file2.md", Context: "", Type: "learning"},
@@ -696,7 +696,7 @@ func TestSearchCov_DisplaySearchResults_Basic(t *testing.T) {
 	}
 }
 
-func TestSearchCov_DisplaySearchResults_Empty(t *testing.T) {
+func TestDisplaySearchResults_Empty(t *testing.T) {
 	origStdout := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -718,7 +718,7 @@ func TestSearchCov_DisplaySearchResults_Empty(t *testing.T) {
 	}
 }
 
-func TestSearchCov_DisplaySearchResults_WithContext(t *testing.T) {
+func TestDisplaySearchResults_WithContext(t *testing.T) {
 	results := []searchResult{
 		{Path: "/path/to/file.md", Context: "context line 1\ncontext line 2\n", Type: "session"},
 	}
@@ -748,7 +748,7 @@ func TestSearchCov_DisplaySearchResults_WithContext(t *testing.T) {
 // outputSearchResults — text mode (non-JSON)
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_OutputSearchResults_TextMode(t *testing.T) {
+func TestOutputSearchResults_TextMode(t *testing.T) {
 	origOutput := output
 	output = "table"
 	t.Cleanup(func() { output = origOutput })
@@ -783,7 +783,7 @@ func TestSearchCov_OutputSearchResults_TextMode(t *testing.T) {
 	}
 }
 
-func TestSearchCov_OutputSearchResults_JSONMode(t *testing.T) {
+func TestOutputSearchResults_JSONMode(t *testing.T) {
 	origOutput := output
 	output = "json"
 	t.Cleanup(func() { output = origOutput })
@@ -825,7 +825,7 @@ func TestSearchCov_OutputSearchResults_JSONMode(t *testing.T) {
 // searchCASS (0%)
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_SearchCASS(t *testing.T) {
+func TestSearchCASS(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Create sessions dir
@@ -879,7 +879,7 @@ func TestSearchCov_SearchCASS(t *testing.T) {
 	}
 }
 
-func TestSearchCov_SearchCASS_NoLearnings(t *testing.T) {
+func TestSearchCASS_NoLearnings(t *testing.T) {
 	tmp := t.TempDir()
 	sessDir := filepath.Join(tmp, "sessions")
 	if err := os.MkdirAll(sessDir, 0755); err != nil {
@@ -899,7 +899,7 @@ func TestSearchCov_SearchCASS_NoLearnings(t *testing.T) {
 	}
 }
 
-func TestSearchCov_SearchCASS_LimitEnforced(t *testing.T) {
+func TestSearchCASS_LimitEnforced(t *testing.T) {
 	tmp := t.TempDir()
 	sessDir := filepath.Join(tmp, "sessions")
 	if err := os.MkdirAll(sessDir, 0755); err != nil {
@@ -926,7 +926,7 @@ func TestSearchCov_SearchCASS_LimitEnforced(t *testing.T) {
 // searchLearningsWithMaturity (0%)
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_SearchLearningsWithMaturity(t *testing.T) {
+func TestSearchLearningsWithMaturity(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Create JSONL learning
@@ -956,7 +956,7 @@ func TestSearchCov_SearchLearningsWithMaturity(t *testing.T) {
 	}
 }
 
-func TestSearchCov_SearchLearningsWithMaturity_NoMatch(t *testing.T) {
+func TestSearchLearningsWithMaturity_NoMatch(t *testing.T) {
 	tmp := t.TempDir()
 	learning := map[string]any{"id": "L1", "summary": "unrelated content"}
 	line, _ := json.Marshal(learning)
@@ -977,14 +977,14 @@ func TestSearchCov_SearchLearningsWithMaturity_NoMatch(t *testing.T) {
 // truncateContext
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_TruncateContext_Short(t *testing.T) {
+func TestTruncateContext_Short(t *testing.T) {
 	got := truncateContext("short")
 	if got != "short" {
 		t.Errorf("expected 'short', got %q", got)
 	}
 }
 
-func TestSearchCov_TruncateContext_Long(t *testing.T) {
+func TestTruncateContext_Long(t *testing.T) {
 	long := strings.Repeat("x", ContextLineMaxLength+50)
 	got := truncateContext(long)
 	if len(got) != ContextLineMaxLength+3 { // +3 for "..."
@@ -999,7 +999,7 @@ func TestSearchCov_TruncateContext_Long(t *testing.T) {
 // parseLearningMatch
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_ParseLearningMatch_Valid(t *testing.T) {
+func TestParseLearningMatch_Valid(t *testing.T) {
 	data := map[string]any{
 		"summary":  "test learning",
 		"maturity": "candidate",
@@ -1019,7 +1019,7 @@ func TestSearchCov_ParseLearningMatch_Valid(t *testing.T) {
 	}
 }
 
-func TestSearchCov_ParseLearningMatch_InvalidJSON(t *testing.T) {
+func TestParseLearningMatch_InvalidJSON(t *testing.T) {
 	_, ok := parseLearningMatch("not json", "/path/file.jsonl")
 	if ok {
 		t.Error("expected ok=false for invalid JSON")
@@ -1030,7 +1030,7 @@ func TestSearchCov_ParseLearningMatch_InvalidJSON(t *testing.T) {
 // extractLearningContext
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_ExtractLearningContext_Summary(t *testing.T) {
+func TestExtractLearningContext_Summary(t *testing.T) {
 	data := map[string]any{"summary": "test summary"}
 	got := extractLearningContext(data)
 	if got != "test summary" {
@@ -1038,7 +1038,7 @@ func TestSearchCov_ExtractLearningContext_Summary(t *testing.T) {
 	}
 }
 
-func TestSearchCov_ExtractLearningContext_Content(t *testing.T) {
+func TestExtractLearningContext_Content(t *testing.T) {
 	data := map[string]any{"content": "test content"}
 	got := extractLearningContext(data)
 	if got != "test content" {
@@ -1046,7 +1046,7 @@ func TestSearchCov_ExtractLearningContext_Content(t *testing.T) {
 	}
 }
 
-func TestSearchCov_ExtractLearningContext_Neither(t *testing.T) {
+func TestExtractLearningContext_Neither(t *testing.T) {
 	data := map[string]any{"id": "L1"}
 	got := extractLearningContext(data)
 	if got != "" {
@@ -1058,7 +1058,7 @@ func TestSearchCov_ExtractLearningContext_Neither(t *testing.T) {
 // maturityToWeight
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_MaturityToWeight(t *testing.T) {
+func TestMaturityToWeight(t *testing.T) {
 	tests := []struct {
 		data map[string]any
 		want float64
@@ -1082,7 +1082,7 @@ func TestSearchCov_MaturityToWeight(t *testing.T) {
 // parseJSONLMatch
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_ParseJSONLMatch_WithSummary(t *testing.T) {
+func TestParseJSONLMatch_WithSummary(t *testing.T) {
 	data := map[string]any{"summary": "test summary", "id": "L1"}
 	line, _ := json.Marshal(data)
 	result, ok := parseJSONLMatch(string(line), "/path/file.jsonl")
@@ -1094,7 +1094,7 @@ func TestSearchCov_ParseJSONLMatch_WithSummary(t *testing.T) {
 	}
 }
 
-func TestSearchCov_ParseJSONLMatch_LongSummary(t *testing.T) {
+func TestParseJSONLMatch_LongSummary(t *testing.T) {
 	long := strings.Repeat("x", ContextLineMaxLength+50)
 	data := map[string]any{"summary": long}
 	line, _ := json.Marshal(data)
@@ -1107,7 +1107,7 @@ func TestSearchCov_ParseJSONLMatch_LongSummary(t *testing.T) {
 	}
 }
 
-func TestSearchCov_ParseJSONLMatch_NoSummary(t *testing.T) {
+func TestParseJSONLMatch_NoSummary(t *testing.T) {
 	data := map[string]any{"id": "L1", "content": "some content"}
 	line, _ := json.Marshal(data)
 	result, ok := parseJSONLMatch(string(line), "/path/file.jsonl")
@@ -1123,7 +1123,7 @@ func TestSearchCov_ParseJSONLMatch_NoSummary(t *testing.T) {
 // selectAndSearch — file-based default path
 // ---------------------------------------------------------------------------
 
-func TestSearchCov_SelectAndSearch_FileBased(t *testing.T) {
+func TestSelectAndSearch_FileBased(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmp, "test.md"), []byte("searchable content"), 0644); err != nil {
 		t.Fatal(err)

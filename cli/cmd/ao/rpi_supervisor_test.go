@@ -17,7 +17,7 @@ import (
 
 // --- buildBaseLoopConfig ---
 
-func TestSupervisorCov_BuildBaseLoopConfig(t *testing.T) {
+func TestBuildBaseLoopConfig(t *testing.T) {
 	prev := snapshotLoopSupervisorGlobals()
 	defer restoreLoopSupervisorGlobals(prev)
 
@@ -128,7 +128,7 @@ func TestSupervisorCov_BuildBaseLoopConfig(t *testing.T) {
 
 // --- validateLoopNumericConstraints ---
 
-func TestSupervisorCov_ValidateLoopNumericConstraints(t *testing.T) {
+func TestValidateLoopNumericConstraints(t *testing.T) {
 	tests := []struct {
 		name    string
 		cfg     rpiLoopSupervisorConfig
@@ -186,7 +186,7 @@ func TestSupervisorCov_ValidateLoopNumericConstraints(t *testing.T) {
 
 // --- applyLoopTimingDefaults ---
 
-func TestSupervisorCov_ApplyLoopTimingDefaults(t *testing.T) {
+func TestApplyLoopTimingDefaults(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
 		LeaseTTL:            0,
 		CommandTimeout:      0,
@@ -207,7 +207,7 @@ func TestSupervisorCov_ApplyLoopTimingDefaults(t *testing.T) {
 
 // --- applyLoopPathDefaults ---
 
-func TestSupervisorCov_ApplyLoopPathDefaults(t *testing.T) {
+func TestApplyLoopPathDefaults(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{}
 	applyLoopPathDefaults(&cfg)
 
@@ -222,7 +222,7 @@ func TestSupervisorCov_ApplyLoopPathDefaults(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_ApplyLoopPathDefaults_PreserveExisting(t *testing.T) {
+func TestApplyLoopPathDefaults_PreserveExisting(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
 		LeasePath:       "/custom/lease.lock",
 		LandingLockPath: "/custom/landing.lock",
@@ -243,7 +243,7 @@ func TestSupervisorCov_ApplyLoopPathDefaults_PreserveExisting(t *testing.T) {
 
 // --- validateLoopConfigPolicies ---
 
-func TestSupervisorCov_ValidateLoopConfigPolicies_AllValid(t *testing.T) {
+func TestValidateLoopConfigPolicies_AllValid(t *testing.T) {
 	validCombos := []rpiLoopSupervisorConfig{
 		{FailurePolicy: "stop", GatePolicy: "off", LandingPolicy: "off", BDSyncPolicy: "auto"},
 		{FailurePolicy: "continue", GatePolicy: "best-effort", LandingPolicy: "commit", BDSyncPolicy: "always"},
@@ -258,7 +258,7 @@ func TestSupervisorCov_ValidateLoopConfigPolicies_AllValid(t *testing.T) {
 
 // --- resolveLoopConfigPaths ---
 
-func TestSupervisorCov_ResolveLoopConfigPaths(t *testing.T) {
+func TestResolveLoopConfigPaths(t *testing.T) {
 	cwd := "/home/user/repo"
 	cfg := rpiLoopSupervisorConfig{
 		LeasePath:       ".agents/rpi/supervisor.lock",
@@ -278,7 +278,7 @@ func TestSupervisorCov_ResolveLoopConfigPaths(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_ResolveLoopConfigPaths_AlreadyAbsolute(t *testing.T) {
+func TestResolveLoopConfigPaths_AlreadyAbsolute(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
 		LeasePath:       "/abs/lease.lock",
 		LandingLockPath: "/abs/landing.lock",
@@ -293,7 +293,7 @@ func TestSupervisorCov_ResolveLoopConfigPaths_AlreadyAbsolute(t *testing.T) {
 
 // --- cycleFailureError ---
 
-func TestSupervisorCov_CycleFailureError_Error(t *testing.T) {
+func TestCycleFailureError_Error(t *testing.T) {
 	inner := fmt.Errorf("root cause")
 	cfe := &cycleFailureError{kind: cycleFailureTask, err: inner}
 	if cfe.Error() != "root cause" {
@@ -301,7 +301,7 @@ func TestSupervisorCov_CycleFailureError_Error(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_CycleFailureError_Unwrap(t *testing.T) {
+func TestCycleFailureError_Unwrap(t *testing.T) {
 	inner := fmt.Errorf("root cause")
 	cfe := &cycleFailureError{kind: cycleFailureInfrastructure, err: inner}
 	if cfe.Unwrap() != inner {
@@ -311,7 +311,7 @@ func TestSupervisorCov_CycleFailureError_Unwrap(t *testing.T) {
 
 // --- wrapCycleFailure ---
 
-func TestSupervisorCov_WrapCycleFailure_EmptyStage(t *testing.T) {
+func TestWrapCycleFailure_EmptyStage(t *testing.T) {
 	err := fmt.Errorf("no stage")
 	wrapped := wrapCycleFailure(cycleFailureTask, "", err)
 	var cfe *cycleFailureError
@@ -323,7 +323,7 @@ func TestSupervisorCov_WrapCycleFailure_EmptyStage(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_WrapCycleFailure_WithStage(t *testing.T) {
+func TestWrapCycleFailure_WithStage(t *testing.T) {
 	err := fmt.Errorf("base err")
 	wrapped := wrapCycleFailure(cycleFailureTask, "commit", err)
 	if !strings.Contains(wrapped.Error(), "commit") {
@@ -333,7 +333,7 @@ func TestSupervisorCov_WrapCycleFailure_WithStage(t *testing.T) {
 
 // --- shouldMarkQueueEntryFailed / isInfrastructureCycleFailure ---
 
-func TestSupervisorCov_ShouldMarkQueueEntryFailed(t *testing.T) {
+func TestShouldMarkQueueEntryFailed(t *testing.T) {
 	tests := []struct {
 		name string
 		err  error
@@ -354,7 +354,7 @@ func TestSupervisorCov_ShouldMarkQueueEntryFailed(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_IsInfrastructureCycleFailure(t *testing.T) {
+func TestIsInfrastructureCycleFailure(t *testing.T) {
 	infraErr := wrapCycleFailure(cycleFailureInfrastructure, "net", fmt.Errorf("timeout"))
 	if !isInfrastructureCycleFailure(infraErr) {
 		t.Error("expected infrastructure failure to be detected")
@@ -371,34 +371,11 @@ func TestSupervisorCov_IsInfrastructureCycleFailure(t *testing.T) {
 	}
 }
 
-// --- renderLandingCommitMessage ---
-
-func TestSupervisorCov_RenderLandingCommitMessage(t *testing.T) {
-	tests := []struct {
-		name     string
-		template string
-		cycle    int
-		attempt  int
-		goal     string
-		wantSub  string
-	}{
-		{"default template", "", 1, 1, "test", "1"},
-		{"all placeholders", "cycle={{cycle}} attempt={{attempt}} goal={{goal}}", 3, 2, "ship", "cycle=3 attempt=2 goal=ship"},
-		{"custom message", "custom message", 1, 1, "test", "custom message"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := renderLandingCommitMessage(tt.template, tt.cycle, tt.attempt, tt.goal)
-			if !strings.Contains(got, tt.wantSub) {
-				t.Errorf("renderLandingCommitMessage = %q, want to contain %q", got, tt.wantSub)
-			}
-		})
-	}
-}
+// TestRenderLandingCommitMessage — canonical version in rpi_loop_supervisor_test.go
 
 // --- appendDirtyPaths ---
 
-func TestSupervisorCov_AppendDirtyPaths(t *testing.T) {
+func TestAppendDirtyPaths(t *testing.T) {
 	paths := make(map[string]struct{})
 	appendDirtyPaths(paths, "file1.go\nfile2.go\n\n  \nfile3.go")
 
@@ -414,7 +391,7 @@ func TestSupervisorCov_AppendDirtyPaths(t *testing.T) {
 
 // --- computeOwnedDirtyPaths ---
 
-func TestSupervisorCov_ComputeOwnedDirtyPaths(t *testing.T) {
+func TestComputeOwnedDirtyPaths(t *testing.T) {
 	prevRunner := loopCommandOutputRunner
 	defer func() { loopCommandOutputRunner = prevRunner }()
 
@@ -447,31 +424,11 @@ func TestSupervisorCov_ComputeOwnedDirtyPaths(t *testing.T) {
 	}
 }
 
-// --- isNoRebaseInProgressMessage ---
-
-func TestSupervisorCov_IsNoRebaseInProgressMessage(t *testing.T) {
-	tests := []struct {
-		msg  string
-		want bool
-	}{
-		{"", false},
-		{"fatal: No rebase in progress?", true},
-		{"fatal: no rebase to abort", true},
-		{"fatal: no rebase in progress", true},
-		{"fatal: something else", false},
-		{"   Fatal: No Rebase In Progress?   ", true},
-	}
-	for _, tt := range tests {
-		got := isNoRebaseInProgressMessage(tt.msg)
-		if got != tt.want {
-			t.Errorf("isNoRebaseInProgressMessage(%q) = %v, want %v", tt.msg, got, tt.want)
-		}
-	}
-}
+// TestIsNoRebaseInProgressMessage — canonical version in rpi_loop_supervisor_test.go
 
 // --- runSupervisorLanding ---
 
-func TestSupervisorCov_RunSupervisorLanding_UnsupportedPolicy(t *testing.T) {
+func TestRunSupervisorLanding_UnsupportedPolicy(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
 		LandingPolicy: "invalid-policy",
 	}
@@ -484,7 +441,7 @@ func TestSupervisorCov_RunSupervisorLanding_UnsupportedPolicy(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_AcquireLandingLock_EmptyPath(t *testing.T) {
+func TestAcquireLandingLock_EmptyPath(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
 		LandingPolicy:   loopLandingPolicyCommit,
 		LandingLockPath: "",
@@ -500,7 +457,7 @@ func TestSupervisorCov_AcquireLandingLock_EmptyPath(t *testing.T) {
 
 // --- buildCycleEngineOptions ---
 
-func TestSupervisorCov_BuildCycleEngineOptions(t *testing.T) {
+func TestBuildCycleEngineOptions(t *testing.T) {
 	cwd := t.TempDir()
 	cfg := rpiLoopSupervisorConfig{
 		AutoClean:           true,
@@ -541,7 +498,7 @@ func TestSupervisorCov_BuildCycleEngineOptions(t *testing.T) {
 
 // --- supervisorLease methods ---
 
-func TestSupervisorCov_SupervisorLease_Path(t *testing.T) {
+func TestSupervisorLease_Path(t *testing.T) {
 	tmpDir := t.TempDir()
 	leasePath := filepath.Join(tmpDir, "test.lock")
 
@@ -556,7 +513,7 @@ func TestSupervisorCov_SupervisorLease_Path(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_SupervisorLease_AcquireRelease(t *testing.T) {
+func TestSupervisorLease_AcquireRelease(t *testing.T) {
 	tmpDir := t.TempDir()
 	leasePath := filepath.Join(tmpDir, "acquire-release.lock")
 
@@ -577,7 +534,7 @@ func TestSupervisorCov_SupervisorLease_AcquireRelease(t *testing.T) {
 	defer func() { _ = lease2.Release() }()
 }
 
-func TestSupervisorCov_AcquireSupervisorLease_DefaultRunID(t *testing.T) {
+func TestAcquireSupervisorLease_DefaultRunID(t *testing.T) {
 	tmpDir := t.TempDir()
 	leasePath := filepath.Join(tmpDir, "default-runid.lock")
 
@@ -595,7 +552,7 @@ func TestSupervisorCov_AcquireSupervisorLease_DefaultRunID(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_AcquireSupervisorLease_RelativePath(t *testing.T) {
+func TestAcquireSupervisorLease_RelativePath(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Relative path should be resolved against cwd
 	lease, err := acquireSupervisorLease(tmpDir, "test.lock", 2*time.Minute, "rel-run")
@@ -611,14 +568,14 @@ func TestSupervisorCov_AcquireSupervisorLease_RelativePath(t *testing.T) {
 
 // --- readLeaseHolderHint ---
 
-func TestSupervisorCov_ReadLeaseHolderHint_NoFile(t *testing.T) {
+func TestReadLeaseHolderHint_NoFile(t *testing.T) {
 	got := readLeaseHolderHint("/nonexistent/file.lock")
 	if !strings.Contains(got, "lock=") {
 		t.Errorf("expected 'lock=' fallback, got %q", got)
 	}
 }
 
-func TestSupervisorCov_ReadLeaseHolderHint_InvalidJSON(t *testing.T) {
+func TestReadLeaseHolderHint_InvalidJSON(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), "bad.lock")
 	if err := os.WriteFile(tmpFile, []byte("not json"), 0644); err != nil {
 		t.Fatal(err)
@@ -629,7 +586,7 @@ func TestSupervisorCov_ReadLeaseHolderHint_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_ReadLeaseHolderHint_ValidMetadata(t *testing.T) {
+func TestReadLeaseHolderHint_ValidMetadata(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), "good.lock")
 	meta := supervisorLeaseMetadata{
 		RunID:     "test-run",
@@ -650,7 +607,7 @@ func TestSupervisorCov_ReadLeaseHolderHint_ValidMetadata(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_ReadLeaseHolderHint_EmptyRunID(t *testing.T) {
+func TestReadLeaseHolderHint_EmptyRunID(t *testing.T) {
 	tmpFile := filepath.Join(t.TempDir(), "empty-runid.lock")
 	meta := supervisorLeaseMetadata{
 		PID: 12345,
@@ -667,7 +624,7 @@ func TestSupervisorCov_ReadLeaseHolderHint_EmptyRunID(t *testing.T) {
 
 // --- validateLoopConfigValues ---
 
-func TestSupervisorCov_ValidateLoopConfigValues(t *testing.T) {
+func TestValidateLoopConfigValues(t *testing.T) {
 	cfg := rpiLoopSupervisorConfig{
 		CycleRetries:   0,
 		RetryBackoff:   0,
@@ -685,7 +642,7 @@ func TestSupervisorCov_ValidateLoopConfigValues(t *testing.T) {
 
 // --- MaxCycleAttempts ---
 
-func TestSupervisorCov_MaxCycleAttempts(t *testing.T) {
+func TestMaxCycleAttempts(t *testing.T) {
 	tests := []struct {
 		retries int
 		want    int
@@ -704,7 +661,7 @@ func TestSupervisorCov_MaxCycleAttempts(t *testing.T) {
 
 // --- ShouldContinueAfterFailure ---
 
-func TestSupervisorCov_ShouldContinueAfterFailure(t *testing.T) {
+func TestShouldContinueAfterFailure(t *testing.T) {
 	tests := []struct {
 		policy string
 		want   bool
@@ -722,7 +679,7 @@ func TestSupervisorCov_ShouldContinueAfterFailure(t *testing.T) {
 
 // --- shouldRunBDSync ---
 
-func TestSupervisorCov_ShouldRunBDSync_AutoNoBeads(t *testing.T) {
+func TestShouldRunBDSync_AutoNoBeads(t *testing.T) {
 	prevLookPath := loopLookPath
 	defer func() { loopLookPath = prevLookPath }()
 	loopLookPath = func(_ string) (string, error) { return "/usr/bin/bd", nil }
@@ -738,7 +695,7 @@ func TestSupervisorCov_ShouldRunBDSync_AutoNoBeads(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_ShouldRunBDSync_AlwaysPresent(t *testing.T) {
+func TestShouldRunBDSync_AlwaysPresent(t *testing.T) {
 	prevLookPath := loopLookPath
 	defer func() { loopLookPath = prevLookPath }()
 	loopLookPath = func(_ string) (string, error) { return "/usr/bin/bd", nil }
@@ -752,20 +709,11 @@ func TestSupervisorCov_ShouldRunBDSync_AlwaysPresent(t *testing.T) {
 	}
 }
 
-// --- deferSupervisorCleanup ---
-
-func TestSupervisorCov_DeferSupervisorCleanup_NoError(t *testing.T) {
-	// When retErr is nil and cleanup succeeds, should return nil
-	// (cleanup will likely fail since there's nothing to clean, but we test the wrapper)
-	retErr := deferSupervisorCleanup(t.TempDir(), rpiLoopSupervisorConfig{}, nil)
-	// Cleanup may return an error but the original retErr is nil
-	// The function wraps cleanup errors as infrastructure failures
-	_ = retErr
-}
+// TestDeferSupervisorCleanup_NoError — canonical version in rpi_loop_supervisor_test.go
 
 // --- openLeaseFile ---
 
-func TestSupervisorCov_OpenLeaseFile(t *testing.T) {
+func TestOpenLeaseFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "nested", "dir", "lease.lock")
 
@@ -783,7 +731,7 @@ func TestSupervisorCov_OpenLeaseFile(t *testing.T) {
 
 // --- collectDirtyPaths error paths ---
 
-func TestSupervisorCov_CollectDirtyPaths_DiffError(t *testing.T) {
+func TestCollectDirtyPaths_DiffError(t *testing.T) {
 	prevRunner := loopCommandOutputRunner
 	defer func() { loopCommandOutputRunner = prevRunner }()
 
@@ -800,7 +748,7 @@ func TestSupervisorCov_CollectDirtyPaths_DiffError(t *testing.T) {
 	}
 }
 
-func TestSupervisorCov_CollectDirtyPaths_LsFilesError(t *testing.T) {
+func TestCollectDirtyPaths_LsFilesError(t *testing.T) {
 	prevRunner := loopCommandOutputRunner
 	defer func() { loopCommandOutputRunner = prevRunner }()
 

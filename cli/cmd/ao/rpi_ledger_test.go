@@ -183,7 +183,7 @@ func TestMaterializeRPIRunCache(t *testing.T) {
 // verifyRPILedger (50%) — exercise all branches
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_VerifyRPILedger_EmptyLedger(t *testing.T) {
+func TestVerifyRPILedger_EmptyLedger(t *testing.T) {
 	root := t.TempDir()
 	// No ledger file → LoadRPILedgerRecords returns nil, nil
 	result, err := verifyRPILedger(root)
@@ -198,7 +198,7 @@ func TestRPILedgerCov_VerifyRPILedger_EmptyLedger(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_VerifyRPILedger_ValidChain(t *testing.T) {
+func TestVerifyRPILedger_ValidChain(t *testing.T) {
 	root := t.TempDir()
 	for i := 0; i < 3; i++ {
 		_, err := AppendRPILedgerRecord(root, RPILedgerAppendInput{
@@ -227,7 +227,7 @@ func TestRPILedgerCov_VerifyRPILedger_ValidChain(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_VerifyRPILedger_TamperedRecord(t *testing.T) {
+func TestVerifyRPILedger_TamperedRecord(t *testing.T) {
 	root := t.TempDir()
 	for i := 0; i < 2; i++ {
 		_, err := AppendRPILedgerRecord(root, RPILedgerAppendInput{
@@ -274,7 +274,7 @@ func TestRPILedgerCov_VerifyRPILedger_TamperedRecord(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_VerifyRPILedger_BrokenPrevHash(t *testing.T) {
+func TestVerifyRPILedger_BrokenPrevHash(t *testing.T) {
 	root := t.TempDir()
 	for i := 0; i < 2; i++ {
 		_, err := AppendRPILedgerRecord(root, RPILedgerAppendInput{
@@ -322,7 +322,7 @@ func TestRPILedgerCov_VerifyRPILedger_BrokenPrevHash(t *testing.T) {
 // validateAppendInput — edge cases
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_ValidateAppendInput_MissingFields(t *testing.T) {
+func TestValidateAppendInput_MissingFields(t *testing.T) {
 	tests := []struct {
 		name  string
 		input RPILedgerAppendInput
@@ -345,7 +345,7 @@ func TestRPILedgerCov_ValidateAppendInput_MissingFields(t *testing.T) {
 // validateRunID
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_ValidateRunID(t *testing.T) {
+func TestValidateRunID(t *testing.T) {
 	tests := []struct {
 		name    string
 		runID   string
@@ -371,7 +371,7 @@ func TestRPILedgerCov_ValidateRunID(t *testing.T) {
 // filterRunRecords
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_FilterRunRecords(t *testing.T) {
+func TestFilterRunRecords(t *testing.T) {
 	records := []RPILedgerRecord{
 		{RunID: "run-a", Action: "start"},
 		{RunID: "run-b", Action: "start"},
@@ -396,7 +396,7 @@ func TestRPILedgerCov_FilterRunRecords(t *testing.T) {
 // normalizeDetails — various input types
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_NormalizeDetails_Nil(t *testing.T) {
+func TestNormalizeDetails_Nil(t *testing.T) {
 	result, err := normalizeDetails(nil)
 	if err != nil {
 		t.Fatalf("error: %v", err)
@@ -406,7 +406,7 @@ func TestRPILedgerCov_NormalizeDetails_Nil(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_NormalizeDetails_EmptyBytes(t *testing.T) {
+func TestNormalizeDetails_EmptyBytes(t *testing.T) {
 	result, err := normalizeDetails(json.RawMessage([]byte("  ")))
 	if err != nil {
 		t.Fatalf("error: %v", err)
@@ -416,7 +416,7 @@ func TestRPILedgerCov_NormalizeDetails_EmptyBytes(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_NormalizeDetails_ValidMap(t *testing.T) {
+func TestNormalizeDetails_ValidMap(t *testing.T) {
 	input := map[string]any{"key": "value"}
 	result, err := normalizeDetails(input)
 	if err != nil {
@@ -431,7 +431,7 @@ func TestRPILedgerCov_NormalizeDetails_ValidMap(t *testing.T) {
 // validateLedgerTimestamp
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_ValidateLedgerTimestamp(t *testing.T) {
+func TestValidateLedgerTimestamp(t *testing.T) {
 	tests := []struct {
 		name    string
 		ts      string
@@ -457,7 +457,7 @@ func TestRPILedgerCov_ValidateLedgerTimestamp(t *testing.T) {
 // validateLedgerRequiredFields
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_ValidateLedgerRequiredFields_AllPresent(t *testing.T) {
+func TestValidateLedgerRequiredFields_AllPresent(t *testing.T) {
 	record := RPILedgerRecord{
 		EventID:     "evt-123",
 		RunID:       "run-1",
@@ -472,7 +472,7 @@ func TestRPILedgerCov_ValidateLedgerRequiredFields_AllPresent(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_ValidateLedgerRequiredFields_Missing(t *testing.T) {
+func TestValidateLedgerRequiredFields_Missing(t *testing.T) {
 	record := RPILedgerRecord{
 		EventID: "evt-123",
 		// Missing RunID
@@ -491,7 +491,7 @@ func TestRPILedgerCov_ValidateLedgerRequiredFields_Missing(t *testing.T) {
 // writeRunCache
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_WriteRunCache(t *testing.T) {
+func TestWriteRunCache(t *testing.T) {
 	root := t.TempDir()
 	record := RPILedgerRecord{
 		RunID:  "run-cache-test",
@@ -526,7 +526,7 @@ func TestRPILedgerCov_WriteRunCache(t *testing.T) {
 // writeFileAtomic
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_WriteFileAtomic(t *testing.T) {
+func TestWriteFileAtomic(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "test.json")
 
@@ -552,7 +552,7 @@ func TestRPILedgerCov_WriteFileAtomic(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_WriteFileAtomic_Overwrite(t *testing.T) {
+func TestWriteFileAtomic_Overwrite(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "overwrite.json")
 
@@ -579,7 +579,7 @@ func TestRPILedgerCov_WriteFileAtomic_Overwrite(t *testing.T) {
 // hashHex
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_HashHex(t *testing.T) {
+func TestHashHex(t *testing.T) {
 	hash := hashHex([]byte("test"))
 	if len(hash) != 64 { // SHA-256 hex = 64 chars
 		t.Errorf("expected 64 hex chars, got %d", len(hash))
@@ -600,7 +600,7 @@ func TestRPILedgerCov_HashHex(t *testing.T) {
 // newRPILedgerEventID
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_NewRPILedgerEventID(t *testing.T) {
+func TestNewRPILedgerEventID(t *testing.T) {
 	id := newRPILedgerEventID()
 	if !strings.HasPrefix(id, "evt-") {
 		t.Errorf("expected 'evt-' prefix, got %q", id)
@@ -620,7 +620,7 @@ func TestRPILedgerCov_NewRPILedgerEventID(t *testing.T) {
 // RPILedgerPath
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_RPILedgerPath(t *testing.T) {
+func TestRPILedgerPath(t *testing.T) {
 	path := RPILedgerPath("/root")
 	expected := filepath.Join("/root", ".agents/ledger/rpi-events.jsonl")
 	if path != expected {
@@ -632,7 +632,7 @@ func TestRPILedgerCov_RPILedgerPath(t *testing.T) {
 // appendRPILedgerEvent (internal alias)
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_AppendRPILedgerEvent(t *testing.T) {
+func TestAppendRPILedgerEvent(t *testing.T) {
 	root := t.TempDir()
 	record, err := appendRPILedgerEvent(root, rpiLedgerEvent{
 		RunID:   "run-alias",
@@ -652,7 +652,7 @@ func TestRPILedgerCov_AppendRPILedgerEvent(t *testing.T) {
 // materializeRPIRunCache (internal alias)
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_MaterializeRPIRunCache_NotFound(t *testing.T) {
+func TestMaterializeRPIRunCache_NotFound(t *testing.T) {
 	root := t.TempDir()
 	// Append one record for a different run
 	_, err := AppendRPILedgerRecord(root, RPILedgerAppendInput{
@@ -675,7 +675,7 @@ func TestRPILedgerCov_MaterializeRPIRunCache_NotFound(t *testing.T) {
 // computeLedgerHashes — deterministic
 // ---------------------------------------------------------------------------
 
-func TestRPILedgerCov_ComputeLedgerHashes_Deterministic(t *testing.T) {
+func TestComputeLedgerHashes_Deterministic(t *testing.T) {
 	record := RPILedgerRecord{
 		SchemaVersion: 1,
 		EventID:       "evt-test",
@@ -705,7 +705,7 @@ func TestRPILedgerCov_ComputeLedgerHashes_Deterministic(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_LoadRecords_EmptyFile(t *testing.T) {
+func TestLoadRecords_EmptyFile(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "empty.jsonl")
 	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
@@ -720,7 +720,7 @@ func TestRPILedgerCov_LoadRecords_EmptyFile(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_LoadRecords_InvalidJSON(t *testing.T) {
+func TestLoadRecords_InvalidJSON(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "bad.jsonl")
 	if err := os.WriteFile(path, []byte("not json\n"), 0644); err != nil {
@@ -732,7 +732,7 @@ func TestRPILedgerCov_LoadRecords_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestRPILedgerCov_LoadRecords_BlankLines(t *testing.T) {
+func TestLoadRecords_BlankLines(t *testing.T) {
 	root := t.TempDir()
 	// Append a record
 	_, err := AppendRPILedgerRecord(root, RPILedgerAppendInput{

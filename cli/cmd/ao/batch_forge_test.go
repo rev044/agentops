@@ -1076,7 +1076,7 @@ func TestBatchForge_accumulator(t *testing.T) {
 // batch_forge.go — forgeSingleTranscript
 // ---------------------------------------------------------------------------
 
-func TestCov4_forgeSingleTranscript_nonexistentFile(t *testing.T) {
+func TestForgeSingleTranscript_nonexistentFile(t *testing.T) {
 	tmp := t.TempDir()
 	fs := storage.NewFileStorage(storage.WithBaseDir(filepath.Join(tmp, ".agents", "ao")))
 	if err := fs.Init(); err != nil {
@@ -1098,7 +1098,7 @@ func TestCov4_forgeSingleTranscript_nonexistentFile(t *testing.T) {
 	}
 }
 
-func TestCov4_forgeSingleTranscript_happyPath(t *testing.T) {
+func TestForgeSingleTranscript_happyPath(t *testing.T) {
 	tmp := t.TempDir()
 	baseDir := filepath.Join(tmp, ".agents", "ao")
 	fs := storage.NewFileStorage(storage.WithBaseDir(baseDir))
@@ -1127,7 +1127,7 @@ func TestCov4_forgeSingleTranscript_happyPath(t *testing.T) {
 	}
 }
 
-func TestCov4_triggerExtraction_emptyPendingFile(t *testing.T) {
+func TestTriggerExtraction_emptyPendingFile(t *testing.T) {
 	tmp := t.TempDir()
 	pendingDir := filepath.Join(tmp, storage.DefaultBaseDir)
 	if err := os.MkdirAll(pendingDir, 0755); err != nil {

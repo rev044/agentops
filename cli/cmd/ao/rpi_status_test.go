@@ -1403,7 +1403,7 @@ func TestScanRegistryRuns_StaleWorktreeReason(t *testing.T) {
 
 // --- buildRPIStatusOutput ---
 
-func TestRPIStatusCov_BuildRPIStatusOutput_WithRegistryRuns(t *testing.T) {
+func TestBuildRPIStatusOutput_WithRegistryRuns(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	writeRegistryRun(t, tmpDir, registryRunSpec{
@@ -1437,7 +1437,7 @@ func TestRPIStatusCov_BuildRPIStatusOutput_WithRegistryRuns(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_BuildRPIStatusOutput_WithLogAndLiveStatus(t *testing.T) {
+func TestBuildRPIStatusOutput_WithLogAndLiveStatus(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create orchestration log
@@ -1468,7 +1468,7 @@ func TestRPIStatusCov_BuildRPIStatusOutput_WithLogAndLiveStatus(t *testing.T) {
 
 // --- renderRPIStatusTable ---
 
-func TestRPIStatusCov_RenderRPIStatusTable_WithHistoricalRuns(t *testing.T) {
+func TestRenderRPIStatusTable_WithHistoricalRuns(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -1490,7 +1490,7 @@ func TestRPIStatusCov_RenderRPIStatusTable_WithHistoricalRuns(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_RenderRPIStatusTable_WithLogRuns(t *testing.T) {
+func TestRenderRPIStatusTable_WithLogRuns(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -1518,7 +1518,7 @@ func TestRPIStatusCov_RenderRPIStatusTable_WithLogRuns(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_RenderRPIStatusTable_WithLiveStatuses(t *testing.T) {
+func TestRenderRPIStatusTable_WithLiveStatuses(t *testing.T) {
 	cwd := t.TempDir()
 	old := os.Stdout
 	_, w, _ := os.Pipe()
@@ -1540,7 +1540,7 @@ func TestRPIStatusCov_RenderRPIStatusTable_WithLiveStatuses(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_RenderRPIStatusTable_ActiveAndHistorical(t *testing.T) {
+func TestRenderRPIStatusTable_ActiveAndHistorical(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -1567,7 +1567,7 @@ func TestRPIStatusCov_RenderRPIStatusTable_ActiveAndHistorical(t *testing.T) {
 
 // --- renderStateRunsSection ---
 
-func TestRPIStatusCov_RenderStateRunsSection_WithReason(t *testing.T) {
+func TestRenderStateRunsSection_WithReason(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -1583,7 +1583,7 @@ func TestRPIStatusCov_RenderStateRunsSection_WithReason(t *testing.T) {
 	renderStateRunsSection("Stale Runs", runs, "stale", true)
 }
 
-func TestRPIStatusCov_RenderStateRunsSection_WithoutReason(t *testing.T) {
+func TestRenderStateRunsSection_WithoutReason(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -1600,7 +1600,7 @@ func TestRPIStatusCov_RenderStateRunsSection_WithoutReason(t *testing.T) {
 
 // --- renderLogRunsSection ---
 
-func TestRPIStatusCov_RenderLogRunsSection(t *testing.T) {
+func TestRenderLogRunsSection(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -1634,7 +1634,7 @@ func TestRPIStatusCov_RenderLogRunsSection(t *testing.T) {
 
 // --- renderLiveStatusesSection ---
 
-func TestRPIStatusCov_RenderLiveStatusesSection(t *testing.T) {
+func TestRenderLiveStatusesSection(t *testing.T) {
 	cwd := t.TempDir()
 	old := os.Stdout
 	_, w, _ := os.Pipe()
@@ -1651,7 +1651,7 @@ func TestRPIStatusCov_RenderLiveStatusesSection(t *testing.T) {
 	})
 }
 
-func TestRPIStatusCov_RenderLiveStatusesSection_NonRelativePath(t *testing.T) {
+func TestRenderLiveStatusesSection_NonRelativePath(t *testing.T) {
 	cwd := t.TempDir()
 	old := os.Stdout
 	_, w, _ := os.Pipe()
@@ -1670,7 +1670,7 @@ func TestRPIStatusCov_RenderLiveStatusesSection_NonRelativePath(t *testing.T) {
 
 // --- totalRetries ---
 
-func TestRPIStatusCov_TotalRetries(t *testing.T) {
+func TestTotalRetries(t *testing.T) {
 	tests := []struct {
 		name    string
 		retries map[string]int
@@ -1693,7 +1693,7 @@ func TestRPIStatusCov_TotalRetries(t *testing.T) {
 
 // --- joinVerdicts ---
 
-func TestRPIStatusCov_JoinVerdicts(t *testing.T) {
+func TestJoinVerdicts(t *testing.T) {
 	tests := []struct {
 		name     string
 		verdicts map[string]string
@@ -1713,7 +1713,7 @@ func TestRPIStatusCov_JoinVerdicts(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_JoinVerdicts_MultipleEntries(t *testing.T) {
+func TestJoinVerdicts_MultipleEntries(t *testing.T) {
 	verdicts := map[string]string{"pre_mortem": "PASS", "vibe": "WARN"}
 	got := joinVerdicts(verdicts)
 	// Should contain both entries separated by comma
@@ -1730,7 +1730,7 @@ func TestRPIStatusCov_JoinVerdicts_MultipleEntries(t *testing.T) {
 
 // --- formattedLogRunStatus ---
 
-func TestRPIStatusCov_FormattedLogRunStatus_CompletedWithVerdicts(t *testing.T) {
+func TestFormattedLogRunStatus_CompletedWithVerdicts(t *testing.T) {
 	run := rpiRun{
 		Status:   "completed",
 		Verdicts: map[string]string{"vibe": "PASS"},
@@ -1746,7 +1746,7 @@ func TestRPIStatusCov_FormattedLogRunStatus_CompletedWithVerdicts(t *testing.T) 
 
 // --- clearScreen ---
 
-func TestRPIStatusCov_ClearScreen(t *testing.T) {
+func TestClearScreen(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -1760,7 +1760,7 @@ func TestRPIStatusCov_ClearScreen(t *testing.T) {
 
 // --- orchestrationLogState methods ---
 
-func TestRPIStatusCov_OrchestrationLogState_ResolveRunID(t *testing.T) {
+func TestOrchestrationLogState_ResolveRunID(t *testing.T) {
 	tests := []struct {
 		name      string
 		runID     string
@@ -1788,7 +1788,7 @@ func TestRPIStatusCov_OrchestrationLogState_ResolveRunID(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_OrchestrationLogState_ResolveRunID_Sequential(t *testing.T) {
+func TestOrchestrationLogState_ResolveRunID_Sequential(t *testing.T) {
 	state := newOrchestrationLogState()
 
 	// First anonymous start
@@ -1810,7 +1810,7 @@ func TestRPIStatusCov_OrchestrationLogState_ResolveRunID_Sequential(t *testing.T
 	}
 }
 
-func TestRPIStatusCov_OrchestrationLogState_GetOrCreateRun(t *testing.T) {
+func TestOrchestrationLogState_GetOrCreateRun(t *testing.T) {
 	state := newOrchestrationLogState()
 
 	run1 := state.getOrCreateRun("run-1")
@@ -1834,7 +1834,7 @@ func TestRPIStatusCov_OrchestrationLogState_GetOrCreateRun(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_OrchestrationLogState_OrderedRuns(t *testing.T) {
+func TestOrchestrationLogState_OrderedRuns(t *testing.T) {
 	state := newOrchestrationLogState()
 	state.getOrCreateRun("first")
 	state.getOrCreateRun("second")
@@ -1851,7 +1851,7 @@ func TestRPIStatusCov_OrchestrationLogState_OrderedRuns(t *testing.T) {
 
 // --- applyOrchestrationLogEntry ---
 
-func TestRPIStatusCov_ApplyOrchestrationLogEntry_StartPhase(t *testing.T) {
+func TestApplyOrchestrationLogEntry_StartPhase(t *testing.T) {
 	run := &rpiRun{
 		RunID:    "test",
 		Verdicts: make(map[string]string),
@@ -1876,7 +1876,7 @@ func TestRPIStatusCov_ApplyOrchestrationLogEntry_StartPhase(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_ApplyOrchestrationLogEntry_CompletePhase(t *testing.T) {
+func TestApplyOrchestrationLogEntry_CompletePhase(t *testing.T) {
 	startTime := time.Date(2026, 2, 15, 10, 0, 0, 0, time.UTC)
 	completeTime := time.Date(2026, 2, 15, 10, 30, 0, 0, time.UTC)
 	run := &rpiRun{
@@ -1912,7 +1912,7 @@ func TestRPIStatusCov_ApplyOrchestrationLogEntry_CompletePhase(t *testing.T) {
 
 // --- applyCompletePhase ---
 
-func TestRPIStatusCov_ApplyCompletePhase_NoTime(t *testing.T) {
+func TestApplyCompletePhase_NoTime(t *testing.T) {
 	run := &rpiRun{
 		RunID:    "test",
 		Verdicts: make(map[string]string),
@@ -1935,7 +1935,7 @@ func TestRPIStatusCov_ApplyCompletePhase_NoTime(t *testing.T) {
 
 // --- applyNonTerminalPhase ---
 
-func TestRPIStatusCov_ApplyNonTerminalPhase_FailedDetails(t *testing.T) {
+func TestApplyNonTerminalPhase_FailedDetails(t *testing.T) {
 	run := &rpiRun{
 		RunID:    "test",
 		Verdicts: make(map[string]string),
@@ -1954,7 +1954,7 @@ func TestRPIStatusCov_ApplyNonTerminalPhase_FailedDetails(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_ApplyNonTerminalPhase_FatalDetails(t *testing.T) {
+func TestApplyNonTerminalPhase_FatalDetails(t *testing.T) {
 	run := &rpiRun{
 		RunID:    "test",
 		Verdicts: make(map[string]string),
@@ -1973,7 +1973,7 @@ func TestRPIStatusCov_ApplyNonTerminalPhase_FatalDetails(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_ApplyNonTerminalPhase_RetryDetails(t *testing.T) {
+func TestApplyNonTerminalPhase_RetryDetails(t *testing.T) {
 	run := &rpiRun{
 		RunID:    "test",
 		Verdicts: make(map[string]string),
@@ -1994,7 +1994,7 @@ func TestRPIStatusCov_ApplyNonTerminalPhase_RetryDetails(t *testing.T) {
 
 // --- updateFailureStatus ---
 
-func TestRPIStatusCov_UpdateFailureStatus(t *testing.T) {
+func TestUpdateFailureStatus(t *testing.T) {
 	tests := []struct {
 		name     string
 		details  string
@@ -2020,7 +2020,7 @@ func TestRPIStatusCov_UpdateFailureStatus(t *testing.T) {
 
 // --- updateRetryCount ---
 
-func TestRPIStatusCov_UpdateRetryCount(t *testing.T) {
+func TestUpdateRetryCount(t *testing.T) {
 	run := &rpiRun{Retries: make(map[string]int)}
 	updateRetryCount(run, "validation", "RETRY attempt 1/3")
 	updateRetryCount(run, "validation", "RETRY attempt 2/3")
@@ -2036,7 +2036,7 @@ func TestRPIStatusCov_UpdateRetryCount(t *testing.T) {
 
 // --- updateFinishedAtFromCompletedDuration ---
 
-func TestRPIStatusCov_UpdateFinishedAtFromCompletedDuration(t *testing.T) {
+func TestUpdateFinishedAtFromCompletedDuration(t *testing.T) {
 	now := time.Date(2026, 2, 15, 10, 0, 0, 0, time.UTC)
 
 	tests := []struct {
@@ -2072,7 +2072,7 @@ func TestRPIStatusCov_UpdateFinishedAtFromCompletedDuration(t *testing.T) {
 
 // --- updateInlineVerdicts ---
 
-func TestRPIStatusCov_UpdateInlineVerdicts(t *testing.T) {
+func TestUpdateInlineVerdicts(t *testing.T) {
 	tests := []struct {
 		name      string
 		phaseName string
@@ -2097,7 +2097,7 @@ func TestRPIStatusCov_UpdateInlineVerdicts(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_DiscoverLogRuns_WithSiblingLog(t *testing.T) {
+func TestDiscoverLogRuns_WithSiblingLog(t *testing.T) {
 	parent := t.TempDir()
 	cwd := filepath.Join(parent, "repo")
 	sibling := filepath.Join(parent, "repo-rpi-abc")
@@ -2124,7 +2124,7 @@ func TestRPIStatusCov_DiscoverLogRuns_WithSiblingLog(t *testing.T) {
 
 // --- discoverLiveStatuses dedup ---
 
-func TestRPIStatusCov_DiscoverLiveStatuses_Dedup(t *testing.T) {
+func TestDiscoverLiveStatuses_Dedup(t *testing.T) {
 	parent := t.TempDir()
 	cwd := filepath.Join(parent, "repo")
 	rpiDir := filepath.Join(cwd, ".agents", "rpi")
@@ -2144,7 +2144,7 @@ func TestRPIStatusCov_DiscoverLiveStatuses_Dedup(t *testing.T) {
 
 // --- completedPhaseNumber ---
 
-func TestRPIStatusCov_CompletedPhaseNumber(t *testing.T) {
+func TestCompletedPhaseNumber(t *testing.T) {
 	tests := []struct {
 		schema int
 		want   int
@@ -2164,7 +2164,7 @@ func TestRPIStatusCov_CompletedPhaseNumber(t *testing.T) {
 
 // --- displayPhaseName ---
 
-func TestRPIStatusCov_DisplayPhaseName_LegacyUnknown(t *testing.T) {
+func TestDisplayPhaseName_LegacyUnknown(t *testing.T) {
 	state := phasedState{SchemaVersion: 0, Phase: 99}
 	got := displayPhaseName(state)
 	if got != "phase-99" {
@@ -2174,7 +2174,7 @@ func TestRPIStatusCov_DisplayPhaseName_LegacyUnknown(t *testing.T) {
 
 // --- tryAddSearchRoot ---
 
-func TestRPIStatusCov_TryAddSearchRoot(t *testing.T) {
+func TestTryAddSearchRoot(t *testing.T) {
 	dir := t.TempDir()
 	seen := make(map[string]struct{})
 	roots := []string{}
@@ -2206,7 +2206,7 @@ func TestRPIStatusCov_TryAddSearchRoot(t *testing.T) {
 
 // --- collectSearchRoots ---
 
-func TestRPIStatusCov_CollectSearchRoots(t *testing.T) {
+func TestCollectSearchRoots(t *testing.T) {
 	parent := t.TempDir()
 	cwd := filepath.Join(parent, "myrepo")
 	sibling := filepath.Join(parent, "myrepo-rpi-xyz")
@@ -2237,7 +2237,7 @@ func TestRPIStatusCov_CollectSearchRoots(t *testing.T) {
 
 // --- normalizeSearchRootPath ---
 
-func TestRPIStatusCov_NormalizeSearchRootPath_Existing(t *testing.T) {
+func TestNormalizeSearchRootPath_Existing(t *testing.T) {
 	dir := t.TempDir()
 	got := normalizeSearchRootPath(dir)
 	if got == "" {
@@ -2245,7 +2245,7 @@ func TestRPIStatusCov_NormalizeSearchRootPath_Existing(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_NormalizeSearchRootPath_NonExistent(t *testing.T) {
+func TestNormalizeSearchRootPath_NonExistent(t *testing.T) {
 	got := normalizeSearchRootPath("/tmp/nonexistent-coverage-test-xyz")
 	if got == "" {
 		t.Error("expected non-empty result")
@@ -2254,7 +2254,7 @@ func TestRPIStatusCov_NormalizeSearchRootPath_NonExistent(t *testing.T) {
 
 // --- scanRegistryRuns with corrupt state ---
 
-func TestRPIStatusCov_ScanRegistryRuns_CorruptState(t *testing.T) {
+func TestScanRegistryRuns_CorruptState(t *testing.T) {
 	tmpDir := t.TempDir()
 	runDir := filepath.Join(tmpDir, ".agents", "rpi", "runs", "corrupt-run")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
@@ -2270,7 +2270,7 @@ func TestRPIStatusCov_ScanRegistryRuns_CorruptState(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_ScanRegistryRuns_FileNotDir(t *testing.T) {
+func TestScanRegistryRuns_FileNotDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	runsDir := filepath.Join(tmpDir, ".agents", "rpi", "runs")
 	if err := os.MkdirAll(runsDir, 0755); err != nil {
@@ -2289,7 +2289,7 @@ func TestRPIStatusCov_ScanRegistryRuns_FileNotDir(t *testing.T) {
 
 // --- writeRPIStatusJSON ---
 
-func TestRPIStatusCov_WriteRPIStatusJSON_Fields(t *testing.T) {
+func TestWriteRPIStatusJSON_Fields(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -2316,7 +2316,7 @@ func TestRPIStatusCov_WriteRPIStatusJSON_Fields(t *testing.T) {
 
 // --- parseOrchestrationLogLine ---
 
-func TestRPIStatusCov_ParseOrchestrationLogLine(t *testing.T) {
+func TestParseOrchestrationLogLine(t *testing.T) {
 	tests := []struct {
 		name    string
 		line    string
@@ -2373,7 +2373,7 @@ func TestRPIStatusCov_ParseOrchestrationLogLine(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_ParseOrchestrationLogLine_RFC3339Time(t *testing.T) {
+func TestParseOrchestrationLogLine_RFC3339Time(t *testing.T) {
 	entry, ok := parseOrchestrationLogLine("[2026-02-15T10:00:00Z] [r1] start: test")
 	if !ok {
 		t.Fatal("expected ok=true")
@@ -2386,7 +2386,7 @@ func TestRPIStatusCov_ParseOrchestrationLogLine_RFC3339Time(t *testing.T) {
 	}
 }
 
-func TestRPIStatusCov_ParseOrchestrationLogLine_NonRFC3339Time(t *testing.T) {
+func TestParseOrchestrationLogLine_NonRFC3339Time(t *testing.T) {
 	entry, ok := parseOrchestrationLogLine("[2026/02/15 10:00] [r1] start: test")
 	if !ok {
 		t.Fatal("expected ok=true")

@@ -2569,7 +2569,7 @@ func TestHooksCoverage_runHooksInit_UnknownFormat(t *testing.T) {
 // fallbackHookCoverageContract
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_fallbackContract_Basic(t *testing.T) {
+func TestFallbackContract_Basic(t *testing.T) {
 	c := fallbackHookCoverageContract("test reason")
 	if c.ActiveEvents == nil {
 		t.Fatal("expected non-nil ActiveEvents")
@@ -2582,7 +2582,7 @@ func TestHooksCov_fallbackContract_Basic(t *testing.T) {
 	}
 }
 
-func TestHooksCov_fallbackContract_EmptyReason(t *testing.T) {
+func TestFallbackContract_EmptyReason(t *testing.T) {
 	c := fallbackHookCoverageContract("")
 	if c.FallbackReason != "" {
 		t.Errorf("expected empty FallbackReason, got %q", c.FallbackReason)
@@ -2593,7 +2593,7 @@ func TestHooksCov_fallbackContract_EmptyReason(t *testing.T) {
 // printLegacyPreservationReport
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_printLegacyReport_NonEmpty(t *testing.T) {
+func TestPrintLegacyReport_NonEmpty(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -2607,7 +2607,7 @@ func TestHooksCov_printLegacyReport_NonEmpty(t *testing.T) {
 	}
 }
 
-func TestHooksCov_printLegacyReport_Empty(t *testing.T) {
+func TestPrintLegacyReport_Empty(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -2625,7 +2625,7 @@ func TestHooksCov_printLegacyReport_Empty(t *testing.T) {
 // SetEventGroups / activeEventNamesFromConfig
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_SetEventGroups_Unknown(t *testing.T) {
+func TestSetEventGroups_Unknown(t *testing.T) {
 	config := &HooksConfig{}
 	config.SetEventGroups("FakeEvent", []HookGroup{{Matcher: "", Hooks: []HookEntry{{Type: "command", Command: "echo"}}}})
 	groups := config.GetEventGroups("FakeEvent")
@@ -2634,14 +2634,14 @@ func TestHooksCov_SetEventGroups_Unknown(t *testing.T) {
 	}
 }
 
-func TestHooksCov_activeEventNames_Empty(t *testing.T) {
+func TestActiveEventNames_Empty(t *testing.T) {
 	names := activeEventNamesFromConfig(&HooksConfig{})
 	if len(names) != 0 {
 		t.Errorf("expected 0, got %d", len(names))
 	}
 }
 
-func TestHooksCov_activeEventNames_Partial(t *testing.T) {
+func TestActiveEventNames_Partial(t *testing.T) {
 	config := &HooksConfig{
 		SessionStart: []HookGroup{{Matcher: "", Hooks: []HookEntry{{Type: "command", Command: "echo"}}}},
 	}
@@ -2655,7 +2655,7 @@ func TestHooksCov_activeEventNames_Partial(t *testing.T) {
 // resolveHookCoverageContract
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_resolveContract(t *testing.T) {
+func TestResolveContract(t *testing.T) {
 	c := resolveHookCoverageContract()
 	if len(c.ActiveEvents) == 0 {
 		t.Error("expected at least one active event")
@@ -2666,7 +2666,7 @@ func TestHooksCov_resolveContract(t *testing.T) {
 // resolveSourceDir
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_resolveSourceDir_InvalidExplicit(t *testing.T) {
+func TestResolveSourceDir_InvalidExplicit(t *testing.T) {
 	old := hooksSourceDir
 	hooksSourceDir = "/nonexistent/repo"
 	defer func() { hooksSourceDir = old }()
@@ -2676,7 +2676,7 @@ func TestHooksCov_resolveSourceDir_InvalidExplicit(t *testing.T) {
 	}
 }
 
-func TestHooksCov_resolveSourceDir_CwdFallback(t *testing.T) {
+func TestResolveSourceDir_CwdFallback(t *testing.T) {
 	old := hooksSourceDir
 	hooksSourceDir = ""
 	defer func() { hooksSourceDir = old }()
@@ -2701,7 +2701,7 @@ func TestHooksCov_resolveSourceDir_CwdFallback(t *testing.T) {
 	}
 }
 
-func TestHooksCov_resolveSourceDir_NoSource(t *testing.T) {
+func TestResolveSourceDir_NoSource(t *testing.T) {
 	old := hooksSourceDir
 	hooksSourceDir = ""
 	defer func() { hooksSourceDir = old }()
@@ -2719,14 +2719,14 @@ func TestHooksCov_resolveSourceDir_NoSource(t *testing.T) {
 // cloneHooksMap
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_cloneHooksMap_NoKey(t *testing.T) {
+func TestCloneHooksMap_NoKey(t *testing.T) {
 	result := cloneHooksMap(map[string]any{"other": "val"})
 	if len(result) != 0 {
 		t.Errorf("expected empty, got %d", len(result))
 	}
 }
 
-func TestHooksCov_cloneHooksMap_NotMap(t *testing.T) {
+func TestCloneHooksMap_NotMap(t *testing.T) {
 	result := cloneHooksMap(map[string]any{"hooks": "string"})
 	if len(result) != 0 {
 		t.Errorf("expected empty, got %d", len(result))
@@ -2737,13 +2737,13 @@ func TestHooksCov_cloneHooksMap_NotMap(t *testing.T) {
 // backupHooksSettings
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_backupSettings_Nonexistent(t *testing.T) {
+func TestBackupSettings_Nonexistent(t *testing.T) {
 	if err := backupHooksSettings("/nonexistent/settings.json"); err != nil {
 		t.Fatalf("expected no-op, got: %v", err)
 	}
 }
 
-func TestHooksCov_backupSettings_Existing(t *testing.T) {
+func TestBackupSettings_Existing(t *testing.T) {
 	dir := t.TempDir()
 	sp := filepath.Join(dir, "settings.json")
 	os.WriteFile(sp, []byte(`{}`), 0644)
@@ -2766,7 +2766,7 @@ func TestHooksCov_backupSettings_Existing(t *testing.T) {
 // copyOptionalFile / copyOptionalDir / copyShellScripts / hooksCopyFile
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_copyOptionalFile_Missing(t *testing.T) {
+func TestCopyOptionalFile_Missing(t *testing.T) {
 	n, err := copyOptionalFile("/nonexistent", "/dst", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -2776,7 +2776,7 @@ func TestHooksCov_copyOptionalFile_Missing(t *testing.T) {
 	}
 }
 
-func TestHooksCov_copyOptionalFile_Exists(t *testing.T) {
+func TestCopyOptionalFile_Exists(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "f.sh")
 	dst := filepath.Join(t.TempDir(), "f.sh")
 	os.WriteFile(src, []byte("#!/bin/bash"), 0755)
@@ -2789,7 +2789,7 @@ func TestHooksCov_copyOptionalFile_Exists(t *testing.T) {
 	}
 }
 
-func TestHooksCov_copyOptionalDir_Missing(t *testing.T) {
+func TestCopyOptionalDir_Missing(t *testing.T) {
 	n, err := copyOptionalDir("/nonexistent", "/dst", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -2799,7 +2799,7 @@ func TestHooksCov_copyOptionalDir_Missing(t *testing.T) {
 	}
 }
 
-func TestHooksCov_copyOptionalDir_Exists(t *testing.T) {
+func TestCopyOptionalDir_Exists(t *testing.T) {
 	srcDir := t.TempDir()
 	dstDir := filepath.Join(t.TempDir(), "dest")
 	os.WriteFile(filepath.Join(srcDir, "a.md"), []byte("a"), 0644)
@@ -2812,14 +2812,14 @@ func TestHooksCov_copyOptionalDir_Exists(t *testing.T) {
 	}
 }
 
-func TestHooksCov_copyShellScripts_Nonexistent(t *testing.T) {
+func TestCopyShellScripts_Nonexistent(t *testing.T) {
 	_, err := copyShellScripts("/nonexistent", "/dst")
 	if err == nil {
 		t.Fatal("expected error for nonexistent source dir")
 	}
 }
 
-func TestHooksCov_copyShellScripts_WithFiles(t *testing.T) {
+func TestCopyShellScripts_WithFiles(t *testing.T) {
 	srcDir := t.TempDir()
 	os.WriteFile(filepath.Join(srcDir, "a.sh"), []byte("#!/bin/bash\n"), 0755)
 	os.WriteFile(filepath.Join(srcDir, "b.sh"), []byte("#!/bin/bash\n"), 0755)
@@ -2833,14 +2833,14 @@ func TestHooksCov_copyShellScripts_WithFiles(t *testing.T) {
 	}
 }
 
-func TestHooksCov_hooksCopyFile_Missing(t *testing.T) {
+func TestHooksCopyFile_Missing(t *testing.T) {
 	err := hooksCopyFile("/nonexistent", "/dst")
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestHooksCov_hooksCopyFile_OK(t *testing.T) {
+func TestHooksCopyFile_OK(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "f.sh")
 	os.WriteFile(src, []byte("data"), 0755)
 	dst := filepath.Join(t.TempDir(), "sub", "f.sh")
@@ -2857,14 +2857,14 @@ func TestHooksCov_hooksCopyFile_OK(t *testing.T) {
 // installFullHooks / installFullHooksFromEmbed / installFullHookScripts
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_installFullHooks_NoGit(t *testing.T) {
+func TestInstallFullHooks_NoGit(t *testing.T) {
 	_, err := installFullHooks(t.TempDir(), t.TempDir())
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestHooksCov_installFullHooks_WithGit(t *testing.T) {
+func TestInstallFullHooks_WithGit(t *testing.T) {
 	srcDir := t.TempDir()
 	os.MkdirAll(filepath.Join(srcDir, ".git"), 0755)
 	hDir := filepath.Join(srcDir, "hooks")
@@ -2879,7 +2879,7 @@ func TestHooksCov_installFullHooks_WithGit(t *testing.T) {
 	}
 }
 
-func TestHooksCov_installFromEmbed(t *testing.T) {
+func TestInstallFromEmbed(t *testing.T) {
 	n, err := installFullHooksFromEmbed(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -2889,7 +2889,7 @@ func TestHooksCov_installFromEmbed(t *testing.T) {
 	}
 }
 
-func TestHooksCov_installFullHookScripts_Embedded(t *testing.T) {
+func TestInstallFullHookScripts_Embedded(t *testing.T) {
 	old := hooksSourceDir
 	oldDry := hooksDryRun
 	hooksSourceDir = ""
@@ -2910,7 +2910,7 @@ func TestHooksCov_installFullHookScripts_Embedded(t *testing.T) {
 	}
 }
 
-func TestHooksCov_installFullHookScripts_DryRunNoRepo(t *testing.T) {
+func TestInstallFullHookScripts_DryRunNoRepo(t *testing.T) {
 	old := hooksSourceDir
 	oldDry := hooksDryRun
 	hooksSourceDir = ""
@@ -2936,7 +2936,7 @@ func TestHooksCov_installFullHookScripts_DryRunNoRepo(t *testing.T) {
 	}
 }
 
-func TestHooksCov_installFullHookScripts_DryRunWithRepo(t *testing.T) {
+func TestInstallFullHookScripts_DryRunWithRepo(t *testing.T) {
 	srcDir := t.TempDir()
 	os.MkdirAll(filepath.Join(srcDir, "hooks"), 0755)
 	os.WriteFile(filepath.Join(srcDir, "hooks", "hooks.json"), []byte("{}"), 0644)
@@ -2956,7 +2956,7 @@ func TestHooksCov_installFullHookScripts_DryRunWithRepo(t *testing.T) {
 	}
 }
 
-func TestHooksCov_installFullHookScripts_WithRepo(t *testing.T) {
+func TestInstallFullHookScripts_WithRepo(t *testing.T) {
 	srcDir := t.TempDir()
 	os.MkdirAll(filepath.Join(srcDir, ".git"), 0755)
 	hDir := filepath.Join(srcDir, "hooks")
@@ -2983,7 +2983,7 @@ func TestHooksCov_installFullHookScripts_WithRepo(t *testing.T) {
 // loadHooksSettings
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_loadSettings_Valid(t *testing.T) {
+func TestLoadSettings_Valid(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "settings.json")
 	os.WriteFile(sp, []byte(`{"hooks": {}}`), 0644)
 	r, err := loadHooksSettings(sp)
@@ -2995,7 +2995,7 @@ func TestHooksCov_loadSettings_Valid(t *testing.T) {
 	}
 }
 
-func TestHooksCov_loadSettings_BadJSON(t *testing.T) {
+func TestLoadSettings_BadJSON(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "settings.json")
 	os.WriteFile(sp, []byte("bad"), 0644)
 	_, err := loadHooksSettings(sp)
@@ -3004,7 +3004,7 @@ func TestHooksCov_loadSettings_BadJSON(t *testing.T) {
 	}
 }
 
-func TestHooksCov_loadSettings_Missing(t *testing.T) {
+func TestLoadSettings_Missing(t *testing.T) {
 	r, err := loadHooksSettings("/nonexistent")
 	if err != nil {
 		t.Fatal(err)
@@ -3018,7 +3018,7 @@ func TestHooksCov_loadSettings_Missing(t *testing.T) {
 // writeHooksSettings
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_writeSettings_CreatesDir(t *testing.T) {
+func TestWriteSettings_CreatesDir(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), ".claude", "settings.json")
 	err := writeHooksSettings(sp, map[string]any{"hooks": map[string]any{}})
 	if err != nil {
@@ -3029,7 +3029,7 @@ func TestHooksCov_writeSettings_CreatesDir(t *testing.T) {
 	}
 }
 
-func TestHooksCov_writeSettings_Valid(t *testing.T) {
+func TestWriteSettings_Valid(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "settings.json")
 	err := writeHooksSettings(sp, map[string]any{"hooks": map[string]any{}, "tools": []string{"Read"}})
 	if err != nil {
@@ -3049,7 +3049,7 @@ func TestHooksCov_writeSettings_Valid(t *testing.T) {
 // dryRunPrintSettings
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_dryRun_Off(t *testing.T) {
+func TestDryRun_Off(t *testing.T) {
 	oldVal := hooksDryRun
 	hooksDryRun = false
 	defer func() { hooksDryRun = oldVal }()
@@ -3059,7 +3059,7 @@ func TestHooksCov_dryRun_Off(t *testing.T) {
 	}
 }
 
-func TestHooksCov_dryRun_On(t *testing.T) {
+func TestDryRun_On(t *testing.T) {
 	oldVal := hooksDryRun
 	hooksDryRun = true
 	defer func() { hooksDryRun = oldVal }()
@@ -3078,7 +3078,7 @@ func TestHooksCov_dryRun_On(t *testing.T) {
 // generateHooksForInstall / generateFullHooksConfig / generateHooksConfig
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_generateForInstall(t *testing.T) {
+func TestGenerateForInstall(t *testing.T) {
 	h, e, err := generateHooksForInstall(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -3088,14 +3088,14 @@ func TestHooksCov_generateForInstall(t *testing.T) {
 	}
 }
 
-func TestHooksCov_generateHooksConfig_NonNil(t *testing.T) {
+func TestGenerateHooksConfig_NonNil(t *testing.T) {
 	c := generateHooksConfig()
 	if c == nil {
 		t.Fatal("expected non-nil")
 	}
 }
 
-func TestHooksCov_generateFullConfig(t *testing.T) {
+func TestGenerateFullConfig(t *testing.T) {
 	config, err := generateFullHooksConfig()
 	if err != nil {
 		t.Fatalf("generateFullHooksConfig: %v", err)
@@ -3109,14 +3109,14 @@ func TestHooksCov_generateFullConfig(t *testing.T) {
 // ReadHooksManifest
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_ReadManifest_MissingKey(t *testing.T) {
+func TestReadManifest_MissingKey(t *testing.T) {
 	_, err := ReadHooksManifest([]byte(`{"version": 1}`))
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestHooksCov_ReadManifest_BadJSON(t *testing.T) {
+func TestReadManifest_BadJSON(t *testing.T) {
 	_, err := ReadHooksManifest([]byte("bad"))
 	if err == nil {
 		t.Fatal("expected error")
@@ -3127,7 +3127,7 @@ func TestHooksCov_ReadManifest_BadJSON(t *testing.T) {
 // commitHooksSettings
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_commitSettings(t *testing.T) {
+func TestCommitSettings(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "settings.json")
 	os.WriteFile(sp, []byte(`{"old": true}`), 0644)
 	hooks := generateHooksConfig()
@@ -3158,7 +3158,7 @@ func TestHooksCov_commitSettings(t *testing.T) {
 // formatLegacyPreservationReport
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_formatLegacyReport(t *testing.T) {
+func TestFormatLegacyReport(t *testing.T) {
 	report := formatLegacyPreservationReport([]string{"PreToolUse"})
 	if !strings.Contains(report, "PreToolUse") {
 		t.Error("expected PreToolUse")
@@ -3169,14 +3169,14 @@ func TestHooksCov_formatLegacyReport(t *testing.T) {
 // countInstalledEventsForList
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_countInstalledEventsForList_Empty(t *testing.T) {
+func TestCountInstalledEventsForList_Empty(t *testing.T) {
 	c := countInstalledEventsForList(map[string]any{}, AllEventNames())
 	if c != 0 {
 		t.Errorf("expected 0, got %d", c)
 	}
 }
 
-func TestHooksCov_countInstalledEventsForList_NonArray(t *testing.T) {
+func TestCountInstalledEventsForList_NonArray(t *testing.T) {
 	c := countInstalledEventsForList(map[string]any{"SessionStart": "not array"}, AllEventNames())
 	if c != 0 {
 		t.Errorf("expected 0, got %d", c)
@@ -3187,7 +3187,7 @@ func TestHooksCov_countInstalledEventsForList_NonArray(t *testing.T) {
 // collectLegacyAoManagedEvents
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_collectLegacy_AllActive(t *testing.T) {
+func TestCollectLegacy_AllActive(t *testing.T) {
 	// When an ao-managed event IS in the active list, it's not legacy
 	hooksMap := map[string]any{
 		"SessionStart": []any{
@@ -3202,7 +3202,7 @@ func TestHooksCov_collectLegacy_AllActive(t *testing.T) {
 	}
 }
 
-func TestHooksCov_collectLegacy_NoAo(t *testing.T) {
+func TestCollectLegacy_NoAo(t *testing.T) {
 	hooksMap := map[string]any{
 		"PreToolUse": []any{
 			map[string]any{"matcher": "", "hooks": []any{
@@ -3220,7 +3220,7 @@ func TestHooksCov_collectLegacy_NoAo(t *testing.T) {
 // collectScriptNames
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_collectScriptNames_Present(t *testing.T) {
+func TestCollectScriptNames_Present(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.sh"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(dir, "b.txt"), []byte(""), 0644)
@@ -3230,7 +3230,7 @@ func TestHooksCov_collectScriptNames_Present(t *testing.T) {
 	}
 }
 
-func TestHooksCov_collectScriptNames_Missing(t *testing.T) {
+func TestCollectScriptNames_Missing(t *testing.T) {
 	if len(collectScriptNames("/nonexistent")) != 0 {
 		t.Error("expected empty")
 	}
@@ -3240,7 +3240,7 @@ func TestHooksCov_collectScriptNames_Missing(t *testing.T) {
 // readSettingsHooksMap
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_readSettingsHooksMap_Missing(t *testing.T) {
+func TestReadSettingsHooksMap_Missing(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -3252,7 +3252,7 @@ func TestHooksCov_readSettingsHooksMap_Missing(t *testing.T) {
 	}
 }
 
-func TestHooksCov_readSettingsHooksMap_BadJSON(t *testing.T) {
+func TestReadSettingsHooksMap_BadJSON(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "s.json")
 	os.WriteFile(sp, []byte("bad"), 0644)
 	_, err := readSettingsHooksMap(sp)
@@ -3261,7 +3261,7 @@ func TestHooksCov_readSettingsHooksMap_BadJSON(t *testing.T) {
 	}
 }
 
-func TestHooksCov_readSettingsHooksMap_NoKey(t *testing.T) {
+func TestReadSettingsHooksMap_NoKey(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "s.json")
 	os.WriteFile(sp, []byte(`{"other": 1}`), 0644)
 	old := os.Stdout
@@ -3275,7 +3275,7 @@ func TestHooksCov_readSettingsHooksMap_NoKey(t *testing.T) {
 	}
 }
 
-func TestHooksCov_readSettingsHooksMap_NotMap(t *testing.T) {
+func TestReadSettingsHooksMap_NotMap(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "s.json")
 	os.WriteFile(sp, []byte(`{"hooks": "str"}`), 0644)
 	r, err := readSettingsHooksMap(sp)
@@ -3288,7 +3288,7 @@ func TestHooksCov_readSettingsHooksMap_NotMap(t *testing.T) {
 // loadHooksMap
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_loadHooksMap_BadJSON(t *testing.T) {
+func TestLoadHooksMap_BadJSON(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "s.json")
 	os.WriteFile(sp, []byte("bad"), 0644)
 	_, err := loadHooksMap(sp)
@@ -3297,7 +3297,7 @@ func TestHooksCov_loadHooksMap_BadJSON(t *testing.T) {
 	}
 }
 
-func TestHooksCov_loadHooksMap_NoKey(t *testing.T) {
+func TestLoadHooksMap_NoKey(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "s.json")
 	os.WriteFile(sp, []byte(`{"other": 1}`), 0644)
 	old := os.Stdout
@@ -3311,7 +3311,7 @@ func TestHooksCov_loadHooksMap_NoKey(t *testing.T) {
 	}
 }
 
-func TestHooksCov_loadHooksMap_NotMap(t *testing.T) {
+func TestLoadHooksMap_NotMap(t *testing.T) {
 	sp := filepath.Join(t.TempDir(), "s.json")
 	os.WriteFile(sp, []byte(`{"hooks": 42}`), 0644)
 	old := os.Stdout
@@ -3325,7 +3325,7 @@ func TestHooksCov_loadHooksMap_NotMap(t *testing.T) {
 	}
 }
 
-func TestHooksCov_loadHooksMap_Missing(t *testing.T) {
+func TestLoadHooksMap_Missing(t *testing.T) {
 	old := os.Stdout
 	_, w, _ := os.Pipe()
 	os.Stdout = w
@@ -3341,7 +3341,7 @@ func TestHooksCov_loadHooksMap_Missing(t *testing.T) {
 // existingAoHooksBlock
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_existingAoBlock_True(t *testing.T) {
+func TestExistingAoBlock_True(t *testing.T) {
 	s := map[string]any{
 		"hooks": map[string]any{
 			"SessionStart": []any{
@@ -3356,7 +3356,7 @@ func TestHooksCov_existingAoBlock_True(t *testing.T) {
 	}
 }
 
-func TestHooksCov_existingAoBlock_False(t *testing.T) {
+func TestExistingAoBlock_False(t *testing.T) {
 	if existingAoHooksBlock(map[string]any{}) {
 		t.Error("expected false")
 	}
@@ -3366,7 +3366,7 @@ func TestHooksCov_existingAoBlock_False(t *testing.T) {
 // runHooksInit
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_runHooksInit_Shell(t *testing.T) {
+func TestRunHooksInit_Shell(t *testing.T) {
 	oldFmt := hooksOutputFormat
 	hooksOutputFormat = "shell"
 	defer func() { hooksOutputFormat = oldFmt }()
@@ -3390,7 +3390,7 @@ func TestHooksCov_runHooksInit_Shell(t *testing.T) {
 // runHooksInstall
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_runHooksInstall_Fresh(t *testing.T) {
+func TestRunHooksInstall_Fresh(t *testing.T) {
 	oldDry := hooksDryRun
 	oldForce := hooksForce
 	oldFull := hooksFull
@@ -3413,7 +3413,7 @@ func TestHooksCov_runHooksInstall_Fresh(t *testing.T) {
 	}
 }
 
-func TestHooksCov_runHooksInstall_AlreadyInstalled(t *testing.T) {
+func TestRunHooksInstall_AlreadyInstalled(t *testing.T) {
 	oldDry := hooksDryRun
 	oldForce := hooksForce
 	oldFull := hooksFull
@@ -3454,7 +3454,7 @@ func TestHooksCov_runHooksInstall_AlreadyInstalled(t *testing.T) {
 	}
 }
 
-func TestHooksCov_runHooksInstall_Force(t *testing.T) {
+func TestRunHooksInstall_Force(t *testing.T) {
 	oldDry := hooksDryRun
 	oldForce := hooksForce
 	oldFull := hooksFull
@@ -3490,7 +3490,7 @@ func TestHooksCov_runHooksInstall_Force(t *testing.T) {
 	}
 }
 
-func TestHooksCov_runHooksInstall_DryRun(t *testing.T) {
+func TestRunHooksInstall_DryRun(t *testing.T) {
 	oldDry := hooksDryRun
 	oldForce := hooksForce
 	oldFull := hooksFull
@@ -3513,7 +3513,7 @@ func TestHooksCov_runHooksInstall_DryRun(t *testing.T) {
 	}
 }
 
-func TestHooksCov_runHooksInstall_FullMode(t *testing.T) {
+func TestRunHooksInstall_FullMode(t *testing.T) {
 	oldDry := hooksDryRun
 	oldForce := hooksForce
 	oldFull := hooksFull
@@ -3542,7 +3542,7 @@ func TestHooksCov_runHooksInstall_FullMode(t *testing.T) {
 	}
 }
 
-func TestHooksCov_runHooksInstall_ExistingNonAo(t *testing.T) {
+func TestRunHooksInstall_ExistingNonAo(t *testing.T) {
 	oldDry := hooksDryRun
 	oldForce := hooksForce
 	oldFull := hooksFull
@@ -3582,7 +3582,7 @@ func TestHooksCov_runHooksInstall_ExistingNonAo(t *testing.T) {
 // runHooksShow
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_runHooksShow_Full(t *testing.T) {
+func TestRunHooksShow_Full(t *testing.T) {
 	origHome := os.Getenv("HOME")
 	tmpHome := t.TempDir()
 	os.Setenv("HOME", tmpHome)
@@ -3611,7 +3611,7 @@ func TestHooksCov_runHooksShow_Full(t *testing.T) {
 	}
 }
 
-func TestHooksCov_runHooksShow_Missing(t *testing.T) {
+func TestRunHooksShow_Missing(t *testing.T) {
 	origHome := os.Getenv("HOME")
 	tmpHome := t.TempDir()
 	os.Setenv("HOME", tmpHome)
@@ -3631,7 +3631,7 @@ func TestHooksCov_runHooksShow_Missing(t *testing.T) {
 // runForgeTranscriptAccessTest
 // ---------------------------------------------------------------------------
 
-func TestHooksCov_forgeTranscriptAccess_WithDir(t *testing.T) {
+func TestForgeTranscriptAccess_WithDir(t *testing.T) {
 	tmpHome := t.TempDir()
 	os.MkdirAll(filepath.Join(tmpHome, ".claude", "projects"), 0755)
 	old := os.Stdout

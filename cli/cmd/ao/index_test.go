@@ -236,7 +236,7 @@ summary: Has both fields
 	}
 }
 
-func TestIndexCov_ProcessAllIndexDirs_WithFiles(t *testing.T) {
+func TestProcessAllIndexDirs_WithFiles(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, ".agents", "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -259,7 +259,7 @@ func TestIndexCov_ProcessAllIndexDirs_WithFiles(t *testing.T) {
 	}
 }
 
-func TestIndexCov_ProcessAllIndexDirs_CheckMode(t *testing.T) {
+func TestProcessAllIndexDirs_CheckMode(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, ".agents", "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -282,7 +282,7 @@ func TestIndexCov_ProcessAllIndexDirs_CheckMode(t *testing.T) {
 	}
 }
 
-func TestIndexCov_ProcessAllIndexDirs_CheckModeStale(t *testing.T) {
+func TestProcessAllIndexDirs_CheckModeStale(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, ".agents", "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -311,7 +311,7 @@ func TestIndexCov_ProcessAllIndexDirs_CheckModeStale(t *testing.T) {
 // processIndexDir (0%)
 // ---------------------------------------------------------------------------
 
-func TestIndexCov_ProcessIndexDir_WriteMode(t *testing.T) {
+func TestProcessIndexDir_WriteMode(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -338,7 +338,7 @@ func TestIndexCov_ProcessIndexDir_WriteMode(t *testing.T) {
 	}
 }
 
-func TestIndexCov_ProcessIndexDir_CheckMode_Current(t *testing.T) {
+func TestProcessIndexDir_CheckMode_Current(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -363,7 +363,7 @@ func TestIndexCov_ProcessIndexDir_CheckMode_Current(t *testing.T) {
 	}
 }
 
-func TestIndexCov_ProcessIndexDir_CheckMode_Stale(t *testing.T) {
+func TestProcessIndexDir_CheckMode_Stale(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -390,7 +390,7 @@ func TestIndexCov_ProcessIndexDir_CheckMode_Stale(t *testing.T) {
 	}
 }
 
-func TestIndexCov_ProcessIndexDir_Quiet(t *testing.T) {
+func TestProcessIndexDir_Quiet(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -416,7 +416,7 @@ func TestIndexCov_ProcessIndexDir_Quiet(t *testing.T) {
 // runIndex (0%) — exercise through cobra
 // ---------------------------------------------------------------------------
 
-func TestIndexCov_RunIndex_WriteMode(t *testing.T) {
+func TestRunIndex_WriteMode(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -456,7 +456,7 @@ func TestIndexCov_RunIndex_WriteMode(t *testing.T) {
 	}
 }
 
-func TestIndexCov_RunIndex_CheckMode_Stale(t *testing.T) {
+func TestRunIndex_CheckMode_Stale(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -494,7 +494,7 @@ func TestIndexCov_RunIndex_CheckMode_Stale(t *testing.T) {
 	}
 }
 
-func TestIndexCov_RunIndex_JSONOutput(t *testing.T) {
+func TestRunIndex_JSONOutput(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -549,7 +549,7 @@ func TestIndexCov_RunIndex_JSONOutput(t *testing.T) {
 	}
 }
 
-func TestIndexCov_RunIndex_SingleDir(t *testing.T) {
+func TestRunIndex_SingleDir(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -597,7 +597,7 @@ func TestIndexCov_RunIndex_SingleDir(t *testing.T) {
 	}
 }
 
-func TestIndexCov_ScanAndSortDir_WithFiles(t *testing.T) {
+func TestScanAndSortDir_WithFiles(t *testing.T) {
 	tmp := t.TempDir()
 	dir := filepath.Join(tmp, ".agents", "learnings")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -627,7 +627,7 @@ func TestIndexCov_ScanAndSortDir_WithFiles(t *testing.T) {
 // writeIndex — dry-run
 // ---------------------------------------------------------------------------
 
-func TestIndexCov_WriteIndex_DryRun(t *testing.T) {
+func TestWriteIndex_DryRun(t *testing.T) {
 	tmp := t.TempDir()
 	entries := []indexEntry{
 		{Filename: "test.md", Date: "2026-01-01", Summary: "Test"},
@@ -645,7 +645,7 @@ func TestIndexCov_WriteIndex_DryRun(t *testing.T) {
 	}
 }
 
-func TestIndexCov_ParseIndexTableRows_ValidTable(t *testing.T) {
+func TestParseIndexTableRows_ValidTable(t *testing.T) {
 	table := `# Index: Learnings
 
 | File | Date | Summary | Tags |
@@ -669,7 +669,7 @@ func TestIndexCov_ParseIndexTableRows_ValidTable(t *testing.T) {
 // buildIndexDiffMessage
 // ---------------------------------------------------------------------------
 
-func TestIndexCov_BuildIndexDiffMessage_MissingAndExtra(t *testing.T) {
+func TestBuildIndexDiffMessage_MissingAndExtra(t *testing.T) {
 	msg := buildIndexDiffMessage(".agents/learnings", []string{"new.md"}, []string{"old.md"})
 	if !strings.Contains(msg, "missing=[new.md]") {
 		t.Errorf("expected 'missing=[new.md]' in message, got: %s", msg)

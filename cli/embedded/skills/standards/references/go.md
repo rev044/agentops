@@ -255,6 +255,27 @@ func TestClassifyServeArg(t *testing.T) {
 }
 ```
 
+### Test Conventions
+
+- **File naming:** Test files MUST be named `<source>_test.go`. Extra test files for edge cases: `<source>_extra_test.go`. NEVER `cov*_test.go` or other arbitrary prefixes.
+- **No coverage-padding:** Tests that use trivial `!= ""` or `!= nil` assertions solely to inflate coverage are banned. Every test must assert behavioral correctness.
+- **Assert exact expected values:** Use `== expected`, never `!= wrong`. (See Exact Assertion Rule above.)
+- **Table-driven tests** preferred for multi-case functions. (See example above.)
+- **Test low-level functions directly;** don't depend on external CLIs (`bd`, `ao`) in tests. (See CI-Safe Test Pattern above.)
+
+### Complexity Budget
+
+- **Warn** at cyclomatic complexity 15, **fail** at 25.
+- Run `golangci-lint run` to check.
+
+### Before Committing Go Changes
+
+```bash
+cd cli && go build ./... && go vet ./... && go test ./...
+```
+
+Or equivalently: `cd cli && make build && make test`
+
 ## HTTP Handler Security
 
 Go HTTP handlers in this codebase are localhost-only but should still follow defense-in-depth:

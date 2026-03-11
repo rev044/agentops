@@ -397,7 +397,7 @@ func writeTranscriptLines(t *testing.T, path string, lines []map[string]any) {
 
 // --- resolveGuardSessionID ---
 
-func TestContextCov_ResolveGuardSessionID(t *testing.T) {
+func TestResolveGuardSessionID(t *testing.T) {
 	// Save and restore package-level var
 	oldVal := contextSessionID
 	defer func() { contextSessionID = oldVal }()
@@ -452,7 +452,7 @@ func TestContextCov_ResolveGuardSessionID(t *testing.T) {
 
 // --- resolveGuardOptions ---
 
-func TestContextCov_ResolveGuardOptions(t *testing.T) {
+func TestResolveGuardOptions(t *testing.T) {
 	oldMaxTokens := contextMaxTokens
 	oldWatchdog := contextWatchdogMinute
 	oldAgentName := contextAgentName
@@ -519,7 +519,7 @@ func TestContextCov_ResolveGuardOptions(t *testing.T) {
 
 // --- outputGuardResult ---
 
-func TestContextCov_OutputGuardResult(t *testing.T) {
+func TestOutputGuardResult(t *testing.T) {
 	oldOutput := output
 	defer func() { output = oldOutput }()
 
@@ -559,7 +559,7 @@ func TestContextCov_OutputGuardResult(t *testing.T) {
 
 // --- applyHandoffIfCritical ---
 
-func TestContextCov_ApplyHandoffIfCritical(t *testing.T) {
+func TestApplyHandoffIfCritical(t *testing.T) {
 	oldWriteHandoff := contextWriteHandoff
 	defer func() { contextWriteHandoff = oldWriteHandoff }()
 
@@ -640,7 +640,7 @@ func TestContextCov_ApplyHandoffIfCritical(t *testing.T) {
 
 // --- inferAgentRole ---
 
-func TestContextCov_InferAgentRole(t *testing.T) {
+func TestInferAgentRole(t *testing.T) {
 	tests := []struct {
 		name         string
 		agentName    string
@@ -679,7 +679,7 @@ func TestContextCov_InferAgentRole(t *testing.T) {
 
 // --- remainingPercent ---
 
-func TestContextCov_RemainingPercent(t *testing.T) {
+func TestRemainingPercent(t *testing.T) {
 	tests := []struct {
 		name    string
 		usage   float64
@@ -705,7 +705,7 @@ func TestContextCov_RemainingPercent(t *testing.T) {
 
 // --- readinessRank ---
 
-func TestContextCov_ReadinessRank(t *testing.T) {
+func TestReadinessRank(t *testing.T) {
 	tests := []struct {
 		readiness string
 		wantRank  int
@@ -730,7 +730,7 @@ func TestContextCov_ReadinessRank(t *testing.T) {
 
 // --- tmuxTargetFromPaneID ---
 
-func TestContextCov_TmuxTargetFromPaneID(t *testing.T) {
+func TestTmuxTargetFromPaneID(t *testing.T) {
 	tests := []struct {
 		name   string
 		paneID string
@@ -755,7 +755,7 @@ func TestContextCov_TmuxTargetFromPaneID(t *testing.T) {
 
 // --- tmuxSessionFromTarget ---
 
-func TestContextCov_TmuxSessionFromTarget(t *testing.T) {
+func TestTmuxSessionFromTarget(t *testing.T) {
 	tests := []struct {
 		name   string
 		target string
@@ -779,7 +779,7 @@ func TestContextCov_TmuxSessionFromTarget(t *testing.T) {
 
 // --- toRepoRelative ---
 
-func TestContextCov_ToRepoRelative(t *testing.T) {
+func TestToRepoRelative(t *testing.T) {
 	tests := []struct {
 		name     string
 		cwd      string
@@ -802,7 +802,7 @@ func TestContextCov_ToRepoRelative(t *testing.T) {
 
 // --- contextWithTimeout ---
 
-func TestContextCov_ContextWithTimeout(t *testing.T) {
+func TestContextWithTimeout(t *testing.T) {
 	t.Run("positive timeout creates context with deadline", func(t *testing.T) {
 		ctx, cancel := contextWithTimeout(5 * time.Second)
 		defer cancel()
@@ -836,7 +836,7 @@ func TestContextCov_ContextWithTimeout(t *testing.T) {
 
 // --- truncateDisplay ---
 
-func TestContextCov_TruncateDisplay(t *testing.T) {
+func TestTruncateDisplay(t *testing.T) {
 	tests := []struct {
 		name string
 		s    string
@@ -862,7 +862,7 @@ func TestContextCov_TruncateDisplay(t *testing.T) {
 
 // --- estimateTokens ---
 
-func TestContextCov_EstimateTokens(t *testing.T) {
+func TestEstimateTokens(t *testing.T) {
 	tests := []struct {
 		name string
 		text string
@@ -886,7 +886,7 @@ func TestContextCov_EstimateTokens(t *testing.T) {
 
 // --- actionForStatus ---
 
-func TestContextCov_ActionForStatus(t *testing.T) {
+func TestActionForStatus(t *testing.T) {
 	tests := []struct {
 		name   string
 		status string
@@ -912,7 +912,7 @@ func TestContextCov_ActionForStatus(t *testing.T) {
 
 // --- hookMessageForStatus ---
 
-func TestContextCov_HookMessageForStatus(t *testing.T) {
+func TestHookMessageForStatus(t *testing.T) {
 	tests := []struct {
 		name   string
 		status contextSessionStatus
@@ -1008,7 +1008,7 @@ func TestContextCov_HookMessageForStatus(t *testing.T) {
 
 // --- readPersistedAssignment ---
 
-func TestContextCov_ReadPersistedAssignment(t *testing.T) {
+func TestReadPersistedAssignment(t *testing.T) {
 	t.Run("returns false for missing file", func(t *testing.T) {
 		dir := t.TempDir()
 		_, ok := readPersistedAssignment(dir, "nonexistent-session")
@@ -1086,7 +1086,7 @@ func TestContextCov_ReadPersistedAssignment(t *testing.T) {
 
 // --- mergePersistedAssignment ---
 
-func TestContextCov_MergePersistedAssignment(t *testing.T) {
+func TestMergePersistedAssignment(t *testing.T) {
 	t.Run("nil status is safe", func(t *testing.T) {
 		dir := t.TempDir()
 		mergePersistedAssignment(dir, nil) // should not panic
@@ -1127,7 +1127,7 @@ func TestContextCov_MergePersistedAssignment(t *testing.T) {
 
 // --- findTeamMemberByName ---
 
-func TestContextCov_FindTeamMemberByName(t *testing.T) {
+func TestFindTeamMemberByName(t *testing.T) {
 	t.Run("empty name returns false", func(t *testing.T) {
 		_, _, ok := findTeamMemberByName("")
 		if ok {
@@ -1210,7 +1210,7 @@ func TestContextCov_FindTeamMemberByName(t *testing.T) {
 
 // --- maybeAutoRestartStaleSession additional cases ---
 
-func TestContextCov_MaybeAutoRestartStaleSession_EdgeCases(t *testing.T) {
+func TestMaybeAutoRestartStaleSession_EdgeCases(t *testing.T) {
 	t.Run("non-recover action returns unchanged", func(t *testing.T) {
 		status := contextSessionStatus{
 			Action:     "continue",
@@ -1251,7 +1251,7 @@ func TestContextCov_MaybeAutoRestartStaleSession_EdgeCases(t *testing.T) {
 
 // --- parseTimestamp additional coverage ---
 
-func TestContextCov_ParseTimestamp(t *testing.T) {
+func TestParseTimestamp(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -1279,7 +1279,7 @@ func TestContextCov_ParseTimestamp(t *testing.T) {
 
 // --- readFileTail ---
 
-func TestContextCov_ReadFileTail(t *testing.T) {
+func TestReadFileTail(t *testing.T) {
 	t.Run("reads empty file", func(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "empty.jsonl")
@@ -1305,7 +1305,7 @@ func TestContextCov_ReadFileTail(t *testing.T) {
 
 // --- collectTrackedSessionStatuses ---
 
-func TestContextCov_CollectTrackedSessionStatuses(t *testing.T) {
+func TestCollectTrackedSessionStatuses(t *testing.T) {
 	t.Run("returns nil when no budget files", func(t *testing.T) {
 		dir := t.TempDir()
 		statuses, err := collectTrackedSessionStatuses(dir, 20*time.Minute)
@@ -1699,7 +1699,7 @@ func TestRunContextGuard_NoCritical(t *testing.T) {
 
 // --- renderHandoffMarkdown ---
 
-func TestContextCov_RenderHandoffMarkdown(t *testing.T) {
+func TestRenderHandoffMarkdown(t *testing.T) {
 	now := time.Date(2026, 2, 25, 12, 0, 0, 0, time.UTC)
 	status := contextSessionStatus{
 		SessionID:        "render-test",

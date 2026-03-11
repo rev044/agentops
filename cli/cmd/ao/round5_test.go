@@ -507,35 +507,7 @@ func TestClassifyStreamResult(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// context.go: parseTimestamp, extractTextContent
-// ---------------------------------------------------------------------------
-
-func TestParseTimestamp(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		zero  bool
-	}{
-		{"empty", "", true},
-		{"whitespace", "   ", true},
-		{"rfc3339", "2024-01-15T10:30:00Z", false},
-		{"rfc3339 with tz", "2024-01-15T10:30:00-05:00", false},
-		{"rfc3339nano", "2024-01-15T10:30:00.123456789Z", false},
-		{"invalid", "not-a-date", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseTimestamp(tt.input)
-			if tt.zero && !result.IsZero() {
-				t.Errorf("expected zero time, got %v", result)
-			}
-			if !tt.zero && result.IsZero() {
-				t.Error("expected non-zero time")
-			}
-		})
-	}
-}
+// parseTimestamp tests are in context_test.go. Duplicate removed.
 
 func TestExtractTextContent(t *testing.T) {
 	tests := []struct {

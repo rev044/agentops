@@ -542,7 +542,7 @@ func TestDoctorStaleReplacementsExist(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_RenderDoctorTable_Healthy(t *testing.T) {
+func TestRenderDoctorTable_Healthy(t *testing.T) {
 	output := doctorOutput{
 		Checks: []doctorCheck{
 			{Name: "ao CLI", Status: "pass", Detail: "v2.0.0", Required: true},
@@ -566,7 +566,7 @@ func TestDoctorCov_RenderDoctorTable_Healthy(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_RenderDoctorTable_WithWarnings(t *testing.T) {
+func TestRenderDoctorTable_WithWarnings(t *testing.T) {
 	output := doctorOutput{
 		Checks: []doctorCheck{
 			{Name: "Pass Check", Status: "pass", Detail: "ok", Required: true},
@@ -596,7 +596,7 @@ func TestDoctorCov_RenderDoctorTable_WithWarnings(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_RenderDoctorTable_Empty(t *testing.T) {
+func TestRenderDoctorTable_Empty(t *testing.T) {
 	output := doctorOutput{
 		Checks:  []doctorCheck{},
 		Result:  "HEALTHY",
@@ -613,7 +613,7 @@ func TestDoctorCov_RenderDoctorTable_Empty(t *testing.T) {
 // doctorStatusIcon (already 100%, but test unknown branch explicitly)
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_DoctorStatusIcon_Unknown(t *testing.T) {
+func TestDoctorStatusIcon_Unknown(t *testing.T) {
 	got := doctorStatusIcon("bogus")
 	if got != "?" {
 		t.Errorf("doctorStatusIcon(bogus) = %q, want ?", got)
@@ -624,7 +624,7 @@ func TestDoctorCov_DoctorStatusIcon_Unknown(t *testing.T) {
 // checkOptionalCLI (0%)
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_CheckOptionalCLI_Available(t *testing.T) {
+func TestCheckOptionalCLI_Available(t *testing.T) {
 	// "go" should be in PATH during tests
 	result := checkOptionalCLI("go", "test builds")
 	if result.Status != "pass" {
@@ -638,7 +638,7 @@ func TestDoctorCov_CheckOptionalCLI_Available(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckOptionalCLI_NotAvailable(t *testing.T) {
+func TestCheckOptionalCLI_NotAvailable(t *testing.T) {
 	result := checkOptionalCLI("nonexistent_cli_xyz_999", "test feature")
 	if result.Status != "warn" {
 		t.Errorf("status=%q, want warn for missing CLI (detail: %s)", result.Status, result.Detail)
@@ -655,7 +655,7 @@ func TestDoctorCov_CheckOptionalCLI_NotAvailable(t *testing.T) {
 // checkCLIDependencies (0%)
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_CheckCLIDependencies(t *testing.T) {
+func TestCheckCLIDependencies(t *testing.T) {
 	// We can't guarantee gt/bd availability, but we can exercise the function.
 	result := checkCLIDependencies()
 	// It should return either pass or warn, never fail
@@ -674,7 +674,7 @@ func TestDoctorCov_CheckCLIDependencies(t *testing.T) {
 // checkHookCoverage (0%) — needs a fake HOME with settings.json
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_CheckHookCoverage_NoHooksFile(t *testing.T) {
+func TestCheckHookCoverage_NoHooksFile(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -684,7 +684,7 @@ func TestDoctorCov_CheckHookCoverage_NoHooksFile(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckHookCoverage_SettingsWithHooks(t *testing.T) {
+func TestCheckHookCoverage_SettingsWithHooks(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -721,7 +721,7 @@ func TestDoctorCov_CheckHookCoverage_SettingsWithHooks(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckHookCoverage_FallbackHooksJSON(t *testing.T) {
+func TestCheckHookCoverage_FallbackHooksJSON(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -756,7 +756,7 @@ func TestDoctorCov_CheckHookCoverage_FallbackHooksJSON(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_UsesRuntimeManifestContract(t *testing.T) {
+func TestUsesRuntimeManifestContract(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -815,7 +815,7 @@ func TestDoctorCov_UsesRuntimeManifestContract(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_FallbackReasonSurfaced(t *testing.T) {
+func TestFallbackReasonSurfaced(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -873,7 +873,7 @@ func TestDoctorCov_FallbackReasonSurfaced(t *testing.T) {
 // checkSkills (0%) — needs a fake HOME
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_CheckSkills_NoSkills(t *testing.T) {
+func TestCheckSkills_NoSkills(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -883,7 +883,7 @@ func TestDoctorCov_CheckSkills_NoSkills(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckSkills_WithSkills(t *testing.T) {
+func TestCheckSkills_WithSkills(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -905,7 +905,7 @@ func TestDoctorCov_CheckSkills_WithSkills(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckSkills_WithNativeCodexPlugin(t *testing.T) {
+func TestCheckSkills_WithNativeCodexPlugin(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -941,7 +941,7 @@ func TestDoctorCov_CheckSkills_WithNativeCodexPlugin(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckSkills_NativeCodexPluginMissingManifestWarns(t *testing.T) {
+func TestCheckSkills_NativeCodexPluginMissingManifestWarns(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -962,7 +962,7 @@ func TestDoctorCov_CheckSkills_NativeCodexPluginMissingManifestWarns(t *testing.
 	}
 }
 
-func TestDoctorCov_CheckSkills_NativeCodexPluginManifestMismatchWarns(t *testing.T) {
+func TestCheckSkills_NativeCodexPluginManifestMismatchWarns(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -993,7 +993,7 @@ func TestDoctorCov_CheckSkills_NativeCodexPluginManifestMismatchWarns(t *testing
 	}
 }
 
-func TestDoctorCov_CheckSkills_AltPath(t *testing.T) {
+func TestCheckSkills_AltPath(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -1012,7 +1012,7 @@ func TestDoctorCov_CheckSkills_AltPath(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckSkills_UserSkillsOverlapWarnsWithoutPluginCache(t *testing.T) {
+func TestCheckSkills_UserSkillsOverlapWarnsWithoutPluginCache(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -1044,7 +1044,7 @@ func TestDoctorCov_CheckSkills_UserSkillsOverlapWarnsWithoutPluginCache(t *testi
 	}
 }
 
-func TestDoctorCov_CheckSkills_PluginCacheAndUserSkillsPass(t *testing.T) {
+func TestCheckSkills_PluginCacheAndUserSkillsPass(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -1083,7 +1083,7 @@ func TestDoctorCov_CheckSkills_PluginCacheAndUserSkillsPass(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckSkills_RawCodexOverlapWarns(t *testing.T) {
+func TestCheckSkills_RawCodexOverlapWarns(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -1108,7 +1108,7 @@ func TestDoctorCov_CheckSkills_RawCodexOverlapWarns(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckCodexSync_PassWhenRepoMatchesInstall(t *testing.T) {
+func TestCheckCodexSync_PassWhenRepoMatchesInstall(t *testing.T) {
 	repo := chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1164,7 +1164,7 @@ func TestDoctorCov_CheckCodexSync_PassWhenRepoMatchesInstall(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckCodexSync_WarnsOnManifestDriftAtSameVersion(t *testing.T) {
+func TestCheckCodexSync_WarnsOnManifestDriftAtSameVersion(t *testing.T) {
 	repo := chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1219,7 +1219,7 @@ func TestDoctorCov_CheckCodexSync_WarnsOnManifestDriftAtSameVersion(t *testing.T
 	}
 }
 
-func TestDoctorCov_CheckCodexSync_WarnsWhenRepoIsNewer(t *testing.T) {
+func TestCheckCodexSync_WarnsWhenRepoIsNewer(t *testing.T) {
 	repo := chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1267,7 +1267,7 @@ func TestDoctorCov_CheckCodexSync_WarnsWhenRepoIsNewer(t *testing.T) {
 // runDoctor (0%) — exercise via cobra command
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_RunDoctor_TableOutput(t *testing.T) {
+func TestRunDoctor_TableOutput(t *testing.T) {
 	tmp := chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1295,7 +1295,7 @@ func TestDoctorCov_RunDoctor_TableOutput(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_RunDoctor_JSONOutput(t *testing.T) {
+func TestRunDoctor_JSONOutput(t *testing.T) {
 	tmp := chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1331,7 +1331,7 @@ func TestDoctorCov_RunDoctor_JSONOutput(t *testing.T) {
 // newestFileModTime — branch for no regular files
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_NewestFileModTime_OnlyDirs(t *testing.T) {
+func TestNewestFileModTime_OnlyDirs(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tmp, "subdir"), 0755); err != nil {
 		t.Fatal(err)
@@ -1350,7 +1350,7 @@ func TestDoctorCov_NewestFileModTime_OnlyDirs(t *testing.T) {
 // countEstablished
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_CountEstablished(t *testing.T) {
+func TestCountEstablished(t *testing.T) {
 	tmp := t.TempDir()
 	// Create some files with various names
 	for _, name := range []string{
@@ -1370,7 +1370,7 @@ func TestDoctorCov_CountEstablished(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CountEstablished_NonexistentDir(t *testing.T) {
+func TestCountEstablished_NonexistentDir(t *testing.T) {
 	got := countEstablished("/nonexistent/path/xyz")
 	if got != 0 {
 		t.Errorf("countEstablished(nonexistent) = %d, want 0", got)
@@ -1381,7 +1381,7 @@ func TestDoctorCov_CountEstablished_NonexistentDir(t *testing.T) {
 // findHealScript — exercise all branches
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_FindHealScript_NotFound(t *testing.T) {
+func TestFindHealScript_NotFound(t *testing.T) {
 	// Use a temp dir so in-repo heal.sh isn't found
 	chdirTemp(t)
 	t.Setenv("HOME", t.TempDir())
@@ -1392,7 +1392,7 @@ func TestDoctorCov_FindHealScript_NotFound(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_FindHealScript_InClaude(t *testing.T) {
+func TestFindHealScript_InClaude(t *testing.T) {
 	chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1413,7 +1413,7 @@ func TestDoctorCov_FindHealScript_InClaude(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_FindHealScript_InCodexPluginCache(t *testing.T) {
+func TestFindHealScript_InCodexPluginCache(t *testing.T) {
 	chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1433,7 +1433,7 @@ func TestDoctorCov_FindHealScript_InCodexPluginCache(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_FindHealScript_InAgents(t *testing.T) {
+func TestFindHealScript_InAgents(t *testing.T) {
 	chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1458,7 +1458,7 @@ func TestDoctorCov_FindHealScript_InAgents(t *testing.T) {
 // gatherDoctorChecks (0%) — smoke test that it returns checks
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_GatherDoctorChecks(t *testing.T) {
+func TestGatherDoctorChecks(t *testing.T) {
 	tmp := chdirTemp(t)
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
@@ -1486,14 +1486,14 @@ func TestDoctorCov_GatherDoctorChecks(t *testing.T) {
 // extractHooksMap — test with invalid JSON
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_ExtractHooksMap_InvalidJSON(t *testing.T) {
+func TestExtractHooksMap_InvalidJSON(t *testing.T) {
 	_, ok := extractHooksMap([]byte("not valid json"))
 	if ok {
 		t.Error("expected false for invalid JSON")
 	}
 }
 
-func TestDoctorCov_ExtractHooksMap_NoHooksField(t *testing.T) {
+func TestExtractHooksMap_NoHooksField(t *testing.T) {
 	data := []byte(`{"foo": "bar"}`)
 	_, ok := extractHooksMap(data)
 	if ok {
@@ -1505,7 +1505,7 @@ func TestDoctorCov_ExtractHooksMap_NoHooksField(t *testing.T) {
 // countHooksInMap — test with []any (array branch)
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_CountHooksInMap_Array(t *testing.T) {
+func TestCountHooksInMap_Array(t *testing.T) {
 	got := countHooksInMap([]any{"a", "b", "c"})
 	if got != 3 {
 		t.Errorf("countHooksInMap([]any) = %d, want 3", got)
@@ -1516,7 +1516,7 @@ func TestDoctorCov_CountHooksInMap_Array(t *testing.T) {
 // checkStaleReferences — stale command reference detector
 // ---------------------------------------------------------------------------
 
-func TestDoctorCov_CheckStaleReferences_NoFiles(t *testing.T) {
+func TestCheckStaleReferences_NoFiles(t *testing.T) {
 	chdirTemp(t)
 	result := checkStaleReferences()
 	if result.Status != "pass" {
@@ -1527,7 +1527,7 @@ func TestDoctorCov_CheckStaleReferences_NoFiles(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_CleanFiles(t *testing.T) {
+func TestCheckStaleReferences_CleanFiles(t *testing.T) {
 	tmp := chdirTemp(t)
 
 	// Create a hooks file with only current flat-style commands
@@ -1554,7 +1554,7 @@ func TestDoctorCov_CheckStaleReferences_CleanFiles(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_StaleInHooks(t *testing.T) {
+func TestCheckStaleReferences_StaleInHooks(t *testing.T) {
 	tmp := chdirTemp(t)
 
 	hooksDir := filepath.Join(tmp, "hooks")
@@ -1575,7 +1575,7 @@ func TestDoctorCov_CheckStaleReferences_StaleInHooks(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_StaleInSkills(t *testing.T) {
+func TestCheckStaleReferences_StaleInSkills(t *testing.T) {
 	tmp := chdirTemp(t)
 
 	skillDir := filepath.Join(tmp, "skills", "test-skill")
@@ -1593,7 +1593,7 @@ func TestDoctorCov_CheckStaleReferences_StaleInSkills(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_StaleInDocs(t *testing.T) {
+func TestCheckStaleReferences_StaleInDocs(t *testing.T) {
 	tmp := chdirTemp(t)
 
 	docsDir := filepath.Join(tmp, "docs")
@@ -1611,7 +1611,7 @@ func TestDoctorCov_CheckStaleReferences_StaleInDocs(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_StaleInScripts(t *testing.T) {
+func TestCheckStaleReferences_StaleInScripts(t *testing.T) {
 	tmp := chdirTemp(t)
 
 	scriptsDir := filepath.Join(tmp, "scripts")
@@ -1629,7 +1629,7 @@ func TestDoctorCov_CheckStaleReferences_StaleInScripts(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_SubdirsScanned(t *testing.T) {
+func TestCheckStaleReferences_SubdirsScanned(t *testing.T) {
 	tmp := chdirTemp(t)
 
 	// Create subdirectories that the expanded scan should cover
@@ -1669,7 +1669,7 @@ func TestDoctorCov_CheckStaleReferences_SubdirsScanned(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_CheckStaleReferences_NoFalsePositiveOnFlat(t *testing.T) {
+func TestCheckStaleReferences_NoFalsePositiveOnFlat(t *testing.T) {
 	tmp := chdirTemp(t)
 
 	// "ao forge" (flat, canonical) should NOT trigger a stale reference
@@ -1687,7 +1687,7 @@ func TestDoctorCov_CheckStaleReferences_NoFalsePositiveOnFlat(t *testing.T) {
 	}
 }
 
-func TestDoctorCov_ScanFileForDeprecatedCommands(t *testing.T) {
+func TestScanFileForDeprecatedCommands(t *testing.T) {
 	tmp := t.TempDir()
 
 	t.Run("nonexistent file returns nil", func(t *testing.T) {
@@ -1710,7 +1710,7 @@ func TestDoctorCov_ScanFileForDeprecatedCommands(t *testing.T) {
 	})
 }
 
-func TestDoctorCov_CountUniqueFiles(t *testing.T) {
+func TestCountUniqueFiles(t *testing.T) {
 	refs := []staleReference{
 		{File: "a.sh", OldCommand: "ao know forge", NewCommand: "ao forge"},
 		{File: "a.sh", OldCommand: "ao know inject", NewCommand: "ao inject"},

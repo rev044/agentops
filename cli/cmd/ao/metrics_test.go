@@ -435,40 +435,8 @@ func TestParseUtilityFromJSONL(t *testing.T) {
 		}
 	})
 }
+// TestComputeSigmaRho — canonical version earlier in this file
 
-// ---------------------------------------------------------------------------
-// computeSigmaRho
-// ---------------------------------------------------------------------------
-
-func TestMetricsCov_computeSigmaRho(t *testing.T) {
-	tests := []struct {
-		name           string
-		totalArtifacts int
-		uniqueCited    int
-		citationCount  int
-		days           int
-		wantSigma      float64
-		wantRho        float64
-	}{
-		{"zero artifacts", 0, 0, 0, 7, 0, 0},
-		{"no citations", 10, 0, 0, 7, 0, 0},
-		{"half cited once per week", 10, 5, 5, 7, 0.5, 1.0},
-		{"all cited", 4, 4, 8, 7, 1.0, 2.0},
-		{"14-day period", 10, 5, 10, 14, 0.5, 1.0},
-		{"zero days", 10, 5, 10, 0, 0.5, 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sigma, rho := computeSigmaRho(tt.totalArtifacts, tt.uniqueCited, tt.citationCount, tt.days)
-			if !floatApprox(sigma, tt.wantSigma, 0.01) {
-				t.Errorf("sigma = %f, want ~%f", sigma, tt.wantSigma)
-			}
-			if !floatApprox(rho, tt.wantRho, 0.01) {
-				t.Errorf("rho = %f, want ~%f", rho, tt.wantRho)
-			}
-		})
-	}
-}
 
 func floatApprox(a, b, epsilon float64) bool {
 	diff := a - b
@@ -477,42 +445,10 @@ func floatApprox(a, b, epsilon float64) bool {
 	}
 	return diff <= epsilon
 }
+// TestFilterCitationsForPeriod — canonical version earlier in this file
 
-// ---------------------------------------------------------------------------
-// filterCitationsForPeriod
-// ---------------------------------------------------------------------------
 
-func TestMetricsCov_filterCitationsForPeriod(t *testing.T) {
-	now := time.Now()
-	citations := []types.CitationEvent{
-		{ArtifactPath: "a.md", CitedAt: now.AddDate(0, 0, -1)},
-		{ArtifactPath: "b.md", CitedAt: now.AddDate(0, 0, -5)},
-		{ArtifactPath: "c.md", CitedAt: now.AddDate(0, 0, -15)},
-		{ArtifactPath: "d.md", CitedAt: now.AddDate(0, 0, -45)},
-	}
-
-	tests := []struct {
-		name      string
-		days      int
-		wantCount int
-	}{
-		{"3-day window", 3, 1},
-		{"7-day window", 7, 2},
-		{"30-day window", 30, 3},
-		{"60-day window", 60, 4},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			start := now.AddDate(0, 0, -tt.days)
-			stats := filterCitationsForPeriod(citations, start, now)
-			if len(stats.citations) != tt.wantCount {
-				t.Errorf("got %d citations, want %d", len(stats.citations), tt.wantCount)
-			}
-		})
-	}
-}
-
-func TestMetricsCov_filterCitationsForPeriod_uniqueCited(t *testing.T) {
+func TestFilterCitationsForPeriod_uniqueCited(t *testing.T) {
 	now := time.Now()
 	citations := []types.CitationEvent{
 		{ArtifactPath: "a.md", CitedAt: now.AddDate(0, 0, -1)},
@@ -530,7 +466,7 @@ func TestMetricsCov_filterCitationsForPeriod_uniqueCited(t *testing.T) {
 // normalizeArtifactPath / isRetrievableArtifactPath
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_isRetrievableArtifactPath(t *testing.T) {
+func TestIsRetrievableArtifactPath(t *testing.T) {
 	baseDir := "/tmp/repo"
 	tests := []struct {
 		name string
@@ -557,7 +493,7 @@ func TestMetricsCov_isRetrievableArtifactPath(t *testing.T) {
 // retrievableCitationStats
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_retrievableCitationStats(t *testing.T) {
+func TestRetrievableCitationStats(t *testing.T) {
 	baseDir := "/tmp/repo"
 	citations := []types.CitationEvent{
 		{ArtifactPath: filepath.Join(baseDir, ".agents", "learnings", "a.md")},
@@ -576,31 +512,16 @@ func TestMetricsCov_retrievableCitationStats(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_retrievableCitationStats_empty(t *testing.T) {
+func TestRetrievableCitationStats_empty(t *testing.T) {
 	uniqueCount, citationCount := retrievableCitationStats("/tmp", nil)
 	if uniqueCount != 0 || citationCount != 0 {
 		t.Errorf("expected 0/0 for empty citations, got %d/%d", uniqueCount, citationCount)
 	}
 }
+// TestCountBypassCitations — canonical version earlier in this file
 
-// ---------------------------------------------------------------------------
-// countBypassCitations
-// ---------------------------------------------------------------------------
 
-func TestMetricsCov_countBypassCitations(t *testing.T) {
-	citations := []types.CitationEvent{
-		{CitationType: "reference", ArtifactPath: "a.md"},
-		{CitationType: "bypass", ArtifactPath: "b.md"},
-		{CitationType: "reference", ArtifactPath: "bypass:some-reason"},
-		{CitationType: "applied", ArtifactPath: "c.md"},
-	}
-	got := countBypassCitations(citations)
-	if got != 2 {
-		t.Errorf("countBypassCitations = %d, want 2", got)
-	}
-}
-
-func TestMetricsCov_countBypassCitations_none(t *testing.T) {
+func TestCountBypassCitations_none(t *testing.T) {
 	citations := []types.CitationEvent{
 		{CitationType: "reference"},
 		{CitationType: "applied"},
@@ -611,43 +532,13 @@ func TestMetricsCov_countBypassCitations_none(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// countLoopMetrics
-// ---------------------------------------------------------------------------
-
-func TestMetricsCov_countLoopMetrics(t *testing.T) {
-	baseDir := t.TempDir()
-	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
-	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a recent learning
-	if err := os.WriteFile(filepath.Join(learningsDir, "new.md"), []byte("# New"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	periodStart := time.Now().Add(-24 * time.Hour)
-	periodCitations := []types.CitationEvent{
-		{ArtifactPath: filepath.Join(baseDir, ".agents", "learnings", "cited.md")},
-		{ArtifactPath: filepath.Join(baseDir, ".agents", "research", "not-learning.md")},
-		{ArtifactPath: filepath.Join(baseDir, ".agents", "learnings", "another.md")},
-	}
-
-	created, found := countLoopMetrics(baseDir, periodStart, periodCitations)
-	if created != 1 {
-		t.Errorf("created = %d, want 1", created)
-	}
-	if found != 2 {
-		t.Errorf("found = %d, want 2", found)
-	}
-}
+// TestCountLoopMetrics — canonical version earlier in this file
 
 // ---------------------------------------------------------------------------
 // countArtifacts
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_countArtifacts(t *testing.T) {
+func TestCountArtifacts(t *testing.T) {
 	baseDir := t.TempDir()
 	dirs := map[string][]string{
 		filepath.Join(baseDir, ".agents", "learnings"):                      {"l1.md", "l2.jsonl"},
@@ -691,7 +582,7 @@ func TestMetricsCov_countArtifacts(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_countArtifacts_emptyDir(t *testing.T) {
+func TestCountArtifacts_emptyDir(t *testing.T) {
 	total, tierCounts, err := countArtifacts(t.TempDir())
 	if err != nil {
 		t.Fatalf("countArtifacts failed: %v", err)
@@ -708,7 +599,7 @@ func TestMetricsCov_countArtifacts_emptyDir(t *testing.T) {
 // countNewArtifacts
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_countNewArtifacts(t *testing.T) {
+func TestCountNewArtifacts(t *testing.T) {
 	baseDir := t.TempDir()
 	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
 	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
@@ -743,7 +634,7 @@ func TestMetricsCov_countNewArtifacts(t *testing.T) {
 // countNewArtifactsInDir
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_countNewArtifactsInDir(t *testing.T) {
+func TestCountNewArtifactsInDir(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "recent.md"), []byte("new"), 0o644); err != nil {
 		t.Fatal(err)
@@ -771,7 +662,7 @@ func TestMetricsCov_countNewArtifactsInDir(t *testing.T) {
 // buildLastCitedMap
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_buildLastCitedMap(t *testing.T) {
+func TestBuildLastCitedMap(t *testing.T) {
 	baseDir := "/tmp/test"
 	now := time.Now()
 	citations := []types.CitationEvent{
@@ -789,7 +680,7 @@ func TestMetricsCov_buildLastCitedMap(t *testing.T) {
 // isKnowledgeFile
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_isKnowledgeFile(t *testing.T) {
+func TestIsKnowledgeFile(t *testing.T) {
 	tests := []struct {
 		path string
 		want bool
@@ -814,7 +705,7 @@ func TestMetricsCov_isKnowledgeFile(t *testing.T) {
 // isStaleArtifact
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_isStaleArtifact(t *testing.T) {
+func TestIsStaleArtifact(t *testing.T) {
 	baseDir := "/tmp/repo"
 	now := time.Now()
 	staleThreshold := now.AddDate(0, 0, -90)
@@ -873,7 +764,7 @@ func TestMetricsCov_isStaleArtifact(t *testing.T) {
 // countStaleInDir
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_countStaleInDir(t *testing.T) {
+func TestCountStaleInDir(t *testing.T) {
 	baseDir := t.TempDir()
 	dir := filepath.Join(baseDir, ".agents", "learnings")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -907,47 +798,20 @@ func TestMetricsCov_countStaleInDir(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_countStaleInDir_missingDir(t *testing.T) {
+func TestCountStaleInDir_missingDir(t *testing.T) {
 	count := countStaleInDir("/tmp", "/nonexistent", time.Now(), nil)
 	if count != 0 {
 		t.Errorf("expected 0 for missing dir, got %d", count)
 	}
 }
+// TestCountStaleArtifacts — canonical version earlier in this file
 
-// ---------------------------------------------------------------------------
-// countStaleArtifacts
-// ---------------------------------------------------------------------------
-
-func TestMetricsCov_countStaleArtifacts(t *testing.T) {
-	baseDir := t.TempDir()
-	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
-	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	oldPath := filepath.Join(learningsDir, "stale.md")
-	if err := os.WriteFile(oldPath, []byte("stale"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	oldTime := time.Now().AddDate(0, 0, -120)
-	if err := os.Chtimes(oldPath, oldTime, oldTime); err != nil {
-		t.Fatal(err)
-	}
-
-	count, err := countStaleArtifacts(baseDir, nil, 90)
-	if err != nil {
-		t.Fatalf("countStaleArtifacts failed: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("stale count = %d, want 1", count)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // retroHasLearnings
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_retroHasLearnings(t *testing.T) {
+func TestRetroHasLearnings(t *testing.T) {
 	tmp := t.TempDir()
 
 	tests := []struct {
@@ -975,60 +839,20 @@ func TestMetricsCov_retroHasLearnings(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_retroHasLearnings_missingFile(t *testing.T) {
+func TestRetroHasLearnings_missingFile(t *testing.T) {
 	got := retroHasLearnings("/nonexistent/file.md")
 	if got {
 		t.Error("expected false for missing file")
 	}
 }
+// TestCountRetros — canonical version earlier in this file
 
-// ---------------------------------------------------------------------------
-// countRetros
-// ---------------------------------------------------------------------------
-
-func TestMetricsCov_countRetros(t *testing.T) {
-	baseDir := t.TempDir()
-	retrosDir := filepath.Join(baseDir, ".agents", "retros")
-	if err := os.MkdirAll(retrosDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Recent retro with learnings
-	if err := os.WriteFile(filepath.Join(retrosDir, "retro1.md"), []byte("# Retro\n## Learnings\n- L1\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// Recent retro without learnings
-	if err := os.WriteFile(filepath.Join(retrosDir, "retro2.md"), []byte("# Retro\n## Summary\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// Old retro (before since)
-	oldPath := filepath.Join(retrosDir, "old-retro.md")
-	if err := os.WriteFile(oldPath, []byte("# Old\n## Learnings\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	oldTime := time.Now().AddDate(0, 0, -60)
-	if err := os.Chtimes(oldPath, oldTime, oldTime); err != nil {
-		t.Fatal(err)
-	}
-
-	since := time.Now().AddDate(0, 0, -7)
-	total, withLearnings, err := countRetros(baseDir, since)
-	if err != nil {
-		t.Fatalf("countRetros failed: %v", err)
-	}
-	if total != 2 {
-		t.Errorf("total = %d, want 2", total)
-	}
-	if withLearnings != 1 {
-		t.Errorf("withLearnings = %d, want 1", withLearnings)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // computeUtilityStats
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_computeUtilityStats(t *testing.T) {
+func TestComputeUtilityStats(t *testing.T) {
 	tests := []struct {
 		name      string
 		utilities []float64
@@ -1058,7 +882,7 @@ func TestMetricsCov_computeUtilityStats(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_computeUtilityStats_stdDev(t *testing.T) {
+func TestComputeUtilityStats_stdDev(t *testing.T) {
 	// All same values => stdDev = 0
 	stats := computeUtilityStats([]float64{0.5, 0.5, 0.5})
 	if stats.stdDev != 0 {
@@ -1076,7 +900,7 @@ func TestMetricsCov_computeUtilityStats_stdDev(t *testing.T) {
 // collectUtilityValuesFromDir
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_collectUtilityValuesFromDir(t *testing.T) {
+func TestCollectUtilityValuesFromDir(t *testing.T) {
 	dir := t.TempDir()
 
 	// JSONL with utility
@@ -1111,7 +935,7 @@ func TestMetricsCov_collectUtilityValuesFromDir(t *testing.T) {
 // parseUtilityFromFile / parseUtilityFromMarkdown / parseUtilityFromJSONL
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_parseUtilityFromMarkdown(t *testing.T) {
+func TestParseUtilityFromMarkdown(t *testing.T) {
 	tmp := t.TempDir()
 	tests := []struct {
 		name    string
@@ -1137,41 +961,17 @@ func TestMetricsCov_parseUtilityFromMarkdown(t *testing.T) {
 		})
 	}
 }
+// TestParseUtilityFromJSONL — canonical version earlier in this file
 
-func TestMetricsCov_parseUtilityFromJSONL(t *testing.T) {
-	tmp := t.TempDir()
-	tests := []struct {
-		name    string
-		content string
-		want    float64
-	}{
-		{"valid", `{"utility":0.65}` + "\n", 0.65},
-		{"no utility", `{"id":"L1"}` + "\n", 0},
-		{"invalid JSON", "not json\n", 0},
-		{"empty", "", 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			path := filepath.Join(tmp, tt.name+".jsonl")
-			if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			got := parseUtilityFromJSONL(path)
-			if got != tt.want {
-				t.Errorf("parseUtilityFromJSONL = %f, want %f", got, tt.want)
-			}
-		})
-	}
-}
 
-func TestMetricsCov_parseUtilityFromJSONL_missingFile(t *testing.T) {
+func TestParseUtilityFromJSONL_missingFile(t *testing.T) {
 	got := parseUtilityFromJSONL("/nonexistent/file.jsonl")
 	if got != 0 {
 		t.Errorf("expected 0 for missing file, got %f", got)
 	}
 }
 
-func TestMetricsCov_parseUtilityFromFile_dispatch(t *testing.T) {
+func TestParseUtilityFromFile_dispatch(t *testing.T) {
 	tmp := t.TempDir()
 
 	// .md file
@@ -1201,12 +1001,12 @@ func TestMetricsCov_parseUtilityFromFile_dispatch(t *testing.T) {
 // (smoke tests — just ensure no panic)
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_printMetricsParameters(t *testing.T) {
+func TestPrintMetricsParameters(t *testing.T) {
 	m := &types.FlywheelMetrics{Delta: 0.17, Sigma: 0.5, Rho: 1.0}
 	printMetricsParameters(m)
 }
 
-func TestMetricsCov_printMetricsDerived(t *testing.T) {
+func TestPrintMetricsDerived(t *testing.T) {
 	tests := []struct {
 		name string
 		m    *types.FlywheelMetrics
@@ -1221,7 +1021,7 @@ func TestMetricsCov_printMetricsDerived(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_printMetricsCounts(t *testing.T) {
+func TestPrintMetricsCounts(t *testing.T) {
 	m := &types.FlywheelMetrics{
 		TotalArtifacts:       10,
 		CitationsThisPeriod:  5,
@@ -1233,12 +1033,12 @@ func TestMetricsCov_printMetricsCounts(t *testing.T) {
 	printMetricsCounts(m)
 }
 
-func TestMetricsCov_printMetricsCounts_emptyTiers(t *testing.T) {
+func TestPrintMetricsCounts_emptyTiers(t *testing.T) {
 	m := &types.FlywheelMetrics{TierCounts: map[string]int{}}
 	printMetricsCounts(m)
 }
 
-func TestMetricsCov_printMetricsLoopClosure(t *testing.T) {
+func TestPrintMetricsLoopClosure(t *testing.T) {
 	tests := []struct {
 		name string
 		m    *types.FlywheelMetrics
@@ -1257,7 +1057,7 @@ func TestMetricsCov_printMetricsLoopClosure(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_printMetricsUtility(t *testing.T) {
+func TestPrintMetricsUtility(t *testing.T) {
 	tests := []struct {
 		name string
 		m    *types.FlywheelMetrics
@@ -1274,7 +1074,7 @@ func TestMetricsCov_printMetricsUtility(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_printMetricsTable(t *testing.T) {
+func TestPrintMetricsTable(t *testing.T) {
 	now := time.Now()
 	m := &types.FlywheelMetrics{
 		Timestamp:            now,
@@ -1299,7 +1099,7 @@ func TestMetricsCov_printMetricsTable(t *testing.T) {
 // computeUtilityMetrics
 // ---------------------------------------------------------------------------
 
-func TestMetricsCov_computeUtilityMetrics(t *testing.T) {
+func TestComputeUtilityMetrics(t *testing.T) {
 	baseDir := t.TempDir()
 	learningsDir := filepath.Join(baseDir, ".agents", "learnings")
 	patternsDir := filepath.Join(baseDir, ".agents", "patterns")
@@ -1326,7 +1126,7 @@ func TestMetricsCov_computeUtilityMetrics(t *testing.T) {
 	}
 }
 
-func TestMetricsCov_computeUtilityMetrics_emptyDirs(t *testing.T) {
+func TestComputeUtilityMetrics_emptyDirs(t *testing.T) {
 	stats := computeUtilityMetrics(t.TempDir())
 	if stats.mean != 0 {
 		t.Errorf("mean = %f, want 0 for empty dirs", stats.mean)

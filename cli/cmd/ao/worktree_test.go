@@ -649,7 +649,7 @@ func TestWorktree_listRPITmuxSessions_noTmux(t *testing.T) {
 	}
 }
 
-func TestCov4_runWorktreeGC_dryRunInGitRepo(t *testing.T) {
+func TestRunWorktreeGC_DryRunInGitRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}

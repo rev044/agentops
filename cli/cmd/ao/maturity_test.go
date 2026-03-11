@@ -675,7 +675,7 @@ func TestMaturity_evictionCitationStatus(t *testing.T) {
 // readLearningJSONLData
 // ---------------------------------------------------------------------------
 
-func TestMaturityCov_readLearningJSONLData(t *testing.T) {
+func TestReadLearningJSONLData(t *testing.T) {
 	tmp := t.TempDir()
 
 	tests := []struct {
@@ -717,7 +717,7 @@ func TestMaturity_readLearningJSONLData_missingFile(t *testing.T) {
 // archiveExpiredLearnings
 // ---------------------------------------------------------------------------
 
-func TestMaturityCov_archiveExpiredLearnings(t *testing.T) {
+func TestArchiveExpiredLearnings(t *testing.T) {
 	tmp := t.TempDir()
 	learningsDir := filepath.Join(tmp, ".agents", "learnings")
 	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
@@ -781,7 +781,7 @@ func TestMaturity_archiveExpiredLearnings_dryRun(t *testing.T) {
 // archiveEvictionCandidates
 // ---------------------------------------------------------------------------
 
-func TestMaturityCov_archiveEvictionCandidates(t *testing.T) {
+func TestArchiveEvictionCandidates(t *testing.T) {
 	tmp := t.TempDir()
 	learningsDir := filepath.Join(tmp, ".agents", "learnings")
 	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
@@ -845,7 +845,7 @@ func TestMaturity_archiveEvictionCandidates_dryRun(t *testing.T) {
 // collectEvictionCandidates
 // ---------------------------------------------------------------------------
 
-func TestMaturityCov_collectEvictionCandidates(t *testing.T) {
+func TestCollectEvictionCandidates(t *testing.T) {
 	tmp := t.TempDir()
 	learningsDir := filepath.Join(tmp, ".agents", "learnings")
 	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
@@ -930,7 +930,7 @@ func TestMaturity_reportEvictionCandidates_jsonOutput(t *testing.T) {
 // displayMaturityDistribution (smoke test, output only)
 // ---------------------------------------------------------------------------
 
-func TestMaturityCov_displayMaturityDistribution(t *testing.T) {
+func TestDisplayMaturityDistribution(t *testing.T) {
 	dist := &ratchet.MaturityDistribution{
 		Provisional: 3,
 		Candidate:   2,
@@ -938,15 +938,29 @@ func TestMaturityCov_displayMaturityDistribution(t *testing.T) {
 		AntiPattern: 0,
 		Total:       6,
 	}
-	// Should not panic
-	displayMaturityDistribution(dist)
+	out, err := captureStdout(t, func() error {
+		displayMaturityDistribution(dist)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "Provisional") {
+		t.Errorf("expected output to contain 'Provisional', got: %s", out)
+	}
+	if !strings.Contains(out, "Provisional:  3") {
+		t.Errorf("expected output to contain 'Provisional:  3', got: %s", out)
+	}
+	if !strings.Contains(out, "Total:        6") {
+		t.Errorf("expected output to contain 'Total:        6', got: %s", out)
+	}
 }
 
 // ---------------------------------------------------------------------------
 // displayMaturityResult (smoke test, output only)
 // ---------------------------------------------------------------------------
 
-func TestMaturityCov_displayMaturityResult(t *testing.T) {
+func TestDisplayMaturityResult(t *testing.T) {
 	tests := []struct {
 		name    string
 		result  *ratchet.MaturityTransitionResult
@@ -1002,8 +1016,16 @@ func TestMaturityCov_displayMaturityResult(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Should not panic
-			displayMaturityResult(tt.result, tt.applied)
+			out, err := captureStdout(t, func() error {
+				displayMaturityResult(tt.result, tt.applied)
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !strings.Contains(out, tt.result.LearningID) {
+				t.Errorf("expected output to contain learning ID %q, got: %s", tt.result.LearningID, out)
+			}
 		})
 	}
 }
@@ -1060,8 +1082,8 @@ func TestMaturity_expiryCategoryEmpty(t *testing.T) {
 // Merged from maturity_deep_test.go
 // ===========================================================================
 
-// cov3W2WriteLearningJSONL writes a JSONL learning file with the given metadata.
-func cov3W2WriteLearningJSONL(t *testing.T, dir, name string, data map[string]any) string {
+// writeMaturityLearningJSONL writes a JSONL learning file with the given metadata.
+func writeMaturityLearningJSONL(t *testing.T, dir, name string, data map[string]any) string {
 	t.Helper()
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -1074,8 +1096,8 @@ func cov3W2WriteLearningJSONL(t *testing.T, dir, name string, data map[string]an
 	return path
 }
 
-// cov3W2SetupMaturityDir creates a temp dir with .agents/learnings/ structure.
-func cov3W2SetupMaturityDir(t *testing.T) (string, string) {
+// setupMaturityDir creates a temp dir with .agents/learnings/ structure.
+func setupMaturityDir(t *testing.T) (string, string) {
 	t.Helper()
 	tmp := t.TempDir()
 	learningsDir := filepath.Join(tmp, ".agents", "learnings")
@@ -1085,8 +1107,8 @@ func cov3W2SetupMaturityDir(t *testing.T) (string, string) {
 	return tmp, learningsDir
 }
 
-// cov3W2MakeTransitionResults creates a slice of MaturityTransitionResult for testing.
-func cov3W2MakeTransitionResults(ids ...string) []*ratchet.MaturityTransitionResult {
+// makeTransitionResults creates a slice of MaturityTransitionResult for testing.
+func makeTransitionResults(ids ...string) []*ratchet.MaturityTransitionResult {
 	var results []*ratchet.MaturityTransitionResult
 	for _, id := range ids {
 		results = append(results, &ratchet.MaturityTransitionResult{
@@ -1106,9 +1128,9 @@ func cov3W2MakeTransitionResults(ids ...string) []*ratchet.MaturityTransitionRes
 // --- runMaturitySingle tests ---
 
 func TestMaturity_runMaturitySingle_dryRun(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "L001.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "L001.jsonl", map[string]any{
 		"id":       "L001",
 		"maturity": "provisional",
 		"utility":  0.5,
@@ -1129,7 +1151,7 @@ func TestMaturity_runMaturitySingle_dryRun(t *testing.T) {
 }
 
 func TestMaturity_runMaturitySingle_notFound(t *testing.T) {
-	tmp, _ := cov3W2SetupMaturityDir(t)
+	tmp, _ := setupMaturityDir(t)
 
 	err := runMaturitySingle(tmp, "NONEXISTENT")
 	if err == nil {
@@ -1141,9 +1163,9 @@ func TestMaturity_runMaturitySingle_notFound(t *testing.T) {
 }
 
 func TestMaturity_runMaturitySingle_checkNoTransition(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "L002.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "L002.jsonl", map[string]any{
 		"id":            "L002",
 		"maturity":      "provisional",
 		"utility":       0.5,
@@ -1176,9 +1198,9 @@ func TestMaturity_runMaturitySingle_checkNoTransition(t *testing.T) {
 // --- checkOrApplyMaturity tests ---
 
 func TestMaturity_checkOrApplyMaturity_checkMode(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
-	path := cov3W2WriteLearningJSONL(t, learningsDir, "L003.jsonl", map[string]any{
+	path := writeMaturityLearningJSONL(t, learningsDir, "L003.jsonl", map[string]any{
 		"id":            "L003",
 		"maturity":      "provisional",
 		"utility":       0.5,
@@ -1204,9 +1226,9 @@ func TestMaturity_checkOrApplyMaturity_checkMode(t *testing.T) {
 }
 
 func TestMaturity_checkOrApplyMaturity_applyMode(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
-	path := cov3W2WriteLearningJSONL(t, learningsDir, "L004.jsonl", map[string]any{
+	path := writeMaturityLearningJSONL(t, learningsDir, "L004.jsonl", map[string]any{
 		"id":            "L004",
 		"maturity":      "provisional",
 		"utility":       0.8,
@@ -1308,7 +1330,7 @@ func TestMaturity_runMaturity_noLearningsDir(t *testing.T) {
 }
 
 func TestMaturity_runMaturity_noArgsNoScan(t *testing.T) {
-	tmp, _ := cov3W2SetupMaturityDir(t)
+	tmp, _ := setupMaturityDir(t)
 	chdirTo(t, tmp)
 
 	oldScan := maturityScan
@@ -1334,10 +1356,10 @@ func TestMaturity_runMaturity_noArgsNoScan(t *testing.T) {
 }
 
 func TestMaturity_runMaturity_scanMode(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 	chdirTo(t, tmp)
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "scan-test.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "scan-test.jsonl", map[string]any{
 		"id":            "scan-test",
 		"maturity":      "provisional",
 		"utility":       0.5,
@@ -1372,10 +1394,10 @@ func TestMaturity_runMaturity_scanMode(t *testing.T) {
 }
 
 func TestMaturity_runMaturity_withLearningID(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 	chdirTo(t, tmp)
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "L010.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "L010.jsonl", map[string]any{
 		"id":            "L010",
 		"maturity":      "provisional",
 		"utility":       0.5,
@@ -1416,7 +1438,7 @@ func TestMaturity_runMaturity_withLearningID(t *testing.T) {
 // --- applyScannedTransitions tests ---
 
 func TestMaturity_applyScannedTransitions_noResults(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
 	out := captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, nil)
@@ -1428,9 +1450,9 @@ func TestMaturity_applyScannedTransitions_noResults(t *testing.T) {
 }
 
 func TestMaturity_applyScannedTransitions_missingFile(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
-	results := cov3W2MakeTransitionResults("missing-learning")
+	results := makeTransitionResults("missing-learning")
 
 	out := captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, results)
@@ -1443,10 +1465,10 @@ func TestMaturity_applyScannedTransitions_missingFile(t *testing.T) {
 }
 
 func TestMaturity_applyScannedTransitions_withValidFile(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
 	// Create a learning that matches the transition result
-	cov3W2WriteLearningJSONL(t, learningsDir, "apply-target.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "apply-target.jsonl", map[string]any{
 		"id":            "apply-target",
 		"maturity":      "provisional",
 		"utility":       0.1,
@@ -1456,7 +1478,7 @@ func TestMaturity_applyScannedTransitions_withValidFile(t *testing.T) {
 		"harmful_count": 10,
 	})
 
-	results := cov3W2MakeTransitionResults("apply-target")
+	results := makeTransitionResults("apply-target")
 
 	captureJSONStdout(t, func() {
 		applyScannedTransitions(learningsDir, results)
@@ -1468,13 +1490,13 @@ func TestMaturity_applyScannedTransitions_withValidFile(t *testing.T) {
 }
 
 func TestMaturity_runMaturityScan_noTransitions(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
 	oldDryRun := dryRun
 	dryRun = false
 	defer func() { dryRun = oldDryRun }()
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "stable.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "stable.jsonl", map[string]any{
 		"id":            "stable",
 		"maturity":      "provisional",
 		"utility":       0.5,
@@ -1492,7 +1514,7 @@ func TestMaturity_runMaturityScan_noTransitions(t *testing.T) {
 }
 
 func TestMaturity_runMaturityScan_withTransitions(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
 	oldDryRun := dryRun
 	dryRun = false
@@ -1502,7 +1524,7 @@ func TestMaturity_runMaturityScan_withTransitions(t *testing.T) {
 	maturityApply = false
 	defer func() { maturityApply = oldApply }()
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "ready.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "ready.jsonl", map[string]any{
 		"id":            "ready",
 		"maturity":      "provisional",
 		"utility":       0.8,
@@ -1525,7 +1547,7 @@ func TestMaturity_runMaturityScan_withTransitions(t *testing.T) {
 }
 
 func TestMaturity_runMaturityScan_withApply(t *testing.T) {
-	_, learningsDir := cov3W2SetupMaturityDir(t)
+	_, learningsDir := setupMaturityDir(t)
 
 	oldDryRun := dryRun
 	dryRun = false
@@ -1535,7 +1557,7 @@ func TestMaturity_runMaturityScan_withApply(t *testing.T) {
 	maturityApply = true
 	defer func() { maturityApply = oldApply }()
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "apply-me.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "apply-me.jsonl", map[string]any{
 		"id":            "apply-me",
 		"maturity":      "provisional",
 		"utility":       0.8,
@@ -1573,10 +1595,10 @@ func TestMaturity_runAntiPatterns_noLearningsDir(t *testing.T) {
 }
 
 func TestMaturity_runAntiPatterns_noAntiPatterns(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 	chdirTo(t, tmp)
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "normal.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "normal.jsonl", map[string]any{
 		"id":            "normal",
 		"maturity":      "provisional",
 		"utility":       0.8,
@@ -1595,10 +1617,10 @@ func TestMaturity_runAntiPatterns_noAntiPatterns(t *testing.T) {
 }
 
 func TestMaturity_runAntiPatterns_tableOutput(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 	chdirTo(t, tmp)
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "bad.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "bad.jsonl", map[string]any{
 		"id":            "bad",
 		"maturity":      "anti-pattern",
 		"utility":       0.1,
@@ -1622,10 +1644,10 @@ func TestMaturity_runAntiPatterns_tableOutput(t *testing.T) {
 }
 
 func TestMaturity_runAntiPatterns_jsonOutput(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 	chdirTo(t, tmp)
 
-	cov3W2WriteLearningJSONL(t, learningsDir, "bad-json.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "bad-json.jsonl", map[string]any{
 		"id":            "bad-json",
 		"maturity":      "anti-pattern",
 		"utility":       0.1,
@@ -1673,7 +1695,7 @@ func TestMaturity_runMaturityEvict_withCandidate(t *testing.T) {
 	learningsDir := filepath.Join(tmp, ".agents", "learnings")
 	os.MkdirAll(learningsDir, 0o755)
 	chdirTo(t, tmp)
-	cov3W2WriteLearningJSONL(t, learningsDir, "ev.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "ev.jsonl", map[string]any{
 		"id": "ev", "maturity": "provisional", "utility": 0.1, "confidence": 0.1,
 		"reward_count": 1, "helpful_count": 0, "harmful_count": 1,
 	})
@@ -1697,7 +1719,7 @@ func TestMaturity_runMaturityEvict_jsonOutput(t *testing.T) {
 	learningsDir := filepath.Join(tmp, ".agents", "learnings")
 	os.MkdirAll(learningsDir, 0o755)
 	chdirTo(t, tmp)
-	cov3W2WriteLearningJSONL(t, learningsDir, "ej.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "ej.jsonl", map[string]any{
 		"id": "ej", "maturity": "provisional", "utility": 0.1, "confidence": 0.1,
 		"reward_count": 1, "helpful_count": 0, "harmful_count": 1,
 	})
@@ -1717,7 +1739,7 @@ func TestMaturity_runMaturityEvict_jsonOutput(t *testing.T) {
 }
 
 func TestMaturity_runMaturityScanAll_dryRun2(t *testing.T) {
-	tmp, _ := cov3W2SetupMaturityDir(t)
+	tmp, _ := setupMaturityDir(t)
 	oldDryRun := dryRun
 	dryRun = true
 	defer func() { dryRun = oldDryRun }()
@@ -1744,14 +1766,14 @@ func TestMaturity_runMaturityScanAll_noDirs2(t *testing.T) {
 }
 
 func TestMaturity_runMaturityScanAll_bothDirsApply(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
+	tmp, learningsDir := setupMaturityDir(t)
 	patternsDir := filepath.Join(tmp, ".agents", "patterns")
 	os.MkdirAll(patternsDir, 0o755)
-	cov3W2WriteLearningJSONL(t, learningsDir, "rd.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, learningsDir, "rd.jsonl", map[string]any{
 		"id": "rd", "maturity": "provisional", "utility": 0.7, "confidence": 0.6,
 		"reward_count": 5, "helpful_count": 5, "harmful_count": 0,
 	})
-	cov3W2WriteLearningJSONL(t, patternsDir, "pp.jsonl", map[string]any{
+	writeMaturityLearningJSONL(t, patternsDir, "pp.jsonl", map[string]any{
 		"id": "pp", "maturity": "established", "utility": 0.8, "confidence": 0.8,
 		"reward_count": 10, "helpful_count": 10, "harmful_count": 0,
 	})
@@ -1769,8 +1791,8 @@ func TestMaturity_runMaturityScanAll_bothDirsApply(t *testing.T) {
 }
 
 func TestMaturity_runMaturityScanAll_noTransitions2(t *testing.T) {
-	tmp, learningsDir := cov3W2SetupMaturityDir(t)
-	cov3W2WriteLearningJSONL(t, learningsDir, "st.jsonl", map[string]any{
+	tmp, learningsDir := setupMaturityDir(t)
+	writeMaturityLearningJSONL(t, learningsDir, "st.jsonl", map[string]any{
 		"id": "st", "maturity": "established", "utility": 0.9, "confidence": 0.9,
 		"reward_count": 20, "helpful_count": 20, "harmful_count": 0,
 	})
@@ -1807,7 +1829,7 @@ func TestMaturity_displayPendingTransitions_jsonOut(t *testing.T) {
 }
 
 func TestMaturity_runMaturity_evictBranch(t *testing.T) {
-	tmp, _ := cov3W2SetupMaturityDir(t)
+	tmp, _ := setupMaturityDir(t)
 	chdirTo(t, tmp)
 	oldEvict := maturityEvict
 	maturityEvict = true
@@ -1820,7 +1842,7 @@ func TestMaturity_runMaturity_evictBranch(t *testing.T) {
 }
 
 func TestMaturity_runMaturity_expireBranch(t *testing.T) {
-	tmp, _ := cov3W2SetupMaturityDir(t)
+	tmp, _ := setupMaturityDir(t)
 	chdirTo(t, tmp)
 	oldExpire := maturityExpire
 	maturityExpire = true
@@ -1833,7 +1855,7 @@ func TestMaturity_runMaturity_expireBranch(t *testing.T) {
 }
 
 func TestMaturity_runMaturity_migrateMdBranch(t *testing.T) {
-	tmp, _ := cov3W2SetupMaturityDir(t)
+	tmp, _ := setupMaturityDir(t)
 	chdirTo(t, tmp)
 	oldMigrate := maturityMigrateMd
 	maturityMigrateMd = true
@@ -1846,7 +1868,7 @@ func TestMaturity_runMaturity_migrateMdBranch(t *testing.T) {
 }
 
 func TestMaturity_runMaturity_recalibrateBranch(t *testing.T) {
-	tmp, _ := cov3W2SetupMaturityDir(t)
+	tmp, _ := setupMaturityDir(t)
 	chdirTo(t, tmp)
 	oldRecal := maturityRecalibrate
 	maturityRecalibrate = true

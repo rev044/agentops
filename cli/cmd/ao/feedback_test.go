@@ -691,7 +691,7 @@ func abs(x float64) float64 {
 // printFeedbackJSON (0%)
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_PrintFeedbackJSON(t *testing.T) {
+func TestPrintFeedbackJSON(t *testing.T) {
 	// printFeedbackJSON writes to os.Stdout. Capture it.
 	origStdout := os.Stdout
 	r, w, err := os.Pipe()
@@ -735,7 +735,7 @@ func TestFeedbackCov_PrintFeedbackJSON(t *testing.T) {
 // runFeedback (0%) — dry-run path
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_RunFeedback_DryRun(t *testing.T) {
+func TestRunFeedback_DryRun(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -784,7 +784,7 @@ func TestFeedbackCov_RunFeedback_DryRun(t *testing.T) {
 // runFeedback (0%) — actual update path (text output)
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_RunFeedback_ActualUpdate(t *testing.T) {
+func TestRunFeedback_ActualUpdate(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -847,7 +847,7 @@ func TestFeedbackCov_RunFeedback_ActualUpdate(t *testing.T) {
 // runFeedback — validation error (both helpful + harmful)
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_RunFeedback_ValidationError(t *testing.T) {
+func TestRunFeedback_ValidationError(t *testing.T) {
 	origReward := feedbackReward
 	origAlpha := feedbackAlpha
 	origHelpful := feedbackHelpful
@@ -876,7 +876,7 @@ func TestFeedbackCov_RunFeedback_ValidationError(t *testing.T) {
 // runFeedback — learning not found
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_RunFeedback_LearningNotFound(t *testing.T) {
+func TestRunFeedback_LearningNotFound(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -915,7 +915,7 @@ func TestFeedbackCov_RunFeedback_LearningNotFound(t *testing.T) {
 // runMigrate (0%)
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_RunMigrate_UnknownMigration(t *testing.T) {
+func TestRunMigrate_UnknownMigration(t *testing.T) {
 	err := runMigrate(migrateCmd, []string{"unknown"})
 	if err == nil {
 		t.Error("expected error for unknown migration")
@@ -925,7 +925,7 @@ func TestFeedbackCov_RunMigrate_UnknownMigration(t *testing.T) {
 	}
 }
 
-func TestFeedbackCov_RunMigrate_MemRL_NoLearnings(t *testing.T) {
+func TestRunMigrate_MemRL_NoLearnings(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -942,7 +942,7 @@ func TestFeedbackCov_RunMigrate_MemRL_NoLearnings(t *testing.T) {
 	}
 }
 
-func TestFeedbackCov_RunMigrate_MemRL_WithFiles(t *testing.T) {
+func TestRunMigrate_MemRL_WithFiles(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -989,7 +989,7 @@ func TestFeedbackCov_RunMigrate_MemRL_WithFiles(t *testing.T) {
 	}
 }
 
-func TestFeedbackCov_RunMigrate_MemRL_DryRun(t *testing.T) {
+func TestRunMigrate_MemRL_DryRun(t *testing.T) {
 	tmp := t.TempDir()
 	prevWD, err := os.Getwd()
 	if err != nil {
@@ -1035,7 +1035,7 @@ func TestFeedbackCov_RunMigrate_MemRL_DryRun(t *testing.T) {
 // migrateJSONLFiles — exercise dry-run and error paths
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_MigrateJSONLFiles(t *testing.T) {
+func TestMigrateJSONLFiles(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Valid file needing migration
@@ -1083,7 +1083,7 @@ func TestFeedbackCov_MigrateJSONLFiles(t *testing.T) {
 // classifyFeedbackType
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_ClassifyFeedbackType(t *testing.T) {
+func TestClassifyFeedbackType(t *testing.T) {
 	if got := classifyFeedbackType(true, false); got != "helpful" {
 		t.Errorf("got %q, want helpful", got)
 	}
@@ -1099,7 +1099,7 @@ func TestFeedbackCov_ClassifyFeedbackType(t *testing.T) {
 // parseJSONLFirstLine — error paths
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_ParseJSONLFirstLine_Empty(t *testing.T) {
+func TestParseJSONLFirstLine_Empty(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "empty.jsonl")
 	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
@@ -1111,7 +1111,7 @@ func TestFeedbackCov_ParseJSONLFirstLine_Empty(t *testing.T) {
 	}
 }
 
-func TestFeedbackCov_ParseJSONLFirstLine_InvalidJSON(t *testing.T) {
+func TestParseJSONLFirstLine_InvalidJSON(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "bad.jsonl")
 	if err := os.WriteFile(path, []byte("not json\n"), 0644); err != nil {
@@ -1127,7 +1127,7 @@ func TestFeedbackCov_ParseJSONLFirstLine_InvalidJSON(t *testing.T) {
 // rebuildWithFrontMatter
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_RebuildWithFrontMatter(t *testing.T) {
+func TestRebuildWithFrontMatter(t *testing.T) {
 	fm := []string{"id: test", "utility: 0.5"}
 	body := []string{"# Test", "", "Content here."}
 	result := rebuildWithFrontMatter(fm, body)
@@ -1146,7 +1146,7 @@ func TestFeedbackCov_RebuildWithFrontMatter(t *testing.T) {
 // needsUtilityMigration — empty file
 // ---------------------------------------------------------------------------
 
-func TestFeedbackCov_NeedsUtilityMigration_EmptyFile(t *testing.T) {
+func TestNeedsUtilityMigration_EmptyFile(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "empty.jsonl")
 	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
