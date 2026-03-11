@@ -6,27 +6,27 @@
 
 ## What It Is
 
-A standard operating procedure system for AI coding tools.
+A repo-native operating layer for stateless coding agents.
 
-AgentOps gives every AI session a structured briefing before work begins, enforces a consistent workflow from research through validation, requires independent review before anything is committed, and writes a debrief at the end that feeds the next session's briefing.
+AgentOps gives every session a mission, a phased workflow, quality gates, and a durable memory substrate on disk. Work begins with repo context instead of a blank prompt, passes through explicit plan and code judgment, and ends by feeding findings, learnings, and next work back into the environment.
 
-The institutional knowledge stops walking out the door.
+The institutional knowledge stops walking out the door because the repo keeps it.
 
 ---
 
-## Four Components
+## Four Load-Bearing Layers
 
-### Skills — The SOPs
-Structured, numbered checklists the AI follows for every task type: exploring a codebase, breaking work into tracked tasks, reviewing code before it ships, running a postmortem. ~40 workflows covering the full cycle. The AI does not improvise — it follows the procedure.
+### Skills — The Orchestration Layer
+Structured workflows for discovery, execution, validation, recovery, and release. Skills route work into the right primitive chain instead of leaving the agent to improvise the lifecycle.
 
 ### Hooks — The Enforcement Layer
-Shell scripts that fire automatically at lifecycle events: session start, session end, after every tool call, before every commit. They inject the briefing, harvest the debrief, and enforce quality gates that cannot be bypassed by an inattentive AI.
+Runtime hooks fire at session start/end, prompt submission, tool boundaries, stop, and task completion. They keep guidance, validation, and loop closure active even when the operator does not remember every step.
 
-### `ao` CLI — The Memory System
-A command-line tool that manages knowledge across sessions. At session end it extracts learnings (one to three sentences each). At session start it injects the most relevant, freshest ones into the briefing. Learnings that keep proving useful are promoted; stale ones decay automatically. Sessions compound.
+### `ao` CLI — The Retrieval and Ratchet Layer
+The CLI handles retrieval, ratchet checkpoints, flywheel closure, goals, curation, and phased execution support. It is the mechanical bridge between plain files, workflows, and enforceable progress.
 
-### `.agents/` — The Knowledge Base
-Plain files on disk. Learnings, patterns, research outputs, review verdicts, release notes. Each learning carries a utility score, a confidence level, a maturity rating, and a decay timestamp. Nothing proprietary — audit every file with a text editor.
+### `.agents/` — The Stigmergic Memory Layer
+Plain files on disk: research, brainstorms, findings, learnings, handoffs, ratchet traces, next-work queues. No single session has to remember the plan. The environment carries it forward.
 
 ---
 
@@ -34,18 +34,18 @@ Plain files on disk. Learnings, patterns, research outputs, review verdicts, rel
 
 ```
 Session starts
-  → Prior knowledge injected into briefing automatically
-  → AI follows structured SOP for the task
+  -> Startup hooks retrieve lightweight context and continuity hints
+  -> Discovery scopes the work and pressure-tests the plan
 
-AI works
-  → Automated gates enforce quality on every tool call
-  → Independent reviewers validate before anything ships
+Implementation runs
+  -> Fresh workers execute in bounded waves
+  -> Validation gates challenge the output before closure
 
 Session ends
-  → Learnings extracted and scored
-  → Knowledge base updated
+  -> Learnings, findings, and next work are harvested
+  -> Flywheel closure updates what the next session will see
 
-Next session starts smarter than this one did.
+Next session starts with a richer environment than this one did.
 ```
 
 ---
@@ -70,15 +70,22 @@ With AgentOps:     [2 hrs] → [10 min] → [2 min] → instant  =  ~2.2 hours t
                     learn     recall     refine    mastered
 ```
 
-By session 100, the AI already knows every bug fixed in this codebase, every architectural decision and the reasoning behind it, and every approach that failed.
+By session 100, the repo already carries prior failures, design choices, planning rules, and validated patterns that new sessions can load before they repeat old mistakes.
 
 ---
 
-## DevOps Parallel
+## Development Model
 
-DevOps applied one insight to infrastructure: reliability comes from feedback loops, not from better operators. Postmortems, runbooks, shift-left testing, continuous validation — each revolution of the loop made the next incident cheaper to handle.
+The most accurate current framing is:
 
-AgentOps applies the same insight one layer up. Not better AI models. Better feedback loops around the models you already have.
+```text
+12-Factor AgentOps -> operating conditions
+Stigmergic Spiral -> macro lifecycle for stateless builders
+Brownian Ratchet -> chaos filtered into locked progress
+Knowledge Flywheel -> durable learning and loop closure
+```
+
+The claim is not "better models." The claim is "better repo mechanics around the models you already have."
 
 ---
 
@@ -94,38 +101,22 @@ AgentOps applies the same insight one layer up. Not better AI models. Better fee
 ┌──────────────────────────────────────────────────────────────────┐
 │                    AgentOps at a Glance                          │
 ├───────────────────┬──────────────────────┬───────────────────────┤
-│    49  Skills     │  121 CLI Commands    │    14 Hooks           │
-│  (workflows)      │  (ao binary)         │  (auto-enforcement)   │
+│    54 Skills      │   52 CLI Commands    │   7 Hook Events       │
+│  (45 + 9 split)   │  (audited surfaces)  │  (runtime manifest)   │
 └───────────────────┴──────────────────────┴───────────────────────┘
 ```
 
-### The Pipeline — Skills Calling Skills
+### The Pipeline — Primitive Chains in Motion
 
-`/rpi` chains the full workflow. Each node is a skill. Arrows show calls.
+`/rpi` orchestrates the macro lifecycle. Each phase expands into its own skill chain.
 
 ```
-                         ┌─────────────┐
-                         │   /evolve   │  ← loops /rpi overnight
-                         └──────┬──────┘    fitness-gated
-                                │
-                                ▼
-┌───────────────────────────────────────────────────────────────────┐
-│                             /rpi                                  │
-│                    (full pipeline orchestrator)                   │
-└──┬──────────┬───────────┬─────────────┬──────────┬───────────────┘
-   │          │           │             │          │
-   ▼          ▼           ▼             ▼          ▼
-/research   /plan    /pre-mortem     /crank    /post-mortem
-                          │             │          │
-                     calls /council     │          ├── calls /council
-                                        │          └── calls /retro
-                                        │
-                               spawns N parallel
-                                        │
-                                   /implement  × N
-                                        │
-                                     /vibe  ── calls /council
-                                            ── calls /complexity
+GOALS.md
+  -> /evolve
+      -> /rpi
+          -> Discovery: /brainstorm -> /research -> /plan -> /pre-mortem
+          -> Implementation: /crank -> /swarm -> /implement
+          -> Validation: /validation -> /vibe -> /post-mortem -> /retro -> /forge
 ```
 
 ### Judgment Layer — Everything Flows Through Council
@@ -144,17 +135,17 @@ AgentOps applies the same insight one layer up. Not better AI models. Better fee
     before building)         before shipping)   learnings)
 ```
 
-### Knowledge Handoff — Skills Calling the CLI
+### Knowledge Handoff — Skills and CLI Working Together
 
 ```
-   SKILL                   ao CLI COMMAND              RESULT
-   ─────                   ──────────────              ──────
-/research          →    ao lookup                  Prior knowledge loaded
-/retro             →    ao forge transcript        Learnings extracted
-/retro             →    ao pool promote            Learnings validated
-/evolve            →    ao goals measure           Fitness checked
-/rpi               →    ao ratchet record          Progress checkpointed
-/implement         →    ao ratchet check           Gate verified
+   SURFACE                 CLI / FILE PRIMITIVE          RESULT
+   ───────                 ────────────────────          ──────
+/research          ->    ao lookup + ao search      Prior repo context loaded
+/plan              ->    findings registry          Reusable risks loaded pre-decomposition
+/post-mortem       ->    ao forge + ao session      Learnings harvested and session closed
+/vibe              ->    ao ratchet record          Validation checkpoint persisted
+/evolve            ->    ao goals measure           Worst fitness gap selected
+/recover           ->    handoff artifacts          Interrupted work resumed from disk
 ```
 
 ### Hooks — Automatic Enforcement
@@ -165,32 +156,24 @@ TRIGGER                   HOOK                        WHAT IT DOES
 Session starts         session-start.sh            Inject prior knowledge
 Session ends           session-end-maintenance.sh  Harvest learnings
 Agent stops            ao-flywheel-close.sh        Close learning loop
-Every tool call        go-complexity-precommit.sh  Block over-complex code
-Pre-commit             skill-lint-gate.sh          Reject malformed SOPs
-Pre-commit             dangerous-git-guard.sh      Block force-pushes to main
-Pre-commit             pre-mortem-gate.sh          Require review for large changes
-Worker stop            subagent-stop.sh            Clean up parallel agent state
+Prompt submit         prompt-nudge.sh             Remind missing intent / ratchet state
+Pre tool use          pre-mortem-gate.sh          Require review before risky work
+Post tool use         go-complexity-precommit.sh  Block over-complex edits
+Task complete         task-validation-gate.sh     Execute compiled validation constraints
 ```
 
 ### CLI Command Groups
 
 ```
-KNOWLEDGE FLYWHEEL          VALIDATION GATES         SESSION / LIFECYCLE
-──────────────────          ────────────────         ───────────────────
-ao forge                    ao gate pending          ao session close
-ao pool ingest              ao gate approve          ao rpi status
-ao pool promote             ao gate reject           ao hooks list
-ao lookup                   ao ratchet status        ao config
-ao lookup                   ao ratchet record
-ao search                   ao ratchet check         METRICS / HEALTH
-ao dedup                                             ────────────────
-ao curate                   GOALS / FITNESS          ao metrics health
-                            ───────────────          ao metrics flywheel
-MEMORY TOOLS                ao goals measure         ao metrics report
-────────────                ao goals steer           ao flywheel status
-ao mind                     ao goals add             ao maturity
-ao notebook                 ao goals prune           ao doctor
-ao memory                   ao goals history
-ao trace                    ao goals drift
+RETRIEVAL / CURATION        VALIDATION / RATCHETS    WORKFLOW / FITNESS
+────────────────────        ─────────────────────    ──────────────────
+ao lookup                   ao ratchet status        ao rpi phased
+ao search                   ao ratchet record        ao rpi status
+ao forge                    ao ratchet check         ao goals measure
+ao curate                   ao constraint activate   ao goals steer
+ao maturity                 ao constraint review     ao flywheel status
+ao dedup                    ao session close         ao hooks list
+ao contradict               ao temper validate       ao status
+ao notebook                                          ao doctor
 ao extract
 ```

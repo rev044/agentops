@@ -876,7 +876,7 @@ ao handoff [summary] [flags]
 
 ### `ao ratchet`
 
-Track progress through the RPI (Research-Plan-Implement) workflow.
+Track progress through the phased RPI workflow.
 
 ```
 ao ratchet [command]
@@ -1034,7 +1034,7 @@ ao ratchet migrate-artifacts [path] [flags]
 
 ### `ao rpi`
 
-Commands for automating the RPI (Research-Plan-Implement) lifecycle.
+Commands for automating the RPI lifecycle.
 
 ```
 ao rpi [command]

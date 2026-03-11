@@ -89,27 +89,17 @@ Then type `/quickstart` in your agent chat.
 
 ## How It Works
 
-AgentOps is built around five commands. They are not just prompts. They create tracked state, validation artifacts, and reusable knowledge.
+AgentOps is built around a phased lifecycle, not a bag of prompts. The current runtime shape is:
 
-| Step | Command | What Happens | Calls Internally |
-|------|---------|--------------|------------------|
-| 1 | `/research` | Explore the codebase and load prior repo knowledge | — |
-| 2 | `/plan` | Break work into tracked issues with dependency waves | `/beads` |
-| 3 | `/pre-mortem` | Challenge the plan before code exists | `/council` |
-| 4 | `/crank` | Execute unblocked work in waves with validation and commits | `/implement`, `/vibe` |
-| 5 | `/post-mortem` | Validate what shipped and extract reusable learnings | `/vibe`, `/retro` |
+| Phase | Primary skills | What gets locked in |
+|------|----------------|---------------------|
+| Discovery | `/brainstorm` -> `/research` -> `/plan` -> `/pre-mortem` | repo context, scoped work, known risks, execution packet |
+| Implementation | `/crank` -> `/swarm` -> `/implement` | closed issues, validated wave outputs, ratchet checkpoints |
+| Validation + learning | `/validation` -> `/vibe` -> `/post-mortem` -> `/retro` -> `/forge` | findings, learnings, next work, stronger prevention artifacts |
 
-`/rpi` chains all five. `/evolve` loops `/rpi` overnight with fitness-gated regression checks.
+`/rpi` orchestrates those three phases end to end. `/evolve` keeps running `/rpi` against `GOALS.md` so the worst fitness gap gets addressed next.
 
-### What those commands actually add
-
-- `/research` keeps the agent from starting cold
-- `/plan` turns work into a graph instead of a chat todo list
-- `/pre-mortem` catches failure modes before implementation
-- `/crank` makes multi-step work executable in dependency order
-- `/post-mortem` turns one finished task into better future context
-
-This is why AgentOps feels different in practice: the output is not just code. It is code + state + memory + gates.
+Within each phase, agents iterate quickly in bounded loops. Across phases, the repo acts as durable memory through `.agents/`, finding registries, contracts, handoffs, and commits. That is the operational difference: the output is not just code. It is code + state + memory + gates.
 
 | Pattern | Chain | When |
 |---------|-------|------|
@@ -122,13 +112,15 @@ This is why AgentOps feels different in practice: the output is not just code. I
 | **Knowledge query** | `/knowledge` → `/research` (if gaps) | Understanding before building |
 | **Standalone review** | `/council validate <target>` | Ad-hoc multi-judge review |
 
-### The three systems underneath it
+### Primitive chains underneath it
 
-- **Execution system**: `/plan`, beads, worktrees, `/crank`, `/evolve`
-- **Validation system**: `/pre-mortem`, `/vibe`, `/council`
-- **Memory system**: `.agents/`, `ao lookup`, `ao forge`, `/retro`, `/knowledge`
+- **Mission and fitness**: `GOALS.md`, `ao goals`, `/evolve`
+- **Discovery chain**: `/brainstorm` -> `ao search` / `ao lookup` -> `/research` -> `/plan` -> `/pre-mortem`
+- **Execution chain**: `/crank` -> `/swarm` -> `/implement` -> `/vibe` -> ratchet checkpoints
+- **Compiled prevention chain**: findings registry -> planning rules / pre-mortem checks / constraints -> later planning and validation
+- **Continuity chain**: session hooks + phased manifests + `/handoff` + `/recover`
 
-That is the real architecture. Not just a skill pack. A local operating layer around the agent.
+That is the real architecture: a local operating layer around the agent, not just a prompt pack. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
 
 ### Why the memory matters
 

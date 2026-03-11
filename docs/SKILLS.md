@@ -113,7 +113,8 @@ Full RPI lifecycle orchestrator. Discovery → Implementation → Validation in 
 
 ```bash
 /rpi "Add user authentication"
-/rpi --auto --max-cycles=1    # fully autonomous single cycle
+/rpi --fast-path "fix typo in README"
+/rpi --from=implementation ag-1234
 ```
 
 **Phases:** Discovery (research + plan + pre-mortem) → Implementation (crank) → Validation (vibe + post-mortem)
@@ -126,7 +127,7 @@ Autonomous multi-issue execution. Runs until epic is CLOSED.
 /crank <epic-id>
 ```
 
-**Modes:** Crew (sequential) or Mayor (parallel via polecats)
+**Execution model:** Wave-based orchestration via `/swarm` with runtime-native workers.
 
 ### /vibe
 
@@ -473,8 +474,8 @@ Skills integrate with the ao CLI for orchestration:
 
 | Skill | ao CLI Command |
 |-------|----------------|
-| `/research` | `ao forge search` |
-| `/retro` | `ao forge index` |
-| `/post-mortem` | `ao ratchet record` |
-| `/implement` | `ao ratchet claim/record` |
-| `/crank` | `ao ratchet verify` |
+| `/research` | `ao lookup`, `ao search`, `ao rpi phased` |
+| `/retro` | `ao forge markdown`, `ao session close` |
+| `/post-mortem` | `ao forge`, `ao flywheel close-loop`, `ao constraint activate` |
+| `/implement` | `ao context assemble`, `ao lookup`, `ao ratchet record` |
+| `/crank` | `ao rpi phased`, `ao ratchet`, `ao flywheel status` |

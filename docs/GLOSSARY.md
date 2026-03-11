@@ -116,12 +116,12 @@ The first phase of the RPI lifecycle. Deep codebase exploration using Explore ag
 A skill (`/retro`) that extracts learnings from completed work — decisions made, patterns discovered, and failures encountered — and feeds them into the knowledge flywheel. Learnings are scored for specificity, actionability, and novelty. [Full documentation](../skills/retro/SKILL.md)
 
 ### RPI (Research-Plan-Implement)
-The full lifecycle workflow: Research the codebase, Plan by decomposing the goal into issues, then Implement via pre-mortem, crank, vibe, and post-mortem. The `/rpi` skill runs all phases end to end; `ao rpi phased` runs each phase in its own fresh context window. [Full documentation](ARCHITECTURE.md#the-rpi-workflow)
+The historical name for AgentOps' full lifecycle workflow. In current runtime terms, `/rpi` orchestrates **Discovery -> Implementation -> Validation** while `ao rpi phased` enforces fresh context windows between those phases. The older acronym persists in product language and command names, but validation and loop closure are now first-class parts of the executable lifecycle. [Full documentation](ARCHITECTURE.md#the-rpi-workflow)
 
 ## S
 
 ### Skill
-A self-contained capability defined by a `SKILL.md` file with YAML frontmatter. Skills are the primary unit of functionality in AgentOps — each one has triggers, instructions, and optional reference docs loaded just-in-time. AgentOps ships 51 skills (41 user-facing, 10 internal). [Full documentation](SKILLS.md)
+A self-contained capability defined by a `SKILL.md` file with YAML frontmatter. Skills are the primary unit of functionality in AgentOps — each one has triggers, instructions, and optional reference docs loaded just-in-time. AgentOps currently ships 54 source skills (45 user-facing, 9 internal). [Full documentation](SKILLS.md)
 
 ### Swarm
 A skill (`/swarm`) that spawns parallel worker agents with fresh context. Each wave gets a new team; the lead validates and commits. Workers never commit directly. [Full documentation](../skills/swarm/SKILL.md)

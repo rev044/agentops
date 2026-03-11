@@ -152,25 +152,23 @@ The loop continues until all work is reaped or escalated.
 
 ---
 
-## Applied to RPI Workflow
+## Applied to the Phased RPI Workflow
 
-The entire RPI (Research → Plan → Implement) workflow is a series of ratchets:
+The historical RPI name now runs as a phased lifecycle:
 
 ```
-RESEARCH ──┬──► SYNTHESIS ──┬──► PLAN ──┬──► IMPLEMENT ──┬──► VALIDATE
-           │                │           │                │
-           └── chaos        └── ratchet └── chaos        └── ratchet
-               (explore)       (locked)    (polecats)       (merged)
+DISCOVERY ──┬──► IMPLEMENTATION ──┬──► VALIDATION
+            │                     │
+            └── chaos + filter    └── ratchet + learning
 ```
 
 | Phase | Chaos | Filter | Ratchet |
 |-------|-------|--------|---------|
-| **Research** | Multiple exploration paths | Human synthesis decision | Artifact in `.agents/research/` |
-| **Plan** | Multiple plan attempts | Pre-mortem simulation | Epic locked with dependencies |
-| **Implement** | Parallel polecats | CI + tests + /vibe | Code merged to main |
-| **Validate** | Multi-aspect checks | Quality gates | Knowledge stored |
+| **Discovery** | Multiple exploration paths and framing options | Research synthesis + pre-mortem review | Execution packet, scoped risks, and tracked issues |
+| **Implementation** | Parallel fresh-context workers | Wave verification, tests, and `/vibe` | Accepted code plus ratchet checkpoints |
+| **Validation** | Multi-aspect review and learning extraction | Council, findings registry, and flywheel closure | Knowledge stored, next work harvested, stronger prevention artifacts |
 
-Each phase locks its output before the next phase begins. You can't un-research, un-plan, or un-merge.
+Each phase locks its output before the next phase begins. You cannot un-discover, un-verify, or un-learn without writing a new artifact that supersedes the old one.
 
 ---
 
@@ -186,7 +184,7 @@ Every skill has a role in the pattern:
 | `/crank` | Full FIRE loop | Autonomous execution until complete |
 | `/vibe` | THE filter | Quality gate that blocks bad code |
 | `/implement` | Micro-ratchet | Single issue: open → closed (atomic) |
-| `/formulate` | Captured pattern | Ratcheted solution for reuse |
+| `/swarm` | Parallel chaos engine | Fresh worker set per wave |
 | `/post-mortem` | Knowledge ratchet | Learnings locked, never go backward |
 
 ---

@@ -23,6 +23,17 @@ Spawn parallel agents (chaos), validate with multi-model council (filter), merge
 
 See also: [Brownian Ratchet (deep dive)](brownian-ratchet.md)
 
+## The Stigmergic Spiral in Runtime Terms
+
+The repo now expresses the Stigmergic Spiral as executable mechanics:
+
+- **Spiral macro-cycle:** `Discovery -> Implementation -> Validation`
+- **OODA micro-cycles:** each wave repeatedly observes state, orients with repo artifacts, decides a bounded move, and acts
+- **Stigmergic memory:** `.agents/`, finding registries, contracts, handoffs, and commits carry state forward
+- **Degraded operation:** fresh workers, disk-backed recovery, and hook-enforced checkpoints assume context loss and tool drift are normal
+
+The important shift is where intelligence lives. Agent sessions are disposable. The environment compounds.
+
 ## Ralph Wiggum Pattern — Fresh Context Every Wave
 
 *Named after Ralph Wiggum's "I'm helping!" -- each worker starts fresh with no memory of previous workers, ensuring complete isolation between waves.*
@@ -40,14 +51,14 @@ Operational contract reference: `skills/shared/references/ralph-loop-contract.md
 
 ## Two-Tier Execution Model
 
-Skills follow a strict rule: **the orchestrator never forks; the workers it spawns always fork.**
+The target model is: **keep orchestration visible in the main session, and let spawned workers carry the isolated context.** Most current meta-skills follow that shape, but a few SKILL contracts still declare `context.window: fork` while the runtime behavior has shifted toward visible orchestration. When docs and contracts disagree, treat the live `SKILL.md` as authoritative.
 
 | Tier | Skills | Behavior |
 |------|--------|----------|
 | **NO-FORK** (orchestrators) | evolve, rpi, crank, vibe, post-mortem, pre-mortem | Stay in main session — operator sees progress and can intervene |
 | **FORK** (worker spawners) | council, codex-team | Fork into subagents — results merge back via filesystem |
 
-This was learned through production experience: orchestrators that forked (`context: fork` in SKILL.md) became invisible — the operator couldn't see cycle-by-cycle evolve progress, phase transitions in rpi, or wave reports from crank. The fix: remove `context: fork` from orchestrators, keep it only on worker spawners.
+This was learned through production experience: orchestration that disappears into a fork becomes hard to supervise. The long-term direction is to keep macro progress visible and isolate only the worker layer, but the repo still contains a small amount of contract drift that has not been fully normalized.
 
 `/swarm` is a special case — it's an orchestrator (no fork) that spawns runtime workers via `TeamCreate`/`spawn_agent`. The workers are runtime sub-agents, not SKILL.md skills.
 
@@ -81,15 +92,24 @@ Skills auto-select the best available backend:
 
 ## Hooks — The Workflow Enforces Itself
 
-3 active runtime hooks (from `hooks/hooks.json`). All have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
+The active runtime manifest currently declares **7 hook event sections** in `hooks/hooks.json`. All have a kill switch: `AGENTOPS_HOOKS_DISABLED=1`.
 
-| Hook | Trigger | What it does |
-|------|---------|-------------|
-| Session start | Session start | Knowledge injection and startup maintenance |
-| Session end maintenance | Session end | Knowledge extraction, maturity, and cleanup |
-| Flywheel close | Stop | Closes the feedback loop via `ao flywheel close-loop` |
+### Lifecycle anchors
 
-Additional guardrail hook scripts remain available in `hooks/`, but they are not part of the active runtime manifest unless explicitly re-enabled.
+| Hook surface | Trigger | What it does |
+|--------------|---------|--------------|
+| Session start | `SessionStart` | Startup maintenance, lightweight retrieval, and continuity hints |
+| Session end maintenance | `SessionEnd` | Transcript mining, maturity management, and cleanup |
+| Flywheel close | `Stop` | Closes the feedback loop via `ao flywheel close-loop` |
+
+### Guardrails and continuity surfaces
+
+| Hook surface | Trigger | What it does |
+|--------------|---------|--------------|
+| Prompt guidance | `UserPromptSubmit` | Nudges missing intent and ratchet status before work drifts |
+| Pre-tool gates | `PreToolUse` | Enforces pre-mortem, commit, and worker safety checks before risky actions |
+| Post-tool checks | `PostToolUse` | Runs complexity, vet, and loop-drift checks after edits or commands |
+| Task completion gate | `TaskCompleted` | Executes compiled constraints and validation checks before accepting task completion |
 
 All hooks use `lib/hook-helpers.sh` for structured error recovery — failures include suggested next actions and auto-handoff context.
 

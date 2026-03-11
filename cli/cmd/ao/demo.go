@@ -177,7 +177,7 @@ func interactiveDemo() error {
 
 This demo will:
   ✓ Create a sample .agents/ structure
-  ✓ Show the RPI workflow (Research → Plan → Implement)
+  ✓ Show the phased RPI workflow (Discovery → Implementation → Validation)
   ✓ Demonstrate the knowledge flywheel
   ✓ Explain quality gates
 

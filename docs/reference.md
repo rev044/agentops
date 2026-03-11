@@ -269,7 +269,7 @@ ao search "query"         # Semantic search across learnings
 ao flywheel status        # Knowledge growth rate, escape velocity
 ao metrics report         # Flywheel health dashboard
 ao forge transcript       # Extract learnings from session transcripts
-ao ratchet status         # RPI progress gates (Research → Plan → Implement → Validate)
+ao ratchet status         # RPI progress gates (Discovery → Implementation → Validation)
 ao pool list              # Show knowledge by quality tier
 ```
 
@@ -291,7 +291,7 @@ ao pool list              # Show knowledge by quality tier
 | `/research` | Deep codebase exploration |
 | `/plan` | Break goal into tracked issues |
 | `/release` | Pre-flight, changelog, version bumps, tag |
-| `/ratchet` | Progress gates that lock (Research → Plan → Implement → Validate) |
+| `/ratchet` | Progress gates that lock (Discovery → Implementation → Validation) |
 | `/beads` | Git-native issue tracking |
 
 ### Additional

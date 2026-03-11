@@ -1,6 +1,6 @@
 ---
 name: complete-cycle
-description: Full Research → Plan → Implement → Validate → Learn workflow
+description: Full Discovery → Implementation → Validation → Learn workflow
 estimated_time: 2-4 hours (or multi-session)
 phases: 5
 ---
@@ -22,11 +22,11 @@ phases: 5
 ## Workflow Phases
 
 ```
-Phase 1: Research (20-30% context)
+Phase 1: Discovery (20-30% context)
    ↓
-Phase 2: Plan (20-30% context)
+Phase 2: Scope + risk (20-30% context)
    ↓
-Phase 3: Implement (20-40% context)
+Phase 3: Implementation (20-40% context)
    ↓
 Phase 4: Validate (5-10% context)
    ↓

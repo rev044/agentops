@@ -1,64 +1,66 @@
 # The Knowledge Flywheel
 
-> **"Every session makes the next one smarter."**
+> Agents are stateless. The repo learns.
 
 ## The Problem
 
-AI assistants forget everything between sessions. Your team solves the same problems over and over.
+Coding agents forget everything between sessions. Notes alone do not fix that. If a solved problem is not extracted, curated, retrieved, and reused, the repo keeps paying for the same lesson.
 
 ## The Solution
 
-Olympus mines your Claude transcripts and extracts reusable knowledge:
-- Decisions and their rationale
-- Solutions that worked
-- Patterns worth repeating
-- Mistakes to avoid
+AgentOps turns session output into durable environment state:
+
+- research and design artifacts in `.agents/`
+- learnings and patterns extracted from completed work
+- reusable findings captured in a normalized registry
+- next-work queues and ratchet checkpoints for continuity
+- curation signals that keep retrieval focused on what is still useful
 
 ## The Flywheel
 
-```
-Mine transcripts → Extract knowledge → Index for recall → Apply to new work → Learn more
-                                                                    ↓
-                                                         Compounds over time
+```text
+Do work -> extract signal -> curate -> retrieve -> apply -> reinforce
+    ^                                                      |
+    |______________________________________________________|
 ```
 
-## Architecture
+The loop is not just memory. It is memory plus validation plus loop closure.
 
-```
-┌───────────────────────────────────────────────────────────┐
-│                      THE FLYWHEEL                          │
-│                                                            │
-│  .agents/patterns/  ──▶  Next /research reads              │
-│  .agents/learnings/ ──▶  Smart Connections indexes         │
-│  .agents/learnings/ ──▶  Knowledge compounds               │
-│                                                            │
-└───────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                         NEXT CHAIN
-```
+## Lifecycle
+
+| Stage | Surfaces | What happens |
+|------|----------|--------------|
+| Capture | `/research`, `/post-mortem`, `/retro`, `/forge` | Current work is written down as research, learnings, or findings |
+| Curate | `ao maturity`, `ao dedup`, `ao contradict`, constraint review | Stale or conflicting artifacts lose weight; useful ones stay retrievable |
+| Retrieve | `ao lookup`, `ao search`, startup hooks, phased handoffs | The next task starts with repo-native context instead of a blank window |
+| Apply | `/plan`, `/pre-mortem`, `/implement`, `/vibe` | Prior lessons shape current choices and validation |
+| Reinforce | citations, repeated use, promotion into constraints | Frequently useful knowledge hardens into planning rules or gates |
 
 ## Knowledge Stores
 
 | Store | Content | Updated By |
-|-------|---------|------------|
-| `.agents/learnings/` | Lessons learned | `/forge`, `/post-mortem` |
-| `.agents/patterns/` | Reusable patterns | `/forge`, `/retro` |
-| `.agents/learnings/` | Retrospectives | `/retro`, `/post-mortem` |
-| `.agents/ao/` | Session index, provenance | `ao forge` |
+|------|---------|------------|
+| `.agents/research/` | Scoped understanding and repo investigations | `/research` |
+| `.agents/brainstorm/` | Problem framing and option exploration | `/brainstorm` |
+| `.agents/learnings/` | Reusable lessons and retrospective signal | `/retro`, `/post-mortem`, `/forge` |
+| `.agents/findings/registry.jsonl` | Reusable findings before they become rules or constraints | `/pre-mortem`, `/vibe`, `/post-mortem` |
+| `.agents/rpi/next-work.jsonl` | Harvested next steps | `/post-mortem`, `/evolve` |
+| `.agents/ao/` | Ratchet trail, provenance, session metadata | `ao ratchet`, `ao forge`, `ao flywheel` |
 
 ## The Compounding Effect
 
-| Timeline | Claude Knows |
-|----------|--------------|
-| Day 1 | Nothing - fresh start |
-| Week 1 | Your coding patterns |
-| Month 1 | Your codebase |
-| Month 3 | Your organization |
+| Without the flywheel | With the flywheel |
+|----------------------|-------------------|
+| The same integration bug is rediscovered in a new session | The prior failure is retrieved before planning or validation |
+| Handoffs rely on chat memory | Handoffs and phased state live on disk |
+| Notes accumulate without pressure | Useful findings get promoted into rules, checks, or constraints |
+| Stale knowledge pollutes retrieval | Curation, contradiction checks, and maturity controls keep the corpus usable |
+
+The practical result is simple: each completed cycle can leave behind a more capable environment than the one it started in.
 
 ## See Also
 
-- [Brownian Ratchet Philosophy](brownian-ratchet.md)
-- `/forge` - Extract knowledge from transcripts
-- `ao lookup` - Retrieve knowledge on demand
-- `.agents/AGENTS.md` - Knowledge store navigation
+- [Context Lifecycle Contract](context-lifecycle.md)
+- [How It Works](how-it-works.md)
+- [Primitive Chains](architecture/primitive-chains.md)
+- [Brownian Ratchet](brownian-ratchet.md)

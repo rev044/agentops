@@ -9,7 +9,7 @@ import (
 var ratchetCmd = &cobra.Command{
 	Use:   "ratchet",
 	Short: "Brownian Ratchet workflow tracking",
-	Long: `Track progress through the RPI (Research-Plan-Implement) workflow.
+	Long: `Track progress through the phased RPI workflow.
 
 The Brownian Ratchet ensures progress can't be lost:
   Chaos × Filter → Ratchet = Progress

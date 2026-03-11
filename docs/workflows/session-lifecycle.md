@@ -362,17 +362,18 @@ cp .claude/templates/feature-list.json .
 
 ## Integration with RPI Workflow
 
-For complex features, use the Research → Plan → Implement flow:
+For complex features, use the phased RPI flow:
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  RESEARCH   │ ──▶ │    PLAN     │ ──▶ │  IMPLEMENT  │
-│  /research  │     │   /plan     │     │  /implement │
-│  (explore)  │     │  (specify)  │     │  (execute)  │
+│ DISCOVERY   │ ──▶ │ IMPLEMENT   │ ──▶ │ VALIDATION  │
+│ /research   │     │  /crank     │     │    /vibe    │
+│ /plan       │     │ /implement  │     │ /post-mortem│
+│ /pre-mortem │     │  (execute)  │     │  (learn)    │
 └─────────────┘     └─────────────┘     └─────────────┘
       │                   │                   │
       ▼                   ▼                   ▼
-  research.md         plan.md            code changes
+research + plan      validated code      learnings + next work
     bundle              bundle              + commit
 ```
 

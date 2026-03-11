@@ -20,15 +20,15 @@
 
 ## Elevator Pitch (30 seconds)
 
-> 12-Factor AgentOps is DevOps for vibe-coding. Instead of waiting for CI to catch problems with AI-generated code, we shift validation left—into the workflow itself. Pre-mortem before you implement. Vibe check before you commit. The same operational discipline that made infrastructure reliable, applied to coding agents.
+> 12-Factor AgentOps is DevOps for coding agents. It shifts validation left, but it also does the two things most tooling still misses: durable repo memory and loop closure. Pre-mortem before you implement. Vibe check before you commit. Findings and learnings written back into the environment so the next session starts smarter.
 
 ### One-Liner (10 seconds)
 
-> Shift-left validation for coding agents—catch it before you ship it.
+> The missing DevOps layer for coding agents: validation, memory, and loop closure.
 
 ### Tweet-Length (280 chars)
 
-> DevOps gave us reliable infrastructure. 12-Factor AgentOps gives us reliable coding agents. Validation built in, not bolted on. Pre-mortem before build. Vibe check before commit. Knowledge that compounds.
+> DevOps gave us reliable infrastructure. 12-Factor AgentOps gives us reliable coding agents. Validation built in, not bolted on. Durable memory on disk. Findings that compile into better future work.
 
 ---
 
@@ -46,7 +46,7 @@ Write code → Ship → CI catches problems → Fix → Repeat
 /pre-mortem → Implement → /vibe → Commit → Knowledge compounds
 ```
 
-The validation loop happens BEFORE code ships, not after. This is the core insight.
+The validation loop happens before code ships, not after. But validation alone is not the whole story. The larger system also extracts what was learned, compiles repeat failures into preventive artifacts, and feeds better context into the next cycle.
 
 ### 2. Coding Agent Specific
 
@@ -77,11 +77,11 @@ We apply proven operational discipline to a new domain:
 
 ### 4. Single-Session Excellence
 
-AgentOps optimizes the single coding session—where most value is created or destroyed:
+AgentOps optimizes the single coding session while refusing to waste what it learned:
 
 - Context management (40% rule)
 - Validation gates within the session
-- Knowledge extraction and injection
+- Knowledge extraction, retrieval, and compiled prevention
 - Human-AI collaboration patterns
 
 For multi-session orchestration, see Olympus (Temporal-based workflows).
@@ -90,11 +90,11 @@ For multi-session orchestration, see Olympus (Temporal-based workflows).
 
 The Knowledge Flywheel:
 ```
-Session → Forge (extract learnings) → Pool (validate) → Inject (apply)
-    ↑____________________________________________________________|
+Session -> extract -> curate -> retrieve -> apply -> reinforce
+    ^__________________________________________________________|
 ```
 
-Every session makes the next one better. This is the moat.
+Every session makes the next one better because the environment changes, not because the agent remembers. This is the moat.
 
 ---
 
@@ -102,7 +102,7 @@ Every session makes the next one better. This is the moat.
 
 - **DevOps principles applied to coding agents** — The same operational discipline that made infrastructure reliable
 - **Validation-first workflow** — Shift-left, not shift-blame
-- **Knowledge flywheel that compounds** — Learnings persist and improve future sessions
+- **Knowledge flywheel that compounds** — Learnings persist, get curated, and harden into future prevention
 - **Single-session orchestration** — Excellence where it matters most
 - **Framework, not SDK** — Patterns and practices, not lock-in
 
@@ -173,7 +173,7 @@ Single-Session          │   Agent SDKs
 
 ### When Asked "What is 12-Factor AgentOps?"
 
-> It's DevOps for vibe-coding. We apply the same operational principles that made infrastructure reliable—shift-left testing, post-mortems, continuous validation—to coding agents. Instead of shipping AI-generated code and hoping CI catches problems, you validate before you commit.
+> It's DevOps for coding agents. We apply the same operational principles that made infrastructure reliable, then add the missing memory and loop-closure layers agents need because they forget everything between sessions. Instead of shipping AI-generated code and hoping CI catches problems, you validate before commit and write the learning back into the repo.
 
 ### When Asked "How is it different from X?"
 
@@ -186,7 +186,7 @@ Single-Session          │   Agent SDKs
 
 ### When Asked "Why should I care?"
 
-> Because AI-generated code still needs validation. The 80% that works is valuable. The 20% that doesn't can be catastrophic. DevOps taught us to shift validation left. AgentOps applies that to coding agents.
+> Because AI-generated code still needs validation, and validation alone still leaves you paying for the same lesson twice. AgentOps shifts validation left, captures what failed, and turns useful findings into better future context and gates.
 
 ---
 
