@@ -257,8 +257,10 @@ func TestClassifyServeArg(t *testing.T) {
 
 ### Test Conventions
 
-- **File naming:** Test files MUST be named `<source>_test.go`. Extra test files for edge cases: `<source>_extra_test.go`. NEVER `cov*_test.go` or other arbitrary prefixes.
+- **File naming:** Test files MUST be named `<source>_test.go`. NEVER `cov*_test.go`, `*_extra_test.go`, or other non-standard prefixes. Keep all tests for a source file in one test file.
+- **Function naming:** `Test<Uppercase>` (e.g., `TestFoo_Bar`). Go requires uppercase letter after `Test`.
 - **No coverage-padding:** Tests that use trivial `!= ""` or `!= nil` assertions solely to inflate coverage are banned. Every test must assert behavioral correctness.
+- **No zero-assertion smoke tests:** Every test must have assertions. For print/output functions, use `captureStdout` and assert output contains expected strings.
 - **Assert exact expected values:** Use `== expected`, never `!= wrong`. (See Exact Assertion Rule above.)
 - **Table-driven tests** preferred for multi-case functions. (See example above.)
 - **Test low-level functions directly;** don't depend on external CLIs (`bd`, `ao`) in tests. (See CI-Safe Test Pattern above.)
