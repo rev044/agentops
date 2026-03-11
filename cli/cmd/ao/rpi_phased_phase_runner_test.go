@@ -107,8 +107,17 @@ func TestWriteFinalPhasedReport_PlanFileEpic(t *testing.T) {
 	tmp := t.TempDir()
 	logPath := filepath.Join(tmp, "rpi.log")
 
-	// Should not panic with plan-file epic.
 	writeFinalPhasedReport(state, logPath)
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+	if !strings.Contains(string(data), "complete") {
+		t.Errorf("log missing 'complete' marker, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "feature.md") {
+		t.Errorf("log missing plan file reference, got: %s", string(data))
+	}
 }
 
 func TestWriteFinalPhasedReport_EmptyEpicID(t *testing.T) {
@@ -117,8 +126,14 @@ func TestWriteFinalPhasedReport_EmptyEpicID(t *testing.T) {
 	tmp := t.TempDir()
 	logPath := filepath.Join(tmp, "rpi.log")
 
-	// Should not panic with empty epic ID.
 	writeFinalPhasedReport(state, logPath)
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+	if !strings.Contains(string(data), "complete") {
+		t.Errorf("log missing 'complete' marker, got: %s", string(data))
+	}
 }
 
 // --- logAndFailPhase ---

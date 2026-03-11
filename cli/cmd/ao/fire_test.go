@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -368,14 +369,18 @@ func TestFireCoverage_CollectReadyIssues(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFireCoverage_PrintState(t *testing.T) {
-	// Just ensure no panic
 	state := &FireState{
 		Ready:   []string{"a", "b"},
 		Burning: []string{"c"},
 		Reaped:  []string{"d", "e", "f"},
 		Blocked: []string{},
 	}
-	printState(state)
+	out, _ := captureStdout(t, func() error { printState(state); return nil })
+	for _, want := range []string{"2 ready", "1 burning", "3 reaped"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -810,18 +815,22 @@ func TestFire_sendMail(t *testing.T) {
 // ===========================================================================
 
 func TestFire_printState_doesNotPanic(t *testing.T) {
-	// printState prints to stdout; verify it doesn't panic
 	state := &FireState{
 		Ready:   []string{"a", "b"},
 		Burning: []string{"c"},
 		Reaped:  []string{"d", "e", "f"},
 		Blocked: []string{"g"},
 	}
-	// Should not panic
-	printState(state)
+	out, _ := captureStdout(t, func() error { printState(state); return nil })
+	if !strings.Contains(out, "1 blocked") {
+		t.Errorf("output missing '1 blocked':\n%s", out)
+	}
 }
 
 func TestFire_printState_emptyState(t *testing.T) {
 	state := &FireState{}
-	printState(state)
+	out, _ := captureStdout(t, func() error { printState(state); return nil })
+	if !strings.Contains(out, "0 ready") {
+		t.Errorf("output missing '0 ready':\n%s", out)
+	}
 }

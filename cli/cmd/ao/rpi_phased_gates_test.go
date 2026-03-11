@@ -112,11 +112,14 @@ func TestResolveGateRetryAction_ModeOffEscalatesAtMax(t *testing.T) {
 // --- logGateRetryMemRL ---
 
 func TestLogGateRetryMemRL_OffModeSkipsLog(t *testing.T) {
-	// When mode is off, no log entry should be written.
-	// We just verify it does not panic with empty args.
+	tmp := t.TempDir()
+	logPath := filepath.Join(tmp, "memrl.log")
 	decision := types.MemRLPolicyDecision{Mode: types.MemRLModeOff}
-	logGateRetryMemRL("", "", "test", decision, types.MemRLActionRetry)
-	// No assertion needed — just verifying no panic.
+	logGateRetryMemRL(tmp, logPath, "test", decision, types.MemRLActionRetry)
+	// Off mode should not create any log file
+	if _, err := os.Stat(logPath); err == nil {
+		t.Error("off mode should not create log file")
+	}
 }
 
 // --- executeWithStatus ---
@@ -152,8 +155,11 @@ func TestMaybeUpdateLiveStatus_DisabledDoesNotPanic(t *testing.T) {
 	state := newTestPhasedState()
 	state.Opts.LiveStatus = false
 	allPhases := buildAllPhases(phases)
-	// Should not panic even with empty statusPath when disabled.
 	maybeUpdateLiveStatus(state, "", allPhases, 1, "test", 0, "")
+	// When disabled, phases should remain in pending state
+	if allPhases[0].CurrentAction != "pending" {
+		t.Errorf("disabled status should not update phases, got %q", allPhases[0].CurrentAction)
+	}
 }
 
 // --- postPhaseProcessing ---

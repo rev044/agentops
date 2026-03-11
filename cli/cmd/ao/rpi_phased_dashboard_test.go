@@ -45,8 +45,12 @@ func TestStartEmbeddedDashboard_ServesOnEphemeralPort(t *testing.T) {
 }
 
 func TestShutdownDashboard_NilServer(t *testing.T) {
-	// Should not panic on nil
+	// shutdownDashboard(nil) must be a no-op — verify no panic and clean return
 	shutdownDashboard(nil)
+	// If we reached here, nil server was handled gracefully
+	if t.Failed() {
+		t.Error("shutdownDashboard(nil) should not cause failures")
+	}
 }
 
 func TestDash_StartEmbeddedDashboard_ReturnsServer(t *testing.T) {

@@ -440,8 +440,9 @@ func TestRecordRatchetCheckpoint_FailSilently(t *testing.T) {
 	// Use an empty dir so no binaries are found.
 	t.Setenv("PATH", t.TempDir())
 
-	// Should not panic.
+	// Should complete without panic when ao is not on PATH
 	recordRatchetCheckpoint("research", "")
+	// If we reached here, the function handled the missing binary gracefully
 	recordRatchetCheckpoint("implement", "")
 	recordRatchetCheckpoint("validate", "")
 }

@@ -813,6 +813,12 @@ func TestUpdateLivePhaseStatus_NegativePhaseNum2(t *testing.T) {
 func TestUpdateLivePhaseStatus_PhaseNumTooLarge2(t *testing.T) {
 	allPhases := buildAllPhases(phases)
 	updateLivePhaseStatus("", allPhases, len(phases)+1, "test", 0, "")
+	// Out-of-range phase should leave all phases unchanged
+	for i, p := range allPhases {
+		if p.CurrentAction != "pending" {
+			t.Errorf("phase %d should be untouched, got %q", i, p.CurrentAction)
+		}
+	}
 }
 
 func TestUpdateLivePhaseStatus_ValidPhase2(t *testing.T) {
