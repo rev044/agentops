@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// absPathFunc is a variable so tests can override it.
+var absPathFunc = filepath.Abs
+
 // Record represents a single provenance entry.
 // It links an artifact to its source.
 type Record struct {
@@ -104,7 +107,7 @@ func (g *Graph) Trace(artifactPath string) (*TraceResult, error) {
 		Sources:  make([]string, 0),
 	}
 
-	absPath, err := filepath.Abs(artifactPath)
+	absPath, err := absPathFunc(artifactPath)
 	if err != nil {
 		absPath = artifactPath
 	}

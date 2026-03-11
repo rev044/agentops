@@ -11,6 +11,10 @@ import (
 	"github.com/boshu2/agentops/cli/pkg/vault"
 )
 
+// markdownTmplSource holds the template text. Package-level var so tests
+// can inject an invalid template to exercise the parse-error path.
+var markdownTmplSource = markdownTemplate
+
 // MarkdownFormatter outputs sessions as Obsidian-compatible markdown.
 type MarkdownFormatter struct {
 	// VaultPath is the detected Obsidian vault path (empty if not in vault).
@@ -39,7 +43,7 @@ func (mf *MarkdownFormatter) Format(w io.Writer, session *storage.Session) error
 	data := mf.buildTemplateData(session)
 
 	// Execute template
-	tmpl, err := template.New("session").Funcs(mf.templateFuncs()).Parse(markdownTemplate)
+	tmpl, err := template.New("session").Funcs(mf.templateFuncs()).Parse(markdownTmplSource)
 	if err != nil {
 		return fmt.Errorf("parse template: %w", err)
 	}

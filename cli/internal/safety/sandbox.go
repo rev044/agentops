@@ -201,9 +201,6 @@ func ValidateTeamLifecycle(events []TeamLifecycleEvent) []ContractViolation {
 	sort.Strings(uncleaned)
 	for _, name := range uncleaned {
 		meta := teams[name]
-		if meta == nil {
-			continue
-		}
 		violations = append(violations, ContractViolation{
 			Rule:       RuleAlwaysCleanup,
 			Detail:     "team " + name + " was never deleted",
