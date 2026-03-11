@@ -59,13 +59,18 @@ type provStats struct {
 }
 
 type flywheelBrief struct {
-	Status         string  `json:"status"`
-	TotalArtifacts int     `json:"total_artifacts"`
-	Velocity       float64 `json:"velocity"`
-	NewArtifacts   int     `json:"new_artifacts"`
-	StaleArtifacts int     `json:"stale_artifacts"`
-	LastForgeAge   string  `json:"last_forge_age,omitempty"`
-	LastForgeTime  string  `json:"last_forge_time,omitempty"`
+	Status                 string  `json:"status"`
+	TotalArtifacts         int     `json:"total_artifacts"`
+	Velocity               float64 `json:"velocity"`
+	NewArtifacts           int     `json:"new_artifacts"`
+	StaleArtifacts         int     `json:"stale_artifacts"`
+	PromotedFindings       int     `json:"promoted_findings,omitempty"`
+	PlanningRules          int     `json:"planning_rules,omitempty"`
+	PreMortemChecks        int     `json:"pre_mortem_checks,omitempty"`
+	UnconsumedItems        int     `json:"unconsumed_items,omitempty"`
+	HighSeverityUnconsumed int     `json:"high_severity_unconsumed,omitempty"`
+	LastForgeAge           string  `json:"last_forge_age,omitempty"`
+	LastForgeTime          string  `json:"last_forge_time,omitempty"`
 }
 
 // loadRecentSessions populates status with session count and recent sessions.
@@ -111,6 +116,13 @@ func loadFlywheelBrief(cwd string) *flywheelBrief {
 		Velocity:       metrics.Velocity,
 		NewArtifacts:   metrics.NewArtifacts,
 		StaleArtifacts: metrics.StaleArtifacts,
+	}
+	if scorecard, err := loadStigmergicScorecard(cwd); err == nil {
+		brief.PromotedFindings = scorecard.PromotedFindings
+		brief.PlanningRules = scorecard.PlanningRules
+		brief.PreMortemChecks = scorecard.PreMortemChecks
+		brief.UnconsumedItems = scorecard.UnconsumedItems
+		brief.HighSeverityUnconsumed = scorecard.HighSeverityUnconsumed
 	}
 	if lastForge := findLastForgeTime(cwd); !lastForge.IsZero() {
 		brief.LastForgeTime = lastForge.Format("2006-01-02 15:04")
@@ -167,6 +179,14 @@ func printFlywheelHealth(fw *flywheelBrief) {
 	fmt.Printf("  Velocity:   %s%.3f/week\n", velocitySign, fw.Velocity)
 	if fw.LastForgeAge != "" {
 		fmt.Printf("  Last forge: %s ago\n", fw.LastForgeAge)
+	}
+	if fw.PromotedFindings > 0 || fw.PlanningRules > 0 || fw.PreMortemChecks > 0 {
+		fmt.Printf("  Signals:    %d findings, %d rules, %d checks\n",
+			fw.PromotedFindings, fw.PlanningRules, fw.PreMortemChecks)
+	}
+	if fw.UnconsumedItems > 0 || fw.HighSeverityUnconsumed > 0 {
+		fmt.Printf("  Backlog:    %d items, %d high severity\n",
+			fw.UnconsumedItems, fw.HighSeverityUnconsumed)
 	}
 }
 

@@ -69,6 +69,17 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("compute metrics: %w", err)
 	}
+	if scorecard, err := loadStigmergicScorecard(cwd); err == nil {
+		metrics.StigmergicScorecard = &types.StigmergicScorecard{
+			PromotedFindings:       scorecard.PromotedFindings,
+			PlanningRules:          scorecard.PlanningRules,
+			PreMortemChecks:        scorecard.PreMortemChecks,
+			QueueEntries:           scorecard.QueueEntries,
+			UnconsumedBatches:      scorecard.UnconsumedBatches,
+			UnconsumedItems:        scorecard.UnconsumedItems,
+			HighSeverityUnconsumed: scorecard.HighSeverityUnconsumed,
+		}
+	}
 
 	w := cmd.OutOrStdout()
 	switch GetOutput() {
@@ -83,6 +94,7 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 			"sigma_rho":   metrics.SigmaRho,
 			"velocity":    metrics.Velocity,
 			"compounding": metrics.AboveEscapeVelocity,
+			"scorecard":   metrics.StigmergicScorecard,
 			"metrics":     metrics,
 		})
 
@@ -96,6 +108,7 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 			"sigma_rho":   metrics.SigmaRho,
 			"velocity":    metrics.Velocity,
 			"compounding": metrics.AboveEscapeVelocity,
+			"scorecard":   metrics.StigmergicScorecard,
 		})
 
 	default:
@@ -169,6 +182,18 @@ func printFlywheelStatus(w io.Writer, m *types.FlywheelMetrics) {
 		m.PeriodStart.Format("2006-01-02"),
 		m.PeriodEnd.Format("2006-01-02"),
 		metricsDays)
+	if m.StigmergicScorecard != nil {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "  STIGMERGIC SCORECARD:")
+		fmt.Fprintf(w, "    Signals: %d findings, %d planning rules, %d pre-mortem checks\n",
+			m.StigmergicScorecard.PromotedFindings,
+			m.StigmergicScorecard.PlanningRules,
+			m.StigmergicScorecard.PreMortemChecks)
+		fmt.Fprintf(w, "    Backlog: %d items, %d high severity, %d batches\n",
+			m.StigmergicScorecard.UnconsumedItems,
+			m.StigmergicScorecard.HighSeverityUnconsumed,
+			m.StigmergicScorecard.UnconsumedBatches)
+	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "  Tip: 'ao status' shows flywheel health alongside session info.")
 }

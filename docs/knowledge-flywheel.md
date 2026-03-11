@@ -32,8 +32,8 @@ The loop is not just memory. It is memory plus validation plus loop closure.
 |------|----------|--------------|
 | Capture | `/research`, `/post-mortem`, `/retro`, `/forge` | Current work is written down as research, learnings, or findings |
 | Curate | `ao maturity`, `ao dedup`, `ao contradict`, constraint review | Stale or conflicting artifacts lose weight; useful ones stay retrievable |
-| Retrieve | `ao lookup`, `ao search`, startup hooks, phased handoffs | The next task starts with repo-native context instead of a blank window |
-| Apply | `/plan`, `/pre-mortem`, `/implement`, `/vibe` | Prior lessons shape current choices and validation |
+| Retrieve | `ao lookup`, `ao search`, startup hooks, phased handoffs, ranked packets | The next task starts with repo-native context instead of a blank window |
+| Apply | `/plan`, `/pre-mortem`, `/implement`, `/vibe` | Prior lessons shape current choices and validation, using the best-matching packet rather than generic recall |
 | Reinforce | citations, repeated use, promotion into constraints | Frequently useful knowledge hardens into planning rules or gates |
 
 ## Knowledge Stores
@@ -46,6 +46,8 @@ The loop is not just memory. It is memory plus validation plus loop closure.
 | `.agents/findings/registry.jsonl` | Reusable findings before they become rules or constraints | `/pre-mortem`, `/vibe`, `/post-mortem` |
 | `.agents/rpi/next-work.jsonl` | Harvested next steps | `/post-mortem`, `/evolve` |
 | `.agents/ao/` | Ratchet trail, provenance, session metadata | `ao ratchet`, `ao forge`, `ao flywheel` |
+
+The strongest compounding pattern is a **ranked stigmergic packet**: for a given goal or review target, select the best matching compiled prevention, active findings, and high-severity queued follow-up work, then carry that packet forward consistently across discovery, planning, review, and status surfaces.
 
 ## The Compounding Effect
 

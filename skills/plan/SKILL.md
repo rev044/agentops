@@ -65,6 +65,7 @@ Use the tracked contracts in `docs/contracts/finding-compiler.md` and `docs/cont
 
 - prefer compiled planning rules first
 - match by finding ID, `applicable_when` overlap, language overlap, and literal goal-text overlap
+- when file inventory is known, rank by changed-file overlap before falling back to weaker textual matches
 - cap the injected set at top 5 findings / rule files
 - if compiled planning rules are missing, incomplete, or fewer than the matched finding set, fall back to `.agents/findings/registry.jsonl`
 - fail open:
@@ -74,6 +75,13 @@ Use the tracked contracts in `docs/contracts/finding-compiler.md` and `docs/cont
   - unreadable file -> warn once and continue without findings
 
 Use the selected planning rules / active findings as hard planning context before issue decomposition. Record the applied finding IDs and how they changed the plan. These become required context for the written plan, not optional side notes.
+
+**Ranked packet contract:** Treat compiled planning rules, active findings, and matching high-severity `next-work.jsonl` items as one ranked packet, not three unrelated lookups. The packet must prefer the strongest overlap in this order:
+1. literal goal-text overlap
+2. `applicable_when` / issue-type overlap
+3. language overlap
+4. changed-file overlap (once the file table exists)
+5. backlog severity / repo affinity for next-work items
 
 ### Step 2.2: Read and Validate Research Content
 

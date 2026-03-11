@@ -140,6 +140,7 @@ Use the tracked contracts in `docs/contracts/finding-compiler.md` and `docs/cont
 
 - prefer compiled pre-mortem checks and planning rules first
 - rank by severity, `applicable_when` overlap, language overlap, changed-file overlap, and literal target-text overlap
+- keep the ranking order consistent with `/plan` and `/pre-mortem`; do not invent a separate review-only heuristic
 - cap at top 5 findings / compiled files
 - if compiled outputs are missing, incomplete, or fewer than the matched finding set, fall back to `.agents/findings/registry.jsonl`
 - fail open:
@@ -159,6 +160,8 @@ Include matched entries in the council packet as `known_risks` / checklist conte
 **Skip if `--quick` (see Step 1.5).**
 
 Read `.agents/rpi/next-work.jsonl` and find unconsumed items with `severity=high` that match the target area. Include them in the council packet as `context.prior_findings` so judges have carry-forward context.
+
+Treat these high-severity queue items as part of the same ranked packet used earlier in discovery/plan/pre-mortem. The review stage should inherit and refine prior findings context, not restart retrieval from scratch.
 
 ```bash
 # Count unconsumed high-severity items

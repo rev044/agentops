@@ -732,6 +732,21 @@ type FlywheelMetrics struct {
 
 	// LowUtilityCount is artifacts with utility < 0.3.
 	LowUtilityCount int `json:"low_utility_count,omitempty"`
+
+	// StigmergicScorecard captures repo-local prevention and backlog pressure.
+	StigmergicScorecard *StigmergicScorecard `json:"stigmergic_scorecard,omitempty"`
+}
+
+// StigmergicScorecard captures the backlog and prevention surfaces that
+// influence whether repo memory is being applied early enough to change work.
+type StigmergicScorecard struct {
+	PromotedFindings       int `json:"promoted_findings"`
+	PlanningRules          int `json:"planning_rules"`
+	PreMortemChecks        int `json:"pre_mortem_checks"`
+	QueueEntries           int `json:"queue_entries"`
+	UnconsumedBatches      int `json:"unconsumed_batches"`
+	UnconsumedItems        int `json:"unconsumed_items"`
+	HighSeverityUnconsumed int `json:"high_severity_unconsumed"`
 }
 
 // DefaultDelta is the literature-based decay rate (17%/week from Darr et al.).

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -153,6 +154,30 @@ func TestPrintFlywheelStatus_Recommendations(t *testing.T) {
 
 func TestRunFlywheelStatus_JSONOutput(t *testing.T) {
 	dir := t.TempDir()
+	for _, rel := range []string{
+		filepath.Join(".agents", "findings"),
+		filepath.Join(".agents", "planning-rules"),
+		filepath.Join(".agents", "pre-mortem-checks"),
+		filepath.Join(".agents", "rpi"),
+	} {
+		if err := os.MkdirAll(filepath.Join(dir, rel), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "findings", "f-1.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "planning-rules", "f-1.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "pre-mortem-checks", "f-1.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	queue := `{"source_epic":"ag-h83","timestamp":"2026-03-11T17:00:00Z","items":[{"title":"High one","type":"task","severity":"high","source":"council-finding","description":"d1","target_repo":"agentops","consumed":false}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+`
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "rpi", "next-work.jsonl"), []byte(queue), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	oldWD, err := os.Getwd()
 	if err != nil {
@@ -185,10 +210,42 @@ func TestRunFlywheelStatus_JSONOutput(t *testing.T) {
 	}
 
 	// Verify expected fields
-	for _, field := range []string{"status", "delta", "sigma", "rho", "sigma_rho", "velocity", "compounding", "metrics"} {
+	for _, field := range []string{"status", "delta", "sigma", "rho", "sigma_rho", "velocity", "compounding", "scorecard", "metrics"} {
 		if _, ok := parsed[field]; !ok {
 			t.Errorf("expected field %q in JSON output", field)
 		}
+	}
+}
+
+func TestPrintFlywheelStatus_IncludesScorecard(t *testing.T) {
+	var buf bytes.Buffer
+	m := &types.FlywheelMetrics{
+		Timestamp:   time.Now(),
+		PeriodStart: time.Now().AddDate(0, 0, -7),
+		PeriodEnd:   time.Now(),
+		TierCounts:  map[string]int{},
+		StigmergicScorecard: &types.StigmergicScorecard{
+			PromotedFindings:       3,
+			PlanningRules:          3,
+			PreMortemChecks:        2,
+			UnconsumedItems:        9,
+			HighSeverityUnconsumed: 4,
+			UnconsumedBatches:      2,
+		},
+	}
+
+	oldDays := metricsDays
+	metricsDays = 7
+	defer func() { metricsDays = oldDays }()
+
+	printFlywheelStatus(&buf, m)
+
+	got := buf.String()
+	if !strings.Contains(got, "STIGMERGIC SCORECARD:") {
+		t.Fatalf("expected scorecard section, got: %q", got)
+	}
+	if !strings.Contains(got, "Backlog: 9 items, 4 high severity, 2 batches") {
+		t.Fatalf("expected backlog line, got: %q", got)
 	}
 }
 

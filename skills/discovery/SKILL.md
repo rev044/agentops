@@ -115,6 +115,13 @@ ao lookup --query "<goal keywords>" --limit 5 2>/dev/null || true
 
 Summarize any relevant findings (prior attempts, related decisions, known constraints) and carry them forward as context for research.
 
+**Ranked packet requirement:** Before leaving discovery, assemble a lightweight ranked packet for the current goal:
+- matching compiled planning rules / pre-mortem checks
+- matching active findings from `.agents/findings/*.md`
+- matching unconsumed high-severity items from `.agents/rpi/next-work.jsonl`
+
+Rank by literal goal-text overlap first, then issue-type / work-shape overlap, then file-path or module overlap when known. Discovery does not need the final file list yet, but it MUST surface the best matching high-severity next-work items so planning can incorporate them instead of rediscovering them later.
+
 ### Step 3: Research
 
 Invoke `/research` for deep codebase exploration:
@@ -138,6 +145,7 @@ Pass `--auto` unless `--interactive` was specified. Plan output lands in `.agent
 After plan completes:
 1. Extract epic ID: `bd list --type epic --status open` (beads) or identify from TaskList.
 2. Store in `discovery_state.epic_id`.
+3. Carry forward the ranked packet summary (applied findings, known risks, high-severity next-work matches) into the execution packet and phase summary.
 3. **Auto-detect complexity** (if not overridden):
    - Count issues: `bd children <epic-id> | wc -l`
    - Low: 1-2 issues → `fast`

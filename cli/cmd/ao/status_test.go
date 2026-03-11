@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -142,5 +144,77 @@ func TestFormatDurationBrief(t *testing.T) {
 				t.Errorf("formatDurationBrief(%v) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestLoadFlywheelBrief_IncludesStigmergicScorecard(t *testing.T) {
+	tmp := t.TempDir()
+	for _, rel := range []string{
+		filepath.Join(".agents", "findings"),
+		filepath.Join(".agents", "planning-rules"),
+		filepath.Join(".agents", "pre-mortem-checks"),
+		filepath.Join(".agents", "rpi"),
+	} {
+		if err := os.MkdirAll(filepath.Join(tmp, rel), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".agents", "findings", "f-1.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".agents", "planning-rules", "f-1.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".agents", "pre-mortem-checks", "f-1.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	queue := `{"source_epic":"ag-h83","timestamp":"2026-03-11T17:00:00Z","items":[{"title":"High one","type":"task","severity":"high","source":"council-finding","description":"d1","target_repo":"agentops","consumed":false}],"consumed":false,"claim_status":"available","claimed_by":null,"claimed_at":null,"consumed_by":null,"consumed_at":null}
+`
+	if err := os.WriteFile(filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl"), []byte(queue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	brief := loadFlywheelBrief(tmp)
+	if brief == nil {
+		t.Fatal("expected flywheel brief")
+	}
+	if brief.PromotedFindings != 1 || brief.PlanningRules != 1 || brief.PreMortemChecks != 1 {
+		t.Fatalf("brief signal counts = %+v, want 1/1/1", brief)
+	}
+	if brief.UnconsumedItems != 1 || brief.HighSeverityUnconsumed != 1 {
+		t.Fatalf("brief backlog counts = %+v, want 1/1", brief)
+	}
+}
+
+func TestPrintFlywheelHealth_IncludesBacklogLine(t *testing.T) {
+	var buf bytes.Buffer
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	defer func() { os.Stdout = oldStdout }()
+
+	printFlywheelHealth(&flywheelBrief{
+		Status:                 "COMPOUNDING",
+		TotalArtifacts:         10,
+		Velocity:               1.2,
+		NewArtifacts:           3,
+		StaleArtifacts:         1,
+		PromotedFindings:       2,
+		PlanningRules:          2,
+		PreMortemChecks:        1,
+		UnconsumedItems:        7,
+		HighSeverityUnconsumed: 3,
+	})
+
+	_ = w.Close()
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "Backlog:") {
+		t.Fatalf("expected backlog line, got: %q", got)
 	}
 }
