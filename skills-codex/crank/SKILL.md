@@ -63,12 +63,7 @@ Ralph alignment source: `..$shared/references/ralph-loop-contract.md` (fresh con
 
 **MAX_EPIC_WAVES = 50** (hard limit across entire epic)
 
-This prevents infinite loops on circular dependencies or cascading failures.
-
-**Why 50?**
-- Typical epic: 5-10 issues
-- With retries: ~5 waves max
-- 50 = safe upper bound
+This prevents infinite loops on circular dependencies or cascading failures. Typical epics use 5–10 waves max.
 
 ## Completion Enforcement (The Sisyphus Rule)
 
@@ -145,9 +140,7 @@ If `bd list --type epic --status open` returns more than one epic, log a warning
 WARN: Multiple open epics detected. $crank operates on a single epic.
 Use --allow-multi-epic to suppress this warning.
 ```
-This is a WARN, not a FAIL — cranking with focused scope is a best practice but not a hard requirement.
-
-If multiple epics found, ask user which one.
+If multiple epics found, ask user which one (WARN, not FAIL).
 
 **TaskList mode:**
 
@@ -283,34 +276,13 @@ if [[ "$CHILD_COUNT" -ge 3 ]]; then
 fi
 ```
 
-**Why:** 7 consecutive epics (ag-oke through ag-9ad) showed positive ROI from pre-mortem validation. For epics with 3+ issues, the cost of a pre-mortem (~2 min) is negligible compared to the cost of cranking a flawed plan.
+**Why:** Pre-mortems have positive ROI for 3+ issue epics; cost (~2 min) is negligible.
 
 ### Step 3a.2: Pre-flight Check - Changed-String Grep
 
 **Before spawning workers, grep for every string being changed by the plan.**
 
-This catches stale cross-references that the plan missed. In na-lz0, 2 HIGH findings (stale "7-category" refs in agent-prompts.md and post-mortem/SKILL.md) were caught by council review, not by planning.
-
-```bash
-# PSEUDO-CODE
-# Read the plan to identify strings being changed
-PLAN_FILE=$(ls -t .agents/plans/*.md 2>/dev/null | head -1)
-if [[ -n "$PLAN_FILE" ]]; then
-    echo "Pre-flight: Checking for stale cross-references..."
-    # For each key term/string being modified, grep all skills
-    # Example: if changing "7-category" to "8-category":
-    #   grep -rn "7-category" skills/
-    # Any matches outside the planned file set = scope gap
-    echo "Review matches outside planned files. Add to scope if stale."
-fi
-```
-
-**Action on findings:**
-- If grep finds matches in files NOT in the plan's file manifest, either:
-  1. Add those files to the current epic (create new issue), or
-  2. Document as known tech debt with a follow-up beads issue
-
-**Why:** This is a P0 process fix. Both HIGH findings from na-lz0 would have been caught by this check.
+This catches stale cross-references that the plan missed. Grep for each key term being modified across the codebase. Matches outside the planned file set indicate scope gaps — add those files to the epic or document as tech debt.
 
 ### Step 3b: SPEC WAVE (--test-first only)
 
@@ -369,6 +341,26 @@ This is the shift-left edge of the prevention ratchet: compiled findings target 
 **Grep-for-existing-functions (REQUIRED for new function issues):** When an issue description says "create", "add", or "implement" a new function/utility, include `metadata.grep_check` with the function name pattern. Workers MUST grep the codebase for existing implementations before writing new code. This prevents utility duplication (e.g., `estimateTokens` was duplicated in context-orchestration-leverage because no grep check was specified).
 
 **Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks. Do not omit `metadata.issue_type` and hope task-validation can infer it later.
+
+**Language Standards Injection (REQUIRED for code tasks):**
+
+Before spawning workers, detect project language and load applicable standards:
+
+1. **Detection:** Check repo root for language markers:
+   - `go.mod` → Load Go standards from the standards skill (`go.md`, Testing section)
+   - `pyproject.toml` or `setup.py` → Load Python standards (`python.md`, Testing section)
+   - `Cargo.toml` → Load Rust standards (`rust.md`)
+   - `package.json` → Load TypeScript standards (`typescript.md`)
+   - No match → Skip language-specific injection
+
+2. **Injection:** For issues typed `feature|bug|task`, the lead (not the worker) Reads the standards file and includes the Testing section verbatim in each worker's task description. This is a prompt instruction the lead follows, not runtime detection logic.
+
+3. **Test-specific rules:** For issues that create or modify test files, also inject:
+   - File naming conventions from the standard
+   - Assertion quality rules from the standard
+   - Pre-commit verification commands from the standard
+
+Note: This is advisory — the lead agent follows the instruction. Enforcement comes from the standards content being in the worker's context.
 
 **Validation block extraction (beads mode):** Before building TaskCreate calls, extract validation metadata from each issue's description. `$plan` embeds conformance checks as fenced `validation` blocks in issue bodies:
 
