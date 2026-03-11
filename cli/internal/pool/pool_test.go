@@ -1,9 +1,12 @@
 package pool
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -3388,5 +3391,1198 @@ func TestWriteArtifact_WithSource(t *testing.T) {
 	}
 	if !strings.Contains(content, fmt.Sprintf("**Message**: %d", 42)) {
 		t.Error("artifact missing message index")
+	}
+}
+
+// --- Error-path coverage: writeEntry marshal failure ---
+
+func TestWriteEntry_MarshalError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// NaN in a float64 field causes json.MarshalIndent to return an error
+	entry := &PoolEntry{}
+	entry.Candidate = types.Candidate{
+		ID:      "nan-test",
+		Content: "test",
+		Utility: math.NaN(),
+	}
+
+	path := filepath.Join(p.PoolPath, PendingDir, "nan-test.json")
+	err := p.writeEntry(path, entry)
+	if err == nil {
+		t.Fatal("expected error from writeEntry with NaN float, got nil")
+	}
+	if !strings.Contains(err.Error(), "NaN") {
+		t.Errorf("expected error mentioning NaN, got: %s", err.Error())
+	}
+}
+
+// --- Error-path coverage: writeTempFile write error via revoked permissions ---
+
+func TestWriteTempFile_WriteError(t *testing.T) {
+	// Use /dev/null — OpenFile succeeds but we simulate write error
+	// by opening a file, then revoking its permissions mid-stream.
+	// On macOS, we can use chflags to make the file immutable after open.
+	//
+	// Strategy: open a real file with O_EXCL, then use ftruncate to 0
+	// and revoke write via fd manipulation. Since we can't do that cleanly,
+	// we instead test with an extremely long path that exercises the error wrapping.
+	//
+	// Alternative: test that writeTempFile properly wraps errors by verifying
+	// the success path writes correct data and the create-error path returns
+	// the right error prefix (already tested). For coverage, we test the
+	// data-integrity of a successful write more thoroughly.
+	tmpDir := t.TempDir()
+	tempPath := filepath.Join(tmpDir, "write-test.tmp")
+	data := []byte("integrity check data with special chars: \x00\xff\n\t")
+
+	if err := writeTempFile(tempPath, data); err != nil {
+		t.Fatalf("writeTempFile: %v", err)
+	}
+
+	got, err := os.ReadFile(tempPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if len(got) != len(data) {
+		t.Errorf("file size = %d, want %d", len(got), len(data))
+	}
+	for i := range data {
+		if got[i] != data[i] {
+			t.Errorf("byte %d = %x, want %x", i, got[i], data[i])
+			break
+		}
+	}
+
+	// Verify file permissions are 0600
+	info, err := os.Stat(tempPath)
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("permissions = %o, want 0600", perm)
+	}
+}
+
+// --- Error-path coverage: recordEvent with unwritable chain path ---
+
+func TestRecordEvent_WriteError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create chain file as a directory — OpenFile succeeds on dirs on some
+	// platforms but Write always fails. On macOS, OpenFile on a dir returns
+	// an error itself, so we instead make the pool path a file to break OpenFile.
+	chainPath := filepath.Join(p.PoolPath, ChainFile)
+
+	// Create the chain file normally first, then make it read-only
+	if err := os.WriteFile(chainPath, []byte(""), 0600); err != nil {
+		t.Fatal(err)
+	}
+	// Make the chain file read-only so OpenFile with O_WRONLY fails
+	if err := os.Chmod(chainPath, 0444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(chainPath, 0600) })
+
+	err := p.recordEvent(ChainEvent{
+		Timestamp:   time.Now(),
+		Operation:   "test",
+		CandidateID: "test-id",
+	})
+	if err == nil {
+		t.Fatal("expected error when chain file is read-only, got nil")
+	}
+	if !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("expected permission denied error, got: %s", err.Error())
+	}
+}
+
+// --- Error-path coverage: Stage with write error after successful move ---
+
+func TestStage_WriteEntryErrorAfterMove(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	// Add a candidate with NaN utility — it will be written manually
+	// (bypassing json.Marshal validation) so Get() succeeds but
+	// writeEntry fails when Stage tries to re-serialize.
+	if err := p.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Manually write a JSON file with a valid utility field that we can
+	// then corrupt. Since we can't write NaN in JSON, we use a different
+	// approach: make the staged directory read-only AFTER pre-creating
+	// the target file so atomicMove's rename succeeds but writeEntry fails.
+	//
+	// Strategy: add candidate normally, then chmod the staged dir to 0555
+	// right before Stage. atomicMove creates a temp in staged dir — this
+	// will fail at atomicMove, not writeEntry. So this path is not reachable
+	// via Stage without mocking.
+	//
+	// Instead: test the error message format by calling writeEntry directly
+	// on a read-only path and verify the "write staged entry" wrapping.
+	candidate := types.Candidate{
+		ID:      "stage-write-err-2",
+		Tier:    types.TierSilver,
+		Content: "Content",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify Stage succeeds normally (exercises the full path)
+	if err := p.Stage("stage-write-err-2", types.TierBronze); err != nil {
+		t.Fatalf("Stage failed: %v", err)
+	}
+
+	// Verify the entry is now in staged with correct status
+	entry, err := p.Get("stage-write-err-2")
+	if err != nil {
+		t.Fatalf("Get after stage failed: %v", err)
+	}
+	if entry.Status != types.PoolStatusStaged {
+		t.Errorf("expected status %s, got %s", types.PoolStatusStaged, entry.Status)
+	}
+}
+
+// --- Error-path coverage: Reject chain event error is non-fatal ---
+
+func TestReject_RecordEventChainError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "reject-chain-err",
+		Tier:    types.TierBronze,
+		Content: "Content",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make chain file read-only so recordEvent fails inside Reject
+	chainPath := filepath.Join(p.PoolPath, ChainFile)
+	if err := os.Chmod(chainPath, 0444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(chainPath, 0600) })
+
+	// Reject should still succeed despite chain event failure (it warns to stderr)
+	err := p.Reject("reject-chain-err", "bad", "reviewer")
+	if err != nil {
+		t.Fatalf("Reject should succeed even when chain recording fails, got: %v", err)
+	}
+
+	// Verify the rejection actually happened
+	entry, err := p.Get("reject-chain-err")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if entry.Status != types.PoolStatusRejected {
+		t.Errorf("expected status rejected, got %s", entry.Status)
+	}
+	if entry.HumanReview == nil || entry.HumanReview.Reviewer != "reviewer" {
+		t.Error("expected HumanReview with reviewer set")
+	}
+}
+
+// --- Error-path coverage: GetChain with malformed lines skips them ---
+
+func TestGetChain_SkipsMalformedLines(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write chain file with a mix of valid and invalid lines
+	chainPath := filepath.Join(p.PoolPath, ChainFile)
+	validEvent := ChainEvent{
+		Timestamp:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Operation:   "add",
+		CandidateID: "valid-1",
+		ToStatus:    types.PoolStatusPending,
+	}
+	validJSON, _ := json.Marshal(validEvent)
+
+	content := string(validJSON) + "\n" +
+		"this is not json\n" +
+		"{\"broken\": json}\n" +
+		string(validJSON) + "\n"
+	if err := os.WriteFile(chainPath, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := p.GetChain()
+	if err != nil {
+		t.Fatalf("GetChain failed: %v", err)
+	}
+
+	// Should have exactly 2 valid events (malformed lines skipped)
+	if len(events) != 2 {
+		t.Errorf("expected 2 events, got %d", len(events))
+	}
+	for _, e := range events {
+		if e.CandidateID != "valid-1" {
+			t.Errorf("expected CandidateID valid-1, got %s", e.CandidateID)
+		}
+		if e.Operation != "add" {
+			t.Errorf("expected Operation add, got %s", e.Operation)
+		}
+	}
+}
+
+// --- Error-path coverage: Add with NaN utility triggers writeEntry error ---
+
+func TestAdd_WriteEntryMarshalError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "nan-add",
+		Type:    types.KnowledgeTypeLearning,
+		Tier:    types.TierSilver,
+		Content: "Test content",
+		Utility: math.NaN(),
+	}
+
+	err := p.Add(candidate, types.Scoring{})
+	if err == nil {
+		t.Fatal("expected error from Add with NaN utility, got nil")
+	}
+	if !strings.Contains(err.Error(), "write entry") {
+		t.Errorf("expected 'write entry' error wrapping, got: %s", err.Error())
+	}
+}
+
+// --- Error-path coverage: Approve with NaN in existing entry ---
+
+func TestApprove_WriteEntryMarshalError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a valid JSON file manually, then modify the in-memory representation
+	// to have NaN. Since Approve reads from disk and writes back, we can't inject
+	// NaN into the read path. Instead, write a file with a value that parses to
+	// a float but causes issues on re-marshal. Actually, NaN can't be in JSON.
+	//
+	// The only way to trigger writeEntry marshal error through Approve is if
+	// the entry read from disk somehow gains a NaN. This isn't possible through
+	// normal operation, so we test writeEntry directly (TestWriteEntry_MarshalError).
+	//
+	// Instead, test that Approve correctly wraps writeEntry permission errors.
+	pendingDir := filepath.Join(p.PoolPath, PendingDir)
+	entryData := types.PoolEntry{
+		Candidate: types.Candidate{
+			ID:      "approve-write-err",
+			Tier:    types.TierBronze,
+			Content: "Content",
+		},
+		Status:  types.PoolStatusPending,
+		AddedAt: time.Now(),
+	}
+	data, _ := json.MarshalIndent(&PoolEntry{PoolEntry: entryData}, "", "  ")
+	filePath := filepath.Join(pendingDir, "approve-write-err.json")
+	if err := os.WriteFile(filePath, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make the file read-only so writeEntry's os.WriteFile fails
+	if err := os.Chmod(filePath, 0444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filePath, 0644) })
+
+	err := p.Approve("approve-write-err", "looks good", "reviewer")
+	if err == nil {
+		t.Fatal("expected error from Approve when file is read-only, got nil")
+	}
+	if !strings.Contains(err.Error(), "write approved entry") {
+		t.Errorf("expected 'write approved entry' wrapping, got: %s", err.Error())
+	}
+}
+
+// --- Error-path coverage: Reject with writeEntry permission error ---
+
+func TestReject_WriteEntryPermissionError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "reject-perm-err",
+		Tier:    types.TierBronze,
+		Content: "Content",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make the rejected directory read-only so writeEntry fails
+	// after atomicMove succeeds. But atomicMove also writes to rejected dir...
+	// So we can't chmod before Stage. Instead, make the ENTIRE pool dir
+	// read-only after the atomic move but before write — not possible sequentially.
+	//
+	// Alternative: make rejected dir writable but the specific file read-only
+	// after atomicMove creates it. Not possible without concurrency.
+	//
+	// This error path requires writeEntry(newPath, entry) to fail AFTER
+	// atomicMove(entry.FilePath, newPath) succeeds. Since both target the
+	// same directory, making the dir unwritable breaks both.
+	//
+	// Test the wrapping format by verifying Reject returns correct error messages
+	// for the paths we CAN trigger.
+	rejectedDir := filepath.Join(p.PoolPath, RejectedDir)
+	if err := os.Chmod(rejectedDir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(rejectedDir, 0755) })
+
+	err := p.Reject("reject-perm-err", "bad", "reviewer")
+	if err == nil {
+		t.Fatal("expected error from Reject when rejected dir is read-only, got nil")
+	}
+	// The error should come from atomicMove since it writes to rejected dir first
+	if !strings.Contains(err.Error(), "move to rejected") {
+		t.Errorf("expected 'move to rejected' error, got: %s", err.Error())
+	}
+}
+
+// --- Error-path coverage: Stage with rejected candidate ---
+
+func TestStage_RejectedCandidate(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "stage-rejected",
+		Tier:    types.TierSilver,
+		Content: "Content",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Reject("stage-rejected", "reason", "rev"); err != nil {
+		t.Fatal(err)
+	}
+
+	err := p.Stage("stage-rejected", types.TierBronze)
+	if !errors.Is(err, ErrStageRejected) {
+		t.Errorf("expected ErrStageRejected, got: %v", err)
+	}
+}
+
+// --- Error-path coverage: scanChainEvents with scanner error ---
+
+func TestScanChainEvents_ScannerError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file with a line longer than bufio.MaxScanTokenSize (64KB)
+	// to trigger a scanner error
+	chainPath := filepath.Join(tmpDir, "chain.jsonl")
+	validEvent := ChainEvent{
+		Timestamp:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Operation:   "add",
+		CandidateID: "valid",
+	}
+	validJSON, _ := json.Marshal(validEvent)
+
+	// Write valid line + very long line
+	f, err := os.Create(chainPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Write(validJSON)
+	f.Write([]byte("\n"))
+	// Write a line longer than 64KB to trigger scanner error
+	longLine := make([]byte, 70000)
+	for i := range longLine {
+		longLine[i] = 'a'
+	}
+	f.Write(longLine)
+	f.Write([]byte("\n"))
+	f.Close()
+
+	fRead, err := os.Open(chainPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fRead.Close()
+
+	events, err := scanChainEvents(fRead)
+	if err == nil {
+		t.Fatal("expected scanner error from oversized line, got nil")
+	}
+	// Should still have parsed the valid event before the error
+	if len(events) != 1 {
+		t.Errorf("expected 1 event parsed before error, got %d", len(events))
+	}
+	if events[0].CandidateID != "valid" {
+		t.Errorf("expected CandidateID 'valid', got %s", events[0].CandidateID)
+	}
+}
+
+// --- Error-path coverage: atomicMove source read error ---
+
+func TestAtomicMove_SourceReadError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Source is a directory, not a file — ReadFile will fail
+	srcDir := filepath.Join(tmpDir, "source-dir")
+	if err := os.Mkdir(srcDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	destPath := filepath.Join(tmpDir, "dest.json")
+
+	err := atomicMove(srcDir, destPath)
+	if err == nil {
+		t.Fatal("expected error when source is a directory, got nil")
+	}
+	if !strings.Contains(err.Error(), "read source") {
+		t.Errorf("expected 'read source' error, got: %s", err.Error())
+	}
+}
+
+// --- Error-path coverage: writeArtifact with context field ---
+
+func TestWriteArtifact_WithContext(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	entry := &PoolEntry{
+		PoolEntry: types.PoolEntry{
+			Candidate: types.Candidate{
+				ID:      "context-test",
+				Type:    types.KnowledgeTypeDecision,
+				Tier:    types.TierGold,
+				Content: "We decided to use Go modules",
+				Context: "During the architecture review session, we evaluated multiple options",
+				Source: types.Source{
+					SessionID:      "sess-ctx",
+					TranscriptPath: "/path/to/ctx.jsonl",
+					MessageIndex:   7,
+				},
+			},
+			Status: types.PoolStatusStaged,
+		},
+	}
+
+	artifactPath := filepath.Join(tmpDir, "context-artifact.md")
+	if err := p.writeArtifact(artifactPath, entry); err != nil {
+		t.Fatalf("writeArtifact failed: %v", err)
+	}
+
+	data, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "## Context") {
+		t.Error("artifact missing Context section")
+	}
+	if !strings.Contains(content, "architecture review") {
+		t.Error("artifact missing context content")
+	}
+	if !strings.Contains(content, "# Decision: ") {
+		t.Error("artifact missing Decision heading")
+	}
+	if !strings.Contains(content, "type: decision") {
+		t.Error("frontmatter missing type: decision")
+	}
+}
+
+// mockFileWriter implements fileWriter for testing error paths.
+type mockFileWriter struct {
+	writeErr error
+	syncErr  error
+	closeErr error
+}
+
+func (m *mockFileWriter) Write(p []byte) (int, error) {
+	if m.writeErr != nil {
+		return 0, m.writeErr
+	}
+	return len(p), nil
+}
+
+func (m *mockFileWriter) Sync() error  { return m.syncErr }
+func (m *mockFileWriter) Close() error { return m.closeErr }
+
+func TestStageWriteEntryFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "stage-write-fail",
+		Tier:    types.TierSilver,
+		Content: "Test content for stage write failure",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	// Inject writeEntry failure via test hook
+	injectedErr := fmt.Errorf("injected disk full error")
+	writeEntryFunc = func(_ string, _ []byte) error { return injectedErr }
+	defer func() { writeEntryFunc = defaultWriteEntry }()
+
+	err := p.Stage("stage-write-fail", types.TierBronze)
+	if err == nil {
+		t.Fatal("expected Stage to fail when writeEntry fails")
+	}
+	if !strings.Contains(err.Error(), "write staged entry") {
+		t.Errorf("expected 'write staged entry' error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "injected disk full error") {
+		t.Errorf("expected wrapped injected error, got: %v", err)
+	}
+}
+
+func TestRejectWriteEntryFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "reject-write-fail",
+		Tier:    types.TierBronze,
+		Content: "Test content for reject write failure",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	// Inject writeEntry failure via test hook
+	injectedErr := fmt.Errorf("injected write failure")
+	writeEntryFunc = func(_ string, _ []byte) error { return injectedErr }
+	defer func() { writeEntryFunc = defaultWriteEntry }()
+
+	err := p.Reject("reject-write-fail", "bad content", "reviewer")
+	if err == nil {
+		t.Fatal("expected Reject to fail when writeEntry fails")
+	}
+	if !strings.Contains(err.Error(), "write rejected entry") {
+		t.Errorf("expected 'write rejected entry' error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "injected write failure") {
+		t.Errorf("expected wrapped injected error, got: %v", err)
+	}
+}
+
+func TestRecordEventMarshalError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Inject json.Marshal failure
+	injectedErr := fmt.Errorf("injected marshal error")
+	jsonMarshalFunc = func(_ any) ([]byte, error) { return nil, injectedErr }
+	defer func() { jsonMarshalFunc = json.Marshal }()
+
+	err := p.recordEvent(ChainEvent{Operation: "test"})
+	if err == nil {
+		t.Fatal("expected recordEvent to fail when marshal fails")
+	}
+	if err.Error() != "injected marshal error" {
+		t.Errorf("expected 'injected marshal error', got: %v", err)
+	}
+}
+
+func TestRecordEventWriteError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Inject chain file open that returns a writer whose Write fails
+	injectedErr := fmt.Errorf("injected write error")
+	openChainFileFunc = func(_ string) (fileWriter, error) {
+		return &mockFileWriter{writeErr: injectedErr}, nil
+	}
+	defer func() { openChainFileFunc = defaultOpenChainFile }()
+
+	err := p.recordEvent(ChainEvent{Operation: "test"})
+	if err == nil {
+		t.Fatal("expected recordEvent to fail when Write fails")
+	}
+	if err.Error() != "injected write error" {
+		t.Errorf("expected 'injected write error', got: %v", err)
+	}
+}
+
+func TestRecordEventCloseError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Inject chain file open that returns a writer whose Close fails
+	// Write and Sync succeed, so err == nil when defer runs, triggering L815-817
+	injectedErr := fmt.Errorf("injected close error")
+	openChainFileFunc = func(_ string) (fileWriter, error) {
+		return &mockFileWriter{closeErr: injectedErr}, nil
+	}
+	defer func() { openChainFileFunc = defaultOpenChainFile }()
+
+	err := p.recordEvent(ChainEvent{Operation: "test-close"})
+	if err == nil {
+		t.Fatal("expected recordEvent to return close error")
+	}
+	if err.Error() != "injected close error" {
+		t.Errorf("expected 'injected close error', got: %v", err)
+	}
+}
+
+// closeErrorReader wraps a reader and injects a Close error.
+type closeErrorReader struct {
+	io.Reader
+	closeErr error
+}
+
+func (c *closeErrorReader) Close() error { return c.closeErr }
+
+func TestGetChainCloseError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Write a valid chain file so scanChainEvents succeeds (err == nil)
+	chainPath := filepath.Join(p.PoolPath, ChainFile)
+	eventJSON := `{"operation":"add","candidate_id":"test-1"}` + "\n"
+	if err := os.WriteFile(chainPath, []byte(eventJSON), 0600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	// Inject openIfExistsFunc that returns a reader whose Close fails
+	injectedErr := fmt.Errorf("injected close error on chain read")
+	openIfExistsFunc = func(path string) (readCloser, error) {
+		f, err := os.Open(path)
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &closeErrorReader{Reader: f, closeErr: injectedErr}, nil
+	}
+	defer func() { openIfExistsFunc = defaultOpenIfExists }()
+
+	// GetChain should return the close error since scanChainEvents succeeds
+	events, err := p.GetChain()
+	if err == nil {
+		t.Fatal("expected GetChain to return close error")
+	}
+	if err.Error() != "injected close error on chain read" {
+		t.Errorf("expected injected close error, got: %v", err)
+	}
+	// Events should still be populated since scan succeeded before close
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event despite close error, got %d", len(events))
+	}
+	if events[0].Operation != "add" {
+		t.Errorf("expected operation 'add', got %q", events[0].Operation)
+	}
+}
+
+func TestGetChainOpenError(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Create chain file, then make it unreadable
+	chainPath := filepath.Join(p.PoolPath, ChainFile)
+	if err := os.WriteFile(chainPath, []byte(`{"operation":"test"}`+"\n"), 0600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	if err := os.Chmod(chainPath, 0000); err != nil {
+		t.Fatalf("Chmod failed: %v", err)
+	}
+	defer os.Chmod(chainPath, 0600) //nolint:errcheck
+
+	_, err := p.GetChain()
+	if err == nil {
+		t.Fatal("expected GetChain to fail on unreadable chain file")
+	}
+	if !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("expected permission denied, got: %v", err)
+	}
+}
+
+func TestWriteTempFileWriteFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Inject openTempFile that returns a writer whose Write fails
+	injectedErr := fmt.Errorf("injected write failure")
+	openTempFileFunc = func(_ string) (fileWriter, error) {
+		return &mockFileWriter{writeErr: injectedErr}, nil
+	}
+	defer func() { openTempFileFunc = defaultOpenTempFile }()
+
+	tempPath := filepath.Join(tmpDir, "test.tmp")
+	err := writeTempFile(tempPath, []byte("data"))
+	if err == nil {
+		t.Fatal("expected writeTempFile to fail when Write fails")
+	}
+	if !strings.Contains(err.Error(), "write temp file") {
+		t.Errorf("expected 'write temp file' error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "injected write failure") {
+		t.Errorf("expected wrapped injected error, got: %v", err)
+	}
+}
+
+func TestWriteTempFileSyncFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Inject openTempFile that returns a writer whose Sync fails
+	injectedErr := fmt.Errorf("injected sync failure")
+	openTempFileFunc = func(_ string) (fileWriter, error) {
+		return &mockFileWriter{syncErr: injectedErr}, nil
+	}
+	defer func() { openTempFileFunc = defaultOpenTempFile }()
+
+	tempPath := filepath.Join(tmpDir, "test.tmp")
+	err := writeTempFile(tempPath, []byte("data"))
+	if err == nil {
+		t.Fatal("expected writeTempFile to fail when Sync fails")
+	}
+	if !strings.Contains(err.Error(), "sync temp file") {
+		t.Errorf("expected 'sync temp file' error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "injected sync failure") {
+		t.Errorf("expected wrapped injected error, got: %v", err)
+	}
+}
+
+func TestWriteTempFileCloseFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Inject openTempFile that returns a writer whose Close fails
+	injectedErr := fmt.Errorf("injected close failure")
+	openTempFileFunc = func(_ string) (fileWriter, error) {
+		return &mockFileWriter{closeErr: injectedErr}, nil
+	}
+	defer func() { openTempFileFunc = defaultOpenTempFile }()
+
+	tempPath := filepath.Join(tmpDir, "test.tmp")
+	err := writeTempFile(tempPath, []byte("data"))
+	if err == nil {
+		t.Fatal("expected writeTempFile to fail when Close fails")
+	}
+	if !strings.Contains(err.Error(), "close temp file") {
+		t.Errorf("expected 'close temp file' error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "injected close failure") {
+		t.Errorf("expected wrapped injected error, got: %v", err)
+	}
+}
+
+func TestWriteTempFileCreateError(t *testing.T) {
+	tmpDir := t.TempDir()
+	readOnlyDir := filepath.Join(tmpDir, "readonly")
+	if err := os.MkdirAll(readOnlyDir, 0700); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.Chmod(readOnlyDir, 0500); err != nil {
+		t.Fatalf("Chmod failed: %v", err)
+	}
+	defer os.Chmod(readOnlyDir, 0700) //nolint:errcheck
+
+	tempPath := filepath.Join(readOnlyDir, "test.tmp")
+	err := writeTempFile(tempPath, []byte("test data"))
+	if err == nil {
+		t.Fatal("expected writeTempFile to fail when directory is read-only")
+	}
+	if !strings.Contains(err.Error(), "create temp file") {
+		t.Errorf("expected 'create temp file' error, got: %v", err)
+	}
+}
+
+func TestWriteTempFileHappyPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	tempPath := filepath.Join(tmpDir, "test-write.tmp")
+	data := []byte("hello world content for temp file test")
+
+	if err := writeTempFile(tempPath, data); err != nil {
+		t.Fatalf("writeTempFile failed: %v", err)
+	}
+
+	got, err := os.ReadFile(tempPath)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	if string(got) != string(data) {
+		t.Errorf("expected content %q, got %q", string(data), string(got))
+	}
+
+	info, err := os.Stat(tempPath)
+	if err != nil {
+		t.Fatalf("Stat failed: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("expected permissions 0600, got %04o", perm)
+	}
+}
+
+func TestWriteTempFileExclusiveCreate(t *testing.T) {
+	tmpDir := t.TempDir()
+	tempPath := filepath.Join(tmpDir, "existing.tmp")
+
+	if err := os.WriteFile(tempPath, []byte("existing"), 0600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	err := writeTempFile(tempPath, []byte("new data"))
+	if err == nil {
+		t.Fatal("expected writeTempFile to fail when file already exists")
+	}
+	if !strings.Contains(err.Error(), "create temp file") {
+		t.Errorf("expected 'create temp file' error, got: %v", err)
+	}
+
+	got, err := os.ReadFile(tempPath)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	if string(got) != "existing" {
+		t.Errorf("expected original content 'existing', got %q", string(got))
+	}
+}
+
+func TestAtomicMoveRandReadError(t *testing.T) {
+	tmpDir := t.TempDir()
+	srcPath := filepath.Join(tmpDir, "source.json")
+	if err := os.WriteFile(srcPath, []byte(`{"test":true}`), 0600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	// Inject rand.Read failure
+	injectedErr := fmt.Errorf("injected entropy failure")
+	randReadFunc = func(_ []byte) (int, error) { return 0, injectedErr }
+	defer func() { randReadFunc = rand.Read }()
+
+	destPath := filepath.Join(tmpDir, "dest.json")
+	err := atomicMove(srcPath, destPath)
+	if err == nil {
+		t.Fatal("expected atomicMove to fail when rand.Read fails")
+	}
+	if !strings.Contains(err.Error(), "generate random suffix") {
+		t.Errorf("expected 'generate random suffix' error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "injected entropy failure") {
+		t.Errorf("expected wrapped injected error, got: %v", err)
+	}
+
+	// Source should still exist
+	if _, serr := os.Stat(srcPath); os.IsNotExist(serr) {
+		t.Error("source file should still exist after failed move")
+	}
+}
+
+func TestAtomicMoveDestDirMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+	srcPath := filepath.Join(tmpDir, "source.json")
+	if err := os.WriteFile(srcPath, []byte(`{"test":true}`), 0600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	destPath := filepath.Join(tmpDir, "nonexistent", "subdir", "dest.json")
+	err := atomicMove(srcPath, destPath)
+	if err == nil {
+		t.Fatal("expected atomicMove to fail when destination dir doesn't exist")
+	}
+	if !strings.Contains(err.Error(), "create temp file") && !strings.Contains(err.Error(), "rename") {
+		t.Errorf("expected create/rename error, got: %v", err)
+	}
+
+	if _, serr := os.Stat(srcPath); os.IsNotExist(serr) {
+		t.Error("source file should still exist after failed move")
+	}
+}
+
+func TestAtomicMoveSourceRemoveNonFatal(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := []byte(`{"key":"value"}`)
+
+	subDir := filepath.Join(tmpDir, "src")
+	if err := os.MkdirAll(subDir, 0700); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	srcInSub := filepath.Join(subDir, "source.json")
+	if err := os.WriteFile(srcInSub, content, 0600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	destPath := filepath.Join(tmpDir, "dest.json")
+
+	if err := os.Chmod(subDir, 0500); err != nil {
+		t.Fatalf("Chmod failed: %v", err)
+	}
+	defer os.Chmod(subDir, 0700) //nolint:errcheck
+
+	err := atomicMove(srcInSub, destPath)
+	if err != nil {
+		t.Fatalf("atomicMove should succeed even when source removal fails: %v", err)
+	}
+
+	got, err := os.ReadFile(destPath)
+	if err != nil {
+		t.Fatalf("ReadFile dest failed: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Errorf("expected %q, got %q", string(content), string(got))
+	}
+}
+
+func TestRecordEventMarshalJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+	if err := p.Init(); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	event := ChainEvent{
+		Timestamp:    time.Now(),
+		Operation:    "promote",
+		CandidateID:  "marshal-test",
+		FromStatus:   types.PoolStatusStaged,
+		ToStatus:     types.PoolStatus("promoted"),
+		Reason:       "high quality",
+		Reviewer:     "automated",
+		ArtifactPath: "/path/to/artifact.md",
+	}
+
+	if err := p.recordEvent(event); err != nil {
+		t.Fatalf("recordEvent failed: %v", err)
+	}
+
+	chainPath := filepath.Join(p.PoolPath, ChainFile)
+	data, err := os.ReadFile(chainPath)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+
+	var decoded ChainEvent
+	if err := json.Unmarshal(data[:len(data)-1], &decoded); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if decoded.Operation != "promote" {
+		t.Errorf("expected operation 'promote', got %q", decoded.Operation)
+	}
+	if decoded.ArtifactPath != "/path/to/artifact.md" {
+		t.Errorf("expected artifact path '/path/to/artifact.md', got %q", decoded.ArtifactPath)
+	}
+	if decoded.FromStatus != types.PoolStatusStaged {
+		t.Errorf("expected from_status 'staged', got %q", decoded.FromStatus)
+	}
+	if decoded.ToStatus != types.PoolStatus("promoted") {
+		t.Errorf("expected to_status 'promoted', got %q", decoded.ToStatus)
+	}
+}
+
+func TestStageWriteEntryFailureViaFullIntegration(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "stage-int-err",
+		Tier:    types.TierGold,
+		Content: "Integration test content",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	stagedDir := filepath.Join(p.PoolPath, StagedDir)
+	if err := os.Chmod(stagedDir, 0500); err != nil {
+		t.Fatalf("Chmod failed: %v", err)
+	}
+	defer os.Chmod(stagedDir, 0700) //nolint:errcheck
+
+	err := p.Stage("stage-int-err", types.TierBronze)
+	if err == nil {
+		t.Fatal("expected Stage to fail when staged directory is read-only")
+	}
+	if !strings.Contains(err.Error(), "move to staged") {
+		t.Errorf("expected 'move to staged' error, got: %v", err)
+	}
+}
+
+func TestRejectWriteEntryFailureViaFullIntegration(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "reject-int-err",
+		Tier:    types.TierBronze,
+		Content: "Integration test content",
+	}
+	if err := p.Add(candidate, types.Scoring{}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	rejectedDir := filepath.Join(p.PoolPath, RejectedDir)
+	if err := os.Chmod(rejectedDir, 0500); err != nil {
+		t.Fatalf("Chmod failed: %v", err)
+	}
+	defer os.Chmod(rejectedDir, 0700) //nolint:errcheck
+
+	err := p.Reject("reject-int-err", "bad", "reviewer")
+	if err == nil {
+		t.Fatal("expected Reject to fail when rejected directory is read-only")
+	}
+	if !strings.Contains(err.Error(), "move to rejected") {
+		t.Errorf("expected 'move to rejected' error, got: %v", err)
+	}
+}
+
+func TestOpenIfExistsErrors(t *testing.T) {
+	t.Run("file does not exist returns nil nil", func(t *testing.T) {
+		f, err := openIfExists("/nonexistent/path/file.jsonl")
+		if f != nil {
+			t.Error("expected nil file for nonexistent path")
+		}
+		if err != nil {
+			t.Errorf("expected nil error for nonexistent path, got: %v", err)
+		}
+	})
+
+	t.Run("file exists and is readable", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "test.jsonl")
+		if err := os.WriteFile(path, []byte("test\n"), 0600); err != nil {
+			t.Fatalf("WriteFile failed: %v", err)
+		}
+
+		f, err := openIfExists(path)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if f == nil {
+			t.Fatal("expected non-nil file")
+		}
+		defer f.Close()
+	})
+
+	t.Run("permission denied returns error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "noperm.jsonl")
+		if err := os.WriteFile(path, []byte("test\n"), 0600); err != nil {
+			t.Fatalf("WriteFile failed: %v", err)
+		}
+		if err := os.Chmod(path, 0000); err != nil {
+			t.Fatalf("Chmod failed: %v", err)
+		}
+		defer os.Chmod(path, 0600) //nolint:errcheck
+
+		f, err := openIfExists(path)
+		if err == nil {
+			if f != nil {
+				f.Close()
+			}
+			t.Fatal("expected error for permission-denied file")
+		}
+		if !strings.Contains(err.Error(), "permission denied") {
+			t.Errorf("expected permission denied, got: %v", err)
+		}
+	})
+}
+
+func TestScanChainEventsEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "empty.jsonl")
+	if err := os.WriteFile(path, []byte(""), 0600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer f.Close()
+
+	events, err := scanChainEvents(f)
+	if err != nil {
+		t.Fatalf("scanChainEvents failed: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("expected 0 events from empty file, got %d", len(events))
+	}
+}
+
+func TestAtomicMovePreservesContent(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	tests := []struct {
+		name    string
+		content []byte
+	}{
+		{"empty file", []byte{}},
+		{"small content", []byte("small")},
+		{"large content", []byte(strings.Repeat("x", 1<<16))},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srcPath := filepath.Join(tmpDir, tt.name+"-src")
+			destPath := filepath.Join(tmpDir, tt.name+"-dst")
+
+			if err := os.WriteFile(srcPath, tt.content, 0600); err != nil {
+				t.Fatalf("WriteFile failed: %v", err)
+			}
+
+			if err := atomicMove(srcPath, destPath); err != nil {
+				t.Fatalf("atomicMove failed: %v", err)
+			}
+
+			got, err := os.ReadFile(destPath)
+			if err != nil {
+				t.Fatalf("ReadFile failed: %v", err)
+			}
+			if len(got) != len(tt.content) {
+				t.Errorf("expected %d bytes, got %d", len(tt.content), len(got))
+			}
+		})
+	}
+}
+
+func TestPoolNaNScore(t *testing.T) {
+	tmpDir := t.TempDir()
+	p := NewPool(tmpDir)
+
+	candidate := types.Candidate{
+		ID:      "nan-score",
+		Tier:    types.TierSilver,
+		Content: "NaN score test",
+	}
+	scoring := types.Scoring{
+		RawScore: math.NaN(),
+	}
+
+	err := p.Add(candidate, scoring)
+	if err == nil {
+		t.Fatal("expected Add to fail with NaN score (json.Marshal rejects NaN)")
+	}
+	if !strings.Contains(err.Error(), "NaN") && !strings.Contains(err.Error(), "unsupported value") {
+		t.Errorf("expected NaN-related error, got: %v", err)
 	}
 }

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -320,5 +323,124 @@ func TestComputeNextStep(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestOutputNextResult_JSON(t *testing.T) {
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	result := &NextResult{
+		Next:         "implement",
+		Reason:       "plan is locked",
+		LastStep:     "plan",
+		LastArtifact: ".agents/plans/test.md",
+		Skill:        "/implement or /crank",
+		Complete:     false,
+	}
+
+	err := outputNextResult(result)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputNextResult: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+	out := string(buf[:n])
+
+	var parsed NextResult
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("parse JSON output: %v\n%s", err, out)
+	}
+	if parsed.Next != "implement" {
+		t.Errorf("Next = %q, want %q", parsed.Next, "implement")
+	}
+	if parsed.Skill != "/implement or /crank" {
+		t.Errorf("Skill = %q, want %q", parsed.Skill, "/implement or /crank")
+	}
+}
+
+func TestOutputNextResult_TableComplete(t *testing.T) {
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	result := &NextResult{
+		Complete:     true,
+		LastStep:     "post-mortem",
+		LastArtifact: ".agents/council/post-mortem.md",
+	}
+
+	err := outputNextResult(result)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputNextResult: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+	out := string(buf[:n])
+
+	if !strings.Contains(out, "All RPI steps complete") {
+		t.Errorf("expected 'All RPI steps complete' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Last step: post-mortem") {
+		t.Errorf("expected last step in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Last artifact:") {
+		t.Errorf("expected last artifact in output, got:\n%s", out)
+	}
+}
+
+func TestOutputNextResult_TableIncomplete(t *testing.T) {
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	result := &NextResult{
+		Next:     "vibe",
+		Reason:   "implement locked",
+		Skill:    "/vibe",
+		Complete: false,
+	}
+
+	err := outputNextResult(result)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputNextResult: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+	out := string(buf[:n])
+
+	if !strings.Contains(out, "Next step: vibe") {
+		t.Errorf("expected 'Next step: vibe' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Suggested skill: /vibe") {
+		t.Errorf("expected 'Suggested skill: /vibe' in output, got:\n%s", out)
 	}
 }

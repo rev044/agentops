@@ -649,6 +649,18 @@ func TestNewValidator(t *testing.T) {
 	}
 }
 
+func TestNewValidator_UserHomeDirError(t *testing.T) {
+	t.Setenv("HOME", "")
+
+	v, err := NewValidator(t.TempDir())
+	if err == nil {
+		t.Fatal("expected error when HOME is unset")
+	}
+	if v != nil {
+		t.Error("expected nil validator on error")
+	}
+}
+
 func TestValidate_ArtifactNotFound(t *testing.T) {
 	v, _ := helperNewValidator(t)
 	result, err := v.Validate(StepResearch, "/nonexistent/path.md")
@@ -2431,3 +2443,139 @@ func TestCountRefsInDir_WalkError(t *testing.T) {
 		t.Errorf("expected 0 for nonexistent directory, got %d", count)
 	}
 }
+
+// --- GetCitationsSince with unreadable file ---
+
+func TestGetCitationsSince_PermissionError(t *testing.T) {
+	baseDir := t.TempDir()
+	citationsDir := filepath.Join(baseDir, ".agents", "ao")
+	if err := os.MkdirAll(citationsDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	citationsPath := filepath.Join(citationsDir, "citations.jsonl")
+	if err := os.WriteFile(citationsPath, []byte(`{"artifact_path":"/a.md"}`+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(citationsPath, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(citationsPath, 0644) })
+
+	_, err := GetCitationsSince(baseDir, time.Now().Add(-time.Hour))
+	if err == nil {
+		t.Error("expected error when citations file is unreadable")
+	}
+	if !strings.Contains(err.Error(), "open citations file") {
+		t.Errorf("expected 'open citations file' error, got: %v", err)
+	}
+}
+
+// --- GetUniqueCitedArtifacts with unreadable file ---
+
+func TestGetUniqueCitedArtifacts_PermissionError(t *testing.T) {
+	baseDir := t.TempDir()
+	citationsDir := filepath.Join(baseDir, ".agents", "ao")
+	if err := os.MkdirAll(citationsDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	citationsPath := filepath.Join(citationsDir, "citations.jsonl")
+	if err := os.WriteFile(citationsPath, []byte(`{"artifact_path":"/a.md"}`+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(citationsPath, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(citationsPath, 0644) })
+
+	_, err := GetUniqueCitedArtifacts(baseDir, time.Now().Add(-time.Hour), time.Now())
+	if err == nil {
+		t.Error("expected error when citations file is unreadable")
+	}
+	if !strings.Contains(err.Error(), "open citations file") {
+		t.Errorf("expected 'open citations file' error, got: %v", err)
+	}
+}
+
+// --- GetCitationsForSession with unreadable file ---
+
+func TestGetCitationsForSession_PermissionError(t *testing.T) {
+	baseDir := t.TempDir()
+	citationsDir := filepath.Join(baseDir, ".agents", "ao")
+	if err := os.MkdirAll(citationsDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	citationsPath := filepath.Join(citationsDir, "citations.jsonl")
+	if err := os.WriteFile(citationsPath, []byte(`{"artifact_path":"/a.md"}`+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(citationsPath, 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(citationsPath, 0644) })
+
+	_, err := GetCitationsForSession(baseDir, "any-session")
+	if err == nil {
+		t.Error("expected error when citations file is unreadable")
+	}
+	if !strings.Contains(err.Error(), "open citations file") {
+		t.Errorf("expected 'open citations file' error, got: %v", err)
+	}
+}
+
+// --- countCitations walk error with unreadable directory ---
+
+func TestCountCitations_UnreadableDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a target artifact and a referencing file
+	targetFile := filepath.Join(tmpDir, "target.md")
+	if err := os.WriteFile(targetFile, []byte("# Target\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	refFile := filepath.Join(tmpDir, "ref.md")
+	if err := os.WriteFile(refFile, []byte("See target.md for details\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	v, _ := helperNewValidator(t)
+
+	// Verify citations work normally
+	count := v.countCitations(targetFile)
+	if count != 1 {
+		t.Errorf("expected 1 citation for target.md, got %d", count)
+	}
+}
+
+// --- ValidateArtifactPath tilde that is also absolute (dead code on Unix, but test the non-absolute tilde path) ---
+
+func TestValidateArtifactPath_TildeNotAbsolute(t *testing.T) {
+	err := ValidateArtifactPath("~/some/path")
+	if err == nil {
+		t.Fatal("expected error for tilde path")
+	}
+	// On Unix, tilde paths are not absolute, so the "not absolute" error fires first
+	if !strings.Contains(err.Error(), "path must be absolute") {
+		t.Errorf("expected 'path must be absolute' error for tilde path, got: %v", err)
+	}
+}
+
+// --- ValidateCloseReason with tilde relative path pattern ---
+
+func TestValidateCloseReason_TildeRelativePath(t *testing.T) {
+	issues := ValidateCloseReason("See ~/local/file.md")
+	if len(issues) == 0 {
+		t.Error("expected issues for close_reason with ~/ path")
+	}
+	// Should detect the ~/ pattern
+	found := false
+	for _, issue := range issues {
+		if strings.Contains(issue, "relative path") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'relative path' issue, got: %v", issues)
+	}
+}
+

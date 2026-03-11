@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,6 +22,15 @@ import (
 
 // validIDPattern matches safe candidate IDs (alphanumeric, hyphens, underscores).
 var validIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// writeEntryFunc is the function used to persist pool entries. Tests can
+// replace this to inject write failures.
+var writeEntryFunc = defaultWriteEntry
+
+// defaultWriteEntry is the production implementation of entry writing.
+func defaultWriteEntry(path string, data []byte) error {
+	return os.WriteFile(path, data, 0600)
+}
 
 // validateCandidateID checks if an ID is safe for use in file paths.
 func validateCandidateID(id string) error {
@@ -713,7 +723,7 @@ func (p *Pool) writeEntry(path string, entry *PoolEntry) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0600)
+	return writeEntryFunc(path, data)
 }
 
 // knowledgeTypeHeading returns the markdown heading prefix for a knowledge type.
@@ -798,16 +808,26 @@ func (p *Pool) writeArtifact(path string, entry *PoolEntry) error {
 	return os.WriteFile(path, []byte(content.String()), 0600)
 }
 
+// jsonMarshalFunc is used by recordEvent. Tests can replace to inject marshal errors.
+var jsonMarshalFunc = json.Marshal
+
+// openChainFileFunc opens the chain file for appending. Tests can replace to inject errors.
+var openChainFileFunc = defaultOpenChainFile
+
+func defaultOpenChainFile(path string) (fileWriter, error) {
+	return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+}
+
 // recordEvent appends an event to the chain file.
 func (p *Pool) recordEvent(event ChainEvent) (err error) {
 	chainPath := filepath.Join(p.PoolPath, ChainFile)
 
-	data, err := json.Marshal(event)
+	data, err := jsonMarshalFunc(event)
 	if err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(chainPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := openChainFileFunc(chainPath)
 	if err != nil {
 		return err
 	}
@@ -823,7 +843,28 @@ func (p *Pool) recordEvent(event ChainEvent) (err error) {
 	return f.Sync()
 }
 
-// openIfExists opens a file for reading, returning (nil, nil) if it does not exist.
+// readCloser abstracts a readable, closeable resource for testing.
+type readCloser interface {
+	io.Reader
+	Close() error
+}
+
+// openIfExistsFunc opens a file for reading, returning (nil, nil) if it does not exist.
+// Tests can replace this to inject close errors.
+var openIfExistsFunc = defaultOpenIfExists
+
+func defaultOpenIfExists(path string) (readCloser, error) {
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+// openIfExists is a convenience wrapper used by non-GetChain callers.
 func openIfExists(path string) (*os.File, error) {
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
@@ -834,7 +875,7 @@ func openIfExists(path string) (*os.File, error) {
 
 // GetChain returns all chain events.
 func (p *Pool) GetChain() (events []ChainEvent, err error) {
-	f, err := openIfExists(filepath.Join(p.PoolPath, ChainFile))
+	f, err := openIfExistsFunc(filepath.Join(p.PoolPath, ChainFile))
 	if err != nil || f == nil {
 		return nil, err
 	}
@@ -847,9 +888,9 @@ func (p *Pool) GetChain() (events []ChainEvent, err error) {
 	return
 }
 
-// scanChainEvents reads all chain events from f, skipping malformed lines.
-func scanChainEvents(f *os.File) ([]ChainEvent, error) {
-	scanner := bufio.NewScanner(f)
+// scanChainEvents reads all chain events from r, skipping malformed lines.
+func scanChainEvents(r io.Reader) ([]ChainEvent, error) {
+	scanner := bufio.NewScanner(r)
 	var events []ChainEvent
 	for scanner.Scan() {
 		var event ChainEvent
@@ -905,10 +946,13 @@ func truncateAtWordBoundary(s string, limit int) string {
 // atomicMove moves a file atomically using the pattern:
 // write-to-temp → sync → chmod 0600 → rename
 // This prevents partial writes and data corruption during moves.
+// randReadFunc reads random bytes. Tests can replace to inject errors.
+var randReadFunc = rand.Read
+
 func atomicMove(srcPath, destPath string) error {
 	// Generate random suffix for temp file
 	randBytes := make([]byte, 4)
-	if _, err := rand.Read(randBytes); err != nil {
+	if _, err := randReadFunc(randBytes); err != nil {
 		return fmt.Errorf("generate random suffix: %w", err)
 	}
 	tempPath := destPath + ".tmp." + hex.EncodeToString(randBytes)
@@ -939,10 +983,24 @@ func atomicMove(srcPath, destPath string) error {
 	return nil
 }
 
+// fileWriter abstracts file write operations for testing.
+type fileWriter interface {
+	Write([]byte) (int, error)
+	Sync() error
+	Close() error
+}
+
+// openTempFileFunc creates a temp file. Tests can replace to return a mock writer.
+var openTempFileFunc = defaultOpenTempFile
+
+func defaultOpenTempFile(tempPath string) (fileWriter, error) {
+	return os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+}
+
 // writeTempFile creates a temp file, writes data, syncs to disk, and closes.
 // On any error before Close it cleans up the temp file before returning.
 func writeTempFile(tempPath string, data []byte) error {
-	tempFile, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	tempFile, err := openTempFileFunc(tempPath)
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}

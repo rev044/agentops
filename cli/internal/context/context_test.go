@@ -1,6 +1,8 @@
 package context
 
 import (
+	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -792,6 +794,51 @@ func TestExtra_Summarizer_SaveState_Success(t *testing.T) {
 	}
 	if len(data) == 0 {
 		t.Error("expected non-empty state file")
+	}
+}
+
+// TestBudgetTracker_Save_MarshalError covers the json.MarshalIndent error branch in Save.
+// NaN in a float64 field is not representable in JSON, so MarshalIndent returns an error.
+func TestBudgetTracker_Save_MarshalError(t *testing.T) {
+	bt := NewBudgetTracker("marshal-fail")
+	// Inject NaN into a checkpoint's PercentUsage to make json.MarshalIndent fail.
+	bt.Checkpoints = append(bt.Checkpoints, Checkpoint{
+		ID:           "bad",
+		PercentUsage: math.NaN(),
+	})
+
+	tmp := t.TempDir()
+	err := bt.Save(tmp)
+	if err == nil {
+		t.Fatal("expected json marshal error due to NaN, got nil")
+	}
+	expected := "json: unsupported value: NaN"
+	if err.Error() != expected {
+		t.Errorf("expected error %q, got %q", expected, err.Error())
+	}
+}
+
+// TestSummarizer_SaveState_MarshalError covers the json.MarshalIndent error branch in SaveState.
+// We inject a failing marshaler via the package-level marshalJSON variable.
+func TestSummarizer_SaveState_MarshalError(t *testing.T) {
+	original := marshalJSON
+	t.Cleanup(func() { marshalJSON = original })
+
+	marshalJSON = func(_ any, _ string, _ string) ([]byte, error) {
+		return nil, errors.New("injected marshal error")
+	}
+
+	tmp := t.TempDir()
+	s := &Summarizer{}
+	state := SummarizeState{SessionID: "marshal-fail"}
+
+	err := s.SaveState(tmp, state)
+	if err == nil {
+		t.Fatal("expected marshal error, got nil")
+	}
+	expected := "injected marshal error"
+	if err.Error() != expected {
+		t.Errorf("expected error %q, got %q", expected, err.Error())
 	}
 }
 

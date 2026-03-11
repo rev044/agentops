@@ -888,3 +888,119 @@ func TestDefrag_NoFlags_DefaultsAll(t *testing.T) {
 		t.Error("expected defragOscillationSweep to be true after no-flags invocation")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// trigramOverlap
+// ---------------------------------------------------------------------------
+
+func TestTrigramOverlap_BothEmpty(t *testing.T) {
+	got := trigramOverlap(map[string]bool{}, map[string]bool{})
+	if got != 0 {
+		t.Errorf("trigramOverlap(empty, empty) = %v, want 0", got)
+	}
+}
+
+func TestTrigramOverlap_NoOverlap(t *testing.T) {
+	a := map[string]bool{"abc": true, "bcd": true}
+	b := map[string]bool{"xyz": true, "yzw": true}
+	got := trigramOverlap(a, b)
+	if got != 0 {
+		t.Errorf("trigramOverlap(disjoint) = %v, want 0", got)
+	}
+}
+
+func TestTrigramOverlap_PartialOverlap(t *testing.T) {
+	a := map[string]bool{"abc": true, "bcd": true, "cde": true}
+	b := map[string]bool{"abc": true, "xyz": true}
+	// intersection=1, union=3+2-1=4 => 0.25
+	got := trigramOverlap(a, b)
+	if got != 0.25 {
+		t.Errorf("trigramOverlap(partial) = %v, want 0.25", got)
+	}
+}
+
+func TestTrigramOverlap_OneEmpty(t *testing.T) {
+	a := map[string]bool{"abc": true}
+	got := trigramOverlap(a, map[string]bool{})
+	if got != 0 {
+		t.Errorf("trigramOverlap(a, empty) = %v, want 0", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// sweepOscillatingGoals
+// ---------------------------------------------------------------------------
+
+func TestSweepOscillatingGoals_NoHistoryFile(t *testing.T) {
+	tmp := t.TempDir()
+	result, err := sweepOscillatingGoals(tmp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.OscillatingGoals) != 0 {
+		t.Errorf("expected no oscillating goals for missing file, got %d", len(result.OscillatingGoals))
+	}
+}
+
+func TestSweepOscillatingGoals_DetectsOscillation(t *testing.T) {
+	tmp := t.TempDir()
+	histDir := filepath.Join(tmp, ".agents", "evolve")
+	if err := os.MkdirAll(histDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// goal-a alternates 4 times (>= 3 threshold)
+	// goal-b only 1 alternation (below threshold)
+	content := `{"cycle":1,"target":"goal-a","result":"improved"}
+{"cycle":2,"target":"goal-a","result":"regressed"}
+{"cycle":3,"target":"goal-a","result":"improved"}
+{"cycle":4,"target":"goal-a","result":"regressed"}
+{"cycle":5,"target":"goal-a","result":"improved"}
+{"cycle":1,"target":"goal-b","result":"improved"}
+{"cycle":2,"target":"goal-b","result":"regressed"}
+`
+	if err := os.WriteFile(filepath.Join(histDir, "cycle-history.jsonl"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := sweepOscillatingGoals(tmp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.OscillatingGoals) != 1 {
+		t.Fatalf("expected 1 oscillating goal, got %d", len(result.OscillatingGoals))
+	}
+	if result.OscillatingGoals[0].Target != "goal-a" {
+		t.Errorf("expected goal-a, got %q", result.OscillatingGoals[0].Target)
+	}
+	if result.OscillatingGoals[0].AlternationCount != 4 {
+		t.Errorf("expected 4 alternations, got %d", result.OscillatingGoals[0].AlternationCount)
+	}
+	if result.OscillatingGoals[0].LastCycle != 5 {
+		t.Errorf("expected last cycle 5, got %d", result.OscillatingGoals[0].LastCycle)
+	}
+}
+
+func TestSweepOscillatingGoals_SkipsMalformedLines(t *testing.T) {
+	tmp := t.TempDir()
+	histDir := filepath.Join(tmp, ".agents", "evolve")
+	if err := os.MkdirAll(histDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	content := `not valid json
+{"cycle":1,"target":"","result":"improved"}
+{"cycle":1,"target":"goal-x","result":"improved"}
+
+{"cycle":2,"target":"goal-x","result":"regressed"}
+`
+	if err := os.WriteFile(filepath.Join(histDir, "cycle-history.jsonl"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := sweepOscillatingGoals(tmp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// goal-x only has 1 alternation, not enough
+	if len(result.OscillatingGoals) != 0 {
+		t.Errorf("expected 0 oscillating goals, got %d", len(result.OscillatingGoals))
+	}
+}
+

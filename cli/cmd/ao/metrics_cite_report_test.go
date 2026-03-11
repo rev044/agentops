@@ -233,3 +233,83 @@ func TestRunMetricsCiteReport_EmptyWithJSONOutput(t *testing.T) {
 		t.Fatalf("expected zero stale artifacts for empty dataset, got %d", parsed.Staleness["90d"])
 	}
 }
+
+func TestPrintCiteReport_FullReport(t *testing.T) {
+	now := time.Now()
+	r := citeReportData{
+		TotalCitations:  42,
+		UniqueArtifacts: 10,
+		UniqueSessions:  5,
+		HitRate:         0.6,
+		HitCount:        6,
+		TopArtifacts: []artifactCount{
+			{Path: "learnings/a.md", Count: 15},
+			{Path: "learnings/b.md", Count: 8},
+		},
+		UncitedLearnings: []string{"uncited1.md", "uncited2.md"},
+		Staleness:        map[string]int{"30d": 2, "60d": 5, "90d": 7},
+		FeedbackTotal:    20,
+		FeedbackGiven:    12,
+		FeedbackRate:     0.6,
+		Days:             30,
+		PeriodStart:      now.AddDate(0, 0, -30),
+		PeriodEnd:        now,
+	}
+
+	var buf bytes.Buffer
+	printCiteReport(&buf, r)
+	out := buf.String()
+
+	checks := []string{
+		"Citation Report",
+		"Total citations:     42",
+		"Unique artifacts:    10",
+		"Unique sessions:     5",
+		"Hit rate",
+		"60%",
+		"TOP CITED ARTIFACTS:",
+		"learnings/a.md (15)",
+		"learnings/b.md (8)",
+		"UNCITED LEARNINGS:",
+		"uncited1.md",
+		"uncited2.md",
+		"STALENESS:",
+		"Not cited in 30d: 2",
+		"Not cited in 60d: 5",
+		"Not cited in 90d: 7",
+		"FEEDBACK:",
+		"Closure rate: 60%",
+	}
+	for _, want := range checks {
+		if !bytes.Contains([]byte(out), []byte(want)) {
+			t.Errorf("expected output to contain %q, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestPrintCiteReport_EmptyTopAndUncited(t *testing.T) {
+	now := time.Now()
+	r := citeReportData{
+		TotalCitations:  0,
+		UniqueArtifacts: 0,
+		UniqueSessions:  0,
+		Staleness:       map[string]int{"30d": 0, "60d": 0, "90d": 0},
+		Days:            7,
+		PeriodStart:     now.AddDate(0, 0, -7),
+		PeriodEnd:       now,
+	}
+
+	var buf bytes.Buffer
+	printCiteReport(&buf, r)
+	out := buf.String()
+
+	if bytes.Contains([]byte(out), []byte("TOP CITED ARTIFACTS:")) {
+		t.Error("expected no TOP CITED section for empty artifacts")
+	}
+	if bytes.Contains([]byte(out), []byte("UNCITED LEARNINGS:")) {
+		t.Error("expected no UNCITED section for empty list")
+	}
+	if !bytes.Contains([]byte(out), []byte("Total citations:     0")) {
+		t.Error("expected zero total in output")
+	}
+}

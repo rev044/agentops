@@ -415,3 +415,69 @@ Summary.
 		t.Fatalf("expected updated last_cited, got:\n%s", text)
 	}
 }
+
+func TestPromoteCitedLearnings_NoFeedbackFile(t *testing.T) {
+	dir := t.TempDir()
+	count := promoteCitedLearnings(dir, true)
+	if count != 0 {
+		t.Errorf("expected 0 promoted for missing feedback file, got %d", count)
+	}
+}
+
+func TestPromoteCitedLearnings_DryRunReturnsZero(t *testing.T) {
+	dir := t.TempDir()
+	feedbackDir := filepath.Join(dir, ".agents", "ao")
+	if err := os.MkdirAll(feedbackDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	evt := FeedbackEvent{
+		ArtifactPath: filepath.Join(dir, ".agents", "learnings", "test.md"),
+		Reward:       1.0,
+	}
+	data, _ := json.Marshal(evt)
+	if err := os.WriteFile(filepath.Join(feedbackDir, "feedback.jsonl"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldDryRun := dryRun
+	dryRun = true
+	defer func() { dryRun = oldDryRun }()
+
+	count := promoteCitedLearnings(dir, true)
+	if count != 0 {
+		t.Errorf("expected 0 in dry-run mode, got %d", count)
+	}
+}
+
+func TestPromoteCitedLearnings_EmptyFeedbackFile(t *testing.T) {
+	dir := t.TempDir()
+	feedbackDir := filepath.Join(dir, ".agents", "ao")
+	if err := os.MkdirAll(feedbackDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(feedbackDir, "feedback.jsonl"), []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	count := promoteCitedLearnings(dir, true)
+	if count != 0 {
+		t.Errorf("expected 0 for empty feedback, got %d", count)
+	}
+}
+
+func TestPromoteCitedLearnings_MalformedJSON(t *testing.T) {
+	dir := t.TempDir()
+	feedbackDir := filepath.Join(dir, ".agents", "ao")
+	if err := os.MkdirAll(feedbackDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(feedbackDir, "feedback.jsonl"), []byte("not json\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	count := promoteCitedLearnings(dir, true)
+	if count != 0 {
+		t.Errorf("expected 0 for malformed JSON, got %d", count)
+	}
+}

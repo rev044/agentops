@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -464,5 +465,225 @@ func TestLookup_outputLearning_textMode(t *testing.T) {
 		if !strings.Contains(out, check) {
 			t.Errorf("expected output to contain %q, got:\n%s", check, out)
 		}
+	}
+}
+
+func TestOutputPattern_TextMode(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a source file for the pattern
+	agentsDir := filepath.Join(dir, ".agents", "patterns")
+	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	srcPath := filepath.Join(agentsDir, "test-pattern.md")
+	if err := os.WriteFile(srcPath, []byte("# Pattern content\nDetails here."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	oldJSON := lookupJSON
+	lookupJSON = false
+	oldNoCite := lookupNoCite
+	lookupNoCite = true // skip citation recording
+	defer func() {
+		lookupJSON = oldJSON
+		lookupNoCite = oldNoCite
+	}()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	p := pattern{
+		Name:           "test-pattern",
+		Description:    "A test pattern",
+		Utility:        0.8,
+		AgeWeeks:       2,
+		CompositeScore: 3.5,
+		FilePath:       srcPath,
+	}
+
+	err := outputPattern(dir, p)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputPattern: %v", err)
+	}
+
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	r.Close()
+	out := string(buf[:n])
+
+	if !strings.Contains(out, "## test-pattern") {
+		t.Errorf("expected pattern header, got:\n%s", out)
+	}
+	if !strings.Contains(out, "A test pattern") {
+		t.Errorf("expected description, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Utility: 0.80") {
+		t.Errorf("expected utility score, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Pattern content") {
+		t.Errorf("expected file content, got:\n%s", out)
+	}
+}
+
+func TestOutputPattern_JSONMode(t *testing.T) {
+	oldJSON := lookupJSON
+	lookupJSON = true
+	defer func() { lookupJSON = oldJSON }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	p := pattern{
+		Name:           "json-pat",
+		Utility:        0.5,
+		CompositeScore: 2.0,
+	}
+
+	err := outputPattern("", p)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputPattern JSON: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+
+	var parsed pattern
+	if err := json.Unmarshal(buf[:n], &parsed); err != nil {
+		t.Fatalf("parse JSON: %v\n%s", err, string(buf[:n]))
+	}
+	if parsed.Name != "json-pat" {
+		t.Errorf("Name = %q, want %q", parsed.Name, "json-pat")
+	}
+}
+
+func TestOutputFinding_TextMode(t *testing.T) {
+	dir := t.TempDir()
+
+	oldJSON := lookupJSON
+	lookupJSON = false
+	oldNoCite := lookupNoCite
+	lookupNoCite = true
+	defer func() {
+		lookupJSON = oldJSON
+		lookupNoCite = oldNoCite
+	}()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f := knowledgeFinding{
+		ID:             "f-test-01",
+		Title:          "Test Finding",
+		Severity:       "high",
+		Detectability:  "mechanical",
+		Status:         "active",
+		Utility:        0.9,
+		AgeWeeks:       1,
+		CompositeScore: 4.0,
+		Summary:        "A critical finding.",
+	}
+
+	err := outputFinding(dir, f)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputFinding: %v", err)
+	}
+
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	r.Close()
+	out := string(buf[:n])
+
+	if !strings.Contains(out, "## f-test-01") {
+		t.Errorf("expected finding header, got:\n%s", out)
+	}
+	if !strings.Contains(out, "**Test Finding**") {
+		t.Errorf("expected title, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Severity: high") {
+		t.Errorf("expected severity, got:\n%s", out)
+	}
+	if !strings.Contains(out, "A critical finding.") {
+		t.Errorf("expected summary, got:\n%s", out)
+	}
+}
+
+func TestOutputFinding_JSONMode(t *testing.T) {
+	oldJSON := lookupJSON
+	lookupJSON = true
+	defer func() { lookupJSON = oldJSON }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f := knowledgeFinding{
+		ID:       "f-json-01",
+		Title:    "JSON Finding",
+		Severity: "medium",
+		Status:   "active",
+	}
+
+	err := outputFinding("", f)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputFinding JSON: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+
+	var parsed knowledgeFinding
+	if err := json.Unmarshal(buf[:n], &parsed); err != nil {
+		t.Fatalf("parse JSON: %v\n%s", err, string(buf[:n]))
+	}
+	if parsed.ID != "f-json-01" {
+		t.Errorf("ID = %q, want %q", parsed.ID, "f-json-01")
+	}
+}
+
+func TestRecordLookupCitations(t *testing.T) {
+	dir := t.TempDir()
+	aoDir := filepath.Join(dir, ".agents", "ao")
+	if err := os.MkdirAll(aoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	learnings := []learning{
+		{Source: filepath.Join(dir, ".agents", "learnings", "l1.md")},
+	}
+	patterns := []pattern{
+		{FilePath: filepath.Join(dir, ".agents", "patterns", "p1.md")},
+	}
+	findings := []knowledgeFinding{
+		{Source: filepath.Join(dir, ".agents", "findings", "f1.md")},
+	}
+
+	recordLookupCitations(dir, learnings, patterns, findings, "test-session", "test query")
+
+	citPath := filepath.Join(aoDir, "citations.jsonl")
+	data, err := os.ReadFile(citPath)
+	if err != nil {
+		t.Fatalf("read citations: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 3 {
+		t.Errorf("expected 3 citation lines, got %d", len(lines))
 	}
 }

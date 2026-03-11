@@ -2479,3 +2479,40 @@ func TestReadQueueEntries_SkipsAllItemsConsumedEntry(t *testing.T) {
 		t.Errorf("expected 0 entries (all items consumed), got %d", len(entries))
 	}
 }
+
+func TestRecomputeEntryLifecycle_EmptyItems(t *testing.T) {
+	entry := &nextWorkEntry{
+		SourceEpic:  "ag-test",
+		Consumed:    true,
+		ClaimStatus: "consumed",
+	}
+	recomputeEntryLifecycle(entry)
+	// With no items, the function returns early without modifying the entry.
+	if entry.ClaimStatus != "consumed" {
+		t.Errorf("expected claim_status to remain 'consumed', got %q", entry.ClaimStatus)
+	}
+	if !entry.Consumed {
+		t.Error("expected Consumed to remain true for empty-items entry")
+	}
+}
+
+func TestRecomputeEntryLifecycle_FailedAtPropagated(t *testing.T) {
+	failedTime := "2026-03-01T10:00:00Z"
+	entry := &nextWorkEntry{
+		SourceEpic: "ag-test",
+		Items: []nextWorkItem{
+			{Title: "item1", Consumed: true, ClaimStatus: "consumed"},
+			{Title: "item2", Consumed: false, ClaimStatus: "available", FailedAt: &failedTime},
+		},
+	}
+	recomputeEntryLifecycle(entry)
+	if entry.FailedAt == nil || *entry.FailedAt != failedTime {
+		t.Errorf("expected FailedAt=%q, got %v", failedTime, entry.FailedAt)
+	}
+	if entry.Consumed {
+		t.Error("expected Consumed=false when not all items consumed")
+	}
+	if entry.ClaimStatus != "available" {
+		t.Errorf("expected claim_status='available', got %q", entry.ClaimStatus)
+	}
+}

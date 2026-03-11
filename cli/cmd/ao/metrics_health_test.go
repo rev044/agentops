@@ -614,3 +614,51 @@ func TestComputeLoopDominance_StaleAndNewBoundaries(t *testing.T) {
 		t.Fatalf("expected zero-session R1/B1=0, got R1=%f B1=%f", ldZero.R1, ldZero.B1)
 	}
 }
+
+func TestComputeHealthSigmaRho_AllEmptySessionIDs(t *testing.T) {
+	// When all citations have empty session IDs, lastNSessions returns empty,
+	// so computeHealthSigmaRho should return (0, 0).
+	dir := t.TempDir()
+	citations := []types.CitationEvent{
+		{ArtifactPath: "learnings/foo.md", SessionID: "", CitedAt: time.Now()},
+		{ArtifactPath: "learnings/bar.md", SessionID: "", CitedAt: time.Now()},
+	}
+	sigma, rho := computeHealthSigmaRho(dir, citations)
+	if sigma != 0 {
+		t.Errorf("expected sigma=0 for empty-session citations, got %f", sigma)
+	}
+	if rho != 0 {
+		t.Errorf("expected rho=0 for empty-session citations, got %f", rho)
+	}
+}
+
+func TestLastNSessions_AllEmptySessionIDs(t *testing.T) {
+	citations := []types.CitationEvent{
+		{SessionID: "", CitedAt: time.Now()},
+		{SessionID: "", CitedAt: time.Now()},
+	}
+	result := lastNSessions(citations, 5)
+	if len(result) != 0 {
+		t.Errorf("expected 0 sessions for all-empty IDs, got %d", len(result))
+	}
+}
+
+func TestLastNSessions_MoreSessionsThanN(t *testing.T) {
+	now := time.Now()
+	citations := []types.CitationEvent{
+		{SessionID: "s1", CitedAt: now.Add(-3 * time.Hour)},
+		{SessionID: "s2", CitedAt: now.Add(-2 * time.Hour)},
+		{SessionID: "s3", CitedAt: now.Add(-1 * time.Hour)},
+	}
+	result := lastNSessions(citations, 2)
+	if len(result) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(result))
+	}
+	// Most recent first
+	if result[0] != "s3" {
+		t.Errorf("expected first session='s3', got %q", result[0])
+	}
+	if result[1] != "s2" {
+		t.Errorf("expected second session='s2', got %q", result[1])
+	}
+}

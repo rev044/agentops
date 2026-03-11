@@ -245,3 +245,26 @@ func TestCollectRecentSessions(t *testing.T) {
 		}
 	})
 }
+
+func TestParseMarkdownSessionSummary_FileNotFound(t *testing.T) {
+	_, err := parseMarkdownSessionSummary("/nonexistent/path/session.md")
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+}
+
+func TestParseMarkdownSessionSummary_WithFrontMatter(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "session.md")
+	content := "---\ndate: 2026-03-10\nid: ag-test\n---\n\n# Session Summary\n\nWorked on auth module refactoring.\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	summary, err := parseMarkdownSessionSummary(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if summary != "Worked on auth module refactoring." {
+		t.Errorf("expected body text, got %q", summary)
+	}
+}

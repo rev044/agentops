@@ -19,6 +19,177 @@ import (
 // collectFilesFromPatterns
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// detectSessionTypeFromContent
+// ---------------------------------------------------------------------------
+
+func TestDetectSessionTypeFromContent(t *testing.T) {
+	tests := []struct {
+		name      string
+		summary   string
+		knowledge []string
+		decisions []string
+		want      string
+	}{
+		{"career from summary", "preparing for career interview", nil, nil, "career"},
+		{"career from knowledge", "", []string{"updated resume with new skills"}, nil, "career"},
+		{"career salary", "negotiating salary offer", nil, nil, "career"},
+		{"debug from summary", "debug stack trace in production", nil, nil, "debug"},
+		{"debug broken", "found broken endpoint", nil, nil, "debug"},
+		{"debug error log", "analyzed error log for root cause", nil, nil, "debug"},
+		{"brainstorm from summary", "brainstorm ideas for new feature", nil, nil, "brainstorm"},
+		{"brainstorm what-if", "what if we used a different approach", nil, nil, "brainstorm"},
+		{"brainstorm option a vs", "comparing option a vs option b", nil, nil, "brainstorm"},
+		{"research from summary", "research available frameworks", nil, nil, "research"},
+		{"research explore", "explore alternative architectures", nil, nil, "research"},
+		{"implement from summary", "implement new feature with go test", nil, nil, "implement"},
+		{"implement git commit", "ran git commit for the changes", nil, nil, "implement"},
+		{"implement feat(", "feat(cli): add new command", nil, nil, "implement"},
+		{"general fallback", "discussed random topics", nil, nil, "general"},
+		{"empty inputs", "", nil, nil, "general"},
+		{"knowledge triggers type", "", []string{"found the debug issue"}, nil, "debug"},
+		{"decisions trigger type", "", nil, []string{"decided to research alternatives"}, "research"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := detectSessionTypeFromContent(tt.summary, tt.knowledge, tt.decisions)
+			if got != tt.want {
+				t.Errorf("detectSessionTypeFromContent(%q, ...) = %q, want %q", tt.summary, got, tt.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// splitMarkdownSections
+// ---------------------------------------------------------------------------
+
+func TestSplitMarkdownSections_MultipleHeadings(t *testing.T) {
+	content := "# Heading 1\nContent 1\n## Heading 2\nContent 2\n# Heading 3\nContent 3"
+	sections := splitMarkdownSections(content)
+	if len(sections) != 3 {
+		t.Fatalf("expected 3 sections, got %d: %v", len(sections), sections)
+	}
+	if sections[0] != "# Heading 1\nContent 1" {
+		t.Errorf("section 0 = %q", sections[0])
+	}
+	if sections[1] != "## Heading 2\nContent 2" {
+		t.Errorf("section 1 = %q", sections[1])
+	}
+	if sections[2] != "# Heading 3\nContent 3" {
+		t.Errorf("section 2 = %q", sections[2])
+	}
+}
+
+func TestSplitMarkdownSections_NoHeadings(t *testing.T) {
+	content := "Just some text\nwith no headings"
+	sections := splitMarkdownSections(content)
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(sections))
+	}
+	if sections[0] != content {
+		t.Errorf("section = %q, want %q", sections[0], content)
+	}
+}
+
+func TestSplitMarkdownSections_EmptyContent(t *testing.T) {
+	sections := splitMarkdownSections("")
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 section for empty content, got %d", len(sections))
+	}
+}
+
+func TestSplitMarkdownSections_OnlyH1(t *testing.T) {
+	content := "# Only heading\nSome body"
+	sections := splitMarkdownSections(content)
+	if len(sections) != 1 {
+		t.Fatalf("expected 1 section, got %d", len(sections))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// isTranscriptCandidate
+// ---------------------------------------------------------------------------
+
+func TestIsTranscriptCandidate(t *testing.T) {
+	tmp := t.TempDir()
+	// Create a valid candidate
+	validPath := filepath.Join(tmp, "project", "session.jsonl")
+	if err := os.MkdirAll(filepath.Dir(validPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(validPath, []byte(strings.Repeat("x", 200)), 0644); err != nil {
+		t.Fatal(err)
+	}
+	info, _ := os.Stat(validPath)
+	if !isTranscriptCandidate(validPath, info, tmp) {
+		t.Error("expected valid .jsonl to be a candidate")
+	}
+
+	// Non-jsonl file should not be a candidate
+	txtPath := filepath.Join(tmp, "project", "notes.txt")
+	if err := os.WriteFile(txtPath, []byte(strings.Repeat("x", 200)), 0644); err != nil {
+		t.Fatal(err)
+	}
+	txtInfo, _ := os.Stat(txtPath)
+	if isTranscriptCandidate(txtPath, txtInfo, tmp) {
+		t.Error("expected .txt file not to be a candidate")
+	}
+
+	// Tiny file should not be a candidate
+	tinyPath := filepath.Join(tmp, "project", "tiny.jsonl")
+	if err := os.WriteFile(tinyPath, []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	tinyInfo, _ := os.Stat(tinyPath)
+	if isTranscriptCandidate(tinyPath, tinyInfo, tmp) {
+		t.Error("expected tiny file not to be a candidate")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// collectTranscriptCandidates
+// ---------------------------------------------------------------------------
+
+func TestCollectTranscriptCandidates_SkipsSubagents(t *testing.T) {
+	tmp := t.TempDir()
+	// Normal transcript
+	normalDir := filepath.Join(tmp, "project")
+	if err := os.MkdirAll(normalDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(normalDir, "main.jsonl"), []byte(strings.Repeat("x", 200)), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Subagents transcript (should be skipped)
+	subDir := filepath.Join(tmp, "subagents", "sub")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, "agent.jsonl"), []byte(strings.Repeat("x", 200)), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	candidates, err := collectTranscriptCandidates(tmp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Errorf("expected 1 candidate (subagents excluded), got %d", len(candidates))
+	}
+}
+
+func TestCollectTranscriptCandidates_NonexistentDir(t *testing.T) {
+	candidates, err := collectTranscriptCandidates("/nonexistent/dir/xyz")
+	if err == nil && len(candidates) != 0 {
+		t.Errorf("expected empty/error for nonexistent dir, got %d candidates", len(candidates))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// collectFilesFromPatterns
+// ---------------------------------------------------------------------------
+
 func TestForge_collectFilesFromPatterns_LiteralPath(t *testing.T) {
 	tmp := t.TempDir()
 	f := filepath.Join(tmp, "example.jsonl")

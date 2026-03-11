@@ -34,18 +34,8 @@ func ParseMarkdownGoals(data []byte) (*GoalFile, error) {
 	gf.Mission = parseMission(lines)
 	gf.NorthStars = parseListSection(lines, "North Stars")
 	gf.AntiStars = parseListSection(lines, "Anti Stars")
-
-	directives, err := parseDirectives(lines)
-	if err != nil {
-		return nil, fmt.Errorf("parsing directives: %w", err)
-	}
-	gf.Directives = directives
-
-	goals, err := parseGatesTable(lines)
-	if err != nil {
-		return nil, fmt.Errorf("parsing gates table: %w", err)
-	}
-	gf.Goals = goals
+	gf.Directives = parseDirectives(lines)
+	gf.Goals = parseGatesTable(lines)
 
 	return gf, nil
 }
@@ -125,7 +115,7 @@ func parseListSection(lines []string, heading string) []string {
 }
 
 // parseDirectives extracts numbered H3 directives with optional body text and **Steer:** line.
-func parseDirectives(lines []string) ([]Directive, error) {
+func parseDirectives(lines []string) []Directive {
 	// Find the Directives section (case-insensitive H2 match)
 	directiveStart := -1
 	for i, line := range lines {
@@ -140,7 +130,7 @@ func parseDirectives(lines []string) ([]Directive, error) {
 	}
 
 	if directiveStart < 0 {
-		return nil, nil // No directives section — not an error
+		return nil // No directives section
 	}
 
 	var directives []Directive
@@ -191,7 +181,7 @@ func parseDirectives(lines []string) ([]Directive, error) {
 	}
 
 	flushCurrent()
-	return directives, nil
+	return directives
 }
 
 // buildGateColumnMap takes header row cells and returns a column index map.
@@ -248,7 +238,7 @@ func parseGateRow(cells []string, colMap map[string]int) Goal {
 
 // parseGatesTable extracts goals from a markdown table under the "Gates" section.
 // Expected columns: ID | Check | Weight | Description (order may vary if header is present).
-func parseGatesTable(lines []string) ([]Goal, error) {
+func parseGatesTable(lines []string) []Goal {
 	// Find the Gates section (case-insensitive H2 match)
 	gatesStart := -1
 	for i, line := range lines {
@@ -263,7 +253,7 @@ func parseGatesTable(lines []string) ([]Goal, error) {
 	}
 
 	if gatesStart < 0 {
-		return nil, nil // No gates section — not an error
+		return nil // No gates section
 	}
 
 	var goals []Goal
@@ -308,7 +298,7 @@ func parseGatesTable(lines []string) ([]Goal, error) {
 		}
 	}
 
-	return goals, nil
+	return goals
 }
 
 // splitTableRow splits a markdown table row into cells, stripping outer pipes.

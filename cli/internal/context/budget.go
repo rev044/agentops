@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// marshalJSON is the JSON marshalling function used by Save and SaveState.
+// It is a package-level variable so tests can inject failures.
+var marshalJSON = json.MarshalIndent
+
 // Thresholds for context budget management.
 const (
 	// OptimalThreshold is the ideal context usage (40%).
@@ -217,7 +221,7 @@ func (b *BudgetTracker) Save(baseDir string) error {
 	}
 
 	path := filepath.Join(dir, fmt.Sprintf("budget-%s.json", b.SessionID))
-	data, err := json.MarshalIndent(b, "", "  ")
+	data, err := marshalJSON(b, "", "  ")
 	if err != nil {
 		return err
 	}

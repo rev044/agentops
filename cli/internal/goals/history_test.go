@@ -1,6 +1,7 @@
 package goals
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -290,6 +291,67 @@ func TestLoadHistory_EmptyLines(t *testing.T) {
 	}
 	if len(entries) != 2 {
 		t.Errorf("expected 2 entries (skipping empty line), got %d", len(entries))
+	}
+}
+
+func TestAppendHistory_MarshalError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history.jsonl")
+
+	// Override the marshaler to simulate a json.Marshal failure.
+	orig := jsonMarshalFn
+	jsonMarshalFn = func(v any) ([]byte, error) {
+		return nil, fmt.Errorf("simulated marshal error")
+	}
+	defer func() { jsonMarshalFn = orig }()
+
+	entry := HistoryEntry{
+		Timestamp:    "2026-01-01T10:00:00Z",
+		GoalsPassing: 1,
+		GoalsTotal:   1,
+		Score:        100.0,
+	}
+	err := AppendHistory(entry, path)
+	if err == nil {
+		t.Fatal("expected error from simulated marshal failure")
+	}
+	if err.Error() != "simulated marshal error" {
+		t.Errorf("error = %q, want %q", err.Error(), "simulated marshal error")
+	}
+}
+
+// failCloseWriter is a writeCloser whose Write succeeds but Close returns an error.
+type failCloseWriter struct {
+	closeErr error
+}
+
+func (w *failCloseWriter) Write(p []byte) (int, error) { return len(p), nil }
+func (w *failCloseWriter) Close() error                { return w.closeErr }
+
+func TestAppendHistory_CloseErrorBubblesUp(t *testing.T) {
+	// Exercise the deferred f.Close() error path: when the write succeeds
+	// but Close() fails, AppendHistory must return the close error.
+	wantErr := fmt.Errorf("simulated close error")
+
+	origOpen := openFileFn
+	defer func() { openFileFn = origOpen }()
+
+	openFileFn = func(_ string) (writeCloser, error) {
+		return &failCloseWriter{closeErr: wantErr}, nil
+	}
+
+	entry := HistoryEntry{
+		Timestamp:    "2026-01-01T10:00:00Z",
+		GoalsPassing: 1,
+		GoalsTotal:   1,
+		Score:        100.0,
+	}
+	err := AppendHistory(entry, "/unused/path")
+	if err == nil {
+		t.Fatal("expected error when Close() fails")
+	}
+	if err.Error() != wantErr.Error() {
+		t.Errorf("error = %q, want %q", err.Error(), wantErr.Error())
 	}
 }
 

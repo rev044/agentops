@@ -119,10 +119,7 @@ Another description.
 
 ## Gates
 `
-	directives, err := parseDirectives(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	directives := parseDirectives(strings.Split(input, "\n"))
 	if len(directives) != 2 {
 		t.Fatalf("directives = %d, want 2", len(directives))
 	}
@@ -145,10 +142,7 @@ Another description.
 
 func TestParseDirectives_CaseInsensitive(t *testing.T) {
 	input := "## DIRECTIVES\n\n### 1. Test\n\nBody.\n\n**Steer:** hold\n"
-	directives, err := parseDirectives(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	directives := parseDirectives(strings.Split(input, "\n"))
 	if len(directives) != 1 {
 		t.Errorf("directives = %d, want 1", len(directives))
 	}
@@ -156,10 +150,7 @@ func TestParseDirectives_CaseInsensitive(t *testing.T) {
 
 func TestParseDirectives_PreservesIndentation(t *testing.T) {
 	input := "## Directives\n\n### 1. Indented Body\n\nPlain text.\n\n  - list item one\n  - list item two\n\n    code block\n\n**Steer:** increase\n\n## Gates\n"
-	directives, err := parseDirectives(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	directives := parseDirectives(strings.Split(input, "\n"))
 	if len(directives) != 1 {
 		t.Fatalf("directives = %d, want 1", len(directives))
 	}
@@ -174,10 +165,7 @@ func TestParseDirectives_PreservesIndentation(t *testing.T) {
 
 func TestParseDirectives_Missing(t *testing.T) {
 	input := "## Gates\n\n| ID | Check | Weight | Description |\n"
-	directives, err := parseDirectives(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	directives := parseDirectives(strings.Split(input, "\n"))
 	if len(directives) != 0 {
 		t.Errorf("directives = %d, want 0", len(directives))
 	}
@@ -193,10 +181,7 @@ func TestParseGatesTable(t *testing.T) {
 
 ## Next Section
 `
-	goals, err := parseGatesTable(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(strings.Split(input, "\n"))
 	if len(goals) != 2 {
 		t.Fatalf("goals = %d, want 2", len(goals))
 	}
@@ -216,10 +201,7 @@ func TestParseGatesTable(t *testing.T) {
 
 func TestParseGatesTable_CaseInsensitive(t *testing.T) {
 	input := "## GATES\n\n| ID | Check | Weight | Description |\n|----|-------|--------|-------------|\n| test | `echo ok` | 5 | Test |\n"
-	goals, err := parseGatesTable(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(strings.Split(input, "\n"))
 	if len(goals) != 1 {
 		t.Errorf("goals = %d, want 1", len(goals))
 	}
@@ -227,10 +209,7 @@ func TestParseGatesTable_CaseInsensitive(t *testing.T) {
 
 func TestParseGatesTable_ExtraWhitespace(t *testing.T) {
 	input := "## Gates\n\n|  ID  |  Check  |  Weight  |  Description  |\n| --- | --- | --- | --- |\n|  spaced  |  `echo hi`  |  3  |  Spaced out  |\n"
-	goals, err := parseGatesTable(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(strings.Split(input, "\n"))
 	if len(goals) != 1 {
 		t.Fatalf("goals = %d, want 1", len(goals))
 	}
@@ -241,10 +220,7 @@ func TestParseGatesTable_ExtraWhitespace(t *testing.T) {
 
 func TestParseGatesTable_MissingWeight(t *testing.T) {
 	input := "## Gates\n\n| ID | Check | Weight | Description |\n|----|-------|--------|-------------|\n| no-weight | `echo ok` | bad | Test |\n"
-	goals, err := parseGatesTable(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(strings.Split(input, "\n"))
 	if len(goals) != 1 {
 		t.Fatalf("goals = %d, want 1", len(goals))
 	}
@@ -256,10 +232,7 @@ func TestParseGatesTable_MissingWeight(t *testing.T) {
 
 func TestParseGatesTable_Missing(t *testing.T) {
 	input := "## Directives\n\n### 1. Only Directives\n"
-	goals, err := parseGatesTable(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(strings.Split(input, "\n"))
 	if len(goals) != 0 {
 		t.Errorf("goals = %d, want 0", len(goals))
 	}
@@ -719,10 +692,7 @@ func TestParseGateRow_ValidWeight(t *testing.T) {
 
 func TestParseDirectives_EmptySteer(t *testing.T) {
 	input := "## Directives\n\n### 1. Test Dir\n\nBody text.\n\n**Steer:**   \n\n## Gates\n"
-	directives, err := parseDirectives(strings.Split(input, "\n"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	directives := parseDirectives(strings.Split(input, "\n"))
 	if len(directives) != 1 {
 		t.Fatalf("directives = %d, want 1", len(directives))
 	}
@@ -849,6 +819,72 @@ func TestParseGateRow_CombiningChar(t *testing.T) {
 // TestParseGatesTable_ExtraColumns verifies that a data row with more columns
 // than the header does not panic and does not corrupt the Description field.
 // Extra columns beyond the header are silently discarded.
+// TestParseGatesTable_NonTableTextInGatesSection exercises the branch at line 286
+// where a non-table-row line (text without pipes) appears in the Gates section
+// and is skipped via the tableRowRe check.
+func TestParseGatesTable_NonTableTextInGatesSection(t *testing.T) {
+	input := `## Gates
+
+Some explanatory text that is not a table row.
+
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| g1 | ` + "`echo ok`" + ` | 5 | Works |
+
+## Next Section
+`
+	goals := parseGatesTable(strings.Split(input, "\n"))
+	if len(goals) != 1 {
+		t.Fatalf("goals = %d, want 1 (non-table text should be skipped)", len(goals))
+	}
+	if goals[0].ID != "g1" {
+		t.Errorf("goals[0].ID = %q, want %q", goals[0].ID, "g1")
+	}
+}
+
+// TestParseGatesTable_HeadingBreaksSection exercises the heading-break branch
+// at line 277 where a heading (e.g. ### subsection) terminates the Gates section.
+func TestParseGatesTable_HeadingBreaksSection(t *testing.T) {
+	input := `## Gates
+
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| g1 | ` + "`echo ok`" + ` | 5 | First |
+
+### Subsection heading ends gates
+
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+| g2 | ` + "`echo no`" + ` | 3 | Should not appear |
+`
+	goals := parseGatesTable(strings.Split(input, "\n"))
+	if len(goals) != 1 {
+		t.Fatalf("goals = %d, want 1 (heading should end gates section)", len(goals))
+	}
+	if goals[0].ID != "g1" {
+		t.Errorf("goals[0].ID = %q, want %q", goals[0].ID, "g1")
+	}
+}
+
+// TestParseGatesTable_EmptyIDRowSkipped exercises the g.ID != "" check at line 306
+// where a data row with a completely empty ID cell is skipped.
+func TestParseGatesTable_EmptyIDRowSkipped(t *testing.T) {
+	input := `## Gates
+
+| ID | Check | Weight | Description |
+|----|-------|--------|-------------|
+|  | ` + "`echo skip`" + ` | 5 | No ID |
+| valid | ` + "`echo ok`" + ` | 3 | Has ID |
+`
+	goals := parseGatesTable(strings.Split(input, "\n"))
+	if len(goals) != 1 {
+		t.Fatalf("goals = %d, want 1 (empty-ID row should be skipped)", len(goals))
+	}
+	if goals[0].ID != "valid" {
+		t.Errorf("goals[0].ID = %q, want %q", goals[0].ID, "valid")
+	}
+}
+
 func TestParseGatesTable_ExtraColumns(t *testing.T) {
 	input := "# G\n\n## Gates\n" +
 		"| ID | Check | Weight | Description | Extra |\n" +

@@ -574,3 +574,138 @@ func replaceFrontMatterField(content, field, newValue string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+func TestOutputFlywheelCloseLoopResult_JSON(t *testing.T) {
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	res := flywheelCloseLoopResult{
+		Ingest: poolIngestResult{
+			Added:            3,
+			FilesScanned:     5,
+			SkippedExisting:  1,
+			SkippedMalformed: 0,
+		},
+		AutoPromote: poolAutoPromotePromoteResult{
+			Promoted:  2,
+			Threshold: "24h",
+		},
+		MemoryPromoted: 1,
+	}
+	res.AntiPattern.Eligible = 4
+	res.AntiPattern.Promoted = 1
+	res.Store.Indexed = 10
+	res.Store.Categorize = true
+	res.CitationFeedback.Processed = 8
+	res.CitationFeedback.Rewarded = 3
+	res.CitationFeedback.Skipped = 5
+
+	err := outputFlywheelCloseLoopResult(res)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputFlywheelCloseLoopResult: %v", err)
+	}
+
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	r.Close()
+
+	var parsed flywheelCloseLoopResult
+	if err := json.Unmarshal(buf[:n], &parsed); err != nil {
+		t.Fatalf("parse JSON: %v\n%s", err, string(buf[:n]))
+	}
+	if parsed.Ingest.Added != 3 {
+		t.Errorf("Ingest.Added = %d, want 3", parsed.Ingest.Added)
+	}
+	if parsed.MemoryPromoted != 1 {
+		t.Errorf("MemoryPromoted = %d, want 1", parsed.MemoryPromoted)
+	}
+}
+
+func TestOutputFlywheelCloseLoopResult_Table(t *testing.T) {
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	oldQuiet := flywheelCloseLoopQuiet
+	flywheelCloseLoopQuiet = false
+	defer func() { flywheelCloseLoopQuiet = oldQuiet }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	res := flywheelCloseLoopResult{
+		Ingest: poolIngestResult{Added: 2, FilesScanned: 4},
+		AutoPromote: poolAutoPromotePromoteResult{
+			Promoted:  1,
+			Threshold: "24h",
+		},
+		MemoryPromoted: 0,
+	}
+	res.Store.Indexed = 5
+	res.CitationFeedback.Processed = 3
+	res.CitationFeedback.Rewarded = 1
+	res.CitationFeedback.Skipped = 2
+
+	err := outputFlywheelCloseLoopResult(res)
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputFlywheelCloseLoopResult: %v", err)
+	}
+
+	buf := make([]byte, 8192)
+	n, _ := r.Read(buf)
+	r.Close()
+	out := string(buf[:n])
+
+	if !strings.Contains(out, "Flywheel Close-Loop Summary") {
+		t.Errorf("expected header in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Pool ingest: added=2") {
+		t.Errorf("expected ingest line, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Auto-promote: promoted=1") {
+		t.Errorf("expected auto-promote line, got:\n%s", out)
+	}
+}
+
+func TestOutputFlywheelCloseLoopResult_Quiet(t *testing.T) {
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	oldQuiet := flywheelCloseLoopQuiet
+	flywheelCloseLoopQuiet = true
+	defer func() { flywheelCloseLoopQuiet = oldQuiet }()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := outputFlywheelCloseLoopResult(flywheelCloseLoopResult{})
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("outputFlywheelCloseLoopResult: %v", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+	out := string(buf[:n])
+
+	if out != "" {
+		t.Errorf("expected empty output in quiet mode, got:\n%s", out)
+	}
+}

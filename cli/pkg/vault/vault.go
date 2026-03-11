@@ -6,12 +6,16 @@ import (
 	"path/filepath"
 )
 
+// getwdFunc is the function used to get the working directory.
+// Override in tests to simulate os.Getwd failures.
+var getwdFunc = os.Getwd
+
 // DetectVault walks up from the given directory to find an Obsidian vault.
 // Returns the vault path if found, empty string otherwise.
 func DetectVault(startDir string) string {
 	if startDir == "" {
 		var err error
-		startDir, err = os.Getwd()
+		startDir, err = getwdFunc()
 		if err != nil {
 			return ""
 		}

@@ -289,7 +289,7 @@ func (s *Summarizer) SaveState(baseDir string, state SummarizeState) error {
 	}
 
 	path := filepath.Join(dir, fmt.Sprintf("state-%s.json", state.SessionID))
-	data, err := json.MarshalIndent(state, "", "  ")
+	data, err := marshalJSON(state, "", "  ")
 	if err != nil {
 		return err
 	}

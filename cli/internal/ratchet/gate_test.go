@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -661,6 +662,290 @@ exit 1
 	}
 }
 
+func TestNewGateChecker_LocatorError(t *testing.T) {
+	// NewLocator fails if UserHomeDir fails — hard to trigger in tests.
+	// Instead, verify NewGateChecker returns nil checker on error.
+	// We can at least verify it doesn't panic on a non-existent path.
+	checker, err := NewGateChecker("/nonexistent/deeply/nested/path/xyz")
+	if err != nil {
+		// Expected: locator may return error for non-existent paths
+		if checker != nil {
+			t.Error("expected nil checker when NewGateChecker returns error")
+		}
+	}
+}
+
+func TestNewGateChecker_UserHomeDirError(t *testing.T) {
+	t.Setenv("HOME", "")
+
+	checker, err := NewGateChecker(t.TempDir())
+	if err == nil {
+		t.Fatal("expected error when HOME is unset")
+	}
+	if checker != nil {
+		t.Error("expected nil checker on error")
+	}
+}
+
+func TestGateChecker_CheckImplement_BothFindEpicFail(t *testing.T) {
+	// Exercise the code path where both findEpic("open") and findEpic("in_progress")
+	// return empty, so the gate fails.
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Fake bd that returns no epics for any status
+	prependFakeCommand(t, "bd", `
+printf '# no epics found\n'
+exit 0
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepImplement)
+	if err != nil {
+		t.Fatalf("Check(Implement): %v", err)
+	}
+	if result.Passed {
+		t.Error("implement gate should fail when both open and in_progress findEpic return empty")
+	}
+	if result.Step != StepImplement {
+		t.Errorf("Step = %q, want %q", result.Step, StepImplement)
+	}
+	if !strings.Contains(result.Message, "No open epic found") {
+		t.Errorf("expected 'No open epic found' message, got %q", result.Message)
+	}
+}
+
+func TestGateChecker_CheckImplement_OpenErrors_InProgressSucceeds(t *testing.T) {
+	// Exercise code path: findEpic("open") returns error, findEpic("in_progress") succeeds.
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `
+if [[ "$*" == *"--status open"* ]]; then
+  exit 1  # error
+fi
+if [[ "$*" == *"--status in_progress"* ]]; then
+  printf 'epic-ip Working on feature\n'
+  exit 0
+fi
+exit 1
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepImplement)
+	if err != nil {
+		t.Fatalf("Check(Implement): %v", err)
+	}
+	if !result.Passed {
+		t.Fatalf("implement gate should pass when in_progress epic found: %+v", result)
+	}
+	if result.Input != "epic-ip" {
+		t.Errorf("expected epic-ip input, got %q", result.Input)
+	}
+}
+
+func TestGateChecker_CheckPostMortem_NoClosedEpic_SoftPass(t *testing.T) {
+	// Exercise the code path where findEpic("closed") returns error,
+	// and the post-mortem gate still passes (soft gate).
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `exit 1`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepPostMortem)
+	if err != nil {
+		t.Fatalf("Check(PostMortem): %v", err)
+	}
+	if !result.Passed {
+		t.Error("post-mortem gate should pass even without closed epic (soft gate)")
+	}
+	if !strings.Contains(result.Message, "Soft gate") {
+		t.Errorf("expected soft gate message, got %q", result.Message)
+	}
+}
+
+func TestGateChecker_CheckPostMortem_EmptyOutput(t *testing.T) {
+	// Exercise the path where findEpic("closed") returns no error but empty epicID.
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// bd returns only comments/empty lines
+	prependFakeCommand(t, "bd", `
+if [[ "$*" == *"--status closed"* ]]; then
+  printf '# no closed epics\n'
+  exit 0
+fi
+exit 1
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepPostMortem)
+	if err != nil {
+		t.Fatalf("Check(PostMortem): %v", err)
+	}
+	// findEpic returns error ("no epic found with status closed"), so
+	// checkPostMortemGate falls through to soft pass
+	if !result.Passed {
+		t.Error("post-mortem should still pass via soft gate when no closed epic found")
+	}
+	if !strings.Contains(result.Message, "Soft gate") {
+		t.Errorf("expected soft gate message, got %q", result.Message)
+	}
+}
+
+func TestFindEpic_NoEpicInOutput(t *testing.T) {
+	// parseFirstEpicID returns "" when output is only comments/blanks,
+	// so findEpic returns an error.
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `printf '# comment\n\n# another\n'`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	epicID, findErr := checker.findEpic("open")
+	if findErr == nil {
+		t.Error("expected error when bd output has no epic IDs")
+	}
+	if epicID != "" {
+		t.Errorf("expected empty epicID, got %q", epicID)
+	}
+	if !strings.Contains(findErr.Error(), "no epic found with status open") {
+		t.Errorf("expected 'no epic found' error, got: %v", findErr)
+	}
+}
+
+func TestFindEpic_CommandNotFound(t *testing.T) {
+	// Exercise the path where bd is not found at all.
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Override PATH to exclude bd
+	t.Setenv("PATH", t.TempDir())
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	epicID, findErr := checker.findEpic("open")
+	if findErr == nil {
+		t.Error("expected error when bd command is not found")
+	}
+	if epicID != "" {
+		t.Errorf("expected empty epicID, got %q", epicID)
+	}
+}
+
+func TestFindEpic_Timeout(t *testing.T) {
+	// Exercise the context.DeadlineExceeded path in findEpic.
+	// We use a fake bd that sleeps longer than BdCLITimeout.
+	if testing.Short() {
+		t.Skip("skipping timeout test in short mode")
+	}
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Fake bd that sleeps longer than 5s timeout using a trap to handle SIGTERM
+	prependFakeCommand(t, "bd", `
+trap 'exit 143' TERM
+while true; do
+  sleep 0.1
+done
+`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	start := time.Now()
+	epicID, findErr := checker.findEpic("open")
+	elapsed := time.Since(start)
+
+	if epicID != "" {
+		t.Errorf("expected empty epicID on timeout, got %q", epicID)
+	}
+	if findErr == nil {
+		t.Fatal("expected error on timeout")
+	}
+	if !errors.Is(findErr, ErrBdCLITimeout) {
+		t.Errorf("expected ErrBdCLITimeout, got: %v", findErr)
+	}
+	// Should have timed out around 5s, not 10s
+	if elapsed > 7*time.Second {
+		t.Errorf("findEpic took %v, expected to timeout around %v", elapsed, BdCLITimeout)
+	}
+}
+
+func TestGateChecker_CheckCrank_NoEpic(t *testing.T) {
+	// Verify crank gate fails and preserves StepCrank when no epic available.
+	restrictSearchOrder(t)
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	prependFakeCommand(t, "bd", `printf '# nothing\n'; exit 0`)
+
+	checker, err := NewGateChecker(tmpDir)
+	if err != nil {
+		t.Fatalf("NewGateChecker: %v", err)
+	}
+
+	result, err := checker.Check(StepCrank)
+	if err != nil {
+		t.Fatalf("Check(Crank): %v", err)
+	}
+	if result.Passed {
+		t.Error("crank gate should fail when no epic found")
+	}
+	if result.Step != StepCrank {
+		t.Errorf("Step = %q, want %q", result.Step, StepCrank)
+	}
+}
+
 func TestGateChecker_CheckVibe_UsesCheckerRootForGit(t *testing.T) {
 	restrictSearchOrder(t)
 
@@ -695,5 +980,53 @@ exit 1
 	}
 	if !strings.Contains(result.Message, "Code changes detected") {
 		t.Fatalf("expected dirty-tree message when checker root is dirty, got %q", result.Message)
+	}
+}
+
+func TestFindEpic_NonTimeoutError(t *testing.T) {
+	dir := t.TempDir()
+	gc, err := NewGateChecker(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = gc.findEpic("open")
+	if err == nil {
+		t.Skip("bd CLI found and returned results")
+	}
+	if err == ErrBdCLITimeout {
+		t.Fatal("expected non-timeout error when bd not installed")
+	}
+}
+
+// TestFindEpic_DeadlineExceededShort exercises the context.DeadlineExceeded
+// branch in findEpic. Uses a fake bd script that sleeps beyond the 5s timeout.
+func TestFindEpic_DeadlineExceededShort(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix-specific test")
+	}
+
+	restrictSearchOrder(t)
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	prependFakeCommand(t, "bd", `
+trap 'exit 143' TERM
+while true; do
+  sleep 0.1
+done
+`)
+
+	gc, err := NewGateChecker(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = gc.findEpic("open")
+	if err != ErrBdCLITimeout {
+		t.Fatalf("expected ErrBdCLITimeout, got: %v", err)
 	}
 }

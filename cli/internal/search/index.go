@@ -50,7 +50,15 @@ func BuildIndex(dir string) (*Index, error) {
 	idx := NewIndex()
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !isIndexableFile(path) {
+		if err != nil {
+			if info == nil {
+				// Root path inaccessible — propagate so Walk returns the error.
+				return err
+			}
+			// Non-root entry error — skip silently.
+			return nil
+		}
+		if info.IsDir() || !isIndexableFile(path) {
 			return nil
 		}
 		_ = indexFile(idx, path) // non-fatal: skip unreadable files

@@ -403,3 +403,22 @@ func TestOLConstraintMarshaling(t *testing.T) {
 		t.Errorf("decoded.Status = %q, want %q", decoded.Status, constraint.Status)
 	}
 }
+
+// TestCollectOLConstraints_ReadError verifies that a non-ENOENT read error
+// (quarantine.json is a directory) returns a wrapped error.
+func TestCollectOLConstraints_ReadError(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create quarantine.json as a directory so os.ReadFile fails with
+	// a non-ENOENT error.
+	qPath := filepath.Join(tmpDir, ".ol", "constraints", "quarantine.json")
+	if err := os.MkdirAll(qPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := collectOLConstraints(tmpDir, "")
+	if err == nil {
+		t.Fatal("expected error when quarantine.json is a directory")
+	}
+	if !strings.Contains(err.Error(), "read quarantine.json") {
+		t.Errorf("expected 'read quarantine.json' in error, got %q", err.Error())
+	}
+}

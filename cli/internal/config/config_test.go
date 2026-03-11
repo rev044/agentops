@@ -1010,6 +1010,55 @@ func TestProjectConfigPath_WhitespaceOnlyConfig(t *testing.T) {
 	}
 }
 
+func TestProjectConfigPath_GetwdError(t *testing.T) {
+	// When AGENTOPS_CONFIG is unset and cwd has been removed, Getwd fails
+	// and projectConfigPath should return "".
+	t.Setenv("AGENTOPS_CONFIG", "")
+
+	// Save original directory so we can restore it.
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get original cwd: %v", err)
+	}
+
+	// Create a standalone temp dir (not via t.TempDir which defers cleanup).
+	tmp, err := os.MkdirTemp("", "test-getwd-err")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	if err := os.Chdir(tmp); err != nil {
+		os.Remove(tmp)
+		t.Fatalf("failed to chdir to temp dir: %v", err)
+	}
+	// Remove the dir while we're inside it — makes Getwd fail on Linux.
+	if err := os.Remove(tmp); err != nil {
+		if err2 := os.Chdir(origDir); err2 != nil {
+			t.Fatalf("chdir restore failed: %v", err2)
+		}
+		t.Skip("cannot remove cwd on this platform")
+	}
+
+	// On macOS, Getwd succeeds even after the directory is removed.
+	// Detect that and skip — the error branch is only reachable on Linux.
+	if _, getwdErr := os.Getwd(); getwdErr == nil {
+		if err := os.Chdir(origDir); err != nil {
+			t.Fatalf("chdir restore failed: %v", err)
+		}
+		t.Skip("Getwd does not fail after removing cwd on this OS")
+	}
+
+	got := projectConfigPath()
+	// Restore cwd before any assertions so subsequent tests aren't affected.
+	if err := os.Chdir(origDir); err != nil {
+		t.Fatalf("failed to restore cwd: %v", err)
+	}
+
+	if got != "" {
+		t.Errorf("projectConfigPath() with removed cwd = %q, want %q", got, "")
+	}
+}
+
 func TestResolve_WithProjectConfig(t *testing.T) {
 	// Create a project config file and point AGENTOPS_CONFIG at it
 	tmpDir := t.TempDir()
@@ -1450,6 +1499,22 @@ rpi:
 	if rc.RPITmuxCommand.Value != "home-tmux" || rc.RPITmuxCommand.Source != SourceHome {
 		t.Errorf("Resolve with home config: RPITmuxCommand = (%v, %v), want (home-tmux, %v)",
 			rc.RPITmuxCommand.Value, rc.RPITmuxCommand.Source, SourceHome)
+	}
+}
+
+func TestProjectConfigPath_GetwdFails(t *testing.T) {
+	t.Setenv("AGENTOPS_CONFIG", "")
+
+	// Inject a failing getwdFunc to cover the error branch on all platforms.
+	origGetwd := getwdFunc
+	getwdFunc = func() (string, error) {
+		return "", os.ErrNotExist
+	}
+	defer func() { getwdFunc = origGetwd }()
+
+	got := projectConfigPath()
+	if got != "" {
+		t.Errorf("projectConfigPath() = %q, want empty string when getwd fails", got)
 	}
 }
 

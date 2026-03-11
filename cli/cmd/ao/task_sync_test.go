@@ -880,3 +880,96 @@ func TestTaskSync_TaskEventJSONRoundTrip(t *testing.T) {
 		t.Errorf("BlockedBy = %v, want [t0]", decoded.BlockedBy)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// cloneMap
+// ---------------------------------------------------------------------------
+
+func TestCloneMap(t *testing.T) {
+	t.Run("nil input returns nil", func(t *testing.T) {
+		got := cloneMap(nil)
+		if got != nil {
+			t.Errorf("cloneMap(nil) = %v, want nil", got)
+		}
+	})
+
+	t.Run("empty map returns nil", func(t *testing.T) {
+		got := cloneMap(map[string]any{})
+		if got != nil {
+			t.Errorf("cloneMap(empty) = %v, want nil", got)
+		}
+	})
+
+	t.Run("clones all keys", func(t *testing.T) {
+		input := map[string]any{"a": 1, "b": "two", "c": true}
+		got := cloneMap(input)
+		if len(got) != 3 {
+			t.Fatalf("cloneMap len = %d, want 3", len(got))
+		}
+		if got["a"] != 1 {
+			t.Errorf("got[a] = %v, want 1", got["a"])
+		}
+		if got["b"] != "two" {
+			t.Errorf("got[b] = %v, want 'two'", got["b"])
+		}
+		if got["c"] != true {
+			t.Errorf("got[c] = %v, want true", got["c"])
+		}
+	})
+
+	t.Run("mutation of clone does not affect original", func(t *testing.T) {
+		input := map[string]any{"key": "original"}
+		cloned := cloneMap(input)
+		cloned["key"] = "modified"
+		if input["key"] != "original" {
+			t.Error("modifying clone should not affect original")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// writeTaskEvents edge cases
+// ---------------------------------------------------------------------------
+
+func TestWriteTaskEvents_WritesOnlyNewTasks(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Write first batch
+	batch1 := []TaskEvent{
+		{TaskID: "t-existing", Subject: "Existing", Status: "pending"},
+	}
+	if err := writeTaskEvents(tmp, batch1); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write second batch with mix of existing and new
+	batch2 := []TaskEvent{
+		{TaskID: "t-existing", Subject: "Duplicate", Status: "completed"},
+		{TaskID: "t-new", Subject: "New Task", Status: "pending"},
+	}
+	if err := writeTaskEvents(tmp, batch2); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := loadTaskEvents(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Should have 2 tasks: existing (original) and new
+	if len(loaded) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(loaded))
+	}
+
+	foundNew := false
+	for _, task := range loaded {
+		if task.TaskID == "t-new" {
+			foundNew = true
+			if task.Subject != "New Task" {
+				t.Errorf("new task subject = %q, want 'New Task'", task.Subject)
+			}
+		}
+	}
+	if !foundNew {
+		t.Error("new task not found in loaded events")
+	}
+}

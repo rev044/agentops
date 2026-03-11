@@ -3,6 +3,7 @@ package ratchet
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -410,6 +411,21 @@ func TestFindFirst_NotFound(t *testing.T) {
 	}
 }
 
+func TestNewLocator_UserHomeDirError(t *testing.T) {
+	t.Setenv("HOME", "")
+
+	loc, err := NewLocator(t.TempDir())
+	if err == nil {
+		t.Fatal("expected error when HOME is unset")
+	}
+	if loc != nil {
+		t.Error("expected nil locator on error")
+	}
+	if !strings.Contains(err.Error(), "get home directory") {
+		t.Errorf("expected 'get home directory' in error, got: %v", err)
+	}
+}
+
 func TestGetLocationPaths_NoPluginsNoRig(t *testing.T) {
 	// No .beads, no crew, no plugins dir
 	tmpDir := t.TempDir()
@@ -425,5 +441,15 @@ func TestGetLocationPaths_NoPluginsNoRig(t *testing.T) {
 	}
 	if _, ok := paths[LocationTown]; !ok {
 		t.Error("expected town path")
+	}
+}
+
+func TestNewLocator_RelativeDirResolvesAbsolute(t *testing.T) {
+	loc, err := NewLocator("relative/path/that/does/not/exist")
+	if err != nil {
+		t.Fatalf("NewLocator failed: %v", err)
+	}
+	if !filepath.IsAbs(loc.startDir) {
+		t.Fatalf("expected absolute startDir, got: %s", loc.startDir)
 	}
 }

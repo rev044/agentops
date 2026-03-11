@@ -190,9 +190,15 @@ func truncateForError(s string, maxLen int) string {
 	return string(runes[:maxLen]) + "..."
 }
 
+// openFileFunc is the function used to open files for parsing.
+// It can be overridden in tests to inject close errors.
+var openFileFunc = func(path string) (io.ReadCloser, error) {
+	return os.Open(path)
+}
+
 // ParseFile parses a JSONL file by path.
 func (p *Parser) ParseFile(path string) (result *ParseResult, err error) {
-	f, err := os.Open(path)
+	f, err := openFileFunc(path)
 	if err != nil {
 		return nil, fmt.Errorf("open file: %w", err)
 	}

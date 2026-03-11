@@ -179,3 +179,17 @@ Fourth paragraph should be excluded.
 		t.Errorf("result too long: %d chars", len(result))
 	}
 }
+
+func TestExtractFirstParagraphs_SkipsFrontMatterDelimiters(t *testing.T) {
+	// The function skips lines that are exactly "---" (frontmatter delimiters)
+	// and lines starting with "#" (headers). Content between delimiters is NOT
+	// skipped — that's handled by the caller's parser.
+	content := "---\n---\n\n# Heading\n\nFirst real paragraph.\n\nSecond paragraph.\n"
+	result := extractFirstParagraphs(content, 2)
+	// Each content line appends a trailing space; paragraphs separated by \n.
+	// strings.TrimSpace only trims the outer boundaries.
+	want := "First real paragraph. \nSecond paragraph."
+	if result != want {
+		t.Errorf("expected %q, got %q", want, result)
+	}
+}

@@ -132,3 +132,33 @@ func TestLiveStatusAtomicWrite(t *testing.T) {
 		t.Errorf(".tmp file should not persist after second write")
 	}
 }
+
+func TestWriteLiveStatus_WriteError(t *testing.T) {
+	// Writing to a nonexistent directory should fail.
+	path := filepath.Join(t.TempDir(), "no-such-dir", "sub", "live-status.md")
+	phases := []PhaseProgress{
+		{Name: "Research", Elapsed: 1 * time.Second},
+	}
+	err := WriteLiveStatus(path, phases, 0)
+	if err == nil {
+		t.Fatal("expected error writing to nonexistent directory")
+	}
+	if !strings.Contains(err.Error(), "write tmp") {
+		t.Errorf("expected 'write tmp' in error, got %q", err.Error())
+	}
+}
+
+func TestNormalizeLiveStatusField_LongTruncation(t *testing.T) {
+	// A string longer than 72 characters should be truncated with "..."
+	long := strings.Repeat("x", 100)
+	got := normalizeLiveStatusField(long)
+	if len(got) != 72 {
+		t.Errorf("expected truncated length 72, got %d", len(got))
+	}
+	if !strings.HasSuffix(got, "...") {
+		t.Errorf("expected truncated string to end with '...', got %q", got[len(got)-5:])
+	}
+	if got != strings.Repeat("x", 69)+"..." {
+		t.Errorf("unexpected truncation result: %q", got)
+	}
+}

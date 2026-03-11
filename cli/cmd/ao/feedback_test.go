@@ -1160,3 +1160,44 @@ func TestNeedsUtilityMigration_EmptyFile(t *testing.T) {
 		t.Error("empty file should not need migration")
 	}
 }
+
+func TestApplyJSONLRewardFields_IncrementExistingCounters(t *testing.T) {
+	// When data already has helpful_count/harmful_count as float64 (from JSON),
+	// the function should increment them rather than reset to 1.
+	feedbackHelpful = true
+	feedbackHarmful = false
+	defer func() { feedbackHelpful = false }()
+
+	data := map[string]any{
+		"utility":       0.7,
+		"reward_count":  float64(3),
+		"helpful_count": float64(5),
+	}
+	applyJSONLRewardFields(data, 0.7, 0.8, 0.9)
+
+	if data["helpful_count"] != 6 {
+		t.Errorf("helpful_count = %v, want 6", data["helpful_count"])
+	}
+	if data["reward_count"] != 4 {
+		t.Errorf("reward_count = %v, want 4", data["reward_count"])
+	}
+	if data["utility"] != 0.8 {
+		t.Errorf("utility = %v, want 0.8", data["utility"])
+	}
+}
+
+func TestApplyJSONLRewardFields_IncrementHarmfulCounter(t *testing.T) {
+	feedbackHelpful = false
+	feedbackHarmful = true
+	defer func() { feedbackHarmful = false }()
+
+	data := map[string]any{
+		"utility":       0.5,
+		"harmful_count": float64(2),
+	}
+	applyJSONLRewardFields(data, 0.5, 0.3, 0.1)
+
+	if data["harmful_count"] != 3 {
+		t.Errorf("harmful_count = %v, want 3", data["harmful_count"])
+	}
+}

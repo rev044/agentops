@@ -681,10 +681,7 @@ func TestExtra_parseListSection_SectionNotFound(t *testing.T) {
 
 func TestExtra_parseGatesTable_NoGatesSection(t *testing.T) {
 	lines := []string{"## Other", "| a | b |"}
-	goals, err := parseGatesTable(lines)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(lines)
 	if goals != nil {
 		t.Errorf("expected nil goals for no Gates section, got %v", goals)
 	}
@@ -698,10 +695,7 @@ func TestExtra_parseGatesTable_EmptyRowSkipped(t *testing.T) {
 		"| | `echo hi` | 5 | empty id |",
 		"| valid-id | `echo ok` | 3 | real goal |",
 	}
-	goals, err := parseGatesTable(lines)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(lines)
 	// The row with empty ID should be skipped.
 	if len(goals) != 1 {
 		t.Errorf("got %d goals, want 1 (empty ID row skipped)", len(goals))
@@ -718,10 +712,7 @@ func TestExtra_parseGatesTable_InvalidWeightDefaultsTo5(t *testing.T) {
 		"|---|---|---|---|",
 		"| my-goal | `echo ok` | abc | test desc |",
 	}
-	goals, err := parseGatesTable(lines)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	goals := parseGatesTable(lines)
 	if len(goals) != 1 {
 		t.Fatalf("got %d goals, want 1", len(goals))
 	}
@@ -737,7 +728,7 @@ func TestExtra_parseGatesTable_OutOfRangeWeightDefaultsTo5(t *testing.T) {
 		"|---|---|---|---|",
 		"| my-goal | `echo ok` | 99 | test |",
 	}
-	goals, _ := parseGatesTable(lines)
+	goals := parseGatesTable(lines)
 	if goals[0].Weight != 5 {
 		t.Errorf("Weight = %d, want 5 (default for out-of-range)", goals[0].Weight)
 	}
@@ -750,7 +741,7 @@ func TestExtra_parseGatesTable_DescriptionFallsBackToID(t *testing.T) {
 		"|---|---|---|---|",
 		"| my-goal | `echo ok` | 3 | |",
 	}
-	goals, _ := parseGatesTable(lines)
+	goals := parseGatesTable(lines)
 	if goals[0].Description != "my-goal" {
 		t.Errorf("Description = %q, want %q (fallback to ID)", goals[0].Description, "my-goal")
 	}

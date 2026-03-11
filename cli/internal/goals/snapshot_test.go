@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -151,6 +152,48 @@ func TestSaveSnapshot_ReadOnlyDir(t *testing.T) {
 	_, err := SaveSnapshot(snap, filepath.Join(readOnly, "snapshots"))
 	if err == nil {
 		t.Error("expected error when saving to read-only directory")
+	}
+}
+
+// TestSaveSnapshot_MkdirAllError exercises the MkdirAll error path in SaveSnapshot
+// (line 33) by attempting to create a directory under a file (not a directory).
+func TestSaveSnapshot_MkdirAllError(t *testing.T) {
+	tmp := t.TempDir()
+	// Create a regular file where a directory is expected
+	blocker := filepath.Join(tmp, "blocker")
+	if err := os.WriteFile(blocker, []byte("not a dir"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	snap := &Snapshot{Timestamp: "2026-01-01T00:00:00Z"}
+	_, err := SaveSnapshot(snap, filepath.Join(blocker, "nested"))
+	if err == nil {
+		t.Fatal("expected error when MkdirAll fails due to file blocking path")
+	}
+	expected := "creating snapshot dir"
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("error = %q, want it to contain %q", err.Error(), expected)
+	}
+}
+
+func TestSaveSnapshot_MarshalIndentError(t *testing.T) {
+	dir := t.TempDir()
+
+	// Override the marshaler to simulate a json.MarshalIndent failure.
+	orig := jsonMarshalIndentFn
+	jsonMarshalIndentFn = func(v any, prefix, indent string) ([]byte, error) {
+		return nil, fmt.Errorf("simulated marshal indent error")
+	}
+	defer func() { jsonMarshalIndentFn = orig }()
+
+	snap := &Snapshot{Timestamp: "2026-01-01T00:00:00Z"}
+	_, err := SaveSnapshot(snap, dir)
+	if err == nil {
+		t.Fatal("expected error from simulated marshal failure")
+	}
+	wantMsg := "marshaling snapshot"
+	if !strings.Contains(err.Error(), wantMsg) {
+		t.Errorf("error = %q, want it to contain %q", err.Error(), wantMsg)
 	}
 }
 

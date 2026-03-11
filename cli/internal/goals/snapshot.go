@@ -27,6 +27,10 @@ type Snapshot struct {
 	Summary   SnapshotSummary `json:"summary"`
 }
 
+// jsonMarshalIndentFn is the indented marshaler used by SaveSnapshot. Override
+// in tests to simulate encoding failures.
+var jsonMarshalIndentFn = json.MarshalIndent
+
 // SaveSnapshot writes a snapshot to disk as indented JSON.
 // Returns the path of the written file.
 func SaveSnapshot(s *Snapshot, dir string) (string, error) {
@@ -37,7 +41,7 @@ func SaveSnapshot(s *Snapshot, dir string) (string, error) {
 	ts := time.Now().UTC().Format("2006-01-02T15-04-05.000")
 	filename := filepath.Join(dir, ts+".json")
 
-	data, err := json.MarshalIndent(s, "", "  ")
+	data, err := jsonMarshalIndentFn(s, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("marshaling snapshot: %w", err)
 	}

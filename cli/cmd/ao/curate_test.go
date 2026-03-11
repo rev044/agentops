@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestCurate_Catalog_Learning catalogs a learning artifact with correct
@@ -520,5 +521,58 @@ Context assembly should read curated JSON artifacts.
 	}
 	if !result.Verified {
 		t.Fatalf("expected verified=true in pipeline path, got false (%+v)", result)
+	}
+}
+
+func TestCountArtifactsSince(t *testing.T) {
+	tmp := t.TempDir()
+	learningsDir := filepath.Join(tmp, "learnings")
+	patternsDir := filepath.Join(tmp, "patterns")
+	os.MkdirAll(learningsDir, 0o755)
+	os.MkdirAll(patternsDir, 0o755)
+
+	now := time.Now()
+	recent := now.Add(-1 * time.Hour).Format(time.RFC3339)
+	old := now.Add(-48 * time.Hour).Format(time.RFC3339)
+	since := now.Add(-24 * time.Hour)
+
+	// Recent artifact in learnings (should count)
+	a1, _ := json.Marshal(curateArtifact{ID: "l1", CuratedAt: recent})
+	os.WriteFile(filepath.Join(learningsDir, "l1.json"), a1, 0o644)
+
+	// Old artifact in learnings (should not count)
+	a2, _ := json.Marshal(curateArtifact{ID: "l2", CuratedAt: old})
+	os.WriteFile(filepath.Join(learningsDir, "l2.json"), a2, 0o644)
+
+	// Recent artifact in patterns (should count)
+	a3, _ := json.Marshal(curateArtifact{ID: "p1", CuratedAt: recent})
+	os.WriteFile(filepath.Join(patternsDir, "p1.json"), a3, 0o644)
+
+	// Non-json file (should be skipped)
+	os.WriteFile(filepath.Join(learningsDir, "readme.md"), []byte("# Learnings"), 0o644)
+
+	count := countArtifactsSince(learningsDir, patternsDir, since)
+	if count != 2 {
+		t.Errorf("count = %d, want 2 (1 recent learning + 1 recent pattern)", count)
+	}
+}
+
+func TestCountArtifactsSince_EmptyDirs(t *testing.T) {
+	tmp := t.TempDir()
+	count := countArtifactsSince(filepath.Join(tmp, "missing1"), filepath.Join(tmp, "missing2"), time.Now())
+	if count != 0 {
+		t.Errorf("count = %d, want 0 for missing dirs", count)
+	}
+}
+
+func TestCountArtifactsSince_MalformedJSON(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "learnings")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "bad.json"), []byte("not json"), 0o644)
+
+	count := countArtifactsSince(dir, filepath.Join(tmp, "empty"), time.Now().Add(-24*time.Hour))
+	if count != 0 {
+		t.Errorf("count = %d, want 0 for malformed JSON", count)
 	}
 }

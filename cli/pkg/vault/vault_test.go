@@ -97,38 +97,18 @@ func TestIsInVault(t *testing.T) {
 }
 
 func TestDetectVault_GetwdError(t *testing.T) {
-	// Trigger os.Getwd() failure by chdir-ing to a deleted directory.
-	// On macOS, Getwd may still succeed for deleted dirs (kernel caches vnode),
-	// so this test verifies the behavior without guaranteeing the error branch.
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Inject a failing getwdFunc to reliably cover the error branch.
+	origFunc := getwdFunc
+	defer func() { getwdFunc = origFunc }()
 
-	tmpDir, err := os.MkdirTemp("", "vault-getwd-test")
-	if err != nil {
-		t.Fatal(err)
+	getwdFunc = func() (string, error) {
+		return "", os.ErrPermission
 	}
-
-	if err := os.Chdir(tmpDir); err != nil {
-		_ = os.RemoveAll(tmpDir)
-		t.Fatal(err)
-	}
-
-	// Remove the directory while we're in it
-	_ = os.RemoveAll(tmpDir)
 
 	result := DetectVault("")
-
-	// Restore cwd before assertions so test cleanup works
-	if err := os.Chdir(origDir); err != nil {
-		t.Fatalf("failed to restore working directory: %v", err)
+	if result != "" {
+		t.Errorf("DetectVault(\"\") with Getwd error = %q, want empty string", result)
 	}
-
-	// On macOS Getwd succeeds for deleted dirs, so result may not be "".
-	// On Linux, Getwd fails and result should be "".
-	// Either way, verify no panic occurred.
-	_ = result
 }
 
 func TestDetectVault_WithNestedVault(t *testing.T) {
@@ -200,30 +180,18 @@ func TestExtra_DetectVault_FoundVault(t *testing.T) {
 	}
 }
 
-// TestExtra_DetectVault_GetWdError covers the Getwd error branch.
+// TestExtra_DetectVault_GetWdError covers the Getwd error branch
+// by injecting a failing getwdFunc.
 func TestExtra_DetectVault_GetWdError(t *testing.T) {
-	tmp := t.TempDir()
-	sub := filepath.Join(tmp, "removeme")
-	if err := os.MkdirAll(sub, 0700); err != nil {
-		t.Fatal(err)
-	}
+	origFunc := getwdFunc
+	defer func() { getwdFunc = origFunc }()
 
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(origDir)
-
-	if err := os.Chdir(sub); err != nil {
-		t.Fatal(err)
-	}
-	// Remove the directory while we're in it.
-	if err := os.RemoveAll(sub); err != nil {
-		t.Fatal(err)
+	getwdFunc = func() (string, error) {
+		return "", os.ErrNotExist
 	}
 
 	result := DetectVault("")
-	// On macOS/Linux, Getwd on removed dir may still work, so we just
-	// verify it doesn't panic and returns a string.
-	_ = result
+	if result != "" {
+		t.Errorf("DetectVault(\"\") with failing Getwd = %q, want empty string", result)
+	}
 }

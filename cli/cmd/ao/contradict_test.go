@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -282,5 +283,17 @@ func TestCountNegations(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("countNegations(%q) = %d, want %d", tt.text, got, tt.want)
 		}
+	}
+}
+
+func TestDetectContradiction_OpposingTerms(t *testing.T) {
+	// Use "enable" vs "disable" — neither is a negation word, so the negation
+	// asymmetry check won't fire and the opposition pair check is reached.
+	result := detectContradiction("enable logging for production", "disable logging for production")
+	if result == "" {
+		t.Fatal("expected opposing terms detection for 'enable' vs 'disable'")
+	}
+	if !strings.Contains(result, "opposing terms") {
+		t.Errorf("expected 'opposing terms' in result, got %q", result)
 	}
 }

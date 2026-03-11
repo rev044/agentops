@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -282,6 +283,70 @@ func TestTruncateOutput_MultiByteRunes(t *testing.T) {
 	}
 }
 
+// TestMeasureOne_StartError exercises the cmd.Start() error path in MeasureOne
+// (lines 109-113). When bash itself cannot start, the function should return
+// a fail result with the error message in Output.
+func TestMeasureOne_StartError(t *testing.T) {
+	// Save current PATH and set it to empty to make "bash" unresolvable.
+	origPath := os.Getenv("PATH")
+	t.Setenv("PATH", "")
+	defer os.Setenv("PATH", origPath)
+
+	goal := Goal{
+		ID:     "start-error",
+		Check:  "echo hello",
+		Weight: 4,
+	}
+	m := MeasureOne(goal, 5*time.Second)
+	if m.Result != "fail" {
+		t.Errorf("Result = %q, want %q for start error", m.Result, "fail")
+	}
+	if m.GoalID != "start-error" {
+		t.Errorf("GoalID = %q, want %q", m.GoalID, "start-error")
+	}
+	if m.Weight != 4 {
+		t.Errorf("Weight = %d, want 4", m.Weight)
+	}
+	if m.Output == "" {
+		t.Error("Output should contain the start error message")
+	}
+	if m.Duration < 0 {
+		t.Errorf("Duration should be >= 0, got %f", m.Duration)
+	}
+}
+
+// TestRunGoals_OnlyMetaGoals_EarlyReturn exercises the early return at line 186
+// when all goals are meta-type and the nonMeta slice is empty.
+func TestRunGoals_OnlyMetaGoals_EarlyReturn(t *testing.T) {
+	goals := []Goal{
+		{ID: "meta-a", Check: "echo a", Weight: 2, Type: GoalTypeMeta},
+		{ID: "meta-b", Check: "echo b", Weight: 3, Type: GoalTypeMeta},
+	}
+	measurements := runGoals(goals, 5*time.Second)
+	if len(measurements) != 2 {
+		t.Fatalf("got %d measurements, want 2", len(measurements))
+	}
+	if measurements[0].GoalID != "meta-a" {
+		t.Errorf("measurements[0].GoalID = %q, want %q", measurements[0].GoalID, "meta-a")
+	}
+	if measurements[1].GoalID != "meta-b" {
+		t.Errorf("measurements[1].GoalID = %q, want %q", measurements[1].GoalID, "meta-b")
+	}
+	for i, m := range measurements {
+		if m.Result != "pass" {
+			t.Errorf("measurements[%d].Result = %q, want %q", i, m.Result, "pass")
+		}
+	}
+}
+
+// TestRunGoals_EmptyGoals exercises runGoals with no goals at all.
+func TestRunGoals_EmptyGoals(t *testing.T) {
+	measurements := runGoals([]Goal{}, 5*time.Second)
+	if len(measurements) != 0 {
+		t.Errorf("got %d measurements, want 0 for empty goals", len(measurements))
+	}
+}
+
 func TestGitSHA_OutsideGitRepo(t *testing.T) {
 	origDir, err := os.Getwd()
 	if err != nil {
@@ -307,6 +372,53 @@ func TestChildGroupsInitialized(t *testing.T) {
 	// Before the fix, it starts nil and relies on lazy init in trackChild.
 	if childGroups.pids == nil {
 		t.Fatal("childGroups.pids is nil at package init; expected eager initialization")
+	}
+}
+
+func TestRunGoals_SignalHandlerCallsExit(t *testing.T) {
+	// Exercise the signal handler branch in runGoals: when a SIGINT arrives
+	// during goal execution, the handler calls killAllChildren() and osExitFn(130).
+	// We override osExitFn to capture the exit code instead of terminating.
+	var exitCode int
+	exitCalled := make(chan struct{})
+	origExit := osExitFn
+	osExitFn = func(code int) {
+		exitCode = code
+		close(exitCalled)
+		// Block forever so the goroutine doesn't return and cause races.
+		select {}
+	}
+	defer func() { osExitFn = origExit }()
+
+	// Use a goal that sleeps long enough for us to send a signal.
+	goals := []Goal{
+		{ID: "slow", Check: "sleep 30", Weight: 1, Type: GoalTypeHealth},
+	}
+
+	done := make(chan struct{})
+	go func() {
+		runGoals(goals, 30*time.Second)
+		close(done)
+	}()
+
+	// Give the goroutine time to start and install the signal handler,
+	// then send SIGINT to ourselves.
+	time.Sleep(100 * time.Millisecond)
+	proc, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		t.Fatalf("FindProcess: %v", err)
+	}
+	if err := proc.Signal(syscall.SIGINT); err != nil {
+		t.Fatalf("sending SIGINT: %v", err)
+	}
+
+	select {
+	case <-exitCalled:
+		if exitCode != 130 {
+			t.Errorf("exit code = %d, want 130", exitCode)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for signal handler to call osExitFn")
 	}
 }
 

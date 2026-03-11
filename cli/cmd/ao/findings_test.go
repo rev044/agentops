@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -113,6 +114,143 @@ func TestFindingsStats_JSON(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// buildFindingStats
+// ---------------------------------------------------------------------------
+
+func TestBuildFindingStats_EmptyFindings(t *testing.T) {
+	stats := buildFindingStats(nil)
+	if stats.Total != 0 {
+		t.Errorf("Total = %d, want 0", stats.Total)
+	}
+	if stats.TotalHits != 0 {
+		t.Errorf("TotalHits = %d, want 0", stats.TotalHits)
+	}
+	if len(stats.MostCited) != 0 {
+		t.Errorf("MostCited should be empty, got %d", len(stats.MostCited))
+	}
+}
+
+func TestBuildFindingStats_SortsByHitCountDescending(t *testing.T) {
+	findings := []knowledgeFinding{
+		{ID: "f-low", Status: "active", Severity: "low", Detectability: "manual", HitCount: 1},
+		{ID: "f-high", Status: "active", Severity: "high", Detectability: "mechanical", HitCount: 10},
+		{ID: "f-mid", Status: "retired", Severity: "medium", Detectability: "manual", HitCount: 5},
+	}
+	stats := buildFindingStats(findings)
+	if stats.Total != 3 {
+		t.Errorf("Total = %d, want 3", stats.Total)
+	}
+	if stats.TotalHits != 16 {
+		t.Errorf("TotalHits = %d, want 16", stats.TotalHits)
+	}
+	if stats.ByStatus["active"] != 2 {
+		t.Errorf("ByStatus[active] = %d, want 2", stats.ByStatus["active"])
+	}
+	if stats.ByStatus["retired"] != 1 {
+		t.Errorf("ByStatus[retired] = %d, want 1", stats.ByStatus["retired"])
+	}
+	if stats.BySeverity["high"] != 1 {
+		t.Errorf("BySeverity[high] = %d, want 1", stats.BySeverity["high"])
+	}
+	if stats.ByDetectability["mechanical"] != 1 {
+		t.Errorf("ByDetectability[mechanical] = %d, want 1", stats.ByDetectability["mechanical"])
+	}
+	// Most cited should be ordered by hit_count descending
+	if len(stats.MostCited) != 3 {
+		t.Fatalf("MostCited len = %d, want 3", len(stats.MostCited))
+	}
+	if stats.MostCited[0].ID != "f-high" {
+		t.Errorf("MostCited[0] = %q, want f-high", stats.MostCited[0].ID)
+	}
+}
+
+func TestBuildFindingStats_MoreThanFiveCapsToFive(t *testing.T) {
+	findings := make([]knowledgeFinding, 8)
+	for i := range findings {
+		findings[i] = knowledgeFinding{
+			ID:       "f-" + strconv.Itoa(i),
+			Status:   "active",
+			HitCount: 8 - i,
+		}
+	}
+	stats := buildFindingStats(findings)
+	if len(stats.MostCited) != 5 {
+		t.Errorf("MostCited len = %d, want 5 (capped)", len(stats.MostCited))
+	}
+}
+
+func TestBuildFindingStats_EmptyFieldsFallbackToUnknown(t *testing.T) {
+	findings := []knowledgeFinding{
+		{ID: "f-blank", Status: "", Severity: "", Detectability: ""},
+	}
+	stats := buildFindingStats(findings)
+	if stats.ByStatus["unknown"] != 1 {
+		t.Errorf("ByStatus[unknown] = %d, want 1", stats.ByStatus["unknown"])
+	}
+	if stats.BySeverity["unknown"] != 1 {
+		t.Errorf("BySeverity[unknown] = %d, want 1", stats.BySeverity["unknown"])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// selectFindingFiles
+// ---------------------------------------------------------------------------
+
+func TestSelectFindingFiles_AllFlag(t *testing.T) {
+	repo := t.TempDir()
+	dir := filepath.Join(repo, ".agents", SectionFindings)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"f-one", "f-two"} {
+		writeFindingFixture(t, repo, name, "Title", "active", 1)
+	}
+	files, err := selectFindingFiles(dir, nil, true)
+	if err != nil {
+		t.Fatalf("selectFindingFiles(all=true): %v", err)
+	}
+	if len(files) != 2 {
+		t.Errorf("expected 2 files, got %d", len(files))
+	}
+}
+
+func TestSelectFindingFiles_NotFound(t *testing.T) {
+	repo := t.TempDir()
+	writeFindingFixture(t, repo, "f-exists", "Title", "active", 1)
+	dir := filepath.Join(repo, ".agents", SectionFindings)
+	_, err := selectFindingFiles(dir, []string{"nonexistent-id"}, false)
+	if err == nil {
+		t.Error("expected error for non-existent finding ID")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// normalizeStatKey
+// ---------------------------------------------------------------------------
+
+func TestNormalizeStatKey(t *testing.T) {
+	tests := []struct {
+		value    string
+		fallback string
+		want     string
+	}{
+		{"active", "unknown", "active"},
+		{"  ", "unknown", "unknown"},
+		{"", "default", "default"},
+		{"  high  ", "unknown", "high"},
+	}
+	for _, tt := range tests {
+		got := normalizeStatKey(tt.value, tt.fallback)
+		if got != tt.want {
+			t.Errorf("normalizeStatKey(%q, %q) = %q, want %q", tt.value, tt.fallback, got, tt.want)
+		}
+	}
+}
+
 func writeFindingFixture(t *testing.T, repoRoot, id, title, status string, hits int) string {
 	t.Helper()
 	dir := filepath.Join(repoRoot, ".agents", SectionFindings)
@@ -143,4 +281,122 @@ Summary text for ` + id + `.
 		t.Fatalf("write finding fixture: %v", err)
 	}
 	return path
+}
+
+func TestUpdateFindingFrontMatter_FileNotFound(t *testing.T) {
+	err := updateFindingFrontMatter("/nonexistent/path/finding.md", map[string]string{"status": "retired"})
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+	if !strings.Contains(err.Error(), "read finding") {
+		t.Errorf("expected 'read finding' in error, got %q", err.Error())
+	}
+}
+
+func TestUpdateFindingFrontMatter_NoFrontMatter(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "finding.md")
+	// File with no frontmatter delimiters.
+	if err := os.WriteFile(path, []byte("# Title\n\nBody text.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := updateFindingFrontMatter(path, map[string]string{"status": "active"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	content := string(data)
+	// Should have wrapped content with new frontmatter containing the key.
+	if !strings.Contains(content, "status: active") {
+		t.Errorf("expected 'status: active' in output, got:\n%s", content)
+	}
+	if !strings.Contains(content, "---") {
+		t.Error("expected frontmatter delimiters in output")
+	}
+}
+
+func TestUpdateFindingFrontMatter_UpdateExistingKey(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "finding.md")
+	original := "---\nstatus: active\nseverity: high\n---\n\n# Title\n\nBody.\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := updateFindingFrontMatter(path, map[string]string{"status": "retired"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	content := string(data)
+	if !strings.Contains(content, "status: retired") {
+		t.Errorf("expected 'status: retired', got:\n%s", content)
+	}
+	// Original key should be replaced, not duplicated.
+	if strings.Count(content, "status:") != 1 {
+		t.Errorf("expected exactly one 'status:' line, got:\n%s", content)
+	}
+	if !strings.Contains(content, "severity: high") {
+		t.Error("expected other frontmatter keys to be preserved")
+	}
+	if !strings.Contains(content, "Body.") {
+		t.Error("expected body text to be preserved")
+	}
+}
+
+func TestPrintStringCountMap(t *testing.T) {
+	// Capture stdout
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	values := map[string]int{
+		"beta":  3,
+		"alpha": 5,
+		"gamma": 1,
+	}
+	printStringCountMap(values)
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	out := buf.String()
+
+	// Should be sorted alphabetically
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("lines = %d, want 3", len(lines))
+	}
+	if !strings.Contains(lines[0], "alpha: 5") {
+		t.Errorf("first line = %q, want alpha: 5", lines[0])
+	}
+	if !strings.Contains(lines[1], "beta: 3") {
+		t.Errorf("second line = %q, want beta: 3", lines[1])
+	}
+	if !strings.Contains(lines[2], "gamma: 1") {
+		t.Errorf("third line = %q, want gamma: 1", lines[2])
+	}
+}
+
+func TestPrintStringCountMap_Empty(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printStringCountMap(map[string]int{})
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	out := buf.String()
+	if out != "" {
+		t.Errorf("empty map should produce no output, got: %q", out)
+	}
 }

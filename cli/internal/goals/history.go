@@ -19,10 +19,26 @@ type HistoryEntry struct {
 	GitSHA       string  `json:"git_sha"`
 }
 
+// jsonMarshalFn is the marshaler used by AppendHistory. Override in tests to
+// simulate encoding failures.
+var jsonMarshalFn = json.Marshal
+
+// openFileFn is the file opener used by AppendHistory. Override in tests to
+// inject a file whose Close returns an error.
+var openFileFn = func(path string) (writeCloser, error) {
+	return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+}
+
+// writeCloser is satisfied by *os.File and test doubles.
+type writeCloser interface {
+	Write([]byte) (int, error)
+	Close() error
+}
+
 // AppendHistory appends a single history entry as a JSON line to the given file.
 // Creates the file if it does not exist.
 func AppendHistory(entry HistoryEntry, path string) (err error) {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := openFileFn(path)
 	if err != nil {
 		return err
 	}
@@ -32,7 +48,7 @@ func AppendHistory(entry HistoryEntry, path string) (err error) {
 		}
 	}()
 
-	data, err := json.Marshal(entry)
+	data, err := jsonMarshalFn(entry)
 	if err != nil {
 		return err
 	}

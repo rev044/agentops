@@ -216,6 +216,123 @@ func TestTranscriptContainsSessionID(t *testing.T) {
 	}
 }
 
+func TestClampReward(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  float64
+		expect float64
+	}{
+		{"negative clamped to zero", -0.5, 0},
+		{"zero stays zero", 0, 0},
+		{"mid-range unchanged", 0.5, 0.5},
+		{"one stays one", 1.0, 1.0},
+		{"above one clamped", 1.5, 1.0},
+		{"large negative clamped", -100.0, 0},
+		{"large positive clamped", 100.0, 1.0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := clampReward(tt.input)
+			if got != tt.expect {
+				t.Errorf("clampReward(%v) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestFindTranscriptForSession_EmptySessionID(t *testing.T) {
+	tmpDir := t.TempDir()
+	got := findTranscriptForSession(tmpDir, "")
+	if got != "" {
+		t.Errorf("expected empty string for blank session ID, got %q", got)
+	}
+	got = findTranscriptForSession(tmpDir, "   ")
+	if got != "" {
+		t.Errorf("expected empty string for whitespace session ID, got %q", got)
+	}
+}
+
+func TestFindTranscriptForSession_NoMatchingTranscript(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "project-y")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "sess.jsonl"),
+		[]byte(`{"type":"user","sessionId":"other-id"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got := findTranscriptForSession(tmpDir, "nonexistent-session")
+	if got != "" {
+		t.Errorf("expected empty for non-matching session, got %q", got)
+	}
+}
+
+func TestFindMostRecentTranscript_EmptyDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	got := findMostRecentTranscript(tmpDir)
+	if got != "" {
+		t.Errorf("expected empty for dir with no .jsonl files, got %q", got)
+	}
+}
+
+func TestFindMostRecentTranscript_NonexistentDir(t *testing.T) {
+	got := findMostRecentTranscript("/nonexistent/path/xyz")
+	if got != "" {
+		t.Errorf("expected empty for nonexistent dir, got %q", got)
+	}
+}
+
+func TestAnalyzeTranscript_EmptySessionIDGenerated(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Transcript with no sessionId field — should generate one
+	content := `{"type":"user","message":{"content":"hello"}}
+{"type":"assistant","message":{"content":"hi"}}`
+	path := filepath.Join(tmpDir, "no-session.jsonl")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := analyzeTranscript(path, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if outcome.SessionID == "" {
+		t.Error("expected generated session ID, got empty")
+	}
+	if outcome.TotalLines != 2 {
+		t.Errorf("expected 2 lines, got %d", outcome.TotalLines)
+	}
+}
+
+func TestAnalyzeTranscript_NonexistentFile(t *testing.T) {
+	_, err := analyzeTranscript("/nonexistent/file.jsonl", "")
+	if err == nil {
+		t.Error("expected error for nonexistent file")
+	}
+}
+
+func TestTranscriptContainsSessionID_NonexistentFile(t *testing.T) {
+	got := transcriptContainsSessionID("/nonexistent/file.jsonl", "abc")
+	if got {
+		t.Error("expected false for nonexistent file")
+	}
+}
+
+func TestTranscriptContainsSessionID_SubstringMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "sub.jsonl")
+	// Contains the session ID as a substring in a non-sessionId field
+	content := `{"type":"user","message":{"content":"session target-sess happened"}}`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Should match via strings.Contains fallback
+	got := transcriptContainsSessionID(path, "target-sess")
+	if !got {
+		t.Error("expected true for substring match")
+	}
+}
+
 func TestSignalWeights(t *testing.T) {
 	// Verify weights sum to <= 1.0 for positive signals
 	positiveSum := weightTestsPass + weightGitPush + weightGitCommit +

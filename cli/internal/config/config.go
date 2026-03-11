@@ -227,12 +227,16 @@ func homeConfigPath() string {
 	return filepath.Join(home, ".agentops", "config.yaml")
 }
 
+// getwdFunc is the function used to get the current working directory.
+// It can be overridden in tests to simulate os.Getwd failures.
+var getwdFunc = os.Getwd
+
 // projectConfigPath returns the project config path.
 func projectConfigPath() string {
 	if override := strings.TrimSpace(os.Getenv("AGENTOPS_CONFIG")); override != "" {
 		return override
 	}
-	cwd, err := os.Getwd()
+	cwd, err := getwdFunc()
 	if err != nil {
 		return ""
 	}

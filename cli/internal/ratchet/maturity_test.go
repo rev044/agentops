@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1549,3 +1550,116 @@ func TestFilterLearningsByMaturity_IncludesMD(t *testing.T) {
 		t.Error("expected .md file in established results")
 	}
 }
+
+// --- GlobLearningFiles error paths ---
+
+func TestGlobLearningFiles_BadPatternJSONL(t *testing.T) {
+	// A directory name containing '[' causes filepath.Glob to return ErrBadPattern
+	// because the resulting pattern like "[bad/*.jsonl" is invalid.
+	badDir := filepath.Join(t.TempDir(), "[bad")
+	if err := os.MkdirAll(badDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := GlobLearningFiles(badDir)
+	if err == nil {
+		t.Fatal("expected error from GlobLearningFiles with bad pattern dir")
+	}
+	if !strings.Contains(err.Error(), "glob jsonl") {
+		t.Errorf("expected 'glob jsonl' in error, got: %v", err)
+	}
+	if files != nil {
+		t.Errorf("expected nil files on error, got %v", files)
+	}
+}
+
+// --- ScanForMaturityTransitions error path ---
+
+func TestScanForMaturityTransitions_GlobError(t *testing.T) {
+	badDir := filepath.Join(t.TempDir(), "[invalid")
+	if err := os.MkdirAll(badDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := ScanForMaturityTransitions(badDir)
+	if err == nil {
+		t.Fatal("expected error from ScanForMaturityTransitions with bad dir")
+	}
+	if !strings.Contains(err.Error(), "glob learnings") {
+		t.Errorf("expected 'glob learnings' in error, got: %v", err)
+	}
+	if results != nil {
+		t.Errorf("expected nil results on error, got %v", results)
+	}
+}
+
+// --- filterLearningsByMaturity error path ---
+
+func TestFilterLearningsByMaturity_GlobError(t *testing.T) {
+	badDir := filepath.Join(t.TempDir(), "[invalid")
+	if err := os.MkdirAll(badDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := filterLearningsByMaturity(badDir, types.MaturityProvisional)
+	if err == nil {
+		t.Fatal("expected error from filterLearningsByMaturity with bad dir")
+	}
+	if !strings.Contains(err.Error(), "glob learnings") {
+		t.Errorf("expected 'glob learnings' in error, got: %v", err)
+	}
+	if results != nil {
+		t.Errorf("expected nil results on error, got %v", results)
+	}
+}
+
+// --- GetMaturityDistribution error path ---
+
+func TestGetMaturityDistribution_GlobError(t *testing.T) {
+	badDir := filepath.Join(t.TempDir(), "[invalid")
+	if err := os.MkdirAll(badDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	dist, err := GetMaturityDistribution(badDir)
+	if err == nil {
+		t.Fatal("expected error from GetMaturityDistribution with bad dir")
+	}
+	if !strings.Contains(err.Error(), "glob learnings") {
+		t.Errorf("expected 'glob learnings' in error, got: %v", err)
+	}
+	if dist != nil {
+		t.Errorf("expected nil distribution on error, got %v", dist)
+	}
+}
+
+// --- mergeJSONData marshal error ---
+
+func TestMergeJSONData_MarshalError(t *testing.T) {
+	// json.Marshal fails on values like math.Inf or math.NaN
+	firstLine := `{"id":"test","maturity":"provisional"}`
+	updates := map[string]any{
+		"utility": math.Inf(1), // +Inf is not valid JSON
+	}
+
+	_, err := mergeJSONData(firstLine, updates)
+	if err == nil {
+		t.Fatal("expected error from mergeJSONData when updates contain non-marshalable value")
+	}
+	if !strings.Contains(err.Error(), "marshal updated learning") {
+		t.Errorf("expected 'marshal updated learning' in error, got: %v", err)
+	}
+}
+
+// --- mergeJSONData unmarshal error ---
+
+func TestMergeJSONData_UnmarshalError(t *testing.T) {
+	_, err := mergeJSONData("not-json", map[string]any{"key": "val"})
+	if err == nil {
+		t.Fatal("expected error from mergeJSONData with invalid JSON input")
+	}
+	if !strings.Contains(err.Error(), "parse learning for update") {
+		t.Errorf("expected 'parse learning for update' in error, got: %v", err)
+	}
+}
+

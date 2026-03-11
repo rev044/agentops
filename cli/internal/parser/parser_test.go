@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1103,6 +1104,45 @@ func BenchmarkExtractBest(b *testing.B) {
 		e.ExtractBest(msg)
 	}
 }
+
+func TestParseFile_CloseError(t *testing.T) {
+	// Exercise the defer branch where f.Close() returns an error and err == nil.
+	jsonl := `{"type":"user","sessionId":"test","timestamp":"2026-01-24T10:00:00.000Z","uuid":"1","message":{"role":"user","content":"Hello"}}`
+
+	closeErr := fmt.Errorf("injected close error")
+	origOpen := openFileFunc
+	openFileFunc = func(path string) (io.ReadCloser, error) {
+		return io.NopCloser(nil), fmt.Errorf("should not be called")
+	}
+	// Override with a ReadCloser that reads fine but fails on Close.
+	openFileFunc = func(_ string) (io.ReadCloser, error) {
+		return &failCloseReader{Reader: strings.NewReader(jsonl), err: closeErr}, nil
+	}
+	defer func() { openFileFunc = origOpen }()
+
+	p := NewParser()
+	result, err := p.ParseFile("fake.jsonl")
+	if err == nil {
+		t.Fatal("expected close error, got nil")
+	}
+	if err != closeErr {
+		t.Errorf("expected injected close error, got: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result even with close error")
+	}
+	if len(result.Messages) != 1 {
+		t.Errorf("Messages count = %d, want 1", len(result.Messages))
+	}
+}
+
+// failCloseReader wraps a Reader and returns an error on Close.
+type failCloseReader struct {
+	io.Reader
+	err error
+}
+
+func (f *failCloseReader) Close() error { return f.err }
 
 func TestClassifyBlock_TextMissingTextField(t *testing.T) {
 	// Exercise the path where type is "text" but the "text" field is not a string.

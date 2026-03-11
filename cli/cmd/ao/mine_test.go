@@ -1,0 +1,567 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestMineWorkItemID_HotspotUsesFileFunc(t *testing.T) {
+	item := mineWorkItemEmit{
+		Type:  "refactor",
+		Title: "Reduce complexity: foo in bar.go (CC=20)",
+		File:  "bar.go",
+		Func:  "foo",
+	}
+	id := mineWorkItemID(item)
+	if len(id) != 16 {
+		t.Errorf("ID length = %d, want 16", len(id))
+	}
+
+	// Same File+Func with different title/severity should produce same ID
+	item2 := mineWorkItemEmit{
+		Type:     "refactor",
+		Title:    "Different title",
+		Severity: "low",
+		File:     "bar.go",
+		Func:     "foo",
+	}
+	id2 := mineWorkItemID(item2)
+	if id != id2 {
+		t.Errorf("ID changed when title/severity changed: %s vs %s", id, id2)
+	}
+}
+
+func TestMineWorkItemID_NonHotspotUsesTitle(t *testing.T) {
+	item := mineWorkItemEmit{
+		Type:  "research",
+		Title: "Orphaned research: old-topic.md",
+	}
+	id := mineWorkItemID(item)
+	if len(id) != 16 {
+		t.Errorf("ID length = %d, want 16", len(id))
+	}
+
+	// Different title should produce different ID
+	item2 := mineWorkItemEmit{
+		Type:  "research",
+		Title: "Orphaned research: other-topic.md",
+	}
+	id2 := mineWorkItemID(item2)
+	if id == id2 {
+		t.Errorf("different titles produced same ID: %s", id)
+	}
+}
+
+func TestMineWorkItemID_DifferentTypesProduceDifferentIDs(t *testing.T) {
+	item1 := mineWorkItemEmit{Type: "refactor", Title: "same"}
+	item2 := mineWorkItemEmit{Type: "research", Title: "same"}
+	if mineWorkItemID(item1) == mineWorkItemID(item2) {
+		t.Error("different types with same title should produce different IDs")
+	}
+}
+
+func TestPrintMineSummary_GitOnly(t *testing.T) {
+	var buf bytes.Buffer
+	r := &MineReport{
+		Git: &GitFindings{
+			CommitCount:      42,
+			TopCoChangeFiles: []string{"a.go", "b.go"},
+			RecurringFixes:   []string{"fix: typo"},
+		},
+	}
+	printMineSummary(&buf, r)
+	out := buf.String()
+	if !strings.Contains(out, "Mine complete.") {
+		t.Error("missing header")
+	}
+	if !strings.Contains(out, "42 commits") {
+		t.Errorf("missing commit count in: %s", out)
+	}
+	if !strings.Contains(out, "2 co-change files") {
+		t.Errorf("missing co-change files in: %s", out)
+	}
+	if !strings.Contains(out, "1 fix patterns") {
+		t.Errorf("missing fix patterns in: %s", out)
+	}
+}
+
+func TestPrintMineSummary_AgentsOnly(t *testing.T) {
+	var buf bytes.Buffer
+	r := &MineReport{
+		Agents: &AgentsFindings{
+			TotalResearch:    10,
+			OrphanedResearch: []string{"old.md"},
+		},
+	}
+	printMineSummary(&buf, r)
+	out := buf.String()
+	if !strings.Contains(out, "10 research files") {
+		t.Errorf("missing research count in: %s", out)
+	}
+	if !strings.Contains(out, "1 orphaned") {
+		t.Errorf("missing orphaned count in: %s", out)
+	}
+}
+
+func TestPrintMineSummary_CodeSkipped(t *testing.T) {
+	var buf bytes.Buffer
+	r := &MineReport{
+		Code: &CodeFindings{Skipped: true},
+	}
+	printMineSummary(&buf, r)
+	out := buf.String()
+	if !strings.Contains(out, "skipped (gocyclo not installed)") {
+		t.Errorf("missing skipped message in: %s", out)
+	}
+}
+
+func TestPrintMineSummary_CodeHotspots(t *testing.T) {
+	var buf bytes.Buffer
+	r := &MineReport{
+		Code: &CodeFindings{
+			Hotspots: []ComplexityHotspot{
+				{File: "a.go", Func: "foo", Complexity: 20, RecentEdits: 5},
+				{File: "b.go", Func: "bar", Complexity: 15, RecentEdits: 3},
+			},
+		},
+	}
+	printMineSummary(&buf, r)
+	out := buf.String()
+	if !strings.Contains(out, "2 hotspots") {
+		t.Errorf("missing hotspot count in: %s", out)
+	}
+}
+
+func TestPrintMineSummary_Events(t *testing.T) {
+	var buf bytes.Buffer
+	r := &MineReport{
+		Events: &EventsFindings{
+			RunsScanned: 5,
+			TotalEvents: 100,
+			ErrorEvents: []EventErrorSummary{{RunID: "r1", Message: "boom"}},
+		},
+	}
+	printMineSummary(&buf, r)
+	out := buf.String()
+	if !strings.Contains(out, "5 runs scanned") {
+		t.Errorf("missing runs scanned in: %s", out)
+	}
+	if !strings.Contains(out, "100 total events") {
+		t.Errorf("missing total events in: %s", out)
+	}
+	if !strings.Contains(out, "1 errors") {
+		t.Errorf("missing error count in: %s", out)
+	}
+}
+
+func TestPrintMineSummary_EmptyReport(t *testing.T) {
+	var buf bytes.Buffer
+	r := &MineReport{}
+	printMineSummary(&buf, r)
+	out := buf.String()
+	if !strings.Contains(out, "Mine complete.") {
+		t.Error("missing header for empty report")
+	}
+	// Should not contain section-specific output
+	if strings.Contains(out, "git:") || strings.Contains(out, "agents:") || strings.Contains(out, "code:") {
+		t.Errorf("empty report should not have section output: %s", out)
+	}
+}
+
+func TestPrintMineDryRun(t *testing.T) {
+	var buf bytes.Buffer
+	err := printMineDryRun(&buf, []string{"git", "agents"}, 24*7*3600*1e9) // 7d in ns... actually it's time.Duration
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "[dry-run]") {
+		t.Errorf("missing dry-run marker in: %s", out)
+	}
+	if !strings.Contains(out, "git, agents") {
+		t.Errorf("missing sources in: %s", out)
+	}
+	if !strings.Contains(out, "No files will be written.") {
+		t.Errorf("missing no-write message in: %s", out)
+	}
+}
+
+func TestCollectMineWorkItems_Empty(t *testing.T) {
+	r := &MineReport{}
+	items := collectMineWorkItems(r)
+	if len(items) != 0 {
+		t.Errorf("items = %d, want 0 for empty report", len(items))
+	}
+}
+
+func TestCollectMineWorkItems_CodeHotspots(t *testing.T) {
+	r := &MineReport{
+		Code: &CodeFindings{
+			Hotspots: []ComplexityHotspot{
+				{File: "a.go", Func: "big", Complexity: 25, RecentEdits: 10},
+			},
+		},
+	}
+	items := collectMineWorkItems(r)
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+	if items[0].Type != "refactor" {
+		t.Errorf("Type = %q, want %q", items[0].Type, "refactor")
+	}
+	if items[0].Severity != "high" {
+		t.Errorf("Severity = %q, want %q", items[0].Severity, "high")
+	}
+	if items[0].File != "a.go" {
+		t.Errorf("File = %q, want %q", items[0].File, "a.go")
+	}
+	if items[0].ID == "" {
+		t.Error("ID should be set")
+	}
+}
+
+func TestCollectMineWorkItems_AgentsOrphanedResearch(t *testing.T) {
+	r := &MineReport{
+		Agents: &AgentsFindings{
+			OrphanedResearch: []string{"stale-topic.md"},
+		},
+	}
+	items := collectMineWorkItems(r)
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+	if items[0].Severity != "medium" {
+		t.Errorf("Severity = %q, want %q", items[0].Severity, "medium")
+	}
+}
+
+func TestReadDirContent(t *testing.T) {
+	tmp := t.TempDir()
+	// Create .md files and a non-.md file
+	os.WriteFile(filepath.Join(tmp, "one.md"), []byte("content one"), 0o644)
+	os.WriteFile(filepath.Join(tmp, "two.md"), []byte("content two"), 0o644)
+	os.WriteFile(filepath.Join(tmp, "skip.txt"), []byte("ignored"), 0o644)
+	os.Mkdir(filepath.Join(tmp, "subdir"), 0o755)
+
+	contents, err := readDirContent(tmp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(contents) != 2 {
+		t.Fatalf("contents = %d entries, want 2", len(contents))
+	}
+	if contents["one.md"] != "content one" {
+		t.Errorf("one.md = %q, want %q", contents["one.md"], "content one")
+	}
+	if contents["two.md"] != "content two" {
+		t.Errorf("two.md = %q, want %q", contents["two.md"], "content two")
+	}
+}
+
+func TestReadDirContent_NonexistentDir(t *testing.T) {
+	_, err := readDirContent("/nonexistent-dir-12345")
+	if err == nil {
+		t.Error("expected error for nonexistent directory")
+	}
+}
+
+func TestLoadExistingMineIDs_NonexistentFile(t *testing.T) {
+	ids, err := loadExistingMineIDs("/nonexistent-file-12345.jsonl")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("ids = %d, want 0 for nonexistent file", len(ids))
+	}
+}
+
+func TestLoadExistingMineIDs_WithEntries(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "next-work.jsonl")
+
+	entry := map[string]interface{}{
+		"source_epic": "athena-mine",
+		"consumed":    false,
+		"items": []map[string]string{
+			{"id": "abc123", "title": "test"},
+			{"id": "def456", "title": "test2"},
+		},
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(path, append(data, '\n'), 0o644)
+
+	ids, err := loadExistingMineIDs(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 2 {
+		t.Fatalf("ids = %d, want 2", len(ids))
+	}
+	if !ids["abc123"] {
+		t.Error("missing id abc123")
+	}
+	if !ids["def456"] {
+		t.Error("missing id def456")
+	}
+}
+
+func TestLoadExistingMineIDs_ConsumedEntriesIgnored(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "next-work.jsonl")
+
+	entry := map[string]interface{}{
+		"source_epic": "athena-mine",
+		"consumed":    true,
+		"items":       []map[string]string{{"id": "consumed1"}},
+	}
+	data, _ := json.Marshal(entry)
+	os.WriteFile(path, append(data, '\n'), 0o644)
+
+	ids, err := loadExistingMineIDs(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("consumed entries should be ignored, got %d ids", len(ids))
+	}
+}
+
+func TestLoadExistingMineIDs_EmptyFile(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "empty.jsonl")
+	os.WriteFile(path, []byte(""), 0o644)
+
+	ids, err := loadExistingMineIDs(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("ids = %d, want 0 for empty file", len(ids))
+	}
+}
+
+func TestWriteMineWorkItems(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "work.jsonl")
+
+	items := []mineWorkItemEmit{
+		{ID: "id1", Title: "item one", Type: "refactor", Severity: "high"},
+		{ID: "id2", Title: "item two", Type: "research", Severity: "medium"},
+	}
+
+	err := writeMineWorkItems(path, items, "2026-03-11T00:00:00Z")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("lines = %d, want 2", len(lines))
+	}
+
+	// Verify first line structure
+	var entry struct {
+		SourceEpic  string             `json:"source_epic"`
+		Timestamp   string             `json:"timestamp"`
+		Items       []mineWorkItemEmit `json:"items"`
+		Consumed    bool               `json:"consumed"`
+		ClaimStatus string             `json:"claim_status"`
+	}
+	if err := json.Unmarshal([]byte(lines[0]), &entry); err != nil {
+		t.Fatalf("unmarshal line 0: %v", err)
+	}
+	if entry.SourceEpic != "athena-mine" {
+		t.Errorf("source_epic = %q, want %q", entry.SourceEpic, "athena-mine")
+	}
+	if entry.Consumed {
+		t.Error("consumed should be false")
+	}
+	if entry.ClaimStatus != "available" {
+		t.Errorf("claim_status = %q, want %q", entry.ClaimStatus, "available")
+	}
+	if len(entry.Items) != 1 {
+		t.Fatalf("items = %d, want 1", len(entry.Items))
+	}
+	if entry.Items[0].ID != "id1" {
+		t.Errorf("items[0].ID = %q, want %q", entry.Items[0].ID, "id1")
+	}
+}
+
+func TestWriteMineWorkItems_ReadOnlyDir(t *testing.T) {
+	tmp := t.TempDir()
+	readOnlyDir := filepath.Join(tmp, "readonly")
+	os.Mkdir(readOnlyDir, 0o555)
+	t.Cleanup(func() { os.Chmod(readOnlyDir, 0o755) })
+
+	path := filepath.Join(readOnlyDir, "work.jsonl")
+	items := []mineWorkItemEmit{{ID: "id1", Title: "test"}}
+	err := writeMineWorkItems(path, items, "2026-03-11T00:00:00Z")
+	if err == nil {
+		t.Error("expected error writing to read-only directory")
+	}
+}
+
+func TestEmitMineWorkItems_EmptyReport(t *testing.T) {
+	tmp := t.TempDir()
+	r := &MineReport{}
+	err := emitMineWorkItems(tmp, r)
+	if err != nil {
+		t.Fatalf("unexpected error for empty report: %v", err)
+	}
+	// No file should be created
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	if _, err := os.Stat(path); err == nil {
+		t.Error("next-work.jsonl should not be created for empty report")
+	}
+}
+
+func TestEmitMineWorkItems_WithHotspots(t *testing.T) {
+	tmp := t.TempDir()
+	r := &MineReport{
+		Code: &CodeFindings{
+			Hotspots: []ComplexityHotspot{
+				{File: "a.go", Func: "bigFunc", Complexity: 30, RecentEdits: 5},
+			},
+		},
+	}
+	err := emitMineWorkItems(tmp, r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading next-work.jsonl: %v", err)
+	}
+	if !strings.Contains(string(data), "bigFunc") {
+		t.Errorf("expected bigFunc in output, got: %s", string(data))
+	}
+}
+
+func TestEmitMineWorkItems_DeduplicatesExisting(t *testing.T) {
+	tmp := t.TempDir()
+	r := &MineReport{
+		Code: &CodeFindings{
+			Hotspots: []ComplexityHotspot{
+				{File: "a.go", Func: "bigFunc", Complexity: 30, RecentEdits: 5},
+			},
+		},
+	}
+
+	// First emit
+	err := emitMineWorkItems(tmp, r)
+	if err != nil {
+		t.Fatalf("first emit: %v", err)
+	}
+
+	// Second emit — same items should be deduplicated
+	err = emitMineWorkItems(tmp, r)
+	if err != nil {
+		t.Fatalf("second emit: %v", err)
+	}
+
+	path := filepath.Join(tmp, ".agents", "rpi", "next-work.jsonl")
+	data, _ := os.ReadFile(path)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	// Should still be 1 line — dedup prevents re-emit
+	if len(lines) != 1 {
+		t.Errorf("lines = %d, want 1 (dedup should prevent re-emit)", len(lines))
+	}
+}
+
+func TestMineAgentsDir_NoResearchDir(t *testing.T) {
+	dir := t.TempDir()
+	findings, err := mineAgentsDir(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if findings.TotalResearch != 0 {
+		t.Errorf("TotalResearch = %d, want 0", findings.TotalResearch)
+	}
+	if len(findings.OrphanedResearch) != 0 {
+		t.Errorf("OrphanedResearch = %d, want 0", len(findings.OrphanedResearch))
+	}
+}
+
+func TestMineAgentsDir_AllReferenced(t *testing.T) {
+	dir := t.TempDir()
+	researchDir := filepath.Join(dir, ".agents", "research")
+	learningsDir := filepath.Join(dir, ".agents", "learnings")
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create research file
+	if err := os.WriteFile(filepath.Join(researchDir, "2026-01-01-auth.md"), []byte("# Auth Research"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create learning that references the research
+	if err := os.WriteFile(filepath.Join(learningsDir, "2026-01-02-auth-learning.md"),
+		[]byte("Based on 2026-01-01-auth.md findings."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	findings, err := mineAgentsDir(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if findings.TotalResearch != 1 {
+		t.Errorf("TotalResearch = %d, want 1", findings.TotalResearch)
+	}
+	if len(findings.OrphanedResearch) != 0 {
+		t.Errorf("OrphanedResearch = %v, want empty (research is referenced)", findings.OrphanedResearch)
+	}
+}
+
+func TestMineAgentsDir_OrphanedResearch(t *testing.T) {
+	dir := t.TempDir()
+	researchDir := filepath.Join(dir, ".agents", "research")
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create research file with no referencing learning
+	if err := os.WriteFile(filepath.Join(researchDir, "2026-01-01-orphan.md"), []byte("# Orphan"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	findings, err := mineAgentsDir(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if findings.TotalResearch != 1 {
+		t.Errorf("TotalResearch = %d, want 1", findings.TotalResearch)
+	}
+	if len(findings.OrphanedResearch) != 1 {
+		t.Errorf("OrphanedResearch len = %d, want 1", len(findings.OrphanedResearch))
+	}
+	if len(findings.OrphanedResearch) > 0 && findings.OrphanedResearch[0] != "2026-01-01-orphan.md" {
+		t.Errorf("OrphanedResearch[0] = %q, want %q", findings.OrphanedResearch[0], "2026-01-01-orphan.md")
+	}
+}
+
+func TestMineAgentsDir_EmptyResearchDir(t *testing.T) {
+	dir := t.TempDir()
+	researchDir := filepath.Join(dir, ".agents", "research")
+	if err := os.MkdirAll(researchDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	findings, err := mineAgentsDir(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if findings.TotalResearch != 0 {
+		t.Errorf("TotalResearch = %d, want 0", findings.TotalResearch)
+	}
+}

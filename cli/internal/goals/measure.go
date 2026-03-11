@@ -147,6 +147,10 @@ func requiresExclusiveExecution(goal Goal) bool {
 		strings.Contains(check, "check-cmdao-coverage-floor.sh")
 }
 
+// osExitFn is the exit function called on signal. Override in tests to
+// avoid terminating the test process.
+var osExitFn = os.Exit
+
 // runGoals executes meta-goals first (sequential), then non-meta goals (parallel).
 // Installs a signal handler to kill all child process groups on SIGINT/SIGTERM.
 func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
@@ -158,7 +162,7 @@ func runGoals(allGoals []Goal, timeout time.Duration) []Measurement {
 		select {
 		case <-sigCh:
 			killAllChildren()
-			os.Exit(130) // 128 + SIGINT(2)
+			osExitFn(130) // 128 + SIGINT(2)
 		case <-done:
 			return
 		}
