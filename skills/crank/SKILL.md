@@ -386,6 +386,26 @@ This is the shift-left edge of the prevention ratchet: compiled findings target 
 
 **Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks. Do not omit `metadata.issue_type` and hope task-validation can infer it later.
 
+**Language Standards Injection (REQUIRED for code tasks):**
+
+Before spawning workers, detect project language and load applicable standards:
+
+1. **Detection:** Check repo root for language markers:
+   - `go.mod` → Load Go standards from the standards skill (`go.md`, Testing section)
+   - `pyproject.toml` or `setup.py` → Load Python standards (`python.md`, Testing section)
+   - `Cargo.toml` → Load Rust standards (`rust.md`)
+   - `package.json` → Load TypeScript standards (`typescript.md`)
+   - No match → Skip language-specific injection
+
+2. **Injection:** For issues typed `feature|bug|task`, the lead (not the worker) Reads the standards file and includes the Testing section verbatim in each worker's task description. This is a prompt instruction the lead follows, not runtime detection logic.
+
+3. **Test-specific rules:** For issues that create or modify test files, also inject:
+   - File naming conventions from the standard
+   - Assertion quality rules from the standard
+   - Pre-commit verification commands from the standard
+
+Note: This is advisory — the lead agent follows the instruction. Enforcement comes from the standards content being in the worker's context.
+
 **Validation block extraction (beads mode):** Before building TaskCreate calls, extract validation metadata from each issue's description. `/plan` embeds conformance checks as fenced `validation` blocks in issue bodies:
 
 ```bash

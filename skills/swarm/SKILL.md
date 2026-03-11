@@ -181,6 +181,16 @@ File Ownership Map (Wave N):
 Conflicts: 1 (resolved: serialized task-3 into sub-wave 2)
 ```
 
+#### Test File Naming Validation
+
+When workers create new test files, validate naming against loaded standards:
+
+1. **Detection:** Same language detection as /crank (go.mod → Go, pyproject.toml → Python, etc.)
+2. **Validation:** Load the Testing section of the relevant standard. For Go, this means:
+   - New test files must match `<source>_test.go` or `<source>_extra_test.go`
+   - Reject `cov*_test.go` or arbitrary prefixes
+3. **Serial-first for monolith packages:** If multiple workers target the same package AND that package has a shared `testutil_test.go` or `>5` existing test files, force serial execution within that package.
+
 ### Step 2.5: Pre-Spawn Base-SHA Refresh (Multi-Wave Only)
 
 When executing wave 2+ (not the first wave), verify workers branch from the latest commit — not a stale SHA from before the prior wave's changes were committed.

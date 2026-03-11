@@ -67,6 +67,37 @@ collect_coverage() {
         fi
     done
 
+    # Test each pkg package
+    for pkg_dir in "$CLI_DIR"/pkg/*/; do
+        [[ -d "$pkg_dir" ]] || continue
+        pkg_name="$(basename "$pkg_dir")"
+
+        # Skip packages with no test files
+        if ! ls "$pkg_dir"/*_test.go >/dev/null 2>&1; then
+            continue
+        fi
+
+        local pkg_output
+        pkg_output="$(cd "$CLI_DIR" && go test -cover "./pkg/$pkg_name" 2>&1 || true)"
+        coverage_line="$(echo "$pkg_output" | grep -oE 'coverage: [0-9.]+%' | head -1 || true)"
+        if [[ -z "$coverage_line" ]]; then
+            if echo "$pkg_output" | grep -q 'FAIL'; then
+                echo "  WARN: go test failed for pkg/$pkg_name — skipping" >&2
+            fi
+            continue
+        fi
+
+        pct="$(echo "$coverage_line" | grep -oE '[0-9.]+')"
+        if [[ -n "$pct" ]]; then
+            if [[ "$first" == true ]]; then
+                first=false
+            else
+                echo "," >> "$tmp_json"
+            fi
+            printf '  "pkg/%s": %.1f' "$pkg_name" "$pct" >> "$tmp_json"
+        fi
+    done
+
     # cmd/ao coverage (the monolith)
     # Note: go test may output "[no test files]" or fail — both handled gracefully
     local cmd_output

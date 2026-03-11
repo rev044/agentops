@@ -105,3 +105,7 @@ HANDOFF_SUMMARY.md
 .dolt/
 *.db
 .coverdata/
+
+# Coverage artifacts
+cli/*cov*.out
+cli/*cov*.html
