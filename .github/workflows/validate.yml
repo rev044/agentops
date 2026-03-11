@@ -231,6 +231,7 @@ jobs:
   security-toolchain-gate:
     runs-on: ubuntu-latest
     continue-on-error: true
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -465,6 +466,7 @@ jobs:
 
   go-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
         with:
@@ -637,6 +639,7 @@ jobs:
 
   doctor-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: go-build
     continue-on-error: true
     steps:
@@ -714,6 +717,7 @@ jobs:
 
   coverage-ratchet:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: go-build
     steps:
       - uses: actions/checkout@v6

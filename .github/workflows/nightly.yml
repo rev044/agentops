@@ -13,6 +13,7 @@ jobs:
   cli-tests:
     name: Go CLI Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -39,6 +40,7 @@ jobs:
   static-validation:
     name: Static Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
 
@@ -60,6 +62,7 @@ jobs:
   security-toolchain:
     name: Security Toolchain
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -99,6 +102,7 @@ jobs:
   athena:
     name: Athena Knowledge Cycle
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
