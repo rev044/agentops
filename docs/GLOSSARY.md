@@ -43,7 +43,7 @@ An internal process that pulls learnings, patterns, and decisions from session t
 The reconciliation engine that implements the Brownian Ratchet: **F**ind (read current state), **I**gnite (spawn parallel agents), **R**eap (harvest and validate results), **E**scalate (handle failures and blockers). Used by `/crank` for autonomous epic execution. [Full documentation](brownian-ratchet.md#the-fire-loop)
 
 ### Flywheel (Knowledge Flywheel)
-The automated loop that extracts learnings from completed work, scores them for quality, and re-injects them at the next session start. Knowledge compounds when retrieval and usage outpace decay and scale friction; otherwise it plateaus until controls improve. [Full documentation](ARCHITECTURE.md#knowledge-flywheel) <!-- NOTE: Ensure ARCHITECTURE.md preserves the #knowledge-flywheel anchor target -->
+The automated loop that extracts learnings from completed work, scores them for quality, and re-injects them at the next session start. Knowledge compounds when retrieval and usage outpace decay and scale friction; otherwise it plateaus until controls improve. [Full documentation](ARCHITECTURE.md#pillar-4-knowledge-flywheel)
 
 ### Forge
 An internal skill that mines session transcripts for knowledge artifacts — decisions, patterns, failures, and fixes — and stores them in `.agents/`. [Full documentation](../skills/forge/SKILL.md)
@@ -116,7 +116,7 @@ The first phase of the RPI lifecycle. Deep codebase exploration using Explore ag
 A skill (`/retro`) that extracts learnings from completed work — decisions made, patterns discovered, and failures encountered — and feeds them into the knowledge flywheel. Learnings are scored for specificity, actionability, and novelty. [Full documentation](../skills/retro/SKILL.md)
 
 ### RPI (Research-Plan-Implement)
-The historical name for AgentOps' full lifecycle workflow. In current runtime terms, `/rpi` orchestrates **Discovery -> Implementation -> Validation** while `ao rpi phased` enforces fresh context windows between those phases. The older acronym persists in product language and command names, but validation and loop closure are now first-class parts of the executable lifecycle. [Full documentation](ARCHITECTURE.md#the-rpi-workflow)
+The historical name for AgentOps' full lifecycle workflow. In current runtime terms, `/rpi` orchestrates **Discovery -> Implementation -> Validation** while `ao rpi phased` enforces fresh context windows between those phases. The older acronym persists in product language and command names, but validation and loop closure are now first-class parts of the executable lifecycle. [Full documentation](ARCHITECTURE.md#the-phased-lifecycle)
 
 ## S
 

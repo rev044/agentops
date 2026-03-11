@@ -180,7 +180,7 @@ The learning model. Automated extraction → quality gates → tiered storage �
        └───────────────────────────────────────────────┘
 ```
 
-### The RPI Workflow
+### The Phased Lifecycle
 
 ```
 Discovery → Implementation → Validation

@@ -58,7 +58,9 @@
 - [Knowledge Flywheel](knowledge-flywheel.md) — How every session makes the next one smarter
 - [The Science](the-science.md) — Research behind knowledge decay and compounding
 - [Brownian Ratchet](brownian-ratchet.md) — AI-native development philosophy
+- [Evolve Setup](evolve-setup.md) — GOALS.md, fitness loop, overnight runs
 - [Seed Definition](seed-definition.md) — What `ao seed` creates and why
+- [Scale Without Swarms](scale-without-swarms.md) — Single-agent scaling patterns
 - [Curation Pipeline](curation-pipeline.md) — Six-stage knowledge curation lifecycle
 - [Context Packet](context-packet.md) — Agent context assembly specification
 - [Strategic Direction](strategic-direction.md) — Product strategy and roadmap
@@ -139,6 +141,7 @@
 - [vs GSD](comparisons/vs-gsd.md) — AgentOps vs Get Shit Done
 - [vs Superpowers](comparisons/vs-superpowers.md) — AgentOps vs Superpowers plugin
 - [vs Claude-Flow](comparisons/vs-claude-flow.md) — AgentOps vs Claude-Flow orchestration
+- [vs Compound Engineer](comparisons/vs-compound-engineer.md) — AgentOps vs Compound Engineering plugin
 
 ## Positioning
 
@@ -151,6 +154,7 @@
 - [Plans Overview](plans/README.md) — Time-stamped plans index
 - [Validated Release Pipeline](plans/2026-01-28-validated-release-pipeline.md) — Release pipeline design (2026-01-28)
 - [AO-Olympus Bridge Next Steps](plans/2026-02-13-ao-olympus-bridge-next-steps.md) — Follow-up work to make the AO↔OL bridge enforceable (2026-02-13)
+- [All Improvements](plans/2026-02-24-all-improvements.md) — Comprehensive improvement plan (2026-02-24)
 
 ## Templates
 
@@ -164,11 +168,16 @@
 
 ## Reference
 
+- [Agent Footguns](agent-footguns.md) — Common agent failure modes and mitigations
+- [AgentOps Brief](agentops-brief.md) — Executive summary
+- [AgentOps System Map](agentops-system-map.md) — Visual system map
 - [Glossary](GLOSSARY.md) — Definitions of domain-specific terms (Beads, Brownian Ratchet, RPI, etc.)
 - [CLI Reference](../cli/docs/COMMANDS.md) — Complete `ao` command reference
 - [CLI ↔ Skills/Hooks Map](cli-skills-map.md) — Which commands are called by which skills and hooks
 - [Reference](reference.md) — Deep documentation and pipeline details
 - [Releasing](RELEASING.md) — Release process for ao CLI and plugin
+- [Environment Variables](ENV-VARS.md) — All configuration variables with defaults and precedence
+- [Skill Router](SKILL-ROUTER.md) — Which skill to use for which task
 - [Troubleshooting](troubleshooting.md) — Common issues and quick fixes
 - [Incident Runbook](INCIDENT-RUNBOOK.md) — Operational runbook for incidents and recovery
 - [AO Command Customization Matrix](architecture/ao-command-customization-matrix.md) — External command dependencies and customization policy tiers
