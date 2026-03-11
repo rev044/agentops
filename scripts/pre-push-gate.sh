@@ -268,6 +268,22 @@ else
     skip "cmd/ao coverage floor"
 fi
 
+# --- 4b. Per-package coverage ratchet (default mode only, not --fast) ---
+if [[ "$FAST_MODE" != "true" ]] && needs_check go; then
+    if [[ -x scripts/coverage-ratchet.sh ]] && [[ -f .coverage-baseline.json ]]; then
+        if ratchet_output="$(scripts/coverage-ratchet.sh --check 2>&1)"; then
+            pass "coverage ratchet (per-package)"
+        else
+            fail "coverage ratchet (per-package)"
+            indent_output "$ratchet_output"
+        fi
+    else
+        skip "coverage ratchet (missing script or baseline)"
+    fi
+else
+    skip "coverage ratchet"
+fi
+
 # --- 5. Embedded hooks sync ---
 stale=0
 for src in hooks/session-start.sh hooks/hooks.json; do
