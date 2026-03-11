@@ -138,7 +138,7 @@ These are the skills every user needs first. Everything else is available when y
 | `/forge` | Mine transcripts for knowledge — decisions, learnings, patterns |
 | `/readme` | Generate gold-standard README for any project |
 | `/security` | Continuous repository security scanning and release gating |
-| `/security-suite` | Binary security suite — static analysis, dynamic tracing, policy gating |
+| `/security-suite` | Binary and prompt-surface security suite — static analysis, dynamic tracing, offline redteam, policy gating |
 
 ## Expert Skills (specialized workflows)
 
