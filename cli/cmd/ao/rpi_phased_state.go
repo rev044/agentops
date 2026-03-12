@@ -456,3 +456,13 @@ func readRunHeartbeat(cwd, runID string) time.Time {
 	}
 	return time.Time{}
 }
+
+// runHeartbeatAge returns the age of the most recent heartbeat for a run.
+// If the heartbeat file is missing or unparseable, it returns -1 and false.
+func runHeartbeatAge(cwd, runID string) (time.Duration, bool) {
+	ts := readRunHeartbeat(cwd, runID)
+	if ts.IsZero() {
+		return -1, false
+	}
+	return time.Since(ts), true
+}

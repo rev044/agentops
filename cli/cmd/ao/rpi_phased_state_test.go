@@ -332,3 +332,43 @@ func TestReadRunHeartbeat_MissingFile(t *testing.T) {
 		t.Errorf("expected zero time for missing heartbeat, got %v", got)
 	}
 }
+
+func TestRunHeartbeatAge_Fresh(t *testing.T) {
+	tmp := t.TempDir()
+	runID := "test-age-run"
+
+	// Write a heartbeat
+	updateRunHeartbeat(tmp, runID)
+
+	age, ok := runHeartbeatAge(tmp, runID)
+	if !ok {
+		t.Fatal("expected ok=true for existing heartbeat")
+	}
+	if age < 0 || age > 5*time.Second {
+		t.Errorf("expected age between 0 and 5s, got %v", age)
+	}
+}
+
+func TestRunHeartbeatAge_Missing(t *testing.T) {
+	tmp := t.TempDir()
+
+	age, ok := runHeartbeatAge(tmp, "nonexistent")
+	if ok {
+		t.Fatal("expected ok=false for missing heartbeat")
+	}
+	if age != -1 {
+		t.Errorf("expected age=-1 for missing heartbeat, got %v", age)
+	}
+}
+
+func TestRunHeartbeatAge_EmptyRunID(t *testing.T) {
+	tmp := t.TempDir()
+
+	age, ok := runHeartbeatAge(tmp, "")
+	if ok {
+		t.Fatal("expected ok=false for empty runID")
+	}
+	if age != -1 {
+		t.Errorf("expected age=-1 for empty runID, got %v", age)
+	}
+}
