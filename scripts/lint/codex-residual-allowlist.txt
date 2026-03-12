@@ -54,3 +54,8 @@ council/claude-\*
 \bcommand -v claude\b
 \bruntime_command: claude\b
 \bClaude custom agents\b
+
+# Domain checklist trigger patterns containing glob syntax (not skill invocations)
+\*llm\*
+\*prompt\*
+\*completion\*

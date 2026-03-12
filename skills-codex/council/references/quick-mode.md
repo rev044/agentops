@@ -59,7 +59,7 @@ Respond with:
 <Brief explanation>
 
 ---
-*Quick check -- for thorough multi-perspective review, run `$council validate` (default mode).*
+*Quick check -- for thorough multi-perspective review, run `/council validate` (default mode).*
 ```
 
 ## Quick Mode Limitations

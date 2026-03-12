@@ -162,29 +162,7 @@ git log --oneline --since="7 days ago" | head -10
 
 ### Step 1.5: RPI Session Metrics
 
-Read `.agents/rpi/rpi-state.json`. If absent or unparseable, skip silently.
-
-```bash
-RPI_STATE=".agents/rpi/rpi-state.json"
-if [ -f "$RPI_STATE" ] && jq empty "$RPI_STATE" 2>/dev/null; then
-  RPI_SESSION_ID=$(jq -r '.session_id // "unknown"' "$RPI_STATE")
-  RPI_PHASE=$(jq -r '.phase // "unknown"' "$RPI_STATE")
-  RPI_STARTED=$(jq -r '.started_at // empty' "$RPI_STATE")
-  RPI_VERDICTS=$(jq -r '[.verdicts[]?.verdict // empty] | last // "none"' "$RPI_STATE" 2>/dev/null || echo "none")
-  # Count sessions from outcomes.jsonl if available
-  TOTAL_SESSIONS=$(wc -l < .agents/rpi/outcomes.jsonl 2>/dev/null || echo "1")
-  # Streak: count consecutive days with rpi-state.json updates (see references/streak-tracking.md)
-  LAST_RPI_DATE=$(date -r "$RPI_STATE" +%Y-%m-%d 2>/dev/null || date -d "$(stat -c %Y "$RPI_STATE" 2>/dev/null)" +%Y-%m-%d 2>/dev/null || echo "unknown")
-fi
-```
-
-If data was extracted, prepend a tweetable summary to the post-mortem report (before the verdict table):
-
-```
-> RPI streak: N consecutive days | Sessions: N | Last verdict: PASS/WARN/FAIL
-```
-
-See [references/streak-tracking.md](references/streak-tracking.md) for streak calculation rules and fallback behavior.
+Read `.agents/rpi/rpi-state.json` and extract session ID, phase, verdicts, and streak data. If absent or unparseable, skip silently. Prepend a tweetable summary to the report: `> RPI streak: N consecutive days | Sessions: N | Last verdict: PASS/WARN/FAIL`. See [references/streak-tracking.md](references/streak-tracking.md) for extraction logic and fallback behavior.
 
 ### Step 2: Load the Original Plan/Spec
 
@@ -316,35 +294,7 @@ Enables adversarial two-round review for post-implementation validation. Use for
 
 ### Step 3.5: Prediction Accuracy (Pre-Mortem Correlation)
 
-When a pre-mortem report exists for the current epic, generate a Prediction Accuracy section:
-
-```bash
-# Find the most recent pre-mortem report
-PM_REPORT=$(ls -t .agents/council/*pre-mortem*.md 2>/dev/null | head -1)
-```
-
-If found, cross-reference pre-mortem predictions against actual vibe/implementation findings:
-
-```markdown
-## Prediction Accuracy
-
-| Prediction ID | Predicted | Actual | Hit? |
-|---------------|-----------|--------|------|
-| pm-YYYYMMDD-001 | <predicted failure> | <actual outcome> | HIT/MISS |
-| pm-YYYYMMDD-002 | <predicted failure> | <actual outcome> | HIT/MISS |
-| — | — | <surprise vibe finding> | SURPRISE |
-
-**Accuracy: N/M predictions confirmed (X%). K surprise issues.**
-```
-
-Scoring rules:
-- **HIT**: Pre-mortem prediction matched an actual vibe/implementation finding
-- **MISS**: Pre-mortem prediction did not materialize
-- **SURPRISE**: Actual issue that no pre-mortem prediction covered
-
-High miss rate is acceptable — pre-mortem is precautionary. High surprise rate suggests pre-mortem perspectives need expansion.
-
-Skip silently if no pre-mortem report exists. See [references/prediction-tracking.md](references/prediction-tracking.md) for the full tracking lifecycle.
+When a pre-mortem report exists for the current epic (`ls -t .agents/council/*pre-mortem*.md`), cross-reference its prediction IDs against actual vibe/implementation findings. Score each as HIT (prediction confirmed), MISS (did not materialize), or SURPRISE (unpredicted issue). Write a `## Prediction Accuracy` table in the report. Skip silently if no pre-mortem exists. See [references/prediction-tracking.md](references/prediction-tracking.md) for the full table format and scoring rules.
 
 ### Phase 2: Extract Learnings
 
@@ -854,54 +804,7 @@ If any modified command file is missing both coverage evidence and an intentiona
 
 ### Step 4.8: Persist Retro History (Trend Tracking)
 
-After writing the post-mortem report, persist a structured summary to `.agents/retro/` for cross-epic trend analysis.
-
-```bash
-mkdir -p .agents/retro
-```
-
-Extract key metrics from the post-mortem report and write a summary JSON:
-
-**Write to:** `.agents/retro/YYYY-MM-DD-<epic-slug>.json`
-
-```json
-{
-  "id": "retro-YYYY-MM-DD-<epic-slug>",
-  "date": "YYYY-MM-DD",
-  "epic_id": "<epic-id or 'recent'>",
-  "verdict": "PASS|WARN|FAIL",
-  "duration_minutes": "<elapsed from PM_START>",
-  "cycle_time_trend": "faster|slower|stable",
-  "learnings_extracted": "<count from Phase 2>",
-  "learnings_promoted": "<count from Phase 4>",
-  "stale_retired": "<count from Phase 5>",
-  "prediction_accuracy": {
-    "hits": "<from Step 2.7>",
-    "misses": "<from Step 2.7>",
-    "surprises": "<from Step 2.7>",
-    "rate": "<hit_rate>"
-  },
-  "footguns": ["<from footgun table>"],
-  "top_learning": "<single most impactful learning>",
-  "improvements_proposed": "<count from Step 4.5>",
-  "tags": ["<category tags>"]
-}
-```
-
-Then append a one-line index entry to `.agents/retro/index.jsonl`:
-
-```json
-{"id": "retro-YYYY-MM-DD-<epic-slug>", "date": "YYYY-MM-DD", "epic_id": "<id>", "verdict": "<verdict>", "duration_minutes": "<n>", "learnings_extracted": "<n>"}
-```
-
-**Trend summary (include in report when 2+ prior retros exist):**
-
-Read `tail -5 .agents/retro/index.jsonl` and compute:
-- Verdict streak (consecutive PASS/WARN/FAIL)
-- Average cycle time over last 5 retros
-- Learnings-per-retro trend
-
-See [references/retro-history.md](references/retro-history.md) for the full schema, write rules, and trend queries.
+After writing the post-mortem report, persist a structured summary JSON to `.agents/retro/YYYY-MM-DD-<epic-slug>.json` and append an index line to `.agents/retro/index.jsonl`. When 2+ prior retros exist, compute verdict streak, average cycle time, and learnings-per-retro trend for the report. See [references/retro-history.md](references/retro-history.md) for the full JSON schema, write rules, and trend queries.
 
 ### Step 5: Harvest Next Work
 
@@ -1064,54 +967,12 @@ Ship it
 
 **Result:** Post-mortem report with learnings, tech debt identified, knowledge lifecycle stats, and suggested next `/rpi` command.
 
-### Wrap Up Specific Epic
+### Other Modes
 
-**User says:** `/post-mortem ag-5k2`
-
-**What happens:**
-1. Agent loads original plan from `bd show ag-5k2`
-2. Council reviews implementation vs plan
-3. Phase 2 captures what went well and what was hard
-4. Phase 3 processes full backlog (not just this epic's learnings)
-5. Phase 4 promotes 2 learnings to MEMORY.md, compiles 1 constraint
-6. Process improvements identified (e.g., "Add pre-commit lint check")
-7. Next-work items harvested and written to JSONL
-
-**Result:** Epic-specific post-mortem with 3 harvested follow-up items, 2 promoted learnings, 1 new constraint.
-
-### Quick Capture
-
-**User says:** `/post-mortem --quick "always use O_CREATE|O_EXCL for atomic file creation when racing"`
-
-**What happens:**
-1. Agent generates slug: `atomic-file-creation-racing`
-2. Writes to `.agents/learnings/2026-03-03-quick-atomic-file-creation-racing.md`
-3. Confirms and returns immediately
-
-**Result:** Learning captured in 5 seconds, no council or backlog processing.
-
-### Process-Only Mode
-
-**User says:** `/post-mortem --process-only`
-
-**What happens:**
-1. Skips council and extraction entirely
-2. Phase 3: Scans 47 learnings, merges 3 duplicates, flags 8 stale
-3. Phase 4: Promotes 5 high-scoring learnings to MEMORY.md, compiles 2 constraints
-4. Phase 5: Archives 8 stale learnings
-
-**Result:** Knowledge backlog cleaned up without running a new post-mortem.
-
-### Cross-Vendor Review
-
-**User says:** `/post-mortem --mixed ag-3b7`
-
-**What happens:**
-1. Agent runs 3 Claude + 3 Codex judges
-2. Cross-vendor perspectives catch edge cases
-3. Verdict: WARN (missing error handling in 2 files)
-4. Phase 2-5 process learnings through the full lifecycle
-5. Harvests 1 tech-debt item
+- **Epic-specific:** `/post-mortem ag-5k2` — loads plan, council reviews vs plan, full Phase 2-6 lifecycle
+- **Quick capture:** `/post-mortem --quick "insight"` — writes directly to `.agents/learnings/`, no council
+- **Process-only:** `/post-mortem --process-only` — skip council/extraction, run Phase 3-5 on backlog
+- **Cross-vendor:** `/post-mortem --mixed ag-3b7` — 3 Claude + 3 Codex judges for broader coverage
 
 **Result:** Higher confidence validation with cross-vendor review before closing epic.
 

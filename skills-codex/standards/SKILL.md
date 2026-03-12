@@ -3,6 +3,7 @@ name: standards
 description: 'Language-specific coding standards and validation rules. Provides Python, Go, Rust, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded by $vibe, $implement, $doc, $bug-hunt, $complexity based on file types.'
 ---
 
+
 # Standards Skill
 
 Language-specific coding standards loaded on-demand by other skills.
@@ -137,3 +138,29 @@ Skills that use standards:
 - [references/llm-trust-boundary-checklist.md](references/llm-trust-boundary-checklist.md)
 - [references/race-condition-checklist.md](references/race-condition-checklist.md)
 - [references/yaml.md](references/yaml.md)
+
+## Local Resources
+
+### references/
+
+- [references/common-standards.md](references/common-standards.md)
+- [references/examples-troubleshooting-template.md](references/examples-troubleshooting-template.md)
+- [references/go.md](references/go.md)
+- [references/json.md](references/json.md)
+- [references/llm-trust-boundary-checklist.md](references/llm-trust-boundary-checklist.md)
+- [references/markdown.md](references/markdown.md)
+- [references/python.md](references/python.md)
+- [references/race-condition-checklist.md](references/race-condition-checklist.md)
+- [references/rust.md](references/rust.md)
+- [references/shell.md](references/shell.md)
+- [references/skill-structure.md](references/skill-structure.md)
+- [references/sql-safety-checklist.md](references/sql-safety-checklist.md)
+- [references/standards-index.md](references/standards-index.md)
+- [references/typescript.md](references/typescript.md)
+- [references/yaml.md](references/yaml.md)
+
+### scripts/
+
+- `scripts/validate.sh`
+
+

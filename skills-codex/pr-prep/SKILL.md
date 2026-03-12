@@ -1,10 +1,8 @@
 ---
 name: pr-prep
 description: 'PR preparation: git archaeology, test validation, structured PR body generation. Mandatory user review gate before submission. Triggers: "prepare PR", "PR prep", "submit PR", "create PR body", "write PR description".'
-license: MIT
-compatibility: Requires git, gh CLI
-allowed-tools: Read, Write, Bash, Grep, Glob
 ---
+
 
 # PR Preparation Skill
 
@@ -243,3 +241,18 @@ gh pr create --title "type(scope): brief description" \
 - [references/lessons-learned.md](references/lessons-learned.md)
 - [references/package-extraction.md](references/package-extraction.md)
 - [references/commit-split-advisor.md](references/commit-split-advisor.md)
+
+## Local Resources
+
+### references/
+
+- [references/case-study-historical-context.md](references/case-study-historical-context.md)
+- [references/commit-split-advisor.md](references/commit-split-advisor.md)
+- [references/lessons-learned.md](references/lessons-learned.md)
+- [references/package-extraction.md](references/package-extraction.md)
+
+### scripts/
+
+- `scripts/validate.sh`
+
+

@@ -1,6 +1,6 @@
 # Deep Audit Protocol
 
-> Used by `$vibe --deep`, `$vibe --sweep`, and `$post-mortem` (unless `--skip-sweep`).
+> Used by `/vibe --deep`, `/vibe --sweep`, and `/post-mortem` (unless `--skip-sweep`).
 
 Two-phase architecture: cheap per-file explorer sweep (discovery) followed by council judges (adjudication). All reporting caps removed.
 
@@ -130,7 +130,7 @@ Task(
 )
 ```
 
-Each explorer writes findings to `.agents$council/sweep-batch-{N}.md`.
+Each explorer writes findings to `.agents/council/sweep-batch-{N}.md`.
 
 ---
 
@@ -138,7 +138,7 @@ Each explorer writes findings to `.agents$council/sweep-batch-{N}.md`.
 
 After all explorers complete, merge their findings into a single sweep manifest:
 
-**Write to:** `.agents$council/sweep-manifest.md`
+**Write to:** `.agents/council/sweep-manifest.md`
 
 ```markdown
 # Sweep Manifest
@@ -191,7 +191,7 @@ Add this to the council packet's `context.sweep_manifest`:
 {
   "sweep_manifest": {
     "source": "deep-audit-protocol explorer sweep",
-    "file": ".agents$council/sweep-manifest.md",
+    "file": ".agents/council/sweep-manifest.md",
     "finding_count": N,
     "summary": "<first 3000 chars of sweep manifest>"
   }
@@ -218,11 +218,11 @@ The final report includes ALL findings — both confirmed sweep findings and jud
 
 | Flag | Sweep? | Judges | Notes |
 |------|--------|--------|-------|
-| `$vibe` (default) | No | 2 | Unchanged: lightweight bug-hunt + council |
-| `$vibe --quick` | No | 1 (inline) | Unchanged: fast inline check |
-| `$vibe --deep` | Yes | 3 | Enhanced: sweep + 3 judges in adjudication mode |
-| `$vibe --sweep` | Yes | 2 | New: sweep + 2 judges in adjudication mode |
-| `$vibe --sweep recent` | Yes | 2 | Same, targeting recent changes |
-| `$post-mortem` | Yes | 3 | Enhanced: sweep before retrospective council |
-| `$post-mortem --skip-sweep` | No | 3 | Old behavior: 3 judges, no sweep |
-| `$post-mortem --quick` | No | 1 (inline) | Unchanged: fast inline check |
+| `/vibe` (default) | No | 2 | Unchanged: lightweight bug-hunt + council |
+| `/vibe --quick` | No | 1 (inline) | Unchanged: fast inline check |
+| `/vibe --deep` | Yes | 3 | Enhanced: sweep + 3 judges in adjudication mode |
+| `/vibe --sweep` | Yes | 2 | New: sweep + 2 judges in adjudication mode |
+| `/vibe --sweep recent` | Yes | 2 | Same, targeting recent changes |
+| `/post-mortem` | Yes | 3 | Enhanced: sweep before retrospective council |
+| `/post-mortem --skip-sweep` | No | 3 | Old behavior: 3 judges, no sweep |
+| `/post-mortem --quick` | No | 1 (inline) | Unchanged: fast inline check |

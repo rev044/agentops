@@ -1,6 +1,19 @@
----
+# Activation Policy (Phase 4)
 
---------|--------|
+Governs how high-scoring learnings from Phase 3 are promoted to MEMORY.md, compiled into constraints, and queued as improvements. Only learnings newer than the last-processed marker are candidates.
+
+## 1. Promotion Threshold
+
+A learning is promoted to MEMORY.md when its composite score reaches **6 or higher**.
+
+**Score formula:**
+
+```
+score = confidence + citations + recency
+```
+
+| Component | Values |
+|-----------|--------|
 | **Confidence** | `high` = 3, `med` = 2, `low` = 1 |
 | **Citations** | Base = 1; +1 per additional citation (e.g., 3 citations = 3) |
 | **Recency** | < 7 days = 3, < 30 days = 2, otherwise = 1 |
@@ -11,7 +24,7 @@
 
 ## 2. MEMORY.md Section Schema
 
-Promoted entries are written into auto-managed sections of the project MEMORY.md at `~/.codex/projects/<project-path>/memory/MEMORY.md`.
+Promoted entries are written into auto-managed sections of the project MEMORY.md at `~/.claude/projects/<project-path>/memory/MEMORY.md`.
 
 | Section | Purpose | Example Entry |
 |---------|---------|---------------|

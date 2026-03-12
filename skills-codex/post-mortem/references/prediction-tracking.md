@@ -1,13 +1,41 @@
----
--|
--------|---------|----------|------------|
+# Pre-Mortem Prediction Tracking
+
+Track pre-mortem predictions through the lifecycle to measure accuracy.
+
+## Prediction ID Format
+
+```
+pm-YYYYMMDD-NNN
+```
+
+Example: `pm-20260312-001`, `pm-20260312-002`
+
+Generated during pre-mortem report writing (Step 4). Each finding gets a unique prediction ID.
+
+## Report Frontmatter
+
+Add to pre-mortem report frontmatter:
+
+```yaml
+prediction_ids:
+  - pm-20260312-001
+  - pm-20260312-002
+```
+
+## Finding Format with Prediction ID
+
+Each finding in the pre-mortem report includes its prediction ID:
+
+```markdown
+| ID | Judge | Finding | Severity | Prediction |
+|----|-------|---------|----------|------------|
 | pm-20260312-001 | Feasibility | Registry write race | significant | Will cause data loss in parallel waves |
 | pm-20260312-002 | Scope | Commit advisor creep | significant | Implementers will add auto-apply |
 ```
 
 ## Downstream Correlation
 
-### In $vibe (Step 3.6)
+### In /vibe (Step 3.6)
 
 When a pre-mortem report exists for the current epic:
 1. Load prediction IDs from the most recent pre-mortem report
@@ -15,7 +43,7 @@ When a pre-mortem report exists for the current epic:
 3. Tag matched findings with the prediction ID: `predicted_by: pm-20260312-001`
 4. Tag unmatched findings as: `predicted_by: none` (surprise issue)
 
-### In $post-mortem (Phase 2)
+### In /post-mortem (Phase 2)
 
 Add "Prediction Accuracy" section to the report:
 

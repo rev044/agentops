@@ -1,6 +1,6 @@
 # Vibe Suppressions
 
-> Default suppression list for `$vibe` findings. Load before council invocation to filter noise.
+> Default suppression list for `/vibe` findings. Load before council invocation to filter noise.
 
 ## Purpose
 
@@ -42,7 +42,7 @@ Suppressions prevent known false-positive patterns from cluttering vibe reports.
 
 ## Custom Suppressions
 
-Projects can extend this list by creating `.agents$vibe-suppressions.jsonl` with one entry per line:
+Projects can extend this list by creating `.agents/vibe-suppressions.jsonl` with one entry per line:
 
 ```jsonl
 {"pattern": "regex or substring", "reason": "why this is suppressed", "action": "suppress|downgrade"}
@@ -54,6 +54,6 @@ Projects can extend this list by creating `.agents$vibe-suppressions.jsonl` with
 ## How Suppressions Are Applied
 
 1. Load default suppressions (this file) before council invocation
-2. Load project suppressions from `.agents$vibe-suppressions.jsonl` if present
+2. Load project suppressions from `.agents/vibe-suppressions.jsonl` if present
 3. After council verdict, match each finding against suppression patterns
 4. Apply action (suppress or downgrade) and note in report: "N findings suppressed (see vibe-suppressions.md)"

@@ -3,6 +3,7 @@ name: vibe
 description: 'Comprehensive code validation. Runs complexity analysis then multi-model council. Answer: Is this code ready to ship? Triggers: "vibe", "validate code", "check code", "review code", "code quality", "is this ready".'
 ---
 
+
 # Vibe Skill
 
 > **Purpose:** Is this code ready to ship?
@@ -691,3 +692,31 @@ See `references/examples.md` for additional examples: security audit with spec c
 - [references/vibe-coding.md](references/vibe-coding.md)
 - [references/vibe-suppressions.md](references/vibe-suppressions.md)
 - [references/yaml-standards.md](references/yaml-standards.md)
+
+## Local Resources
+
+### references/
+
+- [references/deep-audit-protocol.md](references/deep-audit-protocol.md)
+- [references/examples.md](references/examples.md)
+- [references/go-patterns.md](references/go-patterns.md)
+- [references/go-standards.md](references/go-standards.md)
+- [references/json-standards.md](references/json-standards.md)
+- [references/markdown-standards.md](references/markdown-standards.md)
+- [references/patterns.md](references/patterns.md)
+- [references/python-standards.md](references/python-standards.md)
+- [references/report-format.md](references/report-format.md)
+- [references/rust-standards.md](references/rust-standards.md)
+- [references/shell-standards.md](references/shell-standards.md)
+- [references/typescript-standards.md](references/typescript-standards.md)
+- [references/vibe-coding.md](references/vibe-coding.md)
+- [references/vibe-suppressions.md](references/vibe-suppressions.md)
+- [references/yaml-standards.md](references/yaml-standards.md)
+
+### scripts/
+
+- `scripts/ol-validate.sh`
+- `scripts/prescan.sh`
+- `scripts/validate.sh`
+
+

@@ -3,6 +3,7 @@ name: pre-mortem
 description: 'Validate a plan or spec before implementation using multi-model council. Answer: Is this good enough to implement? Triggers: "pre-mortem", "validate plan", "validate spec", "is this ready".'
 ---
 
+
 # Pre-Mortem Skill
 
 > **Purpose:** Is this plan/spec good enough to implement?
@@ -414,3 +415,21 @@ $pre-mortem                    ← You are here
 - [references/prediction-tracking.md](references/prediction-tracking.md)
 - [references/spec-verification-checklist.md](references/spec-verification-checklist.md)
 - [references/temporal-interrogation.md](references/temporal-interrogation.md)
+
+## Local Resources
+
+### references/
+
+- [references/enhancement-patterns.md](references/enhancement-patterns.md)
+- [references/error-rescue-map-template.md](references/error-rescue-map-template.md)
+- [references/failure-taxonomy.md](references/failure-taxonomy.md)
+- [references/prediction-tracking.md](references/prediction-tracking.md)
+- [references/simulation-prompts.md](references/simulation-prompts.md)
+- [references/spec-verification-checklist.md](references/spec-verification-checklist.md)
+- [references/temporal-interrogation.md](references/temporal-interrogation.md)
+
+### scripts/
+
+- `scripts/validate.sh`
+
+

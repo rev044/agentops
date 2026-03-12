@@ -1,3 +1,17 @@
+# Post-Mortem Output Templates
+
+Canonical output shapes for `skills/post-mortem/SKILL.md`. When this file and the
+skill disagree, follow the skill workflow and the executable/schema surfaces:
+
+- `skills/post-mortem/SKILL.md`
+- `skills/post-mortem/scripts/write-evidence-only-closure.sh`
+- `schemas/evidence-only-closure.v1.schema.json`
+
+## Post-Mortem Report Template
+
+Write to `.agents/council/YYYY-MM-DD-post-mortem-<topic>.md`:
+
+```markdown
 ---
 id: post-mortem-YYYY-MM-DD-<topic-slug>
 type: post-mortem

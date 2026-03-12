@@ -1,4 +1,9 @@
+# Security Patterns for Post-Mortem
+
+Security checks to run during post-mortem Phase 3.
+
 ---
+
 ## Tool Detection
 
 Before running security tools, check availability:
@@ -9,6 +14,7 @@ command -v semgrep &>/dev/null && HAS_SEMGREP=true || HAS_SEMGREP=false
 command -v govulncheck &>/dev/null && HAS_GOVULN=true || HAS_GOVULN=false
 command -v pip-audit &>/dev/null && HAS_PIPAUDIT=true || HAS_PIPAUDIT=false
 ```
+
 ---
 
 ## Static Analysis Tools

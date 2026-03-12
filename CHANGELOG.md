@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.24.0] - 2026-03-12
+
+### Added
+
+- **Error & rescue map template** — Pre-mortem Step 2.5 with 3 worked examples (HTTP, database, LLM)
+- **Scope mode selection** — Pre-mortem Step 1.6 with 3-mode framework (Expand/Hold/Reduce) and auto-detection
+- **Temporal interrogation** — Pre-mortem Step 2.4 walks implementation timeline (hour 1/2/4/6+) for time-dependent risks
+- **Prediction tracking** — Pre-mortem findings get unique IDs (`pm-YYYYMMDD-NNN`) correlated through vibe and post-mortem
+- **Finding classification** — Vibe separates CRITICAL (blocks ship) from INFORMATIONAL findings
+- **Suppression framework** — Vibe loads default + project-level suppression patterns for known false positives
+- **Domain-specific checklists** — Standards skill extended with SQL safety, LLM trust boundary, and race condition checklists, auto-loaded by vibe
+- **RPI session streak tracking** — Post-mortem Step 1.5 shows consecutive session days and verdict history
+- **Persistent retro history** — Post-mortem Step 4.8 writes structured JSON summaries to `.agents/retro/` for cross-epic trend analysis
+- **Prediction accuracy scoring** — Post-mortem Step 3.5 scores HIT/MISS/SURPRISE against pre-mortem predictions
+- **Commit split advisor** — PR-prep Phase 4.5 suggests bisectable commit ordering (suggestion-only)
+- **Council finding auto-extraction** — Significant findings from WARN/FAIL verdicts staged for flywheel consumption
+
+### Changed
+
+- **Post-mortem examples condensed** — Verbose examples replaced with concise 4-mode summary to stay under skill line limit
+
+## [2.23.1] - 2026-03-12
+
+### Fixed
+
+- Resolved all golangci-lint quality findings
+- Synced embedded standards after skill audit fixes
+- Synced Codex bundle after skill audit fixes
+- Resolved audit findings across council, vibe, standards skills
+
 ## [2.23.0] - 2026-03-11
 
 ### Added
