@@ -131,7 +131,7 @@ Autonomous multi-issue execution. Runs until epic is CLOSED.
 
 ### /vibe
 
-Comprehensive code validation across 8 aspects.
+Comprehensive code validation across 8 aspects with finding classification (CRITICAL vs INFORMATIONAL), suppression framework for known false positives, and domain-specific checklists (SQL safety, LLM trust boundary, race conditions) auto-loaded from `/standards`. Correlates findings against pre-mortem predictions.
 
 ```bash
 /vibe services/auth/
@@ -151,7 +151,7 @@ Quick-capture a learning. For full retrospectives, use `/post-mortem`.
 
 ### /post-mortem
 
-Full validation + knowledge lifecycle. Council validates, extracts learnings, activates/retires knowledge, then synthesizes process improvement proposals and suggests the next `/rpi` command. The flywheel exit point. Supports `--quick`, `--process-only`, and `--skip-activate` flags.
+Full validation + knowledge lifecycle. Council validates, extracts learnings, activates/retires knowledge, then synthesizes process improvement proposals and suggests the next `/rpi` command. The flywheel exit point. Now includes RPI session streak tracking, prediction accuracy scoring (HIT/MISS/SURPRISE against pre-mortem predictions), and persistent retro history to `.agents/retro/` for cross-epic trend analysis. Supports `--quick`, `--process-only`, and `--skip-activate` flags.
 
 ```bash
 /post-mortem <epic-id>
@@ -214,13 +214,13 @@ Generate documentation for code.
 
 ### /pre-mortem
 
-Simulate failures before implementing.
+Simulate failures before implementing. Includes error/rescue mapping (tabular risk/mitigation), scope mode selection (Expand/Hold/Reduce with auto-detection), temporal interrogation (hour 1/2/4/6+ timeline), and prediction tracking with unique IDs (`pm-YYYYMMDD-NNN`) correlated through vibe and post-mortem.
 
 ```bash
 /pre-mortem "add caching layer"
 ```
 
-**Output:** Failure modes, mitigation strategies, spec improvements
+**Output:** Failure modes, error/rescue maps, predictions with IDs, mitigation strategies, spec improvements
 
 ---
 
@@ -228,7 +228,7 @@ Simulate failures before implementing.
 
 ### /council
 
-Multi-model validation — the core primitive used by vibe, pre-mortem, and post-mortem.
+Multi-model validation — the core primitive used by vibe, pre-mortem, and post-mortem. Auto-extracts significant findings from WARN/FAIL verdicts into the knowledge flywheel.
 
 ```bash
 /council validate recent
@@ -396,7 +396,7 @@ Run PR-specific validation (scope creep, isolation, upstream alignment).
 
 ### /pr-prep
 
-Prepare structured PR bodies with validation evidence.
+Prepare structured PR bodies with validation evidence. Includes commit split advisor (Phase 4.5) suggesting bisectable commit ordering.
 
 ```bash
 /pr-prep

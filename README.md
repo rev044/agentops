@@ -268,10 +268,10 @@ Every skill works alone. Compose them however you want.
 
 | Skill | What it does |
 |-------|-------------|
-| `/council` | Independent judges (Claude + Codex) debate, surface disagreement, converge. `--preset=security-audit`, `--perspectives`, `--debate` for adversarial review |
-| `/vibe` | Code quality review — complexity analysis + council. Gates on 0 CRITICAL findings. |
-| `/pre-mortem` | Validate plans before implementation — council simulates failures |
-| `/post-mortem` | Wrap up completed work — council validates + retro extracts learnings |
+| `/council` | Independent judges (Claude + Codex) debate, surface disagreement, converge. Auto-extracts findings into flywheel. `--preset=security-audit`, `--perspectives`, `--debate` |
+| `/vibe` | Code quality review — complexity + council + finding classification (CRITICAL vs INFORMATIONAL) + suppression framework + domain checklists (SQL, LLM, concurrency) |
+| `/pre-mortem` | Validate plans — error/rescue mapping, scope modes (Expand/Hold/Reduce), temporal interrogation, prediction tracking with downstream correlation |
+| `/post-mortem` | Wrap up work — council validates, prediction accuracy scoring (HIT/MISS/SURPRISE), session streak tracking, persistent retro history |
 
 **Execution** — research, plan, build, ship:
 

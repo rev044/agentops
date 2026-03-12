@@ -30,7 +30,7 @@ ao lookup --query "x"  # Search knowledge by relevance
 ### Plan Phase
 
 ```bash
-$pre-mortem <spec>     # Simulate failures before implementing
+$pre-mortem <spec>     # Simulate failures (error/rescue map, scope modes, prediction tracking)
 $plan <goal>           # Decompose into trackable issues
 ```
 
@@ -49,8 +49,8 @@ $swarm                 # Parallel execution (fresh context per agent)
 ### Validate Phase
 
 ```bash
-$vibe [target]         # Code validation (security, quality, architecture)
-$post-mortem           # Full validation + knowledge extraction (council + learnings + activation)
+$vibe [target]         # Code validation (finding classification + suppression + domain checklists)
+$post-mortem           # Validation + streak tracking + prediction accuracy + retro history
 $retro                 # Quick-capture a single learning
 ```
 
@@ -94,8 +94,8 @@ These are the skills every user needs first. Everything else is available when y
 |-------|---------|
 | `$quickstart` | Guided onboarding — run this first |
 | `$research` | Deep codebase exploration |
-| `$council` | Multi-model consensus review (validate, brainstorm, research) |
-| `$vibe` | Code validation (complexity + multi-model council) |
+| `$council` | Multi-model consensus review + finding auto-extraction |
+| `$vibe` | Code validation (classification + suppression + domain checklists) |
 | `$rpi` | Full RPI lifecycle orchestrator (research → plan → implement → validate) |
 | `$implement` | Execute single issue |
 | `$retro --quick` | Quick-capture a single learning into the flywheel |
@@ -112,8 +112,8 @@ These are the skills every user needs first. Everything else is available when y
 | `$brainstorm` | Structured idea exploration before planning |
 | `$discovery` | Full discovery phase orchestrator (brainstorm → search → research → plan → pre-mortem) |
 | `$plan` | Epic decomposition into issues |
-| `$pre-mortem` | Failure simulation before implementing |
-| `$post-mortem` | Full validation + knowledge lifecycle (council + extraction + activation + retirement) |
+| `$pre-mortem` | Failure simulation (error/rescue, scope modes, temporal, predictions) |
+| `$post-mortem` | Validation + streak tracking + prediction accuracy + retro history |
 | `$bug-hunt` | Root cause analysis |
 | `$release` | Pre-flight, changelog, version bumps, tag |
 | `$crank` | Autonomous epic loop (uses swarm for each wave) |

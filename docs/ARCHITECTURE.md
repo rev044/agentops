@@ -192,16 +192,18 @@ Each phase is a context boundary. The output of one phase is compressed and scop
 
 | Phase | Skills | Output |
 |-------|--------|--------|
-| **Discovery** | `/brainstorm`, `/research`, `/plan`, `/pre-mortem` | research artifacts, execution packet, scoped risks |
+| **Discovery** | `/brainstorm`, `/research`, `/plan`, `/pre-mortem` (error/rescue mapping, scope modes, temporal interrogation, prediction tracking) | research artifacts, execution packet, scoped risks, predictions |
 | **Implementation** | `/crank`, `/swarm`, `/implement` | code, tests, ratchet checkpoints |
-| **Validation** | `/validation`, `/vibe`, `/post-mortem` (primary: council + extraction + backlog + activation + retirement), `/retro` (quick-capture) | learnings, findings, next-work queue |
+| **Validation** | `/validation`, `/vibe` (finding classification + suppression + domain checklists), `/post-mortem` (council + extraction + streak tracking + prediction accuracy + retro history + backlog + activation + retirement), `/retro` (quick-capture) | learnings, findings, predictions, next-work queue |
 
 Every `/post-mortem` feeds back into the next `/rpi` cycle:
 
 1. Council validates the implementation
-2. Knowledge extraction → `.agents/learnings/` (activation + retirement)
-3. Process improvement proposals synthesized from findings
-4. Next-work items harvested → `.agents/rpi/next-work.jsonl`
+2. Prediction accuracy scored (HIT/MISS/SURPRISE against pre-mortem predictions)
+3. Knowledge extraction → `.agents/learnings/` (activation + retirement)
+4. Process improvement proposals synthesized from findings
+5. Retro history persisted → `.agents/retro/` for cross-epic trend analysis
+6. Next-work items harvested → `.agents/rpi/next-work.jsonl`
    - Each item includes a `target_repo` field: repo name (string) for repo-scoped work, `"*"` for cross-repo items, or omitted for legacy backward compatibility
    - Consumers filter items by matching `target_repo` against the current repo
 5. **Suggested `/rpi` command presented** — ready to copy-paste
