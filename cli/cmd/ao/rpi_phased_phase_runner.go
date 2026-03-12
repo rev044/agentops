@@ -200,7 +200,7 @@ func runSinglePhase(ctx context.Context, cwd, spawnCwd string, state *phasedStat
 		VerbosePrintf("Warning: could not write phase handoff: %v\n", err)
 	} else {
 		// Emit C2 event for dashboard observability
-		appendRPIC2Event(spawnCwd, rpiC2EventInput{
+		if _, err := appendRPIC2Event(spawnCwd, rpiC2EventInput{
 			RunID:   state.RunID,
 			Phase:   p.Num,
 			Backend: state.Backend,
@@ -209,7 +209,9 @@ func runSinglePhase(ctx context.Context, cwd, spawnCwd string, state *phasedStat
 			Message: fmt.Sprintf("Phase %d handoff: %d artifacts, %d decisions, %d risks",
 				p.Num, len(handoff.ArtifactsProduced), len(handoff.DecisionsMade), len(handoff.OpenRisks)),
 			Details: map[string]any{"handoff": handoff},
-		})
+		}); err != nil {
+			VerbosePrintf("Warning: could not write C2 event: %v\n", err)
+		}
 	}
 
 	recordRatchetCheckpoint(p.Step, state.Opts.AOCommand)

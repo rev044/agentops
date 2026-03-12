@@ -53,7 +53,9 @@ var goalsHistoryCmd = &cobra.Command{
 		for _, e := range entries {
 			tbl.AddRow(e.Timestamp, fmt.Sprintf("%d", e.GoalsPassing), fmt.Sprintf("%d", e.GoalsTotal), fmt.Sprintf("%.1f%%", e.Score), e.GitSHA)
 		}
-		tbl.Render()
+		if err := tbl.Render(); err != nil {
+			return fmt.Errorf("rendering table: %w", err)
+		}
 
 		return nil
 	},

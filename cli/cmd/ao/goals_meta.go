@@ -57,7 +57,9 @@ var goalsMetaCmd = &cobra.Command{
 		for _, m := range snap.Goals {
 			tbl.AddRow(m.GoalID, m.Result, fmt.Sprintf("%.1fs", m.Duration))
 		}
-		tbl.Render()
+		if err := tbl.Render(); err != nil {
+			return fmt.Errorf("rendering table: %w", err)
+		}
 		fmt.Println()
 
 		if snap.Summary.Failing > 0 {

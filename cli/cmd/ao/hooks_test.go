@@ -698,9 +698,6 @@ func TestHooksCommand_InitShellFormat(t *testing.T) {
 	if !strings.Contains(out, "#") {
 		t.Errorf("expected shell comments (#) in output, got: %s", out)
 	}
-	if strings.Contains(out, "SessionStart") {
-		// Shell format references hook commands, not event names directly
-	}
 	// Verify it is NOT valid JSON
 	var probe map[string]any
 	if json.Unmarshal([]byte(out), &probe) == nil {
@@ -786,10 +783,6 @@ func TestHooksCommand_TestDryRun(t *testing.T) {
 	// Should show test steps header
 	if !strings.Contains(out, "Testing") {
 		t.Errorf("expected 'Testing' header in output, got: %s", out)
-	}
-	// Dry-run skips actual hook execution
-	if strings.Contains(out, "skipped") || strings.Contains(out, "dry-run") {
-		// Good - confirms dry-run behavior for individual test steps
 	}
 }
 

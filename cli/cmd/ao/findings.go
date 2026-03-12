@@ -408,7 +408,7 @@ func printFindingTransferResult(action string, paths []string) error {
 		fmt.Printf("No findings %s.\n", action)
 		return nil
 	}
-	fmt.Printf("%s %d finding(s):\n", strings.Title(action), len(paths))
+	fmt.Printf("%s %d finding(s):\n", titleCase(action), len(paths))
 	for _, path := range paths {
 		fmt.Printf("  %s\n", path)
 	}

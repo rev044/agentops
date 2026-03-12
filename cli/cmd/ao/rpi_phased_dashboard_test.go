@@ -69,7 +69,7 @@ func TestDash_StartEmbeddedDashboard_ReturnsServer(t *testing.T) {
 
 	// URL should have a valid port (not :0)
 	if strings.Contains(dashURL, ":0") && !strings.Contains(dashURL, ":0/") {
-		// :0 followed by non-slash would mean port 0 was not resolved
+		t.Errorf("dashboard URL has unresolved port 0: %s", dashURL)
 	}
 	if !strings.Contains(dashURL, "run="+runID) {
 		t.Errorf("URL %q missing run=%s query param", dashURL, runID)

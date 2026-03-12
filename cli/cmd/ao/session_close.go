@@ -452,11 +452,7 @@ func qualifyAutoExtract(content string) bool {
 			}
 		}
 	}
-	if sentenceEnders < 2 {
-		return false
-	}
-
-	return true
+	return sentenceEnders >= 2
 }
 
 // autoExtractResult holds counts from writeAutoExtractedLearnings.

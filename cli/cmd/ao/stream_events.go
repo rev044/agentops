@@ -117,6 +117,53 @@ var validErrorClasses = map[StreamErrorClass]bool{
 	StreamErrorClassUnknown:          true,
 }
 
+// classifierRule defines a single error classification pattern.
+type classifierRule struct {
+	class      StreamErrorClass
+	substrings []string          // any match on lowered msg → hit
+	regexes    []*regexp.Regexp  // any match on original msg → hit
+	compound   func(string) bool // optional complex condition
+}
+
+// classifierRules is the ordered list of error classification patterns.
+// First match wins.
+var classifierRules = []classifierRule{
+	{class: StreamErrorClassTimeout, substrings: []string{"timeout", "timed out"}},
+	{class: StreamErrorClassRateLimit, substrings: []string{"rate limit", "too many requests"}, regexes: []*regexp.Regexp{reHTTP429}},
+	{class: StreamErrorClassAuthFailure, substrings: []string{"unauthorized", "authentication", "forbidden", "invalid api key", "invalid_api_key"}, regexes: []*regexp.Regexp{reHTTP401, reHTTP403}},
+	{class: StreamErrorClassContextOverflow, compound: func(msg string) bool {
+		return strings.Contains(msg, "context") &&
+			(strings.Contains(msg, "limit") || strings.Contains(msg, "overflow") || strings.Contains(msg, "too long"))
+	}},
+	{class: StreamErrorClassSandboxViolation, compound: func(msg string) bool {
+		return strings.Contains(msg, "permission denied") ||
+			(strings.Contains(msg, "sandbox") && (strings.Contains(msg, "not allowed") || strings.Contains(msg, "not permitted") || strings.Contains(msg, "violation") || strings.Contains(msg, "denied"))) ||
+			(strings.Contains(msg, "not allowed") && (strings.Contains(msg, "permission") || strings.Contains(msg, "operation")))
+	}},
+	{class: StreamErrorClassRateLimit, regexes: []*regexp.Regexp{reQuotaError}},
+	{class: StreamErrorClassExecutionError, regexes: []*regexp.Regexp{reNetworkError}},
+	{class: StreamErrorClassExecutionError, regexes: []*regexp.Regexp{reProcessError}},
+	{class: StreamErrorClassExecutionError, regexes: []*regexp.Regexp{reModelError}},
+}
+
+// matchesRule checks whether a message matches a classifier rule.
+func matchesRule(r classifierRule, lowMsg, origMsg string) bool {
+	for _, s := range r.substrings {
+		if strings.Contains(lowMsg, s) {
+			return true
+		}
+	}
+	for _, re := range r.regexes {
+		if re.MatchString(origMsg) {
+			return true
+		}
+	}
+	if r.compound != nil {
+		return r.compound(lowMsg)
+	}
+	return false
+}
+
 func ParseStreamEvent(data []byte) (StreamEvent, error) {
 	var ev StreamEvent
 	if err := json.Unmarshal(data, &ev); err != nil {
@@ -152,55 +199,14 @@ func ClassifyStreamError(ev StreamEvent) StreamErrorClass {
 
 	msg := strings.ToLower(ev.Message)
 
-	switch {
-	// Timeout patterns
-	case strings.Contains(msg, "timeout") || strings.Contains(msg, "timed out"):
-		return StreamErrorClassTimeout
-
-	// Rate limit: contextual "rate limit" phrase or HTTP 429 with context
-	case strings.Contains(msg, "rate limit") || strings.Contains(msg, "too many requests") ||
-		reHTTP429.MatchString(ev.Message):
-		return StreamErrorClassRateLimit
-
-	// Auth failure: contextual keywords or HTTP 401/403 with context
-	case strings.Contains(msg, "unauthorized") || strings.Contains(msg, "authentication") ||
-		strings.Contains(msg, "forbidden") || strings.Contains(msg, "invalid api key") ||
-		strings.Contains(msg, "invalid_api_key") ||
-		reHTTP401.MatchString(ev.Message) || reHTTP403.MatchString(ev.Message):
-		return StreamErrorClassAuthFailure
-
-	// Context overflow
-	case strings.Contains(msg, "context") &&
-		(strings.Contains(msg, "limit") || strings.Contains(msg, "overflow") || strings.Contains(msg, "too long")):
-		return StreamErrorClassContextOverflow
-
-	// Sandbox violations: require permission/policy phrase, not bare "sandbox"
-	case strings.Contains(msg, "permission denied") ||
-		(strings.Contains(msg, "sandbox") && (strings.Contains(msg, "not allowed") || strings.Contains(msg, "not permitted") || strings.Contains(msg, "violation") || strings.Contains(msg, "denied"))) ||
-		(strings.Contains(msg, "not allowed") && (strings.Contains(msg, "permission") || strings.Contains(msg, "operation"))):
-		return StreamErrorClassSandboxViolation
-
-	// Quota/billing errors
-	case reQuotaError.MatchString(ev.Message):
-		return StreamErrorClassRateLimit
-
-	// Network/connectivity errors
-	case reNetworkError.MatchString(ev.Message):
-		return StreamErrorClassExecutionError
-
-	// Process/OS errors
-	case reProcessError.MatchString(ev.Message):
-		return StreamErrorClassExecutionError
-
-	// Model errors
-	case reModelError.MatchString(ev.Message):
-		return StreamErrorClassExecutionError
-
-	default:
-		// Non-empty messages are execution errors; empty/whitespace = truly unknown
-		if strings.TrimSpace(msg) == "" {
-			return StreamErrorClassUnknown
+	for _, rule := range classifierRules {
+		if matchesRule(rule, msg, ev.Message) {
+			return rule.class
 		}
-		return StreamErrorClassExecutionError
 	}
+
+	if strings.TrimSpace(msg) == "" {
+		return StreamErrorClassUnknown
+	}
+	return StreamErrorClassExecutionError
 }

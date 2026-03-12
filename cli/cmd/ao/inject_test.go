@@ -873,7 +873,7 @@ func TestApplyConfidenceDecay_MarkdownNoTimestamp(t *testing.T) {
 	path := writeTestMDLearning(t, dir, "no-ts.md", map[string]string{
 		"confidence": "0.9000",
 		"maturity":   "provisional",
-	}, fmt.Sprintf("# No Timestamp\nContent here\n"))
+	}, "# No Timestamp\nContent here\n")
 
 	l := learning{ID: "no-ts", Utility: 0.9, Source: path}
 	result := applyConfidenceDecay(l, path, time.Now())

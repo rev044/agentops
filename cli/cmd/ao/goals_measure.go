@@ -88,7 +88,9 @@ var goalsMeasureCmd = &cobra.Command{
 		for _, m := range snap.Goals {
 			tbl.AddRow(m.GoalID, m.Result, fmt.Sprintf("%.1fs", m.Duration), fmt.Sprintf("%d", m.Weight))
 		}
-		tbl.Render()
+		if err := tbl.Render(); err != nil {
+			return fmt.Errorf("rendering table: %w", err)
+		}
 		fmt.Println()
 		fmt.Printf("Score: %.1f%% (%d/%d passing, %d skipped)\n",
 			snap.Summary.Score, snap.Summary.Passing, snap.Summary.Total, snap.Summary.Skipped)
