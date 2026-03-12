@@ -3,7 +3,6 @@ name: standards
 description: 'Language-specific coding standards and validation rules. Provides Python, Go, Rust, TypeScript, Shell, YAML, JSON, and Markdown standards. Auto-loaded by $vibe, $implement, $doc, $bug-hunt, $complexity based on file types.'
 ---
 
-
 # Standards Skill
 
 Language-specific coding standards loaded on-demand by other skills.
@@ -26,6 +25,9 @@ references that other skills load based on file types being processed.
 | YAML | `references/yaml.md` | vibe |
 | JSON | `references/json.md` | vibe |
 | Markdown | `references/markdown.md` | vibe, doc |
+| SQL Safety | `references/sql-safety-checklist.md` | vibe, pre-mortem (when DB code detected) |
+| LLM Trust Boundaries | `references/llm-trust-boundary-checklist.md` | vibe, pre-mortem (when LLM code detected) |
+| Race Conditions | `references/race-condition-checklist.md` | vibe, pre-mortem (when concurrent code detected) |
 
 ## How It Works
 
@@ -49,6 +51,18 @@ elif file.endswith('.rs'):
 # etc.
 ```
 
+## Domain-Specific Checklists
+
+Specialized checklists for high-risk code patterns. Loaded automatically by `$vibe` and `$pre-mortem` when matching code patterns are detected:
+
+| Checklist | Trigger Pattern | Risk Area |
+|-----------|----------------|-----------|
+| `sql-safety-checklist.md` | SQL queries, ORM calls, migration files, `database/sql`, `sqlalchemy`, `prisma` | Injection, migration safety, N+1, transactions |
+| `llm-trust-boundary-checklist.md` | `anthropic`, `openai` imports, prompt templates, `*llm*`/`*prompt*` files | Prompt injection, output validation, cost control |
+| `race-condition-checklist.md` | Goroutines, threads, `asyncio`, `sync.Mutex`, shared file I/O | Shared state, file races, database races |
+
+Skills detect triggers via file content patterns and import statements. Each checklist's "When to Apply" section defines exact detection rules.
+
 ## Deep Standards
 
 For comprehensive audits, skills can load extended standards from
@@ -58,6 +72,7 @@ For comprehensive audits, skills can load extended standards from
 |----------|------|----------|
 | Tier 1 (this skill) | ~5KB each | Normal validation |
 | Tier 2 (vibe/references) | ~15-20KB each | Deep audits, `--deep` flag |
+| Domain checklists | ~3-5KB each | Triggered by code pattern detection |
 
 ## Integration
 
@@ -118,27 +133,7 @@ Skills that use standards:
 - [references/skill-structure.md](references/skill-structure.md)
 - [references/standards-index.md](references/standards-index.md)
 - [references/typescript.md](references/typescript.md)
+- [references/sql-safety-checklist.md](references/sql-safety-checklist.md)
+- [references/llm-trust-boundary-checklist.md](references/llm-trust-boundary-checklist.md)
+- [references/race-condition-checklist.md](references/race-condition-checklist.md)
 - [references/yaml.md](references/yaml.md)
-
-## Local Resources
-
-### references/
-
-- [references/common-standards.md](references/common-standards.md)
-- [references/examples-troubleshooting-template.md](references/examples-troubleshooting-template.md)
-- [references/go.md](references/go.md)
-- [references/json.md](references/json.md)
-- [references/markdown.md](references/markdown.md)
-- [references/python.md](references/python.md)
-- [references/rust.md](references/rust.md)
-- [references/shell.md](references/shell.md)
-- [references/skill-structure.md](references/skill-structure.md)
-- [references/standards-index.md](references/standards-index.md)
-- [references/typescript.md](references/typescript.md)
-- [references/yaml.md](references/yaml.md)
-
-### scripts/
-
-- `scripts/validate.sh`
-
-

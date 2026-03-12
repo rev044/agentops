@@ -1,15 +1,6 @@
-# Backlog Processing — Phase 3 Implementation Details
+---
 
-Phase 3 scans `.agents/learnings/`, deduplicates entries, scores them for promotion, and flags stale learnings for retirement. This document defines the algorithms and data contracts.
-
-## Scoring Algorithm
-
-Each learning is scored on three dimensions. The composite score determines whether the learning is promoted to Phase 4 (activation).
-
-**Formula:** `score = confidence + citations + recency`
-
-| Dimension | Value | Points |
-|-----------|-------|--------|
+--------|-------|--------|
 | Confidence: high | Explicit `confidence: high` in frontmatter or body | 3 |
 | Confidence: medium | Explicit `confidence: medium` or no confidence marker | 2 |
 | Confidence: low | Explicit `confidence: low` | 1 |

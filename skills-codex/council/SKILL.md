@@ -3,7 +3,6 @@ name: council
 description: 'Multi-model consensus council. Spawns parallel judges with configurable perspectives. Modes: validate, brainstorm, research. Triggers: "council", "get consensus", "multi-model review", "multi-perspective review", "council validate", "council brainstorm", "council research".'
 ---
 
-
 # $council — Multi-Model Consensus Council
 
 Spawn parallel judges with different perspectives, consolidate into consensus. Works for any task — validation, research, brainstorming.
@@ -31,7 +30,7 @@ Council works independently — no RPI workflow, no ratchet chain, no `ao` CLI r
 | Mode | Agents | Execution Backend | Use Case |
 |------|--------|-------------------|----------|
 | `--quick` | 0 (inline) | Self | Fast single-agent check, no spawning |
-| default | 2 | Runtime-native (Codex sub-agents preferred; Codex sub-agents fallback) | Independent judges (no perspective labels) |
+| default | 2 | Runtime-native (Codex sub-agents preferred; Claude teams fallback) | Independent judges (no perspective labels) |
 | `--deep` | 3 | Runtime-native | Thorough review |
 | `--mixed` | 3+3 | Runtime-native + Codex CLI | Cross-vendor consensus |
 | `--debate` | 2+ | Runtime-native | Adversarial refinement (2 rounds) |
@@ -56,7 +55,7 @@ Skills describe WHAT to do, not WHICH tool to call. See `skills/shared/SKILL.md`
 **After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
 - Shared Claude feature contract → `skills/shared/references/claude-code-latest-features.md`
 - Local mirrored contract for runtime-local reads → `references/claude-code-latest-features.md`
-- Codex sub-agents → `references/backend-claude-teams.md`
+- Claude Native Teams → `references/backend-claude-teams.md`
 - Codex Sub-Agents / CLI → `references/backend-codex-subagents.md`
 - Background Tasks → `references/backend-background-tasks.md`
 - Inline (`--quick`) → `references/backend-inline.md`
@@ -109,7 +108,7 @@ Verdict policy for this gate:
 Judges write ALL analysis to output files. Messages to the lead contain ONLY a
 minimal completion signal: `{"type":"verdict","verdict":"...","confidence":"...","file":"..."}`.
 The lead reads output files during consolidation. This prevents N judges from
-exploding the lead's context window with N full reports via send-message.
+exploding the lead's context window with N full reports via SendMessage.
 
 **Consolidation runs inline as the lead** — no separate chairman agent. The lead
 reads each judge's output file sequentially with the Read tool and synthesizes.
@@ -145,7 +144,7 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
 │  (--deep/--mixed only)│           │                       │
 │                       │           │  Output: JSON + MD    │
 │  Write files, then    │           │  Files: .agents/      │
-│ wait()/send-message to │           │    council/codex-*    │
+│ wait()/SendMessage to │           │    council/codex-*    │
 │ lead                  │           │                       │
 │  Files: .agents/      │           └───────────────────────┘
 │    council/claude-*   │                       │
@@ -335,7 +334,7 @@ See [references/personas.md](references/personas.md) for all built-in presets an
 
 > **Debate Protocol:** Use `Read` tool on `skills/council/references/debate-protocol.md` for full debate execution flow, R1-to-R2 verdict injection, timeout handling, and cost analysis.
 
-**Summary:** Two-round adversarial review. R1 produces independent verdicts. R2 sends other judges' verdicts via backend messaging (`send_input` or `send-message`) for steel-manning and revision. Only supported with validate mode.
+**Summary:** Two-round adversarial review. R1 produces independent verdicts. R2 sends other judges' verdicts via backend messaging (`send_input` or `SendMessage`) for steel-manning and revision. Only supported with validate mode.
 
 ---
 
@@ -368,6 +367,19 @@ Disagreement handling:
 
 All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 
+### Finding Extraction (Flywheel Closure)
+
+After writing the council report, extract significant findings for the knowledge flywheel:
+
+1. **Skip if PASS.** Nothing to extract from successful reviews.
+2. **Filter findings:** Keep only severity >= `significant` AND confidence >= `MEDIUM`.
+3. **Classify each:** `learning` (process gap), `finding` (code/design defect), or `rule` (repeatable constraint).
+4. **Compute dedup key:** `sha256(finding_description)`. Skip if already in the file.
+5. **Append** one JSON line per finding to `.agents/council/extraction-candidates.jsonl`.
+
+Candidates are staged for human review or `$post-mortem` consumption — they are **never** auto-promoted to MEMORY.md.
+
+See [references/finding-extraction.md](references/finding-extraction.md) for the full schema and classification heuristics.
 
 ---
 
@@ -569,39 +581,12 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/cli-spawning.md](references/cli-spawning.md)
 - [references/debate-protocol.md](references/debate-protocol.md)
 - [references/explorers.md](references/explorers.md)
+- [references/finding-extraction.md](references/finding-extraction.md)
 - [references/output-format.md](references/output-format.md)
 - [references/personas.md](references/personas.md)
-- [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
-- [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
-- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
-- [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
-- [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
-- [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
-
-## Local Resources
-
-### references/
-
-- [references/agent-prompts.md](references/agent-prompts.md)
-- [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
-- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
-- [references/backend-inline.md](references/backend-inline.md)
-- [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
-- [references/cli-spawning.md](references/cli-spawning.md)
-- [references/debate-protocol.md](references/debate-protocol.md)
-- [references/explorers.md](references/explorers.md)
-- [references/model-profiles.md](references/model-profiles.md)
-- [references/output-format.md](references/output-format.md)
-- [references/personas.md](references/personas.md)
-- [references/presets.md](references/presets.md)
-- [references/quick-mode.md](references/quick-mode.md)
-- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
-
-### scripts/
-
-- `scripts/validate-council.sh`
-- `scripts/validate.sh`
-
-
+- [../shared/references/backend-background-tasks.md](../shared/references/backend-background-tasks.md)
+- [../shared/references/backend-claude-teams.md](../shared/references/backend-claude-teams.md)
+- [../shared/references/backend-codex-subagents.md](../shared/references/backend-codex-subagents.md)
+- [../shared/references/backend-inline.md](../shared/references/backend-inline.md)
+- [../shared/references/claude-code-latest-features.md](../shared/references/claude-code-latest-features.md)
+- [../shared/references/ralph-loop-contract.md](../shared/references/ralph-loop-contract.md)

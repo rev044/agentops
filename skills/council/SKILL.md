@@ -380,6 +380,19 @@ Disagreement handling:
 
 All reports write to `.agents/council/YYYY-MM-DD-<type>-<target>.md`.
 
+### Finding Extraction (Flywheel Closure)
+
+After writing the council report, extract significant findings for the knowledge flywheel:
+
+1. **Skip if PASS.** Nothing to extract from successful reviews.
+2. **Filter findings:** Keep only severity >= `significant` AND confidence >= `MEDIUM`.
+3. **Classify each:** `learning` (process gap), `finding` (code/design defect), or `rule` (repeatable constraint).
+4. **Compute dedup key:** `sha256(finding_description)`. Skip if already in the file.
+5. **Append** one JSON line per finding to `.agents/council/extraction-candidates.jsonl`.
+
+Candidates are staged for human review or `/post-mortem` consumption — they are **never** auto-promoted to MEMORY.md.
+
+See [references/finding-extraction.md](references/finding-extraction.md) for the full schema and classification heuristics.
 
 ---
 
@@ -581,6 +594,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/cli-spawning.md](references/cli-spawning.md)
 - [references/debate-protocol.md](references/debate-protocol.md)
 - [references/explorers.md](references/explorers.md)
+- [references/finding-extraction.md](references/finding-extraction.md)
 - [references/output-format.md](references/output-format.md)
 - [references/personas.md](references/personas.md)
 - [../shared/references/backend-background-tasks.md](../shared/references/backend-background-tasks.md)

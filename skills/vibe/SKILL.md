@@ -81,7 +81,7 @@ Do NOT spawn agents for empty file lists.
 
 ### Step 1.5: Fast Path (--quick mode)
 
-**If `--quick` flag is set**, skip Steps 2a through 2e plus 2.5/2f/2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Step 2.4 (finding registry check) still runs in quick mode because reusable review findings are mandatory context, not optional search. Complexity analysis (Step 2) still runs — it's cheap and informative.
+**If `--quick` flag is set**, skip Steps 2a through 2e plus 2.5/2f/2g (prior findings check, constraint tests, metadata checks, OL validation, codex review, knowledge search, bug hunt, product context) and jump directly to Step 4 with inline council. Steps 2.3 (domain checklists) and 2.4 (finding registry check) still run in quick mode — domain checklists are cheap to load and high-value, and reusable review findings are mandatory context. Complexity analysis (Step 2) still runs — it's cheap and informative.
 
 **Why:** Steps 2.5 and 2a–2g add 30–90 seconds of pre-processing that feed multi-judge council packets. In --quick mode (single inline agent), these inputs aren't worth the cost — the inline reviewer reads files directly.
 
@@ -131,6 +131,20 @@ fi
 | F (31+) | Untestable | Must refactor |
 
 **Include complexity findings in council context.**
+
+### Step 2.3: Load Domain-Specific Checklists
+
+Detect code patterns in the target files and load matching domain-specific checklists from `standards/references/`:
+
+| Trigger | Checklist | Detection |
+|---------|-----------|-----------|
+| SQL/ORM code | `sql-safety-checklist.md` | Files contain SQL queries, ORM imports (`database/sql`, `sqlalchemy`, `prisma`, `activerecord`, `gorm`, `knex`), or migration files in changeset |
+| LLM/AI code | `llm-trust-boundary-checklist.md` | Files import `anthropic`, `openai`, `google.generativeai`, or match `*llm*`, `*prompt*`, `*completion*` patterns |
+| Concurrent code | `race-condition-checklist.md` | Files use goroutines, `threading`, `asyncio`, `multiprocessing`, `sync.Mutex`, `concurrent.futures`, or shared file I/O patterns |
+
+For each matched checklist, load it via the Read tool and include relevant items in the council packet as `context.domain_checklists`. Multiple checklists can be loaded simultaneously.
+
+Skip silently if no patterns match. This step runs in both `--quick` and full modes (domain checklists are cheap to load and high-value).
 
 ### Step 2.4: Compiled Prevention Check
 
@@ -393,6 +407,29 @@ If a spec is found, include it in the council packet's `context.spec` field:
 }
 ```
 
+### Step 3.5: Load Suppressions
+
+Before invoking council, load the default suppression list from `references/vibe-suppressions.md` and any project-level overrides from `.agents/vibe-suppressions.jsonl`. Suppressions are applied post-verdict to classify findings as CRITICAL vs INFORMATIONAL and to filter known false positives. See [references/vibe-suppressions.md](references/vibe-suppressions.md) for the full pattern list.
+
+### Step 3.6: Load Pre-Mortem Predictions (Correlation)
+
+When a pre-mortem report exists for the current epic, load prediction IDs for downstream correlation:
+
+```bash
+# Find the most recent pre-mortem report
+PM_REPORT=$(ls -t .agents/council/*pre-mortem*.md 2>/dev/null | head -1)
+if [ -n "$PM_REPORT" ]; then
+  # Extract prediction IDs from frontmatter
+  PREDICTION_IDS=$(sed -n '/^prediction_ids:/,/^[^ -]/p' "$PM_REPORT" | grep '^\s*-' | sed 's/^\s*- //')
+fi
+```
+
+For each vibe finding, check if it matches a pre-mortem prediction:
+- **Match found:** Tag finding with `predicted_by: pm-YYYYMMDD-NNN`
+- **No match:** Tag finding with `predicted_by: none` (surprise issue)
+
+Include the prediction correlation in the vibe report's findings table. This feeds the post-mortem's Prediction Accuracy section. Skip silently if no pre-mortem report exists.
+
 ### Step 4: Run Council Validation
 
 **With spec found — use code-review preset:**
@@ -481,6 +518,12 @@ date: YYYY-MM-DD
 
 ## Shared Findings
 - ...
+
+## CRITICAL Findings (blocks ship)
+- ... (findings that indicate correctness, security, or data-safety issues)
+
+## INFORMATIONAL Findings (include in PR body)
+- ... (style suggestions, minor improvements, suppressed/downgraded items)
 
 ## Concerns Raised
 - ...
@@ -661,4 +704,5 @@ See `references/examples.md` for additional examples: security audit with spec c
 - [references/shell-standards.md](references/shell-standards.md)
 - [references/typescript-standards.md](references/typescript-standards.md)
 - [references/vibe-coding.md](references/vibe-coding.md)
+- [references/vibe-suppressions.md](references/vibe-suppressions.md)
 - [references/yaml-standards.md](references/yaml-standards.md)

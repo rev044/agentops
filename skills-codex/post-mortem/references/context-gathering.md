@@ -1,31 +1,4 @@
-# Context Gathering
-
-How to collect rich context from multiple sources for retrospectives.
-
-## Target Identification
-
-### If Epic ID Provided
-
-```bash
-bd show $ARGUMENTS
-# Extract child issue IDs, query each for comments
-```
-
-### If Topic/Plan Provided
-
-```bash
-ls .agents/plans/*$ARGUMENTS* 2>/dev/null
-ls .agents/research/*$ARGUMENTS* 2>/dev/null
-```
-
-### If No Argument
-
-```bash
-bd list --status closed | head -10
-```
-
 ---
-
 ## Conversation Analysis
 
 If a session ID is available, analyze the Claude Code conversation to extract:
@@ -36,16 +9,17 @@ If a session ID is available, analyze the Claude Code conversation to extract:
 
 ```bash
 # Analyze specific session
-python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID
+python3 ~/.codex/scripts/analyze-sessions.py --session=$SESSION_ID
 
 # Analyze with extraction limits for large sessions
-python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
+python3 ~/.codex/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
 ```
 
 ### Conversation Data → Retro Output Mapping
 
 | Conversation Data | Retro Output |
-|-------------------|--------------|
+|
+-------------------|--------------|
 | `DecisionExtraction` | `.agents/council/` - Decisions section |
 | `QualityResult.issues` | Friction detection |
 | `DocExtraction(type="warning")` | `.agents/learnings/` |
@@ -55,7 +29,7 @@ python3 ~/.claude/scripts/analyze-sessions.py --session=$SESSION_ID --limit=50
 ### Session ID Sources
 
 1. **Environment variable**: `$CLAUDE_SESSION_ID` (set by Claude Code)
-2. **Recent session detection**: Find most recent `.jsonl` in `~/.claude/projects/`
+2. **Recent session detection**: Find most recent `.jsonl` in `~/.codex/projects/`
 3. **Beads comment**: Sessions may be recorded in crank state
 
 ### When No Session Available

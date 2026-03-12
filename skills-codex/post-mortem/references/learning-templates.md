@@ -1,9 +1,4 @@
-# Learning Templates for Post-Mortem
-
-Templates for extracting and documenting learnings during Phase 4.
-
 ---
-
 ## Learning Artifact Template
 
 Write to: `.agents/learnings/YYYY-MM-DD-{topic}.md`
@@ -15,7 +10,6 @@ Write to: `.agents/learnings/YYYY-MM-DD-{topic}.md`
 **Epic:** <epic-id>
 **Tags:** [learning, topic1, topic2]
 **Verified:** yes/no
-
 ---
 
 ## Context

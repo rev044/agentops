@@ -1,6 +1,6 @@
 # Brainstorming Techniques
 
-Structured techniques for `/council brainstorm` mode. Use `--technique=<name>` to activate.
+Structured techniques for `$council brainstorm` mode. Use `--technique=<name>` to activate.
 
 When no technique is specified, brainstorm mode uses unstructured exploration (current behavior).
 

@@ -202,7 +202,7 @@ TeamDelete()
 
 **Reaper pattern:** If a teammate doesn't respond to shutdown within 30s, proceed with `TeamDelete()` anyway.
 
-**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.claude/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
+**If `TeamDelete` fails** (e.g., stale members): clean up manually with `rm -rf ~/.codex/teams/<team-name>/` then retry `TeamDelete()` to clear in-memory state.
 
 ---
 
@@ -216,7 +216,7 @@ TeamCreate(team_name="swarm-1739812345-w1", description="Wave 1")
 # ... spawn workers, wait, validate, commit ...
 # ... shutdown teammates ...
 TeamDelete()
-# If TeamDelete fails: rm -rf ~/.claude/teams/swarm-1739812345-w1/ then retry
+# If TeamDelete fails: rm -rf ~/.codex/teams/swarm-1739812345-w1/ then retry
 
 # Wave 2 (fresh context)
 TeamCreate(team_name="swarm-1739812345-w2", description="Wave 2")

@@ -160,6 +160,32 @@ bd list --status closed --since "7 days ago" 2>/dev/null | head -5
 git log --oneline --since="7 days ago" | head -10
 ```
 
+### Step 1.5: RPI Session Metrics
+
+Read `.agents/rpi/rpi-state.json`. If absent or unparseable, skip silently.
+
+```bash
+RPI_STATE=".agents/rpi/rpi-state.json"
+if [ -f "$RPI_STATE" ] && jq empty "$RPI_STATE" 2>/dev/null; then
+  RPI_SESSION_ID=$(jq -r '.session_id // "unknown"' "$RPI_STATE")
+  RPI_PHASE=$(jq -r '.phase // "unknown"' "$RPI_STATE")
+  RPI_STARTED=$(jq -r '.started_at // empty' "$RPI_STATE")
+  RPI_VERDICTS=$(jq -r '[.verdicts[]?.verdict // empty] | last // "none"' "$RPI_STATE" 2>/dev/null || echo "none")
+  # Count sessions from outcomes.jsonl if available
+  TOTAL_SESSIONS=$(wc -l < .agents/rpi/outcomes.jsonl 2>/dev/null || echo "1")
+  # Streak: count consecutive days with rpi-state.json updates (see references/streak-tracking.md)
+  LAST_RPI_DATE=$(date -r "$RPI_STATE" +%Y-%m-%d 2>/dev/null || date -d "$(stat -c %Y "$RPI_STATE" 2>/dev/null)" +%Y-%m-%d 2>/dev/null || echo "unknown")
+fi
+```
+
+If data was extracted, prepend a tweetable summary to the post-mortem report (before the verdict table):
+
+```
+> RPI streak: N consecutive days | Sessions: N | Last verdict: PASS/WARN/FAIL
+```
+
+See [references/streak-tracking.md](references/streak-tracking.md) for streak calculation rules and fallback behavior.
+
 ### Step 2: Load the Original Plan/Spec
 
 Before invoking council, load the original plan for comparison:
@@ -287,6 +313,38 @@ Enables adversarial two-round review for post-implementation validation. Use for
 - `--preset=<name>` — Override with different personas (e.g., `--preset=ops` for production readiness)
 - `--explorers=N` — Each judge spawns N explorers to investigate the implementation deeply before judging
 - `--debate` — Two-round adversarial review (judges critique each other's findings before final verdict)
+
+### Step 3.5: Prediction Accuracy (Pre-Mortem Correlation)
+
+When a pre-mortem report exists for the current epic, generate a Prediction Accuracy section:
+
+```bash
+# Find the most recent pre-mortem report
+PM_REPORT=$(ls -t .agents/council/*pre-mortem*.md 2>/dev/null | head -1)
+```
+
+If found, cross-reference pre-mortem predictions against actual vibe/implementation findings:
+
+```markdown
+## Prediction Accuracy
+
+| Prediction ID | Predicted | Actual | Hit? |
+|---------------|-----------|--------|------|
+| pm-YYYYMMDD-001 | <predicted failure> | <actual outcome> | HIT/MISS |
+| pm-YYYYMMDD-002 | <predicted failure> | <actual outcome> | HIT/MISS |
+| — | — | <surprise vibe finding> | SURPRISE |
+
+**Accuracy: N/M predictions confirmed (X%). K surprise issues.**
+```
+
+Scoring rules:
+- **HIT**: Pre-mortem prediction matched an actual vibe/implementation finding
+- **MISS**: Pre-mortem prediction did not materialize
+- **SURPRISE**: Actual issue that no pre-mortem prediction covered
+
+High miss rate is acceptable — pre-mortem is precautionary. High surprise rate suggests pre-mortem perspectives need expansion.
+
+Skip silently if no pre-mortem report exists. See [references/prediction-tracking.md](references/prediction-tracking.md) for the full tracking lifecycle.
 
 ### Phase 2: Extract Learnings
 
@@ -794,6 +852,57 @@ Before marking post-mortem complete, enforce command-surface parity for modified
 
 If any modified command file is missing both coverage evidence and an intentional-uncovered rationale, post-mortem cannot be marked complete.
 
+### Step 4.8: Persist Retro History (Trend Tracking)
+
+After writing the post-mortem report, persist a structured summary to `.agents/retro/` for cross-epic trend analysis.
+
+```bash
+mkdir -p .agents/retro
+```
+
+Extract key metrics from the post-mortem report and write a summary JSON:
+
+**Write to:** `.agents/retro/YYYY-MM-DD-<epic-slug>.json`
+
+```json
+{
+  "id": "retro-YYYY-MM-DD-<epic-slug>",
+  "date": "YYYY-MM-DD",
+  "epic_id": "<epic-id or 'recent'>",
+  "verdict": "PASS|WARN|FAIL",
+  "duration_minutes": "<elapsed from PM_START>",
+  "cycle_time_trend": "faster|slower|stable",
+  "learnings_extracted": "<count from Phase 2>",
+  "learnings_promoted": "<count from Phase 4>",
+  "stale_retired": "<count from Phase 5>",
+  "prediction_accuracy": {
+    "hits": "<from Step 2.7>",
+    "misses": "<from Step 2.7>",
+    "surprises": "<from Step 2.7>",
+    "rate": "<hit_rate>"
+  },
+  "footguns": ["<from footgun table>"],
+  "top_learning": "<single most impactful learning>",
+  "improvements_proposed": "<count from Step 4.5>",
+  "tags": ["<category tags>"]
+}
+```
+
+Then append a one-line index entry to `.agents/retro/index.jsonl`:
+
+```json
+{"id": "retro-YYYY-MM-DD-<epic-slug>", "date": "YYYY-MM-DD", "epic_id": "<id>", "verdict": "<verdict>", "duration_minutes": "<n>", "learnings_extracted": "<n>"}
+```
+
+**Trend summary (include in report when 2+ prior retros exist):**
+
+Read `tail -5 .agents/retro/index.jsonl` and compute:
+- Verdict streak (consecutive PASS/WARN/FAIL)
+- Average cycle time over last 5 retros
+- Learnings-per-retro trend
+
+See [references/retro-history.md](references/retro-history.md) for the full schema, write rules, and trend queries.
+
 ### Step 5: Harvest Next Work
 
 Scan the council report and extracted learnings for actionable follow-up items:
@@ -1041,3 +1150,6 @@ Ship it
 - [references/output-templates.md](references/output-templates.md)
 - [references/backlog-processing.md](references/backlog-processing.md)
 - [references/activation-policy.md](references/activation-policy.md)
+- [references/prediction-tracking.md](references/prediction-tracking.md)
+- [references/retro-history.md](references/retro-history.md)
+- [references/streak-tracking.md](references/streak-tracking.md)

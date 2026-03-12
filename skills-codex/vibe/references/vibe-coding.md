@@ -1,6 +1,6 @@
 # Vibe-Coding Science Reference
 
-**JIT-loaded by /vibe skill and validation agents**
+**JIT-loaded by $vibe skill and validation agents**
 
 ---
 
@@ -122,4 +122,4 @@
 
 ---
 
-**Source:** gitops/docs/methodology/vibe-ecosystem/vibe-coding/
+**Source:** gitops/docs/methodology$vibe-ecosystem$vibe-coding/

@@ -86,6 +86,30 @@ In `--quick` mode, **skip Steps 1a and 1b** (knowledge search, product context) 
 
 To escalate to full multi-judge council, use `--deep` (4 judges) or `--mixed` (cross-vendor).
 
+### Step 1.6: Scope Mode Selection
+
+Before running council, determine the review posture. Three modes:
+
+| Mode | When to Use | Posture |
+|------|-------------|---------|
+| **SCOPE EXPANSION** | Greenfield features, user says "go big" | Dream big. What's the 10-star version? Push scope UP. |
+| **HOLD SCOPE** | Bug fixes, refactors, most plans | Maximum rigor within accepted scope. Make it bulletproof. |
+| **SCOPE REDUCTION** | Plan touches >15 files, overbuilt | Strip to essentials. What's the minimum that ships value? |
+
+**Auto-detection (when user doesn't specify):**
+- Greenfield feature → default EXPANSION
+- Bug fix or hotfix → default HOLD SCOPE
+- Refactor → default HOLD SCOPE
+- Plan touching >15 files → suggest REDUCTION
+- User says "go big" / "ambitious" → EXPANSION
+
+**Critical rule:** Once mode is selected, COMMIT to it in the council packet. Do not silently drift. Include `scope_mode: <expansion|hold|reduction>` in the council packet context.
+
+**Mode-specific council instructions:**
+- **EXPANSION:** Add to judge prompt: "What would make this 10x more ambitious for 2x the effort? What's the platonic ideal? List 3 delight opportunities."
+- **HOLD SCOPE:** Add to judge prompt: "The plan's scope is accepted. Your job: find every failure mode, test every edge case, ensure observability. Do not argue for less work."
+- **REDUCTION:** Add to judge prompt: "Find the minimum viable version. Everything else is deferred. What can be a follow-up? Separate must-ship from nice-to-ship."
+
 ### Step 1a: Search Knowledge Flywheel
 
 **Skip if `--quick`.** Only run this step for `--deep`, `--mixed`, or `--debate`.
@@ -168,6 +192,55 @@ Each judge spawns 3 explorers to investigate aspects of the plan's feasibility a
 ```
 Enables adversarial two-round review for plan validation. Use for high-stakes plans where multiple valid approaches exist. See `/council` docs for full --debate details.
 
+### Step 2.4: Temporal Interrogation (--deep and --temporal)
+
+**Included automatically with `--deep`.** Also available via `--temporal` flag for quick reviews.
+
+Walk through the plan's implementation timeline to surface time-dependent risks:
+
+| Phase | Questions |
+|-------|-----------|
+| **Hour 1: Setup** | What blocks the first meaningful code change? Are dependencies available? |
+| **Hour 2: Core** | Which files change in what order? Are there circular dependencies? |
+| **Hour 4: Integration** | What fails when components connect? Which error paths are untested? |
+| **Hour 6+: Ship** | What "should be quick" but historically isn't? What context is lost overnight? |
+
+Add to each judge's prompt when temporal interrogation is active:
+
+```
+TEMPORAL INTERROGATION: Walk through this plan's implementation timeline.
+For each phase (Hour 1, 2, 4, 6+), identify:
+1. What blocks progress at this point?
+2. What fails silently at this point?
+3. What compounds if not caught at this point?
+Report temporal findings in a separate "Timeline Risks" section.
+```
+
+**Auto-triggered** (even without `--deep`) when the plan has 5+ files or 3+ sequential dependencies.
+
+**Retro history correlation:** When `.agents/retro/index.jsonl` has 2+ entries, load the last 5 retros and check for recurring timeline-phase failures. Auto-escalate severity for phases that caused issues in prior retros.
+
+Temporal findings appear in the report as a `## Timeline Risks` table. See [references/temporal-interrogation.md](references/temporal-interrogation.md) for the full framework.
+
+### Step 2.5: Error & Rescue Map (Mandatory for plans with external calls)
+
+When the plan introduces methods, services, or codepaths that can fail, the council packet MUST include an Error & Rescue Map. If the plan omits one, generate it during review.
+
+Include in the council packet as `context.error_map`:
+
+| Method/Codepath | What Can Go Wrong | Exception/Error | Rescued? | Rescue Action | User Sees |
+|-----------------|-------------------|-----------------|----------|---------------|-----------|
+| `ServiceName#method` | API timeout | `TimeoutError` | Y/N | Retry 2x, then raise | "Service unavailable" |
+
+**Rules:**
+- Every external call (API, database, file I/O) must have at least one row
+- `rescue StandardError` or bare `except:` is always a smell — name specific exceptions
+- Every rescued error must: retry with backoff, degrade gracefully, OR re-raise with context
+- For LLM/AI calls: map malformed response, empty response, hallucinated JSON, and refusal as separate failure modes
+- Each GAP (unrescued error) is a finding with severity=significant
+
+See `references/error-rescue-map-template.md` for the full template with worked examples.
+
 ### Step 3: Interpret Council Verdict
 
 | Council Verdict | Pre-Mortem Result | Action |
@@ -186,17 +259,20 @@ id: pre-mortem-YYYY-MM-DD-<topic-slug>
 type: pre-mortem
 date: YYYY-MM-DD
 source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
+prediction_ids:
+  - pm-YYYYMMDD-001
+  - pm-YYYYMMDD-002
 ---
 
 # Pre-Mortem: <Topic>
 
 ## Council Verdict: PASS / WARN / FAIL
 
-| Judge | Verdict | Key Finding |
-|-------|---------|-------------|
-| Missing-Requirements | ... | ... |
-| Feasibility | ... | ... |
-| Scope | ... | ... |
+| ID | Judge | Finding | Severity | Prediction |
+|----|-------|---------|----------|------------|
+| pm-YYYYMMDD-001 | Missing-Requirements | ... | significant | <what will go wrong> |
+| pm-YYYYMMDD-002 | Feasibility | ... | significant | <what will go wrong> |
+| pm-YYYYMMDD-003 | Scope | ... | moderate | <what will go wrong> |
 
 ## Shared Findings
 - ...
@@ -216,6 +292,8 @@ source: "[[.agents/plans/YYYY-MM-DD-<plan-slug>]]"
 [ ] ADDRESS - Fix concerns before implementing
 [ ] RETHINK - Fundamental issues, needs redesign
 ```
+
+Each finding gets a unique prediction ID (`pm-YYYYMMDD-NNN`) for downstream correlation. See [references/prediction-tracking.md](references/prediction-tracking.md) for the full tracking lifecycle.
 
 ### Step 4.5: Persist Reusable Findings
 
@@ -342,6 +420,9 @@ Tell the user:
 ## Reference Documents
 
 - [references/enhancement-patterns.md](references/enhancement-patterns.md)
+- [references/error-rescue-map-template.md](references/error-rescue-map-template.md)
 - [references/failure-taxonomy.md](references/failure-taxonomy.md)
 - [references/simulation-prompts.md](references/simulation-prompts.md)
+- [references/prediction-tracking.md](references/prediction-tracking.md)
 - [references/spec-verification-checklist.md](references/spec-verification-checklist.md)
+- [references/temporal-interrogation.md](references/temporal-interrogation.md)

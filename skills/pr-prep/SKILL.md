@@ -47,6 +47,7 @@ test coverage, and generating properly-formatted PR bodies.
 2.  Git Archaeology      -> Analyze commit patterns, PR history
 3.  Pre-Flight Checks    -> Run tests, linting, build
 4.  Change Analysis      -> Summarize what changed and why
+4.5 Commit Split Advisor -> Suggest logical commit groups (manual)
 5.  PR Body Generation   -> Create structured PR description
 6.  USER REVIEW GATE     -> STOP. User must approve before submission.
 7.  Submission           -> Only after explicit user approval
@@ -141,6 +142,32 @@ pytest -v
 
 ---
 
+## Phase 4.5: Commit Split Analysis (Suggestion-Only)
+
+Analyze the branch diff and suggest logical commit groupings.
+
+```bash
+# Review the scope of changes
+git diff --stat main..HEAD
+```
+
+**Output a numbered list** of suggested commits with file groups:
+
+```
+Commit 1: [description] -- files: path/a.go, path/a_test.go
+Commit 2: [description] -- files: path/b.go, path/c.go
+```
+
+**Ordering**: Infrastructure/migrations > Models/services > Controllers/views > Tests > VERSION/CHANGELOG.
+Each commit must be independently valid (no broken imports).
+If diff is < 50 lines across < 4 files, recommend a single commit.
+
+See [references/commit-split-advisor.md](references/commit-split-advisor.md) for full rules.
+
+> **These are suggestions only. User reads and implements manually.**
+
+---
+
 ## Phase 5: PR Body Generation
 
 ### Standard Format
@@ -228,3 +255,4 @@ gh pr create --title "type(scope): brief description" \
 - [references/case-study-historical-context.md](references/case-study-historical-context.md)
 - [references/lessons-learned.md](references/lessons-learned.md)
 - [references/package-extraction.md](references/package-extraction.md)
+- [references/commit-split-advisor.md](references/commit-split-advisor.md)

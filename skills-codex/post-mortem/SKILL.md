@@ -3,7 +3,6 @@ name: post-mortem
 description: 'Wrap up completed work. Council validates the implementation, then extract and process learnings. Triggers: "post-mortem", "wrap up", "close epic", "what did we learn".'
 ---
 
-
 # Post-Mortem Skill
 
 > **Purpose:** Wrap up completed work — validate it shipped correctly, extract learnings, process the knowledge backlog, activate high-value insights, and retire stale knowledge.
@@ -148,6 +147,32 @@ bd list --status closed --since "7 days ago" 2>/dev/null | head -5
 git log --oneline --since="7 days ago" | head -10
 ```
 
+### Step 1.5: RPI Session Metrics
+
+Read `.agents/rpi/rpi-state.json`. If absent or unparseable, skip silently.
+
+```bash
+RPI_STATE=".agents/rpi/rpi-state.json"
+if [ -f "$RPI_STATE" ] && jq empty "$RPI_STATE" 2>/dev/null; then
+  RPI_SESSION_ID=$(jq -r '.session_id // "unknown"' "$RPI_STATE")
+  RPI_PHASE=$(jq -r '.phase // "unknown"' "$RPI_STATE")
+  RPI_STARTED=$(jq -r '.started_at // empty' "$RPI_STATE")
+  RPI_VERDICTS=$(jq -r '[.verdicts[]?.verdict // empty] | last // "none"' "$RPI_STATE" 2>/dev/null || echo "none")
+  # Count sessions from outcomes.jsonl if available
+  TOTAL_SESSIONS=$(wc -l < .agents/rpi/outcomes.jsonl 2>/dev/null || echo "1")
+  # Streak: count consecutive days with rpi-state.json updates (see references/streak-tracking.md)
+  LAST_RPI_DATE=$(date -r "$RPI_STATE" +%Y-%m-%d 2>/dev/null || date -d "$(stat -c %Y "$RPI_STATE" 2>/dev/null)" +%Y-%m-%d 2>/dev/null || echo "unknown")
+fi
+```
+
+If data was extracted, prepend a tweetable summary to the post-mortem report (before the verdict table):
+
+```
+> RPI streak: N consecutive days | Sessions: N | Last verdict: PASS/WARN/FAIL
+```
+
+See [references/streak-tracking.md](references/streak-tracking.md) for streak calculation rules and fallback behavior.
+
 ### Step 2: Load the Original Plan/Spec
 
 Before invoking council, load the original plan for comparison:
@@ -275,6 +300,38 @@ Enables adversarial two-round review for post-implementation validation. Use for
 - `--preset=<name>` — Override with different personas (e.g., `--preset=ops` for production readiness)
 - `--explorers=N` — Each judge spawns N explorers to investigate the implementation deeply before judging
 - `--debate` — Two-round adversarial review (judges critique each other's findings before final verdict)
+
+### Step 3.5: Prediction Accuracy (Pre-Mortem Correlation)
+
+When a pre-mortem report exists for the current epic, generate a Prediction Accuracy section:
+
+```bash
+# Find the most recent pre-mortem report
+PM_REPORT=$(ls -t .agents/council/*pre-mortem*.md 2>/dev/null | head -1)
+```
+
+If found, cross-reference pre-mortem predictions against actual vibe/implementation findings:
+
+```markdown
+## Prediction Accuracy
+
+| Prediction ID | Predicted | Actual | Hit? |
+|---------------|-----------|--------|------|
+| pm-YYYYMMDD-001 | <predicted failure> | <actual outcome> | HIT/MISS |
+| pm-YYYYMMDD-002 | <predicted failure> | <actual outcome> | HIT/MISS |
+| — | — | <surprise vibe finding> | SURPRISE |
+
+**Accuracy: N/M predictions confirmed (X%). K surprise issues.**
+```
+
+Scoring rules:
+- **HIT**: Pre-mortem prediction matched an actual vibe/implementation finding
+- **MISS**: Pre-mortem prediction did not materialize
+- **SURPRISE**: Actual issue that no pre-mortem prediction covered
+
+High miss rate is acceptable — pre-mortem is precautionary. High surprise rate suggests pre-mortem perspectives need expansion.
+
+Skip silently if no pre-mortem report exists. See [references/prediction-tracking.md](references/prediction-tracking.md) for the full tracking lifecycle.
 
 ### Phase 2: Extract Learnings
 
@@ -719,8 +776,8 @@ These entries are promoted to `.agents/learnings/` and injected into future work
 |---|-------|------|----------|--------|-------------|
 | 1 | <title> | tech-debt / improvement / pattern-fix / process-improvement | high / medium / low | council-finding / retro-learning / retro-pattern | <repo-name or *> |
 
-### Recommended Next $rpi
-$rpi "<highest-value improvement>"
+### Recommended Next /rpi
+/rpi "<highest-value improvement>"
 
 ## Status
 
@@ -782,6 +839,57 @@ Before marking post-mortem complete, enforce command-surface parity for modified
 
 If any modified command file is missing both coverage evidence and an intentional-uncovered rationale, post-mortem cannot be marked complete.
 
+### Step 4.8: Persist Retro History (Trend Tracking)
+
+After writing the post-mortem report, persist a structured summary to `.agents/retro/` for cross-epic trend analysis.
+
+```bash
+mkdir -p .agents/retro
+```
+
+Extract key metrics from the post-mortem report and write a summary JSON:
+
+**Write to:** `.agents/retro/YYYY-MM-DD-<epic-slug>.json`
+
+```json
+{
+  "id": "retro-YYYY-MM-DD-<epic-slug>",
+  "date": "YYYY-MM-DD",
+  "epic_id": "<epic-id or 'recent'>",
+  "verdict": "PASS|WARN|FAIL",
+  "duration_minutes": "<elapsed from PM_START>",
+  "cycle_time_trend": "faster|slower|stable",
+  "learnings_extracted": "<count from Phase 2>",
+  "learnings_promoted": "<count from Phase 4>",
+  "stale_retired": "<count from Phase 5>",
+  "prediction_accuracy": {
+    "hits": "<from Step 2.7>",
+    "misses": "<from Step 2.7>",
+    "surprises": "<from Step 2.7>",
+    "rate": "<hit_rate>"
+  },
+  "footguns": ["<from footgun table>"],
+  "top_learning": "<single most impactful learning>",
+  "improvements_proposed": "<count from Step 4.5>",
+  "tags": ["<category tags>"]
+}
+```
+
+Then append a one-line index entry to `.agents/retro/index.jsonl`:
+
+```json
+{"id": "retro-YYYY-MM-DD-<epic-slug>", "date": "YYYY-MM-DD", "epic_id": "<id>", "verdict": "<verdict>", "duration_minutes": "<n>", "learnings_extracted": "<n>"}
+```
+
+**Trend summary (include in report when 2+ prior retros exist):**
+
+Read `tail -5 .agents/retro/index.jsonl` and compute:
+- Verdict streak (consecutive PASS/WARN/FAIL)
+- Average cycle time over last 5 retros
+- Learnings-per-retro trend
+
+See [references/retro-history.md](references/retro-history.md) for the full schema, write rules, and trend queries.
+
 ### Step 5: Harvest Next Work
 
 Scan the council report and extracted learnings for actionable follow-up items:
@@ -804,7 +912,7 @@ Scan the council report and extracted learnings for actionable follow-up items:
 
 7. **Write to next-work.jsonl** (canonical path: `.agents/rpi/next-work.jsonl`). Read `references/harvest-next-work.md` for the write procedure (target_repo assignment, claim/finalize lifecycle, JSONL format, required fields).
 
-8. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `$rpi --spawn-next` to create an epic from these items."
+8. **Do NOT auto-create bd issues.** Report the items and suggest: "Run `/rpi --spawn-next` to create an epic from these items."
 
 If no actionable items found, write: "No follow-up items identified. Flywheel stable."
 
@@ -861,11 +969,11 @@ Tell the user:
 3. Any follow-up items
 4. Location of post-mortem report
 5. Knowledge flywheel status
-6. **Suggested next `$rpi` command** from the harvested `## Next Work` section (ALWAYS — this is how the flywheel spins itself)
+6. **Suggested next `/rpi` command** from the harvested `## Next Work` section (ALWAYS — this is how the flywheel spins itself)
 7. ALL proactive improvements, organized by priority (highlight one quick win)
 8. Knowledge lifecycle summary (Phase 3-5 stats)
 
-**The next `$rpi` suggestion is MANDATORY, not opt-in.** After every post-mortem, present the highest-severity harvested item as a ready-to-copy command:
+**The next `/rpi` suggestion is MANDATORY, not opt-in.** After every post-mortem, present the highest-severity harvested item as a ready-to-copy command:
 
 ```markdown
 ## Flywheel: Next Cycle
@@ -877,7 +985,7 @@ Based on this post-mortem, the highest-priority follow-up is:
 
 Ready to run:
 ```
-$rpi "<title>"
+/rpi "<title>"
 ```
 
 Or see all N harvested items in `.agents/rpi/next-work.jsonl`.
@@ -913,12 +1021,12 @@ $post-mortem              <-- You are here
     |-- Phase 4: Activate (promote to MEMORY.md, compile constraints)
     |-- Phase 5: Retire stale learnings
     |-- Phase 6: Harvest next work
-    |-- Suggest next $rpi --------------------+
+    |-- Suggest next /rpi --------------------+
                                               |
     +----------------------------------------+
     |  (flywheel: learnings become next work)
     v
-$rpi "<highest-priority enhancement>"
+/rpi "<highest-priority enhancement>"
 ```
 
 ---
@@ -941,7 +1049,7 @@ $rpi "<highest-priority enhancement>"
 9. Harvests next-work items to `.agents/rpi/next-work.jsonl`
 10. Feeds learnings to knowledge flywheel via `ao forge`
 
-**Result:** Post-mortem report with learnings, tech debt identified, knowledge lifecycle stats, and suggested next `$rpi` command.
+**Result:** Post-mortem report with learnings, tech debt identified, knowledge lifecycle stats, and suggested next `/rpi` command.
 
 ### Wrap Up Specific Epic
 
@@ -1029,28 +1137,6 @@ $rpi "<highest-priority enhancement>"
 - [references/output-templates.md](references/output-templates.md)
 - [references/backlog-processing.md](references/backlog-processing.md)
 - [references/activation-policy.md](references/activation-policy.md)
-
-## Local Resources
-
-### references/
-
-- [references/activation-policy.md](references/activation-policy.md)
-- [references/backlog-processing.md](references/backlog-processing.md)
-- [references/checkpoint-policy.md](references/checkpoint-policy.md)
-- [references/closure-integrity-audit.md](references/closure-integrity-audit.md)
-- [references/context-gathering.md](references/context-gathering.md)
-- [references/harvest-next-work.md](references/harvest-next-work.md)
-- [references/learning-templates.md](references/learning-templates.md)
-- [references/metadata-verification.md](references/metadata-verification.md)
-- [references/output-templates.md](references/output-templates.md)
-- [references/plan-compliance-checklist.md](references/plan-compliance-checklist.md)
-- [references/security-patterns.md](references/security-patterns.md)
-
-### scripts/
-
-- `scripts/closure-integrity-audit.sh`
-- `scripts/preflight-refs.sh`
-- `scripts/validate.sh`
-- `scripts/write-evidence-only-closure.sh`
-
-
+- [references/prediction-tracking.md](references/prediction-tracking.md)
+- [references/retro-history.md](references/retro-history.md)
+- [references/streak-tracking.md](references/streak-tracking.md)

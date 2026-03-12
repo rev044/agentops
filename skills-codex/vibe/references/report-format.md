@@ -4,8 +4,8 @@
 
 | File | Purpose |
 |------|---------|
-| `reports/vibe-report.json` | Full JSON findings |
-| `reports/vibe-junit.xml` | CI integration (JUnit XML) |
+| `reports$vibe-report.json` | Full JSON findings |
+| `reports$vibe-junit.xml` | CI integration (JUnit XML) |
 | `.agents/assessments/{date}-vibe-validate-{target}.md` | Knowledge artifact |
 
 ---

@@ -1,17 +1,6 @@
-# Plan Compliance Checklist
-
-Use this checklist to mechanically verify implementation against plan.
-
-## How to Use
-
-1. Read the plan file
-2. Extract each TODO/deliverable
-3. For each item, fill in the table
-
-## Checklist Template
-
-| # | Plan Item | Expected File | File Exists? | Implementation Matches? | Evidence |
-|---|-----------|---------------|--------------|------------------------|----------|
+---
+|
+-----------|---------------|--------------|------------------------|----------|
 | 1 | <copy from plan> | <path> | yes/no | yes/partial/no | file:line |
 | 2 | ... | ... | ... | ... | ... |
 

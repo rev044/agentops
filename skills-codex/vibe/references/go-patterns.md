@@ -648,7 +648,7 @@ gocyclo -over 10 .
 | P14 | MEDIUM | `fmt.Errorf.*%v` when wrapping errors |
 | P15 | HIGH | golangci-lint violations (requires golangci-lint installed) |
 
-Run prescan: `~/.claude/skills/vibe/scripts/prescan.sh recent`
+Run prescan: `~/.codex/skills$vibe/scripts/prescan.sh recent`
 
 ---
 
