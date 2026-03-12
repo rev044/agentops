@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.23.1] - 2026-03-12
+
+### Added
+
+- `runHeartbeatAge` convenience function for RPI phase state
+
+### Changed
+
+- Refactored `ClassifyStreamError` from cyclomatic complexity 32 to ~5 via
+  data-driven classifier rule table
+
+### Fixed
+
+- Checked all unchecked error returns flagged by golangci-lint (`tbl.Render`,
+  `appendRPIC2Event`)
+- Replaced deprecated `strings.Title` with package-local `titleCase` helper
+- Simplified return logic in `qualifyAutoExtract`
+- Removed unnecessary `fmt.Sprintf` in test
+- Fixed unused `ctx` parameter in tmux executor
+- Converted empty test branches to real assertions
+- Synced embedded standards and Codex bundle after skill audit fixes
+- Resolved audit findings across council, vibe, standards skills
+
 ## [2.23.0] - 2026-03-11
 
 ### Added
