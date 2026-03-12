@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-03-11
+
+### Added
+
+- **Discovery and validation phase orchestrators** — New `/discovery` and
+  `/validation` skills decompose the RPI lifecycle into independently
+  invocable phases (research+plan+pre-mortem and vibe+post-mortem)
+- **Stigmergic packet scorecard** — Ranked scoring for flywheel knowledge
+  packets so higher-utility learnings surface first
+- **Pinned work queue** — `/evolve` gains a pinned work queue with blocker
+  auto-resolution for directed improvement loops
+- **Per-package coverage ratchet** — Pre-push gate enforces per-package
+  coverage baselines that only move upward
+- **Fast pre-push mode** — `--fast` flag for diff-based conditional checks,
+  skipping unchanged packages
+- **Standards auto-loading** — Go and Python coding standards injected
+  automatically into `/crank` and `/swarm` workers
+- **271 test functions** — Four internal packages (`pool`, `ratchet`,
+  `resolver`, `storage`) brought to 100% coverage
+
+### Changed
+
+- **README restructured** — Extracted reference material into dedicated docs,
+  reducing README from 679 to 472 lines
+- **RPI skill refactored** — `/rpi` now delegates to `/discovery` and
+  `/validation` phase orchestrators instead of inlining all phases
+- **Go and Python test conventions** — Canonical standards enriched with
+  assertion quality rules, naming conventions, and table-driven test guidance
+- **Documentation alignment** — Lifecycle, flywheel, primitive chain, and
+  positioning docs updated to reflect current architecture
+
+### Fixed
+
+- **Goal runner deadlock** — Fixed goroutine deadlock in goal runner and added
+  job timeouts to prevent stalls
+- **17 CLI bugs from deep audit** — Addressed goroutine leaks, race
+  conditions, panics, buffer overflows, and nil-check inconsistencies
+- **Session close reliability** — Resolved pre-existing session_close issues
+  surfaced by vibe council review
+- **~50 zero-assertion tests** — Upgraded smoke tests from no-op to
+  behavioral assertions across cmd/ao and internal packages
+- **Test file hygiene** — Merged `_extra_test.go` and `cov*_test.go` files
+  into canonical `<source>_test.go` names
+- **CI stability** — FIFO test skip on Linux, embedded skill sync, coverage
+  ceiling adjustments, crank SKILL.md trimmed below 800-line limit
+- **Auto-extract quality gate** — Added quality gate to prevent low-fidelity
+  auto-extracted learnings from entering the knowledge store
+
 ## [2.22.1] - 2026-03-10
 
 ### Added
