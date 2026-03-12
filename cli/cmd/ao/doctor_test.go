@@ -1044,7 +1044,7 @@ func TestCheckSkills_UserSkillsOverlapWarnsWithoutPluginCache(t *testing.T) {
 	}
 }
 
-func TestCheckSkills_PluginCacheAndUserSkillsPass(t *testing.T) {
+func TestCheckSkills_PluginCacheAndUserSkillsWarn(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("HOME", fakeHome)
 
@@ -1078,8 +1078,11 @@ func TestCheckSkills_PluginCacheAndUserSkillsPass(t *testing.T) {
 	}
 
 	result := checkSkills()
-	if result.Status != "pass" {
-		t.Fatalf("status=%q, want pass when plugin cache and ~/.agents/skills overlap (detail: %s)", result.Status, result.Detail)
+	if result.Status != "warn" {
+		t.Fatalf("status=%q, want warn when plugin cache and ~/.agents/skills overlap (detail: %s)", result.Status, result.Detail)
+	}
+	if !strings.Contains(result.Detail, "duplicate raw skill install") || !strings.Contains(result.Detail, "~/.agents/skills") {
+		t.Fatalf("expected duplicate ~/.agents/skills warning, got %q", result.Detail)
 	}
 }
 

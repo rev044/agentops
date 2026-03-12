@@ -29,9 +29,9 @@ install-codex-native-skills.sh
 Builds Codex-native skills into ./skills-codex and installs them to ~/.agents/skills.
 
 If the current Codex install metadata reports native-plugin mode, the default
-behavior is to refresh the active plugin cache after updating the documented
-user raw skill home. Pass --dest to force a single raw skill install
-destination.
+behavior is to refresh the active plugin cache without leaving a duplicate raw
+skill mirror in ~/.agents/skills. Pass --dest to force a raw skill install
+destination instead.
 
 Options:
   --source <dir>      Codex-native source skills root (default: ./skills-codex)
@@ -158,6 +158,20 @@ if git -C "$REPO_ROOT" rev-parse --short HEAD >/dev/null 2>&1; then
   VERSION="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 fi
 
+if should_refresh_native_plugin && [[ "$DRY_RUN" != "true" ]]; then
+  plugin_root="$(read_install_meta_value "plugin_root")"
+  echo "Detected native-plugin install metadata at $INSTALL_META"
+  echo "Refreshing active Codex plugin cache at $plugin_root"
+  bash "$PLUGIN_INSTALL_SCRIPT" \
+    --repo-root "$REPO_ROOT" \
+    --codex-home "$HOME/.codex" \
+    --skills-src "$SRC" \
+    --version "$VERSION" \
+    --update-command "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
+  echo "Restart Codex to pick up installed skills."
+  exit 0
+fi
+
 export_args=(--src "$SRC" --dst "$DST")
 if [[ -n "$BACKUP" ]]; then
   export_args+=(--backup "$BACKUP")
@@ -211,18 +225,7 @@ cat > "$RAW_STATE_FILE" <<EOF
 }
 EOF
 
-if should_refresh_native_plugin && [[ "$DRY_RUN" != "true" ]]; then
-  plugin_root="$(read_install_meta_value "plugin_root")"
-  echo "Detected native-plugin install metadata at $INSTALL_META"
-  echo "Refreshing active Codex plugin cache at $plugin_root"
-  bash "$PLUGIN_INSTALL_SCRIPT" \
-    --repo-root "$REPO_ROOT" \
-    --codex-home "$HOME/.codex" \
-    --skills-src "$SRC" \
-    --version "$VERSION" \
-    --update-command "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
-else
-  mkdir -p "$(dirname "$INSTALL_META")"
+mkdir -p "$(dirname "$INSTALL_META")"
 if [[ -z "$USER_DST_INSTALLED" ]]; then
   USER_DST_INSTALLED="null"
 else
@@ -243,7 +246,6 @@ cat > "$INSTALL_META" <<EOF
   "update_command": "curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash"
 }
 EOF
-  echo "Install metadata written: $INSTALL_META"
-fi
+echo "Install metadata written: $INSTALL_META"
 
 echo "Restart Codex to pick up installed skills."

@@ -152,8 +152,8 @@ test_installs_plugin_cache_and_config() {
     fail "skills copied into plugin cache"
     return
   }
-  [[ -f "$user_skills_root/research/SKILL.md" ]] || {
-    fail "skills mirrored into ~/.agents/skills sibling"
+  [[ ! -e "$user_skills_root/research/SKILL.md" ]] || {
+    fail "native plugin install should not leave AgentOps raw skills in ~/.agents/skills"
     return
   }
   [[ ! -e "$codex_home/skills/research/SKILL.md" ]] || {
@@ -172,8 +172,8 @@ test_installs_plugin_cache_and_config() {
     rg -q '^plugins = true$' "$codex_home/config.toml" && \
     rg -q '^\[plugins\."agentops@agentops-marketplace"\]$' "$codex_home/config.toml" && \
     rg -q '^enabled = true$' "$codex_home/config.toml" && \
-    rg -q "\"user_skills_root\": \"$user_skills_root\"" "$codex_home/.agentops-codex-install.json"; then
-    pass "installs plugin cache and mirrors only ~/.agents/skills"
+    rg -q '"user_skills_root": null' "$codex_home/.agentops-codex-install.json"; then
+    pass "installs plugin cache without leaving a raw ~/.agents/skills mirror"
   else
     fail "config.toml missing plugin enablement"
   fi
@@ -213,7 +213,7 @@ EOF
   pass "archives AgentOps ~/.codex/skills entries without touching custom skill folders"
 }
 
-test_refreshes_home_agents_agentops_skills_without_touching_custom_skills() {
+test_archives_home_agents_agentops_skills_without_touching_custom_skills() {
   local fixture="$TMP_DIR/home-agents"
   local home_dir="$TMP_DIR/home-agents-root"
   local codex_home="$home_dir/.codex"
@@ -221,6 +221,9 @@ test_refreshes_home_agents_agentops_skills_without_touching_custom_skills() {
 
   setup_fixture "$fixture"
   mkdir -p "$user_skills_root/research" "$user_skills_root/custom-skill"
+  cat > "$user_skills_root/.agentops-codex-state.json" <<'EOF'
+{"install_mode":"managed-raw-skills"}
+EOF
   cat > "$user_skills_root/research/SKILL.md" <<'EOF'
 official
 EOF
@@ -233,21 +236,25 @@ EOF
     return
   fi
 
-  if ! rg -q '^name: research$' "$user_skills_root/research/SKILL.md"; then
-    fail "plugin install should refresh managed AgentOps skills in ~/.agents/skills"
+  if [[ -e "$user_skills_root/research/SKILL.md" ]]; then
+    fail "plugin install should archive managed AgentOps skills out of ~/.agents/skills"
     return
   fi
   if [[ ! -f "$user_skills_root/custom-skill/SKILL.md" ]]; then
     fail "plugin install should not remove custom ~/.agents/skills folders"
     return
   fi
-  pass "plugin install refreshes AgentOps skills without touching custom ~/.agents/skills folders"
+  if ! find "$home_dir/.agents" -maxdepth 1 -type d -name 'skills.backup.*' | grep -q .; then
+    fail "expected archived AgentOps ~/.agents/skills backup"
+    return
+  fi
+  pass "plugin install archives AgentOps skills without touching custom ~/.agents/skills folders"
 }
 
 echo "== test-codex-plugin-install =="
 test_installs_plugin_cache_and_config
 test_archives_agentops_codex_home_skills_without_touching_custom_skills
-test_refreshes_home_agents_agentops_skills_without_touching_custom_skills
+test_archives_home_agents_agentops_skills_without_touching_custom_skills
 
 echo ""
 echo "Results: $PASS PASS, $FAIL FAIL"

@@ -798,6 +798,22 @@ func checkSkills() doctorCheck {
 		}
 	}
 
+	if len(legacyNames) > 0 && len(nativeNames) > 0 {
+		overlaps := overlappingSkillNames(legacyNames, nativeNames)
+		if len(overlaps) > 0 {
+			sample := overlaps
+			if len(sample) > 3 {
+				sample = sample[:3]
+			}
+			return doctorCheck{
+				Name:   "Plugin",
+				Status: "warn",
+				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
+					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
+			}
+		}
+	}
+
 	if len(legacyNames) > 0 {
 		overlaps := overlappingSkillNames(legacyNames, rawCodexNames, installedNames["~/.claude/skills"])
 		if len(overlaps) > 0 {
@@ -808,7 +824,7 @@ func checkSkills() doctorCheck {
 			return doctorCheck{
 				Name:   "Plugin",
 				Status: "warn",
-				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove ~/.agents/skills if it is no longer needed.",
+				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
 					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
 			}
 		}

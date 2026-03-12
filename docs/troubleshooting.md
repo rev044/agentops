@@ -123,10 +123,10 @@ If reinstalling one-by-one works but bulk update previously failed, the local sk
 ## Skills show up twice in Codex
 
 This usually means Codex is seeing AgentOps skills from more than one location.
-OpenAI's Codex skills docs describe `~/.agents/skills` as the user skill home.
-Extra copies in `~/.codex/skills` or the compatibility plugin cache can still
-create duplicates if they drift or if your local Codex build scans more than one
-of those locations.
+For native-plugin installs, the active source of truth is the plugin cache under
+`~/.codex/plugins/cache/.../skills-codex`. Stale copies in `~/.codex/skills` or
+`~/.agents/skills` can still create duplicates if your local Codex build scans
+more than one of those locations.
 
 **Diagnosis:**
 
@@ -144,27 +144,32 @@ find ~/.agents/skills -maxdepth 1 -mindepth 1 -type d | sort
 
 **Fix:**
 
-1. Reinstall so `~/.agents/skills` is refreshed from the current generated source:
+1. Reinstall so the native plugin cache is refreshed and stale raw mirrors are archived:
    ```bash
    curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
    ```
-2. If duplicates persist, archive the stale `~/.codex/skills` copy:
+2. If duplicates persist, archive the stale `~/.agents/skills` copy:
+   ```bash
+   mv ~/.agents/skills ~/.agents/skills.backup.$(date +%Y%m%d-%H%M%S)
+   ```
+3. If duplicates still persist, archive the stale `~/.codex/skills` copy:
    ```bash
    mv ~/.codex/skills ~/.codex/skills.backup.$(date +%Y%m%d-%H%M%S)
    ```
-3. If duplicates still persist after that, remove the compatibility plugin cache:
+4. If duplicates still persist after that, remove the compatibility plugin cache:
    ```bash
    rm -rf ~/.codex/plugins/cache/agentops-marketplace/agentops/local
    ```
-4. Validate the runtime in a fresh session:
+5. Validate the runtime in a fresh session:
    ```bash
    bash scripts/validate-codex-cli-skills.sh
    ```
-5. Restart Codex so interactive sessions reload the current skill list.
-6. Re-run `ao doctor` to confirm the warning is gone.
+6. Restart Codex so interactive sessions reload the current skill list.
+7. Re-run `ao doctor` to confirm the warning is gone.
 
-Keep `~/.agents/skills` as the source of truth. Only restore `~/.codex/skills`
-or the plugin cache if a specific Codex build still requires them.
+Keep the native plugin cache as the source of truth for native-plugin installs.
+Only restore `~/.agents/skills` or `~/.codex/skills` if you intentionally want
+raw-skill mode for a specific Codex build.
 
 ---
 

@@ -195,7 +195,7 @@ claude plugin update agentops
 ### Per-Runtime Install (non-Claude plugin path)
 
 ```bash
-# Codex CLI (installs to ~/.agents/skills, refreshes plugin compatibility, then open a fresh session)
+# Codex CLI (installs the native plugin, archives stale raw mirrors when needed, then open a fresh session)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode

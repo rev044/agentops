@@ -28,7 +28,7 @@ Use the [skills.sh](https://skills.sh/) npm package to install AgentOps skills f
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI: installs to ~/.agents/skills, refreshes plugin compatibility, then open a fresh Codex session
+# Codex CLI: installs the native plugin, archives stale raw mirrors when needed, then open a fresh Codex session
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode

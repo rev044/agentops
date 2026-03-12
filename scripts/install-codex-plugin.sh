@@ -37,6 +37,7 @@ INSTALL_META="${CODEX_HOME}/.agentops-codex-install.json"
 SKILL_MANIFEST_NAME=".agentops-manifest.json"
 PLUGIN_STATE_FILE=""
 LEGACY_BACKUP_DIR=""
+USER_BACKUP_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -220,85 +221,77 @@ stage_plugin_source() {
   fi
 }
 
-sync_raw_skills_root() {
-  local dst_root="$1"
+archive_skill_root() {
+  local root="$1"
+  local backup_dir="$2"
+  local managed_root="$3"
   local skill_dir
   local skill_name
-  local dst_skill
-
-  mkdir -p "$dst_root"
-  cp "$PLUGIN_SKILLS_SRC/$SKILL_MANIFEST_NAME" "$dst_root/$SKILL_MANIFEST_NAME"
-
-  while IFS= read -r -d '' skill_dir; do
-    skill_name="$(basename "$skill_dir")"
-    dst_skill="$dst_root/$skill_name"
-    mkdir -p "$dst_skill"
-    rsync -a --delete --copy-links "${skill_dir%/}/" "${dst_skill%/}/"
-  done < <(find "$PLUGIN_SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
-
-  while IFS= read -r -d '' dst_skill; do
-    skill_name="$(basename "$dst_skill")"
-    if [[ ! -d "$PLUGIN_SKILLS_SRC/$skill_name" ]] && [[ -f "$dst_skill/.agentops-generated.json" ]]; then
-      rm -rf "$dst_skill"
-    fi
-  done < <(find "$dst_root" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
-}
-
-archive_legacy_codex_skills() {
-  local timestamp
-  local backup_dir
-  local skill_name
+  local root_skill
   local moved=0
 
-  [[ -d "$LEGACY_SKILLS_DIR" ]] || return 0
-
-  timestamp="$(date +%Y%m%d-%H%M%S)"
-  backup_dir="${CODEX_HOME}/skills.backup.${timestamp}"
+  [[ -d "$root" ]] || return 0
 
   while IFS= read -r -d '' skill_dir; do
     skill_name="$(basename "$skill_dir")"
-    [[ -d "$LEGACY_SKILLS_DIR/$skill_name" ]] || continue
+    root_skill="$root/$skill_name"
+    [[ -d "$root_skill" ]] || continue
+    if [[ "$managed_root" != "true" && ! -f "$root_skill/.agentops-generated.json" ]]; then
+      continue
+    fi
     mkdir -p "$backup_dir"
-    mv "$LEGACY_SKILLS_DIR/$skill_name" "$backup_dir/$skill_name"
+    mv "$root_skill" "$backup_dir/$skill_name"
     moved=$((moved + 1))
   done < <(find "$PLUGIN_SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 
-  if [[ -f "$LEGACY_SKILLS_DIR/$SKILL_MANIFEST_NAME" ]]; then
+  if [[ -f "$root/$SKILL_MANIFEST_NAME" ]]; then
     mkdir -p "$backup_dir"
-    mv "$LEGACY_SKILLS_DIR/$SKILL_MANIFEST_NAME" "$backup_dir/$SKILL_MANIFEST_NAME"
+    mv "$root/$SKILL_MANIFEST_NAME" "$backup_dir/$SKILL_MANIFEST_NAME"
     moved=$((moved + 1))
   fi
-  if [[ -f "$LEGACY_SKILLS_DIR/.agentops-codex-state.json" ]]; then
+  if [[ -f "$root/.agentops-codex-state.json" ]]; then
     mkdir -p "$backup_dir"
-    mv "$LEGACY_SKILLS_DIR/.agentops-codex-state.json" "$backup_dir/.agentops-codex-state.json"
+    mv "$root/.agentops-codex-state.json" "$backup_dir/.agentops-codex-state.json"
     moved=$((moved + 1))
   fi
 
   if [[ "$moved" -eq 0 ]]; then
     rmdir "$backup_dir" 2>/dev/null || true
-    return 0
+    return 1
   fi
 
-  LEGACY_BACKUP_DIR="$backup_dir"
+  return 0
 }
 
-write_raw_skill_state() {
-  local dst_root="$1"
-  local installed_at="$2"
-  local manifest_hash="$3"
-  local skill_count
+archive_legacy_codex_skills() {
+  local timestamp
+  local backup_dir
 
-  skill_count="$(find "$dst_root" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
-  cat > "$dst_root/.agentops-codex-state.json" <<EOF
-{
-  "installed_at": "$installed_at",
-  "install_mode": "managed-raw-skills",
-  "version": "$VERSION",
-  "manifest_hash": "$manifest_hash",
-  "skill_count": $skill_count,
-  "skills_root": "$dst_root"
+  [[ -d "$LEGACY_SKILLS_DIR" ]] || return 0
+
+  timestamp="$(date +%Y%m%d-%H%M%S)"
+  backup_dir="${CODEX_HOME}/skills.backup.${timestamp}"
+  if archive_skill_root "$LEGACY_SKILLS_DIR" "$backup_dir" "true"; then
+    LEGACY_BACKUP_DIR="$backup_dir"
+  fi
 }
-EOF
+
+archive_user_raw_skills() {
+  local timestamp
+  local backup_dir
+  local managed_root="false"
+
+  [[ -d "$USER_SKILLS_DIR" ]] || return 0
+
+  if [[ -f "$USER_SKILLS_DIR/$SKILL_MANIFEST_NAME" || -f "$USER_SKILLS_DIR/.agentops-codex-state.json" ]]; then
+    managed_root="true"
+  fi
+
+  timestamp="$(date +%Y%m%d-%H%M%S)"
+  backup_dir="$(dirname "$USER_SKILLS_DIR")/skills.backup.${timestamp}"
+  if archive_skill_root "$USER_SKILLS_DIR" "$backup_dir" "$managed_root"; then
+    USER_BACKUP_DIR="$backup_dir"
+  fi
 }
 
 require_path "$PLUGIN_MANIFEST" "Codex plugin manifest"
@@ -331,8 +324,7 @@ INSTALLED_MANIFEST_HASH="$(sha256_file "$PLUGIN_SKILLS_DST/$SKILL_MANIFEST_NAME"
 SKILL_COUNT="$(find "$PLUGIN_SKILLS_DST" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
 
 archive_legacy_codex_skills
-sync_raw_skills_root "$USER_SKILLS_DIR"
-write_raw_skill_state "$USER_SKILLS_DIR" "$INSTALLED_AT" "$MANIFEST_HASH"
+archive_user_raw_skills
 
 cat > "$PLUGIN_STATE_FILE" <<EOF
 {
@@ -356,7 +348,7 @@ cat > "$INSTALL_META" <<EOF
   "manifest_hash": "$MANIFEST_HASH",
   "skill_count": $SKILL_COUNT,
   "plugin_state_file": "$PLUGIN_STATE_FILE",
-  "user_skills_root": "$USER_SKILLS_DIR",
+  "user_skills_root": null,
   "update_command": "$UPDATE_CMD"
 }
 EOF
@@ -366,9 +358,11 @@ echo "  Plugin key: $PLUGIN_KEY"
 echo "  Plugin root: $PLUGIN_CACHE_ROOT"
 echo "  Skills available: $SKILL_COUNT"
 echo "  Config updated: $CONFIG_FILE"
-echo "  User skills mirrored to: $USER_SKILLS_DIR"
 if [[ -n "$LEGACY_BACKUP_DIR" ]]; then
   echo "  Archived overlapping ~/.codex/skills entries to: $LEGACY_BACKUP_DIR"
+fi
+if [[ -n "$USER_BACKUP_DIR" ]]; then
+  echo "  Archived overlapping ~/.agents/skills entries to: $USER_BACKUP_DIR"
 fi
 info "Install metadata written: $INSTALL_META"
 echo ""
