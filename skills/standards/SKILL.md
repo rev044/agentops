@@ -127,5 +127,6 @@ Skills that use standards:
 - [references/rust.md](references/rust.md)
 - [references/shell.md](references/shell.md)
 - [references/skill-structure.md](references/skill-structure.md)
+- [references/standards-index.md](references/standards-index.md)
 - [references/typescript.md](references/typescript.md)
 - [references/yaml.md](references/yaml.md)
