@@ -315,4 +315,4 @@ Full taxonomy at `skills/SKILL-TIERS.md`.
 
 ### Standards Loading
 
-Language standards loaded JIT by `/vibe`, `/implement` — see `standards-index.md`.
+Language standards loaded JIT by `/vibe`, `/implement` — see `references/standards-index.md`.
