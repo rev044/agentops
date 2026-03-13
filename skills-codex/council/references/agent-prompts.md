@@ -34,6 +34,7 @@ Gate verdict rules:
 - Any critical lifecycle invariant not mechanically verifiable -> FAIL.
 
 For every finding, include these structured remediation fields:
+- id: (optional) Stable finding ID for cross-skill correlation (e.g., f-council-001)
 - fix: Specific action to resolve this finding
 - why: Root cause or rationale
 - ref: File path, spec anchor, or doc reference that supports this finding
@@ -103,6 +104,7 @@ Gate verdict rules:
 - Any critical lifecycle invariant not mechanically verifiable -> FAIL.
 
 For every finding, include these structured remediation fields:
+- id: (optional) Stable finding ID for cross-skill correlation (e.g., f-council-001)
 - fix: Specific action to resolve this finding
 - why: Root cause or rationale
 - ref: File path, spec anchor, or doc reference that supports this finding

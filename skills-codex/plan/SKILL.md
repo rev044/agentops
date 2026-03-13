@@ -284,6 +284,22 @@ For each issue's acceptance criteria, derive at least one **mechanically verifia
 - If acceptance criteria cannot be mechanically verified, flag it as underspecified
 - When adding entries to config files enumerated by tests, search for hardcoded count assertions: `grep -rn 'len.*!=\|len.*==\|expected.*count' <test-dir>/`
 
+#### Schema Strictness Pre-Flight (WARN)
+
+When any issue's file list includes JSON schema files (`*.schema.json`, files in `schemas/`), check for `additionalProperties: false`:
+
+```bash
+for f in <issue-files matching *.schema.json or schemas/*.json>; do
+  if grep -q '"additionalProperties":\s*false' "$f" 2>/dev/null; then
+    echo "WARN: $f has additionalProperties:false — new fields require schema update BEFORE consumer changes"
+  fi
+done
+```
+
+**If triggered:** Ensure schema-modifying issues are in an earlier wave than issues that reference the new fields. This prevents implementation failures where consumer SKILL.md files reference fields that the schema doesn't yet allow.
+
+This is advisory (WARN, not FAIL). The wave decomposition in Step 5 must respect this ordering.
+
 ### Step 5: Compute Waves
 
 Group issues by dependencies for parallel execution:
