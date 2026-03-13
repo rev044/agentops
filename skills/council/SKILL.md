@@ -599,6 +599,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/finding-extraction.md](references/finding-extraction.md)
 - [references/output-format.md](references/output-format.md)
 - [references/personas.md](references/personas.md)
+- [references/caching-guidance.md](references/caching-guidance.md)
 - [../shared/references/backend-background-tasks.md](../shared/references/backend-background-tasks.md)
 - [../shared/references/backend-claude-teams.md](../shared/references/backend-claude-teams.md)
 - [../shared/references/backend-codex-subagents.md](../shared/references/backend-codex-subagents.md)

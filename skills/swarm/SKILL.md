@@ -115,6 +115,8 @@ fi
 
 This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's TaskCreate description so workers start with full project context.
 
+**Output schema size guard:** When 5+ workers in a wave share the same output schema (e.g., `verdict.json`), cache it to `.agents/council/output-schema.json` and reference by path instead of inlining ~500 tokens per worker. For ≤4 workers, inline is fine. See council skill's caching guidance reference for details.
+
 Worker prompt signpost:
 - Claude workers should include: `Knowledge artifacts are in .agents/. See .agents/AGENTS.md for navigation. Use \`ao lookup --query "topic"\` for learnings.`
 - Codex workers cannot rely on `.agents/` file access in sandbox. The lead should search `.agents/learnings/` for relevant material and inline the top 3 results directly in the worker prompt body.
