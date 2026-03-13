@@ -57,7 +57,8 @@
     },
     "license": { "type": "string" },
     "compatibility": { "type": "string" },
-    "model": { "type": "string", "description": "Preferred model for skill execution (e.g., haiku, sonnet)" }
+    "model": { "type": "string", "description": "Preferred model for skill execution (e.g., haiku, sonnet)" },
+    "output_contract": { "type": "string", "description": "Path to JSON Schema file defining this skill's structured output format (e.g., skills/council/schemas/verdict.json)" }
   },
   "additionalProperties": false
 }

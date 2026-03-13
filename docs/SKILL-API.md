@@ -177,6 +177,18 @@ metadata:
 | `contribute` | External contributions | pr-plan, pr-implement, pr-research, oss-docs |
 | `cross-vendor` | Cross-platform | openai-docs, codex-team, converter, grafana-platform-dashboard |
 
+### `output_contract`
+
+Path to a JSON Schema file that defines the skill's structured output format.
+
+```yaml
+output_contract: skills/council/schemas/verdict.json
+```
+
+Used by downstream skills to validate that upstream output matches the expected schema. Paths are relative to repo root.
+
+**v1 status:** Declaration-only. No runtime enforcement. Consumed by skill chaining validation tooling.
+
 ### Other Fields
 
 | Field | Type | Description |

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Finding Item",
+  "description": "Canonical finding-item schema for AgentOps validation skills. A compatible subset of the finding-artifact schema (docs/contracts/finding-artifact.schema.json). Any valid finding item is also a valid verdict.json finding entry.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Finding identifier for cross-skill correlation (e.g., f-2026-03-12-001). Maps to finding-artifact.id."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "significant", "minor"],
+      "description": "Impact level. Maps to finding-artifact.severity."
+    },
+    "category": {
+      "type": "string",
+      "description": "Finding classification (e.g., security, architecture, performance, style)."
+    },
+    "description": {
+      "type": "string",
+      "description": "What was found. Maps to finding-artifact.summary."
+    },
+    "location": {
+      "type": "string",
+      "description": "File:line reference if applicable."
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "How to address the finding. Maps to finding-artifact.checklist_item."
+    },
+    "fix": {
+      "type": ["string", "null"],
+      "description": "Specific action to resolve this finding."
+    },
+    "why": {
+      "type": ["string", "null"],
+      "description": "Root cause or rationale."
+    },
+    "ref": {
+      "type": ["string", "null"],
+      "description": "File path, spec anchor, or doc reference. Maps to finding-artifact.source_artifact."
+    }
+  },
+  "required": ["severity", "category", "description", "location", "recommendation", "fix", "why", "ref"],
+  "additionalProperties": false
+}
