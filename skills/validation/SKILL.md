@@ -18,6 +18,7 @@ metadata:
     - retro       # optional - quick learning capture
     - forge       # optional - transcript mining
     - shared      # optional - CLI fallback table
+output_contract: skills/council/schemas/verdict.json
 ---
 
 # /validation — Full Validation Phase Orchestrator

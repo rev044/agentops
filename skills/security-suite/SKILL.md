@@ -12,6 +12,7 @@ context:
 metadata:
   tier: execution
   dependencies: []
+output_contract: skills/council/schemas/verdict.json
 ---
 
 # Security Suite
