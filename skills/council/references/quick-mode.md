@@ -26,11 +26,15 @@ Respond with:
      "key_insight": "Single sentence summary",
      "findings": [
        {
+         "id": "(optional) Stable finding ID for cross-skill correlation",
          "severity": "critical | significant | minor",
          "category": "security | architecture | performance | style",
          "description": "What was found",
          "location": "file:line if applicable",
-         "recommendation": "How to address"
+         "recommendation": "How to address",
+         "fix": "Specific action to resolve this finding",
+         "why": "Root cause or rationale",
+         "ref": "File path, spec anchor, or doc reference"
        }
      ],
      "recommendation": "Concrete next step"

@@ -14,6 +14,7 @@ metadata:
   dependencies:
     - standards   # optional - loaded for code validation context
   replaces: judge
+output_contract: skills/council/schemas/verdict.json
 ---
 
 # /council — Multi-Model Consensus Council
@@ -279,6 +280,7 @@ Judge prompt boundary:
         {
           "severity": "critical | significant | minor",
           "category": "security | architecture | performance | style",
+          "id": "(optional) Stable finding ID for cross-skill correlation (e.g., f-council-001)",
           "description": "What was found",
           "location": "file:line if applicable",
           "recommendation": "How to address",
@@ -288,7 +290,7 @@ Judge prompt boundary:
         }
       ],
       "recommendation": "Concrete next step",
-      "schema_version": 2
+      "schema_version": 3
     }
   }
 }
