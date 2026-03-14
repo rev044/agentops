@@ -115,7 +115,7 @@ fi
 while IFS= read -r skill_dir; do
   [[ -f "$skill_dir/SKILL.md" ]] || continue
   [[ -f "$skill_dir/$MARKER_FILE_NAME" ]] || fail "missing generated marker: ${skill_dir#"$ROOT"/}/$MARKER_FILE_NAME"
-  if rg -q "^description:[[:space:]]*['\"]?[>|]['\"]?[[:space:]]*$" "$skill_dir/SKILL.md"; then
+  if grep -qE "^description:[[:space:]]*['\"]?[>|]['\"]?[[:space:]]*$" "$skill_dir/SKILL.md"; then
     fail "malformed generated description frontmatter: ${skill_dir#"$ROOT"/}/SKILL.md"
   fi
 done < <(find "$SKILLS_ROOT" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
