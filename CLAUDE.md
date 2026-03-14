@@ -115,13 +115,11 @@ This updates SKILL-TIERS.md, PRODUCT.md, README.md, docs/SKILLS.md, docs/ARCHITE
 
 **Every `references/*.md` must be linked in SKILL.md.** If a file exists in `skills/<name>/references/`, the skill's SKILL.md must contain a markdown link to it or a `Read` instruction referencing it. Use `heal.sh --strict` to check.
 
-**Codex generated skills are not source-of-truth.** If a generated `skills-codex/<name>/SKILL.md` still contains Claude-era task primitives, Claude backend references, or bad rewrite artifacts after sync, do not patch it directly. Run:
+**Codex skills are manually maintained.** Edit `skills-codex/<name>/SKILL.md` directly or add a durable override in `skills-codex-overrides/<name>/`. The sync script (`sync-codex-native-skills.sh`) is deprecated — it overwrites manual edits. To audit for drift:
 
 ```bash
 bash scripts/audit-codex-parity.sh --skill <name>
 ```
-
-Then fix `skills/<name>/SKILL.md` and/or add a durable Codex override in `skills-codex-overrides/<name>/`, regenerate with `bash scripts/sync-codex-native-skills.sh`, and rerun the audit.
 
 **Embedded hooks must stay in sync.** After editing `hooks/`, `lib/hook-helpers.sh`, or `skills/standards/references/`:
 
@@ -138,14 +136,10 @@ scripts/generate-cli-reference.sh
 **Codex maintenance flow.** For Codex-specific skill changes:
 
 ```bash
-# 1. Edit source skill and, if needed, skills-codex-overrides/<name>/
-# 2. Audit suspicious generated output
+# 1. Edit skills-codex/<name>/SKILL.md directly, or add override in skills-codex-overrides/<name>/
+# 2. Audit for drift
 bash scripts/audit-codex-parity.sh --skill <name>
-
-# 3. Regenerate and validate
-bash scripts/sync-codex-native-skills.sh
-bash scripts/audit-codex-parity.sh
-bash scripts/validate-codex-skill-parity.sh
+# 3. Validate artifacts
 bash scripts/validate-codex-generated-artifacts.sh --scope worktree
 ```
 

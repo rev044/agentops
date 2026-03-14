@@ -196,6 +196,7 @@ Read `references/error-handling.md` for failure semantics.
 |------|---------|-------------|
 | `--from=<phase>` | `discovery` | Start from `discovery`, `implementation`, or `validation` |
 | `--interactive` | off | Human gates in discovery |
+| `--auto` | on | Fully autonomous (no human gates). Inverse of `--interactive`. Passed through to `/discovery` and `/plan`. |
 | `--loop` | off | Post-mortem FAIL triggers new cycle |
 | `--max-cycles=<n>` | `3` | Max cycles when `--loop` enabled (default 3) |
 | `--spawn-next` | off | Surface follow-up work after completion |
