@@ -515,6 +515,18 @@ In Claude runtime, first verify teammate profiles with `claude agents` and use a
 | **Background tasks** (`Task` with `run_in_background`) | `isolation: worktree` in agent definition | Same worktree isolation as teams; each background agent gets its own worktree |
 | **Inline** (no spawn) | None | Operates directly on the main working tree; no isolation possible |
 
+**Sparse checkout for large repos:** Set `worktree.sparsePaths` in project settings to limit worktree checkouts to relevant directories. This reduces clone time and disk usage for monorepos where workers only need a subset of the tree.
+
+### Effort Levels for Workers
+
+Use the effort command to right-size model reasoning per worker role:
+
+| Worker Role | Recommended Effort | Rationale |
+|-------------|-------------------|-----------|
+| Research/exploration | `low` | Fast, broad scanning — depth not needed |
+| Implementation (code) | `high` | Deep reasoning for correct implementation |
+| Docs/chore | `low` | Fast execution for simple tasks |
+
 **Key diagnostic:** When `isolation: worktree` is specified but worker changes appear in the main working tree (no separate worktree path in the Task result), **isolation did NOT engage**. This is a silent failure — the runtime accepted the parameter but did not create a worktree.
 
 ### Post-Spawn Isolation Verification
