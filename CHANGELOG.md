@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.25.0] - 2026-03-14
+
+### Added
+
+- **L0–L7 test pyramid standard** — Shared reference doc (`standards/references/test-pyramid.md`) defining 8 test levels, agent autonomy boundaries (L0–L3 autonomous, L4+ human-guided), and RPI phase mapping
+- **Test pyramid integration across RPI lifecycle** — Discovery identifies test levels, plan classifies tests by level, pre-mortem validates coverage, implement selects TDD level, crank carries `test_levels` metadata, validation audits coverage, post-mortem reports gaps
+- **RPI autonomous execution enforcement** — Three-Phase Rule mandates discovery → implementation → validation without human interruption; anti-patterns table documents 7 failure modes
+- **Evolve autonomous execution enforcement** — Each cycle runs a complete 3-phase `/rpi --auto`; anti-patterns table documents 6 failure modes; large work decomposed into sub-RPI cycles
+- **Codex skill standard** — New `standards/references/codex-skill.md` with tool mapping, prohibited primitives, two-phase validation, DAG-first traversal, and prompt constraint boundaries
+- **Codex-native overrides** — Durable overrides for crank, swarm, council that survive regeneration
+- **DAG-based Codex smoke test** — `scripts/smoke-test-codex-skills.sh` validates 54 skills with dependency-ordered traversal
+- **Codex skill API contract** — `docs/contracts/codex-skill-api.md` with conformance validator
+- **Output contract declarations** — `output_contract` field on council, vibe, pre-mortem, research skills with canonical finding-item schema
+
+### Changed
+
+- **Codex converter rewrite** — Strips Claude primitives instead of mapping to unavailable tools; rewrites reference files through `codex_rewrite_text`
+- **CI pipeline** — Removed codex skill parity check (skills-codex/ now manually maintained); fixed shellcheck and embedded sync issues
+
+### Fixed
+
+- **Converter primitive stripping** — Task primitives (TaskCreate, TeamCreate, SendMessage) properly stripped instead of mapped to non-existent Codex equivalents
+- **Embedded hook sync** — Added missing `test-pyramid.md` and `codex-skill.md` to CLI embedded references
+- **ShellCheck SC1125** — Fixed em-dash in shellcheck disable directive in smoke test script
+- **Skill line limits** — Moved verbose autonomy rules to reference files to stay under tier-specific line budgets
+
 ## [2.24.0] - 2026-03-12
 
 ### Added
