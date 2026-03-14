@@ -96,7 +96,6 @@ close_agent(id="agent-id-1")
 For `--mixed` council, spawn runtime-native judges AND Codex CLI judges in parallel:
 
 ```
-# Claude native team judges (via TeamCreate — see backend-claude-teams.md)
 Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-1", prompt="...", description="Judge 1")
 Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-2", prompt="...", description="Judge 2")
 

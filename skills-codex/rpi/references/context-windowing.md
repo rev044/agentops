@@ -5,7 +5,7 @@ Use this mode when the repo is too large for stable single-window analysis.
 ## Why
 
 Trying to read everything in one pass causes context collapse and unstable decisions.
-Deterministic shards let `/rpi` process all files incrementally with bounded load.
+Deterministic shards let `$rpi` process all files incrementally with bounded load.
 
 ## Setup Contract
 

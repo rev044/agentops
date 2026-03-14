@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `validate.sh` script ensures the `/research` skill meets basic quality and completeness standards. It runs a series of checks against the skill's structure, documentation, and references.
+The `validate.sh` script ensures the `$research` skill meets basic quality and completeness standards. It runs a series of checks against the skill's structure, documentation, and references.
 
 ## Purpose
 

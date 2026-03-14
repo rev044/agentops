@@ -285,12 +285,12 @@ If `--technique` is used with a non-brainstorm task type (validate, research), e
 
 The consolidation phase runs as the TEAM LEAD (this agent), NOT as a separate spawned agent.
 This avoids creating yet another context window. The lead reads each judge's output file
-directly using the Read tool, then synthesizes inline.
+directly using read_file, then synthesizes inline.
 
 **Consolidation procedure:**
 
 1. Collect the list of judge output files from their completion signals
-2. Read each file with the Read tool (one file at a time to manage context)
+2. Read each file with read_file (one file at a time to manage context)
 3. Extract the JSON verdict block from each file
 4. Synthesize the final report
 

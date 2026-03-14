@@ -38,12 +38,12 @@ Judges can spawn explorer sub-agents for parallel deep-dive research. This is th
 
 | Example | Judges | Explorers | Total Agents | Status |
 |---------|--------|-----------|--------------|--------|
-| `/council research X` | 2 | 0 | 2 | Valid |
-| `/council --explorers=3 research X` | 2 | 3 | 8 | Valid |
-| `/council --deep --explorers=3 research X` | 3 | 3 | 12 | Valid (at cap) |
-| `/council --mixed --explorers=3 research X` | 6 | 3 | 24 | BLOCKED (exceeds 12) |
-| `/council --mixed research X` | 6 | 0 | 6 | Valid |
-| `/council --mixed --explorers=1 research X` | 6 | 1 | 12 | Valid (at cap) |
+| `$council research X` | 2 | 0 | 2 | Valid |
+| `$council --explorers=3 research X` | 2 | 3 | 8 | Valid |
+| `$council --deep --explorers=3 research X` | 3 | 3 | 12 | Valid (at cap) |
+| `$council --mixed --explorers=3 research X` | 6 | 3 | 24 | BLOCKED (exceeds 12) |
+| `$council --mixed research X` | 6 | 0 | 6 | Valid |
+| `$council --mixed --explorers=1 research X` | 6 | 1 | 12 | Valid (at cap) |
 
 ## Explorer Prompt
 

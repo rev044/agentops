@@ -427,7 +427,7 @@ bd version
 
 **If using MCP plugin:**
 ```bash
-# Update Claude Code beads plugin
+# Update Codex beads plugin
 claude plugin update beads
 ```
 
@@ -558,7 +558,7 @@ If problems persist:
    - Minimal reproducible example
    - Expected vs actual behavior
 
-### Claude Code Skill Issues
+### Codex Skill Issues
 
 If the **bd-issue-tracking skill** provides incorrect guidance:
 
@@ -568,7 +568,7 @@ If the **bd-issue-tracking skill** provides incorrect guidance:
    head -20 beads/SKILL.md
    ```
 
-2. **Report via Claude Code feedback** or user's GitHub
+2. **Report via Codex feedback** or user's GitHub
 
 ---
 

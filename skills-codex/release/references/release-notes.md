@@ -80,7 +80,7 @@ loading reference docs only when needed.
 
 ### Removed
 
-- Deprecated `/judge` skill (use `/council` instead)
+- Deprecated `/judge` skill (use `$council` instead)
 
 [Full changelog](https://github.com/example/project/blob/main/CHANGELOG.md#version)
 ```

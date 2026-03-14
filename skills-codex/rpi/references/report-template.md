@@ -5,7 +5,7 @@ After all phases complete, summarize the entire lifecycle to the user.
 ## Summary Report
 
 ```markdown
-## /rpi Complete
+## $rpi Complete
 
 **Goal:** <goal>
 **Epic:** <epic-id>
@@ -44,7 +44,7 @@ Post-mortem harvested N follow-up items (M process-improvements, K tech-debt):
 | 1 | ... | process-improvement | high |
 
 Ready to run:
-    /rpi "<highest-severity item title>"
+    $rpi "<highest-severity item title>"
 ```
 
-The `--spawn-next` flag controls whether items are **marked consumed** in `next-work.jsonl`. The suggestion is ALWAYS shown. This ensures every `/rpi` cycle ends by pointing at the next one -- the flywheel never stops spinning unless there's nothing to improve.
+The `--spawn-next` flag controls whether items are **marked consumed** in `next-work.jsonl`. The suggestion is ALWAYS shown. This ensures every `$rpi` cycle ends by pointing at the next one -- the flywheel never stops spinning unless there's nothing to improve.

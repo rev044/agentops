@@ -9,9 +9,9 @@ Launch all 4 agents in parallel using the Task tool, then wait for all to comple
 ### Agent 1: CASS Session Search
 
 ```
-Tool: Task
+Tool: todo_write
 Parameters:
-  subagent_type: "Explore"
+  role: explorer
   model: "haiku"
   description: "CASS search: <concept>"
   prompt: |
@@ -33,9 +33,9 @@ Parameters:
 ### Agent 2: Handoff Search
 
 ```
-Tool: Task
+Tool: todo_write
 Parameters:
-  subagent_type: "Explore"
+  role: explorer
   model: "haiku"
   description: "Handoff search: <concept>"
   prompt: |
@@ -58,9 +58,9 @@ Parameters:
 ### Agent 3: Git History Search
 
 ```
-Tool: Task
+Tool: todo_write
 Parameters:
-  subagent_type: "Explore"
+  role: explorer
   model: "haiku"
   description: "Git search: <concept>"
   prompt: |
@@ -84,9 +84,9 @@ Parameters:
 ### Agent 4: Research/Learnings Search
 
 ```
-Tool: Task
+Tool: todo_write
 Parameters:
-  subagent_type: "Explore"
+  role: explorer
   model: "haiku"
   description: "Research search: <concept>"
   prompt: |

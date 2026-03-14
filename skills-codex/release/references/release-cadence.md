@@ -20,7 +20,7 @@ AgentOps follows a **weekly release train** to avoid notification spam for watch
 
 ## Pre-flight Cadence Check
 
-During `/release` pre-flight, check the date of the last tag:
+During `$release` pre-flight, check the date of the last tag:
 
 ```bash
 git log -1 --format=%ci $(git tag --sort=-version:refname -l 'v*' | head -1)

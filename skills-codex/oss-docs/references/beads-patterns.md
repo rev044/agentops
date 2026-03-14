@@ -342,7 +342,7 @@ beads/
 │
 └── integrations/
     ├── beads-mcp/            # MCP server
-    └── claude-code/          # Claude Code plugin
+    └── claude-code/          # Codex plugin
 ```
 
 ### Navigation Principles
@@ -403,7 +403,7 @@ bd create "Fix authentication bug" -t bug -p 1 --json
 | TROUBLESHOOTING.md | ~845 lines |
 | CONFIG.md | ~615 lines |
 | CHANGELOG entries | 48+ versions |
-| Integration guides | 4+ (MCP, Claude Code, Aider, etc.) |
+| Integration guides | 4+ (MCP, Codex, Aider, etc.) |
 
 ### Coverage Analysis
 

@@ -27,8 +27,8 @@ bash scripts/audit-codex-parity.sh --skill swarm
 The audit flags the failure classes that the mechanical converter keeps
 missing today:
 
-- Claude-era task primitives like `TaskCreate`, `TaskList`, or `Tool: Task`
-- Claude-only backend references like `backend-claude-teams.md` or `claude agents`
+- Claude-era task primitives like `todo_write`, `update_plan`, or `Tool: todo_write`
+- Claude-only backend references like `backend-codex-subagents.md` or `codex agents`
 - duplicated runtime phrases created by blind search/replace
 
 ## Repair Loop

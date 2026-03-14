@@ -100,7 +100,7 @@ _, err := doSomething()
 
 ## Skills / Docs
 
-**Source of truth** -- Edit skills in `skills/` in this repo, NOT `~/.claude/skills/` (installed copies are overwritten on update).
+**Source of truth** -- Edit skills in `skills/` in this repo, NOT `~/.agents/skills/` (installed copies are overwritten on update).
 
 **Reference linkage** -- Every file under `skills/<name>/references/` must be linked from that skill's SKILL.md. `heal.sh --strict` enforces this.
 

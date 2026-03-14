@@ -1,6 +1,6 @@
 # Integration Patterns with Other Skills
 
-How bd-issue-tracking integrates with Task tools (TaskCreate, TaskUpdate, TaskList, TaskGet), writing-plans, and other skills for optimal workflow.
+How bd-issue-tracking integrates with Task tools (todo_write, update_plan, update_plan, update_plan), writing-plans, and other skills for optimal workflow.
 
 ## Contents
 
@@ -19,7 +19,7 @@ How bd-issue-tracking integrates with Task tools (TaskCreate, TaskUpdate, TaskLi
 
 **Task tools** (short-term working memory - this hour):
 - Tactical execution: "Review Section 3", "Expand Q&A answers"
-- Marked completed via TaskUpdate as you go
+- Marked completed via update_plan as you go
 - Present/future tense ("Review", "Expand", "Create")
 - Ephemeral: Task list resets when session ends
 
@@ -33,8 +33,8 @@ How bd-issue-tracking integrates with Task tools (TaskCreate, TaskUpdate, TaskLi
 
 ### The Handoff Pattern
 
-1. **Session start**: Read bead → Create tasks via TaskCreate for immediate actions
-2. **During work**: Mark tasks completed via TaskUpdate as you go
+1. **Session start**: Read bead → Create tasks via todo_write for immediate actions
+2. **During work**: Mark tasks completed via update_plan as you go
 3. **Reach milestone**: Update bead notes with outcomes + context
 4. **Session end**: Task list resets, bead survives with enriched notes
 
@@ -45,10 +45,10 @@ How bd-issue-tracking integrates with Task tools (TaskCreate, TaskUpdate, TaskLi
 **Task tools (ephemeral execution view):**
 ```
 Create session tasks:
-  TaskCreate: "Implement login endpoint" (pending)
-  TaskCreate: "Add password hashing with bcrypt" (pending)
-  TaskCreate: "Create session middleware" (pending)
-Mark completed via TaskUpdate as you go. Check TaskList for progress.
+  todo_write: "Implement login endpoint" (pending)
+  todo_write: "Add password hashing with bcrypt" (pending)
+  todo_write: "Create session middleware" (pending)
+Mark completed via update_plan as you go. Check update_plan for progress.
 ```
 
 **Corresponding bead notes (persistent context):**
@@ -68,9 +68,9 @@ NEXT: Need user input on token expiry time (1hr vs 24hr trade-off)."
 ### When to Update Each Tool
 
 **Update Task tools** (frequently):
-- Mark task completed via TaskUpdate as you finish each one
-- Add new tasks via TaskCreate as you break down work
-- Set in_progress via TaskUpdate when switching tasks
+- Mark task completed via update_plan as you finish each one
+- Add new tasks via todo_write as you break down work
+- Set in_progress via update_plan when switching tasks
 
 **Update Beads** (at milestones):
 - Completed a significant piece of work
@@ -99,10 +99,10 @@ bd update oauth-1 --status in_progress
 
 # Create session tasks for today's work
 Create session tasks:
-  TaskCreate: "Research OAuth 2.0 refresh token flow" (pending)
-  TaskCreate: "Design token schema" (pending)
-  TaskCreate: "Set up test environment" (pending)
-Mark completed via TaskUpdate as you go. Check TaskList for progress.
+  todo_write: "Research OAuth 2.0 refresh token flow" (pending)
+  todo_write: "Design token schema" (pending)
+  todo_write: "Set up test environment" (pending)
+Mark completed via update_plan as you go. Check update_plan for progress.
 ```
 
 **End of Session 1**:
@@ -124,10 +124,10 @@ bd show oauth-1
 
 # Create fresh session tasks from NEXT
 Create session tasks:
-  TaskCreate: "Configure test OAuth provider" (pending)
-  TaskCreate: "Implement token endpoint" (pending)
-  TaskCreate: "Add basic tests" (pending)
-Mark completed via TaskUpdate as you go. Check TaskList for progress.
+  todo_write: "Configure test OAuth provider" (pending)
+  todo_write: "Implement token endpoint" (pending)
+  todo_write: "Add basic tests" (pending)
+Mark completed via update_plan as you go. Check update_plan for progress.
 
 # Work proceeds...
 
@@ -290,10 +290,10 @@ TESTS: All 12 tests passing (auth, rotation, expiry, error handling)"
 4. Task tools track immediate writing tasks:
    ```
    Create session tasks:
-     TaskCreate: "Draft recommendation 1: Market expansion" (pending)
-     TaskCreate: "Add supporting data from research" (pending)
-     TaskCreate: "Create budget estimates" (pending)
-   Mark completed via TaskUpdate as you go. Check TaskList for progress.
+     todo_write: "Draft recommendation 1: Market expansion" (pending)
+     todo_write: "Add supporting data from research" (pending)
+     todo_write: "Create budget estimates" (pending)
+   Mark completed via update_plan as you go. Check update_plan for progress.
    ```
 
 **Why this works**: bd preserves context across sessions (document might take days), skill provides writing framework, Task tools track current work.
@@ -329,11 +329,11 @@ TESTS: All 12 tests passing (auth, rotation, expiry, error handling)"
    ```
    Current: login-1
    Create session tasks:
-     TaskCreate: "Update login route signature" (pending)
-     TaskCreate: "Add JWT generation" (pending)
-     TaskCreate: "Update tests" (pending)
-     TaskCreate: "Verify backward compatibility" (pending)
-   Mark completed via TaskUpdate as you go. Check TaskList for progress.
+     todo_write: "Update login route signature" (pending)
+     todo_write: "Add JWT generation" (pending)
+     todo_write: "Update tests" (pending)
+     todo_write: "Verify backward compatibility" (pending)
+   Mark completed via update_plan as you go. Check update_plan for progress.
    ```
 
 3. Update bd notes as each completes:

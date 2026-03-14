@@ -28,7 +28,7 @@ done
 
 ### 2. Inject path into worker prompt
 
-Include in every worker's TaskCreate description:
+Include in every worker's todo_write description:
 ```
 WORKING DIRECTORY: /tmp/swarm-<epic-id>
 All file operations MUST use paths rooted at this directory.

@@ -180,7 +180,7 @@ Two paths, checked at every cycle boundary:
 | `~/.config/evolve/KILL` | Permanent stop (outside repo) | Human |
 | `.agents/evolve/STOP` | One-time local stop | Human or automation |
 
-To stop /evolve:
+To stop $evolve:
 ```bash
 echo "Taking a break" > ~/.config/evolve/KILL    # Permanent
 echo "done for today" > .agents/evolve/STOP       # Local, one-time
@@ -197,17 +197,17 @@ rm .agents/evolve/STOP
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--max-cycles=N` | unlimited | Optional hard cap. Without this, loop runs forever. |
-| `--test-first` | off | Pass `--test-first` through to `/rpi` -> `/crank` |
+| `--test-first` | off | Pass `--test-first` through to `$rpi` -> `$crank` |
 | `--dry-run` | off | Measure fitness and show plan, don't execute |
 | `--skip-baseline` | off | Skip cycle-0 baseline sweep |
-| `--parallel` | off | Enable parallel goal execution via /swarm per cycle |
+| `--parallel` | off | Enable parallel goal execution via $swarm per cycle |
 | `--max-parallel=N` | 3 | Max goals to fix in parallel (cap: 5). Only with `--parallel`. |
 
 ## Troubleshooting
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `/evolve` exits immediately with "KILL SWITCH ACTIVE" | Kill switch file exists | Remove `~/.config/evolve/KILL` or `.agents/evolve/STOP` to re-enable |
+| `$evolve` exits immediately with "KILL SWITCH ACTIVE" | Kill switch file exists | Remove `~/.config/evolve/KILL` or `.agents/evolve/STOP` to re-enable |
 | "No goals to measure" error | GOALS.yaml missing or empty | Create GOALS.yaml in repo root with fitness goals (see goals-schema.md) |
 | Cycle completes but fitness unchanged | Goal check command is always passing or always failing | Verify check command logic in GOALS.yaml produces exit code 0 (pass) or non-zero (fail) |
 | Regression revert fails | Multiple commits in cycle or uncommitted changes | Check cycle-start SHA in fitness snapshot, commit or stash changes before retrying |

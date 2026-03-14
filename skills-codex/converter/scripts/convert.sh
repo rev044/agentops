@@ -567,7 +567,24 @@ copy_passthrough_resources() {
     esac
 
     # Copy and dereference symlinks to keep output plugin-compatible.
-    rsync -a --copy-links "$entry" "$output_dir"/
+    if [[ -d "$entry" ]]; then
+      # For directories (references/, scripts/, etc.), copy then rewrite .md files
+      rsync -a --copy-links "$entry" "$output_dir"/
+      local subdir="$output_dir/$base"
+      if [[ -d "$subdir" ]]; then
+        while IFS= read -r md_file; do
+          local content
+          content="$(<"$md_file")"
+          local rewritten
+          rewritten="$(codex_rewrite_text "$content")"
+          if [[ "$rewritten" != "$content" ]]; then
+            printf '%s\n' "$rewritten" > "$md_file"
+          fi
+        done < <(find "$subdir" -name '*.md' -type f 2>/dev/null)
+      fi
+    else
+      rsync -a --copy-links "$entry" "$output_dir"/
+    fi
   done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -print0)
 }
 

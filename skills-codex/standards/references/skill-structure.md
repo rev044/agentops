@@ -2,7 +2,7 @@
 
 **Version:** 2.0.0
 **Last Updated:** 2026-02-20
-**Source:** Claude Code official documentation (https://code.claude.com/docs/en/skills)
+**Source:** Codex official documentation (https://code.claude.com/docs/en/skills)
 **Purpose:** Defines the required structure, frontmatter, and quality standards for all AgentOps skills.
 
 ---
@@ -54,7 +54,7 @@ description: 'What it does. When to use it. Trigger phrases.'
 
 Only `description` is technically required (recommended). If `name` is omitted, the directory name is used.
 
-### All Claude Code Frontmatter Fields
+### All Codex Frontmatter Fields
 
 | Field | Required | Purpose |
 |-------|----------|---------|
@@ -196,7 +196,7 @@ description: Implements the Project entity model with hierarchical relationships
 Library/background/meta skills that are auto-loaded (not user-invoked) may describe their loading mechanism instead of user triggers:
 
 ```yaml
-description: 'Auto-loaded by /vibe, /implement based on file types.'
+description: 'Auto-loaded by $vibe, $implement based on file types.'
 ```
 
 ---
@@ -299,7 +299,7 @@ Skills use three levels:
 
 ## AgentOps Extensions
 
-These are AgentOps-specific patterns not in the Claude Code spec:
+These are AgentOps-specific patterns not in the Codex spec:
 
 ### Tier System
 
@@ -315,4 +315,4 @@ Full taxonomy at `skills/SKILL-TIERS.md`.
 
 ### Standards Loading
 
-Language standards loaded JIT by `/vibe`, `/implement` — see `references/standards-index.md`.
+Language standards loaded JIT by `$vibe`, `$implement` — see `references/standards-index.md`.

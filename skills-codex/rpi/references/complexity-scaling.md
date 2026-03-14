@@ -23,7 +23,7 @@ Complexity is auto-detected after plan completes (Phase 2) by examining:
 | Flag | Effect |
 |------|--------|
 | `--fast-path` | Forces `low` regardless of auto-detection |
-| `--deep` (passed to /rpi) | Forces `high` regardless of auto-detection |
+| `--deep` (passed to $rpi) | Forces `high` regardless of auto-detection |
 | No flag | Auto-detect from epic structure |
 
 Existing mandatory pre-mortem gate (3+ issues) still applies regardless of complexity level.

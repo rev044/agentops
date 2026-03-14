@@ -103,7 +103,7 @@ Writers always append entries in **available** state. Consumers use a claim/fina
 
 1. **available**: item has `consumed=false`, `claim_status="available"` (or omitted status, which consumers treat as available)
 2. **in_progress**: consumer sets item `claim_status="in_progress"`, plus `claimed_by` and `claimed_at`
-3. **consumed**: after a successful `/rpi` cycle and regression gate, consumer sets item `consumed=true`, `claim_status="consumed"`, `consumed_by`, and `consumed_at`
+3. **consumed**: after a successful `$rpi` cycle and regression gate, consumer sets item `consumed=true`, `claim_status="consumed"`, `consumed_by`, and `consumed_at`
 4. **release on failure**: failed or regressed cycles clear item `claimed_by` / `claimed_at`, reset `claim_status="available"`, keep `consumed=false`, and may record `failed_at`
 
 Selection rules:

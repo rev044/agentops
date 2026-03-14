@@ -2,25 +2,21 @@
 
 When `--debate` is passed, council runs two rounds instead of one. Round 1 produces independent verdicts. Round 2 lets judges review each other's work and revise.
 
-**Native teams unlock the key advantage:** Judges stay alive after R1. Instead of re-spawning fresh R2 judges with truncated R1 verdicts, the team lead sends other judges' full R1 verdicts via `SendMessage`. Judges wake from idle, process R2 with full context (their own R1 analysis + others' verdicts), and write R2 files. Result: no truncation loss, no spawn overhead, richer debate.
 
 ## Execution Flow (with --debate)
 
 ```
 Phase 1: Build Packet + Create Team + Spawn R1 judges as teammates
                               |
-                    Collect all R1 verdicts (via SendMessage)
                     Judges go idle after R1 (stay alive)
                               |
 Phase 1.5: Prepare R2 context (--debate only)
   - For each OTHER judge's R1 verdict, extract full JSON verdict
-  - Team lead sends R2 instructions to each judge via SendMessage
   - Each judge already has its own R1 in context (no truncation needed)
   - Each judge receives other judges' verdicts (full JSON, not truncated)
                               |
 Phase 2: Judges wake up for Round 2 (--debate only)
   - Same judge instances as R1 (not re-spawned)
-  - Each judge processes via SendMessage:
     - Other judges' full R1 JSON verdicts
     - Steel-manning rebuttal prompt
     - Branch: disagreed OR agreed
@@ -30,7 +26,6 @@ Phase 2: Judges wake up for Round 2 (--debate only)
                               |
 Phase 3: Consolidation (uses R2 verdicts when --debate)
                               |
-Phase 4: shutdown_request each judge, TeamDelete()
 ```
 
 ## Round 2 via Agent Messaging
@@ -61,7 +56,6 @@ For each judge:
 
 Since judges stay alive, truncation is no longer needed for a judge's **own** R1 verdict -- it's already in their context.
 
-For **other judges' verdicts** sent via SendMessage, include the full JSON verdict block:
 
 ```json
 {

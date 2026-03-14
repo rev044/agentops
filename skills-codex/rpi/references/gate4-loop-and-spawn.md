@@ -1,12 +1,12 @@
 # Gate 4 Loop and Spawn Next Work
 
-## Post-Validation Loop (Optional) -- Post-mortem to Spawn Another /rpi
+## Post-Validation Loop (Optional) -- Post-mortem to Spawn Another $rpi
 
-**Default behavior:** /rpi ends after Validation (Phase 3).
+**Default behavior:** $rpi ends after Validation (Phase 3).
 
 **Enable loop:** pass `--loop` (and optionally `--max-cycles=<n>`).
 
-**Gate 4 goal:** make the "ITERATE vs TEMPER" decision explicit, and if iteration is required, run another full /rpi cycle with tighter context.
+**Gate 4 goal:** make the "ITERATE vs TEMPER" decision explicit, and if iteration is required, run another full $rpi cycle with tighter context.
 
 **Loop decision input:** the most recent post-mortem council verdict.
 
@@ -15,11 +15,11 @@
    REPORT=$(ls -t .agents/council/*post-mortem*.md 2>/dev/null | head -1)
    ```
 2. Read `REPORT` and extract the verdict line (`## Council Verdict: PASS / WARN / FAIL`).
-3. Apply gate logic (only when `--loop` is set). If verdict is PASS or WARN, stop (TEMPER path). If verdict is FAIL, iterate (spawn another /rpi cycle), up to `--max-cycles`.
-4. Iterate behavior (spawn). Read the post-mortem report and extract 3 concrete fixes, then re-invoke /rpi from Phase 1 with a tightened goal that includes the fixes:
+3. Apply gate logic (only when `--loop` is set). If verdict is PASS or WARN, stop (TEMPER path). If verdict is FAIL, iterate (spawn another $rpi cycle), up to `--max-cycles`.
+4. Iterate behavior (spawn). Read the post-mortem report and extract 3 concrete fixes, then re-invoke $rpi from Phase 1 with a tightened goal that includes the fixes:
    ```
-   /rpi "<original goal> (Iteration <n>): Fix <item1>; <item2>; <item3>"                 # default strict-quality path (test-first on)
-   /rpi "<original goal> (Iteration <n>): Fix <item1>; <item2>; <item3>" --no-test-first # explicit opt-out path
+   $rpi "<original goal> (Iteration <n>): Fix <item1>; <item2>; <item3>"                 # default strict-quality path (test-first on)
+   $rpi "<original goal> (Iteration <n>): Fix <item1>; <item2>; <item3>" --no-test-first # explicit opt-out path
    ```
    If still FAIL after `--max-cycles` total cycles, stop and require manual intervention (file follow-up bd issues).
 
@@ -49,9 +49,9 @@
      ...
 
      To start the next RPI cycle:
-       /rpi "<highest-severity item title>"
+       $rpi "<highest-severity item title>"
      ```
-   - Do NOT auto-invoke `/rpi` -- the user decides when to start the next cycle
+   - Do NOT auto-invoke `$rpi` -- the user decides when to start the next cycle
 3. If no unconsumed entries: report "No follow-up work harvested. Flywheel stable."
 
 **Note:** Phase 0 read is read-only. Mutating queue state follows a claim/finalize lifecycle so failed cycles can safely release work back to the queue without blacklisting sibling items in the same harvested batch.
@@ -75,7 +75,7 @@ This prevents cross-repo pollution when `.agents/rpi/next-work.jsonl` is shared 
 
 | State | Required fields | Meaning |
 |-------|-----------------|---------|
-| available | item `consumed=false`, item `claim_status="available"` | Ready for `/evolve` or `--spawn-next` to pick |
+| available | item `consumed=false`, item `claim_status="available"` | Ready for `$evolve` or `--spawn-next` to pick |
 | in_progress | item `consumed=false`, item `claim_status="in_progress"`, item `claimed_by`, item `claimed_at` | Currently being worked |
 | consumed | item `consumed=true`, item `claim_status="consumed"`, item `consumed_by`, item `consumed_at` | Successfully completed and retired from the queue |
 

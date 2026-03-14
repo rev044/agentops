@@ -8,8 +8,6 @@
 
 **Result protocol:**
 1. Workers write `.agents/swarm/results/<task-id>.json` on completion
-2. Orchestrator checks for result files (Glob/Read), NOT full Task/SendMessage output
-3. SendMessage used only for coordination signals (blocked, need help) — kept under 100 tokens
 4. Task tool return values are acknowledged but NOT parsed for work details
 
 ```bash
@@ -26,9 +24,9 @@ Evidence: shared-worktree multi-epic dispatch produced build breaks and algorith
 
 ### Claude-Native Isolation (preferred when available)
 
-If running in Claude runtime with modern agent definitions, prefer declarative isolation first:
+If running in Codex runtime with modern agent definitions, prefer declarative isolation first:
 
-1. Confirm teammate profiles with `claude agents`
+1. Confirm teammate profiles with `codex agents`
 2. Use teammate definitions that set `isolation: worktree`
 3. For long-running workers, set `background: true`
 
@@ -201,10 +199,10 @@ Rules:
 
 ## Race Condition Prevention
 
-Workers do NOT race-claim tasks from TaskList. The team lead assigns each task
+Workers do NOT race-claim tasks from update_plan. The team lead assigns each task
 to a specific worker BEFORE spawning. This prevents:
 - Two workers claiming the same task
-- Workers seeing stale TaskList state
+- Workers seeing stale update_plan state
 - Non-deterministic assignment order
 
 Workers only transition their assigned task: in_progress -> completed.
@@ -287,7 +285,7 @@ Check `.agents/swarm/results/<task-id>.json` for each worker. These are ~200 byt
 
 1. **Check task metadata for validation requirements:**
    ```
-   TaskList() -> find task -> check metadata.validation
+   update_plan() -> find task -> check metadata.validation
    ```
 
 2. **Execute validation checks (in order):**
@@ -302,7 +300,7 @@ Check `.agents/swarm/results/<task-id>.json` for each worker. These are ~200 byt
 
 3. **On validation PASS:**
    ```
-   TaskUpdate(taskId="<id>", status="completed")
+   update_plan(taskId="<id>", status="completed")
    ```
 
 4. **On validation FAIL:**
@@ -325,7 +323,7 @@ git status --porcelain  # Should show unstaged changes from worker
 **Example task with validation metadata:**
 
 ```
-TaskCreate(
+todo_write(
   subject="Add authentication middleware",
   description="...",
   metadata={
@@ -381,7 +379,7 @@ Cleanup MUST succeed even on partial failures:
 ## Step 6: Repeat if Needed
 
 If more tasks remain:
-1. Check TaskList for next wave
+1. Check update_plan for next wave
 2. Spawn a NEW wave worker set (new sub-agents or new team) for fresh context
 3. Execute the next wave
 4. Continue until all done

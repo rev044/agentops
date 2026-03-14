@@ -59,4 +59,4 @@ When ambiguous, default to `finding`.
 - Does **not** write to MEMORY.md or any persistent knowledge store.
 - Does **not** auto-create issues or beads.
 - Does **not** modify council verdicts or consensus logic.
-- Candidates are consumed by `/post-mortem`, manual review, or future flywheel automation.
+- Candidates are consumed by `$post-mortem`, manual review, or future flywheel automation.

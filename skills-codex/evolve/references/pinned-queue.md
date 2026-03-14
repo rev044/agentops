@@ -18,8 +18,8 @@ An ordered markdown checklist. Each numbered item is a work unit:
 - Lines matching `^\s*[0-9]+\.` are queue items, processed in order.
 - The **first backtick-delimited string** on each line is the item ID.
 - An optional `blocker: \`<id>\`` annotation declares a known blocker.
-- Items without blockers proceed directly to `/rpi`.
-- Indented sub-lines (not starting with a number) are description context passed to `/rpi`.
+- Items without blockers proceed directly to `$rpi`.
+- Indented sub-lines (not starting with a number) are description context passed to `$rpi`.
 
 ### macOS-Safe Parsing
 
@@ -33,8 +33,8 @@ BLOCKER=$(echo "$line" | sed -n 's/.*blocker:[[:space:]]*`\([^`]*\)`.*/\1/p')
 ## --queue Flag Behavior
 
 ```bash
-/evolve --queue=.agents/evolve/roadmap.md       # File-based queue
-/evolve --queue=.agents/evolve/roadmap.md --test-first  # With strict quality
+$evolve --queue=.agents/evolve/roadmap.md       # File-based queue
+$evolve --queue=.agents/evolve/roadmap.md --test-first  # With strict quality
 ```
 
 When `--queue` value is not a file path (file does not exist at that path), evolve auto-writes the value to `.agents/evolve/roadmap.md` and uses that file. This enables inline/prompt-based roadmaps.
@@ -45,22 +45,22 @@ When processing a queue item:
 
 1. If the item ID matches a bead (`bd show $ITEM_ID` succeeds), use:
    ```
-   /rpi "Land $ITEM_ID: $(bd show $ITEM_ID --json | jq -r .title)" --auto --max-cycles=1
+   $rpi "Land $ITEM_ID: $(bd show $ITEM_ID --json | jq -r .title)" --auto --max-cycles=1
    ```
 2. Otherwise, use the full queue line as a freeform prompt:
    ```
-   /rpi "$FULL_LINE" --auto --max-cycles=1
+   $rpi "$FULL_LINE" --auto --max-cycles=1
    ```
 
 ## Blocker Resolution Protocol
 
-When a queue item has a declared blocker or `/rpi` fails revealing an undeclared one:
+When a queue item has a declared blocker or `$rpi` fails revealing an undeclared one:
 
 ```
 detect_blocker(item) →
   if UNBLOCK_DEPTH > MAX_DEPTH (2):
     ESCALATE → write to escalated.md, skip item, continue to next
-  spawn /rpi on blocker (--auto --max-cycles=1)
+  spawn $rpi on blocker (--auto --max-cycles=1)
   if success: resume original item
   if failure:
     UNBLOCK_FAILURES++
@@ -72,7 +72,7 @@ detect_blocker(item) →
 
 ### Dynamic Blocker Detection
 
-When `/rpi` fails, scan the failure output for:
+When `$rpi` fails, scan the failure output for:
 
 - **Bead IDs** mentioned in error context (`bd show $ID` succeeds)
 - **Dependency keywords**: "blocked by", "requires", "depends on"

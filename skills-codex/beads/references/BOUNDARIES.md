@@ -1,6 +1,6 @@
 # Boundaries: When to Use bd vs Task Tools
 
-This reference provides detailed decision criteria for choosing between bd issue tracking and Task tools (`TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet`) for task management.
+This reference provides detailed decision criteria for choosing between bd issue tracking and Task tools (`todo_write`, `update_plan`, `update_plan`, `update_plan`) for task management.
 
 ## Contents
 
@@ -143,14 +143,14 @@ Just need a checklist to show progress to user.
 | Aspect | bd | Task tools |
 |--------|-----|-----------|
 | **Persistence** | Git-backed, survives compaction | Session-only, task list resets when session ends |
-| **Dependencies** | Graph-based, automatic ready detection | Supports blockedBy/blocks via TaskUpdate |
-| **Discoverability** | `bd ready` surfaces work | TaskList shows all tasks with status |
+| **Dependencies** | Graph-based, automatic ready detection | Supports blockedBy/blocks via update_plan |
+| **Discoverability** | `bd ready` surfaces work | update_plan shows all tasks with status |
 | **Complexity** | Handles nested epics, blockers | Flat task list with status and dependencies |
 | **Visibility** | Background structure, not in conversation | Visible to user in chat |
 | **Setup** | Requires `.beads/` directory in project | Always available |
 | **Best for** | Complex, multi-session, explorative | Simple, single-session, linear |
 | **Context capture** | Design notes, acceptance criteria, links | Subject and description |
-| **Evolution** | Issues can be updated, refined over time | Tasks updated via TaskUpdate as work progresses |
+| **Evolution** | Issues can be updated, refined over time | Tasks updated via update_plan as work progresses |
 | **Audit trail** | Full history of changes | Only visible in conversation |
 
 ## Integration Patterns
@@ -171,11 +171,11 @@ bd issue: "Implement user authentication" (epic)
   └─ Child issue: "Implement logout"
 
 Create session tasks:
-  TaskCreate: "Install JWT library" (pending)
-  TaskCreate: "Create token validation middleware" (pending)
-  TaskCreate: "Add tests for token expiry" (pending)
-  TaskCreate: "Update API documentation" (pending)
-Mark completed via TaskUpdate as you go.
+  todo_write: "Install JWT library" (pending)
+  todo_write: "Create token validation middleware" (pending)
+  todo_write: "Add tests for token expiry" (pending)
+  todo_write: "Update API documentation" (pending)
+Mark completed via update_plan as you go.
 ```
 
 **When to use:**
@@ -194,9 +194,9 @@ Mark completed via TaskUpdate as you go.
 ```
 Session start:
 - Check bd: "issue-auth-42: Add JWT token validation" is ready
-- Extract acceptance criteria into session tasks via TaskCreate
+- Extract acceptance criteria into session tasks via todo_write
 - Mark bd issue as in_progress
-- Work through tasks, marking completed via TaskUpdate
+- Work through tasks, marking completed via update_plan
 - Update bd design notes as you learn
 - When all tasks complete, close bd issue
 ```
@@ -241,7 +241,7 @@ Rare, but happens when bd issue turns out simpler than expected.
 **How to transition:**
 ```
 1. Keep bd issue for historical record
-2. Create session tasks from issue description via TaskCreate
+2. Create session tasks from issue description via todo_write
 3. Execute via task list
 4. Close bd issue when done
 5. Note: "Completed in single session, simpler than expected"
@@ -283,10 +283,10 @@ db-epic: "Migrate production database to PostgreSQL"
 
 **Task tools**:
 ```
-TaskCreate: "Import logging library" (pending)
-TaskCreate: "Add log statements to endpoint" (pending)
-TaskCreate: "Add test for log output" (pending)
-TaskCreate: "Run tests" (pending)
+todo_write: "Import logging library" (pending)
+todo_write: "Add log statements to endpoint" (pending)
+todo_write: "Add test for log output" (pending)
+todo_write: "Run tests" (pending)
 ```
 
 **bd role**: None. Overkill for straightforward task.
@@ -297,10 +297,10 @@ TaskCreate: "Run tests" (pending)
 
 **Task tools**:
 ```
-TaskCreate: "Reproduce bug" (pending)
-TaskCreate: "Identify root cause" (pending)
-TaskCreate: "Implement fix" (pending)
-TaskCreate: "Add regression test" (pending)
+todo_write: "Reproduce bug" (pending)
+todo_write: "Identify root cause" (pending)
+todo_write: "Implement fix" (pending)
+todo_write: "Add regression test" (pending)
 ```
 
 **What actually happens**: Reproducing bug reveals it's intermittent. Root cause investigation shows multiple potential issues. Needs time to investigate.

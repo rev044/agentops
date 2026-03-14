@@ -1,10 +1,10 @@
-# Claude Code Latest Features Contract
+# Codex Latest Features Contract
 
-This document is the shared source of truth for Claude Code feature usage across AgentOps skills.
+This document is the shared source of truth for Codex feature usage across AgentOps skills.
 
 ## Baseline
 
-- Target Claude Code release family: `2.1.x`
+- Target Codex release family: `2.1.x`
 - Last verified against upstream changelog: `2.1.75`
 - Changelog source: `https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md`
 
@@ -27,7 +27,7 @@ Reference: `https://code.claude.com/docs/en/slash-commands`
 
 ### 2. Agent Definitions
 
-For custom teammates in `.claude/agents/*.md`, use modern frontmatter fields where applicable:
+For custom teammates in `.codex/agents/*.md`, use modern frontmatter fields where applicable:
 
 - `model`
 - `description`
@@ -83,7 +83,7 @@ Reference: `https://code.claude.com/docs/en/settings`
 
 ### 6. Agent Inventory Command
 
-Use `claude agents` as the first CLI-level check to confirm configured teammate profiles before multi-agent runs.
+Use `codex agents` as the first CLI-level check to confirm configured teammate profiles before multi-agent runs.
 
 Reference: changelog `2.1.50`.
 
@@ -121,6 +121,6 @@ Skill recommendation: set effort per agent role — low for judges/explorers, hi
 ## Review Cadence
 
 - Re-verify this contract when:
-  - Claude Code changelog introduces new `2.1.x` or `2.2.x` entries
+  - Codex changelog introduces new `2.1.x` or `2.2.x` entries
   - any skill adds or changes multi-agent orchestration
   - hook event support changes

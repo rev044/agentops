@@ -1,6 +1,6 @@
 # Deep Audit Protocol
 
-> Used by `/vibe --deep`, `/vibe --sweep`, and `/post-mortem` (unless `--skip-sweep`).
+> Used by `$vibe --deep`, `$vibe --sweep`, and `$post-mortem` (unless `--skip-sweep`).
 
 Two-phase architecture: cheap per-file explorer sweep (discovery) followed by council judges (adjudication). All reporting caps removed.
 
@@ -120,7 +120,7 @@ Severity levels:
 
 ### Dispatching Explorers
 
-Use the Task tool with `subagent_type: "Explore"` for each batch. Launch all batches in parallel (single message, multiple tool calls):
+Use the Task tool with `role: explorer` for each batch. Launch all batches in parallel (single message, multiple tool calls):
 
 ```
 Task(
@@ -218,11 +218,11 @@ The final report includes ALL findings — both confirmed sweep findings and jud
 
 | Flag | Sweep? | Judges | Notes |
 |------|--------|--------|-------|
-| `/vibe` (default) | No | 2 | Unchanged: lightweight bug-hunt + council |
-| `/vibe --quick` | No | 1 (inline) | Unchanged: fast inline check |
-| `/vibe --deep` | Yes | 3 | Enhanced: sweep + 3 judges in adjudication mode |
-| `/vibe --sweep` | Yes | 2 | New: sweep + 2 judges in adjudication mode |
-| `/vibe --sweep recent` | Yes | 2 | Same, targeting recent changes |
-| `/post-mortem` | Yes | 3 | Enhanced: sweep before retrospective council |
-| `/post-mortem --skip-sweep` | No | 3 | Old behavior: 3 judges, no sweep |
-| `/post-mortem --quick` | No | 1 (inline) | Unchanged: fast inline check |
+| `$vibe` (default) | No | 2 | Unchanged: lightweight bug-hunt + council |
+| `$vibe --quick` | No | 1 (inline) | Unchanged: fast inline check |
+| `$vibe --deep` | Yes | 3 | Enhanced: sweep + 3 judges in adjudication mode |
+| `$vibe --sweep` | Yes | 2 | New: sweep + 2 judges in adjudication mode |
+| `$vibe --sweep recent` | Yes | 2 | Same, targeting recent changes |
+| `$post-mortem` | Yes | 3 | Enhanced: sweep before retrospective council |
+| `$post-mortem --skip-sweep` | No | 3 | Old behavior: 3 judges, no sweep |
+| `$post-mortem --quick` | No | 1 (inline) | Unchanged: fast inline check |

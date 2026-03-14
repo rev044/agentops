@@ -7,10 +7,10 @@ Verified in this repo on 2026-02-26 (local environment).
 ```bash
 # Discover CLI surface
 claude --help
-claude agents --help
+codex agents --help
 
 # List configured agents
-claude agents
+codex agents
 
 # Non-interactive mode (prompt flag from help output)
 claude -p "Summarize current git status."
@@ -37,4 +37,3 @@ When this appears, prefer:
 
 - retry with reduced concurrency / fewer parallel runtime sessions
 - or use `--runtime-cmd codex` for phased runs in this repo
-

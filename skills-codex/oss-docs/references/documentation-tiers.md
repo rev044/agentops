@@ -198,5 +198,5 @@ Beads (chronicle) demonstrates excellent documentation coverage:
 **Key Patterns:**
 - Clear separation between user docs and developer docs
 - Extensive troubleshooting documentation
-- Multiple integration guides (MCP, Claude Code, etc.)
+- Multiple integration guides (MCP, Codex, etc.)
 - Active CHANGELOG with detailed version notes

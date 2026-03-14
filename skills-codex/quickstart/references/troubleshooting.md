@@ -13,7 +13,7 @@ ao hooks test
 cat hooks/hooks.json | jq . 2>/dev/null
 
 # Check settings.json for ao hooks
-cat ~/.claude/settings.json | jq '.hooks' 2>/dev/null
+cat ~/.codex/settings.json | jq '.hooks' 2>/dev/null
 
 # Verify plugin is loaded
 claude --plugin ./ --help
@@ -22,26 +22,26 @@ claude --plugin ./ --help
 **Fixes:**
 - Reinstall hooks: `ao hooks install --full` (full runtime hook set) or `ao init --hooks` (full 12-event coverage by default)
 - Check that `hooks/hooks.json` is not malformed JSON
-- Restart Claude Code after hook changes
+- Restart Codex after hook changes
 
 ## Skills Not Showing Up
 
-**Symptom:** `/quickstart`, `/vibe`, or other skills don't trigger.
+**Symptom:** `$quickstart`, `$vibe`, or other skills don't trigger.
 
 **Checks:**
 ```bash
 # Check SKILL.md exists with valid frontmatter
-head -5 ~/.claude/skills/quickstart/SKILL.md
+head -5 ~/.agents/skills/quickstart/SKILL.md
 
 # List installed skills
-ls ~/.claude/skills/
+ls ~/.agents/skills/
 ```
 
 **Fixes:**
 - Reinstall: `bash <(curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install.sh)`
 - Manual sync for a single skill:
   ```bash
-  /bin/cp -r ~/.agents/skills/<skill-name>/ ~/.claude/skills/<skill-name>/
+  /bin/cp -r ~/.agents/skills/<skill-name>/ ~/.agents/skills/<skill-name>/
   ```
 
 ## CLI Not Found (ao, bd, gt)
@@ -103,10 +103,10 @@ mkdir -p .agents && echo "OK" || echo "PERMISSION DENIED"
    git add .
    git commit -m "Initial commit"
    ```
-   Then re-run `/quickstart` for the full experience.
+   Then re-run `$quickstart` for the full experience.
 
 2. **Continue in manual mode:**
-   Quickstart will skip git-dependent features (recent changes, vibe on diffs) and use file-browsing equivalents instead. You can still use `/research`, `/plan`, and other non-git skills.
+   Quickstart will skip git-dependent features (recent changes, vibe on diffs) and use file-browsing equivalents instead. You can still use `$research`, `$plan`, and other non-git skills.
 
 ## Language Detection Failed
 

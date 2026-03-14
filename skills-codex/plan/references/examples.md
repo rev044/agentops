@@ -155,7 +155,7 @@ This will create the same 5-step structure but for GitHub instead of GitLab."
 
 ## Example 3: Formula From Research
 
-**Scenario**: `/research` was already run, now creating a formula from findings.
+**Scenario**: `$research` was already run, now creating a formula from findings.
 
 **Agent Actions**:
 
@@ -359,7 +359,7 @@ needs = []
 Both can run in parallel (different files). Use:
 ```bash
 bd ready
-/implement xxx.impl
+$implement xxx.impl
 ```
 ```
 

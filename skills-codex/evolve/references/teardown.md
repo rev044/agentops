@@ -1,12 +1,12 @@
 # Teardown Procedure
 
-**Auto-run /post-mortem on the full evolution session:**
+**Auto-run $post-mortem on the full evolution session:**
 
 ```
-/post-mortem "evolve session: $CYCLE cycles, goals improved: X, harvested: Y"
+$post-mortem "evolve session: $CYCLE cycles, goals improved: X, harvested: Y"
 ```
 
-This captures learnings from the ENTIRE evolution run (all cycles, all /rpi invocations) in one council review. The post-mortem harvests follow-up items into `next-work.jsonl`, feeding the next `/evolve` session.
+This captures learnings from the ENTIRE evolution run (all cycles, all $rpi invocations) in one council review. The post-mortem harvests follow-up items into `next-work.jsonl`, feeding the next `$evolve` session.
 
 **Compute session fitness trajectory:**
 
@@ -60,7 +60,7 @@ fi
 
 ```bash
 cat > .agents/evolve/session-summary.md << EOF
-# /evolve Session Summary
+# $evolve Session Summary
 
 **Date:** $(date -Iseconds)
 **Cycles:** $CYCLE of $MAX_CYCLES
@@ -76,8 +76,8 @@ $(cat .agents/evolve/fitness-latest.json)
 <path to post-mortem report from above>
 
 ## Next Steps
-- Run \`/evolve\` again to continue improving
-- Run \`/evolve --dry-run\` to check current fitness without executing
+- Run \`$evolve\` again to continue improving
+- Run \`$evolve --dry-run\` to check current fitness without executing
 - Create \`~/.config/evolve/KILL\` to prevent future runs
 - Create \`.agents/evolve/STOP\` for a one-time local stop
 EOF
@@ -85,7 +85,7 @@ EOF
 
 Report to user:
 ```
-## /evolve Complete
+## $evolve Complete
 
 Cycles: N of M
 Goals improved: X
@@ -93,5 +93,5 @@ Goals regressed: Y (reverted)
 Goals unchanged: Z
 Post-mortem: <verdict> (see <report-path>)
 
-Run `/evolve` again to continue improving.
+Run `$evolve` again to continue improving.
 ```

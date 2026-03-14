@@ -1,6 +1,6 @@
 # Vibe-Coding Science Reference
 
-**JIT-loaded by /vibe skill and validation agents**
+**JIT-loaded by $vibe skill and validation agents**
 
 ---
 

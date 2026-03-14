@@ -5,7 +5,7 @@
 Council requires these runtime capabilities. Map them to whatever your agent harness provides.
 
 **For concrete tool call examples per backend, read the matching shared reference:**
-- Claude Native Teams → `skills/shared/references/backend-claude-teams.md`
+- Codex sub-agents → `skills/shared/references/backend-codex-subagents.md`
 - Codex Sub-Agents / CLI → `skills/shared/references/backend-codex-subagents.md`
 - Background Tasks → `skills/shared/references/backend-background-tasks.md`
 - Inline → `skills/shared/references/backend-inline.md`

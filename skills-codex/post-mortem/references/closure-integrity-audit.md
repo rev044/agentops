@@ -22,8 +22,8 @@ Only fall back to a weaker source when the stronger source has no qualifying evi
 ## When to Run
 
 - **Step 2.3** of post-mortem (Reconcile Plan vs Delivered Scope)
-- After `/crank` completes (before closing epic)
-- During `/retro` when reviewing multi-wave epics
+- After `$crank` completes (before closing epic)
+- During `$retro` when reviewing multi-wave epics
 
 ## Audit Procedure
 

@@ -289,7 +289,7 @@ Mayor (FIRE Loop)
 
 **Polecat lifecycle**:
 1. `gt sling` ignites polecat with hooked work
-2. Polecat executes via `/implement`
+2. Polecat executes via `$implement`
 3. On completion: `gt done` → push → merge queue → exit
 4. Witness nukes sandbox after merge
 5. No idle state - polecats don't wait
@@ -325,7 +325,7 @@ Sustainable for long-running autonomous execution.
 **Mayor session crash**:
 ```bash
 # State is in beads, not memory
-/crank <epic> <rig>  # Resumes from beads state
+$crank <epic> <rig>  # Resumes from beads state
 ```
 
 **Polecat stalled**:

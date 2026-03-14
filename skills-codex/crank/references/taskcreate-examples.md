@@ -1,15 +1,15 @@
-# TaskCreate Examples
+# todo_write Examples
 
-> Copy-paste-ready TaskCreate patterns for each crank mode.
+> Copy-paste-ready todo_write patterns for each crank mode.
 
 ---
 
-## SPEC WAVE TaskCreate
+## SPEC WAVE todo_write
 
 Use when `--test-first` is set and issue is spec-eligible (`feature`/`bug`/`task`).
 
 ```
-TaskCreate(
+todo_write(
   subject="SPEC: <issue-title>",
   description="Generate contract for beads issue <issue-id>.
 
@@ -49,12 +49,12 @@ Mark task complete when contract is written and validation passes.",
 
 ---
 
-## TEST WAVE TaskCreate
+## TEST WAVE todo_write
 
 Use when `--test-first` is set, SPEC WAVE is complete, and issue is spec-eligible.
 
 ```
-TaskCreate(
+todo_write(
   subject="TEST: <issue-title>",
   description="Generate FAILING tests for beads issue <issue-id>.
 
@@ -96,12 +96,12 @@ Mark task complete when tests are written and ALL tests FAIL.",
 
 ---
 
-## GREEN Mode TaskCreate
+## GREEN Mode todo_write
 
 Use when `--test-first` is set, SPEC and TEST waves are complete, and issue is spec-eligible.
 
 ```
-TaskCreate(
+todo_write(
   subject="<issue-id>: <issue-title>",
   description="Implement beads issue <issue-id> (GREEN mode).
 
@@ -116,35 +116,35 @@ Failing tests are at:
 
 Contract is at: .agents/specs/contract-<issue-id>.md
 
-Follow GREEN Mode rules from /implement SKILL.md:
+Follow GREEN Mode rules from $implement SKILL.md:
 1. Read failing tests and contract FIRST
 2. Write minimal implementation to pass tests
 3. Do NOT modify test files
 4. Do NOT add tests (already written)
 5. Validate by running test suite
 
-Execute using /implement <issue-id>. Mark complete when all tests pass.",
+Execute using $implement <issue-id>. Mark complete when all tests pass.",
   activeForm="Implementing <issue-id> (GREEN)"
 )
 ```
 
 ---
 
-## Standard IMPL TaskCreate (`feature`/`bug`/`task`)
+## Standard IMPL todo_write (`feature`/`bug`/`task`)
 
 Use when `--test-first` is NOT set for implementation issues. `metadata.validation` is required and MUST include:
 - `tests`
 - At least one structural check: `files_exist` or `content_check`
 
 ```
-TaskCreate(
+todo_write(
   subject="<issue-id>: <issue-title>",
   description="Implement beads issue <issue-id>.
 
 Details from beads:
 <paste issue details from bd show>
 
-Execute using /implement <issue-id>. Mark complete when done.
+Execute using $implement <issue-id>. Mark complete when done.
 
 ```validation
 tests: "<test-command>"
@@ -184,12 +184,12 @@ command: "<optional-build-or-smoke-command>"
 
 ---
 
-## Docs/Chore/CI IMPL TaskCreate (Test Exemption)
+## Docs/Chore/CI IMPL todo_write (Test Exemption)
 
 Use for non-spec-eligible issues (`docs`/`chore`/`ci`). `tests` is optional for this category; keep structural or command/lint checks.
 
 ```
-TaskCreate(
+todo_write(
   subject="<issue-id>: <issue-title>",
   description="Implement beads issue <issue-id> (`docs`/`chore`/`ci` path).",
   activeForm="Implementing <issue-id>",
@@ -231,7 +231,7 @@ TaskCreate(
   - **Allowlist constraint:** `tests`, `command`, and `lint` fields execute via `run_restricted()` in `task-validation-gate.sh`. Only bare allowlisted binaries are permitted: `go`, `pytest`, `npm`, `make`. Shell wrappers (`bash -c`), compound operators (`&&`, `||`, `;`), pipes (`|`), and redirects (`>`, `<`) are blocked. Use `make` targets for multi-step validation.
 
 - **activeForm:**
-  - Shows in TaskList UI while worker is active
+  - Shows in update_plan UI while worker is active
   - Keep concise (3-5 words)
   - Include issue ID for easy tracking
 
@@ -242,9 +242,9 @@ TaskCreate(
   - IMPL: full codebase access, issue description
 
 - **File manifests (`metadata.files`):**
-  - **Required** for all TaskCreate entries — list every file the worker will modify
+  - **Required** for all todo_write entries — list every file the worker will modify
 - **Issue typing (`metadata.issue_type`):**
-  - **Required** for all TaskCreate entries — one of `feature|bug|task|docs|chore|ci`
+  - **Required** for all todo_write entries — one of `feature|bug|task|docs|chore|ci`
   - Task validation uses this to decide when active constraints apply and whether test metadata is mandatory
   - Swarm uses manifests for pre-spawn conflict detection (overlapping files = serialize or isolate)
   - Workers receive the manifest in their prompt and must stay within it
@@ -252,4 +252,4 @@ TaskCreate(
 
 - **Category-based skipping:**
   - docs/chore/ci issues bypass SPEC and TEST waves
-  - Use standard IMPL TaskCreate for these even if `--test-first` is set
+  - Use standard IMPL todo_write for these even if `--test-first` is set

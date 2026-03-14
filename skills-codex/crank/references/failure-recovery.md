@@ -24,7 +24,7 @@ if [[ $wave -ge 50 ]]; then
     echo "<promise>BLOCKED</promise>"
     echo "Global wave limit (50) reached. Remaining issues:"
     # Beads mode: bd children <epic-id> --status open
-    # TaskList mode: TaskList() → pending tasks
+    # update_plan mode: update_plan() → pending tasks
     # STOP - do not continue
 fi
 ```
@@ -33,22 +33,22 @@ fi
 
 **Verify there are issues to work on:**
 
-**If 0 ready issues found (beads mode) or 0 pending unblocked tasks (TaskList mode):**
+**If 0 ready issues found (beads mode) or 0 pending unblocked tasks (update_plan mode):**
 ```
 STOP and return error:
   "No ready issues found for this epic. Either:
    - All issues are blocked (check dependencies)
-   - Epic has no child issues (run /plan first)
+   - Epic has no child issues (run $plan first)
    - All issues already completed"
 ```
 
-Also verify: epic has at least 1 child issue total. An epic with 0 children means /plan was not run.
+Also verify: epic has at least 1 child issue total. An epic with 0 children means $plan was not run.
 
 Do NOT proceed with empty issue list - this produces false "epic complete" status.
 
 ## Final Batched Validation
 
-When all issues complete, check whether a full /vibe is needed:
+When all issues complete, check whether a full $vibe is needed:
 
 ```bash
 # Check wave checkpoint verdicts — skip final vibe if ALL waves passed clean
@@ -63,7 +63,7 @@ done
 ```
 
 **If ALL waves passed acceptance check with PASS verdict (no WARNs, no retries):**
-Skip the final /vibe — per-wave acceptance checks already validated acceptance criteria. Proceed directly to Step 8 (learnings extraction).
+Skip the final $vibe — per-wave acceptance checks already validated acceptance criteria. Proceed directly to Step 8 (learnings extraction).
 
 **If ANY wave had WARN, FAIL, or missing verdicts:**
 Run ONE comprehensive vibe on recent changes:

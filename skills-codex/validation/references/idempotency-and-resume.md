@@ -1,8 +1,8 @@
-# Idempotency and Resume in /validation
+# Idempotency and Resume in $validation
 
 ## Re-run Behavior
 
-`/validation` is **not idempotent** — each invocation produces fresh artifacts:
+`$validation` is **not idempotent** — each invocation produces fresh artifacts:
 
 | Step | On Re-run | Output |
 |------|-----------|--------|
@@ -13,7 +13,7 @@
 
 This is intentional — validation should always reflect the current state of the code, not a cached result.
 
-## Resume via `/rpi --from=validation`
+## Resume via `$rpi --from=validation`
 
 Requirements:
 - Epic-id as argument OR readable from `.agents/rpi/execution-packet.json`
@@ -21,7 +21,7 @@ Requirements:
 
 ## Standalone Mode
 
-`/validation` without an epic-id runs in standalone mode:
+`$validation` without an epic-id runs in standalone mode:
 - Vibe reviews recent changes (no epic scoping)
 - Post-mortem is **skipped** (requires epic-id)
 - Retro and forge run normally

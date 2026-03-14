@@ -43,8 +43,8 @@ Write trace reports to: `.agents/research/YYYY-MM-DD-trace-<concept-slug>.md`
 
 ## Related Concepts
 
-- <related concept 1> - see `/trace <concept1>`
-- <related concept 2> - see `/trace <concept2>`
+- <related concept 1> - see `$trace <concept1>`
+- <related concept 2> - see `$trace <concept2>`
 
 ## Sources
 

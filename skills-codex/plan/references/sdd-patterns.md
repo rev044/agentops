@@ -1,6 +1,6 @@
 # SDD Patterns — Boundaries and Conformance Checks
 
-> Reference doc for /plan. Loaded JIT when agents need examples.
+> Reference doc for $plan. Loaded JIT when agents need examples.
 
 ## What Are Boundaries?
 
@@ -12,7 +12,7 @@ Boundaries define the scope of a plan using three tiers:
 | **Ask First** | Decisions requiring human input before proceeding | "Which rate limit values to use?" |
 | **Never** | Explicit out-of-scope items preventing scope creep | "No new database tables" |
 
-**Always** boundaries become cross-cutting constraints — /crank injects them into every worker task's validation metadata. **Ask First** boundaries are logged in auto mode and prompted in interactive mode. **Never** boundaries are guardrails for workers and pre-mortem judges.
+**Always** boundaries become cross-cutting constraints — $crank injects them into every worker task's validation metadata. **Ask First** boundaries are logged in auto mode and prompted in interactive mode. **Never** boundaries are guardrails for workers and pre-mortem judges.
 
 ## What Are Conformance Checks?
 
@@ -233,17 +233,17 @@ This enabled single-pass implementation of an 8-file change with zero spec-diver
 
 ## Cross-Cutting Constraints: How They Work
 
-"Always" boundaries become cross-cutting constraints that /crank injects into **every** worker task:
+"Always" boundaries become cross-cutting constraints that $crank injects into **every** worker task:
 
 ```
 Plan "Always" boundaries
     ↓
-/crank reads plan → extracts Always
+$crank reads plan → extracts Always
     ↓
 Converts to validation-contract.md checks (flat array):
   [{"name": "...", "type": "content_check|command|tests|...", ...fields...}]
     ↓
-Injected into every TaskCreate's metadata.validation.cross_cutting
+Injected into every todo_write's metadata.validation.cross_cutting
     ↓
 Workers validated against per-task checks + cross-cutting checks
 ```

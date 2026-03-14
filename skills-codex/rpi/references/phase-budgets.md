@@ -52,7 +52,7 @@ Adding a time budget on top of these would create competing constraints that are
 RPI mode: rpi-phased (complexity: standard)
 Phase: research (budget: 300s)
 
-[0:00]  /research "add user authentication"
+[0:00]  $research "add user authentication"
 [1:30]  Explore agent returns relevant files
 [3:00]  Knowledge lookup finds 2 prior learnings
 [4:45]  Reading auth middleware patterns...
@@ -70,12 +70,12 @@ with available context. This is NOT a retry — attempt counter stays at 0.
 ```
 Phase: pre-mortem (budget: 180s, attempt: 1/3)
 
-[0:00]  /pre-mortem spawns council
+[0:00]  $pre-mortem spawns council
 [2:30]  Council returns verdict: FAIL (3 critical risks)
 [2:30]  Verdict is FAIL → triggers retry gate (attempt 1/3)
 
-[2:30]  Re-running /plan with findings context...
-[4:00]  /pre-mortem attempt 2 spawns council
+[2:30]  Re-running $plan with findings context...
+[4:00]  $pre-mortem attempt 2 spawns council
 [5:00]  BUDGET EXPIRED at 300s (cumulative across retries)
 
 Writing [TIME-BOXED] marker. Auto-transitioning to implementation.
@@ -86,7 +86,7 @@ Attempt counter: 2/3 (budget expiry does NOT count as attempt 3).
 ### Example 3: Custom Budget Override
 
 ```bash
-/rpi --budget=research:180,plan:120 "quick API endpoint"
+$rpi --budget=research:180,plan:120 "quick API endpoint"
 
 # Result: research gets 3 min, plan gets 2 min
 # Other phases use complexity-derived defaults

@@ -1,6 +1,6 @@
 # Vibe Suppressions
 
-> Default suppression list for `/vibe` findings. Load before council invocation to filter noise.
+> Default suppression list for `$vibe` findings. Load before council invocation to filter noise.
 
 ## Purpose
 
