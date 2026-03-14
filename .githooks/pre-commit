@@ -27,26 +27,38 @@ if command -v go >/dev/null 2>&1; then
     fi
 fi
 
-# --- Embedded hooks sync check (only when hooks/ files are staged) ---
-staged_hooks=$(git diff --cached --name-only -- 'hooks/*' 2>/dev/null || true)
-if [[ -n "$staged_hooks" ]]; then
+# --- Embedded hooks auto-sync (when hooks/, lib/, or standards refs are staged) ---
+staged_embed=$(git diff --cached --name-only -- \
+    'hooks/*' \
+    'lib/hook-helpers.sh' \
+    'skills/standards/references/*' \
+    'skills/using-agentops/SKILL.md' \
+    2>/dev/null || true)
+if [[ -n "$staged_embed" ]]; then
     if [[ -f "$REPO_ROOT/cli/Makefile" ]] && command -v make >/dev/null 2>&1; then
-        # Check if embedded copies are stale relative to staged hooks
-        stale=0
-        for src in hooks/session-start.sh hooks/hooks.json; do
-            embedded="cli/embedded/$src"
-            if [[ -f "$REPO_ROOT/$src" ]] && [[ -f "$REPO_ROOT/$embedded" ]]; then
-                if ! diff -q "$REPO_ROOT/$src" "$REPO_ROOT/$embedded" >/dev/null 2>&1; then
-                    stale=1
-                    break
-                fi
-            fi
-        done
-        if [[ "$stale" -eq 1 ]]; then
-            echo "pre-commit: WARNING — hooks/ changed but cli/embedded/ is stale."
-            echo "  Run: cd cli && make sync-hooks"
-            echo "  Then stage the updated embedded files."
-            exit 1
+        echo "pre-commit: Embedded source files changed — running sync-hooks..."
+        (cd "$REPO_ROOT/cli" && make sync-hooks 2>&1)
+        # Stage the synced files automatically
+        git add "$REPO_ROOT/cli/embedded/" 2>/dev/null || true
+        echo "pre-commit: Embedded hooks synced and staged."
+    fi
+fi
+
+# --- Dual changelog sync (auto-copy new release entries to docs/CHANGELOG.md) ---
+if git diff --cached --name-only -- 'CHANGELOG.md' 2>/dev/null | grep -q '^CHANGELOG.md$'; then
+    if [[ -f "$REPO_ROOT/docs/CHANGELOG.md" ]]; then
+        # Extract the latest version from root changelog
+        latest_version=$(grep -oP '## \[\K[0-9]+\.[0-9]+\.[0-9]+' "$REPO_ROOT/CHANGELOG.md" | head -1)
+        if [[ -n "$latest_version" ]] && ! grep -Fq "## [$latest_version]" "$REPO_ROOT/docs/CHANGELOG.md"; then
+            echo "pre-commit: Root CHANGELOG.md has [$latest_version] but docs/CHANGELOG.md does not."
+            # Extract the new entry (from ## [version] to the next ## [)
+            new_entry=$(awk "/^## \\[$latest_version\\]/,/^## \\[/{if(/^## \\[/ && !/\\[$latest_version\\]/)exit; print}" "$REPO_ROOT/CHANGELOG.md")
+            # Insert after ## [Unreleased] line in docs/CHANGELOG.md
+            awk -v entry="$new_entry" '/^## \[Unreleased\]/{print; print ""; print entry; next}1' \
+                "$REPO_ROOT/docs/CHANGELOG.md" > "$REPO_ROOT/docs/CHANGELOG.md.tmp" && \
+                mv "$REPO_ROOT/docs/CHANGELOG.md.tmp" "$REPO_ROOT/docs/CHANGELOG.md"
+            git add "$REPO_ROOT/docs/CHANGELOG.md" 2>/dev/null || true
+            echo "pre-commit: docs/CHANGELOG.md synced with [$latest_version] and staged."
         fi
     fi
 fi
