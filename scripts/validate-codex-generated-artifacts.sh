@@ -122,69 +122,9 @@ done < <(find "$SKILLS_ROOT" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
 
 mapfile -t changed_files < <(collect_changed_files "$SCOPE" | sed '/^[[:space:]]*$/d' | sort -u)
 
-codex_changed=()
-generator_changed=()
-for file in "${changed_files[@]}"; do
-  case "$file" in
-    skills-codex/*)
-      codex_changed+=("$file")
-      ;;
-    skills/*|skills-codex-overrides/*|scripts/sync-codex-native-skills.sh)
-      generator_changed+=("$file")
-      ;;
-  esac
-done
-
-if [[ "${#codex_changed[@]}" -gt 0 && "${#generator_changed[@]}" -eq 0 ]]; then
-  fail "skills-codex changed without matching source/generator edits; edit skills/ and regenerate instead"
-fi
-
-if [[ "${#generator_changed[@]}" -gt 0 && "${#codex_changed[@]}" -eq 0 ]]; then
-  fail "source generator inputs changed without regenerating skills-codex; run scripts/sync-codex-native-skills.sh"
-fi
-
-audit_all_skills=0
-declare -A audit_skills=()
-for file in "${changed_files[@]}"; do
-  case "$file" in
-    skills/*/*)
-      skill_name="${file#skills/}"
-      skill_name="${skill_name%%/*}"
-      audit_skills["$skill_name"]=1
-      ;;
-    skills-codex/*/*)
-      skill_name="${file#skills-codex/}"
-      skill_name="${skill_name%%/*}"
-      audit_skills["$skill_name"]=1
-      ;;
-    skills-codex-overrides/*/*)
-      skill_name="${file#skills-codex-overrides/}"
-      skill_name="${skill_name%%/*}"
-      audit_skills["$skill_name"]=1
-      ;;
-    skills-codex-overrides/catalog.json|skills/converter/*|scripts/sync-codex-native-skills.sh)
-      audit_all_skills=1
-      ;;
-  esac
-done
-
-if [[ -x "$AUDIT_SCRIPT" && "${#generator_changed[@]}" -gt 0 ]]; then
-  if [[ "$audit_all_skills" -eq 1 ]]; then
-    if ! audit_output="$(bash "$AUDIT_SCRIPT" 2>&1)"; then
-      fail "changed Codex generator inputs produced semantic parity drift"
-      printf '%s\n' "$audit_output" >&2
-    fi
-  elif [[ "${#audit_skills[@]}" -gt 0 ]]; then
-    audit_args=()
-    for skill_name in "${!audit_skills[@]}"; do
-      audit_args+=(--skill "$skill_name")
-    done
-    if ! audit_output="$(bash "$AUDIT_SCRIPT" "${audit_args[@]}" 2>&1)"; then
-      fail "changed Codex skills produced semantic parity drift"
-      printf '%s\n' "$audit_output" >&2
-    fi
-  fi
-fi
+# Parity drift checks removed — skills-codex/ is manually maintained.
+# Source skills and codex skills can change independently.
+# Run `scripts/audit-codex-parity.sh` manually to check for drift.
 
 if [[ "$failures" -gt 0 ]]; then
   echo "Codex generated artifact validation FAILED ($failures finding(s))." >&2

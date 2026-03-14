@@ -1,5 +1,17 @@
 #!/usr/bin/env bash
 #
+# DEPRECATED: skills-codex/ is now manually maintained.
+# This script overwrites manual edits and should NOT be used.
+# Edit skills-codex/ directly or use skills-codex-overrides/.
+# See CLAUDE.md "Codex maintenance flow" for the current workflow.
+#
+echo "ERROR: sync-codex-native-skills.sh is DEPRECATED." >&2
+echo "skills-codex/ is manually maintained. Edit files directly." >&2
+echo "To audit for drift: bash scripts/audit-codex-parity.sh" >&2
+exit 1
+#
+# Original script below (preserved for reference, never executes):
+#
 # Build Codex-native skill artifacts into a dedicated area (default: ./skills-codex).
 # Output is generated from ./skills via the converter's codex target and then
 # overlaid with codex-specific overrides from ./skills-codex-overrides.

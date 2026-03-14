@@ -67,12 +67,9 @@ else
   SRC_ROOT="${TMP_DIR}/${ARCHIVE_ROOT}"
 fi
 
-[ -f "$SRC_ROOT/scripts/sync-codex-native-skills.sh" ] || fail "Codex skills sync script not found in bundle"
 [ -f "$SRC_ROOT/scripts/install-codex-plugin.sh" ] || fail "Native Codex installer not found in bundle"
 
-bash "$SRC_ROOT/scripts/sync-codex-native-skills.sh" \
-  --src "$SRC_ROOT/skills" \
-  --out "$SRC_ROOT/skills-codex"
+# skills-codex/ is pre-built in the bundle (manually maintained, no sync needed)
 
 bash "$SRC_ROOT/scripts/install-codex-plugin.sh" \
   --repo-root "$SRC_ROOT" \

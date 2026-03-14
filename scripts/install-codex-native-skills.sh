@@ -134,12 +134,10 @@ should_refresh_native_plugin() {
   [[ -n "$plugin_root" ]] || return 1
 }
 
+# Sync is deprecated — skills-codex/ is manually maintained.
+# The sync script now exits with error if called.
 if [[ "$SKIP_SYNC" != "true" ]]; then
-  sync_args=(--src "$REPO_ROOT/skills" --out "$SRC")
-  if [[ -n "$ONLY_CSV" ]]; then
-    sync_args+=(--only "$ONLY_CSV")
-  fi
-  bash "$SYNC_SCRIPT" "${sync_args[@]}"
+  echo "Note: sync-codex-native-skills.sh is deprecated. Using skills-codex/ as-is." >&2
 fi
 
 [[ -d "$SRC" ]] || {
