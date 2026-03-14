@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/swarm",
   "layout": "modular",
-  "source_hash": "1475c7f5fbd3cee6c060e4c4a45b0cbd3634f6d7e31e5a4cd1a5d0b3b08cb804",
-  "generated_hash": "dd5edfeae1da52745ee1f133f4b73eaa35940f343aa5fcbe37eeeb625a7083a1"
+  "source_hash": "264189ff117608a9184c13f4e8221c07bcf94728b3683dc34951988231878bd6",
+  "generated_hash": "9c78704c9ff275822f1019220801881d4f3a6c50764273f9c715e75a4bdf9188"
 }

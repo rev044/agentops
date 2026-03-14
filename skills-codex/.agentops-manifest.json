@@ -44,8 +44,8 @@
     {
       "name": "converter",
       "source_skill": "skills/converter",
-      "source_hash": "71585d3251fe47f3f4f1d200b121c0e28896b724083d0573fa60624af7b07850",
-      "generated_hash": "b3e6f3539a88d16e4cc7895fb2f49446b11263b2eaad99007c759887a3294578"
+      "source_hash": "09c9381e44f5d442a1469be8639e3017df64dc1089048036f45ea345b5ab354f",
+      "generated_hash": "a54e25b0ff7e263b423fd776b54cd978454a49d141147fc7729a1a3a3cd5f726"
     },
     {
       "name": "council",
@@ -140,8 +140,8 @@
     {
       "name": "plan",
       "source_skill": "skills/plan",
-      "source_hash": "140950e614d29206e4e395516c7435c355951bad7b4ac80525c61ed592e9052a",
-      "generated_hash": "50d8d3923a7f1a2b551bb1555bd90338b1073a1e4a23e5fa01d9fb29484e1c76"
+      "source_hash": "7fbcc2008e998b78a6272edb4901c112e92682d333cb333a0ed38b87c73dc622",
+      "generated_hash": "e0dea1476c0547cbb5c2b73fba4445a5f6e87d7dffe90d07902844f4d0d01893"
     },
     {
       "name": "post-mortem",
@@ -279,7 +279,7 @@
       "name": "shared",
       "source_skill": "skills/shared",
       "source_hash": "887a88b6aead672d52fc19ba6e7626e6b32358644bf3905d2feee23c6d34043d",
-      "generated_hash": "a481e83b065046d940a5cbe219473d1ab92aa28ebd4d938a320707505536a023"
+      "generated_hash": "412325278523c0017ed4ad2497ef63793abe0cb3cc2023d1b9d865563989285c"
     },
     {
       "name": "standards",
@@ -296,8 +296,8 @@
     {
       "name": "swarm",
       "source_skill": "skills/swarm",
-      "source_hash": "1475c7f5fbd3cee6c060e4c4a45b0cbd3634f6d7e31e5a4cd1a5d0b3b08cb804",
-      "generated_hash": "dd5edfeae1da52745ee1f133f4b73eaa35940f343aa5fcbe37eeeb625a7083a1"
+      "source_hash": "264189ff117608a9184c13f4e8221c07bcf94728b3683dc34951988231878bd6",
+      "generated_hash": "9c78704c9ff275822f1019220801881d4f3a6c50764273f9c715e75a4bdf9188"
     },
     {
       "name": "trace",

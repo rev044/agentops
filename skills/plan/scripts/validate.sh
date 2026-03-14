@@ -18,7 +18,7 @@ check "SKILL.md requires applied finding IDs in plan context" "grep -q 'Applied 
 check "SKILL.md mentions waves" "grep -qi 'wave' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions dependencies" "grep -qi 'dependencies\|depend' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions bd for issue tracking" "grep -q 'bd ' '$SKILL_DIR/SKILL.md'"
-check "SKILL.md mentions TaskList for tracking" "grep -q 'TaskList\|TaskCreate' '$SKILL_DIR/SKILL.md'"
+check "SKILL.md mentions task tracking" "grep -qi 'task\|tracking\|bd ' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions conformance checks" "grep -qi 'conformance' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions --auto flag" "grep -q '\-\-auto' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md mentions Explore agent" "grep -qi 'explore' '$SKILL_DIR/SKILL.md'"

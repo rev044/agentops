@@ -581,6 +581,19 @@ copy_passthrough_resources() {
       fi
     else
       rsync -a --copy-links "$entry" "$output_dir"/
+      # Rewrite top-level .md files too (e.g., validation-contract.md)
+      if [[ "$entry" == *.md ]]; then
+        local out_file="$output_dir/$base"
+        if [[ -f "$out_file" ]]; then
+          local content
+          content="$(<"$out_file")"
+          local rewritten
+          rewritten="$(codex_rewrite_text "$content")"
+          if [[ "$rewritten" != "$content" ]]; then
+            printf '%s\n' "$rewritten" > "$out_file"
+          fi
+        fi
+      fi
     fi
   done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -print0)
 }
