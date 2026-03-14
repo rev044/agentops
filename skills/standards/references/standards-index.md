@@ -32,6 +32,7 @@ JIT loading map for validation agents. Load only what you need based on file typ
 | Go patterns | `skills/vibe/references/go-patterns.md` | Go architecture review |
 | General patterns | `skills/vibe/references/patterns.md` | Design review |
 | Report format | `skills/vibe/references/report-format.md` | Writing vibe reports |
+| Codex skill standard | `skills/standards/references/codex-skill.md` | Codex skill files, converter output, `skills-codex/` |
 
 ## JIT Loading Pattern for Agents
 

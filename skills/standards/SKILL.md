@@ -40,6 +40,7 @@ references that other skills load based on file types being processed.
 | SQL Safety | `references/sql-safety-checklist.md` | vibe, pre-mortem (when DB code detected) |
 | LLM Trust Boundaries | `references/llm-trust-boundary-checklist.md` | vibe, pre-mortem (when LLM code detected) |
 | Race Conditions | `references/race-condition-checklist.md` | vibe, pre-mortem (when concurrent code detected) |
+| Codex Skills | `references/codex-skill.md` | vibe (when `skills-codex/` or converter files detected) |
 
 ## How It Works
 
@@ -72,6 +73,7 @@ Specialized checklists for high-risk code patterns. Loaded automatically by `/vi
 | `sql-safety-checklist.md` | SQL queries, ORM calls, migration files, `database/sql`, `sqlalchemy`, `prisma` | Injection, migration safety, N+1, transactions |
 | `llm-trust-boundary-checklist.md` | `anthropic`, `openai` imports, prompt templates, `*llm*`/`*prompt*` files | Prompt injection, output validation, cost control |
 | `race-condition-checklist.md` | Goroutines, threads, `asyncio`, `sync.Mutex`, shared file I/O | Shared state, file races, database races |
+| `codex-skill.md` | Files under `skills-codex/`, `convert.sh`, `skills-codex-overrides/` | Codex API conformance, prohibited primitives, tool mapping |
 
 Skills detect triggers via file content patterns and import statements. Each checklist's "When to Apply" section defines exact detection rules.
 
@@ -148,4 +150,5 @@ Skills that use standards:
 - [references/sql-safety-checklist.md](references/sql-safety-checklist.md)
 - [references/llm-trust-boundary-checklist.md](references/llm-trust-boundary-checklist.md)
 - [references/race-condition-checklist.md](references/race-condition-checklist.md)
+- [references/codex-skill.md](references/codex-skill.md)
 - [references/yaml.md](references/yaml.md)
