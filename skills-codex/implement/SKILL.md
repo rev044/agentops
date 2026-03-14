@@ -12,7 +12,7 @@ description: 'Execute a single issue with full lifecycle. Triggers: "implement",
 
 Execute a single issue from start to finish.
 
-**CLI dependencies:** bd (issue tracking), ao (ratchet gates). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use the issue description directly and track progress via TaskList instead of beads.
+**CLI dependencies:** bd (issue tracking), ao (ratchet gates). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use the issue description directly and track progress via task-list instead of beads.
 
 ## Execution Steps
 
@@ -63,10 +63,10 @@ This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.
 
 ### Step 3: Gather Context
 
-**USE THE TASK TOOL** to explore relevant code:
+**USE THE AGENT TOOL** to explore relevant code:
 
 ```
-Tool: Task
+Tool: Agent
 Parameters:
   subagent_type: "Explore"
   description: "Gather context for: <issue title>"

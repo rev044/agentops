@@ -15,7 +15,7 @@
       "name": "beads",
       "source_skill": "skills/beads",
       "source_hash": "9cf7e4fea0c22ad0c8ae0e52bd574c1db1e2ed4ad531790d4102df7f039d746e",
-      "generated_hash": "21c05d6d6a9b6ea80175d5a265ecf777e1132ccb45ecd8ff207c49bd85f37df1"
+      "generated_hash": "5d46b446571110b7c4430e5d8d9cf1ef43e5c303c59a3f1e218ddd63faff846e"
     },
     {
       "name": "brainstorm",
@@ -27,13 +27,13 @@
       "name": "bug-hunt",
       "source_skill": "skills/bug-hunt",
       "source_hash": "2e8185d7d29353bfcacc6492fee16b634222f8439c51593fb7e7f0eea2678cf8",
-      "generated_hash": "b9174a5e6234488d4e7c83760c061f16ad292c49c4e48a1c3be3bb5670df78fd"
+      "generated_hash": "5b3c1f2e02a1504e0136098782a083c414f73fa79f23bdeeb2be71f26faa5c8b"
     },
     {
       "name": "codex-team",
       "source_skill": "skills/codex-team",
-      "source_hash": "dc86603337d9b612074d946c917dd95725b259cdcd75689c344d2e451f59e789",
-      "generated_hash": "cbcde5c89ab4eb959e7b3606dbe2649a5ca9a504224cd9d729398c4ac0125c68"
+      "source_hash": "d9549632d4c2261d7e4b321d90d48dfad8131450a895bb096101b4cab1817947",
+      "generated_hash": "763ebaa199b658af1474132e97dd30c99660dc4b5dedae820f4214f3fadd60e6"
     },
     {
       "name": "complexity",
@@ -44,26 +44,26 @@
     {
       "name": "converter",
       "source_skill": "skills/converter",
-      "source_hash": "bcf70d52ebc2efafc16445e17cc3eab9570f2e5c35326f63b39168678d64f3e0",
-      "generated_hash": "f64829873ae2eb8eedaf3f14206ca40758098558d974d6adfd0bce375729d538"
+      "source_hash": "2ea3325a60fee4c1b95dfced2da0f12a40212dc0be8c241c1eb45582779bfc6d",
+      "generated_hash": "d0ec80bb8ab400b698469e9950870077fffeaf90c07ec504b4b9d6022b27c241"
     },
     {
       "name": "council",
       "source_skill": "skills/council",
-      "source_hash": "b830e48efed751267267552aa058b4d25c7594af7135b3f52450e1a92e7bf93f",
-      "generated_hash": "713ec7cc41a5006dcc9dbeb0a5a933e60983069dc5e80eb758ff293b4b1a03fe"
+      "source_hash": "f23ffa5ccc35772ffe517eac6fc053e438572d9ce92d69d7a0dad249b96708d2",
+      "generated_hash": "68b8b7b3267f286e204556b53c258639ad6719d0885f1674df4f40b00f642d45"
     },
     {
       "name": "crank",
       "source_skill": "skills/crank",
-      "source_hash": "5627e9daa98580731dcfa84ba98818c0791e8f22c7ac7f55f117549a6d9a00ac",
-      "generated_hash": "6934c7266cb2009812800f22c86c4cc5dadeade3e11f20b0e414f414e41b4c2a"
+      "source_hash": "39f1f813b872d12b31b4cc1e9fbc21fdcbfcaae6b95e418b9fe899dcd7509cc4",
+      "generated_hash": "19762699eef8cea5ae033736f572aeaacdef2251af5c4b2db25195c7ec02bf88"
     },
     {
       "name": "discovery",
       "source_skill": "skills/discovery",
       "source_hash": "f063451f0a725eadef4a41df10d4f7dea3b7f0cff38d1be8ac3bb74c83ddcc22",
-      "generated_hash": "b5e9a9b68e2638a70972e3a0852cdd1b8f76156ca7ed6484b83f5acd8752cd69"
+      "generated_hash": "8114b0e1cac05878a8bb34d9566e5635555edf3bf2a12ec1411708bfa807bf00"
     },
     {
       "name": "doc",
@@ -110,14 +110,14 @@
     {
       "name": "heal-skill",
       "source_skill": "skills/heal-skill",
-      "source_hash": "7a2ec6fb68005a1c35e51dfab83b871d505ab6d925b41c9f07218fbdbe98957e",
-      "generated_hash": "4b9a71fbaca41f6608de06d48d5c129093cfa5503a0164e6a0c457b72519fc17"
+      "source_hash": "cdef5b3da02f8543ef640e15c43a638775f66f859cbf4ae823d6d44b25987e97",
+      "generated_hash": "959fbca7cf48b32f70c2faa06f9521daca9b99142bc2f684e38f449dd19a313d"
     },
     {
       "name": "implement",
       "source_skill": "skills/implement",
       "source_hash": "3f7b4804e34404e6a624122170bfd9b7ed0bee0b0f10e9079eace8625614a8c2",
-      "generated_hash": "af9ee6b6d956521d2e43d391a2b98c7c8e084cae49ea6a8393ee81bc218bd3c2"
+      "generated_hash": "628974c9b40c71d238919c57b6f54fdc82f19e63cecb87fcb80e07e4467f2c55"
     },
     {
       "name": "inject",
@@ -141,7 +141,7 @@
       "name": "plan",
       "source_skill": "skills/plan",
       "source_hash": "140950e614d29206e4e395516c7435c355951bad7b4ac80525c61ed592e9052a",
-      "generated_hash": "fe34b9932b997c6c2881d5b60311719606334d00c120ac638ca19fd8bdd82681"
+      "generated_hash": "0ed2c77abfa3a0c1c70aeb53c92adad3cee8355242bd789ad535b2e166b2fa3a"
     },
     {
       "name": "post-mortem",
@@ -242,8 +242,8 @@
     {
       "name": "research",
       "source_skill": "skills/research",
-      "source_hash": "2a83eab1b6a0bb6130607b26c9bd8e0a3074c97f05ac1a11676f1b964f07c305",
-      "generated_hash": "21e1f8cdb0c782a72f2a02c4bc90e2718b1c20c78b4ade36e69eccc5ef461706"
+      "source_hash": "7d0ae565ba3708973e8c0d3e10393a43962afa451b365ad3d61893727f9c9eed",
+      "generated_hash": "f77b7da068283b29a6459382ce38f0b797ccdb5c4c7ce3b1a859d69e3a3e755d"
     },
     {
       "name": "retro",
@@ -278,8 +278,8 @@
     {
       "name": "shared",
       "source_skill": "skills/shared",
-      "source_hash": "3acfac9406708cd4207ba052f759e2c7daa301e7db8079fae93bd485b7ad034b",
-      "generated_hash": "c4eea5dda4d48330edd1e4bb3f274a62c51a5359187f1c0c23b6c625fcfdfcd2"
+      "source_hash": "887a88b6aead672d52fc19ba6e7626e6b32358644bf3905d2feee23c6d34043d",
+      "generated_hash": "eb19d3224f27374ca3cfd20ccb1cb925bec0cb2e13b7724aa4905b2b652e1c39"
     },
     {
       "name": "standards",
@@ -296,8 +296,8 @@
     {
       "name": "swarm",
       "source_skill": "skills/swarm",
-      "source_hash": "390da10d4e7a8966b991220a8b78cf3c87d54b15849a1e9921a7ff21fbcb5e69",
-      "generated_hash": "0fc221655c9043d8d95e845c073213ccdb5a5c843e44f180da48addb2f0c5ba0"
+      "source_hash": "01e4f6fb5250425631a7e66d65bc65041180145394b3dd4f9a4d725107bd4091",
+      "generated_hash": "a258c4e5a3f5171c0241b7c58c59ef6d163d1a368daf8340b6e0a2136ffd084e"
     },
     {
       "name": "trace",
@@ -315,7 +315,7 @@
       "name": "using-agentops",
       "source_skill": "skills/using-agentops",
       "source_hash": "4416cf30a11c6486e3962e9ed2e44067fab2b17bcc498b759d15beb6f1ae504c",
-      "generated_hash": "50d47283ffea2246d6ce1d7092c098caf8ef290df7eedf7def870202211e7982"
+      "generated_hash": "8abd26342fcbf840a9bf4575e2adedba9f90ea32abd9fde748468875cf2f2314"
     },
     {
       "name": "validation",

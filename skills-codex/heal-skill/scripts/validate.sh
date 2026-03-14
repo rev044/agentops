@@ -7,6 +7,8 @@ check() { if bash -c "$2"; then echo "PASS: $1"; PASS=$((PASS + 1)); else echo "
 
 check "SKILL.md exists" "[ -f '$SKILL_DIR/SKILL.md' ]"
 check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '^---$'"
+check "Codex parity reference exists" "[ -f '$SKILL_DIR/references/codex-parity.md' ]"
+check "SKILL.md links Codex parity reference" "grep -q 'references/codex-parity.md' '$SKILL_DIR/SKILL.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

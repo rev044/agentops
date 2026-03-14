@@ -2,6 +2,6 @@
   "generator": "scripts/sync-codex-native-skills.sh",
   "source_skill": "skills/heal-skill",
   "layout": "modular",
-  "source_hash": "7a2ec6fb68005a1c35e51dfab83b871d505ab6d925b41c9f07218fbdbe98957e",
-  "generated_hash": "4b9a71fbaca41f6608de06d48d5c129093cfa5503a0164e6a0c457b72519fc17"
+  "source_hash": "cdef5b3da02f8543ef640e15c43a638775f66f859cbf4ae823d6d44b25987e97",
+  "generated_hash": "959fbca7cf48b32f70c2faa06f9521daca9b99142bc2f684e38f449dd19a313d"
 }

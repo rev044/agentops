@@ -7,6 +7,7 @@ SKILLS_ROOT="$ROOT/skills-codex"
 MANIFEST_FILE="$SKILLS_ROOT/.agentops-manifest.json"
 MARKER_FILE_NAME=".agentops-generated.json"
 MANIFEST_VALIDATOR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-codex-generated-manifest.sh"
+AUDIT_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/audit-codex-parity.sh"
 
 usage() {
   cat <<'EOF'
@@ -140,6 +141,49 @@ fi
 
 if [[ "${#generator_changed[@]}" -gt 0 && "${#codex_changed[@]}" -eq 0 ]]; then
   fail "source generator inputs changed without regenerating skills-codex; run scripts/sync-codex-native-skills.sh"
+fi
+
+audit_all_skills=0
+declare -A audit_skills=()
+for file in "${changed_files[@]}"; do
+  case "$file" in
+    skills/*/*)
+      skill_name="${file#skills/}"
+      skill_name="${skill_name%%/*}"
+      audit_skills["$skill_name"]=1
+      ;;
+    skills-codex/*/*)
+      skill_name="${file#skills-codex/}"
+      skill_name="${skill_name%%/*}"
+      audit_skills["$skill_name"]=1
+      ;;
+    skills-codex-overrides/*/*)
+      skill_name="${file#skills-codex-overrides/}"
+      skill_name="${skill_name%%/*}"
+      audit_skills["$skill_name"]=1
+      ;;
+    skills-codex-overrides/catalog.json|skills/converter/*|scripts/sync-codex-native-skills.sh)
+      audit_all_skills=1
+      ;;
+  esac
+done
+
+if [[ -x "$AUDIT_SCRIPT" && "${#generator_changed[@]}" -gt 0 ]]; then
+  if [[ "$audit_all_skills" -eq 1 ]]; then
+    if ! audit_output="$(bash "$AUDIT_SCRIPT" 2>&1)"; then
+      fail "changed Codex generator inputs produced semantic parity drift"
+      printf '%s\n' "$audit_output" >&2
+    fi
+  elif [[ "${#audit_skills[@]}" -gt 0 ]]; then
+    audit_args=()
+    for skill_name in "${!audit_skills[@]}"; do
+      audit_args+=(--skill "$skill_name")
+    done
+    if ! audit_output="$(bash "$AUDIT_SCRIPT" "${audit_args[@]}" 2>&1)"; then
+      fail "changed Codex skills produced semantic parity drift"
+      printf '%s\n' "$audit_output" >&2
+    fi
+  fi
 fi
 
 if [[ "$failures" -gt 0 ]]; then

@@ -116,6 +116,9 @@ find skills -type l  # must be empty — zero symlinks allowed
  # 12. Codex-first override coverage (full skill catalog is classified and covered)
  bash scripts/validate-codex-override-coverage.sh
 
+ # 13. Codex semantic parity audit (generated skills still match Codex-native tool/runtime semantics)
+ bash scripts/audit-codex-parity.sh
+
 # Full gate (runs everything above and more):
 scripts/ci-local-release.sh
 ```
@@ -147,12 +150,22 @@ When a skill change affects Codex behavior, phrasing, orchestration, or UX:
 
 1. Update the source skill under `skills/`.
 2. Update any Codex-native override under `skills-codex-overrides/` when the Codex experience should differ from Claude.
-3. Regenerate the full Codex bundle:
+   - Prompt/operator-layer changes belong in `skills-codex-overrides/<name>/prompt.md`.
+   - Durable Codex-only body rewrites belong in `skills-codex-overrides/<name>/SKILL.md`.
+   - Do **not** hand-edit `skills-codex/<name>/SKILL.md`; it is generated output.
+3. Run the semantic audit if the generated Codex body looks suspicious:
+   ```bash
+   bash scripts/audit-codex-parity.sh
+   # or target one skill
+   bash scripts/audit-codex-parity.sh --skill <name>
+   ```
+4. Regenerate the full Codex bundle:
    ```bash
    bash scripts/sync-codex-native-skills.sh
    ```
-4. Validate the generated bundle:
+5. Validate the generated bundle:
    ```bash
+   bash scripts/audit-codex-parity.sh
    bash scripts/validate-codex-override-coverage.sh
    bash scripts/validate-codex-skill-parity.sh
    bash scripts/validate-codex-generated-artifacts.sh
@@ -217,6 +230,12 @@ scripts/sync-skill-counts.sh
 This updates counts in SKILL-TIERS.md, PRODUCT.md, README.md, docs/SKILLS.md, docs/ARCHITECTURE.md, and using-agentops/SKILL.md.
 
 **Every reference file must be linked.** If a file exists in a skill's `references/` directory, the skill's SKILL.md must link to it via markdown link or Read instruction. Run `heal.sh --strict` to check.
+
+**Codex generated skills are audit-only, not hand-maintained.** If `skills-codex/` still contains Claude-era primitives (`TaskCreate`, `TaskList`, `Tool: Task`), Claude backend refs, or duplicated runtime rewrites after sync, run:
+```bash
+bash scripts/audit-codex-parity.sh --skill <name>
+```
+Then fix the canonical source and/or add a durable override under `skills-codex-overrides/<name>/`, regenerate, and re-run the audit. Do not patch `skills-codex/` directly.
 
 **Embedded hooks must stay in sync.** After editing anything in `hooks/`, `lib/hook-helpers.sh`, or `skills/standards/references/`, run:
 ```bash

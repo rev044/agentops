@@ -1,6 +1,6 @@
 ---
 name: heal-skill
-description: 'Automated skill maintenance. Detects and fixes common skill issues: missing frontmatter, name mismatches, unlinked references, empty directories, dead references. Triggers: "heal-skill", "heal skill", "fix skills", "skill maintenance", "repair skills".'
+description: 'Automated skill maintenance. Detects and fixes common skill issues: missing frontmatter, name mismatches, unlinked references, empty directories, dead references, and Codex parity drift triage. Triggers: "heal-skill", "heal skill", "fix skills", "skill maintenance", "repair skills".'
 ---
 
 
@@ -59,6 +59,27 @@ bash skills/heal-skill/scripts/heal.sh --check skills/council
 bash skills/heal-skill/scripts/heal.sh --fix skills/council
 ```
 
+### Step 1A: Audit Codex Parity Drift When The Generated Bundle Looks Wrong
+
+When the problem is not source-skill hygiene but `skills-codex/` drift, run the Codex parity audit first:
+
+```bash
+bash scripts/audit-codex-parity.sh
+bash scripts/audit-codex-parity.sh --skill swarm
+```
+
+Use this when a generated Codex skill still contains Claude-era primitives (`task-create`, `task-list`, `Tool: Agent`), Claude backend references, or obviously broken runtime rewrites.
+
+**Repair rule:** never hand-maintain `skills-codex/<name>/SKILL.md`. Keep canonical behavior in `skills/<name>/SKILL.md`, and keep durable Codex-only body edits in `skills-codex-overrides/<name>/SKILL.md`.
+
+After repair:
+
+```bash
+bash scripts/sync-codex-native-skills.sh
+bash scripts/validate-codex-skill-parity.sh
+bash scripts/validate-codex-generated-artifacts.sh --scope worktree
+```
+
 ### Step 2: Interpret results
 
 - **Exit 0:** All clean, no findings. Also exit 0 for `--check` mode with findings (report-only).
@@ -97,6 +118,7 @@ One line per finding:
 - `CATALOG_MISSING` is a global check (not per-skill) and only runs when `using-agentops/SKILL.md` exists.
 - When run without a path argument, scans all directories under `skills/`.
 - Use `--strict` for CI gates: exits 1 on any finding. Without `--strict`, check mode exits 0 even with findings.
+- For Codex parity drift, use the audit script plus override-layer repair workflow in [references/codex-parity.md](references/codex-parity.md). The shell fixer is intentionally not allowed to rewrite generated Codex bodies directly.
 
 ## Examples
 
@@ -131,8 +153,17 @@ One line per finding:
 | `NAME_MISMATCH` fix changed the wrong name | The script always updates the frontmatter `name` to match the directory name, not the other way around | If the directory name is wrong, rename the directory first, then re-run `--fix` |
 | Script exits 0 but a skill still has issues | The issue type is not one of the ten checks the heal script detects | The heal script covers structural hygiene only. Content quality issues require manual review or `$council` validation |
 | Running `--fix` twice produces different output | This should not happen -- the script is idempotent | File a bug. Check if another process modified the skill files between runs |
+| `skills-codex/` keeps regressing after sync | Mechanical conversion is preserving the wrong semantics | Run `bash scripts/audit-codex-parity.sh`, then move the durable Codex body rewrite into `skills-codex-overrides/<name>/SKILL.md` instead of patching generated output |
+
+## References
+
+- [references/codex-parity.md](references/codex-parity.md)
 
 ## Local Resources
+
+### references/
+
+- [references/codex-parity.md](references/codex-parity.md)
 
 ### scripts/
 

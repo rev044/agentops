@@ -75,9 +75,14 @@ Record the selected backend — it will be included in the research output docum
 - Shared Claude feature contract → `skills/shared/references/claude-code-latest-features.md`
 - Local mirrored contract for runtime-local reads → `references/claude-code-latest-features.md`
 - Codex → `references/backend-codex-subagents.md`
-- Codex sub-agents → `references/backend-claude-teams.md`
+- Codex sub-agents → `references/backend-codex-subagents.md`
 - Background Tasks → `references/backend-background-tasks.md`
 - Inline → `references/backend-inline.md`
+
+### Effort and Session Hints
+
+- Set effort to `low` for explore agents — research is breadth-first scanning, not deep reasoning.
+- Use `--from-pr <url>` to scope research to a specific PR's changed files when investigating PR-related topics.
 
 ### Step 3: Launch Explore Agent
 
@@ -310,7 +315,7 @@ Include in your Explore agent prompt:
 ## Reference Documents
 
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
 - [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
@@ -320,7 +325,7 @@ Include in your Explore agent prompt:
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/vibe-methodology.md](references/vibe-methodology.md)
 - [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
-- [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
+- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
 - [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
 - [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
 - [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)

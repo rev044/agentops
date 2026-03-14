@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/validate-codex-generated-artifacts.sh"
 MANIFEST_SCRIPT="$ROOT/scripts/validate-codex-generated-manifest.sh"
+AUDIT_SCRIPT="$ROOT/scripts/audit-codex-parity.sh"
+AUDIT_IMPL="$ROOT/scripts/audit-codex-parity.py"
 
 PASS=0
 FAIL=0
@@ -22,11 +24,15 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 setup_repo() {
   local repo="$1"
 
-  mkdir -p "$repo/scripts" "$repo/skills/example" "$repo/skills-codex/example"
+  mkdir -p "$repo/scripts" "$repo/skills/example" "$repo/skills-codex/example" "$repo/skills-codex-overrides"
   cp "$SCRIPT" "$repo/scripts/validate-codex-generated-artifacts.sh"
   cp "$MANIFEST_SCRIPT" "$repo/scripts/validate-codex-generated-manifest.sh"
+  cp "$AUDIT_SCRIPT" "$repo/scripts/audit-codex-parity.sh"
+  cp "$AUDIT_IMPL" "$repo/scripts/audit-codex-parity.py"
   chmod +x "$repo/scripts/validate-codex-generated-artifacts.sh"
   chmod +x "$repo/scripts/validate-codex-generated-manifest.sh"
+  chmod +x "$repo/scripts/audit-codex-parity.sh"
+  chmod +x "$repo/scripts/audit-codex-parity.py"
 
   cat > "$repo/skills/example/SKILL.md" <<'EOF'
 ---
@@ -40,6 +46,18 @@ EOF
 name: example
 description: fixture
 ---
+EOF
+
+  cat > "$repo/skills-codex-overrides/catalog.json" <<'EOF'
+{
+  "version": 1,
+  "waves": [
+    {"id": "fixture", "description": "fixture"}
+  ],
+  "skills": [
+    {"name": "example", "treatment": "bespoke", "wave": "fixture", "reason": "fixture"}
+  ]
+}
 EOF
 
   export FIXTURE_ROOT="$repo"
@@ -147,11 +165,34 @@ test_fails_when_source_changes_without_regen() {
   fi
 }
 
+test_fails_when_changed_skill_has_codex_semantic_drift() {
+  local repo="$TMP_DIR/semantic-drift"
+  setup_repo "$repo"
+  cat >> "$repo/skills/example/SKILL.md" <<'EOF'
+# source edit
+EOF
+  cat > "$repo/skills-codex/example/SKILL.md" <<'EOF'
+---
+name: example
+description: fixture
+---
+
+TaskCreate(subject="broken")
+EOF
+
+  if (cd "$repo" && bash scripts/validate-codex-generated-artifacts.sh --scope worktree >/dev/null 2>&1); then
+    fail "should fail when changed Codex skill still has semantic drift"
+  else
+    pass "fails when changed Codex skill still has semantic drift"
+  fi
+}
+
 echo "== test-codex-generated-artifacts =="
 test_passes_when_markers_exist_and_no_changes
 test_fails_on_missing_marker
 test_fails_on_codex_only_edits
 test_fails_when_source_changes_without_regen
+test_fails_when_changed_skill_has_codex_semantic_drift
 
 echo ""
 echo "Results: $PASS PASS, $FAIL FAIL"

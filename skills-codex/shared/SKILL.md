@@ -10,7 +10,7 @@ This directory contains shared reference documents used by multiple skills:
 
 - `validation-contract.md` - Verification requirements for accepting spawned work
 - `references/claude-code-latest-features.md` - Codex feature contract (slash commands, agent isolation, hooks, settings)
-- `references/backend-claude-teams.md` - Concrete examples for Claude native teams (`team-create` + `send-message`)
+- `references/backend-codex-subagents.md` - Concrete examples for Claude native teams (`team-create` + `send-message`)
 - `references/backend-codex-subagents.md` - Concrete examples for Codex CLI and Codex sub-agents
 - `references/backend-background-tasks.md` - Fallback: `Task(run_in_background=true)`
 - `references/backend-inline.md` - Degraded single-agent mode (no spawn)
@@ -34,7 +34,7 @@ if command -v bd &>/dev/null; then
   # Full behavior with bd
 else
   echo "Note: bd CLI not installed. Using plain text tracking."
-  # Fallback: use TaskList, plain markdown, or skip
+  # Fallback: use task-list, plain markdown, or skip
 fi
 ```
 
@@ -42,7 +42,7 @@ fi
 
 | Capability | When Missing | Fallback Behavior |
 |------------|-------------|-------------------|
-| `bd` | Issue tracking unavailable | Use TaskList for tracking. Note "install bd for persistent issue tracking" |
+| `bd` | Issue tracking unavailable | Use task-list for tracking. Note "install bd for persistent issue tracking" |
 | `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/learnings/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
 | `codex` | CLI missing or model unavailable | Fall back to runtime-native agents. Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
@@ -88,7 +88,7 @@ Use capability detection at runtime, not hardcoded tool names. The same skill mu
 | Spawn (read-only) | `spawn_agent(message=...)` | `Task(subagent_type="Explore")` | `task(subagent_type="explore", prompt=...)` | Execute inline |
 | Wait | `wait(ids=[...])` | Completion via `send-message` | Task returns result directly | N/A |
 | Retry/follow-up | `send_input(id=..., message=...)` | `send-message(type="message", ...)` | `task(task_id="<prior>", prompt=...)` | N/A |
-| Cleanup | `close_agent(id=...)` | `shutdown_request` + `TeamDelete()` | None (sub-sessions auto-terminate) | N/A |
+| Cleanup | `close_agent(id=...)` | `shutdown_request` + `team-delete()` | None (sub-sessions auto-terminate) | N/A |
 | Inter-agent messaging | `send_input` | `send-message` | Not available | N/A |
 | Debate (R2) | Supported | Supported | **Not supported** (no messaging) | N/A |
 
@@ -106,7 +106,7 @@ Use capability detection at runtime, not hardcoded tool names. The same skill mu
 | Observe output | `wait()` result | `send-message` delivery | `TaskOutput` (tail) |
 | Send message mid-flight | `send_input` | `send-message` | **NO** |
 | Pause / resume | NO | Idle → wake via `send-message` | **NO** |
-| Graceful stop | `close_agent` | `shutdown_request` | **TaskStop (lossy)** |
+| Graceful stop | `close_agent` | `shutdown_request` | **task-stop (lossy)** |
 | Redirect to different task | `send_input` | `send-message` | **NO** |
 | Adjust scope mid-flight | `send_input` | `send-message` | **NO** |
 | File conflict prevention | Manual `git worktree` routing | Native `isolation: worktree` + lead-only commits | None |
@@ -143,7 +143,7 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 | `Task(subagent_type="...")` | `task(subagent_type="...")` | Same semantics, different casing |
 | `Skill(skill="X")` | `skill` tool (read-only) | Load content, then follow inline |
 | `AskUserQuestion` | `question` | Same purpose, different name |
-| `TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet` | `todo` | Task tracking (Claude uses 4 tools, OpenCode uses 1) |
+| `task-create`, `task-update`, `task-list`, `task-get` | `todo` | Task tracking (Claude uses 4 tools, OpenCode uses 1) |
 | `Read`, `Write`, `Edit`, `Bash`, `Glob`, `Grep` | Same names | Identical across runtimes |
 
 ### Rules
@@ -156,7 +156,7 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 ## Reference Documents
 
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
 - [references/claude-code-latest-features.md](references/claude-code-latest-features.md)

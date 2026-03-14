@@ -285,7 +285,7 @@ for skill_dir in "${TARGETS[@]}"; do
   # URLs containing scripts/foo.sh are remote references, not local file paths
   while IFS= read -r ref; do
     [[ -z "$ref" ]] && continue
-    if [[ ! -f "$skill_dir/$ref" ]]; then
+    if [[ ! -f "$skill_dir/$ref" && ! -f "$REPO_ROOT/$ref" ]]; then
       report "SCRIPT_REF_MISSING" "$skill_dir" "references $ref but file not found"
     fi
   done < <(awk 'BEGIN{skip=0} /^```/{skip=1-skip; next} skip==0{print}' "$skill_md" | sed -E 's|https?://[^[:space:]`"]*||g' | grep -oE '\bscripts/[a-zA-Z0-9_-]+\.[a-z]+' 2>/dev/null | sort -u || true)

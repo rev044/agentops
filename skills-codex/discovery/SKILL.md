@@ -124,10 +124,10 @@ Invoke `$plan` to decompose into an epic with trackable issues:
 Skill(skill="plan", args="<goal> [--auto]")
 ```
 
-Pass `--auto` unless `--interactive` was specified. Plan output lands in `.agents/plans/` and creates issues via `bd` or TaskList.
+Pass `--auto` unless `--interactive` was specified. Plan output lands in `.agents/plans/` and creates issues via `bd` or task-list.
 
 After plan completes:
-1. Extract epic ID: `bd list --type epic --status open` (beads) or identify from TaskList.
+1. Extract epic ID: `bd list --type epic --status open` (beads) or identify from task-list.
 2. Store in `discovery_state.epic_id`.
 3. Carry forward the ranked packet summary (applied findings, known risks, high-severity next-work matches) into the execution packet and phase summary.
 3. **Auto-detect complexity** (if not overridden):

@@ -92,6 +92,11 @@ Record the selected backend — it will be included in the research output docum
 - Background Tasks → `references/backend-background-tasks.md`
 - Inline → `references/backend-inline.md`
 
+### Effort and Session Hints
+
+- Set effort to `low` for explore agents — research is breadth-first scanning, not deep reasoning.
+- Use `--from-pr <url>` to scope research to a specific PR's changed files when investigating PR-related topics.
+
 ### Step 3: Launch Explore Agent
 
 **YOU MUST DISPATCH AN EXPLORATION AGENT NOW.** Select the backend using capability detection:

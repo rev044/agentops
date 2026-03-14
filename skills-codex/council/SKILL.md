@@ -56,7 +56,7 @@ Skills describe WHAT to do, not WHICH tool to call. See `skills/shared/SKILL.md`
 **After detecting your backend, read the matching reference for concrete spawn/wait/message/cleanup examples:**
 - Shared Claude feature contract → `skills/shared/references/claude-code-latest-features.md`
 - Local mirrored contract for runtime-local reads → `references/claude-code-latest-features.md`
-- Codex sub-agents → `references/backend-claude-teams.md`
+- Codex sub-agents → `references/backend-codex-subagents.md`
 - Codex Sub-Agents / CLI → `references/backend-codex-subagents.md`
 - Background Tasks → `references/backend-background-tasks.md`
 - Inline (`--quick`) → `references/backend-inline.md`
@@ -168,7 +168,7 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Phase 3: Cleanup                                               │
-│  - Cleanup backend resources (close_agent / TeamDelete / none)  │
+│  - Cleanup backend resources (close_agent / team-delete / none)  │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -196,6 +196,16 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
 Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
 
 **Minimum quorum:** At least 1 agent must respond for a valid council. If 0 agents respond, return error.
+
+### Effort Levels for Judges
+
+Use the effort command to optimize token spend per judge role:
+
+| Agent Role | Recommended Effort | Rationale |
+|------------|-------------------|-----------|
+| Judges (validate/research) | `low` | Judges review evidence, not implement — shallow reasoning suffices |
+| Explorers | `low` | Fast breadth-first scanning |
+| Chairman (consolidation) | `medium` | Needs balanced reasoning for consensus synthesis |
 
 ### Pre-Flight Checks
 
@@ -570,7 +580,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 ## Reference Documents
 
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
 - [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
@@ -588,7 +598,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/personas.md](references/personas.md)
 - [references/caching-guidance.md](references/caching-guidance.md)
 - [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
-- [..$shared/references/backend-claude-teams.md](..$shared/references/backend-claude-teams.md)
+- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
 - [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
 - [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
 - [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)

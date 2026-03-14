@@ -210,6 +210,16 @@ Timeout: 120s per agent (configurable via `--timeout=N` in seconds).
 
 **Minimum quorum:** At least 1 agent must respond for a valid council. If 0 agents respond, return error.
 
+### Effort Levels for Judges
+
+Use the effort command to optimize token spend per judge role:
+
+| Agent Role | Recommended Effort | Rationale |
+|------------|-------------------|-----------|
+| Judges (validate/research) | `low` | Judges review evidence, not implement — shallow reasoning suffices |
+| Explorers | `low` | Fast breadth-first scanning |
+| Chairman (consolidation) | `medium` | Needs balanced reasoning for consensus synthesis |
+
 ### Pre-Flight Checks
 
 1. **Multi-agent capability:** Detect whether runtime supports spawning parallel subagents. If not, degrade to `--quick`.

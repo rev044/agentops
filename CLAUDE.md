@@ -70,6 +70,7 @@ cd cli && make sync-hooks   # Sync embedded hooks/skills into cli/embedded/
 | `scripts/validate-go-fast.sh` | Quick Go validation (build + vet + test) |
 | `scripts/sync-skill-counts.sh` | Sync skill counts across all docs after adding/removing skills |
 | `scripts/generate-cli-reference.sh` | Regenerate CLI docs after changing commands/flags |
+| `scripts/audit-codex-parity.sh` | Audit generated `skills-codex/` for semantic drift that simple rewrites miss |
 | `scripts/prune-agents.sh` | Clean up bloated .agents/ directory |
 
 ## CI Validation
@@ -114,6 +115,14 @@ This updates SKILL-TIERS.md, PRODUCT.md, README.md, docs/SKILLS.md, docs/ARCHITE
 
 **Every `references/*.md` must be linked in SKILL.md.** If a file exists in `skills/<name>/references/`, the skill's SKILL.md must contain a markdown link to it or a `Read` instruction referencing it. Use `heal.sh --strict` to check.
 
+**Codex generated skills are not source-of-truth.** If a generated `skills-codex/<name>/SKILL.md` still contains Claude-era task primitives, Claude backend references, or bad rewrite artifacts after sync, do not patch it directly. Run:
+
+```bash
+bash scripts/audit-codex-parity.sh --skill <name>
+```
+
+Then fix `skills/<name>/SKILL.md` and/or add a durable Codex override in `skills-codex-overrides/<name>/`, regenerate with `bash scripts/sync-codex-native-skills.sh`, and rerun the audit.
+
 **Embedded hooks must stay in sync.** After editing `hooks/`, `lib/hook-helpers.sh`, or `skills/standards/references/`:
 
 ```bash
@@ -124,6 +133,20 @@ cd cli && make sync-hooks
 
 ```bash
 scripts/generate-cli-reference.sh
+```
+
+**Codex maintenance flow.** For Codex-specific skill changes:
+
+```bash
+# 1. Edit source skill and, if needed, skills-codex-overrides/<name>/
+# 2. Audit suspicious generated output
+bash scripts/audit-codex-parity.sh --skill <name>
+
+# 3. Regenerate and validate
+bash scripts/sync-codex-native-skills.sh
+bash scripts/audit-codex-parity.sh
+bash scripts/validate-codex-skill-parity.sh
+bash scripts/validate-codex-generated-artifacts.sh --scope worktree
 ```
 
 **Contracts must be catalogued.** Files added to `docs/contracts/` need a link in `docs/INDEX.md`.

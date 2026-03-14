@@ -143,11 +143,23 @@ codex_rewrite_text() {
     s{/.claude/}{/.codex/}g;
     s{\.claude/}{.codex/}g;
     s/\bTeamCreate\b/team-create/g;
+    s/\bTeamDelete\b/team-delete/g;
     s/\bSendMessage\b/send-message/g;
     s/\bEnterPlanMode\b/enter-plan-mode/g;
     s/\bExitPlanMode\b/exit-plan-mode/g;
     s/\bEnterWorktree\b/enter-worktree/g;
-    s/\| Codex sub-agents \| `skills\/shared\/references\/backend-claude-teams\.md` \|/\| Codex sub-agents \| `skills\/shared\/references\/backend-codex-subagents.md` \|/g;
+    s/\bTaskCreate\b/task-create/g;
+    s/\bTaskUpdate\b/task-update/g;
+    s/\bTaskList\b/task-list/g;
+    s/\bTaskGet\b/task-get/g;
+    s/\bTaskStop\b/task-stop/g;
+    s/backend-claude-teams\.md/backend-codex-subagents.md/g;
+    s/\bclaude agents\b/codex agents/g;
+    s/\*\*USE THE TASK TOOL\*\*/\*\*USE THE AGENT TOOL\*\*/g;
+    s/\bTool: Task\b/Tool: Agent/g;
+    # Post-rewrite dedup: collapse doubled runtime phrases
+    s/Codex sub-agents in Codex sessions, Codex sub-agents in Codex sessions/Codex sub-agents in Codex sessions/g;
+    s/Codex session -> Codex sub-agents; Codex session -> Codex sub-agents/Codex session -> Codex sub-agents/g;
   ')"
 
   printf '%s' "$output"

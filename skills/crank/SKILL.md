@@ -96,6 +96,28 @@ After each wave, output completion marker:
 
 Given `/crank [epic-id | plan-file.md | "description"]`:
 
+### Recovery Hooks
+
+Register a `PostCompact` hook to auto-recover context if the session compacts mid-crank:
+
+```json
+{
+  "event": "PostCompact",
+  "command": "cat .agents/crank/wave-*-checkpoint.json | tail -1"
+}
+```
+
+This surfaces the latest wave checkpoint after compaction so the orchestrator can resume from the correct wave. Also consider `worktree.sparsePaths` in project settings to reduce worktree size for large repos.
+
+**Effort levels per worker type:**
+
+| Worker Role | Recommended Effort | Rationale |
+|-------------|-------------------|-----------|
+| SPEC wave (contracts) | `medium` | Balanced reasoning for spec generation |
+| TEST wave (failing tests) | `medium` | Test scaffolding needs moderate depth |
+| IMPL wave (make tests pass) | `high` | Deep reasoning for correct implementation |
+| Docs/chore tasks | `low` | Fast execution for simple tasks |
+
 ### Step 0: Load Knowledge Context (ao Integration)
 
 **Search for relevant learnings before starting the epic:**
