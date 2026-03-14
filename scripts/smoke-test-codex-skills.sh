@@ -241,7 +241,8 @@ main() {
   local pass=0
   local partial=0
   local fail=0
-  # shellcheck disable=SC2034 — reserved for future use
+  # shellcheck disable=SC2034
+  # reserved for future use
   local blocked=0
 
   declare -A static_results
