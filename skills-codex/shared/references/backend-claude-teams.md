@@ -210,7 +210,6 @@ This ensures each wave's workers start with clean context (no leftover state fro
 
 ## Key Rules
 
-2. **Pre-assign tasks before spawning** — workers do NOT race-claim from update_plan — **Enforcement: documentation only**
 3. **Lead-only commits** — workers write files, lead runs `git add` + `git commit` — **Enforcement: `hooks/git-worker-guard.sh` (T4)**
 4. **Thin messages** — workers send <100 token signals, full results go to disk — **Enforcement: `safety.ValidateMessageSize()` (T9)**
 5. **New team per wave** — fresh context, Ralph Wiggum preserved — **Enforcement: `safety.ValidateTeamLifecycle()` (T9)**

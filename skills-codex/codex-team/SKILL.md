@@ -276,7 +276,7 @@ For multi-wave Wave 2+ prompts, also include:
 If Codex is unavailable, delegate to `$swarm` which auto-selects the best available backend (native teams with messaging/redirect/graceful shutdown, or background tasks as last resort):
 
 ```
-Skill(skill="swarm")
+$swarm 
 ```
 
 > **Note:** `$codex-team` runs Codex CLI processes as background shell commands — this is fine (separate OS processes). For Claude agent orchestration, use `$swarm` which uses your runtime's native multi-agent primitives.

@@ -9,7 +9,6 @@ Launch all 4 agents in parallel using the Task tool, then wait for all to comple
 ### Agent 1: CASS Session Search
 
 ```
-Tool: todo_write
 Parameters:
   role: explorer
   model: "haiku"
@@ -33,7 +32,6 @@ Parameters:
 ### Agent 2: Handoff Search
 
 ```
-Tool: todo_write
 Parameters:
   role: explorer
   model: "haiku"
@@ -58,7 +56,6 @@ Parameters:
 ### Agent 3: Git History Search
 
 ```
-Tool: todo_write
 Parameters:
   role: explorer
   model: "haiku"
@@ -84,7 +81,6 @@ Parameters:
 ### Agent 4: Research/Learnings Search
 
 ```
-Tool: todo_write
 Parameters:
   role: explorer
   model: "haiku"

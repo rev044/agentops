@@ -1,15 +1,11 @@
-# todo_write Examples
 
-> Copy-paste-ready todo_write patterns for each crank mode.
 
 ---
 
-## SPEC WAVE todo_write
 
 Use when `--test-first` is set and issue is spec-eligible (`feature`/`bug`/`task`).
 
 ```
-todo_write(
   subject="SPEC: <issue-title>",
   description="Generate contract for beads issue <issue-id>.
 
@@ -49,12 +45,10 @@ Mark task complete when contract is written and validation passes.",
 
 ---
 
-## TEST WAVE todo_write
 
 Use when `--test-first` is set, SPEC WAVE is complete, and issue is spec-eligible.
 
 ```
-todo_write(
   subject="TEST: <issue-title>",
   description="Generate FAILING tests for beads issue <issue-id>.
 
@@ -96,12 +90,10 @@ Mark task complete when tests are written and ALL tests FAIL.",
 
 ---
 
-## GREEN Mode todo_write
 
 Use when `--test-first` is set, SPEC and TEST waves are complete, and issue is spec-eligible.
 
 ```
-todo_write(
   subject="<issue-id>: <issue-title>",
   description="Implement beads issue <issue-id> (GREEN mode).
 
@@ -130,14 +122,12 @@ Execute using $implement <issue-id>. Mark complete when all tests pass.",
 
 ---
 
-## Standard IMPL todo_write (`feature`/`bug`/`task`)
 
 Use when `--test-first` is NOT set for implementation issues. `metadata.validation` is required and MUST include:
 - `tests`
 - At least one structural check: `files_exist` or `content_check`
 
 ```
-todo_write(
   subject="<issue-id>: <issue-title>",
   description="Implement beads issue <issue-id>.
 
@@ -184,12 +174,10 @@ command: "<optional-build-or-smoke-command>"
 
 ---
 
-## Docs/Chore/CI IMPL todo_write (Test Exemption)
 
 Use for non-spec-eligible issues (`docs`/`chore`/`ci`). `tests` is optional for this category; keep structural or command/lint checks.
 
 ```
-todo_write(
   subject="<issue-id>: <issue-title>",
   description="Implement beads issue <issue-id> (`docs`/`chore`/`ci` path).",
   activeForm="Implementing <issue-id>",
@@ -231,7 +219,6 @@ todo_write(
   - **Allowlist constraint:** `tests`, `command`, and `lint` fields execute via `run_restricted()` in `task-validation-gate.sh`. Only bare allowlisted binaries are permitted: `go`, `pytest`, `npm`, `make`. Shell wrappers (`bash -c`), compound operators (`&&`, `||`, `;`), pipes (`|`), and redirects (`>`, `<`) are blocked. Use `make` targets for multi-step validation.
 
 - **activeForm:**
-  - Shows in update_plan UI while worker is active
   - Keep concise (3-5 words)
   - Include issue ID for easy tracking
 
@@ -242,9 +229,7 @@ todo_write(
   - IMPL: full codebase access, issue description
 
 - **File manifests (`metadata.files`):**
-  - **Required** for all todo_write entries — list every file the worker will modify
 - **Issue typing (`metadata.issue_type`):**
-  - **Required** for all todo_write entries — one of `feature|bug|task|docs|chore|ci`
   - Task validation uses this to decide when active constraints apply and whether test metadata is mandatory
   - Swarm uses manifests for pre-spawn conflict detection (overlapping files = serialize or isolate)
   - Workers receive the manifest in their prompt and must stay within it
@@ -252,4 +237,3 @@ todo_write(
 
 - **Category-based skipping:**
   - docs/chore/ci issues bypass SPEC and TEST waves
-  - Use standard IMPL todo_write for these even if `--test-first` is set

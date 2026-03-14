@@ -81,7 +81,7 @@ if command -v ao &>/dev/null; then AO_AVAILABLE=true; else AO_AVAILABLE=false; f
 **Otherwise:** Invoke `$brainstorm` to clarify WHAT before HOW:
 
 ```
-Skill(skill="brainstorm", args="<goal>")
+$brainstorm <goal>
 ```
 
 If brainstorm produces a refined goal, use the refined goal for subsequent steps.
@@ -111,7 +111,7 @@ Rank by literal goal-text overlap first, then issue-type / work-shape overlap, t
 Invoke `$research` for deep codebase exploration:
 
 ```
-Skill(skill="research", args="<goal> [--auto]")
+$research <goal> [--auto]
 ```
 
 Pass `--auto` unless `--interactive` was specified. Research output lands in `.agents/research/`.
@@ -121,13 +121,11 @@ Pass `--auto` unless `--interactive` was specified. Research output lands in `.a
 Invoke `$plan` to decompose into an epic with trackable issues:
 
 ```
-Skill(skill="plan", args="<goal> [--auto]")
+$plan <goal> [--auto]
 ```
 
-Pass `--auto` unless `--interactive` was specified. Plan output lands in `.agents/plans/` and creates issues via `bd` or update_plan.
 
 After plan completes:
-1. Extract epic ID: `bd list --type epic --status open` (beads) or identify from update_plan.
 2. Store in `discovery_state.epic_id`.
 3. Carry forward the ranked packet summary (applied findings, known risks, high-severity next-work matches) into the execution packet and phase summary.
 3. **Auto-detect complexity** (if not overridden):
@@ -141,7 +139,7 @@ After plan completes:
 Invoke `$pre-mortem` to validate the plan:
 
 ```
-Skill(skill="pre-mortem", args="[--quick]")
+$pre-mortem [--quick]
 ```
 
 Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for full complexity or `--deep` override.
@@ -155,7 +153,7 @@ Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for 
   3. Log: `"Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"`
   4. Re-invoke `$plan` with findings context:
      ```
-     Skill(skill="plan", args="<goal> --auto --context 'Pre-mortem FAIL: <findings>'")
+     $plan <goal> --auto --context 'Pre-mortem FAIL: <findings>'
      ```
   5. Re-invoke `$pre-mortem`
   6. If still FAIL after 3 total attempts, stop:

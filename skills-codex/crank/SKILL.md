@@ -12,7 +12,6 @@ description: 'Hands-free epic execution. Runs until ALL children are CLOSED. Use
 
 Autonomous execution: implement all issues until the epic is DONE.
 
-**CLI dependencies:** bd (issue tracking), ao (knowledge flywheel). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use update_plan for issue tracking and skip beads sync. If ao is unavailable, skip knowledge injection/extraction.
 
 For Codex runtime feature coverage (agents/hooks/worktree/settings), the shared source of truth is `skills/shared/references/claude-code-latest-features.md`, mirrored locally at `references/claude-code-latest-features.md`.
 
@@ -24,7 +23,6 @@ Crank (orchestrator)           Swarm (executor)
     |                              |
     +-> bd ready (wave issues)     |
     |                              |
-    +-> todo_write from beads  --->+-> Select spawn backend (codex sub-agents | codex sub-agents | fallback)
     |                              |
     +-> $swarm                 --->+-> Spawn workers per backend
     |                              |   (fresh context per wave)
@@ -33,15 +31,11 @@ Crank (orchestrator)           Swarm (executor)
     +-> Loop until epic DONE   <---+-> Cleanup backend resources after wave
 ```
 
-**update_plan mode** (bd unavailable):
 ```
-Crank (orchestrator, update_plan mode)    Swarm (executor)
     |                                      |
-    +-> update_plan() (wave tasks)            |
     |                                      |
     +-> $swarm                         --->+-> Select spawn backend per wave
     |                                      |
-    +-> Verify via update_plan()          <---+-> Workers report via backend channel
     |                                      |
     +-> Loop until all completed       <---+-> Cleanup backend resources after wave
 ```
@@ -130,18 +124,12 @@ if command -v bd &>/dev/null; then
   TRACKING_MODE="beads"
 else
   TRACKING_MODE="tasklist"
-  echo "Note: bd CLI not found. Using update_plan for issue tracking."
 fi
 ```
 
 **Tracking mode determines the source of truth for the rest of the workflow:**
 
-| | Beads Mode | update_plan Mode |
 |---|---|---|
-| **Source of truth** | `bd` (beads issues) | update_plan (Claude-native) |
-| **Find work** | `bd ready` | `update_plan()` → pending, unblocked |
-| **Get details** | `bd show <id>` | `update_plan(taskId)` |
-| **Mark complete** | `bd update <id> --status closed` | `update_plan(taskId, status="completed")` |
 | **Track retries** | `bd comments add` | Task description update |
 | **Epic tracking** | `bd update <epic-id> --append-notes` | In-memory wave counter |
 
@@ -164,23 +152,18 @@ Use --allow-multi-epic to suppress this warning.
 ```
 If multiple epics found, ask user which one (WARN, not FAIL).
 
-**update_plan mode:**
 
 If input is an epic ID → Error: "bd CLI required for beads epic tracking. Install bd or provide a plan file / task list."
 
 If input is a plan file path (`.md`):
 1. Read the plan file
-2. Decompose into update_plan tasks (one `todo_write` per distinct work item)
-3. Set up dependencies via `update_plan(addBlockedBy)`
 4. Proceed to Step 3
 
 If no input:
-1. Check `update_plan()` for existing pending tasks
 2. If tasks exist, use them as the work items
 3. If no tasks, ask user what to work on
 
 If input is a description string:
-1. Decompose into tasks (`todo_write` for each)
 2. Set up dependencies
 3. Proceed to Step 3
 
@@ -192,7 +175,6 @@ If input is a description string:
 bd update <epic-id> --append-notes "CRANK_START: wave=0 at $(date -Iseconds)" 2>/dev/null
 ```
 
-**update_plan mode:** Track wave counter in memory only. No external state needed.
 
 Track in memory: `wave=0`
 
@@ -220,9 +202,7 @@ if [[ "$TEST_FIRST" == "true" ]]; then
             esac
         done
     else
-        # update_plan mode: no bd available, default all to spec-eligible
         SPEC_ELIGIBLE=($READY_ISSUES)
-        echo "update_plan mode: all ${#SPEC_ELIGIBLE[@]} issues defaulted to spec-eligible (no bd type info)"
     fi
     echo "Test-first mode: ${#SPEC_ELIGIBLE[@]} spec-eligible, ${#SPEC_SKIP[@]} skipped (docs/chore/ci/epic)"
 fi
@@ -237,7 +217,6 @@ If `--test-first` is NOT set, skip Steps 3b and 3c entirely — behavior is unch
 bd show <epic-id> 2>/dev/null
 ```
 
-**update_plan mode:** `update_plan()` to see all tasks and their status/dependencies.
 
 ### Step 3: List Ready Issues (Current Wave)
 
@@ -250,15 +229,12 @@ bd ready 2>/dev/null
 
 **`bd ready` returns the current wave** - all unblocked issues. These can be executed in parallel because they have no dependencies on each other.
 
-**update_plan mode:**
 
-`update_plan()` → filter for status=pending, no blockedBy (or all blockers completed). These are the current wave.
 
 ### Step 3a: Pre-flight Check - Issues Exist
 
 **Verify there are issues to work on:**
 
-**If 0 ready issues found (beads mode) or 0 pending unblocked tasks (update_plan mode):**
 ```
 STOP and return error:
   "No ready issues found for this epic. Either:
@@ -280,7 +256,6 @@ Do NOT proceed with empty issue list - this produces false "epic complete" statu
 if [[ "$TRACKING_MODE" == "beads" ]]; then
     CHILD_COUNT=$(bd show "$EPIC_ID" 2>/dev/null | grep -c "↳")
 else
-    CHILD_COUNT=$(update_plan | grep -c "pending\|in_progress")
 fi
 
 if [[ "$CHILD_COUNT" -ge 3 ]]; then
@@ -314,7 +289,6 @@ This catches stale cross-references that the plan missed. Grep for each key term
 **Skip if `--test-first` is NOT set or if no spec-eligible issues exist.**
 
 For each spec-eligible issue (feature/bug/task):
-1. **todo_write** with subject `SPEC: <issue-title>`
 2. Worker receives: issue description, plan boundaries, contract template (`skills/crank/references/contract-template.md`), codebase access (read-only)
 3. Worker generates: `.agents/specs/contract-<issue-id>.md`
 4. **Validation:** files_exist + content_check for `## Invariants` AND `## Test Cases`
@@ -328,7 +302,6 @@ For BLOCKED recovery and full worker prompt, read `skills/crank/references/test-
 **Skip if `--test-first` is NOT set or if no spec-eligible issues exist.**
 
 For each spec-eligible issue:
-1. **todo_write** with subject `TEST: <issue-title>`
 2. Worker receives: contract-<issue-id>.md + codebase types (NOT implementation code)
 3. Worker generates: failing test files in appropriate location
 4. **RED Gate:** Lead runs test suite — ALL new tests must FAIL
@@ -346,7 +319,6 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's todo_write description so workers start with full project context.
 
 Worker prompt signpost:
 - Codex workers should include: `Knowledge artifacts are in .agents/. See .agents/AGENTS.md for navigation. Use \`ao lookup --query "topic"\` for learnings.`
@@ -355,12 +327,10 @@ Worker prompt signpost:
 ### Step 4: Execute Wave via Swarm
 
 **GREEN mode (--test-first only):** If `--test-first` is set and SPEC/TEST waves have completed, modify worker prompts for spec-eligible issues:
-- Include in each worker's todo_write: `"Failing tests exist at <test-file-paths>. Make them pass. Do NOT modify test files. See GREEN Mode rules in $implement SKILL.md."`
 - Workers receive: failing tests (immutable), contract, issue description
 - Workers follow GREEN Mode rules from `$implement` SKILL.md
 - Docs/chore/ci issues (skipped by SPEC/TEST waves) use standard worker prompts unchanged
 
-**Issue typing + file manifests (REQUIRED):** Include `metadata.issue_type` plus a `metadata.files` array in every todo_write. `issue_type` feeds active constraint applicability and validation policy; `files` feed swarm's pre-spawn conflict detection. Two workers claiming the same file in the same wave get serialized or worktree-isolated automatically. Derive both from the issue description, plan, or codebase exploration during planning.
 This is the shift-left edge of the prevention ratchet: compiled findings target issue type plus changed files, so missing `metadata.issue_type` weakens enforcement back into guesswork.
 
 **Grep-for-existing-functions (REQUIRED for new function issues):** When an issue description says "create", "add", or "implement" a new function/utility, include `metadata.grep_check` with the function name pattern. Workers MUST grep the codebase for existing implementations before writing new code. This prevents utility duplication (e.g., `estimateTokens` was duplicated in context-orchestration-leverage because no grep check was specified).
@@ -387,7 +357,6 @@ Before spawning workers, detect project language and load applicable standards:
 
 Note: This is advisory — the lead agent follows the instruction. Enforcement comes from the standards content being in the worker's context.
 
-**Validation block extraction (beads mode):** Before building todo_write calls, extract validation metadata from each issue's description. `$plan` embeds conformance checks as fenced `validation` blocks in issue bodies:
 
 ```bash
 # For each issue in the current wave, extract validation JSON from bd show output
@@ -395,7 +364,6 @@ ISSUE_BODY=$(bd show "$ISSUE_ID" 2>/dev/null)
 VALIDATION_JSON=$(echo "$ISSUE_BODY" | sed -n '/^```validation$/,/^```$/{ /^```/d; p }')
 
 if [[ -n "$VALIDATION_JSON" ]]; then
-    # Use extracted validation as metadata.validation in todo_write
     echo "Extracted validation block for $ISSUE_ID"
 else
     # Fallback: generate default validation from files mentioned in description
@@ -406,10 +374,8 @@ else
 fi
 ```
 
-Inject the extracted or fallback `VALIDATION_JSON` into the `metadata.validation` field of each worker's todo_write. This closes the plan-to-crank validation pipeline: `$plan` writes conformance checks → bd stores them → `$crank` extracts and enforces them.
 
 ```
-todo_write(
   subject="ag-1234: Add auth middleware",
   description="...",
   activeForm="Implementing ag-1234",
@@ -481,13 +447,11 @@ PLAN_FILE=$(ls -t .agents/plans/*.md 2>/dev/null | head -1)
 if [[ -n "$PLAN_FILE" ]] && grep -q "## Boundaries" "$PLAN_FILE"; then
     # Extract "Always" boundaries and convert to cross_cutting checks
     # Read the plan's ## Cross-Cutting Constraints section or derive from ## Boundaries
-    # Inject into every todo_write's metadata.validation.cross_cutting
 fi
 # "Ask First" boundaries: in auto mode, log as annotation only (no blocking)
 # In --interactive mode, prompt before proceeding
 ```
 
-When creating todo_write for each wave issue, include cross-cutting constraints in metadata:
 ```json
 {
   "validation": {
@@ -500,7 +464,6 @@ When creating todo_write for each wave issue, include cross-cutting constraints 
 }
 ```
 
-**For wave execution details (beads sync, update_plan bridging, swarm invocation), read `skills/crank/references/team-coordination.md`.**
 
 **Cross-cutting validation (SDD):**
 
@@ -614,7 +577,6 @@ Before spawning the next wave, cross-reference the next wave's file manifests ag
 # Files modified by the just-completed wave
 WAVE_CHANGED=$(git diff --name-only "${WAVE_START_SHA}..HEAD")
 
-# Files planned for next wave (from todo_write metadata.files)
 NEXT_WAVE_FILES=(<next wave file manifests>)
 
 # Check for overlap
@@ -631,7 +593,6 @@ fi
 
 ### Step 6: Check for More Work
 
-After completing a wave, check for newly unblocked issues (beads: `bd ready`, update_plan: `update_plan()`). Loop back to Step 4 if work remains, or proceed to Step 7 when done.
 
 **For detailed check/retry logic, read `skills/crank/references/team-coordination.md`.**
 
@@ -697,13 +658,11 @@ Iterations: M/50
 
 ## The FIRE Loop
 
-Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wave. Loop until all issues are CLOSED (beads) or all tasks are completed (update_plan).
 
 **For FIRE loop details, parallel wave models, and wave acceptance check, read `skills/crank/references/wave-patterns.md`.**
 
 ## Key Rules
 
-- **Auto-detect tracking** - check for `bd` at start; use update_plan if absent
 - **Plan files as input** - `$crank plan.md` decomposes plan into tasks automatically
 - **If epic ID given, USE IT** - don't ask for confirmation (beads mode only)
 - **Swarm for each wave** - delegates parallel execution to swarm
@@ -715,7 +674,6 @@ Crank follows FIRE (Find → Ignite → Reap → Vibe → Escalate) for each wav
 - **Respect wave limit** - STOP at 50 waves (hard limit)
 - **Output completion markers** - DONE, BLOCKED, or PARTIAL (required)
 - **Knowledge flywheel** - load learnings at start, forge at end (ao optional)
-- **Beads ↔ update_plan sync** - in beads mode, crank bridges beads issues to update_plan for swarm
 
 ### Verb Disambiguation for Worker Prompts
 
@@ -739,13 +697,10 @@ Include `wc -l` assertions in task metadata when content moves between files.
 
 **User says:** `$crank ag-m0r`
 
-Loads learnings (`ao lookup --query "<epic-title>"`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates update_plan, invokes `$swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
 
-### Execute from Plan File (update_plan Mode)
 
 **User says:** `$crank .agents/plans/auth-refactor.md`
 
-Reads plan file, decomposes into update_plan tasks with dependencies. Invokes `$swarm` per wave, lead verifies and commits. Loops until all tasks completed, then final vibe.
 
 ### Test-First Epic with Contract-Based TDD
 
@@ -768,7 +723,6 @@ If all remaining issues are blocked (e.g., circular dependencies), crank outputs
 | Wave vibe gate fails repeatedly | Workers producing non-conforming code | Check `.agents/council/` vibe reports, refine constraints |
 | Workers complete but files missing | Permission errors or wrong paths | Check swarm output files, verify write permissions |
 | RED Gate passes (tests don't fail) | Test wave workers wrote implementation | Re-run TEST WAVE with no-implementation-access prompt |
-| update_plan mode can't find epic | bd CLI required for beads tracking | Provide plan file (`.md`) instead, or install bd |
 
 See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 

@@ -14,7 +14,6 @@ $evolve --parallel (Fitness Loop)
   │  └─ select_parallel_goals: heuristic independence via check-script overlap
   │
   ├─ Step 4: Parallel execution via $swarm
-  │  ├─ todo_write for each selected goal
   │  ├─ Artifact isolation: .agents/evolve/parallel-rpi/{goal.id}/
   │  ├─ Git isolation: $swarm --worktrees (each worker in /tmp/evolve-{goal.id})
   │  └─ $swarm spawns N fresh-context workers, each runs full $rpi cycle:

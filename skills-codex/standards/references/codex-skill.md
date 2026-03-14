@@ -37,7 +37,6 @@ Skills must reference only tools available in Codex sessions:
 
 These Codex primitives have **no Codex equivalent** and must not appear:
 
-- `todo_write`, `update_plan`, `update_plan`, `update_plan`, `update_plan`
 - `Skill(skill=...)` — Codex uses `$skill-name` invocation, not a Skill tool
 - `Agent(subagent_type=...)` — Codex uses agent roles, not subagent_type
 
@@ -72,8 +71,7 @@ Codex orchestration uses:
 
 | Pattern | Problem | Fix |
 |---------|---------|-----|
-| `todo_write(subject=...)` | Claude primitive, doesn't exist | Use `bd create` via shell or `spawn_agents_on_csv` |
-| `Skill(skill="vibe")` | Claude Skill tool, doesn't exist | Use `$vibe` invocation syntax |
+| `$vibe ` | Claude Skill tool, doesn't exist | Use `$vibe` invocation syntax |
 | `context.window: fork` | Claude frontmatter, ignored | Remove from Codex SKILL.md |
 | `~/.agents/skills/` | Wrong path | Use `.agents/skills/` |
 | `todo_write(...)` | Not available in Codex sessions | Use `bd` CLI or file-based tracking |

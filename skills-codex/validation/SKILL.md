@@ -86,7 +86,7 @@ if command -v ao &>/dev/null; then AO_AVAILABLE=true; else AO_AVAILABLE=false; f
 Invoke `$vibe` for code quality review:
 
 ```
-Skill(skill="vibe", args="recent [--quick]")
+$vibe recent [--quick]
 ```
 
 Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for full complexity.
@@ -113,7 +113,7 @@ Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for 
 Invoke `$post-mortem` for retrospective analysis:
 
 ```
-Skill(skill="post-mortem", args="<epic-id> [--quick]")
+$post-mortem <epic-id> [--quick]
 ```
 
 Use `--quick` for fast/standard complexity. Full council for full complexity.
@@ -127,7 +127,7 @@ Store post-mortem verdict in `validation_state.post_mortem_verdict`.
 Invoke `$retro` for quick learning capture:
 
 ```
-Skill(skill="retro")
+$retro 
 ```
 
 Retro captures session-specific learnings to `.agents/learnings/`.

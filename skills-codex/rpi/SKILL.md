@@ -100,7 +100,7 @@ rpi_state = {
 Delegate to `$discovery`:
 
 ```
-Skill(skill="discovery", args="<goal> [--interactive] --complexity=<level>")
+$discovery <goal> [--interactive] --complexity=<level>
 ```
 
 After `$discovery` completes:
@@ -114,7 +114,7 @@ After `$discovery` completes:
 Requires `rpi_state.epic_id`.
 
 ```
-Skill(skill="crank", args="<epic-id> [--test-first] [--no-test-first]")
+$crank <epic-id> [--test-first] [--no-test-first]
 ```
 
 **Implementation gate (max 3 attempts):**
@@ -136,7 +136,7 @@ ao ratchet record implement 2>/dev/null || true
 **Skip if:** complexity == `fast` (fast-path runs discovery + crank only).
 
 ```
-Skill(skill="validation", args="<epic-id> --complexity=<level>")
+$validation <epic-id> --complexity=<level>
 ```
 
 **Validation-to-crank loop (max 3 total attempts):**

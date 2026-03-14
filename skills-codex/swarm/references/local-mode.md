@@ -199,10 +199,8 @@ Rules:
 
 ## Race Condition Prevention
 
-Workers do NOT race-claim tasks from update_plan. The team lead assigns each task
 to a specific worker BEFORE spawning. This prevents:
 - Two workers claiming the same task
-- Workers seeing stale update_plan state
 - Non-deterministic assignment order
 
 Workers only transition their assigned task: in_progress -> completed.
@@ -285,7 +283,6 @@ Check `.agents/swarm/results/<task-id>.json` for each worker. These are ~200 byt
 
 1. **Check task metadata for validation requirements:**
    ```
-   update_plan() -> find task -> check metadata.validation
    ```
 
 2. **Execute validation checks (in order):**
@@ -300,7 +297,6 @@ Check `.agents/swarm/results/<task-id>.json` for each worker. These are ~200 byt
 
 3. **On validation PASS:**
    ```
-   update_plan(taskId="<id>", status="completed")
    ```
 
 4. **On validation FAIL:**
@@ -323,7 +319,6 @@ git status --porcelain  # Should show unstaged changes from worker
 **Example task with validation metadata:**
 
 ```
-todo_write(
   subject="Add authentication middleware",
   description="...",
   metadata={
@@ -379,7 +374,6 @@ Cleanup MUST succeed even on partial failures:
 ## Step 6: Repeat if Needed
 
 If more tasks remain:
-1. Check update_plan for next wave
 2. Spawn a NEW wave worker set (new sub-agents or new team) for fresh context
 3. Execute the next wave
 4. Continue until all done

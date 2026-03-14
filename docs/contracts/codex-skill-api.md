@@ -151,13 +151,13 @@ Tools available inside a Codex agent session:
 
 | Claude Code | Codex Equivalent | Converter Action |
 |-------------|-----------------|------------------|
-| `TaskCreate` | `todo_write` | Map |
-| `TaskList` / `TaskUpdate` / `TaskGet` | `update_plan` | Map |
 | `Read` tool | `read_file` | Map |
 | `Edit` tool | `apply_patch` | Map |
 | `Grep` tool | `rg` | Map |
 | `Glob` tool | `glob_file_search` | Map |
 | `Agent(subagent_type="Explore")` | Explorer agent role | Map |
+| `Skill(skill="name")` | `$name` invocation | Map |
+| `TaskCreate` / `TaskList` / `TaskUpdate` | No equivalent (`todo_write`/`update_plan` not available — empirically verified) | Strip |
 | `TeamCreate` / `TeamDelete` | No equivalent | Strip |
 | `SendMessage` | No equivalent | Strip |
 | `EnterPlanMode` / `ExitPlanMode` | No equivalent | Strip |
@@ -175,11 +175,12 @@ Skills referencing these primitives produce **broken instructions** in Codex.
 When generating Codex skills from source skills:
 
 1. **Strip all non-Codex frontmatter** — emit only `name` + `description`
-2. **Map Claude primitives to Codex equivalents** — TaskCreate→todo_write, Edit→apply_patch, etc. (see mapping table above)
-3. **Strip primitives with no equivalent** — TeamCreate, SendMessage, EnterPlanMode (truly absent)
-4. **Fix paths** — `~/.claude/skills/` → `~/.agents/skills/` (Codex discovery path)
-5. **Generate `agents/openai.yaml`** when display metadata or implicit invocation policy applies
-6. **Preserve skill body** — the SKILL.md body (instructions) is the skill's value; keep it functional
+2. **Map Claude tools to Codex tools** — Read→read_file, Edit→apply_patch, Grep→rg, Glob→glob_file_search
+3. **Rewrite `Skill(skill="X")` to `$X`** — Codex uses dollar-prefix invocation
+4. **Strip ALL task/team primitives** — TaskCreate, TaskList, TeamCreate, SendMessage (none have working Codex equivalents — `todo_write`/`update_plan` empirically unavailable)
+5. **Fix paths** — `~/.claude/skills/` → `~/.agents/skills/` (Codex discovery path)
+6. **Rewrite reference files** — `.md` files in references/ pass through `codex_rewrite_text()` during copy
+7. **Preserve skill body** — the SKILL.md body (instructions) is the skill's value; keep it functional
 
 ---
 

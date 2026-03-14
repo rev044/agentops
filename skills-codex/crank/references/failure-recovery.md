@@ -24,7 +24,6 @@ if [[ $wave -ge 50 ]]; then
     echo "<promise>BLOCKED</promise>"
     echo "Global wave limit (50) reached. Remaining issues:"
     # Beads mode: bd children <epic-id> --status open
-    # update_plan mode: update_plan() → pending tasks
     # STOP - do not continue
 fi
 ```
@@ -33,7 +32,6 @@ fi
 
 **Verify there are issues to work on:**
 
-**If 0 ready issues found (beads mode) or 0 pending unblocked tasks (update_plan mode):**
 ```
 STOP and return error:
   "No ready issues found for this epic. Either:

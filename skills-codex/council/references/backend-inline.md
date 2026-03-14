@@ -28,11 +28,9 @@ Output format is identical — same file paths, same verdict schema. Downstream 
 Instead of parallel workers, execute each task sequentially:
 
 ```
-1. update_plan() — find unblocked tasks
 2. For each unblocked task (in order):
    a. Execute the task directly
    b. Write result to .agents/swarm/results/<task-id>.json
-   c. update_plan(taskId="<id>", status="completed")
 3. Check for newly-unblocked tasks
 4. Repeat until all tasks complete
 ```

@@ -8,7 +8,6 @@ Concrete tool calls for spawning agents using `Task(run_in_background=true)`. Th
 - No inter-agent communication
 - No debate mode (R2 requires messaging)
 - No retry (must re-spawn from scratch)
-- No graceful shutdown (only `update_plan`, which is lossy)
 
 ---
 
@@ -85,7 +84,6 @@ Read(".agents/council/2026-02-17-auth-judge-1.md")
 
 **Timeout behavior:** If `timeout` expires, `TaskOutput` returns with a timeout status — the agent may still be running. **Recovery:**
 1. Check result file — agent may have written it but not finished cleanly
-2. If result file exists → use it, `update_plan` the agent
 3. If no result file → agent failed silently. For council: proceed with N-1 verdicts, note in report. For swarm: add task back to retry queue, re-spawn a fresh agent.
 4. Never assume `TaskOutput` completion means the result file was written — always verify
 
@@ -108,7 +106,6 @@ Background tasks cannot receive messages. This means:
 Background tasks self-terminate when done. For stuck tasks:
 
 ```
-update_plan(task_id="abc-123")
 ```
 
 This is lossy — partial work may be lost.

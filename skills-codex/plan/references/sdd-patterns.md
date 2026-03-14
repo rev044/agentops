@@ -243,7 +243,6 @@ $crank reads plan → extracts Always
 Converts to validation-contract.md checks (flat array):
   [{"name": "...", "type": "content_check|command|tests|...", ...fields...}]
     ↓
-Injected into every todo_write's metadata.validation.cross_cutting
     ↓
 Workers validated against per-task checks + cross-cutting checks
 ```

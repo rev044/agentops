@@ -4,11 +4,7 @@
 
 Crank follows FIRE for each wave:
 
-| Phase | Beads Mode | update_plan Mode |
 |-------|-----------|--------------|
-| **FIND** | `bd ready` — get unblocked beads issues | `update_plan()` → pending, unblocked |
-| **IGNITE** | todo_write from beads + `$swarm` | `$swarm` (tasks already in update_plan) |
-| **REAP** | Swarm results + `bd update --status closed` | Swarm results (update_plan by workers) |
 | **CHECK** | Wave acceptance check (2 inline judges) → PASS/WARN/FAIL | Same |
 | **ESCALATE** | `bd comments add` + retry | Update task description + retry |
 
@@ -26,7 +22,6 @@ Crank follows FIRE for each wave:
 ```
 Wave 1: bd ready → [issue-1, issue-2, issue-3]
         ↓
-        todo_write for each issue
         ↓
         $swarm → spawns 3 fresh-context agents
                   ↓         ↓         ↓
@@ -38,7 +33,6 @@ Wave 1: bd ready → [issue-1, issue-2, issue-3]
 
 Wave 2: bd ready → [issue-4, issue-3-retry]
         ↓
-        todo_write for each
         ↓
         $swarm → spawns 2 fresh-context agents
         ↓
@@ -47,10 +41,8 @@ Wave 2: bd ready → [issue-4, issue-3-retry]
 Final vibe on all changes → Epic DONE
 ```
 
-### update_plan Mode
 
 ```
-Wave 1: update_plan() → [task-1, task-2, task-3] (pending, unblocked)
         ↓
         $swarm → spawns 3 fresh-context agents
                   ↓         ↓         ↓
@@ -58,16 +50,13 @@ Wave 1: update_plan() → [task-1, task-2, task-3] (pending, unblocked)
                                      ↓
                                (reset to pending, retry next wave)
 
-Wave 2: update_plan() → [task-4, task-3-retry] (pending, unblocked)
         ↓
         $swarm → spawns 2 fresh-context agents
         ↓
-        update_plan → completed
 
 Final vibe on all changes → All tasks DONE
 ```
 
-Loop until all issues are CLOSED (beads) or all tasks are completed (update_plan).
 
 ## Spec-First Wave Model (--test-first)
 
@@ -184,7 +173,6 @@ But do NOT read implementation details of the specific feature being specified.
 
    ```
    # Judge 1: Spec compliance
-   Tool: todo_write
    Parameters:
      subagent_type: "general-purpose"
      model: "haiku"
@@ -201,7 +189,6 @@ But do NOT read implementation details of the specific feature being specified.
        <wave diff>
 
    # Judge 2: Error paths
-   Tool: todo_write
    Parameters:
      subagent_type: "general-purpose"
      model: "haiku"

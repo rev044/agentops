@@ -268,7 +268,7 @@ Write the generated README to `README.md`.
 Run a council to validate the README:
 
 ```
-Skill(skill="council", args="--quick validate README.md — is it clear, non-repetitive, and does it serve both skimmers and deep readers?")
+$council --quick validate README.md — is it clear, non-repetitive, and does it serve both skimmers and deep readers?
 ```
 
 **If `--rewrite` or generating from scratch:** Use `--quick` (inline, fast).

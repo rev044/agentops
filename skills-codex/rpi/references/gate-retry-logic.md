@@ -28,7 +28,7 @@ Gate logic:
   2. Log: "Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"
   3. Re-invoke `$plan` with the goal AND the failure context including structured findings:
      ```
-     Skill(skill="plan", args="<goal> --auto --context 'Pre-mortem FAIL: <key concerns>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z\nFINDING: A | FIX: B | REF: C'")
+     $plan <goal> --auto --context 'Pre-mortem FAIL: <key concerns>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z\nFINDING: A | FIX: B | REF: C'
      ```
   4. Re-invoke `$pre-mortem` on the new plan
   5. If still FAIL after 3 total attempts, stop with message:
@@ -80,8 +80,8 @@ Gate logic:
   2. Log: "Vibe: FAIL (attempt N/3) -- retrying crank with feedback"
   3. Re-invoke `$crank` with the epic-id AND the failure context including structured findings:
      ```
-     Skill(skill="crank", args="<epic-id> --context 'Vibe FAIL: <key issues>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z' --test-first")   # default strict-quality path
-     Skill(skill="crank", args="<epic-id> --context 'Vibe FAIL: <key issues>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z'")                 # only when --no-test-first opted out
+     $crank <epic-id> --context 'Vibe FAIL: <key issues>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z' --test-first   # default strict-quality path
+     $crank <epic-id> --context 'Vibe FAIL: <key issues>\nStructured findings:\nFINDING: X | FIX: Y | REF: Z'                 # only when --no-test-first opted out
      ```
   4. Re-invoke `$vibe` on the new changes
   5. If still FAIL after 3 total attempts, stop with message:
