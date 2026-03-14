@@ -499,7 +499,8 @@ run_step_bg "Worktree disposition gate" ./scripts/check-worktree-disposition.sh
 run_step_bg "Skill integrity" bash ./skills/heal-skill/scripts/heal.sh --strict
 run_step_bg "Skill runtime parity" bash ./scripts/validate-skill-runtime-parity.sh
 run_step_bg "Codex runtime sections" bash ./scripts/validate-codex-runtime-sections.sh
-run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
+# Codex skill parity removed — skills-codex/ is manually maintained
+# run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
 run_step_bg "Codex install bundle parity" bash ./scripts/validate-codex-install-bundle.sh
 run_step_bg "Codex generated manifest" bash ./scripts/validate-codex-generated-manifest.sh
 run_step_bg "Codex generated artifacts" bash ./scripts/validate-codex-generated-artifacts.sh --scope worktree

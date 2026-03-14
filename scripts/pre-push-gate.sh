@@ -342,21 +342,8 @@ else
     skip "skill runtime parity"
 fi
 
-# --- 9. Codex skill parity ---
-if needs_check skill; then
-    if [[ -x scripts/validate-codex-skill-parity.sh ]]; then
-        if codex_parity_output="$(scripts/validate-codex-skill-parity.sh 2>&1)"; then
-            pass "codex skill parity"
-        else
-            fail "codex skill parity"
-            indent_output "$codex_parity_output"
-        fi
-    else
-        fail "missing executable: scripts/validate-codex-skill-parity.sh"
-    fi
-else
-    skip "codex skill parity"
-fi
+# --- 9. Codex skill parity --- (removed: skills-codex/ is manually maintained)
+skip "codex skill parity (manually maintained)"
 
 # --- 10. Codex install bundle parity ---
 if needs_check skill; then
