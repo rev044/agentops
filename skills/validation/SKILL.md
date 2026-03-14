@@ -125,30 +125,7 @@ Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for 
 
 ### Step 1.5: Test Pyramid Coverage Audit
 
-After vibe passes, assess test coverage across pyramid levels per the test pyramid standard (`test-pyramid.md` in the standards skill).
-
-**For each modified file in scope:**
-
-1. Check L0 (Contract): Do spec/contract tests exist for boundary changes?
-2. Check L1 (Unit): Do unit tests exist for new/modified functions?
-3. Check L2 (Integration): Do integration tests exist for cross-module changes?
-4. Check L3 (Component): Do component tests exist for subsystem workflows?
-
-**Output:** Append a `## Test Pyramid Coverage` section to the validation phase summary:
-
-```markdown
-## Test Pyramid Coverage
-
-| Level | Expected | Found | Gap |
-|-------|----------|-------|-----|
-| L0 Contract | N files | M tests | description or "covered" |
-| L1 Unit | N functions | M tests | description or "covered" |
-| L2 Integration | N modules | M tests | description or "covered" |
-| L3 Component | N workflows | M tests | description or "covered" |
-| L4+ | human-gated | — | deferred |
-```
-
-**This is advisory (WARN, not FAIL).** Coverage gaps are reported as findings for the post-mortem, not as blockers. The goal is visibility, not enforcement — enforcement happens in `/plan` and `/pre-mortem`.
+After vibe passes, assess test coverage across L0–L3 pyramid levels. Check each modified file for contract, unit, integration, and component test coverage. Append a `## Test Pyramid Coverage` table to the phase summary. Advisory only (WARN, not FAIL) — enforcement is in `/plan` and `/pre-mortem`. See the test pyramid standard (`test-pyramid.md` in the standards skill) for level definitions and the coverage assessment template.
 
 ### Step 2: Post-mortem
 
@@ -173,8 +150,6 @@ Invoke `/retro` for quick learning capture:
 ```
 Skill(skill="retro")
 ```
-
-Retro captures session-specific learnings to `.agents/learnings/`.
 
 ### Step 4: Forge (optional)
 

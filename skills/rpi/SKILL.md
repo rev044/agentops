@@ -19,23 +19,7 @@ metadata:
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-**THE THREE-PHASE RULE:** RPI has THREE mandatory phases (unless complexity == `fast`). You MUST run all three — discovery, implementation, AND validation — in a single session. Do NOT stop after implementation. Do NOT ask the user if they want to commit after Phase 2. Phase 2 completing is NOT the end — it is the midpoint. Validation (Phase 3) is where learnings are captured and the knowledge flywheel turns. Skipping it breaks the flywheel.
-
-**FULLY AUTONOMOUS BY DEFAULT.** Unless `--interactive` is explicitly set, RPI runs hands-free from start to finish. Do NOT:
-- Ask the user for confirmation between phases
-- Ask "want me to commit?" or "should I continue?"
-- Pause to summarize and wait for input
-- Request clarification mid-execution
-- Stop to ask about approach or strategy
-
-The human's only touchpoint is AFTER Phase 3 completes. If something is genuinely blocked (3 retries exhausted), then and only then do you stop and report. Everything else runs autonomously. The user invoked `/rpi` because they want you to GO — not to narrate.
-
-**Phase completion tracking:** After each phase, log progress:
-```
-PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2
-PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3
-PHASE 3 COMPLETE ✓ (validation) — RPI DONE
-```
+**THREE-PHASE RULE + FULLY AUTONOMOUS.** Read `references/autonomous-execution.md` — it defines the mandatory 3-phase lifecycle, autonomous execution rules, anti-patterns, and phase completion logging. Unless `--interactive` is set, RPI runs hands-free. Do NOT stop after Phase 2. Do NOT ask the user anything between phases.
 
 ## Quick Start
 
@@ -73,18 +57,6 @@ PHASE 3 COMPLETE ✓ (validation) — RPI DONE
 
 **Phase orchestrators own all sub-skill sequencing, retry gates, and phase budgets.**
 `/rpi` owns only: setup, complexity classification, phase routing, implementation gate, validation-fail-to-crank loop, and final report.
-
-### Anti-Patterns (DO NOT)
-
-| Anti-Pattern | Why It's Wrong | Correct Behavior |
-|--------------|----------------|------------------|
-| Stop after Phase 2 and ask to commit | Skips validation — no quality check, no learnings, flywheel doesn't turn | Proceed directly to Phase 3 |
-| Call `/vibe` directly instead of `/validation` | `/vibe` is one sub-step; `/validation` wraps vibe + post-mortem + retro + forge | Always call `/validation` from `/rpi` |
-| Ask "want me to commit?" between phases | Interrupts autonomous flow — user invoked `/rpi` for hands-free execution | Commit only after ALL phases complete |
-| Ask the user ANY question during execution | RPI is autonomous unless `--interactive` — questions break the flow | Make best judgment and proceed; report at end |
-| Run Phase 1 inline instead of delegating to `/discovery` | Loses brainstorm → search → research → plan → pre-mortem sequencing | Delegate via `Skill(skill="discovery")` |
-| Summarize findings and wait after Phase 1 | Discovery output is an input to Phase 2, not a deliverable | Proceed immediately to Phase 2 |
-| Pause to explain what you're about to do | Narration wastes time — the user wants results, not commentary | Execute, then report at the end |
 
 ## Execution Steps
 
@@ -240,23 +212,7 @@ All transitions use filesystem artifacts (no in-memory coupling). The execution 
 
 ## Complexity-Scaled Council Gates
 
-### Phase 3: Pre-mortem
-- complexity == "low": inline review, no spawning (--quick)
-- complexity == "medium": inline fast default (--quick)
-- complexity == "high": full council, 2-judge minimum
-- Retry gate: max 3 total attempts
-
-### Phase 5: Final Vibe
-- complexity == "low": inline review, no spawning (--quick)
-- complexity == "medium": inline fast default (--quick)
-- complexity == "high": full council, 2-judge minimum
-- Retry gate: max 3 total attempts
-
-### Phase 6: Post-mortem
-- complexity == "low": inline review, no spawning (--quick)
-- complexity == "medium": inline fast default (--quick)
-- complexity == "high": full council, 2-judge minimum
-- Retry gate: max 3 total attempts
+All council gates (pre-mortem, vibe, post-mortem): low/medium use `--quick` (inline), high uses full council (2-judge minimum). Max 3 retry attempts each. See `references/complexity-scaling.md`.
 
 ## Examples
 
@@ -279,4 +235,5 @@ Read `references/troubleshooting.md` for common problems and solutions.
 - [references/report-template.md](references/report-template.md)
 - [references/error-handling.md](references/error-handling.md)
 - [references/examples.md](references/examples.md)
+- [references/autonomous-execution.md](references/autonomous-execution.md)
 - [references/troubleshooting.md](references/troubleshooting.md)
