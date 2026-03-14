@@ -365,7 +365,45 @@ If bug-hunt produces findings, include them in the council packet as `context.bu
 - No source files in target → skip (nothing to audit)
 - Target is non-code (pure docs/config) → skip
 
-### Step 2g: Check for Product Context
+### Step 2g: Test Pyramid Inventory (MANDATORY)
+
+Assess test coverage against the test pyramid standard (`standards/references/test-pyramid.md`).
+
+**Run even in `--quick` mode** — this is cheap (file existence checks) and high-signal.
+
+1. **Identify changed modules** from git diff or target scope
+2. **For each changed module, check coverage pyramid (L0–L3):**
+   - L0: Does a contract/spec enforcement test cover this module?
+   - L1: Does a unit test file exist for this module?
+   - L2: If module crosses boundaries, does an integration test exist?
+3. **For boundary-touching code, check bug-finding pyramid (BF1–BF5):**
+   - BF4 (Chaos): Do external call sites have failure injection tests?
+   - BF1 (Property): Do data transformations have property tests?
+   - BF2 (Golden): Do output generators have golden file tests?
+4. **Build coverage table** and include in council packet as `context.test_pyramid`:
+
+```json
+"test_pyramid": {
+  "coverage": {
+    "L0": {"status": "pass", "files": ["test_spec_enforcement.py"]},
+    "L1": {"status": "pass", "files": ["test_module.py"]},
+    "L2": {"status": "gap", "reason": "crosses subsystem boundary, no integration test"}
+  },
+  "bug_finding": {
+    "BF4_chaos": {"status": "gap", "reason": "external API calls without failure injection"},
+    "BF1_property": {"status": "na", "reason": "no data transformations in scope"}
+  },
+  "verdict": "WARN: L2 and BF4 gaps on boundary code"
+}
+```
+
+**Verdict rules:**
+- Missing L1 on feature code → **WARN** (include in council findings)
+- Missing L0 on spec-changing code → **WARN**
+- Missing BF4 on boundary code → **WARN** (advisory, not blocking)
+- All levels covered → no mention needed
+
+### Step 2h: Check for Product Context
 
 **Skip if `--quick` (see Step 1.5).**
 
