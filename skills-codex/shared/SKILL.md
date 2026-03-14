@@ -33,6 +33,7 @@ if command -v bd &>/dev/null; then
   # Full behavior with bd
 else
   echo "Note: bd CLI not installed. Using plain text tracking."
+  # Fallback: use update_plan, plain markdown, or skip
 fi
 ```
 
@@ -40,6 +41,7 @@ fi
 
 | Capability | When Missing | Fallback Behavior |
 |------------|-------------|-------------------|
+| `bd` | Issue tracking unavailable | Use update_plan for tracking. Note "install bd for persistent issue tracking" |
 | `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/learnings/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
 | `codex` | CLI missing or model unavailable | Fall back to runtime-native agents. Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
@@ -94,6 +96,7 @@ Use capability detection at runtime, not hardcoded tool names. The same skill mu
 
 | Capability | Codex Sub-Agents | Codex sub-agents | Background Tasks |
 |------------|------------------|---------------------|------------------|
+| Graceful stop | `close_agent` | `shutdown_request` | **update_plan (lossy)** |
 | File conflict prevention | Manual `git worktree` routing | Native `isolation: worktree` + lead-only commits | None |
 | Process isolation | YES (sub-process) | Shared worktree | Shared worktree |
 
@@ -128,6 +131,7 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 | `Task(subagent_type="...")` | `task(subagent_type="...")` | Same semantics, different casing |
 | `Skill(skill="X")` | `skill` tool (read-only) | Load content, then follow inline |
 | `AskUserQuestion` | `question` | Same purpose, different name |
+| `todo_write`, `update_plan`, `update_plan`, `update_plan` | `todo` | Task tracking (Claude uses 4 tools, OpenCode uses 1) |
 | `Read`, `Write`, `Edit`, `Bash`, `Glob`, `Grep` | Same names | Identical across runtimes |
 
 ### Rules

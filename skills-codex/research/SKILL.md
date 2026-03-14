@@ -57,7 +57,7 @@ done
 grep -r -l -i "<topic>" ~/.codex/patterns/ 2>/dev/null
 ```
 
-If matches are found, read the relevant files with the Read tool before proceeding to exploration. Prior knowledge prevents redundant investigation.
+If matches are found, read the relevant files with read_file before proceeding to exploration. Prior knowledge prevents redundant investigation.
 
 ### Step 2.5: Pre-Flight — Detect Spawn Backend
 

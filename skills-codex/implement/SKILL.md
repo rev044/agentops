@@ -12,6 +12,7 @@ description: 'Execute a single issue with full lifecycle. Triggers: "implement",
 
 Execute a single issue from start to finish.
 
+**CLI dependencies:** bd (issue tracking), ao (ratchet gates). Both optional — see `skills/shared/SKILL.md` for fallback table. If bd is unavailable, use the issue description directly and track progress via update_plan instead of beads.
 
 ## Execution Steps
 
@@ -62,9 +63,12 @@ This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.
 
 ### Step 3: Gather Context
 
+**USE todo_write** to explore relevant code:
 
 ```
+Tool: todo_write
 Parameters:
+  role: explorer
   description: "Gather context for: <issue title>"
   prompt: |
     Find code relevant to: <issue description>
@@ -130,7 +134,7 @@ Before implementing, write tests that define the expected behavior:
 
 Based on the context gathered:
 
-1. **Edit existing files** using the Edit tool (preferred)
+1. **Edit existing files** using apply_patch (preferred)
 2. **Write new files** only if necessary using the Write tool
 3. **Follow existing patterns** in the codebase
 4. **Keep changes minimal** - don't over-engineer

@@ -10,6 +10,7 @@ description: 'Epic decomposition into trackable issues. Triggers: "create a plan
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
+**CLI dependencies:** bd (issue creation). If bd is unavailable, write the plan to `.agents/plans/` as markdown with issue descriptions, and use update_plan for tracking instead. The plan document is always created regardless of bd availability.
 
 ## Flags
 
@@ -33,7 +34,7 @@ Look for existing research on this topic:
 ls -la .agents/research/ 2>/dev/null | head -10
 ```
 
-Use Grep to search `.agents/` for related content. If research exists, read it with the Read tool to understand the context before planning.
+Use Grep to search `.agents/` for related content. If research exists, read it with read_file to understand the context before planning.
 
 **Search knowledge flywheel for prior planning patterns:**
 ```bash
@@ -86,13 +87,16 @@ if [ -n "$LATEST_RESEARCH" ]; then
 fi
 ```
 
-**Read the validated research file** with the Read tool before proceeding to Step 3. Do not plan based solely on file existence — understanding the research content is essential for accurate decomposition.
+**Read the validated research file** with read_file before proceeding to Step 3. Do not plan based solely on file existence — understanding the research content is essential for accurate decomposition.
 
 ### Step 3: Explore the Codebase (if needed)
 
+**USE todo_write** to dispatch an Explore agent. The explore prompt MUST request symbol-level detail:
 
 ```
+Tool: todo_write
 Parameters:
+  role: explorer
   description: "Understand codebase for: <goal>"
   prompt: |
     Explore the codebase to understand what's needed for: <goal>
@@ -478,8 +482,10 @@ After bulk-merging wave results, audit for scaffold-era names:
 
 ### Step 7: Create Tasks for In-Session Tracking
 
+**Use todo_write tool** for each issue:
 
 ```
+Tool: todo_write
 Parameters:
   subject: "<issue title>"
   description: |
@@ -493,6 +499,7 @@ Parameters:
 **After creating all tasks, set up dependencies:**
 
 ```
+Tool: update_plan
 Parameters:
   taskId: "<task-id>"
   addBlockedBy: ["<dependency-task-id>"]

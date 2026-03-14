@@ -128,25 +128,42 @@ config_file = "codex-reviewer.toml"
 
 Workers call `report_agent_job_result` exactly once.
 
-### What Does NOT Exist in Codex
+### Codex Built-in Tools
 
-These are **Claude Code primitives** with no Codex equivalent:
+Tools available inside a Codex agent session:
 
-| Primitive | Claude Code | Codex |
-|-----------|-------------|-------|
-| `TaskCreate` | Create tasks in session | Does not exist |
-| `TaskList` | List session tasks | Does not exist |
-| `TaskUpdate` | Update task status | Does not exist |
-| `TaskGet` | Get task details | Does not exist |
-| `TaskStop` | Stop a task | Does not exist |
-| `TeamCreate` | Create agent team | Does not exist |
-| `TeamDelete` | Delete agent team | Does not exist |
-| `SendMessage` | Message between agents | Does not exist |
-| `EnterPlanMode` | Enter plan mode | Does not exist |
-| `ExitPlanMode` | Exit plan mode | Does not exist |
-| `EnterWorktree` | Enter git worktree | Does not exist |
-| `context.window` | Knowledge context control | Does not exist |
-| `context.sections.exclude` | Section filtering | Does not exist |
+| Tool | Purpose |
+|------|---------|
+| `read_file` | Read file contents |
+| `list_dir` | List directory contents |
+| `glob_file_search` | Find files by pattern |
+| `apply_patch` | Apply file edits (diff-based) |
+| `rg` | Ripgrep search |
+| `git` | Git operations |
+| `cmd` / `run_terminal_cmd` | Shell command execution |
+| `todo_write` | Create/manage tasks and plans |
+| `update_plan` | Update task/plan status |
+| `spawn_agents_on_csv` | Batch sub-agent spawning |
+| `report_agent_job_result` | Worker result reporting |
+| `wait` | Long-poll for sub-agent completion (up to 1h) |
+
+### Claude → Codex Primitive Mapping
+
+| Claude Code | Codex Equivalent | Converter Action |
+|-------------|-----------------|------------------|
+| `TaskCreate` | `todo_write` | Map |
+| `TaskList` / `TaskUpdate` / `TaskGet` | `update_plan` | Map |
+| `Read` tool | `read_file` | Map |
+| `Edit` tool | `apply_patch` | Map |
+| `Grep` tool | `rg` | Map |
+| `Glob` tool | `glob_file_search` | Map |
+| `Agent(subagent_type="Explore")` | Explorer agent role | Map |
+| `TeamCreate` / `TeamDelete` | No equivalent | Strip |
+| `SendMessage` | No equivalent | Strip |
+| `EnterPlanMode` / `ExitPlanMode` | No equivalent | Strip |
+| `EnterWorktree` | No equivalent | Strip |
+| `context.window` | No equivalent | Strip from frontmatter |
+| `context.sections.exclude` | No equivalent | Strip from frontmatter |
 | `context.intel_scope` | Intelligence scoping | Does not exist |
 
 Skills referencing these primitives produce **broken instructions** in Codex.
@@ -158,9 +175,9 @@ Skills referencing these primitives produce **broken instructions** in Codex.
 When generating Codex skills from source skills:
 
 1. **Strip all non-Codex frontmatter** — emit only `name` + `description`
-2. **Remove Claude primitive references** — do not rename to lowercase (e.g., `team-create` doesn't exist either)
-3. **Remove or replace orchestration sections** — sections describing TaskList workflows need Codex-native alternatives or removal
-4. **Fix paths** — `~/.claude/` → `.agents/` (not `~/.codex/`)
+2. **Map Claude primitives to Codex equivalents** — TaskCreate→todo_write, Edit→apply_patch, etc. (see mapping table above)
+3. **Strip primitives with no equivalent** — TeamCreate, SendMessage, EnterPlanMode (truly absent)
+4. **Fix paths** — `~/.claude/skills/` → `~/.agents/skills/` (Codex discovery path)
 5. **Generate `agents/openai.yaml`** when display metadata or implicit invocation policy applies
 6. **Preserve skill body** — the SKILL.md body (instructions) is the skill's value; keep it functional
 

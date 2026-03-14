@@ -145,14 +145,25 @@ codex_rewrite_text() {
     s{\.claude/}{.codex/}g;
     s/backend-claude-teams\.md/backend-codex-subagents.md/g;
     s/\bclaude agents\b/codex agents/g;
-    # Strip lines containing Claude-only primitives (these have no Codex equivalent)
-    s/.*\b(?:TaskCreate|TaskUpdate|TaskList|TaskGet|TaskStop)\b.*\n?//g;
+    # Map Claude primitives to Codex equivalents where they exist
+    s/\bTaskCreate\b/todo_write/g;
+    s/\bTaskUpdate\b/update_plan/g;
+    s/\bTaskList\b/update_plan/g;
+    s/\bTaskGet\b/update_plan/g;
+    s/\bTaskStop\b/update_plan/g;
+    # Map Claude tools to Codex tools
+    s/\bthe Read tool\b/read_file/g;
+    s/\bthe Edit tool\b/apply_patch/g;
+    s/\bthe Grep tool\b/rg/g;
+    s/\bthe Glob tool\b/glob_file_search/g;
+    s/\bAgent\(subagent_type="Explore"/spawn a sub-agent (explorer role/g;
+    s/\*\*USE THE TASK TOOL\*\*/\*\*USE todo_write\*\*/g;
+    s/\bTool: Task\b/Tool: todo_write/g;
+    s/\bsubagent_type:\s*"Explore"/role: explorer/g;
+    # Strip lines with primitives that truly have no Codex equivalent
     s/.*\b(?:TeamCreate|TeamDelete)\b.*\n?//g;
     s/.*\b(?:SendMessage)\b.*\n?//g;
     s/.*\b(?:EnterPlanMode|ExitPlanMode|EnterWorktree)\b.*\n?//g;
-    s/.*\*\*USE THE TASK TOOL\*\*.*\n?//g;
-    s/.*\bTool:\s*Task\b.*\n?//g;
-    s/.*\bsubagent_type:\s*"Explore".*\n?//g;
     # Post-rewrite dedup: collapse doubled runtime phrases
     s/Codex sub-agents in Codex sessions, Codex sub-agents in Codex sessions/Codex sub-agents in Codex sessions/g;
     s/Codex session -> Codex sub-agents; Codex session -> Codex sub-agents/Codex session -> Codex sub-agents/g;

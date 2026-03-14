@@ -77,7 +77,7 @@ ls -lt ~/.codex/patterns/ 2>/dev/null | head -5
 
 ### Step 2: Read Relevant Files
 
-Use the Read tool to load the most relevant artifacts based on topic.
+Use read_file to load the most relevant artifacts based on topic.
 
 ### Step 3: Summarize for Context
 

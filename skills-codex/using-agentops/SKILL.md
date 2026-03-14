@@ -78,6 +78,7 @@ $release --dry-run     # Preview without writing
 **Choosing the skill:**
 - Use `$implement` for **single issue** execution. **Now defaults to TDD-first** — writes failing tests before implementing. Skip with `--no-tdd`.
 - Use `$crank` for **autonomous epic execution** (loops waves via swarm until done). Auto-generates file-ownership maps to prevent worker conflicts.
+- Use `$swarm` directly for **parallel execution** without beads (update_plan only).
 - Use `$discovery` for the **discovery phase only** (brainstorm → search → research → plan → pre-mortem).
 - Use `$validation` for the **validation phase only** (vibe → post-mortem → retro → forge).
 - Use `$rpi` for **full lifecycle** — delegates to `$discovery` → `$crank` → `$validation`.

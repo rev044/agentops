@@ -68,6 +68,7 @@ bash scripts/audit-codex-parity.sh
 bash scripts/audit-codex-parity.sh --skill swarm
 ```
 
+Use this when a generated Codex skill still contains Claude-era primitives (`todo_write`, `update_plan`, `Tool: todo_write`), Claude backend references, or obviously broken runtime rewrites.
 
 **Repair rule:** never hand-maintain `skills-codex/<name>/SKILL.md`. Keep canonical behavior in `skills/<name>/SKILL.md`, and keep durable Codex-only body edits in `skills-codex-overrides/<name>/SKILL.md`.
 

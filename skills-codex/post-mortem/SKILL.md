@@ -112,7 +112,7 @@ Before proceeding, verify:
 
 ### Step 0.4: Load Reference Documents (MANDATORY)
 
-Before Step 0.5 and Step 2.5, load required reference docs into context using the Read tool:
+Before Step 0.5 and Step 2.5, load required reference docs into context using read_file:
 
 ```
 REQUIRED_REFS=(
@@ -187,7 +187,7 @@ Check for a crank-generated phase-2 summary:
 PHASE2_SUMMARY=$(ls -t .agents/rpi/phase-2-summary-*-crank.md 2>/dev/null | head -1)
 if [ -n "$PHASE2_SUMMARY" ]; then
     echo "Phase-2 summary found: $PHASE2_SUMMARY"
-    # Read the summary with the Read tool for implementation context
+    # Read the summary with read_file for implementation context
 fi
 ```
 
@@ -301,7 +301,7 @@ bd children <epic-id> 2>/dev/null | head -20
 ls -lt .agents/plans/ .agents/research/ 2>/dev/null | head -10
 ```
 
-Read relevant artifacts: research documents, plan documents, commit messages, code changes. Use the Read tool and git commands to understand what was done.
+Read relevant artifacts: research documents, plan documents, commit messages, code changes. Use read_file and git commands to understand what was done.
 
 **If retrospecting an epic:** Run the closure integrity quick-check from `references/context-gathering.md` (Phantom Bead Detection + Multi-Wave Regression Scan). Include any warnings in findings.
 

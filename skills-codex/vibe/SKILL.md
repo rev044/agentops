@@ -128,7 +128,7 @@ Detect code patterns in the target files and load matching domain-specific check
 | LLM/AI code | `llm-trust-boundary-checklist.md` | Files import `anthropic`, `openai`, `google.generativeai`, or match `*llm*`, `*prompt*`, `*completion*` patterns |
 | Concurrent code | `race-condition-checklist.md` | Files use goroutines, `threading`, `asyncio`, `multiprocessing`, `sync.Mutex`, `concurrent.futures`, or shared file I/O patterns |
 
-For each matched checklist, load it via the Read tool and include relevant items in the council packet as `context.domain_checklists`. Multiple checklists can be loaded simultaneously.
+For each matched checklist, load it via read_file and include relevant items in the council packet as `context.domain_checklists`. Multiple checklists can be loaded simultaneously.
 
 Skip silently if no patterns match. This step runs in both `--quick` and full modes (domain checklists are cheap to load and high-value).
 

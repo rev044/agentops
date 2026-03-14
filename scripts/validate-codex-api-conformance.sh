@@ -34,8 +34,9 @@ done < <(find "$SKILLS_ROOT" -mindepth 2 -maxdepth 2 -name 'SKILL.md' -type f | 
 
 # --- Check 2: No Claude-only primitive names ---
 echo "=== Check 2: Claude primitive references ==="
-# PascalCase originals AND lowercase-hyphenated rewrites (neither exists in Codex)
-CLAUDE_PRIMITIVES='TaskCreate|TaskList|TaskUpdate|TaskGet|TaskStop|TeamCreate|TeamDelete|SendMessage|EnterPlanMode|ExitPlanMode|EnterWorktree|task-create|task-list|task-update|task-get|task-stop|team-create|team-delete|send-message|enter-plan-mode|exit-plan-mode|enter-worktree'
+# Claude-only primitives that have NO Codex equivalent (not even mapped ones)
+# Note: TaskCreate→todo_write, TaskList→update_plan etc. are valid Codex mappings
+CLAUDE_PRIMITIVES='TeamCreate|TeamDelete|SendMessage|EnterPlanMode|ExitPlanMode|EnterWorktree|team-create|team-delete|send-message|enter-plan-mode|exit-plan-mode|enter-worktree'
 
 while IFS= read -r skill_md; do
   skill_name="$(basename "$(dirname "$skill_md")")"

@@ -111,7 +111,7 @@ minimal completion signal: `{"type":"verdict","verdict":"...","confidence":"..."
 The lead reads output files during consolidation. This prevents N judges from
 
 **Consolidation runs inline as the lead** — no separate chairman agent. The lead
-reads each judge's output file sequentially with the Read tool and synthesizes.
+reads each judge's output file sequentially with read_file and synthesizes.
 
 ### Execution Flow
 
