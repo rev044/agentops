@@ -206,6 +206,29 @@ For each test file, list specific test functions with one-line descriptions:
 - `TestRateLimitMiddleware_ResetAfterWindow`: Counter resets after time window
 ```
 
+#### Test Level Classification
+
+For each test in the plan, classify its pyramid level per the test pyramid standard (`test-pyramid.md` in the standards skill):
+
+| Test | Level | Rationale |
+|------|-------|-----------|
+| `TestRateLimitMiddleware_UnderLimit` | L1 (Unit) | Single function behavior in isolation |
+| `TestRateLimitMiddleware_Integration` | L2 (Integration) | Middleware + config store interaction |
+| `TestRateLimitMiddleware_E2E` | L3 (Component) | Full request pipeline with mocked Redis |
+
+Include `test_levels` metadata in each issue's validation block:
+```json
+{
+  "test_levels": {
+    "required": ["L0", "L1"],
+    "recommended": ["L2"],
+    "rationale": "Reason for level selection"
+  }
+}
+```
+
+Agents own L0–L3 autonomously. L4+ requires human-defined scenarios — flag these as "human gate" items in the plan.
+
 #### Verification Procedures
 
 Add a `## Verification` section with runnable bash sequences that reproduce the scenario and confirm the fix:
@@ -250,6 +273,7 @@ Analyze the goal and break it into discrete, implementable issues. For each issu
 - **Description**: What needs to be done
 - **Dependencies**: Which issues must complete first (if any)
 - **Acceptance criteria**: How to verify it's done
+- **Test levels**: Which pyramid levels (L0–L3) this issue's tests cover (see the test pyramid standard (`test-pyramid.md` in the standards skill))
 
 #### Design Briefs for Rewrites
 

@@ -132,6 +132,17 @@ Skill(skill="research", args="<goal> [--auto]")
 
 Pass `--auto` unless `--interactive` was specified. Research output lands in `.agents/research/`.
 
+#### Step 3.1: Identify Applicable Test Levels
+
+After research completes, determine which test levels (L0–L3) the goal requires. Read the test pyramid standard (`test-pyramid.md` in the standards skill) for the full pyramid and selection guide.
+
+Ask:
+- Does the change touch external APIs or I/O? → L0 + L1 + L2 minimum
+- Does it cross module boundaries? → Add L2
+- Does it affect a full subsystem workflow? → Add L3
+
+Record the applicable levels in `discovery_state.test_levels` for downstream `/plan` consumption.
+
 ### Step 4: Plan
 
 Invoke `/plan` to decompose into an epic with trackable issues:
@@ -182,7 +193,7 @@ Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for 
 
 ### Step 6: Output
 
-After successful gate (PASS/WARN): write execution packet and phase summary (read `references/output-templates.md` for formats), record ratchet, output `<promise>DONE</promise>`, and report epic-id with suggested next step: `/crank <epic-id>`.
+After successful gate (PASS/WARN): write execution packet and phase summary (read `references/output-templates.md` for formats), record ratchet, output `<promise>DONE</promise>`, and report epic-id with suggested next step: `/crank <epic-id>`. Include `test_levels` from Step 3.1 in the execution packet for `/crank` consumption.
 
 ## Flags
 

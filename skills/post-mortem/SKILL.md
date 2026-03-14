@@ -337,6 +337,7 @@ Ask these questions:
 - Codebase quirks learned
 - Tool tips discovered
 - Debugging insights
+- Test pyramid gaps found during implementation or review
 
 For each learning, capture:
 - **ID**: L1, L2, L3...
@@ -379,6 +380,31 @@ confidence: <high|medium|low>
 **ID**: L2
 ...
 ```
+
+#### Step EX.3.5: Test Pyramid Gap Analysis
+
+Assess test coverage against the pyramid levels defined in the test pyramid standard (`test-pyramid.md` in the standards skill).
+
+**For each closed issue in the epic:**
+
+1. What `test_levels` were planned? (from issue metadata or plan)
+2. What test levels actually exist? (grep test files for patterns)
+3. What gaps remain?
+
+**Write to post-mortem report** under `## Test Pyramid Assessment`:
+
+```markdown
+## Test Pyramid Assessment
+
+| Issue | Planned Levels | Actual Levels | Gaps | Action |
+|-------|---------------|---------------|------|--------|
+| ag-001 | L0, L1, L2 | L1, L2 | L0 missing | Add contract tests (next-work item) |
+| ag-002 | L1 | L1 | none | covered |
+
+**Summary:** N/M issues have full pyramid coverage. K gaps identified.
+```
+
+Gaps with severity >= moderate become `next-work.jsonl` items with type `tech-debt` and title `"Add L{N} tests for {component}"`.
 
 #### Step EX.4: Classify Learning Scope
 

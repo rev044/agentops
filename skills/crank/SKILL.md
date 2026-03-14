@@ -347,6 +347,8 @@ For each spec-eligible issue:
 1. **TaskCreate** with subject `TEST: <issue-title>`
 2. Worker receives: contract-<issue-id>.md + codebase types (NOT implementation code)
 3. Worker generates: failing test files in appropriate location
+   - Workers classify generated tests by pyramid level: L0 (contract), L1 (unit), L2 (integration), L3 (component)
+   - If `test_levels` metadata exists on the issue, workers MUST generate tests at each required level
 4. **RED Gate:** Lead runs test suite — ALL new tests must FAIL
 5. Lead commits test harness after RED Gate passes
 
@@ -381,7 +383,7 @@ This is the shift-left edge of the prevention ratchet: compiled findings target 
 
 **Grep-for-existing-functions (REQUIRED for new function issues):** When an issue description says "create", "add", or "implement" a new function/utility, include `metadata.grep_check` with the function name pattern. Workers MUST grep the codebase for existing implementations before writing new code. This prevents utility duplication (e.g., `estimateTokens` was duplicated in context-orchestration-leverage because no grep check was specified).
 
-**Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks. Do not omit `metadata.issue_type` and hope task-validation can infer it later.
+**Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks. Do not omit `metadata.issue_type` and hope task-validation can infer it later. When `/plan` includes `test_levels` metadata in the issue, carry it forward into `metadata.validation.test_levels` so workers know which pyramid levels (L0–L3) to target. See the test pyramid standard (`test-pyramid.md` in the standards skill) for level definitions.
 
 **Language Standards Injection (REQUIRED for code tasks):**
 

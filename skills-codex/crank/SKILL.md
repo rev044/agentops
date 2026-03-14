@@ -31,7 +31,7 @@ Crank (lead agent)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--test-first` | off | SPEC → TEST → IMPL wave sequence |
+| `--test-first` | off | SPEC → TEST → IMPL wave sequence. Workers classify tests by pyramid level (L0-L3) per the test pyramid standard (`test-pyramid.md` in the standards skill). When `$plan` includes `test_levels` metadata, carry it into `metadata.validation.test_levels`. |
 
 ## Global Limits
 

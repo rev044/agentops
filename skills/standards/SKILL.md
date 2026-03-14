@@ -41,6 +41,7 @@ references that other skills load based on file types being processed.
 | LLM Trust Boundaries | `references/llm-trust-boundary-checklist.md` | vibe, pre-mortem (when LLM code detected) |
 | Race Conditions | `references/race-condition-checklist.md` | vibe, pre-mortem (when concurrent code detected) |
 | Codex Skills | `references/codex-skill.md` | vibe (when `skills-codex/` or converter files detected) |
+| Test Pyramid | `references/test-pyramid.md` | plan, pre-mortem, implement, crank, validation, post-mortem |
 
 ## How It Works
 
@@ -151,4 +152,5 @@ Skills that use standards:
 - [references/llm-trust-boundary-checklist.md](references/llm-trust-boundary-checklist.md)
 - [references/race-condition-checklist.md](references/race-condition-checklist.md)
 - [references/codex-skill.md](references/codex-skill.md)
+- [references/test-pyramid.md](references/test-pyramid.md)
 - [references/yaml.md](references/yaml.md)
