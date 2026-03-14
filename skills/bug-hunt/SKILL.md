@@ -249,6 +249,33 @@ Report to user with a summary table:
 
 Include failure count (hypothesis tests that didn't confirm). Zero failures = clean audit.
 
+### Bug-Finding Pyramid Modes (BF1–BF5)
+
+When running `--audit`, check for missing bug-finding test coverage:
+
+**BF4 — Chaos/Negative Testing (highest bug-finding power):**
+For every file that makes external calls (APIs, databases, filesystems), verify:
+- [ ] Timeout injection test exists
+- [ ] Connection failure test exists
+- [ ] Permission denied test exists
+- [ ] Corrupt input test exists
+
+If any boundary lacks failure injection → flag as finding (severity: significant).
+
+**BF5 — Script Functional Testing:**
+For every .sh script that calls external tools (oc, kubectl, helm):
+- [ ] Stub-based functional test exists
+- [ ] JSON output schema validated
+- [ ] Both healthy and unhealthy stub paths tested
+
+If scripts lack functional tests → flag as finding (severity: moderate).
+
+**BF1 — Property-Based Testing:**
+For every data transformation (parse/render/serialize):
+- [ ] Property test with randomized inputs exists
+
+**Reference:** the test pyramid standard in `/standards` for full BF level definitions and per-language tooling.
+
 ---
 
 ## Step 5: Write Bug Report

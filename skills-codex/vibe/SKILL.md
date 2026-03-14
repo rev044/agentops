@@ -350,6 +350,17 @@ If bug-hunt produces findings, include them in the council packet as `context.bu
 - No source files in target → skip (nothing to audit)
 - Target is non-code (pure docs/config) → skip
 
+### Test Pyramid Inventory
+
+Assess test coverage against `standards/references/test-pyramid.md`.
+
+1. Identify changed modules from git diff
+2. Check L0-L3 coverage for each changed module
+3. Check BF4 (chaos) for boundary-touching code
+4. Include `test_pyramid` context in review output
+
+Missing L1 on feature code → WARN. Missing BF4 on boundary code → WARN.
+
 ### Step 2g: Check for Product Context
 
 **Skip if `--quick` (see Step 1.5).**

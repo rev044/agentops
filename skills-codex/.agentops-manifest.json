@@ -537,8 +537,8 @@
     {
       "name": "bug-hunt",
       "source_skill": "skills/bug-hunt",
-      "source_hash": "2e8185d7d29353bfcacc6492fee16b634222f8439c51593fb7e7f0eea2678cf8",
-      "generated_hash": "e07fa8de81d32a2e0a73acd974d381de090e8de5541773a4117347aab8696dfc"
+      "source_hash": "5091fe9cc532347baeab099cf08a18724a6fbd86235ecfc9989ed97626ec780f",
+      "generated_hash": "de5d1465d349b586a707bac8c6791b8b2551cf21ef53c1c25a942f6eff8d3824"
     },
     {
       "name": "codex-team",
@@ -795,8 +795,8 @@
     {
       "name": "standards",
       "source_skill": "skills/standards",
-      "source_hash": "5f13476af97c5121f37695d96d97065f7ec2bb34de79a4c384b5ec0ed966003b",
-      "generated_hash": "f4c49f66ea84f68b116b96ce1ac82fb15025d23b8fb458600f7afc1b7f94c76b"
+      "source_hash": "da6ba70ad7e1373b75bbd8104c70b19a5ce973e180c8e84c4b9a83b61dea0d96",
+      "generated_hash": "2e077458cf9424753dc575fbfbf2fdddb8e7159f5a6ac6d22b7c8f233e3eab41"
     },
     {
       "name": "status",
@@ -837,8 +837,8 @@
     {
       "name": "vibe",
       "source_skill": "skills/vibe",
-      "source_hash": "fc6c840377cbb85272db408db4cd0a7ac11fb8b8642fab82dcfa99a54d803fb4",
-      "generated_hash": "5e594f59370ac5f43456597c8b8c8fe3da682942937fc38e210836fdc6ee988e"
+      "source_hash": "53ece2b842404accd826cfc58457175ce93c6ba7f30bf303b83b218111548754",
+      "generated_hash": "41127097531459935853edde2969f2e89a55cce4f6123510345d03c93cac09ed"
     }
   ]
 }

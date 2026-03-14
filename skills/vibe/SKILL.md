@@ -367,7 +367,7 @@ If bug-hunt produces findings, include them in the council packet as `context.bu
 
 ### Step 2g: Test Pyramid Inventory (MANDATORY)
 
-Assess test coverage against the test pyramid standard (`standards/references/test-pyramid.md`).
+Assess test coverage against the test pyramid standard (the test pyramid standard (loaded via `/standards`)).
 
 **Run even in `--quick` mode** — this is cheap (file existence checks) and high-signal.
 

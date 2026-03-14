@@ -127,6 +127,8 @@ Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for 
 
 After vibe passes, assess test coverage across L0–L3 pyramid levels. Check each modified file for contract, unit, integration, and component test coverage. Append a `## Test Pyramid Coverage` table to the phase summary. Advisory only (WARN, not FAIL) — enforcement is in `/plan` and `/pre-mortem`. See the test pyramid standard (`test-pyramid.md` in the standards skill) for level definitions and the coverage assessment template.
 
+Also check BF4 (chaos) for boundary code and BF1 (property) for transforms. See the test pyramid in `/standards`.
+
 ### Step 2: Post-mortem
 
 **Skip if:** No epic-id provided (standalone vibe-only mode).
@@ -238,9 +240,7 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 
 - [references/forge-scope.md](references/forge-scope.md) — forge session scoping and deduplication
 - [references/idempotency-and-resume.md](references/idempotency-and-resume.md) — re-run behavior and standalone mode
-
 ## See Also
-
 - [skills/vibe/SKILL.md](../vibe/SKILL.md) — code quality review
 - [skills/post-mortem/SKILL.md](../post-mortem/SKILL.md) — retrospective analysis
 - [skills/retro/SKILL.md](../retro/SKILL.md) — quick learning capture

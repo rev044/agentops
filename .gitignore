@@ -109,3 +109,4 @@ HANDOFF_SUMMARY.md
 # Coverage artifacts
 cli/*cov*.out
 cli/*cov*.html
+cli/cmd/ao/.tmp

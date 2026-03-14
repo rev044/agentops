@@ -227,7 +227,7 @@ Read `references/closure-integrity-audit.md` for the full procedure. Mechanicall
 
 Include results in the council packet as `context.closure_integrity`. WARN on 1-2 findings, FAIL on 3+.
 
-If a closure is evidence-only or closes before its proving commit exists, emit a proof artifact with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite the durable tracked copy at `.agents/releases/evidence-only-closures/<target-id>.json` in the council packet. The writer also emits a local council copy at `.agents/council/evidence-only-closures/<target-id>.json`. The packet must record the selected `evidence_mode` plus repo-state detail that distinguishes staged files from broader worktree state so active-session audits stay mechanically replayable.
+If a closure is evidence-only, emit a proof artifact with `bash skills/post-mortem/scripts/write-evidence-only-closure.sh` and cite at `.agents/releases/evidence-only-closures/<target-id>.json`. Record `evidence_mode` plus repo-state detail for replayability.
 
 ### Step 2.5: Pre-Council Metadata Verification (MANDATORY)
 
@@ -738,6 +738,13 @@ These entries are promoted to `.agents/learnings/` and injected into future work
 | Command File | Run-path Covered by Test? | Evidence (file:line or test name) | Intentionally Uncovered? | Reason |
 |---|---|---|---|---|
 | cli/cmd/ao/<command>.go | yes/no | ... | yes/no | ... |
+
+## BF Assessment
+
+| Level | Exist? | Bugs | Action |
+|-------|--------|------|--------|
+| BF1 | y/n | N | property tests |
+| BF4 | y/n | N | chaos tests |
 
 ## Next Work
 
