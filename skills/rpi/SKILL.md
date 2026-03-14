@@ -212,7 +212,14 @@ All transitions use filesystem artifacts (no in-memory coupling). The execution 
 
 ## Complexity-Scaled Council Gates
 
-All council gates (pre-mortem, vibe, post-mortem): low/medium use `--quick` (inline), high uses full council (2-judge minimum). Max 3 retry attempts each. See `references/complexity-scaling.md`.
+### Phase 3: Pre-mortem
+complexity == "low": inline review, no spawning (--quick) | complexity == "medium": inline fast default (--quick) | complexity == "high": full council, 2-judge minimum. Retry gate: max 3 total attempts.
+
+### Phase 5: Final Vibe
+complexity == "low": inline review, no spawning (--quick) | complexity == "medium": inline fast default (--quick) | complexity == "high": full council, 2-judge minimum. Retry gate: max 3 total attempts.
+
+### Phase 6: Post-mortem
+complexity == "low": inline review, no spawning (--quick) | complexity == "medium": inline fast default (--quick) | complexity == "high": full council, 2-judge minimum. Retry gate: max 3 total attempts.
 
 ## Examples
 

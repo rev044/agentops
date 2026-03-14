@@ -139,11 +139,7 @@ $plan <goal> [--auto]
 After plan completes:
 2. Store in `discovery_state.epic_id`.
 3. Carry forward the ranked packet summary (applied findings, known risks, high-severity next-work matches) into the execution packet and phase summary.
-3. **Auto-detect complexity** (if not overridden):
-  - Count issues: `bd children <epic-id> | wc -l`
-  - Low: 1-2 issues → `fast`
-  - Medium: 3-6 issues → `standard`
-  - High: 7+ issues or 3+ waves → `full`
+3. **Auto-detect complexity** (if not overridden): count issues with `bd children <epic-id> | wc -l`. Low (1-2) → `fast`, Medium (3-6) → `standard`, High (7+ or 3+ waves) → `full`.
 
 ### Step 5: Pre-mortem (gate)
 
