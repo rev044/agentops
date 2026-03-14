@@ -345,21 +345,8 @@ fi
 # --- 9. Codex skill parity --- (removed: skills-codex/ is manually maintained)
 skip "codex skill parity (manually maintained)"
 
-# --- 10. Codex install bundle parity ---
-if needs_check skill; then
-    if [[ -x scripts/validate-codex-install-bundle.sh ]]; then
-        if codex_bundle_output="$(scripts/validate-codex-install-bundle.sh 2>&1)"; then
-            pass "codex install bundle parity"
-        else
-            fail "codex install bundle parity"
-            indent_output "$codex_bundle_output"
-        fi
-    else
-        fail "missing executable: scripts/validate-codex-install-bundle.sh"
-    fi
-else
-    skip "codex install bundle parity"
-fi
+# --- 10. Codex install bundle parity --- (removed: skills-codex/ is manually maintained)
+skip "codex install bundle parity (manually maintained)"
 
 # --- 11. Codex runtime section format ---
 if needs_check skill; then

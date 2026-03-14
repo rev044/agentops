@@ -749,31 +749,12 @@ Ambiguous verbs cause workers to implement the wrong operation. Use explicit ins
 
 Include `wc -l` assertions in task metadata when content moves between files.
 
----
-
 ## Examples
 
-### Execute Epic with Beads Tracking
-
-**User says:** `/crank ag-m0r`
-
-Loads learnings (`ao lookup --query "<epic-title>"`), gets epic details (`bd show`), finds unblocked issues (`bd ready`), creates TaskList, invokes `/swarm` per wave with runtime-native spawning. Workers execute in parallel; lead verifies, commits per wave. Loops until all issues closed, then batched vibe + `ao forge transcript`.
-
-### Execute from Plan File (TaskList Mode)
-
-**User says:** `/crank .agents/plans/auth-refactor.md`
-
-Reads plan file, decomposes into TaskList tasks with dependencies. Invokes `/swarm` per wave, lead verifies and commits. Loops until all tasks completed, then final vibe.
-
-### Test-First Epic with Contract-Based TDD
-
-**User says:** `/crank --test-first ag-xj9`
-
-Runs: classify issues → SPEC WAVE (contracts) → TEST WAVE (failing tests, no impl access) → RED Gate (tests must fail) → GREEN IMPL WAVES (make tests pass) → final vibe. See `skills/crank/references/test-first-mode.md`.
-
-### Recovery from Blocked State
-
-If all remaining issues are blocked (e.g., circular dependencies), crank outputs `<promise>BLOCKED</promise>` with the blocking chains and exits cleanly. See `skills/crank/references/failure-recovery.md`.
+- `/crank ag-m0r` — Beads epic: loads learnings, swarm per wave, loops until all closed, final vibe
+- `/crank .agents/plans/auth-refactor.md` — Plan file: decomposes into tasks, swarm per wave, final vibe
+- `/crank --test-first ag-xj9` — SPEC → TEST → RED Gate → GREEN IMPL waves. See `references/test-first-mode.md`
+- Blocked state: outputs `<promise>BLOCKED</promise>` with blocking chains. See `references/failure-recovery.md`
 
 ---
 

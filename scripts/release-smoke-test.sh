@@ -301,8 +301,8 @@ else
     exit 1
 fi
 
-# Verify release bundle ships current Codex artifacts
-test_exec "Codex release bundle parity" bash "$REPO_ROOT/scripts/validate-codex-install-bundle.sh"
+# Codex bundle parity removed — skills-codex/ is manually maintained
+# test_exec "Codex release bundle parity" bash "$REPO_ROOT/scripts/validate-codex-install-bundle.sh"
 
 # ═══════════════════════════════════════════════════════
 #  Safe Commands (read-only / reporting — actually execute)

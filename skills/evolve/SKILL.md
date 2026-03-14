@@ -704,31 +704,7 @@ fi
 UNPUSHED=$(git log origin/main..HEAD --oneline 2>/dev/null | wc -l)
 [ "$UNPUSHED" -gt 0 ] && git push
 ```
-4. Report summary:
-
-```
-## /evolve Complete
-Cycles: N | Productive: X | Regressed: Y (reverted) | Idle: Z
-Stop reason: stagnation | circuit-breaker | max-cycles | kill-switch
-```
-
-In quality mode, the report includes additional fields:
-```
-## /evolve Complete (quality mode)
-Cycles: N | Findings resolved: X | Goals fixed: Y | Idle: Z
-Quality score: start → end (delta)
-Remaining unconsumed: H high, M medium
-Stop reason: stagnation | circuit-breaker | max-cycles | kill-switch
-```
-
-In pinned queue mode, the report includes:
-```
-## /evolve Complete (pinned queue mode)
-Queue: X/Y items completed | Unblocked: U items | Escalated: E items
-Cycles: N | Productive: P | Regressed: R (reverted)
-Stop reason: queue-complete | escalated | circuit-breaker | kill-switch
-Remaining items: [list of uncompleted item IDs]
-```
+4. Report summary: cycles, productive/regressed/idle counts, stop reason. Quality mode adds quality score + remaining findings. Pinned queue mode adds queue progress + escalated items.
 
 ## Examples
 

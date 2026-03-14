@@ -501,7 +501,7 @@ run_step_bg "Skill runtime parity" bash ./scripts/validate-skill-runtime-parity.
 run_step_bg "Codex runtime sections" bash ./scripts/validate-codex-runtime-sections.sh
 # Codex skill parity removed — skills-codex/ is manually maintained
 # run_step_bg "Codex skill parity" bash ./scripts/validate-codex-skill-parity.sh
-run_step_bg "Codex install bundle parity" bash ./scripts/validate-codex-install-bundle.sh
+# run_step_bg "Codex install bundle parity" bash ./scripts/validate-codex-install-bundle.sh
 run_step_bg "Codex generated manifest" bash ./scripts/validate-codex-generated-manifest.sh
 run_step_bg "Codex generated artifacts" bash ./scripts/validate-codex-generated-artifacts.sh --scope worktree
 run_step_bg "Codex backbone prompts" bash ./scripts/validate-codex-backbone-prompts.sh
