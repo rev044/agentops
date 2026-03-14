@@ -230,6 +230,32 @@ Include in the council packet as `context.error_map`:
 
 See `references/error-rescue-map-template.md` for the full template with worked examples.
 
+### Step 2.6: Test Pyramid Coverage Check (Mandatory)
+
+Validate that the plan includes appropriate test levels per the test pyramid standard (`test-pyramid.md` in the standards skill).
+
+**Check each issue in the plan:**
+
+| Question | Expected | Finding if Missing |
+|----------|----------|--------------------|
+| Does any issue touching external APIs include L0 (contract) tests? | Yes | severity=significant: "Missing contract tests for API boundary" |
+| Does every feature/bug issue include L1 (unit) tests? | Yes | severity=significant: "Missing unit tests for feature/bug issue" |
+| Do cross-module changes include L2 (integration) tests? | Yes | severity=moderate: "Missing integration tests for cross-module change" |
+| Are L4+ levels deferred to human gate (not agent-planned)? | Yes | severity=low: "Agent planning L4+ tests — these require human-defined scenarios" |
+
+Add to each judge's prompt when test pyramid check is active:
+
+```
+TEST PYRAMID CHECK: Review the plan's test coverage against the L0-L7 pyramid.
+For each issue, verify:
+1. Are the right test levels specified? (L0 for boundaries, L1 for behavior, L2 for integration)
+2. Are there gaps where tests should exist but aren't planned?
+3. Are any agent-autonomous levels (L0-L3) missing from code-change issues?
+Report test pyramid findings in a "Test Coverage Gaps" section.
+```
+
+**Auto-triggered** when any issue in the plan modifies source code files (`.go`, `.py`, `.ts`, `.rs`, `.js`).
+
 ### Step 3: Interpret Council Verdict
 
 | Council Verdict | Pre-Mortem Result | Action |

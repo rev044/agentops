@@ -218,7 +218,10 @@ EOF
 **Lead-only commit** — workers write files, lead validates and commits once per wave:
 
 ```bash
-git add -A
+# Stage only files reported by workers (avoid untracked temp files)
+for f in $WORKER_FILES_CHANGED; do
+    git add -- "$f"
+done
 git commit -m "feat(<scope>): wave $wave - $COMPLETED_COUNT issues completed"
 ```
 
@@ -247,8 +250,7 @@ if [[ $REMAINING -eq 0 ]]; then
         echo "No ready issues but $((ALL_TOTAL - ALL_CLOSED)) issues remain unclosed."
     fi
 else
-    # Continue to next wave
-    goto Step 3
+    # Continue to next wave — return to Step 3
 fi
 ```
 

@@ -111,6 +111,14 @@ Before implementing, write tests that define the expected behavior:
 # Node: npm test -- --grep "new feature"
 ```
 
+**Test level selection:** Classify each test by pyramid level (see the test pyramid standard (`test-pyramid.md` in the standards skill)):
+- **L0 (Contract):** Write if the issue touches spec boundaries, file existence, or registration
+- **L1 (Unit):** Write always for feature/bug issues — happy path, one error path, one edge case
+- **L2 (Integration):** Write if the change crosses module boundaries or involves multiple components
+- **L3 (Component):** Write if the change affects a full subsystem workflow (with mocked external deps)
+
+If the issue includes `test_levels` metadata from `$plan`, use those levels. Otherwise, default to L1 + any applicable higher levels from the decision tree above.
+
 **Skip conditions (any of these bypasses Step 3.5):**
 - GREEN mode is active (invoked by `$crank --test-first` — tests already exist)
 - Issue type is `chore`, `docs`, or `ci`

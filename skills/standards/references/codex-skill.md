@@ -86,16 +86,49 @@ Codex orchestration uses:
 
 ## Testing Codex Skills
 
-Validate empirically with headless Codex:
+### Two-Phase Validation (Recommended)
 
+Use a two-phase approach for comprehensive coverage at minimal cost:
+
+**Phase 1 — Static (fast, no API cost):**
+- Check frontmatter has only `name` + `description`
+- Grep for Claude-only primitives (TaskCreate, TeamCreate, SendMessage, etc.)
+- Check for `~/.claude/` paths
+- Verify reference files are also clean
+
+**Phase 2 — Live (thorough, requires Codex API):**
 ```bash
-# Check if skill loads
+# Check if skill loads and is understood
 codex exec -s read-only -C "$(pwd)" \
-  "List your available skills. Does \$skill-name appear?"
+  "Read \$skill-name. Verify it loads, check all referenced tools exist. Rate PASS/PARTIAL/FAIL."
+```
 
-# Check for broken references
-codex exec -s read-only -C "$(pwd)" \
-  "Read \$skill-name. List any tools or primitives it references that you don't have."
+### DAG-First Traversal
+
+When validating multiple interdependent skills, traverse in dependency order (leaves first). This ensures that when a skill references `$other-skill`, the referenced skill has already been validated. Encode the dependency graph explicitly — computed DAGs from frontmatter parsing are error-prone.
+
+### Prompt Constraint Boundaries
+
+When using LLM judges to evaluate skills, always include explicit constraint boundaries:
+- "Read-only sandbox and missing network access are NOT reasons to FAIL — those are test environment limits, not skill defects"
+- "Rate the skill's design quality, not whether it can execute in this test environment"
+
+Without these boundaries, judges conflate environment limits with skill defects.
+
+### Shell Compatibility
+
+Scripts that validate Codex skills must work on both macOS (BSD tools) and Linux (GNU tools):
+- Use `[[:space:]]` not `\s` in grep patterns (BSD grep doesn't support `\s`)
+- Use `awk` instead of BSD-incompatible `sed` compound expressions
+- Pre-process multi-line LLM output with `tr -d '\n'` before regex extraction
+
+### Release Gate Script
+
+Full DAG-based validation: `scripts/smoke-test-codex-skills.sh`
+```bash
+scripts/smoke-test-codex-skills.sh --static-only    # Fast CI check (no API)
+scripts/smoke-test-codex-skills.sh --chain 2         # Test one chain
+scripts/smoke-test-codex-skills.sh                   # Full 54-skill live test
 ```
 
 ## Checklist

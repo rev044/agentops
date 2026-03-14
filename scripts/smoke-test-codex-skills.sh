@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
     --json)       JSON_OUTPUT=true; shift ;;
     --verbose)    VERBOSE=true; shift ;;
     --help)
-      sed -n '2,/^$/{ s/^# //; s/^#$//; p }' "$0"
+      awk 'NR==1{next} /^[^#]/{exit} {sub(/^# ?/,""); print}' "$0"
       exit 0
       ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -178,7 +178,7 @@ Output EXACTLY one JSON line at the end:
   if codex_output=$(timeout "$TIMEOUT" codex exec -s read-only -m "$MODEL" -C "$REPO_ROOT" "$prompt" 2>&1); then
     # Extract JSON verdict from output
     local json_line
-    json_line=$(echo "$codex_output" | grep -oE '\{[^}]*"verdict"[^}]*\}' | tail -1 || true)
+    json_line=$(echo "$codex_output" | tr -d '\n' | grep -oE '\{[^}]*"verdict"[^}]*\}' | tail -1 || true)
     if [[ -n "$json_line" ]]; then
       echo "$json_line" > "$result_file"
       local verdict
@@ -335,6 +335,10 @@ main() {
                 PARTIAL) partial=$((partial + 1)) ;;
                 *)       fail=$((fail + 1)) ;;
               esac
+            else
+              smoke_results["$completed_skill"]="ERROR"
+              printf "  %-30s %s\n" "$completed_skill" "ERROR (no verdict file)"
+              fail=$((fail + 1))
             fi
             unset 'pids[i]'
             unset 'pid_skills[i]'
@@ -372,6 +376,10 @@ main() {
           PARTIAL) partial=$((partial + 1)) ;;
           *)       fail=$((fail + 1)) ;;
         esac
+      else
+        smoke_results["$completed_skill"]="ERROR"
+        printf "  %-30s %s\n" "$completed_skill" "ERROR (no verdict file)"
+        fail=$((fail + 1))
       fi
     done
 

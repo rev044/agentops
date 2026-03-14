@@ -10,6 +10,24 @@ description: 'Full RPI lifecycle orchestrator. Delegates to $discovery, $crank, 
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
+**THE THREE-PHASE RULE:** RPI has THREE mandatory phases (unless complexity == `fast`). You MUST run all three — discovery, implementation, AND validation — in a single session. Do NOT stop after implementation. Do NOT ask the user if they want to commit after Phase 2. Phase 2 completing is NOT the end — it is the midpoint. Validation (Phase 3) is where learnings are captured and the knowledge flywheel turns. Skipping it breaks the flywheel.
+
+**FULLY AUTONOMOUS BY DEFAULT.** Unless `--interactive` is explicitly set, RPI runs hands-free from start to finish. Do NOT:
+- Ask the user for confirmation between phases
+- Ask "want me to commit?" or "should I continue?"
+- Pause to summarize and wait for input
+- Request clarification mid-execution
+- Stop to ask about approach or strategy
+
+The human's only touchpoint is AFTER Phase 3 completes. If something is genuinely blocked (3 retries exhausted), then and only then do you stop and report. Everything else runs autonomously. The user invoked `$rpi` because they want you to GO — not to narrate.
+
+**Phase completion tracking:** After each phase, log progress:
+```
+PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2
+PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3
+PHASE 3 COMPLETE ✓ (validation) — RPI DONE
+```
+
 ## Quick Start
 
 ```bash
@@ -46,6 +64,18 @@ $rpi <goal | epic-id> [--from=<phase>] [--interactive] [--deep|--fast-path]
 
 **Phase orchestrators own all sub-skill sequencing, retry gates, and phase budgets.**
 `$rpi` owns only: setup, complexity classification, phase routing, implementation gate, validation-fail-to-crank loop, and final report.
+
+### Anti-Patterns (DO NOT)
+
+| Anti-Pattern | Why It's Wrong | Correct Behavior |
+|--------------|----------------|------------------|
+| Stop after Phase 2 and ask to commit | Skips validation — no quality check, no learnings, flywheel doesn't turn | Proceed directly to Phase 3 |
+| Call `$vibe` directly instead of `$validation` | `$vibe` is one sub-step; `$validation` wraps vibe + post-mortem + retro + forge | Always call `$validation` from `$rpi` |
+| Ask "want me to commit?" between phases | Interrupts autonomous flow — user invoked `$rpi` for hands-free execution | Commit only after ALL phases complete |
+| Ask the user ANY question during execution | RPI is autonomous unless `--interactive` — questions break the flow | Make best judgment and proceed; report at end |
+| Run Phase 1 inline instead of delegating to `$discovery` | Loses brainstorm → search → research → plan → pre-mortem sequencing | Delegate via `$discovery ` |
+| Summarize findings and wait after Phase 1 | Discovery output is an input to Phase 2, not a deliverable | Proceed immediately to Phase 2 |
+| Pause to explain what you're about to do | Narration wastes time — the user wants results, not commentary | Execute, then report at the end |
 
 ## Execution Steps
 
@@ -108,6 +138,7 @@ After `$discovery` completes:
 2. If BLOCKED: stop. Discovery handles its own retries (max 3 pre-mortem attempts). Manual intervention needed.
 3. If DONE: extract epic-id from `.agents/rpi/execution-packet.json`
 4. Store `rpi_state.epic_id` and `rpi_state.verdicts.pre_mortem`
+5. Log: `PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2`
 
 ### Phase 2: Implementation
 
@@ -131,9 +162,15 @@ Record:
 ao ratchet record implement 2>/dev/null || true
 ```
 
+Log: `PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3`
+
+**DO NOT STOP HERE.** Do not ask the user to commit. Do not summarize and wait. Proceed IMMEDIATELY to Phase 3. Implementation without validation is incomplete work — the flywheel does not turn, learnings are not captured, and quality is unverified.
+
 ### Phase 3: Validation
 
 **Skip if:** complexity == `fast` (fast-path runs discovery + crank only).
+
+**MANDATORY for `standard` and `full` complexity.** This is not optional. `$validation` is the Phase 3 orchestrator — it wraps `$vibe` + `$post-mortem` + `$retro` + `$forge`. Do NOT call `$vibe` directly from `$rpi` — call `$validation` which handles the full sequence.
 
 ```
 $validation <epic-id> --complexity=<level>
@@ -151,6 +188,8 @@ Record:
 ```bash
 ao ratchet record vibe 2>/dev/null || true
 ```
+
+Log: `PHASE 3 COMPLETE ✓ (validation) — RPI DONE`
 
 ### Step Final: Report + Loop
 
