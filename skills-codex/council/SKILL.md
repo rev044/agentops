@@ -520,7 +520,7 @@ $council --perspectives-file=.agents/perspectives/custom.yaml validate # perspec
 | judge 2 opus | `$council recent` (default) |
 | judge 3 opus | `$council --deep recent` |
 
-The judge skill is deprecated. Use `$council`.
+**Deprecated:** The /judge skill was replaced by `$council` in v2.8. The judge skill will be removed in v3.0. Migrate all judge invocations to `$council`.
 
 ---
 

@@ -10,7 +10,7 @@ context:
     exclude: [HISTORY]
   intel_scope: full
 metadata:
-  tier: execution
+  tier: orchestration
   dependencies:
     - implement # required - executes `/implement <bead-id>` per task
     - vibe      # optional - integration with validation

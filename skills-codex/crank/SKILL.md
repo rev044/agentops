@@ -285,7 +285,10 @@ fi
 
 if [[ "$CHILD_COUNT" -ge 3 ]]; then
     # Look for pre-mortem report in .agents/council/
-    PRE_MORTEM=$(ls -t .agents/council/*pre-mortem* 2>/dev/null | head -1)
+    PRE_MORTEM=""
+    if [ -d .agents/council ]; then
+        PRE_MORTEM=$(ls -t .agents/council/*pre-mortem* 2>/dev/null | head -1)
+    fi
     if [[ -z "$PRE_MORTEM" ]]; then
         echo "STOP: Epic has $CHILD_COUNT issues but no pre-mortem evidence found."
         echo "Run '$pre-mortem' first to validate the plan before cranking."
@@ -720,7 +723,8 @@ Ambiguous verbs cause workers to implement the wrong operation. Use explicit ins
 
 | Verb | Clarified Instruction |
 |------|----------------------|
-| "Extract" | "Remove from source AND write to new file. Source line count must decrease." |
+| "Extract (file)" | "Remove from source AND write to new file. Source line count must decrease." |
+| "Extract (spec)" | "Generate a specification document from issue/task metadata. Source is unchanged." |
 | "Remove" | "Delete the content. Verify it no longer appears in the file." |
 | "Update" | "Change [specific field] from [old] to [new]." |
 | "Consolidate" | "Merge from [A, B] into [C]. Delete [A, B] after merge." |
