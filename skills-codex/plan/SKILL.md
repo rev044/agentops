@@ -10,7 +10,6 @@ description: 'Epic decomposition into trackable issues. Triggers: "create a plan
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-**CLI dependencies:** bd (issue creation). If bd is unavailable, write the plan to `.agents/plans/` as markdown with issue descriptions, and use task-list for tracking instead. The plan document is always created regardless of bd availability.
 
 ## Flags
 
@@ -91,12 +90,9 @@ fi
 
 ### Step 3: Explore the Codebase (if needed)
 
-**USE THE AGENT TOOL** to dispatch an Explore agent. The explore prompt MUST request symbol-level detail:
 
 ```
-Tool: Agent
 Parameters:
-  subagent_type: "Explore"
   description: "Understand codebase for: <goal>"
   prompt: |
     Explore the codebase to understand what's needed for: <goal>
@@ -482,10 +478,8 @@ After bulk-merging wave results, audit for scaffold-era names:
 
 ### Step 7: Create Tasks for In-Session Tracking
 
-**Use task-create tool** for each issue:
 
 ```
-Tool: task-create
 Parameters:
   subject: "<issue title>"
   description: |
@@ -499,7 +493,6 @@ Parameters:
 **After creating all tasks, set up dependencies:**
 
 ```
-Tool: task-update
 Parameters:
   taskId: "<task-id>"
   addBlockedBy: ["<dependency-task-id>"]

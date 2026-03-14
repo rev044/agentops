@@ -9,7 +9,6 @@ description: 'Spawn isolated agents for parallel task execution. Auto-selects ru
 Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ralph Wiggum pattern).
 
 **Integration modes:**
-- **Direct** - Create task-list tasks, invoke `$swarm`
 - **Via Crank** - `$crank` creates tasks from beads, invokes `$swarm` for each wave
 
 > **Requires multi-agent runtime.** Swarm needs a runtime that can spawn parallel subagents. If unavailable, work must be done sequentially in the current session.
@@ -19,22 +18,18 @@ Spawn isolated agents to execute tasks in parallel. Fresh context per agent (Ral
 ```
 Mayor (this session)
     |
-    +-> Plan: task-create with dependencies
     |
     +-> Identify wave: tasks with no blockers
     |
     +-> Select spawn backend (runtime-native first: Codex sub-agents in Codex runtime, Codex sub-agents in Codex runtime; fallback tasks if unavailable)
     |
-    +-> Assign: task-update(taskId, owner="worker-<id>", status="in_progress")
     |
     +-> Spawn workers via selected backend
     |       Workers receive pre-assigned task, execute atomically
     |
-    +-> Wait for completion (wait() | send-message | TaskOutput)
     |
     +-> Validate: Review changes when complete
     |
-    +-> Cleanup backend resources (close_agent | team-delete | none)
     |
     +-> Repeat: New team + new plan if more work needed
 ```
@@ -63,21 +58,16 @@ See also `references/local-mode.md` for swarm-specific execution details (worktr
 
 ### Step 1: Ensure Tasks Exist
 
-Use task-list to see current tasks. If none, create them:
 
 ```
-task-create(subject="Implement feature X", description="Full details...",
   metadata={"issue_type": "feature", "files": ["src/feature_x.py", "tests/test_feature_x.py"], "validation": {...}})
-task-update(taskId="2", addBlockedBy=["1"])  # Add dependencies after creation
 ```
 
 #### Task Typing + File Manifest
 
-Every task-create **must** include `metadata.issue_type` plus a `metadata.files` array. `issue_type` drives active constraint applicability and validation policy; `files` enable mechanical conflict detection before spawning a wave.
 This is how the prevention ratchet applies shift-left mechanically: active compiled findings use issue type plus changed files to decide whether a task should be blocked, warned, or left alone.
 
 - Use canonical issue types: `feature`, `bug`, `task`, `docs`, `chore`, `ci`.
-- Preserve the same `metadata.issue_type` on task-update / TaskCompleted payloads so task-validation can apply active constraints without guessing.
 - Pull file lists from the plan, issue description, or codebase exploration during planning.
 - If you cannot enumerate files yet, add a planning step to identify them before spawning workers. An empty or missing manifest signals the need for more planning, not unconstrained workers.
 - Workers receive the manifest in their prompt and are instructed to stay within it (see `references/local-mode.md` worker prompt template).
@@ -101,7 +91,6 @@ if command -v ao &>/dev/null; then
 fi
 ```
 
-This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.agents/rpi/briefing-current.md` with secrets redacted. Include the briefing path in each worker's task-create description so workers start with full project context.
 
 **Output schema size guard:** When 5+ workers in a wave share the same output schema (e.g., `verdict.json`), cache it to `.agents/council/output-schema.json` and reference by path instead of inlining ~500 tokens per worker. For ≤4 workers, inline is fine. See council skill's caching guidance reference for details.
 
@@ -124,7 +113,6 @@ If any task is missing its file manifest, auto-generate it before Step 2:
 
 2. **Inject manifests** back into tasks:
    ```
-   task-update(taskId=task.id, metadata={"files": [explored_files]})
    ```
 
 Once all tasks have manifests, proceed to Step 2 where the Pre-Spawn Conflict Check enforces file ownership.
@@ -264,8 +252,6 @@ The lead reviews scope escapes after each wave and creates follow-up tasks as ne
 - **Fresh worker contexts** - New sub-agents/teammates per wave preserve Ralph isolation
 - **Wave execution** - Only unblocked tasks spawn
 - **Mayor orchestrates** - You control the flow, workers write results to disk
-- **Thin results** - Workers write `.agents/swarm/results/<id>.json`, orchestrator reads files (NOT Task returns or send-message content)
-- **Retry via message/input** - Use `send_input` (Codex) or `send-message` (Claude) for coordination only
 - **Atomic execution** - Each worker works until task done
 - **Graceful degradation** - If multi-agent unavailable, work executes sequentially in current session
 
@@ -284,7 +270,6 @@ $post-mortem -> Extract learnings
 
 **Direct use (no beads):**
 ```
-task-create -> Define tasks
 $swarm -> Execute in parallel
 ```
 
@@ -294,13 +279,10 @@ The knowledge flywheel captures learnings from each agent.
 
 ```
 # List all tasks
-task-list()
 
 # Mark task complete after notification
-task-update(taskId="1", status="completed")
 
 # Add dependency between tasks
-task-update(taskId="2", addBlockedBy=["1"])
 ```
 
 ## Parameters
@@ -326,7 +308,6 @@ Follows the [Ralph Wiggum Pattern](https://ghuntley.com/ralph/): **fresh context
 - **Wave-scoped worker set** = spawn workers -> execute -> cleanup -> repeat (fresh context each wave)
 - **Mayor IS the loop** - Orchestration layer, manages state across waves
 - **Workers are atomic** - One task, one spawn, one result
-- **task-list as memory** - State persists in task status, not agent context
 - **Filesystem for EVERYTHING** - Code artifacts AND result status written to disk, not passed through context
 - **Backend messaging for signals only** - Short coordination signals (under 100 tokens), never work details
 
@@ -334,13 +315,11 @@ Ralph alignment source: `..$shared/references/ralph-loop-contract.md`.
 
 ## Integration with Crank
 
-When `$crank` invokes `$swarm`: Crank bridges beads to task-list, swarm executes with fresh-context agents, crank syncs results back.
 
 | You Want | Use | Why |
 |----------|-----|-----|
 | Fresh-context parallel execution | `$swarm` | Each spawned agent is a clean slate |
 | Autonomous epic loop | `$crank` | Loops waves via swarm until epic closes |
-| Just swarm, no beads | `$swarm` directly | task-list only, skip beads |
 | RPI progress gates | `$ratchet` | Tracks progress; does not execute work |
 
 ---
@@ -384,11 +363,9 @@ The `--from-wave` JSON file contains `ol hero hunt` output:
 
 1. **Parse the JSON file** and extract the `wave` array.
 
-2. **Create task-list tasks** from wave entries (one `task-create` per entry):
 
 ```
 for each entry in wave:
-    task-create(
         subject="[{entry.id}] {entry.title}",
         description="OL bead {entry.id}\nSpec: {entry.spec_path}\nPriority: {entry.priority}\n\nRead the spec file at {entry.spec_path} for full requirements.",
         metadata={
@@ -450,9 +427,7 @@ $swarm --from-wave /tmp/wave-ol-527.json
 **User says:** `$swarm`
 
 **What happens:**
-1. Agent identifies unblocked tasks from task-list (e.g., "Create User model")
 2. Agent selects spawn backend using runtime-native priority (Codex session -> Codex sub-agents)
-3. Agent spawns worker for task #1, assigns ownership via task-update
 4. Worker completes, team lead validates changes
 5. Agent identifies next wave (tasks #2 and #3 now unblocked)
 6. Agent spawns two workers in parallel for Wave 2
@@ -464,14 +439,11 @@ $swarm --from-wave /tmp/wave-ol-527.json
 **User says:** Create three tasks for API refactor, then `$swarm`
 
 **What happens:**
-1. User creates task-list tasks with task-create
 2. Agent calls `$swarm` without beads integration
 3. Agent identifies parallel tasks (no dependencies)
 4. Agent spawns all three workers simultaneously
-5. Workers execute atomically, report to team lead via send-message or task completion
 6. Team lead validates all changes, commits once per wave
 
-**Result:** Parallel execution of independent tasks using task-list only.
 
 ### Loading Wave from OL
 
@@ -480,7 +452,6 @@ $swarm --from-wave /tmp/wave-ol-527.json
 **What happens:**
 1. Agent validates `ol` CLI is on PATH (pre-flight check)
 2. Agent reads wave JSON from OL hero hunt output
-3. Agent creates task-list tasks from wave entries (priority-sorted)
 4. Agent spawns workers for all unblocked beads
 5. On completion, agent runs `ol hero ratchet <bead-id> --quest <quest-id>` for each bead
 6. Agent reports backflow status to user

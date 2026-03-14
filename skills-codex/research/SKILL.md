@@ -64,7 +64,6 @@ If matches are found, read the relevant files with the Read tool before proceedi
 Before launching the explore agent, detect which backend is available:
 
 1. Check if `spawn_agent` is available → log `"Backend: codex-sub-agents"`
-2. Else check if `team-create` is available → log `"Backend: codex-sub-agents"`
 3. Else check if `skill` tool is read-only (OpenCode) → log `"Backend: opencode-subagents"`
 4. Else check if `Task` is available → log `"Backend: background-task-fallback"`
 5. Else → log `"Backend: inline (no spawn available)"`
@@ -91,7 +90,6 @@ Record the selected backend — it will be included in the research output docum
 #### Backend Selection (MANDATORY)
 
 1. If `spawn_agent` is available → **Codex sub-agent**
-2. Else if `team-create` is available → **Codex sub-agent** (Explore agent)
 3. Else if `skill` tool is read-only (OpenCode) → **OpenCode subagent** — `task(subagent_type="explore", description="Research: <topic>", prompt="<explore prompt>")`
 4. Else → **Background task fallback**
 
@@ -310,7 +308,6 @@ Include in your Explore agent prompt:
 | Missing file references | Codebase has changed since last exploration or files are in unexpected locations | Use Glob to verify file locations before citing them. Always use absolute paths |
 | Auto mode skips important areas | Automated exploration prioritizes breadth over depth | Remove `--auto` flag to enable human approval gate for guided exploration |
 | Explore agent times out | Topic too broad for single exploration pass | Split into smaller focused topics (e.g., "auth flow" vs "entire auth system") |
-| No backend available for spawning | Running in environment without Task or team-create support | Research runs inline — still functional but slower |
 
 ## Reference Documents
 

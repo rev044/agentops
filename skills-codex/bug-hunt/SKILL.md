@@ -88,7 +88,6 @@ git log --oneline --grep="<keyword>" | head -10
 
 ### Step 1.4: Trace the Execution Path
 
-**USE THE AGENT TOOL** (subagent_type: "Explore") to trace the execution path:
 - Find the entry point where the bug manifests
 - Trace backward to find where bad data/state originates
 - Identify all functions in the path and recent changes to them
@@ -210,7 +209,6 @@ Read **every file** in scope line by line. For each file, check:
 
 **Key discipline:** Read line by line. Do not skim. The proven methodology (5 bugs found, 0 hypothesis failures) came from careful reading, not heuristic scanning.
 
-**USE THE AGENT TOOL** (subagent_type: "Explore") for large scopes — split files across parallel agents.
 
 ### Audit Step 3: Classify Findings
 

@@ -138,25 +138,21 @@ codex_rewrite_text() {
     s/\bClaude[ ]workers\b/Codex workers/g;
     s/\bclaude[ ]workers\b/codex workers/g;
     s/\bclaude-native-teams\b/codex-sub-agents/g;
+    s{~/.claude/skills/}{~/.agents/skills/}g;
     s{~/.claude/}{~/.codex/}g;
     s{\$HOME/.claude/}{\$HOME/.codex/}g;
     s{/.claude/}{/.codex/}g;
     s{\.claude/}{.codex/}g;
-    s/\bTeamCreate\b/team-create/g;
-    s/\bTeamDelete\b/team-delete/g;
-    s/\bSendMessage\b/send-message/g;
-    s/\bEnterPlanMode\b/enter-plan-mode/g;
-    s/\bExitPlanMode\b/exit-plan-mode/g;
-    s/\bEnterWorktree\b/enter-worktree/g;
-    s/\bTaskCreate\b/task-create/g;
-    s/\bTaskUpdate\b/task-update/g;
-    s/\bTaskList\b/task-list/g;
-    s/\bTaskGet\b/task-get/g;
-    s/\bTaskStop\b/task-stop/g;
     s/backend-claude-teams\.md/backend-codex-subagents.md/g;
     s/\bclaude agents\b/codex agents/g;
-    s/\*\*USE THE TASK TOOL\*\*/\*\*USE THE AGENT TOOL\*\*/g;
-    s/\bTool: Task\b/Tool: Agent/g;
+    # Strip lines containing Claude-only primitives (these have no Codex equivalent)
+    s/.*\b(?:TaskCreate|TaskUpdate|TaskList|TaskGet|TaskStop)\b.*\n?//g;
+    s/.*\b(?:TeamCreate|TeamDelete)\b.*\n?//g;
+    s/.*\b(?:SendMessage)\b.*\n?//g;
+    s/.*\b(?:EnterPlanMode|ExitPlanMode|EnterWorktree)\b.*\n?//g;
+    s/.*\*\*USE THE TASK TOOL\*\*.*\n?//g;
+    s/.*\bTool:\s*Task\b.*\n?//g;
+    s/.*\bsubagent_type:\s*"Explore".*\n?//g;
     # Post-rewrite dedup: collapse doubled runtime phrases
     s/Codex sub-agents in Codex sessions, Codex sub-agents in Codex sessions/Codex sub-agents in Codex sessions/g;
     s/Codex session -> Codex sub-agents; Codex session -> Codex sub-agents/Codex session -> Codex sub-agents/g;
