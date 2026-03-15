@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Skill lint warnings** — Resolved all warnings in crank, rpi, recover skills
 - **README skill references** — Corrected broken references and linked orphaned templates
 - **Skill linter refs** — Fixed directory reference and backtick formatting in reverse-engineer-rpi
+- **CHANGELOG sync hook** — Replaced broken awk extraction with sed; awk failed on em-dash UTF-8 content producing header-only syncs
+- **Plugin version parity** — Added pre-commit check that warns when `.claude-plugin/` manifest versions don't match the release version
 
 ## [2.25.1] - 2026-03-15
 
