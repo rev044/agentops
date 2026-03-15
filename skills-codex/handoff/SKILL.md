@@ -1,6 +1,8 @@
 ---
 name: handoff
 description: 'Create structured handoff for session continuation. Triggers: handoff, pause, save context, end session, pick up later, continue later.'
+metadata:
+  tier: session
 ---
 
 
@@ -336,8 +338,8 @@ If ao CLI not available:
 
 ## See Also
 
-- `skills/post-mortem/SKILL.md` — Full validation + knowledge lifecycle (council + extraction + activation + retirement)
-- `skills/retro/SKILL.md` — Quick-capture a learning
+- `../post-mortem/SKILL.md` — Full validation + knowledge lifecycle (council + extraction + activation + retirement)
+- `../retro/SKILL.md` — Quick-capture a learning
 
 ## Local Resources
 

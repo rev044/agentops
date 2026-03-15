@@ -1,6 +1,8 @@
 ---
 name: inject
 description: 'Inject relevant knowledge into session context from .agents/ artifacts. Triggers: "inject knowledge", "recall context", SessionStart hook.'
+metadata:
+  tier: background
 ---
 
 
@@ -77,7 +79,7 @@ ls -lt ~/.codex/patterns/ 2>/dev/null | head -5
 
 ### Step 2: Read Relevant Files
 
-Use read_file to load the most relevant artifacts based on topic.
+Read the most relevant artifacts based on topic.
 
 ### Step 3: Summarize for Context
 

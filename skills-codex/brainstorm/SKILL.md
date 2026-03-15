@@ -1,6 +1,8 @@
 ---
 name: brainstorm
 description: 'Separate WHAT from HOW before planning. Clarify goals, explore approaches, capture structured design decisions. Triggers: brainstorm, explore idea, clarify goal, idea phase.'
+metadata:
+  tier: execution
 ---
 
 
@@ -31,7 +33,7 @@ $brainstorm                                # prompts for goal
 
 If the user provided a goal string, evaluate it. Otherwise prompt for one.
 
-Use `AskUserQuestion` with options to gauge clarity:
+Ask the user with options to gauge clarity:
 
 - **clear** — Goal is specific and actionable (e.g., "add JWT auth to the API")
 - **vague** — Goal exists but needs narrowing (e.g., "improve security")
@@ -60,7 +62,7 @@ Generate **2-3 distinct approaches**. For each:
 - **Cons** — What it gets wrong or defers
 - **Effort** — Rough scope (small / medium / large)
 
-Present the comparison and use `AskUserQuestion` to let the user pick an approach or request a hybrid.
+Present the comparison and ask the user to pick an approach or request a hybrid.
 
 ### Phase 4: Capture Design
 
@@ -144,7 +146,7 @@ Phase 4: Writes .agents/brainstorm/2026-02-17-search-performance.md
 
 ## See Also
 
-- [skills/plan/SKILL.md](..$plan/SKILL.md) — Decompose the selected approach into actionable issues
+- [../plan/SKILL.md](../plan/SKILL.md) — Decompose the selected approach into actionable issues
 
 ## Local Resources
 

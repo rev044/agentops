@@ -1,6 +1,8 @@
 ---
 name: crank
 description: 'Hands-free epic execution. Runs until ALL children are CLOSED. Uses spawn_agents_on_csv for parallel waves. NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "run all tasks", "hands-free execution", "crank it".'
+metadata:
+  tier: execution
 ---
 
 # $crank — Autonomous Epic Execution (Codex Native)
@@ -277,10 +279,19 @@ $vibe validate the completed epic
 | All workers fail | `<promise>BLOCKED</promise>` with diagnostics |
 | File conflict detected | Split into sub-waves, re-run |
 
-## References
+## Reference Documents
 
-For detailed patterns, read:
-- `references/team-coordination.md` — worker coordination details
-- `references/failure-recovery.md` — escalation and retry logic
-- `references/wave-patterns.md` — acceptance checks and checkpoints
-- `references/commit-strategies.md` — per-task vs wave-batch commits
+- [references/commit-strategies.md](references/commit-strategies.md) — per-task vs wave-batch commits
+- [references/contract-template.md](references/contract-template.md) — contract template for worker specs
+- [references/failure-recovery.md](references/failure-recovery.md) — escalation and retry logic
+- [references/failure-taxonomy.md](references/failure-taxonomy.md) — failure classification
+- [references/fire.md](references/fire.md) — fire drill protocol
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md) — Ralph Wiggum loop contract
+- [references/taskcreate-examples.md](references/taskcreate-examples.md) — task creation examples
+- [references/team-coordination.md](references/team-coordination.md) — worker coordination details
+- [references/test-first-mode.md](references/test-first-mode.md) — test-first wave sequence
+- [references/troubleshooting.md](references/troubleshooting.md) — common issues and fixes
+- [references/uat-integration-wave.md](references/uat-integration-wave.md) — UAT integration wave patterns
+- [references/wave-patterns.md](references/wave-patterns.md) — acceptance checks and checkpoints
+- [references/wave1-spec-consistency-checklist.md](references/wave1-spec-consistency-checklist.md) — Wave 1 spec consistency checklist
+- [references/worktree-per-worker.md](references/worktree-per-worker.md) — worktree isolation pattern

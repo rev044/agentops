@@ -283,6 +283,10 @@ This must show:
 
 **Result:** Binary analysis artifacts plus a validated security audit are produced; `validate-security-audit.sh` exits 0 confirming all security deliverables are present and secrets-clean.
 
+## Reference Documents
+
+- [references/templates/](references/templates/) — Spec and security templates for reverse engineering phases
+
 ## Troubleshooting
 
 | Problem | Cause | Solution |

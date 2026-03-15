@@ -46,6 +46,49 @@ RULES = [
         ],
         "summary": "Mechanical rewrite duplicated the runtime phrase and needs a manual Codex body fix.",
     },
+    {
+        "code": "CLAUDE_PRIMITIVE_LEAKAGE",
+        "patterns": [
+            r"\bAskUserQuestion\b",
+            r"\bread_file\b",
+            r"\bSendMessage\b",
+            r"\bTeamCreate\b",
+            r"\bTeamDelete\b",
+            r"\bclaude-code-latest-features\b",
+            r"role:\s*explorer\b",
+        ],
+        "ignore_patterns": [
+            r"(?i)unlike\s+Claude",
+            r"(?i)Claude['.]s\s+\w+",
+            r"(?i)not\s+(?:use|available|supported)\b",
+            r"(?i)do\s+not\s+use\b",
+            r"(?i)instead\s+of\b",
+            r"(?i)replaced?\s+by\b",
+            r"(?i)what\s+NOT\s+to\s+use",
+            r"^\s*#",
+            r"//\s+",
+            r"heal-skill",
+            r"\|.*`.*\|.*`.*\|",
+        ],
+        "summary": "Generated Codex body contains Claude-specific primitives that have no Codex equivalent.",
+    },
+    {
+        "code": "WRONG_XREF_DIR",
+        "patterns": [
+            r"\]\(skills/",
+            r"\.\.\$[a-zA-Z]",
+        ],
+        "ignore_patterns": [
+            r"^```",
+            r"^\s*`",
+            r"(?i)directory\s+structure",
+            r"(?i)under\s+`?skills/",
+            r"(?i)the\s+`?skills/`?\s+",
+            r"(?i)in\s+`?skills/`?\s+",
+            r"(?i)edit\s+.*skills/",
+        ],
+        "summary": "Cross-reference uses wrong directory path; skills-codex/ refs should use ../ relative paths.",
+    },
 ]
 
 

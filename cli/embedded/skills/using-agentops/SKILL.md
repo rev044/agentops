@@ -98,7 +98,7 @@ ao lookup --query "x"  # Search knowledge by relevance
 
 ## Available Skills
 
-## Start Here (12 starters)
+## Start Here (11 starters)
 
 These are the skills every user needs first. Everything else is available when you need it.
 

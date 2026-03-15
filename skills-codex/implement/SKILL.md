@@ -1,6 +1,8 @@
 ---
 name: implement
 description: 'Execute a single issue with full lifecycle. Triggers: "implement", "work on task", "build this", "start feature", "pick up next issue", "work on issue".'
+metadata:
+  tier: execution
 ---
 
 
@@ -19,9 +21,9 @@ Given `$implement <issue-id-or-description>`:
 
 ### Step 0: Pre-Flight Checks (Resume + Gates)
 
-**For resume protocol details, read `skills/implement/references/resume-protocol.md`.**
+**For resume protocol details, read `references/resume-protocol.md`.**
 
-**For ratchet gate checks and pre-mortem gate details, read `skills/implement/references/gate-checks.md`.**
+**For ratchet gate checks and pre-mortem gate details, read `references/gate-checks.md`.**
 
 ### Step 0.5: Pull Relevant Knowledge
 
@@ -63,11 +65,10 @@ This produces a 5-section briefing (GOALS, HISTORY, INTEL, TASK, PROTOCOL) at `.
 ### Step 3: Gather Context
 
 
+Spawn an exploration agent (via `spawn_agent` or `codex exec`) to gather context:
+
 ```
-Parameters:
-  role: explorer
-  description: "Gather context for: <issue title>"
-  prompt: |
+prompt: |
     Find code relevant to: <issue description>
 
     1. Search for related files (Glob)

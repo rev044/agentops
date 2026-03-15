@@ -25,9 +25,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SKILLS_ROOT="$REPO_ROOT/skills"
 
-# If no targets, scan all skill dirs
+# If no targets, scan all skill dirs (skills/ and skills-codex/)
 if [[ ${#TARGETS[@]} -eq 0 ]]; then
   for d in "$REPO_ROOT"/skills/*/; do
+    [[ -d "$d" ]] && TARGETS+=("${d%/}")
+  done
+  for d in "$REPO_ROOT"/skills-codex/*/; do
     [[ -d "$d" ]] && TARGETS+=("${d%/}")
   done
 else
@@ -244,6 +247,11 @@ for skill_dir in "${TARGETS[@]}"; do
     fi
   fi
 
+  # Check 2b: Missing metadata.tier
+  if ! grep -q '^\s*tier:' "$skill_md"; then
+    report "MISSING_TIER" "$skill_dir" "No metadata.tier in frontmatter"
+  fi
+
   # Check 3: Name mismatch
   if [[ -n "$name" && "$name" != "$dirname" ]]; then
     report "NAME_MISMATCH" "$skill_dir" "Frontmatter name '$name' != directory '$dirname'"
@@ -266,6 +274,24 @@ for skill_dir in "${TARGETS[@]}"; do
       fi
     done
   fi
+
+  # Check 5b: Malformed ..$X links (shell variable artifacts in markdown)
+  if grep -qE '\.\.\$[A-Za-z]' "$skill_md"; then
+    report "MALFORMED_LINK" "$skill_dir" "Contains ..\$X link artifact (should be ../X)"
+  fi
+
+  # Check 5c: Duplicate reference links within a single listing section.
+  # A reference appearing in BOTH "Reference Documents" AND "Local Resources" is fine.
+  # Only flag duplicates within the SAME section.
+  for _heading in "Reference Documents" "Local Resources"; do
+    ref_section="$(awk -v h="$_heading" '/^## /{if(index($0,h)>0){found=1; next} else if(found){exit}} found' "$skill_md")"
+    if [[ -n "$ref_section" ]]; then
+      dupes="$(echo "$ref_section" | grep -oE '\]\(references/[^)]+\)' | sort | uniq -d || true)"
+      if [[ -n "$dupes" ]]; then
+        report "DUPLICATE_REF" "$skill_dir" "Duplicate reference links in $_heading section: $dupes"
+      fi
+    fi
+  done
 
   # Check 6: Dead references (SKILL.md mentions references/ files that don't exist)
   # Strip fenced code blocks before scanning to avoid false positives from examples

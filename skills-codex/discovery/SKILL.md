@@ -1,6 +1,8 @@
 ---
 name: discovery
 description: 'Full discovery phase orchestrator. Brainstorm + ao search + research + plan + pre-mortem gate. Produces epic-id and execution-packet for $crank. Triggers: "discovery", "discover", "explore and plan", "research and plan", "discovery phase".'
+metadata:
+  tier: meta
 ---
 
 
@@ -209,7 +211,7 @@ Read `references/troubleshooting.md` for common problems and solutions.
 - [references/troubleshooting.md](references/troubleshooting.md) — common problems and solutions
 - [references/output-templates.md](references/output-templates.md) — execution packet and phase summary formats
 
-**See also:** [brainstorm](..$brainstorm/SKILL.md), [research](..$research/SKILL.md), [plan](..$plan/SKILL.md), [pre-mortem](..$pre-mortem/SKILL.md), [crank](..$crank/SKILL.md), [rpi](..$rpi/SKILL.md)
+**See also:** [brainstorm](../brainstorm/SKILL.md), [research](../research/SKILL.md), [plan](../plan/SKILL.md), [pre-mortem](../pre-mortem/SKILL.md), [crank](../crank/SKILL.md), [rpi](../rpi/SKILL.md)
 
 ## Local Resources
 

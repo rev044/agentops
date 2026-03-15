@@ -1,6 +1,8 @@
 ---
 name: flywheel
 description: 'Knowledge flywheel health monitoring. Checks velocity, pool depths, staleness. Triggers: "flywheel status", "knowledge health", "is knowledge compounding".'
+metadata:
+  tier: background
 ---
 
 
@@ -139,7 +141,7 @@ else
   echo "  global patterns: $GLOBAL_COUNT"
 
   # Check for promotion-ready learnings (see references/promotion-tiers.md)
-  echo "See: skills/flywheel/references/promotion-tiers.md for tier definitions"
+  echo "See: references/promotion-tiers.md for tier definitions"
 fi
 ```
 

@@ -1,6 +1,8 @@
 ---
 name: validation
 description: 'Full validation phase orchestrator. Vibe + post-mortem + retro + forge. Reviews implementation quality, extracts learnings, feeds the knowledge flywheel. Triggers: "validation", "validate", "validate work", "review and learn", "validation phase", "post-implementation review".'
+metadata:
+  tier: meta
 ---
 
 
@@ -251,13 +253,13 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 
 ## See Also
 
-- [skills/vibe/SKILL.md](..$vibe/SKILL.md) — code quality review
-- [skills/post-mortem/SKILL.md](..$post-mortem/SKILL.md) — retrospective analysis
-- [skills/retro/SKILL.md](..$retro/SKILL.md) — quick learning capture
-- [skills/forge/SKILL.md](..$forge/SKILL.md) — transcript mining
-- [skills/crank/SKILL.md](..$crank/SKILL.md) — previous phase (implementation)
-- [skills/discovery/SKILL.md](..$discovery/SKILL.md) — first phase (discovery)
-- [skills/rpi/SKILL.md](..$rpi/SKILL.md) — full lifecycle orchestrator
+- [../vibe/SKILL.md](../vibe/SKILL.md) — code quality review
+- [../post-mortem/SKILL.md](../post-mortem/SKILL.md) — retrospective analysis
+- [../retro/SKILL.md](../retro/SKILL.md) — quick learning capture
+- [../forge/SKILL.md](../forge/SKILL.md) — transcript mining
+- [../crank/SKILL.md](../crank/SKILL.md) — previous phase (implementation)
+- [../discovery/SKILL.md](../discovery/SKILL.md) — first phase (discovery)
+- [../rpi/SKILL.md](../rpi/SKILL.md) — full lifecycle orchestrator
 
 ## Local Resources
 

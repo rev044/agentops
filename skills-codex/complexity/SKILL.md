@@ -1,6 +1,8 @@
 ---
 name: complexity
 description: 'Analyze code complexity and find refactor targets using radon/gocyclo. Triggers: "complexity", "analyze complexity", "find complex code", "refactor targets", "cyclomatic complexity", "code metrics".'
+metadata:
+  tier: execution
 ---
 
 

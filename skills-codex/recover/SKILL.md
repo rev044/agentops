@@ -1,6 +1,8 @@
 ---
 name: recover
 description: 'Post-compaction context recovery. Detects in-progress RPI and evolve sessions, loads knowledge, shows recent work and pending tasks. Triggers: "recover", "lost context", "where was I", "what was I working on".'
+metadata:
+  tier: session
 ---
 
 

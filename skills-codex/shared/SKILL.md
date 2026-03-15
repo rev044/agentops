@@ -1,6 +1,8 @@
 ---
 name: shared
 description: 'Shared reference documents for multi-agent skills (not directly invocable)'
+metadata:
+  tier: library
 ---
 
 
@@ -9,11 +11,9 @@ description: 'Shared reference documents for multi-agent skills (not directly in
 This directory contains shared reference documents used by multiple skills:
 
 - `validation-contract.md` - Verification requirements for accepting spawned work
-- `references/claude-code-latest-features.md` - Codex feature contract (slash commands, agent isolation, hooks, settings)
 - `references/backend-codex-subagents.md` - Concrete examples for Codex CLI and Codex sub-agents
 - `references/backend-background-tasks.md` - Fallback: `Task(run_in_background=true)`
 - `references/backend-inline.md` - Degraded single-agent mode (no spawn)
-- `references/claude-cli-verified-commands.md` - Verified Claude CLI command shapes and caveats
 - `references/codex-cli-verified-commands.md` - Verified Codex CLI command shapes and caveats
 - `references/cli-command-failures-2026-02-26.md` - Dated failure log and mitigations from live runs
 
@@ -63,25 +63,23 @@ Every runtime maps these capabilities to its own API. Skills describe WHAT to do
 
 | Backend | Reference |
 |---------|-----------|
-| Claude feature contract | `skills/shared/references/claude-code-latest-features.md` |
-| Codex sub-agents | `skills/shared/references/backend-codex-subagents.md` |
-| Codex Sub-Agents / CLI | `skills/shared/references/backend-codex-subagents.md` |
-| Background Tasks (fallback) | `skills/shared/references/backend-background-tasks.md` |
-| Inline (no spawn) | `skills/shared/references/backend-inline.md` |
+| Codex Sub-Agents / CLI | `references/backend-codex-subagents.md` |
+| Background Tasks (fallback) | `references/backend-background-tasks.md` |
+| Inline (no spawn) | `references/backend-inline.md` |
 
 ### Backend Detection
 
 Use capability detection at runtime, not hardcoded tool names. The same skill must work across any agent harness that provides multi-agent primitives. If no multi-agent capability is detected, degrade to single-agent inline mode (`--quick`).
 
 **Selection policy (runtime-native first):**
-2. If running in a Codex session and `spawn_agent` is available, use **Codex sub-agents** as the primary backend.
-3. If both are technically available, pick the backend native to the current runtime unless the user explicitly requests mixed/cross-vendor execution.
-4. Only use background tasks when neither native backend is available.
+1. If running in a Codex session and `spawn_agent` is available, use **Codex sub-agents** as the primary backend.
+2. If both are technically available, pick the backend native to the current runtime unless the user explicitly requests mixed/cross-vendor execution.
+3. Only use background tasks when neither native backend is available.
 
-| Operation | Codex Sub-Agents | Codex sub-agents | OpenCode Subagents | Inline Fallback |
-|-----------|------------------|---------------------|--------------------|-----------------|
-| Spawn (read-only) | `spawn_agent(message=...)` | `Task(subagent_type="Explore")` | `task(subagent_type="explore", prompt=...)` | Execute inline |
-| Debate (R2) | Supported | Supported | **Not supported** (no messaging) | N/A |
+| Operation | Codex Sub-Agents | OpenCode Subagents | Inline Fallback |
+|-----------|------------------|--------------------|-----------------|
+| Spawn (read-only) | `spawn_agent(message=...)` | `task(subagent_type="explore", prompt=...)` | Execute inline |
+| Debate (R2) | Supported | **Not supported** (no messaging) | N/A |
 
 **OpenCode limitations:**
 - No inter-agent messaging — workers run as independent sub-sessions
@@ -92,10 +90,10 @@ Use capability detection at runtime, not hardcoded tool names. The same skill mu
 
 > **Prefer native teams over background tasks.** Native teams provide messaging, redirect, and graceful shutdown. Background tasks are fire-and-forget with no steering — only a speedometer and emergency brake.
 
-| Capability | Codex Sub-Agents | Codex sub-agents | Background Tasks |
-|------------|------------------|---------------------|------------------|
-| File conflict prevention | Manual `git worktree` routing | Native `isolation: worktree` + lead-only commits | None |
-| Process isolation | YES (sub-process) | Shared worktree | Shared worktree |
+| Capability | Codex Sub-Agents | Background Tasks |
+|------------|------------------|------------------|
+| File conflict prevention | Manual `git worktree` routing or native `isolation: worktree` + lead-only commits | None |
+| Process isolation | YES (sub-process) | Shared worktree |
 
 **When to use each:**
 
@@ -141,10 +139,7 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
-- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
-- [references/claude-cli-verified-commands.md](references/claude-cli-verified-commands.md)
 - [references/codex-cli-verified-commands.md](references/codex-cli-verified-commands.md)
 - [references/cli-command-failures-2026-02-26.md](references/cli-command-failures-2026-02-26.md)
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
@@ -156,8 +151,6 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
-- [references/claude-cli-verified-commands.md](references/claude-cli-verified-commands.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/cli-command-failures-2026-02-26.md](references/cli-command-failures-2026-02-26.md)
 - [references/codex-cli-verified-commands.md](references/codex-cli-verified-commands.md)
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)

@@ -1,6 +1,8 @@
 ---
 name: post-mortem
 description: 'Wrap up completed work. Council validates the implementation, then extract and process learnings. Triggers: "post-mortem", "wrap up", "close epic", "what did we learn".'
+metadata:
+  tier: judgment
 ---
 
 
@@ -112,13 +114,13 @@ Before proceeding, verify:
 
 ### Step 0.4: Load Reference Documents (MANDATORY)
 
-Before Step 0.5 and Step 2.5, load required reference docs into context using read_file:
+Before Step 0.5 and Step 2.5, load required reference docs into context by reading them:
 
 ```
 REQUIRED_REFS=(
-  "skills/post-mortem/references/checkpoint-policy.md"
-  "skills/post-mortem/references/metadata-verification.md"
-  "skills/post-mortem/references/closure-integrity-audit.md"
+  "references/checkpoint-policy.md"
+  "references/metadata-verification.md"
+  "references/closure-integrity-audit.md"
 )
 ```
 
@@ -187,7 +189,7 @@ Check for a crank-generated phase-2 summary:
 PHASE2_SUMMARY=$(ls -t .agents/rpi/phase-2-summary-*-crank.md 2>/dev/null | head -1)
 if [ -n "$PHASE2_SUMMARY" ]; then
     echo "Phase-2 summary found: $PHASE2_SUMMARY"
-    # Read the summary with read_file for implementation context
+    # Read the summary for implementation context
 fi
 ```
 
@@ -301,7 +303,7 @@ bd children <epic-id> 2>/dev/null | head -20
 ls -lt .agents/plans/ .agents/research/ 2>/dev/null | head -10
 ```
 
-Read relevant artifacts: research documents, plan documents, commit messages, code changes. Use read_file and git commands to understand what was done.
+Read relevant artifacts: research documents, plan documents, commit messages, code changes. Read relevant files and use git commands to understand what was done.
 
 **If retrospecting an epic:** Run the closure integrity quick-check from `references/context-gathering.md` (Phantom Bead Detection + Multi-Wave Regression Scan). Include any warnings in findings.
 
@@ -1014,9 +1016,9 @@ $rpi "<highest-priority enhancement>"
 
 ## See Also
 
-- `skills/council/SKILL.md` — Multi-model validation council
-- `skills/vibe/SKILL.md` — Council validates code (`$vibe` after coding)
-- `skills/pre-mortem/SKILL.md` — Council validates plans (before implementation)
+- `../council/SKILL.md` — Multi-model validation council
+- `../vibe/SKILL.md` — Council validates code (`$vibe` after coding)
+- `../pre-mortem/SKILL.md` — Council validates plans (before implementation)
 
 
 ## Reference Documents

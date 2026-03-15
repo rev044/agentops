@@ -1,6 +1,8 @@
 ---
 name: plan
 description: 'Epic decomposition into trackable issues. Triggers: "create a plan", "plan implementation", "break down into tasks", "decompose into features", "create beads issues from research", "what issues should we create", "plan out the work".'
+metadata:
+  tier: execution
 ---
 
 
@@ -33,7 +35,7 @@ Look for existing research on this topic:
 ls -la .agents/research/ 2>/dev/null | head -10
 ```
 
-Use Grep to search `.agents/` for related content. If research exists, read it with read_file to understand the context before planning.
+Use Grep to search `.agents/` for related content. If research exists, read it to understand the context before planning.
 
 **Search knowledge flywheel for prior planning patterns:**
 ```bash
@@ -86,16 +88,15 @@ if [ -n "$LATEST_RESEARCH" ]; then
 fi
 ```
 
-**Read the validated research file** with read_file before proceeding to Step 3. Do not plan based solely on file existence — understanding the research content is essential for accurate decomposition.
+**Read the validated research file** before proceeding to Step 3. Do not plan based solely on file existence — understanding the research content is essential for accurate decomposition.
 
 ### Step 3: Explore the Codebase (if needed)
 
 
+Spawn an exploration agent (via `spawn_agent` or `codex exec`):
+
 ```
-Parameters:
-  role: explorer
-  description: "Understand codebase for: <goal>"
-  prompt: |
+prompt: |
     Explore the codebase to understand what's needed for: <goal>
 
     1. Find relevant files and modules
@@ -503,25 +504,28 @@ After bulk-merging wave results, audit for scaffold-era names:
 
 ### Step 7: Create Tasks for In-Session Tracking
 
+Write task specs to `.agents/plan/tasks/` for in-session tracking:
 
-```
-Parameters:
-  subject: "<issue title>"
-  description: |
-    <Full description including:>
-    - What to do
-    - Acceptance criteria
-    - Dependencies: [list task IDs that must complete first]
-  activeForm: "<-ing verb form of the task>"
+```bash
+mkdir -p .agents/plan/tasks
+
+# For each task, write a spec file
+cat > ".agents/plan/tasks/<task-slug>.md" << 'EOF'
+# Task: <issue title>
+
+**Status:** pending
+**Blocked by:** [list dependency task slugs]
+**Active form:** <-ing verb form of the task>
+
+## Description
+<Full description including:>
+- What to do
+- Acceptance criteria
+- Dependencies
+EOF
 ```
 
-**After creating all tasks, set up dependencies:**
-
-```
-Parameters:
-  taskId: "<task-id>"
-  addBlockedBy: ["<dependency-task-id>"]
-```
+To mark dependencies, add `blocked_by` references in each task file. Update `**Status:**` to `in_progress` or `done` as work proceeds.
 
 **IMPORTANT: Create persistent issues for ratchet tracking:**
 
@@ -596,23 +600,14 @@ This is a warning gate, not a blocker — plans can proceed without validation b
 
 **Skip this step if `--auto` flag is set.** In auto mode, proceed directly to Step 9.
 
-**USE AskUserQuestion tool:**
+Ask the user directly:
 
-```
-Tool: AskUserQuestion
-Parameters:
-  questions:
-    - question: "Plan complete with N tasks in M waves. Approve to proceed?"
-      header: "Gate 2"
-      options:
-        - label: "Approve"
-          description: "Proceed to $pre-mortem or $crank"
-        - label: "Revise"
-          description: "Modify the plan before proceeding"
-        - label: "Back to Research"
-          description: "Need more research before planning"
-      multiSelect: false
-```
+> Plan complete with N tasks in M waves. Approve to proceed?
+>
+> Options:
+> 1. **Approve** — Proceed to `$pre-mortem` or `$crank`
+> 2. **Revise** — Modify the plan before proceeding
+> 3. **Back to Research** — Need more research before planning
 
 **Wait for approval before reporting completion.**
 

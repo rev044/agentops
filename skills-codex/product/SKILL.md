@@ -1,6 +1,8 @@
 ---
 name: product
 description: 'Interactive PRODUCT.md generation. Interviews you about mission, personas, value props, and competitive landscape, then generates a filled-in PRODUCT.md. Triggers: "product", "create product doc", "product definition", "who is this for".'
+metadata:
+  tier: product
 ---
 
 
@@ -28,7 +30,7 @@ ls PRODUCT.md 2>/dev/null
 
 **If it exists:**
 
-Use AskUserQuestion:
+Ask the user directly:
 - **Question:** "PRODUCT.md already exists. What would you like to do?"
 - **Options:**
   - "Overwrite — start fresh" → continue to Step 2
@@ -49,7 +51,7 @@ Use what you find to draft initial suggestions for each section. If no files exi
 
 ### Step 3: Interview
 
-Ask the user about each section using AskUserQuestion. For each question, offer pre-populated suggestions from Step 2 where available.
+Ask the user about each section. For each question, offer pre-populated suggestions from Step 2 where available.
 
 #### 3a: Mission
 
@@ -69,7 +71,7 @@ For each persona, gather:
 - **Goal** — what they're trying to accomplish
 - **Pain point** — what makes this hard today
 
-Use AskUserQuestion for the first persona's role, then follow up conversationally for details and additional personas. Stop when the user says they're done or after 3 personas.
+Ask the user for the first persona's role, then follow up conversationally for details and additional personas. Stop when the user says they're done or after 3 personas.
 
 #### 3c: Core Value Propositions
 

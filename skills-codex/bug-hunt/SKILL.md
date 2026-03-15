@@ -1,6 +1,8 @@
 ---
 name: bug-hunt
 description: 'Investigate suspected bugs or run proactive code audits. Triggers: "bug", "broken", "doesn''''t work", "failing", "investigate bug", "debug", "find the bug", "troubleshoot", "audit code", "find bugs in", "code audit", "hunt bugs".'
+metadata:
+  tier: execution
 ---
 
 
@@ -36,7 +38,7 @@ Investigation mode uses the 4-phase structure below. Audit mode uses systematic 
 | **3. Hypothesis** | Form and test single hypothesis | Pass/fail for each |
 | **4. Implementation** | Fix at root, not symptoms | Verified fix |
 
-**For failure category taxonomy and the 3-failure rule, read `skills/bug-hunt/references/failure-categories.md`.**
+**For failure category taxonomy and the 3-failure rule, read `references/failure-categories.md`.**
 
 ## Execution Steps
 
@@ -140,7 +142,7 @@ Make the SMALLEST possible change to test the hypothesis:
 
 ### Step 3.3: Check Failure Counter
 
-Check failure count per `skills/bug-hunt/references/failure-categories.md`. After 3 countable failures, escalate to architecture review.
+Check failure count per `references/failure-categories.md`. After 3 countable failures, escalate to architecture review.
 
 ---
 
@@ -234,7 +236,7 @@ If scripts lack functional tests → flag as finding (severity: moderate).
 For every data transformation (parse/render/serialize):
 - [ ] Property test with randomized inputs exists
 
-**Reference:** `standards/references/test-pyramid.md` for full BF level definitions and per-language tooling.
+**Reference:** The standards skill contains full BF level definitions and per-language tooling.
 
 ---
 
@@ -250,7 +252,7 @@ For each finding, assign severity:
 
 ### Audit Step 4: Write Audit Report
 
-**For audit report format, read `skills/bug-hunt/references/audit-report-template.md`.**
+**For audit report format, read `references/audit-report-template.md`.**
 
 Write to `.agents/research/YYYY-MM-DD-bug-<scope-slug>.md`.
 

@@ -1,6 +1,8 @@
 ---
 name: release
 description: 'Release your software. Pre-flight validation, changelog generation, version bumps, release commit, tag, curated release notes. Boundary: everything up to the git tag. Triggers: "release", "cut a release", "prepare release", "release check".'
+metadata:
+  tier: product
 ---
 
 
@@ -207,7 +209,7 @@ Reason: 3 new features added, no breaking changes
 Current version: 1.6.0 (from package.json, go tags)
 ```
 
-Use AskUserQuestion to confirm or let the user provide a different version.
+Ask the user to confirm or let them provide a different version.
 
 ### Step 6: Generate changelog entry
 
@@ -260,7 +262,7 @@ Version strings detected:
   .goreleaser.yml:    (reads from git tag — no change needed)
 ```
 
-Use AskUserQuestion: "Update these version strings?" — "Yes, update all" / "Let me choose" / "Skip version bumps"
+Ask the user: "Update these version strings?" — "Yes, update all" / "Let me choose" / "Skip version bumps"
 
 ### Step 8: User review
 
@@ -272,7 +274,7 @@ Present everything that will change:
 
 If `--dry-run` was passed, stop here.
 
-Use AskUserQuestion:
+Ask the user:
 - "Proceed with this release?"
 - Options: "Yes, do it" / "Let me edit the changelog first" / "Abort"
 

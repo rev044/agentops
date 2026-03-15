@@ -524,3 +524,4 @@ Everything this skill does is local and reversible:
 ## Reference Documents
 
 - [references/release-cadence.md](references/release-cadence.md)
+- [references/release-notes.md](references/release-notes.md)

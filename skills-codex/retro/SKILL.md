@@ -1,6 +1,8 @@
 ---
 name: retro
 description: 'Quick-capture a learning. For full retrospectives, use $post-mortem. Trigger phrases: "quick learning", "capture lesson", "retro quick".'
+metadata:
+  tier: knowledge
 ---
 
 

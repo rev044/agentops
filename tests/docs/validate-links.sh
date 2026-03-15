@@ -23,7 +23,7 @@ while IFS= read -r f; do
   md_files+=("$f")
 done < <(find "$REPO_ROOT" -maxdepth 1 -name '*.md' -type f)
 
-for dir in docs skills cli; do
+for dir in docs skills skills-codex cli; do
   if [[ -d "$REPO_ROOT/$dir" ]]; then
     while IFS= read -r f; do
       md_files+=("$f")

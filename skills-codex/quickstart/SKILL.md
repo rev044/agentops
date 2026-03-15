@@ -1,6 +1,8 @@
 ---
 name: quickstart
 description: 'New user onboarding. Detect setup, explain what AgentOps does, give one next action. Under 30 seconds. Triggers: "quickstart", "get started", "onboarding", "how do I start".'
+metadata:
+  tier: session
 ---
 
 

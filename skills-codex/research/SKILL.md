@@ -1,6 +1,8 @@
 ---
 name: research
 description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
+metadata:
+  tier: execution
 ---
 
 
@@ -57,7 +59,7 @@ done
 grep -r -l -i "<topic>" ~/.codex/patterns/ 2>/dev/null
 ```
 
-If matches are found, read the relevant files with read_file before proceeding to exploration. Prior knowledge prevents redundant investigation.
+If matches are found, read the relevant files before proceeding to exploration. Prior knowledge prevents redundant investigation.
 
 ### Step 2.5: Pre-Flight — Detect Spawn Backend
 
@@ -71,8 +73,6 @@ Before launching the explore agent, detect which backend is available:
 Record the selected backend — it will be included in the research output document for traceability.
 
 **Read the matching backend reference for concrete tool call examples:**
-- Shared Claude feature contract → `skills/shared/references/claude-code-latest-features.md`
-- Local mirrored contract for runtime-local reads → `references/claude-code-latest-features.md`
 - Codex → `references/backend-codex-subagents.md`
 - Codex sub-agents → `references/backend-codex-subagents.md`
 - Background Tasks → `references/backend-background-tasks.md`
@@ -219,23 +219,14 @@ date: YYYY-MM-DD
 
 **Skip this step if `--auto` flag is set.** In auto mode, proceed directly to Step 7.
 
-**USE AskUserQuestion tool:**
+Ask the user directly:
 
-```
-Tool: AskUserQuestion
-Parameters:
-  questions:
-    - question: "Research complete. Approve to proceed to planning?"
-      header: "Gate 1"
-      options:
-        - label: "Approve"
-          description: "Research is sufficient, proceed to $plan"
-        - label: "Revise"
-          description: "Need deeper research on specific areas"
-        - label: "Abandon"
-          description: "Stop this line of investigation"
-      multiSelect: false
-```
+> Research complete. Approve to proceed to planning?
+>
+> Options:
+> 1. **Approve** — Research is sufficient, proceed to `$plan`
+> 2. **Revise** — Need deeper research on specific areas
+> 3. **Abandon** — Stop this line of investigation
 
 **Wait for approval before reporting completion.**
 
@@ -313,20 +304,12 @@ Include in your Explore agent prompt:
 
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
-- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/context-discovery.md](references/context-discovery.md)
 - [references/document-template.md](references/document-template.md)
 - [references/failure-patterns.md](references/failure-patterns.md)
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
 - [references/vibe-methodology.md](references/vibe-methodology.md)
-- [..$shared/references/backend-background-tasks.md](..$shared/references/backend-background-tasks.md)
-- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
-- [..$shared/references/backend-codex-subagents.md](..$shared/references/backend-codex-subagents.md)
-- [..$shared/references/backend-inline.md](..$shared/references/backend-inline.md)
-- [..$shared/references/claude-code-latest-features.md](..$shared/references/claude-code-latest-features.md)
-- [..$shared/references/ralph-loop-contract.md](..$shared/references/ralph-loop-contract.md)
 
 ## Local Resources
 
@@ -335,7 +318,6 @@ Include in your Explore agent prompt:
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
-- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/context-discovery.md](references/context-discovery.md)
 - [references/document-template.md](references/document-template.md)
 - [references/failure-patterns.md](references/failure-patterns.md)

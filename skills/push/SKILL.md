@@ -107,3 +107,24 @@ Output a summary:
 - NEVER stage files matching: `.env*`, `*credentials*`, `*secret*`, `*.key`, `*.pem`
 - If tests were not run (no test suite found), WARN the user before committing
 - If `git pull --rebase` fails, do NOT force push — ask the user
+
+## Examples
+
+### Pushing Changes
+
+**User says:** `/push`
+
+**What happens:**
+1. Runs Go and Python tests
+2. Commits with conventional message
+3. Pushes to current branch
+
+**Result:** Verified, committed, and pushed changes in one atomic workflow.
+
+## Troubleshooting
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Tests fail | Code has errors | Fix failing tests before retrying |
+| Push rejected | Remote has new commits | Pull and rebase, then retry |
+| No changes to commit | Working tree is clean | Make changes first |

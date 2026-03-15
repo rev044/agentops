@@ -1,6 +1,8 @@
 ---
 name: push
 description: 'Test, commit, and push in one atomic workflow. Runs Go and Python tests, commits with conventional message, pushes to current branch.'
+metadata:
+  tier: execution
 ---
 
 

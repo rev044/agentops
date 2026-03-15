@@ -1,6 +1,8 @@
 ---
 name: readme
 description: 'Generate a gold-standard README for any project. Interviews you about the problem, generates a draft following battle-tested patterns, then council-validates it. Triggers: "readme", "write readme", "generate readme", "improve readme", "rewrite readme".'
+metadata:
+  tier: product
 ---
 
 
@@ -120,7 +122,7 @@ Extract:
 
 ### Step 3: Interview
 
-Use AskUserQuestion for each section. Pre-populate suggestions from Step 2 where possible. Keep questions short.
+Ask the user about each section. Pre-populate suggestions from Step 2 where possible. Keep questions short.
 
 #### 3a: The Problem
 

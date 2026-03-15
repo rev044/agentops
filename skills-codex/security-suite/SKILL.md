@@ -1,6 +1,8 @@
 ---
 name: security-suite
 description: 'Composable security suite for binary and prompt-surface assurance, static analysis, dynamic tracing, repo-native redteam scans, contract capture, baseline drift, and policy gating. Triggers: "binary security", "reverse engineer binary", "black-box binary test", "behavioral trace", "baseline diff", "prompt redteam", "security suite".'
+metadata:
+  tier: execution
 ---
 
 

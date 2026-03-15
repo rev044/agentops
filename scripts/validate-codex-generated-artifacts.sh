@@ -51,10 +51,16 @@ case "$SCOPE" in
 esac
 
 failures=0
+warnings=0
 
 fail() {
   echo "FAIL: $1" >&2
   failures=$((failures + 1))
+}
+
+warn() {
+  echo "WARN: $1" >&2
+  warnings=$((warnings + 1))
 }
 
 collect_changed_files() {
@@ -120,11 +126,48 @@ while IFS= read -r skill_dir; do
   fi
 done < <(find "$SKILLS_ROOT" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
 
+# --- Frontmatter completeness check ---
+for skill_md in "$SKILLS_ROOT"/*/SKILL.md; do
+  [[ -f "$skill_md" ]] || continue
+  skill_name=$(basename "$(dirname "$skill_md")")
+
+  # Extract frontmatter (between --- markers)
+  frontmatter=$(sed -n '/^---$/,/^---$/p' "$skill_md")
+
+  if ! echo "$frontmatter" | grep -q '^name:'; then
+    fail "$skill_name missing 'name' in frontmatter"
+  fi
+  if ! echo "$frontmatter" | grep -q '^description:'; then
+    fail "$skill_name missing 'description' in frontmatter"
+  fi
+  if ! echo "$frontmatter" | grep -q 'tier:'; then
+    fail "$skill_name missing 'tier' in frontmatter"
+  fi
+done
+
+# --- Wrong-directory cross-reference check ---
+for skill_md in "$SKILLS_ROOT"/*/SKILL.md; do
+  [[ -f "$skill_md" ]] || continue
+  skill_name=$(basename "$(dirname "$skill_md")")
+  # Ignore code blocks by checking only non-fenced lines
+  if grep -v '^\s*```' "$skill_md" | grep -v '^\s*`' | grep -qE '\]\(skills/' ; then
+    warn "$skill_name contains ](skills/ cross-ref (should use relative paths)"
+  fi
+done
+
 mapfile -t changed_files < <(collect_changed_files "$SCOPE" | sed '/^[[:space:]]*$/d' | sort -u)
 
-# Parity drift checks removed — skills-codex/ is manually maintained.
-# Source skills and codex skills can change independently.
-# Run `scripts/audit-codex-parity.sh` manually to check for drift.
+# --- Invoke codex parity audit ---
+if [[ -x "$AUDIT_SCRIPT" ]]; then
+  echo "--- Running codex parity audit ---"
+  if ! bash "$AUDIT_SCRIPT"; then
+    fail "Codex parity audit failed"
+  fi
+fi
+
+if [[ "$warnings" -gt 0 ]]; then
+  echo "Codex generated artifact validation: $warnings warning(s)." >&2
+fi
 
 if [[ "$failures" -gt 0 ]]; then
   echo "Codex generated artifact validation FAILED ($failures finding(s))." >&2

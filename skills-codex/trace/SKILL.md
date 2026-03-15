@@ -1,6 +1,8 @@
 ---
 name: trace
 description: 'Trace design decisions and concepts through session history, handoffs, and git. Triggers: "trace decision", "how did we decide", "where did this come from", "design provenance", "decision history".'
+metadata:
+  tier: knowledge
 ---
 
 
@@ -44,7 +46,7 @@ ELSE (keyword/concept):
 
 Launch 4 parallel search agents (CASS, Handoff, Git, Research) and wait for all to complete.
 
-**Backend:** Agents use `Task(subagent_type="Explore")` which maps to `task(subagent_type="explore")` in OpenCode. See `skills/shared/SKILL.md` ("Runtime-Native Spawn Backend Selection") for the shared contract.
+**Backend:** Agents use `spawn_agent` or `codex exec` for parallel exploration. See `../shared/SKILL.md` ("Backend Detection") for the shared contract.
 
 Read `references/discovery-patterns.md` for agent definitions and prompts.
 

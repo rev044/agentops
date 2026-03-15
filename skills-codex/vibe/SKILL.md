@@ -1,6 +1,8 @@
 ---
 name: vibe
 description: 'Comprehensive code validation. Runs complexity analysis then multi-model council. Answer: Is this code ready to ship? Triggers: "vibe", "validate code", "check code", "review code", "code quality", "is this ready".'
+metadata:
+  tier: judgment
 ---
 
 
@@ -129,7 +131,7 @@ Detect code patterns in the target files and load matching domain-specific check
 | Concurrent code | `race-condition-checklist.md` | Files use goroutines, `threading`, `asyncio`, `multiprocessing`, `sync.Mutex`, `concurrent.futures`, or shared file I/O patterns |
 | Codex skills | `codex-skill.md` | Files under `skills-codex/`, or files matching `*codex*SKILL.md`, `convert.sh`, `skills-codex-overrides/`, or converter scripts |
 
-For each matched checklist, load it via read_file and include relevant items in the council packet as `context.domain_checklists`. Multiple checklists can be loaded simultaneously.
+For each matched checklist, load it by reading the file and include relevant items in the council packet as `context.domain_checklists`. Multiple checklists can be loaded simultaneously.
 
 Skip silently if no patterns match. This step runs in both `--quick` and full modes (domain checklists are cheap to load and high-value).
 
@@ -352,7 +354,7 @@ If bug-hunt produces findings, include them in the council packet as `context.bu
 
 ### Test Pyramid Inventory
 
-Assess test coverage against `standards/references/test-pyramid.md`.
+Assess test coverage against the test pyramid standard (see the standards skill).
 
 1. Identify changed modules from git diff
 2. Check L0-L3 coverage for each changed module
@@ -682,9 +684,9 @@ See `references/examples.md` for additional examples: security audit with spec c
 
 ## See Also
 
-- `skills/council/SKILL.md` — Multi-model validation council
-- `skills/complexity/SKILL.md` — Standalone complexity analysis
-- `skills/bug-hunt/SKILL.md` — Proactive code audit and bug investigation
+- `../council/SKILL.md` — Multi-model validation council
+- `../complexity/SKILL.md` — Standalone complexity analysis
+- `../bug-hunt/SKILL.md` — Proactive code audit and bug investigation
 - `.agents/specs/conflict-resolution-algorithm.md` — Conflict resolution between agent findings
 
 ## Reference Documents

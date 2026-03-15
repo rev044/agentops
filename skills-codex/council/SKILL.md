@@ -1,6 +1,8 @@
 ---
 name: council
 description: 'Multi-model consensus council. Spawns parallel judges via spawn_agents_on_csv. Modes: validate, brainstorm, research. Triggers: "council", "get consensus", "multi-model review", "multi-perspective review", "council validate", "council brainstorm", "council research".'
+metadata:
+  tier: judgment
 ---
 
 # $council — Multi-Model Consensus Council (Codex Native)
@@ -191,3 +193,22 @@ When validating plans/specs, judges must check:
 4. Conformance includes boundary failpoint tests
 
 Missing gate item → minimum WARN. Critical unverifiable invariant → FAIL.
+
+## Reference Documents
+
+- [references/agent-prompts.md](references/agent-prompts.md)
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
+- [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
+- [references/caching-guidance.md](references/caching-guidance.md)
+- [references/cli-spawning.md](references/cli-spawning.md)
+- [references/debate-protocol.md](references/debate-protocol.md)
+- [references/explorers.md](references/explorers.md)
+- [references/finding-extraction.md](references/finding-extraction.md)
+- [references/model-profiles.md](references/model-profiles.md)
+- [references/output-format.md](references/output-format.md)
+- [references/personas.md](references/personas.md)
+- [references/presets.md](references/presets.md)
+- [references/quick-mode.md](references/quick-mode.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)

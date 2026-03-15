@@ -1,6 +1,8 @@
 ---
 name: pre-mortem
 description: 'Validate a plan or spec before implementation using multi-model council. Answer: Is this good enough to implement? Triggers: "pre-mortem", "validate plan", "validate spec", "is this ready".'
+metadata:
+  tier: judgment
 ---
 
 
@@ -428,9 +430,9 @@ $pre-mortem                    ← You are here
 
 ## See Also
 
-- `skills/council/SKILL.md` — Multi-model validation council
-- `skills/plan/SKILL.md` — Create implementation plans
-- `skills/vibe/SKILL.md` — Validate code after implementation
+- `../council/SKILL.md` — Multi-model validation council
+- `../plan/SKILL.md` — Create implementation plans
+- `../vibe/SKILL.md` — Validate code after implementation
 
 ## Reference Documents
 

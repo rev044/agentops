@@ -1,6 +1,8 @@
 ---
 name: swarm
 description: 'Spawn isolated agents for parallel task execution via spawn_agents_on_csv. Fresh context per agent (Ralph Wiggum pattern). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
+metadata:
+  tier: orchestration
 ---
 
 # $swarm — Parallel Agent Execution (Codex Native)
@@ -11,7 +13,7 @@ Spawn isolated agents to execute tasks in parallel using `spawn_agents_on_csv`. 
 - **Via $crank** — crank creates tasks from beads, invokes swarm for each wave
 - **Standalone** — direct invocation for ad-hoc parallel work
 
-> **Requires Codex multi-agent.** Enable via `/experimental` or `multi_agent = true` in `~/.codex/config.toml`.
+> **Requires Codex multi-agent.** Enable via `multi_agent = true` in `~/.codex/config.toml`.
 
 ## Architecture
 
@@ -225,5 +227,10 @@ This is slower but functionally identical.
 
 ## Reference Documents
 
+- [references/backend-background-tasks.md](references/backend-background-tasks.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/backend-inline.md](references/backend-inline.md)
 - [references/local-mode.md](references/local-mode.md)
+- [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
+- [references/validation-contract.md](references/validation-contract.md)
+- [references/worker-pitfalls.md](references/worker-pitfalls.md)

@@ -1,6 +1,8 @@
 ---
 name: rpi
 description: 'Full RPI lifecycle orchestrator. Delegates to $discovery, $crank, $validation phase skills. One command, full lifecycle with complexity classification, --from routing, and optional loop. Triggers: "rpi", "full lifecycle", "research plan implement", "end to end".'
+metadata:
+  tier: meta
 ---
 
 
@@ -257,7 +259,7 @@ Read `references/examples.md` for full lifecycle, resume, and interactive exampl
 
 Read `references/troubleshooting.md` for common problems and solutions.
 
-**See also:** [discovery](..$discovery/SKILL.md), [crank](..$crank/SKILL.md), [validation](..$validation/SKILL.md)
+**See also:** [discovery](../discovery/SKILL.md), [crank](../crank/SKILL.md), [validation](../validation/SKILL.md)
 
 ## Reference Documents
 
