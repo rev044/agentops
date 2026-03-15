@@ -51,17 +51,48 @@ if git diff --cached --name-only -- 'CHANGELOG.md' 2>/dev/null | grep -q '^CHANG
         latest_version=$(awk '/^## \[[0-9]+\.[0-9]+\.[0-9]+\]/{gsub(/.*\[|\].*/,""); print; exit}' "$REPO_ROOT/CHANGELOG.md")
         if [[ -n "$latest_version" ]] && ! grep -Fq "## [$latest_version]" "$REPO_ROOT/docs/CHANGELOG.md"; then
             echo "pre-commit: Root CHANGELOG.md has [$latest_version] but docs/CHANGELOG.md does not."
-            # Extract the new entry to a temp file (avoids multiline awk -v issues)
-            awk "/^## \\[$latest_version\\]/,/^## \\[/{if(/^## \\[/ && !/\\[$latest_version\\]/)exit; print}" \
+            # Extract the new entry to a temp file using sed (awk range breaks on multibyte UTF-8)
+            escaped_ver=$(printf '%s' "$latest_version" | sed 's/\./\\./g')
+            sed -n "/^## \[${escaped_ver}\]/,/^## \[/{/^## \[/!p; /^## \[${escaped_ver}\]/p;}" \
                 "$REPO_ROOT/CHANGELOG.md" > "$REPO_ROOT/docs/.changelog-entry.tmp"
             # Insert after ## [Unreleased] line in docs/CHANGELOG.md
-            ENTRY_FILE="$REPO_ROOT/docs/.changelog-entry.tmp" \
-            awk '/^## \[Unreleased\]/{print; print ""; while((getline line < ENVIRON["ENTRY_FILE"])>0) print line; next}1' \
-                "$REPO_ROOT/docs/CHANGELOG.md" > "$REPO_ROOT/docs/CHANGELOG.md.tmp"
+            {
+                found_unreleased=0
+                while IFS= read -r line; do
+                    printf '%s\n' "$line"
+                    if [[ "$found_unreleased" -eq 0 ]] && [[ "$line" == "## [Unreleased]"* ]]; then
+                        found_unreleased=1
+                        printf '\n'
+                        cat "$REPO_ROOT/docs/.changelog-entry.tmp"
+                    fi
+                done < "$REPO_ROOT/docs/CHANGELOG.md"
+            } > "$REPO_ROOT/docs/CHANGELOG.md.tmp"
             mv "$REPO_ROOT/docs/CHANGELOG.md.tmp" "$REPO_ROOT/docs/CHANGELOG.md"
             rm -f "$REPO_ROOT/docs/.changelog-entry.tmp"
             git add "$REPO_ROOT/docs/CHANGELOG.md" 2>/dev/null || true
             echo "pre-commit: docs/CHANGELOG.md synced with [$latest_version] and staged."
+        fi
+    fi
+fi
+
+# --- Plugin/marketplace version parity check (on release commits) ---
+commit_msg_file="$REPO_ROOT/.git/COMMIT_EDITMSG"
+if [[ -f "$commit_msg_file" ]] && grep -q '^Release v' "$commit_msg_file" 2>/dev/null; then
+    release_ver=$(grep -o 'Release v[0-9]*\.[0-9]*\.[0-9]*' "$commit_msg_file" | head -1 | sed 's/Release v//')
+    if [[ -n "$release_ver" ]]; then
+        plugin_ver=""
+        marketplace_ver=""
+        if [[ -f "$REPO_ROOT/.claude-plugin/plugin.json" ]]; then
+            plugin_ver=$(grep -o '"version": *"[^"]*"' "$REPO_ROOT/.claude-plugin/plugin.json" | head -1 | grep -o '[0-9][0-9.]*')
+        fi
+        if [[ -f "$REPO_ROOT/.claude-plugin/marketplace.json" ]]; then
+            marketplace_ver=$(grep -o '"version": *"[^"]*"' "$REPO_ROOT/.claude-plugin/marketplace.json" | head -1 | grep -o '[0-9][0-9.]*')
+        fi
+        if [[ -n "$plugin_ver" ]] && [[ "$plugin_ver" != "$release_ver" ]]; then
+            echo "pre-commit: WARN — .claude-plugin/plugin.json version ($plugin_ver) != release version ($release_ver)"
+        fi
+        if [[ -n "$marketplace_ver" ]] && [[ "$marketplace_ver" != "$release_ver" ]]; then
+            echo "pre-commit: WARN — .claude-plugin/marketplace.json version ($marketplace_ver) != release version ($release_ver)"
         fi
     fi
 fi
