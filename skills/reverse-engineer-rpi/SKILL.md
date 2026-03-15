@@ -285,7 +285,7 @@ This must show:
 
 ## Reference Documents
 
-- [references/templates/](references/templates/) — Spec and security templates for reverse engineering phases
+- `references/templates/` — Spec and security templates for reverse engineering phases (14 `.tmpl` files)
 
 ## Troubleshooting
 
