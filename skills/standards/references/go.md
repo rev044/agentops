@@ -265,6 +265,79 @@ func TestClassifyServeArg(t *testing.T) {
 - **Table-driven tests** preferred for multi-case functions. (See example above.)
 - **Test low-level functions directly;** don't depend on external CLIs (`bd`, `ao`) in tests. (See CI-Safe Test Pattern above.)
 
+### Benchmark Tests (BF7)
+
+Use Go's built-in benchmark support for hot-path functions:
+
+```go
+func BenchmarkParseConfig(b *testing.B) {
+    input := generateLargeConfig(1000)
+    b.ResetTimer()
+    for b.Loop() {  // Go 1.24+; use `for i := 0; i < b.N; i++` for older versions
+        parseConfig(input)
+    }
+}
+```
+
+Run with: `go test -bench=. -benchmem ./...`
+
+Compare across changes with `benchstat`:
+```bash
+go test -bench=. -count=10 ./... > old.txt
+# ... make changes ...
+go test -bench=. -count=10 ./... > new.txt
+benchstat old.txt new.txt
+```
+
+### Backward Compatibility Tests (BF8)
+
+Maintain golden fixtures in `testdata/compat/`:
+
+```go
+func TestBackwardCompat(t *testing.T) {
+    fixtures, err := filepath.Glob("testdata/compat/*.json")
+    require.NoError(t, err)
+    require.NotEmpty(t, fixtures, "compat fixtures must exist")
+    for _, f := range fixtures {
+        t.Run(filepath.Base(f), func(t *testing.T) {
+            data, _ := os.ReadFile(f)
+            result, err := ParseConfig(data)
+            require.NoError(t, err, "legacy format must still parse")
+            assert.NotEmpty(t, result.Name)
+        })
+    }
+}
+```
+
+### Regression Tests (BF6)
+
+Name after the bug ID. Reproduce the exact failure:
+
+```go
+func TestBug_AG_XYZ_NilMapPanic(t *testing.T) {
+    // Regression: processGoals panicked on nil options map (ag-xyz)
+    result, err := processGoals(nil)
+    require.NoError(t, err)
+    assert.Empty(t, result)
+}
+```
+
+### Security Tests (BF9)
+
+Test path traversal rejection and secrets redaction:
+
+```go
+func TestRejectsPathTraversal(t *testing.T) {
+    payloads := []string{"../../../etc/passwd", "..\\windows", "foo/../bar"}
+    for _, p := range payloads {
+        t.Run(p, func(t *testing.T) {
+            _, err := LoadConfig(p)
+            assert.Error(t, err, "must reject path traversal")
+        })
+    }
+}
+```
+
 ### Complexity Budget
 
 - **Warn** at cyclomatic complexity 15, **fail** at 25.

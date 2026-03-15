@@ -100,6 +100,10 @@ These are the **bug-finding pyramid** — they find bugs the coverage pyramid mi
 | BF3 | Mutation | Untested code paths (operator flips that tests don't catch) | Yes (config) | 13 gaps |
 | BF4 | Chaos/Negative | Unhandled exceptions at system boundaries (corrupt DB, permissions, timeouts) | Yes | 4 bugs |
 | BF5 | Script Functional | Bash runtime crashes, jq logic errors, undefined functions | Yes | 2 critical bugs |
+| BF6 | Regression | Reintroduced bugs that were previously fixed | Yes | N/A (guard) |
+| BF7 | Performance | Speed regressions in parsers, renderers, hot paths | Yes (config) | N/A (baseline) |
+| BF8 | Backward Compat | Breaking changes to input formats consumers depend on | Yes | N/A (guard) |
+| BF9 | Security (In-Test) | Secrets leakage in output, unsanitized inputs, unsafe permissions | Yes | N/A (guard) |
 
 ### Bug-Finding Level Details
 
@@ -186,6 +190,139 @@ result=$(scan 2>&1)
 echo "$result" | python3 -c "import json,sys; json.load(sys.stdin)"  # valid JSON?
 ```
 
+**BF6 — Regression Testing (Bug-Specific Replay)**
+
+Every bug fix gets a test that reproduces the exact failure. Name it after the bug ID. These prevent regressions and serve as executable documentation.
+
+| Language | Pattern | Naming |
+|----------|---------|--------|
+| Python | `def test_bug_ag_xyz_empty_input_crashes():` | `test_bug_<id>_<description>` |
+| Go | `func TestBug_AG_XYZ_EmptyInputCrashes(t *testing.T) {` | `TestBug_<ID>_<Description>` |
+| Shell | Separate test file: `tests/regression/test_ag_xyz.sh` | `test_<id>.sh` |
+
+```python
+# Python pattern
+def test_bug_ag_m0r_parse_reader_crashes_on_empty_value():
+    """Regression: parse_reader crashed on config lines with empty values (ag-m0r)."""
+    stream = io.StringIO("SITE_NAME=\nDB_HOST=prod-db")
+    ctx = parse_reader(stream)  # must not raise
+    assert ctx.site_name == ""  # empty, not crash
+    assert ctx.db_host == "prod-db"
+```
+
+```go
+// Go pattern
+func TestBug_AG_3B7_NilMapPanic(t *testing.T) {
+    // Regression: passing nil options caused panic in processGoals (ag-3b7)
+    result, err := processGoals(nil)
+    require.NoError(t, err)
+    assert.Empty(t, result)
+}
+```
+
+**BF7 — Performance/Benchmark Testing**
+
+Detect speed regressions mechanically. Set baselines, fail on significant deviation.
+
+| Language | Tool | Pattern |
+|----------|------|---------|
+| Python | `pytest-benchmark` | `def test_parse_speed(benchmark): benchmark(parse_reader, large_input)` |
+| Go | Built-in `testing.B` | `func BenchmarkParseConfig(b *testing.B) { for b.Loop() { parse(input) } }` |
+| TypeScript | `vitest bench` | `bench('parse', () => { parseConfig(input) })` |
+| Rust | `criterion` | `c.bench_function("parse", \|b\| b.iter(\|\| parse(input)))` |
+
+```python
+# Python pattern — pytest-benchmark
+def test_parse_config_performance(benchmark):
+    """Parser must handle 1000-line config in <100ms."""
+    large_config = "\n".join(f"KEY_{i}=value_{i}" for i in range(1000))
+    result = benchmark(parse_reader, io.StringIO(large_config))
+    assert isinstance(result, SiteContext)
+```
+
+```go
+// Go pattern — built-in benchmarks
+func BenchmarkParseConfig(b *testing.B) {
+    input := generateLargeConfig(1000) // 1000 key-value pairs
+    b.ResetTimer()
+    for b.Loop() {
+        parseConfig(input)
+    }
+}
+```
+
+**Target critical hot paths only.** Full-codebase benchmarks are maintenance burden. Pick parsers, renderers, and high-frequency functions.
+
+**BF8 — Backward Compatibility Testing**
+
+Old inputs must still parse after code changes. Maintain a corpus of real inputs from prior versions (anonymized) as fixtures.
+
+| Language | Pattern | Fixture Location |
+|----------|---------|-----------------|
+| Python | `@pytest.mark.parametrize("fixture", glob("tests/fixtures/compat/*.env"))` | `tests/fixtures/compat/` |
+| Go | `testdata/compat/` convention | `testdata/compat/` |
+| Shell | `tests/fixtures/compat/` | `tests/fixtures/compat/` |
+
+```python
+# Python pattern
+@pytest.mark.parametrize("fixture", sorted(glob("tests/fixtures/compat/*.env")))
+def test_legacy_config_parses(fixture):
+    """Every historical config.env must still parse without error."""
+    ctx = parse_config_env(fixture)
+    assert ctx.site_name  # minimal validity — at least one required field populated
+```
+
+```go
+// Go pattern
+func TestBackwardCompat(t *testing.T) {
+    fixtures, _ := filepath.Glob("testdata/compat/*.env")
+    for _, f := range fixtures {
+        t.Run(filepath.Base(f), func(t *testing.T) {
+            cfg, err := ParseConfigFile(f)
+            require.NoError(t, err, "legacy config must still parse")
+            assert.NotEmpty(t, cfg.SiteName)
+        })
+    }
+}
+```
+
+**Maintenance:** When changing input formats, add the OLD format as a new compat fixture BEFORE making the change. This prevents silent breakage for consumers that haven't upgraded yet.
+
+**BF9 — Security Testing (In-Test)**
+
+Test that secrets are redacted, inputs are sanitized, and sensitive data never leaks into output. Distinct from security scanning (semgrep/gitleaks) — these are behavioral tests.
+
+| Category | What to Test | Pattern |
+|----------|-------------|---------|
+| Secrets redaction | `render_export()` output contains no raw passwords/tokens | Assert output lacks patterns like `PASSWORD=actual_value` |
+| Input sanitization | Untrusted input can't inject commands/paths | Parameterize with injection payloads (`../`, `; rm`, `${VAR}`) |
+| Error message safety | Stack traces and error messages don't leak secrets | Assert error output contains no sensitive env vars |
+| File permission safety | Generated files have correct permissions (not world-readable) | `os.stat()` after creation, assert mode |
+
+```python
+# Python pattern — secrets redaction
+def test_render_export_redacts_secrets():
+    """render_export must never emit raw secret values."""
+    ctx = SiteContext(site_name="test", db_password="s3cr3t!", api_key="ak-12345")
+    output = render_export(ctx)
+    assert "s3cr3t!" not in output, "raw password leaked in export"
+    assert "ak-12345" not in output, "raw API key leaked in export"
+    assert "REDACTED" in output or "****" in output, "secrets not visibly redacted"
+```
+
+```go
+// Go pattern — path traversal rejection
+func TestRejectsPathTraversal(t *testing.T) {
+    payloads := []string{"../../../etc/passwd", "..\\windows\\system32", "foo/../bar"}
+    for _, p := range payloads {
+        t.Run(p, func(t *testing.T) {
+            _, err := LoadConfig(p)
+            assert.Error(t, err, "must reject path traversal")
+        })
+    }
+}
+```
+
 ### When to Use Bug-Finding Levels
 
 ```
@@ -205,6 +342,18 @@ After L0–L3 coverage is complete, run bug-finding levels:
 
   Has bash/shell scripts?
     YES → BF5 (functional) — stub tools, verify behavior
+
+  Fixing a bug?
+    YES → BF6 (regression) — reproduce the exact failure before fixing
+
+  Has hot-path functions (parsers, renderers, serializers)?
+    YES → BF7 (performance) — benchmark and set baseline
+
+  Has input formats that external consumers depend on?
+    YES → BF8 (backward compat) — maintain fixture corpus
+
+  Has secrets, credentials, or sensitive data in scope?
+    YES → BF9 (security) — test redaction and sanitization
 ```
 
 ### Bug-Finding in RPI Phases
@@ -216,6 +365,10 @@ After L0–L3 coverage is complete, run bug-finding levels:
 | `/implement` | Write BF tests alongside L0–L3 (or as separate wave) |
 | `/vibe` | **Check BF coverage before council** — flag missing chaos/property tests on boundary code |
 | `/post-mortem` | Assess BF bug discovery count. If BF4 found 0 bugs → either code is solid or chaos tests are too weak |
+| `/implement` (bug fix) | **BF6 mandatory** — reproduce bug as failing test BEFORE writing fix |
+| `/vibe` (performance) | Check BF7 benchmarks if hot-path code changed |
+| `/plan` (format changes) | Flag BF8 backward compat — add old format as fixture before changing |
+| `/pre-mortem` (security) | Verify BF9 tests planned for code handling secrets or user input |
 
 ## Coverage Assessment Template
 
@@ -240,3 +393,7 @@ Used by `/post-mortem` and `/vibe` to assess test pyramid health:
 | BF3 Mutation | yes/no | surviving mutants | critical modules with <80% mutation score | target top 3 modules |
 | BF4 Chaos | yes/no | count | external boundaries without failure injection | add for every API/DB/FS boundary |
 | BF5 Script Functional | yes/no | count | bash scripts without functional tests | add for top 10 by complexity |
+| BF6 Regression | yes/no | count | bug fixes without reproducing tests | add for every bug fix |
+| BF7 Performance | yes/no | baseline set? | hot-path functions without benchmarks | add for parsers/renderers |
+| BF8 Backward Compat | yes/no | fixtures count | input formats without compat corpus | add fixture corpus |
+| BF9 Security | yes/no | count | code handling secrets without redaction tests | add for every secret boundary |
