@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.25.1] - 2026-03-15
+
+### Fixed
+
+- **Codex BF pyramid parity** — Synced BF1/BF2/BF4 bug-finding level selection into skills-codex implement, post-mortem, and validation skills
+- **Codex Claude backend cross-contamination** — Removed orphaned `backend-claude-teams.md` files (Claude primitives: TeamCreate, SendMessage) from 4 Codex skills (council, research, shared, swarm)
+- **Dead converter rule** — Removed stale sed substitution for `backend-claude-teams.md` rename in converter script
+- **Swarm reference integrity** — Added Reference Documents section to swarm SKILL.md; updated validate.sh to check only Codex-native backend references
+
 ## [2.25.0] - 2026-03-14
 
 ### Added
