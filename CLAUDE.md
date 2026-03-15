@@ -71,6 +71,7 @@ cd cli && make sync-hooks   # Sync embedded hooks/skills into cli/embedded/
 | `scripts/sync-skill-counts.sh` | Sync skill counts across all docs after adding/removing skills |
 | `scripts/generate-cli-reference.sh` | Regenerate CLI docs after changing commands/flags |
 | `scripts/audit-codex-parity.sh` | Audit generated `skills-codex/` for semantic drift that simple rewrites miss |
+| `scripts/regen-codex-hashes.sh` | Regenerate manifest/marker hashes after changing skills-codex/ files |
 | `scripts/prune-agents.sh` | Clean up bloated .agents/ directory |
 
 ## CI Validation
@@ -93,6 +94,9 @@ cd cli && make build && make test
 
 # If you changed hooks or lib/hook-helpers.sh:
 cd cli && make sync-hooks
+
+# If you changed skills-codex/ files:
+scripts/regen-codex-hashes.sh
 
 # Full gate (all 22 checks, ~3min):
 scripts/pre-push-gate.sh
