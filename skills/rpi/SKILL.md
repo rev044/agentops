@@ -224,13 +224,16 @@ complexity == "low": inline review, no spawning (--quick) | complexity == "mediu
 
 ## Examples
 
-Read `references/examples.md` for full lifecycle, resume, and interactive examples.
-
+**User says:** `/rpi "add user authentication"` — Full lifecycle: discovery → crank → validation. See `references/examples.md`.
 ## Troubleshooting
 
-Read `references/troubleshooting.md` for common problems and solutions.
+| Problem | Solution |
+|---------|----------|
+| Discovery blocks | Narrow goal scope or use `--interactive` |
+| Implementation loops | Check `bd children <epic>` for blockers |
+| Validation FAIL exhausted | Fix findings, re-run `--from=validation` |
 
-**See also:** [discovery](../discovery/SKILL.md), [crank](../crank/SKILL.md), [validation](../validation/SKILL.md)
+**See also:** [discovery](../discovery/SKILL.md), [crank](../crank/SKILL.md), [validation](../validation/SKILL.md). Read `references/troubleshooting.md` for more.
 
 ## Reference Documents
 

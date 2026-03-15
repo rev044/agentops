@@ -751,10 +751,10 @@ Include `wc -l` assertions in task metadata when content moves between files.
 
 ## Examples
 
-- `/crank ag-m0r` — Beads epic: loads learnings, swarm per wave, loops until all closed, final vibe
-- `/crank .agents/plans/auth-refactor.md` — Plan file: decomposes into tasks, swarm per wave, final vibe
-- `/crank --test-first ag-xj9` — SPEC → TEST → RED Gate → GREEN IMPL waves. See `references/test-first-mode.md`
-- Blocked state: outputs `<promise>BLOCKED</promise>` with blocking chains. See `references/failure-recovery.md`
+**User says:** `/crank ag-m0r` — Beads epic: loads learnings, swarm per wave, loops until all closed, final vibe.
+
+**User says:** `/crank .agents/plans/auth-refactor.md` — Plan file: decomposes into tasks, swarm per wave, final vibe.
+**User says:** `/crank --test-first ag-xj9` — SPEC → TEST → RED Gate → GREEN IMPL. See `references/test-first-mode.md`.
 
 ---
 
