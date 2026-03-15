@@ -89,7 +89,7 @@ A phased lifecycle, not a bag of prompts:
 | **Full pipeline** | `/rpi` (chains all above) | End-to-end, autonomous |
 | **Evolve loop** | `/evolve` (chains `/rpi` repeatedly) | Fitness-scored improvement |
 | **PR contribution** | `/pr-research` → `/pr-plan` → `/pr-implement` → `/pr-validate` → `/pr-prep` | External repo |
-| **Knowledge query** | `/knowledge` → `/research` (if gaps) | Understanding before building |
+| **Knowledge query** | `ao search` → `/research` (if gaps) | Understanding before building |
 | **Standalone review** | `/council validate <target>` | Ad-hoc multi-judge review |
 
 ### Primitive chains underneath it
@@ -289,9 +289,8 @@ Every skill works alone. Compose them however you want.
 
 | Skill | What it does |
 |-------|-------------|
-| `/knowledge` | Query learnings, patterns, and decisions across `.agents/` |
-| `/retro` | Manually capture a decision, pattern, or lesson |
-| `/retro` | Extract learnings from completed work |
+| `/retro` | Capture a decision, pattern, or lesson learned |
+| `/forge` | Extract learnings from completed work into `.agents/` |
 | `/flywheel` | Monitor knowledge health — velocity, staleness, pool depths |
 
 **Supporting skills:**
