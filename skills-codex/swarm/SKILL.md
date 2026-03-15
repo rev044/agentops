@@ -222,3 +222,8 @@ for task in wave_tasks:
 ```
 
 This is slower but functionally identical.
+
+## Reference Documents
+
+- [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
+- [references/local-mode.md](references/local-mode.md)

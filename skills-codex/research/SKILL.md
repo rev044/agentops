@@ -333,7 +333,6 @@ Include in your Explore agent prompt:
 ### references/
 
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
 - [references/claude-code-latest-features.md](references/claude-code-latest-features.md)

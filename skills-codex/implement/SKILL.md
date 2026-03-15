@@ -119,6 +119,21 @@ Before implementing, write tests that define the expected behavior:
 
 If the issue includes `test_levels` metadata from `$plan`, use those levels. Otherwise, default to L1 + any applicable higher levels from the decision tree above.
 
+**Bug-Finding Level Selection (alongside L0–L3):**
+
+If the implementation touches external boundaries (APIs, databases, file I/O):
+- Add BF4 chaos test: mock the boundary to fail, verify graceful error handling
+- This catches the bugs that L1 unit tests mock away
+
+If the implementation includes data transformations (parse, render, serialize):
+- Add BF1 property test: randomize inputs with hypothesis/gopter/fast-check
+- This catches edge cases no human would write
+
+If the implementation generates output files (configs, reports, manifests):
+- Add BF2 golden test: generate canonical output, save as golden file, assert match
+
+Reference: the test pyramid standard in `$standards` for full tooling matrix.
+
 **Skip conditions (any of these bypasses Step 3.5):**
 - GREEN mode is active (invoked by `$crank --test-first` — tests already exist)
 - Issue type is `chore`, `docs`, or `ci`

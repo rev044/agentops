@@ -154,7 +154,6 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 ### references/
 
 - [references/backend-background-tasks.md](references/backend-background-tasks.md)
-- [references/backend-claude-teams.md](references/backend-claude-teams.md)
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
 - [references/claude-cli-verified-commands.md](references/claude-cli-verified-commands.md)

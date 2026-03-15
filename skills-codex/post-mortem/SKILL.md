@@ -747,6 +747,13 @@ These entries are promoted to `.agents/learnings/` and injected into future work
 |---|---|---|---|---|
 | cli/cmd/ao/<command>.go | yes/no | ... | yes/no | ... |
 
+## BF Assessment
+
+| Level | Exist? | Bugs | Action |
+|-------|--------|------|--------|
+| BF1 | y/n | N | property tests |
+| BF4 | y/n | N | chaos tests |
+
 ## Next Work
 
 | # | Title | Type | Severity | Source | Target Repo |

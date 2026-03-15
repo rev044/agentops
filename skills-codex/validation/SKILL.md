@@ -117,6 +117,8 @@ After vibe passes, assess test coverage across pyramid levels per the test pyram
 3. Check L2 (Integration): Do integration tests exist for cross-module changes?
 4. Check L3 (Component): Do component tests exist for subsystem workflows?
 
+Also check BF4 (chaos) for boundary code and BF1 (property) for transforms. See the test pyramid in `$standards`.
+
 **Output:** Append a `## Test Pyramid Coverage` section to the validation phase summary:
 
 ```markdown

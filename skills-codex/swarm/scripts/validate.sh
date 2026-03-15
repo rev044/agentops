@@ -10,8 +10,8 @@ check "SKILL.md has YAML frontmatter" "head -1 '$SKILL_DIR/SKILL.md' | grep -q '
 check "SKILL.md has name: swarm" "grep -q '^name: swarm' '$SKILL_DIR/SKILL.md'"
 check "Local mode documented" "grep -q 'Local' '$SKILL_DIR/SKILL.md'"
 check "SKILL.md requires metadata.issue_type" "grep -q 'metadata.issue_type' '$SKILL_DIR/SKILL.md'"
-check "Backend references documented" "grep -qE 'backend-claude-teams|backend-codex-subagents' '$SKILL_DIR/SKILL.md'"
-check "Shared backend docs exist" "[ -f '$SKILL_DIR/../shared/references/backend-claude-teams.md' ] || [ -f '$SKILL_DIR/../shared/references/backend-codex-subagents.md' ]"
+check "Backend references documented" "grep -qE 'backend-codex-subagents' '$SKILL_DIR/SKILL.md'"
+check "Shared backend docs exist" "[ -f '$SKILL_DIR/../shared/references/backend-codex-subagents.md' ]"
 check "Cleanup lifecycle documented" "grep -qiE 'cleanup|close_agent|reaper' '$SKILL_DIR/SKILL.md'"
 
 echo ""; echo "Results: $PASS passed, $FAIL failed"
