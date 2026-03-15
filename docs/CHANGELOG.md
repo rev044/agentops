@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.26.0] - 2026-03-15
 
+### Added
+
+- **BF6–BF9 test pyramid levels** — Regression (bug-specific replay), Performance/Benchmark, Backward Compatibility, and Security (in-test) bug-finding levels with language-specific patterns for Go and Python
+- **Test pyramid decision tree expansion** — 4 new routing questions for BF6–BF9 in the "When to Use" guide
+- **RPI phase mapping for BF6–BF9** — Bug fix → BF6 mandatory, hot-path → BF7 benchmark, format change → BF8 compat fixture, secrets → BF9 redaction tests
+- **`regen-codex-hashes.sh`** — Manifest hash regeneration script for Codex skill maintenance
+
+### Changed
+
+- **Go standards** — Added benchmark tests (BF7), backward compat with `testdata/compat/` (BF8), regression test naming convention (BF6), security tests for path traversal (BF9)
+- **Python standards** — Added Hypothesis property-based testing (BF1), `pytest-benchmark` patterns (BF7), backward compat with parametrized fixtures (BF8), regression test naming (BF6), secrets redaction tests (BF9)
+- **Coverage assessment template** — Extended BF pyramid table from BF1–BF5 to BF1–BF9
+
+### Fixed
+
+- **Codex skill audit** — 60+ findings fixed across all 54 Codex skills; removed orphaned `claude-code-latest-features.md` and `claude-cli-verified-commands.md` references
+- **Skill lint warnings** — Resolved all warnings in crank, rpi, recover skills
+- **README skill references** — Corrected broken references and linked orphaned templates
+- **Skill linter refs** — Fixed directory reference and backtick formatting in reverse-engineer-rpi
+
 ## [2.25.1] - 2026-03-15
 
 ## [2.25.0] - 2026-03-14

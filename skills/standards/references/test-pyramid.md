@@ -384,7 +384,7 @@ Used by `/post-mortem` and `/vibe` to assess test pyramid health:
 | L3 Component | yes/no | yes/no/na | description | add/fix/ok |
 | L4+ | human-gated | — | — | defer to human |
 
-### Bug-Finding Pyramid (BF1–BF5)
+### Bug-Finding Pyramid (BF1–BF9)
 
 | Level | Tests Exist? | Bugs Found? | Gap? | Action |
 |-------|-------------|-------------|------|--------|
