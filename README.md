@@ -9,7 +9,7 @@
 
 AgentOps is the operating system around your coding agent: it tracks the work, validates the plan and code, and feeds what was learned into the next session.
 
-[How It Works](#how-it-works) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Newcomer Guide](docs/newcomer-guide.md)
+[Start Here](#start-here) · [Install](#install) · [See It Work](#see-it-work) · [Skills](#skills) · [CLI](#the-ao-cli) · [FAQ](#faq) · [Newcomer Guide](docs/newcomer-guide.md)
 
 </div>
 
@@ -22,6 +22,10 @@ AgentOps is the operating system around your coding agent: it tracks the work, v
 ## Why AgentOps Exists
 
 Most coding-agent tools improve the session. AgentOps improves the repo around the session.
+
+**Your agent remembers what worked.** Every session writes decisions, patterns, and learnings to `.agents/` — git-tracked, auditable, diffable. Not opaque SQLite. Not vector embeddings on someone else's server. Plain files that compound across sessions and transfer between machines with `git clone`.
+
+**Your code reviewed by Claude AND GPT.** `/council` spawns independent judges across vendors — no anchoring, no single-model blind spots. The only plugin that does cross-vendor consensus validation.
 
 | Without AgentOps | With AgentOps |
 |------------------|---------------|
@@ -66,6 +70,28 @@ ao version
 Or install via [release binaries](https://github.com/boshu2/agentops/releases) or [build from source](cli/README.md).
 
 Then type `/quickstart` in your agent chat.
+
+---
+
+## Start Here
+
+Three commands, zero methodology. Pick one and go:
+
+```bash
+/council validate this PR          # Multi-model code review — immediate value
+/research "how does auth work"     # Codebase exploration with memory
+/implement "fix the login bug"     # Full lifecycle for one task
+```
+
+When you're ready for more:
+
+```bash
+/plan → /crank                     # Decompose into issues, parallel-execute
+/rpi "add retry backoff"           # Full pipeline: research → plan → build → validate → learn
+/evolve                            # Fitness-scored improvement loop — walk away, come back to better code
+```
+
+Every skill works alone. Compose them however you want. Full catalog: [Skills](#skills).
 
 ---
 
@@ -123,7 +149,7 @@ Session 5 started with scored, repo-specific context — not from scratch. Stale
 
 - **Local-only** — no telemetry, no cloud, no accounts. Nothing phones home.
 - **Auditable** — plans, verdicts, learnings, and patterns are plain files on disk.
-- **Multi-runtime** — Claude Code, Codex CLI, Cursor, OpenCode.
+- **Multi-runtime** — Claude Code and Codex CLI (first-class), Cursor and OpenCode (experimental).
 - **Harder to drift** — tracked issues and validation gates mean the repo is less dependent on agent mood or memory.
 
 Everything is [open source](cli/) — audit it yourself.
@@ -264,7 +290,20 @@ Not sure which skill to run? See the [Skill Router](docs/SKILL-ROUTER.md).
 
 Every skill works alone. Compose them however you want.
 
-**Judgment** — the foundation everything validates against:
+**Core skills** — where most users spend their time:
+
+| Skill | What it does |
+|-------|-------------|
+| `/council` | Independent judges (Claude + Codex) debate, surface disagreement, converge. The validation primitive everything else builds on. |
+| `/research` | Deep codebase exploration — produces structured findings with memory |
+| `/implement` | Full lifecycle for one task — research, plan, build, validate, learn |
+| `/vibe` | Code quality review — complexity + multi-model council + domain checklists |
+| `/evolve` | Measure goals, fix the worst gap, regression-gate everything, repeat overnight |
+
+**Full catalog:**
+
+<details>
+<summary><b>Judgment</b> — the foundation everything validates against</summary>
 
 | Skill | What it does |
 |-------|-------------|
@@ -273,7 +312,10 @@ Every skill works alone. Compose them however you want.
 | `/pre-mortem` | Validate plans — error/rescue mapping, scope modes (Expand/Hold/Reduce), temporal interrogation, prediction tracking with downstream correlation |
 | `/post-mortem` | Wrap up work — council validates, prediction accuracy scoring (HIT/MISS/SURPRISE), session streak tracking, persistent retro history |
 
-**Execution** — research, plan, build, ship:
+</details>
+
+<details>
+<summary><b>Execution</b> — research, plan, build, ship</summary>
 
 | Skill | What it does |
 |-------|-------------|
@@ -285,7 +327,10 @@ Every skill works alone. Compose them however you want.
 | `/rpi` | Full pipeline: discovery (research + plan + pre-mortem) → implementation (crank) → validation (vibe + post-mortem) |
 | `/evolve` | The endgame: measure goals, fix the worst gap, regression-gate everything, learn, repeat overnight |
 
-**Knowledge** — the flywheel that makes sessions compound:
+</details>
+
+<details>
+<summary><b>Knowledge</b> — the flywheel that makes sessions compound</summary>
 
 | Skill | What it does |
 |-------|-------------|
@@ -293,7 +338,10 @@ Every skill works alone. Compose them however you want.
 | `/forge` | Extract learnings from completed work into `.agents/` |
 | `/flywheel` | Monitor knowledge health — velocity, staleness, pool depths |
 
-**Supporting skills:**
+</details>
+
+<details>
+<summary><b>Supporting skills</b> — onboarding, session, traceability, product, utility</summary>
 
 | | |
 |---|---|
@@ -302,6 +350,8 @@ Every skill works alone. Compose them however you want.
 | **Traceability** | `/trace`, `/provenance` |
 | **Product** | `/product`, `/goals`, `/release`, `/readme`, `/doc` |
 | **Utility** | `/brainstorm`, `/bug-hunt`, `/complexity` |
+
+</details>
 
 Full reference: [docs/SKILLS.md](docs/SKILLS.md)
 
