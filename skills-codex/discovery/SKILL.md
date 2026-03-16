@@ -5,55 +5,58 @@ metadata:
   tier: meta
 ---
 
-
 # $discovery — Full Discovery Phase Orchestrator
-
-> **Quick Ref:** Brainstorm → search history → research → plan → pre-mortem. Produces an epic-id and execution-packet ready for `$crank`.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-## Quick Start
-
-```bash
-$discovery "add user authentication"              # full discovery
-$discovery --interactive "refactor payment module" # human gates in research + plan
-$discovery --skip-brainstorm "fix login bug"       # skip brainstorm for specific goals
-$discovery --complexity=full "migrate to v2 API"   # force full council ceremony
-```
-
-## Architecture
+## DAG — Execute This Sequentially
 
 ```
-$discovery <goal> [--interactive] [--complexity=<fast|standard|full>] [--skip-brainstorm]
-  │
-  ├── Step 1: Brainstorm (optional)
-  │   └── $brainstorm <goal> — clarify WHAT before HOW
-  │
-  ├── Step 2: Search History
-  │   └── ao search "<goal keywords>" — surface prior learnings
-  │
-  ├── Step 3: Research
-  │   └── $research <goal> — deep codebase exploration
-  │
-  ├── Step 4: Plan
-  │   └── $plan <goal> — decompose into epic + issues
-  │
-  └── Step 5: Pre-mortem (gate)
-      └── $pre-mortem — council validates the plan
-          PASS/WARN → output epic-id + execution-packet
-          FAIL → re-plan with findings, max 3 attempts
-```
-
-## Execution Steps
-
-### Step 0: Setup
-
-```bash
 mkdir -p .agents/rpi
+detect bd and ao CLI availability
 ```
 
-Initialize state:
+**Run every step in order. Do not stop between steps.**
 
+```
+STEP 1  ──  if not --skip-brainstorm AND goal is vague (<50 chars or vague keywords):
+              $brainstorm <goal>
+              Use refined goal for subsequent steps if produced.
+
+STEP 2  ──  if ao available:
+              ao search "<goal keywords>" 2>/dev/null || true
+              ao lookup --query "<goal keywords>" --limit 5 2>/dev/null || true
+              Assemble ranked packet: compiled planning rules + active findings
+              + unconsumed high-severity next-work items. Carry forward as context.
+
+STEP 3  ──  $research <goal> [--auto]
+              Pass --auto unless --interactive. Output lands in .agents/research/.
+              After: identify applicable test levels (L0-L3) for downstream $plan.
+
+STEP 4  ──  $plan <goal> [--auto]
+              Pass --auto unless --interactive.
+              After: extract epic-id, auto-detect complexity from issue count
+              (1-2 → fast, 3-6 → standard, 7+ → full) unless --complexity override.
+
+STEP 5  ──  $pre-mortem [--quick]
+              Use --quick for fast/standard. Full council for full.
+              PASS/WARN? → continue to STEP 6
+              FAIL?      → re-plan with findings, re-run pre-mortem (max 3 total)
+                           Still FAIL after 3? → output <promise>BLOCKED</promise>, stop
+
+STEP 6  ──  Write execution-packet.json + phase summary to .agents/rpi/
+              Include test_levels, ranked packet, epic-id, complexity.
+              ao ratchet record discovery 2>/dev/null || true
+              Output <promise>DONE</promise>
+```
+
+**That's it.** Steps 1→2→3→4→5→6. No stopping between steps.
+
+---
+
+## Setup Detail
+
+**State:**
 ```
 discovery_state = {
   goal: "<goal string>",
@@ -67,113 +70,29 @@ discovery_state = {
 ```
 
 **CLI dependency detection:**
-
 ```bash
-# Tracking mode
 if command -v bd &>/dev/null; then TRACKING_MODE="beads"; else TRACKING_MODE="tasklist"; fi
-
-# Knowledge flywheel
 if command -v ao &>/dev/null; then AO_AVAILABLE=true; else AO_AVAILABLE=false; fi
 ```
 
-### Step 1: Brainstorm (optional)
+## Gate Detail
 
-**Skip if:** `--skip-brainstorm` flag, OR goal is >50 chars and contains no vague keywords (improve, better, something, somehow, maybe), OR a brainstorm artifact already exists for this goal in `.agents/brainstorm/`.
+**STEP 5 (pre-mortem) is the only gate.** Max 3 attempts with plan→pre-mortem retry loop.
 
-**Otherwise:** Invoke `$brainstorm` to clarify WHAT before HOW:
+- **PASS/WARN:** Store verdict, proceed to STEP 6.
+- **FAIL:** Log `"Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"`. Re-invoke `$plan` with findings context, then re-invoke `$pre-mortem`. After 3 total failures: output `<promise>BLOCKED</promise>`, stop.
 
-```
-$brainstorm <goal>
-```
+## Step Detail
 
-If brainstorm produces a refined goal, use the refined goal for subsequent steps.
+**STEP 1 (brainstorm):** Skip if `--skip-brainstorm`, or goal >50 chars with no vague keywords (`improve`, `better`, `something`, `somehow`, `maybe`), or brainstorm artifact already exists in `.agents/brainstorm/`.
 
-### Step 2: Search History
+**STEP 2 (search history):** Ranked packet assembly — match compiled planning rules, active findings from `.agents/findings/*.md`, and unconsumed high-severity items from `.agents/rpi/next-work.jsonl`. Rank by goal-text overlap → issue-type overlap → file-path overlap.
 
-**Skip if:** `ao` CLI is not available.
+**STEP 3.1 (test levels):** After research, determine L0-L3 applicability. External APIs/I/O → L0+L1+L2 min. Cross-module → add L2. Full subsystem → add L3. Record in `discovery_state.test_levels`.
 
-**Otherwise:** Search for prior session learnings relevant to the goal:
+**STEP 4 (plan):** After plan, extract epic-id via `bd list --type epic --status open` or TaskList. Auto-detect complexity from issue count if not overridden.
 
-```bash
-ao search "<goal keywords>" 2>/dev/null || true
-ao lookup --query "<goal keywords>" --limit 5 2>/dev/null || true
-```
-
-Summarize any relevant findings (prior attempts, related decisions, known constraints) and carry them forward as context for research.
-
-**Ranked packet requirement:** Before leaving discovery, assemble a lightweight ranked packet for the current goal:
-- matching compiled planning rules / pre-mortem checks
-- matching active findings from `.agents/findings/*.md`
-- matching unconsumed high-severity items from `.agents/rpi/next-work.jsonl`
-
-Rank by literal goal-text overlap first, then issue-type / work-shape overlap, then file-path or module overlap when known. Discovery does not need the final file list yet, but it MUST surface the best matching high-severity next-work items so planning can incorporate them instead of rediscovering them later.
-
-### Step 3: Research
-
-Invoke `$research` for deep codebase exploration:
-
-```
-$research <goal> [--auto]
-```
-
-Pass `--auto` unless `--interactive` was specified. Research output lands in `.agents/research/`.
-
-#### Step 3.1: Identify Applicable Test Levels
-
-After research completes, determine which test levels (L0–L3) the goal requires. Read the test pyramid standard (`test-pyramid.md` in the standards skill) for the full pyramid and selection guide.
-
-Ask:
-- Does the change touch external APIs or I/O? → L0 + L1 + L2 minimum
-- Does it cross module boundaries? → Add L2
-- Does it affect a full subsystem workflow? → Add L3
-
-Record the applicable levels in `discovery_state.test_levels` for downstream `$plan` consumption.
-
-### Step 4: Plan
-
-Invoke `$plan` to decompose into an epic with trackable issues:
-
-```
-$plan <goal> [--auto]
-```
-
-
-After plan completes:
-2. Store in `discovery_state.epic_id`.
-3. Carry forward the ranked packet summary (applied findings, known risks, high-severity next-work matches) into the execution packet and phase summary.
-3. **Auto-detect complexity** (if not overridden): count issues with `bd children <epic-id> | wc -l`. Low (1-2) → `fast`, Medium (3-6) → `standard`, High (7+ or 3+ waves) → `full`.
-
-### Step 5: Pre-mortem (gate)
-
-Invoke `$pre-mortem` to validate the plan:
-
-```
-$pre-mortem [--quick]
-```
-
-Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for full complexity or `--deep` override.
-
-**Gate logic (max 3 attempts):**
-
-- **PASS/WARN:** Proceed. Store verdict in `discovery_state.verdict`.
-- **FAIL:** Retry loop:
-  1. Read pre-mortem report: `ls -t .agents/council/*pre-mortem*.md | head -1`
-  2. Extract structured findings (description, fix, ref)
-  3. Log: `"Pre-mortem: FAIL (attempt N/3) -- retrying plan with feedback"`
-  4. Re-invoke `$plan` with findings context:
-     ```
-     $plan <goal> --auto --context 'Pre-mortem FAIL: <findings>'
-     ```
-  5. Re-invoke `$pre-mortem`
-  6. If still FAIL after 3 total attempts, stop:
-     ```
-     "Pre-mortem failed 3 times. Last report: <path>. Manual intervention needed."
-     ```
-     Output: `<promise>BLOCKED</promise>`
-
-### Step 6: Output
-
-After successful gate (PASS/WARN): write execution packet and phase summary (read `references/output-templates.md` for formats), record ratchet, output `<promise>DONE</promise>`, and report epic-id with suggested next step: `$crank <epic-id>`. Include `test_levels` from Step 3.1 in the execution packet for `$crank` consumption.
+**STEP 6 (output):** Write execution packet and phase summary per `references/output-templates.md`. Include `test_levels` and ranked packet in the execution packet for `$crank` consumption.
 
 ## Flags
 
@@ -184,19 +103,20 @@ After successful gate (PASS/WARN): write execution packet and phase summary (rea
 | `--complexity=<level>` | auto | Force complexity level (fast/standard/full) |
 | `--no-budget` | off | Disable phase time budgets |
 
+## Quick Start
+
+```bash
+$discovery "add user authentication"              # full discovery
+$discovery --interactive "refactor payment module" # human gates in research + plan
+$discovery --skip-brainstorm "fix login bug"       # skip brainstorm for specific goals
+$discovery --complexity=full "migrate to v2 API"   # force full council ceremony
+```
+
 ## Completion Markers
 
 ```
 <promise>DONE</promise>      # Discovery complete, epic-id + execution-packet ready
 <promise>BLOCKED</promise>   # Pre-mortem failed 3x, manual intervention needed
-```
-
-## Examples
-
-```bash
-$discovery "add user authentication"              # full discovery
-$discovery --interactive "refactor payment module" # human gates
-$discovery --skip-brainstorm "fix login bug"       # skip brainstorm
 ```
 
 ## Troubleshooting
@@ -222,5 +142,3 @@ Read `references/troubleshooting.md` for common problems and solutions.
 - [references/output-templates.md](references/output-templates.md)
 - [references/phase-budgets.md](references/phase-budgets.md)
 - [references/troubleshooting.md](references/troubleshooting.md)
-
-

@@ -5,179 +5,75 @@ metadata:
   tier: meta
 ---
 
-
 # $validation — Full Validation Phase Orchestrator
-
-> **Quick Ref:** Vibe → post-mortem → retro → forge. Reviews implementation quality, extracts learnings, and feeds the knowledge flywheel.
 
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
 
-## Quick Start
-
-```bash
-$validation ag-5k2                        # validate epic with full close-out
-$validation                               # validate recent work (no epic)
-$validation --complexity=full ag-5k2      # force full council ceremony
-$validation --no-retro ag-5k2             # skip retro + forge
-$validation --no-forge ag-5k2             # skip forge only
-```
-
-## Architecture
+## DAG — Execute This Sequentially
 
 ```
-$validation [<epic-id>] [--complexity=<fast|standard|full>] [--no-retro] [--no-forge]
-  │
-  ├── Step 1: Vibe (gate)
-  │   └── $vibe recent — code quality + council review
-  │       PASS/WARN → proceed to learning capture
-  │       FAIL → signal re-implementation needed
-  │
-  ├── Step 2: Post-mortem
-  │   └── $post-mortem <epic-id> — retrospective analysis
-  │
-  ├── Step 3: Retro (optional)
-  │   └── $retro — quick-capture session learnings
-  │
-  └── Step 4: Forge (optional)
-      └── $forge — mine transcripts for patterns + decisions
-```
-
-## Execution Steps
-
-### Step 0: Setup
-
-```bash
 mkdir -p .agents/rpi
+detect complexity from execution-packet or --complexity flag (default: standard)
+detect ao CLI availability
 ```
 
-Initialize state:
+**Run every step in order. Do not stop between steps.**
 
+```
+STEP 1  ──  $vibe recent [--quick]
+              Use --quick for fast/standard. Full council for full.
+              PASS/WARN? → continue
+              FAIL?      → write summary, output <promise>FAIL</promise>, stop
+                           (validation cannot fix code — caller decides retry)
+
+STEP 1.5 ── Test pyramid coverage audit (advisory, append to summary)
+              Check L0-L3 + BF1/BF4 per modified file. WARN only, not FAIL.
+
+STEP 2  ──  if epic_id:
+              $post-mortem <epic-id> [--quick]
+              Use --quick for fast/standard. Full council for full.
+
+STEP 3  ──  if not --no-retro:
+              $retro
+
+STEP 4  ──  if not --no-forge AND ao available:
+              ao forge transcript --last-session --queue --quiet 2>/dev/null || true
+
+STEP 5  ──  write phase summary to .agents/rpi/phase-3-summary-YYYY-MM-DD-<slug>.md
+              ao ratchet record vibe 2>/dev/null || true
+              output <promise>DONE</promise>
+```
+
+**That's it.** Steps 1→2→3→4→5. No stopping between steps.
+
+---
+
+## Setup Detail
+
+**State:**
 ```
 validation_state = {
   epic_id: "<epic-id or null>",
-  complexity: <fast|standard|full or null for auto-detect>,
+  complexity: <fast|standard|full>,
   no_retro: <true if --no-retro>,
   no_forge: <true if --no-forge>,
   vibe_verdict: null,
-  post_mortem_verdict: null,
-  attempt: 1
+  post_mortem_verdict: null
 }
 ```
 
-**Load execution packet** (if available):
+**Load execution packet** (if available): read `complexity`, `contract_surfaces`, `done_criteria` from `.agents/rpi/execution-packet.json`.
 
-```bash
-if [[ -f .agents/rpi/execution-packet.json ]]; then
-  # Read contract surfaces, done_criteria, complexity from packet
-  # Use for scoping vibe and post-mortem
-fi
-```
+## Gate Detail
 
-**Auto-detect complexity** (if not overridden and execution-packet exists):
-- Read `complexity` field from execution-packet
-- If no packet: default to `standard`
+**STEP 1 (vibe) is the only gate.** Validation cannot fix code — it can only report.
 
-**CLI dependency detection:**
+- **PASS/WARN:** Log verdict, continue to STEP 2.
+- **FAIL:** Extract findings from `ls -t .agents/council/*vibe*.md | head -1`, write phase summary with FAIL status, output `<promise>FAIL</promise>` with findings attached. Suggest: `"Vibe FAIL. Fix findings, then re-run $validation [epic-id]"`.
 
-```bash
-if command -v ao &>/dev/null; then AO_AVAILABLE=true; else AO_AVAILABLE=false; fi
-```
+## Phase Summary Format
 
-### Step 1: Vibe (gate)
-
-Invoke `$vibe` for code quality review:
-
-```
-$vibe recent [--quick]
-```
-
-Use `--quick` for fast/standard complexity. Use full council (no `--quick`) for full complexity.
-
-**If no epic-id provided:** `$vibe recent` reviews the most recent changes.
-
-**Gate logic:**
-
-- **PASS:** Log `"Vibe: PASS"`. Store verdict. Proceed to Step 2.
-- **WARN:** Log `"Vibe: WARN -- see report for concerns"`. Store verdict. Proceed to Step 2.
-- **FAIL:** Do NOT retry internally. Signal failure to caller:
-  1. Read vibe report: `ls -t .agents/council/*vibe*.md | head -1`
-  2. Extract structured findings (description, fix, ref)
-  3. Write phase summary with FAIL status
-  4. Output: `<promise>FAIL</promise>` with findings attached
-  5. Suggest: `"Vibe FAIL. Fix findings, then re-run $validation [epic-id]"`
-
-**Why no internal retry:** Validation cannot fix code. Retries require re-implementation (`$crank`). The caller (`$rpi` or human) decides whether to loop back.
-
-### Step 1.5: Test Pyramid Coverage Audit
-
-After vibe passes, assess test coverage across pyramid levels per the test pyramid standard (`test-pyramid.md` in the standards skill).
-
-**For each modified file in scope:**
-
-1. Check L0 (Contract): Do spec/contract tests exist for boundary changes?
-2. Check L1 (Unit): Do unit tests exist for new/modified functions?
-3. Check L2 (Integration): Do integration tests exist for cross-module changes?
-4. Check L3 (Component): Do component tests exist for subsystem workflows?
-
-Also check BF4 (chaos) for boundary code and BF1 (property) for transforms. See the test pyramid in `$standards`.
-
-**Output:** Append a `## Test Pyramid Coverage` section to the validation phase summary:
-
-```markdown
-## Test Pyramid Coverage
-
-| Level | Expected | Found | Gap |
-|-------|----------|-------|-----|
-| L0 Contract | N files | M tests | description or "covered" |
-| L1 Unit | N functions | M tests | description or "covered" |
-| L2 Integration | N modules | M tests | description or "covered" |
-| L3 Component | N workflows | M tests | description or "covered" |
-| L4+ | human-gated | — | deferred |
-```
-
-**This is advisory (WARN, not FAIL).** Coverage gaps are reported as findings for the post-mortem, not as blockers. The goal is visibility, not enforcement — enforcement happens in `$plan` and `$pre-mortem`.
-
-### Step 2: Post-mortem
-
-**Skip if:** No epic-id provided (standalone vibe-only mode).
-
-Invoke `$post-mortem` for retrospective analysis:
-
-```
-$post-mortem <epic-id> [--quick]
-```
-
-Use `--quick` for fast/standard complexity. Full council for full complexity.
-
-Store post-mortem verdict in `validation_state.post_mortem_verdict`.
-
-### Step 3: Retro (optional)
-
-**Skip if:** `--no-retro` flag.
-
-Invoke `$retro` for quick learning capture:
-
-```
-$retro 
-```
-
-Retro captures session-specific learnings to `.agents/learnings/`.
-
-### Step 4: Forge (optional)
-
-**Skip if:** `--no-forge` flag, OR `ao` CLI is not available.
-
-Mine the current session for patterns, decisions, and failures:
-
-```bash
-ao forge transcript --last-session --queue --quiet 2>/dev/null || true
-```
-
-Note: `$forge` is an internal skill (`user-invocable: false`) — invoke via CLI, not via `Skill()`. Forge extracts structured knowledge to `.agents/learnings/`. Scoped to the current session only — full corpus mining is `$athena`'s job.
-
-### Step 5: Output
-
-1. **Write phase summary** to `.agents/rpi/phase-3-summary-YYYY-MM-DD-<slug>.md`:
+Write to `.agents/rpi/phase-3-summary-YYYY-MM-DD-<slug>.md`:
 
 ```markdown
 # Phase 3 Summary: Validation
@@ -192,24 +88,6 @@ Note: `$forge` is an internal skill (`user-invocable: false`) — invoke via CLI
 - **Timestamp:** <ISO-8601>
 ```
 
-2. **Record ratchet and telemetry:**
-
-```bash
-ao ratchet record vibe 2>/dev/null || true
-bash scripts/checkpoint-commit.sh rpi "phase-3" "validation complete" 2>/dev/null || true
-bash scripts/log-telemetry.sh rpi phase-complete phase=3 phase_name=validation 2>/dev/null || true
-```
-
-3. **Output completion marker:**
-
-```
-<promise>DONE</promise>    # Vibe PASS/WARN, learnings captured
-<promise>FAIL</promise>    # Vibe FAIL, re-implementation needed
-```
-
-If DONE: report verdicts and suggest next steps.
-If FAIL: report findings and suggest `$crank <epic-id> --context '<findings>'`.
-
 ## Phase Budgets
 
 | Sub-step | `fast` | `standard` | `full` |
@@ -219,7 +97,7 @@ If FAIL: report findings and suggest `$crank <epic-id> --context '<findings>'`.
 | Retro | 1 min | 1 min | 2 min |
 | Forge | skip | 2 min | 3 min |
 
-On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker, proceed with whatever artifacts exist.
+On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker, proceed.
 
 ## Flags
 
@@ -229,6 +107,16 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 | `--no-retro` | off | Skip retro + forge steps |
 | `--no-forge` | off | Skip forge step only |
 | `--no-budget` | off | Disable phase time budgets |
+
+## Quick Start
+
+```bash
+$validation ag-5k2                        # validate epic with full close-out
+$validation                               # validate recent work (no epic)
+$validation --complexity=full ag-5k2      # force full council ceremony
+$validation --no-retro ag-5k2             # skip retro + forge
+$validation --no-forge ag-5k2             # skip forge only
+```
 
 ## Completion Markers
 
@@ -267,5 +155,3 @@ On budget expiry: allow in-flight calls to complete, write `[TIME-BOXED]` marker
 
 - [references/forge-scope.md](references/forge-scope.md)
 - [references/idempotency-and-resume.md](references/idempotency-and-resume.md)
-
-

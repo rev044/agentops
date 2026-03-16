@@ -1,37 +1,28 @@
 # Autonomous Execution Rules
 
-## The Three-Phase Rule
+## The DAG Rule
 
-RPI has THREE mandatory phases (unless complexity == `fast`). You MUST run all three — discovery, implementation, AND validation — in a single session. Do NOT stop after implementation. Do NOT ask the user if they want to commit after Phase 2. Phase 2 completing is NOT the end — it is the midpoint. Validation (Phase 3) is where learnings are captured and the knowledge flywheel turns. Skipping it breaks the flywheel.
+RPI is a 4-step DAG. You enter at `--from` and run every step after it to completion. There are no natural stopping points between steps — the DAG is one unit of work. The human's only touchpoint is after STEP 4 (report).
+
+Unless complexity == `fast`, STEP 3 (validation) is mandatory. Skipping it breaks the knowledge flywheel — no quality check, no learnings captured, no compounding.
 
 ## Fully Autonomous by Default
 
-Unless `--interactive` is explicitly set, RPI runs hands-free from start to finish. Do NOT:
-- Ask the user for confirmation between phases
+Unless `--interactive` is explicitly set, RPI runs hands-free. Do NOT:
+- Ask the user for confirmation between steps
 - Ask "want me to commit?" or "should I continue?"
 - Pause to summarize and wait for input
 - Request clarification mid-execution
 - Stop to ask about approach or strategy
 
-The human's only touchpoint is AFTER Phase 3 completes. If something is genuinely blocked (3 retries exhausted), then and only then do you stop and report. Everything else runs autonomously. The user invoked `/rpi` because they want you to GO — not to narrate.
-
-## Anti-Patterns (DO NOT)
-
-| Anti-Pattern | Why It's Wrong | Correct Behavior |
-|--------------|----------------|------------------|
-| Stop after Phase 2 and ask to commit | Skips validation — no quality check, no learnings, flywheel doesn't turn | Proceed directly to Phase 3 |
-| Call `/vibe` directly instead of `/validation` | `/vibe` is one sub-step; `/validation` wraps vibe + post-mortem + retro + forge | Always call `/validation` from `/rpi` |
-| Ask "want me to commit?" between phases | Interrupts autonomous flow — user invoked `/rpi` for hands-free execution | Commit only after ALL phases complete |
-| Ask the user ANY question during execution | RPI is autonomous unless `--interactive` — questions break the flow | Make best judgment and proceed; report at end |
-| Run Phase 1 inline instead of delegating to `/discovery` | Loses brainstorm → search → research → plan → pre-mortem sequencing | Delegate via `Skill(skill="discovery")` |
-| Summarize findings and wait after Phase 1 | Discovery output is an input to Phase 2, not a deliverable | Proceed immediately to Phase 2 |
-| Pause to explain what you're about to do | Narration wastes time — the user wants results, not commentary | Execute, then report at the end |
+If something is genuinely blocked (3 retries exhausted), then and only then do you stop and report.
 
 ## Phase Completion Tracking
 
-After each phase, log progress:
+After each step, log progress:
 ```
-PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2
-PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3
-PHASE 3 COMPLETE ✓ (validation) — RPI DONE
+STEP 1 COMPLETE ✓ (discovery) → STEP 2
+STEP 2 COMPLETE ✓ (implementation) → STEP 3
+STEP 3 COMPLETE ✓ (validation) → STEP 4
+STEP 4 COMPLETE ✓ (report) — RPI DONE
 ```

@@ -164,61 +164,61 @@ echo "--- RPI Complexity Scaling ---"
 
 RPI_SKILL="$REPO_ROOT/skills/rpi/SKILL.md"
 
-# T14: Phase 3 (pre-mortem): low = --quick, medium = --quick, high = full council
-if grep -A5 'Phase 3: Pre-mortem' "$RPI_SKILL" | grep -q 'complexity == "low".*inline\|"low".*no spawning'; then
-    pass "T14a: RPI Phase 3 low = --quick"
+# T14: Pre-mortem: low = --quick, medium = --quick, high = full council
+if grep -A3 'Pre-mortem' "$RPI_SKILL" | grep -q 'complexity == "low".*inline\|"low".*no spawning'; then
+    pass "T14a: RPI pre-mortem low = --quick"
 else
-    fail "T14a: RPI Phase 3 low should use --quick"
+    fail "T14a: RPI pre-mortem low should use --quick"
 fi
 
-if grep -A6 'Phase 3: Pre-mortem' "$RPI_SKILL" | grep -q 'complexity == "medium".*inline\|"medium".*fast default'; then
-    pass "T14b: RPI Phase 3 medium = --quick"
+if grep -A3 'Pre-mortem' "$RPI_SKILL" | grep -q 'complexity == "medium".*inline\|"medium".*fast default'; then
+    pass "T14b: RPI pre-mortem medium = --quick"
 else
-    fail "T14b: RPI Phase 3 medium should use --quick"
+    fail "T14b: RPI pre-mortem medium should use --quick"
 fi
 
-if grep -A7 'Phase 3: Pre-mortem' "$RPI_SKILL" | grep -q 'complexity == "high".*full.*council\|"high".*2-judge'; then
-    pass "T14c: RPI Phase 3 high = full council"
+if grep -A3 'Pre-mortem' "$RPI_SKILL" | grep -q 'complexity == "high".*full.*council\|"high".*2-judge'; then
+    pass "T14c: RPI pre-mortem high = full council"
 else
-    fail "T14c: RPI Phase 3 high should use full council"
+    fail "T14c: RPI pre-mortem high should use full council"
 fi
 
-# T15: Phase 5 (vibe): low = --quick, medium = --quick, high = full council
-if grep -A5 'Phase 5: Final Vibe' "$RPI_SKILL" | grep -q 'complexity == "low".*inline\|"low".*no spawning'; then
-    pass "T15a: RPI Phase 5 low = --quick"
+# T15: Final Vibe: low = --quick, medium = --quick, high = full council
+if grep -A3 'Final Vibe' "$RPI_SKILL" | grep -q 'complexity == "low".*inline\|"low".*no spawning'; then
+    pass "T15a: RPI final vibe low = --quick"
 else
-    fail "T15a: RPI Phase 5 low should use --quick"
+    fail "T15a: RPI final vibe low should use --quick"
 fi
 
-if grep -A6 'Phase 5: Final Vibe' "$RPI_SKILL" | grep -q 'complexity == "medium".*inline\|"medium".*fast default'; then
-    pass "T15b: RPI Phase 5 medium = --quick"
+if grep -A3 'Final Vibe' "$RPI_SKILL" | grep -q 'complexity == "medium".*inline\|"medium".*fast default'; then
+    pass "T15b: RPI final vibe medium = --quick"
 else
-    fail "T15b: RPI Phase 5 medium should use --quick"
+    fail "T15b: RPI final vibe medium should use --quick"
 fi
 
-if grep -A7 'Phase 5: Final Vibe' "$RPI_SKILL" | grep -q 'complexity == "high".*full.*council\|"high".*2-judge'; then
-    pass "T15c: RPI Phase 5 high = full council"
+if grep -A3 'Final Vibe' "$RPI_SKILL" | grep -q 'complexity == "high".*full.*council\|"high".*2-judge'; then
+    pass "T15c: RPI final vibe high = full council"
 else
-    fail "T15c: RPI Phase 5 high should use full council"
+    fail "T15c: RPI final vibe high should use full council"
 fi
 
-# T16: Phase 6 (post-mortem): low = --quick, medium = --quick, high = full council
-if grep -A5 'Phase 6: Post-mortem' "$RPI_SKILL" | grep -q 'complexity == "low".*inline\|"low".*no spawning'; then
-    pass "T16a: RPI Phase 6 low = --quick"
+# T16: Post-mortem: low = --quick, medium = --quick, high = full council
+if grep -A3 'Post-mortem .STEP 2' "$RPI_SKILL" | grep -q 'complexity == "low".*inline\|"low".*no spawning'; then
+    pass "T16a: RPI post-mortem low = --quick"
 else
-    fail "T16a: RPI Phase 6 low should use --quick"
+    fail "T16a: RPI post-mortem low should use --quick"
 fi
 
-if grep -A6 'Phase 6: Post-mortem' "$RPI_SKILL" | grep -q 'complexity == "medium".*inline\|"medium".*fast default'; then
-    pass "T16b: RPI Phase 6 medium = --quick"
+if grep -A3 'Post-mortem .STEP 2' "$RPI_SKILL" | grep -q 'complexity == "medium".*inline\|"medium".*fast default'; then
+    pass "T16b: RPI post-mortem medium = --quick"
 else
-    fail "T16b: RPI Phase 6 medium should use --quick"
+    fail "T16b: RPI post-mortem medium should use --quick"
 fi
 
-if grep -A7 'Phase 6: Post-mortem' "$RPI_SKILL" | grep -q 'complexity == "high".*full.*council\|"high".*2-judge'; then
-    pass "T16c: RPI Phase 6 high = full council"
+if grep -A3 'Post-mortem .STEP 2' "$RPI_SKILL" | grep -q 'complexity == "high".*full.*council\|"high".*2-judge'; then
+    pass "T16c: RPI post-mortem high = full council"
 else
-    fail "T16c: RPI Phase 6 high should use full council"
+    fail "T16c: RPI post-mortem high should use full council"
 fi
 
 echo ""
