@@ -705,19 +705,17 @@ func checkCodexNativePluginManifest(home, primary string, primaryCount int) *doc
 	}
 }
 
-func checkSkills() doctorCheck {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "cannot determine home directory", Required: false}
-	}
+// skillInstall describes a candidate skill installation directory.
+type skillInstall struct {
+	path        string
+	label       string
+	displayPath string
+	legacy      bool
+}
 
-	type skillInstall struct {
-		path        string
-		label       string
-		displayPath string
-		legacy      bool
-	}
-	installs := []skillInstall{
+// skillInstallDirs returns the ordered list of candidate skill install locations.
+func skillInstallDirs(home string) []skillInstall {
+	return []skillInstall{
 		{
 			path:        codexNativePluginSkillsPath(home),
 			label:       "Codex Native Plugin",
@@ -740,30 +738,66 @@ func checkSkills() doctorCheck {
 			legacy:      true,
 		},
 	}
+}
 
+// scanSkillDir returns the set of skill names found in a directory, or nil if none.
+func scanSkillDir(dir string) map[string]struct{} {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	names := make(map[string]struct{})
+	for _, e := range entries {
+		// Use os.Stat to follow symlinks (e.IsDir() doesn't follow symlinks)
+		info, err := os.Stat(filepath.Join(dir, e.Name()))
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		skillFile := filepath.Join(dir, e.Name(), "SKILL.md")
+		if _, err := os.Stat(skillFile); err == nil {
+			names[e.Name()] = struct{}{}
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	return names
+}
+
+// skillOverlapWarning returns a doctorCheck warning if base overlaps with any of others,
+// or nil if there is no overlap. msgFmt must contain four %d/%s placeholders:
+// primaryCount (%d), primary (%s), overlap count (%d), sample names (%s).
+func skillOverlapWarning(base map[string]struct{}, primaryCount int, primary, msgFmt string, others ...map[string]struct{}) *doctorCheck {
+	overlaps := overlappingSkillNames(base, others...)
+	if len(overlaps) == 0 {
+		return nil
+	}
+	sample := overlaps
+	if len(sample) > 3 {
+		sample = sample[:3]
+	}
+	return &doctorCheck{
+		Name:   "Plugin",
+		Status: "warn",
+		Detail: fmt.Sprintf(msgFmt, primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
+	}
+}
+
+func checkSkills() doctorCheck {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return doctorCheck{Name: "Plugin", Status: "warn", Detail: "cannot determine home directory", Required: false}
+	}
+
+	installs := skillInstallDirs(home)
 	installedNames := make(map[string]map[string]struct{}, len(installs))
 	primary := ""
 	primaryCount := 0
 	legacyNames := map[string]struct{}{}
 
 	for _, install := range installs {
-		entries, err := os.ReadDir(install.path)
-		if err != nil {
-			continue
-		}
-		names := make(map[string]struct{})
-		for _, e := range entries {
-			// Use os.Stat to follow symlinks (e.IsDir() doesn't follow symlinks)
-			info, err := os.Stat(filepath.Join(install.path, e.Name()))
-			if err != nil || !info.IsDir() {
-				continue
-			}
-			skillFile := filepath.Join(install.path, e.Name(), "SKILL.md")
-			if _, err := os.Stat(skillFile); err == nil {
-				names[e.Name()] = struct{}{}
-			}
-		}
-		if len(names) == 0 {
+		names := scanSkillDir(install.path)
+		if names == nil {
 			continue
 		}
 		installedNames[install.displayPath] = names
@@ -782,51 +816,28 @@ func checkSkills() doctorCheck {
 
 	nativeNames := installedNames["~/.codex/plugins/cache/agentops-marketplace/agentops/local/skills-codex"]
 	rawCodexNames := installedNames["~/.codex/skills"]
+
 	if len(nativeNames) > 0 && len(rawCodexNames) > 0 {
-		overlaps := overlappingSkillNames(rawCodexNames, nativeNames)
-		if len(overlaps) > 0 {
-			sample := overlaps
-			if len(sample) > 3 {
-				sample = sample[:3]
-			}
-			return doctorCheck{
-				Name:   "Plugin",
-				Status: "warn",
-				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw Codex install also present in ~/.codex/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps skill folders in ~/.codex/skills.",
-					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
-			}
+		if w := skillOverlapWarning(rawCodexNames, primaryCount, primary,
+			"%d skills found in %s; duplicate raw Codex install also present in ~/.codex/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps skill folders in ~/.codex/skills.",
+			nativeNames); w != nil {
+			return *w
 		}
 	}
 
 	if len(legacyNames) > 0 && len(nativeNames) > 0 {
-		overlaps := overlappingSkillNames(legacyNames, nativeNames)
-		if len(overlaps) > 0 {
-			sample := overlaps
-			if len(sample) > 3 {
-				sample = sample[:3]
-			}
-			return doctorCheck{
-				Name:   "Plugin",
-				Status: "warn",
-				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
-					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
-			}
+		if w := skillOverlapWarning(legacyNames, primaryCount, primary,
+			"%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
+			nativeNames); w != nil {
+			return *w
 		}
 	}
 
 	if len(legacyNames) > 0 {
-		overlaps := overlappingSkillNames(legacyNames, rawCodexNames, installedNames["~/.claude/skills"])
-		if len(overlaps) > 0 {
-			sample := overlaps
-			if len(sample) > 3 {
-				sample = sample[:3]
-			}
-			return doctorCheck{
-				Name:   "Plugin",
-				Status: "warn",
-				Detail: fmt.Sprintf("%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
-					primaryCount, primary, len(overlaps), strings.Join(sample, ", ")),
-			}
+		if w := skillOverlapWarning(legacyNames, primaryCount, primary,
+			"%d skills found in %s; duplicate raw skill install also present in ~/.agents/skills (%d overlapping skill names, e.g. %s). Remove or archive the AgentOps-managed folders in ~/.agents/skills.",
+			rawCodexNames, installedNames["~/.claude/skills"]); w != nil {
+			return *w
 		}
 	}
 

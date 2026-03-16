@@ -41,9 +41,9 @@ else
     exit 1
 fi
 
-# Session 3: Verify scoring is operational (with decay)
-RESULT2=$(cd "$TEST_DIR" && ao lookup --query "flywheel compounding" --apply-decay --json 2>/dev/null) || {
-    echo "FAIL: ao lookup --apply-decay command failed"
+# Session 3: Verify scoring is operational
+RESULT2=$(cd "$TEST_DIR" && ao lookup --query "flywheel compounding" --json 2>/dev/null) || {
+    echo "FAIL: ao lookup (scoring check) command failed"
     exit 1
 }
 

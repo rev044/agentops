@@ -170,48 +170,66 @@ func parseFindingFile(path string) (knowledgeFinding, error) {
 	if fm.HasUtility {
 		f.Utility = fm.Utility
 	}
+	parseFindingFrontmatterFields(&f, lines, contentStart)
+	parseFindingTitle(&f, lines, contentStart, path)
+	f.Summary = extractSummary(lines, contentStart)
+	return f, nil
+}
+
+// parseFindingFrontmatterFields populates finding fields from YAML frontmatter lines.
+func parseFindingFrontmatterFields(f *knowledgeFinding, lines []string, contentStart int) {
 	for i := 1; i < len(lines) && i < contentStart; i++ {
 		line := strings.TrimSpace(lines[i])
-		switch {
-		case strings.HasPrefix(line, "id:"):
-			f.ID = trimField(line)
-		case strings.HasPrefix(line, "title:"):
-			f.Title = trimField(line)
-		case strings.HasPrefix(line, "source_skill:"), strings.HasPrefix(line, "source-skill:"):
-			f.SourceSkill = trimField(line)
-		case strings.HasPrefix(line, "severity:"):
-			f.Severity = trimField(line)
-		case strings.HasPrefix(line, "detectability:"):
-			f.Detectability = trimField(line)
-		case strings.HasPrefix(line, "status:"):
-			f.Status = trimField(line)
-		case strings.HasPrefix(line, "compiler_targets:"), strings.HasPrefix(line, "compiler-targets:"):
-			f.CompilerTargets = parseListField(trimField(line))
-		case strings.HasPrefix(line, "scope_tags:"), strings.HasPrefix(line, "scope-tags:"):
-			f.ScopeTags = parseListField(trimField(line))
-		case strings.HasPrefix(line, "applicable_when:"), strings.HasPrefix(line, "applicable-when:"):
-			f.ApplicableWhen = parseListField(trimField(line))
-		case strings.HasPrefix(line, "applicable_languages:"), strings.HasPrefix(line, "applicable-languages:"):
-			f.ApplicableLanguages = parseListField(trimField(line))
-		case strings.HasPrefix(line, "hit_count:"), strings.HasPrefix(line, "hit-count:"):
-			f.HitCount = parseIntField(trimField(line))
-		case strings.HasPrefix(line, "last_cited:"), strings.HasPrefix(line, "last-cited:"):
-			f.LastCited = trimField(line)
-		case strings.HasPrefix(line, "retired_by:"), strings.HasPrefix(line, "retired-by:"):
-			f.RetiredBy = trimField(line)
-		}
+		applyFindingField(f, line)
 	}
-	for i := contentStart; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(line, "# ") && f.Title == "" {
-			f.Title = strings.TrimPrefix(line, "# ")
+}
+
+// applyFindingField sets a single frontmatter field on the finding.
+func applyFindingField(f *knowledgeFinding, line string) {
+	switch {
+	case strings.HasPrefix(line, "id:"):
+		f.ID = trimField(line)
+	case strings.HasPrefix(line, "title:"):
+		f.Title = trimField(line)
+	case strings.HasPrefix(line, "source_skill:"), strings.HasPrefix(line, "source-skill:"):
+		f.SourceSkill = trimField(line)
+	case strings.HasPrefix(line, "severity:"):
+		f.Severity = trimField(line)
+	case strings.HasPrefix(line, "detectability:"):
+		f.Detectability = trimField(line)
+	case strings.HasPrefix(line, "status:"):
+		f.Status = trimField(line)
+	case strings.HasPrefix(line, "compiler_targets:"), strings.HasPrefix(line, "compiler-targets:"):
+		f.CompilerTargets = parseListField(trimField(line))
+	case strings.HasPrefix(line, "scope_tags:"), strings.HasPrefix(line, "scope-tags:"):
+		f.ScopeTags = parseListField(trimField(line))
+	case strings.HasPrefix(line, "applicable_when:"), strings.HasPrefix(line, "applicable-when:"):
+		f.ApplicableWhen = parseListField(trimField(line))
+	case strings.HasPrefix(line, "applicable_languages:"), strings.HasPrefix(line, "applicable-languages:"):
+		f.ApplicableLanguages = parseListField(trimField(line))
+	case strings.HasPrefix(line, "hit_count:"), strings.HasPrefix(line, "hit-count:"):
+		f.HitCount = parseIntField(trimField(line))
+	case strings.HasPrefix(line, "last_cited:"), strings.HasPrefix(line, "last-cited:"):
+		f.LastCited = trimField(line)
+	case strings.HasPrefix(line, "retired_by:"), strings.HasPrefix(line, "retired-by:"):
+		f.RetiredBy = trimField(line)
+	}
+}
+
+// parseFindingTitle extracts the title from content body or falls back to filename.
+func parseFindingTitle(f *knowledgeFinding, lines []string, contentStart int, path string) {
+	if f.Title == "" {
+		for i := contentStart; i < len(lines); i++ {
+			line := strings.TrimSpace(lines[i])
+			if strings.HasPrefix(line, "# ") {
+				f.Title = strings.TrimPrefix(line, "# ")
+				break
+			}
 		}
 	}
 	if f.Title == "" {
 		f.Title = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	}
-	f.Summary = extractSummary(lines, contentStart)
-	return f, nil
 }
 
 func trimField(line string) string {

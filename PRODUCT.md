@@ -1,42 +1,70 @@
 ---
-last_reviewed: 2026-02-25
+last_reviewed: 2026-03-15
 ---
 
 # PRODUCT.md
 
 ## Mission
 
-AgentOps treats context quality as the primary lever for agent output quality — orchestrating what information enters each agent's window at each phase so every decision is made with the right context and nothing else, then compounding those results through a knowledge flywheel that makes each successive session smarter.
+AgentOps is the local DevOps layer for coding agents. It tracks the work, validates the plan and code, and feeds what was learned into the next session.
 
 ## Vision
 
 Make coding agents feel like a real engineering organization: validated work, institutional memory, and continuous improvement by default.
 
-AgentOps is the local-first DevOps layer around your coding agent. Execution happens in sessions, but knowledge persists across sessions: plans, gates, outcomes, and learnings get captured and fed forward so the same codebase becomes faster and safer to change over time.
-
 ## Target Personas
 
 ### Persona 1: The Solo Developer
 - **Goal:** Ship features faster while maintaining code quality — without manual code review or multi-person coordination overhead.
-- **Pain point:** High-velocity solo development means either skipping validation (shipping broken code) or spending hours on manual testing and review prep. Each session starts from scratch with no memory of what worked before.
+- **Pain point:** Each agent session starts from scratch. There's no memory of what worked, what failed, or what the codebase expects. Validation is manual or skipped entirely.
 
-### Persona 2: The Scaling Tech Lead
-- **Goal:** Keep a large backlog moving predictably while preventing agents from shipping conflicting changes or breaking shared systems. Need end-to-end visibility into what's being worked on, why, and what the system learned.
-- **Pain point:** Managing parallel work across agents creates cascading blockers — specs change mid-cycle, cross-cutting constraints get violated, learnings from failed attempts aren't captured for next time. Manual ticket grooming and post-mortems burn cycles.
+### Persona 2: The Agent Orchestrator
+- **Goal:** Run multiple agents in parallel on a shared codebase without conflicts, with visibility into what each agent is doing and what the system learned.
+- **Pain point:** Parallel agents create cascading blockers — file conflicts, violated constraints, repeated mistakes. No coordination layer exists between sessions. Manual ticket grooming and post-mortems burn cycles that agents should handle.
 
 ### Persona 3: The Quality-First Maintainer
-- **Goal:** Ship fewer but higher-confidence releases. Prevent regressions in critical code paths. Maintain institutional knowledge even when team members change.
-- **Pain point:** Every regression requires debugging, patching, coordinating hotfixes. Test coverage stalls because writing tests is slower than writing features. Design decisions get lost in commit messages. New agents repeat mistakes because knowledge isn't captured.
+- **Goal:** Ship fewer but higher-confidence releases. Prevent regressions. Maintain institutional knowledge across team and agent turnover.
+- **Pain point:** Design decisions get lost in commit messages. Agents repeat mistakes because knowledge isn't captured. Test coverage stalls because writing tests is slower than writing features.
+
+## What the Product Actually Is
+
+AgentOps has three layers:
+
+### 1. Skills (54 skills across 4 runtimes)
+
+Markdown-defined workflows that agents load and execute. Organized into three functional categories:
+
+- **Judgment** — validation, review, quality gates. Council is the core primitive; `/vibe`, `/pre-mortem`, and `/post-mortem` are wrappers.
+- **Execution** — research, plan, build, ship. From single-task `/implement` to multi-wave `/crank` to full-lifecycle `/rpi`.
+- **Knowledge** — the flywheel. `/retro` captures, `/forge` extracts, `/inject` loads, `/flywheel` monitors.
+
+Skills work across Claude Code, Codex CLI, Cursor, and OpenCode. Each runtime has native format support (`/converter` exports between them). Codex-native skills ship alongside Claude-native.
+
+### 2. CLI (`ao`)
+
+A Go binary that provides the repo-native infrastructure skills depend on:
+
+- **Knowledge flywheel** — `ao inject`, `ao lookup`, `ao forge`, `ao curate`, `ao defrag` manage the learning lifecycle with quality scoring, freshness decay, and deduplication.
+- **Goals** — `ao goals measure` runs fitness gates, `ao goals steer` manages strategic directives, `/evolve` uses goals as its objective function.
+- **Context assembly** — `ao context assemble` builds phase-appropriate context packets. `ao inject` loads relevant learnings into the current session.
+- **Issue tracking** — `bd` (beads) provides git-native issue tracking with dependency graphs, wave decomposition, and epic management.
+
+### 3. Hooks
+
+Session lifecycle hooks that run automatically:
+
+- **SessionStart** — injects relevant knowledge, checks for stale state, loads prior handoffs.
+- **PreToolUse / PostToolUse** — nudges toward structured workflows, enforces constraints.
+- **UserPromptSubmit** — pre-mortem reminders, stall detection.
 
 ## Core Value Propositions
 
-- **Compound Intelligence Across Sessions** — Each session captures learnings that pass quality gates (scored on specificity, actionability, novelty, context, and confidence) into gold/silver/bronze tiers. Freshness decay ensures recent insights outweigh stale patterns. The system doesn't just remember — it curates.
-- **Ship With Confidence, Not Caution** — Least-privilege context loading gives each agent only the information relevant to its task, preventing context contamination. Parallel model validation and self-correcting workflows catch issues before deployment, letting teams move faster without sacrificing quality.
-- **Hands-Free Goal Achievement** — Spawn agents that work independently toward your goals (via `/evolve` and `/crank`), validate their work through multi-model consensus, and commit only when passing quality gates. `/evolve` is built for overnight runs — cycle state is disk-based (survives context compaction), regression gates are hard-gated (no snapshot = stop), and every cycle writes a verifiable audit trail. Validated in production: 116 cycles ran ~7 hours unattended, delivering test coverage from ~85% to ~97%, zero high-complexity functions, and modern idiomatic Go across 203 files.
-- **Compose What You Need** — Skills are standalone building blocks you compose however you want. Use one (`/council validate this PR`), chain several (`/plan` → `/pre-mortem` → `/crank`), or run the full pipeline (`/rpi`). The same recursive shape — lead decomposes work, workers execute atomically, validation gates lock progress — repeats at every scale from a single `/implement` to a full `/evolve` run.
-- **Multi-Runtime, Multi-Model** — Works across Claude Code, Codex CLI, Cursor, and OpenCode. Skills are portable across runtimes (`/converter` exports to native formats). Codex-native skill format ships alongside Claude-native. Independent judges (Claude + Codex) debate before code ships — not advisory, validation gates block merges until they pass.
-- **Progressive Approachability** — New users see 11 starter skills (`/quickstart`, `/research`, `/council`, `/vibe`, `/rpi`, `/implement`, `/retro --quick`, `/status`, `/goals`, `/flywheel`, `/inbox`), not 53. Plain-English verb aliases let you type what you mean — "review this code" triggers `/vibe`, "execute this epic" triggers `/crank`. The 18 advanced skills (planning, orchestration, validation) and 20 expert skills (cross-vendor, PR workflows, traceability) reveal themselves as you grow.
-- **Zero Setup, Zero Telemetry** — All state lives in git-tracked `.agents/` directories with no cloud dependency, giving teams full control and auditability. 54 skills, 3 hooks, and the knowledge flywheel work independently with no external daemon.
+- **Compound Intelligence Across Sessions** — Each session captures learnings scored on specificity, actionability, novelty, context, and confidence. Freshness decay ensures recent insights outweigh stale patterns. The flywheel compounds when retrieval rate x usage rate exceeds decay rate.
+- **Ship With Confidence** — Multi-model consensus (Claude + Codex judges debate independently) validates plans before build and code before commit. Validation gates block, not advise.
+- **Hands-Free Execution** — `/evolve` and `/crank` spawn agents that work toward goals autonomously. Cycle state is disk-based (survives context compaction), regression gates are hard-gated, and every cycle writes a verifiable audit trail.
+- **Compose What You Need** — Skills are standalone building blocks. Use one (`/council validate this PR`), chain several (`/plan` -> `/pre-mortem` -> `/crank`), or run the full pipeline (`/rpi`). The same recursive shape — lead decomposes, workers execute, gates lock — repeats at every scale.
+- **Multi-Runtime, Multi-Model** — Same skills work across Claude Code, Codex CLI, Cursor, and OpenCode. `/converter` exports to native formats. Mixed-vendor council judges (Claude + Codex) provide independent perspectives.
+- **Zero Setup, Zero Telemetry** — All state lives in git-tracked `.agents/` directories with no cloud dependency. 54 skills, 3 hooks, and the knowledge flywheel work independently with no external daemon. Install is one command per runtime.
 
 ## Design Principles
 
@@ -45,15 +73,15 @@ AgentOps is the local-first DevOps layer around your coding agent. Execution hap
 1. **[Systems theory (Meadows)](https://en.wikipedia.org/wiki/Twelve_leverage_points)** — Target the high-leverage end of the hierarchy: information flows (#6), rules (#5), self-organization (#4), goals (#3). Changing the loop beats tuning the output.
 2. **[DevOps (Three Ways)](docs/the-science.md#part-3-devops-foundation-the-three-ways)** — Flow, feedback, continual learning — applied to the agent loop instead of the deploy pipeline.
 3. **[Brownian Ratchet](docs/brownian-ratchet.md)** — Embrace agent variance, filter aggressively, ratchet successes. Chaos + filter + one-way gate = net forward progress.
-4. **[Knowledge Flywheel (escape velocity)](docs/the-science.md#the-escape-velocity-condition)** — If retrieval rate × usage rate exceeds decay rate (σ×ρ > δ), knowledge compounds. If not, it decays to zero. The flywheel exists to stay above that threshold.
+4. **[Knowledge Flywheel (escape velocity)](docs/the-science.md#the-escape-velocity-condition)** — If retrieval rate x usage rate exceeds decay rate, knowledge compounds. If not, it decays to zero. The flywheel exists to stay above that threshold.
 
 **Operational principles:**
 
 1. **Context quality determines output quality.** Every skill, hook, and flywheel component exists to ensure the right context is in the right window at the right time.
 2. **Least-privilege loading.** Agents receive only the context necessary for their task — phase-specific, role-scoped, freshness-weighted.
 3. **The cycle is the product.** No single skill is the value. The compounding loop — research, plan, validate, build, validate, learn, repeat — is what makes the system improve.
-4. **Two-tier execution.** Orchestrators (`/evolve`, `/rpi`, `/crank`) stay in the main session so you see progress and can intervene. Workers they spawn fork into subagents where results merge back via the filesystem — never accumulated chat context.
-5. **Dormancy is last resort.** When goals pass and the current backlog is empty, the system keeps generating productive work from tests, validation gaps, bug hunts, drift, and feature suggestions before it finally goes dormant.
+4. **Two-tier execution.** Orchestrators (`/evolve`, `/rpi`, `/crank`) stay in the main session. Workers fork into subagents where results merge back via the filesystem — never accumulated chat context.
+5. **Dormancy is last resort.** When goals pass and backlog is empty, the system generates productive work from validation gaps, bug hunts, drift detection, and feature suggestions before going dormant.
 
 ## Usage
 
