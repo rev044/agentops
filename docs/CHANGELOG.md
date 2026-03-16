@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.26.1] - 2026-03-16
+
+### Fixed
+
+- **RPI stops after Phase 2** — Restructured rpi, discovery, and validation orchestrator skills as compact DAGs with execution sequence in a single code block; eliminates LLM stopping between phases due to `###` section headings acting as natural breakpoints
+- **Test grep patterns for DAG headings** — Updated `test-tuning-defaults.sh` to match new complexity-scaled gate headings after DAG restructure
+
+### Changed
+
+- **Goals reimagined** — GOALS.md rebuilt from first principles with fitness gate fixes
+- **README progressive disclosure** — Lead with moats, collapse detail into expandable sections
+- **CLI reference docs** — Regenerated with updated date stamps
+- **Doctor + findings helpers** — Added CLI test coverage for extracted helpers
+
+
 ## [2.26.0] - 2026-03-15
 
 ### Added

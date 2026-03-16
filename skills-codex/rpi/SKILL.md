@@ -131,7 +131,7 @@ $rpi --fast-path "fix typo in readme"                  # skip STEP 3
 
 ## Phase Data Contracts
 
-All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries `contract_surfaces`, `done_criteria`, and queue metadata between steps. See `references/phase-data-contracts.md`.
+All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries `contract_surfaces` (repo execution profile), `done_criteria`, and queue claim/finalize metadata between phases. Sub-skills include $plan, $vibe, $post-mortem, and $pre-mortem. For detailed contract schemas, read `references/phase-data-contracts.md`.
 
 ## Troubleshooting
 
