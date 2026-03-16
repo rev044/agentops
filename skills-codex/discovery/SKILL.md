@@ -90,7 +90,7 @@ if command -v ao &>/dev/null; then AO_AVAILABLE=true; else AO_AVAILABLE=false; f
 
 **STEP 3.1 (test levels):** After research, determine L0-L3 applicability. External APIs/I/O → L0+L1+L2 min. Cross-module → add L2. Full subsystem → add L3. Record in `discovery_state.test_levels`.
 
-**STEP 4 (plan):** After plan, extract epic-id via `bd list --type epic --status open` or TaskList. Auto-detect complexity from issue count if not overridden.
+**STEP 4 (plan):** After plan, extract epic-id via `bd list --type epic --status open`. Auto-detect complexity from issue count if not overridden.
 
 **STEP 6 (output):** Write execution packet and phase summary per `references/output-templates.md`. Include `test_levels` and ranked packet in the execution packet for `$crank` consumption.
 
