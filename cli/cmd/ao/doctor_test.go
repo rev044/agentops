@@ -480,6 +480,64 @@ func TestCheckSkillIntegrity_WithHealScript(t *testing.T) {
 	}
 }
 
+func TestSkillOverlapWarning_NoOverlap(t *testing.T) {
+	base := map[string]struct{}{"a": {}, "b": {}}
+	other := map[string]struct{}{"c": {}, "d": {}}
+	result := skillOverlapWarning(base, 10, "primary", "%d found in %s; %d overlap: %s", other)
+	if result != nil {
+		t.Errorf("expected nil for non-overlapping sets, got %+v", result)
+	}
+}
+
+func TestSkillOverlapWarning_WithOverlap(t *testing.T) {
+	base := map[string]struct{}{"a": {}, "b": {}, "c": {}}
+	other := map[string]struct{}{"b": {}, "c": {}, "d": {}}
+	result := skillOverlapWarning(base, 10, "primary", "%d found in %s; %d overlap: %s", other)
+	if result == nil {
+		t.Fatal("expected warning for overlapping sets, got nil")
+	}
+	if result.Status != "warn" {
+		t.Errorf("status=%q, want warn", result.Status)
+	}
+	if !strings.Contains(result.Detail, "2 overlap") {
+		t.Errorf("detail=%q, want '2 overlap' substring", result.Detail)
+	}
+}
+
+func TestScanSkillDir_NonexistentDir(t *testing.T) {
+	result := scanSkillDir("/nonexistent/path/that/does/not/exist")
+	if result != nil {
+		t.Errorf("expected nil for nonexistent dir, got %v", result)
+	}
+}
+
+func TestScanSkillDir_WithSkills(t *testing.T) {
+	tmp := t.TempDir()
+	// Create a skill directory with SKILL.md
+	skillDir := filepath.Join(tmp, "my-skill")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# skill"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Create a non-skill directory (no SKILL.md)
+	if err := os.MkdirAll(filepath.Join(tmp, "not-a-skill"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	result := scanSkillDir(tmp)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if _, ok := result["my-skill"]; !ok {
+		t.Error("expected 'my-skill' in result")
+	}
+	if _, ok := result["not-a-skill"]; ok {
+		t.Error("did not expect 'not-a-skill' in result (no SKILL.md)")
+	}
+}
+
 func TestCheckSkillIntegrity_WithFindings(t *testing.T) {
 	// Create a heal.sh that reports findings and exits 1
 	tmp := chdirTemp(t)

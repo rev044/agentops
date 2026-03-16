@@ -152,6 +152,33 @@ severity: medium
 	}
 }
 
+func TestApplyFindingField(t *testing.T) {
+	tests := []struct {
+		line  string
+		check func(f *knowledgeFinding) bool
+		desc  string
+	}{
+		{"id: abc-123", func(f *knowledgeFinding) bool { return f.ID == "abc-123" }, "id field"},
+		{"severity: high", func(f *knowledgeFinding) bool { return f.Severity == "high" }, "severity field"},
+		{"source_skill: vibe", func(f *knowledgeFinding) bool { return f.SourceSkill == "vibe" }, "source_skill underscore"},
+		{"source-skill: vibe", func(f *knowledgeFinding) bool { return f.SourceSkill == "vibe" }, "source-skill hyphen"},
+		{"hit_count: 5", func(f *knowledgeFinding) bool { return f.HitCount == 5 }, "hit_count"},
+		{"hit-count: 3", func(f *knowledgeFinding) bool { return f.HitCount == 3 }, "hit-count hyphen"},
+		{"status: active", func(f *knowledgeFinding) bool { return f.Status == "active" }, "status field"},
+		{"scope_tags: go,cli", func(f *knowledgeFinding) bool { return len(f.ScopeTags) == 2 && f.ScopeTags[0] == "go" }, "scope_tags"},
+		{"unrecognized: value", func(f *knowledgeFinding) bool { return f.ID == "" && f.Title == "" }, "unknown field ignored"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			f := &knowledgeFinding{}
+			applyFindingField(f, tt.line)
+			if !tt.check(f) {
+				t.Errorf("applyFindingField(%q) did not produce expected result", tt.line)
+			}
+		})
+	}
+}
+
 func TestApplyFindingFreshness(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fresh.md")
