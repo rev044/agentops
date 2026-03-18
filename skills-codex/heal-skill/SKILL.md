@@ -61,7 +61,7 @@ bash skills/heal-skill/scripts/heal.sh --check skills/council
 bash skills/heal-skill/scripts/heal.sh --fix skills/council
 ```
 
-### Step 1A: Audit Codex Parity Drift When The Generated Bundle Looks Wrong
+### Step 1A: Audit Codex Parity Drift When The Codex Bundle Looks Wrong
 
 When the problem is not source-skill hygiene but `skills-codex/` drift, run the Codex parity audit first:
 
@@ -71,13 +71,13 @@ bash scripts/audit-codex-parity.sh --skill swarm
 ```
 
 
-**Repair rule:** never hand-maintain `skills-codex/<name>/SKILL.md`. Keep canonical behavior in `skills/<name>/SKILL.md`, and keep durable Codex-only body edits in `skills-codex-overrides/<name>/SKILL.md`.
+**Repair rule:** keep canonical shared behavior in `skills/<name>/SKILL.md`. Update `skills-codex/<name>/SKILL.md` when the shipped Codex artifact is wrong, and keep durable Codex-only tailoring in `skills-codex-overrides/<name>/SKILL.md`.
 
 After repair:
 
 ```bash
-bash scripts/sync-codex-native-skills.sh
-bash scripts/validate-codex-skill-parity.sh
+bash scripts/audit-codex-parity.sh
+bash scripts/validate-codex-override-coverage.sh
 bash scripts/validate-codex-generated-artifacts.sh --scope worktree
 ```
 
@@ -170,5 +170,4 @@ One line per finding:
 
 - `scripts/heal.sh`
 - `scripts/validate.sh`
-
 

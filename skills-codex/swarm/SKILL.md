@@ -1,91 +1,90 @@
 ---
 name: swarm
-description: 'Spawn isolated agents for parallel task execution via spawn_agents_on_csv. Fresh context per agent (Ralph Wiggum pattern). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
+description: 'Spawn isolated agents for parallel task execution with Codex session agents. Fresh context per agent (Ralph Wiggum pattern). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
 metadata:
   tier: orchestration
 ---
 
-# $swarm — Parallel Agent Execution (Codex Native)
+# $swarm
 
-Spawn isolated agents to execute tasks in parallel using `spawn_agents_on_csv`. Fresh context per agent (Ralph Wiggum pattern).
+Spawn isolated agents to execute tasks in parallel with Codex session agents. Fresh context per agent.
 
 **Integration modes:**
-- **Via $crank** — crank creates tasks from beads, invokes swarm for each wave
-- **Standalone** — direct invocation for ad-hoc parallel work
+- **Via `$crank`** - crank creates waves from beads and invokes `$swarm` for each wave
+- **Standalone** - direct invocation for ad-hoc parallel work
 
-> **Requires Codex multi-agent.** Enable via `multi_agent = true` in `~/.codex/config.toml`.
+> **Requires a multi-agent runtime.** Prefer runtime-native Codex session agents. If spawning is unavailable, fall back to sequential execution in the current session.
 
 ## Architecture
 
+```text
+Lead (this session)
+  |
+  +-> Identify the wave: tasks with no blockers
+  +-> Build explicit file manifests
+  +-> Pre-spawn conflict check (file ownership)
+  +-> Spawn one worker per task
+  +-> Wait for completion
+  +-> Validate changes and close or retry tasks
+  +-> Repeat if more work remains
 ```
-Lead (this agent)
-    |
-    +-> Identify wave: tasks with no blockers
-    |
-    +-> Build CSV from tasks
-    |
-    +-> Pre-spawn conflict check (file ownership)
-    |
-    +-> spawn_agents_on_csv (parallel workers)
-    |
-    +-> wait for completion
-    |
-    +-> Validate: review changes, run tests
-    |
-    +-> Repeat if more work needed
-```
+
+**Runtime preference:**
+1. If `spawn_agent` is available, use Codex session agents.
+2. If your runtime exposes `agent_type` roles, use `worker` for execution and `explorer` for file discovery.
+3. If spawning is unavailable, execute sequentially and keep the same file-manifest contract.
 
 ## Execution
 
 Given `$swarm`:
 
-### Step 0: Verify Multi-Agent Available
+## Local Mode
 
-Check that `spawn_agents_on_csv` is available. If not:
-```
+In local mode, keep the same file-manifest contract and execute workers sequentially when the runtime cannot spawn agents.
+
+### Step 0: Detect Multi-Agent Capability
+
+Check whether the runtime can spawn agents. If not:
+
+```text
 WARN: Multi-agent not available. Executing tasks sequentially in this session.
 ```
-Fall back to serial execution within current session.
+
+Fall back to serial execution within the current session.
 
 ### Step 1: Ensure Tasks Exist
 
 Tasks come from one of:
-- `bd ready` output (beads mode)
-- Explicit task list from `$crank`
-- User-provided description (decompose first)
+- `bd ready` output
+- An explicit task list from `$crank`
+- A user-provided description that you decompose first
 
 Each task needs:
-- **id** — unique identifier
-- **subject** — what to do
-- **description** — detailed instructions
-- **files** — file manifest (which files this worker owns)
-- **validation** — how to verify completion
+- `id` - unique identifier
+- `subject` - what to do
+- `description` - detailed instructions
+- `files` - file manifest for worker ownership
+- `validation` - how to verify completion
+- `metadata.issue_type` - the canonical task type used by the lead when tracking work
 
-### Step 1.5: Auto-Populate File Manifests
+### Step 1.5: Populate File Manifests
 
-If any task is missing its file manifest, spawn explorer agents to identify files:
+If any task is missing a file manifest, spawn explorer agents to identify files. Use the explorer role if your runtime exposes roles:
 
+```text
+spawn_agent(message="You are explorer-1.
+
+Task: Given this task, identify all files that will need to be created or modified.
+Return a JSON array of file paths only.
+Task subject: <subject>
+Task description: <description>")
 ```
-spawn_agents_on_csv(
-    csv_path=".agents/swarm/manifest-tasks.csv",
-    instruction="Given this task: '{subject}', identify all files that will need to be created or modified. Return a JSON array of file paths.",
-    id_column="id",
-    output_schema={
-        "type": "object",
-        "properties": {
-            "files": {"type": "array", "items": {"type": "string"}}
-        },
-        "required": ["files"],
-        "additionalProperties": false
-    },
-    max_concurrency=6,
-    max_runtime_seconds=120
-)
-```
+
+Inject the discovered file list back into the task manifest before spawning workers.
 
 ### Step 2: Pre-Spawn Conflict Check
 
-```
+```text
 wave_tasks = [tasks with status=pending and no blockers]
 all_files = {}
 for task in wave_tasks:
@@ -95,127 +94,106 @@ for task in wave_tasks:
         all_files[f] = task.id
 ```
 
-**On conflict:**
-- **Serialize** conflicting workers into separate sub-waves (preferred)
-- Do NOT spawn workers with overlapping file manifests in the same wave
+On conflict:
+- Serialize conflicting workers into separate sub-waves
+- Do not spawn overlapping file manifests into the same shared-worktree wave
 
-**Display ownership table before spawning:**
+Display an ownership table before spawning:
 
-```
+```text
 File Ownership Map (Wave N):
 ┌─────────────────────────────┬──────────┬──────────┐
 │ File                        │ Owner    │ Conflict │
 ├─────────────────────────────┼──────────┼──────────┤
-│ src/auth/middleware.go       │ task-1   │          │
-│ src/api/routes.go            │ task-2   │          │
+│ src/auth/middleware.go      │ task-1   │          │
+│ src/api/routes.go           │ task-2   │          │
 └─────────────────────────────┴──────────┴──────────┘
 Conflicts: 0
 ```
 
-### Step 3: Build Worker CSV
+### Step 3: Spawn Workers
 
-```bash
-CSV_FILE=".agents/swarm/wave-${wave}-workers.csv"
-mkdir -p .agents/swarm
+Build one worker prompt per task. Each worker gets a single assignment and a single file manifest.
 
-echo "id,subject,description,files,validation_cmd" > "$CSV_FILE"
+```text
+spawn_agent(message="You are worker-<task-id>.
 
-for task in $WAVE_TASKS; do
-    echo "\"$task_id\",\"$subject\",\"$description\",\"$files\",\"$validation\"" >> "$CSV_FILE"
-done
+Assignment: <subject>
+
+<description>
+
+FILE MANIFEST (files you are permitted to modify):
+<list of files>
+
+Rules:
+1. Stay within your assigned files
+2. Run validation: <validation_cmd>
+3. Write your result to .agents/swarm/results/<task-id>.json
+4. Keep any message back to the lead short
+
+Result file format:
+On success:
+{\"type\":\"completion\",\"issue_id\":\"<task-id>\",\"status\":\"done\",\"detail\":\"<one-line summary>\",\"artifacts\":[\"path/to/file1\"],\"worktreePath\":\"<absolute-worktree-path-or-empty>\"}
+
+If blocked:
+{\"type\":\"blocked\",\"issue_id\":\"<task-id>\",\"status\":\"blocked\",\"detail\":\"<reason>\",\"worktreePath\":\"<absolute-worktree-path-or-empty>\"}
+
+Knowledge artifacts are in .agents/. See .agents/AGENTS.md for navigation.")
 ```
 
-### Step 4: Spawn Workers
+If your runtime supports `agent_type`, mark these as `worker` agents and keep any file-discovery agents as `explorer`.
 
-```
-spawn_agents_on_csv(
-    csv_path=".agents/swarm/wave-{wave}-workers.csv",
-    instruction="You are implementing: {subject}
+### Step 4: Wait and Collect Results
 
-{description}
-
-YOUR FILE BOUNDARIES: {files}
-Do NOT modify files outside this list.
-
-After implementation:
-1. Run validation: {validation_cmd}
-2. Report result via report_agent_job_result with status PASS/FAIL
-
-Knowledge artifacts are in .agents/. See .agents/AGENTS.md for navigation.
-Use `ao lookup --query \"topic\"` for learnings if ao CLI is available.",
-    id_column="id",
-    output_schema={
-        "type": "object",
-        "properties": {
-            "task_id": {"type": "string"},
-            "status": {"type": "string", "enum": ["PASS", "FAIL", "BLOCKED"]},
-            "files_changed": {"type": "array", "items": {"type": "string"}},
-            "tests_passed": {"type": "boolean"},
-            "reason": {"type": "string"}
-        },
-        "required": ["task_id", "status", "files_changed", "tests_passed", "reason"],
-        "additionalProperties": false
-    },
-    max_concurrency=4,
-    max_runtime_seconds=600
-)
+```text
+wait_agent(ids=["agent-id-1", "agent-id-2"])
 ```
 
-### Step 5: Wait and Collect Results
+Collect worker result files from `.agents/swarm/results/`.
 
+If a worker needs a short correction, use:
+
+```text
+send_input(id="agent-id-1", message="Validation failed. Fix the test failure and retry.")
 ```
-wait(timeout_seconds=1800)
+
+If a worker stalls, use:
+
+```text
+close_agent(id="agent-id-1")
 ```
 
-Collect all `report_agent_job_result` outputs into a results table.
-
-### Step 6: Validate Wave
+### Step 5: Validate Wave
 
 For each worker result:
 
-1. **PASS:** Accept changes
-2. **FAIL:** Log failure, mark for retry (max 2 retries per task)
-3. **BLOCKED:** Escalate to lead
+1. `PASS` - accept changes
+2. `FAIL` - log failure, mark for retry, max 2 retries per task
+3. `BLOCKED` - escalate to the lead
 
-After collecting results:
+After collecting results, run project-level tests appropriate to the wave.
 
-```bash
-# Run project-level tests
-go test ./... 2>&1  # or equivalent
-```
+If tests fail, identify which worker's changes caused the break and requeue only that work.
 
-If tests fail, identify which worker's changes caused the break.
+### Step 6: Report Results
 
-### Step 7: Report Results
-
-Output wave summary:
-
-```
-Wave N Results:
-┌──────────┬──────────┬────────────────┐
-│ Task     │ Status   │ Files Changed  │
-├──────────┼──────────┼────────────────┤
-│ ag-001   │ PASS     │ 3 files        │
-│ ag-002   │ FAIL     │ 0 files        │
-└──────────┴──────────┴────────────────┘
-PASS: 1  FAIL: 1  BLOCKED: 0
-```
+Output a wave summary with task status, files changed, and any retries.
 
 ### Test File Naming Validation
 
 When workers create test files, validate naming:
-- Go: `<source>_test.go` (reject `cov*_test.go`)
+- Go: `<source>_test.go` or `<source>_extra_test.go`
 - Python: `test_<module>.py` or `<module>_test.py`
 
 ### Output Schema Size Guard
 
-When 5+ workers share the same output schema, cache to `.agents/swarm/output-schema.json` and reference by path instead of inlining ~500 tokens per worker.
+When 5+ workers share the same output schema, cache it to `.agents/swarm/output-schema.json` and reference it by path instead of inlining it everywhere.
 
 ## Serial Fallback
 
-If `spawn_agents_on_csv` is unavailable, execute tasks sequentially:
+If spawning is unavailable, execute tasks sequentially:
 
-```
+```text
 for task in wave_tasks:
     1. Read task details
     2. Implement changes

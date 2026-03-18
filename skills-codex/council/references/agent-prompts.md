@@ -284,13 +284,13 @@ If `--technique` is used with a non-brainstorm task type (validate, research), e
 **Codex output format note:** When Codex judges used `--output-schema`, their output files are pure JSON (`.json` extension) conforming to `skills/council/schemas/verdict.json`. Parse directly with JSON. When fallback was used, output files are markdown (`.md` extension) with a JSON code block that must be extracted (current behavior). Check file extension to determine parse strategy.
 
 The consolidation phase runs as the TEAM LEAD (this agent), NOT as a separate spawned agent.
-This avoids creating yet another context window. The lead reads each judge's output file
-directly using read_file, then synthesizes inline.
+This avoids creating yet another context window. The lead opens each judge output file
+directly, then synthesizes inline.
 
 **Consolidation procedure:**
 
 1. Collect the list of judge output files from their completion signals
-2. Read each file with read_file (one file at a time to manage context)
+2. Read each file directly (one file at a time to manage context)
 3. Extract the JSON verdict block from each file
 4. Synthesize the final report
 

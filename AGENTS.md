@@ -144,36 +144,30 @@ Codex is a first-class runtime in this repo.
 - `skills/<name>/SKILL.md` is the canonical behavior contract.
 - `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer.
 - `skills-codex-overrides/catalog.json` is the machine-readable treatment map for the full catalog.
-- `skills-codex/<name>/` is generated output and must not be hand-maintained as the source of truth.
+- `skills-codex/<name>/` is the checked-in Codex runtime artifact and is manually maintained.
 
 When a skill change affects Codex behavior, phrasing, orchestration, or UX:
 
-1. Update the source skill under `skills/`.
-2. Update any Codex-native override under `skills-codex-overrides/` when the Codex experience should differ from Claude.
+1. Update the source skill under `skills/` when the shared contract changes.
+2. Update `skills-codex/<name>/SKILL.md` directly when the Codex runtime copy needs to change, or update `skills-codex-overrides/<name>/` when the Codex experience should differ from Claude.
    - Prompt/operator-layer changes belong in `skills-codex-overrides/<name>/prompt.md`.
    - Durable Codex-only body rewrites belong in `skills-codex-overrides/<name>/SKILL.md`.
-   - Do **not** hand-edit `skills-codex/<name>/SKILL.md`; it is generated output.
-3. Run the semantic audit if the generated Codex body looks suspicious:
+3. Run the semantic audit if the checked-in Codex body looks suspicious:
    ```bash
    bash scripts/audit-codex-parity.sh
    # or target one skill
    bash scripts/audit-codex-parity.sh --skill <name>
    ```
-4. Regenerate the full Codex bundle:
-   ```bash
-   bash scripts/sync-codex-native-skills.sh
-   ```
-5. Validate the generated bundle:
+4. Validate the checked-in Codex artifacts:
    ```bash
    bash scripts/audit-codex-parity.sh
    bash scripts/validate-codex-override-coverage.sh
-   bash scripts/validate-codex-skill-parity.sh
-   bash scripts/validate-codex-generated-artifacts.sh
-   bash scripts/validate-codex-install-bundle.sh
+   bash scripts/validate-codex-generated-artifacts.sh --scope worktree
+   bash scripts/validate-codex-backbone-prompts.sh
    bash scripts/validate-headless-runtime-skills.sh
    ```
 
-Think of `skills/` and `skills-codex-overrides/` as the entangled source inputs. `skills-codex/` is the compiled Codex artifact.
+Think of `skills/` as the shared contract, `skills-codex-overrides/` as the durable Codex-only tailoring layer, and `skills-codex/` as the checked-in Codex artifact shipped to users.
 
 ### Canonical Root and Worktrees
 

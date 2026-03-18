@@ -6,7 +6,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SYNC_SCRIPT="$REPO_ROOT/scripts/sync-codex-native-skills.sh"
 EXPORT_SCRIPT="$REPO_ROOT/scripts/export-claude-skills-to-codex.sh"
 PLUGIN_INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-plugin.sh"
 
@@ -26,7 +25,7 @@ usage() {
   cat <<'EOF'
 install-codex-native-skills.sh
 
-Builds Codex-native skills into ./skills-codex and installs them to ~/.agents/skills.
+Installs the checked-in Codex-native skills from ./skills-codex to ~/.agents/skills.
 
 If the current Codex install metadata reports native-plugin mode, the default
 behavior is to refresh the active plugin cache without leaving a duplicate raw
@@ -38,7 +37,7 @@ Options:
   --dest <dir>        Destination raw skills root (default: ~/.agents/skills)
   --backup <dir>      Backup directory (default: <dest>.backup.<timestamp>)
   --only <a,b,c>      Only install these skill names (comma-separated)
-  --skip-sync         Skip build step and install from existing --source
+  --skip-sync         Deprecated no-op kept for compatibility
   --dry-run           Preview install copy operations
   --help              Show this help
 
@@ -134,20 +133,18 @@ should_refresh_native_plugin() {
   [[ -n "$plugin_root" ]] || return 1
 }
 
-# Sync is deprecated — skills-codex/ is manually maintained.
-# The sync script now exits with error if called.
-if [[ "$SKIP_SYNC" != "true" ]]; then
-  echo "Note: sync-codex-native-skills.sh is deprecated. Using skills-codex/ as-is." >&2
+if [[ "$SKIP_SYNC" == "true" ]]; then
+  echo "Note: --skip-sync is deprecated and ignored. installs use checked-in skills-codex/ directly." >&2
 fi
 
 [[ -d "$SRC" ]] || {
   echo "Error: source codex skills directory not found: $SRC" >&2
-  echo "Run without --skip-sync or build first via scripts/sync-codex-native-skills.sh." >&2
+  echo "Restore the checked-in skills-codex/ directory or pass --source with a valid Codex skill bundle." >&2
   exit 1
 }
 [[ -f "$SRC/$SKILL_MANIFEST_NAME" ]] || {
   echo "Error: source codex skill manifest not found: $SRC/$SKILL_MANIFEST_NAME" >&2
-  echo "Re-run scripts/sync-codex-native-skills.sh to regenerate skills-codex." >&2
+  echo "Restore the checked-in manifest or point --source at a complete Codex skill bundle." >&2
   exit 1
 }
 

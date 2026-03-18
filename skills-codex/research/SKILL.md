@@ -66,8 +66,8 @@ If matches are found, read the relevant files before proceeding to exploration. 
 Before launching the explore agent, detect which backend is available:
 
 1. Check if `spawn_agent` is available → log `"Backend: codex-sub-agents"`
-3. Else check if `skill` tool is read-only (OpenCode) → log `"Backend: opencode-subagents"`
-4. Else check if `Task` is available → log `"Backend: background-task-fallback"`
+3. Else if the runtime only exposes read-only skill loading, follow the research contract inline and do not rely on a separate sub-agent API
+4. Else if background task spawning is available, log `"Backend: background-task-fallback"`
 5. Else → log `"Backend: inline (no spawn available)"`
 
 Record the selected backend — it will be included in the research output document for traceability.
@@ -90,7 +90,7 @@ Record the selected backend — it will be included in the research output docum
 #### Backend Selection (MANDATORY)
 
 1. If `spawn_agent` is available → **Codex sub-agent**
-3. Else if `skill` tool is read-only (OpenCode) → **OpenCode subagent** — `task(subagent_type="explore", description="Research: <topic>", prompt="<explore prompt>")`
+3. Else if the runtime only exposes read-only skill loading → perform the same exploration inline in this session
 4. Else → **Background task fallback**
 
 #### Exploration Prompt (all backends)
@@ -328,5 +328,4 @@ Include in your Explore agent prompt:
 
 - `scripts/validate.md`
 - `scripts/validate.sh`
-
 

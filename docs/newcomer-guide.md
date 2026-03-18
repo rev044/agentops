@@ -24,7 +24,7 @@ See also:
 Think in five layers:
 
 1. **Product/docs layer** — `docs/` + root docs (`README.md`, `CONTRIBUTING.md`, etc.)
-2. **Skills layer** — `skills/`, generated `skills-codex/`, and `skills-codex-overrides/` (`SKILL.md` contracts + per-skill scripts/references + Codex-only tailoring)
+2. **Skills layer** — `skills/`, checked-in `skills-codex/`, and `skills-codex-overrides/` (`SKILL.md` contracts + per-skill scripts/references + Codex-only tailoring)
 3. **Hooks layer** — `hooks/` with active runtime manifest in `hooks/hooks.json`
 4. **CLI layer** — `cli/` (`cli/cmd/ao/`, `cli/internal/`, generated `cli/docs/COMMANDS.md`)
 5. **Validation layer** — `scripts/`, `tests/`, and `.github/workflows/validate.yml`
@@ -42,7 +42,7 @@ For Codex skills specifically:
 1. `skills/<name>/SKILL.md` is the canonical workflow contract
 2. `skills-codex-overrides/<name>/` is the Codex-specific tailoring layer
 3. `skills-codex-overrides/catalog.json` records the Codex treatment decision for every skill
-4. `skills-codex/<name>/` is the generated artifact and should be regenerated, not hand-maintained
+4. `skills-codex/<name>/` is the checked-in Codex runtime artifact and is manually maintained
 
 For the core Codex execution chain, `skills-codex-overrides/catalog.json` also
 stores machine-readable `operator_contract` markers. When you change one of
@@ -107,7 +107,7 @@ CI validates not just builds/tests but also docs parity, hook safety, skill inte
 - Trust runtime files over narrative docs when there is a mismatch.
 - Keep changes small and verify with local gates before pushing.
 - Treat `.agents/` and hooks as first-class parts of the system behavior.
-- Treat Codex as a first-class runtime: when a skill change affects Codex UX or execution style, inspect `skills-codex-overrides/`, update `skills-codex-overrides/catalog.json` if treatment changes, regenerate `skills-codex/`, and run the Codex validation scripts.
+- Treat Codex as a first-class runtime: when a skill change affects Codex UX or execution style, inspect `skills-codex-overrides/`, update `skills-codex-overrides/catalog.json` if treatment changes, update the checked-in `skills-codex/` copy when needed, and run the Codex validation scripts.
 - If you touch command surfaces or hook contracts, expect related parity checks to fail until updated.
 
 ## Where to go next

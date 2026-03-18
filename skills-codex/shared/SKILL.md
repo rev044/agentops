@@ -1,25 +1,23 @@
 ---
 name: shared
 description: 'Shared reference documents for multi-agent skills (not directly invocable)'
+internal: true
 metadata:
   tier: library
 ---
-
 
 # Shared References
 
 This directory contains shared reference documents used by multiple skills:
 
 - `validation-contract.md` - Verification requirements for accepting spawned work
-- `references/backend-codex-subagents.md` - Concrete examples for Codex CLI and Codex sub-agents
-- `references/backend-background-tasks.md` - Fallback: `Task(run_in_background=true)`
+- `references/backend-codex-subagents.md` - Concrete examples for Codex session agents
+- `references/backend-background-tasks.md` - Fallback: background shell tasks
 - `references/backend-inline.md` - Degraded single-agent mode (no spawn)
 - `references/codex-cli-verified-commands.md` - Verified Codex CLI command shapes and caveats
 - `references/cli-command-failures-2026-02-26.md` - Dated failure log and mitigations from live runs
 
 These are **not directly invocable skills**. They are loaded by other skills (council, crank, swarm, research, implement) when needed.
-
----
 
 ## CLI Availability Pattern
 
@@ -39,7 +37,7 @@ fi
 ### Fallback Table
 
 | Capability | When Missing | Fallback Behavior |
-|------------|-------------|-------------------|
+|------------|--------------|-------------------|
 | `ao` | Knowledge flywheel unavailable | Write learnings to `.agents/learnings/` directly. Skip flywheel metrics |
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
 | `codex` | CLI missing or model unavailable | Fall back to runtime-native agents. Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
@@ -52,7 +50,7 @@ Council, swarm, and crank require a runtime that provides these capabilities. If
 | Capability | What it does | If missing |
 |------------|-------------|------------|
 | **Spawn subagent** | Create a parallel agent with a prompt | Cannot run multi-agent. Fall back to `--quick` (inline single-agent). |
-| **Agent-to-agent messaging** | Send a message to a specific agent | No debate R2. Workers run fire-and-forget. |
+| **Agent-to-agent messaging** | Send a message to a specific agent | No follow-up round. Workers run fire-and-forget. |
 | **Broadcast** | Message all agents at once | Per-agent messaging fallback. |
 | **Graceful shutdown** | Request an agent to terminate | Agents terminate on their own when done. |
 | **Shared task list** | Agents see shared work state | Lead tracks manually. |
@@ -63,7 +61,7 @@ Every runtime maps these capabilities to its own API. Skills describe WHAT to do
 
 | Backend | Reference |
 |---------|-----------|
-| Codex Sub-Agents / CLI | `references/backend-codex-subagents.md` |
+| Codex session agents | `references/backend-codex-subagents.md` |
 | Background Tasks (fallback) | `references/backend-background-tasks.md` |
 | Inline (no spawn) | `references/backend-inline.md` |
 
@@ -72,36 +70,30 @@ Every runtime maps these capabilities to its own API. Skills describe WHAT to do
 Use capability detection at runtime, not hardcoded tool names. The same skill must work across any agent harness that provides multi-agent primitives. If no multi-agent capability is detected, degrade to single-agent inline mode (`--quick`).
 
 **Selection policy (runtime-native first):**
-1. If running in a Codex session and `spawn_agent` is available, use **Codex sub-agents** as the primary backend.
+1. If running in a Codex session and `spawn_agent` is available, use Codex session agents as the primary backend.
 2. If both are technically available, pick the backend native to the current runtime unless the user explicitly requests mixed/cross-vendor execution.
 3. Only use background tasks when neither native backend is available.
 
-| Operation | Codex Sub-Agents | OpenCode Subagents | Inline Fallback |
-|-----------|------------------|--------------------|-----------------|
-| Spawn (read-only) | `spawn_agent(message=...)` | `task(subagent_type="explore", prompt=...)` | Execute inline |
-| Debate (R2) | Supported | **Not supported** (no messaging) | N/A |
+| Operation | Codex Session Agents | OpenCode Subagents | Inline Fallback |
+|-----------|----------------------|--------------------|------------------|
+| Spawn (read-only) | `spawn_agent(message=...)` | Read-only subagent prompt | Execute inline |
+| Follow-up | `send_input(id=..., message=...)` | not supported | N/A |
+| Wait | `wait_agent(ids=[...])` | Read-only task polling | N/A |
+| Cleanup | `close_agent(id=...)` | not supported | N/A |
 
 **OpenCode limitations:**
 - No inter-agent messaging — workers run as independent sub-sessions
-- No debate mode (`--debate`) — requires messaging between judges
+- No follow-up mode — requires messaging between judges
 - `--quick` (inline) mode works identically across all backends
 
 ### Backend Capabilities Matrix
 
-> **Prefer native teams over background tasks.** Native teams provide messaging, redirect, and graceful shutdown. Background tasks are fire-and-forget with no steering — only a speedometer and emergency brake.
+> **Prefer native teams over background tasks.** Native teams provide messaging, redirect, and graceful shutdown. Background tasks are fire-and-forget with no steering.
 
-| Capability | Codex Sub-Agents | Background Tasks |
-|------------|------------------|------------------|
+| Capability | Codex Session Agents | Background Tasks |
+|------------|----------------------|------------------|
 | File conflict prevention | Manual `git worktree` routing or native `isolation: worktree` + lead-only commits | None |
 | Process isolation | YES (sub-process) | Shared worktree |
-
-**When to use each:**
-
-| Scenario | Backend |
-|----------|---------|
-| Quick parallel tasks, coordination needed | Codex sub-agents |
-| Codex-specific execution | Codex Sub-Agents |
-| No team APIs available (last resort) | Background Tasks |
 
 ### Skill Invocation Across Runtimes
 
@@ -110,7 +102,7 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 | Runtime | Tool | Behavior | Pattern |
 |---------|------|----------|---------|
 | Codex | `$X ...` | **Executable** — skill runs as a sub-invocation | `$council --quick validate recent` |
-| Codex | N/A | Skills not available — inline the logic or skip | Check if `Skill` tool exists before calling |
+| Codex | N/A | Skills not available — inline the logic or skip | Check if `spawn_agent` exists before delegating |
 | OpenCode | `skill` tool (read-only) | **Load-only** — returns `<skill_content>` blocks into context | Call `skill(skill="council")`, then follow the loaded instructions inline |
 
 **OpenCode skill chaining rules:**
@@ -123,9 +115,11 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 
 | Codex | OpenCode | Notes |
 |-------------|----------|-------|
-| `Task(subagent_type="...")` | `task(subagent_type="...")` | Same semantics, different casing |
+| `spawn_agent` | Read-only subagent prompt | Same semantic role, different surface |
+| `wait_agent` | Read-only task polling | Wait for completion |
+| `send_input` | not available | Use a fresh task instead |
+| `close_agent` | not available | Let the task exit |
 | `$X ` | `skill` tool (read-only) | Load content, then follow inline |
-| `AskUserQuestion` | `question` | Same purpose, different name |
 | `Read`, `Write`, `Edit`, `Bash`, `Glob`, `Grep` | Same names | Identical across runtimes |
 
 ### Rules
@@ -158,5 +152,3 @@ Skills that chain to other skills (e.g., `$rpi` calls `$research`, `$vibe` calls
 ### scripts/
 
 - `scripts/validate.sh`
-
-

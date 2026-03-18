@@ -7,40 +7,45 @@ metadata:
 
 # $rpi — Full RPI Lifecycle Orchestrator
 
+> **Quick Ref:** One command, full lifecycle. `$discovery` → `$crank` → `$validation`. Thin wrapper that delegates to phase orchestrators.
+
 **YOU MUST EXECUTE THIS WORKFLOW. Do not just describe it.**
+
+**THREE-PHASE RULE + FULLY AUTONOMOUS.** Read `references/autonomous-execution.md` — it defines the mandatory 3-phase lifecycle, autonomous execution rules, anti-patterns, and phase completion logging. Unless `--interactive` is set, RPI runs hands-free. Do NOT stop after Phase 2. Do NOT ask the user anything between phases.
 
 ## DAG — Execute This Sequentially
 
-```
+```text
 mkdir -p .agents/rpi
-classify(goal) → complexity, start_phase
+classify(goal) -> complexity, start_phase
 ```
 
 **From `--from` or start_phase, enter the DAG at the matching step and run every step after it:**
 
-```
-STEP 1  ──  if start_phase <= discovery:
-              $discovery <goal> [--interactive] --complexity=<level>
-              BLOCKED? → stop (manual intervention)
-              DONE?    → read epic-id from .agents/rpi/execution-packet.json
+```text
+STEP 1  -- if start_phase <= discovery:
+            $discovery <goal> [--interactive] --complexity=<level>
+            BLOCKED? -> stop (manual intervention)
+            DONE?    -> read epic-id from .agents/rpi/execution-packet.json
+            Log: PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2
 
-STEP 2  ──  $crank <epic-id> [--test-first] [--no-test-first]
-              BLOCKED/PARTIAL? → retry (max 3), then stop
-              DONE? → ao ratchet record implement 2>/dev/null || true
+STEP 2  -- $crank <epic-id> [--test-first] [--no-test-first]
+            BLOCKED/PARTIAL? -> retry (max 3), then stop
+            DONE? -> ao ratchet record implement 2>/dev/null || true
+            Log: PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3
 
-STEP 3  ──  if complexity != fast:
-              $validation <epic-id> --complexity=<level>
-              FAIL? → re-crank + re-validate (max 3 total), then stop
-              DONE? → ao ratchet record vibe 2>/dev/null || true
+STEP 3  -- if complexity != fast:
+            $validation <epic-id> --complexity=<level>
+            FAIL? -> re-crank + re-validate (max 3 total), then stop
+            DONE? -> ao ratchet record vibe 2>/dev/null || true
+            Log: PHASE 3 COMPLETE ✓ (validation) — RPI DONE
 
-STEP 4  ──  report(verdicts)
-              if --loop && FAIL && cycle < max_cycles: restart from STEP 1
-              if --spawn-next: read .agents/rpi/next-work.jsonl, suggest next
+STEP 4  -- report(verdicts)
+            if --loop && FAIL && cycle < max_cycles: restart from STEP 1
+            if --spawn-next: read .agents/rpi/next-work.jsonl, suggest next
 ```
 
 **That's it.** Steps 1→2→3→4. No stopping between steps. No summarizing. No asking. Enter at `--from`, run to the end. The human's only touchpoint is after STEP 4.
-
----
 
 ## Setup + Classify (STEP 0 detail)
 
@@ -68,7 +73,7 @@ STEP 4  ──  report(verdicts)
 Log: `RPI mode: rpi-phased (complexity: <level>)`
 
 Initialize state:
-```
+```text
 rpi_state = {
   goal: "<goal string>",
   epic_id: null,
@@ -107,6 +112,7 @@ rpi_state = {
 |------|---------|-------------|
 | `--from=<phase>` | `discovery` | Enter DAG at `discovery`, `implementation`, or `validation` |
 | `--interactive` | off | Human gates in discovery only |
+| `--auto` | on | Fully autonomous. Inverse of `--interactive` |
 | `--loop` | off | Post-mortem FAIL triggers new cycle |
 | `--max-cycles=<n>` | `3` | Max cycles when `--loop` enabled |
 | `--spawn-next` | off | Surface follow-up work after completion |
@@ -129,9 +135,24 @@ $rpi --deep "refactor payment module"                  # force full council
 $rpi --fast-path "fix typo in readme"                  # skip STEP 3
 ```
 
+## Complexity-Scaled Council Gates
+
+### Pre-mortem (STEP 5 in discovery)
+complexity == "fast": inline review, no spawning (--quick) | complexity == "standard": inline fast default (--quick) | complexity == "full": full council, 2-judge minimum. Retry gate: max 3 total attempts.
+
+### Final Vibe (STEP 1 in validation)
+complexity == "fast": inline review, no spawning (--quick) | complexity == "standard": inline fast default (--quick) | complexity == "full": full council, 2-judge minimum. Retry gate: max 3 total attempts.
+
+### Post-mortem (STEP 2 in validation)
+complexity == "fast": inline review, no spawning (--quick) | complexity == "standard": inline fast default (--quick) | complexity == "full": full council, 2-judge minimum. Retry gate: max 3 total attempts.
+
 ## Phase Data Contracts
 
-All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries `contract_surfaces` (repo execution profile), `done_criteria`, and queue claim/finalize metadata between phases. Sub-skills include $plan, $vibe, $post-mortem, and $pre-mortem. For detailed contract schemas, read `references/phase-data-contracts.md`.
+All transitions use filesystem artifacts (no in-memory coupling). The execution packet (`.agents/rpi/execution-packet.json`) carries `contract_surfaces` (repo execution profile), `done_criteria`, and queue claim/finalize metadata between phases. Sub-skills include `$plan`, `$vibe`, `$post-mortem`, and `$pre-mortem`. For detailed contract schemas, read `references/phase-data-contracts.md`.
+
+## Examples
+
+Read `references/examples.md` for full lifecycle, resume, and interactive examples.
 
 ## Troubleshooting
 
@@ -141,6 +162,7 @@ Read `references/troubleshooting.md` for common problems and solutions.
 
 ## Reference Documents
 
+- [references/autonomous-execution.md](references/autonomous-execution.md)
 - [references/complexity-scaling.md](references/complexity-scaling.md)
 - [references/context-windowing.md](references/context-windowing.md)
 - [references/error-handling.md](references/error-handling.md)
@@ -156,6 +178,7 @@ Read `references/troubleshooting.md` for common problems and solutions.
 
 ### references/
 
+- [references/autonomous-execution.md](references/autonomous-execution.md)
 - [references/complexity-scaling.md](references/complexity-scaling.md)
 - [references/context-windowing.md](references/context-windowing.md)
 - [references/error-handling.md](references/error-handling.md)

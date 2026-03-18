@@ -34,9 +34,7 @@ If another release was published within the last 7 days (and this is not a secur
   Continue only if this is a security hotfix. Otherwise, accumulate in [Unreleased].
 ```
 
-Use AskUserQuestion to confirm:
-- "This is a security hotfix — proceed"
-- "Wait and batch into next week's release"
+Ask the user to confirm whether to proceed with the security hotfix or batch the change into the next weekly release.
 
 ## Why
 

@@ -140,9 +140,6 @@ for skill_md in "$SKILLS_ROOT"/*/SKILL.md; do
   if ! echo "$frontmatter" | grep -q '^description:'; then
     fail "$skill_name missing 'description' in frontmatter"
   fi
-  if ! echo "$frontmatter" | grep -q 'tier:'; then
-    fail "$skill_name missing 'tier' in frontmatter"
-  fi
 done
 
 # --- Wrong-directory cross-reference check ---

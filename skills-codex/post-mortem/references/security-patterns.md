@@ -188,9 +188,9 @@ grep -rn "md5.\|sha1.\|des.\|rc4." --include="*.go" .
 For CRITICAL findings, spawn security expert:
 
 ```python
-Task(
-    subagent_type="security-expert",
-    prompt=f"""Deep security review for post-mortem.
+spawn_agent(message=f"""You are a security-expert reviewer for post-mortem.
+
+Deep security review for post-mortem.
 
 Findings to analyze:
 {findings}
@@ -203,8 +203,9 @@ Please:
 2. Assess exploitability
 3. Recommend specific fixes
 4. Identify any additional vulnerabilities
-"""
-)
+
+Write your review to .agents/council/security-review.md
+""")
 ```
 
 ---

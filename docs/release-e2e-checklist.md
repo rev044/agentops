@@ -68,6 +68,7 @@ bash scripts/validate-ci-policy-parity.sh
 bash scripts/validate-hooks-doc-parity.sh
 bash scripts/validate-skill-runtime-parity.sh
 bash scripts/validate-codex-runtime-sections.sh
-bash scripts/validate-codex-install-bundle.sh
+bash scripts/validate-codex-generated-artifacts.sh --scope worktree
+bash scripts/validate-codex-backbone-prompts.sh
 bash tests/docs/validate-doc-release.sh
 ```

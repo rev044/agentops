@@ -13,24 +13,23 @@ Unless `--interactive` is explicitly set, RPI runs hands-free from start to fini
 - Request clarification mid-execution
 - Stop to ask about approach or strategy
 
-The human's only touchpoint is AFTER Phase 3 completes. If something is genuinely blocked (3 retries exhausted), then and only then do you stop and report. Everything else runs autonomously. The user invoked `/rpi` because they want you to GO — not to narrate.
+The human's only touchpoint is AFTER Phase 3 completes. If something is genuinely blocked (3 retries exhausted), then and only then do you stop and report. Everything else runs autonomously. The user invoked `$rpi` because they want you to GO — not to narrate.
 
 ## Anti-Patterns (DO NOT)
 
 | Anti-Pattern | Why It's Wrong | Correct Behavior |
 |--------------|----------------|------------------|
 | Stop after Phase 2 and ask to commit | Skips validation — no quality check, no learnings, flywheel doesn't turn | Proceed directly to Phase 3 |
-| Call `/vibe` directly instead of `/validation` | `/vibe` is one sub-step; `/validation` wraps vibe + post-mortem + retro + forge | Always call `/validation` from `/rpi` |
-| Ask "want me to commit?" between phases | Interrupts autonomous flow — user invoked `/rpi` for hands-free execution | Commit only after ALL phases complete |
+| Call `$vibe` directly instead of `$validation` | `$vibe` is one sub-step; `$validation` wraps vibe + post-mortem + retro + forge | Always call `$validation` from `$rpi` |
+| Ask "want me to commit?" between phases | Interrupts autonomous flow — user invoked `$rpi` for hands-free execution | Commit only after ALL phases complete |
 | Ask the user ANY question during execution | RPI is autonomous unless `--interactive` — questions break the flow | Make best judgment and proceed; report at end |
-| Run Phase 1 inline instead of delegating to `/discovery` | Loses brainstorm → search → research → plan → pre-mortem sequencing | Delegate via `Skill(skill="discovery")` |
 | Summarize findings and wait after Phase 1 | Discovery output is an input to Phase 2, not a deliverable | Proceed immediately to Phase 2 |
 | Pause to explain what you're about to do | Narration wastes time — the user wants results, not commentary | Execute, then report at the end |
 
 ## Phase Completion Tracking
 
 After each phase, log progress:
-```
+```text
 PHASE 1 COMPLETE ✓ (discovery) — proceeding to Phase 2
 PHASE 2 COMPLETE ✓ (implementation) — proceeding to Phase 3
 PHASE 3 COMPLETE ✓ (validation) — RPI DONE

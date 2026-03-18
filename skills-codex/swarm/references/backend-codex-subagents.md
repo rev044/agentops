@@ -33,11 +33,7 @@ Bash(
 
 ### Wait: Poll Background Shell
 
-```
-TaskOutput(task_id="<shell-id>", block=true, timeout=120000)
-```
-
-Then read the output file:
+Poll the background shell handle until completion, then read the output file:
 
 ```
 Read(".agents/council/codex-1.json")
@@ -96,8 +92,8 @@ close_agent(id="agent-id-1")
 For `--mixed` council, spawn runtime-native judges AND Codex CLI judges in parallel:
 
 ```
-Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-1", prompt="...", description="Judge 1")
-Task(subagent_type="general-purpose", team_name="council-20260217-auth", name="judge-2", prompt="...", description="Judge 2")
+spawn_agent(message="You are judge-1.\n\nPerspective: Correctness & Completeness\n\n<PACKET>...</PACKET>\n\nWrite verdict to .agents/council/2026-02-17-auth-judge-1.md")
+spawn_agent(message="You are judge-2.\n\nPerspective: Completeness & Consistency\n\n<PACKET>...</PACKET>\n\nWrite verdict to .agents/council/2026-02-17-auth-judge-2.md")
 
 # Codex CLI judges (parallel background shells)
 Bash(command='codex exec -s read-only -m gpt-5.3-codex -C "$(pwd)" --output-schema skills/council/schemas/verdict.json -o .agents/council/codex-1.json "PACKET"', run_in_background=true)

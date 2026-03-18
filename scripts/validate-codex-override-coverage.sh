@@ -348,7 +348,7 @@ while IFS= read -r entry; do
         expected_prompt="$(mktemp "$tmpdir/operator-contract-expected.XXXXXX")"
         synthesize_expected_prompt "$entry" "$override_prompt" "$expected_prompt"
         if ! cmp -s "$expected_prompt" "$generated_prompt"; then
-          fail "generated Codex prompt for $skill does not match synthesized override + catalog contract output (run: bash scripts/sync-codex-native-skills.sh)"
+          fail "checked-in Codex prompt for $skill does not match synthesized override + catalog contract output; update skills-codex/$skill/prompt.md or the override inputs"
         fi
         rm -f "$expected_prompt"
       else
@@ -356,7 +356,7 @@ while IFS= read -r entry; do
           fail "override prompt for $skill lacks '## Codex Execution Profile'"
         fi
         if [[ -f "$override_prompt" && -f "$generated_prompt" ]] && ! cmp -s "$override_prompt" "$generated_prompt"; then
-          fail "generated Codex prompt for $skill does not match override source (run: bash scripts/sync-codex-native-skills.sh)"
+          fail "checked-in Codex prompt for $skill does not match override source; update skills-codex/$skill/prompt.md or the override prompt"
         fi
       fi
       ;;

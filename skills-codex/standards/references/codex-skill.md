@@ -6,7 +6,7 @@ Source of truth: `docs/contracts/codex-skill-api.md`
 
 ## Frontmatter
 
-Codex SKILL.md frontmatter must contain **only** `name` and `description`:
+Codex SKILL.md frontmatter must include `name` and `description`:
 
 ```yaml
 ---
@@ -16,22 +16,21 @@ description: 'When this skill triggers and when it does not.'
 ```
 
 **Prohibited fields** (Claude-internal, ignored by Codex):
-`skill_api_version`, `context`, `metadata`, `allowed-tools`, `model`, `user-invocable`, `output_contract`
+`skill_api_version`, `context`, `allowed-tools`, `model`, `user-invocable`, `output_contract`
+
+Existing generated bundles may still carry compatibility metadata, but the executable validator only requires the `name` and `description` fields above.
 
 ## Tool References
 
-Skills must reference only tools available in Codex sessions:
+Skills must reference the Codex session agent surface that actually exists in this repo's runtime:
 
-| Codex Tool | Purpose | Claude Equivalent |
-|------------|---------|-------------------|
-| `read_file` | Read file contents | `Read` |
-| `apply_patch` | Apply file edits | `Edit` |
-| `rg` | Search file contents | `Grep` |
-| `glob_file_search` | Find files by pattern | `Glob` |
-| `cmd` | Shell execution | `Bash` |
-| `git` | Git operations | `Bash(git ...)` |
-| `list_dir` | List directory | `Bash(ls)` |
-| `wait` | Long-poll sub-agents | Built into Agent tool |
+| Codex session surface | Purpose | Usage note |
+|-----------------------|---------|------------|
+| `spawn_agent` | Create a focused subagent | Use one agent per task, judge, or worker |
+| `wait_agent` | Wait for one or more agents | Prefer explicit waits over polling loops |
+| `send_input` | Send a short follow-up message | Use only for brief steering or retry prompts |
+| `close_agent` | Terminate an agent | Use for stuck or no-longer-needed agents |
+| `agent_type` | Label the agent role | Common roles in this repo are `default`, `explorer`, and `worker` |
 
 ### Prohibited Tool References
 
@@ -62,8 +61,8 @@ Codex orchestration uses:
 
 | Pattern | Tool | Use Case |
 |---------|------|----------|
-| Batch parallel | `spawn_agents_on_csv` | Many similar tasks from CSV |
-| Agent roles | `[agents.<name>]` in config | Specialized sub-agents (worker, explorer, monitor) |
+| Repeated spawn | `spawn_agent` | Many similar tasks, one agent per unit of work |
+| Agent roles | `agent_type` | Specialized sub-agents (worker, explorer, monitor) |
 | Shell orchestration | `cmd` + `bd` CLI | Issue tracking, wave management |
 
 
@@ -131,6 +130,7 @@ When reviewing Codex skills (`skills-codex/*/SKILL.md`):
 - [ ] No `~/.codex/` paths
 - [ ] No `Skill(skill=...)` tool invocations
 - [ ] No `Agent(subagent_type=...)` tool invocations
+- [ ] No batch-only spawn primitive references
 - [ ] No `context.*` or `metadata.*` frontmatter
 - [ ] Reference files (`references/*.md`) also free of Claude primitives
 - [ ] Instructions are actionable for a Codex agent with only Codex tools

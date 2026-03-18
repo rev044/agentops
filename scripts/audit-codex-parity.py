@@ -73,6 +73,30 @@ RULES = [
         "summary": "Generated Codex body contains Claude-specific primitives that have no Codex equivalent.",
     },
     {
+        "code": "STALE_MULTI_AGENT_SYNTAX",
+        "patterns": [
+            r"\bspawn_agents_on_csv\b",
+            r"\breport_agent_job_result\b",
+            r"\bTaskOutput\b",
+            r"\bwait\(timeout_seconds=\d+",
+            r"\bTask\(subagent_type=",
+            r"\btask\(subagent_type=",
+        ],
+        "ignore_patterns": [
+            r"(?i)must\s+not\s+appear",
+            r"(?i)must\s+not\s+be\s+used",
+            r"(?i)do\s+not\s+use\b",
+            r"(?i)not\s+available\b",
+            r"(?i)not\s+supported\b",
+            r"(?i)instead\s+of\b",
+            r"(?i)replaced?\s+by\b",
+            r"(?i)prohibited",
+            r"^\s*#",
+            r"\|.*`.*\|.*`.*\|",
+        ],
+        "summary": "Generated Codex body still references stale multi-agent syntax that is not available in the current Codex runtime.",
+    },
+    {
         "code": "WRONG_XREF_DIR",
         "patterns": [
             r"\]\(skills/",
@@ -131,41 +155,58 @@ def load_catalog(repo_root: Path) -> dict[str, dict]:
     }
 
 
-def recommendation(repo_root: Path, skill: str, treatment: str) -> str:
+def recommendation(repo_root: Path, path: Path, skill: str, treatment: str) -> str:
     override_skill = repo_root / "skills-codex-overrides" / skill / "SKILL.md"
     override_rel = override_skill.relative_to(repo_root).as_posix()
-    sync_cmd = "bash scripts/sync-codex-native-skills.sh"
+    checked_in_skill = repo_root / "skills-codex" / skill / "SKILL.md"
+    checked_in_rel = checked_in_skill.relative_to(repo_root).as_posix()
+    audit_cmd = f"bash scripts/audit-codex-parity.sh --skill {skill}"
+    path_rel = path.relative_to(repo_root).as_posix()
+
+    if path_rel.startswith("skills-codex-overrides/"):
+        return (
+            f"Update `{path_rel}` so the override matches the current Codex runtime "
+            f"surface, then rerun `{audit_cmd}`."
+        )
 
     if treatment == "bespoke":
         verb = "Update" if override_skill.exists() else "Create"
-        return f"{verb} `{override_rel}`, then run `{sync_cmd}`."
+        return f"{verb} `{override_rel}` and `{checked_in_rel}`, then rerun `{audit_cmd}`."
 
     return (
-        "Fix the canonical source/converter path, or promote the skill to `bespoke` "
+        f"Fix the checked-in artifact `{checked_in_rel}`, or promote the skill to `bespoke` "
         "in `skills-codex-overrides/catalog.json` if it needs a durable Codex body rewrite."
     )
 
 
 def iter_skill_files(repo_root: Path, skills: list[str]) -> list[Path]:
-    skills_root = repo_root / "skills-codex"
-    if not skills_root.is_dir():
-        raise SystemExit(f"skills-codex root not found: {skills_root}")
-
     selected = set(skills)
     skill_files: list[Path] = []
-    for skill_dir in sorted(skills_root.iterdir()):
-        if not skill_dir.is_dir():
+
+    roots = [
+        repo_root / "skills-codex",
+        repo_root / "skills-codex-overrides",
+    ]
+    for skills_root in roots:
+        if not skills_root.is_dir():
             continue
-        if selected and skill_dir.name not in selected:
-            continue
-        skill_file = skill_dir / "SKILL.md"
-        if skill_file.is_file():
-            skill_files.append(skill_file)
+        for skill_dir in sorted(skills_root.iterdir()):
+            if not skill_dir.is_dir():
+                continue
+            if selected and skill_dir.name not in selected:
+                continue
+            for skill_file in sorted(skill_dir.rglob("*.md")):
+                skill_files.append(skill_file)
+
     return skill_files
 
 
 def find_findings(repo_root: Path, skill_file: Path, catalog: dict[str, dict]) -> list[dict]:
-    skill = skill_file.parent.name
+    relative_path = skill_file.relative_to(repo_root)
+    parts = relative_path.parts
+    if len(parts) < 2:
+        return []
+    skill = parts[1]
     treatment = catalog.get(skill, {}).get("treatment", "unknown")
     findings: list[dict] = []
 
@@ -188,7 +229,7 @@ def find_findings(repo_root: Path, skill_file: Path, catalog: dict[str, dict]) -
                                 "treatment": treatment,
                                 "message": rule["summary"],
                                 "recommendation": recommendation(
-                                    repo_root, skill, treatment
+                                    repo_root, skill_file, skill, treatment
                                 ),
                             }
                         )

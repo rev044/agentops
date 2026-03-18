@@ -120,13 +120,11 @@ Severity levels:
 
 ### Dispatching Explorers
 
-Use the Task tool with `role: explorer` for each batch. Launch all batches in parallel (single message, multiple tool calls):
+Use `spawn_agent` for each batch. Launch all batches in parallel (single message, multiple tool calls):
 
 ```
-Task(
-  subagent_type="Explore",
-  description="Sweep batch N of M",
-  prompt="<explorer prompt with FILE_LIST filled in>"
+spawn_agent(
+  message="You are a Deep Audit Explorer for batch N of M.\n\n<explorer prompt with FILE_LIST filled in>\n\nWrite findings to .agents/council/sweep-batch-N.md"
 )
 ```
 

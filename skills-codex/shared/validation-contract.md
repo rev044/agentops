@@ -144,10 +144,11 @@ Verifies file contains expected content.
 
 **Execution:**
 ```bash
-content = read_file(file)
-if not regex.search(pattern, content):
-    FAIL("Pattern not found in " + file + ": " + pattern)
-PASS
+content="$(cat "$file")"
+if ! printf '%s' "$content" | grep -Eq "$pattern"; then
+    echo "Pattern not found in $file: $pattern" >&2
+    exit 1
+fi
 ```
 
 **Use when:** Task must implement specific functions/patterns.

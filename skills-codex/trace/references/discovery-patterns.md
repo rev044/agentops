@@ -4,16 +4,15 @@ Parallel search agent definitions for design decision tracing.
 
 ## Design Decision Tracing (Concepts) — Parallel Agents
 
-Launch all 4 agents in parallel using the Task tool, then wait for all to complete.
+Launch all 4 explorers in parallel using `spawn_agent(...)`, then collect results with `wait_agent(...)`.
 
 ### Agent 1: CASS Session Search
 
 ```
 Parameters:
-  role: explorer
-  model: "haiku"
+  agent_type: "explorer"
   description: "CASS search: <concept>"
-  prompt: |
+  message: |
     Search session transcripts for: <concept>
 
     Run this command:
@@ -33,10 +32,9 @@ Parameters:
 
 ```
 Parameters:
-  role: explorer
-  model: "haiku"
+  agent_type: "explorer"
   description: "Handoff search: <concept>"
-  prompt: |
+  message: |
     Search handoff documents for: <concept>
 
     1. List handoff files:
@@ -57,10 +55,9 @@ Parameters:
 
 ```
 Parameters:
-  role: explorer
-  model: "haiku"
+  agent_type: "explorer"
   description: "Git search: <concept>"
-  prompt: |
+  message: |
     Search git history for: <concept>
 
     1. Search commit messages:
@@ -82,10 +79,9 @@ Parameters:
 
 ```
 Parameters:
-  role: explorer
-  model: "haiku"
+  agent_type: "explorer"
   description: "Research search: <concept>"
-  prompt: |
+  message: |
     Search research and learning artifacts for: <concept>
 
     1. Search research docs:

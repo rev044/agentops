@@ -27,8 +27,7 @@ Select backend in this order:
 
 1. `spawn_agent` available -> **Codex experimental sub-agents** (preferred)
 2. Codex CLI available -> **Codex CLI via Bash** (`codex exec ...`)
-3. `skill` tool is read-only (OpenCode) -> **OpenCode subagents** — `task(subagent_type="general", prompt="<task prompt>")`
-4. None of the above -> fall back to `$swarm`
+3. None of the above -> fall back to `$swarm`
 
 ## Pre-Flight (CLI backend only)
 
@@ -197,8 +196,7 @@ Bash(command='codex exec ... -o .agents/codex-team/auth-fix.md "Fix null check i
 Bash(command='codex exec ... -o .agents/codex-team/config-fix.md "Add timeout to internal/config.go..."', run_in_background=true)
 
 # Wait for Wave 1
-TaskOutput(task_id="<id-1>", block=true, timeout=120000)
-TaskOutput(task_id="<id-2>", block=true, timeout=120000)
+Poll the background shell handles until both complete, then read the output files.
 
 # Read Wave 1 results — understand what changed
 Read(.agents/codex-team/auth-fix.md)
@@ -213,7 +211,7 @@ Bash(command='codex exec ... -o .agents/codex-team/rate-limit.md \
    Note: pkg/auth.go was recently modified — the validateToken function now has a null check at line 89. \
    Build on the current state of the file."', run_in_background=true)
 
-TaskOutput(task_id="<id-3>", block=true, timeout=120000)
+Poll the background shell handle until it completes, then read the output file.
 ```
 
 The team lead synthesizes Wave 1 results and injects relevant context into Wave 2 prompts. Don't dump raw diffs — describe what changed and why it matters for the next task.
@@ -225,9 +223,7 @@ The team lead synthesizes Wave 1 results and injects relevant context into Wave 
 wait(ids=["<id-1>", "<id-2>", "<id-3>"], timeout_ms=120000)
 
 # CLI backend:
-TaskOutput(task_id="<id-1>", block=true, timeout=120000)
-TaskOutput(task_id="<id-2>", block=true, timeout=120000)
-TaskOutput(task_id="<id-3>", block=true, timeout=120000)
+Poll each background shell handle until completion, then read the output files.
 ```
 
 ### Step 5: Verify Results
@@ -366,5 +362,3 @@ $swarm
 ### scripts/
 
 - `scripts/validate.sh`
-
-
