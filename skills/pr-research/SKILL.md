@@ -219,3 +219,7 @@ $pr-research <repo> -> $pr-plan <research> -> implement -> $pr-prep
 | Too many possible issues | Scope not constrained | Filter by labels, component paths, and recent maintainer activity |
 | Suggested work seems risky | Hidden dependency or broad blast radius | Downscope to narrower file/domain boundary and restate assumptions |
 | Output is too generic | Insufficient repository evidence | Add concrete file/PR references and explicit pattern findings |
+
+## Reference Documents
+
+- [references/upstream-research-checklist.md](references/upstream-research-checklist.md)

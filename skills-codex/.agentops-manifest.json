@@ -526,7 +526,7 @@
       "name": "beads",
       "source_skill": "skills/beads",
       "source_hash": "9cf7e4fea0c22ad0c8ae0e52bd574c1db1e2ed4ad531790d4102df7f039d746e",
-      "generated_hash": "79b78403bafd17293452297ff48343953d562f8eb2517dc88653680e8bbe5869"
+      "generated_hash": "c94fb0210ba49e0177ac0b42889f556b734e6cb434eac306e50d4671529794d6"
     },
     {
       "name": "brainstorm",
@@ -580,13 +580,13 @@
       "name": "doc",
       "source_skill": "skills/doc",
       "source_hash": "2340fcdd482613ec611c9b4455aa172e824d93c620fd50864467058417893376",
-      "generated_hash": "16215fb081ca29343b0b7399e79a1c4f6c1c764da84fea3bffc87c3935c1c542"
+      "generated_hash": "7c0e6b5d5de95a5a9ed0790856ff7bd38ad86279490c4aff67462ba6d8ba78b8"
     },
     {
       "name": "evolve",
       "source_skill": "skills/evolve",
       "source_hash": "733c938209a1846cbaa7830fadbc254efb2019722b8a19853e77f1bc1bef3363",
-      "generated_hash": "e636fcf8f44c01a6e3b243ab1130e9a45778fde289cc616931240254e3c2359b"
+      "generated_hash": "5a18158993097845f8a77fde0df9fe84bad894b56acc7c00344b8b5928680bc7"
     },
     {
       "name": "flywheel",
@@ -760,7 +760,7 @@
       "name": "retro",
       "source_skill": "skills/retro",
       "source_hash": "b36f612a69dd96def95a6a34f952d6a887059fb16e9d2aeb15c34a7e206ff395",
-      "generated_hash": "2a83e2ef10fd51dd6c7023ffee9e78c5205c826be35d2b55038318163ab05daa"
+      "generated_hash": "9e33bb63dd88a6f0495ab141e136d8c1be3c0874da054612073a65e77cf2da26"
     },
     {
       "name": "reverse-engineer-rpi",

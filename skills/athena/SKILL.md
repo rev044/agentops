@@ -149,3 +149,7 @@ defrag actions recommended.
 | No orphaned research | All research already referenced | Skip 2b, proceed to synthesis |
 | Empty mine output | No recent activity | Widen `--since` window |
 | Oscillation sweep empty | No oscillating goals | Healthy state — no action needed |
+
+## Reference Documents
+
+- [references/knowledge-synthesis-patterns.md](references/knowledge-synthesis-patterns.md)

@@ -1,6 +1,6 @@
 ---
 name: doc
-description: 'This skill should be used when the user asks to "generate documentation", "validate docs", "check doc coverage", "find missing docs", "create code-map", "sync documentation", "update docs", or needs guidance on documentation generation and validation for any repository type. Triggers: doc, documentation, code-map, doc coverage, validate docs.'
+description: 'Generates, validates, and syncs documentation for any repository type. Produces code-maps, checks doc coverage, finds missing docs, and validates existing documentation against code. Triggers: doc, documentation, code-map, doc coverage, validate docs, generate docs, sync docs, update docs, find missing docs.'
 metadata:
   tier: product
 ---
