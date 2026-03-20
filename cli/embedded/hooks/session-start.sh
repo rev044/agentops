@@ -206,6 +206,18 @@ Knowledge artifacts are in \`.agents/\` (if populated).
 Use \`ao lookup --query \"topic\"\` for on-demand learnings retrieval."
 fi
 
+# Auto-retrieve and cite top learnings for this session (closes citation gap)
+if command -v ao &>/dev/null; then
+    LOOKUP_QUERY=$(git -C "$ROOT" log -1 --format='%s' 2>/dev/null || echo "session context")
+    FLYWHEEL_KNOWLEDGE=$(timeout 5 ao lookup --query "$LOOKUP_QUERY" --limit 5 2>/dev/null || true)
+    if [ -n "$FLYWHEEL_KNOWLEDGE" ]; then
+        INJECTED_KNOWLEDGE="${INJECTED_KNOWLEDGE}
+
+### Prior Learnings (auto-retrieved)
+${FLYWHEEL_KNOWLEDGE}"
+    fi
+fi
+
 # Keep startup context lean: inject only fresh flywheel knowledge and a short skill pointer.
 SKILL_FILE="${PLUGIN_ROOT}/skills/using-agentops/SKILL.md"
 if [ -f "$SKILL_FILE" ]; then
