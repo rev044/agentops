@@ -288,7 +288,6 @@ ao flywheel status [flags]
 
 ```
       --days int   Period in days for metrics calculation (default 7)
-      --golden     Show golden signals (compounding health indicators)
   -h, --help       help for status
 ```
 
