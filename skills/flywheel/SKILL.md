@@ -234,13 +234,11 @@ Tell the user:
 
 ## Golden Signals
 
-Four golden signals reveal whether knowledge is truly compounding or just accumulating noise.
-
-Golden signals are always included in the default output:
+Four golden signals (always shown) reveal whether knowledge is truly compounding or just accumulating noise.
 
 ```bash
 ao flywheel status              # table output with golden signals
-ao flywheel status --json       # machine-readable with golden signals
+ao flywheel status --json       # machine-readable
 ```
 
 ### The Four Signals
