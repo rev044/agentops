@@ -152,7 +152,7 @@ func TestPrintFlywheelStatus_Recommendations(t *testing.T) {
 	}
 }
 
-func TestFlywheelStatus_GoldenFlag(t *testing.T) {
+func TestFlywheelStatus_GoldenSignalsAlwaysShown(t *testing.T) {
 	dir := t.TempDir()
 	// Create minimal structure for golden signals
 	for _, rel := range []string{
@@ -180,25 +180,21 @@ func TestFlywheelStatus_GoldenFlag(t *testing.T) {
 	}
 	defer func() { _ = os.Chdir(oldWD) }()
 
-	// Test with --golden flag and JSON output
 	oldOutput := output
-	output = "json"
 	defer func() { output = oldOutput }()
 
 	oldDays := metricsDays
 	metricsDays = 7
 	defer func() { metricsDays = oldDays }()
 
-	oldGolden := flywheelGolden
-	flywheelGolden = true
-	defer func() { flywheelGolden = oldGolden }()
-
+	// Golden signals should appear in JSON output WITHOUT --golden flag
+	output = "json"
 	cmd := &cobra.Command{}
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
 	if err := runFlywheelStatus(cmd, nil); err != nil {
-		t.Fatalf("runFlywheelStatus --golden failed: %v", err)
+		t.Fatalf("runFlywheelStatus failed: %v", err)
 	}
 
 	var parsed map[string]any
@@ -209,7 +205,7 @@ func TestFlywheelStatus_GoldenFlag(t *testing.T) {
 	// Verify golden_signals field exists and has expected structure
 	gs, ok := parsed["golden_signals"]
 	if !ok || gs == nil {
-		t.Fatal("expected golden_signals in JSON output")
+		t.Fatal("expected golden_signals in JSON output by default (without --golden flag)")
 	}
 	gsMap, ok := gs.(map[string]any)
 	if !ok {
@@ -221,20 +217,22 @@ func TestFlywheelStatus_GoldenFlag(t *testing.T) {
 		}
 	}
 
-	// Test with --golden flag and table output
+	// Golden signals should appear in table output WITHOUT --golden flag
 	buf.Reset()
 	output = "table"
-	flywheelGolden = true
 
 	cmd2 := &cobra.Command{}
 	cmd2.SetOut(&buf)
 
 	if err := runFlywheelStatus(cmd2, nil); err != nil {
-		t.Fatalf("runFlywheelStatus --golden table failed: %v", err)
+		t.Fatalf("runFlywheelStatus table failed: %v", err)
 	}
 	got := buf.String()
 	if !strings.Contains(got, "GOLDEN SIGNALS") {
-		t.Errorf("expected GOLDEN SIGNALS in table output, got: %q", got)
+		t.Errorf("expected GOLDEN SIGNALS in default table output, got: %q", got)
+	}
+	if !strings.Contains(got, "OVERALL:") {
+		t.Errorf("expected OVERALL verdict in default table output, got: %q", got)
 	}
 }
 

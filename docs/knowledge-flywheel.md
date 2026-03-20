@@ -101,7 +101,7 @@ dK/dt = I(t) - δ·K + σ·ρ·K
 Four signals measure whether the flywheel is actually compounding:
 
 ```bash
-ao flywheel status --golden
+ao flywheel status
 ```
 
 | Signal | Question | Healthy |
