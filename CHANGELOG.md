@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.27.0] - 2026-03-20
+
+### Added
+
+- **Flywheel golden signals** — Four derived health indicators (velocity trend, citation pipeline, research closure, reuse concentration) that distinguish knowledge compounding from noise accumulation; accessible via `ao flywheel status --golden`
+- **Forge-to-pool bridge** — Forge auto-writes pending learnings as markdown to `.agents/knowledge/pending/` for close-loop pool ingestion
+- **SessionStart citation priming** — `ao lookup` wired into SessionStart hook to close the citation gap between inject and session context
+- **Skill catalog quality** — Improved descriptions, extraction patterns, and reference linking across skill catalog
+
+### Fixed
+
+- **`.agents/.gitignore` scope** — Replaced broad `!*/` pattern with explicit subdirectory list to prevent accidental tracking
+- **Codex runtime skill parity** — Hardened Codex runtime skill discovery and validation
+- **Codex install smoke tests** — Fixed test assertions for install path edge cases
+
+### Changed
+
+- **CLI reference docs** — Regenerated with updated date stamps
+
 ## [2.26.1] - 2026-03-16
 
 ### Fixed
