@@ -30,66 +30,13 @@ setup_fixture() {
     "$fixture/scripts" \
     "$fixture/.codex-plugin" \
     "$fixture/.agents/plugins" \
-    "$fixture/skills" \
-    "$fixture/skills-codex"
+    "$fixture/skills-codex/source-skill"
 
   cp "$NATIVE_SCRIPT" "$fixture/scripts/install-codex-native-skills.sh"
   cp "$PLUGIN_SCRIPT" "$fixture/scripts/install-codex-plugin.sh"
   chmod +x \
     "$fixture/scripts/install-codex-native-skills.sh" \
     "$fixture/scripts/install-codex-plugin.sh"
-
-  cat > "$fixture/scripts/sync-codex-native-skills.sh" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-OUT=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --out)
-      OUT="${2:-}"
-      shift 2
-      ;;
-    *)
-      shift
-      ;;
-  esac
-done
-[[ -n "$OUT" ]] || exit 1
-mkdir -p "$OUT/source-skill"
-cat > "$OUT/source-skill/SKILL.md" <<'INNER'
----
-name: source-skill
-description: fixture
----
-INNER
-cat > "$OUT/source-skill/prompt.md" <<'INNER'
-# source-skill
-INNER
-cat > "$OUT/source-skill/.agentops-generated.json" <<'INNER'
-{
-  "generator": "scripts/sync-codex-native-skills.sh",
-  "source_skill": "skills/source-skill",
-  "layout": "modular",
-  "source_hash": "fixture-source",
-  "generated_hash": "fixture-generated"
-}
-INNER
-cat > "$OUT/.agentops-manifest.json" <<'INNER'
-{
-  "generator": "scripts/sync-codex-native-skills.sh",
-  "source_root": "skills",
-  "layout": "modular",
-  "skills": [
-    {
-      "name": "source-skill",
-      "source_skill": "skills/source-skill",
-      "source_hash": "fixture-source",
-      "generated_hash": "fixture-generated"
-    }
-  ]
-}
-INNER
-EOF
 
   cat > "$fixture/scripts/export-claude-skills-to-codex.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -121,9 +68,7 @@ done
 mkdir -p "$DST"
 cp -R "$SRC/." "$DST/"
 EOF
-  chmod +x \
-    "$fixture/scripts/sync-codex-native-skills.sh" \
-    "$fixture/scripts/export-claude-skills-to-codex.sh"
+  chmod +x "$fixture/scripts/export-claude-skills-to-codex.sh"
 
   cat > "$fixture/.codex-plugin/plugin.json" <<'EOF'
 {
@@ -142,6 +87,43 @@ EOF
         "source": "local",
         "path": "./"
       }
+    }
+  ]
+}
+EOF
+
+  cat > "$fixture/skills-codex/source-skill/SKILL.md" <<'EOF'
+---
+name: source-skill
+description: fixture
+---
+EOF
+
+  cat > "$fixture/skills-codex/source-skill/prompt.md" <<'EOF'
+# source-skill
+EOF
+
+  cat > "$fixture/skills-codex/source-skill/.agentops-generated.json" <<'EOF'
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_skill": "skills/source-skill",
+  "layout": "modular",
+  "source_hash": "fixture-source",
+  "generated_hash": "fixture-generated"
+}
+EOF
+
+  cat > "$fixture/skills-codex/.agentops-manifest.json" <<'EOF'
+{
+  "generator": "scripts/sync-codex-native-skills.sh",
+  "source_root": "skills",
+  "layout": "modular",
+  "skills": [
+    {
+      "name": "source-skill",
+      "source_skill": "skills/source-skill",
+      "source_hash": "fixture-source",
+      "generated_hash": "fixture-generated"
     }
   ]
 }

@@ -2,15 +2,15 @@
 set -euo pipefail
 
 # test-codex-native-install.sh
-# Verifies Codex-native skill generation + install flow.
+# Verifies the checked-in Codex-native bundle + install flow.
 #
 # What it checks:
-# 1) shellcheck on codex conversion/install scripts
+# 1) shellcheck on codex install scripts
 # 2) skill integrity gate (heal --strict)
-# 3) sync-codex-native-skills.sh succeeds
+# 3) checked-in skills-codex bundle is complete
 # 4) install-codex.sh succeeds into temp HOME
-# 5) Installed plugin cache plus raw/user skill homes contain expected skill count and required files
-# 6) Generated prompt.md files are runtime-agnostic (no ~/.codex/skills hardcoding)
+# 5) Installed native plugin cache contains expected skill count and required files
+# 6) Codex entrypoint files are runtime-agnostic (no ~/.codex/skills hardcoding)
 # 7) Generated SKILL.md files use $skill syntax (no known /skill references)
 #
 # Usage:
@@ -78,21 +78,19 @@ require_file() {
   [[ -f "$1" ]] || fail "Required file missing: $1"
 }
 
-SYNC_SCRIPT="$REPO_ROOT/scripts/sync-codex-native-skills.sh"
 INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex-plugin.sh"
 PUBLIC_INSTALL_SCRIPT="$REPO_ROOT/scripts/install-codex.sh"
-CONVERTER_SCRIPT="$REPO_ROOT/skills/converter/scripts/convert.sh"
 HEAL_SCRIPT="$REPO_ROOT/skills/heal-skill/scripts/heal.sh"
 CODEX_MANIFEST="$REPO_ROOT/.codex-plugin/plugin.json"
 CODEX_MARKETPLACE="$REPO_ROOT/.agents/plugins/marketplace.json"
+CODEX_SKILL_MANIFEST="$REPO_ROOT/skills-codex/.agentops-manifest.json"
 
-require_file "$SYNC_SCRIPT"
 require_file "$INSTALL_SCRIPT"
 require_file "$PUBLIC_INSTALL_SCRIPT"
-require_file "$CONVERTER_SCRIPT"
 require_file "$HEAL_SCRIPT"
 require_file "$CODEX_MANIFEST"
 require_file "$CODEX_MARKETPLACE"
+require_file "$CODEX_SKILL_MANIFEST"
 require_cmd bash
 require_cmd find
 require_cmd awk
@@ -103,8 +101,8 @@ if [[ "$SKIP_LINT" != "true" ]]; then
   require_cmd shellcheck
   require_cmd markdownlint
 
-  info "Running shellcheck on codex pipeline scripts"
-  shellcheck "$SYNC_SCRIPT" "$INSTALL_SCRIPT" "$PUBLIC_INSTALL_SCRIPT" "$CONVERTER_SCRIPT"
+  info "Running shellcheck on codex install scripts"
+  shellcheck "$INSTALL_SCRIPT" "$PUBLIC_INSTALL_SCRIPT"
 
   info "Running markdownlint on install docs"
   markdownlint \
@@ -120,26 +118,20 @@ fi
 info "Running strict skill integrity gate"
 bash "$HEAL_SCRIPT" --strict >/dev/null
 
-info "Building Codex-native skills"
-SYNC_ARGS=()
-if [[ -n "$ONLY_CSV" ]]; then
-  SYNC_ARGS+=(--only "$ONLY_CSV")
-fi
-bash "$SYNC_SCRIPT" "${SYNC_ARGS[@]}" >/dev/null
+info "Checking checked-in Codex-native bundle"
+[[ -s "$CODEX_SKILL_MANIFEST" ]] || fail "Checked-in Codex manifest is empty: $CODEX_SKILL_MANIFEST"
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
 HOME_ROOT="/tmp/codex-native-install-test-${timestamp}"
 CODEX_HOME="$HOME_ROOT/.codex"
 PLUGIN_ROOT="$CODEX_HOME/plugins/cache/agentops-marketplace/agentops/local"
 PLUGIN_SKILLS="$PLUGIN_ROOT/skills-codex"
-USER_SKILLS="$HOME_ROOT/.agents/skills"
 
 info "Installing AgentOps via the public Codex installer into temp HOME"
 HOME="$HOME_ROOT" AGENTOPS_BUNDLE_ROOT="$REPO_ROOT" AGENTOPS_INSTALL_REF="test-local" \
   bash "$PUBLIC_INSTALL_SCRIPT" >/dev/null
 
 [[ -d "$PLUGIN_SKILLS" ]] || fail "Plugin skills directory not created: $PLUGIN_SKILLS"
-[[ -d "$USER_SKILLS" ]] || fail "User skills directory not created: $USER_SKILLS"
 
 expected_count=0
 if [[ -n "$ONLY_CSV" ]]; then
@@ -156,8 +148,7 @@ fi
 
 installed_count="$(find "$PLUGIN_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [[ "$installed_count" == "$expected_count" ]] || fail "Installed count mismatch (expected $expected_count, got $installed_count)"
-user_count="$(find "$USER_SKILLS" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
-[[ "$user_count" == "$expected_count" ]] || fail "User skill count mismatch (expected $expected_count, got $user_count)"
+[[ ! -e "$HOME_ROOT/.agents/skills" ]] || fail "Unexpected ~/.agents/skills raw mirror created"
 [[ ! -e "$CODEX_HOME/skills" ]] || fail "Unexpected ~/.codex/skills raw mirror created"
 
 info "Verifying installed plugin files"
@@ -173,6 +164,10 @@ rg -q '^\[features\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing [f
 rg -q '^plugins = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing plugins = true"
 rg -q '^\[plugins\."agentops@agentops-marketplace"\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing AgentOps plugin block"
 rg -q '^enabled = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing enabled = true"
+rg -q '"install_mode": "native-plugin"' "$CODEX_HOME/.agentops-codex-install.json" \
+  || fail "install metadata missing native-plugin mode"
+rg -q '"user_skills_root": null' "$CODEX_HOME/.agentops-codex-install.json" \
+  || fail "install metadata should not record a raw skills mirror"
 
 info "Checking Codex entrypoint files for runtime-agnostic instructions"
 entrypoint_files=()
@@ -204,7 +199,7 @@ if [[ "${#entrypoint_files[@]}" -eq 0 ]]; then
   fail "No Codex entrypoint files found for slash-command check"
 fi
 
-if rg --pcre2 -n "(^|[^A-Za-z0-9_/])/(${skill_pattern})(?![A-Za-z0-9-])" "${entrypoint_files[@]}" >/dev/null 2>&1; then
+if rg --pcre2 -n "(^|[^A-Za-z0-9_./])/(${skill_pattern})(?![A-Za-z0-9-])" "${entrypoint_files[@]}" >/dev/null 2>&1; then
   fail "Found known /skill command references in skills-codex output"
 fi
 
@@ -224,11 +219,8 @@ fi
 info "Checking shared Codex backend references"
 shared_skill="$REPO_ROOT/skills-codex/shared/SKILL.md"
 require_file "$shared_skill"
-rg -q '\| Codex sub-agents \| `skills/shared/references/backend-codex-subagents\.md` \|' "$shared_skill" \
-  || fail "Missing Codex sub-agent backend mapping in $shared_skill"
-if rg -q '\| Codex sub-agents \| `skills/shared/references/backend-claude-teams\.md` \|' "$shared_skill"; then
-  fail "Found Codex backend row still pointing at backend-claude-teams.md in $shared_skill"
-fi
+rg -q '\| Codex session agents \| `references/backend-codex-subagents\.md` \|' "$shared_skill" \
+  || fail "Missing Codex session-agent backend mapping in $shared_skill"
 
 echo ""
 echo "PASS: Codex-native install flow verified"
