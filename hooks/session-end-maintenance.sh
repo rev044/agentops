@@ -39,6 +39,9 @@ run_maintenance() {
         # Replaces separate pool ingest + maturity --scan --apply calls
         run_ao_quick 15 flywheel close-loop --quiet || true
 
+        # Capture metric baseline for velocity trend tracking (golden signals)
+        run_ao_quick 5 metrics baseline -o json || true
+
         # Sync to repo-root MEMORY.md (opt-in via AGENTOPS_MEMORY_SYNC=1)
         # Only runs after successful forge — no point syncing stale data
         if [ "${AGENTOPS_MEMORY_SYNC:-0}" = "1" ]; then

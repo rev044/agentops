@@ -232,14 +232,50 @@ Tell the user:
 | Research/plan ratio | >0.5 | 0.2-0.5 | <0.2 |
 | Cache hit rate | >80% | 50-80% | <50% |
 
+## Golden Signals
+
+Four golden signals reveal whether knowledge is truly compounding or just accumulating noise.
+
+```bash
+ao flywheel status --golden          # table output
+ao flywheel status --golden --json   # machine-readable
+```
+
+### The Four Signals
+
+| # | Signal | Question | Key Metric |
+|---|--------|----------|------------|
+| 1 | **Velocity Trend** | Is σρ-δ increasing? | Linear regression slope of baseline velocities (7d/30d) |
+| 2 | **Citation Pipeline** | Are citations useful? | % of feedback with reward > 0.6 |
+| 3 | **Research Closure** | Is research being mined? | % orphaned research (no learning backlink) |
+| 4 | **Reuse Concentration** | Is the whole pool active? | Gini coefficient of citation distribution |
+
+### Verdicts and Thresholds
+
+| Signal | Healthy | Warning | Critical |
+|--------|---------|---------|----------|
+| Velocity Trend | compounding (slope > +0.01) | stagnant | decaying (slope < -0.01) |
+| Citation Pipeline | reinforcing (>60% high-util) | inert (30-60%) | degrading (<30%) |
+| Research Closure | mining (<=10% orphans) | — | hoarding (>=10% orphans) |
+| Reuse Concentration | distributed (Gini<0.4, active>30%) | concentrated | dormant (Gini>0.7 or active<10%) |
+
+**Overall verdict:** 3+ healthy = **compounding**, 3+ critical = **decaying**, mixed = **accumulating**.
+
+### Recommended Actions
+
+| Verdict | Action |
+|---------|--------|
+| **decaying** | Run `/athena` cycle, archive stale artifacts, increase citation via `ao lookup` |
+| **accumulating** | Review orphaned research (`/research`→`/retro` pipeline), improve forge quality |
+| **compounding** | Maintain cadence. Consider capturing baselines (`ao metrics baseline`) for trend tracking |
+
 ## Cache Eviction
 
 Read `references/cache-eviction.md` for the full eviction pipeline (passive tracking → confidence decay → maturity scan → archive).
 
 ## Key Rules
 
-- **Monitor regularly** - flywheel needs attention
-- **Address friction** - bottlenecks slow compounding
+- **Monitor regularly** - flywheel needs attention; address bottlenecks early
 - **Feed the flywheel** - run /retro and /post-mortem
 - **Prune stale knowledge** - archive old artifacts
 

@@ -735,6 +735,44 @@ type FlywheelMetrics struct {
 
 	// StigmergicScorecard captures repo-local prevention and backlog pressure.
 	StigmergicScorecard *StigmergicScorecard `json:"stigmergic_scorecard,omitempty"`
+
+	// GoldenSignals captures the four derived health indicators
+	// that distinguish knowledge compounding from noise accumulation.
+	GoldenSignals *GoldenSignals `json:"golden_signals,omitempty"`
+}
+
+// GoldenSignals captures the four derived health indicators
+// that distinguish knowledge compounding from noise accumulation.
+type GoldenSignals struct {
+	// Signal 1: Compounding Velocity Trend
+	// Is σρ-δ increasing over time?
+	VelocityTrend7d  float64 `json:"velocity_trend_7d"`  // slope of 7d rolling velocity
+	VelocityTrend30d float64 `json:"velocity_trend_30d"` // slope of 30d rolling velocity
+	TrendVerdict     string  `json:"trend_verdict,omitempty"`
+
+	// Signal 2: Citation Utility Pipeline
+	// Are citations delivering value?
+	HighUtilityCitationPct  float64 `json:"high_utility_citation_pct"`
+	MedianUtilityDelta      float64 `json:"median_utility_delta"`
+	AppliedToRetrievedRatio float64 `json:"applied_to_retrieved_ratio"`
+	PipelineVerdict         string  `json:"pipeline_verdict,omitempty"`
+
+	// Signal 3: Research-to-Learning Closure
+	// Is research being mined?
+	OrphanedResearchCount int     `json:"orphaned_research_count"`
+	OrphanedResearchPct   float64 `json:"orphaned_research_pct"`
+	AvgOrphanAgeDays      float64 `json:"avg_orphan_age_days"`
+	ClosureVerdict        string  `json:"closure_verdict,omitempty"`
+
+	// Signal 4: Knowledge Reuse Concentration
+	// Is the whole pool active or just a few items?
+	CitationGini         float64 `json:"citation_gini"`
+	ActivePoolPct        float64 `json:"active_pool_pct"`
+	Top10BottomRatio     float64 `json:"top10_bottom_ratio"`
+	ConcentrationVerdict string  `json:"concentration_verdict,omitempty"`
+
+	// Overall verdict: "compounding", "accumulating", or "decaying"
+	OverallVerdict string `json:"overall_verdict,omitempty"`
 }
 
 // StigmergicScorecard captures the backlog and prevention surfaces that

@@ -32,7 +32,7 @@ The repo now expresses the Stigmergic Spiral as executable mechanics:
 - **Stigmergic memory:** `.agents/`, finding registries, contracts, handoffs, and commits carry state forward
 - **Degraded operation:** fresh workers, disk-backed recovery, and hook-enforced checkpoints assume context loss and tool drift are normal
 
-The important shift is where intelligence lives. Agent sessions are disposable. The environment compounds.
+The important shift is where intelligence lives. Agent sessions are disposable. The environment compounds. See [The Knowledge Flywheel](knowledge-flywheel.md) for the full 6-stage pipeline that makes this happen automatically.
 
 ## Ralph Wiggum Pattern — Fresh Context Every Wave
 

@@ -128,9 +128,34 @@ A phased lifecycle, not a bag of prompts:
 
 That is the real architecture: a local operating layer around the agent, not just a prompt pack. See [Primitive Chains](docs/architecture/primitive-chains.md) for the audited map.
 
-### Why the memory matters
+### The Knowledge Flywheel
 
-Each session writes decisions and patterns to `.agents/`. The next relevant task starts with that context already loaded:
+Each session automatically extracts knowledge and feeds it back — making the next session smarter:
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                     THE KNOWLEDGE FLYWHEEL                            │
+│                                                                       │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐       │
+│  │  1. WORK   │─>│  2. FORGE  │─>│  3. POOL   │─>│ 4. PROMOTE │       │
+│  │  Session   │  │  Extract   │  │  Score &   │  │  Graduate  │       │
+│  │            │  │            │  │  Queue     │  │            │       │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘       │
+│       ^                                                  │            │
+│       │         ┌────────────┐  ┌────────────┐           │            │
+│       └─────────│  6. INJECT │<─│5. LEARNINGS│<──────────┘            │
+│                 │  Surface   │  │  Permanent │                        │
+│                 │  & Cite    │  │  Knowledge │                        │
+│                 └────────────┘  └────────────┘                        │
+│                                                                       │
+│  Each citation feeds back: utility scores update, high-utility        │
+│  knowledge surfaces more often, low-utility decays. This is the       │
+│  compounding effect — sessions get smarter because the best           │
+│  knowledge rises and the noise sinks.                                 │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+**Forge** extracts decisions, solutions, learnings, and failures from every session. **Pool** scores each on specificity, actionability, and novelty. **Promote** graduates the best after another session cites it. **Inject** surfaces the top knowledge at session start — each retrieval creates a citation that drives the feedback loop.
 
 ```text
 > /research "retry backoff strategies"
@@ -143,7 +168,9 @@ Each session writes decisions and patterns to `.agents/`. The next relevant task
            Recommends: exponential backoff with jitter, reuse existing Redis client
 ```
 
-Session 5 started with scored, repo-specific context — not from scratch. Stale insights [decay automatically](docs/the-science.md). Useful ones compound.
+Session 50 starts with 50 sessions of accumulated wisdom — not from scratch. Stale insights [decay automatically](docs/the-science.md). Useful ones compound. Measure it: `ao flywheel status --golden`.
+
+Deep dive: [The Knowledge Flywheel](docs/knowledge-flywheel.md)
 
 ### Why engineers buy in
 

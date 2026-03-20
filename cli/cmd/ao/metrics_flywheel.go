@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var flywheelGolden bool
+
 // flywheelCmd provides a convenient alias for flywheel status operations.
 var flywheelCmd = &cobra.Command{
 	Use:   "flywheel",
@@ -55,6 +57,7 @@ Examples:
 		RunE: runFlywheelStatus,
 	}
 	statusCmd.Flags().IntVar(&metricsDays, "days", 7, "Period in days for metrics calculation")
+	statusCmd.Flags().BoolVar(&flywheelGolden, "golden", false, "Show golden signals (compounding health indicators)")
 	flywheelCmd.AddCommand(statusCmd)
 }
 
@@ -81,38 +84,52 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Compute golden signals if requested
+	if flywheelGolden {
+		gs, err := computeGoldenSignals(cwd, metricsDays)
+		if err == nil {
+			metrics.GoldenSignals = gs
+		}
+	}
+
 	w := cmd.OutOrStdout()
 	switch GetOutput() {
 	case "json":
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(map[string]any{
-			"status":      metrics.EscapeVelocityStatus(),
-			"delta":       metrics.Delta,
-			"sigma":       metrics.Sigma,
-			"rho":         metrics.Rho,
-			"sigma_rho":   metrics.SigmaRho,
-			"velocity":    metrics.Velocity,
-			"compounding": metrics.AboveEscapeVelocity,
-			"scorecard":   metrics.StigmergicScorecard,
-			"metrics":     metrics,
+			"status":         metrics.EscapeVelocityStatus(),
+			"delta":          metrics.Delta,
+			"sigma":          metrics.Sigma,
+			"rho":            metrics.Rho,
+			"sigma_rho":      metrics.SigmaRho,
+			"velocity":       metrics.Velocity,
+			"compounding":    metrics.AboveEscapeVelocity,
+			"scorecard":      metrics.StigmergicScorecard,
+			"golden_signals": metrics.GoldenSignals,
+			"metrics":        metrics,
 		})
 
 	case "yaml":
 		enc := yaml.NewEncoder(w)
+		defer enc.Close()
 		return enc.Encode(map[string]any{
-			"status":      metrics.EscapeVelocityStatus(),
-			"delta":       metrics.Delta,
-			"sigma":       metrics.Sigma,
-			"rho":         metrics.Rho,
-			"sigma_rho":   metrics.SigmaRho,
-			"velocity":    metrics.Velocity,
-			"compounding": metrics.AboveEscapeVelocity,
-			"scorecard":   metrics.StigmergicScorecard,
+			"status":         metrics.EscapeVelocityStatus(),
+			"delta":          metrics.Delta,
+			"sigma":          metrics.Sigma,
+			"rho":            metrics.Rho,
+			"sigma_rho":      metrics.SigmaRho,
+			"velocity":       metrics.Velocity,
+			"compounding":    metrics.AboveEscapeVelocity,
+			"scorecard":      metrics.StigmergicScorecard,
+			"golden_signals": metrics.GoldenSignals,
 		})
 
 	default:
 		printFlywheelStatus(w, metrics)
+		if flywheelGolden {
+			fprintGoldenSignals(w, metrics.GoldenSignals)
+		}
 	}
 
 	return nil

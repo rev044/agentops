@@ -152,6 +152,92 @@ func TestPrintFlywheelStatus_Recommendations(t *testing.T) {
 	}
 }
 
+func TestFlywheelStatus_GoldenFlag(t *testing.T) {
+	dir := t.TempDir()
+	// Create minimal structure for golden signals
+	for _, rel := range []string{
+		filepath.Join(".agents", "ao"),
+		filepath.Join(".agents", "learnings"),
+		filepath.Join(".agents", "research"),
+	} {
+		if err := os.MkdirAll(filepath.Join(dir, rel), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Write a few learnings
+	os.WriteFile(filepath.Join(dir, ".agents", "learnings", "l1.md"), []byte("# L"), 0644)
+	os.WriteFile(filepath.Join(dir, ".agents", "research", "r1.md"), []byte("# R"), 0644)
+	// Write empty citation/feedback files
+	os.WriteFile(filepath.Join(dir, ".agents", "ao", "citations.jsonl"), []byte{}, 0644)
+	os.WriteFile(filepath.Join(dir, ".agents", "ao", "feedback.jsonl"), []byte{}, 0644)
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	// Test with --golden flag and JSON output
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	oldDays := metricsDays
+	metricsDays = 7
+	defer func() { metricsDays = oldDays }()
+
+	oldGolden := flywheelGolden
+	flywheelGolden = true
+	defer func() { flywheelGolden = oldGolden }()
+
+	cmd := &cobra.Command{}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	if err := runFlywheelStatus(cmd, nil); err != nil {
+		t.Fatalf("runFlywheelStatus --golden failed: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("expected valid JSON, got: %q (%v)", buf.String(), err)
+	}
+
+	// Verify golden_signals field exists and has expected structure
+	gs, ok := parsed["golden_signals"]
+	if !ok || gs == nil {
+		t.Fatal("expected golden_signals in JSON output")
+	}
+	gsMap, ok := gs.(map[string]any)
+	if !ok {
+		t.Fatal("expected golden_signals to be an object")
+	}
+	for _, field := range []string{"overall_verdict", "trend_verdict", "pipeline_verdict", "closure_verdict", "concentration_verdict"} {
+		if _, ok := gsMap[field]; !ok {
+			t.Errorf("expected field %q in golden_signals", field)
+		}
+	}
+
+	// Test with --golden flag and table output
+	buf.Reset()
+	output = "table"
+	flywheelGolden = true
+
+	cmd2 := &cobra.Command{}
+	cmd2.SetOut(&buf)
+
+	if err := runFlywheelStatus(cmd2, nil); err != nil {
+		t.Fatalf("runFlywheelStatus --golden table failed: %v", err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "GOLDEN SIGNALS") {
+		t.Errorf("expected GOLDEN SIGNALS in table output, got: %q", got)
+	}
+}
+
 func TestRunFlywheelStatus_JSONOutput(t *testing.T) {
 	dir := t.TempDir()
 	for _, rel := range []string{

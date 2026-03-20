@@ -336,6 +336,13 @@ func forgeTranscriptFile(fs *storage.FileStorage, session *storage.Session, file
 			forgeWarnf(forgeQuiet, "Warning: failed to queue for extraction: %v\n", err)
 		}
 	}
+
+	// Auto-write pending learnings for close-loop ingestion (bridges forge→pool)
+	if n, err := writePendingLearnings(session, cwd); err != nil {
+		forgeWarnf(forgeQuiet, "Warning: failed to write pending learnings: %v\n", err)
+	} else if n > 0 && !forgeQuiet {
+		VerbosePrintf("  → %d pending learning(s) written\n", n)
+	}
 }
 
 // processTranscript parses a transcript and extracts session data.
@@ -774,6 +781,13 @@ func forgeMarkdownFile(fs *storage.FileStorage, session *storage.Session, filePa
 		if err := queueForExtraction(session, sessionPath, filePath, cwd); err != nil {
 			forgeWarnf(forgeMdQuiet, "Warning: failed to queue for extraction: %v\n", err)
 		}
+	}
+
+	// Auto-write pending learnings for close-loop ingestion (bridges forge→pool)
+	if n, err := writePendingLearnings(session, cwd); err != nil {
+		forgeWarnf(forgeMdQuiet, "Warning: failed to write pending learnings: %v\n", err)
+	} else if n > 0 && !forgeMdQuiet {
+		VerbosePrintf("  → %d pending learning(s) written\n", n)
 	}
 }
 
