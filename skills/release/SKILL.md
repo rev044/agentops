@@ -297,18 +297,32 @@ After user confirms:
    - Replace with: fresh empty `## [Unreleased]` + blank line + versioned entry
 2. **Update version files** (if user accepted bumps)
 
-### Step 10: Release commit
+### Step 10: Generate release notes
+
+Read `references/release-notes.md` for the full release notes format, quality bar, condensing rules, and examples. Key points:
+
+- Release notes are **not the changelog** — they're user-facing, plain-English, no jargon
+- Structure: Highlights → What's New → All Changes (condensed) → link to full CHANGELOG
+- Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
+
+**CRITICAL:** Release notes MUST be written and staged BEFORE the release commit. GoReleaser checks out the tagged commit — if notes are committed after the tag, CI won't find them and falls back to raw changelog extraction.
+
+### Step 11: Write audit trail
+
+Write the internal release audit record to `.agents/releases/YYYY-MM-DD-v<version>-audit.md` (see Step 15 format). Stage it alongside the release notes.
+
+### Step 12: Release commit
 
 Stage and commit all release changes together:
 
 ```bash
-git add CHANGELOG.md <version-files...>
+git add CHANGELOG.md <version-files...> .agents/releases/YYYY-MM-DD-v<version>-notes.md .agents/releases/YYYY-MM-DD-v<version>-audit.md
 git commit -m "Release v<version>"
 ```
 
-The commit message is intentionally simple. The changelog has the details.
+The commit message is intentionally simple. The changelog has the details. The release notes and audit trail are included in this commit so the tagged tree contains them.
 
-### Step 11: Tag
+### Step 13: Tag
 
 Create an annotated tag:
 
@@ -316,33 +330,16 @@ Create an annotated tag:
 git tag -a v<version> -m "Release v<version>"
 ```
 
-### Step 12: Generate release notes
-
-Read `references/release-notes.md` for the full release notes format, quality bar, condensing rules, and examples. Key points:
-
-- Release notes are **not the changelog** — they're user-facing, plain-English, no jargon
-- Structure: Highlights → What's New → All Changes (condensed) → link to full CHANGELOG
-- Write to `.agents/releases/YYYY-MM-DD-v<version>-notes.md`
-- Show to the user as part of Step 8 review
-
-### Step 13: GitHub Release (CI handles this)
+### Step 14: GitHub Release (CI handles this)
 
 **Do NOT create a draft GitHub Release locally.** GoReleaser in CI is the sole release creator. A local `gh release create --draft` conflicts with GoReleaser and results in an empty release body.
 
-The curated release notes at `.agents/releases/YYYY-MM-DD-v<version>-notes.md` are committed to the repo. The CI pipeline (`extract-release-notes.sh` at repo root) reads them and passes them to GoReleaser via `--release-notes`.
+The curated release notes at `.agents/releases/YYYY-MM-DD-v<version>-notes.md` are included in the release commit (Step 12), so CI finds them in the tagged tree. The pipeline (`extract-release-notes.sh`) reads them and passes them to GoReleaser via `--release-notes`.
 CI also publishes security artifacts to the GitHub Release assets:
 - `sbom-cyclonedx-go-mod.json`
 - `security-gate-summary.json`
 
-Tell the user:
-
-```
-Release notes written to .agents/releases/YYYY-MM-DD-v<version>-notes.md
-CI will use these as highlights on the GitHub Release page.
-CI will attach SBOM and security scan report assets.
-```
-
-### Step 14: Post-release guidance
+### Step 15: Post-release guidance
 
 Show the user what to do next:
 
@@ -366,9 +363,9 @@ Next steps:
 No release CI detected. Consider adding a workflow for automated publishing.
 ```
 
-### Step 15: Audit trail
+### Step 16: Audit trail format
 
-Write an internal release record (separate from the public release notes written in Step 12):
+The audit record (written in Step 11, committed in Step 12) uses this format:
 
 ```bash
 mkdir -p .agents/releases
