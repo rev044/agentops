@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// flywheelGolden is kept for backward compatibility (--golden flag) but golden
+// signals now always compute. The flag is a no-op.
 var flywheelGolden bool
 
 // flywheelCmd provides a convenient alias for flywheel status operations.
@@ -57,7 +59,8 @@ Examples:
 		RunE: runFlywheelStatus,
 	}
 	statusCmd.Flags().IntVar(&metricsDays, "days", 7, "Period in days for metrics calculation")
-	statusCmd.Flags().BoolVar(&flywheelGolden, "golden", false, "Show golden signals (compounding health indicators)")
+	statusCmd.Flags().BoolVar(&flywheelGolden, "golden", false, "Show golden signals (always shown; flag kept for compatibility)")
+	_ = statusCmd.Flags().MarkHidden("golden")
 	flywheelCmd.AddCommand(statusCmd)
 }
 
@@ -84,12 +87,9 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Compute golden signals if requested
-	if flywheelGolden {
-		gs, err := computeGoldenSignals(cwd, metricsDays)
-		if err == nil {
-			metrics.GoldenSignals = gs
-		}
+	// Always compute golden signals — they provide the honest health assessment
+	if gs, err := computeGoldenSignals(cwd, metricsDays); err == nil {
+		metrics.GoldenSignals = gs
 	}
 
 	w := cmd.OutOrStdout()
@@ -127,9 +127,7 @@ func runFlywheelStatus(cmd *cobra.Command, args []string) error {
 
 	default:
 		printFlywheelStatus(w, metrics)
-		if flywheelGolden {
-			fprintGoldenSignals(w, metrics.GoldenSignals)
-		}
+		fprintGoldenSignals(w, metrics.GoldenSignals)
 	}
 
 	return nil
