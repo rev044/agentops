@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestDefault(t *testing.T) {
@@ -1914,6 +1916,104 @@ func TestResolve_ModelsDefaultTier_EnvOverride(t *testing.T) {
 	if rc.ModelsDefaultTier.Value != "quality" || rc.ModelsDefaultTier.Source != SourceEnv {
 		t.Errorf("Resolve env ModelsDefaultTier = (%v, %v), want (quality, %v)",
 			rc.ModelsDefaultTier.Value, rc.ModelsDefaultTier.Source, SourceEnv)
+	}
+}
+
+func TestSave_CreatesDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, ".agentops")
+	configPath := filepath.Join(configDir, "config.yaml")
+	t.Setenv("AGENTOPS_CONFIG", configPath)
+
+	cfg := &Config{
+		Models: ModelsConfig{DefaultTier: "quality"},
+	}
+
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	// Directory should have been created
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		t.Fatal("Save() did not create .agentops/ directory")
+	}
+
+	// File should exist and be valid YAML
+	loaded, err := loadFromPath(configPath)
+	if err != nil {
+		t.Fatalf("loadFromPath after Save: %v", err)
+	}
+	if loaded.Models.DefaultTier != "quality" {
+		t.Errorf("saved Models.DefaultTier = %q, want %q", loaded.Models.DefaultTier, "quality")
+	}
+}
+
+func TestSave_MergesWithExisting(t *testing.T) {
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, ".agentops")
+	configPath := filepath.Join(configDir, "config.yaml")
+	t.Setenv("AGENTOPS_CONFIG", configPath)
+
+	// Write an initial config with output set
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	initial := "output: json\nmodels:\n  default_tier: balanced\n"
+	if err := os.WriteFile(configPath, []byte(initial), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save with only DefaultTier changed — output should be preserved
+	cfg := &Config{
+		Models: ModelsConfig{DefaultTier: "quality"},
+	}
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	loaded, err := loadFromPath(configPath)
+	if err != nil {
+		t.Fatalf("loadFromPath after Save: %v", err)
+	}
+	if loaded.Output != "json" {
+		t.Errorf("existing Output field not preserved: got %q, want %q", loaded.Output, "json")
+	}
+	if loaded.Models.DefaultTier != "quality" {
+		t.Errorf("saved Models.DefaultTier = %q, want %q", loaded.Models.DefaultTier, "quality")
+	}
+}
+
+func TestSave_WritesYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, ".agentops", "config.yaml")
+	t.Setenv("AGENTOPS_CONFIG", configPath)
+
+	cfg := &Config{
+		Models: ModelsConfig{
+			DefaultTier:    "budget",
+			SkillOverrides: map[string]string{"council": "quality"},
+		},
+	}
+
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile after Save: %v", err)
+	}
+
+	// Verify it's valid YAML by unmarshaling
+	var parsed Config
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("saved file is not valid YAML: %v", err)
+	}
+	if parsed.Models.DefaultTier != "budget" {
+		t.Errorf("parsed Models.DefaultTier = %q, want %q", parsed.Models.DefaultTier, "budget")
+	}
+	if parsed.Models.SkillOverrides["council"] != "quality" {
+		t.Errorf("parsed Models.SkillOverrides[council] = %q, want %q", parsed.Models.SkillOverrides["council"], "quality")
 	}
 }
 

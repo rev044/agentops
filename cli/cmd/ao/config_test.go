@@ -260,6 +260,133 @@ func TestRunConfigModels_WithEnvOverride(t *testing.T) {
 	}
 }
 
+func TestConfigModels_SetTier(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	// Clear env so project config is used from cwd
+	t.Setenv("AGENTOPS_CONFIG", "")
+
+	oldSetTier := modelsSetTier
+	oldSetSkill := modelsSetSkill
+	modelsSetTier = "quality"
+	modelsSetSkill = ""
+	defer func() {
+		modelsSetTier = oldSetTier
+		modelsSetSkill = oldSetSkill
+	}()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfigModels(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfigModels --set-tier: %v", err)
+	}
+
+	if !strings.Contains(stdout, `Set default model tier to "quality"`) {
+		t.Errorf("expected confirmation message, got: %q", stdout)
+	}
+
+	// Verify config was written
+	cfg, loadErr := config.Load(nil)
+	if loadErr != nil {
+		t.Fatalf("Load after set-tier: %v", loadErr)
+	}
+	if cfg.Models.DefaultTier != "quality" {
+		t.Errorf("saved DefaultTier = %q, want %q", cfg.Models.DefaultTier, "quality")
+	}
+}
+
+func TestConfigModels_SetSkill(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	t.Setenv("AGENTOPS_CONFIG", "")
+
+	oldSetTier := modelsSetTier
+	oldSetSkill := modelsSetSkill
+	modelsSetTier = ""
+	modelsSetSkill = "council=quality"
+	defer func() {
+		modelsSetTier = oldSetTier
+		modelsSetSkill = oldSetSkill
+	}()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfigModels(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfigModels --set-skill: %v", err)
+	}
+
+	if !strings.Contains(stdout, `Set skill "council" tier to "quality"`) {
+		t.Errorf("expected confirmation message, got: %q", stdout)
+	}
+
+	cfg, loadErr := config.Load(nil)
+	if loadErr != nil {
+		t.Fatalf("Load after set-skill: %v", loadErr)
+	}
+	if cfg.Models.SkillOverrides["council"] != "quality" {
+		t.Errorf("saved SkillOverrides[council] = %q, want %q", cfg.Models.SkillOverrides["council"], "quality")
+	}
+}
+
+func TestConfigModels_SetTier_InvalidTier(t *testing.T) {
+	oldSetTier := modelsSetTier
+	oldSetSkill := modelsSetSkill
+	defer func() {
+		modelsSetTier = oldSetTier
+		modelsSetSkill = oldSetSkill
+	}()
+
+	tests := []struct {
+		name    string
+		tier    string
+		wantErr string
+	}{
+		{
+			name:    "unknown tier",
+			tier:    "premium",
+			wantErr: "invalid tier",
+		},
+		{
+			name:    "inherit not allowed for default",
+			tier:    "inherit",
+			wantErr: "inherit",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			modelsSetTier = tt.tier
+			modelsSetSkill = ""
+
+			err := runConfigModels(&cobra.Command{}, nil)
+			if err == nil {
+				t.Fatal("expected error for invalid tier, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestRunConfig_ShowTable_NoEnvVars(t *testing.T) {
 	dir := t.TempDir()
 	oldWD, err := os.Getwd()

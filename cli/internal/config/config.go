@@ -8,6 +8,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -478,6 +479,45 @@ func mergePaths(dst, src *PathsConfig) {
 	if src.GlobalWeight > 0 {
 		dst.GlobalWeight = src.GlobalWeight
 	}
+}
+
+// Save writes the given config to the project config file.
+// It merges with existing config to preserve fields not being changed.
+func Save(cfg *Config) error {
+	path := projectConfigPath()
+	if path == "" {
+		return fmt.Errorf("determining project config path: could not resolve working directory")
+	}
+
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("creating config directory %s: %w", dir, err)
+	}
+
+	// Load existing config to preserve fields not being changed.
+	existing, _ := loadFromPath(path)
+	if existing != nil {
+		existing = merge(existing, cfg)
+	} else {
+		existing = cfg
+	}
+
+	data, err := yaml.Marshal(existing)
+	if err != nil {
+		return fmt.Errorf("marshaling config: %w", err)
+	}
+
+	// Write atomically: temp file then rename.
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		return fmt.Errorf("writing temp config %s: %w", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("renaming temp config to %s: %w", path, err)
+	}
+
+	return nil
 }
 
 // Source represents where a config value came from.

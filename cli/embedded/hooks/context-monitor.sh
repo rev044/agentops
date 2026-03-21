@@ -14,6 +14,57 @@ set -euo pipefail
 #   AGENTOPS_CONTEXT_MONITOR_DISABLED=1 - disable this hook only
 #   AGENTOPS_CONTEXT_WARN_PERCENT=35   - warning threshold (default 35)
 #   AGENTOPS_CONTEXT_CRIT_PERCENT=25   - critical threshold (default 25)
+#
+# ── Bridge Setup ──────────────────────────────────────────────────────────────
+#
+# This hook reads a JSON bridge file that YOUR statusline command writes.
+# Without this bridge file, the hook silently exits (no error, no output).
+#
+# Bridge file location: /tmp/claude-ctx-{CLAUDE_SESSION_ID}.json
+# Required JSON format:
+#
+#   {
+#     "remaining_percent": 65,
+#     "total_tokens": 200000,
+#     "used_tokens": 70000
+#   }
+#
+# Only "remaining_percent" is required. The other fields are informational.
+# The file must be updated within the last 5 minutes or it is treated as stale.
+#
+# Option 1: Claude Code statusline command
+#
+#   Add to ~/.claude/settings.json:
+#
+#   {
+#     "statusline": {
+#       "command": "echo '{\"remaining_percent\": '$REMAINING'}' > /tmp/claude-ctx-$CLAUDE_SESSION_ID.json"
+#     }
+#   }
+#
+#   Replace $REMAINING with however your statusline calculates the percentage.
+#   The statusline command runs periodically and has CLAUDE_SESSION_ID in env.
+#
+# Option 2: Manual bridge script
+#
+#   Save as ~/bin/ctx-bridge.sh and run in a separate terminal:
+#
+#   #!/usr/bin/env bash
+#   # Usage: ctx-bridge.sh <session-id> [poll-seconds]
+#   SESSION_ID="${1:?Usage: ctx-bridge.sh <session-id> [poll-seconds]}"
+#   POLL="${2:-30}"
+#   BRIDGE="/tmp/claude-ctx-${SESSION_ID}.json"
+#   while true; do
+#     # Replace this with your actual token-counting logic
+#     TOTAL=200000
+#     USED=$(wc -c < "/tmp/claude-session-${SESSION_ID}.log" 2>/dev/null || echo 0)
+#     PCT=$(( 100 - (USED * 100 / TOTAL) ))
+#     printf '{"remaining_percent":%d,"total_tokens":%d,"used_tokens":%d}\n' \
+#       "$PCT" "$TOTAL" "$USED" > "$BRIDGE"
+#     sleep "$POLL"
+#   done
+#
+# ──────────────────────────────────────────────────────────────────────────────
 
 # Kill switches
 [[ "${AGENTOPS_HOOKS_DISABLED:-}" == "1" ]] && exit 0

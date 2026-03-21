@@ -268,6 +268,18 @@ Report test pyramid findings in a "Test Coverage Gaps" section.
 
 **Auto-triggered** when any issue in the plan modifies source code files (`.go`, `.py`, `.ts`, `.rs`, `.js`).
 
+### Step 2.7: Input Validation Check (Mandatory for enum-like fields)
+
+When the plan introduces or modifies fields with a bounded set of valid values (enums, tier names, mode strings, status codes), verify the plan includes validation logic.
+
+| Question | Expected | Finding if Missing |
+|----------|----------|--------------------|
+| Does every new enum-like field have a validation guard? | Yes | severity=significant: "No validation for enum field — invalid values pass silently" |
+| Is there a defined fallback for unrecognized values? | Yes | severity=moderate: "No fallback behavior specified for invalid input" |
+| Are valid values defined as a constant set (not inline strings)? | Yes | severity=low: "Valid values are inline strings — extract to named constant set" |
+
+**Auto-triggered** when the plan introduces struct fields with comments mentioning valid values, config fields with bounded options, or string fields parsed from user input.
+
 ### Step 3: Interpret Council Verdict
 
 | Council Verdict | Pre-Mortem Result | Action |
@@ -300,6 +312,27 @@ prediction_ids:
 | pm-YYYYMMDD-001 | Missing-Requirements | ... | significant | <what will go wrong> |
 | pm-YYYYMMDD-002 | Feasibility | ... | significant | <what will go wrong> |
 | pm-YYYYMMDD-003 | Scope | ... | moderate | <what will go wrong> |
+
+## Pseudocode Fixes
+
+**Every finding that implies a code change MUST include implementation-ready pseudocode**, not prose-only descriptions. Write the pseudocode in the language of the target file. Workers read issue descriptions, not pre-mortem reports — vague prose leads to workers reimplementing the bug.
+
+Format each code-fix finding as:
+
+```
+Finding: F1 — <concise description>
+Severity: <severity>
+Fix (pseudocode):
+  ```<language>
+  // pseudocode in the target file's language
+  if tier == "inherit" || tier == "" {
+      return "balanced"  // inherit always resolves to balanced
+  }
+  ```
+Affected files: <path(s)>
+```
+
+Prose-only fix descriptions (e.g., "The inherit tier should fall back to balanced") are insufficient when the fix involves specific logic. If a finding is purely architectural or process-related with no code change, prose is acceptable.
 
 ## Shared Findings
 - ...
@@ -342,6 +375,15 @@ bash hooks/finding-compiler.sh --quiet 2>/dev/null || true
 ```
 
 This refreshes `.agents/findings/*.md`, `.agents/planning-rules/*.md`, `.agents/pre-mortem-checks/*.md`, and draft constraint metadata in the same session. `session-end-maintenance.sh` remains the idempotent backstop.
+
+### Step 4.6: Copy Pseudocode Fixes into Plan Issues
+
+When pre-mortem findings are applied to plan issues (via `TaskUpdate`, `bd update`, or manual edit), **copy the pseudocode block verbatim into the issue body**. Workers read issue descriptions — they do not read pre-mortem reports. If the pseudocode lives only in the pre-mortem report, workers will reimplement the fix from scratch and often get it wrong.
+
+For each finding with a pseudocode fix:
+1. Identify which plan issue the finding applies to
+2. Append a `## Pre-Mortem Fix` section to that issue's description containing the pseudocode block and affected file paths
+3. If no matching issue exists, note the gap in the report's Recommendation section
 
 ### Step 5: Record Ratchet Progress
 

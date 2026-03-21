@@ -1340,6 +1340,14 @@ Display the current model cost tier settings with sources.
 ao config models [flags]
 ```
 
+**Flags:**
+
+```
+  -h, --help               help for models
+      --set-skill string   Set a skill-specific tier override (e.g. council=quality)
+      --set-tier string    Set the default model cost tier (quality, balanced, budget)
+```
+
 ---
 
 ### `ao hooks`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -12,7 +13,9 @@ import (
 )
 
 var (
-	configShow bool
+	configShow       bool
+	modelsSetTier    string
+	modelsSetSkill   string
 )
 
 var configModelsCmd = &cobra.Command{
@@ -78,6 +81,8 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.Flags().BoolVar(&configShow, "show", false, "Show resolved configuration with sources")
 	configCmd.AddCommand(configModelsCmd)
+	configModelsCmd.Flags().StringVar(&modelsSetTier, "set-tier", "", "Set the default model cost tier (quality, balanced, budget)")
+	configModelsCmd.Flags().StringVar(&modelsSetSkill, "set-skill", "", "Set a skill-specific tier override (e.g. council=quality)")
 }
 
 func runConfig(cmd *cobra.Command, args []string) error {
@@ -165,6 +170,11 @@ func runConfig(cmd *cobra.Command, args []string) error {
 }
 
 func runConfigModels(_ *cobra.Command, _ []string) error {
+	// Handle write operations if either flag is set.
+	if modelsSetTier != "" || modelsSetSkill != "" {
+		return handleModelsWrite()
+	}
+
 	cfg, err := config.Load(nil)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -234,6 +244,46 @@ func runConfigModels(_ *cobra.Command, _ []string) error {
 	}
 	if !anyModelEnv {
 		fmt.Println("    (none set)")
+	}
+
+	return nil
+}
+
+func handleModelsWrite() error {
+	saveCfg := &config.Config{}
+
+	if modelsSetTier != "" {
+		if modelsSetTier == "inherit" {
+			return fmt.Errorf("invalid tier %q for default: \"inherit\" is only valid for skill overrides", modelsSetTier)
+		}
+		if !config.ValidTiers[modelsSetTier] {
+			return fmt.Errorf("invalid tier %q: must be one of quality, balanced, budget", modelsSetTier)
+		}
+		saveCfg.Models.DefaultTier = modelsSetTier
+	}
+
+	if modelsSetSkill != "" {
+		parts := strings.SplitN(modelsSetSkill, "=", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf("invalid --set-skill format %q: expected skill=tier (e.g. council=quality)", modelsSetSkill)
+		}
+		skill, tier := parts[0], parts[1]
+		if !config.ValidTiers[tier] {
+			return fmt.Errorf("invalid tier %q for skill %q: must be one of quality, balanced, budget, inherit", tier, skill)
+		}
+		saveCfg.Models.SkillOverrides = map[string]string{skill: tier}
+	}
+
+	if err := config.Save(saveCfg); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+
+	if modelsSetTier != "" {
+		fmt.Printf("Set default model tier to %q\n", modelsSetTier)
+	}
+	if modelsSetSkill != "" {
+		parts := strings.SplitN(modelsSetSkill, "=", 2)
+		fmt.Printf("Set skill %q tier to %q\n", parts[0], parts[1])
 	}
 
 	return nil
