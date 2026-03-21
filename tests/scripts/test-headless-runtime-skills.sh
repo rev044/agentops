@@ -69,6 +69,7 @@ make_mock_claude() {
 set -euo pipefail
 
 prompt=""
+saw_help=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -p)
@@ -77,8 +78,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       if [[ "$1" == "--help" ]]; then
-        echo "Claude help"
-        exit 0
+        saw_help=1
       fi
       shift
       ;;
@@ -86,6 +86,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 mode="__MODE__"
+if [[ "$saw_help" == "1" ]]; then
+  echo "Claude help"
+  exit 0
+fi
 if [[ "$mode" == "fallback" ]]; then
   exit 124
 fi

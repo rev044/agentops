@@ -316,12 +316,16 @@ build_expected_inventory "$REPO_ROOT/skills" "$EXPECTED_CLAUDE_JSON"
 build_expected_inventory "$REPO_ROOT/skills-codex" "$EXPECTED_CODEX_JSON"
 
 run_claude_load_check() {
+    if timeout 20 "$CLAUDE_BIN" --plugin-dir "$REPO_ROOT" --help >/dev/null 2>&1; then
+        return 0
+    fi
+
     if command -v script >/dev/null 2>&1; then
         script -q /dev/null "$CLAUDE_BIN" --plugin-dir "$REPO_ROOT" --help >/dev/null 2>&1
         return $?
     fi
 
-    timeout 20 "$CLAUDE_BIN" --plugin-dir "$REPO_ROOT" --help >/dev/null 2>&1
+    return 1
 }
 
 claude_inventory_failed() {
