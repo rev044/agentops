@@ -1,6 +1,6 @@
 # Finding Compiler Contract
 
-This contract defines the v2 promotion ladder that turns normalized findings into preventive outputs. The design goal is simple: discover a reusable failure once, normalize it once, then consume it earlier on the next cycle.
+This contract defines the current promotion ladder that turns normalized findings into preventive outputs. The design goal is simple: discover a reusable failure once, normalize it once, then consume it earlier on the next cycle.
 
 ## Canonical Model
 
@@ -28,7 +28,7 @@ The registry is still the canonical intake ledger. Promotion and compilation are
 1. Read the registry ledger.
 2. Merge or select the canonical entry by `dedup_key`.
 3. Promote that entry into `.agents/findings/<id>.md` when it is reusable enough to survive beyond the session-local JSONL row.
-4. Compile the promoted artifact into advisory or mechanical outputs according to `compiler_targets`.
+4. Compile the promoted artifact into advisory outputs first, then mechanical outputs when detector metadata permits, according to `compiler_targets`.
 
 Promotion must preserve the reusable prevention content:
 
@@ -151,5 +151,5 @@ Any CLI or hook path that mutates `.agents/constraints/index.json` must follow t
 
 - The registry JSONL line shape remains canonical `version: 1`.
 - Older readers may continue to consume `registry.jsonl` directly.
-- New promoted artifacts and compiled outputs are additive v2 layers.
+- New promoted artifacts and compiled outputs are additive layers.
 - Narrative docs must not claim active enforcement unless the runtime hook actually reads active entries from `.agents/constraints/index.json`.

@@ -2,6 +2,18 @@
 
 Use this checklist before tagging a release to verify the local gate and release-smoke paths.
 
+## 0) Pre-tag Triage
+
+Use this before you tag. The release process in [RELEASING](RELEASING.md) is the source of truth; this checklist only narrows the local checks that prove the release is ready. If a gate fails after a fast pass, do not tag. Use [Incident Runbook](INCIDENT-RUNBOOK.md) when a failure needs cleanup or recovery after local validation.
+
+| Question | Inspect |
+|---|---|
+| "Is the release process itself current?" | [RELEASING](RELEASING.md) and its pre-release checklist |
+| "Did the local gate produce the expected evidence?" | `.agents/releases/local-ci/<timestamp>/` for SBOM, security report, and related artifacts |
+| "Did hooks and `ao rpi` smoke actually run?" | Fast gate markers: `Hook install smoke (minimal + full)` and `ao init --hooks + ao rpi smoke` |
+| "Did the release smoke path fail after a fast pass?" | Re-run `bash scripts/ci-local-release.sh` and inspect the failing section before tagging |
+| "Was the release already tagged or partially published?" | [RELEASING](RELEASING.md#failure-modes) and [Incident Runbook](INCIDENT-RUNBOOK.md) |
+
 ## 1) Fast local gate (quick confidence)
 
 Run:
@@ -34,6 +46,8 @@ Expect:
 - Exit code `0`
 - Final summary contains `LOCAL CI PASSED`
 
+If the fast gate passes but this full gate fails, stop. The release is not ready to tag. Use the failing section in the full-gate output, rerun `bash scripts/ci-local-release.sh` until it passes, and if a tag or publish already happened, follow the failure-mode steps in [RELEASING](RELEASING.md#failure-modes) before retrying anything else.
+
 ## 3) Codex runtime lint (focused check)
 
 Run:
@@ -58,6 +72,8 @@ The local gate includes these release E2E smoke checks:
   - `ao rpi status`
   - `ao rpi --help`
   - `ao rpi phased --help`
+
+If the fast gate passes but one of these smoke paths fails, treat the release as blocked. Inspect the corresponding gate output, then rerun the full local gate so the fix is validated end to end before tagging.
 
 ## 5) Parity checks when workflow/docs contracts change
 

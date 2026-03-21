@@ -55,6 +55,31 @@ Options:
 EOF
 }
 
+detect_bwrap_install_hint() {
+  if command -v apt-get >/dev/null 2>&1 || command -v apt >/dev/null 2>&1; then
+    printf '%s\n' 'sudo apt-get install -y bubblewrap'
+    return
+  fi
+  if command -v dnf >/dev/null 2>&1; then
+    printf '%s\n' 'sudo dnf install -y bubblewrap'
+    return
+  fi
+  if command -v yum >/dev/null 2>&1; then
+    printf '%s\n' 'sudo yum install -y bubblewrap'
+    return
+  fi
+  if command -v pacman >/dev/null 2>&1; then
+    printf '%s\n' 'sudo pacman -S --needed bubblewrap'
+    return
+  fi
+  if command -v zypper >/dev/null 2>&1; then
+    printf '%s\n' 'sudo zypper install bubblewrap'
+    return
+  fi
+
+  printf '%s\n' '<your package manager> install bubblewrap'
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo-root)
@@ -315,6 +340,7 @@ cp -R "$TMP_DIR/plugin" "$PLUGIN_CACHE_ROOT"
 
 upsert_toml_key "$CONFIG_FILE" "[features]" "plugins" "true"
 upsert_toml_key "$CONFIG_FILE" "[plugins.\"${PLUGIN_KEY}\"]" "enabled" "true"
+upsert_toml_key "$CONFIG_FILE" "[ui]" "suppress_unstable_features_warning" "true"
 
 INSTALLED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 MANIFEST_HASH="$(sha256_file "$PLUGIN_SKILLS_SRC/$SKILL_MANIFEST_NAME")"
@@ -358,6 +384,11 @@ echo "  Plugin key: $PLUGIN_KEY"
 echo "  Plugin root: $PLUGIN_CACHE_ROOT"
 echo "  Skills available: $SKILL_COUNT"
 echo "  Config updated: $CONFIG_FILE"
+if [[ "$(uname -s)" == "Linux" ]] && [[ ! -x /usr/bin/bwrap ]]; then
+  warn "Codex could not find system bubblewrap at /usr/bin/bwrap."
+  echo "  Install it to avoid the vendored-bubblewrap startup warning:"
+  echo "  $(detect_bwrap_install_hint)"
+fi
 if [[ -n "$LEGACY_BACKUP_DIR" ]]; then
   echo "  Archived overlapping ~/.codex/skills entries to: $LEGACY_BACKUP_DIR"
 fi

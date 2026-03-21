@@ -170,6 +170,8 @@ test_installs_plugin_cache_and_config() {
   }
   if rg -q '^\[features\]$' "$codex_home/config.toml" && \
     rg -q '^plugins = true$' "$codex_home/config.toml" && \
+    rg -q '^\[ui\]$' "$codex_home/config.toml" && \
+    rg -q '^suppress_unstable_features_warning = true$' "$codex_home/config.toml" && \
     rg -q '^\[plugins\."agentops@agentops-marketplace"\]$' "$codex_home/config.toml" && \
     rg -q '^enabled = true$' "$codex_home/config.toml" && \
     rg -q '"user_skills_root": null' "$codex_home/.agentops-codex-install.json"; then

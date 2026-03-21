@@ -162,6 +162,8 @@ done < <(find "$PLUGIN_SKILLS" -mindepth 1 -maxdepth 1 -type d | sort)
 [[ -f "$CODEX_HOME/config.toml" ]] || fail "Missing config.toml in $CODEX_HOME"
 rg -q '^\[features\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing [features] section"
 rg -q '^plugins = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing plugins = true"
+rg -q '^\[ui\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing [ui] section"
+rg -q '^suppress_unstable_features_warning = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing suppress_unstable_features_warning = true"
 rg -q '^\[plugins\."agentops@agentops-marketplace"\]$' "$CODEX_HOME/config.toml" || fail "config.toml missing AgentOps plugin block"
 rg -q '^enabled = true$' "$CODEX_HOME/config.toml" || fail "config.toml missing enabled = true"
 rg -q '"install_mode": "native-plugin"' "$CODEX_HOME/.agentops-codex-install.json" \

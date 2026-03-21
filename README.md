@@ -43,7 +43,7 @@ Most coding-agent tools improve the session. AgentOps improves the repo around t
 claude plugin marketplace add boshu2/agentops
 claude plugin install agentops@agentops-marketplace
 
-# Codex CLI (0.110.0+ native plugin; installs the native plugin, archives stale raw mirrors if needed, then open a fresh Codex session)
+# Codex CLI (0.110.0+ native plugin; installs the native plugin, archives stale raw mirrors if needed, suppresses the unstable-plugins warning, then open a fresh Codex session)
 curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash
 
 # OpenCode
@@ -52,6 +52,12 @@ curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/instal
 # Other Skills-compatible agents (agent-specific, install only what you need)
 # Example (Cursor):
 npx skills@latest add boshu2/agentops --cursor -g
+```
+
+On Linux, also install system `bubblewrap` so Codex does not warn that it is falling back to the vendored copy:
+
+```bash
+sudo apt-get install -y bubblewrap
 ```
 
 ### Install ao CLI (optional)

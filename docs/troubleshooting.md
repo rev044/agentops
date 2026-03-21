@@ -93,7 +93,11 @@ The `ao doctor` "Plugin" check scans the `skills/` directory for subdirectories 
    ao hooks test
    ```
 
-For Codex, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. For OpenCode, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`. For other agents, use the platform-specific scripts in `scripts/`.
+For Codex, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-codex.sh | bash`. The installer enables plugins and suppresses the unstable-plugins warning in `~/.codex/config.toml`. On Linux, install system `bubblewrap` as well so Codex does not warn that it is using the vendored fallback. For OpenCode, use `curl -fsSL https://raw.githubusercontent.com/boshu2/agentops/main/scripts/install-opencode.sh | bash`. For other agents, use the platform-specific scripts in `scripts/`.
+
+```bash
+sudo apt-get install -y bubblewrap
+```
 
 
 **Symptoms:**
