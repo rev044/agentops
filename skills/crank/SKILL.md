@@ -74,6 +74,7 @@ Ralph alignment source: `../shared/references/ralph-loop-contract.md` (fresh con
 |------|---------|-------------|
 | `--test-first` | off | Enable spec-first TDD: SPEC WAVE generates contracts, TEST WAVE generates failing tests, IMPL WAVES make tests pass |
 | `--per-task-commits` | off | Opt-in per-task commit strategy. Falls back to wave-batch when file boundaries overlap. See `references/commit-strategies.md`. |
+| `--tier=<name>` | (auto) | Force a specific cost tier (quality/balanced/budget) for all council calls. Overrides effort-to-tier auto-mapping. |
 
 ## Global Limits
 
@@ -121,6 +122,28 @@ This surfaces the latest wave checkpoint after compaction so the orchestrator ca
 | TEST wave (failing tests) | `medium` | Test scaffolding needs moderate depth |
 | IMPL wave (make tests pass) | `high` | Deep reasoning for correct implementation |
 | Docs/chore tasks | `low` | Fast execution for simple tasks |
+
+**Effort-to-Tier Mapping:**
+
+Crank automatically maps worker effort levels to model cost tiers:
+
+| Effort Level | Cost Tier | Model | Rationale |
+|-------------|-----------|-------|-----------|
+| `high` | `quality` | opus | Deep reasoning for correct implementation |
+| `medium` | `balanced` | sonnet | Balanced cost/quality for most tasks |
+| `low` | `budget` | haiku | Fast execution for simple tasks |
+
+This mapping is used when spawning council calls within crank (e.g., wave acceptance checks, final vibe). Override with `--tier=<name>` to force a specific tier for all council calls in the epic.
+
+**Tier propagation:** When crank invokes `/council` for wave acceptance or final vibe, it passes the mapped tier via `--tier=<name>`. Explicit `--tier` flag on `/crank` overrides the effort-based auto-mapping.
+
+**Configuration override:** Set `models.skill_overrides.crank` in `.agentops/config.yaml` to override the default mapping:
+
+```yaml
+models:
+  skill_overrides:
+    crank: budget  # force budget tier for all crank council calls
+```
 
 ### Step 0: Load Knowledge Context (ao Integration)
 

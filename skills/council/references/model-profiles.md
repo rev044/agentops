@@ -12,6 +12,48 @@ Use `--profile=<name>` to select a profile. Profiles set environment variables b
 | `balanced` | sonnet | 2 | 120 | Default validation, routine reviews |
 | `fast` | haiku | 2 | 60 | Quick checks, mid-implementation sanity |
 
+## Cost Tiers
+
+Model cost tiers provide a unified naming convention across all skills. Tiers map to profiles:
+
+| Cost Tier | Profile | COUNCIL_CLAUDE_MODEL | Use Case |
+|-----------|---------|---------------------|----------|
+| `quality` | `thorough` | opus | High-stakes decisions, security, architecture |
+| `balanced` | `balanced` | sonnet | Default validation, routine reviews |
+| `budget` | `fast` | haiku | Quick checks, mid-implementation sanity |
+| `inherit` | (uses default) | (from config) | Use the project/global default tier |
+
+### Tier Resolution
+
+Tiers are resolved from configuration with this precedence:
+
+1. Explicit env var (`COUNCIL_CLAUDE_MODEL=...`) — highest priority
+2. Explicit flags (`--profile=<name>` or `--tier=<name>`)
+3. Skill-specific config override (`models.skill_overrides.council` in `.agentops/config.yaml`)
+4. Global default tier (`models.default_tier` in `.agentops/config.yaml`)
+5. Built-in default — `balanced`
+
+The `--tier` flag is an alias for `--profile` using cost tier naming. Both are accepted.
+
+### Configuration
+
+Set tiers in `.agentops/config.yaml`:
+
+```yaml
+models:
+  default_tier: balanced
+  skill_overrides:
+    council: quality    # council always uses opus
+    vibe: balanced      # vibe uses sonnet
+```
+
+Or via environment variables:
+
+```bash
+export AGENTOPS_MODEL_TIER=budget           # global default
+export AGENTOPS_COUNCIL_MODEL_TIER=quality  # council-specific override
+```
+
 ## Precedence
 
 Profiles are a convenience shortcut. Explicit flags and env vars always override:

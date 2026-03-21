@@ -43,6 +43,7 @@ Three steps:
 /vibe --preset=security-audit src/auth/  # security-focused review
 /vibe --explorers=2 recent               # judges with explorer sub-agents
 /vibe --debate recent                    # two-round adversarial review
+/vibe --tier=quality recent              # use quality tier for council calls
 ```
 
 ---
@@ -484,6 +485,22 @@ For each vibe finding, check if it matches a pre-mortem prediction:
 
 Include the prediction correlation in the vibe report's findings table. This feeds the post-mortem's Prediction Accuracy section. Skip silently if no pre-mortem report exists.
 
+### Model Cost Tiers
+
+Vibe passes the model cost tier through to council for all validation calls. Tier resolution:
+
+1. Explicit `--tier=<name>` flag on `/vibe`
+2. Skill-specific config: `models.skill_overrides.vibe` in `.agentops/config.yaml`
+3. Global default: `models.default_tier` in `.agentops/config.yaml`
+4. Built-in default: `balanced`
+
+```yaml
+# Example: force quality tier for all vibe reviews
+models:
+  skill_overrides:
+    vibe: quality
+```
+
 ### Step 4: Run Council Validation
 
 **With spec found — use code-review preset:**
@@ -509,7 +526,7 @@ The spec content is injected into the council packet context so the `spec-compli
 - Spec content (when found, in `context.spec`)
 - Sweep manifest (when `--deep` or `--sweep`, in `context.sweep_manifest` — judges shift to adjudication mode, see `references/deep-audit-protocol.md`)
 
-All council flags pass through: `--quick` (inline), `--mixed` (cross-vendor), `--preset=<name>` (override perspectives), `--explorers=N`, `--debate` (adversarial 2-round). See Quick Start examples and `/council` docs.
+All council flags pass through: `--quick` (inline), `--mixed` (cross-vendor), `--preset=<name>` (override perspectives), `--explorers=N`, `--debate` (adversarial 2-round), `--tier=<name>` (model cost tier: quality/balanced/budget). See Quick Start examples and `/council` docs.
 
 ### Step 5: Council Checks
 

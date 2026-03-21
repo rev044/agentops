@@ -1616,3 +1616,365 @@ func TestHomeConfigPath_UserHomeDirError(t *testing.T) {
 		t.Errorf("homeConfigPath() = %q, want empty string when HOME is unset", result)
 	}
 }
+
+func TestDefault_Models(t *testing.T) {
+	cfg := Default()
+
+	if cfg.Models.DefaultTier != "balanced" {
+		t.Errorf("Default Models.DefaultTier = %q, want %q", cfg.Models.DefaultTier, "balanced")
+	}
+
+	wantTiers := map[string]TierConfig{
+		"quality":  {Claude: "opus", Codex: ""},
+		"balanced": {Claude: "sonnet", Codex: ""},
+		"budget":   {Claude: "haiku", Codex: ""},
+	}
+	if len(cfg.Models.Tiers) != len(wantTiers) {
+		t.Fatalf("Default Models.Tiers has %d entries, want %d", len(cfg.Models.Tiers), len(wantTiers))
+	}
+	for name, want := range wantTiers {
+		got, ok := cfg.Models.Tiers[name]
+		if !ok {
+			t.Errorf("Default Models.Tiers missing tier %q", name)
+			continue
+		}
+		if got.Claude != want.Claude {
+			t.Errorf("Default Models.Tiers[%q].Claude = %q, want %q", name, got.Claude, want.Claude)
+		}
+		if got.Codex != want.Codex {
+			t.Errorf("Default Models.Tiers[%q].Codex = %q, want %q", name, got.Codex, want.Codex)
+		}
+	}
+
+	if cfg.Models.SkillOverrides == nil {
+		t.Error("Default Models.SkillOverrides is nil, want empty map")
+	}
+	if len(cfg.Models.SkillOverrides) != 0 {
+		t.Errorf("Default Models.SkillOverrides has %d entries, want 0", len(cfg.Models.SkillOverrides))
+	}
+}
+
+func TestMergeModels_PartialOverrides(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Models: ModelsConfig{
+			DefaultTier: "quality",
+			Tiers: map[string]TierConfig{
+				"quality": {Claude: "opus-4", Codex: "codex-1"},
+			},
+			SkillOverrides: map[string]string{
+				"council": "budget",
+			},
+		},
+	}
+
+	result := merge(dst, src)
+
+	if result.Models.DefaultTier != "quality" {
+		t.Errorf("merge Models.DefaultTier = %q, want %q", result.Models.DefaultTier, "quality")
+	}
+	// quality tier should be overridden
+	if result.Models.Tiers["quality"].Claude != "opus-4" {
+		t.Errorf("merge Models.Tiers[quality].Claude = %q, want %q", result.Models.Tiers["quality"].Claude, "opus-4")
+	}
+	if result.Models.Tiers["quality"].Codex != "codex-1" {
+		t.Errorf("merge Models.Tiers[quality].Codex = %q, want %q", result.Models.Tiers["quality"].Codex, "codex-1")
+	}
+	// balanced tier should be preserved from defaults
+	if result.Models.Tiers["balanced"].Claude != "sonnet" {
+		t.Errorf("merge Models.Tiers[balanced].Claude = %q, want %q (preserved)", result.Models.Tiers["balanced"].Claude, "sonnet")
+	}
+	// budget tier should be preserved from defaults
+	if result.Models.Tiers["budget"].Claude != "haiku" {
+		t.Errorf("merge Models.Tiers[budget].Claude = %q, want %q (preserved)", result.Models.Tiers["budget"].Claude, "haiku")
+	}
+	// skill override should be set
+	if result.Models.SkillOverrides["council"] != "budget" {
+		t.Errorf("merge Models.SkillOverrides[council] = %q, want %q", result.Models.SkillOverrides["council"], "budget")
+	}
+}
+
+func TestMergeModels_PreservedWhenEmpty(t *testing.T) {
+	dst := Default()
+	src := &Config{
+		Output: "json",
+		// Models fields are zero values
+	}
+
+	result := merge(dst, src)
+
+	if result.Models.DefaultTier != "balanced" {
+		t.Errorf("merge should preserve default Models.DefaultTier, got %q", result.Models.DefaultTier)
+	}
+	if len(result.Models.Tiers) != 3 {
+		t.Errorf("merge should preserve default Models.Tiers, got %d entries", len(result.Models.Tiers))
+	}
+}
+
+func TestApplyEnv_ModelTier(t *testing.T) {
+	t.Setenv("AGENTOPS_OUTPUT", "")
+	t.Setenv("AGENTOPS_BASE_DIR", "")
+	t.Setenv("AGENTOPS_VERBOSE", "")
+	t.Setenv("AGENTOPS_NO_SC", "")
+	t.Setenv("AGENTOPS_RPI_WORKTREE_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_AO_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_BD_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_TMUX_COMMAND", "")
+	t.Setenv("AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD", "")
+	t.Setenv("AGENTOPS_MODEL_TIER", "quality")
+	t.Setenv("AGENTOPS_COUNCIL_MODEL_TIER", "")
+
+	cfg := Default()
+	cfg = applyEnv(cfg)
+
+	if cfg.Models.DefaultTier != "quality" {
+		t.Errorf("applyEnv Models.DefaultTier = %q, want %q", cfg.Models.DefaultTier, "quality")
+	}
+}
+
+func TestApplyEnv_CouncilModelTier(t *testing.T) {
+	t.Setenv("AGENTOPS_OUTPUT", "")
+	t.Setenv("AGENTOPS_BASE_DIR", "")
+	t.Setenv("AGENTOPS_VERBOSE", "")
+	t.Setenv("AGENTOPS_NO_SC", "")
+	t.Setenv("AGENTOPS_RPI_WORKTREE_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_MODE", "")
+	t.Setenv("AGENTOPS_RPI_RUNTIME_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_AO_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_BD_COMMAND", "")
+	t.Setenv("AGENTOPS_RPI_TMUX_COMMAND", "")
+	t.Setenv("AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD", "")
+	t.Setenv("AGENTOPS_MODEL_TIER", "")
+	t.Setenv("AGENTOPS_COUNCIL_MODEL_TIER", "quality")
+
+	cfg := Default()
+	cfg = applyEnv(cfg)
+
+	if cfg.Models.SkillOverrides["council"] != "quality" {
+		t.Errorf("applyEnv Models.SkillOverrides[council] = %q, want %q", cfg.Models.SkillOverrides["council"], "quality")
+	}
+	// DefaultTier should remain unchanged
+	if cfg.Models.DefaultTier != "balanced" {
+		t.Errorf("applyEnv Models.DefaultTier = %q, want %q (unchanged)", cfg.Models.DefaultTier, "balanced")
+	}
+}
+
+func TestResolveTier(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfg        Config
+		skillName  string
+		wantTier   string
+	}{
+		{
+			name: "skill override takes precedence",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "balanced",
+					SkillOverrides: map[string]string{"council": "quality"},
+				},
+			},
+			skillName: "council",
+			wantTier:  "quality",
+		},
+		{
+			name: "falls back to default tier",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "budget",
+					SkillOverrides: map[string]string{},
+				},
+			},
+			skillName: "vibe",
+			wantTier:  "budget",
+		},
+		{
+			name: "inherit in override uses DefaultTier",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "quality",
+					SkillOverrides: map[string]string{"council": "inherit"},
+				},
+			},
+			skillName: "council",
+			wantTier:  "quality",
+		},
+		{
+			name: "inherit as default tier falls back to balanced",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "inherit",
+					SkillOverrides: map[string]string{},
+				},
+			},
+			skillName: "vibe",
+			wantTier:  "balanced",
+		},
+		{
+			name: "empty default tier falls back to balanced",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "",
+					SkillOverrides: map[string]string{},
+				},
+			},
+			skillName: "vibe",
+			wantTier:  "balanced",
+		},
+		{
+			name: "nil skill overrides falls back to default",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "quality",
+					SkillOverrides: nil,
+				},
+			},
+			skillName: "council",
+			wantTier:  "quality",
+		},
+		{
+			name: "unknown tier name in default falls back to balanced",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "premium",
+					SkillOverrides: map[string]string{},
+				},
+			},
+			skillName: "vibe",
+			wantTier:  "balanced",
+		},
+		{
+			name: "unknown tier name in skill override falls back to balanced",
+			cfg: Config{
+				Models: ModelsConfig{
+					DefaultTier:    "quality",
+					SkillOverrides: map[string]string{"council": "ultra"},
+				},
+			},
+			skillName: "council",
+			wantTier:  "balanced",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.cfg.ResolveTier(tt.skillName)
+			if got != tt.wantTier {
+				t.Errorf("ResolveTier(%q) = %q, want %q", tt.skillName, got, tt.wantTier)
+			}
+		})
+	}
+}
+
+func TestResolve_ModelsDefaultTier(t *testing.T) {
+	t.Setenv("AGENTOPS_CONFIG", "")
+	// Clear all env vars
+	for _, key := range []string{
+		"AGENTOPS_OUTPUT", "AGENTOPS_BASE_DIR", "AGENTOPS_VERBOSE",
+		"AGENTOPS_NO_SC",
+		"AGENTOPS_RPI_WORKTREE_MODE", "AGENTOPS_RPI_RUNTIME",
+		"AGENTOPS_RPI_RUNTIME_MODE", "AGENTOPS_RPI_RUNTIME_COMMAND",
+		"AGENTOPS_RPI_AO_COMMAND", "AGENTOPS_RPI_BD_COMMAND",
+		"AGENTOPS_RPI_TMUX_COMMAND",
+		"AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD",
+		"AGENTOPS_MODEL_TIER", "AGENTOPS_COUNCIL_MODEL_TIER",
+	} {
+		t.Setenv(key, "")
+	}
+
+	// Default should be "balanced"
+	rc := Resolve("", "", false)
+	if rc.ModelsDefaultTier.Value != "balanced" || rc.ModelsDefaultTier.Source != SourceDefault {
+		t.Errorf("Resolve ModelsDefaultTier = (%v, %v), want (balanced, %v)",
+			rc.ModelsDefaultTier.Value, rc.ModelsDefaultTier.Source, SourceDefault)
+	}
+}
+
+func TestResolve_ModelsDefaultTier_EnvOverride(t *testing.T) {
+	t.Setenv("AGENTOPS_CONFIG", "")
+	for _, key := range []string{
+		"AGENTOPS_OUTPUT", "AGENTOPS_BASE_DIR", "AGENTOPS_VERBOSE",
+		"AGENTOPS_NO_SC",
+		"AGENTOPS_RPI_WORKTREE_MODE", "AGENTOPS_RPI_RUNTIME",
+		"AGENTOPS_RPI_RUNTIME_MODE", "AGENTOPS_RPI_RUNTIME_COMMAND",
+		"AGENTOPS_RPI_AO_COMMAND", "AGENTOPS_RPI_BD_COMMAND",
+		"AGENTOPS_RPI_TMUX_COMMAND",
+		"AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD",
+		"AGENTOPS_COUNCIL_MODEL_TIER",
+	} {
+		t.Setenv(key, "")
+	}
+	t.Setenv("AGENTOPS_MODEL_TIER", "quality")
+
+	rc := Resolve("", "", false)
+	if rc.ModelsDefaultTier.Value != "quality" || rc.ModelsDefaultTier.Source != SourceEnv {
+		t.Errorf("Resolve env ModelsDefaultTier = (%v, %v), want (quality, %v)",
+			rc.ModelsDefaultTier.Value, rc.ModelsDefaultTier.Source, SourceEnv)
+	}
+}
+
+func TestTierResolution_Precedence(t *testing.T) {
+	// Test that env > project > home > default for model tier
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	content := `
+models:
+  default_tier: budget
+  skill_overrides:
+    council: quality
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("AGENTOPS_CONFIG", configPath)
+	for _, key := range []string{
+		"AGENTOPS_OUTPUT", "AGENTOPS_BASE_DIR", "AGENTOPS_VERBOSE",
+		"AGENTOPS_NO_SC",
+		"AGENTOPS_RPI_WORKTREE_MODE", "AGENTOPS_RPI_RUNTIME",
+		"AGENTOPS_RPI_RUNTIME_MODE", "AGENTOPS_RPI_RUNTIME_COMMAND",
+		"AGENTOPS_RPI_AO_COMMAND", "AGENTOPS_RPI_BD_COMMAND",
+		"AGENTOPS_RPI_TMUX_COMMAND",
+		"AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD",
+		"AGENTOPS_COUNCIL_MODEL_TIER",
+	} {
+		t.Setenv(key, "")
+	}
+
+	// Without env override, project config wins
+	t.Setenv("AGENTOPS_MODEL_TIER", "")
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Models.DefaultTier != "budget" {
+		t.Errorf("project config Models.DefaultTier = %q, want %q", cfg.Models.DefaultTier, "budget")
+	}
+	if cfg.Models.SkillOverrides["council"] != "quality" {
+		t.Errorf("project config Models.SkillOverrides[council] = %q, want %q", cfg.Models.SkillOverrides["council"], "quality")
+	}
+
+	// With env override, env wins
+	t.Setenv("AGENTOPS_MODEL_TIER", "quality")
+	cfg2, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg2.Models.DefaultTier != "quality" {
+		t.Errorf("env override Models.DefaultTier = %q, want %q", cfg2.Models.DefaultTier, "quality")
+	}
+
+	// Council env override
+	t.Setenv("AGENTOPS_COUNCIL_MODEL_TIER", "budget")
+	cfg3, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg3.Models.SkillOverrides["council"] != "budget" {
+		t.Errorf("env override Models.SkillOverrides[council] = %q, want %q", cfg3.Models.SkillOverrides["council"], "budget")
+	}
+}

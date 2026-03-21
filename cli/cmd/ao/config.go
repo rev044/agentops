@@ -15,6 +15,30 @@ var (
 	configShow bool
 )
 
+var configModelsCmd = &cobra.Command{
+	Use:   "models",
+	Short: "Show model cost tier configuration",
+	Long: `Display the current model cost tier settings with sources.
+
+Cost tiers map to model quality levels:
+  quality  → opus   (high-stakes decisions, architecture)
+  balanced → sonnet (default, routine reviews)
+  budget   → haiku  (quick checks, simple tasks)
+  inherit  → uses default tier (falls back to balanced)
+
+Configure in .agentops/config.yaml:
+  models:
+    default_tier: balanced
+    skill_overrides:
+      council: quality
+      crank: budget
+
+Or via environment variables:
+  AGENTOPS_MODEL_TIER=budget
+  AGENTOPS_COUNCIL_MODEL_TIER=quality`,
+	RunE: runConfigModels,
+}
+
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration",
@@ -40,6 +64,8 @@ Environment variables:
   AGENTOPS_RPI_BD_COMMAND - bd command used for epic/child checks (default: bd)
   AGENTOPS_RPI_TMUX_COMMAND - tmux command used for status liveness probes (default: tmux)
   AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD - Default auto-promote age threshold (e.g. 24h)
+  AGENTOPS_MODEL_TIER - Default model cost tier (quality/balanced/budget)
+  AGENTOPS_COUNCIL_MODEL_TIER - Council-specific model tier override
 
 Examples:
   ao config --show           # Show resolved configuration
@@ -51,6 +77,7 @@ func init() {
 	configCmd.GroupID = "config"
 	rootCmd.AddCommand(configCmd)
 	configCmd.Flags().BoolVar(&configShow, "show", false, "Show resolved configuration with sources")
+	configCmd.AddCommand(configModelsCmd)
 }
 
 func runConfig(cmd *cobra.Command, args []string) error {
@@ -120,6 +147,8 @@ func runConfig(cmd *cobra.Command, args []string) error {
 		"AGENTOPS_RPI_BD_COMMAND",
 		"AGENTOPS_RPI_TMUX_COMMAND",
 		"AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD",
+		"AGENTOPS_MODEL_TIER",
+		"AGENTOPS_COUNCIL_MODEL_TIER",
 	}
 	anySet := false
 	for _, env := range envVars {
@@ -130,6 +159,81 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	}
 	if !anySet {
 		fmt.Println("  (none set)")
+	}
+
+	return nil
+}
+
+func runConfigModels(_ *cobra.Command, _ []string) error {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	if GetOutput() == "json" {
+		data, err := json.MarshalIndent(cfg.Models, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal models config: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	fmt.Println("Model Cost Tiers")
+	fmt.Println("================")
+	fmt.Println()
+
+	fmt.Printf("  Default tier: %s\n", cfg.Models.DefaultTier)
+	fmt.Println()
+
+	fmt.Println("  Available tiers:")
+	for _, name := range []string{"quality", "balanced", "budget"} {
+		tier, ok := cfg.Models.Tiers[name]
+		if !ok {
+			continue
+		}
+		marker := " "
+		if name == cfg.ResolveTier("") {
+			marker = "*"
+		}
+		codex := tier.Codex
+		if codex == "" {
+			codex = "(default)"
+		}
+		fmt.Printf("  %s %-10s  claude=%-8s  codex=%s\n", marker, name, tier.Claude, codex)
+	}
+
+	fmt.Println()
+	if len(cfg.Models.SkillOverrides) > 0 {
+		fmt.Println("  Skill overrides:")
+		for skill, tier := range cfg.Models.SkillOverrides {
+			resolved := cfg.ResolveTier(skill)
+			if tier == resolved {
+				fmt.Printf("    %-12s → %s\n", skill, tier)
+			} else {
+				fmt.Printf("    %-12s → %s (resolves to %s)\n", skill, tier, resolved)
+			}
+		}
+	} else {
+		fmt.Println("  Skill overrides: (none)")
+	}
+
+	fmt.Println()
+	fmt.Println("  Environment overrides:")
+	modelEnvVars := []string{
+		"AGENTOPS_MODEL_TIER",
+		"AGENTOPS_COUNCIL_MODEL_TIER",
+		"COUNCIL_CLAUDE_MODEL",
+	}
+	anyModelEnv := false
+	for _, env := range modelEnvVars {
+		if v := os.Getenv(env); v != "" {
+			fmt.Printf("    %s=%s\n", env, v)
+			anyModelEnv = true
+		}
+	}
+	if !anyModelEnv {
+		fmt.Println("    (none set)")
 	}
 
 	return nil

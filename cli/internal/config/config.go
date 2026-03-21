@@ -40,6 +40,9 @@ type Config struct {
 
 	// Flywheel settings
 	Flywheel FlywheelConfig `yaml:"flywheel" json:"flywheel"`
+
+	// Models settings
+	Models ModelsConfig `yaml:"models" json:"models"`
 }
 
 // RPIConfig holds RPI-specific settings.
@@ -120,6 +123,56 @@ type PathsConfig struct {
 	GlobalWeight float64 `yaml:"global_weight" json:"global_weight"`
 }
 
+// ModelsConfig holds model tier configuration.
+type ModelsConfig struct {
+	// DefaultTier is the default model tier (quality, balanced, budget, inherit).
+	DefaultTier string `yaml:"default_tier" json:"default_tier"`
+
+	// Tiers maps tier name to model config.
+	Tiers map[string]TierConfig `yaml:"tiers" json:"tiers"`
+
+	// SkillOverrides maps skill name to tier name.
+	SkillOverrides map[string]string `yaml:"skill_overrides" json:"skill_overrides"`
+}
+
+// TierConfig holds model names for a tier.
+type TierConfig struct {
+	// Claude is the Claude model name (opus, sonnet, haiku).
+	Claude string `yaml:"claude" json:"claude"`
+
+	// Codex is the Codex model name.
+	Codex string `yaml:"codex" json:"codex"`
+}
+
+// ValidTiers is the set of recognized model cost tier names.
+var ValidTiers = map[string]bool{
+	"quality":  true,
+	"balanced": true,
+	"budget":   true,
+	"inherit":  true,
+}
+
+// ResolveTier returns the effective tier for a given skill.
+// Checks SkillOverrides first, falls back to DefaultTier.
+// "inherit" means use DefaultTier; if DefaultTier is also "inherit" or empty,
+// falls back to "balanced". Unrecognized tier names fall back to "balanced".
+func (c *Config) ResolveTier(skillName string) string {
+	tier := c.Models.DefaultTier
+	if override, ok := c.Models.SkillOverrides[skillName]; ok && override != "" {
+		if override != "inherit" {
+			tier = override
+		}
+		// "inherit" in override → use DefaultTier (fall through)
+	}
+	if tier == "" || tier == "inherit" {
+		return "balanced"
+	}
+	if !ValidTiers[tier] {
+		return "balanced"
+	}
+	return tier
+}
+
 // ForgeConfig holds forge-specific settings.
 type ForgeConfig struct {
 	// MaxContentLength is the truncation limit (0 = no truncation).
@@ -173,6 +226,15 @@ func Default() *Config {
 		},
 		Flywheel: FlywheelConfig{
 			AutoPromoteThreshold: "24h",
+		},
+		Models: ModelsConfig{
+			DefaultTier: "balanced",
+			Tiers: map[string]TierConfig{
+				"quality":  {Claude: "opus", Codex: ""},
+				"balanced": {Claude: "sonnet", Codex: ""},
+				"budget":   {Claude: "haiku", Codex: ""},
+			},
+			SkillOverrides: map[string]string{},
 		},
 		Paths: PathsConfig{
 			LearningsDir:   ".agents/learnings",
@@ -306,6 +368,13 @@ func applyEnv(cfg *Config) *Config {
 	applyEnvStr(&cfg.RPI.BDCommand, "AGENTOPS_RPI_BD_COMMAND")
 	applyEnvStr(&cfg.RPI.TmuxCommand, "AGENTOPS_RPI_TMUX_COMMAND")
 	applyEnvStr(&cfg.Flywheel.AutoPromoteThreshold, "AGENTOPS_FLYWHEEL_AUTO_PROMOTE_THRESHOLD")
+	applyEnvStr(&cfg.Models.DefaultTier, "AGENTOPS_MODEL_TIER")
+	if v := os.Getenv("AGENTOPS_COUNCIL_MODEL_TIER"); v != "" {
+		if cfg.Models.SkillOverrides == nil {
+			cfg.Models.SkillOverrides = make(map[string]string)
+		}
+		cfg.Models.SkillOverrides["council"] = v
+	}
 	return cfg
 }
 
@@ -336,6 +405,7 @@ func merge(dst, src *Config) *Config {
 	mergeSearch(&dst.Search, &src.Search)
 	mergeRPI(&dst.RPI, &src.RPI)
 	mergeFlywheel(&dst.Flywheel, &src.Flywheel)
+	mergeModels(&dst.Models, &src.Models)
 	mergePaths(&dst.Paths, &src.Paths)
 
 	return dst
@@ -370,6 +440,27 @@ func mergeRPI(dst, src *RPIConfig) {
 // mergeFlywheel merges flywheel-specific config fields.
 func mergeFlywheel(dst, src *FlywheelConfig) {
 	mergeStr(&dst.AutoPromoteThreshold, src.AutoPromoteThreshold)
+}
+
+// mergeModels merges models config fields.
+func mergeModels(dst, src *ModelsConfig) {
+	mergeStr(&dst.DefaultTier, src.DefaultTier)
+	if len(src.Tiers) > 0 {
+		if dst.Tiers == nil {
+			dst.Tiers = make(map[string]TierConfig)
+		}
+		for k, v := range src.Tiers {
+			dst.Tiers[k] = v
+		}
+	}
+	if len(src.SkillOverrides) > 0 {
+		if dst.SkillOverrides == nil {
+			dst.SkillOverrides = make(map[string]string)
+		}
+		for k, v := range src.SkillOverrides {
+			dst.SkillOverrides[k] = v
+		}
+	}
 }
 
 // mergePaths merges path config fields (G5: configurable paths, not hardcoded).
@@ -455,6 +546,7 @@ type ResolvedConfig struct {
 	RPIAOCommand      resolved `json:"rpi_ao_command"`
 	RPIBDCommand      resolved `json:"rpi_bd_command"`
 	RPITmuxCommand    resolved `json:"rpi_tmux_command"`
+	ModelsDefaultTier resolved `json:"models_default_tier"`
 }
 
 type resolved struct {
@@ -469,6 +561,7 @@ type configFields struct {
 	rpiWorktreeMode, rpiRuntimeMode string
 	rpiRuntimeCommand, rpiAOCommand string
 	rpiBDCommand, rpiTmuxCommand    string
+	modelsDefaultTier               string
 }
 
 // extractFields pulls resolution-relevant fields from a Config.
@@ -487,6 +580,7 @@ func extractFields(cfg *Config) configFields {
 		rpiAOCommand:      cfg.RPI.AOCommand,
 		rpiBDCommand:      cfg.RPI.BDCommand,
 		rpiTmuxCommand:    cfg.RPI.TmuxCommand,
+		modelsDefaultTier: cfg.Models.DefaultTier,
 	}
 }
 
@@ -498,6 +592,7 @@ type envFields struct {
 	rpiWorktreeMode, rpiRuntimeMode string
 	rpiRuntimeCommand, rpiAOCommand string
 	rpiBDCommand, rpiTmuxCommand    string
+	modelsDefaultTier               string
 }
 
 // loadEnvFields reads all resolution-relevant environment variables.
@@ -515,6 +610,7 @@ func loadEnvFields() envFields {
 	ef.rpiAOCommand, _ = getEnvString("AGENTOPS_RPI_AO_COMMAND")
 	ef.rpiBDCommand, _ = getEnvString("AGENTOPS_RPI_BD_COMMAND")
 	ef.rpiTmuxCommand, _ = getEnvString("AGENTOPS_RPI_TMUX_COMMAND")
+	ef.modelsDefaultTier, _ = getEnvString("AGENTOPS_MODEL_TIER")
 	return ef
 }
 
@@ -553,5 +649,6 @@ func Resolve(flagOutput, flagBaseDir string, flagVerbose bool) *ResolvedConfig {
 		RPIAOCommand:      resolveStringField(home.rpiAOCommand, project.rpiAOCommand, env.rpiAOCommand, "", "ao"),
 		RPIBDCommand:      resolveStringField(home.rpiBDCommand, project.rpiBDCommand, env.rpiBDCommand, "", "bd"),
 		RPITmuxCommand:    resolveStringField(home.rpiTmuxCommand, project.rpiTmuxCommand, env.rpiTmuxCommand, "", "tmux"),
+		ModelsDefaultTier: resolveStringField(home.modelsDefaultTier, project.modelsDefaultTier, env.modelsDefaultTier, "", "balanced"),
 	}
 }

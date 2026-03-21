@@ -457,6 +457,8 @@ See [references/finding-extraction.md](references/finding-extraction.md) for the
 | `COUNCIL_EXPLORER_MODEL` | sonnet | Model for explorer sub-agents |
 | `COUNCIL_EXPLORER_TIMEOUT` | 60 | Explorer timeout in seconds |
 | `COUNCIL_R2_TIMEOUT` | 90 | Maximum wait time for R2 debate completion after sending debate messages. Shorter than R1 since judges already have context. |
+| `AGENTOPS_MODEL_TIER` | (none) | Global default model tier. Overridden by skill-specific env vars and explicit flags. |
+| `AGENTOPS_COUNCIL_MODEL_TIER` | (none) | Council-specific model tier override. Maps to COUNCIL_CLAUDE_MODEL via tier→profile mapping. |
 
 ### Flags
 
@@ -474,6 +476,7 @@ See [references/finding-extraction.md](references/finding-extraction.md) for the
 | `--explorer-model=M` | Override explorer model (default: sonnet) |
 | `--technique=<name>` | Brainstorm technique (scamper, six-hats, reverse). Case-insensitive. Only applicable to brainstorm mode — error if combined with validate/research. If omitted, unstructured brainstorm (current behavior). See `references/brainstorm-techniques.md`. |
 | `--profile=<name>` | Model quality profile (thorough, balanced, fast). Error if unrecognized name. Overridden by `COUNCIL_CLAUDE_MODEL` env var (highest priority), then by explicit `--count`/`--deep`/`--mixed`. See `references/model-profiles.md`. |
+| `--tier=<name>` | Cost tier alias for --profile (quality, balanced, budget). Maps to profile names. See `references/model-profiles.md`. |
 
 ---
 

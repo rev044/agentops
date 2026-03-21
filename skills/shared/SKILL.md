@@ -58,6 +58,7 @@ fi
 | `gt` | Workspace management unavailable | Work in current directory. Skip convoy/sling operations |
 | `codex` | CLI missing or model unavailable | Fall back to runtime-native agents. Council pre-flight checks CLI presence (`which codex`) and model availability for `--mixed` mode. |
 | `cass` | Session search unavailable | Skip transcript search. Note "install cass for session history" |
+| Model tier config | `.agentops/config.yaml` missing | Use built-in defaults (quality=opus, balanced=sonnet, budget=haiku). Tier resolution falls through to "balanced". |
 
 ### Required Multi-Agent Capabilities
 

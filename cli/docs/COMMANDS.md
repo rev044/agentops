@@ -1320,7 +1320,7 @@ ao completion [bash|zsh|fish]
 View and manage AgentOps configuration.
 
 ```
-ao config [flags]
+ao config [command]
 ```
 
 **Flags:**
@@ -1328,6 +1328,16 @@ ao config [flags]
 ```
   -h, --help   help for config
       --show   Show resolved configuration with sources
+```
+
+**Subcommands:**
+
+#### `ao config models`
+
+Display the current model cost tier settings with sources.
+
+```
+ao config models [flags]
 ```
 
 ---

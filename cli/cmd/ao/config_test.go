@@ -157,6 +157,109 @@ func TestRunConfig_ShowTable_WithEnvVars(t *testing.T) {
 	}
 }
 
+func TestRunConfigModels_Table(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfigModels(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfigModels: %v", err)
+	}
+
+	if !strings.Contains(stdout, "Model Cost Tiers") {
+		t.Errorf("expected 'Model Cost Tiers' header, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "Default tier: balanced") {
+		t.Errorf("expected default tier balanced, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "quality") {
+		t.Errorf("expected 'quality' tier listed, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "opus") {
+		t.Errorf("expected 'opus' model for quality tier, got: %q", stdout)
+	}
+}
+
+func TestRunConfigModels_JSON(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	oldOutput := output
+	output = "json"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfigModels(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfigModels --json: %v", err)
+	}
+
+	var parsed config.ModelsConfig
+	if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+		t.Fatalf("expected valid JSON, got: %q (%v)", stdout, err)
+	}
+
+	if parsed.DefaultTier != "balanced" {
+		t.Errorf("expected default_tier=balanced, got %q", parsed.DefaultTier)
+	}
+	if len(parsed.Tiers) != 3 {
+		t.Errorf("expected 3 tiers, got %d", len(parsed.Tiers))
+	}
+}
+
+func TestRunConfigModels_WithEnvOverride(t *testing.T) {
+	dir := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	t.Setenv("AGENTOPS_MODEL_TIER", "budget")
+
+	oldOutput := output
+	output = "table"
+	defer func() { output = oldOutput }()
+
+	stdout, err := captureStdout(t, func() error {
+		return runConfigModels(&cobra.Command{}, nil)
+	})
+	if err != nil {
+		t.Fatalf("runConfigModels: %v", err)
+	}
+
+	if !strings.Contains(stdout, "Default tier: budget") {
+		t.Errorf("expected default tier budget from env, got: %q", stdout)
+	}
+	if !strings.Contains(stdout, "AGENTOPS_MODEL_TIER=budget") {
+		t.Errorf("expected env var in output, got: %q", stdout)
+	}
+}
+
 func TestRunConfig_ShowTable_NoEnvVars(t *testing.T) {
 	dir := t.TempDir()
 	oldWD, err := os.Getwd()
