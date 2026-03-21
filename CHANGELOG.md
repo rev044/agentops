@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.28.0] - 2026-03-21
+
+### Added
+
+- **Node repair operator** — Crank now classifies task failures as RETRY (transient), DECOMPOSE (too complex), or PRUNE (blocked) with budget-controlled recovery
+- **Knowledge refresh auto-trigger** — Lightweight athena defrag runs automatically at session end via new SessionEnd hook
+- **Configurable review agents** — Project-level `.agents/reviewer-config.md` controls which judge perspectives council and vibe spawn
+- **Three-tier plan detail scaling** — Plan auto-selects Minimal, Standard, or Deep templates based on issue count and complexity
+- **Adversarial ideation** — Brainstorm Phase 3b stress-tests each approach with four red-team questions before user selection
+
+### Fixed
+
+- **Crank SKILL.md line limit** — Consolidated duplicate References sections to stay under 800-line skill lint limit
+- **Codex skill parity** — Synced all five competitive features to skills-codex with reference file copies
+
 ## [2.27.1] - 2026-03-20
 
 ### Fixed
