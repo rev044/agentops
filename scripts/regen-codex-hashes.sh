@@ -116,22 +116,3 @@ if updated:
 else:
     print("All hashes up to date.")
 PY
-
-# Auto-copy new/updated references/ files from source skills to skills-codex
-if [[ "$CHECK_ONLY" != "true" ]]; then
-  for codex_dir in "$SKILLS_ROOT"/*/; do
-    name="$(basename "$codex_dir")"
-    src_refs="$REPO_ROOT/skills/$name/references"
-    dst_refs="$codex_dir/references"
-    [[ -d "$src_refs" ]] || continue
-    mkdir -p "$dst_refs"
-    for f in "$src_refs"/*.md; do
-      [[ -f "$f" ]] || continue
-      dst="$dst_refs/$(basename "$f")"
-      if [[ ! -f "$dst" ]] || [[ "$f" -nt "$dst" ]]; then
-        cp "$f" "$dst"
-        echo "Copied $(basename "$f") → skills-codex/$name/references/"
-      fi
-    done
-  done
-fi

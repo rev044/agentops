@@ -26,7 +26,7 @@ bash scripts/audit-codex-parity.sh --skill swarm
 
 The audit flags the failure classes that Codex maintenance keeps missing today:
 
-- Claude-era task primitives
+- legacy Codex-incompatible batch-spawn and wait syntax
 - Claude-only backend reference names and team terminology
 - duplicated runtime phrases created by blind search/replace
 
