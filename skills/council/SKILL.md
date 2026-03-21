@@ -194,6 +194,37 @@ reads each judge's output file sequentially with the Read tool and synthesizes.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Step 1b: Load Project Reviewer Config
+
+Check for project-level reviewer configuration before spawning judges:
+
+```bash
+REVIEWER_CONFIG=".agents/reviewer-config.md"
+if [ -f "$REVIEWER_CONFIG" ]; then
+    # Parse YAML frontmatter for reviewer list
+    # Example .agents/reviewer-config.md:
+    # ---
+    # reviewers:
+    #   - security-sentinel
+    #   - architecture-strategist
+    #   - code-simplicity-reviewer
+    # plan_reviewers:
+    #   - architecture-strategist
+    # skip_reviewers:
+    #   - performance-oracle
+    # ---
+    # Additional review context goes in the markdown body.
+fi
+```
+
+If `reviewer-config.md` exists:
+- Use `reviewers` list to select which judge perspectives to spawn
+- Use `plan_reviewers` for plan validation specifically
+- Use `skip_reviewers` to exclude perspectives even if preset includes them
+- Pass markdown body as additional context to all judges
+
+If no config exists, use defaults (current behavior unchanged).
+
 ### Graceful Degradation
 
 | Failure | Behavior |

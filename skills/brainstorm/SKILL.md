@@ -21,7 +21,7 @@ context:
 Four phases:
 1. **Assess clarity** — Is the goal specific enough?
 2. **Understand idea** — What problem, who benefits, what exists?
-3. **Explore approaches** — Generate options, compare tradeoffs
+3. **Explore approaches** — Generate options, compare tradeoffs, adversarial critique
 4. **Capture design** — Write structured output for `/plan`
 
 ---
@@ -69,6 +69,21 @@ Generate **2-3 distinct approaches**. For each:
 - **Pros** — What it gets right
 - **Cons** — What it gets wrong or defers
 - **Effort** — Rough scope (small / medium / large)
+
+#### Phase 3b: Adversarial Critique
+
+Before asking the user to choose, stress-test each approach:
+
+For each approach, answer these **red team questions** (read `references/red-team-checklist.md`):
+
+1. **What breaks first?** — Under load, edge cases, or adversarial input
+2. **What's the hidden cost?** — Maintenance burden, technical debt, learning curve
+3. **What assumption is wrong?** — The unstated belief that makes this approach seem good
+4. **Who disagrees?** — What would a senior engineer with the opposite preference say?
+
+Mark any approach that fails 2+ red team questions as **HIGH RISK** in the comparison.
+
+If all approaches fail 2+ questions, generate a 4th "hybrid" approach addressing the weaknesses.
 
 Present the comparison and use `AskUserQuestion` to let the user pick an approach or request a hybrid.
 
@@ -155,3 +170,7 @@ Phase 4: Writes .agents/brainstorm/2026-02-17-search-performance.md
 ## See Also
 
 - [skills/plan/SKILL.md](../plan/SKILL.md) — Decompose the selected approach into actionable issues
+
+## Reference Documents
+
+- [references/red-team-checklist.md](references/red-team-checklist.md) — Adversarial critique template for Phase 3b

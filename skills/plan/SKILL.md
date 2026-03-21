@@ -152,6 +152,20 @@ Run grep/wc/ls commands to count the current state of what you're changing:
 
 Ground truth with numbers prevents scope creep and makes completion verifiable. In ol-571, the audit found 5,752 LOC to remove — without it, the plan would have been vague. In ag-dnu, wrong counts (11 vs 14, 0 vs 7) caused a pre-mortem FAIL that a simple grep audit would have prevented.
 
+### Step 3.2: Scale Detail by Complexity
+
+Auto-select plan detail level based on issue count and goal complexity:
+
+| Level | Criteria | Template | Description |
+|-------|----------|----------|-------------|
+| **Minimal** | 1-2 issues, fast complexity | Bullet points per issue | Title, 2-line description, acceptance criteria, files list |
+| **Standard** | 3-6 issues, standard complexity | Current plan format | Full implementation specs, tests, verification |
+| **Deep** | 7+ issues, full complexity, or `--deep` | Extended format | Symbol-level specs, data transformation tables, design briefs, cross-wave registry |
+
+Read [references/detail-templates.md](references/detail-templates.md) for the template definitions.
+
+**Override:** `--deep` forces Deep regardless of issue count. `--fast-path` forces Minimal.
+
 ### Step 3.5: Generate Implementation Detail (Mandatory)
 
 **After exploring the codebase**, generate symbol-level implementation detail for EVERY file in the plan. This is what separates actionable specs from vague descriptions. A worker reading the plan should know exactly what to write without rediscovering function names, parameters, or code locations.
@@ -724,6 +738,7 @@ Tell the user:
 ## Reference Documents
 
 - [references/complexity-estimation.md](references/complexity-estimation.md)
+- [references/detail-templates.md](references/detail-templates.md)
 - [references/examples.md](references/examples.md)
 - [references/sdd-patterns.md](references/sdd-patterns.md)
 - [references/templates.md](references/templates.md)
