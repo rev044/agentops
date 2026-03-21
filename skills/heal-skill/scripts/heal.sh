@@ -248,7 +248,7 @@ for skill_dir in "${TARGETS[@]}"; do
   fi
 
   # Check 2b: Missing metadata.tier
-  if ! grep -q '^\s*tier:' "$skill_md"; then
+  if [[ "$skill_dir" != "$REPO_ROOT"/skills-codex/* ]] && ! grep -q '^\s*tier:' "$skill_md"; then
     report "MISSING_TIER" "$skill_dir" "No metadata.tier in frontmatter"
   fi
 

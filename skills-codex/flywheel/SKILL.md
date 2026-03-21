@@ -1,8 +1,6 @@
 ---
 name: flywheel
 description: 'Knowledge flywheel health monitoring. Checks velocity, pool depths, staleness. Triggers: "flywheel status", "knowledge health", "is knowledge compounding".'
-metadata:
-  tier: background
 ---
 
 

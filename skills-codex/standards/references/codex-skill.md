@@ -53,7 +53,7 @@ The previously-mapped `todo_write` and `update_plan` are **not available** as ge
 | User | `~/.agents/skills/` |
 | Admin | `/etc/codex/skills/` |
 
-**Prohibited paths:** `~/.agents/skills/`, `~/.codex/skills/`
+**Prohibited paths:** `~/.claude/skills/`, `~/.codex/skills/`
 
 ## Sub-Agent Patterns
 
@@ -72,7 +72,7 @@ Codex orchestration uses:
 |---------|---------|-----|
 | `$vibe ` | Claude Skill tool, doesn't exist | Use `$vibe` invocation syntax |
 | `context.window: fork` | Claude frontmatter, ignored | Remove from Codex SKILL.md |
-| `~/.agents/skills/` | Wrong path | Use `.agents/skills/` |
+| `~/.claude/skills/` | Wrong path | Use `.agents/skills/` |
 | `todo_write(...)` | Not available in Codex sessions | Use `bd` CLI or file-based tracking |
 
 ## Testing Codex Skills

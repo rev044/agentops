@@ -1,8 +1,6 @@
 ---
 name: council
 description: 'Multi-model consensus council. Spawns parallel judges with Codex session agents when available. Modes: validate, brainstorm, research. Triggers: "council", "get consensus", "multi-model review", "multi-perspective review", "council validate", "council brainstorm", "council research".'
-metadata:
-  tier: judgment
 ---
 
 # $council — Multi-Model Consensus Council (Codex Native)

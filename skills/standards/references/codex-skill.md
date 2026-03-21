@@ -31,8 +31,10 @@ Skills must reference only tools available in Codex sessions:
 | `cmd` | Shell execution | `Bash` |
 | `git` | Git operations | `Bash(git ...)` |
 | `list_dir` | List directory | `Bash(ls)` |
-| `spawn_agents_on_csv` | Batch sub-agent spawning | `Agent` + `TeamCreate` |
-| `wait` | Long-poll sub-agents | Built into Agent tool |
+| `spawn_agent` | Spawn a focused sub-agent | `Agent` |
+| `send_input` | Send follow-up input to a sub-agent | `SendMessage` |
+| `wait_agent` | Wait for one or more sub-agents | Built into Agent tool |
+| `close_agent` | Stop a stuck or no-longer-needed sub-agent | `TaskStop` |
 
 ### Prohibited Tool References
 
@@ -66,8 +68,8 @@ Codex orchestration uses:
 
 | Pattern | Tool | Use Case |
 |---------|------|----------|
-| Batch parallel | `spawn_agents_on_csv` | Many similar tasks from CSV |
-| Agent roles | `[agents.<name>]` in config | Specialized sub-agents (worker, explorer, monitor) |
+| Repeated spawn | `spawn_agent` | Many similar tasks, one agent per unit of work |
+| Agent roles | `agent_type` | Specialized sub-agents (worker, explorer, monitor) |
 | Shell orchestration | `cmd` + `bd` CLI | Issue tracking, wave management |
 
 **NOT:** TaskList-based queueing, TeamCreate/SendMessage coordination, or Skill tool chaining.
@@ -76,9 +78,9 @@ Codex orchestration uses:
 
 | Pattern | Problem | Fix |
 |---------|---------|-----|
-| `TaskCreate(subject=...)` | Claude primitive, doesn't exist | Use `bd create` via shell or `spawn_agents_on_csv` |
+| `TaskCreate(subject=...)` | Claude primitive, doesn't exist | Use `bd create` via shell or `spawn_agent` |
 | `TeamCreate(team_name=...)` | Claude primitive, doesn't exist | Use agent roles in config |
-| `SendMessage(to=...)` | Claude primitive, doesn't exist | Sub-agents report via `report_agent_job_result` |
+| `SendMessage(to=...)` | Claude primitive, doesn't exist | Use `send_input` for brief follow-up messages |
 | `Skill(skill="vibe")` | Claude Skill tool, doesn't exist | Use `$vibe` invocation syntax |
 | `context.window: fork` | Claude frontmatter, ignored | Remove from Codex SKILL.md |
 | `~/.claude/skills/` | Wrong path | Use `.agents/skills/` |

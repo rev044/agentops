@@ -1,8 +1,6 @@
 ---
 name: evolve
 description: 'Goal-driven fitness-scored improvement loop. Measures goals, picks worst gap, runs $rpi, compounds via knowledge flywheel. Also pulls from open beads when goals all pass. Accepts ordered roadmap via --queue for sequential execution with auto-unblocking. Use when you want to "improve", "iterate", "fix issues", "work through tasks", "evolve", "check goal fitness", "run improvement loop", "pick up next work", or "run roadmap".'
-metadata:
-  tier: execution
 ---
 
 

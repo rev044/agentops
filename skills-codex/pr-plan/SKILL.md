@@ -1,8 +1,6 @@
 ---
 name: pr-plan
 description: 'Plan an open source PR contribution. Takes pr-research output and produces scope, acceptance criteria, and risk assessment. Triggers: "pr plan", "contribution plan", "plan PR", "plan contribution".'
-metadata:
-  tier: contribute
 ---
 
 

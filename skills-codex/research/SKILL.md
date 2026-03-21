@@ -1,8 +1,6 @@
 ---
 name: research
 description: 'Deep codebase exploration. Triggers: research, explore, investigate, understand, deep dive, current state.'
-metadata:
-  tier: execution
 ---
 
 

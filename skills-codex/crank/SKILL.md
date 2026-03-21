@@ -1,8 +1,6 @@
 ---
 name: crank
 description: 'Hands-free epic execution. Runs until ALL children are CLOSED. Uses Codex session agents for parallel waves. NO human prompts, NO stopping. Triggers: "crank", "run epic", "execute epic", "run all tasks", "hands-free execution", "crank it".'
-metadata:
-  tier: execution
 ---
 
 # $crank - Autonomous Epic Execution (Codex Native)

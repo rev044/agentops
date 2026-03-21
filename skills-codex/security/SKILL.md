@@ -1,8 +1,6 @@
 ---
 name: security
 description: 'Continuous repository security scanning and release gating. Triggers: "security scan", "security audit", "pre-release security", "run scanners", "check vulnerabilities".'
-metadata:
-  tier: product
 ---
 
 

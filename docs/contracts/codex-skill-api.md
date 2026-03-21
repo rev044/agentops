@@ -141,11 +141,10 @@ Tools available inside a Codex agent session:
 | `rg` | Ripgrep search |
 | `git` | Git operations |
 | `cmd` / `run_terminal_cmd` | Shell command execution |
-| `todo_write` | Create/manage tasks and plans |
-| `update_plan` | Update task/plan status |
-| `spawn_agents_on_csv` | Batch sub-agent spawning |
-| `report_agent_job_result` | Worker result reporting |
-| `wait` | Long-poll for sub-agent completion (up to 1h) |
+| `spawn_agent` | Create a focused sub-agent |
+| `send_input` | Send follow-up input to a sub-agent |
+| `wait_agent` | Wait for one or more sub-agents |
+| `close_agent` | Stop a stuck or no-longer-needed sub-agent |
 
 ### Claude → Codex Primitive Mapping
 
@@ -159,7 +158,7 @@ Tools available inside a Codex agent session:
 | `Skill(skill="name")` | `$name` invocation | Map |
 | `TaskCreate` / `TaskList` / `TaskUpdate` | No equivalent (`todo_write`/`update_plan` not available — empirically verified) | Strip |
 | `TeamCreate` / `TeamDelete` | No equivalent | Strip |
-| `SendMessage` | No equivalent | Strip |
+| `SendMessage` | `send_input` for brief follow-up only | Rewrite or strip |
 | `EnterPlanMode` / `ExitPlanMode` | No equivalent | Strip |
 | `EnterWorktree` | No equivalent | Strip |
 | `context.window` | No equivalent | Strip from frontmatter |
@@ -177,7 +176,7 @@ When generating Codex skills from source skills:
 1. **Strip all non-Codex frontmatter** — emit only `name` + `description`
 2. **Map Claude tools to Codex tools** — Read→read_file, Edit→apply_patch, Grep→rg, Glob→glob_file_search
 3. **Rewrite `Skill(skill="X")` to `$X`** — Codex uses dollar-prefix invocation
-4. **Strip ALL task/team primitives** — TaskCreate, TaskList, TeamCreate, SendMessage (none have working Codex equivalents — `todo_write`/`update_plan` empirically unavailable)
+4. **Strip ALL task/team primitives** — TaskCreate, TaskList, TeamCreate, SendMessage (none have working Codex equivalents as direct tool calls — `todo_write`/`update_plan` empirically unavailable, and `send_input` is follow-up-only)
 5. **Fix paths** — `~/.claude/skills/` → `~/.agents/skills/` (Codex discovery path)
 6. **Rewrite reference files** — `.md` files in references/ pass through `codex_rewrite_text()` during copy
 7. **Preserve skill body** — the SKILL.md body (instructions) is the skill's value; keep it functional

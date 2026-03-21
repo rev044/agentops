@@ -1,8 +1,6 @@
 ---
 name: swarm
 description: 'Spawn isolated agents for parallel task execution with Codex session agents. Fresh context per agent (Ralph Wiggum pattern). Triggers: "swarm", "spawn agents", "parallel work", "run in parallel", "parallel execution".'
-metadata:
-  tier: orchestration
 ---
 
 # $swarm

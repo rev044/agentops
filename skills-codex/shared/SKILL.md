@@ -1,9 +1,6 @@
 ---
 name: shared
 description: 'Shared reference documents for multi-agent skills (not directly invocable)'
-internal: true
-metadata:
-  tier: library
 ---
 
 # Shared References

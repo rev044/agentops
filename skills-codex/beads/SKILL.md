@@ -1,8 +1,6 @@
 ---
 name: beads
 description: 'Manages git-based issue tracking using the bd CLI: creates issues, tracks blockers, routes work across rigs (independent workstreams with their own issue prefixes), and organizes beads (issues) hierarchically with parent-child dependencies. Beads marked "slingable" are ready to hand off between agents or sessions. Use when: "track issues", "create beads issue", "show blockers", "what''''s ready to work on", "beads routing", "prefix routing", "cross-rig beads", "slingable beads", or git-based issue tracking with bd.'
-metadata:
-  tier: library
 ---
 
 

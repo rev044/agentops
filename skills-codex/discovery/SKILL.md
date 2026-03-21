@@ -1,8 +1,6 @@
 ---
 name: discovery
 description: 'Full discovery phase orchestrator. Brainstorm + ao search + research + plan + pre-mortem gate. Produces epic-id and execution-packet for $crank. Triggers: "discovery", "discover", "explore and plan", "research and plan", "discovery phase".'
-metadata:
-  tier: meta
 ---
 
 # $discovery — Full Discovery Phase Orchestrator

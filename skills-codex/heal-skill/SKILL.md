@@ -1,8 +1,6 @@
 ---
 name: heal-skill
 description: 'Automated skill maintenance. Detects and fixes common skill issues: missing frontmatter, name mismatches, unlinked references, empty directories, dead references, and Codex parity drift triage. Triggers: "heal-skill", "heal skill", "fix skills", "skill maintenance", "repair skills".'
-metadata:
-  tier: meta
 ---
 
 

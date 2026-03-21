@@ -187,12 +187,32 @@ EOF
   fi
 }
 
+test_fails_when_skill_has_non_codex_frontmatter() {
+  local repo="$TMP_DIR/frontmatter-drift"
+  setup_repo "$repo"
+  cat > "$repo/skills-codex/example/SKILL.md" <<'EOF'
+---
+name: example
+description: fixture
+metadata:
+  tier: meta
+---
+EOF
+
+  if (cd "$repo" && bash scripts/validate-codex-generated-artifacts.sh --scope worktree >/dev/null 2>&1); then
+    fail "should fail when Codex skill retains non-Codex frontmatter fields"
+  else
+    pass "fails when Codex skill retains non-Codex frontmatter fields"
+  fi
+}
+
 echo "== test-codex-generated-artifacts =="
 test_passes_when_markers_exist_and_no_changes
 test_fails_on_missing_marker
 test_fails_on_codex_only_edits
 test_fails_when_source_changes_without_regen
 test_fails_when_changed_skill_has_codex_semantic_drift
+test_fails_when_skill_has_non_codex_frontmatter
 
 echo ""
 echo "Results: $PASS PASS, $FAIL FAIL"

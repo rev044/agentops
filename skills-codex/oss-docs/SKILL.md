@@ -1,8 +1,6 @@
 ---
 name: oss-docs
 description: 'Scaffold and audit OSS documentation packs for open source projects. Triggers: "add OSS docs", "setup contributing guide", "add changelog", "prepare for open source", "add AGENTS.md", "OSS documentation".'
-metadata:
-  tier: contribute
 ---
 
 

@@ -1,8 +1,6 @@
 ---
 name: product
 description: 'Interactive PRODUCT.md generation. Interviews you about mission, personas, value props, and competitive landscape, then generates a filled-in PRODUCT.md. Triggers: "product", "create product doc", "product definition", "who is this for".'
-metadata:
-  tier: product
 ---
 
 

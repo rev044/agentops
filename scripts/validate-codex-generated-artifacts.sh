@@ -130,15 +130,21 @@ done < <(find "$SKILLS_ROOT" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort)
 for skill_md in "$SKILLS_ROOT"/*/SKILL.md; do
   [[ -f "$skill_md" ]] || continue
   skill_name=$(basename "$(dirname "$skill_md")")
+  frontmatter_fields=""
 
-  # Extract frontmatter (between --- markers)
-  frontmatter=$(sed -n '/^---$/,/^---$/p' "$skill_md")
+  # Extract only the leading frontmatter block.
+  frontmatter=$(awk 'NR==1 && /^---$/{in_fm=1; print; next} in_fm && /^---$/{print; exit} in_fm{print}' "$skill_md")
+  frontmatter_fields="$(printf '%s\n' "$frontmatter" | grep -oE '^[a-z_-]+:' | sed 's/:$//' || true)"
 
   if ! echo "$frontmatter" | grep -q '^name:'; then
     fail "$skill_name missing 'name' in frontmatter"
   fi
   if ! echo "$frontmatter" | grep -q '^description:'; then
     fail "$skill_name missing 'description' in frontmatter"
+  fi
+  extra_fields="$(printf '%s\n' "$frontmatter_fields" | grep -vE '^(name|description)$' || true)"
+  if [[ -n "$extra_fields" ]]; then
+    fail "$skill_name has non-Codex frontmatter fields: $(printf '%s' "$extra_fields" | tr '\n' ',' | sed 's/,$//')"
   fi
 done
 
@@ -153,6 +159,32 @@ for skill_md in "$SKILLS_ROOT"/*/SKILL.md; do
 done
 
 mapfile -t changed_files < <(collect_changed_files "$SCOPE" | sed '/^[[:space:]]*$/d' | sort -u)
+
+if [[ "${#changed_files[@]}" -gt 0 ]]; then
+  declare -A changed_source_skills=()
+  declare -A changed_codex_skills=()
+
+  for changed_file in "${changed_files[@]}"; do
+    case "$changed_file" in
+      skills/*/*)
+        skill_name="${changed_file#skills/}"
+        skill_name="${skill_name%%/*}"
+        changed_source_skills["$skill_name"]=1
+        ;;
+      skills-codex/*/*)
+        skill_name="${changed_file#skills-codex/}"
+        skill_name="${skill_name%%/*}"
+        changed_codex_skills["$skill_name"]=1
+        ;;
+    esac
+  done
+
+  for skill_name in "${!changed_source_skills[@]}"; do
+    if [[ -z "${changed_codex_skills[$skill_name]+x}" ]]; then
+      fail "source skill changed without matching checked-in Codex update: skills/$skill_name -> skills-codex/$skill_name"
+    fi
+  done
+fi
 
 # --- Invoke codex parity audit ---
 if [[ -x "$AUDIT_SCRIPT" ]]; then

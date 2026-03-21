@@ -1,8 +1,6 @@
 ---
 name: pr-validate
 description: 'PR-specific validation: isolation, upstream alignment, quality, scope creep. Triggers: "validate PR", "pr validation", "check PR scope", "scope creep check", "isolation check".'
-metadata:
-  tier: contribute
 ---
 
 
