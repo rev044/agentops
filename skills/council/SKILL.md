@@ -225,6 +225,8 @@ If `reviewer-config.md` exists:
 
 If no config exists, use defaults (current behavior unchanged).
 
+For schema details and an example, see `references/reviewer-config-example.md`.
+
 ### Graceful Degradation
 
 | Failure | Behavior |
@@ -641,6 +643,7 @@ Judge names: `judge-{N}` for independent judges (e.g., `judge-1`, `judge-2`), or
 - [references/output-format.md](references/output-format.md)
 - [references/personas.md](references/personas.md)
 - [references/caching-guidance.md](references/caching-guidance.md)
+- [references/reviewer-config-example.md](references/reviewer-config-example.md)
 - [../shared/references/backend-background-tasks.md](../shared/references/backend-background-tasks.md)
 - [../shared/references/backend-claude-teams.md](../shared/references/backend-claude-teams.md)
 - [../shared/references/backend-codex-subagents.md](../shared/references/backend-codex-subagents.md)

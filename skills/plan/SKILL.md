@@ -30,6 +30,7 @@ context:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--auto` | off | Skip human approval gate. Used by `/rpi --auto` for fully autonomous lifecycle. |
+| `--fast-path` | off | Force Minimal detail template (see Step 3.2) |
 
 ## Execution Steps
 
@@ -148,6 +149,7 @@ Run grep/wc/ls commands to count the current state of what you're changing:
 | "update stale docs" | "Rewrite 4 specs (verified: `ls docs/specs/*.md \| wc -l` = 4)" |
 | "add missing sections" | "Add Examples to 27 skills (verified: `grep -L '## Examples' skills/*/SKILL.md \| wc -l` = 27)" |
 
+- **File size limits:** check `wc -l` on files near size limits (especially SKILL.md files with the 800-line lint limit). If a planned change will push a file past the limit, split or refactor before implementation.
 - **Test fixtures affected:** count test fixtures upstream of any filter/gate/hook being added or modified with `grep -rn 'func Test' <test-dir>/ | wc -l`. Changing a gate without updating its test fixtures causes false-green CI.
 
 Ground truth with numbers prevents scope creep and makes completion verifiable. In ol-571, the audit found 5,752 LOC to remove — without it, the plan would have been vague. In ag-dnu, wrong counts (11 vs 14, 0 vs 7) caused a pre-mortem FAIL that a simple grep audit would have prevented.
@@ -524,6 +526,7 @@ In `path/to/file.go`:
 After bulk-merging wave results, audit for scaffold-era names:
 - Rename placeholder function/variable names (e.g., `handleThing`, `processItem`) to domain-specific names
 - Search with `grep -rn 'TODO\|FIXME\|HACK\|XXX' <modified-files>` for deferred cleanup markers
+- If any `skills/` files were modified, run `scripts/regen-codex-hashes.sh` to sync codex parity and copy reference files.
 
 ## Next Steps
 - Run `/pre-mortem` to validate plan

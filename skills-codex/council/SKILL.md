@@ -92,6 +92,8 @@ If `reviewer-config.md` exists:
 
 If no config exists, use defaults (current behavior unchanged).
 
+For schema details and an example, see `references/reviewer-config-example.md`.
+
 ### Phase 1b: Wait for Judges
 
 ```
@@ -187,7 +189,9 @@ Missing gate item → minimum WARN. Critical unverifiable invariant → FAIL.
 - [references/backend-codex-subagents.md](references/backend-codex-subagents.md)
 - [references/backend-inline.md](references/backend-inline.md)
 - [references/brainstorm-techniques.md](references/brainstorm-techniques.md)
+- [references/backend-claude-teams.md](references/backend-claude-teams.md)
 - [references/caching-guidance.md](references/caching-guidance.md)
+- [references/claude-code-latest-features.md](references/claude-code-latest-features.md)
 - [references/cli-spawning.md](references/cli-spawning.md)
 - [references/debate-protocol.md](references/debate-protocol.md)
 - [references/explorers.md](references/explorers.md)
@@ -198,3 +202,4 @@ Missing gate item → minimum WARN. Critical unverifiable invariant → FAIL.
 - [references/presets.md](references/presets.md)
 - [references/quick-mode.md](references/quick-mode.md)
 - [references/ralph-loop-contract.md](references/ralph-loop-contract.md)
+- [references/reviewer-config-example.md](references/reviewer-config-example.md)

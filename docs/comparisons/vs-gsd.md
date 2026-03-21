@@ -1,6 +1,8 @@
 # AgentOps vs GSD (Get Shit Done)
 
-> **GSD** is a lightweight meta-prompting and context engineering system for Claude Code, focused on shipping fast without enterprise overhead.
+> **GSD v1.27** is a full-featured spec-driven development framework for AI coding agents. It installs as slash commands into 7 runtimes (Claude Code, Gemini CLI, OpenCode, Codex, Copilot, Cursor, Antigravity) and solves "context rot" by spawning fresh-context subagents for each task.
+>
+> *Comparison as of March 2026. See the [GSD repo](https://github.com/glittercowboy/get-shit-done) for current features.*
 
 ---
 
@@ -8,95 +10,114 @@
 
 | Aspect | GSD | AgentOps |
 |--------|-----|----------|
-| **Philosophy** | "Ship fast, no BS" | "Knowledge compounds over time" |
-| **Core strength** | Lightweight, minimal overhead | Cross-session memory, learning |
+| **Philosophy** | "Ship fast — fresh context per agent" | "Knowledge compounds over time" |
+| **Core strength** | Multi-agent orchestration with context isolation, multi-runtime support | Cross-session memory, validation gates, knowledge flywheel |
 | **GitHub** | glittercowboy/get-shit-done | boshu2/agentops |
-| **Primary use** | Rapid prototyping, shipping | Ongoing codebase work |
+| **Scale** | 53 commands, 46 workflows, 16 agents | 50+ skills, compiled CLI, hooks, schemas |
+| **Primary use** | Spec-driven development with phased execution | Ongoing codebase work with persistent memory |
 
 ---
 
 ## What GSD Does Well
 
-### 1. Minimal Overhead
-No enterprise complexity. Just structure to ship consistently:
+### 1. Fresh Context Per Agent
+
+GSD's core innovation. Every spawned agent gets a clean 200K context window. Orchestrators stay thin, agents are disposable. This eliminates context rot — the quality degradation that happens as an AI fills its context window during long sessions.
+
+### 2. Wave-Based Parallel Execution
+
+Plans are grouped into dependency waves. Plans within a wave run in parallel (each with a fresh agent), waves run sequentially. Includes STATE.md file locking with atomic creation and spin-wait jitter.
 
 ```
-GSD Loop:
-  discuss → plan → execute → verify → (repeat until done)
+Wave 1: [Plan A, Plan B, Plan C]  ← parallel, fresh 200K each
+           ↓ (all complete)
+Wave 2: [Plan D, Plan E]          ← parallel, depends on Wave 1
+           ↓ (all complete)
+Wave 3: [Plan F]                  ← sequential, depends on Wave 2
 ```
 
-### 2. Fast Project Setup
-`/gsd:new-project` gets you started immediately with sensible defaults stored in `.planning/config.json`.
+### 3. Model Cost Tiers
 
-### 3. Model Flexibility
-Configure which Claude model each phase uses. Balance quality vs token spend per task.
+Four profiles (quality/balanced/budget/inherit) with per-agent model assignments. Each profile maps agents to opus/sonnet/haiku. This means routine plan-checking can run on budget models while critical execution stays on quality models.
 
-### 4. Human Input at Each Phase
-- **Discuss:** Get your input
-- **Plan:** Proper research
-- **Execute:** Clean implementation
-- **Verify:** Human verification
+### 4. Auto-Repair on Task Failure
+
+When a task fails during execution, GSD auto-classifies the failure as RETRY (with adjustment), DECOMPOSE (break into sub-steps), or PRUNE (remove and escalate). Budget-controlled with a default of 2 attempts. This is structured recovery, not blind retries.
+
+### 5. Comprehensive Validation Pipeline
+
+Not just "human verification" anymore. GSD v1.27 has:
+- 8-dimension plan checker (max 3 iterations)
+- Nyquist validation audit (test coverage mapping)
+- Post-execution verification agent
+- User acceptance testing with auto-diagnosis
+- Cross-phase verification debt audit
+
+### 6. Seven Runtime Support
+
+Installs to Claude Code, Gemini CLI, OpenCode, Codex, Copilot, Cursor, and Antigravity. The installer transforms file content per runtime at install time (tool name mapping, agent frontmatter, hook events, path conventions).
+
+### 7. Deep State Management
+
+Full `.planning/` directory with 20+ artifact types:
+- PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md
+- Per-phase directories with research, plans, summaries, verification, UAT
+- Session handoff (HANDOFF.json, continue-here.md)
+- Persistent threads, seeds, debug knowledge base, todos
 
 ---
 
 ## Where GSD Falls Short
 
-### No Persistence
+### No Cross-Session Learning
+
+GSD has persistence (state files, handoffs, threads) but no knowledge flywheel. There is no mechanism to extract what was learned in one session and inject it into the next. Every session starts with the same agent intelligence — the system does not get smarter over time.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         GSD                                     │
-│                                                                 │
-│  Session 1: discuss → plan → execute → verify → Done           │
-│                                                    ↓            │
-│                                               (session ends)    │
-│                                                    ↓            │
-│                                               (all gone)        │
-│                                                                 │
-│  Session 2: Start from scratch                                  │
-│                                                                 │
+│                         GSD                                      │
+│                                                                  │
+│  Session 1: discuss → plan → execute → verify → Done            │
+│                                                   ↓              │
+│                                              (state saved)       │
+│                                                   ↓              │
+│  Session 2: resume-work → (same state, same intelligence)       │
+│                                                                  │
+│  Session 100: (agents are no smarter than session 1)            │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                      AGENTOPS                                   │
-│                                                                 │
-│  Session 1: research → plan → pre-mortem → crank → vibe → post-mortem │
-│                                              ↓                  │
-│                                      (learnings extracted)      │
-│                                              ↓                  │
-│                                      (stored in .agents/)       │
-│                                                                 │
-│  Session 2: (inject prior knowledge) → better starting point   │
-│                                                                 │
+│                      AGENTOPS                                    │
+│                                                                  │
+│  Session 1: research → plan → pre-mortem → crank → vibe → retro│
+│                                              ↓                   │
+│                                      (learnings extracted)       │
+│                                              ↓                   │
+│                                      (scored and stored)         │
+│                                                                  │
+│  Session 2: (inject prior knowledge) → better starting point    │
+│                                                                  │
+│  Session 100: (agent is a domain expert with scored knowledge)  │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**GSD is ephemeral by design.** Great for one-off tasks, not for repeated work.
+### No Strategic Goals or Direction
 
-### No Failure Prevention
+GSD executes phases within a project but has no mechanism for measuring progress toward higher-level objectives. No equivalent to GOALS.md, `ao goals measure`, or `/evolve`.
 
-GSD validates at the "verify" step — after implementation.
+### No Pre-Implementation Failure Prevention
 
-```
-GSD:
-  discuss → plan → execute → verify (catch issues here)
+GSD validates *after* execution (verify-work, UAT). The plan checker validates plan quality but does not simulate failure modes before implementation begins. AgentOps runs `/pre-mortem` to catch issues before code is written.
 
-AgentOps:
-  research → plan → pre-mortem (catch issues here) → crank → vibe (catch issues here) → post-mortem
-```
+### No Issue Graph or Dependency Tracking
 
-### Limited Validation
+GSD has wave-based parallelism for plans within a phase, but no cross-phase issue graph. There is no equivalent to beads (issue tracking with dependencies), which means no mechanical way to track blocked work across phases.
 
-GSD's "verify" phase is human verification. No systematic multi-aspect validation.
+### No Multi-Model Validation Council
 
-| Validation | GSD | AgentOps |
-|------------|:---:|:--------:|
-| Human review | ✅ | ✅ |
-| Semantic correctness | ❌ | ✅ |
-| Security review | ❌ | ✅ |
-| Architecture analysis | ❌ | ✅ |
-| Complexity metrics | ❌ | ✅ |
-| AI slop detection | ❌ | ✅ |
+GSD's review command supports cross-AI peer review (Gemini, Claude, Codex), but this is a review tool, not a multi-perspective validation council that runs adversarial analysis from different viewpoints simultaneously.
 
 ---
 
@@ -104,15 +125,23 @@ GSD's "verify" phase is human verification. No systematic multi-aspect validatio
 
 | Feature | GSD | AgentOps | Winner |
 |---------|:---:|:--------:|:------:|
-| Setup speed | ✅ Instant | ⚠️ Requires init | GSD |
-| Minimal overhead | ✅ Lightweight | ⚠️ More structure | GSD |
-| Model flexibility | ✅ Per-phase config | ⚠️ Standard | GSD |
-| Human-in-loop | ✅ Each phase | ✅ 4 gates | Tie |
-| **Cross-session memory** | ❌ None | ✅ Git-persisted | **AgentOps** |
-| **Knowledge compounding** | ❌ No | ✅ Escape velocity | **AgentOps** |
-| **Pre-mortem simulation** | ❌ No | ✅ 10 failure modes | **AgentOps** |
-| **8-aspect validation** | ❌ Human only | ✅ Semantic validator | **AgentOps** |
-| **Issue tracking** | ❌ No | ✅ Beads integration | **AgentOps** |
+| Multi-runtime support | ✅ 7 runtimes | ⚠️ Claude Code primary | GSD |
+| Fresh context per agent | ✅ Core design | ⚠️ Swarm workers | GSD |
+| Model cost tiers | ✅ 4 profiles | ❌ Not yet | GSD |
+| Auto-repair on failure | ✅ RETRY/DECOMPOSE/PRUNE | ⚠️ Crank retries | GSD |
+| Context rot detection | ✅ Hooks at 35%/25% | ❌ Not yet | GSD |
+| Prompt injection defense | ✅ Advisory hook | ❌ Not yet | GSD |
+| Wave-based parallelism | ✅ Built in | ✅ Crank waves | Tie |
+| Plan validation | ✅ 8-dimension checker | ✅ Pre-mortem + council | Tie |
+| Human-in-loop gates | ✅ Configurable gates | ✅ Multiple gates | Tie |
+| State persistence | ✅ .planning/ directory | ✅ .agents/ directory | Tie |
+| **Cross-session learning** | ❌ No flywheel | ✅ Extract → score → inject | **AgentOps** |
+| **Knowledge maturity** | ❌ No scoring | ✅ Maturity tracking + decay | **AgentOps** |
+| **Pre-mortem simulation** | ❌ Post-execution only | ✅ Before implementation | **AgentOps** |
+| **Multi-model council** | ❌ Sequential review | ✅ Multi-perspective | **AgentOps** |
+| **Issue graph execution** | ❌ Phase-scoped waves | ✅ Beads + dependencies | **AgentOps** |
+| **Strategic goals** | ❌ No goal tracking | ✅ GOALS.md + evolve | **AgentOps** |
+| **Compiled CLI** | ❌ Node.js tools | ✅ Go binary (ao) | **AgentOps** |
 
 ---
 
@@ -121,17 +150,19 @@ GSD's "verify" phase is human verification. No systematic multi-aspect validatio
 ### GSD Workflow
 
 ```
-/gsd:new-project     →  Set up project config
+/gsd:new-project     →  PROJECT.md, REQUIREMENTS.md, ROADMAP.md, config.json
          ↓
-discuss              →  Get human input on requirements
+/gsd:discuss-phase   →  Capture decisions (CONTEXT.md)
          ↓
-plan                 →  Research and create plan
+/gsd:plan-phase      →  Research → plan → 8-dimension verify (max 3 iterations)
          ↓
-execute              →  Implement the plan
+/gsd:execute-phase   →  Wave-based parallel execution (fresh agent per plan)
+         ↓                  └── Node repair on failure (RETRY/DECOMPOSE/PRUNE)
+/gsd:verify-work     →  UAT with auto-diagnosis
          ↓
-verify               →  Human verification
+/gsd:ship            →  Create PR from phase work
          ↓
-       Done          →  (nothing persists)
+       [next phase or complete-milestone]
 ```
 
 ### AgentOps Workflow
@@ -139,18 +170,31 @@ verify               →  Human verification
 ```
 /research     →  Explore codebase + inject prior knowledge
      ↓
-/plan         →  Break into tracked issues
+/plan         →  Break into dependency-tracked issues (beads)
      ↓
-/pre-mortem   →  Simulate 10 failure modes
+/pre-mortem   →  Simulate failure modes before building
      ↓
-/crank        →  Implement → validate → commit
+/crank        →  Execute unblocked waves → validate → commit
      ↓
-/vibe         →  Multi-aspect code validation
+/vibe         →  Multi-aspect code validation (council optional)
      ↓
-/post-mortem  →  Retro + extract learnings
-     ↓
-  Done        →  (learnings persist for next session)
+/post-mortem  →  Extract learnings → score → store for next session
 ```
+
+---
+
+## Architecture Comparison
+
+| Aspect | GSD | AgentOps |
+|--------|-----|----------|
+| **Commands** | 53 prompt-based slash commands | 50+ skill definitions |
+| **Agents** | 16 specialized (fresh context each) | Skill-driven (swarm for parallelism) |
+| **CLI tooling** | Node.js (`gsd-tools.cjs`, 15 modules) | Go binary (`ao`, structured subcommands) |
+| **Hooks** | 5 JS hooks (statusline, context monitor, prompt guard, workflow guard, update check) | Shell hooks (session lifecycle, tool gates, knowledge injection) |
+| **State** | `.planning/` (Markdown + JSON) | `.agents/` (Markdown + JSON) |
+| **Config** | `.planning/config.json` (40+ options) | `.agentops.json` + GOALS.md |
+| **Install** | npm package, 3000-line installer | Shell script + Go binary |
+| **Parallelism** | Wave-based with file locking | Wave-based via crank + swarm |
 
 ---
 
@@ -160,81 +204,78 @@ verify               →  Human verification
                     SETUP TIME              ONGOING OVERHEAD
                     ══════════              ════════════════
 
-GSD:                ░░░░░░░░░░░░░░░░        ░░░░░░░░░░░░░░░░
-                    (instant)               (minimal)
+GSD:                ████████░░░░░░░░        ████████░░░░░░░░
+                    (npm install + init)    (moderate — .planning/ management)
 
 AgentOps:           ████████░░░░░░░░        ████████░░░░░░░░
-                    (init + hooks)          (moderate)
+                    (install + init)        (moderate — hooks + .agents/)
 
 
                     SESSION VALUE           LONG-TERM VALUE
                     ═════════════           ═══════════════
 
-GSD:                ████████████████        ░░░░░░░░░░░░░░░░
-                    (fast shipping)         (no compounding)
+GSD:                ████████████████        ████████░░░░░░░░
+                    (strong execution)      (state persists, no learning)
 
-AgentOps:           ████████████░░░░        ████████████████
-                    (structured)            (compounds)
+AgentOps:           ████████████████        ████████████████
+                    (strong execution)      (knowledge compounds)
 ```
 
-**Trade-off:** GSD optimizes for speed now. AgentOps optimizes for value over time.
+**Trade-off:** GSD optimizes for execution quality per session. AgentOps optimizes for cumulative intelligence across sessions.
 
 ---
 
 ## Use Case Fit
 
-### GSD is Perfect For
+### GSD is Best For
 
 | Use Case | Why |
 |----------|-----|
-| Hackathons | Speed is everything |
-| Prototypes | Ship and throw away |
-| One-off scripts | No need for memory |
-| Side projects | Low overhead |
-| Learning | Fast iteration |
+| Greenfield projects | Strong project setup + phased execution |
+| Multi-runtime teams | 7 runtimes with one install |
+| Cost-sensitive work | Model cost tiers control spend |
+| Complex single-phase work | Wave parallelism + auto-repair |
+| Teams standardizing process | Clear phases with configurable gates |
 
-### AgentOps is Perfect For
+### AgentOps is Best For
 
 | Use Case | Why |
 |----------|-----|
-| Production codebases | Memory matters |
-| Long-running projects | Knowledge compounds |
-| Team codebases | Capture institutional knowledge |
-| Complex systems | Failure prevention critical |
-| Repeated maintenance | Same bugs, should remember |
+| Long-running codebases | Knowledge flywheel compounds value |
+| Repeated maintenance | Learns from past sessions |
+| Complex multi-phase work | Issue graph + dependency execution |
+| Risk-averse engineering | Pre-mortem + council + vibe gates |
+| Strategic direction | GOALS.md + evolve loop |
 
 ---
 
 ## When to Choose GSD
 
-- You're **prototyping** or building throwaway code
-- You want **minimal setup** and overhead
-- Sessions are **independent** (no prior context needed)
-- You're doing a **hackathon** or **side project**
-- **Speed** is more important than learning
+- You work across **multiple AI runtimes** and need one workflow
+- You want **model cost control** at the per-agent level
+- Your work is **project-scoped** (clear start and end)
+- You value **fresh context per agent** for quality in long sessions
+- You want **auto-repair** when tasks fail during execution
 
 ## When to Choose AgentOps
 
-- You work on the **same codebase** over many sessions
-- You want your agent to **remember past work**
-- You want **failure prevention** before building
-- You want **systematic validation** beyond human review
-- You value **compounding knowledge** over time
+- You work on the **same codebase** across many sessions
+- You want the system to **get smarter over time**
+- You want **failure prevention before implementation**, not just verification after
+- You want **dependency-tracked issue execution** across work phases
+- You value **strategic goal tracking** and measured progress
 
 ---
 
 ## Can They Work Together?
 
-**Not really.** GSD's philosophy is "lightweight, no overhead." AgentOps adds structure and persistence — the opposite approach.
+**Partially.** GSD and AgentOps both manage state directories and workflow orchestration, so running both simultaneously would create friction. However:
 
-```
-GSD:        "Ship fast, forget fast"
-AgentOps:   "Ship smart, remember forever"
-```
+- GSD's fresh-context-per-agent pattern is a technique AgentOps' swarm could adopt
+- GSD's model cost tiers solve a problem AgentOps does not yet address
+- AgentOps' knowledge flywheel fills GSD's biggest gap (no cross-session learning)
 
-Choose based on your needs:
-- **One-off work:** GSD
-- **Ongoing work:** AgentOps
+The most practical combination: use GSD for greenfield projects where you need fast phased execution, then bring AgentOps in when the project enters maintenance and long-term development where accumulated knowledge matters.
 
 ---
 
@@ -242,29 +283,32 @@ Choose based on your needs:
 
 | Dimension | GSD | AgentOps |
 |-----------|-----|----------|
-| **Philosophy** | Ship fast | Learn fast |
-| **Overhead** | Minimal | Moderate |
-| **Persistence** | None | Git-tracked |
-| **Validation** | Human | 8-aspect |
-| **Best for** | Prototypes | Production |
+| **Philosophy** | Fresh context, fast execution | Knowledge compounds |
+| **Overhead** | Moderate | Moderate |
+| **Persistence** | State files (no learning) | Knowledge flywheel |
+| **Validation** | 8-dimension plan check + UAT | Pre-mortem + council + vibe |
+| **Parallelism** | Wave-based, fresh agents | Wave-based, swarm workers |
+| **Cost control** | 4-tier model profiles | Not yet |
+| **Best for** | Strong execution per session | Cumulative intelligence across sessions |
 
-**GSD gets you to v0.1 fast.**
-**AgentOps gets you to v10.0 smarter.**
+**GSD is a serious framework for structured AI-assisted development.**
+**AgentOps differentiates on the knowledge flywheel — the system that makes every session smarter than the last.**
 
 ---
 
 ## The Honest Assessment
 
-**If you're building something you'll throw away:** Use GSD. It's lighter, faster, and doesn't pretend you need memory.
+**GSD is not a lightweight tool anymore.** It is a comprehensive development framework with 53 commands, 16 agents, wave-based parallelism, auto-repair, model cost tiers, and deep state management. Dismissing it as "simple meta-prompting" is inaccurate.
 
-**If you're building something you'll maintain:** Use AgentOps. The overhead pays off by session 10.
+**Where GSD wins:** Execution quality within a session. Fresh context per agent, cost control, auto-repair, and 7-runtime portability.
+
+**Where AgentOps wins:** Intelligence across sessions. The knowledge flywheel (extract, score, inject, decay) has no equivalent in GSD. After 50 sessions on the same codebase, AgentOps is operating with accumulated domain knowledge while GSD agents start fresh every time.
 
 ```
-Session 1:   GSD faster
-Session 5:   About equal
-Session 10:  AgentOps ahead
-Session 50:  AgentOps way ahead
-Session 100: AgentOps is domain expert, GSD still at day 1
+Session 1:   GSD and AgentOps roughly equal
+Session 10:  AgentOps has a library of scored learnings
+Session 50:  AgentOps agents get injected domain expertise; GSD agents do not
+Session 100: AgentOps is a domain expert; GSD is still starting from its .planning/ state
 ```
 
 ---
