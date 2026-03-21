@@ -1708,6 +1708,30 @@ fi
 
 # ============================================================
 echo ""
+echo "=== edit-knowledge-surface.sh ==="
+# ============================================================
+
+# Test: Kill switch disables hook
+OUTPUT=$(echo '{"tool_input":{"file_path":"/x/y.go"}}' | AGENTOPS_HOOKS_DISABLED=1 CLAUDE_TOOL_NAME=Edit bash "$HOOKS_DIR/edit-knowledge-surface.sh" 2>&1 || true)
+if [ -z "$OUTPUT" ]; then pass "edit-knowledge-surface kill switch"; else fail "edit-knowledge-surface kill switch"; fi
+
+# Test: Non-Edit tool exits silently
+OUTPUT=$(echo '{"tool_input":{"file_path":"/x/y.go"}}' | CLAUDE_TOOL_NAME=Read bash "$HOOKS_DIR/edit-knowledge-surface.sh" 2>&1 || true)
+if [ -z "$OUTPUT" ]; then pass "edit-knowledge-surface non-Edit tool silent exit"; else fail "edit-knowledge-surface non-Edit tool silent exit"; fi
+
+# Test: Missing file_path exits silently
+OUTPUT=$(echo '{"tool_input":{}}' | CLAUDE_TOOL_NAME=Edit bash "$HOOKS_DIR/edit-knowledge-surface.sh" 2>&1 || true)
+if [ -z "$OUTPUT" ]; then pass "edit-knowledge-surface missing file_path silent exit"; else fail "edit-knowledge-surface missing file_path silent exit"; fi
+
+# Test: Manifest wiring check
+if jq -e '.hooks.PreToolUse[] | select(.matcher == "Edit") | .hooks[] | select(.command | contains("edit-knowledge-surface.sh"))' "$HOOKS_DIR/hooks.json" >/dev/null 2>&1; then
+    pass "edit-knowledge-surface.sh wired in hooks.json under PreToolUse with Edit matcher"
+else
+    fail "edit-knowledge-surface.sh not found in hooks.json under PreToolUse with Edit matcher"
+fi
+
+# ============================================================
+echo ""
 echo "=== Coverage check ==="
 # ============================================================
 

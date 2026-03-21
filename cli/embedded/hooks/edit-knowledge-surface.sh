@@ -57,5 +57,5 @@ done <<< "$MATCHES"
 
 # Output as hook context
 cat <<EOF
-{"hookSpecificOutput":{"hookEventName":"PreToolUse:Edit","additionalContext":"Relevant learnings for $(basename "$REL_PATH"):\n${SUMMARIES}Review these before making changes to this file."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Relevant learnings for $(basename "$REL_PATH"):\n${SUMMARIES}Review these before making changes to this file."}}
 EOF

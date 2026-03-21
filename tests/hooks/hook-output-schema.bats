@@ -345,6 +345,7 @@ AOEOF
         ["commit-review-gate.sh"]="PreToolUse"
         ["go-vet-post-edit.sh"]="PostToolUse"
         ["research-loop-detector.sh"]="PostToolUse"
+        ["edit-knowledge-surface.sh"]="PreToolUse"
     )
 
     local failures=""
