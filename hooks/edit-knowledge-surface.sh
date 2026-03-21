@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# edit-knowledge-surface.sh - PostToolUse hook (matcher: Edit)
-# Surfaces relevant learnings when editing files that appear in knowledge artifacts.
+# edit-knowledge-surface.sh - PreToolUse hook (matcher: Edit)
+# Surfaces relevant learnings BEFORE editing files that appear in knowledge artifacts.
 # Uses grep -l for fast path matching (<100ms on 155 files).
 # Non-blocking (always exit 0). Knowledge via additionalContext injection.
 set -euo pipefail
@@ -35,10 +35,12 @@ REL_PATH="${FILE_PATH#"$ROOT/"}"
 # Extract just the filename for broader matching
 FILENAME=$(basename "$REL_PATH")
 
-# Fast grep: find learnings that mention this file path or filename
-# Use grep -l (files-with-matches) for speed — no content parsing
+# Try relative path first (precise match), fall back to filename (broader)
 MATCHES=""
-MATCHES=$(grep -rl "$FILENAME" "$LEARNINGS_DIR/" 2>/dev/null | head -3) || true
+MATCHES=$(grep -rl "$REL_PATH" "$LEARNINGS_DIR/" 2>/dev/null | head -3) || true
+if [[ -z "$MATCHES" ]]; then
+    MATCHES=$(grep -rl "$FILENAME" "$LEARNINGS_DIR/" 2>/dev/null | head -3) || true
+fi
 [[ -z "$MATCHES" ]] && exit 0
 
 # Build summary of matched learnings (read just the title line from each)
@@ -55,5 +57,5 @@ done <<< "$MATCHES"
 
 # Output as hook context
 cat <<EOF
-{"hookSpecificOutput":{"hookEventName":"PostToolUse:Edit","additionalContext":"Relevant learnings for $(basename "$REL_PATH"):\n${SUMMARIES}Review these before making changes to this file."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse:Edit","additionalContext":"Relevant learnings for $(basename "$REL_PATH"):\n${SUMMARIES}Review these before making changes to this file."}}
 EOF

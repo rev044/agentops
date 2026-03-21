@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Archive stale research files to reduce search noise.
 # Moves .agents/research/ files older than N days to .agents/archive/research/.
+# Uses date from filename (YYYY-MM-DD prefix) instead of mtime, since ao mine
+# and other tools touch files and reset mtime.
 # Usage: scripts/archive-research.sh [--days N] [--dry-run]
 set -euo pipefail
 
@@ -28,18 +30,34 @@ if [[ ! -d "$RESEARCH_DIR" ]]; then
     exit 0
 fi
 
-# Find files older than N days
+# Compute cutoff date (macOS and GNU date compatible)
+CUTOFF=$(date -v-"${DAYS}"d +%Y-%m-%d 2>/dev/null || date -d "-${DAYS} days" +%Y-%m-%d 2>/dev/null)
+if [[ -z "$CUTOFF" ]]; then
+    echo "Error: could not compute cutoff date"
+    exit 1
+fi
+
+# Find files with YYYY-MM-DD prefix older than cutoff
 STALE_FILES=()
-while IFS= read -r -d '' file; do
-    STALE_FILES+=("$file")
-done < <(find "$RESEARCH_DIR" -maxdepth 1 -name "*.md" -mtime +"$DAYS" -print0 2>/dev/null)
+for f in "$RESEARCH_DIR"/*.md; do
+    [[ -f "$f" ]] || continue
+    # Extract date from filename (e.g., 2026-02-22-cmd-ao-complexity-scout.md)
+    FILE_DATE=$(basename "$f" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || echo "")
+    if [[ -z "$FILE_DATE" ]]; then
+        # No date prefix — skip (don't archive undated files)
+        continue
+    fi
+    if [[ "$FILE_DATE" < "$CUTOFF" ]]; then
+        STALE_FILES+=("$f")
+    fi
+done
 
 if [[ ${#STALE_FILES[@]} -eq 0 ]]; then
-    echo "No research files older than $DAYS days."
+    echo "No research files older than $DAYS days (cutoff: $CUTOFF)."
     exit 0
 fi
 
-echo "Found ${#STALE_FILES[@]} research files older than $DAYS days."
+echo "Found ${#STALE_FILES[@]} research files older than $DAYS days (cutoff: $CUTOFF)."
 
 if [[ "$DRY_RUN" == "true" ]]; then
     echo "Dry run — would move:"

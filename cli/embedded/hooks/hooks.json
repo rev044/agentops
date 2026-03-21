@@ -88,9 +88,7 @@
             "timeout": 5
           }
         ]
-      }
-    ],
-    "PostToolUse": [
+      },
       {
         "matcher": "Edit",
         "hooks": [
@@ -100,7 +98,9 @@
             "timeout": 3
           }
         ]
-      },
+      }
+    ],
+    "PostToolUse": [
       {
         "hooks": [
           {
