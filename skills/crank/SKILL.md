@@ -94,22 +94,7 @@ After each wave, output completion marker:
 
 ## Node Repair Operator
 
-When a task fails during wave execution, classify the failure and apply structured recovery:
-
-| Classification | Detection | Action | Budget |
-|---------------|-----------|--------|--------|
-| **RETRY** | Transient failure (test flake, timeout, network) | Re-add to next wave with adjustment context | Max 2 retries per task |
-| **DECOMPOSE** | Task too complex (>3 files, multiple concerns) | Split into 2-3 sub-issues, add to current wave | 1 decomposition per task |
-| **PRUNE** | Blocked by external dependency or spec impossible | Mark BLOCKER, remove from wave, escalate | Immediate |
-
-**Classification heuristic:**
-1. If failure message contains "timeout", "connection", "flaky", or task succeeded on prior attempt → RETRY
-2. If task touches >3 files or failure message indicates partial completion → DECOMPOSE
-3. If failure message contains "blocked", "impossible", "missing dependency" → PRUNE
-
-**Budget enforcement:** Each task gets a total repair budget of 2. RETRY costs 1. DECOMPOSE costs 2 (terminal). PRUNE costs 0 (immediate escalation). When budget exhausted → PRUNE.
-
-**For classification signal details and recovery commands, read `references/failure-recovery.md`.**
+When a task fails during wave execution, classify as **RETRY** (transient — re-add with adjustment, max 2), **DECOMPOSE** (too complex — split into sub-issues, terminal), or **PRUNE** (blocked — escalate immediately). Budget: 2 per task. Read `references/failure-recovery.md` for classification signals and recovery commands.
 
 ## Execution Steps
 
@@ -791,14 +776,6 @@ Include `wc -l` assertions in task metadata when content moves between files.
 See `skills/crank/references/troubleshooting.md` for extended troubleshooting.
 
 ---
-
-## References
-
-- **Wave patterns:** `skills/crank/references/wave-patterns.md`
-- **Team coordination:** `skills/crank/references/team-coordination.md`
-- **Failure recovery:** `skills/crank/references/failure-recovery.md`
-- **Failure Taxonomy:** `references/failure-taxonomy.md`
-- **FIRE Protocol:** `references/fire.md`
 
 ## Reference Documents
 
