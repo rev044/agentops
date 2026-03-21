@@ -16,20 +16,19 @@ command -v claude >/dev/null 2>&1 || command -v codex >/dev/null 2>&1 || {
     echo "Continuing anyway — you can install an agent later."
 }
 
-# Step 1: Install skills (no npm required)
-echo "Step 1/3: Installing skills..."
+# Step 1: Install Codex plugin
+echo "Step 1/3: Installing Codex plugin..."
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 curl -fsSL https://codeload.github.com/boshu2/agentops/tar.gz/refs/heads/main \
     | tar xz -C "$TMP" --strip-components=1
-mkdir -p ~/.claude/skills
-/bin/cp -r "$TMP/skills/." ~/.claude/skills/
-SKILL_COUNT=$(find "$TMP/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
-echo "✓ $SKILL_COUNT skills installed to ~/.claude/skills/"
 
-# For Codex users: also install Codex-native skills
 if command -v codex >/dev/null 2>&1; then
     AGENTOPS_BUNDLE_ROOT="$TMP" bash "$TMP/scripts/install-codex.sh"
+else
+    echo "Codex CLI not found. Skipping Codex plugin install."
+    echo "For Claude Code, install skills via the plugin system:"
+    echo "  npx skills@latest add boshu2/agentops --all -g"
 fi
 
 # Step 2: Install CLI (optional — enhances with knowledge flywheel)
