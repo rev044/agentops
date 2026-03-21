@@ -54,6 +54,10 @@ After each wave, output one of:
 
 Never claim completion without the marker.
 
+## Node Repair Operator
+
+When a task fails during wave execution, classify as **RETRY** (transient — re-add with adjustment, max 2), **DECOMPOSE** (too complex — split into sub-issues, terminal), or **PRUNE** (blocked — escalate immediately). Budget: 2 per task.
+
 ## Execution Steps
 
 Given `$crank [epic-id | plan-file.md | "description"]`:

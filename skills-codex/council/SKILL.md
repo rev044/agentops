@@ -72,6 +72,26 @@ Context: ...
 Write your full analysis to .agents/council/judge-2.md and your verdict to the final paragraph.")
 ```
 
+### Step 1b: Load Project Reviewer Config
+
+Check for project-level reviewer configuration before spawning judges:
+
+```bash
+REVIEWER_CONFIG=".agents/reviewer-config.md"
+if [ -f "$REVIEWER_CONFIG" ]; then
+    # Parse YAML frontmatter for reviewer list
+    # Use reviewers/plan_reviewers/skip_reviewers to select judge perspectives
+fi
+```
+
+If `reviewer-config.md` exists:
+- Use `reviewers` list to select which judge perspectives to spawn
+- Use `plan_reviewers` for plan validation specifically
+- Use `skip_reviewers` to exclude perspectives even if preset includes them
+- Pass markdown body as additional context to all judges
+
+If no config exists, use defaults (current behavior unchanged).
+
 ### Phase 1b: Wait for Judges
 
 ```

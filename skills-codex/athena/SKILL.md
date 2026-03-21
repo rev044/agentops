@@ -116,6 +116,19 @@ bd add "[Knowledge Gap] <topic>" --label knowledge --label athena
 Report findings to the user: proposed learnings, validation results, gaps, and
 defrag actions recommended.
 
+## Scheduling / Auto-Trigger
+
+Lightweight defrag (prune + dedup, no mining) runs automatically at session end
+via the `athena-session-defrag.sh` hook. This keeps the knowledge store clean
+without requiring manual `$athena` invocations. The hook:
+
+- Fires on every `SessionEnd` event after `session-end-maintenance.sh`
+- Skips silently if the `ao` CLI is not available
+- Runs only `ao defrag --prune --dedup` (no `--oscillation-sweep` or mining)
+- Has a 20-second timeout to avoid blocking session teardown
+
+For a full Mine → Grow → Defrag cycle, invoke `$athena` manually.
+
 ## Examples
 
 **User says:** `$athena` — Full Mine → Grow → Defrag cycle, report in `.agents/athena/`.

@@ -520,7 +520,7 @@
       "name": "athena",
       "source_skill": "skills/athena",
       "source_hash": "41dbfaa350b864d7b25ba25ade7e5c667f26eba7fa9b2442ce93b9a00593f79d",
-      "generated_hash": "48bb7939efb33311628c76aa07078c4017e5ffcbaf3be2a99feb66842ac8b08a"
+      "generated_hash": "f1f152e99388f20c21b1986e8475351afee9ed989aaea1a3f677cd41fe283c42"
     },
     {
       "name": "beads",
@@ -532,7 +532,7 @@
       "name": "brainstorm",
       "source_skill": "skills/brainstorm",
       "source_hash": "1b11fc1af96967ccdaa33e13d80755496919bcced6710e9ab638dd90bc505e28",
-      "generated_hash": "b427381e1d4fe91b1c2d535328e039883954699090e31ffe2ed64324f2b9e4aa"
+      "generated_hash": "f51ac603a9358a1cdd30ef99926c6930c552329e7962bc8c8059195c889dd64a"
     },
     {
       "name": "bug-hunt",
@@ -562,13 +562,13 @@
       "name": "council",
       "source_skill": "skills/council",
       "source_hash": "e12cea9522219904264193899011eb66b8e9ab1bd07484ccd6764a06452d7f76",
-      "generated_hash": "c36b0963328d03e89ef5a99d2b5c38ff7612cb5f52a9308347f1ce02aeb39718"
+      "generated_hash": "69722a5b7dda68137d5d6d6eb4bc4d1aed300eaa75f888332761be617e381ae3"
     },
     {
       "name": "crank",
       "source_skill": "skills/crank",
       "source_hash": "f32e6f124674b821063d558f9392d352c044be5c6ad45651be60267abfe3807f",
-      "generated_hash": "2ccb67ea313810905b31578b0fbab8b51b9984f3d37f3eee5b7e6c37fa4dfb7a"
+      "generated_hash": "87dbecd4470f416926e7fd58c130a546b6107349e27f5d7913132dc56c6926e8"
     },
     {
       "name": "discovery",
@@ -652,7 +652,7 @@
       "name": "plan",
       "source_skill": "skills/plan",
       "source_hash": "c179b078b4222881e06287ab2fa4811d95ebfa3694d0a1831a9330df2cdac844",
-      "generated_hash": "8ad2ac2206b3661f4e67c395909e2802bae4926e1838e8b8bfd36bcd96f80738"
+      "generated_hash": "785cfa3c87c70a0f91df39eb1ddfca50813c321bd9ce1d5c6ec8e26dec46ad99"
     },
     {
       "name": "post-mortem",
@@ -838,7 +838,7 @@
       "name": "vibe",
       "source_skill": "skills/vibe",
       "source_hash": "53ece2b842404accd826cfc58457175ce93c6ba7f30bf303b83b218111548754",
-      "generated_hash": "21889bfa0bf14d5511e5b4229bdfd912946915ff3323bd0e0946e963c054082b"
+      "generated_hash": "c79b542fb03bbf1efe460bfdd71b8178aa167504d948dcf30aabe3454f7e8cad"
     }
   ]
 }

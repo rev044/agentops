@@ -34,6 +34,8 @@ $vibe --debate recent                    # two-round adversarial review
 
 ## Execution Steps
 
+**Project reviewer config:** If `.agents/reviewer-config.md` exists, its full config (`reviewers`, `plan_reviewers`, `skip_reviewers`) is passed to council for judge selection. See `$council` Step 1b.
+
 ### Crank Checkpoint Detection
 
 Before scanning for changed files via git diff, check if a crank checkpoint exists:
