@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# edit-knowledge-surface.sh - PostToolUse hook (matcher: Edit)
+# Surfaces relevant learnings when editing files that appear in knowledge artifacts.
+# Uses grep -l for fast path matching (<100ms on 155 files).
+# Non-blocking (always exit 0). Knowledge via additionalContext injection.
+set -euo pipefail
+
+# Kill switches
+[[ "${AGENTOPS_HOOKS_DISABLED:-}" == "1" ]] && exit 0
+[[ "${AGENTOPS_EDIT_KNOWLEDGE_DISABLED:-}" == "1" ]] && exit 0
+
+# Only fire on Edit tool
+TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
+if [[ -z "$TOOL_NAME" ]]; then
+    INPUT=$(cat)
+    TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || exit 0
+fi
+[[ "$TOOL_NAME" != "Edit" ]] && exit 0
+
+# Find repo root
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+LEARNINGS_DIR="$ROOT/.agents/learnings"
+[[ -d "$LEARNINGS_DIR" ]] || exit 0
+
+# Extract file path being edited
+FILE_PATH="${CLAUDE_TOOL_INPUT_FILE_PATH:-}"
+if [[ -z "$FILE_PATH" ]]; then
+    [[ -z "${INPUT:-}" ]] && INPUT=$(cat)
+    FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""' 2>/dev/null) || exit 0
+fi
+[[ -z "$FILE_PATH" ]] && exit 0
+
+# Normalize to relative path for matching
+REL_PATH="${FILE_PATH#"$ROOT/"}"
+# Extract just the filename for broader matching
+FILENAME=$(basename "$REL_PATH")
+
+# Fast grep: find learnings that mention this file path or filename
+# Use grep -l (files-with-matches) for speed — no content parsing
+MATCHES=""
+MATCHES=$(grep -rl "$FILENAME" "$LEARNINGS_DIR/" 2>/dev/null | head -3) || true
+[[ -z "$MATCHES" ]] && exit 0
+
+# Build summary of matched learnings (read just the title line from each)
+SUMMARIES=""
+while IFS= read -r match_file; do
+    [[ -z "$match_file" ]] && continue
+    # Extract learning title (first # heading or filename)
+    TITLE=$(grep -m1 '^# ' "$match_file" 2>/dev/null | sed 's/^# //' || basename "$match_file")
+    BASENAME=$(basename "$match_file")
+    SUMMARIES="${SUMMARIES}- ${BASENAME}: ${TITLE}\n"
+done <<< "$MATCHES"
+
+[[ -z "$SUMMARIES" ]] && exit 0
+
+# Output as hook context
+cat <<EOF
+{"hookSpecificOutput":{"hookEventName":"PostToolUse:Edit","additionalContext":"Relevant learnings for $(basename "$REL_PATH"):\n${SUMMARIES}Review these before making changes to this file."}}
+EOF
