@@ -49,6 +49,18 @@ Three steps:
 
 ## Execution Steps
 
+### Step 0: Load Prior Review Context
+
+Before reviewing, pull relevant learnings from prior code reviews and known patterns:
+
+```bash
+if command -v ao &>/dev/null; then
+    ao lookup --query "<target-scope> code review patterns" --limit 3 2>/dev/null || true
+fi
+```
+
+Incorporate any relevant prior findings (e.g., recurring issues in the same files, known anti-patterns) as context for the review.
+
 ### Crank Checkpoint Detection
 
 Before scanning for changed files via git diff, check if a crank checkpoint exists:

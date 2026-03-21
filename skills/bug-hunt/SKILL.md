@@ -55,6 +55,20 @@ Given `/bug-hunt <symptom>`:
 
 ---
 
+### Step 0: Load Prior Bug Context
+
+Before investigating, check for prior learnings about this area of the codebase:
+
+```bash
+if command -v ao &>/dev/null; then
+    ao lookup --query "<symptom-keywords> bug patterns" --limit 3 2>/dev/null || true
+fi
+```
+
+Prior bug reports, fix patterns, and known fragile areas reduce investigation time.
+
+---
+
 ## Phase 1: Root Cause Investigation
 
 ### Step 1.1: Confirm the Bug

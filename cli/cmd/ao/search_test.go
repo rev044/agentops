@@ -1147,3 +1147,49 @@ func TestSelectAndSearch_FileBased(t *testing.T) {
 		t.Error("expected at least one result")
 	}
 }
+
+func TestSelectAndSearch_IncludesResearchDir(t *testing.T) {
+	// Create a directory structure: parent/sessions/ and parent/research/
+	parent := t.TempDir()
+	sessionsDir := filepath.Join(parent, "sessions")
+	researchDir := filepath.Join(parent, "research")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(researchDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a research file with unique content
+	researchContent := "flywheel knowledge compounding research findings"
+	if err := os.WriteFile(filepath.Join(researchDir, "2026-03-20-flywheel.md"), []byte(researchContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Reset search flags to use file-based (non-CASS) path
+	origUseSC := searchUseSC
+	origUseCASS := searchUseCASS
+	searchUseSC = false
+	searchUseCASS = false
+	t.Cleanup(func() {
+		searchUseSC = origUseSC
+		searchUseCASS = origUseCASS
+	})
+
+	results, err := selectAndSearch("flywheel", sessionsDir, 10)
+	if err != nil {
+		t.Fatalf("selectAndSearch() error = %v", err)
+	}
+
+	// Should find the research file
+	foundResearch := false
+	for _, r := range results {
+		if r.Type == "research" {
+			foundResearch = true
+			break
+		}
+	}
+	if !foundResearch {
+		t.Error("expected research file in search results, but none found")
+	}
+}

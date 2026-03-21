@@ -158,7 +158,37 @@ func selectAndSearch(query, sessionsDir string, limit int) ([]searchResult, erro
 	}
 
 	VerbosePrintf("Using file-based search...\n")
-	return searchFiles(query, sessionsDir, limit)
+	results, err := searchFiles(query, sessionsDir, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Also search research directory (reduces orphaned research files)
+	researchDir := filepath.Join(filepath.Dir(sessionsDir), "research")
+	if _, statErr := os.Stat(researchDir); statErr == nil {
+		researchResults, researchErr := grepFiles(query, researchDir, "*.md", limit)
+		if researchErr == nil {
+			for i := range researchResults {
+				researchResults[i].Type = "research"
+			}
+			results = append(results, researchResults...)
+		}
+	}
+
+	// Dedupe and limit
+	seen := make(map[string]bool)
+	unique := make([]searchResult, 0, len(results))
+	for _, r := range results {
+		if !seen[r.Path] {
+			seen[r.Path] = true
+			unique = append(unique, r)
+		}
+	}
+	if limit > 0 && len(unique) > limit {
+		unique = unique[:limit]
+	}
+
+	return unique, nil
 }
 
 // displaySearchResults formats and prints search results to stdout.
@@ -542,6 +572,19 @@ func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 			findingResults[i].Type = "finding"
 		}
 		results = append(results, findingResults...)
+	}
+
+	// Search research files (orphaned research becomes discoverable)
+	researchDir := filepath.Join(filepath.Dir(dir), "research")
+	if _, err := os.Stat(researchDir); err == nil {
+		researchResults, err := grepFiles(query, researchDir, "*.md", limit)
+		if err != nil {
+			VerbosePrintf("CASS research search error: %v\n", err)
+		}
+		for i := range researchResults {
+			researchResults[i].Type = "research"
+		}
+		results = append(results, researchResults...)
 	}
 
 	// Also search sessions for context

@@ -106,6 +106,13 @@ if command -v ao &>/dev/null; then
     ao rpi cleanup --all --stale-after 24h --dry-run >/dev/null 2>&1 || true
 fi
 
+# Auto-promote pending forge candidates (Tier 0 → Tier 1)
+# Closes the gap where forge extracts knowledge at session end but promotion
+# to .agents/learnings/ only happens when explicitly triggered.
+if command -v ao &>/dev/null; then
+    ao flywheel close-loop --quiet >/dev/null 2>&1 || true
+fi
+
 # Auto-gitignore .agents/
 if [ "${AGENTOPS_GITIGNORE_AUTO:-1}" != "0" ] && [ -d "$ROOT/.git" ]; then
     GITIGNORE="$ROOT/.gitignore"
