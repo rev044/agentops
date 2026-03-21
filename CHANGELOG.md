@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.27.1] - 2026-03-20
+
+### Fixed
+
+- **Flywheel golden signals always shown** — Golden signals were gated behind `--golden` flag, causing `ao flywheel status` to report "COMPOUNDING" while the hidden golden signals analysis showed "accumulating". Golden signals now compute and display by default.
+
 ## [2.27.0] - 2026-03-20
 
 ### Added
