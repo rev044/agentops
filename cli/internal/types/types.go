@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -806,6 +807,9 @@ const (
 
 // EscapeVelocityStatus returns a human-readable status of the flywheel.
 func (m *FlywheelMetrics) EscapeVelocityStatus() string {
+	if m == nil {
+		return "UNKNOWN"
+	}
 	if m.AboveEscapeVelocity {
 		return "COMPOUNDING"
 	}
@@ -813,6 +817,34 @@ func (m *FlywheelMetrics) EscapeVelocityStatus() string {
 		return "NEAR ESCAPE"
 	}
 	return "DECAYING"
+}
+
+// HealthStatus returns the user-facing flywheel health verdict.
+// Golden-signal health takes priority over raw escape-velocity telemetry.
+func (m *FlywheelMetrics) HealthStatus() string {
+	if m == nil {
+		return "UNKNOWN"
+	}
+	if m.GoldenSignals != nil {
+		if verdict := strings.TrimSpace(m.GoldenSignals.OverallVerdict); verdict != "" {
+			return strings.ToUpper(verdict)
+		}
+	}
+	if m.EscapeVelocityStatus() == "NEAR ESCAPE" {
+		return "ACCUMULATING"
+	}
+	return m.EscapeVelocityStatus()
+}
+
+// HealthCompounding reports whether the flywheel health verdict is compounding.
+func (m *FlywheelMetrics) HealthCompounding() bool {
+	if m == nil {
+		return false
+	}
+	if m.GoldenSignals != nil && strings.TrimSpace(m.GoldenSignals.OverallVerdict) != "" {
+		return strings.EqualFold(m.GoldenSignals.OverallVerdict, "compounding")
+	}
+	return m.AboveEscapeVelocity
 }
 
 // --- Plan Discovery (ol-a46.3) ---
