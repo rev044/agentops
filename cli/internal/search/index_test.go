@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"syscall"
 	"testing"
 )
 
@@ -873,14 +873,17 @@ func TestWriteIndexTerms_WriteError(t *testing.T) {
 	}
 }
 
+type writeCloserAdapter struct {
+	io.Writer
+}
+
+func (writeCloserAdapter) Close() error { return nil }
+
 // TestSaveIndex_WriteIndexTermsError covers the writeIndexTerms error branch
-// in SaveIndex (line 140-142). We race goroutines to close the fd that
-// SaveIndex creates, causing write or flush errors. The bufio.Writer
-// passes write errors from writeTermEntry through writeIndexTerms to SaveIndex.
+// in SaveIndex by injecting a writer that fails after a few bytes.
 func TestSaveIndex_WriteIndexTermsError(t *testing.T) {
 	tmp := t.TempDir()
 
-	// Build a large index so writes take time, increasing the race window
 	idx := NewIndex()
 	for i := 0; i < 200; i++ {
 		term := fmt.Sprintf("term_%04d", i)
@@ -889,32 +892,18 @@ func TestSaveIndex_WriteIndexTermsError(t *testing.T) {
 		}
 	}
 
-	var hitWriteError bool
-	for i := 0; i < 3000; i++ {
-		indexPath := filepath.Join(tmp, fmt.Sprintf("index-%d.jsonl", i))
-
-		// Predict the fd that os.Create inside SaveIndex will use
-		probe, perr := os.Open("/dev/null")
-		if perr != nil {
-			t.Fatal(perr)
-		}
-		predictedFd := int(probe.Fd())
-		probe.Close()
-
-		// Race: close the predicted fd while SaveIndex is writing.
-		// Multiple goroutines increase the chance of hitting the window.
-		for g := 0; g < 8; g++ {
-			go func(fd int) { syscall.Close(fd) }(predictedFd)
-		}
-
-		serr := SaveIndex(idx, indexPath)
-		if serr != nil {
-			hitWriteError = true
-			break
-		}
+	origCreateIndexOutput := createIndexOutput
+	createIndexOutput = func(string) (io.WriteCloser, error) {
+		return writeCloserAdapter{Writer: &errWriter{limit: 5}}, nil
 	}
-	if !hitWriteError {
-		t.Log("writeIndexTerms error through SaveIndex not hit via race (defensive code)")
+	t.Cleanup(func() {
+		createIndexOutput = origCreateIndexOutput
+	})
+
+	indexPath := filepath.Join(tmp, "index.jsonl")
+	serr := SaveIndex(idx, indexPath)
+	if serr == nil {
+		t.Fatal("expected SaveIndex to return write error")
 	}
 }
 

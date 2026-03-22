@@ -273,15 +273,9 @@ func computeResearchClosure(baseDir string) (orphanCount int, orphanPct float64,
 		}
 		mdCount++
 
-		// Check if any learning references this research file
-		closed := false
 		researchName := re.Name()
-		for ref := range researchRefs {
-			if strings.Contains(ref, researchName) || strings.Contains(ref, strings.TrimSuffix(researchName, ".md")) {
-				closed = true
-				break
-			}
-		}
+		researchStem := strings.TrimSuffix(researchName, ".md")
+		closed := researchRefs[researchName] || researchRefs[researchStem]
 
 		if !closed {
 			orphanCount++
@@ -328,7 +322,12 @@ func collectResearchRefsFromDir(dir string, refs map[string]bool) {
 			continue
 		}
 		for _, ref := range extractResearchRefsFromText(string(data)) {
-			refs[ref] = true
+			base := filepath.Base(ref)
+			if base == "." || base == string(filepath.Separator) || base == "" {
+				continue
+			}
+			refs[base] = true
+			refs[strings.TrimSuffix(base, ".md")] = true
 		}
 	}
 }

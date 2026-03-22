@@ -7,12 +7,17 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"unicode"
 )
+
+var createIndexOutput = func(path string) (io.WriteCloser, error) {
+	return os.Create(path)
+}
 
 // Index is an in-memory inverted index mapping lowercase terms to the
 // set of document paths that contain them.
@@ -136,7 +141,7 @@ func SaveIndex(idx *Index, path string) error {
 		return fmt.Errorf("create index dir: %w", err)
 	}
 
-	f, err := os.Create(path)
+	f, err := createIndexOutput(path)
 	if err != nil {
 		return fmt.Errorf("create index file: %w", err)
 	}
