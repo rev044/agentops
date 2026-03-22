@@ -265,7 +265,7 @@ ao init --hooks           # Recommended: create `.agents/` + install minimal hoo
 ao hooks install          # Hooks only (does not create `.agents/`)
 ao hooks test             # Verify hooks are working
 ao inject [topic]         # Load prior knowledge (auto at session start)
-ao search "query"         # Search repo-local knowledge and forged session history
+ao search "query"         # Search workspace session history plus repo-local knowledge
 ao flywheel status        # Knowledge growth rate, escape velocity
 ao metrics report         # Flywheel health dashboard
 ao forge transcript       # Extract learnings from session transcripts

@@ -2,11 +2,55 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func writeFakeCass(t *testing.T, output string, exitCode int) (binDir string, argsPath string) {
+	t.Helper()
+
+	binDir = t.TempDir()
+	argsPath = filepath.Join(binDir, "cass.args")
+	outputPath := filepath.Join(binDir, "cass-output.json")
+
+	if exitCode == 0 {
+		if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+			t.Fatalf("write fake cass output: %v", err)
+		}
+	}
+
+	script := "#!/bin/sh\nset -eu\n"
+	script += fmt.Sprintf("printf '%%s\\n' \"$@\" > %q\n", argsPath)
+	if exitCode == 0 {
+		script += fmt.Sprintf("cat %q\n", outputPath)
+	} else {
+		script += "echo 'cass failed' >&2\n"
+		script += fmt.Sprintf("exit %d\n", exitCode)
+	}
+
+	cassPath := filepath.Join(binDir, "cass")
+	if err := os.WriteFile(cassPath, []byte(script), 0755); err != nil {
+		t.Fatalf("write fake cass script: %v", err)
+	}
+
+	return binDir, argsPath
+}
+
+func chdirTempWorkspace(t *testing.T, dir string) {
+	t.Helper()
+
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prevWD) })
+}
 
 func TestClassifyResultType(t *testing.T) {
 	tests := []struct {
@@ -63,6 +107,25 @@ func TestFilterByType(t *testing.T) {
 				t.Errorf("filterByType(%q) returned %d results, want %d", tt.filterType, len(got), tt.wantCount)
 			}
 		})
+	}
+}
+
+func TestNormalizeSearchType(t *testing.T) {
+	tests := map[string]string{
+		"":          "",
+		"sessions":  "session",
+		"learnings": "learning",
+		"patterns":  "pattern",
+		"findings":  "finding",
+		"decisions": "decision",
+		"retros":    "retro",
+		"research":  "research",
+	}
+
+	for input, want := range tests {
+		if got := normalizeSearchType(input); got != want {
+			t.Fatalf("normalizeSearchType(%q) = %q, want %q", input, got, want)
+		}
 	}
 }
 
@@ -152,14 +215,7 @@ func TestRunSearch_JSONNoResultsAfterTypeFilter(t *testing.T) {
 func TestRunSearch_JSONNoDataDirReturnsEmptyArray(t *testing.T) {
 	tmp := t.TempDir()
 
-	prevWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prevWD) })
+	chdirTempWorkspace(t, tmp)
 
 	prevOutput := output
 	prevDryRun := dryRun
@@ -195,6 +251,86 @@ func TestRunSearch_JSONNoDataDirReturnsEmptyArray(t *testing.T) {
 	}
 	if len(results) != 0 {
 		t.Fatalf("expected 0 results for missing data dir, got %d", len(results))
+	}
+}
+
+func TestRunSearch_AutoUsesCassWithoutRepoLocalData(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTempWorkspace(t, tmp)
+
+	cassJSON := `{
+  "query": "Shield AI recruiter",
+  "limit": 10,
+  "offset": 0,
+  "count": 1,
+  "total_matches": 1,
+  "hits": [
+    {
+      "source_path": "/tmp/cass-session.jsonl",
+      "score": 12.3,
+      "snippet": "Known Shield AI recruiter history",
+      "content": "Known Shield AI recruiter history",
+      "workspace": "` + tmp + `",
+      "line_number": 1
+    }
+  ]
+}`
+	binDir, argsPath := writeFakeCass(t, cassJSON, 0)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	prevOutput := output
+	prevDryRun := dryRun
+	prevSearchType := searchType
+	prevSearchLimit := searchLimit
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	output = "json"
+	dryRun = false
+	searchType = ""
+	searchLimit = 10
+	searchUseSC = false
+	searchUseCASS = false
+	t.Cleanup(func() {
+		output = prevOutput
+		dryRun = prevDryRun
+		searchType = prevSearchType
+		searchLimit = prevSearchLimit
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+	})
+
+	out := captureJSONStdout(t, func() {
+		if err := runSearch(searchCmd, []string{"Shield AI recruiter"}); err != nil {
+			t.Fatalf("runSearch() error = %v", err)
+		}
+	})
+
+	var results []searchResult
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &results); err != nil {
+		t.Fatalf("parse runSearch JSON output: %v\noutput=%s", err, out)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 cass-backed result, got %d: %+v", len(results), results)
+	}
+	if results[0].Path != "/tmp/cass-session.jsonl" {
+		t.Fatalf("result path = %q, want /tmp/cass-session.jsonl", results[0].Path)
+	}
+	if results[0].Type != "session" {
+		t.Fatalf("result type = %q, want session", results[0].Type)
+	}
+	if !strings.Contains(results[0].Context, "Shield AI recruiter") {
+		t.Fatalf("result context = %q, want cass snippet", results[0].Context)
+	}
+
+	argsRaw, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatalf("read fake cass args: %v", err)
+	}
+	argsText := string(argsRaw)
+	for _, want := range []string{"search", "--json", "--workspace", tmp, "--limit", "10", "Shield AI recruiter"} {
+		if !strings.Contains(argsText, want) {
+			t.Fatalf("cass args %q did not include %q", argsText, want)
+		}
 	}
 }
 
@@ -623,6 +759,7 @@ func TestSearchCASS_ResolvesAgentsRoot(t *testing.T) {
 
 func TestSelectAndSearch_DefaultsToCASS(t *testing.T) {
 	tmp := t.TempDir()
+	chdirTempWorkspace(t, tmp)
 	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
 	researchDir := filepath.Join(tmp, ".agents", "research")
 
@@ -638,6 +775,34 @@ func TestSelectAndSearch_DefaultsToCASS(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	cassJSON := `{
+  "query": "Shield AI recruiter",
+  "limit": 10,
+  "offset": 0,
+  "count": 2,
+  "total_matches": 2,
+  "hits": [
+    {
+      "source_path": "/tmp/cass-session.jsonl",
+      "score": 19.4,
+      "snippet": "Known Shield AI recruiter chat history.",
+      "content": "Known Shield AI recruiter chat history.",
+      "workspace": "` + tmp + `",
+      "line_number": 1
+    },
+    {
+      "source_path": "/tmp/cass-session.jsonl",
+      "score": 18.1,
+      "snippet": "Duplicate hit from same transcript should collapse.",
+      "content": "Duplicate hit from same transcript should collapse.",
+      "workspace": "` + tmp + `",
+      "line_number": 2
+    }
+  ]
+}`
+	binDir, _ := writeFakeCass(t, cassJSON, 0)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
 	prevSearchUseSC := searchUseSC
 	prevSearchUseCASS := searchUseCASS
 	searchUseSC = false
@@ -651,8 +816,138 @@ func TestSelectAndSearch_DefaultsToCASS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("selectAndSearch() error = %v", err)
 	}
+
+	seenPaths := make(map[string]int)
+	for _, result := range results {
+		seenPaths[result.Path]++
+	}
+	if seenPaths["/tmp/cass-session.jsonl"] != 1 {
+		t.Fatalf("expected deduped cass session result, got counts=%v", seenPaths)
+	}
+	if seenPaths[researchPath] != 1 {
+		t.Fatalf("expected local research result, got counts=%v", seenPaths)
+	}
+}
+
+func TestSelectAndSearch_CassFlagRequiresWorkingCass(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTempWorkspace(t, tmp)
+
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	researchDir := filepath.Join(tmp, ".agents", "research")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(researchDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(researchDir, "shield-ai.md"), []byte("Known Shield AI recruiter chat history."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	binDir, _ := writeFakeCass(t, "", 42)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	searchUseSC = false
+	searchUseCASS = true
+	t.Cleanup(func() {
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+	})
+
+	_, err := selectAndSearch("Shield AI recruiter", sessionsDir, 10)
+	if err == nil {
+		t.Fatal("expected selectAndSearch() to fail when --cass backend fails")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "cass") {
+		t.Fatalf("expected cass error, got %v", err)
+	}
+}
+
+func TestSelectAndSearch_AutoFallsBackToLocalWhenCassFails(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTempWorkspace(t, tmp)
+
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	researchDir := filepath.Join(tmp, ".agents", "research")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(researchDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	researchPath := filepath.Join(researchDir, "shield-ai.md")
+	if err := os.WriteFile(researchPath, []byte("Known Shield AI recruiter chat history."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	binDir, _ := writeFakeCass(t, "", 17)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
+	searchUseSC = false
+	searchUseCASS = false
+	searchUseLocal = false
+	t.Cleanup(func() {
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
+	})
+
+	results, err := selectAndSearch("Shield AI recruiter", sessionsDir, 10)
+	if err != nil {
+		t.Fatalf("selectAndSearch() error = %v", err)
+	}
 	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %d: %+v", len(results), results)
+		t.Fatalf("expected 1 local fallback result, got %d: %+v", len(results), results)
+	}
+	if results[0].Path != researchPath {
+		t.Fatalf("result path = %q, want %q", results[0].Path, researchPath)
+	}
+}
+
+func TestSelectAndSearch_LocalFlagSkipsCass(t *testing.T) {
+	tmp := t.TempDir()
+	chdirTempWorkspace(t, tmp)
+
+	sessionsDir := filepath.Join(tmp, ".agents", "ao", "sessions")
+	researchDir := filepath.Join(tmp, ".agents", "research")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(researchDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	researchPath := filepath.Join(researchDir, "shield-ai.md")
+	if err := os.WriteFile(researchPath, []byte("Known Shield AI recruiter chat history."), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	binDir, _ := writeFakeCass(t, "", 23)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	prevSearchUseSC := searchUseSC
+	prevSearchUseCASS := searchUseCASS
+	prevSearchUseLocal := searchUseLocal
+	searchUseSC = false
+	searchUseCASS = false
+	searchUseLocal = true
+	t.Cleanup(func() {
+		searchUseSC = prevSearchUseSC
+		searchUseCASS = prevSearchUseCASS
+		searchUseLocal = prevSearchUseLocal
+	})
+
+	results, err := selectAndSearch("Shield AI recruiter", sessionsDir, 10)
+	if err != nil {
+		t.Fatalf("selectAndSearch() error = %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 local result, got %d: %+v", len(results), results)
 	}
 	if results[0].Path != researchPath {
 		t.Fatalf("result path = %q, want %q", results[0].Path, researchPath)

@@ -927,7 +927,7 @@ func splitMarkdownSections(content string) []string {
 
 // updateSearchIndexForFile loads the search index (if it exists), updates the
 // entry for the given file path, and saves it back. If no index exists yet
-// this is a no-op -- the user can create one with `ao search --rebuild-index`.
+// this is a no-op -- the user can create one with `ao store rebuild`.
 func updateSearchIndexForFile(baseDir, filePath string, quiet bool) {
 	idxPath := filepath.Join(baseDir, "index.jsonl")
 	if _, err := os.Stat(idxPath); os.IsNotExist(err) {

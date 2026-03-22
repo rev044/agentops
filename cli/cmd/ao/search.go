@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,32 +36,33 @@ var (
 	searchType    string
 	searchUseSC   bool
 	searchUseCASS bool
+	searchUseLocal bool
 )
 
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
-	Short: "Search repo-local knowledge and session history",
-	Long: `Search repo-local AgentOps knowledge and forged session history.
+	Short: "Search workspace session history and repo-local knowledge",
+	Long: `Search workspace session history and repo-local AgentOps knowledge.
 
-By default, uses CASS (Contextual Agent Session Search) over the current repo's
-AgentOps artifacts. This includes forged session files in .agents/ao/sessions/
-plus adjacent .agents/ knowledge surfaces such as learnings, patterns,
-findings, and research when present.
+By default, ao search brokers across two backends:
+  1. upstream cass search --workspace <cwd> for session history when cass is available
+  2. repo-local AgentOps artifacts such as .agents/ao/sessions/, learnings,
+     patterns, findings, and research when present
 
-This command does not search raw global chat archives directly. Global Claude
-or Codex history must be forged or indexed into the repo before it becomes
-discoverable here.
-
+Use --cass to require upstream cass only.
+Use --local to force repo-local AgentOps search only.
 Use --use-sc to try Smart Connections semantic search first when Obsidian is
 available. If Smart Connections is unavailable or fails, ao search falls back
-to the built-in CASS search path.
+to the selected non-Smart-Connections backend chain.
 
-Examples:
-  ao search "mutex pattern"
+Use ao lookup when you specifically want curated learnings, patterns, and
+findings by relevance.`,
+	Example: `  ao search "mutex pattern"
   ao search "authentication" --limit 20
   ao search "database migration" --type decisions
-  ao search "config" --use-sc   # Try Smart Connections, then fall back to CASS
-  ao search "auth" --cass       # Force built-in CASS search (default)`,
+  ao search "config" --use-sc
+  ao search "auth" --cass
+  ao search "auth" --local`,
 	Args: cobra.ExactArgs(1),
 	RunE: runSearch,
 }
@@ -69,9 +71,10 @@ func init() {
 	searchCmd.GroupID = "knowledge"
 	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().IntVar(&searchLimit, "limit", 10, "Maximum results to return")
-	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: decisions, knowledge, sessions")
+	searchCmd.Flags().StringVar(&searchType, "type", "", "Filter by type: session(s), learning(s), pattern(s), finding(s), research, decision(s), knowledge")
 	searchCmd.Flags().BoolVar(&searchUseSC, "use-sc", false, "Try Smart Connections semantic search first (requires Obsidian)")
-	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Force built-in CASS session-aware search with maturity weighting (default)")
+	searchCmd.Flags().BoolVar(&searchUseCASS, "cass", false, "Require upstream cass session-history search")
+	searchCmd.Flags().BoolVar(&searchUseLocal, "local", false, "Force repo-local AgentOps search only")
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
@@ -90,7 +93,11 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	baseDir := filepath.Join(cwd, storage.DefaultBaseDir)
 	sessionsDir := filepath.Join(baseDir, storage.SessionsDir)
 
-	if !searchDataExists(sessionsDir) {
+	if searchUseCASS && searchUseLocal {
+		return fmt.Errorf("--cass and --local are mutually exclusive")
+	}
+
+	if searchUseLocal && !searchDataExists(sessionsDir) {
 		if GetOutput() == "json" {
 			return outputSearchResults(query, []searchResult{})
 		}
@@ -139,8 +146,13 @@ func outputSearchResults(query string, results []searchResult) error {
 }
 
 // selectAndSearch chooses the search backend and executes the search.
-// Default: repo-local CASS. Optional: Smart Connections with --use-sc flag.
+// Default: upstream cass plus repo-local AgentOps artifacts. Optional:
+// Smart Connections with --use-sc flag.
 func selectAndSearch(query, sessionsDir string, limit int) ([]searchResult, error) {
+	if searchUseCASS && searchUseLocal {
+		return nil, fmt.Errorf("--cass and --local are mutually exclusive")
+	}
+
 	if searchUseSC {
 		vaultPath := vault.DetectVault("")
 		if vaultPath != "" && vault.HasSmartConnections(vaultPath) {
@@ -152,15 +164,136 @@ func selectAndSearch(query, sessionsDir string, limit int) ([]searchResult, erro
 			}
 			return results, nil
 		}
-		VerbosePrintf("Smart Connections not available, using CASS...\n")
+		VerbosePrintf("Smart Connections not available, using configured search backends...\n")
+	}
+
+	if searchUseLocal {
+		VerbosePrintf("Using repo-local AgentOps search only...\n")
+		return searchRepoLocalKnowledge(query, sessionsDir, limit)
 	}
 
 	if searchUseCASS {
-		VerbosePrintf("Using CASS session-aware search...\n")
-	} else {
-		VerbosePrintf("Using default CASS repo-local search...\n")
+		VerbosePrintf("Using upstream cass search...\n")
+		return searchUpstreamCASS(query, limit)
 	}
-	return searchCASS(query, sessionsDir, limit)
+
+	VerbosePrintf("Using upstream cass plus repo-local AgentOps search...\n")
+	return searchAuto(query, sessionsDir, limit)
+}
+
+func searchAuto(query, sessionsDir string, limit int) ([]searchResult, error) {
+	results := make([]searchResult, 0)
+	var cassErr error
+
+	cassResults, err := searchUpstreamCASS(query, limit)
+	if err != nil {
+		cassErr = err
+		VerbosePrintf("cass search unavailable, falling back to repo-local AgentOps data: %v\n", err)
+	} else {
+		results = append(results, cassResults...)
+	}
+
+	if searchDataExists(sessionsDir) {
+		localResults, err := searchRepoLocalKnowledge(query, sessionsDir, limit)
+		if err != nil {
+			if cassErr != nil {
+				return nil, fmt.Errorf("cass search failed (%v) and repo-local search failed: %w", cassErr, err)
+			}
+			return nil, err
+		}
+		results = append(results, localResults...)
+	}
+
+	if len(results) == 0 && cassErr != nil && !searchDataExists(sessionsDir) {
+		return nil, cassErr
+	}
+
+	return normalizeSearchResults(results, limit), nil
+}
+
+type cassSearchResponse struct {
+	Hits []cassSearchHit `json:"hits"`
+}
+
+type cassSearchHit struct {
+	SourcePath string  `json:"source_path"`
+	Score      float64 `json:"score"`
+	Snippet    string  `json:"snippet"`
+	Content    string  `json:"content"`
+}
+
+func searchUpstreamCASS(query string, limit int) ([]searchResult, error) {
+	if _, err := exec.LookPath("cass"); err != nil {
+		return nil, fmt.Errorf("cass not found on PATH: %w", err)
+	}
+
+	workspace, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("get working directory: %w", err)
+	}
+
+	args := []string{"search", "--json", "--workspace", workspace}
+	if limit > 0 {
+		args = append(args, "--limit", strconv.Itoa(limit))
+	}
+	args = append(args, query)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "cass", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("cass search failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	var response cassSearchResponse
+	if err := json.Unmarshal(output, &response); err != nil {
+		return nil, fmt.Errorf("parse cass search response: %w", err)
+	}
+
+	results := make([]searchResult, 0, len(response.Hits))
+	for _, hit := range response.Hits {
+		context := hit.Snippet
+		if context == "" {
+			context = hit.Content
+		}
+		results = append(results, searchResult{
+			Path:    hit.SourcePath,
+			Score:   hit.Score,
+			Context: truncateContext(strings.TrimSpace(context)),
+			Type:    "session",
+		})
+	}
+
+	return normalizeSearchResults(results, limit), nil
+}
+
+func normalizeSearchResults(results []searchResult, limit int) []searchResult {
+	seen := make(map[string]searchResult, len(results))
+	for _, result := range results {
+		existing, ok := seen[result.Path]
+		if !ok || result.Score > existing.Score {
+			seen[result.Path] = result
+		}
+	}
+
+	unique := make([]searchResult, 0, len(seen))
+	for _, result := range seen {
+		unique = append(unique, result)
+	}
+
+	slices.SortFunc(unique, func(a, b searchResult) int {
+		if cmp := cmp.Compare(b.Score, a.Score); cmp != 0 {
+			return cmp
+		}
+		return strings.Compare(a.Path, b.Path)
+	})
+
+	if limit > 0 && len(unique) > limit {
+		return unique[:limit]
+	}
+	return unique
 }
 
 func searchDataExists(sessionsDir string) bool {
@@ -526,12 +659,13 @@ func classifyResultType(path string) string {
 	return "knowledge"
 }
 
-// searchCASS performs CASS (Contextual Agent Session Search) with maturity weighting.
+// searchRepoLocalKnowledge performs AO's repo-local search over forged sessions
+// and adjacent .agents knowledge surfaces with maturity weighting for learnings.
 // This searches learnings and patterns with awareness of:
 // 1. Session context (what was the session about)
 // 2. Maturity level (provisional vs established)
 // 3. Confidence decay (older untested learnings rank lower)
-func searchCASS(query, dir string, limit int) ([]searchResult, error) {
+func searchRepoLocalKnowledge(query, dir string, limit int) ([]searchResult, error) {
 	var results []searchResult
 	knowledgeRoot := knowledgeRootFromSessions(dir)
 
@@ -615,6 +749,10 @@ func searchCASS(query, dir string, limit int) ([]searchResult, error) {
 	}
 
 	return unique, nil
+}
+
+func searchCASS(query, dir string, limit int) ([]searchResult, error) {
+	return searchRepoLocalKnowledge(query, dir, limit)
 }
 
 // searchLearningsWithMaturity searches learnings and weights by maturity and confidence.
@@ -739,11 +877,33 @@ func maturityToWeight(data map[string]any) float64 {
 
 // filterByType filters results by knowledge type.
 func filterByType(results []searchResult, filterType string) []searchResult {
+	normalizedType := normalizeSearchType(filterType)
 	var filtered []searchResult
 	for _, r := range results {
-		if r.Type == filterType || filterType == "" {
+		if r.Type == normalizedType || normalizedType == "" {
 			filtered = append(filtered, r)
 		}
 	}
 	return filtered
+}
+
+func normalizeSearchType(filterType string) string {
+	switch strings.ToLower(strings.TrimSpace(filterType)) {
+	case "", "knowledge":
+		return strings.ToLower(strings.TrimSpace(filterType))
+	case "sessions":
+		return "session"
+	case "learnings":
+		return "learning"
+	case "patterns":
+		return "pattern"
+	case "findings":
+		return "finding"
+	case "decisions":
+		return "decision"
+	case "retros":
+		return "retro"
+	default:
+		return strings.ToLower(strings.TrimSpace(filterType))
+	}
 }

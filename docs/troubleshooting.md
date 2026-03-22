@@ -257,7 +257,7 @@ If you see errors for commands like `bd mol`, `gt convoy`, or `bd cook`, these a
 | **CLI Dependencies** | `gt` and `bd` are on your PATH (nice-to-have for multi-repo ops + beads issue tracking). | Install missing tools (e.g., `brew install gastown`, `brew install beads`). |
 | **Hook Coverage** | Claude Code hooks are configured (checks `~/.claude/hooks.json` first, then `~/.claude/settings.json`). | From your repo root: run `ao init --hooks` (or `ao init --hooks --full`). Hooks-only: `ao hooks install`. |
 | **Knowledge Freshness** | At least one recent session exists under `.agents/ao/sessions/`. | After a session, run `ao forge transcript <path>` to ingest it. |
-| **Search Index** | A non-empty `.agents/ao/index.jsonl` exists for faster searches. | Run `ao search --rebuild-index`. |
+| **Search Index** | A non-empty `.agents/ao/index.jsonl` exists for faster repo-local searches. | Run `ao store rebuild`. |
 | **Flywheel Health** | At least one learning exists under `.agents/ao/learnings/` (or legacy `.agents/learnings/`). | Run `/retro` or `/forge` to extract learnings; empty is normal early on. |
 | **Codex CLI** | The `codex` binary is on your PATH (optional, used for `--mixed` validation modes). | Install Codex CLI and ensure it is on PATH. |
 

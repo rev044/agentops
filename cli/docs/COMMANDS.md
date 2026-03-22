@@ -1866,7 +1866,7 @@ ao mine [flags]
 
 ### `ao search`
 
-Search repo-local AgentOps knowledge and forged session history.
+Search workspace session history and repo-local AgentOps knowledge.
 
 ```
 ao search <query> [flags]
@@ -1875,10 +1875,11 @@ ao search <query> [flags]
 **Flags:**
 
 ```
-      --cass          Force built-in CASS session-aware search with maturity weighting (default)
+      --cass          Require upstream cass session-history search
   -h, --help          help for search
       --limit int     Maximum results to return (default 10)
-      --type string   Filter by type: decisions, knowledge, sessions
+      --local         Force repo-local AgentOps search only
+      --type string   Filter by type: session(s), learning(s), pattern(s), finding(s), research, decision(s), knowledge
       --use-sc        Try Smart Connections semantic search first (requires Obsidian)
 ```
 

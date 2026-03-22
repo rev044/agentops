@@ -22,7 +22,7 @@ Customization tiers:
 | `internal/rpi/worktree` | `git` | Tier B | Detached-head/worktree safety remains fixed to git contracts. |
 | `context` | `tmux` | Tier B | Not yet migrated to shared customization layer. |
 | `worktree` | `git`, `tmux` | Tier B | Not yet migrated to shared customization layer. |
-| `search` | `rg`, `grep` | Tier B | Candidate for a follow-up customization wave. |
+| `search` | `cass`, `rg`, `grep` | Tier B | Brokers to upstream `cass` for session history and keeps fixed repo-local fallback helpers. |
 | `goals`/`ratchet` | `bash`, `git`, `bd` | Tier B | Candidate for follow-up after RPI path is stable. |
 | `plans` | `bd` | Tier B | Candidate for follow-up after RPI path is stable. |
 | `quick-start` | `bd` | Tier B | Candidate for follow-up after RPI path is stable. |
