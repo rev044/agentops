@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.29.0] - 2026-03-22
+
+### Added
+
+- **Model cost tiers and config writes** — `ao config` can now assign per-agent models by cost tier and persist repo configuration changes directly
+- **Search brokerage over session history and repo knowledge** — `ao search` now wraps upstream `cass` results with repo-local AgentOps artifacts by default
+- **Reviewer and post-mortem reference packs** — Added model-routing, iterative-retrieval, confidence-scoring, write-time-quality, and conflict-recovery guidance across council, research, swarm, vibe, athena, and related skills
+
+### Changed
+
+- **Competitive comparison and CLI docs** — Refreshed comparison docs, release smoke coverage, and command documentation around the expanded search/config surface
+
+### Fixed
+
+- **Flywheel proof and citation loop** — Added deterministic proof fixtures, preserved exact research provenance, and made citation feedback artifact-specific so flywheel health reflects real closure state
+- **Search alignment with forged session history** — Search now stays aligned with forged session artifacts and fallback behavior
+- **Hook-launched validation** — Pre-push and release gates now isolate inherited git env/stdin correctly and cover newer hook scripts in integration tests
+- **Codex council profile parity** — Source and checked-in Codex council docs are back in sync for the shared profile contract
+
 ## [2.28.0] - 2026-03-21
 
 ### Added
