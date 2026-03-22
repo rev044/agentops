@@ -246,64 +246,24 @@ Track in memory: `wave=0`
 
 ### Step 1a.1: Initialize Plan Mutation Audit Trail
 
-Create the JSONL file that tracks every plan mutation during execution. See `references/plan-mutations.md` for the full schema and mutation budget.
-
 ```bash
 mkdir -p .agents/rpi
-# Initialize empty JSONL file (append-only during execution)
 : > .agents/rpi/plan-mutations.jsonl
-
-# Initialize mutation budget counters
-MUTATION_TASK_ADDED=0
-MUTATION_TASK_ADDED_LIMIT=5
-MUTATION_TASK_REORDERED=0
-MUTATION_TASK_REORDERED_LIMIT=3
 ```
 
-**Helper function for appending mutations:**
-
-```bash
-log_plan_mutation() {
-    local mutation_type="$1" task_id="$2" before="$3" after="$4"
-    local ts
-    ts=$(date -Iseconds)
-
-    # Budget enforcement
-    if [[ "$mutation_type" == "task_added" ]]; then
-        MUTATION_TASK_ADDED=$((MUTATION_TASK_ADDED + 1))
-        if [[ $MUTATION_TASK_ADDED -gt $MUTATION_TASK_ADDED_LIMIT ]]; then
-            echo "WARN: task_added budget exceeded ($MUTATION_TASK_ADDED/$MUTATION_TASK_ADDED_LIMIT). Consider re-running /plan."
-        fi
-    elif [[ "$mutation_type" == "task_reordered" ]]; then
-        MUTATION_TASK_REORDERED=$((MUTATION_TASK_REORDERED + 1))
-        if [[ $MUTATION_TASK_REORDERED -gt $MUTATION_TASK_REORDERED_LIMIT ]]; then
-            echo "WARN: task_reordered budget exceeded ($MUTATION_TASK_REORDERED/$MUTATION_TASK_REORDERED_LIMIT). Plan ordering may need rework."
-        fi
-    fi
-
-    echo "{\"timestamp\":\"$ts\",\"wave\":$wave,\"task_id\":\"$task_id\",\"mutation_type\":\"$mutation_type\",\"before\":$before,\"after\":$after}" \
-        >> .agents/rpi/plan-mutations.jsonl
-}
-```
-
-**Mutation types:** `task_added`, `task_removed`, `task_reordered`, `scope_changed`, `dependency_changed`.
+Initialize the `log_plan_mutation` helper and budget counters. See [references/plan-mutations.md](references/plan-mutations.md) for the full JSONL schema, helper function, budget limits, and mutation types.
 
 ### Step 1a.2: Initialize Shared Task Notes
-
-Create the shared notes file so cross-wave context persists across fresh worker spawns (Ralph Wiggum pattern). See `references/shared-task-notes.md` for the full pattern.
 
 ```bash
 mkdir -p .agents/crank
 cat > .agents/crank/SHARED_TASK_NOTES.md <<EOF
 # Shared Task Notes — Epic ${EPIC_ID:-unknown}
-
-> Cross-wave context for workers. Read before starting. Report discoveries in task output.
-> Maintained by the crank orchestrator — workers do NOT write to this file directly.
-
+> Cross-wave context for workers. Read before starting.
 EOF
 ```
 
-This file accumulates codebase quirks, failed approaches, convention discoveries, and dependency notes across waves. Workers receive its contents in their prompt and report new findings in their task output for the orchestrator to harvest.
+See [references/shared-task-notes.md](references/shared-task-notes.md) for the full pattern, size management, and worker integration.
 
 ### Step 1b: Detect Test-First Mode (--test-first only)
 
@@ -465,35 +425,7 @@ Worker prompt signpost:
 
 ### Step 3b.2: Load Shared Task Notes (Before Worker Dispatch)
 
-Read cross-wave context and include it in every worker prompt. This prevents workers from rediscovering issues that earlier waves already solved.
-
-```bash
-SHARED_NOTES=""
-if [ -f .agents/crank/SHARED_TASK_NOTES.md ]; then
-    SHARED_NOTES=$(cat .agents/crank/SHARED_TASK_NOTES.md)
-fi
-```
-
-**Inject into every TaskCreate description** (after the issue body, before rules):
-
-```
-TaskCreate(
-  subject="ag-1234: Add auth middleware",
-  description="<issue body>
-
----
-Context from prior waves (read before starting):
-${SHARED_NOTES}
-
----
-DISCOVERY REPORTING: If you discover codebase quirks, failed approaches,
-convention requirements, or dependency constraints, include a section in your
-task output titled '## Discoveries' with one bullet per finding. The orchestrator
-will harvest these into shared notes for future waves."
-)
-```
-
-**Size management:** If `SHARED_TASK_NOTES.md` exceeds ~50 lines, summarize older waves into a `## Prior Waves Summary` section, keep the last 3 waves in full detail, and preserve any entries marked `[CRITICAL]` regardless of age.
+Read `.agents/crank/SHARED_TASK_NOTES.md` and inject its contents into every worker's TaskCreate description (after the issue body). Include a `DISCOVERY REPORTING` instruction so workers report new findings for the orchestrator to harvest. See [references/shared-task-notes.md](references/shared-task-notes.md) for the injection template, size management rules, and discovery reporting format.
 
 ### Step 4: Execute Wave via Swarm
 
@@ -510,62 +442,9 @@ This is the shift-left edge of the prevention ratchet: compiled findings target 
 
 **Validation metadata policy (REQUIRED):** For implementation tasks typed `feature|bug|task`, include `metadata.validation.tests` plus at least one structural check (`files_exist` or `content_check`). `docs|chore|ci` use an explicit test-exempt path and should still include applicable structural and/or command/lint checks. Do not omit `metadata.issue_type` and hope task-validation can infer it later. When `/plan` includes `test_levels` metadata in the issue, carry it forward into `metadata.validation.test_levels` so workers know which pyramid levels (L0–L3) to target. See the test pyramid standard (`test-pyramid.md` in the standards skill) for level definitions.
 
-**Language Standards Injection (REQUIRED for code tasks):**
+**Language Standards Injection (REQUIRED for code tasks):** Detect project language from repo root markers (`go.mod`, `pyproject.toml`, `Cargo.toml`, `package.json`) and load the matching standard from the standards skill. For `feature|bug|task` issues, include the Testing section verbatim in each worker's task description. For test-modifying issues, also inject file naming and assertion quality rules.
 
-Before spawning workers, detect project language and load applicable standards:
-
-1. **Detection:** Check repo root for language markers:
-   - `go.mod` → Load Go standards from the standards skill (`go.md`, Testing section)
-   - `pyproject.toml` or `setup.py` → Load Python standards (`python.md`, Testing section)
-   - `Cargo.toml` → Load Rust standards (`rust.md`)
-   - `package.json` → Load TypeScript standards (`typescript.md`)
-   - No match → Skip language-specific injection
-
-2. **Injection:** For issues typed `feature|bug|task`, the lead (not the worker) Reads the standards file and includes the Testing section verbatim in each worker's task description. This is a prompt instruction the lead follows, not runtime detection logic.
-
-3. **Test-specific rules:** For issues that create or modify test files, also inject:
-   - File naming conventions from the standard
-   - Assertion quality rules from the standard
-   - Pre-commit verification commands from the standard
-
-Note: This is advisory — the lead agent follows the instruction. Enforcement comes from the standards content being in the worker's context.
-
-**Validation block extraction (beads mode):** Before building TaskCreate calls, extract validation metadata from each issue's description. `/plan` embeds conformance checks as fenced `validation` blocks in issue bodies:
-
-```bash
-# For each issue in the current wave, extract validation JSON from bd show output
-ISSUE_BODY=$(bd show "$ISSUE_ID" 2>/dev/null)
-VALIDATION_JSON=$(echo "$ISSUE_BODY" | sed -n '/^```validation$/,/^```$/{ /^```/d; p }')
-
-if [[ -n "$VALIDATION_JSON" ]]; then
-    # Use extracted validation as metadata.validation in TaskCreate
-    echo "Extracted validation block for $ISSUE_ID"
-else
-    # Fallback: generate default validation from files mentioned in description
-    # Use files_exist check for any file paths found in the issue body
-    MENTIONED_FILES=$(echo "$ISSUE_BODY" | grep -oE '[a-zA-Z0-9_/.-]+\.(go|py|ts|sh|md|yaml|json)' | sort -u)
-    VALIDATION_JSON="{\"files_exist\": [$(echo "$MENTIONED_FILES" | sed 's/.*/"&"/' | paste -sd,)]}"
-    echo "WARNING: No validation block in $ISSUE_ID — using fallback files_exist check"
-fi
-```
-
-Inject the extracted or fallback `VALIDATION_JSON` into the `metadata.validation` field of each worker's TaskCreate. This closes the plan-to-crank validation pipeline: `/plan` writes conformance checks → bd stores them → `/crank` extracts and enforces them.
-
-```
-TaskCreate(
-  subject="ag-1234: Add auth middleware",
-  description="...",
-  activeForm="Implementing ag-1234",
-  metadata={
-    "issue_type": "feature",
-    "files": ["src/middleware/auth.py", "tests/test_auth.py"],
-    "validation": {
-      "tests": "pytest tests/test_auth.py -v",
-      "files_exist": ["src/middleware/auth.py", "tests/test_auth.py"]
-    }
-  }
-)
-```
+**Validation block extraction (beads mode):** Extract validation metadata from each issue's fenced `validation` block (written by `/plan`). If no block found, fall back to `files_exist` from mentioned file paths. Inject into `metadata.validation` of each TaskCreate.
 
 **Display file-ownership table (from swarm Step 1.5):**
 
@@ -706,134 +585,23 @@ EOF
 
 ### Step 5.7b: Vibe Context Checkpoint
 
-After writing the wave checkpoint, copy it for downstream `/vibe` consumption:
-
-```bash
-mkdir -p .agents/vibe-context
-cp ".agents/crank/wave-${wave}-checkpoint.json" .agents/vibe-context/latest-crank-wave.json
-```
-
-This provides `/vibe` a stable path to read the latest crank state without scanning wave checkpoint files. Uses file copy (not symlink) per repo conventions.
+Copy the wave checkpoint to `.agents/vibe-context/latest-crank-wave.json` for downstream `/vibe` consumption. Use file copy (not symlink) per repo conventions.
 
 ### Step 5.7c: Update Shared Task Notes (After Wave)
 
-Harvest discoveries from completed workers and append to the shared notes file. Workers report discoveries in their task output under a `## Discoveries` section.
-
-```bash
-# Collect discoveries from wave worker results
-WAVE_DISCOVERIES=""
-for result_file in .agents/crank/results/*; do
-    if [ -f "$result_file" ]; then
-        # Extract ## Discoveries section from worker output
-        DISCOVERIES=$(sed -n '/^## Discoveries/,/^## /{ /^## Discoveries/d; /^## /d; p; }' "$result_file" 2>/dev/null)
-        if [ -n "$DISCOVERIES" ]; then
-            WAVE_DISCOVERIES="${WAVE_DISCOVERIES}${DISCOVERIES}\n"
-        fi
-    fi
-done
-
-# Also capture failed approaches from wave failures
-for failed_id in $FAILED_IDS; do
-    WAVE_DISCOVERIES="${WAVE_DISCOVERIES}- [FAILED] Task ${failed_id} failed: $(grep -m1 'reason' ".agents/crank/results/${failed_id}.json" 2>/dev/null || echo 'unknown reason')\n"
-done
-
-# Append to shared notes
-if [ -n "$WAVE_DISCOVERIES" ]; then
-    cat >> .agents/crank/SHARED_TASK_NOTES.md <<EOF
-
-## Wave ${wave} ($(date -Iseconds))
-$(echo -e "$WAVE_DISCOVERIES")
-EOF
-fi
-```
-
-**What to capture:** Failed approaches, codebase quirks, convention discoveries, dependency notes, fix patterns.
-**What NOT to capture:** Full error logs, implementation details, task status (tracked by beads/TaskList).
+Harvest `## Discoveries` sections from completed worker results and append to `.agents/crank/SHARED_TASK_NOTES.md`. Also capture failed approaches from wave failures. See [references/shared-task-notes.md](references/shared-task-notes.md) for the harvest script and size management rules.
 
 ### Step 5.7d: Log Plan Mutations (After Wave)
 
-After processing wave results, log mutations for any plan changes that occurred during this wave. Call `log_plan_mutation` (initialized in Step 1a.1) for each change:
-
-```bash
-# Log mutations for tasks that were DECOMPOSED (split into sub-tasks)
-for decomposed_id in $DECOMPOSED_IDS; do
-    log_plan_mutation "task_removed" "$decomposed_id" \
-        "{\"subject\":\"$ORIGINAL_SUBJECT\",\"status\":\"decomposed\"}" "null"
-    for sub_id in $SUB_TASK_IDS; do
-        log_plan_mutation "task_added" "$sub_id" "null" \
-            "{\"subject\":\"$SUB_SUBJECT\",\"reason\":\"Split from $decomposed_id\",\"origin\":\"$decomposed_id\"}"
-    done
-done
-
-# Log mutations for tasks that were PRUNED (blocked/escalated)
-for pruned_id in $PRUNED_IDS; do
-    log_plan_mutation "task_removed" "$pruned_id" \
-        "{\"subject\":\"$PRUNED_SUBJECT\",\"status\":\"pruned\"}" "null"
-done
-
-# Log scope changes (file manifest updated after exploration)
-for scope_changed_id in $SCOPE_CHANGED_IDS; do
-    log_plan_mutation "scope_changed" "$scope_changed_id" \
-        "{\"files\":$ORIGINAL_FILES}" \
-        "{\"files\":$UPDATED_FILES,\"reason\":\"$SCOPE_REASON\"}"
-done
-
-# Log dependency changes discovered during wave
-for dep_changed_id in $DEP_CHANGED_IDS; do
-    log_plan_mutation "dependency_changed" "$dep_changed_id" \
-        "{\"blocked_by\":$ORIGINAL_DEPS}" \
-        "{\"blocked_by\":$UPDATED_DEPS,\"reason\":\"$DEP_REASON\"}"
-done
-
-# Log task reorders (wave reassignment between waves)
-for reordered_id in $REORDERED_IDS; do
-    log_plan_mutation "task_reordered" "$reordered_id" \
-        "{\"wave\":$FROM_WAVE}" \
-        "{\"wave\":$TO_WAVE,\"reason\":\"$REORDER_REASON\"}"
-done
-```
-
-The orchestrator tracks which tasks had plan changes during the wave and logs them here. This is append-only -- mutations are never edited or deleted.
+Call `log_plan_mutation` for each plan change during this wave: DECOMPOSE → `task_removed` + `task_added` per sub-task, PRUNE → `task_removed`, scope/dependency/reorder changes → matching mutation type. See [references/plan-mutations.md](references/plan-mutations.md) for the full logging examples and budget enforcement.
 
 ### Step 5.8: Wave Status Report
 
-After each wave checkpoint, display a consolidated status table:
-
-```
-Wave $wave Status:
-┌────────┬──────────────────────────────┬───────────┬────────────┬──────────┐
-│ Task   │ Subject                      │ Status    │ Validation │ Duration │
-├────────┼──────────────────────────────┼───────────┼────────────┼──────────┤
-│ #1     │ Add auth middleware           │ completed │ PASS       │ 2m 14s   │
-│ #2     │ Fix rate limiting             │ completed │ PASS       │ 1m 47s   │
-│ #3     │ Update config schema          │ failed    │ FAIL       │ 3m 02s   │
-└────────┴──────────────────────────────┴───────────┴────────────┴──────────┘
-
-Epic Progress:
-  Issues closed: 5/12 (wave 3 of est. 5)
-  Blocked:       1 (#8, waiting on #7)
-  Next wave:     #6, #7 (2 tasks, 0 conflicts)
-```
-
-This table is informational — it does not gate progression. Step 6 handles the loop decision.
+Display a consolidated status table (task, subject, status, validation, duration) plus epic progress (issues closed, blocked, next wave). Informational — does not gate progression.
 
 ### Step 5.9: Refresh Worktree Base SHA (MANDATORY)
 
-**After committing a wave, refresh the base SHA before spawning the next wave.** This prevents cross-wave file collisions where later-wave worktrees overwrite earlier-wave fixes.
-
-```bash
-# After wave commit completes:
-WAVE_COMMIT_SHA=$(git rev-parse HEAD)
-
-# Verify the commit landed
-if [[ "$WAVE_COMMIT_SHA" == "$WAVE_START_SHA" ]]; then
-    echo "WARNING: Wave commit did not advance HEAD. Check for commit failures."
-fi
-
-# Next wave's worktrees MUST branch from this SHA, not the original base.
-# The swarm pre-spawn step uses HEAD as the worktree base, so this is
-# automatic IF the wave commit happens BEFORE the next /swarm invocation.
-echo "Wave $wave committed at $WAVE_COMMIT_SHA. Next wave branches from here."
+After committing a wave, verify HEAD advanced past `WAVE_START_SHA`. Next wave's worktrees must branch from this new SHA to prevent cross-wave file collisions.
 ```
 
 **Cross-wave shared file check:**
@@ -917,19 +685,7 @@ If ao CLI available: run `ao forge transcript`, `ao flywheel close-loop --quiet`
 
 ### Step 8.6: Archive Shared Task Notes
 
-Move the shared notes file to an archive directory so it is preserved for post-mortem analysis but does not pollute future epics.
-
-```bash
-if [ -f .agents/crank/SHARED_TASK_NOTES.md ]; then
-    ARCHIVE_DIR=".agents/crank/archives"
-    mkdir -p "$ARCHIVE_DIR"
-    ARCHIVE_NAME="SHARED_TASK_NOTES-${EPIC_ID:-unknown}-$(date +%Y%m%d-%H%M%S).md"
-    mv .agents/crank/SHARED_TASK_NOTES.md "${ARCHIVE_DIR}/${ARCHIVE_NAME}"
-    echo "Shared task notes archived to ${ARCHIVE_DIR}/${ARCHIVE_NAME}"
-fi
-```
-
-Archived notes can be reviewed by `/post-mortem` for cross-wave pattern extraction.
+Archive `.agents/crank/SHARED_TASK_NOTES.md` to `.agents/crank/archives/` for post-mortem review. See [references/shared-task-notes.md](references/shared-task-notes.md) for the archive script.
 
 ### Step 9: Report Completion
 

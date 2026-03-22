@@ -520,7 +520,7 @@
       "name": "athena",
       "source_skill": "skills/athena",
       "source_hash": "41dbfaa350b864d7b25ba25ade7e5c667f26eba7fa9b2442ce93b9a00593f79d",
-      "generated_hash": "d6ac5e8aac7919e06b3be15dcefe7b47a016a007071e0af04c355afdb23245ed"
+      "generated_hash": "5b28d09585bb2dd729a8e6f647feed0140c418aacc86db7a6dc9785f0586a0f7"
     },
     {
       "name": "beads",
@@ -568,7 +568,7 @@
       "name": "crank",
       "source_skill": "skills/crank",
       "source_hash": "f32e6f124674b821063d558f9392d352c044be5c6ad45651be60267abfe3807f",
-      "generated_hash": "2242f22d935f85170a0d223d3374bd8a8ef41eb762ba49fdea5b7e9ffee29102"
+      "generated_hash": "95b0a68b7a9107aff3818f8bbfb8a5e17df72200175af9f1f1a91da569feb81b"
     },
     {
       "name": "discovery",
