@@ -244,7 +244,7 @@ func outputLearning(cwd string, l learning) error {
 			ArtifactPath: canonicalArtifactPath(cwd, l.Source),
 			SessionID:    sessionID,
 			CitedAt:      time.Now(),
-			CitationType: "pulled",
+			CitationType: "retrieved",
 			Query:        l.ID,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
@@ -286,7 +286,7 @@ func outputPattern(cwd string, p pattern) error {
 			ArtifactPath: canonicalArtifactPath(cwd, p.FilePath),
 			SessionID:    sessionID,
 			CitedAt:      time.Now(),
-			CitationType: "pulled",
+			CitationType: "retrieved",
 			Query:        p.Name,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
@@ -333,7 +333,7 @@ func outputFinding(cwd string, f knowledgeFinding) error {
 			ArtifactPath: canonicalArtifactPath(cwd, f.Source),
 			SessionID:    sessionID,
 			CitedAt:      time.Now(),
-			CitationType: "pulled",
+			CitationType: "retrieved",
 			Query:        f.ID,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
@@ -438,7 +438,7 @@ func formatLookupAge(ageWeeks float64) string {
 	return fmt.Sprintf("%.0fmo", days/30)
 }
 
-// recordLookupCitations records "pulled" citations for lookup results.
+// recordLookupCitations records "retrieved" citations for lookup results.
 func recordLookupCitations(cwd string, learnings []learning, patterns []pattern, findings []knowledgeFinding, sessionID, query string) {
 	for _, l := range learnings {
 		if l.Source == "" {
@@ -448,7 +448,7 @@ func recordLookupCitations(cwd string, learnings []learning, patterns []pattern,
 			ArtifactPath: canonicalArtifactPath(cwd, l.Source),
 			SessionID:    sessionID,
 			CitedAt:      time.Now(),
-			CitationType: "pulled",
+			CitationType: "retrieved",
 			Query:        query,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
@@ -463,7 +463,7 @@ func recordLookupCitations(cwd string, learnings []learning, patterns []pattern,
 			ArtifactPath: canonicalArtifactPath(cwd, p.FilePath),
 			SessionID:    sessionID,
 			CitedAt:      time.Now(),
-			CitationType: "pulled",
+			CitationType: "retrieved",
 			Query:        query,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
@@ -478,7 +478,7 @@ func recordLookupCitations(cwd string, learnings []learning, patterns []pattern,
 			ArtifactPath: canonicalArtifactPath(cwd, f.Source),
 			SessionID:    sessionID,
 			CitedAt:      time.Now(),
-			CitationType: "pulled",
+			CitationType: "retrieved",
 			Query:        query,
 		}
 		if err := ratchet.RecordCitation(cwd, event); err != nil {
