@@ -1864,7 +1864,7 @@ func TestMetricsFlywheel_printFlywheelStatus(t *testing.T) {
 				PeriodStart:         time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 				PeriodEnd:           time.Date(2026, 1, 8, 0, 0, 0, 0, time.UTC),
 			},
-			wantStr: "NEAR escape velocity",
+			wantStr: "Escape Velocity: [NEAR ESCAPE]",
 		},
 		{
 			name: "decaying with recommendations",
@@ -1889,8 +1889,8 @@ func TestMetricsFlywheel_printFlywheelStatus(t *testing.T) {
 			if !strings.Contains(got, tc.wantStr) {
 				t.Errorf("output should contain %q, got:\n%s", tc.wantStr, got)
 			}
-			if !strings.Contains(got, "Flywheel Status") {
-				t.Error("output should contain 'Flywheel Status' header")
+			if !strings.Contains(got, "Flywheel Health") {
+				t.Error("output should contain 'Flywheel Health' header")
 			}
 		})
 	}

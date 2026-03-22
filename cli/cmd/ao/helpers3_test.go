@@ -1299,7 +1299,7 @@ func TestHelper3_classifyFlywheelStatus(t *testing.T) {
 	}{
 		{"nil returns unknown", nil, "unknown"},
 		{"above escape velocity", &types.FlywheelMetrics{AboveEscapeVelocity: true}, "compounding"},
-		{"near escape", &types.FlywheelMetrics{Velocity: -0.01}, "near-escape"},
+		{"near escape", &types.FlywheelMetrics{Velocity: -0.01}, "accumulating"},
 		{"decaying", &types.FlywheelMetrics{Velocity: -0.1}, "decaying"},
 		{"exactly threshold", &types.FlywheelMetrics{Velocity: -0.05}, "decaying"},
 	}

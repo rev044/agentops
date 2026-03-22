@@ -345,3 +345,81 @@ GIT
     [ "$status" -ne 0 ]
     [[ "$output" == *"FAIL"*"headless runtime skills"* ]]
 }
+
+@test "pre-push-gate.sh clears GIT env for skill CLI snippets" {
+    cat > "$MOCK_BIN/go" <<'GO'
+#!/usr/bin/env bash
+exit 0
+GO
+    chmod +x "$MOCK_BIN/go"
+
+    cat > "$MOCK_BIN/git" <<'GIT'
+#!/usr/bin/env bash
+if [[ "$*" == *"diff --name-only"* ]]; then
+    echo ""
+fi
+exit 0
+GIT
+    chmod +x "$MOCK_BIN/git"
+
+    cat > "$FAKE_REPO/scripts/validate-skill-cli-snippets.sh" <<'SNIPPETS'
+#!/usr/bin/env bash
+if [[ -n "${GIT_DIR:-}" || -n "${GIT_WORK_TREE:-}" || -n "${GIT_COMMON_DIR:-}" ]]; then
+    echo "unexpected git env leaked into skill CLI snippets validator" >&2
+    exit 1
+fi
+exit 0
+SNIPPETS
+    chmod +x "$FAKE_REPO/scripts/validate-skill-cli-snippets.sh"
+
+    make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
+    make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
+    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+    make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
+
+    cd "$FAKE_REPO"
+    export PATH="$MOCK_BIN:$PATH"
+
+    run env GIT_DIR=/tmp/fake.git GIT_WORK_TREE=/tmp/fake GIT_COMMON_DIR=/tmp/common bash "$GATE"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ok"*"skill CLI snippets"* ]]
+}
+
+@test "pre-push-gate.sh clears GIT env for CLI docs parity" {
+    cat > "$MOCK_BIN/go" <<'GO'
+#!/usr/bin/env bash
+exit 0
+GO
+    chmod +x "$MOCK_BIN/go"
+
+    cat > "$MOCK_BIN/git" <<'GIT'
+#!/usr/bin/env bash
+if [[ "$*" == *"diff --name-only"* ]]; then
+    echo "cli/cmd/ao/main.go"
+fi
+exit 0
+GIT
+    chmod +x "$MOCK_BIN/git"
+
+    cat > "$FAKE_REPO/scripts/generate-cli-reference.sh" <<'DOCS'
+#!/usr/bin/env bash
+if [[ -n "${GIT_DIR:-}" || -n "${GIT_WORK_TREE:-}" || -n "${GIT_COMMON_DIR:-}" ]]; then
+    echo "unexpected git env leaked into CLI docs generator" >&2
+    exit 1
+fi
+exit 0
+DOCS
+    chmod +x "$FAKE_REPO/scripts/generate-cli-reference.sh"
+
+    make_stub "$FAKE_REPO/scripts/validate-go-fast.sh"
+    make_stub "$FAKE_REPO/scripts/check-go-command-test-pair.sh"
+    make_stub "$FAKE_REPO/scripts/check-cmdao-coverage-floor.sh"
+    make_stub "$FAKE_REPO/scripts/sync-skill-counts.sh"
+
+    cd "$FAKE_REPO"
+    export PATH="$MOCK_BIN:$PATH"
+
+    run env GIT_DIR=/tmp/fake.git GIT_WORK_TREE=/tmp/fake GIT_COMMON_DIR=/tmp/common bash "$GATE"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ok"*"CLI docs parity"* ]]
+}
